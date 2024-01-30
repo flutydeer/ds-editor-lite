@@ -74,7 +74,7 @@ LevelMeter::LevelMeter(Qt::Orientation orientation, ChannelType channelType, QWi
             m_mainLayout->addLayout(m_channelLayout2);
         }
         m_mainLayout->setSpacing(1);
-        m_mainLayout->setMargin(0);
+        m_mainLayout->setContentsMargins({});
 
         this->setMinimumHeight(24);
         this->setMaximumHeight(24);
@@ -107,7 +107,7 @@ LevelMeter::LevelMeter(Qt::Orientation orientation, ChannelType channelType, QWi
             m_mainLayout->addLayout(m_channelLayout2);
         }
         m_mainLayout->setSpacing(1);
-        m_mainLayout->setMargin(0);
+        m_mainLayout->setContentsMargins({});
 
         this->setMinimumWidth(6);
         this->setMaximumWidth(24);
