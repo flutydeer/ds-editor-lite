@@ -26,7 +26,7 @@ TracksView::TracksView() {
     // m_trackListWidget->setStyleSheet("QListWidget::item{ height: 72px }");
 
     m_graphicsView = new TracksGraphicsView;
-    QScroller::grabGesture(m_graphicsView, QScroller::TouchGesture);
+    // QScroller::grabGesture(m_graphicsView, QScroller::TouchGesture);
     initGraphicsView();
     // auto splitter = new QSplitter;
     // splitter->setOrientation(Qt::Horizontal);
@@ -68,6 +68,8 @@ void TracksView::onTrackChanged(DsModel::ChangeType type, const DsModel &model, 
             break;
         case DsModel::Remove:
             qDebug() << "on track removed" << index;
+            // remove selection
+            emit selectedClipChanged(-1, -1);
             removeTrackFromView(index);
             break;
     }

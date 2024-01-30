@@ -13,8 +13,8 @@
 
 PianoRollGraphicsView::PianoRollGraphicsView() {
     setScaleXMax(5);
-    QScroller::grabGesture(this, QScroller::TouchGesture);
-    // setDragMode(RubberBandDrag);
+    // QScroller::grabGesture(this, QScroller::TouchGesture);
+    setDragMode(RubberBandDrag);
 
     m_pianoRollScene = new PianoRollGraphicsScene;
     // setScene(m_pianoRollScene);
