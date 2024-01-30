@@ -1,3 +1,5 @@
+add_subdirectory(libs)
+
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Widgets Svg REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Widgets Svg REQUIRED)
 
