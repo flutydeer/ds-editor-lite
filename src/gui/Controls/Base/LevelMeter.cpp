@@ -19,7 +19,7 @@ LevelMeter::LevelMeter(Qt::Orientation orientation, ChannelType channelType, QWi
 
             auto layout = new QHBoxLayout;
             layout->setSpacing(1);
-            layout->setMargin(0);
+            layout->setContentsMargins({});
             layout->addWidget(chunk);
             layout->addWidget(button);
 
@@ -32,7 +32,7 @@ LevelMeter::LevelMeter(Qt::Orientation orientation, ChannelType channelType, QWi
 
             auto layout = new QVBoxLayout;
             layout->setSpacing(1);
-            layout->setMargin(0);
+            layout->setContentsMargins({});
             layout->addWidget(button);
             layout->addWidget(chunk);
 

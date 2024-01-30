@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
         "QListWidget { background: #2A2B2C; border: none }";
     QMainWindow w;
     w.setStyleSheet(QString("QMainWindow { background: #232425 }") + qssBase);
-#ifdef Q_OS_WIN
+#if defined (Q_OS_WINDOWS) && NTDDI_VERSION >= 0x0A00058D5
     // make window transparent
     w.setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
     // Enable Mica background

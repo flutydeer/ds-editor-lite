@@ -124,7 +124,7 @@ TrackControlWidget::TrackControlWidget(QWidget *parent) {
     m_mainLayout->addLayout(m_controlWidgetLayout);
     // m_mainLayout->addWidget(m_levelMeter);
     m_mainLayout->setSpacing(0);
-    m_mainLayout->setMargin(0);
+    m_mainLayout->setContentsMargins({});
 
     setLayout(m_mainLayout);
 

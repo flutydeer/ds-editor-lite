@@ -5,9 +5,16 @@
         {
             "name": "libsndfile",
             "default-features": false
-        }
+        },
+        "stdutau",
+        "qastool",
+        "qnrbf",
+        "qwindowkit"
     ],
     "vcpkg-configuration": {
+        "overlay-ports": [
+            "../vcpkg/ports"
+        ],
         "overlay-triplets": [
             "../vcpkg/triplets"
         ]

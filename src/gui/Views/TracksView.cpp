@@ -31,7 +31,7 @@ TracksView::TracksView() {
     // splitter->addWidget(m_graphicsView);
     auto layout = new QHBoxLayout;
     layout->setSpacing(0);
-    layout->setMargin(0);
+    layout->setContentsMargins({});
     // layout->addWidget(splitter);
     layout->addWidget(m_trackListWidget);
     layout->addWidget(m_graphicsView);
