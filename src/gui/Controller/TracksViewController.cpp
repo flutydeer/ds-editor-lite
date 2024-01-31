@@ -1,0 +1,42 @@
+//
+// Created by fluty on 2024/1/31.
+//
+
+#include <QMessageBox>
+
+#include "TracksViewController.h"
+#include "Model/AppModel.h"
+
+void TracksViewController::onNewTrack() {
+    onInsertNewTrack(AppModel::instance()->tracks().count());
+}
+void TracksViewController::onInsertNewTrack(int index) {
+    DsTrack newTrack;
+    AppModel::instance()->insertTrack(newTrack, index);
+}
+void TracksViewController::onRemoveTrack(int index) {
+    QMessageBox msgBox;
+    msgBox.setText("Warning");
+    msgBox.setInformativeText("Do you want to remove this track?");
+    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::Yes);
+    int ret = msgBox.exec();
+    if (ret == QMessageBox::Yes)
+        AppModel::instance()->removeTrack(index);
+}
+void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
+    auto audioClip = DsAudioClipPtr(new DsAudioClip);
+    audioClip->setPath(filePath);
+    DsTrack newTrack;
+    newTrack.clips.append(audioClip);
+    AppModel::instance()->insertTrack(newTrack, AppModel::instance()->tracks().count());
+}
+void TracksViewController::onSelectedClipChanged(int trackIndex, int clipIndex) {
+    AppModel::instance()->onSelectedClipChanged(trackIndex, clipIndex);
+}
+void TracksViewController::onTrackPropertyChanged(const QString &name,
+                                                  const DsTrackControl &control, int index) {
+    auto track = AppModel::instance()->tracks().at(index);
+    track.setName(name);
+    track.setControl(control);
+}
