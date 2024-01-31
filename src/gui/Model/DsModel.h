@@ -6,12 +6,15 @@
 #define DSPXMODEL_H
 
 #include "DsTrack.h"
+#include "Utils/Singleton.h"
 
-class DsModel final : public QObject {
+class DsModel final : public QObject, public Singleton<DsModel> {
     Q_OBJECT
 
 public:
-    enum ChangeType { Insert, Update, Remove};
+    explicit DsModel() = default;
+
+    enum ChangeType { Insert, Update, Remove };
     int numerator = 4;
     int denominator = 4;
 
@@ -30,7 +33,7 @@ public slots:
 signals:
     void modelChanged(const DsModel &model);
     void tempoChanged(double tempo);
-    void tracksChanged(ChangeType type, const DsModel &model , int index);
+    void tracksChanged(ChangeType type, const DsModel &model, int index);
     void selectedClipChanged(const DsModel &model, int trackIndex, int clipIndex);
 
 private:

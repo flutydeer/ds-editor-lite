@@ -8,11 +8,11 @@
 #include <QObject>
 
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
-#include "Controls/TracksEditor/TracksGraphicsView.h"
 #include "Model/DsModel.h"
+#include "Utils/Singleton.h"
 #include "Views/TracksView.h"
 
-class Controller final : public QObject {
+class Controller final : public QObject, public Singleton<Controller>{
     Q_OBJECT
 
 public:
@@ -32,14 +32,12 @@ public slots:
     void onTrackPropertyChanged(const QString &name, const DsTrackControl &control, int index);
 
 private:
-    // Model
-    DsModel m_model;
 
     // Views
     TracksView *m_tracksView;
     PianoRollGraphicsView *m_pianoRollView;
 };
 
-
+// using ControllerSingleton = Singleton<Controller>;
 
 #endif // TRACKSCONTROLLER_H

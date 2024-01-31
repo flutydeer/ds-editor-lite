@@ -139,7 +139,7 @@ void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
 
         // hide pan and gain slider when sy is too small
         auto widget = m_tracksModel.tracks.at(i).widget;
-        widget->setNarrowMode(sy < 0.8);
+        widget->setNarrowMode(sy < TracksEditorGlobal::narrowModeScaleY);
         previousHeightSum += height;
     }
 }
@@ -198,8 +198,10 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int index) {
     newTrackItem->setSizeHint(QSize(TracksEditorGlobal::trackListWidth,
                                     TracksEditorGlobal::trackHeight * m_graphicsView->scaleY()));
     newTrackControlWidget->setTrackIndex(index + 1);
-    newTrackControlWidget->setName(dsTrack.name().isEmpty() ? " New Track" : dsTrack.name());
+    newTrackControlWidget->setName(dsTrack.name().isEmpty() ? "New Track" : dsTrack.name());
     newTrackControlWidget->setControl(dsTrack.control());
+    newTrackControlWidget->setNarrowMode(m_graphicsView->scaleY() <
+                                         TracksEditorGlobal::narrowModeScaleY);
     m_trackListWidget->insertItem(index, newTrackItem);
     m_trackListWidget->setItemWidget(newTrackItem, newTrackControlWidget);
     track.widget = newTrackControlWidget;

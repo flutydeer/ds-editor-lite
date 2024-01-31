@@ -12,6 +12,7 @@
 #include <QScreen>
 
 #include "Controller.h"
+#include "Utils/Singleton.h"
 
 #ifdef Q_OS_WIN
 #    include <dwmapi.h>
@@ -80,7 +81,8 @@ int main(int argc, char *argv[]) {
     DwmSetWindowAttribute(reinterpret_cast<HWND>(w.winId()), DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
 #endif
 
-    auto controller = new Controller;
+    auto controller = Controller::instance();
+    // auto controller = ControllerSingleton::instance();
 
     auto btnNewTrack = new QPushButton;
     btnNewTrack->setText("New Track");
