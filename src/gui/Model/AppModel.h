@@ -8,13 +8,13 @@
 #include "DsTrack.h"
 #include "Utils/Singleton.h"
 
-class DsModel final : public QObject, public Singleton<DsModel> {
+class AppModel final : public QObject, public Singleton<AppModel> {
     Q_OBJECT
 
 public:
-    explicit DsModel() = default;
+    explicit AppModel() = default;
 
-    enum ChangeType { Insert, Update, Remove };
+    enum TrackChangeType { Insert, Update, Remove };
     int numerator = 4;
     int denominator = 4;
 
@@ -31,10 +31,10 @@ public slots:
     void onSelectedClipChanged(int trackIndex, int clipIndex);
 
 signals:
-    void modelChanged(const DsModel &model);
+    void modelChanged(const AppModel &model);
     void tempoChanged(double tempo);
-    void tracksChanged(ChangeType type, const DsModel &model, int index);
-    void selectedClipChanged(const DsModel &model, int trackIndex, int clipIndex);
+    void tracksChanged(TrackChangeType type, const AppModel &model, int index);
+    void selectedClipChanged(const AppModel &model, int trackIndex, int clipIndex);
 
 private:
     void reset();

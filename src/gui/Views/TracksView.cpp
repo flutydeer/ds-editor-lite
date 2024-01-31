@@ -9,7 +9,7 @@
 #include <QScroller>
 #include <QScrollBar>
 
-#include "Controller.h"
+#include "Controller/AppController.h"
 #include "Controls/TracksEditor/AudioClipGraphicsItem.h"
 #include "Controls/TracksEditor/SingingClipGraphicsItem.h"
 #include "Controls/TracksEditor/TracksBackgroundGraphicsItem.h"
@@ -73,7 +73,7 @@ TracksView::TracksView() {
     layout->addWidget(m_graphicsView);
     setLayout(layout);
 }
-void TracksView::onModelChanged(const DsModel &model) {
+void TracksView::onModelChanged(const AppModel &model) {
     if (m_tracksScene == nullptr)
         return;
 
@@ -91,17 +91,17 @@ void TracksView::onTempoChanged(double tempo) {
     m_tempo = tempo;
     emit tempoChanged(tempo);
 }
-void TracksView::onTrackChanged(DsModel::ChangeType type, const DsModel &model, int index) {
+void TracksView::onTrackChanged(AppModel::TrackChangeType type, const AppModel &model, int index) {
     switch (type) {
-        case DsModel::Insert:
+        case AppModel::Insert:
             qDebug() << "on track inserted" << index;
             insertTrackToView(model.tracks().at(index), index);
             emit trackCountChanged(m_tracksModel.tracks.count());
             break;
-        case DsModel::Update:
+        case AppModel::Update:
             // TODO: update view
             break;
-        case DsModel::Remove:
+        case AppModel::Remove:
             qDebug() << "on track removed" << index;
             // remove selection
             emit selectedClipChanged(-1, -1);

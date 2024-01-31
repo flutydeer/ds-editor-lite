@@ -8,16 +8,15 @@
 #include <QObject>
 
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
-#include "Model/DsModel.h"
 #include "Utils/Singleton.h"
 #include "Views/TracksView.h"
 
-class Controller final : public QObject, public Singleton<Controller>{
+class AppController final : public QObject, public Singleton<AppController>{
     Q_OBJECT
 
 public:
-    explicit Controller();
-    ~Controller() override;
+    explicit AppController();
+    ~AppController() override;
 
     TracksView *tracksView() const;
     PianoRollGraphicsView *pianoRollView() const;

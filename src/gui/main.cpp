@@ -11,7 +11,7 @@
 #include <QWidget>
 #include <QScreen>
 
-#include "Controller.h"
+#include "Controller/AppController.h"
 #include "Utils/Singleton.h"
 
 #ifdef Q_OS_WIN
@@ -81,12 +81,12 @@ int main(int argc, char *argv[]) {
     DwmSetWindowAttribute(reinterpret_cast<HWND>(w.winId()), DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
 #endif
 
-    auto controller = Controller::instance();
+    auto controller = AppController::instance();
     // auto controller = ControllerSingleton::instance();
 
     auto btnNewTrack = new QPushButton;
     btnNewTrack->setText("New Track");
-    QObject::connect(btnNewTrack, &QPushButton::clicked, controller, &Controller::onNewTrack);
+    QObject::connect(btnNewTrack, &QPushButton::clicked, controller, &AppController::onNewTrack);
 
     auto btnOpenAudioFile = new QPushButton;
     btnOpenAudioFile->setText("Add an audio file...");

@@ -6,7 +6,7 @@
 #define PIANOROLLGRAPHICSVIEW_H
 
 #include "Controls/Base/CommonGraphicsView.h"
-#include "Model/DsModel.h"
+#include "Model/AppModel.h"
 #include "NoteGraphicsItem.h"
 #include "PianoRollGraphicsScene.h"
 
@@ -17,8 +17,8 @@ public:
     explicit PianoRollGraphicsView();
 
 public slots:
-    void updateView(const DsModel &model);
-    void onSelectedClipChanged(const DsModel &model, int trackIndex, int clipIndex);
+    void updateView(const AppModel &model);
+    void onSelectedClipChanged(const AppModel &model, int trackIndex, int clipIndex);
 
 private:
     void paintEvent(QPaintEvent *event) override;

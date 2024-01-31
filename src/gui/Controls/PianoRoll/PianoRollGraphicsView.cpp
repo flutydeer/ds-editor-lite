@@ -32,10 +32,10 @@ PianoRollGraphicsView::PianoRollGraphicsView() {
     // QObject::connect(pianoRollView, &TracksGraphicsView::scaleChanged, pitchItem,
     // &PitchEditorGraphicsItem::setScale); pianoRollScene->addItem(pitchItem);
 }
-void PianoRollGraphicsView::updateView(const DsModel &model) {
+void PianoRollGraphicsView::updateView(const AppModel &model) {
     onSelectedClipChanged(model, -1, -1);
 }
-void PianoRollGraphicsView::onSelectedClipChanged(const DsModel &model, int trackIndex, int clipIndex) {
+void PianoRollGraphicsView::onSelectedClipChanged(const AppModel &model, int trackIndex, int clipIndex) {
     reset();
 
     if (trackIndex == -1 || clipIndex == -1) {

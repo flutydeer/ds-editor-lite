@@ -7,7 +7,7 @@
 
 #include "../Base/CommonGraphicsView.h"
 #include "AbstractClipGraphicsItem.h"
-#include "Model/DsModel.h"
+#include "Model/AppModel.h"
 
 class TracksGraphicsView final : public CommonGraphicsView {
     Q_OBJECT

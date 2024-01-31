@@ -7,27 +7,27 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "DsModel.h"
+#include "AppModel.h"
 
-double DsModel::tempo() const {
+double AppModel::tempo() const {
     return m_tempo;
 }
-void DsModel::setTempo(double tempo) {
+void AppModel::setTempo(double tempo) {
     m_tempo = tempo;
     emit tempoChanged(m_tempo);
 }
-QList<DsTrack> DsModel::tracks() const {
+QList<DsTrack> AppModel::tracks() const {
     return m_tracks;
 }
-void DsModel::insertTrack(const DsTrack &track, int index) {
+void AppModel::insertTrack(const DsTrack &track, int index) {
     m_tracks.insert(index, track);
     emit tracksChanged(Insert, *this, index);
 }
-void DsModel::removeTrack(int index) {
+void AppModel::removeTrack(int index) {
     m_tracks.removeAt(index);
     emit tracksChanged(Remove, *this, index);
 }
-bool DsModel::loadAProject(const QString &filename) {
+bool AppModel::loadAProject(const QString &filename) {
     reset();
 
     auto openJsonFile = [](const QString &filename, QJsonObject *jsonObj) {
@@ -112,18 +112,18 @@ bool DsModel::loadAProject(const QString &filename) {
     }
     return false;
 }
-void DsModel::onTrackUpdated(int index) {
+void AppModel::onTrackUpdated(int index) {
     emit tracksChanged(Update, *this, index);
 }
-void DsModel::onSelectedClipChanged(int trackIndex, int clipIndex) {
+void AppModel::onSelectedClipChanged(int trackIndex, int clipIndex) {
     m_selectedClipTrackIndex = trackIndex;
     m_selectedClipIndex = clipIndex;
     emit selectedClipChanged(*this, m_selectedClipTrackIndex, m_selectedClipIndex);
 }
-void DsModel::reset() {
+void AppModel::reset() {
     m_tracks.clear();
 }
-void DsModel::runG2p() {
+void AppModel::runG2p() {
     for (const auto &track : m_tracks) {
         for (const auto &clip : track.clips) {
             if (clip->type() == DsClip::Singing) {
