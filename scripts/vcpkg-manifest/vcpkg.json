@@ -9,7 +9,8 @@
         "stdutau",
         "qastool",
         "qnrbf",
-        "qwindowkit"
+        "qastool",
+        "qmsetup"
     ],
     "vcpkg-configuration": {
         "overlay-ports": [
