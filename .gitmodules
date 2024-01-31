@@ -4,3 +4,6 @@
 [submodule "src/libs/opendspx"]
 	path = src/libs/opendspx
 	url = ../../diffscope/opendspx.git
+[submodule "src/libs/talcs"]
+	path = src/libs/talcs
+	url = git@github.com:CrSjimo/talcs
