@@ -9,6 +9,7 @@
 
 #include "Controls/TracksEditor/TracksGraphicsScene.h"
 #include "Controls/TracksEditor/TracksGraphicsView.h"
+#include "Controls/TracksEditor/TrackControlWidget.h"
 
 class TracksView final : public QWidget {
     Q_OBJECT
@@ -27,9 +28,12 @@ signals:
     void insertNewTrackTriggered(int index);
     void removeTrackTriggerd(int index);
     void tempoChanged(double tempo);
+    void trackCountChanged(int count);
+    // void adjustTrackListItemHeight(int i);
 
 private slots:
     void onSceneSelectionChanged();
+    void onViewScaleChanged(qreal sx, qreal sy);
 
 private:
     QListWidget *m_trackListWidget;
@@ -38,10 +42,12 @@ private:
 
     class Track {
     public:
+        // widget
+        TrackControlWidget *widget;
         // properties
         bool isSelected;
         // clips
-        QVector<AbstractClipGraphicsItem *> clips;
+        QList<AbstractClipGraphicsItem *> clips;
     };
 
     class TracksViewModel {
@@ -55,7 +61,6 @@ private:
     void insertTrackToView(const DsTrack &dsTrack, int index);
     void removeTrackFromView(int index);
     void reset();
-    void initGraphicsView();
 };
 
 

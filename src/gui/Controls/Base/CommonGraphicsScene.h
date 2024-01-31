@@ -13,16 +13,21 @@ public:
     ~CommonGraphicsScene() override = default;
     QSizeF sceneSize() const;
     void setSceneSize(const QSizeF &size);
+    double scaleX() const;
+    void setScaleX(double scaleX);
+    double scaleY() const;
+    void setScaleY(double scaleY);
 
 public slots:
     void setScale(qreal sx, qreal sy);
+
+protected:
+    virtual void updateSceneRect();
 
 private:
     QSizeF m_sceneSize = QSizeF(1920, 1080);
     double m_scaleX = 1;
     double m_scaleY = 1;
-
-    void updateSceneRect();
 };
 
 #endif // COMMONGRAPHICSSCENE_H

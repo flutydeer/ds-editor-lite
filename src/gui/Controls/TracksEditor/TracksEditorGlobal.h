@@ -8,6 +8,7 @@
 namespace TracksEditorGlobal {
     const int pixelsPerQuarterNote = 32;
     const double trackHeight = 72;
+    const int trackListWidth = 360;
 };
 
 #endif //TRACKSEDITORGLOBAL_H

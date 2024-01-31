@@ -14,6 +14,12 @@ class TracksGraphicsView final : public CommonGraphicsView {
 
 public:
     explicit TracksGraphicsView();
+
+// signals:
+//     void resized(QSize size);
+
+// private:
+//     void resizeEvent(QResizeEvent *event) override;
 };
 
 #endif // DATASET_TOOLS_TRACKSGRAPHICSVIEW_H

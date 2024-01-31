@@ -8,6 +8,7 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QString>
+#include <QListWidgetItem>
 
 #include "../Base/EditLabel.h"
 // #include "../Base/LevelMeter.h"
@@ -15,19 +16,18 @@
 #include "Model/DsTrack.h"
 #include "Model/DsTrackControl.h"
 
-
-
 class TrackControlWidget final : public QWidget {
     Q_OBJECT
 
 public:
-    explicit TrackControlWidget(QWidget *parent = nullptr);
+    explicit TrackControlWidget(QListWidgetItem *item, QWidget *parent = nullptr);
     int trackIndex() const;
     void setTrackIndex(int i);
     QString name() const;
     void setName(const QString &name);
     DsTrackControl control() const;
     void setControl(const DsTrackControl &control);
+    void setNarrowMode(bool on);
 
 signals:
     void propertyChanged();
@@ -39,12 +39,15 @@ signals:
 
 public slots:
     void onTrackUpdated(const DsTrack &track);
+    // void setScale(qreal sx, qreal sy);
+    // void setHeight(int h);
 
 private slots:
     void onSeekBarValueChanged();
 
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;
+    QListWidgetItem *m_item;
     // controls
     QPushButton *m_btnColor;
     QLabel *m_lbTrackIndex;

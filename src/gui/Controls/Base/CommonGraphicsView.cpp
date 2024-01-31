@@ -35,8 +35,10 @@ CommonGraphicsView::CommonGraphicsView(QWidget *parent) {
     m_vBarAnimation.setDuration(150);
     m_vBarAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
-    connect(horizontalScrollBar(), &QScrollBar::valueChanged, this, &CommonGraphicsView::notifyVisibleRectChanged);
-    connect(verticalScrollBar(), &QScrollBar::valueChanged, this, &CommonGraphicsView::notifyVisibleRectChanged);
+    connect(horizontalScrollBar(), &QScrollBar::valueChanged, this,
+            &CommonGraphicsView::notifyVisibleRectChanged);
+    connect(verticalScrollBar(), &QScrollBar::valueChanged, this,
+            &CommonGraphicsView::notifyVisibleRectChanged);
 
     m_timer.setInterval(400);
     m_timer.setSingleShot(true);
@@ -65,6 +67,12 @@ qreal CommonGraphicsView::scaleXMax() const {
 void CommonGraphicsView::setScaleXMax(qreal max) {
     m_scaleXMax = max;
 }
+double CommonGraphicsView::scaleYMin() const {
+    return m_scaleYMin;
+}
+void CommonGraphicsView::setScaleYMin(double min) {
+    m_scaleYMin = min;
+}
 int CommonGraphicsView::hBarValue() const {
     return horizontalScrollBar()->value();
 }
@@ -83,6 +91,9 @@ QRectF CommonGraphicsView::visibleRect() const {
     auto rightBottom = mapToScene(viewportRect.width(), viewportRect.height());
     auto rect = QRectF(leftTop, rightBottom);
     return rect;
+}
+void CommonGraphicsView::setEnsureSceneFillView(bool on) {
+    m_ensureSceneFillView = on;
 }
 void CommonGraphicsView::notifyVisibleRectChanged() {
     emit visibleRectChanged(visibleRect());
@@ -184,7 +195,7 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
             targetScaleY = m_scaleYMax;
 
         auto scaledSceneHeight = sceneRect().height() * (targetScaleY / m_scaleY);
-        if (scaledSceneHeight < viewport()->height()) {
+        if (m_ensureSceneFillView && scaledSceneHeight < viewport()->height()) {
             auto targetSceneHeight = viewport()->height();
             targetScaleY = targetSceneHeight / (sceneRect().height() / m_scaleY);
         }
@@ -238,6 +249,7 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
 }
 void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
     QGraphicsView::resizeEvent(event);
+    emit sizeChanged(viewport()->size());
     notifyVisibleRectChanged();
 }
 bool CommonGraphicsView::isMouseWheel(QWheelEvent *event) {

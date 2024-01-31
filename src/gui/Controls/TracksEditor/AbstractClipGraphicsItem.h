@@ -92,6 +92,7 @@ private:
     int m_trackIndex = 0;
     int m_quantize = 240; // tick, half quarter note
     bool m_tempQuantizeOff = false;
+    bool m_showDebugInfo = false;
 
     QRectF previewRect() const;
 };

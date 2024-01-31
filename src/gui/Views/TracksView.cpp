@@ -7,27 +7,60 @@
 // #include <QSplitter>
 #include <QDebug>
 #include <QScroller>
+#include <QScrollBar>
 
+#include "Controller.h"
 #include "Controls/TracksEditor/AudioClipGraphicsItem.h"
 #include "Controls/TracksEditor/SingingClipGraphicsItem.h"
-#include "Controls/TracksEditor/TrackControlWidget.h"
 #include "Controls/TracksEditor/TracksBackgroundGraphicsItem.h"
 #include "Controls/TracksEditor/TracksEditorGlobal.h"
 
 TracksView::TracksView() {
     m_trackListWidget = new QListWidget;
     // tracklist->setMinimumWidth(120);
-    m_trackListWidget->setMinimumWidth(360);
-    m_trackListWidget->setMaximumWidth(360);
+    m_trackListWidget->setMinimumWidth(TracksEditorGlobal::trackListWidth);
+    m_trackListWidget->setMaximumWidth(TracksEditorGlobal::trackListWidth);
     m_trackListWidget->setViewMode(QListView::ListMode);
     m_trackListWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_trackListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trackListWidget->setVerticalScrollMode(QListWidget::ScrollPerPixel);
     QScroller::grabGesture(m_trackListWidget, QScroller::TouchGesture);
     // m_trackListWidget->setStyleSheet("QListWidget::item{ height: 72px }");
 
     m_graphicsView = new TracksGraphicsView;
     // QScroller::grabGesture(m_graphicsView, QScroller::TouchGesture);
-    initGraphicsView();
+    m_graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_graphicsView->setEnsureSceneFillView(false);
+    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
+            &TracksView::onViewScaleChanged);
+    m_tracksScene = new TracksGraphicsScene;
+    m_graphicsView->setScene(m_tracksScene);
+    m_graphicsView->centerOn(0, 0);
+    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, m_tracksScene,
+            &TracksGraphicsScene::setScale);
+    // connect(m_graphicsView, &TracksGraphicsView::resized, m_tracksScene,
+    //         &TracksGraphicsScene::onGraphicsViewResized);
+    connect(m_graphicsView, &TracksGraphicsView::sizeChanged, m_tracksScene,
+            &TracksGraphicsScene::onViewResized);
+    connect(this, &TracksView::trackCountChanged, m_tracksScene,
+            &TracksGraphicsScene::onTrackCountChanged);
+    connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
+            &TracksView::onSceneSelectionChanged);
+
+    auto gridItem = new TracksBackgroundGraphicsItem;
+    gridItem->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
+    connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, gridItem,
+            &TimeGridGraphicsItem::setVisibleRect);
+    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, gridItem,
+            &TimeGridGraphicsItem::setScale);
+    connect(this, &TracksView::trackCountChanged, gridItem,
+            &TracksBackgroundGraphicsItem::onTrackCountChanged);
+    m_tracksScene->addItem(gridItem);
+
+    auto gBar = m_graphicsView->verticalScrollBar();
+    auto lBar = m_trackListWidget->verticalScrollBar();
+    connect(gBar, &QScrollBar::valueChanged, lBar, &QScrollBar::setValue);
+
     // auto splitter = new QSplitter;
     // splitter->setOrientation(Qt::Horizontal);
     // splitter->addWidget(tracklist);
@@ -51,6 +84,7 @@ void TracksView::onModelChanged(const DsModel &model) {
         insertTrackToView(track, index);
         index++;
     }
+    emit trackCountChanged(m_tracksModel.tracks.count());
 }
 void TracksView::onTempoChanged(double tempo) {
     // notify audio clips
@@ -62,6 +96,7 @@ void TracksView::onTrackChanged(DsModel::ChangeType type, const DsModel &model, 
         case DsModel::Insert:
             qDebug() << "on track inserted" << index;
             insertTrackToView(model.tracks().at(index), index);
+            emit trackCountChanged(m_tracksModel.tracks.count());
             break;
         case DsModel::Update:
             // TODO: update view
@@ -71,6 +106,7 @@ void TracksView::onTrackChanged(DsModel::ChangeType type, const DsModel &model, 
             // remove selection
             emit selectedClipChanged(-1, -1);
             removeTrackFromView(index);
+            emit trackCountChanged(m_tracksModel.tracks.count());
             break;
     }
 }
@@ -92,6 +128,20 @@ void TracksView::onSceneSelectionChanged() {
     }
     if (!foundSelectedClip)
         emit selectedClipChanged(-1, -1);
+}
+void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
+    int previousHeightSum = 0;
+    for (int i = 0; i < m_trackListWidget->count(); i++) {
+        // adjust track item height
+        auto item = m_trackListWidget->item(i);
+        int height = qRound((i + 1) * TracksEditorGlobal::trackHeight * sy - previousHeightSum);
+        item->setSizeHint(QSize(TracksEditorGlobal::trackListWidth, height));
+
+        // hide pan and gain slider when sy is too small
+        auto widget = m_tracksModel.tracks.at(i).widget;
+        widget->setNarrowMode(sy < 0.8);
+        previousHeightSum += height;
+    }
 }
 void TracksView::insertTrackToView(const DsTrack &dsTrack, int index) {
     Track track;
@@ -115,10 +165,12 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int index) {
             clipItem->setScaleX(m_graphicsView->scaleX());
             clipItem->setScaleY(m_graphicsView->scaleY());
             m_tracksScene->addItem(clipItem);
-            connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem, &AudioClipGraphicsItem::setScale);
+            connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
+                    &AudioClipGraphicsItem::setScale);
             connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
                     &AudioClipGraphicsItem::setVisibleRect);
-            connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
+            connect(this, &TracksView::tempoChanged, clipItem,
+                    &AudioClipGraphicsItem::onTempoChange);
             track.clips.append(clipItem); // TODO: insert by clip start pos
         } else if (clip->type() == DsClip::Singing) {
             auto singingClip = clip.dynamicCast<DsSingingClip>();
@@ -134,33 +186,37 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int index) {
             clipItem->setScaleX(m_graphicsView->scaleX());
             clipItem->setScaleY(m_graphicsView->scaleY());
             m_tracksScene->addItem(clipItem);
-            connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem, &SingingClipGraphicsItem::setScale);
+            connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
+                    &SingingClipGraphicsItem::setScale);
             connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
                     &SingingClipGraphicsItem::setVisibleRect);
             track.clips.append(clipItem);
         }
     }
     auto newTrackItem = new QListWidgetItem;
-    auto newTrackWidget = new TrackControlWidget;
-    newTrackItem->setSizeHint(QSize(360, 72));
-    newTrackWidget->setTrackIndex(index + 1);
-    newTrackWidget->setName(dsTrack.name().isEmpty() ? " New Track": dsTrack.name());
-    newTrackWidget->setControl(dsTrack.control());
-    newTrackWidget->setFixedHeight(72);
+    auto newTrackControlWidget = new TrackControlWidget(newTrackItem);
+    newTrackItem->setSizeHint(QSize(TracksEditorGlobal::trackListWidth,
+                                    TracksEditorGlobal::trackHeight * m_graphicsView->scaleY()));
+    newTrackControlWidget->setTrackIndex(index + 1);
+    newTrackControlWidget->setName(dsTrack.name().isEmpty() ? " New Track" : dsTrack.name());
+    newTrackControlWidget->setControl(dsTrack.control());
     m_trackListWidget->insertItem(index, newTrackItem);
-    m_trackListWidget->setItemWidget(newTrackItem, newTrackWidget);
+    m_trackListWidget->setItemWidget(newTrackItem, newTrackControlWidget);
+    track.widget = newTrackControlWidget;
+    // connect(m_graphicsView, &TracksGraphicsView::scaleChanged, newTrackWidget,
+    // &TrackControlWidget::setScale);
 
-    connect(newTrackWidget, &TrackControlWidget::propertyChanged, this, [=] {
-        auto name = newTrackWidget->name();
-        auto control = newTrackWidget->control();
+    connect(newTrackControlWidget, &TrackControlWidget::propertyChanged, this, [=] {
+        auto name = newTrackControlWidget->name();
+        auto control = newTrackControlWidget->control();
         auto i = m_trackListWidget->row(newTrackItem);
         emit trackPropertyChanged(name, control, index);
     });
-    connect(newTrackWidget, &TrackControlWidget::insertNewTrackTriggered, this, [=] {
+    connect(newTrackControlWidget, &TrackControlWidget::insertNewTrackTriggered, this, [=] {
         auto i = m_trackListWidget->row(newTrackItem);
         emit insertNewTrackTriggered(i + 1); // insert after current track
     });
-    connect(newTrackWidget, &TrackControlWidget::removeTrackTriggerd, this, [=] {
+    connect(newTrackControlWidget, &TrackControlWidget::removeTrackTriggerd, this, [=] {
         auto i = m_trackListWidget->row(newTrackItem);
         emit removeTrackTriggerd(i);
     });
@@ -189,7 +245,7 @@ void TracksView::removeTrackFromView(int index) {
     m_trackListWidget->removeItemWidget(item);
     // remove from viewmodel
     m_tracksModel.tracks.removeAt(index);
-    //update index
+    // update index
     if (index < m_tracksModel.tracks.count()) // needs to update existed tracks' index
         for (int i = index; i < m_tracksModel.tracks.count(); i++) {
             // Update track list items' index
@@ -211,17 +267,4 @@ void TracksView::reset() {
         }
     m_trackListWidget->clear();
     m_tracksModel.tracks.clear();
-}
-void TracksView::initGraphicsView() {
-    m_tracksScene = new TracksGraphicsScene;
-    m_graphicsView->setScene(m_tracksScene);
-    m_graphicsView->centerOn(0, 0);
-    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, m_tracksScene, &TracksGraphicsScene::setScale);
-    connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this, &TracksView::onSceneSelectionChanged);
-
-    auto gridItem = new TracksBackgroundGraphicsItem;
-    gridItem->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
-    connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, gridItem, &TimeGridGraphicsItem::setVisibleRect);
-    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, gridItem, &TimeGridGraphicsItem::setScale);
-    m_tracksScene->addItem(gridItem);
 }

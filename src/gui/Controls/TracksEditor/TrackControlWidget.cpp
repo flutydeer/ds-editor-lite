@@ -6,7 +6,8 @@
 
 #include "TrackControlWidget.h"
 
-TrackControlWidget::TrackControlWidget(QWidget *parent) {
+TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
+    m_item = item;
     setAttribute(Qt::WA_StyledBackground);
 
     m_btnColor = new QPushButton;
@@ -130,6 +131,8 @@ TrackControlWidget::TrackControlWidget(QWidget *parent) {
     m_mainLayout->setContentsMargins({});
 
     setLayout(m_mainLayout);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    // setFixedHeight(72);
 
     auto actionInsert = new QAction("Insert new track", this);
     connect(actionInsert, &QAction::triggered, this, [&] { emit insertNewTrackTriggered();});
@@ -171,7 +174,7 @@ TrackControlWidget > QPushButton#btnColor {
 
 TrackControlWidget > QLabel#lbTrackIndex{
     font-size: 11pt;
-    color: #595959;
+    color: #D0D0D0;
 }
 
 TrackControlWidget > QPushButton#btnMute{
@@ -234,6 +237,23 @@ void TrackControlWidget::setControl(const DsTrackControl &control) {
     m_btnSolo->setChecked(control.solo());
     // emit propertyChanged();
 }
+void TrackControlWidget::setNarrowMode(bool on) {
+    if (on) {
+        for (int i = 0; i < m_panVolumeLayout->count(); ++i) {
+            QWidget* w = m_panVolumeLayout->itemAt(i)->widget();
+            if (w != nullptr)
+                w->setVisible(false);
+            m_panVolumeLayout->setContentsMargins(0, 0, 0, 0);
+        }
+    } else {
+        for (int i = 0; i < m_panVolumeLayout->count(); ++i) {
+            QWidget* w = m_panVolumeLayout->itemAt(i)->widget();
+            if (w != nullptr)
+                w->setVisible(true);
+            m_panVolumeLayout->setContentsMargins(4, 0, 4, 8);
+        }
+    }
+}
 void TrackControlWidget::onTrackUpdated(const DsTrack &track) {
     m_leTrackName->setText(track.name());
     auto control = track.control();
@@ -242,6 +262,12 @@ void TrackControlWidget::onTrackUpdated(const DsTrack &track) {
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());
 }
+// void TrackControlWidget::setHeight(int h) {
+//     m_item->setSizeHint(QSize(360, h));
+// }
+// void TrackControlWidget::setScale(qreal sx, qreal sy) {
+//     m_item->setSizeHint(QSize(360, qRound(72 * sy)));
+// }
 void TrackControlWidget::onSeekBarValueChanged() {
     emit propertyChanged();
 }

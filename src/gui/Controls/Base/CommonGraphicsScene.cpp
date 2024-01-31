@@ -14,7 +14,20 @@ void CommonGraphicsScene::setSceneSize(const QSizeF &size) {
     m_sceneSize = size;
     updateSceneRect();
 }
-
+double CommonGraphicsScene::scaleX() const {
+    return m_scaleX;
+}
+void CommonGraphicsScene::setScaleX(double scaleX) {
+    m_scaleX = scaleX;
+    updateSceneRect();
+}
+double CommonGraphicsScene::scaleY() const {
+    return m_scaleY;
+}
+void CommonGraphicsScene::setScaleY(double scaleY) {
+    m_scaleY = scaleY;
+    updateSceneRect();
+}
 void CommonGraphicsScene::setScale(qreal sx, qreal sy) {
     m_scaleX = sx;
     m_scaleY = sy;

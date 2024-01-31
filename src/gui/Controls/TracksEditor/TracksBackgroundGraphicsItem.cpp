@@ -9,6 +9,10 @@
 
 using namespace TracksEditorGlobal;
 
+void TracksBackgroundGraphicsItem::onTrackCountChanged(int count) {
+    m_trackCount = count;
+    update();
+}
 void TracksBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     // Draw background
     auto backgroundColor = QColor(42, 43, 44);
@@ -35,6 +39,8 @@ void TracksBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptionGr
 
     auto startTrackIndex = sceneYToTrackIndex(visibleRect().top());
     auto endTrackIndex = sceneYToTrackIndex(visibleRect().bottom());
+    if (m_trackCount < endTrackIndex)
+        endTrackIndex = m_trackCount + 1;
     auto prevLineTrackIndex = static_cast<int>(startTrackIndex);
     for (int i = prevLineTrackIndex; i < endTrackIndex; i++) {
         auto y = sceneYToItemY(trackIndexToSceneY(i));

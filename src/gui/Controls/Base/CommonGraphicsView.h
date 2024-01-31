@@ -20,25 +20,29 @@ public:
     explicit CommonGraphicsView(QWidget *parent = nullptr);
     ~CommonGraphicsView() override = default;
 
-    qreal scaleX() const;
-    void setScaleX(qreal sx);
-    qreal scaleY() const;
-    void setScaleY(qreal sy);
-    void setScale(const qreal sx, const qreal sy) {
+    double scaleX() const;
+    void setScaleX(double sx);
+    double scaleY() const;
+    void setScaleY(double sy);
+    void setScale(const double sx, const double sy) {
         setScaleX(sx);
         setScaleY(sy);
     }
-    qreal scaleXMax() const;
-    void setScaleXMax(qreal max);
+    double scaleXMax() const;
+    void setScaleXMax(double max);
+    double scaleYMin() const;
+    void setScaleYMin(double min);
     int hBarValue() const;
     void setHBarValue(int value);
     int vBarValue() const;
     void setVBarValue(int value);
     QRectF visibleRect() const;
+    void setEnsureSceneFillView(bool on);
 
 signals:
-    void scaleChanged(qreal sx, qreal sy);
+    void scaleChanged(double sx, double sy);
     void visibleRectChanged(const QRectF &rect);
+    void sizeChanged(QSize size);
 
 public slots:
     void notifyVisibleRectChanged();
@@ -54,12 +58,13 @@ private:
 
     double m_hZoomingStep = 0.4;
     double m_vZoomingStep = 0.3;
-    qreal m_scaleX = 1;
-    qreal m_scaleY = 1;
-    // qreal m_scaleXMin = 0.1;
-    qreal m_scaleXMax = 3; // 3x
-    qreal m_scaleYMin = 0.5;
-    qreal m_scaleYMax = 8;
+    double m_scaleX = 1;
+    double m_scaleY = 1;
+    // double m_scaleXMin = 0.1;
+    double m_scaleXMax = 3; // 3x
+    double m_scaleYMin = 0.5;
+    double m_scaleYMax = 8;
+    bool m_ensureSceneFillView = true;
 
     QPropertyAnimation m_scaleXAnimation;
     QPropertyAnimation m_scaleYAnimation;

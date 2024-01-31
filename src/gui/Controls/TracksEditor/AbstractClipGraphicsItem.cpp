@@ -149,7 +149,7 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
                        .arg(m_clipLen)
                        .arg(scaleX())
                        .arg(scaleY());
-    auto text = clipTypeName() + controlStr + timeStr;
+    auto text = clipTypeName() + controlStr + (m_showDebugInfo ? timeStr : "");
     auto textWidth = fontMetrics.horizontalAdvance(text);
 
     pen.setColor(colorForeground);

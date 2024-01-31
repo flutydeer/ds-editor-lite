@@ -9,6 +9,7 @@
 #include <QSplitter>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QScreen>
 
 #include "Controller.h"
 
@@ -127,6 +128,11 @@ int main(int argc, char *argv[]) {
 
     w.setCentralWidget(mainWidget);
     w.resize(1280, 720);
+    auto scr = QApplication::screenAt(QCursor::pos());
+    auto availableRect = scr->availableGeometry();
+    auto left = (availableRect.width() - w.width()) / 2;
+    auto top = (availableRect.height() - w.height()) / 2;
+    w.move(left, top);
     w.show();
 
     return QApplication::exec();
