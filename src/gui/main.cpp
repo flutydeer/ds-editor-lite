@@ -7,6 +7,9 @@
 
 #include "Window/MainWindow.h"
 
+#include "Audio/AudioSystem.h"
+#include "Audio/Dialogs/AudioSettingsDialog.h"
+
 int main(int argc, char *argv[]) {
     qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
@@ -18,6 +21,12 @@ int main(int argc, char *argv[]) {
     auto f = QFont("Microsoft Yahei UI", 9);
     f.setHintingPreference(QFont::PreferNoHinting);
     QApplication::setFont(f);
+
+    AudioSystem as;
+    as.initialize(false);
+    as.openAudioSettings();
+
+
 
     auto w = new MainWindow;
     auto scr = QApplication::screenAt(QCursor::pos());

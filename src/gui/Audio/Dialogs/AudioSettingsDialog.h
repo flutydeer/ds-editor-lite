@@ -3,6 +3,8 @@
 
 #include <QDialog>
 
+#include "Audio/AudioSystem.h"
+
 class QComboBox;
 class QCheckBox;
 class QDoubleSpinBox;
@@ -12,13 +14,8 @@ class AudioSettingsDialog : public QDialog {
 public:
     explicit AudioSettingsDialog(QWidget *parent = nullptr);
 
-    enum HotPlugMode {
-        NotifyOnAnyChange,
-        NotifyOnCurrentRemoval,
-        None,
-    };
-    HotPlugMode hotPlugMode() const;
-    void setHotPlugMode(HotPlugMode mode);
+    AudioSystem::HotPlugMode hotPlugMode() const;
+    void setHotPlugMode(AudioSystem::HotPlugMode mode);
 
     bool closeDeviceAtBackground() const;
     void setCloseDeviceAtBackground(bool enabled);
@@ -30,12 +27,17 @@ public:
     void setFileBufferingSizeMsec(double value);
 
 private:
-//    QComboBox *m_driverComboBox;
-//    QComboBox *m_deviceComboBox;
+    QComboBox *m_driverComboBox;
+    QComboBox *m_deviceComboBox;
+    QComboBox *m_bufferSizeComboBox;
+    QComboBox *m_sampleRateComboBox;
     QComboBox *m_hotPlugModeComboBox;
     QCheckBox *m_closeDeviceAtBackgroundCheckBox;
     QCheckBox *m_closeDeviceOnPlaybackStopCheckBox;
     QDoubleSpinBox *m_fileBufferingSizeMsec;
+
+    void updateDeviceComboBox();
+    void updateBufferSizeAndSampleRateComboBox();
 };
 
 
