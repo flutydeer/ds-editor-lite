@@ -22,9 +22,9 @@ int main(int argc, char *argv[]) {
     f.setHintingPreference(QFont::PreferNoHinting);
     QApplication::setFont(f);
 
-    AudioSystem as;
-    as.initialize(false);
-    as.openAudioSettings();
+    // AudioSystem as;
+    // as.initialize(false);
+    // as.openAudioSettings();
 
 
 

@@ -15,6 +15,9 @@
 #include "Controls/TracksEditor/TracksBackgroundGraphicsItem.h"
 #include "Controls/TracksEditor/TracksEditorGlobal.h"
 
+
+#include <QFileDialog>
+
 TracksView::TracksView() {
     m_trackListWidget = new QListWidget;
     // tracklist->setMinimumWidth(120);
@@ -81,7 +84,7 @@ void TracksView::onModelChanged(const AppModel &model) {
     m_tempo = model.tempo();
     int index = 0;
     for (const auto &track : model.tracks()) {
-        insertTrackToView(track, index);
+        insertTrackToView(*track, index);
         index++;
     }
     emit trackCountChanged(m_tracksModel.tracks.count());
@@ -95,7 +98,7 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, const AppModel &
     switch (type) {
         case AppModel::Insert:
             qDebug() << "on track inserted" << index;
-            insertTrackToView(model.tracks().at(index), index);
+            insertTrackToView(*model.tracks().at(index), index);
             emit trackCountChanged(m_tracksModel.tracks.count());
             break;
         case AppModel::Update:
@@ -107,6 +110,23 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, const AppModel &
             emit selectedClipChanged(-1, -1);
             removeTrackFromView(index);
             emit trackCountChanged(m_tracksModel.tracks.count());
+            break;
+    }
+}
+void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipIndex) {
+    auto trackModel = AppModel::instance()->tracks().at(trackIndex);
+    auto clip = trackModel->clips().at(clipIndex);
+    auto track = m_tracksModel.tracks.at(trackIndex);
+
+    switch (type) {
+        case DsTrack::Insert:
+            qDebug() << "on clip inserted" << trackIndex << clipIndex;
+            insertClipToTrack(clip, track, trackIndex);
+            break;
+        case DsTrack::Update:
+            break;
+        case DsTrack::Remove:
+            qDebug() << "on clip removed" << trackIndex << clipIndex;
             break;
     }
 }
@@ -144,54 +164,14 @@ void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
     }
 }
 void TracksView::insertTrackToView(const DsTrack &dsTrack, int index) {
+    connect(&dsTrack, &DsTrack::clipChanged, this,
+            [=](DsTrack::ClipChangeType type, int clipIndex) {
+                onClipChanged(type, index, clipIndex);
+            });
     Track track;
-    for (const auto &clip : dsTrack.clips) {
-        auto start = clip->start();
-        auto clipStart = clip->clipStart();
-        auto length = clip->length();
-        auto clipLen = clip->clipLen();
-        if (clip->type() == DsClip::Audio) {
-            auto audioClip = clip.dynamicCast<DsAudioClip>();
-            auto clipItem = new AudioClipGraphicsItem(0);
-            clipItem->setStart(start);
-            clipItem->setClipStart(clipStart);
-            clipItem->setLength(length);
-            clipItem->setClipLen(clipLen);
-            clipItem->setGain(1.0);
-            clipItem->setTrackIndex(index);
-            clipItem->setPath(audioClip->path());
-            clipItem->setTempo(m_tempo);
-            clipItem->setVisibleRect(m_graphicsView->visibleRect());
-            clipItem->setScaleX(m_graphicsView->scaleX());
-            clipItem->setScaleY(m_graphicsView->scaleY());
-            m_tracksScene->addItem(clipItem);
-            connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
-                    &AudioClipGraphicsItem::setScale);
-            connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
-                    &AudioClipGraphicsItem::setVisibleRect);
-            connect(this, &TracksView::tempoChanged, clipItem,
-                    &AudioClipGraphicsItem::onTempoChange);
-            track.clips.append(clipItem); // TODO: insert by clip start pos
-        } else if (clip->type() == DsClip::Singing) {
-            auto singingClip = clip.dynamicCast<DsSingingClip>();
-            auto clipItem = new SingingClipGraphicsItem(0);
-            clipItem->setStart(start);
-            clipItem->setClipStart(clipStart);
-            clipItem->setLength(length);
-            clipItem->setClipLen(clipLen);
-            clipItem->setGain(1.0);
-            clipItem->setTrackIndex(index);
-            clipItem->loadNotes(singingClip->notes);
-            clipItem->setVisibleRect(m_graphicsView->visibleRect());
-            clipItem->setScaleX(m_graphicsView->scaleX());
-            clipItem->setScaleY(m_graphicsView->scaleY());
-            m_tracksScene->addItem(clipItem);
-            connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
-                    &SingingClipGraphicsItem::setScale);
-            connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
-                    &SingingClipGraphicsItem::setVisibleRect);
-            track.clips.append(clipItem);
-        }
+    for (int i = 0; i < dsTrack.clips().count(); i++) {
+        auto clip = dsTrack.clips().at(i);
+        insertClipToTrack(clip, track, i);
     }
     auto newTrackItem = new QListWidgetItem;
     auto newTrackControlWidget = new TrackControlWidget(newTrackItem);
@@ -222,6 +202,16 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int index) {
         auto i = m_trackListWidget->row(newTrackItem);
         emit removeTrackTriggerd(i);
     });
+    connect(newTrackControlWidget, &TrackControlWidget::addAudioClipTriggered, this, [=] {
+        auto fileName =
+            QFileDialog::getOpenFileName(this, "Select an Audio File", ".",
+                                         "All Audio File (*.wav *.flac *.mp3);;Wave File "
+                                         "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)");
+        if (fileName.isNull())
+            return;
+        auto i = m_trackListWidget->row(newTrackItem);
+        emit addAudioClipTriggered(fileName, i);
+    });
     m_tracksModel.tracks.insert(index, track);
     if (index < m_tracksModel.tracks.count()) // needs to update existed tracks' index
         for (int i = index + 1; i < m_tracksModel.tracks.count(); i++) {
@@ -236,6 +226,55 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int index) {
             }
         }
 }
+void TracksView::insertClipToTrack(DsClip *clip, Track &track,
+                                   int trackIndex) { // TODO: remove param track
+    auto start = clip->start();
+    auto clipStart = clip->clipStart();
+    auto length = clip->length();
+    auto clipLen = clip->clipLen();
+    if (clip->type() == DsClip::Audio) {
+        auto audioClip = dynamic_cast<DsAudioClip *>(clip);
+        auto clipItem = new AudioClipGraphicsItem(0);
+        clipItem->setStart(start);
+        clipItem->setClipStart(clipStart);
+        clipItem->setLength(length);
+        clipItem->setClipLen(clipLen);
+        clipItem->setGain(1.0);
+        clipItem->setTrackIndex(trackIndex);
+        clipItem->setPath(audioClip->path());
+        clipItem->setTempo(m_tempo);
+        clipItem->setVisibleRect(m_graphicsView->visibleRect());
+        clipItem->setScaleX(m_graphicsView->scaleX());
+        clipItem->setScaleY(m_graphicsView->scaleY());
+        m_tracksScene->addItem(clipItem);
+        connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
+                &AudioClipGraphicsItem::setScale);
+        connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
+                &AudioClipGraphicsItem::setVisibleRect);
+        connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
+        track.clips.append(clipItem);
+    } else if (clip->type() == DsClip::Singing) {
+        auto singingClip = dynamic_cast<DsSingingClip *>(clip);
+        auto clipItem = new SingingClipGraphicsItem(0);
+        clipItem->setStart(start);
+        clipItem->setClipStart(clipStart);
+        clipItem->setLength(length);
+        clipItem->setClipLen(clipLen);
+        clipItem->setGain(1.0);
+        clipItem->setTrackIndex(trackIndex);
+        clipItem->loadNotes(singingClip->notes);
+        clipItem->setVisibleRect(m_graphicsView->visibleRect());
+        clipItem->setScaleX(m_graphicsView->scaleX());
+        clipItem->setScaleY(m_graphicsView->scaleY());
+        m_tracksScene->addItem(clipItem);
+        connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
+                &SingingClipGraphicsItem::setScale);
+        connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
+                &SingingClipGraphicsItem::setVisibleRect);
+        track.clips.append(clipItem);
+    }
+}
+
 void TracksView::removeTrackFromView(int index) {
     // remove from view
     auto track = m_tracksModel.tracks.at(index);

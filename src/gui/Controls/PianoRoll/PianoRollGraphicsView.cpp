@@ -45,7 +45,7 @@ void PianoRollGraphicsView::onSelectedClipChanged(const AppModel &model, int tra
         return;
     }
 
-    auto clip = model.tracks().at(trackIndex).clips.at(clipIndex);
+    auto clip = model.tracks().at(trackIndex)->clips().at(clipIndex);
     if (clip->type() != DsClip::Singing) {
         m_oneSingingClipSelected = false;
         setScene(nullptr);
@@ -56,7 +56,7 @@ void PianoRollGraphicsView::onSelectedClipChanged(const AppModel &model, int tra
     m_oneSingingClipSelected = true;
     setScene(m_pianoRollScene);
     update();
-    auto singingClip = clip.dynamicCast<DsSingingClip>();
+    auto singingClip = dynamic_cast<DsSingingClip *>(clip);
     for (int i = 0; i < singingClip->notes.count(); i++) {
         auto note = singingClip->notes.at(i);
         insertNote(note, i);

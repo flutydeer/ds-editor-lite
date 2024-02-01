@@ -135,12 +135,15 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     // setFixedHeight(72);
 
     auto actionInsert = new QAction("Insert new track", this);
-    connect(actionInsert, &QAction::triggered, this, [&] { emit insertNewTrackTriggered();});
+    connect(actionInsert, &QAction::triggered, this, [&] { emit insertNewTrackTriggered(); });
     auto actionRemove = new QAction("Delete", this);
     connect(actionRemove, &QAction::triggered, this, [&] { emit removeTrackTriggerd(); });
+    auto actionAddAudioClip = new QAction("Add audio clip", this);
+    connect(actionAddAudioClip, &QAction::triggered, this, [&] { emit addAudioClipTriggered(); });
 
     addAction(actionInsert);
     addAction(actionRemove);
+    addAction(actionAddAudioClip);
     setContextMenuPolicy(Qt::ActionsContextMenu);
 
     setStyleSheet(R"(
@@ -240,14 +243,14 @@ void TrackControlWidget::setControl(const DsTrackControl &control) {
 void TrackControlWidget::setNarrowMode(bool on) {
     if (on) {
         for (int i = 0; i < m_panVolumeLayout->count(); ++i) {
-            QWidget* w = m_panVolumeLayout->itemAt(i)->widget();
+            QWidget *w = m_panVolumeLayout->itemAt(i)->widget();
             if (w != nullptr)
                 w->setVisible(false);
             m_panVolumeLayout->setContentsMargins(0, 0, 0, 0);
         }
     } else {
         for (int i = 0; i < m_panVolumeLayout->count(); ++i) {
-            QWidget* w = m_panVolumeLayout->itemAt(i)->widget();
+            QWidget *w = m_panVolumeLayout->itemAt(i)->widget();
             if (w != nullptr)
                 w->setVisible(true);
             m_panVolumeLayout->setContentsMargins(4, 0, 4, 8);

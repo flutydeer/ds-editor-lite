@@ -9,14 +9,15 @@
 
 #include "DsNote.h"
 #include "DsParams.h"
+#include "Utils/IOverlapable.h"
 
-class DsClip {
+class DsClip : public IOverlapable {
 public:
     enum ClipType { Audio, Singing, Generic };
 
     virtual ~DsClip() = default;
 
-    int clipId;
+    int trackIdex;
 
     virtual ClipType type() const {
         return Generic;
@@ -35,6 +36,9 @@ public:
     void setGain(double gain);
     bool mute() const;
     void setMute(bool mute);
+
+    int compareTo(IOverlapable *obj) override;
+    bool isOverlappedWith(IOverlapable *obj) override;
 
 protected:
     QString m_name;
@@ -77,8 +81,8 @@ private:
     // DsParams m_params;
 };
 
-using DsClipPtr = QSharedPointer<DsClip>;
-using DsSingingClipPtr = QSharedPointer<DsSingingClip>;
-using DsAudioClipPtr = QSharedPointer<DsAudioClip>;
+// using DsClipPtr = QSharedPointer<DsClip>;
+// using DsSingingClipPtr = QSharedPointer<DsSingingClip>;
+// using DsAudioClipPtr = QSharedPointer<DsAudioClip>;
 
 #endif // DSCLIP_H

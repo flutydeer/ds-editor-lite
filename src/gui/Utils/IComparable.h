@@ -7,7 +7,7 @@
 
 class IComparable {
 public:
-    virtual int compareTo(IComparable *other) = 0;
+    virtual int compareTo(IComparable *obj) = 0;
 
     virtual ~IComparable() = default;
 };

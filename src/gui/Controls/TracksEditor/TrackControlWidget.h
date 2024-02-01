@@ -36,6 +36,7 @@ signals:
     void removeTrackTriggerd();
     // void moveUpTrack();
     // void modeDownTrack();
+    void addAudioClipTriggered();
 
 public slots:
     void onTrackUpdated(const DsTrack &track);

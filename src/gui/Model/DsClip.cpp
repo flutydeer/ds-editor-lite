@@ -46,3 +46,23 @@ bool DsClip::mute() const {
 void DsClip::setMute(bool mute) {
     m_mute = mute;
 }
+int DsClip::compareTo(IOverlapable *obj) {
+    auto curVisibleStart = start() + clipStart();
+    auto other = dynamic_cast<DsClip *>(obj);
+    auto otherVisibleStart = other->start() + other->clipStart();
+    if (curVisibleStart < otherVisibleStart)
+        return -1;
+    if (curVisibleStart > otherVisibleStart)
+        return 1;
+    return 0;
+}
+bool DsClip::isOverlappedWith(IOverlapable *obj) {
+    auto curVisibleStart = start() + clipStart();
+    auto curVisibleEnd = curVisibleStart + clipLen();
+    auto other = dynamic_cast<DsClip *>(obj);
+    auto otherVisibleStart = other->start() + other->clipStart();
+    auto otherVisibleEnd = otherVisibleStart + other->clipLen();
+    if (otherVisibleEnd <= curVisibleStart || curVisibleEnd <= otherVisibleStart)
+        return false;
+    return true;
+}

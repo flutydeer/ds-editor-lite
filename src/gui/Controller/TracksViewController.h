@@ -20,6 +20,7 @@ public slots:
     void addAudioClipToNewTrack(const QString &filePath);
     void onSelectedClipChanged(int trackIndex, int clipIndex);
     void onTrackPropertyChanged(const QString &name, const DsTrackControl &control, int index);
+    void onAddAudioClip(const QString &path, int index);
 };
 
 #endif //TRACKSVIEWCONTROLLER_H

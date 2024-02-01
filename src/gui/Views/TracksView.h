@@ -23,6 +23,7 @@ public slots:
     void onTrackChanged(AppModel::TrackChangeType type, const AppModel &model, int index);
     // void onPlaybackPositionChanged(long pos);
     // void onSamplerateChanged(int samplerate);
+    void onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipIndex);
 
 signals:
     void selectedClipChanged(int trackIndex, int clipIndex);
@@ -31,7 +32,7 @@ signals:
     void removeTrackTriggerd(int index);
     void tempoChanged(double tempo);
     void trackCountChanged(int count);
-    // void adjustTrackListItemHeight(int i);
+    void addAudioClipTriggered(const QString &path, int index);
 
 private slots:
     void onSceneSelectionChanged();
@@ -49,7 +50,7 @@ private:
         // properties
         bool isSelected;
         // clips
-        QList<AbstractClipGraphicsItem *> clips;
+        QList<AbstractClipGraphicsItem *> clips; // TODO: Use OverlapableSerialList
     };
 
     class TracksViewModel {
@@ -63,6 +64,7 @@ private:
     int positionInTick = 1920;
 
     void insertTrackToView(const DsTrack &dsTrack, int index);
+    void insertClipToTrack(DsClip *clip, Track &track, int trackIndex);
     void removeTrackFromView(int index);
     void reset();
 };

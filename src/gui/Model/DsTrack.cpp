@@ -19,8 +19,16 @@ DsTrackControl DsTrack::control() const {
 void DsTrack::setControl(const DsTrackControl &control) {
     m_control = control;
 }
-DsTrack::DsTrack() {
+OverlapableSerialList<DsClip> DsTrack::clips() const {
+    return m_clips;
 }
-DsTrack::~DsTrack() {
-    // qDebug() << "~DsTrack";
+void DsTrack::insertClip(DsClip *clip) {
+    m_clips.add(clip);
+    int index = m_clips.indexOf(clip);
+    emit clipChanged(Insert, index);
+}
+void DsTrack::removeClip(DsClip *clip) {
+    int index = m_clips.indexOf(clip);
+    m_clips.remove(clip);
+    emit clipChanged(Remove, index);
 }

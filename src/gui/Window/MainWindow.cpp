@@ -120,6 +120,7 @@ MainWindow::MainWindow() {
     connect(m_tracksView, &TracksView::insertNewTrackTriggered, trackController,
             &TracksViewController::onInsertNewTrack);
     connect(m_tracksView, &TracksView::removeTrackTriggerd, trackController, &TracksViewController::onRemoveTrack);
+    connect(m_tracksView, &TracksView::addAudioClipTriggered, trackController, &TracksViewController::onAddAudioClip);
 
     auto splitter = new QSplitter;
     splitter->setOrientation(Qt::Vertical);

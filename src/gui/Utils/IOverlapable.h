@@ -7,14 +7,21 @@
 
 class IOverlapable {
 public:
-    bool isOverlapped() const;
-    void setIsOverlapped(bool b);
-    virtual bool isOverlappedWith(const IOverlapable &other) = 0;
+    virtual int compareTo(IOverlapable *obj) = 0;
 
-    virtual ~IOverlapable();
+    bool overlapped() const {
+        return m_overlapped;
+    }
+    void setOverlapped(bool b);
+    virtual bool isOverlappedWith(IOverlapable *obj) = 0;
+
+    virtual ~IOverlapable() = default;
 
 protected:
-    bool m_isOverlapped = false;
+    bool m_overlapped = false;
 };
+inline void IOverlapable::setOverlapped(bool b) {
+    m_overlapped = b;
+}
 
 #endif // IOVERLAPABLE_H

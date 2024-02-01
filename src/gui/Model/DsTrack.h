@@ -6,23 +6,32 @@
 #define TRACKSMODEL_H
 
 #include <QString>
+#include <QObject>
 
 #include "DsClip.h"
 #include "DsTrackControl.h"
+#include "Utils/OverlapableSerialList.h"
 
-class DsTrack {
+class DsTrack : public QObject {
+    Q_OBJECT
+
 public:
-    DsTrack();
-    ~DsTrack();
+    enum ClipChangeType { Insert, Update, Remove };
+
+    explicit DsTrack() {
+        qDebug() << "size" << m_clips.items().size();
+    }
 
     QString name() const;
     void setName(const QString &name);
     DsTrackControl control() const;
     void setControl(const DsTrackControl &control);
-    QList<DsClipPtr> clips;
-    // void addClip(DsClip clip);
-    // void removeClip(const Clip &clip);
-    // void removeClip(int index);
+    OverlapableSerialList<DsClip> clips() const;
+    void insertClip(DsClip *clip);
+    void removeClip(DsClip *clip);
+
+signals:
+    void clipChanged(ClipChangeType type, int index);
 
     // Color color() const;
     // void setColor(const Color &color);
@@ -30,7 +39,7 @@ public:
 private:
     QString m_name;
     DsTrackControl m_control = DsTrackControl();
-    QList<DsClipPtr> m_clips;
+    OverlapableSerialList<DsClip> m_clips;
 };
 
 

@@ -20,8 +20,8 @@ public:
 
     double tempo() const;
     void setTempo(double tempo);
-    QList<DsTrack> tracks() const;
-    void insertTrack(const DsTrack &track, int index);
+    QList<DsTrack *> tracks() const;
+    void insertTrack(DsTrack *track, int index);
     void removeTrack(int index);
 
     bool loadAProject(const QString &filename);
@@ -41,7 +41,7 @@ private:
     void runG2p();
 
     double m_tempo = 120;
-    QList<DsTrack> m_tracks;
+    QList<DsTrack *> m_tracks;
 
     // instance
     int m_selectedClipTrackIndex = -1;

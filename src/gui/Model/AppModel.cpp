@@ -16,10 +16,10 @@ void AppModel::setTempo(double tempo) {
     m_tempo = tempo;
     emit tempoChanged(m_tempo);
 }
-QList<DsTrack> AppModel::tracks() const {
+QList<DsTrack *> AppModel::tracks() const {
     return m_tracks;
 }
-void AppModel::insertTrack(const DsTrack &track, int index) {
+void AppModel::insertTrack(DsTrack *track, int index) {
     m_tracks.insert(index, track);
     emit tracksChanged(Insert, *this, index);
 }
@@ -63,11 +63,12 @@ bool AppModel::loadAProject(const QString &filename) {
         return notes;
     };
 
-    auto decodeClips = [&](const QJsonArray &arrClips, QList<DsClipPtr> &clips, const QString &type) {
+    auto decodeClips = [&](const QJsonArray &arrClips, DsTrack &dsTack, const QString &type, int trackIndex) {
         for (const auto &valClip : qAsConst(arrClips)) {
             auto objClip = valClip.toObject();
             if (type == "sing") {
-                auto singingClip = DsSingingClipPtr(new DsSingingClip);
+                auto singingClip = new DsSingingClip;
+                singingClip->trackIdex = trackIndex;
                 singingClip->setName("Clip");
                 singingClip->setStart(objClip.value("pos").toInt());
                 singingClip->setClipStart(objClip.value("clipPos").toInt());
@@ -75,27 +76,30 @@ bool AppModel::loadAProject(const QString &filename) {
                 singingClip->setClipLen(objClip.value("clipDur").toInt());
                 auto arrNotes = objClip.value("notes").toArray();
                 singingClip->notes.append(decodeNotes(arrNotes));
-                clips.append(singingClip);
+                dsTack.insertClip(singingClip);
             } else if (type == "audio") {
-                auto audioClip = DsAudioClipPtr(new DsAudioClip);
+                auto audioClip = new DsAudioClip;
+                audioClip->trackIdex = trackIndex;
                 audioClip->setName("Clip");
                 audioClip->setStart(objClip.value("pos").toInt());
                 audioClip->setClipStart(objClip.value("clipPos").toInt());
                 audioClip->setLength(objClip.value("dur").toInt());
                 audioClip->setClipLen(objClip.value("clipDur").toInt());
                 audioClip->setPath(objClip.value("path").toString());
-                clips.append(audioClip);
+                dsTack.insertClip(audioClip);
             }
         }
     };
 
-    auto decodeTracks = [&](const QJsonArray &arrTracks, QList<DsTrack> &tracks) {
+    auto decodeTracks = [&](const QJsonArray &arrTracks, QList<DsTrack *> &tracks) {
+        int i = 0;
         for (const auto &valTrack : qAsConst(arrTracks)) {
             auto objTrack = valTrack.toObject();
             auto type = objTrack.value("type").toString();
             DsTrack track;
-            decodeClips(objTrack.value("patterns").toArray(), track.clips, type);
-            tracks.append(track);
+            decodeClips(objTrack.value("patterns").toArray(), track, type, i);
+            tracks.append(&track);
+            i++;
         }
     };
 
@@ -125,9 +129,9 @@ void AppModel::reset() {
 }
 void AppModel::runG2p() {
     for (const auto &track : m_tracks) {
-        for (const auto &clip : track.clips) {
+        for (const auto &clip : track->clips().items()) {
             if (clip->type() == DsClip::Singing) {
-                auto singingClip = clip.dynamicCast<DsSingingClip>();
+                auto singingClip = dynamic_cast<DsSingingClip *>(clip);
             }
         }
     }
