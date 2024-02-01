@@ -21,6 +21,8 @@ public slots:
     void onModelChanged(const AppModel &model);
     void onTempoChanged(double tempo);
     void onTrackChanged(AppModel::TrackChangeType type, const AppModel &model, int index);
+    // void onPlaybackPositionChanged(long pos);
+    // void onSamplerateChanged(int samplerate);
 
 signals:
     void selectedClipChanged(int trackIndex, int clipIndex);
@@ -57,6 +59,8 @@ private:
 
     TracksViewModel m_tracksModel;
     double m_tempo = 120;
+    int m_samplerate = 48000;
+    int positionInTick = 1920;
 
     void insertTrackToView(const DsTrack &dsTrack, int index);
     void removeTrackFromView(int index);

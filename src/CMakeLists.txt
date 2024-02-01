@@ -6,6 +6,7 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Widgets Svg REQUIRED)
 add_custom_target(DeployedTargets)
 
 add_subdirectory(gui)
+add_subdirectory(tests)
 
 # "QT_QMAKE_EXECUTABLE" is usually defined by QtCreator.
 if(NOT DEFINED QT_QMAKE_EXECUTABLE)
