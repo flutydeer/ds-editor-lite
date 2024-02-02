@@ -9,6 +9,7 @@
 #include "Controller/TracksViewController.h"
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
+#include "Controller/PlaybackController.h"
 
 #ifdef Q_OS_WIN
 #  include <dwmapi.h>
@@ -70,12 +71,13 @@ MainWindow::MainWindow() {
     DwmExtendFrameIntoClientArea(reinterpret_cast<HWND>(this->winId()), &margins);
     // Dark theme
     uint dark = 1;
-    DwmSetWindowAttribute(reinterpret_cast<HWND>(this->winId()), DWMWA_USE_IMMERSIVE_DARK_MODE, &dark,
-                          sizeof(dark));
+    DwmSetWindowAttribute(reinterpret_cast<HWND>(this->winId()), DWMWA_USE_IMMERSIVE_DARK_MODE,
+                          &dark, sizeof(dark));
 #endif
 
     auto appController = AppController::instance();
     auto trackController = TracksViewController::instance();
+    auto playbackController = PlaybackController::instance();
 
     auto btnNewTrack = new QPushButton;
     btnNewTrack->setText("New Track");
@@ -105,23 +107,43 @@ MainWindow::MainWindow() {
         appController->openProject(fileName);
     });
 
+    auto btnPlay = new QPushButton;
+    btnPlay->setText("Play");
+    connect(btnPlay, &QPushButton::clicked, playbackController, [=] {
+        // TODO: run project check (overlapping)
+        PlaybackController::instance()->play();
+    });
+
+    auto btnPause = new QPushButton;
+    btnPause->setText("Pause");
+    connect(btnPause, &QPushButton::clicked, playbackController, &PlaybackController::pause);
+
+    auto btnStop = new QPushButton;
+    btnStop->setText("Stop");
+    connect(btnStop, &QPushButton::clicked, playbackController, &PlaybackController::stop);
+
     auto m_tracksView = new TracksView;
     auto m_pianoRollView = new PianoRollGraphicsView;
     auto model = AppModel::instance();
+
     connect(model, &AppModel::modelChanged, m_tracksView, &TracksView::onModelChanged);
     connect(model, &AppModel::tracksChanged, m_tracksView, &TracksView::onTrackChanged);
     connect(model, &AppModel::modelChanged, m_pianoRollView, &PianoRollGraphicsView::updateView);
-    connect(m_tracksView, &TracksView::selectedClipChanged, trackController,
-            &TracksViewController::onSelectedClipChanged);
     connect(model, &AppModel::selectedClipChanged, m_pianoRollView,
             &PianoRollGraphicsView::onSelectedClipChanged);
+
+    connect(m_tracksView, &TracksView::selectedClipChanged, trackController,
+            &TracksViewController::onSelectedClipChanged);
     connect(m_tracksView, &TracksView::trackPropertyChanged, trackController,
             &TracksViewController::onTrackPropertyChanged);
     connect(m_tracksView, &TracksView::insertNewTrackTriggered, trackController,
             &TracksViewController::onInsertNewTrack);
-    connect(m_tracksView, &TracksView::removeTrackTriggerd, trackController, &TracksViewController::onRemoveTrack);
-    connect(m_tracksView, &TracksView::addAudioClipTriggered, trackController, &TracksViewController::onAddAudioClip);
-    connect(m_tracksView, &TracksView::clipPropertyChanged, trackController, &TracksViewController::onClipPropertyChanged);
+    connect(m_tracksView, &TracksView::removeTrackTriggerd, trackController,
+            &TracksViewController::onRemoveTrack);
+    connect(m_tracksView, &TracksView::addAudioClipTriggered, trackController,
+            &TracksViewController::onAddAudioClip);
+    connect(m_tracksView, &TracksView::clipPropertyChanged, trackController,
+            &TracksViewController::onClipPropertyChanged);
 
     auto splitter = new QSplitter;
     splitter->setOrientation(Qt::Vertical);
@@ -132,6 +154,9 @@ MainWindow::MainWindow() {
     actionButtonLayout->addWidget(btnNewTrack);
     // actionButtonLayout->addWidget(btnOpenAudioFile);
     actionButtonLayout->addWidget(btnOpenProjectFile);
+    actionButtonLayout->addWidget(btnPlay);
+    actionButtonLayout->addWidget(btnPause);
+    actionButtonLayout->addWidget(btnStop);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addLayout(actionButtonLayout);

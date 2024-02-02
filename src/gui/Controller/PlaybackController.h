@@ -14,15 +14,15 @@ class PlaybackController final : public QObject, public Singleton<PlaybackContro
 public:
     explicit PlaybackController() = default;
 
-//     bool isPlaying() const;
-//     long position() const;
-//     long lastPlayPosition() const;
-//
-// public slots:
-//     void play();
-//     void pause();
-//     void stop();
-//     void setPosition(long pos);
+    // bool isPlaying() const;
+    // long position() const;
+    // long lastPlayPosition() const;
+
+public slots:
+    void play(){};
+    void pause(){};
+    void stop(){};
+    void setPosition(long pos){};
 
 private:
     long m_lastPlayPosition;
