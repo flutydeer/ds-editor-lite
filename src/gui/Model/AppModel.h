@@ -33,6 +33,7 @@ public slots:
 signals:
     void modelChanged();
     void tempoChanged(double tempo);
+    void timeSignatureChanged(int numerator, int denominator);
     void tracksChanged(TrackChangeType type, int index);
     void selectedClipChanged(int trackIndex, int clipIndex);
 

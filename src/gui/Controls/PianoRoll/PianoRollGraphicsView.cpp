@@ -24,6 +24,11 @@ PianoRollGraphicsView::PianoRollGraphicsView() {
     gridItem->setPixelsPerQuarterNote(PianoRollGlobal::pixelsPerQuarterNote);
     connect(this, &PianoRollGraphicsView::visibleRectChanged, gridItem, &TimeGridGraphicsItem::setVisibleRect);
     connect(this, &PianoRollGraphicsView::scaleChanged, gridItem, &PianoRollBackgroundGraphicsItem::setScale);
+    auto appModel = AppModel::instance();
+    connect(appModel, &AppModel::modelChanged, gridItem, [=] {
+        gridItem->onTimeSignatureChanged(appModel->numerator, appModel->denominator);
+    });
+    connect(appModel, &AppModel::timeSignatureChanged, gridItem, &TimeGridGraphicsItem::onTimeSignatureChanged);
     m_pianoRollScene->addItem(gridItem);
 
     // auto pitchItem = new PitchEditorGraphicsItem;

@@ -58,6 +58,11 @@ TracksView::TracksView() {
             &TimeGridGraphicsItem::setScale);
     connect(this, &TracksView::trackCountChanged, gridItem,
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
+    auto appModel = AppModel::instance();
+    connect(appModel, &AppModel::modelChanged, gridItem, [=] {
+        gridItem->onTimeSignatureChanged(appModel->numerator, appModel->denominator);
+    });
+    connect(appModel, &AppModel::timeSignatureChanged, gridItem, &TimeGridGraphicsItem::onTimeSignatureChanged);
     m_tracksScene->addItem(gridItem);
 
     auto gBar = m_graphicsView->verticalScrollBar();
