@@ -6,8 +6,9 @@
 #define DATASET_TOOLS_CLIPGRAPHICSITEM_H
 
 #include "Controls/Base/CommonGraphicsRectItem.h"
+#include "Utils/IOverlapable.h"
 
-class AbstractClipGraphicsItem : public CommonGraphicsRectItem {
+class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IOverlapable {
     Q_OBJECT
 
 public:
@@ -42,13 +43,19 @@ public:
     int trackIndex() const;
     void setTrackIndex(int index);
 
+    int compareTo(IOverlapable *obj) override;
+    bool isOverlappedWith(IOverlapable *obj) override;
+
 signals:
-    // void propertyChanged(const QString &propertyName, const QString &value);
-    void nameChanged(const QString &name);
-    void startChanged(int itemId, int start);
-    void lengthChanged(int length);
-    void clipStartChanged(int clipStart);
-    void clipLenChanged(int clipLen);
+    void propertyChanged();
+    // void nameChanged(const QString &name);
+    // void startChanged(int itemId, int start);
+    // void lengthChanged(int length);
+    // void clipStartChanged(int clipStart);
+    // void clipLenChanged(int clipLen);
+
+// public slots:
+//     void onPropertyChanged();
 
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -56,6 +63,7 @@ protected:
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void hoverEnterEvent(QGraphicsSceneHoverEvent *event) override;
     void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
@@ -88,6 +96,7 @@ private:
     int m_mouseDownClipStart;
     int m_mouseDownLength;
     int m_mouseDownClipLen;
+    bool m_propertyEdited = false;
 
     int m_trackIndex = 0;
     int m_quantize = 240; // tick, half quarter note

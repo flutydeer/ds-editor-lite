@@ -10,4 +10,5 @@ QString DsAudioClip::path() const {
 }
 void DsAudioClip::setPath(const QString &path) {
     m_path = path;
+    // emit propertyChanged();
 }

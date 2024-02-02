@@ -21,10 +21,10 @@ void AudioClipGraphicsItem::setPath(const QString &path) {
     m_path = path;
     m_loading = true;
     setName(QFileInfo(m_path).fileName());
-    if (length() == 0)
-        setLength(3840);
-    if (clipLen() == 0)
-        setClipLen(3840);
+    // if (length() == 0)
+    //     setLength(3840);
+    // if (clipLen() == 0)
+    //     setClipLen(3840);
 
     m_worker = new AudioClipBackgroundWorker(path);
     connect(m_worker, &AudioClipBackgroundWorker::finished, this, &AudioClipGraphicsItem::onLoadComplete);
@@ -56,9 +56,11 @@ void AudioClipGraphicsItem::onLoadComplete(bool success, QString errorMessage) {
     m_peakCacheMipmap.swap(m_worker->peakCacheMipmap);
     delete m_worker;
 
-    setClipStart(0);
+    // setClipStart(0);
     updateLength();
-    setClipLen(static_cast<int>(m_peakCache.count() / m_chunksPerTick));
+    auto targetClipLen = static_cast<int>(m_peakCache.count() / m_chunksPerTick);
+    if (clipLen() == 0)
+        setClipLen(targetClipLen);
     m_loading = false;
 
     update();
@@ -164,5 +166,7 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
 }
 void AudioClipGraphicsItem::updateLength() {
     m_chunksPerTick = static_cast<double>(m_sampleRate) / m_chunkSize * 60 / m_tempo / 480;
-    setLength(static_cast<int>(m_peakCache.count() / m_chunksPerTick));
+    auto targetLength = static_cast<int>(m_peakCache.count() / m_chunksPerTick);
+    if (length() != targetLength)
+        setLength(targetLength);
 }

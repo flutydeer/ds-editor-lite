@@ -16,11 +16,9 @@ class DsTrack : public QObject {
     Q_OBJECT
 
 public:
-    enum ClipChangeType { Insert, Update, Remove };
+    enum ClipChangeType { Insert, Remove };
 
-    explicit DsTrack() {
-        qDebug() << "size" << m_clips.items().size();
-    }
+    explicit DsTrack() = default;
 
     QString name() const;
     void setName(const QString &name);

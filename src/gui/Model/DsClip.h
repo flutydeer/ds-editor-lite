@@ -6,15 +6,19 @@
 #define DSCLIP_H
 
 #include <QSharedPointer>
+#include <QObject>
 
 #include "DsNote.h"
 #include "DsParams.h"
 #include "Utils/IOverlapable.h"
 
-class DsClip : public IOverlapable {
+class DsClip : public QObject, public IOverlapable {
+    Q_OBJECT
+
 public:
     enum ClipType { Audio, Singing, Generic };
 
+    DsClip();
     virtual ~DsClip() = default;
 
     int trackIdex;
@@ -39,6 +43,9 @@ public:
 
     int compareTo(IOverlapable *obj) override;
     bool isOverlappedWith(IOverlapable *obj) override;
+
+// signals:
+//     void propertyChanged();
 
 protected:
     QString m_name;

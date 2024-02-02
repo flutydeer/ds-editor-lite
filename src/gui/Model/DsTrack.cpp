@@ -23,6 +23,10 @@ OverlapableSerialList<DsClip> DsTrack::clips() const {
     return m_clips;
 }
 void DsTrack::insertClip(DsClip *clip) {
+    // connect(clip, &DsClip::propertyChanged, this, [=] {
+    //     auto clipIndex = m_clips.indexOf(clip);
+    //     emit clipChanged(Update, clipIndex);
+    // });
     m_clips.add(clip);
     int index = m_clips.indexOf(clip);
     emit clipChanged(Insert, index);

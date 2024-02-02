@@ -21,6 +21,10 @@ const QList<DsTrack *> &AppModel::tracks() const {
 }
 
 void AppModel::insertTrack(DsTrack *track, int index) {
+    connect(track, &DsTrack::clipChanged, this,[=] {
+        auto trackIndex = m_tracks.indexOf(track);
+        emit tracksChanged(Update, *this, trackIndex);
+});
     m_tracks.insert(index, track);
     emit tracksChanged(Insert, *this, index);
 }

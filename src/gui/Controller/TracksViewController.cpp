@@ -46,3 +46,14 @@ void TracksViewController::onAddAudioClip(const QString &path, int index) {
     auto track = AppModel::instance()->tracks().at(index);
     track->insertClip(audioClip);
 }
+void TracksViewController::onClipPropertyChanged(const ClipPropertyChangedArgs &args) {
+    qDebug() << "TracksViewController::onClipPropertyChanged";
+    auto track = AppModel::instance()->tracks().at(args.trackIndex);
+    auto clip = track->clips().at(args.clipIndex);
+    track->removeClip(clip);
+    clip->setStart(args.start);
+    clip->setClipStart(args.clipStart);
+    clip->setLength(args.length);
+    clip->setClipLen(args.clipLen);
+    track->insertClip(clip);
+}

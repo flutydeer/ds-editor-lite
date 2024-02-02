@@ -25,6 +25,7 @@ public:
     QList<T *> overlappedItems() const;
 
 private:
+    QList<IOverlapable *> &overlappedIOverlapables();
     QList<IOverlapable *> m_list;
 };
 template <typename T>
@@ -53,6 +54,22 @@ void OverlapableSerialList<T>::add(IOverlapable *item) {
 }
 template <typename T>
 void OverlapableSerialList<T>::remove(IOverlapable *item) {
+    if (item->overlapped()) {
+        item->setOverlapped(false);
+        auto overlapedItemsInside = this->overlappedIOverlapables();
+        for (auto t : overlapedItemsInside) {
+            if (t->isOverlappedWith(item)) {
+                bool flag = false;
+                for (auto t2 : overlapedItemsInside) {
+                    if (t2 != t && t2->isOverlappedWith(t)) {
+                        flag = true;
+                        break;
+                    }
+                }
+                t->setOverlapped(flag);
+            }
+        }
+    }
     m_list.removeOne(item);
 }
 template <typename T>
@@ -103,6 +120,14 @@ QList<T *> OverlapableSerialList<T>::overlappedItems() const {
     for (const auto &item : m_list)
         if (item->overlapped())
             list->append(static_cast<T *>(item));
+    return *list;
+}
+template <typename T>
+QList<IOverlapable *> &OverlapableSerialList<T>::overlappedIOverlapables() {
+    auto list = new QList<IOverlapable *>;
+    for (const auto &item : m_list)
+        if (item->overlapped())
+            list->append(item);
     return *list;
 }
 

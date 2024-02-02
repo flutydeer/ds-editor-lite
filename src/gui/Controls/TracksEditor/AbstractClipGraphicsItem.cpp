@@ -14,12 +14,13 @@
 
 using namespace TracksEditorGlobal;
 
-AbstractClipGraphicsItem::AbstractClipGraphicsItem(int itemId, QGraphicsItem *parent) : CommonGraphicsRectItem(parent) {
+AbstractClipGraphicsItem::AbstractClipGraphicsItem(int itemId, QGraphicsItem *parent)
+    : CommonGraphicsRectItem(parent) {
     m_itemId = itemId;
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
-    // setFlag(QGraphicsItem::ItemIsFocusable, true); // Must enabled, or keyPressEvent would not work.
-    // setAcceptTouchEvents(true);
+    // setFlag(QGraphicsItem::ItemIsFocusable, true); // Must enabled, or keyPressEvent would not
+    // work. setAcceptTouchEvents(true);
 }
 int AbstractClipGraphicsItem::itemId() {
     return m_itemId;
@@ -31,7 +32,6 @@ QString AbstractClipGraphicsItem::name() const {
 
 void AbstractClipGraphicsItem::setName(const QString &text) {
     m_name = text;
-    emit nameChanged(text);
     update();
 }
 int AbstractClipGraphicsItem::start() const {
@@ -40,8 +40,6 @@ int AbstractClipGraphicsItem::start() const {
 
 void AbstractClipGraphicsItem::setStart(const int start) {
     m_start = start;
-    // qDebug() << "ClipGraphicsItem::setStart" << start;
-    emit startChanged(m_itemId, start);
     updateRectAndPos();
 }
 int AbstractClipGraphicsItem::length() const {
@@ -49,7 +47,6 @@ int AbstractClipGraphicsItem::length() const {
 }
 void AbstractClipGraphicsItem::setLength(const int length) {
     m_length = length;
-    emit lengthChanged(length);
     updateRectAndPos();
 }
 int AbstractClipGraphicsItem::clipStart() const {
@@ -57,7 +54,6 @@ int AbstractClipGraphicsItem::clipStart() const {
 }
 void AbstractClipGraphicsItem::setClipStart(const int clipStart) {
     m_clipStart = clipStart;
-    emit clipStartChanged(clipStart);
     updateRectAndPos();
 }
 int AbstractClipGraphicsItem::clipLen() const {
@@ -65,7 +61,6 @@ int AbstractClipGraphicsItem::clipLen() const {
 }
 void AbstractClipGraphicsItem::setClipLen(const int clipLen) {
     m_clipLen = clipLen;
-    emit clipLenChanged(clipLen);
     updateRectAndPos();
 }
 
@@ -90,6 +85,26 @@ void AbstractClipGraphicsItem::setTrackIndex(const int index) {
     m_trackIndex = index;
     updateRectAndPos();
 }
+int AbstractClipGraphicsItem::compareTo(IOverlapable *obj) {
+    auto curVisibleStart = start() + clipStart();
+    auto other = dynamic_cast<AbstractClipGraphicsItem *>(obj);
+    auto otherVisibleStart = other->start() + other->clipStart();
+    if (curVisibleStart < otherVisibleStart)
+        return -1;
+    if (curVisibleStart > otherVisibleStart)
+        return 1;
+    return 0;
+}
+bool AbstractClipGraphicsItem::isOverlappedWith(IOverlapable *obj) {
+    auto curVisibleStart = start() + clipStart();
+    auto curVisibleEnd = curVisibleStart + clipLen();
+    auto other = dynamic_cast<AbstractClipGraphicsItem *>(obj);
+    auto otherVisibleStart = other->start() + other->clipStart();
+    auto otherVisibleEnd = otherVisibleStart + other->clipLen();
+    if (otherVisibleEnd <= curVisibleStart || curVisibleEnd <= otherVisibleStart)
+        return false;
+    return true;
+}
 QRectF AbstractClipGraphicsItem::previewRect() const {
     auto penWidth = 2.0f;
     auto paddingTop = 20;
@@ -102,7 +117,8 @@ QRectF AbstractClipGraphicsItem::previewRect() const {
     return paddedRect;
 }
 
-void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                                     QWidget *widget) {
     const auto colorPrimary = QColor(155, 186, 255);
     const auto colorPrimaryDarker = QColor(112, 156, 255);
     const auto colorAccent = QColor(255, 175, 95);
@@ -111,7 +127,10 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
     auto penWidth = 2.0f;
 
     QPen pen;
-    pen.setColor(isSelected() ? QColor(255, 255, 255) : colorPrimaryDarker);
+    if (m_overlapped)
+        pen.setColor(QColor(255, 155, 157));
+    else
+        pen.setColor(isSelected() ? QColor(255, 255, 255) : colorPrimaryDarker);
 
     auto rect = boundingRect();
     auto left = rect.left() + penWidth;
@@ -132,8 +151,9 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
     int textPadding = 2;
     auto rectLeft = mapToScene(rect.topLeft()).x();
     auto rectRight = mapToScene(rect.bottomRight()).x();
-    auto textRectLeft = visibleRect().left() < rectLeft ? paddedRect.left() + textPadding
-                                                        : visibleRect().left() - rectLeft + textPadding + penWidth;
+    auto textRectLeft = visibleRect().left() < rectLeft
+                            ? paddedRect.left() + textPadding
+                            : visibleRect().left() - rectLeft + textPadding + penWidth;
     auto textRectTop = paddedRect.top() + textPadding;
     auto textRectWidth = rectRight - visibleRect().left() - 2 * (textPadding + penWidth);
     auto textRectHeight = paddedRect.height() - 2 * textPadding;
@@ -141,7 +161,8 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 
     auto fontMetrics = painter->fontMetrics();
     auto textHeight = fontMetrics.height();
-    auto controlStr = QString("%1 %2dB %3 ").arg(m_name).arg(QString::number(m_gain)).arg(m_mute ? "M" : "");
+    auto controlStr =
+        QString("%1 %2dB %3 ").arg(m_name).arg(QString::number(m_gain)).arg(m_mute ? "M" : "");
     auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
                        .arg(m_start)
                        .arg(m_length)
@@ -165,7 +186,9 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 
     auto previewRectHeight = previewRect().height();
     if (previewRectHeight >= 32) {
-        auto colorAlpha = previewRectHeight <= 48 ? static_cast<int>(255 * (previewRectHeight - 32) / (48 - 32)) : 255;
+        auto colorAlpha = previewRectHeight <= 48
+                              ? static_cast<int>(255 * (previewRectHeight - 32) / (48 - 32))
+                              : 255;
         drawPreviewArea(painter, previewRect(), colorAlpha);
     }
 }
@@ -173,7 +196,8 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 void AbstractClipGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     QMenu menu;
     auto actionRename = menu.addAction("Rename");
-    QObject::connect(actionRename, &QAction::triggered, [this]() { qDebug() << "rename triggered"; });
+    QObject::connect(actionRename, &QAction::triggered,
+                     [this]() { qDebug() << "rename triggered"; });
     menu.exec(event->screenPos());
 
     QGraphicsItem::contextMenuEvent(event);
@@ -219,6 +243,7 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     int deltaClipStart;
     int delta = qRound(dx);
     int quantize = m_tempQuantizeOff ? 1 : m_quantize;
+    m_propertyEdited = true;
     switch (m_mouseMoveBehavior) {
         case Move:
             left = roundPos(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
@@ -245,7 +270,8 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             }
             break;
         case ResizeRight:
-            right = roundPos(m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize);
+            right = roundPos(m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta,
+                             quantize);
             clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
             if (clipLen <= 0)
                 break;
@@ -261,9 +287,18 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             }
             break;
         case None:
+            m_propertyEdited = false;
             break;
     }
     QGraphicsRectItem::mouseMoveEvent(event);
+}
+void AbstractClipGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+    if (m_propertyEdited) {
+        qDebug() << "emit propertyChanged";
+        emit propertyChanged();
+    }
+
+    CommonGraphicsRectItem::mouseReleaseEvent(event);
 }
 void AbstractClipGraphicsItem::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
     QGraphicsRectItem::hoverEnterEvent(event);

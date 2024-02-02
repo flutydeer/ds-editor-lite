@@ -10,6 +10,7 @@
 #include "Controls/TracksEditor/TracksGraphicsScene.h"
 #include "Controls/TracksEditor/TracksGraphicsView.h"
 #include "Controls/TracksEditor/TrackControlWidget.h"
+#include "Controller/TracksViewController.h"
 
 class TracksView final : public QWidget {
     Q_OBJECT
@@ -33,6 +34,7 @@ signals:
     void tempoChanged(double tempo);
     void trackCountChanged(int count);
     void addAudioClipTriggered(const QString &path, int index);
+    void clipPropertyChanged(const TracksViewController::ClipPropertyChangedArgs &args);
 
 private slots:
     void onSceneSelectionChanged();
@@ -50,12 +52,12 @@ private:
         // properties
         bool isSelected;
         // clips
-        QList<AbstractClipGraphicsItem *> clips; // TODO: Use OverlapableSerialList
+        QList<AbstractClipGraphicsItem *> clips;
     };
 
     class TracksViewModel {
     public:
-        QList<Track> tracks;
+        QList<Track *> tracks;
     };
 
     TracksViewModel m_tracksModel;
@@ -63,9 +65,12 @@ private:
     int m_samplerate = 48000;
     int positionInTick = 1920;
 
-    void insertTrackToView(const DsTrack &dsTrack, int index);
-    void insertClipToTrack(DsClip *clip, Track &track, int trackIndex);
+    void insertTrackToView(const DsTrack &dsTrack, int trackIndex);
+    void insertClipToTrack(DsClip *clip, Track *track, int trackIndex, int clipIndex);
+    void removeClipFromTrack(Track *track, int clipIndex);
+    // void updateTrackOnView(int trackIndex);
     void removeTrackFromView(int index);
+    void updateOverlappedState(int trackIndex);
     void reset();
 };
 
