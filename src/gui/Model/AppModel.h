@@ -20,7 +20,7 @@ public:
 
     double tempo() const;
     void setTempo(double tempo);
-    QList<DsTrack *> tracks() const;
+    const QList<DsTrack *> &tracks() const;
     void insertTrack(DsTrack *track, int index);
     void removeTrack(int index);
 

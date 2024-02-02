@@ -11,8 +11,8 @@ void TracksViewController::onNewTrack() {
     onInsertNewTrack(AppModel::instance()->tracks().count());
 }
 void TracksViewController::onInsertNewTrack(int index) {
-    DsTrack newTrack;
-    AppModel::instance()->insertTrack(&newTrack, index);
+    auto newTrack = new DsTrack;
+    AppModel::instance()->insertTrack(newTrack, index);
 }
 void TracksViewController::onRemoveTrack(int index) {
     QMessageBox msgBox;
@@ -27,9 +27,9 @@ void TracksViewController::onRemoveTrack(int index) {
 void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     auto audioClip = new DsAudioClip;
     audioClip->setPath(filePath);
-    DsTrack newTrack;
-    newTrack.insertClip(audioClip);
-    AppModel::instance()->insertTrack(&newTrack, AppModel::instance()->tracks().count());
+    auto newTrack = new DsTrack;
+    newTrack->insertClip(audioClip);
+    AppModel::instance()->insertTrack(newTrack, AppModel::instance()->tracks().size());
 }
 void TracksViewController::onSelectedClipChanged(int trackIndex, int clipIndex) {
     AppModel::instance()->onSelectedClipChanged(trackIndex, clipIndex);
@@ -43,5 +43,6 @@ void TracksViewController::onTrackPropertyChanged(const QString &name,
 void TracksViewController::onAddAudioClip(const QString &path, int index) {
     auto audioClip = new DsAudioClip;
     audioClip->setPath(path);
-    AppModel::instance()->tracks().at(index)->insertClip(audioClip);
+    auto track = AppModel::instance()->tracks().at(index);
+    track->insertClip(audioClip);
 }

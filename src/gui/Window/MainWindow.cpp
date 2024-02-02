@@ -81,18 +81,18 @@ MainWindow::MainWindow() {
     btnNewTrack->setText("New Track");
     connect(btnNewTrack, &QPushButton::clicked, trackController, &TracksViewController::onNewTrack);
 
-    auto btnOpenAudioFile = new QPushButton;
-    btnOpenAudioFile->setText("Add an audio file...");
-    connect(btnOpenAudioFile, &QPushButton::clicked, trackController, [=]() {
-        auto fileName =
-            QFileDialog::getOpenFileName(btnOpenAudioFile, "Select an Audio File", ".",
-                                         "All Audio File (*.wav *.flac *.mp3);;Wave File "
-                                         "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)");
-        if (fileName.isNull())
-            return;
-
-        trackController->addAudioClipToNewTrack(fileName);
-    });
+    // auto btnOpenAudioFile = new QPushButton;
+    // btnOpenAudioFile->setText("Add an audio file...");
+    // connect(btnOpenAudioFile, &QPushButton::clicked, trackController, [=]() {
+    //     auto fileName =
+    //         QFileDialog::getOpenFileName(btnOpenAudioFile, "Select an Audio File", ".",
+    //                                      "All Audio File (*.wav *.flac *.mp3);;Wave File "
+    //                                      "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)");
+    //     if (fileName.isNull())
+    //         return;
+    //
+    //     trackController->addAudioClipToNewTrack(fileName);
+    // });
 
     auto btnOpenProjectFile = new QPushButton;
     btnOpenProjectFile->setText("Open project...");
@@ -129,7 +129,7 @@ MainWindow::MainWindow() {
 
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addWidget(btnNewTrack);
-    actionButtonLayout->addWidget(btnOpenAudioFile);
+    // actionButtonLayout->addWidget(btnOpenAudioFile);
     actionButtonLayout->addWidget(btnOpenProjectFile);
 
     auto mainLayout = new QVBoxLayout;

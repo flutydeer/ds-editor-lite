@@ -16,9 +16,10 @@ void AppModel::setTempo(double tempo) {
     m_tempo = tempo;
     emit tempoChanged(m_tempo);
 }
-QList<DsTrack *> AppModel::tracks() const {
+const QList<DsTrack *> &AppModel::tracks() const {
     return m_tracks;
 }
+
 void AppModel::insertTrack(DsTrack *track, int index) {
     m_tracks.insert(index, track);
     emit tracksChanged(Insert, *this, index);
