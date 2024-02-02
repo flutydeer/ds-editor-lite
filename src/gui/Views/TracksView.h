@@ -19,9 +19,9 @@ public:
     explicit TracksView();
 
 public slots:
-    void onModelChanged(const AppModel &model);
+    void onModelChanged();
     void onTempoChanged(double tempo);
-    void onTrackChanged(AppModel::TrackChangeType type, const AppModel &model, int index);
+    void onTrackChanged(AppModel::TrackChangeType type, int index);
     // void onPlaybackPositionChanged(long pos);
     // void onSamplerateChanged(int samplerate);
     void onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipIndex);

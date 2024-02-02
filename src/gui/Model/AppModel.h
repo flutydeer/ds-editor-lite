@@ -31,10 +31,10 @@ public slots:
     void onSelectedClipChanged(int trackIndex, int clipIndex);
 
 signals:
-    void modelChanged(const AppModel &model);
+    void modelChanged();
     void tempoChanged(double tempo);
-    void tracksChanged(TrackChangeType type, const AppModel &model, int index);
-    void selectedClipChanged(const AppModel &model, int trackIndex, int clipIndex);
+    void tracksChanged(TrackChangeType type, int index);
+    void selectedClipChanged(int trackIndex, int clipIndex);
 
 private:
     void reset();

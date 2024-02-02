@@ -76,14 +76,15 @@ TracksView::TracksView() {
     layout->addWidget(m_graphicsView);
     setLayout(layout);
 }
-void TracksView::onModelChanged(const AppModel &model) {
+void TracksView::onModelChanged() {
     if (m_tracksScene == nullptr)
         return;
 
     reset();
-    m_tempo = model.tempo();
+    auto model = AppModel::instance();
+    m_tempo = model->tempo();
     int index = 0;
-    for (const auto &track : model.tracks()) {
+    for (const auto &track : model->tracks()) {
         insertTrackToView(*track, index);
         index++;
     }
@@ -94,11 +95,12 @@ void TracksView::onTempoChanged(double tempo) {
     m_tempo = tempo;
     emit tempoChanged(tempo);
 }
-void TracksView::onTrackChanged(AppModel::TrackChangeType type, const AppModel &model, int index) {
+void TracksView::onTrackChanged(AppModel::TrackChangeType type,int index) {
+    auto model = AppModel::instance();
     switch (type) {
         case AppModel::Insert:
             qDebug() << "on track inserted" << index;
-            insertTrackToView(*model.tracks().at(index), index);
+            insertTrackToView(*model->tracks().at(index), index);
             emit trackCountChanged(m_tracksModel.tracks.count());
             break;
         case AppModel::Update:

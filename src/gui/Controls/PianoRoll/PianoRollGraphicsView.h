@@ -17,8 +17,8 @@ public:
     explicit PianoRollGraphicsView();
 
 public slots:
-    void updateView(const AppModel &model);
-    void onSelectedClipChanged(const AppModel &model, int trackIndex, int clipIndex);
+    void updateView();
+    void onSelectedClipChanged(int trackIndex, int clipIndex);
 
 private:
     void paintEvent(QPaintEvent *event) override;

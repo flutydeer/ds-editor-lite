@@ -27,7 +27,8 @@ void AudioClipGraphicsItem::setPath(const QString &path) {
     //     setClipLen(3840);
 
     m_worker = new AudioClipBackgroundWorker(path);
-    connect(m_worker, &AudioClipBackgroundWorker::finished, this, &AudioClipGraphicsItem::onLoadComplete);
+    connect(m_worker, &AudioClipBackgroundWorker::finished, this,
+            &AudioClipGraphicsItem::onLoadComplete);
     // m_threadPool->start(m_worker);
     auto thread = new QThread;
     m_worker->moveToThread(thread);
@@ -69,7 +70,8 @@ void AudioClipGraphicsItem::onTempoChange(double tempo) {
     m_tempo = tempo;
     updateLength();
 }
-void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {
+void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
+                                            int opacity) {
     // QElapsedTimer mstimer;
     painter->setRenderHint(QPainter::Antialiasing, false);
 
@@ -98,13 +100,16 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
 
     m_resolution = scaleX() >= 0.3 ? High : Low;
     const auto peakData = m_resolution == Low ? m_peakCacheMipmap : m_peakCache;
-    const auto chunksPerTick = m_resolution == Low ? m_chunksPerTick / m_mipmapScale : m_chunksPerTick;
+    const auto chunksPerTick =
+        m_resolution == Low ? m_chunksPerTick / m_mipmapScale : m_chunksPerTick;
 
     auto rectLeftScene = mapToScene(previewRect.topLeft()).x();
     auto rectRightScene = mapToScene(previewRect.bottomRight()).x();
-    auto waveRectLeft = visibleRect().left() < rectLeftScene ? 0 : visibleRect().left() - rectLeftScene;
-    auto waveRectRight =
-        visibleRect().right() < rectRightScene ? visibleRect().right() - rectLeftScene : rectRightScene - rectLeftScene;
+    auto waveRectLeft =
+        visibleRect().left() < rectLeftScene ? 0 : visibleRect().left() - rectLeftScene;
+    auto waveRectRight = visibleRect().right() < rectRightScene
+                             ? visibleRect().right() - rectLeftScene
+                             : rectRightScene - rectLeftScene;
     auto waveRectWidth = waveRectRight - waveRectLeft + 1; // 1 px spaceing at right
 
     auto start = clipStart() * chunksPerTick;

@@ -21,16 +21,16 @@ const QList<DsTrack *> &AppModel::tracks() const {
 }
 
 void AppModel::insertTrack(DsTrack *track, int index) {
-    connect(track, &DsTrack::clipChanged, this,[=] {
+    connect(track, &DsTrack::clipChanged, this, [=] {
         auto trackIndex = m_tracks.indexOf(track);
-        emit tracksChanged(Update, *this, trackIndex);
-});
+        emit tracksChanged(Update, trackIndex);
+    });
     m_tracks.insert(index, track);
-    emit tracksChanged(Insert, *this, index);
+    emit tracksChanged(Insert, index);
 }
 void AppModel::removeTrack(int index) {
     m_tracks.removeAt(index);
-    emit tracksChanged(Remove, *this, index);
+    emit tracksChanged(Remove, index);
 }
 bool AppModel::loadAProject(const QString &filename) {
     reset();
@@ -68,7 +68,8 @@ bool AppModel::loadAProject(const QString &filename) {
         return notes;
     };
 
-    auto decodeClips = [&](const QJsonArray &arrClips, DsTrack &dsTack, const QString &type, int trackIndex) {
+    auto decodeClips = [&](const QJsonArray &arrClips, DsTrack &dsTack, const QString &type,
+                           int trackIndex) {
         for (const auto &valClip : qAsConst(arrClips)) {
             auto objClip = valClip.toObject();
             if (type == "sing") {
@@ -116,18 +117,18 @@ bool AppModel::loadAProject(const QString &filename) {
         // auto clip = tracks().first().clips.first().dynamicCast<DsSingingClip>();
         // qDebug() << clip->notes.count();
         runG2p();
-        emit modelChanged(*this);
+        emit modelChanged();
         return true;
     }
     return false;
 }
 void AppModel::onTrackUpdated(int index) {
-    emit tracksChanged(Update, *this, index);
+    emit tracksChanged(Update, index);
 }
 void AppModel::onSelectedClipChanged(int trackIndex, int clipIndex) {
     m_selectedClipTrackIndex = trackIndex;
     m_selectedClipIndex = clipIndex;
-    emit selectedClipChanged(*this, m_selectedClipTrackIndex, m_selectedClipIndex);
+    emit selectedClipChanged(m_selectedClipTrackIndex, m_selectedClipIndex);
 }
 void AppModel::reset() {
     m_tracks.clear();
