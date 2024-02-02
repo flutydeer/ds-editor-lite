@@ -57,70 +57,9 @@ void TracksViewController::onTrackPropertyChanged(const DsTrack::TrackPropertyCh
     auto control = track->control();
     control.setGain(args.gain);
     control.setPan(args.pan);
+    control.setMute(args.mute);
+    control.setSolo(args.solo);
     track->setControl(control);
-
-    // find whether the mute or solo was clicked
-    bool isSoloClicked = false;
-    if (args.solo != track->control().solo())
-        isSoloClicked = true;
-
-    bool isMuteClicked = false;
-    if (args.mute != track->control().mute())
-        isMuteClicked = true;
-
-    if (isSoloClicked) {
-        if (args.solo == true) { // turn on solo
-            for (auto dsTrack : tracks) {
-                auto curControl = dsTrack->control();
-                if (dsTrack == track) {
-                    curControl.setMute(false);
-                    curControl.setSolo(true);
-                    track->setControl(curControl);
-                    continue;
-                }
-
-                // mute all unmuted tracks
-                if (!curControl.mute() && !curControl.solo()) {
-                    curControl.setMute(true);
-                    dsTrack->setControl(curControl);
-                }
-            }
-        } else { // turn off solo
-            control = track->control();
-            control.setSolo(false);
-            track->setControl(control);
-
-            int soloTracks = 0;
-            for (auto dsTrack : tracks) {
-                auto curControl = dsTrack->control();
-                if (curControl.solo())
-                    soloTracks++;
-            }
-            if (soloTracks > 0) {
-                control.setMute(true);
-                track->setControl(control);
-            } else if (soloTracks == 0) { // unmute all muted tracks
-                for (auto dsTrack : tracks) {
-                    auto curControl = dsTrack->control();
-                    curControl.setMute(false);
-                    dsTrack->setControl(curControl);
-                }
-            }
-        }
-    } else if (isMuteClicked) {  // is mute clicked
-        if (args.mute == true) { // turn on mute
-            control = track->control();
-            control.setSolo(false);
-            control.setMute(true);
-        } else { // turn off mute
-            bool soloExists = false;
-
-            if (!soloExists) {
-                control.setMute(false);
-            }
-        }
-        track->setControl(control);
-    }
 }
 void TracksViewController::onAddAudioClip(const QString &path, int index) {
     auto audioClip = new DsAudioClip;
