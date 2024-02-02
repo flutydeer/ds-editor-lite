@@ -10,8 +10,8 @@ You need to install Qt libraries first. (Take Qt5 as an example)
 
 ```sh
 set QT_DIR=<dir> # directory `Qt5Config.cmake` locates
-set Qt5_DIR=%QT_DIR%
-set VCPKG_KEEP_ENV_VARS=QT_DIR;Qt5_DIR
+set Qt6_DIR=%QT_DIR%
+set VCPKG_KEEP_ENV_VARS=QT_DIR;Qt6_DIR;Qt6GuiTools_DIR
 
 git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
@@ -24,8 +24,8 @@ vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./ins
 
 ```sh
 export QT_DIR=<dir> # directory `Qt5Config.cmake` locates
-export Qt5_DIR=$QT_DIR
-export VCPKG_KEEP_ENV_VARS="QT_DIR;Qt5_DIR"
+export Qt6_DIR=$QT_DIR
+export VCPKG_KEEP_ENV_VARS="QT_DIR;Qt6_DIR"
 
 git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
