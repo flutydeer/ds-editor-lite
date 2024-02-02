@@ -33,6 +33,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_btnMute->setMinimumHeight(m_buttonSize);
     m_btnMute->setMaximumHeight(m_buttonSize);
     m_btnMute->setContentsMargins(0, 0, 0, 0);
+    connect(m_btnMute, &QPushButton::clicked, this, [&] { emit propertyChanged(); });
 
     m_btnSolo = new QPushButton("S");
     m_btnSolo->setObjectName("btnSolo");
@@ -43,6 +44,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_btnSolo->setMaximumWidth(m_buttonSize);
     m_btnSolo->setMinimumHeight(m_buttonSize);
     m_btnSolo->setMaximumHeight(m_buttonSize);
+    connect(m_btnSolo, &QPushButton::clicked, this, [&] { emit propertyChanged(); });
 
     m_leTrackName = new EditLabel();
     m_leTrackName->setText("Track 1");

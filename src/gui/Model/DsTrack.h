@@ -28,7 +28,19 @@ public:
     void insertClip(DsClip *clip);
     void removeClip(DsClip *clip);
 
+    class TrackPropertyChangedArgs {
+    public:
+        QString name;
+        double gain = 1.0;
+        double pan = 0;
+        bool mute = false;
+        bool solo = false;
+
+        int index = 0;
+    };
+
 signals:
+    void propertyChanged();
     void clipChanged(ClipChangeType type, int index);
 
     // Color color() const;

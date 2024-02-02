@@ -28,13 +28,15 @@ public slots:
 
 signals:
     void selectedClipChanged(int trackIndex, int clipIndex);
-    void trackPropertyChanged(const QString &name, const DsTrackControl &control, int index);
+    void trackPropertyChanged(const DsTrack::TrackPropertyChangedArgs &args);
     void insertNewTrackTriggered(int index);
     void removeTrackTriggerd(int index);
+    void muteClicked(int index);
+    void soloClicked(int index);
     void tempoChanged(double tempo);
     void trackCountChanged(int count);
     void addAudioClipTriggered(const QString &path, int index);
-    void clipPropertyChanged(const TracksViewController::ClipPropertyChangedArgs &args);
+    void clipPropertyChanged(const DsClip::ClipPropertyChangedArgs &args);
 
 private slots:
     void onSceneSelectionChanged();
@@ -68,7 +70,7 @@ private:
     void insertTrackToView(const DsTrack &dsTrack, int trackIndex);
     void insertClipToTrack(DsClip *clip, Track *track, int trackIndex, int clipIndex);
     void removeClipFromTrack(Track *track, int clipIndex);
-    // void updateTrackOnView(int trackIndex);
+    void updateTracksOnView();
     void removeTrackFromView(int index);
     void updateOverlappedState(int trackIndex);
     void reset();

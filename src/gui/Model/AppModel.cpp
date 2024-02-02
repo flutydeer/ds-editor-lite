@@ -21,9 +21,13 @@ const QList<DsTrack *> &AppModel::tracks() const {
 }
 
 void AppModel::insertTrack(DsTrack *track, int index) {
-    connect(track, &DsTrack::clipChanged, this, [=] {
+    // connect(track, &DsTrack::clipChanged, this, [=] {
+    //     auto trackIndex = m_tracks.indexOf(track);
+    //     emit tracksChanged(PropertyUpdate, trackIndex);
+    // });
+    connect(track, &DsTrack::propertyChanged, this, [=] {
         auto trackIndex = m_tracks.indexOf(track);
-        emit tracksChanged(Update, trackIndex);
+        emit tracksChanged(PropertyUpdate, trackIndex);
     });
     m_tracks.insert(index, track);
     emit tracksChanged(Insert, index);
@@ -122,7 +126,7 @@ bool AppModel::loadAProject(const QString &filename) {
     return false;
 }
 void AppModel::onTrackUpdated(int index) {
-    emit tracksChanged(Update, index);
+    emit tracksChanged(PropertyUpdate, index);
 }
 void AppModel::onSelectedClipChanged(int trackIndex, int clipIndex) {
     m_selectedClipTrackIndex = trackIndex;

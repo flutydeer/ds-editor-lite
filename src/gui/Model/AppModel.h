@@ -14,7 +14,7 @@ class AppModel final : public QObject, public Singleton<AppModel> {
 public:
     explicit AppModel() = default;
 
-    enum TrackChangeType { Insert, Update, Remove };
+    enum TrackChangeType { Insert, PropertyUpdate, Remove };
     int numerator = 4;
     int denominator = 4;
 

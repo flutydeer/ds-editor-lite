@@ -95,7 +95,7 @@ void TracksView::onTempoChanged(double tempo) {
     m_tempo = tempo;
     emit tempoChanged(tempo);
 }
-void TracksView::onTrackChanged(AppModel::TrackChangeType type,int index) {
+void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
     auto model = AppModel::instance();
     switch (type) {
         case AppModel::Insert:
@@ -103,8 +103,9 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type,int index) {
             insertTrackToView(*model->tracks().at(index), index);
             emit trackCountChanged(m_tracksModel.tracks.count());
             break;
-        case AppModel::Update:
+        case AppModel::PropertyUpdate:
             qDebug() << "on track updated" << index;
+            updateTracksOnView();
             break;
         case AppModel::Remove:
             qDebug() << "on track removed" << index;
@@ -187,7 +188,7 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
     newTrackItem->setSizeHint(QSize(TracksEditorGlobal::trackListWidth,
                                     TracksEditorGlobal::trackHeight * m_graphicsView->scaleY()));
     newTrackControlWidget->setTrackIndex(trackIndex + 1);
-    newTrackControlWidget->setName(dsTrack.name().isEmpty() ? "New Track" : dsTrack.name());
+    newTrackControlWidget->setName(dsTrack.name());
     newTrackControlWidget->setControl(dsTrack.control());
     newTrackControlWidget->setNarrowMode(m_graphicsView->scaleY() <
                                          TracksEditorGlobal::narrowModeScaleY);
@@ -198,10 +199,16 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
     // &TrackControlWidget::setScale);
 
     connect(newTrackControlWidget, &TrackControlWidget::propertyChanged, this, [=] {
-        auto name = newTrackControlWidget->name();
         auto control = newTrackControlWidget->control();
         auto i = m_trackListWidget->row(newTrackItem);
-        emit trackPropertyChanged(name, control, trackIndex);
+        DsTrack::TrackPropertyChangedArgs args;
+        args.name = newTrackControlWidget->name();
+        args.gain = control.gain();
+        args.pan = control.pan();
+        args.mute = control.mute();
+        args.solo = control.solo();
+        args.index = trackIndex;
+        emit trackPropertyChanged(args);
     });
     connect(newTrackControlWidget, &TrackControlWidget::insertNewTrackTriggered, this, [=] {
         auto i = m_trackListWidget->row(newTrackItem);
@@ -235,8 +242,8 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
             }
         }
 }
-void TracksView::insertClipToTrack(DsClip *clip, Track *track,
-                                   int trackIndex, int clipIndex) { // TODO: remove param track
+void TracksView::insertClipToTrack(DsClip *clip, Track *track, int trackIndex,
+                                   int clipIndex) { // TODO: remove param track
     auto start = clip->start();
     auto clipStart = clip->clipStart();
     auto length = clip->length();
@@ -267,7 +274,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
             for (int j = 0; j < track->clips.count(); j++) {
                 auto clip = track->clips.at(j);
                 if (clip == clipItem) {
-                    TracksViewController::AudioClipPropertyChangedArgs args;
+                    DsClip::AudioClipPropertyChangedArgs args;
                     args.trackIndex = trackIndex;
                     args.clipIndex = j;
                     args.start = clipItem->start();
@@ -309,7 +316,15 @@ void TracksView::removeClipFromTrack(Track *track, int clipIndex) {
     m_tracksScene->removeItem(clip);
     track->clips.removeAt(clipIndex);
 }
-
+void TracksView::updateTracksOnView() {
+    auto tracksModel = AppModel::instance()->tracks();
+    for (int i = 0; i < m_tracksModel.tracks.count(); i++) {
+        auto widget = m_tracksModel.tracks.at(i)->widget;
+        auto track = tracksModel.at(i);
+        widget->setName(track->name());
+        widget->setControl(track->control());
+    }
+}
 void TracksView::removeTrackFromView(int index) {
     // remove from view
     auto track = m_tracksModel.tracks.at(index);

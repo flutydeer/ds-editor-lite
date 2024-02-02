@@ -44,8 +44,25 @@ public:
     int compareTo(IOverlapable *obj) override;
     bool isOverlappedWith(IOverlapable *obj) override;
 
-// signals:
-//     void propertyChanged();
+    class ClipPropertyChangedArgs {
+    public:
+        QString name;
+        int start = 0;
+        int length = 0;
+        int clipStart = 0;
+        int clipLen = 0;
+        double gain = 0;
+        bool mute = false;
+
+        int trackIndex = 0;
+        int clipIndex = 0;
+    };
+    class AudioClipPropertyChangedArgs : public ClipPropertyChangedArgs {
+    public:
+        QString path;
+    };
+    // signals:
+    //     void propertyChanged();
 
 protected:
     QString m_name;

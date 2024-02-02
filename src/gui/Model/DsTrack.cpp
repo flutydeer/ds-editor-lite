@@ -11,13 +11,15 @@ QString DsTrack::name() const {
 }
 void DsTrack::setName(const QString &name) {
     m_name = name;
-    qDebug() << "model name " << name;
+    emit propertyChanged();
+    // qDebug() << "model name " << name;
 }
 DsTrackControl DsTrack::control() const {
     return m_control;
 }
 void DsTrack::setControl(const DsTrackControl &control) {
     m_control = control;
+    emit propertyChanged();
 }
 OverlapableSerialList<DsClip> DsTrack::clips() const {
     return m_clips;
