@@ -11,8 +11,23 @@ void TracksViewController::onNewTrack() {
     onInsertNewTrack(AppModel::instance()->tracks().count());
 }
 void TracksViewController::onInsertNewTrack(int index) {
+    bool soloExists = false;
+    auto tracks = AppModel::instance()->tracks();
+    for (auto dsTrack : tracks) {
+        auto curControl = dsTrack->control();
+        if (curControl.solo()) {
+            soloExists = true;
+            break;
+        }
+    }
+
     auto newTrack = new DsTrack;
     newTrack->setName("New Track");
+    if (soloExists) {
+        auto control = newTrack->control();
+        control.setMute(true);
+        newTrack->setControl(control);
+    }
     AppModel::instance()->insertTrack(newTrack, index);
 }
 void TracksViewController::onRemoveTrack(int index) {
@@ -48,6 +63,10 @@ void TracksViewController::onTrackPropertyChanged(const DsTrack::TrackPropertyCh
     bool isSoloClicked = false;
     if (args.solo != track->control().solo())
         isSoloClicked = true;
+
+    bool isMuteClicked = false;
+    if (args.mute != track->control().mute())
+        isMuteClicked = true;
 
     if (isSoloClicked) {
         if (args.solo == true) { // turn on solo
@@ -88,20 +107,14 @@ void TracksViewController::onTrackPropertyChanged(const DsTrack::TrackPropertyCh
                 }
             }
         }
-    } else {                     // is mute clicked
+    } else if (isMuteClicked) {  // is mute clicked
         if (args.mute == true) { // turn on mute
             control = track->control();
             control.setSolo(false);
             control.setMute(true);
         } else { // turn off mute
             bool soloExists = false;
-            for (auto dsTrack : tracks) {
-                auto curControl = dsTrack->control();
-                if (curControl.solo()) {
-                    soloExists = true;
-                    break;
-                }
-            }
+
             if (!soloExists) {
                 control.setMute(false);
             }
