@@ -9,10 +9,12 @@
 #include <QPushButton>
 #include <QDoubleSpinBox>
 #include <QMessageBox>
+#include <QLabel>
 
 #include <TalcsDevice/AudioDriverManager.h>
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDevice.h>
+#include <TalcsRemote/RemoteAudioDevice.h>
 
 #include "Audio/AudioSystem.h"
 
@@ -136,6 +138,27 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : QDialog(parent) {
         AudioSystem::instance()->testDevice();
     });
 
+    if (AudioSystem::instance()->m_socket) {
+        audioOutputLayout->insertRow(0, new QLabel(tr("These options are disabled in plugged mode.")));
+        m_driverComboBox->setDisabled(true);
+        m_deviceComboBox->addItem(AudioSystem::instance()->device()->name());
+        m_deviceComboBox->setDisabled(true);
+        m_bufferSizeComboBox->addItem(QString::number(AudioSystem::instance()->device()->bufferSize()));
+        m_bufferSizeComboBox->setDisabled(true);
+        m_sampleRateComboBox->addItem(QString::number(AudioSystem::instance()->device()->sampleRate()));
+        m_sampleRateComboBox->setDisabled(true);
+        m_hotPlugModeComboBox->setDisabled(true);
+        connect(AudioSystem::instance()->m_remoteDev, &talcs::RemoteAudioDevice::remoteOpened, this, [=](qint64 bufferSize, double sampleRate) {
+            m_bufferSizeComboBox->clear();
+            m_sampleRateComboBox->clear();
+            m_bufferSizeComboBox->addItem(QString::number(bufferSize));
+            m_sampleRateComboBox->addItem(QString::number(sampleRate));
+        });
+    } else {
+        updateDriverComboBox();
+    }
+}
+void AudioSettingsDialog::updateDriverComboBox() {
     if (!AudioSystem::instance()->driver())
         AudioSystem::instance()->findProperDriver();
     if (!AudioSystem::instance()->driver()) {
@@ -155,6 +178,15 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : QDialog(parent) {
             QMessageBox::warning(this, {}, tr("No audio device available in driver mode %1!").arg(AudioSystem::driverDisplayName(AudioSystem::instance()->driver()->name())));
 
         updateDeviceComboBox();
+        connect(AudioSystem::instance()->m_drv, &talcs::AudioDriver::deviceChanged, this, [=] {
+            disconnect(m_deviceComboBox, nullptr, this, nullptr);
+            m_deviceComboBox->clear();
+            disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
+            m_bufferSizeComboBox->clear();
+            disconnect(m_sampleRateComboBox, nullptr, this, nullptr);
+            m_sampleRateComboBox->clear();
+            updateDeviceComboBox();
+        });
     }
 
     connect(m_driverComboBox, &QComboBox::currentIndexChanged, this, [=](int index) {

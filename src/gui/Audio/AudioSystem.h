@@ -12,6 +12,9 @@ namespace talcs {
     class PositionableMixerAudioSource;
     class AudioSourcePlayback;
     class MixerAudioSource;
+    class RemoteSocket;
+    class RemoteAudioDevice;
+    class TransportAudioSourceProcessInfoCallback;
 }
 
 class AudioSettingsDialog;
@@ -28,7 +31,9 @@ public:
     talcs::AudioDriverManager *driverManager() const;
     talcs::AudioDevice *device() const;
     talcs::AudioDriver *driver() const;
+    talcs::MixerAudioSource *preMixer() const;
     talcs::TransportAudioSource *transport() const;
+    talcs::PositionableMixerAudioSource *masterTrack() const;
 
     bool isDeviceAutoClosed() const;
 
@@ -78,6 +83,11 @@ private:
     void postSetDevice();
 
     void handleDeviceHotPlug();
+
+    talcs::RemoteSocket *m_socket = nullptr;
+    talcs::RemoteAudioDevice *m_remoteDev = nullptr;
+    QScopedPointer<talcs::TransportAudioSourceProcessInfoCallback> m_remoteTpCb;
+    static QPair<quint16, quint16> checkVstConfig() ;
 };
 
 

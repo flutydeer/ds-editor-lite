@@ -1,8 +1,14 @@
 #include "AudioSystem.h"
 
+#include <QApplication>
 #include <QTimer>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QFile>
+#include <QDir>
+#include <QStandardPaths>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsCore/PositionableMixerAudioSource.h>
@@ -12,12 +18,18 @@
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsDevice/AudioSourcePlayback.h>
+#include <TalcsRemote/RemoteSocket.h>
+#include <TalcsRemote/RemoteAudioDevice.h>
+#include <TalcsRemote/RemoteEditor.h>
+#include <TalcsRemote/RemoteTransportControllerInterface.h>
+#include <TalcsRemote/TransportAudioSourceProcessInfoCallback.h>
+
 
 #include "Audio/Dialogs/AudioSettingsDialog.h"
 
 static AudioSystem *m_instance = nullptr;
 
-AudioSystem::AudioSystem(QObject *parent) : QObject(parent), m_settings("OpenVPI", "DsEditorLite") {
+AudioSystem::AudioSystem(QObject *parent) : QObject(parent) {
     m_drvMgr = talcs::AudioDriverManager::createBuiltInDriverManager(this);
     m_masterTrack = new talcs::PositionableMixerAudioSource;
     m_tpSrc = new talcs::TransportAudioSource(m_masterTrack, true);
@@ -91,14 +103,58 @@ bool AudioSystem::findProperDevice() {
 }
 
 bool AudioSystem::initialize(bool isVstMode) {
+    auto [vstEditorPort, vstPluginPort] = checkVstConfig();
     if (isVstMode) {
-        return false;
+        m_socket = new talcs::RemoteSocket(vstEditorPort, vstPluginPort, this);
+        if (!m_socket->startServer(QThread::idealThreadCount()))
+            return false;
+        m_remoteDev = new talcs::RemoteAudioDevice(m_socket, tr("Host Audio"));
+        m_remoteTpCb.reset(new talcs::TransportAudioSourceProcessInfoCallback(m_tpSrc));
+        m_remoteDev->addProcessInfoCallback(m_remoteTpCb.get());
+        // TODO remote editor
+
+        connect(m_remoteDev, &talcs::RemoteAudioDevice::remoteOpened, this, [=](qint64 bufferSize, double sampleRate) {
+            m_preMixer->open(bufferSize, sampleRate);
+            m_remoteDev->open(bufferSize, sampleRate);
+            m_adoptedBufferSize = bufferSize;
+            m_adoptedSampleRate = sampleRate;
+        });
+
+        m_preMixer->open(1024, 48000); // dummy
+
+        if (!m_socket->startClient())
+            return false;
+        m_dev.reset(m_remoteDev);
+        return true;
     } else {
         if (!findProperDriver())
             return false;
         if (!findProperDevice())
             return false;
         return true;
+    }
+}
+QPair<quint16, quint16> AudioSystem::checkVstConfig() {
+    auto vstConfigFilename = QStandardPaths::locate(QStandardPaths::AppDataLocation, "vstconfig.json");
+    if (vstConfigFilename.isEmpty()) {
+        QDir configDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation)[0]);
+        if (!configDir.exists())
+            configDir.mkpath(configDir.absolutePath());
+        QFile configFile(configDir.absoluteFilePath("vstconfig.json"));
+        configFile.open(QFile::WriteOnly);
+        configFile.write(QJsonDocument({
+                                           {"editor",      QApplication::applicationFilePath()},
+                                           {"pluginPort",  28082                             },
+                                           {"editorPort",  28081                             },
+                                           {"threadCount", 2                                 },
+        })
+                             .toJson());
+        return {28081, 28082};
+    } else {
+        QFile configFile(vstConfigFilename);
+        configFile.open(QFile::ReadOnly);
+        auto configDoc = QJsonDocument::fromJson(configFile.readAll());
+        return {configDoc["editorPort"].toVariant().value<quint16>(), configDoc["pluginPort"].toVariant().value<quint16>()};
     }
 }
 
@@ -123,7 +179,7 @@ bool AudioSystem::isDeviceAutoClosed() const {
 }
 
 bool AudioSystem::checkStatus() const {
-    return m_drv && m_dev && m_dev->isOpen();
+    return m_dev && m_dev->isOpen();
 }
 
 bool AudioSystem::setDriver(const QString &driverName) {

@@ -38,6 +38,7 @@ private:
 
     void updateDeviceComboBox();
     void updateBufferSizeAndSampleRateComboBox();
+    void updateDriverComboBox();
 };
 
 
