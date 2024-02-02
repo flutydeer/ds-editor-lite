@@ -38,7 +38,6 @@ signals:
 
 private:
     void reset();
-    void runG2p();
 
     double m_tempo = 120;
     QList<DsTrack *> m_tracks;

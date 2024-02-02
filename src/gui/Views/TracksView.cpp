@@ -84,7 +84,7 @@ void TracksView::onModelChanged() {
     auto model = AppModel::instance();
     m_tempo = model->tempo();
     int index = 0;
-    for (const auto &track : model->tracks()) {
+    for (const auto track : model->tracks()) {
         insertTrackToView(*track, index);
         index++;
     }
