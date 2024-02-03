@@ -155,13 +155,23 @@ bool AppModel::importMidi(const QString &filename) {
         for (int i = 0; i < dspx->content.tracks.count(); i++) {
             auto track = dspx->content.tracks[i];
             auto dsTrack = new DsTrack;
+            dsTrack->setName(track.name);
             decodeClips(track, dsTrack);
             tracks.append(dsTrack);
         }
     };
 
-    qDebug() << "importMidi" << filename;
-    midi->load(filename, dspx, args);
+    auto returnCode = midi->load(filename, dspx, args);
+
+    if (returnCode.type != QDspx::ReturnCode::Success) {
+        QMessageBox::warning(nullptr, "Warning",
+                             QString("Failed to load midi file.\r\npath: %1\r\ntype: %2 code: %3")
+                                 .arg(filename)
+                                 .arg(returnCode.type)
+                                 .arg(returnCode.code));
+        return false;
+    }
+
     auto timeline = dspx->content.timeline;
     numerator = timeline.timeSignatures[0].num;
     denominator = timeline.timeSignatures[0].den;
