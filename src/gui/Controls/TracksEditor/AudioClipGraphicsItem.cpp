@@ -65,6 +65,7 @@ void AudioClipGraphicsItem::onLoadComplete(bool success, QString errorMessage) {
     m_loading = false;
 
     update();
+    emit propertyChanged();
 }
 void AudioClipGraphicsItem::onTempoChange(double tempo) {
     m_tempo = tempo;

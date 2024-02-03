@@ -163,6 +163,7 @@ void TracksView::onModelChanged() {
         index++;
     }
     emit trackCountChanged(m_tracksModel.tracks.count());
+
     AppController::instance()->onRunG2p();
 }
 void TracksView::onTempoChanged(double tempo) {
@@ -194,7 +195,6 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
 void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipId) {
     auto trackModel = AppModel::instance()->tracks().at(trackIndex);
     auto track = m_tracksModel.tracks.at(trackIndex);
-    AbstractClipGraphicsItem *clipItem;
     switch (type) {
         case DsTrack::Insert:
             qDebug() << "on clip inserted" << trackIndex << clipId;
@@ -221,9 +221,9 @@ void TracksView::onSceneSelectionChanged() {
         auto track = m_tracksModel.tracks.at(i);
         for (int j = 0; j < track->clips.count(); j++) {
             auto clip = track->clips.at(j);
-            if (clip->isSelected()) {
+            if (!clip->removed() && clip->isSelected()) {
                 foundSelectedClip = true;
-                emit selectedClipChanged(i, j); // TODO: use clipId
+                emit selectedClipChanged(i, clip->id());
                 break;
             }
         }
@@ -248,10 +248,9 @@ void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
     }
 }
 void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
-    connect(&dsTrack, &DsTrack::clipChanged, this,
-            [=](DsTrack::ClipChangeType type, int clipId) {
-                onClipChanged(type, trackIndex, clipId);
-            });
+    connect(&dsTrack, &DsTrack::clipChanged, this, [=](DsTrack::ClipChangeType type, int clipId) {
+        onClipChanged(type, trackIndex, clipId);
+    });
     auto track = new Track;
     for (int clipIndex = 0; clipIndex < dsTrack.clips().count(); clipIndex++) {
         auto clip = dsTrack.clips().at(clipIndex);
@@ -316,7 +315,8 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
             }
         }
 }
-void TracksView::insertClipToTrack(DsClip *clip, Track *track, int trackIndex) { // TODO: remove param track
+void TracksView::insertClipToTrack(DsClip *clip, Track *track,
+                                   int trackIndex) { // TODO: remove param track
     auto start = clip->start();
     auto clipStart = clip->clipStart();
     auto length = clip->length();
@@ -355,22 +355,18 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track, int trackIndex) {
                 &AudioClipGraphicsItem::setVisibleRect);
         connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
         connect(clipItem, &AudioClipGraphicsItem::propertyChanged, this, [=] {
-            auto track = m_tracksModel.tracks.at(trackIndex);
-            for (int j = 0; j < track->clips.count(); j++) {
-                auto clip = track->clips.at(j);
-                if (clip == clipItem) {
-                    DsClip::AudioClipPropertyChangedArgs args;
-                    args.trackIndex = trackIndex;
-                    args.clipIndex = j;
-                    args.start = clipItem->start();
-                    args.clipStart = clipItem->clipStart();
-                    args.length = clipItem->length();
-                    args.clipLen = clipItem->clipLen();
-                    args.gain = clipItem->gain();
-                    args.mute = clipItem->mute();
-                    emit clipPropertyChanged(args);
-                    break;
-                }
+            auto clip = findClipItemById(clipItem->id());
+            if (clip == clipItem) {
+                DsClip::AudioClipPropertyChangedArgs args;
+                args.trackIndex = trackIndex;
+                args.id = clipItem->id();
+                args.start = clipItem->start();
+                args.clipStart = clipItem->clipStart();
+                args.length = clipItem->length();
+                args.clipLen = clipItem->clipLen();
+                args.gain = clipItem->gain();
+                args.mute = clipItem->mute();
+                emit clipPropertyChanged(args);
             }
         });
         track->clips.append(clipItem);

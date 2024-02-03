@@ -32,7 +32,7 @@ public slots:
     void onLastPositionChanged(double tick);
 
 signals:
-    void selectedClipChanged(int trackIndex, int clipIndex);
+    void selectedClipChanged(int trackIndex, int clipId);
     void trackPropertyChanged(const DsTrack::TrackPropertyChangedArgs &args);
     void insertNewTrackTriggered(int index);
     void removeTrackTriggerd(int index);

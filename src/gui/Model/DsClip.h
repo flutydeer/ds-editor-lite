@@ -44,6 +44,8 @@ public:
 
     class ClipPropertyChangedArgs {
     public:
+        int id = -1;
+
         QString name;
         int start = 0;
         int length = 0;
@@ -53,7 +55,6 @@ public:
         bool mute = false;
 
         int trackIndex = 0;
-        int clipIndex = 0;
     };
     class AudioClipPropertyChangedArgs : public ClipPropertyChangedArgs {
     public:
