@@ -60,23 +60,25 @@ TracksView::TracksView() {
     connect(this, &TracksView::trackCountChanged, m_gridItem,
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
     auto appModel = AppModel::instance();
-    connect(appModel, &AppModel::modelChanged, m_gridItem, [=] {
-        m_gridItem->setTimeSignature(appModel->numerator, appModel->denominator);
-    });
-    connect(appModel, &AppModel::timeSignatureChanged, m_gridItem, &TimeGridGraphicsItem::setTimeSignature);
+    connect(appModel, &AppModel::modelChanged, m_gridItem,
+            [=] { m_gridItem->setTimeSignature(appModel->numerator, appModel->denominator); });
+    connect(appModel, &AppModel::timeSignatureChanged, m_gridItem,
+            &TimeGridGraphicsItem::setTimeSignature);
     m_tracksScene->addItem(m_gridItem);
 
     m_timeline = new TimelineView;
     m_timeline->setTimeRange(m_gridItem->startTick(), m_gridItem->endTick());
     m_timeline->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
-    connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView, &TracksGraphicsView::onWheelHorScale);
+    connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
+            &TracksGraphicsView::onWheelHorScale);
     auto playbackController = PlaybackController::instance();
-    connect(m_timeline, &TimelineView::setPositionTriggered, playbackController, &PlaybackController::setPosition);
-    connect(appModel, &AppModel::modelChanged, m_timeline, [=] {
-        m_timeline->setTimeSignature(appModel->numerator, appModel->denominator);
-    });
+    connect(m_timeline, &TimelineView::setPositionTriggered, playbackController,
+            &PlaybackController::setPosition);
+    connect(appModel, &AppModel::modelChanged, m_timeline,
+            [=] { m_timeline->setTimeSignature(appModel->numerator, appModel->denominator); });
     connect(appModel, &AppModel::timeSignatureChanged, m_timeline, &TimelineView::setTimeSignature);
-    connect(m_gridItem, &TimeGridGraphicsItem::timeRangeChanged, m_timeline, &TimelineView::setTimeRange);
+    connect(m_gridItem, &TimeGridGraphicsItem::timeRangeChanged, m_timeline,
+            &TimelineView::setTimeRange);
 
     m_scenePlayPosIndicator = new TimeIndicatorGraphicsItem;
     m_scenePlayPosIndicator->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
@@ -113,8 +115,10 @@ TracksView::TracksView() {
     auto lBar = m_trackListWidget->verticalScrollBar();
     connect(gBar, &QScrollBar::valueChanged, lBar, &QScrollBar::setValue);
 
-    connect(playbackController, &PlaybackController::positionChanged, this, &TracksView::onPositionChanged);
-    connect(playbackController, &PlaybackController::lastPositionChanged, this, &TracksView::onLastPositionChanged);
+    connect(playbackController, &PlaybackController::positionChanged, this,
+            &TracksView::onPositionChanged);
+    connect(playbackController, &PlaybackController::lastPositionChanged, this,
+            &TracksView::onLastPositionChanged);
 
     // auto splitter = new QSplitter;
     // splitter->setOrientation(Qt::Horizontal);
@@ -186,26 +190,18 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
             break;
     }
 }
-void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipIndex) {
+void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipId) {
     auto trackModel = AppModel::instance()->tracks().at(trackIndex);
     auto track = m_tracksModel.tracks.at(trackIndex);
     AbstractClipGraphicsItem *clipItem;
     switch (type) {
         case DsTrack::Insert:
-            qDebug() << "on clip inserted" << trackIndex << clipIndex;
-            insertClipToTrack(trackModel->clips().at(clipIndex), track, trackIndex, clipIndex);
+            qDebug() << "on clip inserted" << trackIndex << clipId;
+            insertClipToTrack(trackModel->findClipById(clipId), track, trackIndex);
             break;
-        // case DsTrack::Update:
-        //     qDebug() << "fetch data from clip model";
-        //     clipItem = track->clips.at(clipIndex);
-        //     if (clipItem->start() != dsClip->start())
-        //         clipItem->setStart(dsClip->start());
-        //     if (clipItem->overlapped() != dsClip->overlapped())
-        //         clipItem->setOverlapped(dsClip->overlapped());
-        //     break;
         case DsTrack::Remove:
-            qDebug() << "on clip removed" << trackIndex << clipIndex;
-            removeClipFromTrack(track, clipIndex);
+            qDebug() << "on clip removed" << trackIndex << clipId;
+            removeClipFromView(clipId);
             break;
     }
     updateOverlappedState(trackIndex);
@@ -252,13 +248,13 @@ void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
 }
 void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
     connect(&dsTrack, &DsTrack::clipChanged, this,
-            [=](DsTrack::ClipChangeType type, int clipIndex) {
-                onClipChanged(type, trackIndex, clipIndex);
+            [=](DsTrack::ClipChangeType type, int clipId) {
+                onClipChanged(type, trackIndex, clipId);
             });
     auto track = new Track;
     for (int clipIndex = 0; clipIndex < dsTrack.clips().count(); clipIndex++) {
         auto clip = dsTrack.clips().at(clipIndex);
-        insertClipToTrack(clip, track, trackIndex, clipIndex);
+        insertClipToTrack(clip, track, trackIndex);
     }
     auto newTrackItem = new QListWidgetItem;
     auto newTrackControlWidget = new TrackControlWidget(newTrackItem);
@@ -319,20 +315,27 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
             }
         }
 }
-void TracksView::insertClipToTrack(DsClip *clip, Track *track, int trackIndex,
-                                   int clipIndex) { // TODO: remove param track
+void TracksView::insertClipToTrack(DsClip *clip, Track *track, int trackIndex) { // TODO: remove param track
+    auto item = findClipItemById(clip->id());
+    if (item != nullptr) {
+        item->setTrackIndex(trackIndex);
+        m_tracksScene->addItem(item);
+        item->setRemoved(false);
+        return;
+    }
+
     auto start = clip->start();
     auto clipStart = clip->clipStart();
     auto length = clip->length();
     auto clipLen = clip->clipLen();
     if (clip->type() == DsClip::Audio) {
         auto audioClip = dynamic_cast<DsAudioClip *>(clip);
-        auto clipItem = new AudioClipGraphicsItem(0);
+        auto clipItem = new AudioClipGraphicsItem(clip->id());
         clipItem->setStart(start);
         clipItem->setClipStart(clipStart);
         clipItem->setLength(length);
         clipItem->setClipLen(clipLen);
-        clipItem->setGain(1.0);
+        clipItem->setGain(audioClip->gain());
         clipItem->setTrackIndex(trackIndex);
         clipItem->setPath(audioClip->path());
         clipItem->setTempo(m_tempo);
@@ -365,15 +368,15 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track, int trackIndex,
                 }
             }
         });
-        track->clips.insert(clipIndex, clipItem);
+        track->clips.append(clipItem);
     } else if (clip->type() == DsClip::Singing) {
         auto singingClip = dynamic_cast<DsSingingClip *>(clip);
-        auto clipItem = new SingingClipGraphicsItem(0);
+        auto clipItem = new SingingClipGraphicsItem(clip->id());
         clipItem->setStart(start);
         clipItem->setClipStart(clipStart);
         clipItem->setLength(length);
         clipItem->setClipLen(clipLen);
-        clipItem->setGain(1.0);
+        clipItem->setGain(singingClip->gain());
         clipItem->setTrackIndex(trackIndex);
         clipItem->loadNotes(singingClip->notes);
         clipItem->setOverlapped(singingClip->overlapped());
@@ -385,13 +388,20 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track, int trackIndex,
                 &SingingClipGraphicsItem::setScale);
         connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
                 &SingingClipGraphicsItem::setVisibleRect);
-        track->clips.insert(clipIndex, clipItem);
+        track->clips.append(clipItem);
     }
 }
-void TracksView::removeClipFromTrack(Track *track, int clipIndex) {
-    auto clip = track->clips.at(clipIndex);
-    m_tracksScene->removeItem(clip);
-    track->clips.removeAt(clipIndex);
+void TracksView::removeClipFromView(int clipId) {
+    auto clipItem = findClipItemById(clipId);
+    m_tracksScene->removeItem(clipItem);
+    clipItem->setRemoved(true);
+}
+AbstractClipGraphicsItem *TracksView::findClipItemById(int id) {
+    for (const auto &track : m_tracksModel.tracks)
+        for (const auto clip : track->clips)
+            if (clip->id() == id)
+                return clip;
+    return nullptr;
 }
 void TracksView::updateTracksOnView() {
     auto tracksModel = AppModel::instance()->tracks();
@@ -430,12 +440,12 @@ void TracksView::removeTrackFromView(int index) {
 void TracksView::updateOverlappedState(int trackIndex) {
     auto trackModel = AppModel::instance()->tracks().at(trackIndex);
     auto track = m_tracksModel.tracks.at(trackIndex);
-    int i = 0;
     for (auto clipItem : track->clips) {
-        auto dsClip = trackModel->clips().at(i);
-        if (clipItem->overlapped() != dsClip->overlapped())
+        auto dsClip = trackModel->findClipById(clipItem->id());
+        if (dsClip != nullptr)
             clipItem->setOverlapped(dsClip->overlapped());
-        i++;
+        else
+            return;
     }
     m_graphicsView->update();
 }

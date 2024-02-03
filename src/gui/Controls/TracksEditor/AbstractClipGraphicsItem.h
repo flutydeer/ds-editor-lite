@@ -7,8 +7,9 @@
 
 #include "Controls/Base/CommonGraphicsRectItem.h"
 #include "Utils/IOverlapable.h"
+#include "Utils/IUnique.h"
 
-class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IOverlapable {
+class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IOverlapable, public IUnique {
     Q_OBJECT
 
 public:
@@ -17,7 +18,9 @@ public:
     explicit AbstractClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     ~AbstractClipGraphicsItem() override = default;
 
-    int itemId();
+    bool removed() const;
+    void setRemoved(bool b);
+
     QString name() const;
     void setName(const QString &text);
 
@@ -74,7 +77,7 @@ protected:
     double sceneXToItemX(double x) const;
 
 private:
-    int m_itemId;
+    bool m_removed = false;
     QString m_name;
     int m_start = 0;
     int m_length = 0;

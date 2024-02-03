@@ -12,23 +12,23 @@ void TracksViewController::onNewTrack() {
     onInsertNewTrack(AppModel::instance()->tracks().count());
 }
 void TracksViewController::onInsertNewTrack(int index) {
-    bool soloExists = false;
-    auto tracks = AppModel::instance()->tracks();
-    for (auto dsTrack : tracks) {
-        auto curControl = dsTrack->control();
-        if (curControl.solo()) {
-            soloExists = true;
-            break;
-        }
-    }
+    // bool soloExists = false;
+    // auto tracks = AppModel::instance()->tracks();
+    // for (auto dsTrack : tracks) {
+    //     auto curControl = dsTrack->control();
+    //     if (curControl.solo()) {
+    //         soloExists = true;
+    //         break;
+    //     }
+    // }
 
     auto newTrack = new DsTrack;
     newTrack->setName("New Track");
-    if (soloExists) {
-        auto control = newTrack->control();
-        control.setMute(true);
-        newTrack->setControl(control);
-    }
+    // if (soloExists) {
+    //     auto control = newTrack->control();
+    //     control.setMute(true);
+    //     newTrack->setControl(control);
+    // }
     AppModel::instance()->insertTrack(newTrack, index);
 }
 void TracksViewController::onRemoveTrack(int index) {

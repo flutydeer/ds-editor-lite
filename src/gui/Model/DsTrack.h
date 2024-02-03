@@ -26,6 +26,7 @@ public:
     OverlapableSerialList<DsClip> clips() const;
     void insertClip(DsClip *clip);
     void removeClip(DsClip *clip);
+    DsClip *findClipById(int id);
 
     class TrackPropertyChangedArgs {
     public:
@@ -40,7 +41,7 @@ public:
 
 signals:
     void propertyChanged();
-    void clipChanged(ClipChangeType type, int index);
+    void clipChanged(ClipChangeType type, int id);
 
     // Color color() const;
     // void setColor(const Color &color);

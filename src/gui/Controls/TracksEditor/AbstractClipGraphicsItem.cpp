@@ -15,15 +15,17 @@
 using namespace TracksEditorGlobal;
 
 AbstractClipGraphicsItem::AbstractClipGraphicsItem(int itemId, QGraphicsItem *parent)
-    : CommonGraphicsRectItem(parent) {
-    m_itemId = itemId;
+    : CommonGraphicsRectItem(parent), IUnique(itemId) {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
     // setFlag(QGraphicsItem::ItemIsFocusable, true); // Must enabled, or keyPressEvent would not
     // work. setAcceptTouchEvents(true);
 }
-int AbstractClipGraphicsItem::itemId() {
-    return m_itemId;
+bool AbstractClipGraphicsItem::removed() const {
+    return m_removed;
+}
+void AbstractClipGraphicsItem::setRemoved(bool b) {
+    m_removed = b;
 }
 
 QString AbstractClipGraphicsItem::name() const {
@@ -161,7 +163,7 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 
     auto fontMetrics = painter->fontMetrics();
     auto textHeight = fontMetrics.height();
-    auto controlStr =
+    auto controlStr =QString("id: %1 ").arg(id()) +
         QString("%1 %2dB %3 ").arg(m_name).arg(QString::number(m_gain)).arg(m_mute ? "M" : "");
     auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
                        .arg(m_start)

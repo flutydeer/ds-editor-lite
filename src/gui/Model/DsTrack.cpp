@@ -30,11 +30,17 @@ void DsTrack::insertClip(DsClip *clip) {
     //     emit clipChanged(Update, clipIndex);
     // });
     m_clips.add(clip);
-    int index = m_clips.indexOf(clip);
-    emit clipChanged(Insert, index);
+    emit clipChanged(Insert, clip->id());
 }
 void DsTrack::removeClip(DsClip *clip) {
-    int index = m_clips.indexOf(clip);
     m_clips.remove(clip);
-    emit clipChanged(Remove, index);
+    emit clipChanged(Remove, clip->id());
+}
+DsClip *DsTrack::findClipById(int id) {
+    for (int i = 0; i < m_clips.count(); i++) {
+        auto clip = m_clips.at(i);
+        if (clip->id() == id)
+            return clip;
+    }
+    return nullptr;
 }

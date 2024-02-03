@@ -78,8 +78,9 @@ private:
     int positionInTick = 1920;
 
     void insertTrackToView(const DsTrack &dsTrack, int trackIndex);
-    void insertClipToTrack(DsClip *clip, Track *track, int trackIndex, int clipIndex);
-    void removeClipFromTrack(Track *track, int clipIndex);
+    void insertClipToTrack(DsClip *clip, Track *track, int trackIndex);
+    void removeClipFromView(int clipIndex);
+    AbstractClipGraphicsItem *findClipItemById(int id);
     void updateTracksOnView();
     void removeTrackFromView(int index);
     void updateOverlappedState(int trackIndex);
