@@ -9,14 +9,14 @@
 
 TimeGridGraphicsItem::TimeGridGraphicsItem(QGraphicsItem *parent) {
 }
-
-void TimeGridGraphicsItem::setPixelsPerQuarterNote(int px) {
-    m_pixelsPerQuarterNote = px;
-    update();
+double TimeGridGraphicsItem::startTick() const {
+    return sceneXToTick(visibleRect().left());
 }
-void TimeGridGraphicsItem::onTimeSignatureChanged(int numerator, int denominator) {
-    m_numerator = numerator;
-    m_denominator = denominator;
+double TimeGridGraphicsItem::endTick() const {
+    return sceneXToTick(visibleRect().right());
+}
+void TimeGridGraphicsItem::setTimeSignature(int numerator, int denominator) {
+    ITimelinePainter::setTimeSignature(numerator, denominator);
     update();
 }
 void TimeGridGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -29,24 +29,22 @@ void TimeGridGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsIt
     pen.setColor(commonLineColor);
     painter->setPen(pen);
     // painter->setRenderHint(QPainter::Antialiasing);
-
-    auto startTick = sceneXToTick(visibleRect().left());
-    auto endTick = sceneXToTick(visibleRect().right());
-    drawTimeline(painter, startTick, endTick, m_numerator, m_denominator, m_pixelsPerQuarterNote, scaleX());
+    drawTimeline(painter, startTick(), endTick(), visibleRect().width());
 }
 
 void TimeGridGraphicsItem::updateRectAndPos() {
     auto pos = visibleRect().topLeft();
     setPos(pos);
     setRect(QRectF(0, 0, visibleRect().width(), visibleRect().height()));
+    emit timeRangeChanged(startTick(), endTick());
     update();
 }
 void TimeGridGraphicsItem::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick));
-    pen.setColor(barTextColor);
-    painter->setPen(pen);
-    painter->drawText(QPointF(x, 10), QString::number(bar));
+    // pen.setColor(barTextColor);
+    // painter->setPen(pen);
+    // painter->drawText(QPointF(x, 10), QString::number(bar));
     pen.setColor(barLineColor);
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
@@ -54,9 +52,9 @@ void TimeGridGraphicsItem::drawBar(QPainter *painter, int tick, int bar) {
 void TimeGridGraphicsItem::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick));
-    pen.setColor(beatTextColor);
-    painter->setPen(pen);
-    painter->drawText(QPointF(x, 10), QString::number(bar) + "." + QString::number(beat));
+    // pen.setColor(beatTextColor);
+    // painter->setPen(pen);
+    // painter->drawText(QPointF(x, 10), QString::number(bar) + "." + QString::number(beat));
     pen.setColor(beatLineColor);
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
@@ -67,14 +65,13 @@ void TimeGridGraphicsItem::drawEighth(QPainter *painter, int tick) {
     pen.setColor(commonLineColor);
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
-
 }
-double TimeGridGraphicsItem::sceneXToTick(double pos) {
-    return 480 * pos / scaleX() / m_pixelsPerQuarterNote;
+double TimeGridGraphicsItem::sceneXToTick(double pos) const {
+    return 480 * pos / scaleX() / pixelsPerQuarterNote();
 }
-double TimeGridGraphicsItem::tickToSceneX(double tick) {
-    return tick * scaleX() * m_pixelsPerQuarterNote / 480;
+double TimeGridGraphicsItem::tickToSceneX(double tick) const {
+    return tick * scaleX() * pixelsPerQuarterNote() / 480;
 }
-double TimeGridGraphicsItem::sceneXToItemX(double x) {
+double TimeGridGraphicsItem::sceneXToItemX(double x) const {
     return mapFromScene(QPointF(x, 0)).x();
 }

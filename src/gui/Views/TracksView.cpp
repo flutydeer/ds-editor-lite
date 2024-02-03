@@ -10,6 +10,7 @@
 #include <QScrollBar>
 
 #include "Controller/AppController.h"
+#include "Controls/Base/TimelineView.h"
 #include "Controls/TracksEditor/AudioClipGraphicsItem.h"
 #include "Controls/TracksEditor/SingingClipGraphicsItem.h"
 #include "Controls/TracksEditor/TracksBackgroundGraphicsItem.h"
@@ -60,10 +61,20 @@ TracksView::TracksView() {
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
     auto appModel = AppModel::instance();
     connect(appModel, &AppModel::modelChanged, gridItem, [=] {
-        gridItem->onTimeSignatureChanged(appModel->numerator, appModel->denominator);
+        gridItem->setTimeSignature(appModel->numerator, appModel->denominator);
     });
-    connect(appModel, &AppModel::timeSignatureChanged, gridItem, &TimeGridGraphicsItem::onTimeSignatureChanged);
+    connect(appModel, &AppModel::timeSignatureChanged, gridItem, &TimeGridGraphicsItem::setTimeSignature);
     m_tracksScene->addItem(gridItem);
+
+    auto timelineView = new TimelineView;
+    timelineView->setTimeRange(gridItem->startTick(), gridItem->endTick());
+    timelineView->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
+    connect(timelineView, &TimelineView::wheelHorScale, m_graphicsView, &TracksGraphicsView::onWheelHorScale);
+    connect(appModel, &AppModel::modelChanged, timelineView, [=] {
+        timelineView->setTimeSignature(appModel->numerator, appModel->denominator);
+    });
+    connect(appModel, &AppModel::timeSignatureChanged, timelineView, &TimelineView::setTimeSignature);
+    connect(gridItem, &TimeGridGraphicsItem::timeRangeChanged, timelineView, &TimelineView::setTimeRange);
 
     auto gBar = m_graphicsView->verticalScrollBar();
     auto lBar = m_trackListWidget->verticalScrollBar();
@@ -73,13 +84,31 @@ TracksView::TracksView() {
     // splitter->setOrientation(Qt::Horizontal);
     // splitter->addWidget(tracklist);
     // splitter->addWidget(m_graphicsView);
-    auto layout = new QHBoxLayout;
-    layout->setSpacing(0);
-    layout->setContentsMargins({});
+    auto btn1 = new QPushButton("button 1");
+    btn1->setFixedHeight(20);
+
+    timelineView->setFixedHeight(20);
+
+    auto trackListHeaderLayout = new QHBoxLayout;
+    trackListHeaderLayout->setSpacing(0);
+    trackListHeaderLayout->addWidget(btn1);
+
+    auto trackListPanelLayout = new QVBoxLayout;
+    trackListPanelLayout->addLayout(trackListHeaderLayout);
+    trackListPanelLayout->addWidget(m_trackListWidget);
+
+    auto trackTimelineAndViewLayout = new QVBoxLayout;
+    trackTimelineAndViewLayout->addWidget(timelineView);
+    trackTimelineAndViewLayout->addWidget(m_graphicsView);
+
+    auto mainLayout = new QHBoxLayout;
+    mainLayout->setSpacing(0);
+    mainLayout->setContentsMargins({});
     // layout->addWidget(splitter);
-    layout->addWidget(m_trackListWidget);
-    layout->addWidget(m_graphicsView);
-    setLayout(layout);
+    mainLayout->addLayout(trackListPanelLayout);
+    mainLayout->addLayout(trackTimelineAndViewLayout);
+
+    setLayout(mainLayout);
 }
 void TracksView::onModelChanged() {
     if (m_tracksScene == nullptr)

@@ -5,12 +5,14 @@
 #include "ITimelinePainter.h"
 
 void ITimelinePainter::drawTimeline(QPainter *painter, double startTick, double endTick,
-                                    int numerator, int denominator, int pixelsPerQuarterNote, double scaleX) {
-    bool canDrawEighthLine = 240 * scaleX * pixelsPerQuarterNote / 480 >= m_minimumSpacing;
-    bool canDrawQuarterLine = scaleX * pixelsPerQuarterNote >= m_minimumSpacing;
-    int barTicks = 1920 * numerator / denominator;
-    int beatTicks = 1920 / denominator;
-    int oneBarLength = barTicks * scaleX * pixelsPerQuarterNote / 480;
+                                    double rectWidth) {
+    auto ticksPerPixel = (endTick - startTick) / rectWidth;
+
+    bool canDrawEighthLine = 240 / ticksPerPixel >= m_minimumSpacing;
+    bool canDrawQuarterLine = 480 / ticksPerPixel >= m_minimumSpacing;
+    int barTicks = 1920 * m_numerator / m_denominator;
+    int beatTicks = 1920 / m_denominator;
+    auto oneBarLength = barTicks / ticksPerPixel;
     bool canDrawWholeLine = oneBarLength >= m_minimumSpacing;
 
     auto drawBarBeatEighthLines = [&] {
@@ -19,7 +21,7 @@ void ITimelinePainter::drawTimeline(QPainter *painter, double startTick, double 
             auto bar = i / barTicks + 1;
             auto beat = (i % barTicks) / beatTicks + 1;
             if (i % barTicks == 0) { // bar
-                drawBar(painter,i, bar);
+                drawBar(painter, i, bar);
             } else if (i % beatTicks == 0 && canDrawQuarterLine) {
                 drawBeat(painter, i, bar, beat);
             } else if (canDrawEighthLine) {
@@ -30,7 +32,7 @@ void ITimelinePainter::drawTimeline(QPainter *painter, double startTick, double 
 
     auto drawBars = [&] {
         int drawBarHopSize = 1; // bar
-        int curLineSpacing = oneBarLength;
+        auto curLineSpacing = oneBarLength;
         while (curLineSpacing < m_minimumSpacing) {
             drawBarHopSize *= 2;
             curLineSpacing *= 2;
@@ -47,4 +49,14 @@ void ITimelinePainter::drawTimeline(QPainter *painter, double startTick, double 
         drawBars();
     else
         drawBarBeatEighthLines();
+}
+int ITimelinePainter::pixelsPerQuarterNote() const {
+    return m_pixelsPerQuarterNote;
+}
+void ITimelinePainter::setPixelsPerQuarterNote(int px) {
+    m_pixelsPerQuarterNote = px;
+}
+void ITimelinePainter::setTimeSignature(int numerator, int denominator) {
+    m_numerator = numerator;
+    m_denominator = denominator;
 }

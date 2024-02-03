@@ -98,6 +98,48 @@ void CommonGraphicsView::setEnsureSceneFillView(bool on) {
 void CommonGraphicsView::notifyVisibleRectChanged() {
     emit visibleRectChanged(visibleRect());
 }
+void CommonGraphicsView::onWheelHorScale(QWheelEvent *event) {
+    auto cursorPosF = event->position();
+    auto cursorPos = QPoint(static_cast<int>(cursorPosF.x()), static_cast<int>(cursorPosF.y()));
+    auto scenePos = mapToScene(cursorPos);
+
+    auto deltaX = event->angleDelta().x();
+    auto deltaY = event->angleDelta().y();
+
+    auto targetScaleX = m_scaleX;
+    if (deltaY > 0)
+        targetScaleX = m_scaleX * (1 + m_hZoomingStep * deltaY / 120);
+    else if (deltaY < 0)
+        targetScaleX = m_scaleX / (1 + m_hZoomingStep * -deltaY / 120);
+
+    if (targetScaleX > m_scaleXMax)
+        targetScaleX = m_scaleXMax;
+
+    auto scaledSceneWidth = sceneRect().width() * (targetScaleX / m_scaleX);
+    if (scaledSceneWidth < viewport()->width()) {
+        auto targetSceneWidth = viewport()->width();
+        targetScaleX = targetSceneWidth / (sceneRect().width() / m_scaleX);
+    }
+
+    auto ratio = targetScaleX / m_scaleX;
+    auto targetSceneX = scenePos.x() * ratio;
+    auto targetValue = qRound(targetSceneX - cursorPos.x());
+    if (!isMouseWheel(event)) {
+        setScaleX(targetScaleX);
+        setHBarValue(targetValue);
+    } else {
+        m_scaleXAnimation.stop();
+        m_scaleXAnimation.setStartValue(m_scaleX);
+        m_scaleXAnimation.setEndValue(targetScaleX);
+
+        m_hBarAnimation.stop();
+        m_hBarAnimation.setStartValue(hBarValue());
+        m_hBarAnimation.setEndValue(targetValue);
+
+        m_scaleXAnimation.start();
+        m_hBarAnimation.start();
+    }
+}
 bool CommonGraphicsView::event(QEvent *event) {
 #ifdef Q_OS_MAC
     // Mac Trackpad smooth zooming
@@ -149,39 +191,7 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
     auto deltaY = event->angleDelta().y();
 
     if (event->modifiers() == Qt::ControlModifier) {
-        auto targetScaleX = m_scaleX;
-        if (deltaY > 0)
-            targetScaleX = m_scaleX * (1 + m_hZoomingStep * deltaY / 120);
-        else if (deltaY < 0)
-            targetScaleX = m_scaleX / (1 + m_hZoomingStep * -deltaY / 120);
-
-        if (targetScaleX > m_scaleXMax)
-            targetScaleX = m_scaleXMax;
-
-        auto scaledSceneWidth = sceneRect().width() * (targetScaleX / m_scaleX);
-        if (scaledSceneWidth < viewport()->width()) {
-            auto targetSceneWidth = viewport()->width();
-            targetScaleX = targetSceneWidth / (sceneRect().width() / m_scaleX);
-        }
-
-        auto ratio = targetScaleX / m_scaleX;
-        auto targetSceneX = scenePos.x() * ratio;
-        auto targetValue = qRound(targetSceneX - cursorPos.x());
-        if (!isMouseWheel(event)) {
-            setScaleX(targetScaleX);
-            setHBarValue(targetValue);
-        } else {
-            m_scaleXAnimation.stop();
-            m_scaleXAnimation.setStartValue(m_scaleX);
-            m_scaleXAnimation.setEndValue(targetScaleX);
-
-            m_hBarAnimation.stop();
-            m_hBarAnimation.setStartValue(hBarValue());
-            m_hBarAnimation.setEndValue(targetValue);
-
-            m_scaleXAnimation.start();
-            m_hBarAnimation.start();
-        }
+        onWheelHorScale(event);
     } else if (event->modifiers() == Qt::AltModifier) {
         auto targetScaleY = m_scaleY;
         if (deltaX > 0)

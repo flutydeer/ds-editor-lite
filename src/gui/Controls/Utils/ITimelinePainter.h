@@ -9,8 +9,12 @@
 
 class ITimelinePainter {
 public:
-    void drawTimeline(QPainter *painter, double startTick, double endTick, int numerator,
-                      int denominator, int pixelsPerQuarterNote, double scaleX);
+    void setPixelsPerQuarterNote(int px);
+    virtual void setTimeSignature(int numerator, int denominator);
+
+protected:
+    void drawTimeline(QPainter *painter, double startTick, double endTick, double rectWidth);
+    int pixelsPerQuarterNote() const;
     virtual void drawBar(QPainter *painter, int tick, int bar) = 0;
     virtual void drawBeat(QPainter *painter, int tick, int bar, int beat) = 0;
     virtual void drawEighth(QPainter *painter, int tick) = 0;
@@ -18,6 +22,9 @@ public:
 
 private:
     int m_minimumSpacing = 24;
+    int m_pixelsPerQuarterNote = 64;
+    int m_numerator = 4;
+    int m_denominator = 4;
 };
 
 

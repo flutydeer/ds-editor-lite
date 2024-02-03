@@ -8,7 +8,7 @@
 #include "CommonGraphicsRectItem.h"
 #include "Controls/Utils/ITimelinePainter.h"
 
-class TimeGridGraphicsItem : public CommonGraphicsRectItem, ITimelinePainter {
+class TimeGridGraphicsItem : public CommonGraphicsRectItem, public ITimelinePainter {
     Q_OBJECT
 
 public:
@@ -22,10 +22,14 @@ public:
     explicit TimeGridGraphicsItem(QGraphicsItem *parent = nullptr);
     ~TimeGridGraphicsItem() override = default;
 
-    void setPixelsPerQuarterNote(int px);
+    double startTick() const;
+    double endTick() const;
+
+signals:
+    void timeRangeChanged(double startTick, double endTick);
 
 public slots:
-    void onTimeSignatureChanged(int numerator, int denominator);
+    void setTimeSignature(int numerator, int denominator) override;
     //     void onTimelineChanged();
 
 protected:
@@ -43,14 +47,9 @@ protected:
     const QColor beatTextColor = QColor(160, 160, 160);
 
 private:
-    double sceneXToTick(double pos);
-    double tickToSceneX(double tick);
-    double sceneXToItemX(double x);
-
-    int m_numerator = 4;
-    int m_denominator = 4;
-    int m_minimumSpacing = 24;
-    int m_pixelsPerQuarterNote = 64;
+    double sceneXToTick(double pos) const;
+    double tickToSceneX(double tick) const;
+    double sceneXToItemX(double x) const;
 };
 
 
