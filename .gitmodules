@@ -7,3 +7,6 @@
 [submodule "src/libs/talcs"]
 	path = src/libs/talcs
 	url = git@github.com:CrSjimo/talcs
+[submodule "src/libs/IkG2p"]
+	path = src/libs/IkG2p
+	url = https://github.com/wolfgitpr/IkG2p
