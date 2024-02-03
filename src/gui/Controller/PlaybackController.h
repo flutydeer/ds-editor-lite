@@ -13,6 +13,17 @@ class PlaybackController final : public QObject, public Singleton<PlaybackContro
     Q_OBJECT
 public:
     explicit PlaybackController();
+    enum PlaybackStatus {
+        Stopped,
+        Playing,
+        Paused,
+    };
+    PlaybackStatus playbackStatus() const;
+
+    double position() const;
+    double lastPosition() const;
+
+    double tempo() const;
 
     // bool isPlaying() const;
     // long position() const;
@@ -21,20 +32,25 @@ public:
 signals:
     void positionChanged(double tick);
     void lastPositionChanged(double tick);
+    void playbackStatusChanged(PlaybackStatus status);
 
 public slots:
     void play();
-    void pause(){};
-    void stop(){};
+    void pause();
+    void stop();
+
     void setPosition(double tick);
-    void sampleRateChanged(int sr);
+    void setLastPosition(double tick);
+
+    void sampleRateChanged(double sr);
     void onTempoChanged(double tempo);
 
 private:
-    long m_position = 0;
-    long m_lastPlayPosition = 0;
-    int m_sampleRate = 48000;
+    double m_position = 0;
+    double m_lastPlayPosition = 0;
+    double m_sampleRate = 48000;
     double m_tempo = 120;
+    PlaybackStatus m_playbackStatus = Stopped;
 
     double samplePosToTick(int sample) const;
     int tickToSamplePos(double tick) const;

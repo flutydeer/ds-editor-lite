@@ -92,12 +92,12 @@ void TimelineView::wheelEvent(QWheelEvent *event) {
     QWidget::wheelEvent(event);
 }
 void TimelineView::mousePressEvent(QMouseEvent *event) {
-    emit setPositionTriggered(xToTick(event->position().x()));
+    emit setLastPositionTriggered(xToTick(event->position().x()));
     // setPosition(xToTick(event->position().x()));
     event->accept();
 }
 void TimelineView::mouseMoveEvent(QMouseEvent *event) {
-    emit setPositionTriggered(xToTick(event->position().x()));
+    emit setLastPositionTriggered(xToTick(event->position().x()));
     // setPosition(xToTick(event->position().x()));
     QWidget::mouseMoveEvent(event);
 }

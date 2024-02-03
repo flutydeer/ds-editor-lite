@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QSettings>
 
+#include <TalcsRemote/RemoteAudioDevice.h>
+
 namespace talcs {
     class AudioDevice;
     class AudioDriver;
@@ -13,14 +15,19 @@ namespace talcs {
     class AudioSourcePlayback;
     class MixerAudioSource;
     class RemoteSocket;
-    class RemoteAudioDevice;
     class TransportAudioSourceProcessInfoCallback;
 }
 
 class AudioSettingsDialog;
+class AudioContext;
 
 class AudioSystem : public QObject {
     Q_OBJECT
+    class VstProcessInfoCallback : public talcs::RemoteAudioDevice::ProcessInfoCallback {
+    public:
+        void onThisBlockProcessInfo(const talcs::RemoteAudioDevice::ProcessInfo &processInfo) override;
+        bool m_isPaused = true;
+    };
 public:
     explicit AudioSystem(QObject *parent = nullptr);
     ~AudioSystem() override;
@@ -31,6 +38,7 @@ public:
     talcs::AudioDriverManager *driverManager() const;
     talcs::AudioDevice *device() const;
     talcs::AudioDriver *driver() const;
+    talcs::AudioSourcePlayback *playback() const;
     talcs::MixerAudioSource *preMixer() const;
     talcs::TransportAudioSource *transport() const;
     talcs::PositionableMixerAudioSource *masterTrack() const;
@@ -56,6 +64,8 @@ public:
         NotifyOnCurrentRemoval,
         None,
     };
+
+    AudioContext *audioContext() const;
 
     static QString driverDisplayName(const QString &driverName);
 
@@ -86,8 +96,11 @@ private:
 
     talcs::RemoteSocket *m_socket = nullptr;
     talcs::RemoteAudioDevice *m_remoteDev = nullptr;
-    QScopedPointer<talcs::TransportAudioSourceProcessInfoCallback> m_remoteTpCb;
+    QScopedPointer<VstProcessInfoCallback> m_remoteTpCb;
     static QPair<quint16, quint16> checkVstConfig() ;
+
+    AudioContext *m_audioContext;
+
 };
 
 

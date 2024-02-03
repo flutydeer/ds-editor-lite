@@ -72,8 +72,10 @@ TracksView::TracksView() {
     connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
             &TracksGraphicsView::onWheelHorScale);
     auto playbackController = PlaybackController::instance();
-    connect(m_timeline, &TimelineView::setPositionTriggered, playbackController,
-            &PlaybackController::setPosition);
+    connect(m_timeline, &TimelineView::setLastPositionTriggered, playbackController, [=](double tick) {
+        playbackController->setLastPosition(tick);
+        playbackController->setPosition(tick);
+    });
     connect(appModel, &AppModel::modelChanged, m_timeline,
             [=] { m_timeline->setTimeSignature(appModel->numerator, appModel->denominator); });
     connect(appModel, &AppModel::timeSignatureChanged, m_timeline, &TimelineView::setTimeSignature);

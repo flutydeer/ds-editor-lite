@@ -14,6 +14,7 @@
 #include <TalcsCore/PositionableMixerAudioSource.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsCore/SineWaveAudioSource.h>
+#include <TalcsCore/AudioSourceClipSeries.h>
 #include <TalcsDevice/AudioDriverManager.h>
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDevice.h>
@@ -26,17 +27,21 @@
 
 
 #include "Audio/Dialogs/AudioSettingsDialog.h"
+#include "Audio/AudioContext.h"
 
 static AudioSystem *m_instance = nullptr;
 
 AudioSystem::AudioSystem(QObject *parent) : QObject(parent) {
+    m_instance = this;
     m_drvMgr = talcs::AudioDriverManager::createBuiltInDriverManager(this);
     m_masterTrack = new talcs::PositionableMixerAudioSource;
     m_tpSrc = new talcs::TransportAudioSource(m_masterTrack, true);
     m_preMixer = new talcs::MixerAudioSource;
     m_preMixer->addSource(m_tpSrc, true);
     m_playback.reset(new talcs::AudioSourcePlayback(m_preMixer, true, false));
-    m_instance = this;
+    m_audioContext = new AudioContext(this);
+
+    m_masterTrack->addSource(new talcs::AudioSourceClipSeries, true); // TODO dummy source to fill length
 }
 
 AudioSystem::~AudioSystem() {
@@ -102,6 +107,20 @@ bool AudioSystem::findProperDevice() {
     }
 }
 
+void AudioSystem::VstProcessInfoCallback::onThisBlockProcessInfo(const talcs::RemoteAudioDevice::ProcessInfo &processInfo) {
+    if (processInfo.status == talcs::RemoteAudioDevice::ProcessInfo::NotPlaying) {
+        if (AudioSystem::instance()->transport()->isPlaying() && !m_isPaused)
+            PlaybackController::instance()->stop();
+        m_isPaused = true;
+    } else {
+        if (!AudioSystem::instance()->transport()->isPlaying())
+            PlaybackController::instance()->play();
+        m_isPaused = false;
+        if (AudioSystem::instance()->transport()->position() != processInfo.position)
+            AudioSystem::instance()->m_audioContext->handleVstCallbackPositionChange(processInfo.position);
+    }
+}
+
 bool AudioSystem::initialize(bool isVstMode) {
     auto [vstEditorPort, vstPluginPort] = checkVstConfig();
     if (isVstMode) {
@@ -109,7 +128,7 @@ bool AudioSystem::initialize(bool isVstMode) {
         if (!m_socket->startServer(QThread::idealThreadCount()))
             return false;
         m_remoteDev = new talcs::RemoteAudioDevice(m_socket, tr("Host Audio"));
-        m_remoteTpCb.reset(new talcs::TransportAudioSourceProcessInfoCallback(m_tpSrc));
+        m_remoteTpCb.reset(new VstProcessInfoCallback);
         m_remoteDev->addProcessInfoCallback(m_remoteTpCb.get());
         // TODO remote editor
 
@@ -168,6 +187,16 @@ talcs::AudioDevice *AudioSystem::device() const {
 
 talcs::AudioDriver *AudioSystem::driver() const {
     return m_drv;
+}
+
+talcs::AudioSourcePlayback *AudioSystem::playback() const {
+    return m_playback.get();
+}
+talcs::MixerAudioSource *AudioSystem::preMixer() const {
+    return m_preMixer;
+}
+talcs::PositionableMixerAudioSource *AudioSystem::masterTrack() const {
+    return m_masterTrack;
 }
 
 talcs::TransportAudioSource *AudioSystem::transport() const {
@@ -299,6 +328,10 @@ void AudioSystem::handleDeviceHotPlug() {
         case None:
             break;
     }
+}
+
+AudioContext *AudioSystem::audioContext() const {
+    return m_audioContext;
 }
 
 QString AudioSystem::driverDisplayName(const QString &driverName) {

@@ -19,7 +19,7 @@ public slots:
 
 signals:
     void wheelHorScale(QWheelEvent *event);
-    void setPositionTriggered(double tick);
+    void setLastPositionTriggered(double tick);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
