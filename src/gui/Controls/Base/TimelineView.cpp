@@ -2,7 +2,10 @@
 // Created by fluty on 2024/2/3.
 //
 
+#include <QWheelEvent>
+
 #include "TimelineView.h"
+
 void TimelineView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
@@ -12,16 +15,43 @@ void TimelineView::setTimeSignature(int numerator, int denominator) {
     ITimelinePainter::setTimeSignature(numerator, denominator);
     update();
 }
+void TimelineView::setPosition(double tick) {
+    m_position = tick;
+    update();
+}
 void TimelineView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
     QPainter painter(this);
 
+    // Draw background
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(0, 0, 0, 60));
     painter.drawRect(rect());
     painter.setBrush(Qt::NoBrush);
 
+    // Draw graduates
     drawTimeline(&painter, m_startTick, m_endTick, rect().width());
+
+    // Draw playback indicator
+    auto penWidth = 2.0;
+    auto color = QColor(255, 204, 153);
+    QPen pen;
+    pen.setWidthF(penWidth);
+    pen.setColor(color);
+    pen.setCapStyle(Qt::RoundCap);
+    painter.setPen(pen);
+    painter.setBrush(color);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    auto centerX = tickToX(m_position);
+    double w = 12;
+    double h = 1.73205 * w / 2;
+    auto marginTop = rect().height() - h - penWidth;
+    auto p1 = QPointF(centerX - w / 2, marginTop);
+    auto p2 = QPointF(centerX + w / 2, marginTop);
+    auto p3 = QPointF(centerX, marginTop + h);
+    QPointF points[3]{p1, p2, p3};
+    painter.drawPolygon(points, 3);
 }
 void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
@@ -40,7 +70,8 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     auto x = tickToX(tick);
     pen.setColor(beatTextColor);
     painter->setPen(pen);
-    painter->drawText(QPointF(x + m_textPaddingLeft, 10), QString::number(bar) + "." + QString::number(beat));
+    painter->drawText(QPointF(x + m_textPaddingLeft, 10),
+                      QString::number(bar) + "." + QString::number(beat));
     pen.setColor(beatLineColor);
     painter->setPen(pen);
     auto y1 = 2.0 / 3 * rect().height();
@@ -60,8 +91,24 @@ void TimelineView::wheelEvent(QWheelEvent *event) {
     emit wheelHorScale(event);
     QWidget::wheelEvent(event);
 }
-int TimelineView::tickToX(int tick) {
+void TimelineView::mousePressEvent(QMouseEvent *event) {
+    emit setPositionTriggered(xToTick(event->position().x()));
+    // setPosition(xToTick(event->position().x()));
+    event->accept();
+}
+void TimelineView::mouseMoveEvent(QMouseEvent *event) {
+    emit setPositionTriggered(xToTick(event->position().x()));
+    // setPosition(xToTick(event->position().x()));
+    QWidget::mouseMoveEvent(event);
+}
+double TimelineView::tickToX(double tick) {
     auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
     auto x = qRound(rect().width() * ratio);
     return x;
+}
+double TimelineView::xToTick(double x) {
+    auto tick = 1.0 * x / rect().width() * (m_endTick - m_startTick) + m_startTick;
+    if (tick < 0)
+        tick = 0;
+    return tick;
 }

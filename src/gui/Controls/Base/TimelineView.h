@@ -15,9 +15,11 @@ class TimelineView : public QWidget, public ITimelinePainter {
 public slots:
     void setTimeRange(double startTick, double endTick);
     void setTimeSignature(int numerator, int denominator) override;
+    void setPosition(double tick);
 
 signals:
     void wheelHorScale(QWheelEvent *event);
+    void setPositionTriggered(double tick);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -25,6 +27,8 @@ protected:
     void drawBeat(QPainter *painter, int tick, int bar, int beat) override;
     void drawEighth(QPainter *painter, int tick) override;
     void wheelEvent(QWheelEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
 
     const QColor barLineColor = QColor(92, 96, 100);
     const QColor barTextColor = QColor(200, 200, 200);
@@ -33,11 +37,15 @@ protected:
     const QColor commonLineColor = QColor(57, 59, 61);
     const QColor beatTextColor = QColor(160, 160, 160);
 
+    enum MouseMoveBehavior { SetPosition, SelectLoopRange };
+
 private:
-    int tickToX(int tick);
+    double tickToX(double tick);
+    double xToTick(double x);
     double m_startTick = 0;
     double m_endTick = 0;
     int m_textPaddingLeft = 2;
+    double m_position = 0;
 };
 
 

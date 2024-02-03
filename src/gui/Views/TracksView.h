@@ -10,7 +10,10 @@
 #include "Controls/TracksEditor/TracksGraphicsScene.h"
 #include "Controls/TracksEditor/TracksGraphicsView.h"
 #include "Controls/TracksEditor/TrackControlWidget.h"
+#include "Controls/TracksEditor/TracksBackgroundGraphicsItem.h"
 #include "Controller/TracksViewController.h"
+#include "Controls/Base/TimeIndicatorGraphicsItem.h"
+#include "Controls/Base/TimelineView.h"
 
 class TracksView final : public QWidget {
     Q_OBJECT
@@ -25,6 +28,8 @@ public slots:
     // void onPlaybackPositionChanged(long pos);
     // void onSamplerateChanged(int samplerate);
     void onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipIndex);
+    void onPositionChanged(double tick);
+    void onLastPositionChanged(double tick);
 
 signals:
     void selectedClipChanged(int trackIndex, int clipIndex);
@@ -37,6 +42,7 @@ signals:
     void trackCountChanged(int count);
     void addAudioClipTriggered(const QString &path, int index);
     void clipPropertyChanged(const DsClip::ClipPropertyChangedArgs &args);
+    void setPositionTriggered(double tick);
 
 private slots:
     void onSceneSelectionChanged();
@@ -46,6 +52,10 @@ private:
     QListWidget *m_trackListWidget;
     TracksGraphicsView *m_graphicsView;
     TracksGraphicsScene *m_tracksScene;
+    TimelineView *m_timeline;
+    TracksBackgroundGraphicsItem *m_gridItem;
+    TimeIndicatorGraphicsItem *m_scenePlayPosIndicator;
+    TimeIndicatorGraphicsItem *m_sceneLastPlayPosIndicator;
 
     class Track {
     public:
