@@ -18,7 +18,7 @@ public:
 
 public slots:
     void updateView();
-    void onSelectedClipChanged(int trackIndex, int clipIndex);
+    void onSelectedClipChanged(int trackIndex, int clipId);
 
 private:
     void paintEvent(QPaintEvent *event) override;

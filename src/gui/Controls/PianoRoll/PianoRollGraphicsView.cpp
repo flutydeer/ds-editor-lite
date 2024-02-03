@@ -40,18 +40,18 @@ PianoRollGraphicsView::PianoRollGraphicsView() {
 void PianoRollGraphicsView::updateView() {
     onSelectedClipChanged(-1, -1);
 }
-void PianoRollGraphicsView::onSelectedClipChanged(int trackIndex, int clipIndex) {
+void PianoRollGraphicsView::onSelectedClipChanged(int trackIndex, int clipId) {
     reset();
 
     auto model = AppModel::instance();
-    if (trackIndex == -1 || clipIndex == -1) {
+    if (trackIndex == -1) {
         m_oneSingingClipSelected = false;
         setScene(nullptr);
         update();
         return;
     }
 
-    auto clip = model->tracks().at(trackIndex)->clips().at(clipIndex);
+    auto clip = model->tracks().at(trackIndex)->findClipById(clipId);
     if (clip->type() != DsClip::Singing) {
         m_oneSingingClipSelected = false;
         setScene(nullptr);

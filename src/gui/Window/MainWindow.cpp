@@ -6,6 +6,8 @@
 #include <QSplitter>
 
 #include "MainWindow.h"
+
+#include "Audio/AudioSystem.h"
 #include "Controller/TracksViewController.h"
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
@@ -17,10 +19,10 @@
 
 MainWindow::MainWindow() {
     auto qssBase =
-        "QPushButton { background: #2A2B2C; border: 1px solid #606060; "
+        "QPushButton { background: #402A2B2C; border: 1px solid #80606060; "
         "border-radius: 6px; color: #F0F0F0;padding: 4px 12px;} "
-        "QPushButton:hover {background-color: #343536; } "
-        "QPushButton:pressed {background-color: #202122 } "
+        "QPushButton:hover {background-color: #80343536; } "
+        "QPushButton:pressed {background-color: #40202122 } "
         "QScrollBar::vertical{ width:10px; background-color: transparent; border-style: none; "
         "border-radius: 4px; } "
         "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; } "
