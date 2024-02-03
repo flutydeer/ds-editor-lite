@@ -11,17 +11,15 @@
 #include "DsNote.h"
 #include "DsParams.h"
 #include "Utils/IOverlapable.h"
+#include "Utils/IUnique.h"
 
-class DsClip : public QObject, public IOverlapable {
+class DsClip : public QObject, public IOverlapable, public IUnique {
     Q_OBJECT
 
 public:
     enum ClipType { Audio, Singing, Generic };
 
-    DsClip();
     virtual ~DsClip() = default;
-
-    int trackIdex;
 
     virtual ClipType type() const {
         return Generic;

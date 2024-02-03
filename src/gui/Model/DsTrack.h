@@ -10,15 +10,14 @@
 
 #include "DsClip.h"
 #include "DsTrackControl.h"
+#include "Utils/IUnique.h"
 #include "Utils/OverlapableSerialList.h"
 
-class DsTrack : public QObject {
+class DsTrack : public QObject, public IUnique {
     Q_OBJECT
 
 public:
     enum ClipChangeType { Insert, Remove };
-
-    explicit DsTrack() = default;
 
     QString name() const;
     void setName(const QString &name);

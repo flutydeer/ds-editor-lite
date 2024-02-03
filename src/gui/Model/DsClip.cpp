@@ -4,9 +4,6 @@
 
 #include "DsClip.h"
 
-DsClip::DsClip() {
-
-}
 QString DsClip::name() const {
     return m_name;
 }

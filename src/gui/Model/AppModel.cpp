@@ -15,6 +15,8 @@
 #include <QDialogButtonBox>
 
 #include "AppModel.h"
+
+#include "Utils/IdGenerator.h"
 #include "opendspx/qdspxtrack.h"
 #include "opendspx/qdspxmodel.h"
 #include "opendspx/converters/midi.h"
@@ -129,7 +131,6 @@ bool AppModel::importMidi(const QString &filename) {
             if (clip->type == QDspx::Clip::Type::Singing) {
                 auto singClip = clip.dynamicCast<QDspx::SingingClip>();
                 auto singingClip = new DsSingingClip;
-                singingClip->trackIdex = m_tracks.count();
                 singingClip->setName(clip->name);
                 singingClip->setStart(clip->time.start);
                 singingClip->setClipStart(clip->time.clipStart);
@@ -139,7 +140,6 @@ bool AppModel::importMidi(const QString &filename) {
                 dsTack->insertClip(singingClip);
             } else if (clip->type == QDspx::Clip::Type::Audio) {
                 auto audioClip = new DsAudioClip;
-                audioClip->trackIdex = m_tracks.count();
                 audioClip->setName(clip->name);
                 audioClip->setStart(clip->time.start);
                 audioClip->setClipStart(clip->time.clipStart);
@@ -213,7 +213,6 @@ bool AppModel::loadAProject(const QString &filename) {
             auto objClip = valClip.toObject();
             if (type == "sing") {
                 auto singingClip = new DsSingingClip;
-                singingClip->trackIdex = trackIndex;
                 singingClip->setName("Clip");
                 singingClip->setStart(objClip.value("pos").toInt());
                 singingClip->setClipStart(objClip.value("clipPos").toInt());
@@ -224,7 +223,6 @@ bool AppModel::loadAProject(const QString &filename) {
                 dsTack->insertClip(singingClip);
             } else if (type == "audio") {
                 auto audioClip = new DsAudioClip;
-                audioClip->trackIdex = trackIndex;
                 audioClip->setName("Clip");
                 audioClip->setStart(objClip.value("pos").toInt());
                 audioClip->setClipStart(objClip.value("clipPos").toInt());

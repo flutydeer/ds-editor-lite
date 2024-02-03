@@ -6,6 +6,7 @@
 
 #include "TracksViewController.h"
 #include "Model/AppModel.h"
+#include "Utils/IdGenerator.h"
 
 void TracksViewController::onNewTrack() {
     onInsertNewTrack(AppModel::instance()->tracks().count());
