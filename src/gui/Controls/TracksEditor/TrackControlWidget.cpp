@@ -84,6 +84,14 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_lePan->label->setAlignment(Qt::AlignCenter);
     m_lePan->lineEdit->setAlignment(Qt::AlignCenter);
     m_lePan->setEnabled(false);
+    connect(m_sbarPan, &SeekBar::valueChanged, m_lePan, [=](int value) {
+        if (value < 0)
+            m_lePan->setText("L" + QString::number(-value));
+        else if (value == 0)
+            m_lePan->setText("C");
+        else
+            m_lePan->setText("R" + QString::number(value));
+    });
 
     m_sbarGain = new SeekBar;
     m_sbarGain->setObjectName("m_sbarGain");
@@ -93,7 +101,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     connect(m_sbarGain, &SeekBar::valueChanged, this, &TrackControlWidget::onSeekBarValueChanged);
 
     m_leVolume = new EditLabel();
-    m_leVolume->setText("0dB");
+    m_leVolume->setText("1"); // TODO: use dB
     m_leVolume->setObjectName("leVolume");
     m_leVolume->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     m_leVolume->label->setAlignment(Qt::AlignCenter);
@@ -103,6 +111,11 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_leVolume->setMinimumHeight(20);
     m_leVolume->setMaximumHeight(20);
     m_leVolume->setEnabled(false);
+    connect(m_sbarGain, &SeekBar::valueChanged, m_leVolume, [=](int value) {
+        auto volume = 1.0 * value / 100;
+        auto volumeStr = QString::number(volume, 'g', 3);
+        m_leVolume->setText(volumeStr);
+    });
 
     m_panVolumeSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
 
@@ -229,14 +242,14 @@ void TrackControlWidget::setName(const QString &name) {
 }
 DsTrackControl TrackControlWidget::control() const {
     DsTrackControl control;
-    control.setGain(m_sbarGain->value()); // TODO: linear to dB
+    control.setGain(m_sbarGain->value() / 100); // TODO: linear to dB
     control.setPan(m_sbarPan->value());
     control.setMute(m_btnMute->isChecked());
     control.setSolo(m_btnSolo->isChecked());
     return control;
 }
 void TrackControlWidget::setControl(const DsTrackControl &control) {
-    m_sbarGain->setValue(control.gain());
+    m_sbarGain->setValue(control.gain() * 100);
     m_sbarPan->setValue(control.pan());
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());

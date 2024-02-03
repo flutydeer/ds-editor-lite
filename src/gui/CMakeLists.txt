@@ -22,6 +22,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         ${PLATFORM_LIB}
         talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Synthesis
         opendspx
+        CkIKg2p
 )
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})

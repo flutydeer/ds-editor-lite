@@ -177,16 +177,16 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
     auto model = AppModel::instance();
     switch (type) {
         case AppModel::Insert:
-            qDebug() << "on track inserted" << index;
+            // qDebug() << "on track inserted" << index;
             insertTrackToView(*model->tracks().at(index), index);
             emit trackCountChanged(m_tracksModel.tracks.count());
             break;
         case AppModel::PropertyUpdate:
-            qDebug() << "on track updated" << index;
+            // qDebug() << "on track updated" << index;
             updateTracksOnView();
             break;
         case AppModel::Remove:
-            qDebug() << "on track removed" << index;
+            // qDebug() << "on track removed" << index;
             // remove selection
             emit selectedClipChanged(-1, -1);
             removeTrackFromView(index);
