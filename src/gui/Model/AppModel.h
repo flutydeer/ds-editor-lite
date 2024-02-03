@@ -24,6 +24,7 @@ public:
     void insertTrack(DsTrack *track, int index);
     void removeTrack(int index);
 
+    bool importMidi(const QString &filename);
     bool loadAProject(const QString &filename);
 
 public slots:

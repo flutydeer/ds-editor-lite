@@ -7,7 +7,17 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include <QTextCodec>
+#include <QMessageBox>
+#include <QDialog>
+#include <QVBoxLayout>
+#include <QCheckBox>
+#include <QDialogButtonBox>
+
 #include "AppModel.h"
+#include "opendspx/qdspxtrack.h"
+#include "opendspx/qdspxmodel.h"
+#include "opendspx/converters/midi.h"
 
 double AppModel::tempo() const {
     return m_tempo;
@@ -36,6 +46,131 @@ void AppModel::removeTrack(int index) {
     m_tracks.removeAt(index);
     emit tracksChanged(Remove, index);
 }
+
+bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
+                   const QList<QByteArray> &labelList, QList<int> *selectIDs, QTextCodec *codec) {
+
+    // Set UTF-8 as the text codec
+    codec = QTextCodec::codecForName("UTF-8");
+
+    // Create a dialog
+    QDialog dialog;
+    dialog.setWindowTitle("MIDI Track Selector");
+
+    // Create a layout for the dialog
+    auto *layout = new QVBoxLayout(&dialog);
+
+    // Create checkboxes for each MIDI track
+    QList<QCheckBox *> checkBoxes;
+    for (const auto &trackInfo : trackInfoList) {
+        auto *checkBox = new QCheckBox(QString("track %1:  %2 notes")
+                                           .arg(trackInfo.title.constData())
+                                           .arg(trackInfo.lyrics.count()));
+        checkBox->setChecked(false);
+        checkBoxes.append(checkBox);
+        layout->addWidget(checkBox);
+    }
+
+    // Create OK and Cancel buttons
+    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    layout->addWidget(buttonBox);
+
+    // Connect the button signals to slots on the dialog
+    QObject::connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    // Execute the dialog and get the result
+    int result = dialog.exec();
+
+    // Process the selected MIDI tracks
+    if (result == QDialog::Accepted) {
+        selectIDs->clear();
+        for (int i = 0; i < checkBoxes.size(); ++i) {
+            if (checkBoxes.at(i)->isChecked()) {
+                selectIDs->append(i);
+            }
+        }
+        return true;
+    } else {
+        // User canceled the dialog
+        return false;
+    }
+}
+
+bool AppModel::importMidi(const QString &filename) {
+    reset();
+
+    auto dspx = new QDspx::Model;
+    std::function<bool(const QList<QDspx::MidiConverter::TrackInfo> &, const QList<QByteArray> &,
+                       QList<int> *, QTextCodec *)>
+        midiSelector = trackSelector;
+    QVariantMap args = {};
+    args.insert(QStringLiteral("selector"),
+                QVariant::fromValue(reinterpret_cast<quintptr>(&midiSelector)));
+
+    auto midi = new QDspx::MidiConverter;
+
+    auto decodeNotes = [](const QList<QDspx::Note> &arrNotes) {
+        QList<DsNote> notes;
+        for (const QDspx::Note &dsNote : arrNotes) {
+            DsNote note;
+            note.setStart(dsNote.pos);
+            note.setLength(dsNote.length);
+            note.setKeyIndex(dsNote.keyNum);
+            note.setLyric(dsNote.lyric);
+            note.setPronunciation("la");
+            notes.append(note);
+        }
+        return notes;
+    };
+
+    auto decodeClips = [&](const QDspx::Track &track, DsTrack *dsTack) {
+        for (auto &clip : track.clips) {
+            if (clip->type == QDspx::Clip::Type::Singing) {
+                auto singClip = clip.dynamicCast<QDspx::SingingClip>();
+                auto singingClip = new DsSingingClip;
+                singingClip->trackIdex = m_tracks.count();
+                singingClip->setName(clip->name);
+                singingClip->setStart(clip->time.start);
+                singingClip->setClipStart(clip->time.clipStart);
+                singingClip->setLength(clip->time.length);
+                singingClip->setClipLen(clip->time.clipLen);
+                singingClip->notes.append(decodeNotes(singClip->notes));
+                dsTack->insertClip(singingClip);
+            } else if (clip->type == QDspx::Clip::Type::Audio) {
+                auto audioClip = new DsAudioClip;
+                audioClip->trackIdex = m_tracks.count();
+                audioClip->setName(clip->name);
+                audioClip->setStart(clip->time.start);
+                audioClip->setClipStart(clip->time.clipStart);
+                audioClip->setLength(clip->time.length);
+                audioClip->setClipLen(clip->time.clipLen);
+                audioClip->setPath(clip.dynamicCast<QDspx::AudioClip>()->path);
+                dsTack->insertClip(audioClip);
+            }
+        }
+    };
+
+    auto decodeTracks = [&](const QDspx::Model *dspx, QList<DsTrack *> &tracks) {
+        for (int i = 0; i < dspx->content.tracks.count(); i++) {
+            auto track = dspx->content.tracks[i];
+            auto dsTrack = new DsTrack;
+            decodeClips(track, dsTrack);
+            tracks.append(dsTrack);
+        }
+    };
+
+    qDebug() << "importMidi" << filename;
+    midi->load(filename, dspx, args);
+    auto timeline = dspx->content.timeline;
+    numerator = timeline.timeSignatures[0].num;
+    denominator = timeline.timeSignatures[0].den;
+    m_tempo = timeline.tempos[0].value;
+    decodeTracks(dspx, m_tracks);
+    emit modelChanged();
+    return true;
+}
+
 bool AppModel::loadAProject(const QString &filename) {
     reset();
 

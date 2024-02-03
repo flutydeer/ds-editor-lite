@@ -21,6 +21,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         Qt${QT_VERSION_MAJOR}::Widgets
         ${PLATFORM_LIB}
         talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Synthesis
+        opendspx
 )
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})

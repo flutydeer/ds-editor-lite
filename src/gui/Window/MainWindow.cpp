@@ -83,6 +83,17 @@ MainWindow::MainWindow() {
     btnNewTrack->setText("New Track");
     connect(btnNewTrack, &QPushButton::clicked, trackController, &TracksViewController::onNewTrack);
 
+    auto btnImportMidi = new QPushButton;
+    btnImportMidi->setText("Import MIDI...");
+    connect(btnImportMidi, &QPushButton::clicked, appController, [=]() {
+        auto fileName = QFileDialog::getOpenFileName(btnImportMidi, "Select a MIDI File", ".",
+                                                     "MIDI File (*.mid)");
+        if (fileName.isNull())
+            return;
+
+        AppModel::instance()->importMidi(fileName);
+    });
+
     // auto btnOpenAudioFile = new QPushButton;
     // btnOpenAudioFile->setText("Add an audio file...");
     // connect(btnOpenAudioFile, &QPushButton::clicked, trackController, [=]() {
@@ -152,6 +163,7 @@ MainWindow::MainWindow() {
 
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addWidget(btnNewTrack);
+    actionButtonLayout->addWidget(btnImportMidi);
     // actionButtonLayout->addWidget(btnOpenAudioFile);
     actionButtonLayout->addWidget(btnOpenProjectFile);
     actionButtonLayout->addWidget(btnPlay);
