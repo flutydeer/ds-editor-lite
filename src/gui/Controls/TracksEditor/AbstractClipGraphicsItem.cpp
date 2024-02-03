@@ -279,8 +279,8 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                 break;
 
             if (!m_canResizeLength) {
-                if (clipLen >= m_length)
-                    setClipLen(m_length);
+                if (m_clipStart + clipLen >= m_length)
+                    setClipLen(m_length - m_clipStart);
                 else
                     setClipLen(clipLen);
             } else {
