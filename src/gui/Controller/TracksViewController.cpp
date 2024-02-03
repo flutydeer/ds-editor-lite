@@ -60,6 +60,7 @@ void TracksViewController::onTrackPropertyChanged(const DsTrack::TrackPropertyCh
     control.setPan(args.pan);
     control.setMute(args.mute);
     control.setSolo(args.solo);
+    qDebug() << "gain" << control.gain() << "pan" << control.pan();
     track->setControl(control);
 }
 void TracksViewController::onAddAudioClip(const QString &path, int index) {
