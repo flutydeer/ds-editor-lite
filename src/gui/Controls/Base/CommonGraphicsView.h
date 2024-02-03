@@ -46,6 +46,7 @@ signals:
 
 public slots:
     void notifyVisibleRectChanged();
+    void onWheelHorScale(QWheelEvent *event);
 
 protected:
     bool event(QEvent *event) override;

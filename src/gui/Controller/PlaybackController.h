@@ -18,11 +18,15 @@ public:
     // long position() const;
     // long lastPlayPosition() const;
 
+signals:
+    void positionChanged(double tick);
+    void lastPositionChanged(double tick);
+
 public slots:
     void play(){};
     void pause(){};
     void stop(){};
-    void setPosition(long pos){};
+    void setPosition(double tick){};
 
 private:
     long m_lastPlayPosition;
