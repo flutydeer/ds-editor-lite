@@ -19,6 +19,7 @@ public:
 
 public slots:
     void openProject(const QString &filePath);
+    void onRunG2p();
 };
 
 // using ControllerSingleton = Singleton<Controller>;

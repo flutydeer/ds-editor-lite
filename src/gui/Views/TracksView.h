@@ -79,7 +79,7 @@ private:
 
     void insertTrackToView(const DsTrack &dsTrack, int trackIndex);
     void insertClipToTrack(DsClip *clip, Track *track, int trackIndex);
-    void removeClipFromView(int clipIndex);
+    void removeClipFromView(int clipId);
     AbstractClipGraphicsItem *findClipItemById(int id);
     void updateTracksOnView();
     void removeTrackFromView(int index);
