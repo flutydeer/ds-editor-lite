@@ -18,17 +18,20 @@ PianoRollGraphicsView::PianoRollGraphicsView() {
 
     m_pianoRollScene = new PianoRollGraphicsScene;
     // setScene(m_pianoRollScene);
-    connect(this, &PianoRollGraphicsView::scaleChanged, m_pianoRollScene, &PianoRollGraphicsScene::setScale);
+    connect(this, &PianoRollGraphicsView::scaleChanged, m_pianoRollScene,
+            &PianoRollGraphicsScene::setScale);
 
     auto gridItem = new PianoRollBackgroundGraphicsItem;
     gridItem->setPixelsPerQuarterNote(PianoRollGlobal::pixelsPerQuarterNote);
-    connect(this, &PianoRollGraphicsView::visibleRectChanged, gridItem, &TimeGridGraphicsItem::setVisibleRect);
-    connect(this, &PianoRollGraphicsView::scaleChanged, gridItem, &PianoRollBackgroundGraphicsItem::setScale);
+    connect(this, &PianoRollGraphicsView::visibleRectChanged, gridItem,
+            &TimeGridGraphicsItem::setVisibleRect);
+    connect(this, &PianoRollGraphicsView::scaleChanged, gridItem,
+            &PianoRollBackgroundGraphicsItem::setScale);
     auto appModel = AppModel::instance();
-    connect(appModel, &AppModel::modelChanged, gridItem, [=] {
-        gridItem->setTimeSignature(appModel->numerator(), appModel->denominator());
-    });
-    connect(appModel, &AppModel::timeSignatureChanged, gridItem, &TimeGridGraphicsItem::setTimeSignature);
+    connect(appModel, &AppModel::modelChanged, gridItem,
+            [=] { gridItem->setTimeSignature(appModel->numerator(), appModel->denominator()); });
+    connect(appModel, &AppModel::timeSignatureChanged, gridItem,
+            &TimeGridGraphicsItem::setTimeSignature);
     m_pianoRollScene->addItem(gridItem);
 
     // auto pitchItem = new PitchEditorGraphicsItem;
@@ -52,7 +55,8 @@ void PianoRollGraphicsView::onSelectedClipChanged(int trackIndex, int clipId) {
     }
 
     auto clip = model->tracks().at(trackIndex)->findClipById(clipId);
-    if (clip->type() != DsClip::Singing) {
+
+    if (clip == nullptr || clip->type() != DsClip::Singing) {
         m_oneSingingClipSelected = false;
         setScene(nullptr);
         update();
@@ -78,7 +82,8 @@ void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
 
     QPainter painter(viewport());
     painter.setPen(QColor(160, 160, 160));
-    painter.drawText(viewport()->rect(), "Select a singing clip to edit", QTextOption(Qt::AlignCenter));
+    painter.drawText(viewport()->rect(), "Select a singing clip to edit",
+                     QTextOption(Qt::AlignCenter));
 }
 void PianoRollGraphicsView::reset() {
     for (auto note : m_noteItems) {
@@ -99,6 +104,7 @@ void PianoRollGraphicsView::insertNote(const DsNote &dsNote, int index) {
     noteItem->setScaleY(this->scaleY());
     m_pianoRollScene->addItem(noteItem);
     connect(this, &PianoRollGraphicsView::scaleChanged, noteItem, &NoteGraphicsItem::setScale);
-    connect(this, &PianoRollGraphicsView::visibleRectChanged, noteItem, &NoteGraphicsItem::setVisibleRect);
+    connect(this, &PianoRollGraphicsView::visibleRectChanged, noteItem,
+            &NoteGraphicsItem::setVisibleRect);
     m_noteItems.append(noteItem);
 }
