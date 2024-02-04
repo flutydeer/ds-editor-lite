@@ -10,7 +10,11 @@ if(WIN32)
     set(PLATFORM_LIB dwmapi.lib)
 endif()
 
-add_executable(${PROJECT_NAME} ${_src} res/lite_res.qrc)
+if(APPLE)
+    set(PLATFORM_PROPERTY MACOSX_BUNDLE)
+endif()
+
+add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} res/lite_res.qrc)
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 
