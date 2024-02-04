@@ -59,7 +59,7 @@ private:
     SeekBar *m_sbarPan;
     EditLabel *m_lePan;
     SeekBar *m_sbarGain;
-    EditLabel *m_leVolume;
+    EditLabel *m_leGain;
     QSpacerItem *m_panVolumeSpacer;
     LevelMeter *m_levelMeter;
     QHBoxLayout *m_mainLayout;

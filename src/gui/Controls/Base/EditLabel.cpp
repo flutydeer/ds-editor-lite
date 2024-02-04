@@ -46,6 +46,8 @@ bool EditLabel::eventFilter(QObject *object, QEvent *event) {
     // } else if (event->type() == QEvent::HoverLeave) {
     //     setCursor(Qt::ArrowCursor);
     // }
+    if (!isEnabled())
+        return QWidget::eventFilter(object, event);
 
     if (object == label) {
         if (event->type() == QEvent::MouseButtonDblClick) {

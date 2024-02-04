@@ -6,6 +6,7 @@
 
 #include "TestTimeObject.h"
 #include "../../gui/Utils/OverlapableSerialList.h"
+#include "../../gui/Utils/VolumeUtils.h"
 
 int main(int argc, char *argv[]) {
     TestTimeObject obj1(960, 1920);
@@ -30,6 +31,10 @@ int main(int argc, char *argv[]) {
     qDebug() << list.isOverlappedItemExists();
     for (const auto item : list.overlappedItems())
         qDebug() << item->start() << item->start() + item->length();
+
+    qDebug() << VolumeUtils::dBToLinear(6) << VolumeUtils::dBToLinear(-60)
+    << VolumeUtils::dBToLinear(0) << VolumeUtils::dBToLinear(-70);
+    qDebug() << VolumeUtils::linearTodB(1) << VolumeUtils::linearTodB(0.00001);
 
     return 0;
 }

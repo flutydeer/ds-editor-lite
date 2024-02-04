@@ -3,6 +3,10 @@
 //
 
 #include "LevelMeter.h"
+
+
+#include "Utils/VolumeUtils.h"
+
 #include <QDebug>
 #include <QMouseEvent>
 #include <QPainter>
@@ -137,8 +141,8 @@ void LevelMeter::readSample(double sampleL, double sampleR) {
 }
 
 void LevelMeter::setValue(double valueL, double valueR) {
-    m_smoothedLevelL = valueL;
-    m_smoothedLevelR = valueR;
+    m_smoothedLevelL = VolumeUtils::dBToLinear(valueL);
+    m_smoothedLevelR = VolumeUtils::dBToLinear(valueR);
     update();
 }
 

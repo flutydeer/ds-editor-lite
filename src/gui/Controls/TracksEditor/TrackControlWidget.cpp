@@ -5,6 +5,7 @@
 #include <QMenu>
 
 #include "TrackControlWidget.h"
+#include "Utils/VolumeUtils.h"
 
 TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_item = item;
@@ -76,10 +77,8 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_lePan = new EditLabel();
     m_lePan->setText("C");
     m_lePan->setObjectName("lePan");
-    m_lePan->setMinimumWidth(40);
-    m_lePan->setMaximumWidth(40);
-    m_lePan->setMinimumHeight(m_buttonSize);
-    m_lePan->setMaximumHeight(m_buttonSize);
+    m_lePan->setFixedWidth(2 * m_buttonSize);
+    m_lePan->setFixedHeight(m_buttonSize);
     m_lePan->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     m_lePan->label->setAlignment(Qt::AlignCenter);
     m_lePan->lineEdit->setAlignment(Qt::AlignCenter);
@@ -95,26 +94,35 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
 
     m_sbarGain = new SeekBar;
     m_sbarGain->setObjectName("m_sbarGain");
-    m_sbarGain->setMax(120);
-    m_sbarGain->setMin(0);
+    m_sbarGain->setMax(200); // +6dB
+    m_sbarGain->setMin(0); // -inf
     m_sbarGain->setDefaultValue(100);
     connect(m_sbarGain, &SeekBar::valueChanged, this, &TrackControlWidget::onSeekBarValueChanged);
 
-    m_leVolume = new EditLabel();
-    m_leVolume->setText("1"); // TODO: use dB
-    m_leVolume->setObjectName("leVolume");
-    m_leVolume->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    m_leVolume->label->setAlignment(Qt::AlignCenter);
-    m_leVolume->lineEdit->setAlignment(Qt::AlignCenter);
-    m_leVolume->setMinimumWidth(40);
-    m_leVolume->setMaximumWidth(40);
-    m_leVolume->setMinimumHeight(20);
-    m_leVolume->setMaximumHeight(20);
-    m_leVolume->setEnabled(false);
-    connect(m_sbarGain, &SeekBar::valueChanged, m_leVolume, [=](int value) {
+    m_leGain = new EditLabel();
+    m_leGain->setText("0dB");
+    m_leGain->setObjectName("leGain");
+    m_leGain->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    m_leGain->label->setAlignment(Qt::AlignCenter);
+    m_leGain->lineEdit->setAlignment(Qt::AlignCenter);
+    m_leGain->setFixedWidth(2 * m_buttonSize);
+    m_leGain->setFixedHeight(m_buttonSize);
+    m_leGain->setEnabled(false);
+    connect(m_sbarGain, &SeekBar::valueChanged, m_leGain, [=](int value) {
         auto volume = 1.0 * value / 100;
-        auto volumeStr = QString::number(volume, 'g', 3);
-        m_leVolume->setText(volumeStr);
+        auto gain = VolumeUtils::linearTodB(volume);
+        if (gain == -70)
+            m_leGain->setText("-inf");
+        else {
+            auto absVal = QString::number(qAbs(gain), 'g', 2);
+            QString sig = "";
+            if (gain > 0) {
+                sig = "+";
+            } else if (gain < 0) {
+                sig = "-";
+            }
+            m_leGain->setText(sig + absVal + "dB");
+        }
     });
 
     m_panVolumeSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
@@ -124,7 +132,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_panVolumeLayout->addWidget(m_sbarPan);
     m_panVolumeLayout->addWidget(m_lePan);
     m_panVolumeLayout->addWidget(m_sbarGain);
-    m_panVolumeLayout->addWidget(m_leVolume);
+    m_panVolumeLayout->addWidget(m_leGain);
     m_panVolumeLayout->setSpacing(0);
     m_panVolumeLayout->setContentsMargins(4, 0, 4, 8);
 
@@ -242,14 +250,14 @@ void TrackControlWidget::setName(const QString &name) {
 }
 DsTrackControl TrackControlWidget::control() const {
     DsTrackControl control;
-    control.setGain(m_sbarGain->value() / 100); // TODO: linear to dB
+    control.setGain(VolumeUtils::linearTodB(m_sbarGain->value() / 100));
     control.setPan(m_sbarPan->value());
     control.setMute(m_btnMute->isChecked());
     control.setSolo(m_btnSolo->isChecked());
     return control;
 }
 void TrackControlWidget::setControl(const DsTrackControl &control) {
-    m_sbarGain->setValue(control.gain() * 100);
+    m_sbarGain->setValue(VolumeUtils::dBToLinear(control.gain()) * 100);
     m_sbarPan->setValue(control.pan());
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());
