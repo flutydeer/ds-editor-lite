@@ -53,15 +53,16 @@ void AppModel::insertTrack(DsTrack *track, int index) {
     // });
     connect(track, &DsTrack::propertyChanged, this, [=] {
         auto trackIndex = m_tracks.indexOf(track);
-        emit tracksChanged(PropertyUpdate, trackIndex);
+        emit tracksChanged(PropertyUpdate, trackIndex, track);
     });
     m_tracks.insert(index, track);
-    emit tracksChanged(Insert, index);
+    emit tracksChanged(Insert, index, track);
 }
 void AppModel::removeTrack(int index) {
+    auto track = m_tracks[index];
     onSelectedClipChanged(-1, -1);
     m_tracks.removeAt(index);
-    emit tracksChanged(Remove, index);
+    emit tracksChanged(Remove, index, track);
 }
 
 bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
@@ -282,9 +283,6 @@ bool AppModel::loadAProject(const QString &filename) {
         return true;
     }
     return false;
-}
-void AppModel::onTrackUpdated(int index) {
-    emit tracksChanged(PropertyUpdate, index);
 }
 void AppModel::onSelectedClipChanged(int trackIndex, int clipId) {
     m_selectedClipTrackIndex = trackIndex;

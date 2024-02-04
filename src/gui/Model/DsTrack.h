@@ -41,7 +41,7 @@ public:
 
 signals:
     void propertyChanged();
-    void clipChanged(ClipChangeType type, int id);
+    void clipChanged(ClipChangeType type, int id, DsClip *clip);
 
     // Color color() const;
     // void setColor(const Color &color);
