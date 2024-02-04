@@ -39,8 +39,8 @@ private:
     const double m_warnThreshold = 0.891251; //-1 dB
     double m_smoothedLevelL = 0;
     double m_smoothedLevelR = 0;
-    bool m_clippedL = true;
-    bool m_clippedR = true;
+    bool m_clippedL = false;
+    bool m_clippedR = false;
     //    int sampleRate = 44100;
     double *m_bufferL;
     double *m_bufferR;

@@ -222,7 +222,7 @@ void TracksView::onLastPositionChanged(double tick) {
 void TracksView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) {
     if (m_tracksModel.tracks.isEmpty())
         return;
-    
+
     auto states = args.trackMeterStates;
     for (int i = 0; i < states.size(); i++) {
         auto state = states.at(i);

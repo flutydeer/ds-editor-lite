@@ -15,7 +15,7 @@
 using namespace TracksEditorGlobal;
 
 AbstractClipGraphicsItem::AbstractClipGraphicsItem(int itemId, QGraphicsItem *parent)
-    : CommonGraphicsRectItem(parent), IUnique(itemId) {
+    : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
     // setFlag(QGraphicsItem::ItemIsFocusable, true); // Must enabled, or keyPressEvent would not

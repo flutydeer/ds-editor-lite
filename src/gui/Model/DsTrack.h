@@ -10,10 +10,10 @@
 
 #include "DsClip.h"
 #include "DsTrackControl.h"
-#include "Utils/IUnique.h"
+#include "Utils/UniqueObject.h"
 #include "Utils/OverlapableSerialList.h"
 
-class DsTrack : public QObject, public IUnique {
+class DsTrack : public QObject, public UniqueObject {
     Q_OBJECT
 
 public:

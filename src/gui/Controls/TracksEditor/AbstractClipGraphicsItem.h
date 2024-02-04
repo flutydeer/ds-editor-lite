@@ -7,9 +7,9 @@
 
 #include "Controls/Base/CommonGraphicsRectItem.h"
 #include "Utils/IOverlapable.h"
-#include "Utils/IUnique.h"
+#include "Utils/UniqueObject.h"
 
-class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IOverlapable, public IUnique {
+class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IOverlapable, public UniqueObject {
     Q_OBJECT
 
 public:

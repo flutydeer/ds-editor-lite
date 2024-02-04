@@ -21,6 +21,20 @@
 #include "opendspx/qdspxmodel.h"
 #include "opendspx/converters/midi.h"
 
+int AppModel::numerator() const {
+    return m_numerator;
+}
+void AppModel::setNumerator(int numerator) {
+    m_numerator = numerator;
+    emit timeSignatureChanged(m_numerator, m_denominator);
+}
+int AppModel::denominator() const {
+    return m_denominator;
+}
+void AppModel::setDenominator(int denominator) {
+    m_denominator = denominator;
+    emit timeSignatureChanged(m_numerator, m_denominator);
+}
 double AppModel::tempo() const {
     return m_tempo;
 }
@@ -173,8 +187,8 @@ bool AppModel::importMidi(const QString &filename) {
     }
 
     auto timeline = dspx->content.timeline;
-    numerator = timeline.timeSignatures[0].num;
-    denominator = timeline.timeSignatures[0].den;
+    m_numerator = timeline.timeSignatures[0].num;
+    m_denominator = timeline.timeSignatures[0].den;
     m_tempo = timeline.tempos[0].value;
     decodeTracks(dspx, m_tracks);
     emit modelChanged();
@@ -258,7 +272,7 @@ bool AppModel::loadAProject(const QString &filename) {
 
     QJsonObject objAProject;
     if (openJsonFile(filename, &objAProject)) {
-        numerator = objAProject.value("beatsPerBar").toInt();
+        m_numerator = objAProject.value("beatsPerBar").toInt();
         m_tempo = objAProject.value("tempos").toArray().first().toObject().value("bpm").toDouble();
         decodeTracks(objAProject.value("tracks").toArray(), m_tracks);
         // auto clip = tracks().first().clips.first().dynamicCast<DsSingingClip>();
@@ -271,10 +285,10 @@ bool AppModel::loadAProject(const QString &filename) {
 void AppModel::onTrackUpdated(int index) {
     emit tracksChanged(PropertyUpdate, index);
 }
-void AppModel::onSelectedClipChanged(int trackIndex, int clipIndex) {
+void AppModel::onSelectedClipChanged(int trackIndex, int clipId) {
     m_selectedClipTrackIndex = trackIndex;
-    m_selectedClipIndex = clipIndex;
-    emit selectedClipChanged(m_selectedClipTrackIndex, m_selectedClipIndex);
+    m_selectedClipId = clipId;
+    emit selectedClipChanged(m_selectedClipTrackIndex, m_selectedClipId);
 }
 void AppModel::reset() {
     m_tracks.clear();

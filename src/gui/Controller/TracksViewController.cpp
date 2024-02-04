@@ -48,8 +48,8 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     newTrack->insertClip(audioClip);
     AppModel::instance()->insertTrack(newTrack, AppModel::instance()->tracks().size());
 }
-void TracksViewController::onSelectedClipChanged(int trackIndex, int clipIndex) {
-    AppModel::instance()->onSelectedClipChanged(trackIndex, clipIndex);
+void TracksViewController::onSelectedClipChanged(int trackIndex, int clipId) {
+    AppModel::instance()->onSelectedClipChanged(trackIndex, clipId);
 }
 void TracksViewController::onTrackPropertyChanged(const DsTrack::TrackPropertyChangedArgs &args) {
     auto tracks = AppModel::instance()->tracks();

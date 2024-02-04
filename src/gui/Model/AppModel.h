@@ -15,9 +15,27 @@ public:
     explicit AppModel() = default;
 
     enum TrackChangeType { Insert, PropertyUpdate, Remove };
-    int numerator = 4;
-    int denominator = 4;
 
+    // class TimeSignature {
+    // public:
+    //     TimeSignature();
+    //     TimeSignature(int numerator, int denominator)
+    //         : m_numerator(numerator), m_denominator(denominator) {
+    //     }
+    //     int numerator() const;
+    //     void setNumerator(int numerator);
+    //     int denominator() const;
+    //     void setDenominator(int denominator);
+    //
+    // private:
+    //     int m_numerator = 4;
+    //     int m_denominator = 4;
+    // };
+
+    int numerator() const;
+    void setNumerator(int numerator);
+    int denominator() const;
+    void setDenominator(int denominator);
     double tempo() const;
     void setTempo(double tempo);
     const QList<DsTrack *> &tracks() const;
@@ -41,7 +59,7 @@ public:
 
 public slots:
     void onTrackUpdated(int index);
-    void onSelectedClipChanged(int trackIndex, int clipIndex);
+    void onSelectedClipChanged(int trackIndex, int clipId);
 
 signals:
     void modelChanged();
@@ -53,12 +71,14 @@ signals:
 private:
     void reset();
 
+    int m_numerator = 4;
+    int m_denominator = 4;
     double m_tempo = 120;
     QList<DsTrack *> m_tracks;
 
     // instance
     int m_selectedClipTrackIndex = -1;
-    int m_selectedClipIndex = -1;
+    int m_selectedClipId = -1;
 };
 
 
