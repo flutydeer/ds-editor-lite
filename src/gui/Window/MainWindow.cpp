@@ -111,6 +111,7 @@ MainWindow::MainWindow() {
 
     auto btnOpenProjectFile = new QPushButton;
     btnOpenProjectFile->setText("Open project...");
+    btnOpenProjectFile->setIcon(QIcon(":/svg/icons/folder_open_16_filled.svg"));
     connect(btnOpenProjectFile, &QPushButton::clicked, appController, [=]() {
         auto fileName = QFileDialog::getOpenFileName(btnOpenProjectFile, "Select a Project File",
                                                      ".", "Project File (*.json)");
@@ -122,6 +123,7 @@ MainWindow::MainWindow() {
 
     auto btnPlay = new QPushButton;
     btnPlay->setText("Play");
+    btnPlay->setIcon(QIcon(":/svg/icons/play_16_filled.svg"));
     connect(btnPlay, &QPushButton::clicked, playbackController, [=] {
         // TODO: run project check (overlapping)
         PlaybackController::instance()->play();
@@ -129,10 +131,12 @@ MainWindow::MainWindow() {
 
     auto btnPause = new QPushButton;
     btnPause->setText("Pause");
+    btnPause->setIcon(QIcon(":/svg/icons/pause_16_filled.svg"));
     connect(btnPause, &QPushButton::clicked, playbackController, &PlaybackController::pause);
 
     auto btnStop = new QPushButton;
     btnStop->setText("Stop");
+    btnStop->setIcon(QIcon(":/svg/icons/stop_16_filled.svg"));
     connect(btnStop, &QPushButton::clicked, playbackController, &PlaybackController::stop);
 
     auto m_tracksView = new TracksView;

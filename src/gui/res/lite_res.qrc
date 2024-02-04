@@ -1,0 +1,57 @@
+<RCC>
+    <qresource prefix="/">
+        <file>svg/app/diffsinger.svg</file>
+        <file>images/dspx.png</file>
+        <file>svg/checkbox/check-line.svg</file>
+
+        <file>svg/icons/checkmark_16_filled.svg</file>
+        <file>svg/icons/more_horizontal_24_regular.svg</file>
+        <file>svg/icons/info_16_filled.svg</file>
+        <file>svg/icons/document_add_16_filled.svg</file>
+        <file>svg/icons/folder_open_16_filled.svg</file>
+        <file>svg/icons/chevron_right_16_filled.svg</file>
+        <file>svg/icons/chevron_down_16_filled.svg</file>
+        <file>svg/icons/dismiss_16_filled.svg</file>
+        <file>svg/icons/navigation_16_filled.svg</file>
+
+        <file>svg/icons/layer_20_filled.svg</file>
+
+        <file>svg/icons/color_16_filled.svg</file>
+        <file>svg/icons/globe_16_regular.svg</file>
+        <file>svg/icons/home_16_filled.svg</file>
+        <file>svg/icons/puzzle_piece_16_filled.svg</file>
+
+        <file>svg/icons/save_16_filled.svg</file>
+        <file>svg/icons/save_edit_20_filled.svg</file>
+        <file>svg/icons/arrow_undo_16_filled.svg</file>
+        <file>svg/icons/arrow_redo_16_filled.svg</file>
+        <file>svg/icons/cut_20_filled.svg</file>
+        <file>svg/icons/copy_16_filled.svg</file>
+        <file>svg/icons/clipboard_paste_16_filled.svg</file>
+
+        <file>svg/icons/play_16_filled.svg</file>
+        <file>svg/icons/pause_16_filled.svg</file>
+        <file>svg/icons/stop_16_filled.svg</file>
+        <file>svg/icons/previous_16_filled.svg</file>
+        <file>svg/icons/next_16_filled.svg</file>
+        <file>svg/icons/metronome-line.svg</file>
+        <file>svg/icons/arrow_repeat_all_16_filled.svg</file>
+
+        <file>svg/icons/document_add_16_filled.svg</file>
+        <file>svg/icons/folder_open_16_filled.svg</file>
+        <file>svg/icons/settings_16_filled.svg</file>
+        <file>svg/icons/search_16_filled.svg</file>
+
+        <file>svg/icons/window_apps_16_filled.svg</file>
+        <file>svg/icons/panel_separate_window_20_filled.svg</file>
+        <file>svg/icons/panel_bottom_20_filled.svg</file>
+
+        <file>svg/icons/cursor_24_filled.svg</file>
+        <file>svg/icons/edit_24_filled.svg</file>
+        <file>svg/icons/paint_brush_arrow_down_24_filled.svg</file>
+        <file>svg/icons/pitch_anchor_24_filled.svg</file>
+        <file>svg/icons/pitch_edit_24_filled.svg</file>
+        <file>svg/icons/pitch_vibrato_24_filled.svg</file>
+
+    </qresource>
+</RCC>

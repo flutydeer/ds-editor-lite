@@ -22,11 +22,11 @@ void AppController::onRunG2p() {
     if (singingClip == nullptr)
         return;
     auto notes = singingClip->notes;
-    IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
+    IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/res/dict");
 
     auto g2p_man = new IKg2p::Mandarin();
     auto syllable2p =
-        new IKg2p::Syllable2p(qApp->applicationDirPath() + "/phonemeDict/opencpop-extension.txt");
+        new IKg2p::Syllable2p(qApp->applicationDirPath() + "/res/phonemeDict/opencpop-extension.txt");
 
     QStringList lyrics;
     for (const auto &note : notes) {

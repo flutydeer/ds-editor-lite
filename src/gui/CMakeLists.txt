@@ -10,7 +10,7 @@ if(WIN32)
     set(PLATFORM_LIB dwmapi.lib)
 endif()
 
-add_executable(${PROJECT_NAME} ${_src})
+add_executable(${PROJECT_NAME} ${_src} res/lite_res.qrc)
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 
@@ -31,10 +31,10 @@ set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND
         ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/res/phonemeDict
-        ${CMAKE_BINARY_DIR}/bin/phonemeDict
+        ${CMAKE_CURRENT_SOURCE_DIR}/res
+        ${CMAKE_BINARY_DIR}/bin/res
 )
 install(
-        DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res/phonemeDict
+        DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res
         DESTINATION .
 )
