@@ -8,7 +8,8 @@
 #include "AppController.h"
 
 #include "g2pglobal.h"
-#include "zhg2p.h"
+#include "mandarin.h"
+#include "syllable2p.h"
 
 void AppController::openProject(const QString &filePath) {
     AppModel::instance()->loadAProject(filePath);
@@ -23,9 +24,17 @@ void AppController::onRunG2p() {
     auto notes = singingClip->notes;
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
 
-    auto g2p_man = new IKg2p::ZhG2p("mandarin");
+    auto g2p_man = new IKg2p::Mandarin();
+    auto syllable2p =
+        new IKg2p::Syllable2p(qApp->applicationDirPath() + "/phonemeDict/opencpop-extension.txt");
 
+    QStringList lyrics;
     for (const auto &note : notes) {
-        qDebug() << note.lyric() << " -> " << g2p_man->convert(note.lyric(), false, false);
+        lyrics.append(note.lyric());
     }
+
+    QStringList pinyinRes = g2p_man->hanziToPinyin(lyrics, false, false);
+    QList<QStringList> syllableRes = syllable2p->syllableToPhoneme(pinyinRes);
+    qDebug() << pinyinRes;
+    qDebug() << syllableRes;
 }

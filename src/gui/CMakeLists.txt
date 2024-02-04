@@ -22,7 +22,19 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         ${PLATFORM_LIB}
         talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Synthesis
         opendspx
-        CkIKg2p
+        IKg2p
 )
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
+
+# copy phoneme dict
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND
+        ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/res/phonemeDict
+        ${CMAKE_BINARY_DIR}/bin/phonemeDict
+)
+install(
+        DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res/phonemeDict
+        DESTINATION .
+)
