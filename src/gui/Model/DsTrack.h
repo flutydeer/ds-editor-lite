@@ -26,6 +26,9 @@ public:
     OverlapableSerialList<DsClip> clips() const;
     void insertClip(DsClip *clip);
     void removeClip(DsClip *clip);
+
+    void updateClip(DsClip *clip);
+
     DsClip *findClipById(int id);
 
     class TrackPropertyChangedArgs {

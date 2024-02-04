@@ -73,11 +73,12 @@ void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChang
     qDebug() << "TracksViewController::onClipPropertyChanged";
     auto track = AppModel::instance()->tracks().at(args.trackIndex);
     auto clip = track->findClipById(args.id);
-    track->removeClip(clip);
+    // track->removeClip(clip);
     clip->setStart(args.start);
     clip->setClipStart(args.clipStart);
     clip->setLength(args.length);
     clip->setClipLen(args.clipLen);
     qDebug() << "ClipPropertyChangedArgs:" << "length" << args.length;
-    track->insertClip(clip);
+    // track->insertClip(clip);
+    track->updateClip(clip);
 }

@@ -36,6 +36,11 @@ void DsTrack::removeClip(DsClip *clip) {
     m_clips.remove(clip);
     emit clipChanged(Remove, clip->id(), clip);
 }
+void DsTrack::updateClip(DsClip *clip) {
+    m_clips.update(clip);
+    emit clipChanged(PropertyChanged, clip->id(), clip);
+}
+
 DsClip *DsTrack::findClipById(int id) {
     for (int i = 0; i < m_clips.count(); i++) {
         auto clip = m_clips.at(i);

@@ -15,6 +15,7 @@ public:
     int count() const;
     void add(IOverlapable *item);
     void remove(IOverlapable *item);
+    void update(IOverlapable *item);
     void clear();
     int indexOf(const IOverlapable *item);
     bool contains(const IOverlapable *item);
@@ -71,6 +72,11 @@ void OverlapableSerialList<T>::remove(IOverlapable *item) {
         }
     }
     m_list.removeOne(item);
+}
+template <typename T>
+void OverlapableSerialList<T>::update(IOverlapable *item) {
+    remove(item);
+    add(item);
 }
 template <typename T>
 void OverlapableSerialList<T>::clear() {
