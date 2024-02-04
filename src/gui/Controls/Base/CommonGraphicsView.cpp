@@ -8,6 +8,10 @@
 
 #include "CommonGraphicsView.h"
 
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)) && defined(Q_OS_MAC)
+#define SUPPORTS_WHEEL_DETECTION
+#endif
+
 CommonGraphicsView::CommonGraphicsView(QWidget *parent) {
     setRenderHint(QPainter::Antialiasing);
     setAttribute(Qt::WA_AcceptTouchEvents);
@@ -40,12 +44,14 @@ CommonGraphicsView::CommonGraphicsView(QWidget *parent) {
     connect(verticalScrollBar(), &QScrollBar::valueChanged, this,
             &CommonGraphicsView::notifyVisibleRectChanged);
 
+#ifndef SUPPORTS_WHEEL_DETECTION
     m_timer.setInterval(400);
     m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, [=]() {
         m_touchPadLock = false;
         // qDebug() << "touchpad lock off";
     });
+#endif
 }
 qreal CommonGraphicsView::scaleX() const {
     return m_scaleX;
@@ -99,8 +105,7 @@ void CommonGraphicsView::notifyVisibleRectChanged() {
     emit visibleRectChanged(visibleRect());
 }
 void CommonGraphicsView::onWheelHorScale(QWheelEvent *event) {
-    auto cursorPosF = event->position();
-    auto cursorPos = QPoint(static_cast<int>(cursorPosF.x()), static_cast<int>(cursorPosF.y()));
+    auto cursorPos = event->position().toPoint();
     auto scenePos = mapToScene(cursorPos);
 
     auto deltaX = event->angleDelta().x();
@@ -147,7 +152,8 @@ bool CommonGraphicsView::event(QEvent *event) {
         auto gestureEvent = static_cast<QNativeGestureEvent *>(event);
 
         if (gestureEvent->gestureType() == Qt::ZoomNativeGesture) {
-            auto cursorPos = gestureEvent->pos();
+            auto cursorGlobalPos = gestureEvent->globalPosition().toPoint();
+            auto cursorPos = mapFromGlobal(cursorGlobalPos);
             auto scenePos = mapToScene(cursorPos);
 
             auto multiplier = gestureEvent->value() + 1;
@@ -183,8 +189,7 @@ bool CommonGraphicsView::event(QEvent *event) {
     return QGraphicsView::event(event);
 }
 void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
-    auto cursorPosF = event->position();
-    auto cursorPos = QPoint(static_cast<int>(cursorPosF.x()), static_cast<int>(cursorPosF.y()));
+    auto cursorPos = event->position().toPoint();
     auto scenePos = mapToScene(cursorPos);
 
     auto deltaX = event->angleDelta().x();
@@ -263,6 +268,9 @@ void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
     notifyVisibleRectChanged();
 }
 bool CommonGraphicsView::isMouseWheel(QWheelEvent *event) {
+#ifdef SUPPORTS_WHEEL_DETECTION
+    return event->deviceType() == QInputDevice::DeviceType::Mouse;
+#else
     auto deltaX = event->angleDelta().x();
     auto deltaY = event->angleDelta().y();
     auto absDx = qAbs(deltaX);
@@ -281,4 +289,5 @@ bool CommonGraphicsView::isMouseWheel(QWheelEvent *event) {
     m_touchPadLock = true;
     m_timer.start();
     return false;
+#endif
 }
