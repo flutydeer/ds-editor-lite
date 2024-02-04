@@ -265,6 +265,8 @@ void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
         previousHeightSum += height;
     }
 }
+void TracksView::onClipRemoveTriggered(int clipId) {
+}
 void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
     connect(&dsTrack, &DsTrack::clipChanged, this, [=](DsTrack::ClipChangeType type, int clipId) {
         onClipChanged(type, trackIndex, clipId);
@@ -354,6 +356,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
     if (clip->type() == DsClip::Audio) {
         auto audioClip = dynamic_cast<DsAudioClip *>(clip);
         auto clipItem = new AudioClipGraphicsItem(clip->id());
+        clipItem->setContext(this);
         clipItem->setStart(start);
         clipItem->setClipStart(clipStart);
         clipItem->setLength(length);
@@ -387,10 +390,13 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
                 emit clipPropertyChanged(args);
             }
         });
+        connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
+                [=](int id) { emit removeClipTriggered(id); });
         track->clips.append(clipItem);
     } else if (clip->type() == DsClip::Singing) {
         auto singingClip = dynamic_cast<DsSingingClip *>(clip);
         auto clipItem = new SingingClipGraphicsItem(clip->id());
+        clipItem->setContext(this);
         clipItem->setStart(start);
         clipItem->setClipStart(clipStart);
         clipItem->setLength(length);
@@ -407,6 +413,8 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
                 &SingingClipGraphicsItem::setScale);
         connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
                 &SingingClipGraphicsItem::setVisibleRect);
+        connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
+                [=](int id) { emit removeClipTriggered(id); });
         track->clips.append(clipItem);
     }
 }

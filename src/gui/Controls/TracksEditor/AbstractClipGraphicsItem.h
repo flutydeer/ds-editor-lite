@@ -21,6 +21,8 @@ public:
     bool removed() const;
     void setRemoved(bool b);
 
+    void setContext(QWidget *context);
+
     QString name() const;
     void setName(const QString &text);
 
@@ -51,14 +53,7 @@ public:
 
 signals:
     void propertyChanged();
-    // void nameChanged(const QString &name);
-    // void startChanged(int itemId, int start);
-    // void lengthChanged(int length);
-    // void clipStartChanged(int clipStart);
-    // void clipLenChanged(int clipLen);
-
-// public slots:
-//     void onPropertyChanged();
+    void removeTriggered(int id);
 
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -77,6 +72,8 @@ protected:
     double sceneXToItemX(double x) const;
 
 private:
+    QWidget *m_context;
+
     bool m_removed = false;
     QString m_name;
     int m_start = 0;

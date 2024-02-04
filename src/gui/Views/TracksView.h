@@ -44,10 +44,12 @@ signals:
     void addAudioClipTriggered(const QString &path, int index);
     void clipPropertyChanged(const DsClip::ClipPropertyChangedArgs &args);
     void setPositionTriggered(double tick);
+    void removeClipTriggered(int clipId);
 
 private slots:
     void onSceneSelectionChanged();
     void onViewScaleChanged(qreal sx, qreal sy);
+    void onClipRemoveTriggered(int clipId);
 
 private:
     QListWidget *m_trackListWidget;

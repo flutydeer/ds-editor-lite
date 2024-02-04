@@ -55,7 +55,7 @@ MainWindow::MainWindow() {
         "QMenu::indicator { left: 6px; width: 20px; height: 20px; } QMenu::icon { left: 6px; } "
         "QMenu::item { background: transparent; color: #fff; padding: 4px 28px; } "
         "QMenu[stats=checkable]::item, QMenu[stats=icon]::item { padding-left: 12px; } "
-        "QMenu::item:selected { color: #000; background-color: #9BBAFF; border: 1px solid "
+        "QMenu::item:selected { background-color: #3A3B3C; border: 1px solid "
         "transparent; "
         "border-style: none; border-radius: 4px; } "
         "QMenu::item:disabled { color: #d5d5d5; background-color: transparent; } "
@@ -163,6 +163,8 @@ MainWindow::MainWindow() {
             &TracksViewController::onAddAudioClip);
     connect(m_tracksView, &TracksView::clipPropertyChanged, trackController,
             &TracksViewController::onClipPropertyChanged);
+    connect(m_tracksView, &TracksView::removeClipTriggered, trackController,
+            &TracksViewController::onRemoveClip);
 
     auto splitter = new QSplitter;
     splitter->setOrientation(Qt::Vertical);

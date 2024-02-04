@@ -27,6 +27,9 @@ bool AbstractClipGraphicsItem::removed() const {
 void AbstractClipGraphicsItem::setRemoved(bool b) {
     m_removed = b;
 }
+void AbstractClipGraphicsItem::setContext(QWidget *context) {
+    m_context = context;
+}
 
 QString AbstractClipGraphicsItem::name() const {
     return m_name;
@@ -163,7 +166,8 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 
     auto fontMetrics = painter->fontMetrics();
     auto textHeight = fontMetrics.height();
-    auto controlStr =QString("id: %1 ").arg(id()) +
+    auto controlStr =
+        QString("id: %1 ").arg(id()) +
         QString("%1 %2dB %3 ").arg(m_name).arg(QString::number(m_gain)).arg(m_mute ? "M" : "");
     auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
                        .arg(m_start)
@@ -196,10 +200,11 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 }
 
 void AbstractClipGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
-    QMenu menu;
-    auto actionRename = menu.addAction("Rename");
-    QObject::connect(actionRename, &QAction::triggered,
-                     [this]() { qDebug() << "rename triggered"; });
+    QMenu menu(m_context);
+    // auto actionRename = menu.addAction("Rename");
+    // connect(actionRename, &QAction::triggered, [&] { qDebug() << "rename triggered"; });
+    auto actionRemove = menu.addAction("Remove");
+    connect(actionRemove, &QAction::triggered, [&] { emit removeTriggered(id()); });
     menu.exec(event->screenPos());
 
     QGraphicsItem::contextMenuEvent(event);

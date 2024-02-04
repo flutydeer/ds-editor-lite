@@ -78,7 +78,23 @@ void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChang
     clip->setClipStart(args.clipStart);
     clip->setLength(args.length);
     clip->setClipLen(args.clipLen);
-    qDebug() << "ClipPropertyChangedArgs:" << "length" << args.length;
+    qDebug() << "ClipPropertyChangedArgs:"
+             << "length" << args.length;
     // track->insertClip(clip);
     track->updateClip(clip);
+}
+void TracksViewController::onRemoveClip(int clipId) {
+    QMessageBox msgBox;
+    msgBox.setText("Warning");
+    msgBox.setInformativeText("Do you want to remove this clip?");
+    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
+    msgBox.setDefaultButton(QMessageBox::Yes);
+    int ret = msgBox.exec();
+    if (ret == QMessageBox::Yes) {
+        for (const auto &track : AppModel::instance()->tracks()) {
+            auto result = track->findClipById(clipId);
+            if (result != nullptr)
+                track->removeClip(result);
+        }
+    }
 }

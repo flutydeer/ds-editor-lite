@@ -24,6 +24,7 @@ public slots:
     void onTrackPropertyChanged(const DsTrack::TrackPropertyChangedArgs &args);
     void onAddAudioClip(const QString &path, int index);
     void onClipPropertyChanged(const DsClip::ClipPropertyChangedArgs &args);
+    void onRemoveClip(int clipId);
 };
 
 #endif //TRACKSVIEWCONTROLLER_H
