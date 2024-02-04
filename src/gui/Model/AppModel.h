@@ -58,14 +58,13 @@ public:
     };
 
 public slots:
-    void onTrackUpdated(int index);
     void onSelectedClipChanged(int trackIndex, int clipId);
 
 signals:
     void modelChanged();
     void tempoChanged(double tempo);
     void timeSignatureChanged(int numerator, int denominator);
-    void tracksChanged(TrackChangeType type, int index);
+    void tracksChanged(TrackChangeType type, int index, DsTrack *track);
     void selectedClipChanged(int trackIndex, int clipIndex);
 
 private:
