@@ -26,7 +26,7 @@ PianoRollGraphicsView::PianoRollGraphicsView() {
     connect(this, &PianoRollGraphicsView::scaleChanged, gridItem, &PianoRollBackgroundGraphicsItem::setScale);
     auto appModel = AppModel::instance();
     connect(appModel, &AppModel::modelChanged, gridItem, [=] {
-        gridItem->setTimeSignature(appModel->numerator, appModel->denominator);
+        gridItem->setTimeSignature(appModel->numerator(), appModel->denominator());
     });
     connect(appModel, &AppModel::timeSignatureChanged, gridItem, &TimeGridGraphicsItem::setTimeSignature);
     m_pianoRollScene->addItem(gridItem);
