@@ -9,6 +9,8 @@
 #include <QScroller>
 #include <QScrollBar>
 
+#include "Audio/AudioSystem.h"
+#include "Audio/AudioContext.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
 #include "Controls/Base/TimelineView.h"
@@ -122,8 +124,9 @@ TracksView::TracksView() {
             &TracksView::onPositionChanged);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &TracksView::onLastPositionChanged);
-    connect(playbackController, &PlaybackController::levelMetersUpdated, this,
-            &TracksView::onLevelMetersUpdated);
+//    connect(playbackController, &PlaybackController::levelMetersUpdated, this,
+//            &TracksView::onLevelMetersUpdated);
+    connect(AudioSystem::instance()->audioContext(), &AudioContext::levelMeterUpdated, this, &TracksView::onLevelMetersUpdated);
 
     // auto splitter = new QSplitter;
     // splitter->setOrientation(Qt::Horizontal);
