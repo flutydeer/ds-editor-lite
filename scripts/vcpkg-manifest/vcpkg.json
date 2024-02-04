@@ -1,23 +1,23 @@
 {
-    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-    "dependencies": [
-        "sdl2",
-        {
-            "name": "libsndfile",
-            "default-features": false
-        },
-        "stdutau",
-        "qastool",
-        "qnrbf",
-        "qastool",
-        "qmsetup"
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "dependencies": [
+    "sdl2",
+    "libsndfile",
+    "stdutau",
+    "qastool",
+    "qnrbf",
+    "qastool",
+    "qmsetup",
+    "rpclib",
+    "rtmidi",
+    "interval-tree"
+  ],
+  "vcpkg-configuration": {
+    "overlay-ports": [
+      "../vcpkg/ports"
     ],
-    "vcpkg-configuration": {
-        "overlay-ports": [
-            "../vcpkg/ports"
-        ],
-        "overlay-triplets": [
-            "../vcpkg/triplets"
-        ]
-    }
+    "overlay-triplets": [
+      "../vcpkg/triplets"
+    ]
+  }
 }
