@@ -24,6 +24,7 @@ LevelMeter::LevelMeter(QWidget *parent) : QWidget(parent) {
         //        repaint();
         update();
     });
+    initBuffer(32);
 }
 LevelMeter::~LevelMeter() {
     delete[] m_bufferL;
@@ -118,6 +119,7 @@ void LevelMeter::mousePressEvent(QMouseEvent *event) {
 void LevelMeter::initBuffer(int bufferSize) {
     m_bufferSize = bufferSize;
     m_bufferL = new double[m_bufferSize];
+    m_bufferR = new double[m_bufferSize];
     resetBuffer();
 }
 
@@ -152,6 +154,7 @@ int LevelMeter::bufferSize() const {
 void LevelMeter::setBufferSize(int size) {
     setFreeze(true);
     delete[] m_bufferL;
+    delete[] m_bufferR;
     initBuffer(size);
     setFreeze(false);
 }
