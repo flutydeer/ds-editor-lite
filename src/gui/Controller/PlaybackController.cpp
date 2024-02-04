@@ -28,6 +28,16 @@ double PlaybackController::tempo() const {
 void PlaybackController::play() {
     m_playbackStatus = Playing;
     emit playbackStatusChanged(Playing);
+
+    // test level meter
+    AppModel::LevelMetersUpdatedArgs args;
+    AppModel::LevelMetersUpdatedArgs::State trackState1;
+    trackState1.valueL = 0.92;
+    trackState1.valueR = 0.8;
+    trackState1.clippedL = true;
+    trackState1.clippedR = false;
+    args.trackMeterStates.append(trackState1);
+    emit levelMetersUpdated(args);
 }
 
 void PlaybackController::pause() {

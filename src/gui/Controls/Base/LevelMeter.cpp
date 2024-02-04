@@ -4,207 +4,177 @@
 
 #include "LevelMeter.h"
 #include <QDebug>
+#include <QMouseEvent>
+#include <QPainter>
 
-LevelMeter::LevelMeter(Qt::Orientation orientation, ChannelType channelType, QWidget *parent) : QWidget(parent) {
-    m_orientation = orientation;
-    m_channelType = channelType;
-
-    auto buildChannelMeter = [](LevelMeterChunk *chunk, QPushButton *button,
-                                Qt::Orientation orientation) -> QBoxLayout * {
-        if (orientation == Qt::Horizontal) {
-            chunk->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-            chunk->setOrientation(Qt::Horizontal);
-            button->setMaximumWidth(10);
-            button->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
-
-            auto layout = new QHBoxLayout;
-            layout->setSpacing(1);
-            layout->setContentsMargins({});
-            layout->addWidget(chunk);
-            layout->addWidget(button);
-
-            return layout;
-        } else {
-            chunk->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-            chunk->setOrientation(Qt::Vertical);
-            button->setMaximumHeight(10);
-            button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
-
-            auto layout = new QVBoxLayout;
-            layout->setSpacing(1);
-            layout->setContentsMargins({});
-            layout->addWidget(button);
-            layout->addWidget(chunk);
-
-            return layout;
+LevelMeter::LevelMeter(QWidget *parent) : QWidget(parent) {
+    m_timer = new QTimer;
+    m_timer->setInterval(16);
+    // m_timer->start();
+    connect(m_timer, &QTimer::timeout, this, [=]() {
+        double sumL = 0;
+        double sumR = 0;
+        for (int i = 0; i < m_bufferSize; i++) {
+            sumL += m_bufferL[i];
+            sumR += m_bufferR[i];
         }
-    };
-
-    m_chunk1 = new LevelMeterChunk;
-    m_button1 = new QPushButton;
-    m_button1->setObjectName("button1");
-    m_button1->setCheckable(true);
-    m_button1->setChecked(false);
-
-    if (m_orientation == Qt::Horizontal) {
-        //        m_chunk1->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        //        m_chunk1->setOrientation(Qt::Horizontal);
-        //        m_button1->setMaximumWidth(10);
-        //        m_button1->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
-        //
-        //        m_channelLayout1 = new QHBoxLayout;
-        //        m_channelLayout1->setSpacing(1);
-        //        m_channelLayout1->setMargin(0);
-        //        m_channelLayout1->setObjectName("hLayout");
-        //        m_channelLayout1->addWidget(m_chunk1);
-        //        m_channelLayout1->addWidget(m_button1);
-
-        m_mainLayout = new QVBoxLayout;
-
-        m_channelLayout1 = buildChannelMeter(m_chunk1, m_button1, Qt::Horizontal);
-        m_mainLayout->addLayout(m_channelLayout1);
-        if (m_channelType == Stereo) {
-            m_chunk2 = new LevelMeterChunk;
-            m_button2 = new QPushButton;
-            m_button2->setObjectName("button2");
-            m_button2->setCheckable(true);
-            m_button2->setChecked(false);
-
-            m_channelLayout2 = buildChannelMeter(m_chunk2, m_button2, Qt::Horizontal);
-            m_mainLayout->addLayout(m_channelLayout2);
-        }
-        m_mainLayout->setSpacing(1);
-        m_mainLayout->setContentsMargins({});
-
-        this->setMinimumHeight(24);
-        this->setMaximumHeight(24);
-        this->setLayout(m_mainLayout);
-    } else {
-        //        m_chunk1->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        //        m_chunk1->setOrientation(Qt::Vertical);
-        //        m_button1->setMaximumHeight(10);
-        //        m_button1->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
-        //
-        //        m_channelLayout1 = new QVBoxLayout;
-        //        m_channelLayout1->setSpacing(1);
-        //        m_channelLayout1->setMargin(0);
-        //        m_channelLayout1->setObjectName("vLayout");
-        //        m_channelLayout1->addWidget(m_button1);
-        //        m_channelLayout1->addWidget(m_chunk1);
-
-        m_mainLayout = new QHBoxLayout;
-
-        m_channelLayout1 = buildChannelMeter(m_chunk1, m_button1, Qt::Vertical);
-        m_mainLayout->addLayout(m_channelLayout1);
-        if (m_channelType == Stereo) {
-            m_chunk2 = new LevelMeterChunk;
-            m_button2 = new QPushButton;
-            m_button2->setObjectName("button2");
-            m_button2->setCheckable(true);
-            m_button2->setChecked(false);
-
-            m_channelLayout2 = buildChannelMeter(m_chunk2, m_button2, Qt::Vertical);
-            m_mainLayout->addLayout(m_channelLayout2);
-        }
-        m_mainLayout->setSpacing(1);
-        m_mainLayout->setContentsMargins({});
-
-        this->setMinimumWidth(6);
-        this->setMaximumWidth(24);
-        this->setLayout(m_mainLayout);
-    }
-
-    QObject::connect(m_button1, &QPushButton::clicked, this, [=]() { this->m_button1->setChecked(false); });
-
-    this->setStyleSheet(R"(
-LevelMeter {
-    border-style: none;
-    border-radius: 4px;
+        m_smoothedLevelL = sumL / m_bufferSize;
+        m_smoothedLevelR = sumR / m_bufferSize;
+        // qDebug() << averageLevel;
+        //        repaint();
+        update();
+    });
 }
-
-LevelMeter > QProgressBar#bar {
-    background-color:#d9d9d9;
-    color:#808080;
-    border-style: none;
-    border-radius: 0px;
-    text-align:center;
-}
-
-LevelMeter > QProgressBar#bar::chunk {
-    background-color: #0060C0;
-    border-radius: 0px;
-}
-
-LevelMeter > QPushButton {
-    background-color: #d9d9d9;
-    border-radius: 0px;
-}
-
-LevelMeter > QPushButton:checked {
-    background-color: #ff7c80;
-}
-)");
+LevelMeter::~LevelMeter() {
+    delete[] m_bufferL;
+    delete[] m_bufferR;
+    delete m_timer;
 }
 
 void LevelMeter::paintEvent(QPaintEvent *event) {
-    return QWidget::paintEvent(event);
-}
+    QPainter painter(this);
+    // Fill background
+    painter.setPen(Qt::NoPen);
+    painter.fillRect(rect(), m_colorBackground);
+    auto paddedRect = QRectF(rect().left() + m_spacing, rect().top() + m_spacing,
+                             rect().width() - 2 * m_spacing, rect().height() - 2 * m_spacing);
+    auto channelWidth = (paddedRect.width() - m_spacing) / 2;
+    auto leftChannelLeft = paddedRect.left();
+    auto rightChannelLeft = leftChannelLeft + channelWidth + m_spacing;
+    auto channelTop = paddedRect.top() + m_clipIndicatorLength + m_spacing;
+    auto channelLength = paddedRect.bottom() - channelTop;
 
-void LevelMeter::readSample(double sample) {
-    m_chunk1->readSample(sample);
-    if (sample > 1)
-        m_button1->setChecked(true);
+    // draw clip indicator
+    auto leftIndicatorRect =
+        QRectF(leftChannelLeft, paddedRect.top(), channelWidth, m_clipIndicatorLength);
+    auto rightIndicatorRect =
+        QRectF(rightChannelLeft, paddedRect.top(), channelWidth, m_clipIndicatorLength);
+
+    if (m_clippedL)
+        painter.fillRect(leftIndicatorRect, m_colorCritical);
+    if (m_clippedR)
+        painter.fillRect(rightIndicatorRect, m_colorCritical);
+
+    auto drawVerticalBar = [&](const QRectF &rect, const double level) {
+        auto rectLeft = rect.left();
+        auto rectTop = rect.top();
+        auto rectWidth = rect.width();
+        auto rectHeight = rect.height();
+
+        auto safeLength = rectHeight * m_safeThreshold;
+        auto warnLength = rectHeight * m_warnThreshold - safeLength;
+
+        auto safeStart = rectTop + rectHeight - safeLength;
+        auto warnStart = rectTop + rectHeight - safeLength - warnLength;
+        auto criticalStart = rectTop;
+        auto levelLength = rectHeight * level;
+        auto criticalLength = rectHeight - safeLength - warnLength;
+
+        auto fullSafeChunk = QRectF(rectLeft, safeStart, rectWidth, safeLength);
+        auto fullWarnChunk = QRectF(rectLeft, warnStart, rectWidth, warnLength);
+        auto fullCriticalChunk = QRectF(rectLeft, criticalStart, rectWidth, criticalLength);
+
+        // draw safe chunk
+        if (level < m_safeThreshold) {
+            auto height = levelLength;
+            auto top = rectTop + rectHeight - height;
+            auto chunk = QRectF(rectLeft, top, rectWidth, height);
+            painter.fillRect(chunk, m_colorSafe);
+        } else if (level < m_warnThreshold) {
+            painter.fillRect(fullSafeChunk, m_colorSafe);
+
+            auto height = levelLength - safeLength;
+            auto top = rectTop + rectHeight - levelLength;
+            auto chunk = QRectF(rectLeft, top, rectWidth, height);
+            painter.fillRect(chunk, m_colorWarn);
+        } else if (level < 1) {
+            painter.fillRect(fullSafeChunk, m_colorSafe);
+            painter.fillRect(fullWarnChunk, m_colorWarn);
+
+            auto height = levelLength - safeLength - warnLength;
+            auto top = rectTop + rectHeight - levelLength;
+            auto chunk = QRectF(rectLeft, top, rectWidth, height);
+            painter.fillRect(chunk, m_colorCritical);
+        } else {
+            painter.fillRect(fullSafeChunk, m_colorSafe);
+            painter.fillRect(fullWarnChunk, m_colorWarn);
+            painter.fillRect(fullCriticalChunk, m_colorCritical);
+        }
+    };
+
+    // draw levels
+    auto leftLevelBar = QRectF(leftChannelLeft, channelTop, channelWidth, channelLength);
+    auto rightLevelBar = QRectF(rightChannelLeft, channelTop, channelWidth, channelLength);
+    drawVerticalBar(leftLevelBar, m_smoothedLevelL);
+    drawVerticalBar(rightLevelBar, m_smoothedLevelR);
+}
+void LevelMeter::mousePressEvent(QMouseEvent *event) {
+    auto cursorPos = event->position();
+    if (event->button() == Qt::LeftButton && mouseOnClipIndicator(cursorPos))
+        setClipped(false, false);
+    // QWidget::mousePressEvent(event);
 }
 
 void LevelMeter::initBuffer(int bufferSize) {
-    m_chunk1->initBuffer(bufferSize);
-    if (m_chunk2 != nullptr)
-        m_chunk2->initBuffer(bufferSize);
-}
-
-void LevelMeter::setClippedIndicator(bool on) {
-    m_button1->setChecked(on);
-}
-
-void LevelMeter::setValue(double value) {
-    m_chunk1->setValue(value);
+    m_bufferSize = bufferSize;
+    m_bufferL = new double[m_bufferSize];
+    resetBuffer();
 }
 
 void LevelMeter::readSample(double sampleL, double sampleR) {
-    m_chunk1->readSample(sampleL);
+    m_bufferL[m_bufferPos] = sampleL;
+    m_bufferR[m_bufferPos] = sampleR;
+    m_bufferPos++;
+    if (m_bufferPos == m_bufferSize) {
+        m_bufferPos = 0;
+    }
     if (sampleL > 1)
-        m_button1->setChecked(true);
-    m_chunk2->readSample(sampleR);
+        m_clippedL = true;
     if (sampleR > 1)
-        m_button2->setChecked(true);
+        m_clippedR = true;
 }
 
 void LevelMeter::setValue(double valueL, double valueR) {
-    m_chunk1->setValue(valueL);
-    m_chunk2->setValue(valueR);
+    m_smoothedLevelL = valueL;
+    m_smoothedLevelR = valueR;
+    update();
 }
 
-void LevelMeter::setClippedIndicator(bool onL, bool onR) {
-    m_button1->setChecked(onL);
-    m_button2->setChecked(onR);
+void LevelMeter::setClipped(bool onL, bool onR) {
+    m_clippedL = onL;
+    m_clippedR = onR;
 }
 
 int LevelMeter::bufferSize() const {
-    return m_chunk1->bufferSize();
+    return m_bufferSize;
 }
 
 void LevelMeter::setBufferSize(int size) {
-    m_chunk1->setBufferSize(size);
-    if (m_chunk2 != nullptr)
-        m_chunk2->setBufferSize(size);
+    setFreeze(true);
+    delete[] m_bufferL;
+    initBuffer(size);
+    setFreeze(false);
 }
 
 bool LevelMeter::freeze() const {
-    return m_chunk1->freeze();
+    return m_freezed;
 }
 
 void LevelMeter::setFreeze(bool on) {
-    m_chunk1->setFreeze(on);
-    if (m_chunk1 != nullptr)
-        m_chunk2->setFreeze(on);
+    if (on) {
+        m_timer->stop();
+        m_freezed = true;
+    } else {
+        m_timer->start();
+        m_freezed = false;
+    }
+}
+void LevelMeter::resetBuffer() {
+    for (int i = 0; i < m_bufferSize; i++)
+        m_bufferL[i] = 0;
+    m_bufferPos = 0;
+}
+bool LevelMeter::mouseOnClipIndicator(const QPointF &pos) {
+    // return pos.y() <= m_spacing + m_clipIndicatorLength + m_spacing;
+    return pos.y() <= m_clipIndicatorLength + 8;
 }

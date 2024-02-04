@@ -27,6 +27,18 @@ public:
     bool importMidi(const QString &filename);
     bool loadAProject(const QString &filename);
 
+    class LevelMetersUpdatedArgs {
+    public:
+        class State {
+        public:
+            double valueL = 0;
+            double valueR = 0;
+            bool clippedL = false;
+            bool clippedR = false;
+        };
+        QList<State> trackMeterStates;
+    };
+
 public slots:
     void onTrackUpdated(int index);
     void onSelectedClipChanged(int trackIndex, int clipIndex);

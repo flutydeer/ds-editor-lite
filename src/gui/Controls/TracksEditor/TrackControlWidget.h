@@ -11,7 +11,7 @@
 #include <QListWidgetItem>
 
 #include "../Base/EditLabel.h"
-// #include "../Base/LevelMeter.h"
+#include "../Base/LevelMeter.h"
 #include "../Base/SeekBar.h"
 #include "Model/DsTrack.h"
 #include "Model/DsTrackControl.h"
@@ -28,6 +28,7 @@ public:
     DsTrackControl control() const;
     void setControl(const DsTrackControl &control);
     void setNarrowMode(bool on);
+    LevelMeter *levelMeter() const;
 
 signals:
     void propertyChanged();
@@ -60,7 +61,7 @@ private:
     SeekBar *m_sbarGain;
     EditLabel *m_leVolume;
     QSpacerItem *m_panVolumeSpacer;
-    // LevelMeter *m_levelMeter;
+    LevelMeter *m_levelMeter;
     QHBoxLayout *m_mainLayout;
     QVBoxLayout *m_controlWidgetLayout;
     QHBoxLayout *m_muteSoloTrackNameLayout;

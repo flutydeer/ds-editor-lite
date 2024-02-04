@@ -5,6 +5,9 @@
 #ifndef PLAYBACKCONTROLLER_H
 #define PLAYBACKCONTROLLER_H
 
+#include "Model/AppModel.h"
+
+
 #include <QObject>
 
 #include "Utils/Singleton.h"
@@ -33,6 +36,7 @@ signals:
     void positionChanged(double tick);
     void lastPositionChanged(double tick);
     void playbackStatusChanged(PlaybackStatus status);
+    void levelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args);
 
 public slots:
     void play();

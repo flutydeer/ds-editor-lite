@@ -30,6 +30,7 @@ public slots:
     void onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipIndex);
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
+    void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args);
 
 signals:
     void selectedClipChanged(int trackIndex, int clipId);

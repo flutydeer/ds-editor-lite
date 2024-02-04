@@ -72,10 +72,11 @@ TracksView::TracksView() {
     connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
             &TracksGraphicsView::onWheelHorScale);
     auto playbackController = PlaybackController::instance();
-    connect(m_timeline, &TimelineView::setLastPositionTriggered, playbackController, [=](double tick) {
-        playbackController->setLastPosition(tick);
-        playbackController->setPosition(tick);
-    });
+    connect(m_timeline, &TimelineView::setLastPositionTriggered, playbackController,
+            [=](double tick) {
+                playbackController->setLastPosition(tick);
+                playbackController->setPosition(tick);
+            });
     connect(appModel, &AppModel::modelChanged, m_timeline,
             [=] { m_timeline->setTimeSignature(appModel->numerator, appModel->denominator); });
     connect(appModel, &AppModel::timeSignatureChanged, m_timeline, &TimelineView::setTimeSignature);
@@ -121,6 +122,8 @@ TracksView::TracksView() {
             &TracksView::onPositionChanged);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &TracksView::onLastPositionChanged);
+    connect(playbackController, &PlaybackController::levelMetersUpdated, this,
+            &TracksView::onLevelMetersUpdated);
 
     // auto splitter = new QSplitter;
     // splitter->setOrientation(Qt::Horizontal);
@@ -215,6 +218,18 @@ void TracksView::onPositionChanged(double tick) {
 }
 void TracksView::onLastPositionChanged(double tick) {
     m_sceneLastPlayPosIndicator->onTimeChanged(tick);
+}
+void TracksView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) {
+    if (m_tracksModel.tracks.isEmpty())
+        return;
+    
+    auto states = args.trackMeterStates;
+    for (int i = 0; i < states.size(); i++) {
+        auto state = states.at(i);
+        auto meter = m_tracksModel.tracks.at(i)->widget->levelMeter();
+        meter->setValue(state.valueL, state.valueR);
+        meter->setClipped(state.clippedL, state.clippedR);
+    }
 }
 void TracksView::onSceneSelectionChanged() {
     // find selected clip (the first one)

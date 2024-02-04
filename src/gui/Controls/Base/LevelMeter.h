@@ -5,49 +5,51 @@
 #ifndef CHORUSKIT_LEVELMETER_H
 #define CHORUSKIT_LEVELMETER_H
 
-#include "LevelMeterChunk.h"
-#include <QHBoxLayout>
-#include <QPushButton>
-#include <QSizePolicy>
-
-class LevelMeterPrivate;
+#include <QWidget>
+#include <QTimer>
 
 class LevelMeter : public QWidget {
     Q_OBJECT
 public:
-    enum ChannelType { Mono, Stereo };
+    explicit LevelMeter(QWidget *parent = nullptr);
+    ~LevelMeter() override;
 
-    explicit LevelMeter(Qt::Orientation orientation, ChannelType channelType = Stereo, QWidget *parent = nullptr);
-
-
-    void readSample(double sample);
-    void readSample(double sampleL, double sampleR);
-    void setValue(double value);
-    void setValue(double valueL, double valueR);
-    void setClippedIndicator(bool on);
-    void setClippedIndicator(bool onL, bool onR);
+    void setClipped(bool onL, bool onR);
     int bufferSize() const;
     void setBufferSize(int size);
     void initBuffer(int bufferSize);
     bool freeze() const;
     void setFreeze(bool on);
 
-protected:
+// public slots:
+    void readSample(double sampleL, double sampleR);
+    void setValue(double valueL, double valueR);
+
+private:
     void paintEvent(QPaintEvent *event) override;
-    Qt::Orientation m_orientation;
-    ChannelType m_channelType;
+    void mousePressEvent(QMouseEvent *event) override;
+    void resetBuffer();
+    bool mouseOnClipIndicator(const QPointF &pos);
 
-    // Channel left or mono
-    LevelMeterChunk *m_chunk1;
-    QPushButton *m_button1;
-    QBoxLayout *m_channelLayout1;
-
-    // Channel right
-    LevelMeterChunk *m_chunk2;
-    QPushButton *m_button2;
-    QBoxLayout *m_channelLayout2;
-
-    QBoxLayout *m_mainLayout;
+    QColor m_colorBackground = QColor(0, 0, 0, 60);
+    QColor m_colorSafe = QColor(155, 186, 255);
+    QColor m_colorWarn = QColor(255, 205, 155);
+    QColor m_colorCritical = QColor(255, 155, 157);
+    const double m_safeThreshold = 0.707946; //-3 dB
+    const double m_warnThreshold = 0.891251; //-1 dB
+    double m_smoothedLevelL = 0;
+    double m_smoothedLevelR = 0;
+    bool m_clippedL = true;
+    bool m_clippedR = true;
+    //    int sampleRate = 44100;
+    double *m_bufferL;
+    double *m_bufferR;
+    int m_bufferPos = 0;
+    int m_bufferSize = 8;
+    QTimer *m_timer;
+    bool m_freezed = false;
+    double m_clipIndicatorLength = 6; // px
+    double m_spacing = 1.0;
 };
 
 

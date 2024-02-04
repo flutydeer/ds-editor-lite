@@ -133,15 +133,15 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_controlWidgetLayout->addLayout(m_panVolumeLayout);
     m_controlWidgetLayout->addItem(m_panVolumeSpacer);
 
-    // m_levelMeter = new LevelMeter(Qt::Vertical);
-    // m_levelMeter->initBuffer(8);
-    // m_levelMeter->setMaximumWidth(12);
+    m_levelMeter = new LevelMeter();
+    m_levelMeter->initBuffer(8);
+    m_levelMeter->setFixedWidth(12);
 
     m_mainLayout = new QHBoxLayout;
     m_mainLayout->setObjectName("TrackControlPanel");
     m_mainLayout->addWidget(m_btnColor);
     m_mainLayout->addLayout(m_controlWidgetLayout);
-    // m_mainLayout->addWidget(m_levelMeter);
+    m_mainLayout->addWidget(m_levelMeter);
     m_mainLayout->setSpacing(0);
     m_mainLayout->setContentsMargins({});
 
@@ -271,6 +271,9 @@ void TrackControlWidget::setNarrowMode(bool on) {
             m_panVolumeLayout->setContentsMargins(4, 0, 4, 8);
         }
     }
+}
+LevelMeter *TrackControlWidget::levelMeter() const {
+    return m_levelMeter;
 }
 void TrackControlWidget::onTrackUpdated(const DsTrack &track) {
     m_leTrackName->setText(track.name());
