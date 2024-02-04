@@ -22,7 +22,7 @@ void AppController::onRunG2p() {
     if (singingClip == nullptr)
         return;
     auto notes = singingClip->notes;
-    IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/res/dict");
+    IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
 
     auto g2p_man = new IKg2p::Mandarin();
     auto syllable2p =

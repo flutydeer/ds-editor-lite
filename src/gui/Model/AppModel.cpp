@@ -60,6 +60,7 @@ void AppModel::insertTrack(DsTrack *track, int index) {
 }
 void AppModel::removeTrack(int index) {
     auto track = m_tracks[index];
+    onSelectedClipChanged(-1, -1);
     m_tracks.removeAt(index);
     emit tracksChanged(Remove, index, track);
 }

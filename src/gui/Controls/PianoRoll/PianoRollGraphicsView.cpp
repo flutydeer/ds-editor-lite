@@ -44,10 +44,11 @@ void PianoRollGraphicsView::updateView() {
     onSelectedClipChanged(-1, -1);
 }
 void PianoRollGraphicsView::onSelectedClipChanged(int trackIndex, int clipId) {
+    qDebug() << "PianoRollGraphicsView::onSelectedClipChanged" << trackIndex << clipId;
     reset();
 
     auto model = AppModel::instance();
-    if (trackIndex == -1) {
+    if (trackIndex == -1 || trackIndex >= model->tracks().size()) {
         m_oneSingingClipSelected = false;
         setScene(nullptr);
         update();

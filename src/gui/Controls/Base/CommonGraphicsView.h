@@ -55,7 +55,7 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
 private:
-    bool isMouseWheel(QWheelEvent *event);
+    bool isMouseEventFromWheel(QWheelEvent *event);
 
     double m_hZoomingStep = 0.4;
     double m_vZoomingStep = 0.3;

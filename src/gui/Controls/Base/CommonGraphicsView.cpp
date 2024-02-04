@@ -9,7 +9,7 @@
 #include "CommonGraphicsView.h"
 
 #if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)) && defined(Q_OS_MAC)
-#define SUPPORTS_WHEEL_DETECTION
+#define SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
 #endif
 
 CommonGraphicsView::CommonGraphicsView(QWidget *parent) {
@@ -44,7 +44,7 @@ CommonGraphicsView::CommonGraphicsView(QWidget *parent) {
     connect(verticalScrollBar(), &QScrollBar::valueChanged, this,
             &CommonGraphicsView::notifyVisibleRectChanged);
 
-#ifndef SUPPORTS_WHEEL_DETECTION
+#ifndef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
     m_timer.setInterval(400);
     m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, [=]() {
@@ -129,7 +129,7 @@ void CommonGraphicsView::onWheelHorScale(QWheelEvent *event) {
     auto ratio = targetScaleX / m_scaleX;
     auto targetSceneX = scenePos.x() * ratio;
     auto targetValue = qRound(targetSceneX - cursorPos.x());
-    if (!isMouseWheel(event)) {
+    if (!isMouseEventFromWheel(event)) {
         setScaleX(targetScaleX);
         setHBarValue(targetValue);
     } else {
@@ -218,7 +218,7 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
         auto ratio = targetScaleY / m_scaleY;
         auto targetSceneY = scenePos.y() * ratio;
         auto targetValue = qRound(targetSceneY - cursorPos.y());
-        if (!isMouseWheel(event)) {
+        if (!isMouseEventFromWheel(event)) {
             setScaleY(targetScaleY);
             setVBarValue(targetValue);
         } else {
@@ -238,7 +238,7 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
         auto scrollLength = -1 * viewport()->width() * 0.2 * deltaY / 120;
         auto startValue = hBarValue();
         auto endValue = static_cast<int>(startValue + scrollLength);
-        if (!isMouseWheel(event))
+        if (!isMouseEventFromWheel(event))
             setHBarValue(endValue);
         else {
             m_hBarAnimation.stop();
@@ -247,7 +247,7 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
             m_hBarAnimation.start();
         }
     } else { // No modifier
-        if (!isMouseWheel(event)) {
+        if (!isMouseEventFromWheel(event)) {
             QGraphicsView::wheelEvent(event);
         } else {
             auto scrollLength = -1 * viewport()->height() * 0.15 * deltaY / 120;
@@ -267,8 +267,8 @@ void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
     emit sizeChanged(viewport()->size());
     notifyVisibleRectChanged();
 }
-bool CommonGraphicsView::isMouseWheel(QWheelEvent *event) {
-#ifdef SUPPORTS_WHEEL_DETECTION
+bool CommonGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
+#ifdef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
     return event->deviceType() == QInputDevice::DeviceType::Mouse;
 #else
     auto deltaX = event->angleDelta().x();
