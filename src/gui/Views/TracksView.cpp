@@ -229,7 +229,6 @@ void TracksView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &ar
         auto state = states.at(i);
         auto meter = m_tracksModel.tracks.at(i)->widget->levelMeter();
         meter->setValue(state.valueL, state.valueR);
-        meter->setClipped(state.clippedL, state.clippedR);
     }
 }
 void TracksView::onSceneSelectionChanged() {
@@ -300,7 +299,7 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
         args.pan = control.pan();
         args.mute = control.mute();
         args.solo = control.solo();
-        args.index = trackIndex;
+        args.index = i;
         emit trackPropertyChanged(args);
     });
     connect(newTrackControlWidget, &TrackControlWidget::insertNewTrackTriggered, this, [=] {

@@ -143,6 +143,10 @@ void LevelMeter::readSample(double sampleL, double sampleR) {
 void LevelMeter::setValue(double valueL, double valueR) {
     m_smoothedLevelL = VolumeUtils::dBToLinear(valueL);
     m_smoothedLevelR = VolumeUtils::dBToLinear(valueR);
+    if (m_smoothedLevelL > 1)
+        m_clippedL = true;
+    if (m_smoothedLevelL > 1)
+        m_clippedR = true;
     update();
 }
 

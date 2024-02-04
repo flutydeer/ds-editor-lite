@@ -51,8 +51,6 @@ public:
         public:
             double valueL = 0;
             double valueR = 0;
-            bool clippedL = false;
-            bool clippedR = false;
         };
         QList<State> trackMeterStates;
     };
