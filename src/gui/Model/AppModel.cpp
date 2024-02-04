@@ -39,6 +39,7 @@ double AppModel::tempo() const {
     return m_tempo;
 }
 void AppModel::setTempo(double tempo) {
+    qDebug() << "AppModel::setTempo" << tempo;
     m_tempo = tempo;
     emit tempoChanged(m_tempo);
 }

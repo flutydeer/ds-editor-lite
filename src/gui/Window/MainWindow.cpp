@@ -12,6 +12,7 @@
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
+#include "Views/PlaybackView.h"
 
 #ifdef Q_OS_WIN
 #  include <dwmapi.h>
@@ -121,23 +122,23 @@ MainWindow::MainWindow() {
         appController->openProject(fileName);
     });
 
-    auto btnPlay = new QPushButton;
-    btnPlay->setText("Play");
-    btnPlay->setIcon(QIcon(":/svg/icons/play_16_filled.svg"));
-    connect(btnPlay, &QPushButton::clicked, playbackController, [=] {
-        // TODO: run project check (overlapping)
-        PlaybackController::instance()->play();
-    });
+    // auto btnPlay = new QPushButton;
+    // btnPlay->setText("Play");
+    // btnPlay->setIcon(QIcon(":/svg/icons/play_16_filled.svg"));
+    // connect(btnPlay, &QPushButton::clicked, playbackController, [=] {
+    //     // TODO: run project check (overlapping)
+    //     PlaybackController::instance()->play();
+    // });
 
-    auto btnPause = new QPushButton;
-    btnPause->setText("Pause");
-    btnPause->setIcon(QIcon(":/svg/icons/pause_16_filled.svg"));
-    connect(btnPause, &QPushButton::clicked, playbackController, &PlaybackController::pause);
+    // auto btnPause = new QPushButton;
+    // btnPause->setText("Pause");
+    // btnPause->setIcon(QIcon(":/svg/icons/pause_16_filled.svg"));
+    // connect(btnPause, &QPushButton::clicked, playbackController, &PlaybackController::pause);
 
-    auto btnStop = new QPushButton;
-    btnStop->setText("Stop");
-    btnStop->setIcon(QIcon(":/svg/icons/stop_16_filled.svg"));
-    connect(btnStop, &QPushButton::clicked, playbackController, &PlaybackController::stop);
+    // auto btnStop = new QPushButton;
+    // btnStop->setText("Stop");
+    // btnStop->setIcon(QIcon(":/svg/icons/stop_16_filled.svg"));
+    // connect(btnStop, &QPushButton::clicked, playbackController, &PlaybackController::stop);
 
     auto m_tracksView = new TracksView;
     auto m_pianoRollView = new PianoRollGraphicsView;
@@ -145,6 +146,7 @@ MainWindow::MainWindow() {
 
     connect(model, &AppModel::modelChanged, m_tracksView, &TracksView::onModelChanged);
     connect(model, &AppModel::tracksChanged, m_tracksView, &TracksView::onTrackChanged);
+    connect(model, &AppModel::tempoChanged, m_tracksView, &TracksView::onTempoChanged);
     connect(model, &AppModel::modelChanged, m_pianoRollView, &PianoRollGraphicsView::updateView);
     connect(model, &AppModel::selectedClipChanged, m_pianoRollView,
             &PianoRollGraphicsView::onSelectedClipChanged);
@@ -167,14 +169,20 @@ MainWindow::MainWindow() {
     splitter->addWidget(m_tracksView);
     splitter->addWidget(m_pianoRollView);
 
+    auto playbackView = new PlaybackView;
+    connect(playbackView, &PlaybackView::changeTempoTriggered, model, [=](double tempo) {
+        model->setTempo(tempo); // TODO: Connect to app controller
+    });
+
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addWidget(btnNewTrack);
     actionButtonLayout->addWidget(btnImportMidi);
     // actionButtonLayout->addWidget(btnOpenAudioFile);
     actionButtonLayout->addWidget(btnOpenProjectFile);
-    actionButtonLayout->addWidget(btnPlay);
-    actionButtonLayout->addWidget(btnPause);
-    actionButtonLayout->addWidget(btnStop);
+    // actionButtonLayout->addWidget(btnPlay);
+    // actionButtonLayout->addWidget(btnPause);
+    // actionButtonLayout->addWidget(btnStop);
+    actionButtonLayout->addWidget(playbackView);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addLayout(actionButtonLayout);

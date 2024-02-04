@@ -68,6 +68,7 @@ void AudioClipGraphicsItem::onLoadComplete(bool success, QString errorMessage) {
     emit propertyChanged();
 }
 void AudioClipGraphicsItem::onTempoChange(double tempo) {
+    qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
     m_tempo = tempo;
     updateLength();
 }
@@ -175,4 +176,10 @@ void AudioClipGraphicsItem::updateLength() {
     auto targetLength = static_cast<int>(m_peakCache.count() / m_chunksPerTick);
     if (length() != targetLength)
         setLength(targetLength);
+    // TODO: improve length changing experience
+    if (clipStart() > targetLength)
+        setClipStart(0);
+    if (clipStart() + clipLen() > targetLength)
+        setClipLen(targetLength - clipStart());
+    emit propertyChanged();
 }

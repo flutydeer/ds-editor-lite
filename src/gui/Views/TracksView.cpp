@@ -129,8 +129,9 @@ TracksView::TracksView() {
     // splitter->setOrientation(Qt::Horizontal);
     // splitter->addWidget(tracklist);
     // splitter->addWidget(m_graphicsView);
-    auto btn1 = new QPushButton("button 1");
+    auto btn1 = new QPushButton("");
     btn1->setFixedHeight(24);
+    btn1->setStyleSheet("QPushButton { border: none; background: none }");
 
     m_timeline->setFixedHeight(24);
 

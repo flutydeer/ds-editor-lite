@@ -17,7 +17,7 @@ class DsTrack : public QObject, public UniqueObject {
     Q_OBJECT
 
 public:
-    enum ClipChangeType { Insert, Remove };
+    enum ClipChangeType { Insert, PropertyChanged , Remove };
 
     QString name() const;
     void setName(const QString &name);
