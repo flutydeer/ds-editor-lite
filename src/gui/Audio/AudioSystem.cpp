@@ -267,6 +267,8 @@ double AudioSystem::adoptedSampleRate() const {
     return m_adoptedSampleRate;
 }
 void AudioSystem::setAdoptedSampleRate(double sampleRate) {
+    if (sampleRate == m_adoptedSampleRate)
+        return;
     if (device()->isOpen()) {
         device()->open(device()->bufferSize(), sampleRate);
     }
@@ -274,6 +276,8 @@ void AudioSystem::setAdoptedSampleRate(double sampleRate) {
     m_settings.setValue("audio/adoptedSampleRate", m_adoptedSampleRate);
     if (m_adoptedBufferSize && m_adoptedSampleRate)
         m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
+    m_audioContext->rebuildAllClips();
+    m_audioContext->handleFileBufferingSizeChange();
 }
 
 void AudioSystem::openAudioSettings() {
@@ -289,7 +293,10 @@ void AudioSystem::openAudioSettings() {
         m_settings.setValue("audio/hotPlugMode", dlg.hotPlugMode());
         m_settings.setValue("audio/closeDeviceAtBackground", dlg.closeDeviceAtBackground());
         m_settings.setValue("audio/closeDeviceOnPlaybackStop", dlg.closeDeviceOnPlaybackStop());
-        m_settings.setValue("audio/fileBufferingSizeMsec", dlg.fileBufferingSizeMsec());
+        if (!qFuzzyCompare(dlg.fileBufferingSizeMsec(), m_settings.value("audio/fileBufferingSizeMsec", 1000.0).toDouble())) {
+            m_settings.setValue("audio/fileBufferingSizeMsec", dlg.fileBufferingSizeMsec());
+            m_audioContext->handleFileBufferingSizeChange();
+        }
     }
 }
 

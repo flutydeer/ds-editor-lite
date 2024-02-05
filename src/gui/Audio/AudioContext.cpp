@@ -10,6 +10,7 @@
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsCore/AudioSourceClipSeries.h>
 #include <TalcsCore/Decibels.h>
+#include <TalcsCore/BufferingAudioSource.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsDevice/AudioSourcePlayback.h>
 #include <TalcsSynthesis/FutureAudioSourceClipSeries.h>
@@ -48,13 +49,15 @@ AudioContext::AudioContext(QObject *parent) : QObject(parent), m_levelMeterTimer
                 handleTrackInsertion(track);
                 break;
             case AppModel::PropertyUpdate:
-                handleTrackControlChange(track, track->control().gain(), track->control().pan(), track->control().mute(), track->control().solo());
+                handleTrackControlChange(track);
                 break;
             case AppModel::Remove:
                 handleTrackRemoval(track);
                 break;
         }
     });
+
+    connect(AppModel::instance(), &AppModel::tempoChanged, this, &AudioContext::rebuildAllClips);
 
     m_levelMeterTimer->setInterval(50); // TODO make it configurable
     connect(m_levelMeterTimer, &QTimer::timeout, this, [=] {
@@ -73,6 +76,10 @@ AudioContext::AudioContext(QObject *parent) : QObject(parent), m_levelMeterTimer
 
 AudioContext::~AudioContext() {
 
+}
+
+talcs::FutureAudioSourceClipSeries *AudioContext::trackSynthesisClipSeries(const DsTrack *track) {
+    return m_trackSynthesisClipSeriesDict[track];
 }
 
 void AudioContext::handlePlaybackStatusChange(PlaybackController::PlaybackStatus status) {
@@ -113,7 +120,7 @@ void AudioContext::handleModelChange() {
     }
 }
 
-void AudioContext::handleTrackInsertion(DsTrack *track) {
+void AudioContext::handleTrackInsertion(const DsTrack *track) {
     auto trackSrc = new talcs::PositionableMixerAudioSource;
     auto trackAudioClipSeries = new talcs::AudioSourceClipSeries;
     auto trackSynthesisClipSeries = new talcs::FutureAudioSourceClipSeries;
@@ -164,7 +171,7 @@ void AudioContext::handleTrackInsertion(DsTrack *track) {
     });
 }
 
-void AudioContext::handleTrackRemoval(DsTrack *track) {
+void AudioContext::handleTrackRemoval(const DsTrack *track) {
     for (auto clip: track->clips()) {
         handleClipRemoval(track, clip);
     }
@@ -178,54 +185,62 @@ void AudioContext::handleTrackRemoval(DsTrack *track) {
     disconnect(track, nullptr, this, nullptr);
 }
 
-void AudioContext::handleTrackControlChange(DsTrack *track, float gainDb, float pan100x, bool mute, bool solo) {
+void AudioContext::handleTrackControlChange(const DsTrack *track) {
     auto trackSource = m_trackSourceDict[track];
     auto dev = AudioSystem::instance()->device();
     if (dev)
         dev->lock();
-    AudioSystem::instance()->masterTrack()->setSourceSolo(trackSource, solo);
-    trackSource->setSilentFlags(mute ? -1 : 0);
-    trackSource->setGain(talcs::Decibels::decibelsToGain(gainDb));
-    trackSource->setPan(0.01f * pan100x);
+    AudioSystem::instance()->masterTrack()->setSourceSolo(trackSource, track->control().solo());
+    trackSource->setSilentFlags(track->control().mute() ? -1 : 0);
+    trackSource->setGain(talcs::Decibels::decibelsToGain(track->control().gain()));
+    trackSource->setPan(0.01f * track->control().pan());
     if (dev)
         dev->unlock();
 }
 
-void AudioContext::handleClipInsertion(DsTrack *track, DsClip *clip) {
-    if (clip->type() == DsClip::Audio) {
-        auto audioClip = static_cast<DsAudioClip *>(clip);
-        auto f = std::make_unique<QFile>(audioClip->path());
-        auto fileSrc = new talcs::AudioFormatInputSource(new talcs::AudioFormatIO(f.get()), true);
-        if (!fileSrc->audioFormatIo()->open(QIODevice::ReadOnly) || !fileSrc->open(1024, fileSrc->audioFormatIo()->sampleRate())) {
-            QMessageBox::critical(nullptr, {}, tr("Cannot read audio file:\n\n%1").arg(audioClip->path()));
-            return;
-        }
-        auto fileMixer = new talcs::PositionableMixerAudioSource;
-        fileMixer->addSource(fileSrc, true);
-        auto trackClipSeries = m_trackAudioClipSeriesDict[track];
-        auto clipView = trackClipSeries->insertClip(fileMixer, tickToSample(clip->start() + clip->clipStart()), tickToSample(clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));
-        m_audioFiles[clip] = std::move(f);
-        m_audioClips[clip] = clipView;
-        m_audioClipMixers[clip] = fileMixer;
+void AudioContext::handleClipInsertion(const DsTrack *track, const DsClip *clip) {
+    QSettings settings;
+    if (clip->type() != DsClip::Audio)
+        return;
+    auto audioClip = static_cast<const DsAudioClip *>(clip);
+    auto f = std::make_unique<QFile>(audioClip->path());
+    auto fileSrc = new talcs::AudioFormatInputSource(new talcs::AudioFormatIO(f.get()), true);
+    auto bufSrc = new talcs::BufferingAudioSource(
+        fileSrc,
+        true,
+        2,
+        settings.value("audio/fileBufferingSizeMsec", 1000.0).toDouble() / 1000.0 * AudioSystem::instance()->adoptedSampleRate());
+    if (!fileSrc->audioFormatIo()->open(QIODevice::ReadOnly) || !fileSrc->open(1024, fileSrc->audioFormatIo()->sampleRate())) {
+        QMessageBox::critical(nullptr, {}, tr("Cannot read audio file:\n\n%1").arg(audioClip->path()));
+        return;
     }
+    auto fileMixer = new talcs::PositionableMixerAudioSource;
+    fileMixer->addSource(bufSrc, true);
+    auto trackClipSeries = m_trackAudioClipSeriesDict[track];
+    auto clipView = trackClipSeries->insertClip(fileMixer, tickToSample(clip->start() + clip->clipStart()), tickToSample(clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));
+    m_audioFiles[clip] = std::move(f);
+    m_audioClips[clip] = clipView;
+    m_audioClipMixers[clip] = fileMixer;
+    m_audioClipBufferingSources[clip] = bufSrc;
 }
 
-void AudioContext::handleClipRemoval(DsTrack *track, DsClip *clip) {
+void AudioContext::handleClipRemoval(const DsTrack *track, const DsClip *clip) {
     if (!m_trackAudioClipSeriesDict.contains(track))
         return;
-    if (clip->type() == DsClip::Audio) {
-        auto clipView = m_audioClips[clip];
-        if (!clipView.isNull()) {
-            auto trackClipSeries = m_trackAudioClipSeriesDict[track];
-            trackClipSeries->removeClip(clipView);
-        }
-        delete m_audioClipMixers[clip];
-        m_audioClipMixers.remove(clip);
-        m_audioFiles.remove(clip);
+    if (clip->type() != DsClip::Audio)
+        return;
+    auto clipView = m_audioClips[clip];
+    if (!clipView.isNull()) {
+        auto trackClipSeries = m_trackAudioClipSeriesDict[track];
+        trackClipSeries->removeClip(clipView);
     }
+    delete m_audioClipMixers[clip];
+    m_audioClipMixers.remove(clip);
+    m_audioFiles.remove(clip);
+    m_audioClipBufferingSources.remove(clip);
 }
 
-void AudioContext::handleClipPropertyChange(DsTrack *track, DsClip *clip) {
+void AudioContext::handleClipPropertyChange(const DsTrack *track, const DsClip *clip) {
     auto trackClipSeries = m_trackAudioClipSeriesDict[track];
     auto &clipView = m_audioClips[clip];
     if (clipView.isNull()) {
@@ -233,5 +248,30 @@ void AudioContext::handleClipPropertyChange(DsTrack *track, DsClip *clip) {
     } else {
         trackClipSeries->setClipStartPos(clipView, tickToSample(clip->clipStart()));
         trackClipSeries->setClipRange(clipView, tickToSample(clip->start() + clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));
+    }
+}
+
+void AudioContext::rebuildAllClips() {
+    for (auto track : AppModel::instance()->tracks()) {
+        auto trackClipSeries = m_trackAudioClipSeriesDict[track];
+        for (auto clip: track->clips()) {
+            if (clip->type() != DsClip::Audio)
+                continue;
+            auto clipView = m_audioClips[clip];
+            if (!clipView.isNull())
+                trackClipSeries->removeClip(clipView);
+        }
+        for (auto clip: track->clips()) {
+            if (clip->type() != DsClip::Audio)
+                continue;
+            m_audioClips[clip] = trackClipSeries->insertClip(m_audioClipMixers[clip], tickToSample(clip->start() + clip->clipStart()), tickToSample(clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));
+        }
+    }
+}
+
+void AudioContext::handleFileBufferingSizeChange() {
+    QSettings settings;
+    for (auto bufSrc: m_audioClipBufferingSources) {
+        bufSrc->setReadAheadSize(settings.value("audio/fileBufferingSizeMsec", 1000.0).toDouble() / 1000.0 * AudioSystem::instance()->adoptedSampleRate());
     }
 }
