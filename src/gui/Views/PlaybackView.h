@@ -25,6 +25,7 @@ signals:
     void setPositionTriggered(double tick);
 
 public slots:
+    void updateView();
     void onTempoChanged(double tempo);
     void onTimeSignatureChanged(int numerator, int denominator);
     void onPositionChanged(double tick);
@@ -43,6 +44,7 @@ private:
     int m_numerator = 4;
     int m_denominator = 4;
     int m_tick = 0;
+    PlaybackController::PlaybackStatus m_status = PlaybackController::Stopped;
 
     int m_contentHeight = 32;
 
@@ -56,7 +58,10 @@ private:
     const QIcon icoStopWhite = QIcon(":svg/icons/stop_16_filled_white.svg");
     const QIcon icoStopBlack = QIcon(":svg/icons/stop_16_filled.svg");
 
+    void updateTempoView();
+    void updateTimeSignatureView();
     void updateTimeView();
+    void updatePlaybackControlView();
 };
 
 

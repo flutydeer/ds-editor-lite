@@ -116,15 +116,27 @@ PlaybackView::PlaybackView(QWidget *parent) {
                   "QPushButton#btnPause:checked { background-color: #FFCD9B;} "
                   "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 6px; }");
 }
+void PlaybackView::updateView() {
+    auto model = AppModel::instance();
+    m_tempo = model->tempo();
+    m_numerator = model->numerator();
+    m_denominator = model->denominator();
+    m_tick = PlaybackController::instance()->position();
+    m_status = PlaybackController::instance()->playbackStatus();
+
+    updateTempoView();
+    updateTimeSignatureView();
+    updateTimeView();
+    updatePlaybackControlView();
+}
 void PlaybackView::onTempoChanged(double tempo) {
-    qDebug() << "PlaybackView::onTempoChanged" << tempo;
     m_tempo = tempo;
-    m_elTempo->setText(QString::number(m_tempo));
+    updateTempoView();
 }
 void PlaybackView::onTimeSignatureChanged(int numerator, int denominator) {
     m_numerator = numerator;
     m_denominator = denominator;
-    m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
+    updateTimeSignatureView();
     updateTimeView();
 }
 void PlaybackView::onPositionChanged(double tick) {
@@ -132,25 +144,8 @@ void PlaybackView::onPositionChanged(double tick) {
     updateTimeView();
 }
 void PlaybackView::onPlaybackStatusChanged(PlaybackController::PlaybackStatus status) {
-    if (status == PlaybackController::Playing) {
-        m_btnPlay->setChecked(true);
-        m_btnPlay->setIcon(icoPlayBlack);
-
-        m_btnPause->setChecked(false);
-        m_btnPause->setIcon(icoPauseWhite);
-    } else if (status == PlaybackController::Paused) {
-        m_btnPlay->setChecked(false);
-        m_btnPlay->setIcon(icoPlayWhite);
-
-        m_btnPause->setChecked(true);
-        m_btnPause->setIcon(icoPauseBlack);
-    } else {
-        m_btnPlay->setChecked(false);
-        m_btnPlay->setIcon(icoPlayWhite);
-
-        m_btnPause->setChecked(false);
-        m_btnPause->setIcon(icoPauseWhite);
-    }
+    m_status = status;
+    updatePlaybackControlView();
 }
 QString PlaybackView::toFormattedTickTime(int ticks) {
     int barTicks = 1920 * m_numerator / m_denominator;
@@ -169,6 +164,33 @@ int PlaybackView::fromTickTimeString(const QStringList &splitStr) {
     return (bar - 1) * 1920 * m_numerator / m_denominator + (beat - 1) * 1920 / m_denominator +
            tick;
 }
+void PlaybackView::updateTempoView() {
+    m_elTempo->setText(QString::number(m_tempo));
+}
+void PlaybackView::updateTimeSignatureView() {
+    m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
+}
 void PlaybackView::updateTimeView() {
     m_elTime->setText(toFormattedTickTime(m_tick));
+}
+void PlaybackView::updatePlaybackControlView() {
+    if (m_status == PlaybackController::Playing) {
+        m_btnPlay->setChecked(true);
+        m_btnPlay->setIcon(icoPlayBlack);
+
+        m_btnPause->setChecked(false);
+        m_btnPause->setIcon(icoPauseWhite);
+    } else if (m_status == PlaybackController::Paused) {
+        m_btnPlay->setChecked(false);
+        m_btnPlay->setIcon(icoPlayWhite);
+
+        m_btnPause->setChecked(true);
+        m_btnPause->setIcon(icoPauseBlack);
+    } else {
+        m_btnPlay->setChecked(false);
+        m_btnPlay->setIcon(icoPlayWhite);
+
+        m_btnPause->setChecked(false);
+        m_btnPause->setIcon(icoPauseWhite);
+    }
 }

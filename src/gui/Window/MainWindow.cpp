@@ -211,6 +211,7 @@ MainWindow::MainWindow() {
             &PlaybackView::onPlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, playbackView,
             &PlaybackView::onPositionChanged);
+    connect(model, &AppModel::modelChanged, playbackView, &PlaybackView::updateView);
     connect(model, &AppModel::tempoChanged, playbackView, &PlaybackView::onTempoChanged);
     connect(model, &AppModel::timeSignatureChanged, playbackView,
             &PlaybackView::onTimeSignatureChanged);
