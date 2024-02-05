@@ -9,6 +9,7 @@
 
 #include <QTextCodec>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QDialog>
 #include <QVBoxLayout>
 #include <QCheckBox>
@@ -119,11 +120,34 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
     }
 }
 
+
+int midiImportHandler() {
+    QMessageBox msgBox;
+    msgBox.setText("MIDI Import");
+    msgBox.setInformativeText("Do you want to create a new track or use a new project?");
+    QPushButton *newTrackButton = msgBox.addButton("New Track", QMessageBox::ActionRole);
+    QPushButton *newProjectButton = msgBox.addButton("New Project", QMessageBox::ActionRole);
+    msgBox.addButton("Cancel", QMessageBox::RejectRole);
+    msgBox.exec();
+
+    QAbstractButton *clickedButton = msgBox.clickedButton();
+    auto *clickedPushButton = qobject_cast<QPushButton *>(clickedButton);
+    if (clickedPushButton == newTrackButton) {
+        return 0;
+    } else if (clickedPushButton == newProjectButton) {
+        return 1;
+    } else {
+        return -1;
+    }
+}
+
 bool AppModel::importMidiFile(const QString &filename) {
-    reset();
+    int midiImport = midiImportHandler();
 
     auto dspx = new QDspx::Model;
-    auto midiSelector = trackSelector;
+    std::function<bool(const QList<QDspx::MidiConverter::TrackInfo> &, const QList<QByteArray> &,
+                       QList<int> *, QTextCodec *)>
+        midiSelector = trackSelector;
     QVariantMap args = {};
     args.insert(QStringLiteral("selector"),
                 QVariant::fromValue(reinterpret_cast<quintptr>(&midiSelector)));
@@ -190,6 +214,37 @@ bool AppModel::importMidiFile(const QString &filename) {
         return false;
     }
 
+    if (midiImport == 1) {
+        reset();
+    } else if (midiImport == 0) {
+        if (m_numerator != dspx->content.timeline.timeSignatures[0].num ||
+            m_denominator != dspx->content.timeline.timeSignatures[0].den) {
+            QMessageBox msgBox;
+            msgBox.setText("Time Signature Mismatch");
+            msgBox.setInformativeText("The time signature of the MIDI file does not match the "
+                                      "current project. Do you want to continue?");
+            msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+            msgBox.setDefaultButton(QMessageBox::Yes);
+            int ret = msgBox.exec();
+            if (ret == QMessageBox::No) {
+                return false;
+            }
+        } else if (m_tempo != dspx->content.timeline.tempos[0].value) {
+            QMessageBox msgBox;
+            msgBox.setText("Tempo Mismatch");
+            msgBox.setInformativeText("The tempo of the MIDI file does not match the current "
+                                      "project. Do you want to continue?");
+            msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+            msgBox.setDefaultButton(QMessageBox::Yes);
+            int ret = msgBox.exec();
+            if (ret == QMessageBox::No) {
+                return false;
+            }
+        }
+    } else {
+        return false;
+    }
+
     auto timeline = dspx->content.timeline;
     m_numerator = timeline.timeSignatures[0].num;
     m_denominator = timeline.timeSignatures[0].den;
@@ -215,7 +270,7 @@ bool midiOverlapHandler() {
 
 bool AppModel::exportMidiFile(const QString &filename) {
     QDspx::Model dspx;
-    auto midiOverlap = midiOverlapHandler;
+    std::function<bool()> midiOverlap = midiOverlapHandler;
     QVariantMap args = {};
     args.insert(QStringLiteral("overlapHandler"),
                 QVariant::fromValue(reinterpret_cast<quintptr>(&midiOverlap)));
