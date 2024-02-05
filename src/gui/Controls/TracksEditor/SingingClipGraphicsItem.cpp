@@ -27,7 +27,7 @@ void SingingClipGraphicsItem::loadNotes(const QList<DsNote> &notes) {
         note.keyIndex = dsNote.keyIndex();
         m_notes.append(note);
     }
-    auto endTick = start() + m_notes.last().rStart + m_notes.last().length + 1920;
+    auto endTick = m_notes.last().rStart + m_notes.last().length + 1920;
     setLength(endTick);
     setClipLen(endTick);
     update();

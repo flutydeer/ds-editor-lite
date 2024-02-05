@@ -73,10 +73,6 @@ void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChang
     qDebug() << "TracksViewController::onClipPropertyChanged";
     auto track = AppModel::instance()->tracks().at(args.trackIndex);
     auto clip = track->findClipById(args.id);
-    clip->setStart(args.start);
-    clip->setClipStart(args.clipStart);
-    clip->setLength(args.length);
-    clip->setClipLen(args.clipLen);
 
     if (clip->type() == DsClip::Audio) {
         auto audioClip = dynamic_cast<DsAudioClip *>(clip);
@@ -84,7 +80,21 @@ void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChang
         auto audioArgs = dynamic_cast<const DsClip::AudioClipPropertyChangedArgs *>(&args);
         qDebug() << "args path" << audioArgs->path;
         audioClip->setPath(audioArgs->path);
+    } else if (clip->type() == DsClip::Singing) {
+        auto singingClip = dynamic_cast<DsSingingClip *>(clip);
+        auto deltaTime = args.start - clip->start();
+        qDebug() << "singing clip moved:" << deltaTime;
+        if (deltaTime != 0) {
+            for (auto &note : singingClip->notes) {
+                note.setStart(note.start() + deltaTime);
+            }
+        }
     }
+    clip->setStart(args.start);
+    clip->setClipStart(args.clipStart);
+    clip->setLength(args.length);
+    clip->setClipLen(args.clipLen);
+
     track->updateClip(clip);
 }
 void TracksViewController::onRemoveClip(int clipId) {

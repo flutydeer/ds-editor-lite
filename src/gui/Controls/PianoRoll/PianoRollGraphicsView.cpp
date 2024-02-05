@@ -63,17 +63,27 @@ void PianoRollGraphicsView::onSelectedClipChanged(int trackIndex, int clipId) {
         update();
         return;
     }
+    m_trackIndex = trackIndex;
+    m_clipId = clipId;
+
+    connect(model->tracks().at(trackIndex), &DsTrack::clipChanged, this,
+            [=](DsTrack::ClipChangeType type, int id, DsClip *clip) {
+                if (id == m_clipId) {
+                    if (type == DsTrack::PropertyChanged)
+                        onCurrentClipPropertyChanged(clip);
+                }
+            });
 
     m_oneSingingClipSelected = true;
     setScene(m_pianoRollScene);
     update();
     auto singingClip = dynamic_cast<DsSingingClip *>(clip);
-    for (int i = 0; i < singingClip->notes.count(); i++) {
-        auto note = singingClip->notes.at(i);
-        insertNote(note, i);
-    }
-    auto firstNoteItem = m_noteItems.first();
-    centerOn(firstNoteItem);
+    loadNotes(singingClip);
+}
+// TODO: remove these test code
+void PianoRollGraphicsView::onCurrentClipPropertyChanged(DsClip *clip) {
+    reset();
+    loadNotes(dynamic_cast<DsSingingClip *>(clip));
 }
 void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     CommonGraphicsView::paintEvent(event);
@@ -108,4 +118,12 @@ void PianoRollGraphicsView::insertNote(const DsNote &dsNote, int index) {
     connect(this, &PianoRollGraphicsView::visibleRectChanged, noteItem,
             &NoteGraphicsItem::setVisibleRect);
     m_noteItems.append(noteItem);
+}
+void PianoRollGraphicsView::loadNotes(DsSingingClip *singingClip) {
+    for (int i = 0; i < singingClip->notes.count(); i++) {
+        auto note = singingClip->notes.at(i);
+        insertNote(note, i);
+    }
+    auto firstNoteItem = m_noteItems.first();
+    centerOn(firstNoteItem);
 }

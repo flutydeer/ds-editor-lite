@@ -20,14 +20,20 @@ public slots:
     void updateView();
     void onSelectedClipChanged(int trackIndex, int clipId);
 
+private slots:
+    void onCurrentClipPropertyChanged(DsClip *clip);
+
 private:
     void paintEvent(QPaintEvent *event) override;
     PianoRollGraphicsScene *m_pianoRollScene;
     QVector<NoteGraphicsItem *> m_noteItems;
     bool m_oneSingingClipSelected = false;
+    int m_trackIndex = -1;
+    int m_clipId = -1;
 
     void reset();
     void insertNote(const DsNote &dsNote, int index);
+    void loadNotes(DsSingingClip *singingClip);
 };
 
 #endif // PIANOROLLGRAPHICSVIEW_H

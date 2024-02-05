@@ -302,7 +302,6 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 }
 void AbstractClipGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     if (m_propertyEdited) {
-        qDebug() << "emit propertyChanged";
         emit propertyChanged();
     }
 

@@ -413,6 +413,21 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
                 &SingingClipGraphicsItem::setVisibleRect);
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
                 [=](int id) { emit removeClipTriggered(id); });
+        connect(clipItem, &SingingClipGraphicsItem::propertyChanged, this, [=] {
+            auto clip = findClipItemById(clipItem->id());
+            if (clip == clipItem) {
+                DsClip::ClipPropertyChangedArgs args;
+                args.trackIndex = trackIndex;
+                args.id = clipItem->id();
+                args.start = clipItem->start();
+                args.clipStart = clipItem->clipStart();
+                args.length = clipItem->length();
+                args.clipLen = clipItem->clipLen();
+                args.gain = clipItem->gain();
+                args.mute = clipItem->mute();
+                emit clipPropertyChanged(args);
+            }
+        });
         track->clips.append(clipItem);
     }
 }
@@ -449,6 +464,10 @@ void TracksView::updateClipOnView(DsClip *clip, int clipId) {
         auto audioItem = dynamic_cast<AudioClipGraphicsItem *>(item);
         if (audioItem->path() != audioClip->path())
             audioItem->setPath(audioClip->path());
+    } else if (clip->type() == DsClip::Singing) {
+        auto singingClip = dynamic_cast<DsSingingClip *>(clip);
+        auto singingItem = dynamic_cast<SingingClipGraphicsItem *>(item);
+        singingItem->loadNotes(singingClip->notes);
     }
 }
 void TracksView::removeTrackFromView(int index) {
