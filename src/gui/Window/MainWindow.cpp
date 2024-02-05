@@ -157,10 +157,6 @@ MainWindow::MainWindow() {
     menuBar->addMenu(menuFile);
     menuBar->addMenu(menuEdit);
 
-    auto btnNewTrack = new QPushButton;
-    btnNewTrack->setText("New Track");
-    connect(btnNewTrack, &QPushButton::clicked, trackController, &TracksViewController::onNewTrack);
-
     auto m_tracksView = new TracksView;
     auto m_pianoRollView = new PianoRollGraphicsView;
     auto model = AppModel::instance();
@@ -223,7 +219,6 @@ MainWindow::MainWindow() {
 
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addLayout(menuBarContainer);
-    actionButtonLayout->addWidget(btnNewTrack);
     actionButtonLayout->addWidget(playbackView);
     actionButtonLayout->setContentsMargins({});
 

@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QScroller>
 #include <QScrollBar>
+#include <QFileDialog>
 
 #include "Audio/AudioSystem.h"
 #include "Audio/AudioContext.h"
@@ -17,9 +18,7 @@
 #include "Controls/TracksEditor/AudioClipGraphicsItem.h"
 #include "Controls/TracksEditor/SingingClipGraphicsItem.h"
 #include "Controls/TracksEditor/TracksEditorGlobal.h"
-
-
-#include <QFileDialog>
+#include "TrackListHeaderView.h"
 
 TracksView::TracksView() {
     m_trackListWidget = new QListWidget;
@@ -30,6 +29,7 @@ TracksView::TracksView() {
     m_trackListWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trackListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trackListWidget->setVerticalScrollMode(QListWidget::ScrollPerPixel);
+    m_trackListWidget->setStyleSheet("QListWidget { background: #2A2B2C; border: none; border-right: 1px solid #202020 } ");
     QScroller::grabGesture(m_trackListWidget, QScroller::TouchGesture);
     // m_trackListWidget->setStyleSheet("QListWidget::item{ height: 72px }");
 
@@ -133,18 +133,14 @@ TracksView::TracksView() {
     // splitter->setOrientation(Qt::Horizontal);
     // splitter->addWidget(tracklist);
     // splitter->addWidget(m_graphicsView);
-    auto btn1 = new QPushButton("");
-    btn1->setFixedHeight(24);
-    btn1->setStyleSheet("QPushButton { border: none; background: none }");
 
-    m_timeline->setFixedHeight(24);
+    m_timeline->setFixedHeight(38);
 
-    auto trackListHeaderLayout = new QHBoxLayout;
-    trackListHeaderLayout->setSpacing(0);
-    trackListHeaderLayout->addWidget(btn1);
+    auto trackListHeaderView = new TrackListHeaderView;
+    trackListHeaderView->setFixedHeight(38);
 
     auto trackListPanelLayout = new QVBoxLayout;
-    trackListPanelLayout->addLayout(trackListHeaderLayout);
+    trackListPanelLayout->addWidget(trackListHeaderView);
     trackListPanelLayout->addWidget(m_trackListWidget);
 
     auto trackTimelineAndViewLayout = new QVBoxLayout;
