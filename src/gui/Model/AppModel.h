@@ -44,6 +44,7 @@ public:
 
     void newProject();
     bool importMidiFile(const QString &filename);
+    bool exportMidiFile(const QString &filename);
     bool loadAProject(const QString &filename);
 
     class LevelMetersUpdatedArgs {

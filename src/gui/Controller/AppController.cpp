@@ -20,6 +20,9 @@ void AppController::openProject(const QString &filePath) {
 void AppController::importMidiFile(const QString &filePath) {
     AppModel::instance()->importMidiFile(filePath);
 }
+void AppController::exportMidiFile(const QString &filePath) {
+    AppModel::instance()->exportMidiFile(filePath);
+}
 void AppController::onRunG2p() {
     auto model = AppModel::instance();
     auto firstTrack = model->tracks().first();

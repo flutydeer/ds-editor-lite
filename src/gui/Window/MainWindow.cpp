@@ -62,7 +62,8 @@ MainWindow::MainWindow() {
         "QMenu::item:disabled { color: #d5d5d5; background-color: transparent; } "
         "QMenu::separator { height: 1.25px; background-color: #606060; margin: 6px 0; } "
         "QMenuBar {background-color: transparent; color: #F0F0F0;}"
-        "QMenuBar::item {background-color: transparent; padding: 8px; color: #f0f0f0; border-radius: 4px; }"
+        "QMenuBar::item {background-color: transparent; padding: 8px; color: #f0f0f0; "
+        "border-radius: 4px; }"
         "QMenuBar::item:selected { background-color: #10FFFFFF } ";
     this->setStyleSheet(QString("QMainWindow { background: #232425 }") + qssBase);
 #ifdef Q_OS_WIN
@@ -99,8 +100,8 @@ MainWindow::MainWindow() {
     connect(actionNewProject, &QAction::triggered, appController, &AppController::onNewProject);
     auto actionOpen = new QAction("&Open project...");
     connect(actionOpen, &QAction::triggered, this, [=] {
-        auto fileName = QFileDialog::getOpenFileName(this, "Select a Project File",
-                                                     ".", "Project File (*.json)");
+        auto fileName = QFileDialog::getOpenFileName(this, "Select a Project File", ".",
+                                                     "Project File (*.json)");
         if (fileName.isNull())
             return;
 
@@ -112,8 +113,8 @@ MainWindow::MainWindow() {
     auto menuImport = new QMenu("Import", this);
     auto actionImportMidiFile = new QAction("MIDI file...", this);
     connect(actionImportMidiFile, &QAction::triggered, this, [=] {
-        auto fileName = QFileDialog::getOpenFileName(this, "Select a MIDI File", ".",
-                                                     "MIDI File (*.mid)");
+        auto fileName =
+            QFileDialog::getOpenFileName(this, "Select a MIDI File", ".", "MIDI File (*.mid)");
         if (fileName.isNull())
             return;
         appController->importMidiFile(fileName);
@@ -123,6 +124,13 @@ MainWindow::MainWindow() {
     auto menuExport = new QMenu("Export", this);
     auto actionExportAudio = new QAction("Audio file...", this);
     auto actionExportMidiFile = new QAction("MIDI file...", this);
+    connect(actionExportMidiFile, &QAction::triggered, this, [=] {
+        auto fileName =
+            QFileDialog::getSaveFileName(this, "Save as MIDI File", ".", "MIDI File (*.mid)");
+        if (fileName.isNull())
+            return;
+        appController->exportMidiFile(fileName);
+    });
 
     auto actionAudioSettings = new QAction("Audio settings...", this);
 
@@ -218,7 +226,7 @@ MainWindow::MainWindow() {
 
     auto menuBarContainer = new QHBoxLayout;
     menuBarContainer->addWidget(menuBar);
-    menuBarContainer->setContentsMargins(6,6,6,6);
+    menuBarContainer->setContentsMargins(6, 6, 6, 6);
 
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addLayout(menuBarContainer);
