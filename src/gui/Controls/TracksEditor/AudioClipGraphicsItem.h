@@ -25,12 +25,12 @@ public slots:
 private:
     enum RenderResolution { High, Low };
 
-    // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) override;
     QString clipTypeName() override {
         return "[Audio] ";
     }
     void updateLength();
+    void addMenuActions(QMenu *menu) override;
 
     // SndfileHandle sf;
     AudioClipBackgroundWorker *m_worker = nullptr;

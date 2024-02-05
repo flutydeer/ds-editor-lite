@@ -29,7 +29,8 @@ TracksView::TracksView() {
     m_trackListWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trackListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trackListWidget->setVerticalScrollMode(QListWidget::ScrollPerPixel);
-    m_trackListWidget->setStyleSheet("QListWidget { background: #2A2B2C; border: none; border-right: 1px solid #202020 } ");
+    m_trackListWidget->setStyleSheet(
+        "QListWidget { background: #2A2B2C; border: none; border-right: 1px solid #202020 } ");
     QScroller::grabGesture(m_trackListWidget, QScroller::TouchGesture);
     // m_trackListWidget->setStyleSheet("QListWidget::item{ height: 72px }");
 
@@ -125,9 +126,10 @@ TracksView::TracksView() {
             &TracksView::onPositionChanged);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &TracksView::onLastPositionChanged);
-//    connect(playbackController, &PlaybackController::levelMetersUpdated, this,
-//            &TracksView::onLevelMetersUpdated);
-    connect(AudioSystem::instance()->audioContext(), &AudioContext::levelMeterUpdated, this, &TracksView::onLevelMetersUpdated);
+    //    connect(playbackController, &PlaybackController::levelMetersUpdated, this,
+    //            &TracksView::onLevelMetersUpdated);
+    connect(AudioSystem::instance()->audioContext(), &AudioContext::levelMeterUpdated, this,
+            &TracksView::onLevelMetersUpdated);
 
     // auto splitter = new QSplitter;
     // splitter->setOrientation(Qt::Horizontal);
@@ -201,13 +203,20 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
 void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipId) {
     auto trackModel = AppModel::instance()->tracks().at(trackIndex);
     auto track = m_tracksModel.tracks.at(trackIndex);
+    auto dsClip = trackModel->findClipById(clipId);
     switch (type) {
         case DsTrack::Insert:
-            qDebug() << "on clip inserted" << trackIndex << clipId;
-            insertClipToTrack(trackModel->findClipById(clipId), track, trackIndex);
+            qDebug() << "TracksView on clip inserted" << trackIndex << clipId;
+            insertClipToTrack(dsClip, track, trackIndex);
             break;
+
+        case DsTrack::PropertyChanged:
+            qDebug() << "TracksView on clip updated" << trackIndex << clipId;
+            updateClipOnView(dsClip, clipId);
+            break;
+
         case DsTrack::Remove:
-            qDebug() << "on clip removed" << trackIndex << clipId;
+            qDebug() << "TracksView on clip removed" << trackIndex << clipId;
             removeClipFromView(clipId);
             break;
     }
@@ -238,7 +247,7 @@ void TracksView::onSceneSelectionChanged() {
         auto track = m_tracksModel.tracks.at(i);
         for (int j = 0; j < track->clips.count(); j++) {
             auto clip = track->clips.at(j);
-            if (!clip->removed() && clip->isSelected()) {
+            if (clip->isSelected()) {
                 foundSelectedClip = true;
                 emit selectedClipChanged(i, clip->id());
                 break;
@@ -341,17 +350,6 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
     auto length = clip->length();
     auto clipLen = clip->clipLen();
 
-    auto item = findClipItemById(clip->id());
-    if (item != nullptr) {
-        item->setStart(start);
-        item->setClipStart(clipStart);
-        item->setLength(length);
-        item->setClipLen(clipLen);
-        m_tracksScene->addItem(item);
-        item->setRemoved(false);
-        return;
-    }
-
     if (clip->type() == DsClip::Audio) {
         auto audioClip = dynamic_cast<DsAudioClip *>(clip);
         auto clipItem = new AudioClipGraphicsItem(clip->id());
@@ -386,6 +384,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
                 args.clipLen = clipItem->clipLen();
                 args.gain = clipItem->gain();
                 args.mute = clipItem->mute();
+                args.path = clipItem->path();
                 emit clipPropertyChanged(args);
             }
         });
@@ -420,7 +419,6 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
 void TracksView::removeClipFromView(int clipId) {
     auto clipItem = findClipItemById(clipId);
     m_tracksScene->removeItem(clipItem);
-    clipItem->setRemoved(true);
 }
 AbstractClipGraphicsItem *TracksView::findClipItemById(int id) {
     for (const auto &track : m_tracksModel.tracks)
@@ -436,6 +434,21 @@ void TracksView::updateTracksOnView() {
         auto track = tracksModel.at(i);
         widget->setName(track->name());
         widget->setControl(track->control());
+    }
+}
+void TracksView::updateClipOnView(DsClip *clip, int clipId) {
+    qDebug() << "TracksView::updateClipOnView" << clipId;
+    auto item = findClipItemById(clipId);
+    item->setStart(clip->start());
+    item->setClipStart(clip->clipStart());
+    item->setLength(clip->length());
+    item->setClipLen(clip->clipLen());
+
+    if (clip->type() == DsClip::Audio) {
+        auto audioClip = dynamic_cast<DsAudioClip *>(clip);
+        auto audioItem = dynamic_cast<AudioClipGraphicsItem *>(item);
+        if (audioItem->path() != audioClip->path())
+            audioItem->setPath(audioClip->path());
     }
 }
 void TracksView::removeTrackFromView(int index) {

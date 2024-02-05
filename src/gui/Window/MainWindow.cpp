@@ -62,7 +62,7 @@ MainWindow::MainWindow() {
         "QMenu::item:disabled { color: #d5d5d5; background-color: transparent; } "
         "QMenu::separator { height: 1.25px; background-color: #606060; margin: 6px 0; } "
         "QMenuBar {background-color: transparent; color: #F0F0F0;}"
-        "QMenuBar::item {background-color: transparent; padding: 8px; color: #f0f0f0; "
+        "QMenuBar::item {background-color: transparent; padding: 8px 12px; color: #f0f0f0; "
         "border-radius: 4px; }"
         "QMenuBar::item:selected { background-color: #10FFFFFF } ";
     this->setStyleSheet(QString("QMainWindow { background: #232425 }") + qssBase);

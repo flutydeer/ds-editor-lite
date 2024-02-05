@@ -21,14 +21,21 @@ AbstractClipGraphicsItem::AbstractClipGraphicsItem(int itemId, QGraphicsItem *pa
     // setFlag(QGraphicsItem::ItemIsFocusable, true); // Must enabled, or keyPressEvent would not
     // work. setAcceptTouchEvents(true);
 }
-bool AbstractClipGraphicsItem::removed() const {
-    return m_removed;
-}
-void AbstractClipGraphicsItem::setRemoved(bool b) {
-    m_removed = b;
+QWidget *AbstractClipGraphicsItem::context() const {
+    return m_context;
 }
 void AbstractClipGraphicsItem::setContext(QWidget *context) {
     m_context = context;
+    m_menu = new QMenu(m_context);
+    auto actionRemove = m_menu->addAction("Remove");
+    connect(actionRemove, &QAction::triggered, [&] { emit removeTriggered(id()); });
+
+    m_menu->addSeparator();
+
+    addMenuActions(m_menu);
+
+    auto actionProperties = m_menu->addAction("Properties");
+    connect(actionProperties, &QAction::triggered, [&] {qDebug() << "actionProperties triggered" << id();});
 }
 
 QString AbstractClipGraphicsItem::name() const {
@@ -200,13 +207,7 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 }
 
 void AbstractClipGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
-    QMenu menu(m_context);
-    // auto actionRename = menu.addAction("Rename");
-    // connect(actionRename, &QAction::triggered, [&] { qDebug() << "rename triggered"; });
-    auto actionRemove = menu.addAction("Remove");
-    connect(actionRemove, &QAction::triggered, [&] { emit removeTriggered(id()); });
-    menu.exec(event->screenPos());
-
+    m_menu->exec(event->screenPos());
     QGraphicsItem::contextMenuEvent(event);
 }
 
@@ -347,3 +348,6 @@ double AbstractClipGraphicsItem::tickToSceneX(const double tick) const {
 double AbstractClipGraphicsItem::sceneXToItemX(const double x) const {
     return mapFromScene(QPointF(x, 0)).x();
 }
+// QMenu *AbstractClipGraphicsItem::menu() {
+//     return m_menu;
+// }

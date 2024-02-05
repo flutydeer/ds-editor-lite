@@ -12,7 +12,7 @@ class SingingClipGraphicsItem final : public AbstractClipGraphicsItem {
 public:
     class Note {
     public:
-        int start;
+        int rStart;
         int length;
         int keyIndex;
     };
@@ -27,12 +27,13 @@ public:
 private:
     // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) override;
+    void addMenuActions(QMenu *menu) override;
     QString clipTypeName() override {
         return "[Singing] ";
     }
 
     QString m_audioCachePath;
-    QVector<Note> m_notes;
+    QList<Note> m_notes;
 };
 
 
