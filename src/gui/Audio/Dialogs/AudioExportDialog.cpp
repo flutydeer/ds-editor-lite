@@ -59,12 +59,14 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : QDialog(parent) {
     formatLayout->addRow(tr("Type"), formatTypeComboBox);
     auto formatOptionComboBox = new QComboBox;
     formatLayout->addRow(tr("Option"), formatOptionComboBox);
-    auto extensionNameComboBox = new QComboBox;
-    extensionNameComboBox->setEditable(true);
-    formatLayout->addRow(tr("Extension Name"), extensionNameComboBox);
+    auto vbrSlider = new QSlider(Qt::Horizontal);
+    formatLayout->addRow(tr("VBR Quality"), vbrSlider);
     auto formatSampleRateSpinBox = new QDoubleSpinBox;
     formatSampleRateSpinBox->setRange(0.0, std::numeric_limits<double>::max());
     formatLayout->addRow(tr("Sample Rate"), formatSampleRateSpinBox);
+    auto extensionNameComboBox = new QComboBox;
+    extensionNameComboBox->setEditable(true);
+    formatLayout->addRow(tr("Extension Name"), extensionNameComboBox);
     formatGroupBox->setLayout(formatLayout);
     rightLayout->addWidget(formatGroupBox);
 
