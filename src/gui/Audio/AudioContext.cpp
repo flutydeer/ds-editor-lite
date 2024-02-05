@@ -243,6 +243,8 @@ void AudioContext::handleClipRemoval(const DsTrack *track, const DsClip *clip) {
 }
 
 void AudioContext::handleClipPropertyChange(const DsTrack *track, const DsClip *clip) {
+    if (clip->type() != DsClip::Audio)
+        return;
     auto trackClipSeries = m_trackAudioClipSeriesDict[track];
     auto &clipView = m_audioClips[clip];
     if (clipView.isNull()) {
