@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     QApplication::setOrganizationName("OpenVPI");
     QApplication::setApplicationName("DsEditorLite");
 
-    auto f = QFont("Microsoft Yahei UI", 9);
+    auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);
     QApplication::setFont(f);
 

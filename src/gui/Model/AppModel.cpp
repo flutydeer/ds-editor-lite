@@ -25,6 +25,7 @@ int AppModel::numerator() const {
     return m_numerator;
 }
 void AppModel::setNumerator(int numerator) {
+    qDebug() << "AppModel::setNumerator" << numerator;
     m_numerator = numerator;
     emit timeSignatureChanged(m_numerator, m_denominator);
 }
@@ -32,6 +33,7 @@ int AppModel::denominator() const {
     return m_denominator;
 }
 void AppModel::setDenominator(int denominator) {
+    qDebug() << "AppModel::setDenominator";
     m_denominator = denominator;
     emit timeSignatureChanged(m_numerator, m_denominator);
 }
@@ -48,10 +50,6 @@ const QList<DsTrack *> &AppModel::tracks() const {
 }
 
 void AppModel::insertTrack(DsTrack *track, int index) {
-    // connect(track, &DsTrack::clipChanged, this, [=] {
-    //     auto trackIndex = m_tracks.indexOf(track);
-    //     emit tracksChanged(PropertyUpdate, trackIndex);
-    // });
     connect(track, &DsTrack::propertyChanged, this, [=] {
         auto trackIndex = m_tracks.indexOf(track);
         emit tracksChanged(PropertyUpdate, trackIndex, track);
@@ -286,6 +284,7 @@ bool AppModel::loadAProject(const QString &filename) {
     return false;
 }
 void AppModel::onSelectedClipChanged(int trackIndex, int clipId) {
+    qDebug() << "AppModel::onSelectedClipChanged" << trackIndex << clipId;
     m_selectedClipTrackIndex = trackIndex;
     m_selectedClipId = clipId;
     emit selectedClipChanged(m_selectedClipTrackIndex, m_selectedClipId);

@@ -21,13 +21,16 @@ public:
 
     QString text() const;
     void setText(const QString &text);
+    void setUpdateLabelWhenEditCompleted(bool on);
 
 signals:
-    void valueChanged(const QString &text);
+    void editCompleted(const QString &text);
 
-protected:
+private:
     bool eventFilter(QObject *object, QEvent *event) override;
-    void initUi(const QString &text);
+
+    bool m_editing = false;
+    bool m_updateLabelWhenEditCompleted = true;
 };
 
 #endif // DATASET_TOOLS_EDITLABEL_H

@@ -30,8 +30,11 @@
         <file>svg/icons/clipboard_paste_16_filled.svg</file>
 
         <file>svg/icons/play_16_filled.svg</file>
+        <file>svg/icons/play_16_filled_white.svg</file>
         <file>svg/icons/pause_16_filled.svg</file>
+        <file>svg/icons/pause_16_filled_white.svg</file>
         <file>svg/icons/stop_16_filled.svg</file>
+        <file>svg/icons/stop_16_filled_white.svg</file>
         <file>svg/icons/previous_16_filled.svg</file>
         <file>svg/icons/next_16_filled.svg</file>
         <file>svg/icons/metronome-line.svg</file>

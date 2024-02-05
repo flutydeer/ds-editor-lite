@@ -52,7 +52,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_leTrackName->setObjectName("leTrackName");
     m_leTrackName->setMinimumHeight(m_buttonSize);
     m_leTrackName->setMaximumHeight(m_buttonSize);
-    connect(m_leTrackName, &EditLabel::valueChanged, this, [&] { emit propertyChanged(); });
+    connect(m_leTrackName, &EditLabel::editCompleted, this, [&] { emit propertyChanged(); });
 
     m_muteSoloTrackNameLayout = new QHBoxLayout;
     m_muteSoloTrackNameLayout->setObjectName("muteSoloTrackNameLayout");

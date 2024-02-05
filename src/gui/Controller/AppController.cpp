@@ -4,9 +4,9 @@
 
 #include <QDebug>
 #include <QApplication>
+#include <QMessageBox>
 
 #include "AppController.h"
-
 #include "g2pglobal.h"
 #include "mandarin.h"
 #include "syllable2p.h"
@@ -25,8 +25,8 @@ void AppController::onRunG2p() {
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
 
     auto g2p_man = new IKg2p::Mandarin();
-    auto syllable2p =
-        new IKg2p::Syllable2p(qApp->applicationDirPath() + "/res/phonemeDict/opencpop-extension.txt");
+    auto syllable2p = new IKg2p::Syllable2p(qApp->applicationDirPath() +
+                                            "/res/phonemeDict/opencpop-extension.txt");
 
     QStringList lyrics;
     for (const auto &note : notes) {
@@ -37,4 +37,28 @@ void AppController::onRunG2p() {
     QList<QStringList> syllableRes = syllable2p->syllableToPhoneme(pinyinRes);
     qDebug() << pinyinRes;
     qDebug() << syllableRes;
+}
+void AppController::onSetTempo(double tempo) {
+    // TODO: validate tempo
+    auto model = AppModel::instance();
+    model->setTempo(tempo > 0 ? tempo : model->tempo());
+}
+void AppController::onSetTimeSignature(int numerator, int denominator) {
+    auto model = AppModel::instance();
+    if (isPowerOf2(denominator)) {
+        model->setNumerator(numerator);
+        model->setDenominator(denominator);
+    } else {
+        // QMessageBox msgBox;
+        // msgBox.setText("Error");
+        // msgBox.setInformativeText("Denominator error.");
+        // msgBox.setStandardButtons(QMessageBox::Yes);
+        // msgBox.setDefaultButton(QMessageBox::Yes);
+        // msgBox.exec();
+        model->setNumerator(model->numerator());
+        model->setDenominator(model->denominator());
+    }
+}
+bool AppController::isPowerOf2(int num) {
+    return num > 0 && ((num & (num - 1)) == 0);
 }

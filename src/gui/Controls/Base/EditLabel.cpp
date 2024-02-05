@@ -53,13 +53,19 @@ bool EditLabel::eventFilter(QObject *object, QEvent *event) {
         if (event->type() == QEvent::MouseButtonDblClick) {
             lineEdit->setText(label->text());
             this->setCurrentWidget(lineEdit);
+            m_editing = true;
         }
     } else if (object == lineEdit) {
         auto commit = [&]() {
-            setText(lineEdit->text());
-            emit valueChanged(lineEdit->text());
-            // label->setText(lineEdit->text());
-            // this->setCurrentWidget(label);
+            if (m_updateLabelWhenEditCompleted)
+                setText(lineEdit->text());
+            else
+                setCurrentWidget(label);
+
+            if (m_editing)
+                emit editCompleted(lineEdit->text());
+
+            m_editing = false;
         };
         if (event->type() == QEvent::KeyPress) {
             auto keyEvent = dynamic_cast<QKeyEvent *>(event);
@@ -85,4 +91,7 @@ void EditLabel::setText(const QString &text) {
     setCurrentWidget(label);
     label->setText(text);
     // emit valueChanged(text);
+}
+void EditLabel::setUpdateLabelWhenEditCompleted(bool on) {
+    m_updateLabelWhenEditCompleted = on;
 }

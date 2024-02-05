@@ -62,16 +62,21 @@ MainWindow::MainWindow() {
         "QMenu::separator { height: 1.25px; background-color: #606060; margin: 6px 0; } ";
     this->setStyleSheet(QString("QMainWindow { background: #232425 }") + qssBase);
 #ifdef Q_OS_WIN
-    // make window transparent
-    this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
-    // Enable Mica background
-    auto backDropType = DWMSBT_MAINWINDOW;
-    DwmSetWindowAttribute(reinterpret_cast<HWND>(this->winId()), DWMWA_SYSTEMBACKDROP_TYPE,
-                          &backDropType, sizeof(backDropType));
-    // Extend title bar blur effect into client area
-    constexpr int mgn = -1;
-    MARGINS margins = {mgn, mgn, mgn, mgn};
-    DwmExtendFrameIntoClientArea(reinterpret_cast<HWND>(this->winId()), &margins);
+    // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler
+
+    auto version = QSysInfo::productVersion();
+    if (version == "11") {
+        // make window transparent
+        this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
+        // Enable Mica background
+        auto backDropType = DWMSBT_MAINWINDOW;
+        DwmSetWindowAttribute(reinterpret_cast<HWND>(this->winId()), DWMWA_SYSTEMBACKDROP_TYPE,
+                              &backDropType, sizeof(backDropType));
+        // Extend title bar blur effect into client area
+        constexpr int mgn = -1;
+        MARGINS margins = {mgn, mgn, mgn, mgn};
+        DwmExtendFrameIntoClientArea(reinterpret_cast<HWND>(this->winId()), &margins);
+    }
     // Dark theme
     uint dark = 1;
     DwmSetWindowAttribute(reinterpret_cast<HWND>(this->winId()), DWMWA_USE_IMMERSIVE_DARK_MODE,
@@ -172,9 +177,29 @@ MainWindow::MainWindow() {
     splitter->addWidget(m_pianoRollView);
 
     auto playbackView = new PlaybackView;
-    connect(playbackView, &PlaybackView::changeTempoTriggered, model, [=](double tempo) {
-        model->setTempo(tempo); // TODO: Connect to app controller
-    });
+    connect(playbackView, &PlaybackView::setTempoTriggered, appController,
+            &AppController::onSetTempo);
+    connect(playbackView, &PlaybackView::setTimeSignatureTriggered, appController,
+            &AppController::onSetTimeSignature);
+    connect(playbackView, &PlaybackView::playTriggered, playbackController,
+            &PlaybackController::play);
+    connect(playbackView, &PlaybackView::pauseTriggered, playbackController,
+            &PlaybackController::pause);
+    connect(playbackView, &PlaybackView::stopTriggered, playbackController,
+            &PlaybackController::stop);
+    connect(playbackView, &PlaybackView::setPositionTriggered, playbackController,
+            [=](int tick) {
+                playbackController->setLastPosition(tick);
+                playbackController->setPosition(tick);
+            });
+    connect(playbackController, &PlaybackController::playbackStatusChanged, playbackView,
+            &PlaybackView::onPlaybackStatusChanged);
+    connect(playbackController, &PlaybackController::positionChanged, playbackView,
+            &PlaybackView::onPositionChanged);
+    connect(model, &AppModel::tempoChanged, playbackView, &PlaybackView::onTempoChanged);
+    connect(model, &AppModel::timeSignatureChanged, playbackView,
+            &PlaybackView::onTimeSignatureChanged);
+    playbackView->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addWidget(btnNewTrack);
@@ -189,6 +214,7 @@ MainWindow::MainWindow() {
     auto mainLayout = new QVBoxLayout;
     mainLayout->addLayout(actionButtonLayout);
     mainLayout->addWidget(splitter);
+    mainLayout->setSpacing(0);
 
     auto mainWidget = new QWidget;
     mainWidget->setLayout(mainLayout);

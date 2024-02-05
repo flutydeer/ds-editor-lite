@@ -20,6 +20,11 @@ public:
 public slots:
     void openProject(const QString &filePath);
     void onRunG2p();
+    void onSetTempo(double tempo);
+    void onSetTimeSignature(int numerator, int denominator);
+
+private:
+    bool isPowerOf2(int num);
 };
 
 // using ControllerSingleton = Singleton<Controller>;
