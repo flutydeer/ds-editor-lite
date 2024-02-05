@@ -7,15 +7,10 @@
 
 class IOverlapable {
 public:
-    virtual int compareTo(IOverlapable *obj) = 0;
-
     bool overlapped() const {
         return m_overlapped;
     }
     void setOverlapped(bool b);
-    virtual bool isOverlappedWith(IOverlapable *obj) = 0;
-
-    virtual ~IOverlapable() = default;
 
 protected:
     bool m_overlapped = false;

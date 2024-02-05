@@ -90,9 +90,9 @@ void AbstractClipGraphicsItem::setTrackIndex(const int index) {
     m_trackIndex = index;
     updateRectAndPos();
 }
-int AbstractClipGraphicsItem::compareTo(IOverlapable *obj) {
+int AbstractClipGraphicsItem::compareTo(AbstractClipGraphicsItem *obj) const {
     auto curVisibleStart = start() + clipStart();
-    auto other = dynamic_cast<AbstractClipGraphicsItem *>(obj);
+    auto other = obj;
     auto otherVisibleStart = other->start() + other->clipStart();
     if (curVisibleStart < otherVisibleStart)
         return -1;
@@ -100,10 +100,10 @@ int AbstractClipGraphicsItem::compareTo(IOverlapable *obj) {
         return 1;
     return 0;
 }
-bool AbstractClipGraphicsItem::isOverlappedWith(IOverlapable *obj) {
+bool AbstractClipGraphicsItem::isOverlappedWith(AbstractClipGraphicsItem *obj) const {
     auto curVisibleStart = start() + clipStart();
     auto curVisibleEnd = curVisibleStart + clipLen();
-    auto other = dynamic_cast<AbstractClipGraphicsItem *>(obj);
+    auto other = obj;
     auto otherVisibleStart = other->start() + other->clipStart();
     auto otherVisibleEnd = otherVisibleStart + other->clipLen();
     if (otherVisibleEnd <= curVisibleStart || curVisibleEnd <= otherVisibleStart)

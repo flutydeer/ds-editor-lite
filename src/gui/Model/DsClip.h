@@ -39,8 +39,8 @@ public:
     bool mute() const;
     void setMute(bool mute);
 
-    int compareTo(IOverlapable *obj) override;
-    bool isOverlappedWith(IOverlapable *obj) override;
+    int compareTo(DsClip *obj) const;
+    bool isOverlappedWith(DsClip *obj) const;
 
     class ClipPropertyChangedArgs {
     public:

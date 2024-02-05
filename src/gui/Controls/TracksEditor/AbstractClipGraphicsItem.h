@@ -48,8 +48,8 @@ public:
     int trackIndex() const;
     void setTrackIndex(int index);
 
-    int compareTo(IOverlapable *obj) override;
-    bool isOverlappedWith(IOverlapable *obj) override;
+    int compareTo(AbstractClipGraphicsItem *obj) const;
+    bool isOverlappedWith(AbstractClipGraphicsItem *obj) const;
 
 signals:
     void propertyChanged();

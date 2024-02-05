@@ -11,7 +11,6 @@ class TestTimeObject : public IOverlapable {
 public:
     explicit TestTimeObject(int start, int length) : m_start(start), m_lenght(length) {
     }
-    ~TestTimeObject() override = default;
     int start() const {
         return m_start;
     }
@@ -19,8 +18,8 @@ public:
         return m_lenght;
     }
 
-    int compareTo(IOverlapable *obj) override {
-        auto other = dynamic_cast<TestTimeObject *>(obj);
+    int compareTo(TestTimeObject *obj) const {
+        auto other = obj;
         if (start() < other->start())
             return -1;
         if (start() > other->start())
@@ -28,8 +27,8 @@ public:
         return 0;
     }
 
-    bool isOverlappedWith(IOverlapable *obj) override {
-        auto other = dynamic_cast<TestTimeObject *>(obj);
+    bool isOverlappedWith(TestTimeObject *obj) const {
+        auto other = obj;
         if (other->start() + other->length() <= start() || start() + length() <= other->start())
             return false;
         return true;
