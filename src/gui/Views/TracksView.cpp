@@ -170,7 +170,7 @@ void TracksView::onModelChanged() {
     }
     emit trackCountChanged(m_tracksModel.tracks.count());
 
-    AppController::instance()->onRunG2p();
+    // AppController::instance()->onRunG2p();
 }
 void TracksView::onTempoChanged(double tempo) {
     // notify audio clips

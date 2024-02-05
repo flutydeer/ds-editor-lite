@@ -132,8 +132,6 @@ MainWindow::MainWindow() {
         appController->exportMidiFile(fileName);
     });
 
-    auto actionAudioSettings = new QAction("Audio settings...", this);
-
     menuExport->addAction(actionExportAudio);
     menuExport->addAction(actionExportMidiFile);
 
@@ -162,8 +160,15 @@ MainWindow::MainWindow() {
     menuEdit->addAction(actionPaste);
     menuEdit->addAction(actionDelete);
 
+    auto menuHelp = new QMenu("&Help", this);
+    auto actionCheckForUpdates = new QAction("Check for updates", this);
+    auto actionAbout = new QAction("About", this);
+    menuHelp->addAction(actionCheckForUpdates);
+    menuHelp->addAction(actionAbout);
+
     menuBar->addMenu(menuFile);
     menuBar->addMenu(menuEdit);
+    menuBar->addMenu(menuHelp);
 
     auto m_tracksView = new TracksView;
     auto m_pianoRollView = new PianoRollGraphicsView;

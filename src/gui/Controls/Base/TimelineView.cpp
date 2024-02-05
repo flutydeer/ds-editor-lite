@@ -25,7 +25,7 @@ void TimelineView::paintEvent(QPaintEvent *event) {
 
     // Draw background
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(35, 36, 37));
+    painter.setBrush(QColor(28, 29, 30));
     painter.drawRect(rect());
     painter.setBrush(Qt::NoBrush);
 
