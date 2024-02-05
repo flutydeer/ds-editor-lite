@@ -144,7 +144,7 @@ void AudioContext::handleTrackInsertion(DsTrack *track) {
             m_trackLevelMeterValue[track].second->setCurrentAndTargetValue(dBR);
     });
 
-    for (auto clip: track->clips().items()) {
+    for (auto clip: track->clips()) {
         handleClipInsertion(track, clip);
     }
 
@@ -165,7 +165,7 @@ void AudioContext::handleTrackInsertion(DsTrack *track) {
 }
 
 void AudioContext::handleTrackRemoval(DsTrack *track) {
-    for (auto clip: track->clips().items()) {
+    for (auto clip: track->clips()) {
         handleClipRemoval(track, clip);
     }
     AudioSystem::instance()->masterTrack()->eraseSource(m_trackItDict[track]);

@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     list.add(&obj4);
     // list.remove(&obj2);
 
-    for (const auto item : list.items())
+    for (const auto item : list)
         qDebug() << item->start() << item->start() + item->length();
     // qDebug() << obj3.isOverlappedWith(&obj2);
     qDebug() << list.isOverlappedItemExists();
