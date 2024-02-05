@@ -18,6 +18,7 @@
 
 #include "Utils/IdGenerator.h"
 #include "opendspx/qdspxtrack.h"
+#include "opendspx/qdspxtimeline.h"
 #include "opendspx/qdspxmodel.h"
 #include "opendspx/converters/midi.h"
 
@@ -122,9 +123,7 @@ bool AppModel::importMidiFile(const QString &filename) {
     reset();
 
     auto dspx = new QDspx::Model;
-    std::function<bool(const QList<QDspx::MidiConverter::TrackInfo> &, const QList<QByteArray> &,
-                       QList<int> *, QTextCodec *)>
-        midiSelector = trackSelector;
+    auto midiSelector = trackSelector;
     QVariantMap args = {};
     args.insert(QStringLiteral("selector"),
                 QVariant::fromValue(reinterpret_cast<quintptr>(&midiSelector)));
@@ -197,6 +196,97 @@ bool AppModel::importMidiFile(const QString &filename) {
     m_tempo = timeline.tempos[0].value;
     decodeTracks(dspx, m_tracks);
     emit modelChanged();
+    return true;
+}
+
+bool midiOverlapHandler() {
+    QMessageBox msgBox;
+    msgBox.setText("MIDI Overlap");
+    msgBox.setInformativeText("The MIDI file contains overlapping notes. Do you want to continue?");
+    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+    msgBox.setDefaultButton(QMessageBox::Yes);
+    int ret = msgBox.exec();
+    if (ret == QMessageBox::Yes) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool AppModel::exportMidiFile(const QString &filename) {
+    QDspx::Model dspx;
+    auto midiOverlap = midiOverlapHandler;
+    QVariantMap args = {};
+    args.insert(QStringLiteral("overlapHandler"),
+                QVariant::fromValue(reinterpret_cast<quintptr>(&midiOverlap)));
+    auto midi = new QDspx::MidiConverter;
+
+    auto encodeNotes = [](const QList<DsNote> &notes) {
+        QList<QDspx::Note> arrNotes;
+        for (const auto &note : notes) {
+            QDspx::Note dsNote;
+            dsNote.pos = note.start();
+            dsNote.length = note.length();
+            dsNote.keyNum = note.keyIndex();
+            dsNote.lyric = note.lyric();
+            arrNotes.append(dsNote);
+        }
+        return arrNotes;
+    };
+
+    auto encodeClips = [&](const DsTrack *dsTrack, QDspx::Track *track) {
+        for (const auto &clip : dsTrack->clips()) {
+            if (clip->type() == DsClip::Singing) {
+                auto singingClip = dynamic_cast<DsSingingClip *>(clip);
+                auto singClip = QDspx::SingingClipRef::create();
+                singClip->name = clip->name();
+                singClip->time.start = clip->start();
+                singClip->time.clipStart = clip->clipStart();
+                singClip->time.length = clip->length();
+                singClip->time.clipLen = clip->clipLen();
+                singClip->notes = encodeNotes(singingClip->notes);
+                track->clips.append(singClip);
+            } else if (clip->type() == DsClip::Audio) {
+                auto audioClip = dynamic_cast<DsAudioClip *>(clip);
+                auto audioClipRef = QDspx::AudioClipRef::create();
+                audioClipRef->name = clip->name();
+                audioClipRef->time.start = clip->start();
+                audioClipRef->time.clipStart = clip->clipStart();
+                audioClipRef->time.length = clip->length();
+                audioClipRef->time.clipLen = clip->clipLen();
+                audioClipRef->path = audioClip->path();
+                track->clips.append(audioClipRef);
+            }
+        }
+    };
+
+    auto encodeTracks = [&](const QList<DsTrack *> &tracks, QDspx::Model &dspx) {
+        for (const auto &dsTrack : tracks) {
+            QDspx::Track track;
+            track.name = dsTrack->name();
+            encodeClips(dsTrack, &track);
+            dspx.content.tracks.append(track);
+        }
+    };
+
+    auto timeline = new QDspx::Timeline;
+
+    timeline->tempos.append(QDspx::Tempo(0, m_tempo));
+    timeline->timeSignatures.append(QDspx::TimeSignature(0, m_numerator, m_denominator));
+    dspx.content.timeline = *timeline;
+
+    encodeTracks(m_tracks, dspx);
+    auto returnCode = midi->save(filename, dspx, args);
+
+    if (returnCode.type != QDspx::ReturnCode::Success) {
+        QMessageBox::warning(nullptr, "Warning",
+                             QString("Failed to save midi file.\r\npath: %1\r\ntype: %2 code: %3")
+                                 .arg(filename)
+                                 .arg(returnCode.type)
+                                 .arg(returnCode.code));
+        return false;
+    }
+
     return true;
 }
 
