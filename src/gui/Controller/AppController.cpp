@@ -11,8 +11,14 @@
 #include "mandarin.h"
 #include "syllable2p.h"
 
+void AppController::onNewProject() {
+    AppModel::instance()->newProject();
+}
 void AppController::openProject(const QString &filePath) {
     AppModel::instance()->loadAProject(filePath);
+}
+void AppController::importMidiFile(const QString &filePath) {
+    AppModel::instance()->importMidiFile(filePath);
 }
 void AppController::onRunG2p() {
     auto model = AppModel::instance();

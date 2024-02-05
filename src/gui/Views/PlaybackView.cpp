@@ -102,6 +102,8 @@ PlaybackView::PlaybackView(QWidget *parent) {
     mainLayout->addWidget(m_elTime);
     mainLayout->addWidget(m_elTempo);
     mainLayout->addWidget(m_elTimeSignature);
+    mainLayout->setContentsMargins(6, 6, 6, 6);
+    mainLayout->setSpacing(6);
     setLayout(mainLayout);
     setContentsMargins({});
     // setMaximumHeight(44);
@@ -161,10 +163,11 @@ QString PlaybackView::toFormattedTickTime(int ticks) {
     return str;
 }
 int PlaybackView::fromTickTimeString(const QStringList &splitStr) {
-    auto bar  = splitStr.at(0).toInt();
+    auto bar = splitStr.at(0).toInt();
     auto beat = splitStr.at(1).toInt();
     auto tick = splitStr.at(2).toInt();
-    return (bar - 1) * 1920 * m_numerator / m_denominator + (beat - 1) * 1920 / m_denominator + tick;
+    return (bar - 1) * 1920 * m_numerator / m_denominator + (beat - 1) * 1920 / m_denominator +
+           tick;
 }
 void PlaybackView::updateTimeView() {
     m_elTime->setText(toFormattedTickTime(m_tick));

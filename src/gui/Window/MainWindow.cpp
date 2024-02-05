@@ -2,10 +2,12 @@
 // Created by fluty on 2024/1/31.
 //
 
+#include "MainWindow.h"
+
 #include <QFileDialog>
 #include <QSplitter>
-
-#include "MainWindow.h"
+#include <QMenu>
+#include <QMenuBar>
 
 #include "Audio/AudioSystem.h"
 #include "Controller/TracksViewController.h"
@@ -53,19 +55,22 @@ MainWindow::MainWindow() {
         "QMenu { padding: 4px; background-color: #202122; border: 1px solid #606060; "
         "border-radius: 6px; color: #F0F0F0;} "
         "QMenu::indicator { left: 6px; width: 20px; height: 20px; } QMenu::icon { left: 6px; } "
-        "QMenu::item { background: transparent; color: #fff; padding: 4px 28px; } "
+        "QMenu::item { background: transparent; color: #F0F0F0; padding: 4px 20px; } "
         "QMenu[stats=checkable]::item, QMenu[stats=icon]::item { padding-left: 12px; } "
         "QMenu::item:selected { background-color: #3A3B3C; border: 1px solid "
-        "transparent; "
-        "border-style: none; border-radius: 4px; } "
+        "transparent; border-style: none; border-radius: 4px; } "
         "QMenu::item:disabled { color: #d5d5d5; background-color: transparent; } "
-        "QMenu::separator { height: 1.25px; background-color: #606060; margin: 6px 0; } ";
+        "QMenu::separator { height: 1.25px; background-color: #606060; margin: 6px 0; } "
+        "QMenuBar {background-color: transparent; color: #F0F0F0;}"
+        "QMenuBar::item {background-color: transparent; padding: 8px; color: #f0f0f0; border-radius: 4px; }"
+        "QMenuBar::item:selected { background-color: #10FFFFFF } ";
     this->setStyleSheet(QString("QMainWindow { background: #232425 }") + qssBase);
 #ifdef Q_OS_WIN
     // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler
 
+    bool micaOn = true;
     auto version = QSysInfo::productVersion();
-    if (version == "11") {
+    if (micaOn && version == "11") {
         // make window transparent
         this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
         // Enable Mica background
@@ -87,63 +92,74 @@ MainWindow::MainWindow() {
     auto trackController = TracksViewController::instance();
     auto playbackController = PlaybackController::instance();
 
-    auto btnNewTrack = new QPushButton;
-    btnNewTrack->setText("New Track");
-    connect(btnNewTrack, &QPushButton::clicked, trackController, &TracksViewController::onNewTrack);
+    auto menuBar = new QMenuBar(this);
 
-    auto btnImportMidi = new QPushButton;
-    btnImportMidi->setText("Import MIDI...");
-    connect(btnImportMidi, &QPushButton::clicked, appController, [=]() {
-        auto fileName = QFileDialog::getOpenFileName(btnImportMidi, "Select a MIDI File", ".",
-                                                     "MIDI File (*.mid)");
-        if (fileName.isNull())
-            return;
-
-        AppModel::instance()->importMidi(fileName);
-    });
-
-    // auto btnOpenAudioFile = new QPushButton;
-    // btnOpenAudioFile->setText("Add an audio file...");
-    // connect(btnOpenAudioFile, &QPushButton::clicked, trackController, [=]() {
-    //     auto fileName =
-    //         QFileDialog::getOpenFileName(btnOpenAudioFile, "Select an Audio File", ".",
-    //                                      "All Audio File (*.wav *.flac *.mp3);;Wave File "
-    //                                      "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)");
-    //     if (fileName.isNull())
-    //         return;
-    //
-    //     trackController->addAudioClipToNewTrack(fileName);
-    // });
-
-    auto btnOpenProjectFile = new QPushButton;
-    btnOpenProjectFile->setText("Open project...");
-    btnOpenProjectFile->setIcon(QIcon(":/svg/icons/folder_open_16_filled.svg"));
-    connect(btnOpenProjectFile, &QPushButton::clicked, appController, [=]() {
-        auto fileName = QFileDialog::getOpenFileName(btnOpenProjectFile, "Select a Project File",
+    auto menuFile = new QMenu("&File", this);
+    auto actionNewProject = new QAction("&New project", this);
+    connect(actionNewProject, &QAction::triggered, appController, &AppController::onNewProject);
+    auto actionOpen = new QAction("&Open project...");
+    connect(actionOpen, &QAction::triggered, this, [=] {
+        auto fileName = QFileDialog::getOpenFileName(this, "Select a Project File",
                                                      ".", "Project File (*.json)");
         if (fileName.isNull())
             return;
 
         appController->openProject(fileName);
     });
+    auto actionSave = new QAction("&Save", this);
+    auto actionSaveAs = new QAction("&Save as", this);
 
-    // auto btnPlay = new QPushButton;
-    // btnPlay->setText("Play");
-    // btnPlay->setIcon(QIcon(":/svg/icons/play_16_filled.svg"));
-    // connect(btnPlay, &QPushButton::clicked, playbackController, [=] {
-    //     // TODO: run project check (overlapping)
-    //     PlaybackController::instance()->play();
-    // });
+    auto menuImport = new QMenu("Import", this);
+    auto actionImportMidiFile = new QAction("MIDI file...", this);
+    connect(actionImportMidiFile, &QAction::triggered, this, [=] {
+        auto fileName = QFileDialog::getOpenFileName(this, "Select a MIDI File", ".",
+                                                     "MIDI File (*.mid)");
+        if (fileName.isNull())
+            return;
+        appController->importMidiFile(fileName);
+    });
+    menuImport->addAction(actionImportMidiFile);
 
-    // auto btnPause = new QPushButton;
-    // btnPause->setText("Pause");
-    // btnPause->setIcon(QIcon(":/svg/icons/pause_16_filled.svg"));
-    // connect(btnPause, &QPushButton::clicked, playbackController, &PlaybackController::pause);
+    auto menuExport = new QMenu("Export", this);
+    auto actionExportAudio = new QAction("Audio file...", this);
+    auto actionExportMidiFile = new QAction("MIDI file...", this);
 
-    // auto btnStop = new QPushButton;
-    // btnStop->setText("Stop");
-    // btnStop->setIcon(QIcon(":/svg/icons/stop_16_filled.svg"));
-    // connect(btnStop, &QPushButton::clicked, playbackController, &PlaybackController::stop);
+    auto actionAudioSettings = new QAction("Audio settings...", this);
+
+    menuExport->addAction(actionExportAudio);
+    menuExport->addAction(actionExportMidiFile);
+
+    menuFile->addAction(actionNewProject);
+    menuFile->addAction(actionOpen);
+    menuFile->addAction(actionSave);
+    menuFile->addAction(actionSaveAs);
+    menuFile->addSeparator();
+    menuFile->addMenu(menuImport);
+    menuFile->addMenu(menuExport);
+
+    auto menuEdit = new QMenu("&Edit", this);
+
+    auto actionUndo = new QAction("&Undo", this);
+    auto actionRedo = new QAction("&Redo", this);
+    auto actionCut = new QAction("&Cut", this);
+    auto actionCopy = new QAction("&Copy", this);
+    auto actionPaste = new QAction("&Paste", this);
+    auto actionDelete = new QAction("&Delete", this);
+
+    menuEdit->addAction(actionUndo);
+    menuEdit->addAction(actionRedo);
+    menuEdit->addSeparator();
+    menuEdit->addAction(actionCut);
+    menuEdit->addAction(actionCopy);
+    menuEdit->addAction(actionPaste);
+    menuEdit->addAction(actionDelete);
+
+    menuBar->addMenu(menuFile);
+    menuBar->addMenu(menuEdit);
+
+    auto btnNewTrack = new QPushButton;
+    btnNewTrack->setText("New Track");
+    connect(btnNewTrack, &QPushButton::clicked, trackController, &TracksViewController::onNewTrack);
 
     auto m_tracksView = new TracksView;
     auto m_pianoRollView = new PianoRollGraphicsView;
@@ -187,11 +203,10 @@ MainWindow::MainWindow() {
             &PlaybackController::pause);
     connect(playbackView, &PlaybackView::stopTriggered, playbackController,
             &PlaybackController::stop);
-    connect(playbackView, &PlaybackView::setPositionTriggered, playbackController,
-            [=](int tick) {
-                playbackController->setLastPosition(tick);
-                playbackController->setPosition(tick);
-            });
+    connect(playbackView, &PlaybackView::setPositionTriggered, playbackController, [=](int tick) {
+        playbackController->setLastPosition(tick);
+        playbackController->setPosition(tick);
+    });
     connect(playbackController, &PlaybackController::playbackStatusChanged, playbackView,
             &PlaybackView::onPlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, playbackView,
@@ -201,20 +216,21 @@ MainWindow::MainWindow() {
             &PlaybackView::onTimeSignatureChanged);
     playbackView->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
+    auto menuBarContainer = new QHBoxLayout;
+    menuBarContainer->addWidget(menuBar);
+    menuBarContainer->setContentsMargins(6,6,6,6);
+
     auto actionButtonLayout = new QHBoxLayout;
+    actionButtonLayout->addLayout(menuBarContainer);
     actionButtonLayout->addWidget(btnNewTrack);
-    actionButtonLayout->addWidget(btnImportMidi);
-    // actionButtonLayout->addWidget(btnOpenAudioFile);
-    actionButtonLayout->addWidget(btnOpenProjectFile);
-    // actionButtonLayout->addWidget(btnPlay);
-    // actionButtonLayout->addWidget(btnPause);
-    // actionButtonLayout->addWidget(btnStop);
     actionButtonLayout->addWidget(playbackView);
+    actionButtonLayout->setContentsMargins({});
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addLayout(actionButtonLayout);
     mainLayout->addWidget(splitter);
     mainLayout->setSpacing(0);
+    mainLayout->setContentsMargins({});
 
     auto mainWidget = new QWidget;
     mainWidget->setLayout(mainLayout);

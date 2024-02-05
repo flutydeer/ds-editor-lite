@@ -42,7 +42,8 @@ public:
     void insertTrack(DsTrack *track, int index);
     void removeTrack(int index);
 
-    bool importMidi(const QString &filename);
+    void newProject();
+    bool importMidiFile(const QString &filename);
     bool loadAProject(const QString &filename);
 
     class LevelMetersUpdatedArgs {

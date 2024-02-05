@@ -63,6 +63,10 @@ void AppModel::removeTrack(int index) {
     m_tracks.removeAt(index);
     emit tracksChanged(Remove, index, track);
 }
+void AppModel::newProject() {
+    reset();
+    emit modelChanged();
+}
 
 bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                    const QList<QByteArray> &labelList, QList<int> *selectIDs, QTextCodec *codec) {
@@ -114,7 +118,7 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
     }
 }
 
-bool AppModel::importMidi(const QString &filename) {
+bool AppModel::importMidiFile(const QString &filename) {
     reset();
 
     auto dspx = new QDspx::Model;
@@ -290,5 +294,8 @@ void AppModel::onSelectedClipChanged(int trackIndex, int clipId) {
     emit selectedClipChanged(m_selectedClipTrackIndex, m_selectedClipId);
 }
 void AppModel::reset() {
+    m_tempo = 120;
+    m_numerator = 4;
+    m_denominator = 4;
     m_tracks.clear();
 }

@@ -36,6 +36,7 @@ TracksView::TracksView() {
     m_graphicsView = new TracksGraphicsView;
     // QScroller::grabGesture(m_graphicsView, QScroller::TouchGesture);
     m_graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_graphicsView->setEnsureSceneFillView(false);
     connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
             &TracksView::onViewScaleChanged);
