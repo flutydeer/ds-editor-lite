@@ -225,7 +225,7 @@ void TracksView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &ar
         return;
 
     auto states = args.trackMeterStates;
-    for (int i = 0; i < states.size(); i++) {
+    for (int i = 0; i < qMin(states.size(), m_tracksModel.tracks.size()); i++) {
         auto state = states.at(i);
         auto meter = m_tracksModel.tracks.at(i)->widget->levelMeter();
         meter->setValue(state.valueL, state.valueR);

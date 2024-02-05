@@ -63,6 +63,8 @@ AudioContext::AudioContext(QObject *parent) : QObject(parent), m_levelMeterTimer
     connect(m_levelMeterTimer, &QTimer::timeout, this, [=] {
         AppModel::LevelMetersUpdatedArgs args;
         for (auto track : AppModel::instance()->tracks()) {
+            if (!m_trackLevelMeterValue.contains(track))
+                continue;
             if (PlaybackController::instance()->playbackStatus() != PlaybackController::Playing && (m_trackLevelMeterValue[track].first->targetValue() > -96 || m_trackLevelMeterValue[track].second->targetValue() > -96)) {
                 m_trackLevelMeterValue[track].first->setTargetValue(-96);
                 m_trackLevelMeterValue[track].second->setTargetValue(-96);
@@ -244,7 +246,8 @@ void AudioContext::handleClipPropertyChange(const DsTrack *track, const DsClip *
     auto trackClipSeries = m_trackAudioClipSeriesDict[track];
     auto &clipView = m_audioClips[clip];
     if (clipView.isNull()) {
-        clipView = trackClipSeries->insertClip(m_audioClipMixers[clip], tickToSample(clip->start() + clip->clipStart()), tickToSample(clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));
+        if (m_audioClipMixers.contains(clip))
+            clipView = trackClipSeries->insertClip(m_audioClipMixers[clip], tickToSample(clip->start() + clip->clipStart()), tickToSample(clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));
     } else {
         trackClipSeries->setClipStartPos(clipView, tickToSample(clip->clipStart()));
         trackClipSeries->setClipRange(clipView, tickToSample(clip->start() + clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));
@@ -264,7 +267,8 @@ void AudioContext::rebuildAllClips() {
         for (auto clip: track->clips()) {
             if (clip->type() != DsClip::Audio)
                 continue;
-            m_audioClips[clip] = trackClipSeries->insertClip(m_audioClipMixers[clip], tickToSample(clip->start() + clip->clipStart()), tickToSample(clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));
+            if (m_audioClipMixers.contains(clip))
+                m_audioClips[clip] = trackClipSeries->insertClip(m_audioClipMixers[clip], tickToSample(clip->start() + clip->clipStart()), tickToSample(clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));
         }
     }
 }
