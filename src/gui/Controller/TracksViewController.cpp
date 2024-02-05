@@ -73,14 +73,18 @@ void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChang
     qDebug() << "TracksViewController::onClipPropertyChanged";
     auto track = AppModel::instance()->tracks().at(args.trackIndex);
     auto clip = track->findClipById(args.id);
-    // track->removeClip(clip);
     clip->setStart(args.start);
     clip->setClipStart(args.clipStart);
     clip->setLength(args.length);
     clip->setClipLen(args.clipLen);
-    qDebug() << "ClipPropertyChangedArgs:"
-             << "length" << args.length;
-    // track->insertClip(clip);
+
+    if (clip->type() == DsClip::Audio) {
+        auto audioClip = dynamic_cast<DsAudioClip *>(clip);
+        qDebug() << "clip path" << audioClip->path();
+        auto audioArgs = dynamic_cast<const DsClip::AudioClipPropertyChangedArgs *>(&args);
+        qDebug() << "args path" << audioArgs->path;
+        audioClip->setPath(audioArgs->path);
+    }
     track->updateClip(clip);
 }
 void TracksViewController::onRemoveClip(int clipId) {

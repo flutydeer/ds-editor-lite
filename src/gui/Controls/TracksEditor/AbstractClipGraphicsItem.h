@@ -18,9 +18,7 @@ public:
     explicit AbstractClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     ~AbstractClipGraphicsItem() override = default;
 
-    bool removed() const;
-    void setRemoved(bool b);
-
+    QWidget *context() const;
     void setContext(QWidget *context);
 
     QString name() const;
@@ -70,11 +68,14 @@ protected:
     void setCanResizeLength(bool on);
     double tickToSceneX(double tick) const;
     double sceneXToItemX(double x) const;
+    virtual void addMenuActions(QMenu *menu) = 0;
+
+    // QMenu *menu();
 
 private:
     QWidget *m_context;
+    QMenu *m_menu;
 
-    bool m_removed = false;
     QString m_name;
     int m_start = 0;
     int m_length = 0;

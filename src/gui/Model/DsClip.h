@@ -44,6 +44,7 @@ public:
 
     class ClipPropertyChangedArgs {
     public:
+        virtual ~ClipPropertyChangedArgs() = default;
         int id = -1;
 
         QString name;

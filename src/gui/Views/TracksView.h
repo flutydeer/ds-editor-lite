@@ -85,6 +85,7 @@ private:
     void removeClipFromView(int clipId);
     AbstractClipGraphicsItem *findClipItemById(int id);
     void updateTracksOnView();
+    void updateClipOnView(DsClip *clip, int clipId);
     void removeTrackFromView(int index);
     void updateOverlappedState(int trackIndex);
     void reset();

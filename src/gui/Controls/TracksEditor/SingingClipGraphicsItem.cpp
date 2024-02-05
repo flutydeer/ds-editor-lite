@@ -22,12 +22,12 @@ void SingingClipGraphicsItem::loadNotes(const QList<DsNote> &notes) {
     m_notes.clear();
     for (const auto &dsNote : notes) {
         Note note;
-        note.start = dsNote.start();
+        note.rStart = dsNote.start() - start();
         note.length = dsNote.length();
         note.keyIndex = dsNote.keyIndex();
         m_notes.append(note);
     }
-    auto endTick = m_notes.last().start + m_notes.last().length + 1920;
+    auto endTick = start() + m_notes.last().rStart + m_notes.last().length + 1920;
     setLength(endTick);
     setClipLen(endTick);
     update();
@@ -38,7 +38,8 @@ QString SingingClipGraphicsItem::audioCachePath() const {
 void SingingClipGraphicsItem::setAudioCachePath(const QString &path) {
     m_audioCachePath = path;
 }
-void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {
+void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
+                                              int opacity) {
     painter->setRenderHint(QPainter::Antialiasing, false);
 
     auto rectLeft = previewRect.left();
@@ -72,21 +73,23 @@ void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &p
     for (const auto &note : m_notes) {
         auto clipLeft = start() + clipStart();
         auto clipRight = clipLeft + clipLen();
-        if (note.start + note.length < clipLeft)
+        if (start() + note.rStart + note.length < clipLeft)
             continue;
-        if (note.start >= clipRight)
+        if (start() + note.rStart >= clipRight)
             break;
 
-        auto leftScene = tickToSceneX(note.start);
+        auto leftScene = tickToSceneX(start() + note.rStart);
         auto left = sceneXToItemX(leftScene);
         auto width = tickToSceneX(note.length);
-        if (note.start < clipLeft) {
+        if (start() + note.rStart < clipLeft) {
             left = sceneXToItemX(tickToSceneX(clipLeft));
-            width = sceneXToItemX(tickToSceneX(note.start + note.length)) - left;
+            width = sceneXToItemX(tickToSceneX(start() + note.rStart + note.length)) - left;
             // qDebug() << left << width << note.lyric;
-        } else if (note.start + note.length >= clipRight)
-            width = tickToSceneX(clipRight - note.start);
+        } else if (start() + note.rStart + note.length >= clipRight)
+            width = tickToSceneX(clipRight - start() - note.rStart);
         auto top = -(note.keyIndex - highestKeyIndex) * noteHeight + rectTop;
         painter->drawRect(QRectF(left, top, width, noteHeight));
     }
+}
+void SingingClipGraphicsItem::addMenuActions(QMenu *menu) {
 }

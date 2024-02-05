@@ -3,10 +3,10 @@
 //
 
 #include <QDebug>
-#include <QElapsedTimer>
-#include <QFileInfo>
 #include <QPainter>
 #include <QThread>
+#include <QFileDialog>
+#include <QMenu>
 
 #include "AudioClipBackgroundWorker.h"
 #include "AudioClipGraphicsItem.h"
@@ -182,4 +182,18 @@ void AudioClipGraphicsItem::updateLength() {
     if (clipStart() + clipLen() > targetLength)
         setClipLen(targetLength - clipStart());
     emit propertyChanged();
+}
+void AudioClipGraphicsItem::addMenuActions(QMenu *menu) {
+    auto actionLocateFile = menu->addAction("Locate audio file");
+    connect(actionLocateFile, &QAction::triggered, this, [=] {
+        auto fileName =
+            QFileDialog::getOpenFileName(context(), "Select an Audio File", ".",
+                                         "All Audio File (*.wav *.flac *.mp3);;Wave File "
+                                         "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)");
+        if (fileName.isNull())
+            return;
+        setPath(fileName);
+        emit propertyChanged();
+    });
+    menu->addSeparator();
 }
