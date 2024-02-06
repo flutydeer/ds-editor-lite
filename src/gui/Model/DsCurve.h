@@ -9,11 +9,13 @@
 
 class DsCurve {
 public:
-    enum DsCurveType { Draw, Anchor };
+    enum DsCurveType { Generic, Draw, Anchor };
 
     virtual ~DsCurve();
 
-    virtual DsCurveType type();
+    virtual DsCurveType type() {
+        return Generic;
+    }
     int start();
     void setStart(int offset);
 
@@ -52,7 +54,7 @@ public:
     DsCurveType type() override {
         return Anchor;
     }
-    QVector<int> values;
+    QVector<DsAnchorNode> nodes;
 };
 
 #endif //DSCURVE_H

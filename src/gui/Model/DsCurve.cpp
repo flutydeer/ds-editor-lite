@@ -3,3 +3,14 @@
 //
 
 #include "DsCurve.h"
+
+DsCurve::~DsCurve() {
+}
+
+int DsCurve::start() {
+    return m_start;
+}
+
+void DsCurve::setStart(int offset) {
+    m_start = offset;
+}
