@@ -13,6 +13,7 @@ class TracksGraphicsView final : public CommonGraphicsView {
 
 public:
     explicit TracksGraphicsView();
+    void setQuantize(int quantize);
 
 signals:
     void addSingingClipTriggered(int trackIndex, int tick);
@@ -28,6 +29,7 @@ private:
     int m_trackIndx = -1;
     int m_tick = 0;
     int m_snappedTick = 0;
+    int m_quantize = 16;
 };
 
 #endif // DATASET_TOOLS_TRACKSGRAPHICSVIEW_H

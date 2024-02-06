@@ -11,6 +11,7 @@ class ITimelinePainter {
 public:
     void setPixelsPerQuarterNote(int px);
     virtual void setTimeSignature(int numerator, int denominator);
+    virtual void setQuantize(int quantize);
 
 protected:
     void drawTimeline(QPainter *painter, double startTick, double endTick, double rectWidth);
@@ -25,6 +26,7 @@ private:
     int m_pixelsPerQuarterNote = 64;
     int m_numerator = 4;
     int m_denominator = 4;
+    int m_quantize = 16;
 };
 
 

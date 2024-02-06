@@ -5,6 +5,7 @@
 #include "PlaybackView.h"
 
 #include <QHBoxLayout>
+#include <qstyleditemdelegate.h>
 #include <qvalidator.h>
 
 PlaybackView::PlaybackView(QWidget *parent) {
@@ -40,6 +41,16 @@ PlaybackView::PlaybackView(QWidget *parent) {
     m_btnPlay->setIcon(icoPlayWhite);
     // m_btnPlay->setText("Play");
     m_btnPlay->setCheckable(true);
+
+    m_btnPlayPause = new QPushButton(this);
+    connect(m_btnPlayPause, &QPushButton::clicked, this, [=] {
+        if (m_status == PlaybackController::Paused || m_status == PlaybackController::Stopped)
+            playTriggered();
+        else if (m_status == PlaybackController::Playing)
+            pauseTriggered();
+    });
+    m_btnPlayPause->setShortcut(Qt::Key_Space);
+    m_btnPlayPause->setFixedSize(0,0);
 
     m_btnPause = new QPushButton;
     m_btnPause->setObjectName("btnPause");
@@ -95,7 +106,28 @@ PlaybackView::PlaybackView(QWidget *parent) {
     connect(m_btnPause, &QPushButton::clicked, this, [=] { emit pauseTriggered(); });
     connect(m_btnStop, &QPushButton::clicked, this, [=] { emit stopTriggered(); });
 
+    m_cbQuantize = new QComboBox;
+    m_cbQuantize->addItems(quantizeStrings);
+    m_cbQuantize->setCurrentIndex(3);
+    m_cbQuantize->setFixedSize(72, m_contentHeight);
+    auto comboBoxQss =
+        "QComboBox QAbstractItemView { padding: 4px; background-color: #202122;"
+        "border: 1px solid #606060; "
+        "border-radius: 6px; color: #F0F0F0; selection-background-color: #FFFFFF; }"
+        "QComboBox QAbstractItemView:item { padding: 4px; border-radius: 4px; border: none; }"
+        "QComboBox QAbstractItemView::item:hover { background-color: #f6f6f6; }"
+        "QComboBox QAbstractItemView::item:selected { background-color: #3A3B3C; }";
+    auto styledItemDelegate = new QStyledItemDelegate();
+    m_cbQuantize->setItemDelegate(styledItemDelegate);
+    m_cbQuantize->setStyleSheet(comboBoxQss);
+
+    connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [=](int index) {
+        auto value = quantizeValues.at(index);
+        emit setQuantizeTriggered(value);
+    });
+
     auto mainLayout = new QHBoxLayout;
+    mainLayout->addWidget(m_cbQuantize);
     mainLayout->addWidget(m_btnStop);
     mainLayout->addWidget(m_btnPlay);
     mainLayout->addWidget(m_btnPause);
@@ -109,13 +141,17 @@ PlaybackView::PlaybackView(QWidget *parent) {
     // setMaximumHeight(44);
     // setMaximumWidth(480);
 
-    setStyleSheet("QPushButton {padding: 0px; border: none; background: none}"
-                  "QPushButton:hover { background: #1AFFFFFF; border-radius: 6px; }"
-                  "QPushButton:pressed { background: #10FFFFFF; border-radius: 6px; }"
-                  "QPushButton#btnPlay:checked { background-color: #9BBAFF;} "
-                  "QPushButton#btnPause:checked { background-color: #FFCD9B;} "
-                  "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 6px; }"
-                  "QLabel:hover { background: #1AFFFFFF; }");
+    setStyleSheet(
+        "QPushButton {padding: 0px; border: none; background: none; border-radius: 6px}"
+        "QPushButton:hover { background: #1AFFFFFF; }"
+        "QPushButton:pressed { background: #10FFFFFF; }"
+        "QPushButton#btnPlay:checked { background-color: #9BBAFF;} "
+        "QPushButton#btnPause:checked { background-color: #FFCD9B;} "
+        "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 6px; }"
+        "QLabel:hover { background: #1AFFFFFF; }"
+        "QComboBox { color: #F0F0F0; border: none; background: #10FFFFFF; border-radius: 6px; }"
+        "QComboBox:hover { background: #1AFFFFFF; }"
+        "QComboBox:pressed { background: #10FFFFFF; }");
 }
 void PlaybackView::updateView() {
     auto model = AppModel::instance();

@@ -76,12 +76,19 @@ void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChang
     auto track = AppModel::instance()->tracks().at(args.trackIndex);
     auto clip = track->findClipById(args.id);
 
+    qDebug() << "args.id" << args.id;
+    qDebug() << "args.name" << args.name;
+    qDebug() << "args.start" << args.start;
+    qDebug() << "args.clipStart" << args.clipStart;
+    qDebug() << "args.length" << args.length;
+    qDebug() << "args.clipLen" << args.clipLen;
+
     if (clip->type() == DsClip::Audio) {
         auto audioClip = dynamic_cast<DsAudioClip *>(clip);
         qDebug() << "clip path" << audioClip->path();
         auto audioArgs = dynamic_cast<const DsClip::AudioClipPropertyChangedArgs *>(&args);
         qDebug() << "args path" << audioArgs->path;
-        audioClip->setPath(audioArgs->path);
+        // audioClip->setPath(audioArgs->path);
     } else if (clip->type() == DsClip::Singing) {
         auto singingClip = dynamic_cast<DsSingingClip *>(clip);
         auto deltaTime = args.start - clip->start();

@@ -80,9 +80,14 @@ TracksView::TracksView() {
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
     auto appModel = AppModel::instance();
     connect(appModel, &AppModel::modelChanged, m_gridItem,
-            [=] { m_gridItem->setTimeSignature(appModel->numerator(), appModel->denominator()); });
+            [=] {
+                m_gridItem->setTimeSignature(appModel->numerator(), appModel->denominator());
+                m_gridItem->setQuantize(appModel->quantize());
+            });
     connect(appModel, &AppModel::timeSignatureChanged, m_gridItem,
             &TimeGridGraphicsItem::setTimeSignature);
+    connect(appModel, &AppModel::quantizeChanged, m_gridItem,
+            &TimeGridGraphicsItem::setQuantize);
     m_tracksScene->addItem(m_gridItem);
 
     m_timeline = new TimelineView;
@@ -101,6 +106,8 @@ TracksView::TracksView() {
     connect(appModel, &AppModel::timeSignatureChanged, m_timeline, &TimelineView::setTimeSignature);
     connect(m_gridItem, &TimeGridGraphicsItem::timeRangeChanged, m_timeline,
             &TimelineView::setTimeRange);
+    connect(appModel, &AppModel::quantizeChanged, m_timeline,
+            &TimelineView::setQuantize);
 
     m_scenePlayPosIndicator = new TimeIndicatorGraphicsItem;
     m_scenePlayPosIndicator->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
@@ -394,6 +401,8 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
         connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
                 &AudioClipGraphicsItem::setVisibleRect);
         connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
+        connect(AppModel::instance(), &AppModel::quantizeChanged, clipItem,
+            &AbstractClipGraphicsItem::setQuantize);
         connect(clipItem, &AudioClipGraphicsItem::propertyChanged, this, [=] {
             auto clip = findClipItemById(clipItem->id());
             if (clip == clipItem) {
@@ -437,6 +446,8 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
                 &SingingClipGraphicsItem::setVisibleRect);
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
                 [=](int id) { emit removeClipTriggered(id); });
+        connect(AppModel::instance(), &AppModel::quantizeChanged, clipItem,
+            &AbstractClipGraphicsItem::setQuantize);
         connect(clipItem, &SingingClipGraphicsItem::propertyChanged, this, [=] {
             auto clip = findClipItemById(clipItem->id());
             if (clip == clipItem) {

@@ -27,6 +27,7 @@ int main(int argc, char *argv[]) {
     QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
     QApplication::setOrganizationName("OpenVPI");
     QApplication::setApplicationName("DsEditorLite");
+    QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
 
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);

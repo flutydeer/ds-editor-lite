@@ -30,6 +30,7 @@ signals:
 
 public slots:
     void setTimeSignature(int numerator, int denominator) override;
+    void setQuantize(int quantize) override;
     //     void onTimelineChanged();
 
 protected:
