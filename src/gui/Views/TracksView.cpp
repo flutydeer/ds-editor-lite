@@ -29,8 +29,11 @@ TracksView::TracksView() {
     m_trackListWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trackListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trackListWidget->setVerticalScrollMode(QListWidget::ScrollPerPixel);
-    m_trackListWidget->setStyleSheet(
-        "QListWidget { background: #2A2B2C; border: none; border-right: 1px solid #202020 } ");
+    m_trackListWidget->setStyleSheet("QListWidget { background: #2A2B2C; border: none; "
+                                     "border-right: 1px solid #202020; outline:0px; } "
+                                     "QListWidget::item:hover { background: #2E2F30 }"
+                                     "QListWidget::item:selected { background: #373839 }");
+    m_trackListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     QScroller::grabGesture(m_trackListWidget, QScroller::TouchGesture);
     // m_trackListWidget->setStyleSheet("QListWidget::item{ height: 72px }");
 
@@ -54,6 +57,18 @@ TracksView::TracksView() {
             &TracksGraphicsScene::onTrackCountChanged);
     connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
             &TracksView::onSceneSelectionChanged);
+    connect(m_graphicsView, &TracksGraphicsView::addSingingClipTriggered, this,
+            [=](int trackIndex, int tick) { emit newSingingClipTriggered(trackIndex, tick); });
+    connect(m_graphicsView, &TracksGraphicsView::addAudioClipTriggered, this,
+            [=](int trackIndex, int tick) {
+                auto fileName =
+                    QFileDialog::getOpenFileName(this, "Select an Audio File", ".",
+                                                 "All Audio File (*.wav *.flac *.mp3);;Wave File "
+                                                 "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)");
+                if (fileName.isNull())
+                    return;
+                emit addAudioClipTriggered(fileName, trackIndex, tick);
+            });
 
     m_gridItem = new TracksBackgroundGraphicsItem;
     m_gridItem->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
@@ -220,6 +235,9 @@ void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int
             removeClipFromView(clipId);
             break;
     }
+    for (auto overlappedItem : trackModel->clips().overlappedItems()) {
+        qDebug() << "overlappedItem" << overlappedItem->id();
+    }
     updateOverlappedState(trackIndex);
 }
 void TracksView::onPositionChanged(double tick) {
@@ -249,6 +267,8 @@ void TracksView::onSceneSelectionChanged() {
             auto clip = track->clips.at(j);
             if (clip->isSelected()) {
                 foundSelectedClip = true;
+                qDebug() << "TracksView::onSceneSelectionChanged"
+                         << "foundSelectedClip" << i << clip->id();
                 emit selectedClipChanged(i, clip->id());
                 break;
             }
@@ -327,7 +347,7 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
         if (fileName.isNull())
             return;
         auto i = m_trackListWidget->row(newTrackItem);
-        emit addAudioClipTriggered(fileName, i);
+        emit addAudioClipTriggered(fileName, i, 0);
     });
     m_tracksModel.tracks.insert(trackIndex, track);
     if (trackIndex < m_tracksModel.tracks.count()) // needs to update existed tracks' index
@@ -434,6 +454,14 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
 void TracksView::removeClipFromView(int clipId) {
     auto clipItem = findClipItemById(clipId);
     m_tracksScene->removeItem(clipItem);
+    int trackIndex = 0;
+    for (const auto &track : m_tracksModel.tracks) {
+        if (track->clips.contains(clipItem)) {
+            track->clips.removeOne(clipItem);
+            break;
+        }
+        trackIndex++;
+    }
 }
 AbstractClipGraphicsItem *TracksView::findClipItemById(int id) {
     for (const auto &track : m_tracksModel.tracks)
@@ -458,6 +486,7 @@ void TracksView::updateClipOnView(DsClip *clip, int clipId) {
     item->setClipStart(clip->clipStart());
     item->setLength(clip->length());
     item->setClipLen(clip->clipLen());
+    item->setOverlapped(clip->overlapped());
 
     if (clip->type() == DsClip::Audio) {
         auto audioClip = dynamic_cast<DsAudioClip *>(clip);
@@ -500,10 +529,7 @@ void TracksView::updateOverlappedState(int trackIndex) {
     auto track = m_tracksModel.tracks.at(trackIndex);
     for (auto clipItem : track->clips) {
         auto dsClip = trackModel->findClipById(clipItem->id());
-        if (dsClip != nullptr)
-            clipItem->setOverlapped(dsClip->overlapped());
-        else
-            return;
+        clipItem->setOverlapped(dsClip->overlapped());
     }
     m_graphicsView->update();
 }

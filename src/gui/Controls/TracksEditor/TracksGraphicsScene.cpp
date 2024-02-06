@@ -3,6 +3,7 @@
 //
 
 #include <QDebug>
+#include <QGraphicsSceneMouseEvent>
 
 #include "TracksGraphicsScene.h"
 #include "TracksEditorGlobal.h"
@@ -11,6 +12,16 @@ using namespace TracksEditorGlobal;
 
 TracksGraphicsScene::TracksGraphicsScene() {
     setSceneSize(QSizeF(1920 / 480 * pixelsPerQuarterNote * 100, 2000));
+}
+int TracksGraphicsScene::trackIndexAt(double sceneY) {
+    auto yToTrackIndex = [&](double y) { return static_cast<int>(y / (trackHeight * scaleY())); };
+    auto index = yToTrackIndex(sceneY);
+    if (index >= m_trackCount)
+        index = -1;
+    return index;
+}
+int TracksGraphicsScene::tickAt(double sceneX) {
+    return 480 * sceneX / scaleX() / pixelsPerQuarterNote;
 }
 void TracksGraphicsScene::onViewResized(QSize size) {
     m_graphicsViewSize = size;

@@ -110,11 +110,12 @@ PlaybackView::PlaybackView(QWidget *parent) {
     // setMaximumWidth(480);
 
     setStyleSheet("QPushButton {padding: 0px; border: none; background: none}"
-                  "QPushButton:hover { background: #10FFFFFF; border-radius: 6px; }"
-                  "QPushButton:pressed { background: #05FFFFFF; border-radius: 6px; }"
+                  "QPushButton:hover { background: #1AFFFFFF; border-radius: 6px; }"
+                  "QPushButton:pressed { background: #10FFFFFF; border-radius: 6px; }"
                   "QPushButton#btnPlay:checked { background-color: #9BBAFF;} "
                   "QPushButton#btnPause:checked { background-color: #FFCD9B;} "
-                  "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 6px; }");
+                  "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 6px; }"
+                  "QLabel:hover { background: #1AFFFFFF; }");
 }
 void PlaybackView::updateView() {
     auto model = AppModel::instance();

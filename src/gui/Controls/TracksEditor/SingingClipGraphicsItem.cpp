@@ -20,16 +20,18 @@ SingingClipGraphicsItem::SingingClipGraphicsItem(int itemId, QGraphicsItem *pare
 }
 void SingingClipGraphicsItem::loadNotes(const QList<DsNote> &notes) {
     m_notes.clear();
-    for (const auto &dsNote : notes) {
-        Note note;
-        note.rStart = dsNote.start() - start();
-        note.length = dsNote.length();
-        note.keyIndex = dsNote.keyIndex();
-        m_notes.append(note);
+    if (notes.size() != 0) {
+        for (const auto &dsNote : notes) {
+            Note note;
+            note.rStart = dsNote.start() - start();
+            note.length = dsNote.length();
+            note.keyIndex = dsNote.keyIndex();
+            m_notes.append(note);
+        }
+        auto endTick = m_notes.last().rStart + m_notes.last().length + 1920;
+        setLength(endTick);
+        setClipLen(endTick);
     }
-    auto endTick = m_notes.last().rStart + m_notes.last().length + 1920;
-    setLength(endTick);
-    setClipLen(endTick);
     update();
 }
 QString SingingClipGraphicsItem::audioCachePath() const {

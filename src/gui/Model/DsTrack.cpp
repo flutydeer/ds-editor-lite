@@ -36,10 +36,19 @@ void DsTrack::removeClip(DsClip *clip) {
     m_clips.remove(clip);
     emit clipChanged(Remove, clip->id(), clip);
 }
-void DsTrack::updateClip(DsClip *clip) {
-    m_clips.update(clip);
+void DsTrack::removeClipQuietly(DsClip *clip) {
+    m_clips.remove(clip);
+}
+void DsTrack::insertClipQuietly(DsClip *clip) {
+    m_clips.add(clip);
+}
+void DsTrack::notityClipUpdated(DsClip *clip) {
     emit clipChanged(PropertyChanged, clip->id(), clip);
 }
+// void DsTrack::updateClip(DsClip *clip) {
+//     m_clips.update(clip);
+//     emit clipChanged(PropertyChanged, clip->id(), clip);
+// }
 
 DsClip *DsTrack::findClipById(int id) {
     for (int i = 0; i < m_clips.count(); i++) {

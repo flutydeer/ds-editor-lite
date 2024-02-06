@@ -140,7 +140,7 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 
     QPen pen;
     if (m_overlapped)
-        pen.setColor(QColor(255, 155, 157));
+        pen.setColor(QColor(255, 124, 128));
     else
         pen.setColor(isSelected() ? QColor(255, 255, 255) : colorPrimaryDarker);
 

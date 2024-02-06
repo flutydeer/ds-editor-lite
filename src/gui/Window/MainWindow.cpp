@@ -191,6 +191,8 @@ MainWindow::MainWindow() {
             &TracksViewController::onRemoveTrack);
     connect(m_tracksView, &TracksView::addAudioClipTriggered, trackController,
             &TracksViewController::onAddAudioClip);
+    connect(m_tracksView, &TracksView::newSingingClipTriggered, trackController,
+            &TracksViewController::onNewSingingClip);
     connect(m_tracksView, &TracksView::clipPropertyChanged, trackController,
             &TracksViewController::onClipPropertyChanged);
     connect(m_tracksView, &TracksView::removeClipTriggered, trackController,

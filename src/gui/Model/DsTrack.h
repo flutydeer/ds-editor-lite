@@ -27,7 +27,10 @@ public:
     void insertClip(DsClip *clip);
     void removeClip(DsClip *clip);
 
-    void updateClip(DsClip *clip);
+    // void updateClip(DsClip *clip);
+    void removeClipQuietly(DsClip *clip);
+    void insertClipQuietly(DsClip *clip);
+    void notityClipUpdated(DsClip *clip);
 
     DsClip *findClipById(int id);
 

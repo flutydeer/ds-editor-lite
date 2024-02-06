@@ -120,6 +120,9 @@ void PianoRollGraphicsView::insertNote(const DsNote &dsNote, int index) {
     m_noteItems.append(noteItem);
 }
 void PianoRollGraphicsView::loadNotes(DsSingingClip *singingClip) {
+    if (singingClip->notes.count() == 0)
+        return;
+
     for (int i = 0; i < singingClip->notes.count(); i++) {
         auto note = singingClip->notes.at(i);
         insertNote(note, i);

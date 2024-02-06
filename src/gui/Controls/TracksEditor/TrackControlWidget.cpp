@@ -171,7 +171,6 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
 
     setStyleSheet(R"(
 TrackControlWidget {
-    background-color: #2A2B2C;
     border-style: none;
     border-bottom: 1px solid rgb(72, 75, 78)
 }

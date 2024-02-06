@@ -14,6 +14,7 @@
 #include "Controller/TracksViewController.h"
 #include "Controls/Base/TimeIndicatorGraphicsItem.h"
 #include "Controls/Base/TimelineView.h"
+#include "Controls/TracksEditor/AbstractClipGraphicsItem.h"
 
 class TracksView final : public QWidget {
     Q_OBJECT
@@ -41,10 +42,11 @@ signals:
     void soloClicked(int index);
     void tempoChanged(double tempo);
     void trackCountChanged(int count);
-    void addAudioClipTriggered(const QString &path, int index);
+    void addAudioClipTriggered(const QString &path, int trackIndex, int tick);
     void clipPropertyChanged(const DsClip::ClipPropertyChangedArgs &args);
     void setPositionTriggered(double tick);
     void removeClipTriggered(int clipId);
+    void newSingingClipTriggered(int trackIndex, int tick);
 
 private slots:
     void onSceneSelectionChanged();

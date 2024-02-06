@@ -88,11 +88,11 @@ void OverlapableSerialList<T>::remove(T *item) {
     }
     m_list.removeOne(item);
 }
-template <typename T>
-void OverlapableSerialList<T>::update(T *item) {
-    remove(item);
-    add(item);
-}
+// template <typename T>
+// void OverlapableSerialList<T>::update(T *item) {
+//     remove(item);
+//     add(item);
+// }
 template <typename T>
 void OverlapableSerialList<T>::clear() {
     m_list.clear();

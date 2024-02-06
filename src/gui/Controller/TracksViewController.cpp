@@ -63,10 +63,12 @@ void TracksViewController::onTrackPropertyChanged(const DsTrack::TrackPropertyCh
     qDebug() << "gain" << control.gain() << "pan" << control.pan();
     track->setControl(control);
 }
-void TracksViewController::onAddAudioClip(const QString &path, int index) {
+void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, int tick) {
     auto audioClip = new DsAudioClip;
+    audioClip->setStart(tick);
+    audioClip->setClipStart(0);
     audioClip->setPath(path);
-    auto track = AppModel::instance()->tracks().at(index);
+    auto track = AppModel::instance()->tracks().at(trackIndex);
     track->insertClip(audioClip);
 }
 void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChangedArgs &args) {
@@ -90,12 +92,15 @@ void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChang
             }
         }
     }
+    track->removeClipQuietly(clip);
     clip->setStart(args.start);
     clip->setClipStart(args.clipStart);
     clip->setLength(args.length);
     clip->setClipLen(args.clipLen);
+    track->insertClipQuietly(clip);
+    track->notityClipUpdated(clip);
 
-    track->updateClip(clip);
+    // track->updateClip(clip);
 }
 void TracksViewController::onRemoveClip(int clipId) {
     QMessageBox msgBox;
@@ -111,4 +116,13 @@ void TracksViewController::onRemoveClip(int clipId) {
                 track->removeClip(result);
         }
     }
+}
+void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
+    auto singingClip = new DsSingingClip;
+    singingClip->setStart(tick);
+    singingClip->setClipStart(0);
+    singingClip->setLength(1920);
+    singingClip->setClipLen(1920);
+    auto track = AppModel::instance()->tracks().at(trackIndex);
+    track->insertClip(singingClip);
 }

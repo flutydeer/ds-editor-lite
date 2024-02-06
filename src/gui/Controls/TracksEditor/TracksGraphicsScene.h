@@ -10,6 +10,8 @@
 class TracksGraphicsScene final : public CommonGraphicsScene {
 public:
     explicit TracksGraphicsScene();
+    int trackIndexAt(double sceneY);
+    int tickAt(double sceneX);
 
 public slots:
     // void onProjectLengthChanged(int length); // tick
