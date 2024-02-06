@@ -137,9 +137,11 @@ void AudioContext::handleTrackInsertion(const DsTrack *track) {
     m_trackLevelMeterValue[track] = {std::make_shared<talcs::SmoothedFloat>(-96), std::make_shared<talcs::SmoothedFloat>(-96)};
     m_trackLevelMeterValue[track].first->setRampLength(8); // TODO make it configurable
     m_trackLevelMeterValue[track].second->setRampLength(8);
-    connect(trackSrc, &talcs::PositionableMixerAudioSource::levelMetered, this, [=](const QVector<float> &values) {
+    connect(trackSrc, &talcs::PositionableMixerAudioSource::levelMetered, this, [=](QVector<float> values) {
         if (!m_trackLevelMeterValue.contains(track))
             return;
+        if (AudioSystem::instance()->masterTrack()->isMutedBySoloSetting(trackSrc))
+            values = {0, 0};
         auto dBL = talcs::Decibels::gainToDecibels(values[0]);
         auto dBR = talcs::Decibels::gainToDecibels(values[1]);
         if (dBL < m_trackLevelMeterValue[track].first->currentValue())
@@ -245,6 +247,12 @@ void AudioContext::handleClipRemoval(const DsTrack *track, const DsClip *clip) {
 void AudioContext::handleClipPropertyChange(const DsTrack *track, const DsClip *clip) {
     if (clip->type() != DsClip::Audio)
         return;
+    auto filePath = static_cast<const DsAudioClip *>(clip)->path();
+    if (filePath != m_audioFiles[clip]->fileName()) {
+        handleClipRemoval(track, clip);
+        handleClipInsertion(track, clip);
+        return;
+    }
     auto trackClipSeries = m_trackAudioClipSeriesDict[track];
     auto &clipView = m_audioClips[clip];
     if (clipView.isNull()) {
