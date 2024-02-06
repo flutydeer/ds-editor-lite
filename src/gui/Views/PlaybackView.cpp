@@ -42,6 +42,16 @@ PlaybackView::PlaybackView(QWidget *parent) {
     // m_btnPlay->setText("Play");
     m_btnPlay->setCheckable(true);
 
+    m_btnPlayPause = new QPushButton(this);
+    connect(m_btnPlayPause, &QPushButton::clicked, this, [=] {
+        if (m_status == PlaybackController::Paused || m_status == PlaybackController::Stopped)
+            playTriggered();
+        else if (m_status == PlaybackController::Playing)
+            pauseTriggered();
+    });
+    m_btnPlayPause->setShortcut(Qt::Key_Space);
+    m_btnPlayPause->setFixedSize(0,0);
+
     m_btnPause = new QPushButton;
     m_btnPause->setObjectName("btnPause");
     m_btnPause->setFixedSize(m_contentHeight, m_contentHeight);

@@ -39,6 +39,7 @@ private:
     QPushButton *m_btnStop;
     QPushButton *m_btnPlay;
     QPushButton *m_btnPause;
+    QPushButton *m_btnPlayPause;
     // QPushButton *m_btnLoop;
     EditLabel *m_elTime;
     QComboBox *m_cbQuantize;
