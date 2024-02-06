@@ -19,6 +19,10 @@ void TimelineView::setPosition(double tick) {
     m_position = tick;
     update();
 }
+void TimelineView::setQuantize(int quantize) {
+    ITimelinePainter::setQuantize(quantize);
+    update();
+}
 void TimelineView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
     QPainter painter(this);

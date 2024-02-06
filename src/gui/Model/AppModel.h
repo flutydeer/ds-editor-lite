@@ -41,6 +41,8 @@ public:
     const QList<DsTrack *> &tracks() const;
     void insertTrack(DsTrack *track, int index);
     void removeTrack(int index);
+    int quantize() const;
+    void setQuantize(int quantize);
 
     void newProject();
     bool importMidiFile(const QString &filename);
@@ -66,6 +68,7 @@ signals:
     void timeSignatureChanged(int numerator, int denominator);
     void tracksChanged(TrackChangeType type, int index, DsTrack *track);
     void selectedClipChanged(int trackIndex, int clipIndex);
+    void quantizeChanged(int quantize);
 
 private:
     void reset();
@@ -78,6 +81,8 @@ private:
     // instance
     int m_selectedClipTrackIndex = -1;
     int m_selectedClipId = -1;
+
+    int m_quantize = 16;
 };
 
 

@@ -65,6 +65,14 @@ void AppModel::removeTrack(int index) {
     m_tracks.removeAt(index);
     emit tracksChanged(Remove, index, track);
 }
+int AppModel::quantize() const {
+    return m_quantize;
+}
+void AppModel::setQuantize(int quantize) {
+    m_quantize = quantize;
+    emit quantizeChanged(quantize);
+    qDebug() << "AppModel quantizeChanged" << quantize;
+}
 void AppModel::newProject() {
     reset();
     emit modelChanged();

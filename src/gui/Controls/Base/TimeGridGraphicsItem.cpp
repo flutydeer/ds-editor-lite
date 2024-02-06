@@ -19,6 +19,10 @@ void TimeGridGraphicsItem::setTimeSignature(int numerator, int denominator) {
     ITimelinePainter::setTimeSignature(numerator, denominator);
     update();
 }
+void TimeGridGraphicsItem::setQuantize(int quantize) {
+    ITimelinePainter::setQuantize(quantize);
+    update();
+}
 void TimeGridGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                  QWidget *widget) {
     auto penWidth = 1;

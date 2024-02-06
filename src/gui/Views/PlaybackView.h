@@ -7,6 +7,7 @@
 
 #include <QWidget>
 #include <QPushButton>
+#include <QComboBox>
 
 #include "./Controller/PlaybackController.h"
 #include "Controls/Base/EditLabel.h"
@@ -23,6 +24,7 @@ signals:
     void pauseTriggered();
     void stopTriggered();
     void setPositionTriggered(double tick);
+    void setQuantizeTriggered(int value);
 
 public slots:
     void updateView();
@@ -39,6 +41,7 @@ private:
     QPushButton *m_btnPause;
     // QPushButton *m_btnLoop;
     EditLabel *m_elTime;
+    QComboBox *m_cbQuantize;
 
     double m_tempo = 120;
     int m_numerator = 4;
@@ -57,6 +60,9 @@ private:
     const QIcon icoPauseBlack = QIcon(":svg/icons/pause_16_filled.svg");
     const QIcon icoStopWhite = QIcon(":svg/icons/stop_16_filled_white.svg");
     const QIcon icoStopBlack = QIcon(":svg/icons/stop_16_filled.svg");
+
+    const QStringList quantizeStrings = {"1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"};
+    const QList<int> quantizeValues = {2, 4, 8, 16, 32, 64, 128};
 
     void updateTempoView();
     void updateTimeSignatureView();

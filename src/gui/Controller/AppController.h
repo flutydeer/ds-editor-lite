@@ -25,6 +25,7 @@ public slots:
     void onRunG2p();
     void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);
+    void onSetQuantize(int quantize);
 
 private:
     bool isPowerOf2(int num);
