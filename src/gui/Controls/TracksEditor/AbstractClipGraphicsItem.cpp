@@ -11,6 +11,7 @@
 #include "AbstractClipGraphicsItem.h"
 #include "TracksEditorGlobal.h"
 #include "TracksGraphicsScene.h"
+#include "Utils/MathUtils.h"
 
 using namespace TracksEditorGlobal;
 
@@ -116,6 +117,9 @@ bool AbstractClipGraphicsItem::isOverlappedWith(AbstractClipGraphicsItem *obj) c
     if (otherVisibleEnd <= curVisibleStart || curVisibleEnd <= otherVisibleStart)
         return false;
     return true;
+}
+void AbstractClipGraphicsItem::setQuantize(int quantize) {
+    m_quantize = quantize;
 }
 QRectF AbstractClipGraphicsItem::previewRect() const {
     auto penWidth = 2.0f;
@@ -234,15 +238,6 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 
     auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() / pixelsPerQuarterNote * 480;
 
-    // snap tick to grid
-    auto roundPos = [](int i, int step) {
-        int times = i / step;
-        int mod = i % step;
-        if (mod > step / 2)
-            return step * (times + 1);
-        return step * times;
-    };
-
     int start;
     int clipStart;
     int left;
@@ -250,16 +245,16 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     int right;
     int deltaClipStart;
     int delta = qRound(dx);
-    int quantize = m_tempQuantizeOff ? 1 : m_quantize;
+    int quantize = m_tempQuantizeOff ? 1 : 1920 / m_quantize;
     m_propertyEdited = true;
     switch (m_mouseMoveBehavior) {
         case Move:
-            left = roundPos(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
+            left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
             start = left - m_mouseDownClipStart;
             setStart(start);
             break;
         case ResizeLeft:
-            left = roundPos(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
+            left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
             start = m_mouseDownStart;
             clipStart = left - start;
             clipLen = m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen - left;
@@ -278,7 +273,7 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             }
             break;
         case ResizeRight:
-            right = roundPos(m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta,
+            right = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta,
                              quantize);
             clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
             if (clipLen <= 0)

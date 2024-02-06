@@ -27,6 +27,16 @@ MainWindow::MainWindow() {
         "border-radius: 6px; color: #F0F0F0;padding: 4px 12px;} "
         "QPushButton:hover {background-color: #80343536; } "
         "QPushButton:pressed {background-color: #40202122 } "
+        "QComboBox { background: #402A2B2C; border: 1px solid #80606060; "
+        "border-radius: 6px; color: #F0F0F0;padding: 4px 12px;} "
+        "QComboBox:hover {background-color: #80343536; } "
+        "QComboBox QAbstractItemView { outline: 0px; border: 1px solid #80606060; color: #F0F0F0;"
+        "background-color: #202122; border: 1px solid #606060; "
+        "selection-background-color: #3A3B3C; "
+        "border-style: none; border-radius: 4px; }"
+        "QComboBox::drop-down { border: none }"
+        "QComboBox::down-arrow { right: 10px;  width: 12px; height: 12px; "
+        "image: url(:svg/icons/chevron_down_16_filled_white.svg)}"
         "QScrollBar::vertical{ width:10px; background-color: transparent; border-style: none; "
         "border-radius: 4px; } "
         "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; } "
@@ -228,6 +238,7 @@ MainWindow::MainWindow() {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
     });
+    connect(playbackView, &PlaybackView::setQuantizeTriggered, appController, &AppController::onSetQuantize);
     connect(playbackController, &PlaybackController::playbackStatusChanged, playbackView,
             &PlaybackView::onPlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, playbackView,

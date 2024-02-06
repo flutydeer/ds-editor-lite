@@ -11,6 +11,7 @@
         <file>svg/icons/folder_open_16_filled.svg</file>
         <file>svg/icons/chevron_right_16_filled.svg</file>
         <file>svg/icons/chevron_down_16_filled.svg</file>
+        <file>svg/icons/chevron_down_16_filled_white.svg</file>
         <file>svg/icons/dismiss_16_filled.svg</file>
         <file>svg/icons/navigation_16_filled.svg</file>
 
@@ -24,7 +25,9 @@
         <file>svg/icons/save_16_filled.svg</file>
         <file>svg/icons/save_edit_20_filled.svg</file>
         <file>svg/icons/arrow_undo_16_filled.svg</file>
+        <file>svg/icons/arrow_undo_16_filled_white.svg</file>
         <file>svg/icons/arrow_redo_16_filled.svg</file>
+        <file>svg/icons/arrow_redo_16_filled_white.svg</file>
         <file>svg/icons/cut_20_filled.svg</file>
         <file>svg/icons/copy_16_filled.svg</file>
         <file>svg/icons/clipboard_paste_16_filled.svg</file>

@@ -8,7 +8,7 @@ void ITimelinePainter::drawTimeline(QPainter *painter, double startTick, double 
                                     double rectWidth) {
     auto ticksPerPixel = (endTick - startTick) / rectWidth;
 
-    bool canDrawEighthLine = 240 / ticksPerPixel >= m_minimumSpacing;
+    bool canDrawEighthLine = m_quantize >= 8 && 240 / ticksPerPixel >= m_minimumSpacing;
     bool canDrawQuarterLine = 480 / ticksPerPixel >= m_minimumSpacing;
     int barTicks = 1920 * m_numerator / m_denominator;
     int beatTicks = 1920 / m_denominator;
@@ -59,4 +59,7 @@ void ITimelinePainter::setPixelsPerQuarterNote(int px) {
 void ITimelinePainter::setTimeSignature(int numerator, int denominator) {
     m_numerator = numerator;
     m_denominator = denominator;
+}
+void ITimelinePainter::setQuantize(int quantize) {
+    m_quantize = quantize;
 }

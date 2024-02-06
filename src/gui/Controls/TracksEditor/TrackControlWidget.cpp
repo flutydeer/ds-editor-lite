@@ -97,6 +97,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_sbarGain->setMax(100); // +6dB
     m_sbarGain->setMin(0);   // -inf
     m_sbarGain->setDefaultValue(79.4328234724);
+    m_sbarGain->setValue(79.4328234724);
     connect(m_sbarGain, &SeekBar::valueChanged, this, &TrackControlWidget::onSeekBarValueChanged);
 
     m_leGain = new EditLabel();
@@ -259,8 +260,8 @@ DsTrackControl TrackControlWidget::control() const {
 void TrackControlWidget::setControl(const DsTrackControl &control) {
     auto barValue = std::pow(10, (114 + control.gain()) / 60);
     qDebug() << "control gain" << control.gain() << "barValue" << barValue;
-    m_sbarGain->setValue(barValue);
-    m_sbarPan->setValue(control.pan());
+    m_sbarGain->setValueAsync(barValue);
+    m_sbarPan->setValueAsync(control.pan());
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());
     // emit propertyChanged();

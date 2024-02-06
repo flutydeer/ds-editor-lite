@@ -16,6 +16,7 @@ public slots:
     void setTimeRange(double startTick, double endTick);
     void setTimeSignature(int numerator, int denominator) override;
     void setPosition(double tick);
+    void setQuantize(int quantize) override;
 
 signals:
     void wheelHorScale(QWheelEvent *event);

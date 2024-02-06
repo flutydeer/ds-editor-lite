@@ -49,6 +49,9 @@ public:
     int compareTo(AbstractClipGraphicsItem *obj) const;
     bool isOverlappedWith(AbstractClipGraphicsItem *obj) const;
 
+public slots:
+    void setQuantize(int quantize);
+
 signals:
     void propertyChanged();
     void removeTriggered(int id);
@@ -100,7 +103,7 @@ private:
     bool m_propertyEdited = false;
 
     int m_trackIndex = 0;
-    int m_quantize = 240; // tick, half quarter note
+    int m_quantize = 16;
     bool m_tempQuantizeOff = false;
     bool m_showDebugInfo = false;
 
