@@ -26,6 +26,7 @@ public slots:
     void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);
     void onSetQuantize(int quantize);
+    void onTrackSelectionChanged(int trackIndex);
 
 private:
     bool isPowerOf2(int num);

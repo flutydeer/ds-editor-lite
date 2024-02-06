@@ -30,17 +30,20 @@ TracksView::TracksView() {
     m_trackListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trackListWidget->setVerticalScrollMode(QListWidget::ScrollPerPixel);
     m_trackListWidget->setStyleSheet("QListWidget { background: #2A2B2C; border: none; "
-                                     "border-right: 1px solid #202020; outline:0px; } "
+                                     "border-right: 1px solid #202020; outline:0px;"
+                                     "border-top: 1px solid #202020;"
+                                     "margin-bottom: 16px } "
                                      "QListWidget::item:hover { background: #2E2F30 }"
                                      "QListWidget::item:selected { background: #373839 }");
     m_trackListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     QScroller::grabGesture(m_trackListWidget, QScroller::TouchGesture);
-    // m_trackListWidget->setStyleSheet("QListWidget::item{ height: 72px }");
+    connect(m_trackListWidget, &QListWidget::currentRowChanged, AppController::instance(),
+            &AppController::onTrackSelectionChanged);
 
     m_graphicsView = new TracksGraphicsView;
     // QScroller::grabGesture(m_graphicsView, QScroller::TouchGesture);
-    m_graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    m_graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     m_graphicsView->setEnsureSceneFillView(false);
     connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
             &TracksView::onViewScaleChanged);
@@ -79,15 +82,15 @@ TracksView::TracksView() {
     connect(this, &TracksView::trackCountChanged, m_gridItem,
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
     auto appModel = AppModel::instance();
-    connect(appModel, &AppModel::modelChanged, m_gridItem,
-            [=] {
-                m_gridItem->setTimeSignature(appModel->numerator(), appModel->denominator());
-                m_gridItem->setQuantize(appModel->quantize());
-            });
+    connect(appModel, &AppModel::modelChanged, m_gridItem, [=] {
+        m_gridItem->setTimeSignature(appModel->numerator(), appModel->denominator());
+        m_gridItem->setQuantize(appModel->quantize());
+    });
     connect(appModel, &AppModel::timeSignatureChanged, m_gridItem,
             &TimeGridGraphicsItem::setTimeSignature);
-    connect(appModel, &AppModel::quantizeChanged, m_gridItem,
-            &TimeGridGraphicsItem::setQuantize);
+    connect(appModel, &AppModel::quantizeChanged, m_gridItem, &TimeGridGraphicsItem::setQuantize);
+    connect(appModel, &AppModel::selectedTrackChanged, m_gridItem,
+            &TracksBackgroundGraphicsItem::onTrackSelectionChanged);
     m_tracksScene->addItem(m_gridItem);
 
     m_timeline = new TimelineView;
@@ -106,8 +109,7 @@ TracksView::TracksView() {
     connect(appModel, &AppModel::timeSignatureChanged, m_timeline, &TimelineView::setTimeSignature);
     connect(m_gridItem, &TimeGridGraphicsItem::timeRangeChanged, m_timeline,
             &TimelineView::setTimeRange);
-    connect(appModel, &AppModel::quantizeChanged, m_timeline,
-            &TimelineView::setQuantize);
+    connect(appModel, &AppModel::quantizeChanged, m_timeline, &TimelineView::setQuantize);
 
     m_scenePlayPosIndicator = new TimeIndicatorGraphicsItem;
     m_scenePlayPosIndicator->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
@@ -143,6 +145,7 @@ TracksView::TracksView() {
     auto gBar = m_graphicsView->verticalScrollBar();
     auto lBar = m_trackListWidget->verticalScrollBar();
     connect(gBar, &QScrollBar::valueChanged, lBar, &QScrollBar::setValue);
+    connect(lBar, &QScrollBar::valueChanged, gBar, &QScrollBar::setValue);
 
     connect(playbackController, &PlaybackController::positionChanged, this,
             &TracksView::onPositionChanged);
@@ -158,10 +161,10 @@ TracksView::TracksView() {
     // splitter->addWidget(tracklist);
     // splitter->addWidget(m_graphicsView);
 
-    m_timeline->setFixedHeight(38);
+    m_timeline->setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
 
     auto trackListHeaderView = new TrackListHeaderView;
-    trackListHeaderView->setFixedHeight(38);
+    trackListHeaderView->setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
 
     auto trackListPanelLayout = new QVBoxLayout;
     trackListPanelLayout->addWidget(trackListHeaderView);
@@ -395,14 +398,14 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
         clipItem->setScaleX(m_graphicsView->scaleX());
         clipItem->setScaleY(m_graphicsView->scaleY());
         m_tracksScene->addItem(clipItem);
-        qDebug() << "Audio clip graphics item added to scene"  << clipItem->id() << clipItem->name();
+        qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
         connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
                 &AudioClipGraphicsItem::setScale);
         connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
                 &AudioClipGraphicsItem::setVisibleRect);
         connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
         connect(AppModel::instance(), &AppModel::quantizeChanged, clipItem,
-            &AbstractClipGraphicsItem::setQuantize);
+                &AbstractClipGraphicsItem::setQuantize);
         connect(clipItem, &AudioClipGraphicsItem::propertyChanged, this, [=] {
             auto clip = findClipItemById(clipItem->id());
             if (clip == clipItem) {
@@ -439,7 +442,8 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
         clipItem->setScaleX(m_graphicsView->scaleX());
         clipItem->setScaleY(m_graphicsView->scaleY());
         m_tracksScene->addItem(clipItem);
-        qDebug() << "Singing clip graphics item added to scene" << clipItem->id() << clipItem->name();
+        qDebug() << "Singing clip graphics item added to scene" << clipItem->id()
+                 << clipItem->name();
         connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
                 &SingingClipGraphicsItem::setScale);
         connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
@@ -447,7 +451,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
                 [=](int id) { emit removeClipTriggered(id); });
         connect(AppModel::instance(), &AppModel::quantizeChanged, clipItem,
-            &AbstractClipGraphicsItem::setQuantize);
+                &AbstractClipGraphicsItem::setQuantize);
         connect(clipItem, &SingingClipGraphicsItem::propertyChanged, this, [=] {
             auto clip = findClipItemById(clipItem->id());
             if (clip == clipItem) {

@@ -6,6 +6,9 @@
 
 #include "TimelineView.h"
 
+
+#include "Utils/AppGlobal.h"
+
 void TimelineView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
@@ -34,7 +37,8 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     painter.setBrush(Qt::NoBrush);
 
     // Draw graduates
-    drawTimeline(&painter, m_startTick, m_endTick, rect().width());
+    drawTimeline(&painter, m_startTick, m_endTick,
+                 rect().width() - AppGlobal::verticalScrollBarWidth);
 
     // Draw playback indicator
     auto penWidth = 2.0;
@@ -107,11 +111,13 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
 }
 double TimelineView::tickToX(double tick) {
     auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
-    auto x = qRound(rect().width() * ratio);
+    auto x = qRound((rect().width() - AppGlobal::verticalScrollBarWidth) * ratio);
     return x;
 }
 double TimelineView::xToTick(double x) {
-    auto tick = 1.0 * x / rect().width() * (m_endTick - m_startTick) + m_startTick;
+    auto tick =
+        1.0 * x / (rect().width() - AppGlobal::verticalScrollBarWidth) * (m_endTick - m_startTick) +
+        m_startTick;
     if (tick < 0)
         tick = 0;
     return tick;

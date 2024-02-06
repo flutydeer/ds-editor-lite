@@ -443,7 +443,8 @@ bool AppModel::loadAProject(const QString &filename) {
             auto objTension = objParams.value("tension").toObject();
             dsParams.tension = decodeSingingParam(objTension);
         }
-        if (!(objParams.value("breathiness").isUndefined() || objParams.value("breathiness").isNull())) {
+        if (!(objParams.value("breathiness").isUndefined() ||
+              objParams.value("breathiness").isNull())) {
             auto objBreathiness = objParams.value("breathiness").toObject();
             dsParams.breathiness = decodeSingingParam(objBreathiness);
         }
@@ -480,11 +481,13 @@ bool AppModel::loadAProject(const QString &filename) {
             note.setKeyIndex(objNote.value("keyNum").toInt());
             note.setLyric(objNote.value("lyric").toString());
             note.setPronunciation("la");
-            if (!(objPhonemes.value("original").isUndefined() || objPhonemes.value("original").isNull())) {
+            if (!(objPhonemes.value("original").isUndefined() ||
+                  objPhonemes.value("original").isNull())) {
                 note.phonemes.original.append(
                     decodePhonemes(objPhonemes.value("original").toArray()));
             }
-            if (!(objPhonemes.value("edited").isUndefined() || objPhonemes.value("edited").isNull())) {
+            if (!(objPhonemes.value("edited").isUndefined() ||
+                  objPhonemes.value("edited").isNull())) {
                 note.phonemes.edited.append(decodePhonemes(objPhonemes.value("edited").toArray()));
             }
             notes.append(note);
@@ -554,7 +557,8 @@ bool AppModel::loadAProject(const QString &filename) {
         auto projTimesig = projTimeline.value("timeSignatures").toArray().first().toObject();
         m_numerator = projTimesig.value("numerator").toInt();
         m_denominator = projTimesig.value("denominator").toInt();
-        m_tempo = projTimeline.value("tempos").toArray().first().toObject().value("value").toDouble();
+        m_tempo =
+            projTimeline.value("tempos").toArray().first().toObject().value("value").toDouble();
         decodeTracks(projContent.value("tracks").toArray(), m_tracks);
         // auto clip = tracks().first().clips.first().dynamicCast<DsSingingClip>();
         // qDebug() << clip->notes.count();
@@ -563,11 +567,18 @@ bool AppModel::loadAProject(const QString &filename) {
     }
     return false;
 }
+int AppModel::selectedTrackIndex() const {
+    return m_selectedTrackIndex;
+}
 void AppModel::onSelectedClipChanged(int trackIndex, int clipId) {
     qDebug() << "AppModel::onSelectedClipChanged" << trackIndex << clipId;
     m_selectedClipTrackIndex = trackIndex;
     m_selectedClipId = clipId;
     emit selectedClipChanged(m_selectedClipTrackIndex, m_selectedClipId);
+}
+void AppModel::setSelectedTrack(int trackIndex) {
+    m_selectedTrackIndex = trackIndex;
+    emit selectedTrackChanged(trackIndex);
 }
 void AppModel::reset() {
     m_tempo = 120;

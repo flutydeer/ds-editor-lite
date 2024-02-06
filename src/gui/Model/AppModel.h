@@ -49,6 +49,9 @@ public:
     bool exportMidiFile(const QString &filename);
     bool loadAProject(const QString &filename);
 
+    int selectedTrackIndex() const;
+    void setSelectedTrack(int trackIndex);
+
     class LevelMetersUpdatedArgs {
     public:
         class State {
@@ -69,6 +72,7 @@ signals:
     void tracksChanged(TrackChangeType type, int index, DsTrack *track);
     void selectedClipChanged(int trackIndex, int clipIndex);
     void quantizeChanged(int quantize);
+    void selectedTrackChanged(int trackIndex);
 
 private:
     void reset();
@@ -78,7 +82,7 @@ private:
     double m_tempo = 120;
     QList<DsTrack *> m_tracks;
 
-    // instance
+    int m_selectedTrackIndex = -1;
     int m_selectedClipTrackIndex = -1;
     int m_selectedClipId = -1;
 

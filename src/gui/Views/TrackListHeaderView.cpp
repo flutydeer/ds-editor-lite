@@ -12,13 +12,8 @@
 TrackListHeaderView::TrackListHeaderView(QWidget *parent) {
     setObjectName("trackListHeaderView");
 
-    auto btnNewTrack = new QPushButton;
-    btnNewTrack->setText("New Track");
-    connect(btnNewTrack, &QPushButton::clicked, TracksViewController::instance(),
-            &TracksViewController::onNewTrack);
-
     auto mainLayout = new QHBoxLayout;
-    mainLayout->addWidget(btnNewTrack);
+    // mainLayout->addWidget();
     mainLayout->setContentsMargins(6, 6, 6, 6);
 
     setLayout(mainLayout);

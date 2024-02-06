@@ -71,6 +71,9 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
 void AppController::onSetQuantize(int quantize) {
     AppModel::instance()->setQuantize(quantize);
 }
+void AppController::onTrackSelectionChanged(int trackIndex) {
+    AppModel::instance()->setSelectedTrack(trackIndex);
+}
 bool AppController::isPowerOf2(int num) {
     return num > 0 && ((num & (num - 1)) == 0);
 }

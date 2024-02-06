@@ -37,29 +37,24 @@ MainWindow::MainWindow() {
         "QComboBox::drop-down { border: none }"
         "QComboBox::down-arrow { right: 10px;  width: 12px; height: 12px; "
         "image: url(:svg/icons/chevron_down_16_filled_white.svg)}"
-        "QScrollBar::vertical{ width:10px; background-color: transparent; border-style: none; "
-        "border-radius: 4px; } "
+        "QScrollBar::vertical{ width: 16px; background-color: #05FFFFFF; border-style: none; } "
         "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; } "
-        "QScrollBar::handle::vertical{ border-radius:4px; width: 10px; background:rgba(255, 255, "
-        "255, 0.2); } "
-        "QScrollBar::handle::vertical::hover{ background:rgba(255, 255, 255, 0.3); } "
-        "QScrollBar::handle::vertical:pressed{ background:rgba(255, 255, 255, 0.1); } "
+        "QScrollBar::handle::vertical{ border-radius: 2px; margin: 6px; background:rgba(255, 255, "
+        "255, 0.25); } "
+        "QScrollBar::handle::vertical::hover{ border-radius: 3px; margin: 5px; "
+        "background:rgba(255, 255, 255, 0.35); } "
+        "QScrollBar::handle::vertical:pressed{ background:rgba(255, 255, 255, 0.15); } "
         "QScrollBar::add-line::vertical, QScrollBar::sub-line::vertical{ border:none; } "
-        "QScrollBar::horizontal{ height:10px; background-color: transparent; border-style: none; "
-        "border-radius: 4px; } "
+        "QScrollBar::horizontal{ height: 16px; background-color: #05FFFFFF; border-style: none; } "
         "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; } "
-        "QScrollBar::handle::horizontal{ border-radius:4px; width: 10px; background:rgba(255, 255, "
-        "255, 0.2); } "
-        "QScrollBar::handle::horizontal::hover{ background:rgba(255, 255, 255, 0.3); } "
-        "QScrollBar::handle::horizontal:pressed{ background:rgba(255, 255, 255, 0.1); } "
+        "QScrollBar::handle::horizontal{ border-radius: 2px; margin: 6px; background:rgba(255, "
+        "255, "
+        "255, 0.25); } "
+        "QScrollBar::handle::horizontal::hover{ border-radius: 3px; margin: 5px; "
+        "background:rgba(255, 255, 255, 0.35); } "
+        "QScrollBar::handle::horizontal:pressed{ background:rgba(255, 255, 255, 0.15); } "
         "QScrollBar::add-line::horizontal, QScrollBar::sub-line::horizontal{ border:none; } "
-        "QSplitter { background-color: transparent; border: none; } "
-        "QSplitter::handle { background-color: transparent; margin: 0px 4px; } "
-        "QSplitterHandle::item:hover {} QSplitter::handle:hover { background-color: rgb(155, 186, "
-        "255); } "
-        "QSplitter::handle:pressed { background-color: rgb(112, 156, 255); } "
-        "QSplitter::handle:horizontal { width: "
-        "4px; } "
+        "QSplitter { background-color: #2A2B2C; border: none; } "
         "QSplitter::handle:vertical { height: 6px; } "
         "QGraphicsView { border: none; background-color: #2A2B2C;}"
         "QListWidget { background: #2A2B2C; border: none } "
@@ -171,6 +166,13 @@ MainWindow::MainWindow() {
     menuEdit->addAction(actionPaste);
     menuEdit->addAction(actionDelete);
 
+    auto menuInsert = new QMenu("&Insert", this);
+
+    auto actionInsertNewTrack = new QAction("New track", this);
+    connect(actionInsertNewTrack, &QAction::triggered, TracksViewController::instance(),
+            &TracksViewController::onNewTrack);
+    menuInsert->addAction(actionInsertNewTrack);
+
     auto menuOptions = new QMenu("&Options", this);
     auto actionAudioSettings = new QAction("&Audio settings", this);
     connect(actionAudioSettings, &QAction::triggered, this, [=] {
@@ -187,6 +189,7 @@ MainWindow::MainWindow() {
 
     menuBar->addMenu(menuFile);
     menuBar->addMenu(menuEdit);
+    menuBar->addMenu(menuInsert);
     menuBar->addMenu(menuOptions);
     menuBar->addMenu(menuHelp);
 
@@ -238,7 +241,8 @@ MainWindow::MainWindow() {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
     });
-    connect(playbackView, &PlaybackView::setQuantizeTriggered, appController, &AppController::onSetQuantize);
+    connect(playbackView, &PlaybackView::setQuantizeTriggered, appController,
+            &AppController::onSetQuantize);
     connect(playbackController, &PlaybackController::playbackStatusChanged, playbackView,
             &PlaybackView::onPlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, playbackView,

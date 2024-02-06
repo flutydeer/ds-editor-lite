@@ -10,6 +10,7 @@ namespace TracksEditorGlobal {
     const double trackHeight = 72;
     const int trackListWidth = 360;
     const double narrowModeScaleY = 0.8;
+    const int trackViewHeaderHeight = 36;
 };
 
 #endif //TRACKSEDITORGLOBAL_H
