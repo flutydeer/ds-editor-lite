@@ -96,6 +96,10 @@ void SeekBar::setValue(double value) {
     m_value = value;
     repaint();
 }
+void SeekBar::setValueAsync(double value) {
+    m_cachedValue = value;
+    m_hasAsyncSetValueTask = true;
+}
 
 void SeekBar::setDefaultValue(double value) {
     m_defaultValue = value;
@@ -168,6 +172,10 @@ void SeekBar::mousePressEvent(QMouseEvent *event) {
 }
 
 void SeekBar::mouseReleaseEvent(QMouseEvent *event) {
+    if (m_hasAsyncSetValueTask) {
+        setValue(m_cachedValue);
+        m_hasAsyncSetValueTask = false;
+    }
     //    qDebug() << "release";
     m_thumbHoverAnimation->stop();
     m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);

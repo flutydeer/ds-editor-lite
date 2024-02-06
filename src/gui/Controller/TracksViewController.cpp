@@ -93,6 +93,7 @@ void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChang
         }
     }
     track->removeClipQuietly(clip);
+    clip->setName(args.name);
     clip->setStart(args.start);
     clip->setClipStart(args.clipStart);
     clip->setLength(args.length);

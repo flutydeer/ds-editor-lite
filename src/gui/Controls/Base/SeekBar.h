@@ -22,6 +22,7 @@ public:
 
     double value();
     void setValue(double value);
+    void setValueAsync(double value);
     void setDefaultValue(double value);
     void setMax(double max);
     void setMin(double min);
@@ -43,6 +44,9 @@ protected:
 
 private:
     void calculateParams();
+    bool m_hasAsyncSetValueTask = false;
+    double m_cachedValue = 0;
+
     int m_padding = 0;
     int m_trackPenWidth = 0;
     QRect m_rect;

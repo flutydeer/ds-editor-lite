@@ -374,6 +374,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
         auto audioClip = dynamic_cast<DsAudioClip *>(clip);
         auto clipItem = new AudioClipGraphicsItem(clip->id());
         clipItem->setContext(this);
+        clipItem->setName(clip->name());
         clipItem->setStart(start);
         clipItem->setClipStart(clipStart);
         clipItem->setLength(length);
@@ -387,6 +388,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
         clipItem->setScaleX(m_graphicsView->scaleX());
         clipItem->setScaleY(m_graphicsView->scaleY());
         m_tracksScene->addItem(clipItem);
+        qDebug() << "Audio clip graphics item added to scene"  << clipItem->id() << clipItem->name();
         connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
                 &AudioClipGraphicsItem::setScale);
         connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
@@ -397,6 +399,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
             if (clip == clipItem) {
                 DsClip::AudioClipPropertyChangedArgs args;
                 args.trackIndex = trackIndex;
+                args.name = clipItem->name();
                 args.id = clipItem->id();
                 args.start = clipItem->start();
                 args.clipStart = clipItem->clipStart();
@@ -427,6 +430,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
         clipItem->setScaleX(m_graphicsView->scaleX());
         clipItem->setScaleY(m_graphicsView->scaleY());
         m_tracksScene->addItem(clipItem);
+        qDebug() << "Singing clip graphics item added to scene" << clipItem->id() << clipItem->name();
         connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
                 &SingingClipGraphicsItem::setScale);
         connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
@@ -438,6 +442,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
             if (clip == clipItem) {
                 DsClip::ClipPropertyChangedArgs args;
                 args.trackIndex = trackIndex;
+                args.name = clipItem->name();
                 args.id = clipItem->id();
                 args.start = clipItem->start();
                 args.clipStart = clipItem->clipStart();

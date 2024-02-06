@@ -17,7 +17,7 @@ public:
     void setSolo(bool solo);
 
 private:
-    double m_gain = 1.0;
+    double m_gain = 0.0;
     double m_pan = 0;
     bool m_mute = false;
     bool m_solo = false;

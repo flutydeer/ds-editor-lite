@@ -94,13 +94,13 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
 
     m_sbarGain = new SeekBar;
     m_sbarGain->setObjectName("m_sbarGain");
-    m_sbarGain->setMax(200); // +6dB
-    m_sbarGain->setMin(0); // -inf
-    m_sbarGain->setDefaultValue(100);
+    m_sbarGain->setMax(100); // +6dB
+    m_sbarGain->setMin(0);   // -inf
+    m_sbarGain->setDefaultValue(79.4328234724);
     connect(m_sbarGain, &SeekBar::valueChanged, this, &TrackControlWidget::onSeekBarValueChanged);
 
     m_leGain = new EditLabel();
-    m_leGain->setText("0dB");
+    m_leGain->setText("0.0dB");
     m_leGain->setObjectName("leGain");
     m_leGain->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     m_leGain->label->setAlignment(Qt::AlignCenter);
@@ -108,17 +108,17 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_leGain->setFixedWidth(2 * m_buttonSize);
     m_leGain->setFixedHeight(m_buttonSize);
     m_leGain->setEnabled(false);
-    connect(m_sbarGain, &SeekBar::valueChanged, m_leGain, [=](int value) {
-        auto volume = 1.0 * value / 100;
-        auto gain = VolumeUtils::linearTodB(volume);
+    connect(m_sbarGain, &SeekBar::valueChanged, m_leGain, [=](double value) {
+        auto gain = 60 * std::log10(1.0 * value) - 114;
+        qDebug() << "gain" << gain;
         if (gain == -70)
             m_leGain->setText("-inf");
         else {
-            auto absVal = QString::number(qAbs(gain), 'g', 2);
+            auto absVal = QString::number(qAbs(gain), 'f', 1);
             QString sig = "";
             if (gain > 0) {
                 sig = "+";
-            } else if (gain < 0) {
+            } else if (gain < 0 && gain <= -0.1) {
                 sig = "-";
             }
             m_leGain->setText(sig + absVal + "dB");
@@ -249,14 +249,17 @@ void TrackControlWidget::setName(const QString &name) {
 }
 DsTrackControl TrackControlWidget::control() const {
     DsTrackControl control;
-    control.setGain(VolumeUtils::linearTodB(m_sbarGain->value() / 100));
+    auto gain = 60 * std::log10(m_sbarGain->value()) - 114;
+    control.setGain(gain);
     control.setPan(m_sbarPan->value());
     control.setMute(m_btnMute->isChecked());
     control.setSolo(m_btnSolo->isChecked());
     return control;
 }
 void TrackControlWidget::setControl(const DsTrackControl &control) {
-    m_sbarGain->setValue(VolumeUtils::dBToLinear(control.gain()) * 100);
+    auto barValue = std::pow(10, (114 + control.gain()) / 60);
+    qDebug() << "control gain" << control.gain() << "barValue" << barValue;
+    m_sbarGain->setValue(barValue);
     m_sbarPan->setValue(control.pan());
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());
@@ -285,8 +288,8 @@ LevelMeter *TrackControlWidget::levelMeter() const {
 void TrackControlWidget::onTrackUpdated(const DsTrack &track) {
     m_leTrackName->setText(track.name());
     auto control = track.control();
-    m_sbarGain->setValue(control.gain());
-    m_sbarPan->setValue(control.pan());
+    m_sbarGain->setValueAsync(control.gain());
+    m_sbarPan->setValueAsync(control.pan());
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());
 }

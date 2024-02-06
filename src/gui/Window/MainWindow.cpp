@@ -160,6 +160,13 @@ MainWindow::MainWindow() {
     menuEdit->addAction(actionPaste);
     menuEdit->addAction(actionDelete);
 
+    auto menuOptions = new QMenu("&Options", this);
+    auto actionAudioSettings = new QAction("&Audio settings", this);
+    connect(actionAudioSettings, &QAction::triggered, this, [=] {
+        AudioSystem::instance()->openAudioSettings();
+    });
+    menuOptions->addAction(actionAudioSettings);
+
     auto menuHelp = new QMenu("&Help", this);
     auto actionCheckForUpdates = new QAction("Check for updates", this);
     auto actionAbout = new QAction("About", this);
@@ -168,6 +175,7 @@ MainWindow::MainWindow() {
 
     menuBar->addMenu(menuFile);
     menuBar->addMenu(menuEdit);
+    menuBar->addMenu(menuOptions);
     menuBar->addMenu(menuHelp);
 
     auto m_tracksView = new TracksView;
