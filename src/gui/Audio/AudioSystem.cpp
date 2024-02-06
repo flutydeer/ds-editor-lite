@@ -203,6 +203,10 @@ talcs::TransportAudioSource *AudioSystem::transport() const {
     return m_tpSrc;
 }
 
+talcs::RemoteSocket *AudioSystem::socket() const {
+    return m_socket;
+}
+
 bool AudioSystem::isDeviceAutoClosed() const {
     return m_isDeviceAutoClosed;
 }
@@ -245,6 +249,7 @@ void AudioSystem::postSetDevice() {
     m_adoptedSampleRate = m_dev->sampleRate();
     m_isDeviceAutoClosed = false;
     m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
+    m_audioContext->handleDeviceChangeDuringPlayback();
     m_settings.setValue("audio/driverName", m_drv->name());
     m_settings.setValue("audio/deviceName", m_dev->name());
     m_settings.setValue("audio/adoptedBufferSize", m_adoptedBufferSize);
@@ -262,6 +267,7 @@ void AudioSystem::setAdoptedBufferSize(qint64 bufferSize) {
     m_settings.setValue("audio/adoptedBufferSize", m_adoptedBufferSize);
     if (m_adoptedBufferSize && m_adoptedSampleRate)
         m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
+    m_audioContext->handleDeviceChangeDuringPlayback();
 }
 double AudioSystem::adoptedSampleRate() const {
     return m_adoptedSampleRate;
@@ -278,26 +284,7 @@ void AudioSystem::setAdoptedSampleRate(double sampleRate) {
         m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
     m_audioContext->rebuildAllClips();
     m_audioContext->handleFileBufferingSizeChange();
-}
-
-void AudioSystem::openAudioSettings() {
-    m_tpSrc->pause();
-    if (m_dev)
-        m_dev->stop();
-    AudioSettingsDialog dlg;
-    dlg.setHotPlugMode(m_settings.value("audio/hotPlugMode", NotifyOnAnyChange).value<HotPlugMode>());
-    dlg.setCloseDeviceAtBackground(m_settings.value("audio/closeDeviceAtBackground", false).toBool());
-    dlg.setCloseDeviceOnPlaybackStop(m_settings.value("audio/closeDeviceOnPlaybackStop", false).toBool());
-    dlg.setFileBufferingSizeMsec(m_settings.value("audio/fileBufferingSizeMsec", 1000.0).toDouble());
-    if (dlg.exec() == QDialog::Accepted) {
-        m_settings.setValue("audio/hotPlugMode", dlg.hotPlugMode());
-        m_settings.setValue("audio/closeDeviceAtBackground", dlg.closeDeviceAtBackground());
-        m_settings.setValue("audio/closeDeviceOnPlaybackStop", dlg.closeDeviceOnPlaybackStop());
-        if (!qFuzzyCompare(dlg.fileBufferingSizeMsec(), m_settings.value("audio/fileBufferingSizeMsec", 1000.0).toDouble())) {
-            m_settings.setValue("audio/fileBufferingSizeMsec", dlg.fileBufferingSizeMsec());
-            m_audioContext->handleFileBufferingSizeChange();
-        }
-    }
+    m_audioContext->handleDeviceChangeDuringPlayback();
 }
 
 void AudioSystem::testDevice() {
@@ -323,7 +310,10 @@ void AudioSystem::handleDeviceHotPlug() {
     msgBox.addButton(QMessageBox::Ok);
     auto openAudioSettingsButton = new QPushButton(tr("Go to audio settings"));
     msgBox.addButton(openAudioSettingsButton, QMessageBox::NoRole);
-    connect(openAudioSettingsButton, &QPushButton::clicked, this, &AudioSystem::openAudioSettings);
+    connect(openAudioSettingsButton, &QPushButton::clicked, this, [=] {
+        AudioSettingsDialog dlg;
+        dlg.exec();
+    });
     switch(hotPlugMode) {
         case NotifyOnAnyChange:
             msgBox.exec();

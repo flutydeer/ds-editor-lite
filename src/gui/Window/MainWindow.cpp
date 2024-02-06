@@ -10,6 +10,7 @@
 #include <QMenuBar>
 
 #include "Audio/AudioSystem.h"
+#include "Audio/Dialogs/AudioSettingsDialog.h"
 #include "Controller/TracksViewController.h"
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
@@ -163,7 +164,8 @@ MainWindow::MainWindow() {
     auto menuOptions = new QMenu("&Options", this);
     auto actionAudioSettings = new QAction("&Audio settings", this);
     connect(actionAudioSettings, &QAction::triggered, this, [=] {
-        AudioSystem::instance()->openAudioSettings();
+        AudioSettingsDialog dlg(this);
+        dlg.exec();
     });
     menuOptions->addAction(actionAudioSettings);
 

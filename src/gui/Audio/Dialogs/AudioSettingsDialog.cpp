@@ -17,6 +17,7 @@
 #include <TalcsRemote/RemoteAudioDevice.h>
 
 #include "Audio/AudioSystem.h"
+#include "Audio/AudioContext.h"
 
 void AudioSettingsDialog::updateDeviceComboBox() {
     auto deviceList = AudioSystem::instance()->driver()->devices();
@@ -127,18 +128,22 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : QDialog(parent) {
     buttonLayout->addWidget(okButton);
     auto cancelButton = new QPushButton(tr("Cancel"));
     buttonLayout->addWidget(cancelButton);
+    auto applyButton = new QPushButton(tr("Apply"));
+    buttonLayout->addWidget(applyButton);
     mainLayout->addLayout(buttonLayout);
 
     setLayout(mainLayout);
 
     connect(okButton, &QPushButton::clicked, this, &AudioSettingsDialog::accept);
     connect(cancelButton, &QPushButton::clicked, this, &AudioSettingsDialog::reject);
+    connect(applyButton, &QPushButton::clicked, this, &AudioSettingsDialog::applySetting);
+    connect(this, &AudioSettingsDialog::accepted, this, &AudioSettingsDialog::applySetting);
 
     connect(testDeviceButton, &QPushButton::clicked, this, [=] {
         AudioSystem::instance()->testDevice();
     });
 
-    if (AudioSystem::instance()->m_socket) {
+    if (AudioSystem::instance()->socket()) {
         audioOutputLayout->insertRow(0, new QLabel(tr("These options are disabled in plugged mode.")));
         m_driverComboBox->setDisabled(true);
         m_deviceComboBox->addItem(AudioSystem::instance()->device()->name());
@@ -148,7 +153,7 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : QDialog(parent) {
         m_sampleRateComboBox->addItem(QString::number(AudioSystem::instance()->device()->sampleRate()));
         m_sampleRateComboBox->setDisabled(true);
         m_hotPlugModeComboBox->setDisabled(true);
-        connect(AudioSystem::instance()->m_remoteDev, &talcs::RemoteAudioDevice::remoteOpened, this, [=](qint64 bufferSize, double sampleRate) {
+        connect(static_cast<talcs::RemoteAudioDevice *>(AudioSystem::instance()->device()), &talcs::RemoteAudioDevice::remoteOpened, this, [=](qint64 bufferSize, double sampleRate) {
             m_bufferSizeComboBox->clear();
             m_sampleRateComboBox->clear();
             m_bufferSizeComboBox->addItem(QString::number(bufferSize));
@@ -157,6 +162,8 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : QDialog(parent) {
     } else {
         updateDriverComboBox();
     }
+
+    updateOptionsDisplay();
 }
 void AudioSettingsDialog::updateDriverComboBox() {
     if (!AudioSystem::instance()->driver())
@@ -178,7 +185,7 @@ void AudioSettingsDialog::updateDriverComboBox() {
             QMessageBox::warning(this, {}, tr("No audio device available in driver mode %1!").arg(AudioSystem::driverDisplayName(AudioSystem::instance()->driver()->name())));
 
         updateDeviceComboBox();
-        connect(AudioSystem::instance()->m_drv, &talcs::AudioDriver::deviceChanged, this, [=] {
+        connect(AudioSystem::instance()->driver(), &talcs::AudioDriver::deviceChanged, this, [=] {
             disconnect(m_deviceComboBox, nullptr, this, nullptr);
             m_deviceComboBox->clear();
             disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
@@ -237,3 +244,23 @@ void AudioSettingsDialog::setFileBufferingSizeMsec(double value) {
     m_fileBufferingSizeMsec->setValue(value);
 }
 
+void AudioSettingsDialog::updateOptionsDisplay() {
+    QSettings settings;
+    settings.beginGroup("audio");
+    setHotPlugMode(settings.value("hotPlugMode", AudioSystem::NotifyOnAnyChange).value<AudioSystem::HotPlugMode>());
+    setCloseDeviceAtBackground(settings.value("closeDeviceAtBackground", false).toBool());
+    setCloseDeviceOnPlaybackStop(settings.value("closeDeviceOnPlaybackStop", false).toBool());
+    setFileBufferingSizeMsec(settings.value("fileBufferingSizeMsec", 1000.0).toDouble());
+}
+
+void AudioSettingsDialog::applySetting() {
+    QSettings settings;
+    settings.beginGroup("audio");
+    settings.setValue("hotPlugMode", hotPlugMode());
+    settings.setValue("closeDeviceAtBackground", closeDeviceAtBackground());
+    settings.setValue("closeDeviceOnPlaybackStop", closeDeviceOnPlaybackStop());
+    if (!qFuzzyCompare(fileBufferingSizeMsec(), settings.value("fileBufferingSizeMsec", 1000.0).toDouble())) {
+        settings.setValue("fileBufferingSizeMsec", fileBufferingSizeMsec());
+        AudioSystem::instance()->audioContext()->handleFileBufferingSizeChange();
+    }
+}

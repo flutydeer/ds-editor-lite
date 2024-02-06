@@ -90,10 +90,14 @@ void AudioContext::handlePlaybackStatusChange(PlaybackController::PlaybackStatus
         case PlaybackController::Stopped:
             AudioSystem::instance()->transport()->pause();
             if (settings.value("audio/closeDeviceOnPlaybackStop", false).toBool() && AudioSystem::instance()->device())
-                AudioSystem::instance()->device()->stop();
+                AudioSystem::instance()->device()->close();
             AudioSystem::instance()->transport()->setPosition(tickToSample(PlaybackController::instance()->lastPosition()));
             break;
         case PlaybackController::Playing:
+            if (AudioSystem::instance()->device() && !AudioSystem::instance()->device()->isOpen())
+                AudioSystem::instance()->device()->open(AudioSystem::instance()->adoptedBufferSize(), AudioSystem::instance()->adoptedSampleRate());
+            if (!AudioSystem::instance()->device() || !AudioSystem::instance()->device()->isOpen())
+                QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
             if (AudioSystem::instance()->device() && !AudioSystem::instance()->device()->isStarted())
                 AudioSystem::instance()->device()->start(AudioSystem::instance()->playback());
             AudioSystem::instance()->transport()->play();
@@ -288,4 +292,14 @@ void AudioContext::handleFileBufferingSizeChange() {
     for (auto bufSrc: m_audioClipBufferingSources) {
         bufSrc->setReadAheadSize(settings.value("audio/fileBufferingSizeMsec", 1000.0).toDouble() / 1000.0 * AudioSystem::instance()->adoptedSampleRate());
     }
+}
+
+void AudioContext::handleDeviceChangeDuringPlayback() {
+    if (PlaybackController::instance()->playbackStatus() == PlaybackController::Playing) {
+        if (AudioSystem::instance()->device() && !AudioSystem::instance()->device()->isStarted())
+            AudioSystem::instance()->device()->start(AudioSystem::instance()->playback());
+        AudioSystem::instance()->transport()->play();
+    }
+    if (AudioSystem::instance()->adoptedSampleRate())
+        AudioSystem::instance()->transport()->setPosition(tickToSample(PlaybackController::instance()->position()));
 }

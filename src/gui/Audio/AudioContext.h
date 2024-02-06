@@ -50,6 +50,8 @@ public slots:
 
     void handleFileBufferingSizeChange();
 
+    void handleDeviceChangeDuringPlayback();
+
 signals:
     void levelMeterUpdated(const AppModel::LevelMetersUpdatedArgs &args);
 

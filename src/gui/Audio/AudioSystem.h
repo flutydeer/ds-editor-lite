@@ -34,6 +34,8 @@ public:
     static AudioSystem *instance();
 
     bool initialize(bool isVstMode);
+    bool findProperDriver();
+    bool findProperDevice();
 
     talcs::AudioDriverManager *driverManager() const;
     talcs::AudioDevice *device() const;
@@ -42,6 +44,7 @@ public:
     talcs::MixerAudioSource *preMixer() const;
     talcs::TransportAudioSource *transport() const;
     talcs::PositionableMixerAudioSource *masterTrack() const;
+    talcs::RemoteSocket *socket() const;
 
     bool isDeviceAutoClosed() const;
 
@@ -54,8 +57,6 @@ public:
     void setAdoptedBufferSize(qint64 bufferSize);
     double adoptedSampleRate() const;
     void setAdoptedSampleRate(double sampleRate);
-
-    void openAudioSettings();
 
     void testDevice();
 
@@ -70,8 +71,6 @@ public:
     static QString driverDisplayName(const QString &driverName);
 
 private:
-    friend class AudioSettingsDialog;
-
     QSettings m_settings;
 
     talcs::AudioDriverManager *m_drvMgr;
@@ -88,8 +87,6 @@ private:
     qint64 m_adoptedBufferSize = 0;
     double m_adoptedSampleRate = 0.0;
 
-    bool findProperDriver();
-    bool findProperDevice();
     void postSetDevice();
 
     void handleDeviceHotPlug();
