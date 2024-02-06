@@ -27,18 +27,42 @@ public:
     using reverse_iterator = typename QList<T *>::const_reverse_iterator;
     using const_reverse_iterator = typename QList<T *>::const_reverse_iterator;
 
-    iterator begin() { return m_list.cbegin(); }
-    iterator end() { return m_list.cend(); }
-    const_iterator begin() const { return m_list.cbegin(); }
-    const_iterator end() const { return m_list.cend(); }
-    const_iterator cbegin() const { return m_list.cbegin(); }
-    const_iterator cend() const { return m_list.cend(); }
-    reverse_iterator rbegin() { return m_list.crbegin(); }
-    reverse_iterator rend() { return m_list.crend(); }
-    const_reverse_iterator rbegin() const { return m_list.crbegin(); }
-    const_reverse_iterator rend() const { return m_list.crend(); }
-    const_reverse_iterator crbegin() const { return m_list.crbegin(); }
-    const_reverse_iterator crend() const { return m_list.crend(); }
+    iterator begin() {
+        return m_list.cbegin();
+    }
+    iterator end() {
+        return m_list.cend();
+    }
+    const_iterator begin() const {
+        return m_list.cbegin();
+    }
+    const_iterator end() const {
+        return m_list.cend();
+    }
+    const_iterator cbegin() const {
+        return m_list.cbegin();
+    }
+    const_iterator cend() const {
+        return m_list.cend();
+    }
+    reverse_iterator rbegin() {
+        return m_list.crbegin();
+    }
+    reverse_iterator rend() {
+        return m_list.crend();
+    }
+    const_reverse_iterator rbegin() const {
+        return m_list.crbegin();
+    }
+    const_reverse_iterator rend() const {
+        return m_list.crend();
+    }
+    const_reverse_iterator crbegin() const {
+        return m_list.crbegin();
+    }
+    const_reverse_iterator crend() const {
+        return m_list.crend();
+    }
 
 private:
     QList<T *> &overlappedIOverlapables();
@@ -55,18 +79,28 @@ void OverlapableSerialList<T>::add(T *item) {
         m_list.append(item);
         return;
     }
-    int i;
-    for (i = 0; i < m_list.size(); ++i) {
-        auto other = m_list.at(i);
-        if (other->isOverlappedWith(item)) {
-            other->setOverlapped(true);
+    int num = -1;
+    for (int i = 0; i < m_list.size(); i++) {
+        auto t = m_list.at(i);
+        if (num == -1 && t->compareTo(item) > 0)
+            num = i;
+        if (num == -1) {
+            if (t->isOverlappedWith(item)) {
+                t->setOverlapped(true);
+                item->setOverlapped(true);
+            }
+        } else {
+            if (!t->isOverlappedWith(item))
+                break;
+            t->setOverlapped(true);
             item->setOverlapped(true);
         }
-        if (item->compareTo(other) < 0) {
-            break;
-        }
     }
-    m_list.insert(i, item);
+    if (num != -1) {
+        m_list.insert(num, item);
+        return;
+    }
+    m_list.append(item);
 }
 template <typename T>
 void OverlapableSerialList<T>::remove(T *item) {
