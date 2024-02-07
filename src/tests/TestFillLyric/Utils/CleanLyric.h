@@ -7,7 +7,9 @@
 namespace FillLyric {
     class CleanLyric {
     public:
-        static QList<QStringList> cleanLyric(const QString &lyric);
+        enum LyricType { Letter, Hanzi, Digit, Fermata, Kana, Space, Other };
+        static QPair<QList<QStringList>, QList<QList<int>>>
+            cleanLyric(const QString &lyric, const QString &fermata = "-");
 
         static bool isLetter(QChar c);
 

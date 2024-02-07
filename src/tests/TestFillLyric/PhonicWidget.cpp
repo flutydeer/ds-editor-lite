@@ -32,11 +32,13 @@ namespace FillLyric {
         btnToTable = new QPushButton(">>");
         btnToText = new QPushButton("<<");
         btnImportLrc = new QPushButton("导入lrc");
+        btnToggleFermata = new QPushButton("收放延音符");
 
         cfgLayout->addStretch(1);
         cfgLayout->addWidget(btnInsertText);
         cfgLayout->addWidget(btnToTable);
         cfgLayout->addWidget(btnToText);
+        cfgLayout->addWidget(btnToggleFermata);
         cfgLayout->addWidget(btnImportLrc);
         cfgLayout->addStretch(1);
 
@@ -66,6 +68,8 @@ namespace FillLyric {
                 &PhonicWidget::_on_btnInsertText_clicked);
         connect(btnToText, &QAbstractButton::clicked, this, &PhonicWidget::_on_btnToText_clicked);
         connect(btnExport, &QAbstractButton::clicked, this, &PhonicWidget::_on_btnExport_clicked);
+        connect(btnToggleFermata, &QAbstractButton::clicked, this,
+                &PhonicWidget::_on_btnToggleFermata_clicked);
         connect(btnImportLrc, &QAbstractButton::clicked, this,
                 &PhonicWidget::_on_btnImportLrc_clicked);
 
@@ -80,6 +84,14 @@ namespace FillLyric {
         _on_cellChanged(tableView->currentIndex());
     }
 
+    int PhonicWidget::cellLyricType(const int row, const int col) {
+        return model->data(model->index(row, col), PhonicRole::LyricType).toInt();
+    }
+
+    QString PhonicWidget::cellLyric(const int row, const int col) {
+        return model->data(model->index(row, col), Qt::DisplayRole).toString();
+    }
+
     int PhonicWidget::currentLyricLength(const int row) {
         for (int i = model->columnCount() - 1; i >= 0; i--) {
             if (!model->data(model->index(row, i), Qt::DisplayRole).toString().isEmpty()) {
@@ -87,6 +99,78 @@ namespace FillLyric {
             }
         }
         return 0;
+    }
+
+    void PhonicWidget::collapseFermata() {
+        // 遍历模型每行
+        for (int i = 0; i < model->rowCount(); i++) {
+            int pos = 1;
+            while (pos < model->columnCount()) {
+                // 获取当前单元格的内容
+                auto currentType = cellLyricType(i, pos);
+                if (currentType == LyricType::Fermata) {
+                    int start = pos;
+                    while (pos < model->columnCount() &&
+                           cellLyricType(i, pos) == LyricType::Fermata) {
+                        pos++;
+                    }
+
+                    // 把pos-1的单元格的FermataRole设为折叠的FermataList
+                    QStringList fermataList;
+                    for (int j = start; j < pos; j++) {
+                        fermataList.append(cellLyric(i, j));
+                    }
+                    model->setData(model->index(i, start - 1), fermataList, PhonicRole::Fermata);
+
+                    // 右侧数据左移、覆盖延音符号
+                    for (int k = 0; k < fermataList.size(); k++) {
+                        _on_cellMoveLeft(model->index(i, pos - k));
+                    }
+                    pos = 1;
+                } else {
+                    pos++;
+                }
+            }
+        }
+    }
+
+    void PhonicWidget::expandFermata() {
+        // 遍历模型每行
+        for (int i = 0; i < model->rowCount(); i++) {
+            int pos = 0;
+            // 遍历每行的每个单元格
+            while (pos < model->columnCount()) {
+                // 获取当前单元格的FermataRole的内容
+                auto fermataList =
+                    model->data(model->index(i, pos), PhonicRole::Fermata).toStringList();
+
+                if (!fermataList.isEmpty()) {
+                    // 在右侧插入空白单元格
+                    if (pos + fermataList.size() + 1 > model->columnCount()) {
+                        model->setColumnCount(model->columnCount() + fermataList.size());
+                    } else {
+                        for (int j = 0; j < fermataList.size(); j++) {
+                            _on_cellMoveRight(model->index(i, pos + 1));
+                        }
+                    }
+                    // 将pos右侧的fermataList.size()个单元格的内容设置为fermataList[j]
+                    for (int j = 0; j < fermataList.size(); j++) {
+                        setFermata(i, pos + j + 1, fermataList[j]);
+                    }
+                    // 清空pos的FermataRole
+                    model->setData(model->index(i, pos), QVariant(), PhonicRole::Fermata);
+                    pos = 0;
+                }
+                pos++;
+            }
+        }
+    }
+
+    void PhonicWidget::setFermata(const int row, const int col, QString &fermata) {
+        model->setData(model->index(row, col), fermata, Qt::DisplayRole);
+        model->setData(model->index(row, col), fermata, PhonicRole::Syllable);
+        model->setData(model->index(row, col), QStringList(fermata), PhonicRole::Candidate);
+        model->setData(model->index(row, col), LyricType::Fermata, PhonicRole::LyricType);
     }
 
     void PhonicWidget::clearData(const int row, const int col, const QList<int> &roles) {
@@ -110,30 +194,36 @@ namespace FillLyric {
         // 获取文本框的内容
         QString text = textEdit->toPlainText();
         auto cleanRes = CleanLyric::cleanLyric(text);
+        auto lyricRes = cleanRes.first;
+        auto labelRes = cleanRes.second;
+
         // 清空表格
         model->clear();
         // 设置行列数
         // res中最长的一行的长度为列数
-        for (auto &line : cleanRes) {
+        for (auto &line : lyricRes) {
             if (line.size() > modelMaxCol) {
                 modelMaxCol = (int) line.size();
             }
         }
         model->setColumnCount(modelMaxCol);
-        model->setRowCount((int) cleanRes.size());
+        model->setRowCount((int) lyricRes.size());
 
         int maxLyricLength = 0;
         // 记录syllable长度
         int maxSyllableLength = 0;
 
         // 设置表格内容
-        for (int i = 0; i < cleanRes.size(); i++) {
-            auto lyrics = cleanRes[i];
+        for (int i = 0; i < lyricRes.size(); i++) {
+            auto lyrics = lyricRes[i];
+            auto labels = labelRes[i];
             QStringList syllables = g2p_man.hanziToPinyin(lyrics, false, false);
 
-            for (int j = 0; j < cleanRes[i].size(); j++) {
+            for (int j = 0; j < lyricRes[i].size(); j++) {
                 // 设置歌词
                 model->setData(model->index(i, j), lyrics[j], Qt::DisplayRole);
+                // 设置歌词类型
+                model->setData(model->index(i, j), labels[j], PhonicRole::LyricType);
                 // 设置注音
                 model->setData(model->index(i, j), syllables[j], PhonicRole::Syllable);
 
@@ -185,6 +275,17 @@ namespace FillLyric {
         textEdit->setText(res.join("\n"));
     }
 
+    void PhonicWidget::_on_btnToggleFermata_clicked() {
+        if (fermataState) {
+            expandFermata();
+        } else {
+            collapseFermata();
+        }
+        fermataState = !fermataState;
+        shrinkTable();
+        repaintTable();
+    }
+
     void PhonicWidget::_on_showContextMenu(const QPoint &pos) {
         // 获取点击位置的索引
         QModelIndex index = tableView->indexAt(pos);
@@ -206,13 +307,19 @@ namespace FillLyric {
             menu->addAction("插入空白单元格", [this, index]() { _on_cellMoveRight(index); });
             // 清空单元格
             menu->addAction("清空单元格", [this, index]() { _on_cellClear(index); });
+            // 向左归并单元格
+            if (col > 0)
+                menu->addAction("向左归并单元格", [this, index]() { _on_cellMergeLeft(index); });
             // 向左移动单元格
             if (col > 0)
                 menu->addAction("向左移动单元格", [this, index]() { _on_cellMoveLeft(index); });
+            // 向右移动单元格
+            menu->addAction("向右移动单元格", [this, index]() { _on_cellMoveRight(index); });
             menu->addSeparator();
 
             // 换行
-            menu->addAction("换行", [this, index]() { _on_cellNewLine(index); });
+            if (cellLyricType(row, col) != LyricType::Fermata)
+                menu->addAction("换行", [this, index]() { _on_cellNewLine(index); });
             // 合并到上一行
             if (row > 0 && col == 0)
                 menu->addAction("合并到上一行", [this, index]() { _on_cellMergeUp(index); });
@@ -234,13 +341,30 @@ namespace FillLyric {
         clearData(index.row(), index.column(), allRoles());
     }
 
+    void PhonicWidget::_on_cellMergeLeft(const QModelIndex &index) {
+        // 获取当前单元格坐标
+        int row = index.row();
+        int col = index.column();
+        // 获取左侧单元格的内容和当前单元格的DisplayRole的内容，合并到左侧单元格
+        auto leftData = model->data(model->index(row, col - 1), Qt::DisplayRole).toString();
+        auto currentData = model->data(index, Qt::DisplayRole).toString();
+        model->setData(model->index(row, col - 1), leftData + currentData, Qt::DisplayRole);
+
+        // 获取右侧单元格的index
+        _on_cellMoveLeft(model->index(row, col + 1));
+        repaintTable();
+    }
+
     void PhonicWidget::_on_cellMoveLeft(const QModelIndex &index) {
         // 获取当前单元格坐标
         int row = index.row();
         int col = index.column();
         // 将当前的单元格的内容移动到左边的单元格，右边单元格的内容依次向左移动
-        for (int i = col; 0 < i && i <= model->columnCount() - 1; i++) {
+        for (int i = col; 0 < i && i < model->columnCount(); i++) {
             moveData(row, i, row, i - 1, allRoles());
+        }
+        if (col == model->columnCount()) {
+            clearData(row, model->columnCount(), allRoles());
         }
     }
 
@@ -328,13 +452,13 @@ namespace FillLyric {
 
     void PhonicWidget::_on_btnInsertText_clicked() {
         // 测试文本
-        QString text =
-            "蝉声陪伴着行云流浪\n回忆开始后安静遥望远方\n荒草覆没的古井枯塘\n匀散一缕过往\n";
+        QString text = "蝉声--陪伴着行云流浪---\n回-忆-开始后安静遥望远方\n荒草覆没的古井--"
+                       "枯塘\n匀-散一缕过往\n";
         textEdit->setText(text);
     }
 
     void PhonicWidget::_on_btnExport_clicked() {
-        // 获取DIsplayRole的内容到lyric，获取UserRole的内容到syllable
+        // 获取DisplayRole的内容到lyric，获取UserRole的内容到syllable
         QStringList lyricRes;
         QStringList syllableRes;
         for (int i = 0; i < model->rowCount(); i++) {
@@ -413,9 +537,15 @@ namespace FillLyric {
         model->setColumnCount(modelMaxCol + 1);
     }
 
+    void PhonicWidget::repaintTable() {
+        // 重绘表格
+        emit tableView->itemDelegate()->closeEditor(nullptr, QAbstractItemDelegate::NoHint);
+    }
+
     QList<int> PhonicWidget::allRoles() {
-        return {Qt::DisplayRole, PhonicRole::Syllable, PhonicRole::Candidate,
-                PhonicRole::SyllableRevised};
+        return {Qt::DisplayRole,       PhonicRole::Syllable,
+                PhonicRole::Candidate, PhonicRole::SyllableRevised,
+                PhonicRole::LyricType, PhonicRole::Fermata};
     }
 
     QList<int> PhonicWidget::displayRole() {

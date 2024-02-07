@@ -23,6 +23,7 @@
 
 namespace FillLyric {
     using PhonicRole = SyllableDelegate::PhonicRole;
+    using LyricType = CleanLyric::LyricType;
 
     class PhonicWidget : public QWidget {
         Q_OBJECT
@@ -32,17 +33,26 @@ namespace FillLyric {
 
     private:
         void shrinkTable();
+        void repaintTable();
         static QList<int> displayRole();
         static QList<int> allRoles();
+        int cellLyricType(int row, int col);
+        QString cellLyric(int row, int col);
         int currentLyricLength(int row);
+
+        void collapseFermata();
+        void expandFermata();
+        void setFermata(int row, int col, QString &fermata);
         void clearData(int row, int col, const QList<int> &roles);
         void moveData(int row, int col, int tarRow, int tarCol, const QList<int> &roles);
 
         void _on_btnToText_clicked();
         void _on_btnToTable_clicked();
+        void _on_btnToggleFermata_clicked();
         void _on_showContextMenu(const QPoint &pos);
 
         void _on_cellClear(const QModelIndex &index);
+        void _on_cellMergeLeft(const QModelIndex &index);
         void _on_cellMoveLeft(const QModelIndex &index);
         void _on_cellMoveRight(const QModelIndex &index);
         void _on_cellNewLine(const QModelIndex &index);
@@ -63,6 +73,7 @@ namespace FillLyric {
 
         void _on_cellEditClosed();
 
+        bool fermataState = false;
 
         QTextEdit *textEdit;
         QVBoxLayout *cfgLayout;
@@ -71,6 +82,7 @@ namespace FillLyric {
         QPushButton *btnInsertText;
         QPushButton *btnToTable;
         QPushButton *btnToText;
+        QPushButton *btnToggleFermata;
         QPushButton *btnImportLrc;
 
         QPushButton *btnExport;

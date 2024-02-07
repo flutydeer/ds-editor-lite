@@ -12,13 +12,16 @@ public:
     explicit SyllableDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {
     }
 
-    enum PhonicRole { Syllable = Qt::UserRole, Candidate, SyllableRevised };
+    enum PhonicRole { Syllable = Qt::UserRole, Candidate, SyllableRevised, LyricType, Fermata };
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option,
                const QModelIndex &index) const override {
         QStyleOptionViewItem newOption(option);
         newOption.displayAlignment = Qt::AlignBottom | Qt::AlignHCenter;
         QStyledItemDelegate::paint(painter, newOption, index);
+
+        // 获取原文本
+        QString text = index.data(Qt::DisplayRole).toString();
 
         // 获取注音文本
         QString syllable = index.data(Qt::UserRole).toString();
@@ -37,6 +40,8 @@ public:
         if (syllableRevised != "") {
             painter->setPen(Qt::blue);
             syllable = syllableRevised;
+        } else if (text == syllable) {
+            painter->setPen(Qt::darkRed);
         } else if (candidateList.size() > 1) {
             painter->setPen(Qt::red);
         } else {
