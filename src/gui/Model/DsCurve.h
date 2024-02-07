@@ -5,9 +5,8 @@
 #ifndef DSCURVE_H
 #define DSCURVE_H
 
-#include "Utils/IOverlapable.h"
-#include "Utils/OverlapableSerialList.h"
-#include "Utils/UniqueObject.h"
+#include "../Utils/IOverlapable.h"
+#include "../Utils/UniqueObject.h"
 
 #include <QList>
 

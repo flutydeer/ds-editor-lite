@@ -1,3 +1,3 @@
 add_subdirectory(TestComparable)
-
 add_subdirectory(TestFillLyric)
+add_subdirectory(TestHistoryManager)

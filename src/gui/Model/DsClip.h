@@ -10,9 +10,9 @@
 
 #include "DsNote.h"
 #include "DsParams.h"
-#include "Utils/IOverlapable.h"
-#include "Utils/OverlapableSerialList.h"
-#include "Utils/UniqueObject.h"
+#include "../Utils/IOverlapable.h"
+#include "../Utils/OverlapableSerialList.h"
+#include "../Utils/UniqueObject.h"
 
 class DsClip : public QObject, public IOverlapable, public UniqueObject {
     Q_OBJECT
