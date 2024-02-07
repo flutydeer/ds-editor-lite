@@ -10,18 +10,27 @@
 #include "g2pglobal.h"
 #include "mandarin.h"
 #include "syllable2p.h"
+#include "Controller/History/HistoryManager.h"
+#include "Actions/AppModel/Tempo/TempoActions.h"
+#include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
 
 void AppController::onNewProject() {
     AppModel::instance()->newProject();
+    HistoryManager::instance()->reset();
 }
 void AppController::openProject(const QString &filePath) {
-    AppModel::instance()->loadAProject(filePath);
+    AppModel::instance()->loadProject(filePath);
+    HistoryManager::instance()->reset();
 }
 void AppController::importMidiFile(const QString &filePath) {
     AppModel::instance()->importMidiFile(filePath);
 }
 void AppController::exportMidiFile(const QString &filePath) {
     AppModel::instance()->exportMidiFile(filePath);
+}
+void AppController::importAproject(const QString &filePath) {
+    AppModel::instance()->importAProject(filePath);
+    HistoryManager::instance()->reset();
 }
 void AppController::onRunG2p() {
     auto model = AppModel::instance();
@@ -30,7 +39,7 @@ void AppController::onRunG2p() {
     auto singingClip = dynamic_cast<DsSingingClip *>(firstClip);
     if (singingClip == nullptr)
         return;
-    auto notes = singingClip->notes;
+    auto notes = singingClip->notes();
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
 
     auto g2p_man = new IKg2p::Mandarin();
@@ -39,7 +48,7 @@ void AppController::onRunG2p() {
 
     QStringList lyrics;
     for (const auto &note : notes) {
-        lyrics.append(note.lyric());
+        lyrics.append(note->lyric());
     }
 
     QStringList pinyinRes = g2p_man->hanziToPinyin(lyrics, false, false);
@@ -50,13 +59,20 @@ void AppController::onRunG2p() {
 void AppController::onSetTempo(double tempo) {
     // TODO: validate tempo
     auto model = AppModel::instance();
-    model->setTempo(tempo > 0 ? tempo : model->tempo());
+    auto oldTempo = model->tempo();
+    auto newTempo = tempo > 0 ? tempo : model->tempo();
+    auto actions = new TempoActions;
+    actions->editTempo(oldTempo, newTempo, model);
+    actions->execute();
+    HistoryManager::instance()->record(actions);
 }
 void AppController::onSetTimeSignature(int numerator, int denominator) {
     auto model = AppModel::instance();
+    auto oldSig = model->timeSignature();
+    auto newSig = AppModel::TimeSignature(numerator, denominator);
+    auto actions = new TimeSignatureActions;
     if (isPowerOf2(denominator)) {
-        model->setNumerator(numerator);
-        model->setDenominator(denominator);
+        actions->editTimeSignature(oldSig, newSig, model);
     } else {
         // QMessageBox msgBox;
         // msgBox.setText("Error");
@@ -64,9 +80,10 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
         // msgBox.setStandardButtons(QMessageBox::Yes);
         // msgBox.setDefaultButton(QMessageBox::Yes);
         // msgBox.exec();
-        model->setNumerator(model->numerator());
-        model->setDenominator(model->denominator());
+        actions->editTimeSignature(oldSig, oldSig, model);
     }
+    actions->execute();
+    HistoryManager::instance()->record(actions);
 }
 void AppController::onSetQuantize(int quantize) {
     AppModel::instance()->setQuantize(quantize);

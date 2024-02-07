@@ -83,7 +83,7 @@ TracksView::TracksView() {
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
     auto appModel = AppModel::instance();
     connect(appModel, &AppModel::modelChanged, m_gridItem, [=] {
-        m_gridItem->setTimeSignature(appModel->numerator(), appModel->denominator());
+        m_gridItem->setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator);
         m_gridItem->setQuantize(appModel->quantize());
     });
     connect(appModel, &AppModel::timeSignatureChanged, m_gridItem,
@@ -105,7 +105,7 @@ TracksView::TracksView() {
                 playbackController->setPosition(tick);
             });
     connect(appModel, &AppModel::modelChanged, m_timeline,
-            [=] { m_timeline->setTimeSignature(appModel->numerator(), appModel->denominator()); });
+            [=] { m_timeline->setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator); });
     connect(appModel, &AppModel::timeSignatureChanged, m_timeline, &TimelineView::setTimeSignature);
     connect(m_gridItem, &TimeGridGraphicsItem::timeRangeChanged, m_timeline,
             &TimelineView::setTimeRange);
@@ -230,7 +230,7 @@ void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int
     auto track = m_tracksModel.tracks.at(trackIndex);
     auto dsClip = trackModel->findClipById(clipId);
     switch (type) {
-        case DsTrack::Insert:
+        case DsTrack::Inserted:
             qDebug() << "TracksView on clip inserted" << trackIndex << clipId;
             insertClipToTrack(dsClip, track, trackIndex);
             break;
@@ -240,7 +240,7 @@ void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int
             updateClipOnView(dsClip, clipId);
             break;
 
-        case DsTrack::Remove:
+        case DsTrack::Removed:
             qDebug() << "TracksView on clip removed" << trackIndex << clipId;
             removeClipFromView(clipId);
             break;
@@ -436,7 +436,8 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
         clipItem->setClipLen(clipLen);
         clipItem->setGain(singingClip->gain());
         clipItem->setTrackIndex(trackIndex);
-        clipItem->loadNotes(singingClip->notes);
+        const auto& notesRef = singingClip->notes();
+        clipItem->loadNotes(notesRef);
         clipItem->setOverlapped(singingClip->overlapped());
         clipItem->setVisibleRect(m_graphicsView->visibleRect());
         clipItem->setScaleX(m_graphicsView->scaleX());
@@ -516,7 +517,7 @@ void TracksView::updateClipOnView(DsClip *clip, int clipId) {
     } else if (clip->type() == DsClip::Singing) {
         auto singingClip = dynamic_cast<DsSingingClip *>(clip);
         auto singingItem = dynamic_cast<SingingClipGraphicsItem *>(item);
-        singingItem->loadNotes(singingClip->notes);
+        singingItem->loadNotes(singingClip->notes());
     }
 }
 void TracksView::removeTrackFromView(int index) {

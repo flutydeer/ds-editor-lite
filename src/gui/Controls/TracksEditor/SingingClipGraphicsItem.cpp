@@ -3,9 +3,6 @@
 //
 
 #include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QPainter>
 
 #include "SingingClipGraphicsItem.h"
@@ -18,14 +15,14 @@ SingingClipGraphicsItem::SingingClipGraphicsItem(int itemId, QGraphicsItem *pare
     setCanResizeLength(true);
     // setName("New Pattern");
 }
-void SingingClipGraphicsItem::loadNotes(const QList<DsNote> &notes) {
+void SingingClipGraphicsItem::loadNotes(const OverlapableSerialList<DsNote> &notes) {
     m_notes.clear();
-    if (notes.size() != 0) {
+    if (notes.count() != 0) {
         for (const auto &dsNote : notes) {
             Note note;
-            note.rStart = dsNote.start() - start();
-            note.length = dsNote.length();
-            note.keyIndex = dsNote.keyIndex();
+            note.rStart = dsNote->start() - start();
+            note.length = dsNote->length();
+            note.keyIndex = dsNote->keyIndex();
             m_notes.append(note);
         }
         auto endTick = m_notes.last().rStart + m_notes.last().length + 1920;

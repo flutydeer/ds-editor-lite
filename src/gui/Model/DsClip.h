@@ -10,8 +10,9 @@
 
 #include "DsNote.h"
 #include "DsParams.h"
-#include "Utils/IOverlapable.h"
-#include "Utils/UniqueObject.h"
+#include "../Utils/IOverlapable.h"
+#include "../Utils/OverlapableSerialList.h"
+#include "../Utils/UniqueObject.h"
 
 class DsClip : public QObject, public IOverlapable, public UniqueObject {
     Q_OBJECT
@@ -87,21 +88,33 @@ private:
 };
 
 class DsSingingClip final : public DsClip {
+    Q_OBJECT
+
 public:
+    enum NoteChangeType { Inserted, PropertyChanged, Removed };
+    enum ParamsChangeType { Pitch, Energy, Tension, Breathiness };
+
     ClipType type() const override {
         return Singing;
     }
 
-    // QList<DsNote> notes() const;
-    // void setNotes(const QList<DsNote> &notes);
-    // void addNote(const Note &note);
-    // void removeNote(const Note &note);
-    // void clearNotes();
-    QList<DsNote> notes;
+    const OverlapableSerialList<DsNote> &notes() const;
+    void insertNote(DsNote *note);
+    void removeNote(DsNote *note);
+    void insertNoteQuietly(DsNote *note);
+    void removeNoteQuietly(DsNote *note);
+    void notifyNotePropertyChanged(DsNote *note);
+    DsNote *findNoteById(int id);
+
     DsParams params;
+    // const DsParams &params() const;
+
+signals:
+    void noteChanged(NoteChangeType type, int id);
+    void paramsChanged(ParamsChangeType type);
 
 private:
-    QList<DsNote> m_notes;
+    OverlapableSerialList<DsNote> m_notes;
     // DsParams m_params;
 };
 

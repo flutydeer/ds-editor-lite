@@ -5,9 +5,12 @@
 #ifndef DSCURVE_H
 #define DSCURVE_H
 
-#include <QVector>
+#include "../Utils/IOverlapable.h"
+#include "../Utils/UniqueObject.h"
 
-class DsCurve {
+#include <QList>
+
+class DsCurve : public IOverlapable, UniqueObject {
 public:
     enum DsCurveType { Generic, Draw, Anchor };
 
@@ -16,8 +19,14 @@ public:
     virtual DsCurveType type() {
         return Generic;
     }
-    int start();
+    int start() const;
     void setStart(int offset);
+
+    int compareTo(DsCurve *obj) const;
+    virtual int endTick() const {
+        return m_start;
+    }
+    bool isOverlappedWith(DsCurve *obj) const;
 
 private:
     int m_start = 0;
@@ -28,25 +37,39 @@ public:
     DsCurveType type() override {
         return Draw;
     }
-    int step = 5;
-    QVector<int> values;
-    // QVector<int> values() const;
-    // void setValues(const QVector<int> &values);
+    int step; // TODO: remove
+    const QList<int> &values() const;
+    void setValues(const QList<int> &values);
+    void insertValue(int value);
 
-    // private:
-    //     QVector<int> m_values;
+    int endTick() const override;
+
+private:
+    int m_step = 5;
+    QList<int> m_values;
 };
 
-class DsAnchorNode {
+class DsAnchorNode : public IOverlapable, UniqueObject {
 public:
-    enum interpMode { Linear, Hermite, Cubic, None };
+    enum InterpMode { Linear, Hermite, Cubic, None };
 
-    DsAnchorNode(const int pos, const int value) : pos(pos), value(value) {
+    DsAnchorNode(const int pos, const int value) : m_pos(pos), m_value(value) {
     }
 
-    int pos;
-    int value;
-    interpMode interpMode = Cubic;
+    int pos() const;
+    void setPos(int pos);
+    int value() const;
+    void setValue(int value);
+    InterpMode interpMode() const;
+    void setInterpMode(InterpMode mode);
+
+    int compareTo(DsAnchorNode *obj) const;
+    bool isOverlappedWith(DsAnchorNode *obj) const;
+
+private:
+    int m_pos;
+    int m_value;
+    InterpMode m_interpMode = Cubic;
 };
 
 class DsAnchorCurve final : public DsCurve {
@@ -54,7 +77,14 @@ public:
     DsCurveType type() override {
         return Anchor;
     }
-    QVector<DsAnchorNode> nodes;
+    //TODO: use OverlapableSerialList
+    const QList<DsAnchorNode *> &nodes() const;
+    void insertNode(DsAnchorNode *node);
+    void removeNode(DsAnchorNode *node);
+    int endTick() const override;
+
+private:
+    QList<DsAnchorNode *> m_nodes;
 };
 
-#endif //DSCURVE_H
+#endif // DSCURVE_H

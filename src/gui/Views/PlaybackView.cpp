@@ -156,8 +156,8 @@ PlaybackView::PlaybackView(QWidget *parent) {
 void PlaybackView::updateView() {
     auto model = AppModel::instance();
     m_tempo = model->tempo();
-    m_numerator = model->numerator();
-    m_denominator = model->denominator();
+    m_numerator = model->timeSignature().numerator;
+    m_denominator = model->timeSignature().denominator;
     m_tick = PlaybackController::instance()->position();
     m_status = PlaybackController::instance()->playbackStatus();
 

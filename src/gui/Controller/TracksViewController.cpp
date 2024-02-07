@@ -94,9 +94,10 @@ void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChang
         auto deltaTime = args.start - clip->start();
         qDebug() << "singing clip moved:" << deltaTime;
         if (deltaTime != 0) {
-            for (auto &note : singingClip->notes) {
-                note.setStart(note.start() + deltaTime);
-            }
+            // TODO: handle singing clip move: move notes and params
+            // for (auto &note : singingClip->notes()) {
+            //     note->setStart(note.start() + deltaTime);
+            // }
         }
     }
     track->removeClipQuietly(clip);
@@ -106,7 +107,7 @@ void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChang
     clip->setLength(args.length);
     clip->setClipLen(args.clipLen);
     track->insertClipQuietly(clip);
-    track->notityClipUpdated(clip);
+    track->notityClipPropertyChanged(clip);
 
     // track->updateClip(clip);
 }

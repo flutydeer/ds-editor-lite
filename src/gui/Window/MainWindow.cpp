@@ -16,7 +16,9 @@
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
+#include "Views/ActionButtonsView.h"
 #include "Views/PlaybackView.h"
+#include "Controller/History/HistoryManager.h"
 
 #ifdef Q_OS_WIN
 #  include <dwmapi.h>
@@ -99,8 +101,10 @@ MainWindow::MainWindow() {
     auto appController = AppController::instance();
     auto trackController = TracksViewController::instance();
     auto playbackController = PlaybackController::instance();
+    auto historyManager = HistoryManager::instance();
 
     auto menuBar = new QMenuBar(this);
+    menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     auto menuFile = new QMenu("&File", this);
     auto actionNewProject = new QAction("&New project", this);
@@ -113,6 +117,15 @@ MainWindow::MainWindow() {
             return;
 
         appController->openProject(fileName);
+    });
+    auto actionOpenAProject = new QAction("Open A Project", this);
+    connect(actionOpenAProject, &QAction::triggered, this, [=]{
+        auto fileName = QFileDialog::getOpenFileName(this, "Select an A Project File", ".",
+                                                     "Project File (*.json)");
+        if (fileName.isNull())
+            return;
+
+        appController->importAproject(fileName);
     });
     auto actionSave = new QAction("&Save", this);
     auto actionSaveAs = new QAction("&Save as", this);
@@ -148,6 +161,7 @@ MainWindow::MainWindow() {
 
     menuFile->addAction(actionNewProject);
     menuFile->addAction(actionOpen);
+    menuFile->addAction(actionOpenAProject);
     menuFile->addAction(actionSave);
     menuFile->addAction(actionSaveAs);
     menuFile->addSeparator();
@@ -157,7 +171,17 @@ MainWindow::MainWindow() {
     auto menuEdit = new QMenu("&Edit", this);
 
     auto actionUndo = new QAction("&Undo", this);
+    actionUndo->setEnabled(false);
+    connect(actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
+
     auto actionRedo = new QAction("&Redo", this);
+    actionRedo->setEnabled(false);
+    connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
+    connect(historyManager, &HistoryManager::undoRedoChanged, this, [=](bool canUndo, bool canRedo) {
+        actionUndo->setEnabled(canUndo);
+        actionRedo->setEnabled(canRedo);
+    });
+
     auto actionCut = new QAction("&Cut", this);
     auto actionCopy = new QAction("&Copy", this);
     auto actionPaste = new QAction("&Paste", this);
@@ -262,8 +286,15 @@ MainWindow::MainWindow() {
     menuBarContainer->addWidget(menuBar);
     menuBarContainer->setContentsMargins(6, 6, 6, 6);
 
+    auto actionButtonsView = new ActionButtonsView;
+    connect(actionButtonsView, &ActionButtonsView::undoTriggered, historyManager, &HistoryManager::undo);
+    connect(actionButtonsView, &ActionButtonsView::redoTriggered, historyManager, &HistoryManager::redo);
+    connect(historyManager, &HistoryManager::undoRedoChanged, actionButtonsView, &ActionButtonsView::onUndoRedoChanged);
+
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addLayout(menuBarContainer);
+    actionButtonLayout->addWidget(actionButtonsView);
+    actionButtonLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
     actionButtonLayout->addWidget(playbackView);
     actionButtonLayout->setContentsMargins({});
 
