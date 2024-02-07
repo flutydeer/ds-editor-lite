@@ -12,7 +12,6 @@ QString DsTrack::name() const {
 void DsTrack::setName(const QString &name) {
     m_name = name;
     emit propertyChanged();
-    // qDebug() << "model name " << name;
 }
 DsTrackControl DsTrack::control() const {
     return m_control;
@@ -25,16 +24,19 @@ OverlapableSerialList<DsClip> DsTrack::clips() const {
     return m_clips;
 }
 void DsTrack::insertClip(DsClip *clip) {
-    // connect(clip, &DsClip::propertyChanged, this, [=] {
-    //     auto clipIndex = m_clips.indexOf(clip);
-    //     emit clipChanged(Update, clipIndex);
-    // });
     m_clips.add(clip);
-    emit clipChanged(Insert, clip->id(), clip);
+    emit clipChanged(Inserted, clip->id(), clip);
 }
 void DsTrack::removeClip(DsClip *clip) {
     m_clips.remove(clip);
-    emit clipChanged(Remove, clip->id(), clip);
+    emit clipChanged(Removed, clip->id(), clip);
+}
+QColor DsTrack::color() const {
+    return m_color;
+}
+void DsTrack::setColor(const QColor &color) {
+    m_color = color;
+    emit propertyChanged();
 }
 void DsTrack::removeClipQuietly(DsClip *clip) {
     m_clips.remove(clip);
@@ -42,13 +44,9 @@ void DsTrack::removeClipQuietly(DsClip *clip) {
 void DsTrack::insertClipQuietly(DsClip *clip) {
     m_clips.add(clip);
 }
-void DsTrack::notityClipUpdated(DsClip *clip) {
+void DsTrack::notityClipPropertyChanged(DsClip *clip) {
     emit clipChanged(PropertyChanged, clip->id(), clip);
 }
-// void DsTrack::updateClip(DsClip *clip) {
-//     m_clips.update(clip);
-//     emit clipChanged(PropertyChanged, clip->id(), clip);
-// }
 
 DsClip *DsTrack::findClipById(int id) {
     for (int i = 0; i < m_clips.count(); i++) {

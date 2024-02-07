@@ -47,7 +47,7 @@ public:
     void newProject();
     bool importMidiFile(const QString &filename);
     bool exportMidiFile(const QString &filename);
-    bool loadAProject(const QString &filename);
+    bool loadProject(const QString &filename);
 
     int selectedTrackIndex() const;
     void setSelectedTrack(int trackIndex);

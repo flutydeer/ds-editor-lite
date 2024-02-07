@@ -166,10 +166,10 @@ void AudioContext::handleTrackInsertion(const DsTrack *track) {
     connect(track, &DsTrack::clipChanged, this, [=](DsTrack::ClipChangeType type, int index, DsClip *clip) {
         Q_UNUSED(index)
         switch (type) {
-            case DsTrack::Insert:
+            case DsTrack::Inserted:
                 handleClipInsertion(track, clip);
                 break;
-            case DsTrack::Remove:
+            case DsTrack::Removed:
                 handleClipRemoval(track, clip);
                 break;
             case DsTrack::PropertyChanged:

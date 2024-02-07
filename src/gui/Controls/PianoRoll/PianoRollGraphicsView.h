@@ -32,7 +32,7 @@ private:
     int m_clipId = -1;
 
     void reset();
-    void insertNote(const DsNote &dsNote, int index);
+    void insertNote(DsNote *dsNote, int index);
     void loadNotes(DsSingingClip *singingClip);
 };
 

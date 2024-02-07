@@ -5,15 +5,14 @@
 #ifndef DSPARAMS_H
 #define DSPARAMS_H
 
-#include <QVector>
-
 #include "DsCurve.h"
+#include "Utils/OverlapableSerialList.h"
 
 class DsParam {
 public:
-    QVector<DsCurve> original;
-    QVector<DsCurve> edited;
-    QVector<DsCurve> envelope;
+    OverlapableSerialList<DsCurve> original;
+    OverlapableSerialList<DsCurve> edited;
+    OverlapableSerialList<DsCurve> envelope;
 };
 
 class DsParams {

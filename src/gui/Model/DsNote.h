@@ -8,6 +8,9 @@
 #include <QList>
 #include <utility>
 
+#include "Utils/IOverlapable.h"
+#include "Utils/UniqueObject.h"
+
 class DsPhoneme {
 public:
     enum DsPhonemeType { Ahead, Normal, Final };
@@ -25,8 +28,9 @@ public:
     QList<DsPhoneme> edited;
 };
 
-class DsNote {
+class DsNote : public IOverlapable, public UniqueObject {
 public:
+
     explicit DsNote() = default;
     explicit DsNote(int start, int length, int keyIndex, QString lyric)
         : m_start(start), m_length(length), m_keyIndex(keyIndex), m_lyric(std::move(lyric)) {
@@ -43,6 +47,9 @@ public:
     QString pronunciation() const;
     void setPronunciation(const QString &pronunciation);
     DsPhonemes phonemes;
+
+    int compareTo(DsNote *obj) const;
+    bool isOverlappedWith(DsNote *obj) const;
 
 private:
     int m_start = 0;

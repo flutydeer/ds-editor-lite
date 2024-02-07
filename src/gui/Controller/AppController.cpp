@@ -15,7 +15,7 @@ void AppController::onNewProject() {
     AppModel::instance()->newProject();
 }
 void AppController::openProject(const QString &filePath) {
-    AppModel::instance()->loadAProject(filePath);
+    AppModel::instance()->loadProject(filePath);
 }
 void AppController::importMidiFile(const QString &filePath) {
     AppModel::instance()->importMidiFile(filePath);
@@ -30,7 +30,7 @@ void AppController::onRunG2p() {
     auto singingClip = dynamic_cast<DsSingingClip *>(firstClip);
     if (singingClip == nullptr)
         return;
-    auto notes = singingClip->notes;
+    auto notes = singingClip->notes();
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
 
     auto g2p_man = new IKg2p::Mandarin();
@@ -39,7 +39,7 @@ void AppController::onRunG2p() {
 
     QStringList lyrics;
     for (const auto &note : notes) {
-        lyrics.append(note.lyric());
+        lyrics.append(note->lyric());
     }
 
     QStringList pinyinRes = g2p_man->hanziToPinyin(lyrics, false, false);

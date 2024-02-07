@@ -103,13 +103,13 @@ void PianoRollGraphicsView::reset() {
     }
     m_noteItems.clear();
 }
-void PianoRollGraphicsView::insertNote(const DsNote &dsNote, int index) {
+void PianoRollGraphicsView::insertNote(DsNote *dsNote, int index) {
     auto noteItem = new NoteGraphicsItem(0);
-    noteItem->setStart(dsNote.start());
-    noteItem->setLength(dsNote.length());
-    noteItem->setKeyIndex(dsNote.keyIndex());
-    noteItem->setLyric(dsNote.lyric());
-    noteItem->setPronunciation(dsNote.pronunciation());
+    noteItem->setStart(dsNote->start());
+    noteItem->setLength(dsNote->length());
+    noteItem->setKeyIndex(dsNote->keyIndex());
+    noteItem->setLyric(dsNote->lyric());
+    noteItem->setPronunciation(dsNote->pronunciation());
     noteItem->setVisibleRect(this->visibleRect());
     noteItem->setScaleX(this->scaleX());
     noteItem->setScaleY(this->scaleY());
@@ -120,11 +120,11 @@ void PianoRollGraphicsView::insertNote(const DsNote &dsNote, int index) {
     m_noteItems.append(noteItem);
 }
 void PianoRollGraphicsView::loadNotes(DsSingingClip *singingClip) {
-    if (singingClip->notes.count() == 0)
+    if (singingClip->notes().count() == 0)
         return;
 
-    for (int i = 0; i < singingClip->notes.count(); i++) {
-        auto note = singingClip->notes.at(i);
+    for (int i = 0; i < singingClip->notes().count(); i++) {
+        auto note = singingClip->notes().at(i);
         insertNote(note, i);
     }
     auto firstNoteItem = m_noteItems.first();

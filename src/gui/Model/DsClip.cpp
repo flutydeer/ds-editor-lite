@@ -66,3 +66,34 @@ bool DsClip::isOverlappedWith(DsClip *obj) const {
         return false;
     return true;
 }
+const OverlapableSerialList<DsNote> &DsSingingClip::notes() const {
+    return m_notes;
+}
+void DsSingingClip::insertNote(DsNote *note) {
+    m_notes.add(note);
+    emit noteChanged(Inserted, note->id());
+}
+void DsSingingClip::removeNote(DsNote *note) {
+    m_notes.remove(note);
+    emit noteChanged(Removed, note->id());
+}
+void DsSingingClip::insertNoteQuietly(DsNote *note) {
+    m_notes.add(note);
+}
+void DsSingingClip::removeNoteQuietly(DsNote *note) {
+    m_notes.remove(note);
+}
+void DsSingingClip::notifyNotePropertyChanged(DsNote *note) {
+    emit noteChanged(PropertyChanged, note->id());
+}
+DsNote *DsSingingClip::findNoteById(int id) {
+    for (int i = 0; i < m_notes.count(); i++) {
+        auto note = m_notes.at(i);
+        if (note->id() == id)
+            return note;
+    }
+    return nullptr;
+}
+// const DsParams &DsSingingClip::params() const {
+//     return m_params;
+// }
