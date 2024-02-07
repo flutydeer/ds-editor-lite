@@ -83,14 +83,8 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_lePan->label->setAlignment(Qt::AlignCenter);
     m_lePan->lineEdit->setAlignment(Qt::AlignCenter);
     m_lePan->setEnabled(false);
-    connect(m_sbarPan, &SeekBar::valueChanged, m_lePan, [=](int value) {
-        if (value < 0)
-            m_lePan->setText("L" + QString::number(-value));
-        else if (value == 0)
-            m_lePan->setText("C");
-        else
-            m_lePan->setText("R" + QString::number(value));
-    });
+    connect(m_sbarPan, &SeekBar::valueChanged, m_lePan,
+            [=](int value) { m_lePan->setText(panValueToString(value)); });
 
     m_sbarGain = new SeekBar;
     m_sbarGain->setObjectName("m_sbarGain");
@@ -109,22 +103,8 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_leGain->setFixedWidth(2 * m_buttonSize);
     m_leGain->setFixedHeight(m_buttonSize);
     m_leGain->setEnabled(false);
-    connect(m_sbarGain, &SeekBar::valueChanged, m_leGain, [=](double value) {
-        auto gain = 60 * std::log10(1.0 * value) - 114;
-        qDebug() << "gain" << gain;
-        if (gain == -70)
-            m_leGain->setText("-inf");
-        else {
-            auto absVal = QString::number(qAbs(gain), 'f', 1);
-            QString sig = "";
-            if (gain > 0) {
-                sig = "+";
-            } else if (gain < 0 && gain <= -0.1) {
-                sig = "-";
-            }
-            m_leGain->setText(sig + absVal + "dB");
-        }
-    });
+    connect(m_sbarGain, &SeekBar::valueChanged, m_leGain,
+            [=](double value) { m_leGain->setText(gainValueToString(value)); });
 
     m_panVolumeSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
 
@@ -260,8 +240,12 @@ DsTrackControl TrackControlWidget::control() const {
 void TrackControlWidget::setControl(const DsTrackControl &control) {
     auto barValue = std::pow(10, (114 + control.gain()) / 60);
     qDebug() << "control gain" << control.gain() << "barValue" << barValue;
-    m_sbarGain->setValueAsync(barValue);
-    m_sbarPan->setValueAsync(control.pan());
+    m_sbarGain->setValue(barValue);
+    m_leGain->setText(gainValueToString(barValue));
+    m_sbarPan->setValue(control.pan());
+    m_lePan->setText(panValueToString(control.pan()));
+    // m_sbarGain->setValueAsync(barValue);
+    // m_sbarPan->setValueAsync(control.pan());
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());
     // emit propertyChanged();
@@ -303,15 +287,24 @@ void TrackControlWidget::onTrackUpdated(const DsTrack &track) {
 void TrackControlWidget::onSeekBarValueChanged() {
     emit propertyChanged();
 }
-void TrackControlWidget::contextMenuEvent(QContextMenuEvent *event) {
-    // auto menu = new QMenu;
-    // auto actionInsert = new QAction("Insert new track", this);
-    // connect(actionInsert, &QAction::triggered, this, [&] { emit insertNewTrackTriggered();});
-    // auto actionRemove = new QAction("Delete", this);
-    // connect(actionRemove, &QAction::triggered, this, [&] { emit removeTrackTriggerd(); });
-    //
-    // menu->addAction(actionInsert);
-    // menu->addAction(actionRemove);
-    // menu->exec(event->globalPos());
-    QWidget::contextMenuEvent(event);
+QString TrackControlWidget::panValueToString(double value) {
+    if (value < 0)
+        return "L" + QString::number(-qRound(value));
+    if (value == 0)
+        return "C";
+    return "R" + QString::number(qRound(value));
+}
+QString TrackControlWidget::gainValueToString(double value) {
+    auto gain = 60 * std::log10(1.0 * value) - 114;
+    qDebug() << "gain" << gain;
+    if (gain == -70)
+        return "-inf";
+    auto absVal = QString::number(qAbs(gain), 'f', 1);
+    QString sig = "";
+    if (gain > 0) {
+        sig = "+";
+    } else if (gain < 0 && gain <= -0.1) {
+        sig = "-";
+    }
+    return sig + absVal + "dB";
 }

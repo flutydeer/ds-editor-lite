@@ -48,7 +48,6 @@ private slots:
     void onSeekBarValueChanged();
 
 private:
-    void contextMenuEvent(QContextMenuEvent *event) override;
     QListWidgetItem *m_item;
     // controls
     QPushButton *m_btnColor;
@@ -68,6 +67,9 @@ private:
     QHBoxLayout *m_panVolumeLayout;
 
     int m_buttonSize = 24;
+
+    QString panValueToString(double value);
+    QString gainValueToString(double value);
 };
 
 

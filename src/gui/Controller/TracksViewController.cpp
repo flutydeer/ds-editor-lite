@@ -7,6 +7,8 @@
 #include "TracksViewController.h"
 #include "Model/AppModel.h"
 #include "Utils/IdGenerator.h"
+#include "Controller/Actions/AppModel/Track/TrackActions.h"
+#include "History/HistoryManager.h"
 
 void TracksViewController::onNewTrack() {
     onInsertNewTrack(AppModel::instance()->tracks().count());
@@ -29,7 +31,10 @@ void TracksViewController::onInsertNewTrack(int index) {
     //     control.setMute(true);
     //     newTrack->setControl(control);
     // }
-    AppModel::instance()->insertTrack(newTrack, index);
+    auto a = new TrackActions;
+    a->insertTrack(newTrack, index, AppModel::instance());
+    a->execute();
+    HistoryManager::instance()->record(a);
 }
 void TracksViewController::onRemoveTrack(int index) {
     QMessageBox msgBox;
@@ -38,15 +43,24 @@ void TracksViewController::onRemoveTrack(int index) {
     msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
     msgBox.setDefaultButton(QMessageBox::Yes);
     int ret = msgBox.exec();
-    if (ret == QMessageBox::Yes)
-        AppModel::instance()->removeTrack(index);
+    if (ret == QMessageBox::Yes) {
+        auto trackToRemove = AppModel::instance()->tracks().at(index);
+        auto a = new TrackActions;
+        a->removeTrack(trackToRemove, index, AppModel::instance());
+        a->execute();
+        HistoryManager::instance()->record(a);
+    }
 }
 void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     auto audioClip = new DsAudioClip;
     audioClip->setPath(filePath);
     auto newTrack = new DsTrack;
     newTrack->insertClip(audioClip);
-    AppModel::instance()->insertTrack(newTrack, AppModel::instance()->tracks().size());
+    auto a = new TrackActions;
+    auto index = AppModel::instance()->tracks().size();
+    a->insertTrack(newTrack, index, AppModel::instance());
+    a->execute();
+    HistoryManager::instance()->record(a);
 }
 void TracksViewController::onSelectedClipChanged(int trackIndex, int clipId) {
     AppModel::instance()->onSelectedClipChanged(trackIndex, clipId);
