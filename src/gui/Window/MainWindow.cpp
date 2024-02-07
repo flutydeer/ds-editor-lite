@@ -11,6 +11,7 @@
 
 #include "Audio/AudioSystem.h"
 #include "Audio/Dialogs/AudioSettingsDialog.h"
+#include "Audio/Dialogs/AudioExportDialog.h"
 #include "Controller/TracksViewController.h"
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
@@ -129,6 +130,10 @@ MainWindow::MainWindow() {
 
     auto menuExport = new QMenu("Export", this);
     auto actionExportAudio = new QAction("Audio file...", this);
+    connect(actionExportAudio, &QAction::triggered, this, [=] {
+        AudioExportDialog dlg;
+        dlg.exec();
+    });
     auto actionExportMidiFile = new QAction("MIDI file...", this);
     connect(actionExportMidiFile, &QAction::triggered, this, [=] {
         auto fileName =

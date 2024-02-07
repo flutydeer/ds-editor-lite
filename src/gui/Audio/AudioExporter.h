@@ -53,12 +53,26 @@ public:
 
     void savePreset(const QString &name) const;
     bool loadPreset(const QString &name);
-    bool deletePreset(const QString &name) const;
+    static bool deletePreset(const QString &name) ;
+    static QVariant lastUsedPreset() ;
+    static QStringList presets();
 
     void setOption(const Option &option);
     Option option() const;
 
     QStringList outputFileList() const;
+
+    struct Format {
+        QString formatName;
+        int flag;
+        bool isVBRAvailable;
+        QString extensionName;
+        QList<QPair<QString, int>> options;
+        int findOptionIndex(int flag) const;
+    };
+
+    static QList<Format> formats();
+    static int findFormatIndex(int flag);
 
     enum Status {
         Success,

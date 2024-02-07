@@ -30,6 +30,12 @@ static double sampleToTick(qint64 sample) {
     return double(sample) / AudioSystem::instance()->adoptedSampleRate()  * PlaybackController::instance()->tempo() / 60.0 * 480.0;
 }
 
+template <typename Iterator, typename Func, typename ...Args>
+static inline void applyListener(Iterator first, Iterator last, Func func, Args&&... args) {
+    for (auto it = first; it != last; it++) {
+        ((*it)->*func)(std::forward<Args>(args)...);
+    }
+}
 
 
 AudioContext::AudioContext(QObject *parent) : QObject(parent), m_levelMeterTimer(new QTimer(this)) {
@@ -177,9 +183,12 @@ void AudioContext::handleTrackInsertion(const DsTrack *track) {
                 break;
         }
     });
+
+    applyListener(m_synthesisListeners.cbegin(), m_synthesisListeners.cend(), &SynthesisListener::trackInsertedCallback, track, trackSynthesisClipSeries);
 }
 
 void AudioContext::handleTrackRemoval(const DsTrack *track) {
+    applyListener(m_synthesisListeners.cbegin(), m_synthesisListeners.cend(), &SynthesisListener::trackWillRemoveCallback, track, m_trackSynthesisClipSeriesDict[track]);
     for (auto clip: track->clips()) {
         handleClipRemoval(track, clip);
     }
@@ -285,6 +294,7 @@ void AudioContext::rebuildAllClips() {
                 m_audioClips[clip] = trackClipSeries->insertClip(m_audioClipMixers[clip], tickToSample(clip->start() + clip->clipStart()), tickToSample(clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));
         }
     }
+    applyListener(m_synthesisListeners.cbegin(), m_synthesisListeners.cend(), &SynthesisListener::clipRebuildCallback);
 }
 
 void AudioContext::handleFileBufferingSizeChange() {
@@ -292,14 +302,15 @@ void AudioContext::handleFileBufferingSizeChange() {
     for (auto bufSrc: m_audioClipBufferingSources) {
         bufSrc->setReadAheadSize(settings.value("audio/fileBufferingSizeMsec", 1000.0).toDouble() / 1000.0 * AudioSystem::instance()->adoptedSampleRate());
     }
+    applyListener(m_synthesisListeners.cbegin(), m_synthesisListeners.cend(), &SynthesisListener::fileBufferingSizeChangeCallback);
 }
 
 void AudioContext::handleDeviceChangeDuringPlayback() {
+    if (AudioSystem::instance()->adoptedSampleRate())
+        AudioSystem::instance()->transport()->setPosition(tickToSample(PlaybackController::instance()->position()));
     if (PlaybackController::instance()->playbackStatus() == PlaybackController::Playing) {
         if (AudioSystem::instance()->device() && !AudioSystem::instance()->device()->isStarted())
             AudioSystem::instance()->device()->start(AudioSystem::instance()->playback());
         AudioSystem::instance()->transport()->play();
     }
-    if (AudioSystem::instance()->adoptedSampleRate())
-        AudioSystem::instance()->transport()->setPosition(tickToSample(PlaybackController::instance()->position()));
 }

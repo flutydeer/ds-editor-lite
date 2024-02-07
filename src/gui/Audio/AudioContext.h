@@ -25,10 +25,20 @@ namespace talcs {
 class AudioContext : public QObject {
     Q_OBJECT
 public:
+    class SynthesisListener {
+    public:
+        virtual void trackInsertedCallback(const DsTrack *track, talcs::FutureAudioSourceClipSeries *clipSeries) = 0;
+        virtual void trackWillRemoveCallback(const DsTrack *track, talcs::FutureAudioSourceClipSeries *clipSeries) = 0;
+        virtual void clipRebuildCallback() = 0;
+        virtual void fileBufferingSizeChangeCallback() = 0;
+    };
+
     explicit AudioContext(QObject *parent = nullptr);
     ~AudioContext() override;
 
     talcs::FutureAudioSourceClipSeries *trackSynthesisClipSeries(const DsTrack *track);
+    void addSynthesisListener(SynthesisListener *listener);
+    void removeSynthesisListener(SynthesisListener *listener);
 
 public slots:
     void handlePlaybackStatusChange(PlaybackController::PlaybackStatus status);
@@ -68,6 +78,8 @@ private:
     QMap<const DsClip *, talcs::BufferingAudioSource *> m_audioClipBufferingSources;
 
     QTimer *m_levelMeterTimer;
+
+    QList<SynthesisListener *> m_synthesisListeners;
 };
 
 

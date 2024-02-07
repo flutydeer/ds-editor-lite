@@ -46,6 +46,7 @@ AudioSystem::AudioSystem(QObject *parent) : QObject(parent) {
 
 AudioSystem::~AudioSystem() {
     m_dev.reset();
+    m_instance = nullptr;
 }
 
 AudioSystem *AudioSystem::instance() {
@@ -246,7 +247,11 @@ bool AudioSystem::setDevice(const QString &deviceName) {
 }
 void AudioSystem::postSetDevice() {
     m_adoptedBufferSize = m_dev->bufferSize();
-    m_adoptedSampleRate = m_dev->sampleRate();
+    if (!qFuzzyCompare(m_adoptedBufferSize, m_dev->sampleRate())) {
+        m_adoptedSampleRate = m_dev->sampleRate();
+        m_audioContext->rebuildAllClips();
+        m_audioContext->handleFileBufferingSizeChange();
+    }
     m_isDeviceAutoClosed = false;
     m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
     m_audioContext->handleDeviceChangeDuringPlayback();
@@ -294,6 +299,9 @@ void AudioSystem::testDevice() {
     testMixer->addSource(new talcs::SineWaveAudioSource(440), true);
     testMixer->setGain(0.5);
     m_preMixer->addSource(testMixer);
+    if (!m_dev->isOpen()) {
+        m_dev->open(m_adoptedBufferSize, m_adoptedSampleRate);
+    }
     if (!m_dev->isStarted())
         m_dev->start(m_playback.get());
     QTimer::singleShot(1000, [=] {
