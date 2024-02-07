@@ -89,6 +89,22 @@ namespace FillLyric {
         return 0;
     }
 
+    void PhonicWidget::clearData(const int row, const int col, const QList<int> &roles) {
+        // 根据span的包含的角色，将row行col列的数据清空
+        for (int role : roles) {
+            model->setData(model->index(row, col), QVariant(), role);
+        }
+    }
+
+    void PhonicWidget::moveData(const int row, const int col, const int tarRow, const int tarCol,
+                                const QList<int> &roles) {
+        // 根据span的包含的角色，将row行col列的数据移动到tarRow行tarCol列
+        for (int role : roles) {
+            model->setData(model->index(tarRow, tarCol), model->data(model->index(row, col), role),
+                           role);
+            model->setData(model->index(row, col), QVariant(), role);
+        }
+    }
 
     void PhonicWidget::_on_btnToTable_clicked() {
         // 获取文本框的内容
@@ -215,9 +231,7 @@ namespace FillLyric {
 
     void PhonicWidget::_on_cellClear(const QModelIndex &index) {
         // 清空当前单元格
-        model->setData(index, "", Qt::DisplayRole);
-        model->setData(index, "", PhonicRole::Syllable);
-        model->setData(index, QStringList(), PhonicRole::Candidate);
+        clearData(index.row(), index.column(), allRoles());
     }
 
     void PhonicWidget::_on_cellMoveLeft(const QModelIndex &index) {
@@ -226,20 +240,8 @@ namespace FillLyric {
         int col = index.column();
         // 将当前的单元格的内容移动到左边的单元格，右边单元格的内容依次向左移动
         for (int i = col; 0 < i && i <= model->columnCount() - 1; i++) {
-            model->setData(model->index(row, i - 1),
-                           model->data(model->index(row, i), Qt::DisplayRole), Qt::DisplayRole);
-            model->setData(model->index(row, i - 1),
-                           model->data(model->index(row, i), PhonicRole::Syllable),
-                           PhonicRole::Syllable);
-            model->setData(model->index(row, i - 1),
-                           model->data(model->index(row, i), PhonicRole::Candidate),
-                           PhonicRole::Candidate);
+            moveData(row, i, row, i - 1, allRoles());
         }
-        // 清空最右侧的单元格
-        model->setData(model->index(row, model->columnCount() - 1), "", Qt::DisplayRole);
-        model->setData(model->index(row, model->columnCount() - 1), "", PhonicRole::Syllable);
-        model->setData(model->index(row, model->columnCount() - 1), QStringList(),
-                       PhonicRole::Candidate);
     }
 
 
@@ -256,19 +258,8 @@ namespace FillLyric {
         }
         // 向右移动
         for (int i = model->columnCount() - 1; i > col; i--) {
-            model->setData(model->index(row, i),
-                           model->data(model->index(row, i - 1), Qt::DisplayRole), Qt::DisplayRole);
-            model->setData(model->index(row, i),
-                           model->data(model->index(row, i - 1), PhonicRole::Syllable),
-                           PhonicRole::Syllable);
-            model->setData(model->index(row, i),
-                           model->data(model->index(row, i - 1), PhonicRole::Candidate),
-                           PhonicRole::Candidate);
+            moveData(row, i - 1, row, i, allRoles());
         }
-        // 清空当前单元格
-        model->setData(index, "", Qt::DisplayRole);
-        model->setData(index, "", PhonicRole::Syllable);
-        model->setData(index, QStringList(), PhonicRole::Candidate);
     }
 
     void PhonicWidget::_on_cellNewLine(const QModelIndex &index) {
@@ -279,23 +270,8 @@ namespace FillLyric {
         model->insertRow(row + 1);
         // 将当前行col列及之后的内容移动到新行，从新行的第一列开始
         for (int i = col; i < model->columnCount(); i++) {
-            model->setData(model->index(row + 1, i - col),
-                           model->data(model->index(row, i), Qt::DisplayRole), Qt::DisplayRole);
-            model->setData(model->index(row + 1, i - col),
-                           model->data(model->index(row, i), PhonicRole::Syllable),
-                           PhonicRole::Syllable);
-            model->setData(model->index(row + 1, i - col),
-                           model->data(model->index(row, i), PhonicRole::Candidate),
-                           PhonicRole::Candidate);
+            moveData(row, i, row + 1, i - col, allRoles());
         }
-
-        // 清空当前行col列及之后的内容
-        for (int i = col; i < model->columnCount(); i++) {
-            model->setData(model->index(row, i), "", Qt::DisplayRole);
-            model->setData(model->index(row, i), "", PhonicRole::Syllable);
-            model->setData(model->index(row, i), QStringList(), PhonicRole::Candidate);
-        }
-
         shrinkTable();
     }
 
@@ -316,14 +292,7 @@ namespace FillLyric {
 
         // 将当前行的内容移动到上一行，从上一行的lastCol+1列开始放当前行的第一列
         for (int i = 0; i <= currentCol; i++) {
-            model->setData(model->index(row - 1, lastCol + 1 + i),
-                           model->data(model->index(row, i), Qt::DisplayRole), Qt::DisplayRole);
-            model->setData(model->index(row - 1, lastCol + 1 + i),
-                           model->data(model->index(row, i), PhonicRole::Syllable),
-                           PhonicRole::Syllable);
-            model->setData(model->index(row - 1, lastCol + 1 + i),
-                           model->data(model->index(row, i), PhonicRole::Candidate),
-                           PhonicRole::Candidate);
+            moveData(row, i, row - 1, lastCol + i + 1, allRoles());
         }
 
         // 删除当前行
@@ -440,6 +409,15 @@ namespace FillLyric {
         }
         modelMaxCol = maxCol;
         model->setColumnCount(modelMaxCol + 1);
+    }
+
+    QList<int> PhonicWidget::allRoles() {
+        return {Qt::DisplayRole, PhonicRole::Syllable, PhonicRole::Candidate,
+                PhonicRole::SyllableRevised};
+    }
+
+    QList<int> PhonicWidget::displayRole() {
+        return {Qt::DisplayRole};
     }
 
     void PhonicWidget::_on_btnImportLrc_clicked() {

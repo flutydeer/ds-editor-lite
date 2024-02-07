@@ -32,7 +32,11 @@ namespace FillLyric {
 
     private:
         void shrinkTable();
+        static QList<int> displayRole();
+        static QList<int> allRoles();
         int currentLyricLength(int row);
+        void clearData(int row, int col, const QList<int> &roles);
+        void moveData(int row, int col, int tarRow, int tarCol, const QList<int> &roles);
 
         void _on_btnToText_clicked();
         void _on_btnToTable_clicked();
