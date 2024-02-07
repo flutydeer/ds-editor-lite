@@ -15,6 +15,7 @@
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
+#include "Views/ActionButtonsView.h"
 #include "Views/PlaybackView.h"
 
 #ifdef Q_OS_WIN
@@ -100,6 +101,7 @@ MainWindow::MainWindow() {
     auto playbackController = PlaybackController::instance();
 
     auto menuBar = new QMenuBar(this);
+    menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     auto menuFile = new QMenu("&File", this);
     auto actionNewProject = new QAction("&New project", this);
@@ -259,6 +261,8 @@ MainWindow::MainWindow() {
 
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addLayout(menuBarContainer);
+    actionButtonLayout->addWidget(new ActionButtonsView);
+    actionButtonLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
     actionButtonLayout->addWidget(playbackView);
     actionButtonLayout->setContentsMargins({});
 
