@@ -34,3 +34,19 @@ QString DsNote::pronunciation() const {
 void DsNote::setPronunciation(const QString &pronunciation) {
     m_pronunciation = pronunciation;
 }
+int DsNote::compareTo(DsNote *obj) const {
+    auto otherStart = obj->start();
+    if (start() < otherStart)
+        return -1;
+    if (start() > otherStart)
+        return 1;
+    return 0;
+}
+bool DsNote::isOverlappedWith(DsNote *obj) const {
+    auto otherStart = obj->start();
+    auto otherEnd = otherStart + obj->length();
+    auto curEnd = start() + length();
+    if (otherEnd <= start() || curEnd <= otherStart)
+        return false;
+    return true;
+}

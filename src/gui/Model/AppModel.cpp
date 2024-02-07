@@ -18,6 +18,7 @@
 #include "AppModel.h"
 
 #include "Utils/IdGenerator.h"
+#include "Utils/ProjectConverters/AProjectConverter.h"
 #include "opendspx/qdspxtrack.h"
 #include "opendspx/qdspxtimeline.h"
 #include "opendspx/qdspxmodel.h"
@@ -186,7 +187,9 @@ bool AppModel::importMidiFile(const QString &filename) {
                 singingClip->setClipStart(clip->time.clipStart);
                 singingClip->setLength(clip->time.length);
                 singingClip->setClipLen(clip->time.clipLen);
-                singingClip->notes.append(decodeNotes(singClip->notes));
+                auto notes = decodeNotes(singClip->notes);
+                for (auto &note : notes)
+                    singingClip->insertNote(&note);
                 dsTack->insertClip(singingClip);
             } else if (clip->type == QDspx::Clip::Type::Audio) {
                 auto audioClip = new DsAudioClip;
@@ -284,14 +287,14 @@ bool AppModel::exportMidiFile(const QString &filename) {
                 QVariant::fromValue(reinterpret_cast<quintptr>(&midiOverlap)));
     auto midi = new QDspx::MidiConverter;
 
-    auto encodeNotes = [](const QList<DsNote> &notes) {
+    auto encodeNotes = [](const OverlapableSerialList<DsNote> &notes) {
         QList<QDspx::Note> arrNotes;
         for (const auto &note : notes) {
             QDspx::Note dsNote;
-            dsNote.pos = note.start();
-            dsNote.length = note.length();
-            dsNote.keyNum = note.keyIndex();
-            dsNote.lyric = note.lyric();
+            dsNote.pos = note->start();
+            dsNote.length = note->length();
+            dsNote.keyNum = note->keyIndex();
+            dsNote.lyric = note->lyric();
             arrNotes.append(dsNote);
         }
         return arrNotes;
@@ -307,7 +310,7 @@ bool AppModel::exportMidiFile(const QString &filename) {
                 singClip->time.clipStart = clip->clipStart();
                 singClip->time.length = clip->length();
                 singClip->time.clipLen = clip->clipLen();
-                singClip->notes = encodeNotes(singingClip->notes);
+                singClip->notes = encodeNotes(singingClip->notes());
                 track->clips.append(singClip);
             } else if (clip->type() == DsClip::Audio) {
                 auto audioClip = dynamic_cast<DsAudioClip *>(clip);
@@ -353,7 +356,7 @@ bool AppModel::exportMidiFile(const QString &filename) {
     return true;
 }
 
-bool AppModel::loadAProject(const QString &filename) {
+bool AppModel::loadProject(const QString &filename) {
     reset();
 
     auto openJsonFile = [](const QString &filename, QJsonObject *jsonObj) {
@@ -385,7 +388,7 @@ bool AppModel::loadAProject(const QString &filename) {
                 drawCurve.step = objCurve.value("step").toInt();
                 auto arrValues = objCurve.value("values").toArray();
                 for (const auto valValue : qAsConst(arrValues)) {
-                    drawCurve.values.append(valValue.toInt());
+                    drawCurve.insertValue(valValue.toInt());
                 }
                 dsCurves.append(drawCurve);
             } else if (type == "anchor") {
@@ -396,15 +399,15 @@ bool AppModel::loadAProject(const QString &filename) {
                     auto objNode = valNode.toObject();
                     DsAnchorNode node(objNode.value("x").toInt(), objNode.value("y").toInt());
                     if (objNode.value("interpMode").toString() == "linear") {
-                        node.interpMode = DsAnchorNode::Linear;
+                        node.setInterpMode(DsAnchorNode::Linear);
                     } else if (objNode.value("interpMode").toString() == "hermite") {
-                        node.interpMode = DsAnchorNode::Hermite;
+                        node.setInterpMode(DsAnchorNode::Hermite);
                     } else if (objNode.value("interpMode").toString() == "cubic") {
-                        node.interpMode = DsAnchorNode::Cubic;
+                        node.setInterpMode(DsAnchorNode::Cubic);
                     } else {
-                        node.interpMode = DsAnchorNode::None;
+                        node.setInterpMode(DsAnchorNode::None);
                     }
-                    anchorCurve.nodes.append(node);
+                    anchorCurve.insertNode(&node);
                 }
                 dsCurves.append(anchorCurve);
             }
@@ -416,15 +419,21 @@ bool AppModel::loadAProject(const QString &filename) {
         DsParam dsParams;
         if (!(objParam.value("original").isUndefined() || objParam.value("original").isNull())) {
             auto objOriginal = objParam.value("original").toArray();
-            dsParams.original.append(decodeCurve(objOriginal));
+            auto curves = decodeCurve(objOriginal);
+            for (auto &curve : curves)
+                dsParams.original.add(&curve);
         }
         if (!(objParam.value("edited").isUndefined() || objParam.value("edited").isNull())) {
             auto objEdited = objParam.value("edited").toArray();
-            dsParams.edited.append(decodeCurve(objEdited));
+            auto curves = decodeCurve(objEdited);
+            for (auto &curve : curves)
+                dsParams.edited.add(&curve);
         }
         if (!(objParam.value("envelope").isUndefined() || objParam.value("envelope").isNull())) {
             auto objEnvelope = objParam.value("envelope").toArray();
-            dsParams.envelope.append(decodeCurve(objEnvelope));
+            auto curves = decodeCurve(objEnvelope);
+            for (auto &curve : curves)
+                dsParams.envelope.add(&curve);
         }
         return dsParams;
     };
@@ -513,7 +522,9 @@ bool AppModel::loadAProject(const QString &filename) {
                 auto arrNotes = objClip.value("notes").toArray();
                 auto objParams = objClip.value("params").toObject();
                 // singingClip->notes.append(decodeNotes(arrNotes));
-                singingClip->notes.append(decodeNotes(arrNotes));
+                auto notes = decodeNotes(arrNotes);
+                for (auto &note : notes)
+                    singingClip->insertNote(&note);
                 singingClip->params = decodeSingingParams(objParams);
                 dsTack->insertClip(singingClip);
             } else if (type == "audio") {
@@ -550,9 +561,9 @@ bool AppModel::loadAProject(const QString &filename) {
         }
     };
 
-    QJsonObject objAProject;
-    if (openJsonFile(filename, &objAProject)) {
-        auto projContent = objAProject.value("content").toObject();
+    QJsonObject objProject;
+    if (openJsonFile(filename, &objProject)) {
+        auto projContent = objProject.value("content").toObject();
         auto projTimeline = projContent.value("timeline").toObject();
         auto projTimesig = projTimeline.value("timeSignatures").toArray().first().toObject();
         m_numerator = projTimesig.value("numerator").toInt();
@@ -566,6 +577,14 @@ bool AppModel::loadAProject(const QString &filename) {
         return true;
     }
     return false;
+}
+bool AppModel::importAProject(const QString &filename) {
+    reset();
+    auto converter = new AProjectConverter;
+    QString errMsg;
+    auto ok = converter->load(filename, this, errMsg);
+    emit modelChanged();
+    return ok;
 }
 int AppModel::selectedTrackIndex() const {
     return m_selectedTrackIndex;
