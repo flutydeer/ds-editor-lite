@@ -214,7 +214,11 @@ namespace LrcTools {
                 time += line.at(offset);
                 offset++;
             } else if (line.at(offset) == ']') {
-                pts += time.toLongLong() * 10; // 10 milliseconds
+                if (time.size() == 3) {
+                    pts += time.toLongLong();
+                } else {
+                    pts += time.toLongLong() * 10; // 10 milliseconds
+                }
                 times.append(pts);
                 time.clear();
                 pts = 0;
