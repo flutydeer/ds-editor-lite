@@ -85,7 +85,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
 
     QJsonObject objAProject;
     if (openJsonFile(path, &objAProject)) {
-        model->setNumerator(objAProject.value("beatsPerBar").toInt());
+        model->setTimeSignature(AppModel::TimeSignature(objAProject.value("beatsPerBar").toInt(), 4));
         model->setTempo(
             objAProject.value("tempos").toArray().first().toObject().value("bpm").toDouble());
         decodeTracks(objAProject.value("tracks").toArray(), model);

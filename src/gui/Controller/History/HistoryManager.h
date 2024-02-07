@@ -18,6 +18,7 @@ public:
     void undo();
     void redo();
     void record(ActionSequence *actions);
+    void reset();
 
     bool canUndo() const;
     bool canRedo() const;

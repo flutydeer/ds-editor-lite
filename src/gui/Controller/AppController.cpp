@@ -10,14 +10,17 @@
 #include "g2pglobal.h"
 #include "mandarin.h"
 #include "syllable2p.h"
-#include "../../tests/TestHistoryManager/History/HistoryManager.h"
+#include "Controller/History/HistoryManager.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
+#include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
 
 void AppController::onNewProject() {
     AppModel::instance()->newProject();
+    HistoryManager::instance()->reset();
 }
 void AppController::openProject(const QString &filePath) {
     AppModel::instance()->loadProject(filePath);
+    HistoryManager::instance()->reset();
 }
 void AppController::importMidiFile(const QString &filePath) {
     AppModel::instance()->importMidiFile(filePath);
@@ -27,6 +30,7 @@ void AppController::exportMidiFile(const QString &filePath) {
 }
 void AppController::importAproject(const QString &filePath) {
     AppModel::instance()->importAProject(filePath);
+    HistoryManager::instance()->reset();
 }
 void AppController::onRunG2p() {
     auto model = AppModel::instance();
@@ -64,9 +68,11 @@ void AppController::onSetTempo(double tempo) {
 }
 void AppController::onSetTimeSignature(int numerator, int denominator) {
     auto model = AppModel::instance();
+    auto oldSig = model->timeSignature();
+    auto newSig = AppModel::TimeSignature(numerator, denominator);
+    auto actions = new TimeSignatureActions;
     if (isPowerOf2(denominator)) {
-        model->setNumerator(numerator);
-        model->setDenominator(denominator);
+        actions->editTimeSignature(oldSig, newSig, model);
     } else {
         // QMessageBox msgBox;
         // msgBox.setText("Error");
@@ -74,9 +80,10 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
         // msgBox.setStandardButtons(QMessageBox::Yes);
         // msgBox.setDefaultButton(QMessageBox::Yes);
         // msgBox.exec();
-        model->setNumerator(model->numerator());
-        model->setDenominator(model->denominator());
+        actions->editTimeSignature(oldSig, oldSig, model);
     }
+    actions->execute();
+    HistoryManager::instance()->record(actions);
 }
 void AppController::onSetQuantize(int quantize) {
     AppModel::instance()->setQuantize(quantize);

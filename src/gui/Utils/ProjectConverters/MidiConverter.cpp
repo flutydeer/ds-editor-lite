@@ -175,8 +175,8 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     if (mode == ImportMode::NewProject) {
         model->newProject();
     } else if (mode == ImportMode::AppendToProject) {
-        if (model->numerator() != dspx->content.timeline.timeSignatures[0].num ||
-            model->denominator() != dspx->content.timeline.timeSignatures[0].den) {
+        if (model->timeSignature().numerator != dspx->content.timeline.timeSignatures[0].num ||
+            model->timeSignature().denominator != dspx->content.timeline.timeSignatures[0].den) {
             QMessageBox msgBox;
             msgBox.setText("Time Signature Mismatch");
             msgBox.setInformativeText("The time signature of the MIDI file does not match the "
@@ -204,8 +204,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     }
     if (dspx->content.tracks.count() > 0) {
         auto timeline = dspx->content.timeline;
-        model->setNumerator(timeline.timeSignatures[0].num);
-        model->setDenominator(timeline.timeSignatures[0].den);
+        model->setTimeSignature(AppModel::TimeSignature(timeline.timeSignatures[0].num, timeline.timeSignatures[0].den));
         model->setTempo(timeline.tempos[0].value);
         decodeTracks(dspx, model, mode);
         return true;
@@ -273,7 +272,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
 
     timeline->tempos.append(QDspx::Tempo(0, model->tempo()));
     timeline->timeSignatures.append(
-        QDspx::TimeSignature(0, model->numerator(), model->denominator()));
+        QDspx::TimeSignature(0, model->timeSignature().numerator, model->timeSignature().denominator));
     dspx.content.timeline = *timeline;
 
     encodeTracks(model, dspx);

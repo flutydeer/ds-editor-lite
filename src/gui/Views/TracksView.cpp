@@ -83,7 +83,7 @@ TracksView::TracksView() {
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
     auto appModel = AppModel::instance();
     connect(appModel, &AppModel::modelChanged, m_gridItem, [=] {
-        m_gridItem->setTimeSignature(appModel->numerator(), appModel->denominator());
+        m_gridItem->setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator);
         m_gridItem->setQuantize(appModel->quantize());
     });
     connect(appModel, &AppModel::timeSignatureChanged, m_gridItem,
@@ -105,7 +105,7 @@ TracksView::TracksView() {
                 playbackController->setPosition(tick);
             });
     connect(appModel, &AppModel::modelChanged, m_timeline,
-            [=] { m_timeline->setTimeSignature(appModel->numerator(), appModel->denominator()); });
+            [=] { m_timeline->setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator); });
     connect(appModel, &AppModel::timeSignatureChanged, m_timeline, &TimelineView::setTimeSignature);
     connect(m_gridItem, &TimeGridGraphicsItem::timeRangeChanged, m_timeline,
             &TimelineView::setTimeRange);

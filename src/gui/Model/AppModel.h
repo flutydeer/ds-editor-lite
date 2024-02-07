@@ -16,26 +16,18 @@ public:
 
     enum TrackChangeType { Insert, PropertyUpdate, Remove };
 
-    // class TimeSignature {
-    // public:
-    //     TimeSignature();
-    //     TimeSignature(int numerator, int denominator)
-    //         : m_numerator(numerator), m_denominator(denominator) {
-    //     }
-    //     int numerator() const;
-    //     void setNumerator(int numerator);
-    //     int denominator() const;
-    //     void setDenominator(int denominator);
-    //
-    // private:
-    //     int m_numerator = 4;
-    //     int m_denominator = 4;
-    // };
+    class TimeSignature {
+    public:
+        TimeSignature() = default;
+        TimeSignature(int num, int deno) : numerator(num), denominator(deno) {
+        }
+        int pos = 0;
+        int numerator = 4;
+        int denominator = 4;
+    };
 
-    int numerator() const;
-    void setNumerator(int numerator);
-    int denominator() const;
-    void setDenominator(int denominator);
+    TimeSignature timeSignature() const;
+    void setTimeSignature(const TimeSignature &signature);
     double tempo() const;
     void setTempo(double tempo);
     const QList<DsTrack *> &tracks() const;
@@ -78,8 +70,7 @@ signals:
 private:
     void reset();
 
-    int m_numerator = 4;
-    int m_denominator = 4;
+    TimeSignature m_timeSignature;
     double m_tempo = 120;
     QList<DsTrack *> m_tracks;
 

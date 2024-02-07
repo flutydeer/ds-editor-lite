@@ -8,7 +8,7 @@
 #include "Controller/History/IAction.h"
 #include "Model/AppModel.h"
 
-class EditTempoAction : public IAction {
+class EditTempoAction final : public IAction {
 public:
     static EditTempoAction *build(double oldTempo, double newTempo, AppModel *model);
     void execute() override;

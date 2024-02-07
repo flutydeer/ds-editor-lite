@@ -181,7 +181,10 @@ QStringList AudioExporter::outputFileList() const {
     auto fileNameTemplate = m_option.fileName + "." + m_option.extensionName;
     fileNameTemplate.replace("${projectName}", "untitled"); // TODO
     fileNameTemplate.replace("${tempo}", QString::number(AppModel::instance()->tempo()));
-    fileNameTemplate.replace("${timeSignature}", QString("%1-%2").arg(AppModel::instance()->numerator()).arg(AppModel::instance()->denominator()));
+    fileNameTemplate.replace("${timeSignature}",
+                             QString("%1-%2")
+                                 .arg(AppModel::instance()->timeSignature().numerator)
+                                 .arg(AppModel::instance()->timeSignature().denominator));
     fileNameTemplate.replace("${sampleRate}", QString::number(m_option.sampleRate));
 
     if (m_option.mixingOption == Option::Mixed) {

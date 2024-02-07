@@ -17,6 +17,7 @@
 
 #include "AppModel.h"
 
+#include "Controller/History/HistoryManager.h"
 #include "Utils/IdGenerator.h"
 #include "Utils/ProjectConverters/AProjectConverter.h"
 #include "opendspx/qdspxtrack.h"
@@ -25,21 +26,12 @@
 #include "opendspx/converters/midi.h"
 #include "Utils/ProjectConverters/MidiConverter.h"
 
-int AppModel::numerator() const {
-    return m_numerator;
+AppModel::TimeSignature AppModel::timeSignature() const {
+    return m_timeSignature;
 }
-void AppModel::setNumerator(int numerator) {
-    qDebug() << "AppModel::setNumerator" << numerator;
-    m_numerator = numerator;
-    emit timeSignatureChanged(m_numerator, m_denominator);
-}
-int AppModel::denominator() const {
-    return m_denominator;
-}
-void AppModel::setDenominator(int denominator) {
-    qDebug() << "AppModel::setDenominator";
-    m_denominator = denominator;
-    emit timeSignatureChanged(m_numerator, m_denominator);
+void AppModel::setTimeSignature(const TimeSignature &signature) {
+    m_timeSignature = signature;
+    emit timeSignatureChanged(m_timeSignature.numerator, m_timeSignature.denominator);
 }
 double AppModel::tempo() const {
     return m_tempo;
@@ -290,8 +282,8 @@ bool AppModel::loadProject(const QString &filename) {
         auto projContent = objProject.value("content").toObject();
         auto projTimeline = projContent.value("timeline").toObject();
         auto projTimesig = projTimeline.value("timeSignatures").toArray().first().toObject();
-        m_numerator = projTimesig.value("numerator").toInt();
-        m_denominator = projTimesig.value("denominator").toInt();
+        m_timeSignature.numerator = projTimesig.value("numerator").toInt();
+        m_timeSignature.denominator = projTimesig.value("denominator").toInt();
         m_tempo =
             projTimeline.value("tempos").toArray().first().toObject().value("value").toDouble();
         decodeTracks(projContent.value("tracks").toArray(), m_tracks);
@@ -353,7 +345,7 @@ void AppModel::setSelectedTrack(int trackIndex) {
 }
 void AppModel::reset() {
     m_tempo = 120;
-    m_numerator = 4;
-    m_denominator = 4;
+    m_timeSignature.numerator = 4;
+    m_timeSignature.denominator = 4;
     m_tracks.clear();
 }
