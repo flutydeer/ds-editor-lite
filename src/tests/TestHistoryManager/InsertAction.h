@@ -7,7 +7,7 @@
 
 #include "Note.h"
 #include "SingingClip.h"
-#include "../../gui/Controller/History/IAction.h"
+#include "History/IAction.h"
 
 class InsertAction : public IAction {
 public:

@@ -15,5 +15,5 @@ void InsertAction::execute() {
     m_clip->notes.append(m_note);
 }
 void InsertAction::undo() {
-    m_clip->notes.append(m_note);
+    m_clip->notes.removeOne(m_note);
 }

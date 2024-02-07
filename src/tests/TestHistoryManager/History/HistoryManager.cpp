@@ -29,9 +29,9 @@ void HistoryManager::record(ActionSequence *actions) {
     m_redoStack.clear();
     emit undoRedoChanged();
 }
-bool HistoryManager::canUndo() {
+bool HistoryManager::canUndo() const {
     return !m_undoStack.isEmpty();
 }
-bool HistoryManager::canRedo() {
+bool HistoryManager::canRedo() const {
     return !m_redoStack.isEmpty();
 }

@@ -8,7 +8,7 @@
 
 #include <QDebug>
 
-#include "../../gui/Controller/History/HistoryManager.h"
+#include "History/HistoryManager.h"
 #include "Note.h"
 
 
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
         qDebug() << note->lyric;
 
     qDebug() << "Redo";
-    historyMgr->undo();
+    historyMgr->redo();
     qDebug() << "Clip model:";
     for (auto note : singingClip->notes)
         qDebug() << note->lyric;

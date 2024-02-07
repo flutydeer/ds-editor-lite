@@ -5,7 +5,7 @@
 #ifndef TESTLISTACTIONS_H
 #define TESTLISTACTIONS_H
 
-#include "../../gui/Controller/History/ActionSequence.h"
+#include "History/ActionSequence.h"
 #include "Note.h"
 #include "SingingClip.h"
 

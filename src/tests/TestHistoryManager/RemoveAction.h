@@ -5,7 +5,7 @@
 #ifndef REMOVEACTION_H
 #define REMOVEACTION_H
 
-#include "../../gui/Controller/History/IAction.h"
+#include "History/IAction.h"
 
 class RemoveAction : public IAction {
 

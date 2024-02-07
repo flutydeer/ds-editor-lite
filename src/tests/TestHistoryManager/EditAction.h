@@ -5,7 +5,7 @@
 #ifndef EDITACTION_H
 #define EDITACTION_H
 
-#include "../../gui/Controller/History/IAction.h"
+#include "History/IAction.h"
 
 class EditAction : public IAction {
 

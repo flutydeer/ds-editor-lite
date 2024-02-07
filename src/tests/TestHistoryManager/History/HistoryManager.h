@@ -9,7 +9,7 @@
 #include <QStack>
 
 #include "ActionSequence.h"
-#include "../../Utils/Singleton.h"
+#include "../../gui/Utils/Singleton.h"
 
 class HistoryManager : public QObject, public Singleton<HistoryManager> {
     Q_OBJECT
@@ -19,8 +19,8 @@ public:
     void redo();
     void record(ActionSequence *actions);
 
-    bool canUndo();
-    bool canRedo();
+    bool canUndo() const;
+    bool canRedo() const;
 
 signals:
     void undoRedoChanged();
