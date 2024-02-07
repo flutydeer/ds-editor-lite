@@ -83,7 +83,8 @@ TracksView::TracksView() {
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
     auto appModel = AppModel::instance();
     connect(appModel, &AppModel::modelChanged, m_gridItem, [=] {
-        m_gridItem->setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator);
+        m_gridItem->setTimeSignature(appModel->timeSignature().numerator,
+                                     appModel->timeSignature().denominator);
         m_gridItem->setQuantize(appModel->quantize());
     });
     connect(appModel, &AppModel::timeSignatureChanged, m_gridItem,
@@ -104,8 +105,10 @@ TracksView::TracksView() {
                 playbackController->setLastPosition(tick);
                 playbackController->setPosition(tick);
             });
-    connect(appModel, &AppModel::modelChanged, m_timeline,
-            [=] { m_timeline->setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator); });
+    connect(appModel, &AppModel::modelChanged, m_timeline, [=] {
+        m_timeline->setTimeSignature(appModel->timeSignature().numerator,
+                                     appModel->timeSignature().denominator);
+    });
     connect(appModel, &AppModel::timeSignatureChanged, m_timeline, &TimelineView::setTimeSignature);
     connect(m_gridItem, &TimeGridGraphicsItem::timeRangeChanged, m_timeline,
             &TimelineView::setTimeRange);
@@ -436,7 +439,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
         clipItem->setClipLen(clipLen);
         clipItem->setGain(singingClip->gain());
         clipItem->setTrackIndex(trackIndex);
-        const auto& notesRef = singingClip->notes();
+        const auto &notesRef = singingClip->notes();
         clipItem->loadNotes(notesRef);
         clipItem->setOverlapped(singingClip->overlapped());
         clipItem->setVisibleRect(m_graphicsView->visibleRect());
@@ -521,6 +524,8 @@ void TracksView::updateClipOnView(DsClip *clip, int clipId) {
     }
 }
 void TracksView::removeTrackFromView(int index) {
+    disconnect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
+               &TracksView::onSceneSelectionChanged);
     // remove from view
     auto track = m_tracksModel.tracks.at(index);
     for (auto clip : track->clips) {
@@ -544,6 +549,8 @@ void TracksView::removeTrackFromView(int index) {
                 clipItem->setTrackIndex(i);
             }
         }
+    connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
+            &TracksView::onSceneSelectionChanged);
 }
 void TracksView::updateOverlappedState(int trackIndex) {
     auto trackModel = AppModel::instance()->tracks().at(trackIndex);
