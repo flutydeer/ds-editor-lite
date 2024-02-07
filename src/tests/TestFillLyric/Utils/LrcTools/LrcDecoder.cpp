@@ -128,25 +128,28 @@ namespace LrcTools {
         return d->m_duration;
     }
 
-    void LrcDecoder::dumpMetadata() {
+    QStringList LrcDecoder::dumpMetadata() {
         Q_D(const LrcDecoder);
-        qDebug() << "[===Lyrics Metadata===]\n[Filename: " << d->m_filename << "]";
+        QStringList metadata;
+        metadata.append("[===Lyrics Metadata===]");
+        metadata.append("[Filename: " + d->m_filename + "]");
         if (d->m_metadata.isEmpty())
-            qDebug() << "[No Metadata]";
-        for (auto it = d->m_metadata.constBegin(); it != d->m_metadata.constEnd(); ++it) {
-            qDebug() << "[" << it.key() << ": " << it.value() << "]";
+            metadata.append("[No metadata found]");
+        else {
+            for (auto it = d->m_metadata.constBegin(); it != d->m_metadata.constEnd(); ++it) {
+                metadata.append("[" + it.key() + ": " + it.value() + "]");
+            }
         }
+        metadata.append("[===End of Metadata===]");
+        return metadata;
     }
 
     QStringList LrcDecoder::dumpLyrics() {
         Q_D(const LrcDecoder);
         QStringList lyrics;
-        qDebug() << "[===Lyrics===]";
         for (auto it = d->m_lyrics.constBegin(); it != d->m_lyrics.constEnd(); ++it) {
             lyrics.append(it.value());
-            qDebug() << "[Pts: " << it.key() << "]---[Lyric: " << it.value() << "]";
         }
-
         return lyrics;
     }
 

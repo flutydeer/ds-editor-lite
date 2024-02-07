@@ -34,12 +34,12 @@ namespace LrcTools {
         LyricPacket readPacket();
         bool seek(qint64 timestamp, SeekFlag flag = SeekForward);
         qint64 duration() const;
-        void dumpMetadata();
+        QStringList dumpMetadata();
         QStringList dumpLyrics();
         QString lastError() const;
 
     protected:
-        LrcDecoder(LrcDecoderPrivate &d, QObject *parent = nullptr);
+        explicit LrcDecoder(LrcDecoderPrivate &d, QObject *parent = nullptr);
 
         QSharedPointer<LrcDecoderPrivate> d_ptr;
     };

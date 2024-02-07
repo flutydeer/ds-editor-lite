@@ -348,8 +348,10 @@ namespace FillLyric {
                     syllableLine.append(syllable);
                 }
             }
-            lyricRes.append(lyricLine.join(""));
-            syllableRes.append(syllableLine.join(" "));
+            if (!lyricLine.isEmpty())
+                lyricRes.append(lyricLine.join(""));
+            if (!syllableLine.isEmpty())
+                syllableRes.append(syllableLine.join(" "));
         }
         qDebug() << "lyricRes: " << lyricRes;
         qDebug() << "syllableRes: " << syllableRes;
@@ -437,7 +439,9 @@ namespace FillLyric {
             return;
         }
         // 获取歌词文件的元数据
-        decoder.dumpMetadata();
+        auto metadata = decoder.dumpMetadata();
+        qDebug() << "metadata: " << metadata;
+
         // 获取歌词文件的歌词
         auto lyrics = decoder.dumpLyrics();
         // 设置文本框内容
