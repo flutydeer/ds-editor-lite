@@ -10,6 +10,8 @@
 #include "g2pglobal.h"
 #include "mandarin.h"
 #include "syllable2p.h"
+#include "../../tests/TestHistoryManager/History/HistoryManager.h"
+#include "Actions/AppModel/Tempo/TempoActions.h"
 
 void AppController::onNewProject() {
     AppModel::instance()->newProject();
@@ -53,7 +55,12 @@ void AppController::onRunG2p() {
 void AppController::onSetTempo(double tempo) {
     // TODO: validate tempo
     auto model = AppModel::instance();
-    model->setTempo(tempo > 0 ? tempo : model->tempo());
+    auto oldTempo = model->tempo();
+    auto newTempo = tempo > 0 ? tempo : model->tempo();
+    auto actions = new TempoActions;
+    actions->editTempo(oldTempo, newTempo, model);
+    actions->execute();
+    HistoryManager::instance()->record(actions);
 }
 void AppController::onSetTimeSignature(int numerator, int denominator) {
     auto model = AppModel::instance();

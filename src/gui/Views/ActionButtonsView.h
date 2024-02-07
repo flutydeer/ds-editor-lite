@@ -19,11 +19,10 @@ signals:
     void undoTriggered();
     void redoTriggered();
 
-// public slots:
-//     void updateView();
-//     void onCanSaveChanged(bool b);
-//     void onCanUndoChanged(bool b);
-//     void onCanRedoChanged(bool b);
+public slots:
+    // void updateView();
+    // void onCanSaveChanged(bool b);
+    void onUndoRedoChanged(bool canUndo, bool canRedo);
 
 private:
     int m_contentHeight = 32;
