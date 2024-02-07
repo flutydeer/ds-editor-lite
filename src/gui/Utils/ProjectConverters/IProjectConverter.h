@@ -9,11 +9,13 @@
 
 class IProjectConverter {
 public:
-    virtual bool load(const QString &path, AppModel *model, QString &errMsg) = 0;
+    enum ImportMode { NewProject, AppendToProject };
+    virtual bool load(const QString &path, AppModel *model, QString &errMsg,
+                      ImportMode mode = ImportMode::NewProject) = 0;
     virtual bool save(const QString &path, AppModel *model, QString &errMsg) = 0;
     virtual ~IProjectConverter() = default;
 };
 
 
 
-#endif //IPROJECTCONVERTER_H
+#endif // IPROJECTCONVERTER_H

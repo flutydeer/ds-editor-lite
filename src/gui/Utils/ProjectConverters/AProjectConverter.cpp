@@ -8,7 +8,8 @@
 #include <QJsonObject>
 
 #include "AProjectConverter.h"
-bool AProjectConverter::load(const QString &path, AppModel *model, QString &errMsg) {
+bool AProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
+                             ImportMode mode) {
     auto openJsonFile = [](const QString &filename, QJsonObject *jsonObj) {
         QFile loadFile(filename);
         if (!loadFile.open(QIODevice::ReadOnly)) {
