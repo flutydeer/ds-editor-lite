@@ -22,6 +22,7 @@ public slots:
     void openProject(const QString &filePath);
     void importMidiFile(const QString &filePath);
     void exportMidiFile(const QString &filePath);
+    void importAproject(const QString &filePath);
     void onRunG2p();
     void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);

@@ -18,6 +18,7 @@
 #include "AppModel.h"
 
 #include "Utils/IdGenerator.h"
+#include "Utils/ProjectConverters/AProjectConverter.h"
 #include "opendspx/qdspxtrack.h"
 #include "opendspx/qdspxtimeline.h"
 #include "opendspx/qdspxmodel.h"
@@ -576,6 +577,14 @@ bool AppModel::loadProject(const QString &filename) {
         return true;
     }
     return false;
+}
+bool AppModel::importAProject(const QString &filename) {
+    reset();
+    auto converter = new AProjectConverter;
+    QString errMsg;
+    auto ok = converter->load(filename, this, errMsg);
+    emit modelChanged();
+    return ok;
 }
 int AppModel::selectedTrackIndex() const {
     return m_selectedTrackIndex;

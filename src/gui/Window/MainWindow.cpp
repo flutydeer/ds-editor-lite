@@ -115,6 +115,15 @@ MainWindow::MainWindow() {
 
         appController->openProject(fileName);
     });
+    auto actionOpenAProject = new QAction("Open A Project", this);
+    connect(actionOpenAProject, &QAction::triggered, this, [=]{
+        auto fileName = QFileDialog::getOpenFileName(this, "Select an A Project File", ".",
+                                                     "Project File (*.json)");
+        if (fileName.isNull())
+            return;
+
+        appController->importAproject(fileName);
+    });
     auto actionSave = new QAction("&Save", this);
     auto actionSaveAs = new QAction("&Save as", this);
 
@@ -145,6 +154,7 @@ MainWindow::MainWindow() {
 
     menuFile->addAction(actionNewProject);
     menuFile->addAction(actionOpen);
+    menuFile->addAction(actionOpenAProject);
     menuFile->addAction(actionSave);
     menuFile->addAction(actionSaveAs);
     menuFile->addSeparator();
