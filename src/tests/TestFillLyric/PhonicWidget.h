@@ -16,12 +16,14 @@
 #include <QAbstractButton>
 
 #include "g2pglobal.h"
-#include "CleanLyric.h"
+#include "Utils/CleanLyric.h"
 
 #include "mandarin.h"
 #include "SyllableDelegate.h"
 
 namespace FillLyric {
+    using PhonicRole = SyllableDelegate::PhonicRole;
+
     class PhonicWidget : public QWidget {
         Q_OBJECT
     public:
@@ -29,6 +31,7 @@ namespace FillLyric {
         ~PhonicWidget() override;
 
     private:
+        void shrinkTable();
         int currentLyricLength(int row);
 
         void _on_btnToText_clicked();
@@ -40,11 +43,18 @@ namespace FillLyric {
         void _on_cellMoveRight(const QModelIndex &index);
         void _on_cellNewLine(const QModelIndex &index);
         void _on_cellMergeUp(const QModelIndex &index);
+
+        void _on_changePhonetic(const QModelIndex &index, QMenu *menu);
         void _on_changeSyllable(const QModelIndex &index, QMenu *menu);
+
+        void _on_addPrevLine(const QModelIndex &index);
+        void _on_addNextLine(const QModelIndex &index);
+        void _on_removeLine(const QModelIndex &index);
 
         void _on_cellChanged(const QModelIndex &index);
 
         void _on_btnInsertText_clicked();
+        void _on_btnImportLrc_clicked();
         void _on_btnExport_clicked();
 
         void _on_cellEditClosed();
@@ -57,6 +67,7 @@ namespace FillLyric {
         QPushButton *btnInsertText;
         QPushButton *btnToTable;
         QPushButton *btnToText;
+        QPushButton *btnImportLrc;
 
         QPushButton *btnExport;
         QPushButton *btnCancel;

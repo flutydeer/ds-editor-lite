@@ -12,6 +12,8 @@ public:
     explicit SyllableDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {
     }
 
+    enum PhonicRole { Syllable = Qt::UserRole, Candidate, SyllableRevised };
+
     void paint(QPainter *painter, const QStyleOptionViewItem &option,
                const QModelIndex &index) const override {
         QStyleOptionViewItem newOption(option);
@@ -21,6 +23,9 @@ public:
         // 获取注音文本
         QString syllable = index.data(Qt::UserRole).toString();
 
+        // 获取人工修订的注音文本
+        QString syllableRevised = index.data(Qt::UserRole + 2).toString();
+
         // 设置注音的字体
         QFont syllableFont = option.font;
         syllableFont.setPointSize(syllableFont.pointSize() - 2); // 缩小字体
@@ -29,7 +34,10 @@ public:
         // 获取候选发音列表
         QStringList candidateList = index.data(Qt::UserRole + 1).toStringList();
         // 若候选发音大于1个，注音颜色为红色
-        if (candidateList.size() > 1) {
+        if (syllableRevised != "") {
+            painter->setPen(Qt::blue);
+            syllable = syllableRevised;
+        } else if (candidateList.size() > 1) {
             painter->setPen(Qt::red);
         } else {
             painter->setPen(Qt::black);
