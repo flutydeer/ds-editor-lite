@@ -6,6 +6,7 @@
 #include <QScreen>
 #include <QTimer>
 #include <QFile>
+#include <QStyleFactory>
 
 #include <TalcsFormat/AudioFormatIO.h>
 #include <TalcsFormat/AudioFormatInputSource.h>
@@ -28,6 +29,9 @@ int main(int argc, char *argv[]) {
     QApplication::setOrganizationName("OpenVPI");
     QApplication::setApplicationName("DsEditorLite");
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
+
+    auto style = QStyleFactory::create("fusion");
+    QApplication::setStyle(style);
 
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);
