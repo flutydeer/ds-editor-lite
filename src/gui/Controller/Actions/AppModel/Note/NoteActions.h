@@ -12,13 +12,23 @@
 class NoteActions : public ActionSequence {
 public:
     void insertNotes(const QList<DsNote *> &notes, DsSingingClip *clip);
-    void removeNotes(const QList<DsNote *> &notes, DsSingingClip *clip );
-    void editNotesStartAndLength(const QList<DsNote *> &notes, int delta, DsSingingClip *clip); // Resize from left
-    void editNotesLength(const QList<DsNote *> &notes, int delta, DsSingingClip *clip); // Resize from right
-    void editNotePosition(const QList<DsNote *> &notes, int deltaTick, int deltaKey, DsSingingClip *clip); // Move note
-    void editNotesWordProperties(const QList<DsNote *> &notes, const QList<DsNote::NoteWordProperties> &args, DsSingingClip *clip);
+    void removeNotes(const QList<DsNote *> &notes, DsSingingClip *clip);
+
+    // Resize from left
+    void editNotesStartAndLength(const QList<DsNote *> &notes, int delta, DsSingingClip *clip);
+
+    // Resize from right
+    void editNotesLength(const QList<DsNote *> &notes, int delta, DsSingingClip *clip);
+
+    // Move notes
+    void editNotePosition(const QList<DsNote *> &notes, int deltaTick, int deltaKey,
+                          DsSingingClip *clip);
+
+    // Edit lyrics, pronunciations and phonemes
+    void editNotesWordProperties(const QList<DsNote *> &notes,
+                                 const QList<DsNote::NoteWordProperties> &args);
 };
 
 
 
-#endif //NOTEACTIONS_H
+#endif // NOTEACTIONS_H
