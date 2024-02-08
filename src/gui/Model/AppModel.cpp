@@ -53,11 +53,22 @@ void AppModel::insertTrack(DsTrack *track, int index) {
     m_tracks.insert(index, track);
     emit tracksChanged(Insert, index, track);
 }
-void AppModel::removeTrack(int index) {
+void AppModel::appendTrack(DsTrack *track) {
+    insertTrack(track, m_tracks.count());
+}
+void AppModel::removeTrackAt(int index) {
     auto track = m_tracks[index];
     onSelectedClipChanged(-1, -1);
     m_tracks.removeAt(index);
     emit tracksChanged(Remove, index, track);
+}
+void AppModel::removeTrack(DsTrack *track) {
+    auto index = m_tracks.indexOf(track);
+    removeTrackAt(index);
+}
+void AppModel::clearTracks() {
+    while (m_tracks.count() > 0)
+        removeTrackAt(0);
 }
 int AppModel::quantize() const {
     return m_quantize;

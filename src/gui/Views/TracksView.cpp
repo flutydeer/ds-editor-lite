@@ -335,7 +335,7 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
     connect(newTrackControlWidget, &TrackControlWidget::propertyChanged, this, [=] {
         auto control = newTrackControlWidget->control();
         auto i = m_trackListWidget->row(newTrackItem);
-        DsTrack::TrackPropertyChangedArgs args;
+        DsTrack::TrackProperties args;
         args.name = newTrackControlWidget->name();
         args.gain = control.gain();
         args.pan = control.pan();

@@ -2,24 +2,23 @@
 // Created by fluty on 2024/2/8.
 //
 
-#ifndef ADDTRACKSACTION_H
-#define ADDTRACKSACTION_H
+#ifndef APPENDTRACKSACTION_H
+#define APPENDTRACKSACTION_H
 
 #include "Controller/History/IAction.h"
 #include "Model/AppModel.h"
 
-class InsertTrackAction final: public IAction {
+class AppendTrackAction final : public IAction {
 public:
-    static InsertTrackAction *build(DsTrack *track, int index, AppModel *model);
+    static AppendTrackAction *build(DsTrack *track, AppModel *model);
     void execute() override;
     void undo() override;
 
 private:
     DsTrack *m_track = nullptr;
-    int m_index = -1;
     AppModel *m_model = nullptr;
 };
 
 
 
-#endif // ADDTRACKSACTION_H
+#endif // APPENDTRACKSACTION_H

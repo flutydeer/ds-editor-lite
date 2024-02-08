@@ -10,14 +10,14 @@
 
 class RemoveTrackAction : public IAction {
 public:
-    static RemoveTrackAction *build(DsTrack *track, int index, AppModel *model);
+    static RemoveTrackAction *build(DsTrack *track, AppModel *model);
     void execute() override;
     void undo() override;
 
 private:
     DsTrack *m_track = nullptr;
-    int m_index = -1;
     AppModel *m_model = nullptr;
+    QList<DsTrack *> m_originalTracks;
 };
 
 #endif //REMOVETRACKSACTION_H

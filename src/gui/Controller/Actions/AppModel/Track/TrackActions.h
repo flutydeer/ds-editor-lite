@@ -10,9 +10,12 @@
 
 class TrackActions : public ActionSequence{
 public:
+    void appendTracks(QList<DsTrack *> tracks, AppModel *model);
     void insertTrack(DsTrack *track, int index, AppModel *model);
-    // void removeTracks(const QList<DsTrack *> &tracks, AppModel *model);
-    void removeTrack(DsTrack *track, int index, AppModel *model);
+    void removeTracks(const QList<DsTrack *> &tracks, AppModel *model);
+    void editTrackProperties(const DsTrack::TrackProperties &oldArgs,
+                                   const DsTrack::TrackProperties &newArgs,
+                                   DsTrack *track);
 };
 
 

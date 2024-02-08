@@ -32,7 +32,10 @@ public:
     void setTempo(double tempo);
     const QList<DsTrack *> &tracks() const;
     void insertTrack(DsTrack *track, int index);
-    void removeTrack(int index);
+    void appendTrack(DsTrack *track);
+    void removeTrackAt(int index);
+    void removeTrack(DsTrack *track);
+    void clearTracks();
     int quantize() const;
     void setQuantize(int quantize);
 
