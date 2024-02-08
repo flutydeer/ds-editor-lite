@@ -91,7 +91,12 @@ void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, i
     audioClip->setClipStart(0);
     audioClip->setPath(path);
     auto track = AppModel::instance()->tracks().at(trackIndex);
-    track->insertClip(audioClip);
+    auto a = new ClipActions;
+    QList<DsClip *> clips;
+    clips.append(audioClip);
+    a->insertClips(clips, track);
+    a->execute();
+    HistoryManager::instance()->record(a);
 }
 void TracksViewController::onClipPropertyChanged(const DsClip::ClipCommonProperties &args) {
     qDebug() << "TracksViewController::onClipPropertyChanged";
@@ -171,8 +176,14 @@ void TracksViewController::onRemoveClip(int clipId) {
     if (ret == QMessageBox::Yes) {
         for (const auto &track : AppModel::instance()->tracks()) {
             auto result = track->findClipById(clipId);
-            if (result != nullptr)
-                track->removeClip(result);
+            if (result != nullptr) {
+                auto a = new ClipActions;
+                QList<DsClip *> clips;
+                clips.append(result);
+                a->removeClips(clips, track);
+                a->execute();
+                HistoryManager::instance()->record(a);
+            }
         }
     }
 }
@@ -183,5 +194,10 @@ void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
     singingClip->setLength(1920);
     singingClip->setClipLen(1920);
     auto track = AppModel::instance()->tracks().at(trackIndex);
-    track->insertClip(singingClip);
+    auto a = new ClipActions;
+    QList<DsClip *> clips;
+    clips.append(singingClip);
+    a->insertClips(clips, track);
+    a->execute();
+    HistoryManager::instance()->record(a);
 }
