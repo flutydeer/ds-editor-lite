@@ -5,6 +5,8 @@
 #include <QMessageBox>
 
 #include "TracksViewController.h"
+
+#include "Actions/AppModel/Clip/ClipActions.h"
 #include "Model/AppModel.h"
 #include "Utils/IdGenerator.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
@@ -91,45 +93,73 @@ void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, i
     auto track = AppModel::instance()->tracks().at(trackIndex);
     track->insertClip(audioClip);
 }
-void TracksViewController::onClipPropertyChanged(const DsClip::ClipPropertyChangedArgs &args) {
+void TracksViewController::onClipPropertyChanged(const DsClip::ClipCommonProperties &args) {
     qDebug() << "TracksViewController::onClipPropertyChanged";
     auto track = AppModel::instance()->tracks().at(args.trackIndex);
     auto clip = track->findClipById(args.id);
 
-    qDebug() << "args.id" << args.id;
-    qDebug() << "args.name" << args.name;
-    qDebug() << "args.start" << args.start;
-    qDebug() << "args.clipStart" << args.clipStart;
-    qDebug() << "args.length" << args.length;
-    qDebug() << "args.clipLen" << args.clipLen;
+    // qDebug() << "args.id" << args.id;
+    // qDebug() << "args.name" << args.name;
+    // qDebug() << "args.start" << args.start;
+    // qDebug() << "args.clipStart" << args.clipStart;
+    // qDebug() << "args.length" << args.length;
+    // qDebug() << "args.clipLen" << args.clipLen;
 
     if (clip->type() == DsClip::Audio) {
         auto audioClip = dynamic_cast<DsAudioClip *>(clip);
-        qDebug() << "clip path" << audioClip->path();
-        auto audioArgs = dynamic_cast<const DsClip::AudioClipPropertyChangedArgs *>(&args);
-        qDebug() << "args path" << audioArgs->path;
+        // qDebug() << "clip path" << audioClip->path();
+        // auto audioArgs = dynamic_cast<const DsClip::AudioClipPropertyChangedArgs *>(&args);
+        // qDebug() << "args path" << audioArgs->path;
         // audioClip->setPath(audioArgs->path);
+
+        DsClip::ClipCommonProperties oldArgs;
+        oldArgs.name = audioClip->name();
+        oldArgs.id = audioClip->id();
+        oldArgs.start = audioClip->start();
+        oldArgs.clipStart = audioClip->clipStart();
+        oldArgs.length = audioClip->length();
+        oldArgs.clipLen = audioClip->clipLen();
+        oldArgs.gain = audioClip->gain();
+        oldArgs.mute = audioClip->mute();
+        oldArgs.trackIndex = args.trackIndex;
+
+        QList<DsClip::ClipCommonProperties> oldArgsList;
+        oldArgsList.append(oldArgs);
+        QList<DsClip::ClipCommonProperties> newArgsList;
+        newArgsList.append(args);
+        QList<DsAudioClip *> clips;
+        clips.append(audioClip);
+
+        auto a = new ClipActions;
+        a->editAudioClipProperties(oldArgsList, newArgsList, clips, track);
+        a->execute();
+        HistoryManager::instance()->record(a);
     } else if (clip->type() == DsClip::Singing) {
         auto singingClip = dynamic_cast<DsSingingClip *>(clip);
-        auto deltaTime = args.start - clip->start();
-        qDebug() << "singing clip moved:" << deltaTime;
-        if (deltaTime != 0) {
-            // TODO: handle singing clip move: move notes and params
-            // for (auto &note : singingClip->notes()) {
-            //     note->setStart(note.start() + deltaTime);
-            // }
-        }
-    }
-    track->removeClipQuietly(clip);
-    clip->setName(args.name);
-    clip->setStart(args.start);
-    clip->setClipStart(args.clipStart);
-    clip->setLength(args.length);
-    clip->setClipLen(args.clipLen);
-    track->insertClipQuietly(clip);
-    track->notityClipPropertyChanged(clip);
 
-    // track->updateClip(clip);
+        DsClip::ClipCommonProperties oldArgs;
+        oldArgs.name = singingClip->name();
+        oldArgs.id = singingClip->id();
+        oldArgs.start = singingClip->start();
+        oldArgs.clipStart = singingClip->clipStart();
+        oldArgs.length = singingClip->length();
+        oldArgs.clipLen = singingClip->clipLen();
+        oldArgs.gain = singingClip->gain();
+        oldArgs.mute = singingClip->mute();
+        oldArgs.trackIndex = args.trackIndex;
+
+        QList<DsClip::ClipCommonProperties> oldArgsList;
+        oldArgsList.append(oldArgs);
+        QList<DsClip::ClipCommonProperties> newArgsList;
+        newArgsList.append(args);
+        QList<DsSingingClip *> clips;
+        clips.append(singingClip);
+
+        auto a = new ClipActions;
+        a->editSingingClipProperties(oldArgsList, newArgsList, clips, track);
+        a->execute();
+        HistoryManager::instance()->record(a);
+    }
 }
 void TracksViewController::onRemoveClip(int clipId) {
     QMessageBox msgBox;

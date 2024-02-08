@@ -25,9 +25,6 @@ void SingingClipGraphicsItem::loadNotes(const OverlapableSerialList<DsNote> &not
             note.keyIndex = dsNote->keyIndex();
             m_notes.append(note);
         }
-        auto endTick = m_notes.last().rStart + m_notes.last().length + 1920;
-        setLength(endTick);
-        setClipLen(endTick);
     }
     update();
 }

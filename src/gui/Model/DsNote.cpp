@@ -4,6 +4,8 @@
 
 #include "DsNote.h"
 
+#include <utility>
+
 int DsNote::start() const {
     return m_start;
 }
@@ -33,6 +35,16 @@ QString DsNote::pronunciation() const {
 }
 void DsNote::setPronunciation(const QString &pronunciation) {
     m_pronunciation = pronunciation;
+}
+DsPhonemes DsNote::phonemes() const {
+    return m_phonemes;
+}
+void DsNote::setPhonemes(DsPhonemes::DsPhonemesType type, QList<DsPhoneme> phonemes) {
+    if (type == DsPhonemes::Original)
+        m_phonemes.original = phonemes;
+    else if (type == DsPhonemes::Edited)
+        m_phonemes.edited = phonemes;
+
 }
 int DsNote::compareTo(DsNote *obj) const {
     auto otherStart = obj->start();

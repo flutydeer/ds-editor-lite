@@ -43,9 +43,9 @@ public:
     int compareTo(DsClip *obj) const;
     bool isOverlappedWith(DsClip *obj) const;
 
-    class ClipPropertyChangedArgs {
+    class ClipCommonProperties {
     public:
-        virtual ~ClipPropertyChangedArgs() = default;
+        virtual ~ClipCommonProperties() = default;
         int id = -1;
 
         QString name;
@@ -58,12 +58,10 @@ public:
 
         int trackIndex = 0;
     };
-    class AudioClipPropertyChangedArgs : public ClipPropertyChangedArgs {
+    class AudioClipPropertyChangedArgs : public ClipCommonProperties {
     public:
         QString path;
     };
-    // signals:
-    //     void propertyChanged();
 
 protected:
     QString m_name;

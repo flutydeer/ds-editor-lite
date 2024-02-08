@@ -43,7 +43,7 @@ signals:
     void tempoChanged(double tempo);
     void trackCountChanged(int count);
     void addAudioClipTriggered(const QString &path, int trackIndex, int tick);
-    void clipPropertyChanged(const DsClip::ClipPropertyChangedArgs &args);
+    void clipPropertyChanged(const DsClip::ClipCommonProperties &args);
     void setPositionTriggered(double tick);
     void removeClipTriggered(int clipId);
     void newSingingClipTriggered(int trackIndex, int tick);

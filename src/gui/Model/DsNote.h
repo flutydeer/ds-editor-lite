@@ -24,6 +24,7 @@ public:
 
 class DsPhonemes {
 public:
+    enum DsPhonemesType { Original, Edited };
     QList<DsPhoneme> original;
     QList<DsPhoneme> edited;
 };
@@ -46,10 +47,17 @@ public:
     void setLyric(const QString &lyric);
     QString pronunciation() const;
     void setPronunciation(const QString &pronunciation);
-    DsPhonemes phonemes;
+    DsPhonemes phonemes() const;
+    void setPhonemes(DsPhonemes::DsPhonemesType type, QList<DsPhoneme> phonemes);
 
     int compareTo(DsNote *obj) const;
     bool isOverlappedWith(DsNote *obj) const;
+
+    class NoteWordProperties {
+        QString lyric;
+        QString pronunciation;
+        DsPhonemes phonemes;
+    };
 
 private:
     int m_start = 0;
@@ -57,6 +65,7 @@ private:
     int m_keyIndex = 60;
     QString m_lyric;
     QString m_pronunciation;
+    DsPhonemes m_phonemes;
 };
 
 #endif // DSNOTE_H

@@ -459,7 +459,7 @@ void TracksView::insertClipToTrack(DsClip *clip, Track *track,
         connect(clipItem, &SingingClipGraphicsItem::propertyChanged, this, [=] {
             auto clip = findClipItemById(clipItem->id());
             if (clip == clipItem) {
-                DsClip::ClipPropertyChangedArgs args;
+                DsClip::ClipCommonProperties args;
                 args.trackIndex = trackIndex;
                 args.name = clipItem->name();
                 args.id = clipItem->id();

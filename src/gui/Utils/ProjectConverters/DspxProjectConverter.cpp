@@ -89,8 +89,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             note->setKeyIndex(dspxNote.keyNum);
             note->setLyric(dspxNote.lyric);
             note->setPronunciation(dspxNote.pronunciation);
-            note->phonemes.original.append(decodePhonemes(dspxNote.phonemes.org));
-            note->phonemes.edited.append(decodePhonemes(dspxNote.phonemes.edited));
+            note->setPhonemes(DsPhonemes::Original, decodePhonemes(dspxNote.phonemes.org));
+            note->setPhonemes(DsPhonemes::Edited, decodePhonemes(dspxNote.phonemes.edited));
             notes.append(note);
         }
         return notes;
@@ -236,8 +236,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             note.keyNum = dsNote->keyIndex();
             note.lyric = dsNote->lyric();
             note.pronunciation = dsNote->pronunciation();
-            encodePhonemes(dsNote->phonemes.original, note.phonemes.org);
-            encodePhonemes(dsNote->phonemes.edited, note.phonemes.edited);
+            encodePhonemes(dsNote->phonemes().original, note.phonemes.org);
+            encodePhonemes(dsNote->phonemes().original, note.phonemes.edited);
             notes.append(note);
         }
     };
