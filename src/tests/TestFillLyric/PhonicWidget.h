@@ -19,10 +19,11 @@
 #include "Utils/CleanLyric.h"
 
 #include "mandarin.h"
-#include "SyllableDelegate.h"
+#include "PhonicDelegate.h"
+#include "PhonicModel.h"
 
 namespace FillLyric {
-    using PhonicRole = SyllableDelegate::PhonicRole;
+    using PhonicRole = PhonicDelegate::PhonicRole;
     using LyricType = CleanLyric::LyricType;
 
     class PhonicWidget : public QWidget {
@@ -32,48 +33,22 @@ namespace FillLyric {
         ~PhonicWidget() override;
 
     private:
-        void shrinkTable();
         void repaintTable();
-        static QList<int> displayRole();
-        static QList<int> allRoles();
-        int cellLyricType(int row, int col);
-        QString cellLyric(int row, int col);
-        int currentLyricLength(int row);
-
-        void collapseFermata();
-        void expandFermata();
-        void setFermata(int row, int col, QString &fermata);
-        void clearData(int row, int col, const QList<int> &roles);
-        void moveData(int row, int col, int tarRow, int tarCol, const QList<int> &roles);
 
         void _on_btnToText_clicked();
         void _on_btnToTable_clicked();
         void _on_btnToggleFermata_clicked();
         void _on_showContextMenu(const QPoint &pos);
 
-        void _on_cellClear(const QModelIndex &index);
-        void _on_cellMergeLeft(const QModelIndex &index);
-        void _on_cellMoveLeft(const QModelIndex &index);
-        void _on_cellMoveRight(const QModelIndex &index);
-        void _on_cellNewLine(const QModelIndex &index);
-        void _on_cellMergeUp(const QModelIndex &index);
-
         void _on_changePhonetic(const QModelIndex &index, QMenu *menu);
         void _on_changeSyllable(const QModelIndex &index, QMenu *menu);
 
-        void _on_addPrevLine(const QModelIndex &index);
-        void _on_addNextLine(const QModelIndex &index);
-        void _on_removeLine(const QModelIndex &index);
-
-        void _on_cellChanged(const QModelIndex &index);
+        void _on_cellEditClosed();
 
         void _on_btnInsertText_clicked();
         void _on_btnImportLrc_clicked();
         void _on_btnExport_clicked();
 
-        void _on_cellEditClosed();
-
-        bool fermataState = false;
 
         QTextEdit *textEdit;
         QVBoxLayout *cfgLayout;
@@ -88,8 +63,7 @@ namespace FillLyric {
         QPushButton *btnExport;
         QPushButton *btnCancel;
 
-        int modelMaxCol = 0;
-        QStandardItemModel *model;
+        PhonicModel *model;
         IKg2p::Mandarin g2p_man;
 
         QHBoxLayout *tableLayout;

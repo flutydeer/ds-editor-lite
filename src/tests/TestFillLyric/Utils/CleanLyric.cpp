@@ -19,6 +19,49 @@ namespace FillLyric {
         return specialKana.contains(c);
     }
 
+    bool isEnglishWord(const QString &word) {
+        // 遍历字符串中的每个字符
+        for (const QChar &ch : word) {
+            if (!ch.isLetter()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool isNumber(const QString &word) {
+        for (const QChar &ch : word) {
+            if (!ch.isDigit()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    CleanLyric::LyricType CleanLyric::lyricType(const QString &lyric, const QString &fermata) {
+        if (lyric.size() > 1) {
+            if (isEnglishWord(lyric)) {
+                return LyricType::EnWord;
+            } else if (isNumber(lyric)) {
+                return LyricType::Number;
+            }
+        } else {
+            QChar firstChar = lyric.at(0);
+            if (isHanzi(firstChar)) {
+                return LyricType::Hanzi;
+            } else if (firstChar.isDigit()) {
+                return LyricType::Digit;
+            } else if (firstChar == fermata) {
+                return LyricType::Fermata;
+            } else if (isKana(firstChar)) {
+                return LyricType::Kana;
+            } else if (firstChar.isLetter()) {
+                return LyricType::Letter;
+            }
+        }
+        return LyricType::Other;
+    }
+
     QPair<QList<QStringList>, QList<QList<int>>> CleanLyric::cleanLyric(const QString &input,
                                                                         const QString &fermata) {
         QList<QStringList> res;
