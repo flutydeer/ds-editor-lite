@@ -32,6 +32,8 @@ namespace FillLyric {
         explicit PhonicWidget(QObject *parent = nullptr);
         ~PhonicWidget() override;
 
+        void setLyrics(const QString &lyrics);
+
     private:
         void repaintTable();
 

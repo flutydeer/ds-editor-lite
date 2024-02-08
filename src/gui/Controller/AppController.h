@@ -10,7 +10,7 @@
 #include "Utils/Singleton.h"
 #include "Views/TracksView.h"
 
-class AppController final : public QObject, public Singleton<AppController>{
+class AppController final : public QObject, public Singleton<AppController> {
     Q_OBJECT
 
 public:
@@ -23,10 +23,14 @@ public slots:
     void onNewProject();
     void openProject(const QString &filePath);
     void saveProject(const QString &filePath);
+
     void importMidiFile(const QString &filePath);
     void exportMidiFile(const QString &filePath);
+
     void importAproject(const QString &filePath);
-    void onRunG2p();
+
+    void fillLyric();
+
     void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);
     void onSetQuantize(int quantize);

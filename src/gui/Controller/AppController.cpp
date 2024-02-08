@@ -8,7 +8,7 @@
 
 #include "AppController.h"
 #include "g2pglobal.h"
-#include "mandarin.h"
+#include "Utils/FillLyric/LyricDialog.h"
 #include "syllable2p.h"
 #include "Controller/History/HistoryManager.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
@@ -40,17 +40,21 @@ void AppController::importAproject(const QString &filePath) {
     HistoryManager::instance()->reset();
     m_lastProjectPath = "";
 }
-void AppController::onRunG2p() {
+
+void AppController::fillLyric() {
     auto model = AppModel::instance();
-    auto firstTrack = model->tracks().first();
-    auto firstClip = firstTrack->clips().at(0);
+
+    auto selectedTrack = model->tracks().at(0);
+
+    auto clips = selectedTrack->clips();
+    auto firstClip = clips.at(0);
+
     auto singingClip = dynamic_cast<DsSingingClip *>(firstClip);
     if (singingClip == nullptr)
         return;
     auto notes = singingClip->notes();
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
 
-    auto g2p_man = new IKg2p::Mandarin();
     auto syllable2p = new IKg2p::Syllable2p(qApp->applicationDirPath() +
                                             "/res/phonemeDict/opencpop-extension.txt");
 
@@ -59,10 +63,9 @@ void AppController::onRunG2p() {
         lyrics.append(note->lyric());
     }
 
-    QStringList pinyinRes = g2p_man->hanziToPinyin(lyrics, false, false);
-    QList<QStringList> syllableRes = syllable2p->syllableToPhoneme(pinyinRes);
-    qDebug() << pinyinRes;
-    qDebug() << syllableRes;
+    auto lyricDialog = new FillLyric::LyricDialog();
+    lyricDialog->setLyrics(lyrics.join(" "));
+    lyricDialog->show();
 }
 void AppController::onSetTempo(double tempo) {
     // TODO: validate tempo

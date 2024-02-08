@@ -318,6 +318,11 @@ namespace FillLyric {
         qDebug() << "syllableRes: " << syllableRes;
     }
 
+    void PhonicWidget::setLyrics(const QString &lyrics) {
+        // 设置文本框内容
+        textEdit->setText(lyrics);
+    }
+
     void PhonicWidget::repaintTable() {
         // 重绘表格
         emit tableView->itemDelegate()->closeEditor(nullptr, QAbstractItemDelegate::NoHint);

@@ -220,6 +220,12 @@ MainWindow::MainWindow() {
             &TracksViewController::onNewTrack);
     menuInsert->addAction(actionInsertNewTrack);
 
+    auto menuModify = new QMenu("&Modify", this);
+    auto actionFillLyrics = new QAction("Fill Lyrics", this);
+    actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
+    connect(actionFillLyrics, &QAction::triggered, appController, &AppController::fillLyric);
+    menuModify->addAction(actionFillLyrics);
+
     auto menuOptions = new QMenu("&Options", this);
     auto actionAudioSettings = new QAction("&Audio settings", this);
     connect(actionAudioSettings, &QAction::triggered, this, [=] {
@@ -237,6 +243,7 @@ MainWindow::MainWindow() {
     menuBar->addMenu(menuFile);
     menuBar->addMenu(menuEdit);
     menuBar->addMenu(menuInsert);
+    menuBar->addMenu(menuModify);
     menuBar->addMenu(menuOptions);
     menuBar->addMenu(menuHelp);
 
