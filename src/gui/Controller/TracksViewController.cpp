@@ -38,6 +38,12 @@ void TracksViewController::onInsertNewTrack(int index) {
     a->execute();
     HistoryManager::instance()->record(a);
 }
+void TracksViewController::onAppendTrack(DsTrack *track) {
+    auto a = new TrackActions;
+    a->insertTrack(track, AppModel::instance()->tracks().count(), AppModel::instance());
+    a->execute();
+    HistoryManager::instance()->record(a);
+}
 void TracksViewController::onRemoveTrack(int index) {
     QMessageBox msgBox;
     msgBox.setText("Warning");

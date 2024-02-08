@@ -132,7 +132,9 @@ bool AppModel::importMidiFile(const QString &filename) {
     if (midiImport == ImportMode::NewProject) {
         loadFromAppModel(resultModel);
     } else if (midiImport == ImportMode::AppendToProject) {
-        
+        for (auto track : resultModel.tracks()) {
+            appendTrack(track);
+        }
     }
     return ok;
 }
