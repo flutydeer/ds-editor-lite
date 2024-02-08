@@ -195,10 +195,10 @@ void TracksView::onModelChanged() {
     m_tempo = model->tempo();
     int index = 0;
     for (const auto track : model->tracks()) {
-        insertTrackToView(*track, index);
+        insertTrackToView(track, index);
         index++;
     }
-    emit trackCountChanged(m_tracksModel.tracks.count());
+    emit trackCountChanged(m_trackListViewModel.tracks.count());
 
     // AppController::instance()->onRunG2p();
 }
@@ -212,8 +212,8 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
     switch (type) {
         case AppModel::Insert:
             // qDebug() << "on track inserted" << index;
-            insertTrackToView(*model->tracks().at(index), index);
-            emit trackCountChanged(m_tracksModel.tracks.count());
+            insertTrackToView(model->tracks().at(index), index);
+            emit trackCountChanged(m_trackListViewModel.tracks.count());
             break;
         case AppModel::PropertyUpdate:
             // qDebug() << "on track updated" << index;
@@ -224,13 +224,13 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
             // remove selection
             emit selectedClipChanged(-1, -1);
             removeTrackFromView(index);
-            emit trackCountChanged(m_tracksModel.tracks.count());
+            emit trackCountChanged(m_trackListViewModel.tracks.count());
             break;
     }
 }
 void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipId) {
     auto trackModel = AppModel::instance()->tracks().at(trackIndex);
-    auto track = m_tracksModel.tracks.at(trackIndex);
+    auto track = m_trackListViewModel.tracks.at(trackIndex);
     auto dsClip = trackModel->findClipById(clipId);
     switch (type) {
         case DsTrack::Inserted:
@@ -261,21 +261,21 @@ void TracksView::onLastPositionChanged(double tick) {
     m_sceneLastPlayPosIndicator->onTimeChanged(tick);
 }
 void TracksView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) {
-    if (m_tracksModel.tracks.isEmpty())
+    if (m_trackListViewModel.tracks.isEmpty())
         return;
 
     auto states = args.trackMeterStates;
-    for (int i = 0; i < qMin(states.size(), m_tracksModel.tracks.size()); i++) {
+    for (int i = 0; i < qMin(states.size(), m_trackListViewModel.tracks.size()); i++) {
         auto state = states.at(i);
-        auto meter = m_tracksModel.tracks.at(i)->widget->levelMeter();
+        auto meter = m_trackListViewModel.tracks.at(i)->widget->levelMeter();
         meter->setValue(state.valueL, state.valueR);
     }
 }
 void TracksView::onSceneSelectionChanged() {
     // find selected clip (the first one)
     bool foundSelectedClip = false;
-    for (int i = 0; i < m_tracksModel.tracks.count(); i++) {
-        auto track = m_tracksModel.tracks.at(i);
+    for (int i = 0; i < m_trackListViewModel.tracks.count(); i++) {
+        auto track = m_trackListViewModel.tracks.at(i);
         for (int j = 0; j < track->clips.count(); j++) {
             auto clip = track->clips.at(j);
             if (clip->isSelected()) {
@@ -301,20 +301,24 @@ void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
         item->setSizeHint(QSize(TracksEditorGlobal::trackListWidth, height));
 
         // hide pan and gain slider when sy is too small
-        auto widget = m_tracksModel.tracks.at(i)->widget;
+        auto widget = m_trackListViewModel.tracks.at(i)->widget;
         widget->setNarrowMode(sy < TracksEditorGlobal::narrowModeScaleY);
         previousHeightSum += height;
     }
 }
-void TracksView::onClipRemoveTriggered(int clipId) {
-}
-void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
-    connect(&dsTrack, &DsTrack::clipChanged, this, [=](DsTrack::ClipChangeType type, int clipId) {
+void TracksView::insertTrackToView(DsTrack *dsTrack, int trackIndex) {
+    connect(dsTrack, &DsTrack::clipChanged, this, [=](DsTrack::ClipChangeType type, int clipId) {
+        // workaround for slot executed for 2 times
+        // if (m_prevClipId == clipId && m_prevClipChangeType == type)
+        //     return;
+
         onClipChanged(type, trackIndex, clipId);
+        m_prevClipId = clipId;
+        m_prevClipChangeType = type;
     });
-    auto track = new Track;
-    for (int clipIndex = 0; clipIndex < dsTrack.clips().count(); clipIndex++) {
-        auto clip = dsTrack.clips().at(clipIndex);
+    auto track = new TrackViewModel;
+    for (int clipIndex = 0; clipIndex < dsTrack->clips().count(); clipIndex++) {
+        auto clip = dsTrack->clips().at(clipIndex);
         insertClipToTrack(clip, track, trackIndex);
     }
     auto newTrackItem = new QListWidgetItem;
@@ -322,8 +326,8 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
     newTrackItem->setSizeHint(QSize(TracksEditorGlobal::trackListWidth,
                                     TracksEditorGlobal::trackHeight * m_graphicsView->scaleY()));
     newTrackControlWidget->setTrackIndex(trackIndex + 1);
-    newTrackControlWidget->setName(dsTrack.name());
-    newTrackControlWidget->setControl(dsTrack.control());
+    newTrackControlWidget->setName(dsTrack->name());
+    newTrackControlWidget->setControl(dsTrack->control());
     newTrackControlWidget->setNarrowMode(m_graphicsView->scaleY() <
                                          TracksEditorGlobal::narrowModeScaleY);
     m_trackListWidget->insertItem(trackIndex, newTrackItem);
@@ -362,21 +366,21 @@ void TracksView::insertTrackToView(const DsTrack &dsTrack, int trackIndex) {
         auto i = m_trackListWidget->row(newTrackItem);
         emit addAudioClipTriggered(fileName, i, 0);
     });
-    m_tracksModel.tracks.insert(trackIndex, track);
-    if (trackIndex < m_tracksModel.tracks.count()) // needs to update existed tracks' index
-        for (int i = trackIndex + 1; i < m_tracksModel.tracks.count(); i++) {
+    m_trackListViewModel.tracks.insert(trackIndex, track);
+    if (trackIndex < m_trackListViewModel.tracks.count()) // needs to update existed tracks' index
+        for (int i = trackIndex + 1; i < m_trackListViewModel.tracks.count(); i++) {
             // Update track list items' index
             auto item = m_trackListWidget->item(i);
             auto widget = m_trackListWidget->itemWidget(item);
             auto trackWidget = dynamic_cast<TrackControlWidget *>(widget);
             trackWidget->setTrackIndex(i + 1);
             // Update clips' index
-            for (auto &clipItem : m_tracksModel.tracks.at(i)->clips) {
+            for (auto &clipItem : m_trackListViewModel.tracks.at(i)->clips) {
                 clipItem->setTrackIndex(i);
             }
         }
 }
-void TracksView::insertClipToTrack(DsClip *clip, Track *track,
+void TracksView::insertClipToTrack(DsClip *clip, TrackViewModel *track,
                                    int trackIndex) { // TODO: remove param track
     auto start = clip->start();
     auto clipStart = clip->clipStart();
@@ -479,7 +483,7 @@ void TracksView::removeClipFromView(int clipId) {
     auto clipItem = findClipItemById(clipId);
     m_tracksScene->removeItem(clipItem);
     int trackIndex = 0;
-    for (const auto &track : m_tracksModel.tracks) {
+    for (const auto &track : m_trackListViewModel.tracks) {
         if (track->clips.contains(clipItem)) {
             track->clips.removeOne(clipItem);
             break;
@@ -488,7 +492,7 @@ void TracksView::removeClipFromView(int clipId) {
     }
 }
 AbstractClipGraphicsItem *TracksView::findClipItemById(int id) {
-    for (const auto &track : m_tracksModel.tracks)
+    for (const auto &track : m_trackListViewModel.tracks)
         for (const auto clip : track->clips)
             if (clip->id() == id)
                 return clip;
@@ -496,15 +500,15 @@ AbstractClipGraphicsItem *TracksView::findClipItemById(int id) {
 }
 void TracksView::updateTracksOnView() {
     auto tracksModel = AppModel::instance()->tracks();
-    for (int i = 0; i < m_tracksModel.tracks.count(); i++) {
-        auto widget = m_tracksModel.tracks.at(i)->widget;
+    for (int i = 0; i < m_trackListViewModel.tracks.count(); i++) {
+        auto widget = m_trackListViewModel.tracks.at(i)->widget;
         auto track = tracksModel.at(i);
         widget->setName(track->name());
         widget->setControl(track->control());
     }
 }
 void TracksView::updateClipOnView(DsClip *clip, int clipId) {
-    qDebug() << "TracksView::updateClipOnView" << clipId;
+    // qDebug() << "TracksView::updateClipOnView" << clipId;
     auto item = findClipItemById(clipId);
     item->setStart(clip->start());
     item->setClipStart(clip->clipStart());
@@ -527,7 +531,7 @@ void TracksView::removeTrackFromView(int index) {
     disconnect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
                &TracksView::onSceneSelectionChanged);
     // remove from view
-    auto track = m_tracksModel.tracks.at(index);
+    auto track = m_trackListViewModel.tracks.at(index);
     for (auto clip : track->clips) {
         m_tracksScene->removeItem(clip);
         delete clip;
@@ -535,17 +539,17 @@ void TracksView::removeTrackFromView(int index) {
     auto item = m_trackListWidget->takeItem(index);
     m_trackListWidget->removeItemWidget(item);
     // remove from viewmodel
-    m_tracksModel.tracks.removeAt(index);
+    m_trackListViewModel.tracks.removeAt(index);
     // update index
-    if (index < m_tracksModel.tracks.count()) // needs to update existed tracks' index
-        for (int i = index; i < m_tracksModel.tracks.count(); i++) {
+    if (index < m_trackListViewModel.tracks.count()) // needs to update existed tracks' index
+        for (int i = index; i < m_trackListViewModel.tracks.count(); i++) {
             // Update track list items' index
             auto item = m_trackListWidget->item(i);
             auto widget = m_trackListWidget->itemWidget(item);
             auto trackWidget = dynamic_cast<TrackControlWidget *>(widget);
             trackWidget->setTrackIndex(i + 1);
             // Update clips' index
-            for (auto &clipItem : m_tracksModel.tracks.at(i)->clips) {
+            for (auto &clipItem : m_trackListViewModel.tracks.at(i)->clips) {
                 clipItem->setTrackIndex(i);
             }
         }
@@ -554,7 +558,9 @@ void TracksView::removeTrackFromView(int index) {
 }
 void TracksView::updateOverlappedState(int trackIndex) {
     auto trackModel = AppModel::instance()->tracks().at(trackIndex);
-    auto track = m_tracksModel.tracks.at(trackIndex);
+    qDebug() << "app model track clip count" << trackModel->clips().count();
+    auto track = m_trackListViewModel.tracks.at(trackIndex);
+    qDebug() << "tracks view model clip count" << track->clips.count();
     for (auto clipItem : track->clips) {
         auto dsClip = trackModel->findClipById(clipItem->id());
         clipItem->setOverlapped(dsClip->overlapped());
@@ -562,11 +568,11 @@ void TracksView::updateOverlappedState(int trackIndex) {
     m_graphicsView->update();
 }
 void TracksView::reset() {
-    for (auto &track : m_tracksModel.tracks)
+    for (auto &track : m_trackListViewModel.tracks)
         for (auto clip : track->clips) {
             m_tracksScene->removeItem(clip);
             delete clip;
         }
     m_trackListWidget->clear();
-    m_tracksModel.tracks.clear();
+    m_trackListViewModel.tracks.clear();
 }

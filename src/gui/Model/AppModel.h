@@ -46,6 +46,7 @@ public:
     bool loadProject(const QString &filename);
     bool saveProject(const QString &filename);
     bool importAProject(const QString &filename);
+    void loadFromAppModel(const AppModel &model);
 
     int selectedTrackIndex() const;
     void setSelectedTrack(int trackIndex);

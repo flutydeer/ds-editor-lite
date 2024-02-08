@@ -239,7 +239,6 @@ DsTrackControl TrackControlWidget::control() const {
 }
 void TrackControlWidget::setControl(const DsTrackControl &control) {
     auto barValue = std::pow(10, (114 + control.gain()) / 60);
-    qDebug() << "control gain" << control.gain() << "barValue" << barValue;
     m_sbarGain->setValue(barValue);
     m_leGain->setText(gainValueToString(barValue));
     m_sbarPan->setValue(control.pan());
@@ -296,7 +295,6 @@ QString TrackControlWidget::panValueToString(double value) {
 }
 QString TrackControlWidget::gainValueToString(double value) {
     auto gain = 60 * std::log10(1.0 * value) - 114;
-    qDebug() << "gain" << gain;
     if (gain == -70)
         return "-inf";
     auto absVal = QString::number(qAbs(gain), 'f', 1);
