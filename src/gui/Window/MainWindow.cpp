@@ -111,7 +111,8 @@ MainWindow::MainWindow() {
     connect(actionNewProject, &QAction::triggered, appController, &AppController::onNewProject);
     auto actionOpen = new QAction("&Open project...");
     connect(actionOpen, &QAction::triggered, this, [=] {
-        auto fileName = QFileDialog::getOpenFileName(this, "Select a Project File", ".",
+        auto lastDir = appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
+        auto fileName = QFileDialog::getOpenFileName(this, "Select a Project File", lastDir,
                                                      "Project File (*.json)");
         if (fileName.isNull())
             return;
@@ -120,7 +121,8 @@ MainWindow::MainWindow() {
     });
     auto actionOpenAProject = new QAction("Open A Project", this);
     connect(actionOpenAProject, &QAction::triggered, this, [=]{
-        auto fileName = QFileDialog::getOpenFileName(this, "Select an A Project File", ".",
+        auto lastDir = appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
+        auto fileName = QFileDialog::getOpenFileName(this, "Select an A Project File", lastDir,
                                                      "Project File (*.json)");
         if (fileName.isNull())
             return;
@@ -129,6 +131,22 @@ MainWindow::MainWindow() {
     });
     auto actionSave = new QAction("&Save", this);
     auto actionSaveAs = new QAction("&Save as", this);
+    connect(actionSaveAs, &QAction::triggered, this, [=] {
+        auto lastDir = appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
+        auto fileName = QFileDialog::getSaveFileName(this, "Save as Project File", lastDir,
+                                                    "Project File (*.json)");
+        if (fileName.isNull())
+            return;
+
+        appController->saveProject(fileName);
+    });
+    connect(actionSave, &QAction::triggered, this, [=] {
+        if (appController->lastProjectPath().isEmpty()) {
+            actionSaveAs->trigger();
+        } else {
+            appController->saveProject(appController->lastProjectPath());
+        }
+    });
 
     auto menuImport = new QMenu("Import", this);
     auto actionImportMidiFile = new QAction("MIDI file...", this);
@@ -287,6 +305,7 @@ MainWindow::MainWindow() {
     menuBarContainer->setContentsMargins(6, 6, 6, 6);
 
     auto actionButtonsView = new ActionButtonsView;
+    connect(actionButtonsView, &ActionButtonsView::saveTriggered, actionSave, &QAction::trigger);
     connect(actionButtonsView, &ActionButtonsView::undoTriggered, historyManager, &HistoryManager::undo);
     connect(actionButtonsView, &ActionButtonsView::redoTriggered, historyManager, &HistoryManager::redo);
     connect(historyManager, &HistoryManager::undoRedoChanged, actionButtonsView, &ActionButtonsView::onUndoRedoChanged);
