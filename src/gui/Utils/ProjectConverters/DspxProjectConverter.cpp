@@ -33,9 +33,9 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                         node->setInterpMode(DsAnchorNode::Linear);
                     } else if (dspxNode.interp == QDspx::AnchorPoint::Interpolation::Hermite) {
                         node->setInterpMode(DsAnchorNode::Hermite);
-                    } else if (dspxNode.interp == QDspx::AnchorPoint::Interpolation::Cubic) {
+                    } /*else if (dspxNode.interp == QDspx::AnchorPoint::Interpolation::Cubic) {
                         node->setInterpMode(DsAnchorNode::Cubic);
-                    }
+                    }*/
                     curve->insertNode(node);
                 }
                 curves.append(curve);
@@ -189,9 +189,9 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                         node.interp = QDspx::AnchorPoint::Interpolation::Linear;
                     } else if (dsNode->interpMode() == DsAnchorNode::Hermite) {
                         node.interp = QDspx::AnchorPoint::Interpolation::Hermite;
-                    } else if (dsNode->interpMode() == DsAnchorNode::Cubic) {
+                    } /*else if (dsNode->interpMode() == DsAnchorNode::Cubic) {
                         node.interp = QDspx::AnchorPoint::Interpolation::Cubic;
-                    }
+                    }*/
                     curve->nodes.append(node);
                 }
                 curves.append(curve);
