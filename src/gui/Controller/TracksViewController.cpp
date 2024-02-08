@@ -45,8 +45,10 @@ void TracksViewController::onRemoveTrack(int index) {
     int ret = msgBox.exec();
     if (ret == QMessageBox::Yes) {
         auto trackToRemove = AppModel::instance()->tracks().at(index);
+        QList<DsTrack *> tracks;
+        tracks.append(trackToRemove);
         auto a = new TrackActions;
-        a->removeTrack(trackToRemove, index, AppModel::instance());
+        a->removeTracks(tracks, AppModel::instance());
         a->execute();
         HistoryManager::instance()->record(a);
     }
@@ -65,17 +67,21 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
 void TracksViewController::onSelectedClipChanged(int trackIndex, int clipId) {
     AppModel::instance()->onSelectedClipChanged(trackIndex, clipId);
 }
-void TracksViewController::onTrackPropertyChanged(const DsTrack::TrackPropertyChangedArgs &args) {
+void TracksViewController::onTrackPropertyChanged(const DsTrack::TrackProperties &args) {
     auto tracks = AppModel::instance()->tracks();
     auto track = tracks.at(args.index);
-    track->setName(args.name);
     auto control = track->control();
-    control.setGain(args.gain);
-    control.setPan(args.pan);
-    control.setMute(args.mute);
-    control.setSolo(args.solo);
-    qDebug() << "gain" << control.gain() << "pan" << control.pan();
-    track->setControl(control);
+    auto a = new TrackActions;
+    DsTrack::TrackProperties oldArgs;
+    oldArgs.index = args.index;
+    oldArgs.name = track->name();
+    oldArgs.gain = control.gain();
+    oldArgs.pan = control.pan();
+    oldArgs.mute = control.mute();
+    oldArgs.solo = control.solo();
+    a->editTrackProperties(oldArgs, args, track);
+    a->execute();
+    HistoryManager::instance()->record(a);
 }
 void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, int tick) {
     auto audioClip = new DsAudioClip;

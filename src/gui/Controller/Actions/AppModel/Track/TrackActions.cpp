@@ -5,18 +5,22 @@
 #include "TrackActions.h"
 
 
+#include "AppendTrackAction.h"
+#include "EditTrackPropertiesAction.h"
 #include "InsertTrackAction.h"
 #include "RemoveTrackAction.h"
-void TrackActions::insertTrack(DsTrack *track, int index, AppModel *model) {
-    auto a = InsertTrackAction::build(track, index, model);
-    m_actionSequence.append(a);
+void TrackActions::appendTracks(QList<DsTrack *> tracks, AppModel *model) {
+    for (auto track : tracks)
+        addAction(AppendTrackAction::build(track, model));
 }
-// void TrackActions::removeTracks(const QList<DsTrack *> &tracks, AppModel *model) {
-//     for (auto track : tracks) {
-//         auto a = RemoveTrackAction::build(track, )
-//     }
-// }
-void TrackActions::removeTrack(DsTrack *track, int index, AppModel *model) {
-    auto a = RemoveTrackAction::build(track, index, model);
-    m_actionSequence.append(a);
+void TrackActions::insertTrack(DsTrack *track, int index, AppModel *model) {
+    addAction(InsertTrackAction::build(track, index, model));
+}
+void TrackActions::removeTracks(const QList<DsTrack *> &tracks, AppModel *model) {
+    for (auto track : tracks)
+        addAction(RemoveTrackAction::build(track, model));
+}
+void TrackActions::editTrackProperties(const DsTrack::TrackProperties &oldArgs,
+                                       const DsTrack::TrackProperties &newArgs, DsTrack *track) {
+    addAction(EditTrackPropertiesAction::build(oldArgs, newArgs, track));
 }

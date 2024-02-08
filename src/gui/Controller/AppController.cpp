@@ -17,10 +17,17 @@
 void AppController::onNewProject() {
     AppModel::instance()->newProject();
     HistoryManager::instance()->reset();
+    m_lastProjectPath = "";
 }
 void AppController::openProject(const QString &filePath) {
     AppModel::instance()->loadProject(filePath);
     HistoryManager::instance()->reset();
+    m_lastProjectPath = filePath;
+}
+void AppController::saveProject(const QString &filePath) {
+    if (AppModel::instance()->saveProject(filePath)) {
+        m_lastProjectPath = filePath;
+    }
 }
 void AppController::importMidiFile(const QString &filePath) {
     AppModel::instance()->importMidiFile(filePath);
@@ -31,6 +38,7 @@ void AppController::exportMidiFile(const QString &filePath) {
 void AppController::importAproject(const QString &filePath) {
     AppModel::instance()->importAProject(filePath);
     HistoryManager::instance()->reset();
+    m_lastProjectPath = "";
 }
 void AppController::onRunG2p() {
     auto model = AppModel::instance();
@@ -93,4 +101,8 @@ void AppController::onTrackSelectionChanged(int trackIndex) {
 }
 bool AppController::isPowerOf2(int num) {
     return num > 0 && ((num & (num - 1)) == 0);
+}
+
+QString AppController::lastProjectPath() const {
+    return m_lastProjectPath;
 }

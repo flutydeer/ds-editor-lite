@@ -21,7 +21,7 @@ public slots:
     void onRemoveTrack(int index);
     void addAudioClipToNewTrack(const QString &filePath);
     void onSelectedClipChanged(int trackIndex, int clipIndex);
-    void onTrackPropertyChanged(const DsTrack::TrackPropertyChangedArgs &args);
+    void onTrackPropertyChanged(const DsTrack::TrackProperties &args);
     void onAddAudioClip(const QString &path, int trackIndex, int tick);
     void onClipPropertyChanged(const DsClip::ClipPropertyChangedArgs &args);
     void onRemoveClip(int clipId);

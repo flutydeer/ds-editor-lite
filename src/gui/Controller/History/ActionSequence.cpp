@@ -14,3 +14,6 @@ void ActionSequence::undo() {
 int ActionSequence::count() {
     return m_actionSequence.count();
 }
+void ActionSequence::addAction(IAction *action) {
+    m_actionSequence.append(action);
+}

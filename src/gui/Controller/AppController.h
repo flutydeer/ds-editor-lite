@@ -17,9 +17,12 @@ public:
     explicit AppController() = default;
     ~AppController() override = default;
 
+    QString lastProjectPath() const;
+
 public slots:
     void onNewProject();
     void openProject(const QString &filePath);
+    void saveProject(const QString &filePath);
     void importMidiFile(const QString &filePath);
     void exportMidiFile(const QString &filePath);
     void importAproject(const QString &filePath);
@@ -31,6 +34,8 @@ public slots:
 
 private:
     bool isPowerOf2(int num);
+
+    QString m_lastProjectPath;
 };
 
 // using ControllerSingleton = Singleton<Controller>;

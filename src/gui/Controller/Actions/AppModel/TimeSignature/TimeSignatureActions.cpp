@@ -8,6 +8,5 @@
 #include "EditTimeSignatureAction.h"
 void TimeSignatureActions::editTimeSignature(AppModel::TimeSignature oldSig,
                                              AppModel::TimeSignature newSig, AppModel *model) {
-    auto a = EditTimeSignatureAction::build(oldSig, newSig, model);
-    m_actionSequence.append(a);
+    addAction(EditTimeSignatureAction::build(oldSig, newSig, model));
 }

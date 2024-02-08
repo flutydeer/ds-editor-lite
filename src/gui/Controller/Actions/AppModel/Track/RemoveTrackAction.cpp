@@ -3,16 +3,18 @@
 //
 
 #include "RemoveTrackAction.h"
-RemoveTrackAction *RemoveTrackAction::build(DsTrack *track, int index, AppModel *model) {
+RemoveTrackAction *RemoveTrackAction::build(DsTrack *track, AppModel *model) {
     auto a = new RemoveTrackAction;
     a->m_track = track;
-    a->m_index = index;
     a->m_model = model;
+    a->m_originalTracks = model->tracks();
     return a;
 }
 void RemoveTrackAction::execute() {
-    m_model->removeTrack(m_index);
+    m_model->removeTrack(m_track);
 }
 void RemoveTrackAction::undo() {
-    m_model->insertTrack(m_track, m_index);
+    m_model->clearTracks();
+    for (const auto track : m_originalTracks)
+        m_model->appendTrack(track);
 }

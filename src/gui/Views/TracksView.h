@@ -35,7 +35,7 @@ public slots:
 
 signals:
     void selectedClipChanged(int trackIndex, int clipId);
-    void trackPropertyChanged(const DsTrack::TrackPropertyChangedArgs &args);
+    void trackPropertyChanged(const DsTrack::TrackProperties &args);
     void insertNewTrackTriggered(int index);
     void removeTrackTriggerd(int index);
     void muteClicked(int index);

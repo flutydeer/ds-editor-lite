@@ -17,6 +17,7 @@ public:
 
 protected:
     QList<IAction *> m_actionSequence;
+    void addAction(IAction *action);
 };
 
 

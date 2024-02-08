@@ -36,7 +36,7 @@ public:
 
     DsClip *findClipById(int id);
 
-    class TrackPropertyChangedArgs {
+    class TrackProperties {
     public:
         QString name;
         double gain = 1.0;

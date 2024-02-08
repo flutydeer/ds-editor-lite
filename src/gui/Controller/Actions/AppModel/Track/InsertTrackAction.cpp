@@ -14,5 +14,5 @@ void InsertTrackAction::execute() {
     m_model->insertTrack(m_track, m_index);
 }
 void InsertTrackAction::undo() {
-    m_model->removeTrack(m_index);
+    m_model->removeTrackAt(m_index);
 }
