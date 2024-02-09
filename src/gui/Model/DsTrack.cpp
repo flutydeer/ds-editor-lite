@@ -25,10 +25,12 @@ OverlapableSerialList<DsClip> DsTrack::clips() const {
 }
 void DsTrack::insertClip(DsClip *clip) {
     m_clips.add(clip);
+    qDebug() << "DsTrack emit clipChanged Inserted" << clip->id();
     emit clipChanged(Inserted, clip->id(), clip);
 }
 void DsTrack::removeClip(DsClip *clip) {
     m_clips.remove(clip);
+    qDebug() << "DsTrack emit clipChanged Removed" << clip->id();
     emit clipChanged(Removed, clip->id(), clip);
 }
 QColor DsTrack::color() const {

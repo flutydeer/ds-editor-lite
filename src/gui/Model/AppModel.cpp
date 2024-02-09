@@ -3,28 +3,18 @@
 //
 
 #include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 
 #include <QTextCodec>
-#include <QMessageBox>
-#include <QPushButton>
-#include <QDialog>
 #include <QVBoxLayout>
-#include <QCheckBox>
 #include <QDialogButtonBox>
 
 #include "AppModel.h"
 
 #include "Controller/History/HistoryManager.h"
-#include "Utils/IdGenerator.h"
 #include "Utils/ProjectConverters/AProjectConverter.h"
 #include "Utils/ProjectConverters/DspxProjectConverter.h"
 #include "opendspx/qdspxtrack.h"
 #include "opendspx/qdspxtimeline.h"
-#include "opendspx/qdspxmodel.h"
-#include "opendspx/converters/midi.h"
 #include "Utils/ProjectConverters/MidiConverter.h"
 
 AppModel::TimeSignature AppModel::timeSignature() const {
@@ -95,8 +85,10 @@ bool AppModel::loadProject(const QString &filename) {
     reset();
     auto converter = new DspxProjectConverter;
     QString errMsg;
+    AppModel resultModel;
     auto ok = converter->load(filename, this, errMsg);
-    emit modelChanged();
+    if (ok)
+        loadFromAppModel(resultModel);
     return ok;
 }
 bool AppModel::saveProject(const QString &filename) {
@@ -106,12 +98,20 @@ bool AppModel::saveProject(const QString &filename) {
     return ok;
 }
 bool AppModel::importAProject(const QString &filename) {
-    reset();
     auto converter = new AProjectConverter;
     QString errMsg;
-    auto ok = converter->load(filename, this, errMsg);
-    emit modelChanged();
+    AppModel resultModel;
+    auto ok = converter->load(filename, &resultModel, errMsg);
+    if (ok)
+        loadFromAppModel(resultModel);
     return ok;
+}
+void AppModel::loadFromAppModel(const AppModel &model) {
+    reset();
+    m_tempo = model.tempo();
+    m_timeSignature = model.timeSignature();
+    m_tracks = model.tracks();
+    emit modelChanged();
 }
 
 bool AppModel::importMidiFile(const QString &filename) {
@@ -125,11 +125,16 @@ bool AppModel::importMidiFile(const QString &filename) {
         return false;
     }
 
+    AppModel resultModel;
     auto converter = new MidiConverter;
-    auto ok = converter->load(filename, this, errMsg,
+    auto ok = converter->load(filename, &resultModel, errMsg,
                               static_cast<IProjectConverter::ImportMode>(midiImport));
     if (midiImport == ImportMode::NewProject) {
-        emit modelChanged();
+        loadFromAppModel(resultModel);
+    } else if (midiImport == ImportMode::AppendToProject) {
+        for (auto track : resultModel.tracks()) {
+            appendTrack(track);
+        }
     }
     return ok;
 }

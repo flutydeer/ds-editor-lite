@@ -15,6 +15,7 @@
 #include "Controls/Base/TimeIndicatorGraphicsItem.h"
 #include "Controls/Base/TimelineView.h"
 #include "Controls/TracksEditor/AbstractClipGraphicsItem.h"
+#include "Controls/TracksEditor/TrackViewModel.h"
 
 class TracksView final : public QWidget {
     Q_OBJECT
@@ -51,7 +52,6 @@ signals:
 private slots:
     void onSceneSelectionChanged();
     void onViewScaleChanged(qreal sx, qreal sy);
-    void onClipRemoveTriggered(int clipId);
 
 private:
     QListWidget *m_trackListWidget;
@@ -62,28 +62,20 @@ private:
     TimeIndicatorGraphicsItem *m_scenePlayPosIndicator;
     TimeIndicatorGraphicsItem *m_sceneLastPlayPosIndicator;
 
-    class Track {
+    class TrackListViewModel {
     public:
-        // widget
-        TrackControlWidget *widget;
-        // properties
-        bool isSelected;
-        // clips
-        QList<AbstractClipGraphicsItem *> clips;
+        QList<TrackViewModel *> tracks;
     };
 
-    class TracksViewModel {
-    public:
-        QList<Track *> tracks;
-    };
-
-    TracksViewModel m_tracksModel;
+    TrackListViewModel m_trackListViewModel;
     double m_tempo = 120;
     int m_samplerate = 48000;
-    int positionInTick = 1920;
 
-    void insertTrackToView(const DsTrack &dsTrack, int trackIndex);
-    void insertClipToTrack(DsClip *clip, Track *track, int trackIndex);
+    DsTrack::ClipChangeType m_prevClipChangeType = DsTrack::Removed;
+    int m_prevClipId = -1;
+
+    void insertTrackToView(DsTrack *dsTrack, int trackIndex);
+    void insertClipToTrack(DsClip *clip, TrackViewModel *track, int trackIndex);
     void removeClipFromView(int clipId);
     AbstractClipGraphicsItem *findClipItemById(int id);
     void updateTracksOnView();

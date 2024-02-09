@@ -15,7 +15,8 @@ class DsPhoneme {
 public:
     enum DsPhonemeType { Ahead, Normal, Final };
 
-    DsPhoneme(DsPhonemeType type, QString name, int start) : type(type), name(std::move(name)), start(start) {
+    DsPhoneme(DsPhonemeType type, QString name, int start)
+        : type(type), name(std::move(name)), start(start) {
     }
     DsPhonemeType type;
     QString name;
@@ -31,7 +32,6 @@ public:
 
 class DsNote : public IOverlapable, public UniqueObject {
 public:
-
     explicit DsNote() = default;
     explicit DsNote(int start, int length, int keyIndex, QString lyric)
         : m_start(start), m_length(length), m_keyIndex(keyIndex), m_lyric(std::move(lyric)) {
@@ -48,12 +48,13 @@ public:
     QString pronunciation() const;
     void setPronunciation(const QString &pronunciation);
     DsPhonemes phonemes() const;
-    void setPhonemes(DsPhonemes::DsPhonemesType type, QList<DsPhoneme> phonemes);
+    void setPhonemes(DsPhonemes::DsPhonemesType type, const QList<DsPhoneme> &phonemes);
 
     int compareTo(DsNote *obj) const;
     bool isOverlappedWith(DsNote *obj) const;
 
     class NoteWordProperties {
+    public:
         QString lyric;
         QString pronunciation;
         DsPhonemes phonemes;

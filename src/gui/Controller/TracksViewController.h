@@ -12,12 +12,13 @@
 #include "Model/DsTrack.h"
 #include "Model/DsTrackControl.h"
 
-class TracksViewController final : public QObject, public Singleton<TracksViewController>{
+class TracksViewController final : public QObject, public Singleton<TracksViewController> {
     Q_OBJECT
 
 public slots:
     void onNewTrack();
     void onInsertNewTrack(int index);
+    void onAppendTrack(DsTrack *track);
     void onRemoveTrack(int index);
     void addAudioClipToNewTrack(const QString &filePath);
     void onSelectedClipChanged(int trackIndex, int clipIndex);
@@ -28,4 +29,4 @@ public slots:
     void onNewSingingClip(int trackIndex, int tick);
 };
 
-#endif //TRACKSVIEWCONTROLLER_H
+#endif // TRACKSVIEWCONTROLLER_H
