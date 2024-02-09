@@ -19,7 +19,7 @@ QString AudioClipGraphicsItem::path() const {
 }
 void AudioClipGraphicsItem::setPath(const QString &path) {
     m_path = path;
-    m_loading = true;
+    m_status = Loading;
     setName(QFileInfo(m_path).fileName());
     // if (length() == 0)
     //     setLength(3840);
@@ -40,11 +40,12 @@ double AudioClipGraphicsItem::tempo() const {
 }
 void AudioClipGraphicsItem::setTempo(double tempo) {
     m_tempo = tempo;
-    updateLength();
+    if (m_status == Loaded)
+        updateLength();
 }
 void AudioClipGraphicsItem::onLoadComplete(bool success, QString errorMessage) {
     if (!success) {
-        m_loading = false;
+        m_status = Error;
         qDebug() << "open file error" << errorMessage;
         return;
     }
@@ -52,6 +53,7 @@ void AudioClipGraphicsItem::onLoadComplete(bool success, QString errorMessage) {
     m_channels = m_worker->channels;
     m_chunkSize = m_worker->chunkSize;
     m_mipmapScale = m_worker->mipmapScale;
+    m_frames = m_worker->frames;
 
     m_peakCache.swap(m_worker->peakCache);
     m_peakCacheMipmap.swap(m_worker->peakCacheMipmap);
@@ -62,7 +64,7 @@ void AudioClipGraphicsItem::onLoadComplete(bool success, QString errorMessage) {
     auto targetClipLen = static_cast<int>(m_peakCache.count() / m_chunksPerTick);
     if (clipLen() == 0)
         setClipLen(targetClipLen);
-    m_loading = false;
+    m_status = Loaded;
 
     update();
     emit propertyChanged();
@@ -86,7 +88,7 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
 
     QPen pen;
 
-    if (m_loading) {
+    if (m_status == Loading) {
         pen.setColor(peakColor);
         painter->setPen(pen);
         painter->drawText(previewRect, "Loading...", QTextOption(Qt::AlignCenter));
@@ -173,7 +175,8 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
 }
 void AudioClipGraphicsItem::updateLength() {
     m_chunksPerTick = static_cast<double>(m_sampleRate) / m_chunkSize * 60 / m_tempo / 480;
-    auto targetLength = static_cast<int>(m_peakCache.count() / m_chunksPerTick);
+    auto targetLength = m_frames / (m_sampleRate * 60 / m_tempo / 480);
+    qDebug() << targetLength;
     if (length() != targetLength)
         setLength(targetLength);
     // TODO: improve length changing experience
