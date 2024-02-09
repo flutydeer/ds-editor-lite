@@ -10,6 +10,7 @@
 
 class AudioClipGraphicsItem final : public AbstractClipGraphicsItem {
 public:
+    enum Status { Init, Loading, Loaded, Error };
     explicit AudioClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     ~AudioClipGraphicsItem() override = default;
 
@@ -32,7 +33,7 @@ private:
     void updateLength();
     void addMenuActions(QMenu *menu) override;
 
-    // SndfileHandle sf;
+    Status m_status = Init;
     AudioClipBackgroundWorker *m_worker = nullptr;
     QVector<std::tuple<short, short>> m_peakCache;
     QVector<std::tuple<short, short>> m_peakCacheMipmap;
@@ -45,9 +46,9 @@ private:
     int m_mipmapScale;
     int m_sampleRate;
     int m_channels;
+    long long m_frames;
     double m_tempo = 60;
     RenderResolution m_resolution = High;
-    bool m_loading = false;
     QString m_path;
 };
 
