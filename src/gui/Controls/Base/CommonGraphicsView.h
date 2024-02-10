@@ -53,6 +53,7 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     // bool eventFilter(QObject *object, QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
 
 private:
     bool isMouseEventFromWheel(QWheelEvent *event);

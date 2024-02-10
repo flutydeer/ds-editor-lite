@@ -149,6 +149,7 @@ PlaybackView::PlaybackView(QWidget *parent) {
         "QPushButton#btnPause:checked { background-color: #FFCD9B;} "
         "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 6px; }"
         "QLabel:hover { background: #1AFFFFFF; }"
+        "QLineEdit { border-radius: 6px; }"
         "QComboBox { color: #F0F0F0; border: none; background: #10FFFFFF; border-radius: 6px; }"
         "QComboBox:hover { background: #1AFFFFFF; }"
         "QComboBox:pressed { background: #10FFFFFF; }");

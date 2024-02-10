@@ -62,14 +62,14 @@ public:
     };
 
 public slots:
-    void onSelectedClipChanged(int trackIndex, int clipId);
+    void onSelectedClipChanged(int clipId);
 
 signals:
     void modelChanged();
     void tempoChanged(double tempo);
     void timeSignatureChanged(int numerator, int denominator);
     void tracksChanged(TrackChangeType type, int index, DsTrack *track);
-    void selectedClipChanged(int trackIndex, int clipIndex);
+    void selectedClipChanged(DsTrack *track, DsClip *clip);
     void quantizeChanged(int quantize);
     void selectedTrackChanged(int trackIndex);
 
@@ -81,7 +81,6 @@ private:
     QList<DsTrack *> m_tracks;
 
     int m_selectedTrackIndex = -1;
-    int m_selectedClipTrackIndex = -1;
     int m_selectedClipId = -1;
 
     int m_quantize = 16;

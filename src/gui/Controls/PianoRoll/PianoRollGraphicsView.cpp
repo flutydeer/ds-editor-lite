@@ -28,8 +28,10 @@ PianoRollGraphicsView::PianoRollGraphicsView() {
     connect(this, &PianoRollGraphicsView::scaleChanged, gridItem,
             &PianoRollBackgroundGraphicsItem::setScale);
     auto appModel = AppModel::instance();
-    connect(appModel, &AppModel::modelChanged, gridItem,
-            [=] { gridItem->setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator); });
+    connect(appModel, &AppModel::modelChanged, gridItem, [=] {
+        gridItem->setTimeSignature(appModel->timeSignature().numerator,
+                                   appModel->timeSignature().denominator);
+    });
     connect(appModel, &AppModel::timeSignatureChanged, gridItem,
             &TimeGridGraphicsItem::setTimeSignature);
     m_pianoRollScene->addItem(gridItem);
@@ -40,22 +42,16 @@ PianoRollGraphicsView::PianoRollGraphicsView() {
     // QObject::connect(pianoRollView, &TracksGraphicsView::scaleChanged, pitchItem,
     // &PitchEditorGraphicsItem::setScale); pianoRollScene->addItem(pitchItem);
 }
-void PianoRollGraphicsView::updateView() {
-    onSelectedClipChanged(-1, -1);
-}
-void PianoRollGraphicsView::onSelectedClipChanged(int trackIndex, int clipId) {
-    qDebug() << "PianoRollGraphicsView::onSelectedClipChanged" << trackIndex << clipId;
+void PianoRollGraphicsView::setClip(DsTrack *track, DsClip *clip) {
     reset();
 
     auto model = AppModel::instance();
-    if (trackIndex == -1 || trackIndex >= model->tracks().size()) {
+    if (track == nullptr) {
         m_oneSingingClipSelected = false;
         setScene(nullptr);
         update();
         return;
     }
-
-    auto clip = model->tracks().at(trackIndex)->findClipById(clipId);
 
     if (clip == nullptr || clip->type() != DsClip::Singing) {
         m_oneSingingClipSelected = false;
@@ -63,14 +59,14 @@ void PianoRollGraphicsView::onSelectedClipChanged(int trackIndex, int clipId) {
         update();
         return;
     }
-    m_trackIndex = trackIndex;
-    m_clipId = clipId;
+    m_track = track;
+    m_clip = dynamic_cast<DsSingingClip *>(clip);
 
-    connect(model->tracks().at(trackIndex), &DsTrack::clipChanged, this,
+    connect(track, &DsTrack::clipChanged, this,
             [=](DsTrack::ClipChangeType type, int id, DsClip *clip) {
-                if (id == m_clipId) {
+                if (id == m_clip->id()) {
                     if (type == DsTrack::PropertyChanged)
-                        onCurrentClipPropertyChanged(clip);
+                        onCurrentClipPropertyChanged(m_clip);
                 }
             });
 

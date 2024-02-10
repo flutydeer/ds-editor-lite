@@ -267,6 +267,11 @@ void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
     emit sizeChanged(viewport()->size());
     notifyVisibleRectChanged();
 }
+void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
+    // if (event->pos().x() > rect().width() * 0.8)
+    //     horizontalScrollBar()->triggerAction(QAbstractSlider::SliderSingleStepAdd);
+    QGraphicsView::mouseMoveEvent(event);
+}
 bool CommonGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
 #ifdef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
     return event->deviceType() == QInputDevice::DeviceType::Mouse;

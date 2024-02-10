@@ -192,7 +192,7 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
         case AppModel::Remove:
             // qDebug() << "on track removed" << index;
             // remove selection
-            emit selectedClipChanged(-1, -1);
+            emit selectedClipChanged(-1);
             removeTrackFromView(index);
             emit trackCountChanged(m_trackListViewModel.tracks.count());
             break;
@@ -251,8 +251,8 @@ void TracksView::onSceneSelectionChanged() {
             if (clip->isSelected()) {
                 foundSelectedClip = true;
                 qDebug() << "TracksView::onSceneSelectionChanged"
-                         << "foundSelectedClip" << i << clip->id();
-                emit selectedClipChanged(i, clip->id());
+                         << "foundSelectedClip" <<clip->id();
+                emit selectedClipChanged(clip->id());
                 break;
             }
         }
@@ -260,7 +260,7 @@ void TracksView::onSceneSelectionChanged() {
             break;
     }
     if (!foundSelectedClip)
-        emit selectedClipChanged(-1, -1);
+        emit selectedClipChanged(-1);
 }
 void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
     int previousHeightSum = 0;

@@ -15,10 +15,7 @@ class PianoRollGraphicsView final : public CommonGraphicsView {
 
 public:
     explicit PianoRollGraphicsView();
-
-public slots:
-    void updateView();
-    void onSelectedClipChanged(int trackIndex, int clipId);
+    void setClip(DsTrack *track, DsClip *clip);
 
 private slots:
     void onCurrentClipPropertyChanged(DsClip *clip);
@@ -28,8 +25,8 @@ private:
     PianoRollGraphicsScene *m_pianoRollScene;
     QVector<NoteGraphicsItem *> m_noteItems;
     bool m_oneSingingClipSelected = false;
-    int m_trackIndex = -1;
-    int m_clipId = -1;
+    DsTrack *m_track = nullptr;
+    DsSingingClip *m_clip = nullptr;
 
     void reset();
     void insertNote(DsNote *dsNote, int index);

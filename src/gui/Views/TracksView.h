@@ -35,7 +35,7 @@ public slots:
     void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args);
 
 signals:
-    void selectedClipChanged(int trackIndex, int clipId);
+    void selectedClipChanged(int clipId);
     void trackPropertyChanged(const DsTrack::TrackProperties &args);
     void insertNewTrackTriggered(int index);
     void removeTrackTriggerd(int index);

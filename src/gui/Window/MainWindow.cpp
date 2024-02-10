@@ -6,14 +6,12 @@
 
 #include <QFileDialog>
 #include <QSplitter>
-#include <QMenu>
 #include <QMenuBar>
 
 #include "Audio/AudioSystem.h"
 #include "Audio/Dialogs/AudioSettingsDialog.h"
 #include "Audio/Dialogs/AudioExportDialog.h"
 #include "Controller/TracksViewController.h"
-#include "Controls/PianoRoll/PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
 #include "Views/ActionButtonsView.h"
@@ -57,8 +55,8 @@ MainWindow::MainWindow() {
         "background:rgba(255, 255, 255, 0.35); } "
         "QScrollBar::handle::horizontal:pressed{ background:rgba(255, 255, 255, 0.15); } "
         "QScrollBar::add-line::horizontal, QScrollBar::sub-line::horizontal{ border:none; } "
-        "QSplitter { background-color: #2A2B2C; border: none; } "
-        "QSplitter::handle:vertical { height: 6px; } "
+        "QSplitter { background-color: #2A2B2C; border: none; height: 6px } "
+        "QSplitter::handle:vertical { height: 6px; background-color: #1C1D1E;} "
         "QGraphicsView { border: none; background-color: #2A2B2C;}"
         "QListWidget { background: #2A2B2C; border: none } "
         "QMenu { padding: 4px; background-color: #202122; border: 1px solid #606060; "
@@ -73,7 +71,11 @@ MainWindow::MainWindow() {
         "QMenuBar {background-color: transparent; color: #F0F0F0;}"
         "QMenuBar::item {background-color: transparent; padding: 8px 12px; color: #f0f0f0; "
         "border-radius: 4px; }"
-        "QMenuBar::item:selected { background-color: #10FFFFFF } ";
+        "QMenuBar::item:selected { background-color: #10FFFFFF } "
+        "QLineEdit {background: #10FFFFFF; border: 1px solid transparent; border-bottom: 1px solid #80606060;"
+        "border-radius: 4px; color: #F0F0F0; selection-color: #000;"
+        "selection-background-color: #9BBAFF; padding: 2px; }"
+        "QLineEdit:focus { background: #202122; border: 1px solid #606060; border-bottom: 2px solid #9BBAFF; }";
     this->setStyleSheet(QString("QMainWindow { background: #232425 }") + qssBase);
 #ifdef Q_OS_WIN
     // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler
@@ -111,7 +113,8 @@ MainWindow::MainWindow() {
     connect(actionNewProject, &QAction::triggered, appController, &AppController::onNewProject);
     auto actionOpen = new QAction("&Open project...");
     connect(actionOpen, &QAction::triggered, this, [=] {
-        auto lastDir = appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
+        auto lastDir =
+            appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
         auto fileName = QFileDialog::getOpenFileName(this, "Select a Project File", lastDir,
                                                      "Project File (*.json)");
         if (fileName.isNull())
@@ -120,8 +123,9 @@ MainWindow::MainWindow() {
         appController->openProject(fileName);
     });
     auto actionOpenAProject = new QAction("Open A Project", this);
-    connect(actionOpenAProject, &QAction::triggered, this, [=]{
-        auto lastDir = appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
+    connect(actionOpenAProject, &QAction::triggered, this, [=] {
+        auto lastDir =
+            appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
         auto fileName = QFileDialog::getOpenFileName(this, "Select an A Project File", lastDir,
                                                      "Project File (*.json)");
         if (fileName.isNull())
@@ -132,9 +136,10 @@ MainWindow::MainWindow() {
     auto actionSave = new QAction("&Save", this);
     auto actionSaveAs = new QAction("&Save as", this);
     connect(actionSaveAs, &QAction::triggered, this, [=] {
-        auto lastDir = appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
+        auto lastDir =
+            appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
         auto fileName = QFileDialog::getSaveFileName(this, "Save as Project File", lastDir,
-                                                    "Project File (*.json)");
+                                                     "Project File (*.json)");
         if (fileName.isNull())
             return;
 
@@ -195,10 +200,11 @@ MainWindow::MainWindow() {
     auto actionRedo = new QAction("&Redo", this);
     actionRedo->setEnabled(false);
     connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
-    connect(historyManager, &HistoryManager::undoRedoChanged, this, [=](bool canUndo, bool canRedo) {
-        actionUndo->setEnabled(canUndo);
-        actionRedo->setEnabled(canRedo);
-    });
+    connect(historyManager, &HistoryManager::undoRedoChanged, this,
+            [=](bool canUndo, bool canRedo) {
+                actionUndo->setEnabled(canUndo);
+                actionRedo->setEnabled(canRedo);
+            });
 
     auto actionCut = new QAction("&Cut", this);
     auto actionCopy = new QAction("&Copy", this);
@@ -240,16 +246,16 @@ MainWindow::MainWindow() {
     menuBar->addMenu(menuOptions);
     menuBar->addMenu(menuHelp);
 
-    auto m_tracksView = new TracksView;
-    auto m_pianoRollView = new PianoRollGraphicsView;
+    m_tracksView = new TracksView;
+    m_clipEditView = new ClipEditorView;
     auto model = AppModel::instance();
 
     connect(model, &AppModel::modelChanged, m_tracksView, &TracksView::onModelChanged);
     connect(model, &AppModel::tracksChanged, m_tracksView, &TracksView::onTrackChanged);
     connect(model, &AppModel::tempoChanged, m_tracksView, &TracksView::onTempoChanged);
-    connect(model, &AppModel::modelChanged, m_pianoRollView, &PianoRollGraphicsView::updateView);
-    connect(model, &AppModel::selectedClipChanged, m_pianoRollView,
-            &PianoRollGraphicsView::onSelectedClipChanged);
+    connect(model, &AppModel::modelChanged, m_clipEditView, &ClipEditorView::onModelChanged);
+    connect(model, &AppModel::selectedClipChanged, m_clipEditView,
+            &ClipEditorView::onSelectedClipChanged);
 
     connect(m_tracksView, &TracksView::selectedClipChanged, trackController,
             &TracksViewController::onSelectedClipChanged);
@@ -271,7 +277,7 @@ MainWindow::MainWindow() {
     auto splitter = new QSplitter;
     splitter->setOrientation(Qt::Vertical);
     splitter->addWidget(m_tracksView);
-    splitter->addWidget(m_pianoRollView);
+    splitter->addWidget(m_clipEditView);
 
     auto playbackView = new PlaybackView;
     connect(playbackView, &PlaybackView::setTempoTriggered, appController,
@@ -306,9 +312,12 @@ MainWindow::MainWindow() {
 
     auto actionButtonsView = new ActionButtonsView;
     connect(actionButtonsView, &ActionButtonsView::saveTriggered, actionSave, &QAction::trigger);
-    connect(actionButtonsView, &ActionButtonsView::undoTriggered, historyManager, &HistoryManager::undo);
-    connect(actionButtonsView, &ActionButtonsView::redoTriggered, historyManager, &HistoryManager::redo);
-    connect(historyManager, &HistoryManager::undoRedoChanged, actionButtonsView, &ActionButtonsView::onUndoRedoChanged);
+    connect(actionButtonsView, &ActionButtonsView::undoTriggered, historyManager,
+            &HistoryManager::undo);
+    connect(actionButtonsView, &ActionButtonsView::redoTriggered, historyManager,
+            &HistoryManager::redo);
+    connect(historyManager, &HistoryManager::undoRedoChanged, actionButtonsView,
+            &ActionButtonsView::onUndoRedoChanged);
 
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addLayout(menuBarContainer);
