@@ -40,7 +40,6 @@ void TimeGridGraphicsItem::updateRectAndPos() {
     auto pos = visibleRect().topLeft();
     setPos(pos);
     setRect(QRectF(0, 0, visibleRect().width(), visibleRect().height()));
-    emit timeRangeChanged(startTick(), endTick());
     update();
 }
 void TimeGridGraphicsItem::drawBar(QPainter *painter, int tick, int bar) {

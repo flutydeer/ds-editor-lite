@@ -40,15 +40,16 @@ TracksView::TracksView() {
     connect(m_trackListWidget, &QListWidget::currentRowChanged, AppController::instance(),
             &AppController::onTrackSelectionChanged);
 
-    m_graphicsView = new TracksGraphicsView;
+
+    m_tracksScene = new TracksGraphicsScene;
+    m_graphicsView = new TracksGraphicsView(m_tracksScene);
     // QScroller::grabGesture(m_graphicsView, QScroller::TouchGesture);
     m_graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     m_graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     m_graphicsView->setEnsureSceneFillView(false);
+    m_graphicsView->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
             &TracksView::onViewScaleChanged);
-    m_tracksScene = new TracksGraphicsScene;
-    m_graphicsView->setScene(m_tracksScene);
     m_graphicsView->centerOn(0, 0);
     connect(m_graphicsView, &TracksGraphicsView::scaleChanged, m_tracksScene,
             &TracksGraphicsScene::setScale);
@@ -92,10 +93,10 @@ TracksView::TracksView() {
     connect(appModel, &AppModel::quantizeChanged, m_gridItem, &TimeGridGraphicsItem::setQuantize);
     connect(appModel, &AppModel::selectedTrackChanged, m_gridItem,
             &TracksBackgroundGraphicsItem::onTrackSelectionChanged);
-    m_tracksScene->addItem(m_gridItem);
+    m_tracksScene->addTimeGrid(m_gridItem);
 
     m_timeline = new TimelineView;
-    m_timeline->setTimeRange(m_gridItem->startTick(), m_gridItem->endTick());
+    m_timeline->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
     m_timeline->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
             &TracksGraphicsView::onWheelHorScale);
@@ -110,40 +111,9 @@ TracksView::TracksView() {
                                      appModel->timeSignature().denominator);
     });
     connect(appModel, &AppModel::timeSignatureChanged, m_timeline, &TimelineView::setTimeSignature);
-    connect(m_gridItem, &TimeGridGraphicsItem::timeRangeChanged, m_timeline,
+    connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeline,
             &TimelineView::setTimeRange);
     connect(appModel, &AppModel::quantizeChanged, m_timeline, &TimelineView::setQuantize);
-
-    m_scenePlayPosIndicator = new TimeIndicatorGraphicsItem;
-    m_scenePlayPosIndicator->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
-    m_scenePlayPosIndicator->setScale(m_graphicsView->scaleX(), 1);
-    m_scenePlayPosIndicator->setVisibleRect(m_graphicsView->visibleRect());
-    QPen curPlayPosPen;
-    curPlayPosPen.setWidth(1);
-    curPlayPosPen.setColor(QColor(255, 204, 153));
-    m_scenePlayPosIndicator->setPen(curPlayPosPen);
-    connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, m_scenePlayPosIndicator,
-            &TimeIndicatorGraphicsItem::setVisibleRect);
-    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, m_scenePlayPosIndicator,
-            &TimeIndicatorGraphicsItem::setScale);
-    m_scenePlayPosIndicator->setZValue(2);
-    m_tracksScene->addItem(m_scenePlayPosIndicator);
-
-    m_sceneLastPlayPosIndicator = new TimeIndicatorGraphicsItem;
-    m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
-    m_sceneLastPlayPosIndicator->setScale(m_graphicsView->scaleX(), 1);
-    m_sceneLastPlayPosIndicator->setVisibleRect(m_graphicsView->visibleRect());
-    QPen lastPlayPosPen;
-    lastPlayPosPen.setWidth(1);
-    lastPlayPosPen.setColor(QColor(160, 160, 160));
-    lastPlayPosPen.setStyle(Qt::DashLine);
-    m_sceneLastPlayPosIndicator->setPen(lastPlayPosPen);
-    connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, m_sceneLastPlayPosIndicator,
-            &TimeIndicatorGraphicsItem::setVisibleRect);
-    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, m_sceneLastPlayPosIndicator,
-            &TimeIndicatorGraphicsItem::setScale);
-    m_sceneLastPlayPosIndicator->setZValue(2);
-    m_tracksScene->addItem(m_sceneLastPlayPosIndicator);
 
     auto gBar = m_graphicsView->verticalScrollBar();
     auto lBar = m_trackListWidget->verticalScrollBar();
@@ -255,16 +225,10 @@ void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int
 }
 void TracksView::onPositionChanged(double tick) {
     m_timeline->setPosition(tick);
-    m_scenePlayPosIndicator->onTimeChanged(tick);
-
-    auto curStartTick = m_gridItem->startTick();
-    auto curEndTick = m_gridItem->endTick();
-    if (tick > curEndTick)
-        m_graphicsView->horizontalScrollBar()->triggerAction(QAbstractSlider::SliderPageStepAdd);
-
+    m_graphicsView->setPlaybackPosition(tick);
 }
 void TracksView::onLastPositionChanged(double tick) {
-    m_sceneLastPlayPosIndicator->onTimeChanged(tick);
+    m_graphicsView->setLastPlaybackPosition(tick);
 }
 void TracksView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) {
     if (m_trackListViewModel.tracks.isEmpty())

@@ -59,8 +59,6 @@ private:
     TracksGraphicsScene *m_tracksScene;
     TimelineView *m_timeline;
     TracksBackgroundGraphicsItem *m_gridItem;
-    TimeIndicatorGraphicsItem *m_scenePlayPosIndicator;
-    TimeIndicatorGraphicsItem *m_sceneLastPlayPosIndicator;
 
     class TrackListViewModel {
     public:
