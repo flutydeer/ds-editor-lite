@@ -256,6 +256,12 @@ void TracksView::onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int
 void TracksView::onPositionChanged(double tick) {
     m_timeline->setPosition(tick);
     m_scenePlayPosIndicator->onTimeChanged(tick);
+
+    auto curStartTick = m_gridItem->startTick();
+    auto curEndTick = m_gridItem->endTick();
+    if (tick > curEndTick)
+        m_graphicsView->horizontalScrollBar()->triggerAction(QAbstractSlider::SliderPageStepAdd);
+
 }
 void TracksView::onLastPositionChanged(double tick) {
     m_sceneLastPlayPosIndicator->onTimeChanged(tick);
