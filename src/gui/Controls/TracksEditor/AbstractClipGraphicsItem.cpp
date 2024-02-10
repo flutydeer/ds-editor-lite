@@ -36,7 +36,8 @@ void AbstractClipGraphicsItem::setContext(QWidget *context) {
     addMenuActions(m_menu);
 
     auto actionProperties = m_menu->addAction("Properties");
-    connect(actionProperties, &QAction::triggered, [&] {qDebug() << "actionProperties triggered" << id();});
+    connect(actionProperties, &QAction::triggered,
+            [&] { qDebug() << "actionProperties triggered" << id(); });
 }
 
 QString AbstractClipGraphicsItem::name() const {
@@ -164,14 +165,16 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
     auto font = QFont("Microsoft Yahei UI");
     font.setPointSizeF(10);
     painter->setFont(font);
-    int textPadding = 2;
+    double textPadding = 2;
     auto rectLeft = mapToScene(rect.topLeft()).x();
     auto rectRight = mapToScene(rect.bottomRight()).x();
     auto textRectLeft = visibleRect().left() < rectLeft
                             ? paddedRect.left() + textPadding
-                            : visibleRect().left() - rectLeft + textPadding + penWidth;
+                            : visibleRect().left() - rectLeft + textPadding + penWidth / 2;
     auto textRectTop = paddedRect.top() + textPadding;
-    auto textRectWidth = rectRight - visibleRect().left() - 2 * (textPadding + penWidth);
+    auto textRectWidth = rectLeft < visibleRect().left()
+                             ? rectRight - visibleRect().left() - 2 * (textPadding + penWidth)
+                             : rectRight - rectLeft - 2 * (textPadding + penWidth);
     auto textRectHeight = paddedRect.height() - 2 * textPadding;
     auto textRect = QRectF(textRectLeft, textRectTop, textRectWidth, textRectHeight);
 
@@ -200,6 +203,9 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
         else
             painter->drawText(textRect, text);
     }
+    // pen.setColor(Qt::red);
+    // painter->setPen(pen);
+    // painter->drawRect(textRect);
 
     auto previewRectHeight = previewRect().height();
     if (previewRectHeight >= 32) {
@@ -273,8 +279,8 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             }
             break;
         case ResizeRight:
-            right = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta,
-                             quantize);
+            right = MathUtils::round(
+                m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize);
             clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
             if (clipLen <= 0)
                 break;
