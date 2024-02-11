@@ -19,6 +19,7 @@
 #include "Utils/CleanLyric.h"
 
 #include "mandarin.h"
+#include "jpg2p.h"
 #include "PhonicDelegate.h"
 #include "PhonicModel.h"
 
@@ -35,8 +36,6 @@ namespace FillLyric {
         void setLyrics(const QString &lyrics);
 
     private:
-        void repaintTable();
-
         void _on_btnToText_clicked();
         void _on_btnToTable_clicked();
         void _on_btnToggleFermata_clicked();
@@ -67,6 +66,7 @@ namespace FillLyric {
 
         PhonicModel *model;
         IKg2p::Mandarin g2p_man;
+        IKg2p::JpG2p g2p_jp;
 
         QHBoxLayout *tableLayout;
         QHBoxLayout *bottomLayout;

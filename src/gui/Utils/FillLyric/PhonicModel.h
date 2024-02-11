@@ -27,18 +27,33 @@ namespace FillLyric {
 
     class PhonicModel : public QStandardItemModel {
     public:
-        void shrinkModel();
-        void repaintTable();
+        explicit PhonicModel(QTableView *tableView, QObject *parent = nullptr)
+            : QStandardItemModel(parent), tableView(tableView) {
+        }
 
-        static QList<int> displayRole();
-        static QList<int> allRoles();
-        int cellLyricType(int row, int col);
-        QString cellLyric(int row, int col);
+        // Gui functions
+        void repaintView();
+        void shrinkModel();
+        void expandModel(int col);
+
+        // Basic functions
         int currentLyricLength(int row);
 
-        void collapseFermata();
-        void expandFermata();
-        void setFermata(int row, int col, QString &fermata);
+        // RoleData functions
+        static QList<int> allRoles();
+
+        QString cellLyric(int row, int col);
+        bool setLyric(int row, int col, QString &lyric);
+        QString cellSyllable(int row, int col);
+        bool setSyllable(int row, int col, const QString &syllable);
+        QStringList cellCandidate(int row, int col);
+        bool setCandidate(int row, int col, const QStringList& candidate);
+        int cellLyricType(int row, int col);
+        bool setLyricType(int row, int col, LyricType type);
+        QStringList cellFermata(int row, int col);
+        bool setFermata(int row, int col, const QList<QString> &fermata);
+
+        // Cell operations
         void clearData(int row, int col, const QList<int> &roles);
         void moveData(int row, int col, int tarRow, int tarCol, const QList<int> &roles);
 
@@ -46,16 +61,24 @@ namespace FillLyric {
         void cellMergeLeft(const QModelIndex &index);
         void cellMoveLeft(const QModelIndex &index);
         void cellMoveRight(const QModelIndex &index);
-        void cellNewLine(const QModelIndex &index);
         void cellMergeUp(const QModelIndex &index);
 
+        // Line operations
+        void cellNewLine(const QModelIndex &index);
         void addPrevLine(const QModelIndex &index);
         void addNextLine(const QModelIndex &index);
         void removeLine(const QModelIndex &index);
 
+        // Fermata operations
+        void collapseFermata();
+        void expandFermata();
+
         bool fermataState = false;
 
         int modelMaxCol = 0;
+
+    private:
+        QTableView *tableView;
     };
 
 } // FillLyric

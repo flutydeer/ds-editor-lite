@@ -62,13 +62,13 @@ namespace FillLyric {
         return LyricType::Other;
     }
 
-    QPair<QList<QStringList>, QList<QList<int>>> CleanLyric::cleanLyric(const QString &input,
-                                                                        const QString &fermata) {
+    QPair<QList<QStringList>, QList<QList<CleanLyric::LyricType>>>
+        CleanLyric::cleanLyric(const QString &input, const QString &fermata) {
         QList<QStringList> res;
-        QList<QList<int>> label;
+        QList<QList<LyricType>> label;
 
         QStringList currentLine;
-        QList<int> currentLabel;
+        QList<LyricType> currentLabel;
 
         int pos = 0;
         while (pos < input.length()) {
