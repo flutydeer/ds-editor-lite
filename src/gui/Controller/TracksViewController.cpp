@@ -72,8 +72,8 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     a->execute();
     HistoryManager::instance()->record(a);
 }
-void TracksViewController::onSelectedClipChanged(int trackIndex, int clipId) {
-    AppModel::instance()->onSelectedClipChanged(trackIndex, clipId);
+void TracksViewController::onSelectedClipChanged(int clipId) {
+    AppModel::instance()->onSelectedClipChanged(clipId);
 }
 void TracksViewController::onTrackPropertyChanged(const DsTrack::TrackProperties &args) {
     auto tracks = AppModel::instance()->tracks();

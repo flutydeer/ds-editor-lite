@@ -7,7 +7,7 @@ void TimeIndicatorGraphicsItem::setPixelsPerQuarterNote(int px) {
     m_pixelsPerQuarterNote = px;
     updateLengthAndPos();
 }
-void TimeIndicatorGraphicsItem::onTimeChanged(double tick) {
+void TimeIndicatorGraphicsItem::setPosition(double tick) {
     m_time = tick;
     updateLengthAndPos();
 }

@@ -35,7 +35,7 @@ public slots:
     void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args);
 
 signals:
-    void selectedClipChanged(int trackIndex, int clipId);
+    void selectedClipChanged(int clipId);
     void trackPropertyChanged(const DsTrack::TrackProperties &args);
     void insertNewTrackTriggered(int index);
     void removeTrackTriggerd(int index);
@@ -59,8 +59,6 @@ private:
     TracksGraphicsScene *m_tracksScene;
     TimelineView *m_timeline;
     TracksBackgroundGraphicsItem *m_gridItem;
-    TimeIndicatorGraphicsItem *m_scenePlayPosIndicator;
-    TimeIndicatorGraphicsItem *m_sceneLastPlayPosIndicator;
 
     class TrackListViewModel {
     public:

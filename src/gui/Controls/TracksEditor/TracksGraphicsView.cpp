@@ -10,7 +10,7 @@
 #include "TracksGraphicsScene.h"
 #include "Utils/MathUtils.h"
 
-TracksGraphicsView::TracksGraphicsView() {
+TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene) : TimeGraphicsView(scene) {
     setScaleYMin(0.575);
 
     m_actionNewSingingClip = new QAction("New singing clip", this);

@@ -49,7 +49,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
             auto objClip = valClip.toObject();
             if (type == "sing") {
                 auto singingClip = new DsSingingClip;
-                singingClip->setName("Clip");
+                singingClip->setName(objClip.value("name").toString());
                 singingClip->setStart(objClip.value("pos").toInt());
                 singingClip->setClipStart(objClip.value("clipPos").toInt());
                 singingClip->setLength(objClip.value("dur").toInt());

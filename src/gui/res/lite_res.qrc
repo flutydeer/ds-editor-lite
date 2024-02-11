@@ -54,10 +54,14 @@
         <file>svg/icons/panel_bottom_20_filled.svg</file>
 
         <file>svg/icons/cursor_24_filled.svg</file>
+        <file>svg/icons/cursor_24_filled_white.svg</file>
         <file>svg/icons/edit_24_filled.svg</file>
+        <file>svg/icons/edit_24_filled_white.svg</file>
         <file>svg/icons/paint_brush_arrow_down_24_filled.svg</file>
         <file>svg/icons/pitch_anchor_24_filled.svg</file>
+        <file>svg/icons/pitch_anchor_24_filled_white.svg</file>
         <file>svg/icons/pitch_edit_24_filled.svg</file>
+        <file>svg/icons/pitch_edit_24_filled_white.svg</file>
         <file>svg/icons/pitch_vibrato_24_filled.svg</file>
 
     </qresource>

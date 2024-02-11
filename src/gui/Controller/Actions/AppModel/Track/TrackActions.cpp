@@ -9,7 +9,7 @@
 #include "EditTrackPropertiesAction.h"
 #include "InsertTrackAction.h"
 #include "RemoveTrackAction.h"
-void TrackActions::appendTracks(QList<DsTrack *> tracks, AppModel *model) {
+void TrackActions::appendTracks(const QList<DsTrack *> &tracks, AppModel *model) {
     for (auto track : tracks)
         addAction(AppendTrackAction::build(track, model));
 }

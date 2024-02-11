@@ -22,12 +22,6 @@ public:
     explicit TimeGridGraphicsItem(QGraphicsItem *parent = nullptr);
     ~TimeGridGraphicsItem() override = default;
 
-    double startTick() const;
-    double endTick() const;
-
-signals:
-    void timeRangeChanged(double startTick, double endTick);
-
 public slots:
     void setTimeSignature(int numerator, int denominator) override;
     void setQuantize(int quantize) override;
@@ -48,6 +42,8 @@ protected:
     const QColor beatTextColor = QColor(160, 160, 160);
 
 private:
+    double startTick() const;
+    double endTick() const;
     double sceneXToTick(double pos) const;
     double tickToSceneX(double tick) const;
     double sceneXToItemX(double x) const;

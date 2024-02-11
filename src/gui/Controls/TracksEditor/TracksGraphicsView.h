@@ -5,14 +5,15 @@
 #ifndef DATASET_TOOLS_TRACKSGRAPHICSVIEW_H
 #define DATASET_TOOLS_TRACKSGRAPHICSVIEW_H
 
-#include "../Base/CommonGraphicsView.h"
+#include "TracksGraphicsScene.h"
+#include "Controls/Base/TimeGraphicsView.h"
 #include "Model/AppModel.h"
 
-class TracksGraphicsView final : public CommonGraphicsView {
+class TracksGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
 
 public:
-    explicit TracksGraphicsView();
+    explicit TracksGraphicsView(TracksGraphicsScene *scene);
     void setQuantize(int quantize);
 
 signals:

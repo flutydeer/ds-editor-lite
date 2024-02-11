@@ -5,35 +5,47 @@
 #ifndef PIANOROLLGRAPHICSVIEW_H
 #define PIANOROLLGRAPHICSVIEW_H
 
-#include "Controls/Base/CommonGraphicsView.h"
 #include "Model/AppModel.h"
 #include "NoteGraphicsItem.h"
 #include "PianoRollGraphicsScene.h"
+#include "Controls/Base/TimeGraphicsView.h"
 
-class PianoRollGraphicsView final : public CommonGraphicsView {
+using namespace PianoRollGlobal;
+
+class PianoRollGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
 
 public:
-    explicit PianoRollGraphicsView();
+    explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene);
+    void setIsSingingClip(bool isSingingClip);
+    void setEditMode(PianoRollEditMode mode);
+    void insertNote(DsNote *dsNote);
+    void removeNote(int noteId);
+    void reset();
 
-public slots:
-    void updateView();
-    void onSelectedClipChanged(int trackIndex, int clipId);
+    double topKeyIndex()const;
+    double bottomKeyIndex() const;
+    void setViewportTopKey(double key);
+    void setViewportCenterAt(double tick, double keyIndex);
+    void setViewportCenterAtKeyIndex(double keyIndex);
 
-private slots:
-    void onCurrentClipPropertyChanged(DsClip *clip);
+signals:
+    void noteShapeEdited(NoteEditMode mode, int deltaTick, int deltaKey);
 
 private:
     void paintEvent(QPaintEvent *event) override;
-    PianoRollGraphicsScene *m_pianoRollScene;
-    QVector<NoteGraphicsItem *> m_noteItems;
-    bool m_oneSingingClipSelected = false;
-    int m_trackIndex = -1;
-    int m_clipId = -1;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
 
-    void reset();
-    void insertNote(DsNote *dsNote, int index);
-    void loadNotes(DsSingingClip *singingClip);
+    bool m_isSingingClipSelected = false;
+    PianoRollEditMode m_mode = Select;
+    QList<NoteGraphicsItem *> m_noteItems;
+
+    NoteGraphicsItem *findNoteById(int id);
+    double keyIndexToSceneY(double index) const;
+    double sceneYToKeyIndex(double y) const;
 };
 
 #endif // PIANOROLLGRAPHICSVIEW_H

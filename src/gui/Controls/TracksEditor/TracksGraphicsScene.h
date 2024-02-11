@@ -6,8 +6,9 @@
 #define DATASET_TOOLS_TRACKSGRAPHICSSCENE_H
 
 #include "../Base/CommonGraphicsScene.h"
+#include "Controls/Base/TimeGraphicsScene.h"
 
-class TracksGraphicsScene final : public CommonGraphicsScene {
+class TracksGraphicsScene final : public TimeGraphicsScene {
 public:
     explicit TracksGraphicsScene();
     int trackIndexAt(double sceneY);

@@ -56,7 +56,7 @@ void AppModel::appendTrack(DsTrack *track) {
 }
 void AppModel::removeTrackAt(int index) {
     auto track = m_tracks[index];
-    onSelectedClipChanged(-1, -1);
+    onSelectedClipChanged(-1);
     m_tracks.removeAt(index);
     emit tracksChanged(Remove, index, track);
 }
@@ -78,6 +78,9 @@ void AppModel::setQuantize(int quantize) {
 }
 void AppModel::newProject() {
     reset();
+    auto newTrack = new DsTrack;
+    newTrack->setName("New Track");
+    m_tracks.append(newTrack);
     emit modelChanged();
 }
 
@@ -149,15 +152,34 @@ bool AppModel::exportMidiFile(const QString &filename) {
 int AppModel::selectedTrackIndex() const {
     return m_selectedTrackIndex;
 }
-void AppModel::onSelectedClipChanged(int trackIndex, int clipId) {
-    qDebug() << "AppModel::onSelectedClipChanged" << trackIndex << clipId;
-    m_selectedClipTrackIndex = trackIndex;
+void AppModel::onSelectedClipChanged(int clipId) {
+    qDebug() << "AppModel::setIsSingingClip" << clipId;
     m_selectedClipId = clipId;
-    emit selectedClipChanged(m_selectedClipTrackIndex, m_selectedClipId);
+    auto found = false;
+    for (auto track : m_tracks) {
+        auto result = track->findClipById(clipId);
+        if (result) {
+            emit selectedClipChanged(track, result);
+            return;
+        }
+    }
+    emit selectedClipChanged(nullptr, nullptr);
 }
 void AppModel::setSelectedTrack(int trackIndex) {
     m_selectedTrackIndex = trackIndex;
     emit selectedTrackChanged(trackIndex);
+}
+DsClip *AppModel::findClipById(int clipId, int &trackIndex) {
+    int i = 0;
+    for (auto track : m_tracks) {
+        auto result = track->findClipById(clipId);
+        if (result) {
+            trackIndex = i;
+            return result;
+        }
+        i++;
+    }
+    return nullptr;
 }
 void AppModel::reset() {
     m_tempo = 120;

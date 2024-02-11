@@ -15,7 +15,7 @@ public:
     void setPixelsPerQuarterNote(int px);
 
 public slots:
-    void onTimeChanged(double tick);
+    void setPosition(double tick);
     void setScale(qreal sx, qreal sy);
     void setVisibleRect(const QRectF &rect);
 

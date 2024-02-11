@@ -10,6 +10,8 @@
 
 class DsParam {
 public:
+    enum ParamCurveType { Original, Edited, Envelope };
+
     OverlapableSerialList<DsCurve> original;
     OverlapableSerialList<DsCurve> edited;
     OverlapableSerialList<DsCurve> envelope;
@@ -17,6 +19,7 @@ public:
 
 class DsParams {
 public:
+    enum ParamType { Pitch, Energy, Tension, Breathiness };
     DsParam pitch;
     DsParam energy;
     DsParam tension;

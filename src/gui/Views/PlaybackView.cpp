@@ -80,8 +80,22 @@ PlaybackView::PlaybackView(QWidget *parent) {
             return;
 
         auto splitStr = value.split('/');
-        auto numerator = splitStr.first().toInt();
-        auto denominator = splitStr.last().toInt();
+
+        if (splitStr.size() != 2) {
+            return;
+        }
+
+        bool isValidNumerator = false;
+        bool isValidDenominator = false;
+
+        auto numerator = splitStr.first().toInt(&isValidNumerator);
+        auto denominator = splitStr.last().toInt(&isValidDenominator);
+
+        // If the numerator or denominator are not positive integers, ignore the change.
+        if (!(isValidNumerator && isValidDenominator && (numerator > 0) && (denominator > 0))) {
+            return;
+        }
+
         if (m_numerator != numerator || m_denominator != denominator) {
             m_numerator = numerator;
             m_denominator = denominator;
@@ -149,6 +163,7 @@ PlaybackView::PlaybackView(QWidget *parent) {
         "QPushButton#btnPause:checked { background-color: #FFCD9B;} "
         "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 6px; }"
         "QLabel:hover { background: #1AFFFFFF; }"
+        "QLineEdit { border-radius: 6px; }"
         "QComboBox { color: #F0F0F0; border: none; background: #10FFFFFF; border-radius: 6px; }"
         "QComboBox:hover { background: #1AFFFFFF; }"
         "QComboBox:pressed { background: #10FFFFFF; }");

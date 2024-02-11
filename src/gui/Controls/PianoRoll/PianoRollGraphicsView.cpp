@@ -2,93 +2,21 @@
 // Created by fluty on 2024/1/23.
 //
 
-#include <QDebug>
-#include <QScroller>
-
-#include "NoteGraphicsItem.h"
-#include "PianoRollBackgroundGraphicsItem.h"
-#include "PianoRollGlobal.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 
-PianoRollGraphicsView::PianoRollGraphicsView() {
+#include <QMouseEvent>
+#include <QScrollBar>
+
+PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene)
+    : TimeGraphicsView(scene) {
     setScaleXMax(5);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
-    setDragMode(RubberBandDrag);
-
-    m_pianoRollScene = new PianoRollGraphicsScene;
-    // setScene(m_pianoRollScene);
-    connect(this, &PianoRollGraphicsView::scaleChanged, m_pianoRollScene,
-            &PianoRollGraphicsScene::setScale);
-
-    auto gridItem = new PianoRollBackgroundGraphicsItem;
-    gridItem->setPixelsPerQuarterNote(PianoRollGlobal::pixelsPerQuarterNote);
-    connect(this, &PianoRollGraphicsView::visibleRectChanged, gridItem,
-            &TimeGridGraphicsItem::setVisibleRect);
-    connect(this, &PianoRollGraphicsView::scaleChanged, gridItem,
-            &PianoRollBackgroundGraphicsItem::setScale);
-    auto appModel = AppModel::instance();
-    connect(appModel, &AppModel::modelChanged, gridItem,
-            [=] { gridItem->setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator); });
-    connect(appModel, &AppModel::timeSignatureChanged, gridItem,
-            &TimeGridGraphicsItem::setTimeSignature);
-    m_pianoRollScene->addItem(gridItem);
-
-    // auto pitchItem = new PitchEditorGraphicsItem;
-    // QObject::connect(pianoRollView, &TracksGraphicsView::visibleRectChanged, pitchItem,
-    //                  &PitchEditorGraphicsItem::setVisibleRect);
-    // QObject::connect(pianoRollView, &TracksGraphicsView::scaleChanged, pitchItem,
-    // &PitchEditorGraphicsItem::setScale); pianoRollScene->addItem(pitchItem);
-}
-void PianoRollGraphicsView::updateView() {
-    onSelectedClipChanged(-1, -1);
-}
-void PianoRollGraphicsView::onSelectedClipChanged(int trackIndex, int clipId) {
-    qDebug() << "PianoRollGraphicsView::onSelectedClipChanged" << trackIndex << clipId;
-    reset();
-
-    auto model = AppModel::instance();
-    if (trackIndex == -1 || trackIndex >= model->tracks().size()) {
-        m_oneSingingClipSelected = false;
-        setScene(nullptr);
-        update();
-        return;
-    }
-
-    auto clip = model->tracks().at(trackIndex)->findClipById(clipId);
-
-    if (clip == nullptr || clip->type() != DsClip::Singing) {
-        m_oneSingingClipSelected = false;
-        setScene(nullptr);
-        update();
-        return;
-    }
-    m_trackIndex = trackIndex;
-    m_clipId = clipId;
-
-    connect(model->tracks().at(trackIndex), &DsTrack::clipChanged, this,
-            [=](DsTrack::ClipChangeType type, int id, DsClip *clip) {
-                if (id == m_clipId) {
-                    if (type == DsTrack::PropertyChanged)
-                        onCurrentClipPropertyChanged(clip);
-                }
-            });
-
-    m_oneSingingClipSelected = true;
-    setScene(m_pianoRollScene);
-    update();
-    auto singingClip = dynamic_cast<DsSingingClip *>(clip);
-    loadNotes(singingClip);
-}
-// TODO: remove these test code
-void PianoRollGraphicsView::onCurrentClipPropertyChanged(DsClip *clip) {
-    reset();
-    loadNotes(dynamic_cast<DsSingingClip *>(clip));
 }
 void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     CommonGraphicsView::paintEvent(event);
 
-    if (m_oneSingingClipSelected)
+    if (m_isSingingClipSelected)
         return;
 
     QPainter painter(viewport());
@@ -96,37 +24,101 @@ void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     painter.drawText(viewport()->rect(), "Select a singing clip to edit",
                      QTextOption(Qt::AlignCenter));
 }
-void PianoRollGraphicsView::reset() {
-    for (auto note : m_noteItems) {
-        m_pianoRollScene->removeItem(note);
-        delete note;
+void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
+    if (event->button() != Qt::LeftButton) {
+        TimeGraphicsView::mousePressEvent(event);
     }
-    m_noteItems.clear();
+    if (m_mode == DrawNote) {
+        event->accept();
+    } else
+        TimeGraphicsView::mousePressEvent(event);
 }
-void PianoRollGraphicsView::insertNote(DsNote *dsNote, int index) {
-    auto noteItem = new NoteGraphicsItem(0);
+void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
+    TimeGraphicsView::mouseMoveEvent(event);
+}
+void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
+    TimeGraphicsView::mouseReleaseEvent(event);
+}
+void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
+    TimeGraphicsView::mouseDoubleClickEvent(event);
+}
+void PianoRollGraphicsView::insertNote(DsNote *dsNote) {
+    auto noteItem = new NoteGraphicsItem(dsNote->id());
+    noteItem->setContext(this);
     noteItem->setStart(dsNote->start());
     noteItem->setLength(dsNote->length());
     noteItem->setKeyIndex(dsNote->keyIndex());
     noteItem->setLyric(dsNote->lyric());
     noteItem->setPronunciation(dsNote->pronunciation());
-    noteItem->setVisibleRect(this->visibleRect());
-    noteItem->setScaleX(this->scaleX());
-    noteItem->setScaleY(this->scaleY());
-    m_pianoRollScene->addItem(noteItem);
+    noteItem->setVisibleRect(visibleRect());
+    noteItem->setScaleX(scaleX());
+    noteItem->setScaleY(scaleY());
+    scene()->addItem(noteItem);
     connect(this, &PianoRollGraphicsView::scaleChanged, noteItem, &NoteGraphicsItem::setScale);
     connect(this, &PianoRollGraphicsView::visibleRectChanged, noteItem,
             &NoteGraphicsItem::setVisibleRect);
     m_noteItems.append(noteItem);
 }
-void PianoRollGraphicsView::loadNotes(DsSingingClip *singingClip) {
-    if (singingClip->notes().count() == 0)
-        return;
-
-    for (int i = 0; i < singingClip->notes().count(); i++) {
-        auto note = singingClip->notes().at(i);
-        insertNote(note, i);
+void PianoRollGraphicsView::removeNote(int noteId) {
+    auto noteItem = findNoteById(noteId);
+    scene()->removeItem(noteItem);
+    m_noteItems.removeOne(noteItem);
+}
+NoteGraphicsItem *PianoRollGraphicsView::findNoteById(int id) {
+    for (const auto note : m_noteItems)
+        if (note->id() == id)
+            return note;
+    return nullptr;
+}
+double PianoRollGraphicsView::keyIndexToSceneY(double index) const {
+    return (127 - index) * scaleY() * noteHeight;
+}
+double PianoRollGraphicsView::sceneYToKeyIndex(double y) const {
+    return 127 - y / scaleY() / noteHeight;
+}
+void PianoRollGraphicsView::reset() {
+    for (auto note : m_noteItems) {
+        scene()->removeItem(note);
+        delete note;
     }
-    auto firstNoteItem = m_noteItems.first();
-    centerOn(firstNoteItem);
+    m_noteItems.clear();
+}
+double PianoRollGraphicsView::topKeyIndex() const {
+    return sceneYToKeyIndex(visibleRect().top());
+}
+double PianoRollGraphicsView::bottomKeyIndex() const {
+    return sceneYToKeyIndex(visibleRect().bottom());
+}
+void PianoRollGraphicsView::setViewportTopKey(double key) {
+    auto vBarValue = qRound(keyIndexToSceneY(key));
+    verticalScrollBar()->setValue(vBarValue);
+}
+void PianoRollGraphicsView::setViewportCenterAt(double tick, double keyIndex) {
+    setViewportCenterAtTick(tick);
+    setViewportCenterAtKeyIndex(keyIndex);
+}
+void PianoRollGraphicsView::setViewportCenterAtKeyIndex(double keyIndex) {
+    auto keyIndexRange = topKeyIndex() - bottomKeyIndex();
+    auto keyIndexStart = keyIndex + keyIndexRange / 2 + 0.5;
+    qDebug() << "keyIndexStart" << keyIndexStart;
+    setViewportTopKey(keyIndexStart);
+}
+void PianoRollGraphicsView::setIsSingingClip(bool isSingingClip) {
+    m_isSingingClipSelected = isSingingClip;
+    update();
+}
+void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {
+    m_mode = mode;
+    switch (m_mode) {
+
+        case Select:
+            setDragMode(RubberBandDrag);
+            break;
+
+        case DrawNote:
+        case DrawPitch:
+        case EditPitchAnchor:
+            setDragMode(NoDrag);
+            break;
+    }
 }

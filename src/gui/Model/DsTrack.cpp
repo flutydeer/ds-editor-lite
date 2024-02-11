@@ -47,6 +47,7 @@ void DsTrack::insertClipQuietly(DsClip *clip) {
     m_clips.add(clip);
 }
 void DsTrack::notityClipPropertyChanged(DsClip *clip) {
+    qDebug() << "DsTrack::notityClipPropertyChanged" << clip->id();
     emit clipChanged(PropertyChanged, clip->id(), clip);
 }
 

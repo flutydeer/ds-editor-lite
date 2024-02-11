@@ -61,9 +61,8 @@ void AudioClipGraphicsItem::onLoadComplete(bool success, QString errorMessage) {
 
     // setClipStart(0);
     updateLength();
-    auto targetClipLen = static_cast<int>(m_peakCache.count() / m_chunksPerTick);
     if (clipLen() == 0)
-        setClipLen(targetClipLen);
+        setClipLen(length());
     m_status = Loaded;
 
     update();

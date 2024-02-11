@@ -24,13 +24,13 @@ EditLabel::EditLabel(QWidget *parent) {
     lineEdit = new QLineEdit;
     lineEdit->installEventFilter(this);
     lineEdit->setContextMenuPolicy(Qt::NoContextMenu);
-    lineEdit->setStyleSheet(QString("border: 1px solid #606060;"
-                                    "border-bottom: 2px solid #9BBAFF;"
-                                    "background-color: #202122; "
-                                    "border-radius: 4px; color: #F0F0F0;"
-                                    "selection-color: #000;"
-                                    "selection-background-color: #9BBAFF;"
-                                    "padding: 2px;"));
+    // lineEdit->setStyleSheet(QString("border: 1px solid #606060;"
+    //                                 "border-bottom: 2px solid #9BBAFF;"
+    //                                 "background-color: #202122; "
+    //                                 "border-radius: 4px; color: #F0F0F0;"
+    //                                 "selection-color: #000;"
+    //                                 "selection-background-color: #9BBAFF;"
+    //                                 "padding: 2px;"));
 
     this->addWidget(label);
     this->addWidget(lineEdit);
