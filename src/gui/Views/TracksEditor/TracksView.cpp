@@ -250,7 +250,7 @@ void TracksView::onSceneSelectionChanged() {
             if (clip->isSelected()) {
                 foundSelectedClip = true;
                 qDebug() << "TracksView::onSceneSelectionChanged"
-                         << "foundSelectedClip" <<clip->id();
+                         << "foundSelectedClip" << clip->id();
                 emit selectedClipChanged(clip->id());
                 break;
             }
@@ -281,7 +281,8 @@ void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
         // if (m_prevClipId == clipId && m_prevClipChangeType == type)
         //     return;
 
-        onClipChanged(type, trackIndex, clipId);
+        auto index = AppModel::instance()->tracks().indexOf(dsTrack);
+        onClipChanged(type, index, clipId);
         m_prevClipId = clipId;
         m_prevClipChangeType = type;
     });
