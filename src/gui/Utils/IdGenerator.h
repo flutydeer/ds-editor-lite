@@ -9,7 +9,7 @@
 
 class IdGenerator : public Singleton<IdGenerator> {
 public:
-    int id() {
+    int next() {
         m_id++;
         return m_id;
     }

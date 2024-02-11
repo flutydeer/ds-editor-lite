@@ -58,3 +58,11 @@ void ClipEditorViewController::onEditNotesLyrics(const QList<int> &notesId) {
     a->execute();
     HistoryManager::instance()->record(a);
 }
+void ClipEditorViewController::onInsertNote(Note *note) {
+    auto a = new NoteActions;
+    QList<Note *> notes;
+    notes.append(note);
+    a->insertNotes(notes, m_clip);
+    a->execute();
+    HistoryManager::instance()->record(a);
+}

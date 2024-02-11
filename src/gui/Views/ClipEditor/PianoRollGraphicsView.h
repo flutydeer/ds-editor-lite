@@ -37,6 +37,7 @@ signals:
     void noteShapeEdited(NoteEditMode mode, int deltaTick, int deltaKey);
     void removeNoteTriggered();
     void editNoteLyricTriggered();
+    void drawNoteCompleted(int start, int length, int keyIndex);
 
 private:
     void paintEvent(QPaintEvent *event) override;
@@ -45,13 +46,18 @@ private:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
 
+    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
+
     bool m_isSingingClipSelected = false;
     PianoRollEditMode m_mode = Select;
+    MouseMoveBehavior m_mouseMoveBehavior = None;
     QList<NoteGraphicsItem *> m_noteItems;
+    NoteGraphicsItem *m_currentDrawingNote; // a fake note for drawing
 
     NoteGraphicsItem *findNoteById(int id);
     double keyIndexToSceneY(double index) const;
-    double sceneYToKeyIndex(double y) const;
+    double sceneYToKeyIndexDouble(double y) const;
+    int sceneYToKeyIndexInt(double y) const;
 };
 
 #endif // PIANOROLLGRAPHICSVIEW_H

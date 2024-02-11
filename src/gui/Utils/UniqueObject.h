@@ -10,7 +10,7 @@
 class UniqueObject {
 public:
     UniqueObject() {
-        m_id = IdGenerator::instance()->id();
+        m_id = IdGenerator::instance()->next();
     }
     UniqueObject(int id) : m_id(id) {
     }

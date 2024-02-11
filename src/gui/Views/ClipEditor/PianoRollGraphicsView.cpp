@@ -5,6 +5,10 @@
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 
+#include "GraphicsItem/PianoRollBackgroundGraphicsItem.h"
+#include "Model/AppModel.h"
+#include "Utils/MathUtils.h"
+
 #include <QMouseEvent>
 #include <QScrollBar>
 
@@ -12,6 +16,14 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene)
     : TimeGraphicsView(scene) {
     setScaleXMax(5);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
+
+    m_currentDrawingNote = new NoteGraphicsItem(-1);
+    m_currentDrawingNote->setLyric("啦");
+    m_currentDrawingNote->setPronunciation("la");
+    connect(this, &PianoRollGraphicsView::scaleChanged, m_currentDrawingNote,
+            &NoteGraphicsItem::setScale);
+    connect(this, &PianoRollGraphicsView::visibleRectChanged, m_currentDrawingNote,
+            &NoteGraphicsItem::setVisibleRect);
 }
 void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     CommonGraphicsView::paintEvent(event);
@@ -30,13 +42,51 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     }
     if (m_mode == DrawNote) {
         event->accept();
+        auto scenePos = mapToScene(event->position().toPoint());
+        auto tick = static_cast<int>(sceneXToTick(scenePos.x()));
+        auto keyIndex = sceneYToKeyIndexInt(scenePos.y());
+
+        if (auto item = itemAt(event->pos())) {
+            if (dynamic_cast<PianoRollBackgroundGraphicsItem *>(item)) { // mouse down on background
+                auto snapedTick =
+                    MathUtils::roundDown(tick, 1920 / AppModel::instance()->quantize());
+                qDebug() << "Draw note at" << snapedTick;
+                m_currentDrawingNote->setStart(snapedTick);
+                m_currentDrawingNote->setLength(1920 / AppModel::instance()->quantize());
+                m_currentDrawingNote->setKeyIndex(keyIndex);
+                scene()->addItem(m_currentDrawingNote);
+                qDebug() << "fake note added to scene";
+                m_mouseMoveBehavior = UpdateDrawingNote;
+            } else if (dynamic_cast<NoteGraphicsItem *>(item)) {
+                auto noteItem = dynamic_cast<NoteGraphicsItem *>(item);
+                m_mouseMoveBehavior = Move;
+                // TODO: resize or move note
+            }
+        }
     } else
         TimeGraphicsView::mousePressEvent(event);
 }
 void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
-    TimeGraphicsView::mouseMoveEvent(event);
+    if (m_mode == DrawNote && m_mouseMoveBehavior == UpdateDrawingNote) {
+        auto scenePos = mapToScene(event->position().toPoint());
+        auto tick = static_cast<int>(sceneXToTick(scenePos.x()));
+        auto quantizedTickLength = 1920 / AppModel::instance()->quantize();
+        auto snapedTick = MathUtils::roundDown(tick, quantizedTickLength);
+        auto targetLength = snapedTick - m_currentDrawingNote->start();
+        if (targetLength >= quantizedTickLength)
+            m_currentDrawingNote->setLength(targetLength);
+    } else
+        TimeGraphicsView::mouseMoveEvent(event);
 }
 void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
+    if (scene()->items().contains(m_currentDrawingNote)) {
+        scene()->removeItem(m_currentDrawingNote);
+        qDebug() << "fake note removed from scene";
+    }
+    if (m_mode == DrawNote &&m_mouseMoveBehavior == UpdateDrawingNote) {
+        emit drawNoteCompleted(m_currentDrawingNote->start(), m_currentDrawingNote->length(),
+                               m_currentDrawingNote->keyIndex());
+    }
     TimeGraphicsView::mouseReleaseEvent(event);
 }
 void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
@@ -57,12 +107,10 @@ void PianoRollGraphicsView::insertNote(Note *dsNote) {
     connect(this, &PianoRollGraphicsView::scaleChanged, noteItem, &NoteGraphicsItem::setScale);
     connect(this, &PianoRollGraphicsView::visibleRectChanged, noteItem,
             &NoteGraphicsItem::setVisibleRect);
-    connect(noteItem, &NoteGraphicsItem::removeTriggered, this, [=] {
-        emit removeNoteTriggered();
-    });
-    connect(noteItem, &NoteGraphicsItem::editLyricTriggered, this, [=] {
-        emit editNoteLyricTriggered();
-    });
+    connect(noteItem, &NoteGraphicsItem::removeTriggered, this,
+            [=] { emit removeNoteTriggered(); });
+    connect(noteItem, &NoteGraphicsItem::editLyricTriggered, this,
+            [=] { emit editNoteLyricTriggered(); });
     m_noteItems.append(noteItem);
 }
 void PianoRollGraphicsView::removeNote(int noteId) {
@@ -88,8 +136,15 @@ NoteGraphicsItem *PianoRollGraphicsView::findNoteById(int id) {
 double PianoRollGraphicsView::keyIndexToSceneY(double index) const {
     return (127 - index) * scaleY() * noteHeight;
 }
-double PianoRollGraphicsView::sceneYToKeyIndex(double y) const {
+double PianoRollGraphicsView::sceneYToKeyIndexDouble(double y) const {
     return 127 - y / scaleY() / noteHeight;
+}
+int PianoRollGraphicsView::sceneYToKeyIndexInt(double y) const {
+    auto keyIndexD = sceneYToKeyIndexDouble(y);
+    auto keyIndex = static_cast<int>(keyIndexD) + 1;
+    if (keyIndex > 127)
+        keyIndex = 127;
+    return keyIndex;
 }
 void PianoRollGraphicsView::reset() {
     for (auto note : m_noteItems) {
@@ -111,12 +166,13 @@ void PianoRollGraphicsView::updateOverlappedState(SingingClip *singingClip) {
         auto noteItem = findNoteById(note->id());
         noteItem->setOverlapped(note->overlapped());
     }
+    update();
 }
 double PianoRollGraphicsView::topKeyIndex() const {
-    return sceneYToKeyIndex(visibleRect().top());
+    return sceneYToKeyIndexDouble(visibleRect().top());
 }
 double PianoRollGraphicsView::bottomKeyIndex() const {
-    return sceneYToKeyIndex(visibleRect().bottom());
+    return sceneYToKeyIndexDouble(visibleRect().bottom());
 }
 void PianoRollGraphicsView::setViewportTopKey(double key) {
     auto vBarValue = qRound(keyIndexToSceneY(key));

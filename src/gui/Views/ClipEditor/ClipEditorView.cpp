@@ -81,6 +81,8 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
             &ClipEditorView::onRemoveSelectedNotes);
     connect(m_pianoRollView, &PianoRollGraphicsView::editNoteLyricTriggered, this,
             &ClipEditorView::onEditSelectedNotesLyrics);
+    connect(m_pianoRollView, &PianoRollGraphicsView::drawNoteCompleted, this,
+            &ClipEditorView::onDrawNoteCompleted);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_toolbarView);
@@ -136,14 +138,14 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
     m_pianoRollView->setSceneVisibility(true);
     m_timelineView->setVisible(true);
     m_singingClip = dynamic_cast<SingingClip *>(m_clip);
-    if (m_singingClip->notes().count() <= 0)
-        return;
-    for (const auto note : m_singingClip->notes()) {
-        m_pianoRollView->insertNote(note);
+    if (m_singingClip->notes().count() > 0) {
+        for (const auto note : m_singingClip->notes()) {
+            m_pianoRollView->insertNote(note);
+        }
+        auto firstNote = m_singingClip->notes().at(0);
+        qDebug() << "first note start" << firstNote->start();
+        m_pianoRollView->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
     }
-    auto firstNote = m_singingClip->notes().at(0);
-    qDebug() << "first note start" << firstNote->start();
-    m_pianoRollView->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
     connect(m_singingClip, &SingingClip::noteChanged, this, &ClipEditorView::onNoteChanged);
     ClipEditorViewController::instance()->setCurrentSingingClip(m_singingClip);
 }
@@ -190,6 +192,16 @@ void ClipEditorView::onEditSelectedNotesLyrics() {
     qDebug() << "ClipEditorView::onEditSelectedNotesLyrics";
     auto notes = m_pianoRollView->selectedNotesId();
     ClipEditorViewController::instance()->onEditNotesLyrics(notes);
+}
+void ClipEditorView::onDrawNoteCompleted(int start, int length, int keyIndex) {
+    qDebug() << "ClipEditorView::onDrawNoteCompleted" << start << length << keyIndex;
+    auto note = new Note;
+    note->setStart(start);
+    note->setLength(length);
+    note->setKeyIndex(keyIndex);
+    note->setLyric(defaultLyric);
+    note->setPronunciation(defaultPronunciation);
+    ClipEditorViewController::instance()->onInsertNote(note);
 }
 void ClipEditorView::reset() {
     m_pianoRollView->reset();

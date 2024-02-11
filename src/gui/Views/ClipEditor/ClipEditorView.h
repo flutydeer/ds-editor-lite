@@ -30,6 +30,7 @@ private slots:
     void onLastPositionChanged(double tick);
     void onRemoveSelectedNotes();
     void onEditSelectedNotesLyrics();
+    void onDrawNoteCompleted(int start, int length, int keyIndex);
 
 private:
     Track *m_track = nullptr;

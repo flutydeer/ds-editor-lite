@@ -21,6 +21,7 @@ public slots:
     void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     void onRemoveNotes(const QList<int> &notesId);
     void onEditNotesLyrics(const QList<int> &notesId);
+    void onInsertNote(Note *note);
 
 private:
     SingingClip *m_clip = nullptr;
