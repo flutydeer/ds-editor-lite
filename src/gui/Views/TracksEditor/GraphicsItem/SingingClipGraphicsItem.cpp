@@ -17,15 +17,10 @@ SingingClipGraphicsItem::SingingClipGraphicsItem(int itemId, QGraphicsItem *pare
 }
 void SingingClipGraphicsItem::loadNotes(const OverlapableSerialList<Note> &notes) {
     m_notes.clear();
-    if (notes.count() != 0) {
-        for (const auto &dsNote : notes) {
-            NoteViewModel note;
-            note.rStart = dsNote->start() - start();
-            note.length = dsNote->length();
-            note.keyIndex = dsNote->keyIndex();
-            m_notes.append(note);
-        }
-    }
+    if (notes.count() != 0)
+        for (const auto &note : notes)
+            addNote(note);
+
     update();
 }
 QString SingingClipGraphicsItem::audioCachePath() const {
@@ -33,6 +28,20 @@ QString SingingClipGraphicsItem::audioCachePath() const {
 }
 void SingingClipGraphicsItem::setAudioCachePath(const QString &path) {
     m_audioCachePath = path;
+}
+void SingingClipGraphicsItem::onNoteChanged(SingingClip::NoteChangeType type, int id, Note *note) {
+    switch (type) {
+        case SingingClip::Inserted:
+            addNote(note);
+            break;
+        case SingingClip::PropertyChanged:
+            removeNote(id);
+            addNote(note);
+            break;
+        case SingingClip::Removed:
+            removeNote(id);
+            break;
+    }
 }
 void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                               int opacity) {
@@ -88,4 +97,24 @@ void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &p
     }
 }
 void SingingClipGraphicsItem::addMenuActions(QMenu *menu) {
+}
+void SingingClipGraphicsItem::addNote(Note *note) {
+    NoteViewModel noteViewModel;
+    noteViewModel.id = note->id();
+    noteViewModel.rStart = note->start() - start();
+    noteViewModel.length = note->length();
+    noteViewModel.keyIndex = note->keyIndex();
+    m_notes.append(noteViewModel);
+
+    update();
+}
+void SingingClipGraphicsItem::removeNote(int id) {
+    for (int i = 0; i < m_notes.count(); i ++) {
+        auto noteId = m_notes.at(i).id;
+        if (noteId == id) {
+            m_notes.removeAt(i);
+            break;
+        }
+    }
+    update();
 }

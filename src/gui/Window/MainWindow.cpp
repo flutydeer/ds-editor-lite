@@ -198,10 +198,12 @@ MainWindow::MainWindow() {
 
     auto actionUndo = new QAction("&Undo", this);
     actionUndo->setEnabled(false);
+    actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
     connect(actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
 
     auto actionRedo = new QAction("&Redo", this);
     actionRedo->setEnabled(false);
+    actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
     connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             [=](bool canUndo, bool canRedo) {

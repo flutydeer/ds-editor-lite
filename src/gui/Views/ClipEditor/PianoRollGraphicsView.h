@@ -7,6 +7,7 @@
 
 #include "PianoRollGlobal.h"
 #include "GraphicsItem/NoteGraphicsItem.h"
+#include "Model/Clip.h"
 #include "Model/Note.h"
 #include "Views/Common/TimeGraphicsView.h"
 
@@ -24,6 +25,7 @@ public:
     void updateNote(Note *note);
     void reset();
     QList<int> selectedNotesId() const;
+    void updateOverlappedState(SingingClip *singingClip);
 
     double topKeyIndex()const;
     double bottomKeyIndex() const;

@@ -216,4 +216,5 @@ void ClipEditorView::onNoteChanged(SingingClip::NoteChangeType type, int id, Not
             m_pianoRollView->removeNote(id);
             break;
     }
+    m_pianoRollView->updateOverlappedState(m_singingClip);
 }

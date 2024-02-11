@@ -106,6 +106,12 @@ QList<int> PianoRollGraphicsView::selectedNotesId() const {
     }
     return list;
 }
+void PianoRollGraphicsView::updateOverlappedState(SingingClip *singingClip) {
+    for (const auto note : singingClip->notes()) {
+        auto noteItem = findNoteById(note->id());
+        noteItem->setOverlapped(note->overlapped());
+    }
+}
 double PianoRollGraphicsView::topKeyIndex() const {
     return sceneYToKeyIndex(visibleRect().top());
 }

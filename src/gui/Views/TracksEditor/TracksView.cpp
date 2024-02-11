@@ -422,6 +422,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         m_tracksScene->addItem(clipItem);
         qDebug() << "Singing clip graphics item added to scene" << clipItem->id()
                  << clipItem->name();
+        connect(singingClip, &SingingClip::noteChanged, clipItem, &SingingClipGraphicsItem::onNoteChanged);
         connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
                 &SingingClipGraphicsItem::setScale);
         connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,

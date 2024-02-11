@@ -25,7 +25,7 @@ public slots:
 
 private slots:
     void onClipChanged(Track::ClipChangeType type, int id, Clip *clip);
-    void onEditModeChanged(PianoRollEditMode mode);
+    void onEditModeChanged(PianoRollGlobal::PianoRollEditMode mode);
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
     void onRemoveSelectedNotes();
