@@ -71,11 +71,11 @@ const OverlapableSerialList<DsNote> &DsSingingClip::notes() const {
 }
 void DsSingingClip::insertNote(DsNote *note) {
     m_notes.add(note);
-    emit noteChanged(Inserted, note->id());
+    emit noteChanged(Inserted, note->id(), note);
 }
 void DsSingingClip::removeNote(DsNote *note) {
     m_notes.remove(note);
-    emit noteChanged(Removed, note->id());
+    emit noteChanged(Removed, note->id(), nullptr);
 }
 void DsSingingClip::insertNoteQuietly(DsNote *note) {
     m_notes.add(note);
@@ -84,7 +84,7 @@ void DsSingingClip::removeNoteQuietly(DsNote *note) {
     m_notes.remove(note);
 }
 void DsSingingClip::notifyNotePropertyChanged(DsNote *note) {
-    emit noteChanged(PropertyChanged, note->id());
+    emit noteChanged(PropertyChanged, note->id(), note);
 }
 DsNote *DsSingingClip::findNoteById(int id) {
     for (int i = 0; i < m_notes.count(); i++) {

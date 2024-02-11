@@ -11,6 +11,7 @@
 #include "AbstractClipGraphicsItem.h"
 #include "TracksEditorGlobal.h"
 #include "TracksGraphicsScene.h"
+#include "Utils/AppGlobal.h"
 #include "Utils/MathUtils.h"
 
 using namespace TracksEditorGlobal;
@@ -145,7 +146,7 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 
     QPen pen;
     if (m_overlapped)
-        pen.setColor(QColor(255, 124, 128));
+        pen.setColor(AppGlobal::overlappedViewBorder);
     else
         pen.setColor(isSelected() ? QColor(255, 255, 255) : colorPrimaryDarker);
 

@@ -57,12 +57,27 @@ void PianoRollGraphicsView::insertNote(DsNote *dsNote) {
     connect(this, &PianoRollGraphicsView::scaleChanged, noteItem, &NoteGraphicsItem::setScale);
     connect(this, &PianoRollGraphicsView::visibleRectChanged, noteItem,
             &NoteGraphicsItem::setVisibleRect);
+    connect(noteItem, &NoteGraphicsItem::removeTriggered, this, [=] {
+        emit removeNoteTriggered();
+    });
+    connect(noteItem, &NoteGraphicsItem::editLyricTriggered, this, [=] {
+        emit editNoteLyricTriggered();
+    });
     m_noteItems.append(noteItem);
 }
 void PianoRollGraphicsView::removeNote(int noteId) {
     auto noteItem = findNoteById(noteId);
     scene()->removeItem(noteItem);
     m_noteItems.removeOne(noteItem);
+    delete noteItem;
+}
+void PianoRollGraphicsView::updateNote(DsNote *note) {
+    auto noteItem = findNoteById(note->id());
+    noteItem->setStart(note->start());
+    noteItem->setLength(note->length());
+    noteItem->setKeyIndex(note->keyIndex());
+    noteItem->setLyric(note->lyric());
+    noteItem->setPronunciation(note->pronunciation());
 }
 NoteGraphicsItem *PianoRollGraphicsView::findNoteById(int id) {
     for (const auto note : m_noteItems)
@@ -82,6 +97,14 @@ void PianoRollGraphicsView::reset() {
         delete note;
     }
     m_noteItems.clear();
+}
+QList<int> PianoRollGraphicsView::selectedNotesId() const {
+    QList<int> list;
+    for (const auto noteItem : m_noteItems) {
+        if (noteItem->isSelected())
+            list.append(noteItem->id());
+    }
+    return list;
 }
 double PianoRollGraphicsView::topKeyIndex() const {
     return sceneYToKeyIndex(visibleRect().top());

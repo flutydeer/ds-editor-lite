@@ -7,9 +7,10 @@
 
 #include "PianoRollGlobal.h"
 #include "Controls/Base/CommonGraphicsRectItem.h"
+#include "Utils/IOverlapable.h"
 #include "Utils/UniqueObject.h"
 
-class NoteGraphicsItem final : public CommonGraphicsRectItem, public UniqueObject {
+class NoteGraphicsItem final : public CommonGraphicsRectItem, public UniqueObject, public IOverlapable {
     Q_OBJECT
 
 public:
@@ -40,7 +41,7 @@ signals:
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
-    // void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     // void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
     // void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;

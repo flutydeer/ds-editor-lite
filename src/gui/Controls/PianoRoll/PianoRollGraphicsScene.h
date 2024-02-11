@@ -11,6 +11,8 @@ class PianoRollGraphicsScene final : public TimeGraphicsScene {
 public:
     explicit PianoRollGraphicsScene();
 
+private:
+    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 };
 
 #endif // PIANOROLLGRAPHICSSCENE_H

@@ -14,8 +14,16 @@
 class ClipEditorViewController final : public QObject, public Singleton<ClipEditorViewController> {
     Q_OBJECT
 
+public:
+    void setCurrentSingingClip(DsSingingClip *clip);
+
 public slots:
     void onClipPropertyChanged(const DsClip::ClipCommonProperties &args);
+    void onRemoveNotes(const QList<int> &notesId);
+    void onEditNotesLyrics(const QList<int> &notesId);
+
+private:
+    DsSingingClip *m_clip = nullptr;
 };
 
 

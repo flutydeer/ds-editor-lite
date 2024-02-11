@@ -21,7 +21,9 @@ public:
     void setEditMode(PianoRollEditMode mode);
     void insertNote(DsNote *dsNote);
     void removeNote(int noteId);
+    void updateNote(DsNote *note);
     void reset();
+    QList<int> selectedNotesId() const;
 
     double topKeyIndex()const;
     double bottomKeyIndex() const;
@@ -31,6 +33,8 @@ public:
 
 signals:
     void noteShapeEdited(NoteEditMode mode, int deltaTick, int deltaKey);
+    void removeNoteTriggered();
+    void editNoteLyricTriggered();
 
 private:
     void paintEvent(QPaintEvent *event) override;

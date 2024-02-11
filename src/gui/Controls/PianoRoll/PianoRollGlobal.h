@@ -8,6 +8,7 @@
 namespace PianoRollGlobal {
     const int pixelsPerQuarterNote = 96;
     const double noteHeight = 24;
+    const int timelineViewHeight = 24;
 
     enum PianoRollEditMode { Select, DrawNote, DrawPitch, EditPitchAnchor };
     enum NoteEditMode { NotePosition, Length, StartAndLength };

@@ -108,7 +108,7 @@ public:
     // const DsParams &params() const;
 
 signals:
-    void noteChanged(NoteChangeType type, int id);
+    void noteChanged(NoteChangeType type, int id, DsNote *note);
     void paramsChanged(ParamsChangeType type);
 
 private:

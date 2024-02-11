@@ -6,6 +6,7 @@
 #define CLIPEDITVIEW_H
 
 #include "ClipEditorToolBarView.h"
+#include "Controls/Base/TimelineView.h"
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
 #include "Model/DsClip.h"
 
@@ -22,22 +23,28 @@ public slots:
     void onClipNameEdited(const QString &name);
 
 private slots:
-    void handleClipChanged(DsTrack::ClipChangeType type, int id, DsClip *clip);
+    void onClipChanged(DsTrack::ClipChangeType type, int id, DsClip *clip);
     void onEditModeChanged(PianoRollEditMode mode);
+    void onPositionChanged(double tick);
+    void onLastPositionChanged(double tick);
+    void onRemoveSelectedNotes();
+    void onEidtSelectedNotesLyrics();
 
 private:
     DsTrack *m_track = nullptr;
     DsClip *m_clip = nullptr;
+    DsSingingClip *m_singingClip = nullptr;
     ClipEditorToolBarView *m_toolbarView;
     PianoRollGraphicsScene *m_pianoRollScene;
-    PianoRollGraphicsView *m_graphicsView;
+    PianoRollGraphicsView *m_pianoRollView;
+    TimelineView *m_timelineView;
     PianoRollEditMode m_mode;
 
     bool m_oneSingingClipSelected = false;
 
     void reset();
-
-    void handleClipPropertyChange();
+    void onClipPropertyChanged();
+    void onNoteChanged(DsSingingClip::NoteChangeType type, int id, DsNote *note);
 };
 
 

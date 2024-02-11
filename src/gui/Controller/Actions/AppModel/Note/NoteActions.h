@@ -26,7 +26,8 @@ public:
 
     // Edit lyrics, pronunciations and phonemes
     void editNotesWordProperties(const QList<DsNote *> &notes,
-                                 const QList<DsNote::NoteWordProperties> &args);
+                                 const QList<DsNote::NoteWordProperties *> &args,
+                                 DsSingingClip *clip);
 };
 
 

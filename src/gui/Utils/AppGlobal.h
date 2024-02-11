@@ -8,6 +8,8 @@
 namespace AppGlobal {
     const int horizontalScrollBarWidth = 16;
     const int verticalScrollBarWidth = 16;
+
+    const QColor overlappedViewBorder = QColor(255, 80, 80);
 }
 
 #endif // APPGLOBAL_H

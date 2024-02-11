@@ -34,10 +34,11 @@ void NoteActions::editNotePosition(const QList<DsNote *> &notes, int deltaTick, 
         addAction(EditNotePositionAction::build(note, deltaTick, deltaKey, clip));
 }
 void NoteActions::editNotesWordProperties(const QList<DsNote *> &notes,
-                                          const QList<DsNote::NoteWordProperties> &args) {
+                                          const QList<DsNote::NoteWordProperties *> &args,
+                                          DsSingingClip *clip) {
     int i = 0;
     for (const auto note : notes) {
-        addAction(EditNotesWordPropertiesAction::build(note, args[i]));
+        addAction(EditNotesWordPropertiesAction::build(note, args[i], clip));
         i++;
     }
 }

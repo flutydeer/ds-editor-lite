@@ -11,6 +11,7 @@
 
 #include "NoteGraphicsItem.h"
 #include "PianoRollGlobal.h"
+#include "Utils/AppGlobal.h"
 
 using namespace PianoRollGlobal;
 
@@ -43,9 +44,9 @@ void NoteGraphicsItem::setContext(QWidget *context) {
     auto actionEditLyric = m_menu->addAction("Edit lyric");
     connect(actionEditLyric, &QAction::triggered, [&] { emit editLyricTriggered(id()); });
 
-    auto actionProperties = m_menu->addAction("Properties");
-    connect(actionProperties, &QAction::triggered,
-            [&] { qDebug() << "actionProperties triggered" << id(); });
+    // auto actionProperties = m_menu->addAction("Properties");
+    // connect(actionProperties, &QAction::triggered,
+    //         [&] { qDebug() << "actionProperties triggered" << id(); });
 }
 int NoteGraphicsItem::start() const {
     return m_start;
@@ -93,9 +94,11 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     const auto radius = 4.0;
     const auto radiusAdjustThreshold = 12;
 
-    auto borderColor = isSelected() ? QColor(255, 255, 255) : colorPrimaryDarker;
     QPen pen;
-    pen.setColor(borderColor);
+    if (m_overlapped)
+        pen.setColor(AppGlobal::overlappedViewBorder);
+    else
+        pen.setColor(isSelected() ? QColor(255, 255, 255) : colorPrimaryDarker);
 
     auto rect = boundingRect();
     auto noteBoundingRect =
@@ -189,6 +192,11 @@ void NoteGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     // menu.exec(event->screenPos());
 
     // QGraphicsItem::contextMenuEvent(event);
+}
+void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    CommonGraphicsRectItem::mousePressEvent(event);
+    if (!isSelected())
+        setSelected(true);
 }
 // void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 //     if (event->button() != Qt::LeftButton) {
