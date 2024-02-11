@@ -15,7 +15,6 @@
 #include "Controller/TracksViewController.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
-#include "g2pglobal.h"
 #include "Views/ActionButtonsView.h"
 #include "Views/PlaybackView.h"
 #include "Controller/History/HistoryManager.h"
@@ -103,8 +102,6 @@ MainWindow::MainWindow() {
     DwmSetWindowAttribute(reinterpret_cast<HWND>(this->winId()), DWMWA_USE_IMMERSIVE_DARK_MODE,
                           &dark, sizeof(dark));
 #endif
-
-    IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
 
     auto appController = AppController::instance();
     auto trackController = TracksViewController::instance();

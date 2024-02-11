@@ -13,6 +13,8 @@
 #include <TalcsCore/PositionableMixerAudioSource.h>
 #include <TalcsCore/BufferingAudioSource.h>
 
+#include "g2pglobal.h"
+
 #include "Window/MainWindow.h"
 
 #include "Audio/AudioSystem.h"
@@ -41,6 +43,8 @@ int main(int argc, char *argv[]) {
     as.initialize(QApplication::arguments().contains("-vst"));
     // as.openAudioSettings();
 
+    IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
+
     auto w = new MainWindow;
     auto scr = QApplication::screenAt(QCursor::pos());
     auto availableRect = scr->availableGeometry();
@@ -49,14 +53,14 @@ int main(int argc, char *argv[]) {
     w->move(left, top);
     w->show();
 
-//    QFile audioFile(R"(D:\CloudMusic\07.恋染色.flac)");
-//    talcs::BufferingAudioSource bufSrc(
-//        new talcs::AudioFormatInputSource(new talcs::AudioFormatIO(&audioFile), true),
-//        true,
-//        2,
-//        48000
-//    );
-//    as.masterTrack()->addSource(&bufSrc);
+    //    QFile audioFile(R"(D:\CloudMusic\07.恋染色.flac)");
+    //    talcs::BufferingAudioSource bufSrc(
+    //        new talcs::AudioFormatInputSource(new talcs::AudioFormatIO(&audioFile), true),
+    //        true,
+    //        2,
+    //        48000
+    //    );
+    //    as.masterTrack()->addSource(&bufSrc);
 
     return QApplication::exec();
 }

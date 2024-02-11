@@ -46,8 +46,10 @@ void ClipEditorViewController::onEditNotesLyrics(const QList<int> &notesId) {
         properties->lyric = lyrics[i];
         properties->pronunciation = syllableRes[i];
         auto phonemes = syllable2p->syllableToPhoneme(syllableRes[i]);
-        properties->phonemes.original.append(Phoneme(Phoneme::Ahead, phonemes.first(), 0));
-        properties->phonemes.original.append(Phoneme(Phoneme::Final, phonemes.last(), 0));
+        if (!phonemes.isEmpty()) {
+            properties->phonemes.original.append(Phoneme(Phoneme::Ahead, phonemes.first(), 0));
+            properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.last(), 0));
+        }
         args.append(properties);
     }
 
