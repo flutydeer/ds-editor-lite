@@ -6,7 +6,7 @@
 #define DSPARAMS_H
 
 #include "Curve.h"
-#include "../Utils/OverlapableSerialList.h"
+#include "Utils/OverlapableSerialList.h"
 
 class Param {
 public:

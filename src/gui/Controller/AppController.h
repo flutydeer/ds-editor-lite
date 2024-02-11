@@ -8,7 +8,7 @@
 #include <QObject>
 
 #include "Utils/Singleton.h"
-#include "Views/TracksView.h"
+#include "../Views/TracksEditor/TracksView.h"
 
 class AppController final : public QObject, public Singleton<AppController> {
     Q_OBJECT

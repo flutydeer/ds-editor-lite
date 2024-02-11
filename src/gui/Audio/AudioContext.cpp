@@ -5,7 +5,6 @@
 #include "AudioContext.h"
 
 #include "AudioSystem.h"
-#include "Views/TracksView.h"
 
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsCore/AudioSourceClipSeries.h>

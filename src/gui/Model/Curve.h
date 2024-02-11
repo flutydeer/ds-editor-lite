@@ -5,10 +5,10 @@
 #ifndef DSCURVE_H
 #define DSCURVE_H
 
-#include "../Utils/IOverlapable.h"
-#include "../Utils/UniqueObject.h"
-
 #include <QList>
+
+#include "Utils/IOverlapable.h"
+#include "Utils/UniqueObject.h"
 
 class Curve : public IOverlapable, UniqueObject {
 public:

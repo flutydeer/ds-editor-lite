@@ -8,8 +8,8 @@
 #include <QList>
 #include <utility>
 
-#include "../Utils/IOverlapable.h"
-#include "../Utils/UniqueObject.h"
+#include "Utils/IOverlapable.h"
+#include "Utils/UniqueObject.h"
 
 class Phoneme {
 public:

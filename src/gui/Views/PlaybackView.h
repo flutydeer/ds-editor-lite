@@ -9,8 +9,8 @@
 #include <QPushButton>
 #include <QComboBox>
 
-#include "./Controller/PlaybackController.h"
-#include "Controls/Base/EditLabel.h"
+#include "Controller/PlaybackController.h"
+#include "Controls/EditLabel.h"
 
 class PlaybackView final : public QWidget {
     Q_OBJECT
