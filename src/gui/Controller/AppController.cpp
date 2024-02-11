@@ -53,7 +53,6 @@ void AppController::fillLyric() {
     if (singingClip == nullptr)
         return;
     auto notes = singingClip->notes();
-    IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
 
     auto syllable2p = new IKg2p::Syllable2p(qApp->applicationDirPath() +
                                             "/res/phonemeDict/opencpop-extension.txt");

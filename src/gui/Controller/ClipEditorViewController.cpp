@@ -6,6 +6,9 @@
 #include "TracksViewController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "History/HistoryManager.h"
+#include "mandarin.h"
+#include "syllable2p.h"
+#include <QApplication>
 
 void ClipEditorViewController::setCurrentSingingClip(DsSingingClip *clip) {
     m_clip = clip;
@@ -29,13 +32,22 @@ void ClipEditorViewController::onEditNotesLyrics(const QList<int> &notesId) {
         notesToEdit.append(m_clip->findNoteById(id));
     QList<Note::NoteWordProperties *> args;
 
-    // TODO: call TestFillLyric
-    // 新的歌词、拼音和音素要装进 DsNote::NoteWordProperties
-    // 不要动 notesToEdit，否则撤销重做系统无法备份更改
+    auto g2p_man = new IKg2p::Mandarin();
+    auto syllable2p = new IKg2p::Syllable2p(qApp->applicationDirPath() +
+                                            "/res/phonemeDict/opencpop-extension.txt");
+    QStringList lyrics;
     for (const auto note : notesToEdit) {
+        lyrics.append(note->lyric());
+    }
+
+    auto syllableRes = g2p_man->hanziToPinyin(lyrics, false, false);
+    for (int i = 0; i < syllableRes.size(); i++) {
         auto properties = new Note::NoteWordProperties;
-        properties->lyric = "喵";
-        properties->pronunciation = "miao";
+        properties->lyric = lyrics[i];
+        properties->pronunciation = syllableRes[i];
+        auto phonemes = syllable2p->syllableToPhoneme(syllableRes[i]);
+        properties->phonemes.original.append(Phoneme(Phoneme::Ahead, phonemes.first(), 0));
+        properties->phonemes.original.append(Phoneme(Phoneme::Final, phonemes.last(), 0));
         args.append(properties);
     }
 

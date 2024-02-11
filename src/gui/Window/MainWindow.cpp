@@ -7,6 +7,7 @@
 #include <QFileDialog>
 #include <QSplitter>
 #include <QMenuBar>
+#include <QApplication>
 
 #include "Audio/AudioSystem.h"
 #include "Audio/Dialogs/AudioSettingsDialog.h"
@@ -14,6 +15,7 @@
 #include "Controller/TracksViewController.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
+#include "g2pglobal.h"
 #include "Views/ActionButtonsView.h"
 #include "Views/PlaybackView.h"
 #include "Controller/History/HistoryManager.h"
@@ -72,10 +74,12 @@ MainWindow::MainWindow() {
         "QMenuBar::item {background-color: transparent; padding: 8px 12px; color: #f0f0f0; "
         "border-radius: 4px; }"
         "QMenuBar::item:selected { background-color: #10FFFFFF } "
-        "QLineEdit {background: #10FFFFFF; border: 1px solid transparent; border-bottom: 1px solid #80606060;"
+        "QLineEdit {background: #10FFFFFF; border: 1px solid transparent; border-bottom: 1px solid "
+        "#80606060;"
         "border-radius: 4px; color: #F0F0F0; selection-color: #000;"
         "selection-background-color: #9BBAFF; padding: 2px; }"
-        "QLineEdit:focus { background: #202122; border: 1px solid #606060; border-bottom: 2px solid #9BBAFF; }";
+        "QLineEdit:focus { background: #202122; border: 1px solid #606060; border-bottom: 2px "
+        "solid #9BBAFF; }";
     this->setStyleSheet(QString("QMainWindow { background: #232425 }") + qssBase);
 #ifdef Q_OS_WIN
     // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler
@@ -99,6 +103,8 @@ MainWindow::MainWindow() {
     DwmSetWindowAttribute(reinterpret_cast<HWND>(this->winId()), DWMWA_USE_IMMERSIVE_DARK_MODE,
                           &dark, sizeof(dark));
 #endif
+
+    IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
 
     auto appController = AppController::instance();
     auto trackController = TracksViewController::instance();
