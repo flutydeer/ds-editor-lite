@@ -27,8 +27,8 @@ class AudioContext : public QObject {
 public:
     class SynthesisListener {
     public:
-        virtual void trackInsertedCallback(const DsTrack *track, talcs::FutureAudioSourceClipSeries *clipSeries) = 0;
-        virtual void trackWillRemoveCallback(const DsTrack *track, talcs::FutureAudioSourceClipSeries *clipSeries) = 0;
+        virtual void trackInsertedCallback(const Track *track, talcs::FutureAudioSourceClipSeries *clipSeries) = 0;
+        virtual void trackWillRemoveCallback(const Track *track, talcs::FutureAudioSourceClipSeries *clipSeries) = 0;
         virtual void clipRebuildCallback() = 0;
         virtual void fileBufferingSizeChangeCallback() = 0;
     };
@@ -36,7 +36,7 @@ public:
     explicit AudioContext(QObject *parent = nullptr);
     ~AudioContext() override;
 
-    talcs::FutureAudioSourceClipSeries *trackSynthesisClipSeries(const DsTrack *track);
+    talcs::FutureAudioSourceClipSeries *trackSynthesisClipSeries(const Track *track);
     void addSynthesisListener(SynthesisListener *listener);
     void removeSynthesisListener(SynthesisListener *listener);
 
@@ -48,13 +48,13 @@ public slots:
 
     void handleModelChange();
 
-    void handleTrackInsertion(const DsTrack *track);
-    void handleTrackRemoval(const DsTrack *track);
-    void handleTrackControlChange(const DsTrack *track);
+    void handleTrackInsertion(const Track *track);
+    void handleTrackRemoval(const Track *track);
+    void handleTrackControlChange(const Track *track);
 
-    void handleClipInsertion(const DsTrack *track, const DsClip *clip);
-    void handleClipRemoval(const DsTrack *track, const DsClip *clip);
-    void handleClipPropertyChange(const DsTrack *track, const DsClip *clip);
+    void handleClipInsertion(const Track *track, const Clip *clip);
+    void handleClipRemoval(const Track *track, const Clip *clip);
+    void handleClipPropertyChange(const Track *track, const Clip *clip);
 
     void rebuildAllClips();
 
@@ -66,16 +66,16 @@ signals:
     void levelMeterUpdated(const AppModel::LevelMetersUpdatedArgs &args);
 
 private:
-    QMap<const DsTrack *, talcs::PositionableMixerAudioSource::SourceIterator> m_trackItDict;
-    QMap<const DsTrack *, talcs::PositionableMixerAudioSource *> m_trackSourceDict; // managed
-    QMap<const DsTrack *, talcs::AudioSourceClipSeries *> m_trackAudioClipSeriesDict;
-    QMap<const DsTrack *, talcs::FutureAudioSourceClipSeries *> m_trackSynthesisClipSeriesDict;
-    QMap<const DsTrack *, QPair<std::shared_ptr<talcs::SmoothedFloat>, std::shared_ptr<talcs::SmoothedFloat>>> m_trackLevelMeterValue;
+    QMap<const Track *, talcs::PositionableMixerAudioSource::SourceIterator> m_trackItDict;
+    QMap<const Track *, talcs::PositionableMixerAudioSource *> m_trackSourceDict; // managed
+    QMap<const Track *, talcs::AudioSourceClipSeries *> m_trackAudioClipSeriesDict;
+    QMap<const Track *, talcs::FutureAudioSourceClipSeries *> m_trackSynthesisClipSeriesDict;
+    QMap<const Track *, QPair<std::shared_ptr<talcs::SmoothedFloat>, std::shared_ptr<talcs::SmoothedFloat>>> m_trackLevelMeterValue;
 
-    QMap<const DsClip *, talcs::AudioSourceClipSeries::ClipView> m_audioClips;
-    QMap<const DsClip *, talcs::PositionableMixerAudioSource *> m_audioClipMixers; // managed
-    QMap<const DsClip *, std::shared_ptr<QFile>> m_audioFiles;
-    QMap<const DsClip *, talcs::BufferingAudioSource *> m_audioClipBufferingSources;
+    QMap<const Clip *, talcs::AudioSourceClipSeries::ClipView> m_audioClips;
+    QMap<const Clip *, talcs::PositionableMixerAudioSource *> m_audioClipMixers; // managed
+    QMap<const Clip *, std::shared_ptr<QFile>> m_audioFiles;
+    QMap<const Clip *, talcs::BufferingAudioSource *> m_audioClipBufferingSources;
 
     QTimer *m_levelMeterTimer;
 

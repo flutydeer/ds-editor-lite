@@ -10,12 +10,12 @@
 
 class AppendTrackAction final : public IAction {
 public:
-    static AppendTrackAction *build(DsTrack *track, AppModel *model);
+    static AppendTrackAction *build(Track *track, AppModel *model);
     void execute() override;
     void undo() override;
 
 private:
-    DsTrack *m_track = nullptr;
+    Track *m_track = nullptr;
     AppModel *m_model = nullptr;
 };
 

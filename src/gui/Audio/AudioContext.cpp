@@ -48,7 +48,7 @@ AudioContext::AudioContext(QObject *parent) : QObject(parent), m_levelMeterTimer
 
     connect(AppModel::instance(), &AppModel::modelChanged, this, &AudioContext::handleModelChange);
 
-    connect(AppModel::instance(), &AppModel::tracksChanged, this, [=](AppModel::TrackChangeType type, int index, DsTrack *track) {
+    connect(AppModel::instance(), &AppModel::tracksChanged, this, [=](AppModel::TrackChangeType type, int index, Track *track) {
         Q_UNUSED(index)
         switch (type) {
             case AppModel::Insert:
@@ -86,7 +86,7 @@ AudioContext::~AudioContext() {
 
 }
 
-talcs::FutureAudioSourceClipSeries *AudioContext::trackSynthesisClipSeries(const DsTrack *track) {
+talcs::FutureAudioSourceClipSeries *AudioContext::trackSynthesisClipSeries(const Track *track) {
     return m_trackSynthesisClipSeriesDict[track];
 }
 
@@ -132,7 +132,7 @@ void AudioContext::handleModelChange() {
     }
 }
 
-void AudioContext::handleTrackInsertion(const DsTrack *track) {
+void AudioContext::handleTrackInsertion(const Track *track) {
     auto trackSrc = new talcs::PositionableMixerAudioSource;
     auto trackAudioClipSeries = new talcs::AudioSourceClipSeries;
     auto trackSynthesisClipSeries = new talcs::FutureAudioSourceClipSeries;
@@ -169,16 +169,16 @@ void AudioContext::handleTrackInsertion(const DsTrack *track) {
         handleClipInsertion(track, clip);
     }
 
-    connect(track, &DsTrack::clipChanged, this, [=](DsTrack::ClipChangeType type, int index, DsClip *clip) {
+    connect(track, &Track::clipChanged, this, [=](Track::ClipChangeType type, int index, Clip *clip) {
         Q_UNUSED(index)
         switch (type) {
-            case DsTrack::Inserted:
+            case Track::Inserted:
                 handleClipInsertion(track, clip);
                 break;
-            case DsTrack::Removed:
+            case Track::Removed:
                 handleClipRemoval(track, clip);
                 break;
-            case DsTrack::PropertyChanged:
+            case Track::PropertyChanged:
                 handleClipPropertyChange(track, clip);
                 break;
         }
@@ -187,7 +187,7 @@ void AudioContext::handleTrackInsertion(const DsTrack *track) {
     applyListener(m_synthesisListeners.cbegin(), m_synthesisListeners.cend(), &SynthesisListener::trackInsertedCallback, track, trackSynthesisClipSeries);
 }
 
-void AudioContext::handleTrackRemoval(const DsTrack *track) {
+void AudioContext::handleTrackRemoval(const Track *track) {
     applyListener(m_synthesisListeners.cbegin(), m_synthesisListeners.cend(), &SynthesisListener::trackWillRemoveCallback, track, m_trackSynthesisClipSeriesDict[track]);
     for (auto clip: track->clips()) {
         handleClipRemoval(track, clip);
@@ -202,7 +202,7 @@ void AudioContext::handleTrackRemoval(const DsTrack *track) {
     disconnect(track, nullptr, this, nullptr);
 }
 
-void AudioContext::handleTrackControlChange(const DsTrack *track) {
+void AudioContext::handleTrackControlChange(const Track *track) {
     auto trackSource = m_trackSourceDict[track];
     auto dev = AudioSystem::instance()->device();
     if (dev)
@@ -215,9 +215,9 @@ void AudioContext::handleTrackControlChange(const DsTrack *track) {
         dev->unlock();
 }
 
-void AudioContext::handleClipInsertion(const DsTrack *track, const DsClip *clip) {
+void AudioContext::handleClipInsertion(const Track *track, const Clip *clip) {
     QSettings settings;
-    if (clip->type() != DsClip::Audio)
+    if (clip->type() != Clip::Audio)
         return;
     auto audioClip = static_cast<const DsAudioClip *>(clip);
     auto f = std::make_unique<QFile>(audioClip->path());
@@ -241,10 +241,10 @@ void AudioContext::handleClipInsertion(const DsTrack *track, const DsClip *clip)
     m_audioClipBufferingSources[clip] = bufSrc;
 }
 
-void AudioContext::handleClipRemoval(const DsTrack *track, const DsClip *clip) {
+void AudioContext::handleClipRemoval(const Track *track, const Clip *clip) {
     if (!m_trackAudioClipSeriesDict.contains(track))
         return;
-    if (clip->type() != DsClip::Audio)
+    if (clip->type() != Clip::Audio)
         return;
     auto clipView = m_audioClips[clip];
     if (!clipView.isNull()) {
@@ -257,8 +257,8 @@ void AudioContext::handleClipRemoval(const DsTrack *track, const DsClip *clip) {
     m_audioClipBufferingSources.remove(clip);
 }
 
-void AudioContext::handleClipPropertyChange(const DsTrack *track, const DsClip *clip) {
-    if (clip->type() != DsClip::Audio)
+void AudioContext::handleClipPropertyChange(const Track *track, const Clip *clip) {
+    if (clip->type() != Clip::Audio)
         return;
     auto filePath = static_cast<const DsAudioClip *>(clip)->path();
     if (filePath != m_audioFiles[clip]->fileName()) {
@@ -281,14 +281,14 @@ void AudioContext::rebuildAllClips() {
     for (auto track : AppModel::instance()->tracks()) {
         auto trackClipSeries = m_trackAudioClipSeriesDict[track];
         for (auto clip: track->clips()) {
-            if (clip->type() != DsClip::Audio)
+            if (clip->type() != Clip::Audio)
                 continue;
             auto clipView = m_audioClips[clip];
             if (!clipView.isNull())
                 trackClipSeries->removeClip(clipView);
         }
         for (auto clip: track->clips()) {
-            if (clip->type() != DsClip::Audio)
+            if (clip->type() != Clip::Audio)
                 continue;
             if (m_audioClipMixers.contains(clip))
                 m_audioClips[clip] = trackClipSeries->insertClip(m_audioClipMixers[clip], tickToSample(clip->start() + clip->clipStart()), tickToSample(clip->clipStart()), qMax(1, tickToSample(clip->clipLen())));

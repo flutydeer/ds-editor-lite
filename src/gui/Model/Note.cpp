@@ -2,51 +2,51 @@
 // Created by fluty on 2024/1/27.
 //
 
-#include "DsNote.h"
+#include "Note.h"
 
 #include <utility>
 
-int DsNote::start() const {
+int Note::start() const {
     return m_start;
 }
-void DsNote::setStart(int start) {
+void Note::setStart(int start) {
     m_start = start;
 }
-int DsNote::length() const {
+int Note::length() const {
     return m_length;
 }
-void DsNote::setLength(int length) {
+void Note::setLength(int length) {
     m_length = length;
 }
-int DsNote::keyIndex() const {
+int Note::keyIndex() const {
     return m_keyIndex;
 }
-void DsNote::setKeyIndex(int keyIndex) {
+void Note::setKeyIndex(int keyIndex) {
     m_keyIndex = keyIndex;
 }
-QString DsNote::lyric() const {
+QString Note::lyric() const {
     return m_lyric;
 }
-void DsNote::setLyric(const QString &lyric) {
+void Note::setLyric(const QString &lyric) {
     m_lyric = lyric;
 }
-QString DsNote::pronunciation() const {
+QString Note::pronunciation() const {
     return m_pronunciation;
 }
-void DsNote::setPronunciation(const QString &pronunciation) {
+void Note::setPronunciation(const QString &pronunciation) {
     m_pronunciation = pronunciation;
 }
-DsPhonemes DsNote::phonemes() const {
+Phonemes Note::phonemes() const {
     return m_phonemes;
 }
-void DsNote::setPhonemes(DsPhonemes::DsPhonemesType type, const QList<DsPhoneme>& phonemes) {
-    if (type == DsPhonemes::Original)
+void Note::setPhonemes(Phonemes::DsPhonemesType type, const QList<Phoneme>& phonemes) {
+    if (type == Phonemes::Original)
         m_phonemes.original = phonemes;
-    else if (type == DsPhonemes::Edited)
+    else if (type == Phonemes::Edited)
         m_phonemes.edited = phonemes;
 
 }
-int DsNote::compareTo(DsNote *obj) const {
+int Note::compareTo(Note *obj) const {
     auto otherStart = obj->start();
     if (start() < otherStart)
         return -1;
@@ -54,7 +54,7 @@ int DsNote::compareTo(DsNote *obj) const {
         return 1;
     return 0;
 }
-bool DsNote::isOverlappedWith(DsNote *obj) const {
+bool Note::isOverlappedWith(Note *obj) const {
     auto otherStart = obj->start();
     auto otherEnd = otherStart + obj->length();
     auto curEnd = start() + length();

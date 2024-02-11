@@ -90,7 +90,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
 void ClipEditorView::onModelChanged() {
     reset();
 }
-void ClipEditorView::onSelectedClipChanged(DsTrack *track, DsClip *clip) {
+void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
     reset();
 
     if (track == nullptr || clip == nullptr) {
@@ -106,7 +106,7 @@ void ClipEditorView::onSelectedClipChanged(DsTrack *track, DsClip *clip) {
         m_timelineView->setVisible(false);
         if (m_track != nullptr) {
             qDebug() << "disconnect track and ClipEditorView";
-            disconnect(m_track, &DsTrack::clipChanged, this, &ClipEditorView::onClipChanged);
+            disconnect(m_track, &Track::clipChanged, this, &ClipEditorView::onClipChanged);
         }
         if (m_singingClip != nullptr)
             disconnect(m_singingClip, &DsSingingClip::noteChanged, this,
@@ -120,13 +120,13 @@ void ClipEditorView::onSelectedClipChanged(DsTrack *track, DsClip *clip) {
     m_track = track;
     m_clip = clip;
     qDebug() << "connect track and ClipEditorView";
-    connect(m_track, &DsTrack::clipChanged, this, &ClipEditorView::onClipChanged);
+    connect(m_track, &Track::clipChanged, this, &ClipEditorView::onClipChanged);
     connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_timelineView,
             &TimelineView::setTimeRange);
     m_toolbarView->setClipName(clip->name());
     m_toolbarView->setClipPropertyEditorEnabled(true);
 
-    if (clip->type() != DsClip::Singing)
+    if (clip->type() != Clip::Singing)
         return;
     m_toolbarView->setPianoRollEditToolsEnabled(true);
     m_pianoRollView->setIsSingingClip(true);
@@ -145,7 +145,7 @@ void ClipEditorView::onSelectedClipChanged(DsTrack *track, DsClip *clip) {
     ClipEditorViewController::instance()->setCurrentSingingClip(m_singingClip);
 }
 void ClipEditorView::onClipNameEdited(const QString &name) {
-    DsClip::ClipCommonProperties args;
+    Clip::ClipCommonProperties args;
     args.name = name;
     args.id = m_clip->id();
     args.start = m_clip->start();
@@ -158,12 +158,12 @@ void ClipEditorView::onClipNameEdited(const QString &name) {
 
     TracksViewController::instance()->onClipPropertyChanged(args);
 }
-void ClipEditorView::onClipChanged(DsTrack::ClipChangeType type, int id, DsClip *clip) {
+void ClipEditorView::onClipChanged(Track::ClipChangeType type, int id, Clip *clip) {
     if (m_clip == nullptr)
         return;
 
     if (id == m_clip->id()) {
-        if (type == DsTrack::PropertyChanged) {
+        if (type == Track::PropertyChanged) {
             onClipPropertyChanged();
         }
     }
@@ -201,7 +201,7 @@ void ClipEditorView::onClipPropertyChanged() {
         m_pianoRollView->insertNote(note);
     }
 }
-void ClipEditorView::onNoteChanged(DsSingingClip::NoteChangeType type, int id, DsNote *note) {
+void ClipEditorView::onNoteChanged(DsSingingClip::NoteChangeType type, int id, Note *note) {
     switch (type) {
         case DsSingingClip::Inserted:
             m_pianoRollView->insertNote(note);

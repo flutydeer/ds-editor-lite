@@ -2,19 +2,19 @@
 // Created by fluty on 2024/1/27.
 //
 
-#include "DsCurve.h"
+#include "Curve.h"
 
-DsCurve::~DsCurve() {
+Curve::~Curve() {
 }
 
-int DsCurve::start() const {
+int Curve::start() const {
     return m_start;
 }
 
-void DsCurve::setStart(int offset) {
+void Curve::setStart(int offset) {
     m_start = offset;
 }
-int DsCurve::compareTo(DsCurve *obj) const {
+int Curve::compareTo(Curve *obj) const {
     auto otherStart = obj->start();
     if (m_start < otherStart)
         return -1;
@@ -22,44 +22,44 @@ int DsCurve::compareTo(DsCurve *obj) const {
         return 1;
     return 0;
 }
-bool DsCurve::isOverlappedWith(DsCurve *obj) const {
+bool Curve::isOverlappedWith(Curve *obj) const {
     auto otherStart = obj->start();
     auto otherEnd = obj->endTick();
     if (otherEnd <= start() || endTick() <= otherStart)
         return false;
     return true;
 }
-const QList<int> &DsDrawCurve::values() const {
+const QList<int> &DrawCurve::values() const {
     return m_values;
 }
-void DsDrawCurve::setValues(const QList<int> &values) {
+void DrawCurve::setValues(const QList<int> &values) {
     m_values = values;
 }
-void DsDrawCurve::insertValue(int value) {
+void DrawCurve::insertValue(int value) {
     m_values.append(value);
 }
-int DsDrawCurve::endTick() const {
+int DrawCurve::endTick() const {
     return start() + m_step * m_values.count();
 }
-int DsAnchorNode::pos() const {
+int AnchorNode::pos() const {
     return m_pos;
 }
-void DsAnchorNode::setPos(int pos) {
+void AnchorNode::setPos(int pos) {
     m_pos = pos;
 }
-int DsAnchorNode::value() const {
+int AnchorNode::value() const {
     return m_value;
 }
-void DsAnchorNode::setValue(int value) {
+void AnchorNode::setValue(int value) {
     m_value = value;
 }
-DsAnchorNode::InterpMode DsAnchorNode::interpMode() const {
+AnchorNode::InterpMode AnchorNode::interpMode() const {
     return m_interpMode;
 }
-void DsAnchorNode::setInterpMode(InterpMode mode) {
+void AnchorNode::setInterpMode(InterpMode mode) {
     m_interpMode = mode;
 }
-int DsAnchorNode::compareTo(DsAnchorNode *obj) const {
+int AnchorNode::compareTo(AnchorNode *obj) const {
     auto otherPos = obj->pos();
     if (pos() < otherPos)
         return -1;
@@ -67,18 +67,18 @@ int DsAnchorNode::compareTo(DsAnchorNode *obj) const {
         return 1;
     return 0;
 }
-bool DsAnchorNode::isOverlappedWith(DsAnchorNode *obj) const {
+bool AnchorNode::isOverlappedWith(AnchorNode *obj) const {
     return pos() == obj->pos();
 }
-const QList<DsAnchorNode *> &DsAnchorCurve::nodes() const {
+const QList<AnchorNode *> &AnchorCurve::nodes() const {
     return m_nodes;
 }
-void DsAnchorCurve::insertNode(DsAnchorNode *node) {
+void AnchorCurve::insertNode(AnchorNode *node) {
     m_nodes.append(node);
 }
-void DsAnchorCurve::removeNode(DsAnchorNode *node) {
+void AnchorCurve::removeNode(AnchorNode *node) {
     m_nodes.removeOne(node);
 }
-int DsAnchorCurve::endTick() const {
+int AnchorCurve::endTick() const {
     return m_nodes.at(m_nodes.count() - 1)->pos(); // TODO: fix
 }

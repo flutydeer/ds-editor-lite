@@ -29,14 +29,14 @@ public slots:
     void onTrackChanged(AppModel::TrackChangeType type, int index);
     // void onPlaybackPositionChanged(long pos);
     // void onSamplerateChanged(int samplerate);
-    void onClipChanged(DsTrack::ClipChangeType type, int trackIndex, int clipIndex);
+    void onClipChanged(Track::ClipChangeType type, int trackIndex, int clipIndex);
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
     void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args);
 
 signals:
     void selectedClipChanged(int clipId);
-    void trackPropertyChanged(const DsTrack::TrackProperties &args);
+    void trackPropertyChanged(const Track::TrackProperties &args);
     void insertNewTrackTriggered(int index);
     void removeTrackTriggerd(int index);
     void muteClicked(int index);
@@ -44,7 +44,7 @@ signals:
     void tempoChanged(double tempo);
     void trackCountChanged(int count);
     void addAudioClipTriggered(const QString &path, int trackIndex, int tick);
-    void clipPropertyChanged(const DsClip::ClipCommonProperties &args);
+    void clipPropertyChanged(const Clip::ClipCommonProperties &args);
     void setPositionTriggered(double tick);
     void removeClipTriggered(int clipId);
     void newSingingClipTriggered(int trackIndex, int tick);
@@ -69,15 +69,15 @@ private:
     double m_tempo = 120;
     int m_samplerate = 48000;
 
-    DsTrack::ClipChangeType m_prevClipChangeType = DsTrack::Removed;
+    Track::ClipChangeType m_prevClipChangeType = Track::Removed;
     int m_prevClipId = -1;
 
-    void insertTrackToView(DsTrack *dsTrack, int trackIndex);
-    void insertClipToTrack(DsClip *clip, TrackViewModel *track, int trackIndex);
+    void insertTrackToView(Track *dsTrack, int trackIndex);
+    void insertClipToTrack(Clip *clip, TrackViewModel *track, int trackIndex);
     void removeClipFromView(int clipId);
     AbstractClipGraphicsItem *findClipItemById(int id);
     void updateTracksOnView();
-    void updateClipOnView(DsClip *clip, int clipId);
+    void updateClipOnView(Clip *clip, int clipId);
     void removeTrackFromView(int index);
     void updateOverlappedState(int trackIndex);
     void reset();

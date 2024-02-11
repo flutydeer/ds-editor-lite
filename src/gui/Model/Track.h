@@ -8,12 +8,12 @@
 #include <QString>
 #include <QColor>
 
-#include "DsClip.h"
-#include "DsTrackControl.h"
+#include "Clip.h"
+#include "TrackControl.h"
 #include "Utils/UniqueObject.h"
 #include "Utils/OverlapableSerialList.h"
 
-class DsTrack : public QObject, public UniqueObject {
+class Track : public QObject, public UniqueObject {
     Q_OBJECT
 
 public:
@@ -21,20 +21,20 @@ public:
 
     QString name() const;
     void setName(const QString &name);
-    DsTrackControl control() const;
-    void setControl(const DsTrackControl &control);
-    OverlapableSerialList<DsClip> clips() const;
-    void insertClip(DsClip *clip);
-    void removeClip(DsClip *clip);
+    TrackControl control() const;
+    void setControl(const TrackControl &control);
+    OverlapableSerialList<Clip> clips() const;
+    void insertClip(Clip *clip);
+    void removeClip(Clip *clip);
     QColor color() const;
     void setColor(const QColor &color);
 
     // void updateClip(DsClip *clip);
-    void removeClipQuietly(DsClip *clip);
-    void insertClipQuietly(DsClip *clip);
-    void notityClipPropertyChanged(DsClip *clip);
+    void removeClipQuietly(Clip *clip);
+    void insertClipQuietly(Clip *clip);
+    void notityClipPropertyChanged(Clip *clip);
 
-    DsClip *findClipById(int id);
+    Clip *findClipById(int id);
 
     class TrackProperties {
     public:
@@ -49,12 +49,12 @@ public:
 
 signals:
     void propertyChanged();
-    void clipChanged(ClipChangeType type, int id, DsClip *clip);
+    void clipChanged(ClipChangeType type, int id, Clip *clip);
 
 private:
     QString m_name;
-    DsTrackControl m_control = DsTrackControl();
-    OverlapableSerialList<DsClip> m_clips;
+    TrackControl m_control = TrackControl();
+    OverlapableSerialList<Clip> m_clips;
     QColor m_color;
 };
 

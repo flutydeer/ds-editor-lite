@@ -19,9 +19,9 @@ public:
     explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene);
     void setIsSingingClip(bool isSingingClip);
     void setEditMode(PianoRollEditMode mode);
-    void insertNote(DsNote *dsNote);
+    void insertNote(Note *dsNote);
     void removeNote(int noteId);
-    void updateNote(DsNote *note);
+    void updateNote(Note *note);
     void reset();
     QList<int> selectedNotesId() const;
 

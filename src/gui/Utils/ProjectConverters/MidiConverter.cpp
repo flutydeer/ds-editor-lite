@@ -111,9 +111,9 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     auto midi = new QDspx::MidiConverter;
 
     auto decodeNotes = [](const QList<QDspx::Note> &arrNotes) {
-        QList<DsNote *> notes;
+        QList<Note *> notes;
         for (const QDspx::Note &dsNote : arrNotes) {
-            auto note = new DsNote;
+            auto note = new Note;
             note->setStart(dsNote.pos);
             note->setLength(dsNote.length);
             note->setKeyIndex(dsNote.keyNum);
@@ -124,7 +124,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
         return notes;
     };
 
-    auto decodeClips = [&](const QDspx::Track &track, DsTrack *dsTack) {
+    auto decodeClips = [&](const QDspx::Track &track, Track *dsTack) {
         for (auto &clip : track.clips) {
             if (clip->type == QDspx::Clip::Type::Singing) {
                 auto singClip = clip.dynamicCast<QDspx::SingingClip>();
@@ -154,7 +154,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     auto decodeTracks = [&](const QDspx::Model *dspx, AppModel *model, ImportMode mode) {
         for (int i = 0; i < dspx->content.tracks.count(); i++) {
             auto track = dspx->content.tracks[i];
-            auto dsTrack = new DsTrack;
+            auto dsTrack = new Track;
             dsTrack->setName(track.name);
             decodeClips(track, dsTrack);
             model->insertTrack(dsTrack, i);
@@ -220,7 +220,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
                 QVariant::fromValue(reinterpret_cast<quintptr>(&midiOverlap)));
     auto midi = new QDspx::MidiConverter;
 
-    auto encodeNotes = [](const OverlapableSerialList<DsNote> &notes) {
+    auto encodeNotes = [](const OverlapableSerialList<Note> &notes) {
         QList<QDspx::Note> arrNotes;
         for (const auto &note : notes) {
             QDspx::Note dsNote;
@@ -233,9 +233,9 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
         return arrNotes;
     };
 
-    auto encodeClips = [&](const DsTrack *dsTrack, QDspx::Track *track) {
+    auto encodeClips = [&](const Track *dsTrack, QDspx::Track *track) {
         for (const auto &clip : dsTrack->clips()) {
-            if (clip->type() == DsClip::Singing) {
+            if (clip->type() == Clip::Singing) {
                 auto singingClip = dynamic_cast<DsSingingClip *>(clip);
                 auto singClip = QDspx::SingingClipRef::create();
                 singClip->name = clip->name();
@@ -245,7 +245,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
                 singClip->time.clipLen = clip->clipLen();
                 singClip->notes = encodeNotes(singingClip->notes());
                 track->clips.append(singClip);
-            } else if (clip->type() == DsClip::Audio) {
+            } else if (clip->type() == Clip::Audio) {
                 auto audioClip = dynamic_cast<DsAudioClip *>(clip);
                 auto audioClipRef = QDspx::AudioClipRef::create();
                 audioClipRef->name = clip->name();

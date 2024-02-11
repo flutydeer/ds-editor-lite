@@ -6,19 +6,19 @@
 #define CLIPACTIONS_H
 
 #include "Controller/History/ActionSequence.h"
-#include "Model/DsClip.h"
-#include "Model/DsTrack.h"
+#include "Model/Clip.h"
+#include "Model/Track.h"
 
 class ClipActions : public ActionSequence {
 public:
-    void insertClips(const QList<DsClip *> &clips, DsTrack *track);
-    void removeClips(const QList<DsClip *> &clips, DsTrack *track);
-    void editSingingClipProperties(const QList<DsClip::ClipCommonProperties> &oldArgs,
-                                   const QList<DsClip::ClipCommonProperties> &newArgs,
-                                   const QList<DsSingingClip *> &clips, DsTrack *track);
-    void editAudioClipProperties(const QList<DsClip::ClipCommonProperties> &oldArgs,
-                                   const QList<DsClip::ClipCommonProperties> &newArgs,
-                                   const QList<DsAudioClip *> &clips, DsTrack *track);
+    void insertClips(const QList<Clip *> &clips, Track *track);
+    void removeClips(const QList<Clip *> &clips, Track *track);
+    void editSingingClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
+                                   const QList<Clip::ClipCommonProperties> &newArgs,
+                                   const QList<DsSingingClip *> &clips, Track *track);
+    void editAudioClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
+                                   const QList<Clip::ClipCommonProperties> &newArgs,
+                                   const QList<DsAudioClip *> &clips, Track *track);
 };
 
 

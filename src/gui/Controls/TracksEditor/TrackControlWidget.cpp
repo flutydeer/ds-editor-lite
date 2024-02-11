@@ -228,8 +228,8 @@ void TrackControlWidget::setName(const QString &name) {
     m_leTrackName->setText(name);
     // emit propertyChanged();
 }
-DsTrackControl TrackControlWidget::control() const {
-    DsTrackControl control;
+TrackControl TrackControlWidget::control() const {
+    TrackControl control;
     auto gain = 60 * std::log10(m_sbarGain->value()) - 114;
     control.setGain(gain);
     control.setPan(m_sbarPan->value());
@@ -237,7 +237,7 @@ DsTrackControl TrackControlWidget::control() const {
     control.setSolo(m_btnSolo->isChecked());
     return control;
 }
-void TrackControlWidget::setControl(const DsTrackControl &control) {
+void TrackControlWidget::setControl(const TrackControl &control) {
     auto barValue = std::pow(10, (114 + control.gain()) / 60);
     m_sbarGain->setValue(barValue);
     m_leGain->setText(gainValueToString(barValue));
@@ -269,7 +269,7 @@ void TrackControlWidget::setNarrowMode(bool on) {
 LevelMeter *TrackControlWidget::levelMeter() const {
     return m_levelMeter;
 }
-void TrackControlWidget::onTrackUpdated(const DsTrack &track) {
+void TrackControlWidget::onTrackUpdated(const Track &track) {
     m_leTrackName->setText(track.name());
     auto control = track.control();
     m_sbarGain->setValueAsync(control.gain());

@@ -3,7 +3,7 @@
 //
 
 #include "AppendTrackAction.h"
-AppendTrackAction *AppendTrackAction::build(DsTrack *track, AppModel *model) {
+AppendTrackAction *AppendTrackAction::build(Track *track, AppModel *model) {
     auto a = new AppendTrackAction;
     a->m_track = track;
     a->m_model = model;

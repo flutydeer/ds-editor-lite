@@ -3,7 +3,7 @@
 //
 
 #include "RemoveNoteAction.h"
-RemoveNoteAction *RemoveNoteAction::build(DsNote *note, DsSingingClip *clip) {
+RemoveNoteAction *RemoveNoteAction::build(Note *note, DsSingingClip *clip) {
     auto a = new RemoveNoteAction;
     a->m_note = note;
     a->m_clip = clip;

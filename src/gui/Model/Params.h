@@ -5,25 +5,25 @@
 #ifndef DSPARAMS_H
 #define DSPARAMS_H
 
-#include "DsCurve.h"
+#include "Curve.h"
 #include "../Utils/OverlapableSerialList.h"
 
-class DsParam {
+class Param {
 public:
     enum ParamCurveType { Original, Edited, Envelope };
 
-    OverlapableSerialList<DsCurve> original;
-    OverlapableSerialList<DsCurve> edited;
-    OverlapableSerialList<DsCurve> envelope;
+    OverlapableSerialList<Curve> original;
+    OverlapableSerialList<Curve> edited;
+    OverlapableSerialList<Curve> envelope;
 };
 
-class DsParams {
+class Params {
 public:
     enum ParamType { Pitch, Energy, Tension, Breathiness };
-    DsParam pitch;
-    DsParam energy;
-    DsParam tension;
-    DsParam breathiness;
+    Param pitch;
+    Param energy;
+    Param tension;
+    Param breathiness;
 };
 
 

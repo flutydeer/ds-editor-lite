@@ -10,11 +10,11 @@
 void ClipEditorViewController::setCurrentSingingClip(DsSingingClip *clip) {
     m_clip = clip;
 }
-void ClipEditorViewController::onClipPropertyChanged(const DsClip::ClipCommonProperties &args) {
+void ClipEditorViewController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
     TracksViewController::instance()->onClipPropertyChanged(args);
 }
 void ClipEditorViewController::onRemoveNotes(const QList<int> &notesId) {
-    QList<DsNote *> notesToDelete;
+    QList<Note *> notesToDelete;
     for (const auto id : notesId)
         notesToDelete.append(m_clip->findNoteById(id));
 
@@ -24,16 +24,16 @@ void ClipEditorViewController::onRemoveNotes(const QList<int> &notesId) {
     HistoryManager::instance()->record(a);
 }
 void ClipEditorViewController::onEditNotesLyrics(const QList<int> &notesId) {
-    QList<DsNote *> notesToEdit;
+    QList<Note *> notesToEdit;
     for (const auto id : notesId)
         notesToEdit.append(m_clip->findNoteById(id));
-    QList<DsNote::NoteWordProperties *> args;
+    QList<Note::NoteWordProperties *> args;
 
     // TODO: call TestFillLyric
     // 新的歌词、拼音和音素要装进 DsNote::NoteWordProperties
     // 不要动 notesToEdit，否则撤销重做系统无法备份更改
     for (const auto note : notesToEdit) {
-        auto properties = new DsNote::NoteWordProperties;
+        auto properties = new Note::NoteWordProperties;
         properties->lyric = "喵";
         properties->pronunciation = "miao";
         args.append(properties);

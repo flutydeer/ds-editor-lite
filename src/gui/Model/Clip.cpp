@@ -2,53 +2,53 @@
 // Created by fluty on 2024/1/27.
 //
 
-#include "DsClip.h"
+#include "Clip.h"
 
-QString DsClip::name() const {
+QString Clip::name() const {
     return m_name;
 }
-void DsClip::setName(const QString &text) {
+void Clip::setName(const QString &text) {
     m_name = text;
 }
-int DsClip::start() const {
+int Clip::start() const {
     return m_start;
 }
-void DsClip::setStart(int start) {
+void Clip::setStart(int start) {
     m_start = start;
 }
-int DsClip::length() const {
+int Clip::length() const {
     return m_length;
 }
-void DsClip::setLength(int length) {
+void Clip::setLength(int length) {
     m_length = length;
 }
-int DsClip::clipStart() const {
+int Clip::clipStart() const {
     return m_clipStart;
 }
-void DsClip::setClipStart(int clipStart) {
+void Clip::setClipStart(int clipStart) {
     m_clipStart = clipStart;
 }
-int DsClip::clipLen() const {
+int Clip::clipLen() const {
     return m_clipLen;
 }
-void DsClip::setClipLen(int clipLen) {
+void Clip::setClipLen(int clipLen) {
     m_clipLen = clipLen;
 }
-double DsClip::gain() const {
+double Clip::gain() const {
     return m_gain;
 }
-void DsClip::setGain(double gain) {
+void Clip::setGain(double gain) {
     m_gain = gain;
 }
-bool DsClip::mute() const {
+bool Clip::mute() const {
     return m_mute;
 }
-void DsClip::setMute(bool mute) {
+void Clip::setMute(bool mute) {
     m_mute = mute;
 }
-int DsClip::compareTo(DsClip *obj) const {
+int Clip::compareTo(Clip *obj) const {
     auto curVisibleStart = start() + clipStart();
-    auto other = dynamic_cast<DsClip *>(obj);
+    auto other = dynamic_cast<Clip *>(obj);
     auto otherVisibleStart = other->start() + other->clipStart();
     if (curVisibleStart < otherVisibleStart)
         return -1;
@@ -56,37 +56,37 @@ int DsClip::compareTo(DsClip *obj) const {
         return 1;
     return 0;
 }
-bool DsClip::isOverlappedWith(DsClip *obj) const {
+bool Clip::isOverlappedWith(Clip *obj) const {
     auto curVisibleStart = start() + clipStart();
     auto curVisibleEnd = curVisibleStart + clipLen();
-    auto other = dynamic_cast<DsClip *>(obj);
+    auto other = dynamic_cast<Clip *>(obj);
     auto otherVisibleStart = other->start() + other->clipStart();
     auto otherVisibleEnd = otherVisibleStart + other->clipLen();
     if (otherVisibleEnd <= curVisibleStart || curVisibleEnd <= otherVisibleStart)
         return false;
     return true;
 }
-const OverlapableSerialList<DsNote> &DsSingingClip::notes() const {
+const OverlapableSerialList<Note> &DsSingingClip::notes() const {
     return m_notes;
 }
-void DsSingingClip::insertNote(DsNote *note) {
+void DsSingingClip::insertNote(Note *note) {
     m_notes.add(note);
     emit noteChanged(Inserted, note->id(), note);
 }
-void DsSingingClip::removeNote(DsNote *note) {
+void DsSingingClip::removeNote(Note *note) {
     m_notes.remove(note);
     emit noteChanged(Removed, note->id(), nullptr);
 }
-void DsSingingClip::insertNoteQuietly(DsNote *note) {
+void DsSingingClip::insertNoteQuietly(Note *note) {
     m_notes.add(note);
 }
-void DsSingingClip::removeNoteQuietly(DsNote *note) {
+void DsSingingClip::removeNoteQuietly(Note *note) {
     m_notes.remove(note);
 }
-void DsSingingClip::notifyNotePropertyChanged(DsNote *note) {
+void DsSingingClip::notifyNotePropertyChanged(Note *note) {
     emit noteChanged(PropertyChanged, note->id(), note);
 }
-DsNote *DsSingingClip::findNoteById(int id) {
+Note *DsSingingClip::findNoteById(int id) {
     for (int i = 0; i < m_notes.count(); i++) {
         auto note = m_notes.at(i);
         if (note->id() == id)

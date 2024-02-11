@@ -42,7 +42,7 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
 void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     TimeGraphicsView::mouseDoubleClickEvent(event);
 }
-void PianoRollGraphicsView::insertNote(DsNote *dsNote) {
+void PianoRollGraphicsView::insertNote(Note *dsNote) {
     auto noteItem = new NoteGraphicsItem(dsNote->id());
     noteItem->setContext(this);
     noteItem->setStart(dsNote->start());
@@ -71,7 +71,7 @@ void PianoRollGraphicsView::removeNote(int noteId) {
     m_noteItems.removeOne(noteItem);
     delete noteItem;
 }
-void PianoRollGraphicsView::updateNote(DsNote *note) {
+void PianoRollGraphicsView::updateNote(Note *note) {
     auto noteItem = findNoteById(note->id());
     noteItem->setStart(note->start());
     noteItem->setLength(note->length());

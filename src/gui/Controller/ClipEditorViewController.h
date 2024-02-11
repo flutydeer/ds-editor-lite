@@ -7,7 +7,7 @@
 
 #include <QObject>
 
-#include "Model/DsClip.h"
+#include "Model/Clip.h"
 #include "Model/AppModel.h"
 #include "Utils/Singleton.h"
 
@@ -18,7 +18,7 @@ public:
     void setCurrentSingingClip(DsSingingClip *clip);
 
 public slots:
-    void onClipPropertyChanged(const DsClip::ClipCommonProperties &args);
+    void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     void onRemoveNotes(const QList<int> &notesId);
     void onEditNotesLyrics(const QList<int> &notesId);
 

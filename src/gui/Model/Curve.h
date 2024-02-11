@@ -10,31 +10,31 @@
 
 #include <QList>
 
-class DsCurve : public IOverlapable, UniqueObject {
+class Curve : public IOverlapable, UniqueObject {
 public:
-    enum DsCurveType { Generic, Draw, Anchor };
+    enum CurveType { Generic, Draw, Anchor };
 
-    virtual ~DsCurve();
+    virtual ~Curve();
 
-    virtual DsCurveType type() {
+    virtual CurveType type() {
         return Generic;
     }
     int start() const;
     void setStart(int offset);
 
-    int compareTo(DsCurve *obj) const;
+    int compareTo(Curve *obj) const;
     virtual int endTick() const {
         return m_start;
     }
-    bool isOverlappedWith(DsCurve *obj) const;
+    bool isOverlappedWith(Curve *obj) const;
 
 private:
     int m_start = 0;
 };
 
-class DsDrawCurve final : public DsCurve {
+class DrawCurve final : public Curve {
 public:
-    DsCurveType type() override {
+    CurveType type() override {
         return Draw;
     }
     int step; // TODO: remove
@@ -49,11 +49,11 @@ private:
     QList<int> m_values;
 };
 
-class DsAnchorNode : public IOverlapable, UniqueObject {
+class AnchorNode : public IOverlapable, UniqueObject {
 public:
     enum InterpMode { Linear, Hermite, Cubic, None };
 
-    DsAnchorNode(const int pos, const int value) : m_pos(pos), m_value(value) {
+    AnchorNode(const int pos, const int value) : m_pos(pos), m_value(value) {
     }
 
     int pos() const;
@@ -63,8 +63,8 @@ public:
     InterpMode interpMode() const;
     void setInterpMode(InterpMode mode);
 
-    int compareTo(DsAnchorNode *obj) const;
-    bool isOverlappedWith(DsAnchorNode *obj) const;
+    int compareTo(AnchorNode *obj) const;
+    bool isOverlappedWith(AnchorNode *obj) const;
 
 private:
     int m_pos;
@@ -72,19 +72,19 @@ private:
     InterpMode m_interpMode = Cubic;
 };
 
-class DsAnchorCurve final : public DsCurve {
+class AnchorCurve final : public Curve {
 public:
-    DsCurveType type() override {
+    CurveType type() override {
         return Anchor;
     }
     //TODO: use OverlapableSerialList
-    const QList<DsAnchorNode *> &nodes() const;
-    void insertNode(DsAnchorNode *node);
-    void removeNode(DsAnchorNode *node);
+    const QList<AnchorNode *> &nodes() const;
+    void insertNode(AnchorNode *node);
+    void removeNode(AnchorNode *node);
     int endTick() const override;
 
 private:
-    QList<DsAnchorNode *> m_nodes;
+    QList<AnchorNode *> m_nodes;
 };
 
 #endif // DSCURVE_H

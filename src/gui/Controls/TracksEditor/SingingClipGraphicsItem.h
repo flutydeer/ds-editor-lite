@@ -6,12 +6,12 @@
 #define SINGINGCLIPGRAPHICSITEM_H
 
 #include "AbstractClipGraphicsItem.h"
-#include "Model/DsNote.h"
+#include "Model/Note.h"
 #include "Utils/OverlapableSerialList.h"
 
 class SingingClipGraphicsItem final : public AbstractClipGraphicsItem {
 public:
-    class Note {
+    class NoteViewModel {
     public:
         int rStart;
         int length;
@@ -21,7 +21,7 @@ public:
     explicit SingingClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     ~SingingClipGraphicsItem() override = default;
 
-    void loadNotes(const OverlapableSerialList<DsNote> &notes);
+    void loadNotes(const OverlapableSerialList<Note> &notes);
     QString audioCachePath() const;
     void setAudioCachePath(const QString &path);
 
@@ -34,7 +34,7 @@ private:
     }
 
     QString m_audioCachePath;
-    QList<Note> m_notes;
+    QList<NoteViewModel> m_notes;
 };
 
 

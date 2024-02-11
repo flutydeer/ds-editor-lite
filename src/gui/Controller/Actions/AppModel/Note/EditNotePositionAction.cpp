@@ -3,7 +3,7 @@
 //
 
 #include "EditNotePositionAction.h"
-EditNotePositionAction *EditNotePositionAction::build(DsNote *note, int deltaTick, int deltaKey,
+EditNotePositionAction *EditNotePositionAction::build(Note *note, int deltaTick, int deltaKey,
                                                       DsSingingClip *clip) {
     auto a = new EditNotePositionAction;
     a->m_note = note;

@@ -29,10 +29,10 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
     };
 
     auto decodeNotes = [](const QJsonArray &arrNotes) {
-        QList<DsNote *> notes;
+        QList<Note *> notes;
         for (const auto valNote : qAsConst(arrNotes)) {
             auto objNote = valNote.toObject();
-            auto note = new DsNote;
+            auto note = new Note;
             note->setStart(objNote.value("pos").toInt());
             note->setLength(objNote.value("dur").toInt());
             note->setKeyIndex(objNote.value("pitch").toInt());
@@ -43,7 +43,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
         return notes;
     };
 
-    auto decodeClips = [&](const QJsonArray &arrClips, DsTrack *dsTack, const QString &type,
+    auto decodeClips = [&](const QJsonArray &arrClips, Track *dsTack, const QString &type,
                            int trackIndex) {
         for (const auto &valClip : qAsConst(arrClips)) {
             auto objClip = valClip.toObject();
@@ -76,7 +76,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
         for (const auto &valTrack : qAsConst(arrTracks)) {
             auto objTrack = valTrack.toObject();
             auto type = objTrack.value("type").toString();
-            auto track = new DsTrack;
+            auto track = new Track;
             decodeClips(objTrack.value("patterns").toArray(), track, type, i);
             model->insertTrack(track, i);
             i++;

@@ -5,7 +5,7 @@
 #ifndef DSTRACKCONTROL_H
 #define DSTRACKCONTROL_H
 
-class DsTrackControl {
+class TrackControl {
 public:
     double gain() const;
     void setGain(double gain);

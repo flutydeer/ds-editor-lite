@@ -4,54 +4,54 @@
 
 #include <QDebug>
 
-#include "DsTrack.h"
+#include "Track.h"
 
-QString DsTrack::name() const {
+QString Track::name() const {
     return m_name;
 }
-void DsTrack::setName(const QString &name) {
+void Track::setName(const QString &name) {
     m_name = name;
     emit propertyChanged();
 }
-DsTrackControl DsTrack::control() const {
+TrackControl Track::control() const {
     return m_control;
 }
-void DsTrack::setControl(const DsTrackControl &control) {
+void Track::setControl(const TrackControl &control) {
     m_control = control;
     emit propertyChanged();
 }
-OverlapableSerialList<DsClip> DsTrack::clips() const {
+OverlapableSerialList<Clip> Track::clips() const {
     return m_clips;
 }
-void DsTrack::insertClip(DsClip *clip) {
+void Track::insertClip(Clip *clip) {
     m_clips.add(clip);
     qDebug() << "DsTrack emit clipChanged Inserted" << clip->id();
     emit clipChanged(Inserted, clip->id(), clip);
 }
-void DsTrack::removeClip(DsClip *clip) {
+void Track::removeClip(Clip *clip) {
     m_clips.remove(clip);
     qDebug() << "DsTrack emit clipChanged Removed" << clip->id();
     emit clipChanged(Removed, clip->id(), clip);
 }
-QColor DsTrack::color() const {
+QColor Track::color() const {
     return m_color;
 }
-void DsTrack::setColor(const QColor &color) {
+void Track::setColor(const QColor &color) {
     m_color = color;
     emit propertyChanged();
 }
-void DsTrack::removeClipQuietly(DsClip *clip) {
+void Track::removeClipQuietly(Clip *clip) {
     m_clips.remove(clip);
 }
-void DsTrack::insertClipQuietly(DsClip *clip) {
+void Track::insertClipQuietly(Clip *clip) {
     m_clips.add(clip);
 }
-void DsTrack::notityClipPropertyChanged(DsClip *clip) {
+void Track::notityClipPropertyChanged(Clip *clip) {
     qDebug() << "DsTrack::notityClipPropertyChanged" << clip->id();
     emit clipChanged(PropertyChanged, clip->id(), clip);
 }
 
-DsClip *DsTrack::findClipById(int id) {
+Clip *Track::findClipById(int id) {
     for (int i = 0; i < m_clips.count(); i++) {
         auto clip = m_clips.at(i);
         if (clip->id() == id)

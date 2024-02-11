@@ -5,7 +5,7 @@
 #ifndef DSPXMODEL_H
 #define DSPXMODEL_H
 
-#include "DsTrack.h"
+#include "Track.h"
 #include "Utils/Singleton.h"
 
 class AppModel final : public QObject, public Singleton<AppModel> {
@@ -30,12 +30,12 @@ public:
     void setTimeSignature(const TimeSignature &signature);
     double tempo() const;
     void setTempo(double tempo);
-    const QList<DsTrack *> &tracks() const;
-    void insertTrack(DsTrack *track, int index);
-    void insertTrackQuietly(DsTrack *track, int index);
-    void appendTrack(DsTrack *track);
+    const QList<Track *> &tracks() const;
+    void insertTrack(Track *track, int index);
+    void insertTrackQuietly(Track *track, int index);
+    void appendTrack(Track *track);
     void removeTrackAt(int index);
-    void removeTrack(DsTrack *track);
+    void removeTrack(Track *track);
     void clearTracks();
     int quantize() const;
     void setQuantize(int quantize);
@@ -51,7 +51,7 @@ public:
     int selectedTrackIndex() const;
     void setSelectedTrack(int trackIndex);
 
-    DsClip *findClipById(int clipId, int &trackIndex);
+    Clip *findClipById(int clipId, int &trackIndex);
 
     class LevelMetersUpdatedArgs {
     public:
@@ -70,8 +70,8 @@ signals:
     void modelChanged();
     void tempoChanged(double tempo);
     void timeSignatureChanged(int numerator, int denominator);
-    void tracksChanged(TrackChangeType type, int index, DsTrack *track);
-    void selectedClipChanged(DsTrack *track, DsClip *clip);
+    void tracksChanged(TrackChangeType type, int index, Track *track);
+    void selectedClipChanged(Track *track, Clip *clip);
     void quantizeChanged(int quantize);
     void selectedTrackChanged(int trackIndex);
 
@@ -80,7 +80,7 @@ private:
 
     TimeSignature m_timeSignature;
     double m_tempo = 120;
-    QList<DsTrack *> m_tracks;
+    QList<Track *> m_tracks;
 
     int m_selectedTrackIndex = -1;
     int m_selectedClipId = -1;

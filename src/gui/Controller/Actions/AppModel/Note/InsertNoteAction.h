@@ -6,17 +6,17 @@
 #define INSERTNOTEACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/DsClip.h"
-#include "Model/DsNote.h"
+#include "Model/Clip.h"
+#include "Model/Note.h"
 
 class InsertNoteAction final : public IAction {
 public:
-    static InsertNoteAction *build(DsNote *note, DsSingingClip *clip);
+    static InsertNoteAction *build(Note *note, DsSingingClip *clip);
     void execute() override;
     void undo() override;
 
 private:
-    DsNote *m_note = nullptr;
+    Note *m_note = nullptr;
     DsSingingClip *m_clip = nullptr;
 };
 

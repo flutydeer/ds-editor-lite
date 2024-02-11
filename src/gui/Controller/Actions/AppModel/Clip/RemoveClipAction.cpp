@@ -3,7 +3,7 @@
 //
 
 #include "RemoveClipAction.h"
-RemoveClipAction *RemoveClipAction::build(DsClip *clip, DsTrack *track) {
+RemoveClipAction *RemoveClipAction::build(Clip *clip, Track *track) {
     auto a = new RemoveClipAction;
     a->m_clip = clip;
     a->m_track = track;

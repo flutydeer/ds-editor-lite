@@ -3,7 +3,7 @@
 //
 
 #include "RemoveTrackAction.h"
-RemoveTrackAction *RemoveTrackAction::build(DsTrack *track, AppModel *model) {
+RemoveTrackAction *RemoveTrackAction::build(Track *track, AppModel *model) {
     auto a = new RemoveTrackAction;
     a->m_track = track;
     a->m_model = model;

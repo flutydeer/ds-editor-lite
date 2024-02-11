@@ -8,7 +8,7 @@
 #include "ClipEditorToolBarView.h"
 #include "Controls/Base/TimelineView.h"
 #include "Controls/PianoRoll/PianoRollGraphicsView.h"
-#include "Model/DsClip.h"
+#include "Model/Clip.h"
 
 #include <QWidget>
 
@@ -19,11 +19,11 @@ public:
 
 public slots:
     void onModelChanged();
-    void onSelectedClipChanged(DsTrack *track, DsClip *clip);
+    void onSelectedClipChanged(Track *track, Clip *clip);
     void onClipNameEdited(const QString &name);
 
 private slots:
-    void onClipChanged(DsTrack::ClipChangeType type, int id, DsClip *clip);
+    void onClipChanged(Track::ClipChangeType type, int id, Clip *clip);
     void onEditModeChanged(PianoRollEditMode mode);
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
@@ -31,8 +31,8 @@ private slots:
     void onEidtSelectedNotesLyrics();
 
 private:
-    DsTrack *m_track = nullptr;
-    DsClip *m_clip = nullptr;
+    Track *m_track = nullptr;
+    Clip *m_clip = nullptr;
     DsSingingClip *m_singingClip = nullptr;
     ClipEditorToolBarView *m_toolbarView;
     PianoRollGraphicsScene *m_pianoRollScene;
@@ -44,7 +44,7 @@ private:
 
     void reset();
     void onClipPropertyChanged();
-    void onNoteChanged(DsSingingClip::NoteChangeType type, int id, DsNote *note);
+    void onNoteChanged(DsSingingClip::NoteChangeType type, int id, Note *note);
 };
 
 

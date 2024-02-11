@@ -8,19 +8,19 @@
 #include <QSharedPointer>
 #include <QObject>
 
-#include "DsNote.h"
-#include "DsParams.h"
+#include "Note.h"
+#include "Params.h"
 #include "../Utils/IOverlapable.h"
 #include "../Utils/OverlapableSerialList.h"
 #include "../Utils/UniqueObject.h"
 
-class DsClip : public QObject, public IOverlapable, public UniqueObject {
+class Clip : public QObject, public IOverlapable, public UniqueObject {
     Q_OBJECT
 
 public:
     enum ClipType { Audio, Singing, Generic };
 
-    virtual ~DsClip() = default;
+    virtual ~Clip() = default;
 
     virtual ClipType type() const {
         return Generic;
@@ -40,8 +40,8 @@ public:
     bool mute() const;
     void setMute(bool mute);
 
-    int compareTo(DsClip *obj) const;
-    bool isOverlappedWith(DsClip *obj) const;
+    int compareTo(Clip *obj) const;
+    bool isOverlappedWith(Clip *obj) const;
 
     class ClipCommonProperties {
     public:
@@ -73,19 +73,23 @@ protected:
     bool m_mute = false;
 };
 
-class DsAudioClip final : public DsClip {
+class DsAudioClip final : public Clip {
 public:
     ClipType type() const override {
         return Audio;
     }
-    QString path() const;
-    void setPath(const QString &path);
+    QString path() const {
+        return m_path;
+    }
+    void setPath(const QString &path) {
+        m_path = path;
+    }
 
 private:
     QString m_path;
 };
 
-class DsSingingClip final : public DsClip {
+class DsSingingClip final : public Clip {
     Q_OBJECT
 
 public:
@@ -96,23 +100,23 @@ public:
         return Singing;
     }
 
-    const OverlapableSerialList<DsNote> &notes() const;
-    void insertNote(DsNote *note);
-    void removeNote(DsNote *note);
-    void insertNoteQuietly(DsNote *note);
-    void removeNoteQuietly(DsNote *note);
-    void notifyNotePropertyChanged(DsNote *note);
-    DsNote *findNoteById(int id);
+    const OverlapableSerialList<Note> &notes() const;
+    void insertNote(Note *note);
+    void removeNote(Note *note);
+    void insertNoteQuietly(Note *note);
+    void removeNoteQuietly(Note *note);
+    void notifyNotePropertyChanged(Note *note);
+    Note *findNoteById(int id);
 
-    DsParams params;
+    Params params;
     // const DsParams &params() const;
 
 signals:
-    void noteChanged(NoteChangeType type, int id, DsNote *note);
+    void noteChanged(NoteChangeType type, int id, Note *note);
     void paramsChanged(ParamsChangeType type);
 
 private:
-    OverlapableSerialList<DsNote> m_notes;
+    OverlapableSerialList<Note> m_notes;
     // DsParams m_params;
 };
 

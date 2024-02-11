@@ -15,11 +15,11 @@ SingingClipGraphicsItem::SingingClipGraphicsItem(int itemId, QGraphicsItem *pare
     setCanResizeLength(true);
     // setName("New Pattern");
 }
-void SingingClipGraphicsItem::loadNotes(const OverlapableSerialList<DsNote> &notes) {
+void SingingClipGraphicsItem::loadNotes(const OverlapableSerialList<Note> &notes) {
     m_notes.clear();
     if (notes.count() != 0) {
         for (const auto &dsNote : notes) {
-            Note note;
+            NoteViewModel note;
             note.rStart = dsNote->start() - start();
             note.length = dsNote->length();
             note.keyIndex = dsNote->keyIndex();

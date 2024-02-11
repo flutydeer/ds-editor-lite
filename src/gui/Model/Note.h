@@ -11,29 +11,29 @@
 #include "../Utils/IOverlapable.h"
 #include "../Utils/UniqueObject.h"
 
-class DsPhoneme {
+class Phoneme {
 public:
-    enum DsPhonemeType { Ahead, Normal, Final };
+    enum PhonemeType { Ahead, Normal, Final };
 
-    DsPhoneme(DsPhonemeType type, QString name, int start)
+    Phoneme(PhonemeType type, QString name, int start)
         : type(type), name(std::move(name)), start(start) {
     }
-    DsPhonemeType type;
+    PhonemeType type;
     QString name;
     int start;
 };
 
-class DsPhonemes {
+class Phonemes {
 public:
     enum DsPhonemesType { Original, Edited };
-    QList<DsPhoneme> original;
-    QList<DsPhoneme> edited;
+    QList<Phoneme> original;
+    QList<Phoneme> edited;
 };
 
-class DsNote : public IOverlapable, public UniqueObject {
+class Note : public IOverlapable, public UniqueObject {
 public:
-    explicit DsNote() = default;
-    explicit DsNote(int start, int length, int keyIndex, QString lyric)
+    explicit Note() = default;
+    explicit Note(int start, int length, int keyIndex, QString lyric)
         : m_start(start), m_length(length), m_keyIndex(keyIndex), m_lyric(std::move(lyric)) {
     }
 
@@ -47,17 +47,17 @@ public:
     void setLyric(const QString &lyric);
     QString pronunciation() const;
     void setPronunciation(const QString &pronunciation);
-    DsPhonemes phonemes() const;
-    void setPhonemes(DsPhonemes::DsPhonemesType type, const QList<DsPhoneme> &phonemes);
+    Phonemes phonemes() const;
+    void setPhonemes(Phonemes::DsPhonemesType type, const QList<Phoneme> &phonemes);
 
-    int compareTo(DsNote *obj) const;
-    bool isOverlappedWith(DsNote *obj) const;
+    int compareTo(Note *obj) const;
+    bool isOverlappedWith(Note *obj) const;
 
     class NoteWordProperties {
     public:
         QString lyric;
         QString pronunciation;
-        DsPhonemes phonemes;
+        Phonemes phonemes;
     };
 
 private:
@@ -66,7 +66,7 @@ private:
     int m_keyIndex = 60;
     QString m_lyric;
     QString m_pronunciation;
-    DsPhonemes m_phonemes;
+    Phonemes m_phonemes;
 };
 
 #endif // DSNOTE_H

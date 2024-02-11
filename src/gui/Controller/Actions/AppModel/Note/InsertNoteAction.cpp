@@ -4,7 +4,7 @@
 
 #include "InsertNoteAction.h"
 
-InsertNoteAction *InsertNoteAction::build(DsNote *note, DsSingingClip *clip) {
+InsertNoteAction *InsertNoteAction::build(Note *note, DsSingingClip *clip) {
     auto a = new InsertNoteAction;
     a->m_note = note;
     a->m_clip = clip;

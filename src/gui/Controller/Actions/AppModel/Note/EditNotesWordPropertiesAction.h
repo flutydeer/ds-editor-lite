@@ -6,19 +6,19 @@
 #define EDITNOTESWORDPROPERTIESACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/DsClip.h"
+#include "Model/Clip.h"
 
 class EditNotesWordPropertiesAction final : public IAction {
 public:
-    static EditNotesWordPropertiesAction *build(DsNote *note, DsNote::NoteWordProperties *args, DsSingingClip *clip);
+    static EditNotesWordPropertiesAction *build(Note *note, Note::NoteWordProperties *args, DsSingingClip *clip);
     void execute() override;
     void undo() override;
 
 private:
-    DsNote *m_note = nullptr;
+    Note *m_note = nullptr;
     DsSingingClip *m_clip = nullptr;
-    DsNote::NoteWordProperties m_oldArgs;
-    DsNote::NoteWordProperties m_newArgs;
+    Note::NoteWordProperties m_oldArgs;
+    Note::NoteWordProperties m_newArgs;
 };
 
 

@@ -3,7 +3,7 @@
 //
 
 #include "InsertClipAction.h"
-InsertClipAction *InsertClipAction::build(DsClip *clip, DsTrack *track) {
+InsertClipAction *InsertClipAction::build(Clip *clip, Track *track) {
     auto a = new InsertClipAction;
     a->m_clip = clip;
     a->m_track = track;

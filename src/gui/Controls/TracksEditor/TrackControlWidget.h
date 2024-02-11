@@ -13,8 +13,8 @@
 #include "../Base/EditLabel.h"
 #include "../Base/LevelMeter.h"
 #include "../Base/SeekBar.h"
-#include "Model/DsTrack.h"
-#include "Model/DsTrackControl.h"
+#include "Model/Track.h"
+#include "Model/TrackControl.h"
 
 class TrackControlWidget final : public QWidget {
     Q_OBJECT
@@ -25,8 +25,8 @@ public:
     void setTrackIndex(int i);
     QString name() const;
     void setName(const QString &name);
-    DsTrackControl control() const;
-    void setControl(const DsTrackControl &control);
+    TrackControl control() const;
+    void setControl(const TrackControl &control);
     void setNarrowMode(bool on);
     LevelMeter *levelMeter() const;
 
@@ -40,7 +40,7 @@ signals:
     void addAudioClipTriggered();
 
 public slots:
-    void onTrackUpdated(const DsTrack &track);
+    void onTrackUpdated(const Track &track);
     // void setScale(qreal sx, qreal sy);
     // void setHeight(int h);
 
