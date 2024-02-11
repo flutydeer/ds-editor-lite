@@ -480,6 +480,7 @@ void TracksView::updateTracksOnView() {
 void TracksView::updateClipOnView(DsClip *clip, int clipId) {
     // qDebug() << "TracksView::updateClipOnView" << clipId;
     auto item = findClipItemById(clipId);
+    item->setName(clip->name());
     item->setStart(clip->start());
     item->setClipStart(clip->clipStart());
     item->setLength(clip->length());
@@ -528,9 +529,9 @@ void TracksView::removeTrackFromView(int index) {
 }
 void TracksView::updateOverlappedState(int trackIndex) {
     auto trackModel = AppModel::instance()->tracks().at(trackIndex);
-    qDebug() << "app model track clip count" << trackModel->clips().count();
+    // qDebug() << "app model track clip count" << trackModel->clips().count();
     auto track = m_trackListViewModel.tracks.at(trackIndex);
-    qDebug() << "tracks view model clip count" << track->clips.count();
+    // qDebug() << "tracks view model clip count" << track->clips.count();
     for (auto clipItem : track->clips) {
         auto dsClip = trackModel->findClipById(clipItem->id());
         clipItem->setOverlapped(dsClip->overlapped());

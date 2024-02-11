@@ -19,6 +19,8 @@ public:
     double endTick() const;
     void setPixelsPerQuarterNote(int px);
     void setAutoTurnPage(bool on);
+    void setViewportStartTick(double tick);
+    void setViewportCenterAtTick(double tick);
 
 signals:
     void timeRangeChanged(double startTick, double endTick);
@@ -26,9 +28,12 @@ signals:
 public slots:
     void setPlaybackPosition(double tick);
     void setLastPlaybackPosition(double tick);
-    void setStartTick(double tick);
     void pageAdd();
     // void setTimeRange(double startTick, double endTick);
+
+protected:
+    double sceneXToTick(double pos) const;
+    double tickToSceneX(double tick) const;
 
 private:
     TimeGraphicsScene *m_scene;
@@ -36,8 +41,6 @@ private:
     TimeIndicatorGraphicsItem *m_scenePlayPosIndicator;
     TimeIndicatorGraphicsItem *m_sceneLastPlayPosIndicator;
 
-    double sceneXToTick(double pos) const;
-    double tickToSceneX(double tick) const;
     int m_pixelsPerQuarterNote = 64;
     bool m_autoTurnPage = true;
     double m_playbackPosition = 0;

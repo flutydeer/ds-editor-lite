@@ -13,14 +13,20 @@
 #include <QWidget>
 
 #include "Controls/Base/SeekBar.h"
+#include "Controls/PianoRoll/PianoRollGlobal.h"
 
-class ClipEditorToolBarView final: public QWidget {
+class ClipEditorToolBarView final : public QWidget {
     Q_OBJECT
 
 public:
-    enum EditMode { Select, DrawNote, DrawPitch, EditPitchAnchor };
-
     explicit ClipEditorToolBarView(QWidget *parent = nullptr);
+    void setClipName(const QString &name);
+    void setClipPropertyEditorEnabled(bool on);
+    void setPianoRollEditToolsEnabled(bool on);
+
+signals:
+    void clipNameChanged(const QString &name);
+    void editModeChanged(PianoRollGlobal::PianoRollEditMode mode);
 
 private:
     int m_contentHeight = 28;
@@ -46,4 +52,4 @@ private:
 
 
 
-#endif //PIANOROLLTOOLBARVIEW_H
+#endif // PIANOROLLTOOLBARVIEW_H

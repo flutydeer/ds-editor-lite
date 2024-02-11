@@ -5,9 +5,11 @@
 #ifndef NOTEGRAPHICSITEM_H
 #define NOTEGRAPHICSITEM_H
 
+#include "PianoRollGlobal.h"
 #include "Controls/Base/CommonGraphicsRectItem.h"
+#include "Utils/UniqueObject.h"
 
-class NoteGraphicsItem final : public CommonGraphicsRectItem {
+class NoteGraphicsItem final : public CommonGraphicsRectItem, public UniqueObject {
     Q_OBJECT
 
 public:
@@ -16,6 +18,9 @@ public:
     explicit NoteGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     explicit NoteGraphicsItem(int itemId, int start, int length, int keyIndex, const QString &lyric,
                               const QString &pronunciation, QGraphicsItem *parent = nullptr);
+
+    QWidget *context() const;
+    void setContext(QWidget *context);
 
     int start() const;
     void setStart(int start);
@@ -29,20 +34,23 @@ public:
     void setPronunciation(const QString &pronunciation);
 
 signals:
-    void propertyChanged();
+    void editLyricTriggered(int id);
+    void removeTriggered(int id);
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
-    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
-    void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
-    void hoverEnterEvent(QGraphicsSceneHoverEvent *event) override;
-    void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
+    // void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    // void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
+    // void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     void initUi();
+    // void addMenuActions(QMenu *menu);
 
-    int m_itemId;
+    QWidget *m_context;
+    QMenu *m_menu;
+    bool m_propertyEdited = false;
     int m_start = 0;
     int m_length = 480;
     int m_keyIndex = 60;

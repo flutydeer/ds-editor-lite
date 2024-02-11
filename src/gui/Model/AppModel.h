@@ -51,6 +51,8 @@ public:
     int selectedTrackIndex() const;
     void setSelectedTrack(int trackIndex);
 
+    DsClip *findClipById(int clipId, int &trackIndex);
+
     class LevelMetersUpdatedArgs {
     public:
         class State {

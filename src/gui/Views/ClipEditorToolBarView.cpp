@@ -12,8 +12,10 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     m_elClipName = new EditLabel;
     m_elClipName->setFixedWidth(128);
     m_elClipName->setFixedHeight(m_contentHeight);
+    m_elClipName->setEnabled(false);
+    m_elClipName->setText("");
     connect(m_elClipName, &EditLabel::editCompleted, this,
-            [=](const QString &text) { qDebug() << text; });
+            [=](const QString &text) { emit clipNameChanged(text); });
 
     m_btnArrow = new QPushButton;
     m_btnArrow->setObjectName("btnArrow");
@@ -43,6 +45,21 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     buttonGroup->addButton(m_btnNotePencil);
     buttonGroup->addButton(m_btnPitchAnchor);
     buttonGroup->addButton(m_btnPitchPencil);
+    connect(buttonGroup, &QButtonGroup::buttonToggled, this,
+            [=](QAbstractButton *button, bool checked) {
+                if (!checked)
+                    return;
+
+                qDebug() << button->objectName();
+                if (button == m_btnArrow)
+                    emit editModeChanged(PianoRollGlobal::Select);
+                else if (button == m_btnNotePencil)
+                    emit editModeChanged(PianoRollGlobal::DrawNote);
+                else if (button == m_btnPitchPencil)
+                    emit editModeChanged(PianoRollGlobal::DrawPitch);
+                else if (button == m_btnPitchAnchor)
+                    emit editModeChanged(PianoRollGlobal::EditPitchAnchor);
+            });
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_elClipName);
@@ -83,4 +100,18 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
         "QComboBox:hover { background: #1AFFFFFF; }"
         "QComboBox:pressed { background: #10FFFFFF; }");
     setFixedHeight(m_contentHeight + 12);
+}
+void ClipEditorToolBarView::setClipName(const QString &name) {
+    m_elClipName->setText(name);
+}
+void ClipEditorToolBarView::setClipPropertyEditorEnabled(bool on) {
+    if (on) {
+        m_elClipName->setEnabled(true);
+        // TODO: mute and gain
+    } else {
+        m_elClipName->setEnabled(false);
+    }
+}
+void ClipEditorToolBarView::setPianoRollEditToolsEnabled(bool on) {
+    // TODO: enable / disable arrow, pencil, ...
 }

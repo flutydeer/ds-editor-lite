@@ -19,12 +19,25 @@ public:
 public slots:
     void onModelChanged();
     void onSelectedClipChanged(DsTrack *track, DsClip *clip);
+    void onClipNameEdited(const QString &name);
+
+private slots:
+    void handleClipChanged(DsTrack::ClipChangeType type, int id, DsClip *clip);
+    void onEditModeChanged(PianoRollEditMode mode);
 
 private:
     DsTrack *m_track = nullptr;
     DsClip *m_clip = nullptr;
     ClipEditorToolBarView *m_toolbarView;
-    PianoRollGraphicsView *m_pianoRollView;
+    PianoRollGraphicsScene *m_pianoRollScene;
+    PianoRollGraphicsView *m_graphicsView;
+    PianoRollEditMode m_mode;
+
+    bool m_oneSingingClipSelected = false;
+
+    void reset();
+
+    void handleClipPropertyChange();
 };
 
 

@@ -218,7 +218,7 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 
 void AbstractClipGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     m_menu->exec(event->screenPos());
-    QGraphicsItem::contextMenuEvent(event);
+    // QGraphicsItem::contextMenuEvent(event);
 }
 
 void AbstractClipGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {

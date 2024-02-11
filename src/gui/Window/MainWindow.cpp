@@ -319,6 +319,8 @@ MainWindow::MainWindow() {
     connect(historyManager, &HistoryManager::undoRedoChanged, actionButtonsView,
             &ActionButtonsView::onUndoRedoChanged);
 
+    appController->instance()->onNewProject();
+
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addLayout(menuBarContainer);
     actionButtonLayout->addWidget(actionButtonsView);

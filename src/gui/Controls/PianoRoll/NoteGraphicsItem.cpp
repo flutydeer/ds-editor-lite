@@ -14,19 +14,38 @@
 
 using namespace PianoRollGlobal;
 
-NoteGraphicsItem::NoteGraphicsItem(int itemId, QGraphicsItem *parent) {
-    m_itemId = itemId;
+NoteGraphicsItem::NoteGraphicsItem(int itemId, QGraphicsItem *parent)
+    : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
     initUi();
 }
-NoteGraphicsItem::NoteGraphicsItem(int itemId, int start, int length, int keyIndex, const QString &lyric,
-                                   const QString &pronunciation, QGraphicsItem *parent) {
-    m_itemId = itemId;
+NoteGraphicsItem::NoteGraphicsItem(int itemId, int start, int length, int keyIndex,
+                                   const QString &lyric, const QString &pronunciation,
+                                   QGraphicsItem *parent)
+    : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
     m_start = start;
     m_length = length;
     m_keyIndex = keyIndex;
     m_lyric = lyric;
     m_pronunciation = pronunciation;
     initUi();
+}
+QWidget *NoteGraphicsItem::context() const {
+    return m_context;
+}
+void NoteGraphicsItem::setContext(QWidget *context) {
+    m_context = context;
+    m_menu = new QMenu(m_context);
+    auto actionRemove = m_menu->addAction("Remove");
+    connect(actionRemove, &QAction::triggered, [&] { emit removeTriggered(id()); });
+
+    m_menu->addSeparator();
+
+    auto actionEditLyric = m_menu->addAction("Edit lyric");
+    connect(actionEditLyric, &QAction::triggered, [&] { emit editLyricTriggered(id()); });
+
+    auto actionProperties = m_menu->addAction("Properties");
+    connect(actionProperties, &QAction::triggered,
+            [&] { qDebug() << "actionProperties triggered" << id(); });
 }
 int NoteGraphicsItem::start() const {
     return m_start;
@@ -63,7 +82,8 @@ void NoteGraphicsItem::setPronunciation(const QString &pronunciation) {
     m_pronunciation = pronunciation;
     update();
 }
-void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                             QWidget *widget) {
     const auto colorPrimary = QColor(155, 186, 255);
     const auto colorPrimaryDarker = QColor(112, 156, 255);
     const auto colorAccent = QColor(255, 175, 95);
@@ -78,7 +98,8 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     pen.setColor(borderColor);
 
     auto rect = boundingRect();
-    auto noteBoundingRect = QRectF(rect.left(), rect.top(), rect.width(), rect.height() - m_pronunciationTextHeight);
+    auto noteBoundingRect =
+        QRectF(rect.left(), rect.top(), rect.width(), rect.height() - m_pronunciationTextHeight);
     auto left = noteBoundingRect.left() + penWidth;
     auto top = noteBoundingRect.top() + penWidth;
     auto width = noteBoundingRect.width() - penWidth * 2;
@@ -96,7 +117,8 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
         auto l = noteBoundingRect.left() + penWidth / 2;
         auto t = noteBoundingRect.top() + penWidth / 2;
         auto w = noteBoundingRect.width() - penWidth < 2 ? 2 : noteBoundingRect.width() - penWidth;
-        auto h = noteBoundingRect.height() - penWidth < 2 ? 2 : noteBoundingRect.height() - penWidth;
+        auto h =
+            noteBoundingRect.height() - penWidth < 2 ? 2 : noteBoundingRect.height() - penWidth;
         painter->drawRect(QRectF(l, t, w, h));
     } else {
         // auto straightX = paddedRect.width() - radius * 2;
@@ -143,13 +165,14 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     }
 }
 void NoteGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
-    // TODO: notify controller
+    m_menu->exec(event->screenPos());
     // QMenu menu;
     // auto editLyricAction = menu.addAction("Edit Lyric");
     // connect(editLyricAction, &QAction::triggered, [&]() {
     //     auto ok = false;
     //     auto result =
-    //         QInputDialog::getText(graphicsView, "Edit Lyric", "Input lyric:", QLineEdit::Normal, m_lyric, &ok);
+    //         QInputDialog::getText(graphicsView, "Edit Lyric", "Input lyric:", QLineEdit::Normal,
+    //         m_lyric, &ok);
     //     if (ok && !result.isEmpty())
     //         setLyric(result);
     // });
@@ -158,94 +181,108 @@ void NoteGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     // connect(editPronunciationAction, &QAction::triggered, [&]() {
     //     auto ok = false;
     //     auto result = QInputDialog::getText(graphicsView, "Edit Pronunciation",
-    //                                         "Input pronunciation:", QLineEdit::Normal, m_pronunciation, &ok);
+    //                                         "Input pronunciation:", QLineEdit::Normal,
+    //                                         m_pronunciation, &ok);
     //     if (ok && !result.isEmpty())
     //         setPronunciation(result);
     // });
     // menu.exec(event->screenPos());
 
-    QGraphicsItem::contextMenuEvent(event);
+    // QGraphicsItem::contextMenuEvent(event);
 }
-void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-    if (event->button() != Qt::LeftButton) {
-        m_mouseMoveBehavior = None;
-        setCursor(Qt::ArrowCursor);
-    }
-
-    m_mouseDownPos = event->scenePos();
-    m_mouseDownStart = start();
-    m_mouseDownLength = length();
-    m_mouseDownKeyIndex = keyIndex();
-    event->accept();
-}
-void NoteGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-    auto curPos = event->scenePos();
-    if (event->modifiers() == Qt::AltModifier)
-        m_tempQuantizeOff = true;
-    else
-        m_tempQuantizeOff = false;
-
-    auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() / pixelsPerQuarterNote * 480;
-    auto dy = (curPos.y() - m_mouseDownPos.y()) / scaleY() / noteHeight;
-
-    // snap tick to grid
-    auto roundPos = [](int i, int step) {
-        int times = i / step;
-        int mod = i % step;
-        if (mod > step / 2)
-            return step * (times + 1);
-        return step * times;
-    };
-
-    int start;
-    int deltaStart;
-    int length;
-    int right;
-    int keyIndex;
-    int deltaX = qRound(dx);
-    int deltaY = qRound(dy);
-    int quantize = m_tempQuantizeOff ? 1 : m_quantize;
-    switch (m_mouseMoveBehavior) {
-        case Move:
-            start = roundPos(m_mouseDownStart + deltaX, quantize);
-            setStart(start);
-
-            keyIndex = m_mouseDownKeyIndex - deltaY;
-            if (keyIndex > 127)
-                keyIndex = 127;
-            else if (keyIndex < 0)
-                keyIndex = 0;
-
-            setKeyIndex(keyIndex);
-            break;
-
-        case ResizeLeft:
-            start = roundPos(m_mouseDownStart + deltaX, quantize);
-            deltaStart = start - m_mouseDownStart;
-            length = m_mouseDownLength - deltaStart;
-            if (length > 0) {
-                setStart(start);
-                setLength(length);
-            }
-            break;
-
-        case ResizeRight:
-            right = roundPos(m_mouseDownStart + m_mouseDownLength + deltaX, quantize);
-            length = right - m_mouseDownStart;
-            if (length > 0)
-                setLength(length);
-            break;
-
-        case None:
-            QGraphicsRectItem::mouseMoveEvent(event);
-    }
-}
-void NoteGraphicsItem::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
-    QGraphicsRectItem::hoverEnterEvent(event);
-}
-void NoteGraphicsItem::hoverLeaveEvent(QGraphicsSceneHoverEvent *event) {
-    QGraphicsRectItem::hoverLeaveEvent(event);
-}
+// void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+//     if (event->button() != Qt::LeftButton) {
+//         m_mouseMoveBehavior = None;
+//         setCursor(Qt::ArrowCursor);
+//     }
+//
+//     m_mouseDownPos = event->scenePos();
+//     m_mouseDownStart = start();
+//     m_mouseDownLength = length();
+//     m_mouseDownKeyIndex = keyIndex();
+//     event->accept();
+// }
+// void NoteGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+//     auto curPos = event->scenePos();
+//     if (event->modifiers() == Qt::AltModifier)
+//         m_tempQuantizeOff = true;
+//     else
+//         m_tempQuantizeOff = false;
+//
+//     auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() / pixelsPerQuarterNote * 480;
+//     auto dy = (curPos.y() - m_mouseDownPos.y()) / scaleY() / noteHeight;
+//
+//     // snap tick to grid
+//     auto roundPos = [](int i, int step) {
+//         int times = i / step;
+//         int mod = i % step;
+//         if (mod > step / 2)
+//             return step * (times + 1);
+//         return step * times;
+//     };
+//
+//     int start;
+//     int deltaStart;
+//     int length;
+//     int right;
+//     int keyIndex;
+//     int deltaX = qRound(dx);
+//     int deltaY = qRound(dy);
+//     int deltaTick = 0;
+//     int deltaKey = 0;
+//     int quantize = m_tempQuantizeOff ? 1 : m_quantize;
+//     m_propertyEdited = true;
+//     switch (m_mouseMoveBehavior) {
+//         case Move:
+//             start = roundPos(m_mouseDownStart + deltaX, quantize);
+//             setStart(start);
+//
+//             keyIndex = m_mouseDownKeyIndex - deltaY;
+//             if (keyIndex > 127)
+//                 keyIndex = 127;
+//             else if (keyIndex < 0)
+//                 keyIndex = 0;
+//
+//             setKeyIndex(keyIndex);
+//
+//             deltaTick = start - m_mouseDownStart;
+//             deltaKey = keyIndex - m_mouseDownKeyIndex;
+//             emit editingShape(NotePosition, deltaTick, deltaKey);
+//             break;
+//
+//         case ResizeLeft:
+//             start = roundPos(m_mouseDownStart + deltaX, quantize);
+//             deltaStart = start - m_mouseDownStart;
+//             length = m_mouseDownLength - deltaStart;
+//             if (length > 0) {
+//                 setStart(start);
+//                 setLength(length);
+//             }
+//             deltaTick = start - m_mouseDownStart;
+//             emit editingShape(StartAndLength, deltaTick, 0);
+//             break;
+//
+//         case ResizeRight:
+//             right = roundPos(m_mouseDownStart + m_mouseDownLength + deltaX, quantize);
+//             length = right - m_mouseDownStart;
+//             if (length > 0)
+//                 setLength(length);
+//
+//             deltaTick = length - m_mouseDownLength;
+//             emit editingShape(Length, deltaTick, 0);
+//             break;
+//
+//         case None:
+//             m_propertyEdited = false;
+//             QGraphicsRectItem::mouseMoveEvent(event);
+//     }
+// }
+// void NoteGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+//     if (m_propertyEdited) {
+//         emit editCompleted();
+//     }
+//     CommonGraphicsRectItem::mouseReleaseEvent(event);
+// }
 void NoteGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     const auto rx = event->pos().rx();
     if (rx >= 0 && rx <= m_resizeTolerance) {

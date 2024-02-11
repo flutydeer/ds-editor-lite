@@ -78,6 +78,9 @@ void AppModel::setQuantize(int quantize) {
 }
 void AppModel::newProject() {
     reset();
+    auto newTrack = new DsTrack;
+    newTrack->setName("New Track");
+    m_tracks.append(newTrack);
     emit modelChanged();
 }
 
@@ -150,7 +153,7 @@ int AppModel::selectedTrackIndex() const {
     return m_selectedTrackIndex;
 }
 void AppModel::onSelectedClipChanged(int clipId) {
-    qDebug() << "AppModel::onSelectedClipChanged"<< clipId;
+    qDebug() << "AppModel::setIsSingingClip" << clipId;
     m_selectedClipId = clipId;
     auto found = false;
     for (auto track : m_tracks) {
@@ -165,6 +168,18 @@ void AppModel::onSelectedClipChanged(int clipId) {
 void AppModel::setSelectedTrack(int trackIndex) {
     m_selectedTrackIndex = trackIndex;
     emit selectedTrackChanged(trackIndex);
+}
+DsClip *AppModel::findClipById(int clipId, int &trackIndex) {
+    int i = 0;
+    for (auto track : m_tracks) {
+        auto result = track->findClipById(clipId);
+        if (result) {
+            trackIndex = i;
+            return result;
+        }
+        i++;
+    }
+    return nullptr;
 }
 void AppModel::reset() {
     m_tempo = 120;
