@@ -10,14 +10,14 @@
 
 class EditNotesLengthAction final : public IAction {
 public:
-    static EditNotesLengthAction *build(Note *note, int deltaTick, DsSingingClip *clip);
+    static EditNotesLengthAction *build(Note *note, int deltaTick, SingingClip *clip);
     void execute() override;
     void undo() override;
 
 private:
     Note *m_note = nullptr;
     int m_deltaTick = 0;
-    DsSingingClip *m_clip = nullptr;
+    SingingClip *m_clip = nullptr;
 };
 
 

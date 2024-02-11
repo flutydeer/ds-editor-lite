@@ -10,13 +10,13 @@
 
 class EditNotesWordPropertiesAction final : public IAction {
 public:
-    static EditNotesWordPropertiesAction *build(Note *note, Note::NoteWordProperties *args, DsSingingClip *clip);
+    static EditNotesWordPropertiesAction *build(Note *note, Note::NoteWordProperties *args, SingingClip *clip);
     void execute() override;
     void undo() override;
 
 private:
     Note *m_note = nullptr;
-    DsSingingClip *m_clip = nullptr;
+    SingingClip *m_clip = nullptr;
     Note::NoteWordProperties m_oldArgs;
     Note::NoteWordProperties m_newArgs;
 };

@@ -6,7 +6,7 @@
 EditSingingClipPropertiesAction *
     EditSingingClipPropertiesAction::build(const Clip::ClipCommonProperties &oldArgs,
                                      const Clip::ClipCommonProperties &newArgs,
-                                     DsSingingClip *clip, Track *track) {
+                                     SingingClip *clip, Track *track) {
     auto a = new EditSingingClipPropertiesAction;
     a->m_oldArgs = oldArgs;
     a->m_newArgs = newArgs;

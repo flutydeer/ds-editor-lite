@@ -4,7 +4,7 @@
 
 #include "EditNotesWordPropertiesAction.h"
 EditNotesWordPropertiesAction *
-    EditNotesWordPropertiesAction::build(Note *note, Note::NoteWordProperties *args, DsSingingClip *clip) {
+    EditNotesWordPropertiesAction::build(Note *note, Note::NoteWordProperties *args, SingingClip *clip) {
     Note::NoteWordProperties oldArgs;
     oldArgs.lyric = note->lyric();
     oldArgs.phonemes = note->phonemes();

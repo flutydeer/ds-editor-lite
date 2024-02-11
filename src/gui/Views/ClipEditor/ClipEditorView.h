@@ -29,12 +29,12 @@ private slots:
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
     void onRemoveSelectedNotes();
-    void onEidtSelectedNotesLyrics();
+    void onEditSelectedNotesLyrics();
 
 private:
     Track *m_track = nullptr;
     Clip *m_clip = nullptr;
-    DsSingingClip *m_singingClip = nullptr;
+    SingingClip *m_singingClip = nullptr;
     ClipEditorToolBarView *m_toolbarView;
     PianoRollGraphicsScene *m_pianoRollScene;
     PianoRollGraphicsView *m_pianoRollView;
@@ -45,7 +45,7 @@ private:
 
     void reset();
     void onClipPropertyChanged();
-    void onNoteChanged(DsSingingClip::NoteChangeType type, int id, Note *note);
+    void onNoteChanged(SingingClip::NoteChangeType type, int id, Note *note);
 };
 
 

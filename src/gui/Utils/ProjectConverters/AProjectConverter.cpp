@@ -48,7 +48,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
         for (const auto &valClip : qAsConst(arrClips)) {
             auto objClip = valClip.toObject();
             if (type == "sing") {
-                auto singingClip = new DsSingingClip;
+                auto singingClip = new SingingClip;
                 singingClip->setName(objClip.value("name").toString());
                 singingClip->setStart(objClip.value("pos").toInt());
                 singingClip->setClipStart(objClip.value("clipPos").toInt());
@@ -60,7 +60,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
                     singingClip->insertNote(note);
                 dsTack->insertClip(singingClip);
             } else if (type == "audio") {
-                auto audioClip = new DsAudioClip;
+                auto audioClip = new AudioClip;
                 audioClip->setName("Clip");
                 audioClip->setStart(objClip.value("pos").toInt());
                 audioClip->setClipStart(objClip.value("clipPos").toInt());

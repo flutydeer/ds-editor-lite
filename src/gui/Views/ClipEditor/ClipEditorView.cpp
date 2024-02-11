@@ -80,7 +80,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     connect(m_pianoRollView, &PianoRollGraphicsView::removeNoteTriggered, this,
             &ClipEditorView::onRemoveSelectedNotes);
     connect(m_pianoRollView, &PianoRollGraphicsView::editNoteLyricTriggered, this,
-            &ClipEditorView::onEidtSelectedNotesLyrics);
+            &ClipEditorView::onEditSelectedNotesLyrics);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_toolbarView);
@@ -112,7 +112,7 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
             disconnect(m_track, &Track::clipChanged, this, &ClipEditorView::onClipChanged);
         }
         if (m_singingClip != nullptr)
-            disconnect(m_singingClip, &DsSingingClip::noteChanged, this,
+            disconnect(m_singingClip, &SingingClip::noteChanged, this,
                        &ClipEditorView::onNoteChanged);
         m_track = nullptr;
         m_clip = nullptr;
@@ -135,7 +135,7 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
     m_pianoRollView->setIsSingingClip(true);
     m_pianoRollView->setSceneVisibility(true);
     m_timelineView->setVisible(true);
-    m_singingClip = dynamic_cast<DsSingingClip *>(m_clip);
+    m_singingClip = dynamic_cast<SingingClip *>(m_clip);
     if (m_singingClip->notes().count() <= 0)
         return;
     for (const auto note : m_singingClip->notes()) {
@@ -144,7 +144,7 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
     auto firstNote = m_singingClip->notes().at(0);
     qDebug() << "first note start" << firstNote->start();
     m_pianoRollView->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
-    connect(m_singingClip, &DsSingingClip::noteChanged, this, &ClipEditorView::onNoteChanged);
+    connect(m_singingClip, &SingingClip::noteChanged, this, &ClipEditorView::onNoteChanged);
     ClipEditorViewController::instance()->setCurrentSingingClip(m_singingClip);
 }
 void ClipEditorView::onClipNameEdited(const QString &name) {
@@ -186,8 +186,8 @@ void ClipEditorView::onRemoveSelectedNotes() {
     auto notes = m_pianoRollView->selectedNotesId();
     ClipEditorViewController::instance()->onRemoveNotes(notes);
 }
-void ClipEditorView::onEidtSelectedNotesLyrics() {
-    qDebug() << "ClipEditorView::onEidtSelectedNotesLyrics";
+void ClipEditorView::onEditSelectedNotesLyrics() {
+    qDebug() << "ClipEditorView::onEditSelectedNotesLyrics";
     auto notes = m_pianoRollView->selectedNotesId();
     ClipEditorViewController::instance()->onEditNotesLyrics(notes);
 }
@@ -197,22 +197,22 @@ void ClipEditorView::reset() {
 void ClipEditorView::onClipPropertyChanged() {
     qDebug() << "ClipEditorView::handleClipPropertyChange" << m_clip->id() << m_clip->start();
     reset();
-    auto singingClip = dynamic_cast<DsSingingClip *>(m_clip);
+    auto singingClip = dynamic_cast<SingingClip *>(m_clip);
     if (singingClip->notes().count() <= 0)
         return;
     for (const auto note : singingClip->notes()) {
         m_pianoRollView->insertNote(note);
     }
 }
-void ClipEditorView::onNoteChanged(DsSingingClip::NoteChangeType type, int id, Note *note) {
+void ClipEditorView::onNoteChanged(SingingClip::NoteChangeType type, int id, Note *note) {
     switch (type) {
-        case DsSingingClip::Inserted:
+        case SingingClip::Inserted:
             m_pianoRollView->insertNote(note);
             break;
-        case DsSingingClip::PropertyChanged:
+        case SingingClip::PropertyChanged:
             m_pianoRollView->updateNote(note);
             break;
-        case DsSingingClip::Removed:
+        case SingingClip::Removed:
             m_pianoRollView->removeNote(id);
             break;
     }

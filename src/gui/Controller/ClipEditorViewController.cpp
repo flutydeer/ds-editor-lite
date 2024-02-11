@@ -10,7 +10,7 @@
 #include "syllable2p.h"
 #include <QApplication>
 
-void ClipEditorViewController::setCurrentSingingClip(DsSingingClip *clip) {
+void ClipEditorViewController::setCurrentSingingClip(SingingClip *clip) {
     m_clip = clip;
 }
 void ClipEditorViewController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {

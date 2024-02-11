@@ -358,7 +358,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
     auto clipLen = clip->clipLen();
 
     if (clip->type() == Clip::Audio) {
-        auto audioClip = dynamic_cast<DsAudioClip *>(clip);
+        auto audioClip = dynamic_cast<AudioClip *>(clip);
         auto clipItem = new AudioClipGraphicsItem(clip->id());
         clipItem->setContext(this);
         clipItem->setName(clip->name());
@@ -404,7 +404,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
                 [=](int id) { emit removeClipTriggered(id); });
         track->clips.append(clipItem);
     } else if (clip->type() == Clip::Singing) {
-        auto singingClip = dynamic_cast<DsSingingClip *>(clip);
+        auto singingClip = dynamic_cast<SingingClip *>(clip);
         auto clipItem = new SingingClipGraphicsItem(clip->id());
         clipItem->setContext(this);
         clipItem->setStart(start);
@@ -488,12 +488,12 @@ void TracksView::updateClipOnView(Clip *clip, int clipId) {
     item->setOverlapped(clip->overlapped());
 
     if (clip->type() == Clip::Audio) {
-        auto audioClip = dynamic_cast<DsAudioClip *>(clip);
+        auto audioClip = dynamic_cast<AudioClip *>(clip);
         auto audioItem = dynamic_cast<AudioClipGraphicsItem *>(item);
         if (audioItem->path() != audioClip->path())
             audioItem->setPath(audioClip->path());
     } else if (clip->type() == Clip::Singing) {
-        auto singingClip = dynamic_cast<DsSingingClip *>(clip);
+        auto singingClip = dynamic_cast<SingingClip *>(clip);
         auto singingItem = dynamic_cast<SingingClipGraphicsItem *>(item);
         singingItem->loadNotes(singingClip->notes());
     }

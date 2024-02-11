@@ -4,7 +4,7 @@
 
 #include "EditNoteStartAndLengthAction.h"
 EditNoteStartAndLengthAction *EditNoteStartAndLengthAction::build(Note *note, int deltaTick,
-                                                                  DsSingingClip *clip) {
+                                                                  SingingClip *clip) {
     auto a = new EditNoteStartAndLengthAction;
     a->m_note = note;
     a->m_deltaTick = deltaTick;

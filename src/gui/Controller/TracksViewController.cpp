@@ -62,7 +62,7 @@ void TracksViewController::onRemoveTrack(int index) {
     }
 }
 void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
-    auto audioClip = new DsAudioClip;
+    auto audioClip = new AudioClip;
     audioClip->setPath(filePath);
     auto newTrack = new Track;
     newTrack->insertClip(audioClip);
@@ -92,7 +92,7 @@ void TracksViewController::onTrackPropertyChanged(const Track::TrackProperties &
     HistoryManager::instance()->record(a);
 }
 void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, int tick) {
-    auto audioClip = new DsAudioClip;
+    auto audioClip = new AudioClip;
     audioClip->setStart(tick);
     audioClip->setClipStart(0);
     audioClip->setPath(path);
@@ -117,7 +117,7 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
     // qDebug() << "args.clipLen" << args.clipLen;
 
     if (clip->type() == Clip::Audio) {
-        auto audioClip = dynamic_cast<DsAudioClip *>(clip);
+        auto audioClip = dynamic_cast<AudioClip *>(clip);
         // qDebug() << "clip path" << audioClip->path();
         // auto audioArgs = dynamic_cast<const DsClip::AudioClipPropertyChangedArgs *>(&args);
         // qDebug() << "args path" << audioArgs->path;
@@ -138,7 +138,7 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
         oldArgsList.append(oldArgs);
         QList<Clip::ClipCommonProperties> newArgsList;
         newArgsList.append(args);
-        QList<DsAudioClip *> clips;
+        QList<AudioClip *> clips;
         clips.append(audioClip);
 
         auto a = new ClipActions;
@@ -146,7 +146,7 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
         a->execute();
         HistoryManager::instance()->record(a);
     } else if (clip->type() == Clip::Singing) {
-        auto singingClip = dynamic_cast<DsSingingClip *>(clip);
+        auto singingClip = dynamic_cast<SingingClip *>(clip);
 
         Clip::ClipCommonProperties oldArgs;
         oldArgs.name = singingClip->name();
@@ -163,7 +163,7 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
         oldArgsList.append(oldArgs);
         QList<Clip::ClipCommonProperties> newArgsList;
         newArgsList.append(args);
-        QList<DsSingingClip *> clips;
+        QList<SingingClip *> clips;
         clips.append(singingClip);
 
         auto a = new ClipActions;
@@ -194,7 +194,7 @@ void TracksViewController::onRemoveClip(int clipId) {
     }
 }
 void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
-    auto singingClip = new DsSingingClip;
+    auto singingClip = new SingingClip;
     singingClip->setStart(tick);
     singingClip->setClipStart(0);
     singingClip->setLength(1920);

@@ -49,7 +49,7 @@ void AppController::fillLyric() {
     auto clips = selectedTrack->clips();
     auto firstClip = clips.at(0);
 
-    auto singingClip = dynamic_cast<DsSingingClip *>(firstClip);
+    auto singingClip = dynamic_cast<SingingClip *>(firstClip);
     if (singingClip == nullptr)
         return;
     auto notes = singingClip->notes();

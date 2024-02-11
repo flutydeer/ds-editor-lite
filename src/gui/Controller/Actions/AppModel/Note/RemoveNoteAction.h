@@ -11,13 +11,13 @@
 
 class RemoveNoteAction final : public IAction {
 public:
-    static RemoveNoteAction *build(Note *note, DsSingingClip *clip);
+    static RemoveNoteAction *build(Note *note, SingingClip *clip);
     void execute() override;
     void undo() override;
 
 private:
     Note *m_note = nullptr;
-    DsSingingClip *m_clip = nullptr;
+    SingingClip *m_clip = nullptr;
 };
 
 

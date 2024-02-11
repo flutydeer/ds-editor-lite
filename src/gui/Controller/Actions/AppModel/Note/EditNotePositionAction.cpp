@@ -4,7 +4,7 @@
 
 #include "EditNotePositionAction.h"
 EditNotePositionAction *EditNotePositionAction::build(Note *note, int deltaTick, int deltaKey,
-                                                      DsSingingClip *clip) {
+                                                      SingingClip *clip) {
     auto a = new EditNotePositionAction;
     a->m_note = note;
     a->m_deltaTick = deltaTick;

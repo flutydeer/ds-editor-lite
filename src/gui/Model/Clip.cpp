@@ -66,27 +66,27 @@ bool Clip::isOverlappedWith(Clip *obj) const {
         return false;
     return true;
 }
-const OverlapableSerialList<Note> &DsSingingClip::notes() const {
+const OverlapableSerialList<Note> &SingingClip::notes() const {
     return m_notes;
 }
-void DsSingingClip::insertNote(Note *note) {
+void SingingClip::insertNote(Note *note) {
     m_notes.add(note);
     emit noteChanged(Inserted, note->id(), note);
 }
-void DsSingingClip::removeNote(Note *note) {
+void SingingClip::removeNote(Note *note) {
     m_notes.remove(note);
     emit noteChanged(Removed, note->id(), nullptr);
 }
-void DsSingingClip::insertNoteQuietly(Note *note) {
+void SingingClip::insertNoteQuietly(Note *note) {
     m_notes.add(note);
 }
-void DsSingingClip::removeNoteQuietly(Note *note) {
+void SingingClip::removeNoteQuietly(Note *note) {
     m_notes.remove(note);
 }
-void DsSingingClip::notifyNotePropertyChanged(Note *note) {
+void SingingClip::notifyNotePropertyChanged(Note *note) {
     emit noteChanged(PropertyChanged, note->id(), note);
 }
-Note *DsSingingClip::findNoteById(int id) {
+Note *SingingClip::findNoteById(int id) {
     for (int i = 0; i < m_notes.count(); i++) {
         auto note = m_notes.at(i);
         if (note->id() == id)

@@ -11,23 +11,23 @@
 
 class NoteActions : public ActionSequence {
 public:
-    void insertNotes(const QList<Note *> &notes, DsSingingClip *clip);
-    void removeNotes(const QList<Note *> &notes, DsSingingClip *clip);
+    void insertNotes(const QList<Note *> &notes, SingingClip *clip);
+    void removeNotes(const QList<Note *> &notes, SingingClip *clip);
 
     // Resize from left
-    void editNotesStartAndLength(const QList<Note *> &notes, int delta, DsSingingClip *clip);
+    void editNotesStartAndLength(const QList<Note *> &notes, int delta, SingingClip *clip);
 
     // Resize from right
-    void editNotesLength(const QList<Note *> &notes, int delta, DsSingingClip *clip);
+    void editNotesLength(const QList<Note *> &notes, int delta, SingingClip *clip);
 
     // Move notes
     void editNotePosition(const QList<Note *> &notes, int deltaTick, int deltaKey,
-                          DsSingingClip *clip);
+                          SingingClip *clip);
 
     // Edit lyrics, pronunciations and phonemes
     void editNotesWordProperties(const QList<Note *> &notes,
                                  const QList<Note::NoteWordProperties *> &args,
-                                 DsSingingClip *clip);
+                                 SingingClip *clip);
 };
 
 

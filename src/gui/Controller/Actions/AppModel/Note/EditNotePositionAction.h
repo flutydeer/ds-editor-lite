@@ -11,7 +11,7 @@
 class EditNotePositionAction final : public IAction {
 public:
     static EditNotePositionAction *build(Note *note, int deltaTick, int deltaKey,
-                                         DsSingingClip *clip);
+                                         SingingClip *clip);
     void execute() override;
     void undo() override;
 
@@ -19,7 +19,7 @@ private:
     Note *m_note = nullptr;
     int m_deltaTick = 0;
     int m_deltaKey = 0;
-    DsSingingClip *m_clip = nullptr;
+    SingingClip *m_clip = nullptr;
 };
 
 

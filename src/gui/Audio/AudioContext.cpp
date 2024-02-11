@@ -218,7 +218,7 @@ void AudioContext::handleClipInsertion(const Track *track, const Clip *clip) {
     QSettings settings;
     if (clip->type() != Clip::Audio)
         return;
-    auto audioClip = static_cast<const DsAudioClip *>(clip);
+    auto audioClip = static_cast<const AudioClip *>(clip);
     auto f = std::make_unique<QFile>(audioClip->path());
     auto fileSrc = new talcs::AudioFormatInputSource(new talcs::AudioFormatIO(f.get()), true);
     auto bufSrc = new talcs::BufferingAudioSource(
@@ -259,7 +259,7 @@ void AudioContext::handleClipRemoval(const Track *track, const Clip *clip) {
 void AudioContext::handleClipPropertyChange(const Track *track, const Clip *clip) {
     if (clip->type() != Clip::Audio)
         return;
-    auto filePath = static_cast<const DsAudioClip *>(clip)->path();
+    auto filePath = static_cast<const AudioClip *>(clip)->path();
     if (filePath != m_audioFiles[clip]->fileName()) {
         handleClipRemoval(track, clip);
         handleClipInsertion(track, clip);

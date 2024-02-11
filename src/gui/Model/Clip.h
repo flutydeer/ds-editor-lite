@@ -70,7 +70,7 @@ protected:
     bool m_mute = false;
 };
 
-class DsAudioClip final : public Clip {
+class AudioClip final : public Clip {
 public:
     ClipType type() const override {
         return Audio;
@@ -86,7 +86,7 @@ private:
     QString m_path;
 };
 
-class DsSingingClip final : public Clip {
+class SingingClip final : public Clip {
     Q_OBJECT
 
 public:

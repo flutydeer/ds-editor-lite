@@ -20,7 +20,7 @@ void ClipActions::removeClips(const QList<Clip *> &clips, Track *track) {
 }
 void ClipActions::editSingingClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                             const QList<Clip::ClipCommonProperties> &newArgs,
-                                            const QList<DsSingingClip *> &clips, Track *track) {
+                                            const QList<SingingClip *> &clips, Track *track) {
     // TODO: edit singer name and move params
     int i = 0;
     for (const auto clip : clips) {
@@ -30,7 +30,7 @@ void ClipActions::editSingingClipProperties(const QList<Clip::ClipCommonProperti
 }
 void ClipActions::editAudioClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                           const QList<Clip::ClipCommonProperties> &newArgs,
-                                          const QList<DsAudioClip *> &clips, Track *track) {
+                                          const QList<AudioClip *> &clips, Track *track) {
     int i = 0;
     for (const auto clip : clips) {
         addAction(EditClipCommonPropertiesAction::build(oldArgs[i], newArgs[i], clip, track));

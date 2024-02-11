@@ -99,7 +99,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         for (const auto &dspxClip : dspxClips) {
             if (dspxClip->type == QDspx::Clip::Type::Singing) {
                 auto castClip = dspxClip.dynamicCast<QDspx::SingingClip>();
-                auto clip = new DsSingingClip;
+                auto clip = new SingingClip;
                 clip->setName(castClip->name);
                 clip->setStart(castClip->time.start);
                 clip->setClipStart(castClip->time.clipStart);
@@ -114,7 +114,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 track->insertClipQuietly(clip);
             } else if (dspxClip->type == QDspx::Clip::Type::Audio) {
                 auto castClip = dspxClip.dynamicCast<QDspx::AudioClip>();
-                auto clip = new DsAudioClip;
+                auto clip = new AudioClip;
                 clip->setName(castClip->name);
                 clip->setStart(castClip->time.start);
                 clip->setClipStart(castClip->time.clipStart);
@@ -245,7 +245,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     auto encodeClips = [&](const Track *dsTrack, QDspx::Track &track) {
         for (const auto clip : dsTrack->clips()) {
             if (clip->type() == Clip::Singing) {
-                auto singingClip = dynamic_cast<DsSingingClip *>(clip);
+                auto singingClip = dynamic_cast<SingingClip *>(clip);
                 auto singClip = QDspx::SingingClipRef::create();
                 singClip->name = clip->name();
                 singClip->time.start = clip->start();
@@ -258,7 +258,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 encodeSingingParams(singingClip->params, singClip->params);
                 track.clips.append(singClip);
             } else if (clip->type() == Clip::Audio) {
-                auto audioClip = dynamic_cast<DsAudioClip *>(clip);
+                auto audioClip = dynamic_cast<AudioClip *>(clip);
                 auto audioClipRef = QDspx::AudioClipRef::create();
                 audioClipRef->name = clip->name();
                 audioClipRef->time.start = clip->start();

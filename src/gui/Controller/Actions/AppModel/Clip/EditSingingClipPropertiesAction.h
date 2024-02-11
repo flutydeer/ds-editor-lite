@@ -13,14 +13,14 @@ class EditSingingClipPropertiesAction : public IAction {
 public:
     static EditSingingClipPropertiesAction *build(const Clip::ClipCommonProperties &oldArgs,
                                             const Clip::ClipCommonProperties &newArgs,
-                                            DsSingingClip *clip, Track *track);
+                                            SingingClip *clip, Track *track);
     void execute() override;
     void undo() override;
 
 private:
     Clip::ClipCommonProperties m_oldArgs;
     Clip::ClipCommonProperties m_newArgs;
-    DsSingingClip *m_clip = nullptr;
+    SingingClip *m_clip = nullptr;
     Track *m_track = nullptr;
 };
 
