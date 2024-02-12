@@ -13,7 +13,6 @@
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsCore/PositionableMixerAudioSource.h>
 #include <TalcsCore/MixerAudioSource.h>
-#include <TalcsCore/SineWaveAudioSource.h>
 #include <TalcsCore/AudioSourceClipSeries.h>
 #include <TalcsDevice/AudioDriverManager.h>
 #include <TalcsDevice/AudioDriver.h>
@@ -24,6 +23,7 @@
 #include <TalcsRemote/RemoteEditor.h>
 #include <TalcsRemote/RemoteTransportControllerInterface.h>
 #include <TalcsRemote/TransportAudioSourceProcessInfoCallback.h>
+#include <TalcsMidi/MidiSineWaveSynthesizer.h>
 
 
 #include "Audio/Dialogs/AudioSettingsDialog.h"
@@ -295,18 +295,20 @@ void AudioSystem::setAdoptedSampleRate(double sampleRate) {
 void AudioSystem::testDevice() {
     if (!m_dev)
         return;
-    auto testMixer = new talcs::MixerAudioSource;
-    testMixer->addSource(new talcs::SineWaveAudioSource(440), true);
-    testMixer->setGain(0.5);
-    m_preMixer->addSource(testMixer);
+    auto testSynth = new talcs::MidiSineWaveSynthesizer;
+    m_preMixer->addSource(testSynth);
     if (!m_dev->isOpen()) {
         m_dev->open(m_adoptedBufferSize, m_adoptedSampleRate);
     }
     if (!m_dev->isStarted())
         m_dev->start(m_playback.get());
+    testSynth->workCallback(talcs::MidiMessage::noteOn(1, 69, float(0.5)));
     QTimer::singleShot(1000, [=] {
-        m_preMixer->removeSource(testMixer);
-        delete testMixer;
+        testSynth->workCallback(talcs::MidiMessage::noteOff(1, 69));
+        QTimer::singleShot(100, [=] {
+            m_preMixer->removeSource(testSynth);
+            delete testSynth;
+        });
     });
 }
 
