@@ -7,7 +7,6 @@
 #include <QComboBox>
 #include <QCheckBox>
 #include <QPushButton>
-#include <QDoubleSpinBox>
 #include <QMessageBox>
 #include <QLabel>
 
@@ -15,6 +14,8 @@
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsRemote/RemoteAudioDevice.h>
+
+#include <QXSpinBox/QExpressionDoubleSpinBox>
 
 #include "Audio/AudioSystem.h"
 #include "Audio/AudioContext.h"
@@ -114,10 +115,9 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : QDialog(parent) {
 
     auto fileGroupBox = new QGroupBox(tr("File Options"));
     auto fileLayout = new QFormLayout;
-    m_fileBufferingSizeMsec = new QDoubleSpinBox;
+    m_fileBufferingSizeMsec = new QXSpinBox::QExpressionDoubleSpinBox;
     m_fileBufferingSizeMsec->setRange(0.0, std::numeric_limits<double>::max());
-    m_fileBufferingSizeMsec->setSuffix(" ms");
-    fileLayout->addRow(tr("Buffer size when reading from file"), m_fileBufferingSizeMsec);
+    fileLayout->addRow(tr("Buffering length when reading from file (millisecond)"), m_fileBufferingSizeMsec);
     fileGroupBox->setLayout(fileLayout);
     mainLayout->addWidget(fileGroupBox);
 

@@ -18,15 +18,17 @@ add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} res/lite_res.qrc)
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 
+find_package(QXSpinBox REQUIRED)
 find_package(SndFile CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC
         SndFile::sndfile
         Qt${QT_VERSION_MAJOR}::Core
         Qt${QT_VERSION_MAJOR}::Widgets
         ${PLATFORM_LIB}
-        talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Synthesis
+        talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Synthesis talcs::Midi
         opendspx
         IKg2p
+        QXSpinBox
 )
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
