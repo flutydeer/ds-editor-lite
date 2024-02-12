@@ -16,7 +16,7 @@
 
 ToolTip::ToolTip(QString title, QWidget *parent) : QFrame(parent) {
     m_lbTitle = new QLabel(title);
-    m_lbTitle->setStyleSheet("color: #333; font-size: 10pt");
+    m_lbTitle->setStyleSheet("color: #F0F0F0; font-size: 10pt");
     m_lbTitle->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 
     m_lbShortcutKey = new QLabel();
@@ -44,8 +44,8 @@ ToolTip::ToolTip(QString title, QWidget *parent) : QFrame(parent) {
     container->setLayout(m_cardLayout);
     container->setContentsMargins(8, 4, 8, 4);
     container->setStyleSheet("QFrame#container {"
-                             "background: #FFFFFF; "
-                             "border: 1px solid #d0d0d0; "
+                             "background: #202122; "
+                             "border: 1px solid #606060; "
                              "border-radius: 6px; "
                              "font-size: 10pt }");
 

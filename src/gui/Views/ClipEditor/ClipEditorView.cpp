@@ -86,7 +86,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     connect(m_pianoRollView, &PianoRollGraphicsView::moveNotesCompleted, this,
             &ClipEditorView::onMoveNotesCompleted);
     connect(m_pianoRollView, &PianoRollGraphicsView::resizeNoteLeftCompleted, this,
-    &ClipEditorView::onResizeNoteLeftCompleted);
+            &ClipEditorView::onResizeNoteLeftCompleted);
     connect(m_pianoRollView, &PianoRollGraphicsView::resizeNoteRightCompleted, this,
             &ClipEditorView::onResizeNoteRightCompleted);
 
@@ -151,7 +151,8 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
         auto firstNote = m_singingClip->notes().at(0);
         qDebug() << "first note start" << firstNote->start();
         m_pianoRollView->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
-    }
+    } else
+        m_pianoRollView->setViewportCenterAtKeyIndex(60);
     connect(m_singingClip, &SingingClip::noteChanged, this, &ClipEditorView::onNoteChanged);
     ClipEditorViewController::instance()->setCurrentSingingClip(m_singingClip);
 }
@@ -223,7 +224,8 @@ void ClipEditorView::onResizeNoteLeftCompleted(int noteId, int deltaTick) {
     ClipEditorViewController::instance()->onResizeNotesLeft(notes, deltaTick);
 }
 void ClipEditorView::onResizeNoteRightCompleted(int noteId, int deltaTick) {
-    qDebug() << "ClipEditorView::onResizeNoteRightCompleted" << "id" << noteId << "dt" << deltaTick;
+    qDebug() << "ClipEditorView::onResizeNoteRightCompleted"
+             << "id" << noteId << "dt" << deltaTick;
     QList<int> notes;
     notes.append(noteId);
     ClipEditorViewController::instance()->onResizeNotesRight(notes, deltaTick);

@@ -7,6 +7,8 @@
 
 #include "ClipEditorToolBarView.h"
 
+#include "Controls/ToolTip.h"
+
 ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) {
     setObjectName("ClipEditorToolBarView");
 
@@ -15,6 +17,10 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     m_elClipName->setFixedHeight(m_contentHeight);
     m_elClipName->setEnabled(false);
     m_elClipName->setText("");
+    m_elClipName->setStyleSheet(
+        "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 6px; }"
+        "QLabel:hover { background: #1AFFFFFF; }"
+        "QLineEdit { border-radius: 6px; }");
     connect(m_elClipName, &EditLabel::editCompleted, this,
             [=](const QString &text) { emit clipNameChanged(text); });
 
@@ -23,22 +29,30 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     m_btnArrow->setCheckable(true);
     m_btnArrow->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnArrow->setChecked(true);
+    m_btnArrow->setToolTip("Select");
+    m_btnArrow->installEventFilter(new ToolTipFilter(m_btnArrow, 0, true, false));
 
     m_btnNotePencil = new QPushButton;
     m_btnNotePencil->setObjectName("btnNotePencil");
     m_btnNotePencil->setCheckable(true);
     m_btnNotePencil->setFixedSize(m_contentHeight, m_contentHeight);
+    m_btnNotePencil->setToolTip("Draw Note");
+    m_btnNotePencil->installEventFilter(new ToolTipFilter(m_btnNotePencil, 0, true, false));
 
     m_btnPitchAnchor = new QPushButton;
     m_btnPitchAnchor->setObjectName("btnPitchAnchor");
     m_btnPitchAnchor->setCheckable(true);
     m_btnPitchAnchor->setIcon(icoPitchAnchorWhite);
     m_btnPitchAnchor->setFixedSize(m_contentHeight, m_contentHeight);
+    m_btnPitchAnchor->setToolTip("Pitch Anchor");
+    m_btnPitchAnchor->installEventFilter(new ToolTipFilter(m_btnPitchAnchor, 0, true, false));
 
     m_btnPitchPencil = new QPushButton;
     m_btnPitchPencil->setObjectName("btnPitchPencil");
     m_btnPitchPencil->setCheckable(true);
     m_btnPitchPencil->setFixedSize(m_contentHeight, m_contentHeight);
+    m_btnPitchPencil->setToolTip("Draw Pitch");
+    m_btnPitchPencil->installEventFilter(new ToolTipFilter(m_btnPitchPencil, 0, true, false));
 
     auto buttonGroup = new QButtonGroup;
     buttonGroup->setExclusive(true);
@@ -94,9 +108,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
         "QPushButton#btnPitchPencil:checked { icon: url(:svg/icons/pitch_edit_24_filled.svg)} "
         "QPushButton#btnPitchPencil:checked:hover { background-color: #9BBAFF;} "
 
-        "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 6px; }"
-        "QLabel:hover { background: #1AFFFFFF; }"
-        "QLineEdit { border-radius: 6px; }"
         "QComboBox { color: #F0F0F0; border: none; background: #10FFFFFF; border-radius: 6px; }"
         "QComboBox:hover { background: #1AFFFFFF; }"
         "QComboBox:pressed { background: #10FFFFFF; }");
