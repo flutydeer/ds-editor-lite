@@ -66,3 +66,33 @@ void ClipEditorViewController::onInsertNote(Note *note) {
     a->execute();
     HistoryManager::instance()->record(a);
 }
+void ClipEditorViewController::onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey) {
+    QList<Note *> notesToEdit;
+    for (const auto id : notesId)
+        notesToEdit.append(m_clip->findNoteById(id));
+
+    auto a = new NoteActions;
+    a->editNotePosition(notesToEdit, deltaTick, deltaKey, m_clip);
+    a->execute();
+    HistoryManager::instance()->record(a);
+}
+void ClipEditorViewController::onResizeNotesLeft(const QList<int> &notesId, int deltaTick) {
+    QList<Note *> notesToEdit;
+    for (const auto id : notesId)
+        notesToEdit.append(m_clip->findNoteById(id));
+
+    auto a = new NoteActions;
+    a->editNotesStartAndLength(notesToEdit, deltaTick, m_clip);
+    a->execute();
+    HistoryManager::instance()->record(a);
+}
+void ClipEditorViewController::onResizeNotesRight(const QList<int> &notesId, int deltaTick) {
+    QList<Note *> notesToEdit;
+    for (const auto id : notesId)
+        notesToEdit.append(m_clip->findNoteById(id));
+
+    auto a = new NoteActions;
+    a->editNotesLength(notesToEdit, deltaTick, m_clip);
+    a->execute();
+    HistoryManager::instance()->record(a);
+}

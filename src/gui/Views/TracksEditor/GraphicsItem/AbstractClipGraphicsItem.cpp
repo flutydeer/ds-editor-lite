@@ -144,10 +144,12 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
     auto penWidth = 2.0f;
 
     QPen pen;
-    if (m_overlapped)
+    if (isSelected())
+        pen.setColor(QColor(255, 255, 255));
+    else if (m_overlapped)
         pen.setColor(AppGlobal::overlappedViewBorder);
     else
-        pen.setColor(isSelected() ? QColor(255, 255, 255) : colorPrimaryDarker);
+        pen.setColor(colorPrimaryDarker);
 
     auto rect = boundingRect();
     auto left = rect.left() + penWidth;

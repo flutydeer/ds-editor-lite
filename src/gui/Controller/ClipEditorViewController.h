@@ -22,6 +22,9 @@ public slots:
     void onRemoveNotes(const QList<int> &notesId);
     void onEditNotesLyrics(const QList<int> &notesId);
     void onInsertNote(Note *note);
+    void onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey);
+    void onResizeNotesLeft(const QList<int> &notesId, int deltaTick);
+    void onResizeNotesRight(const QList<int> &notesId, int deltaTick);
 
 private:
     SingingClip *m_clip = nullptr;

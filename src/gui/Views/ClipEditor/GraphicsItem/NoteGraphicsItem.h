@@ -9,7 +9,9 @@
 #include "Utils/UniqueObject.h"
 #include "Views/Common/CommonGraphicsRectItem.h"
 
-class NoteGraphicsItem final : public CommonGraphicsRectItem, public UniqueObject, public IOverlapable {
+class NoteGraphicsItem final : public CommonGraphicsRectItem,
+                               public UniqueObject,
+                               public IOverlapable {
     Q_OBJECT
 
 public:
@@ -33,6 +35,17 @@ public:
     QString pronunciation() const;
     void setPronunciation(const QString &pronunciation);
 
+    int pronunciationTextHeight() const;
+
+    // for handle move and resize
+    int startOffset() const;
+    void setStartOffset(int tick);
+    int lengthOffset() const;
+    void setLengthOffset(int tick);
+    int keyOffset();
+    void setKeyOffset(int key);
+    void resetOffset();
+
 signals:
     void editLyricTriggered(int id);
     void removeTriggered(int id);
@@ -41,8 +54,6 @@ private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
-    // void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
-    // void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     void initUi();
@@ -63,10 +74,15 @@ private:
     int m_mouseDownLength;
     int m_mouseDownKeyIndex;
 
+    int m_startOffset = 0;
+    int m_lengthOffset = 0;
+    int m_keyOffset = 0;
+
     int m_quantize = 240;
     bool m_tempQuantizeOff = false;
     int m_resizeTolerance = 8; // px
     int m_pronunciationTextHeight = 20;
+
 };
 
 #endif // NOTEGRAPHICSITEM_H

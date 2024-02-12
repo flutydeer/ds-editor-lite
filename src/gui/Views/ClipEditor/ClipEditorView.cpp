@@ -83,6 +83,12 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
             &ClipEditorView::onEditSelectedNotesLyrics);
     connect(m_pianoRollView, &PianoRollGraphicsView::drawNoteCompleted, this,
             &ClipEditorView::onDrawNoteCompleted);
+    connect(m_pianoRollView, &PianoRollGraphicsView::moveNotesCompleted, this,
+            &ClipEditorView::onMoveNotesCompleted);
+    connect(m_pianoRollView, &PianoRollGraphicsView::resizeNoteLeftCompleted, this,
+    &ClipEditorView::onResizeNoteLeftCompleted);
+    connect(m_pianoRollView, &PianoRollGraphicsView::resizeNoteRightCompleted, this,
+            &ClipEditorView::onResizeNoteRightCompleted);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_toolbarView);
@@ -202,6 +208,25 @@ void ClipEditorView::onDrawNoteCompleted(int start, int length, int keyIndex) {
     note->setLyric(defaultLyric);
     note->setPronunciation(defaultPronunciation);
     ClipEditorViewController::instance()->onInsertNote(note);
+}
+void ClipEditorView::onMoveNotesCompleted(int deltaTick, int deltaKey) {
+    qDebug() << "ClipEditorView::onMoveNotesCompleted"
+             << "dt" << deltaTick << "dk" << deltaKey;
+    ClipEditorViewController::instance()->onMoveNotes(m_pianoRollView->selectedNotesId(), deltaTick,
+                                                      deltaKey);
+}
+void ClipEditorView::onResizeNoteLeftCompleted(int noteId, int deltaTick) {
+    qDebug() << "ClipEditorView::onResizeNoteLeftCompleted"
+             << "id" << noteId << "dt" << deltaTick;
+    QList<int> notes;
+    notes.append(noteId);
+    ClipEditorViewController::instance()->onResizeNotesLeft(notes, deltaTick);
+}
+void ClipEditorView::onResizeNoteRightCompleted(int noteId, int deltaTick) {
+    qDebug() << "ClipEditorView::onResizeNoteRightCompleted" << "id" << noteId << "dt" << deltaTick;
+    QList<int> notes;
+    notes.append(noteId);
+    ClipEditorViewController::instance()->onResizeNotesRight(notes, deltaTick);
 }
 void ClipEditorView::reset() {
     m_pianoRollView->reset();

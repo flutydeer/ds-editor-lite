@@ -84,6 +84,36 @@ void NoteGraphicsItem::setPronunciation(const QString &pronunciation) {
     m_pronunciation = pronunciation;
     update();
 }
+int NoteGraphicsItem::pronunciationTextHeight() const {
+    return m_pronunciationTextHeight;
+}
+int NoteGraphicsItem::startOffset() const {
+    return m_startOffset;
+}
+void NoteGraphicsItem::setStartOffset(int tick) {
+    m_startOffset = tick;
+    updateRectAndPos();
+}
+int NoteGraphicsItem::lengthOffset() const {
+    return m_lengthOffset;
+}
+void NoteGraphicsItem::setLengthOffset(int tick) {
+    m_lengthOffset = tick;
+    updateRectAndPos();
+}
+int NoteGraphicsItem::keyOffset() {
+    return m_keyOffset;
+}
+void NoteGraphicsItem::setKeyOffset(int key) {
+    m_keyOffset = key;
+    updateRectAndPos();
+}
+void NoteGraphicsItem::resetOffset() {
+    m_startOffset = 0;
+    m_lengthOffset = 0;
+    m_keyOffset = 0;
+    updateRectAndPos();
+}
 void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
     const auto colorPrimary = QColor(155, 186, 255);
@@ -96,10 +126,12 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     const auto radiusAdjustThreshold = 12;
 
     QPen pen;
-    if (m_overlapped)
+    if (isSelected())
+        pen.setColor(QColor(255, 255, 255));
+    else if (m_overlapped)
         pen.setColor(AppGlobal::overlappedViewBorder);
     else
-        pen.setColor(isSelected() ? QColor(255, 255, 255) : colorPrimaryDarker);
+        pen.setColor(colorPrimaryDarker);
 
     auto rect = boundingRect();
     auto noteBoundingRect =
@@ -139,7 +171,7 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 
     pen.setColor(colorForeground);
     painter->setPen(pen);
-    auto font = QFont("Microsoft Yahei UI");
+    auto font = QFont();
     font.setPointSizeF(10);
     painter->setFont(font);
     int padding = 2;
@@ -170,128 +202,12 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 }
 void NoteGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     m_menu->exec(event->screenPos());
-    // QMenu menu;
-    // auto editLyricAction = menu.addAction("Edit Lyric");
-    // connect(editLyricAction, &QAction::triggered, [&]() {
-    //     auto ok = false;
-    //     auto result =
-    //         QInputDialog::getText(graphicsView, "Edit Lyric", "Input lyric:", QLineEdit::Normal,
-    //         m_lyric, &ok);
-    //     if (ok && !result.isEmpty())
-    //         setLyric(result);
-    // });
-    //
-    // auto editPronunciationAction = menu.addAction("Edit Pronunciation");
-    // connect(editPronunciationAction, &QAction::triggered, [&]() {
-    //     auto ok = false;
-    //     auto result = QInputDialog::getText(graphicsView, "Edit Pronunciation",
-    //                                         "Input pronunciation:", QLineEdit::Normal,
-    //                                         m_pronunciation, &ok);
-    //     if (ok && !result.isEmpty())
-    //         setPronunciation(result);
-    // });
-    // menu.exec(event->screenPos());
-
-    // QGraphicsItem::contextMenuEvent(event);
 }
 void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     CommonGraphicsRectItem::mousePressEvent(event);
     if (!isSelected())
         setSelected(true);
 }
-// void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-//     if (event->button() != Qt::LeftButton) {
-//         m_mouseMoveBehavior = None;
-//         setCursor(Qt::ArrowCursor);
-//     }
-//
-//     m_mouseDownPos = event->scenePos();
-//     m_mouseDownStart = start();
-//     m_mouseDownLength = length();
-//     m_mouseDownKeyIndex = keyIndex();
-//     event->accept();
-// }
-// void NoteGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-//     auto curPos = event->scenePos();
-//     if (event->modifiers() == Qt::AltModifier)
-//         m_tempQuantizeOff = true;
-//     else
-//         m_tempQuantizeOff = false;
-//
-//     auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() / pixelsPerQuarterNote * 480;
-//     auto dy = (curPos.y() - m_mouseDownPos.y()) / scaleY() / noteHeight;
-//
-//     // snap tick to grid
-//     auto roundPos = [](int i, int step) {
-//         int times = i / step;
-//         int mod = i % step;
-//         if (mod > step / 2)
-//             return step * (times + 1);
-//         return step * times;
-//     };
-//
-//     int start;
-//     int deltaStart;
-//     int length;
-//     int right;
-//     int keyIndex;
-//     int deltaX = qRound(dx);
-//     int deltaY = qRound(dy);
-//     int deltaTick = 0;
-//     int deltaKey = 0;
-//     int quantize = m_tempQuantizeOff ? 1 : m_quantize;
-//     m_propertyEdited = true;
-//     switch (m_mouseMoveBehavior) {
-//         case Move:
-//             start = roundPos(m_mouseDownStart + deltaX, quantize);
-//             setStart(start);
-//
-//             keyIndex = m_mouseDownKeyIndex - deltaY;
-//             if (keyIndex > 127)
-//                 keyIndex = 127;
-//             else if (keyIndex < 0)
-//                 keyIndex = 0;
-//
-//             setKeyIndex(keyIndex);
-//
-//             deltaTick = start - m_mouseDownStart;
-//             deltaKey = keyIndex - m_mouseDownKeyIndex;
-//             emit editingShape(NotePosition, deltaTick, deltaKey);
-//             break;
-//
-//         case ResizeLeft:
-//             start = roundPos(m_mouseDownStart + deltaX, quantize);
-//             deltaStart = start - m_mouseDownStart;
-//             length = m_mouseDownLength - deltaStart;
-//             if (length > 0) {
-//                 setStart(start);
-//                 setLength(length);
-//             }
-//             deltaTick = start - m_mouseDownStart;
-//             emit editingShape(StartAndLength, deltaTick, 0);
-//             break;
-//
-//         case ResizeRight:
-//             right = roundPos(m_mouseDownStart + m_mouseDownLength + deltaX, quantize);
-//             length = right - m_mouseDownStart;
-//             if (length > 0)
-//                 setLength(length);
-//
-//             deltaTick = length - m_mouseDownLength;
-//             emit editingShape(Length, deltaTick, 0);
-//             break;
-//
-//         case None:
-//             m_propertyEdited = false;
-//             QGraphicsRectItem::mouseMoveEvent(event);
-//     }
-// }
-// void NoteGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
-//     if (m_propertyEdited) {
-//         emit editCompleted();
-//     }
-//     CommonGraphicsRectItem::mouseReleaseEvent(event);
-// }
 void NoteGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     const auto rx = event->pos().rx();
     if (rx >= 0 && rx <= m_resizeTolerance) {
@@ -308,9 +224,9 @@ void NoteGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     QGraphicsRectItem::hoverMoveEvent(event);
 }
 void NoteGraphicsItem::updateRectAndPos() {
-    const auto x = m_start * scaleX() * pixelsPerQuarterNote / 480;
-    const auto y = -(m_keyIndex - 127) * noteHeight * scaleY();
-    const auto w = m_length * scaleX() * pixelsPerQuarterNote / 480;
+    const auto x = (m_start + m_startOffset) * scaleX() * pixelsPerQuarterNote / 480;
+    const auto y = -(m_keyIndex + m_keyOffset - 127) * noteHeight * scaleY();
+    const auto w = (m_length + m_lengthOffset) * scaleX() * pixelsPerQuarterNote / 480;
     const auto h = noteHeight * scaleY() + m_pronunciationTextHeight;
     setPos(x, y);
     setRect(QRectF(0, 0, w, h));

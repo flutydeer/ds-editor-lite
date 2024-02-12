@@ -13,14 +13,20 @@ EditNotePositionAction *EditNotePositionAction::build(Note *note, int deltaTick,
     return a;
 }
 void EditNotePositionAction::execute() {
-    m_clip->removeNote(m_note);
+    m_clip->removeNoteQuietly(m_note);
+
     m_note->setStart(m_note->start() + m_deltaTick);
     m_note->setKeyIndex(m_note->keyIndex() + m_deltaKey);
-    m_clip->insertNote(m_note);
+
+    m_clip->insertNoteQuietly(m_note);
+    m_clip->notifyNotePropertyChanged(m_note);
 }
 void EditNotePositionAction::undo() {
-    m_clip->removeNote(m_note);
+    m_clip->removeNoteQuietly(m_note);
+
     m_note->setStart(m_note->start() - m_deltaTick);
     m_note->setKeyIndex(m_note->keyIndex() - m_deltaKey);
-    m_clip->insertNote(m_note);
+
+    m_clip->insertNoteQuietly(m_note);
+    m_clip->notifyNotePropertyChanged(m_note);
 }

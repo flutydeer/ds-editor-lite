@@ -31,6 +31,9 @@ private slots:
     void onRemoveSelectedNotes();
     void onEditSelectedNotesLyrics();
     void onDrawNoteCompleted(int start, int length, int keyIndex);
+    void onMoveNotesCompleted(int deltaTick, int deltaKey);
+    void onResizeNoteLeftCompleted(int noteId, int deltaTick);
+    void onResizeNoteRightCompleted(int noteId, int deltaTick);
 
 private:
     Track *m_track = nullptr;
