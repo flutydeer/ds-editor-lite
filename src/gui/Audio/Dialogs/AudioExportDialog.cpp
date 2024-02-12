@@ -1,7 +1,7 @@
 #include "AudioExportDialog.h"
 
 #include "Model/AppModel.h"
-#include "Model/DsTrack.h"
+#include "Model/Track.h"
 
 #include <QtWidgets>
 #include <QSet>

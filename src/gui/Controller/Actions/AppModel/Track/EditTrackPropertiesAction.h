@@ -6,20 +6,20 @@
 #define EDITETRACKACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/DsTrack.h"
+#include "Model/Track.h"
 
 class EditTrackPropertiesAction final : public IAction {
 public:
-    static EditTrackPropertiesAction *build(const DsTrack::TrackProperties &oldArgs,
-                                            const DsTrack::TrackProperties &newArgs,
-                                            DsTrack *track);
+    static EditTrackPropertiesAction *build(const Track::TrackProperties &oldArgs,
+                                            const Track::TrackProperties &newArgs,
+                                            Track *track);
     void execute() override;
     void undo() override;
 
 private:
-    DsTrack::TrackProperties m_oldArgs;
-    DsTrack::TrackProperties m_newArgs;
-    DsTrack *m_track = nullptr;
+    Track::TrackProperties m_oldArgs;
+    Track::TrackProperties m_newArgs;
+    Track *m_track = nullptr;
 };
 
 

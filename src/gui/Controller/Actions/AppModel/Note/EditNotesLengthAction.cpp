@@ -3,8 +3,8 @@
 //
 
 #include "EditNotesLengthAction.h"
-EditNotesLengthAction *EditNotesLengthAction::build(DsNote *note, int deltaTick,
-                                                       DsSingingClip *clip) {
+EditNotesLengthAction *EditNotesLengthAction::build(Note *note, int deltaTick,
+                                                       SingingClip *clip) {
     auto a = new EditNotesLengthAction;
     a->m_note = note;
     a->m_deltaTick = deltaTick;

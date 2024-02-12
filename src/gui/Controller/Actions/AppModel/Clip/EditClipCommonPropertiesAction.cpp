@@ -3,12 +3,12 @@
 //
 
 #include "EditClipCommonPropertiesAction.h"
-#include "Model/DsTrack.h"
+#include "Model/Track.h"
 
 EditClipCommonPropertiesAction *
-    EditClipCommonPropertiesAction::build(const DsClip::ClipCommonProperties &oldArgs,
-                                          const DsClip::ClipCommonProperties &newArgs,
-                                          DsClip *clip, DsTrack *track) {
+    EditClipCommonPropertiesAction::build(const Clip::ClipCommonProperties &oldArgs,
+                                          const Clip::ClipCommonProperties &newArgs,
+                                          Clip *clip, Track *track) {
     auto a = new EditClipCommonPropertiesAction;
     a->m_oldArgs = oldArgs;
     a->m_newArgs = newArgs;

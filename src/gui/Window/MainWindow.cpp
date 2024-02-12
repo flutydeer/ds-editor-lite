@@ -7,6 +7,7 @@
 #include <QFileDialog>
 #include <QSplitter>
 #include <QMenuBar>
+#include <QApplication>
 
 #include "Audio/AudioSystem.h"
 #include "Audio/Dialogs/AudioSettingsDialog.h"
@@ -72,10 +73,12 @@ MainWindow::MainWindow() {
         "QMenuBar::item {background-color: transparent; padding: 8px 12px; color: #f0f0f0; "
         "border-radius: 4px; }"
         "QMenuBar::item:selected { background-color: #10FFFFFF } "
-        "QLineEdit {background: #10FFFFFF; border: 1px solid transparent; border-bottom: 1px solid #80606060;"
+        "QLineEdit {background: #10FFFFFF; border: 1px solid transparent; border-bottom: 1px solid "
+        "#80606060;"
         "border-radius: 4px; color: #F0F0F0; selection-color: #000;"
         "selection-background-color: #9BBAFF; padding: 2px; }"
-        "QLineEdit:focus { background: #202122; border: 1px solid #606060; border-bottom: 2px solid #9BBAFF; }";
+        "QLineEdit:focus { background: #202122; border: 1px solid #606060; border-bottom: 2px "
+        "solid #9BBAFF; }";
     this->setStyleSheet(QString("QMainWindow { background: #232425 }") + qssBase);
 #ifdef Q_OS_WIN
     // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler
@@ -195,10 +198,12 @@ MainWindow::MainWindow() {
 
     auto actionUndo = new QAction("&Undo", this);
     actionUndo->setEnabled(false);
+    actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
     connect(actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
 
     auto actionRedo = new QAction("&Redo", this);
     actionRedo->setEnabled(false);
+    actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
     connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             [=](bool canUndo, bool canRedo) {
@@ -226,6 +231,12 @@ MainWindow::MainWindow() {
             &TracksViewController::onNewTrack);
     menuInsert->addAction(actionInsertNewTrack);
 
+    auto menuModify = new QMenu("&Modify", this);
+    auto actionFillLyrics = new QAction("Fill Lyrics", this);
+    actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
+    connect(actionFillLyrics, &QAction::triggered, appController, &AppController::fillLyric);
+    menuModify->addAction(actionFillLyrics);
+
     auto menuOptions = new QMenu("&Options", this);
     auto actionAudioSettings = new QAction("&Audio settings", this);
     connect(actionAudioSettings, &QAction::triggered, this, [=] {
@@ -243,6 +254,7 @@ MainWindow::MainWindow() {
     menuBar->addMenu(menuFile);
     menuBar->addMenu(menuEdit);
     menuBar->addMenu(menuInsert);
+    menuBar->addMenu(menuModify);
     menuBar->addMenu(menuOptions);
     menuBar->addMenu(menuHelp);
 

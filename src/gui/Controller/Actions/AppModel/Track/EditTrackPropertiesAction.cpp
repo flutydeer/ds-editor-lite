@@ -3,9 +3,9 @@
 //
 
 #include "EditTrackPropertiesAction.h"
-EditTrackPropertiesAction *EditTrackPropertiesAction::build(const DsTrack::TrackProperties &oldArgs,
-                                                            const DsTrack::TrackProperties &newArgs,
-                                                            DsTrack *track) {
+EditTrackPropertiesAction *EditTrackPropertiesAction::build(const Track::TrackProperties &oldArgs,
+                                                            const Track::TrackProperties &newArgs,
+                                                            Track *track) {
     auto a = new EditTrackPropertiesAction;
     a->m_oldArgs = oldArgs;
     a->m_newArgs = newArgs;

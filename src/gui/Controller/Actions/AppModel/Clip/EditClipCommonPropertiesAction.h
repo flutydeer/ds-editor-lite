@@ -6,22 +6,22 @@
 #define EDITCLIPCOMMONPROPERTIESACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/DsClip.h"
-#include "Model/DsTrack.h"
+#include "Model/Clip.h"
+#include "Model/Track.h"
 
 class EditClipCommonPropertiesAction : public IAction {
 public:
-    static EditClipCommonPropertiesAction *build(const DsClip::ClipCommonProperties &oldArgs,
-                                                 const DsClip::ClipCommonProperties &newArgs,
-                                                 DsClip *clip, DsTrack *track);
+    static EditClipCommonPropertiesAction *build(const Clip::ClipCommonProperties &oldArgs,
+                                                 const Clip::ClipCommonProperties &newArgs,
+                                                 Clip *clip, Track *track);
     void execute() override;
     void undo() override;
 
 private:
-    DsClip::ClipCommonProperties m_oldArgs;
-    DsClip::ClipCommonProperties m_newArgs;
-    DsClip *m_clip = nullptr;
-    DsTrack *m_track = nullptr;
+    Clip::ClipCommonProperties m_oldArgs;
+    Clip::ClipCommonProperties m_newArgs;
+    Clip *m_clip = nullptr;
+    Track *m_track = nullptr;
 };
 
 

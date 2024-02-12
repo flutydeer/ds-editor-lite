@@ -13,26 +13,26 @@
 bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
                              ImportMode mode) {
     auto decodeCurves = [&](const QList<QDspx::ParamCurveRef> &dspxCurveRefs) {
-        QVector<DsCurve*> curves;
+        QVector<Curve*> curves;
         for (const QDspx::ParamCurveRef &dspxCurveRef : dspxCurveRefs) {
             if (dspxCurveRef->type == QDspx::ParamCurve::Type::Free) {
                 auto castCurveRef = dspxCurveRef.dynamicCast<QDspx::ParamFree>();
-                auto curve = new DsDrawCurve;
+                auto curve = new DrawCurve;
                 curve->setStart(castCurveRef->start);
                 curve->step = castCurveRef->step;
                 curve->setValues(castCurveRef->values);
                 curves.append(curve);
             } else if (dspxCurveRef->type == QDspx::ParamCurve::Type::Anchor) {
                 auto castCurveRef = dspxCurveRef.dynamicCast<QDspx::ParamAnchor>();
-                auto curve = new DsAnchorCurve;
+                auto curve = new AnchorCurve;
                 curve->setStart(castCurveRef->start);
                 for (const auto &dspxNode : castCurveRef->nodes) {
-                    auto node = new DsAnchorNode(dspxNode.x, dspxNode.y);
-                    node->setInterpMode(DsAnchorNode::None);
+                    auto node = new AnchorNode(dspxNode.x, dspxNode.y);
+                    node->setInterpMode(AnchorNode::None);
                     if (dspxNode.interp == QDspx::AnchorPoint::Interpolation::Linear) {
-                        node->setInterpMode(DsAnchorNode::Linear);
+                        node->setInterpMode(AnchorNode::Linear);
                     } else if (dspxNode.interp == QDspx::AnchorPoint::Interpolation::Hermite) {
-                        node->setInterpMode(DsAnchorNode::Hermite);
+                        node->setInterpMode(AnchorNode::Hermite);
                     } /*else if (dspxNode.interp == QDspx::AnchorPoint::Interpolation::Cubic) {
                         node->setInterpMode(DsAnchorNode::Cubic);
                     }*/
@@ -45,7 +45,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     };
 
     auto decodeSingingParam = [&](const QDspx::ParamInfo &dspxParam) {
-        DsParam param;
+        Param param;
         for (auto &curve : decodeCurves(dspxParam.org)) {
             param.original.add(curve);
         }
@@ -59,7 +59,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     };
 
     auto decodeSingingParams = [&](const QDspx::SingleParam &dspxParams) {
-        DsParams params;
+        Params params;
         params.pitch = decodeSingingParam(dspxParams.pitch);
         params.energy = decodeSingingParam(dspxParams.energy);
         params.tension = decodeSingingParam(dspxParams.tension);
@@ -68,38 +68,38 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     };
 
     auto decodePhonemes = [&](const QList<QDspx::Phoneme> &dspxPhonemes) {
-        QList<DsPhoneme> phonemes;
+        QList<Phoneme> phonemes;
         for (const QDspx::Phoneme &dspxPhoneme : dspxPhonemes) {
-            DsPhoneme phoneme(DsPhoneme::DsPhonemeType::Normal, dspxPhoneme.token, dspxPhoneme.start);
+            Phoneme phoneme(Phoneme::PhonemeType::Normal, dspxPhoneme.token, dspxPhoneme.start);
             if (dspxPhoneme.type == QDspx::Phoneme::Type::Ahead) {
-                phoneme.type = DsPhoneme::DsPhonemeType::Ahead;
+                phoneme.type = Phoneme::PhonemeType::Ahead;
             } else if (dspxPhoneme.type == QDspx::Phoneme::Type::Final) {
-                phoneme.type = DsPhoneme::DsPhonemeType::Final;
+                phoneme.type = Phoneme::PhonemeType::Final;
             }
             phonemes.append(phoneme);
         }
         return phonemes;
     };
     auto decodeNotes = [&](const QList<QDspx::Note> &dspxNotes) {
-        QList<DsNote *> notes;
+        QList<Note *> notes;
         for (const QDspx::Note &dspxNote : dspxNotes) {
-            auto note = new DsNote;
+            auto note = new Note;
             note->setStart(dspxNote.pos);
             note->setLength(dspxNote.length);
             note->setKeyIndex(dspxNote.keyNum);
             note->setLyric(dspxNote.lyric);
             note->setPronunciation(dspxNote.pronunciation);
-            note->setPhonemes(DsPhonemes::Original, decodePhonemes(dspxNote.phonemes.org));
-            note->setPhonemes(DsPhonemes::Edited, decodePhonemes(dspxNote.phonemes.edited));
+            note->setPhonemes(Phonemes::Original, decodePhonemes(dspxNote.phonemes.org));
+            note->setPhonemes(Phonemes::Edited, decodePhonemes(dspxNote.phonemes.edited));
             notes.append(note);
         }
         return notes;
     };
-    auto decodeClips = [&](const QList<QDspx::ClipRef> &dspxClips, DsTrack *track) {
+    auto decodeClips = [&](const QList<QDspx::ClipRef> &dspxClips, Track *track) {
         for (const auto &dspxClip : dspxClips) {
             if (dspxClip->type == QDspx::Clip::Type::Singing) {
                 auto castClip = dspxClip.dynamicCast<QDspx::SingingClip>();
-                auto clip = new DsSingingClip;
+                auto clip = new SingingClip;
                 clip->setName(castClip->name);
                 clip->setStart(castClip->time.start);
                 clip->setClipStart(castClip->time.clipStart);
@@ -114,7 +114,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 track->insertClipQuietly(clip);
             } else if (dspxClip->type == QDspx::Clip::Type::Audio) {
                 auto castClip = dspxClip.dynamicCast<QDspx::AudioClip>();
-                auto clip = new DsAudioClip;
+                auto clip = new AudioClip;
                 clip->setName(castClip->name);
                 clip->setStart(castClip->time.start);
                 clip->setClipStart(castClip->time.clipStart);
@@ -131,8 +131,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     auto decodeTracks = [&](const QList<QDspx::Track> &dspxTracks, AppModel *model) {
         int i = 0;
         for (const auto &dspxTrack : dspxTracks) {
-            auto track = new DsTrack;
-            auto trackControl = DsTrackControl();
+            auto track = new Track;
+            auto trackControl = TrackControl();
             trackControl.setGain(dspxTrack.control.gain);
             trackControl.setPan(dspxTrack.control.pan);
             trackControl.setMute(dspxTrack.control.mute);
@@ -164,10 +164,10 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
 bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &errMsg) {
 
-    auto encodeCurves = [&](const OverlapableSerialList<DsCurve> &dsCurves, QList<QDspx::ParamCurveRef> &curves) {
+    auto encodeCurves = [&](const OverlapableSerialList<Curve> &dsCurves, QList<QDspx::ParamCurveRef> &curves) {
         for (const auto &dsCurve : dsCurves) {
-            if (dsCurve->type() == DsCurve::DsCurveType::Draw) {
-                auto castCurve = dynamic_cast<DsDrawCurve *>(dsCurve);
+            if (dsCurve->type() == Curve::CurveType::Draw) {
+                auto castCurve = dynamic_cast<DrawCurve *>(dsCurve);
                 auto curve = QDspx::ParamFreeRef::create();
                 curve->start = castCurve->start();
                 curve->step = castCurve->step;
@@ -175,19 +175,19 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                     curve->values.append(v);
                 }
                 curves.append(curve);
-            } else if (dsCurve->type() == DsCurve::DsCurveType::Anchor) {
-                auto castCurve = dynamic_cast<DsAnchorCurve *>(dsCurve);
+            } else if (dsCurve->type() == Curve::CurveType::Anchor) {
+                auto castCurve = dynamic_cast<AnchorCurve *>(dsCurve);
                 auto curve = QDspx::ParamAnchorRef::create();
                 curve->start = dsCurve->start();
                 for (const auto dsNode : castCurve->nodes()) {
                     QDspx::AnchorPoint node;
                     node.x = dsNode->pos();
                     node.y = dsNode->value();
-                    if (dsNode->interpMode() == DsAnchorNode::None) {
+                    if (dsNode->interpMode() == AnchorNode::None) {
                         node.interp = QDspx::AnchorPoint::Interpolation::None;
-                    } else if (dsNode->interpMode() == DsAnchorNode::Linear) {
+                    } else if (dsNode->interpMode() == AnchorNode::Linear) {
                         node.interp = QDspx::AnchorPoint::Interpolation::Linear;
-                    } else if (dsNode->interpMode() == DsAnchorNode::Hermite) {
+                    } else if (dsNode->interpMode() == AnchorNode::Hermite) {
                         node.interp = QDspx::AnchorPoint::Interpolation::Hermite;
                     } /*else if (dsNode->interpMode() == DsAnchorNode::Cubic) {
                         node.interp = QDspx::AnchorPoint::Interpolation::Cubic;
@@ -199,27 +199,27 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         }
     };
 
-    auto encodeSingingParam = [&](const DsParam &dsParam, QDspx::ParamInfo &param) {
+    auto encodeSingingParam = [&](const Param &dsParam, QDspx::ParamInfo &param) {
         encodeCurves(dsParam.original, param.org);
         encodeCurves(dsParam.edited, param.edited);
         encodeCurves(dsParam.envelope, param.envelope);
     };
 
-    auto encodeSingingParams = [&](const DsParams &dsParams, QDspx::SingleParam &params) {
+    auto encodeSingingParams = [&](const Params &dsParams, QDspx::SingleParam &params) {
         encodeSingingParam(dsParams.pitch, params.pitch);
         encodeSingingParam(dsParams.energy, params.energy);
         encodeSingingParam(dsParams.tension, params.tension);
         encodeSingingParam(dsParams.breathiness, params.breathiness);
     };
 
-    auto encodePhonemes = [&](const QList<DsPhoneme> &dsPhonemes, QList<QDspx::Phoneme> &phonemes) {
+    auto encodePhonemes = [&](const QList<Phoneme> &dsPhonemes, QList<QDspx::Phoneme> &phonemes) {
         for (const auto &dsPhoneme : dsPhonemes) {
             QDspx::Phoneme phoneme;
             phoneme.start = dsPhoneme.start;
             phoneme.token = dsPhoneme.name;
-            if (dsPhoneme.type == DsPhoneme::DsPhonemeType::Ahead) {
+            if (dsPhoneme.type == Phoneme::PhonemeType::Ahead) {
                 phoneme.type = QDspx::Phoneme::Type::Ahead;
-            } else if (dsPhoneme.type == DsPhoneme::DsPhonemeType::Final) {
+            } else if (dsPhoneme.type == Phoneme::PhonemeType::Final) {
                 phoneme.type = QDspx::Phoneme::Type::Final;
             } else {
                 phoneme.type = QDspx::Phoneme::Type::Normal;
@@ -228,7 +228,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         }
     };
 
-    auto encodeNotes = [&](const OverlapableSerialList<DsNote> &dsNotes, QList<QDspx::Note> &notes) {
+    auto encodeNotes = [&](const OverlapableSerialList<Note> &dsNotes, QList<QDspx::Note> &notes) {
         for (const auto dsNote : dsNotes) {
             QDspx::Note note;
             note.pos = dsNote->start();
@@ -242,10 +242,10 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         }
     };
 
-    auto encodeClips = [&](const DsTrack *dsTrack, QDspx::Track &track) {
+    auto encodeClips = [&](const Track *dsTrack, QDspx::Track &track) {
         for (const auto clip : dsTrack->clips()) {
-            if (clip->type() == DsClip::Singing) {
-                auto singingClip = dynamic_cast<DsSingingClip *>(clip);
+            if (clip->type() == Clip::Singing) {
+                auto singingClip = dynamic_cast<SingingClip *>(clip);
                 auto singClip = QDspx::SingingClipRef::create();
                 singClip->name = clip->name();
                 singClip->time.start = clip->start();
@@ -257,8 +257,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 encodeNotes(singingClip->notes(), singClip->notes);
                 encodeSingingParams(singingClip->params, singClip->params);
                 track.clips.append(singClip);
-            } else if (clip->type() == DsClip::Audio) {
-                auto audioClip = dynamic_cast<DsAudioClip *>(clip);
+            } else if (clip->type() == Clip::Audio) {
+                auto audioClip = dynamic_cast<AudioClip *>(clip);
                 auto audioClipRef = QDspx::AudioClipRef::create();
                 audioClipRef->name = clip->name();
                 audioClipRef->time.start = clip->start();

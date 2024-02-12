@@ -32,26 +32,26 @@ void AppModel::setTempo(double tempo) {
     m_tempo = tempo;
     emit tempoChanged(m_tempo);
 }
-const QList<DsTrack *> &AppModel::tracks() const {
+const QList<Track *> &AppModel::tracks() const {
     return m_tracks;
 }
 
-void AppModel::insertTrack(DsTrack *track, int index) {
-    connect(track, &DsTrack::propertyChanged, this, [=] {
+void AppModel::insertTrack(Track *track, int index) {
+    connect(track, &Track::propertyChanged, this, [=] {
         auto trackIndex = m_tracks.indexOf(track);
         emit tracksChanged(PropertyUpdate, trackIndex, track);
     });
     m_tracks.insert(index, track);
     emit tracksChanged(Insert, index, track);
 }
-void AppModel::insertTrackQuietly(DsTrack *track, int index) {
-    connect(track, &DsTrack::propertyChanged, this, [=] {
+void AppModel::insertTrackQuietly(Track *track, int index) {
+    connect(track, &Track::propertyChanged, this, [=] {
         auto trackIndex = m_tracks.indexOf(track);
         emit tracksChanged(PropertyUpdate, trackIndex, track);
     });
     m_tracks.insert(index, track);
 }
-void AppModel::appendTrack(DsTrack *track) {
+void AppModel::appendTrack(Track *track) {
     insertTrack(track, m_tracks.count());
 }
 void AppModel::removeTrackAt(int index) {
@@ -60,7 +60,7 @@ void AppModel::removeTrackAt(int index) {
     m_tracks.removeAt(index);
     emit tracksChanged(Remove, index, track);
 }
-void AppModel::removeTrack(DsTrack *track) {
+void AppModel::removeTrack(Track *track) {
     auto index = m_tracks.indexOf(track);
     removeTrackAt(index);
 }
@@ -78,7 +78,7 @@ void AppModel::setQuantize(int quantize) {
 }
 void AppModel::newProject() {
     reset();
-    auto newTrack = new DsTrack;
+    auto newTrack = new Track;
     newTrack->setName("New Track");
     m_tracks.append(newTrack);
     emit modelChanged();
@@ -169,7 +169,7 @@ void AppModel::setSelectedTrack(int trackIndex) {
     m_selectedTrackIndex = trackIndex;
     emit selectedTrackChanged(trackIndex);
 }
-DsClip *AppModel::findClipById(int clipId, int &trackIndex) {
+Clip *AppModel::findClipById(int clipId, int &trackIndex) {
     int i = 0;
     for (auto track : m_tracks) {
         auto result = track->findClipById(clipId);

@@ -6,22 +6,22 @@
 #define EDITSINGINGCLIPPROPERTIES_H
 
 #include "Controller/History/IAction.h"
-#include "Model/DsClip.h"
-#include "Model/DsTrack.h"
+#include "Model/Clip.h"
+#include "Model/Track.h"
 
 class EditSingingClipPropertiesAction : public IAction {
 public:
-    static EditSingingClipPropertiesAction *build(const DsClip::ClipCommonProperties &oldArgs,
-                                            const DsClip::ClipCommonProperties &newArgs,
-                                            DsSingingClip *clip, DsTrack *track);
+    static EditSingingClipPropertiesAction *build(const Clip::ClipCommonProperties &oldArgs,
+                                            const Clip::ClipCommonProperties &newArgs,
+                                            SingingClip *clip, Track *track);
     void execute() override;
     void undo() override;
 
 private:
-    DsClip::ClipCommonProperties m_oldArgs;
-    DsClip::ClipCommonProperties m_newArgs;
-    DsSingingClip *m_clip = nullptr;
-    DsTrack *m_track = nullptr;
+    Clip::ClipCommonProperties m_oldArgs;
+    Clip::ClipCommonProperties m_newArgs;
+    SingingClip *m_clip = nullptr;
+    Track *m_track = nullptr;
 };
 
 

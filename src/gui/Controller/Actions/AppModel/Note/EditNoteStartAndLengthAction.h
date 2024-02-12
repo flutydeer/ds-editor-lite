@@ -6,18 +6,18 @@
 #define EDITNOTESTARTACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/DsClip.h"
+#include "Model/Clip.h"
 
 class EditNoteStartAndLengthAction final : public IAction {
 public:
-    static EditNoteStartAndLengthAction *build(DsNote *note, int deltaTick, DsSingingClip *clip);
+    static EditNoteStartAndLengthAction *build(Note *note, int deltaTick, SingingClip *clip);
     void execute() override;
     void undo() override;
 
 private:
-    DsNote *m_note = nullptr;
+    Note *m_note = nullptr;
     int m_deltaTick = 0;
-    DsSingingClip *m_clip = nullptr;
+    SingingClip *m_clip = nullptr;
 };
 
 

@@ -6,18 +6,18 @@
 #define INSERTCLIPACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/DsClip.h"
-#include "Model/DsTrack.h"
+#include "Model/Clip.h"
+#include "Model/Track.h"
 
 class InsertClipAction final : public IAction {
 public:
-    static InsertClipAction *build(DsClip *clip, DsTrack *track);
+    static InsertClipAction *build(Clip *clip, Track *track);
     void execute() override;
     void undo() override;
 
 private:
-    DsClip *m_clip = nullptr;
-    DsTrack *m_track = nullptr;
+    Clip *m_clip = nullptr;
+    Track *m_track = nullptr;
 };
 
 

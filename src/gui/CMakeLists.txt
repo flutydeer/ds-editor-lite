@@ -14,7 +14,7 @@ if(APPLE)
     set(PLATFORM_PROPERTY MACOSX_BUNDLE)
 endif()
 
-add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} res/lite_res.qrc)
+add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} Resources/lite_res.qrc)
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 
@@ -37,10 +37,10 @@ set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND
         ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/res
-        ${CMAKE_BINARY_DIR}/bin/res
+        ${CMAKE_CURRENT_SOURCE_DIR}/Resources
+        ${CMAKE_BINARY_DIR}/bin/Resources
 )
 install(
-        DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res
+        DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Resources
         DESTINATION .
 )

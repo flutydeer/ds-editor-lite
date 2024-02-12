@@ -3,7 +3,7 @@
 //
 
 #include "InsertTrackAction.h"
-InsertTrackAction *InsertTrackAction::build(DsTrack *track, int index, AppModel *model) {
+InsertTrackAction *InsertTrackAction::build(Track *track, int index, AppModel *model) {
     auto a = new InsertTrackAction;
     a->m_track = track;
     a->m_index = index;
