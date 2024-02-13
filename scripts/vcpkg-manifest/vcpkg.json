@@ -10,8 +10,7 @@
     "qmsetup",
     "rpclib",
     "rtmidi",
-    "interval-tree",
-    "qxspinbox"
+    "interval-tree"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [

@@ -7,11 +7,7 @@
 
 class QComboBox;
 class QCheckBox;
-
-namespace QXSpinBox {
-    class QExpressionDoubleSpinBox;
-}
-
+class QDoubleSpinBox;
 
 class AudioSettingsDialog : public QDialog {
     Q_OBJECT
@@ -38,7 +34,7 @@ private:
     QComboBox *m_hotPlugModeComboBox;
     QCheckBox *m_closeDeviceAtBackgroundCheckBox;
     QCheckBox *m_closeDeviceOnPlaybackStopCheckBox;
-    QXSpinBox::QExpressionDoubleSpinBox *m_fileBufferingSizeMsec;
+    QDoubleSpinBox *m_fileBufferingSizeMsec;
 
     void updateDeviceComboBox();
     void updateBufferSizeAndSampleRateComboBox();

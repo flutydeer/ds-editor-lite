@@ -18,7 +18,6 @@ add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} Resources/lite_res.q
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 
-find_package(QXSpinBox REQUIRED)
 find_package(SndFile CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC
         SndFile::sndfile
@@ -28,7 +27,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Synthesis talcs::Midi
         opendspx
         IKg2p
-        QXSpinBox
 )
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
