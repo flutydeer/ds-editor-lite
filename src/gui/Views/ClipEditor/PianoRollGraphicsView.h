@@ -5,13 +5,13 @@
 #ifndef PIANOROLLGRAPHICSVIEW_H
 #define PIANOROLLGRAPHICSVIEW_H
 
-#include "PianoRollGlobal.h"
+#include "ClipEditorGlobal.h"
 #include "GraphicsItem/NoteGraphicsItem.h"
 #include "Model/Clip.h"
 #include "Model/Note.h"
 #include "Views/Common/TimeGraphicsView.h"
 
-using namespace PianoRollGlobal;
+using namespace ClipEditorGlobal;
 
 class PianoRollGraphicsView final : public TimeGraphicsView {
     Q_OBJECT

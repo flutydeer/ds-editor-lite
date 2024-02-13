@@ -5,9 +5,9 @@
 #include <QPainter>
 
 #include "PianoRollBackgroundGraphicsItem.h"
-#include "Views/ClipEditor/PianoRollGlobal.h"
+#include "Views/ClipEditor/ClipEditorGlobal.h"
 
-using namespace PianoRollGlobal;
+using namespace ClipEditorGlobal;
 
 void PianoRollBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                             QWidget *widget) {

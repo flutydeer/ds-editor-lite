@@ -27,6 +27,19 @@ public:
         QList<Phoneme> editedPhonemes;
     };
 
+    class PhonemeViewModel {
+    public:
+        enum PhonemeItemType { Ahead, Normal, Final, Sil };
+        PhonemeItemType type;
+        int noteId;
+        int start;
+        int length;
+        QString name;
+
+        PhonemeViewModel *prior;
+        PhonemeViewModel *next;
+    };
+
 public slots:
     void setTimeRange(double startTick, double endTick);
     void setTimeSignature(int numerator, int denominator) override;
@@ -43,9 +56,12 @@ private:
     double m_startTick = 0;
     double m_endTick = 0;
     double m_position = 0;
-    QList<NoteViewModel*> m_notes;
+    QList<NoteViewModel *> m_notes;
+    QList<PhonemeViewModel *> m_phonemes;
 
-    NoteViewModel* findNoteById(int id);
+    NoteViewModel *findNoteById(int id);
+    void buildPhonemeList();
+    void resetPhonemeList();
 };
 
 

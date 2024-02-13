@@ -24,10 +24,6 @@ public:
     void setScaleX(double sx);
     double scaleY() const;
     void setScaleY(double sy);
-    void setScale(const double sx, const double sy) {
-        setScaleX(sx);
-        setScaleY(sy);
-    }
     double scaleXMax() const;
     void setScaleXMax(double max);
     double scaleYMin() const;
@@ -47,6 +43,10 @@ signals:
 public slots:
     void notifyVisibleRectChanged();
     void onWheelHorScale(QWheelEvent *event);
+    void setScale(const double sx, const double sy) {
+        setScaleX(sx);
+        setScaleY(sy);
+    }
 
 protected:
     bool event(QEvent *event) override;

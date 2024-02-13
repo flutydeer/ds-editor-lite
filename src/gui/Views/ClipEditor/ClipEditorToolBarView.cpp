@@ -67,13 +67,13 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
 
                 qDebug() << button->objectName();
                 if (button == m_btnArrow)
-                    emit editModeChanged(PianoRollGlobal::Select);
+                    emit editModeChanged(ClipEditorGlobal::Select);
                 else if (button == m_btnNotePencil)
-                    emit editModeChanged(PianoRollGlobal::DrawNote);
+                    emit editModeChanged(ClipEditorGlobal::DrawNote);
                 else if (button == m_btnPitchPencil)
-                    emit editModeChanged(PianoRollGlobal::DrawPitch);
+                    emit editModeChanged(ClipEditorGlobal::DrawPitch);
                 else if (button == m_btnPitchAnchor)
-                    emit editModeChanged(PianoRollGlobal::EditPitchAnchor);
+                    emit editModeChanged(ClipEditorGlobal::EditPitchAnchor);
             });
 
     auto mainLayout = new QHBoxLayout;

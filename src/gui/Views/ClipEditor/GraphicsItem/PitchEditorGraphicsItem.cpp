@@ -9,9 +9,9 @@
 #include <QPainter>
 
 #include "PitchEditorGraphicsItem.h"
-#include "Views/ClipEditor/PianoRollGlobal.h"
+#include "Views/ClipEditor/ClipEditorGlobal.h"
 
-using namespace PianoRollGlobal;
+using namespace ClipEditorGlobal;
 
 PitchEditorGraphicsItem::PitchEditorGraphicsItem() {
     setBackgroundColor(Qt::transparent);

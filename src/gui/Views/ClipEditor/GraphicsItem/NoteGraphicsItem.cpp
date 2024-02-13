@@ -2,9 +2,7 @@
 // Created by fluty on 2024/1/23.
 //
 
-#include <QDebug>
 #include <QGraphicsSceneContextMenuEvent>
-#include <QInputDialog>
 #include <QMenu>
 #include <QPainter>
 #include <QTextOption>
@@ -12,9 +10,9 @@
 #include "NoteGraphicsItem.h"
 #include "Views/Common/CommonGraphicsRectItem.h"
 #include "Utils/AppGlobal.h"
-#include "Views/ClipEditor/PianoRollGlobal.h"
+#include "Views/ClipEditor/ClipEditorGlobal.h"
 
-using namespace PianoRollGlobal;
+using namespace ClipEditorGlobal;
 
 NoteGraphicsItem::NoteGraphicsItem(int itemId, QGraphicsItem *parent)
     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
@@ -101,7 +99,7 @@ void NoteGraphicsItem::setLengthOffset(int tick) {
     m_lengthOffset = tick;
     updateRectAndPos();
 }
-int NoteGraphicsItem::keyOffset() {
+int NoteGraphicsItem::keyOffset() const {
     return m_keyOffset;
 }
 void NoteGraphicsItem::setKeyOffset(int key) {
@@ -203,23 +201,18 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 void NoteGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     m_menu->exec(event->screenPos());
 }
-void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-    CommonGraphicsRectItem::mousePressEvent(event);
-    if (!isSelected())
-        setSelected(true);
-}
+// void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+//     CommonGraphicsRectItem::mousePressEvent(event);
+//     if (!isSelected())
+//         setSelected(true);
+// }
 void NoteGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     const auto rx = event->pos().rx();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolarance) {
+    if (rx >= 0 && rx <= AppGlobal::resizeTolarance ||
+        rx >= rect().width() - AppGlobal::resizeTolarance && rx <= rect().width())
         setCursor(Qt::SizeHorCursor);
-        m_mouseMoveBehavior = ResizeLeft;
-    } else if (rx >= rect().width() - AppGlobal::resizeTolarance && rx <= rect().width()) {
-        setCursor(Qt::SizeHorCursor);
-        m_mouseMoveBehavior = ResizeRight;
-    } else {
+    else
         setCursor(Qt::ArrowCursor);
-        m_mouseMoveBehavior = Move;
-    }
 
     QGraphicsRectItem::hoverMoveEvent(event);
 }

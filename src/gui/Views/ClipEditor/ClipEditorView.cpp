@@ -30,12 +30,12 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     m_pianoRollView = new PianoRollGraphicsView(m_pianoRollScene);
     m_pianoRollView->setSceneVisibility(false);
     m_pianoRollView->setDragMode(QGraphicsView::RubberBandDrag);
-    m_pianoRollView->setPixelsPerQuarterNote(PianoRollGlobal::pixelsPerQuarterNote);
+    m_pianoRollView->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     connect(m_pianoRollView, &PianoRollGraphicsView::scaleChanged, m_pianoRollScene,
             &PianoRollGraphicsScene::setScale);
 
     auto gridItem = new PianoRollBackgroundGraphicsItem;
-    gridItem->setPixelsPerQuarterNote(PianoRollGlobal::pixelsPerQuarterNote);
+    gridItem->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     connect(m_pianoRollView, &PianoRollGraphicsView::visibleRectChanged, gridItem,
             &TimeGridGraphicsItem::setVisibleRect);
     connect(m_pianoRollView, &PianoRollGraphicsView::scaleChanged, gridItem,
@@ -51,7 +51,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
 
     m_timelineView = new TimelineView;
     m_timelineView->setTimeRange(m_pianoRollView->startTick(), m_pianoRollView->endTick());
-    m_timelineView->setPixelsPerQuarterNote(PianoRollGlobal::pixelsPerQuarterNote);
+    m_timelineView->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     m_timelineView->setFixedHeight(timelineViewHeight);
     m_timelineView->setVisible(false);
     connect(m_timelineView, &TimelineView::wheelHorScale, m_pianoRollView,
@@ -74,7 +74,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
 
     m_phonemeView = new PhonemeView;
     m_phonemeView->setTimeRange(m_pianoRollView->startTick(), m_pianoRollView->endTick());
-    m_phonemeView->setPixelsPerQuarterNote(PianoRollGlobal::pixelsPerQuarterNote);
+    m_phonemeView->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     m_phonemeView->setFixedHeight(40);
     m_phonemeView->setVisible(false);
     connect(appModel, &AppModel::modelChanged, m_phonemeView, [=] {

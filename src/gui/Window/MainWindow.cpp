@@ -78,7 +78,8 @@ MainWindow::MainWindow() {
         "border-radius: 4px; color: #F0F0F0; selection-color: #000;"
         "selection-background-color: #9BBAFF; padding: 2px; }"
         "QLineEdit:focus { background: #202122; border: 1px solid #606060; border-bottom: 2px "
-        "solid #9BBAFF; }";
+        "solid #9BBAFF; }"
+        "QGraphicsView { border: none }";
     this->setStyleSheet(QString("QMainWindow { background: #232425 }") + qssBase);
 #ifdef Q_OS_WIN
     // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler

@@ -11,6 +11,7 @@
 #include "PianoRollGraphicsView.h"
 #include "Model/Track.h"
 #include "Views/Common/TimelineView.h"
+#include "ClipEditorGlobal.h"
 
 #include <QWidget>
 
@@ -26,7 +27,7 @@ public slots:
 
 private slots:
     void onClipChanged(Track::ClipChangeType type, int id, Clip *clip);
-    void onEditModeChanged(PianoRollGlobal::PianoRollEditMode mode);
+    void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
     void onRemoveSelectedNotes();

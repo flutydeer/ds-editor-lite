@@ -9,7 +9,7 @@
 #include <QPushButton>
 #include <QWidget>
 
-#include "PianoRollGlobal.h"
+#include "ClipEditorGlobal.h"
 #include "Controls/EditLabel.h"
 #include "Controls/SeekBar.h"
 
@@ -24,7 +24,7 @@ public:
 
 signals:
     void clipNameChanged(const QString &name);
-    void editModeChanged(PianoRollGlobal::PianoRollEditMode mode);
+    void editModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
 
 private:
     int m_contentHeight = 28;

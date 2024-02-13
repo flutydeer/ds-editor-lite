@@ -15,8 +15,6 @@ class NoteGraphicsItem final : public CommonGraphicsRectItem,
     Q_OBJECT
 
 public:
-    enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };
-
     explicit NoteGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     explicit NoteGraphicsItem(int itemId, int start, int length, int keyIndex, const QString &lyric,
                               const QString &pronunciation, QGraphicsItem *parent = nullptr);
@@ -42,7 +40,7 @@ public:
     void setStartOffset(int tick);
     int lengthOffset() const;
     void setLengthOffset(int tick);
-    int keyOffset();
+    int keyOffset() const;
     void setKeyOffset(int key);
     void resetOffset();
 
@@ -53,7 +51,7 @@ signals:
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
-    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    // void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     void initUi();
@@ -61,18 +59,11 @@ private:
 
     QWidget *m_context;
     QMenu *m_menu;
-    bool m_propertyEdited = false;
     int m_start = 0;
     int m_length = 480;
     int m_keyIndex = 60;
     QString m_lyric;
     QString m_pronunciation;
-
-    MouseMoveBehavior m_mouseMoveBehavior = Move;
-    QPointF m_mouseDownPos;
-    int m_mouseDownStart;
-    int m_mouseDownLength;
-    int m_mouseDownKeyIndex;
 
     int m_startOffset = 0;
     int m_lengthOffset = 0;

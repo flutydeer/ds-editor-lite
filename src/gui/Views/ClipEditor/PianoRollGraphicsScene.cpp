@@ -4,10 +4,10 @@
 
 #include <QGraphicsSceneMouseEvent>
 
-#include "PianoRollGlobal.h"
+#include "ClipEditorGlobal.h"
 #include "PianoRollGraphicsScene.h"
 
-using namespace PianoRollGlobal;
+using namespace ClipEditorGlobal;
 
 PianoRollGraphicsScene::PianoRollGraphicsScene() {
     auto w = 1920 / 480 * pixelsPerQuarterNote * 100;
