@@ -36,8 +36,10 @@ void ClipEditorViewController::onEditNotesLyrics(const QList<int> &notesId) {
     auto syllable2p = new IKg2p::Syllable2p(qApp->applicationDirPath() +
                                             "/res/phonemeDict/opencpop-extension.txt");
     QStringList lyrics;
+    QList<Phonemes> notesPhonemes;
     for (const auto note : notesToEdit) {
         lyrics.append(note->lyric());
+        notesPhonemes.append(note->phonemes());
     }
 
     auto syllableRes = g2p_man->hanziToPinyin(lyrics, false, false);
@@ -45,10 +47,20 @@ void ClipEditorViewController::onEditNotesLyrics(const QList<int> &notesId) {
         auto properties = new Note::NoteWordProperties;
         properties->lyric = lyrics[i];
         properties->pronunciation = syllableRes[i];
+        properties->phonemes.edited = notesPhonemes[i].edited;
         auto phonemes = syllable2p->syllableToPhoneme(syllableRes[i]);
         if (!phonemes.isEmpty()) {
-            properties->phonemes.original.append(Phoneme(Phoneme::Ahead, phonemes.first(), 0));
-            properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.last(), 0));
+            if (phonemes.count() == 1) {
+                properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.first(), 0));
+
+                properties->phonemes.edited.first().name = phonemes.first();
+            } else if (phonemes.count() == 2) {
+                properties->phonemes.original.append(Phoneme(Phoneme::Ahead, phonemes.first(), 0));
+                properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.last(), 0));
+
+                properties->phonemes.edited.first().name = phonemes.first();
+                properties->phonemes.edited.last().name = phonemes.last();
+            }
         }
         args.append(properties);
     }

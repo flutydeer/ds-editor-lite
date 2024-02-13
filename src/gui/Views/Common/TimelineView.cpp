@@ -8,6 +8,8 @@
 #include "Views/Utils/ITimelinePainter.h"
 #include "Utils/AppGlobal.h"
 
+using namespace AppGlobal;
+
 void TimelineView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
@@ -28,6 +30,7 @@ void TimelineView::setQuantize(int quantize) {
 void TimelineView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
     QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
 
     // Draw background
     painter.setPen(Qt::NoPen);
@@ -48,7 +51,6 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     pen.setCapStyle(Qt::RoundCap);
     painter.setPen(pen);
     painter.setBrush(color);
-    painter.setRenderHint(QPainter::Antialiasing);
 
     auto centerX = tickToX(m_position);
     double w = 12;

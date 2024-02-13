@@ -210,10 +210,10 @@ void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 void NoteGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     const auto rx = event->pos().rx();
-    if (rx >= 0 && rx <= m_resizeTolerance) {
+    if (rx >= 0 && rx <= AppGlobal::resizeTolarance) {
         setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeLeft;
-    } else if (rx >= rect().width() - m_resizeTolerance && rx <= rect().width()) {
+    } else if (rx >= rect().width() - AppGlobal::resizeTolarance && rx <= rect().width()) {
         setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeRight;
     } else {

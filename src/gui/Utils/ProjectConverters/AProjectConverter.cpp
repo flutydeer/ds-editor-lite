@@ -28,8 +28,10 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
         return true;
     };
 
-    auto decodeNotes = [](const QJsonArray &arrNotes) {
+    auto decodeNotes = [&](const QJsonArray &arrNotes) {
         QList<Note *> notes;
+        QList<Phoneme> phonemes;
+        Phoneme phoneme;
         for (const auto valNote : qAsConst(arrNotes)) {
             auto objNote = valNote.toObject();
             auto note = new Note;
@@ -38,7 +40,20 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
             note->setKeyIndex(objNote.value("pitch").toInt());
             note->setLyric(objNote.value("lyric").toString());
             note->setPronunciation("la");
+
+            phoneme.type = Phoneme::Ahead;
+            auto startTick = objNote.value("headConsonants").toArray().first().toInt();
+            auto startMs = startTick * 60000 / m_tempo / 480;
+            phoneme.start = startMs;
+            phonemes.append(phoneme);
+
+            phoneme.type = Phoneme::Normal;
+            phoneme.start = 0;
+            phonemes.append(phoneme);
+
+            note->setPhonemes(Phonemes::Edited, phonemes);
             notes.append(note);
+            phonemes.clear();
         }
         return notes;
     };
@@ -87,8 +102,10 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
     if (openJsonFile(path, &objAProject)) {
         model->setTimeSignature(
             AppModel::TimeSignature(objAProject.value("beatsPerBar").toInt(), 4));
-        model->setTempo(
-            objAProject.value("tempos").toArray().first().toObject().value("bpm").toDouble());
+        auto tempo =
+            objAProject.value("tempos").toArray().first().toObject().value("bpm").toDouble();
+        m_tempo = tempo;
+        model->setTempo(tempo);
         decodeTracks(objAProject.value("tracks").toArray(), model);
         return true;
     }

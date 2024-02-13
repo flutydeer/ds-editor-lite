@@ -15,6 +15,8 @@ class Phoneme {
 public:
     enum PhonemeType { Ahead, Normal, Final };
 
+    Phoneme() {
+    }
     Phoneme(PhonemeType type, QString name, int start)
         : type(type), name(std::move(name)), start(start) {
     }

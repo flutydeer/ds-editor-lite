@@ -13,6 +13,9 @@ public:
     bool load(const QString &path, AppModel *model, QString &errMsg,
               ImportMode mode = ImportMode::NewProject) override;
     bool save(const QString &path, AppModel *model, QString &errMsg) override;
+
+private:
+    double m_tempo = 120;
 };
 
 

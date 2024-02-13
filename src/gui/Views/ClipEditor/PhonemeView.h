@@ -1,15 +1,31 @@
 //
-// Created by fluty on 2024/2/3.
+// Created by fluty on 24-2-12.
 //
 
-#ifndef TIMELINEVIEW_H
-#define TIMELINEVIEW_H
+#ifndef PHONEMEPARAMEDITOR_H
+#define PHONEMEPARAMEDITOR_H
 
-#include <QWidget>
+#include "Utils/FillLyric/PhonicWidget.h"
 #include "Views/Utils/ITimelinePainter.h"
+#include "Model/Note.h"
 
-class TimelineView : public QWidget, public ITimelinePainter {
+class PhonemeView final : public QWidget, public ITimelinePainter {
     Q_OBJECT
+
+public:
+    void insertNote(Note *note);
+    void removeNote(int noteId);
+    void updateNote(Note *note);
+    void reset();
+
+    class NoteViewModel {
+    public:
+        int id = -1;
+        int start = 0;
+        int length = 0;
+        QList<Phoneme> originalPhonemes;
+        QList<Phoneme> editedPhonemes;
+    };
 
 public slots:
     void setTimeRange(double startTick, double endTick);
@@ -17,30 +33,21 @@ public slots:
     void setPosition(double tick);
     void setQuantize(int quantize) override;
 
-signals:
-    void wheelHorScale(QWheelEvent *event);
-    void setLastPositionTriggered(double tick);
-
-protected:
+private:
     void paintEvent(QPaintEvent *event) override;
     void drawBar(QPainter *painter, int tick, int bar) override;
     void drawBeat(QPainter *painter, int tick, int bar, int beat) override;
     void drawEighth(QPainter *painter, int tick) override;
-    void wheelEvent(QWheelEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-
-    enum MouseMoveBehavior { SetPosition, SelectLoopRange };
-
-private:
     double tickToX(double tick);
     double xToTick(double x);
     double m_startTick = 0;
     double m_endTick = 0;
-    int m_textPaddingLeft = 2;
     double m_position = 0;
+    QList<NoteViewModel*> m_notes;
+
+    NoteViewModel* findNoteById(int id);
 };
 
 
 
-#endif // TIMELINEVIEW_H
+#endif // PHONEMEPARAMEDITOR_H

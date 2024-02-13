@@ -72,6 +72,21 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
             &TimelineView::setTimeRange);
     connect(appModel, &AppModel::quantizeChanged, m_timelineView, &TimelineView::setQuantize);
 
+    m_phonemeView = new PhonemeView;
+    m_phonemeView->setTimeRange(m_pianoRollView->startTick(), m_pianoRollView->endTick());
+    m_phonemeView->setPixelsPerQuarterNote(PianoRollGlobal::pixelsPerQuarterNote);
+    m_phonemeView->setFixedHeight(40);
+    m_phonemeView->setVisible(false);
+    connect(appModel, &AppModel::modelChanged, m_phonemeView, [=] {
+        m_phonemeView->setTimeSignature(appModel->timeSignature().numerator,
+                                        appModel->timeSignature().denominator);
+    });
+    connect(appModel, &AppModel::timeSignatureChanged, m_phonemeView,
+            &PhonemeView::setTimeSignature);
+    connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_phonemeView,
+            &PhonemeView::setTimeRange);
+    connect(appModel, &AppModel::quantizeChanged, m_phonemeView, &PhonemeView::setQuantize);
+
     connect(playbackController, &PlaybackController::positionChanged, this,
             &ClipEditorView::onPositionChanged);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
@@ -94,6 +109,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     mainLayout->addWidget(m_toolbarView);
     mainLayout->addWidget(m_timelineView);
     mainLayout->addWidget(m_pianoRollView);
+    mainLayout->addWidget(m_phonemeView);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({});
     setLayout(mainLayout);
@@ -115,6 +131,7 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
         m_pianoRollView->setSceneVisibility(false);
 
         m_timelineView->setVisible(false);
+        m_phonemeView->setVisible(false);
         if (m_track != nullptr) {
             qDebug() << "disconnect track and ClipEditorView";
             disconnect(m_track, &Track::clipChanged, this, &ClipEditorView::onClipChanged);
@@ -143,10 +160,12 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
     m_pianoRollView->setIsSingingClip(true);
     m_pianoRollView->setSceneVisibility(true);
     m_timelineView->setVisible(true);
+    m_phonemeView->setVisible(true);
     m_singingClip = dynamic_cast<SingingClip *>(m_clip);
     if (m_singingClip->notes().count() > 0) {
         for (const auto note : m_singingClip->notes()) {
             m_pianoRollView->insertNote(note);
+            m_phonemeView->insertNote(note);
         }
         auto firstNote = m_singingClip->notes().at(0);
         qDebug() << "first note start" << firstNote->start();
@@ -187,6 +206,7 @@ void ClipEditorView::onEditModeChanged(PianoRollEditMode mode) {
 void ClipEditorView::onPositionChanged(double tick) {
     m_timelineView->setPosition(tick);
     m_pianoRollView->setPlaybackPosition(tick);
+    m_phonemeView->setPosition(tick);
 }
 void ClipEditorView::onLastPositionChanged(double tick) {
     m_pianoRollView->setLastPlaybackPosition(tick);
@@ -232,6 +252,7 @@ void ClipEditorView::onResizeNoteRightCompleted(int noteId, int deltaTick) {
 }
 void ClipEditorView::reset() {
     m_pianoRollView->reset();
+    m_phonemeView->reset();
 }
 void ClipEditorView::onClipPropertyChanged() {
     qDebug() << "ClipEditorView::handleClipPropertyChange" << m_clip->id() << m_clip->start();
@@ -241,18 +262,22 @@ void ClipEditorView::onClipPropertyChanged() {
         return;
     for (const auto note : singingClip->notes()) {
         m_pianoRollView->insertNote(note);
+        m_phonemeView->insertNote(note);
     }
 }
 void ClipEditorView::onNoteChanged(SingingClip::NoteChangeType type, int id, Note *note) {
     switch (type) {
         case SingingClip::Inserted:
             m_pianoRollView->insertNote(note);
+            m_phonemeView->insertNote(note);
             break;
         case SingingClip::PropertyChanged:
             m_pianoRollView->updateNote(note);
+            m_phonemeView->updateNote(note);
             break;
         case SingingClip::Removed:
             m_pianoRollView->removeNote(id);
+            m_phonemeView->removeNote(id);
             break;
     }
     m_pianoRollView->updateOverlappedState(m_singingClip);

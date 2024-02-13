@@ -78,9 +78,6 @@ private:
     int m_lengthOffset = 0;
     int m_keyOffset = 0;
 
-    int m_quantize = 240;
-    bool m_tempQuantizeOff = false;
-    int m_resizeTolerance = 8; // px
     int m_pronunciationTextHeight = 20;
 
 };

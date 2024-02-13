@@ -52,6 +52,8 @@ public:
     void setSelectedTrack(int trackIndex);
 
     Clip *findClipById(int clipId, int &trackIndex);
+    double tickToMs(double tick) const;
+    double msToTick(double ms) const;
 
     class LevelMetersUpdatedArgs {
     public:

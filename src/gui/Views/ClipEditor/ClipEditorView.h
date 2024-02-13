@@ -6,6 +6,7 @@
 #define CLIPEDITVIEW_H
 
 #include "ClipEditorToolBarView.h"
+#include "PhonemeView.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 #include "Model/Track.h"
@@ -43,6 +44,7 @@ private:
     PianoRollGraphicsScene *m_pianoRollScene;
     PianoRollGraphicsView *m_pianoRollView;
     TimelineView *m_timelineView;
+    PhonemeView *m_phonemeView;
     PianoRollEditMode m_mode;
 
     bool m_oneSingingClipSelected = false;

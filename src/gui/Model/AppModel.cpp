@@ -181,6 +181,12 @@ Clip *AppModel::findClipById(int clipId, int &trackIndex) {
     }
     return nullptr;
 }
+double AppModel::tickToMs(double tick) const {
+    return tick * 60000 / m_tempo / 480;
+}
+double AppModel::msToTick(double ms) const {
+    return ms * 480 * m_tempo / 60000;
+}
 void AppModel::reset() {
     m_tempo = 120;
     m_timeSignature.numerator = 4;
