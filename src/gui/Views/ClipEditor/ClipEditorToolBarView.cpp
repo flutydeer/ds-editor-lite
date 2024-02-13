@@ -30,14 +30,14 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     m_btnArrow->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnArrow->setChecked(true);
     m_btnArrow->setToolTip("Select");
-    m_btnArrow->installEventFilter(new ToolTipFilter(m_btnArrow, 0, true, false));
+    m_btnArrow->installEventFilter(new ToolTipFilter(m_btnArrow, 500, false, true));
 
     m_btnNotePencil = new QPushButton;
     m_btnNotePencil->setObjectName("btnNotePencil");
     m_btnNotePencil->setCheckable(true);
     m_btnNotePencil->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnNotePencil->setToolTip("Draw Note");
-    m_btnNotePencil->installEventFilter(new ToolTipFilter(m_btnNotePencil, 0, true, false));
+    m_btnNotePencil->installEventFilter(new ToolTipFilter(m_btnNotePencil, 500, false, true));
 
     m_btnPitchAnchor = new QPushButton;
     m_btnPitchAnchor->setObjectName("btnPitchAnchor");
@@ -45,14 +45,14 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     m_btnPitchAnchor->setIcon(icoPitchAnchorWhite);
     m_btnPitchAnchor->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnPitchAnchor->setToolTip("Pitch Anchor");
-    m_btnPitchAnchor->installEventFilter(new ToolTipFilter(m_btnPitchAnchor, 0, true, false));
+    m_btnPitchAnchor->installEventFilter(new ToolTipFilter(m_btnPitchAnchor, 500, false, true));
 
     m_btnPitchPencil = new QPushButton;
     m_btnPitchPencil->setObjectName("btnPitchPencil");
     m_btnPitchPencil->setCheckable(true);
     m_btnPitchPencil->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnPitchPencil->setToolTip("Draw Pitch");
-    m_btnPitchPencil->installEventFilter(new ToolTipFilter(m_btnPitchPencil, 0, true, false));
+    m_btnPitchPencil->installEventFilter(new ToolTipFilter(m_btnPitchPencil, 500, false, true));
 
     auto buttonGroup = new QButtonGroup;
     buttonGroup->setExclusive(true);
