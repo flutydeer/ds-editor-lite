@@ -8,6 +8,7 @@
 #include "EditNoteStartAndLengthAction.h"
 #include "EditNotesLengthAction.h"
 #include "EditNotesWordPropertiesAction.h"
+#include "EditPhonemeAction.h"
 #include "InsertNoteAction.h"
 #include "RemoveNoteAction.h"
 
@@ -39,6 +40,14 @@ void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
     int i = 0;
     for (const auto note : notes) {
         addAction(EditNotesWordPropertiesAction::build(note, args[i], clip));
+        i++;
+    }
+}
+void NoteActions::editNotesPhoneme(const QList<Note *> &notes, const QList<Phoneme> &phonemes,
+                                   SingingClip *clip) {
+    int i = 0;
+    for (const auto note : notes) {
+        addAction(EditPhonemeAction::build(note, phonemes[i], clip));
         i++;
     }
 }

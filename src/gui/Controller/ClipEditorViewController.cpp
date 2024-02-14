@@ -53,7 +53,7 @@ void ClipEditorViewController::onEditNotesLyrics(const QList<int> &notesId) {
             if (phonemes.count() == 1) {
                 properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.first(), 0));
 
-                properties->phonemes.edited.first().name = phonemes.first();
+                properties->phonemes.edited.last().name = phonemes.first();
             } else if (phonemes.count() == 2) {
                 properties->phonemes.original.append(Phoneme(Phoneme::Ahead, phonemes.first(), 0));
                 properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.last(), 0));
@@ -105,6 +105,17 @@ void ClipEditorViewController::onResizeNotesRight(const QList<int> &notesId, int
 
     auto a = new NoteActions;
     a->editNotesLength(notesToEdit, deltaTick, m_clip);
+    a->execute();
+    HistoryManager::instance()->record(a);
+}
+void ClipEditorViewController::onAdjustPhoneme(const QList<int> &notesId,
+                                               const QList<Phoneme> &phonemes) {
+    QList<Note *> notesToEdit;
+    for (const auto id : notesId)
+        notesToEdit.append(m_clip->findNoteById(id));
+
+    auto a = new NoteActions;
+    a->editNotesPhoneme(notesToEdit, phonemes, m_clip);
     a->execute();
     HistoryManager::instance()->record(a);
 }

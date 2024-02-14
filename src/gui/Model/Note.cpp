@@ -39,7 +39,7 @@ void Note::setPronunciation(const QString &pronunciation) {
 Phonemes Note::phonemes() const {
     return m_phonemes;
 }
-void Note::setPhonemes(Phonemes::DsPhonemesType type, const QList<Phoneme>& phonemes) {
+void Note::setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme>& phonemes) {
     if (type == Phonemes::Original)
         m_phonemes.original = phonemes;
     else if (type == Phonemes::Edited)

@@ -41,15 +41,22 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
             note->setLyric(objNote.value("lyric").toString());
             note->setPronunciation("la");
 
-            phoneme.type = Phoneme::Ahead;
-            auto startTick = objNote.value("headConsonants").toArray().first().toInt();
-            auto startMs = startTick * 60000 / m_tempo / 480;
-            phoneme.start = startMs;
-            phonemes.append(phoneme);
+            auto headPhonemes = objNote.value("headConsonants").toArray();
+            if (headPhonemes.count() == 0) {
+                phoneme.type = Phoneme::Normal;
+                phoneme.start = 0;
+                phonemes.append(phoneme);
+            } else if (headPhonemes.count() == 1) {
+                phoneme.type = Phoneme::Ahead;
+                auto startTick = headPhonemes.first().toInt();
+                auto startMs = startTick * 60000 / m_tempo / 480;
+                phoneme.start = qRound(startMs);
+                phonemes.append(phoneme);
 
-            phoneme.type = Phoneme::Normal;
-            phoneme.start = 0;
-            phonemes.append(phoneme);
+                phoneme.type = Phoneme::Normal;
+                phoneme.start = 0;
+                phonemes.append(phoneme);
+            }
 
             note->setPhonemes(Phonemes::Edited, phonemes);
             notes.append(note);

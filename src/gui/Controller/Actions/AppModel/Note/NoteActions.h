@@ -28,6 +28,7 @@ public:
     void editNotesWordProperties(const QList<Note *> &notes,
                                  const QList<Note::NoteWordProperties *> &args,
                                  SingingClip *clip);
+    void editNotesPhoneme(const QList<Note *> &notes, const QList<Phoneme> &phonemes, SingingClip *clip);
 };
 
 

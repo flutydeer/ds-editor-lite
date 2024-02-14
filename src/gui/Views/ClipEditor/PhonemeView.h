@@ -14,6 +14,7 @@ class PhonemeView final : public QWidget, public ITimelinePainter {
     Q_OBJECT
 
 public:
+    explicit PhonemeView(QWidget *parent = nullptr);
     void insertNote(Note *note);
     void removeNote(int noteId);
     void updateNote(Note *note);
@@ -57,10 +58,36 @@ public:
         PhonemeViewModel *prior;
         PhonemeViewModel *next;
 
+        bool hoverOnControlBar = false;
+        int startOffset = 0;
+        int lengthOffset = 0;
+
         int end() const {
             return start + length;
         }
+        int endWithOffset() const {
+            return start + length + startOffset + lengthOffset;
+        }
+        bool canResizeRight() const {
+            if (next == nullptr)
+                return false;
+            if (next->type == Sil)
+                return false;
+            if (start + length < next->start)
+                return false;
+
+            return true;
+        }
+        bool canResizeLeft() const {
+            if (type == Sil && prior->type != Final)
+                return false;
+            return true;
+        }
     };
+
+signals:
+    void adjustCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel1,
+                         PhonemeView::PhonemeViewModel *phonemeViewModel2);
 
 public slots:
     void setTimeRange(double startTick, double endTick);
@@ -69,21 +96,37 @@ public slots:
     void setQuantize(int quantize) override;
 
 private:
+    enum MouseMoveBehavior { ResizeLeft, ResizeRight, None };
+
     void paintEvent(QPaintEvent *event) override;
     void drawBar(QPainter *painter, int tick, int bar) override;
     void drawBeat(QPainter *painter, int tick, int bar, int beat) override;
     void drawEighth(QPainter *painter, int tick) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void updateHoverEffects();
+    bool eventFilter(QObject *object, QEvent *event) override;
     double tickToX(double tick);
     double xToTick(double x);
     double m_startTick = 0;
     double m_endTick = 0;
+    double m_resizeToleranceInTick = 0;
     double m_position = 0;
     OverlapableSerialList<NoteViewModel> m_notes;
     QList<PhonemeViewModel *> m_phonemes;
+    MouseMoveBehavior m_mouseMoveBehavior = None;
+    PhonemeViewModel *m_curPhoneme = nullptr;
+    PhonemeViewModel *m_curOtherPhoneme = nullptr;
+    int m_mouseDownX;
+    int m_currentLengthInMs = 0;
+    bool m_freezeHoverEffects = false;
 
     NoteViewModel *findNoteById(int id);
+    PhonemeViewModel *phonemeAtTick(double tick);
     void buildPhonemeList();
     void resetPhonemeList();
+    void clearHoverEffects(PhonemeViewModel *except = nullptr);
 };
 
 

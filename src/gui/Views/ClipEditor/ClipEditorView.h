@@ -16,7 +16,7 @@
 #include <QWidget>
 
 class ClipEditorView final : public QWidget {
-Q_OBJECT
+    Q_OBJECT
 public:
     explicit ClipEditorView(QWidget *parent = nullptr);
 
@@ -36,6 +36,8 @@ private slots:
     void onMoveNotesCompleted(int deltaTick, int deltaKey);
     void onResizeNoteLeftCompleted(int noteId, int deltaTick);
     void onResizeNoteRightCompleted(int noteId, int deltaTick);
+    void onAdjustPhonemeCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel1,
+                                  PhonemeView::PhonemeViewModel *phonemeViewModel2);
 
 private:
     Track *m_track = nullptr;
@@ -57,4 +59,4 @@ private:
 
 
 
-#endif //CLIPEDITVIEW_H
+#endif // CLIPEDITVIEW_H

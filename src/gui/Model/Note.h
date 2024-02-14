@@ -27,7 +27,7 @@ public:
 
 class Phonemes {
 public:
-    enum DsPhonemesType { Original, Edited };
+    enum PhonemesType { Original, Edited };
     QList<Phoneme> original;
     QList<Phoneme> edited;
 };
@@ -50,7 +50,7 @@ public:
     QString pronunciation() const;
     void setPronunciation(const QString &pronunciation);
     Phonemes phonemes() const;
-    void setPhonemes(Phonemes::DsPhonemesType type, const QList<Phoneme> &phonemes);
+    void setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme> &phonemes);
 
     int compareTo(Note *obj) const;
     bool isOverlappedWith(Note *obj) const;

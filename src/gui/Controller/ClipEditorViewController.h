@@ -25,6 +25,7 @@ public slots:
     void onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey);
     void onResizeNotesLeft(const QList<int> &notesId, int deltaTick);
     void onResizeNotesRight(const QList<int> &notesId, int deltaTick);
+    void onAdjustPhoneme(const QList<int> &notesId, const QList<Phoneme> &phonemes);
 
 private:
     SingingClip *m_clip = nullptr;
