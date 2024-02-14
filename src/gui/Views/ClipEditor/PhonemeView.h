@@ -56,6 +56,10 @@ public:
 
         PhonemeViewModel *prior;
         PhonemeViewModel *next;
+
+        int end() const {
+            return start + length;
+        }
     };
 
 public slots:

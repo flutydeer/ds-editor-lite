@@ -112,7 +112,7 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
 }
 double TimelineView::tickToX(double tick) {
     auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
-    auto x = qRound((rect().width() - AppGlobal::verticalScrollBarWidth) * ratio);
+    auto x = (rect().width() - AppGlobal::verticalScrollBarWidth) * ratio;
     return x;
 }
 double TimelineView::xToTick(double x) {

@@ -88,6 +88,9 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     drawTimeline(&painter, m_startTick, m_endTick,
                  rect().width() - AppGlobal::verticalScrollBarWidth);
 
+    auto ticksPerPixel = (m_endTick - m_startTick) / rect().width();
+    // qDebug() << ticksPerPixel;
+
     auto drawSolidRect = [&](double startTick, double endTick) {
         auto start = tickToX(startTick);
         auto length = tickToX(endTick) - start;
@@ -104,32 +107,50 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         painter.drawLine(QLineF(x, 0, x, rect().height()));
     };
 
-    auto drawPhoneName = [&](double startTick, const QString &name) {
+    auto drawPhoneName = [&](double startTick, double endTick, const QString &name) {
         auto start = tickToX(startTick);
-        // auto length = tickToX(endTick) - start;
-        auto length = 80;
-        auto textRect = QRectF(start + 4, 0, length, rect().height());
+        auto length = tickToX(endTick) - start;
+        auto textRect = QRectF(start + 2, 0, length - 4, rect().height());
         painter.setPen(mainColor);
         painter.setBrush(fillColor);
+
+        auto fontMetrics = painter.fontMetrics();
+        auto text = name;
+        auto textWidth = fontMetrics.horizontalAdvance(text);
+        if (textWidth > textRect.width())
+            return;
         QTextOption textOption(Qt::AlignVCenter);
         textOption.setWrapMode(QTextOption::NoWrap);
         painter.drawText(textRect, name, textOption);
     };
 
     for (const auto phoneme : m_phonemes) {
-        if (phoneme->start + phoneme->length < m_startTick)
+        if (phoneme->end() < m_startTick)
             continue;
         if (phoneme->start > m_endTick)
             break;
         if (phoneme->type == PhonemeViewModel::Sil)
             continue;
 
-        drawSolidRect(phoneme->start, phoneme->start + phoneme->length);
-        drawSolidLine(phoneme->start);
-        drawPhoneName(phoneme->start, phoneme->name);
+        if (ticksPerPixel < 6) {
+            drawSolidRect(phoneme->start, phoneme->start + phoneme->length);
+            drawSolidLine(phoneme->start);
+            drawPhoneName(phoneme->start, phoneme->end(), phoneme->name);
+        /*} else if (ticksPerPixel < 10) {
+            painter.setRenderHint(QPainter::Antialiasing, false);
+            drawSolidRect(phoneme->start, phoneme->start + phoneme->length);
+            drawSolidLine(phoneme->start);*/
+        } else {
+            painter.setRenderHint(QPainter::Antialiasing, false);
+            drawSolidRect(phoneme->start, phoneme->start + phoneme->length);
+        }
+        // qDebug() << "prior" << (phoneme->prior == nullptr ? "null" : phoneme->prior->name)
+        //          << phoneme->name << "next"
+        //          << (phoneme->next == nullptr ? "null" : phoneme->next->name);
     }
 
     // Draw playback indicator
+    painter.setRenderHint(QPainter::Antialiasing);
     penWidth = 1.0;
     pen.setWidthF(penWidth);
     pen.setColor(positionLineColor);
@@ -166,7 +187,7 @@ void PhonemeView::drawEighth(QPainter *painter, int tick) {
 }
 double PhonemeView::tickToX(double tick) {
     auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
-    auto x = qRound((rect().width() - verticalScrollBarWidth) * ratio);
+    auto x = (rect().width() - verticalScrollBarWidth) * ratio;
     return x;
 }
 double PhonemeView::xToTick(double x) {
