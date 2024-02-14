@@ -16,7 +16,7 @@ void PhonemeView::insertNote(Note *note) {
     noteViewModel->length = note->length();
     noteViewModel->originalPhonemes = note->phonemes().original;
     noteViewModel->editedPhonemes = note->phonemes().edited;
-    m_notes.append(noteViewModel);
+    m_notes.add(noteViewModel);
     resetPhonemeList();
     buildPhonemeList();
     update();
@@ -24,7 +24,7 @@ void PhonemeView::insertNote(Note *note) {
 void PhonemeView::removeNote(int noteId) {
     qDebug() << "PhonemeView::removeNote" << noteId;
     auto note = findNoteById(noteId);
-    m_notes.removeOne(note);
+    m_notes.remove(note);
     delete note;
     resetPhonemeList();
     buildPhonemeList();
@@ -32,10 +32,12 @@ void PhonemeView::removeNote(int noteId) {
 }
 void PhonemeView::updateNote(Note *note) {
     auto noteViewModel = findNoteById(note->id());
+    m_notes.remove(noteViewModel);
     noteViewModel->start = note->start();
     noteViewModel->length = note->length();
     noteViewModel->originalPhonemes = note->phonemes().original;
     noteViewModel->editedPhonemes = note->phonemes().edited;
+    m_notes.add(noteViewModel);
     resetPhonemeList();
     buildPhonemeList();
     update();

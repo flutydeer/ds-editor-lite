@@ -8,6 +8,7 @@
 #include "Utils/FillLyric/PhonicWidget.h"
 #include "Views/Utils/ITimelinePainter.h"
 #include "Model/Note.h"
+#include "Utils/OverlapableSerialList.h"
 
 class PhonemeView final : public QWidget, public ITimelinePainter {
     Q_OBJECT
@@ -18,13 +19,30 @@ public:
     void updateNote(Note *note);
     void reset();
 
-    class NoteViewModel {
+    class NoteViewModel : public IOverlapable {
     public:
         int id = -1;
         int start = 0;
         int length = 0;
         QList<Phoneme> originalPhonemes;
         QList<Phoneme> editedPhonemes;
+
+        int compareTo(NoteViewModel *obj) const {
+            auto otherStart = obj->start;
+            if (start < otherStart)
+                return -1;
+            if (start > otherStart)
+                return 1;
+            return 0;
+        }
+        bool isOverlappedWith(NoteViewModel *obj) const {
+            auto otherStart = obj->start;
+            auto otherEnd = otherStart + obj->length;
+            auto curEnd = start + length;
+            if (otherEnd <= start || curEnd <= otherStart)
+                return false;
+            return true;
+        }
     };
 
     class PhonemeViewModel {
@@ -56,7 +74,7 @@ private:
     double m_startTick = 0;
     double m_endTick = 0;
     double m_position = 0;
-    QList<NoteViewModel *> m_notes;
+    OverlapableSerialList<NoteViewModel> m_notes;
     QList<PhonemeViewModel *> m_phonemes;
 
     NoteViewModel *findNoteById(int id);
