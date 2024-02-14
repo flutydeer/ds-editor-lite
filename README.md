@@ -4,12 +4,12 @@
 
 ### Setup Environment
 
-You need to install Qt libraries first. (Take Qt5 as an example)
+You need to install Qt libraries first. (Take Qt6 as an example)
 
 #### Windows
 
 ```sh
-set QT_DIR=<dir> # directory `Qt5Config.cmake` locates
+set QT_DIR=<dir> # directory `Qt6Config.cmake` locates
 set Qt6_DIR=%QT_DIR%
 set VCPKG_KEEP_ENV_VARS=QT_DIR;Qt6_DIR;Qt6GuiTools_DIR
 
@@ -23,9 +23,9 @@ vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./ins
 #### Unix
 
 ```sh
-export QT_DIR=<dir> # directory `Qt5Config.cmake` locates
+export QT_DIR=<dir> # directory `Qt6Config.cmake` locates
 export Qt6_DIR=$QT_DIR
-export VCPKG_KEEP_ENV_VARS="QT_DIR;Qt6_DIR"
+export VCPKG_KEEP_ENV_VARS="QT_DIR;Qt6_DIR;Qt6GuiTools_DIR"
 
 git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
