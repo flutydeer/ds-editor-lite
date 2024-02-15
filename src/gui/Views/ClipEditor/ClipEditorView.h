@@ -36,8 +36,7 @@ private slots:
     void onMoveNotesCompleted(int deltaTick, int deltaKey);
     void onResizeNoteLeftCompleted(int noteId, int deltaTick);
     void onResizeNoteRightCompleted(int noteId, int deltaTick);
-    void onAdjustPhonemeCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel1,
-                                  PhonemeView::PhonemeViewModel *phonemeViewModel2);
+    void onAdjustPhonemeCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel);
 
 private:
     Track *m_track = nullptr;

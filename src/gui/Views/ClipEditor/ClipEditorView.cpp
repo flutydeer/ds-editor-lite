@@ -253,35 +253,32 @@ void ClipEditorView::onResizeNoteRightCompleted(int noteId, int deltaTick) {
     notes.append(noteId);
     ClipEditorViewController::instance()->onResizeNotesRight(notes, deltaTick);
 }
-void ClipEditorView::onAdjustPhonemeCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel1,
-                                              PhonemeView::PhonemeViewModel *phonemeViewModel2) {
+void ClipEditorView::onAdjustPhonemeCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel) {
+    if (!phonemeViewModel)
+        return;
+
     auto appModel = AppModel::instance();
     QList<int> notesId;
     QList<Phoneme> phonemes;
-
-    auto addPhoneme = [&](PhonemeView::PhonemeViewModel *phonemeViewModel) {
-        notesId.append(phonemeViewModel->noteId);
-        auto note = m_singingClip->findNoteById(phonemeViewModel->noteId);
-        Phoneme phoneme;
-        phoneme.name = phonemeViewModel->name;
-        auto noteStartInMs = appModel->tickToMs(note->start());
-        auto phonemeViewModelStartInMs = appModel->tickToMs(phonemeViewModel->start + phonemeViewModel->startOffset);
-        if (phonemeViewModel->type == PhonemeView::PhonemeViewModel::Ahead) {
-            phoneme.type = Phoneme::Ahead;
-            phoneme.start = qRound(noteStartInMs - phonemeViewModelStartInMs);
-            qDebug() << "ClipEditorView::onAdjustPhonemeCompleted" << "append ahead" << phoneme.name << phoneme.start;
-        } else if (phonemeViewModel->type == PhonemeView::PhonemeViewModel::Normal) {
-            phoneme.type = Phoneme::Normal;
-            phoneme.start = qRound(phonemeViewModelStartInMs - noteStartInMs);
-            qDebug() << "ClipEditorView::onAdjustPhonemeCompleted" << "append normal" << phoneme.name << phoneme.start;
-        }
-        phonemes.append(phoneme);
-    };
-    if (phonemeViewModel1)
-        addPhoneme(phonemeViewModel1);
-    if (phonemeViewModel2)
-        addPhoneme(phonemeViewModel2);
-
+    notesId.append(phonemeViewModel->noteId);
+    auto note = m_singingClip->findNoteById(phonemeViewModel->noteId);
+    Phoneme phoneme;
+    phoneme.name = phonemeViewModel->name;
+    auto noteStartInMs = appModel->tickToMs(note->start());
+    auto phonemeViewModelStartInMs =
+        appModel->tickToMs(phonemeViewModel->start + phonemeViewModel->startOffset);
+    if (phonemeViewModel->type == PhonemeView::PhonemeViewModel::Ahead) {
+        phoneme.type = Phoneme::Ahead;
+        phoneme.start = qRound(noteStartInMs - phonemeViewModelStartInMs);
+        qDebug() << "ClipEditorView::onAdjustPhonemeCompleted"
+                 << "append ahead" << phoneme.name << phoneme.start;
+    } else if (phonemeViewModel->type == PhonemeView::PhonemeViewModel::Normal) {
+        phoneme.type = Phoneme::Normal;
+        phoneme.start = qRound(phonemeViewModelStartInMs - noteStartInMs);
+        qDebug() << "ClipEditorView::onAdjustPhonemeCompleted"
+                 << "append normal" << phoneme.name << phoneme.start;
+    }
+    phonemes.append(phoneme);
     ClipEditorViewController::instance()->onAdjustPhoneme(notesId, phonemes);
 }
 void ClipEditorView::reset() {

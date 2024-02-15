@@ -86,8 +86,7 @@ public:
     };
 
 signals:
-    void adjustCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel1,
-                         PhonemeView::PhonemeViewModel *phonemeViewModel2);
+    void adjustCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel);
 
 public slots:
     void setTimeRange(double startTick, double endTick);
@@ -121,6 +120,7 @@ private:
     int m_mouseDownX;
     int m_currentLengthInMs = 0;
     bool m_freezeHoverEffects = false;
+    bool m_showDebugInfo = false;
 
     NoteViewModel *findNoteById(int id);
     PhonemeViewModel *phonemeAtTick(double tick);
