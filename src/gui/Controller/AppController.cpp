@@ -2,12 +2,7 @@
 // Created by FlutyDeer on 2023/12/1.
 //
 
-#include <QDebug>
-#include <QApplication>
-#include <QMessageBox>
-
 #include "AppController.h"
-#include "g2pglobal.h"
 #include "Utils/FillLyric/LyricDialog.h"
 #include "syllable2p.h"
 #include "Controller/History/HistoryManager.h"
@@ -54,9 +49,6 @@ void AppController::fillLyric() {
         return;
     auto notes = singingClip->notes();
 
-    auto syllable2p = new IKg2p::Syllable2p(qApp->applicationDirPath() +
-                                            "/res/phonemeDict/opencpop-extension.txt");
-
     QStringList lyrics;
     for (const auto &note : notes) {
         lyrics.append(note->lyric());
@@ -65,6 +57,8 @@ void AppController::fillLyric() {
     auto lyricDialog = new FillLyric::LyricDialog();
     lyricDialog->setLyrics(lyrics.join(" "));
     lyricDialog->show();
+
+    delete lyricDialog;
 }
 void AppController::onSetTempo(double tempo) {
     // TODO: validate tempo

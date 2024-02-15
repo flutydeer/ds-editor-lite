@@ -6,8 +6,10 @@
 #include "TracksViewController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "History/HistoryManager.h"
-#include "mandarin.h"
-#include "syllable2p.h"
+
+#include "Utils/G2p/S2p.h"
+#include "Utils/G2p/G2pMandarin.h"
+
 #include <QApplication>
 
 void ClipEditorViewController::setCurrentSingingClip(SingingClip *clip) {
@@ -32,9 +34,8 @@ void ClipEditorViewController::onEditNotesLyrics(const QList<int> &notesId) {
         notesToEdit.append(m_clip->findNoteById(id));
     QList<Note::NoteWordProperties *> args;
 
-    auto g2p_man = new IKg2p::Mandarin();
-    auto syllable2p = new IKg2p::Syllable2p(qApp->applicationDirPath() +
-                                            "/res/phonemeDict/opencpop-extension.txt");
+    auto g2p_man = G2pMandarin::instance();
+    auto syllable2p = S2p::instance();
     QStringList lyrics;
     QList<Phonemes> notesPhonemes;
     for (const auto note : notesToEdit) {
@@ -51,16 +52,23 @@ void ClipEditorViewController::onEditNotesLyrics(const QList<int> &notesId) {
         auto phonemes = syllable2p->syllableToPhoneme(syllableRes[i]);
         if (!phonemes.isEmpty()) {
             if (phonemes.count() == 1) {
-                properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.first(), 0));
+                auto phonemeNormal = Phoneme(Phoneme::Normal, phonemes.first(), 0);
+                properties->phonemes.original.append(phonemeNormal);
 
-                properties->phonemes.edited.last().name = phonemes.first();
+                properties->phonemes.edited.append(phonemeNormal);
             } else if (phonemes.count() == 2) {
-                properties->phonemes.original.append(Phoneme(Phoneme::Ahead, phonemes.first(), 0));
-                properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.last(), 0));
+                auto phonemeAhead = Phoneme(Phoneme::Ahead, phonemes.first(), 0);
+                auto phonemeNormal = Phoneme(Phoneme::Normal, phonemes.last(), 0);
+                properties->phonemes.original.append(phonemeAhead);
+                properties->phonemes.original.append(phonemeNormal);
 
-                properties->phonemes.edited.first().name = phonemes.first();
-                properties->phonemes.edited.last().name = phonemes.last();
+                properties->phonemes.edited.append(phonemeAhead);
+                properties->phonemes.edited.append(phonemeNormal);
             }
+        } else {
+            auto phonemeNormal = Phoneme(Phoneme::Normal, "SP", 0);
+            properties->phonemes.original.append(phonemeNormal);
+            properties->phonemes.edited.append(phonemeNormal);
         }
         args.append(properties);
     }

@@ -174,6 +174,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
 
     if (mode == ImportMode::NewProject) {
         model->newProject();
+        model->clearTracks();
     } else if (mode == ImportMode::AppendToProject) {
         if (model->timeSignature().numerator != dspx->content.timeline.timeSignatures[0].num ||
             model->timeSignature().denominator != dspx->content.timeline.timeSignatures[0].den) {
@@ -202,9 +203,11 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     } else {
         return false;
     }
+
     if (dspx->content.tracks.count() > 0) {
         auto timeline = dspx->content.timeline;
-        model->setTimeSignature(AppModel::TimeSignature(timeline.timeSignatures[0].num, timeline.timeSignatures[0].den));
+        model->setTimeSignature(AppModel::TimeSignature(timeline.timeSignatures[0].num,
+                                                        timeline.timeSignatures[0].den));
         model->setTempo(timeline.tempos[0].value);
         decodeTracks(dspx, model, mode);
         return true;
@@ -271,8 +274,8 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
     auto timeline = new QDspx::Timeline;
 
     timeline->tempos.append(QDspx::Tempo(0, model->tempo()));
-    timeline->timeSignatures.append(
-        QDspx::TimeSignature(0, model->timeSignature().numerator, model->timeSignature().denominator));
+    timeline->timeSignatures.append(QDspx::TimeSignature(0, model->timeSignature().numerator,
+                                                         model->timeSignature().denominator));
     dspx.content.timeline = *timeline;
 
     encodeTracks(model, dspx);
