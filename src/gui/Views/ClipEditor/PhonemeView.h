@@ -108,6 +108,8 @@ private:
     bool eventFilter(QObject *object, QEvent *event) override;
     double tickToX(double tick);
     double xToTick(double x);
+    double ticksPerPixel()const;
+    bool canEdit() const;
     double m_startTick = 0;
     double m_endTick = 0;
     double m_resizeToleranceInTick = 0;
@@ -121,6 +123,7 @@ private:
     int m_currentLengthInMs = 0;
     bool m_freezeHoverEffects = false;
     bool m_showDebugInfo = false;
+    int m_canEditTicksPerPixelThreshold = 6;
 
     NoteViewModel *findNoteById(int id);
     PhonemeViewModel *phonemeAtTick(double tick);

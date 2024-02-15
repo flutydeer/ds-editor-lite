@@ -97,9 +97,6 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     drawTimeline(&painter, m_startTick, m_endTick,
                  rect().width() - AppGlobal::verticalScrollBarWidth);
 
-    auto ticksPerPixel = (m_endTick - m_startTick) / rect().width();
-    // qDebug() << ticksPerPixel;
-
     auto drawSolidRect = [&](double startTick, double endTick) {
         auto start = tickToX(startTick);
         auto length = tickToX(endTick) - start;
@@ -135,10 +132,10 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         else
             text = phoneme->name;
         auto textWidth = fontMetrics.horizontalAdvance(text);
-        // if (textWidth > textRect.width())
-        //     return;
+        if (textWidth > textRect.width())
+            return;
         QTextOption textOption(Qt::AlignVCenter);
-        // textOption.setWrapMode(QTextOption::NoWrap);
+        textOption.setWrapMode(QTextOption::NoWrap);
         painter.drawText(textRect, text, textOption);
     };
 
@@ -152,7 +149,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
 
         auto start = phoneme->start + phoneme->startOffset;
         auto end = phoneme->endWithOffset();
-        if (ticksPerPixel < 6) {
+        if (canEdit()) {
             drawSolidRect(start, end);
             drawSolidLine(start, phoneme->hoverOnControlBar);
             drawPhoneName(phoneme);
@@ -206,6 +203,9 @@ void PhonemeView::drawEighth(QPainter *painter, int tick) {
     painter->drawLine(QLineF(x, y1, x, y2));
 }
 void PhonemeView::mousePressEvent(QMouseEvent *event) {
+    if (!canEdit())
+        return;
+
     m_mouseDownX = event->pos().x();
     auto tick = xToTick(event->pos().x());
     if (auto phoneme = phonemeAtTick(tick)) {
@@ -236,6 +236,9 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
         QWidget::mousePressEvent(event);
 }
 void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
+    if (!canEdit())
+        return;
+
     auto deltaX = event->pos().x() - m_mouseDownX;
     auto deltaTick = qRound(xToTick(event->pos().x()) - xToTick(m_mouseDownX));
     if (m_mouseMoveBehavior == ResizeLeft) {
@@ -338,14 +341,17 @@ bool PhonemeView::eventFilter(QObject *object, QEvent *event) {
     if (m_freezeHoverEffects)
         return QWidget::eventFilter(object, event);
 
-    if (event->type() == QEvent::HoverEnter) {
-    } else if (event->type() == QEvent::HoverMove) {
-        updateHoverEffects();
-    } else if (event->type() == QEvent::HoverLeave) {
-        setCursor(Qt::ArrowCursor);
-        clearHoverEffects();
-        update();
+    if (canEdit()) {
+        if (event->type() == QEvent::HoverEnter) {
+        } else if (event->type() == QEvent::HoverMove) {
+            updateHoverEffects();
+        } else if (event->type() == QEvent::HoverLeave) {
+            setCursor(Qt::ArrowCursor);
+            clearHoverEffects();
+            update();
+        }
     }
+
     return QWidget::eventFilter(object, event);
 }
 double PhonemeView::tickToX(double tick) {
@@ -359,6 +365,12 @@ double PhonemeView::xToTick(double x) {
     if (tick < 0)
         tick = 0;
     return tick;
+}
+double PhonemeView::ticksPerPixel() const {
+    return (m_endTick - m_startTick) / rect().width();
+}
+bool PhonemeView::canEdit() const {
+    return ticksPerPixel() < m_canEditTicksPerPixelThreshold;
 }
 PhonemeView::NoteViewModel *PhonemeView::findNoteById(int id) {
     for (const auto note : m_notes)
