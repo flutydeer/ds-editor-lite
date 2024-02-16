@@ -54,11 +54,29 @@ void ClipEditorViewController::onEditNotesLyrics(const QList<int> &notesId) {
             if (phonemes.count() == 1) {
                 properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.first(), 0));
 
+                if (properties->phonemes.edited.count() != 1) {
+                    properties->phonemes.edited.clear();
+                    auto phoneme = Phoneme();
+                    phoneme.type = Phoneme::Normal;
+                    phoneme.start = 0;
+                    properties->phonemes.edited.append(phoneme);
+                }
                 properties->phonemes.edited.last().name = phonemes.first();
             } else if (phonemes.count() == 2) {
                 properties->phonemes.original.append(Phoneme(Phoneme::Ahead, phonemes.first(), 0));
                 properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.last(), 0));
 
+                if (properties->phonemes.edited.count() != 2) {
+                    properties->phonemes.edited.clear();
+                    auto phoneme = Phoneme();
+                    phoneme.type = Phoneme::Ahead;
+                    phoneme.start = 0;
+                    properties->phonemes.edited.append(phoneme);
+
+                    phoneme.type = Phoneme::Normal;
+                    phoneme.start = 0;
+                    properties->phonemes.edited.append(phoneme);
+                }
                 properties->phonemes.edited.first().name = phonemes.first();
                 properties->phonemes.edited.last().name = phonemes.last();
             }

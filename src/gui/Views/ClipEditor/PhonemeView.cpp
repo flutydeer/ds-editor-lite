@@ -43,7 +43,6 @@ void PhonemeView::updateNote(Note *note) {
     noteViewModel->length = note->length();
     noteViewModel->originalPhonemes = note->phonemes().original;
     noteViewModel->editedPhonemes = note->phonemes().edited;
-    qDebug() << note->phonemes().edited.last().name << note->phonemes().edited.last().start;
     m_notes.add(noteViewModel);
     resetPhonemeList();
     buildPhonemeList();
@@ -386,6 +385,9 @@ PhonemeView::PhonemeViewModel *PhonemeView::phonemeAtTick(double tick) {
     return nullptr;
 }
 void PhonemeView::buildPhonemeList() {
+    if (m_notes.count() == 0)
+        return;
+
     auto appModel = AppModel::instance();
 
     PhonemeViewModel *prior;
