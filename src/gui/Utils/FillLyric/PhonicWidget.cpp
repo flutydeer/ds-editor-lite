@@ -239,6 +239,9 @@ namespace FillLyric {
     void PhonicWidget::_on_showContextMenu(const QPoint &pos) {
         // 获取点击位置的索引
         QModelIndex index = tableView->indexAt(pos);
+        // 获取当前选中的单元格
+        auto selected = tableView->selectionModel()->selectedIndexes();
+
         // 验证点击位置是否在表格内
         if (index.isValid()) {
             // 获取当前行列数
@@ -247,38 +250,46 @@ namespace FillLyric {
 
             // 创建菜单
             auto *menu = new QMenu(tableView);
-            // 添加候选音节
-            _on_changeSyllable(index, menu);
-            // 自定义音节
-            _on_changePhonetic(index, menu);
-            menu->addSeparator();
 
-            // 移动单元格
-            menu->addAction("插入空白单元格", [this, index]() { model->cellMoveRight(index); });
-            // 清空单元格
-            menu->addAction("清空单元格", [this, index]() { model->cellClear(index); });
-            // 向左归并单元格
-            if (col > 0) {
-                menu->addAction("向左归并单元格", [this, index]() { model->cellMergeLeft(index); });
-                menu->addAction("向左移动单元格", [this, index]() { model->cellMoveLeft(index); });
+            if (selected.count() > 1) {
+                // 清空单元格
+                menu->addAction("清空单元格", [this, selected]() { model->cellClear(selected); });
+            } else {
+                // 添加候选音节
+                _on_changeSyllable(index, menu);
+                // 自定义音节
+                _on_changePhonetic(index, menu);
+                menu->addSeparator();
+
+                // 移动单元格
+                menu->addAction("插入空白单元格", [this, index]() { model->cellMoveRight(index); });
+                // 清空单元格
+                menu->addAction("清空单元格", [this, index]() { model->cellClear(index); });
+                // 向左归并单元格
+                if (col > 0) {
+                    menu->addAction("向左归并单元格",
+                                    [this, index]() { model->cellMergeLeft(index); });
+                    menu->addAction("向左移动单元格",
+                                    [this, index]() { model->cellMoveLeft(index); });
+                }
+                // 向右移动单元格
+                menu->addAction("向右移动单元格", [this, index]() { model->cellMoveRight(index); });
+                menu->addSeparator();
+
+                // 换行
+                if (model->cellLyricType(row, col) != LyricType::Fermata)
+                    menu->addAction("换行", [this, index]() { model->cellNewLine(index); });
+                // 合并到上一行
+                if (row > 0 && col == 0)
+                    menu->addAction("合并到上一行", [this, index]() { model->cellMergeUp(index); });
+
+                // 添加上一行
+                menu->addAction("向上插入空白行", [this, index]() { model->addPrevLine(index); });
+                // 添加下一行
+                menu->addAction("向下插入空白行", [this, index]() { model->addNextLine(index); });
+                // 删除当前行
+                menu->addAction("删除当前行", [this, index]() { model->removeLine(index); });
             }
-            // 向右移动单元格
-            menu->addAction("向右移动单元格", [this, index]() { model->cellMoveRight(index); });
-            menu->addSeparator();
-
-            // 换行
-            if (model->cellLyricType(row, col) != LyricType::Fermata)
-                menu->addAction("换行", [this, index]() { model->cellNewLine(index); });
-            // 合并到上一行
-            if (row > 0 && col == 0)
-                menu->addAction("合并到上一行", [this, index]() { model->cellMergeUp(index); });
-
-            // 添加上一行
-            menu->addAction("向上插入空白行", [this, index]() { model->addPrevLine(index); });
-            // 添加下一行
-            menu->addAction("向下插入空白行", [this, index]() { model->addNextLine(index); });
-            // 删除当前行
-            menu->addAction("删除当前行", [this, index]() { model->removeLine(index); });
 
             // 显示菜单
             menu->exec(QCursor::pos());

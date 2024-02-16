@@ -27,6 +27,9 @@ namespace FillLyric {
                         m_model->cellNewLine(index);
                         return true;
                     }
+                } else if (keyEvent->key() == Qt::Key_Delete) {
+                    auto selected = m_tableView->selectionModel()->selectedIndexes();
+                    m_model->cellClear(selected);
                 }
             } else if (event->type() == QEvent::Wheel) {
                 auto *wheelEvent = dynamic_cast<QWheelEvent *>(event);

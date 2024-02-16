@@ -177,6 +177,14 @@ namespace FillLyric {
         this->removeRow(row);
     }
 
+    // Multi-cell operations
+    void PhonicModel::cellClear(const QModelIndexList &indexList) {
+        // 清空indexList中的所有单元格
+        for (const auto &index : indexList) {
+            clearData(index.row(), index.column(), allRoles());
+        }
+    }
+
     // Line operations
     void PhonicModel::cellNewLine(const QModelIndex &index) {
         // 获取当前单元格坐标
