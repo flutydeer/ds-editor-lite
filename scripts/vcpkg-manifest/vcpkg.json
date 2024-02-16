@@ -10,7 +10,8 @@
     "qmsetup",
     "rpclib",
     "rtmidi",
-    "interval-tree"
+    "interval-tree",
+    "boost-interprocess"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [
