@@ -37,25 +37,7 @@ void AppController::importAproject(const QString &filePath) {
 }
 
 void AppController::fillLyric() {
-    auto model = AppModel::instance();
-
-    auto selectedTrack = model->tracks().at(0);
-
-    auto clips = selectedTrack->clips();
-    auto firstClip = clips.at(0);
-
-    auto singingClip = dynamic_cast<SingingClip *>(firstClip);
-    if (singingClip == nullptr)
-        return;
-    auto notes = singingClip->notes();
-
-    QStringList lyrics;
-    for (const auto &note : notes) {
-        lyrics.append(note->lyric());
-    }
-
     auto lyricDialog = new FillLyric::LyricDialog();
-    lyricDialog->setLyrics(lyrics.join(" "));
     lyricDialog->show();
 
     lyricDialog->exec();

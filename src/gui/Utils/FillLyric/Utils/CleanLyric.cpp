@@ -45,7 +45,7 @@ namespace FillLyric {
             } else if (isNumber(lyric)) {
                 return LyricType::Number;
             }
-        } else {
+        } else if (lyric.size() == 1) {
             QChar firstChar = lyric.at(0);
             if (isHanzi(firstChar)) {
                 return LyricType::Hanzi;

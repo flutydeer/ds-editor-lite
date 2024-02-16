@@ -22,6 +22,8 @@
 #include "jpg2p.h"
 #include "PhonicDelegate.h"
 #include "PhonicModel.h"
+#include "PhonicTextEdit.h"
+#include "PhonicEventFilter.h"
 
 namespace FillLyric {
     using PhonicRole = PhonicDelegate::PhonicRole;
@@ -36,6 +38,8 @@ namespace FillLyric {
         void setLyrics(const QString &lyrics);
 
     private:
+        void resizeTable();
+
         void _on_btnToText_clicked();
         void _on_btnToTable_clicked();
         void _on_btnToggleFermata_clicked();
@@ -50,9 +54,12 @@ namespace FillLyric {
         void _on_btnImportLrc_clicked();
         void _on_btnExport_clicked();
 
+        int maxLyricLength = 0;
+        int maxSyllableLength = 0;
 
-        QTextEdit *textEdit;
+        PhonicTextEdit *textEdit;
         QVBoxLayout *cfgLayout;
+        PhonicEventFilter *eventFilter;
         QTableView *tableView;
 
         QPushButton *btnInsertText;

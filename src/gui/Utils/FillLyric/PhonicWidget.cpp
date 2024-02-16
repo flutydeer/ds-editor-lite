@@ -11,7 +11,7 @@ namespace FillLyric {
     PhonicWidget::PhonicWidget(QObject *parent)
         : g2p_man(new IKg2p::Mandarin()), g2p_jp(new IKg2p::JpG2p()) {
         // 创建一个多行文本框
-        textEdit = new QTextEdit();
+        textEdit = new PhonicTextEdit();
         textEdit->setPlaceholderText("请输入歌词");
 
         // 创建模型和视图
@@ -27,6 +27,9 @@ namespace FillLyric {
 
         // 设置委托
         tableView->setItemDelegate(new PhonicDelegate(tableView));
+
+        eventFilter = new PhonicEventFilter(tableView, model, this);
+        tableView->installEventFilter(eventFilter);
 
         cfgLayout = new QVBoxLayout();
         btnInsertText = new QPushButton("插入测试文本");
@@ -77,6 +80,9 @@ namespace FillLyric {
         // tableView的itemDelegate的closeEditor信号触发_on_cellChanged
         connect(tableView->itemDelegate(), &QAbstractItemDelegate::closeEditor, this,
                 &PhonicWidget::_on_cellEditClosed);
+
+        // fontsize
+        connect(eventFilter, &PhonicEventFilter::fontSizeChanged, this, [this] { resizeTable(); });
     }
 
     PhonicWidget::~PhonicWidget() = default;
@@ -149,10 +155,6 @@ namespace FillLyric {
         model->setColumnCount(model->modelMaxCol);
         model->setRowCount((int) lyricRes.size());
 
-        int maxLyricLength = 0;
-        // 记录syllable长度
-        int maxSyllableLength = 0;
-
         // 设置表格内容
         for (int i = 0; i < lyricRes.size(); i++) {
             auto lyrics = lyricRes[i];
@@ -190,6 +192,11 @@ namespace FillLyric {
             }
         }
 
+        resizeTable();
+        model->shrinkModel();
+    }
+
+    void PhonicWidget::resizeTable() {
         // 获取当前字体高度
         int fontHeight = tableView->fontMetrics().height();
         // 行高设置为两倍字体高度
@@ -200,8 +207,6 @@ namespace FillLyric {
         // 列宽设置为maxSyllableLength倍字体宽度
         tableView->horizontalHeader()->setDefaultSectionSize(
             fontWidth * std::max(maxLyricLength, maxSyllableLength) + fontWidth * 4);
-
-        model->shrinkModel();
     }
 
     void PhonicWidget::_on_btnToText_clicked() {
