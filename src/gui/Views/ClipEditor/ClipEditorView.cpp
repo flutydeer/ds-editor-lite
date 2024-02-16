@@ -234,7 +234,7 @@ void ClipEditorView::onRemoveSelectedNotes() {
 void ClipEditorView::onEditSelectedNotesLyrics() {
     qDebug() << "ClipEditorView::onEditSelectedNotesLyrics";
     auto notes = m_pianoRollView->selectedNotesId();
-    ClipEditorViewController::instance()->onEditNotesLyrics(notes);
+    ClipEditorViewController::instance()->onEditNotesLyric(notes);
 }
 void ClipEditorView::onDrawNoteCompleted(int start, int length, int keyIndex) {
     qDebug() << "ClipEditorView::onDrawNoteCompleted" << start << length << keyIndex;
@@ -244,6 +244,7 @@ void ClipEditorView::onDrawNoteCompleted(int start, int length, int keyIndex) {
     note->setKeyIndex(keyIndex);
     note->setLyric(defaultLyric);
     note->setPronunciation(defaultPronunciation);
+    note->setSelected(true);
     ClipEditorViewController::instance()->onInsertNote(note);
 }
 void ClipEditorView::onMoveNotesCompleted(int deltaTick, int deltaKey) {
@@ -306,13 +307,12 @@ void ClipEditorView::reset() {
 }
 void ClipEditorView::onClipPropertyChanged() {
     qDebug() << "ClipEditorView::handleClipPropertyChange" << m_clip->id() << m_clip->start();
-    reset();
     auto singingClip = dynamic_cast<SingingClip *>(m_clip);
     if (singingClip->notes().count() <= 0)
         return;
     for (const auto note : singingClip->notes()) {
-        m_pianoRollView->insertNote(note);
-        m_phonemeView->insertNote(note);
+        m_pianoRollView->updateNoteTimeAndKey(note);
+        m_phonemeView->updateNoteTime(note);
     }
 }
 void ClipEditorView::onNoteListChanged(SingingClip::NoteChangeType type, int id, Note *note) {

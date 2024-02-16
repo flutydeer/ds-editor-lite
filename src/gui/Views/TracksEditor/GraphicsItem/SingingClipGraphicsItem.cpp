@@ -29,7 +29,8 @@ QString SingingClipGraphicsItem::audioCachePath() const {
 void SingingClipGraphicsItem::setAudioCachePath(const QString &path) {
     m_audioCachePath = path;
 }
-void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type, int id, Note *note) {
+void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type, int id,
+                                                Note *note) {
     switch (type) {
         case SingingClip::Inserted:
             addNote(note);
@@ -41,6 +42,13 @@ void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type
         case SingingClip::Removed:
             removeNote(id);
             break;
+    }
+}
+void SingingClipGraphicsItem::onNotePropertyChanged(SingingClip::NotePropertyType type,
+                                                    Note *note) {
+    if (type == SingingClip::TimeAndKey) {
+        removeNote(note->id());
+        addNote(note);
     }
 }
 void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
@@ -109,7 +117,7 @@ void SingingClipGraphicsItem::addNote(Note *note) {
     update();
 }
 void SingingClipGraphicsItem::removeNote(int id) {
-    for (int i = 0; i < m_notes.count(); i ++) {
+    for (int i = 0; i < m_notes.count(); i++) {
         auto noteId = m_notes.at(i).id;
         if (noteId == id) {
             m_notes.removeAt(i);

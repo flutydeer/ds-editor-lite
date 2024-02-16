@@ -244,6 +244,7 @@ void PianoRollGraphicsView::updateSelectionState() {
     m_canNotifySelectedNoteChanged = true;
 }
 void PianoRollGraphicsView::insertNote(Note *note) {
+    m_canNotifySelectedNoteChanged = false;
     qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric();
     auto noteItem = new NoteGraphicsItem(note->id());
     noteItem->setContext(this);
@@ -254,7 +255,7 @@ void PianoRollGraphicsView::insertNote(Note *note) {
     noteItem->setPronunciation(note->pronunciation());
     noteItem->setVisibleRect(visibleRect());
     noteItem->setScaleX(scaleX());
-    noteItem->setSelected(true);
+    noteItem->setSelected(note->selected());
     noteItem->setScaleY(scaleY());
     noteItem->setOverlapped(note->overlapped());
     scene()->addItem(noteItem);
@@ -266,13 +267,16 @@ void PianoRollGraphicsView::insertNote(Note *note) {
     connect(noteItem, &NoteGraphicsItem::editLyricTriggered, this,
             [=] { emit editNoteLyricTriggered(); });
     m_noteItems.append(noteItem);
+    m_canNotifySelectedNoteChanged = true;
 }
 void PianoRollGraphicsView::removeNote(int noteId) {
+    m_canNotifySelectedNoteChanged = false;
     qDebug() << "PianoRollGraphicsView::removeNote" << noteId;
     auto noteItem = findNoteById(noteId);
     scene()->removeItem(noteItem);
     m_noteItems.removeOne(noteItem);
     delete noteItem;
+    m_canNotifySelectedNoteChanged = true;
 }
 void PianoRollGraphicsView::updateNoteTimeAndKey(Note *note) {
     qDebug() << "PianoRollGraphicsView::updateNoteTimeAndKey" << note->id() << note->start()

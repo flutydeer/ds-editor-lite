@@ -30,6 +30,7 @@ public:
 
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, int id, Note *note);
+    void onNotePropertyChanged(SingingClip::NotePropertyType type, Note *note);
 
 private:
     // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
@@ -45,6 +46,7 @@ private:
 
     void addNote(Note *note);
     void removeNote(int id);
+    // void updateNote(Note *note);
 };
 
 
