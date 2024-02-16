@@ -253,11 +253,10 @@ namespace FillLyric {
             // 清空单元格
             menu->addAction("清空单元格", [this, index]() { model->cellClear(index); });
             // 向左归并单元格
-            if (col > 0)
+            if (col > 0) {
                 menu->addAction("向左归并单元格", [this, index]() { model->cellMergeLeft(index); });
-            // 向左移动单元格
-            if (col > 0)
                 menu->addAction("向左移动单元格", [this, index]() { model->cellMoveLeft(index); });
+            }
             // 向右移动单元格
             menu->addAction("向右移动单元格", [this, index]() { model->cellMoveRight(index); });
             menu->addSeparator();

@@ -12,7 +12,7 @@
 class S2p : public QSingleton<S2p>, public IKg2p::Syllable2p {
 public:
     explicit S2p(QString phonemeDict = qApp->applicationDirPath() +
-                                       "/res/phonemeDict/opencpop-extension.txt",
+                                       "/Resources/phonemeDict/opencpop-extension.txt",
                  QString sep1 = "\t", QString sep2 = " ")
         : IKg2p::Syllable2p(std::move(phonemeDict), std::move(sep1), std::move(sep2)) {
     }

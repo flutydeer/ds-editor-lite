@@ -58,6 +58,7 @@ void AppController::fillLyric() {
     lyricDialog->setLyrics(lyrics.join(" "));
     lyricDialog->show();
 
+    lyricDialog->exec();
     delete lyricDialog;
 }
 void AppController::onSetTempo(double tempo) {
