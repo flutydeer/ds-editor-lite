@@ -13,11 +13,12 @@
 #include "Utils/UniqueObject.h"
 #include "Utils/OverlapableSerialList.h"
 
-class Track : public QObject, public UniqueObject {
+class Track : public QObject, public UniqueObject, public ISelectable {
     Q_OBJECT
 
 public:
-    enum ClipChangeType { Inserted, PropertyChanged , Removed };
+    ~Track() override = default;
+    enum ClipChangeType { Inserted, PropertyChanged, Removed };
 
     QString name() const;
     void setName(const QString &name);

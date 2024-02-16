@@ -8,13 +8,14 @@
 #include <QList>
 
 #include "Utils/IOverlapable.h"
+#include "Utils/ISelectable.h"
 #include "Utils/UniqueObject.h"
 
 class Curve : public IOverlapable, UniqueObject {
 public:
     enum CurveType { Generic, Draw, Anchor };
 
-    virtual ~Curve();
+    virtual ~Curve() = default;
 
     virtual CurveType type() {
         return Generic;
@@ -49,7 +50,7 @@ private:
     QList<int> m_values;
 };
 
-class AnchorNode : public IOverlapable, UniqueObject {
+class AnchorNode : public IOverlapable, public UniqueObject, public ISelectable {
 public:
     enum InterpMode { Linear, Hermite, Cubic, None };
 

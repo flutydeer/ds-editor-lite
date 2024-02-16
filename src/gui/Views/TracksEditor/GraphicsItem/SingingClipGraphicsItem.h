@@ -29,7 +29,7 @@ public:
     void setAudioCachePath(const QString &path);
 
 public slots:
-    void onNoteChanged(SingingClip::NoteChangeType type, int id, Note *note);
+    void onNoteListChanged(SingingClip::NoteChangeType type, int id, Note *note);
 
 private:
     // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)

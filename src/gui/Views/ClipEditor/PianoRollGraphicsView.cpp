@@ -27,6 +27,10 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene)
     connect(this, &PianoRollGraphicsView::visibleRectChanged, m_currentDrawingNote,
             &NoteGraphicsItem::setVisibleRect);
 }
+void PianoRollGraphicsView::onSceneSelectionChanged() {
+    if (m_canNotifySelectedNoteChanged)
+        emit selectedNoteChanged(selectedNotesId());
+}
 void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     CommonGraphicsView::paintEvent(event);
 
@@ -97,6 +101,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         return;
     }
 
+    m_selecting = true;
     event->accept();
     auto scenePos = mapToScene(event->position().toPoint());
     auto tick = static_cast<int>(sceneXToTick(scenePos.x()));
@@ -208,8 +213,7 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     } else if (m_mouseMoveBehavior == ResizeRight) {
         resetSelectedNotesOffset();
         emit resizeNoteRightCompleted(m_currentEditingNote->id(), m_deltaTick);
-    }
-    else if (m_mouseMoveBehavior == UpdateDrawingNote) {
+    } else if (m_mouseMoveBehavior == UpdateDrawingNote) {
         emit drawNoteCompleted(m_currentDrawingNote->start(), m_currentDrawingNote->length(),
                                m_currentDrawingNote->keyIndex());
     }
@@ -218,10 +222,26 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     m_deltaKey = 0;
     m_movedBeforeMouseUp = false;
     m_currentEditingNote = nullptr;
+
+    if (!m_cachedSelectedNotes.isEmpty())
+        updateSelectionState();
+    m_selecting = false;
+
     TimeGraphicsView::mouseReleaseEvent(event);
 }
 void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     // TimeGraphicsView::mouseDoubleClickEvent(event);
+}
+void PianoRollGraphicsView::updateSelectionState() {
+    m_canNotifySelectedNoteChanged = false;
+    clearNoteSelections();
+
+    for (const auto note : m_cachedSelectedNotes) {
+        auto noteItem = findNoteById(note->id());
+        noteItem->setSelected(note->selected());
+    }
+    m_cachedSelectedNotes.clear();
+    m_canNotifySelectedNoteChanged = true;
 }
 void PianoRollGraphicsView::insertNote(Note *note) {
     qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric();
@@ -254,14 +274,29 @@ void PianoRollGraphicsView::removeNote(int noteId) {
     m_noteItems.removeOne(noteItem);
     delete noteItem;
 }
-void PianoRollGraphicsView::updateNote(Note *note) {
-    qDebug() << "PianoRollGraphicsView::updateNote" << note->id() << note->lyric();
+void PianoRollGraphicsView::updateNoteTimeAndKey(Note *note) {
+    qDebug() << "PianoRollGraphicsView::updateNoteTimeAndKey" << note->id() << note->start()
+             << note->length() << note->keyIndex();
     auto noteItem = findNoteById(note->id());
     noteItem->setStart(note->start());
     noteItem->setLength(note->length());
     noteItem->setKeyIndex(note->keyIndex());
+}
+void PianoRollGraphicsView::updateNoteWord(Note *note) {
+    qDebug() << "PianoRollGraphicsView::updateNoteWord" << note->id() << note->lyric()
+             << note->pronunciation();
+    auto noteItem = findNoteById(note->id());
     noteItem->setLyric(note->lyric());
     noteItem->setPronunciation(note->pronunciation());
+}
+void PianoRollGraphicsView::updateNoteSelection(const QList<Note *> &selectedNotes) {
+    qDebug() << "PianoRollGraphicsView::updateNoteSelection"
+             << "selected notes"
+             << (selectedNotes.isEmpty() ? "" : selectedNotes.first()->lyric());
+    if (m_selecting)
+        m_cachedSelectedNotes = selectedNotes;
+    else
+        updateSelectionState();
 }
 NoteGraphicsItem *PianoRollGraphicsView::findNoteById(int id) {
     for (const auto note : m_noteItems)

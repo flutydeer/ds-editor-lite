@@ -138,3 +138,15 @@ void ClipEditorViewController::onAdjustPhoneme(const QList<int> &notesId,
     a->execute();
     HistoryManager::instance()->record(a);
 }
+void ClipEditorViewController::onNoteSelectionChanged(const QList<int> &notesId,
+                                                      bool unselectOther) {
+    if (unselectOther)
+        for (const auto note : m_clip->notes())
+            note->setSelected(false);
+
+    for (const auto id : notesId) {
+        if (auto note = m_clip->findNoteById(id))
+            note->setSelected(true);
+    }
+    m_clip->notifyNoteSelectionChanged();
+}

@@ -22,13 +22,15 @@ public:
     void setEditMode(PianoRollEditMode mode);
     void insertNote(Note *note);
     void removeNote(int noteId);
-    void updateNote(Note *note);
+    void updateNoteTimeAndKey(Note *note);
+    void updateNoteWord(Note *note);
+    void updateNoteSelection(const QList<Note *> &selectedNotes);
     void reset();
     QList<int> selectedNotesId() const;
     void updateOverlappedState(SingingClip *singingClip);
     void clearNoteSelections(NoteGraphicsItem *except = nullptr);
 
-    double topKeyIndex()const;
+    double topKeyIndex() const;
     double bottomKeyIndex() const;
     void setViewportTopKey(double key);
     void setViewportCenterAt(double tick, double keyIndex);
@@ -42,6 +44,10 @@ signals:
     void moveNotesCompleted(int deltaTick, int deltaKey);
     void resizeNoteLeftCompleted(int noteId, int deltaTick);
     void resizeNoteRightCompleted(int noteId, int deltaTick);
+    void selectedNoteChanged(QList<int> notes);
+
+public slots:
+    void onSceneSelectionChanged();
 
 private:
     void paintEvent(QPaintEvent *event) override;
@@ -55,6 +61,11 @@ private:
 
     enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
     NoteGraphicsItem *m_currentEditingNote = nullptr;
+
+    bool m_selecting = false;
+    QList<Note *> m_cachedSelectedNotes;
+    void updateSelectionState();
+    bool m_canNotifySelectedNoteChanged = true;
 
     // resize and move
     bool m_tempQuantizeOff = false;

@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "Utils/IOverlapable.h"
+#include "Utils/ISelectable.h"
 #include "Utils/UniqueObject.h"
 
 class Phoneme {
@@ -32,7 +33,7 @@ public:
     QList<Phoneme> edited;
 };
 
-class Note : public IOverlapable, public UniqueObject {
+class Note : public IOverlapable, public UniqueObject, public ISelectable {
 public:
     explicit Note() = default;
     explicit Note(int start, int length, int keyIndex, QString lyric)

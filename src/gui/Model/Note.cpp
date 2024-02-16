@@ -4,8 +4,6 @@
 
 #include "Note.h"
 
-#include <utility>
-
 int Note::start() const {
     return m_start;
 }

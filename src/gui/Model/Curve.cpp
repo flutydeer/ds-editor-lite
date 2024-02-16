@@ -4,9 +4,6 @@
 
 #include "Curve.h"
 
-Curve::~Curve() {
-}
-
 int Curve::start() const {
     return m_start;
 }

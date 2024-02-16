@@ -37,6 +37,7 @@ private slots:
     void onResizeNoteLeftCompleted(int noteId, int deltaTick);
     void onResizeNoteRightCompleted(int noteId, int deltaTick);
     void onAdjustPhonemeCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel);
+    void onPianoRollSelectionChanged();
 
 private:
     Track *m_track = nullptr;
@@ -53,7 +54,9 @@ private:
 
     void reset();
     void onClipPropertyChanged();
-    void onNoteChanged(SingingClip::NoteChangeType type, int id, Note *note);
+    void onNoteListChanged(SingingClip::NoteChangeType type, int id, Note *note);
+    void onNotePropertyChanged(SingingClip::NotePropertyType type, Note *note);
+    void onNoteSelectionChanged();
 };
 
 

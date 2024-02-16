@@ -33,6 +33,8 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     m_pianoRollView->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     connect(m_pianoRollView, &PianoRollGraphicsView::scaleChanged, m_pianoRollScene,
             &PianoRollGraphicsScene::setScale);
+    connect(m_pianoRollScene, &QGraphicsScene::selectionChanged, m_pianoRollView,
+            &PianoRollGraphicsView::onSceneSelectionChanged);
 
     auto gridItem = new PianoRollBackgroundGraphicsItem;
     gridItem->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
@@ -104,6 +106,8 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
             &ClipEditorView::onResizeNoteLeftCompleted);
     connect(m_pianoRollView, &PianoRollGraphicsView::resizeNoteRightCompleted, this,
             &ClipEditorView::onResizeNoteRightCompleted);
+    connect(m_pianoRollView, &PianoRollGraphicsView::selectedNoteChanged, this,
+            &ClipEditorView::onPianoRollSelectionChanged);
 
     connect(m_phonemeView, &PhonemeView::adjustCompleted, this,
             &ClipEditorView::onAdjustPhonemeCompleted);
@@ -139,9 +143,14 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
             qDebug() << "disconnect track and ClipEditorView";
             disconnect(m_track, &Track::clipChanged, this, &ClipEditorView::onClipChanged);
         }
-        if (m_singingClip != nullptr)
-            disconnect(m_singingClip, &SingingClip::noteChanged, this,
-                       &ClipEditorView::onNoteChanged);
+        if (m_singingClip != nullptr) {
+            disconnect(m_singingClip, &SingingClip::noteListChanged, this,
+                       &ClipEditorView::onNoteListChanged);
+            disconnect(m_singingClip, &SingingClip::notePropertyChanged, this,
+                       &ClipEditorView::onNotePropertyChanged);
+            disconnect(m_singingClip, &SingingClip::noteSelectionChanged, this,
+                       &ClipEditorView::onNoteSelectionChanged);
+        }
         m_track = nullptr;
         m_clip = nullptr;
         m_singingClip = nullptr;
@@ -175,7 +184,11 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
         m_pianoRollView->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
     } else
         m_pianoRollView->setViewportCenterAtKeyIndex(60);
-    connect(m_singingClip, &SingingClip::noteChanged, this, &ClipEditorView::onNoteChanged);
+    connect(m_singingClip, &SingingClip::noteListChanged, this, &ClipEditorView::onNoteListChanged);
+    connect(m_singingClip, &SingingClip::notePropertyChanged, this,
+            &ClipEditorView::onNotePropertyChanged);
+    connect(m_singingClip, &SingingClip::noteSelectionChanged, this,
+            &ClipEditorView::onNoteSelectionChanged);
     ClipEditorViewController::instance()->setCurrentSingingClip(m_singingClip);
 }
 void ClipEditorView::onClipNameEdited(const QString &name) {
@@ -281,6 +294,12 @@ void ClipEditorView::onAdjustPhonemeCompleted(PhonemeView::PhonemeViewModel *pho
     phonemes.append(phoneme);
     ClipEditorViewController::instance()->onAdjustPhoneme(notesId, phonemes);
 }
+void ClipEditorView::onPianoRollSelectionChanged() {
+    auto notes = m_pianoRollView->selectedNotesId();
+    // qDebug() << "ClipEditorView::onSceneSelectionChanged"
+    //          << "selected notes" << (notes.isEmpty() ? "" : QString::number(notes.first()));
+    ClipEditorViewController::instance()->onNoteSelectionChanged(notes, true);
+}
 void ClipEditorView::reset() {
     m_pianoRollView->reset();
     m_phonemeView->reset();
@@ -296,15 +315,11 @@ void ClipEditorView::onClipPropertyChanged() {
         m_phonemeView->insertNote(note);
     }
 }
-void ClipEditorView::onNoteChanged(SingingClip::NoteChangeType type, int id, Note *note) {
+void ClipEditorView::onNoteListChanged(SingingClip::NoteChangeType type, int id, Note *note) {
     switch (type) {
         case SingingClip::Inserted:
             m_pianoRollView->insertNote(note);
             m_phonemeView->insertNote(note);
-            break;
-        case SingingClip::PropertyChanged:
-            m_pianoRollView->updateNote(note);
-            m_phonemeView->updateNote(note);
             break;
         case SingingClip::Removed:
             m_pianoRollView->removeNote(id);
@@ -312,4 +327,22 @@ void ClipEditorView::onNoteChanged(SingingClip::NoteChangeType type, int id, Not
             break;
     }
     m_pianoRollView->updateOverlappedState(m_singingClip);
+}
+void ClipEditorView::onNotePropertyChanged(SingingClip::NotePropertyType type, Note *note) {
+    switch (type) {
+        case SingingClip::TimeAndKey:
+            m_pianoRollView->updateNoteTimeAndKey(note);
+            m_phonemeView->updateNoteTime(note);
+            break;
+        case SingingClip::Word:
+            m_pianoRollView->updateNoteWord(note);
+            m_phonemeView->updateNotePhonemes(note);
+            break;
+        case SingingClip::None:
+            break;
+    }
+}
+void ClipEditorView::onNoteSelectionChanged() {
+    auto selectedNotes = m_singingClip->selectedNotes();
+    m_pianoRollView->updateNoteSelection(selectedNotes);
 }

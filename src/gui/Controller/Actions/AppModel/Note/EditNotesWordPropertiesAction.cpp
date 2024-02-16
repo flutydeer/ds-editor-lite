@@ -22,12 +22,12 @@ void EditNotesWordPropertiesAction::execute() {
     m_note->setPhonemes(Phonemes::Original, m_newArgs.phonemes.original);
     m_note->setPhonemes(Phonemes::Edited, m_newArgs.phonemes.edited);
     m_note->setPronunciation(m_newArgs.pronunciation);
-    m_clip->notifyNotePropertyChanged(m_note);
+    m_clip->notifyNotePropertyChanged(SingingClip::Word,m_note);
 }
 void EditNotesWordPropertiesAction::undo() {
     m_note->setLyric(m_oldArgs.lyric);
     m_note->setPhonemes(Phonemes::Original, m_oldArgs.phonemes.original);
     m_note->setPhonemes(Phonemes::Edited, m_oldArgs.phonemes.edited);
     m_note->setPronunciation(m_oldArgs.pronunciation);
-    m_clip->notifyNotePropertyChanged(m_note);
+    m_clip->notifyNotePropertyChanged(SingingClip::Word,m_note);
 }

@@ -74,11 +74,11 @@ const OverlapableSerialList<Note> &SingingClip::notes() const {
 void SingingClip::insertNote(Note *note) {
     qDebug() << "AppModel SingingClip::insertNote" << note->start() << note->length() << note->lyric();
     m_notes.add(note);
-    emit noteChanged(Inserted, note->id(), note);
+    emit noteListChanged(Inserted, note->id(), note);
 }
 void SingingClip::removeNote(Note *note) {
     m_notes.remove(note);
-    emit noteChanged(Removed, note->id(), nullptr);
+    emit noteListChanged(Removed, note->id(), nullptr);
 }
 void SingingClip::insertNoteQuietly(Note *note) {
     m_notes.add(note);
@@ -86,8 +86,11 @@ void SingingClip::insertNoteQuietly(Note *note) {
 void SingingClip::removeNoteQuietly(Note *note) {
     m_notes.remove(note);
 }
-void SingingClip::notifyNotePropertyChanged(Note *note) {
-    emit noteChanged(PropertyChanged, note->id(), note);
+void SingingClip::notifyNoteSelectionChanged() {
+    emit noteSelectionChanged();
+}
+void SingingClip::notifyNotePropertyChanged(NotePropertyType type, Note *note) {
+    emit notePropertyChanged(type, note);
 }
 Note *SingingClip::findNoteById(int id) {
     for (int i = 0; i < m_notes.count(); i++) {
@@ -96,6 +99,15 @@ Note *SingingClip::findNoteById(int id) {
             return note;
     }
     return nullptr;
+}
+QList<Note *> SingingClip::selectedNotes() const {
+    QList<Note *> notes;
+    for (int i = 0; i < m_notes.count(); i++) {
+        auto note = m_notes.at(i);
+        if (note->selected())
+            notes.append(note);
+    }
+    return  notes;
 }
 // const DsParams &DsSingingClip::params() const {
 //     return m_params;

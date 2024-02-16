@@ -5,13 +5,8 @@
 #include <QApplication>
 #include <QStyleFactory>
 
-#include <TalcsFormat/AudioFormatInputSource.h>
-#include <TalcsCore/PositionableMixerAudioSource.h>
-
 #include "g2pglobal.h"
-
 #include "Window/MainWindow.h"
-
 #include "Audio/AudioSystem.h"
 
 int main(int argc, char *argv[]) {

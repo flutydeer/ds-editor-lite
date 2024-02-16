@@ -17,7 +17,8 @@ public:
     explicit PhonemeView(QWidget *parent = nullptr);
     void insertNote(Note *note);
     void removeNote(int noteId);
-    void updateNote(Note *note);
+    void updateNoteTime(Note *note);
+    void updateNotePhonemes(Note *note);
     void reset();
 
     class NoteViewModel : public IOverlapable {

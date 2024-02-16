@@ -11,7 +11,7 @@
 #include "Note.h"
 #include "Params.h"
 
-class Clip : public QObject, public IOverlapable, public UniqueObject {
+class Clip : public QObject, public IOverlapable, public UniqueObject, public ISelectable {
     Q_OBJECT
 
 public:
@@ -90,7 +90,8 @@ class SingingClip final : public Clip {
     Q_OBJECT
 
 public:
-    enum NoteChangeType { Inserted, PropertyChanged, Removed };
+    enum NoteChangeType { Inserted, Removed };
+    enum NotePropertyType { TimeAndKey, Word, None };
     enum ParamsChangeType { Pitch, Energy, Tension, Breathiness };
 
     ClipType type() const override {
@@ -102,14 +103,19 @@ public:
     void removeNote(Note *note);
     void insertNoteQuietly(Note *note);
     void removeNoteQuietly(Note *note);
-    void notifyNotePropertyChanged(Note *note);
     Note *findNoteById(int id);
+    QList<Note *> selectedNotes() const;
+
+    void notifyNoteSelectionChanged();
+    void notifyNotePropertyChanged(NotePropertyType type, Note *note);
 
     Params params;
     // const DsParams &params() const;
 
 signals:
-    void noteChanged(NoteChangeType type, int id, Note *note);
+    void noteListChanged(NoteChangeType type, int id, Note *note);
+    void noteSelectionChanged();
+    void notePropertyChanged(NotePropertyType type, Note *note);
     void paramsChanged(ParamsChangeType type);
 
 private:
