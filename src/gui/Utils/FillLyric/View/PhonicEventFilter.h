@@ -7,8 +7,10 @@
 #include <QWheelEvent>
 
 #include "../Model/PhonicModel.h"
+#include "PhonicWidget.h"
 
 namespace FillLyric {
+    class PhonicWidget;
     class PhonicEventFilter : public QObject {
         Q_OBJECT
     public:
@@ -24,12 +26,13 @@ namespace FillLyric {
                     auto index = m_tableView->currentIndex();
                     if (!m_tableView->isPersistentEditorOpen(m_tableView->currentIndex()) &&
                         m_model->cellLyricType(index.row(), index.column()) != LyricType::Fermata) {
-                        m_model->cellNewLine(index);
+                        emit lineBreak(index);
                         return true;
                     }
                 } else if (keyEvent->key() == Qt::Key_Delete) {
                     auto selected = m_tableView->selectionModel()->selectedIndexes();
-                    m_model->cellClear(selected);
+                    emit cellClear(selected);
+                    return true;
                 }
             } else if (event->type() == QEvent::Wheel) {
                 auto *wheelEvent = dynamic_cast<QWheelEvent *>(event);
@@ -53,6 +56,8 @@ namespace FillLyric {
 
     signals:
         void fontSizeChanged();
+        void cellClear(QList<QModelIndex> indexes);
+        void lineBreak(const QModelIndex &index);
     };
 }
 #endif // DS_EDITOR_LITE_PHONICEVENTFILTER_H

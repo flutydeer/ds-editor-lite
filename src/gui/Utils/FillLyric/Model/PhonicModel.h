@@ -25,6 +25,16 @@ namespace FillLyric {
     using PhonicRole = PhonicDelegate::PhonicRole;
     using LyricType = CleanLyric::LyricType;
 
+    struct Phonic {
+        QString lyric;
+        QString syllable;
+        QStringList candidates;
+        QString SyllableRevised;
+        LyricType type;
+        QList<QString> fermata;
+        bool lineFeed;
+    };
+
     class PhonicModel : public QStandardItemModel {
     public:
         explicit PhonicModel(QTableView *tableView, QObject *parent = nullptr)
@@ -33,7 +43,7 @@ namespace FillLyric {
 
         // Gui functions
         void repaintView();
-        void shrinkModel();
+        int shrinkModel();
         void expandModel(int col);
 
         // Basic functions
@@ -43,33 +53,38 @@ namespace FillLyric {
         static QList<int> allRoles();
 
         QString cellLyric(int row, int col);
-        bool setLyric(int row, int col, QString &lyric);
+        bool setLyric(int row, int col, QString lyric);
         QString cellSyllable(int row, int col);
         bool setSyllable(int row, int col, const QString &syllable);
         QString cellSyllableRevised(int row, int col);
         bool setSyllableRevised(int row, int col, const QString &syllableRevised);
-        QStringList cellCandidate(int row, int col);
-        bool setCandidate(int row, int col, const QStringList &candidate);
+        QStringList cellCandidates(int row, int col);
+        bool setCandidates(int row, int col, const QStringList &candidate);
         int cellLyricType(int row, int col);
         bool setLyricType(int row, int col, LyricType type);
         QStringList cellFermata(int row, int col);
         bool setFermata(int row, int col, const QList<QString> &fermata);
+        bool cellLineFeed(int row, int col);
+        bool setLineFeed(int row, int col, bool lineFeed);
 
         // Cell operations
+        void putData(int row, int col, const QList<int> &roles, const Phonic &phonic);
+        Phonic takeData(int row, int col, const QList<int> &roles);
         void clearData(int row, int col, const QList<int> &roles);
         void moveData(int row, int col, int tarRow, int tarCol, const QList<int> &roles);
 
+        void cellPut(const QModelIndex &index, const Phonic &phonic);
+        Phonic cellTake(const QModelIndex &index);
         void cellClear(const QModelIndex &index);
+        void cellMove(const QModelIndex &source, const QModelIndex &target);
+
         void cellMergeLeft(const QModelIndex &index);
         void cellMoveLeft(const QModelIndex &index);
         void cellMoveRight(const QModelIndex &index);
         void cellMergeUp(const QModelIndex &index);
 
-        // Multi-cell operations
-        void cellClear(const QModelIndexList &indexList);
-
         // Line operations
-        void cellNewLine(const QModelIndex &index);
+        void lineBreak(const QModelIndex &index);
         void addPrevLine(const QModelIndex &index);
         void addNextLine(const QModelIndex &index);
         void removeLine(const QModelIndex &index);
@@ -84,6 +99,7 @@ namespace FillLyric {
 
     private:
         QTableView *tableView;
+        void putData(const int row, const int col, const Phonic &phonic);
     };
 
 } // FillLyric

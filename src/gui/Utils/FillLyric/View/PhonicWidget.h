@@ -22,6 +22,7 @@
 
 #include "../Utils/CleanLyric.h"
 #include "../Model/PhonicModel.h"
+#include "../History/ModelHistory.h"
 
 #include "PhonicDelegate.h"
 #include "PhonicTextEdit.h"
@@ -31,14 +32,6 @@ namespace FillLyric {
     using PhonicRole = PhonicDelegate::PhonicRole;
     using LyricType = CleanLyric::LyricType;
 
-    struct Phonic {
-        QString lyric;
-        QString syllable;
-        QString SyllableRevised;
-        FillLyric::LyricType type;
-        bool lineFeed = false;
-    };
-
     class PhonicWidget : public QWidget {
         Q_OBJECT
     public:
@@ -47,6 +40,11 @@ namespace FillLyric {
 
         void setLyrics(QList<QList<QString>> &lyrics);
         QList<Phonic> exportPhonics();
+
+        // ContextMenu
+        void cellClear(const QList<QModelIndex>& indexes);
+
+        void lineBreak(QModelIndex index);
 
     private:
         void _init(QList<QList<QString>> lyricRes);
@@ -83,6 +81,9 @@ namespace FillLyric {
         QPushButton *btnToText;
         QPushButton *btnToggleFermata;
         QPushButton *btnImportLrc;
+
+        QPushButton* btnUndo;
+        QPushButton* btnRedo;
 
         // labels
         QLabel *textCountLabel;

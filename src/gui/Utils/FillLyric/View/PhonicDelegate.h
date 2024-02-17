@@ -21,7 +21,8 @@ namespace FillLyric {
             Candidate,
             SyllableRevised,
             LyricType,
-            FermataAddition
+            FermataAddition,
+            LineFeed
         };
 
         void paint(QPainter *painter, const QStyleOptionViewItem &option,

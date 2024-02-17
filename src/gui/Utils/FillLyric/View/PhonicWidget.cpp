@@ -6,6 +6,9 @@
 #include "../Utils/LrcTools/LrcDecoder.h"
 #include "PhonicWidget.h"
 
+#include "../Actions/Cell/CellActions.h"
+#include "../Actions/Line/LineActions.h"
+
 namespace FillLyric {
 
     PhonicWidget::PhonicWidget(QObject *parent)
@@ -34,9 +37,13 @@ namespace FillLyric {
         // 创建布局
         topLayout = new QHBoxLayout();
         textCountLabel = new QLabel("");
-        noteCountLabel = new QLabel("");
+        btnUndo = new QPushButton("撤销");
+        btnRedo = new QPushButton("重做");
+        noteCountLabel = new QLabel("0/0");
         topLayout->addWidget(textCountLabel);
         topLayout->addStretch(1);
+        topLayout->addWidget(btnUndo);
+        topLayout->addWidget(btnRedo);
         topLayout->addWidget(noteCountLabel);
 
         cfgLayout = new QVBoxLayout();
@@ -80,12 +87,19 @@ namespace FillLyric {
         connect(tableView->itemDelegate(), &QAbstractItemDelegate::closeEditor, this,
                 &PhonicWidget::_on_cellEditClosed);
 
-        // fontsize
+        // PhonicEventFilter signals
         connect(eventFilter, &PhonicEventFilter::fontSizeChanged, this, [this] { resizeTable(); });
+        connect(eventFilter, &PhonicEventFilter::cellClear, this, &PhonicWidget::cellClear);
+        connect(eventFilter, &PhonicEventFilter::lineBreak, this, &PhonicWidget::lineBreak);
 
         // count
         connect(textEdit, &PhonicTextEdit::textChanged, this, &PhonicWidget::_on_textEditChanged);
         connect(model, &PhonicModel::dataChanged, this, &PhonicWidget::_on_modelDataChanged);
+
+        // undo redo
+        auto modelHistory = ModelHistory::instance();
+        connect(btnUndo, &QPushButton::clicked, modelHistory, &ModelHistory::undo);
+        connect(btnRedo, &QPushButton::clicked, modelHistory, &ModelHistory::redo);
     }
 
     PhonicWidget::~PhonicWidget() = default;
@@ -144,7 +158,7 @@ namespace FillLyric {
                 if (labels[j] == LyricType::Kana) {
                     auto romaji = g2p_jp.kanaToRomaji(lyrics[j]).at(0);
                     model->setSyllable(i, j, romaji);
-                    model->setCandidate(i, j, QStringList() << romaji);
+                    model->setCandidates(i, j, QStringList() << romaji);
                 }
             }
         }
@@ -169,7 +183,7 @@ namespace FillLyric {
             auto lyric = model->cellLyric(row, col);
             model->setLyricType(row, col, LyricType::Fermata);
             model->setSyllable(row, col, lyric);
-            model->setCandidate(row, col, QStringList() << lyric);
+            model->setCandidates(row, col, QStringList() << lyric);
             return;
         }
 
@@ -187,7 +201,7 @@ namespace FillLyric {
 
         // 设置当前行所有单元格的Candidate
         for (int i = 0; i < model->columnCount(); i++) {
-            model->setCandidate(row, i, g2p_man.getDefaultPinyin(lyrics[i], false));
+            model->setCandidates(row, i, g2p_man.getDefaultPinyin(lyrics[i], false));
         }
 
         // 设置当前行所有单元格的LyricType
@@ -197,7 +211,7 @@ namespace FillLyric {
             if (lyricType == LyricType::Kana) {
                 auto romaji = g2p_jp.kanaToRomaji(lyrics[i]).at(0);
                 model->setSyllable(row, i, romaji);
-                model->setCandidate(row, i, QStringList() << romaji);
+                model->setCandidates(row, i, QStringList() << romaji);
             }
         }
     }
@@ -285,7 +299,7 @@ namespace FillLyric {
 
             if (selected.count() > 1) {
                 // 清空单元格
-                menu->addAction("清空单元格", [this, selected]() { model->cellClear(selected); });
+                menu->addAction("清空单元格", [this, selected]() { cellClear(selected); });
             } else {
                 // 添加候选音节
                 _on_changeSyllable(index, menu);
@@ -296,7 +310,7 @@ namespace FillLyric {
                 // 移动单元格
                 menu->addAction("插入空白单元格", [this, index]() { model->cellMoveRight(index); });
                 // 清空单元格
-                menu->addAction("清空单元格", [this, index]() { model->cellClear(index); });
+                menu->addAction("清空单元格", [this, selected]() { cellClear(selected); });
                 // 向左归并单元格
                 if (col > 0) {
                     menu->addAction("向左归并单元格",
@@ -310,7 +324,7 @@ namespace FillLyric {
 
                 // 换行
                 if (model->cellLyricType(row, col) != LyricType::Fermata)
-                    menu->addAction("换行", [this, index]() { model->cellNewLine(index); });
+                    menu->addAction("换行", [this, index]() { lineBreak(index); });
                 // 合并到上一行
                 if (row > 0 && col == 0)
                     menu->addAction("合并到上一行", [this, index]() { model->cellMergeUp(index); });
@@ -420,5 +434,19 @@ namespace FillLyric {
         auto lyrics = decoder.dumpLyrics();
         // 设置文本框内容
         textEdit->setText(lyrics.join("\n"));
+    }
+
+    void PhonicWidget::cellClear(const QList<QModelIndex> &indexes) {
+        auto a = new CellActions;
+        a->cellClear(indexes, model);
+        a->execute();
+        ModelHistory::instance()->record(a);
+    }
+
+    void PhonicWidget::lineBreak(QModelIndex index) {
+        auto a = new LineActions;
+        a->lineBreak(index, model);
+        a->execute();
+        ModelHistory::instance()->record(a);
     }
 }
