@@ -8,8 +8,11 @@
 #include "g2pglobal.h"
 #include "Window/MainWindow.h"
 #include "Audio/AudioSystem.h"
+#include "Utils/logMessageHandler.h"
 
 int main(int argc, char *argv[]) {
+    // output log to file
+    qInstallMessageHandler(logMessageHandler);
     qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
