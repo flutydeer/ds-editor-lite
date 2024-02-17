@@ -31,6 +31,14 @@ namespace FillLyric {
         eventFilter = new PhonicEventFilter(tableView, model, this);
         tableView->installEventFilter(eventFilter);
 
+        // 创建布局
+        topLayout = new QHBoxLayout();
+        textCountLabel = new QLabel("");
+        noteCountLabel = new QLabel("");
+        topLayout->addWidget(textCountLabel);
+        topLayout->addStretch(1);
+        topLayout->addWidget(noteCountLabel);
+
         cfgLayout = new QVBoxLayout();
         btnInsertText = new QPushButton("插入测试文本");
         btnToTable = new QPushButton(">>");
@@ -52,17 +60,9 @@ namespace FillLyric {
         tableLayout->addLayout(cfgLayout);
         tableLayout->addWidget(tableView);
 
-        // 底部按钮
-        bottomLayout = new QHBoxLayout();
-        btnExport = new QPushButton("导出");
-        btnCancel = new QPushButton("取消");
-        bottomLayout->addStretch(1);
-        bottomLayout->addWidget(btnExport);
-        bottomLayout->addWidget(btnCancel);
-
         mainLayout = new QVBoxLayout(this);
+        mainLayout->addLayout(topLayout);
         mainLayout->addLayout(tableLayout);
-        mainLayout->addLayout(bottomLayout);
 
         connect(btnToTable, &QAbstractButton::clicked, this, &PhonicWidget::_on_btnToTable_clicked);
         connect(tableView, &QTableView::customContextMenuRequested, this,
@@ -71,7 +71,6 @@ namespace FillLyric {
         connect(btnInsertText, &QAbstractButton::clicked, this,
                 &PhonicWidget::_on_btnInsertText_clicked);
         connect(btnToText, &QAbstractButton::clicked, this, &PhonicWidget::_on_btnToText_clicked);
-        connect(btnExport, &QAbstractButton::clicked, this, &PhonicWidget::_on_btnExport_clicked);
         connect(btnToggleFermata, &QAbstractButton::clicked, this,
                 &PhonicWidget::_on_btnToggleFermata_clicked);
         connect(btnImportLrc, &QAbstractButton::clicked, this,
@@ -83,65 +82,23 @@ namespace FillLyric {
 
         // fontsize
         connect(eventFilter, &PhonicEventFilter::fontSizeChanged, this, [this] { resizeTable(); });
+
+        // count
+        connect(textEdit, &PhonicTextEdit::textChanged, this, &PhonicWidget::_on_textEditChanged);
+        connect(model, &PhonicModel::dataChanged, this, &PhonicWidget::_on_modelDataChanged);
     }
 
     PhonicWidget::~PhonicWidget() = default;
 
-    void PhonicWidget::_on_cellEditClosed() {
-        auto index = tableView->currentIndex();
-        // 获取当前单元格所在行列
-        int row = index.row();
-        int col = index.column();
-
-        if (row < 0 || col < 0) {
-            return;
-        }
-
-        auto lyricType = CleanLyric::lyricType(model->cellLyric(row, col), "-");
-
-        if (lyricType == LyricType::Fermata) {
-            auto lyric = model->cellLyric(row, col);
-            model->setLyricType(row, col, LyricType::Fermata);
-            model->setSyllable(row, col, lyric);
-            model->setCandidate(row, col, QStringList() << lyric);
-            return;
-        }
-
-        // 获取当前行所有单元格的DisplayRole
-        QStringList lyrics;
-        for (int i = 0; i < model->columnCount(); i++) {
-            lyrics.append(model->cellLyric(row, i));
-        }
-
-        auto syllables = g2p_man.hanziToPinyin(lyrics, false, false);
-        // 设置当前行所有单元格的Syllable
-        for (int i = 0; i < model->columnCount(); i++) {
-            model->setSyllable(row, i, syllables[i]);
-        }
-
-        // 设置当前行所有单元格的Candidate
-        for (int i = 0; i < model->columnCount(); i++) {
-            model->setCandidate(row, i, g2p_man.getDefaultPinyin(lyrics[i], false));
-        }
-
-        // 设置当前行所有单元格的LyricType
-        for (int i = 0; i < model->columnCount(); i++) {
-            lyricType = CleanLyric::lyricType(lyrics[i], "-");
-            model->setLyricType(row, i, lyricType);
-            if (lyricType == LyricType::Kana) {
-                auto romaji = g2p_jp.kanaToRomaji(lyrics[i]).at(0);
-                model->setSyllable(row, i, romaji);
-                model->setCandidate(row, i, QStringList() << romaji);
+    void PhonicWidget::_init(QList<QList<QString>> lyricRes) {
+        QList<QList<CleanLyric::LyricType>> labelRes;
+        for (auto &line : lyricRes) {
+            QList<CleanLyric::LyricType> labelLine;
+            for (auto &lyric : line) {
+                labelLine.append(CleanLyric::lyricType(lyric, "-"));
             }
+            labelRes.append(labelLine);
         }
-    }
-
-    void PhonicWidget::_on_btnToTable_clicked() {
-        // 获取文本框的内容
-        QString text = textEdit->toPlainText();
-        auto cleanRes = CleanLyric::cleanLyric(text);
-        auto lyricRes = cleanRes.first;
-        auto labelRes = cleanRes.second;
 
         // 清空表格
         model->clear();
@@ -194,6 +151,81 @@ namespace FillLyric {
 
         resizeTable();
         model->shrinkModel();
+    }
+
+    void PhonicWidget::_on_cellEditClosed() {
+        auto index = tableView->currentIndex();
+        // 获取当前单元格所在行列
+        int row = index.row();
+        int col = index.column();
+
+        if (row < 0 || col < 0) {
+            return;
+        }
+
+        auto lyricType = CleanLyric::lyricType(model->cellLyric(row, col), "-");
+
+        if (lyricType == LyricType::Fermata) {
+            auto lyric = model->cellLyric(row, col);
+            model->setLyricType(row, col, LyricType::Fermata);
+            model->setSyllable(row, col, lyric);
+            model->setCandidate(row, col, QStringList() << lyric);
+            return;
+        }
+
+        // 获取当前行所有单元格的DisplayRole
+        QStringList lyrics;
+        for (int i = 0; i < model->columnCount(); i++) {
+            lyrics.append(model->cellLyric(row, i));
+        }
+
+        auto syllables = g2p_man.hanziToPinyin(lyrics, false, false);
+        // 设置当前行所有单元格的Syllable
+        for (int i = 0; i < model->columnCount(); i++) {
+            model->setSyllable(row, i, syllables[i]);
+        }
+
+        // 设置当前行所有单元格的Candidate
+        for (int i = 0; i < model->columnCount(); i++) {
+            model->setCandidate(row, i, g2p_man.getDefaultPinyin(lyrics[i], false));
+        }
+
+        // 设置当前行所有单元格的LyricType
+        for (int i = 0; i < model->columnCount(); i++) {
+            lyricType = CleanLyric::lyricType(lyrics[i], "-");
+            model->setLyricType(row, i, lyricType);
+            if (lyricType == LyricType::Kana) {
+                auto romaji = g2p_jp.kanaToRomaji(lyrics[i]).at(0);
+                model->setSyllable(row, i, romaji);
+                model->setCandidate(row, i, QStringList() << romaji);
+            }
+        }
+    }
+
+    void PhonicWidget::_on_textEditChanged() {
+        // 获取文本框的内容
+        QString text = textEdit->toPlainText();
+        // 获取歌词
+        auto res = CleanLyric::cleanLyric(text).first;
+        int lyricCount = 0;
+        for (auto &line : res) {
+            lyricCount += (int) line.size();
+        }
+        textCountLabel->setText(QString("字符数: %1").arg(lyricCount));
+    }
+
+    void PhonicWidget::_on_modelDataChanged() {
+        int lyricCount = 0;
+        for (int i = 0; i < model->rowCount(); i++) {
+            lyricCount += model->currentLyricLength(i);
+        }
+        noteCountLabel->setText(QString::number(lyricCount) + "/" + QString::number(notesCount));
+    }
+
+    void PhonicWidget::_on_btnToTable_clicked() {
+        // 获取文本框的内容
+        QString text = textEdit->toPlainText();
+        _init(CleanLyric::cleanLyric(text).first);
     }
 
     void PhonicWidget::resizeTable() {
@@ -296,8 +328,6 @@ namespace FillLyric {
         }
     }
 
-
-
     void PhonicWidget::_on_changePhonetic(const QModelIndex &index, QMenu *menu) {
         auto *inputAction = new QAction("自定义音节", tableView);
         menu->addAction(inputAction);
@@ -332,33 +362,37 @@ namespace FillLyric {
         textEdit->setText(text);
     }
 
-    void PhonicWidget::_on_btnExport_clicked() {
-        // 获取DisplayRole的内容到lyric，获取UserRole的内容到syllable
-        QStringList lyricRes;
-        QStringList syllableRes;
+    QList<Phonic> PhonicWidget::exportPhonics() {
+        QList<Phonic> res;
         for (int i = 0; i < model->rowCount(); i++) {
-            QStringList lyricLine;
-            QStringList syllableLine;
-            for (int j = 0; j < model->columnCount(); j++) {
-                auto lyric = model->data(model->index(i, j), Qt::DisplayRole).toString();
-                auto syllable = model->data(model->index(i, j), PhonicRole::Syllable).toString();
-                if (!lyric.isEmpty()) {
-                    lyricLine.append(lyric);
-                    syllableLine.append(syllable);
+            int curCol = model->currentLyricLength(i);
+            for (int j = 0; j < curCol; j++) {
+                Phonic phonic;
+                phonic.lyric = model->cellLyric(i, j);
+                phonic.syllable = model->cellSyllable(i, j);
+                phonic.SyllableRevised = model->cellSyllableRevised(i, j);
+                phonic.type = CleanLyric::LyricType(model->cellLyricType(i, j));
+                if (j == curCol - 1) {
+                    phonic.lineFeed = true;
                 }
+                res.append(phonic);
             }
-            if (!lyricLine.isEmpty())
-                lyricRes.append(lyricLine.join(""));
-            if (!syllableLine.isEmpty())
-                syllableRes.append(syllableLine.join(" "));
         }
-        qDebug() << "lyricRes: " << lyricRes;
-        qDebug() << "syllableRes: " << syllableRes;
+        return res;
     }
 
-    void PhonicWidget::setLyrics(const QString &lyrics) {
+    void PhonicWidget::setLyrics(QList<QList<QString>> &lyrics) {
+        notesCount = 0;
+        QString text;
+        for (auto &line : lyrics) {
+            notesCount += (int) line.size();
+            text.append(line.join(""));
+            text.append("\n");
+        }
         // 设置文本框内容
-        textEdit->setText(lyrics);
+        textEdit->setText(text);
+        // 初始化表格
+        _init(lyrics);
     }
 
 

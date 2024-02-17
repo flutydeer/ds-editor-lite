@@ -13,7 +13,7 @@ namespace FillLyric {
             maxCol = std::max(maxCol, currentLyricLength(i));
         }
         modelMaxCol = maxCol;
-        this->setColumnCount(modelMaxCol + 1);
+        this->setColumnCount(modelMaxCol);
     }
 
     void PhonicModel::expandModel(const int col) {
@@ -25,7 +25,7 @@ namespace FillLyric {
     int PhonicModel::currentLyricLength(const int row) {
         for (int i = this->columnCount() - 1; i >= 0; i--) {
             if (!cellLyric(row, i).isEmpty()) {
-                return i;
+                return i + 1;
             }
         }
         return 0;
@@ -58,6 +58,16 @@ namespace FillLyric {
 
     bool PhonicModel::setSyllable(const int row, const int col, const QString &syllable) {
         this->setData(this->index(row, col), syllable, PhonicRole::Syllable);
+        return true;
+    }
+
+    QString PhonicModel::cellSyllableRevised(const int row, const int col) {
+        return this->data(this->index(row, col), PhonicRole::SyllableRevised).toString();
+    }
+
+    bool PhonicModel::setSyllableRevised(const int row, const int col,
+                                         const QString &syllableRevised) {
+        this->setData(this->index(row, col), syllableRevised, PhonicRole::SyllableRevised);
         return true;
     }
 
@@ -163,13 +173,13 @@ namespace FillLyric {
         int currentCol = currentLyricLength(row);
 
         // 根据lastCol和currentCol的和，扩展模型的列数
-        modelMaxCol = std::max(modelMaxCol, lastCol + currentCol + 2);
+        modelMaxCol = std::max(modelMaxCol, lastCol + currentCol);
         if (modelMaxCol + 1 > this->columnCount()) {
             this->setColumnCount(modelMaxCol);
         }
 
         // 将当前行的内容移动到上一行，从上一行的lastCol+1列开始放当前行的第一列
-        for (int i = 0; i <= currentCol; i++) {
+        for (int i = 0; i < currentCol; i++) {
             moveData(row, i, row - 1, lastCol + i + 1, allRoles());
         }
 
@@ -227,7 +237,7 @@ namespace FillLyric {
         // 遍历模型每行
         for (int row = 0; row < this->rowCount(); row++) {
             int pos = 1;
-            while (pos <= currentLyricLength(row)) {
+            while (pos < currentLyricLength(row)) {
                 // 获取当前单元格的内容
                 auto currentType = cellLyricType(row, pos);
                 if (currentType == LyricType::Fermata) {

@@ -169,6 +169,9 @@ void AppModel::setSelectedTrack(int trackIndex) {
     m_selectedTrackIndex = trackIndex;
     emit selectedTrackChanged(trackIndex);
 }
+int AppModel::selectedClipId() const {
+    return m_selectedClipId;
+}
 Clip *AppModel::findClipById(int clipId, int &trackIndex) {
     int i = 0;
     for (auto track : m_tracks) {

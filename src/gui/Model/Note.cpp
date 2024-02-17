@@ -44,6 +44,12 @@ void Note::setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme>& phonem
         m_phonemes.edited = phonemes;
 
 }
+bool Note::lineFeed() const {
+    return m_lineFeed;
+}
+void Note::setLineFeed(bool lineFeed) {
+    m_lineFeed = lineFeed;
+}
 int Note::compareTo(Note *obj) const {
     auto otherStart = obj->start();
     if (start() < otherStart)

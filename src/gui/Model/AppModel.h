@@ -51,6 +51,8 @@ public:
     int selectedTrackIndex() const;
     void setSelectedTrack(int trackIndex);
 
+    int selectedClipId() const;
+
     Clip *findClipById(int clipId, int &trackIndex);
     double tickToMs(double tick) const;
     double msToTick(double ms) const;

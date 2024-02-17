@@ -13,12 +13,18 @@ namespace FillLyric {
         explicit LyricDialog(QWidget *parent = nullptr);
         ~LyricDialog() override;
 
-        void setLyrics(const QString &lyric) {
-            m_phonicWidget->setLyrics(lyric);
+        void setLyrics(QList<QList<QString>> &lyrics) {
+            m_phonicWidget->setLyrics(lyrics);
+        }
+
+        QList<Phonic> exportPhonics() {
+            return m_phonicWidget->exportPhonics();
         }
 
     private:
         PhonicWidget *m_phonicWidget;
+        QPushButton *m_btnOk;
+        QPushButton *m_btnCancel;
     };
 
 } // FillLyric
