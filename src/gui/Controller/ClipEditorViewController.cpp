@@ -14,6 +14,7 @@
 
 void ClipEditorViewController::setCurrentSingingClip(SingingClip *clip) {
     m_clip = clip;
+    // updateAndNotifyCanSelectAll();
 }
 void ClipEditorViewController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
     TracksViewController::instance()->onClipPropertyChanged(args);
@@ -38,6 +39,7 @@ void ClipEditorViewController::onInsertNote(Note *note) {
     a->insertNotes(notes, m_clip);
     a->execute();
     HistoryManager::instance()->record(a);
+    // updateAndNotifyCanSelectAll();
 }
 void ClipEditorViewController::onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey) {
     QList<Note *> notesToEdit;
@@ -90,6 +92,11 @@ void ClipEditorViewController::onNoteSelectionChanged(const QList<int> &notesId,
         if (auto note = m_clip->findNoteById(id))
             note->setSelected(true);
     }
+    if (notesId.isEmpty())
+        emit canRemoveChanged(false);
+    else
+        emit canRemoveChanged(true);
+
     m_clip->notifyNoteSelectionChanged();
 }
 void ClipEditorViewController::onEditSelectedNotesLyric() {
@@ -99,6 +106,16 @@ void ClipEditorViewController::onEditSelectedNotesLyric() {
 void ClipEditorViewController::onRemoveSelectedNotes() {
     auto notes = m_clip->selectedNotes();
     removeNotes(notes);
+    emit canRemoveChanged(false);
+}
+void ClipEditorViewController::onSelectAllNotes() {
+    if (m_clip->notes().count() == 0)
+        return;
+
+    for (const auto note : m_clip->notes())
+        note->setSelected(true);
+    emit canRemoveChanged(true);
+    m_clip->notifyNoteSelectionChanged();
 }
 void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) {
     QList<Note::NoteWordProperties *> args;
@@ -163,4 +180,18 @@ void ClipEditorViewController::removeNotes(const QList<Note *> &notes) {
     a->removeNotes(notes, m_clip);
     a->execute();
     HistoryManager::instance()->record(a);
+    // updateAndNotifyCanSelectAll();
 }
+// void ClipEditorViewController::updateAndNotifyCanSelectAll() {
+//     if (!m_clip) {
+//         emit canSelectAllChanged(false);
+//         return;
+//     }
+//
+//     if (m_clip->notes().count() == 0) {
+//         emit canSelectAllChanged(false);
+//         return;
+//     }
+//
+//     emit canSelectAllChanged(true);
+// }

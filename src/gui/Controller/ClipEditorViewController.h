@@ -17,6 +17,10 @@ class ClipEditorViewController final : public QObject, public Singleton<ClipEdit
 public:
     void setCurrentSingingClip(SingingClip *clip);
 
+signals:
+    void canSelectAllChanged(bool canSelectAll);
+    void canRemoveChanged(bool canRemove);
+
 public slots:
     void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     void onRemoveNotes(const QList<int> &notesId);
@@ -31,12 +35,15 @@ public slots:
     void onEditSelectedNotesLyric();
     void onRemoveSelectedNotes();
     // TODO: copy and paste selected notes
+    void onSelectAllNotes();
 
 private:
     SingingClip *m_clip = nullptr;
 
     void editNotesLyric(const QList<Note *> &notes);
     void removeNotes(const QList<Note *> &notes);
+    // void updateAndNotifyCanSelectAll();
+    // void notifyCanRemove();
 };
 
 
