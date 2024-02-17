@@ -12,7 +12,7 @@
 
 int main(int argc, char *argv[]) {
     // output log to file
-    qInstallMessageHandler(logMessageHandler);
+    // qInstallMessageHandler(logMessageHandler);
     qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);

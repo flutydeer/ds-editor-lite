@@ -50,6 +50,9 @@ bool Note::lineFeed() const {
 void Note::setLineFeed(bool lineFeed) {
     m_lineFeed = lineFeed;
 }
+bool Note::isSlur() const {
+    return m_lyric.contains('-');
+}
 int Note::compareTo(Note *obj) const {
     auto otherStart = obj->start();
     if (start() < otherStart)

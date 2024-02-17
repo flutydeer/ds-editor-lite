@@ -26,6 +26,7 @@ public:
         int id = -1;
         int start = 0;
         int length = 0;
+        bool isSlur = false;
         QList<Phoneme> originalPhonemes;
         QList<Phoneme> editedPhonemes;
 
@@ -53,7 +54,8 @@ public:
         PhonemeItemType type;
         int noteId;
         int start;
-        int length;
+        int noteStart;
+        int noteEnd;
         QString name;
 
         PhonemeViewModel *prior;
@@ -61,29 +63,6 @@ public:
 
         bool hoverOnControlBar = false;
         int startOffset = 0;
-        int lengthOffset = 0;
-
-        int end() const {
-            return start + length;
-        }
-        int endWithOffset() const {
-            return start + length + startOffset + lengthOffset;
-        }
-        bool canResizeRight() const {
-            if (next == nullptr)
-                return false;
-            if (next->type == Sil)
-                return false;
-            if (start + length < next->start)
-                return false;
-
-            return true;
-        }
-        bool canResizeLeft() const {
-            if (type == Sil && prior->type != Final)
-                return false;
-            return true;
-        }
     };
 
 signals:
@@ -96,7 +75,7 @@ public slots:
     void setQuantize(int quantize) override;
 
 private:
-    enum MouseMoveBehavior { ResizeLeft, ResizeRight, None };
+    enum MouseMoveBehavior { Move , None };
 
     void paintEvent(QPaintEvent *event) override;
     void drawBar(QPainter *painter, int tick, int bar) override;
@@ -119,7 +98,6 @@ private:
     QList<PhonemeViewModel *> m_phonemes;
     MouseMoveBehavior m_mouseMoveBehavior = None;
     PhonemeViewModel *m_curPhoneme = nullptr;
-    PhonemeViewModel *m_curOtherPhoneme = nullptr;
     int m_mouseDownX;
     int m_currentLengthInMs = 0;
     bool m_freezeHoverEffects = false;
