@@ -7,7 +7,7 @@
 #include <QTableView>
 #include <QStandardItemModel>
 
-#include "Utils/CleanLyric.h"
+#include "../Utils/CleanLyric.h"
 
 namespace FillLyric {
     using LyricType = CleanLyric::LyricType;

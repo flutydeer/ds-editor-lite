@@ -3,7 +3,7 @@
 #include <QInputDialog>
 #include <QStandardItemModel>
 
-#include "Utils/LrcTools/LrcDecoder.h"
+#include "../Utils/LrcTools/LrcDecoder.h"
 #include "PhonicWidget.h"
 
 namespace FillLyric {
@@ -17,10 +17,10 @@ namespace FillLyric {
         // 创建模型和视图
         tableView = new QTableView();
         model = new PhonicModel(tableView);
+        tableView->setModel(model);
 
         // 隐藏行头
         tableView->horizontalHeader()->hide();
-        tableView->setModel(model);
 
         // 打开右键菜单
         tableView->setContextMenuPolicy(Qt::CustomContextMenu);

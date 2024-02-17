@@ -17,12 +17,13 @@
 #include <QAbstractButton>
 
 #include "g2pglobal.h"
-#include "Utils/CleanLyric.h"
-
 #include "mandarin.h"
 #include "jpg2p.h"
+
+#include "../Utils/CleanLyric.h"
+#include "../Model/PhonicModel.h"
+
 #include "PhonicDelegate.h"
-#include "PhonicModel.h"
 #include "PhonicTextEdit.h"
 #include "PhonicEventFilter.h"
 

@@ -15,10 +15,10 @@
 #include <QAbstractButton>
 
 #include "g2pglobal.h"
-#include "Utils/CleanLyric.h"
-
 #include "mandarin.h"
-#include "PhonicDelegate.h"
+
+#include "../Utils/CleanLyric.h"
+#include "../View/PhonicDelegate.h"
 
 
 namespace FillLyric {

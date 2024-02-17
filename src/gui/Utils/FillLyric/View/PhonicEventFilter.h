@@ -6,7 +6,7 @@
 #include <QKeyEvent>
 #include <QWheelEvent>
 
-#include "PhonicModel.h"
+#include "../Model/PhonicModel.h"
 
 namespace FillLyric {
     class PhonicEventFilter : public QObject {

@@ -3,7 +3,7 @@
 
 #include <QDialog>
 
-#include "PhonicWidget.h"
+#include "View/PhonicWidget.h"
 
 namespace FillLyric {
 
