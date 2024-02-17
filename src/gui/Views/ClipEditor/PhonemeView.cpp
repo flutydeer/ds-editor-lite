@@ -86,13 +86,11 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     QPen pen;
-    auto penWidth = 2;
-    pen.setWidthF(penWidth);
-    auto appModel = AppModel::instance();
 
     auto mainColor = QColor(155, 186, 255);
     auto fillColor = QColor(155, 186, 255, 50);
     auto positionLineColor = QColor(255, 204, 153);
+    auto noteBoundaryColor = QColor(100, 100, 100);
 
     // Draw background
     painter.setPen(Qt::NoPen);
@@ -104,10 +102,19 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     drawTimeline(&painter, m_startTick, m_endTick,
                  rect().width() - AppGlobal::verticalScrollBarWidth);
 
-    auto drawSolidLine = [&](double tick, bool hoverOnControlBar) {
+    auto drawSolidRect = [&](double startTick, double endTick, const QColor &color) {
+        auto start = tickToX(startTick);
+        auto length = tickToX(endTick) - start;
+        auto rectF = QRectF(start, 0, length, rect().height());
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(color);
+        painter.drawRect(rectF);
+    };
+
+    auto drawSolidLine = [&](double tick, double penWidth, const QColor &color) {
         auto x = tickToX(tick);
-        pen.setColor(mainColor);
-        pen.setWidthF(hoverOnControlBar ? 2.5 : 1.0);
+        pen.setColor(color);
+        pen.setWidthF(penWidth);
         painter.setPen(pen);
         painter.drawLine(QLineF(x, 0, x, rect().height()));
     };
@@ -119,7 +126,6 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         painter.setPen(mainColor);
         painter.setBrush(fillColor);
 
-        auto fontMetrics = painter.fontMetrics();
         QString text;
         if (m_showDebugInfo)
             text = phoneme->name +
@@ -131,25 +137,50 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         painter.drawText(textRect, text, textOption);
     };
 
-    // TODO： use binary find
-    for (const auto phoneme : m_phonemes) {
-        if (phoneme->start < m_startTick)
+    // Draw notes' word boundary
+    for (int i = 0; i < m_notes.count(); i++) {
+        auto curNote = m_notes.at(i);
+        if (curNote->end() < m_startTick)
             continue;
-        if (phoneme->start > m_endTick)
+        if (curNote->start > m_endTick)
             break;
-        if (phoneme->type == PhonemeViewModel::Sil)
-            continue;
 
-        if (canEdit()) {
+        // if (!curNote->isSlur)
+        //     drawSolidLine(curNote->start, 1, noteBoundaryColor);
+        //
+        // if (i < m_notes.count() - 1) {
+        //     auto nextNote = m_notes.at(i + 1);
+        //     if (!nextNote->isSlur)
+        //         drawSolidLine(curNote->end(), 1, noteBoundaryColor);
+        // } else
+        //     drawSolidLine(curNote->end(), 1, noteBoundaryColor);
+
+        if (canEdit())
+            painter.setRenderHint(QPainter::Antialiasing, false);
+        drawSolidRect(curNote->start, curNote->end(), fillColor);
+    }
+
+    if (canEdit()) {
+        // TODO： use binary find
+        for (const auto phoneme : m_phonemes) {
+            if (phoneme->start < m_startTick)
+                continue;
+            if (phoneme->start > m_endTick)
+                break;
+            if (phoneme->type == PhonemeViewModel::Sil)
+                continue;
+
             auto start = phoneme->start + phoneme->startOffset;
-            drawSolidLine(start, phoneme->hoverOnControlBar);
+            auto phonemePenWidth = phoneme->hoverOnControlBar ? 2.5 : 1.0;
+            painter.setRenderHint(QPainter::Antialiasing);
+            drawSolidLine(start, phonemePenWidth, mainColor);
             drawPhoneName(phoneme);
         }
     }
 
     // Draw playback indicator
     painter.setRenderHint(QPainter::Antialiasing);
-    penWidth = 1.0;
+    auto penWidth = 1.0;
     pen.setWidthF(penWidth);
     pen.setColor(positionLineColor);
     painter.setPen(pen);
@@ -200,7 +231,6 @@ void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
     if (!canEdit())
         return;
 
-    auto deltaX = event->pos().x() - m_mouseDownX;
     auto deltaTick = qRound(xToTick(event->pos().x()) - xToTick(m_mouseDownX));
     if (m_mouseMoveBehavior == Move) {
         auto cur = m_curPhoneme;
@@ -320,7 +350,7 @@ void PhonemeView::buildPhonemeList() {
     for (const auto note : m_notes) {
         if (note->isSlur)
             continue;
-        
+
         for (const auto &phoneme : note->editedPhonemes) {
             auto phonemeViewModel = new PhonemeViewModel;
             auto noteStartMs = appModel->tickToMs(note->start);
