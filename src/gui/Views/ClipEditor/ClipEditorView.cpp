@@ -308,6 +308,8 @@ void ClipEditorView::reset() {
 void ClipEditorView::onClipPropertyChanged() {
     qDebug() << "ClipEditorView::handleClipPropertyChange" << m_clip->id() << m_clip->start();
     auto singingClip = dynamic_cast<SingingClip *>(m_clip);
+    if (!singingClip)
+        return;
     if (singingClip->notes().count() <= 0)
         return;
     for (const auto note : singingClip->notes()) {
