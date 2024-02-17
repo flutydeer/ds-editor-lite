@@ -89,6 +89,7 @@ void PianoRollGraphicsView::PrepareForDrawingNote(int tick, int keyIndex) {
     m_mouseMoveBehavior = UpdateDrawingNote;
 }
 void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
+    m_selecting = true;
     if (event->button() != Qt::LeftButton) {
         m_mouseMoveBehavior = None;
         if (auto item = itemAt(event->pos()))
@@ -96,12 +97,13 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
                 if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteItem))
                     clearNoteSelections();
                 noteItem->setSelected(true);
+            } else if (auto gridItem = dynamic_cast<PianoRollBackgroundGraphicsItem *>(item)) {
+                clearNoteSelections();
             }
         TimeGraphicsView::mousePressEvent(event);
         return;
     }
 
-    m_selecting = true;
     event->accept();
     auto scenePos = mapToScene(event->position().toPoint());
     auto tick = static_cast<int>(sceneXToTick(scenePos.x()));
@@ -295,8 +297,7 @@ void PianoRollGraphicsView::updateNoteWord(Note *note) {
 }
 void PianoRollGraphicsView::updateNoteSelection(const QList<Note *> &selectedNotes) {
     qDebug() << "PianoRollGraphicsView::updateNoteSelection"
-             << "selected notes"
-             << (selectedNotes.isEmpty() ? "" : selectedNotes.first()->lyric());
+             << "selected notes" << (selectedNotes.isEmpty() ? "" : selectedNotes.first()->lyric());
     if (m_selecting)
         m_cachedSelectedNotes = selectedNotes;
     else

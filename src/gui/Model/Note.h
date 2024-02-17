@@ -54,6 +54,7 @@ public:
     void setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme> &phonemes);
     bool lineFeed() const;
     void setLineFeed(bool lineFeed);
+    bool isSlur() const;
 
     int compareTo(Note *obj) const;
     bool isOverlappedWith(Note *obj) const;
