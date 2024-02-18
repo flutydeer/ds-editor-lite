@@ -2,19 +2,69 @@
 // Created by fluty on 2024/2/10.
 //
 
+#include <QApplication>
+#include <QClipboard>
+#include <QMimeData>
+#include <QJsonDocument>
+
 #include "ClipEditorViewController.h"
+#include "ControllerGlobal.h"
 #include "TracksViewController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "History/HistoryManager.h"
-
 #include "Utils/G2p/S2p.h"
 #include "Utils/G2p/G2pMandarin.h"
-
-#include <QApplication>
 
 void ClipEditorViewController::setCurrentSingingClip(SingingClip *clip) {
     m_clip = clip;
     // updateAndNotifyCanSelectAll();
+}
+void ClipEditorViewController::copySelectedNotesWithParams() const {
+    qDebug() << "ClipEditorViewController::copySelectedNotesWithParams";
+    auto info = buildNoteParamsInfo();
+    if (info.selectedNotes.count() < 0)
+        return;
+
+    // auto array = NotesParamsInfo::serializeToBinary(info);
+    auto jObj = NotesParamsInfo::serializeToJson(info);
+    QJsonDocument jDoc;
+    jDoc.setObject(jObj);
+    auto array = jDoc.toJson();
+    auto data = new QMimeData;
+    data->setData(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams), array);
+    QGuiApplication::clipboard()->setMimeData(data);
+    // qDebug() << QString("Copied %1 notes").arg(info.selectedNotes.count());
+}
+void ClipEditorViewController::cutSelectedNotesWithParams() {
+    copySelectedNotesWithParams();
+    onRemoveSelectedNotes();
+}
+void ClipEditorViewController::pasteNotesWithParams(const NotesParamsInfo &info, int tick) {
+    qDebug() << "ClipEditorViewController::pasteNotesWithParams";
+    auto notes = info.selectedNotes;
+    qDebug() << "info.selectedNotes count" << notes.count();
+    if (notes.count() == 0)
+        return;
+    auto start = notes.first().start();
+    auto offset = tick - start;
+    QList<Note *> notesPtr;
+    for (auto &note : notes) {
+        note.setStart(note.start() + offset);
+
+        auto notePtr = new Note;
+        notePtr->setStart(note.start());
+        notePtr->setLength(note.length());
+        notePtr->setKeyIndex(note.keyIndex());
+        notePtr->setLyric(note.lyric());
+        notePtr->setPronunciation(note.pronunciation());
+        notePtr->setPhonemes(Phonemes::Original, note.phonemes().original);
+        notePtr->setPhonemes(Phonemes::Edited, note.phonemes().edited);
+        notesPtr.append(notePtr);
+    }
+    auto a = new NoteActions;
+    a->insertNotes(notesPtr, m_clip);
+    a->execute();
+    HistoryManager::instance()->record(a);
 }
 void ClipEditorViewController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
     TracksViewController::instance()->onClipPropertyChanged(args);
@@ -32,7 +82,7 @@ void ClipEditorViewController::onEditNotesLyric(const QList<int> &notesId) {
         notesToEdit.append(m_clip->findNoteById(id));
     editNotesLyric(notesToEdit);
 }
-void ClipEditorViewController::onInsertNote(Note *note) {
+void ClipEditorViewController::onInsertNote(Note *note) const {
     auto a = new NoteActions;
     QList<Note *> notes;
     notes.append(note);
@@ -51,7 +101,7 @@ void ClipEditorViewController::onMoveNotes(const QList<int> &notesId, int deltaT
     a->execute();
     HistoryManager::instance()->record(a);
 }
-void ClipEditorViewController::onResizeNotesLeft(const QList<int> &notesId, int deltaTick) {
+void ClipEditorViewController::onResizeNotesLeft(const QList<int> &notesId, int deltaTick) const {
     QList<Note *> notesToEdit;
     for (const auto id : notesId)
         notesToEdit.append(m_clip->findNoteById(id));
@@ -61,7 +111,7 @@ void ClipEditorViewController::onResizeNotesLeft(const QList<int> &notesId, int 
     a->execute();
     HistoryManager::instance()->record(a);
 }
-void ClipEditorViewController::onResizeNotesRight(const QList<int> &notesId, int deltaTick) {
+void ClipEditorViewController::onResizeNotesRight(const QList<int> &notesId, int deltaTick) const {
     QList<Note *> notesToEdit;
     for (const auto id : notesId)
         notesToEdit.append(m_clip->findNoteById(id));
@@ -72,7 +122,7 @@ void ClipEditorViewController::onResizeNotesRight(const QList<int> &notesId, int
     HistoryManager::instance()->record(a);
 }
 void ClipEditorViewController::onAdjustPhoneme(const QList<int> &notesId,
-                                               const QList<Phoneme> &phonemes) {
+                                               const QList<Phoneme> &phonemes) const {
     QList<Note *> notesToEdit;
     for (const auto id : notesId)
         notesToEdit.append(m_clip->findNoteById(id));
@@ -99,7 +149,7 @@ void ClipEditorViewController::onNoteSelectionChanged(const QList<int> &notesId,
 
     m_clip->notifyNoteSelectionChanged();
 }
-void ClipEditorViewController::onEditSelectedNotesLyric() {
+void ClipEditorViewController::onEditSelectedNotesLyric() const {
     auto notes = m_clip->selectedNotes();
     editNotesLyric(notes);
 }
@@ -117,7 +167,7 @@ void ClipEditorViewController::onSelectAllNotes() {
     emit canRemoveChanged(true);
     m_clip->notifyNoteSelectionChanged();
 }
-void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) {
+void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const {
     QList<Note::NoteWordProperties *> args;
 
     auto g2p_man = G2pMandarin::instance();
@@ -175,12 +225,19 @@ void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) {
     a->execute();
     HistoryManager::instance()->record(a);
 }
-void ClipEditorViewController::removeNotes(const QList<Note *> &notes) {
+void ClipEditorViewController::removeNotes(const QList<Note *> &notes) const {
     auto a = new NoteActions;
     a->removeNotes(notes, m_clip);
     a->execute();
     HistoryManager::instance()->record(a);
     // updateAndNotifyCanSelectAll();
+}
+NotesParamsInfo ClipEditorViewController::buildNoteParamsInfo() const {
+    auto notes = m_clip->selectedNotes();
+    NotesParamsInfo info;
+    for (const auto &note : notes)
+        info.selectedNotes.append(*note);
+    return info;
 }
 // void ClipEditorViewController::updateAndNotifyCanSelectAll() {
 //     if (!m_clip) {
