@@ -28,9 +28,9 @@ void ClipboardController::paste() {
     if (mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams))) {
         qDebug() << "Mime data has NoteWithParams";
         auto array = mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
-        // auto info = NotesParamsInfo::deserializeFromBinary(array);
-        auto json = QJsonDocument::fromJson(array);
-        auto info = NotesParamsInfo::deserializeFromJson(json.object());
+        auto info = NotesParamsInfo::deserializeFromBinary(array);
+        // auto json = QJsonDocument::fromJson(array);
+        // auto info = NotesParamsInfo::deserializeFromJson(json.object());
         auto tick = PlaybackController::instance()->position();
         ClipEditorViewController::instance()->pasteNotesWithParams(info, static_cast<int>(tick));
     }

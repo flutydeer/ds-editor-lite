@@ -50,7 +50,7 @@ QDataStream &operator<<(QDataStream &out, const NotesParamsInfo &info) {
     return out;
 }
 QDataStream &operator>>(QDataStream &in, NotesParamsInfo &info) {
-    int noteListCount;
+    qsizetype noteListCount;
     in >> noteListCount;
     for (int i = 0; i < noteListCount; i++) {
         Note note;

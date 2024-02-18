@@ -27,11 +27,11 @@ void ClipEditorViewController::copySelectedNotesWithParams() const {
     if (info.selectedNotes.count() < 0)
         return;
 
-    // auto array = NotesParamsInfo::serializeToBinary(info);
-    auto jObj = NotesParamsInfo::serializeToJson(info);
-    QJsonDocument jDoc;
-    jDoc.setObject(jObj);
-    auto array = jDoc.toJson();
+    auto array = NotesParamsInfo::serializeToBinary(info);
+    // auto jObj = NotesParamsInfo::serializeToJson(info);
+    // QJsonDocument jDoc;
+    // jDoc.setObject(jObj);
+    // auto array = jDoc.toJson();
     auto data = new QMimeData;
     data->setData(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams), array);
     QGuiApplication::clipboard()->setMimeData(data);
