@@ -12,8 +12,10 @@
 #include "TracksViewController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "History/HistoryManager.h"
+
 #include "Utils/G2p/S2p.h"
 #include "Utils/G2p/G2pMandarin.h"
+#include "Utils/FillLyric/LyricDialog.h"
 
 void ClipEditorViewController::setCurrentSingingClip(SingingClip *clip) {
     m_clip = clip;
@@ -166,6 +168,60 @@ void ClipEditorViewController::onSelectAllNotes() {
         note->setSelected(true);
     emit canRemoveChanged(true);
     m_clip->notifyNoteSelectionChanged();
+}
+void ClipEditorViewController::onFillLyric() {
+    int selectedTrackIndex;
+    auto selectedClipIndex = AppModel::instance()->selectedClipId();
+    auto selectedClip = AppModel::instance()->findClipById(selectedClipIndex, selectedTrackIndex);
+
+    QList<Note *> selectedNotes;
+    if (selectedClip != nullptr) {
+        if (selectedClip->type() == Clip::Singing)
+            selectedNotes = dynamic_cast<SingingClip *>(selectedClip)->selectedNotes();
+    }
+
+    qDebug() << "fillLyric: "
+             << "trackIndex: " << selectedTrackIndex << "clipIndex: " << selectedClipIndex
+             << "selectedNotes: " << selectedNotes.size();
+
+    QList<QList<QString>> lyrics;
+    auto lineLyrics = QList<QString>();
+    for (auto note : selectedNotes) {
+        lineLyrics.append(note->lyric());
+        if (note->lineFeed()) {
+            lyrics.append(lineLyrics);
+            lineLyrics.clear();
+        }
+    }
+    if (!lineLyrics.isEmpty()) {
+        lyrics.append(lineLyrics);
+    }
+
+    qDebug() << "selected lyrics: " << lyrics;
+
+    auto lyricDialog = new FillLyric::LyricDialog();
+    lyricDialog->setLyrics(lyrics);
+    lyricDialog->show();
+
+    auto result = lyricDialog->exec();
+    if (result == QDialog::Accepted) {
+        auto phonics = lyricDialog->exportPhonics();
+        if (phonics.isEmpty()) {
+            return;
+        }
+
+        for (int i = 0; i < std::min(phonics.size(), selectedNotes.size()); i++) {
+            auto note = selectedNotes[i];
+            if (i < phonics.size()) {
+                auto phonic = phonics[i];
+                note->setLyric(phonic.lyric);
+                note->setPronunciation(Pronunciation(phonic.syllable, phonic.syllableRevised));
+                note->setLineFeed(phonic.lineFeed);
+            }
+        }
+        ClipEditorViewController::instance()->onEditSelectedNotesLyric();
+    }
+    delete lyricDialog;
 }
 void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const {
     QList<Note::NoteWordProperties *> args;

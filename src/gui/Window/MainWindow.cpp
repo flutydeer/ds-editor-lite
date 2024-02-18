@@ -7,7 +7,6 @@
 #include <QFileDialog>
 #include <QSplitter>
 #include <QMenuBar>
-#include <QApplication>
 
 #include "Audio/AudioSystem.h"
 #include "Audio/Dialogs/AudioSettingsDialog.h"
@@ -268,7 +267,8 @@ MainWindow::MainWindow() {
     auto menuModify = new QMenu("&Modify", this);
     auto actionFillLyrics = new QAction("Fill Lyrics", this);
     actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
-    connect(actionFillLyrics, &QAction::triggered, appController, &AppController::fillLyric);
+    connect(actionFillLyrics, &QAction::triggered, clipController,
+            &ClipEditorViewController::onFillLyric);
     menuModify->addAction(actionFillLyrics);
 
     auto menuOptions = new QMenu("&Options", this);
@@ -365,7 +365,7 @@ MainWindow::MainWindow() {
     connect(historyManager, &HistoryManager::undoRedoChanged, actionButtonsView,
             &ActionButtonsView::onUndoRedoChanged);
 
-    appController->instance()->onNewProject();
+    AppController::instance()->onNewProject();
 
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addLayout(menuBarContainer);

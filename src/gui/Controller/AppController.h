@@ -29,8 +29,6 @@ public slots:
 
     void importAproject(const QString &filePath);
 
-    void fillLyric();
-
     void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);
     void onSetQuantize(int quantize);

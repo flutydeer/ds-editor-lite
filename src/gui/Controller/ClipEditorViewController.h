@@ -40,6 +40,7 @@ public slots:
     void onRemoveSelectedNotes();
     // TODO: copy and paste selected notes
     void onSelectAllNotes();
+    void onFillLyric();
 
 private:
     SingingClip *m_clip = nullptr;

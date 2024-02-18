@@ -3,12 +3,9 @@
 //
 
 #include "AppController.h"
-#include "Utils/FillLyric/LyricDialog.h"
-#include "syllable2p.h"
 #include "Controller/History/HistoryManager.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
-#include "ClipEditorViewController.h"
 
 void AppController::onNewProject() {
     AppModel::instance()->newProject();
@@ -35,60 +32,6 @@ void AppController::importAproject(const QString &filePath) {
     AppModel::instance()->importAProject(filePath);
     HistoryManager::instance()->reset();
     m_lastProjectPath = "";
-}
-
-void AppController::fillLyric() {
-    int selectedTrackIndex;
-    auto selectedClipIndex = AppModel::instance()->selectedClipId();
-    auto selectedClip = AppModel::instance()->findClipById(selectedClipIndex, selectedTrackIndex);
-
-    QList<Note *> selectedNotes;
-    if (selectedClip != nullptr) {
-        selectedNotes = dynamic_cast<SingingClip *>(selectedClip)->selectedNotes();
-    }
-
-    qDebug() << "fillLyric: "
-             << "trackIndex: " << selectedTrackIndex << "clipIndex: " << selectedClipIndex
-             << "selectedNotes: " << selectedNotes.size();
-
-    QList<QList<QString>> lyrics;
-    auto lineLyrics = QList<QString>();
-    for (auto note : selectedNotes) {
-        lineLyrics.append(note->lyric());
-        if (note->lineFeed()) {
-            lyrics.append(lineLyrics);
-            lineLyrics.clear();
-        }
-    }
-    if (!lineLyrics.isEmpty()) {
-        lyrics.append(lineLyrics);
-    }
-
-    qDebug() << "selected lyrics: " << lyrics;
-
-    auto lyricDialog = new FillLyric::LyricDialog();
-    lyricDialog->setLyrics(lyrics);
-    lyricDialog->show();
-
-    auto result = lyricDialog->exec();
-    if (result == QDialog::Accepted) {
-        auto phonics = lyricDialog->exportPhonics();
-        if (phonics.isEmpty()) {
-            return;
-        }
-
-        for (int i = 0; i < std::min(phonics.size(), selectedNotes.size()); i++) {
-            auto note = selectedNotes[i];
-            if (i < phonics.size()) {
-                auto phonic = phonics[i];
-                note->setLyric(phonic.lyric);
-                note->setPronunciation(Pronunciation(phonic.syllable, phonic.syllableRevised));
-                note->setLineFeed(phonic.lineFeed);
-            }
-        }
-        ClipEditorViewController::instance()->onEditSelectedNotesLyric();
-    }
-    delete lyricDialog;
 }
 void AppController::onSetTempo(double tempo) {
     // TODO: validate tempo
