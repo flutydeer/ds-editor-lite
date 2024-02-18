@@ -44,7 +44,7 @@ public:
     QJsonObject globalWorkspace() const;
     bool isWorkspaceExist(const QString &id) const;
     QJsonObject getPrivateWorkspaceById(const QString &id) const;
-    WorkspaceEditor *workspaceEditor(const QString &id);
+    std::unique_ptr<WorkspaceEditor> workspaceEditor(const QString &id);
 
     int quantize() const;
     void setQuantize(int quantize);
