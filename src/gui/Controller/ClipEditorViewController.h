@@ -9,6 +9,7 @@
 
 #include "Model/Clip.h"
 #include "Model/AppModel.h"
+#include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Utils/Singleton.h"
 
 class ClipEditorViewController final : public QObject, public Singleton<ClipEditorViewController> {
@@ -16,23 +17,26 @@ class ClipEditorViewController final : public QObject, public Singleton<ClipEdit
 
 public:
     void setCurrentSingingClip(SingingClip *clip);
+    void copySelectedNotesWithParams() const;
+    void cutSelectedNotesWithParams();
+    void pasteNotesWithParams(const NotesParamsInfo &info, int tick);
 
 signals:
     void canSelectAllChanged(bool canSelectAll);
     void canRemoveChanged(bool canRemove);
 
 public slots:
-    void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
+    static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     void onRemoveNotes(const QList<int> &notesId);
     void onEditNotesLyric(const QList<int> &notesId);
-    void onInsertNote(Note *note);
+    void onInsertNote(Note *note) const;
     void onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey);
-    void onResizeNotesLeft(const QList<int> &notesId, int deltaTick);
-    void onResizeNotesRight(const QList<int> &notesId, int deltaTick);
-    void onAdjustPhoneme(const QList<int> &notesId, const QList<Phoneme> &phonemes);
+    void onResizeNotesLeft(const QList<int> &notesId, int deltaTick) const;
+    void onResizeNotesRight(const QList<int> &notesId, int deltaTick) const;
+    void onAdjustPhoneme(const QList<int> &notesId, const QList<Phoneme> &phonemes) const;
     void onNoteSelectionChanged(const QList<int> &notesId, bool unselectOther);
 
-    void onEditSelectedNotesLyric();
+    void onEditSelectedNotesLyric() const;
     void onRemoveSelectedNotes();
     // TODO: copy and paste selected notes
     void onSelectAllNotes();
@@ -40,10 +44,11 @@ public slots:
 private:
     SingingClip *m_clip = nullptr;
 
-    void editNotesLyric(const QList<Note *> &notes);
-    void removeNotes(const QList<Note *> &notes);
+    void editNotesLyric(const QList<Note *> &notes) const;
+    void removeNotes(const QList<Note *> &notes) const;
     // void updateAndNotifyCanSelectAll();
     // void notifyCanRemove();
+    [[nodiscard]] NotesParamsInfo buildNoteParamsInfo() const;
 };
 
 

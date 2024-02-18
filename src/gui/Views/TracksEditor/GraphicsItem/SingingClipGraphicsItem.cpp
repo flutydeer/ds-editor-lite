@@ -10,6 +10,17 @@
 
 using namespace TracksEditorGlobal;
 
+int SingingClipGraphicsItem::NoteViewModel::compareTo(NoteViewModel *obj) const {
+    auto otherStart = obj->rStart;
+    if (rStart < otherStart)
+        return -1;
+    if (rStart > otherStart)
+        return 1;
+    return 0;
+}
+bool SingingClipGraphicsItem::NoteViewModel::isOverlappedWith(NoteViewModel *obj) {
+    return false;
+}
 SingingClipGraphicsItem::SingingClipGraphicsItem(int itemId, QGraphicsItem *parent)
     : AbstractClipGraphicsItem(itemId, parent) {
     setCanResizeLength(true);
@@ -72,8 +83,8 @@ void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &p
     // find lowest and highest pitch
     int lowestKeyIndex = 127;
     int highestKeyIndex = 0;
-    for (const auto &note : m_notes) {
-        auto keyIndex = note.keyIndex;
+    for (const auto note : m_notes) {
+        auto keyIndex = note->keyIndex;
         if (keyIndex < lowestKeyIndex)
             lowestKeyIndex = keyIndex;
         if (keyIndex > highestKeyIndex)
@@ -86,41 +97,41 @@ void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &p
     for (const auto &note : m_notes) {
         auto clipLeft = start() + clipStart();
         auto clipRight = clipLeft + clipLen();
-        if (start() + note.rStart + note.length < clipLeft)
+        if (start() + note->rStart + note->length < clipLeft)
             continue;
-        if (start() + note.rStart >= clipRight)
+        if (start() + note->rStart >= clipRight)
             break;
 
-        auto leftScene = tickToSceneX(start() + note.rStart);
+        auto leftScene = tickToSceneX(start() + note->rStart);
         auto left = sceneXToItemX(leftScene);
-        auto width = tickToSceneX(note.length);
-        if (start() + note.rStart < clipLeft) {
+        auto width = tickToSceneX(note->length);
+        if (start() + note->rStart < clipLeft) {
             left = sceneXToItemX(tickToSceneX(clipLeft));
-            width = sceneXToItemX(tickToSceneX(start() + note.rStart + note.length)) - left;
-            // qDebug() << left << width << note.lyric;
-        } else if (start() + note.rStart + note.length >= clipRight)
-            width = tickToSceneX(clipRight - start() - note.rStart);
-        auto top = -(note.keyIndex - highestKeyIndex) * noteHeight + rectTop;
+            width = sceneXToItemX(tickToSceneX(start() + note->rStart + note->length)) - left;
+            // qDebug() << left << width << note->lyric;
+        } else if (start() + note->rStart + note->length >= clipRight)
+            width = tickToSceneX(clipRight - start() - note->rStart);
+        auto top = -(note->keyIndex - highestKeyIndex) * noteHeight + rectTop;
         painter->drawRect(QRectF(left, top, width, noteHeight));
     }
 }
 void SingingClipGraphicsItem::addMenuActions(QMenu *menu) {
 }
 void SingingClipGraphicsItem::addNote(Note *note) {
-    NoteViewModel noteViewModel;
-    noteViewModel.id = note->id();
-    noteViewModel.rStart = note->start() - start();
-    noteViewModel.length = note->length();
-    noteViewModel.keyIndex = note->keyIndex();
-    m_notes.append(noteViewModel);
+    auto noteViewModel = new NoteViewModel;
+    noteViewModel->id = note->id();
+    noteViewModel->rStart = note->start() - start();
+    noteViewModel->length = note->length();
+    noteViewModel->keyIndex = note->keyIndex();
+    m_notes.add(noteViewModel);
 
     update();
 }
 void SingingClipGraphicsItem::removeNote(int id) {
     for (int i = 0; i < m_notes.count(); i++) {
-        auto noteId = m_notes.at(i).id;
-        if (noteId == id) {
-            m_notes.removeAt(i);
+        auto note = m_notes.at(i);
+        if (note->id == id) {
+            m_notes.remove(note);
             break;
         }
     }

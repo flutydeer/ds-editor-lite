@@ -15,6 +15,7 @@
 #include "Controller/TracksViewController.h"
 #include "Controller/AppController.h"
 #include "Controller/ClipEditorViewController.h"
+#include "Controller/ClipboardController.h"
 #include "Controller/PlaybackController.h"
 #include "Views/ActionButtonsView.h"
 #include "Views/PlaybackView.h"
@@ -110,14 +111,18 @@ MainWindow::MainWindow() {
     auto clipController = ClipEditorViewController::instance();
     auto playbackController = PlaybackController::instance();
     auto historyManager = HistoryManager::instance();
+    auto clipboardController = ClipboardController::instance();
 
     auto menuBar = new QMenuBar(this);
     menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     auto menuFile = new QMenu("&File", this);
     auto actionNewProject = new QAction("&New Project", this);
+    actionNewProject->setShortcut(QKeySequence("Ctrl+N"));
     connect(actionNewProject, &QAction::triggered, appController, &AppController::onNewProject);
+
     auto actionOpen = new QAction("&Open Project...");
+    actionOpen->setShortcut(QKeySequence("Ctrl+O"));
     connect(actionOpen, &QAction::triggered, this, [=] {
         auto lastDir =
             appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
@@ -139,8 +144,11 @@ MainWindow::MainWindow() {
 
         appController->importAproject(fileName);
     });
+
     auto actionSave = new QAction("&Save", this);
+    actionSave->setShortcut(QKeySequence("Ctrl+S"));
     auto actionSaveAs = new QAction("&Save As", this);
+    actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
     connect(actionSaveAs, &QAction::triggered, this, [=] {
         auto lastDir =
             appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
@@ -229,8 +237,16 @@ MainWindow::MainWindow() {
     //         &QAction::setEnabled);
 
     auto actionCut = new QAction("&Cut", this);
+    actionCut->setShortcut(QKeySequence("Ctrl+X"));
+    connect(actionCut, &QAction::triggered, clipboardController, &ClipboardController::cut);
+
     auto actionCopy = new QAction("&Copy", this);
+    actionCopy->setShortcut(QKeySequence("Ctrl+C"));
+    connect(actionCopy, &QAction::triggered, clipboardController, &ClipboardController::copy);
+
     auto actionPaste = new QAction("&Paste", this);
+    actionPaste->setShortcut(QKeySequence("Ctrl+V"));
+    connect(actionPaste, &QAction::triggered, clipboardController, &ClipboardController::paste);
 
     menuEdit->addAction(actionUndo);
     menuEdit->addAction(actionRedo);

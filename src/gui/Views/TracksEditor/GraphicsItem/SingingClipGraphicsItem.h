@@ -13,12 +13,15 @@
 class SingingClipGraphicsItem final : public AbstractClipGraphicsItem {
     Q_OBJECT
 public:
-    class NoteViewModel {
+    class NoteViewModel : public IOverlapable {
     public:
         int id;
         int rStart;
         int length;
         int keyIndex;
+
+        int compareTo(NoteViewModel *obj) const;
+        static bool isOverlappedWith(NoteViewModel *obj) ;
     };
 
     explicit SingingClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
@@ -42,7 +45,7 @@ private:
     }
 
     QString m_audioCachePath;
-    QList<NoteViewModel> m_notes;
+    OverlapableSerialList<NoteViewModel> m_notes;
 
     void addNote(Note *note);
     void removeNote(int id);

@@ -4,6 +4,8 @@
 
 #include "Note.h"
 
+#include <QJsonArray>
+
 int Note::start() const {
     return m_start;
 }
@@ -37,12 +39,11 @@ void Note::setPronunciation(const QString &pronunciation) {
 Phonemes Note::phonemes() const {
     return m_phonemes;
 }
-void Note::setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme>& phonemes) {
+void Note::setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme> &phonemes) {
     if (type == Phonemes::Original)
         m_phonemes.original = phonemes;
     else if (type == Phonemes::Edited)
         m_phonemes.edited = phonemes;
-
 }
 bool Note::lineFeed() const {
     return m_lineFeed;
@@ -68,4 +69,91 @@ bool Note::isOverlappedWith(Note *obj) const {
     if (otherEnd <= start() || curEnd <= otherStart)
         return false;
     return true;
+}
+QJsonObject Note::serialize(const Note &note) {
+    QJsonObject objNote;
+    objNote.insert("start", note.start());
+    objNote.insert("length", note.length());
+    objNote.insert("keyIndex", note.keyIndex());
+    objNote.insert("lyric", note.lyric());
+    objNote.insert("pronunciation", note.pronunciation());
+    objNote.insert("phonemes", Phonemes::serialize(note.phonemes()));
+    return objNote;
+}
+Note Note::deserialize(const QJsonObject &objNote) {
+    Note note;
+    note.setStart(objNote.value("start").toInt());
+    note.setLength(objNote.value("length").toInt());
+    note.setKeyIndex(objNote.value("keyIndex").toInt());
+    note.setLyric(objNote.value("lyric").toString());
+    note.setPronunciation(objNote.value("pronunciation").toString());
+    // TODO: deserialize phonemes
+    return note;
+}
+QDataStream &operator<<(QDataStream &out, const Phonemes &phonemes) {
+    auto serialize = [](QDataStream &out, const QList<Phoneme> &phonemes) {
+        out << phonemes.count();
+        for (const auto &phoneme : phonemes) {
+            out << phoneme.type;
+            out << phoneme.name;
+            out << phoneme.start;
+        }
+    };
+    serialize(out, phonemes.original);
+    serialize(out, phonemes.edited);
+    return out;
+}
+QDataStream &operator>>(QDataStream &in, Phonemes &phonemes) {
+    auto deserialize = [](QDataStream &in, QList<Phoneme> &phonemes) {
+        int count;
+        in >> count;
+        for (int i = 0; i < count; i++) {
+            Phoneme phoneme;
+            in >> phoneme.type;
+            in >> phoneme.name;
+            in >> phoneme.start;
+            phonemes.append(phoneme);
+        }
+    };
+    deserialize(in, phonemes.original);
+    deserialize(in, phonemes.edited);
+    return in;
+}
+QJsonObject Phonemes::serialize(const Phonemes &phonemes) {
+    QJsonObject objPhonemes;
+    auto serializePhoneme = [](QJsonArray &array, const QList<Phoneme> &phonemes) {
+        for (const auto &phoneme : phonemes) {
+            QJsonObject objPhoneme;
+            objPhoneme.insert("type",phoneme.type);
+            objPhoneme.insert("name",phoneme.name);
+            objPhoneme.insert("start",phoneme.start);
+            array.append(objPhoneme);
+        }
+    };
+    QJsonArray arrOriginal;
+    QJsonArray arrEdited;
+    serializePhoneme(arrOriginal, phonemes.original);
+    serializePhoneme(arrEdited, phonemes.edited);
+    objPhonemes.insert("original", arrOriginal);
+    objPhonemes.insert("edited", arrEdited);
+    return objPhonemes;
+}
+QDataStream &operator<<(QDataStream &out, const Note &note) {
+    // out << note.m_id;
+    out << note.m_start;
+    out << note.m_length;
+    out << note.m_keyIndex;
+    out << note.m_lyric;
+    out << note.m_pronunciation;
+    out << note.m_phonemes;
+    return out;
+}
+QDataStream &operator>>(QDataStream &in, Note &note) {
+    in >> note.m_start;
+    in >> note.m_length;
+    in >> note.m_keyIndex;
+    in >> note.m_lyric;
+    in >> note.m_pronunciation;
+    in >> note.m_phonemes;
+    return in;
 }

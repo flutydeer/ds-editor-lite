@@ -6,7 +6,8 @@
 #define DSNOTE_H
 
 #include <QList>
-#include <utility>
+#include <QDataStream>
+#include <QJsonObject>
 
 #include "Utils/IOverlapable.h"
 #include "Utils/ISelectable.h"
@@ -31,6 +32,11 @@ public:
     enum PhonemesType { Original, Edited };
     QList<Phoneme> original;
     QList<Phoneme> edited;
+
+    friend QDataStream& operator<<(QDataStream& out, const Phonemes &phonemes);
+    friend QDataStream& operator>>(QDataStream& in, Phonemes &phonemes);
+
+    static QJsonObject serialize(const Phonemes &phonemes);
 };
 
 class Note : public IOverlapable, public UniqueObject, public ISelectable {
@@ -58,6 +64,12 @@ public:
 
     int compareTo(Note *obj) const;
     bool isOverlappedWith(Note *obj) const;
+
+    friend QDataStream& operator<<(QDataStream& out, const Note &note);
+    friend QDataStream& operator>>(QDataStream& in, Note &note);
+
+    static QJsonObject serialize(const Note &note);
+    static Note deserialize(const QJsonObject &objNote);
 
     class NoteWordProperties {
     public:
