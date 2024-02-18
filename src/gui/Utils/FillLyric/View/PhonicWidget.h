@@ -47,6 +47,7 @@ namespace FillLyric {
         void deleteCell(const QModelIndex &index);
         void insertCell(const QModelIndex &index);
         void cellMergeLeft(const QModelIndex &index);
+        void cellChangePhonic(const QModelIndex &index, const QString &syllableRevised);
 
         // Line Operations
         void lineBreak(QModelIndex index);
@@ -54,6 +55,7 @@ namespace FillLyric {
         void addNextLine(QModelIndex index);
         void removeLine(QModelIndex index);
         void lineMergeUp(QModelIndex index);
+
         void _on_cellEditClosed(QModelIndex index, const QString &text);
 
         void _on_btnToText_clicked();

@@ -23,4 +23,10 @@ namespace FillLyric {
                                const QList<Phonic> &oldPhonics, const QList<Phonic> &newPhonics) {
         addAction(CellEditAction::build(index, model, oldPhonics, newPhonics));
     }
+
+    void CellActions::cellChangePhonic(const QModelIndex &index, PhonicModel *model,
+                                       const QString &syllableRevised) {
+        addAction(CellChangePhonic::build(index, model, syllableRevised));
+    }
+
 } // FillLyric

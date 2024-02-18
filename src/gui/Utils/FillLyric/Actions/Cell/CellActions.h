@@ -8,6 +8,7 @@
 #include "InsertCellAction.h"
 #include "CellMergeLeft.h"
 #include "CellEditAction.h"
+#include "CellChangePhonic.h"
 
 #include "../../Model/PhonicModel.h"
 #include "../../History/MActionSequence.h"
@@ -22,6 +23,8 @@ namespace FillLyric {
         void cellMergeLeft(const QModelIndex &index, PhonicModel *model);
         void cellEdit(const QModelIndex &index, PhonicModel *model, const QList<Phonic> &oldPhonics,
                       const QList<Phonic> &newPhonics);
+        void cellChangePhonic(const QModelIndex &index, PhonicModel *model,
+                              const QString &syllableRevised);
     };
 
 } // FillLyric

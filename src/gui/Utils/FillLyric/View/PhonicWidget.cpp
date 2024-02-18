@@ -372,7 +372,7 @@ namespace FillLyric {
             QString syllable = QInputDialog::getText(tableView, "自定义音节", "请输入音节",
                                                      QLineEdit::Normal, "", &ok);
             if (ok && !syllable.isEmpty()) {
-                model->setData(index, syllable, PhonicRole::SyllableRevised);
+                cellChangePhonic(index, syllable);
             }
         });
     }
@@ -384,9 +384,8 @@ namespace FillLyric {
         // 把候选音节添加到菜单，点击后设置为当前单元格的UserRoles
         for (const auto &syllable : candidateSyllables) {
             if (candidateSyllables.size() > 1) {
-                menu->addAction(syllable, [this, index, syllable]() {
-                    model->setData(index, syllable, PhonicRole::SyllableRevised);
-                });
+                menu->addAction(syllable,
+                                [this, index, syllable]() { cellChangePhonic(index, syllable); });
             }
         }
     }
@@ -403,11 +402,7 @@ namespace FillLyric {
         for (int i = 0; i < model->rowCount(); i++) {
             int curCol = model->currentLyricLength(i);
             for (int j = 0; j < curCol; j++) {
-                Phonic phonic;
-                phonic.lyric = model->cellLyric(i, j);
-                phonic.syllable = model->cellSyllable(i, j);
-                phonic.SyllableRevised = model->cellSyllableRevised(i, j);
-                phonic.type = CleanLyric::LyricType(model->cellLyricType(i, j));
+                Phonic phonic = model->takeData(i, j);
                 if (j == curCol - 1) {
                     phonic.lineFeed = true;
                 }
@@ -482,6 +477,13 @@ namespace FillLyric {
     void PhonicWidget::cellMergeLeft(const QModelIndex &index) {
         auto a = new CellActions();
         a->cellMergeLeft(index, model);
+        a->execute();
+        ModelHistory::instance()->record(a);
+    }
+
+    void PhonicWidget::cellChangePhonic(const QModelIndex &index, const QString &syllableRevised) {
+        auto a = new CellActions();
+        a->cellChangePhonic(index, model, syllableRevised);
         a->execute();
         ModelHistory::instance()->record(a);
     }
