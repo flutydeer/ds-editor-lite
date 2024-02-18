@@ -118,7 +118,7 @@ namespace FillLyric {
         setLyric(row, col, phonic.lyric);
         setSyllable(row, col, phonic.syllable);
         setCandidates(row, col, phonic.candidates);
-        setSyllableRevised(row, col, phonic.SyllableRevised);
+        setSyllableRevised(row, col, phonic.syllableRevised);
         setLyricType(row, col, phonic.type);
         setFermata(row, col, phonic.fermata);
         setLineFeed(row, col, phonic.lineFeed);
@@ -130,7 +130,7 @@ namespace FillLyric {
         phonic.lyric = cellLyric(row, col);
         phonic.syllable = cellSyllable(row, col);
         phonic.candidates = cellCandidates(row, col);
-        phonic.SyllableRevised = cellSyllableRevised(row, col);
+        phonic.syllableRevised = cellSyllableRevised(row, col);
         phonic.type = (LyricType) cellLyricType(row, col);
         phonic.fermata = cellFermata(row, col);
         phonic.lineFeed = cellLineFeed(row, col);

@@ -38,7 +38,7 @@ void PhonemeView::removeNote(int noteId) {
 }
 void PhonemeView::updateNoteTime(Note *note) {
     qDebug() << "PhonemeView::updateNoteTime" << note->id() << note->lyric()
-             << note->pronunciation();
+             << note->pronunciation().original;
     auto noteViewModel = findNoteById(note->id());
     m_notes.remove(noteViewModel);
     noteViewModel->start = note->start();

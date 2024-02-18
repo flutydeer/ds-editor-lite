@@ -30,10 +30,10 @@ QString Note::lyric() const {
 void Note::setLyric(const QString &lyric) {
     m_lyric = lyric;
 }
-QString Note::pronunciation() const {
+Pronunciation Note::pronunciation() const {
     return m_pronunciation;
 }
-void Note::setPronunciation(const QString &pronunciation) {
+void Note::setPronunciation(const Pronunciation &pronunciation) {
     m_pronunciation = pronunciation;
 }
 Phonemes Note::phonemes() const {
@@ -76,7 +76,7 @@ QJsonObject Note::serialize(const Note &note) {
     objNote.insert("length", note.length());
     objNote.insert("keyIndex", note.keyIndex());
     objNote.insert("lyric", note.lyric());
-    objNote.insert("pronunciation", note.pronunciation());
+    objNote.insert("pronunciation", Pronunciation::serialize(note.pronunciation()));
     objNote.insert("phonemes", Phonemes::serialize(note.phonemes()));
     return objNote;
 }
@@ -86,9 +86,19 @@ Note Note::deserialize(const QJsonObject &objNote) {
     note.setLength(objNote.value("length").toInt());
     note.setKeyIndex(objNote.value("keyIndex").toInt());
     note.setLyric(objNote.value("lyric").toString());
-    note.setPronunciation(objNote.value("pronunciation").toString());
+    // TODO: deserialize pronunciation
     // TODO: deserialize phonemes
     return note;
+}
+QDataStream &operator<<(QDataStream &out, const Pronunciation &pronunciation) {
+    out << pronunciation.original;
+    out << pronunciation.edited;
+    return out;
+}
+QDataStream &operator>>(QDataStream &in, Pronunciation &pronunciation) {
+    in >> pronunciation.original;
+    in >> pronunciation.edited;
+    return in;
 }
 QDataStream &operator<<(QDataStream &out, const Phonemes &phonemes) {
     auto serialize = [](QDataStream &out, const QList<Phoneme> &phonemes) {
@@ -119,14 +129,20 @@ QDataStream &operator>>(QDataStream &in, Phonemes &phonemes) {
     deserialize(in, phonemes.edited);
     return in;
 }
+QJsonObject Pronunciation::serialize(const Pronunciation &pronunciation) {
+    QJsonObject objPronunciation;
+    objPronunciation.insert("original", pronunciation.original);
+    objPronunciation.insert("edited", pronunciation.edited);
+    return objPronunciation;
+}
 QJsonObject Phonemes::serialize(const Phonemes &phonemes) {
     QJsonObject objPhonemes;
     auto serializePhoneme = [](QJsonArray &array, const QList<Phoneme> &phonemes) {
         for (const auto &phoneme : phonemes) {
             QJsonObject objPhoneme;
-            objPhoneme.insert("type",phoneme.type);
-            objPhoneme.insert("name",phoneme.name);
-            objPhoneme.insert("start",phoneme.start);
+            objPhoneme.insert("type", phoneme.type);
+            objPhoneme.insert("name", phoneme.name);
+            objPhoneme.insert("start", phoneme.start);
             array.append(objPhoneme);
         }
     };

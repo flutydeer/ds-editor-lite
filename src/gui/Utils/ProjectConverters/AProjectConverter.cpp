@@ -39,7 +39,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
             note->setLength(objNote.value("dur").toInt());
             note->setKeyIndex(objNote.value("pitch").toInt());
             note->setLyric(objNote.value("lyric").toString());
-            note->setPronunciation("la");
+            note->setPronunciation(Pronunciation("la", ""));
 
             auto headPhonemes = objNote.value("headConsonants").toArray();
             if (headPhonemes.count() == 0) {

@@ -183,7 +183,7 @@ void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const 
     for (int i = 0; i < syllableRes.size(); i++) {
         auto properties = new Note::NoteWordProperties;
         properties->lyric = lyrics[i];
-        properties->pronunciation = syllableRes[i];
+        properties->pronunciation.original = syllableRes[i];
         properties->phonemes.edited = notesPhonemes[i].edited;
         auto phonemes = syllable2p->syllableToPhoneme(syllableRes[i]);
         if (!phonemes.isEmpty()) {

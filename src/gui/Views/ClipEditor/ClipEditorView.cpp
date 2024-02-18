@@ -243,7 +243,7 @@ void ClipEditorView::onDrawNoteCompleted(int start, int length, int keyIndex) {
     note->setLength(length);
     note->setKeyIndex(keyIndex);
     note->setLyric(defaultLyric);
-    note->setPronunciation(defaultPronunciation);
+    note->setPronunciation(Pronunciation(defaultPronunciation, ""));
     note->setSelected(true);
     ClipEditorViewController::instance()->onInsertNote(note);
 }

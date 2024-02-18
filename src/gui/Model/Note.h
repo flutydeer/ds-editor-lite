@@ -13,6 +13,22 @@
 #include "Utils/ISelectable.h"
 #include "Utils/UniqueObject.h"
 
+class Pronunciation {
+public:
+    QString original;
+    QString edited;
+
+    Pronunciation() = default;
+    Pronunciation(QString original, QString edited)
+        : original(std::move(original)), edited(std::move(edited)) {
+    }
+
+    friend QDataStream &operator<<(QDataStream &out, const Pronunciation &pronunciation);
+    friend QDataStream &operator>>(QDataStream &in, Pronunciation &pronunciation);
+
+    static QJsonObject serialize(const Pronunciation &pronunciation);
+};
+
 class Phoneme {
 public:
     enum PhonemeType { Ahead, Normal, Final };
@@ -33,8 +49,8 @@ public:
     QList<Phoneme> original;
     QList<Phoneme> edited;
 
-    friend QDataStream& operator<<(QDataStream& out, const Phonemes &phonemes);
-    friend QDataStream& operator>>(QDataStream& in, Phonemes &phonemes);
+    friend QDataStream &operator<<(QDataStream &out, const Phonemes &phonemes);
+    friend QDataStream &operator>>(QDataStream &in, Phonemes &phonemes);
 
     static QJsonObject serialize(const Phonemes &phonemes);
 };
@@ -54,8 +70,8 @@ public:
     void setKeyIndex(int keyIndex);
     QString lyric() const;
     void setLyric(const QString &lyric);
-    QString pronunciation() const;
-    void setPronunciation(const QString &pronunciation);
+    Pronunciation pronunciation() const;
+    void setPronunciation(const Pronunciation &pronunciation);
     Phonemes phonemes() const;
     void setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme> &phonemes);
     bool lineFeed() const;
@@ -65,8 +81,8 @@ public:
     int compareTo(Note *obj) const;
     bool isOverlappedWith(Note *obj) const;
 
-    friend QDataStream& operator<<(QDataStream& out, const Note &note);
-    friend QDataStream& operator>>(QDataStream& in, Note &note);
+    friend QDataStream &operator<<(QDataStream &out, const Note &note);
+    friend QDataStream &operator>>(QDataStream &in, Note &note);
 
     static QJsonObject serialize(const Note &note);
     static Note deserialize(const QJsonObject &objNote);
@@ -74,7 +90,7 @@ public:
     class NoteWordProperties {
     public:
         QString lyric;
-        QString pronunciation;
+        Pronunciation pronunciation;
         Phonemes phonemes;
     };
 
@@ -83,7 +99,7 @@ private:
     int m_length = 480;
     int m_keyIndex = 60;
     QString m_lyric;
-    QString m_pronunciation;
+    Pronunciation m_pronunciation;
     Phonemes m_phonemes;
     bool m_lineFeed = false;
 };

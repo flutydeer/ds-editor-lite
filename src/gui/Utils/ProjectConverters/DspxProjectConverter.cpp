@@ -4,16 +4,14 @@
 
 #include "DspxProjectConverter.h"
 
-#include "opendspx/qdspxtrack.h"
-#include "opendspx/qdspxtimeline.h"
 #include "opendspx/qdspxmodel.h"
 
 #include <QMessageBox>
 
 bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
-                             ImportMode mode) {
+                                ImportMode mode) {
     auto decodeCurves = [&](const QList<QDspx::ParamCurveRef> &dspxCurveRefs) {
-        QVector<Curve*> curves;
+        QVector<Curve *> curves;
         for (const QDspx::ParamCurveRef &dspxCurveRef : dspxCurveRefs) {
             if (dspxCurveRef->type == QDspx::ParamCurve::Type::Free) {
                 auto castCurveRef = dspxCurveRef.dynamicCast<QDspx::ParamFree>();
@@ -52,7 +50,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         for (auto &curve : decodeCurves(dspxParam.edited)) {
             param.edited.add(curve);
         }
-        for (auto &curve: decodeCurves(dspxParam.envelope)) {
+        for (auto &curve : decodeCurves(dspxParam.envelope)) {
             param.envelope.add(curve);
         }
         return param;
@@ -88,7 +86,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             note->setLength(dspxNote.length);
             note->setKeyIndex(dspxNote.keyNum);
             note->setLyric(dspxNote.lyric);
-            note->setPronunciation(dspxNote.pronunciation);
+            note->setPronunciation(
+                Pronunciation(dspxNote.pronunciation.org, dspxNote.pronunciation.edited));
             note->setPhonemes(Phonemes::Original, decodePhonemes(dspxNote.phonemes.org));
             note->setPhonemes(Phonemes::Edited, decodePhonemes(dspxNote.phonemes.edited));
             notes.append(note);
@@ -149,7 +148,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     auto returnCode = dspxModel.load(path);
     if (returnCode.type == QDspx::ReturnCode::Success) {
         auto timeline = dspxModel.content.timeline;
-        model->setTimeSignature(AppModel::TimeSignature(timeline.timeSignatures[0].num, timeline.timeSignatures[0].den));
+        model->setTimeSignature(AppModel::TimeSignature(timeline.timeSignatures[0].num,
+                                                        timeline.timeSignatures[0].den));
         model->setTempo(timeline.tempos[0].value);
         decodeTracks(dspxModel.content.tracks, model);
         return true;
@@ -164,7 +164,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
 bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &errMsg) {
 
-    auto encodeCurves = [&](const OverlapableSerialList<Curve> &dsCurves, QList<QDspx::ParamCurveRef> &curves) {
+    auto encodeCurves = [&](const OverlapableSerialList<Curve> &dsCurves,
+                            QList<QDspx::ParamCurveRef> &curves) {
         for (const auto &dsCurve : dsCurves) {
             if (dsCurve->type() == Curve::CurveType::Draw) {
                 auto castCurve = dynamic_cast<DrawCurve *>(dsCurve);
@@ -235,7 +236,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             note.length = dsNote->length();
             note.keyNum = dsNote->keyIndex();
             note.lyric = dsNote->lyric();
-            note.pronunciation = dsNote->pronunciation();
+            note.pronunciation.org = dsNote->pronunciation().original;
+            note.pronunciation.edited = dsNote->pronunciation().edited;
             encodePhonemes(dsNote->phonemes().original, note.phonemes.org);
             encodePhonemes(dsNote->phonemes().original, note.phonemes.edited);
             notes.append(note);
@@ -289,18 +291,19 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     QDspx::Model dspxModel;
     auto &timeline = dspxModel.content.timeline;
     timeline.tempos.append(QDspx::Tempo(0, model->tempo()));
-    timeline.timeSignatures.append(
-        QDspx::TimeSignature(0, model->timeSignature().numerator, model->timeSignature().denominator));
+    timeline.timeSignatures.append(QDspx::TimeSignature(0, model->timeSignature().numerator,
+                                                        model->timeSignature().denominator));
 
     encodeTracks(model, dspxModel);
     auto returnCode = dspxModel.save(path);
 
     if (returnCode.type != QDspx::ReturnCode::Success) {
-        QMessageBox::warning(nullptr, "Warning",
-                             QString("Failed to save project file.\r\npath: %1\r\ntype: %2 code: %3")
-                                 .arg(path)
-                                 .arg(returnCode.type)
-                                 .arg(returnCode.code));
+        QMessageBox::warning(
+            nullptr, "Warning",
+            QString("Failed to save project file.\r\npath: %1\r\ntype: %2 code: %3")
+                .arg(path)
+                .arg(returnCode.type)
+                .arg(returnCode.code));
         return false;
     }
     return true;

@@ -29,7 +29,7 @@ namespace FillLyric {
         QString lyric;
         QString syllable;
         QStringList candidates;
-        QString SyllableRevised;
+        QString syllableRevised;
         LyricType type;
         QList<QString> fermata;
         bool lineFeed = false;

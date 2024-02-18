@@ -82,8 +82,7 @@ void AppController::fillLyric() {
             if (i < phonics.size()) {
                 auto phonic = phonics[i];
                 note->setLyric(phonic.lyric);
-                note->setPronunciation(phonic.syllable);
-                note->setPronunciation(phonic.SyllableRevised);
+                note->setPronunciation(Pronunciation(phonic.syllable, phonic.syllableRevised));
                 note->setLineFeed(phonic.lineFeed);
             }
         }

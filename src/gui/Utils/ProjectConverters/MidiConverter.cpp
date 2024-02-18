@@ -118,7 +118,6 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
             note->setLength(dsNote.length);
             note->setKeyIndex(dsNote.keyNum);
             note->setLyric(dsNote.lyric);
-            note->setPronunciation("la");
             notes.append(note);
         }
         return notes;

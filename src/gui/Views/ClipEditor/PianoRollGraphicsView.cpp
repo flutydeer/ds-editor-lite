@@ -254,7 +254,8 @@ void PianoRollGraphicsView::insertNote(Note *note) {
     noteItem->setLength(note->length());
     noteItem->setKeyIndex(note->keyIndex());
     noteItem->setLyric(note->lyric());
-    noteItem->setPronunciation(note->pronunciation());
+    // TODO:: setEditedPronunciation
+    noteItem->setPronunciation(note->pronunciation().original);
     noteItem->setVisibleRect(visibleRect());
     noteItem->setScaleX(scaleX());
     noteItem->setSelected(note->selected());
@@ -290,10 +291,11 @@ void PianoRollGraphicsView::updateNoteTimeAndKey(Note *note) {
 }
 void PianoRollGraphicsView::updateNoteWord(Note *note) {
     qDebug() << "PianoRollGraphicsView::updateNoteWord" << note->id() << note->lyric()
-             << note->pronunciation();
+             << note->pronunciation().original;
     auto noteItem = findNoteById(note->id());
     noteItem->setLyric(note->lyric());
-    noteItem->setPronunciation(note->pronunciation());
+    // TODO:: setEditedPronunciation
+    noteItem->setPronunciation(note->pronunciation().original);
 }
 void PianoRollGraphicsView::updateNoteSelection(const QList<Note *> &selectedNotes) {
     qDebug() << "PianoRollGraphicsView::updateNoteSelection"
