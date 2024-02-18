@@ -54,7 +54,7 @@ namespace FillLyric {
         static QList<int> allRoles();
 
         QString cellLyric(int row, int col);
-        bool setLyric(int row, int col, QString lyric);
+        bool setLyric(int row, int col, const QString& lyric);
         QString cellSyllable(int row, int col);
         bool setSyllable(int row, int col, const QString &syllable);
         QString cellSyllableRevised(int row, int col);
@@ -79,16 +79,8 @@ namespace FillLyric {
         void cellClear(const QModelIndex &index);
         void cellMove(const QModelIndex &source, const QModelIndex &target);
 
-        void cellMergeLeft(const QModelIndex &index);
         void cellMoveLeft(const QModelIndex &index);
         void cellMoveRight(const QModelIndex &index);
-        void cellMergeUp(const QModelIndex &index);
-
-        // Line operations
-        void lineBreak(const QModelIndex &index);
-        void addPrevLine(const QModelIndex &index);
-        void addNextLine(const QModelIndex &index);
-        void removeLine(const QModelIndex &index);
 
         // Fermata operations
         void collapseFermata();

@@ -52,7 +52,7 @@ namespace FillLyric {
         return this->data(this->index(row, col), Qt::DisplayRole).toString();
     }
 
-    bool PhonicModel::setLyric(const int row, const int col, QString lyric) {
+    bool PhonicModel::setLyric(const int row, const int col, const QString& lyric) {
         this->setData(this->index(row, col), lyric, Qt::DisplayRole);
         return true;
     }
@@ -200,19 +200,6 @@ namespace FillLyric {
         moveData(row, col, target.row(), target.column());
     }
 
-    void PhonicModel::cellMergeLeft(const QModelIndex &index) {
-        // 获取当前单元格坐标
-        int row = index.row();
-        int col = index.column();
-        // 获取左侧单元格的内容和当前单元格的DisplayRole的内容，合并到左侧单元格
-        QString mergedLyric = cellLyric(row, col - 1) + cellLyric(row, col);
-        setLyric(row, col - 1, mergedLyric);
-
-        // 获取右侧单元格的index
-        cellMoveLeft(this->index(row, col + 1));
-        repaintItem(this->index(row, col - 1), mergedLyric);
-    }
-
     void PhonicModel::cellMoveLeft(const QModelIndex &index) {
         // 获取当前单元格坐标
         int row = index.row();
@@ -237,67 +224,6 @@ namespace FillLyric {
         for (int i = this->columnCount() - 1; i > col; i--) {
             moveData(row, i - 1, row, i);
         }
-    }
-
-    void PhonicModel::cellMergeUp(const QModelIndex &index) {
-        // 获取当前单元格坐标
-        int row = index.row();
-        // 从右向左遍历上一行，找到第一个DisplayRole不为空的单元格
-        int lastCol = currentLyricLength(row - 1);
-
-        // 从右向左遍历当前行，找到第一个DisplayRole不为空的单元格
-        int currentCol = currentLyricLength(row);
-
-        // 根据lastCol和currentCol的和，扩展模型的列数
-        modelMaxCol = std::max(modelMaxCol, lastCol + currentCol);
-        if (modelMaxCol + 1 > this->columnCount()) {
-            this->setColumnCount(modelMaxCol);
-        }
-
-        // 将当前行的内容移动到上一行，从上一行的lastCol+1列开始放当前行的第一列
-        for (int i = 0; i < currentCol; i++) {
-            moveData(row, i, row - 1, lastCol + i + 1);
-        }
-
-        // 删除当前行
-        this->removeRow(row);
-    }
-
-    // Line operations
-    void PhonicModel::lineBreak(const QModelIndex &index) {
-        // 获取当前单元格坐标
-        int row = index.row();
-        int col = index.column();
-        // 在当前行下方新建一行
-        this->insertRow(row + 1);
-        // 将当前行col列及之后的内容移动到新行，从新行的第一列开始
-        for (int i = col; i < this->columnCount(); i++) {
-            moveData(row, i, row + 1, i - col);
-        }
-        shrinkModel();
-    }
-
-    void PhonicModel::addPrevLine(const QModelIndex &index) {
-        // 获取当前单元格坐标
-        int row = index.row();
-        // 在当前行上方新建一行
-        this->insertRow(row);
-    }
-
-    void PhonicModel::addNextLine(const QModelIndex &index) {
-        // 获取当前单元格坐标
-        int row = index.row();
-        // 在当前行下方新建一行
-        this->insertRow(row + 1);
-    }
-
-    void PhonicModel::removeLine(const QModelIndex &index) {
-        // 获取当前单元格坐标
-        int row = index.row();
-        // 删除当前行
-        this->removeRow(row);
-
-        shrinkModel();
     }
 
     // Fermata operations
