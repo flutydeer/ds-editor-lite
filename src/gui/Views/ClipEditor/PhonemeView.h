@@ -29,6 +29,9 @@ public:
         bool isSlur = false;
         QList<Phoneme> originalPhonemes;
         QList<Phoneme> editedPhonemes;
+        int end() const {
+            return start + length;
+        }
 
         int compareTo(NoteViewModel *obj) const {
             auto otherStart = obj->start;
@@ -75,7 +78,7 @@ public slots:
     void setQuantize(int quantize) override;
 
 private:
-    enum MouseMoveBehavior { Move , None };
+    enum MouseMoveBehavior { Move, None };
 
     void paintEvent(QPaintEvent *event) override;
     void drawBar(QPainter *painter, int tick, int bar) override;
@@ -88,7 +91,7 @@ private:
     bool eventFilter(QObject *object, QEvent *event) override;
     double tickToX(double tick);
     double xToTick(double x);
-    double ticksPerPixel()const;
+    double ticksPerPixel() const;
     bool canEdit() const;
     double m_startTick = 0;
     double m_endTick = 0;

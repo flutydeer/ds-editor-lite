@@ -298,9 +298,8 @@ void PianoRollGraphicsView::updateNoteWord(Note *note) {
 void PianoRollGraphicsView::updateNoteSelection(const QList<Note *> &selectedNotes) {
     qDebug() << "PianoRollGraphicsView::updateNoteSelection"
              << "selected notes" << (selectedNotes.isEmpty() ? "" : selectedNotes.first()->lyric());
-    if (m_selecting)
-        m_cachedSelectedNotes = selectedNotes;
-    else
+    m_cachedSelectedNotes = selectedNotes;
+    if (!m_selecting)
         updateSelectionState();
 }
 NoteGraphicsItem *PianoRollGraphicsView::findNoteById(int id) {

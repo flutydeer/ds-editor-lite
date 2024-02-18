@@ -14,6 +14,7 @@
 #include "Audio/Dialogs/AudioExportDialog.h"
 #include "Controller/TracksViewController.h"
 #include "Controller/AppController.h"
+#include "Controller/ClipEditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "Views/ActionButtonsView.h"
 #include "Views/PlaybackView.h"
@@ -106,6 +107,7 @@ MainWindow::MainWindow() {
 
     auto appController = AppController::instance();
     auto trackController = TracksViewController::instance();
+    auto clipController = ClipEditorViewController::instance();
     auto playbackController = PlaybackController::instance();
     auto historyManager = HistoryManager::instance();
 
@@ -113,9 +115,9 @@ MainWindow::MainWindow() {
     menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     auto menuFile = new QMenu("&File", this);
-    auto actionNewProject = new QAction("&New project", this);
+    auto actionNewProject = new QAction("&New Project", this);
     connect(actionNewProject, &QAction::triggered, appController, &AppController::onNewProject);
-    auto actionOpen = new QAction("&Open project...");
+    auto actionOpen = new QAction("&Open Project...");
     connect(actionOpen, &QAction::triggered, this, [=] {
         auto lastDir =
             appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
@@ -138,7 +140,7 @@ MainWindow::MainWindow() {
         appController->importAproject(fileName);
     });
     auto actionSave = new QAction("&Save", this);
-    auto actionSaveAs = new QAction("&Save as", this);
+    auto actionSaveAs = new QAction("&Save As", this);
     connect(actionSaveAs, &QAction::triggered, this, [=] {
         auto lastDir =
             appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
@@ -158,7 +160,7 @@ MainWindow::MainWindow() {
     });
 
     auto menuImport = new QMenu("Import", this);
-    auto actionImportMidiFile = new QAction("MIDI file...", this);
+    auto actionImportMidiFile = new QAction("MIDI File...", this);
     connect(actionImportMidiFile, &QAction::triggered, this, [=] {
         auto fileName =
             QFileDialog::getOpenFileName(this, "Select a MIDI File", ".", "MIDI File (*.mid)");
@@ -169,12 +171,12 @@ MainWindow::MainWindow() {
     menuImport->addAction(actionImportMidiFile);
 
     auto menuExport = new QMenu("Export", this);
-    auto actionExportAudio = new QAction("Audio file...", this);
+    auto actionExportAudio = new QAction("Audio File...", this);
     connect(actionExportAudio, &QAction::triggered, this, [=] {
         AudioExportDialog dlg;
         dlg.exec();
     });
-    auto actionExportMidiFile = new QAction("MIDI file...", this);
+    auto actionExportMidiFile = new QAction("MIDI File...", this);
     connect(actionExportMidiFile, &QAction::triggered, this, [=] {
         auto fileName =
             QFileDialog::getSaveFileName(this, "Save as MIDI File", ".", "MIDI File (*.mid)");
@@ -204,7 +206,7 @@ MainWindow::MainWindow() {
 
     auto actionRedo = new QAction("&Redo", this);
     actionRedo->setEnabled(false);
-    actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
+    actionRedo->setShortcut(QKeySequence("Ctrl+Shift+Z"));
     connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             [=](bool canUndo, bool canRedo) {
@@ -212,18 +214,33 @@ MainWindow::MainWindow() {
                 actionRedo->setEnabled(canRedo);
             });
 
+    auto actionSelectAll = new QAction("&Select All", this);
+    actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
+    connect(actionSelectAll, &QAction::triggered, clipController,
+            &ClipEditorViewController::onSelectAllNotes);
+    // connect(clipController, &ClipEditorViewController::canSelectAllChanged, actionSelectAll,
+    //         &QAction::setEnabled);
+
+    auto actionDelete = new QAction("&Delete", this);
+    actionDelete->setShortcut(Qt::Key_Delete);
+    connect(actionDelete, &QAction::triggered, clipController,
+            &ClipEditorViewController::onRemoveSelectedNotes);
+    // connect(clipController, &ClipEditorViewController::canRemoveChanged, actionDelete,
+    //         &QAction::setEnabled);
+
     auto actionCut = new QAction("&Cut", this);
     auto actionCopy = new QAction("&Copy", this);
     auto actionPaste = new QAction("&Paste", this);
-    auto actionDelete = new QAction("&Delete", this);
 
     menuEdit->addAction(actionUndo);
     menuEdit->addAction(actionRedo);
     menuEdit->addSeparator();
+    menuEdit->addAction(actionSelectAll);
+    menuEdit->addAction(actionDelete);
+    menuEdit->addSeparator();
     menuEdit->addAction(actionCut);
     menuEdit->addAction(actionCopy);
     menuEdit->addAction(actionPaste);
-    menuEdit->addAction(actionDelete);
 
     auto menuInsert = new QMenu("&Insert", this);
 
