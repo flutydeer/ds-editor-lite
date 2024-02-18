@@ -2,12 +2,14 @@
 #include <QMessageBox>
 #include <QInputDialog>
 #include <QStandardItemModel>
+#include <utility>
 
 #include "../Utils/LrcTools/LrcDecoder.h"
 #include "PhonicWidget.h"
 
 #include "../Actions/Cell/CellActions.h"
 #include "../Actions/Line/LineActions.h"
+#include "../Actions/Model/ModelActions.h"
 
 namespace FillLyric {
 
@@ -29,7 +31,8 @@ namespace FillLyric {
         tableView->setContextMenuPolicy(Qt::CustomContextMenu);
 
         // 设置委托
-        tableView->setItemDelegate(new PhonicDelegate(tableView));
+        delegate = new PhonicDelegate(tableView);
+        tableView->setItemDelegate(delegate);
 
         eventFilter = new PhonicEventFilter(tableView, model, this);
         tableView->installEventFilter(eventFilter);
@@ -71,21 +74,22 @@ namespace FillLyric {
         mainLayout->addLayout(topLayout);
         mainLayout->addLayout(tableLayout);
 
-        connect(btnToTable, &QAbstractButton::clicked, this, &PhonicWidget::_on_btnToTable_clicked);
+        // 右键菜单
         connect(tableView, &QTableView::customContextMenuRequested, this,
                 &PhonicWidget::_on_showContextMenu);
 
         connect(btnInsertText, &QAbstractButton::clicked, this,
                 &PhonicWidget::_on_btnInsertText_clicked);
+
+        connect(btnToTable, &QAbstractButton::clicked, this, &PhonicWidget::_on_btnToTable_clicked);
         connect(btnToText, &QAbstractButton::clicked, this, &PhonicWidget::_on_btnToText_clicked);
         connect(btnToggleFermata, &QAbstractButton::clicked, this,
                 &PhonicWidget::_on_btnToggleFermata_clicked);
         connect(btnImportLrc, &QAbstractButton::clicked, this,
                 &PhonicWidget::_on_btnImportLrc_clicked);
 
-        // tableView的itemDelegate的closeEditor信号触发_on_cellChanged
-        connect(tableView->itemDelegate(), &QAbstractItemDelegate::closeEditor, this,
-                &PhonicWidget::_on_cellEditClosed);
+        // PhonicDelegate signals
+        connect(delegate, &PhonicDelegate::lyricEdited, this, &PhonicWidget::_on_cellEditClosed);
 
         // PhonicEventFilter signals
         connect(eventFilter, &PhonicEventFilter::fontSizeChanged, this, [this] { resizeTable(); });
@@ -167,8 +171,60 @@ namespace FillLyric {
         model->shrinkModel();
     }
 
-    void PhonicWidget::_on_cellEditClosed() {
-        auto index = tableView->currentIndex();
+    QList<Phonic> PhonicWidget::updateLyric(QModelIndex index, const QString &text,
+                                            const QList<Phonic> &oldPhonics) {
+        int col = index.column();
+
+        QList<Phonic> newPhonics;
+        for (const auto &phonic : oldPhonics) {
+            newPhonics.append(phonic);
+        }
+        newPhonics[col].lyric = text;
+
+        auto lyricType = CleanLyric::lyricType(text, "-");
+
+        if (lyricType == LyricType::Fermata) {
+            newPhonics[col].type = LyricType::Fermata;
+            newPhonics[col].syllable = text;
+            newPhonics[col].candidates = QStringList() << text;
+            return newPhonics;
+        }
+
+        // 获取当前行所有单元格的DisplayRole
+        QStringList lyrics;
+        for (const auto &newPhonic : newPhonics) {
+            lyrics.append(newPhonic.lyric);
+        }
+
+        auto syllables = g2p_man.hanziToPinyin(lyrics, false, false);
+        // 设置当前行所有单元格的Syllable
+        for (int i = 0; i < oldPhonics.size(); i++) {
+            newPhonics[i].syllable = syllables[i];
+        }
+
+        // 设置当前行所有单元格的Candidate
+        for (int i = 0; i < oldPhonics.size(); i++) {
+            newPhonics[i].candidates = g2p_man.getDefaultPinyin(lyrics[i], false);
+        }
+
+        // 设置当前行所有单元格的LyricType
+        for (int i = 0; i < oldPhonics.size(); i++) {
+            lyricType = CleanLyric::lyricType(lyrics[i], "-");
+            newPhonics[i].type = lyricType;
+            if (lyricType == LyricType::Kana) {
+                auto romajiList = g2p_jp.kanaToRomaji(lyrics[i]);
+                if (!romajiList.isEmpty()) {
+                    const auto &romaji = romajiList.at(0);
+                    newPhonics[i].syllable = romaji;
+                    newPhonics[i].candidates = QStringList() << romaji;
+                }
+            }
+        }
+        return newPhonics;
+    }
+
+    void PhonicWidget::_on_cellEditClosed(QModelIndex index, const QString &text) {
+        QList<Phonic> oldPhonicList;
         // 获取当前单元格所在行列
         int row = index.row();
         int col = index.column();
@@ -177,43 +233,16 @@ namespace FillLyric {
             return;
         }
 
-        auto lyricType = CleanLyric::lyricType(model->cellLyric(row, col), "-");
-
-        if (lyricType == LyricType::Fermata) {
-            auto lyric = model->cellLyric(row, col);
-            model->setLyricType(row, col, LyricType::Fermata);
-            model->setSyllable(row, col, lyric);
-            model->setCandidates(row, col, QStringList() << lyric);
-            return;
+        for (int i = 0; i < model->currentLyricLength(row); i++) {
+            oldPhonicList.append(model->takeData(row, i));
         }
 
-        // 获取当前行所有单元格的DisplayRole
-        QStringList lyrics;
-        for (int i = 0; i < model->columnCount(); i++) {
-            lyrics.append(model->cellLyric(row, i));
-        }
+        QList<Phonic> newPhonicList = updateLyric(index, text, oldPhonicList);
 
-        auto syllables = g2p_man.hanziToPinyin(lyrics, false, false);
-        // 设置当前行所有单元格的Syllable
-        for (int i = 0; i < model->columnCount(); i++) {
-            model->setSyllable(row, i, syllables[i]);
-        }
-
-        // 设置当前行所有单元格的Candidate
-        for (int i = 0; i < model->columnCount(); i++) {
-            model->setCandidates(row, i, g2p_man.getDefaultPinyin(lyrics[i], false));
-        }
-
-        // 设置当前行所有单元格的LyricType
-        for (int i = 0; i < model->columnCount(); i++) {
-            lyricType = CleanLyric::lyricType(lyrics[i], "-");
-            model->setLyricType(row, i, lyricType);
-            if (lyricType == LyricType::Kana) {
-                auto romaji = g2p_jp.kanaToRomaji(lyrics[i]).at(0);
-                model->setSyllable(row, i, romaji);
-                model->setCandidates(row, i, QStringList() << romaji);
-            }
-        }
+        auto a = new CellActions();
+        a->cellEdit(index, model, oldPhonicList, newPhonicList);
+        a->execute();
+        ModelHistory::instance()->record(a);
     }
 
     void PhonicWidget::_on_textEditChanged() {
@@ -273,13 +302,10 @@ namespace FillLyric {
     }
 
     void PhonicWidget::_on_btnToggleFermata_clicked() {
-        if (model->fermataState) {
-            model->expandFermata();
-        } else {
-            model->collapseFermata();
-        }
-        model->fermataState = !model->fermataState;
-        model->shrinkModel();
+        auto a = new ModelActions;
+        a->toggleFermata(model);
+        a->execute();
+        ModelHistory::instance()->record(a);
     }
 
     void PhonicWidget::_on_showContextMenu(const QPoint &pos) {
@@ -308,18 +334,14 @@ namespace FillLyric {
                 menu->addSeparator();
 
                 // 移动单元格
-                menu->addAction("插入空白单元格", [this, index]() { model->cellMoveRight(index); });
+                menu->addAction("插入空白单元格", [this, index]() { insertCell(index); });
                 // 清空单元格
                 menu->addAction("清空单元格", [this, selected]() { cellClear(selected); });
                 // 向左归并单元格
                 if (col > 0) {
-                    menu->addAction("向左归并单元格",
-                                    [this, index]() { model->cellMergeLeft(index); });
-                    menu->addAction("向左移动单元格",
-                                    [this, index]() { model->cellMoveLeft(index); });
+                    menu->addAction("向左归并单元格", [this, index]() { cellMergeLeft(index); });
                 }
-                // 向右移动单元格
-                menu->addAction("向右移动单元格", [this, index]() { model->cellMoveRight(index); });
+                menu->addAction("删除当前单元格", [this, index]() { deleteCell(index); });
                 menu->addSeparator();
 
                 // 换行
@@ -327,14 +349,14 @@ namespace FillLyric {
                     menu->addAction("换行", [this, index]() { lineBreak(index); });
                 // 合并到上一行
                 if (row > 0 && col == 0)
-                    menu->addAction("合并到上一行", [this, index]() { model->cellMergeUp(index); });
+                    menu->addAction("合并到上一行", [this, index]() { lineMergeUp(index); });
 
                 // 添加上一行
-                menu->addAction("向上插入空白行", [this, index]() { model->addPrevLine(index); });
+                menu->addAction("向上插入空白行", [this, index]() { addPrevLine(index); });
                 // 添加下一行
-                menu->addAction("向下插入空白行", [this, index]() { model->addNextLine(index); });
+                menu->addAction("向下插入空白行", [this, index]() { addNextLine(index); });
                 // 删除当前行
-                menu->addAction("删除当前行", [this, index]() { model->removeLine(index); });
+                menu->addAction("删除当前行", [this, index]() { removeLine(index); });
             }
 
             // 显示菜单
@@ -437,16 +459,67 @@ namespace FillLyric {
     }
 
     void PhonicWidget::cellClear(const QList<QModelIndex> &indexes) {
-        auto a = new CellActions;
+        auto a = new CellActions();
         a->cellClear(indexes, model);
         a->execute();
         ModelHistory::instance()->record(a);
     }
 
+    void PhonicWidget::deleteCell(const QModelIndex &index) {
+        auto a = new CellActions();
+        a->deleteCell(index, model);
+        a->execute();
+        ModelHistory::instance()->record(a);
+    }
+
+    void PhonicWidget::insertCell(const QModelIndex &index) {
+        auto a = new CellActions();
+        a->insertCell(index, model);
+        a->execute();
+        ModelHistory::instance()->record(a);
+    }
+
+    void PhonicWidget::cellMergeLeft(const QModelIndex &index) {
+        auto a = new CellActions();
+        a->cellMergeLeft(index, model);
+        a->execute();
+        ModelHistory::instance()->record(a);
+    }
+
+    // Line Operations
     void PhonicWidget::lineBreak(QModelIndex index) {
-        auto a = new LineActions;
+        auto a = new LineActions();
         a->lineBreak(index, model);
         a->execute();
         ModelHistory::instance()->record(a);
     }
+
+    void PhonicWidget::addPrevLine(QModelIndex index) {
+        auto a = new LineActions();
+        a->addPrevLine(index, model);
+        a->execute();
+        ModelHistory::instance()->record(a);
+    }
+
+    void PhonicWidget::addNextLine(QModelIndex index) {
+        auto a = new LineActions();
+        a->addNextLine(index, model);
+        a->execute();
+        ModelHistory::instance()->record(a);
+    }
+
+    void PhonicWidget::removeLine(QModelIndex index) {
+        auto a = new LineActions();
+        a->removeLine(index, model);
+        a->execute();
+        ModelHistory::instance()->record(a);
+    }
+
+    void PhonicWidget::lineMergeUp(QModelIndex index) {
+        auto a = new LineActions();
+        a->lineMergeUp(index, model);
+        a->execute();
+        ModelHistory::instance()->record(a);
+    }
+
 }

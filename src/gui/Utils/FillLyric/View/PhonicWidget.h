@@ -41,14 +41,20 @@ namespace FillLyric {
         void setLyrics(QList<QList<QString>> &lyrics);
         QList<Phonic> exportPhonics();
 
+    public Q_SLOTS:
         // ContextMenu
-        void cellClear(const QList<QModelIndex>& indexes);
+        void cellClear(const QList<QModelIndex> &indexes);
+        void deleteCell(const QModelIndex &index);
+        void insertCell(const QModelIndex &index);
+        void cellMergeLeft(const QModelIndex &index);
 
+        // Line Operations
         void lineBreak(QModelIndex index);
-
-    private:
-        void _init(QList<QList<QString>> lyricRes);
-        void resizeTable();
+        void addPrevLine(QModelIndex index);
+        void addNextLine(QModelIndex index);
+        void removeLine(QModelIndex index);
+        void lineMergeUp(QModelIndex index);
+        void _on_cellEditClosed(QModelIndex index, const QString &text);
 
         void _on_btnToText_clicked();
         void _on_btnToTable_clicked();
@@ -58,12 +64,17 @@ namespace FillLyric {
         void _on_changePhonetic(const QModelIndex &index, QMenu *menu);
         void _on_changeSyllable(const QModelIndex &index, QMenu *menu);
 
-        void _on_cellEditClosed();
         void _on_textEditChanged();
         void _on_modelDataChanged();
 
         void _on_btnInsertText_clicked();
         void _on_btnImportLrc_clicked();
+
+    private:
+        void _init(QList<QList<QString>> lyricRes);
+        void resizeTable();
+        QList<Phonic> updateLyric(QModelIndex index, const QString &text,
+                                  const QList<Phonic> &oldPhonics);
 
         // Variables
         int notesCount = 0;
@@ -72,6 +83,8 @@ namespace FillLyric {
 
         PhonicTextEdit *textEdit;
         QVBoxLayout *cfgLayout;
+
+        PhonicDelegate *delegate;
         PhonicEventFilter *eventFilter;
         QTableView *tableView;
 
@@ -82,8 +95,8 @@ namespace FillLyric {
         QPushButton *btnToggleFermata;
         QPushButton *btnImportLrc;
 
-        QPushButton* btnUndo;
-        QPushButton* btnRedo;
+        QPushButton *btnUndo;
+        QPushButton *btnRedo;
 
         // labels
         QLabel *textCountLabel;

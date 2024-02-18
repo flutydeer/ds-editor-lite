@@ -12,6 +12,7 @@
 namespace FillLyric {
     using LyricType = CleanLyric::LyricType;
     class PhonicDelegate : public QStyledItemDelegate {
+        Q_OBJECT
     public:
         explicit PhonicDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {
         }
@@ -24,6 +25,13 @@ namespace FillLyric {
             FermataAddition,
             LineFeed
         };
+
+        void setModelData(QWidget *editor, QAbstractItemModel *model,
+                          const QModelIndex &index) const override {
+            if (editor->property("text").toString() != model->data(index).toString()) {
+                Q_EMIT this->lyricEdited(index, editor->property("text").toString());
+            }
+        }
 
         void paint(QPainter *painter, const QStyleOptionViewItem &option,
                    const QModelIndex &index) const override {
@@ -63,6 +71,9 @@ namespace FillLyric {
             // 文字绘制在原字体的上方
             painter->drawText(option.rect, Qt::AlignTop | Qt::AlignHCenter, syllable);
         }
+
+    Q_SIGNALS:
+        void lyricEdited(QModelIndex index, const QString &text) const;
     };
 }
 

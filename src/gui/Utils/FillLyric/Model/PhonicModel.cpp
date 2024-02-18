@@ -2,8 +2,9 @@
 
 namespace FillLyric {
     // Gui functions
-    void PhonicModel::repaintView() {
-        emit this->tableView->itemDelegate()->closeEditor(nullptr, QAbstractItemDelegate::NoHint);
+    void PhonicModel::repaintItem(QModelIndex index, const QString &text) {
+        Q_EMIT dynamic_cast<PhonicDelegate *>(this->tableView->itemDelegate())
+            ->lyricEdited(index, text);
     }
 
     int PhonicModel::shrinkModel() {
@@ -123,7 +124,7 @@ namespace FillLyric {
         setLineFeed(row, col, phonic.lineFeed);
     }
 
-    Phonic PhonicModel::takeData(const int row, const int col, const QList<int> &roles) {
+    Phonic PhonicModel::takeData(const int row, const int col) {
         Phonic phonic;
         // 根据span的包含的角色，将row行col列的数据取出
         phonic.lyric = cellLyric(row, col);
@@ -136,17 +137,28 @@ namespace FillLyric {
         return phonic;
     }
 
-    void PhonicModel::clearData(const int row, const int col, const QList<int> &roles) {
+    void PhonicModel::clearData(const int row, const int col) {
+        auto roles = allRoles();
         // 根据span的包含的角色，将row行col列的数据清空
         for (int role : roles) {
             this->setData(this->index(row, col), QVariant(), role);
         }
     }
 
-    void PhonicModel::moveData(const int row, const int col, const int tarRow, const int tarCol,
-                               const QList<int> &roles) {
+    void PhonicModel::moveData(const int row, const int col, const int tarRow, const int tarCol) {
+        auto roles = allRoles();
         if (row == tarRow && col == tarCol) {
             return;
+        }
+        // 源数据超出范围，目标数据在范围内，清空目标数据
+        if (col >= this->columnCount() && this->index(tarRow, tarCol).isValid()) {
+            clearData(tarRow, tarCol);
+        }
+        // 源数据在范围内，目标数据超出范围，扩展模型
+        if (tarRow >= this->rowCount()) {
+            for (int i = this->rowCount(); i <= tarRow; i++) {
+                this->insertRow(i);
+            }
         }
         if (tarCol >= this->columnCount()) {
             expandModel(tarCol - this->columnCount() + 1);
@@ -172,12 +184,12 @@ namespace FillLyric {
         int row = index.row();
         int col = index.column();
         // 获取当前单元格的内容
-        return takeData(row, col, allRoles());
+        return takeData(row, col);
     }
 
     void PhonicModel::cellClear(const QModelIndex &index) {
         // 清空当前单元格
-        clearData(index.row(), index.column(), allRoles());
+        clearData(index.row(), index.column());
     }
 
     void PhonicModel::cellMove(const QModelIndex &source, const QModelIndex &target) {
@@ -185,7 +197,7 @@ namespace FillLyric {
         int row = source.row();
         int col = source.column();
         // 将source的内容移动到target
-        moveData(row, col, target.row(), target.column(), allRoles());
+        moveData(row, col, target.row(), target.column());
     }
 
     void PhonicModel::cellMergeLeft(const QModelIndex &index) {
@@ -198,7 +210,7 @@ namespace FillLyric {
 
         // 获取右侧单元格的index
         cellMoveLeft(this->index(row, col + 1));
-        repaintView();
+        repaintItem(this->index(row, col - 1), mergedLyric);
     }
 
     void PhonicModel::cellMoveLeft(const QModelIndex &index) {
@@ -207,10 +219,7 @@ namespace FillLyric {
         int col = index.column();
         // 将当前的单元格的内容移动到左边的单元格，右边单元格的内容依次向左移动
         for (int i = col; 0 < i && i < this->columnCount(); i++) {
-            moveData(row, i, row, i - 1, allRoles());
-        }
-        if (col == this->columnCount()) {
-            clearData(row, this->columnCount(), allRoles());
+            moveData(row, i, row, i - 1);
         }
     }
 
@@ -226,7 +235,7 @@ namespace FillLyric {
 
         // 向右移动
         for (int i = this->columnCount() - 1; i > col; i--) {
-            moveData(row, i - 1, row, i, allRoles());
+            moveData(row, i - 1, row, i);
         }
     }
 
@@ -247,7 +256,7 @@ namespace FillLyric {
 
         // 将当前行的内容移动到上一行，从上一行的lastCol+1列开始放当前行的第一列
         for (int i = 0; i < currentCol; i++) {
-            moveData(row, i, row - 1, lastCol + i + 1, allRoles());
+            moveData(row, i, row - 1, lastCol + i + 1);
         }
 
         // 删除当前行
@@ -263,7 +272,7 @@ namespace FillLyric {
         this->insertRow(row + 1);
         // 将当前行col列及之后的内容移动到新行，从新行的第一列开始
         for (int i = col; i < this->columnCount(); i++) {
-            moveData(row, i, row + 1, i - col, allRoles());
+            moveData(row, i, row + 1, i - col);
         }
         shrinkModel();
     }

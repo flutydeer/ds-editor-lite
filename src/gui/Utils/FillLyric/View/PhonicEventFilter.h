@@ -26,12 +26,12 @@ namespace FillLyric {
                     auto index = m_tableView->currentIndex();
                     if (!m_tableView->isPersistentEditorOpen(m_tableView->currentIndex()) &&
                         m_model->cellLyricType(index.row(), index.column()) != LyricType::Fermata) {
-                        emit lineBreak(index);
+                        Q_EMIT this->lineBreak(index);
                         return true;
                     }
                 } else if (keyEvent->key() == Qt::Key_Delete) {
                     auto selected = m_tableView->selectionModel()->selectedIndexes();
-                    emit cellClear(selected);
+                    Q_EMIT this->cellClear(selected);
                     return true;
                 }
             } else if (event->type() == QEvent::Wheel) {
@@ -54,10 +54,10 @@ namespace FillLyric {
         QTableView *m_tableView;
         PhonicModel *m_model;
 
-    signals:
+    Q_SIGNALS:
         void fontSizeChanged();
+        void lineBreak(QModelIndex index);
         void cellClear(QList<QModelIndex> indexes);
-        void lineBreak(const QModelIndex &index);
     };
 }
 #endif // DS_EDITOR_LITE_PHONICEVENTFILTER_H

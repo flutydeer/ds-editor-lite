@@ -6,7 +6,7 @@ namespace FillLyric {
         auto action = new LineBreakAction;
         action->m_model = model;
         action->m_index = index;
-        action->newLine = index.row() + 1;
+        action->m_newLine = index.row() + 1;
         action->m_rawColCount = model->columnCount();
 
         int row = index.row();
@@ -21,11 +21,10 @@ namespace FillLyric {
 
     void LineBreakAction::execute() {
         // 在当前行下方新建一行
-        m_model->insertRow(newLine);
+        m_model->insertRow(m_newLine);
         // 将当前行col列及之后的内容移动到新行，从新行的第一列开始
         for (const auto &info : m_moveList) {
-            m_model->moveData(info.srcRow, info.srcCol, info.tarRow, info.tarCol,
-                              FillLyric::PhonicModel::allRoles());
+            m_model->moveData(info.srcRow, info.srcCol, info.tarRow, info.tarCol);
         }
         m_tarColCount = m_model->shrinkModel();
     }
@@ -35,9 +34,8 @@ namespace FillLyric {
             m_model->expandModel(m_rawColCount - m_tarColCount);
         }
         for (const auto &info : m_moveList) {
-            m_model->moveData(info.tarRow, info.tarCol, info.srcRow, info.srcCol,
-                              FillLyric::PhonicModel::allRoles());
+            m_model->moveData(info.tarRow, info.tarCol, info.srcRow, info.srcCol);
         }
-        m_model->removeRow(newLine);
+        m_model->removeRow(m_newLine);
     }
 } // FillLyric
