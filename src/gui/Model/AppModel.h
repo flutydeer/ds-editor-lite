@@ -5,8 +5,11 @@
 #ifndef DSPXMODEL_H
 #define DSPXMODEL_H
 
+#include <QJsonObject>
+
 #include "Track.h"
 #include "Utils/Singleton.h"
+#include "WorkspaceEditor.h"
 
 class AppModel final : public QObject, public Singleton<AppModel> {
     Q_OBJECT
@@ -37,6 +40,12 @@ public:
     void removeTrackAt(int index);
     void removeTrack(Track *track);
     void clearTracks();
+
+    QJsonObject globalWorkspace() const;
+    bool isWorkspaceExist(const QString &id) const;
+    QJsonObject getPrivateWorkspaceById(const QString &id) const;
+    WorkspaceEditor *workspaceEditor(const QString &id);
+
     int quantize() const;
     void setQuantize(int quantize);
 
@@ -85,6 +94,7 @@ private:
     TimeSignature m_timeSignature;
     double m_tempo = 120;
     QList<Track *> m_tracks;
+    QJsonObject m_workspace;
 
     int m_selectedTrackIndex = -1;
     int m_selectedClipId = -1;

@@ -3,7 +3,6 @@
 //
 
 #include <QFile>
-
 #include <QTextCodec>
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
@@ -67,6 +66,20 @@ void AppModel::removeTrack(Track *track) {
 void AppModel::clearTracks() {
     while (m_tracks.count() > 0)
         removeTrackAt(0);
+}
+QJsonObject AppModel::globalWorkspace() const {
+    return m_workspace;
+}
+bool AppModel::isWorkspaceExist(const QString &id) const {
+    return m_workspace.contains(id);
+}
+QJsonObject AppModel::getPrivateWorkspaceById(const QString &id) const {
+    auto obj = m_workspace.value(id).toObject();
+    return obj;
+}
+WorkspaceEditor *AppModel::workspaceEditor(const QString &id) {
+    auto editor = new WorkspaceEditor(m_workspace, id);
+    return editor;
 }
 int AppModel::quantize() const {
     return m_quantize;
