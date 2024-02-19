@@ -85,6 +85,7 @@ MainWindow::MainWindow() {
         "QCheckBox::indicator:unchecked { border: 1px solid #505050; background: #2A2B2C; }"
         "QCheckBox::indicator:checked { border: 1px solid #505050; background: #9BBAFF; }"
         "QTabWidget { background: #232425; border: none }"
+        "QTabWidget::pane { border: none; }"
         "QTabBar { background-color: transparent; font-size: 10pt } "
         "QTabBar::tab { color: #F0F0F0; background-color: transparent; padding: 6px 12px; "
         "border-bottom: 2px solid transparent; } "
@@ -92,17 +93,17 @@ MainWindow::MainWindow() {
         "QTabBar::tab:selected { color: #9BBAFF; background-color: #329BBAFF;"
         "border-bottom-color: #9BBAFF; } "
         "QTextEdit { background: #202122; border: 1px solid #505050; "
-        "border-bottom: 1px solid #A0A0A0;"
         "border-radius: 4px; color: #F0F0F0; selection-color: #000;"
         "selection-background-color: #9BBAFF; padding: 2px; }"
-        "QTextEdit:focus { border-bottom: 2px solid #9BBAFF; }"
         "QTableView { background-color: #202122; border: 1px solid #505050; border-radius: 4px; "
         "color: #F0F0F0; selection-color: #000; selection-background-color: #3A3B3C; padding: 4px;}"
         "QTableView > QHeaderView { background-color: transparent; background-color: transparent }"
-        "QTableView > QHeaderView::section { background-color: transparent; border: none; color: #F0F0F0 }"
+        "QTableView > QHeaderView::section { background-color: transparent; border: none; color: "
+        "#F0F0F0 }"
         "QTableWidget { background: #2A2B2C; border: none; }"
         "QTableWidget::item { border: 1px solid #404040 } "
-        "QWidget#LyricWidget { background: #2A2B2C }";
+        "QWidget#LyricWidget { background: #2A2B2C }"
+        "QGroupBox { color: #F0F0F0; }";
     this->setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
 #ifdef Q_OS_WIN
     bool micaOn = true;
