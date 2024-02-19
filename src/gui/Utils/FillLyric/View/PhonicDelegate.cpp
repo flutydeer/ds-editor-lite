@@ -27,7 +27,8 @@ namespace FillLyric {
         if (syllableRevised != "") {
             painter->setPen(Qt::blue);
             syllable = syllableRevised;
-        } else if (text == syllable && lyricType != LyricType::Slur) {
+        } else if (text == syllable && lyricType != LyricType::Slur &&
+                   lyricType != LyricType::EnWord) {
             painter->setPen(Qt::darkBlue);
         } else if (candidateList.size() > 1) {
             painter->setPen(QColor("#9BBAFF"));
@@ -35,16 +36,29 @@ namespace FillLyric {
             painter->setPen(QColor("#F0F0F0"));
         }
 
-        // 获取小三个字号的字体的高
         QFont textFont(option.font);
+        if (lyricType == LyricType::EnWord) {
+            textFont.setPointSize(textFont.pointSize() - 3);
+        }
+        QFont syllableFont = textFont;
+        syllableFont.setPointSize(syllableFont.pointSize() - 2);
+
         int textFontHeight = QFontMetrics(textFont).height();
         int textFontXHeight = QFontMetrics(textFont).xHeight();
+        int syllableFontXHeight = QFontMetrics(syllableFont).xHeight();
 
-        auto textWidth = textFontXHeight * text.size();
+        auto delegateWidth = option.rect.width() * 0.9;
+        auto maxTextSize = (int) (delegateWidth / textFontXHeight) - 3;
+        auto maxSyllableSize = (int) (delegateWidth / syllableFontXHeight) - 3;
 
-        if (textWidth > (int) (option.rect.width() * 0.8)) {
-            textFont.setPointSize(
-                (int) (textFont.pointSize() * option.rect.width() * 0.8 / (double) textWidth));
+        // 文本过长时，显示省略号
+        if (text.size() > maxTextSize && lyricType != LyricType::Hanzi) {
+            text = text.left(maxTextSize) + "...";
+        }
+
+        // 注音过长时，显示省略号
+        if (syllable.size() > maxSyllableSize && lyricType != LyricType::Hanzi) {
+            syllable = syllable.left(maxSyllableSize) + "...";
         }
 
         // 绘制歌词文本
@@ -56,8 +70,7 @@ namespace FillLyric {
 
         // 注音文本
         QRect syllableRect = option.rect.adjusted(0, -yOffset, 0, -yOffset);
-        QFont syllableFont = textFont;
-        syllableFont.setPointSize(syllableFont.pointSize() - 2);
+
         painter->setFont(syllableFont);
         painter->drawText(syllableRect, Qt::AlignCenter, syllable);
 

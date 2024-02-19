@@ -56,7 +56,7 @@ namespace FillLyric {
             } else if (isKana(firstChar)) {
                 return LyricType::Kana;
             } else if (firstChar.isLetter()) {
-                return LyricType::Letter;
+                return LyricType::EnWord;
             }
         }
         return LyricType::Other;
@@ -78,7 +78,7 @@ namespace FillLyric {
                 while (pos < input.length() && isLetter(input[pos])) {
                     pos++;
                 }
-                currentLabel.append(LyricType::Letter);
+                currentLabel.append(LyricType::EnWord);
                 currentLine.append(input.mid(start, pos - start));
             } else if (isHanzi(currentChar)) {
                 currentLabel.append(LyricType::Hanzi);
