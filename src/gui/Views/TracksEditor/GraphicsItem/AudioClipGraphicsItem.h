@@ -31,7 +31,7 @@ private:
         return "[Audio] ";
     }
     void updateLength();
-    void addMenuActions(QMenu *menu) override;
+    void addMenuActions(Menu *menu) override;
 
     Status m_status = Init;
     AudioClipBackgroundWorker *m_worker = nullptr;

@@ -2,8 +2,6 @@
 // Created by fluty on 2024/1/29.
 //
 
-#include <QMenu>
-
 #include "TrackControlWidget.h"
 
 TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
@@ -136,18 +134,6 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     // setFixedHeight(72);
-
-    auto actionInsert = new QAction("Insert new track", this);
-    connect(actionInsert, &QAction::triggered, this, [&] { emit insertNewTrackTriggered(); });
-    auto actionRemove = new QAction("Delete", this);
-    connect(actionRemove, &QAction::triggered, this, [&] { emit removeTrackTriggerd(); });
-    auto actionAddAudioClip = new QAction("Add audio clip", this);
-    connect(actionAddAudioClip, &QAction::triggered, this, [&] { emit addAudioClipTriggered(); });
-
-    addAction(actionInsert);
-    addAction(actionRemove);
-    addAction(actionAddAudioClip);
-    setContextMenuPolicy(Qt::ActionsContextMenu);
 
     setStyleSheet(R"(
 TrackControlWidget {
@@ -284,6 +270,23 @@ void TrackControlWidget::onTrackUpdated(const Track &track) {
 // }
 void TrackControlWidget::onSeekBarValueChanged() {
     emit propertyChanged();
+}
+void TrackControlWidget::contextMenuEvent(QContextMenuEvent *event) {
+    // QWidget::contextMenuEvent(event);
+
+    auto actionInsert = new QAction("Insert new track", this);
+    connect(actionInsert, &QAction::triggered, this, [&] { emit insertNewTrackTriggered(); });
+    auto actionRemove = new QAction("Delete", this);
+    connect(actionRemove, &QAction::triggered, this, [&] { emit removeTrackTriggerd(); });
+    auto actionAddAudioClip = new QAction("Add audio clip", this);
+    connect(actionAddAudioClip, &QAction::triggered, this, [&] { emit addAudioClipTriggered(); });
+
+    Menu menu(this);
+    menu.addAction(actionInsert);
+    menu.addAction(actionRemove);
+    menu.addAction(actionAddAudioClip);
+    menu.exec(event->globalPos());
+    event->accept();
 }
 QString TrackControlWidget::panValueToString(double value) {
     if (value < 0)

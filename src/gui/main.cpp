@@ -23,8 +23,8 @@ int main(int argc, char *argv[]) {
     QApplication::setApplicationName("DsEditorLite");
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
 
-    auto style = QStyleFactory::create("fusion");
-    QApplication::setStyle(style);
+    // auto style = QStyleFactory::create("fusion");
+    // QApplication::setStyle(style);
 
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);

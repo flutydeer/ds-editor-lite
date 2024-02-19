@@ -3,7 +3,6 @@
 //
 
 #include <QGraphicsSceneContextMenuEvent>
-#include <QMenu>
 #include <QPainter>
 #include <QTextOption>
 
@@ -34,7 +33,7 @@ QWidget *NoteGraphicsItem::context() const {
 }
 void NoteGraphicsItem::setContext(QWidget *context) {
     m_context = context;
-    m_menu = new QMenu(m_context);
+    m_menu = new Menu(m_context);
     auto actionRemove = m_menu->addAction("Remove");
     connect(actionRemove, &QAction::triggered, [&] { emit removeTriggered(id()); });
 

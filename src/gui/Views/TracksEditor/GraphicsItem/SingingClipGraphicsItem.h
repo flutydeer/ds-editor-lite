@@ -39,7 +39,7 @@ private:
     // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
     // override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) override;
-    void addMenuActions(QMenu *menu) override;
+    void addMenuActions(Menu *menu) override;
     QString clipTypeName() override {
         return "[Singing] ";
     }

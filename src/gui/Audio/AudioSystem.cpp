@@ -2,7 +2,6 @@
 
 #include <QApplication>
 #include <QTimer>
-#include <QMessageBox>
 #include <QPushButton>
 #include <QFile>
 #include <QDir>
@@ -28,6 +27,7 @@
 
 #include "Audio/Dialogs/AudioSettingsDialog.h"
 #include "Audio/AudioContext.h"
+#include "Window/Dialogs/MessageDialog.h"
 
 static AudioSystem *m_instance = nullptr;
 
@@ -314,7 +314,7 @@ void AudioSystem::testDevice() {
 
 void AudioSystem::handleDeviceHotPlug() {
     auto hotPlugMode = m_settings.value("audio/hotPlugMode", NotifyOnAnyChange).value<HotPlugMode>();
-    QMessageBox msgBox;
+    MessageDialog msgBox;
     msgBox.setText(tr("Audio device change is detected."));
     msgBox.setIcon(QMessageBox::Information);
     msgBox.addButton(QMessageBox::Ok);

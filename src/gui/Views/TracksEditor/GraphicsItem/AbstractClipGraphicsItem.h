@@ -5,6 +5,7 @@
 #ifndef DATASET_TOOLS_CLIPGRAPHICSITEM_H
 #define DATASET_TOOLS_CLIPGRAPHICSITEM_H
 
+#include "Controls/Menu.h"
 #include "Utils/IOverlapable.h"
 #include "Utils/UniqueObject.h"
 #include "Views/Common/CommonGraphicsRectItem.h"
@@ -71,13 +72,13 @@ protected:
     void setCanResizeLength(bool on);
     double tickToSceneX(double tick) const;
     double sceneXToItemX(double x) const;
-    virtual void addMenuActions(QMenu *menu) = 0;
+    virtual void addMenuActions(Menu *menu) = 0;
 
     // QMenu *menu();
 
 private:
     QWidget *m_context;
-    QMenu *m_menu;
+    Menu *m_menu;
 
     QString m_name;
     int m_start = 0;

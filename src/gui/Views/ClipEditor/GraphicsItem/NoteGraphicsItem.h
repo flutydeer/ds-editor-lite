@@ -8,6 +8,7 @@
 #include "Utils/IOverlapable.h"
 #include "Utils/UniqueObject.h"
 #include "Views/Common/CommonGraphicsRectItem.h"
+#include "Controls/Menu.h"
 
 class NoteGraphicsItem final : public CommonGraphicsRectItem,
                                public UniqueObject,
@@ -60,7 +61,7 @@ private:
     // void addMenuActions(QMenu *menu);
 
     QWidget *m_context;
-    QMenu *m_menu;
+    Menu *m_menu;
     int m_start = 0;
     int m_length = 480;
     int m_keyIndex = 60;

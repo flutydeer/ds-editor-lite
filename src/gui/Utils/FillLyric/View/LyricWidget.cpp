@@ -12,6 +12,8 @@ namespace FillLyric {
 
     LyricWidget::LyricWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
         : QWidget(parent), m_phonicNotes(std::move(phonicNotes)) {
+        setAttribute(Qt::WA_StyledBackground);
+        setObjectName("LyricWidget");
 
         // textEdit top
         m_textTopLayout = new QHBoxLayout();

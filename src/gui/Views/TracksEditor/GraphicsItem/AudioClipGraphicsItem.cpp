@@ -6,7 +6,6 @@
 #include <QPainter>
 #include <QThread>
 #include <QFileDialog>
-#include <QMenu>
 
 #include "AudioClipBackgroundWorker.h"
 #include "AudioClipGraphicsItem.h"
@@ -185,7 +184,7 @@ void AudioClipGraphicsItem::updateLength() {
         setClipLen(targetLength - clipStart());
     emit propertyChanged();
 }
-void AudioClipGraphicsItem::addMenuActions(QMenu *menu) {
+void AudioClipGraphicsItem::addMenuActions(Menu *menu) {
     auto actionLocateFile = menu->addAction("Locate audio file");
     connect(actionLocateFile, &QAction::triggered, this, [=] {
         auto fileName =

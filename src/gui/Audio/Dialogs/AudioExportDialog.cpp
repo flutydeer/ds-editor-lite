@@ -2,11 +2,12 @@
 
 #include "Model/AppModel.h"
 #include "Model/Track.h"
+#include "Controls/Menu.h"
 
 #include <QtWidgets>
 #include <QSet>
 
-AudioExportDialog::AudioExportDialog(QWidget *parent) : QDialog(parent), m_exporter(new AudioExporter(this)) {
+AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_exporter(new AudioExporter(this)) {
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     setWindowTitle(tr("Export Audio"));
     auto mainLayout = new QVBoxLayout;
@@ -39,7 +40,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : QDialog(parent), m_expor
     m_fileNameEdit = new QLineEdit;
     fileNameLayout->addWidget(m_fileNameEdit, 1);
     auto fileNameTemplateButton = new QPushButton(tr("Template"));
-    auto fileNameTemplateMenu = new QMenu(this);
+    auto fileNameTemplateMenu = new Menu(this);
     fileNameTemplateButton->setMenu(fileNameTemplateMenu);
     fileNameLayout->addWidget(fileNameTemplateButton);
     pathLayout->addRow(tr("Name"), fileNameLayout);
@@ -106,7 +107,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : QDialog(parent), m_expor
     m_trackAffixEdit = new QLineEdit;
     trackAffixLayout->addWidget(m_trackAffixEdit, 1);
     m_trackAffixTemplateButton = new QPushButton(tr("Template"));
-    auto trackAffixTemplateMenu = new QMenu(this);
+    auto trackAffixTemplateMenu = new Menu(this);
     m_trackAffixTemplateButton->setMenu(trackAffixTemplateMenu);
     trackAffixLayout->addWidget(m_trackAffixTemplateButton);
     mixingLayout->addRow(tr("Affix"), trackAffixLayout);

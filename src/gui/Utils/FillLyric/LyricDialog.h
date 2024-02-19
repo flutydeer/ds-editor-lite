@@ -7,10 +7,11 @@
 #include <Model/Note.h>
 
 #include "View/LyricWidget.h"
+#include "Window/Dialogs/Dialog.h"
 
 namespace FillLyric {
 
-    class LyricDialog : public QDialog {
+    class LyricDialog : public Dialog {
         Q_OBJECT
     public:
         explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);

@@ -5,10 +5,10 @@
 #include <QDebug>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
-#include <QMenu>
 #include <QPainter>
 
 #include "AbstractClipGraphicsItem.h"
+
 #include "Views/TracksEditor/TracksEditorGlobal.h"
 #include "Utils/AppGlobal.h"
 #include "Utils/MathUtils.h"
@@ -27,7 +27,7 @@ QWidget *AbstractClipGraphicsItem::context() const {
 }
 void AbstractClipGraphicsItem::setContext(QWidget *context) {
     m_context = context;
-    m_menu = new QMenu(m_context);
+    m_menu = new Menu(m_context);
     auto actionRemove = m_menu->addAction("Remove");
     connect(actionRemove, &QAction::triggered, [&] { emit removeTriggered(id()); });
 
@@ -350,6 +350,3 @@ double AbstractClipGraphicsItem::tickToSceneX(const double tick) const {
 double AbstractClipGraphicsItem::sceneXToItemX(const double x) const {
     return mapFromScene(QPointF(x, 0)).x();
 }
-// QMenu *AbstractClipGraphicsItem::menu() {
-//     return m_menu;
-// }

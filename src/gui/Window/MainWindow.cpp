@@ -19,23 +19,21 @@
 #include "Views/ActionButtonsView.h"
 #include "Views/PlaybackView.h"
 #include "Controller/History/HistoryManager.h"
-
-#ifdef Q_OS_WIN
-#  include <dwmapi.h>
-#endif
+#include "Utils/WindowFrameUtils.h"
+#include "Controls/Menu.h"
 
 MainWindow::MainWindow() {
     auto qssBase =
-        "QPushButton { background: #402A2B2C; border: 1px solid #80606060; "
+        "QPushButton { background: #10FFFFFF; border: 1px solid #80606060; font-size: 10pt;"
         "border-radius: 6px; color: #F0F0F0;padding: 4px 12px;} "
-        "QPushButton:hover {background-color: #80343536; } "
-        "QPushButton:pressed {background-color: #40202122 } "
-        "QComboBox { background: #402A2B2C; border: 1px solid #80606060; "
+        "QPushButton:hover {background-color: #1AFFFFFF; } "
+        "QPushButton:pressed {background-color: #06FFFFFF } "
+        "QComboBox { background: #10FFFFFF; border: 1px solid #80606060; "
         "border-radius: 6px; color: #F0F0F0;padding: 4px 12px;} "
-        "QComboBox:hover {background-color: #80343536; } "
+        "QComboBox:hover {background-color: #1AFFFFFF; } "
         "QComboBox QAbstractItemView { outline: 0px; border: 1px solid #80606060; color: #F0F0F0;"
         "background-color: #202122; border: 1px solid #606060; "
-        "selection-background-color: #3A3B3C; "
+        "selection-background-color: #329BBAFF; "
         "border-style: none; border-radius: 4px; }"
         "QComboBox::drop-down { border: none }"
         "QComboBox::down-arrow { right: 10px;  width: 12px; height: 12px; "
@@ -61,63 +59,59 @@ MainWindow::MainWindow() {
         "QSplitter::handle:vertical { height: 6px; background-color: #1C1D1E;} "
         "QGraphicsView { border: none; background-color: #2A2B2C;}"
         "QListWidget { background: #2A2B2C; border: none } "
-        "QMenu { padding: 4px; background-color: #202122; border: 1px solid #606060; "
+        "QMenu { padding: 4px; background-color: #202122; border: 1px solid #505050; "
         "border-radius: 6px; color: #F0F0F0;} "
         "QMenu::indicator { left: 6px; width: 20px; height: 20px; } QMenu::icon { left: 6px; } "
-        "QMenu::item { background: transparent; color: #F0F0F0; padding: 4px 20px; } "
+        "QMenu::item { background: transparent; color: #F0F0F0; padding: 5px 20px; } "
         "QMenu[stats=checkable]::item, QMenu[stats=icon]::item { padding-left: 12px; } "
-        "QMenu::item:selected { background-color: #3A3B3C; border: 1px solid "
-        "transparent; border-style: none; border-radius: 4px; } "
-        "QMenu::item:disabled { color: #d5d5d5; background-color: transparent; } "
-        "QMenu::separator { height: 1.25px; background-color: #606060; margin: 6px 0; } "
+        "QMenu::item:selected { background-color: #329BBAFF;"
+        "border-style: none; border-radius: 4px; } "
+        "QMenu::item:disabled { color: #909090; background-color: transparent; } "
+        "QMenu::separator { height: 1px; background-color: #404040; margin: 2px 0; } "
         "QMenuBar {background-color: transparent; color: #F0F0F0;}"
         "QMenuBar::item {background-color: transparent; padding: 8px 12px; color: #f0f0f0; "
         "border-radius: 4px; }"
         "QMenuBar::item:selected { background-color: #10FFFFFF } "
-        "QLineEdit {background: #10FFFFFF; border: 1px solid transparent; border-bottom: 1px solid "
-        "#80606060;"
+        "QLineEdit {background: #10FFFFFF; border: 1px solid transparent; "
+        "border-bottom: 1px solid #A0A0A0;"
         "border-radius: 4px; color: #F0F0F0; selection-color: #000;"
-        "selection-background-color: #9BBAFF; padding: 2px; }"
-        "QLineEdit:focus { background: #202122; border: 1px solid #606060; border-bottom: 2px "
+        "selection-background-color: #9BBAFF; padding: 3px; }"
+        "QLineEdit:focus { background: #202122; border: 1px solid #505050; border-bottom: 2px "
         "solid #9BBAFF; }"
         "QGraphicsView { border: none; }"
-        "QDialog { background: #2A2B2C; border: 1px solid #606060; border-radius: 6px; }"
+        "QLabel { color: #F0F0F0; }"
+        "QDialog { background: #2A2B2C; }"
         "QCheckBox { background: transparent; color: #F0F0F0; }"
-        "QCheckBox::indicator:unchecked { border: 1px solid #606060; background: #2A2B2C; }"
-        "QCheckBox::indicator:checked { border: 1px solid #606060; background: #9BBAFF; }"
-        "QTabBar::tab {background: #2A2B2C; color: #F0F0F0; border: 1px solid #606060; "
-        "border-bottom: none; padding: 4px 12px; }"
-        "QTabBar::tab:selected {background: #10FFFFFF; color: #F0F0F0; border: 1px solid #606060; }"
-        "QTabBar::tab:unselected {background: #2A2B2C; color: #F0F0F0; border: 1px solid #606060; }"
+        "QCheckBox::indicator:unchecked { border: 1px solid #505050; background: #2A2B2C; }"
+        "QCheckBox::indicator:checked { border: 1px solid #505050; background: #9BBAFF; }"
+        "QTabWidget { background: #232425; border: none }"
+        "QTabBar { background-color: transparent; font-size: 10pt } "
+        "QTabBar::tab { color: #F0F0F0; background-color: transparent; padding: 6px 12px; "
+        "border-bottom: 2px solid transparent; } "
+        "QTabBar::tab:hover { background-color: #10FFFFFF; border-bottom-color: #20FFFFFF; } "
+        "QTabBar::tab:selected { color: #9BBAFF; background-color: #329BBAFF;"
+        "border-bottom-color: #9BBAFF; } "
+        "QTextEdit { background: #202122; border: 1px solid #505050; "
+        "border-bottom: 1px solid #A0A0A0;"
+        "border-radius: 4px; color: #F0F0F0; selection-color: #000;"
+        "selection-background-color: #9BBAFF; padding: 2px; }"
+        "QTextEdit:focus { border-bottom: 2px solid #9BBAFF; }"
+        "QTableView { background-color: #202122; border: 1px solid #505050; border-radius: 4px; "
+        "color: #F0F0F0; selection-color: #000; selection-background-color: #3A3B3C; padding: 4px;}"
+        "QTableView > QHeaderView { background-color: transparent; background-color: transparent }"
+        "QTableView > QHeaderView::section { background-color: transparent; border: none; color: #F0F0F0 }"
         "QTableWidget { background: #2A2B2C; border: none; }"
-        "QTextEdit { background: #10FFFFFF; border: 1px solid transparent; border-radius: 4px; "
-        "color: #F0F0F0; selection-color: #000; selection-background-color: #9BBAFF; padding: 4px; "
-        "}"
-        "QTableView { background: #10FFFFFF; border: 1px solid transparent; border-radius: 4px; "
-        "color: #F0F0F0; selection-color: #000; selection-background-color: #9BBAFF; padding: 4px; "
-        "}";
+        "QTableWidget::item { border: 1px solid #404040 } "
+        "QWidget#LyricWidget { background: #2A2B2C }";
     this->setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
 #ifdef Q_OS_WIN
-    // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler
-
     bool micaOn = true;
     auto version = QSysInfo::productVersion();
     if (micaOn && version == "11") {
         // make window transparent
         this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
-        // Enable Mica background
-        auto backDropType = DWMSBT_MAINWINDOW;
-        DwmSetWindowAttribute(reinterpret_cast<HWND>(this->winId()), DWMWA_SYSTEMBACKDROP_TYPE,
-                              &backDropType, sizeof(backDropType));
-        // Extend title bar blur effect into client area
-        constexpr int mgn = -1;
-        MARGINS margins = {mgn, mgn, mgn, mgn};
-        DwmExtendFrameIntoClientArea(reinterpret_cast<HWND>(this->winId()), &margins);
     }
-    // Dark theme
-    uint dark = 1;
-    DwmSetWindowAttribute(reinterpret_cast<HWND>(this->winId()), DWMWA_USE_IMMERSIVE_DARK_MODE,
-                          &dark, sizeof(dark));
+    WindowFrameUtils::applyFrameEffects(this);
 #endif
 
     auto appController = AppController::instance();
@@ -130,7 +124,7 @@ MainWindow::MainWindow() {
     auto menuBar = new QMenuBar(this);
     menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    auto menuFile = new QMenu("&File", this);
+    auto menuFile = new Menu("&File", this);
     auto actionNewProject = new QAction("&New Project", this);
     actionNewProject->setShortcut(QKeySequence("Ctrl+N"));
     connect(actionNewProject, &QAction::triggered, appController, &AppController::onNewProject);
@@ -181,7 +175,7 @@ MainWindow::MainWindow() {
         }
     });
 
-    auto menuImport = new QMenu("Import", this);
+    auto menuImport = new Menu("Import", this);
     auto actionImportMidiFile = new QAction("MIDI File...", this);
     connect(actionImportMidiFile, &QAction::triggered, this, [=] {
         auto fileName =
@@ -192,10 +186,10 @@ MainWindow::MainWindow() {
     });
     menuImport->addAction(actionImportMidiFile);
 
-    auto menuExport = new QMenu("Export", this);
+    auto menuExport = new Menu("Export", this);
     auto actionExportAudio = new QAction("Audio File...", this);
     connect(actionExportAudio, &QAction::triggered, this, [=] {
-        AudioExportDialog dlg;
+        AudioExportDialog dlg(this);
         dlg.exec();
     });
     auto actionExportMidiFile = new QAction("MIDI File...", this);
@@ -219,7 +213,7 @@ MainWindow::MainWindow() {
     menuFile->addMenu(menuImport);
     menuFile->addMenu(menuExport);
 
-    auto menuEdit = new QMenu("&Edit", this);
+    auto menuEdit = new Menu("&Edit", this);
 
     auto actionUndo = new QAction("&Undo", this);
     actionUndo->setEnabled(false);
@@ -272,21 +266,21 @@ MainWindow::MainWindow() {
     menuEdit->addAction(actionCopy);
     menuEdit->addAction(actionPaste);
 
-    auto menuInsert = new QMenu("&Insert", this);
+    auto menuInsert = new Menu("&Insert", this);
 
     auto actionInsertNewTrack = new QAction("New track", this);
     connect(actionInsertNewTrack, &QAction::triggered, TracksViewController::instance(),
             &TracksViewController::onNewTrack);
     menuInsert->addAction(actionInsertNewTrack);
 
-    auto menuModify = new QMenu("&Modify", this);
+    auto menuModify = new Menu("&Modify", this);
     auto actionFillLyrics = new QAction("Fill Lyrics", this);
     actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
     connect(actionFillLyrics, &QAction::triggered, clipController,
             [this] { ClipEditorViewController::instance()->onFillLyric(this); });
     menuModify->addAction(actionFillLyrics);
 
-    auto menuOptions = new QMenu("&Options", this);
+    auto menuOptions = new Menu("&Options", this);
     auto actionAudioSettings = new QAction("&Audio settings", this);
     connect(actionAudioSettings, &QAction::triggered, this, [=] {
         AudioSettingsDialog dlg(this);
@@ -294,7 +288,7 @@ MainWindow::MainWindow() {
     });
     menuOptions->addAction(actionAudioSettings);
 
-    auto menuHelp = new QMenu("&Help", this);
+    auto menuHelp = new Menu("&Help", this);
     auto actionCheckForUpdates = new QAction("Check for updates", this);
     auto actionAbout = new QAction("About", this);
     menuHelp->addAction(actionCheckForUpdates);

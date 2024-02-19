@@ -15,6 +15,7 @@
 #include "Model/Track.h"
 #include "Model/TrackControl.h"
 #include "Controls/EditLabel.h"
+#include "Controls/Menu.h"
 
 class TrackControlWidget final : public QWidget {
     Q_OBJECT
@@ -48,6 +49,7 @@ private slots:
     void onSeekBarValueChanged();
 
 private:
+    void contextMenuEvent(QContextMenuEvent *event) override;
     QListWidgetItem *m_item;
     // controls
     QPushButton *m_btnColor;

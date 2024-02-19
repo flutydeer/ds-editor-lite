@@ -25,15 +25,15 @@ namespace FillLyric {
         QStringList candidateList = index.data(PhonicRole::Candidate).toStringList();
         // 若候选发音大于1个，注音颜色为红色
         if (syllableRevised != "") {
-            painter->setPen(Qt::blue);
+            painter->setPen(QColor(255, 204, 153));
             syllable = syllableRevised;
         } else if (text == syllable && lyricType != LyricType::Slur &&
                    lyricType != LyricType::EnWord) {
             painter->setPen(Qt::darkBlue);
         } else if (candidateList.size() > 1) {
-            painter->setPen(QColor("#9BBAFF"));
+            painter->setPen(QColor(155, 186, 255));
         } else {
-            painter->setPen(QColor("#F0F0F0"));
+            painter->setPen(QColor(240, 240, 240));
         }
 
         QFont textFont(option.font);

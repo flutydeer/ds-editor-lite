@@ -1,9 +1,8 @@
 #ifndef DS_EDITOR_LITE_AUDIOEXPORTDIALOG_H
 #define DS_EDITOR_LITE_AUDIOEXPORTDIALOG_H
 
-#include <QDialog>
-
 #include "Audio/AudioExporter.h"
+#include "Window/Dialogs/Dialog.h"
 
 class QLineEdit;
 class QTextEdit;
@@ -14,7 +13,7 @@ class QListWidget;
 class QCheckBox;
 class QRadioButton;
 
-class AudioExportDialog : public QDialog {
+class AudioExportDialog : public Dialog {
     Q_OBJECT
 public:
     explicit AudioExportDialog(QWidget *parent = nullptr);

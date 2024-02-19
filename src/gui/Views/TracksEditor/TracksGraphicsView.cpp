@@ -3,12 +3,12 @@
 //
 
 #include <QMouseEvent>
-#include <QMenu>
 
 #include "TracksGraphicsScene.h"
 #include "TracksGraphicsView.h"
 #include "GraphicsItem/TracksBackgroundGraphicsItem.h"
 #include "Utils/MathUtils.h"
+#include "Controls/Menu.h"
 
 TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene) : TimeGraphicsView(scene) {
     setScaleYMin(0.575);
@@ -58,7 +58,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             m_trackIndx = trackIndex;
             m_tick = tick;
             m_snappedTick = MathUtils::roundDown(tick, 1920 / m_quantize);
-            QMenu menu(this);
+            Menu menu(this);
             menu.addAction(m_actionNewSingingClip);
             menu.addAction(m_actionAddAudioClip);
             menu.exec(event->globalPos());

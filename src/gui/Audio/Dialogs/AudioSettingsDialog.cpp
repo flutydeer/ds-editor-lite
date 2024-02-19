@@ -78,7 +78,7 @@ void AudioSettingsDialog::updateBufferSizeAndSampleRateComboBox() {
     });
 }
 
-AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : QDialog(parent) {
+AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : Dialog(parent) {
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     setWindowTitle(tr("Audio Settings"));
     auto mainLayout = new QVBoxLayout;
