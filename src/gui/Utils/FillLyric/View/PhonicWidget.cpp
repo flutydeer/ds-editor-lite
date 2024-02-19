@@ -23,6 +23,9 @@ namespace FillLyric {
 
         // 隐藏行头
         tableView->horizontalHeader()->hide();
+        QFont font = tableView->font();
+        font.setPointSize(12);
+        tableView->setFont(font);
 
         // 打开右键菜单
         tableView->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -190,13 +193,15 @@ namespace FillLyric {
         // 获取当前字体高度
         int fontHeight = tableView->fontMetrics().height();
         // 行高设置为两倍字体高度
-        tableView->verticalHeader()->setDefaultSectionSize(fontHeight * 2);
+        tableView->verticalHeader()->setDefaultSectionSize((int) (fontHeight * 2.5));
 
         // 获取当前字体宽度
         int fontWidth = tableView->fontMetrics().xHeight();
+
+        auto columnWidth = std::min((int) (fontHeight * 3.5),
+                                    fontWidth * (std::max(maxLyricLength, maxSyllableLength) + 1));
         // 列宽设置为maxSyllableLength倍字体宽度
-        tableView->horizontalHeader()->setDefaultSectionSize(
-            fontWidth * std::max(maxLyricLength, maxSyllableLength) + fontWidth * 4);
+        tableView->horizontalHeader()->setDefaultSectionSize(columnWidth);
     }
 
     void PhonicWidget::_on_btnToggleFermata_clicked() {

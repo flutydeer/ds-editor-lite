@@ -80,8 +80,26 @@ MainWindow::MainWindow() {
         "selection-background-color: #9BBAFF; padding: 2px; }"
         "QLineEdit:focus { background: #202122; border: 1px solid #606060; border-bottom: 2px "
         "solid #9BBAFF; }"
-        "QGraphicsView { border: none }";
-    this->setStyleSheet(QString("QMainWindow { background: #232425 }") + qssBase);
+        "QGraphicsView { border: none; }"
+        "QDialog { background: #2A2B2C; border: 1px solid #606060; border-radius: 6px; }"
+        "QCheckBox { background: transparent; color: #F0F0F0; }"
+        "QCheckBox::indicator:unchecked { border: 1px solid #606060; background: #2A2B2C; }"
+        "QCheckBox::indicator:checked { border: 1px solid #606060; background: #9BBAFF; }"
+        "QLabel { color: #F0F0F0; }"
+        "border-radius: 6px; color: #F0F0F0; padding: 4px 12px; }"
+        "QTabBar::tab {background: #2A2B2C; color: #F0F0F0; border: 1px solid #606060; "
+        "border-bottom: none; padding: 4px 12px; }"
+        "QTabBar::tab:selected {background: #10FFFFFF; color: #F0F0F0; border: 1px solid #606060; }"
+        "QTabBar::tab:unselected {background: #2A2B2C; color: #F0F0F0; border: 1px solid #606060; }"
+        "QTableWidget { background: #2A2B2C; border: none; }"
+        "QTextEdit { background: #10FFFFFF; border: 1px solid transparent; border-radius: 4px; "
+        "color: #F0F0F0; selection-color: #000; selection-background-color: #9BBAFF; padding: 4px; "
+        "}"
+        "QTableView { background: #10FFFFFF; border: 1px solid transparent; border-radius: 4px; "
+        "color: #F0F0F0; selection-color: #000; selection-background-color: #9BBAFF; padding: 4px; "
+        "}"
+        "QWidget { background: #2A2B2C; border: none; }";
+    this->setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
 #ifdef Q_OS_WIN
     // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler
 
@@ -268,7 +286,7 @@ MainWindow::MainWindow() {
     auto actionFillLyrics = new QAction("Fill Lyrics", this);
     actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
     connect(actionFillLyrics, &QAction::triggered, clipController,
-            &ClipEditorViewController::onFillLyric);
+            [this] { ClipEditorViewController::instance()->onFillLyric(this); });
     menuModify->addAction(actionFillLyrics);
 
     auto menuOptions = new QMenu("&Options", this);

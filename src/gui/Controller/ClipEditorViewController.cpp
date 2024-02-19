@@ -169,7 +169,7 @@ void ClipEditorViewController::onSelectAllNotes() {
     emit canRemoveChanged(true);
     m_clip->notifyNoteSelectionChanged();
 }
-void ClipEditorViewController::onFillLyric() {
+void ClipEditorViewController::onFillLyric(QWidget *parent) {
     int selectedTrackIndex;
     auto selectedClipIndex = AppModel::instance()->selectedClipId();
     auto selectedClip = AppModel::instance()->findClipById(selectedClipIndex, selectedTrackIndex);
@@ -184,7 +184,7 @@ void ClipEditorViewController::onFillLyric() {
              << "trackIndex: " << selectedTrackIndex << "clipIndex: " << selectedClipIndex
              << "selectedNotes: " << selectedNotes.size();
 
-    auto lyricDialog = new FillLyric::LyricDialog(selectedNotes);
+    auto lyricDialog = new FillLyric::LyricDialog(selectedNotes, parent);
     lyricDialog->show();
 
     auto result = lyricDialog->exec();

@@ -2,6 +2,7 @@
 #define DS_EDITOR_LITE_LYRICDIALOG_H
 
 #include <QDialog>
+#include <QTabWidget>
 
 #include <Model/Note.h>
 
@@ -20,6 +21,7 @@ namespace FillLyric {
         void phonicToNote();
 
         QVBoxLayout *m_mainLayout;
+        QTabWidget *m_tabWidget;
 
         LyricWidget *m_lyricWidget;
 

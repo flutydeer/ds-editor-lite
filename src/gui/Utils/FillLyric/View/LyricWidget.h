@@ -3,9 +3,9 @@
 
 #include <QObject>
 #include <QWidget>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QPushButton>
-#include <QButtonGroup>
-#include <QRadioButton>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 
@@ -39,10 +39,14 @@ namespace FillLyric {
 
         // Layout
         QVBoxLayout *m_mainLayout;
-        QHBoxLayout *m_topLayout;
+        QHBoxLayout *m_tableTopLayout;
         QHBoxLayout *m_lyricLayout;
+        QVBoxLayout *m_textEditLayout;
+        QHBoxLayout *m_textTopLayout;
         QVBoxLayout *m_lyricOptLayout;
-        QHBoxLayout *m_bottomLayout;
+        QVBoxLayout *m_tableLayout;
+        QHBoxLayout *m_skipSlurLayout;
+        QHBoxLayout *m_splitLayout;
 
         // Widgets
         PhonicTextEdit *m_textEdit;
@@ -51,6 +55,7 @@ namespace FillLyric {
         // Labels
         QLabel *m_textCountLabel;
         QLabel *noteCountLabel;
+        QLabel *splitLabel;
 
         // Buttons
         QPushButton *btnInsertText;
@@ -62,12 +67,12 @@ namespace FillLyric {
         QPushButton *btnUndo;
         QPushButton *btnRedo;
 
-        // Buttons Split
-        QButtonGroup *btnSplitGroup;
-        QRadioButton *btnSplitAuto;
-        QRadioButton *btnSplitCustom;
-        QRadioButton *btnSplitByChar;
-        QRadioButton *btnSplitByReg;
+        // CheckBox
+        QCheckBox *skipSlur;
+        QCheckBox *splitBySpace;
+
+        QComboBox *splitComboBox;
+        QPushButton *btnSetting;
     };
 
 } // FillLyric

@@ -13,72 +13,89 @@ namespace FillLyric {
     LyricWidget::LyricWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
         : QWidget(parent), m_phonicNotes(std::move(phonicNotes)) {
 
+        // textEdit top
+        m_textTopLayout = new QHBoxLayout();
+        btnImportLrc = new QPushButton("导入lrc");
+        m_textCountLabel = new QLabel("字符数: 0");
+        m_textTopLayout->addWidget(btnImportLrc);
+        m_textTopLayout->addStretch(1);
+        m_textTopLayout->addWidget(m_textCountLabel);
+
         // textEdit
         m_textEdit = new PhonicTextEdit();
         m_textEdit->setPlaceholderText("请输入歌词");
 
+        m_textEditLayout = new QVBoxLayout();
+        m_textEditLayout->addLayout(m_textTopLayout);
+        m_textEditLayout->addWidget(m_textEdit);
+
         // phonicWidget
         m_phonicWidget = new PhonicWidget(m_phonicNotes);
 
-        // top layout
-        m_topLayout = new QHBoxLayout();
-        m_textCountLabel = new QLabel("字符数: 0");
+        // tableTop layout
+        m_tableTopLayout = new QHBoxLayout();
+        btnToggleFermata = new QPushButton("收放延音符");
         btnUndo = new QPushButton("撤销");
         btnRedo = new QPushButton("重做");
         noteCountLabel = new QLabel("0/0");
-        m_topLayout->addWidget(m_textCountLabel);
-        m_topLayout->addStretch(1);
-        m_topLayout->addWidget(btnUndo);
-        m_topLayout->addWidget(btnRedo);
-        m_topLayout->addWidget(noteCountLabel);
+
+        m_tableTopLayout->addWidget(btnToggleFermata);
+        m_tableTopLayout->addWidget(btnUndo);
+        m_tableTopLayout->addWidget(btnRedo);
+        m_tableTopLayout->addStretch(1);
+        m_tableTopLayout->addWidget(noteCountLabel);
 
         // lyric option layout
         m_lyricOptLayout = new QVBoxLayout();
         btnInsertText = new QPushButton("插入测试文本");
         btnToTable = new QPushButton(">>");
         btnToText = new QPushButton("<<");
-        btnImportLrc = new QPushButton("导入lrc");
-        btnToggleFermata = new QPushButton("收放延音符");
 
         m_lyricOptLayout->addStretch(1);
         m_lyricOptLayout->addWidget(btnInsertText);
         m_lyricOptLayout->addWidget(btnToTable);
         m_lyricOptLayout->addWidget(btnToText);
-        m_lyricOptLayout->addWidget(btnToggleFermata);
-        m_lyricOptLayout->addWidget(btnImportLrc);
         m_lyricOptLayout->addStretch(1);
+
+        // table layout
+        m_tableLayout = new QVBoxLayout();
+        m_tableLayout->addLayout(m_tableTopLayout);
+        m_tableLayout->addWidget(m_phonicWidget->tableView);
 
         // lyric layout
         m_lyricLayout = new QHBoxLayout();
-        m_lyricLayout->addWidget(m_textEdit);
+        m_lyricLayout->addLayout(m_textEditLayout, 2);
         m_lyricLayout->addLayout(m_lyricOptLayout);
-        m_lyricLayout->addWidget(m_phonicWidget->tableView);
+        m_lyricLayout->addLayout(m_tableLayout, 3);
+
+        skipSlur = new QCheckBox("skip slur");
+        splitBySpace = new QCheckBox("split by space");
+        m_skipSlurLayout = new QHBoxLayout();
+        m_skipSlurLayout->addWidget(skipSlur);
+        m_skipSlurLayout->addStretch(1);
+        m_skipSlurLayout->addWidget(splitBySpace);
 
         // bottom layout
-        m_bottomLayout = new QHBoxLayout();
-        btnSplitGroup = new QButtonGroup();
-        btnSplitAuto = new QRadioButton("Auto");
-        btnSplitByChar = new QRadioButton("ByChar");
-        btnSplitCustom = new QRadioButton("Custom");
-        btnSplitByReg = new QRadioButton("ByReg");
+        m_splitLayout = new QHBoxLayout();
+        splitLabel = new QLabel("Split Mode:");
+        splitComboBox = new QComboBox();
+        splitComboBox->addItem("Auto");
+        splitComboBox->addItem("By Char");
+        splitComboBox->addItem("Custom");
+        splitComboBox->addItem("By Reg");
+        btnSetting = new QPushButton("Setting");
 
-        btnSplitGroup->addButton(btnSplitAuto, 0);
-        btnSplitGroup->addButton(btnSplitByChar, 1);
-        btnSplitGroup->addButton(btnSplitCustom, 2);
-        btnSplitGroup->addButton(btnSplitByReg, 3);
-        btnSplitAuto->setChecked(true);
+        m_splitLayout->addWidget(splitLabel);
+        m_splitLayout->addWidget(splitComboBox);
+        m_splitLayout->addStretch(1);
+        m_splitLayout->addWidget(btnSetting);
 
-        m_bottomLayout->addWidget(btnSplitAuto);
-        m_bottomLayout->addWidget(btnSplitByChar);
-        m_bottomLayout->addWidget(btnSplitCustom);
-        m_bottomLayout->addWidget(btnSplitByReg);
-        m_bottomLayout->addStretch(1);
+        m_textEditLayout->addLayout(m_skipSlurLayout);
+        m_textEditLayout->addLayout(m_splitLayout);
 
         // main layout
         m_mainLayout = new QVBoxLayout(this);
-        m_mainLayout->addLayout(m_topLayout);
         m_mainLayout->addLayout(m_lyricLayout);
-        m_mainLayout->addLayout(m_bottomLayout);
 
         // phonicWidget signals
         connect(btnInsertText, &QAbstractButton::clicked, this,

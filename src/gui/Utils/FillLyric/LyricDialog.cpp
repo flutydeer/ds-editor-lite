@@ -1,6 +1,6 @@
 #include "LyricDialog.h"
 
-#include <utility>
+#include <QApplication>
 
 namespace FillLyric {
 
@@ -8,14 +8,16 @@ namespace FillLyric {
         : QDialog(parent), m_notes(std::move(note)) {
         setWindowTitle("Fill Lyric");
         setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
-        setWindowModality(Qt::WindowModal);
-        setBaseSize(800, 600);
+        // 窗口大小设为主程序的80%
+        auto size = QApplication::primaryScreen()->availableSize();
+        resize((int) (size.width() * 0.6), (int) (size.height() * 0.6));
 
         noteToPhonic();
 
         m_mainLayout = new QVBoxLayout(this);
+        m_tabWidget = new QTabWidget();
 
-        m_lyricWidget = new LyricWidget(m_phonicNotes, this);
+        m_lyricWidget = new LyricWidget(m_phonicNotes);
 
         m_btnOk = new QPushButton("OK", this);
         m_btnCancel = new QPushButton("Cancel", this);
@@ -29,7 +31,11 @@ namespace FillLyric {
         buttonLayout->addStretch(1);
         buttonLayout->addWidget(m_btnCancel);
 
-        m_mainLayout->addWidget(m_lyricWidget);
+        m_tabWidget->addTab(m_lyricWidget, "Lyric");
+        m_tabWidget->addTab(new QWidget, "Advanced");
+        m_tabWidget->addTab(new QWidget, "Help");
+
+        m_mainLayout->addWidget(m_tabWidget);
         m_mainLayout->addLayout(buttonLayout);
 
         connect(m_btnOk, &QPushButton::clicked, this, &QDialog::accept);
