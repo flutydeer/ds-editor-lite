@@ -4,7 +4,6 @@
 #include <QStandardItemModel>
 #include <utility>
 
-#include "../Utils/LrcTools/LrcDecoder.h"
 #include "PhonicWidget.h"
 
 #include "../Actions/Cell/CellActions.h"
@@ -16,10 +15,6 @@ namespace FillLyric {
     PhonicWidget::PhonicWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
         : g2p_man(new IKg2p::Mandarin()), g2p_jp(new IKg2p::JpG2p()),
           m_phonicNotes(std::move(phonicNotes)), QWidget(parent) {
-
-        // 创建一个多行文本框
-        textEdit = new PhonicTextEdit();
-        textEdit->setPlaceholderText("请输入歌词");
 
         // 创建模型和视图
         tableView = new QTableView();
@@ -39,56 +34,9 @@ namespace FillLyric {
         eventFilter = new PhonicEventFilter(tableView, model, this);
         tableView->installEventFilter(eventFilter);
 
-        // 创建布局
-        topLayout = new QHBoxLayout();
-        textCountLabel = new QLabel("");
-        btnUndo = new QPushButton("撤销");
-        btnRedo = new QPushButton("重做");
-        noteCountLabel = new QLabel("0/0");
-        topLayout->addWidget(textCountLabel);
-        topLayout->addStretch(1);
-        topLayout->addWidget(btnUndo);
-        topLayout->addWidget(btnRedo);
-        topLayout->addWidget(noteCountLabel);
-
-        cfgLayout = new QVBoxLayout();
-        btnInsertText = new QPushButton("插入测试文本");
-        btnToTable = new QPushButton(">>");
-        btnToText = new QPushButton("<<");
-        btnImportLrc = new QPushButton("导入lrc");
-        btnToggleFermata = new QPushButton("收放延音符");
-
-        cfgLayout->addStretch(1);
-        cfgLayout->addWidget(btnInsertText);
-        cfgLayout->addWidget(btnToTable);
-        cfgLayout->addWidget(btnToText);
-        cfgLayout->addWidget(btnToggleFermata);
-        cfgLayout->addWidget(btnImportLrc);
-        cfgLayout->addStretch(1);
-
-        // 文本框在左边，表格在右边，中间放一个">>"按钮
-        tableLayout = new QHBoxLayout();
-        tableLayout->addWidget(textEdit);
-        tableLayout->addLayout(cfgLayout);
-        tableLayout->addWidget(tableView);
-
-        mainLayout = new QVBoxLayout(this);
-        mainLayout->addLayout(topLayout);
-        mainLayout->addLayout(tableLayout);
-
         // 右键菜单
         connect(tableView, &QTableView::customContextMenuRequested, this,
                 &PhonicWidget::_on_showContextMenu);
-
-        connect(btnInsertText, &QAbstractButton::clicked, this,
-                &PhonicWidget::_on_btnInsertText_clicked);
-
-        connect(btnToTable, &QAbstractButton::clicked, this, &PhonicWidget::_on_btnToTable_clicked);
-        connect(btnToText, &QAbstractButton::clicked, this, &PhonicWidget::_on_btnToText_clicked);
-        connect(btnToggleFermata, &QAbstractButton::clicked, this,
-                &PhonicWidget::_on_btnToggleFermata_clicked);
-        connect(btnImportLrc, &QAbstractButton::clicked, this,
-                &PhonicWidget::_on_btnImportLrc_clicked);
 
         // PhonicDelegate signals
         connect(delegate, &PhonicDelegate::lyricEdited, this, &PhonicWidget::_on_cellEditClosed);
@@ -97,15 +45,6 @@ namespace FillLyric {
         connect(eventFilter, &PhonicEventFilter::fontSizeChanged, this, [this] { resizeTable(); });
         connect(eventFilter, &PhonicEventFilter::cellClear, this, &PhonicWidget::cellClear);
         connect(eventFilter, &PhonicEventFilter::lineBreak, this, &PhonicWidget::lineBreak);
-
-        // count
-        connect(textEdit, &PhonicTextEdit::textChanged, this, &PhonicWidget::_on_textEditChanged);
-        connect(model, &PhonicModel::dataChanged, this, &PhonicWidget::_on_modelDataChanged);
-
-        // undo redo
-        auto modelHistory = ModelHistory::instance();
-        connect(btnUndo, &QPushButton::clicked, modelHistory, &ModelHistory::undo);
-        connect(btnRedo, &QPushButton::clicked, modelHistory, &ModelHistory::redo);
     }
 
     PhonicWidget::~PhonicWidget() = default;
@@ -247,41 +186,6 @@ namespace FillLyric {
         ModelHistory::instance()->record(a);
     }
 
-    void PhonicWidget::_on_textEditChanged() {
-        // 获取文本框的内容
-        QString text = textEdit->toPlainText();
-        // 获取歌词
-        auto res = CleanLyric::cleanLyric(text).first;
-        int lyricCount = 0;
-        for (auto &line : res) {
-            lyricCount += (int) line.size();
-        }
-        textCountLabel->setText(QString("字符数: %1").arg(lyricCount));
-    }
-
-    void PhonicWidget::_on_modelDataChanged() {
-        int lyricCount = 0;
-        for (int i = 0; i < model->rowCount(); i++) {
-            for (int j = 0; j < model->columnCount(); j++) {
-                auto lyric = model->data(model->index(i, j), Qt::DisplayRole).toString();
-                if (!lyric.isEmpty()) {
-                    lyricCount++;
-                }
-                auto fermataCount = (int) model->cellFermata(i, j).size();
-                if (fermataCount > 0) {
-                    lyricCount += fermataCount;
-                }
-            }
-        }
-        noteCountLabel->setText(QString::number(lyricCount) + "/" + QString::number(notesCount));
-    }
-
-    void PhonicWidget::_on_btnToTable_clicked() {
-        // 获取文本框的内容
-        QString text = textEdit->toPlainText();
-        _init(CleanLyric::cleanLyric(text).first);
-    }
-
     void PhonicWidget::resizeTable() {
         // 获取当前字体高度
         int fontHeight = tableView->fontMetrics().height();
@@ -293,23 +197,6 @@ namespace FillLyric {
         // 列宽设置为maxSyllableLength倍字体宽度
         tableView->horizontalHeader()->setDefaultSectionSize(
             fontWidth * std::max(maxLyricLength, maxSyllableLength) + fontWidth * 4);
-    }
-
-    void PhonicWidget::_on_btnToText_clicked() {
-        // 获取表格内容
-        QStringList res;
-        for (int i = 0; i < model->rowCount(); i++) {
-            QStringList line;
-            for (int j = 0; j < model->columnCount(); j++) {
-                auto lyric = model->data(model->index(i, j), Qt::DisplayRole).toString();
-                if (!lyric.isEmpty()) {
-                    line.append(lyric);
-                }
-            }
-            res.append(line.join(""));
-        }
-        // 设置文本框内容
-        textEdit->setText(res.join("\n"));
     }
 
     void PhonicWidget::_on_btnToggleFermata_clicked() {
@@ -401,13 +288,6 @@ namespace FillLyric {
         }
     }
 
-    void PhonicWidget::_on_btnInsertText_clicked() {
-        // 测试文本
-        QString text = "蝉声--陪伴着行云流浪---\n回-忆-开始后安静遥望远方\n荒草覆没的古井--"
-                       "枯塘\n匀-散一缕过往\n";
-        textEdit->setText(text);
-    }
-
     QList<Phonic> PhonicWidget::exportPhonics() {
         QList<Phonic> res;
         for (int i = 0; i < model->rowCount(); i++) {
@@ -421,47 +301,6 @@ namespace FillLyric {
             }
         }
         return res;
-    }
-
-    void PhonicWidget::setLyrics(QList<QList<QString>> &lyrics) {
-        notesCount = 0;
-        QString text;
-        for (auto &line : lyrics) {
-            notesCount += (int) line.size();
-            text.append(line.join(""));
-            text.append("\n");
-        }
-        // 设置文本框内容
-        textEdit->setText(text);
-        // 初始化表格
-        _init(lyrics);
-    }
-
-
-    void PhonicWidget::_on_btnImportLrc_clicked() {
-        // 打开文件对话框
-        QString fileName =
-            QFileDialog::getOpenFileName(this, "打开歌词文件", "", "歌词文件(*.lrc)");
-        if (fileName.isEmpty()) {
-            return;
-        }
-        // 创建LrcDecoder对象
-        LrcTools::LrcDecoder decoder;
-        // 解析歌词文件
-        auto res = decoder.decode(fileName);
-        if (!res) {
-            // 解析失败
-            QMessageBox::warning(this, "错误", "解析lrc文件失败");
-            return;
-        }
-        // 获取歌词文件的元数据
-        auto metadata = decoder.dumpMetadata();
-        qDebug() << "metadata: " << metadata;
-
-        // 获取歌词文件的歌词
-        auto lyrics = decoder.dumpLyrics();
-        // 设置文本框内容
-        textEdit->setText(lyrics.join("\n"));
     }
 
     void PhonicWidget::cellClear(const QList<QModelIndex> &indexes) {

@@ -13,9 +13,9 @@ namespace FillLyric {
 
         noteToPhonic();
 
-        m_phonicWidget = new PhonicWidget(m_phonicNotes, this);
-        setLayout(new QVBoxLayout);
-        layout()->addWidget(m_phonicWidget);
+        m_mainLayout = new QVBoxLayout(this);
+
+        m_lyricWidget = new LyricWidget(m_phonicNotes, this);
 
         m_btnOk = new QPushButton("OK", this);
         m_btnCancel = new QPushButton("Cancel", this);
@@ -28,17 +28,15 @@ namespace FillLyric {
         buttonLayout->addWidget(m_btnOk);
         buttonLayout->addStretch(1);
         buttonLayout->addWidget(m_btnCancel);
-        layout()->addItem(buttonLayout);
+
+        m_mainLayout->addWidget(m_lyricWidget);
+        m_mainLayout->addLayout(buttonLayout);
 
         connect(m_btnOk, &QPushButton::clicked, this, &QDialog::accept);
         connect(m_btnCancel, &QPushButton::clicked, this, &QDialog::reject);
     }
 
     LyricDialog::~LyricDialog() = default;
-
-    QList<Phonic> LyricDialog::exportPhonics() {
-        return m_phonicWidget->exportPhonics();
-    }
 
     void LyricDialog::noteToPhonic() {
         for (auto note : m_notes) {

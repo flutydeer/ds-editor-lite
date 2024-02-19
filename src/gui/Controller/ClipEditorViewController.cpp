@@ -189,7 +189,7 @@ void ClipEditorViewController::onFillLyric() {
 
     auto result = lyricDialog->exec();
     if (result == QDialog::Accepted) {
-        lyricDialog->exportPhonics();
+        // TODO: lyricDialog->exportPhonics();
         ClipEditorViewController::instance()->onEditSelectedNotesLyric();
     }
     delete lyricDialog;

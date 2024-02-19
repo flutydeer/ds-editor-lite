@@ -5,7 +5,7 @@
 
 #include <Model/Note.h>
 
-#include "View/PhonicWidget.h"
+#include "View/LyricWidget.h"
 
 namespace FillLyric {
 
@@ -15,13 +15,14 @@ namespace FillLyric {
         explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);
         ~LyricDialog() override;
 
-        QList<Phonic> exportPhonics();
-
     private:
         void noteToPhonic();
         void phonicToNote();
 
-        PhonicWidget *m_phonicWidget;
+        QVBoxLayout *m_mainLayout;
+
+        LyricWidget *m_lyricWidget;
+
         QPushButton *m_btnOk;
         QPushButton *m_btnCancel;
 

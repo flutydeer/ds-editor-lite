@@ -34,11 +34,12 @@ namespace FillLyric {
 
     class PhonicWidget : public QWidget {
         Q_OBJECT
+        friend class LyricWidget;
+
     public:
         explicit PhonicWidget(QList<PhonicNote *> phonicNotes, QWidget *parent = nullptr);
         ~PhonicWidget() override;
 
-        void setLyrics(QList<QList<QString>> &lyrics);
         QList<Phonic> exportPhonics();
 
     public Q_SLOTS:
@@ -57,20 +58,16 @@ namespace FillLyric {
         void lineMergeUp(QModelIndex index);
 
         void _on_cellEditClosed(QModelIndex index, const QString &text);
-
-        void _on_btnToText_clicked();
-        void _on_btnToTable_clicked();
-        void _on_btnToggleFermata_clicked();
         void _on_showContextMenu(const QPoint &pos);
 
         void _on_changePhonetic(const QModelIndex &index, QMenu *menu);
         void _on_changeSyllable(const QModelIndex &index, QMenu *menu);
 
-        void _on_textEditChanged();
-        void _on_modelDataChanged();
+        void _on_btnToggleFermata_clicked();
 
-        void _on_btnInsertText_clicked();
-        void _on_btnImportLrc_clicked();
+    protected:
+        QTableView *tableView;
+        PhonicModel *model;
 
     private:
         void _init(QList<QList<QString>> lyricRes);
@@ -81,39 +78,17 @@ namespace FillLyric {
         // Variables
         QList<PhonicNote *> m_phonicNotes;
 
-        int notesCount = 0;
         int maxLyricLength = 0;
         int maxSyllableLength = 0;
 
-        PhonicTextEdit *textEdit;
-        QVBoxLayout *cfgLayout;
-
         PhonicDelegate *delegate;
         PhonicEventFilter *eventFilter;
-        QTableView *tableView;
-
-        // Buttons
-        QPushButton *btnInsertText;
-        QPushButton *btnToTable;
-        QPushButton *btnToText;
-        QPushButton *btnToggleFermata;
-        QPushButton *btnImportLrc;
-
-        QPushButton *btnUndo;
-        QPushButton *btnRedo;
-
-        // labels
-        QLabel *textCountLabel;
-        QLabel *noteCountLabel;
 
         // Model
-        PhonicModel *model;
         IKg2p::Mandarin g2p_man;
         IKg2p::JpG2p g2p_jp;
 
         // Layout
-        QHBoxLayout *topLayout;
-        QHBoxLayout *tableLayout;
         QVBoxLayout *mainLayout;
     };
 }
