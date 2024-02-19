@@ -36,6 +36,12 @@ Pronunciation Note::pronunciation() const {
 void Note::setPronunciation(const Pronunciation &pronunciation) {
     m_pronunciation = pronunciation;
 }
+QStringList Note::pronCandidates() const {
+    return m_pronCandidates;
+}
+void Note::setPronCandidates(const QStringList &pronCandidates) {
+    m_pronCandidates = pronCandidates;
+}
 Phonemes Note::phonemes() const {
     return m_phonemes;
 }

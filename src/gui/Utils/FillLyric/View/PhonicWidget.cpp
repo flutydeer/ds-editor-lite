@@ -13,8 +13,10 @@
 
 namespace FillLyric {
 
-    PhonicWidget::PhonicWidget(QObject *parent)
-        : g2p_man(new IKg2p::Mandarin()), g2p_jp(new IKg2p::JpG2p()) {
+    PhonicWidget::PhonicWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
+        : g2p_man(new IKg2p::Mandarin()), g2p_jp(new IKg2p::JpG2p()),
+          m_phonicNotes(std::move(phonicNotes)), QWidget(parent) {
+
         // 创建一个多行文本框
         textEdit = new PhonicTextEdit();
         textEdit->setPlaceholderText("请输入歌词");
@@ -183,8 +185,8 @@ namespace FillLyric {
 
         auto lyricType = CleanLyric::lyricType(text, "-");
 
-        if (lyricType == LyricType::Fermata) {
-            newPhonics[col].type = LyricType::Fermata;
+        if (lyricType == LyricType::Slur) {
+            newPhonics[col].lyricType = LyricType::Slur;
             newPhonics[col].syllable = text;
             newPhonics[col].candidates = QStringList() << text;
             return newPhonics;
@@ -210,7 +212,7 @@ namespace FillLyric {
         // 设置当前行所有单元格的LyricType
         for (int i = 0; i < oldPhonics.size(); i++) {
             lyricType = CleanLyric::lyricType(lyrics[i], "-");
-            newPhonics[i].type = lyricType;
+            newPhonics[i].lyricType = lyricType;
             if (lyricType == LyricType::Kana) {
                 auto romajiList = g2p_jp.kanaToRomaji(lyrics[i]);
                 if (!romajiList.isEmpty()) {
@@ -260,7 +262,16 @@ namespace FillLyric {
     void PhonicWidget::_on_modelDataChanged() {
         int lyricCount = 0;
         for (int i = 0; i < model->rowCount(); i++) {
-            lyricCount += model->currentLyricLength(i);
+            for (int j = 0; j < model->columnCount(); j++) {
+                auto lyric = model->data(model->index(i, j), Qt::DisplayRole).toString();
+                if (!lyric.isEmpty()) {
+                    lyricCount++;
+                }
+                auto fermataCount = (int) model->cellFermata(i, j).size();
+                if (fermataCount > 0) {
+                    lyricCount += fermataCount;
+                }
+            }
         }
         noteCountLabel->setText(QString::number(lyricCount) + "/" + QString::number(notesCount));
     }
@@ -345,7 +356,7 @@ namespace FillLyric {
                 menu->addSeparator();
 
                 // 换行
-                if (model->cellLyricType(row, col) != LyricType::Fermata)
+                if (model->cellLyricType(row, col) != LyricType::Slur)
                     menu->addAction("换行", [this, index]() { lineBreak(index); });
                 // 合并到上一行
                 if (row > 0 && col == 0)

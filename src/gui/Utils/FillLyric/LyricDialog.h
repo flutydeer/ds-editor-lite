@@ -3,6 +3,8 @@
 
 #include <QDialog>
 
+#include <Model/Note.h>
+
 #include "View/PhonicWidget.h"
 
 namespace FillLyric {
@@ -10,21 +12,21 @@ namespace FillLyric {
     class LyricDialog : public QDialog {
         Q_OBJECT
     public:
-        explicit LyricDialog(QWidget *parent = nullptr);
+        explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);
         ~LyricDialog() override;
 
-        void setLyrics(QList<QList<QString>> &lyrics) {
-            m_phonicWidget->setLyrics(lyrics);
-        }
-
-        QList<Phonic> exportPhonics() {
-            return m_phonicWidget->exportPhonics();
-        }
+        QList<Phonic> exportPhonics();
 
     private:
+        void noteToPhonic();
+        void phonicToNote();
+
         PhonicWidget *m_phonicWidget;
         QPushButton *m_btnOk;
         QPushButton *m_btnCancel;
+
+        QList<Note *> m_notes;
+        QList<PhonicNote *> m_phonicNotes;
     };
 
 } // FillLyric

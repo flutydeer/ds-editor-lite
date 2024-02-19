@@ -61,7 +61,7 @@ namespace FillLyric {
             if (syllableRevised != "") {
                 painter->setPen(Qt::blue);
                 syllable = syllableRevised;
-            } else if (text == syllable && lyricType != LyricType::Fermata) {
+            } else if (text == syllable && lyricType != LyricType::Slur) {
                 painter->setPen(Qt::darkRed);
             } else if (candidateList.size() > 1) {
                 painter->setPen(Qt::red);

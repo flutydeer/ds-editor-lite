@@ -17,6 +17,7 @@
 #include "g2pglobal.h"
 #include "mandarin.h"
 
+#include "../Model/PhonicNote.h"
 #include "../Utils/CleanLyric.h"
 #include "../View/PhonicDelegate.h"
 
@@ -30,7 +31,7 @@ namespace FillLyric {
         QString syllable;
         QStringList candidates;
         QString syllableRevised;
-        LyricType type;
+        LyricType lyricType;
         QList<QString> fermata;
         bool lineFeed = false;
     };
@@ -38,9 +39,13 @@ namespace FillLyric {
     class PhonicModel : public QStandardItemModel {
         Q_OBJECT
     public:
-        explicit PhonicModel(QTableView *tableView, QObject *parent = nullptr)
-            : QStandardItemModel(parent), tableView(tableView) {
+        explicit PhonicModel(QTableView *tableView, bool skipSlur = false,
+                             QObject *parent = nullptr)
+            : QStandardItemModel(parent), m_tableView(tableView), m_skipSlur(skipSlur) {
         }
+
+        // init
+        void setSkipSlur(bool skipSlur);
 
         // Gui functions
         void repaintItem(QModelIndex index, const QString &text);
@@ -54,7 +59,7 @@ namespace FillLyric {
         static QList<int> allRoles();
 
         QString cellLyric(int row, int col);
-        bool setLyric(int row, int col, const QString& lyric);
+        bool setLyric(int row, int col, const QString &lyric);
         QString cellSyllable(int row, int col);
         bool setSyllable(int row, int col, const QString &syllable);
         QString cellSyllableRevised(int row, int col);
@@ -91,7 +96,8 @@ namespace FillLyric {
         int modelMaxCol = 0;
 
     private:
-        QTableView *tableView;
+        bool m_skipSlur = false;
+        QTableView *m_tableView;
     };
 
 } // FillLyric

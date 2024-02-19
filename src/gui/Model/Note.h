@@ -72,6 +72,8 @@ public:
     void setLyric(const QString &lyric);
     Pronunciation pronunciation() const;
     void setPronunciation(const Pronunciation &pronunciation);
+    QStringList pronCandidates() const;
+    void setPronCandidates(const QStringList &pronCandidates);
     Phonemes phonemes() const;
     void setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme> &phonemes);
     bool lineFeed() const;
@@ -100,6 +102,7 @@ private:
     int m_keyIndex = 60;
     QString m_lyric;
     Pronunciation m_pronunciation;
+    QStringList m_pronCandidates;
     Phonemes m_phonemes;
     bool m_lineFeed = false;
 };

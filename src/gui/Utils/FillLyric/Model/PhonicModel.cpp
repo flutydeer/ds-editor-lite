@@ -1,9 +1,14 @@
 #include "PhonicModel.h"
 
 namespace FillLyric {
+    // init
+    void PhonicModel::setSkipSlur(bool skipSlur) {
+        this->m_skipSlur = skipSlur;
+    }
+
     // Gui functions
     void PhonicModel::repaintItem(QModelIndex index, const QString &text) {
-        Q_EMIT dynamic_cast<PhonicDelegate *>(this->tableView->itemDelegate())
+        Q_EMIT dynamic_cast<PhonicDelegate *>(this->m_tableView->itemDelegate())
             ->lyricEdited(index, text);
     }
 
@@ -52,7 +57,7 @@ namespace FillLyric {
         return this->data(this->index(row, col), Qt::DisplayRole).toString();
     }
 
-    bool PhonicModel::setLyric(const int row, const int col, const QString& lyric) {
+    bool PhonicModel::setLyric(const int row, const int col, const QString &lyric) {
         this->setData(this->index(row, col), lyric, Qt::DisplayRole);
         return true;
     }
@@ -119,7 +124,7 @@ namespace FillLyric {
         setSyllable(row, col, phonic.syllable);
         setCandidates(row, col, phonic.candidates);
         setSyllableRevised(row, col, phonic.syllableRevised);
-        setLyricType(row, col, phonic.type);
+        setLyricType(row, col, phonic.lyricType);
         setFermata(row, col, phonic.fermata);
         setLineFeed(row, col, phonic.lineFeed);
     }
@@ -131,7 +136,7 @@ namespace FillLyric {
         phonic.syllable = cellSyllable(row, col);
         phonic.candidates = cellCandidates(row, col);
         phonic.syllableRevised = cellSyllableRevised(row, col);
-        phonic.type = (LyricType) cellLyricType(row, col);
+        phonic.lyricType = (LyricType) cellLyricType(row, col);
         phonic.fermata = cellFermata(row, col);
         phonic.lineFeed = cellLineFeed(row, col);
         return phonic;
@@ -234,10 +239,10 @@ namespace FillLyric {
             while (pos < currentLyricLength(row)) {
                 // 获取当前单元格的内容
                 auto currentType = cellLyricType(row, pos);
-                if (currentType == LyricType::Fermata) {
+                if (currentType == LyricType::Slur) {
                     int start = pos;
                     while (pos < this->columnCount() &&
-                           cellLyricType(row, pos) == LyricType::Fermata) {
+                           cellLyricType(row, pos) == LyricType::Slur) {
                         pos++;
                     }
 
@@ -283,7 +288,7 @@ namespace FillLyric {
                         setLyric(row, pos + j + 1, fermataList[j]);
                         setSyllable(row, pos + j + 1, fermataList[j]);
                         setCandidates(row, pos + j + 1, QStringList() << fermataList[j]);
-                        setLyricType(row, pos + j + 1, LyricType::Fermata);
+                        setLyricType(row, pos + j + 1, LyricType::Slur);
                     }
                     // 清空pos的FermataRole
                     setFermata(row, pos, QStringList());

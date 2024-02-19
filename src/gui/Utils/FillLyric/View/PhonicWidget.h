@@ -35,7 +35,7 @@ namespace FillLyric {
     class PhonicWidget : public QWidget {
         Q_OBJECT
     public:
-        explicit PhonicWidget(QObject *parent = nullptr);
+        explicit PhonicWidget(QList<PhonicNote *> phonicNotes, QWidget *parent = nullptr);
         ~PhonicWidget() override;
 
         void setLyrics(QList<QList<QString>> &lyrics);
@@ -79,6 +79,8 @@ namespace FillLyric {
                                   const QList<Phonic> &oldPhonics);
 
         // Variables
+        QList<PhonicNote *> m_phonicNotes;
+
         int notesCount = 0;
         int maxLyricLength = 0;
         int maxSyllableLength = 0;

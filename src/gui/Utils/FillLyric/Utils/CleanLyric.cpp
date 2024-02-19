@@ -52,7 +52,7 @@ namespace FillLyric {
             } else if (firstChar.isDigit()) {
                 return LyricType::Digit;
             } else if (firstChar == fermata) {
-                return LyricType::Fermata;
+                return LyricType::Slur;
             } else if (isKana(firstChar)) {
                 return LyricType::Kana;
             } else if (firstChar.isLetter()) {
@@ -89,7 +89,7 @@ namespace FillLyric {
                 currentLine.append(input.mid(pos, 1));
                 pos++;
             } else if (currentChar == fermata) {
-                currentLabel.append(LyricType::Fermata);
+                currentLabel.append(LyricType::Slur);
                 currentLine.append(input.mid(pos, 1));
                 pos++;
             } else if (isKana(currentChar)) {
