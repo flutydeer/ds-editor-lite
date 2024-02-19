@@ -329,6 +329,7 @@ void ClipEditorView::onNoteListChanged(SingingClip::NoteChangeType type, int id,
             break;
     }
     m_pianoRollView->updateOverlappedState(m_singingClip);
+    printParts();
 }
 void ClipEditorView::onNotePropertyChanged(SingingClip::NotePropertyType type, Note *note) {
     switch (type) {
@@ -336,6 +337,7 @@ void ClipEditorView::onNotePropertyChanged(SingingClip::NotePropertyType type, N
             m_pianoRollView->updateNoteTimeAndKey(note);
             m_pianoRollView->updateOverlappedState(m_singingClip);
             m_phonemeView->updateNoteTime(note);
+            printParts();
             break;
         case SingingClip::Word:
             m_pianoRollView->updateNoteWord(note);
@@ -348,4 +350,19 @@ void ClipEditorView::onNotePropertyChanged(SingingClip::NotePropertyType type, N
 void ClipEditorView::onNoteSelectionChanged() {
     auto selectedNotes = m_singingClip->selectedNotes();
     m_pianoRollView->updateNoteSelection(selectedNotes);
+}
+void ClipEditorView::printParts() {
+    auto p = m_singingClip->parts();
+    if (p.count() > 0) {
+        int i = 0;
+        for (const auto &part : p) {
+            auto notes = part.info.selectedNotes;
+            if (notes.count() == 0)
+                continue;
+            auto start = notes.first().start();
+            auto end = notes.last().start() + notes.last().length();
+            qDebug() << "Part" << i << ": [" << start << "," << end << "]" << notes.count();
+            i++;
+        }
+    }
 }

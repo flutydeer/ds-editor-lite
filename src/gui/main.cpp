@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
 
     // 可根据唯一名称取出存在全局 workspace 中的数据（只读）
     auto privateWorkspace = AppModel::instance()->getPrivateWorkspaceById("flutydeer.testplugin");
-    qDebug() << privateWorkspace.value("recent_model_path").toString();
+    // qDebug() << privateWorkspace.value("recent_model_path").toString();
 
     auto w = new MainWindow;
     auto scr = QApplication::screenAt(QCursor::pos());

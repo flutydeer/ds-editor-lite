@@ -57,6 +57,7 @@ private:
     void onNoteListChanged(SingingClip::NoteChangeType type, int id, Note *note);
     void onNotePropertyChanged(SingingClip::NotePropertyType type, Note *note);
     void onNoteSelectionChanged();
+    void printParts();
 };
 
 

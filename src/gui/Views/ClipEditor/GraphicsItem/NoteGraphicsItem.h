@@ -32,6 +32,8 @@ public:
     void setLyric(const QString &lyric);
     QString pronunciation() const;
     void setPronunciation(const QString &pronunciation);
+    bool editingPitch() const;
+    void setEditingPitch(bool on);
 
     int pronunciationTextHeight() const;
 
@@ -64,6 +66,7 @@ private:
     int m_keyIndex = 60;
     QString m_lyric;
     QString m_pronunciation;
+    bool m_editingPitch = true;
 
     int m_startOffset = 0;
     int m_lengthOffset = 0;

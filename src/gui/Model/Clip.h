@@ -10,6 +10,7 @@
 
 #include "Note.h"
 #include "Params.h"
+#include "ClipboardDataModel/NotesParamsInfo.h"
 
 class Clip : public QObject, public IOverlapable, public UniqueObject, public ISelectable {
     Q_OBJECT
@@ -94,6 +95,12 @@ public:
     enum NotePropertyType { TimeAndKey, Word, None };
     enum ParamsChangeType { Pitch, Energy, Tension, Breathiness };
 
+    class VocalPart : public UniqueObject {
+    public:
+        NotesParamsInfo info;
+        QString audioCachePath;
+    };
+
     ClipType type() const override {
         return Singing;
     }
@@ -110,6 +117,7 @@ public:
     void notifyNotePropertyChanged(NotePropertyType type, Note *note);
 
     Params params;
+    QList<VocalPart> parts();
     // const DsParams &params() const;
 
 signals:
@@ -120,6 +128,7 @@ signals:
 
 private:
     OverlapableSerialList<Note> m_notes;
+    QList<VocalPart> m_parts;
     // DsParams m_params;
 };
 

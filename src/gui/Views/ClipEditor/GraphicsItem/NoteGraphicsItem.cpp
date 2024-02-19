@@ -82,6 +82,13 @@ void NoteGraphicsItem::setPronunciation(const QString &pronunciation) {
     m_pronunciation = pronunciation;
     update();
 }
+bool NoteGraphicsItem::editingPitch() const {
+    return m_editingPitch;
+}
+void NoteGraphicsItem::setEditingPitch(bool on) {
+    m_editingPitch = on;
+    update();
+}
 int NoteGraphicsItem::pronunciationTextHeight() const {
     return m_pronunciationTextHeight;
 }
@@ -114,22 +121,32 @@ void NoteGraphicsItem::resetOffset() {
 }
 void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
-    const auto colorPrimary = QColor(155, 186, 255);
-    const auto colorPrimaryDarker = QColor(112, 156, 255);
-    const auto colorAccent = QColor(255, 175, 95);
-    const auto colorAccentDarker = QColor(255, 159, 63);
-    const auto colorForeground = QColor(0, 0, 0);
+    const auto backgroundColorNormal = QColor(155, 186, 255);
+    const auto backgroundColorEditingPitch = QColor(155, 186, 255, 50);
+
+    const auto borderColorNormal = QColor(112, 156, 255);
+    const auto borderColorSelected = QColor(255, 255, 255);
+    const auto borderColorOverlapped = AppGlobal::overlappedViewBorder;
+    const auto borderColorEditingPitch = QColor(155, 186, 255, 220);
+
+    const auto foregroundColorNormal = QColor(0, 0, 0);
+    const auto foregroundColorEditingPitch = QColor(155, 186, 255, 220);
+
+    const auto pronunciationTextColor = QColor(200, 200, 200);
+
     const auto penWidth = 2.0f;
     const auto radius = 4.0;
     const auto radiusAdjustThreshold = 12;
 
     QPen pen;
     if (isSelected())
-        pen.setColor(QColor(255, 255, 255));
+        pen.setColor(borderColorSelected);
     else if (m_overlapped)
-        pen.setColor(AppGlobal::overlappedViewBorder);
+        pen.setColor(borderColorOverlapped);
+    else if (m_editingPitch)
+        pen.setColor(borderColorEditingPitch);
     else
-        pen.setColor(colorPrimaryDarker);
+        pen.setColor(borderColorNormal);
 
     auto rect = boundingRect();
     auto noteBoundingRect =
@@ -142,12 +159,12 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 
     pen.setWidthF(penWidth);
     painter->setPen(pen);
-    painter->setBrush(colorPrimary);
+    painter->setBrush(m_editingPitch ? backgroundColorEditingPitch : backgroundColorNormal);
 
     if (paddedRect.width() < 8 || paddedRect.height() < 8) { // draw rect without border
         painter->setRenderHint(QPainter::Antialiasing, false);
         painter->setPen(Qt::NoPen);
-        painter->setBrush(isSelected() ? QColor(255, 255, 255) : colorPrimary);
+        painter->setBrush(isSelected() ? borderColorSelected : backgroundColorNormal);
         auto l = noteBoundingRect.left() + penWidth / 2;
         auto t = noteBoundingRect.top() + penWidth / 2;
         auto w = noteBoundingRect.width() - penWidth < 2 ? 2 : noteBoundingRect.width() - penWidth;
@@ -167,7 +184,7 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
         painter->drawRoundedRect(paddedRect, 2, 2);
     }
 
-    pen.setColor(colorForeground);
+    pen.setColor(m_editingPitch ? foregroundColorEditingPitch : foregroundColorNormal);
     painter->setPen(pen);
     auto font = QFont();
     font.setPointSizeF(10);
@@ -193,7 +210,7 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
         // draw lryic
         painter->drawText(textRect, text, textOption);
         // draw pronunciation
-        pen.setColor(QColor(200, 200, 200));
+        pen.setColor(pronunciationTextColor);
         painter->setPen(pen);
         painter->drawText(QPointF(textRectLeft, boundingRect().bottom() - 6), m_pronunciation);
     }

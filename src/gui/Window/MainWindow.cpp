@@ -85,8 +85,6 @@ MainWindow::MainWindow() {
         "QCheckBox { background: transparent; color: #F0F0F0; }"
         "QCheckBox::indicator:unchecked { border: 1px solid #606060; background: #2A2B2C; }"
         "QCheckBox::indicator:checked { border: 1px solid #606060; background: #9BBAFF; }"
-        "QLabel { color: #F0F0F0; }"
-        "border-radius: 6px; color: #F0F0F0; padding: 4px 12px; }"
         "QTabBar::tab {background: #2A2B2C; color: #F0F0F0; border: 1px solid #606060; "
         "border-bottom: none; padding: 4px 12px; }"
         "QTabBar::tab:selected {background: #10FFFFFF; color: #F0F0F0; border: 1px solid #606060; }"
@@ -97,8 +95,7 @@ MainWindow::MainWindow() {
         "}"
         "QTableView { background: #10FFFFFF; border: 1px solid transparent; border-radius: 4px; "
         "color: #F0F0F0; selection-color: #000; selection-background-color: #9BBAFF; padding: 4px; "
-        "}"
-        "QWidget { background: #2A2B2C; border: none; }";
+        "}";
     this->setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
 #ifdef Q_OS_WIN
     // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler

@@ -72,7 +72,8 @@ const OverlapableSerialList<Note> &SingingClip::notes() const {
     return m_notes;
 }
 void SingingClip::insertNote(Note *note) {
-    qDebug() << "AppModel SingingClip::insertNote" << note->start() << note->length() << note->lyric();
+    qDebug() << "AppModel SingingClip::insertNote" << note->start() << note->length()
+             << note->lyric();
     m_notes.add(note);
     emit noteListChanged(Inserted, note->id(), note);
 }
@@ -92,6 +93,39 @@ void SingingClip::notifyNoteSelectionChanged() {
 void SingingClip::notifyNotePropertyChanged(NotePropertyType type, Note *note) {
     emit notePropertyChanged(type, note);
 }
+QList<SingingClip::VocalPart> SingingClip::parts() {
+    if (m_notes.count() == 0)
+        return m_parts;
+
+    m_parts.clear();
+    QList<Note *> buffer;
+
+    auto commit = [](VocalPart &part, QList<Note *> &buffer) {
+        part.info.selectedNotes.clear();
+        for (const auto note : buffer) {
+            Note newNote;
+            newNote.setStart(note->start());
+            newNote.setLength(note->length());
+            part.info.selectedNotes.append(newNote);
+        }
+        buffer.clear();
+    };
+
+    for (int i = 0; i < m_notes.count(); i++) {
+        auto note = notes().at(i);
+        buffer.append(note);
+        bool commitFlag = i < m_notes.count() - 1 &&
+                          m_notes.at(i + 1)->start() - (note->start() + note->length()) > 0;
+        if (i == m_notes.count() - 1)
+            commitFlag = true;
+        if (commitFlag) {
+            VocalPart part;
+            commit(part, buffer);
+            m_parts.append(part);
+        }
+    }
+    return m_parts;
+}
 Note *SingingClip::findNoteById(int id) {
     for (int i = 0; i < m_notes.count(); i++) {
         auto note = m_notes.at(i);
@@ -107,7 +141,7 @@ QList<Note *> SingingClip::selectedNotes() const {
         if (note->selected())
             notes.append(note);
     }
-    return  notes;
+    return notes;
 }
 // const DsParams &DsSingingClip::params() const {
 //     return m_params;
