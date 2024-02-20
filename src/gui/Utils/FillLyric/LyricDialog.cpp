@@ -19,8 +19,9 @@ namespace FillLyric {
 
         m_lyricWidget = new LyricWidget(m_phonicNotes);
 
-        m_btnOk = new QPushButton("OK", this);
-        m_btnCancel = new QPushButton("Cancel", this);
+        m_btnOk = new Button("OK", this);
+        m_btnOk->setPrimary(true);
+        m_btnCancel = new Button("Cancel", this);
 
         m_btnOk->setMaximumWidth(100);
         m_btnCancel->setMaximumWidth(100);

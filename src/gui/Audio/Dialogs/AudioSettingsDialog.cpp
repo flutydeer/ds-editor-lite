@@ -6,7 +6,6 @@
 #include <QGroupBox>
 #include <QComboBox>
 #include <QCheckBox>
-#include <QPushButton>
 #include <QDoubleSpinBox>
 #include <QMessageBox>
 #include <QLabel>
@@ -18,6 +17,8 @@
 
 #include "Audio/AudioSystem.h"
 #include "Audio/AudioContext.h"
+
+#include "Controls/Button.h"
 
 void AudioSettingsDialog::updateDeviceComboBox() {
     auto deviceList = AudioSystem::instance()->driver()->devices();
@@ -90,7 +91,7 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : Dialog(parent) {
     auto deviceLayout = new QHBoxLayout;
     m_deviceComboBox = new QComboBox;
     deviceLayout->addWidget(m_deviceComboBox);
-    auto testDeviceButton = new QPushButton(tr("Test"));
+    auto testDeviceButton = new Button(tr("Test"));
     deviceLayout->addWidget(testDeviceButton);
     audioOutputLayout->addRow(tr("Audio Device"), deviceLayout);
     m_bufferSizeComboBox = new QComboBox;
@@ -123,12 +124,13 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : Dialog(parent) {
 
     auto buttonLayout = new QHBoxLayout;
     buttonLayout->addStretch();
-    auto okButton = new QPushButton(tr("OK"));
+    auto okButton = new Button(tr("OK"));
+    okButton->setPrimary(true);
     okButton->setDefault(true);
     buttonLayout->addWidget(okButton);
-    auto cancelButton = new QPushButton(tr("Cancel"));
+    auto cancelButton = new Button(tr("Cancel"));
     buttonLayout->addWidget(cancelButton);
-    auto applyButton = new QPushButton(tr("Apply"));
+    auto applyButton = new Button(tr("Apply"));
     buttonLayout->addWidget(applyButton);
     mainLayout->addLayout(buttonLayout);
 

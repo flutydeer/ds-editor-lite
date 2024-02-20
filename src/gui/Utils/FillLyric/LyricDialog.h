@@ -8,6 +8,7 @@
 
 #include "View/LyricWidget.h"
 #include "Window/Dialogs/Dialog.h"
+#include "Controls/Button.h"
 
 namespace FillLyric {
 
@@ -26,8 +27,8 @@ namespace FillLyric {
 
         LyricWidget *m_lyricWidget;
 
-        QPushButton *m_btnOk;
-        QPushButton *m_btnCancel;
+        Button *m_btnOk;
+        Button *m_btnCancel;
 
         QList<Note *> m_notes;
         QList<PhonicNote *> m_phonicNotes;

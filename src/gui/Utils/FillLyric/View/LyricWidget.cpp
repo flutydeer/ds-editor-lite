@@ -20,7 +20,7 @@ namespace FillLyric {
 
         // textEdit top
         m_textTopLayout = new QHBoxLayout();
-        btnImportLrc = new QPushButton("导入lrc");
+        btnImportLrc = new Button("导入lrc");
         m_textCountLabel = new QLabel("字符数: 0");
         m_textTopLayout->addWidget(btnImportLrc);
         m_textTopLayout->addStretch(1);
@@ -46,7 +46,7 @@ namespace FillLyric {
         splitLabel = new QLabel("Split Mode:");
         splitComboBox = new QComboBox();
         splitComboBox->addItems({"Auto", "By Char", "Custom", "By Reg"});
-        btnSetting = new QPushButton("Setting");
+        btnSetting = new Button("Setting");
 
         m_splitLayout->addWidget(splitLabel);
         m_splitLayout->addWidget(splitComboBox);
@@ -64,9 +64,9 @@ namespace FillLyric {
 
         // lyric option layout
         m_lyricOptLayout = new QVBoxLayout();
-        btnInsertText = new QPushButton("测试");
-        btnToTable = new QPushButton(">>");
-        btnToText = new QPushButton("<<");
+        btnInsertText = new Button("测试");
+        btnToTable = new Button(">>");
+        btnToText = new Button("<<");
 
         m_lyricOptLayout->addStretch(1);
         m_lyricOptLayout->addWidget(btnInsertText);
@@ -84,10 +84,10 @@ namespace FillLyric {
 
         // tableTop layout
         m_tableTopLayout = new QHBoxLayout();
-        btnFoldLeft = new QPushButton("收起左侧");
-        btnToggleFermata = new QPushButton("收放延音符");
-        btnUndo = new QPushButton("撤销");
-        btnRedo = new QPushButton("重做");
+        btnFoldLeft = new Button("收起左侧");
+        btnToggleFermata = new Button("收放延音符");
+        btnUndo = new Button("撤销");
+        btnRedo = new Button("重做");
         noteCountLabel = new QLabel("0/0");
 
         m_tableTopLayout->addWidget(btnFoldLeft);

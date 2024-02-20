@@ -11,6 +11,7 @@
 
 #include "PhonicTextEdit.h"
 #include "PhonicWidget.h"
+#include "Controls/Button.h"
 
 #include "../Utils/CleanLyric.h"
 #include "../Model/PhonicCommon.h"
@@ -66,22 +67,22 @@ namespace FillLyric {
         QLabel *splitLabel;
 
         // Buttons
-        QPushButton *btnInsertText;
-        QPushButton *btnToTable;
-        QPushButton *btnToText;
-        QPushButton *btnImportLrc;
+        Button *btnInsertText;
+        Button *btnToTable;
+        Button *btnToText;
+        Button *btnImportLrc;
 
-        QPushButton *btnFoldLeft;
-        QPushButton *btnToggleFermata;
-        QPushButton *btnUndo;
-        QPushButton *btnRedo;
+        Button *btnFoldLeft;
+        Button *btnToggleFermata;
+        Button *btnUndo;
+        Button *btnRedo;
 
         // CheckBox
         QCheckBox *skipSlur;
         QCheckBox *splitBySpace;
 
         QComboBox *splitComboBox;
-        QPushButton *btnSetting;
+        Button *btnSetting;
     };
 
 } // FillLyric

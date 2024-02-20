@@ -16,9 +16,9 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
     auto presetOptionLayout = new QHBoxLayout;
     m_presetComboBox = new QComboBox;
     presetOptionLayout->addWidget(m_presetComboBox, 1);
-    auto presetSaveAsButton = new QPushButton(tr("Save as"));
+    auto presetSaveAsButton = new Button(tr("Save as"));
     presetOptionLayout->addWidget(presetSaveAsButton);
-    m_presetDeleteButton = new QPushButton(tr("Delete"));
+    m_presetDeleteButton = new Button(tr("Delete"));
     presetOptionLayout->addWidget(m_presetDeleteButton);
     presetLayout->addRow(tr("Preset"), presetOptionLayout);
     mainLayout->addLayout(presetLayout);
@@ -33,13 +33,13 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
     m_fileDirectoryEdit = new QLineEdit;
     m_fileDirectoryEdit->setPlaceholderText(tr("(Project directory)"));
     fileDirectoryLayout->addWidget(m_fileDirectoryEdit, 1);
-    auto fileDirectoryBrowseButton = new QPushButton(tr("Browse"));
+    auto fileDirectoryBrowseButton = new Button(tr("Browse"));
     fileDirectoryLayout->addWidget(fileDirectoryBrowseButton);
     pathLayout->addRow(tr("Directory"), fileDirectoryLayout);
     auto fileNameLayout = new QHBoxLayout;
     m_fileNameEdit = new QLineEdit;
     fileNameLayout->addWidget(m_fileNameEdit, 1);
-    auto fileNameTemplateButton = new QPushButton(tr("Template"));
+    auto fileNameTemplateButton = new Button(tr("Template"));
     auto fileNameTemplateMenu = new Menu(this);
     fileNameTemplateButton->setMenu(fileNameTemplateMenu);
     fileNameLayout->addWidget(fileNameTemplateButton);
@@ -106,7 +106,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
     auto trackAffixLayout = new QHBoxLayout;
     m_trackAffixEdit = new QLineEdit;
     trackAffixLayout->addWidget(m_trackAffixEdit, 1);
-    m_trackAffixTemplateButton = new QPushButton(tr("Template"));
+    m_trackAffixTemplateButton = new Button(tr("Template"));
     auto trackAffixTemplateMenu = new Menu(this);
     m_trackAffixTemplateButton->setMenu(trackAffixTemplateMenu);
     trackAffixLayout->addWidget(m_trackAffixTemplateButton);
@@ -136,15 +136,16 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
 
     auto buttonLayout = new QHBoxLayout;
     buttonLayout->addStretch();
-    m_warningButton = new QPushButton;
+    m_warningButton = new Button;
     m_warningButton->setIcon(this->style()->standardIcon(QStyle::SP_MessageBoxWarning));
     m_warningButton->setToolTip(tr("Warning"));
     m_warningButton->setVisible(false);
     buttonLayout->addWidget(m_warningButton);
-    auto exportButton = new QPushButton(tr("Export"));
+    auto exportButton = new Button(tr("Export"));
+    exportButton->setPrimary(true);
     exportButton->setDefault(true);
     buttonLayout->addWidget(exportButton);
-    auto cancelButton = new QPushButton(tr("Cancel"));
+    auto cancelButton = new Button(tr("Cancel"));
     buttonLayout->addWidget(cancelButton);
     mainLayout->addLayout(buttonLayout);
 

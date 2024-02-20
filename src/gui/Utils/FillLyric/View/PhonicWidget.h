@@ -23,6 +23,7 @@
 #include "../Utils/CleanLyric.h"
 #include "../Model/PhonicModel.h"
 #include "../History/ModelHistory.h"
+#include "Controls/Button.h"
 
 #include "PhonicDelegate.h"
 #include "PhonicTextEdit.h"
