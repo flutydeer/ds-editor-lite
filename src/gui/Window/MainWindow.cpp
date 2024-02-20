@@ -100,9 +100,6 @@ MainWindow::MainWindow() {
         "QTableView > QHeaderView { background-color: transparent; background-color: transparent }"
         "QTableView > QHeaderView::section { background-color: transparent; border: none; color: "
         "#F0F0F0 }"
-        "QTableWidget { background: #2A2B2C; border: none; }"
-        "QTableWidget::item { border: 1px solid #404040 } "
-        "QWidget#LyricWidget { background: #2A2B2C }"
         "QGroupBox { color: #F0F0F0; }";
     this->setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
 #ifdef Q_OS_WIN

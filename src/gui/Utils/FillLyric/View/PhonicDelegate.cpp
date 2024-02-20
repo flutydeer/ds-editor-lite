@@ -1,6 +1,9 @@
 #include "PhonicDelegate.h"
 
 namespace FillLyric {
+    PhonicDelegate::PhonicDelegate(QObject *parent) : QStyledItemDelegate(parent) {
+    }
+
     void PhonicDelegate::setModelData(QWidget *editor, QAbstractItemModel *model,
                                       const QModelIndex &index) const {
         if (editor->property("text").toString() != model->data(index).toString()) {

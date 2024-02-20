@@ -14,8 +14,7 @@ namespace FillLyric {
     class PhonicDelegate : public QStyledItemDelegate {
         Q_OBJECT
     public:
-        explicit PhonicDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {
-        }
+        explicit PhonicDelegate(QObject *parent = nullptr);
 
         void setModelData(QWidget *editor, QAbstractItemModel *model,
                           const QModelIndex &index) const override;
