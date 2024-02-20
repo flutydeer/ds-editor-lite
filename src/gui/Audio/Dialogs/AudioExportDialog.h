@@ -4,7 +4,7 @@
 #include "Audio/AudioExporter.h"
 #include "Window/Dialogs/Dialog.h"
 
-class QLineEdit;
+class LineEdit;
 class QTextEdit;
 class ComboBox;
 class Button;
@@ -23,19 +23,19 @@ public:
 private:
     ComboBox *m_presetComboBox;
     Button *m_presetDeleteButton;
-    QLineEdit *m_fileDirectoryEdit;
-    QLineEdit *m_fileNameEdit;
-    Button *m_warningButton;
+    LineEdit *m_fileDirectoryEdit;
+    LineEdit *m_fileNameEdit;
+    QPushButton *m_warningButton;
     QTextEdit *m_previewFrame;
     ComboBox *m_formatTypeComboBox;
     ComboBox *m_formatOptionComboBox;
     QSlider *m_vbrSlider;
     QDoubleSpinBox *m_formatSampleRateSpinBox;
-    QLineEdit *m_extensionNameEdit;
+    LineEdit *m_extensionNameEdit;
     ComboBox *m_sourceComboBox;
     QListWidget *m_sourceListWidget;
     ComboBox *m_mixingOptionComboBox;
-    QLineEdit *m_trackAffixEdit;
+    LineEdit *m_trackAffixEdit;
     Button *m_trackAffixTemplateButton;
     QCheckBox *m_enableMuteSoloCheckBox;
     QRadioButton *m_rangeSelectAllRadio;

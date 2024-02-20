@@ -8,7 +8,7 @@
 #include <QComboBox>
 
 class ComboBox : public QComboBox {
-Q_OBJECT
+    Q_OBJECT
 public:
     explicit ComboBox(QWidget *parent = nullptr);
     explicit ComboBox(bool scrollWheelChangeSelection, QWidget *parent = nullptr);
@@ -22,4 +22,4 @@ private:
 
 
 
-#endif //COMBOBOX_H
+#endif // COMBOBOX_H
