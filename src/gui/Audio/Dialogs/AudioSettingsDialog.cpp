@@ -4,7 +4,6 @@
 #include <QBoxLayout>
 #include <QFormLayout>
 #include <QGroupBox>
-#include <QComboBox>
 #include <QCheckBox>
 #include <QDoubleSpinBox>
 #include <QMessageBox>
@@ -19,6 +18,7 @@
 #include "Audio/AudioContext.h"
 
 #include "Controls/Button.h"
+#include "Controls/ComboBox.h"
 
 void AudioSettingsDialog::updateDeviceComboBox() {
     auto deviceList = AudioSystem::instance()->driver()->devices();
@@ -86,19 +86,19 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : Dialog(parent) {
 
     auto audioOutputGroupBox = new QGroupBox(tr("Audio Output Options"));
     auto audioOutputLayout = new QFormLayout;
-    m_driverComboBox = new QComboBox;
+    m_driverComboBox = new ComboBox;
     audioOutputLayout->addRow(tr("Audio Driver"), m_driverComboBox);
     auto deviceLayout = new QHBoxLayout;
-    m_deviceComboBox = new QComboBox;
+    m_deviceComboBox = new ComboBox;
     deviceLayout->addWidget(m_deviceComboBox);
     auto testDeviceButton = new Button(tr("Test"));
     deviceLayout->addWidget(testDeviceButton);
     audioOutputLayout->addRow(tr("Audio Device"), deviceLayout);
-    m_bufferSizeComboBox = new QComboBox;
+    m_bufferSizeComboBox = new ComboBox;
     audioOutputLayout->addRow(tr("Buffer Size"), m_bufferSizeComboBox);
-    m_sampleRateComboBox = new QComboBox;
+    m_sampleRateComboBox = new ComboBox;
     audioOutputLayout->addRow(tr("Sample Rate"), m_sampleRateComboBox);
-    m_hotPlugModeComboBox = new QComboBox;
+    m_hotPlugModeComboBox = new ComboBox;
     m_hotPlugModeComboBox->addItems({tr("Notify any device change"), tr("Notify current device removal"), tr("Do not notify")});
     audioOutputLayout->addRow(tr("Hot Plug Mode"), m_hotPlugModeComboBox);
     audioOutputGroupBox->setLayout(audioOutputLayout);

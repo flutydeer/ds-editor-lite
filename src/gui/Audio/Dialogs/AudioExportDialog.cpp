@@ -3,6 +3,9 @@
 #include "Model/AppModel.h"
 #include "Model/Track.h"
 #include "Controls/Menu.h"
+#include "Controls/Button.h"
+#include "Controls/ComboBox.h"
+#include "Controls/LineEdit.h"
 
 #include <QtWidgets>
 #include <QSet>
@@ -14,7 +17,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
 
     auto presetLayout = new QFormLayout;
     auto presetOptionLayout = new QHBoxLayout;
-    m_presetComboBox = new QComboBox;
+    m_presetComboBox = new ComboBox;
     presetOptionLayout->addWidget(m_presetComboBox, 1);
     auto presetSaveAsButton = new Button(tr("Save as"));
     presetOptionLayout->addWidget(presetSaveAsButton);
@@ -30,14 +33,14 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
     auto pathGroupBox = new QGroupBox(tr("File Path"));
     auto pathLayout = new QFormLayout;
     auto fileDirectoryLayout = new QHBoxLayout;
-    m_fileDirectoryEdit = new QLineEdit;
+    m_fileDirectoryEdit = new LineEdit;
     m_fileDirectoryEdit->setPlaceholderText(tr("(Project directory)"));
     fileDirectoryLayout->addWidget(m_fileDirectoryEdit, 1);
     auto fileDirectoryBrowseButton = new Button(tr("Browse"));
     fileDirectoryLayout->addWidget(fileDirectoryBrowseButton);
     pathLayout->addRow(tr("Directory"), fileDirectoryLayout);
     auto fileNameLayout = new QHBoxLayout;
-    m_fileNameEdit = new QLineEdit;
+    m_fileNameEdit = new LineEdit;
     fileNameLayout->addWidget(m_fileNameEdit, 1);
     auto fileNameTemplateButton = new Button(tr("Template"));
     auto fileNameTemplateMenu = new Menu(this);
@@ -61,26 +64,26 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
 
     auto formatGroupBox = new QGroupBox(tr("Format"));
     auto formatLayout = new QFormLayout;
-    m_formatTypeComboBox = new QComboBox;
+    m_formatTypeComboBox = new ComboBox;
     for (const auto &format : AudioExporter::formats()) {
         m_formatTypeComboBox->addItem(format.formatName, format.flag);
     }
     formatLayout->addRow(tr("Type"), m_formatTypeComboBox);
-    m_formatOptionComboBox = new QComboBox;
+    m_formatOptionComboBox = new ComboBox;
     formatLayout->addRow(tr("Option"), m_formatOptionComboBox);
     m_vbrSlider = new QSlider(Qt::Horizontal);
     formatLayout->addRow(tr("Quality"), m_vbrSlider);
     m_formatSampleRateSpinBox = new QDoubleSpinBox;
     m_formatSampleRateSpinBox->setRange(0.0, std::numeric_limits<double>::max());
     formatLayout->addRow(tr("Sample Rate"), m_formatSampleRateSpinBox);
-    m_extensionNameEdit = new QLineEdit;
+    m_extensionNameEdit = new LineEdit;
     formatLayout->addRow(tr("Extension"), m_extensionNameEdit);
     formatGroupBox->setLayout(formatLayout);
     rightLayout->addWidget(formatGroupBox);
 
     auto mixingGroupBox = new QGroupBox(tr("Mixer"));
     auto mixingLayout = new QFormLayout;
-    m_sourceComboBox = new QComboBox;
+    m_sourceComboBox = new ComboBox;
     m_sourceComboBox->addItems({
         tr("All tracks"),
         tr("Selected tracks"),
@@ -96,7 +99,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
         item->setCheckState(Qt::Unchecked);
     }
     mixingLayout->addRow(m_sourceListWidget);
-    m_mixingOptionComboBox = new QComboBox;
+    m_mixingOptionComboBox = new ComboBox;
     m_mixingOptionComboBox->addItems({
         tr("Mixed"),
         tr("Seperated"),
@@ -104,7 +107,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
     });
     mixingLayout->addRow(tr("Mixing Option"), m_mixingOptionComboBox);
     auto trackAffixLayout = new QHBoxLayout;
-    m_trackAffixEdit = new QLineEdit;
+    m_trackAffixEdit = new LineEdit;
     trackAffixLayout->addWidget(m_trackAffixEdit, 1);
     m_trackAffixTemplateButton = new Button(tr("Template"));
     auto trackAffixTemplateMenu = new Menu(this);
@@ -136,7 +139,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
 
     auto buttonLayout = new QHBoxLayout;
     buttonLayout->addStretch();
-    m_warningButton = new Button;
+    m_warningButton = new QPushButton;
     m_warningButton->setIcon(this->style()->standardIcon(QStyle::SP_MessageBoxWarning));
     m_warningButton->setToolTip(tr("Warning"));
     m_warningButton->setVisible(false);
@@ -187,8 +190,8 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
 
     updatePresetList();
 
-    connect(m_fileDirectoryEdit, &QLineEdit::textChanged, this, &AudioExportDialog::onFormModified);
-    connect(m_fileNameEdit, &QLineEdit::textChanged, this, &AudioExportDialog::onFormModified);
+    connect(m_fileDirectoryEdit, &LineEdit::textChanged, this, &AudioExportDialog::onFormModified);
+    connect(m_fileNameEdit, &LineEdit::textChanged, this, &AudioExportDialog::onFormModified);
     connect(m_formatTypeComboBox, &QComboBox::currentIndexChanged, this, [=] {
         m_extensionNameEdit->clear();
         onFormModified();
@@ -196,11 +199,11 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
     connect(m_formatOptionComboBox, &QComboBox::currentIndexChanged, this, &AudioExportDialog::onFormModified);
     connect(m_vbrSlider, &QSlider::valueChanged, this, &AudioExportDialog::onFormModified);
     connect(m_formatSampleRateSpinBox, &QDoubleSpinBox::valueChanged, this, &AudioExportDialog::onFormModified);
-    connect(m_extensionNameEdit, &QLineEdit::textChanged, this, &AudioExportDialog::onFormModified);
+    connect(m_extensionNameEdit, &LineEdit::textChanged, this, &AudioExportDialog::onFormModified);
     connect(m_sourceComboBox, &QComboBox::currentIndexChanged, this, &AudioExportDialog::onFormModified);
     connect(m_sourceListWidget, &QListWidget::itemChanged, this, &AudioExportDialog::onFormModified);
     connect(m_mixingOptionComboBox, &QComboBox::currentIndexChanged, this, &AudioExportDialog::onFormModified);
-    connect(m_trackAffixEdit, &QLineEdit::textChanged, this, &AudioExportDialog::onFormModified);
+    connect(m_trackAffixEdit, &LineEdit::textChanged, this, &AudioExportDialog::onFormModified);
     connect(m_enableMuteSoloCheckBox, &QCheckBox::stateChanged, this, &AudioExportDialog::onFormModified);
     connect(m_rangeSelectAllRadio, &QRadioButton::toggled, this, &AudioExportDialog::onFormModified);
     connect(m_warningButton, &QPushButton::clicked, this, [=] {
@@ -395,7 +398,7 @@ void AudioExportDialog::updateDirtyPreset() {
 
 void AudioExportDialog::presetSaveAs() {
     bool ok;
-    auto name = QInputDialog::getText(this, {}, tr("Preset Name:"), QLineEdit::Normal, {}, &ok);
+    auto name = QInputDialog::getText(this, {}, tr("Preset Name:"), LineEdit::Normal, {}, &ok);
     if (!ok || name.isEmpty())
         return;
     m_exporter->savePreset(name);

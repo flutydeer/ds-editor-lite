@@ -120,20 +120,10 @@ PlaybackView::PlaybackView(QWidget *parent) {
     connect(m_btnPause, &QPushButton::clicked, this, [=] { emit pauseTriggered(); });
     connect(m_btnStop, &QPushButton::clicked, this, [=] { emit stopTriggered(); });
 
-    m_cbQuantize = new QComboBox;
+    m_cbQuantize = new ComboBox();
     m_cbQuantize->addItems(quantizeStrings);
     m_cbQuantize->setCurrentIndex(3);
-    m_cbQuantize->setFixedSize(72, m_contentHeight);
-    auto comboBoxQss =
-        "QComboBox QAbstractItemView { padding: 4px; background-color: #202122;"
-        "border: 1px solid #606060; "
-        "border-radius: 6px; color: #F0F0F0; selection-background-color: #FFFFFF; }"
-        "QComboBox QAbstractItemView:item { padding: 4px; border-radius: 4px; border: none; }"
-        "QComboBox QAbstractItemView::item:hover { background-color: #f6f6f6; }"
-        "QComboBox QAbstractItemView::item:selected { background-color: #3A3B3C; }";
-    auto styledItemDelegate = new QStyledItemDelegate();
-    m_cbQuantize->setItemDelegate(styledItemDelegate);
-    m_cbQuantize->setStyleSheet(comboBoxQss);
+    m_cbQuantize->setFixedSize(80, m_contentHeight);
 
     connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [=](int index) {
         auto value = quantizeValues.at(index);

@@ -11,6 +11,7 @@
 
 #include "Controller/PlaybackController.h"
 #include "Controls/EditLabel.h"
+#include "Controls/ComboBox.h"
 
 class PlaybackView final : public QWidget {
     Q_OBJECT
@@ -42,7 +43,7 @@ private:
     QPushButton *m_btnPlayPause;
     // QPushButton *m_btnLoop;
     EditLabel *m_elTime;
-    QComboBox *m_cbQuantize;
+    ComboBox *m_cbQuantize;
 
     double m_tempo = 120;
     int m_numerator = 4;
