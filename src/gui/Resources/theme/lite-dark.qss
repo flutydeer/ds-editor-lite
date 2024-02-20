@@ -4,7 +4,7 @@ QPushButton {
     font-size: 10pt;
     border-radius: 6px;
     color: #f2f2f2;
-    padding: 6px 12px;
+    padding: 4px 12px;
 }
 
 QPushButton:hover {
@@ -26,7 +26,7 @@ QComboBox {
     border: none;
     border-radius: 6px;
     color: rgb(242, 242, 242);
-    padding: 6px 12px;
+    padding: 4px 12px;
 }
 
 QComboBox:hover {
@@ -224,6 +224,23 @@ QLineEdit:focus {
     border-bottom: 2px solid #9BBAFF;
 }
 
+QAbstractSpinBox {
+    background: #10FFFFFF;
+    border: 1px solid transparent;
+    border-bottom: 1px solid #A0A0A0;
+    border-radius: 4px;
+    color: #F0F0F0;
+    selection-color: #000;
+    selection-background-color: #9BBAFF;
+    padding: 3px;
+}
+
+QAbstractSpinBox:focus {
+    background: #202122;
+    border: 1px solid #505050;
+    border-bottom: 2px solid #9BBAFF;
+}
+
 QGraphicsView {
     border: none;
 }
@@ -313,7 +330,17 @@ QTableView>QHeaderView::section {
 }
 
 QGroupBox {
+    margin-top: 8px;
+    padding-top: 8px;
     color: #F0F0F0;
+    border: none;
+    border-top: 1px solid #80606060;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    font-size: 10pt;
 }
 
 QCheckBox {

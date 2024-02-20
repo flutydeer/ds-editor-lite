@@ -82,5 +82,5 @@ void Button::initUi() {
     setAttribute(Qt::WA_Hover);
     installEventFilter(this);
     setMinimumWidth(80);
-    setMinimumHeight(24);
+    setMinimumHeight(20);
 }
