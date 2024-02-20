@@ -37,7 +37,6 @@ public:
 
     explicit ProgressIndicator(QWidget *parent = nullptr);
     explicit ProgressIndicator(IndicatorStyle indicatorStyle, QWidget *parent = nullptr);
-    ~ProgressIndicator();
 
     double minimum() const;
     double maximum() const;
@@ -103,18 +102,18 @@ protected:
     double m_currentTaskValue = 0;
     bool m_indeterminate = false;
     int m_thumbProgress = 0;
-    int m_penWidth;
-    int m_padding;
-    int m_halfRectHeight;
+    int m_penWidth = 0;
+    int m_padding = 0;
+    int m_halfRectHeight = 0;
     QPoint m_trackStart;
     QPoint m_trackEnd;
-    int m_actualLength;
+    int m_actualLength = 0;
     QRect m_ringRect;
     //    bool m_invertedAppearance = false;
-    QTimer *m_timer;
-    QPropertyAnimation *m_valueAnimation;
-    QPropertyAnimation *m_SecondaryValueAnimation;
-    QPropertyAnimation *m_currentTaskValueAnimation;
+    QTimer m_timer;
+    QPropertyAnimation m_valueAnimation;
+    QPropertyAnimation m_SecondaryValueAnimation;
+    QPropertyAnimation m_currentTaskValueAnimation;
 
     void initUi(QWidget *parent);
     void calculateBarParams();

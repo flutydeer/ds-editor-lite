@@ -13,43 +13,35 @@ ProgressIndicator::ProgressIndicator(QWidget *parent) : QWidget(parent) {
     initUi(parent);
 }
 
-ProgressIndicator::ProgressIndicator(ProgressIndicator::IndicatorStyle indicatorStyle,
+ProgressIndicator::ProgressIndicator(IndicatorStyle indicatorStyle,
                                      QWidget *parent) {
     m_indicatorStyle = indicatorStyle;
     initUi(parent);
 }
 
-ProgressIndicator::~ProgressIndicator() {
-}
-
 void ProgressIndicator::initUi(QWidget *parent) {
-    //    qDebug() << "init";
-    m_timer = new QTimer(parent);
-    m_timer->setInterval(8);
-    QTimer::connect(m_timer, &QTimer::timeout, this, [=]() {
+    m_timer.setInterval(8);
+    connect(&m_timer, &QTimer::timeout, this, [=]() {
         setThumbProgress(m_thumbProgress + 2);
         if (m_thumbProgress == 360)
             m_thumbProgress = 0;
     });
     m_colorPalette = colorPaletteNormal;
 
-    m_valueAnimation = new QPropertyAnimation;
-    m_valueAnimation->setTargetObject(this);
-    m_valueAnimation->setPropertyName("apparentValue");
-    m_valueAnimation->setDuration(250);
-    m_valueAnimation->setEasingCurve(QEasingCurve::OutQuart);
+    m_valueAnimation.setTargetObject(this);
+    m_valueAnimation.setPropertyName("apparentValue");
+    m_valueAnimation.setDuration(250);
+    m_valueAnimation.setEasingCurve(QEasingCurve::OutQuart);
 
-    m_SecondaryValueAnimation = new QPropertyAnimation;
-    m_SecondaryValueAnimation->setTargetObject(this);
-    m_SecondaryValueAnimation->setPropertyName("apparentSecondaryValue");
-    m_SecondaryValueAnimation->setDuration(250);
-    m_SecondaryValueAnimation->setEasingCurve(QEasingCurve::OutQuart);
+    m_SecondaryValueAnimation.setTargetObject(this);
+    m_SecondaryValueAnimation.setPropertyName("apparentSecondaryValue");
+    m_SecondaryValueAnimation.setDuration(250);
+    m_SecondaryValueAnimation.setEasingCurve(QEasingCurve::OutQuart);
 
-    m_currentTaskValueAnimation = new QPropertyAnimation;
-    m_currentTaskValueAnimation->setTargetObject(this);
-    m_currentTaskValueAnimation->setPropertyName("apparentCurrentTaskValue");
-    m_currentTaskValueAnimation->setDuration(250);
-    m_currentTaskValueAnimation->setEasingCurve(QEasingCurve::OutQuart);
+    m_currentTaskValueAnimation.setTargetObject(this);
+    m_currentTaskValueAnimation.setPropertyName("apparentCurrentTaskValue");
+    m_currentTaskValueAnimation.setDuration(250);
+    m_currentTaskValueAnimation.setEasingCurve(QEasingCurve::OutQuart);
 
     switch (m_indicatorStyle) {
         case HorizontalBar:
@@ -220,10 +212,10 @@ double ProgressIndicator::value() const {
 
 void ProgressIndicator::setValue(double value) {
     m_value = value;
-    m_valueAnimation->stop();
-    m_valueAnimation->setStartValue(m_apparentValue);
-    m_valueAnimation->setEndValue(m_value);
-    m_valueAnimation->start();
+    m_valueAnimation.stop();
+    m_valueAnimation.setStartValue(m_apparentValue);
+    m_valueAnimation.setEndValue(m_value);
+    m_valueAnimation.start();
     //    update();
 }
 
@@ -257,18 +249,18 @@ double ProgressIndicator::secondaryValue() const {
 
 void ProgressIndicator::setSecondaryValue(double value) {
     m_secondaryValue = value;
-    m_SecondaryValueAnimation->stop();
-    m_SecondaryValueAnimation->setStartValue(m_apparentSecondaryValue);
-    m_SecondaryValueAnimation->setEndValue(m_secondaryValue);
-    m_SecondaryValueAnimation->start();
+    m_SecondaryValueAnimation.stop();
+    m_SecondaryValueAnimation.setStartValue(m_apparentSecondaryValue);
+    m_SecondaryValueAnimation.setEndValue(m_secondaryValue);
+    m_SecondaryValueAnimation.start();
 }
 
 void ProgressIndicator::setCurrentTaskValue(double value) {
     m_currentTaskValue = value;
-    m_currentTaskValueAnimation->stop();
-    m_currentTaskValueAnimation->setStartValue(m_apparentCurrentTaskValue);
-    m_currentTaskValueAnimation->setEndValue(m_currentTaskValue);
-    m_currentTaskValueAnimation->start();
+    m_currentTaskValueAnimation.stop();
+    m_currentTaskValueAnimation.setStartValue(m_apparentCurrentTaskValue);
+    m_currentTaskValueAnimation.setEndValue(m_currentTaskValue);
+    m_currentTaskValueAnimation.start();
 }
 
 void ProgressIndicator::reset() {
@@ -290,10 +282,10 @@ void ProgressIndicator::setIndeterminate(bool on) {
     m_indeterminate = on;
     if (m_indeterminate)
         //        m_valueAnimation->start();
-        m_timer->start();
+        m_timer.start();
     else
         //        m_valueAnimation->stop();
-        m_timer->stop();
+        m_timer.stop();
     update();
 }
 
