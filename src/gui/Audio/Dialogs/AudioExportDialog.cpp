@@ -3,6 +3,8 @@
 #include "Model/AppModel.h"
 #include "Model/Track.h"
 #include "Controls/Menu.h"
+#include "Controls/Button.h"
+#include "Controls/ComboBox.h"
 
 #include <QtWidgets>
 #include <QSet>
@@ -14,7 +16,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
 
     auto presetLayout = new QFormLayout;
     auto presetOptionLayout = new QHBoxLayout;
-    m_presetComboBox = new QComboBox;
+    m_presetComboBox = new ComboBox;
     presetOptionLayout->addWidget(m_presetComboBox, 1);
     auto presetSaveAsButton = new Button(tr("Save as"));
     presetOptionLayout->addWidget(presetSaveAsButton);
@@ -61,12 +63,12 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
 
     auto formatGroupBox = new QGroupBox(tr("Format"));
     auto formatLayout = new QFormLayout;
-    m_formatTypeComboBox = new QComboBox;
+    m_formatTypeComboBox = new ComboBox;
     for (const auto &format : AudioExporter::formats()) {
         m_formatTypeComboBox->addItem(format.formatName, format.flag);
     }
     formatLayout->addRow(tr("Type"), m_formatTypeComboBox);
-    m_formatOptionComboBox = new QComboBox;
+    m_formatOptionComboBox = new ComboBox;
     formatLayout->addRow(tr("Option"), m_formatOptionComboBox);
     m_vbrSlider = new QSlider(Qt::Horizontal);
     formatLayout->addRow(tr("Quality"), m_vbrSlider);
@@ -80,7 +82,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
 
     auto mixingGroupBox = new QGroupBox(tr("Mixer"));
     auto mixingLayout = new QFormLayout;
-    m_sourceComboBox = new QComboBox;
+    m_sourceComboBox = new ComboBox;
     m_sourceComboBox->addItems({
         tr("All tracks"),
         tr("Selected tracks"),
@@ -96,7 +98,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
         item->setCheckState(Qt::Unchecked);
     }
     mixingLayout->addRow(m_sourceListWidget);
-    m_mixingOptionComboBox = new QComboBox;
+    m_mixingOptionComboBox = new ComboBox;
     m_mixingOptionComboBox->addItems({
         tr("Mixed"),
         tr("Seperated"),

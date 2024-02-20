@@ -44,7 +44,7 @@ namespace FillLyric {
         // bottom layout
         m_splitLayout = new QHBoxLayout();
         splitLabel = new QLabel("Split Mode:");
-        splitComboBox = new QComboBox();
+        splitComboBox = new ComboBox();
         splitComboBox->addItems({"Auto", "By Char", "Custom", "By Reg"});
         btnSetting = new Button("Setting");
 

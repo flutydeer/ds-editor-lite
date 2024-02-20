@@ -4,7 +4,7 @@
 #include "Audio/AudioSystem.h"
 #include "Window/Dialogs/Dialog.h"
 
-class QComboBox;
+class ComboBox;
 class QCheckBox;
 class QDoubleSpinBox;
 
@@ -26,11 +26,11 @@ public:
     void setFileBufferingSizeMsec(double value);
 
 private:
-    QComboBox *m_driverComboBox;
-    QComboBox *m_deviceComboBox;
-    QComboBox *m_bufferSizeComboBox;
-    QComboBox *m_sampleRateComboBox;
-    QComboBox *m_hotPlugModeComboBox;
+    ComboBox *m_driverComboBox;
+    ComboBox *m_deviceComboBox;
+    ComboBox *m_bufferSizeComboBox;
+    ComboBox *m_sampleRateComboBox;
+    ComboBox *m_hotPlugModeComboBox;
     QCheckBox *m_closeDeviceAtBackgroundCheckBox;
     QCheckBox *m_closeDeviceOnPlaybackStopCheckBox;
     QDoubleSpinBox *m_fileBufferingSizeMsec;

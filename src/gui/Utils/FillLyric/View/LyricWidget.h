@@ -12,6 +12,7 @@
 #include "PhonicTextEdit.h"
 #include "PhonicWidget.h"
 #include "Controls/Button.h"
+#include "Controls/ComboBox.h"
 
 #include "../Utils/CleanLyric.h"
 #include "../Model/PhonicCommon.h"
@@ -81,7 +82,7 @@ namespace FillLyric {
         QCheckBox *skipSlur;
         QCheckBox *splitBySpace;
 
-        QComboBox *splitComboBox;
+        ComboBox *splitComboBox;
         Button *btnSetting;
     };
 

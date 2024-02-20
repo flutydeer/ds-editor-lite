@@ -1,30 +1,41 @@
 QPushButton {
-    background: #10FFFFFF;
-    border: 1px solid #80606060;
+    background: rgb(64, 64, 64);
+    border: none;
     font-size: 10pt;
     border-radius: 6px;
-    color: #F0F0F0;
+    color: rgb(242, 242, 242);
     padding: 4px 12px;
 }
 
 QPushButton:hover {
-    background-color: #1AFFFFFF;
+    background-color: rgb(72, 72, 72);
 }
 
 QPushButton:pressed {
-    background-color: #06FFFFFF
+    color: rgb(191, 191, 191);
+    background-color: rgb(56, 56, 56)
+}
+
+QPushButton:disabled {
+    color: rgb(127, 127, 127);
+    background-color: rgb(64, 64, 64)
 }
 
 QComboBox {
-    background: #10FFFFFF;
-    border: 1px solid #80606060;
+    background: rgb(64, 64, 64);
+    border: none;
     border-radius: 6px;
-    color: #F0F0F0;
+    color: rgb(242, 242, 242);
     padding: 4px 12px;
 }
 
 QComboBox:hover {
-    background-color: #1AFFFFFF;
+    background-color: rgb(72, 72, 72);
+}
+
+QComboBox:disabled {
+    color: rgb(127, 127, 127);
+    background-color: rgb(64, 64, 64)
 }
 
 QComboBox QAbstractItemView {
