@@ -3,6 +3,7 @@
 
 namespace FillLyric {
     enum TextType { EnWord, Hanzi, Digit, Number, Slur, Kana, Space, Other };
+    using LyricTypeList = QList<TextType>;
 
     enum SplitType { Auto, ByChar, Custom, ByReg };
 

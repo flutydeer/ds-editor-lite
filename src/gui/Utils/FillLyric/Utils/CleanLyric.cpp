@@ -62,61 +62,55 @@ namespace FillLyric {
         return TextType::Other;
     }
 
-    QPair<QList<QStringList>, QList<QList<TextType>>>
-        CleanLyric::cleanLyric(const QString &input, const QString &fermata) {
-        QList<QStringList> res;
-        QList<QList<TextType>> label;
-
-        QStringList currentLine;
-        QList<TextType> currentLabel;
+    QList<Phonic> CleanLyric::splitAuto(const QString &input, const QString &fermata) {
+        QList<Phonic> phonics;
 
         int pos = 0;
         while (pos < input.length()) {
             QChar currentChar = input[pos];
+            Phonic phonic;
             if (isLetter(currentChar)) {
                 int start = pos;
                 while (pos < input.length() && isLetter(input[pos])) {
                     pos++;
                 }
-                currentLabel.append(TextType::EnWord);
-                currentLine.append(input.mid(start, pos - start));
+                phonic.lyric = input.mid(start, pos - start);
+                phonic.lyricType = TextType::EnWord;
             } else if (isHanzi(currentChar)) {
-                currentLabel.append(TextType::Hanzi);
-                currentLine.append(input.mid(pos, 1));
+                phonic.lyric = input.mid(pos, 1);
+                phonic.lyricType = TextType::Hanzi;
                 pos++;
             } else if (currentChar.isDigit()) {
-                currentLabel.append(TextType::Digit);
-                currentLine.append(input.mid(pos, 1));
+                phonic.lyric = input.mid(pos, 1);
+                phonic.lyricType = TextType::Digit;
                 pos++;
             } else if (currentChar == fermata) {
-                currentLabel.append(TextType::Slur);
-                currentLine.append(input.mid(pos, 1));
+                phonic.lyric = input.mid(pos, 1);
+                phonic.lyricType = TextType::Slur;
                 pos++;
             } else if (isKana(currentChar)) {
                 int length = (pos + 1 < input.length() && isSpecialKana(input[pos + 1])) ? 2 : 1;
-                currentLabel.append(TextType::Kana);
-                currentLine.append(input.mid(pos, length));
+                phonic.lyric = input.mid(pos, length);
+                phonic.lyricType = TextType::Kana;
                 pos += length;
             } else if (!currentChar.isSpace()) {
-                currentLabel.append(TextType::Space);
-                currentLine.append(input.mid(pos, 1));
+                phonic.lyric = input.mid(pos, 1);
+                phonic.lyricType = TextType::Space;
                 pos++;
             } else if (currentChar == QChar::LineFeed) {
-                res.append(currentLine);
-                label.append(currentLabel);
-
-                currentLine.clear();
-                currentLabel.clear();
+                if (!phonics.isEmpty()) {
+                    phonics.last().lineFeed = true;
+                }
                 pos++;
             } else {
-                currentLabel.append(TextType::Other);
+                phonic.lyric = input.mid(pos, 1);
+                phonic.lyricType = TextType::Other;
                 pos++;
             }
+            if (!phonic.lyric.isEmpty())
+                phonics.append(phonic);
         }
-        if (!currentLine.isEmpty()) {
-            res.append(currentLine);
-            label.append(currentLabel);
-        }
-        return {res, label};
+
+        return phonics;
     }
 }

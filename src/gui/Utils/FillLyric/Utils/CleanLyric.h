@@ -9,8 +9,7 @@
 namespace FillLyric {
     class CleanLyric {
     public:
-        static QPair<QList<QStringList>, QList<QList<TextType>>>
-            cleanLyric(const QString &lyric, const QString &fermata = "-");
+        static QList<Phonic> splitAuto(const QString &input, const QString &fermata = "-");
 
         static TextType lyricType(const QString &lyric, const QString &fermata = "-");
 

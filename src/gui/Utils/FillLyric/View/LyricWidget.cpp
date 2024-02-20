@@ -15,6 +15,9 @@ namespace FillLyric {
         setAttribute(Qt::WA_StyledBackground);
         setObjectName("LyricWidget");
 
+        // textWidget
+        m_textEditWidget = new QWidget();
+
         // textEdit top
         m_textTopLayout = new QHBoxLayout();
         btnImportLrc = new QPushButton("导入lrc");
@@ -31,47 +34,8 @@ namespace FillLyric {
         m_textEditLayout->addLayout(m_textTopLayout);
         m_textEditLayout->addWidget(m_textEdit);
 
-        // phonicWidget
-        m_phonicWidget = new PhonicWidget(m_phonicNotes);
-
-        // tableTop layout
-        m_tableTopLayout = new QHBoxLayout();
-        btnToggleFermata = new QPushButton("收放延音符");
-        btnUndo = new QPushButton("撤销");
-        btnRedo = new QPushButton("重做");
-        noteCountLabel = new QLabel("0/0");
-
-        m_tableTopLayout->addWidget(btnToggleFermata);
-        m_tableTopLayout->addWidget(btnUndo);
-        m_tableTopLayout->addWidget(btnRedo);
-        m_tableTopLayout->addStretch(1);
-        m_tableTopLayout->addWidget(noteCountLabel);
-
-        // lyric option layout
-        m_lyricOptLayout = new QVBoxLayout();
-        btnInsertText = new QPushButton("插入测试文本");
-        btnToTable = new QPushButton(">>");
-        btnToText = new QPushButton("<<");
-
-        m_lyricOptLayout->addStretch(1);
-        m_lyricOptLayout->addWidget(btnInsertText);
-        m_lyricOptLayout->addWidget(btnToTable);
-        m_lyricOptLayout->addWidget(btnToText);
-        m_lyricOptLayout->addStretch(1);
-
-        // table layout
-        m_tableLayout = new QVBoxLayout();
-        m_tableLayout->addLayout(m_tableTopLayout);
-        m_tableLayout->addWidget(m_phonicWidget->tableView);
-
-        // lyric layout
-        m_lyricLayout = new QHBoxLayout();
-        m_lyricLayout->addLayout(m_textEditLayout, 2);
-        m_lyricLayout->addLayout(m_lyricOptLayout);
-        m_lyricLayout->addLayout(m_tableLayout, 3);
-
-        skipSlur = new QCheckBox("skip slur");
-        splitBySpace = new QCheckBox("split by space");
+        skipSlur = new QCheckBox("Skip Slur Note");
+        splitBySpace = new QCheckBox("Filter Space");
         m_skipSlurLayout = new QHBoxLayout();
         m_skipSlurLayout->addWidget(skipSlur);
         m_skipSlurLayout->addStretch(1);
@@ -81,10 +45,7 @@ namespace FillLyric {
         m_splitLayout = new QHBoxLayout();
         splitLabel = new QLabel("Split Mode:");
         splitComboBox = new QComboBox();
-        splitComboBox->addItem("Auto");
-        splitComboBox->addItem("By Char");
-        splitComboBox->addItem("Custom");
-        splitComboBox->addItem("By Reg");
+        splitComboBox->addItems({"Auto", "By Char", "Custom", "By Reg"});
         btnSetting = new QPushButton("Setting");
 
         m_splitLayout->addWidget(splitLabel);
@@ -94,6 +55,60 @@ namespace FillLyric {
 
         m_textEditLayout->addLayout(m_skipSlurLayout);
         m_textEditLayout->addLayout(m_splitLayout);
+
+        m_textEditWidget->setLayout(m_textEditLayout);
+
+
+        // lyric option widget
+        m_lyricOptWidget = new QWidget();
+
+        // lyric option layout
+        m_lyricOptLayout = new QVBoxLayout();
+        btnInsertText = new QPushButton("测试");
+        btnToTable = new QPushButton(">>");
+        btnToText = new QPushButton("<<");
+
+        m_lyricOptLayout->addStretch(1);
+        m_lyricOptLayout->addWidget(btnInsertText);
+        m_lyricOptLayout->addWidget(btnToTable);
+        m_lyricOptLayout->addWidget(btnToText);
+        m_lyricOptLayout->addStretch(1);
+
+        m_lyricOptWidget->setLayout(m_lyricOptLayout);
+
+        // tableWidget
+        m_tableWidget = new QWidget();
+
+        // phonicWidget
+        m_phonicWidget = new PhonicWidget(m_phonicNotes);
+
+        // tableTop layout
+        m_tableTopLayout = new QHBoxLayout();
+        btnFoldLeft = new QPushButton("收起左侧");
+        btnToggleFermata = new QPushButton("收放延音符");
+        btnUndo = new QPushButton("撤销");
+        btnRedo = new QPushButton("重做");
+        noteCountLabel = new QLabel("0/0");
+
+        m_tableTopLayout->addWidget(btnFoldLeft);
+        m_tableTopLayout->addWidget(btnToggleFermata);
+        m_tableTopLayout->addStretch(1);
+        m_tableTopLayout->addWidget(btnUndo);
+        m_tableTopLayout->addWidget(btnRedo);
+        m_tableTopLayout->addWidget(noteCountLabel);
+
+        // table layout
+        m_tableLayout = new QVBoxLayout();
+        m_tableLayout->addLayout(m_tableTopLayout);
+        m_tableLayout->addWidget(m_phonicWidget->tableView);
+
+        m_tableWidget->setLayout(m_tableLayout);
+
+        // lyric layout
+        m_lyricLayout = new QHBoxLayout();
+        m_lyricLayout->addWidget(m_textEditWidget, 1);
+        m_lyricLayout->addWidget(m_lyricOptWidget);
+        m_lyricLayout->addWidget(m_tableWidget, 2);
 
         // main layout
         m_mainLayout = new QVBoxLayout(this);
@@ -118,6 +133,13 @@ namespace FillLyric {
         // textEdit label
         connect(m_textEdit, &PhonicTextEdit::textChanged, this, &LyricWidget::_on_textEditChanged);
 
+        // fold left
+        connect(btnFoldLeft, &QPushButton::clicked, [this]() {
+            btnFoldLeft->setText(m_textEditWidget->isVisible() ? "展开左侧" : "收起左侧");
+            m_textEditWidget->setVisible(!m_textEditWidget->isVisible());
+            m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
+        });
+
         // undo redo
         auto modelHistory = ModelHistory::instance();
         connect(btnUndo, &QPushButton::clicked, modelHistory, &ModelHistory::undo);
@@ -130,12 +152,8 @@ namespace FillLyric {
         // 获取文本框的内容
         QString text = m_textEdit->toPlainText();
         // 获取歌词
-        auto res = CleanLyric::cleanLyric(text).first;
-        int lyricCount = 0;
-        for (auto &line : res) {
-            lyricCount += (int) line.size();
-        }
-        m_textCountLabel->setText(QString("字符数: %1").arg(lyricCount));
+        auto res = CleanLyric::splitAuto(text);
+        m_textCountLabel->setText(QString("字符数: %1").arg(res.size()));
     }
 
     void LyricWidget::_on_modelDataChanged() {
@@ -171,8 +189,7 @@ namespace FillLyric {
         // 获取文本框的内容
         QString text = m_textEdit->toPlainText();
 
-
-        m_phonicWidget->_init(CleanLyric::cleanLyric(text).first);
+        m_phonicWidget->_init(CleanLyric::splitAuto(text));
     }
 
     void LyricWidget::_on_btnToText_clicked() {

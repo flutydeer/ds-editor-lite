@@ -67,7 +67,7 @@ namespace FillLyric {
         PhonicModel *model;
 
     private:
-        void _init(QList<QList<QString>> lyricRes);
+        void _init(const QList<Phonic>& phonics);
         void resizeTable();
         QList<Phonic> updateLyric(QModelIndex index, const QString &text,
                                   const QList<Phonic> &oldPhonics);

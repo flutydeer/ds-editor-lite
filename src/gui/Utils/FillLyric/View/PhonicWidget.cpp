@@ -52,14 +52,25 @@ namespace FillLyric {
 
     PhonicWidget::~PhonicWidget() = default;
 
-    void PhonicWidget::_init(QList<QList<QString>> lyricRes) {
-        QList<QList<TextType>> labelRes;
-        for (auto &line : lyricRes) {
-            QList<TextType> labelLine;
-            for (auto &lyric : line) {
-                labelLine.append(CleanLyric::lyricType(lyric, "-"));
+    void PhonicWidget::_init(const QList<Phonic> &phonics) {
+        QList<QStringList> lyricRes;
+        QList<LyricTypeList> labelRes;
+
+        QStringList curLineLyric;
+        LyricTypeList curLineLabel;
+        for (const auto &phonic : phonics) {
+            curLineLyric.append(phonic.lyric);
+            curLineLabel.append(phonic.lyricType);
+            if (phonic.lineFeed) {
+                lyricRes.append(curLineLyric);
+                labelRes.append(curLineLabel);
+                curLineLyric.clear();
+                curLineLabel.clear();
             }
-            labelRes.append(labelLine);
+        }
+        if (!curLineLyric.isEmpty()) {
+            lyricRes.append(curLineLyric);
+            labelRes.append(curLineLabel);
         }
 
         // 清空表格
