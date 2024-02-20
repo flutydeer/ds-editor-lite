@@ -245,7 +245,7 @@ QTabWidget {
     border: none
 }
 
-QTab Widget::pane {
+QTabWidget::pane {
     border: none;
 }
 
@@ -305,4 +305,54 @@ QTableView>QHeaderView::section {
 
 QGroupBox {
     color: #F0F0F0;
+}
+
+QCheckBox {
+    border: none;
+    color: #F0F0F0;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+}
+
+QCheckBox::indicator:checked {
+    border: 1px solid #9BBAFF;
+    border-radius: 4px;
+    background-color: #9BBAFF;
+    image: url(:/svg/checkbox/check-line.svg);
+}
+
+QCheckBox::indicator:checked:hover {
+    border: 1px solid #9BBAFF;
+    background-color: #9BBAFF;
+}
+
+QCheckBox::indicator:checked:pressed {
+    border: 1px solid #9BBAFF;
+    background-color: #9BBAFF;
+}
+
+QCheckBox::indicator:checked:disabled {
+    border: 1px solid #606060;
+    background-color: #606060;
+}
+
+QCheckBox::indicator:unchecked {
+    border: 1px solid #80606060;
+    border-radius: 4px;
+    background-color: #10FFFFFF;
+}
+
+QCheckBox::indicator:unchecked:hover {
+    background-color: #80606060;
+}
+
+QCheckBox::indicator:unchecked:pressed {
+    background-color: #80606060;
+}
+
+QCheckBox::indicator:unchecked:disabled {
+    border: 1px solid #80606060;
 }
