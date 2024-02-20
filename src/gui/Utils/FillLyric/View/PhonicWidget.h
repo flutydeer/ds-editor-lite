@@ -29,9 +29,6 @@
 #include "PhonicEventFilter.h"
 
 namespace FillLyric {
-    using PhonicRole = PhonicDelegate::PhonicRole;
-    using LyricType = CleanLyric::LyricType;
-
     class PhonicWidget : public QWidget {
         Q_OBJECT
         friend class LyricWidget;

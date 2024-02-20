@@ -165,8 +165,13 @@ namespace FillLyric {
     }
 
     void LyricWidget::_on_btnToTable_clicked() {
+        auto skipSlur = this->skipSlur->isChecked();
+        auto splitType = SplitType(this->splitComboBox->currentIndex());
+
         // 获取文本框的内容
         QString text = m_textEdit->toPlainText();
+
+
         m_phonicWidget->_init(CleanLyric::cleanLyric(text).first);
     }
 

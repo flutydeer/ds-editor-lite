@@ -17,24 +17,11 @@
 #include "g2pglobal.h"
 #include "mandarin.h"
 
+#include "PhonicCommon.h"
 #include "../Model/PhonicNote.h"
-#include "../Utils/CleanLyric.h"
 #include "../View/PhonicDelegate.h"
 
-
 namespace FillLyric {
-    using PhonicRole = PhonicDelegate::PhonicRole;
-    using LyricType = CleanLyric::LyricType;
-
-    struct Phonic {
-        QString lyric;
-        QString syllable;
-        QStringList candidates;
-        QString syllableRevised;
-        LyricType lyricType;
-        QList<QString> fermata;
-        bool lineFeed = false;
-    };
 
     class PhonicModel : public QStandardItemModel {
         Q_OBJECT
@@ -67,7 +54,7 @@ namespace FillLyric {
         QStringList cellCandidates(int row, int col);
         bool setCandidates(int row, int col, const QStringList &candidate);
         int cellLyricType(int row, int col);
-        bool setLyricType(int row, int col, LyricType type);
+        bool setLyricType(int row, int col, TextType type);
         QStringList cellFermata(int row, int col);
         bool setFermata(int row, int col, const QList<QString> &fermata);
         bool cellLineFeed(int row, int col);

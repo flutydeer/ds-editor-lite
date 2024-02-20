@@ -7,16 +7,16 @@
 #include "PhonicModel.h"
 
 #include "../Utils/CleanLyric.h"
+#include "../Model/PhonicCommon.h"
 
 namespace FillLyric {
-    using LyricType = CleanLyric::LyricType;
-    class Syllable {
+    class Pron {
     public:
         QString original;
         QString edited;
 
-        Syllable() = default;
-        Syllable(QString original, QString edited = QString())
+        Pron() = default;
+        Pron(QString original, QString edited = QString())
             : original(std::move(original)), edited(std::move(edited)) {
         }
     };
@@ -24,27 +24,27 @@ namespace FillLyric {
     class PhonicNote {
     public:
         explicit PhonicNote() = default;
-        explicit PhonicNote(QString lyric, Syllable syllable, bool lineFeed = false)
-            : m_lyric(std::move(lyric)), m_syllable(std::move(syllable)), m_lineFeed(lineFeed) {
+        explicit PhonicNote(QString lyric, Pron pron, bool lineFeed = false)
+            : m_lyric(std::move(lyric)), m_pron(std::move(pron)), m_lineFeed(lineFeed) {
         }
 
         QString lyric() const;
         void setLyric(const QString &lyric);
-        Syllable pronunciation() const;
-        void setPronunciation(const Syllable &pronunciation);
+        Pron pronunciation() const;
+        void setPronunciation(const Pron &pronunciation);
         QStringList pronCandidates() const;
         void setPronCandidates(const QStringList &pronCandidates);
-        LyricType lyricType() const;
-        void setLyricType(LyricType lyricType);
+        TextType lyricType() const;
+        void setLyricType(TextType lyricType);
         bool lineFeed() const;
         void setLineFeed(bool lineFeed);
         bool isSlur() const;
 
     private:
         QString m_lyric;
-        Syllable m_syllable;
+        Pron m_pron;
         QStringList m_pronCandidates;
-        LyricType m_lyricType = LyricType::Other;
+        TextType m_lyricType = TextType::Other;
         bool m_lineFeed = false;
     };
 

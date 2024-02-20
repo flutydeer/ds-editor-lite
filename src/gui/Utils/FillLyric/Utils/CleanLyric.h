@@ -4,15 +4,15 @@
 #include <QList>
 #include <QString>
 
+#include "../Model/PhonicCommon.h"
+
 namespace FillLyric {
     class CleanLyric {
     public:
-        enum LyricType { EnWord, Hanzi, Digit, Number, Slur, Kana, Space, Other };
-
-        static QPair<QList<QStringList>, QList<QList<LyricType>>>
+        static QPair<QList<QStringList>, QList<QList<TextType>>>
             cleanLyric(const QString &lyric, const QString &fermata = "-");
 
-        static LyricType lyricType(const QString &lyric, const QString &fermata = "-");
+        static TextType lyricType(const QString &lyric, const QString &fermata = "-");
 
         static bool isLetter(QChar c);
 

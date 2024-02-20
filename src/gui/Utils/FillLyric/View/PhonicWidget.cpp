@@ -53,9 +53,9 @@ namespace FillLyric {
     PhonicWidget::~PhonicWidget() = default;
 
     void PhonicWidget::_init(QList<QList<QString>> lyricRes) {
-        QList<QList<CleanLyric::LyricType>> labelRes;
+        QList<QList<TextType>> labelRes;
         for (auto &line : lyricRes) {
-            QList<CleanLyric::LyricType> labelLine;
+            QList<TextType> labelLine;
             for (auto &lyric : line) {
                 labelLine.append(CleanLyric::lyricType(lyric, "-"));
             }
@@ -103,7 +103,7 @@ namespace FillLyric {
                     model->setData(model->index(i, j), candidateSyllables, PhonicRole::Candidate);
                 }
 
-                if (labels[j] == LyricType::Kana) {
+                if (labels[j] == TextType::Kana) {
                     auto romaji = g2p_jp.kanaToRomaji(lyrics[j]).at(0);
                     model->setSyllable(i, j, romaji);
                     model->setCandidates(i, j, QStringList() << romaji);
@@ -127,8 +127,8 @@ namespace FillLyric {
 
         auto lyricType = CleanLyric::lyricType(text, "-");
 
-        if (lyricType == LyricType::Slur) {
-            newPhonics[col].lyricType = LyricType::Slur;
+        if (lyricType == TextType::Slur) {
+            newPhonics[col].lyricType = TextType::Slur;
             newPhonics[col].syllable = text;
             newPhonics[col].candidates = QStringList() << text;
             return newPhonics;
@@ -155,7 +155,7 @@ namespace FillLyric {
         for (int i = 0; i < oldPhonics.size(); i++) {
             lyricType = CleanLyric::lyricType(lyrics[i], "-");
             newPhonics[i].lyricType = lyricType;
-            if (lyricType == LyricType::Kana) {
+            if (lyricType == TextType::Kana) {
                 auto romajiList = g2p_jp.kanaToRomaji(lyrics[i]);
                 if (!romajiList.isEmpty()) {
                     const auto &romaji = romajiList.at(0);
@@ -248,7 +248,7 @@ namespace FillLyric {
                 menu->addSeparator();
 
                 // 换行
-                if (model->cellLyricType(row, col) != LyricType::Slur)
+                if (model->cellLyricType(row, col) != TextType::Slur)
                     menu->addAction("换行", [this, index]() { lineBreak(index); });
                 // 合并到上一行
                 if (row > 0 && col == 0)

@@ -38,37 +38,37 @@ namespace FillLyric {
         return true;
     }
 
-    CleanLyric::LyricType CleanLyric::lyricType(const QString &lyric, const QString &fermata) {
+    TextType CleanLyric::lyricType(const QString &lyric, const QString &fermata) {
         if (lyric.size() > 1) {
             if (isEnglishWord(lyric)) {
-                return LyricType::EnWord;
+                return TextType::EnWord;
             } else if (isNumber(lyric)) {
-                return LyricType::Number;
+                return TextType::Number;
             }
         } else if (lyric.size() == 1) {
             QChar firstChar = lyric.at(0);
             if (isHanzi(firstChar)) {
-                return LyricType::Hanzi;
+                return TextType::Hanzi;
             } else if (firstChar.isDigit()) {
-                return LyricType::Digit;
+                return TextType::Digit;
             } else if (firstChar == fermata) {
-                return LyricType::Slur;
+                return TextType::Slur;
             } else if (isKana(firstChar)) {
-                return LyricType::Kana;
+                return TextType::Kana;
             } else if (firstChar.isLetter()) {
-                return LyricType::EnWord;
+                return TextType::EnWord;
             }
         }
-        return LyricType::Other;
+        return TextType::Other;
     }
 
-    QPair<QList<QStringList>, QList<QList<CleanLyric::LyricType>>>
+    QPair<QList<QStringList>, QList<QList<TextType>>>
         CleanLyric::cleanLyric(const QString &input, const QString &fermata) {
         QList<QStringList> res;
-        QList<QList<LyricType>> label;
+        QList<QList<TextType>> label;
 
         QStringList currentLine;
-        QList<LyricType> currentLabel;
+        QList<TextType> currentLabel;
 
         int pos = 0;
         while (pos < input.length()) {
@@ -78,27 +78,27 @@ namespace FillLyric {
                 while (pos < input.length() && isLetter(input[pos])) {
                     pos++;
                 }
-                currentLabel.append(LyricType::EnWord);
+                currentLabel.append(TextType::EnWord);
                 currentLine.append(input.mid(start, pos - start));
             } else if (isHanzi(currentChar)) {
-                currentLabel.append(LyricType::Hanzi);
+                currentLabel.append(TextType::Hanzi);
                 currentLine.append(input.mid(pos, 1));
                 pos++;
             } else if (currentChar.isDigit()) {
-                currentLabel.append(LyricType::Digit);
+                currentLabel.append(TextType::Digit);
                 currentLine.append(input.mid(pos, 1));
                 pos++;
             } else if (currentChar == fermata) {
-                currentLabel.append(LyricType::Slur);
+                currentLabel.append(TextType::Slur);
                 currentLine.append(input.mid(pos, 1));
                 pos++;
             } else if (isKana(currentChar)) {
                 int length = (pos + 1 < input.length() && isSpecialKana(input[pos + 1])) ? 2 : 1;
-                currentLabel.append(LyricType::Kana);
+                currentLabel.append(TextType::Kana);
                 currentLine.append(input.mid(pos, length));
                 pos += length;
             } else if (!currentChar.isSpace()) {
-                currentLabel.append(LyricType::Space);
+                currentLabel.append(TextType::Space);
                 currentLine.append(input.mid(pos, 1));
                 pos++;
             } else if (currentChar == QChar::LineFeed) {
@@ -109,7 +109,7 @@ namespace FillLyric {
                 currentLabel.clear();
                 pos++;
             } else {
-                currentLabel.append(LyricType::Other);
+                currentLabel.append(TextType::Other);
                 pos++;
             }
         }

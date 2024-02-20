@@ -13,7 +13,7 @@ namespace FillLyric {
         action->m_syllable = model->cellSyllable(row, col);
         action->m_candidates = model->cellCandidates(row, col);
         action->m_syllableRevised = model->cellSyllableRevised(row, col);
-        action->m_type = LyricType(model->cellLyricType(row, col));
+        action->m_type = TextType(model->cellLyricType(row, col));
         action->m_lineFeed = model->cellLineFeed(row, col);
         return action;
     }

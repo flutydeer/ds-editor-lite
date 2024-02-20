@@ -8,23 +8,14 @@
 #include <QStandardItemModel>
 
 #include "../Utils/CleanLyric.h"
+#include "../Model/PhonicCommon.h"
 
 namespace FillLyric {
-    using LyricType = CleanLyric::LyricType;
     class PhonicDelegate : public QStyledItemDelegate {
         Q_OBJECT
     public:
         explicit PhonicDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {
         }
-
-        enum PhonicRole {
-            Syllable = Qt::UserRole,
-            Candidate,
-            SyllableRevised,
-            LyricType,
-            FermataAddition,
-            LineFeed
-        };
 
         void setModelData(QWidget *editor, QAbstractItemModel *model,
                           const QModelIndex &index) const override;

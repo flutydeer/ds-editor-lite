@@ -12,8 +12,10 @@
 #include "PhonicTextEdit.h"
 #include "PhonicWidget.h"
 
-namespace FillLyric {
+#include "../Utils/CleanLyric.h"
+#include "../Model/PhonicCommon.h"
 
+namespace FillLyric {
     class LyricWidget : public QWidget {
         Q_OBJECT
     public:

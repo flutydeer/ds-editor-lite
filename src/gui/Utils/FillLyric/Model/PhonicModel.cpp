@@ -94,7 +94,7 @@ namespace FillLyric {
         return this->data(this->index(row, col), PhonicRole::LyricType).toInt();
     }
 
-    bool PhonicModel::setLyricType(const int row, const int col, LyricType type) {
+    bool PhonicModel::setLyricType(const int row, const int col, TextType type) {
         this->setData(this->index(row, col), type, PhonicRole::LyricType);
         return true;
     }
@@ -136,7 +136,7 @@ namespace FillLyric {
         phonic.syllable = cellSyllable(row, col);
         phonic.candidates = cellCandidates(row, col);
         phonic.syllableRevised = cellSyllableRevised(row, col);
-        phonic.lyricType = (LyricType) cellLyricType(row, col);
+        phonic.lyricType = (TextType) cellLyricType(row, col);
         phonic.fermata = cellFermata(row, col);
         phonic.lineFeed = cellLineFeed(row, col);
         return phonic;
@@ -239,10 +239,9 @@ namespace FillLyric {
             while (pos < currentLyricLength(row)) {
                 // 获取当前单元格的内容
                 auto currentType = cellLyricType(row, pos);
-                if (currentType == LyricType::Slur) {
+                if (currentType == TextType::Slur) {
                     int start = pos;
-                    while (pos < this->columnCount() &&
-                           cellLyricType(row, pos) == LyricType::Slur) {
+                    while (pos < this->columnCount() && cellLyricType(row, pos) == TextType::Slur) {
                         pos++;
                     }
 
@@ -288,7 +287,7 @@ namespace FillLyric {
                         setLyric(row, pos + j + 1, fermataList[j]);
                         setSyllable(row, pos + j + 1, fermataList[j]);
                         setCandidates(row, pos + j + 1, QStringList() << fermataList[j]);
-                        setLyricType(row, pos + j + 1, LyricType::Slur);
+                        setLyricType(row, pos + j + 1, TextType::Slur);
                     }
                     // 清空pos的FermataRole
                     setFermata(row, pos, QStringList());

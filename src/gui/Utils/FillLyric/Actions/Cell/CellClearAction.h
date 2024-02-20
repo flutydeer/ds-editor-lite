@@ -8,12 +8,10 @@
 #include "../../Model/PhonicModel.h"
 
 #include "../../Utils/CleanLyric.h"
+#include "../../Model/PhonicCommon.h"
 #include "../../View/PhonicDelegate.h"
 
 namespace FillLyric {
-    using LyricType = CleanLyric::LyricType;
-    using PhonicRole = PhonicDelegate::PhonicRole;
-
     class CellClearAction final : public MAction {
     public:
         static CellClearAction *build(const QModelIndex &index, PhonicModel *model);
@@ -28,7 +26,7 @@ namespace FillLyric {
         QString m_syllable;
         QStringList m_candidates;
         QString m_syllableRevised;
-        LyricType m_type = LyricType::Other;
+        TextType m_type = TextType::Other;
         bool m_lineFeed = false;
     };
 

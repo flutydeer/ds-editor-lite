@@ -27,8 +27,8 @@ namespace FillLyric {
         if (syllableRevised != "") {
             painter->setPen(QColor(255, 204, 153));
             syllable = syllableRevised;
-        } else if (text == syllable && lyricType != LyricType::Slur &&
-                   lyricType != LyricType::EnWord) {
+        } else if (text == syllable && lyricType != TextType::Slur &&
+                   lyricType != TextType::EnWord) {
             painter->setPen(Qt::darkBlue);
         } else if (candidateList.size() > 1) {
             painter->setPen(QColor(155, 186, 255));
@@ -37,7 +37,7 @@ namespace FillLyric {
         }
 
         QFont textFont(option.font);
-        if (lyricType == LyricType::EnWord) {
+        if (lyricType == TextType::EnWord) {
             textFont.setPointSize(textFont.pointSize() - 3);
         }
         QFont syllableFont = textFont;
@@ -52,12 +52,12 @@ namespace FillLyric {
         auto maxSyllableSize = (int) (delegateWidth / syllableFontXHeight) - 3;
 
         // 文本过长时，显示省略号
-        if (text.size() > maxTextSize && lyricType != LyricType::Hanzi) {
+        if (text.size() > maxTextSize && lyricType != TextType::Hanzi) {
             text = text.left(maxTextSize) + "...";
         }
 
         // 注音过长时，显示省略号
-        if (syllable.size() > maxSyllableSize && lyricType != LyricType::Hanzi) {
+        if (syllable.size() > maxSyllableSize && lyricType != TextType::Hanzi) {
             syllable = syllable.left(maxSyllableSize) + "...";
         }
 

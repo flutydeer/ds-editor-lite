@@ -10,12 +10,12 @@ namespace FillLyric {
         m_lyric = lyric;
     }
 
-    Syllable PhonicNote::pronunciation() const {
-        return m_syllable;
+    Pron PhonicNote::pronunciation() const {
+        return m_pron;
     }
 
-    void PhonicNote::setPronunciation(const Syllable &pronunciation) {
-        m_syllable = pronunciation;
+    void PhonicNote::setPronunciation(const Pron &pronunciation) {
+        m_pron = pronunciation;
     }
 
     QStringList PhonicNote::pronCandidates() const {
@@ -26,11 +26,11 @@ namespace FillLyric {
         m_pronCandidates = pronCandidates;
     }
 
-    LyricType PhonicNote::lyricType() const {
+    TextType PhonicNote::lyricType() const {
         return m_lyricType;
     }
 
-    void PhonicNote::setLyricType(LyricType lyricType) {
+    void PhonicNote::setLyricType(TextType lyricType) {
         m_lyricType = lyricType;
     }
 

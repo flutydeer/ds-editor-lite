@@ -47,12 +47,12 @@ namespace FillLyric {
     void LyricDialog::noteToPhonic() {
         for (auto note : m_notes) {
             auto lyric = note->lyric();
-            auto syllable = Syllable(note->pronunciation().original, note->pronunciation().edited);
+            auto syllable = Pron(note->pronunciation().original, note->pronunciation().edited);
             auto lineFeed = note->lineFeed();
 
             auto phonicNote = new PhonicNote(lyric, syllable, lineFeed);
             if (note->isSlur())
-                phonicNote->setLyricType(LyricType::Slur);
+                phonicNote->setLyricType(TextType::Slur);
 
             m_phonicNotes.append(phonicNote);
         }
