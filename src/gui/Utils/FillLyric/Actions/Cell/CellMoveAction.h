@@ -3,7 +3,7 @@
 
 #include "../../Model/PhonicModel.h"
 #include "../../History/MAction.h"
-#include "../../Utils/CleanLyric.h"
+
 #include "../../View/PhonicDelegate.h"
 
 namespace FillLyric {

@@ -6,7 +6,6 @@
 #include <utility>
 #include "PhonicModel.h"
 
-#include "../Utils/CleanLyric.h"
 #include "../Model/PhonicCommon.h"
 
 namespace FillLyric {

@@ -79,7 +79,7 @@ namespace FillLyric {
 
         // CheckBox
         QCheckBox *skipSlur;
-        QCheckBox *splitBySpace;
+        QCheckBox *excludeSpace;
 
         QComboBox *splitComboBox;
         Button *btnSetting;

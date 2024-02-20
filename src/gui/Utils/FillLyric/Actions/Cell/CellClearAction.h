@@ -7,7 +7,6 @@
 #include "../../History/MAction.h"
 #include "../../Model/PhonicModel.h"
 
-#include "../../Utils/CleanLyric.h"
 #include "../../Model/PhonicCommon.h"
 #include "../../View/PhonicDelegate.h"
 

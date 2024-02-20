@@ -1,4 +1,5 @@
 #include "CleanLyric.h"
+#include <QDebug>
 
 namespace FillLyric {
     bool CleanLyric::isLetter(QChar c) {
@@ -17,6 +18,10 @@ namespace FillLyric {
     bool CleanLyric::isSpecialKana(QChar c) {
         static QStringView specialKana = QStringLiteral("ャュョゃゅょァィゥェォぁぃぅぇぉ");
         return specialKana.contains(c);
+    }
+
+    bool CleanLyric::isLineBreak(QChar c) {
+        return c == QChar::LineFeed || c == QChar::LineSeparator || c == QChar::ParagraphSeparator;
     }
 
     bool isEnglishWord(const QString &word) {
@@ -38,6 +43,7 @@ namespace FillLyric {
         return true;
     }
 
+
     TextType CleanLyric::lyricType(const QString &lyric, const QString &fermata) {
         if (lyric.size() > 1) {
             if (isEnglishWord(lyric)) {
@@ -57,12 +63,15 @@ namespace FillLyric {
                 return TextType::Kana;
             } else if (firstChar.isLetter()) {
                 return TextType::EnWord;
+            } else if (firstChar == ' ') {
+                return TextType::Space;
             }
         }
         return TextType::Other;
     }
 
-    QList<Phonic> CleanLyric::splitAuto(const QString &input, const QString &fermata) {
+    QList<Phonic> CleanLyric::splitAuto(const QString &input, bool excludeSpace,
+                                        const QString &fermata) {
         QList<Phonic> phonics;
 
         int pos = 0;
@@ -93,11 +102,13 @@ namespace FillLyric {
                 phonic.lyric = input.mid(pos, length);
                 phonic.lyricType = TextType::Kana;
                 pos += length;
-            } else if (!currentChar.isSpace()) {
-                phonic.lyric = input.mid(pos, 1);
-                phonic.lyricType = TextType::Space;
+            } else if (currentChar == ' ') {
+                if (!excludeSpace) {
+                    phonic.lyric = input.mid(pos, 1);
+                    phonic.lyricType = TextType::Space;
+                }
                 pos++;
-            } else if (currentChar == QChar::LineFeed) {
+            } else if (isLineBreak(currentChar)) {
                 if (!phonics.isEmpty()) {
                     phonics.last().lineFeed = true;
                 }
@@ -111,6 +122,57 @@ namespace FillLyric {
                 phonics.append(phonic);
         }
 
+        return phonics;
+    }
+
+    QList<Phonic> CleanLyric::splitByChar(const QString &input, bool excludeSpace,
+                                          const QString &fermata) {
+        QList<Phonic> phonics;
+        for (int i = 0; i < input.length(); i++) {
+            QChar currentChar = input[i];
+            if (excludeSpace && currentChar == ' ') {
+                continue;
+            }
+            if (isLineBreak(currentChar)) {
+                if (!phonics.isEmpty()) {
+                    phonics.last().lineFeed = true;
+                }
+                continue;
+            }
+            Phonic phonic;
+            phonic.lyric = currentChar;
+            phonic.lyricType = lyricType(phonic.lyric, fermata);
+            phonics.append(phonic);
+        }
+        return phonics;
+    }
+
+    QList<Phonic> CleanLyric::splitCustom(const QString &input, const QStringList &splitter,
+                                          bool excludeSpace, const QString &fermata) {
+        QList<Phonic> phonics;
+        int pos = 0;
+        while (pos < input.length()) {
+            Phonic phonic;
+            int start = pos;
+            while (pos < input.length() && !splitter.contains(input[pos]) &&
+                   !(excludeSpace && input[pos] == ' ') && !isLineBreak(input[pos])) {
+                pos++;
+            }
+
+            auto lyric = input.mid(start, pos - start);
+            if (!lyric.isEmpty() && !splitter.contains(lyric) && !(excludeSpace && lyric == ' ')) {
+                phonic.lyric = lyric;
+                phonic.lyricType = lyricType(phonic.lyric, fermata);
+                phonics.append(phonic);
+            }
+
+            if (isLineBreak(input[pos])) {
+                if (!phonics.isEmpty()) {
+                    phonics.last().lineFeed = true;
+                }
+            }
+            pos++;
+        }
         return phonics;
     }
 }

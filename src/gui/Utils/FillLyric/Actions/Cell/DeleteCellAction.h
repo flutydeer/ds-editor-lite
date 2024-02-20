@@ -9,7 +9,6 @@
 #include "../../History/MAction.h"
 #include "../../Model/PhonicModel.h"
 
-#include "../../Utils/CleanLyric.h"
 #include "../../View/PhonicDelegate.h"
 
 namespace FillLyric {

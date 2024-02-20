@@ -35,11 +35,12 @@ namespace FillLyric {
         m_textEditLayout->addWidget(m_textEdit);
 
         skipSlur = new QCheckBox("Skip Slur Note");
-        splitBySpace = new QCheckBox("Filter Space");
+        excludeSpace = new QCheckBox("Exclude Space");
+        excludeSpace->setCheckState(Qt::Checked);
         m_skipSlurLayout = new QHBoxLayout();
         m_skipSlurLayout->addWidget(skipSlur);
         m_skipSlurLayout->addStretch(1);
-        m_skipSlurLayout->addWidget(splitBySpace);
+        m_skipSlurLayout->addWidget(excludeSpace);
 
         // bottom layout
         m_splitLayout = new QHBoxLayout();
@@ -184,12 +185,23 @@ namespace FillLyric {
 
     void LyricWidget::_on_btnToTable_clicked() {
         auto skipSlur = this->skipSlur->isChecked();
+        auto excludeSpace = this->excludeSpace->isChecked();
         auto splitType = SplitType(this->splitComboBox->currentIndex());
 
         // 获取文本框的内容
         QString text = m_textEdit->toPlainText();
+        QList<Phonic> splitRes;
 
-        m_phonicWidget->_init(CleanLyric::splitAuto(text));
+        if (splitType == SplitType::Auto) {
+            splitRes = CleanLyric::splitAuto(text, excludeSpace);
+        } else if (splitType == SplitType::ByChar) {
+            splitRes = CleanLyric::splitByChar(text, excludeSpace);
+        } else if (splitType == SplitType::Custom) {
+            splitRes = CleanLyric::splitCustom(text, QStringList() << "-", excludeSpace);
+        } else {
+        }
+
+        m_phonicWidget->_init(splitRes);
     }
 
     void LyricWidget::_on_btnToText_clicked() {
