@@ -3,8 +3,8 @@ QPushButton {
     border: none;
     font-size: 10pt;
     border-radius: 6px;
-    color: rgb(242, 242, 242);
-    padding: 4px 12px;
+    color: #f2f2f2;
+    padding: 6px 12px;
 }
 
 QPushButton:hover {
@@ -26,7 +26,7 @@ QComboBox {
     border: none;
     border-radius: 6px;
     color: rgb(242, 242, 242);
-    padding: 4px 12px;
+    padding: 6px 12px;
 }
 
 QComboBox:hover {
@@ -273,13 +273,11 @@ QTabBar::tab {
 }
 
 QTabBar::tab:hover {
-    background-color: #10FFFFFF;
     border-bottom-color: #20FFFFFF;
 }
 
 QTabBar::tab:selected {
     color: #9BBAFF;
-    background-color: #329BBAFF;
     border-bottom-color: #9BBAFF;
 }
 
@@ -329,41 +327,43 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:checked {
-    border: 1px solid #9BBAFF;
+    /* border: 1px solid #9BBAFF; */
+    border: none;
     border-radius: 4px;
-    background-color: #9BBAFF;
-    image: url(:/svg/checkbox/check-line.svg);
+    background-color: rgb(155, 186, 255);
+    image: url(:/svg/checkbox/check-line-padded.svg);
 }
 
 QCheckBox::indicator:checked:hover {
-    border: 1px solid #9BBAFF;
-    background-color: #9BBAFF;
+    /* border: 1px solid #9BBAFF; */
+    background-color: rgb(169, 196, 255);
 }
 
 QCheckBox::indicator:checked:pressed {
-    border: 1px solid #9BBAFF;
-    background-color: #9BBAFF;
+    /* border: 1px solid #9BBAFF; */
+    background-color: rgb(139, 175, 255);
 }
 
 QCheckBox::indicator:checked:disabled {
-    border: 1px solid #606060;
-    background-color: #606060;
+    /* border: 1px solid #606060; */
+    background-color: rgb(205, 205, 205);
 }
 
 QCheckBox::indicator:unchecked {
-    border: 1px solid #80606060;
+    border: none;
+    /* border: 1px solid #80606060; */
     border-radius: 4px;
-    background-color: #10FFFFFF;
+    background-color: rgb(64, 64, 64);
 }
 
 QCheckBox::indicator:unchecked:hover {
-    background-color: #80606060;
+    background-color: rgb(72, 72, 72);
 }
 
 QCheckBox::indicator:unchecked:pressed {
-    background-color: #80606060;
+    background-color: rgb(56, 56, 56);
 }
 
 QCheckBox::indicator:unchecked:disabled {
-    border: 1px solid #80606060;
+    border: 1px solid rgb(64, 64, 64);
 }

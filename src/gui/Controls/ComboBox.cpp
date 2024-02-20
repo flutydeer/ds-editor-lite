@@ -29,7 +29,6 @@ void ComboBox::initUi() {
         "border: 1px solid #606060; "
         "border-radius: 6px; color: #F0F0F0; selection-background-color: #FFFFFF; }"
         "QComboBox QAbstractItemView:item { padding: 4px; border-radius: 4px; border: none; }"
-        "QComboBox QAbstractItemView::item:hover { background-color: #f6f6f6; }"
         "QComboBox QAbstractItemView::item:selected { background-color: #329BBAFF; }";
     auto styledItemDelegate = new QStyledItemDelegate();
     setItemDelegate(styledItemDelegate);
