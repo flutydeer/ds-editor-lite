@@ -223,13 +223,15 @@ void NoteGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 //         setSelected(true);
 // }
 void NoteGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
-    const auto rx = event->pos().rx();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolarance ||
-        rx >= rect().width() - AppGlobal::resizeTolarance && rx <= rect().width())
-        setCursor(Qt::SizeHorCursor);
-    else
-        setCursor(Qt::ArrowCursor);
-
+    // qDebug() << "NoteGraphicsItem::hoverMoveEvent" << event->pos().rx();
+    if (!m_editingPitch) {
+        const auto rx = event->pos().rx();
+        if (rx >= 0 && rx <= AppGlobal::resizeTolarance ||
+            rx >= rect().width() - AppGlobal::resizeTolarance && rx <= rect().width())
+            setCursor(Qt::SizeHorCursor);
+        else
+            setCursor(Qt::ArrowCursor);
+    }
     QGraphicsRectItem::hoverMoveEvent(event);
 }
 void NoteGraphicsItem::updateRectAndPos() {

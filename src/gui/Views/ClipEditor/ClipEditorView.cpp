@@ -10,6 +10,7 @@
 #include "Controller/PlaybackController.h"
 #include "Controller/TracksViewController.h"
 #include "GraphicsItem/PianoRollBackgroundGraphicsItem.h"
+#include "GraphicsItem/PitchEditorGraphicsItem.h"
 #include "Model/AppModel.h"
 #include "Views/Common/TimelineView.h"
 
@@ -19,12 +20,6 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
             &ClipEditorView::onClipNameEdited);
     connect(m_toolbarView, &ClipEditorToolBarView::editModeChanged, this,
             &ClipEditorView::onEditModeChanged);
-
-    // auto pitchItem = new PitchEditorGraphicsItem;
-    // QObject::connect(pianoRollView, &TracksGraphicsView::visibleRectChanged, pitchItem,
-    //                  &PitchEditorGraphicsItem::setVisibleRect);
-    // QObject::connect(pianoRollView, &TracksGraphicsView::scaleChanged, pitchItem,
-    // &PitchEditorGraphicsItem::setScale); pianoRollScene->addItem(pitchItem);
 
     m_pianoRollScene = new PianoRollGraphicsScene;
     m_pianoRollView = new PianoRollGraphicsView(m_pianoRollScene);
