@@ -31,6 +31,8 @@ namespace FillLyric {
         void _on_btnToText_clicked();
         void _on_btnImportLrc_clicked();
 
+        void _on_splitComboBox_currentIndexChanged(int index);
+
         // count
         void _on_textEditChanged();
         void _on_modelDataChanged();

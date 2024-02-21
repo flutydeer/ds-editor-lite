@@ -133,6 +133,9 @@ namespace FillLyric {
         Phonic phonic;
         // 根据span的包含的角色，将row行col列的数据取出
         phonic.lyric = cellLyric(row, col);
+        if (phonic.lyric.isEmpty()) {
+            return phonic;
+        }
         phonic.syllable = cellSyllable(row, col);
         phonic.candidates = cellCandidates(row, col);
         phonic.syllableRevised = cellSyllableRevised(row, col);

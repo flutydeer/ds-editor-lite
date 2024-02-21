@@ -145,6 +145,10 @@ namespace FillLyric {
         auto modelHistory = ModelHistory::instance();
         connect(btnUndo, &QPushButton::clicked, modelHistory, &ModelHistory::undo);
         connect(btnRedo, &QPushButton::clicked, modelHistory, &ModelHistory::redo);
+
+        // splitComboBox
+        connect(splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+                &LyricWidget::_on_splitComboBox_currentIndexChanged);
     }
 
     LyricWidget::~LyricWidget() = default;
@@ -246,6 +250,15 @@ namespace FillLyric {
         auto lyrics = decoder.dumpLyrics();
         // 设置文本框内容
         m_textEdit->setText(lyrics.join("\n"));
+    }
+
+    void LyricWidget::_on_splitComboBox_currentIndexChanged(int index) {
+        auto splitType = SplitType(index);
+        if (splitType == SplitType::Custom) {
+            excludeSpace->setText("Split By Space");
+        } else {
+            excludeSpace->setText("Exclude Space");
+        }
     }
 
 } // FillLyric

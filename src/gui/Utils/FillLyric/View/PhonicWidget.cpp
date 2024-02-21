@@ -188,7 +188,8 @@ namespace FillLyric {
             return;
         }
 
-        for (int i = 0; i < model->currentLyricLength(row); i++) {
+        // 取整行的数据
+        for (int i = 0; i < model->columnCount(); i++) {
             oldPhonicList.append(model->takeData(row, i));
         }
 
