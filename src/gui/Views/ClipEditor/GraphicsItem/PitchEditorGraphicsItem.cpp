@@ -15,7 +15,7 @@ using namespace ClipEditorGlobal;
 
 PitchEditorGraphicsItem::PitchEditorGraphicsItem() {
     setBackgroundColor(Qt::transparent);
-    loadOpensvipPitchParam();
+    // loadOpensvipPitchParam();
 }
 PitchEditorGraphicsItem::EditMode PitchEditorGraphicsItem::editMode() const {
     return m_editMode;

@@ -387,7 +387,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
             auto clip = findClipItemById(clipItem->id());
             if (clip == clipItem) {
                 Clip::AudioClipPropertyChangedArgs args;
-                args.trackIndex = trackIndex;
+                args.trackIndex = clipItem->trackIndex();
                 args.name = clipItem->name();
                 args.id = clipItem->id();
                 args.start = clipItem->start();
@@ -436,7 +436,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
             auto clip = findClipItemById(clipItem->id());
             if (clip == clipItem) {
                 Clip::ClipCommonProperties args;
-                args.trackIndex = trackIndex;
+                args.trackIndex = clipItem->trackIndex();
                 args.name = clipItem->name();
                 args.id = clipItem->id();
                 args.start = clipItem->start();
