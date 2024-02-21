@@ -45,14 +45,21 @@ namespace FillLyric {
         // bottom layout
         m_splitLayout = new QHBoxLayout();
         splitLabel = new QLabel("Split Mode:");
-        splitComboBox = new ComboBox();
+        splitComboBox = new ComboBox(true);
         splitComboBox->addItems({"Auto", "By Char", "Custom", "By Reg"});
-        btnSetting = new Button("Setting");
+        btnRegSetting = new Button("Setting");
+        m_splitters = new QLineEdit();
+        m_splitters->setToolTip("Custom delimiter, input with space intervals. If you want to use "
+                                "spaces as separators, please check the checkbox above.");
+
+        m_splitters->setVisible(false);
+        btnRegSetting->setVisible(false);
 
         m_splitLayout->addWidget(splitLabel);
         m_splitLayout->addWidget(splitComboBox);
         m_splitLayout->addStretch(1);
-        m_splitLayout->addWidget(btnSetting);
+        m_splitLayout->addWidget(btnRegSetting);
+        m_splitLayout->addWidget(m_splitters);
 
         m_textEditLayout->addLayout(m_skipSlurLayout);
         m_textEditLayout->addLayout(m_splitLayout);
@@ -89,6 +96,7 @@ namespace FillLyric {
         btnToggleFermata = new Button("收放延音符");
         btnUndo = new Button("撤销");
         btnRedo = new Button("重做");
+        btnTableConfig = new Button("设置");
         noteCountLabel = new QLabel("0/0");
 
         m_tableTopLayout->addWidget(btnFoldLeft);
@@ -96,6 +104,7 @@ namespace FillLyric {
         m_tableTopLayout->addStretch(1);
         m_tableTopLayout->addWidget(btnUndo);
         m_tableTopLayout->addWidget(btnRedo);
+        m_tableTopLayout->addWidget(btnTableConfig);
         m_tableTopLayout->addWidget(noteCountLabel);
 
         // table layout
@@ -105,11 +114,16 @@ namespace FillLyric {
 
         m_tableWidget->setLayout(m_tableLayout);
 
+        // table setting widget
+        m_tableConfigWidget = new TableConfigWidget(m_phonicWidget->tableView);
+        m_tableConfigWidget->setVisible(false);
+
         // lyric layout
         m_lyricLayout = new QHBoxLayout();
-        m_lyricLayout->addWidget(m_textEditWidget, 1);
+        m_lyricLayout->addWidget(m_textEditWidget, 3);
         m_lyricLayout->addWidget(m_lyricOptWidget);
-        m_lyricLayout->addWidget(m_tableWidget, 2);
+        m_lyricLayout->addWidget(m_tableWidget, 5);
+        m_lyricLayout->addWidget(m_tableConfigWidget);
 
         // main layout
         m_mainLayout = new QVBoxLayout(this);
@@ -149,15 +163,40 @@ namespace FillLyric {
         // splitComboBox
         connect(splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
                 &LyricWidget::_on_splitComboBox_currentIndexChanged);
+
+        // tableConfig
+        connect(btnTableConfig, &QPushButton::clicked,
+                [this]() { m_tableConfigWidget->setVisible(!m_tableConfigWidget->isVisible()); });
+
+        // tableConfigWidget
+        connect(m_tableConfigWidget->m_aspectRatioSpinBox,
+                QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_phonicWidget,
+                &PhonicWidget::setAspectRatio);
+        connect(m_tableConfigWidget->m_fontDiffSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+                m_phonicWidget, &PhonicWidget::setFontSizeDiff);
+        connect(m_tableConfigWidget->m_fontDiffSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+                m_phonicWidget->delegate, [this](int diff) {
+                    m_phonicWidget->delegate->setFontSizeDiff(diff);
+                    m_phonicWidget->resizeTable();
+                });
     }
 
     LyricWidget::~LyricWidget() = default;
 
     void LyricWidget::_on_textEditChanged() {
+        auto splitType = SplitType(this->splitComboBox->currentIndex());
         // 获取文本框的内容
         QString text = m_textEdit->toPlainText();
         // 获取歌词
-        auto res = CleanLyric::splitAuto(text);
+        QList<Phonic> res;
+        if (splitType == SplitType::Auto) {
+            res = CleanLyric::splitAuto(text, excludeSpace->isChecked());
+        } else if (splitType == SplitType::ByChar) {
+            res = CleanLyric::splitByChar(text, excludeSpace->isChecked());
+        } else if (splitType == SplitType::Custom) {
+            res = CleanLyric::splitCustom(text, QStringList() << "-", excludeSpace->isChecked());
+        } else {
+        }
         m_textCountLabel->setText(QString("字符数: %1").arg(res.size()));
     }
 
@@ -201,7 +240,7 @@ namespace FillLyric {
         } else if (splitType == SplitType::ByChar) {
             splitRes = CleanLyric::splitByChar(text, excludeSpace);
         } else if (splitType == SplitType::Custom) {
-            splitRes = CleanLyric::splitCustom(text, QStringList() << "-", excludeSpace);
+            splitRes = CleanLyric::splitCustom(text, m_splitters->text().split(' '), excludeSpace);
         } else {
         }
 
@@ -254,11 +293,14 @@ namespace FillLyric {
 
     void LyricWidget::_on_splitComboBox_currentIndexChanged(int index) {
         auto splitType = SplitType(index);
-        if (splitType == SplitType::Custom) {
-            excludeSpace->setText("Split By Space");
-        } else {
-            excludeSpace->setText("Exclude Space");
-        }
+        QString checkBoxName = "Exclude Space";
+        if (splitType == SplitType::Custom)
+            checkBoxName = "Split By Space";
+
+        m_splitters->setVisible(splitType == SplitType::Custom);
+        btnRegSetting->setVisible(splitType == SplitType::ByReg);
+
+        excludeSpace->setText(checkBoxName);
     }
 
 } // FillLyric

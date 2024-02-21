@@ -22,8 +22,12 @@ namespace FillLyric {
         void paint(QPainter *painter, const QStyleOptionViewItem &option,
                    const QModelIndex &index) const override;
 
+        void setFontSizeDiff(int diff);
     Q_SIGNALS:
         void lyricEdited(QModelIndex index, const QString &text) const;
+
+    private:
+        int fontSizeDiff = 3;
     };
 }
 

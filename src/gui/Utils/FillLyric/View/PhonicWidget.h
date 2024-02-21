@@ -63,12 +63,15 @@ namespace FillLyric {
 
         void _on_btnToggleFermata_clicked();
 
+        void setFontSizeDiff(int diff);
+        void setAspectRatio(double ratio);
+
     protected:
         QTableView *tableView;
         PhonicModel *model;
 
     private:
-        void _init(const QList<Phonic>& phonics);
+        void _init(const QList<Phonic> &phonics);
         void resizeTable();
         QList<Phonic> updateLyric(QModelIndex index, const QString &text,
                                   const QList<Phonic> &oldPhonics);
@@ -78,6 +81,10 @@ namespace FillLyric {
 
         int maxLyricLength = 0;
         int maxSyllableLength = 0;
+
+        int fontSizeDiff = 3;
+        double rowHeightRatio = 2.5;
+        double cellAspectRatio = 1.5;
 
         PhonicDelegate *delegate;
         PhonicEventFilter *eventFilter;

@@ -121,6 +121,9 @@ namespace FillLyric {
     void PhonicModel::putData(const int row, const int col, const Phonic &phonic) {
         // 将phonic的内容放到row行col列
         setLyric(row, col, phonic.lyric);
+        if (phonic.lyric.isEmpty()) {
+            return;
+        }
         setSyllable(row, col, phonic.syllable);
         setCandidates(row, col, phonic.candidates);
         setSyllableRevised(row, col, phonic.syllableRevised);

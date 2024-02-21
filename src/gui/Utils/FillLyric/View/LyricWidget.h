@@ -11,6 +11,8 @@
 
 #include "PhonicTextEdit.h"
 #include "PhonicWidget.h"
+#include "TableConfigWidget.h"
+
 #include "Controls/Button.h"
 #include "Controls/ComboBox.h"
 
@@ -63,6 +65,7 @@ namespace FillLyric {
         // Widgets
         PhonicTextEdit *m_textEdit;
         PhonicWidget *m_phonicWidget;
+        TableConfigWidget *m_tableConfigWidget;
 
         // Labels
         QLabel *m_textCountLabel;
@@ -79,13 +82,17 @@ namespace FillLyric {
         Button *btnToggleFermata;
         Button *btnUndo;
         Button *btnRedo;
+        Button *btnTableConfig;
 
         // CheckBox
         QCheckBox *skipSlur;
         QCheckBox *excludeSpace;
 
         ComboBox *splitComboBox;
-        Button *btnSetting;
+        Button *btnRegSetting;
+
+        // LineEdit
+        QLineEdit *m_splitters;
     };
 
 } // FillLyric
