@@ -67,7 +67,7 @@ private:
     int m_keyIndex = 60;
     QString m_lyric;
     QString m_pronunciation;
-    bool m_editingPitch = true;
+    bool m_editingPitch = false;
 
     int m_startOffset = 0;
     int m_lengthOffset = 0;

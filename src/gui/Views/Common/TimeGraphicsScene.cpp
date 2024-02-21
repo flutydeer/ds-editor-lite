@@ -9,6 +9,6 @@ void TimeGraphicsScene::addTimeGrid(TimeGridGraphicsItem *item) {
     addItem(item);
 }
 void TimeGraphicsScene::addTimeIndicator(TimeIndicatorGraphicsItem *item) {
-    item->setZValue(1);
+    item->setZValue(100);
     addItem(item);
 }

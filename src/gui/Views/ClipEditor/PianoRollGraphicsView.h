@@ -11,6 +11,8 @@
 #include "Model/Note.h"
 #include "Views/Common/TimeGraphicsView.h"
 
+class PitchEditorGraphicsItem;
+
 using namespace ClipEditorGlobal;
 
 class PianoRollGraphicsView final : public TimeGraphicsView {
@@ -62,6 +64,8 @@ private:
     enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
     NoteGraphicsItem *m_currentEditingNote = nullptr;
 
+    PitchEditorGraphicsItem *m_pitchItem;
+
     bool m_selecting = false;
     QList<Note *> m_cachedSelectedNotes;
     void updateSelectionState();
@@ -96,6 +100,8 @@ private:
     double sceneYToKeyIndexDouble(double y) const;
     int sceneYToKeyIndexInt(double y) const;
     QList<NoteGraphicsItem *> selectedNoteItems() const;
+    void setPitchEditMode(bool on);
+    NoteGraphicsItem *noteItemAt(const QPoint &pos);
 };
 
 #endif // PIANOROLLGRAPHICSVIEW_H

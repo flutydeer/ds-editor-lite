@@ -6,6 +6,7 @@
 #include "PianoRollGraphicsView.h"
 
 #include "GraphicsItem/PianoRollBackgroundGraphicsItem.h"
+#include "GraphicsItem/PitchEditorGraphicsItem.h"
 #include "Model/AppModel.h"
 #include "Utils/AppGlobal.h"
 #include "Utils/MathUtils.h"
@@ -26,6 +27,15 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene)
             &NoteGraphicsItem::setScale);
     connect(this, &PianoRollGraphicsView::visibleRectChanged, m_currentDrawingNote,
             &NoteGraphicsItem::setVisibleRect);
+
+    m_pitchItem = new PitchEditorGraphicsItem;
+    m_pitchItem->setZValue(2);
+    connect(this, &PianoRollGraphicsView::visibleRectChanged, m_pitchItem,
+            &PitchEditorGraphicsItem::setVisibleRect);
+    connect(this, &PianoRollGraphicsView::scaleChanged, m_pitchItem,
+            &PitchEditorGraphicsItem::setScale);
+    scene->addItem(m_pitchItem);
+    m_pitchItem->setTransparentForMouseEvents(true);
 }
 void PianoRollGraphicsView::onSceneSelectionChanged() {
     if (m_canNotifySelectedNoteChanged)
@@ -92,15 +102,14 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     m_selecting = true;
     if (event->button() != Qt::LeftButton) {
         m_mouseMoveBehavior = None;
-        if (auto item = itemAt(event->pos()))
-            if (auto noteItem = dynamic_cast<NoteGraphicsItem *>(item)) {
-                if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteItem))
-                    clearNoteSelections();
-                noteItem->setSelected(true);
-            } else if (auto gridItem = dynamic_cast<PianoRollBackgroundGraphicsItem *>(item)) {
+        if (auto noteItem = noteItemAt(event->pos())) {
+            if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteItem))
                 clearNoteSelections();
-            }
-        TimeGraphicsView::mousePressEvent(event);
+            noteItem->setSelected(true);
+        } else {
+            clearNoteSelections();
+            TimeGraphicsView::mousePressEvent(event);
+        }
         return;
     }
 
@@ -110,37 +119,31 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     auto keyIndex = sceneYToKeyIndexInt(scenePos.y());
 
     if (m_mode == Select) {
-        if (auto item = itemAt(event->pos()))
-            if (auto noteItem = dynamic_cast<NoteGraphicsItem *>(item)) {
-                auto rPos = noteItem->mapFromScene(scenePos);
-                auto ry = rPos.y();
-                auto mouseInFilledRect =
-                    ry < noteItem->rect().height() - noteItem->pronunciationTextHeight();
-                if (mouseInFilledRect)
-                    prepareForMovingOrResizingNotes(event, scenePos, keyIndex, noteItem);
-                else
-                    TimeGraphicsView::mousePressEvent(event);
-            } else {
+        if (auto noteItem = noteItemAt(event->pos())) {
+            auto rPos = noteItem->mapFromScene(scenePos);
+            auto ry = rPos.y();
+            auto mouseInFilledRect =
+                ry < noteItem->rect().height() - noteItem->pronunciationTextHeight();
+            if (mouseInFilledRect)
+                prepareForMovingOrResizingNotes(event, scenePos, keyIndex, noteItem);
+            else
                 TimeGraphicsView::mousePressEvent(event);
-            }
-        else
+        } else
             TimeGraphicsView::mousePressEvent(event);
     } else if (m_mode == DrawNote) {
         clearNoteSelections();
-        if (auto item = itemAt(event->pos())) {
-            if (dynamic_cast<PianoRollBackgroundGraphicsItem *>(item)) { // mouse down on background
+        if (auto noteItem = noteItemAt(event->pos())) {
+            qDebug() << "DrawNote mode, move or resize note";
+            auto rPos = noteItem->mapFromScene(scenePos);
+            auto ry = rPos.y();
+            auto mouseInFilledRect =
+                ry < noteItem->rect().height() - noteItem->pronunciationTextHeight();
+            if (mouseInFilledRect)
+                prepareForMovingOrResizingNotes(event, scenePos, keyIndex, noteItem);
+            else
                 PrepareForDrawingNote(tick, keyIndex);
-            } else if (auto noteItem = dynamic_cast<NoteGraphicsItem *>(item)) {
-                qDebug() << "DrawNote mode, move or resize note";
-                auto rPos = noteItem->mapFromScene(scenePos);
-                auto ry = rPos.y();
-                auto mouseInFilledRect =
-                    ry < noteItem->rect().height() - noteItem->pronunciationTextHeight();
-                if (mouseInFilledRect)
-                    prepareForMovingOrResizingNotes(event, scenePos, keyIndex, noteItem);
-                else
-                    PrepareForDrawingNote(tick, keyIndex);
-            }
+        } else {
+            PrepareForDrawingNote(tick, keyIndex);
         }
     } else
         TimeGraphicsView::mousePressEvent(event);
@@ -371,6 +374,19 @@ QList<NoteGraphicsItem *> PianoRollGraphicsView::selectedNoteItems() const {
     }
     return list;
 }
+void PianoRollGraphicsView::setPitchEditMode(bool on) {
+    for (auto note : m_noteItems)
+        note->setEditingPitch(on);
+    if (on)
+        clearNoteSelections();
+    m_pitchItem->setTransparentForMouseEvents(!on);
+}
+NoteGraphicsItem *PianoRollGraphicsView::noteItemAt(const QPoint &pos) {
+    for (const auto item : items(pos))
+        if (auto noteItem = dynamic_cast<NoteGraphicsItem *>(item))
+            return noteItem;
+    return nullptr;
+}
 void PianoRollGraphicsView::reset() {
     for (auto note : m_noteItems) {
         scene()->removeItem(note);
@@ -426,15 +442,18 @@ void PianoRollGraphicsView::setIsSingingClip(bool isSingingClip) {
 void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {
     m_mode = mode;
     switch (m_mode) {
-
         case Select:
             setDragMode(RubberBandDrag);
+            setPitchEditMode(false);
             break;
-
         case DrawNote:
+            setDragMode(NoDrag);
+            setPitchEditMode(false);
+            break;
         case DrawPitch:
         case EditPitchAnchor:
             setDragMode(NoDrag);
+            setPitchEditMode(true);
             break;
     }
 }

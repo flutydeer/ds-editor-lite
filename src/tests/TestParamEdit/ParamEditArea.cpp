@@ -7,21 +7,6 @@
 #include <QPainter>
 #include <QPainterPath>
 
-ParamEditArea::ParamEditArea(QWidget *parent) {
-}
-
-ParamEditArea::~ParamEditArea() {
-}
-
-void ParamEditArea::loadParam(const ParamModel::RealParamCurve &param) {
-    //    m_param = param;
-    update();
-}
-
-void ParamEditArea::saveParam(ParamModel::RealParamCurve &param) {
-    //    param = m_param;
-}
-
 void ParamEditArea::paintEvent(QPaintEvent *event) {
     auto rectHeight = rect().height();
     auto colorPrimary = QColor(155, 186, 255);
@@ -38,36 +23,32 @@ void ParamEditArea::paintEvent(QPaintEvent *event) {
     QPen pen;
     pen.setColor(colorPrimary);
     pen.setWidthF(1.5);
-
-    QBrush brush;
-    //    brush.setColor(QColor(112, 156, 255, 127));
-
     painter.setPen(pen);
-    //    painter.setBrush(brush);
-
     QPainterPath path;
+
     //    for (const auto curve : m_curves){
     //
     //
     //    }
-    if (curve.values().count() > 0) {
-        auto firstValue = curve.values().first();
-        path.moveTo(curve.pos(), rectHeight);
+    if (m_editingCurve->values().count() > 0) {
+        auto firstValue = m_editingCurve->values().first();
+        path.moveTo(m_editingCurve->start(), rectHeight);
         int i = 0;
         painter.setBrush(gradient);
-        for (const auto value : curve.values()) {
-            auto x = curve.pos() + i * curve.step();
+        for (const auto value : m_editingCurve->values()) {
+            auto x = m_editingCurve->start() + i * m_editingCurve->step();
             auto y = value;
             path.lineTo(x, y);
             i++;
         }
-        int lastX = curve.pos() + (i - 1) * curve.step();
+        int lastX = m_editingCurve->start() + (i - 1) * m_editingCurve->step();
         path.lineTo(lastX, rectHeight);
         painter.drawPath(path);
 
         pen.setColor(colorAccent);
         painter.setPen(pen);
-        painter.drawLine(QPoint(curve.pos(), rectHeight), QPoint(curve.pos(), firstValue));
+        painter.drawLine(QPoint(m_editingCurve->start(), rectHeight),
+                         QPoint(m_editingCurve->start(), firstValue));
 
         // i = 0;
         // pen.setColor(colorPrimary);
@@ -118,48 +99,49 @@ void ParamEditArea::mousePressEvent(QMouseEvent *event) {
         auto tick = event->x();
         auto value = event->y();
         if (firstDraw) {
-            curve.setPos(tick);
+            m_editingCurve->setPos(tick);
             firstDraw = false;
         }
-        curve.drawPoint(tick, value);
+        m_editingCurve->drawPoint(tick, value);
         update();
     }
     QWidget::mousePressEvent(event);
 }
 
 void ParamEditArea::mouseMoveEvent(QMouseEvent *event) {
-    auto tick = event->x();
-    auto value = event->y();
-    curve.drawPoint(tick, value);
+    auto tick = event->pos().x();
+    auto value = event->pos().y();
+    m_editingCurve->drawPoint(tick, value);
     update();
     QWidget::mouseMoveEvent(event);
 }
 
 void ParamEditArea::mouseReleaseEvent(QMouseEvent *event) {
-    curve.drawEnd();
+    m_editingCurve->drawEnd();
     QWidget::mouseReleaseEvent(event);
 }
+HandDrawCurve *ParamEditArea::findCurveByPos(double tick) {
+    for (auto curve : m_curves)
+        if (curve->start() <= tick && curve->end() >= tick)
+            return curve;
 
-HandDrawCurve::HandDrawCurve() {
+    return nullptr;
 }
 
-HandDrawCurve::HandDrawCurve(int pos, int step) {
-}
-
-HandDrawCurve::~HandDrawCurve() {
-}
-
-int HandDrawCurve::pos() const {
-    return m_pos;
+int HandDrawCurve::start() const {
+    return m_start;
 }
 
 QList<int> HandDrawCurve::values() const {
     return m_values;
 }
+int HandDrawCurve::end() const {
+    return m_start + m_step * m_values.count();
+}
 
 void HandDrawCurve::setPos(int tick) {
     qDebug() << "set pos" << tick;
-    m_pos = tick;
+    m_start = tick;
 }
 
 void HandDrawCurve::drawPoint(int tick, int value) {
@@ -181,8 +163,8 @@ void HandDrawCurve::drawPoint(int tick, int value) {
     }
 
     if (!m_drawing) {
-        m_prevDrawPos.setX(tick);
-        m_prevDrawPos.setY(value);
+        m_mouseDownPos.setX(tick);
+        m_mouseDownPos.setY(value);
         m_drawing = true;
     }
 
@@ -194,17 +176,17 @@ void HandDrawCurve::drawPoint(int tick, int value) {
         return int(y1 + (x - x1) * ratio);
     };
 
-    if (tick > m_pos) {
-        int prevPos = m_prevDrawPos.x();
-        int prevValue = m_prevDrawPos.y();
+    if (tick > m_start) {
+        int prevPos = m_mouseDownPos.x();
+        int prevValue = m_mouseDownPos.y();
         int curPos = qMin(prevPos, tick);
         int right = qMax(prevPos, tick);
-        int curveEnd = m_pos + m_values.count() * m_step;
+        int curveEnd = m_start + m_values.count() * m_step;
 
         while (curPos < right) {
             auto curValue = valueAt(prevPos, prevValue, tick, value, curPos);
             if (curPos < curveEnd) { // Draw in curve
-                int index = (curPos - m_pos) / m_step;
+                int index = (curPos - m_start) / m_step;
                 m_values.replace(index, curValue);
             } else {
                 m_values.append(curValue);
@@ -212,36 +194,35 @@ void HandDrawCurve::drawPoint(int tick, int value) {
             curPos += m_step;
             qDebug() << "paint" << curPos << curValue;
         }
-//        m_values.replace((tick - m_pos) / m_step, value);
-    } else if (tick < m_pos) {
+        //        m_values.replace((tick - m_pos) / m_step, value);
+    } else if (tick < m_start) {
         qDebug() << "<pos";
         int curPos = tick;
         int i = 0;
-        while (curPos < m_pos) {
-            auto curValue = valueAt(tick, value, m_pos, m_values.first(), curPos);
+        while (curPos < m_start) {
+            auto curValue = valueAt(tick, value, m_start, m_values.first(), curPos);
             m_values.insert(i, curValue);
             curPos += m_step;
             i++;
         }
-        m_pos = tick;
+        m_start = tick;
     } else {
         qDebug() << "=pos";
         m_values.replace(0, value);
     }
 
-    m_prevDrawPos.setX(tick);
-    m_prevDrawPos.setY(value);
+    m_mouseDownPos.setX(tick);
+    m_mouseDownPos.setY(value);
 }
 
 int HandDrawCurve::valueAt(int tick) {
-    int curveEnd = m_pos + m_values.count() * m_step;
-    if (tick < m_pos || tick > curveEnd)
+    int curveEnd = m_start + m_values.count() * m_step;
+    if (tick < m_start || tick > curveEnd)
         return 0;
-    else {
-        int index = (tick - m_pos) / m_step;
-        int value = m_values.at(index);
-        return value;
-    }
+
+    int index = (tick - m_start) / m_step;
+    int value = m_values.at(index);
+    return value;
 }
 int HandDrawCurve::step() const {
     return m_step;

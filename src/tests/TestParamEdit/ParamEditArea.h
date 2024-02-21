@@ -5,49 +5,39 @@
 #ifndef DATASET_TOOLS_PARAMEDITAREA_H
 #define DATASET_TOOLS_PARAMEDITAREA_H
 
+#include "../../gui/Utils/IOverlapable.h"
+#include "../../gui/Utils/UniqueObject.h"
+#include "../../gui/Utils/OverlapableSerialList.h"
+
 #include <QFrame>
 
-#include <ParamModel.h>
-
-class HandDrawCurve {
+class HandDrawCurve : public UniqueObject, public IOverlapable {
 public:
-    explicit HandDrawCurve();
-    explicit HandDrawCurve(int pos, int step = 5);
-    ~HandDrawCurve();
-
-    int pos() const;
+    int start() const;
     int step() const;
     QList<int> values() const;
+    int end() const;
 
     void setPos(int tick);
-//    void setStep(int step);
     void drawPoint(int tick, int value);
     void drawEnd();
     int valueAt(int tick);
-    int elemAt(int index);
     void insert(int tick, int value);
     bool remove(int tick);
     bool merge(const HandDrawCurve &curve);
     void clear();
 
 protected:
-    int m_pos = 0;
+    int m_start = 0;
     int m_step = 1;
     QList<int> m_values;
 
-    QPoint m_prevDrawPos;
+    QPoint m_mouseDownPos;
     bool m_drawing = false;
 };
 
 class ParamEditArea : public QFrame {
     Q_OBJECT
-
-public:
-    explicit ParamEditArea(QWidget *parent = nullptr);
-    ~ParamEditArea() override;
-
-    void loadParam(const ParamModel::RealParamCurve &param);
-    void saveParam(ParamModel::RealParamCurve &param);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -56,12 +46,12 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
 
-//    ParamModel::RealParamCurve m_param;
-//    QVector<QPoint> m_points;
-    QList<HandDrawCurve> m_curves;
-    HandDrawCurve curve;
+    OverlapableSerialList<HandDrawCurve> m_curves;
+    HandDrawCurve *m_editingCurve = new HandDrawCurve;
     bool firstDraw = true;
     QPoint m_prevPos;
+
+    HandDrawCurve *findCurveByPos(double tick);
 };
 
 
