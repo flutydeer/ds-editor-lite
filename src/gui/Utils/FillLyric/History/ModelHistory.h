@@ -5,11 +5,11 @@
 #include <QStack>
 
 #include "MActionSequence.h"
-#include "Utils/QSingleton.h"
+#include "Utils/Singleton.h"
 
 namespace FillLyric {
 
-    class ModelHistory final : public QObject, public QSingleton<ModelHistory> {
+    class ModelHistory final : public QObject, public Singleton<ModelHistory> {
         Q_OBJECT
     public:
         void undo();

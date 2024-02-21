@@ -180,10 +180,6 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
             selectedNotes = dynamic_cast<SingingClip *>(selectedClip)->selectedNotes();
     }
 
-    qDebug() << "fillLyric: "
-             << "trackIndex: " << selectedTrackIndex << "clipIndex: " << selectedClipIndex
-             << "selectedNotes: " << selectedNotes.size();
-
     auto lyricDialog = new FillLyric::LyricDialog(selectedNotes, parent);
     lyricDialog->show();
 

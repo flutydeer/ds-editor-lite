@@ -13,7 +13,7 @@
 namespace FillLyric {
 
     PhonicWidget::PhonicWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
-        : g2p_man(new IKg2p::Mandarin()), g2p_jp(new IKg2p::JpG2p()),
+        : g2p_man(G2pMandarin::instance()), g2p_jp(G2pJapanese::instance()),
           m_phonicNotes(std::move(phonicNotes)), QWidget(parent) {
 
         // 创建模型和视图
@@ -89,7 +89,7 @@ namespace FillLyric {
         for (int i = 0; i < lyricRes.size(); i++) {
             auto lyrics = lyricRes[i];
             auto labels = labelRes[i];
-            QStringList syllables = g2p_man.hanziToPinyin(lyrics, false, false);
+            QStringList syllables = g2p_man->hanziToPinyin(lyrics, false, false);
 
             for (int j = 0; j < lyricRes[i].size(); j++) {
                 // 设置歌词
@@ -99,7 +99,7 @@ namespace FillLyric {
                 // 设置注音
                 model->setSyllable(i, j, syllables[j]);
 
-                auto candidateSyllables = g2p_man.getDefaultPinyin(lyrics[j], false);
+                auto candidateSyllables = g2p_man->getDefaultPinyin(lyrics[j], false);
 
                 // 候选音节中最长的音节长度
                 for (const auto &syllable : candidateSyllables) {
@@ -115,7 +115,7 @@ namespace FillLyric {
                 }
 
                 if (labels[j] == TextType::Kana) {
-                    auto romaji = g2p_jp.kanaToRomaji(lyrics[j]).at(0);
+                    auto romaji = g2p_jp->kanaToRomaji(lyrics[j]).at(0);
                     model->setSyllable(i, j, romaji);
                     model->setCandidates(i, j, QStringList() << romaji);
                 }
@@ -151,7 +151,7 @@ namespace FillLyric {
             lyrics.append(newPhonic.lyric);
         }
 
-        auto syllables = g2p_man.hanziToPinyin(lyrics, false, false);
+        auto syllables = g2p_man->hanziToPinyin(lyrics, false, false);
         // 设置当前行所有单元格的Syllable
         for (int i = 0; i < oldPhonics.size(); i++) {
             newPhonics[i].syllable = syllables[i];
@@ -159,7 +159,7 @@ namespace FillLyric {
 
         // 设置当前行所有单元格的Candidate
         for (int i = 0; i < oldPhonics.size(); i++) {
-            newPhonics[i].candidates = g2p_man.getDefaultPinyin(lyrics[i], false);
+            newPhonics[i].candidates = g2p_man->getDefaultPinyin(lyrics[i], false);
         }
 
         // 设置当前行所有单元格的LyricType
@@ -167,7 +167,7 @@ namespace FillLyric {
             lyricType = CleanLyric::lyricType(lyrics[i], "-");
             newPhonics[i].lyricType = lyricType;
             if (lyricType == TextType::Kana) {
-                auto romajiList = g2p_jp.kanaToRomaji(lyrics[i]);
+                auto romajiList = g2p_jp->kanaToRomaji(lyrics[i]);
                 if (!romajiList.isEmpty()) {
                     const auto &romaji = romajiList.at(0);
                     newPhonics[i].syllable = romaji;

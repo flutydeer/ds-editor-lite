@@ -17,8 +17,8 @@
 #include <QAbstractButton>
 
 #include "g2pglobal.h"
-#include "mandarin.h"
-#include "jpg2p.h"
+#include "Utils/G2p/G2pMandarin.h"
+#include "Utils/G2p/G2pJapanese.h"
 
 #include "../Utils/CleanLyric.h"
 #include "../Model/PhonicModel.h"
@@ -90,8 +90,8 @@ namespace FillLyric {
         PhonicEventFilter *eventFilter;
 
         // Model
-        IKg2p::Mandarin g2p_man;
-        IKg2p::JpG2p g2p_jp;
+        G2pMandarin *g2p_man;
+        G2pJapanese *g2p_jp;
 
         // Layout
         QVBoxLayout *mainLayout;
