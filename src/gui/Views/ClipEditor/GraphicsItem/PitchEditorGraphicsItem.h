@@ -43,20 +43,32 @@ public:
 
     EditMode editMode() const;
     void setEditMode(const EditMode &mode);
+    void loadOpensvipPitchParam();
     // void loadParam();
     // QList<FreeCurve> mergedPitchParam();
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     // void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
-    // void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
-    // void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
+    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     // void hoverEnterEvent(QGraphicsSceneHoverEvent *event) override;
     // void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
     // void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
+    void drawOpensvipPitchParam(QPainter *painter);
 
     EditMode m_editMode = Off;
+    double startTick() const;
+    double endTick() const;
+    double sceneXToTick(double x) const;
+    double tickToSceneX(double tick) const;
+    double sceneXToItemX(double x) const;
+    double tickToItemX(double tick) const;
+    double pitchToSceneY(double pitch) const;
+    double sceneYToItemY(double y) const;
+    double pitchToItemY(double pitch) const;
 };
 
 #endif // PITCHEDITORGRAPHICSITEM_H

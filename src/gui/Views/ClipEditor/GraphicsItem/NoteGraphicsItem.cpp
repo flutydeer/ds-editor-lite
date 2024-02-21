@@ -126,10 +126,10 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     const auto borderColorNormal = QColor(112, 156, 255);
     const auto borderColorSelected = QColor(255, 255, 255);
     const auto borderColorOverlapped = AppGlobal::overlappedViewBorder;
-    const auto borderColorEditingPitch = QColor(155, 186, 255, 220);
+    const auto borderColorEditingPitch = QColor(155, 186, 255, 160);
 
     const auto foregroundColorNormal = QColor(0, 0, 0);
-    const auto foregroundColorEditingPitch = QColor(155, 186, 255, 220);
+    const auto foregroundColorEditingPitch = QColor(155, 186, 255, 160);
 
     const auto pronunciationTextColor = QColor(200, 200, 200);
 
