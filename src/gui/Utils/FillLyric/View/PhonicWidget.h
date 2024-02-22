@@ -60,6 +60,8 @@ namespace FillLyric {
         void lineMergeUp(QModelIndex index);
 
         void _on_cellEditClosed(QModelIndex index, const QString &text);
+        void _on_setToolTip(const QModelIndex &index);
+        void _on_clearToolTip(const QModelIndex &index);
         void _on_showContextMenu(const QPoint &pos);
 
         void _on_changePhonetic(const QModelIndex &index, QMenu *menu);

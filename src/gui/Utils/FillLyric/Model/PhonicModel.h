@@ -59,6 +59,7 @@ namespace FillLyric {
         bool setFermata(int row, int col, const QList<QString> &fermata);
         bool cellLineFeed(int row, int col);
         bool setLineFeed(int row, int col, bool lineFeed);
+        QString cellToolTip(int row, int col);
 
         // Cell operations
         void putData(int row, int col, const Phonic &phonic);
@@ -70,6 +71,8 @@ namespace FillLyric {
         Phonic cellTake(const QModelIndex &index);
         void cellClear(const QModelIndex &index);
         void cellMove(const QModelIndex &source, const QModelIndex &target);
+
+        QString cellToolTip(const QModelIndex &index);
 
         void cellMoveLeft(const QModelIndex &index);
         void cellMoveRight(const QModelIndex &index);

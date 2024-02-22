@@ -23,7 +23,10 @@ namespace FillLyric {
                    const QModelIndex &index) const override;
 
         void setFontSizeDiff(int diff);
+
     Q_SIGNALS:
+        void setToolTip(QModelIndex index) const;
+        void clearToolTip(QModelIndex index) const;
         void lyricEdited(QModelIndex index, const QString &text) const;
 
     private:

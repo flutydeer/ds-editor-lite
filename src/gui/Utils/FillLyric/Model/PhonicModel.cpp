@@ -117,6 +117,10 @@ namespace FillLyric {
         return true;
     }
 
+    QString PhonicModel::cellToolTip(int row, int col) {
+        return this->data(this->index(row, col), Qt::ToolTipRole).toString();
+    }
+
     // Cell operations
     void PhonicModel::putData(const int row, const int col, const Phonic &phonic) {
         // 将phonic的内容放到row行col列
@@ -209,6 +213,10 @@ namespace FillLyric {
         int col = source.column();
         // 将source的内容移动到target
         moveData(row, col, target.row(), target.column());
+    }
+
+    QString PhonicModel::cellToolTip(const QModelIndex &index) {
+        return this->data(index, Qt::ToolTipRole).toString();
     }
 
     void PhonicModel::cellMoveLeft(const QModelIndex &index) {

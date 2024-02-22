@@ -37,6 +37,8 @@ namespace FillLyric {
 
         // PhonicDelegate signals
         connect(delegate, &PhonicDelegate::lyricEdited, this, &PhonicWidget::_on_cellEditClosed);
+        connect(delegate, &PhonicDelegate::setToolTip, this, &PhonicWidget::_on_setToolTip);
+        connect(delegate, &PhonicDelegate::clearToolTip, this, &PhonicWidget::_on_clearToolTip);
 
         // PhonicEventFilter signals
         connect(eventFilter, &PhonicEventFilter::fontSizeChanged, this, [this] { resizeTable(); });
@@ -184,6 +186,14 @@ namespace FillLyric {
         a->cellEdit(index, model, oldPhonicList, newPhonicList);
         a->execute();
         ModelHistory::instance()->record(a);
+    }
+
+    void PhonicWidget::_on_setToolTip(const QModelIndex &index) {
+        model->setData(index, model->cellLyric(index.row(), index.column()), Qt::ToolTipRole);
+    }
+
+    void PhonicWidget::_on_clearToolTip(const QModelIndex &index) {
+        model->setData(index, QVariant(), Qt::ToolTipRole);
     }
 
     void PhonicWidget::autoWrap() {

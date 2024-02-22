@@ -8,6 +8,7 @@ namespace FillLyric {
     enum SplitType { Auto, ByChar, Custom, ByReg };
 
     enum PhonicRole {
+        Tooltip = Qt::ToolTipRole,
         Syllable = Qt::UserRole,
         Candidate,
         SyllableRevised,

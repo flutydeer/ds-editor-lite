@@ -53,9 +53,16 @@ namespace FillLyric {
         auto maxTextSize = (int) (delegateWidth / textFontXHeight) - 3;
         auto maxSyllableSize = (int) (delegateWidth / syllableFontXHeight) - 3;
 
+        bool addToolTip = text.size() > 1 && text.size() > maxTextSize && maxTextSize > 0;
+        QString cellToolTip = index.data(Qt::ToolTipRole).toString();
+        if (!cellToolTip.isEmpty() && !addToolTip) {
+            Q_EMIT this->clearToolTip(index);
+        }
+
         // 文本过长时，显示省略号
-        if (text.size() > 1 && text.size() > maxTextSize && maxTextSize > 0) {
+        if (addToolTip) {
             text = text.left(maxTextSize) + "...";
+            Q_EMIT this->setToolTip(index);
         }
 
         // 注音过长时，显示省略号
