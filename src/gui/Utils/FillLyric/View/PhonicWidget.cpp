@@ -368,7 +368,7 @@ namespace FillLyric {
             ModelHistory::instance()->record(a);
         } else {
             auto a = new WrapCellActions();
-            a->deleteWrapCell(index, model);
+            a->deleteWrapCell(index, model, tableView);
             a->execute();
             ModelHistory::instance()->record(a);
         }
@@ -382,7 +382,7 @@ namespace FillLyric {
             ModelHistory::instance()->record(a);
         } else {
             auto a = new WrapCellActions();
-            a->insertWrapCell(index, model);
+            a->insertWrapCell(index, model, tableView);
             a->execute();
             ModelHistory::instance()->record(a);
         }

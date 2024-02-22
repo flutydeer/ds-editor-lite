@@ -2,10 +2,13 @@
 
 namespace FillLyric {
 
-    DeleteWrapCellAction *DeleteWrapCellAction::build(const QModelIndex &index,
-                                                      PhonicModel *model) {
+    DeleteWrapCellAction *DeleteWrapCellAction::build(const QModelIndex &index, PhonicModel *model,
+                                                      QTableView *tableView) {
         auto *action = new DeleteWrapCellAction;
         action->m_model = model;
+        action->m_tableView = tableView;
+        action->m_scrollBarValue = tableView->verticalScrollBar()->value();
+
         action->m_indexRow = index.row();
         action->m_indexCol = index.column();
 
@@ -36,6 +39,8 @@ namespace FillLyric {
             m_model->putData(i / m_modelColumnCount, i % m_modelColumnCount,
                              m_rawPhonics[i + offset]);
         }
+        // 滚动到m_viewPortHeight
+        m_tableView->verticalScrollBar()->setValue(m_scrollBarValue);
     }
 
     void DeleteWrapCellAction::undo() {
@@ -46,5 +51,6 @@ namespace FillLyric {
         for (int i = 0; i < m_rawPhonics.size(); i++) {
             m_model->putData(i / m_modelColumnCount, i % m_modelColumnCount, m_rawPhonics[i]);
         }
+        m_tableView->verticalScrollBar()->setValue(m_scrollBarValue);
     }
 } // FillLyric

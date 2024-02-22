@@ -1,10 +1,14 @@
 #include "InsertWarpCellAction.h"
 
 namespace FillLyric {
-    InsertWarpCellAction *InsertWarpCellAction::build(const QModelIndex &index,
-                                                      PhonicModel *model) {
+    InsertWarpCellAction *InsertWarpCellAction::build(const QModelIndex &index, PhonicModel *model,
+                                                      QTableView *tableView) {
         auto action = new InsertWarpCellAction;
         action->m_model = model;
+        action->m_tableView = tableView;
+
+        action->m_scrollBarValue = tableView->verticalScrollBar()->value();
+
         action->m_indexRow = index.row();
         action->m_indexCol = index.column();
 
@@ -40,6 +44,7 @@ namespace FillLyric {
             m_model->putData(i / m_modelColumnCount, i % m_modelColumnCount,
                              m_rawPhonics[i + offset]);
         }
+        m_tableView->verticalScrollBar()->setValue(m_scrollBarValue);
     }
 
     void InsertWarpCellAction::undo() {
@@ -50,5 +55,6 @@ namespace FillLyric {
         for (int i = 0; i < m_rawPhonics.size(); i++) {
             m_model->putData(i / m_modelColumnCount, i % m_modelColumnCount, m_rawPhonics[i]);
         }
+        m_tableView->verticalScrollBar()->setValue(m_scrollBarValue);
     }
 } // FillLyric
