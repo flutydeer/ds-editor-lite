@@ -7,7 +7,7 @@
 
 #include "ClipEditorToolBarView.h"
 
-#include "Controls/ToolTip.h"
+#include "Controls/ToolTipFilter.h"
 
 ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) {
     setObjectName("ClipEditorToolBarView");

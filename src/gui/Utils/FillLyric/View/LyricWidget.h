@@ -19,6 +19,8 @@
 #include "../Utils/CleanLyric.h"
 #include "../Model/PhonicCommon.h"
 
+class LineEdit;
+
 namespace FillLyric {
     class LyricWidget : public QWidget {
         Q_OBJECT
@@ -92,7 +94,7 @@ namespace FillLyric {
         Button *btnRegSetting;
 
         // LineEdit
-        QLineEdit *m_splitters;
+        LineEdit *m_splitters;
     };
 
 } // FillLyric

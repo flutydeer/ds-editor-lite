@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "../Utils/LrcTools/LrcDecoder.h"
+#include "Controls/LineEdit.h"
 
 namespace FillLyric {
 
@@ -64,7 +65,7 @@ namespace FillLyric {
         splitComboBox = new ComboBox(true);
         splitComboBox->addItems({"Auto", "By Char", "Custom", "By Reg"});
         btnRegSetting = new Button("Setting");
-        m_splitters = new QLineEdit();
+        m_splitters = new LineEdit();
         m_splitters->setToolTip("Custom delimiter, input with space intervals. If you want to use "
                                 "spaces as separators, please check the checkbox above.");
 
