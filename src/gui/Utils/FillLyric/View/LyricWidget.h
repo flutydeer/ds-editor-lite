@@ -54,7 +54,6 @@ namespace FillLyric {
         QVBoxLayout *m_textEditLayout;
         QHBoxLayout *m_textTopLayout;
         QHBoxLayout *m_skipSlurLayout;
-        QHBoxLayout *m_splitLayout;
 
         QWidget *m_lyricOptWidget;
         QVBoxLayout *m_lyricOptLayout;

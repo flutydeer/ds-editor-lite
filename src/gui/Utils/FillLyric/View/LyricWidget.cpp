@@ -12,9 +12,6 @@ namespace FillLyric {
 
     LyricWidget::LyricWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
         : QWidget(parent), m_phonicNotes(std::move(phonicNotes)) {
-        setAttribute(Qt::WA_StyledBackground);
-        setObjectName("LyricWidget");
-
         // textWidget
         m_textEditWidget = new QWidget();
 
@@ -42,27 +39,7 @@ namespace FillLyric {
         m_skipSlurLayout->addStretch(1);
         m_skipSlurLayout->addWidget(excludeSpace);
 
-        // bottom layout
-        m_splitLayout = new QHBoxLayout();
-        splitLabel = new QLabel("Split Mode:");
-        splitComboBox = new ComboBox(true);
-        splitComboBox->addItems({"Auto", "By Char", "Custom", "By Reg"});
-        btnRegSetting = new Button("Setting");
-        m_splitters = new QLineEdit();
-        m_splitters->setToolTip("Custom delimiter, input with space intervals. If you want to use "
-                                "spaces as separators, please check the checkbox above.");
-
-        m_splitters->setVisible(false);
-        btnRegSetting->setVisible(false);
-
-        m_splitLayout->addWidget(splitLabel);
-        m_splitLayout->addWidget(splitComboBox);
-        m_splitLayout->addStretch(1);
-        m_splitLayout->addWidget(btnRegSetting);
-        m_splitLayout->addWidget(m_splitters);
-
         m_textEditLayout->addLayout(m_skipSlurLayout);
-        m_textEditLayout->addLayout(m_splitLayout);
 
         m_textEditWidget->setLayout(m_textEditLayout);
 
@@ -80,6 +57,24 @@ namespace FillLyric {
         m_lyricOptLayout->addWidget(btnInsertText);
         m_lyricOptLayout->addWidget(btnToTable);
         m_lyricOptLayout->addWidget(btnToText);
+        m_lyricOptLayout->addStretch(1);
+
+        // bottom layout
+        splitLabel = new QLabel("Split Mode :");
+        splitComboBox = new ComboBox(true);
+        splitComboBox->addItems({"Auto", "By Char", "Custom", "By Reg"});
+        btnRegSetting = new Button("Setting");
+        m_splitters = new QLineEdit();
+        m_splitters->setToolTip("Custom delimiter, input with space intervals. If you want to use "
+                                "spaces as separators, please check the checkbox above.");
+
+        m_splitters->setVisible(false);
+        btnRegSetting->setVisible(false);
+
+        m_lyricOptLayout->addWidget(splitLabel);
+        m_lyricOptLayout->addWidget(splitComboBox);
+        m_lyricOptLayout->addWidget(btnRegSetting);
+        m_lyricOptLayout->addWidget(m_splitters);
         m_lyricOptLayout->addStretch(1);
 
         m_lyricOptWidget->setLayout(m_lyricOptLayout);
@@ -122,9 +117,9 @@ namespace FillLyric {
         // lyric layout
         m_lyricLayout = new QHBoxLayout();
         m_lyricLayout->addWidget(m_textEditWidget, 3);
-        m_lyricLayout->addWidget(m_lyricOptWidget);
+        m_lyricLayout->addWidget(m_lyricOptWidget, 1);
         m_lyricLayout->addWidget(m_tableWidget, 5);
-        m_lyricLayout->addWidget(m_tableConfigWidget);
+        m_lyricLayout->addWidget(m_tableConfigWidget, 1);
 
         // main layout
         m_mainLayout = new QVBoxLayout(this);
