@@ -92,8 +92,8 @@ Note Note::deserialize(const QJsonObject &objNote) {
     note.setLength(objNote.value("length").toInt());
     note.setKeyIndex(objNote.value("keyIndex").toInt());
     note.setLyric(objNote.value("lyric").toString());
-    // TODO: deserialize pronunciation
-    // TODO: deserialize phonemes
+    //TODO: deserialize pronunciation
+    //TODO: deserialize phonemes
     return note;
 }
 QDataStream &operator<<(QDataStream &out, const Pronunciation &pronunciation) {
@@ -141,11 +141,6 @@ QJsonObject Pronunciation::serialize(const Pronunciation &pronunciation) {
     objPronunciation.insert("edited", pronunciation.edited);
     return objPronunciation;
 }
-Pronunciation Pronunciation::deserialize(const QJsonObject &objPronunciation) {
-    Qstring originalData = objPronunciation.value("original").toString();
-    Qstring editedData = objPronunciation.value("original").toString();
-    return Pronunciation(originalData,editedData);
-}
 QJsonObject Phonemes::serialize(const Phonemes &phonemes) {
     QJsonObject objPhonemes;
     auto serializePhoneme = [](QJsonArray &array, const QList<Phoneme> &phonemes) {
@@ -164,25 +159,6 @@ QJsonObject Phonemes::serialize(const Phonemes &phonemes) {
     objPhonemes.insert("original", arrOriginal);
     objPhonemes.insert("edited", arrEdited);
     return objPhonemes;
-}
-Phonemes Phonemes::deserialize(const QJsonObject  &objPhonemes) {
-    Phonemes phonemes;
-    auto deserializePhonemeArray = [](const QJsonArray &array, QList<Phoneme> &phonemesList) {
-        for (const auto &objPhoneme : array.toVariantList()) {
-            QJsonObject obj = objPhoneme.toObject();
-            QString type = obj.value("type").toString();
-            QString name = obj.value("name").toString();
-            int start = obj.value("start").toInt();
-            phonemesList.append(Phoneme(type, name, start));
-        }
-    };
-    if (objPhonemes.contains("original")) {
-        deserializePhonemeArray(objPhonemes.value("original").toArray(), phonemes.original);
-    }
-    if (objPhonemes.contains("edited")) {
-        deserializePhonemeArray(objPhonemes.value("edited").toArray(), phonemes.edited);
-    }
-    return phonemes;
 }
 
 QDataStream &operator<<(QDataStream &out, const Note &note) {

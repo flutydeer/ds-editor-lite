@@ -27,7 +27,6 @@ public:
     friend QDataStream &operator>>(QDataStream &in, Pronunciation &pronunciation);
 
     static QJsonObject serialize(const Pronunciation &pronunciation);
-    static Pronunciation deserialize(const QJsonObject &objPronunciation);
 };
 
 class Phoneme {
@@ -54,7 +53,6 @@ public:
     friend QDataStream &operator>>(QDataStream &in, Phonemes &phonemes);
 
     static QJsonObject serialize(const Phonemes &phonemes);
-    static  Phonemes deserialize(const QJsonObject &objPhonemes)
 };
 
 class Note : public IOverlapable, public UniqueObject, public ISelectable {
