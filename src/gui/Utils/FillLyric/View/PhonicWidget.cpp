@@ -229,10 +229,17 @@ namespace FillLyric {
     }
 
     void PhonicWidget::_on_btnToggleFermata_clicked() {
-        auto a = new ModelActions;
-        a->toggleFermata(model);
-        a->execute();
-        ModelHistory::instance()->record(a);
+        if (!autoWarp) {
+            auto a = new ModelActions();
+            a->toggleFermata(model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        } else {
+            auto a = new ModelActions();
+            a->wrapToggleFermata(model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        }
     }
 
     void PhonicWidget::setAutoWrap(bool wrap) {

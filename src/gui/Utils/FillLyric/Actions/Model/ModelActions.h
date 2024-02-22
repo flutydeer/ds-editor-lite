@@ -5,6 +5,7 @@
 
 #include "ModelShrinkAction.h"
 #include "ToggleFermataAction.h"
+#include "WrapToggleFermataAction.h"
 
 #include "../../Model/PhonicModel.h"
 #include "../../History/MActionSequence.h"
@@ -15,6 +16,7 @@ namespace FillLyric {
     public:
         void shrinkModel(PhonicModel *model);
         void toggleFermata(PhonicModel *model);
+        void wrapToggleFermata(PhonicModel *model);
     };
 
 } // FillLyric

@@ -9,4 +9,8 @@ namespace FillLyric {
     void ModelActions::toggleFermata(PhonicModel *model) {
         addAction(ToggleFermataAction::build(model));
     }
+
+    void ModelActions::wrapToggleFermata(PhonicModel *model) {
+        addAction(WrapToggleFermataAction::build(model));
+    }
 } // FillLyric
