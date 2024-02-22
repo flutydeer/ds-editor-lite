@@ -200,22 +200,8 @@ namespace FillLyric {
         int fontHeight = tableView->fontMetrics().height();
         // 行高设置为两倍字体高度
         tableView->verticalHeader()->setDefaultSectionSize((int) (fontHeight * rowHeightRatio));
-
-        // 获取当前字体宽度
-        int fontWidth = tableView->fontMetrics().xHeight();
-
-        // 获取比当前字体小3号的字体宽度
-        int fontWidthSmall = QFontMetrics(QFont(tableView->font().family(),
-                                                tableView->font().pointSize() - fontSizeDiff))
-                                 .xHeight();
-
-        int maxFontWidth =
-            std::max(fontWidth * (maxLyricLength + 1), fontWidthSmall * (maxSyllableLength + 1));
-        auto columnWidth =
-            std::max((int) (fontHeight * rowHeightRatio * cellAspectRatio), maxFontWidth);
-
         // 列宽设置为maxSyllableLength倍字体宽度
-        tableView->horizontalHeader()->setDefaultSectionSize(columnWidth);
+        tableView->horizontalHeader()->setDefaultSectionSize((int) (fontHeight * colWidthRatio));
     }
 
     void PhonicWidget::_on_btnToggleFermata_clicked() {
@@ -230,8 +216,13 @@ namespace FillLyric {
         resizeTable();
     }
 
-    void PhonicWidget::setAspectRatio(double ratio) {
-        cellAspectRatio = ratio;
+    void PhonicWidget::setColWidthRatio(double ratio) {
+        colWidthRatio = ratio;
+        resizeTable();
+    }
+
+    void PhonicWidget::setRowHeightRatio(double ratio) {
+        rowHeightRatio = ratio;
         resizeTable();
     }
 

@@ -65,7 +65,8 @@ namespace FillLyric {
         void _on_btnToggleFermata_clicked();
 
         void setFontSizeDiff(int diff);
-        void setAspectRatio(double ratio);
+        void setColWidthRatio(double ratio);
+        void setRowHeightRatio(double ratio);
 
     protected:
         PhonicTableView *tableView;
@@ -84,8 +85,8 @@ namespace FillLyric {
         int maxSyllableLength = 0;
 
         int fontSizeDiff = 3;
-        double rowHeightRatio = 2.5;
-        double cellAspectRatio = 1.5;
+        double rowHeightRatio = 2.8;
+        double colWidthRatio = 2.8;
 
         PhonicDelegate *delegate;
         PhonicEventFilter *eventFilter;

@@ -40,9 +40,8 @@ namespace FillLyric {
         }
 
         QFont textFont(option.font);
-        if (lyricType == TextType::EnWord) {
+        if (text.size() > 1)
             textFont.setPointSize(textFont.pointSize() - fontSizeDiff);
-        }
         QFont syllableFont = textFont;
         syllableFont.setPointSize(syllableFont.pointSize() - fontSizeDiff);
 
@@ -51,16 +50,16 @@ namespace FillLyric {
         int syllableFontXHeight = QFontMetrics(syllableFont).xHeight();
 
         auto delegateWidth = option.rect.width() * 0.9;
-        auto maxTextSize = (int) (delegateWidth / textFontXHeight) - fontSizeDiff;
-        auto maxSyllableSize = (int) (delegateWidth / syllableFontXHeight) - fontSizeDiff;
+        auto maxTextSize = (int) (delegateWidth / textFontXHeight) - 3;
+        auto maxSyllableSize = (int) (delegateWidth / syllableFontXHeight) - 3;
 
         // 文本过长时，显示省略号
-        if (text.size() > maxTextSize && lyricType != TextType::Hanzi) {
+        if (text.size() > 1 && text.size() > maxTextSize && maxTextSize > 0) {
             text = text.left(maxTextSize) + "...";
         }
 
         // 注音过长时，显示省略号
-        if (syllable.size() > maxSyllableSize && lyricType != TextType::Hanzi) {
+        if (syllable.size() > 1 && syllable.size() > maxSyllableSize && maxSyllableSize > 0) {
             syllable = syllable.left(maxSyllableSize) + "...";
         }
 

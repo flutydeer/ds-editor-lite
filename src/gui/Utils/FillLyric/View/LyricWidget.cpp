@@ -169,16 +169,16 @@ namespace FillLyric {
                 [this]() { m_tableConfigWidget->setVisible(!m_tableConfigWidget->isVisible()); });
 
         // tableConfigWidget
-        connect(m_tableConfigWidget->m_aspectRatioSpinBox,
+        connect(m_tableConfigWidget->m_colWidthRatioSpinBox,
                 QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_phonicWidget,
-                &PhonicWidget::setAspectRatio);
+                &PhonicWidget::setColWidthRatio);
+        connect(m_tableConfigWidget->m_rowHeightSpinBox,
+                QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_phonicWidget,
+                &PhonicWidget::setRowHeightRatio);
         connect(m_tableConfigWidget->m_fontDiffSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
                 m_phonicWidget, &PhonicWidget::setFontSizeDiff);
         connect(m_tableConfigWidget->m_fontDiffSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
-                m_phonicWidget->delegate, [this](int diff) {
-                    m_phonicWidget->delegate->setFontSizeDiff(diff);
-                    m_phonicWidget->resizeTable();
-                });
+                m_phonicWidget->delegate, &PhonicDelegate::setFontSizeDiff);
     }
 
     LyricWidget::~LyricWidget() = default;

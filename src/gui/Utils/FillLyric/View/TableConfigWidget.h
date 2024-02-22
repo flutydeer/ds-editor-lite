@@ -1,6 +1,7 @@
 #ifndef DS_EDITOR_LITE_TABLECONFIGWIDGET_H
 #define DS_EDITOR_LITE_TABLECONFIGWIDGET_H
 
+#include <QLabel>
 #include <QWidget>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
@@ -19,12 +20,18 @@ namespace FillLyric {
         ~TableConfigWidget() override;
 
     protected:
-        QDoubleSpinBox *m_aspectRatioSpinBox;
+        QLabel *m_warningLabel;
+
+        QLabel *m_colWidthRatioLabel;
+        QLabel *m_rowHeightLabel;
+        QLabel *m_fontDiffLabel;
+
+        QDoubleSpinBox *m_colWidthRatioSpinBox;
+        QDoubleSpinBox *m_rowHeightSpinBox;
         QSpinBox *m_fontDiffSpinBox;
 
     private:
         QVBoxLayout *m_mainLayout;
-        QHBoxLayout *m_fontLayout;
     };
 } // FillLyric
 
