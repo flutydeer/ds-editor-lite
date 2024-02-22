@@ -13,4 +13,8 @@ namespace FillLyric {
     void ModelActions::wrapToggleFermata(PhonicModel *model) {
         addAction(WrapToggleFermataAction::build(model));
     }
+
+    void ModelActions::warpTable(PhonicModel *model, QTableView *tableView) {
+        addAction(WarpTableAction::build(model, tableView));
+    }
 } // FillLyric

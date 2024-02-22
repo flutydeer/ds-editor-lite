@@ -197,31 +197,18 @@ namespace FillLyric {
     }
 
     void PhonicWidget::autoWrap() {
-        QList<Phonic> phonics;
-        for (int i = 0; i < model->rowCount(); i++) {
-            int curCol = model->currentLyricLength(i);
-            for (int j = 0; j < curCol; j++) {
-                phonics.append(model->takeData(i, j));
-            }
-        }
-
         // 计算最大列数
         int tableWidth = tableView->width();
         int colWidth = tableView->columnWidth(0);
-        auto maxCol = (int) (tableWidth * 0.9 / colWidth);
-        auto maxRow = (int) (phonics.size() / maxCol);
-        if (phonics.size() % maxCol != 0) {
-            maxRow++;
-        }
+        auto tarCol = (int) (tableWidth * 0.9 / colWidth);
+        auto curCol = model->columnCount();
 
-        model->clear();
-        model->setRowCount(maxRow);
-        model->setColumnCount(maxCol);
-        for (int i = 0; i < phonics.size(); i++) {
-            model->putData(i / maxCol, i % maxCol, phonics[i]);
+        if (tarCol != curCol) {
+            auto a = new ModelActions();
+            a->warpTable(model, tableView);
+            a->execute();
+            ModelHistory::instance()->record(a);
         }
-
-        Q_EMIT historyReset();
     }
 
     void PhonicWidget::resizeTable() {

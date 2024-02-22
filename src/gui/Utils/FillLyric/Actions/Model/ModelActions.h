@@ -6,6 +6,7 @@
 #include "ModelShrinkAction.h"
 #include "ToggleFermataAction.h"
 #include "WrapToggleFermataAction.h"
+#include "WarpTableAction.h"
 
 #include "../../Model/PhonicModel.h"
 #include "../../History/MActionSequence.h"
@@ -17,6 +18,7 @@ namespace FillLyric {
         void shrinkModel(PhonicModel *model);
         void toggleFermata(PhonicModel *model);
         void wrapToggleFermata(PhonicModel *model);
+        void warpTable(PhonicModel *model, QTableView *tableView);
     };
 
 } // FillLyric
