@@ -7,11 +7,11 @@
 #include "PhonicWidget.h"
 
 #include "../Actions/Cell/CellActions.h"
+#include "../Actions/WrapCell/WrapCellActions.h"
 #include "../Actions/Line/LineActions.h"
 #include "../Actions/Model/ModelActions.h"
 
 namespace FillLyric {
-
     PhonicWidget::PhonicWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
         : g2p_man(G2pMandarin::instance()), g2p_jp(G2pJapanese::instance()),
           m_phonicNotes(std::move(phonicNotes)), QWidget(parent) {
@@ -199,7 +199,10 @@ namespace FillLyric {
         int tableWidth = tableView->width();
         int colWidth = tableView->columnWidth(0);
         auto maxCol = (int) (tableWidth * 0.9 / colWidth);
-        auto maxRow = (int) (phonics.size() / maxCol) + 1;
+        auto maxRow = (int) (phonics.size() / maxCol);
+        if (phonics.size() % maxCol != 0) {
+            maxRow++;
+        }
 
         model->clear();
         model->setRowCount(maxRow);
@@ -283,17 +286,17 @@ namespace FillLyric {
                 // 清空单元格
                 menu->addAction("清空单元格", [this, selected]() { cellClear(selected); });
                 // 向左归并单元格
-                if (col > 0) {
+                if (col > 0 && !autoWarp) {
                     menu->addAction("向左归并单元格", [this, index]() { cellMergeLeft(index); });
                 }
                 menu->addAction("删除当前单元格", [this, index]() { deleteCell(index); });
                 menu->addSeparator();
 
                 // 换行
-                if (model->cellLyricType(row, col) != TextType::Slur)
+                if (model->cellLyricType(row, col) != TextType::Slur && !autoWarp)
                     menu->addAction("换行", [this, index]() { lineBreak(index); });
                 // 合并到上一行
-                if (row > 0 && col == 0)
+                if (row > 0 && col == 0 && !autoWarp)
                     menu->addAction("合并到上一行", [this, index]() { lineMergeUp(index); });
 
                 // 添加上一行
@@ -358,17 +361,31 @@ namespace FillLyric {
     }
 
     void PhonicWidget::deleteCell(const QModelIndex &index) {
-        auto a = new CellActions();
-        a->deleteCell(index, model);
-        a->execute();
-        ModelHistory::instance()->record(a);
+        if (!autoWarp) {
+            auto a = new CellActions();
+            a->deleteCell(index, model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        } else {
+            auto a = new WrapCellActions();
+            a->deleteWrapCell(index, model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        }
     }
 
     void PhonicWidget::insertCell(const QModelIndex &index) {
-        auto a = new CellActions();
-        a->insertCell(index, model);
-        a->execute();
-        ModelHistory::instance()->record(a);
+        if (!autoWarp) {
+            auto a = new CellActions();
+            a->insertCell(index, model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        } else {
+            auto a = new WrapCellActions();
+            a->insertWrapCell(index, model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        }
     }
 
     void PhonicWidget::cellMergeLeft(const QModelIndex &index) {

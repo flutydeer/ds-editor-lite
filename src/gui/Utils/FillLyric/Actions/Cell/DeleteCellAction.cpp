@@ -24,5 +24,6 @@ namespace FillLyric {
     void DeleteCellAction::undo() {
         moveUndo(m_moveList, m_model);
         m_model->cellPut(m_index, m_phonic);
+        m_model->shrinkModel();
     }
 } // FillLyric
