@@ -121,31 +121,23 @@ void NoteGraphicsItem::resetOffset() {
 void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
     const auto backgroundColorNormal = QColor(155, 186, 255);
-    const auto backgroundColorEditingPitch = QColor(155, 186, 255, 50);
+    const auto backgroundColorEditingPitch = QColor(53, 59, 74);
 
     const auto borderColorNormal = QColor(112, 156, 255);
     const auto borderColorSelected = QColor(255, 255, 255);
     const auto borderColorOverlapped = AppGlobal::overlappedViewBorder;
-    const auto borderColorEditingPitch = QColor(155, 186, 255, 160);
+    const auto borderColorEditingPitch = QColor(126, 149, 199);
 
     const auto foregroundColorNormal = QColor(0, 0, 0);
-    const auto foregroundColorEditingPitch = QColor(155, 186, 255, 160);
+    const auto foregroundColorEditingPitch = QColor(126, 149, 199);
 
     const auto pronunciationTextColor = QColor(200, 200, 200);
 
-    const auto penWidth = 2.0f;
+    const auto penWidth = 1.5f;
     const auto radius = 4.0;
     const auto radiusAdjustThreshold = 12;
 
     QPen pen;
-    if (isSelected())
-        pen.setColor(borderColorSelected);
-    else if (m_overlapped)
-        pen.setColor(borderColorOverlapped);
-    else if (m_editingPitch)
-        pen.setColor(borderColorEditingPitch);
-    else
-        pen.setColor(borderColorNormal);
 
     auto rect = boundingRect();
     auto noteBoundingRect =
@@ -156,21 +148,39 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     auto height = noteBoundingRect.height() - penWidth * 2;
     auto paddedRect = QRectF(left, top, width, height);
 
-    pen.setWidthF(penWidth);
-    painter->setPen(pen);
-    painter->setBrush(m_editingPitch ? backgroundColorEditingPitch : backgroundColorNormal);
-
-    if (paddedRect.width() < 8 || paddedRect.height() < 8) { // draw rect without border
+    auto drawRectOnly = [&] {
         painter->setRenderHint(QPainter::Antialiasing, false);
         painter->setPen(Qt::NoPen);
-        painter->setBrush(isSelected() ? borderColorSelected : backgroundColorNormal);
+        QColor brushColor;
+        if (isSelected())
+            brushColor = borderColorSelected;
+        else if (m_editingPitch)
+            brushColor = borderColorEditingPitch;
+        else
+            brushColor = backgroundColorNormal;
+        painter->setBrush(brushColor);
         auto l = noteBoundingRect.left() + penWidth / 2;
         auto t = noteBoundingRect.top() + penWidth / 2;
         auto w = noteBoundingRect.width() - penWidth < 2 ? 2 : noteBoundingRect.width() - penWidth;
         auto h =
             noteBoundingRect.height() - penWidth < 2 ? 2 : noteBoundingRect.height() - penWidth;
         painter->drawRect(QRectF(l, t, w, h));
-    } else {
+    };
+
+    auto drawFullNote = [&] {
+        QColor borderColor;
+        if (isSelected())
+            borderColor = borderColorSelected;
+        else if (m_overlapped)
+            borderColor = borderColorOverlapped;
+        else if (m_editingPitch)
+            borderColor = borderColorEditingPitch;
+        else
+            borderColor = borderColorNormal;
+        pen.setColor(borderColor);
+        pen.setWidthF(penWidth);
+        painter->setPen(pen);
+        painter->setBrush(m_editingPitch ? backgroundColorEditingPitch : backgroundColorNormal);
         // auto straightX = paddedRect.width() - radius * 2;
         // auto straightY = paddedRect.height() - radius * 2;
         // auto xRadius = radius;
@@ -181,38 +191,42 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
         //     yRadius = radius * (straightY - radius) / (radiusAdjustThreshold - radius);
         // painter->drawRoundedRect(paddedRect, xRadius, yRadius);
         painter->drawRoundedRect(paddedRect, 2, 2);
-    }
 
-    pen.setColor(m_editingPitch ? foregroundColorEditingPitch : foregroundColorNormal);
-    painter->setPen(pen);
-    auto font = QFont();
-    font.setPointSizeF(10);
-    painter->setFont(font);
-    int padding = 2;
-    // TODO: keep lyric on screen
-    auto textRectLeft = paddedRect.left() + padding;
-    // auto textRectTop = paddedRect.top() + padding;
-    auto textRectTop = paddedRect.top();
-    auto textRectWidth = paddedRect.width() - 2 * padding;
-    // auto textRectHeight = paddedRect.height() - 2 * padding;
-    auto textRectHeight = paddedRect.height();
-    auto textRect = QRectF(textRectLeft, textRectTop, textRectWidth, textRectHeight);
-
-    auto fontMetrics = painter->fontMetrics();
-    auto textHeight = fontMetrics.height();
-    auto text = m_lyric;
-    auto textWidth = fontMetrics.horizontalAdvance(text);
-    QTextOption textOption(Qt::AlignVCenter);
-    textOption.setWrapMode(QTextOption::NoWrap);
-
-    if (textWidth < textRectWidth && textHeight < textRectHeight) {
-        // draw lryic
-        painter->drawText(textRect, text, textOption);
-        // draw pronunciation
-        pen.setColor(pronunciationTextColor);
+        pen.setColor(m_editingPitch ? foregroundColorEditingPitch : foregroundColorNormal);
         painter->setPen(pen);
-        painter->drawText(QPointF(textRectLeft, boundingRect().bottom() - 6), m_pronunciation);
-    }
+        auto font = QFont();
+        font.setPointSizeF(10);
+        painter->setFont(font);
+        int padding = 2;
+        auto textRectLeft = paddedRect.left() + padding;
+        // auto textRectTop = paddedRect.top() + padding;
+        auto textRectTop = paddedRect.top();
+        auto textRectWidth = paddedRect.width() - 2 * padding;
+        // auto textRectHeight = paddedRect.height() - 2 * padding;
+        auto textRectHeight = paddedRect.height();
+        auto textRect = QRectF(textRectLeft, textRectTop, textRectWidth, textRectHeight);
+
+        auto fontMetrics = painter->fontMetrics();
+        auto textHeight = fontMetrics.height();
+        auto text = m_lyric;
+        auto textWidth = fontMetrics.horizontalAdvance(text);
+        QTextOption textOption(Qt::AlignVCenter);
+        textOption.setWrapMode(QTextOption::NoWrap);
+
+        if (textWidth < textRectWidth && textHeight < textRectHeight) {
+            // draw lryic
+            painter->drawText(textRect, text, textOption);
+            // draw pronunciation
+            pen.setColor(pronunciationTextColor);
+            painter->setPen(pen);
+            painter->drawText(QPointF(textRectLeft, boundingRect().bottom() - 6), m_pronunciation);
+        }
+    };
+
+    if (scaleX() < 0.3)
+        drawRectOnly();
+    else
+        drawFullNote();
 }
 void NoteGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     m_menu->exec(event->screenPos());
