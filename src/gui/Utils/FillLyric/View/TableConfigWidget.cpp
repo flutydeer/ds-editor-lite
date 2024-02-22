@@ -13,13 +13,13 @@ namespace FillLyric {
         m_colWidthRatioSpinBox = new QDoubleSpinBox(this);
         m_colWidthRatioLabel = new QLabel("Column Width Ratio", this);
         m_colWidthRatioSpinBox->setRange(1.0, 20.0);
-        m_colWidthRatioSpinBox->setValue(2.8);
+        m_colWidthRatioSpinBox->setValue(7.8);
         m_colWidthRatioSpinBox->setSingleStep(0.1);
 
         m_rowHeightSpinBox = new QDoubleSpinBox(this);
         m_rowHeightLabel = new QLabel("Row Height Ratio", this);
         m_rowHeightSpinBox->setRange(1.0, 10.0);
-        m_rowHeightSpinBox->setValue(2.8);
+        m_rowHeightSpinBox->setValue(3);
         m_rowHeightSpinBox->setSingleStep(0.1);
 
         m_fontDiffSpinBox = new QSpinBox(this);

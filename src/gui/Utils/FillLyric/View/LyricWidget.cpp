@@ -94,6 +94,7 @@ namespace FillLyric {
         m_tableTopLayout = new QHBoxLayout();
         btnFoldLeft = new Button("收起左侧");
         btnToggleFermata = new Button("收放延音符");
+        autoWrap = new QCheckBox("Auto Wrap");
         btnUndo = new Button("撤销");
         btnRedo = new Button("重做");
         btnTableConfig = new Button("设置");
@@ -101,7 +102,7 @@ namespace FillLyric {
 
         m_tableTopLayout->addWidget(btnFoldLeft);
         m_tableTopLayout->addWidget(btnToggleFermata);
-        m_tableTopLayout->addStretch(1);
+        m_tableTopLayout->addWidget(autoWrap);
         m_tableTopLayout->addWidget(btnUndo);
         m_tableTopLayout->addWidget(btnRedo);
         m_tableTopLayout->addWidget(btnTableConfig);
@@ -137,6 +138,8 @@ namespace FillLyric {
         connect(btnImportLrc, &QAbstractButton::clicked, this,
                 &LyricWidget::_on_btnImportLrc_clicked);
 
+        connect(autoWrap, &QCheckBox::stateChanged, m_phonicWidget, &PhonicWidget::setAutoWrap);
+
         // phonicWidget toggleFermata
         connect(btnToggleFermata, &QPushButton::clicked, m_phonicWidget,
                 &PhonicWidget::_on_btnToggleFermata_clicked);
@@ -159,6 +162,12 @@ namespace FillLyric {
         auto modelHistory = ModelHistory::instance();
         connect(btnUndo, &QPushButton::clicked, modelHistory, &ModelHistory::undo);
         connect(btnRedo, &QPushButton::clicked, modelHistory, &ModelHistory::redo);
+        connect(modelHistory, &ModelHistory::undoRedoChanged, this,
+                [=](bool canUndo, bool canRedo) {
+                    btnUndo->setEnabled(canUndo);
+                    btnRedo->setEnabled(canRedo);
+                });
+        connect(m_phonicWidget, &PhonicWidget::historyReset, modelHistory, &ModelHistory::reset);
 
         // splitComboBox
         connect(splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,

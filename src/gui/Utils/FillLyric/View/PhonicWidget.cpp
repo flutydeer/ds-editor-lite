@@ -95,14 +95,6 @@ namespace FillLyric {
 
                 auto candidateSyllables = g2p_man->getDefaultPinyin(lyrics[j], false);
 
-                // 候选音节中最长的音节长度
-                for (const auto &syllable : candidateSyllables) {
-                    maxSyllableLength =
-                        std::max(maxSyllableLength, static_cast<int>(syllable.length()));
-                }
-
-                maxLyricLength = std::max(maxLyricLength, static_cast<int>(lyrics[j].length()));
-
                 if (candidateSyllables.size() > 1) {
                     // 设置候选音节
                     model->setData(model->index(i, j), candidateSyllables, PhonicRole::Candidate);
@@ -115,9 +107,8 @@ namespace FillLyric {
                 }
             }
         }
-
-        resizeTable();
         model->shrinkModel();
+        resizeTable();
     }
 
     QList<Phonic> PhonicWidget::updateLyric(QModelIndex index, const QString &text,
@@ -195,13 +186,43 @@ namespace FillLyric {
         ModelHistory::instance()->record(a);
     }
 
+    void PhonicWidget::autoWrap() {
+        QList<Phonic> phonics;
+        for (int i = 0; i < model->rowCount(); i++) {
+            int curCol = model->currentLyricLength(i);
+            for (int j = 0; j < curCol; j++) {
+                phonics.append(model->takeData(i, j));
+            }
+        }
+
+        // 计算最大列数
+        int tableWidth = tableView->width();
+        int colWidth = tableView->columnWidth(0);
+        auto maxCol = (int) (tableWidth * 0.9 / colWidth);
+        auto maxRow = (int) (phonics.size() / maxCol) + 1;
+
+        model->clear();
+        model->setRowCount(maxRow);
+        model->setColumnCount(maxCol);
+        for (int i = 0; i < phonics.size(); i++) {
+            model->putData(i / maxCol, i % maxCol, phonics[i]);
+        }
+
+        Q_EMIT historyReset();
+    }
+
     void PhonicWidget::resizeTable() {
         // 获取当前字体高度
         int fontHeight = tableView->fontMetrics().height();
         // 行高设置为两倍字体高度
         tableView->verticalHeader()->setDefaultSectionSize((int) (fontHeight * rowHeightRatio));
+
+        int fontXHeight = tableView->fontMetrics().xHeight();
         // 列宽设置为maxSyllableLength倍字体宽度
-        tableView->horizontalHeader()->setDefaultSectionSize((int) (fontHeight * colWidthRatio));
+        tableView->horizontalHeader()->setDefaultSectionSize((int) (fontXHeight * colWidthRatio));
+
+        if (autoWarp)
+            autoWrap();
     }
 
     void PhonicWidget::_on_btnToggleFermata_clicked() {
@@ -209,6 +230,12 @@ namespace FillLyric {
         a->toggleFermata(model);
         a->execute();
         ModelHistory::instance()->record(a);
+    }
+
+    void PhonicWidget::setAutoWrap(bool wrap) {
+        autoWarp = wrap;
+        if (autoWarp)
+            autoWrap();
     }
 
     void PhonicWidget::setFontSizeDiff(int diff) {

@@ -80,6 +80,7 @@ namespace FillLyric {
 
         Button *btnFoldLeft;
         Button *btnToggleFermata;
+        QCheckBox *autoWrap;
         Button *btnUndo;
         Button *btnRedo;
         Button *btnTableConfig;

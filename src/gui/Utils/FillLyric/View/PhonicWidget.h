@@ -41,6 +41,9 @@ namespace FillLyric {
 
         QList<Phonic> exportPhonics();
 
+    Q_SIGNALS:
+        void historyReset();
+
     public Q_SLOTS:
         // ContextMenu
         void cellClear(const QList<QModelIndex> &indexes);
@@ -64,6 +67,7 @@ namespace FillLyric {
 
         void _on_btnToggleFermata_clicked();
 
+        void setAutoWrap(bool wrap);
         void setFontSizeDiff(int diff);
         void setColWidthRatio(double ratio);
         void setRowHeightRatio(double ratio);
@@ -74,6 +78,7 @@ namespace FillLyric {
 
     private:
         void _init(const QList<Phonic> &phonics);
+        void autoWrap();
         void resizeTable();
         QList<Phonic> updateLyric(QModelIndex index, const QString &text,
                                   const QList<Phonic> &oldPhonics);
@@ -81,12 +86,11 @@ namespace FillLyric {
         // Variables
         QList<PhonicNote *> m_phonicNotes;
 
-        int maxLyricLength = 0;
-        int maxSyllableLength = 0;
+        bool autoWarp = false;
 
         int fontSizeDiff = 3;
-        double rowHeightRatio = 2.8;
-        double colWidthRatio = 2.8;
+        double rowHeightRatio = 3.0;
+        double colWidthRatio = 7.8;
 
         PhonicDelegate *delegate;
         PhonicEventFilter *eventFilter;
@@ -96,7 +100,7 @@ namespace FillLyric {
         G2pJapanese *g2p_jp;
 
         // Layout
-        QVBoxLayout *mainLayout;
+        QVBoxLayout *mainLayout{};
     };
 }
 
