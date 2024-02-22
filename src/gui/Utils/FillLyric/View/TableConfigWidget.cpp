@@ -22,6 +22,5 @@ namespace FillLyric {
         setLayout(m_mainLayout);
     }
 
-    TableConfigWidget::~TableConfigWidget() {
-    }
+    TableConfigWidget::~TableConfigWidget() = default;
 } // FillLyric

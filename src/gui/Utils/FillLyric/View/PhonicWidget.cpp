@@ -17,18 +17,12 @@ namespace FillLyric {
           m_phonicNotes(std::move(phonicNotes)), QWidget(parent) {
 
         // 创建模型和视图
-        tableView = new QTableView();
+        tableView = new PhonicTableView();
         model = new PhonicModel(tableView);
         tableView->setModel(model);
 
         // 隐藏行头
         tableView->horizontalHeader()->hide();
-        QFont font = tableView->font();
-        font.setPointSize(12);
-        tableView->setFont(font);
-
-        // 打开右键菜单
-        tableView->setContextMenuPolicy(Qt::CustomContextMenu);
 
         // 设置委托
         delegate = new PhonicDelegate(tableView);

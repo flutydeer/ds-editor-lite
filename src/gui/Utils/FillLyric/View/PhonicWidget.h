@@ -26,6 +26,7 @@
 #include "Controls/Button.h"
 
 #include "PhonicDelegate.h"
+#include "PhonicTableView.h"
 #include "PhonicTextEdit.h"
 #include "PhonicEventFilter.h"
 
@@ -67,7 +68,7 @@ namespace FillLyric {
         void setAspectRatio(double ratio);
 
     protected:
-        QTableView *tableView;
+        PhonicTableView *tableView;
         PhonicModel *model;
 
     private:
