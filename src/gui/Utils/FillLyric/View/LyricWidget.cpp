@@ -151,6 +151,7 @@ namespace FillLyric {
             btnFoldLeft->setText(m_textEditWidget->isVisible() ? "展开左侧" : "收起左侧");
             m_textEditWidget->setVisible(!m_textEditWidget->isVisible());
             m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
+            m_tableConfigWidget->setVisible(false);
         });
 
         // undo redo
@@ -169,8 +170,12 @@ namespace FillLyric {
                 &LyricWidget::_on_splitComboBox_currentIndexChanged);
 
         // tableConfig
-        connect(btnTableConfig, &QPushButton::clicked,
-                [this]() { m_tableConfigWidget->setVisible(!m_tableConfigWidget->isVisible()); });
+        connect(btnTableConfig, &QPushButton::clicked, [this]() {
+            btnFoldLeft->setText(!m_tableConfigWidget->isVisible() ? "展开左侧" : "收起左侧");
+            m_textEditWidget->setVisible(m_tableConfigWidget->isVisible());
+            m_lyricOptWidget->setVisible(m_tableConfigWidget->isVisible());
+            m_tableConfigWidget->setVisible(!m_tableConfigWidget->isVisible());
+        });
 
         // tableConfigWidget
         connect(m_tableConfigWidget->m_colWidthRatioSpinBox,
