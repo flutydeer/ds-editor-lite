@@ -69,12 +69,14 @@ void PitchEditorGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphic
     OverlayGraphicsItem::paint(painter, option, widget);
 
     // painter->setRenderHint(QPainter::Antialiasing, false);
-    if (scaleX() < 0.6)
+    auto hideThreshold = 0.5;
+    auto fadeLength = 0.2;
+    if (scaleX() < hideThreshold)
         return;
 
     QPen pen;
-    pen.setWidthF(1.5);
-    auto colorAlpha = scaleX() < 0.8 ? 255 * (scaleX() - 0.6) / (0.8 - 0.6) : 255;
+    pen.setWidthF(1.8);
+    auto colorAlpha = scaleX() < hideThreshold+fadeLength ? 255 * (scaleX() - hideThreshold) / fadeLength : 255;
     pen.setColor(QColor(255, 255, 255, static_cast<int>(colorAlpha)));
     painter->setPen(pen);
 
@@ -190,7 +192,7 @@ double PitchEditorGraphicsItem::pitchToItemY(double pitch) const {
     return sceneYToItemY(pitchToSceneY(pitch));
 }
 double PitchEditorGraphicsItem::sceneYToPitch(double y) const {
-    return -(y * 100 / noteHeight * scaleY() - 12700 - 50);
+    return -(y * 100 / noteHeight / scaleY() - 12700 - 50);
 }
 DrawCurve *PitchEditorGraphicsItem::curveAt(double tick) {
     for (const auto curve : m_drawCurves)
