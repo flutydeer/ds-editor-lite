@@ -20,8 +20,6 @@ namespace FillLyric {
         ~TableConfigWidget() override;
 
     protected:
-        QLabel *m_warningLabel;
-
         QLabel *m_colWidthRatioLabel;
         QLabel *m_rowHeightLabel;
         QLabel *m_fontDiffLabel;

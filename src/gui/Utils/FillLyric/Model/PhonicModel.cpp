@@ -18,8 +18,7 @@ namespace FillLyric {
         for (int i = 0; i < this->rowCount(); i++) {
             maxCol = std::max(maxCol, currentLyricLength(i));
         }
-        modelMaxCol = maxCol;
-        this->setColumnCount(modelMaxCol);
+        this->setColumnCount(maxCol);
         return maxCol;
     }
 

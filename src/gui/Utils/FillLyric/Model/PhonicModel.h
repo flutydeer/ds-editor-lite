@@ -83,8 +83,6 @@ namespace FillLyric {
 
         bool fermataState = false;
 
-        int modelMaxCol = 0;
-
     private:
         bool m_skipSlur = false;
         QTableView *m_tableView;

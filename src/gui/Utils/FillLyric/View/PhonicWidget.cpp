@@ -31,7 +31,7 @@ namespace FillLyric {
         eventFilter = new PhonicEventFilter(tableView, model, this);
         tableView->installEventFilter(eventFilter);
 
-        connect(tableView, &PhonicTableView::sizeChanged, this, &PhonicWidget::tableAutoWrap);
+        connect(tableView, &PhonicTableView::sizeChanged, this, [this] { tableAutoWrap(); });
 
         // 右键菜单
         connect(tableView, &QTableView::customContextMenuRequested, this,
@@ -75,12 +75,19 @@ namespace FillLyric {
         model->clear();
         // 设置行列数
         // res中最长的一行的长度为列数
+        int maxCol = 0;
         for (auto &line : lyricRes) {
-            if (line.size() > model->modelMaxCol) {
-                model->modelMaxCol = (int) line.size();
+            if (line.size() > maxCol) {
+                maxCol = (int) line.size();
             }
         }
-        model->setColumnCount(model->modelMaxCol);
+
+        int times = 3;
+        while (model->columnCount() != maxCol && maxCol > 0 && times > 0) {
+            model->setColumnCount(maxCol);
+            times--;
+        }
+
         model->setRowCount((int) lyricRes.size());
 
         // 设置表格内容
@@ -205,7 +212,7 @@ namespace FillLyric {
         model->setData(index, QVariant(), Qt::ToolTipRole);
     }
 
-    void PhonicWidget::tableAutoWrap() {
+    void PhonicWidget::tableAutoWrap(bool switchState) {
         if (!autoWarp) {
             return;
         }
@@ -215,11 +222,13 @@ namespace FillLyric {
         auto tarCol = (int) (tableWidth * 0.9 / colWidth);
         auto curCol = model->columnCount();
 
-        if (tarCol != curCol && curCol > 0 && tarCol > 0) {
-
+        bool tarValid = tarCol != curCol && curCol > 0 && tarCol > 0;
+        bool clearSpace = tarCol == curCol && switchState;
+        if (tarValid || clearSpace) {
             QList<Phonic> phonics;
             for (int i = 0; i < model->rowCount(); i++) {
-                for (int j = 0; j < model->columnCount(); j++) {
+                int columnCount = switchState ? model->currentLyricLength(i) : model->columnCount();
+                for (int j = 0; j < columnCount; j++) {
                     if (i == model->rowCount() - 1 && model->currentLyricLength(i) == j)
                         break;
                     phonics.append(model->takeData(i, j));
@@ -270,7 +279,7 @@ namespace FillLyric {
     void PhonicWidget::setAutoWrap(bool wrap) {
         autoWarp = wrap;
         if (autoWarp)
-            tableAutoWrap();
+            tableAutoWrap(true);
     }
 
     void PhonicWidget::setFontSizeDiff(int diff) {

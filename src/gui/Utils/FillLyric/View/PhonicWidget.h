@@ -77,7 +77,7 @@ namespace FillLyric {
 
     private:
         void _init(const QList<Phonic> &phonics);
-        void tableAutoWrap();
+        void tableAutoWrap(bool switchState = false);
         void resizeTable();
         QList<Phonic> updateLyric(QModelIndex index, const QString &text,
                                   const QList<Phonic> &oldPhonics);
