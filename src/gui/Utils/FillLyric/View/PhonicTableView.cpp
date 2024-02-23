@@ -14,4 +14,8 @@ namespace FillLyric {
 
     PhonicTableView::~PhonicTableView() = default;
 
+    void PhonicTableView::resizeEvent(QResizeEvent *event) {
+        this->sizeChanged();
+    }
+
 } // FillLyric

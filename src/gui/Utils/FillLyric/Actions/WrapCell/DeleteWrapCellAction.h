@@ -23,13 +23,9 @@ namespace FillLyric {
 
         int m_scrollBarValue;
 
-        int m_indexRow;
-        int m_indexCol;
+        int m_cellIndex;
 
-        int m_modelRowCount;
-        int m_modelColumnCount;
-
-        QList<Phonic> m_rawPhonics;
+        Phonic m_phonic;
     };
 
 } // FillLyric

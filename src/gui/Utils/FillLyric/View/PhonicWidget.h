@@ -41,9 +41,6 @@ namespace FillLyric {
 
         QList<Phonic> exportPhonics();
 
-    Q_SIGNALS:
-        void historyReset();
-
     public Q_SLOTS:
         // ContextMenu
         void cellClear(const QList<QModelIndex> &indexes);
@@ -80,7 +77,7 @@ namespace FillLyric {
 
     private:
         void _init(const QList<Phonic> &phonics);
-        void autoWrap();
+        void tableAutoWrap();
         void resizeTable();
         QList<Phonic> updateLyric(QModelIndex index, const QString &text,
                                   const QList<Phonic> &oldPhonics);

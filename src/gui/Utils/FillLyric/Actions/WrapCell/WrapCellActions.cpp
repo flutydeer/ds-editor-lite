@@ -10,4 +10,21 @@ namespace FillLyric {
                                          QTableView *tableView) {
         addAction(InsertWarpCellAction::build(index, model, tableView));
     }
+
+    void WrapCellActions::warpCellEdit(const QModelIndex &index, PhonicModel *model,
+                                       const QList<Phonic> &oldPhonics,
+                                       const QList<Phonic> &newPhonics) {
+        addAction(WarpCellEditAction::build(index, model, oldPhonics, newPhonics));
+    }
+
+    void WrapCellActions::warpCellChangePhonic(const QModelIndex &index, PhonicModel *model,
+                                               const QString &syllableRevised) {
+        addAction(WarpCellChangePhonic::build(index, model, syllableRevised));
+    }
+
+    void WrapCellActions::warpCellClear(const QModelIndexList &indexes, PhonicModel *model) {
+        for (auto &index : indexes) {
+            addAction(WarpCellClearAction::build(index, model));
+        }
+    }
 } // FillLyric

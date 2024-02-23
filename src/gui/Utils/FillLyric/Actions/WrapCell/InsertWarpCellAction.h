@@ -22,15 +22,9 @@ namespace FillLyric {
         QTableView *m_tableView = nullptr;
 
         int m_scrollBarValue;
-        bool addRow = false;
+        int m_cellIndex;
 
-        int m_indexRow = 0;
-        int m_indexCol = 0;
-
-        int m_modelRowCount = 0;
-        int m_modelColumnCount = 0;
-
-        QList<Phonic> m_rawPhonics;
+        Phonic m_phonic;
     };
 
 } // FillLyric

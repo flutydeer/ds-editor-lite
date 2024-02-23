@@ -14,6 +14,12 @@ namespace FillLyric {
     public:
         explicit PhonicTableView(QWidget *parent = nullptr);
         ~PhonicTableView() override;
+
+    Q_SIGNALS:
+        void sizeChanged() const;
+
+    protected:
+        void resizeEvent(QResizeEvent *event) override;
     };
 
 } // FillLyric

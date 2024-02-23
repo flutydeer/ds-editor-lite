@@ -163,7 +163,7 @@ namespace FillLyric {
                     btnUndo->setEnabled(canUndo);
                     btnRedo->setEnabled(canRedo);
                 });
-        connect(m_phonicWidget, &PhonicWidget::historyReset, modelHistory, &ModelHistory::reset);
+        connect(autoWrap, &QCheckBox::stateChanged, modelHistory, &ModelHistory::reset);
 
         // splitComboBox
         connect(splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,

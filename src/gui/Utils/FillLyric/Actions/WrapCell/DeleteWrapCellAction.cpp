@@ -7,50 +7,78 @@ namespace FillLyric {
         auto *action = new DeleteWrapCellAction;
         action->m_model = model;
         action->m_tableView = tableView;
+
+        action->m_cellIndex = index.row() * model->columnCount() + index.column();
         action->m_scrollBarValue = tableView->verticalScrollBar()->value();
 
-        action->m_indexRow = index.row();
-        action->m_indexCol = index.column();
-
-        action->m_modelRowCount = model->rowCount();
-        action->m_modelColumnCount = model->columnCount();
-
-        QList<Phonic> tempPhonics;
-        for (int i = 0; i < model->rowCount(); i++) {
-            for (int j = 0; j < model->columnCount(); j++) {
-                tempPhonics.append(model->takeData(i, j));
-            }
-        }
-        tempPhonics.append(Phonic());
-        action->m_rawPhonics = tempPhonics;
+        action->m_phonic = model->cellTake(index);
         return action;
     }
 
     void DeleteWrapCellAction::execute() {
-        m_model->clear();
-        m_model->setRowCount(m_modelRowCount);
-        m_model->setColumnCount(m_modelColumnCount);
+        int columnCount = m_model->columnCount();
 
-        int offset = 0;
-        for (int i = 0; i < m_rawPhonics.size(); i++) {
-            if (i / m_modelColumnCount == m_indexRow && i % m_modelColumnCount == m_indexCol) {
-                offset++;
+        QList<Phonic> rawPhonics;
+        for (int i = 0; i < m_model->rowCount(); i++) {
+            for (int j = 0; j < m_model->columnCount(); j++) {
+                if (i * columnCount + j == m_cellIndex) {
+                    continue;
+                }
+                if (i == m_model->rowCount() - 1 && m_model->currentLyricLength(i) == j) {
+                    break;
+                }
+                rawPhonics.append(m_model->takeData(i, j));
             }
-            m_model->putData(i / m_modelColumnCount, i % m_modelColumnCount,
-                             m_rawPhonics[i + offset]);
         }
+
+        int maxRow = (int) rawPhonics.size() / columnCount;
+        if (rawPhonics.size() % columnCount != 0) {
+            maxRow++;
+        }
+
+        m_model->clear();
+        m_model->setRowCount(maxRow);
+        m_model->setColumnCount(columnCount);
+
+        for (int i = 0; i < rawPhonics.size(); i++) {
+            m_model->putData(i / columnCount, i % columnCount, rawPhonics[i]);
+        }
+
         // 滚动到m_viewPortHeight
         m_tableView->verticalScrollBar()->setValue(m_scrollBarValue);
     }
 
     void DeleteWrapCellAction::undo() {
-        m_model->clear();
-        m_model->setRowCount(m_modelRowCount);
-        m_model->setColumnCount(m_modelColumnCount);
+        int columnCount = m_model->columnCount();
 
-        for (int i = 0; i < m_rawPhonics.size(); i++) {
-            m_model->putData(i / m_modelColumnCount, i % m_modelColumnCount, m_rawPhonics[i]);
+        QList<Phonic> rawPhonics;
+        for (int i = 0; i < m_model->rowCount(); i++) {
+            for (int j = 0; j < m_model->columnCount(); j++) {
+                if (i == m_model->rowCount() - 1 && m_model->currentLyricLength(i) == j)
+                    break;
+                rawPhonics.append(m_model->takeData(i, j));
+            }
         }
+
+        int rowCount = (int) rawPhonics.size() / columnCount;
+        if (rawPhonics.size() % columnCount != 0) {
+            rowCount++;
+        }
+
+        m_model->clear();
+        m_model->setRowCount(rowCount);
+        m_model->setColumnCount(columnCount);
+
+        int offset = 0;
+        for (int i = 0; i < rawPhonics.size() + 1; i++) {
+            if (i == m_cellIndex) {
+                m_model->putData(i / columnCount, i % columnCount, m_phonic);
+                offset++;
+                continue;
+            }
+            m_model->putData(i / columnCount, i % columnCount, rawPhonics[i - offset]);
+        }
+
         m_tableView->verticalScrollBar()->setValue(m_scrollBarValue);
     }
 } // FillLyric
