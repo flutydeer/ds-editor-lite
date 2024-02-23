@@ -28,6 +28,10 @@ namespace FillLyric {
         explicit LyricWidget(QList<PhonicNote *> phonicNotes, QWidget *parent = nullptr);
         ~LyricWidget() override;
 
+    Q_SIGNALS:
+        void shrinkWindowRight(int newWidth);
+        void expandWindowRight();
+
     public Q_SLOTS:
         // Buttons
         void _on_btnInsertText_clicked();

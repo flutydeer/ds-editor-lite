@@ -22,6 +22,9 @@ namespace FillLyric {
         void noteToPhonic();
         void phonicToNote();
 
+        void shrinkWindowRight(int newWidth);
+        void expandWindowRight();
+
         QVBoxLayout *m_mainLayout;
         QTabWidget *m_tabWidget;
 

@@ -37,6 +37,7 @@ namespace FillLyric {
         m_textBottomLayout->addWidget(m_textCountLabel);
 
         m_textEditLayout = new QVBoxLayout();
+        m_textEditLayout->setContentsMargins(0, 0, 0, 0);
         m_textEditLayout->addLayout(m_textTopLayout);
         m_textEditLayout->addWidget(m_textEdit);
         m_textEditLayout->addLayout(m_textBottomLayout);
@@ -59,6 +60,7 @@ namespace FillLyric {
 
         // lyric option layout
         m_lyricOptLayout = new QVBoxLayout();
+        m_lyricOptLayout->setContentsMargins(6, 0, 6, 0);
         btnInsertText = new Button("测试");
         btnToTable = new Button(">>");
         btnToText = new Button("<<");
@@ -126,6 +128,7 @@ namespace FillLyric {
 
         // table layout
         m_tableLayout = new QVBoxLayout();
+        m_tableLayout->setContentsMargins(0, 0, 0, 0);
         m_tableLayout->addLayout(m_tableTopLayout);
         m_tableLayout->addWidget(m_phonicWidget->tableView);
         m_tableLayout->addLayout(m_tableBottomLayout);
@@ -145,6 +148,8 @@ namespace FillLyric {
 
         // main layout
         m_mainLayout = new QVBoxLayout(this);
+        // 修改左右边距
+        m_mainLayout->setContentsMargins(0, 10, 0, 10);
         m_mainLayout->addLayout(m_lyricLayout);
 
         // phonicWidget signals
@@ -174,6 +179,13 @@ namespace FillLyric {
             m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
             m_tableWidget->setVisible(!m_tableWidget->isVisible());
             m_tableConfigWidget->setVisible(false);
+
+            if (!m_tableWidget->isVisible()) {
+                int width = m_textEdit->width();
+                Q_EMIT this->shrinkWindowRight(width + 20);
+            } else {
+                Q_EMIT this->expandWindowRight();
+            }
         });
 
         // fold left

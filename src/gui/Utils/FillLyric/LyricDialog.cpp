@@ -27,9 +27,8 @@ namespace FillLyric {
         m_btnCancel->setMaximumWidth(100);
 
         auto buttonLayout = new QHBoxLayout;
-        buttonLayout->addStretch(10);
-        buttonLayout->addWidget(m_btnOk);
         buttonLayout->addStretch(1);
+        buttonLayout->addWidget(m_btnOk);
         buttonLayout->addWidget(m_btnCancel);
 
         m_tabWidget->addTab(m_lyricWidget, "Lyric");
@@ -41,6 +40,11 @@ namespace FillLyric {
 
         connect(m_btnOk, &QPushButton::clicked, this, &QDialog::accept);
         connect(m_btnCancel, &QPushButton::clicked, this, &QDialog::reject);
+
+        connect(m_lyricWidget, &LyricWidget::shrinkWindowRight, this,
+                &LyricDialog::shrinkWindowRight);
+        connect(m_lyricWidget, &LyricWidget::expandWindowRight, this,
+                &LyricDialog::expandWindowRight);
     }
 
     LyricDialog::~LyricDialog() = default;
@@ -71,4 +75,17 @@ namespace FillLyric {
             note->setLineFeed(phonicNote->lineFeed());
         }
     }
+
+    void LyricDialog::shrinkWindowRight(int newWidth) {
+        setMinimumSize(300, 450);
+        resize(newWidth, height());
+    }
+
+    void LyricDialog::expandWindowRight() {
+        setMinimumSize(720, 450);
+        auto size = QApplication::primaryScreen()->availableSize();
+        resize(int(size.width() * 0.6), height());
+    }
+
+
 } // FillLyric
