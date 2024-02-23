@@ -12,15 +12,15 @@ class Param {
 public:
     enum ParamType { Original, Edited, Envelope, Unknown };
 
-    OverlapableSerialList<Curve> original;
-    OverlapableSerialList<Curve> edited;
-    OverlapableSerialList<Curve> envelope;
-
-    const OverlapableSerialList<Curve> &curves(ParamType type);
+    const OverlapableSerialList<Curve> &curves(ParamType type) const;
     void setCurves(ParamType type, const OverlapableSerialList<Curve> &curves);
+    void setCurves(ParamType type, const QList<Curve *> &curves);
 
 private:
-    OverlapableSerialList<Curve> unknown;
+    OverlapableSerialList<Curve> m_original;
+    OverlapableSerialList<Curve> m_edited;
+    OverlapableSerialList<Curve> m_envelope;
+    OverlapableSerialList<Curve> m_unknown;
 };
 
 class ParamBundle {

@@ -30,6 +30,7 @@ void ReplaceParamAction::undo() {
 void ReplaceParamAction::copyCurves(const OverlapableSerialList<Curve> &source,
                                     OverlapableSerialList<Curve> &target) {
     for (const auto curve : source) {
+        qDebug() << "copyCurves: #id" << curve->id() << "start:" << curve->start();
         if (curve->type() == Curve::Draw)
             target.add(new DrawCurve(*dynamic_cast<DrawCurve *>(curve)));
         // TODO: copy anchor curve

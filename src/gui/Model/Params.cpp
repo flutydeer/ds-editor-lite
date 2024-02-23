@@ -3,33 +3,39 @@
 //
 
 #include "Params.h"
-const OverlapableSerialList<Curve> &Param::curves(ParamType type) {
+const OverlapableSerialList<Curve> &Param::curves(ParamType type)const {
     switch (type) {
         case Original:
-            return original;
+            return m_original;
         case Edited:
-            return edited;
+            return m_edited;
         case Envelope:
-            return envelope;
+            return m_envelope;
         case Unknown:
         default:
-            return unknown;
+            return m_unknown;
     }
 }
 void Param::setCurves(ParamType type, const OverlapableSerialList<Curve> &curves) {
     switch (type) {
         case Original:
-            original = curves;
+            m_original = curves;
             break;
         case Edited:
-            edited = curves;
+            m_edited = curves;
             break;
         case Envelope:
-            envelope = curves;
+            m_envelope = curves;
             break;
         case Unknown:
             break;
     }
+}
+void Param::setCurves(ParamType type, const QList<Curve *> &curves) {
+    OverlapableSerialList<Curve> list;
+    for (const auto curve : curves)
+        list.add(curve);
+    setCurves(type, list);
 }
 Param *ParamBundle::getParamByName(ParamName name) {
     switch (name) {

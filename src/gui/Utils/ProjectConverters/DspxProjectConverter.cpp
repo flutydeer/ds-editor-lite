@@ -44,15 +44,9 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
     auto decodeSingingParam = [&](const QDspx::ParamInfo &dspxParam) {
         Param param;
-        for (auto &curve : decodeCurves(dspxParam.org)) {
-            param.original.add(curve);
-        }
-        for (auto &curve : decodeCurves(dspxParam.edited)) {
-            param.edited.add(curve);
-        }
-        for (auto &curve : decodeCurves(dspxParam.envelope)) {
-            param.envelope.add(curve);
-        }
+        param.setCurves(Param::Original, decodeCurves(dspxParam.org));
+        param.setCurves(Param::Edited, decodeCurves(dspxParam.edited));
+        param.setCurves(Param::Envelope, decodeCurves(dspxParam.envelope));
         return param;
     };
 
@@ -201,9 +195,9 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     };
 
     auto encodeSingingParam = [&](const Param &dsParam, QDspx::ParamInfo &param) {
-        encodeCurves(dsParam.original, param.org);
-        encodeCurves(dsParam.edited, param.edited);
-        encodeCurves(dsParam.envelope, param.envelope);
+        encodeCurves(dsParam.curves(Param::Original), param.org);
+        encodeCurves(dsParam.curves(Param::Edited), param.edited);
+        encodeCurves(dsParam.curves(Param::Envelope), param.envelope);
     };
 
     auto encodeSingingParams = [&](const ParamBundle &dsParams, QDspx::SingleParam &params) {

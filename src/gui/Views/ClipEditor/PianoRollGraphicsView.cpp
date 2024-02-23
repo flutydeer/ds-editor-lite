@@ -432,12 +432,12 @@ void PianoRollGraphicsView::updatePitch(Param::ParamType paramType, const Param 
     qDebug() << "PianoRollGraphicsView::updatePitch";
     OverlapableSerialList<DrawCurve> drawCurves;
     if (paramType == Param::Original) {
-        for (const auto curve : param.original)
+        for (const auto curve : param.curves(Param::Original))
             if (curve->type() == Curve::Draw)
                 drawCurves.add(dynamic_cast<DrawCurve *>(curve));
         m_pitchItem->loadOriginal(drawCurves);
     } else {
-        for (const auto curve : param.edited)
+        for (const auto curve : param.curves(Param::Edited))
             if (curve->type() == Curve::Draw)
                 drawCurves.add(dynamic_cast<DrawCurve *>(curve));
         m_pitchItem->loadEdited(drawCurves);
