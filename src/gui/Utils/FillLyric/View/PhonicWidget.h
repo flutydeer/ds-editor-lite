@@ -67,7 +67,6 @@ namespace FillLyric {
         void _on_btnToggleFermata_clicked();
 
         void setAutoWrap(bool wrap);
-        void setFontSizeDiff(int diff);
         void setColWidthRatio(double ratio);
         void setRowHeightRatio(double ratio);
 

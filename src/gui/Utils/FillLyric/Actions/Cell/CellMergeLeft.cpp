@@ -36,9 +36,5 @@ namespace FillLyric {
         moveUndo(m_moveList, m_model);
         m_model->putData(m_index.row(), m_index.column() - 1, LeftPhonic);
         m_model->putData(m_index.row(), m_index.column(), currentPhonic);
-        qDebug() << "undo" << m_index.row() << m_index.column() - 1 << LeftPhonic.lyric;
-        qDebug() << "undo" << m_index.row() << m_index.column() << currentPhonic.lyric;
-        m_model->repaintItem(m_leftIndex, LeftPhonic.lyric);
-        m_model->repaintItem(m_index, currentPhonic.lyric);
     }
 } // FillLyric

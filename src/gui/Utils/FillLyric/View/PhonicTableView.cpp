@@ -16,6 +16,7 @@ namespace FillLyric {
 
     void PhonicTableView::resizeEvent(QResizeEvent *event) {
         this->sizeChanged();
+        QTableView::resizeEvent(event);
     }
 
 } // FillLyric

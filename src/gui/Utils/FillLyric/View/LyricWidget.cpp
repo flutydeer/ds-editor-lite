@@ -186,8 +186,6 @@ namespace FillLyric {
                 QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_phonicWidget,
                 &PhonicWidget::setRowHeightRatio);
         connect(m_tableConfigWidget->m_fontDiffSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
-                m_phonicWidget, &PhonicWidget::setFontSizeDiff);
-        connect(m_tableConfigWidget->m_fontDiffSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
                 m_phonicWidget->delegate, &PhonicDelegate::setFontSizeDiff);
     }
 

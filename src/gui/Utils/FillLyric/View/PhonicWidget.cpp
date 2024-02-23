@@ -282,11 +282,6 @@ namespace FillLyric {
             tableAutoWrap(true);
     }
 
-    void PhonicWidget::setFontSizeDiff(int diff) {
-        fontSizeDiff = diff;
-        resizeTable();
-    }
-
     void PhonicWidget::setColWidthRatio(double ratio) {
         colWidthRatio = ratio;
         resizeTable();

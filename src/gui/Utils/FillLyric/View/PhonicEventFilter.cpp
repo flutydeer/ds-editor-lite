@@ -29,7 +29,7 @@ namespace FillLyric {
                 m_tableView->setFont(font);
 
                 wheelEvent->accept();
-                emit fontSizeChanged();
+                Q_EMIT fontSizeChanged();
                 return true;
             }
         }
