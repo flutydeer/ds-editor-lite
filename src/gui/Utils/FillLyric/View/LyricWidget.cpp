@@ -12,17 +12,17 @@ namespace FillLyric {
 
     LyricWidget::LyricWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
         : QWidget(parent), m_phonicNotes(std::move(phonicNotes)) {
-        setStyleSheet("QPushButton {padding: 5px; border: none; background: none; border-radius: "
-                      "6px; margin: 0; max-width: 100px;}"
-                      "QPushButton:hover { background: #1AFFFFFF; }"
-                      "QPushButton:pressed { background: #10FFFFFF; }");
+        setStyleSheet(
+            "QPushButton {border: none; background: none; max-width: 100px; padding: 4px;}"
+            "QPushButton:hover { background: #1AFFFFFF; }"
+            "QPushButton:pressed { background: #10FFFFFF; }");
         // textWidget
         m_textEditWidget = new QWidget();
 
         // textEdit top
         m_textTopLayout = new QHBoxLayout();
         btnImportLrc = new Button("导入lrc");
-        btnLyricPrev = new Button("预览");
+        btnLyricPrev = new Button("折叠预览");
         m_textTopLayout->addWidget(btnImportLrc);
         m_textTopLayout->addStretch(1);
         m_textTopLayout->addWidget(btnLyricPrev);
@@ -100,13 +100,17 @@ namespace FillLyric {
 
         // tableTop layout
         m_tableTopLayout = new QHBoxLayout();
-        btnFoldLeft = new Button("折叠预览");
+        btnFoldLeft = new Button("收起左侧");
         btnToggleFermata = new Button("收放延音符");
         autoWrap = new QCheckBox("Auto Wrap");
         btnUndo = new QPushButton();
+
+        btnUndo->setMinimumSize(24, 24);
         btnUndo->setFixedWidth(24);
         btnUndo->setIcon(QIcon(":svg/icons/arrow_undo_16_filled_white.svg"));
         btnRedo = new QPushButton();
+
+        btnRedo->setMinimumSize(24, 24);
         btnRedo->setFixedWidth(24);
         btnRedo->setIcon(QIcon(":svg/icons/arrow_redo_16_filled_white.svg"));
         btnTableConfig = new QPushButton();

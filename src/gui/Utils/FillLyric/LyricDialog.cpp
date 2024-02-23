@@ -6,6 +6,8 @@ namespace FillLyric {
 
     LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
         : Dialog(parent), m_notes(std::move(note)) {
+        setModal(true);
+        setMinimumSize(720, 450);
         setWindowTitle("Fill Lyric");
         setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
         // 窗口大小设为主程序的80%

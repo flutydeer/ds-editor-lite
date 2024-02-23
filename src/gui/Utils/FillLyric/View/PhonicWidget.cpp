@@ -219,7 +219,11 @@ namespace FillLyric {
         // 计算最大列数
         int tableWidth = tableView->width();
         int colWidth = tableView->columnWidth(0);
-        auto tarCol = (int) (tableWidth * 0.9 / colWidth);
+
+        bool headerVisible = tableView->verticalHeader()->isVisible();
+        int headerWidth = headerVisible ? tableView->verticalHeader()->width() : 0;
+
+        auto tarCol = (int) (double(tableWidth - headerWidth - 36) / colWidth);
         auto curCol = model->columnCount();
 
         bool tarValid = tarCol != curCol && curCol > 0 && tarCol > 0;
