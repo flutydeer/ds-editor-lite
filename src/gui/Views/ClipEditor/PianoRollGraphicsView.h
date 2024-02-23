@@ -31,6 +31,7 @@ public:
     QList<int> selectedNotesId() const;
     void updateOverlappedState(SingingClip *singingClip);
     void clearNoteSelections(NoteGraphicsItem *except = nullptr);
+    void updatePitch(Param::ParamType paramType, const Param &param);
 
     double topKeyIndex() const;
     double bottomKeyIndex() const;
@@ -47,9 +48,11 @@ signals:
     void resizeNoteLeftCompleted(int noteId, int deltaTick);
     void resizeNoteRightCompleted(int noteId, int deltaTick);
     void selectedNoteChanged(QList<int> notes);
+    void pitchEdited(const OverlapableSerialList<Curve> &curves);
 
 public slots:
     void onSceneSelectionChanged();
+    void onPitchEditorEditCompleted();
 
 private:
     void paintEvent(QPaintEvent *event) override;
@@ -102,6 +105,7 @@ private:
     QList<NoteGraphicsItem *> selectedNoteItems() const;
     void setPitchEditMode(bool on);
     NoteGraphicsItem *noteItemAt(const QPoint &pos);
+    // OverlapableSerialList<Curve> buildCurves();
 };
 
 #endif // PIANOROLLGRAPHICSVIEW_H

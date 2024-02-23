@@ -5,15 +5,17 @@
 #ifndef CLIPEDITVIEW_H
 #define CLIPEDITVIEW_H
 
-#include "ClipEditorToolBarView.h"
-#include "PhonemeView.h"
-#include "PianoRollGraphicsScene.h"
-#include "PianoRollGraphicsView.h"
-#include "Model/Track.h"
-#include "Views/Common/TimelineView.h"
 #include "ClipEditorGlobal.h"
+#include "Model/Track.h"
+#include "PhonemeView.h"
 
-#include <QWidget>
+class Clip;
+class ClipEditorToolBarView;
+class PhonemeView;
+class PianoRollGraphicsScene;
+class PianoRollGraphicsView;
+class Track;
+class TimelineView;
 
 class ClipEditorView final : public QWidget {
     Q_OBJECT
@@ -38,6 +40,8 @@ private slots:
     void onResizeNoteRightCompleted(int noteId, int deltaTick);
     void onAdjustPhonemeCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel);
     void onPianoRollSelectionChanged();
+    void onPitchEdited(const OverlapableSerialList<Curve> &curves);
+    void onParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
 
 private:
     Track *m_track = nullptr;
@@ -48,7 +52,7 @@ private:
     PianoRollGraphicsView *m_pianoRollView;
     TimelineView *m_timelineView;
     PhonemeView *m_phonemeView;
-    PianoRollEditMode m_mode;
+    ClipEditorGlobal::PianoRollEditMode m_mode;
 
     bool m_oneSingingClipSelected = false;
 

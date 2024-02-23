@@ -17,6 +17,11 @@ class Curve : public IOverlapable, public UniqueObject {
 public:
     enum CurveType { Generic, Draw, Anchor };
 
+    Curve() = default;
+    explicit Curve(int id) : UniqueObject(id) {
+    }
+    Curve(const Curve &other) : UniqueObject(other.id()), m_start(other.m_start) {
+    }
     virtual ~Curve() = default;
 
     virtual CurveType type() {
@@ -37,6 +42,12 @@ private:
 
 class DrawCurve final : public Curve {
 public:
+    DrawCurve() = default;
+    explicit DrawCurve(int id) : Curve(id) {
+    }
+    DrawCurve(const DrawCurve &other) : Curve(other), step(other.step), m_values(other.m_values) {
+    }
+
     CurveType type() override {
         return Draw;
     }
@@ -55,12 +66,14 @@ public:
     int endTick() const override;
 
 private:
-    int m_step = 5;
+    // int m_step = 5;
     QList<int> m_values;
 };
 
 class ProbeLine final : public Curve {
 public:
+    ProbeLine() : Curve(-1) {
+    }
     void setEndTick(int tick);
     int endTick() const override;
 

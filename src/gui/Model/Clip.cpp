@@ -93,6 +93,9 @@ void SingingClip::notifyNoteSelectionChanged() {
 void SingingClip::notifyNotePropertyChanged(NotePropertyType type, Note *note) {
     emit notePropertyChanged(type, note);
 }
+void SingingClip::notifyParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType) {
+    emit paramChanged(paramName, paramType);
+}
 QList<SingingClip::VocalPart> SingingClip::parts() {
     if (m_notes.count() == 0)
         return m_parts;

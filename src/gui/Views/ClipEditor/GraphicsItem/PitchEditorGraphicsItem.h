@@ -5,13 +5,15 @@
 #ifndef PITCHEDITORGRAPHICSITEM_H
 #define PITCHEDITORGRAPHICSITEM_H
 
-#include "Model/Curve.h"
 #include "Utils/OverlapableSerialList.h"
 #include "Views/Common/OverlayGraphicsItem.h"
 
+class Curve;
 class DrawCurve;
 
 class PitchEditorGraphicsItem final : public OverlayGraphicsItem {
+    Q_OBJECT
+
 public:
     enum EditMode { Free, Anchor, Off };
     explicit PitchEditorGraphicsItem();
@@ -19,8 +21,12 @@ public:
     EditMode editMode() const;
     void setEditMode(const EditMode &mode);
     void loadOpensvipPitchParam();
-    // void loadParam();
-    // QList<FreeCurve> mergedPitchParam();
+    void loadOriginal(const OverlapableSerialList<DrawCurve> &curves);
+    void loadEdited(const OverlapableSerialList<DrawCurve> &curves);
+    const OverlapableSerialList<DrawCurve> &editedCurves() const;
+
+signals:
+    void editCompleted();
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -33,7 +39,7 @@ private:
     // void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     void drawOpensvipPitchParam(QPainter *painter);
-    void drawHandDrawCurves(QPainter *painter);
+    void drawHandDrawCurves(QPainter *painter, const OverlapableSerialList<DrawCurve> &curves);
     void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve *curve);
 
     EditMode m_editMode = Off;
@@ -45,9 +51,8 @@ private:
     DrawCurve *m_editingCurve = nullptr;
     DrawCurveEditType m_drawCurveEditType = None;
     bool m_mouseMoved = false;
-    OverlapableSerialList<DrawCurve> m_drawCurves;
-
-    OverlapableSerialList<AnchorCurve> pitchParamAnchor;
+    OverlapableSerialList<DrawCurve> m_drawCurvesEdited;
+    OverlapableSerialList<DrawCurve> m_drawCurvesOriginal;
 
     QList<std::tuple<int, int>> m_opensvipPitchParam;
 
