@@ -11,7 +11,9 @@
 #include "Utils/ISelectable.h"
 #include "Utils/UniqueObject.h"
 
-class Curve : public IOverlapable, UniqueObject {
+class QPoint;
+
+class Curve : public IOverlapable, public UniqueObject {
 public:
     enum CurveType { Generic, Draw, Anchor };
 
@@ -38,16 +40,32 @@ public:
     CurveType type() override {
         return Draw;
     }
-    int step; // TODO: remove
+    int step = 5; // TODO: remove
     const QList<int> &values() const;
     void setValues(const QList<int> &values);
-    void insertValue(int value);
+    void insertValue(int index, int value);
+    void insertValues(int index, const QList<int> &values);
+    void removeValueRange(int i, int n);
+    void clearValues();
+    void appendValue(int value);
+    void replaceValue(int index, int value);
+    void mergeWith(const DrawCurve &other);
+    void overlayMergeWith(const DrawCurve &other);
 
     int endTick() const override;
 
 private:
     int m_step = 5;
     QList<int> m_values;
+};
+
+class ProbeLine final : public Curve {
+public:
+    void setEndTick(int tick);
+    int endTick() const override;
+
+private:
+    int m_endTick = 0;
 };
 
 class AnchorNode : public IOverlapable, public UniqueObject, public ISelectable {
@@ -78,7 +96,7 @@ public:
     CurveType type() override {
         return Anchor;
     }
-    //TODO: use OverlapableSerialList
+    // TODO: use OverlapableSerialList
     const QList<AnchorNode *> &nodes() const;
     void insertNode(AnchorNode *node);
     void removeNode(AnchorNode *node);

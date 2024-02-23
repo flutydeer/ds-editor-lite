@@ -7,8 +7,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
+#include <QGraphicsSceneMouseEvent>
 
 #include "PitchEditorGraphicsItem.h"
+#include "Utils/MathUtils.h"
 #include "Views/ClipEditor/ClipEditorGlobal.h"
 
 using namespace ClipEditorGlobal;
@@ -50,7 +52,7 @@ void PitchEditorGraphicsItem::loadOpensvipPitchParam() {
             auto pos = arrPoint.first().toInt();
             auto val = arrPoint.last().toInt();
             auto pair = std::make_pair(pos, val);
-            opensvipPitchParam.append(pair);
+            m_opensvipPitchParam.append(pair);
         }
     }
 }
@@ -71,23 +73,88 @@ void PitchEditorGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphic
         return;
 
     QPen pen;
-    pen.setWidthF(1);
+    pen.setWidthF(1.5);
     auto colorAlpha = scaleX() < 0.8 ? 255 * (scaleX() - 0.6) / (0.8 - 0.6) : 255;
     pen.setColor(QColor(255, 255, 255, static_cast<int>(colorAlpha)));
     painter->setPen(pen);
 
-    if (opensvipPitchParam.isEmpty())
+    // if (m_opensvipPitchParam.isEmpty())
+    //     return;
+    // drawOpensvipPitchParam(painter);
+
+    if (m_drawCurves.count() == 0)
         return;
-    drawOpensvipPitchParam(painter);
+    drawHandDrawCurves(painter);
 }
 void PitchEditorGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-    OverlayGraphicsItem::mousePressEvent(event);
+    // OverlayGraphicsItem::mousePressEvent(event);
+    auto scenePos = event->scenePos().toPoint();
+    auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
+    auto pitch = static_cast<int>(sceneYToPitch(scenePos.y()));
+    qDebug() << "PitchEditorGraphicsItem::mousePressEvent tick:" << tick << "pitch:" << pitch;
+
+    auto curve = curveAt(tick);
+    if (curve) {
+        m_editingCurve = curve;
+        m_drawCurveEditType = EditExistCurve;
+        qDebug() << "Edit exist curve" << curve->id() << curve->start();
+    } else {
+        m_editingCurve = new DrawCurve;
+        m_editingCurve->setStart(tick);
+        m_editingCurve->appendValue(pitch);
+        m_drawCurveEditType = CreateNewCurve;
+        m_drawCurves.add(m_editingCurve);
+        qDebug() << "New curve added" << m_editingCurve->id();
+    }
+    m_mouseDownPos = QPoint(tick, pitch);
+    m_prevPos = m_mouseDownPos;
 }
 void PitchEditorGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-    OverlayGraphicsItem::mouseMoveEvent(event);
+    // OverlayGraphicsItem::mouseMoveEvent(event);
+    m_mouseMoved = true;
+    auto scenePos = event->scenePos();
+    auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
+    auto pitch = static_cast<int>(sceneYToPitch(scenePos.y()));
+    auto curPos = QPoint(tick, pitch);
+    qDebug() << "Draw curve at" << curPos;
+
+    int startTick;
+    int endTick;
+    if (m_prevPos.x() < curPos.x()) {
+        startTick = m_prevPos.x();
+        endTick = curPos.x();
+    } else {
+        endTick = m_prevPos.x();
+        startTick = curPos.x();
+    }
+    drawLine(m_prevPos, curPos, m_editingCurve);
+    auto overlappedCurves = curvesIn(startTick, endTick);
+    if (!overlappedCurves.isEmpty()) {
+        for (auto curve : overlappedCurves) {
+            if (curve == m_editingCurve)
+                continue;
+
+            m_editingCurve->mergeWith(*curve);
+            m_drawCurves.remove(curve);
+            delete curve;
+        }
+    }
+    m_prevPos = curPos;
+    update();
 }
 void PitchEditorGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
-    OverlayGraphicsItem::mouseReleaseEvent(event);
+    // OverlayGraphicsItem::mouseReleaseEvent(event);
+    qDebug() << "PitchEditorGraphicsItem::mouseReleaseEvent moved:" << m_mouseMoved;
+    if (!m_mouseMoved) {
+        if (m_drawCurveEditType == CreateNewCurve) {
+            m_drawCurves.remove(m_editingCurve);
+            delete m_editingCurve;
+            qDebug() << "New curve removed";
+        }
+        m_editingCurve = nullptr;
+        m_drawCurveEditType = None;
+    }
+    m_mouseMoved = false;
 }
 void PitchEditorGraphicsItem::updateRectAndPos() {
     auto pos = visibleRect().topLeft();
@@ -122,12 +189,32 @@ double PitchEditorGraphicsItem::sceneYToItemY(double y) const {
 double PitchEditorGraphicsItem::pitchToItemY(double pitch) const {
     return sceneYToItemY(pitchToSceneY(pitch));
 }
+double PitchEditorGraphicsItem::sceneYToPitch(double y) const {
+    return -(y * 100 / noteHeight * scaleY() - 12700 - 50);
+}
+DrawCurve *PitchEditorGraphicsItem::curveAt(double tick) {
+    for (const auto curve : m_drawCurves)
+        if (curve->start() <= tick && curve->endTick() > tick)
+            return curve;
+    return nullptr;
+}
+QList<DrawCurve *> PitchEditorGraphicsItem::curvesIn(int startTick, int endTick) {
+    QList<DrawCurve *> result;
+    ProbeLine line;
+    line.setStart(startTick);
+    line.setEndTick(endTick);
+    for (const auto curve : m_drawCurves) {
+        if (curve->isOverlappedWith(&line))
+            result.append(curve);
+    }
+    return result;
+}
 void PitchEditorGraphicsItem::drawOpensvipPitchParam(QPainter *painter) {
     QPainterPath path;
     bool firstPoint = true;
     int prevPos = 0;
     int prevValue = 0;
-    for (const auto &point : opensvipPitchParam) {
+    for (const auto &point : m_opensvipPitchParam) {
         auto pos = std::get<0>(point) - 480 * 3; // opensvip's "feature"
         auto value = std::get<1>(point);
 
@@ -150,4 +237,69 @@ void PitchEditorGraphicsItem::drawOpensvipPitchParam(QPainter *painter) {
         }
     }
     painter->drawPath(path);
+}
+void PitchEditorGraphicsItem::drawHandDrawCurves(QPainter *painter) {
+    auto drawCurve = [&](DrawCurve *curve) {
+        QPainterPath path;
+        int start = curve->start();
+        auto firstValue = curve->values().first();
+        auto firstPos = QPointF(tickToItemX(start), pitchToItemY(firstValue));
+        path.moveTo(firstPos);
+        // painter->drawText(firstPos, QString("#%1").arg(curve->id()));
+        for (int i = 0; i < curve->values().count(); i++) {
+            auto pos = start + curve->step * i;
+            auto value = curve->values().at(i);
+            if (pos < startTick())
+                continue;
+            if (pos > endTick())
+                break;
+
+            path.lineTo(tickToItemX(pos), pitchToItemY(value));
+        }
+        painter->drawPath(path);
+    };
+
+    for (const auto curve : m_drawCurves) {
+        if (curve->endTick() < startTick())
+            continue;
+        if (curve->start() > endTick())
+            break;
+
+        drawCurve(curve);
+    }
+}
+void PitchEditorGraphicsItem::drawLine(const QPoint &p1, const QPoint &p2, DrawCurve *curve) {
+    if (p1.x() == p2.x())
+        return;
+
+    auto valueAt = [](const QPoint &p1, const QPoint &p2, int x) {
+        int x1 = p1.x();
+        int y1 = p1.y();
+        int x2 = p2.x();
+        int y2 = p2.y();
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        double ratio = dy / dx;
+        return static_cast<int>(y1 + (x - x1) * ratio);
+    };
+
+    QPoint startPoint;
+    QPoint endPoint;
+    if (p1.x() < p2.x()) {
+        startPoint = p1;
+        endPoint = p2;
+    } else {
+        startPoint = p2;
+        endPoint = p1;
+    }
+    DrawCurve line;
+    auto start = startPoint.x();
+    line.setStart(start);
+    int linePointCount = (endPoint.x() - startPoint.x()) / curve->step;
+    for (int i = 0; i < linePointCount; i++) {
+        auto tick = start + i * curve->step;
+        auto value = valueAt(startPoint, endPoint, tick);
+        line.appendValue(value);
+    }
+    curve->overlayMergeWith(line);
 }

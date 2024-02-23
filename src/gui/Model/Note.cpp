@@ -92,8 +92,8 @@ Note Note::deserialize(const QJsonObject &objNote) {
     note.setLength(objNote.value("length").toInt());
     note.setKeyIndex(objNote.value("keyIndex").toInt());
     note.setLyric(objNote.value("lyric").toString());
-    // TODO: deserialize pronunciation
-    // TODO: deserialize phonemes
+    //TODO: deserialize pronunciation
+    //TODO: deserialize phonemes
     return note;
 }
 QDataStream &operator<<(QDataStream &out, const Pronunciation &pronunciation) {
@@ -160,6 +160,7 @@ QJsonObject Phonemes::serialize(const Phonemes &phonemes) {
     objPhonemes.insert("edited", arrEdited);
     return objPhonemes;
 }
+
 QDataStream &operator<<(QDataStream &out, const Note &note) {
     // out << note.m_id;
     out << note.m_start;

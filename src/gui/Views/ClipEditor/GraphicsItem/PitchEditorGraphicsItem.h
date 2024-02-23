@@ -5,40 +5,15 @@
 #ifndef PITCHEDITORGRAPHICSITEM_H
 #define PITCHEDITORGRAPHICSITEM_H
 
+#include "Model/Curve.h"
+#include "Utils/OverlapableSerialList.h"
 #include "Views/Common/OverlayGraphicsItem.h"
+
+class DrawCurve;
 
 class PitchEditorGraphicsItem final : public OverlayGraphicsItem {
 public:
     enum EditMode { Free, Anchor, Off };
-
-    class FreeCurve {
-    public:
-        int start;
-        int step = 5;
-        QVector<int> values; // cent
-    };
-
-    enum AnchorInterpMode { Linear, Hermite, Cubic, None };
-
-    class AnchorNode {
-    public:
-        AnchorNode(const int pos, const int pitch) : pos(pos), pitch(pitch) {
-        }
-        int pos; // tick
-        int pitch;
-        AnchorInterpMode interpMode = Cubic;
-    };
-
-    class AnchorCurve {
-    public:
-        int start;
-        QVector<AnchorNode> nodes;
-    };
-
-    QList<FreeCurve> pitchParamFree;
-    QList<AnchorCurve> pitchParamAnchor;
-    QVector<std::tuple<int, int>> opensvipPitchParam;
-
     explicit PitchEditorGraphicsItem();
 
     EditMode editMode() const;
@@ -58,8 +33,24 @@ private:
     // void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     void drawOpensvipPitchParam(QPainter *painter);
+    void drawHandDrawCurves(QPainter *painter);
+    void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve *curve);
 
     EditMode m_editMode = Off;
+
+    enum DrawCurveEditType { CreateNewCurve, EditExistCurve, None };
+
+    QPoint m_mouseDownPos;
+    QPoint m_prevPos;
+    DrawCurve *m_editingCurve = nullptr;
+    DrawCurveEditType m_drawCurveEditType = None;
+    bool m_mouseMoved = false;
+    OverlapableSerialList<DrawCurve> m_drawCurves;
+
+    OverlapableSerialList<AnchorCurve> pitchParamAnchor;
+
+    QList<std::tuple<int, int>> m_opensvipPitchParam;
+
     double startTick() const;
     double endTick() const;
     double sceneXToTick(double x) const;
@@ -69,6 +60,10 @@ private:
     double pitchToSceneY(double pitch) const;
     double sceneYToItemY(double y) const;
     double pitchToItemY(double pitch) const;
+    double sceneYToPitch(double y) const;
+
+    DrawCurve *curveAt(double tick);
+    QList<DrawCurve *> curvesIn(int startTick, int endTick);
 };
 
 #endif // PITCHEDITORGRAPHICSITEM_H

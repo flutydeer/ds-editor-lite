@@ -5,10 +5,14 @@
 #include <QMenu>
 #include <QContextMenuEvent>
 
+#include "ToolTipFilter.h"
 #include "LineEdit.h"
+
 LineEdit::LineEdit(QWidget *parent) : QLineEdit(parent) {
+    installEventFilter(new ToolTipFilter(this));
 }
 LineEdit::LineEdit(const QString &text, QWidget *parent) : QLineEdit(text, parent) {
+    installEventFilter(new ToolTipFilter(this));
 }
 void LineEdit::contextMenuEvent(QContextMenuEvent *event) {
     // QLineEdit::contextMenuEvent(event);
