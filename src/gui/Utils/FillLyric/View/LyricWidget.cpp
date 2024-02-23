@@ -2,7 +2,6 @@
 
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QInputDialog>
 #include <QStandardItemModel>
 #include <utility>
 
@@ -13,24 +12,34 @@ namespace FillLyric {
 
     LyricWidget::LyricWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
         : QWidget(parent), m_phonicNotes(std::move(phonicNotes)) {
+        setStyleSheet("QPushButton {padding: 5px; border: none; background: none; border-radius: "
+                      "6px; margin: 0; max-width: 100px;}"
+                      "QPushButton:hover { background: #1AFFFFFF; }"
+                      "QPushButton:pressed { background: #10FFFFFF; }");
         // textWidget
         m_textEditWidget = new QWidget();
 
         // textEdit top
         m_textTopLayout = new QHBoxLayout();
         btnImportLrc = new Button("导入lrc");
-        m_textCountLabel = new QLabel("字符数: 0");
+        btnLyricPrev = new Button("预览");
         m_textTopLayout->addWidget(btnImportLrc);
         m_textTopLayout->addStretch(1);
-        m_textTopLayout->addWidget(m_textCountLabel);
+        m_textTopLayout->addWidget(btnLyricPrev);
 
         // textEdit
         m_textEdit = new PhonicTextEdit();
         m_textEdit->setPlaceholderText("请输入歌词");
 
+        m_textBottomLayout = new QHBoxLayout();
+        m_textCountLabel = new QLabel("字符数: 0");
+        m_textBottomLayout->addStretch(1);
+        m_textBottomLayout->addWidget(m_textCountLabel);
+
         m_textEditLayout = new QVBoxLayout();
         m_textEditLayout->addLayout(m_textTopLayout);
         m_textEditLayout->addWidget(m_textEdit);
+        m_textEditLayout->addLayout(m_textBottomLayout);
 
         skipSlur = new QCheckBox("Skip Slur Note");
         excludeSpace = new QCheckBox("Exclude Space");
@@ -66,6 +75,7 @@ namespace FillLyric {
         splitComboBox->addItems({"Auto", "By Char", "Custom", "By Reg"});
         btnRegSetting = new Button("Setting");
         m_splitters = new LineEdit();
+        m_splitters->setMaximumWidth(85);
         m_splitters->setToolTip("Custom delimiter, input with space intervals. If you want to use "
                                 "spaces as separators, please check the checkbox above.");
 
@@ -88,26 +98,37 @@ namespace FillLyric {
 
         // tableTop layout
         m_tableTopLayout = new QHBoxLayout();
-        btnFoldLeft = new Button("收起左侧");
+        btnFoldLeft = new Button("折叠预览");
         btnToggleFermata = new Button("收放延音符");
         autoWrap = new QCheckBox("Auto Wrap");
-        btnUndo = new Button("撤销");
-        btnRedo = new Button("重做");
-        btnTableConfig = new Button("设置");
-        noteCountLabel = new QLabel("0/0");
+        btnUndo = new QPushButton();
+        btnUndo->setFixedWidth(24);
+        btnUndo->setIcon(QIcon(":svg/icons/arrow_undo_16_filled_white.svg"));
+        btnRedo = new QPushButton();
+        btnRedo->setFixedWidth(24);
+        btnRedo->setIcon(QIcon(":svg/icons/arrow_redo_16_filled_white.svg"));
+        btnTableConfig = new QPushButton();
+        btnTableConfig->setFixedWidth(24);
+        btnTableConfig->setIcon(QIcon(":svg/icons/settings_16_filled_white.svg"));
 
         m_tableTopLayout->addWidget(btnFoldLeft);
         m_tableTopLayout->addWidget(btnToggleFermata);
-        m_tableTopLayout->addWidget(autoWrap);
         m_tableTopLayout->addWidget(btnUndo);
         m_tableTopLayout->addWidget(btnRedo);
+        m_tableTopLayout->addStretch(1);
+        m_tableTopLayout->addWidget(autoWrap);
         m_tableTopLayout->addWidget(btnTableConfig);
-        m_tableTopLayout->addWidget(noteCountLabel);
+
+        m_tableBottomLayout = new QHBoxLayout();
+        noteCountLabel = new QLabel("0/0");
+        m_tableBottomLayout->addStretch(1);
+        m_tableBottomLayout->addWidget(noteCountLabel);
 
         // table layout
         m_tableLayout = new QVBoxLayout();
         m_tableLayout->addLayout(m_tableTopLayout);
         m_tableLayout->addWidget(m_phonicWidget->tableView);
+        m_tableLayout->addLayout(m_tableBottomLayout);
 
         m_tableWidget->setLayout(m_tableLayout);
 
@@ -118,9 +139,9 @@ namespace FillLyric {
         // lyric layout
         m_lyricLayout = new QHBoxLayout();
         m_lyricLayout->addWidget(m_textEditWidget, 3);
-        m_lyricLayout->addWidget(m_lyricOptWidget, 1);
+        m_lyricLayout->addWidget(m_lyricOptWidget);
         m_lyricLayout->addWidget(m_tableWidget, 5);
-        m_lyricLayout->addWidget(m_tableConfigWidget, 1);
+        m_lyricLayout->addWidget(m_tableConfigWidget);
 
         // main layout
         m_mainLayout = new QVBoxLayout(this);
@@ -147,12 +168,19 @@ namespace FillLyric {
         // textEdit label
         connect(m_textEdit, &PhonicTextEdit::textChanged, this, &LyricWidget::_on_textEditChanged);
 
+        // fold right
+        connect(btnLyricPrev, &QPushButton::clicked, [this]() {
+            btnLyricPrev->setText(m_tableWidget->isVisible() ? "预览歌词" : "折叠预览");
+            m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
+            m_tableWidget->setVisible(!m_tableWidget->isVisible());
+            m_tableConfigWidget->setVisible(false);
+        });
+
         // fold left
         connect(btnFoldLeft, &QPushButton::clicked, [this]() {
             btnFoldLeft->setText(m_textEditWidget->isVisible() ? "展开左侧" : "收起左侧");
             m_textEditWidget->setVisible(!m_textEditWidget->isVisible());
             m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
-            m_tableConfigWidget->setVisible(false);
         });
 
         // undo redo
@@ -171,12 +199,8 @@ namespace FillLyric {
                 &LyricWidget::_on_splitComboBox_currentIndexChanged);
 
         // tableConfig
-        connect(btnTableConfig, &QPushButton::clicked, [this]() {
-            btnFoldLeft->setText(!m_tableConfigWidget->isVisible() ? "展开左侧" : "收起左侧");
-            m_textEditWidget->setVisible(m_tableConfigWidget->isVisible());
-            m_lyricOptWidget->setVisible(m_tableConfigWidget->isVisible());
-            m_tableConfigWidget->setVisible(!m_tableConfigWidget->isVisible());
-        });
+        connect(btnTableConfig, &QPushButton::clicked,
+                [this]() { m_tableConfigWidget->setVisible(!m_tableConfigWidget->isVisible()); });
 
         // tableConfigWidget
         connect(m_tableConfigWidget->m_colWidthRatioSpinBox,
@@ -229,14 +253,15 @@ namespace FillLyric {
 
     void LyricWidget::_on_btnInsertText_clicked() {
         // 测试文本
-        QString text = "蝉声--陪伴着行云流浪---\n回-忆-开始后安静遥望远方\n荒草覆没的古井--"
-                       "枯塘\n匀-散一缕过往\n";
+        QString text =
+            "Halloween蝉声--陪伴着qwe行云流浪---\n回-忆-开始132后安静遥望远方\n荒草覆没的古井--"
+            "枯塘\n匀-散asdaw一缕过往\n";
         m_textEdit->setText(text);
     }
 
     void LyricWidget::_on_btnToTable_clicked() {
-        auto skipSlur = this->skipSlur->isChecked();
-        auto excludeSpace = this->excludeSpace->isChecked();
+        auto skipSlurRes = this->skipSlur->isChecked();
+        auto excludeSpaceRes = this->excludeSpace->isChecked();
         auto splitType = SplitType(this->splitComboBox->currentIndex());
 
         // 获取文本框的内容
@@ -244,11 +269,12 @@ namespace FillLyric {
         QList<Phonic> splitRes;
 
         if (splitType == SplitType::Auto) {
-            splitRes = CleanLyric::splitAuto(text, excludeSpace);
+            splitRes = CleanLyric::splitAuto(text, excludeSpaceRes);
         } else if (splitType == SplitType::ByChar) {
-            splitRes = CleanLyric::splitByChar(text, excludeSpace);
+            splitRes = CleanLyric::splitByChar(text, excludeSpaceRes);
         } else if (splitType == SplitType::Custom) {
-            splitRes = CleanLyric::splitCustom(text, m_splitters->text().split(' '), excludeSpace);
+            splitRes =
+                CleanLyric::splitCustom(text, m_splitters->text().split(' '), excludeSpaceRes);
         } else {
         }
 

@@ -55,6 +55,7 @@ namespace FillLyric {
         QWidget *m_textEditWidget;
         QVBoxLayout *m_textEditLayout;
         QHBoxLayout *m_textTopLayout;
+        QHBoxLayout *m_textBottomLayout;
         QHBoxLayout *m_skipSlurLayout;
 
         QWidget *m_lyricOptWidget;
@@ -62,6 +63,7 @@ namespace FillLyric {
 
         QWidget *m_tableWidget;
         QVBoxLayout *m_tableLayout;
+        QHBoxLayout *m_tableBottomLayout;
 
         // Widgets
         PhonicTextEdit *m_textEdit;
@@ -78,13 +80,14 @@ namespace FillLyric {
         Button *btnToTable;
         Button *btnToText;
         Button *btnImportLrc;
+        Button *btnLyricPrev;
 
         Button *btnFoldLeft;
         Button *btnToggleFermata;
         QCheckBox *autoWrap;
-        Button *btnUndo;
-        Button *btnRedo;
-        Button *btnTableConfig;
+        QPushButton *btnUndo;
+        QPushButton *btnRedo;
+        QPushButton *btnTableConfig;
 
         // CheckBox
         QCheckBox *skipSlur;
