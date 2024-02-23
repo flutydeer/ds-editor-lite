@@ -9,8 +9,6 @@
 #include "../../History/MAction.h"
 #include "../../Model/PhonicModel.h"
 
-#include "../../View/PhonicDelegate.h"
-
 namespace FillLyric {
 
     class CellMergeLeft final : public MAction {

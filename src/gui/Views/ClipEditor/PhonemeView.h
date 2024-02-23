@@ -5,7 +5,7 @@
 #ifndef PHONEMEPARAMEDITOR_H
 #define PHONEMEPARAMEDITOR_H
 
-#include "Utils/FillLyric/View/PhonicWidget.h"
+#include <QWidget>
 #include "Views/Utils/ITimelinePainter.h"
 #include "Model/Note.h"
 #include "Utils/OverlapableSerialList.h"

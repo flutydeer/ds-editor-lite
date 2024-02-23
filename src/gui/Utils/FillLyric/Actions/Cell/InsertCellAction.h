@@ -9,8 +9,6 @@
 #include "../../History/MAction.h"
 #include "../../Model/PhonicModel.h"
 
-#include "../../View/PhonicDelegate.h"
-
 namespace FillLyric {
 
     class InsertCellAction final : public MAction {

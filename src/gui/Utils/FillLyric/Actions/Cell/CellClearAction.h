@@ -8,7 +8,6 @@
 #include "../../Model/PhonicModel.h"
 
 #include "../../Model/PhonicCommon.h"
-#include "../../View/PhonicDelegate.h"
 
 namespace FillLyric {
     class CellClearAction final : public MAction {

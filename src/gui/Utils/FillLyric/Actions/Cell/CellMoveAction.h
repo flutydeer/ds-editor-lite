@@ -4,8 +4,6 @@
 #include "../../Model/PhonicModel.h"
 #include "../../History/MAction.h"
 
-#include "../../View/PhonicDelegate.h"
-
 namespace FillLyric {
 
     class CellMoveAction : public MAction {

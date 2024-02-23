@@ -25,7 +25,6 @@
 #include "../History/ModelHistory.h"
 #include "Controls/Button.h"
 
-#include "PhonicDelegate.h"
 #include "PhonicTableView.h"
 #include "PhonicTextEdit.h"
 #include "PhonicEventFilter.h"
