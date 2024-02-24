@@ -21,7 +21,7 @@
 class LineEdit;
 
 namespace FillLyric {
-    class LyricWidget : public QWidget {
+    class LyricWidget final: public QWidget {
         Q_OBJECT
     public:
         explicit LyricWidget(QList<Phonic *> phonics, QWidget *parent = nullptr);
@@ -89,7 +89,10 @@ namespace FillLyric {
         Button *btnInsertText;
         Button *btnToTable;
         Button *btnToText;
+
+        // textEditTop
         Button *btnImportLrc;
+        Button *btnReReadNote;
         Button *btnLyricPrev;
 
         Button *btnFoldLeft;

@@ -22,8 +22,10 @@ namespace FillLyric {
         // textEdit top
         m_textTopLayout = new QHBoxLayout();
         btnImportLrc = new Button("导入lrc");
+        btnReReadNote = new Button("重读音符");
         btnLyricPrev = new Button("折叠预览");
         m_textTopLayout->addWidget(btnImportLrc);
+        m_textTopLayout->addWidget(btnReReadNote);
         m_textTopLayout->addStretch(1);
         m_textTopLayout->addWidget(btnLyricPrev);
 
@@ -168,15 +170,25 @@ namespace FillLyric {
         m_mainLayout->setContentsMargins(0, 10, 0, 10);
         m_mainLayout->addLayout(m_lyricLayout);
 
+        // textEditTop signals
+        connect(btnImportLrc, &QAbstractButton::clicked, this,
+                &LyricWidget::_on_btnImportLrc_clicked);
+        connect(btnReReadNote, &QAbstractButton::clicked, this, &LyricWidget::setPhonics);
+
+        // textEdit label
+        connect(m_textEdit, &PhonicTextEdit::textChanged, this, &LyricWidget::_on_textEditChanged);
+
+        connect(autoWrap, &QCheckBox::stateChanged, m_phonicWidget, &PhonicWidget::setAutoWrap);
+
         // phonicWidget signals
         connect(btnInsertText, &QAbstractButton::clicked, this,
                 &LyricWidget::_on_btnInsertText_clicked);
         connect(btnToTable, &QAbstractButton::clicked, this, &LyricWidget::_on_btnToTable_clicked);
         connect(btnToText, &QAbstractButton::clicked, this, &LyricWidget::_on_btnToText_clicked);
-        connect(btnImportLrc, &QAbstractButton::clicked, this,
-                &LyricWidget::_on_btnImportLrc_clicked);
 
-        connect(autoWrap, &QCheckBox::stateChanged, m_phonicWidget, &PhonicWidget::setAutoWrap);
+        // splitComboBox
+        connect(splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+                &LyricWidget::_on_splitComboBox_currentIndexChanged);
 
         // phonicWidget toggleFermata
         connect(btnToggleFermata, &QPushButton::clicked, m_phonicWidget,
@@ -185,9 +197,6 @@ namespace FillLyric {
         // phonicWidget label
         connect(m_phonicWidget->model, &PhonicModel::dataChanged, this,
                 &LyricWidget::_on_modelDataChanged);
-
-        // textEdit label
-        connect(m_textEdit, &PhonicTextEdit::textChanged, this, &LyricWidget::_on_textEditChanged);
 
         // fold right
         connect(btnLyricPrev, &QPushButton::clicked, [this]() {
@@ -222,10 +231,6 @@ namespace FillLyric {
         connect(autoWrap, &QCheckBox::stateChanged, modelHistory, &ModelHistory::reset);
         connect(m_phonicWidget, &PhonicWidget::historyReset, modelHistory, &ModelHistory::reset);
 
-        // splitComboBox
-        connect(splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-                &LyricWidget::_on_splitComboBox_currentIndexChanged);
-
         // tableConfig
         connect(btnTableConfig, &QPushButton::clicked,
                 [this]() { m_tableConfigWidget->setVisible(!m_tableConfigWidget->isVisible()); });
@@ -246,12 +251,17 @@ namespace FillLyric {
     void LyricWidget::setPhonics() {
         const bool skipSlurRes = skipSlur->isChecked();
 
+        QStringList lyrics;
         QList<Phonic> phonics;
         for (const auto phonic : m_phonics) {
-            if (skipSlurRes && (phonic->lyricType == TextType::Slur || phonic->lyric == "-"))
+            if (skipSlurRes && (phonic->lyricType == Slur || phonic->lyric == "-"))
                 continue;
             phonics.append(*phonic);
+            lyrics.append(phonic->lyric);
         }
+        notesCount = static_cast<int>(phonics.size());
+        m_textEdit->setText(lyrics.join(" "));
+        m_phonicWidget->_init(phonics);
     }
 
     QList<Phonic> LyricWidget::exportPhonics() const {
@@ -261,12 +271,12 @@ namespace FillLyric {
         const auto model = m_phonicWidget->model;
         model->expandFermata();
 
-
         QList<Phonic> phonics;
         for (int i = 0; i < model->rowCount(); ++i) {
             const int col = skipSpaceRes ? model->currentLyricLength(i) : model->columnCount();
             for (int j = 0; j < col; ++j) {
-                if (skipSlurRes && model->cellLyricType(i, j) == TextType::Slur)
+                if (skipSlurRes &&
+                    (model->cellLyricType(i, j) == Slur || model->cellLyric(i, j) == "-"))
                     continue;
                 phonics.append(model->takeData(i, j));
             }
