@@ -20,6 +20,7 @@ namespace FillLyric {
         m_tabWidget = new QTabWidget();
 
         m_lyricWidget = new LyricWidget(m_phonics);
+        m_lyricWidget->setPhonics();
 
         m_btnOk = new Button("OK", this);
         m_btnOk->setPrimary(true);
@@ -78,16 +79,9 @@ namespace FillLyric {
     }
 
     void LyricDialog::exportPhonics() {
-        m_lyricWidget->exportPhonics();
+        QList<Phonic> phonics = m_lyricWidget->exportPhonics();
 
         bool skipSlurRes = m_lyricWidget->exportSkipSlur->isChecked();
-
-        QList<Phonic *> phonics;
-        for (auto phonic : m_phonics) {
-            if (skipSlurRes && phonic->lyricType == TextType::Slur)
-                continue;
-            phonics.append(phonic);
-        }
 
         QList<Note *> notes;
         for (auto note : m_notes) {
@@ -97,16 +91,15 @@ namespace FillLyric {
         }
 
         for (int i = 0; i < phonics.size(); ++i) {
-            auto phonicNote = phonics.at(i);
+            const auto &phonic = phonics.at(i);
             if (i >= notes.size())
                 break;
             auto note = notes.at(i);
 
-            note->setLyric(phonicNote->lyric);
-            note->setPronunciation(
-                Pronunciation(phonicNote->syllable, phonicNote->syllableRevised));
-            note->setPronCandidates(phonicNote->candidates);
-            note->setLineFeed(phonicNote->lineFeed);
+            note->setLyric(phonic.lyric);
+            note->setPronunciation(Pronunciation(phonic.syllable, phonic.syllableRevised));
+            note->setPronCandidates(phonic.candidates);
+            note->setLineFeed(phonic.lineFeed);
         }
     }
 

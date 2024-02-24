@@ -96,7 +96,7 @@ namespace FillLyric {
         m_tableWidget = new QWidget();
 
         // phonicWidget
-        m_phonicWidget = new PhonicWidget(m_phonics);
+        m_phonicWidget = new PhonicWidget();
 
         // tableTop layout
         m_tableTopLayout = new QHBoxLayout();
@@ -244,19 +244,35 @@ namespace FillLyric {
 
     LyricWidget::~LyricWidget() = default;
 
-    void LyricWidget::exportPhonics() {
-        bool skipSpaceRes = excludeSpace->isChecked();
+    void LyricWidget::setPhonics() {
         bool skipSlurRes = skipSlur->isChecked();
 
-        auto model = m_phonicWidget->model;
+        QList<Phonic> phonics;
+        for (auto phonic : m_phonics) {
+            if (skipSlurRes && (phonic->lyricType == TextType::Slur || phonic->lyric == "-"))
+                continue;
+            phonics.append(*phonic);
+        }
+    }
 
+    QList<Phonic> LyricWidget::exportPhonics() {
+        bool skipSpaceRes = excludeSpace->isChecked();
+        bool skipSlurRes = exportSkipSlur->isChecked();
+
+        auto model = m_phonicWidget->model;
+        model->expandFermata();
+
+
+        QList<Phonic> phonics;
         for (int i = 0; i < model->rowCount(); ++i) {
             int col = skipSpaceRes ? model->currentLyricLength(i) : model->columnCount();
             for (int j = 0; j < col; ++j) {
-                auto phonic = new Phonic(model->takeData(i, j));
-                m_phonics.append(phonic);
+                if (skipSlurRes && model->cellLyricType(i, j) == TextType::Slur)
+                    continue;
+                phonics.append(model->takeData(i, j));
             }
         }
+        return phonics;
     }
 
     void LyricWidget::_on_textEditChanged() {

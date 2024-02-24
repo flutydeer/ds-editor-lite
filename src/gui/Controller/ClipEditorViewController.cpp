@@ -194,15 +194,14 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
             selectedNotes = dynamic_cast<SingingClip *>(selectedClip)->selectedNotes();
     }
 
-    auto lyricDialog = new FillLyric::LyricDialog(selectedNotes, parent);
-    lyricDialog->show();
+    FillLyric::LyricDialog lyricDialog(selectedNotes, parent);
+    lyricDialog.exec();
 
-    auto result = lyricDialog->exec();
+    auto result = lyricDialog.result();
     if (result == QDialog::Accepted) {
-        lyricDialog->exportPhonics();
+        lyricDialog.exportPhonics();
         ClipEditorViewController::instance()->onEditSelectedNotesLyric();
     }
-    delete lyricDialog;
 }
 void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const {
     QList<Note::NoteWordProperties *> args;

@@ -35,10 +35,8 @@ namespace FillLyric {
         friend class LyricWidget;
 
     public:
-        explicit PhonicWidget(QList<Phonic *> phonics, QWidget *parent = nullptr);
+        explicit PhonicWidget(QWidget *parent = nullptr);
         ~PhonicWidget() override;
-
-        QList<Phonic> exportPhonics();
 
     public Q_SLOTS:
         // ContextMenu

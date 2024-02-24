@@ -28,7 +28,8 @@ namespace FillLyric {
         explicit LyricWidget(QList<Phonic *> phonics, QWidget *parent = nullptr);
         ~LyricWidget() override;
 
-        void exportPhonics();
+        void setPhonics();
+        QList<Phonic> exportPhonics();
 
         QCheckBox *exportSkipSlur;
         QCheckBox *exportExcludeSpace;

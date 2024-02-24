@@ -2,7 +2,6 @@
 #include <QMessageBox>
 #include <QInputDialog>
 #include <QStandardItemModel>
-#include <utility>
 
 #include "PhonicWidget.h"
 
@@ -13,9 +12,8 @@
 #include "../Actions/Model/ModelActions.h"
 
 namespace FillLyric {
-    PhonicWidget::PhonicWidget(QList<Phonic *> phonics, QWidget *parent)
-        : g2p_man(G2pMandarin::instance()), g2p_jp(G2pJapanese::instance()),
-          m_phonics(std::move(phonics)), QWidget(parent) {
+    PhonicWidget::PhonicWidget(QWidget *parent)
+        : g2p_man(G2pMandarin::instance()), g2p_jp(G2pJapanese::instance()), QWidget(parent) {
 
         // 创建模型和视图
         tableView = new PhonicTableView();
@@ -408,21 +406,6 @@ namespace FillLyric {
                                 [this, index, syllable]() { cellChangePhonic(index, syllable); });
             }
         }
-    }
-
-    QList<Phonic> PhonicWidget::exportPhonics() {
-        QList<Phonic> res;
-        for (int i = 0; i < model->rowCount(); i++) {
-            int curCol = model->currentLyricLength(i);
-            for (int j = 0; j < curCol; j++) {
-                Phonic phonic = model->takeData(i, j);
-                if (j == curCol - 1) {
-                    phonic.lineFeed = true;
-                }
-                res.append(phonic);
-            }
-        }
-        return res;
     }
 
     void PhonicWidget::cellClear(const QList<QModelIndex> &indexes) {
