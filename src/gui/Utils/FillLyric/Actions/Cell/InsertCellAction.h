@@ -1,9 +1,6 @@
 #ifndef DS_EDITOR_LITE_INSERTCELLACTION_H
 #define DS_EDITOR_LITE_INSERTCELLACTION_H
 
-#include <QObject>
-#include <QModelIndex>
-
 #include "CellCommon.h"
 
 #include "../../History/MAction.h"

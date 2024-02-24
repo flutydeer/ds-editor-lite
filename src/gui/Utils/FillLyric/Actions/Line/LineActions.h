@@ -1,8 +1,6 @@
 #ifndef DS_EDITOR_LITE_LINEACTIONS_H
 #define DS_EDITOR_LITE_LINEACTIONS_H
 
-#include <QModelIndex>
-
 #include "LineBreakAction.h"
 #include "PrevLineAction.h"
 #include "NextLineAction.h"

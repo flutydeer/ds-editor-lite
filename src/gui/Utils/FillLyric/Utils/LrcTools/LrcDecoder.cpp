@@ -3,7 +3,6 @@
 
 #include <QFile>
 #include <QDebug>
-#include <QTextStream>
 
 namespace LrcTools {
 

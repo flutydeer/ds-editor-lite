@@ -14,8 +14,8 @@ namespace FillLyric {
 
     class WrapCellActions : public MActionSequence {
     public:
-        void deleteWrapCell(const QModelIndex &index, PhonicModel *model, QTableView *tableView);
-        void insertWrapCell(const QModelIndex &index, PhonicModel *model, QTableView *tableView);
+        void deleteWrapCell(const QModelIndex &index, PhonicModel *model);
+        void insertWrapCell(const QModelIndex &index, PhonicModel *model);
         void warpCellEdit(const QModelIndex &index, PhonicModel *model, const Phonic &newPhonic);
         void warpCellChangePhonic(const QModelIndex &index, PhonicModel *model,
                                   const QString &syllableRevised);

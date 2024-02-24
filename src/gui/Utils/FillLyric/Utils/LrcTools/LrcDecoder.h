@@ -4,7 +4,6 @@
 #include <QObject>
 #include <QString>
 #include <QMap>
-#include <fstream>
 #include <QSharedPointer>
 
 // Refer to: https://github.com/mengps/LrcDecoder

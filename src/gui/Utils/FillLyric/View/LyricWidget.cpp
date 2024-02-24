@@ -2,8 +2,6 @@
 
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QStandardItemModel>
-#include <utility>
 
 #include "../Utils/LrcTools/LrcDecoder.h"
 #include "Controls/LineEdit.h"

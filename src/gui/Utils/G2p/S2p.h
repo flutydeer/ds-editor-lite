@@ -1,9 +1,6 @@
 #ifndef DS_EDITOR_LITE_S2P_H
 #define DS_EDITOR_LITE_S2P_H
 
-#include <utility>
-
-#include "g2pglobal.h"
 #include "syllable2p.h"
 #include "Utils/QSingleton.h"
 

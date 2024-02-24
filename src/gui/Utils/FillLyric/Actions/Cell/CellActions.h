@@ -1,8 +1,6 @@
 #ifndef DS_EDITOR_LITE_CELLACTIONS_H
 #define DS_EDITOR_LITE_CELLACTIONS_H
 
-#include <QModelIndex>
-
 #include "CellClearAction.h"
 #include "DeleteCellAction.h"
 #include "InsertCellAction.h"

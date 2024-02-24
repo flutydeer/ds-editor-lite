@@ -1,9 +1,6 @@
 #ifndef DS_EDITOR_LITE_DELETECELLACTION_H
 #define DS_EDITOR_LITE_DELETECELLACTION_H
 
-#include <QObject>
-#include <QModelIndex>
-
 #include "CellCommon.h"
 
 #include "../../History/MAction.h"

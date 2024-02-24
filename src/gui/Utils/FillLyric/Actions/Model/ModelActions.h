@@ -1,8 +1,6 @@
 #ifndef DS_EDITOR_LITE_MODELACTIONS_H
 #define DS_EDITOR_LITE_MODELACTIONS_H
 
-#include <QModelIndex>
-
 #include "ModelShrinkAction.h"
 #include "ToggleFermataAction.h"
 #include "WrapToggleFermataAction.h"

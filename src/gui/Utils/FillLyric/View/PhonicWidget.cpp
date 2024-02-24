@@ -1,7 +1,5 @@
-#include <QFileDialog>
 #include <QMessageBox>
 #include <QInputDialog>
-#include <QStandardItemModel>
 
 #include "PhonicWidget.h"
 
@@ -430,7 +428,7 @@ namespace FillLyric {
             ModelHistory::instance()->record(a);
         } else {
             auto a = new WrapCellActions();
-            a->deleteWrapCell(index, model, tableView);
+            a->deleteWrapCell(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         }
@@ -444,7 +442,7 @@ namespace FillLyric {
             ModelHistory::instance()->record(a);
         } else {
             auto a = new WrapCellActions();
-            a->insertWrapCell(index, model, tableView);
+            a->insertWrapCell(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         }

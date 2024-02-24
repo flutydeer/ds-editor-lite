@@ -1,7 +1,6 @@
 #ifndef DS_EDITOR_LITE_LYRICDIALOG_H
 #define DS_EDITOR_LITE_LYRICDIALOG_H
 
-#include <QDialog>
 #include <QTabWidget>
 
 #include <Model/Note.h>

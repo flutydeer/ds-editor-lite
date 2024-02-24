@@ -12,18 +12,14 @@ namespace FillLyric {
 
     class DeleteWrapCellAction final : public MAction {
     public:
-        static DeleteWrapCellAction *build(const QModelIndex &index, PhonicModel *model,
-                                           QTableView *tableView);
+        static DeleteWrapCellAction *build(const QModelIndex &index, PhonicModel *model);
         void execute() override;
         void undo() override;
 
     private:
         PhonicModel *m_model = nullptr;
-        QTableView *m_tableView = nullptr;
 
         QModelIndex m_index;
-
-        int m_scrollBarValue;
 
         int m_cellIndex;
 

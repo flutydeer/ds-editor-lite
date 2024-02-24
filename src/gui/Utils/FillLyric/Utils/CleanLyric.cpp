@@ -1,5 +1,4 @@
 #include "CleanLyric.h"
-#include <QDebug>
 
 namespace FillLyric {
     bool CleanLyric::isLetter(QChar c) {

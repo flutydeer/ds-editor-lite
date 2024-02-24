@@ -1,9 +1,6 @@
 #ifndef DS_EDITOR_LITE_CELLCLEARACTION_H
 #define DS_EDITOR_LITE_CELLCLEARACTION_H
 
-#include <QObject>
-#include <QModelIndex>
-
 #include "../../History/MAction.h"
 #include "../../Model/PhonicModel.h"
 

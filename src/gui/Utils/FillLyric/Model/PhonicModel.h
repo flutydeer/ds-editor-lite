@@ -19,7 +19,6 @@
 #include "mandarin.h"
 
 #include "PhonicCommon.h"
-#include "../Model/PhonicNote.h"
 #include "../View/PhonicDelegate.h"
 
 namespace FillLyric {

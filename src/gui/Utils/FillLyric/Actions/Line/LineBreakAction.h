@@ -1,16 +1,7 @@
 #ifndef DS_EDITOR_LITE_LINEBREAKACTION_H
 #define DS_EDITOR_LITE_LINEBREAKACTION_H
 
-#include <QObject>
-#include <QModelIndex>
-
 #include "../Cell/CellCommon.h"
-#include "../Cell/CellClearAction.h"
-#include "../Cell/CellMoveAction.h"
-
-#include "../Line/NextLineAction.h"
-
-#include "../Model/ModelShrinkAction.h"
 
 #include "../../Model/PhonicModel.h"
 #include "../../History/MAction.h"

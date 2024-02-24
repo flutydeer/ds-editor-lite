@@ -2,14 +2,12 @@
 
 namespace FillLyric {
 
-    DeleteWrapCellAction *DeleteWrapCellAction::build(const QModelIndex &index, PhonicModel *model,
-                                                      QTableView *tableView) {
+    DeleteWrapCellAction *DeleteWrapCellAction::build(const QModelIndex &index,
+                                                      PhonicModel *model) {
         auto *action = new DeleteWrapCellAction;
         action->m_model = model;
-        action->m_tableView = tableView;
 
         action->m_cellIndex = index.row() * model->columnCount() + index.column();
-        action->m_scrollBarValue = tableView->verticalScrollBar()->value();
 
         action->m_phonic = model->takeCell(index);
         return action;

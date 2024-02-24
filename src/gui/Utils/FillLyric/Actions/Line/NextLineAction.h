@@ -1,7 +1,6 @@
 #ifndef DS_EDITOR_LITE_NEXTLINEACTION_H
 #define DS_EDITOR_LITE_NEXTLINEACTION_H
 
-
 #include "../../History/MAction.h"
 #include "../../Model/PhonicModel.h"
 

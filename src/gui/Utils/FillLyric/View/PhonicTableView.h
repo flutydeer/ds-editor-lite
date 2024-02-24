@@ -2,10 +2,6 @@
 #define DS_EDITOR_LITE_PHONICTABLEVIEW_H
 
 #include <QTableView>
-#include <QPainter>
-#include <QDragEnterEvent>
-#include <QDragMoveEvent>
-#include <QDropEvent>
 
 namespace FillLyric {
 

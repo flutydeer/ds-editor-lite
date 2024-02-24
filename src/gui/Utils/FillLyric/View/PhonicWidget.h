@@ -1,20 +1,10 @@
 #ifndef DS_EDITOR_LITE_PHONICWIDGET_H
 #define DS_EDITOR_LITE_PHONICWIDGET_H
 
-#include <QApplication>
-#include <QPainter>
-#include <QMenu>
-#include <QStandardItemModel>
 #include <QTableView>
-#include <QTextEdit>
-#include <QLabel>
 #include <QWidget>
 #include <QHBoxLayout>
-#include <QPushButton>
-#include <QMainWindow>
 #include <QVBoxLayout>
-#include <QHeaderView>
-#include <QAbstractButton>
 
 #include "g2pglobal.h"
 #include "Utils/G2p/G2pMandarin.h"
