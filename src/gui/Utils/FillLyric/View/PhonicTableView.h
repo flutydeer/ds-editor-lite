@@ -5,7 +5,7 @@
 
 namespace FillLyric {
 
-    class PhonicTableView : public QTableView {
+    class PhonicTableView final: public QTableView {
         Q_OBJECT
     public:
         explicit PhonicTableView(QWidget *parent = nullptr);

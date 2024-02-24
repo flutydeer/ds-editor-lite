@@ -59,7 +59,7 @@ namespace LrcTools {
             return false;
         }
 
-        qint64 index = d->decodeHeader();
+        const qint64 index = d->decodeHeader();
 
         if (index == d->m_lrcData.length()) {
             d->m_lastError = "No lyrics text!";
@@ -101,10 +101,10 @@ namespace LrcTools {
         return packet;
     }
 
-    bool LrcDecoder::seek(qint64 timestamp, LrcDecoder::SeekFlag flag) {
+    bool LrcDecoder::seek(const qint64 &timestamp, const SeekFlag &flag) {
         Q_D(LrcDecoder);
         if (flag == SeekForward) {
-            auto end = --d->m_lyrics.end();
+            const auto end = --d->m_lyrics.end();
             for (d->m_readIndex = d->m_lyrics.begin(); d->m_readIndex != end; ++d->m_readIndex) {
                 if (d->m_readIndex.key() >= timestamp) {
                     return true;
@@ -168,14 +168,14 @@ namespace LrcTools {
 
     qint64 LrcDecoderPrivate::decodeHeader() {
         qint64 offset = 0;
-        qint64 length = m_lrcData.length();
+        const qint64 length = m_lrcData.length();
 
         if (offset >= length)
             return offset;
 
         while (offset < length) {
-            QString meta, data;
             if (m_lrcData.at(offset) == '[') {
+                QString meta, data;
                 while (++offset < length && m_lrcData.at(offset) != ':') {
                     if (m_lrcData.at(offset).isLower())
                         meta += m_lrcData.at(offset);
@@ -198,7 +198,7 @@ namespace LrcTools {
 
     void LrcDecoderPrivate::decodeLine(const QString &line) {
         qint64 offset = 0;
-        qint64 length = line.length();
+        const qint64 length = line.length();
 
         if (offset >= length)
             return;
@@ -249,7 +249,7 @@ namespace LrcTools {
     }
 
     QString LrcDecoderPrivate::readLine() {
-        qint64 length = m_lrcData.length();
+        const qint64 length = m_lrcData.length();
         QString line;
         while (m_currentIndex < length) {
             if (m_lrcData.at(m_currentIndex) == '\n') {

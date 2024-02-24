@@ -2,7 +2,7 @@
 
 namespace FillLyric {
     CellClearAction *CellClearAction::build(const QModelIndex &index, PhonicModel *model) {
-        auto action = new CellClearAction;
+        const auto action = new CellClearAction;
         action->m_model = model;
         action->m_index = index;
         action->m_phonic = model->takeCell(index);

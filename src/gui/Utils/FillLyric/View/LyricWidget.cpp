@@ -3,8 +3,10 @@
 #include <QFileDialog>
 #include <QMessageBox>
 
-#include "../Utils/LrcTools/LrcDecoder.h"
 #include "Controls/LineEdit.h"
+
+#include "../History/ModelHistory.h"
+#include "../Utils/LrcTools/LrcDecoder.h"
 
 namespace FillLyric {
 
@@ -195,8 +197,7 @@ namespace FillLyric {
             m_tableConfigWidget->setVisible(false);
 
             if (!m_tableWidget->isVisible()) {
-                int width = m_textEdit->width();
-                Q_EMIT this->shrinkWindowRight(width + 20);
+                Q_EMIT this->shrinkWindowRight(m_textEdit->width() + 20);
             } else {
                 Q_EMIT this->expandWindowRight();
             }
@@ -214,7 +215,7 @@ namespace FillLyric {
         connect(btnUndo, &QPushButton::clicked, modelHistory, &ModelHistory::undo);
         connect(btnRedo, &QPushButton::clicked, modelHistory, &ModelHistory::redo);
         connect(modelHistory, &ModelHistory::undoRedoChanged, this,
-                [=](bool canUndo, bool canRedo) {
+                [=](const bool canUndo, const bool canRedo) {
                     btnUndo->setEnabled(canUndo);
                     btnRedo->setEnabled(canRedo);
                 });
@@ -243,27 +244,27 @@ namespace FillLyric {
     LyricWidget::~LyricWidget() = default;
 
     void LyricWidget::setPhonics() {
-        bool skipSlurRes = skipSlur->isChecked();
+        const bool skipSlurRes = skipSlur->isChecked();
 
         QList<Phonic> phonics;
-        for (auto phonic : m_phonics) {
+        for (const auto phonic : m_phonics) {
             if (skipSlurRes && (phonic->lyricType == TextType::Slur || phonic->lyric == "-"))
                 continue;
             phonics.append(*phonic);
         }
     }
 
-    QList<Phonic> LyricWidget::exportPhonics() {
-        bool skipSpaceRes = excludeSpace->isChecked();
-        bool skipSlurRes = exportSkipSlur->isChecked();
+    QList<Phonic> LyricWidget::exportPhonics() const {
+        const bool skipSpaceRes = excludeSpace->isChecked();
+        const bool skipSlurRes = exportSkipSlur->isChecked();
 
-        auto model = m_phonicWidget->model;
+        const auto model = m_phonicWidget->model;
         model->expandFermata();
 
 
         QList<Phonic> phonics;
         for (int i = 0; i < model->rowCount(); ++i) {
-            int col = skipSpaceRes ? model->currentLyricLength(i) : model->columnCount();
+            const int col = skipSpaceRes ? model->currentLyricLength(i) : model->columnCount();
             for (int j = 0; j < col; ++j) {
                 if (skipSlurRes && model->cellLyricType(i, j) == TextType::Slur)
                     continue;
@@ -273,10 +274,10 @@ namespace FillLyric {
         return phonics;
     }
 
-    void LyricWidget::_on_textEditChanged() {
-        auto splitType = SplitType(this->splitComboBox->currentIndex());
+    void LyricWidget::_on_textEditChanged() const {
+        const auto splitType = static_cast<SplitType>(this->splitComboBox->currentIndex());
         // 获取文本框的内容
-        QString text = m_textEdit->toPlainText();
+        const QString text = m_textEdit->toPlainText();
         // 获取歌词
         QList<Phonic> res;
         if (splitType == SplitType::Auto) {
@@ -290,17 +291,17 @@ namespace FillLyric {
         m_textCountLabel->setText(QString("字符数: %1").arg(res.size()));
     }
 
-    void LyricWidget::_on_modelDataChanged() {
-        auto model = m_phonicWidget->model;
+    void LyricWidget::_on_modelDataChanged() const {
+        const auto model = m_phonicWidget->model;
         int lyricCount = 0;
         for (int i = 0; i < model->rowCount(); i++) {
             for (int j = 0; j < model->columnCount(); j++) {
-                auto lyric = model->data(model->index(i, j), Qt::DisplayRole).toString();
-                if (!lyric.isEmpty()) {
+                if (!model->cellLyric(i, j).isEmpty()) {
                     lyricCount++;
                 }
-                auto fermataCount = (int) model->cellFermata(i, j).size();
-                if (fermataCount > 0) {
+
+                if (const int fermataCount =
+                        static_cast<int>(model->cellFermata(i, j).size()) > 0) {
                     lyricCount += fermataCount;
                 }
             }
@@ -309,18 +310,18 @@ namespace FillLyric {
     }
 
 
-    void LyricWidget::_on_btnInsertText_clicked() {
+    void LyricWidget::_on_btnInsertText_clicked() const {
         // 测试文本
-        QString text =
+        const QString text =
             "Halloween蝉声--陪伴着qwe行云流浪---\n回-忆-开始132后安静遥望远方\n荒草覆没的古井--"
             "枯塘\n匀-散asdaw一缕过往\n";
         m_textEdit->setText(text);
     }
 
-    void LyricWidget::_on_btnToTable_clicked() {
-        auto skipSlurRes = this->skipSlur->isChecked();
-        auto excludeSpaceRes = this->excludeSpace->isChecked();
-        auto splitType = SplitType(this->splitComboBox->currentIndex());
+    void LyricWidget::_on_btnToTable_clicked() const {
+        const auto skipSlurRes = this->skipSlur->isChecked();
+        const auto excludeSpaceRes = this->excludeSpace->isChecked();
+        const auto splitType = static_cast<SplitType>(this->splitComboBox->currentIndex());
 
         // 获取文本框的内容
         QString text = m_textEdit->toPlainText();
@@ -342,14 +343,14 @@ namespace FillLyric {
         m_phonicWidget->_init(splitRes);
     }
 
-    void LyricWidget::_on_btnToText_clicked() {
-        auto model = m_phonicWidget->model;
+    void LyricWidget::_on_btnToText_clicked() const {
+        const auto model = m_phonicWidget->model;
         // 获取表格内容
         QStringList res;
         for (int i = 0; i < model->rowCount(); i++) {
             QStringList line;
             for (int j = 0; j < model->columnCount(); j++) {
-                auto lyric = model->data(model->index(i, j), Qt::DisplayRole).toString();
+                const auto lyric = model->cellLyric(i, j);
                 if (!lyric.isEmpty()) {
                     line.append(lyric);
                 }
@@ -362,7 +363,7 @@ namespace FillLyric {
 
     void LyricWidget::_on_btnImportLrc_clicked() {
         // 打开文件对话框
-        QString fileName =
+        const QString fileName =
             QFileDialog::getOpenFileName(this, "打开歌词文件", "", "歌词文件(*.lrc)");
         if (fileName.isEmpty()) {
             return;
@@ -370,30 +371,29 @@ namespace FillLyric {
         // 创建LrcDecoder对象
         LrcTools::LrcDecoder decoder;
         // 解析歌词文件
-        auto res = decoder.decode(fileName);
-        if (!res) {
+        if (!decoder.decode(fileName)) {
             // 解析失败
             QMessageBox::warning(this, "错误", "解析lrc文件失败");
             return;
         }
         // 获取歌词文件的元数据
-        auto metadata = decoder.dumpMetadata();
+        const auto metadata = decoder.dumpMetadata();
         qDebug() << "metadata: " << metadata;
 
         // 获取歌词文件的歌词
-        auto lyrics = decoder.dumpLyrics();
+        const auto lyrics = decoder.dumpLyrics();
         // 设置文本框内容
         m_textEdit->setText(lyrics.join("\n"));
     }
 
-    void LyricWidget::_on_splitComboBox_currentIndexChanged(int index) {
-        auto splitType = SplitType(index);
+    void LyricWidget::_on_splitComboBox_currentIndexChanged(int index) const {
+        const auto splitType = static_cast<SplitType>(index);
         QString checkBoxName = "Exclude Space";
-        if (splitType == SplitType::Custom)
+        if (splitType == Custom)
             checkBoxName = "Split By Space";
 
-        m_splitters->setVisible(splitType == SplitType::Custom);
-        btnRegSetting->setVisible(splitType == SplitType::ByReg);
+        m_splitters->setVisible(splitType == Custom);
+        btnRegSetting->setVisible(splitType == ByReg);
 
         excludeSpace->setText(checkBoxName);
     }

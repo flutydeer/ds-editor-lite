@@ -1,8 +1,6 @@
 #ifndef DS_EDITOR_LITE_NEXTWRAPLINEACTION_H
 #define DS_EDITOR_LITE_NEXTWRAPLINEACTION_H
 
-#include <QModelIndex>
-
 #include "../../Model/PhonicModel.h"
 #include "../../History/MAction.h"
 

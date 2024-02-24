@@ -1,10 +1,6 @@
 #ifndef DS_EDITOR_LITE_DELETEWRAPCELLACTION_H
 #define DS_EDITOR_LITE_DELETEWRAPCELLACTION_H
 
-#include <QTableView>
-#include <QModelIndex>
-#include <QScrollBar>
-
 #include "../../History/MAction.h"
 #include "../../Model/PhonicModel.h"
 

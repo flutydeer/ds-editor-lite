@@ -16,7 +16,6 @@
 #include "Controls/Button.h"
 #include "Controls/ComboBox.h"
 
-#include "../Utils/CleanLyric.h"
 #include "../Model/PhonicCommon.h"
 
 class LineEdit;
@@ -29,7 +28,7 @@ namespace FillLyric {
         ~LyricWidget() override;
 
         void setPhonics();
-        QList<Phonic> exportPhonics();
+        QList<Phonic> exportPhonics() const;
 
         QCheckBox *exportSkipSlur;
         QCheckBox *exportExcludeSpace;
@@ -40,16 +39,16 @@ namespace FillLyric {
 
     public Q_SLOTS:
         // Buttons
-        void _on_btnInsertText_clicked();
-        void _on_btnToTable_clicked();
-        void _on_btnToText_clicked();
+        void _on_btnInsertText_clicked() const;
+        void _on_btnToTable_clicked() const;
+        void _on_btnToText_clicked() const;
         void _on_btnImportLrc_clicked();
 
-        void _on_splitComboBox_currentIndexChanged(int index);
+        void _on_splitComboBox_currentIndexChanged(int index) const;
 
         // count
-        void _on_textEditChanged();
-        void _on_modelDataChanged();
+        void _on_textEditChanged() const;
+        void _on_modelDataChanged() const;
 
     private:
         QList<Phonic *> m_phonics;

@@ -2,8 +2,8 @@
 
 namespace FillLyric {
 
-    RemoveLineAction *RemoveLineAction::build(int row, PhonicModel *model) {
-        auto action = new RemoveLineAction;
+    RemoveLineAction *RemoveLineAction::build(const int &row, PhonicModel *model) {
+        const auto action = new RemoveLineAction;
         action->m_model = model;
         action->m_rmvLine = row;
         QList<Phonic> tempPhonics;

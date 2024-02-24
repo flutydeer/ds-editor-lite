@@ -3,7 +3,7 @@
 namespace FillLyric {
     RemoveWrapLineAction *RemoveWrapLineAction::build(const QModelIndex &index,
                                                       PhonicModel *model) {
-        auto action = new RemoveWrapLineAction;
+        const auto action = new RemoveWrapLineAction;
         action->m_model = model;
         action->m_index = index;
 

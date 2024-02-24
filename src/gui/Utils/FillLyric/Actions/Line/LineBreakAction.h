@@ -7,7 +7,7 @@
 #include "../../History/MAction.h"
 
 namespace FillLyric {
-    class LineBreakAction : public MAction {
+    class LineBreakAction final: public MAction {
     public:
         static LineBreakAction *build(const QModelIndex &index, PhonicModel *model);
         void execute() override;

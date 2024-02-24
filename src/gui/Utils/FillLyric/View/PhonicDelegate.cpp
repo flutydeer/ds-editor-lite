@@ -1,5 +1,8 @@
 #include "PhonicDelegate.h"
 
+#include "../Utils/CleanLyric.h"
+#include "../Model/PhonicCommon.h"
+
 namespace FillLyric {
     PhonicDelegate::PhonicDelegate(QObject *parent) : QStyledItemDelegate(parent) {
     }
@@ -20,12 +23,12 @@ namespace FillLyric {
         QString syllable = index.data(PhonicRole::Syllable).toString();
 
         // 获取人工修订的注音文本
-        QString syllableRevised = index.data(PhonicRole::SyllableRevised).toString();
+        const QString syllableRevised = index.data(PhonicRole::SyllableRevised).toString();
 
-        auto lyricType = index.data(PhonicRole::LyricType).toInt();
+        const int lyricType = index.data(PhonicRole::LyricType).toInt();
 
         // 获取候选发音列表
-        QStringList candidateList = index.data(PhonicRole::Candidate).toStringList();
+        const QStringList candidateList = index.data(PhonicRole::Candidate).toStringList();
         // 若候选发音大于1个，注音颜色为红色
         if (syllableRevised != "") {
             painter->setPen(QColor(255, 204, 153));
@@ -45,16 +48,16 @@ namespace FillLyric {
         QFont syllableFont = textFont;
         syllableFont.setPointSize(syllableFont.pointSize() - fontSizeDiff);
 
-        int textFontHeight = QFontMetrics(textFont).height();
-        int textFontXHeight = QFontMetrics(textFont).xHeight();
-        int syllableFontXHeight = QFontMetrics(syllableFont).xHeight();
+        const int textFontHeight = QFontMetrics(textFont).height();
+        const int textFontXHeight = QFontMetrics(textFont).xHeight();
+        const int syllableFontXHeight = QFontMetrics(syllableFont).xHeight();
 
-        auto delegateWidth = option.rect.width() * 0.9;
-        auto maxTextSize = (int) (delegateWidth / textFontXHeight) - 3;
-        auto maxSyllableSize = (int) (delegateWidth / syllableFontXHeight) - 3;
+        const int delegateWidth = static_cast<int>(option.rect.width() * 0.9);
+        const int maxTextSize = delegateWidth / textFontXHeight - 3;
+        const int maxSyllableSize = delegateWidth / syllableFontXHeight - 3;
 
-        bool addToolTip = text.size() > 1 && text.size() > maxTextSize && maxTextSize > 0;
-        QString cellToolTip = index.data(Qt::ToolTipRole).toString();
+        const bool addToolTip = text.size() > 1 && text.size() > maxTextSize && maxTextSize > 0;
+        const QString cellToolTip = index.data(Qt::ToolTipRole).toString();
         if (!cellToolTip.isEmpty() && !addToolTip) {
             Q_EMIT this->clearToolTip(index);
         }
@@ -71,14 +74,14 @@ namespace FillLyric {
         }
 
         // 绘制歌词文本
-        auto yOffset = textFontHeight / 2;
+        const int yOffset = textFontHeight / 2;
         painter->setFont(textFont);
-        QRect textRect = option.rect.adjusted(0, yOffset, 0, yOffset);
+        const QRect textRect = option.rect.adjusted(0, yOffset, 0, yOffset);
 
         painter->drawText(textRect, Qt::AlignCenter, text);
 
         // 注音文本
-        QRect syllableRect = option.rect.adjusted(0, -yOffset, 0, -yOffset);
+        const QRect syllableRect = option.rect.adjusted(0, -yOffset, 0, -yOffset);
 
         painter->setFont(syllableFont);
         painter->drawText(syllableRect, Qt::AlignCenter, syllable);
@@ -87,7 +90,7 @@ namespace FillLyric {
         painter->setFont(textFont);
     }
 
-    void PhonicDelegate::setFontSizeDiff(int diff) {
+    void PhonicDelegate::setFontSizeDiff(const int &diff) {
         this->fontSizeDiff = diff;
     }
 }

@@ -2,7 +2,7 @@
 
 namespace FillLyric {
     NextWrapLineAction *NextWrapLineAction::build(const QModelIndex &index, PhonicModel *model) {
-        auto action = new NextWrapLineAction;
+        const auto action = new NextWrapLineAction;
         action->m_model = model;
         action->m_index = index;
         action->m_cellIndex = index.row() * model->columnCount() + index.column();
@@ -13,12 +13,12 @@ namespace FillLyric {
     }
 
     void NextWrapLineAction::execute() {
-        int col = m_model->columnCount();
-        int row = m_model->rowCount();
+        const int col = m_model->columnCount();
+        const int row = m_model->rowCount();
 
         m_model->insertRow(m_index.row() + 1);
 
-        int currentRow = m_cellIndex / col;
+        const int currentRow = m_cellIndex / col;
         if (currentRow == row) {
             for (int i = 0; i < col; i++)
                 m_model->m_phonics.append(Phonic());
@@ -30,10 +30,10 @@ namespace FillLyric {
     }
 
     void NextWrapLineAction::undo() {
-        int col = m_model->columnCount();
-        int row = m_model->rowCount();
+        const int col = m_model->columnCount();
+        const int row = m_model->rowCount();
 
-        int currentRow = m_cellIndex / col;
+        const int currentRow = m_cellIndex / col;
         if (currentRow != row) {
             for (int i = m_startIndex; i < m_endIndex; ++i) {
                 m_model->deleteWarpCell(m_startIndex);

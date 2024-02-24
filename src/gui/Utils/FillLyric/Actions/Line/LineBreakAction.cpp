@@ -3,14 +3,14 @@
 namespace FillLyric {
 
     LineBreakAction *LineBreakAction::build(const QModelIndex &index, PhonicModel *model) {
-        auto action = new LineBreakAction;
+        const auto action = new LineBreakAction;
         action->m_model = model;
         action->m_index = index;
         action->m_newLine = index.row() + 1;
         action->m_rawColCount = model->columnCount();
 
-        int row = index.row();
-        int col = index.column();
+        const int row = index.row();
+        const int col = index.column();
         QList<moveInfo> tempMoveList;
         for (int i = col; i < model->currentLyricLength(row); i++) {
             tempMoveList.append({row, i, row + 1, i - col});

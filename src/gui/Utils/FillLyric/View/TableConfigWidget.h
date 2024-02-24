@@ -11,7 +11,7 @@
 
 namespace FillLyric {
 
-    class TableConfigWidget : public QWidget {
+    class TableConfigWidget final: public QWidget {
         Q_OBJECT
         friend class LyricWidget;
 

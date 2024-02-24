@@ -2,12 +2,12 @@
 
 namespace FillLyric {
     InsertCellAction *InsertCellAction::build(const QModelIndex &index, PhonicModel *model) {
-        auto action = new InsertCellAction;
+        const auto action = new InsertCellAction;
         action->m_model = model;
         action->m_index = index;
 
-        int row = index.row();
-        int col = index.column();
+        const int row = index.row();
+        const int col = index.column();
         // 将对应的单元格的内容移动到右边的单元格，右边单元格的内容依次向右移动，超出范围的部分向右新建单元格
         if (!model->cellLyric(row, -1).isEmpty()) {
             action->m_extColumn = 1;

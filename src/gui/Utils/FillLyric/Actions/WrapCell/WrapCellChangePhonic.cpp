@@ -4,7 +4,7 @@ namespace FillLyric {
 
     WrapCellChangePhonic *WrapCellChangePhonic::build(const QModelIndex &index, PhonicModel *model,
                                                       const QString &syllableRevised) {
-        auto action = new WrapCellChangePhonic;
+        const auto action = new WrapCellChangePhonic;
         action->m_cellIndex = index.row() * model->columnCount() + index.column();
         action->m_model = model;
 

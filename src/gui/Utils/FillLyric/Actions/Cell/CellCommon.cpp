@@ -8,8 +8,8 @@ namespace FillLyric {
     }
 
     void moveUndo(const QList<moveInfo> &moveList, PhonicModel *model) {
-        for (int i = (int) moveList.size() - 1; i >= 0; i--) {
-            auto move = moveList[i];
+        for (int i = static_cast<int>(moveList.size()) - 1; i >= 0; i--) {
+            const auto move = moveList[i];
             model->moveData(move.tarRow, move.tarCol, move.srcRow, move.srcCol);
         }
     }

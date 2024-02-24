@@ -3,7 +3,7 @@
 namespace FillLyric {
 
     ModelShrinkAction *ModelShrinkAction::build(PhonicModel *model) {
-        auto action = new ModelShrinkAction;
+        const auto action = new ModelShrinkAction;
         action->m_model = model;
         action->m_rawColCount = model->columnCount();
 

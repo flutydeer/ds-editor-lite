@@ -3,7 +3,7 @@
 namespace FillLyric {
 
     ToggleFermataAction *ToggleFermataAction::build(PhonicModel *model) {
-        auto *action = new ToggleFermataAction;
+        const auto action = new ToggleFermataAction;
         action->m_model = model;
         return action;
     }

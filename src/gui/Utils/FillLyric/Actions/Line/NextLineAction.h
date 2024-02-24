@@ -8,7 +8,7 @@ namespace FillLyric {
 
     class NextLineAction final : public MAction {
     public:
-        static NextLineAction *build(int row, PhonicModel *model);
+        static NextLineAction *build(const int &row, PhonicModel *model);
         void execute() override;
         void undo() override;
 

@@ -3,12 +3,12 @@
 namespace FillLyric {
 
     DeleteCellAction *DeleteCellAction::build(const QModelIndex &index, PhonicModel *model) {
-        auto action = new DeleteCellAction;
+        const auto action = new DeleteCellAction;
         action->m_model = model;
         action->m_index = index;
         action->m_phonic = model->takeCell(index);
 
-        int row = index.row();
+        const int row = index.row();
         QList<moveInfo> tempMoveList;
         for (int i = index.column() + 1; i <= model->columnCount(); i++) {
             tempMoveList.append({row, i, row, i - 1});

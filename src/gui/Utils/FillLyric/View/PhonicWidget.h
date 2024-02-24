@@ -1,10 +1,7 @@
 #ifndef DS_EDITOR_LITE_PHONICWIDGET_H
 #define DS_EDITOR_LITE_PHONICWIDGET_H
 
-#include <QTableView>
 #include <QWidget>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
 
 #include "g2pglobal.h"
 #include "Utils/G2p/G2pMandarin.h"
@@ -12,15 +9,12 @@
 
 #include "../Utils/CleanLyric.h"
 #include "../Model/PhonicModel.h"
-#include "../History/ModelHistory.h"
-#include "Controls/Button.h"
 
 #include "PhonicTableView.h"
-#include "PhonicTextEdit.h"
 #include "PhonicEventFilter.h"
 
 namespace FillLyric {
-    class PhonicWidget : public QWidget {
+    class PhonicWidget final : public QWidget {
         Q_OBJECT
         friend class LyricWidget;
 
@@ -30,32 +24,32 @@ namespace FillLyric {
 
     public Q_SLOTS:
         // ContextMenu
-        void cellClear(const QList<QModelIndex> &indexes);
-        void deleteCell(const QModelIndex &index);
-        void insertCell(const QModelIndex &index);
-        void cellMergeLeft(const QModelIndex &index);
-        void cellChangePhonic(const QModelIndex &index, const QString &syllableRevised);
+        void cellClear(const QList<QModelIndex> &indexes) const;
+        void deleteCell(const QModelIndex &index) const;
+        void insertCell(const QModelIndex &index) const;
+        void cellMergeLeft(const QModelIndex &index) const;
+        void cellChangePhonic(const QModelIndex &index, const QString &syllableRevised) const;
 
         // Line Operations
-        void lineBreak(QModelIndex index);
-        void addPrevLine(QModelIndex index);
-        void addNextLine(QModelIndex index);
-        void removeLine(QModelIndex index);
-        void lineMergeUp(QModelIndex index);
+        void lineBreak(const QModelIndex &index) const;
+        void addPrevLine(const QModelIndex &index) const;
+        void addNextLine(const QModelIndex &index) const;
+        void removeLine(const QModelIndex &index) const;
+        void lineMergeUp(const QModelIndex &index) const;
 
-        void _on_cellEditClosed(QModelIndex index, const QString &text);
-        void _on_setToolTip(const QModelIndex &index);
-        void _on_clearToolTip(const QModelIndex &index);
+        void _on_cellEditClosed(const QModelIndex &index, const QString &text) const;
+        void _on_setToolTip(const QModelIndex &index) const;
+        void _on_clearToolTip(const QModelIndex &index) const;
         void _on_showContextMenu(const QPoint &pos);
 
         void _on_changePhonetic(const QModelIndex &index, QMenu *menu);
-        void _on_changeSyllable(const QModelIndex &index, QMenu *menu);
+        void _on_changeSyllable(const QModelIndex &index, QMenu *menu) const;
 
-        void _on_btnToggleFermata_clicked();
+        void _on_btnToggleFermata_clicked() const;
 
-        void setAutoWrap(bool wrap);
+        void setAutoWrap(const bool &wrap);
         void setColWidthRatio(double ratio);
-        void setRowHeightRatio(double ratio);
+        void setRowHeightRatio(const double &ratio);
 
     Q_SIGNALS:
         void historyReset();
@@ -66,10 +60,10 @@ namespace FillLyric {
 
     private:
         void _init(const QList<Phonic> &phonics);
-        void tableAutoWrap(bool switchState = false);
-        void resizeTable();
-        QList<Phonic> updateLyric(QModelIndex index, const QString &text,
-                                  const QList<Phonic> &oldPhonics);
+        void tableAutoWrap(const bool &switchState = false) const;
+        void resizeTable() const;
+        QList<Phonic> updateLyric(const QModelIndex &index, const QString &text,
+                                  const QList<Phonic> &oldPhonics) const;
 
         // Variables
         QList<Phonic *> m_phonics;

@@ -14,13 +14,13 @@ namespace LrcTools {
         QString lyric;
         qint64 pts = 0;
 
-        bool isEmpty() const {
+        [[nodiscard]] bool isEmpty() const {
             return lyric.isEmpty() && pts == 0;
         }
     };
 
     class LrcDecoderPrivate;
-    class LrcDecoder : public QObject {
+    class LrcDecoder final: public QObject {
         Q_OBJECT
         Q_DECLARE_PRIVATE(LrcDecoder)
     public:
@@ -32,11 +32,11 @@ namespace LrcTools {
         bool decode(const QString &lrcFile);
         QString get(const QString &meta);
         LyricPacket readPacket();
-        bool seek(qint64 timestamp, SeekFlag flag = SeekForward);
-        qint64 duration() const;
+        bool seek(const qint64 &timestamp, const SeekFlag &flag = SeekForward);
+        [[nodiscard]] qint64 duration() const;
         QStringList dumpMetadata();
         QStringList dumpLyrics();
-        QString lastError() const;
+        [[nodiscard]] QString lastError() const;
 
     protected:
         explicit LrcDecoder(LrcDecoderPrivate &d, QObject *parent = nullptr);

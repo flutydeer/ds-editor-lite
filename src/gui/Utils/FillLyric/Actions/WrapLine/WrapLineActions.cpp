@@ -1,5 +1,9 @@
 #include "WrapLineActions.h"
 
+#include "NextWrapLineAction.h"
+#include "PrevWrapLineAction.h"
+#include "RemoveWrapLineAction.h"
+
 namespace FillLyric {
     void WrapLineActions::nextWarpLine(const QModelIndex &index, PhonicModel *model) {
         addAction(NextWrapLineAction::build(index, model));

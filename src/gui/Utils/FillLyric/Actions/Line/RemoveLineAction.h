@@ -8,7 +8,7 @@ namespace FillLyric {
 
     class RemoveLineAction final : public MAction {
     public:
-        static RemoveLineAction *build(int row, PhonicModel *model);
+        static RemoveLineAction *build(const int &row, PhonicModel *model);
         void execute() override;
         void undo() override;
 

@@ -2,8 +2,8 @@
 
 namespace FillLyric {
 
-    NextLineAction *NextLineAction::build(int row, PhonicModel *model) {
-        auto action = new NextLineAction;
+    NextLineAction *NextLineAction::build(const int &row, PhonicModel *model) {
+        const auto action = new NextLineAction;
         action->m_model = model;
         action->m_newLine = row + 1;
         return action;

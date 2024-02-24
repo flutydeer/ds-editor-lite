@@ -6,7 +6,7 @@
 
 namespace FillLyric {
 
-    class CellChangePhonic : public MAction {
+    class CellChangePhonic final: public MAction {
     public:
         static CellChangePhonic *build(const QModelIndex &index, PhonicModel *model,
                                        const QString &syllableRevised);

@@ -10,9 +10,9 @@ namespace FillLyric {
 
     void PhonicTextEdit::wheelEvent(QWheelEvent *event) {
         if (event->modifiers() & Qt::ControlModifier) {
-            auto fontSizeDelta = event->angleDelta().y() / 120.0;
+            const auto fontSizeDelta = event->angleDelta().y() / 120.0;
             QFont font = this->font();
-            auto newSize = font.pointSizeF() + fontSizeDelta;
+            const auto newSize = font.pointSizeF() + fontSizeDelta;
             if (newSize > 0) {
                 font.setPointSizeF(newSize);
                 this->setFont(font);

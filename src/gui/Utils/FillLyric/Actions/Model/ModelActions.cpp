@@ -1,5 +1,9 @@
 #include "ModelActions.h"
 
+#include "ModelShrinkAction.h"
+#include "ToggleFermataAction.h"
+#include "WrapToggleFermataAction.h"
+
 namespace FillLyric {
 
     void ModelActions::shrinkModel(PhonicModel *model) {

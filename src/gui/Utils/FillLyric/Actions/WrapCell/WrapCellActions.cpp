@@ -1,5 +1,11 @@
 #include "WrapCellActions.h"
 
+#include "DeleteWrapCellAction.h"
+#include "InsertWrapCellAction.h"
+#include "WrapCellEditAction.h"
+#include "WrapCellChangePhonic.h"
+#include "WrapCellClearAction.h"
+
 namespace FillLyric {
     void WrapCellActions::deleteWrapCell(const QModelIndex &index, PhonicModel *model) {
         addAction(DeleteWrapCellAction::build(index, model));

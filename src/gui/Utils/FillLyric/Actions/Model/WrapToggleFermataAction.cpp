@@ -3,7 +3,7 @@
 namespace FillLyric {
 
     WrapToggleFermataAction *WrapToggleFermataAction::build(PhonicModel *model) {
-        auto action = new WrapToggleFermataAction;
+        const auto action = new WrapToggleFermataAction;
         action->m_model = model;
         action->m_fermataState = model->fermataState;
 
@@ -15,7 +15,7 @@ namespace FillLyric {
         if (!model->fermataState) {
             int pos = 0;
             while (pos < action->m_rawPhonics.size()) {
-                Phonic phonic = action->m_rawPhonics.at(pos);
+                const Phonic phonic = action->m_rawPhonics.at(pos);
                 if (phonic.lyricType != TextType::Slur) {
                     tempPhonics.append(phonic);
                     pos++;
@@ -59,7 +59,7 @@ namespace FillLyric {
     }
 
     void WrapToggleFermataAction::execute() {
-        int maxRow = (int) m_targetPhonics.size() / m_modelColumnCount;
+        int maxRow = static_cast<int>(m_targetPhonics.size()) / m_modelColumnCount;
         if (m_targetPhonics.size() % m_modelColumnCount != 0) {
             maxRow++;
         }
@@ -77,7 +77,7 @@ namespace FillLyric {
     }
 
     void WrapToggleFermataAction::undo() {
-        int maxRow = (int) m_rawPhonics.size() / m_modelColumnCount;
+        int maxRow = static_cast<int>(m_rawPhonics.size()) / m_modelColumnCount;
         if (m_rawPhonics.size() % m_modelColumnCount != 0) {
             maxRow++;
         }

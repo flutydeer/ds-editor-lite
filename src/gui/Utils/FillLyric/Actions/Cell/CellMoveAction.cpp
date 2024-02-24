@@ -3,7 +3,7 @@
 namespace FillLyric {
     CellMoveAction *CellMoveAction::build(const QModelIndex &source, const QModelIndex &target,
                                           PhonicModel *model) {
-        auto action = new CellMoveAction;
+        const auto action = new CellMoveAction;
         action->m_model = model;
         action->m_source = source;
         action->m_target = target;

@@ -2,7 +2,7 @@
 
 namespace FillLyric {
     PrevWrapLineAction *PrevWrapLineAction::build(const QModelIndex &index, PhonicModel *model) {
-        auto action = new PrevWrapLineAction;
+        const auto action = new PrevWrapLineAction;
         action->m_model = model;
         action->m_index = index;
 

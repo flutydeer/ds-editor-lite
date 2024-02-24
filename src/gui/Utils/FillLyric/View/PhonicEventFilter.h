@@ -2,14 +2,12 @@
 #define DS_EDITOR_LITE_PHONICEVENTFILTER_H
 
 #include <QObject>
-#include <QTableView>
-#include <QKeyEvent>
 #include <QWheelEvent>
 
 #include "../Model/PhonicModel.h"
 
 namespace FillLyric {
-    class PhonicEventFilter : public QObject {
+    class PhonicEventFilter final: public QObject {
         Q_OBJECT
     public:
         PhonicEventFilter(QTableView *tableView, PhonicModel *model, QObject *parent = nullptr);

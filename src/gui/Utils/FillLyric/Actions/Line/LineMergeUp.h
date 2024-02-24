@@ -8,7 +8,7 @@
 
 namespace FillLyric {
 
-    class LineMergeUp : public MAction {
+    class LineMergeUp final: public MAction {
     public:
         static LineMergeUp *build(const QModelIndex &index, PhonicModel *model);
         void execute() override;

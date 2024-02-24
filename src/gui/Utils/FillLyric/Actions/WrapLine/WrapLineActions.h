@@ -1,10 +1,6 @@
 #ifndef DS_EDITOR_LITE_WRAPLINEACTIONS_H
 #define DS_EDITOR_LITE_WRAPLINEACTIONS_H
 
-#include "NextWrapLineAction.h"
-#include "PrevWrapLineAction.h"
-#include "RemoveWrapLineAction.h"
-
 #include "../../Model/PhonicModel.h"
 #include "../../History/MActionSequence.h"
 

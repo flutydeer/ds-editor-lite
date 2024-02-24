@@ -3,13 +3,13 @@
 namespace FillLyric {
 
     CellMergeLeft *CellMergeLeft::build(const QModelIndex &index, PhonicModel *model) {
-        auto action = new CellMergeLeft;
+        const auto action = new CellMergeLeft;
         action->m_index = index;
         action->m_model = model;
         action->m_rawColumn = model->columnCount();
 
-        int row = index.row();
-        int col = index.column();
+        const int row = index.row();
+        const int col = index.column();
         action->m_leftIndex = model->index(row, col - 1);
         action->LeftPhonic = model->takeData(row, col - 1);
         action->currentPhonic = model->takeData(row, col);

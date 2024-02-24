@@ -7,11 +7,8 @@
 #include <QTableView>
 #include <QStandardItemModel>
 
-#include "../Utils/CleanLyric.h"
-#include "../Model/PhonicCommon.h"
-
 namespace FillLyric {
-    class PhonicDelegate : public QStyledItemDelegate {
+    class PhonicDelegate final: public QStyledItemDelegate {
         Q_OBJECT
     public:
         explicit PhonicDelegate(QObject *parent = nullptr);
@@ -22,7 +19,7 @@ namespace FillLyric {
         void paint(QPainter *painter, const QStyleOptionViewItem &option,
                    const QModelIndex &index) const override;
 
-        void setFontSizeDiff(int diff);
+        void setFontSizeDiff(const int &diff);
 
     Q_SIGNALS:
         void setToolTip(QModelIndex index) const;

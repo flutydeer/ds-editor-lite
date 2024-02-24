@@ -2,14 +2,14 @@
 
 namespace FillLyric {
     LineMergeUp *LineMergeUp::build(const QModelIndex &index, PhonicModel *model) {
-        auto action = new LineMergeUp;
+        const auto action = new LineMergeUp;
         action->m_model = model;
         action->m_index = index;
         action->m_deleteLine = index.row();
         action->m_rawColCount = model->columnCount();
 
-        int row = index.row();
-        int lastLyricLength = model->currentLyricLength(row - 1);
+        const int row = index.row();
+        const int lastLyricLength = model->currentLyricLength(row - 1);
 
         int tarColCount = model->currentLyricLength(index.row()) + lastLyricLength - 1;
         tarColCount = qMax(tarColCount, model->columnCount());

@@ -8,7 +8,7 @@ namespace FillLyric {
 
     class PrevLineAction final : public MAction {
     public:
-        static PrevLineAction *build(int row, PhonicModel *model);
+        static PrevLineAction *build(const int &row, PhonicModel *model);
         void execute() override;
         void undo() override;
 

@@ -6,7 +6,7 @@
 #include <QWheelEvent>
 
 namespace FillLyric {
-    class PhonicTextEdit : public QTextEdit {
+    class PhonicTextEdit final: public QTextEdit {
         Q_OBJECT
     public:
         explicit PhonicTextEdit(QWidget *parent = nullptr);

@@ -1,8 +1,6 @@
 #ifndef DS_EDITOR_LITE_INSERTWRAPCELLACTION_H
 #define DS_EDITOR_LITE_INSERTWRAPCELLACTION_H
 
-#include <QModelIndex>
-
 #include "../../History/MAction.h"
 #include "../../Model/PhonicModel.h"
 

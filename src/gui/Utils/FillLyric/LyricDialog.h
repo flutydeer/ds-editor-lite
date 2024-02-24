@@ -11,7 +11,7 @@
 
 namespace FillLyric {
 
-    class LyricDialog : public Dialog {
+    class LyricDialog final: public Dialog {
         Q_OBJECT
     public:
         explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);

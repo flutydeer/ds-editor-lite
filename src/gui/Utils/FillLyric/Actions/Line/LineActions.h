@@ -1,12 +1,6 @@
 #ifndef DS_EDITOR_LITE_LINEACTIONS_H
 #define DS_EDITOR_LITE_LINEACTIONS_H
 
-#include "LineBreakAction.h"
-#include "PrevLineAction.h"
-#include "NextLineAction.h"
-#include "RemoveLineAction.h"
-#include "LineMergeUp.h"
-
 #include "../../Model/PhonicModel.h"
 #include "../../History/MActionSequence.h"
 

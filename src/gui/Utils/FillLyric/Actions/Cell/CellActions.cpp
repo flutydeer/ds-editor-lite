@@ -1,5 +1,12 @@
 #include "CellActions.h"
 
+#include "CellClearAction.h"
+#include "DeleteCellAction.h"
+#include "InsertCellAction.h"
+#include "CellMergeLeft.h"
+#include "CellEditAction.h"
+#include "CellChangePhonic.h"
+
 namespace FillLyric {
     void CellActions::cellClear(const QModelIndexList &indexes, PhonicModel *model) {
         for (const auto &index : indexes) {

@@ -4,7 +4,7 @@ namespace FillLyric {
 
     DeleteWrapCellAction *DeleteWrapCellAction::build(const QModelIndex &index,
                                                       PhonicModel *model) {
-        auto *action = new DeleteWrapCellAction;
+        const auto action = new DeleteWrapCellAction;
         action->m_model = model;
 
         action->m_cellIndex = index.row() * model->columnCount() + index.column();

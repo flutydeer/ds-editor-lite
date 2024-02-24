@@ -1,7 +1,10 @@
 #include <QMessageBox>
 #include <QInputDialog>
 
+#include <QHeaderView>
+
 #include "PhonicWidget.h"
+#include "../History/ModelHistory.h"
 
 #include "../Actions/Cell/CellActions.h"
 #include "../Actions/WrapCell/WrapCellActions.h"
@@ -75,7 +78,7 @@ namespace FillLyric {
         int maxCol = 0;
         for (auto &line : lyricRes) {
             if (line.size() > maxCol) {
-                maxCol = (int) line.size();
+                maxCol = static_cast<int>(line.size());
             }
         }
 
@@ -85,7 +88,7 @@ namespace FillLyric {
             times--;
         }
 
-        model->setRowCount((int) lyricRes.size());
+        model->setRowCount(static_cast<int>(lyricRes.size()));
 
         // 设置表格内容
         for (int i = 0; i < lyricRes.size(); i++) {
@@ -130,9 +133,9 @@ namespace FillLyric {
         Q_EMIT this->historyReset();
     }
 
-    QList<Phonic> PhonicWidget::updateLyric(QModelIndex index, const QString &text,
-                                            const QList<Phonic> &oldPhonics) {
-        int col = index.column();
+    QList<Phonic> PhonicWidget::updateLyric(const QModelIndex &index, const QString &text,
+                                            const QList<Phonic> &oldPhonics) const {
+        const int col = index.column();
 
         QList<Phonic> newPhonics;
         for (const auto &phonic : oldPhonics) {
@@ -182,11 +185,11 @@ namespace FillLyric {
         return newPhonics;
     }
 
-    void PhonicWidget::_on_cellEditClosed(QModelIndex index, const QString &text) {
+    void PhonicWidget::_on_cellEditClosed(const QModelIndex &index, const QString &text) const {
         QList<Phonic> oldPhonicList;
         // 获取当前单元格所在行列
-        int row = index.row();
-        int col = index.column();
+        const int row = index.row();
+        const int col = index.column();
 
         if (row < 0 || col < 0) {
             return;
@@ -198,8 +201,8 @@ namespace FillLyric {
         }
 
         if (!autoWrap) {
-            QList<Phonic> newPhonicList = updateLyric(index, text, oldPhonicList);
-            auto a = new CellActions();
+            const QList<Phonic> newPhonicList = updateLyric(index, text, oldPhonicList);
+            const auto a = new CellActions();
             a->cellEdit(index, model, oldPhonicList, newPhonicList);
             a->execute();
             ModelHistory::instance()->record(a);
@@ -217,48 +220,49 @@ namespace FillLyric {
                 newPhonic.syllable = g2p_man->hanziToPinyin(text, false, false).at(0);
                 newPhonic.candidates = g2p_man->getDefaultPinyin(text, false);
             }
-            auto a = new WrapCellActions();
+            const auto a = new WrapCellActions();
             a->warpCellEdit(index, model, newPhonic);
             a->execute();
             ModelHistory::instance()->record(a);
         }
     }
 
-    void PhonicWidget::_on_setToolTip(const QModelIndex &index) {
+    void PhonicWidget::_on_setToolTip(const QModelIndex &index) const {
         model->setData(index, model->cellLyric(index.row(), index.column()), Qt::ToolTipRole);
     }
 
-    void PhonicWidget::_on_clearToolTip(const QModelIndex &index) {
+    void PhonicWidget::_on_clearToolTip(const QModelIndex &index) const {
         model->setData(index, QVariant(), Qt::ToolTipRole);
     }
 
-    void PhonicWidget::tableAutoWrap(bool switchState) {
+    void PhonicWidget::tableAutoWrap(const bool &switchState) const {
         if (!autoWrap) {
             return;
         }
         // 计算最大列数
-        int tableWidth = tableView->width();
-        int colWidth = tableView->columnWidth(0);
+        const int tableWidth = tableView->width();
+        const int colWidth = tableView->columnWidth(0);
 
-        bool headerVisible = tableView->verticalHeader()->isVisible();
-        int headerWidth = headerVisible ? tableView->verticalHeader()->width() : 0;
+        const bool headerVisible = tableView->verticalHeader()->isVisible();
+        const int headerWidth = headerVisible ? tableView->verticalHeader()->width() : 0;
 
-        bool scrollBarVisible = tableView->verticalScrollBar()->isVisible();
-        int scrollBarWidth = scrollBarVisible ? tableView->verticalScrollBar()->width() : 0;
+        const bool scrollBarVisible = tableView->verticalScrollBar()->isVisible();
+        const int scrollBarWidth = scrollBarVisible ? tableView->verticalScrollBar()->width() : 0;
 
-        auto tarCol = (int) (double(tableWidth - headerWidth - scrollBarWidth - 10) / colWidth);
-        auto curCol = model->columnCount();
+        const auto tarCol = static_cast<int>(
+            static_cast<double>(tableWidth - headerWidth - scrollBarWidth - 10) / colWidth);
+        const auto curCol = model->columnCount();
 
-        bool tarValid = tarCol != curCol && curCol > 0 && tarCol > 0;
-        bool clearSpace = tarCol == curCol && switchState;
+        const bool tarValid = tarCol != curCol && curCol > 0 && tarCol > 0;
+        const bool clearSpace = tarCol == curCol && switchState;
         if (tarValid || clearSpace) {
             model->shrinkPhonicList();
-            auto maxRow = (int) (model->m_phonics.size() / tarCol);
+            auto maxRow = static_cast<int>(model->m_phonics.size() / tarCol);
             if (model->m_phonics.size() % tarCol != 0) {
                 maxRow++;
             }
 
-            for (int i = (int) model->m_phonics.size(); i < maxRow * tarCol; i++) {
+            for (int i = static_cast<int>(model->m_phonics.size()); i < maxRow * tarCol; i++) {
                 model->m_phonics.append(Phonic());
             }
 
@@ -271,35 +275,37 @@ namespace FillLyric {
         }
     }
 
-    void PhonicWidget::resizeTable() {
+    void PhonicWidget::resizeTable() const {
         // 获取当前字体高度
-        int fontHeight = tableView->fontMetrics().height();
+        const int fontHeight = tableView->fontMetrics().height();
         // 行高设置为两倍字体高度
-        tableView->verticalHeader()->setDefaultSectionSize((int) (fontHeight * rowHeightRatio));
+        tableView->verticalHeader()->setDefaultSectionSize(
+            static_cast<int>(fontHeight * rowHeightRatio));
 
-        int fontXHeight = tableView->fontMetrics().xHeight();
+        const int fontXHeight = tableView->fontMetrics().xHeight();
         // 列宽设置为maxSyllableLength倍字体宽度
-        tableView->horizontalHeader()->setDefaultSectionSize((int) (fontXHeight * colWidthRatio));
+        tableView->horizontalHeader()->setDefaultSectionSize(
+            static_cast<int>(fontXHeight * colWidthRatio));
 
         if (autoWrap)
             tableAutoWrap();
     }
 
-    void PhonicWidget::_on_btnToggleFermata_clicked() {
+    void PhonicWidget::_on_btnToggleFermata_clicked() const {
         if (!autoWrap) {
-            auto a = new ModelActions();
+            const auto a = new ModelActions();
             a->toggleFermata(model);
             a->execute();
             ModelHistory::instance()->record(a);
         } else {
-            auto a = new ModelActions();
+            const auto a = new ModelActions();
             a->wrapToggleFermata(model);
             a->execute();
             ModelHistory::instance()->record(a);
         }
     }
 
-    void PhonicWidget::setAutoWrap(bool wrap) {
+    void PhonicWidget::setAutoWrap(const bool &wrap) {
         autoWrap = wrap;
         if (autoWrap) {
             model->m_phonics.clear();
@@ -317,22 +323,22 @@ namespace FillLyric {
         resizeTable();
     }
 
-    void PhonicWidget::setRowHeightRatio(double ratio) {
+    void PhonicWidget::setRowHeightRatio(const double &ratio) {
         rowHeightRatio = ratio;
         resizeTable();
     }
 
     void PhonicWidget::_on_showContextMenu(const QPoint &pos) {
         // 获取点击位置的索引
-        QModelIndex index = tableView->indexAt(pos);
+        const QModelIndex &index = tableView->indexAt(pos);
         // 获取当前选中的单元格
         auto selected = tableView->selectionModel()->selectedIndexes();
 
         // 验证点击位置是否在表格内
         if (index.isValid()) {
             // 获取当前行列数
-            int row = index.row();
-            int col = index.column();
+            const int row = index.row();
+            const int col = index.column();
 
             // 创建菜单
             auto *menu = new QMenu(tableView);
@@ -391,7 +397,7 @@ namespace FillLyric {
         });
     }
 
-    void PhonicWidget::_on_changeSyllable(const QModelIndex &index, QMenu *menu) {
+    void PhonicWidget::_on_changeSyllable(const QModelIndex &index, QMenu *menu) const {
         // 获取当前单元格的候选音节
         QStringList candidateSyllables = index.data(PhonicRole::Candidate).toStringList();
 
@@ -404,63 +410,64 @@ namespace FillLyric {
         }
     }
 
-    void PhonicWidget::cellClear(const QList<QModelIndex> &indexes) {
+    void PhonicWidget::cellClear(const QList<QModelIndex> &indexes) const {
         if (!autoWrap) {
-            auto a = new CellActions();
+            const auto a = new CellActions();
             a->cellClear(indexes, model);
             a->execute();
             ModelHistory::instance()->record(a);
         } else {
-            auto a = new WrapCellActions();
+            const auto a = new WrapCellActions();
             a->warpCellClear(indexes, model);
             a->execute();
             ModelHistory::instance()->record(a);
         }
     }
 
-    void PhonicWidget::deleteCell(const QModelIndex &index) {
+    void PhonicWidget::deleteCell(const QModelIndex &index) const {
         if (!autoWrap) {
-            auto a = new CellActions();
+            const auto a = new CellActions();
             a->deleteCell(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         } else {
-            auto a = new WrapCellActions();
+            const auto a = new WrapCellActions();
             a->deleteWrapCell(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         }
     }
 
-    void PhonicWidget::insertCell(const QModelIndex &index) {
+    void PhonicWidget::insertCell(const QModelIndex &index) const {
         if (!autoWrap) {
-            auto a = new CellActions();
+            const auto a = new CellActions();
             a->insertCell(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         } else {
-            auto a = new WrapCellActions();
+            const auto a = new WrapCellActions();
             a->insertWrapCell(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         }
     }
 
-    void PhonicWidget::cellMergeLeft(const QModelIndex &index) {
-        auto a = new CellActions();
+    void PhonicWidget::cellMergeLeft(const QModelIndex &index) const {
+        const auto a = new CellActions();
         a->cellMergeLeft(index, model);
         a->execute();
         ModelHistory::instance()->record(a);
     }
 
-    void PhonicWidget::cellChangePhonic(const QModelIndex &index, const QString &syllableRevised) {
+    void PhonicWidget::cellChangePhonic(const QModelIndex &index,
+                                        const QString &syllableRevised) const {
         if (!autoWrap) {
-            auto a = new CellActions();
+            const auto a = new CellActions();
             a->cellChangePhonic(index, model, syllableRevised);
             a->execute();
             ModelHistory::instance()->record(a);
         } else {
-            auto a = new WrapCellActions();
+            const auto a = new WrapCellActions();
             a->warpCellChangePhonic(index, model, syllableRevised);
             a->execute();
             ModelHistory::instance()->record(a);
@@ -468,57 +475,57 @@ namespace FillLyric {
     }
 
     // Line Operations
-    void PhonicWidget::lineBreak(QModelIndex index) {
-        auto a = new LineActions();
+    void PhonicWidget::lineBreak(const QModelIndex &index) const {
+        const auto a = new LineActions();
         a->lineBreak(index, model);
         a->execute();
         ModelHistory::instance()->record(a);
     }
 
-    void PhonicWidget::addPrevLine(QModelIndex index) {
+    void PhonicWidget::addPrevLine(const QModelIndex &index) const {
         if (!autoWrap) {
-            auto a = new LineActions();
+            const auto a = new LineActions();
             a->addPrevLine(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         } else {
-            auto a = new WrapLineActions();
+            const auto a = new WrapLineActions();
             a->prevWarpLine(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         }
     }
 
-    void PhonicWidget::addNextLine(QModelIndex index) {
+    void PhonicWidget::addNextLine(const QModelIndex &index) const {
         if (!autoWrap) {
-            auto a = new LineActions();
+            const auto a = new LineActions();
             a->addNextLine(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         } else {
-            auto a = new WrapLineActions();
+            const auto a = new WrapLineActions();
             a->nextWarpLine(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         }
     }
 
-    void PhonicWidget::removeLine(QModelIndex index) {
+    void PhonicWidget::removeLine(const QModelIndex &index) const {
         if (!autoWrap) {
-            auto a = new LineActions();
+            const auto a = new LineActions();
             a->removeLine(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         } else {
-            auto a = new WrapLineActions();
+            const auto a = new WrapLineActions();
             a->removeWarpLine(index, model);
             a->execute();
             ModelHistory::instance()->record(a);
         }
     }
 
-    void PhonicWidget::lineMergeUp(QModelIndex index) {
-        auto a = new LineActions();
+    void PhonicWidget::lineMergeUp(const QModelIndex &index) const {
+        const auto a = new LineActions();
         a->lineMergeUp(index, model);
         a->execute();
         ModelHistory::instance()->record(a);

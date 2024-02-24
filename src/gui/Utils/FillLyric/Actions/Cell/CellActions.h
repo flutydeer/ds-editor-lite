@@ -1,13 +1,6 @@
 #ifndef DS_EDITOR_LITE_CELLACTIONS_H
 #define DS_EDITOR_LITE_CELLACTIONS_H
 
-#include "CellClearAction.h"
-#include "DeleteCellAction.h"
-#include "InsertCellAction.h"
-#include "CellMergeLeft.h"
-#include "CellEditAction.h"
-#include "CellChangePhonic.h"
-
 #include "../../Model/PhonicModel.h"
 #include "../../History/MActionSequence.h"
 

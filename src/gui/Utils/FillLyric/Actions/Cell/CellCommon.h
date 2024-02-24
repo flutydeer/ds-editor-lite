@@ -1,7 +1,6 @@
 #ifndef DS_EDITOR_LITE_CELLCOMMON_H
 #define DS_EDITOR_LITE_CELLCOMMON_H
 
-#include <QList>
 #include "../../Model/PhonicModel.h"
 
 namespace FillLyric {

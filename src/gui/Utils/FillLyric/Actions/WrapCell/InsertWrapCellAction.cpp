@@ -3,7 +3,7 @@
 namespace FillLyric {
     InsertWrapCellAction *InsertWrapCellAction::build(const QModelIndex &index,
                                                       PhonicModel *model) {
-        auto action = new InsertWrapCellAction;
+        const auto action = new InsertWrapCellAction;
         action->m_model = model;
 
         action->m_cellIndex = index.row() * model->columnCount() + index.column();

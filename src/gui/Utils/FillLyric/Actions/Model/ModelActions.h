@@ -1,10 +1,6 @@
 #ifndef DS_EDITOR_LITE_MODELACTIONS_H
 #define DS_EDITOR_LITE_MODELACTIONS_H
 
-#include "ModelShrinkAction.h"
-#include "ToggleFermataAction.h"
-#include "WrapToggleFermataAction.h"
-
 #include "../../Model/PhonicModel.h"
 #include "../../History/MActionSequence.h"
 
