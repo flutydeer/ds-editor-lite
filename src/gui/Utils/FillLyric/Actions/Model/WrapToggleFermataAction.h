@@ -9,8 +9,8 @@ namespace FillLyric {
     class WrapToggleFermataAction final : public MAction {
     public:
         static WrapToggleFermataAction *build(PhonicModel *model);
-        void execute();
-        void undo();
+        void execute() override;
+        void undo() override;
 
     private:
         PhonicModel *m_model = nullptr;

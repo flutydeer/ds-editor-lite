@@ -19,7 +19,7 @@ namespace FillLyric {
     }
 
     void CellClearAction::execute() {
-        m_model->cellClear(m_index);
+        m_model->clearCell(m_index);
     }
 
     void CellClearAction::undo() {

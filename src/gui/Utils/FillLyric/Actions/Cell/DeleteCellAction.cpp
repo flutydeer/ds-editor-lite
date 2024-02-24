@@ -6,7 +6,7 @@ namespace FillLyric {
         auto action = new DeleteCellAction;
         action->m_model = model;
         action->m_index = index;
-        action->m_phonic = model->cellTake(index);
+        action->m_phonic = model->takeCell(index);
 
         int row = index.row();
         QList<moveInfo> tempMoveList;
@@ -23,7 +23,7 @@ namespace FillLyric {
 
     void DeleteCellAction::undo() {
         moveUndo(m_moveList, m_model);
-        m_model->cellPut(m_index, m_phonic);
+        m_model->putCell(m_index, m_phonic);
         m_model->shrinkModel();
     }
 } // FillLyric

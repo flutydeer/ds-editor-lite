@@ -7,6 +7,7 @@
 #include <QTableView>
 #include <QTextEdit>
 #include <QWidget>
+#include <QScrollBar>
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QMainWindow>
@@ -41,6 +42,8 @@ namespace FillLyric {
 
         // Basic functions
         int currentLyricLength(int row);
+        void refreshTable();
+        void shrinkPhonicList();
 
         // RoleData functions
         static QList<int> allRoles();
@@ -67,10 +70,14 @@ namespace FillLyric {
         void clearData(int row, int col);
         void moveData(int row, int col, int tarRow, int tarCol);
 
-        void cellPut(const QModelIndex &index, const Phonic &phonic);
-        Phonic cellTake(const QModelIndex &index);
-        void cellClear(const QModelIndex &index);
-        void cellMove(const QModelIndex &source, const QModelIndex &target);
+        void insertWarpCell(const int &index, const Phonic &phonic);
+        void editWarpCell(const int &index, const Phonic &phonic);
+        void deleteWarpCell(const int &index);
+
+        void putCell(const QModelIndex &index, const Phonic &phonic);
+        Phonic takeCell(const QModelIndex &index);
+        void clearCell(const QModelIndex &index);
+        void moveCell(const QModelIndex &source, const QModelIndex &target);
 
         QString cellToolTip(const QModelIndex &index);
 
@@ -82,6 +89,8 @@ namespace FillLyric {
         void expandFermata();
 
         bool fermataState = false;
+
+        QList<Phonic> m_phonics;
 
     private:
         bool m_skipSlur = false;

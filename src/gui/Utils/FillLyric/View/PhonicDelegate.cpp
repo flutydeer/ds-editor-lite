@@ -9,7 +9,6 @@ namespace FillLyric {
         if (editor->property("text").toString() != model->data(index).toString()) {
             Q_EMIT this->lyricEdited(index, editor->property("text").toString());
         }
-        QStyledItemDelegate::setModelData(editor, model, index);
     }
 
     void PhonicDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,

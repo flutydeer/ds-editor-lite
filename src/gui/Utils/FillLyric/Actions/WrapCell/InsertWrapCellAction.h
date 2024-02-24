@@ -1,5 +1,5 @@
-#ifndef DS_EDITOR_LITE_INSERTWARPCELLACTION_H
-#define DS_EDITOR_LITE_INSERTWARPCELLACTION_H
+#ifndef DS_EDITOR_LITE_INSERTWRAPCELLACTION_H
+#define DS_EDITOR_LITE_INSERTWRAPCELLACTION_H
 
 #include <QTableView>
 #include <QModelIndex>
@@ -10,9 +10,9 @@
 
 namespace FillLyric {
 
-    class InsertWarpCellAction final : public MAction {
+    class InsertWrapCellAction final : public MAction {
     public:
-        static InsertWarpCellAction *build(const QModelIndex &index, PhonicModel *model,
+        static InsertWrapCellAction *build(const QModelIndex &index, PhonicModel *model,
                                            QTableView *tableView);
         void execute() override;
         void undo() override;
@@ -29,4 +29,4 @@ namespace FillLyric {
 
 } // FillLyric
 
-#endif // DS_EDITOR_LITE_INSERTWARPCELLACTION_H
+#endif // DS_EDITOR_LITE_INSERTWRAPCELLACTION_H

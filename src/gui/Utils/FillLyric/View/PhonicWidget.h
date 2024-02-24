@@ -83,9 +83,8 @@ namespace FillLyric {
         // Variables
         QList<PhonicNote *> m_phonicNotes;
 
-        bool autoWarp = false;
+        bool autoWrap = false;
 
-        int fontSizeDiff = 3;
         double rowHeightRatio = 3.0;
         double colWidthRatio = 7.8;
 

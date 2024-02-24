@@ -11,12 +11,12 @@ namespace FillLyric {
     }
 
     void CellMoveAction::execute() {
-        m_targetPhonic = m_model->cellTake(m_target);
-        m_model->cellMove(m_source, m_target);
+        m_targetPhonic = m_model->takeCell(m_target);
+        m_model->moveCell(m_source, m_target);
     }
 
     void CellMoveAction::undo() {
-        m_model->cellMove(m_target, m_source);
-        m_model->cellPut(m_target, m_targetPhonic);
+        m_model->moveCell(m_target, m_source);
+        m_model->putCell(m_target, m_targetPhonic);
     }
 } // FillLyric

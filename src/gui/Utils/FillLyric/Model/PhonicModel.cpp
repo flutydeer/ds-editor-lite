@@ -37,6 +37,38 @@ namespace FillLyric {
         return 0;
     }
 
+    void PhonicModel::refreshTable() {
+        this->shrinkPhonicList();
+        int m_scrollBarValue = m_tableView->verticalScrollBar()->value();
+        int col = this->columnCount();
+        int row = (int) this->m_phonics.size() / col;
+        if ((int) this->m_phonics.size() % col != 0) {
+            row++;
+        }
+
+        for (int i = (int) this->m_phonics.size(); i < row * col; i++) {
+            this->m_phonics.append(Phonic());
+        }
+
+        this->clear();
+        this->setRowCount(row);
+        this->setColumnCount(col);
+
+        for (int i = 0; i < this->m_phonics.size(); i++) {
+            this->putData(i / col, i % col, this->m_phonics[i]);
+        }
+        m_tableView->verticalScrollBar()->setValue(m_scrollBarValue);
+    }
+
+    void PhonicModel::shrinkPhonicList() {
+        for (int i = (int) this->m_phonics.size() - 1; i >= 0; i--) {
+            if (!this->m_phonics[i].lyric.isEmpty()) {
+                this->m_phonics.resize(i + 1);
+                break;
+            }
+        }
+    }
+
     // RoleData functions
     QList<int> PhonicModel::allRoles() {
         QList<int> roles;
@@ -185,7 +217,32 @@ namespace FillLyric {
         }
     }
 
-    void PhonicModel::cellPut(const QModelIndex &index, const Phonic &phonic) {
+    void PhonicModel::insertWarpCell(const int &index, const Phonic &phonic) {
+        if (index > m_phonics.size()) {
+            for (int i = (int) m_phonics.size(); i < index; i++) {
+                m_phonics.append(Phonic());
+            }
+        }
+        m_phonics.insert(index, phonic);
+    }
+
+    void PhonicModel::editWarpCell(const int &index, const Phonic &phonic) {
+        if (index >= m_phonics.size()) {
+            qWarning() << "PhonicModel::editWarpCell: index out of range";
+            return;
+        }
+        m_phonics[index] = phonic;
+    }
+
+    void PhonicModel::deleteWarpCell(const int &index) {
+        if (index >= m_phonics.size()) {
+            qWarning() << "PhonicModel::deleteWarpCell: index out of range";
+            return;
+        }
+        m_phonics.removeAt(index);
+    }
+
+    void PhonicModel::putCell(const QModelIndex &index, const Phonic &phonic) {
         // 获取当前单元格坐标
         int row = index.row();
         int col = index.column();
@@ -193,7 +250,7 @@ namespace FillLyric {
         putData(row, col, phonic);
     }
 
-    Phonic PhonicModel::cellTake(const QModelIndex &index) {
+    Phonic PhonicModel::takeCell(const QModelIndex &index) {
         // 获取当前单元格坐标
         int row = index.row();
         int col = index.column();
@@ -201,12 +258,12 @@ namespace FillLyric {
         return takeData(row, col);
     }
 
-    void PhonicModel::cellClear(const QModelIndex &index) {
+    void PhonicModel::clearCell(const QModelIndex &index) {
         // 清空当前单元格
         clearData(index.row(), index.column());
     }
 
-    void PhonicModel::cellMove(const QModelIndex &source, const QModelIndex &target) {
+    void PhonicModel::moveCell(const QModelIndex &source, const QModelIndex &target) {
         // 获取当前单元格坐标
         int row = source.row();
         int col = source.column();

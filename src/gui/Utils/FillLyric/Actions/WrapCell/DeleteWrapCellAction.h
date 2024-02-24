@@ -21,6 +21,8 @@ namespace FillLyric {
         PhonicModel *m_model = nullptr;
         QTableView *m_tableView = nullptr;
 
+        QModelIndex m_index;
+
         int m_scrollBarValue;
 
         int m_cellIndex;

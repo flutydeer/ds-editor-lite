@@ -1,5 +1,5 @@
-#ifndef DS_EDITOR_LITE_WARPCELLCHANGEPHONIC_H
-#define DS_EDITOR_LITE_WARPCELLCHANGEPHONIC_H
+#ifndef DS_EDITOR_LITE_WRAPCELLCHANGEPHONIC_H
+#define DS_EDITOR_LITE_WRAPCELLCHANGEPHONIC_H
 
 #include <QModelIndex>
 
@@ -8,9 +8,9 @@
 
 namespace FillLyric {
 
-    class WarpCellChangePhonic final : public MAction {
+    class WrapCellChangePhonic final : public MAction {
     public:
-        static WarpCellChangePhonic *build(const QModelIndex &index, PhonicModel *model,
+        static WrapCellChangePhonic *build(const QModelIndex &index, PhonicModel *model,
                                            const QString &syllableRevised);
         void execute() override;
         void undo() override;
@@ -19,10 +19,10 @@ namespace FillLyric {
         PhonicModel *m_model = nullptr;
         int m_cellIndex;
 
-        QString m_syllableOriginal;
-        QString m_syllableRevised;
+        Phonic m_oldPhonic;
+        Phonic m_newPhonic;
     };
 
 } // FillLyric
 
-#endif // DS_EDITOR_LITE_WARPCELLCHANGEPHONIC_H
+#endif // DS_EDITOR_LITE_WRAPCELLCHANGEPHONIC_H

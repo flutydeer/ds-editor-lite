@@ -1,5 +1,5 @@
-#ifndef DS_EDITOR_LITE_WARPCELLCLEARACTION_H
-#define DS_EDITOR_LITE_WARPCELLCLEARACTION_H
+#ifndef DS_EDITOR_LITE_WRAPCELLCLEARACTION_H
+#define DS_EDITOR_LITE_WRAPCELLCLEARACTION_H
 
 #include <QObject>
 #include <QModelIndex>
@@ -9,14 +9,16 @@
 
 namespace FillLyric {
 
-    class WarpCellClearAction final : public MAction {
+    class WrapCellClearAction final : public MAction {
     public:
-        static WarpCellClearAction *build(const QModelIndex &index, PhonicModel *model);
+        static WrapCellClearAction *build(const QModelIndex &index, PhonicModel *model);
         void execute() override;
         void undo() override;
 
     private:
         PhonicModel *m_model = nullptr;
+        QModelIndex m_index;
+
         int m_cellIndex;
 
         Phonic m_phonic;
@@ -24,4 +26,4 @@ namespace FillLyric {
 
 } // FillLyric
 
-#endif // DS_EDITOR_LITE_WARPCELLCLEARACTION_H
+#endif // DS_EDITOR_LITE_WRAPCELLCLEARACTION_H

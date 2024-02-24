@@ -9,11 +9,7 @@ namespace FillLyric {
 
         action->m_modelColumnCount = model->columnCount();
 
-        for (int i = 0; i < model->rowCount(); i++) {
-            for (int j = 0; j < model->currentLyricLength(i); j++) {
-                action->m_rawPhonics.append(model->takeData(i, j));
-            }
-        }
+        action->m_rawPhonics = model->m_phonics;
 
         QList<Phonic> tempPhonics;
         if (!model->fermataState) {
