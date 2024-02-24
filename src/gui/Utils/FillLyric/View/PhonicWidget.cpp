@@ -495,10 +495,17 @@ namespace FillLyric {
     }
 
     void PhonicWidget::addPrevLine(QModelIndex index) {
-        auto a = new LineActions();
-        a->addPrevLine(index, model);
-        a->execute();
-        ModelHistory::instance()->record(a);
+        if (!autoWrap) {
+            auto a = new LineActions();
+            a->addPrevLine(index, model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        } else {
+            auto a = new WrapLineActions();
+            a->prevWarpLine(index, model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        }
     }
 
     void PhonicWidget::addNextLine(QModelIndex index) {
@@ -516,10 +523,17 @@ namespace FillLyric {
     }
 
     void PhonicWidget::removeLine(QModelIndex index) {
-        auto a = new LineActions();
-        a->removeLine(index, model);
-        a->execute();
-        ModelHistory::instance()->record(a);
+        if (!autoWrap) {
+            auto a = new LineActions();
+            a->removeLine(index, model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        } else {
+            auto a = new WrapLineActions();
+            a->removeWarpLine(index, model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        }
     }
 
     void PhonicWidget::lineMergeUp(QModelIndex index) {
