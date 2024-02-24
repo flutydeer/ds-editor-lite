@@ -5,6 +5,7 @@
 #include "Note.h"
 
 #include <QJsonArray>
+#include <QJsonObject>
 
 int Note::start() const {
     return m_start;

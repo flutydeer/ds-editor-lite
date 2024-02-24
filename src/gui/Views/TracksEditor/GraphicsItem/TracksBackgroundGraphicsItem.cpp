@@ -2,9 +2,10 @@
 // Created by fluty on 2024/1/22.
 //
 
+#include "TracksBackgroundGraphicsItem.h"
+
 #include <QPainter>
 
-#include "TracksBackgroundGraphicsItem.h"
 #include "Views/TracksEditor/TracksEditorGlobal.h"
 
 using namespace TracksEditorGlobal;

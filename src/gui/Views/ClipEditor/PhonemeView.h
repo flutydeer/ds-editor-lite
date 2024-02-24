@@ -6,9 +6,13 @@
 #define PHONEMEPARAMEDITOR_H
 
 #include <QWidget>
+
 #include "Views/Utils/ITimelinePainter.h"
-#include "Model/Note.h"
 #include "Utils/OverlapableSerialList.h"
+#include "Utils/IOverlapable.h"
+
+class Note;
+class Phoneme;
 
 class PhonemeView final : public QWidget, public ITimelinePainter {
     Q_OBJECT

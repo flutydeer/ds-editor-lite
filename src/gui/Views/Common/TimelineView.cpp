@@ -2,10 +2,11 @@
 // Created by fluty on 2024/2/3.
 //
 
-#include <QWheelEvent>
-
 #include "TimelineView.h"
-#include "Views/Utils/ITimelinePainter.h"
+
+#include <QWheelEvent>
+#include <QPainter>
+
 #include "Utils/AppGlobal.h"
 
 using namespace AppGlobal;

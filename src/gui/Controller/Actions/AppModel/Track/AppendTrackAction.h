@@ -6,7 +6,9 @@
 #define APPENDTRACKSACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/AppModel.h"
+
+class Track;
+class AppModel;
 
 class AppendTrackAction final : public IAction {
 public:

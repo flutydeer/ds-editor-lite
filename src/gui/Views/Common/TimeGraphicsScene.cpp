@@ -3,6 +3,8 @@
 //
 
 #include "TimeGraphicsScene.h"
+#include "TimeGridGraphicsItem.h"
+#include "TimeIndicatorGraphicsItem.h"
 
 void TimeGraphicsScene::addTimeGrid(TimeGridGraphicsItem *item) {
     item->setZValue(-1);

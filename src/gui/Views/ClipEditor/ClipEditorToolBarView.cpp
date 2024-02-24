@@ -2,10 +2,11 @@
 // Created by fluty on 2024/2/10.
 //
 
-#include <QHBoxLayout>
-#include <qbuttongroup.h>
-
 #include "ClipEditorToolBarView.h"
+
+#include <QHBoxLayout>
+#include <QButtonGroup>
+#include <QPushButton>
 
 #include "Controls/ToolTipFilter.h"
 

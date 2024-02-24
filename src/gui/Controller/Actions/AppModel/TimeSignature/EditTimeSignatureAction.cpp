@@ -3,6 +3,7 @@
 //
 
 #include "EditTimeSignatureAction.h"
+
 EditTimeSignatureAction *EditTimeSignatureAction::build(AppModel::TimeSignature oldSig,
                                                         AppModel::TimeSignature newSig,
                                                         AppModel *model) {

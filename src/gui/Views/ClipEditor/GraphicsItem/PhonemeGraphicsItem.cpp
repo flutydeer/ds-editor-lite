@@ -2,12 +2,12 @@
 // Created by fluty on 24-2-13.
 //
 
+#include "PhonemeGraphicsItem.h"
+
 #include <QPainter>
 #include <QTextOption>
 #include <QGraphicsSceneContextMenuEvent>
 #include <QCursor>
-
-#include "PhonemeGraphicsItem.h"
 
 #include "Utils/AppGlobal.h"
 

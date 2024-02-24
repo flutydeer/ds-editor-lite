@@ -2,16 +2,20 @@
 // Created by fluty on 2024/1/23.
 //
 
-#include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 
+#include <QMouseEvent>
+#include <QScrollBar>
+
+#include "PianoRollGraphicsScene.h"
 #include "GraphicsItem/PitchEditorGraphicsItem.h"
 #include "Model/AppModel.h"
 #include "Utils/AppGlobal.h"
 #include "Utils/MathUtils.h"
-
-#include <QMouseEvent>
-#include <QScrollBar>
+#include "GraphicsItem/NoteGraphicsItem.h"
+#include "Model/Clip.h"
+#include "Model/Curve.h"
+#include "Model/Note.h"
 
 PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene)
     : TimeGraphicsView(scene) {

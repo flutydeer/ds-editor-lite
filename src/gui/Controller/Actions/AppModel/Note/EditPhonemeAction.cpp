@@ -2,9 +2,9 @@
 // Created by fluty on 24-2-14.
 //
 
-#include <QDebug>
-
 #include "EditPhonemeAction.h"
+
+#include "Model/Clip.h"
 
 EditPhonemeAction *EditPhonemeAction::build(Note *note, const Phoneme &phoneme, SingingClip *clip) {
     auto a = new EditPhonemeAction;

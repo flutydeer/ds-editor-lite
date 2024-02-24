@@ -5,10 +5,11 @@
 #ifndef DATASET_TOOLS_CLIPGRAPHICSITEM_H
 #define DATASET_TOOLS_CLIPGRAPHICSITEM_H
 
-#include "Controls/Menu.h"
 #include "Utils/IOverlapable.h"
 #include "Utils/UniqueObject.h"
 #include "Views/Common/CommonGraphicsRectItem.h"
+
+class Menu;
 
 class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IOverlapable, public UniqueObject {
     Q_OBJECT

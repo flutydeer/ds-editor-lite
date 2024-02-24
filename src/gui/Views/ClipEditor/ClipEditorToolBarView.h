@@ -5,13 +5,13 @@
 #ifndef PIANOROLLTOOLBARVIEW_H
 #define PIANOROLLTOOLBARVIEW_H
 
-#include <QLineEdit>
-#include <QPushButton>
 #include <QWidget>
 
 #include "ClipEditorGlobal.h"
 #include "Controls/EditLabel.h"
 #include "Controls/SeekBar.h"
+
+class QPushButton;
 
 class ClipEditorToolBarView final : public QWidget {
     Q_OBJECT

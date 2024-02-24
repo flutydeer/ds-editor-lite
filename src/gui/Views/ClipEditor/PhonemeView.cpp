@@ -2,11 +2,14 @@
 // Created by fluty on 24-2-12.
 //
 
-#include <QMouseEvent>
-
 #include "PhonemeView.h"
+
+#include <QMouseEvent>
+#include <QPainter>
+
 #include "Model/AppModel.h"
 #include "Utils/AppGlobal.h"
+#include "Model/Note.h"
 
 using namespace AppGlobal;
 

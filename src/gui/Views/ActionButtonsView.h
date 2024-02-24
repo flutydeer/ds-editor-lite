@@ -5,8 +5,9 @@
 #ifndef ACTIONBUTTONSVIEW_H
 #define ACTIONBUTTONSVIEW_H
 
-#include <QPushButton>
 #include <QWidget>
+
+class QPushButton;
 
 class ActionButtonsView final : public QWidget {
     Q_OBJECT

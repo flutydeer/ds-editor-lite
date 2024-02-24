@@ -2,10 +2,10 @@
 // Created by fluty on 2024/1/25.
 //
 
+#include "OverlayGraphicsItem.h"
+
 #include <QGraphicsSceneMouseEvent>
 #include <QPainter>
-
-#include "OverlayGraphicsItem.h"
 
 bool OverlayGraphicsItem::transparentForMouseEvents() const {
     return m_transparentForMouseEvents;

@@ -8,7 +8,7 @@
 #include <QObject>
 #include <QGraphicsLineItem>
 
-class TimeIndicatorGraphicsItem : public QObject,public QGraphicsLineItem {
+class TimeIndicatorGraphicsItem : public QObject, public QGraphicsLineItem {
     Q_OBJECT
 
 public:
@@ -31,4 +31,4 @@ private:
 
 
 
-#endif //TIMEINDICATORGRAPHICSITEM_H
+#endif // TIMEINDICATORGRAPHICSITEM_H

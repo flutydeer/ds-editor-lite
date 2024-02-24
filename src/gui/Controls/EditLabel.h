@@ -5,9 +5,10 @@
 #ifndef DATASET_TOOLS_EDITLABEL_H
 #define DATASET_TOOLS_EDITLABEL_H
 
-#include <QLabel>
-#include <QLineEdit>
 #include <QStackedWidget>
+
+class QLabel;
+class QLineEdit;
 
 class EditLabel : public QStackedWidget {
     Q_OBJECT

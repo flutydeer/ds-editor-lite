@@ -6,8 +6,9 @@
 #define REMOVECLIPACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/Clip.h"
-#include "Model/Track.h"
+
+class Track;
+class Clip;
 
 class RemoveClipAction final: public IAction {
 public:

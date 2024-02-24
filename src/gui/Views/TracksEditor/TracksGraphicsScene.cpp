@@ -2,8 +2,9 @@
 // Created by fluty on 2023/11/14.
 //
 
-#include "TracksEditorGlobal.h"
 #include "TracksGraphicsScene.h"
+
+#include "TracksEditorGlobal.h"
 
 using namespace TracksEditorGlobal;
 

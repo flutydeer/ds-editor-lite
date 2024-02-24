@@ -5,8 +5,12 @@
 #ifndef REMOVETRACKSACTION_H
 #define REMOVETRACKSACTION_H
 
+#include <QList>
+
 #include "Controller/History/IAction.h"
-#include "Model/AppModel.h"
+
+class Track;
+class AppModel;
 
 class RemoveTrackAction : public IAction {
 public:

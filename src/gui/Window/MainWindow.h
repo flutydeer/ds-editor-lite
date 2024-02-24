@@ -7,8 +7,8 @@
 
 #include <QMainWindow>
 
-#include "Views/ClipEditor/ClipEditorView.h"
-#include "Views/TracksEditor/TracksView.h"
+class TracksView;
+class ClipEditorView;
 
 class MainWindow final : public QMainWindow {
     Q_OBJECT

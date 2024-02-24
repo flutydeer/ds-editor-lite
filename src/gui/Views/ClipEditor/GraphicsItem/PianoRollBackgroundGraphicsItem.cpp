@@ -2,9 +2,10 @@
 // Created by fluty on 2024/1/24.
 //
 
+#include "PianoRollBackgroundGraphicsItem.h"
+
 #include <QPainter>
 
-#include "PianoRollBackgroundGraphicsItem.h"
 #include "Views/ClipEditor/ClipEditorGlobal.h"
 
 using namespace ClipEditorGlobal;

@@ -4,11 +4,11 @@
 
 #include "TrackActions.h"
 
-
 #include "AppendTrackAction.h"
 #include "EditTrackPropertiesAction.h"
 #include "InsertTrackAction.h"
 #include "RemoveTrackAction.h"
+
 void TrackActions::appendTracks(const QList<Track *> &tracks, AppModel *model) {
     for (auto track : tracks)
         addAction(AppendTrackAction::build(track, model));

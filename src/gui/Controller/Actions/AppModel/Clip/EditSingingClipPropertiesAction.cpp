@@ -3,6 +3,10 @@
 //
 
 #include "EditSingingClipPropertiesAction.h"
+
+#include "Model/Track.h"
+#include "Model/Note.h"
+
 EditSingingClipPropertiesAction *
     EditSingingClipPropertiesAction::build(const Clip::ClipCommonProperties &oldArgs,
                                      const Clip::ClipCommonProperties &newArgs,

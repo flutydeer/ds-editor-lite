@@ -5,8 +5,9 @@
 #ifndef DATASET_TOOLS_TRACKSGRAPHICSVIEW_H
 #define DATASET_TOOLS_TRACKSGRAPHICSVIEW_H
 
-#include "TracksGraphicsScene.h"
 #include "Views/Common/TimeGraphicsView.h"
+
+class TracksGraphicsScene;
 
 class TracksGraphicsView final : public TimeGraphicsView {
     Q_OBJECT

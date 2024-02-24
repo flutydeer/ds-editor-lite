@@ -7,8 +7,9 @@
 
 #include "AbstractClipGraphicsItem.h"
 #include "Model/Clip.h"
-#include "Model/Note.h"
 #include "Utils/OverlapableSerialList.h"
+
+class Note;
 
 class SingingClipGraphicsItem final : public AbstractClipGraphicsItem {
     Q_OBJECT

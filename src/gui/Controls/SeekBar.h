@@ -5,10 +5,9 @@
 #ifndef DATASET_TOOLS_SEEKBAR_H
 #define DATASET_TOOLS_SEEKBAR_H
 
-#include "QMouseEvent"
-#include "QSlider"
-#include <QPropertyAnimation>
+#include <QWidget>
 
+class QPropertyAnimation;
 
 class SeekBar : public QWidget {
     Q_OBJECT

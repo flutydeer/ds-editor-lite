@@ -6,7 +6,9 @@
 #define ADDTRACKSACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/AppModel.h"
+
+class Track;
+class AppModel;
 
 class InsertTrackAction final: public IAction {
 public:

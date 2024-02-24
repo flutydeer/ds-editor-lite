@@ -2,9 +2,10 @@
 // Created by fluty on 2024/2/10.
 //
 
+#include "ClipEditorView.h"
+
 #include <QVBoxLayout>
 
-#include "ClipEditorView.h"
 #include "PianoRollGraphicsScene.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/PlaybackController.h"

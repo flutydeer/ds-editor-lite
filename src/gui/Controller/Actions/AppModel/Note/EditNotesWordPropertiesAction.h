@@ -6,7 +6,9 @@
 #define EDITNOTESWORDPROPERTIESACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/Clip.h"
+#include "Model/Note.h"
+
+class SingingClip;
 
 class EditNotesWordPropertiesAction final : public IAction {
 public:

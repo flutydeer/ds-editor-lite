@@ -4,6 +4,9 @@
 
 #include "InsertNoteAction.h"
 
+#include "Model/Clip.h"
+#include "Model/Note.h"
+
 InsertNoteAction *InsertNoteAction::build(Note *note, SingingClip *clip) {
     auto a = new InsertNoteAction;
     a->m_note = note;

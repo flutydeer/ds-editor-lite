@@ -2,9 +2,8 @@
 // Created by fluty on 2024/2/8.
 //
 
-#include <QDebug>
-
 #include "ClipActions.h"
+
 #include "EditClipCommonPropertiesAction.h"
 #include "EditSingingClipPropertiesAction.h"
 #include "InsertClipAction.h"

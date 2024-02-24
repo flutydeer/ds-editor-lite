@@ -6,8 +6,9 @@
 #define NOTEACTIONS_H
 
 #include "Controller/History/ActionSequence.h"
-#include "Model/Clip.h"
 #include "Model/Note.h"
+
+class SingingClip;
 
 class NoteActions : public ActionSequence {
 public:

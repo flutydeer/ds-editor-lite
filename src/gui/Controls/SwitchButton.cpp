@@ -2,11 +2,12 @@
 // Created by fluty on 2023/8/17.
 //
 
+#include "SwitchButton.h"
+
 #include <QPainter>
 #include <QDebug>
 #include <QEvent>
-
-#include "SwitchButton.h"
+#include <QPropertyAnimation>
 
 SwitchButton::SwitchButton(QWidget *parent) {
     m_value = false;

@@ -5,7 +5,7 @@
 #ifndef TIMELINEPAINTER_H
 #define TIMELINEPAINTER_H
 
-#include <QPainter>
+class QPainter;
 
 class ITimelinePainter {
 public:

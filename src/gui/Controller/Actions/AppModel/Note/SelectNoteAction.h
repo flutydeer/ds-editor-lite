@@ -6,7 +6,9 @@
 #define SELECTNOTEACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/Clip.h"
+
+class SingingClip;
+class Note;
 
 class SelectNoteAction final : public IAction {
 public:

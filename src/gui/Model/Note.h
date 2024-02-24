@@ -6,12 +6,12 @@
 #define DSNOTE_H
 
 #include <QList>
-#include <QDataStream>
-#include <QJsonObject>
 
 #include "Utils/IOverlapable.h"
 #include "Utils/ISelectable.h"
 #include "Utils/UniqueObject.h"
+
+class QJsonObject;
 
 class Pronunciation {
 public:

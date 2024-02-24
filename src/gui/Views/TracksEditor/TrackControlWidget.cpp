@@ -4,6 +4,18 @@
 
 #include "TrackControlWidget.h"
 
+#include <QPushButton>
+#include <QLabel>
+#include <QContextMenuEvent>
+#include <QHBoxLayout>
+#include <QLineEdit>
+
+#include "Controls/EditLabel.h"
+#include "Controls/Menu.h"
+#include "Controls/SeekBar.h"
+#include "Controls/LevelMeter.h"
+#include "Model/Track.h"
+
 TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
     m_item = item;
     setAttribute(Qt::WA_StyledBackground);

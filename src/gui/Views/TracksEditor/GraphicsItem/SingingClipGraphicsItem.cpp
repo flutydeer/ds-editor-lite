@@ -2,11 +2,13 @@
 // Created by fluty on 2024/1/22.
 //
 
+#include "SingingClipGraphicsItem.h"
+
 #include <QFile>
 #include <QPainter>
 
-#include "SingingClipGraphicsItem.h"
 #include "Views/TracksEditor/TracksEditorGlobal.h"
+#include "Model/Note.h"
 
 using namespace TracksEditorGlobal;
 

@@ -2,9 +2,12 @@
 // Created by fluty on 2024/1/27.
 //
 
+#include "Clip.h"
+
 #include <QDebug>
 
-#include "Clip.h"
+#include "Note.h"
+#include "Curve.h"
 
 QString Clip::name() const {
     return m_name;

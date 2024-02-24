@@ -2,9 +2,12 @@
 // Created by fluty on 2024/2/10.
 //
 
+#include "TimeGraphicsView.h"
+
 #include <QScrollBar>
 
-#include "TimeGraphicsView.h"
+#include "TimeGraphicsScene.h"
+#include "TimeIndicatorGraphicsItem.h"
 
 TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene) : m_scene(scene) {
     m_scenePlayPosIndicator = new TimeIndicatorGraphicsItem;

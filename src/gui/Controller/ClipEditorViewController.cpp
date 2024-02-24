@@ -2,12 +2,12 @@
 // Created by fluty on 2024/2/10.
 //
 
-#include <QApplication>
+#include "ClipEditorViewController.h"
+
 #include <QClipboard>
 #include <QMimeData>
-#include <QJsonDocument>
 
-#include "ClipEditorViewController.h"
+#include "Model/AppModel.h"
 #include "ControllerGlobal.h"
 #include "TracksViewController.h"
 #include "Actions/AppModel/Note/NoteActions.h"

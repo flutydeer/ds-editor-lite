@@ -4,8 +4,8 @@
 
 #include "TimeSignatureActions.h"
 
-
 #include "EditTimeSignatureAction.h"
+
 void TimeSignatureActions::editTimeSignature(AppModel::TimeSignature oldSig,
                                              AppModel::TimeSignature newSig, AppModel *model) {
     addAction(EditTimeSignatureAction::build(oldSig, newSig, model));

@@ -6,8 +6,9 @@
 #define REMOVENOTEACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/Clip.h"
-#include "Model/Note.h"
+
+class SingingClip;
+class Note;
 
 class RemoveNoteAction final : public IAction {
 public:

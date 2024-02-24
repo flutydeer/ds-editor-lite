@@ -5,17 +5,20 @@
 #ifndef TRACKCONTROLWIDGET_H
 #define TRACKCONTROLWIDGET_H
 
-#include <QHBoxLayout>
-#include <QPushButton>
-#include <QString>
-#include <QListWidgetItem>
+#include <QWidget>
 
-#include "Controls/LevelMeter.h"
-#include "Controls/SeekBar.h"
-#include "Model/Track.h"
 #include "Model/TrackControl.h"
-#include "Controls/EditLabel.h"
-#include "Controls/Menu.h"
+
+class QListWidgetItem;
+class LevelMeter;
+class Track;
+class QPushButton;
+class QLabel;
+class EditLabel;
+class SeekBar;
+class QSpacerItem;
+class QHBoxLayout;
+class QVBoxLayout;
 
 class TrackControlWidget final : public QWidget {
     Q_OBJECT

@@ -10,7 +10,6 @@
 
 class QLabel;
 class QVBoxLayout;
-class QTimer;
 class QPropertyAnimation;
 
 class ToolTip : public QFrame {

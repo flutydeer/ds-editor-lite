@@ -6,8 +6,9 @@
 #define INSERTCLIPACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/Clip.h"
-#include "Model/Track.h"
+
+class Track;
+class Clip;
 
 class InsertClipAction final : public IAction {
 public:

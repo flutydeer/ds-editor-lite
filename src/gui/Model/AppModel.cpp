@@ -2,18 +2,12 @@
 // Created by fluty on 2024/1/27.
 //
 
-#include <QFile>
-#include <QTextCodec>
-#include <QVBoxLayout>
-#include <QDialogButtonBox>
-
 #include "AppModel.h"
 
-#include "Controller/History/HistoryManager.h"
+#include "Track.h"
+#include "WorkspaceEditor.h"
 #include "Utils/ProjectConverters/AProjectConverter.h"
 #include "Utils/ProjectConverters/DspxProjectConverter.h"
-#include "opendspx/qdspxtrack.h"
-#include "opendspx/qdspxtimeline.h"
 #include "Utils/ProjectConverters/MidiConverter.h"
 
 AppModel::TimeSignature AppModel::timeSignature() const {

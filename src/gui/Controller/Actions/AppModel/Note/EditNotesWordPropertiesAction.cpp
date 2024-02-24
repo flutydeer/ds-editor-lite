@@ -3,6 +3,10 @@
 //
 
 #include "EditNotesWordPropertiesAction.h"
+
+#include "Model/Clip.h"
+#include "Model/Note.h"
+
 EditNotesWordPropertiesAction *
     EditNotesWordPropertiesAction::build(Note *note, Note::NoteWordProperties *args, SingingClip *clip) {
     Note::NoteWordProperties oldArgs;

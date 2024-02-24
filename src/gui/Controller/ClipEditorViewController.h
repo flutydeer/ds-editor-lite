@@ -8,9 +8,9 @@
 #include <QObject>
 
 #include "Model/Clip.h"
-#include "Model/AppModel.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Utils/Singleton.h"
+#include "Model/Note.h"
 
 class ClipEditorViewController final : public QObject, public Singleton<ClipEditorViewController> {
     Q_OBJECT

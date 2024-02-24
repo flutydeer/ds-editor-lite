@@ -6,7 +6,9 @@
 #define EDITNOTESLENGTHACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/Clip.h"
+
+class SingingClip;
+class Note;
 
 class EditNotesLengthAction final : public IAction {
 public:

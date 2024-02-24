@@ -5,6 +5,8 @@
 #ifndef PIANOROLLGLOBAL_H
 #define PIANOROLLGLOBAL_H
 
+#include <QString>
+
 namespace ClipEditorGlobal {
     constexpr int pixelsPerQuarterNote = 96;
     constexpr double noteHeight = 24;

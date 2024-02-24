@@ -6,7 +6,9 @@
 #define EDITNOTESTARTACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/Clip.h"
+
+class SingingClip;
+class Note;
 
 class EditNoteStartAndLengthAction final : public IAction {
 public:

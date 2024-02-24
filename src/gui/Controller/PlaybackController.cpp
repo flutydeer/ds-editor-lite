@@ -4,7 +4,6 @@
 
 #include "PlaybackController.h"
 
-
 #include "Model/AppModel.h"
 
 PlaybackController::PlaybackController() {
