@@ -119,6 +119,9 @@ public:
     ParamBundle params;
     QList<VocalPart> parts();
 
+    static void copyCurves(const OverlapableSerialList<Curve> &source,
+                           OverlapableSerialList<Curve> &target);
+
 signals:
     void noteListChanged(NoteChangeType type, int id, Note *note);
     void noteSelectionChanged();

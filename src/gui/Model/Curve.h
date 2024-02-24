@@ -45,8 +45,7 @@ public:
     DrawCurve() = default;
     explicit DrawCurve(int id) : Curve(id) {
     }
-    DrawCurve(const DrawCurve &other) : Curve(other), step(other.step), m_values(other.m_values) {
-    }
+    DrawCurve(const DrawCurve &other);
 
     CurveType type() override {
         return Draw;

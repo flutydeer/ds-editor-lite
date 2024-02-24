@@ -10,6 +10,8 @@
 #include <QGraphicsSceneMouseEvent>
 
 #include "PitchEditorGraphicsItem.h"
+
+#include "Model/Clip.h"
 #include "Utils/MathUtils.h"
 #include "Views/ClipEditor/ClipEditorGlobal.h"
 #include "Model/Curve.h"
@@ -58,12 +60,34 @@ void PitchEditorGraphicsItem::loadOpensvipPitchParam() {
     }
 }
 void PitchEditorGraphicsItem::loadOriginal(const OverlapableSerialList<DrawCurve> &curves) {
-    m_drawCurvesOriginal = curves;
+    OverlapableSerialList<Curve> source;
+    OverlapableSerialList<Curve> target;
+    for (const auto curve : curves)
+        source.add(curve);
+
+    SingingClip::copyCurves(source, target);
+
+    m_drawCurvesOriginal.clear();
+    for (const auto curve : target) {
+        if (curve->type() == Curve::Draw)
+            m_drawCurvesOriginal.add(dynamic_cast<DrawCurve *>(curve));
+    }
     update();
 }
 void PitchEditorGraphicsItem::loadEdited(const OverlapableSerialList<DrawCurve> &curves) {
     // qDebug() << "PitchEditorGraphicsItem::loadEdited count:" << curves.count();
-    m_drawCurvesEdited = curves;
+    OverlapableSerialList<Curve> source;
+    OverlapableSerialList<Curve> target;
+    for (const auto curve : curves)
+        source.add(curve);
+
+    SingingClip::copyCurves(source, target);
+
+    m_drawCurvesEdited.clear();
+    for (const auto curve : target) {
+        if (curve->type() == Curve::Draw)
+            m_drawCurvesEdited.add(dynamic_cast<DrawCurve *>(curve));
+    }
     update();
 }
 const OverlapableSerialList<DrawCurve> &PitchEditorGraphicsItem::editedCurves() const {
@@ -322,7 +346,7 @@ void PitchEditorGraphicsItem::drawLine(const QPoint &p1, const QPoint &p2, DrawC
         startPoint = p2;
         endPoint = p1;
     }
-    DrawCurve line;
+    auto line = DrawCurve(-1);
     auto start = startPoint.x();
     line.setStart(start);
     int linePointCount = (endPoint.x() - startPoint.x()) / curve->step;

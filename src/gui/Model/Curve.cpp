@@ -28,6 +28,9 @@ bool Curve::isOverlappedWith(Curve *obj) const {
         return false;
     return true;
 }
+DrawCurve::DrawCurve(const DrawCurve &other)  : Curve(other), step(other.step), m_values(other.m_values){
+    qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start();
+}
 const QList<int> &DrawCurve::values() const {
     return m_values;
 }
