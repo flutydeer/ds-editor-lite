@@ -25,8 +25,13 @@ namespace FillLyric {
     class LyricWidget : public QWidget {
         Q_OBJECT
     public:
-        explicit LyricWidget(QList<PhonicNote *> phonicNotes, QWidget *parent = nullptr);
+        explicit LyricWidget(QList<Phonic *> phonics, QWidget *parent = nullptr);
         ~LyricWidget() override;
+
+        void exportPhonics();
+
+        QCheckBox *exportSkipSlur;
+        QCheckBox *exportExcludeSpace;
 
     Q_SIGNALS:
         void shrinkWindowRight(int newWidth);
@@ -46,7 +51,7 @@ namespace FillLyric {
         void _on_modelDataChanged();
 
     private:
-        QList<PhonicNote *> m_phonicNotes;
+        QList<Phonic *> m_phonics;
 
         // Variables
         int notesCount = 0;
@@ -67,6 +72,7 @@ namespace FillLyric {
 
         QWidget *m_tableWidget;
         QVBoxLayout *m_tableLayout;
+        QHBoxLayout *m_tableCountLayout;
         QHBoxLayout *m_tableBottomLayout;
 
         // Widgets
@@ -96,6 +102,8 @@ namespace FillLyric {
         // CheckBox
         QCheckBox *skipSlur;
         QCheckBox *excludeSpace;
+
+        QLabel *exportLabel;
 
         ComboBox *splitComboBox;
         Button *btnRegSetting;

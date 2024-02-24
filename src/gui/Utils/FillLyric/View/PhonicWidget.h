@@ -35,7 +35,7 @@ namespace FillLyric {
         friend class LyricWidget;
 
     public:
-        explicit PhonicWidget(QList<PhonicNote *> phonicNotes, QWidget *parent = nullptr);
+        explicit PhonicWidget(QList<Phonic *> phonics, QWidget *parent = nullptr);
         ~PhonicWidget() override;
 
         QList<Phonic> exportPhonics();
@@ -69,6 +69,9 @@ namespace FillLyric {
         void setColWidthRatio(double ratio);
         void setRowHeightRatio(double ratio);
 
+    Q_SIGNALS:
+        void historyReset();
+
     protected:
         PhonicTableView *tableView;
         PhonicModel *model;
@@ -81,7 +84,7 @@ namespace FillLyric {
                                   const QList<Phonic> &oldPhonics);
 
         // Variables
-        QList<PhonicNote *> m_phonicNotes;
+        QList<Phonic *> m_phonics;
 
         bool autoWrap = false;
 

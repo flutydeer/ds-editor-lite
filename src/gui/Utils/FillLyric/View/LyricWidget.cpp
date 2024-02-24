@@ -10,8 +10,8 @@
 
 namespace FillLyric {
 
-    LyricWidget::LyricWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
-        : QWidget(parent), m_phonicNotes(std::move(phonicNotes)) {
+    LyricWidget::LyricWidget(QList<Phonic *> phonics, QWidget *parent)
+        : QWidget(parent), m_phonics(std::move(phonics)) {
         setStyleSheet(
             "QPushButton {border: none; background: none; max-width: 100px; padding: 4px;}"
             "QPushButton:hover { background: #1AFFFFFF; }"
@@ -96,7 +96,7 @@ namespace FillLyric {
         m_tableWidget = new QWidget();
 
         // phonicWidget
-        m_phonicWidget = new PhonicWidget(m_phonicNotes);
+        m_phonicWidget = new PhonicWidget(m_phonics);
 
         // tableTop layout
         m_tableTopLayout = new QHBoxLayout();
@@ -125,16 +125,28 @@ namespace FillLyric {
         m_tableTopLayout->addWidget(autoWrap);
         m_tableTopLayout->addWidget(btnTableConfig);
 
-        m_tableBottomLayout = new QHBoxLayout();
+        m_tableCountLayout = new QHBoxLayout();
         noteCountLabel = new QLabel("0/0");
+        m_tableCountLayout->addStretch(1);
+        m_tableCountLayout->addWidget(noteCountLabel);
+
+        m_tableBottomLayout = new QHBoxLayout();
+        exportLabel = new QLabel("Export Config :");
+        exportSkipSlur = new QCheckBox("Skip Slur");
+        exportExcludeSpace = new QCheckBox("Ignoring end of sentence spaces");
+        exportExcludeSpace->setCheckState(Qt::Checked);
+
+        m_tableBottomLayout->addWidget(exportLabel);
+        m_tableBottomLayout->addWidget(exportSkipSlur);
+        m_tableBottomLayout->addWidget(exportExcludeSpace);
         m_tableBottomLayout->addStretch(1);
-        m_tableBottomLayout->addWidget(noteCountLabel);
 
         // table layout
         m_tableLayout = new QVBoxLayout();
         m_tableLayout->setContentsMargins(0, 0, 0, 0);
         m_tableLayout->addLayout(m_tableTopLayout);
         m_tableLayout->addWidget(m_phonicWidget->tableView);
+        m_tableLayout->addLayout(m_tableCountLayout);
         m_tableLayout->addLayout(m_tableBottomLayout);
 
         m_tableWidget->setLayout(m_tableLayout);
@@ -209,6 +221,7 @@ namespace FillLyric {
                     btnRedo->setEnabled(canRedo);
                 });
         connect(autoWrap, &QCheckBox::stateChanged, modelHistory, &ModelHistory::reset);
+        connect(m_phonicWidget, &PhonicWidget::historyReset, modelHistory, &ModelHistory::reset);
 
         // splitComboBox
         connect(splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
@@ -230,6 +243,21 @@ namespace FillLyric {
     }
 
     LyricWidget::~LyricWidget() = default;
+
+    void LyricWidget::exportPhonics() {
+        bool skipSpaceRes = excludeSpace->isChecked();
+        bool skipSlurRes = skipSlur->isChecked();
+
+        auto model = m_phonicWidget->model;
+
+        for (int i = 0; i < model->rowCount(); ++i) {
+            int col = skipSpaceRes ? model->currentLyricLength(i) : model->columnCount();
+            for (int j = 0; j < col; ++j) {
+                auto phonic = new Phonic(model->takeData(i, j));
+                m_phonics.append(phonic);
+            }
+        }
+    }
 
     void LyricWidget::_on_textEditChanged() {
         auto splitType = SplitType(this->splitComboBox->currentIndex());
@@ -282,8 +310,11 @@ namespace FillLyric {
 
         // 获取文本框的内容
         QString text = m_textEdit->toPlainText();
-        QList<Phonic> splitRes;
+        if (skipSlurRes) {
+            text = text.remove("-");
+        }
 
+        QList<Phonic> splitRes;
         if (splitType == SplitType::Auto) {
             splitRes = CleanLyric::splitAuto(text, excludeSpaceRes);
         } else if (splitType == SplitType::ByChar) {

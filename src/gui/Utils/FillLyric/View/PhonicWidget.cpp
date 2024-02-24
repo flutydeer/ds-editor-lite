@@ -13,9 +13,9 @@
 #include "../Actions/Model/ModelActions.h"
 
 namespace FillLyric {
-    PhonicWidget::PhonicWidget(QList<PhonicNote *> phonicNotes, QWidget *parent)
+    PhonicWidget::PhonicWidget(QList<Phonic *> phonics, QWidget *parent)
         : g2p_man(G2pMandarin::instance()), g2p_jp(G2pJapanese::instance()),
-          m_phonicNotes(std::move(phonicNotes)), QWidget(parent) {
+          m_phonics(std::move(phonics)), QWidget(parent) {
 
         // 创建模型和视图
         tableView = new PhonicTableView();
@@ -121,6 +121,7 @@ namespace FillLyric {
         }
 
         if (autoWrap) {
+            model->m_phonics.clear();
             for (int i = 0; i < model->rowCount(); i++) {
                 for (int j = 0; j < model->currentLyricLength(i); j++) {
                     model->m_phonics.append(model->takeData(i, j));
@@ -130,6 +131,7 @@ namespace FillLyric {
 
         model->shrinkModel();
         resizeTable();
+        Q_EMIT this->historyReset();
     }
 
     QList<Phonic> PhonicWidget::updateLyric(QModelIndex index, const QString &text,

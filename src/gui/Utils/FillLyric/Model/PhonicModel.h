@@ -27,13 +27,9 @@ namespace FillLyric {
     class PhonicModel : public QStandardItemModel {
         Q_OBJECT
     public:
-        explicit PhonicModel(QTableView *tableView, bool skipSlur = false,
-                             QObject *parent = nullptr)
-            : QStandardItemModel(parent), m_tableView(tableView), m_skipSlur(skipSlur) {
+        explicit PhonicModel(QTableView *tableView, QObject *parent = nullptr)
+            : QStandardItemModel(parent), m_tableView(tableView) {
         }
-
-        // init
-        void setSkipSlur(bool skipSlur);
 
         // Gui functions
         void repaintItem(QModelIndex index, const QString &text);
@@ -93,7 +89,6 @@ namespace FillLyric {
         QList<Phonic> m_phonics;
 
     private:
-        bool m_skipSlur = false;
         QTableView *m_tableView;
     };
 

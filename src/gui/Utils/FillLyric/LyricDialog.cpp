@@ -19,7 +19,7 @@ namespace FillLyric {
         m_mainLayout = new QVBoxLayout(this);
         m_tabWidget = new QTabWidget();
 
-        m_lyricWidget = new LyricWidget(m_phonicNotes);
+        m_lyricWidget = new LyricWidget(m_phonics);
 
         m_btnOk = new Button("OK", this);
         m_btnOk->setPrimary(true);
@@ -53,28 +53,16 @@ namespace FillLyric {
 
     void LyricDialog::noteToPhonic() {
         for (auto note : m_notes) {
-            auto lyric = note->lyric();
-            auto syllable = Pron(note->pronunciation().original, note->pronunciation().edited);
-            auto lineFeed = note->lineFeed();
+            auto phonic = new Phonic;
+            phonic->lyric = note->lyric();
+            phonic->syllable = note->pronunciation().original;
+            phonic->syllableRevised = note->pronunciation().edited;
+            phonic->candidates = note->pronCandidates();
 
-            auto phonicNote = new PhonicNote(lyric, syllable, lineFeed);
             if (note->isSlur())
-                phonicNote->setLyricType(TextType::Slur);
+                phonic->lyricType = TextType::Slur;
 
-            m_phonicNotes.append(phonicNote);
-        }
-    }
-
-    void LyricDialog::phonicToNote() {
-        for (int i = 0; i < m_phonicNotes.size(); ++i) {
-            auto note = m_notes.at(i);
-            auto phonicNote = m_phonicNotes.at(i);
-
-            note->setLyric(phonicNote->lyric());
-            note->setPronunciation(Pronunciation(phonicNote->pronunciation().original,
-                                                 phonicNote->pronunciation().edited));
-            note->pronCandidates() = phonicNote->pronCandidates();
-            note->setLineFeed(phonicNote->lineFeed());
+            m_phonics.append(phonic);
         }
     }
 
@@ -87,6 +75,39 @@ namespace FillLyric {
         setMinimumSize(720, 450);
         auto size = QApplication::primaryScreen()->availableSize();
         resize(int(size.width() * 0.6), height());
+    }
+
+    void LyricDialog::exportPhonics() {
+        m_lyricWidget->exportPhonics();
+
+        bool skipSlurRes = m_lyricWidget->exportSkipSlur->isChecked();
+
+        QList<Phonic *> phonics;
+        for (auto phonic : m_phonics) {
+            if (skipSlurRes && phonic->lyricType == TextType::Slur)
+                continue;
+            phonics.append(phonic);
+        }
+
+        QList<Note *> notes;
+        for (auto note : m_notes) {
+            if (skipSlurRes && note->isSlur())
+                continue;
+            notes.append(note);
+        }
+
+        for (int i = 0; i < phonics.size(); ++i) {
+            auto phonicNote = phonics.at(i);
+            if (i >= notes.size())
+                break;
+            auto note = notes.at(i);
+
+            note->setLyric(phonicNote->lyric);
+            note->setPronunciation(
+                Pronunciation(phonicNote->syllable, phonicNote->syllableRevised));
+            note->setPronCandidates(phonicNote->candidates);
+            note->setLineFeed(phonicNote->lineFeed);
+        }
     }
 
 

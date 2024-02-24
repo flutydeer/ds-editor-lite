@@ -1,11 +1,6 @@
 #include "PhonicModel.h"
 
 namespace FillLyric {
-    // init
-    void PhonicModel::setSkipSlur(bool skipSlur) {
-        this->m_skipSlur = skipSlur;
-    }
-
     // Gui functions
     void PhonicModel::repaintItem(QModelIndex index, const QString &text) {
         Q_EMIT dynamic_cast<PhonicDelegate *>(this->m_tableView->itemDelegate())

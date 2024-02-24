@@ -18,9 +18,10 @@ namespace FillLyric {
         explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);
         ~LyricDialog() override;
 
+        void exportPhonics();
+
     private:
         void noteToPhonic();
-        void phonicToNote();
 
         void shrinkWindowRight(int newWidth);
         void expandWindowRight();
@@ -34,7 +35,7 @@ namespace FillLyric {
         Button *m_btnCancel;
 
         QList<Note *> m_notes;
-        QList<PhonicNote *> m_phonicNotes;
+        QList<Phonic *> m_phonics;
     };
 
 } // FillLyric
