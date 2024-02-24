@@ -23,9 +23,6 @@ private:
     OverlapableSerialList<Curve> m_oldCurves;
     OverlapableSerialList<Curve> m_newCurves;
     SingingClip *m_clip = nullptr;
-
-    static void copyCurves(const OverlapableSerialList<Curve> &source,
-                           OverlapableSerialList<Curve> &target);
 };
 
 

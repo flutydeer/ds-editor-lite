@@ -129,6 +129,17 @@ QList<SingingClip::VocalPart> SingingClip::parts() {
     }
     return m_parts;
 }
+void SingingClip::copyCurves(const OverlapableSerialList<Curve> &source,
+                             OverlapableSerialList<Curve> &target) {
+    target.clear();
+    for (const auto curve : source) {
+        if (curve->type() == Curve::Draw)
+            target.add(new DrawCurve(*dynamic_cast<DrawCurve *>(curve)));
+        // TODO: copy anchor curve
+        // else if (curve->type() == Curve::Anchor)
+        //     target.append(new AnchorCurve)
+    }
+}
 Note *SingingClip::findNoteById(int id) {
     for (int i = 0; i < m_notes.count(); i++) {
         auto note = m_notes.at(i);
