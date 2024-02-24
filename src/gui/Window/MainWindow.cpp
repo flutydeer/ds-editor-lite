@@ -4,23 +4,26 @@
 
 #include "MainWindow.h"
 
-#include <QFileDialog>
-#include <QSplitter>
+#include <QFile>
 #include <QMenuBar>
+#include <QFileDialog>
+#include <QHBoxLayout>
+#include <QSplitter>
 
-#include "Audio/AudioSystem.h"
-#include "Audio/Dialogs/AudioSettingsDialog.h"
-#include "Audio/Dialogs/AudioExportDialog.h"
-#include "Controller/TracksViewController.h"
-#include "Controller/AppController.h"
-#include "Controller/ClipEditorViewController.h"
-#include "Controller/ClipboardController.h"
-#include "Controller/PlaybackController.h"
-#include "Views/ActionButtonsView.h"
-#include "Views/PlaybackView.h"
-#include "Controller/History/HistoryManager.h"
 #include "Utils/WindowFrameUtils.h"
+#include "Controller/AppController.h"
+#include "Controller/TracksViewController.h"
+#include "Controller/ClipEditorViewController.h"
+#include "Controller/PlaybackController.h"
+#include "Controller/History/HistoryManager.h"
+#include "Controller/ClipboardController.h"
 #include "Controls/Menu.h"
+#include "Audio/Dialogs/AudioExportDialog.h"
+#include "Audio/Dialogs/AudioSettingsDialog.h"
+#include "Views/TracksEditor/TracksView.h"
+#include "Views/ClipEditor/ClipEditorView.h"
+#include "Views/PlaybackView.h"
+#include "Views/ActionButtonsView.h"
 
 MainWindow::MainWindow() {
     QString qssBase;

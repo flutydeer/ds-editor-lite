@@ -6,7 +6,9 @@
 #define PARAMSACTIONS_H
 
 #include "Controller/History/ActionSequence.h"
-#include "Model/Clip.h"
+#include "Model/Params.h"
+
+class SingingClip;
 
 class ParamsActions : public ActionSequence {
 public:

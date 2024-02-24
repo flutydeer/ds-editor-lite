@@ -3,7 +3,9 @@
 //
 
 #include "EditClipCommonPropertiesAction.h"
+
 #include "Model/Track.h"
+#include "Model/Note.h"
 
 EditClipCommonPropertiesAction *
     EditClipCommonPropertiesAction::build(const Clip::ClipCommonProperties &oldArgs,

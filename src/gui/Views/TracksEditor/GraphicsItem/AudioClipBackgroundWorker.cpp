@@ -2,10 +2,10 @@
 // Created by FlutyDeer on 2023/12/4.
 //
 
+#include "AudioClipBackgroundWorker.h"
+
 #include <QDebug>
 #include <QThread>
-
-#include "AudioClipBackgroundWorker.h"
 
 AudioClipBackgroundWorker::AudioClipBackgroundWorker(const QString &path) {
     m_path = path;

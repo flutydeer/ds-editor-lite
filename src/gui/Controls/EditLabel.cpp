@@ -2,10 +2,12 @@
 // Created by fluty on 2023/8/13.
 //
 
+#include "EditLabel.h"
+
 #include "QKeyEvent"
 #include <QHBoxLayout>
-
-#include "EditLabel.h"
+#include <QLabel>
+#include <QLineEdit>
 
 EditLabel::EditLabel(QWidget *parent) {
     setAttribute(Qt::WA_StyledBackground);

@@ -5,6 +5,7 @@
 #include <QDebug>
 
 #include "Track.h"
+#include "Clip.h"
 
 QString Track::name() const {
     return m_name;

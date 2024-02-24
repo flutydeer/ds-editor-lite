@@ -7,6 +7,7 @@
 
 #include <QPropertyAnimation>
 #include <QWidget>
+#include <QTimer>
 
 class ProgressIndicator : public QWidget {
     Q_OBJECT

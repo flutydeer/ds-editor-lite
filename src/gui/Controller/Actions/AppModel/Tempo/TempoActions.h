@@ -6,7 +6,8 @@
 #define TEMPOACTIONS_H
 
 #include "Controller/History/ActionSequence.h"
-#include "Model/AppModel.h"
+
+class AppModel;
 
 class TempoActions : public ActionSequence{
 public:

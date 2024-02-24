@@ -3,8 +3,8 @@
 //
 
 #include <QIODevice>
-#include <QJsonObject>
 #include <QJsonArray>
+#include <QJsonObject>
 
 #include "NotesParamsInfo.h"
 

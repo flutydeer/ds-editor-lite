@@ -6,7 +6,9 @@
 #define EDITNOTEPOSITIONACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/Clip.h"
+
+class SingingClip;
+class Note;
 
 class EditNotePositionAction final : public IAction {
 public:

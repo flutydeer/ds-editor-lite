@@ -6,8 +6,9 @@
 #define INSERTNOTEACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/Clip.h"
-#include "Model/Note.h"
+
+class SingingClip;
+class Note;
 
 class InsertNoteAction final : public IAction {
 public:

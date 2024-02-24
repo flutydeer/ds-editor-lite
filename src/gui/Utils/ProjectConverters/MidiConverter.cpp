@@ -13,6 +13,9 @@
 #include <QDialogButtonBox>
 #include <QDialog>
 
+#include "Model/Track.h"
+#include "Model/Clip.h"
+#include "Model/Note.h"
 
 bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                    const QList<QByteArray> &labelList, QList<int> *selectIDs, QTextCodec *codec) {

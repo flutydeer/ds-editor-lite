@@ -7,7 +7,9 @@
 
 #include "Controller/History/IAction.h"
 #include "Model/Clip.h"
-#include "Model/Track.h"
+#include "Model/Clip.h"
+
+class Track;
 
 class EditClipCommonPropertiesAction : public IAction {
 public:

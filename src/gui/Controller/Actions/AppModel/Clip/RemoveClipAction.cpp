@@ -3,6 +3,9 @@
 //
 
 #include "RemoveClipAction.h"
+
+#include "Model/Track.h"
+
 RemoveClipAction *RemoveClipAction::build(Clip *clip, Track *track) {
     auto a = new RemoveClipAction;
     a->m_clip = clip;

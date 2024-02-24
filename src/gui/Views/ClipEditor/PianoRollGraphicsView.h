@@ -6,12 +6,14 @@
 #define PIANOROLLGRAPHICSVIEW_H
 
 #include "ClipEditorGlobal.h"
-#include "GraphicsItem/NoteGraphicsItem.h"
-#include "Model/Clip.h"
-#include "Model/Note.h"
+#include "Model/Params.h"
 #include "Views/Common/TimeGraphicsView.h"
 
+class Note;
+class PianoRollGraphicsScene;
 class PitchEditorGraphicsItem;
+class SingingClip;
+class NoteGraphicsItem;
 
 using namespace ClipEditorGlobal;
 

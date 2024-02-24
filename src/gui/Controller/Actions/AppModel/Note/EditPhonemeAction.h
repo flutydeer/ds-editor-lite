@@ -6,10 +6,11 @@
 #define EDITPHONEMEACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/Clip.h"
 #include "Model/Note.h"
 
-// TODO: remove
+class SingingClip;
+class Note;
+
 class EditPhonemeAction final : public IAction {
 public:
     static EditPhonemeAction *build(Note *note, const Phoneme &phoneme, SingingClip *clip);

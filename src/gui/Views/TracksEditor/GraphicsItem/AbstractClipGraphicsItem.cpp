@@ -1,17 +1,16 @@
 //
 // Created by fluty on 2023/11/14.
 //
-#include <QCursor>
-#include <QDebug>
+#include "AbstractClipGraphicsItem.h"
+
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
 
-#include "AbstractClipGraphicsItem.h"
-
 #include "Views/TracksEditor/TracksEditorGlobal.h"
 #include "Utils/AppGlobal.h"
 #include "Utils/MathUtils.h"
+#include "Controls/Menu.h"
 
 using namespace TracksEditorGlobal;
 

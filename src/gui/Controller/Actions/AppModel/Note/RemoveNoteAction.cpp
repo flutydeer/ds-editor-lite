@@ -3,6 +3,10 @@
 //
 
 #include "RemoveNoteAction.h"
+
+#include "Model/Clip.h"
+#include "Model/Note.h"
+
 RemoveNoteAction *RemoveNoteAction::build(Note *note, SingingClip *clip) {
     auto a = new RemoveNoteAction;
     a->m_note = note;

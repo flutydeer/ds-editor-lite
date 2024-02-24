@@ -6,7 +6,8 @@
 #define AUDIOCLIPGRAPHICSITEM_H
 
 #include "AbstractClipGraphicsItem.h"
-#include "AudioClipBackgroundWorker.h"
+
+class AudioClipBackgroundWorker;
 
 class AudioClipGraphicsItem final : public AbstractClipGraphicsItem {
 public:

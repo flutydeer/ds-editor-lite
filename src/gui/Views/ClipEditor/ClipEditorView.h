@@ -8,14 +8,16 @@
 #include "ClipEditorGlobal.h"
 #include "Model/Track.h"
 #include "PhonemeView.h"
+#include "Model/Clip.h"
+#include "Model/Params.h"
 
-class Clip;
 class ClipEditorToolBarView;
 class PhonemeView;
 class PianoRollGraphicsScene;
 class PianoRollGraphicsView;
 class Track;
 class TimelineView;
+class Curve;
 
 class ClipEditorView final : public QWidget {
     Q_OBJECT

@@ -6,7 +6,9 @@
 #define TRACKACTIONS_H
 
 #include "Controller/History/ActionSequence.h"
-#include "Model/AppModel.h"
+#include "Model/Track.h"
+
+class AppModel;
 
 class TrackActions : public ActionSequence {
 public:

@@ -6,7 +6,8 @@
 #define EDITTEMPOACTION_H
 
 #include "Controller/History/IAction.h"
-#include "Model/AppModel.h"
+
+class AppModel;
 
 class EditTempoAction final : public IAction {
 public:

@@ -2,11 +2,10 @@
 // Created by fluty on 2024/2/5.
 //
 
-#include <QPushButton>
+#include "TrackListHeaderView.h"
+
 #include <QHBoxLayout>
 #include <QPainter>
-
-#include "TrackListHeaderView.h"
 
 TrackListHeaderView::TrackListHeaderView(QWidget *parent) {
     setObjectName("trackListHeaderView");

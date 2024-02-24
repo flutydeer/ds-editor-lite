@@ -2,11 +2,10 @@
 // Created by fluty on 2024/1/23.
 //
 
-#include <QDebug>
+#include "CommonGraphicsView.h"
+
 #include <QScrollBar>
 #include <QWheelEvent>
-
-#include "CommonGraphicsView.h"
 
 #if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)) && defined(Q_OS_MAC)
 #  define SUPPORTS_MOUSEWHEEL_DETECT_NATIVE

@@ -2,13 +2,12 @@
 // Created by fluty on 2024/1/31.
 //
 
-#include <QMessageBox>
-
 #include "TracksViewController.h"
+
+#include <QMessageBox>
 
 #include "Actions/AppModel/Clip/ClipActions.h"
 #include "Model/AppModel.h"
-#include "Utils/IdGenerator.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "History/HistoryManager.h"
 

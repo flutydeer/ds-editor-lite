@@ -3,6 +3,10 @@
 //
 
 #include "SelectNoteAction.h"
+
+#include "Model/Clip.h"
+#include "Model/Note.h"
+
 SelectNoteAction *SelectNoteAction::build(Note *note, bool selected, SingingClip *clip) {
     auto a = new SelectNoteAction;
     a->m_note = note;

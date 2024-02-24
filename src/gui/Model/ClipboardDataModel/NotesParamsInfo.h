@@ -5,13 +5,11 @@
 #ifndef NOTESPARAMSINFO_H
 #define NOTESPARAMSINFO_H
 
-// #include <QDataStream>
-
 #include "Model/Note.h"
 
 class NotesParamsInfo {
 public:
-    QList<Note> selectedNotes;
+    QList<Note> selectedNotes{};
     // TODO: add params
 
     friend QDataStream& operator<<(QDataStream& out, const NotesParamsInfo &info);

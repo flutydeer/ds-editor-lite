@@ -6,12 +6,12 @@
 #define PLAYBACKVIEW_H
 
 #include <QWidget>
-#include <QPushButton>
-#include <QComboBox>
 
 #include "Controller/PlaybackController.h"
-#include "Controls/EditLabel.h"
-#include "Controls/ComboBox.h"
+
+class EditLabel;
+class QPushButton;
+class ComboBox;
 
 class PlaybackView final : public QWidget {
     Q_OBJECT

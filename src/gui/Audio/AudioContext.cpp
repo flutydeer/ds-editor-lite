@@ -21,6 +21,9 @@
 #include <QFile>
 #include <QMessageBox>
 
+#include "Model/Track.h"
+#include "Model/Clip.h"
+
 static qint64 tickToSample(double tick) {
     return qint64(tick * 60.0 * AudioSystem::instance()->adoptedSampleRate() / PlaybackController::instance()->tempo() / 480.0);
 }

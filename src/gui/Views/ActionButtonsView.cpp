@@ -5,6 +5,7 @@
 #include "ActionButtonsView.h"
 
 #include <QHBoxLayout>
+#include <QPushButton>
 
 ActionButtonsView::ActionButtonsView(QWidget *parent) {
     m_btnSave = new QPushButton;

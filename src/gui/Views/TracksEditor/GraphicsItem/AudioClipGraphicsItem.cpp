@@ -2,13 +2,15 @@
 // Created by fluty on 2023/11/16.
 //
 
+#include "AudioClipGraphicsItem.h"
+
 #include <QDebug>
 #include <QPainter>
 #include <QThread>
 #include <QFileDialog>
 
 #include "AudioClipBackgroundWorker.h"
-#include "AudioClipGraphicsItem.h"
+#include "Controls/Menu.h"
 
 AudioClipGraphicsItem::AudioClipGraphicsItem(int itemId, QGraphicsItem *parent)
     : AbstractClipGraphicsItem(itemId, parent) {

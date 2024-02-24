@@ -3,6 +3,9 @@
 //
 
 #include "EditTempoAction.h"
+
+#include "Model/AppModel.h"
+
 EditTempoAction *EditTempoAction::build(double oldTempo, double newTempo,AppModel *model) {
     auto a = new EditTempoAction;
     a->m_oldTempo = oldTempo;

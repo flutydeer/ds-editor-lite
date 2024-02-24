@@ -7,9 +7,11 @@
 
 #include <QJsonObject>
 
-#include "Track.h"
 #include "Utils/Singleton.h"
-#include "WorkspaceEditor.h"
+
+class Track;
+class Clip;
+class WorkspaceEditor;
 
 class AppModel final : public QObject, public Singleton<AppModel> {
     Q_OBJECT

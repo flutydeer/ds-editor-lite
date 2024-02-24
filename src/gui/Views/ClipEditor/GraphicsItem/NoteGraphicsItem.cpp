@@ -2,14 +2,16 @@
 // Created by fluty on 2024/1/23.
 //
 
+#include "NoteGraphicsItem.h"
+
 #include <QGraphicsSceneContextMenuEvent>
 #include <QPainter>
 #include <QTextOption>
 
-#include "NoteGraphicsItem.h"
 #include "Views/Common/CommonGraphicsRectItem.h"
 #include "Utils/AppGlobal.h"
 #include "Views/ClipEditor/ClipEditorGlobal.h"
+#include "Controls/Menu.h"
 
 using namespace ClipEditorGlobal;
 

@@ -5,16 +5,19 @@
 #ifndef TRACKSVIEW_H
 #define TRACKSVIEW_H
 
-#include <QListWidget>
+#include <QWidget>
 
-#include "TracksGraphicsScene.h"
-#include "TracksGraphicsView.h"
-#include "TrackControlWidget.h"
-#include "TrackViewModel.h"
-#include "GraphicsItem/AbstractClipGraphicsItem.h"
-#include "GraphicsItem/TracksBackgroundGraphicsItem.h"
 #include "Model/AppModel.h"
-#include "Views/Common/TimelineView.h"
+#include "Model/Track.h"
+#include "Model/Clip.h"
+
+class QListWidget;
+class TracksGraphicsView;
+class TracksGraphicsScene;
+class TimelineView;
+class TracksBackgroundGraphicsItem;
+class TrackViewModel;
+class AbstractClipGraphicsItem;
 
 class TracksView final : public QWidget {
     Q_OBJECT

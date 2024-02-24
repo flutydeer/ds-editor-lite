@@ -2,10 +2,11 @@
 // Created by fluty on 2023/11/14.
 //
 
+#include "TracksGraphicsView.h"
+
 #include <QMouseEvent>
 
 #include "TracksGraphicsScene.h"
-#include "TracksGraphicsView.h"
 #include "GraphicsItem/TracksBackgroundGraphicsItem.h"
 #include "Utils/MathUtils.h"
 #include "Controls/Menu.h"

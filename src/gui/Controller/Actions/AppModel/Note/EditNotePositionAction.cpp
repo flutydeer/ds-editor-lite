@@ -3,6 +3,10 @@
 //
 
 #include "EditNotePositionAction.h"
+
+#include "Model/Clip.h"
+#include "Model/Note.h"
+
 EditNotePositionAction *EditNotePositionAction::build(Note *note, int deltaTick, int deltaKey,
                                                       SingingClip *clip) {
     auto a = new EditNotePositionAction;

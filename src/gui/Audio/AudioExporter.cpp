@@ -10,6 +10,7 @@
 #include <TalcsFormat/AudioFormatIO.h>
 
 #include "Model/AppModel.h"
+#include "Model/Track.h"
 
 QList<QPair<QString, AudioExporter::Option>> AudioExporter::builtInPresets() {
     return {

@@ -2,12 +2,17 @@
 // Created by fluty on 2024/2/7.
 //
 
+#include "AProjectConverter.h"
+
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
 
-#include "AProjectConverter.h"
+#include "Model/Track.h"
+#include "Model/Clip.h"
+#include "Model/Note.h"
+
 bool AProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
                              ImportMode mode) {
     auto openJsonFile = [](const QString &filename, QJsonObject *jsonObj) {
@@ -32,7 +37,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
         QList<Note *> notes;
         QList<Phoneme> phonemes;
         Phoneme phoneme;
-        for (const auto valNote : qAsConst(arrNotes)) {
+        for (const auto valNote : arrNotes) {
             auto objNote = valNote.toObject();
             auto note = new Note;
             note->setStart(objNote.value("pos").toInt());
@@ -67,7 +72,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
 
     auto decodeClips = [&](const QJsonArray &arrClips, Track *dsTack, const QString &type,
                            int trackIndex) {
-        for (const auto &valClip : qAsConst(arrClips)) {
+        for (const auto &valClip : arrClips) {
             auto objClip = valClip.toObject();
             if (type == "sing") {
                 auto singingClip = new SingingClip;
@@ -95,7 +100,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
     };
     auto decodeTracks = [&](const QJsonArray &arrTracks, AppModel *model) {
         int i = 0;
-        for (const auto &valTrack : qAsConst(arrTracks)) {
+        for (const auto &valTrack : arrTracks) {
             auto objTrack = valTrack.toObject();
             auto type = objTrack.value("type").toString();
             auto track = new Track;

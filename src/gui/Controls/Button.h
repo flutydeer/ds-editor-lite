@@ -6,7 +6,6 @@
 #define BUTTON_H
 
 #include <QPushButton>
-// #include <QPropertyAnimation>
 
 #include "Utils/AppGlobal.h"
 

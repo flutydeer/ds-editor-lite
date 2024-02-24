@@ -5,8 +5,9 @@
 #ifndef DATASET_TOOLS_SWITCHBUTTON_H
 #define DATASET_TOOLS_SWITCHBUTTON_H
 
-#include <QPropertyAnimation>
 #include <QPushButton>
+
+class QPropertyAnimation;
 
 class SwitchButton : public QPushButton{
     Q_OBJECT

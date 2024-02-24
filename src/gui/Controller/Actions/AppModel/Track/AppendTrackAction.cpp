@@ -3,6 +3,9 @@
 //
 
 #include "AppendTrackAction.h"
+
+#include "Model/AppModel.h"
+
 AppendTrackAction *AppendTrackAction::build(Track *track, AppModel *model) {
     auto a = new AppendTrackAction;
     a->m_track = track;

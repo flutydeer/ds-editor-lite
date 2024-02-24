@@ -5,13 +5,16 @@
 #ifndef TRACKSMODEL_H
 #define TRACKSMODEL_H
 
+#include <QObject>
 #include <QString>
 #include <QColor>
 
-#include "Clip.h"
-#include "TrackControl.h"
 #include "Utils/UniqueObject.h"
 #include "Utils/OverlapableSerialList.h"
+#include "Utils/ISelectable.h"
+#include "TrackControl.h"
+
+class Clip;
 
 class Track : public QObject, public UniqueObject, public ISelectable {
     Q_OBJECT

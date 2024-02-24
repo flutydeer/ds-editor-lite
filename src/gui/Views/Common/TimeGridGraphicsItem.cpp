@@ -2,10 +2,10 @@
 // Created by fluty on 2024/1/21.
 //
 
-#include <QDebug>
-#include <QPainter>
-
 #include "TimeGridGraphicsItem.h"
+
+#include <QPainter>
+#include <QPen>
 
 TimeGridGraphicsItem::TimeGridGraphicsItem(QGraphicsItem *parent) {
 }

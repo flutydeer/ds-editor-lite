@@ -7,8 +7,7 @@
 
 #include <QObject>
 
-#include "TrackControlWidget.h"
-#include "GraphicsItem/AbstractClipGraphicsItem.h"
+class TrackControlWidget;
 
 class TrackViewModel : public QObject {
     Q_OBJECT

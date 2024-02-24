@@ -4,11 +4,14 @@
 
 #include <QApplication>
 #include <QStyleFactory>
+#include <QScreen>
 
 #include "g2pglobal.h"
 #include "Window/MainWindow.h"
 #include "Audio/AudioSystem.h"
 #include "Utils/logMessageHandler.h"
+#include "Model/AppModel.h"
+#include "Model/WorkspaceEditor.h"
 
 int main(int argc, char *argv[]) {
     // output log to file

@@ -4,20 +4,27 @@
 
 #include "TracksView.h"
 
-// #include <QSplitter>
-#include <QDebug>
+#include <QListWidget>
 #include <QScroller>
-#include <QScrollBar>
 #include <QFileDialog>
+#include <QScrollBar>
+#include <QVBoxLayout>
 
 #include "TracksEditorGlobal.h"
-#include "TrackListHeaderView.h"
-#include "Audio/AudioSystem.h"
-#include "Audio/AudioContext.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
+#include "TracksGraphicsScene.h"
+#include "TracksGraphicsView.h"
+#include "Audio/AudioSystem.h"
+#include "Audio/AudioContext.h"
+#include "GraphicsItem/TracksBackgroundGraphicsItem.h"
+#include "Views/Common/TimelineView.h"
+#include "TrackListHeaderView.h"
+#include "TrackViewModel.h"
+#include "Controls/LevelMeter.h"
 #include "GraphicsItem/AudioClipGraphicsItem.h"
 #include "GraphicsItem/SingingClipGraphicsItem.h"
+#include "TrackControlWidget.h"
 
 TracksView::TracksView() {
     m_trackListWidget = new QListWidget;

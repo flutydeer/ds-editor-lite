@@ -2,12 +2,11 @@
 // Created by fluty on 2023/8/14.
 //
 
+#include "ProgressIndicator.h"
+
 #include <QPainter>
 #include <QPropertyAnimation>
 #include <QTimer>
-#include <QDebug>
-
-#include "ProgressIndicator.h"
 
 ProgressIndicator::ProgressIndicator(QWidget *parent) : QWidget(parent) {
     initUi(parent);

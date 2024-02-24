@@ -8,7 +8,8 @@
 #include "Utils/IOverlapable.h"
 #include "Utils/UniqueObject.h"
 #include "Views/Common/CommonGraphicsRectItem.h"
-#include "Controls/Menu.h"
+
+class Menu;
 
 class NoteGraphicsItem final : public CommonGraphicsRectItem,
                                public UniqueObject,
@@ -74,7 +75,6 @@ private:
     int m_keyOffset = 0;
 
     int m_pronunciationTextHeight = 20;
-
 };
 
 #endif // NOTEGRAPHICSITEM_H

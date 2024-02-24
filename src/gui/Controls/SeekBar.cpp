@@ -3,9 +3,12 @@
 //
 
 #include "SeekBar.h"
+
 #include <QDebug>
 #include <QPainter>
+#include <QPropertyAnimation>
 #include <QTimer>
+#include <QMouseEvent>
 
 SeekBar::SeekBar(QWidget *parent) : QWidget(parent) {
     timer = new QTimer(parent);

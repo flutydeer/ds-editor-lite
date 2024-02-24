@@ -3,6 +3,10 @@
 //
 
 #include "EditNotesLengthAction.h"
+
+#include "Model/Clip.h"
+#include "Model/Note.h"
+
 EditNotesLengthAction *EditNotesLengthAction::build(Note *note, int deltaTick,
                                                        SingingClip *clip) {
     auto a = new EditNotesLengthAction;

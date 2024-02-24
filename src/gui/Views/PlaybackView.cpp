@@ -5,8 +5,12 @@
 #include "PlaybackView.h"
 
 #include <QHBoxLayout>
-#include <qstyleditemdelegate.h>
-#include <qvalidator.h>
+#include <QLineEdit>
+#include <QLabel>
+#include <QPushButton>
+
+#include "Controls/EditLabel.h"
+#include "Controls/ComboBox.h"
 
 PlaybackView::PlaybackView(QWidget *parent) {
     auto controller = PlaybackController::instance();

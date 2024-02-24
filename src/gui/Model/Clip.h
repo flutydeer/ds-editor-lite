@@ -5,12 +5,17 @@
 #ifndef DSCLIP_H
 #define DSCLIP_H
 
-#include <QSharedPointer>
 #include <QObject>
 
-#include "Note.h"
-#include "Params.h"
+#include "Utils/IOverlapable.h"
+#include "Utils/ISelectable.h"
+#include "Utils/OverlapableSerialList.h"
+#include "Utils/UniqueObject.h"
 #include "ClipboardDataModel/NotesParamsInfo.h"
+#include "Params.h"
+
+class Params;
+class Note;
 
 class Clip : public QObject, public IOverlapable, public UniqueObject, public ISelectable {
     Q_OBJECT

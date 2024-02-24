@@ -7,7 +7,8 @@
 
 #include "Controller/History/ActionSequence.h"
 #include "Model/Clip.h"
-#include "Model/Track.h"
+
+class Track;
 
 class ClipActions : public ActionSequence {
 public:

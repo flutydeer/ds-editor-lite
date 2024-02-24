@@ -6,8 +6,9 @@
 #define TIMEGRAPHICSSCENE_H
 
 #include "CommonGraphicsScene.h"
-#include "TimeGridGraphicsItem.h"
-#include "TimeIndicatorGraphicsItem.h"
+
+class TimeGridGraphicsItem;
+class TimeIndicatorGraphicsItem;
 
 class TimeGraphicsScene : public CommonGraphicsScene {
     Q_OBJECT
