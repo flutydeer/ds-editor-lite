@@ -21,7 +21,7 @@
 class LineEdit;
 
 namespace FillLyric {
-    class LyricWidget final: public QWidget {
+    class LyricWidget final : public QWidget {
         Q_OBJECT
     public:
         explicit LyricWidget(QList<Phonic *> phonics, QWidget *parent = nullptr);
@@ -29,6 +29,9 @@ namespace FillLyric {
 
         void setPhonics();
         QList<Phonic> exportPhonics() const;
+
+        QList<Phonic> splitLyric(const QString &lyric) const;
+        QList<Phonic> modelExport() const;
 
         QCheckBox *exportSkipSlur;
         QCheckBox *exportExcludeSpace;

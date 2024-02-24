@@ -265,11 +265,46 @@ namespace FillLyric {
     }
 
     QList<Phonic> LyricWidget::exportPhonics() const {
-        const bool skipSpaceRes = excludeSpace->isChecked();
-        const bool skipSlurRes = exportSkipSlur->isChecked();
-
         const auto model = m_phonicWidget->model;
         model->expandFermata();
+
+        const auto phonics = m_tableWidget->isVisible()
+                                 ? this->modelExport()
+                                 : this->splitLyric(m_textEdit->toPlainText());
+        return phonics;
+    }
+
+    QList<Phonic> LyricWidget::splitLyric(const QString &lyric) const {
+        const bool skipSlurRes = skipSlur->isChecked();
+        const auto splitType = static_cast<SplitType>(this->splitComboBox->currentIndex());
+        QList<Phonic> splitPhonics;
+        if (splitType == SplitType::Auto) {
+            splitPhonics = CleanLyric::splitAuto(lyric, excludeSpace->isChecked());
+        } else if (splitType == SplitType::ByChar) {
+            splitPhonics = CleanLyric::splitByChar(lyric, excludeSpace->isChecked());
+        } else if (splitType == SplitType::Custom) {
+            splitPhonics =
+                CleanLyric::splitCustom(lyric, QStringList() << "-", excludeSpace->isChecked());
+        } else {
+        }
+
+        QList<Phonic> skipSlurPhonics;
+        if (skipSlurRes) {
+            for (const auto &phonic : splitPhonics) {
+                if (phonic.lyricType != Slur && phonic.lyric != "-") {
+                    skipSlurPhonics.append(phonic);
+                }
+            }
+        }
+
+        const auto res = skipSlurRes ? skipSlurPhonics : splitPhonics;
+        return res;
+    }
+
+    QList<Phonic> LyricWidget::modelExport() const {
+        auto model = m_phonicWidget->model;
+        const bool skipSpaceRes = excludeSpace->isChecked();
+        const bool skipSlurRes = exportSkipSlur->isChecked();
 
         QList<Phonic> phonics;
         for (int i = 0; i < model->rowCount(); ++i) {
@@ -285,19 +320,10 @@ namespace FillLyric {
     }
 
     void LyricWidget::_on_textEditChanged() const {
-        const auto splitType = static_cast<SplitType>(this->splitComboBox->currentIndex());
         // 获取文本框的内容
         const QString text = m_textEdit->toPlainText();
         // 获取歌词
-        QList<Phonic> res;
-        if (splitType == SplitType::Auto) {
-            res = CleanLyric::splitAuto(text, excludeSpace->isChecked());
-        } else if (splitType == SplitType::ByChar) {
-            res = CleanLyric::splitByChar(text, excludeSpace->isChecked());
-        } else if (splitType == SplitType::Custom) {
-            res = CleanLyric::splitCustom(text, QStringList() << "-", excludeSpace->isChecked());
-        } else {
-        }
+        QList<Phonic> res = this->splitLyric(text);
         m_textCountLabel->setText(QString("字符数: %1").arg(res.size()));
     }
 

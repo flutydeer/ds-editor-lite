@@ -4,6 +4,7 @@ namespace FillLyric {
 
     TableConfigWidget::TableConfigWidget(QWidget *parent) : QWidget(parent) {
         m_mainLayout = new QVBoxLayout(this);
+        m_mainLayout->setContentsMargins(10, 30, 10, 10);
 
         m_colWidthRatioSpinBox = new QDoubleSpinBox(this);
         m_colWidthRatioLabel = new QLabel("Column Width Ratio", this);
@@ -28,6 +29,7 @@ namespace FillLyric {
         m_mainLayout->addWidget(m_rowHeightSpinBox);
         m_mainLayout->addWidget(m_fontDiffLabel);
         m_mainLayout->addWidget(m_fontDiffSpinBox);
+        m_mainLayout->addStretch(1);
 
         setLayout(m_mainLayout);
     }
