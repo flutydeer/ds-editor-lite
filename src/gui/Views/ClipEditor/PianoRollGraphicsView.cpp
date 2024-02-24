@@ -5,7 +5,6 @@
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 
-#include "GraphicsItem/PianoRollBackgroundGraphicsItem.h"
 #include "GraphicsItem/PitchEditorGraphicsItem.h"
 #include "Model/AppModel.h"
 #include "Utils/AppGlobal.h"
@@ -34,12 +33,26 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene)
             &PitchEditorGraphicsItem::setVisibleRect);
     connect(this, &PianoRollGraphicsView::scaleChanged, m_pitchItem,
             &PitchEditorGraphicsItem::setScale);
+    connect(m_pitchItem, &PitchEditorGraphicsItem::editCompleted, this,
+            &PianoRollGraphicsView::onPitchEditorEditCompleted);
     scene->addItem(m_pitchItem);
     m_pitchItem->setTransparentForMouseEvents(true);
 }
 void PianoRollGraphicsView::onSceneSelectionChanged() {
     if (m_canNotifySelectedNoteChanged)
         emit selectedNoteChanged(selectedNotesId());
+}
+void PianoRollGraphicsView::onPitchEditorEditCompleted() {
+    qDebug() << "PianoRollGraphicsView::onPitchEditorEditCompleted";
+    OverlapableSerialList<Curve> curves;
+    auto newCurves = m_pitchItem->editedCurves();
+    for (auto curve : newCurves) {
+        curves.add(curve);
+        qDebug() << "curve:" << "#" << curve->id() << curve->start() << curve->endTick();
+    }
+    qDebug() << "curve count" << curves.count();
+    // TODO: Add anchor curves
+    emit pitchEdited(curves);
 }
 void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     CommonGraphicsView::paintEvent(event);
@@ -413,6 +426,21 @@ void PianoRollGraphicsView::clearNoteSelections(NoteGraphicsItem *except) {
     for (const auto noteItem : m_noteItems) {
         if (noteItem != except && noteItem->isSelected())
             noteItem->setSelected(false);
+    }
+}
+void PianoRollGraphicsView::updatePitch(Param::ParamType paramType, const Param &param) {
+    qDebug() << "PianoRollGraphicsView::updatePitch";
+    OverlapableSerialList<DrawCurve> drawCurves;
+    if (paramType == Param::Original) {
+        for (const auto curve : param.curves(Param::Original))
+            if (curve->type() == Curve::Draw)
+                drawCurves.add(dynamic_cast<DrawCurve *>(curve));
+        m_pitchItem->loadOriginal(drawCurves);
+    } else {
+        for (const auto curve : param.curves(Param::Edited))
+            if (curve->type() == Curve::Draw)
+                drawCurves.add(dynamic_cast<DrawCurve *>(curve));
+        m_pitchItem->loadEdited(drawCurves);
     }
 }
 double PianoRollGraphicsView::topKeyIndex() const {

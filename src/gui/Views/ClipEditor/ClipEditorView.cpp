@@ -13,6 +13,10 @@
 #include "GraphicsItem/PitchEditorGraphicsItem.h"
 #include "Model/AppModel.h"
 #include "Views/Common/TimelineView.h"
+#include "ClipEditorToolBarView.h"
+#include "PhonemeView.h"
+#include "PianoRollGraphicsView.h"
+#include "Model/Track.h"
 
 ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     m_toolbarView = new ClipEditorToolBarView;
@@ -103,6 +107,8 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
             &ClipEditorView::onResizeNoteRightCompleted);
     connect(m_pianoRollView, &PianoRollGraphicsView::selectedNoteChanged, this,
             &ClipEditorView::onPianoRollSelectionChanged);
+    connect(m_pianoRollView, &PianoRollGraphicsView::pitchEdited, this,
+            &ClipEditorView::onPitchEdited);
 
     connect(m_phonemeView, &PhonemeView::adjustCompleted, this,
             &ClipEditorView::onAdjustPhonemeCompleted);
@@ -184,6 +190,7 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
             &ClipEditorView::onNotePropertyChanged);
     connect(m_singingClip, &SingingClip::noteSelectionChanged, this,
             &ClipEditorView::onNoteSelectionChanged);
+    connect(m_singingClip, &SingingClip::paramChanged, this, &ClipEditorView::onParamChanged);
     ClipEditorViewController::instance()->setCurrentSingingClip(m_singingClip);
 }
 void ClipEditorView::onClipNameEdited(const QString &name) {
@@ -295,6 +302,15 @@ void ClipEditorView::onPianoRollSelectionChanged() {
     // qDebug() << "ClipEditorView::onSceneSelectionChanged"
     //          << "selected notes" << (notes.isEmpty() ? "" : QString::number(notes.first()));
     ClipEditorViewController::instance()->onNoteSelectionChanged(notes, true);
+}
+void ClipEditorView::onPitchEdited(const OverlapableSerialList<Curve> &curves) {
+    ClipEditorViewController::instance()->onPitchEdited(curves);
+}
+void ClipEditorView::onParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType) {
+    if (paramName == ParamBundle::Pitch) {
+        auto pitchParam = m_singingClip->params.getParamByName(paramName);
+        m_pianoRollView->updatePitch(paramType, *pitchParam);
+    }
 }
 void ClipEditorView::reset() {
     m_pianoRollView->reset();

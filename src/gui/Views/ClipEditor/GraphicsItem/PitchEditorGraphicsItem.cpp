@@ -12,6 +12,7 @@
 #include "PitchEditorGraphicsItem.h"
 #include "Utils/MathUtils.h"
 #include "Views/ClipEditor/ClipEditorGlobal.h"
+#include "Model/Curve.h"
 
 using namespace ClipEditorGlobal;
 
@@ -56,6 +57,18 @@ void PitchEditorGraphicsItem::loadOpensvipPitchParam() {
         }
     }
 }
+void PitchEditorGraphicsItem::loadOriginal(const OverlapableSerialList<DrawCurve> &curves) {
+    m_drawCurvesOriginal = curves;
+    update();
+}
+void PitchEditorGraphicsItem::loadEdited(const OverlapableSerialList<DrawCurve> &curves) {
+    // qDebug() << "PitchEditorGraphicsItem::loadEdited count:" << curves.count();
+    m_drawCurvesEdited = curves;
+    update();
+}
+const OverlapableSerialList<DrawCurve> &PitchEditorGraphicsItem::editedCurves() const {
+    return m_drawCurvesEdited;
+}
 void PitchEditorGraphicsItem::setEditMode(const EditMode &mode) {
     if (mode == Off)
         setTransparentForMouseEvents(true);
@@ -69,31 +82,41 @@ void PitchEditorGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphic
     OverlayGraphicsItem::paint(painter, option, widget);
 
     // painter->setRenderHint(QPainter::Antialiasing, false);
-    auto hideThreshold = 0.5;
-    auto fadeLength = 0.2;
+    auto noAntialiasingThreshold = 0.8;
+    auto hideThreshold = 0.4;
+    auto fadeLength = 0.1;
     if (scaleX() < hideThreshold)
         return;
+    if (scaleX() < noAntialiasingThreshold)
+        painter->setRenderHint(QPainter::Antialiasing, false);
 
     QPen pen;
     pen.setWidthF(1.8);
-    auto colorAlpha = scaleX() < hideThreshold+fadeLength ? 255 * (scaleX() - hideThreshold) / fadeLength : 255;
-    pen.setColor(QColor(255, 255, 255, static_cast<int>(colorAlpha)));
-    painter->setPen(pen);
+    auto colorAlpha =
+        scaleX() < hideThreshold + fadeLength ? 255 * (scaleX() - hideThreshold) / fadeLength : 255;
 
     // if (m_opensvipPitchParam.isEmpty())
     //     return;
     // drawOpensvipPitchParam(painter);
 
-    if (m_drawCurves.count() == 0)
-        return;
-    drawHandDrawCurves(painter);
+    if (m_drawCurvesOriginal.count() > 0) {
+        pen.setColor(QColor(127, 127, 127, static_cast<int>(colorAlpha)));
+        painter->setPen(pen);
+        drawHandDrawCurves(painter, m_drawCurvesOriginal);
+    }
+
+    if (m_drawCurvesEdited.count() > 0) {
+        pen.setColor(QColor(255, 255, 255, static_cast<int>(colorAlpha)));
+        painter->setPen(pen);
+        drawHandDrawCurves(painter, m_drawCurvesEdited);
+    }
 }
 void PitchEditorGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     // OverlayGraphicsItem::mousePressEvent(event);
     auto scenePos = event->scenePos().toPoint();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     auto pitch = static_cast<int>(sceneYToPitch(scenePos.y()));
-    qDebug() << "PitchEditorGraphicsItem::mousePressEvent tick:" << tick << "pitch:" << pitch;
+    // qDebug() << "PitchEditorGraphicsItem::mousePressEvent tick:" << tick << "pitch:" << pitch;
 
     auto curve = curveAt(tick);
     if (curve) {
@@ -105,7 +128,7 @@ void PitchEditorGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
         m_editingCurve->setStart(tick);
         m_editingCurve->appendValue(pitch);
         m_drawCurveEditType = CreateNewCurve;
-        m_drawCurves.add(m_editingCurve);
+        m_drawCurvesEdited.add(m_editingCurve);
         qDebug() << "New curve added" << m_editingCurve->id();
     }
     m_mouseDownPos = QPoint(tick, pitch);
@@ -118,7 +141,7 @@ void PitchEditorGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     auto pitch = static_cast<int>(sceneYToPitch(scenePos.y()));
     auto curPos = QPoint(tick, pitch);
-    qDebug() << "Draw curve at" << curPos;
+    // qDebug() << "Draw curve at" << curPos;
 
     int startTick;
     int endTick;
@@ -137,8 +160,8 @@ void PitchEditorGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                 continue;
 
             m_editingCurve->mergeWith(*curve);
-            m_drawCurves.remove(curve);
-            delete curve;
+            m_drawCurvesEdited.remove(curve);
+            // delete curve;
         }
     }
     m_prevPos = curPos;
@@ -149,13 +172,17 @@ void PitchEditorGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     qDebug() << "PitchEditorGraphicsItem::mouseReleaseEvent moved:" << m_mouseMoved;
     if (!m_mouseMoved) {
         if (m_drawCurveEditType == CreateNewCurve) {
-            m_drawCurves.remove(m_editingCurve);
+            m_drawCurvesEdited.remove(m_editingCurve);
             delete m_editingCurve;
             qDebug() << "New curve removed";
         }
         m_editingCurve = nullptr;
         m_drawCurveEditType = None;
+    } else {
+        emit editCompleted();
+        qDebug() << "PitchEditorGraphicsItem emit editCompleted";
     }
+
     m_mouseMoved = false;
 }
 void PitchEditorGraphicsItem::updateRectAndPos() {
@@ -195,17 +222,17 @@ double PitchEditorGraphicsItem::sceneYToPitch(double y) const {
     return -(y * 100 / noteHeight / scaleY() - 12700 - 50);
 }
 DrawCurve *PitchEditorGraphicsItem::curveAt(double tick) {
-    for (const auto curve : m_drawCurves)
+    for (const auto curve : m_drawCurvesEdited)
         if (curve->start() <= tick && curve->endTick() > tick)
             return curve;
     return nullptr;
 }
 QList<DrawCurve *> PitchEditorGraphicsItem::curvesIn(int startTick, int endTick) {
     QList<DrawCurve *> result;
-    ProbeLine line;
+    ProbeLine line = ProbeLine();
     line.setStart(startTick);
     line.setEndTick(endTick);
-    for (const auto curve : m_drawCurves) {
+    for (const auto curve : m_drawCurvesEdited) {
         if (curve->isOverlappedWith(&line))
             result.append(curve);
     }
@@ -240,14 +267,15 @@ void PitchEditorGraphicsItem::drawOpensvipPitchParam(QPainter *painter) {
     }
     painter->drawPath(path);
 }
-void PitchEditorGraphicsItem::drawHandDrawCurves(QPainter *painter) {
+void PitchEditorGraphicsItem::drawHandDrawCurves(QPainter *painter,
+                                                 const OverlapableSerialList<DrawCurve> &curves) {
     auto drawCurve = [&](DrawCurve *curve) {
         QPainterPath path;
         int start = curve->start();
         auto firstValue = curve->values().first();
         auto firstPos = QPointF(tickToItemX(start), pitchToItemY(firstValue));
         path.moveTo(firstPos);
-        // painter->drawText(firstPos, QString("#%1").arg(curve->id()));
+        painter->drawText(firstPos, QString("#%1").arg(curve->id()));
         for (int i = 0; i < curve->values().count(); i++) {
             auto pos = start + curve->step * i;
             auto value = curve->values().at(i);
@@ -261,7 +289,7 @@ void PitchEditorGraphicsItem::drawHandDrawCurves(QPainter *painter) {
         painter->drawPath(path);
     };
 
-    for (const auto curve : m_drawCurves) {
+    for (const auto curve : curves) {
         if (curve->endTick() < startTick())
             continue;
         if (curve->start() > endTick())

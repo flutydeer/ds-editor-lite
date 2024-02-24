@@ -44,20 +44,14 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
     auto decodeSingingParam = [&](const QDspx::ParamInfo &dspxParam) {
         Param param;
-        for (auto &curve : decodeCurves(dspxParam.org)) {
-            param.original.add(curve);
-        }
-        for (auto &curve : decodeCurves(dspxParam.edited)) {
-            param.edited.add(curve);
-        }
-        for (auto &curve : decodeCurves(dspxParam.envelope)) {
-            param.envelope.add(curve);
-        }
+        param.setCurves(Param::Original, decodeCurves(dspxParam.org));
+        param.setCurves(Param::Edited, decodeCurves(dspxParam.edited));
+        param.setCurves(Param::Envelope, decodeCurves(dspxParam.envelope));
         return param;
     };
 
     auto decodeSingingParams = [&](const QDspx::SingleParam &dspxParams) {
-        Params params;
+        ParamBundle params;
         params.pitch = decodeSingingParam(dspxParams.pitch);
         params.energy = decodeSingingParam(dspxParams.energy);
         params.tension = decodeSingingParam(dspxParams.tension);
@@ -201,12 +195,12 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     };
 
     auto encodeSingingParam = [&](const Param &dsParam, QDspx::ParamInfo &param) {
-        encodeCurves(dsParam.original, param.org);
-        encodeCurves(dsParam.edited, param.edited);
-        encodeCurves(dsParam.envelope, param.envelope);
+        encodeCurves(dsParam.curves(Param::Original), param.org);
+        encodeCurves(dsParam.curves(Param::Edited), param.edited);
+        encodeCurves(dsParam.curves(Param::Envelope), param.envelope);
     };
 
-    auto encodeSingingParams = [&](const Params &dsParams, QDspx::SingleParam &params) {
+    auto encodeSingingParams = [&](const ParamBundle &dsParams, QDspx::SingleParam &params) {
         encodeSingingParam(dsParams.pitch, params.pitch);
         encodeSingingParam(dsParams.energy, params.energy);
         encodeSingingParam(dsParams.tension, params.tension);

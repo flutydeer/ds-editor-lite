@@ -93,7 +93,6 @@ class SingingClip final : public Clip {
 public:
     enum NoteChangeType { Inserted, Removed };
     enum NotePropertyType { TimeAndKey, Word, None };
-    enum ParamsChangeType { Pitch, Energy, Tension, Breathiness };
 
     class VocalPart : public UniqueObject {
     public:
@@ -115,21 +114,20 @@ public:
 
     void notifyNoteSelectionChanged();
     void notifyNotePropertyChanged(NotePropertyType type, Note *note);
+    void notifyParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
 
-    Params params;
+    ParamBundle params;
     QList<VocalPart> parts();
-    // const DsParams &params() const;
 
 signals:
     void noteListChanged(NoteChangeType type, int id, Note *note);
     void noteSelectionChanged();
     void notePropertyChanged(NotePropertyType type, Note *note);
-    void paramsChanged(ParamsChangeType type);
+    void paramChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
 
 private:
     OverlapableSerialList<Note> m_notes;
     QList<VocalPart> m_parts;
-    // DsParams m_params;
 };
 
 // using DsClipPtr = QSharedPointer<DsClip>;

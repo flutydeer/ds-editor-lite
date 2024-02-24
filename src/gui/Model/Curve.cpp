@@ -4,7 +4,6 @@
 
 #include "Curve.h"
 
-#include <QPointF>
 #include <QDebug>
 
 int Curve::start() const {
@@ -85,7 +84,7 @@ void DrawCurve::overlayMergeWith(const DrawCurve &other) {
     auto otherStart = other.start();
     auto curEnd = endTick();
     auto otherEnd = other.endTick();
-    qDebug() << "DrawCurve::overlayMergeWith" << otherStart << otherEnd;
+    // qDebug() << "DrawCurve::overlayMergeWith" << otherStart << otherEnd;
     // Q_ASSERT_X(otherStart <= curEnd && curStart >= otherEnd, "DrawCurve::drawCurve",
     //            "other curve is not overlapped with current");
 
@@ -100,12 +99,12 @@ void DrawCurve::overlayMergeWith(const DrawCurve &other) {
                 appendValue(other.values().at(i));
         }
     } else { // otherStart <= curStart
-        if (otherEnd>=curEnd) {
+        if (otherEnd >= curEnd) {
             clearValues();
             setStart(otherStart);
             for (int i = 0; i < other.values().count(); i++)
                 appendValue(other.values().at(i));
-        }else {//otherEnd<curEnd
+        } else { // otherEnd<curEnd
             auto removeEndIndex = (otherEnd - curStart) / step;
             removeValueRange(0, removeEndIndex);
             setStart(otherStart);
@@ -114,7 +113,7 @@ void DrawCurve::overlayMergeWith(const DrawCurve &other) {
     }
 }
 int DrawCurve::endTick() const {
-    return start() + m_step * m_values.count();
+    return start() + step * m_values.count();
 }
 void ProbeLine::setEndTick(int tick) {
     m_endTick = tick;

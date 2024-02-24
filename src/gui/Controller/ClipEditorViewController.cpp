@@ -11,6 +11,7 @@
 #include "ControllerGlobal.h"
 #include "TracksViewController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
+#include "Actions/AppModel/Param/ParamsActions.h"
 #include "History/HistoryManager.h"
 
 #include "Utils/G2p/S2p.h"
@@ -150,6 +151,19 @@ void ClipEditorViewController::onNoteSelectionChanged(const QList<int> &notesId,
         emit canRemoveChanged(true);
 
     m_clip->notifyNoteSelectionChanged();
+}
+void ClipEditorViewController::onOriginalPitchChanged(
+    const OverlapableSerialList<Curve> &curves) const {
+    auto a = new ParamsActions;
+    a->replacePitchOriginal(curves, m_clip);
+    a->execute();
+    HistoryManager::instance()->record(a);
+}
+void ClipEditorViewController::onPitchEdited(const OverlapableSerialList<Curve> &curves) const {
+    auto a = new ParamsActions;
+    a->replacePitchEdited(curves, m_clip);
+    a->execute();
+    HistoryManager::instance()->record(a);
 }
 void ClipEditorViewController::onEditSelectedNotesLyric() const {
     auto notes = m_clip->selectedNotes();
