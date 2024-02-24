@@ -197,8 +197,6 @@ namespace FillLyric {
             oldPhonicList.append(model->takeData(row, i));
         }
 
-
-
         if (!autoWrap) {
             QList<Phonic> newPhonicList = updateLyric(index, text, oldPhonicList);
             auto a = new CellActions();

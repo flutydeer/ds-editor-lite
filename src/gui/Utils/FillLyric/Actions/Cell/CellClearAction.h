@@ -4,8 +4,6 @@
 #include "../../History/MAction.h"
 #include "../../Model/PhonicModel.h"
 
-#include "../../Model/PhonicCommon.h"
-
 namespace FillLyric {
     class CellClearAction final : public MAction {
     public:
@@ -16,13 +14,7 @@ namespace FillLyric {
     private:
         PhonicModel *m_model = nullptr;
         QModelIndex m_index;
-
-        QString m_lyric;
-        QString m_syllable;
-        QStringList m_candidates;
-        QString m_syllableRevised;
-        TextType m_type = TextType::Other;
-        bool m_lineFeed = false;
+        Phonic m_phonic;
     };
 
 } // FillLyric
