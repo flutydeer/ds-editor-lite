@@ -23,26 +23,26 @@ int main(int argc, char *argv[]) {
     f.setHintingPreference(QFont::PreferNoHinting);
     QApplication::setFont(f);
 
-    ProgressIndicator progressBar;
-    QPushButton btnTerminate("Terminate");
-    QVBoxLayout mainLayout;
-    mainLayout.addWidget(&progressBar);
-    mainLayout.addWidget(&btnTerminate);
-    QWidget mainWidget;
-    mainWidget.setLayout(&mainLayout);
+    auto progressBar = new ProgressIndicator;
+    auto  btnTerminate = new QPushButton("Terminate");
+    auto mainLayout = new QVBoxLayout;
+    mainLayout->addWidget(progressBar);
+    mainLayout->addWidget(btnTerminate);
+    auto mainWidget = new QWidget;
+    mainWidget->setLayout(mainLayout);
 
     QMainWindow w;
-    w.setCentralWidget(&mainWidget);
+    w.setCentralWidget(mainWidget);
     w.resize(360, 120);
     w.show();
 
     auto taskManager = TaskManager::instance();
     auto task = new TestTask("miao");
-    QObject::connect(task, &ITask::progressUpdated, &progressBar, &ProgressIndicator::setValue);
+    QObject::connect(task, &ITask::progressUpdated, progressBar, &ProgressIndicator::setValue);
     QObject::connect(task, &ITask::finished, [=] {
         qDebug() << "Task finished" << task->resultData();
     });
-    QObject::connect(&btnTerminate, &QPushButton::clicked, [&] {
+    QObject::connect(btnTerminate, &QPushButton::clicked, [&] {
         taskManager->terminateAllTasks();
     });
     taskManager->addTask(task);

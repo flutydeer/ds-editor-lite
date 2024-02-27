@@ -13,7 +13,9 @@ class ITask : public QObject {
 public:
     explicit ITask(QObject *parent = nullptr) : QObject(parent) {
     }
-    ~ITask() override = default;
+    ~ITask() override {
+        terminate();
+    };
     void execute() {
         moveToThread(&m_thread);
         connect(&m_thread, &QThread::started, this, &ITask::runTask);
@@ -22,7 +24,11 @@ public:
         m_thread.start();
     }
     void terminate() {
+        if (m_thread.isInterruptionRequested())
+            return;
         m_thread.requestInterruption();
+        m_thread.quit();
+        m_thread.wait();
     }
 
 signals:
