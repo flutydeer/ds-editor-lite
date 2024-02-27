@@ -9,7 +9,7 @@ template <typename T>
 class Singleton {
 public:
     Singleton() = default;
-    ~Singleton() = default;
+    virtual ~Singleton() = default;
     static T* instance() {
         static T obj;
         return &obj;

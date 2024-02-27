@@ -6,6 +6,15 @@
 
 #include "ITask.h"
 
+void BackgroundWorker::terminateTask(ITask *task) {
+    task->terminate();
+}
+TaskManager::TaskManager(QObject *parent) : QObject(parent) {
+    m_worker.moveToThread(&m_thread);
+}
+TaskManager::~TaskManager() {
+    terminateAllTasks();
+}
 const QList<ITask *> &TaskManager::tasks() const {
     return m_tasks;
 }
@@ -13,16 +22,16 @@ void TaskManager::addTask(ITask *task) {
     m_tasks.append(task);
 }
 void TaskManager::startTask(ITask *task) {
-    task->execute();
+    threadPool->start(task);
 }
 void TaskManager::startAllTasks() {
     for (const auto &task : m_tasks)
-        task->execute();
+        threadPool->start(task);
 }
 void TaskManager::terminateTask(ITask *task) {
-    task->terminate();
+    m_worker.terminateTask(task);
 }
 void TaskManager::terminateAllTasks() {
     for (const auto &task : m_tasks)
-        task->terminate();
+        m_worker.terminateTask(task);
 }

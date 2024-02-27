@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
     QApplication::setFont(f);
 
     auto progressBar = new ProgressIndicator;
-    auto  btnTerminate = new QPushButton("Terminate");
+    auto btnTerminate = new QPushButton("Terminate");
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(progressBar);
     mainLayout->addWidget(btnTerminate);
@@ -39,12 +39,10 @@ int main(int argc, char *argv[]) {
     auto taskManager = TaskManager::instance();
     auto task = new TestTask("miao");
     QObject::connect(task, &ITask::progressUpdated, progressBar, &ProgressIndicator::setValue);
-    QObject::connect(task, &ITask::finished, [=] {
-        qDebug() << "Task finished" << task->resultData();
-    });
-    QObject::connect(btnTerminate, &QPushButton::clicked, [&] {
-        taskManager->terminateAllTasks();
-    });
+    QObject::connect(task, &ITask::finished,
+                     [=] { qDebug() << "Task finished" << task->resultData(); });
+    QObject::connect(btnTerminate, &QPushButton::clicked, taskManager,
+                     &TaskManager::terminateAllTasks);
     taskManager->addTask(task);
     taskManager->startAllTasks();
 

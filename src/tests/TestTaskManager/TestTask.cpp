@@ -3,6 +3,9 @@
 //
 
 #include "TestTask.h"
+
+#include <QThread>
+
 TestTask::TestTask(const QString &inputData, QObject *parent) : ITask(parent) {
     m_inputData = inputData;
 }
@@ -13,7 +16,7 @@ QString TestTask::resultData() {
 void TestTask::runTask() {
     emit progressUpdated(0);
     for (int i = 1; i <= 20; i++) {
-        if (m_thread.isInterruptionRequested()) {
+        if (m_abortFlag) {
             QThread::sleep(2);
             emit finished(true);
             return;
@@ -22,5 +25,4 @@ void TestTask::runTask() {
         emit progressUpdated(i * 5);
     }
     emit finished(false);
-    m_thread.requestInterruption();
 }
