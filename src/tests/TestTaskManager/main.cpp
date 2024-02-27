@@ -4,14 +4,10 @@
 
 #include <QApplication>
 #include <QStyleFactory>
-#include <QMainWindow>
 #include <QListWidget>
-#include <QPushButton>
-#include <QVBoxLayout>
 
-#include "TaskManager.h"
-#include "TestTask.h"
 #include "ProgressIndicator.h"
+#include "MainWindow.h"
 
 int main(int argc, char *argv[]) {
     QApplication a(argc, argv);
@@ -23,28 +19,10 @@ int main(int argc, char *argv[]) {
     f.setHintingPreference(QFont::PreferNoHinting);
     QApplication::setFont(f);
 
-    auto progressBar = new ProgressIndicator;
-    auto btnTerminate = new QPushButton("Terminate");
-    auto mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(progressBar);
-    mainLayout->addWidget(btnTerminate);
-    auto mainWidget = new QWidget;
-    mainWidget->setLayout(mainLayout);
 
-    QMainWindow w;
-    w.setCentralWidget(mainWidget);
+    MainWindow w;
     w.resize(360, 120);
     w.show();
-
-    auto taskManager = TaskManager::instance();
-    auto task = new TestTask("miao");
-    QObject::connect(task, &ITask::progressUpdated, progressBar, &ProgressIndicator::setValue);
-    QObject::connect(task, &ITask::finished,
-                     [=] { qDebug() << "Task finished" << task->resultData(); });
-    QObject::connect(btnTerminate, &QPushButton::clicked, taskManager,
-                     &TaskManager::terminateAllTasks);
-    taskManager->addTask(task);
-    taskManager->startAllTasks();
 
     return QApplication::exec();
 }

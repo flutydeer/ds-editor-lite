@@ -14,7 +14,7 @@ QString TestTask::resultData() {
     return m_resultData;
 }
 void TestTask::runTask() {
-    emit progressUpdated(0);
+    emit statusUpdated(0, Normal, false);
     for (int i = 1; i <= 20; i++) {
         if (m_abortFlag) {
             QThread::sleep(2);
@@ -22,7 +22,7 @@ void TestTask::runTask() {
             return;
         }
         QThread::msleep(500);
-        emit progressUpdated(i * 5);
+        emit statusUpdated(i * 5, m_abortFlag ? Error : Normal, m_abortFlag);
     }
     emit finished(false);
 }

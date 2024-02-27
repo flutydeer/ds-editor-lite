@@ -15,7 +15,11 @@ class ITask;
 class BackgroundWorker : public QObject {
     Q_OBJECT
 public:
-    void terminateTask(ITask *task);
+    static void terminateTask(ITask *task);
+    void wait();
+
+signals:
+    void waitDone();
 };
 
 class TaskManager : public QObject, public Singleton<TaskManager> {
@@ -23,15 +27,22 @@ class TaskManager : public QObject, public Singleton<TaskManager> {
 public:
     explicit TaskManager(QObject *parent = nullptr);
     ~TaskManager() override;
-    const QList<ITask *> &tasks() const;
+    [[nodiscard]] const QList<ITask *> &tasks() const;
+
+signals:
+    void allDone();
 
 public slots:
     void addTask(ITask *task);
     void startTask(ITask *task);
     // void startTask(int taskId);
     void startAllTasks();
-    void terminateTask(ITask *task);
+    static void terminateTask(ITask *task);
     void terminateAllTasks();
+    void wait();
+
+private slots:
+    void onWorkerWaitDone();
 
 private:
     QList<ITask *> m_tasks;

@@ -11,6 +11,7 @@
 class ITask : public QObject, public QRunnable {
     Q_OBJECT
 public:
+    enum TaskStatus { Normal, Warning, Error };
     explicit ITask(QObject *parent = nullptr) : QObject(parent) {
     }
     ~ITask() override {
@@ -24,7 +25,7 @@ public:
     }
 
 signals:
-    void progressUpdated(int progress);
+    void statusUpdated(int progress, ITask::TaskStatus status, bool isIndeterminate);
     void finished(bool terminate);
 
 protected:
