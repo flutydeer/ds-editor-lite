@@ -5,8 +5,8 @@
 #include <QDebug>
 
 #include "TestTimeObject.h"
-#include "../../gui/Utils/OverlapableSerialList.h"
-#include "../../gui/Utils/VolumeUtils.h"
+#include "../../app/Utils/OverlapableSerialList.h"
+#include "../../app/Utils/VolumeUtils.h"
 
 int main(int argc, char *argv[]) {
     TestTimeObject obj1(960, 1920);

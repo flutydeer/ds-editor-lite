@@ -5,7 +5,7 @@
 #ifndef TESTTIMEOBJECT_H
 #define TESTTIMEOBJECT_H
 
-#include "../../gui/Utils/IOverlapable.h"
+#include "../../app/Utils/IOverlapable.h"
 
 class TestTimeObject : public IOverlapable {
 public:

@@ -8,7 +8,7 @@
 #include <QObject>
 #include <QThreadPool>
 
-#include "../../app/Utils/Singleton.h"
+#include "Utils/Singleton.h"
 
 class ITask;
 
