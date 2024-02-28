@@ -31,24 +31,24 @@ public:
         int denominator = 4;
     };
 
-    TimeSignature timeSignature() const;
+    [[nodiscard]] [[nodiscard]] TimeSignature timeSignature() const;
     void setTimeSignature(const TimeSignature &signature);
-    double tempo() const;
+    [[nodiscard]] double tempo() const;
     void setTempo(double tempo);
-    const QList<Track *> &tracks() const;
-    void insertTrack(Track *track, int index);
+    [[nodiscard]] const QList<Track *> &tracks() const;
+    void insertTrack(Track *track, qsizetype index);
     void insertTrackQuietly(Track *track, int index);
     void appendTrack(Track *track);
-    void removeTrackAt(int index);
+    void removeTrackAt(qsizetype index);
     void removeTrack(Track *track);
     void clearTracks();
 
-    QJsonObject globalWorkspace() const;
-    bool isWorkspaceExist(const QString &id) const;
-    QJsonObject getPrivateWorkspaceById(const QString &id) const;
+    [[nodiscard]] QJsonObject globalWorkspace() const;
+    [[nodiscard]] bool isWorkspaceExist(const QString &id) const;
+    [[nodiscard]] QJsonObject getPrivateWorkspaceById(const QString &id) const;
     std::unique_ptr<WorkspaceEditor> workspaceEditor(const QString &id);
 
-    int quantize() const;
+    [[nodiscard]] int quantize() const;
     void setQuantize(int quantize);
 
     void newProject();
@@ -59,14 +59,14 @@ public:
     bool importAProject(const QString &filename);
     void loadFromAppModel(const AppModel &model);
 
-    int selectedTrackIndex() const;
+    [[nodiscard]] int selectedTrackIndex() const;
     void setSelectedTrack(int trackIndex);
 
-    int selectedClipId() const;
+    [[nodiscard]] int selectedClipId() const;
 
     Clip *findClipById(int clipId, int &trackIndex);
-    double tickToMs(double tick) const;
-    double msToTick(double ms) const;
+    [[nodiscard]] double tickToMs(double tick) const;
+    [[nodiscard]] double msToTick(double ms) const;
 
     class LevelMetersUpdatedArgs {
     public:
@@ -85,7 +85,7 @@ signals:
     void modelChanged();
     void tempoChanged(double tempo);
     void timeSignatureChanged(int numerator, int denominator);
-    void tracksChanged(TrackChangeType type, int index, Track *track);
+    void tracksChanged(TrackChangeType type, qsizetype index, Track *track);
     void selectedClipChanged(Track *track, Clip *clip);
     void quantizeChanged(int quantize);
     void selectedTrackChanged(int trackIndex);

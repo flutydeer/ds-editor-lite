@@ -20,8 +20,8 @@ public:
     void record(ActionSequence *actions);
     void reset();
 
-    bool canUndo() const;
-    bool canRedo() const;
+    [[nodiscard]] bool canUndo() const;
+    [[nodiscard]] bool canRedo() const;
 
 signals:
     void undoRedoChanged(bool canUndo, bool canRedo);

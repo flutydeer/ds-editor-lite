@@ -18,9 +18,9 @@ class SwitchButton : public QPushButton{
 public:
     explicit SwitchButton(QWidget *parent = nullptr);
     explicit SwitchButton(bool on, QWidget *parent = nullptr);
-    ~SwitchButton();
+    ~SwitchButton() override;
 
-    bool value() const;
+    [[nodiscard]] bool value() const;
 
 public slots:
     void setValue(bool value);
@@ -33,13 +33,13 @@ protected:
 
     QRect m_rect;
 //    int m_penWidth;
-    int m_thumbRadius;
-    int m_halfRectHeight;
+    int m_thumbRadius{};
+    int m_halfRectHeight{};
     QPoint m_trackStart;
     QPoint m_trackEnd;
-    int m_trackLength;
-    QPropertyAnimation *m_valueAnimation;
-    QPropertyAnimation *m_thumbHoverAnimation;
+    int m_trackLength{};
+    QPropertyAnimation *m_valueAnimation{};
+    QPropertyAnimation *m_thumbHoverAnimation{};
 
     void initUi(QWidget *parent);
     void calculateParams();
@@ -50,11 +50,11 @@ protected:
 private:
     // Animation
     int m_apparentValue = 0;
-    int apparentValue() const;
+    [[nodiscard]] int apparentValue() const;
     void setApparentValue(int x);
 
     int m_thumbScaleRatio = 100; // max = 100%
-    int thumbScaleRatio() const;
+    [[nodiscard]] int thumbScaleRatio() const;
     void setThumbScaleRatio(int ratio);
 };
 

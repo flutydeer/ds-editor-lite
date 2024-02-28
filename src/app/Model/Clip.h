@@ -23,24 +23,24 @@ class Clip : public QObject, public IOverlapable, public UniqueObject, public IS
 public:
     enum ClipType { Audio, Singing, Generic };
 
-    virtual ~Clip() = default;
+    ~Clip() override = default;
 
-    virtual ClipType type() const {
+    [[nodiscard]] virtual ClipType type() const {
         return Generic;
     }
-    QString name() const;
+    [[nodiscard]] QString name() const;
     void setName(const QString &text);
-    int start() const;
+    [[nodiscard]] int start() const;
     void setStart(int start);
-    int length() const;
+    [[nodiscard]] int length() const;
     void setLength(int length);
-    int clipStart() const;
+    [[nodiscard]] int clipStart() const;
     void setClipStart(int clipStart);
-    int clipLen() const;
+    [[nodiscard]] int clipLen() const;
     void setClipLen(int clipLen);
-    double gain() const;
+    [[nodiscard]] double gain() const;
     void setGain(double gain);
-    bool mute() const;
+    [[nodiscard]] bool mute() const;
     void setMute(bool mute);
 
     int compareTo(Clip *obj) const;
@@ -59,7 +59,7 @@ public:
         double gain = 0;
         bool mute = false;
 
-        int trackIndex = 0;
+        qsizetype trackIndex = 0;
     };
     class AudioClipPropertyChangedArgs : public ClipCommonProperties {
     public:
@@ -78,10 +78,10 @@ protected:
 
 class AudioClip final : public Clip {
 public:
-    ClipType type() const override {
+    [[nodiscard]] ClipType type() const override {
         return Audio;
     }
-    QString path() const {
+    [[nodiscard]] QString path() const {
         return m_path;
     }
     void setPath(const QString &path) {
@@ -105,17 +105,17 @@ public:
         QString audioCachePath;
     };
 
-    ClipType type() const override {
+    [[nodiscard]] ClipType type() const override {
         return Singing;
     }
 
-    const OverlapableSerialList<Note> &notes() const;
+    [[nodiscard]] const OverlapableSerialList<Note> &notes() const;
     void insertNote(Note *note);
     void removeNote(Note *note);
     void insertNoteQuietly(Note *note);
     void removeNoteQuietly(Note *note);
     Note *findNoteById(int id);
-    QList<Note *> selectedNotes() const;
+    [[nodiscard]] QList<Note *> selectedNotes() const;
 
     void notifyNoteSelectionChanged();
     void notifyNotePropertyChanged(NotePropertyType type, Note *note);
@@ -128,9 +128,9 @@ public:
                            OverlapableSerialList<Curve> &target);
 
 signals:
-    void noteListChanged(NoteChangeType type, int id, Note *note);
+    void noteListChanged(SingingClip::NoteChangeType type, int id, Note *note);
     void noteSelectionChanged();
-    void notePropertyChanged(NotePropertyType type, Note *note);
+    void notePropertyChanged(SingingClip::NotePropertyType type, Note *note);
     void paramChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
 
 private:

@@ -8,7 +8,7 @@
 #include <QMimeData>
 
 #include "Model/AppModel.h"
-#include "ControllerGlobal.h"
+#include "Global/ControllerGlobal.h"
 #include "TracksViewController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "Actions/AppModel/Param/ParamsActions.h"

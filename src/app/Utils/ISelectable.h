@@ -7,7 +7,7 @@
 
 class ISelectable {
 public:
-    bool selected() const {
+    [[nodiscard]] bool selected() const {
         return m_selected;
     }
     void setSelected(bool b) {

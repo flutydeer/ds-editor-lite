@@ -13,8 +13,6 @@
 #include "UI/Controls/ComboBox.h"
 
 PlaybackView::PlaybackView(QWidget *parent) {
-    auto controller = PlaybackController::instance();
-
     m_elTempo = new EditLabel;
     m_elTempo->setObjectName("elTempo");
     m_elTempo->setText(QString::number(m_tempo));
@@ -167,7 +165,7 @@ void PlaybackView::updateView() {
     m_tempo = model->tempo();
     m_numerator = model->timeSignature().numerator;
     m_denominator = model->timeSignature().denominator;
-    m_tick = PlaybackController::instance()->position();
+    m_tick = static_cast<int>(PlaybackController::instance()->position());
     m_status = PlaybackController::instance()->playbackStatus();
 
     updateTempoView();
@@ -186,14 +184,14 @@ void PlaybackView::onTimeSignatureChanged(int numerator, int denominator) {
     updateTimeView();
 }
 void PlaybackView::onPositionChanged(double tick) {
-    m_tick = tick;
+    m_tick = static_cast<int>(tick);
     updateTimeView();
 }
 void PlaybackView::onPlaybackStatusChanged(PlaybackController::PlaybackStatus status) {
     m_status = status;
     updatePlaybackControlView();
 }
-QString PlaybackView::toFormattedTickTime(int ticks) {
+QString PlaybackView::toFormattedTickTime(int ticks) const {
     int barTicks = 1920 * m_numerator / m_denominator;
     int beatTicks = 1920 / m_denominator;
     auto bar = ticks / barTicks + 1;
@@ -203,7 +201,7 @@ QString PlaybackView::toFormattedTickTime(int ticks) {
                QString::asprintf("%03d", tick);
     return str;
 }
-int PlaybackView::fromTickTimeString(const QStringList &splitStr) {
+int PlaybackView::fromTickTimeString(const QStringList &splitStr) const {
     auto bar = splitStr.at(0).toInt();
     auto beat = splitStr.at(1).toInt();
     auto tick = splitStr.at(2).toInt();

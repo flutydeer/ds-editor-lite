@@ -62,7 +62,7 @@ namespace FillLyric {
         void _init(const QList<Phonic> &phonics);
         void tableAutoWrap(const bool &switchState = false) const;
         void resizeTable() const;
-        QList<Phonic> updateLyric(const QModelIndex &index, const QString &text,
+        [[nodiscard]] QList<Phonic> updateLyric(const QModelIndex &index, const QString &text,
                                   const QList<Phonic> &oldPhonics) const;
 
         // Variables

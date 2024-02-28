@@ -11,11 +11,11 @@ class CommonGraphicsScene : public QGraphicsScene {
 public:
     explicit CommonGraphicsScene();
     ~CommonGraphicsScene() override = default;
-    QSizeF sceneSize() const;
+    [[nodiscard]] QSizeF sceneSize() const;
     void setSceneSize(const QSizeF &size);
-    double scaleX() const;
+    [[nodiscard]] double scaleX() const;
     void setScaleX(double scaleX);
-    double scaleY() const;
+    [[nodiscard]] double scaleY() const;
     void setScaleY(double scaleY);
 
 public slots:

@@ -16,10 +16,10 @@ class SingingClipGraphicsItem final : public AbstractClipGraphicsItem {
 public:
     class NoteViewModel : public IOverlapable {
     public:
-        int id;
-        int rStart;
-        int length;
-        int keyIndex;
+        int id{};
+        int rStart{};
+        int length{};
+        int keyIndex{};
 
         int compareTo(NoteViewModel *obj) const;
         static bool isOverlappedWith(NoteViewModel *obj) ;
@@ -29,7 +29,7 @@ public:
     ~SingingClipGraphicsItem() override = default;
 
     void loadNotes(const OverlapableSerialList<Note> &notes);
-    QString audioCachePath() const;
+    [[nodiscard]] QString audioCachePath() const;
     void setAudioCachePath(const QString &path);
 
 public slots:

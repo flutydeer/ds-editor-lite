@@ -37,7 +37,7 @@ public slots:
     void startTask(ITask *task);
     // void startTask(int taskId);
     void startAllTasks();
-    static void terminateTask(ITask *task);
+    void terminateTask(ITask *task);
     void terminateAllTasks();
     void wait();
 

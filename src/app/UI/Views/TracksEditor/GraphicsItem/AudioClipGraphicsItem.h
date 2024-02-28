@@ -15,9 +15,9 @@ public:
     explicit AudioClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     ~AudioClipGraphicsItem() override = default;
 
-    QString path() const;
+    [[nodiscard]] QString path() const;
     void setPath(const QString &path);
-    double tempo() const;
+    [[nodiscard]] double tempo() const;
     void setTempo(double tempo);
 
 public slots:

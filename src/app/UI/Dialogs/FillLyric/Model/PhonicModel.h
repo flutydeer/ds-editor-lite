@@ -28,32 +28,32 @@ namespace FillLyric {
         void expandModel(int col);
 
         // Basic functions
-        int currentLyricLength(int row) const;
+        [[nodiscard]] int currentLyricLength(int row) const;
         void refreshTable();
         void shrinkPhonicList();
 
         // RoleData functions
         static QList<int> allRoles();
 
-        QString cellLyric(int row, int col) const;
+        [[nodiscard]] QString cellLyric(int row, int col) const;
         bool setLyric(int row, int col, const QString &lyric);
-        QString cellSyllable(int row, int col) const;
+        [[nodiscard]] QString cellSyllable(int row, int col) const;
         bool setSyllable(int row, int col, const QString &syllable);
-        QString cellSyllableRevised(int row, int col) const;
+        [[nodiscard]] QString cellSyllableRevised(int row, int col) const;
         bool setSyllableRevised(int row, int col, const QString &syllableRevised);
-        QStringList cellCandidates(int row, int col) const;
+        [[nodiscard]] QStringList cellCandidates(int row, int col) const;
         bool setCandidates(const int &row, const int &col, const QStringList &candidate);
-        int cellLyricType(int row, int col) const;
+        [[nodiscard]] int cellLyricType(int row, int col) const;
         bool setLyricType(int row, int col, const TextType &type);
-        QStringList cellFermata(int row, int col) const;
+        [[nodiscard]] QStringList cellFermata(int row, int col) const;
         bool setFermata(int row, int col, const QList<QString> &fermata);
-        bool cellLineFeed(int row, int col) const;
+        [[nodiscard]] bool cellLineFeed(int row, int col) const;
         bool setLineFeed(int row, int col, bool lineFeed);
-        QString cellToolTip(const int &row, const int &col) const;
+        [[nodiscard]] QString cellToolTip(const int &row, const int &col) const;
 
         // Cell operations
         void putData(int row, int col, const Phonic &phonic);
-        Phonic takeData(int row, int col) const;
+        [[nodiscard]] Phonic takeData(int row, int col) const;
         void clearData(int row, int col);
         void moveData(int row, int col, int tarRow, int tarCol);
 
@@ -62,11 +62,11 @@ namespace FillLyric {
         void deleteWarpCell(const int &index);
 
         void putCell(const QModelIndex &index, const Phonic &phonic);
-        Phonic takeCell(const QModelIndex &index) const;
+        [[nodiscard]] Phonic takeCell(const QModelIndex &index) const;
         void clearCell(const QModelIndex &index);
         void moveCell(const QModelIndex &source, const QModelIndex &target);
 
-        QString cellToolTip(const QModelIndex &index) const;
+        [[nodiscard]] QString cellToolTip(const QModelIndex &index) const;
 
         void cellMoveLeft(const QModelIndex &index);
         void cellMoveRight(const QModelIndex &index);

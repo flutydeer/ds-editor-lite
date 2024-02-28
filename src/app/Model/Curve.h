@@ -27,11 +27,11 @@ public:
     virtual CurveType type() {
         return Generic;
     }
-    int start() const;
+    [[nodiscard]] int start() const;
     void setStart(int offset);
 
     int compareTo(Curve *obj) const;
-    virtual int endTick() const {
+    [[nodiscard]] virtual int endTick() const {
         return m_start;
     }
     bool isOverlappedWith(Curve *obj) const;
@@ -51,7 +51,7 @@ public:
         return Draw;
     }
     int step = 5; // TODO: remove
-    const QList<int> &values() const;
+    [[nodiscard]] const QList<int> &values() const;
     void setValues(const QList<int> &values);
     void insertValue(int index, int value);
     void insertValues(int index, const QList<int> &values);
@@ -62,7 +62,7 @@ public:
     void mergeWith(const DrawCurve &other);
     void overlayMergeWith(const DrawCurve &other);
 
-    int endTick() const override;
+    [[nodiscard]] int endTick() const override;
 
 private:
     // int m_step = 5;
@@ -74,7 +74,7 @@ public:
     ProbeLine() : Curve(-1) {
     }
     void setEndTick(int tick);
-    int endTick() const override;
+    [[nodiscard]] int endTick() const override;
 
 private:
     int m_endTick = 0;
@@ -87,11 +87,11 @@ public:
     AnchorNode(const int pos, const int value) : m_pos(pos), m_value(value) {
     }
 
-    int pos() const;
+    [[nodiscard]] int pos() const;
     void setPos(int pos);
-    int value() const;
+    [[nodiscard]] int value() const;
     void setValue(int value);
-    InterpMode interpMode() const;
+    [[nodiscard]] InterpMode interpMode() const;
     void setInterpMode(InterpMode mode);
 
     int compareTo(AnchorNode *obj) const;
@@ -109,10 +109,10 @@ public:
         return Anchor;
     }
     // TODO: use OverlapableSerialList
-    const QList<AnchorNode *> &nodes() const;
+    [[nodiscard]] const QList<AnchorNode *> &nodes() const;
     void insertNode(AnchorNode *node);
     void removeNode(AnchorNode *node);
-    int endTick() const override;
+    [[nodiscard]] int endTick() const override;
 
 private:
     QList<AnchorNode *> m_nodes;

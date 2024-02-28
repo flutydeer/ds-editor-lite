@@ -53,8 +53,8 @@ private:
 
     int m_contentHeight = 32;
 
-    QString toFormattedTickTime(int ticks);
-    int fromTickTimeString(const QStringList &splitStr);
+    QString toFormattedTickTime(int ticks) const;
+    int fromTickTimeString(const QStringList &splitStr) const;
 
     const QIcon icoPlayWhite = QIcon(":svg/icons/play_16_filled_white.svg");
     const QIcon icoPlayBlack = QIcon(":svg/icons/play_16_filled.svg");

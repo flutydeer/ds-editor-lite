@@ -15,10 +15,10 @@ public:
     ~LevelMeter() override;
 
     void setClipped(bool onL, bool onR);
-    int bufferSize() const;
+    [[nodiscard]] int bufferSize() const;
     void setBufferSize(int size);
     void initBuffer(int bufferSize);
-    bool freeze() const;
+    [[nodiscard]] bool freeze() const;
     void setFreeze(bool on);
 
 // public slots:
@@ -29,7 +29,7 @@ private:
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void resetBuffer();
-    bool mouseOnClipIndicator(const QPointF &pos);
+    [[nodiscard]] bool mouseOnClipIndicator(const QPointF &pos) const;
 
     QColor m_colorBackground = QColor(0, 0, 0, 60);
     QColor m_colorSafe = QColor(155, 186, 255);
@@ -42,8 +42,8 @@ private:
     bool m_clippedL = false;
     bool m_clippedR = false;
     //    int sampleRate = 44100;
-    double *m_bufferL;
-    double *m_bufferR;
+    double *m_bufferL = nullptr;
+    double *m_bufferR = nullptr;
     int m_bufferPos = 0;
     int m_bufferSize = 8;
     QTimer *m_timer;

@@ -26,7 +26,7 @@ signals:
     void canRemoveChanged(bool canRemove);
 
 public slots:
-    static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
+    void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     void onRemoveNotes(const QList<int> &notesId);
     void onEditNotesLyric(const QList<int> &notesId);
     void onInsertNote(Note *note) const;

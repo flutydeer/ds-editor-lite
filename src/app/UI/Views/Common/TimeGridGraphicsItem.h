@@ -42,11 +42,11 @@ protected:
     const QColor beatTextColor = QColor(160, 160, 160);
 
 private:
-    double startTick() const;
-    double endTick() const;
-    double sceneXToTick(double pos) const;
-    double tickToSceneX(double tick) const;
-    double sceneXToItemX(double x) const;
+    [[nodiscard]] double startTick() const;
+    [[nodiscard]] double endTick() const;
+    [[nodiscard]] double sceneXToTick(double pos) const;
+    [[nodiscard]] double tickToSceneX(double tick) const;
+    [[nodiscard]] double sceneXToItemX(double x) const;
 };
 
 

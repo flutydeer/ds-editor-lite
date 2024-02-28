@@ -16,7 +16,7 @@ public:
     explicit AppController() = default;
     ~AppController() override = default;
 
-    QString lastProjectPath() const;
+    [[nodiscard]] QString lastProjectPath() const;
 
 public slots:
     void onNewProject();

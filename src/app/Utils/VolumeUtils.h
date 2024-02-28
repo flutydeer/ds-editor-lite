@@ -9,12 +9,12 @@
 
 class VolumeUtils {
 public:
-    static float linearTodB(float volume) {
+    static double linearTodB(double volume) {
         if (volume > 0)
-            return (float) qMax(20 * std::log10(volume), -70.0);
+            return qMax(20 * std::log10(volume), -70.0);
         return -70;
     }
-    static float dBToLinear(float gain) {
+    static double dBToLinear(double gain) {
         if (gain <= -70)
             return 0;
         return std::pow(10, gain / 20.0);

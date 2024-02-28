@@ -13,7 +13,7 @@ void TrackActions::appendTracks(const QList<Track *> &tracks, AppModel *model) {
     for (auto track : tracks)
         addAction(AppendTrackAction::build(track, model));
 }
-void TrackActions::insertTrack(Track *track, int index, AppModel *model) {
+void TrackActions::insertTrack(Track *track, qsizetype index, AppModel *model) {
     addAction(InsertTrackAction::build(track, index, model));
 }
 void TrackActions::removeTracks(const QList<Track *> &tracks, AppModel *model) {

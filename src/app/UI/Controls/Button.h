@@ -16,7 +16,7 @@ public:
     explicit Button(const QString &text, QWidget *parent = nullptr, bool isPrimary = false);
     Button(const QIcon &icon, const QString &text, QWidget *parent = nullptr, bool isPrimary = false);
 
-    bool isPrimary() const;
+    [[nodiscard]] bool isPrimary() const;
     void setPrimary(bool on);
 
 protected:

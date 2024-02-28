@@ -4,12 +4,12 @@
 
 #include "TracksGraphicsScene.h"
 
-#include "../../../Global/TracksEditorGlobal.h"
+#include "Global/TracksEditorGlobal.h"
 
 using namespace TracksEditorGlobal;
 
 TracksGraphicsScene::TracksGraphicsScene() {
-    setSceneSize(QSizeF(1920 / 480 * pixelsPerQuarterNote * 100, 2000));
+    setSceneSize(QSizeF(1920.0 / 480 * pixelsPerQuarterNote * 100, 2000));
 }
 int TracksGraphicsScene::trackIndexAt(double sceneY) {
     auto yToTrackIndex = [&](double y) { return static_cast<int>(y / (trackHeight * scaleY())); };
@@ -19,7 +19,7 @@ int TracksGraphicsScene::trackIndexAt(double sceneY) {
     return index;
 }
 int TracksGraphicsScene::tickAt(double sceneX) {
-    return 480 * sceneX / scaleX() / pixelsPerQuarterNote;
+    return static_cast<int>(480 * sceneX / scaleX() / pixelsPerQuarterNote);
 }
 void TracksGraphicsScene::onViewResized(QSize size) {
     m_graphicsViewSize = size;

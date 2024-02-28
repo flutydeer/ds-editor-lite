@@ -18,7 +18,7 @@ class AudioExportDialog : public Dialog {
     Q_OBJECT
 public:
     explicit AudioExportDialog(QWidget *parent = nullptr);
-    ~AudioExportDialog();
+    ~AudioExportDialog() override;
 
 private:
     ComboBox *m_presetComboBox;

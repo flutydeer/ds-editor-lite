@@ -11,9 +11,9 @@ class OverlayGraphicsItem : public CommonGraphicsRectItem {
     Q_OBJECT
 
 public:
-    bool transparentForMouseEvents() const;
+    [[nodiscard]] bool transparentForMouseEvents() const;
     void setTransparentForMouseEvents(bool on);
-    QColor backgroundColor() const;
+    [[nodiscard]] QColor backgroundColor() const;
     void setBackgroundColor(QColor color);
 
 protected:

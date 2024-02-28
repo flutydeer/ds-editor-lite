@@ -19,7 +19,7 @@ class SeekBar : public QWidget {
 public:
     explicit SeekBar(QWidget *parent = nullptr);
 
-    double value();
+    [[nodiscard]] double value() const;
     void setValue(double value);
     void setValueAsync(double value);
     void setDefaultValue(double value);
@@ -49,7 +49,7 @@ private:
     int m_padding = 0;
     int m_trackPenWidth = 0;
     QRect m_rect;
-    int m_halfHeight;
+    int m_halfHeight{};
     int m_actualStart = 0;
     int m_actualEnd = 0;
     int m_actualLength = 0;
@@ -59,33 +59,33 @@ private:
     QPointF m_activeStartPoint;
     QPointF m_activeEndPoint;
     int m_valuePos = 0;
-    float m_handlePenWidth = 0;
-    float m_handleRadius = 0;
+    double m_handlePenWidth = 0;
+    double m_handleRadius = 0;
 
     double m_value = 0;
     double m_defaultValue = 0;
     double m_max = 100;
     double m_min = -100;
     double m_trackActiveStartValue = 0;
-    bool mouseOnHandle(const QPoint &mousePos) const;
+    [[nodiscard]] bool mouseOnHandle(const QPoint &mousePos) const;
     bool handleHover = false;
     bool handlePressed = false;
     QTimer *timer;
     bool doubleClickLocked = false;
     QPropertyAnimation *m_thumbHoverAnimation;
     QColor m_trackInactiveColor = QColor(0, 0, 0, 32);
-    QColor trackInactiveColor() const;
+    [[nodiscard]] QColor trackInactiveColor() const;
     void setTrackInactiveColor(const QColor &color);
     QColor m_trackActiveColor = QColor(112, 156, 255);
-    QColor trackActiveColor() const;
+    [[nodiscard]] QColor trackActiveColor() const;
     void setTrackActiveColor(const QColor &color);
     QColor m_thumbBorderColor = QColor(255, 255, 255);
-    QColor thumbBorderColor() const;
+    [[nodiscard]] QColor thumbBorderColor() const;
     void setThumbBorderColor(const QColor &color);
 
     // Animation
     int m_thumbBorderRatio = 102; // ratio max = 255;
-    int thumbBorderRatio() const;
+    [[nodiscard]] int thumbBorderRatio() const;
     void setThumbBorderRatio(int ratio);
 };
 

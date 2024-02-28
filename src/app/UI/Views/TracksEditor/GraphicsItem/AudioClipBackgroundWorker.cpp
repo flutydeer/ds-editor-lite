@@ -7,7 +7,8 @@
 #include <QDebug>
 #include <QThread>
 
-AudioClipBackgroundWorker::AudioClipBackgroundWorker(const QString &path) {
+AudioClipBackgroundWorker::AudioClipBackgroundWorker(const QString &path)
+    : sampleRate(0), channels(0), frames(0) {
     m_path = path;
 }
 void AudioClipBackgroundWorker::setPath(const QString &path) {
@@ -38,7 +39,7 @@ void AudioClipBackgroundWorker::run() {
     sampleRate = sf.samplerate();
     channels = sf.channels();
     frames = sf.frames();
-    auto totalSize = frames * channels;
+    // auto totalSize = frames * channels;
     // qDebug() << frames;
 
     std::vector<double> buffer(chunkSize * channels);

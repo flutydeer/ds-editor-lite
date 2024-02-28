@@ -12,11 +12,11 @@ class CommonGraphicsRectItem : public QObject, public QGraphicsRectItem {
 public:
     explicit CommonGraphicsRectItem(QGraphicsItem *parent = nullptr);
 
-    double scaleX() const;
+    [[nodiscard]] double scaleX() const;
     void setScaleX(double scaleX);
-    double scaleY() const;
+    [[nodiscard]] double scaleY() const;
     void setScaleY(double scaleY);
-    QRectF visibleRect() const;
+    [[nodiscard]] QRectF visibleRect() const;
 
 public slots:
     void setScale(qreal sx, qreal sy) {

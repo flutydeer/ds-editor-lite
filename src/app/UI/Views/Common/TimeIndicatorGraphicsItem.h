@@ -26,7 +26,7 @@ private:
     QRectF m_visibleRect;
 
     void updateLengthAndPos();
-    double tickToItemX(double tick) const;
+    [[nodiscard]] double tickToItemX(double tick) const;
 };
 
 

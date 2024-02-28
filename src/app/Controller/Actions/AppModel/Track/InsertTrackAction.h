@@ -5,6 +5,8 @@
 #ifndef ADDTRACKSACTION_H
 #define ADDTRACKSACTION_H
 
+#include <QtTypes>
+
 #include "Modules/History/IAction.h"
 
 class Track;
@@ -12,13 +14,13 @@ class AppModel;
 
 class InsertTrackAction final: public IAction {
 public:
-    static InsertTrackAction *build(Track *track, int index, AppModel *model);
+    static InsertTrackAction *build(Track *track, qsizetype index, AppModel *model);
     void execute() override;
     void undo() override;
 
 private:
     Track *m_track = nullptr;
-    int m_index = -1;
+    qsizetype m_index = -1;
     AppModel *m_model = nullptr;
 };
 

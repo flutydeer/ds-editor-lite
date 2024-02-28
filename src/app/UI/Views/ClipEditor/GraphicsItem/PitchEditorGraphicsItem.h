@@ -18,12 +18,12 @@ public:
     enum EditMode { Free, Anchor, Off };
     explicit PitchEditorGraphicsItem();
 
-    EditMode editMode() const;
+    [[nodiscard]] EditMode editMode() const;
     void setEditMode(const EditMode &mode);
     void loadOpensvipPitchParam();
     void loadOriginal(const OverlapableSerialList<DrawCurve> &curves);
     void loadEdited(const OverlapableSerialList<DrawCurve> &curves);
-    const OverlapableSerialList<DrawCurve> &editedCurves() const;
+    [[nodiscard]] const OverlapableSerialList<DrawCurve> &editedCurves() const;
 
 signals:
     void editCompleted();
@@ -40,7 +40,7 @@ private:
     void updateRectAndPos() override;
     void drawOpensvipPitchParam(QPainter *painter);
     void drawHandDrawCurves(QPainter *painter, const OverlapableSerialList<DrawCurve> &curves);
-    void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve *curve);
+    static void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve *curve);
 
     EditMode m_editMode = Off;
 
@@ -56,17 +56,16 @@ private:
 
     QList<std::tuple<int, int>> m_opensvipPitchParam;
 
-    double startTick() const;
-    double endTick() const;
-    double sceneXToTick(double x) const;
-    double tickToSceneX(double tick) const;
-    double sceneXToItemX(double x) const;
-    double tickToItemX(double tick) const;
-    double pitchToSceneY(double pitch) const;
-    double sceneYToItemY(double y) const;
-    double pitchToItemY(double pitch) const;
-    double sceneYToPitch(double y) const;
-
+    [[nodiscard]] double startTick() const;
+    [[nodiscard]] double endTick() const;
+    [[nodiscard]] double sceneXToTick(double x) const;
+    [[nodiscard]] double tickToSceneX(double tick) const;
+    [[nodiscard]] double sceneXToItemX(double x) const;
+    [[nodiscard]] double tickToItemX(double tick) const;
+    [[nodiscard]] double pitchToSceneY(double pitch) const;
+    [[nodiscard]] double sceneYToItemY(double y) const;
+    [[nodiscard]] double pitchToItemY(double pitch) const;
+    [[nodiscard]] double sceneYToPitch(double y) const;
     DrawCurve *curveAt(double tick);
     QList<DrawCurve *> curvesIn(int startTick, int endTick);
 };

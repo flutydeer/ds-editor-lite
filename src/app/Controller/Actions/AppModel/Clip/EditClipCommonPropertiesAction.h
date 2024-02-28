@@ -7,7 +7,6 @@
 
 #include "Modules/History/IAction.h"
 #include "Model/Clip.h"
-#include "Model/Clip.h"
 
 class Track;
 

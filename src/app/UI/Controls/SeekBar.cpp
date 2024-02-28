@@ -29,7 +29,7 @@ SeekBar::SeekBar(QWidget *parent) : QWidget(parent) {
     m_thumbHoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
     calculateParams();
 }
-double SeekBar::value() {
+double SeekBar::value() const {
     return m_value;
 }
 

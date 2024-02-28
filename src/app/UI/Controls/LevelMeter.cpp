@@ -184,7 +184,7 @@ void LevelMeter::resetBuffer() {
         m_bufferL[i] = 0;
     m_bufferPos = 0;
 }
-bool LevelMeter::mouseOnClipIndicator(const QPointF &pos) {
+bool LevelMeter::mouseOnClipIndicator(const QPointF &pos) const {
     // return pos.y() <= m_spacing + m_clipIndicatorLength + m_spacing;
     return pos.y() <= m_clipIndicatorLength + 8;
 }

@@ -136,8 +136,8 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     const auto pronunciationTextColor = QColor(200, 200, 200);
 
     const auto penWidth = 1.5f;
-    const auto radius = 4.0;
-    const auto radiusAdjustThreshold = 12;
+    // const auto radius = 4.0;
+    // const auto radiusAdjustThreshold = 12;
 
     QPen pen;
 

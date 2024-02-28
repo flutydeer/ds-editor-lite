@@ -30,8 +30,8 @@ private:
     int m_contentHeight = 28;
 
     EditLabel *m_elClipName;
-    QPushButton *m_btnMute;
-    SeekBar *m_sBarGain;
+    QPushButton *m_btnMute{};
+    SeekBar *m_sBarGain{};
 
     QPushButton *m_btnArrow;
     QPushButton *m_btnNotePencil;

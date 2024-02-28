@@ -29,7 +29,7 @@ const QList<Track *> &AppModel::tracks() const {
     return m_tracks;
 }
 
-void AppModel::insertTrack(Track *track, int index) {
+void AppModel::insertTrack(Track *track, qsizetype index) {
     connect(track, &Track::propertyChanged, this, [=] {
         auto trackIndex = m_tracks.indexOf(track);
         emit tracksChanged(PropertyUpdate, trackIndex, track);
@@ -47,7 +47,7 @@ void AppModel::insertTrackQuietly(Track *track, int index) {
 void AppModel::appendTrack(Track *track) {
     insertTrack(track, m_tracks.count());
 }
-void AppModel::removeTrackAt(int index) {
+void AppModel::removeTrackAt(qsizetype index) {
     auto track = m_tracks[index];
     onSelectedClipChanged(-1);
     m_tracks.removeAt(index);
@@ -95,7 +95,7 @@ bool AppModel::loadProject(const QString &filename) {
     auto converter = new DspxProjectConverter;
     QString errMsg;
     AppModel resultModel;
-    auto ok = converter->load(filename, this, errMsg);
+    auto ok = converter->load(filename, this, errMsg, ImportMode::NewProject);
     if (ok)
         loadFromAppModel(resultModel);
     return ok;
@@ -110,7 +110,7 @@ bool AppModel::importAProject(const QString &filename) {
     auto converter = new AProjectConverter;
     QString errMsg;
     AppModel resultModel;
-    auto ok = converter->load(filename, &resultModel, errMsg);
+    auto ok = converter->load(filename, &resultModel, errMsg, ImportMode::NewProject);
     if (ok)
         loadFromAppModel(resultModel);
     return ok;
@@ -161,7 +161,6 @@ int AppModel::selectedTrackIndex() const {
 void AppModel::onSelectedClipChanged(int clipId) {
     qDebug() << "AppModel::setIsSingingClip" << clipId;
     m_selectedClipId = clipId;
-    auto found = false;
     for (auto track : m_tracks) {
         auto result = track->findClipById(clipId);
         if (result) {

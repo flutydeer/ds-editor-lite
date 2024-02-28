@@ -2,12 +2,7 @@
 #define DS_EDITOR_LITE_LYRICWIDGET_H
 
 #include <QObject>
-#include <QWidget>
 #include <QCheckBox>
-#include <QComboBox>
-#include <QPushButton>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
 
 #include "PhonicTextEdit.h"
 #include "PhonicWidget.h"
@@ -28,10 +23,10 @@ namespace FillLyric {
         ~LyricWidget() override;
 
         void setPhonics();
-        QList<Phonic> exportPhonics() const;
+        [[nodiscard]] QList<Phonic> exportPhonics() const;
 
-        QList<Phonic> splitLyric(const QString &lyric) const;
-        QList<Phonic> modelExport() const;
+        [[nodiscard]] QList<Phonic> splitLyric(const QString &lyric) const;
+        [[nodiscard]] QList<Phonic> modelExport() const;
 
         QCheckBox *exportSkipSlur;
         QCheckBox *exportExcludeSpace;

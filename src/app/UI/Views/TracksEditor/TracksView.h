@@ -31,10 +31,10 @@ public slots:
     void onTrackChanged(AppModel::TrackChangeType type, int index);
     // void onPlaybackPositionChanged(long pos);
     // void onSamplerateChanged(int samplerate);
-    void onClipChanged(Track::ClipChangeType type, int trackIndex, int clipIndex);
+    void onClipChanged(Track::ClipChangeType type, qsizetype trackIndex, int clipIndex);
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
-    void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args);
+    void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const;
 
 signals:
     void selectedClipChanged(int clipId);
@@ -44,7 +44,7 @@ signals:
     void muteClicked(int index);
     void soloClicked(int index);
     void tempoChanged(double tempo);
-    void trackCountChanged(int count);
+    void trackCountChanged(qsizetype count);
     void addAudioClipTriggered(const QString &path, int trackIndex, int tick);
     void clipPropertyChanged(const Clip::ClipCommonProperties &args);
     void setPositionTriggered(double tick);
@@ -78,7 +78,7 @@ private:
     void insertClipToTrack(Clip *clip, TrackViewModel *track, int trackIndex);
     void removeClipFromView(int clipId);
     AbstractClipGraphicsItem *findClipItemById(int id);
-    void updateTracksOnView();
+    void updateTracksOnView() const;
     void updateClipOnView(Clip *clip, int clipId);
     void removeTrackFromView(int index);
     void updateOverlappedState(int trackIndex);

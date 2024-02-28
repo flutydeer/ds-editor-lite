@@ -5,7 +5,7 @@
 #ifndef CLIPEDITVIEW_H
 #define CLIPEDITVIEW_H
 
-#include "../../../Global/ClipEditorGlobal.h"
+#include "Global/ClipEditorGlobal.h"
 #include "Model/Track.h"
 #include "PhonemeView.h"
 #include "Model/Clip.h"
@@ -54,7 +54,7 @@ private:
     PianoRollGraphicsView *m_pianoRollView;
     TimelineView *m_timelineView;
     PhonemeView *m_phonemeView;
-    ClipEditorGlobal::PianoRollEditMode m_mode;
+    ClipEditorGlobal::PianoRollEditMode m_mode = ClipEditorGlobal::Select;
 
     bool m_oneSingingClipSelected = false;
 

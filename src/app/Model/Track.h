@@ -16,21 +16,21 @@
 
 class Clip;
 
-class Track : public QObject, public UniqueObject, public ISelectable {
+class Track final : public QObject, public UniqueObject, public ISelectable {
     Q_OBJECT
 
 public:
     ~Track() override = default;
     enum ClipChangeType { Inserted, PropertyChanged, Removed };
 
-    QString name() const;
+    [[nodiscard]] QString name() const;
     void setName(const QString &name);
-    TrackControl control() const;
+    [[nodiscard]] TrackControl control() const;
     void setControl(const TrackControl &control);
-    OverlapableSerialList<Clip> clips() const;
+    [[nodiscard]] OverlapableSerialList<Clip> clips() const;
     void insertClip(Clip *clip);
     void removeClip(Clip *clip);
-    QColor color() const;
+    [[nodiscard]] QColor color() const;
     void setColor(const QColor &color);
 
     // void updateClip(DsClip *clip);
@@ -53,7 +53,7 @@ public:
 
 signals:
     void propertyChanged();
-    void clipChanged(ClipChangeType type, int id, Clip *clip);
+    void clipChanged(Track::ClipChangeType type, int id, Clip *clip);
 
 private:
     QString m_name;

@@ -6,7 +6,7 @@
 
 #include "Model/AppModel.h"
 
-InsertTrackAction *InsertTrackAction::build(Track *track, int index, AppModel *model) {
+InsertTrackAction *InsertTrackAction::build(Track *track, qsizetype index, AppModel *model) {
     auto a = new InsertTrackAction;
     a->m_track = track;
     a->m_index = index;

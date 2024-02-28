@@ -13,16 +13,16 @@ class AudioSettingsDialog : public Dialog {
 public:
     explicit AudioSettingsDialog(QWidget *parent = nullptr);
 
-    AudioSystem::HotPlugMode hotPlugMode() const;
+    [[nodiscard]] AudioSystem::HotPlugMode hotPlugMode() const;
     void setHotPlugMode(AudioSystem::HotPlugMode mode);
 
-    bool closeDeviceAtBackground() const;
+    [[nodiscard]] bool closeDeviceAtBackground() const;
     void setCloseDeviceAtBackground(bool enabled);
 
-    bool closeDeviceOnPlaybackStop() const;
+    [[nodiscard]] bool closeDeviceOnPlaybackStop() const;
     void setCloseDeviceOnPlaybackStop(bool enabled);
 
-    double fileBufferingSizeMsec() const;
+    [[nodiscard]] double fileBufferingSizeMsec() const;
     void setFileBufferingSizeMsec(double value);
 
 private:
@@ -40,7 +40,7 @@ private:
     void updateDriverComboBox();
 
     void updateOptionsDisplay();
-    void applySetting();
+    void applySetting() const;
 };
 
 

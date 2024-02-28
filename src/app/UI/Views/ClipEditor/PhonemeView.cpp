@@ -93,8 +93,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     auto mainColor = QColor(155, 186, 255);
     auto fillColor = QColor(155, 186, 255, 50);
     auto positionLineColor = QColor(255, 204, 153);
-    auto noteBoundaryColor = QColor(100, 100, 100);
-
+    // auto noteBoundaryColor = QColor(100, 100, 100);
     // Draw background
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(28, 29, 30));

@@ -19,12 +19,12 @@ public:
         Playing,
         Paused,
     };
-    PlaybackStatus playbackStatus() const;
+    [[nodiscard]] PlaybackStatus playbackStatus() const;
 
-    double position() const;
-    double lastPosition() const;
+    [[nodiscard]] double position() const;
+    [[nodiscard]] double lastPosition() const;
 
-    double tempo() const;
+    [[nodiscard]] double tempo() const;
 
     // bool isPlaying() const;
     // long position() const;
@@ -54,8 +54,8 @@ private:
     double m_tempo = 120;
     PlaybackStatus m_playbackStatus = Stopped;
 
-    double samplePosToTick(int sample) const;
-    int tickToSamplePos(double tick) const;
+    [[nodiscard]] double samplePosToTick(int sample) const;
+    [[nodiscard]] int tickToSamplePos(double tick) const;
 };
 
 

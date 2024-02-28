@@ -12,7 +12,7 @@ class Param {
 public:
     enum ParamType { Original, Edited, Envelope, Unknown };
 
-    const OverlapableSerialList<Curve> &curves(ParamType type) const;
+    [[nodiscard]] const OverlapableSerialList<Curve> &curves(ParamType type) const;
     void setCurves(ParamType type, const OverlapableSerialList<Curve> &curves);
     void setCurves(ParamType type, const QList<Curve *> &curves);
 

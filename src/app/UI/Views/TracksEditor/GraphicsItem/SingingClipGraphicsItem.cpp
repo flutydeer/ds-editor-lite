@@ -68,14 +68,12 @@ void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &p
                                               int opacity) {
     painter->setRenderHint(QPainter::Antialiasing, false);
 
-    auto rectLeft = previewRect.left();
     auto rectTop = previewRect.top();
     auto rectWidth = previewRect.width();
     auto rectHeight = previewRect.height();
 
     if (rectHeight < 32 || rectWidth < 16)
         return;
-    auto widthHeightMin = rectWidth < rectHeight ? rectWidth : rectHeight;
     auto colorAlpha = rectHeight <= 48 ? 255 * (rectHeight - 32) / (48 - 32) : 255;
     auto noteColor = QColor(10, 10, 10, static_cast<int>(colorAlpha));
 

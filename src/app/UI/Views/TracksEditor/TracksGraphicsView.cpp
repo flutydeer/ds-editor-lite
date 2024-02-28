@@ -26,8 +26,8 @@ void TracksGraphicsView::setQuantize(int quantize) {
     m_quantize = quantize;
 }
 void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
-    auto scenePos = mapToScene(event->position().toPoint());
-    auto trackIndex = dynamic_cast<TracksGraphicsScene *>(scene())->trackIndexAt(scenePos.y());
+    // auto scenePos = mapToScene(event->position().toPoint());
+    // auto trackIndex = dynamic_cast<TracksGraphicsScene *>(scene())->trackIndexAt(scenePos.y());
     // qDebug() << trackIndex;
     CommonGraphicsView::mousePressEvent(event);
 }

@@ -5,7 +5,7 @@
 #ifndef PIANOROLLGRAPHICSVIEW_H
 #define PIANOROLLGRAPHICSVIEW_H
 
-#include "../../../Global/ClipEditorGlobal.h"
+#include "Global/ClipEditorGlobal.h"
 #include "Model/Params.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
@@ -30,19 +30,19 @@ public:
     void updateNoteWord(Note *note);
     void updateNoteSelection(const QList<Note *> &selectedNotes);
     void reset();
-    QList<int> selectedNotesId() const;
+    [[nodiscard]] QList<int> selectedNotesId() const;
     void updateOverlappedState(SingingClip *singingClip);
     void clearNoteSelections(NoteGraphicsItem *except = nullptr);
     void updatePitch(Param::ParamType paramType, const Param &param);
 
-    double topKeyIndex() const;
-    double bottomKeyIndex() const;
+    [[nodiscard]] double topKeyIndex() const;
+    [[nodiscard]] double bottomKeyIndex() const;
     void setViewportTopKey(double key);
     void setViewportCenterAt(double tick, double keyIndex);
     void setViewportCenterAtKeyIndex(double keyIndex);
 
 signals:
-    void noteShapeEdited(NoteEditMode mode, int deltaTick, int deltaKey);
+    void noteShapeEdited(ClipEditorGlobal::NoteEditMode mode, int deltaTick, int deltaKey);
     void removeNoteTriggered();
     void editNoteLyricTriggered();
     void drawNoteCompleted(int start, int length, int keyIndex);
@@ -79,9 +79,9 @@ private:
     // resize and move
     bool m_tempQuantizeOff = false;
     QPointF m_mouseDownPos;
-    int m_mouseDownStart;
-    int m_mouseDownLength;
-    int m_mouseDownKeyIndex;
+    int m_mouseDownStart{};
+    int m_mouseDownLength{};
+    int m_mouseDownKeyIndex{};
     int m_deltaTick = 0;
     int m_deltaKey = 0;
     bool m_movedBeforeMouseUp = false;
@@ -101,10 +101,10 @@ private:
     NoteGraphicsItem *m_currentDrawingNote; // a fake note for drawing
 
     NoteGraphicsItem *findNoteById(int id);
-    double keyIndexToSceneY(double index) const;
-    double sceneYToKeyIndexDouble(double y) const;
-    int sceneYToKeyIndexInt(double y) const;
-    QList<NoteGraphicsItem *> selectedNoteItems() const;
+    [[nodiscard]] double keyIndexToSceneY(double index) const;
+    [[nodiscard]] double sceneYToKeyIndexDouble(double y) const;
+    [[nodiscard]] int sceneYToKeyIndexInt(double y) const;
+    [[nodiscard]] QList<NoteGraphicsItem *> selectedNoteItems() const;
     void setPitchEditMode(bool on);
     NoteGraphicsItem *noteItemAt(const QPoint &pos);
     // OverlapableSerialList<Curve> buildCurves();

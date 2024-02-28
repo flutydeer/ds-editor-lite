@@ -33,7 +33,7 @@ public:
         bool isSlur = false;
         QList<Phoneme> originalPhonemes;
         QList<Phoneme> editedPhonemes;
-        int end() const {
+        [[nodiscard]] int end() const {
             return start + length;
         }
 
@@ -95,8 +95,8 @@ private:
     bool eventFilter(QObject *object, QEvent *event) override;
     double tickToX(double tick);
     double xToTick(double x);
-    double ticksPerPixel() const;
-    bool canEdit() const;
+    [[nodiscard]] double ticksPerPixel() const;
+    [[nodiscard]] bool canEdit() const;
     double m_startTick = 0;
     double m_endTick = 0;
     double m_resizeToleranceInTick = 0;
@@ -105,7 +105,7 @@ private:
     QList<PhonemeViewModel *> m_phonemes;
     MouseMoveBehavior m_mouseMoveBehavior = None;
     PhonemeViewModel *m_curPhoneme = nullptr;
-    int m_mouseDownX;
+    int m_mouseDownX{};
     int m_currentLengthInMs = 0;
     bool m_freezeHoverEffects = false;
     bool m_showDebugInfo = false;

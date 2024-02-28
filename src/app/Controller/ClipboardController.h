@@ -8,18 +8,15 @@
 #include <QObject>
 
 #include "Utils/Singleton.h"
-#include "ControllerGlobal.h"
+#include "Global/ControllerGlobal.h"
 
 class ClipboardController final : public QObject, public Singleton<ClipboardController> {
     Q_OBJECT
 
-public:
-    explicit ClipboardController();
-
 public slots:
-    static void copy();
-    static void cut();
-    static void paste();
+    void copy();
+    void cut();
+    void paste();
 
 private:
     static void copyCutSelectedItems(ControllerGlobal::ElemType type, bool isCut);

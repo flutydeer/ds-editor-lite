@@ -10,7 +10,7 @@
 #include <QScrollBar>
 #include <QVBoxLayout>
 
-#include "../../../Global/TracksEditorGlobal.h"
+#include "Global/TracksEditorGlobal.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
 #include "TracksGraphicsScene.h"
@@ -204,7 +204,7 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
             break;
     }
 }
-void TracksView::onClipChanged(Track::ClipChangeType type, int trackIndex, int clipId) {
+void TracksView::onClipChanged(Track::ClipChangeType type, qsizetype trackIndex, int clipId) {
     auto trackModel = AppModel::instance()->tracks().at(trackIndex);
     auto track = m_trackListViewModel.tracks.at(trackIndex);
     auto dsClip = trackModel->findClipById(clipId);
@@ -236,7 +236,7 @@ void TracksView::onPositionChanged(double tick) {
 void TracksView::onLastPositionChanged(double tick) {
     m_graphicsView->setLastPlaybackPosition(tick);
 }
-void TracksView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) {
+void TracksView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const {
     if (m_trackListViewModel.tracks.isEmpty())
         return;
 
@@ -301,7 +301,7 @@ void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
     auto newTrackItem = new QListWidgetItem;
     auto newTrackControlWidget = new TrackControlWidget(newTrackItem);
     newTrackItem->setSizeHint(QSize(TracksEditorGlobal::trackListWidth,
-                                    TracksEditorGlobal::trackHeight * m_graphicsView->scaleY()));
+                                    static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
     newTrackControlWidget->setTrackIndex(trackIndex + 1);
     newTrackControlWidget->setName(dsTrack->name());
     newTrackControlWidget->setControl(dsTrack->control());
@@ -477,7 +477,7 @@ AbstractClipGraphicsItem *TracksView::findClipItemById(int id) {
                 return clip;
     return nullptr;
 }
-void TracksView::updateTracksOnView() {
+void TracksView::updateTracksOnView() const {
     auto tracksModel = AppModel::instance()->tracks();
     for (int i = 0; i < m_trackListViewModel.tracks.count(); i++) {
         auto widget = m_trackListViewModel.tracks.at(i)->widget;

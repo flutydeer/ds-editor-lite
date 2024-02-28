@@ -25,14 +25,14 @@ class TrackControlWidget final : public QWidget {
 
 public:
     explicit TrackControlWidget(QListWidgetItem *item, QWidget *parent = nullptr);
-    int trackIndex() const;
+    [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int i);
-    QString name() const;
+    [[nodiscard]] QString name() const;
     void setName(const QString &name);
-    TrackControl control() const;
+    [[nodiscard]] TrackControl control() const;
     void setControl(const TrackControl &control);
     void setNarrowMode(bool on);
-    LevelMeter *levelMeter() const;
+    [[nodiscard]] LevelMeter *levelMeter() const;
 
 signals:
     void propertyChanged();
@@ -73,8 +73,8 @@ private:
 
     int m_buttonSize = 24;
 
-    QString panValueToString(double value);
-    QString gainValueToString(double value);
+    static QString panValueToString(double value);
+    static QString gainValueToString(double value);
 };
 
 

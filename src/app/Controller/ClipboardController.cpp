@@ -12,9 +12,6 @@
 
 #include <QJsonDocument>
 
-ClipboardController::ClipboardController() {
-    // QGuiApplication::clipboard()->clear();
-}
 void ClipboardController::copy() {
     qDebug() << "ClipboardController::copy";
     copyCutSelectedItems(ControllerGlobal::NoteWithParams, false);

@@ -8,7 +8,7 @@ class MidiConverter final : public IProjectConverter {
 public:
     static int midiImportHandler();
     bool load(const QString &path, AppModel *model, QString &errMsg,
-              ImportMode mode = ImportMode::NewProject) override;
+              ImportMode mode) override;
     bool save(const QString &path, AppModel *model, QString &errMsg) override;
 };
 

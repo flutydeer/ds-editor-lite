@@ -16,7 +16,7 @@ class TracksViewController final : public QObject, public Singleton<TracksViewCo
 
 public slots:
     void onNewTrack();
-    void onInsertNewTrack(int index);
+    void onInsertNewTrack(qsizetype index);
     void onAppendTrack(Track *track);
     void onRemoveTrack(int index);
     void addAudioClipToNewTrack(const QString &filePath);

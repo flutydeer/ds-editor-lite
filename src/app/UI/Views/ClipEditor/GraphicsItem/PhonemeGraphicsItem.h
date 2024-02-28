@@ -19,17 +19,17 @@ public:
     enum PhonemeItemType { Ahead, Normal, Final, Sil };
     explicit PhonemeGraphicsItem(int noteId, PhonemeItemType type, QGraphicsItem *parent = nullptr);
 
-    int start() const;
+    [[nodiscard]] int start() const;
     void setStart(int start);
-    int length() const;
+    [[nodiscard]] int length() const;
     void setLength(int length);
-    QString name() const;
+    [[nodiscard]] QString name() const;
     void setName(const QString &name);
-    PhonemeItemType itemType() const;
+    [[nodiscard]] PhonemeItemType itemType() const;
 
-    int startOffset() const;
+    [[nodiscard]] int startOffset() const;
     void setStartOffset(int tick);
-    int lengthOffset() const;
+    [[nodiscard]] int lengthOffset() const;
     void setLengthOffset(int tick);
 
 private:

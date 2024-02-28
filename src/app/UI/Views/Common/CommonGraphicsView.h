@@ -20,19 +20,19 @@ public:
     explicit CommonGraphicsView(QWidget *parent = nullptr);
     ~CommonGraphicsView() override = default;
 
-    double scaleX() const;
+    [[nodiscard]] double scaleX() const;
     void setScaleX(double sx);
-    double scaleY() const;
+    [[nodiscard]] double scaleY() const;
     void setScaleY(double sy);
-    double scaleXMax() const;
+    [[nodiscard]] double scaleXMax() const;
     void setScaleXMax(double max);
-    double scaleYMin() const;
+    [[nodiscard]] double scaleYMin() const;
     void setScaleYMin(double min);
-    int hBarValue() const;
+    [[nodiscard]] int hBarValue() const;
     void setHBarValue(int value);
-    int vBarValue() const;
+    [[nodiscard]] int vBarValue() const;
     void setVBarValue(int value);
-    QRectF visibleRect() const;
+    [[nodiscard]] QRectF visibleRect() const;
     void setEnsureSceneFillView(bool on);
 
 signals:

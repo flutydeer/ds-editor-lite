@@ -11,7 +11,7 @@ namespace FillLyric {
             action->undo();
         }
     }
-    int MActionSequence::count() {
+    qsizetype MActionSequence::count() {
         return m_actionSequence.count();
     }
     void MActionSequence::addAction(MAction *action) {

@@ -15,7 +15,7 @@ public:
 
 protected:
     void drawTimeline(QPainter *painter, double startTick, double endTick, double rectWidth);
-    int pixelsPerQuarterNote() const;
+    [[nodiscard]] int pixelsPerQuarterNote() const;
     virtual void drawBar(QPainter *painter, int tick, int bar) = 0;
     virtual void drawBeat(QPainter *painter, int tick, int bar, int beat) = 0;
     virtual void drawEighth(QPainter *painter, int tick) = 0;

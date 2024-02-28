@@ -21,30 +21,30 @@ public:
     explicit NoteGraphicsItem(int itemId, int start, int length, int keyIndex, const QString &lyric,
                               const QString &pronunciation, QGraphicsItem *parent = nullptr);
 
-    QWidget *context() const;
+    [[nodiscard]] QWidget *context() const;
     void setContext(QWidget *context);
 
-    int start() const;
+    [[nodiscard]] int start() const;
     void setStart(int start);
-    int length() const;
+    [[nodiscard]] int length() const;
     void setLength(int length);
-    int keyIndex() const;
+    [[nodiscard]] int keyIndex() const;
     void setKeyIndex(int keyIndex);
-    QString lyric() const;
+    [[nodiscard]] QString lyric() const;
     void setLyric(const QString &lyric);
-    QString pronunciation() const;
+    [[nodiscard]] QString pronunciation() const;
     void setPronunciation(const QString &pronunciation);
-    bool editingPitch() const;
+    [[nodiscard]] bool editingPitch() const;
     void setEditingPitch(bool on);
 
-    int pronunciationTextHeight() const;
+    [[nodiscard]] int pronunciationTextHeight() const;
 
     // for handle move and resize
-    int startOffset() const;
+    [[nodiscard]] int startOffset() const;
     void setStartOffset(int tick);
-    int lengthOffset() const;
+    [[nodiscard]] int lengthOffset() const;
     void setLengthOffset(int tick);
-    int keyOffset() const;
+    [[nodiscard]] int keyOffset() const;
     void setKeyOffset(int key);
     void resetOffset();
 
@@ -61,8 +61,8 @@ private:
     void initUi();
     // void addMenuActions(QMenu *menu);
 
-    QWidget *m_context;
-    Menu *m_menu;
+    QWidget *m_context{};
+    Menu *m_menu{};
     int m_start = 0;
     int m_length = 480;
     int m_keyIndex = 60;

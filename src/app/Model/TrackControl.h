@@ -7,13 +7,13 @@
 
 class TrackControl {
 public:
-    double gain() const;
+    [[nodiscard]] double gain() const;
     void setGain(double gain);
-    double pan() const;
+    [[nodiscard]] double pan() const;
     void setPan(double pan);
-    bool mute() const;
+    [[nodiscard]] bool mute() const;
     void setMute(bool mute);
-    bool solo() const;
+    [[nodiscard]] bool solo() const;
     void setSolo(bool solo);
 
 private:

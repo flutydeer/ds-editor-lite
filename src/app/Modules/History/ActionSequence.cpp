@@ -8,10 +8,10 @@ void ActionSequence::execute() {
         action->execute();
 }
 void ActionSequence::undo() {
-    for (int i = m_actionSequence.count() - 1; i >= 0; i--)
+    for (qsizetype i = m_actionSequence.count() - 1; i >= 0; i--)
         m_actionSequence[i]->undo();
 }
-int ActionSequence::count() {
+qsizetype ActionSequence::count() {
     return m_actionSequence.count();
 }
 void ActionSequence::addAction(IAction *action) {

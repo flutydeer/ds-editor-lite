@@ -98,14 +98,14 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
             }
         }
     };
-    auto decodeTracks = [&](const QJsonArray &arrTracks, AppModel *model) {
+    auto decodeTracks = [&](const QJsonArray &arrTracks, AppModel *appModel) {
         int i = 0;
         for (const auto &valTrack : arrTracks) {
             auto objTrack = valTrack.toObject();
             auto type = objTrack.value("type").toString();
             auto track = new Track;
             decodeClips(objTrack.value("patterns").toArray(), track, type, i);
-            model->insertTrack(track, i);
+            appModel->insertTrack(track, i);
             i++;
         }
     };

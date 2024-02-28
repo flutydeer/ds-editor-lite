@@ -7,7 +7,7 @@
 
 class IOverlapable {
 public:
-    bool overlapped() const {
+    [[nodiscard]] bool overlapped() const {
         return m_overlapped;
     }
     void setOverlapped(bool b);

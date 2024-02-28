@@ -18,8 +18,8 @@ public:
     explicit TimeGraphicsView(TimeGraphicsScene *scene);
     TimeGraphicsScene *scene();
     void setSceneVisibility(bool on);
-    double startTick() const;
-    double endTick() const;
+    [[nodiscard]] double startTick() const;
+    [[nodiscard]] double endTick() const;
     void setPixelsPerQuarterNote(int px);
     void setAutoTurnPage(bool on);
     void setViewportStartTick(double tick);
@@ -35,12 +35,12 @@ public slots:
     // void setTimeRange(double startTick, double endTick);
 
 protected:
-    double sceneXToTick(double pos) const;
-    double tickToSceneX(double tick) const;
+    [[nodiscard]] double sceneXToTick(double pos) const;
+    [[nodiscard]] double tickToSceneX(double tick) const;
 
 private:
     TimeGraphicsScene *m_scene;
-    TimeGridGraphicsItem *m_gridItem;
+    TimeGridGraphicsItem *m_gridItem{};
     TimeIndicatorGraphicsItem *m_scenePlayPosIndicator;
     TimeIndicatorGraphicsItem *m_sceneLastPlayPosIndicator;
 

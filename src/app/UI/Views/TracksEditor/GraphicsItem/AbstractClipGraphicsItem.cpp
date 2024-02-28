@@ -137,8 +137,6 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
                                      QWidget *widget) {
     const auto colorPrimary = QColor(155, 186, 255);
     const auto colorPrimaryDarker = QColor(112, 156, 255);
-    const auto colorAccent = QColor(255, 175, 95);
-    const auto colorAccentDarker = QColor(255, 159, 63);
     const auto colorForeground = QColor(0, 0, 0);
     auto penWidth = 2.0f;
 
@@ -250,7 +248,6 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     int left;
     int clipLen;
     int right;
-    int deltaClipStart;
     int delta = qRound(dx);
     int quantize = m_tempQuantizeOff ? 1 : 1920 / m_quantize;
     m_propertyEdited = true;

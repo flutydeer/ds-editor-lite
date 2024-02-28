@@ -3,10 +3,8 @@
 
 #include <QLabel>
 #include <QWidget>
-#include <QSpinBox>
 #include <QDoubleSpinBox>
 
-#include <QVBoxLayout>
 #include <QHBoxLayout>
 
 namespace FillLyric {

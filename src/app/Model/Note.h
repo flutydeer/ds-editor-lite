@@ -33,14 +33,13 @@ class Phoneme {
 public:
     enum PhonemeType { Ahead, Normal, Final };
 
-    Phoneme() {
-    }
+    Phoneme() = default;
     Phoneme(PhonemeType type, QString name, int start)
         : type(type), name(std::move(name)), start(start) {
     }
-    PhonemeType type;
+    PhonemeType type = Normal;
     QString name;
-    int start;
+    int start{};
 };
 
 class Phonemes {
@@ -62,23 +61,23 @@ public:
         : m_start(start), m_length(length), m_keyIndex(keyIndex), m_lyric(std::move(lyric)) {
     }
 
-    int start() const;
+    [[nodiscard]] int start() const;
     void setStart(int start);
-    int length() const;
+    [[nodiscard]] int length() const;
     void setLength(int length);
-    int keyIndex() const;
+    [[nodiscard]] int keyIndex() const;
     void setKeyIndex(int keyIndex);
-    QString lyric() const;
+    [[nodiscard]] QString lyric() const;
     void setLyric(const QString &lyric);
-    Pronunciation pronunciation() const;
+    [[nodiscard]] Pronunciation pronunciation() const;
     void setPronunciation(const Pronunciation &pronunciation);
-    QStringList pronCandidates() const;
+    [[nodiscard]] QStringList pronCandidates() const;
     void setPronCandidates(const QStringList &pronCandidates);
-    Phonemes phonemes() const;
+    [[nodiscard]] Phonemes phonemes() const;
     void setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme> &phonemes);
-    bool lineFeed() const;
+    [[nodiscard]] bool lineFeed() const;
     void setLineFeed(bool lineFeed);
-    bool isSlur() const;
+    [[nodiscard]] bool isSlur() const;
 
     int compareTo(Note *obj) const;
     bool isOverlappedWith(Note *obj) const;

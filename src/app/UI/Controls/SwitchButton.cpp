@@ -20,8 +20,7 @@ SwitchButton::SwitchButton(bool on, QWidget *parent) {
     initUi(parent);
 }
 
-SwitchButton::~SwitchButton() {
-}
+SwitchButton::~SwitchButton() = default;
 
 bool SwitchButton::value() const {
     return m_value;
@@ -124,7 +123,7 @@ void SwitchButton::setThumbScaleRatio(int ratio) {
 }
 bool SwitchButton::eventFilter(QObject *object, QEvent *event) {
     auto type = event->type();
-    if (type == QEvent::HoverEnter) {
+    if (type == QEvent::HoverEnter || type == QEvent::MouseButtonRelease) {
         //        qDebug() << "Hover Enter";
         m_thumbHoverAnimation->stop();
         m_thumbHoverAnimation->setStartValue(m_thumbScaleRatio);
@@ -140,11 +139,6 @@ bool SwitchButton::eventFilter(QObject *object, QEvent *event) {
         m_thumbHoverAnimation->stop();
         m_thumbHoverAnimation->setStartValue(m_thumbScaleRatio);
         m_thumbHoverAnimation->setEndValue(85);
-        m_thumbHoverAnimation->start();
-    } else if (type == QEvent::MouseButtonRelease) {
-        m_thumbHoverAnimation->stop();
-        m_thumbHoverAnimation->setStartValue(m_thumbScaleRatio);
-        m_thumbHoverAnimation->setEndValue(125);
         m_thumbHoverAnimation->start();
     }
     return QObject::eventFilter(object, event);

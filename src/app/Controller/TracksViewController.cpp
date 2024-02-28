@@ -14,7 +14,7 @@
 void TracksViewController::onNewTrack() {
     onInsertNewTrack(AppModel::instance()->tracks().count());
 }
-void TracksViewController::onInsertNewTrack(int index) {
+void TracksViewController::onInsertNewTrack(qsizetype index) {
     // bool soloExists = false;
     // auto tracks = AppModel::instance()->tracks();
     // for (auto dsTrack : tracks) {

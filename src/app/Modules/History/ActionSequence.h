@@ -13,7 +13,7 @@ class ActionSequence {
 public:
     void execute();
     void undo();
-    int count();
+    qsizetype count();
 
 protected:
     QList<IAction *> m_actionSequence;

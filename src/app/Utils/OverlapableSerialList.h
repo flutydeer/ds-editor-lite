@@ -10,15 +10,14 @@
 template <typename T>
 class OverlapableSerialList {
 public:
-    int count() const;
+    [[nodiscard]] int count() const;
     void add(T *item);
     void remove(T *item);
-    void update(T *item);
     void clear();
     int indexOf(const T *item);
     bool contains(const T *item);
     T *at(int index) const;
-    bool isOverlappedItemExists() const;
+    [[nodiscard]] bool isOverlappedItemExists() const;
     QList<T *> findOverlappedItems(T *obj) const;
     QList<T *> overlappedItems() const;
 

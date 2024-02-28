@@ -10,7 +10,7 @@ namespace FillLyric {
     public:
         void execute();
         void undo();
-        int count();
+        qsizetype count();
 
     protected:
         QList<MAction *> m_actionSequence;

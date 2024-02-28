@@ -37,25 +37,25 @@ public:
     bool findProperDriver();
     bool findProperDevice();
 
-    talcs::AudioDriverManager *driverManager() const;
-    talcs::AudioDevice *device() const;
-    talcs::AudioDriver *driver() const;
-    talcs::AudioSourcePlayback *playback() const;
-    talcs::MixerAudioSource *preMixer() const;
-    talcs::TransportAudioSource *transport() const;
-    talcs::PositionableMixerAudioSource *masterTrack() const;
-    talcs::RemoteSocket *socket() const;
+    [[nodiscard]] talcs::AudioDriverManager *driverManager() const;
+    [[nodiscard]] talcs::AudioDevice *device() const;
+    [[nodiscard]] talcs::AudioDriver *driver() const;
+    [[nodiscard]] talcs::AudioSourcePlayback *playback() const;
+    [[nodiscard]] talcs::MixerAudioSource *preMixer() const;
+    [[nodiscard]] talcs::TransportAudioSource *transport() const;
+    [[nodiscard]] talcs::PositionableMixerAudioSource *masterTrack() const;
+    [[nodiscard]] talcs::RemoteSocket *socket() const;
 
-    bool isDeviceAutoClosed() const;
+    [[nodiscard]] bool isDeviceAutoClosed() const;
 
-    bool checkStatus() const;
+    [[nodiscard]] bool checkStatus() const;
 
     bool setDriver(const QString &driverName);
     bool setDevice(const QString &deviceName);
 
-    qint64 adoptedBufferSize() const;
+    [[nodiscard]] qint64 adoptedBufferSize() const;
     void setAdoptedBufferSize(qint64 bufferSize);
-    double adoptedSampleRate() const;
+    [[nodiscard]] double adoptedSampleRate() const;
     void setAdoptedSampleRate(double sampleRate);
 
     void testDevice();
@@ -66,7 +66,7 @@ public:
         None,
     };
 
-    AudioContext *audioContext() const;
+    [[nodiscard]] AudioContext *audioContext() const;
 
     static QString driverDisplayName(const QString &driverName);
 

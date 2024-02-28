@@ -155,7 +155,7 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : Dialog(parent) {
         m_sampleRateComboBox->addItem(QString::number(AudioSystem::instance()->device()->sampleRate()));
         m_sampleRateComboBox->setDisabled(true);
         m_hotPlugModeComboBox->setDisabled(true);
-        connect(static_cast<talcs::RemoteAudioDevice *>(AudioSystem::instance()->device()), &talcs::RemoteAudioDevice::remoteOpened, this, [=](qint64 bufferSize, double sampleRate) {
+        connect(dynamic_cast<talcs::RemoteAudioDevice *>(AudioSystem::instance()->device()), &talcs::RemoteAudioDevice::remoteOpened, this, [=](qint64 bufferSize, double sampleRate) {
             m_bufferSizeComboBox->clear();
             m_sampleRateComboBox->clear();
             m_bufferSizeComboBox->addItem(QString::number(bufferSize));
@@ -255,7 +255,7 @@ void AudioSettingsDialog::updateOptionsDisplay() {
     setFileBufferingSizeMsec(settings.value("fileBufferingSizeMsec", 1000.0).toDouble());
 }
 
-void AudioSettingsDialog::applySetting() {
+void AudioSettingsDialog::applySetting() const {
     QSettings settings;
     settings.beginGroup("audio");
     settings.setValue("hotPlugMode", hotPlugMode());

@@ -126,7 +126,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         }
     };
 
-    auto decodeTracks = [&](const QList<QDspx::Track> &dspxTracks, AppModel *model) {
+    auto decodeTracks = [&](const QList<QDspx::Track> &dspxTracks, AppModel *appModel) {
         int i = 0;
         for (const auto &dspxTrack : dspxTracks) {
             auto track = new Track;
@@ -138,7 +138,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             track->setName(dspxTrack.name);
             track->setControl(trackControl);
             decodeClips(dspxTrack.clips, track);
-            model->insertTrackQuietly(track, i);
+            appModel->insertTrackQuietly(track, i);
             i++;
         }
     };
@@ -274,8 +274,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         }
     };
 
-    auto encodeTracks = [&](const AppModel *model, QDspx::Model &dspx) {
-        for (const auto dsTrack : model->tracks()) {
+    auto encodeTracks = [&](const AppModel *appModel, QDspx::Model &dspx) {
+        for (const auto dsTrack : appModel->tracks()) {
             QDspx::Track track;
             track.name = dsTrack->name();
             track.control.gain = dsTrack->control().gain();

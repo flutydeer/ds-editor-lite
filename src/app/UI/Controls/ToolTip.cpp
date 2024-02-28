@@ -8,7 +8,7 @@
 
 #include "ToolTip.h"
 
-ToolTip::ToolTip(QString title, QWidget *parent) : QFrame(parent) {
+ToolTip::ToolTip(const QString& title, QWidget *parent) : QFrame(parent) {
     m_lbTitle = new QLabel(title);
     m_lbTitle->setStyleSheet("color: #F0F0F0; font-size: 10pt");
     m_lbTitle->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
@@ -110,7 +110,7 @@ void ToolTip::updateMessage() {
         delete child;
     }
 
-    for (const auto &message : qAsConst(m_message)) {
+    for (const auto &message : m_message) {
         auto label = new QLabel;
         label->setText(message);
         label->setStyleSheet("color: #808080");
