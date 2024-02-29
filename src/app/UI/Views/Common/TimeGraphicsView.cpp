@@ -10,45 +10,40 @@
 #include "TimeIndicatorGraphicsItem.h"
 
 TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene) : m_scene(scene) {
+    connect(this, &TimeGraphicsView::visibleRectChanged,
+            [=](const QRectF &rect) { m_scene->setVisibleRect(rect); });
+    connect(this, &TimeGraphicsView::scaleChanged,
+            [=](double sx, double sy) { m_scene->setScaleXY(sx, sy); });
+
     m_scenePlayPosIndicator = new TimeIndicatorGraphicsItem;
     m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
-    m_scenePlayPosIndicator->setScale(scaleX(), 1);
+    m_scenePlayPosIndicator->setScaleXY(scaleX(), 1);
     m_scenePlayPosIndicator->setVisibleRect(visibleRect());
     QPen curPlayPosPen;
     curPlayPosPen.setWidth(1);
     curPlayPosPen.setColor(QColor(255, 204, 153));
     m_scenePlayPosIndicator->setPen(curPlayPosPen);
-    connect(this, &TimeGraphicsView::visibleRectChanged, m_scenePlayPosIndicator,
-            &TimeIndicatorGraphicsItem::setVisibleRect);
-    connect(this, &TimeGraphicsView::scaleChanged, m_scenePlayPosIndicator,
-            &TimeIndicatorGraphicsItem::setScale);
     m_scenePlayPosIndicator->setPosition(m_playbackPosition);
     m_scene->addTimeIndicator(m_scenePlayPosIndicator);
 
     m_sceneLastPlayPosIndicator = new TimeIndicatorGraphicsItem;
     m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
-    m_sceneLastPlayPosIndicator->setScale(scaleX(), 1);
+    m_sceneLastPlayPosIndicator->setScaleXY(scaleX(), 1);
     m_sceneLastPlayPosIndicator->setVisibleRect(visibleRect());
     QPen lastPlayPosPen;
     lastPlayPosPen.setWidth(1);
     lastPlayPosPen.setColor(QColor(160, 160, 160));
     lastPlayPosPen.setStyle(Qt::DashLine);
     m_sceneLastPlayPosIndicator->setPen(lastPlayPosPen);
-    connect(this, &TimeGraphicsView::visibleRectChanged, m_sceneLastPlayPosIndicator,
-            &TimeIndicatorGraphicsItem::setVisibleRect);
-    connect(this, &TimeGraphicsView::scaleChanged, m_sceneLastPlayPosIndicator,
-            &TimeIndicatorGraphicsItem::setScale);
     m_sceneLastPlayPosIndicator->setPosition(m_lastPlaybackPosition);
     m_scene->addTimeIndicator(m_sceneLastPlayPosIndicator);
 
     setScene(m_scene);
 
-    connect(this, &CommonGraphicsView::scaleChanged, this, [=] {
-        emit timeRangeChanged(startTick(), endTick());
-    });
-    connect(this, &CommonGraphicsView::visibleRectChanged, this, [=] {
-        emit timeRangeChanged(startTick(), endTick());
-    });
+    connect(this, &CommonGraphicsView::scaleChanged, this,
+            [=] { emit timeRangeChanged(startTick(), endTick()); });
+    connect(this, &CommonGraphicsView::visibleRectChanged, this,
+            [=] { emit timeRangeChanged(startTick(), endTick()); });
 }
 TimeGraphicsScene *TimeGraphicsView::scene() {
     return m_scene;

@@ -31,17 +31,11 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     m_pianoRollView->setSceneVisibility(false);
     m_pianoRollView->setDragMode(QGraphicsView::RubberBandDrag);
     m_pianoRollView->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-    connect(m_pianoRollView, &PianoRollGraphicsView::scaleChanged, m_pianoRollScene,
-            &PianoRollGraphicsScene::setScale);
     connect(m_pianoRollScene, &QGraphicsScene::selectionChanged, m_pianoRollView,
             &PianoRollGraphicsView::onSceneSelectionChanged);
 
     auto gridItem = new PianoRollBackgroundGraphicsItem;
     gridItem->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-    connect(m_pianoRollView, &PianoRollGraphicsView::visibleRectChanged, gridItem,
-            &TimeGridGraphicsItem::setVisibleRect);
-    connect(m_pianoRollView, &PianoRollGraphicsView::scaleChanged, gridItem,
-            &PianoRollBackgroundGraphicsItem::setScale);
     auto appModel = AppModel::instance();
     connect(appModel, &AppModel::modelChanged, gridItem, [=] {
         gridItem->setTimeSignature(appModel->timeSignature().numerator,

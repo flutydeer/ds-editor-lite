@@ -57,8 +57,6 @@ TracksView::TracksView() {
     connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
             &TracksView::onViewScaleChanged);
     m_graphicsView->centerOn(0, 0);
-    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, m_tracksScene,
-            &TracksGraphicsScene::setScale);
     // connect(m_graphicsView, &TracksGraphicsView::resized, m_tracksScene,
     //         &TracksGraphicsScene::onGraphicsViewResized);
     connect(m_graphicsView, &TracksGraphicsView::sizeChanged, m_tracksScene,
@@ -82,10 +80,6 @@ TracksView::TracksView() {
 
     m_gridItem = new TracksBackgroundGraphicsItem;
     m_gridItem->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
-    connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, m_gridItem,
-            &TimeGridGraphicsItem::setVisibleRect);
-    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, m_gridItem,
-            &TimeGridGraphicsItem::setScale);
     connect(this, &TracksView::trackCountChanged, m_gridItem,
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
     auto appModel = AppModel::instance();
@@ -381,12 +375,8 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         clipItem->setVisibleRect(m_graphicsView->visibleRect());
         clipItem->setScaleX(m_graphicsView->scaleX());
         clipItem->setScaleY(m_graphicsView->scaleY());
-        m_tracksScene->addItem(clipItem);
+        m_tracksScene->addScalableItem(clipItem);
         qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
-        connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
-                &AudioClipGraphicsItem::setScale);
-        connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
-                &AudioClipGraphicsItem::setVisibleRect);
         connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
         connect(AppModel::instance(), &AppModel::quantizeChanged, clipItem,
                 &AbstractClipGraphicsItem::setQuantize);
@@ -426,15 +416,11 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         clipItem->setVisibleRect(m_graphicsView->visibleRect());
         clipItem->setScaleX(m_graphicsView->scaleX());
         clipItem->setScaleY(m_graphicsView->scaleY());
-        m_tracksScene->addItem(clipItem);
+        m_tracksScene->addScalableItem(clipItem);
         qDebug() << "Singing clip graphics item added to scene" << clipItem->id()
                  << clipItem->name();
         connect(singingClip, &SingingClip::noteListChanged, clipItem, &SingingClipGraphicsItem::onNoteListChanged);
         connect(singingClip, &SingingClip::notePropertyChanged, clipItem, &SingingClipGraphicsItem::onNotePropertyChanged);
-        connect(m_graphicsView, &TracksGraphicsView::scaleChanged, clipItem,
-                &SingingClipGraphicsItem::setScale);
-        connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, clipItem,
-                &SingingClipGraphicsItem::setVisibleRect);
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
                 [=](int id) { emit removeClipTriggered(id); });
         connect(AppModel::instance(), &AppModel::quantizeChanged, clipItem,

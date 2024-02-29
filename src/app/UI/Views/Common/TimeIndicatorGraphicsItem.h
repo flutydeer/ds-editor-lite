@@ -8,7 +8,9 @@
 #include <QObject>
 #include <QGraphicsLineItem>
 
-class TimeIndicatorGraphicsItem : public QObject, public QGraphicsLineItem {
+#include "../Utils/IScalableItem.h"
+
+class TimeIndicatorGraphicsItem : public QObject, public QGraphicsLineItem, public IScalableItem {
     Q_OBJECT
 
 public:
@@ -16,19 +18,17 @@ public:
 
 public slots:
     void setPosition(double tick);
-    void setScale(qreal sx, qreal sy);
-    void setVisibleRect(const QRectF &rect);
+
+protected:
+    void afterSetScale() override;
+    void afterSetVisibleRect() override;
 
 private:
     double m_time = 0;
-    double m_scaleX = 1.0;
     double m_pixelsPerQuarterNote = 64;
-    QRectF m_visibleRect;
 
     void updateLengthAndPos();
     [[nodiscard]] double tickToItemX(double tick) const;
 };
-
-
 
 #endif // TIMEINDICATORGRAPHICSITEM_H

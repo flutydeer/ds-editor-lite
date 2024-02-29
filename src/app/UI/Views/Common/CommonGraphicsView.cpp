@@ -52,20 +52,6 @@ CommonGraphicsView::CommonGraphicsView(QWidget *parent) {
     });
 #endif
 }
-qreal CommonGraphicsView::scaleX() const {
-    return m_scaleX;
-}
-void CommonGraphicsView::setScaleX(const qreal sx) {
-    m_scaleX = sx;
-    emit scaleChanged(m_scaleX, m_scaleY);
-}
-qreal CommonGraphicsView::scaleY() const {
-    return m_scaleY;
-}
-void CommonGraphicsView::setScaleY(const qreal sy) {
-    m_scaleY = sy;
-    emit scaleChanged(m_scaleX, m_scaleY);
-}
 qreal CommonGraphicsView::scaleXMax() const {
     return m_scaleXMax;
 }
@@ -107,25 +93,25 @@ void CommonGraphicsView::onWheelHorScale(QWheelEvent *event) {
     auto cursorPos = event->position().toPoint();
     auto scenePos = mapToScene(cursorPos);
 
-    auto deltaX = event->angleDelta().x();
+    // auto deltaX = event->angleDelta().x();
     auto deltaY = event->angleDelta().y();
 
-    auto targetScaleX = m_scaleX;
+    auto targetScaleX = scaleX();
     if (deltaY > 0)
-        targetScaleX = m_scaleX * (1 + m_hZoomingStep * deltaY / 120);
+        targetScaleX = scaleX() * (1 + m_hZoomingStep * deltaY / 120);
     else if (deltaY < 0)
-        targetScaleX = m_scaleX / (1 + m_hZoomingStep * -deltaY / 120);
+        targetScaleX = scaleX() / (1 + m_hZoomingStep * -deltaY / 120);
 
     if (targetScaleX > m_scaleXMax)
         targetScaleX = m_scaleXMax;
 
-    auto scaledSceneWidth = sceneRect().width() * (targetScaleX / m_scaleX);
+    auto scaledSceneWidth = sceneRect().width() * (targetScaleX / scaleX());
     if (scaledSceneWidth < viewport()->width()) {
         auto targetSceneWidth = viewport()->width();
-        targetScaleX = targetSceneWidth / (sceneRect().width() / m_scaleX);
+        targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
     }
 
-    auto ratio = targetScaleX / m_scaleX;
+    auto ratio = targetScaleX / scaleX();
     auto targetSceneX = scenePos.x() * ratio;
     auto targetValue = qRound(targetSceneX - cursorPos.x());
     if (!isMouseEventFromWheel(event)) {
@@ -133,7 +119,7 @@ void CommonGraphicsView::onWheelHorScale(QWheelEvent *event) {
         setHBarValue(targetValue);
     } else {
         m_scaleXAnimation.stop();
-        m_scaleXAnimation.setStartValue(m_scaleX);
+        m_scaleXAnimation.setStartValue(scaleX());
         m_scaleXAnimation.setEndValue(targetScaleX);
 
         m_hBarAnimation.stop();
@@ -162,19 +148,19 @@ bool CommonGraphicsView::event(QEvent *event) {
                 return true;
             }
 
-            auto targetScaleX = m_scaleX * multiplier;
+            auto targetScaleX = scaleX() * multiplier;
 
-            if (targetScaleX > m_scaleXMax) {
-                targetScaleX = m_scaleXMax;
+            if (targetScaleX > scaleX()Max) {
+                targetScaleX = scaleX()Max;
             }
 
-            auto scaledSceneWidth = sceneRect().width() * (targetScaleX / m_scaleX);
+            auto scaledSceneWidth = sceneRect().width() * (targetScaleX / scaleX());
             if (scaledSceneWidth < viewport()->width()) {
                 auto targetSceneWidth = viewport()->width();
-                targetScaleX = targetSceneWidth / (sceneRect().width() / m_scaleX);
+                targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
             }
 
-            auto ratio = targetScaleX / m_scaleX;
+            auto ratio = targetScaleX / scaleX();
             auto targetSceneX = scenePos.x() * ratio;
             auto targetValue = qRound(targetSceneX - cursorPos.x());
 
@@ -197,24 +183,24 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
     if (event->modifiers() == Qt::ControlModifier) {
         onWheelHorScale(event);
     } else if (event->modifiers() == Qt::AltModifier) {
-        auto targetScaleY = m_scaleY;
+        auto targetScaleY = scaleY();
         if (deltaX > 0)
-            targetScaleY = m_scaleY * (1 + m_vZoomingStep * deltaX / 120);
+            targetScaleY = scaleY() * (1 + m_vZoomingStep * deltaX / 120);
         else if (deltaX < 0)
-            targetScaleY = m_scaleY / (1 + m_vZoomingStep * -deltaX / 120);
+            targetScaleY = scaleY() / (1 + m_vZoomingStep * -deltaX / 120);
 
         if (targetScaleY < m_scaleYMin)
             targetScaleY = m_scaleYMin;
         else if (targetScaleY > m_scaleYMax)
             targetScaleY = m_scaleYMax;
 
-        auto scaledSceneHeight = sceneRect().height() * (targetScaleY / m_scaleY);
+        auto scaledSceneHeight = sceneRect().height() * (targetScaleY / scaleY());
         if (m_ensureSceneFillView && scaledSceneHeight < viewport()->height()) {
             auto targetSceneHeight = viewport()->height();
-            targetScaleY = targetSceneHeight / (sceneRect().height() / m_scaleY);
+            targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
         }
 
-        auto ratio = targetScaleY / m_scaleY;
+        auto ratio = targetScaleY / scaleY();
         auto targetSceneY = scenePos.y() * ratio;
         auto targetValue = qRound(targetSceneY - cursorPos.y());
         if (!isMouseEventFromWheel(event)) {
@@ -222,7 +208,7 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
             setVBarValue(targetValue);
         } else {
             m_scaleYAnimation.stop();
-            m_scaleYAnimation.setStartValue(m_scaleY);
+            m_scaleYAnimation.setStartValue(scaleY());
             m_scaleYAnimation.setEndValue(targetScaleY);
 
             m_vBarAnimation.stop();
@@ -294,4 +280,7 @@ bool CommonGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
     m_timer.start();
     return false;
 #endif
+}
+void CommonGraphicsView::afterSetScale() {
+    emit scaleChanged(scaleX(), scaleY());
 }

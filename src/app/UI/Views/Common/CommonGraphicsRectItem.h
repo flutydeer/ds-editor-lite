@@ -7,33 +7,21 @@
 
 #include <QGraphicsRectItem>
 
-class CommonGraphicsRectItem : public QObject, public QGraphicsRectItem {
+#include "../Utils/IScalableItem.h"
+
+class CommonGraphicsRectItem : public QObject, public QGraphicsRectItem, public IScalableItem {
     Q_OBJECT
 public:
-    explicit CommonGraphicsRectItem(QGraphicsItem *parent = nullptr);
-
-    [[nodiscard]] double scaleX() const;
-    void setScaleX(double scaleX);
-    [[nodiscard]] double scaleY() const;
-    void setScaleY(double scaleY);
-    [[nodiscard]] QRectF visibleRect() const;
-
-public slots:
-    void setScale(qreal sx, qreal sy) {
-        setScaleX(sx);
-        setScaleY(sy);
-    }
-    void setVisibleRect(const QRectF &rect);
+    explicit CommonGraphicsRectItem(QGraphicsItem *parent = nullptr) : QGraphicsRectItem(parent){}
 
 protected:
     virtual void updateRectAndPos() = 0;
-
-private:
-    double m_scaleX = 1;
-    double m_scaleY = 1;
-    QRectF m_visibleRect;
+    void afterSetScale() override {
+        updateRectAndPos();
+    }
+    void afterSetVisibleRect() override {
+        updateRectAndPos();
+    }
 };
-
-
 
 #endif // COMMONGRAPHICSRECTITEM_H

@@ -9,7 +9,9 @@
 #include <QPropertyAnimation>
 #include <QTimer>
 
-class CommonGraphicsView : public QGraphicsView {
+#include "UI/Views/Utils/IScalable.h"
+
+class CommonGraphicsView : public QGraphicsView, public IScalable {
     Q_OBJECT
     Q_PROPERTY(double scaleX READ scaleX WRITE setScaleX)
     Q_PROPERTY(double scaleY READ scaleY WRITE setScaleY)
@@ -20,10 +22,6 @@ public:
     explicit CommonGraphicsView(QWidget *parent = nullptr);
     ~CommonGraphicsView() override = default;
 
-    [[nodiscard]] double scaleX() const;
-    void setScaleX(double sx);
-    [[nodiscard]] double scaleY() const;
-    void setScaleY(double sy);
     [[nodiscard]] double scaleXMax() const;
     void setScaleXMax(double max);
     [[nodiscard]] double scaleYMin() const;
@@ -43,10 +41,6 @@ signals:
 public slots:
     void notifyVisibleRectChanged();
     void onWheelHorScale(QWheelEvent *event);
-    void setScale(const double sx, const double sy) {
-        setScaleX(sx);
-        setScaleY(sy);
-    }
 
 protected:
     bool event(QEvent *event) override;
@@ -54,14 +48,13 @@ protected:
     // bool eventFilter(QObject *object, QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void afterSetScale() override;
 
 private:
     bool isMouseEventFromWheel(QWheelEvent *event);
 
     double m_hZoomingStep = 0.4;
     double m_vZoomingStep = 0.3;
-    double m_scaleX = 1;
-    double m_scaleY = 1;
     // double m_scaleXMin = 0.1;
     double m_scaleXMax = 3; // 3x
     double m_scaleYMin = 0.5;

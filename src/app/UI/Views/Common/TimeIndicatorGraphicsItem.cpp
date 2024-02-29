@@ -11,21 +11,19 @@ void TimeIndicatorGraphicsItem::setPosition(double tick) {
     m_time = tick;
     updateLengthAndPos();
 }
-void TimeIndicatorGraphicsItem::setScale(qreal sx, qreal sy) {
-    m_scaleX = sx;
+void TimeIndicatorGraphicsItem::afterSetScale() {
     updateLengthAndPos();
 }
-void TimeIndicatorGraphicsItem::setVisibleRect(const QRectF &rect) {
-    m_visibleRect = rect;
+void TimeIndicatorGraphicsItem::afterSetVisibleRect() {
     updateLengthAndPos();
 }
 void TimeIndicatorGraphicsItem::updateLengthAndPos() {
     auto x = tickToItemX(m_time);
     setPos(x, 0);
-    auto line = QLineF(0, m_visibleRect.top(), 0, m_visibleRect.bottom());
+    auto line = QLineF(0, visibleRect().top(), 0, visibleRect().bottom());
     setLine(line);
     update();
 }
 double TimeIndicatorGraphicsItem::tickToItemX(double tick) const {
-    return tick * m_scaleX * m_pixelsPerQuarterNote / 480;
+    return tick * scaleX() * m_pixelsPerQuarterNote / 480;
 }

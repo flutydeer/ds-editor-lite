@@ -26,20 +26,12 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene)
     m_currentDrawingNote->setLyric(defaultLyric);
     m_currentDrawingNote->setPronunciation(defaultPronunciation);
     m_currentDrawingNote->setSelected(true);
-    connect(this, &PianoRollGraphicsView::scaleChanged, m_currentDrawingNote,
-            &NoteGraphicsItem::setScale);
-    connect(this, &PianoRollGraphicsView::visibleRectChanged, m_currentDrawingNote,
-            &NoteGraphicsItem::setVisibleRect);
 
     m_pitchItem = new PitchEditorGraphicsItem;
     m_pitchItem->setZValue(2);
-    connect(this, &PianoRollGraphicsView::visibleRectChanged, m_pitchItem,
-            &PitchEditorGraphicsItem::setVisibleRect);
-    connect(this, &PianoRollGraphicsView::scaleChanged, m_pitchItem,
-            &PitchEditorGraphicsItem::setScale);
     connect(m_pitchItem, &PitchEditorGraphicsItem::editCompleted, this,
             &PianoRollGraphicsView::onPitchEditorEditCompleted);
-    scene->addItem(m_pitchItem);
+    scene->addScalableItem(m_pitchItem);
     m_pitchItem->setTransparentForMouseEvents(true);
 }
 void PianoRollGraphicsView::onSceneSelectionChanged() {
@@ -111,7 +103,7 @@ void PianoRollGraphicsView::PrepareForDrawingNote(int tick, int keyIndex) {
     m_currentDrawingNote->setStart(snapedTick);
     m_currentDrawingNote->setLength(1920 / AppModel::instance()->quantize());
     m_currentDrawingNote->setKeyIndex(keyIndex);
-    scene()->addItem(m_currentDrawingNote);
+    scene()->addScalableItem(m_currentDrawingNote);
     qDebug() << "fake note added to scene";
     m_mouseMoveBehavior = UpdateDrawingNote;
 }
@@ -281,10 +273,7 @@ void PianoRollGraphicsView::insertNote(Note *note) {
     noteItem->setSelected(note->selected());
     noteItem->setScaleY(scaleY());
     noteItem->setOverlapped(note->overlapped());
-    scene()->addItem(noteItem);
-    connect(this, &PianoRollGraphicsView::scaleChanged, noteItem, &NoteGraphicsItem::setScale);
-    connect(this, &PianoRollGraphicsView::visibleRectChanged, noteItem,
-            &NoteGraphicsItem::setVisibleRect);
+    scene()->addScalableItem(noteItem);
     connect(noteItem, &NoteGraphicsItem::removeTriggered, this,
             [=] { emit removeNoteTriggered(); });
     connect(noteItem, &NoteGraphicsItem::editLyricTriggered, this,

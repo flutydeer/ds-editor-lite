@@ -7,27 +7,28 @@
 
 #include <QGraphicsScene>
 
-class CommonGraphicsScene : public QGraphicsScene {
+#include "../Utils/IScalableItem.h"
+
+class IScalableItem;
+class CommonGraphicsRectItem;
+
+class CommonGraphicsScene : public QGraphicsScene, public IScalableItem {
 public:
     explicit CommonGraphicsScene();
     ~CommonGraphicsScene() override = default;
     [[nodiscard]] QSizeF sceneSize() const;
     void setSceneSize(const QSizeF &size);
-    [[nodiscard]] double scaleX() const;
-    void setScaleX(double scaleX);
-    [[nodiscard]] double scaleY() const;
-    void setScaleY(double scaleY);
-
-public slots:
-    void setScale(qreal sx, qreal sy);
+    void addScalableItem(IScalableItem *item);
+    void removeCommonItem(IScalableItem *item);
 
 protected:
     virtual void updateSceneRect();
+    void afterSetScale() override;
+    void afterSetVisibleRect() override;
 
 private:
     QSizeF m_sceneSize = QSizeF(1920, 1080);
-    double m_scaleX = 1;
-    double m_scaleY = 1;
+    QList<IScalableItem *> m_items;
 };
 
 #endif // COMMONGRAPHICSSCENE_H
