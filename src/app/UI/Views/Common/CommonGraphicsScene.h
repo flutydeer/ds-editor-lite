@@ -27,6 +27,7 @@ protected:
     void afterSetVisibleRect() override;
 
 private:
+    using QGraphicsScene::addItem;
     QSizeF m_sceneSize = QSizeF(1920, 1080);
     QList<IScalableItem *> m_items;
 };
