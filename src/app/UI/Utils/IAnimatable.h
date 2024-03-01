@@ -11,6 +11,7 @@ using namespace AnimationGlobal;
 
 class IAnimatable {
 public:
+    virtual ~IAnimatable() = default;
     [[nodiscard]] AnimationLevel animationLevel() const;
     void setAnimationLevel(AnimationLevel level);
     [[nodiscard]] double animationTimeScale() const;
