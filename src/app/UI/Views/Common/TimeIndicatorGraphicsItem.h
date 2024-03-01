@@ -14,6 +14,7 @@ class TimeIndicatorGraphicsItem : public QObject, public QGraphicsLineItem, publ
     Q_OBJECT
 
 public:
+    explicit TimeIndicatorGraphicsItem(QObject *parent = nullptr);
     void setPixelsPerQuarterNote(int px);
 
 public slots:

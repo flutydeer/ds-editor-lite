@@ -372,9 +372,6 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         clipItem->setPath(audioClip->path());
         clipItem->setTempo(m_tempo);
         clipItem->setOverlapped(audioClip->overlapped());
-        clipItem->setVisibleRect(m_graphicsView->visibleRect());
-        clipItem->setScaleX(m_graphicsView->scaleX());
-        clipItem->setScaleY(m_graphicsView->scaleY());
         m_tracksScene->addScalableItem(clipItem);
         qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
         connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
@@ -413,9 +410,6 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         const auto &notesRef = singingClip->notes();
         clipItem->loadNotes(notesRef);
         clipItem->setOverlapped(singingClip->overlapped());
-        clipItem->setVisibleRect(m_graphicsView->visibleRect());
-        clipItem->setScaleX(m_graphicsView->scaleX());
-        clipItem->setScaleY(m_graphicsView->scaleY());
         m_tracksScene->addScalableItem(clipItem);
         qDebug() << "Singing clip graphics item added to scene" << clipItem->id()
                  << clipItem->name();
@@ -446,7 +440,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
 }
 void TracksView::removeClipFromView(int clipId) {
     auto clipItem = findClipItemById(clipId);
-    m_tracksScene->removeItem(clipItem);
+    m_tracksScene->removeCommonItem(clipItem);
     int trackIndex = 0;
     for (const auto &track : m_trackListViewModel.tracks) {
         if (track->clips.contains(clipItem)) {
@@ -499,7 +493,7 @@ void TracksView::removeTrackFromView(int index) {
     // remove from view
     auto track = m_trackListViewModel.tracks.at(index);
     for (auto clip : track->clips) {
-        m_tracksScene->removeItem(clip);
+        m_tracksScene->removeCommonItem(clip);
         delete clip;
     }
     auto item = m_trackListWidget->takeItem(index);
@@ -536,7 +530,7 @@ void TracksView::updateOverlappedState(int trackIndex) {
 void TracksView::reset() {
     for (auto &track : m_trackListViewModel.tracks)
         for (auto clip : track->clips) {
-            m_tracksScene->removeItem(clip);
+            m_tracksScene->removeCommonItem(clip);
             delete clip;
         }
     m_trackListWidget->clear();

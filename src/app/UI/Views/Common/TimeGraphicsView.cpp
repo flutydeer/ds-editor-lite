@@ -17,8 +17,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene) : m_scene(scene) {
 
     m_scenePlayPosIndicator = new TimeIndicatorGraphicsItem;
     m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
-    m_scenePlayPosIndicator->setScaleXY(scaleX(), 1);
-    m_scenePlayPosIndicator->setVisibleRect(visibleRect());
     QPen curPlayPosPen;
     curPlayPosPen.setWidth(1);
     curPlayPosPen.setColor(QColor(255, 204, 153));
@@ -28,8 +26,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene) : m_scene(scene) {
 
     m_sceneLastPlayPosIndicator = new TimeIndicatorGraphicsItem;
     m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
-    m_sceneLastPlayPosIndicator->setScaleXY(scaleX(), 1);
-    m_sceneLastPlayPosIndicator->setVisibleRect(visibleRect());
     QPen lastPlayPosPen;
     lastPlayPosPen.setWidth(1);
     lastPlayPosPen.setColor(QColor(160, 160, 160));

@@ -211,7 +211,7 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     bool ctrlDown = event->modifiers() == Qt::ControlModifier;
 
     if (scene()->items().contains(m_currentDrawingNote)) {
-        scene()->removeItem(m_currentDrawingNote);
+        scene()->removeCommonItem(m_currentDrawingNote);
         qDebug() << "fake note removed from scene";
     }
     if (m_mouseMoveBehavior == Move) {
@@ -268,10 +268,7 @@ void PianoRollGraphicsView::insertNote(Note *note) {
     noteItem->setLyric(note->lyric());
     // TODO:: setEditedPronunciation
     noteItem->setPronunciation(note->pronunciation().original);
-    noteItem->setVisibleRect(visibleRect());
-    noteItem->setScaleX(scaleX());
     noteItem->setSelected(note->selected());
-    noteItem->setScaleY(scaleY());
     noteItem->setOverlapped(note->overlapped());
     scene()->addScalableItem(noteItem);
     connect(noteItem, &NoteGraphicsItem::removeTriggered, this,
@@ -285,7 +282,7 @@ void PianoRollGraphicsView::removeNote(int noteId) {
     m_canNotifySelectedNoteChanged = false;
     qDebug() << "PianoRollGraphicsView::removeNote" << noteId;
     auto noteItem = findNoteById(noteId);
-    scene()->removeItem(noteItem);
+    scene()->removeCommonItem(noteItem);
     m_noteItems.removeOne(noteItem);
     delete noteItem;
     m_canNotifySelectedNoteChanged = true;
@@ -395,7 +392,7 @@ NoteGraphicsItem *PianoRollGraphicsView::noteItemAt(const QPoint &pos) {
 }
 void PianoRollGraphicsView::reset() {
     for (auto note : m_noteItems) {
-        scene()->removeItem(note);
+        scene()->removeCommonItem(note);
         delete note;
     }
     m_noteItems.clear();

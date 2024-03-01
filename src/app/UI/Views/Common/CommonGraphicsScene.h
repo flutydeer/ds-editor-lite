@@ -28,6 +28,7 @@ protected:
 
 private:
     using QGraphicsScene::addItem;
+    using QGraphicsScene::removeItem;
     QSizeF m_sceneSize = QSizeF(1920, 1080);
     QList<IScalableItem *> m_items;
 };

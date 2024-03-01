@@ -16,6 +16,8 @@ void CommonGraphicsScene::setSceneSize(const QSizeF &size) {
     updateSceneRect();
 }
 void CommonGraphicsScene::addScalableItem(IScalableItem *item) {
+    item->setScaleXY(scaleX(), scaleY());
+    item->setVisibleRect(visibleRect());
     if (auto graphicsItem = dynamic_cast<QGraphicsItem *>(item)) {
         addItem(graphicsItem);
         m_items.append(item);

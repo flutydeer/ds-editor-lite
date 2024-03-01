@@ -3,6 +3,9 @@
 //
 
 #include "TimeIndicatorGraphicsItem.h"
+TimeIndicatorGraphicsItem::TimeIndicatorGraphicsItem(QObject *parent) : QObject(parent){
+    setFixedScaleY(true);
+}
 void TimeIndicatorGraphicsItem::setPixelsPerQuarterNote(int px) {
     m_pixelsPerQuarterNote = px;
     updateLengthAndPos();
