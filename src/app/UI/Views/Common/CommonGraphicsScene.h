@@ -7,7 +7,7 @@
 
 #include <QGraphicsScene>
 
-#include "../Utils/IScalableItem.h"
+#include "UI/Utils/IScalableItem.h"
 
 class IScalableItem;
 class CommonGraphicsRectItem;

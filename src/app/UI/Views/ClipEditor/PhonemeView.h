@@ -7,7 +7,7 @@
 
 #include <QWidget>
 
-#include "UI/Views/Utils/ITimelinePainter.h"
+#include "UI/Utils/ITimelinePainter.h"
 #include "Utils/OverlapableSerialList.h"
 #include "Utils/IOverlapable.h"
 

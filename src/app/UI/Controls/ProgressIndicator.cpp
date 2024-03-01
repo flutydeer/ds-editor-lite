@@ -27,19 +27,22 @@ void ProgressIndicator::initUi(QWidget *parent) {
     });
     m_colorPalette = colorPaletteNormal;
 
+    const int animationDurationBase = 250;
+    auto duration = animationLevel() == None ? 0 : getScaledAnimationTime(animationDurationBase);
+
     m_valueAnimation.setTargetObject(this);
     m_valueAnimation.setPropertyName("apparentValue");
-    m_valueAnimation.setDuration(250);
+    m_valueAnimation.setDuration(duration);
     m_valueAnimation.setEasingCurve(QEasingCurve::OutQuart);
 
     m_SecondaryValueAnimation.setTargetObject(this);
     m_SecondaryValueAnimation.setPropertyName("apparentSecondaryValue");
-    m_SecondaryValueAnimation.setDuration(250);
+    m_SecondaryValueAnimation.setDuration(duration);
     m_SecondaryValueAnimation.setEasingCurve(QEasingCurve::OutQuart);
 
     m_currentTaskValueAnimation.setTargetObject(this);
     m_currentTaskValueAnimation.setPropertyName("apparentCurrentTaskValue");
-    m_currentTaskValueAnimation.setDuration(250);
+    m_currentTaskValueAnimation.setDuration(duration);
     m_currentTaskValueAnimation.setEasingCurve(QEasingCurve::OutQuart);
 
     switch (m_indicatorStyle) {

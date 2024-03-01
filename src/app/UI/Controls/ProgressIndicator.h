@@ -9,7 +9,9 @@
 #include <QWidget>
 #include <QTimer>
 
-class ProgressIndicator : public QWidget {
+#include "UI/Utils/IAnimatable.h"
+
+class ProgressIndicator : public QWidget, public IAnimatable {
     Q_OBJECT
     Q_PROPERTY(double minimum READ minimum WRITE setMinimum)
     Q_PROPERTY(double maximum READ maximum WRITE setMaximum)
@@ -121,6 +123,10 @@ protected:
     void calculateRingParams();
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void afterSetAnimationLevel(AnimationLevel level) override {
+    }
+    void afterSetTimeScale(double scale) override {
+    }
 
 private:
     double m_apparentValue = 0;

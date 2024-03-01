@@ -6,7 +6,7 @@
 #define TIMEGRIDGRAPHICSITEM_H
 
 #include "CommonGraphicsRectItem.h"
-#include "UI/Views/Utils/ITimelinePainter.h"
+#include "UI/Utils/ITimelinePainter.h"
 
 class TimeGridGraphicsItem : public CommonGraphicsRectItem, public ITimelinePainter {
     Q_OBJECT

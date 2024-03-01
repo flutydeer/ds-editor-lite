@@ -7,7 +7,7 @@
 
 #include <QGraphicsRectItem>
 
-#include "../Utils/IScalableItem.h"
+#include "UI/Utils/IScalableItem.h"
 
 class CommonGraphicsRectItem : public QObject, public QGraphicsRectItem, public IScalableItem {
     Q_OBJECT

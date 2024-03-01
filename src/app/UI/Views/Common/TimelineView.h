@@ -6,7 +6,7 @@
 #define TIMELINEVIEW_H
 
 #include <QWidget>
-#include "UI/Views/Utils/ITimelinePainter.h"
+#include "UI/Utils/ITimelinePainter.h"
 
 class TimelineView : public QWidget, public ITimelinePainter {
     Q_OBJECT

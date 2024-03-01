@@ -9,9 +9,10 @@
 #include <QPropertyAnimation>
 #include <QTimer>
 
-#include "UI/Views/Utils/IScalable.h"
+#include "UI/Utils/IScalable.h"
+#include "UI/Utils/IAnimatable.h"
 
-class CommonGraphicsView : public QGraphicsView, public IScalable {
+class CommonGraphicsView : public QGraphicsView, public IScalable, public IAnimatable {
     Q_OBJECT
     Q_PROPERTY(double scaleX READ scaleX WRITE setScaleX)
     Q_PROPERTY(double scaleY READ scaleY WRITE setScaleY)
@@ -49,6 +50,8 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void afterSetScale() override;
+    void afterSetAnimationLevel(AnimationLevel level) override;
+    void afterSetTimeScale(double scale) override;
 
 private:
     bool isMouseEventFromWheel(QWheelEvent *event);

@@ -18,24 +18,27 @@ CommonGraphicsView::CommonGraphicsView(QWidget *parent) {
     // setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     setMinimumHeight(150);
 
+    const int animationDurationBase = 150;
+    auto duration = animationLevel() == None ? 0 : getScaledAnimationTime(animationDurationBase);
+
     m_scaleXAnimation.setTargetObject(this);
     m_scaleXAnimation.setPropertyName("scaleX");
-    m_scaleXAnimation.setDuration(150);
+    m_scaleXAnimation.setDuration(duration);
     m_scaleXAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
     m_scaleYAnimation.setTargetObject(this);
     m_scaleYAnimation.setPropertyName("scaleY");
-    m_scaleYAnimation.setDuration(150);
+    m_scaleYAnimation.setDuration(duration);
     m_scaleYAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
     m_hBarAnimation.setTargetObject(this);
     m_hBarAnimation.setPropertyName("horizontalScrollBarValue");
-    m_hBarAnimation.setDuration(150);
+    m_hBarAnimation.setDuration(duration);
     m_hBarAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
     m_vBarAnimation.setTargetObject(this);
     m_vBarAnimation.setPropertyName("verticalScrollBarValue");
-    m_vBarAnimation.setDuration(150);
+    m_vBarAnimation.setDuration(duration);
     m_vBarAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
     connect(horizontalScrollBar(), &QScrollBar::valueChanged, this,
@@ -150,8 +153,8 @@ bool CommonGraphicsView::event(QEvent *event) {
 
             auto targetScaleX = scaleX() * multiplier;
 
-            if (targetScaleX > scaleX()Max) {
-                targetScaleX = scaleX()Max;
+            if (targetScaleX > scaleX() Max) {
+                targetScaleX = scaleX() Max;
             }
 
             auto scaledSceneWidth = sceneRect().width() * (targetScaleX / scaleX());
@@ -283,4 +286,12 @@ bool CommonGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
 }
 void CommonGraphicsView::afterSetScale() {
     emit scaleChanged(scaleX(), scaleY());
+}
+void CommonGraphicsView::afterSetAnimationLevel(AnimationLevel level) {
+    // m_scaleXAnimation.stop();
+    // m_scaleYAnimation.stop();
+    // m_hBarAnimation.stop();
+    // m_vBarAnimation.stop();
+}
+void CommonGraphicsView::afterSetTimeScale(double scale) {
 }
