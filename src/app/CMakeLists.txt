@@ -4,7 +4,11 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-file(GLOB_RECURSE _src *.h *.cpp)
+if(APPLE)
+    file(GLOB_RECURSE _src *.h *.cpp *.mm)
+else()
+    file(GLOB_RECURSE _src *.h *.cpp)
+endif()
 
 if(WIN32)
     set(PLATFORM_LIB dwmapi.lib)

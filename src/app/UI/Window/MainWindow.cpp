@@ -40,7 +40,8 @@ MainWindow::MainWindow() {
         // make window transparent
         this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
     }
-    WindowFrameUtils::applyFrameEffects(this);
+#elif defined(Q_OS_MAC)
+    this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
 #endif
 
     auto appController = AppController::instance();
@@ -323,4 +324,6 @@ MainWindow::MainWindow() {
 
     this->setCentralWidget(mainWidget);
     this->resize(1280, 720);
+
+    WindowFrameUtils::applyFrameEffects(this);
 }
