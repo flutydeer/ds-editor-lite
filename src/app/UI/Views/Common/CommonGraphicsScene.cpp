@@ -3,6 +3,8 @@
 //
 
 #include "CommonGraphicsScene.h"
+
+#include "CommonGraphicsLayer.h"
 #include "CommonGraphicsRectItem.h"
 
 CommonGraphicsScene::CommonGraphicsScene() {
@@ -15,7 +17,7 @@ void CommonGraphicsScene::setSceneSize(const QSizeF &size) {
     m_sceneSize = size;
     updateSceneRect();
 }
-void CommonGraphicsScene::addScalableItem(IScalableItem *item) {
+void CommonGraphicsScene::addCommonItem(IScalableItem *item) {
     item->setScaleXY(scaleX(), scaleY());
     item->setVisibleRect(visibleRect());
     if (auto graphicsItem = dynamic_cast<QGraphicsItem *>(item)) {
@@ -27,6 +29,21 @@ void CommonGraphicsScene::addScalableItem(IScalableItem *item) {
 void CommonGraphicsScene::removeCommonItem(IScalableItem *item) {
     removeItem(dynamic_cast<QGraphicsItem *>(item));
     m_items.removeOne(item);
+}
+void CommonGraphicsScene::addLayer(CommonGraphicsLayer *layer) {
+    m_layers.append(layer);
+    layer->setLayerZValue(m_layers.count());
+    layer->setScene(this);
+}
+void CommonGraphicsScene::removeLayer(CommonGraphicsLayer *layer) {
+    layer->setScene(nullptr);
+    auto index = m_layers.indexOf(layer);
+    m_layers.removeAt(index);
+
+    for (auto i = index; i < m_layers.count(); i++) {
+        auto curLayer = m_layers.at(i);
+        curLayer->setLayerZValue(i);
+    }
 }
 void CommonGraphicsScene::updateSceneRect() {
     auto scaledWidth = m_sceneSize.width() * scaleX();

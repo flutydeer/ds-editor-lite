@@ -8,6 +8,7 @@
 #include "Global/ClipEditorGlobal.h"
 #include "Model/Params.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
+#include "Layers/NoteLayer.h"
 
 class Note;
 class PianoRollGraphicsScene;
@@ -69,6 +70,8 @@ private:
     enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
     NoteGraphicsItem *m_currentEditingNote = nullptr;
 
+    // Layers
+    NoteLayer m_noteLayer;
     PitchEditorGraphicsItem *m_pitchItem;
 
     bool m_selecting = false;
@@ -97,10 +100,8 @@ private:
     bool m_isSingingClipSelected = false;
     PianoRollEditMode m_mode = Select;
     MouseMoveBehavior m_mouseMoveBehavior = None;
-    QList<NoteGraphicsItem *> m_noteItems;
     NoteGraphicsItem *m_currentDrawingNote; // a fake note for drawing
 
-    NoteGraphicsItem *findNoteById(int id);
     [[nodiscard]] double keyIndexToSceneY(double index) const;
     [[nodiscard]] double sceneYToKeyIndexDouble(double y) const;
     [[nodiscard]] int sceneYToKeyIndexInt(double y) const;

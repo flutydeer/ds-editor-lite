@@ -150,9 +150,11 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
         m_track = nullptr;
         m_clip = nullptr;
         m_singingClip = nullptr;
+        m_pianoRollView->setEnabled(false);
         return;
     }
 
+    m_pianoRollView->setEnabled(true);
     m_track = track;
     m_clip = clip;
     qDebug() << "connect track and ClipEditorView";

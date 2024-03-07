@@ -372,7 +372,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         clipItem->setPath(audioClip->path());
         clipItem->setTempo(m_tempo);
         clipItem->setOverlapped(audioClip->overlapped());
-        m_tracksScene->addScalableItem(clipItem);
+        m_tracksScene->addCommonItem(clipItem);
         qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
         connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
         connect(AppModel::instance(), &AppModel::quantizeChanged, clipItem,
@@ -410,7 +410,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         const auto &notesRef = singingClip->notes();
         clipItem->loadNotes(notesRef);
         clipItem->setOverlapped(singingClip->overlapped());
-        m_tracksScene->addScalableItem(clipItem);
+        m_tracksScene->addCommonItem(clipItem);
         qDebug() << "Singing clip graphics item added to scene" << clipItem->id()
                  << clipItem->name();
         connect(singingClip, &SingingClip::noteListChanged, clipItem, &SingingClipGraphicsItem::onNoteListChanged);
