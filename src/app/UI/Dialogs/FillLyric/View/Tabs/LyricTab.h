@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QCheckBox>
 
-#include "../Controls/PhonicTextEdit.h"
+#include "../Widgets/LyricBaseWidget.h"
 #include "../Controls/PhonicWidget.h"
 #include "../Widgets/TableConfigWidget.h"
 
@@ -25,7 +25,6 @@ namespace FillLyric {
         void setPhonics();
         [[nodiscard]] QList<Phonic> exportPhonics() const;
 
-        [[nodiscard]] QList<Phonic> splitLyric(const QString &lyric) const;
         [[nodiscard]] QList<Phonic> modelExport() const;
 
         QCheckBox *exportSkipSlur;
@@ -40,12 +39,10 @@ namespace FillLyric {
         void _on_btnInsertText_clicked() const;
         void _on_btnToTable_clicked() const;
         void _on_btnToText_clicked() const;
-        void _on_btnImportLrc_clicked();
 
         void _on_splitComboBox_currentIndexChanged(int index) const;
 
         // count
-        void _on_textEditChanged() const;
         void _on_modelDataChanged() const;
 
     private:
@@ -59,11 +56,7 @@ namespace FillLyric {
         QHBoxLayout *m_tableTopLayout;
         QHBoxLayout *m_lyricLayout;
 
-        QWidget *m_textEditWidget;
-        QVBoxLayout *m_textEditLayout;
-        QHBoxLayout *m_textTopLayout;
-        QHBoxLayout *m_textBottomLayout;
-        QHBoxLayout *m_skipSlurLayout;
+        LyricBaseWidget *m_lyricBaseWidget;
 
         QWidget *m_lyricOptWidget;
         QVBoxLayout *m_lyricOptLayout;
@@ -74,12 +67,10 @@ namespace FillLyric {
         QHBoxLayout *m_tableBottomLayout;
 
         // Widgets
-        PhonicTextEdit *m_textEdit;
         PhonicWidget *m_phonicWidget;
         TableConfigWidget *m_tableConfigWidget;
 
         // Labels
-        QLabel *m_textCountLabel;
         QLabel *noteCountLabel;
         QLabel *splitLabel;
 
@@ -88,21 +79,12 @@ namespace FillLyric {
         Button *btnToTable;
         Button *btnToText;
 
-        // textEditTop
-        Button *btnImportLrc;
-        Button *btnReReadNote;
-        Button *btnLyricPrev;
-
         Button *btnFoldLeft;
         Button *btnToggleFermata;
         QCheckBox *autoWrap;
         QPushButton *btnUndo;
         QPushButton *btnRedo;
         QPushButton *btnTableConfig;
-
-        // CheckBox
-        QCheckBox *skipSlur;
-        QCheckBox *excludeSpace;
 
         QLabel *exportLabel;
 

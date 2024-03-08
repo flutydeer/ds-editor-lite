@@ -1,12 +1,10 @@
 #include "LyricTab.h"
 
 #include <QFileDialog>
-#include <QMessageBox>
 
 #include "UI/Controls/LineEdit.h"
 
 #include "../../History/ModelHistory.h"
-#include "../../Utils/LrcTools/LrcDecoder.h"
 
 namespace FillLyric {
 
@@ -17,45 +15,7 @@ namespace FillLyric {
             "QPushButton:hover { background: #1AFFFFFF; }"
             "QPushButton:pressed { background: #10FFFFFF; }");
         // textWidget
-        m_textEditWidget = new QWidget();
-
-        // textEdit top
-        m_textTopLayout = new QHBoxLayout();
-        btnImportLrc = new Button("导入lrc");
-        btnReReadNote = new Button("重读音符");
-        btnLyricPrev = new Button("折叠预览");
-        m_textTopLayout->addWidget(btnImportLrc);
-        m_textTopLayout->addWidget(btnReReadNote);
-        m_textTopLayout->addStretch(1);
-        m_textTopLayout->addWidget(btnLyricPrev);
-
-        // textEdit
-        m_textEdit = new PhonicTextEdit();
-        m_textEdit->setPlaceholderText("请输入歌词");
-
-        m_textBottomLayout = new QHBoxLayout();
-        m_textCountLabel = new QLabel("字符数: 0");
-        m_textBottomLayout->addStretch(1);
-        m_textBottomLayout->addWidget(m_textCountLabel);
-
-        m_textEditLayout = new QVBoxLayout();
-        m_textEditLayout->setContentsMargins(0, 0, 0, 0);
-        m_textEditLayout->addLayout(m_textTopLayout);
-        m_textEditLayout->addWidget(m_textEdit);
-        m_textEditLayout->addLayout(m_textBottomLayout);
-
-        skipSlur = new QCheckBox("Skip Slur Note");
-        excludeSpace = new QCheckBox("Exclude Space");
-        excludeSpace->setCheckState(Qt::Checked);
-        m_skipSlurLayout = new QHBoxLayout();
-        m_skipSlurLayout->addWidget(skipSlur);
-        m_skipSlurLayout->addStretch(1);
-        m_skipSlurLayout->addWidget(excludeSpace);
-
-        m_textEditLayout->addLayout(m_skipSlurLayout);
-
-        m_textEditWidget->setLayout(m_textEditLayout);
-
+        m_lyricBaseWidget = new LyricBaseWidget();
 
         // lyric option widget
         m_lyricOptWidget = new QWidget();
@@ -159,7 +119,7 @@ namespace FillLyric {
 
         // lyric layout
         m_lyricLayout = new QHBoxLayout();
-        m_lyricLayout->addWidget(m_textEditWidget, 3);
+        m_lyricLayout->addWidget(m_lyricBaseWidget, 3);
         m_lyricLayout->addWidget(m_lyricOptWidget);
         m_lyricLayout->addWidget(m_tableWidget, 5);
         m_lyricLayout->addWidget(m_tableConfigWidget);
@@ -170,13 +130,8 @@ namespace FillLyric {
         m_mainLayout->setContentsMargins(0, 10, 0, 10);
         m_mainLayout->addLayout(m_lyricLayout);
 
-        // textEditTop signals
-        connect(btnImportLrc, &QAbstractButton::clicked, this,
-                &LyricTab::_on_btnImportLrc_clicked);
-        connect(btnReReadNote, &QAbstractButton::clicked, this, &LyricTab::setPhonics);
-
-        // textEdit label
-        connect(m_textEdit, &PhonicTextEdit::textChanged, this, &LyricTab::_on_textEditChanged);
+        connect(m_lyricBaseWidget->btnReReadNote, &QAbstractButton::clicked, this,
+                &LyricTab::setPhonics);
 
         connect(autoWrap, &QCheckBox::stateChanged, m_phonicWidget, &PhonicWidget::setAutoWrap);
 
@@ -199,14 +154,15 @@ namespace FillLyric {
                 &LyricTab::_on_modelDataChanged);
 
         // fold right
-        connect(btnLyricPrev, &QPushButton::clicked, [this]() {
-            btnLyricPrev->setText(m_tableWidget->isVisible() ? "预览歌词" : "折叠预览");
+        connect(m_lyricBaseWidget->btnLyricPrev, &QPushButton::clicked, [this]() {
+            m_lyricBaseWidget->btnLyricPrev->setText(m_tableWidget->isVisible() ? "预览歌词"
+                                                                                : "折叠预览");
             m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
             m_tableWidget->setVisible(!m_tableWidget->isVisible());
             m_tableConfigWidget->setVisible(false);
 
             if (!m_tableWidget->isVisible()) {
-                Q_EMIT this->shrinkWindowRight(m_textEdit->width() + 20);
+                Q_EMIT this->shrinkWindowRight(m_lyricBaseWidget->width() + 20);
             } else {
                 Q_EMIT this->expandWindowRight();
             }
@@ -214,8 +170,8 @@ namespace FillLyric {
 
         // fold left
         connect(btnFoldLeft, &QPushButton::clicked, [this]() {
-            btnFoldLeft->setText(m_textEditWidget->isVisible() ? "展开左侧" : "收起左侧");
-            m_textEditWidget->setVisible(!m_textEditWidget->isVisible());
+            btnFoldLeft->setText(m_lyricBaseWidget->isVisible() ? "展开左侧" : "收起左侧");
+            m_lyricBaseWidget->setVisible(!m_lyricBaseWidget->isVisible());
             m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
         });
 
@@ -249,7 +205,7 @@ namespace FillLyric {
     LyricTab::~LyricTab() = default;
 
     void LyricTab::setPhonics() {
-        const bool skipSlurRes = skipSlur->isChecked();
+        const bool skipSlurRes = m_lyricBaseWidget->skipSlur->isChecked();
 
         QStringList lyrics;
         QList<Phonic> phonics;
@@ -260,7 +216,7 @@ namespace FillLyric {
             lyrics.append(phonic->lyric);
         }
         notesCount = static_cast<int>(phonics.size());
-        m_textEdit->setText(lyrics.join(" "));
+        m_lyricBaseWidget->m_textEdit->setText(lyrics.join(" "));
         m_phonicWidget->_init(phonics);
     }
 
@@ -268,42 +224,16 @@ namespace FillLyric {
         const auto model = m_phonicWidget->model;
         model->expandFermata();
 
-        const auto phonics = m_tableWidget->isVisible()
-                                 ? this->modelExport()
-                                 : this->splitLyric(m_textEdit->toPlainText());
+        const auto phonics =
+            m_tableWidget->isVisible()
+                ? this->modelExport()
+                : m_lyricBaseWidget->splitLyric(m_lyricBaseWidget->m_textEdit->toPlainText());
         return phonics;
-    }
-
-    QList<Phonic> LyricTab::splitLyric(const QString &lyric) const {
-        const bool skipSlurRes = skipSlur->isChecked();
-        const auto splitType = static_cast<SplitType>(this->splitComboBox->currentIndex());
-        QList<Phonic> splitPhonics;
-        if (splitType == SplitType::Auto) {
-            splitPhonics = CleanLyric::splitAuto(lyric, excludeSpace->isChecked());
-        } else if (splitType == SplitType::ByChar) {
-            splitPhonics = CleanLyric::splitByChar(lyric, excludeSpace->isChecked());
-        } else if (splitType == SplitType::Custom) {
-            splitPhonics =
-                CleanLyric::splitCustom(lyric, QStringList() << "-", excludeSpace->isChecked());
-        } else {
-        }
-
-        QList<Phonic> skipSlurPhonics;
-        if (skipSlurRes) {
-            for (const auto &phonic : splitPhonics) {
-                if (phonic.lyricType != Slur && phonic.lyric != "-") {
-                    skipSlurPhonics.append(phonic);
-                }
-            }
-        }
-
-        const auto res = skipSlurRes ? skipSlurPhonics : splitPhonics;
-        return res;
     }
 
     QList<Phonic> LyricTab::modelExport() const {
         auto model = m_phonicWidget->model;
-        const bool skipSpaceRes = excludeSpace->isChecked();
+        const bool skipSpaceRes = m_lyricBaseWidget->excludeSpace->isChecked();
         const bool skipSlurRes = exportSkipSlur->isChecked();
 
         QList<Phonic> phonics;
@@ -317,14 +247,6 @@ namespace FillLyric {
             }
         }
         return phonics;
-    }
-
-    void LyricTab::_on_textEditChanged() const {
-        // 获取文本框的内容
-        const QString text = m_textEdit->toPlainText();
-        // 获取歌词
-        QList<Phonic> res = this->splitLyric(text);
-        m_textCountLabel->setText(QString("字符数: %1").arg(res.size()));
     }
 
     void LyricTab::_on_modelDataChanged() const {
@@ -351,16 +273,16 @@ namespace FillLyric {
         const QString text =
             "Halloween蝉声--陪伴着qwe行云流浪---\n回-忆-开始132后安静遥望远方\n荒草覆没的古井--"
             "枯塘\n匀-散asdaw一缕过往\n";
-        m_textEdit->setText(text);
+        m_lyricBaseWidget->m_textEdit->setText(text);
     }
 
     void LyricTab::_on_btnToTable_clicked() const {
-        const auto skipSlurRes = this->skipSlur->isChecked();
-        const auto excludeSpaceRes = this->excludeSpace->isChecked();
+        const auto skipSlurRes = m_lyricBaseWidget->skipSlur->isChecked();
+        const auto excludeSpaceRes = m_lyricBaseWidget->excludeSpace->isChecked();
         const auto splitType = static_cast<SplitType>(this->splitComboBox->currentIndex());
 
         // 获取文本框的内容
-        QString text = m_textEdit->toPlainText();
+        QString text = m_lyricBaseWidget->m_textEdit->toPlainText();
         if (skipSlurRes) {
             text = text.remove("-");
         }
@@ -394,32 +316,7 @@ namespace FillLyric {
             res.append(line.join(""));
         }
         // 设置文本框内容
-        m_textEdit->setText(res.join("\n"));
-    }
-
-    void LyricTab::_on_btnImportLrc_clicked() {
-        // 打开文件对话框
-        const QString fileName =
-            QFileDialog::getOpenFileName(this, "打开歌词文件", "", "歌词文件(*.lrc)");
-        if (fileName.isEmpty()) {
-            return;
-        }
-        // 创建LrcDecoder对象
-        LrcTools::LrcDecoder decoder;
-        // 解析歌词文件
-        if (!decoder.decode(fileName)) {
-            // 解析失败
-            QMessageBox::warning(this, "错误", "解析lrc文件失败");
-            return;
-        }
-        // 获取歌词文件的元数据
-        const auto metadata = decoder.dumpMetadata();
-        qDebug() << "metadata: " << metadata;
-
-        // 获取歌词文件的歌词
-        const auto lyrics = decoder.dumpLyrics();
-        // 设置文本框内容
-        m_textEdit->setText(lyrics.join("\n"));
+        m_lyricBaseWidget->m_textEdit->setText(res.join("\n"));
     }
 
     void LyricTab::_on_splitComboBox_currentIndexChanged(int index) const {
@@ -431,7 +328,7 @@ namespace FillLyric {
         m_splitters->setVisible(splitType == Custom);
         btnRegSetting->setVisible(splitType == ByReg);
 
-        excludeSpace->setText(checkBoxName);
+        m_lyricBaseWidget->excludeSpace->setText(checkBoxName);
     }
 
 } // FillLyric
