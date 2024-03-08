@@ -5,7 +5,7 @@
 
 #include <Model/Note.h>
 
-#include "View/LyricWidget.h"
+#include "View/Tabs/LyricTab.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Controls/Button.h"
 
@@ -28,7 +28,7 @@ namespace FillLyric {
         QVBoxLayout *m_mainLayout;
         QTabWidget *m_tabWidget;
 
-        LyricWidget *m_lyricWidget;
+        LyricTab *m_lyricWidget;
 
         Button *m_btnOk;
         Button *m_btnCancel;

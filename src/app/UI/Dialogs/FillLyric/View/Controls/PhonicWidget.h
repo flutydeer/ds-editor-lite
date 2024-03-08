@@ -7,8 +7,8 @@
 #include "Modules/Language/G2p/G2pMandarin.h"
 #include "Modules/Language/G2p/G2pJapanese.h"
 
-#include "../Utils/CleanLyric.h"
-#include "../Model/PhonicModel.h"
+#include "../../Utils/CleanLyric.h"
+#include "../../Model/PhonicModel.h"
 
 #include "PhonicTableView.h"
 #include "PhonicEventFilter.h"
@@ -16,7 +16,7 @@
 namespace FillLyric {
     class PhonicWidget final : public QWidget {
         Q_OBJECT
-        friend class LyricWidget;
+        friend class LyricTab;
 
     public:
         explicit PhonicWidget(QWidget *parent = nullptr);

@@ -4,13 +4,13 @@
 #include <QHeaderView>
 
 #include "PhonicWidget.h"
-#include "../History/ModelHistory.h"
+#include "../../History/ModelHistory.h"
 
-#include "../Actions/Cell/CellActions.h"
-#include "../Actions/WrapCell/WrapCellActions.h"
-#include "../Actions/Line/LineActions.h"
-#include "../Actions/WrapLine/WrapLineActions.h"
-#include "../Actions/Model/ModelActions.h"
+#include "../../Actions/Cell/CellActions.h"
+#include "../../Actions/WrapCell/WrapCellActions.h"
+#include "../../Actions/Line/LineActions.h"
+#include "../../Actions/WrapLine/WrapLineActions.h"
+#include "../../Actions/Model/ModelActions.h"
 
 namespace FillLyric {
     PhonicWidget::PhonicWidget(QWidget *parent)

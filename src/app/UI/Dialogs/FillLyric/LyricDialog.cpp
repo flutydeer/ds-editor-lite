@@ -19,7 +19,7 @@ namespace FillLyric {
         m_mainLayout = new QVBoxLayout(this);
         m_tabWidget = new QTabWidget();
 
-        m_lyricWidget = new LyricWidget(m_phonics);
+        m_lyricWidget = new LyricTab(m_phonics);
         m_lyricWidget->setPhonics();
 
         m_btnOk = new Button("OK", this);
@@ -44,9 +44,9 @@ namespace FillLyric {
         connect(m_btnOk, &QPushButton::clicked, this, &QDialog::accept);
         connect(m_btnCancel, &QPushButton::clicked, this, &QDialog::reject);
 
-        connect(m_lyricWidget, &LyricWidget::shrinkWindowRight, this,
+        connect(m_lyricWidget, &LyricTab::shrinkWindowRight, this,
                 &LyricDialog::shrinkWindowRight);
-        connect(m_lyricWidget, &LyricWidget::expandWindowRight, this,
+        connect(m_lyricWidget, &LyricTab::expandWindowRight, this,
                 &LyricDialog::expandWindowRight);
     }
 

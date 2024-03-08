@@ -11,7 +11,7 @@
 #include "g2pglobal.h"
 
 #include "PhonicCommon.h"
-#include "../View/PhonicDelegate.h"
+#include "../View/Controls/PhonicDelegate.h"
 
 namespace FillLyric {
 

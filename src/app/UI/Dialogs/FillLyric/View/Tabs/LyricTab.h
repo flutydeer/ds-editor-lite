@@ -4,23 +4,23 @@
 #include <QObject>
 #include <QCheckBox>
 
-#include "PhonicTextEdit.h"
-#include "PhonicWidget.h"
-#include "TableConfigWidget.h"
+#include "../Controls/PhonicTextEdit.h"
+#include "../Controls/PhonicWidget.h"
+#include "../Widgets/TableConfigWidget.h"
 
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
 
-#include "../Model/PhonicCommon.h"
+#include "../../Model/PhonicCommon.h"
 
 class LineEdit;
 
 namespace FillLyric {
-    class LyricWidget final : public QWidget {
+    class LyricTab final : public QWidget {
         Q_OBJECT
     public:
-        explicit LyricWidget(QList<Phonic *> phonics, QWidget *parent = nullptr);
-        ~LyricWidget() override;
+        explicit LyricTab(QList<Phonic *> phonics, QWidget *parent = nullptr);
+        ~LyricTab() override;
 
         void setPhonics();
         [[nodiscard]] QList<Phonic> exportPhonics() const;

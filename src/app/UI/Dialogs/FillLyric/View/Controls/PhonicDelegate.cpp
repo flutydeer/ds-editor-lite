@@ -1,7 +1,7 @@
 #include "PhonicDelegate.h"
 
-#include "../Utils/CleanLyric.h"
-#include "../Model/PhonicCommon.h"
+#include "../../Utils/CleanLyric.h"
+#include "../../Model/PhonicCommon.h"
 
 namespace FillLyric {
     PhonicDelegate::PhonicDelegate(QObject *parent) : QStyledItemDelegate(parent) {

@@ -1,16 +1,16 @@
-#include "LyricWidget.h"
+#include "LyricTab.h"
 
 #include <QFileDialog>
 #include <QMessageBox>
 
 #include "UI/Controls/LineEdit.h"
 
-#include "../History/ModelHistory.h"
-#include "../Utils/LrcTools/LrcDecoder.h"
+#include "../../History/ModelHistory.h"
+#include "../../Utils/LrcTools/LrcDecoder.h"
 
 namespace FillLyric {
 
-    LyricWidget::LyricWidget(QList<Phonic *> phonics, QWidget *parent)
+    LyricTab::LyricTab(QList<Phonic *> phonics, QWidget *parent)
         : QWidget(parent), m_phonics(std::move(phonics)) {
         setStyleSheet(
             "QPushButton {border: none; background: none; max-width: 100px; padding: 4px;}"
@@ -172,23 +172,23 @@ namespace FillLyric {
 
         // textEditTop signals
         connect(btnImportLrc, &QAbstractButton::clicked, this,
-                &LyricWidget::_on_btnImportLrc_clicked);
-        connect(btnReReadNote, &QAbstractButton::clicked, this, &LyricWidget::setPhonics);
+                &LyricTab::_on_btnImportLrc_clicked);
+        connect(btnReReadNote, &QAbstractButton::clicked, this, &LyricTab::setPhonics);
 
         // textEdit label
-        connect(m_textEdit, &PhonicTextEdit::textChanged, this, &LyricWidget::_on_textEditChanged);
+        connect(m_textEdit, &PhonicTextEdit::textChanged, this, &LyricTab::_on_textEditChanged);
 
         connect(autoWrap, &QCheckBox::stateChanged, m_phonicWidget, &PhonicWidget::setAutoWrap);
 
         // phonicWidget signals
         connect(btnInsertText, &QAbstractButton::clicked, this,
-                &LyricWidget::_on_btnInsertText_clicked);
-        connect(btnToTable, &QAbstractButton::clicked, this, &LyricWidget::_on_btnToTable_clicked);
-        connect(btnToText, &QAbstractButton::clicked, this, &LyricWidget::_on_btnToText_clicked);
+                &LyricTab::_on_btnInsertText_clicked);
+        connect(btnToTable, &QAbstractButton::clicked, this, &LyricTab::_on_btnToTable_clicked);
+        connect(btnToText, &QAbstractButton::clicked, this, &LyricTab::_on_btnToText_clicked);
 
         // splitComboBox
         connect(splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-                &LyricWidget::_on_splitComboBox_currentIndexChanged);
+                &LyricTab::_on_splitComboBox_currentIndexChanged);
 
         // phonicWidget toggleFermata
         connect(btnToggleFermata, &QPushButton::clicked, m_phonicWidget,
@@ -196,7 +196,7 @@ namespace FillLyric {
 
         // phonicWidget label
         connect(m_phonicWidget->model, &PhonicModel::dataChanged, this,
-                &LyricWidget::_on_modelDataChanged);
+                &LyricTab::_on_modelDataChanged);
 
         // fold right
         connect(btnLyricPrev, &QPushButton::clicked, [this]() {
@@ -246,9 +246,9 @@ namespace FillLyric {
                 m_phonicWidget->delegate, &PhonicDelegate::setFontSizeDiff);
     }
 
-    LyricWidget::~LyricWidget() = default;
+    LyricTab::~LyricTab() = default;
 
-    void LyricWidget::setPhonics() {
+    void LyricTab::setPhonics() {
         const bool skipSlurRes = skipSlur->isChecked();
 
         QStringList lyrics;
@@ -264,7 +264,7 @@ namespace FillLyric {
         m_phonicWidget->_init(phonics);
     }
 
-    QList<Phonic> LyricWidget::exportPhonics() const {
+    QList<Phonic> LyricTab::exportPhonics() const {
         const auto model = m_phonicWidget->model;
         model->expandFermata();
 
@@ -274,7 +274,7 @@ namespace FillLyric {
         return phonics;
     }
 
-    QList<Phonic> LyricWidget::splitLyric(const QString &lyric) const {
+    QList<Phonic> LyricTab::splitLyric(const QString &lyric) const {
         const bool skipSlurRes = skipSlur->isChecked();
         const auto splitType = static_cast<SplitType>(this->splitComboBox->currentIndex());
         QList<Phonic> splitPhonics;
@@ -301,7 +301,7 @@ namespace FillLyric {
         return res;
     }
 
-    QList<Phonic> LyricWidget::modelExport() const {
+    QList<Phonic> LyricTab::modelExport() const {
         auto model = m_phonicWidget->model;
         const bool skipSpaceRes = excludeSpace->isChecked();
         const bool skipSlurRes = exportSkipSlur->isChecked();
@@ -319,7 +319,7 @@ namespace FillLyric {
         return phonics;
     }
 
-    void LyricWidget::_on_textEditChanged() const {
+    void LyricTab::_on_textEditChanged() const {
         // 获取文本框的内容
         const QString text = m_textEdit->toPlainText();
         // 获取歌词
@@ -327,7 +327,7 @@ namespace FillLyric {
         m_textCountLabel->setText(QString("字符数: %1").arg(res.size()));
     }
 
-    void LyricWidget::_on_modelDataChanged() const {
+    void LyricTab::_on_modelDataChanged() const {
         const auto model = m_phonicWidget->model;
         int lyricCount = 0;
         for (int i = 0; i < model->rowCount(); i++) {
@@ -346,7 +346,7 @@ namespace FillLyric {
     }
 
 
-    void LyricWidget::_on_btnInsertText_clicked() const {
+    void LyricTab::_on_btnInsertText_clicked() const {
         // 测试文本
         const QString text =
             "Halloween蝉声--陪伴着qwe行云流浪---\n回-忆-开始132后安静遥望远方\n荒草覆没的古井--"
@@ -354,7 +354,7 @@ namespace FillLyric {
         m_textEdit->setText(text);
     }
 
-    void LyricWidget::_on_btnToTable_clicked() const {
+    void LyricTab::_on_btnToTable_clicked() const {
         const auto skipSlurRes = this->skipSlur->isChecked();
         const auto excludeSpaceRes = this->excludeSpace->isChecked();
         const auto splitType = static_cast<SplitType>(this->splitComboBox->currentIndex());
@@ -379,7 +379,7 @@ namespace FillLyric {
         m_phonicWidget->_init(splitRes);
     }
 
-    void LyricWidget::_on_btnToText_clicked() const {
+    void LyricTab::_on_btnToText_clicked() const {
         const auto model = m_phonicWidget->model;
         // 获取表格内容
         QStringList res;
@@ -397,7 +397,7 @@ namespace FillLyric {
         m_textEdit->setText(res.join("\n"));
     }
 
-    void LyricWidget::_on_btnImportLrc_clicked() {
+    void LyricTab::_on_btnImportLrc_clicked() {
         // 打开文件对话框
         const QString fileName =
             QFileDialog::getOpenFileName(this, "打开歌词文件", "", "歌词文件(*.lrc)");
@@ -422,7 +422,7 @@ namespace FillLyric {
         m_textEdit->setText(lyrics.join("\n"));
     }
 
-    void LyricWidget::_on_splitComboBox_currentIndexChanged(int index) const {
+    void LyricTab::_on_splitComboBox_currentIndexChanged(int index) const {
         const auto splitType = static_cast<SplitType>(index);
         QString checkBoxName = "Exclude Space";
         if (splitType == Custom)

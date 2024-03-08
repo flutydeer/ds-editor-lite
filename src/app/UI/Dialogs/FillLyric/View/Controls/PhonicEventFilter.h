@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QWheelEvent>
 
-#include "../Model/PhonicModel.h"
+#include "../../Model/PhonicModel.h"
 
 namespace FillLyric {
     class PhonicEventFilter final: public QObject {
