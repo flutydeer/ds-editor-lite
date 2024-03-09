@@ -22,9 +22,6 @@ public:
     void setSceneSize(const QSizeF &size);
     void addCommonItem(IScalableItem *item);
     void removeCommonItem(IScalableItem *item);
-    // void insertLayer(qsizetype zValue, CommonGraphicsLayer *layer);
-    void addLayer(CommonGraphicsLayer *layer);
-    void removeLayer(CommonGraphicsLayer *layer);
 
 protected:
     virtual void updateSceneRect();
@@ -36,7 +33,6 @@ private:
     using QGraphicsScene::removeItem;
     QSizeF m_sceneSize = QSizeF(1920, 1080);
     QList<IScalableItem *> m_items;
-    QList<CommonGraphicsLayer *> m_layers;
 };
 
 #endif // COMMONGRAPHICSSCENE_H

@@ -9,6 +9,7 @@
 #include "Model/Params.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 #include "Layers/NoteLayer.h"
+#include "UI/Views/Common/GraphicsLayerManager.h"
 
 class Note;
 class PianoRollGraphicsScene;
@@ -71,6 +72,7 @@ private:
     NoteGraphicsItem *m_currentEditingNote = nullptr;
 
     // Layers
+    GraphicsLayerManager m_layerManager;
     NoteLayer m_noteLayer;
     PitchEditorGraphicsItem *m_pitchItem;
 

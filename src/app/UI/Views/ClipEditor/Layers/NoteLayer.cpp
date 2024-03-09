@@ -10,7 +10,7 @@
 
 QList<NoteGraphicsItem *> NoteLayer::noteItems() const {
     QList<NoteGraphicsItem *> notes;
-    for (auto item : items())
+    for (auto item : items)
         notes.append(reinterpret_cast<NoteGraphicsItem *>(item));
     return notes;
 }

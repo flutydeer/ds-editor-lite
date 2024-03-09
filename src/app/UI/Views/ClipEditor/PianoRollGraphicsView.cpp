@@ -18,7 +18,7 @@
 #include "Model/Note.h"
 
 PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene)
-    : TimeGraphicsView(scene) {
+    : TimeGraphicsView(scene), m_layerManager(scene) {
     setScaleXMax(5);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
 
@@ -270,21 +270,18 @@ void PianoRollGraphicsView::insertNote(Note *note) {
     noteItem->setPronunciation(note->pronunciation().original);
     noteItem->setSelected(note->selected());
     noteItem->setOverlapped(note->overlapped());
-    scene()->addCommonItem(noteItem);
     connect(noteItem, &NoteGraphicsItem::removeTriggered, this,
             [=] { emit removeNoteTriggered(); });
     connect(noteItem, &NoteGraphicsItem::editLyricTriggered, this,
             [=] { emit editNoteLyricTriggered(); });
-    m_noteLayer.addItem(noteItem);
+    m_layerManager.addItem(noteItem, &m_noteLayer);
     m_canNotifySelectedNoteChanged = true;
 }
 void PianoRollGraphicsView::removeNote(int noteId) {
     m_canNotifySelectedNoteChanged = false;
     qDebug() << "PianoRollGraphicsView::removeNote" << noteId;
     auto noteItem = m_noteLayer.findNoteById(noteId);
-    scene()->removeCommonItem(noteItem);
-    m_noteLayer.removeItem(noteItem);
-    delete noteItem;
+    m_layerManager.removeItem(noteItem, &m_noteLayer);
     m_canNotifySelectedNoteChanged = true;
 }
 void PianoRollGraphicsView::updateNoteTimeAndKey(Note *note) {
@@ -385,7 +382,7 @@ NoteGraphicsItem *PianoRollGraphicsView::noteItemAt(const QPoint &pos) {
     return nullptr;
 }
 void PianoRollGraphicsView::reset() {
-    m_noteLayer.destroyItems();
+    m_layerManager.destroyItems(&m_noteLayer);
 }
 QList<int> PianoRollGraphicsView::selectedNotesId() const {
     QList<int> list;
