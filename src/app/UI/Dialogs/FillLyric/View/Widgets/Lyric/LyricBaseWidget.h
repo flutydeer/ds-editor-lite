@@ -3,16 +3,14 @@
 
 #include <QWidget>
 #include <QLabel>
-#include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QCheckBox>
 
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
 
-#include "../../Model/PhonicCommon.h"
-#include "../Controls/PhonicTextEdit.h"
-
+#include "../../../Model/PhonicCommon.h"
+#include "../../Controls/PhonicTextEdit.h"
 
 namespace FillLyric {
 

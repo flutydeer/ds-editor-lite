@@ -17,6 +17,7 @@ namespace FillLyric {
     class PhonicWidget final : public QWidget {
         Q_OBJECT
         friend class LyricTab;
+        friend class LyricExtWidget;
 
     public:
         explicit PhonicWidget(QWidget *parent = nullptr);

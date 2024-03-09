@@ -3,10 +3,9 @@
 #include <QFileDialog>
 #include <QMessageBox>
 
-#include "../../Utils/CleanLyric.h"
+#include "../../../Utils/CleanLyric.h"
 
-#include "../../Utils/LrcTools/LrcDecoder.h"
-#include "UI/Dialogs/FillLyric/View/Tabs/LyricTab.h"
+#include "../../../Utils/LrcTools/LrcDecoder.h"
 
 namespace FillLyric {
     LyricBaseWidget::LyricBaseWidget(QWidget *parent) : QWidget(parent) {

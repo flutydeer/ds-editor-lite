@@ -12,7 +12,7 @@ namespace FillLyric {
         setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
         // 窗口大小设为主程序的80%
         const auto size = QApplication::primaryScreen()->availableSize();
-        resize(static_cast<int>(size.width() * 0.6), static_cast<int> (size.height() * 0.6));
+        resize(static_cast<int>(size.width() * 0.6), static_cast<int>(size.height() * 0.6));
 
         noteToPhonic();
 
@@ -29,7 +29,7 @@ namespace FillLyric {
         m_btnOk->setMaximumWidth(100);
         m_btnCancel->setMaximumWidth(100);
 
-        auto buttonLayout = new QHBoxLayout;
+        const auto buttonLayout = new QHBoxLayout;
         buttonLayout->addStretch(1);
         buttonLayout->addWidget(m_btnOk);
         buttonLayout->addWidget(m_btnCancel);
@@ -44,17 +44,15 @@ namespace FillLyric {
         connect(m_btnOk, &QPushButton::clicked, this, &QDialog::accept);
         connect(m_btnCancel, &QPushButton::clicked, this, &QDialog::reject);
 
-        connect(m_lyricWidget, &LyricTab::shrinkWindowRight, this,
-                &LyricDialog::shrinkWindowRight);
-        connect(m_lyricWidget, &LyricTab::expandWindowRight, this,
-                &LyricDialog::expandWindowRight);
+        connect(m_lyricWidget, &LyricTab::shrinkWindowRight, this, &LyricDialog::shrinkWindowRight);
+        connect(m_lyricWidget, &LyricTab::expandWindowRight, this, &LyricDialog::expandWindowRight);
     }
 
     LyricDialog::~LyricDialog() = default;
 
     void LyricDialog::noteToPhonic() {
-        for (auto note : m_notes) {
-            auto phonic = new Phonic;
+        for (const auto note : m_notes) {
+            const auto phonic = new Phonic;
             phonic->lyric = note->lyric();
             phonic->syllable = note->pronunciation().original;
             phonic->syllableRevised = note->pronunciation().edited;
@@ -67,21 +65,21 @@ namespace FillLyric {
         }
     }
 
-    void LyricDialog::shrinkWindowRight(int newWidth) {
+    void LyricDialog::shrinkWindowRight(const int &newWidth) {
         setMinimumSize(300, 450);
         resize(newWidth, height());
     }
 
     void LyricDialog::expandWindowRight() {
         setMinimumSize(720, 450);
-        auto size = QApplication::primaryScreen()->availableSize();
+        const auto size = QApplication::primaryScreen()->availableSize();
         resize(static_cast<int>(size.width() * 0.6), height());
     }
 
     void LyricDialog::exportPhonics() {
         const QList<Phonic> phonics = m_lyricWidget->exportPhonics();
 
-        const bool skipSlurRes = m_lyricWidget->exportSkipSlur->isChecked();
+        const bool skipSlurRes = m_lyricWidget->exportSkipSlur();
 
         QList<Note *> notes;
         for (const auto note : m_notes) {
@@ -91,7 +89,7 @@ namespace FillLyric {
         }
 
         for (int i = 0; i < phonics.size(); ++i) {
-            const auto& phonic = phonics.at(i);
+            const auto &phonic = phonics.at(i);
             if (i >= notes.size())
                 break;
             const auto note = notes.at(i);

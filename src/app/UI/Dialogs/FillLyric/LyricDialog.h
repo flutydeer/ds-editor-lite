@@ -22,7 +22,7 @@ namespace FillLyric {
     private:
         void noteToPhonic();
 
-        void shrinkWindowRight(int newWidth);
+        void shrinkWindowRight(const int &newWidth);
         void expandWindowRight();
 
         QVBoxLayout *m_mainLayout;

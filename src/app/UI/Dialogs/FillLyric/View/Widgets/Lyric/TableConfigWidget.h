@@ -11,7 +11,7 @@ namespace FillLyric {
 
     class TableConfigWidget final: public QWidget {
         Q_OBJECT
-        friend class LyricTab;
+        friend class LyricExtWidget;
 
     public:
         explicit TableConfigWidget(QWidget *parent = nullptr);
