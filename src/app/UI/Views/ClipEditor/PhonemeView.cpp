@@ -13,7 +13,7 @@
 
 using namespace AppGlobal;
 
-PhonemeView::PhonemeView(QWidget *parent) {
+PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_Hover, true);
     installEventFilter(this);
 }

@@ -6,10 +6,10 @@
 
 #include <QDebug>
 #include <QThread>
+#include <utility>
 
-AudioClipBackgroundWorker::AudioClipBackgroundWorker(const QString &path)
-    : sampleRate(0), channels(0), frames(0) {
-    m_path = path;
+AudioClipBackgroundWorker::AudioClipBackgroundWorker(QString path)
+    : sampleRate(0), channels(0), frames(0), m_path(std::move(path)) {
 }
 void AudioClipBackgroundWorker::setPath(const QString &path) {
     m_path = path;

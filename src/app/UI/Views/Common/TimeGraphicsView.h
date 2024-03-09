@@ -15,7 +15,7 @@ class TimeGraphicsView : public CommonGraphicsView {
     Q_OBJECT
 
 public:
-    explicit TimeGraphicsView(TimeGraphicsScene *scene);
+    explicit TimeGraphicsView(TimeGraphicsScene *scene, QWidget *parent = nullptr);
     TimeGraphicsScene *scene();
     void setSceneVisibility(bool on);
     [[nodiscard]] double startTick() const;

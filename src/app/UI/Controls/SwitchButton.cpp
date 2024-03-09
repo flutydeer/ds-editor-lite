@@ -9,15 +9,14 @@
 #include <QEvent>
 #include <QPropertyAnimation>
 
-SwitchButton::SwitchButton(QWidget *parent) {
+SwitchButton::SwitchButton(QWidget *parent) : QPushButton(parent) {
     m_value = false;
-    initUi(parent);
+    initUi();
 }
 
-SwitchButton::SwitchButton(bool on, QWidget *parent) {
-    m_value = on;
+SwitchButton::SwitchButton(bool on, QWidget *parent) : QPushButton(parent), m_value(on) {
     m_apparentValue = on ? 255 : 0;
-    initUi(parent);
+    initUi();
 }
 
 SwitchButton::~SwitchButton() = default;
@@ -34,7 +33,7 @@ void SwitchButton::setValue(bool value) {
     m_valueAnimation->start();
 }
 
-void SwitchButton::initUi(QWidget *parent) {
+void SwitchButton::initUi() {
     setAttribute(Qt::WA_Hover, true);
     installEventFilter(this);
 
@@ -50,19 +49,17 @@ void SwitchButton::initUi(QWidget *parent) {
     m_thumbHoverAnimation->setDuration(200);
     m_thumbHoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
 
-//    setMinimumSize(32, 16);
-//    setMaximumSize(32, 16);
+    //    setMinimumSize(32, 16);
+    //    setMaximumSize(32, 16);
     setMinimumSize(40, 20);
     setMaximumSize(40, 20);
     calculateParams();
-    connect(this, &QPushButton::clicked, this, [&]() {
-        this->setValue(!m_value);
-    });
+    connect(this, &QPushButton::clicked, this, [&]() { this->setValue(!m_value); });
 }
 
 void SwitchButton::calculateParams() {
     m_rect = rect();
-//    m_penWidth = qRound(rect().height() / 16.0);
+    //    m_penWidth = qRound(rect().height() / 16.0);
     m_halfRectHeight = rect().height() / 2;
     m_thumbRadius = qRound(m_halfRectHeight / 2.0);
     m_trackStart.setX(m_rect.left() + m_halfRectHeight);
@@ -91,7 +88,7 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
 
     // Draw thumb
     auto left = m_apparentValue * m_trackLength / 255.0 + m_halfRectHeight;
-//    qDebug() << m_apparentValue;
+    //    qDebug() << m_apparentValue;
     auto handlePos = QPointF(left, m_halfRectHeight);
     auto thumbRadius = m_thumbRadius * m_thumbScaleRatio / 100.0;
 

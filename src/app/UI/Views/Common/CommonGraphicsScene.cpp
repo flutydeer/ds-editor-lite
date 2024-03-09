@@ -4,10 +4,9 @@
 
 #include "CommonGraphicsScene.h"
 
-#include "CommonGraphicsLayer.h"
 #include "CommonGraphicsRectItem.h"
 
-CommonGraphicsScene::CommonGraphicsScene() {
+CommonGraphicsScene::CommonGraphicsScene(QObject *parent) : QGraphicsScene(parent) {
     setSceneRect(0, 0, m_sceneSize.width(), m_sceneSize.height());
 }
 QSizeF CommonGraphicsScene::sceneSize() const {

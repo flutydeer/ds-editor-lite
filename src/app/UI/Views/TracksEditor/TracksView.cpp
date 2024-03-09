@@ -26,7 +26,7 @@
 #include "GraphicsItem/SingingClipGraphicsItem.h"
 #include "TrackControlWidget.h"
 
-TracksView::TracksView() {
+TracksView::TracksView(QWidget *parent): QWidget(parent) {
     m_trackListWidget = new QListWidget;
     // tracklist->setMinimumWidth(120);
     m_trackListWidget->setMinimumWidth(TracksEditorGlobal::trackListWidth);

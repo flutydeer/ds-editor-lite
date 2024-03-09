@@ -11,7 +11,8 @@
 #include "Utils/MathUtils.h"
 #include "UI/Controls/Menu.h"
 
-TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene) : TimeGraphicsView(scene) {
+TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent)
+    : TimeGraphicsView(scene, parent) {
     setScaleYMin(0.575);
 
     m_actionNewSingingClip = new QAction("New singing clip", this);

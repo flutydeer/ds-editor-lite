@@ -13,7 +13,7 @@ class TracksGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
 
 public:
-    explicit TracksGraphicsView(TracksGraphicsScene *scene);
+    explicit TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent = nullptr);
     void setQuantize(int quantize);
 
 signals:

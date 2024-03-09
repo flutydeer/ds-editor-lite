@@ -7,7 +7,7 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 
-ActionButtonsView::ActionButtonsView(QWidget *parent) {
+ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     m_btnSave = new QPushButton;
     m_btnSave->setObjectName("btnSave");
     m_btnSave->setFixedSize(m_contentHeight, m_contentHeight);

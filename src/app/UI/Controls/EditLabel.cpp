@@ -9,7 +9,7 @@
 #include <QLabel>
 #include <QLineEdit>
 
-EditLabel::EditLabel(QWidget *parent) {
+EditLabel::EditLabel(QWidget *parent) : QStackedWidget(parent){
     setAttribute(Qt::WA_StyledBackground);
     setAttribute(Qt::WA_Hover, true);
 

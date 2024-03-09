@@ -9,12 +9,10 @@
 #include "ComboBox.h"
 
 ComboBox::ComboBox(QWidget *parent) : QComboBox(parent) {
-    // setAttribute(Qt::WA_StyledBackground);
     initUi();
 }
-ComboBox::ComboBox(bool scrollWheelChangeSelection, QWidget *parent) : QComboBox(parent) {
-    // setAttribute(Qt::WA_StyledBackground);
-    m_scrollWheelChangeSelection = scrollWheelChangeSelection;
+ComboBox::ComboBox(bool scrollWheelChangeSelection, QWidget *parent)
+    : QComboBox(parent), m_scrollWheelChangeSelection(scrollWheelChangeSelection) {
     initUi();
 }
 void ComboBox::wheelEvent(QWheelEvent *event) {
@@ -35,7 +33,7 @@ void ComboBox::initUi() {
     setStyleSheet(comboBoxQss);
 
     auto container = dynamic_cast<QWidget *>(view()->parent());
-    container->setWindowFlags(Qt::Popup | Qt::FramelessWindowHint| Qt::NoDropShadowWindowHint);
+    container->setWindowFlags(Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
     container->setAttribute(Qt::WA_TranslucentBackground, true);
     container->setAttribute(Qt::WA_WindowPropagation);
     container->setAttribute(Qt::WA_X11NetWmWindowTypeCombo);

@@ -9,7 +9,7 @@
 
 class QPropertyAnimation;
 
-class SwitchButton : public QPushButton{
+class SwitchButton : public QPushButton {
     Q_OBJECT
     Q_PROPERTY(bool value READ value WRITE setValue NOTIFY valueChanged)
     Q_PROPERTY(double apparentValue READ apparentValue WRITE setApparentValue)
@@ -32,7 +32,7 @@ protected:
     bool m_value;
 
     QRect m_rect;
-//    int m_penWidth;
+    //    int m_penWidth;
     int m_thumbRadius{};
     int m_halfRectHeight{};
     QPoint m_trackStart;
@@ -41,7 +41,7 @@ protected:
     QPropertyAnimation *m_valueAnimation{};
     QPropertyAnimation *m_thumbHoverAnimation{};
 
-    void initUi(QWidget *parent);
+    void initUi();
     void calculateParams();
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;

@@ -17,8 +17,8 @@
 #include "Model/Curve.h"
 #include "Model/Note.h"
 
-PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene)
-    : TimeGraphicsView(scene), m_layerManager(scene) {
+PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent)
+    : TimeGraphicsView(scene, parent), m_layerManager(scene) {
     setScaleXMax(5);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
 

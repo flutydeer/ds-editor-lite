@@ -118,7 +118,7 @@ protected:
     QPropertyAnimation m_SecondaryValueAnimation;
     QPropertyAnimation m_currentTaskValueAnimation;
 
-    void initUi(QWidget *parent);
+    void initUi();
     void calculateBarParams();
     void calculateRingParams();
     void paintEvent(QPaintEvent *event) override;

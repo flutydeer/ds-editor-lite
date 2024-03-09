@@ -16,7 +16,7 @@ class CommonGraphicsRectItem;
 
 class CommonGraphicsScene : public QGraphicsScene, public IScalableItem {
 public:
-    explicit CommonGraphicsScene();
+    explicit CommonGraphicsScene(QObject *parent = nullptr);
     ~CommonGraphicsScene() override = default;
     [[nodiscard]] QSizeF sceneSize() const;
     void setSceneSize(const QSizeF &size);

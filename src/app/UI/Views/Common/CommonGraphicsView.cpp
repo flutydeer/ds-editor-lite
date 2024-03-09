@@ -11,7 +11,7 @@
 #  define SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
 #endif
 
-CommonGraphicsView::CommonGraphicsView(QWidget *parent) {
+CommonGraphicsView::CommonGraphicsView(QWidget *parent) : QGraphicsView(parent) {
     setRenderHint(QPainter::Antialiasing);
     setAttribute(Qt::WA_AcceptTouchEvents);
     // setCacheMode(QGraphicsView::CacheNone);

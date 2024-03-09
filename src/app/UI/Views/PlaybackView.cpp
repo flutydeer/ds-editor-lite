@@ -12,7 +12,7 @@
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/ComboBox.h"
 
-PlaybackView::PlaybackView(QWidget *parent) {
+PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTempo = new EditLabel;
     m_elTempo->setObjectName("elTempo");
     m_elTempo->setText(QString::number(m_tempo));
@@ -52,7 +52,7 @@ PlaybackView::PlaybackView(QWidget *parent) {
             pauseTriggered();
     });
     m_btnPlayPause->setShortcut(Qt::Key_Space);
-    m_btnPlayPause->setFixedSize(0,0);
+    m_btnPlayPause->setFixedSize(0, 0);
 
     m_btnPause = new QPushButton;
     m_btnPause->setObjectName("btnPause");

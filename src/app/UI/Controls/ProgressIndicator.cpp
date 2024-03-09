@@ -9,16 +9,15 @@
 #include <QTimer>
 
 ProgressIndicator::ProgressIndicator(QWidget *parent) : QWidget(parent) {
-    initUi(parent);
+    initUi();
 }
 
-ProgressIndicator::ProgressIndicator(IndicatorStyle indicatorStyle,
-                                     QWidget *parent) {
-    m_indicatorStyle = indicatorStyle;
-    initUi(parent);
+ProgressIndicator::ProgressIndicator(IndicatorStyle indicatorStyle, QWidget *parent)
+    : QWidget(parent), m_indicatorStyle(indicatorStyle) {
+    initUi();
 }
 
-void ProgressIndicator::initUi(QWidget *parent) {
+void ProgressIndicator::initUi() {
     m_timer.setInterval(8);
     connect(&m_timer, &QTimer::timeout, this, [=]() {
         setThumbProgress(m_thumbProgress + 2);

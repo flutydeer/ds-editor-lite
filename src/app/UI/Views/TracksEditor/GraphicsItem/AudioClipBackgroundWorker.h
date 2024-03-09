@@ -13,7 +13,7 @@ class AudioClipBackgroundWorker : public QObject, public QRunnable {
     Q_OBJECT
 
 public:
-    explicit AudioClipBackgroundWorker(const QString &path);
+    explicit AudioClipBackgroundWorker(QString path);
     void setPath(const QString &path);
     void run() override;
 

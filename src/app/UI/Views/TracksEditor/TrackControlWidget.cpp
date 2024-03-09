@@ -16,7 +16,7 @@
 #include "UI/Controls/LevelMeter.h"
 #include "Model/Track.h"
 
-TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) {
+TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) : QWidget(parent) {
     m_item = item;
     setAttribute(Qt::WA_StyledBackground);
 

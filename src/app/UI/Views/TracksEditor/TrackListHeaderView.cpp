@@ -7,7 +7,7 @@
 #include <QHBoxLayout>
 #include <QPainter>
 
-TrackListHeaderView::TrackListHeaderView(QWidget *parent) {
+TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     setObjectName("trackListHeaderView");
 
     auto mainLayout = new QHBoxLayout;

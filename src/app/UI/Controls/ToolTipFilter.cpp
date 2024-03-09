@@ -10,7 +10,8 @@
 #include "ToolTip.h"
 #include "ToolTipFilter.h"
 
-ToolTipFilter::ToolTipFilter(QWidget *parent, int showDelay, bool followCursor, bool animation) {
+ToolTipFilter::ToolTipFilter(QWidget *parent, int showDelay, bool followCursor, bool animation)
+    : QObject(parent) {
     m_parent = parent;
     parent->setAttribute(Qt::WA_Hover, true);
     m_showDelay = showDelay;

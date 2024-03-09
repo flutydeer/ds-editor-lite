@@ -23,7 +23,7 @@ class TracksView final : public QWidget {
     Q_OBJECT
 
 public:
-    explicit TracksView();
+    explicit TracksView(QWidget *parent = nullptr);
 
 public slots:
     void onModelChanged();

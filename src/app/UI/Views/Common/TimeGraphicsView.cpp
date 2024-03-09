@@ -9,7 +9,8 @@
 #include "TimeGraphicsScene.h"
 #include "TimeIndicatorGraphicsItem.h"
 
-TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene) : m_scene(scene) {
+TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, QWidget *parent)
+    : CommonGraphicsView(parent), m_scene(scene) {
     connect(this, &TimeGraphicsView::visibleRectChanged,
             [=](const QRectF &rect) { m_scene->setVisibleRect(rect); });
     connect(this, &TimeGraphicsView::scaleChanged,

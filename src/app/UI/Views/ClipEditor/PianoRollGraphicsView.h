@@ -23,7 +23,7 @@ class PianoRollGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
 
 public:
-    explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene);
+    explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent = nullptr);
     void setIsSingingClip(bool isSingingClip);
     void setEditMode(PianoRollEditMode mode);
     void insertNote(Note *note);

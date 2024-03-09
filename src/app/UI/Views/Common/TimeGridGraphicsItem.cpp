@@ -7,7 +7,7 @@
 #include <QPainter>
 #include <QPen>
 
-TimeGridGraphicsItem::TimeGridGraphicsItem(QGraphicsItem *parent) {
+TimeGridGraphicsItem::TimeGridGraphicsItem(QGraphicsItem *parent) : CommonGraphicsRectItem(parent) {
 }
 double TimeGridGraphicsItem::startTick() const {
     return sceneXToTick(visibleRect().left());
