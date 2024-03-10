@@ -1,8 +1,8 @@
 #include "WindowFrameUtils.h"
 
 #ifdef Q_OS_WIN
-#include <QWidget>
-#include <dwmapi.h>
+#  include <QWidget>
+#  include <dwmapi.h>
 
 void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
 

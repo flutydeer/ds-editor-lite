@@ -1,17 +1,18 @@
 #include "WindowFrameUtils.h"
 
-#include <AppKit/AppKit.h>
+#ifdef Q_OS_MAC
+#  include <AppKit/AppKit.h>
 
-#include <QWindow>
-#include <QWidget>
-#include <QStyle>
+#  include <QWindow>
+#  include <QWidget>
+#  include <QStyle>
 
 void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
     auto frame = NSMakeRect(widget->x(), widget->y(), widget->width(), widget->height());
     auto view = reinterpret_cast<NSView *>(widget->winId());
 
     auto visualEffectView = [[NSVisualEffectView alloc] init];
-    visualEffectView.autoresizingMask = NSViewWidthSizable|NSViewHeightSizable;
+    visualEffectView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     visualEffectView.wantsLayer = YES;
     visualEffectView.frame = frame;
     visualEffectView.state = NSVisualEffectStateActive;
@@ -30,3 +31,5 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
 
     window.titlebarAppearsTransparent = YES;
 }
+
+#endif

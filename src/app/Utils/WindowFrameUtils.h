@@ -15,7 +15,7 @@ public:
 };
 
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MAC)
-void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
+inline void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
     Q_UNUSED(widget);
 }
 #endif
