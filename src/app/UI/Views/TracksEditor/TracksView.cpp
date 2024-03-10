@@ -372,6 +372,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         clipItem->setPath(audioClip->path());
         clipItem->setTempo(m_tempo);
         clipItem->setOverlapped(audioClip->overlapped());
+        clipItem->setAudioInfo(audioClip->info);
         m_tracksScene->addCommonItem(clipItem);
         qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
         connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);

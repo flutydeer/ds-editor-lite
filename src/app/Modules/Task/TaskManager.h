@@ -35,6 +35,7 @@ signals:
 public slots:
     void addTask(ITask *task);
     void startTask(ITask *task);
+    void removeTask(ITask *task);
     // void startTask(int taskId);
     void startAllTasks();
     void terminateTask(ITask *task);

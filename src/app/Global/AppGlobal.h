@@ -43,6 +43,8 @@ namespace AppGlobal {
     const QColor beatLineColor = QColor(72, 75, 78);
     const QColor commonLineColor = QColor(57, 59, 61);
     const QColor beatTextColor = QColor(160, 160, 160);
+
+    enum AudioLoadStatus { Init, Loading, Loaded, Error };
 }
 
 #endif // APPGLOBAL_H

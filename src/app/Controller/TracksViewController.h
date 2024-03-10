@@ -10,6 +10,8 @@
 #include "Utils/Singleton.h"
 #include "Model/Clip.h"
 #include "Model/Track.h"
+#include "Tasks/DecodeAudioTask.h"
+#include "UI/Views/TracksEditor/TracksView.h"
 
 class TracksViewController final : public QObject, public Singleton<TracksViewController> {
     Q_OBJECT
@@ -26,6 +28,11 @@ public slots:
     void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     void onRemoveClip(int clipId);
     void onNewSingingClip(int trackIndex, int tick);
+
+private:
+    void handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate);
+
+    TracksView m_view;
 };
 
 #endif // TRACKSVIEWCONTROLLER_H

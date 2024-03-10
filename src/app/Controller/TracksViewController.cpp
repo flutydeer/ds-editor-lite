@@ -10,6 +10,10 @@
 #include "Model/AppModel.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Modules/History/HistoryManager.h"
+#include "Modules/Task/TaskManager.h"
+#include "Tasks/DecodeAudioTask.h"
+#include "Model/AudioInfoModel.h"
+#include "UI/Views/TracksEditor/GraphicsItem/AudioClipGraphicsItem.h"
 
 void TracksViewController::onNewTrack() {
     onInsertNewTrack(AppModel::instance()->tracks().count());
@@ -91,17 +95,14 @@ void TracksViewController::onTrackPropertyChanged(const Track::TrackProperties &
     HistoryManager::instance()->record(a);
 }
 void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, int tick) {
-    auto audioClip = new AudioClip;
-    audioClip->setStart(tick);
-    audioClip->setClipStart(0);
-    audioClip->setPath(path);
-    auto track = AppModel::instance()->tracks().at(trackIndex);
-    auto a = new ClipActions;
-    QList<Clip *> clips;
-    clips.append(audioClip);
-    a->insertClips(clips, track);
-    a->execute();
-    HistoryManager::instance()->record(a);
+    auto decodeTask = new DecodeAudioTask;
+    decodeTask->path = path;
+    decodeTask->trackIndex = trackIndex;
+    decodeTask->tick = tick;
+    connect(decodeTask, &ITask::finished, this,
+            [=](bool terminate) { handleDecodeAudioTaskFinished(decodeTask, terminate); });
+    TaskManager::instance()->addTask(decodeTask);
+    TaskManager::instance()->startTask(decodeTask);
 }
 void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
     qDebug() << "TracksViewController::onClipPropertyChanged";
@@ -202,6 +203,54 @@ void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
     auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(singingClip);
+    a->insertClips(clips, track);
+    a->execute();
+    HistoryManager::instance()->record(a);
+}
+void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate) {
+    TaskManager::instance()->removeTask(task);
+    if (!task->success) {
+        // auto clipItem = m_view.findClipItemById(task->id());
+        // auto audioClipItem = dynamic_cast<AudioClipGraphicsItem *>(clipItem);
+        // audioClipItem->setStatus(AppGlobal::Error);
+        QMessageBox msgBox;
+        msgBox.setText("Error");
+        msgBox.setInformativeText("Open file error:" + task->errorMessage);
+        msgBox.setStandardButtons(QMessageBox::Yes);
+        msgBox.setDefaultButton(QMessageBox::Yes);
+        msgBox.exec();
+        return;
+    }
+
+    auto tick = task->tick;
+    auto path = task->path;
+    auto trackIndex = task->trackIndex;
+
+    auto sampleRate = task->sampleRate;
+    auto tempo = AppModel::instance()->tempo();
+    auto frames = task->frames;
+    auto length = frames / (sampleRate * 60 / tempo / 480);
+
+    AudioInfoModel info;
+    info.sampleRate = sampleRate;
+    info.channels = task->channels;
+    info.chunkSize = task->chunkSize;
+    info.mipmapScale = task->mipmapScale;
+    info.frames = task->frames;
+    info.peakCache.swap(task->peakCache);
+    info.peakCacheMipmap.swap(task->peakCacheMipmap);
+
+    auto audioClip = new AudioClip;
+    audioClip->setStart(tick);
+    audioClip->setClipStart(0);
+    audioClip->setLength(length);
+    audioClip->setClipLen(length);
+    audioClip->setPath(path);
+    audioClip->info = info;
+    auto track = AppModel::instance()->tracks().at(trackIndex);
+    auto a = new ClipActions;
+    QList<Clip *> clips;
+    clips.append(audioClip);
     a->insertClips(clips, track);
     a->execute();
     HistoryManager::instance()->record(a);

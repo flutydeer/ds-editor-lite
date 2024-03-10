@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
-    auto editor = AppModel::instance()->workspaceEditor("flutydeer.testplugin");
+    auto editor = AppModel::instance()->workspaceEditor("flutydeer.filllyrics");
     auto workspace = editor->privateWorkspace();
     workspace->insert("version_code", 1);
     workspace->insert("isFirstRun", false);

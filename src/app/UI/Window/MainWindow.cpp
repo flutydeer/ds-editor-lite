@@ -4,11 +4,11 @@
 
 #include "MainWindow.h"
 
-#include <QFile>
 #include <QMenuBar>
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QSplitter>
+#include <QCloseEvent>
 
 #include "Utils/WindowFrameUtils.h"
 #include "Controller/AppController.h"
@@ -24,6 +24,7 @@
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/PlaybackView.h"
 #include "UI/Views/ActionButtonsView.h"
+#include "Modules/Task/TaskManager.h"
 
 MainWindow::MainWindow() {
     QString qssBase;
@@ -50,6 +51,9 @@ MainWindow::MainWindow() {
     auto playbackController = PlaybackController::instance();
     auto historyManager = HistoryManager::instance();
     auto clipboardController = ClipboardController::instance();
+    auto taskManager = TaskManager::instance();
+
+    connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
 
     auto menuBar = new QMenuBar(this);
     menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -326,4 +330,30 @@ MainWindow::MainWindow() {
     this->resize(1280, 720);
 
     WindowFrameUtils::applyFrameEffects(this);
+}
+void MainWindow::onAllDone() {
+    if (m_isCloseRequested) {
+        m_isAllDone = true;
+        close();
+    }
+}
+void MainWindow::closeEvent(QCloseEvent *event) {
+    if (m_isAllDone) {
+        QMainWindow::closeEvent(event);
+    } else if (m_isCloseRequested) {
+        qDebug() << "Waiting for all tasks done...";
+        event->ignore();
+    } else {
+        m_isCloseRequested = true;
+        qDebug() << "Ternimating tasks...";
+        auto taskManager = TaskManager::instance();
+        taskManager->terminateAllTasks();
+        auto thread = new QThread;
+        taskManager->moveToThread(thread);
+        connect(thread, &QThread::started, taskManager, &TaskManager::wait);
+        thread->start();
+        event->ignore();
+    }
+    // taskManager->wait();
+    // QMainWindow::closeEvent(event);
 }

@@ -6,12 +6,13 @@
 #define AUDIOCLIPGRAPHICSITEM_H
 
 #include "AbstractClipGraphicsItem.h"
+#include "Model/AudioInfoModel.h"
+#include "Global/AppGlobal.h"
 
 class AudioClipBackgroundWorker;
 
 class AudioClipGraphicsItem final : public AbstractClipGraphicsItem {
 public:
-    enum Status { Init, Loading, Loaded, Error };
     explicit AudioClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     ~AudioClipGraphicsItem() override = default;
 
@@ -19,9 +20,11 @@ public:
     void setPath(const QString &path);
     [[nodiscard]] double tempo() const;
     void setTempo(double tempo);
+    void setAudioInfo(const AudioInfoModel &info);
+    void setStatus(AppGlobal::AudioLoadStatus status);
+    void setErrorMessage(const QString &errorMessage);
 
 public slots:
-    void onLoadComplete(bool success, QString errorMessage);
     void onTempoChange(double tempo);
 
 private:
@@ -34,20 +37,14 @@ private:
     void updateLength();
     void addMenuActions(Menu *menu) override;
 
-    Status m_status = Init;
-    AudioClipBackgroundWorker *m_worker = nullptr;
-    QVector<std::tuple<short, short>> m_peakCache;
-    QVector<std::tuple<short, short>> m_peakCacheMipmap;
+    AppGlobal::AudioLoadStatus m_status;
+    AudioInfoModel m_audioInfo;
+    QString m_errorMessage;
     double m_renderStart = 0;
     double m_renderEnd = 0;
     QPoint m_mouseLastPos;
     int m_rectLastWidth = -1;
     double m_chunksPerTick;
-    int m_chunkSize;
-    int m_mipmapScale;
-    int m_sampleRate;
-    int m_channels;
-    long long m_frames;
     double m_tempo = 60;
     RenderResolution m_resolution = High;
     QString m_path;

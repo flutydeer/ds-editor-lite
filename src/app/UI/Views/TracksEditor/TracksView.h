@@ -25,6 +25,8 @@ class TracksView final : public QWidget {
 public:
     explicit TracksView(QWidget *parent = nullptr);
 
+    AbstractClipGraphicsItem *findClipItemById(int id);
+
 public slots:
     void onModelChanged();
     void onTempoChanged(double tempo);
@@ -77,7 +79,6 @@ private:
     void insertTrackToView(Track *dsTrack, int trackIndex);
     void insertClipToTrack(Clip *clip, TrackViewModel *track, int trackIndex);
     void removeClipFromView(int clipId);
-    AbstractClipGraphicsItem *findClipItemById(int id);
     void updateTracksOnView() const;
     void updateClipOnView(Clip *clip, int clipId);
     void removeTrackFromView(int index);

@@ -13,6 +13,7 @@
 #include "Utils/UniqueObject.h"
 #include "ClipboardDataModel/NotesParamsInfo.h"
 #include "Params.h"
+#include "Model/AudioInfoModel.h"
 
 class Params;
 class Note;
@@ -87,6 +88,7 @@ public:
     void setPath(const QString &path) {
         m_path = path;
     }
+    AudioInfoModel info;
 
 private:
     QString m_path;

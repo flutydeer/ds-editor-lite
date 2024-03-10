@@ -16,7 +16,15 @@ class MainWindow final : public QMainWindow {
 public:
     explicit MainWindow();
 
+public slots:
+    void onAllDone();
+
 private:
+    void closeEvent(QCloseEvent *event) override;
+
+    bool m_isCloseRequested = false;
+    bool m_isAllDone = false;
+
     TracksView *m_tracksView;
     ClipEditorView *m_clipEditView;
 };

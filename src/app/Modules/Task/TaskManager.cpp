@@ -34,7 +34,11 @@ void TaskManager::addTask(ITask *task) {
     m_tasks.append(task);
 }
 void TaskManager::startTask(ITask *task) {
+    qDebug() << "TaskManager::startTask";
     threadPool->start(task);
+}
+void TaskManager::removeTask(ITask *task) {
+    m_tasks.removeOne(task);
 }
 void TaskManager::startAllTasks() {
     for (const auto &task : m_tasks)

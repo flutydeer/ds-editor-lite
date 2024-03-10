@@ -20,54 +20,28 @@ QString AudioClipGraphicsItem::path() const {
 }
 void AudioClipGraphicsItem::setPath(const QString &path) {
     m_path = path;
-    m_status = Loading;
+    m_status = AppGlobal::Loaded;
     setName(QFileInfo(m_path).fileName());
-    // if (length() == 0)
-    //     setLength(3840);
-    // if (clipLen() == 0)
-    //     setClipLen(3840);
-
-    m_worker = new AudioClipBackgroundWorker(path);
-    connect(m_worker, &AudioClipBackgroundWorker::finished, this,
-            &AudioClipGraphicsItem::onLoadComplete);
-    // m_threadPool->start(m_worker);
-    auto thread = new QThread;
-    m_worker->moveToThread(thread);
-    connect(thread, &QThread::started, m_worker, &AudioClipBackgroundWorker::run);
-    thread->start();
 }
 double AudioClipGraphicsItem::tempo() const {
     return m_tempo;
 }
 void AudioClipGraphicsItem::setTempo(double tempo) {
     m_tempo = tempo;
-    if (m_status == Loaded)
+    if (m_status == AppGlobal::Loaded)
         updateLength();
 }
-void AudioClipGraphicsItem::onLoadComplete(bool success, QString errorMessage) {
-    if (!success) {
-        m_status = Error;
-        qDebug() << "open file error" << errorMessage;
-        return;
-    }
-    m_sampleRate = m_worker->sampleRate;
-    m_channels = m_worker->channels;
-    m_chunkSize = m_worker->chunkSize;
-    m_mipmapScale = m_worker->mipmapScale;
-    m_frames = m_worker->frames;
-
-    m_peakCache.swap(m_worker->peakCache);
-    m_peakCacheMipmap.swap(m_worker->peakCacheMipmap);
-    delete m_worker;
-
-    // setClipStart(0);
-    updateLength();
-    if (clipLen() == 0)
-        setClipLen(length());
-    m_status = Loaded;
-
+void AudioClipGraphicsItem::setAudioInfo(const AudioInfoModel &info) {
+    m_audioInfo = info;
     update();
-    emit propertyChanged();
+}
+void AudioClipGraphicsItem::setStatus(AppGlobal::AudioLoadStatus status) {
+    m_status = status;
+    update();
+}
+void AudioClipGraphicsItem::setErrorMessage(const QString &errorMessage) {
+    m_errorMessage = errorMessage;
+    update();
 }
 void AudioClipGraphicsItem::onTempoChange(double tempo) {
     qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
@@ -88,7 +62,7 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
 
     QPen pen;
 
-    if (m_status == Loading) {
+    if (m_status == AppGlobal::Loading) {
         pen.setColor(peakColor);
         painter->setPen(pen);
         painter->drawText(previewRect, "Loading...", QTextOption(Qt::AlignCenter));
@@ -99,13 +73,13 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
     painter->setPen(pen);
 
     // mstimer.start();
-    if (m_peakCache.count() == 0 || m_peakCacheMipmap.count() == 0)
+    if (m_audioInfo.peakCache.count() == 0 || m_audioInfo.peakCacheMipmap.count() == 0)
         return;
 
     m_resolution = scaleX() >= 0.3 ? High : Low;
-    const auto peakData = m_resolution == Low ? m_peakCacheMipmap : m_peakCache;
+    const auto peakData = m_resolution == Low ? m_audioInfo.peakCacheMipmap : m_audioInfo.peakCache;
     const auto chunksPerTick =
-        m_resolution == Low ? m_chunksPerTick / m_mipmapScale : m_chunksPerTick;
+        m_resolution == Low ? m_chunksPerTick / m_audioInfo.mipmapScale : m_chunksPerTick;
 
     auto rectLeftScene = mapToScene(previewRect.topLeft()).x();
     auto rectRightScene = mapToScene(previewRect.bottomRight()).x();
@@ -174,29 +148,30 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
     // painter->drawLine(waveRect.topRight(), waveRect.bottomLeft());
 }
 void AudioClipGraphicsItem::updateLength() {
-    m_chunksPerTick = static_cast<double>(m_sampleRate) / m_chunkSize * 60 / m_tempo / 480;
-    auto targetLength = m_frames / (m_sampleRate * 60 / m_tempo / 480);
-    qDebug() << targetLength;
-    if (length() != targetLength)
-        setLength(targetLength);
-    // TODO: improve length changing experience
-    if (clipStart() > targetLength)
-        setClipStart(0);
-    if (clipStart() + clipLen() > targetLength)
-        setClipLen(targetLength - clipStart());
-    emit propertyChanged();
+    // TODO: move to AppModel or AppController
+    // m_chunksPerTick = static_cast<double>(m_sampleRate) / m_chunkSize * 60 / m_tempo / 480;
+    // auto targetLength = m_frames / (m_sampleRate * 60 / m_tempo / 480);
+    // qDebug() << targetLength;
+    // if (length() != targetLength)
+    //     setLength(targetLength);
+    // // TODO: improve length changing experience
+    // if (clipStart() > targetLength)
+    //     setClipStart(0);
+    // if (clipStart() + clipLen() > targetLength)
+    //     setClipLen(targetLength - clipStart());
+    // emit propertyChanged();
 }
 void AudioClipGraphicsItem::addMenuActions(Menu *menu) {
-    auto actionLocateFile = menu->addAction("Locate audio file");
-    connect(actionLocateFile, &QAction::triggered, this, [=] {
-        auto fileName =
-            QFileDialog::getOpenFileName(context(), "Select an Audio File", ".",
-                                         "All Audio File (*.wav *.flac *.mp3);;Wave File "
-                                         "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)");
-        if (fileName.isNull())
-            return;
-        setPath(fileName);
-        emit propertyChanged();
-    });
-    menu->addSeparator();
+    // auto actionLocateFile = menu->addAction("Locate audio file");
+    // connect(actionLocateFile, &QAction::triggered, this, [=] {
+    //     auto fileName =
+    //         QFileDialog::getOpenFileName(context(), "Select an Audio File", ".",
+    //                                      "All Audio File (*.wav *.flac *.mp3);;Wave File "
+    //                                      "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)");
+    //     if (fileName.isNull())
+    //         return;
+    //     setPath(fileName);
+    //     emit propertyChanged();
+    // });
+    // menu->addSeparator();
 }
