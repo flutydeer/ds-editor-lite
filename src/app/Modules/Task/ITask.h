@@ -13,6 +13,7 @@ class ITask : public QObject, public QRunnable {
 public:
     enum TaskStatus { Normal, Warning, Error };
     explicit ITask(QObject *parent = nullptr) : QObject(parent) {
+        setAutoDelete(false);
     }
     ~ITask() override {
         terminate();
