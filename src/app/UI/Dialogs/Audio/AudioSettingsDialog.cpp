@@ -94,6 +94,8 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : Dialog(parent) {
     auto testDeviceButton = new Button(tr("Test"));
     deviceLayout->addWidget(testDeviceButton);
     audioOutputLayout->addRow(tr("Audio Device"), deviceLayout);
+    auto deviceControlPanelButton = new Button(tr("Device Control Panel"));
+    audioOutputLayout->addWidget(deviceControlPanelButton);
     m_bufferSizeComboBox = new ComboBox;
     audioOutputLayout->addRow(tr("Buffer Size"), m_bufferSizeComboBox);
     m_sampleRateComboBox = new ComboBox;
@@ -143,6 +145,11 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) : Dialog(parent) {
 
     connect(testDeviceButton, &QPushButton::clicked, this, [=] {
         AudioSystem::instance()->testDevice();
+    });
+
+    connect(deviceControlPanelButton, &QPushButton::clicked, this, [=] {
+        if (AudioSystem::instance()->device())
+            AudioSystem::instance()->device()->openControlPanel();
     });
 
     if (AudioSystem::instance()->socket()) {
