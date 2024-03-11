@@ -11,6 +11,10 @@
 
 using namespace AppGlobal;
 
+TimelineView::TimelineView(QWidget *parent) : QWidget(parent){
+    setAttribute(Qt::WA_StyledBackground);
+    setObjectName("TimelineView");
+}
 void TimelineView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
@@ -34,10 +38,10 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     painter.setRenderHint(QPainter::Antialiasing);
 
     // Draw background
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(28, 29, 30));
-    painter.drawRect(rect());
-    painter.setBrush(Qt::NoBrush);
+    // painter.setPen(Qt::NoPen);
+    // painter.setBrush(QColor(28, 29, 30));
+    // painter.drawRect(rect());
+    // painter.setBrush(Qt::NoBrush);
 
     // Draw graduates
     drawTimeline(&painter, m_startTick, m_endTick,

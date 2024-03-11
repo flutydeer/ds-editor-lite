@@ -85,13 +85,13 @@ protected:
         QColor currentTask;
     };
 
-    ColorPalette colorPaletteNormal = {QColor(0, 0, 0, 32), QColor(112, 156, 255),
+    ColorPalette colorPaletteNormal = {QColor(255, 255, 255, 72), QColor(155, 186, 255),
                                        QColor(159, 189, 255), QColor(113, 218, 255)};
 
-    ColorPalette colorPaletteWarning = {QColor(0, 0, 0, 32), QColor(255, 175, 95),
+    ColorPalette colorPaletteWarning = {QColor(255, 255, 255, 72), QColor(255, 205, 155),
                                         QColor(255, 204, 153), QColor(255, 218, 113)};
 
-    ColorPalette colorPaletteError = {QColor(0, 0, 0, 32), QColor(255, 124, 128),
+    ColorPalette colorPaletteError = {QColor(255, 255, 255, 72), QColor(255, 155, 157),
                                       QColor(255, 171, 173), QColor(255, 171, 221)};
 
     ColorPalette m_colorPalette;

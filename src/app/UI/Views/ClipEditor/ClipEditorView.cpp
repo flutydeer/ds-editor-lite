@@ -117,7 +117,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     mainLayout->addWidget(m_pianoRollView);
     mainLayout->addWidget(m_phonemeView);
     mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins({});
+    mainLayout->setContentsMargins({1, 1, 1, 1});
     setLayout(mainLayout);
 }
 void ClipEditorView::onModelChanged() {

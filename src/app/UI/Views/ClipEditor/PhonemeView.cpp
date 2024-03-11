@@ -15,6 +15,8 @@ using namespace AppGlobal;
 
 PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_Hover, true);
+    setAttribute(Qt::WA_StyledBackground, true);
+    setObjectName("PhonemeView");
     installEventFilter(this);
 }
 void PhonemeView::insertNote(Note *note) {
@@ -95,10 +97,10 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     auto positionLineColor = QColor(255, 204, 153);
     // auto noteBoundaryColor = QColor(100, 100, 100);
     // Draw background
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(28, 29, 30));
-    painter.drawRect(rect());
-    painter.setBrush(Qt::NoBrush);
+    // painter.setPen(Qt::NoPen);
+    // painter.setBrush(QColor(28, 29, 30));
+    // painter.drawRect(rect());
+    // painter.setBrush(Qt::NoBrush);
 
     // Draw graduates
     drawTimeline(&painter, m_startTick, m_endTick,
