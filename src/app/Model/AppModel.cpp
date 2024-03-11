@@ -85,7 +85,7 @@ void AppModel::setQuantize(int quantize) {
 void AppModel::newProject() {
     reset();
     auto newTrack = new Track;
-    newTrack->setName("New Track");
+    newTrack->setName(tr("New Track"));
     m_tracks.append(newTrack);
     emit modelChanged();
 }

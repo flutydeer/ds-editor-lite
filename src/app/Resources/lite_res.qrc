@@ -68,5 +68,7 @@
 
         <file>theme/lite-dark.qss</file>
 
+        <file>translate/translation_zh_CN.qm</file>
+
     </qresource>
 </RCC>

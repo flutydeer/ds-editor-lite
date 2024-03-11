@@ -30,7 +30,7 @@ void TracksViewController::onInsertNewTrack(qsizetype index) {
     // }
 
     auto newTrack = new Track;
-    newTrack->setName("New Track");
+    newTrack->setName(tr("New Track"));
     // if (soloExists) {
     //     auto control = newTrack->control();
     //     control.setMute(true);
@@ -49,8 +49,8 @@ void TracksViewController::onAppendTrack(Track *track) {
 }
 void TracksViewController::onRemoveTrack(int index) {
     QMessageBox msgBox;
-    msgBox.setText("Warning");
-    msgBox.setInformativeText("Do you want to remove this track?");
+    msgBox.setText(tr("Warning"));
+    msgBox.setInformativeText(tr("Do you want to remove this track?"));
     msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
     msgBox.setDefaultButton(QMessageBox::Yes);
     int ret = msgBox.exec();
@@ -174,8 +174,8 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
 }
 void TracksViewController::onRemoveClip(int clipId) {
     QMessageBox msgBox;
-    msgBox.setText("Warning");
-    msgBox.setInformativeText("Do you want to remove this clip?");
+    msgBox.setText(tr("Warning"));
+    msgBox.setInformativeText(tr("Do you want to remove this clip?"));
     msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
     msgBox.setDefaultButton(QMessageBox::Yes);
     int ret = msgBox.exec();
@@ -214,8 +214,8 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
         // auto audioClipItem = dynamic_cast<AudioClipGraphicsItem *>(clipItem);
         // audioClipItem->setStatus(AppGlobal::Error);
         QMessageBox msgBox;
-        msgBox.setText("Error");
-        msgBox.setInformativeText("Open file error:" + task->errorMessage);
+        msgBox.setText(tr("Error"));
+        msgBox.setInformativeText(tr("Open file error:") + task->errorMessage);
         msgBox.setStandardButtons(QMessageBox::Yes);
         msgBox.setDefaultButton(QMessageBox::Yes);
         msgBox.exec();

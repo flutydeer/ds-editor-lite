@@ -61,7 +61,7 @@ void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
 
     QPainter painter(viewport());
     painter.setPen(QColor(160, 160, 160));
-    painter.drawText(viewport()->rect(), "Select a singing clip to edit",
+    painter.drawText(viewport()->rect(), tr("Select a singing clip to edit"),
                      QTextOption(Qt::AlignCenter));
 }
 void PianoRollGraphicsView::prepareForMovingOrResizingNotes(QMouseEvent *event, QPointF scenePos,

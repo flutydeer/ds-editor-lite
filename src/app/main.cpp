@@ -5,6 +5,7 @@
 #include <QApplication>
 #include <QStyleFactory>
 #include <QScreen>
+#include <QTranslator>
 
 #include "g2pglobal.h"
 #include "UI/Window/MainWindow.h"
@@ -23,7 +24,7 @@ int main(int argc, char *argv[]) {
     QApplication::setAttribute(Qt::AA_SynthesizeTouchForUnhandledMouseEvents);
     QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
     QApplication::setOrganizationName("OpenVPI");
-    QApplication::setApplicationName("DsEditorLite");
+    QApplication::setApplicationName("DS Editor Lite");
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
 
     // auto style = QStyleFactory::create("fusion");
@@ -31,7 +32,13 @@ int main(int argc, char *argv[]) {
 
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);
+    f.setPointSizeF(10);
     QApplication::setFont(f);
+
+    auto translator = new QTranslator;
+    auto foundTranslation = translator->load(":translate/translation_zh_CN.qm");
+    if (foundTranslation)
+        QApplication::installTranslator(translator);
 
     AudioSystem as;
     as.initialize(QApplication::arguments().contains("-vst"));

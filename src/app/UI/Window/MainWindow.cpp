@@ -61,44 +61,44 @@ MainWindow::MainWindow() {
     auto menuBar = new QMenuBar(this);
     menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    auto menuFile = new Menu("&File", this);
-    auto actionNewProject = new QAction("&New Project", this);
+    auto menuFile = new Menu(tr("&File"), this);
+    auto actionNewProject = new QAction(tr("&New Project"), this);
     actionNewProject->setShortcut(QKeySequence("Ctrl+N"));
     connect(actionNewProject, &QAction::triggered, appController, &AppController::onNewProject);
 
-    auto actionOpen = new QAction("&Open Project...");
+    auto actionOpen = new QAction(tr("&Open Project..."));
     actionOpen->setShortcut(QKeySequence("Ctrl+O"));
     connect(actionOpen, &QAction::triggered, this, [=] {
         auto lastDir =
             appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
-        auto fileName = QFileDialog::getOpenFileName(this, "Select a Project File", lastDir,
-                                                     "Project File (*.json)");
+        auto fileName = QFileDialog::getOpenFileName(this, tr("Select a Project File"), lastDir,
+                                                     tr("DiffScope Project File (*.dspx)"));
         if (fileName.isNull())
             return;
 
         appController->openProject(fileName);
     });
-    auto actionOpenAProject = new QAction("Open A Project", this);
+    auto actionOpenAProject = new QAction(tr("Open A Project"), this);
     connect(actionOpenAProject, &QAction::triggered, this, [=] {
         auto lastDir =
             appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
-        auto fileName = QFileDialog::getOpenFileName(this, "Select an A Project File", lastDir,
-                                                     "Project File (*.json)");
+        auto fileName = QFileDialog::getOpenFileName(this, tr("Select an A Project File"), lastDir,
+                                                     tr("Project File (*.json)"));
         if (fileName.isNull())
             return;
 
         appController->importAproject(fileName);
     });
 
-    auto actionSave = new QAction("&Save", this);
+    auto actionSave = new QAction(tr("&Save"), this);
     actionSave->setShortcut(QKeySequence("Ctrl+S"));
-    auto actionSaveAs = new QAction("&Save As", this);
+    auto actionSaveAs = new QAction(tr("Save &As..."), this);
     actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
     connect(actionSaveAs, &QAction::triggered, this, [=] {
         auto lastDir =
             appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
-        auto fileName = QFileDialog::getSaveFileName(this, "Save as Project File", lastDir,
-                                                     "Project File (*.json)");
+        auto fileName = QFileDialog::getSaveFileName(this, tr("Save as Project File"), lastDir,
+                                                     tr("Project File (*.json)"));
         if (fileName.isNull())
             return;
 
@@ -112,27 +112,27 @@ MainWindow::MainWindow() {
         }
     });
 
-    auto menuImport = new Menu("Import", this);
-    auto actionImportMidiFile = new QAction("MIDI File...", this);
+    auto menuImport = new Menu(tr("Import"), this);
+    auto actionImportMidiFile = new QAction(tr("MIDI File..."), this);
     connect(actionImportMidiFile, &QAction::triggered, this, [=] {
         auto fileName =
-            QFileDialog::getOpenFileName(this, "Select a MIDI File", ".", "MIDI File (*.mid)");
+            QFileDialog::getOpenFileName(this, tr("Select a MIDI File"), ".", tr("MIDI File (*.mid)"));
         if (fileName.isNull())
             return;
         appController->importMidiFile(fileName);
     });
     menuImport->addAction(actionImportMidiFile);
 
-    auto menuExport = new Menu("Export", this);
-    auto actionExportAudio = new QAction("Audio File...", this);
+    auto menuExport = new Menu(tr("Export"), this);
+    auto actionExportAudio = new QAction(tr("Audio File..."), this);
     connect(actionExportAudio, &QAction::triggered, this, [=] {
         AudioExportDialog dlg(this);
         dlg.exec();
     });
-    auto actionExportMidiFile = new QAction("MIDI File...", this);
+    auto actionExportMidiFile = new QAction(tr("MIDI File..."), this);
     connect(actionExportMidiFile, &QAction::triggered, this, [=] {
         auto fileName =
-            QFileDialog::getSaveFileName(this, "Save as MIDI File", ".", "MIDI File (*.mid)");
+            QFileDialog::getSaveFileName(this, tr("Save as MIDI File"), ".", tr("MIDI File (*.mid)"));
         if (fileName.isNull())
             return;
         appController->exportMidiFile(fileName);
@@ -150,14 +150,14 @@ MainWindow::MainWindow() {
     menuFile->addMenu(menuImport);
     menuFile->addMenu(menuExport);
 
-    auto menuEdit = new Menu("&Edit", this);
+    auto menuEdit = new Menu(tr("&Edit"), this);
 
-    auto actionUndo = new QAction("&Undo", this);
+    auto actionUndo = new QAction(tr("&Undo"), this);
     actionUndo->setEnabled(false);
     actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
     connect(actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
 
-    auto actionRedo = new QAction("&Redo", this);
+    auto actionRedo = new QAction(tr("&Redo"), this);
     actionRedo->setEnabled(false);
     actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
     connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
@@ -167,14 +167,14 @@ MainWindow::MainWindow() {
                 actionRedo->setEnabled(canRedo);
             });
 
-    auto actionSelectAll = new QAction("&Select All", this);
+    auto actionSelectAll = new QAction(tr("Select &All"), this);
     actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
     connect(actionSelectAll, &QAction::triggered, clipController,
             &ClipEditorViewController::onSelectAllNotes);
     // connect(clipController, &ClipEditorViewController::canSelectAllChanged, actionSelectAll,
     //         &QAction::setEnabled);
 
-    auto actionDelete = new QAction("&Delete", this);
+    auto actionDelete = new QAction(tr("&Delete"), this);
     actionDelete->setShortcut(Qt::Key_Delete);
     // TODO: fix bug
     connect(actionDelete, &QAction::triggered, clipController,
@@ -182,15 +182,15 @@ MainWindow::MainWindow() {
     // connect(clipController, &ClipEditorViewController::canRemoveChanged, actionDelete,
     //         &QAction::setEnabled);
 
-    auto actionCut = new QAction("&Cut", this);
+    auto actionCut = new QAction(tr("Cu&t"), this);
     actionCut->setShortcut(QKeySequence("Ctrl+X"));
     connect(actionCut, &QAction::triggered, clipboardController, &ClipboardController::cut);
 
-    auto actionCopy = new QAction("&Copy", this);
+    auto actionCopy = new QAction(tr("&Copy"), this);
     actionCopy->setShortcut(QKeySequence("Ctrl+C"));
     connect(actionCopy, &QAction::triggered, clipboardController, &ClipboardController::copy);
 
-    auto actionPaste = new QAction("&Paste", this);
+    auto actionPaste = new QAction(tr("&Paste"), this);
     actionPaste->setShortcut(QKeySequence("Ctrl+V"));
     connect(actionPaste, &QAction::triggered, clipboardController, &ClipboardController::paste);
 
@@ -204,31 +204,31 @@ MainWindow::MainWindow() {
     menuEdit->addAction(actionCopy);
     menuEdit->addAction(actionPaste);
 
-    auto menuInsert = new Menu("&Insert", this);
+    auto menuInsert = new Menu(tr("&Insert"), this);
 
-    auto actionInsertNewTrack = new QAction("New track", this);
+    auto actionInsertNewTrack = new QAction(tr("Track"), this);
     connect(actionInsertNewTrack, &QAction::triggered, TracksViewController::instance(),
             &TracksViewController::onNewTrack);
     menuInsert->addAction(actionInsertNewTrack);
 
-    auto menuModify = new Menu("&Modify", this);
-    auto actionFillLyrics = new QAction("Fill Lyrics", this);
+    auto menuModify = new Menu(tr("&Modify"), this);
+    auto actionFillLyrics = new QAction(tr("Fill Lyrics..."), this);
     actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
     connect(actionFillLyrics, &QAction::triggered, clipController,
             [this] { ClipEditorViewController::instance()->onFillLyric(this); });
     menuModify->addAction(actionFillLyrics);
 
-    auto menuOptions = new Menu("&Options", this);
-    auto actionAudioSettings = new QAction("&Audio settings", this);
+    auto menuOptions = new Menu(tr("&Options"), this);
+    auto actionAudioSettings = new QAction(tr("&Audio Settings..."), this);
     connect(actionAudioSettings, &QAction::triggered, this, [=] {
         AudioSettingsDialog dlg(this);
         dlg.exec();
     });
     menuOptions->addAction(actionAudioSettings);
 
-    auto menuHelp = new Menu("&Help", this);
-    auto actionCheckForUpdates = new QAction("Check for updates", this);
-    auto actionAbout = new QAction("About", this);
+    auto menuHelp = new Menu(tr("&Help"), this);
+    auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);
+    auto actionAbout = new QAction(tr("About..."), this);
     menuHelp->addAction(actionCheckForUpdates);
     menuHelp->addAction(actionAbout);
 

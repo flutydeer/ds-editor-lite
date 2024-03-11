@@ -1,7 +1,6 @@
 QPushButton {
     background: #10FFFFFF;
     border: none;
-    font-size: 10pt;
     border-radius: 6px;
     color: #f2f2f2;
     padding: 4px 12px;
@@ -44,7 +43,7 @@ QComboBox QAbstractItemView {
     color: #F0F0F0;
     background-color: #202122;
     border: 1px solid #606060;
-    selection-background-color: #329BBAFF;
+    selection-background-color: #1AFFFFFF;
     border-style: none;
     border-radius: 4px;
 }
@@ -167,6 +166,7 @@ QMenu::item {
     background: transparent;
     color: #F0F0F0;
     padding: 5px 20px;
+    min-width: 96px
 }
 
 QMenu[stats=checkable]::item,
@@ -175,7 +175,7 @@ QMenu[stats=icon]::item {
 }
 
 QMenu::item:selected {
-    background-color: #329BBAFF;
+    background-color: #1AFFFFFF;
     border-style: none;
     border-radius: 4px;
 }
@@ -198,9 +198,9 @@ QMenuBar {
 
 QMenuBar::item {
     background-color: transparent;
-    padding: 8px 12px;
+    padding: 6px 12px;
     color: #f0f0f0;
-    border-radius: 4px;
+    border-radius: 6px;
 }
 
 QMenuBar::item:selected {
@@ -279,7 +279,6 @@ QTabWidget::pane {
 
 QTabBar {
     background-color: transparent;
-    font-size: 10pt
 }
 
 QTabBar::tab {
