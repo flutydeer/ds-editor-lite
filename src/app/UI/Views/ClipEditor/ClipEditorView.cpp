@@ -20,6 +20,9 @@
 #include "Model/Track.h"
 
 ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
+    setAttribute(Qt::WA_StyledBackground);
+    setObjectName("ClipEditorView");
+
     m_toolbarView = new ClipEditorToolBarView;
     connect(m_toolbarView, &ClipEditorToolBarView::clipNameChanged, this,
             &ClipEditorView::onClipNameEdited);

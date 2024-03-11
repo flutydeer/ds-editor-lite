@@ -17,8 +17,8 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     setLayout(mainLayout);
 }
 void TrackListHeaderView::paintEvent(QPaintEvent *event) {
-    QPainter painter(this);
-    painter.setPen(Qt::NoPen);
-    painter.fillRect(rect(), QColor(42, 43, 44));
+    // QPainter painter(this);
+    // painter.setPen(Qt::NoPen);
+    // painter.fillRect(rect(), QColor(42, 43, 44));
     QWidget::paintEvent(event);
 }

@@ -19,6 +19,9 @@
 
 PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent)
     : TimeGraphicsView(scene, parent), m_layerManager(scene) {
+    setAttribute(Qt::WA_StyledBackground);
+    setObjectName("PianoRollGraphicsView");
+    
     setScaleXMax(5);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
 

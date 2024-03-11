@@ -156,7 +156,7 @@ MainWindow::MainWindow() {
 
     auto actionRedo = new QAction("&Redo", this);
     actionRedo->setEnabled(false);
-    actionRedo->setShortcut(QKeySequence("Ctrl+Shift+Z"));
+    actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
     connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             [=](bool canUndo, bool canRedo) {
@@ -173,6 +173,7 @@ MainWindow::MainWindow() {
 
     auto actionDelete = new QAction("&Delete", this);
     actionDelete->setShortcut(Qt::Key_Delete);
+    // TODO: fix bug
     connect(actionDelete, &QAction::triggered, clipController,
             &ClipEditorViewController::onRemoveSelectedNotes);
     // connect(clipController, &ClipEditorViewController::canRemoveChanged, actionDelete,
@@ -297,7 +298,7 @@ MainWindow::MainWindow() {
 
     auto menuBarContainer = new QHBoxLayout;
     menuBarContainer->addWidget(menuBar);
-    menuBarContainer->setContentsMargins(6, 6, 6, 6);
+    menuBarContainer->setContentsMargins(0, 6, 6, 6);
 
     auto actionButtonsView = new ActionButtonsView;
     connect(actionButtonsView, &ActionButtonsView::saveTriggered, actionSave, &QAction::trigger);
@@ -321,7 +322,7 @@ MainWindow::MainWindow() {
     mainLayout->addLayout(actionButtonLayout);
     mainLayout->addWidget(splitter);
     mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins({});
+    mainLayout->setContentsMargins({6, 0, 6, 6});
 
     auto mainWidget = new QWidget;
     mainWidget->setLayout(mainLayout);

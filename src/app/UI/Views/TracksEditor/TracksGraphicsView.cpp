@@ -13,6 +13,9 @@
 
 TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent)
     : TimeGraphicsView(scene, parent) {
+    setAttribute(Qt::WA_StyledBackground);
+    setObjectName("TracksGraphicsView");
+
     setScaleYMin(0.575);
 
     m_actionNewSingingClip = new QAction("New singing clip", this);

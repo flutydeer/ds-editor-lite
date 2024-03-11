@@ -1,5 +1,5 @@
 QPushButton {
-    background: rgb(64, 64, 64);
+    background: #10FFFFFF;
     border: none;
     font-size: 10pt;
     border-radius: 6px;
@@ -8,12 +8,12 @@ QPushButton {
 }
 
 QPushButton:hover {
-    background-color: rgb(72, 72, 72);
+    background-color: #1AFFFFFF;
 }
 
 QPushButton:pressed {
     color: rgb(191, 191, 191);
-    background-color: rgb(56, 56, 56)
+    background-color: #10FFFFFF;
 }
 
 QPushButton:disabled {
@@ -22,7 +22,7 @@ QPushButton:disabled {
 }
 
 QComboBox {
-    background: rgb(64, 64, 64);
+    background: #10FFFFFF;
     border: none;
     border-radius: 6px;
     color: rgb(242, 242, 242);
@@ -30,7 +30,7 @@ QComboBox {
 }
 
 QComboBox:hover {
-    background-color: rgb(72, 72, 72);
+    background-color: #1AFFFFFF;
 }
 
 QComboBox:disabled {
@@ -125,14 +125,14 @@ QScrollBar::sub-line::horizontal {
 }
 
 QSplitter {
-    background-color: #2A2B2C;
+    background-color: transparent;
     border: none;
     height: 6px
 }
 
 QSplitter::handle:vertical {
     height: 6px;
-    background-color: #1C1D1E;
+    background-color: transparent;
 }
 
 QGraphicsView {
@@ -393,4 +393,22 @@ QCheckBox::indicator:unchecked:pressed {
 
 QCheckBox::indicator:unchecked:disabled {
     border: 1px solid rgb(64, 64, 64);
+}
+
+QWidget#TracksView {
+    background: #2A2B2C;
+    border-radius: 6px;
+}
+
+QWidget#ClipEditorView {
+    background: #2A2B2C;
+    border-radius: 6px;
+}
+
+QGraphicsView#TracksGraphicsView {
+    background: transparent;
+}
+
+QGraphicsView#PianoRollGraphicsView {
+    background: transparent;
 }

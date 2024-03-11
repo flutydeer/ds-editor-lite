@@ -27,6 +27,9 @@
 #include "TrackControlWidget.h"
 
 TracksView::TracksView(QWidget *parent): QWidget(parent) {
+    setAttribute(Qt::WA_StyledBackground);
+    setObjectName("TracksView");
+
     m_trackListWidget = new QListWidget;
     // tracklist->setMinimumWidth(120);
     m_trackListWidget->setMinimumWidth(TracksEditorGlobal::trackListWidth);
