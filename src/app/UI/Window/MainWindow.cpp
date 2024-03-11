@@ -9,6 +9,8 @@
 #include <QHBoxLayout>
 #include <QSplitter>
 #include <QCloseEvent>
+#include <QStatusBar>
+#include <QLabel>
 
 #include "Utils/WindowFrameUtils.h"
 #include "Controller/AppController.h"
@@ -25,6 +27,7 @@
 #include "UI/Views/PlaybackView.h"
 #include "UI/Views/ActionButtonsView.h"
 #include "Modules/Task/TaskManager.h"
+#include "UI/Controls/ProgressIndicator.h"
 
 MainWindow::MainWindow() {
     QString qssBase;
@@ -318,11 +321,25 @@ MainWindow::MainWindow() {
     actionButtonLayout->addWidget(playbackView);
     actionButtonLayout->setContentsMargins({});
 
+    auto progressBar = new ProgressIndicator;
+    progressBar->setValue(50);
+    progressBar->setFixedWidth(170);
+
+    auto statusBar = new QStatusBar(this);
+    statusBar->addWidget(new QLabel("Scroll: Wheel/Shift + Wheel; Zoom: Ctrl + Wheel/Alt + Wheel; Double click to create a singing clip"));
+    statusBar->addPermanentWidget(new QLabel("Running Inference..."));
+    statusBar->addPermanentWidget(progressBar);
+    statusBar->setFixedHeight(28);
+    statusBar->setSizeGripEnabled(false);
+    statusBar->setStyleSheet("QStatusBar::item { border: none } QLabel {color: #A0FFFFFF}");
+    setStatusBar(statusBar);
+
     auto mainLayout = new QVBoxLayout;
     mainLayout->addLayout(actionButtonLayout);
     mainLayout->addWidget(splitter);
+    mainLayout->addWidget(statusBar);
     mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins({6, 0, 6, 6});
+    mainLayout->setContentsMargins({6, 0, 6, 0});
 
     auto mainWidget = new QWidget;
     mainWidget->setLayout(mainLayout);

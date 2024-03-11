@@ -19,9 +19,9 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     m_elClipName->setEnabled(false);
     m_elClipName->setText("");
     m_elClipName->setStyleSheet(
-        "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 6px; }"
+        "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 4px; }"
         "QLabel:hover { background: #1AFFFFFF; }"
-        "QLineEdit { border-radius: 6px; }");
+        "QLineEdit { border-radius: 4px; }");
     connect(m_elClipName, &EditLabel::editCompleted, this,
             [=](const QString &text) { emit clipNameChanged(text); });
 

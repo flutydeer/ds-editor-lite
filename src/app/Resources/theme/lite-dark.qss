@@ -397,12 +397,31 @@ QCheckBox::indicator:unchecked:disabled {
 
 QWidget#TracksView {
     background: #2A2B2C;
+    /*background: #B0303030;*/
     border-radius: 6px;
+    /*border: 1px solid rgb(126, 149, 199);*/
 }
 
 QWidget#ClipEditorView {
     background: #2A2B2C;
+    /*background: #B0303030;*/
     border-radius: 6px;
+    border: 1px solid rgb(126, 149, 199);
+}
+
+QWidget#TimelineView {
+    background: rgb(28, 29, 30);
+}
+
+QWidget#PhonemeView {
+    background: rgb(28, 29, 30);
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+QWidget#tracksTimelineView {
+    background: rgb(28, 29, 30);
+    border-top-right-radius: 6px;
 }
 
 QGraphicsView#TracksGraphicsView {

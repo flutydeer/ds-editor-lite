@@ -11,6 +11,9 @@
 class TimelineView : public QWidget, public ITimelinePainter {
     Q_OBJECT
 
+public:
+    explicit TimelineView(QWidget *parent = nullptr);
+
 public slots:
     void setTimeRange(double startTick, double endTick);
     void setTimeSignature(int numerator, int denominator) override;

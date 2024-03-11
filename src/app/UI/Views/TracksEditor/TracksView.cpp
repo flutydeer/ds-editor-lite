@@ -26,7 +26,7 @@
 #include "GraphicsItem/SingingClipGraphicsItem.h"
 #include "TrackControlWidget.h"
 
-TracksView::TracksView(QWidget *parent): QWidget(parent) {
+TracksView::TracksView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TracksView");
 
@@ -38,12 +38,12 @@ TracksView::TracksView(QWidget *parent): QWidget(parent) {
     m_trackListWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trackListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_trackListWidget->setVerticalScrollMode(QListWidget::ScrollPerPixel);
-    m_trackListWidget->setStyleSheet("QListWidget { background: #2A2B2C; border: none; "
+    m_trackListWidget->setStyleSheet("QListWidget { background: transparent; border: none; "
                                      "border-right: 1px solid #202020; outline:0px;"
                                      "border-top: 1px solid #202020;"
                                      "margin-bottom: 16px } "
-                                     "QListWidget::item:hover { background: #2E2F30 }"
-                                     "QListWidget::item:selected { background: #373839 }");
+                                     "QListWidget::item:hover { background: #05FFFFFF }"
+                                     "QListWidget::item:selected { background: #10FFFFFF }");
     m_trackListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     QScroller::grabGesture(m_trackListWidget, QScroller::TouchGesture);
     connect(m_trackListWidget, &QListWidget::currentRowChanged, AppController::instance(),
@@ -99,6 +99,7 @@ TracksView::TracksView(QWidget *parent): QWidget(parent) {
     m_tracksScene->addTimeGrid(m_gridItem);
 
     m_timeline = new TimelineView;
+    m_timeline->setObjectName("tracksTimelineView");
     m_timeline->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
     m_timeline->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
@@ -156,6 +157,7 @@ TracksView::TracksView(QWidget *parent): QWidget(parent) {
     // layout->addWidget(splitter);
     mainLayout->addLayout(trackListPanelLayout);
     mainLayout->addLayout(trackTimelineAndViewLayout);
+    mainLayout->setContentsMargins({1, 1, 1, 1});
 
     setLayout(mainLayout);
 }
@@ -297,8 +299,9 @@ void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
     }
     auto newTrackItem = new QListWidgetItem;
     auto newTrackControlWidget = new TrackControlWidget(newTrackItem);
-    newTrackItem->setSizeHint(QSize(TracksEditorGlobal::trackListWidth,
-                                    static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
+    newTrackItem->setSizeHint(
+        QSize(TracksEditorGlobal::trackListWidth,
+              static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
     newTrackControlWidget->setTrackIndex(trackIndex + 1);
     newTrackControlWidget->setName(dsTrack->name());
     newTrackControlWidget->setControl(dsTrack->control());
@@ -417,8 +420,10 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         m_tracksScene->addCommonItem(clipItem);
         qDebug() << "Singing clip graphics item added to scene" << clipItem->id()
                  << clipItem->name();
-        connect(singingClip, &SingingClip::noteListChanged, clipItem, &SingingClipGraphicsItem::onNoteListChanged);
-        connect(singingClip, &SingingClip::notePropertyChanged, clipItem, &SingingClipGraphicsItem::onNotePropertyChanged);
+        connect(singingClip, &SingingClip::noteListChanged, clipItem,
+                &SingingClipGraphicsItem::onNoteListChanged);
+        connect(singingClip, &SingingClip::notePropertyChanged, clipItem,
+                &SingingClipGraphicsItem::onNotePropertyChanged);
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
                 [=](int id) { emit removeClipTriggered(id); });
         connect(AppModel::instance(), &AppModel::quantizeChanged, clipItem,

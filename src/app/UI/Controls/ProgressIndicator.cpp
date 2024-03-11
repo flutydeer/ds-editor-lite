@@ -46,8 +46,7 @@ void ProgressIndicator::initUi() {
 
     switch (m_indicatorStyle) {
         case HorizontalBar:
-            setMinimumHeight(8);
-            setMaximumHeight(8);
+            setFixedHeight(4);
             calculateBarParams();
             break;
         case Ring:
