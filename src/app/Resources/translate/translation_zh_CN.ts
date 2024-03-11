@@ -630,7 +630,7 @@
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="185"/>
         <source>Cu&amp;t</source>
-        <translation>剪切(&amp;C)</translation>
+        <translation type="unfinished">剪切(&amp;T)</translation>
     </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="189"/>
