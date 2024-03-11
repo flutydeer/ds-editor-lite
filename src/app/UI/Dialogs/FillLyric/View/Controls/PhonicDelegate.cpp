@@ -20,22 +20,21 @@ namespace FillLyric {
         QString text = index.data(Qt::DisplayRole).toString();
 
         // 获取注音文本
-        QString syllable = index.data(PhonicRole::Syllable).toString();
+        QString syllable = index.data(Syllable).toString();
 
         // 获取人工修订的注音文本
-        const QString syllableRevised = index.data(PhonicRole::SyllableRevised).toString();
+        const QString syllableRevised = index.data(SyllableRevised).toString();
 
-        const int lyricType = index.data(PhonicRole::LyricType).toInt();
+        const int lyricType = index.data(LyricType).toInt();
 
         // 获取候选发音列表
-        const QStringList candidateList = index.data(PhonicRole::Candidate).toStringList();
+        const QStringList candidateList = index.data(Candidate).toStringList();
         // 若候选发音大于1个，注音颜色为红色
         if (syllableRevised != "") {
             painter->setPen(QColor(255, 204, 153));
             syllable = syllableRevised;
-        } else if (text == syllable && lyricType != TextType::Slur &&
-                   lyricType != TextType::EnWord) {
-            painter->setPen(Qt::darkBlue);
+        } else if (text == syllable && lyricType != Slur && lyricType != EnWord) {
+            painter->setPen(QColor(255, 155, 157));
         } else if (candidateList.size() > 1) {
             painter->setPen(QColor(155, 186, 255));
         } else {

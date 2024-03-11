@@ -23,10 +23,9 @@ namespace FillLyric {
         return c == QChar::LineFeed || c == QChar::LineSeparator || c == QChar::ParagraphSeparator;
     }
 
-    bool isEnglishWord(const QString &word) {
-        // 遍历字符串中的每个字符
+    bool CleanLyric::isEnglishWord(const QString &word) {
         for (const QChar &ch : word) {
-            if (!ch.isLetter()) {
+            if (!isLetter(ch)) {
                 return false;
             }
         }

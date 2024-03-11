@@ -25,11 +25,15 @@ namespace FillLyric {
             }
         }
         m_model->editWarpCell(m_cellIndex, m_newPhonic);
+        m_model->putData(m_cellIndex / m_model->columnCount(), m_cellIndex % m_model->columnCount(),
+                         m_newPhonic);
         m_model->refreshTable();
     }
 
     void WrapCellEditAction::undo() {
         m_model->editWarpCell(m_cellIndex, m_oldPhonic);
+        m_model->putData(m_cellIndex / m_model->columnCount(), m_cellIndex % m_model->columnCount(),
+                         m_oldPhonic);
         m_model->refreshTable();
     }
 } // FillLyric

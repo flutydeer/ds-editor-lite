@@ -210,15 +210,18 @@ namespace FillLyric {
             Phonic newPhonic = oldPhonicList[col];
             newPhonic.lyric = text;
             newPhonic.lyricType = CleanLyric::lyricType(text, "-");
-            if (newPhonic.lyricType == TextType::Kana) {
+            if (newPhonic.lyricType == Kana) {
                 auto romajiList = g2p_jp->kanaToRomaji(text);
                 if (!romajiList.isEmpty()) {
                     newPhonic.syllable = romajiList.at(0);
                     newPhonic.candidates = QStringList() << newPhonic.syllable;
                 }
-            } else {
+            } else if (newPhonic.lyricType == Hanzi) {
                 newPhonic.syllable = g2p_man->hanziToPinyin(text, false, false).at(0);
                 newPhonic.candidates = g2p_man->getDefaultPinyin(text, false);
+            } else {
+                newPhonic.syllable = text;
+                newPhonic.candidates = QStringList() << text;
             }
             const auto a = new WrapCellActions();
             a->warpCellEdit(index, model, newPhonic);

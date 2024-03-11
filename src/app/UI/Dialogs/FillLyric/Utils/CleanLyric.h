@@ -30,6 +30,8 @@ namespace FillLyric {
         static bool isSpecialKana(const QChar &c);
 
         static bool isLineBreak(const QChar &c);
+
+        static bool isEnglishWord(const QString &word);
     };
 }
 
