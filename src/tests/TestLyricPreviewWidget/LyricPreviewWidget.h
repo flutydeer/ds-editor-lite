@@ -27,6 +27,7 @@ public:
     };
 
     explicit LyricPreviewWidgetCell(LyricPreviewWidget *parent = nullptr);
+    LyricPreviewWidgetCell(const QString &lyric, const QString &pronunciation, const QStringList &pronunciationCandidates, LyricPreviewWidget *parent = nullptr);
     ~LyricPreviewWidgetCell() override;
 
     void setLyric(const QString &lyric);
@@ -62,6 +63,7 @@ protected:
 private:
     friend class CellGraphicsItem;
     friend class LyricPreviewWidget;
+    friend class LyricPreviewWidgetPrivate;
     QScopedPointer<LyricPreviewWidgetCellPrivate> d_ptr;
 };
 
@@ -93,9 +95,6 @@ public:
 
     QList<LyricPreviewWidgetCell *> selectedCells() const;
 
-    void setLineWrap(bool enabled);
-    bool lineWrap() const;
-
     void setSplitter(const QPen &splitter);
     QPen splitter() const;
 
@@ -106,7 +105,7 @@ public:
     qreal horizontalMargin() const;
 
     void setCellPadding(qreal padding);
-    qreal padding() const;
+    qreal cellPadding() const;
 
 signals:
     void currentCellChanged(LyricPreviewWidgetCell *current, LyricPreviewWidgetCell *previous);
@@ -116,8 +115,11 @@ signals:
 
 protected:
     LyricPreviewWidget(QWidget *parent, LyricPreviewWidgetPrivate &d);
+    void resizeEvent(QResizeEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 private:
+    friend class CellGraphicsItem;
     QScopedPointer<LyricPreviewWidgetPrivate> d_ptr;
 };
 

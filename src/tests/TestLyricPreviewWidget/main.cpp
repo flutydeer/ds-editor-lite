@@ -39,6 +39,8 @@ int main(int argc, char **argv) {
     lyricPreviewWidget->insertCell(0, -1, cell1);
     lyricPreviewWidget->insertCell(0, 1, cell3);
 
+    lyricPreviewWidget->insertRow(-1, {});
+
     auto cell4 = new LyricPreviewWidgetCell;
     cell4->setLyric("测");
     cell4->setPronunciation("ce");
@@ -49,11 +51,23 @@ int main(int argc, char **argv) {
 
     lyricPreviewWidget->insertRow(-1, {cell4, cell5});
 
+    qDebug() << (lyricPreviewWidget->cell(2,0) == cell4);
+
     auto cell6 = new LyricPreviewWidgetCell;
     cell6->setLyric("TEST");
     cell6->setPronunciation("test");
 
     lyricPreviewWidget->insertRow(0, {cell6});
+
+    qDebug() << (lyricPreviewWidget->cell(3,0) == cell4);
+
+    lyricPreviewWidget->removeCell(cell4);
+
+    lyricPreviewWidget->removeRow(0);
+
+    lyricPreviewWidget->setHorizontalMargin(16);
+
+    lyricPreviewWidget->insertRow(-1, {new LyricPreviewWidgetCell("长", "chang", {"chang", "zhang"})});
 
     win.show();
     return a.exec();

@@ -7,11 +7,14 @@
 #include <QGraphicsScene>
 #include <QGraphicsItem>
 #include <QStaticText>
+#include <QPointer>
 
 class CellGraphicsItem : public QGraphicsItem {
 public:
     explicit CellGraphicsItem(LyricPreviewWidgetCell *cell, QGraphicsItem *parent = nullptr);
     ~CellGraphicsItem() override;
+
+    int type() const override;
 
     void setFont(const QFont &font);
     QFont font() const;
@@ -34,6 +37,7 @@ public:
     void setForeground(LyricPreviewWidgetCell::State state, LyricPreviewWidgetCell::Role role, const QPen &pen);
     QPen foreground(LyricPreviewWidgetCell::State state, LyricPreviewWidgetCell::Role role);
 
+    QPainterPath shape() const override;
     QRectF boundingRect() const override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
 
@@ -64,20 +68,56 @@ private:
     void updateRect();
 };
 
-class LyricPreviewWidgetPrivate {
+class SplitterGraphicsItem : public QGraphicsItem {
+public:
+    explicit SplitterGraphicsItem(QGraphicsItem *parent = nullptr);
+    ~SplitterGraphicsItem() override;
+
+    void setPen(const QPen &pen);
+    QPen pen() const;
+
+    void setBoundingRect(const QRectF &rect);
+    QRectF boundingRect() const override;
+
+    void setLineHeight(qreal height);
+    qreal lineHeight() const;
+
+    void setMargin(qreal margin);
+    qreal margin() const;
+
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+
+private:
+    QPen m_pen = QPen(Qt::gray, 1);
+    QRectF m_rect;
+    qreal m_lineHeight = 4;
+    qreal m_margin = 4;
+};
+
+class LyricPreviewWidgetPrivate : public QObject {
     Q_DECLARE_PUBLIC(LyricPreviewWidget)
 public:
     LyricPreviewWidget *q_ptr;
     QGraphicsScene scene;
-    QPen splitterPen = QPen(Qt::black);
     QList<int> columnCountOfRow = {0};
-    QList<QGraphicsLineItem *> rowSplitters = {nullptr};
+    SplitterGraphicsItem *splitterItem;
     QList<QList<LyricPreviewWidgetCell *>> items = {{}};
     qreal verticalMargin = 8;
     qreal horizontalMargin = 8;
     qreal cellPadding = 4;
 
     qreal cellHeight() const;
+
+    void updateLayout();
+    void updateSplitterRect();
+
+    LyricPreviewWidgetCell *editingCell = nullptr;
+    QPointer<QGraphicsProxyWidget> editingItem;
+    QPointer<QLineEdit> lineEdit;
+    QPointer<QComboBox> comboBox;
+    void editCell(LyricPreviewWidgetCell *cell, QRectF rect, LyricPreviewWidgetCell::Role role);
+
+    bool eventFilter(QObject *watched, QEvent *event) override;
 };
 
 class LyricPreviewWidgetCellPrivate {
@@ -85,10 +125,12 @@ class LyricPreviewWidgetCellPrivate {
 public:
     LyricPreviewWidgetCell *q_ptr;
     std::unique_ptr<CellGraphicsItem> cellItem;
-    int row;
-    int column;
+    int row = -1;
+    int column = -1;
     QStringList pronunciationCandidate;
     bool inScene = false;
+
+    LyricPreviewWidget *lyricPreviewWidget() const;
 
 };
 
