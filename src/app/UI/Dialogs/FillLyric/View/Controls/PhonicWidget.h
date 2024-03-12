@@ -4,8 +4,7 @@
 #include <QWidget>
 
 #include "g2pglobal.h"
-#include "Modules/Language/G2p/G2pMandarin.h"
-#include "Modules/Language/G2p/G2pJapanese.h"
+#include "Modules/Language/G2pMgr/IG2pManager.h"
 
 #include "../../Utils/CleanLyric.h"
 #include "../../Model/PhonicModel.h"
@@ -78,8 +77,7 @@ namespace FillLyric {
         PhonicEventFilter *eventFilter;
 
         // Model
-        G2pMandarin *g2p_man;
-        G2pJapanese *g2p_jp;
+        G2pMgr::IG2pManager *g2pMgr;
 
         // Layout
         QVBoxLayout *mainLayout{};

@@ -14,8 +14,7 @@
 #include "Actions/AppModel/Param/ParamsActions.h"
 #include "Modules/History/HistoryManager.h"
 
-#include "Modules/Language/G2p/S2p.h"
-#include "Modules/Language/G2p/G2pMandarin.h"
+#include "Modules/Language/S2p.h"
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
 
 void ClipEditorViewController::setCurrentSingingClip(SingingClip *clip) {
@@ -206,7 +205,9 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
 void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const {
     QList<Note::NoteWordProperties *> args;
 
-    auto g2p_man = G2pMandarin::instance();
+    const auto g2pMgr = G2pMgr::IG2pManager::instance();
+    const auto g2p_man = g2pMgr->g2p("Mandarin");
+
     auto syllable2p = S2p::instance();
     QStringList lyrics;
     QList<Phonemes> notesPhonemes;
@@ -215,13 +216,13 @@ void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const 
         notesPhonemes.append(note->phonemes());
     }
 
-    auto syllableRes = g2p_man->hanziToPinyin(lyrics, false, false);
-    for (int i = 0; i < syllableRes.size(); i++) {
-        auto properties = new Note::NoteWordProperties;
+    auto g2pRes = g2p_man->convert(lyrics);
+    for (int i = 0; i < g2pRes.size(); i++) {
+        const auto properties = new Note::NoteWordProperties;
         properties->lyric = lyrics[i];
-        properties->pronunciation.original = syllableRes[i];
+        properties->pronunciation.original = g2pRes[i].pronunciation.original;
         properties->phonemes.edited = notesPhonemes[i].edited;
-        auto phonemes = syllable2p->syllableToPhoneme(syllableRes[i]);
+        const auto phonemes = syllable2p->syllableToPhoneme(g2pRes[i].pronunciation.original);
         if (!phonemes.isEmpty()) {
             if (phonemes.count() == 1) {
                 properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.first(), 0));

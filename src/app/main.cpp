@@ -8,6 +8,8 @@
 #include <QTranslator>
 
 #include "g2pglobal.h"
+#include "Modules/Language/G2pMgr/IG2pManager.h"
+
 #include "UI/Window/MainWindow.h"
 #include "Modules/Audio/AudioSystem.h"
 #include "Utils/logMessageHandler.h"
@@ -45,6 +47,7 @@ int main(int argc, char *argv[]) {
     // as.openAudioSettings();
 
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
+    const G2pMgr::IG2pManager g2pMgr;
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     auto editor = AppModel::instance()->workspaceEditor("flutydeer.filllyrics");
