@@ -11,9 +11,9 @@ namespace FillLyric {
     LyricBaseWidget::LyricBaseWidget(QWidget *parent) : QWidget(parent) {
         // textEdit top
         m_textTopLayout = new QHBoxLayout();
-        btnImportLrc = new Button("导入lrc");
-        btnReReadNote = new Button("重读音符");
-        btnLyricPrev = new Button("折叠预览");
+        btnImportLrc = new Button(tr("Import Lrc"));
+        btnReReadNote = new Button(tr("Reread Note"));
+        btnLyricPrev = new Button(tr("Lyric Prev"));
         m_textTopLayout->addWidget(btnImportLrc);
         m_textTopLayout->addWidget(btnReReadNote);
         m_textTopLayout->addStretch(1);
@@ -21,10 +21,10 @@ namespace FillLyric {
 
         // textEdit
         m_textEdit = new PhonicTextEdit();
-        m_textEdit->setPlaceholderText("请输入歌词");
+        m_textEdit->setPlaceholderText(tr("Please input lyric here."));
 
         m_textBottomLayout = new QHBoxLayout();
-        m_textCountLabel = new QLabel("字符数: 0");
+        m_textCountLabel = new QLabel(tr("Note Count: 0"));
         m_textBottomLayout->addStretch(1);
         m_textBottomLayout->addWidget(m_textCountLabel);
 
@@ -36,15 +36,15 @@ namespace FillLyric {
 
         // bottom layout
         m_splitLayout = new QHBoxLayout();
-        m_splitLabel = new QLabel("Split Mode :");
+        m_splitLabel = new QLabel(tr("Split Mode :"));
         m_splitComboBox = new ComboBox(true);
-        m_splitComboBox->addItems({"Auto", "By Char", "Custom", "By Reg"});
+        m_splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom"), tr("By Reg")});
         m_splitLayout->addWidget(m_splitLabel);
         m_splitLayout->addWidget(m_splitComboBox);
         m_textEditLayout->addLayout(m_splitLayout);
 
-        skipSlur = new QCheckBox("Skip Slur Note");
-        excludeSpace = new QCheckBox("Exclude Space");
+        skipSlur = new QCheckBox(tr("Skip Slur Note"));
+        excludeSpace = new QCheckBox(tr("Exclude Space"));
         excludeSpace->setCheckState(Qt::Checked);
         m_skipSlurLayout = new QHBoxLayout();
         m_skipSlurLayout->addWidget(skipSlur);
@@ -71,13 +71,13 @@ namespace FillLyric {
         const QString text = this->m_textEdit->toPlainText();
         // 获取歌词
         QList<Phonic> res = this->splitLyric(text);
-        this->m_textCountLabel->setText(QString("字符数: %1").arg(res.size()));
+        this->m_textCountLabel->setText(QString(tr("Note Count: %1")).arg(res.size()));
     }
 
     void LyricBaseWidget::_on_btnImportLrc_clicked() {
         // 打开文件对话框
         const QString fileName =
-            QFileDialog::getOpenFileName(this, "打开歌词文件", "", "歌词文件(*.lrc)");
+            QFileDialog::getOpenFileName(this, tr("Open Lrc File"), "", tr("Lrc Files (*.lrc)"));
         if (fileName.isEmpty()) {
             return;
         }
@@ -86,7 +86,7 @@ namespace FillLyric {
         // 解析歌词文件
         if (!decoder.decode(fileName)) {
             // 解析失败
-            QMessageBox::warning(this, "错误", "解析lrc文件失败");
+            QMessageBox::warning(this, tr("Error"), tr("Failed to decode lrc file."));
             return;
         }
         // 获取歌词文件的元数据

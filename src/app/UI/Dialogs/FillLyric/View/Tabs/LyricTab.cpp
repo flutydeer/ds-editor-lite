@@ -51,8 +51,8 @@ namespace FillLyric {
 
         // fold right
         connect(m_lyricBaseWidget->btnLyricPrev, &QPushButton::clicked, [this]() {
-            m_lyricBaseWidget->btnLyricPrev->setText(m_lyricExtWidget->isVisible() ? "预览歌词"
-                                                                                   : "折叠预览");
+            m_lyricBaseWidget->btnLyricPrev->setText(
+                m_lyricExtWidget->isVisible() ? tr("Lyric Prev") : tr("Fold Preview"));
             m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
             m_lyricExtWidget->setVisible(!m_lyricExtWidget->isVisible());
             m_lyricExtWidget->m_tableConfigWidget->setVisible(false);
@@ -66,8 +66,8 @@ namespace FillLyric {
 
         // fold left
         connect(m_lyricExtWidget->btnFoldLeft, &QPushButton::clicked, [this]() {
-            m_lyricExtWidget->btnFoldLeft->setText(m_lyricBaseWidget->isVisible() ? "展开左侧"
-                                                                                  : "收起左侧");
+            m_lyricExtWidget->btnFoldLeft->setText(
+                m_lyricBaseWidget->isVisible() ? tr("Expand Left") : tr("Fold Left"));
             m_lyricBaseWidget->setVisible(!m_lyricBaseWidget->isVisible());
             m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
         });
@@ -183,9 +183,9 @@ namespace FillLyric {
 
     void LyricTab::_on_splitComboBox_currentIndexChanged(int index) const {
         const auto splitType = static_cast<SplitType>(index);
-        QString checkBoxName = "Exclude Space";
+        QString checkBoxName = tr("Exclude Space");
         if (splitType == Custom)
-            checkBoxName = "Split By Space";
+            checkBoxName = tr("Split By Space");
 
         m_lyricOptWidget->m_splitters->setVisible(splitType == Custom);
         m_lyricOptWidget->btnRegSetting->setVisible(splitType == ByReg);

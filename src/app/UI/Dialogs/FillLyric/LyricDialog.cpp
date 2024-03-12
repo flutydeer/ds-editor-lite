@@ -8,7 +8,7 @@ namespace FillLyric {
         : Dialog(parent), m_notes(std::move(note)) {
         setModal(true);
         setMinimumSize(720, 450);
-        setWindowTitle("Fill Lyric");
+        setWindowTitle(tr("Fill Lyric"));
         setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
         // 窗口大小设为主程序的80%
         const auto size = QApplication::primaryScreen()->availableSize();
@@ -22,9 +22,9 @@ namespace FillLyric {
         m_lyricWidget = new LyricTab(m_phonics);
         m_lyricWidget->setPhonics();
 
-        m_btnOk = new Button("OK", this);
+        m_btnOk = new Button(tr("OK"), this);
         m_btnOk->setPrimary(true);
-        m_btnCancel = new Button("Cancel", this);
+        m_btnCancel = new Button(tr("Cancel"), this);
 
         m_btnOk->setMaximumWidth(100);
         m_btnCancel->setMaximumWidth(100);
@@ -34,9 +34,9 @@ namespace FillLyric {
         buttonLayout->addWidget(m_btnOk);
         buttonLayout->addWidget(m_btnCancel);
 
-        m_tabWidget->addTab(m_lyricWidget, "Lyric");
-        m_tabWidget->addTab(new QWidget, "Advanced");
-        m_tabWidget->addTab(new QWidget, "Help");
+        m_tabWidget->addTab(m_lyricWidget, tr("Lyric"));
+        m_tabWidget->addTab(new QWidget, tr("Advanced"));
+        m_tabWidget->addTab(new QWidget, tr("Help"));
 
         m_mainLayout->addWidget(m_tabWidget);
         m_mainLayout->addLayout(buttonLayout);

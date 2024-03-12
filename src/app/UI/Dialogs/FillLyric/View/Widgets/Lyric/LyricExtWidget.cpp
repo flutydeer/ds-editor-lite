@@ -11,9 +11,9 @@ namespace FillLyric {
 
         // tableTop layout
         m_tableTopLayout = new QHBoxLayout();
-        btnFoldLeft = new Button("收起左侧");
-        btnToggleFermata = new Button("收放延音符");
-        autoWrap = new QCheckBox("Auto Wrap");
+        btnFoldLeft = new Button(tr("Fold Left"));
+        btnToggleFermata = new Button(tr("Toggle Fermata"));
+        autoWrap = new QCheckBox(tr("Auto Wrap"));
         btnUndo = new QPushButton();
 
         btnUndo->setMinimumSize(24, 24);
@@ -42,9 +42,9 @@ namespace FillLyric {
         m_tableCountLayout->addWidget(noteCountLabel);
 
         m_tableBottomLayout = new QHBoxLayout();
-        exportLabel = new QLabel("Export Config :");
-        exportSkipSlur = new QCheckBox("Skip Slur");
-        exportExcludeSpace = new QCheckBox("Ignoring end of sentence spaces");
+        exportLabel = new QLabel(tr("Export Option:"));
+        exportSkipSlur = new QCheckBox(tr("Skipping Slur"));
+        exportExcludeSpace = new QCheckBox(tr("Ignoring end of sentence spaces"));
         exportExcludeSpace->setCheckState(Qt::Checked);
 
         m_tableBottomLayout->addWidget(exportLabel);

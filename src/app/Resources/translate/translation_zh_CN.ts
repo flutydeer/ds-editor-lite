@@ -508,6 +508,254 @@
     </message>
 </context>
 <context>
+    <name>FillLyric::LyricBaseWidget</name>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="14"/>
+        <source>Import Lrc</source>
+        <translation>导入 Lrc</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="15"/>
+        <source>Reread Note</source>
+        <translation>重读音符</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="16"/>
+        <source>Lyric Prev</source>
+        <translation>预览歌词</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="24"/>
+        <source>Please input lyric here.</source>
+        <translation>请在此输入歌词。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="27"/>
+        <source>Note Count: 0</source>
+        <translation>字符数：0</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="39"/>
+        <source>Split Mode :</source>
+        <translation>分词模式：</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="41"/>
+        <source>Auto</source>
+        <translation>自动</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="41"/>
+        <source>By Char</source>
+        <translation>按字符</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="41"/>
+        <source>Custom</source>
+        <translation>自定义</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="41"/>
+        <source>By Reg</source>
+        <translation>正则</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="46"/>
+        <source>Skip Slur Note</source>
+        <translation>跳过延音符</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="47"/>
+        <source>Exclude Space</source>
+        <translation>去除空格</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="74"/>
+        <source>Note Count: %1</source>
+        <translation>字符数：%1</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="80"/>
+        <source>Open Lrc File</source>
+        <translation>打开Lrc文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="80"/>
+        <source>Lrc Files (*.lrc)</source>
+        <translation>Lrc文件(*.lrc)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="89"/>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="89"/>
+        <source>Failed to decode lrc file.</source>
+        <translation>解析Lrc文件失败。</translation>
+    </message>
+</context>
+<context>
+    <name>FillLyric::LyricDialog</name>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="11"/>
+        <source>Fill Lyric</source>
+        <translation>填入歌词</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="25"/>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="27"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="37"/>
+        <source>Lyric</source>
+        <translation>歌词</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="38"/>
+        <source>Advanced</source>
+        <translation>预设</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="39"/>
+        <source>Help</source>
+        <translation>帮助</translation>
+    </message>
+</context>
+<context>
+    <name>FillLyric::LyricExtWidget</name>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="14"/>
+        <source>Fold Left</source>
+        <translation>收起左侧</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="15"/>
+        <source>Toggle Fermata</source>
+        <translation>收放延音符</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="16"/>
+        <source>Auto Wrap</source>
+        <translation>自动换行</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="45"/>
+        <source>Export Option:</source>
+        <translation>导出选项：</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="46"/>
+        <source>Skipping Slur</source>
+        <translation>忽略延音符</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="47"/>
+        <source>Ignoring end of sentence spaces</source>
+        <translation>忽略句末空格</translation>
+    </message>
+</context>
+<context>
+    <name>FillLyric::LyricOptWidget</name>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricOptWidget.cpp" line="8"/>
+        <source>Test</source>
+        <translation>测试</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricOptWidget.cpp" line="19"/>
+        <source>Split Mode :</source>
+        <translation>分词模式：</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricOptWidget.cpp" line="21"/>
+        <source>Auto</source>
+        <translation>自动</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricOptWidget.cpp" line="21"/>
+        <source>By Char</source>
+        <translation>按字符</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricOptWidget.cpp" line="21"/>
+        <source>Custom</source>
+        <translation>自定义</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricOptWidget.cpp" line="21"/>
+        <source>By Reg</source>
+        <translation>正则</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricOptWidget.cpp" line="22"/>
+        <source>Setting</source>
+        <translation>设置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/LyricOptWidget.cpp" line="26"/>
+        <source>Custom delimiter, input with space intervals. If you want to use spaces as separators, please check the checkbox above.</source>
+        <translation>自定义分隔符、以空格隔开；如需使用空格分割，选中以上多选框。</translation>
+    </message>
+</context>
+<context>
+    <name>FillLyric::LyricTab</name>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Tabs/LyricTab.cpp" line="55"/>
+        <source>Lyric Prev</source>
+        <translation>预览歌词</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Tabs/LyricTab.cpp" line="55"/>
+        <source>Fold Preview</source>
+        <translation>收起预览</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Tabs/LyricTab.cpp" line="70"/>
+        <source>Expand Left</source>
+        <translation>展开左侧</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Tabs/LyricTab.cpp" line="70"/>
+        <source>Fold Left</source>
+        <translation>收起左侧</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Tabs/LyricTab.cpp" line="186"/>
+        <source>Exclude Space</source>
+        <translation>去除空格</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Tabs/LyricTab.cpp" line="188"/>
+        <source>Split By Space</source>
+        <translation>按空格分隔</translation>
+    </message>
+</context>
+<context>
+    <name>FillLyric::TableConfigWidget</name>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/TableConfigWidget.cpp" line="10"/>
+        <source>Column Width Ratio</source>
+        <translation>列宽比例</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/TableConfigWidget.cpp" line="16"/>
+        <source>Row Height Ratio</source>
+        <translation>行高比例</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/FillLyric/View/Widgets/Lyric/TableConfigWidget.cpp" line="22"/>
+        <source>Font Size Diff</source>
+        <translation>注音字体缩减</translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="64"/>

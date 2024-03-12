@@ -5,7 +5,7 @@ namespace FillLyric {
         // lyric option layout
         m_lyricOptLayout = new QVBoxLayout();
         m_lyricOptLayout->setContentsMargins(6, 0, 6, 0);
-        btnInsertText = new Button("测试");
+        btnInsertText = new Button(tr("Test"));
         btnToTable = new Button(">>");
         btnToText = new Button("<<");
 
@@ -16,14 +16,15 @@ namespace FillLyric {
         m_lyricOptLayout->addStretch(1);
 
         // bottom layout
-        splitLabel = new QLabel("Split Mode :");
+        splitLabel = new QLabel(tr("Split Mode :"));
         splitComboBox = new ComboBox(true);
-        splitComboBox->addItems({"Auto", "By Char", "Custom", "By Reg"});
-        btnRegSetting = new Button("Setting");
+        splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom"), tr("By Reg")});
+        btnRegSetting = new Button(tr("Setting"));
         m_splitters = new LineEdit();
         m_splitters->setMaximumWidth(85);
-        m_splitters->setToolTip("Custom delimiter, input with space intervals. If you want to use "
-                                "spaces as separators, please check the checkbox above.");
+        m_splitters->setToolTip(
+            tr("Custom delimiter, input with space intervals. If you want to use "
+               "spaces as separators, please check the checkbox above."));
 
         m_splitters->setVisible(false);
         btnRegSetting->setVisible(false);
