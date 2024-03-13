@@ -12,6 +12,8 @@
 
 class DecodeAudioTask : public ITask, public UniqueObject {
 public:
+    explicit DecodeAudioTask() = default;
+    explicit DecodeAudioTask(int id) : UniqueObject(id){}
 
     int trackIndex = 0;
     int tick = 0;

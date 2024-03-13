@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QFileInfo>
 
 #include "Model/Track.h"
 #include "Model/Clip.h"
@@ -88,12 +89,12 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
                 dsTack->insertClip(singingClip);
             } else if (type == "audio") {
                 auto audioClip = new AudioClip;
-                audioClip->setName("Clip");
                 audioClip->setStart(objClip.value("pos").toInt());
                 audioClip->setClipStart(objClip.value("clipPos").toInt());
                 audioClip->setLength(objClip.value("dur").toInt());
                 audioClip->setClipLen(objClip.value("clipDur").toInt());
                 audioClip->setPath(objClip.value("path").toString());
+                audioClip->setName(QFileInfo(audioClip->path()).fileName());
                 dsTack->insertClip(audioClip);
             }
         }

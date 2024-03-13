@@ -121,6 +121,7 @@ void AppModel::loadFromAppModel(const AppModel &model) {
     m_timeSignature = model.timeSignature();
     m_tracks = model.tracks();
     emit modelChanged();
+    // emit tempoChanged(m_tempo);
 }
 
 bool AppModel::importMidiFile(const QString &filename) {

@@ -44,7 +44,6 @@ private:
     double m_renderEnd = 0;
     QPoint m_mouseLastPos;
     int m_rectLastWidth = -1;
-    double m_chunksPerTick;
     double m_tempo = 60;
     RenderResolution m_resolution = High;
     QString m_path;

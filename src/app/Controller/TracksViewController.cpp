@@ -209,6 +209,8 @@ void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
 }
 void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate) {
     TaskManager::instance()->removeTask(task);
+    if (terminate)
+        return;
     if (!task->success) {
         // auto clipItem = m_view.findClipItemById(task->id());
         // auto audioClipItem = dynamic_cast<AudioClipGraphicsItem *>(clipItem);

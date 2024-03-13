@@ -376,7 +376,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         clipItem->setGain(audioClip->gain());
         clipItem->setTrackIndex(trackIndex);
         clipItem->setPath(audioClip->path());
-        clipItem->setTempo(m_tempo);
+        clipItem->setTempo(AppModel::instance()->tempo());
         clipItem->setOverlapped(audioClip->overlapped());
         clipItem->setAudioInfo(audioClip->info);
         m_tracksScene->addCommonItem(clipItem);
@@ -490,6 +490,7 @@ void TracksView::updateClipOnView(Clip *clip, int clipId) {
         auto audioItem = dynamic_cast<AudioClipGraphicsItem *>(item);
         if (audioItem->path() != audioClip->path())
             audioItem->setPath(audioClip->path());
+        audioItem->setAudioInfo(audioClip->info);
     } else if (clip->type() == Clip::Singing) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
         auto singingItem = dynamic_cast<SingingClipGraphicsItem *>(item);

@@ -9,6 +9,10 @@
 
 #include "Utils/Singleton.h"
 
+class AppModel;
+class DecodeAudioTask;
+class AudioClip;
+
 class AppController final : public QObject, public Singleton<AppController> {
     Q_OBJECT
 
@@ -35,6 +39,9 @@ public slots:
 
 private:
     bool isPowerOf2(int num);
+    void decodeAllAudioClips(AppModel &model);
+    void createDecodeAudioTask(AudioClip *clip);
+    void handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate);
 
     QString m_lastProjectPath;
 };

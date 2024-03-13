@@ -21,7 +21,6 @@ QString AudioClipGraphicsItem::path() const {
 void AudioClipGraphicsItem::setPath(const QString &path) {
     m_path = path;
     m_status = AppGlobal::Loaded;
-    setName(QFileInfo(m_path).fileName());
 }
 double AudioClipGraphicsItem::tempo() const {
     return m_tempo;
@@ -77,9 +76,10 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
         return;
 
     m_resolution = scaleX() >= 0.3 ? High : Low;
+    auto chunksPerTickBase = static_cast<double>(m_audioInfo.sampleRate) / m_audioInfo.chunkSize * 60 / m_tempo / 480;
     const auto peakData = m_resolution == Low ? m_audioInfo.peakCacheMipmap : m_audioInfo.peakCache;
     const auto chunksPerTick =
-        m_resolution == Low ? m_chunksPerTick / m_audioInfo.mipmapScale : m_chunksPerTick;
+        m_resolution == Low ? chunksPerTickBase / m_audioInfo.mipmapScale : chunksPerTickBase;
 
     auto rectLeftScene = mapToScene(previewRect.topLeft()).x();
     auto rectRightScene = mapToScene(previewRect.bottomRight()).x();

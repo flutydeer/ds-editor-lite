@@ -19,10 +19,16 @@ public:
         terminate();
     };
     void run() override {
-        runTask();
+        if (!m_started) {
+            m_started = true;
+            runTask();
+        }
     }
     void terminate() {
         m_abortFlag = true;
+    }
+    [[nodiscard]] bool started() const {
+        return m_started;
     }
 
 signals:
@@ -32,6 +38,7 @@ signals:
 protected:
     virtual void runTask() = 0;
     bool m_abortFlag = false;
+    bool m_started = false;
 };
 
 #endif // ITASK_H
