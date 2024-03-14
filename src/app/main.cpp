@@ -9,6 +9,7 @@
 
 #include "g2pglobal.h"
 #include "Modules/Language/G2pMgr/IG2pManager.h"
+#include "Modules/Language/LangMgr/ILanguageManager.h"
 
 #include "UI/Window/MainWindow.h"
 #include "Modules/Audio/AudioSystem.h"
@@ -48,6 +49,7 @@ int main(int argc, char *argv[]) {
 
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
     const G2pMgr::IG2pManager g2pMgr;
+    const LangMgr::ILanguageManager langMgr;
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     auto editor = AppModel::instance()->workspaceEditor("flutydeer.filllyrics");

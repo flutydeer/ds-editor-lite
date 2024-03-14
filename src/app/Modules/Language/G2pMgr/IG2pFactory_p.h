@@ -20,8 +20,6 @@ namespace G2pMgr {
         QString displayName;
         QString description;
 
-        QString iconPath;
-
         QString category;
         QString displayCategory;
     };
