@@ -2,7 +2,7 @@
 
 namespace LangMgr {
     bool isLetter(const QChar &c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '\'';
     }
 
     bool EnglishAnalysis::contains(const QChar &c) const {
