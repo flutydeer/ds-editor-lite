@@ -153,9 +153,7 @@ bool CommonGraphicsView::event(QEvent *event) {
 
             auto targetScaleX = scaleX() * multiplier;
 
-            if (targetScaleX > scaleX() Max) {
-                targetScaleX = scaleX() Max;
-            }
+            targetScaleX = qMin(targetScaleX, scaleXMax());
 
             auto scaledSceneWidth = sceneRect().width() * (targetScaleX / scaleX());
             if (scaledSceneWidth < viewport()->width()) {
