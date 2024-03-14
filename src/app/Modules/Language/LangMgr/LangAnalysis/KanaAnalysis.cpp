@@ -34,9 +34,12 @@ namespace LangMgr {
                 note.language = LangCommon::Language::Kana;
                 pos += length;
             } else {
-                note.lyric = input.mid(pos, 1);
+                const int start = pos;
+                while (pos < input.length() && !contains(input[pos])) {
+                    pos++;
+                }
+                note.lyric = input.mid(start, pos - start);
                 note.language = LangCommon::Language::Unknown;
-                pos++;
             }
             if (!note.lyric.isEmpty())
                 results.append(note);

@@ -8,6 +8,7 @@
 
 #include "G2p/Mandarin.h"
 #include "G2p/Cantonese.h"
+#include "G2p/English.h"
 #include "G2p/Kana.h"
 
 namespace G2pMgr {
@@ -132,6 +133,7 @@ namespace G2pMgr {
 
         addG2p(new Mandarin());
         addG2p(new Cantonese());
+        addG2p(new English());
         addG2p(new Kana());
     }
 
