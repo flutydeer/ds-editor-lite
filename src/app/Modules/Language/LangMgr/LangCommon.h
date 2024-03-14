@@ -4,7 +4,7 @@
 #include <QString>
 
 namespace LangMgr {
-    enum Language { Mandarin, Cantonese, English, Kana, Unknown };
+    enum Language { Mandarin, Cantonese, English, Kana, Slur, Number, Space, Linebreak, Unknown };
     struct LangNote {
         QString lyric;
         Language language;

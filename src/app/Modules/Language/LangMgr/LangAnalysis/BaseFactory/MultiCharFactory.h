@@ -11,6 +11,7 @@ namespace LangMgr {
         explicit MultiCharFactory(const QString &id, QObject *parent = nullptr)
             : ILanguageFactory(id, parent) {
         }
+
         QList<LangNote> split(const QString &input) const override;
     };
 

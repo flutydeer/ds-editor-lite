@@ -10,14 +10,14 @@ namespace LangMgr {
             LangNote note;
             if (contains(currentChar)) {
                 const int start = pos;
-                while (pos < input.length() && !contains(input[pos])) {
+                while (pos < input.length() && contains(input[pos])) {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
                 note.language = m_language;
             } else {
                 const int start = pos;
-                while (pos < input.length() && contains(input[pos])) {
+                while (pos < input.length() && !contains(input[pos])) {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);

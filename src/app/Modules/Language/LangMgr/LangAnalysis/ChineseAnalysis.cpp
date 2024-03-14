@@ -8,13 +8,4 @@ namespace LangMgr {
     bool ChineseAnalysis::contains(const QChar &c) const {
         return isHanzi(c);
     }
-
-    bool ChineseAnalysis::contains(const QString &input) const {
-        for (const auto &c : input) {
-            if (!isHanzi(c)) {
-                return false;
-            }
-        }
-        return true;
-    }
 } // LangMgr

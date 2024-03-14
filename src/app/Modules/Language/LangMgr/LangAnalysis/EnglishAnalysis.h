@@ -12,7 +12,8 @@ namespace LangMgr {
             m_language = English;
         }
 
-        static bool contains(const QString &input);
+        bool contains(const QChar &c) const override;
+        bool contains(const QString &input) const override;
     };
 
 } // LangMgr

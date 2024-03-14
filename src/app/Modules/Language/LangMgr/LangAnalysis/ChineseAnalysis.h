@@ -13,8 +13,7 @@ namespace LangMgr {
             m_language = Mandarin;
         }
 
-        bool contains(const QChar &c) const override;
-        bool contains(const QString &input) const override;
+        [[nodiscard]] bool contains(const QChar &c) const override;
     };
 
 } // LangMgr

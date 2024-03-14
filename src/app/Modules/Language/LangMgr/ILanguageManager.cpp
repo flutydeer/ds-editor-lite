@@ -5,7 +5,14 @@
 
 #include <QDebug>
 
+#include "LangAnalysis/BaseAnalysis/NumberAnalysis.h"
+#include "LangAnalysis/BaseAnalysis/SlurAnalysis.h"
+#include "LangAnalysis/BaseAnalysis/SpaceAnalysis.h"
+#include "LangAnalysis/BaseAnalysis/LinebreakAnalysis.h"
+
 #include "LangAnalysis/ChineseAnalysis.h"
+#include "LangAnalysis/EnglishAnalysis.h"
+#include "LangAnalysis/KanaAnalysis.h"
 
 namespace LangMgr {
     ILanguageManagerPrivate::ILanguageManagerPrivate() {
@@ -105,7 +112,14 @@ namespace LangMgr {
 
         d.init();
 
+        addLanguage(new NumberAnalysis());
+        addLanguage(new SlurAnalysis());
+        addLanguage(new SpaceAnalysis());
+        addLanguage(new LinebreakAnalysis());
+
         addLanguage(new ChineseAnalysis());
+        addLanguage(new EnglishAnalysis());
+        addLanguage(new KanaAnalysis());
     }
 
 } // LangMgr

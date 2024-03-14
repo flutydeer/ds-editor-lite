@@ -5,7 +5,11 @@ namespace LangMgr {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
     }
 
-    bool EnglishAnalysis::contains(const QString &input) {
+    bool EnglishAnalysis::contains(const QChar &c) const {
+        return isLetter(c);
+    }
+
+    bool EnglishAnalysis::contains(const QString &input) const {
         for (const QChar &ch : input) {
             if (!isLetter(ch)) {
                 return false;

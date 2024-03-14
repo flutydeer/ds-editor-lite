@@ -2,6 +2,17 @@
 #include <QDebug>
 
 namespace LangMgr {
+    bool SingleCharFactory::contains(const QChar &c) const {
+        Q_UNUSED(c);
+        return false;
+    }
+
+    bool SingleCharFactory::contains(const QString &input) const {
+        if (input.size() == 1)
+            return contains(input.at(0));
+        return false;
+    }
+
     QList<LangNote> SingleCharFactory::split(const QString &input) const {
         QList<LangNote> result;
 
