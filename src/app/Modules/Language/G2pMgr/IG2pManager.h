@@ -4,6 +4,7 @@
 #include <QObject>
 
 #include "IG2pFactory.h"
+#include "Modules/Language/LangCommon.h"
 
 namespace G2pMgr {
 
@@ -25,6 +26,8 @@ namespace G2pMgr {
         bool removeG2p(const QString &id);
         void clearG2ps();
         [[nodiscard]] QList<IG2pFactory *> g2ps() const;
+
+        void convert(const QList<LangNote *> &input) const;
 
     private:
         explicit IG2pManager(IG2pManagerPrivate &d, QObject *parent = nullptr);

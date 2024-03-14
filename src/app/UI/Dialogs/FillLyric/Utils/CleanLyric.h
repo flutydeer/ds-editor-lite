@@ -1,9 +1,6 @@
 #ifndef DS_EDITOR_LITE_CLEANLYRIC_H
 #define DS_EDITOR_LITE_CLEANLYRIC_H
 
-#include <QList>
-#include <QString>
-
 #include "../Model/PhonicCommon.h"
 
 namespace FillLyric {

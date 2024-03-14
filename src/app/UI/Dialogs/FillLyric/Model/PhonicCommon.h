@@ -1,8 +1,10 @@
 #ifndef DS_EDITOR_LITE_PHONICCOMMON_H
 #define DS_EDITOR_LITE_PHONICCOMMON_H
 
+#include "Modules/Language/LangCommon.h"
+
 namespace FillLyric {
-    enum TextType { EnWord, Hanzi, Digit, Number, Slur, Kana, Space, Other };
+    using TextType = LangCommon::Language;
     using LyricTypeList = QList<TextType>;
 
     enum SplitType { Auto, ByChar, Custom, ByReg };

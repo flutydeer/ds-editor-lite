@@ -33,7 +33,8 @@ namespace FillLyric {
         if (syllableRevised != "") {
             painter->setPen(QColor(255, 204, 153));
             syllable = syllableRevised;
-        } else if (text == syllable && lyricType != Slur && lyricType != EnWord) {
+        } else if (text == syllable && lyricType != LangCommon::Language::Slur &&
+                   lyricType != LangCommon::Language::English) {
             painter->setPen(QColor(255, 155, 157));
         } else if (candidateList.size() > 1) {
             painter->setPen(QColor(155, 186, 255));

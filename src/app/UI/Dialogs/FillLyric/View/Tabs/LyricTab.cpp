@@ -81,7 +81,8 @@ namespace FillLyric {
         QStringList lyrics;
         QList<Phonic> phonics;
         for (const auto phonic : m_phonics) {
-            if (skipSlurRes && (phonic->lyricType == Slur || phonic->lyric == "-"))
+            if (skipSlurRes &&
+                (phonic->lyricType == LangCommon::Language::Slur || phonic->lyric == "-"))
                 continue;
             phonics.append(*phonic);
             lyrics.append(phonic->lyric);
@@ -121,8 +122,8 @@ namespace FillLyric {
         for (int i = 0; i < model->rowCount(); ++i) {
             const int col = skipSpaceRes ? model->currentLyricLength(i) : model->columnCount();
             for (int j = 0; j < col; ++j) {
-                if (skipSlurRes &&
-                    (model->cellLyricType(i, j) == Slur || model->cellLyric(i, j) == "-"))
+                if (skipSlurRes && (model->cellLyricType(i, j) == LangCommon::Language::Slur ||
+                                    model->cellLyric(i, j) == "-"))
                     continue;
                 phonics.append(model->takeData(i, j));
             }

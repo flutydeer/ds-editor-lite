@@ -1,4 +1,5 @@
 #include "CleanLyric.h"
+#include "Modules/Language/LangMgr/ILanguageManager.h"
 
 namespace FillLyric {
     bool CleanLyric::isLetter(const QChar &c) {
@@ -45,86 +46,48 @@ namespace FillLyric {
     TextType CleanLyric::lyricType(const QString &lyric, const QString &fermata) {
         if (lyric.size() > 1) {
             if (isEnglishWord(lyric)) {
-                return EnWord;
+                return LangCommon::Language::English;
             }
             if (isNumber(lyric)) {
-                return Number;
+                return LangCommon::Language::Number;
             }
         } else if (lyric.size() == 1) {
             const QChar firstChar = lyric.at(0);
             if (isHanzi(firstChar)) {
-                return Hanzi;
+                return LangCommon::Language::Mandarin;
             }
             if (firstChar.isDigit()) {
-                return Digit;
+                return LangCommon::Language::Number;
             }
             if (firstChar == fermata) {
-                return Slur;
+                return LangCommon::Language::Slur;
             }
             if (isKana(firstChar)) {
-                return Kana;
+                return LangCommon::Language::Kana;
             }
             if (firstChar.isLetter()) {
-                return EnWord;
+                return LangCommon::Language::English;
             }
             if (firstChar == ' ') {
-                return Space;
+                return LangCommon::Language::Space;
             }
         }
-        return Other;
+        return LangCommon::Language::Unknown;
     }
 
     QList<Phonic> CleanLyric::splitAuto(const QString &input, const bool &excludeSpace,
                                         const QString &fermata) {
         QList<Phonic> phonics;
+        const auto langMgr = LangMgr::ILanguageManager::instance();
+        const auto res = langMgr->split(input);
 
-        int pos = 0;
-        while (pos < input.length()) {
-            const QChar &currentChar = input[pos];
+        for (const auto &note : res) {
             Phonic phonic;
-            if (isLetter(currentChar)) {
-                const int start = pos;
-                while (pos < input.length() && isLetter(input[pos])) {
-                    pos++;
-                }
-                phonic.lyric = input.mid(start, pos - start);
-                phonic.lyricType = EnWord;
-            } else if (isHanzi(currentChar)) {
-                phonic.lyric = input.mid(pos, 1);
-                phonic.lyricType = Hanzi;
-                pos++;
-            } else if (currentChar.isDigit()) {
-                phonic.lyric = input.mid(pos, 1);
-                phonic.lyricType = Digit;
-                pos++;
-            } else if (currentChar == fermata) {
-                phonic.lyric = input.mid(pos, 1);
-                phonic.lyricType = Slur;
-                pos++;
-            } else if (isKana(currentChar)) {
-                const int length =
-                    (pos + 1 < input.length() && isSpecialKana(input[pos + 1])) ? 2 : 1;
-                phonic.lyric = input.mid(pos, length);
-                phonic.lyricType = Kana;
-                pos += length;
-            } else if (currentChar == ' ') {
-                if (!excludeSpace) {
-                    phonic.lyric = input.mid(pos, 1);
-                    phonic.lyricType = Space;
-                }
-                pos++;
-            } else if (isLineBreak(currentChar)) {
-                if (!phonics.isEmpty()) {
-                    phonics.last().lineFeed = true;
-                }
-                pos++;
-            } else {
-                phonic.lyric = input.mid(pos, 1);
-                phonic.lyricType = Other;
-                pos++;
-            }
-            if (!phonic.lyric.isEmpty())
-                phonics.append(phonic);
+            phonic.lyric = note.lyric;
+            phonic.lyricType = note.language;
+            if (note.language == LangCommon::Linebreak)
+                phonic.lineFeed = true;
+            phonics.append(phonic);
         }
 
         return phonics;

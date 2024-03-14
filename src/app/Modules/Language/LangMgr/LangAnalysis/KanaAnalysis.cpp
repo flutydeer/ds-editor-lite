@@ -31,11 +31,11 @@ namespace LangMgr {
                 const int length =
                     (pos + 1 < input.length() && isSpecialKana(input[pos + 1])) ? 2 : 1;
                 note.lyric = input.mid(pos, length);
-                note.language = Kana;
+                note.language = LangCommon::Language::Kana;
                 pos += length;
             } else {
                 note.lyric = input.mid(pos, 1);
-                note.language = Unknown;
+                note.language = LangCommon::Language::Unknown;
                 pos++;
             }
             if (!note.lyric.isEmpty())

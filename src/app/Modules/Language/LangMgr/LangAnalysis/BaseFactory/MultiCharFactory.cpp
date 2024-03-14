@@ -21,7 +21,7 @@ namespace LangMgr {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = Unknown;
+                note.language = LangCommon::Language::Unknown;
             }
             if (!note.lyric.isEmpty())
                 result.append(note);

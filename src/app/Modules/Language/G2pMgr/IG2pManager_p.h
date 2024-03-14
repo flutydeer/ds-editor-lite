@@ -19,6 +19,8 @@ namespace G2pMgr {
         IG2pManager *q_ptr;
 
         QMap<QString, IG2pFactory *> g2ps;
+
+        QStringList baseG2p = {"Slur", "Linebreak", "Number", "Space"};
     };
 
 }

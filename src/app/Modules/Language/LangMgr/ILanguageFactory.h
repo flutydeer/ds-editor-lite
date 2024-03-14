@@ -3,7 +3,7 @@
 
 #include <QObject>
 
-#include "LangCommon.h"
+#include "../LangCommon.h"
 
 namespace LangMgr {
 
@@ -20,6 +20,7 @@ namespace LangMgr {
         virtual bool contains(const QString &input) const;
         virtual QList<LangNote> split(const QString &input) const;
         QList<LangNote> split(const QList<LangNote> &input) const;
+        void analysis(const QList<LangNote *> &input) const;
 
     public:
         QString id() const;
@@ -40,7 +41,7 @@ namespace LangMgr {
 
         friend class ILanguageManager;
 
-        Language m_language;
+        LangCommon::Language m_language;
 
     }; // ILanguageFactory
 

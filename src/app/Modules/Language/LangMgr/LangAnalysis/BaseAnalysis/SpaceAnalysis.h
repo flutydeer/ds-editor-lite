@@ -9,7 +9,7 @@ namespace LangMgr {
     public:
         explicit SpaceAnalysis(const QString &id = "Space", QObject *parent = nullptr)
             : SingleCharFactory(id, parent) {
-            m_language = Space;
+            m_language = LangCommon::Language::Space;
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;

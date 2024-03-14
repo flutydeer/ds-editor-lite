@@ -9,7 +9,7 @@ namespace LangMgr {
         Q_OBJECT
     public:
         explicit EnglishAnalysis(QObject *parent = nullptr) : MultiCharFactory("English", parent) {
-            m_language = English;
+            m_language = LangCommon::Language::English;
         }
 
         bool contains(const QChar &c) const override;

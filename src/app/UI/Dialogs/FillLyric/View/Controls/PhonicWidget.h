@@ -5,6 +5,7 @@
 
 #include "g2pglobal.h"
 #include "Modules/Language/G2pMgr/IG2pManager.h"
+#include "Modules/Language/LangMgr/ILanguageManager.h"
 
 #include "../../Utils/CleanLyric.h"
 #include "../../Model/PhonicModel.h"
@@ -63,7 +64,7 @@ namespace FillLyric {
         void tableAutoWrap(const bool &switchState = false) const;
         void resizeTable() const;
         [[nodiscard]] QList<Phonic> updateLyric(const QModelIndex &index, const QString &text,
-                                  const QList<Phonic> &oldPhonics) const;
+                                                const QList<Phonic> &oldPhonics) const;
 
         // Variables
         QList<Phonic *> m_phonics;
@@ -78,6 +79,7 @@ namespace FillLyric {
 
         // Model
         G2pMgr::IG2pManager *g2pMgr;
+        LangMgr::ILanguageManager *langMgr;
 
         // Layout
         QVBoxLayout *mainLayout{};

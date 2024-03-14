@@ -14,7 +14,8 @@
 
 namespace FillLyric {
     PhonicWidget::PhonicWidget(QWidget *parent)
-        : g2pMgr(G2pMgr::IG2pManager::instance()), QWidget(parent) {
+        : g2pMgr(G2pMgr::IG2pManager::instance()), langMgr(LangMgr::ILanguageManager::instance()),
+          QWidget(parent) {
 
         // 创建模型和视图
         tableView = new PhonicTableView();
@@ -54,20 +55,18 @@ namespace FillLyric {
         QList<QStringList> lyricRes;
         QList<LyricTypeList> labelRes;
 
-        const auto g2p_man = g2pMgr->g2p("Mandarin");
-        const auto g2p_kana = g2pMgr->g2p("Kana");
-
         QStringList curLineLyric;
         LyricTypeList curLineLabel;
         for (const auto &phonic : phonics) {
-            curLineLyric.append(phonic.lyric);
-            curLineLabel.append(phonic.lyricType);
             if (phonic.lineFeed) {
                 lyricRes.append(curLineLyric);
                 labelRes.append(curLineLabel);
                 curLineLyric.clear();
                 curLineLabel.clear();
+                continue;
             }
+            curLineLyric.append(phonic.lyric);
+            curLineLabel.append(phonic.lyricType);
         }
         if (!curLineLyric.isEmpty()) {
             lyricRes.append(curLineLyric);
@@ -97,27 +96,26 @@ namespace FillLyric {
         for (int i = 0; i < lyricRes.size(); i++) {
             auto lyrics = lyricRes[i];
             auto labels = labelRes[i];
-            auto g2pRes = g2p_man->convert(lyrics);
+            QList<LangNote *> langNote;
+            for (int j = 0; j < lyrics.size(); j++) {
+                langNote.append(new LangNote(lyrics[j], labels[j]));
+            }
+            G2pMgr::IG2pManager::instance()->convert(langNote);
 
             for (int j = 0; j < lyricRes[i].size(); j++) {
+                const auto syllable = langNote[j]->syllable;
+                const auto candidateSyllables = langNote[j]->candidates;
+
                 // 设置歌词
                 model->setLyric(i, j, lyrics[j]);
                 // 设置歌词类型
                 model->setLyricType(i, j, labels[j]);
                 // 设置注音
-                model->setSyllable(i, j, g2pRes[j].pronunciation.original);
-
-                const auto candidateSyllables = g2pRes[j].candidates;
+                model->setSyllable(i, j, syllable);
 
                 if (candidateSyllables.size() > 1) {
                     // 设置候选音节
                     model->setData(model->index(i, j), candidateSyllables, Candidate);
-                }
-
-                if (labels[j] == TextType::Kana) {
-                    auto romaji = g2p_kana->convert(lyrics[j]).pronunciation.original;
-                    model->setSyllable(i, j, romaji);
-                    model->setCandidates(i, j, QStringList() << romaji);
                 }
             }
         }
@@ -138,9 +136,6 @@ namespace FillLyric {
 
     QList<Phonic> PhonicWidget::updateLyric(const QModelIndex &index, const QString &text,
                                             const QList<Phonic> &oldPhonics) const {
-        const auto g2p_man = g2pMgr->g2p("Mandarin");
-        const auto g2p_kana = g2pMgr->g2p("Kana");
-
         const int col = index.column();
 
         QList<Phonic> newPhonics;
@@ -149,9 +144,7 @@ namespace FillLyric {
         }
         newPhonics[col].lyric = text;
 
-        auto lyricType = CleanLyric::lyricType(text, "-");
-
-        if (lyricType == TextType::Slur) {
+        if (text == "-") {
             newPhonics[col].lyricType = TextType::Slur;
             newPhonics[col].syllable = text;
             newPhonics[col].candidates = QStringList() << text;
@@ -159,41 +152,31 @@ namespace FillLyric {
         }
 
         // 获取当前行所有单元格的DisplayRole
-        QStringList lyrics;
+        QList<LangNote *> langNote;
         for (const auto &newPhonic : newPhonics) {
-            lyrics.append(newPhonic.lyric);
+            langNote.append(new LangNote(newPhonic.lyric, newPhonic.lyricType));
         }
 
-        auto g2pRes = g2p_man->convert(lyrics);
+        langMgr->analysis(langNote);
+        g2pMgr->convert(langNote);
         // 设置当前行所有单元格的Syllable
         for (int i = 0; i < oldPhonics.size(); i++) {
-            newPhonics[i].syllable = g2pRes[i].pronunciation.original;
+            newPhonics[i].syllable = langNote[i]->syllable;
         }
 
         // 设置当前行所有单元格的Candidate
         for (int i = 0; i < oldPhonics.size(); i++) {
-            newPhonics[i].candidates = g2pRes[i].candidates;
+            newPhonics[i].candidates = langNote[i]->candidates;
         }
 
         // 设置当前行所有单元格的LyricType
         for (int i = 0; i < oldPhonics.size(); i++) {
-            lyricType = CleanLyric::lyricType(lyrics[i], "-");
-            newPhonics[i].lyricType = lyricType;
-            if (lyricType == Kana) {
-                const auto kanaRes = g2p_kana->convert(lyrics[i]);
-                if (!kanaRes.pronunciation.original.isEmpty()) {
-                    newPhonics[i].syllable = kanaRes.pronunciation.original;
-                    newPhonics[i].candidates = kanaRes.candidates;
-                }
-            }
+            newPhonics[i].lyricType = langNote[i]->language;
         }
         return newPhonics;
     }
 
     void PhonicWidget::_on_cellEditClosed(const QModelIndex &index, const QString &text) const {
-        const auto g2p_man = g2pMgr->g2p("Mandarin");
-        const auto g2p_jp = g2pMgr->g2p("Kana");
-
         QList<Phonic> oldPhonicList;
         // 获取当前单元格所在行列
         const int row = index.row();
@@ -216,22 +199,15 @@ namespace FillLyric {
             ModelHistory::instance()->record(a);
         } else {
             Phonic newPhonic = oldPhonicList[col];
+            const QList<LangNote *> langNote = {new LangNote(text, LangCommon::Unknown)};
+            langMgr->analysis(langNote);
+            g2pMgr->convert(langNote);
+
             newPhonic.lyric = text;
-            newPhonic.lyricType = CleanLyric::lyricType(text, "-");
-            if (newPhonic.lyricType == Kana) {
-                const auto kanaRes = g2p_jp->convert(text);
-                if (!kanaRes.pronunciation.original.isEmpty()) {
-                    newPhonic.syllable = kanaRes.pronunciation.original;
-                    newPhonic.candidates = kanaRes.candidates;
-                }
-            } else if (newPhonic.lyricType == Hanzi) {
-                const auto g2pRes = g2p_man->convert(text);
-                newPhonic.syllable = g2pRes.pronunciation.original;
-                newPhonic.candidates = g2pRes.candidates;
-            } else {
-                newPhonic.syllable = text;
-                newPhonic.candidates = QStringList() << text;
-            }
+            newPhonic.syllable = langNote[0]->syllable;
+            newPhonic.candidates = langNote[0]->candidates;
+            newPhonic.lyricType = langNote[0]->language;
+
             const auto a = new WrapCellActions();
             a->warpCellEdit(index, model, newPhonic);
             a->execute();

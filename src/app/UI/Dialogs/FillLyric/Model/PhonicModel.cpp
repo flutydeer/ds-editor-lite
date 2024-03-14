@@ -354,7 +354,7 @@ namespace FillLyric {
                         setLyric(row, pos + j + 1, fermataList[j]);
                         setSyllable(row, pos + j + 1, fermataList[j]);
                         setCandidates(row, pos + j + 1, QStringList() << fermataList[j]);
-                        setLyricType(row, pos + j + 1, Slur);
+                        setLyricType(row, pos + j + 1, LangCommon::Language::Slur);
                     }
                     // 清空pos的FermataRole
                     setFermata(row, pos, QStringList());

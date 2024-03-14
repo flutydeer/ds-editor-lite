@@ -4,6 +4,7 @@
 #include "IG2pFactory_p.h"
 
 #include <QDebug>
+#include <QMetaEnum>
 
 #include "G2p/Mandarin.h"
 #include "G2p/Cantonese.h"
@@ -29,7 +30,8 @@ namespace G2pMgr {
         Q_D(const IG2pManager);
         const auto it = d->g2ps.find(id);
         if (it == d->g2ps.end()) {
-            qWarning() << "G2pMgr::IG2pManager::g2p(): factory does not exist:" << id;
+            if (!d->baseG2p.contains(id))
+                qWarning() << "G2pMgr::IG2pManager::g2p(): factory does not exist:" << id;
             return nullptr;
         }
         return it.value();
@@ -75,6 +77,40 @@ namespace G2pMgr {
         Q_D(const IG2pManager);
         return d->g2ps.values();
     }
+
+    void IG2pManager::convert(const QList<LangNote *> &input) const {
+        QMap<LangCommon::Language, QList<int>> languageIndexMap;
+        QMap<LangCommon::Language, QStringList> languageLyricMap;
+
+        for (int i = 0; i < input.size(); ++i) {
+            const LangNote *note = input.at(i);
+            languageIndexMap[note->language].append(i); // 记录原始索引
+            languageLyricMap[note->language].append(note->lyric);
+        }
+
+        const auto languages = languageIndexMap.keys();
+        for (const auto &language : languages) {
+            auto rawLyrics = languageLyricMap[language];
+            QMetaEnum metaEnum = QMetaEnum::fromType<LangCommon::Language>();
+            const auto g2p = this->g2p(metaEnum.valueToKey(language));
+            if (g2p != nullptr) {
+                const auto tempRes = g2p->convert(rawLyrics);
+
+                for (int i = 0; i < tempRes.size(); i++) {
+                    const auto index = languageIndexMap[language][i];
+                    input[index]->syllable = tempRes[i].pronunciation.original;
+                    input[index]->candidates = tempRes[i].candidates;
+                }
+            } else {
+                for (int i = 0; i < rawLyrics.size(); i++) {
+                    const auto index = languageIndexMap[language][i];
+                    input[index]->syllable = rawLyrics[i];
+                    input[index]->candidates = QStringList() << rawLyrics[i];
+                }
+            }
+        }
+    }
+
 
     void IG2pManager::clearG2ps() {
         Q_D(IG2pManager);

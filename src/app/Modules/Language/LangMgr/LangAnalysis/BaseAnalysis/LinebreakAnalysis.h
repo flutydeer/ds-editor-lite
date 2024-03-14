@@ -9,7 +9,7 @@ namespace LangMgr {
     public:
         explicit LinebreakAnalysis(const QString &id = "Linebreak", QObject *parent = nullptr)
             : SingleCharFactory(id, parent) {
-            m_language = Linebreak;
+            m_language = LangCommon::Language::Linebreak;
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;
