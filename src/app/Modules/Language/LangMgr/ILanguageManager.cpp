@@ -9,6 +9,7 @@
 #include "LangAnalysis/BaseAnalysis/SlurAnalysis.h"
 #include "LangAnalysis/BaseAnalysis/SpaceAnalysis.h"
 #include "LangAnalysis/BaseAnalysis/LinebreakAnalysis.h"
+#include "LangAnalysis/BaseAnalysis/Punctuation.h"
 
 #include "LangAnalysis/ChineseAnalysis.h"
 #include "LangAnalysis/EnglishAnalysis.h"
@@ -141,6 +142,7 @@ namespace LangMgr {
         addLanguage(new SlurAnalysis());
         addLanguage(new SpaceAnalysis());
         addLanguage(new LinebreakAnalysis());
+        addLanguage(new Punctuation());
 
         addLanguage(new ChineseAnalysis());
         addLanguage(new EnglishAnalysis());
