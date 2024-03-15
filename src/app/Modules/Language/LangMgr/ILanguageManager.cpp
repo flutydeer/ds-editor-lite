@@ -89,7 +89,7 @@ namespace LangMgr {
 
     QList<LangNote> ILanguageManager::split(const QString &input) const {
         auto analysis = this->languages();
-        QList<LangNote> result = {LangNote(input, "Unknown")};
+        QList<LangNote> result = {LangNote(input)};
         for (const auto &factory : analysis) {
             result = factory->split(result);
         }
@@ -104,11 +104,13 @@ namespace LangMgr {
     }
 
     QString ILanguageManager::analysis(const QString &input) const {
-        QString result;
+        QString result = "Unknown";
         auto analysis = this->languages();
 
         for (const auto &factory : analysis) {
             result = factory->analysis(input);
+            if (result != "Unknown")
+                break;
         }
 
         return result;

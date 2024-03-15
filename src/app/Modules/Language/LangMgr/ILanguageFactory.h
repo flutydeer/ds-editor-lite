@@ -21,19 +21,21 @@ namespace LangMgr {
         [[nodiscard]] virtual QList<LangNote> split(const QString &input) const;
         [[nodiscard]] QList<LangNote> split(const QList<LangNote> &input) const;
         [[nodiscard]] QString analysis(const QString &input) const;
-        void correct(LangNote *input);
         void correct(const QList<LangNote *> &input) const;
 
     public:
-        QString id() const;
+        [[nodiscard]] QString id() const;
 
-        QString displayName() const;
+        [[nodiscard]] bool discard() const;
+        void setDiscard(const bool &discard);
+
+        [[nodiscard]] QString displayName() const;
         void setDisplayName(const QString &displayName);
 
-        QString category() const;
+        [[nodiscard]] QString category() const;
         void setCategory(const QString &category);
 
-        QString description() const;
+        [[nodiscard]] QString description() const;
         void setDescription(const QString &description);
 
     protected:

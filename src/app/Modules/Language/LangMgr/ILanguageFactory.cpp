@@ -31,6 +31,16 @@ namespace LangMgr {
         return d->id;
     }
 
+    bool ILanguageFactory::discard() const {
+        Q_D(const ILanguageFactory);
+        return d->discard;
+    }
+
+    void ILanguageFactory::setDiscard(const bool &discard) {
+        Q_D(ILanguageFactory);
+        d->discard = discard;
+    }
+
     QString ILanguageFactory::description() const {
         Q_D(const ILanguageFactory);
         return d->description;
@@ -77,10 +87,17 @@ namespace LangMgr {
     }
 
     QList<LangNote> ILanguageFactory::split(const QList<LangNote> &input) const {
+        Q_D(const ILanguageFactory);
         QList<LangNote> result;
         for (const auto &note : input) {
             if (note.language == "Unknown") {
-                result.append(split(note.lyric));
+                const auto splitRes = split(note.lyric);
+                for (const auto &res : splitRes) {
+                    if (res.language == id() && d->discard) {
+                        continue;
+                    }
+                    result.append(res);
+                }
             } else {
                 result.append(note);
             }

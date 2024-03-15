@@ -9,6 +9,7 @@ namespace LangMgr {
     public:
         explicit SpaceAnalysis(const QString &id = "Space", QObject *parent = nullptr)
             : SingleCharFactory(id, parent) {
+            setDiscard(true);
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;

@@ -22,15 +22,15 @@ namespace G2pMgr {
         virtual QList<Phonic> convert(QStringList &input) const;
 
     public:
-        QString id() const;
+        [[nodiscard]] QString id() const;
 
-        QString displayName() const;
+        [[nodiscard]] QString displayName() const;
         void setDisplayName(const QString &displayName);
 
-        QString category() const;
+        [[nodiscard]] QString category() const;
         void setCategory(const QString &category);
 
-        QString description() const;
+        [[nodiscard]] QString description() const;
         void setDescription(const QString &description);
 
     protected:

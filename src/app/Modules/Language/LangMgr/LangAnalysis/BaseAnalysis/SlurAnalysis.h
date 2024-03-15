@@ -9,6 +9,7 @@ namespace LangMgr {
     public:
         explicit SlurAnalysis(const QString &id = "Slur", QObject *parent = nullptr)
             : SingleCharFactory(id, parent) {
+            setDiscard(true);
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;

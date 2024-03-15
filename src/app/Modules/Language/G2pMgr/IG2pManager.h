@@ -20,7 +20,7 @@ namespace G2pMgr {
         static IG2pManager *instance();
 
     public:
-        IG2pFactory *g2p(const QString &id) const;
+        [[nodiscard]] IG2pFactory *g2p(const QString &id) const;
         bool addG2p(IG2pFactory *factory);
         bool removeG2p(const IG2pFactory *factory);
         bool removeG2p(const QString &id);
