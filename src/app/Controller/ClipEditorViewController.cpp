@@ -193,7 +193,7 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
             selectedNotes = dynamic_cast<SingingClip *>(selectedClip)->selectedNotes();
     }
 
-    FillLyric::LyricDialog lyricDialog(selectedNotes, parent);
+    LyricDialog lyricDialog(selectedNotes, parent);
     lyricDialog.exec();
 
     auto result = lyricDialog.result();

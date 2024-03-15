@@ -5,38 +5,34 @@
 
 #include <Model/Note.h>
 
-#include "View/Tabs/LyricTab.h"
+#include "Modules/Language/FillLyric/View/Tabs/LyricTab.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Controls/Button.h"
 
-namespace FillLyric {
+class LyricDialog final : public Dialog {
+    Q_OBJECT
+public:
+    explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);
+    ~LyricDialog() override;
 
-    class LyricDialog final: public Dialog {
-        Q_OBJECT
-    public:
-        explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);
-        ~LyricDialog() override;
+    void exportPhonics();
 
-        void exportPhonics();
+private:
+    void noteToPhonic();
 
-    private:
-        void noteToPhonic();
+    void shrinkWindowRight(const int &newWidth);
+    void expandWindowRight();
 
-        void shrinkWindowRight(const int &newWidth);
-        void expandWindowRight();
+    QVBoxLayout *m_mainLayout;
+    QTabWidget *m_tabWidget;
 
-        QVBoxLayout *m_mainLayout;
-        QTabWidget *m_tabWidget;
+    FillLyric::LyricTab *m_lyricWidget;
 
-        LyricTab *m_lyricWidget;
+    Button *m_btnOk;
+    Button *m_btnCancel;
 
-        Button *m_btnOk;
-        Button *m_btnCancel;
-
-        QList<Note *> m_notes;
-        QList<Phonic *> m_phonics;
-    };
-
-} // FillLyric
+    QList<Note *> m_notes;
+    QList<FillLyric::Phonic *> m_phonics;
+};
 
 #endif // DS_EDITOR_LITE_LYRICDIALOG_H
