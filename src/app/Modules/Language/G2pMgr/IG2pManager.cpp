@@ -33,7 +33,7 @@ namespace G2pMgr {
         if (it == d->g2ps.end()) {
             if (!d->baseG2p.contains(id))
                 qWarning() << "G2pMgr::IG2pManager::g2p(): factory does not exist:" << id;
-            return nullptr;
+            return g2p("Unknown");
         }
         return it.value();
     }
@@ -93,19 +93,11 @@ namespace G2pMgr {
         for (const auto &language : languages) {
             auto rawLyrics = languageLyricMap[language];
             const auto g2p = this->g2p(language);
-            if (g2p != nullptr) {
-                const auto tempRes = g2p->convert(rawLyrics);
-                for (int i = 0; i < tempRes.size(); i++) {
-                    const auto index = languageIndexMap[language][i];
-                    input[index]->syllable = tempRes[i].pronunciation.original;
-                    input[index]->candidates = tempRes[i].candidates;
-                }
-            } else {
-                for (int i = 0; i < rawLyrics.size(); i++) {
-                    const auto index = languageIndexMap[language][i];
-                    input[index]->syllable = rawLyrics[i];
-                    input[index]->candidates = QStringList() << rawLyrics[i];
-                }
+            const auto tempRes = g2p->convert(rawLyrics);
+            for (int i = 0; i < tempRes.size(); i++) {
+                const auto index = languageIndexMap[language][i];
+                input[index]->syllable = tempRes[i].pronunciation.original;
+                input[index]->candidates = tempRes[i].candidates;
             }
         }
     }
