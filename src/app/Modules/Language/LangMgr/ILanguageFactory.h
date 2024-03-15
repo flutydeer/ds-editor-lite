@@ -41,8 +41,6 @@ namespace LangMgr {
 
         friend class ILanguageManager;
 
-        LangCommon::Language m_language;
-
     }; // ILanguageFactory
 
 } // LangMgr

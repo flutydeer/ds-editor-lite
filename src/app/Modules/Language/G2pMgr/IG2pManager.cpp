@@ -80,8 +80,8 @@ namespace G2pMgr {
     }
 
     void IG2pManager::convert(const QList<LangNote *> &input) const {
-        QMap<LangCommon::Language, QList<int>> languageIndexMap;
-        QMap<LangCommon::Language, QStringList> languageLyricMap;
+        QMap<QString, QList<int>> languageIndexMap;
+        QMap<QString, QStringList> languageLyricMap;
 
         for (int i = 0; i < input.size(); ++i) {
             const LangNote *note = input.at(i);
@@ -92,11 +92,9 @@ namespace G2pMgr {
         const auto languages = languageIndexMap.keys();
         for (const auto &language : languages) {
             auto rawLyrics = languageLyricMap[language];
-            QMetaEnum metaEnum = QMetaEnum::fromType<LangCommon::Language>();
-            const auto g2p = this->g2p(metaEnum.valueToKey(language));
+            const auto g2p = this->g2p(language);
             if (g2p != nullptr) {
                 const auto tempRes = g2p->convert(rawLyrics);
-
                 for (int i = 0; i < tempRes.size(); i++) {
                     const auto index = languageIndexMap[language][i];
                     input[index]->syllable = tempRes[i].pronunciation.original;

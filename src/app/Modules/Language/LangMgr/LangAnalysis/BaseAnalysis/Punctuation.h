@@ -9,7 +9,6 @@ namespace LangMgr {
     public:
         explicit Punctuation(const QString &id = "Punctuation", QObject *parent = nullptr)
             : SingleCharFactory(id, parent) {
-            m_language = LangCommon::Language::Punctuation;
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;

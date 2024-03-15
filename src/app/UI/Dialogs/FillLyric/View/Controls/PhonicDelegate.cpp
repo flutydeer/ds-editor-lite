@@ -25,7 +25,7 @@ namespace FillLyric {
         // 获取人工修订的注音文本
         const QString syllableRevised = index.data(SyllableRevised).toString();
 
-        const int lyricType = index.data(LyricType).toInt();
+        const QString lyricType = index.data(LyricType).toString();
 
         // 获取候选发音列表
         const QStringList candidateList = index.data(Candidate).toStringList();
@@ -33,8 +33,7 @@ namespace FillLyric {
         if (syllableRevised != "") {
             painter->setPen(QColor(255, 204, 153));
             syllable = syllableRevised;
-        } else if (text == syllable && lyricType != LangCommon::Language::Slur &&
-                   lyricType != LangCommon::Language::English) {
+        } else if (text == syllable && lyricType != "Slur" && lyricType != "English") {
             painter->setPen(QColor(255, 155, 157));
         } else if (candidateList.size() > 1) {
             painter->setPen(QColor(155, 186, 255));

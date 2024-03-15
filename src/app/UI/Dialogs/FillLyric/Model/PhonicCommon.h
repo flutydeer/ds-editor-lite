@@ -1,12 +1,7 @@
 #ifndef DS_EDITOR_LITE_PHONICCOMMON_H
 #define DS_EDITOR_LITE_PHONICCOMMON_H
 
-#include "Modules/Language/LangCommon.h"
-
 namespace FillLyric {
-    using TextType = LangCommon::Language;
-    using LyricTypeList = QList<TextType>;
-
     enum SplitType { Auto, ByChar, Custom, ByReg };
 
     enum PhonicRole {
@@ -24,7 +19,7 @@ namespace FillLyric {
         QString syllable;
         QStringList candidates;
         QString syllableRevised;
-        TextType lyricType;
+        QString language;
         QList<QString> fermata;
         bool lineFeed = false;
     };

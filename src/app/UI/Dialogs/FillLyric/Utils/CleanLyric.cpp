@@ -43,36 +43,36 @@ namespace FillLyric {
     }
 
 
-    TextType CleanLyric::lyricType(const QString &lyric, const QString &fermata) {
+    QString CleanLyric::lyricType(const QString &lyric, const QString &fermata) {
         if (lyric.size() > 1) {
             if (isEnglishWord(lyric)) {
-                return LangCommon::Language::English;
+                return "English";
             }
             if (isNumber(lyric)) {
-                return LangCommon::Language::Number;
+                return "Number";
             }
         } else if (lyric.size() == 1) {
             const QChar firstChar = lyric.at(0);
             if (isHanzi(firstChar)) {
-                return LangCommon::Language::Mandarin;
+                return "Mandarin";
             }
             if (firstChar.isDigit()) {
-                return LangCommon::Language::Number;
+                return "Number";
             }
             if (firstChar == fermata) {
-                return LangCommon::Language::Slur;
+                return "Slur";
             }
             if (isKana(firstChar)) {
-                return LangCommon::Language::Kana;
+                return "Kana";
             }
             if (firstChar.isLetter()) {
-                return LangCommon::Language::English;
+                return "English";
             }
             if (firstChar == ' ') {
-                return LangCommon::Language::Space;
+                return "Space";
             }
         }
-        return LangCommon::Language::Unknown;
+        return "Unknown";
     }
 
     QList<Phonic> CleanLyric::splitAuto(const QString &input, const bool &excludeSpace,
@@ -84,8 +84,8 @@ namespace FillLyric {
         for (const auto &note : res) {
             Phonic phonic;
             phonic.lyric = note.lyric;
-            phonic.lyricType = note.language;
-            if (note.language == LangCommon::Linebreak)
+            phonic.language = note.language;
+            if (note.language == "Linebreak")
                 phonic.lineFeed = true;
             phonics.append(phonic);
         }
@@ -109,7 +109,7 @@ namespace FillLyric {
             }
             Phonic phonic;
             phonic.lyric = currentChar;
-            phonic.lyricType = lyricType(phonic.lyric, fermata);
+            phonic.language = lyricType(phonic.lyric, fermata);
             phonics.append(phonic);
         }
         return phonics;
@@ -130,7 +130,7 @@ namespace FillLyric {
             if (!lyric.isEmpty() && !splitter.contains(lyric) && !(excludeSpace && lyric == ' ')) {
                 Phonic phonic;
                 phonic.lyric = lyric;
-                phonic.lyricType = lyricType(phonic.lyric, fermata);
+                phonic.language = lyricType(phonic.lyric, fermata);
                 phonics.append(phonic);
             }
 

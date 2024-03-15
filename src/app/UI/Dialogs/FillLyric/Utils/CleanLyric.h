@@ -1,6 +1,7 @@
 #ifndef DS_EDITOR_LITE_CLEANLYRIC_H
 #define DS_EDITOR_LITE_CLEANLYRIC_H
 
+#include <QList>
 #include "../Model/PhonicCommon.h"
 
 namespace FillLyric {
@@ -16,7 +17,7 @@ namespace FillLyric {
                                          const bool &excludeSpace = true,
                                          const QString &fermata = "-");
 
-        static TextType lyricType(const QString &lyric, const QString &fermata = "-");
+        static QString lyricType(const QString &lyric, const QString &fermata = "-");
 
         static bool isLetter(const QChar &c);
 

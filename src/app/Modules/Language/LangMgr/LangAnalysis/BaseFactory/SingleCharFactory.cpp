@@ -23,7 +23,7 @@ namespace LangMgr {
 
             if (contains(currentChar)) {
                 note.lyric = input.mid(pos, 1);
-                note.language = m_language;
+                note.language = id();
                 pos++;
             } else {
                 const int start = pos;
@@ -31,7 +31,7 @@ namespace LangMgr {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = LangCommon::Language::Unknown;
+                note.language = "Unknown";
             }
             if (!note.lyric.isEmpty())
                 result.append(note);

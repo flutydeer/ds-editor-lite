@@ -9,7 +9,6 @@ namespace LangMgr {
         Q_OBJECT
     public:
         explicit NumberAnalysis(QObject *parent = nullptr) : MultiCharFactory("Number", parent) {
-            m_language = LangCommon::Language::Number;
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;

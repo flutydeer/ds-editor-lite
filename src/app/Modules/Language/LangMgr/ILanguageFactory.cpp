@@ -79,7 +79,7 @@ namespace LangMgr {
     QList<LangNote> ILanguageFactory::split(const QList<LangNote> &input) const {
         QList<LangNote> result;
         for (const auto &note : input) {
-            if (note.language == LangCommon::Language::Unknown) {
+            if (note.language == "Unknown") {
                 result.append(split(note.lyric));
             } else {
                 result.append(note);
@@ -90,9 +90,9 @@ namespace LangMgr {
 
     void ILanguageFactory::analysis(const QList<LangNote *> &input) const {
         for (const auto &note : input) {
-            if (note->language == LangCommon::Language::Unknown) {
+            if (note->language == "Unknown") {
                 if (contains(note->lyric))
-                    note->language = m_language;
+                    note->language = id();
             }
         }
     }

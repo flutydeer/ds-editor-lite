@@ -11,7 +11,7 @@ namespace FillLyric {
             if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
                 const auto index = m_tableView->currentIndex();
                 if (!m_tableView->isPersistentEditorOpen(m_tableView->currentIndex()) &&
-                    m_model->cellLyricType(index.row(), index.column()) != TextType::Slur) {
+                    m_model->cellLyricType(index.row(), index.column()) != "Slur") {
                     Q_EMIT this->lineBreak(index);
                     return true;
                 }

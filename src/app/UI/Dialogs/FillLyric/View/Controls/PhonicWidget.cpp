@@ -53,10 +53,10 @@ namespace FillLyric {
 
     void PhonicWidget::_init(const QList<Phonic> &phonics) {
         QList<QStringList> lyricRes;
-        QList<LyricTypeList> labelRes;
+        QList<QStringList> labelRes;
 
         QStringList curLineLyric;
-        LyricTypeList curLineLabel;
+        QStringList curLineLabel;
         for (const auto &phonic : phonics) {
             if (phonic.lineFeed) {
                 lyricRes.append(curLineLyric);
@@ -66,7 +66,7 @@ namespace FillLyric {
                 continue;
             }
             curLineLyric.append(phonic.lyric);
-            curLineLabel.append(phonic.lyricType);
+            curLineLabel.append(phonic.language);
         }
         if (!curLineLyric.isEmpty()) {
             lyricRes.append(curLineLyric);
@@ -145,7 +145,7 @@ namespace FillLyric {
         newPhonics[col].lyric = text;
 
         if (text == "-") {
-            newPhonics[col].lyricType = TextType::Slur;
+            newPhonics[col].language = "Slur";
             newPhonics[col].syllable = text;
             newPhonics[col].candidates = QStringList() << text;
             return newPhonics;
@@ -154,7 +154,7 @@ namespace FillLyric {
         // 获取当前行所有单元格的DisplayRole
         QList<LangNote *> langNote;
         for (const auto &newPhonic : newPhonics) {
-            langNote.append(new LangNote(newPhonic.lyric, newPhonic.lyricType));
+            langNote.append(new LangNote(newPhonic.lyric, newPhonic.language));
         }
 
         langMgr->analysis(langNote);
@@ -171,7 +171,7 @@ namespace FillLyric {
 
         // 设置当前行所有单元格的LyricType
         for (int i = 0; i < oldPhonics.size(); i++) {
-            newPhonics[i].lyricType = langNote[i]->language;
+            newPhonics[i].language = langNote[i]->language;
         }
         return newPhonics;
     }
@@ -199,14 +199,14 @@ namespace FillLyric {
             ModelHistory::instance()->record(a);
         } else {
             Phonic newPhonic = oldPhonicList[col];
-            const QList<LangNote *> langNote = {new LangNote(text, LangCommon::Unknown)};
+            const QList<LangNote *> langNote = {new LangNote(text, "Unknown")};
             langMgr->analysis(langNote);
             g2pMgr->convert(langNote);
 
             newPhonic.lyric = text;
             newPhonic.syllable = langNote[0]->syllable;
             newPhonic.candidates = langNote[0]->candidates;
-            newPhonic.lyricType = langNote[0]->language;
+            newPhonic.language = langNote[0]->language;
 
             const auto a = new WrapCellActions();
             a->warpCellEdit(index, model, newPhonic);
@@ -353,7 +353,7 @@ namespace FillLyric {
                 menu->addSeparator();
 
                 // 换行
-                if (model->cellLyricType(row, col) != TextType::Slur && !autoWrap)
+                if (model->cellLyricType(row, col) != "Slur" && !autoWrap)
                     menu->addAction("换行", [this, index]() { lineBreak(index); });
                 // 合并到上一行
                 if (row > 0 && col == 0 && !autoWrap)

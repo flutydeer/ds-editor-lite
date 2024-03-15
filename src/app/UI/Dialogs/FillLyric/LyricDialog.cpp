@@ -59,7 +59,7 @@ namespace FillLyric {
             phonic->candidates = note->pronCandidates();
 
             if (note->isSlur())
-                phonic->lyricType = TextType::Slur;
+                phonic->language = "Slur";
 
             m_phonics.append(phonic);
         }

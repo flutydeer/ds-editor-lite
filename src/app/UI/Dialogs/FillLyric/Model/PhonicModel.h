@@ -43,8 +43,8 @@ namespace FillLyric {
         bool setSyllableRevised(int row, int col, const QString &syllableRevised);
         [[nodiscard]] QStringList cellCandidates(int row, int col) const;
         bool setCandidates(const int &row, const int &col, const QStringList &candidate);
-        [[nodiscard]] int cellLyricType(int row, int col) const;
-        bool setLyricType(int row, int col, const TextType &type);
+        [[nodiscard]] QString cellLyricType(int row, int col) const;
+        bool setLyricType(int row, int col, const QString &type);
         [[nodiscard]] QStringList cellFermata(int row, int col) const;
         bool setFermata(int row, int col, const QList<QString> &fermata);
         [[nodiscard]] bool cellLineFeed(int row, int col) const;

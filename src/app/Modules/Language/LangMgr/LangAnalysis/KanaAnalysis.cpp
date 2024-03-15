@@ -31,7 +31,7 @@ namespace LangMgr {
                 const int length =
                     (pos + 1 < input.length() && isSpecialKana(input[pos + 1])) ? 2 : 1;
                 note.lyric = input.mid(pos, length);
-                note.language = LangCommon::Language::Kana;
+                note.language = "Kana";
                 pos += length;
             } else {
                 const int start = pos;
@@ -39,7 +39,7 @@ namespace LangMgr {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = LangCommon::Language::Unknown;
+                note.language = "Unknown";
             }
             if (!note.lyric.isEmpty())
                 results.append(note);

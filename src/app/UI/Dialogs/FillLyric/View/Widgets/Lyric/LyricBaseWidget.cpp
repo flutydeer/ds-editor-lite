@@ -116,7 +116,7 @@ namespace FillLyric {
         QList<Phonic> skipSlurPhonics;
         if (skipSlurRes) {
             for (const auto &phonic : splitPhonics) {
-                if (phonic.lyricType != LangCommon::Language::Slur && phonic.lyric != "-") {
+                if (phonic.language != "Slur" && phonic.lyric != "-") {
                     skipSlurPhonics.append(phonic);
                 }
             }

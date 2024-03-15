@@ -14,14 +14,14 @@ namespace LangMgr {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = m_language;
+                note.language = id();
             } else {
                 const int start = pos;
                 while (pos < input.length() && !contains(input[pos])) {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = LangCommon::Language::Unknown;
+                note.language = "Unknown";
             }
             if (!note.lyric.isEmpty())
                 result.append(note);

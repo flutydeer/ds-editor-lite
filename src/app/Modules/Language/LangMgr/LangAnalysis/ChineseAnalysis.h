@@ -10,7 +10,6 @@ namespace LangMgr {
     public:
         explicit ChineseAnalysis(const QString &id = "Mandarin", QObject *parent = nullptr)
             : SingleCharFactory(id, parent) {
-            m_language = LangCommon::Language::Mandarin;
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;

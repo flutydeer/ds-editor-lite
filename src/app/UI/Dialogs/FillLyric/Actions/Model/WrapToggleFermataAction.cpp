@@ -16,13 +16,13 @@ namespace FillLyric {
             int pos = 0;
             while (pos < action->m_rawPhonics.size()) {
                 const Phonic phonic = action->m_rawPhonics.at(pos);
-                if (phonic.lyricType != TextType::Slur) {
+                if (phonic.language != "Slur") {
                     tempPhonics.append(phonic);
                     pos++;
                 } else {
                     int start = pos;
                     while (pos < action->m_rawPhonics.size() &&
-                           action->m_rawPhonics.at(pos).lyricType == LangCommon::Language::Slur) {
+                           action->m_rawPhonics.at(pos).language == "Slur") {
                         pos++;
                     }
 
@@ -47,7 +47,7 @@ namespace FillLyric {
                         temp.lyric = fermata;
                         temp.syllable = fermata;
                         temp.candidates = QStringList(fermata);
-                        temp.lyricType = LangCommon::Language::Slur;
+                        temp.language = "Slur";
                         tempPhonics.append(temp);
                     }
                 }

@@ -28,7 +28,7 @@ namespace LangMgr {
         [[nodiscard]] QList<ILanguageFactory *> languages() const;
         [[nodiscard]] QList<LangNote> split(const QString &input) const;
         void analysis(const QList<LangNote *> &input) const;
-        [[nodiscard]] QList<LangCommon::Language> analysis(const QStringList &input) const;
+        [[nodiscard]] QStringList analysis(const QStringList &input) const;
 
     private:
         explicit ILanguageManager(ILanguageManagerPrivate &d, QObject *parent = nullptr);

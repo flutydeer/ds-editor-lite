@@ -27,10 +27,11 @@ struct LangNote {
     QString lyric;
     QString syllable = QString();
     QStringList candidates = QStringList();
-    LangCommon::Language language = LangCommon::Unknown;
+    QString language = "Unknown";
 
     LangNote() = default;
-    LangNote(QString lyric, const LangCommon::Language language)
-        : lyric(std::move(lyric)), language(language){};
+    explicit LangNote(QString lyric) : lyric(std::move(lyric)){};
+    LangNote(QString lyric, QString language)
+        : lyric(std::move(lyric)), language(std::move(language)){};
 };
 #endif // LANGCOMMON_H
