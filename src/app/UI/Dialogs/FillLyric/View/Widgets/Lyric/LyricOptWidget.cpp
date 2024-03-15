@@ -18,8 +18,7 @@ namespace FillLyric {
         // bottom layout
         splitLabel = new QLabel(tr("Split Mode :"));
         splitComboBox = new ComboBox(true);
-        splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom"), tr("By Reg")});
-        btnRegSetting = new Button(tr("Setting"));
+        splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom")});
         m_splitters = new LineEdit();
         m_splitters->setMaximumWidth(85);
         m_splitters->setToolTip(
@@ -27,11 +26,9 @@ namespace FillLyric {
                "spaces as separators, please check the checkbox above."));
 
         m_splitters->setVisible(false);
-        btnRegSetting->setVisible(false);
 
         m_lyricOptLayout->addWidget(splitLabel);
         m_lyricOptLayout->addWidget(splitComboBox);
-        m_lyricOptLayout->addWidget(btnRegSetting);
         m_lyricOptLayout->addWidget(m_splitters);
         m_lyricOptLayout->addStretch(1);
 

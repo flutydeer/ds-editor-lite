@@ -19,7 +19,7 @@ namespace LangMgr {
         static ILanguageManager *instance();
 
     public:
-        ILanguageFactory *language(const QString &id) const;
+        [[nodiscard]] ILanguageFactory *language(const QString &id) const;
         bool addLanguage(ILanguageFactory *factory);
         bool removeLanguage(const ILanguageFactory *factory);
         bool removeLanguage(const QString &id);
@@ -27,7 +27,10 @@ namespace LangMgr {
 
         [[nodiscard]] QList<ILanguageFactory *> languages() const;
         [[nodiscard]] QList<LangNote> split(const QString &input) const;
-        void analysis(const QList<LangNote *> &input) const;
+
+        void correct(const QList<LangNote *> &input) const;
+
+        [[nodiscard]] QString analysis(const QString &input) const;
         [[nodiscard]] QStringList analysis(const QStringList &input) const;
 
     private:

@@ -7,29 +7,12 @@
 namespace FillLyric {
     class CleanLyric {
     public:
-        static QList<Phonic> splitAuto(const QString &input, const bool &excludeSpace = true,
-                                       const QString &fermata = "-");
+        static QList<Phonic> splitAuto(const QString &input);
 
-        static QList<Phonic> splitByChar(const QString &input, const bool &excludeSpace = true,
-                                         const QString &fermata = "-");
+        static QList<Phonic> splitByChar(const QString &input, const bool &excludeSpace = true);
 
         static QList<Phonic> splitCustom(const QString &input, const QStringList &splitter,
-                                         const bool &excludeSpace = true,
-                                         const QString &fermata = "-");
-
-        static QString lyricType(const QString &lyric, const QString &fermata = "-");
-
-        static bool isLetter(const QChar &c);
-
-        static bool isHanzi(const QChar &c);
-
-        static bool isKana(const QChar &c);
-
-        static bool isSpecialKana(const QChar &c);
-
-        static bool isLineBreak(const QChar &c);
-
-        static bool isEnglishWord(const QString &word);
+                                         const bool &excludeSpace = true);
     };
 }
 

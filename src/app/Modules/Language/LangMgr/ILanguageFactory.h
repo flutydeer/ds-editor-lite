@@ -16,11 +16,13 @@ namespace LangMgr {
         explicit ILanguageFactory(const QString &id, QObject *parent = nullptr);
         ~ILanguageFactory() override;
 
-        virtual bool contains(const QChar &c) const;
-        virtual bool contains(const QString &input) const;
-        virtual QList<LangNote> split(const QString &input) const;
-        QList<LangNote> split(const QList<LangNote> &input) const;
-        void analysis(const QList<LangNote *> &input) const;
+        [[nodiscard]] virtual bool contains(const QChar &c) const;
+        [[nodiscard]] virtual bool contains(const QString &input) const;
+        [[nodiscard]] virtual QList<LangNote> split(const QString &input) const;
+        [[nodiscard]] QList<LangNote> split(const QList<LangNote> &input) const;
+        [[nodiscard]] QString analysis(const QString &input) const;
+        void correct(LangNote *input);
+        void correct(const QList<LangNote *> &input) const;
 
     public:
         QString id() const;

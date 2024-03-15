@@ -31,7 +31,6 @@ namespace FillLyric {
         Button *btnToText;
 
         ComboBox *splitComboBox;
-        Button *btnRegSetting;
 
         // LineEdit
         LineEdit *m_splitters;

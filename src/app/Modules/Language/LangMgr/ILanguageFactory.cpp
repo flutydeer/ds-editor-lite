@@ -88,7 +88,11 @@ namespace LangMgr {
         return result;
     }
 
-    void ILanguageFactory::analysis(const QList<LangNote *> &input) const {
+    QString ILanguageFactory::analysis(const QString &input) const {
+        return contains(input) ? id() : "Unknown";
+    }
+
+    void ILanguageFactory::correct(const QList<LangNote *> &input) const {
         for (const auto &note : input) {
             if (note->language == "Unknown") {
                 if (contains(note->lyric))

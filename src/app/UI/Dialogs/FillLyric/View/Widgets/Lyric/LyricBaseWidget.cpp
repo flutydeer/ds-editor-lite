@@ -38,7 +38,7 @@ namespace FillLyric {
         m_splitLayout = new QHBoxLayout();
         m_splitLabel = new QLabel(tr("Split Mode :"));
         m_splitComboBox = new ComboBox(true);
-        m_splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom"), tr("By Reg")});
+        m_splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom")});
         m_splitLayout->addWidget(m_splitLabel);
         m_splitLayout->addWidget(m_splitComboBox);
         m_textEditLayout->addLayout(m_splitLayout);
@@ -104,13 +104,12 @@ namespace FillLyric {
         const auto splitType = static_cast<SplitType>(this->m_splitComboBox->currentIndex());
         QList<Phonic> splitPhonics;
         if (splitType == SplitType::Auto) {
-            splitPhonics = CleanLyric::splitAuto(lyric, this->excludeSpace->isChecked());
+            splitPhonics = CleanLyric::splitAuto(lyric);
         } else if (splitType == SplitType::ByChar) {
             splitPhonics = CleanLyric::splitByChar(lyric, this->excludeSpace->isChecked());
         } else if (splitType == SplitType::Custom) {
             splitPhonics = CleanLyric::splitCustom(lyric, QStringList() << "-",
                                                    this->excludeSpace->isChecked());
-        } else {
         }
 
         QList<Phonic> skipSlurPhonics;

@@ -157,7 +157,7 @@ namespace FillLyric {
             langNote.append(new LangNote(newPhonic.lyric, newPhonic.language));
         }
 
-        langMgr->analysis(langNote);
+        langMgr->correct(langNote);
         g2pMgr->convert(langNote);
         // 设置当前行所有单元格的Syllable
         for (int i = 0; i < oldPhonics.size(); i++) {
@@ -200,7 +200,7 @@ namespace FillLyric {
         } else {
             Phonic newPhonic = oldPhonicList[col];
             const QList<LangNote *> langNote = {new LangNote(text, "Unknown")};
-            langMgr->analysis(langNote);
+            langMgr->correct(langNote);
             g2pMgr->convert(langNote);
 
             newPhonic.lyric = text;

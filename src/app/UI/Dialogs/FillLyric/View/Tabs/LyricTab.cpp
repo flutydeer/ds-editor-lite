@@ -121,8 +121,8 @@ namespace FillLyric {
         for (int i = 0; i < model->rowCount(); ++i) {
             const int col = skipSpaceRes ? model->currentLyricLength(i) : model->columnCount();
             for (int j = 0; j < col; ++j) {
-                if (skipSlurRes && (model->cellLyricType(i, j) == "Slur" ||
-                                    model->cellLyric(i, j) == "-"))
+                if (skipSlurRes &&
+                    (model->cellLyricType(i, j) == "Slur" || model->cellLyric(i, j) == "-"))
                     continue;
                 phonics.append(model->takeData(i, j));
             }
@@ -151,13 +151,12 @@ namespace FillLyric {
 
         QList<Phonic> splitRes;
         if (splitType == Auto) {
-            splitRes = CleanLyric::splitAuto(text, excludeSpaceRes);
+            splitRes = CleanLyric::splitAuto(text);
         } else if (splitType == ByChar) {
             splitRes = CleanLyric::splitByChar(text, excludeSpaceRes);
         } else if (splitType == Custom) {
             splitRes = CleanLyric::splitCustom(
                 text, m_lyricOptWidget->m_splitters->text().split(' '), excludeSpaceRes);
-        } else {
         }
 
         m_lyricExtWidget->m_phonicWidget->_init(splitRes);
@@ -188,7 +187,6 @@ namespace FillLyric {
             checkBoxName = tr("Split By Space");
 
         m_lyricOptWidget->m_splitters->setVisible(splitType == Custom);
-        m_lyricOptWidget->btnRegSetting->setVisible(splitType == ByReg);
 
         m_lyricBaseWidget->excludeSpace->setText(checkBoxName);
     }

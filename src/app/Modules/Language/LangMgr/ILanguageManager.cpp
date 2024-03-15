@@ -96,11 +96,22 @@ namespace LangMgr {
         return result;
     }
 
-    void ILanguageManager::analysis(const QList<LangNote *> &input) const {
+    void ILanguageManager::correct(const QList<LangNote *> &input) const {
         auto analysis = this->languages();
         for (const auto &factory : analysis) {
-            factory->analysis(input);
+            factory->correct(input);
         }
+    }
+
+    QString ILanguageManager::analysis(const QString &input) const {
+        QString result;
+        auto analysis = this->languages();
+
+        for (const auto &factory : analysis) {
+            result = factory->analysis(input);
+        }
+
+        return result;
     }
 
     QStringList ILanguageManager::analysis(const QStringList &input) const {
@@ -111,7 +122,7 @@ namespace LangMgr {
         }
 
         for (const auto &factory : analysis) {
-            factory->analysis(inputNote);
+            factory->correct(inputNote);
         }
 
         QStringList result;
