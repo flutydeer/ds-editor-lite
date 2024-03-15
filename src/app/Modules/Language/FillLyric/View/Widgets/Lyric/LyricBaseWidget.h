@@ -8,6 +8,7 @@
 
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
+#include "UI/Controls/LineEdit.h"
 
 #include "../../../Model/PhonicCommon.h"
 #include "../../Controls/PhonicTextEdit.h"
@@ -27,11 +28,14 @@ namespace FillLyric {
     public Q_SLOTS:
         void _on_btnImportLrc_clicked();
         void _on_textEditChanged() const;
+        void _on_splitComboBox_currentIndexChanged(int index) const;
 
     private:
         QVBoxLayout *m_textEditLayout;
         QHBoxLayout *m_textTopLayout;
         QHBoxLayout *m_textBottomLayout;
+
+        QWidget *m_splitWidget;
         QHBoxLayout *m_splitLayout;
         QHBoxLayout *m_skipSlurLayout;
 
@@ -45,10 +49,10 @@ namespace FillLyric {
 
         // CheckBox
         QCheckBox *skipSlur;
-        QCheckBox *excludeSpace;
 
         QLabel *m_splitLabel;
         ComboBox *m_splitComboBox;
+        LineEdit *m_splitters;
     };
 
 

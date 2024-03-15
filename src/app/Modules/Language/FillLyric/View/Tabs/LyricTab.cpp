@@ -53,6 +53,8 @@ namespace FillLyric {
         connect(m_lyricBaseWidget->btnLyricPrev, &QPushButton::clicked, [this]() {
             m_lyricBaseWidget->btnLyricPrev->setText(
                 m_lyricExtWidget->isVisible() ? tr("Lyric Prev") : tr("Fold Preview"));
+            m_lyricBaseWidget->m_splitWidget->setVisible(
+                !m_lyricBaseWidget->m_splitWidget->isVisible());
             m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
             m_lyricExtWidget->setVisible(!m_lyricExtWidget->isVisible());
             m_lyricExtWidget->m_tableConfigWidget->setVisible(false);
@@ -107,14 +109,9 @@ namespace FillLyric {
                                              : m_lyricBaseWidget->skipSlur->isChecked();
     }
 
-    bool LyricTab::exportExcludeSpace() const {
-        return m_lyricExtWidget->isVisible() ? m_lyricExtWidget->exportExcludeSpace->isChecked()
-                                             : m_lyricBaseWidget->excludeSpace->isChecked();
-    }
-
     QList<Phonic> LyricTab::modelExport() const {
         const auto model = m_lyricExtWidget->m_phonicWidget->model;
-        const bool skipSpaceRes = m_lyricBaseWidget->excludeSpace->isChecked();
+        const bool skipSpaceRes = m_lyricExtWidget->exportExcludeSpace;
         const bool skipSlurRes = exportSkipSlur();
 
         QList<Phonic> phonics;
@@ -139,7 +136,6 @@ namespace FillLyric {
 
     void LyricTab::_on_btnToTable_clicked() const {
         const auto skipSlurRes = m_lyricBaseWidget->skipSlur->isChecked();
-        const auto excludeSpaceRes = m_lyricBaseWidget->excludeSpace->isChecked();
         const auto splitType =
             static_cast<SplitType>(m_lyricOptWidget->splitComboBox->currentIndex());
 
@@ -153,10 +149,10 @@ namespace FillLyric {
         if (splitType == Auto) {
             splitRes = CleanLyric::splitAuto(text);
         } else if (splitType == ByChar) {
-            splitRes = CleanLyric::splitByChar(text, excludeSpaceRes);
+            splitRes = CleanLyric::splitByChar(text);
         } else if (splitType == Custom) {
-            splitRes = CleanLyric::splitCustom(
-                text, m_lyricOptWidget->m_splitters->text().split(' '), excludeSpaceRes);
+            splitRes =
+                CleanLyric::splitCustom(text, m_lyricOptWidget->m_splitters->text().split(' '));
         }
 
         m_lyricExtWidget->m_phonicWidget->_init(splitRes);
@@ -182,13 +178,7 @@ namespace FillLyric {
 
     void LyricTab::_on_splitComboBox_currentIndexChanged(int index) const {
         const auto splitType = static_cast<SplitType>(index);
-        QString checkBoxName = tr("Exclude Space");
-        if (splitType == Custom)
-            checkBoxName = tr("Split By Space");
-
         m_lyricOptWidget->m_splitters->setVisible(splitType == Custom);
-
-        m_lyricBaseWidget->excludeSpace->setText(checkBoxName);
     }
 
 } // FillLyric

@@ -45,11 +45,13 @@ namespace FillLyric {
         exportLabel = new QLabel(tr("Export Option:"));
         exportSkipSlur = new QCheckBox(tr("Skipping Slur"));
         exportExcludeSpace = new QCheckBox(tr("Ignoring end of sentence spaces"));
+        exportLanguage = new QCheckBox(tr("Automatically mark languages"));
         exportExcludeSpace->setCheckState(Qt::Checked);
 
         m_tableBottomLayout->addWidget(exportLabel);
         m_tableBottomLayout->addWidget(exportSkipSlur);
         m_tableBottomLayout->addWidget(exportExcludeSpace);
+        m_tableBottomLayout->addWidget(exportLanguage);
         m_tableBottomLayout->addStretch(1);
 
         // table layout

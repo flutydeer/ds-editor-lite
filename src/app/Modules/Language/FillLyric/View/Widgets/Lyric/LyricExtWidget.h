@@ -51,6 +51,7 @@ namespace FillLyric {
         QLabel *exportLabel;
         QCheckBox *exportSkipSlur;
         QCheckBox *exportExcludeSpace;
+        QCheckBox *exportLanguage;
     };
 
 } // FillLyric

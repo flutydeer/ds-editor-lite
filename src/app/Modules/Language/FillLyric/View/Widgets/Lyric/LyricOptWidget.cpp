@@ -21,9 +21,7 @@ namespace FillLyric {
         splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom")});
         m_splitters = new LineEdit();
         m_splitters->setMaximumWidth(85);
-        m_splitters->setToolTip(
-            tr("Custom delimiter, input with space intervals. If you want to use "
-               "spaces as separators, please check the checkbox above."));
+        m_splitters->setToolTip(tr("Custom delimiter, input with space intervals."));
 
         m_splitters->setVisible(false);
 

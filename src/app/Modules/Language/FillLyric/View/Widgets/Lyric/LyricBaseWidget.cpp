@@ -34,22 +34,29 @@ namespace FillLyric {
         m_textEditLayout->addWidget(m_textEdit);
         m_textEditLayout->addLayout(m_textBottomLayout);
 
+        m_splitWidget = new QWidget();
+        m_splitWidget->setContentsMargins(0, 0, 0, 0);
+        m_splitWidget->setVisible(false);
         // bottom layout
         m_splitLayout = new QHBoxLayout();
+        m_splitLayout->setContentsMargins(0, 0, 0, 0);
         m_splitLabel = new QLabel(tr("Split Mode :"));
         m_splitComboBox = new ComboBox(true);
         m_splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom")});
+        m_splitters = new LineEdit();
+        m_splitters->setVisible(false);
+        m_splitters->setMaximumWidth(85);
         m_splitLayout->addWidget(m_splitLabel);
         m_splitLayout->addWidget(m_splitComboBox);
-        m_textEditLayout->addLayout(m_splitLayout);
+        m_splitLayout->addWidget(m_splitters);
+        m_splitLayout->addStretch(1);
+        m_splitWidget->setLayout(m_splitLayout);
+        m_textEditLayout->addWidget(m_splitWidget);
 
         skipSlur = new QCheckBox(tr("Skip Slur Note"));
-        excludeSpace = new QCheckBox(tr("Exclude Space"));
-        excludeSpace->setCheckState(Qt::Checked);
         m_skipSlurLayout = new QHBoxLayout();
         m_skipSlurLayout->addWidget(skipSlur);
         m_skipSlurLayout->addStretch(1);
-        m_skipSlurLayout->addWidget(excludeSpace);
 
         m_textEditLayout->addLayout(m_skipSlurLayout);
 
@@ -62,6 +69,9 @@ namespace FillLyric {
         // textEdit label
         connect(m_textEdit, &PhonicTextEdit::textChanged, this,
                 &LyricBaseWidget::_on_textEditChanged);
+
+        connect(m_splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+                &LyricBaseWidget::_on_splitComboBox_currentIndexChanged);
     }
 
     LyricBaseWidget::~LyricBaseWidget() = default;
@@ -70,7 +80,7 @@ namespace FillLyric {
         // 获取文本框的内容
         const QString text = this->m_textEdit->toPlainText();
         // 获取歌词
-        QList<Phonic> res = this->splitLyric(text);
+        const QList<Phonic> res = this->splitLyric(text);
         this->m_textCountLabel->setText(QString(tr("Note Count: %1")).arg(res.size()));
     }
 
@@ -106,10 +116,9 @@ namespace FillLyric {
         if (splitType == SplitType::Auto) {
             splitPhonics = CleanLyric::splitAuto(lyric);
         } else if (splitType == SplitType::ByChar) {
-            splitPhonics = CleanLyric::splitByChar(lyric, this->excludeSpace->isChecked());
+            splitPhonics = CleanLyric::splitByChar(lyric);
         } else if (splitType == SplitType::Custom) {
-            splitPhonics = CleanLyric::splitCustom(lyric, QStringList() << "-",
-                                                   this->excludeSpace->isChecked());
+            splitPhonics = CleanLyric::splitCustom(lyric, this->m_splitters->text().split(' '));
         }
 
         QList<Phonic> skipSlurPhonics;
@@ -123,6 +132,11 @@ namespace FillLyric {
 
         const auto res = skipSlurRes ? skipSlurPhonics : splitPhonics;
         return res;
+    }
+
+    void LyricBaseWidget::_on_splitComboBox_currentIndexChanged(int index) const {
+        const auto splitType = static_cast<SplitType>(index);
+        m_splitters->setVisible(splitType == Custom);
     }
 
 } // FillLyric

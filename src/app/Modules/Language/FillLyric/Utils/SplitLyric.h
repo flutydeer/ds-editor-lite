@@ -9,10 +9,9 @@ namespace FillLyric {
     public:
         static QList<Phonic> splitAuto(const QString &input);
 
-        static QList<Phonic> splitByChar(const QString &input, const bool &excludeSpace = true);
+        static QList<Phonic> splitByChar(const QString &input);
 
-        static QList<Phonic> splitCustom(const QString &input, const QStringList &splitter,
-                                         const bool &excludeSpace = true);
+        static QList<Phonic> splitCustom(const QString &input, const QStringList &splitter);
     };
 }
 

@@ -19,14 +19,14 @@ namespace FillLyric {
         return phonics;
     }
 
-    QList<Phonic> CleanLyric::splitByChar(const QString &input, const bool &excludeSpace) {
+    QList<Phonic> CleanLyric::splitByChar(const QString &input) {
         const auto langMgr = LangMgr::ILanguageManager::instance();
         const auto linebreakFactory = langMgr->language("Linebreak");
 
         QList<Phonic> phonics;
         for (int i = 0; i < input.length(); i++) {
             const QChar &currentChar = input[i];
-            if (excludeSpace && currentChar == ' ') {
+            if (currentChar == ' ') {
                 continue;
             }
             if (linebreakFactory->contains(currentChar)) {
@@ -43,8 +43,7 @@ namespace FillLyric {
         return phonics;
     }
 
-    QList<Phonic> CleanLyric::splitCustom(const QString &input, const QStringList &splitter,
-                                          const bool &excludeSpace) {
+    QList<Phonic> CleanLyric::splitCustom(const QString &input, const QStringList &splitter) {
         const auto langMgr = LangMgr::ILanguageManager::instance();
         const auto linebreakFactory = langMgr->language("Linebreak");
 
@@ -52,14 +51,13 @@ namespace FillLyric {
         int pos = 0;
         while (pos < input.length()) {
             const int start = pos;
-            while (pos < input.length() && !splitter.contains(input[pos]) &&
-                   !(excludeSpace && input[pos] == ' ') &&
+            while (pos < input.length() && !splitter.contains(input[pos]) && input[pos] != ' ' &&
                    !linebreakFactory->contains(input[pos])) {
                 pos++;
             }
 
             const auto lyric = input.mid(start, pos - start);
-            if (!lyric.isEmpty() && !splitter.contains(lyric) && !(excludeSpace && lyric == ' ')) {
+            if (!lyric.isEmpty() && !splitter.contains(lyric) && lyric != ' ') {
                 Phonic phonic;
                 phonic.lyric = lyric;
                 phonic.language = langMgr->analysis(lyric);

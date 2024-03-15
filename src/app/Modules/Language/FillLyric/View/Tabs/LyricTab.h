@@ -24,7 +24,6 @@ namespace FillLyric {
         [[nodiscard]] QList<Phonic> modelExport() const;
 
         [[nodiscard]] bool exportSkipSlur() const;
-        [[nodiscard]] bool exportExcludeSpace() const;
 
     Q_SIGNALS:
         void shrinkWindowRight(int newWidth);
