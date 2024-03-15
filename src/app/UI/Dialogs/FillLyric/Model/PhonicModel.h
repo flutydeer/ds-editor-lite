@@ -47,8 +47,6 @@ namespace FillLyric {
         bool setLyricType(int row, int col, const QString &type);
         [[nodiscard]] QStringList cellFermata(int row, int col) const;
         bool setFermata(int row, int col, const QList<QString> &fermata);
-        [[nodiscard]] bool cellLineFeed(int row, int col) const;
-        bool setLineFeed(int row, int col, bool lineFeed);
         [[nodiscard]] QString cellToolTip(const int &row, const int &col) const;
 
         // Cell operations

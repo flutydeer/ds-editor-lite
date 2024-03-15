@@ -7,7 +7,7 @@
 #include "Modules/Language/G2pMgr/IG2pManager.h"
 #include "Modules/Language/LangMgr/ILanguageManager.h"
 
-#include "../../Utils/CleanLyric.h"
+#include "../../Utils/SplitLyric.h"
 #include "../../Model/PhonicModel.h"
 
 #include "PhonicTableView.h"

@@ -3,7 +3,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 
-#include "../../../Utils/CleanLyric.h"
+#include "../../../Utils/SplitLyric.h"
 
 #include "../../../Utils/LrcTools/LrcDecoder.h"
 

@@ -1,4 +1,4 @@
-#include "CleanLyric.h"
+#include "SplitLyric.h"
 #include "Modules/Language/LangMgr/ILanguageManager.h"
 
 namespace FillLyric {

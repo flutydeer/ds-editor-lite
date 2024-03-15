@@ -1,6 +1,6 @@
 #include "PhonicDelegate.h"
 
-#include "../../Utils/CleanLyric.h"
+#include "../../Utils/SplitLyric.h"
 #include "../../Model/PhonicCommon.h"
 
 namespace FillLyric {
@@ -25,7 +25,7 @@ namespace FillLyric {
         // 获取人工修订的注音文本
         const QString syllableRevised = index.data(SyllableRevised).toString();
 
-        const QString lyricType = index.data(LyricType).toString();
+        const QString lyricType = index.data(Language).toString();
 
         // 获取候选发音列表
         const QStringList candidateList = index.data(Candidate).toStringList();

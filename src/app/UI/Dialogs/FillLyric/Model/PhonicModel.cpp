@@ -68,7 +68,7 @@ namespace FillLyric {
     QList<int> PhonicModel::allRoles() {
         QList<int> roles;
         roles.append(Qt::DisplayRole);
-        for (int i = PhonicRole::Syllable; i <= PhonicRole::LineFeed; i++) {
+        for (int i = PhonicRole::Syllable; i <= PhonicRole::FermataAddition; i++) {
             roles.append(i);
         }
         return roles;
@@ -118,11 +118,11 @@ namespace FillLyric {
     }
 
     QString PhonicModel::cellLyricType(const int row, const int col) const {
-        return this->data(this->index(row, col), PhonicRole::LyricType).toString();
+        return this->data(this->index(row, col), PhonicRole::Language).toString();
     }
 
     bool PhonicModel::setLyricType(const int row, const int col, const QString &type) {
-        this->setData(this->index(row, col), type, PhonicRole::LyricType);
+        this->setData(this->index(row, col), type, PhonicRole::Language);
         return true;
     }
 
@@ -132,15 +132,6 @@ namespace FillLyric {
 
     bool PhonicModel::setFermata(const int row, const int col, const QStringList &fermata) {
         this->setData(this->index(row, col), fermata, PhonicRole::FermataAddition);
-        return true;
-    }
-
-    bool PhonicModel::cellLineFeed(const int row, const int col) const {
-        return this->data(this->index(row, col), PhonicRole::LineFeed).toBool();
-    }
-
-    bool PhonicModel::setLineFeed(const int row, const int col, const bool lineFeed) {
-        this->setData(this->index(row, col), lineFeed, PhonicRole::LineFeed);
         return true;
     }
 
@@ -160,7 +151,6 @@ namespace FillLyric {
         setSyllableRevised(row, col, phonic.syllableRevised);
         setLyricType(row, col, phonic.language);
         setFermata(row, col, phonic.fermata);
-        setLineFeed(row, col, phonic.lineFeed);
     }
 
     Phonic PhonicModel::takeData(const int row, const int col) const {
@@ -175,7 +165,6 @@ namespace FillLyric {
         phonic.syllableRevised = cellSyllableRevised(row, col);
         phonic.language = cellLyricType(row, col);
         phonic.fermata = cellFermata(row, col);
-        phonic.lineFeed = cellLineFeed(row, col);
         return phonic;
     }
 
