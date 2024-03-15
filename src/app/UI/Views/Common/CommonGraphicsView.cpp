@@ -18,28 +18,23 @@ CommonGraphicsView::CommonGraphicsView(QWidget *parent) : QGraphicsView(parent) 
     // setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     setMinimumHeight(150);
 
-    const int animationDurationBase = 150;
-    auto duration = animationLevel() == None ? 0 : getScaledAnimationTime(animationDurationBase);
-
     m_scaleXAnimation.setTargetObject(this);
     m_scaleXAnimation.setPropertyName("scaleX");
-    m_scaleXAnimation.setDuration(duration);
     m_scaleXAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
     m_scaleYAnimation.setTargetObject(this);
     m_scaleYAnimation.setPropertyName("scaleY");
-    m_scaleYAnimation.setDuration(duration);
     m_scaleYAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
     m_hBarAnimation.setTargetObject(this);
     m_hBarAnimation.setPropertyName("horizontalScrollBarValue");
-    m_hBarAnimation.setDuration(duration);
     m_hBarAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
     m_vBarAnimation.setTargetObject(this);
     m_vBarAnimation.setPropertyName("verticalScrollBarValue");
-    m_vBarAnimation.setDuration(duration);
     m_vBarAnimation.setEasingCurve(QEasingCurve::OutCubic);
+
+    updateAnimationDuration();
 
     connect(horizontalScrollBar(), &QScrollBar::valueChanged, this,
             &CommonGraphicsView::notifyVisibleRectChanged);
@@ -282,14 +277,20 @@ bool CommonGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
     return false;
 #endif
 }
+void CommonGraphicsView::updateAnimationDuration() {
+    const int animationDurationBase = 150;
+    auto duration = animationLevel() == AnimationGlobal::Full ? getScaledAnimationTime(animationDurationBase) : 0;
+    m_scaleXAnimation.setDuration(duration);
+    m_scaleYAnimation.setDuration(duration);
+    m_hBarAnimation.setDuration(duration);
+    m_vBarAnimation.setDuration(duration);
+}
 void CommonGraphicsView::afterSetScale() {
     emit scaleChanged(scaleX(), scaleY());
 }
-void CommonGraphicsView::afterSetAnimationLevel(AnimationLevel level) {
-    // m_scaleXAnimation.stop();
-    // m_scaleYAnimation.stop();
-    // m_hBarAnimation.stop();
-    // m_vBarAnimation.stop();
+void CommonGraphicsView::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    updateAnimationDuration();
 }
 void CommonGraphicsView::afterSetTimeScale(double scale) {
+    updateAnimationDuration();
 }

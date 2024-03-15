@@ -46,6 +46,7 @@ public slots:
 
     void sampleRateChanged(double sr);
     void onTempoChanged(double tempo);
+    void onModelChanged();
 
 private:
     double m_position = 0;

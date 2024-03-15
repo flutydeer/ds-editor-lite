@@ -123,7 +123,7 @@ protected:
     void calculateRingParams();
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
-    void afterSetAnimationLevel(AnimationLevel level) override {
+    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override {
     }
     void afterSetTimeScale(double scale) override {
     }

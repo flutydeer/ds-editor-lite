@@ -53,6 +53,10 @@ void PlaybackController::sampleRateChanged(double sr) {
 void PlaybackController::onTempoChanged(double tempo) {
     m_tempo = tempo;
 }
+void PlaybackController::onModelChanged() {
+    auto tempo = AppModel::instance()->tempo();
+    onTempoChanged(tempo);
+}
 double PlaybackController::samplePosToTick(int sample) const {
     auto secs = sample / m_sampleRate;
     auto tick =  secs * 60 / m_tempo * 480;

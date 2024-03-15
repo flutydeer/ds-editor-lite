@@ -27,7 +27,7 @@ void ProgressIndicator::initUi() {
     m_colorPalette = colorPaletteNormal;
 
     const int animationDurationBase = 250;
-    auto duration = animationLevel() == None ? 0 : getScaledAnimationTime(animationDurationBase);
+    auto duration = animationLevel() == AnimationGlobal::None ? 0 : getScaledAnimationTime(animationDurationBase);
 
     m_valueAnimation.setTargetObject(this);
     m_valueAnimation.setPropertyName("apparentValue");

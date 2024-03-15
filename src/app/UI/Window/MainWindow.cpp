@@ -28,6 +28,9 @@
 #include "UI/Views/ActionButtonsView.h"
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/ProgressIndicator.h"
+#include "Controller/AppOptions/AppearanceOptionController.h"
+#include "Model/AppOptions/AppOptions.h"
+#include "UI/Dialogs/Options/AppOptionsDialog.h"
 
 MainWindow::MainWindow() {
     QString qssBase;
@@ -115,8 +118,8 @@ MainWindow::MainWindow() {
     auto menuImport = new Menu(tr("Import"), this);
     auto actionImportMidiFile = new QAction(tr("MIDI File..."), this);
     connect(actionImportMidiFile, &QAction::triggered, this, [=] {
-        auto fileName =
-            QFileDialog::getOpenFileName(this, tr("Select a MIDI File"), ".", tr("MIDI File (*.mid)"));
+        auto fileName = QFileDialog::getOpenFileName(this, tr("Select a MIDI File"), ".",
+                                                     tr("MIDI File (*.mid)"));
         if (fileName.isNull())
             return;
         appController->importMidiFile(fileName);
@@ -131,8 +134,8 @@ MainWindow::MainWindow() {
     });
     auto actionExportMidiFile = new QAction(tr("MIDI File..."), this);
     connect(actionExportMidiFile, &QAction::triggered, this, [=] {
-        auto fileName =
-            QFileDialog::getSaveFileName(this, tr("Save as MIDI File"), ".", tr("MIDI File (*.mid)"));
+        auto fileName = QFileDialog::getSaveFileName(this, tr("Save as MIDI File"), ".",
+                                                     tr("MIDI File (*.mid)"));
         if (fileName.isNull())
             return;
         appController->exportMidiFile(fileName);
@@ -224,7 +227,13 @@ MainWindow::MainWindow() {
         AudioSettingsDialog dlg(this);
         dlg.exec();
     });
+    auto actionAppOptions = new QAction(tr("App Options"), this);
+    connect(actionAppOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(this);
+        dialog.exec();
+    });
     menuOptions->addAction(actionAudioSettings);
+    menuOptions->addAction(actionAppOptions);
 
     auto menuHelp = new Menu(tr("&Help"), this);
     auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);
@@ -326,7 +335,8 @@ MainWindow::MainWindow() {
     progressBar->setFixedWidth(170);
 
     auto statusBar = new QStatusBar(this);
-    statusBar->addWidget(new QLabel("Scroll: Wheel/Shift + Wheel; Zoom: Ctrl + Wheel/Alt + Wheel; Double click to create a singing clip"));
+    statusBar->addWidget(new QLabel("Scroll: Wheel/Shift + Wheel; Zoom: Ctrl + Wheel/Alt + Wheel; "
+                                    "Double click to create a singing clip"));
     statusBar->addPermanentWidget(new QLabel("Running Inference..."));
     statusBar->addPermanentWidget(progressBar);
     statusBar->setFixedHeight(28);

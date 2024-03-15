@@ -50,11 +50,12 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void afterSetScale() override;
-    void afterSetAnimationLevel(AnimationLevel level) override;
+    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
     void afterSetTimeScale(double scale) override;
 
 private:
     bool isMouseEventFromWheel(QWheelEvent *event);
+    void updateAnimationDuration();
 
     double m_hZoomingStep = 0.4;
     double m_vZoomingStep = 0.3;
