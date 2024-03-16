@@ -13,12 +13,15 @@ namespace LangMgr {
         explicit LangTableWidget(QWidget *parent = nullptr);
         ~LangTableWidget() override;
 
+        [[nodiscard]] LangConfig currentConfig() const;
+
     protected:
         void dropEvent(QDropEvent *event) override;
 
         void setCellCheckBox(const int &row, const int &column, const Qt::CheckState &checkState,
                              const QString &text = "");
 
+        [[nodiscard]] QString cellText(const int &row, const int &column) const;
         [[nodiscard]] bool cellCheckState(const int &row, const int &column) const;
 
         void fillRow(const int &row, const LangConfig &langConfig);

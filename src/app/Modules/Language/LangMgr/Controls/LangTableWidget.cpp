@@ -4,8 +4,11 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QHBoxLayout>
+#include <QHeaderView>
 
 #include "../ILanguageManager.h"
+
+#include <QLabel>
 
 namespace LangMgr {
     LangTableWidget::LangTableWidget(QWidget *parent) : QTableWidget(parent) {
@@ -15,10 +18,24 @@ namespace LangMgr {
         this->setDropIndicatorShown(true);
         this->setSelectionBehavior(SelectRows);
 
+        this->setFocusPolicy(Qt::NoFocus);
+        this->setShowGrid(false);
+        // 关闭拖放指示器
+        this->setDragDropOverwriteMode(false);
+
+        this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
         this->setColumnCount(4);
-        this->setHorizontalHeaderLabels(QStringList() << tr("Language") << tr("Discard Result")
-                                                      << tr("Author") << tr("Description"));
+
+        const auto width = static_cast<int>(this->width() * 0.9 / 2);
+        this->setColumnWidth(0, width);
+        this->setColumnWidth(1, width);
+
+        this->verticalHeader()->hide();
+        this->horizontalHeader()->hide();
+
+        this->setColumnHidden(2, true);
+        this->setColumnHidden(3, true);
 
         const auto langConfigs = langMgr->languageConfig();
         for (const auto &config : langConfigs) {
@@ -29,6 +46,10 @@ namespace LangMgr {
     }
 
     LangTableWidget::~LangTableWidget() = default;
+
+    LangConfig LangTableWidget::currentConfig() const {
+        return this->exportConfig(this->currentRow());
+    }
 
     void LangTableWidget::dropEvent(QDropEvent *event) {
         // 获取原行号
@@ -53,20 +74,26 @@ namespace LangMgr {
                                           const Qt::CheckState &checkState, const QString &text) {
         auto *widget = new QWidget();
         auto *layout = new QHBoxLayout();
-        auto *checkBox = new QCheckBox;
+        auto *checkBox = new QCheckBox();
+        auto *label = new QLabel(text);
 
         checkBox->setCheckState(checkState);
-        if (!text.isEmpty()) {
-            checkBox->setText(text);
-        }
-        if (column == 0) {
-            layout->addWidget(checkBox, 0, Qt::AlignLeft);
-        } else {
-            layout->addWidget(checkBox, 0, Qt::AlignCenter);
-        }
+        checkBox->setFocusPolicy(Qt::NoFocus);
+
+        layout->addWidget(checkBox);
+        layout->addWidget(label);
+        layout->setAlignment(Qt::AlignLeft);
+
         layout->setContentsMargins(0, 0, 0, 0);
         widget->setLayout(layout);
         this->setCellWidget(row, column, widget);
+    }
+
+    QString LangTableWidget::cellText(const int &row, const int &column) const {
+        const auto *widget = this->cellWidget(row, column);
+        const auto *layout = dynamic_cast<QHBoxLayout *>(widget->layout());
+        const auto *label = dynamic_cast<QLabel *>(layout->itemAt(1)->widget());
+        return label->text();
     }
 
     bool LangTableWidget::cellCheckState(const int &row, const int &column) const {
@@ -79,7 +106,8 @@ namespace LangMgr {
     void LangTableWidget::fillRow(const int &row, const LangConfig &langConfig) {
         this->setCellCheckBox(row, 0, langConfig.enabled ? Qt::Checked : Qt::Unchecked,
                               langConfig.language);
-        this->setCellCheckBox(row, 1, langConfig.discardResult ? Qt::Checked : Qt::Unchecked);
+        this->setCellCheckBox(row, 1, langConfig.discardResult ? Qt::Checked : Qt::Unchecked,
+                              tr("Discard Result"));
         this->setItem(row, 2, new QTableWidgetItem(langConfig.author));
         this->item(row, 2)->setTextAlignment(Qt::AlignCenter);
         this->setItem(row, 3, new QTableWidgetItem(langConfig.description));
@@ -88,8 +116,8 @@ namespace LangMgr {
 
     LangConfig LangTableWidget::exportConfig(const int &row) const {
         LangConfig langConfig;
-        langConfig.language = this->item(row, 0)->text();
-        langConfig.enabled = this->item(row, 0)->checkState() == Qt::Checked;
+        langConfig.language = this->cellText(row, 0);
+        langConfig.enabled = this->cellCheckState(row, 0);
         langConfig.discardResult = this->cellCheckState(row, 1);
         langConfig.author = this->item(row, 2)->text();
         langConfig.description = this->item(row, 3)->text();

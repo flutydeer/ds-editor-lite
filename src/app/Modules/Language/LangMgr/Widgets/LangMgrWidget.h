@@ -1,13 +1,13 @@
 #ifndef LANGMGRWIDGET_H
 #define LANGMGRWIDGET_H
 
+#include <QLabel>
 #include <QWidget>
-#include "../Controls/LangTableWidget.h"
 
-#include <QVBoxLayout>
 #include "UI/Controls/Button.h"
 
-#include <QLabel>
+#include "../Controls/LangTableWidget.h"
+#include "../Controls/LangInfoWidget.h"
 
 namespace LangMgr {
 
@@ -19,8 +19,10 @@ namespace LangMgr {
 
     private:
         LangTableWidget *m_langTableWidget;
+        LangInfoWidget *m_langInfoWidget;
 
-        QHBoxLayout *m_mainLayout;
+        QVBoxLayout *m_mainLayout;
+        QHBoxLayout *m_centerLayout;
         QVBoxLayout *m_tableLayout;
         QHBoxLayout *m_buttonLayout;
 
