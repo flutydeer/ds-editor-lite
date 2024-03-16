@@ -24,7 +24,7 @@ namespace LangMgr {
         QString displayName;
         QString description;
 
-        QString category;
+        QString author;
         QString displayCategory;
     };
 

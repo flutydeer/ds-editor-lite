@@ -20,6 +20,8 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     m_lyricWidget = new FillLyric::LyricTab(m_phonics);
     m_lyricWidget->setPhonics();
 
+    m_langMgrWidget = new LangMgr::LangMgrWidget(this);
+
     m_btnOk = new Button(tr("OK"), this);
     m_btnOk->setPrimary(true);
     m_btnCancel = new Button(tr("Cancel"), this);
@@ -33,7 +35,7 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     buttonLayout->addWidget(m_btnCancel);
 
     m_tabWidget->addTab(m_lyricWidget, tr("Lyric"));
-    m_tabWidget->addTab(new QWidget, tr("Advanced"));
+    m_tabWidget->addTab(m_langMgrWidget, tr("Advanced"));
     m_tabWidget->addTab(new QWidget, tr("Help"));
 
     m_mainLayout->addWidget(m_tabWidget);

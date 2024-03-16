@@ -71,14 +71,14 @@ namespace LangMgr {
         d->displayName = displayName;
     }
 
-    QString ILanguageFactory::category() const {
+    QString ILanguageFactory::author() const {
         Q_D(const ILanguageFactory);
-        return d->category;
+        return d->author;
     }
 
-    void ILanguageFactory::setCategory(const QString &category) {
+    void ILanguageFactory::setAuthor(const QString &author) {
         Q_D(ILanguageFactory);
-        d->category = category;
+        d->author = author;
     }
 
     bool ILanguageFactory::contains(const QChar &c) const {

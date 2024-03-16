@@ -277,6 +277,10 @@ QTabWidget::pane {
     border: none;
 }
 
+QTableWidget::QTableView QTableCornerButton::section {
+    background: #232425;
+}
+
 QTabBar {
     background-color: transparent;
 }

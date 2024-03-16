@@ -19,5 +19,7 @@ struct LangConfig {
     QString language;
     bool enabled = true;
     bool discardResult = false;
+    QString author;
+    QString description;
 };
 #endif // LANGCOMMON_H

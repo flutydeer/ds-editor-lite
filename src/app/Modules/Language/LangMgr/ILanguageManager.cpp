@@ -89,7 +89,8 @@ namespace LangMgr {
 
         QList<LangConfig> result;
         for (const auto &factory : factories) {
-            result.append({factory->id(), factory->enabled(), factory->discardResult()});
+            result.append({factory->id(), factory->enabled(), factory->discardResult(),
+                           factory->author(), factory->description()});
         }
         return result;
     }
@@ -101,6 +102,8 @@ namespace LangMgr {
             if (factory) {
                 factory->setEnabled(config.enabled);
                 factory->setDiscardResult(config.discardResult);
+                factory->setAuthor(config.author);
+                factory->setDescription(config.description);
             }
         }
     }
