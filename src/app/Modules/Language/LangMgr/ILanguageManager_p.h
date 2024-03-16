@@ -18,6 +18,9 @@ namespace LangMgr {
 
         ILanguageManager *q_ptr;
 
+        QStringList order = {"Mandarin", "Cantonese",   "Kana",   "English",  "Space",
+                             "Slur",     "Punctuation", "Number", "Linebreak"};
+
         QMap<QString, ILanguageFactory *> languages;
     };
 

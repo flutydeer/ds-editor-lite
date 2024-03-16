@@ -31,14 +31,24 @@ namespace LangMgr {
         return d->id;
     }
 
-    bool ILanguageFactory::discard() const {
+    bool ILanguageFactory::enabled() const {
         Q_D(const ILanguageFactory);
-        return d->discard;
+        return d->enabled;
     }
 
-    void ILanguageFactory::setDiscard(const bool &discard) {
+    void ILanguageFactory::setEnabled(const bool &enable) {
         Q_D(ILanguageFactory);
-        d->discard = discard;
+        d->enabled = enable;
+    }
+
+    bool ILanguageFactory::discardResult() const {
+        Q_D(const ILanguageFactory);
+        return d->discardResult;
+    }
+
+    void ILanguageFactory::setDiscardResult(const bool &discard) {
+        Q_D(ILanguageFactory);
+        d->discardResult = discard;
     }
 
     QString ILanguageFactory::description() const {
@@ -93,7 +103,7 @@ namespace LangMgr {
             if (note.language == "Unknown") {
                 const auto splitRes = split(note.lyric);
                 for (const auto &res : splitRes) {
-                    if (res.language == id() && d->discard) {
+                    if (res.language == id() && d->discardResult) {
                         continue;
                     }
                     result.append(res);

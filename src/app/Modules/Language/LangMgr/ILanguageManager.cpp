@@ -11,7 +11,8 @@
 #include "LangAnalysis/BaseAnalysis/LinebreakAnalysis.h"
 #include "LangAnalysis/BaseAnalysis/Punctuation.h"
 
-#include "LangAnalysis/ChineseAnalysis.h"
+#include "LangAnalysis/MandarinAnalysis.h"
+#include "LangAnalysis/CantoneseAnalysis.h"
 #include "LangAnalysis/EnglishAnalysis.h"
 #include "LangAnalysis/KanaAnalysis.h"
 
@@ -82,13 +83,53 @@ namespace LangMgr {
         d->languages.clear();
     }
 
+    QList<LangConfig> ILanguageManager::languageConfig() const {
+        Q_D(const ILanguageManager);
+        const auto factories = orderedLanguages();
+
+        QList<LangConfig> result;
+        for (const auto &factory : factories) {
+            result.append({factory->id(), factory->enabled(), factory->discardResult()});
+        }
+        return result;
+    }
+
+    void ILanguageManager::setLanguageConfig(const QList<LangConfig> &configs) {
+        Q_D(ILanguageManager);
+        for (const auto &config : configs) {
+            const auto factory = language(config.language);
+            if (factory) {
+                factory->setEnabled(config.enabled);
+                factory->setDiscardResult(config.discardResult);
+            }
+        }
+    }
+
+    QList<ILanguageFactory *>
+        ILanguageManager::orderedLanguages(const QStringList &priorityList) const {
+        Q_D(const ILanguageManager);
+        QStringList order = d->order;
+
+        QList<ILanguageFactory *> result;
+        for (const auto &id : priorityList) {
+            result.append(language(id));
+        }
+
+        for (const auto &id : order) {
+            if (priorityList.contains(id))
+                continue;
+            result.append(language(id));
+        }
+        return result;
+    }
+
     QList<ILanguageFactory *> ILanguageManager::languages() const {
         Q_D(const ILanguageManager);
         return d->languages.values();
     }
 
     QList<LangNote> ILanguageManager::split(const QString &input) const {
-        auto analysis = this->languages();
+        auto analysis = this->orderedLanguages();
         QList<LangNote> result = {LangNote(input)};
         for (const auto &factory : analysis) {
             result = factory->split(result);
@@ -97,7 +138,7 @@ namespace LangMgr {
     }
 
     void ILanguageManager::correct(const QList<LangNote *> &input) const {
-        auto analysis = this->languages();
+        auto analysis = this->orderedLanguages();
         for (const auto &factory : analysis) {
             factory->correct(input);
         }
@@ -105,7 +146,7 @@ namespace LangMgr {
 
     QString ILanguageManager::analysis(const QString &input) const {
         QString result = "Unknown";
-        auto analysis = this->languages();
+        auto analysis = this->orderedLanguages();
 
         for (const auto &factory : analysis) {
             result = factory->analysis(input);
@@ -117,7 +158,7 @@ namespace LangMgr {
     }
 
     QStringList ILanguageManager::analysis(const QStringList &input) const {
-        auto analysis = this->languages();
+        auto analysis = this->orderedLanguages();
         QList<LangNote *> inputNote;
         for (const auto &lyric : input) {
             inputNote.append(new LangNote(lyric));
@@ -154,7 +195,8 @@ namespace LangMgr {
         addLanguage(new LinebreakAnalysis());
         addLanguage(new Punctuation());
 
-        addLanguage(new ChineseAnalysis());
+        addLanguage(new MandarinAnalysis());
+        addLanguage(new CantoneseAnalysis());
         addLanguage(new EnglishAnalysis());
         addLanguage(new KanaAnalysis());
     }

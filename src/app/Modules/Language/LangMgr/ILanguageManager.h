@@ -5,6 +5,8 @@
 
 #include "ILanguageFactory.h"
 
+#include <boost/intrusive/options.hpp>
+
 namespace LangMgr {
 
     class ILanguageManagerPrivate;
@@ -24,6 +26,12 @@ namespace LangMgr {
         bool removeLanguage(const ILanguageFactory *factory);
         bool removeLanguage(const QString &id);
         void clearLanguages();
+
+        [[nodiscard]] QList<LangConfig> languageConfig() const;
+        void setLanguageConfig(const QList<LangConfig> &configs);
+
+        [[nodiscard]] QList<ILanguageFactory *>
+            orderedLanguages(const QStringList &priorityList = {}) const;
 
         [[nodiscard]] QList<ILanguageFactory *> languages() const;
         [[nodiscard]] QList<LangNote> split(const QString &input) const;

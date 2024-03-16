@@ -26,8 +26,11 @@ namespace LangMgr {
     public:
         [[nodiscard]] QString id() const;
 
-        [[nodiscard]] bool discard() const;
-        void setDiscard(const bool &discard);
+        [[nodiscard]] bool enabled() const;
+        void setEnabled(const bool &enable);
+
+        [[nodiscard]] bool discardResult() const;
+        void setDiscardResult(const bool &discard);
 
         [[nodiscard]] QString displayName() const;
         void setDisplayName(const QString &displayName);

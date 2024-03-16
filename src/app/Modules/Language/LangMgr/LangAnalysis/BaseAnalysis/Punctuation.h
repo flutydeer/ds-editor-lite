@@ -9,7 +9,7 @@ namespace LangMgr {
     public:
         explicit Punctuation(const QString &id = "Punctuation", QObject *parent = nullptr)
             : SingleCharFactory(id, parent) {
-            setDiscard(true);
+            setDiscardResult(true);
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;

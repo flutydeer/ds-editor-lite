@@ -17,7 +17,9 @@ namespace LangMgr {
 
         QString id;
 
-        bool discard = false;
+        bool enabled = true;
+
+        bool discardResult = false;
 
         QString displayName;
         QString description;

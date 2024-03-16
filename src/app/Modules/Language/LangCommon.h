@@ -14,4 +14,10 @@ struct LangNote {
     LangNote(QString lyric, QString language)
         : lyric(std::move(lyric)), language(std::move(language)){};
 };
+
+struct LangConfig {
+    QString language;
+    bool enabled = true;
+    bool discardResult = false;
+};
 #endif // LANGCOMMON_H
