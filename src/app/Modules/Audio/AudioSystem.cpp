@@ -8,6 +8,7 @@
 #include <QStandardPaths>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMessageBox>
 
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsCore/PositionableMixerAudioSource.h>
@@ -27,7 +28,6 @@
 
 #include "UI/Dialogs/Audio/AudioSettingsDialog.h"
 #include "Modules/Audio/AudioContext.h"
-#include "UI/Dialogs/Base/MessageDialog.h"
 
 static AudioSystem *m_instance = nullptr;
 
@@ -314,7 +314,7 @@ void AudioSystem::testDevice() {
 
 void AudioSystem::handleDeviceHotPlug() {
     auto hotPlugMode = m_settings.value("audio/hotPlugMode", NotifyOnAnyChange).value<HotPlugMode>();
-    MessageDialog msgBox;
+    QMessageBox msgBox;
     msgBox.setText(tr("Audio device change is detected."));
     msgBox.setIcon(QMessageBox::Information);
     msgBox.addButton(QMessageBox::Ok);
