@@ -53,6 +53,7 @@ namespace LangMgr {
 
         this->insertItem(targetRow, this->takeItem(originalRow));
         this->setItem(targetRow, originalConfig);
+        this->setCurrentRow(targetRow);
     }
 
 
