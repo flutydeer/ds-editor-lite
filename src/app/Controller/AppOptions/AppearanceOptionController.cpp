@@ -8,7 +8,7 @@
 AppearanceOptionController::AppearanceOptionController() {
     updateTemp();
 }
-void AppearanceOptionController::setOption(const AppearanceOption &option) {
+void AppearanceOptionController::modifyOption(const AppearanceOption &option) {
     m_temp = option;
     emit modified();
 }

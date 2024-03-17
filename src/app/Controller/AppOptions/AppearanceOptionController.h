@@ -13,7 +13,7 @@ class AppearanceOptionController : public IOptionsController {
 
 public:
     explicit AppearanceOptionController();
-    void setOption(const AppearanceOption &option);
+    void modifyOption(const AppearanceOption &option);
 
     void accept() override;
     void cancel() override;

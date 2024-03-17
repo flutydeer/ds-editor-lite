@@ -5,12 +5,12 @@
 #ifndef APPEARANCEPAGE_H
 #define APPEARANCEPAGE_H
 
-#include <QWidget>
+#include "IOptionPage.h"
 
 class ComboBox;
 class LineEdit;
 
-class AppearancePage : public QWidget {
+class AppearancePage : public IOptionPage {
     Q_OBJECT
 
 public:
@@ -22,7 +22,7 @@ private:
 
     const QStringList animationLevelsName = {tr("Full"), tr("Decreased"), tr("None")};
 
-    void modifyOptions();
+    void modifyOption() override;
 };
 
 

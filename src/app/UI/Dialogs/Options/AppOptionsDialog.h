@@ -7,17 +7,41 @@
 
 #include "UI/Dialogs/Base/OKCancelApplyDialog.h"
 
+
+class AudioPage;
+class AppearancePage;
+class GeneralPage;
+class IOptionPage;
+class QListWidget;
 class Button;
+class QStackedWidget;
 
 class AppOptionsDialog : public OKCancelApplyDialog {
     Q_OBJECT
 
 public:
-    explicit AppOptionsDialog(QWidget *parent = nullptr);
+    enum Page { General, Audio, Appearance, Save, Inference, PreviewFunctions, DeveloperOptions };
+
+    explicit AppOptionsDialog(Page page, QWidget *parent = nullptr);
 
 private slots:
     void apply();
     void cancel();
+    void onSelectionChanged(int index);
+
+private:
+    QStringList m_pageNames = {tr("General"),          tr("Audio"),
+                               tr("Appearance")/*,       tr("Save"),
+                               tr("Inference"),        tr("Preview Functions"),
+                               tr("Developer Options")*/};
+
+    QListWidget *m_tabList;
+    QStackedWidget *m_PageArea;
+
+    GeneralPage *m_generalPage;
+    AudioPage *m_audioPage;
+    AppearancePage *m_appearancePage;
+    QList<IOptionPage *> m_pages;
 };
 
 

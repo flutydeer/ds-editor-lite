@@ -3,7 +3,7 @@ QPushButton {
     border: none;
     border-radius: 6px;
     color: #f2f2f2;
-    padding: 5px 10px;
+    padding: 6px 12px;
 }
 
 QPushButton:hover {
@@ -140,8 +140,33 @@ QGraphicsView {
 }
 
 QListWidget {
-    background: #2A2B2C;
+    outline: 0px;
+    background: transparent;
     border: none
+}
+
+QListWidget#AppOptionsDialogTabListWidget {
+    outline: 0px;
+    background: transparent;
+    border: none;
+}
+
+QListWidget#AppOptionsDialogTabListWidget::item {
+    border:none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    margin-top: 3px;
+    margin-bottom: 3px;
+    color: #f0f0f0;
+}
+
+QListWidget#AppOptionsDialogTabListWidget::item:hover{
+    background-color: #10FFFFFF;
+}
+
+QListWidget#AppOptionsDialogTabListWidget::item:selected {
+    background-color: #9BBAFF;
+    color: #000;
 }
 
 QMenu {
@@ -283,6 +308,10 @@ QTableWidget::QTableView QTableCornerButton::section {
 
 QTabBar {
     background-color: transparent;
+}
+
+QTabWidget::tab-bar {
+    alignment: center;
 }
 
 QTabBar::tab {
