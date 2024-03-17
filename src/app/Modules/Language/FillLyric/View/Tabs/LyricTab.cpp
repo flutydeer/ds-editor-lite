@@ -8,10 +8,6 @@ namespace FillLyric {
 
     LyricTab::LyricTab(QList<Phonic *> phonics, QWidget *parent)
         : QWidget(parent), m_phonics(std::move(phonics)) {
-        setStyleSheet(
-            "QPushButton {border: none; background: none; max-width: 100px; padding: 4px;}"
-            "QPushButton:hover { background: #1AFFFFFF; }"
-            "QPushButton:pressed { background: #10FFFFFF; }");
         // textWidget
         m_lyricBaseWidget = new LyricBaseWidget();
 

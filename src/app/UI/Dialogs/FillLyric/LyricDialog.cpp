@@ -23,7 +23,7 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     m_langMgrWidget = new LangMgr::LangMgrWidget(this);
 
     m_btnOk = new Button(tr("&Import"), this);
-    m_btnOk->setPrimary(true);
+    // m_btnOk->setPrimary(true);
     setPositiveButton(m_btnOk);
     m_btnCancel = new Button(tr("&Cancel"), this);
     setNegativeButton(m_btnCancel);

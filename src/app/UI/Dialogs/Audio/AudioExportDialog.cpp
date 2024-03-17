@@ -146,7 +146,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent)
     m_warningButton->setVisible(false);
     buttonLayout->addWidget(m_warningButton);
     auto exportButton = new Button(tr("Export"));
-    exportButton->setPrimary(true);
+    // exportButton->setPrimary(true);
     exportButton->setDefault(true);
     buttonLayout->addWidget(exportButton);
     auto cancelButton = new Button(tr("Cancel"));

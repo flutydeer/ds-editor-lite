@@ -8,7 +8,7 @@
 
 OKCancelApplyDialog::OKCancelApplyDialog(QWidget *parent) : Dialog(parent) {
     m_btnOk = new Button(tr("&OK"));
-    m_btnOk->setPrimary(true);
+    // m_btnOk->setPrimary(true);
     m_btnCancel = new Button(tr("&Cancel"));
     m_btnApply = new Button(tr("&Apply"));
 
