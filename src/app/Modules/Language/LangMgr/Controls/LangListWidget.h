@@ -16,8 +16,6 @@ namespace LangMgr {
         [[nodiscard]] LangConfig currentConfig() const;
 
     protected:
-        void dropEvent(QDropEvent *event) override;
-
         void setItem(const int &row, const LangConfig &langConfig);
 
         [[nodiscard]] LangConfig exportConfig(const int &row) const;

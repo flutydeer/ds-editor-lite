@@ -2,24 +2,19 @@
 
 namespace LangMgr {
     LangMgrWidget::LangMgrWidget(QWidget *parent) : QWidget(parent) {
-        m_mainLayout = new QVBoxLayout(this);
-        m_mainLayout->setContentsMargins(0, 0, 0, 0);
-
+        m_mainLayout = new QVBoxLayout();
         m_tableLayout = new QVBoxLayout();
-        m_tableLayout->setContentsMargins(0, 0, 0, 0);
 
-        m_langListWidget = new LangListWidget(this);
+        m_langListWidget = new LangListWidget();
 
         m_buttonLayout = new QHBoxLayout();
-        m_buttonLayout->setContentsMargins(0, 0, 0, 0);
-        m_applyButton = new Button(tr("Apply"), this);
+        m_applyButton = new Button(tr("Apply"));
         m_buttonLayout->addStretch(1);
         m_buttonLayout->addWidget(m_applyButton);
 
         m_centerLayout = new QHBoxLayout();
-        m_centerLayout->setContentsMargins(0, 0, 0, 0);
 
-        m_langInfoWidget = new LangInfoWidget(this);
+        m_langInfoWidget = new LangInfoWidget();
 
         m_centerLayout->addWidget(m_langListWidget, 2);
         m_centerLayout->addWidget(m_langInfoWidget, 3);
@@ -43,6 +38,7 @@ namespace LangMgr {
 
         m_mainLayout->addLayout(m_labelLayout);
         m_mainLayout->addLayout(m_tableLayout);
+        setLayout(m_mainLayout);
 
         // 监控表格选中行的变化
         connect(m_langListWidget, &QListWidget::currentRowChanged, m_langInfoWidget,

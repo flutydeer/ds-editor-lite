@@ -28,6 +28,7 @@ namespace LangMgr {
             const auto row = this->count();
             this->setItem(row, config);
         }
+        this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     }
 
     LangListWidget::~LangListWidget() = default;
@@ -36,32 +37,11 @@ namespace LangMgr {
         return this->exportConfig(this->currentRow());
     }
 
-    void LangListWidget::dropEvent(QDropEvent *event) {
-        const auto originalRow = this->currentRow();
-        const auto originalConfig = this->exportConfig(originalRow);
-
-        const auto targetPoint = event->position().toPoint();
-
-        if (!this->visualItemRect(this->itemAt(targetPoint)).contains(targetPoint)) {
-            return;
-        }
-
-        const auto targetRow = this->indexAt(event->position().toPoint()).row();
-        if (targetRow == originalRow) {
-            return;
-        }
-
-        this->insertItem(targetRow, this->takeItem(originalRow));
-        this->setItem(targetRow, originalConfig);
-        this->setCurrentRow(targetRow);
-    }
-
-
     void LangListWidget::setItem(const int &row, const LangConfig &langConfig) {
         QListWidgetItem *item;
         if (row >= this->count()) {
-            item = new QListWidgetItem();
-            this->addItem(item);
+            item = new QListWidgetItem(this);
+            this->insertItem(row, item);
         } else {
             item = this->item(row);
         }
@@ -89,7 +69,7 @@ namespace LangMgr {
         layout->addWidget(discardLabel);
         layout->addWidget(author);
         layout->addWidget(description);
-        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setContentsMargins(6, 0, 6, 0);
 
         widget->setLayout(layout);
         this->setItemWidget(item, widget);
