@@ -29,6 +29,7 @@ AppearancePage::AppearancePage(QWidget *parent) : QWidget(parent) {
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_cbxAnimationLevel);
     mainLayout->addWidget(m_leAnimationTimeScale);
+    mainLayout->setContentsMargins({});
     setLayout(mainLayout);
 }
 void AppearancePage::modifyOptions() {

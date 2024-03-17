@@ -19,10 +19,6 @@ public:
     [[nodiscard]] bool isPrimary() const;
     void setPrimary(bool on);
 
-protected:
-    void paintEvent(QPaintEvent *event) override;
-    bool eventFilter(QObject *watched, QEvent *event) override;
-
 private:
     bool m_isPrimary;
     QColor m_backgroundColor = AppGlobal::controlBackgroundColorNormal;

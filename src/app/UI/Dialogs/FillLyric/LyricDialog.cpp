@@ -14,7 +14,7 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
 
     noteToPhonic();
 
-    m_mainLayout = new QVBoxLayout(this);
+    m_mainLayout = new QVBoxLayout();
     m_tabWidget = new QTabWidget();
 
     m_lyricWidget = new FillLyric::LyricTab(m_phonics);
@@ -22,24 +22,19 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
 
     m_langMgrWidget = new LangMgr::LangMgrWidget(this);
 
-    m_btnOk = new Button(tr("OK"), this);
+    m_btnOk = new Button(tr("&Import"), this);
     m_btnOk->setPrimary(true);
-    m_btnCancel = new Button(tr("Cancel"), this);
-
-    m_btnOk->setMaximumWidth(100);
-    m_btnCancel->setMaximumWidth(100);
-
-    const auto buttonLayout = new QHBoxLayout;
-    buttonLayout->addStretch(1);
-    buttonLayout->addWidget(m_btnOk);
-    buttonLayout->addWidget(m_btnCancel);
+    setPositiveButton(m_btnOk);
+    m_btnCancel = new Button(tr("&Cancel"), this);
+    setNegativeButton(m_btnCancel);
 
     m_tabWidget->addTab(m_lyricWidget, tr("Lyric"));
     m_tabWidget->addTab(m_langMgrWidget, tr("Advanced"));
     m_tabWidget->addTab(new QWidget, tr("Help"));
 
     m_mainLayout->addWidget(m_tabWidget);
-    m_mainLayout->addLayout(buttonLayout);
+    m_mainLayout->setContentsMargins({});
+    body()->setLayout(m_mainLayout);
 
     connect(m_btnOk, &QPushButton::clicked, this, &QDialog::accept);
     connect(m_btnCancel, &QPushButton::clicked, this, &QDialog::reject);

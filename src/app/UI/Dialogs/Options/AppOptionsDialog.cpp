@@ -11,29 +11,20 @@
 
 #include <QVBoxLayout>
 
-AppOptionsDialog::AppOptionsDialog(QWidget *parent) : Dialog(parent) {
+AppOptionsDialog::AppOptionsDialog(QWidget *parent) : OKCancelApplyDialog(parent) {
     auto appearancePage = new AppearancePage;
 
-    auto btnOK = new Button(tr("OK"));
-    btnOK->setPrimary(true);
-    connect(btnOK, &Button::clicked, this, &AppOptionsDialog::accept);
+    connect(okButton(), &Button::clicked, this, &AppOptionsDialog::accept);
     connect(this, &AppOptionsDialog::accepted, this, &AppOptionsDialog::apply);
 
-    auto btnCancel = new Button(tr("Cancel"));
-    connect(btnCancel, &Button::clicked, this, &AppOptionsDialog::cancel);
+    connect(cancelButton(), &Button::clicked, this, &AppOptionsDialog::cancel);
 
-    auto btnApply = new Button(tr("Apply"));
-    connect(btnApply, &Button::clicked, this, &AppOptionsDialog::apply);
-
-    auto buttonLayout = new QHBoxLayout;
-    buttonLayout->addWidget(btnOK);
-    buttonLayout->addWidget(btnCancel);
-    buttonLayout->addWidget(btnApply);
+    connect(applyButton(), &Button::clicked, this, &AppOptionsDialog::apply);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(appearancePage);
-    mainLayout->addLayout(buttonLayout);
-    setLayout(mainLayout);
+    mainLayout->setContentsMargins({});
+    body()->setLayout(mainLayout);
 }
 void AppOptionsDialog::apply() {
     AppOptionsController::instance()->apply();

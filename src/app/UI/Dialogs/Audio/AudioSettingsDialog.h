@@ -2,13 +2,13 @@
 #define DS_EDITOR_LITE_AUDIOSETTINGSDIALOG_H
 
 #include "Modules/Audio/AudioSystem.h"
-#include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Dialogs/Base/OKCancelApplyDialog.h"
 
 class ComboBox;
 class QCheckBox;
 class QDoubleSpinBox;
 
-class AudioSettingsDialog : public Dialog {
+class AudioSettingsDialog : public OKCancelApplyDialog {
     Q_OBJECT
 public:
     explicit AudioSettingsDialog(QWidget *parent = nullptr);

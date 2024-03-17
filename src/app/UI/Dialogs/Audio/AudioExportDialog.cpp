@@ -10,7 +10,8 @@
 #include <QtWidgets>
 #include <QSet>
 
-AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_exporter(new AudioExporter(this)) {
+AudioExportDialog::AudioExportDialog(QWidget *parent)
+    : Dialog(parent), m_exporter(new AudioExporter(this)) {
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     setWindowTitle(tr("Export Audio"));
     auto mainLayout = new QVBoxLayout;
@@ -152,41 +153,31 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
     buttonLayout->addWidget(cancelButton);
     mainLayout->addLayout(buttonLayout);
 
-    setLayout(mainLayout);
+    body()->setLayout(mainLayout);
 
-    connect(fileNameTemplateMenu->addAction(tr("Project Name")), &QAction::triggered, this, [=] {
-        m_fileNameEdit->setText(m_fileNameEdit->text() + "${projectName}");
-    });
+    connect(fileNameTemplateMenu->addAction(tr("Project Name")), &QAction::triggered, this,
+            [=] { m_fileNameEdit->setText(m_fileNameEdit->text() + "${projectName}"); });
     // ======== TODO these two below are specialized for DsEditorLite. Will be removed in DiffScope.
-    connect(fileNameTemplateMenu->addAction(tr("Tempo")), &QAction::triggered, this, [=] {
-        m_fileNameEdit->setText(m_fileNameEdit->text() + "${tempo}");
-    });
-    connect(fileNameTemplateMenu->addAction(tr("Time Signature")), &QAction::triggered, this, [=] {
-        m_fileNameEdit->setText(m_fileNameEdit->text() + "${projectName}");
-    });
+    connect(fileNameTemplateMenu->addAction(tr("Tempo")), &QAction::triggered, this,
+            [=] { m_fileNameEdit->setText(m_fileNameEdit->text() + "${tempo}"); });
+    connect(fileNameTemplateMenu->addAction(tr("Time Signature")), &QAction::triggered, this,
+            [=] { m_fileNameEdit->setText(m_fileNameEdit->text() + "${projectName}"); });
     // ========
-    connect(fileNameTemplateMenu->addAction(tr("Sample Rate")), &QAction::triggered, this, [=] {
-        m_fileNameEdit->setText(m_fileNameEdit->text() + "${sampleRate}");
-    });
-    connect(fileNameTemplateMenu->addAction(tr("Current Date")), &QAction::triggered, this, [=] {
-        m_fileNameEdit->setText(m_fileNameEdit->text() + "${today}");
-    });
-    connect(fileNameTemplateMenu->addAction(tr("Affix of Each Track")), &QAction::triggered, this, [=] {
-        m_fileNameEdit->setText(m_fileNameEdit->text() + "${trackAffix}");
-    });
+    connect(fileNameTemplateMenu->addAction(tr("Sample Rate")), &QAction::triggered, this,
+            [=] { m_fileNameEdit->setText(m_fileNameEdit->text() + "${sampleRate}"); });
+    connect(fileNameTemplateMenu->addAction(tr("Current Date")), &QAction::triggered, this,
+            [=] { m_fileNameEdit->setText(m_fileNameEdit->text() + "${today}"); });
+    connect(fileNameTemplateMenu->addAction(tr("Affix of Each Track")), &QAction::triggered, this,
+            [=] { m_fileNameEdit->setText(m_fileNameEdit->text() + "${trackAffix}"); });
 
-    connect(trackAffixTemplateMenu->addAction(tr("Track Name")), &QAction::triggered, this, [=] {
-        m_trackAffixEdit->setText(m_trackAffixEdit->text() + "${trackName}");
-    });
-    connect(trackAffixTemplateMenu->addAction(tr("Track Index")), &QAction::triggered, this, [=] {
-        m_trackAffixEdit->setText(m_trackAffixEdit->text() + "${trackIndex}");
-    });
-    connect(trackAffixTemplateMenu->addAction(tr("Gain")), &QAction::triggered, this, [=] {
-        m_trackAffixEdit->setText(m_trackAffixEdit->text() + "${gain}");
-    });
-    connect(trackAffixTemplateMenu->addAction(tr("Pan")), &QAction::triggered, this, [=] {
-        m_trackAffixEdit->setText(m_trackAffixEdit->text() + "${pan}");
-    });
+    connect(trackAffixTemplateMenu->addAction(tr("Track Name")), &QAction::triggered, this,
+            [=] { m_trackAffixEdit->setText(m_trackAffixEdit->text() + "${trackName}"); });
+    connect(trackAffixTemplateMenu->addAction(tr("Track Index")), &QAction::triggered, this,
+            [=] { m_trackAffixEdit->setText(m_trackAffixEdit->text() + "${trackIndex}"); });
+    connect(trackAffixTemplateMenu->addAction(tr("Gain")), &QAction::triggered, this,
+            [=] { m_trackAffixEdit->setText(m_trackAffixEdit->text() + "${gain}"); });
+    connect(trackAffixTemplateMenu->addAction(tr("Pan")), &QAction::triggered, this,
+            [=] { m_trackAffixEdit->setText(m_trackAffixEdit->text() + "${pan}"); });
 
     updatePresetList();
 
@@ -196,22 +187,29 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : Dialog(parent), m_export
         m_extensionNameEdit->clear();
         onFormModified();
     });
-    connect(m_formatOptionComboBox, &QComboBox::currentIndexChanged, this, &AudioExportDialog::onFormModified);
+    connect(m_formatOptionComboBox, &QComboBox::currentIndexChanged, this,
+            &AudioExportDialog::onFormModified);
     connect(m_vbrSlider, &QSlider::valueChanged, this, &AudioExportDialog::onFormModified);
-    connect(m_formatSampleRateSpinBox, &QDoubleSpinBox::valueChanged, this, &AudioExportDialog::onFormModified);
+    connect(m_formatSampleRateSpinBox, &QDoubleSpinBox::valueChanged, this,
+            &AudioExportDialog::onFormModified);
     connect(m_extensionNameEdit, &LineEdit::textChanged, this, &AudioExportDialog::onFormModified);
-    connect(m_sourceComboBox, &QComboBox::currentIndexChanged, this, &AudioExportDialog::onFormModified);
-    connect(m_sourceListWidget, &QListWidget::itemChanged, this, &AudioExportDialog::onFormModified);
-    connect(m_mixingOptionComboBox, &QComboBox::currentIndexChanged, this, &AudioExportDialog::onFormModified);
+    connect(m_sourceComboBox, &QComboBox::currentIndexChanged, this,
+            &AudioExportDialog::onFormModified);
+    connect(m_sourceListWidget, &QListWidget::itemChanged, this,
+            &AudioExportDialog::onFormModified);
+    connect(m_mixingOptionComboBox, &QComboBox::currentIndexChanged, this,
+            &AudioExportDialog::onFormModified);
     connect(m_trackAffixEdit, &LineEdit::textChanged, this, &AudioExportDialog::onFormModified);
-    connect(m_enableMuteSoloCheckBox, &QCheckBox::stateChanged, this, &AudioExportDialog::onFormModified);
-    connect(m_rangeSelectAllRadio, &QRadioButton::toggled, this, &AudioExportDialog::onFormModified);
-    connect(m_warningButton, &QPushButton::clicked, this, [=] {
-        QMessageBox::warning(this, {}, m_warningText);
-    });
+    connect(m_enableMuteSoloCheckBox, &QCheckBox::stateChanged, this,
+            &AudioExportDialog::onFormModified);
+    connect(m_rangeSelectAllRadio, &QRadioButton::toggled, this,
+            &AudioExportDialog::onFormModified);
+    connect(m_warningButton, &QPushButton::clicked, this,
+            [=] { QMessageBox::warning(this, {}, m_warningText); });
     connect(presetSaveAsButton, &QPushButton::clicked, this, &AudioExportDialog::presetSaveAs);
     connect(m_presetDeleteButton, &QPushButton::clicked, this, [=] {
-        AudioExporter::deletePreset(m_presetComboBox->itemData(m_presetComboBox->currentIndex()).toString());
+        AudioExporter::deletePreset(
+            m_presetComboBox->itemData(m_presetComboBox->currentIndex()).toString());
         updatePresetList();
     });
 }
@@ -268,7 +266,8 @@ void AudioExportDialog::applyExporterOptionToDialog() {
             break;
         case AudioExporter::Option::SelectedTracks:
             for (int i = 0; i < m_sourceListWidget->count(); i++) {
-                m_sourceListWidget->item(i)->setCheckState(AppModel::instance()->selectedTrackIndex() == i ? Qt::Checked : Qt::Unchecked);
+                m_sourceListWidget->item(i)->setCheckState(
+                    AppModel::instance()->selectedTrackIndex() == i ? Qt::Checked : Qt::Unchecked);
             }
             m_sourceListWidget->setDisabled(true);
             break;
@@ -322,10 +321,14 @@ void AudioExportDialog::applyDialogToExporterOption() {
     AudioExporter::Option option;
     option.fileDirectory = m_fileDirectoryEdit->text();
     option.fileName = m_fileNameEdit->text();
-    option.formatFlag = m_formatTypeComboBox->itemData(m_formatTypeComboBox->currentIndex()).toInt();
+    option.formatFlag =
+        m_formatTypeComboBox->itemData(m_formatTypeComboBox->currentIndex()).toInt();
     auto formatInfo = AudioExporter::formats()[m_formatTypeComboBox->currentIndex()];
-    if (m_formatOptionComboBox->isEnabled() && formatInfo.findOptionIndex(m_formatOptionComboBox->itemData(m_formatOptionComboBox->currentIndex()).toInt()) != -1)
-        option.formatFlag |= m_formatOptionComboBox->itemData(m_formatOptionComboBox->currentIndex()).toInt();
+    if (m_formatOptionComboBox->isEnabled() &&
+        formatInfo.findOptionIndex(
+            m_formatOptionComboBox->itemData(m_formatOptionComboBox->currentIndex()).toInt()) != -1)
+        option.formatFlag |=
+            m_formatOptionComboBox->itemData(m_formatOptionComboBox->currentIndex()).toInt();
     else if (!formatInfo.options.isEmpty())
         option.formatFlag |= formatInfo.options[0].second;
     option.vbrQuality = m_vbrSlider->value();
@@ -341,10 +344,13 @@ void AudioExportDialog::applyDialogToExporterOption() {
                 option.selectedTrackIndices.append(i);
         }
     }
-    option.mixingOption = AudioExporter::Option::MixingOption(m_mixingOptionComboBox->currentIndex());
+    option.mixingOption =
+        AudioExporter::Option::MixingOption(m_mixingOptionComboBox->currentIndex());
     option.affix = m_trackAffixEdit->text();
     option.enableMuteSolo = m_enableMuteSoloCheckBox->isChecked();
-    option.timeRangeOption = m_rangeSelectAllRadio->isChecked() ? AudioExporter::Option::All : AudioExporter::Option::LoopInterval;
+    option.timeRangeOption = m_rangeSelectAllRadio->isChecked()
+                                 ? AudioExporter::Option::All
+                                 : AudioExporter::Option::LoopInterval;
     m_exporter->setOption(option);
     updateDirtyPreset();
 }
@@ -403,7 +409,6 @@ void AudioExportDialog::presetSaveAs() {
         return;
     m_exporter->savePreset(name);
     updatePresetList();
-
 }
 
 void AudioExportDialog::updatePresetList() {
@@ -432,7 +437,6 @@ void AudioExportDialog::updatePresetList() {
     }
 
     loadPreset(m_presetComboBox->itemData(m_presetComboBox->currentIndex()));
-    connect(m_presetComboBox, &QComboBox::currentIndexChanged, this, [=](int index) {
-        loadPreset(m_presetComboBox->itemData(index));
-    });
+    connect(m_presetComboBox, &QComboBox::currentIndexChanged, this,
+            [=](int index) { loadPreset(m_presetComboBox->itemData(index)); });
 }

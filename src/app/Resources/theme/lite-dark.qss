@@ -3,7 +3,7 @@ QPushButton {
     border: none;
     border-radius: 6px;
     color: #f2f2f2;
-    padding: 4px 12px;
+    padding: 5px 10px;
 }
 
 QPushButton:hover {
@@ -25,7 +25,7 @@ QComboBox {
     border: none;
     border-radius: 6px;
     color: rgb(242, 242, 242);
-    padding: 4px 12px;
+    padding: 5px 12px;
 }
 
 QComboBox:hover {
@@ -433,4 +433,14 @@ QGraphicsView#TracksGraphicsView {
 
 QGraphicsView#PianoRollGraphicsView {
     background: transparent;
+}
+
+QWidget#DialogButtonBar {
+    background: #30000000;
+    border: none;
+    /*border-top: 1px solid #1AFFFFFF;*/
+}
+
+QLabel#DialogTitleLabel {
+    font-size: 14pt
 }

@@ -7,9 +7,64 @@
 
 #include <QDialog>
 
+class QLabel;
+class QVBoxLayout;
+class QHBoxLayout;
+class Button;
+
+class DialogHeader : public QWidget {
+public:
+    explicit DialogHeader(QWidget* parent = nullptr);
+    ~DialogHeader() override;
+
+    void setTitle(const QString &title);
+    void setMessage(const QString &msg);
+
+private:
+    QLabel *m_lbTitle;
+    QLabel *m_lbMessage;
+    QVBoxLayout *m_mainLayout;
+};
+
+class DialogButtonBar : public QWidget {
+public:
+    explicit DialogButtonBar(QWidget* parent = nullptr);
+    ~DialogButtonBar() override;
+    // void addButtonToStart(Button *button);
+    void addButton(Button *button);
+    void reset();
+
+private:
+    QHBoxLayout *m_mainLayout;
+};
+
 class Dialog : public QDialog {
 public:
-    explicit Dialog(QWidget *parent = nullptr);
+    explicit Dialog(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
+    ~Dialog() override;
+
+    void setTitle(const QString &title);
+    void setMessage(const QString &msg);
+    void setPositiveButton(Button *button);
+    void setNegativeButton(Button *button);
+    void setNeutralButton(Button *button);
+
+    QWidget *body();
+    DialogButtonBar *buttonBar();
+
+private:
+    using QDialog::setLayout;
+
+    QVBoxLayout *m_mainLayout;
+    DialogHeader *m_header;
+    QWidget *m_body = nullptr;
+    DialogButtonBar *m_buttonBar = nullptr;
+    Button *m_positiveButton = nullptr;
+    Button *m_negativeButton = nullptr;
+    Button *m_neutralButton = nullptr;
+
+    void createButtonBar();
+    void setButton();
 };
 
 #endif // DIALOG_H

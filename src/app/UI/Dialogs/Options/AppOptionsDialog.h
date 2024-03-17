@@ -5,11 +5,11 @@
 #ifndef APPOPTIONSDIALOG_H
 #define APPOPTIONSDIALOG_H
 
-#include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Dialogs/Base/OKCancelApplyDialog.h"
 
 class Button;
 
-class AppOptionsDialog : public Dialog {
+class AppOptionsDialog : public OKCancelApplyDialog {
     Q_OBJECT
 
 public:
