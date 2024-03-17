@@ -6,7 +6,7 @@
 
 #include "UI/Controls/Button.h"
 
-#include "../Controls/LangTableWidget.h"
+#include "../Controls/LangListWidget.h"
 #include "../Controls/LangInfoWidget.h"
 
 namespace LangMgr {
@@ -18,7 +18,7 @@ namespace LangMgr {
         ~LangMgrWidget() override;
 
     private:
-        LangTableWidget *m_langTableWidget;
+        LangListWidget *m_langListWidget;
         LangInfoWidget *m_langInfoWidget;
 
         QVBoxLayout *m_mainLayout;

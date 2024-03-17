@@ -8,7 +8,7 @@ namespace LangMgr {
         m_tableLayout = new QVBoxLayout();
         m_tableLayout->setContentsMargins(0, 0, 0, 0);
 
-        m_langTableWidget = new LangTableWidget(this);
+        m_langListWidget = new LangListWidget(this);
 
         m_buttonLayout = new QHBoxLayout();
         m_buttonLayout->setContentsMargins(0, 0, 0, 0);
@@ -21,7 +21,7 @@ namespace LangMgr {
 
         m_langInfoWidget = new LangInfoWidget(this);
 
-        m_centerLayout->addWidget(m_langTableWidget, 2);
+        m_centerLayout->addWidget(m_langListWidget, 2);
         m_centerLayout->addWidget(m_langInfoWidget, 3);
 
         m_tableLayout->addLayout(m_centerLayout);
@@ -45,8 +45,8 @@ namespace LangMgr {
         m_mainLayout->addLayout(m_tableLayout);
 
         // 监控表格选中行的变化
-        connect(m_langTableWidget, &QTableWidget::currentCellChanged, m_langInfoWidget,
-                [this] { m_langInfoWidget->setInfo(m_langTableWidget->currentConfig()); });
+        connect(m_langListWidget, &QListWidget::currentRowChanged, m_langInfoWidget,
+                [this] { m_langInfoWidget->setInfo(m_langListWidget->currentConfig()); });
     }
 
     LangMgrWidget::~LangMgrWidget() = default;

@@ -6,7 +6,7 @@ namespace LangMgr {
         this->m_langueLabel = new QLabel(tr("Language: "));
         this->m_authorLabel = new QLabel(tr("Author: "));
 
-        this->m_descriptionGroupBox = new QGroupBox(tr("Description"));
+        this->m_descriptionGroupBox = new QGroupBox(tr("Description "));
         this->m_descriptionLayout = new QVBoxLayout();
         this->m_descriptionLabel = new QLabel();
         this->m_descriptionLabel->setWordWrap(true);
