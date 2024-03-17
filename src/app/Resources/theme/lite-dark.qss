@@ -275,7 +275,7 @@ QLabel {
 }
 
 QDialog {
-    background: #2A2B2C;
+    background: #202122;
 }
 
 QCheckBox {
@@ -464,7 +464,7 @@ QGraphicsView#PianoRollGraphicsView {
     background: transparent;
 }
 
-QWidget#DialogButtonBar {
+DialogButtonBar {
     background: #30000000;
     border: none;
     /*border-top: 1px solid #1AFFFFFF;*/
@@ -472,4 +472,37 @@ QWidget#DialogButtonBar {
 
 QLabel#DialogTitleLabel {
     font-size: 14pt
+}
+
+CardView {
+    border-radius: 8px;
+    background-color: #10FFFFFF;
+}
+
+OptionsCard {
+    background-color: #10FF0000;
+}
+
+OptionsCard > QLabel#title {
+    font-size: 12pt;
+    margin-left: 8px;
+    color: #A0FFFFFF;
+    background-color: #000080;
+}
+
+OptionsCardItem {
+    background-color: #1000FF00;
+}
+
+OptionsCardItem > QLabel#title {
+    font-size: 10.5pt;
+    color: #f0f0f0;
+    background-color: #000080;
+}
+
+OptionsCardItem > QLabel#desc {
+    font-size: 9pt;
+    margin-top: 2px;
+    color: #A0FFFFFF;
+    background-color: #000080;
 }

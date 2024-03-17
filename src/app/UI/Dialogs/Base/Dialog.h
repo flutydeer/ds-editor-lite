@@ -27,6 +27,8 @@ private:
 };
 
 class DialogButtonBar : public QWidget {
+    Q_OBJECT
+
 public:
     explicit DialogButtonBar(QWidget* parent = nullptr);
     ~DialogButtonBar() override;

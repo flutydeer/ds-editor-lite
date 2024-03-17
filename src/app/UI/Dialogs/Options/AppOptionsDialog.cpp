@@ -51,7 +51,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : OKCancelApplyDi
             &AppOptionsDialog::onSelectionChanged);
     m_tabList->setCurrentRow(page);
 
-    resize(800, 600);
+    resize(900, 600);
 }
 void AppOptionsDialog::apply() {
     AppOptionsController::instance()->apply();
