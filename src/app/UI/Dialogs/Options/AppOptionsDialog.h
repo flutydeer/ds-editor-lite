@@ -36,7 +36,7 @@ private:
                                tr("Developer Options")*/};
 
     QListWidget *m_tabList;
-    QStackedWidget *m_PageArea;
+    QStackedWidget *m_PageContent;
 
     GeneralPage *m_generalPage;
     AudioPage *m_audioPage;

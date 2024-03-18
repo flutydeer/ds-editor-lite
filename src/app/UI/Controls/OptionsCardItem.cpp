@@ -35,7 +35,7 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
     m_mainLayout->addWidget(m_checkBox);
     m_mainLayout->addLayout(titleDescLayout);
     m_mainLayout->addSpacerItem(new QSpacerItem(8, 4, QSizePolicy::Expanding));
-    m_mainLayout->setContentsMargins(10, 10, 10, 10);
+    m_mainLayout->setContentsMargins(10, 5, 10, 5);
     setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }

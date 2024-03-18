@@ -485,7 +485,7 @@ OptionsCard {
 }
 
 OptionsCard > QLabel#title {
-    font-size: 12pt;
+    font-size: 11pt;
     color: #A0FFFFFF;
     /* background-color: #808000; */
 }
@@ -495,7 +495,7 @@ OptionsCardItem {
 }
 
 OptionsCardItem > QLabel#title {
-    font-size: 10.5pt;
+    font-size: 10pt;
     /* font-weight: bold; */
     color: #f0f0f0;
     /* background-color: #808000; */
@@ -509,4 +509,13 @@ OptionsCardItem > QLabel#desc {
 
 DividerLine {
     color: #1AFFFFFF;
+}
+
+QScrollArea {
+    background: transparent;
+    border: none;
+    padding: 6px;
+}
+QWidget#scrollAreaWidgetContents{
+	background: red;
 }

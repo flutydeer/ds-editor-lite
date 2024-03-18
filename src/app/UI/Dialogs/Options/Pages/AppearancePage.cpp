@@ -56,8 +56,8 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     auto testCardLayout = new QVBoxLayout;
     auto item1 = new OptionsCardItem;
     item1->setTitle("Test1");
-    // item1->addWidget(new QPushButton("Test"));
-    // item1->addWidget(new QPushButton("Test"));
+    item1->addWidget(new QPushButton("Test"));
+    item1->addWidget(new QPushButton("Test"));
     item1->setCheckable(true);
     testCardLayout->addWidget(item1);
     testCardLayout->setSpacing(0);
@@ -70,13 +70,16 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(animationCard);
     mainLayout->addWidget(testCard);
+    mainLayout->addSpacerItem(
+        new QSpacerItem(8, 4, QSizePolicy::Expanding, QSizePolicy::Expanding));
     mainLayout->setContentsMargins({});
 
     setLayout(mainLayout);
 }
 void AppearancePage::modifyOption() {
     AppearanceOption option;
-    option.animationLevel = static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
+    option.animationLevel =
+        static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
     option.animationTimeScale = m_leAnimationTimeScale->text().toDouble();
     auto controller = AppOptionsController::instance()->appearanceController();
     controller->modifyOption(option);

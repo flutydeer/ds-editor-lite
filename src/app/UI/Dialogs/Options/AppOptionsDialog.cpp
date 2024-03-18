@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QListWidget>
 #include <QStackedWidget>
+#include <QScrollArea>
 
 #include "Controller/AppOptionsController.h"
 #include "Model/AppOptions/AppOptions.h"
@@ -31,10 +32,15 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : OKCancelApplyDi
     m_audioPage = new AudioPage;
     m_appearancePage = new AppearancePage;
 
-    m_PageArea = new QStackedWidget;
-    m_PageArea->addWidget(m_generalPage);
-    m_PageArea->addWidget(m_audioPage);
-    m_PageArea->addWidget(m_appearancePage);
+    m_PageContent = new QStackedWidget;
+    m_PageContent->addWidget(m_generalPage);
+    m_PageContent->addWidget(m_audioPage);
+    m_PageContent->addWidget(m_appearancePage);
+    m_PageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
+
+    auto pageScrollArea = new QScrollArea;
+    pageScrollArea->setWidget(m_PageContent);
+    pageScrollArea->setWidgetResizable(true);
 
     m_pages.append(m_generalPage);
     m_pages.append(m_audioPage);
@@ -43,7 +49,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : OKCancelApplyDi
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_tabList);
     mainLayout->addSpacing(12);
-    mainLayout->addWidget(m_PageArea);
+    mainLayout->addWidget(pageScrollArea);
     mainLayout->setContentsMargins({});
     body()->setLayout(mainLayout);
 
@@ -61,5 +67,5 @@ void AppOptionsDialog::cancel() {
     reject();
 }
 void AppOptionsDialog::onSelectionChanged(int index) {
-    m_PageArea->setCurrentWidget(m_pages.at(index));
+    m_PageContent->setCurrentWidget(m_pages.at(index));
 }
