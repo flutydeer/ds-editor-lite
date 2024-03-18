@@ -11,8 +11,11 @@
 #include "UI/Controls/LineEdit.h"
 #include "Controller/AppOptionsController.h"
 #include "UI/Controls/CardView.h"
+#include "UI/Controls/DividerLine.h"
 #include "UI/Controls/OptionsCard.h"
 #include "UI/Controls/OptionsCardItem.h"
+
+#include <QPushButton>
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     auto option = AppOptions::instance()->appearance();
@@ -31,26 +34,42 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
             &AppearancePage::modifyOption);
 
     auto animationLevelItem = new OptionsCardItem;
-    animationLevelItem->setTitle("动画等级");
+    animationLevelItem->setTitle("等级");
     animationLevelItem->setDescription("选择让你感到舒适的动画强度");
     animationLevelItem->addWidget(m_cbxAnimationLevel);
 
     auto animationTimeScaleItem = new OptionsCardItem;
-    animationTimeScaleItem->setTitle("动画时间缩放");
+    animationTimeScaleItem->setTitle("时间缩放");
     animationTimeScaleItem->addWidget(m_leAnimationTimeScale);
 
     auto animationCardLayout = new QVBoxLayout;
     animationCardLayout->addWidget(animationLevelItem);
+    animationCardLayout->addWidget(new DividerLine(Qt::Horizontal));
     animationCardLayout->addWidget(animationTimeScaleItem);
     animationCardLayout->setContentsMargins({});
+    animationCardLayout->setSpacing(0);
 
     auto animationCard = new OptionsCard;
     animationCard->setTitle(tr("动画"));
     animationCard->card()->setLayout(animationCardLayout);
 
+    auto testCardLayout = new QVBoxLayout;
+    auto item1 = new OptionsCardItem;
+    item1->setTitle("Test1");
+    // item1->addWidget(new QPushButton("Test"));
+    // item1->addWidget(new QPushButton("Test"));
+    item1->setCheckable(true);
+    testCardLayout->addWidget(item1);
+    testCardLayout->setSpacing(0);
+    testCardLayout->setContentsMargins({});
+
+    auto testCard = new OptionsCard;
+    testCard->setTitle("测试");
+    testCard->card()->setLayout(testCardLayout);
+
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(animationCard);
-    mainLayout->addSpacing(1);
+    mainLayout->addWidget(testCard);
     mainLayout->setContentsMargins({});
 
     setLayout(mainLayout);

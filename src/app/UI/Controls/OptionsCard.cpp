@@ -14,6 +14,7 @@ OptionsCard::OptionsCard(QWidget *parent) : QWidget(parent) {
 
     m_lbTitle = new QLabel;
     m_lbTitle->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    m_lbTitle->setContentsMargins(10, 0, 0, 0);
 
     m_lbTitle->setObjectName("title");
 
@@ -22,8 +23,8 @@ OptionsCard::OptionsCard(QWidget *parent) : QWidget(parent) {
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_lbTitle);
     mainLayout->addWidget(m_card);
-    mainLayout->setSpacing(4);
-    mainLayout->setContentsMargins({});
+    mainLayout->setContentsMargins({0, 0, 0, 12});
+    mainLayout->setSpacing(6);
     setLayout(mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }

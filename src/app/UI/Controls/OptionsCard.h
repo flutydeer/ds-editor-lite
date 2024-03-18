@@ -21,6 +21,8 @@ public:
     CardView *card();
 
 private:
+    using QWidget::setLayout;
+
     QLabel *m_lbTitle;
     CardView *m_card;
 };

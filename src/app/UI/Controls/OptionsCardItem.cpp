@@ -16,23 +16,26 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
 
     m_lbTitle = new QLabel;
     m_lbTitle->setObjectName("title");
-    m_lbTitle->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    m_lbTitle->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    // m_lbTitle->setWordWrap(true);
 
     m_lbDesc = new QLabel;
     m_lbDesc->setObjectName("desc");
     m_lbDesc->setVisible(false);
+    m_lbDesc->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    // TODO: word warp
     // m_lbDesc->setWordWrap(true);
 
     auto titleDescLayout = new QVBoxLayout;
     titleDescLayout->addWidget(m_lbTitle);
     titleDescLayout->addWidget(m_lbDesc);
-    titleDescLayout->setSpacing(0);
+    titleDescLayout->setSpacing(2);
 
     m_mainLayout = new QHBoxLayout;
     m_mainLayout->addWidget(m_checkBox);
     m_mainLayout->addLayout(titleDescLayout);
-    m_mainLayout->addSpacerItem(new QSpacerItem(12, 4, QSizePolicy::Expanding));
-    m_mainLayout->setContentsMargins(8, 8, 8, 8);
+    m_mainLayout->addSpacerItem(new QSpacerItem(8, 4, QSizePolicy::Expanding));
+    m_mainLayout->setContentsMargins(10, 10, 10, 10);
     setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }
