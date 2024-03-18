@@ -46,10 +46,12 @@ namespace LangMgr {
 
         m_langListWidget->setCurrentIndex(m_langListWidget->model()->index(0, 0));
         m_langInfoWidget->setInfo("Mandarin");
-        m_g2pInfoWidget->setInfo("Mandarin");
+        m_g2pInfoWidget->setInfo("Mandarin", "Mandarin");
 
         connect(m_langListWidget, &QListWidget::currentRowChanged, m_langInfoWidget,
                 [this] { m_langInfoWidget->setInfo(m_langListWidget->currentItem()->text()); });
+        connect(m_langInfoWidget, &LangInfoWidget::g2pSelected, m_g2pInfoWidget,
+                &G2pInfoWidget::setInfo);
     }
 
     LangMgrWidget::~LangMgrWidget() = default;

@@ -17,6 +17,9 @@ namespace G2pMgr {
 
         QList<Phonic> convert(QStringList &input) const override;
 
+        QJsonObject config() override;
+        QWidget *configWidget(QJsonObject *config) override;
+
     private:
         IKg2p::JpG2p *m_kana;
     };

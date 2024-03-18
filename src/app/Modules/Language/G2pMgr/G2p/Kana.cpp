@@ -2,8 +2,6 @@
 
 namespace G2pMgr {
     Kana::Kana(QObject *parent) : IG2pFactory("Kana", parent), m_kana(new IKg2p::JpG2p()) {
-        setCategory("ja");
-        setDisplayName("Kana");
     }
 
     Kana::~Kana() = default;
@@ -19,5 +17,14 @@ namespace G2pMgr {
             result.append(phonic);
         }
         return result;
+    }
+
+    QJsonObject Kana::config() {
+        return {};
+    }
+
+    QWidget *Kana::configWidget(QJsonObject *config) {
+        Q_UNUSED(config);
+        return new QWidget();
     }
 } // G2pMgr

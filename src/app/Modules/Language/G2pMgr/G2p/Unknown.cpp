@@ -2,8 +2,6 @@
 
 namespace G2pMgr {
     Unknown::Unknown(QObject *parent) : IG2pFactory("Unknown", parent) {
-        setCategory("ja");
-        setDisplayName("Kana");
     }
 
     Unknown::~Unknown() = default;
@@ -18,5 +16,14 @@ namespace G2pMgr {
             result.append(phonic);
         }
         return result;
+    }
+
+    QJsonObject Unknown::config() {
+        return {};
+    }
+
+    QWidget *Unknown::configWidget(QJsonObject *config) {
+        Q_UNUSED(config);
+        return new QWidget();
     }
 } // G2pMgr

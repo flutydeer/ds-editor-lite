@@ -15,9 +15,12 @@ namespace LangMgr {
         explicit G2pInfoWidget(QWidget *parent = nullptr);
         ~G2pInfoWidget() override;
 
-        void setInfo(const QString &id) const;
+    public Q_SLOTS:
+        void setInfo(const QString &language, const QString &g2pId) const;
 
     private:
+        void removeWidget() const;
+
         QVBoxLayout *m_mainLayout;
         QVBoxLayout *m_topLayout;
 

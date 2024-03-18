@@ -17,7 +17,12 @@ namespace LangMgr {
 
         void setInfo(const QString &id) const;
 
+    Q_SIGNALS:
+        void g2pSelected(const QString &language, const QString &g2pId) const;
+
     private:
+        void removeWidget() const;
+
         QVBoxLayout *m_mainLayout;
         QVBoxLayout *m_topLayout;
 

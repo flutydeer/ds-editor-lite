@@ -3,6 +3,11 @@
 
 #include <QDebug>
 #include <QWidget>
+#include <QCheckBox>
+#include <QLabel>
+#include <QVBoxLayout>
+
+#include "../G2pMgr/IG2pManager.h"
 
 namespace LangMgr {
 
@@ -28,6 +33,7 @@ namespace LangMgr {
 
         d.init();
         d.m_selectedG2p = id;
+        d.m_g2pConfig = new QJsonObject();
     }
 
     QString ILanguageFactory::id() const {
@@ -35,7 +41,7 @@ namespace LangMgr {
         return d->id;
     }
 
-    QString ILanguageFactory::g2p() const {
+    QString ILanguageFactory::selectedG2p() const {
         Q_D(const ILanguageFactory);
         return d->m_selectedG2p;
     }
@@ -176,9 +182,22 @@ namespace LangMgr {
                 [this](const bool &checked) { setEnabled(checked); });
         connect(discardResultCheckBox, &QCheckBox::toggled,
                 [this](const bool &checked) { setDiscardResult(checked); });
-        connect(g2pComboBox, &ComboBox::currentTextChanged,
-                [this](const QString &text) { d_ptr->m_selectedG2p = text; });
+        connect(g2pComboBox, &ComboBox::currentTextChanged, [this](const QString &text) {
+            d_ptr->m_selectedG2p = text;
+            Q_EMIT g2pChanged(text);
+        });
         return widget;
+    }
+
+    QWidget *ILanguageFactory::g2pConfigWidget() {
+        Q_D(const ILanguageFactory);
+        const auto g2pMgr = G2pMgr::IG2pManager::instance();
+        return g2pMgr->g2p(d->m_selectedG2p)->configWidget(d->m_g2pConfig);
+    }
+
+    QJsonObject *ILanguageFactory::g2pConfig() {
+        Q_D(const ILanguageFactory);
+        return d->m_g2pConfig;
     }
 
 } // LangMgr

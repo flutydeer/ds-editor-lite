@@ -2,6 +2,8 @@
 #define IG2PFACTORY_H
 
 #include <QObject>
+#include <QWidget>
+#include <QJsonObject>
 
 #include "G2pCommon.h"
 
@@ -21,19 +23,17 @@ namespace G2pMgr {
         [[nodiscard]] Phonic convert(const QString &input) const;
         virtual QList<Phonic> convert(QStringList &input) const;
 
+        virtual QJsonObject config();
+        virtual QWidget *configWidget(QJsonObject *config);
+
     public:
         [[nodiscard]] QString id() const;
 
-        [[nodiscard]] QString displayName() const;
-        void setDisplayName(const QString &displayName);
-
-        [[nodiscard]] QString category() const;
-        void setCategory(const QString &category);
+        [[nodiscard]] QString author() const;
+        void setAuthor(const QString &author);
 
         [[nodiscard]] QString description() const;
         void setDescription(const QString &description);
-
-        [[nodiscard]] QWidget *configWidget() const;
 
     protected:
         IG2pFactory(IG2pFactoryPrivate &d, const QString &id, QObject *parent = nullptr);

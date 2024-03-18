@@ -2,6 +2,7 @@
 #include "IG2pFactory_p.h"
 
 #include <QCheckBox>
+#include <QJsonObject>
 #include <QVBoxLayout>
 
 namespace G2pMgr {
@@ -33,6 +34,16 @@ namespace G2pMgr {
         return d->id;
     }
 
+    QString IG2pFactory::author() const {
+        Q_D(const IG2pFactory);
+        return d->author;
+    }
+
+    void IG2pFactory::setAuthor(const QString &author) {
+        Q_D(IG2pFactory);
+        d->author = author;
+    }
+
     QString IG2pFactory::description() const {
         Q_D(const IG2pFactory);
         return d->description;
@@ -43,24 +54,8 @@ namespace G2pMgr {
         d->description = description;
     }
 
-    QString IG2pFactory::displayName() const {
-        Q_D(const IG2pFactory);
-        return d->displayName;
-    }
-
-    void IG2pFactory::setDisplayName(const QString &displayName) {
-        Q_D(IG2pFactory);
-        d->displayName = displayName;
-    }
-
-    QString IG2pFactory::category() const {
-        Q_D(const IG2pFactory);
-        return d->category;
-    }
-
-    void IG2pFactory::setCategory(const QString &category) {
-        Q_D(IG2pFactory);
-        d->category = category;
+    QJsonObject IG2pFactory::config() {
+        return {};
     }
 
     Phonic IG2pFactory::convert(const QString &input) const {
@@ -84,8 +79,8 @@ namespace G2pMgr {
         return {};
     }
 
-    QWidget *IG2pFactory::configWidget() const {
-        const auto widget = new QWidget();
-        return widget;
+    QWidget *IG2pFactory::configWidget(QJsonObject *config) {
+        Q_UNUSED(config);
+        return new QWidget();
     }
 }

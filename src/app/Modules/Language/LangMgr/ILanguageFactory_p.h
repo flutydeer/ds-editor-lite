@@ -3,15 +3,11 @@
 
 #include "ILanguageFactory.h"
 
-#include <QCheckBox>
-
 #include "UI/Controls/ComboBox.h"
-
-#include "../G2pMgr/IG2pManager.h"
 
 #include <QObject>
 #include <QLabel>
-#include <QVBoxLayout>
+#include <QJsonObject>
 
 namespace LangMgr {
 
@@ -39,6 +35,7 @@ namespace LangMgr {
         QString displayCategory;
 
         QString m_selectedG2p;
+        QJsonObject *m_g2pConfig;
     };
 
 }

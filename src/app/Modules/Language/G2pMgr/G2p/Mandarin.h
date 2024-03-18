@@ -17,8 +17,14 @@ namespace G2pMgr {
 
         QList<Phonic> convert(QStringList &input) const override;
 
+        QJsonObject config() override;
+        QWidget *configWidget(QJsonObject *config) override;
+
     private:
         IKg2p::Mandarin *m_mandarin;
+
+        bool tone = false;
+        bool convertNum = false;
     };
 } // G2pMgr
 

@@ -24,11 +24,14 @@ namespace LangMgr {
         void correct(const QList<LangNote *> &input) const;
 
         [[nodiscard]] QWidget *configWidget();
+        [[nodiscard]] QWidget *g2pConfigWidget();
+
+        [[nodiscard]] QJsonObject *g2pConfig();
 
     public:
         [[nodiscard]] QString id() const;
 
-        [[nodiscard]] QString g2p() const;
+        [[nodiscard]] QString selectedG2p() const;
         void setG2p(const QString &g2pId);
 
         [[nodiscard]] bool enabled() const;
@@ -45,6 +48,9 @@ namespace LangMgr {
 
         [[nodiscard]] QString description() const;
         void setDescription(const QString &description);
+
+    Q_SIGNALS:
+        void g2pChanged(const QString &g2pId);
 
     protected:
         ILanguageFactory(ILanguageFactoryPrivate &d, const QString &id, QObject *parent = nullptr);

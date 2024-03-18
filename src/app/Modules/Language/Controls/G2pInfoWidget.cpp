@@ -30,21 +30,23 @@ namespace LangMgr {
 
     G2pInfoWidget::~G2pInfoWidget() = default;
 
-    void G2pInfoWidget::setInfo(const QString &id) const {
-        const auto g2pMgr = G2pMgr::IG2pManager::instance();
-        const auto langMgr = LangMgr::ILanguageManager::instance();
-        const auto g2pId = langMgr->language(id)->g2p();
-
-        m_langueLabel->setText(tr("Language: ") + id);
-        m_authorLabel->setText(tr("Author: ") + id);
-        m_descriptionLabel->setText(id);
-
-        // 删除m_mainLayout中的所有widget
+    void G2pInfoWidget::removeWidget() const {
         QLayoutItem *child;
         while ((child = this->m_mainLayout->takeAt(1)) != nullptr) {
             delete child->widget();
             delete child;
         }
-        this->m_mainLayout->addWidget(g2pMgr->g2p(g2pId)->configWidget(), 1);
+    }
+
+    void G2pInfoWidget::setInfo(const QString &language, const QString &g2pId) const {
+        const auto langMgr = ILanguageManager::instance()->language(language);
+        const auto g2pFactory = G2pMgr::IG2pManager::instance()->g2p(g2pId);
+
+        m_langueLabel->setText(tr("Language: ") + g2pId);
+        m_authorLabel->setText(tr("Author: ") + g2pId);
+        m_descriptionLabel->setText(g2pId);
+
+        removeWidget();
+        this->m_mainLayout->addWidget(g2pFactory->configWidget(langMgr->g2pConfig()), 1);
     }
 } // LangMgr

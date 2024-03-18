@@ -1,6 +1,10 @@
 #include "LangInfoWidget.h"
 
+#include "Modules/Language/G2pMgr/IG2pManager.h"
 #include "Modules/Language/LangMgr/ILanguageManager.h"
+
+#include <QDebug>
+#include <QJsonObject>
 
 namespace LangMgr {
     LangInfoWidget::LangInfoWidget(QWidget *parent) : QWidget(parent) {
@@ -29,18 +33,27 @@ namespace LangMgr {
 
     LangInfoWidget::~LangInfoWidget() = default;
 
+    void LangInfoWidget::removeWidget() const {
+        QLayoutItem *child;
+        while ((child = this->m_mainLayout->takeAt(1)) != nullptr) {
+            delete child->widget();
+            delete child;
+        }
+    }
+
     void LangInfoWidget::setInfo(const QString &id) const {
         const auto langMgr = ILanguageManager::instance();
         const auto config = langMgr->languageConfig(id);
         this->m_langueLabel->setText(tr("Language: ") + config.language);
         this->m_authorLabel->setText(tr("Author: ") + config.author);
         this->m_descriptionLabel->setText(config.description);
-        // 删除m_mainLayout中的所有widget
-        QLayoutItem *child;
-        while ((child = this->m_mainLayout->takeAt(1)) != nullptr) {
-            delete child->widget();
-            delete child;
-        }
+
+        this->removeWidget();
         this->m_mainLayout->addWidget(langMgr->language(id)->configWidget(), 1);
+
+        Q_EMIT g2pSelected(id, langMgr->language(id)->selectedG2p());
+
+        connect(langMgr->language(id), &ILanguageFactory::g2pChanged, this,
+                [this, id](const QString &g2pId) { Q_EMIT g2pSelected(id, g2pId); });
     }
 } // LangMgr

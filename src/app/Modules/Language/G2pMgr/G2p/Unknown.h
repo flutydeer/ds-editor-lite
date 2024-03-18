@@ -12,6 +12,9 @@ namespace G2pMgr {
         ~Unknown() override;
 
         QList<Phonic> convert(QStringList &input) const override;
+
+        QJsonObject config() override;
+        QWidget *configWidget(QJsonObject *config) override;
     };
 
 } // G2pMgr
