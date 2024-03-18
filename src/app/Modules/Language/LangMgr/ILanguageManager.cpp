@@ -83,7 +83,17 @@ namespace LangMgr {
         d->languages.clear();
     }
 
-    QList<LangConfig> ILanguageManager::languageConfig() const {
+    LangConfig ILanguageManager::languageConfig(const QString &id) const {
+        Q_D(const ILanguageManager);
+        const auto factory = language(id);
+
+        LangConfig result = {factory->id(), factory->enabled(), factory->discardResult(),
+                             factory->author(), factory->description()};
+
+        return result;
+    }
+
+    QList<LangConfig> ILanguageManager::languageConfigs() const {
         Q_D(const ILanguageManager);
         const auto factories = orderedLanguages();
 

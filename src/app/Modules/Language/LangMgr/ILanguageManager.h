@@ -27,7 +27,8 @@ namespace LangMgr {
         bool removeLanguage(const QString &id);
         void clearLanguages();
 
-        [[nodiscard]] QList<LangConfig> languageConfig() const;
+        [[nodiscard]] LangConfig languageConfig(const QString &id) const;
+        [[nodiscard]] QList<LangConfig> languageConfigs() const;
         void setLanguageConfig(const QList<LangConfig> &configs);
 
         [[nodiscard]] QList<ILanguageFactory *>

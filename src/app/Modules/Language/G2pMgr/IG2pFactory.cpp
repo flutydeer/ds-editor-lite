@@ -1,6 +1,9 @@
 #include "IG2pFactory.h"
 #include "IG2pFactory_p.h"
 
+#include <QCheckBox>
+#include <QVBoxLayout>
+
 namespace G2pMgr {
 
     IG2pFactoryPrivate::IG2pFactoryPrivate() {
@@ -79,5 +82,10 @@ namespace G2pMgr {
     QList<Phonic> IG2pFactory::convert(QStringList &input) const {
         Q_UNUSED(input);
         return {};
+    }
+
+    QWidget *IG2pFactory::configWidget() const {
+        const auto widget = new QWidget();
+        return widget;
     }
 }

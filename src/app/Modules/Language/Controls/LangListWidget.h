@@ -3,7 +3,7 @@
 
 #include <QListWidget>
 
-#include "../../LangCommon.h"
+#include "../LangCommon.h"
 
 namespace LangMgr {
 
@@ -12,13 +12,6 @@ namespace LangMgr {
     public:
         explicit LangListWidget(QWidget *parent = nullptr);
         ~LangListWidget() override;
-
-        [[nodiscard]] LangConfig currentConfig() const;
-
-    protected:
-        void setItem(const int &row, const LangConfig &langConfig);
-
-        [[nodiscard]] LangConfig exportConfig(const int &row) const;
     };
 
 } // LangMgr

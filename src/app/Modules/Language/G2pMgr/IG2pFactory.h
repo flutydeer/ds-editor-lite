@@ -33,6 +33,8 @@ namespace G2pMgr {
         [[nodiscard]] QString description() const;
         void setDescription(const QString &description);
 
+        [[nodiscard]] QWidget *configWidget() const;
+
     protected:
         IG2pFactory(IG2pFactoryPrivate &d, const QString &id, QObject *parent = nullptr);
 

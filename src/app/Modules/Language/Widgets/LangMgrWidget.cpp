@@ -1,5 +1,7 @@
 #include "LangMgrWidget.h"
 
+#include "Modules/Language/LangMgr/ILanguageManager.h"
+
 namespace LangMgr {
     LangMgrWidget::LangMgrWidget(QWidget *parent) : QWidget(parent) {
         m_mainLayout = new QVBoxLayout();
@@ -15,9 +17,11 @@ namespace LangMgr {
         m_centerLayout = new QHBoxLayout();
 
         m_langInfoWidget = new LangInfoWidget();
+        m_g2pInfoWidget = new G2pInfoWidget();
 
-        m_centerLayout->addWidget(m_langListWidget, 2);
-        m_centerLayout->addWidget(m_langInfoWidget, 3);
+        m_centerLayout->addWidget(m_langListWidget, 1);
+        m_centerLayout->addWidget(m_langInfoWidget, 2);
+        m_centerLayout->addWidget(m_g2pInfoWidget, 2);
 
         m_tableLayout->addLayout(m_centerLayout);
         m_tableLayout->addLayout(m_buttonLayout);
@@ -40,9 +44,12 @@ namespace LangMgr {
         m_mainLayout->addLayout(m_tableLayout);
         setLayout(m_mainLayout);
 
-        // 监控表格选中行的变化
+        m_langListWidget->setCurrentIndex(m_langListWidget->model()->index(0, 0));
+        m_langInfoWidget->setInfo("Mandarin");
+        m_g2pInfoWidget->setInfo("Mandarin");
+
         connect(m_langListWidget, &QListWidget::currentRowChanged, m_langInfoWidget,
-                [this] { m_langInfoWidget->setInfo(m_langListWidget->currentConfig()); });
+                [this] { m_langInfoWidget->setInfo(m_langListWidget->currentItem()->text()); });
     }
 
     LangMgrWidget::~LangMgrWidget() = default;

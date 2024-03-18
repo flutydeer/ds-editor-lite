@@ -25,6 +25,8 @@ namespace G2pMgr {
         bool removeG2p(const IG2pFactory *factory);
         bool removeG2p(const QString &id);
         void clearG2ps();
+
+        [[nodiscard]] QStringList g2pList() const;
         [[nodiscard]] QList<IG2pFactory *> g2ps() const;
 
         void convert(const QList<LangNote *> &input) const;

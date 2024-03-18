@@ -5,8 +5,6 @@
 #include <QVBoxLayout>
 #include <QLabel>
 
-#include "../../LangCommon.h"
-
 #include <QGroupBox>
 
 namespace LangMgr {
@@ -17,10 +15,11 @@ namespace LangMgr {
         explicit LangInfoWidget(QWidget *parent = nullptr);
         ~LangInfoWidget() override;
 
-        void setInfo(const LangConfig &config) const;
+        void setInfo(const QString &id) const;
 
     private:
         QVBoxLayout *m_mainLayout;
+        QVBoxLayout *m_topLayout;
 
         QLabel *m_langueLabel;
         QLabel *m_authorLabel;

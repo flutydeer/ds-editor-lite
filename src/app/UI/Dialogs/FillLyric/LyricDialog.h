@@ -6,7 +6,7 @@
 #include <Model/Note.h>
 
 #include "Modules/Language/FillLyric/View/Tabs/LyricTab.h"
-#include "Modules/Language/LangMgr/Widgets/LangMgrWidget.h"
+#include "Modules/Language/Widgets/LangMgrWidget.h"
 
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Controls/Button.h"

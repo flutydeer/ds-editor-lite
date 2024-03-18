@@ -8,6 +8,7 @@
 
 #include "../Controls/LangListWidget.h"
 #include "../Controls/LangInfoWidget.h"
+#include "../Controls/G2pInfoWidget.h"
 
 namespace LangMgr {
 
@@ -20,6 +21,7 @@ namespace LangMgr {
     private:
         LangListWidget *m_langListWidget;
         LangInfoWidget *m_langInfoWidget;
+        G2pInfoWidget *m_g2pInfoWidget;
 
         QVBoxLayout *m_mainLayout;
         QHBoxLayout *m_centerLayout;

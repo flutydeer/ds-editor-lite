@@ -74,6 +74,11 @@ namespace G2pMgr {
         return true;
     }
 
+    QStringList IG2pManager::g2pList() const {
+        Q_D(const IG2pManager);
+        return d->g2ps.keys();
+    }
+
     QList<IG2pFactory *> IG2pManager::g2ps() const {
         Q_D(const IG2pManager);
         return d->g2ps.values();

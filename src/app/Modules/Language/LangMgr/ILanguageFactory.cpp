@@ -1,6 +1,9 @@
 #include "ILanguageFactory.h"
 #include "ILanguageFactory_p.h"
+
 #include <QDebug>
+#include <QWidget>
+
 namespace LangMgr {
 
     ILanguageFactoryPrivate::ILanguageFactoryPrivate() {
@@ -24,11 +27,22 @@ namespace LangMgr {
         d.id = id;
 
         d.init();
+        d.m_selectedG2p = id;
     }
 
     QString ILanguageFactory::id() const {
         Q_D(const ILanguageFactory);
         return d->id;
+    }
+
+    QString ILanguageFactory::g2p() const {
+        Q_D(const ILanguageFactory);
+        return d->m_selectedG2p;
+    }
+
+    void ILanguageFactory::setG2p(const QString &g2pId) {
+        Q_D(ILanguageFactory);
+        d->m_selectedG2p = g2pId;
     }
 
     bool ILanguageFactory::enabled() const {
@@ -126,6 +140,45 @@ namespace LangMgr {
                     note->language = id();
             }
         }
+    }
+
+    QWidget *ILanguageFactory::configWidget() {
+        Q_D(const ILanguageFactory);
+        auto *widget = new QWidget();
+        const auto mainLayout = new QVBoxLayout(widget);
+
+        const auto enabledCheckBox = new QCheckBox(tr("Enabled: "));
+        enabledCheckBox->setChecked(d->enabled);
+
+        const auto discardResultCheckBox = new QCheckBox(tr("Discard result: "));
+        discardResultCheckBox->setChecked(d->discardResult);
+
+        const auto g2pMgr = G2pMgr::IG2pManager::instance();
+
+        const auto g2pLabel = new QLabel(tr("Select G2P:"));
+        const auto g2pComboBox = new ComboBox();
+        g2pComboBox->setMaximumWidth(100);
+        const auto g2pList = g2pMgr->g2pList();
+        g2pComboBox->addItems(g2pList);
+        if (g2pList.contains(d->m_selectedG2p)) {
+            g2pComboBox->setCurrentText(d->m_selectedG2p);
+        }
+
+        mainLayout->addWidget(enabledCheckBox);
+        mainLayout->addWidget(discardResultCheckBox);
+
+        mainLayout->addWidget(g2pLabel);
+        mainLayout->addWidget(g2pComboBox);
+
+        widget->setLayout(mainLayout);
+
+        connect(enabledCheckBox, &QCheckBox::toggled,
+                [this](const bool &checked) { setEnabled(checked); });
+        connect(discardResultCheckBox, &QCheckBox::toggled,
+                [this](const bool &checked) { setDiscardResult(checked); });
+        connect(g2pComboBox, &ComboBox::currentTextChanged,
+                [this](const QString &text) { d_ptr->m_selectedG2p = text; });
+        return widget;
     }
 
 } // LangMgr

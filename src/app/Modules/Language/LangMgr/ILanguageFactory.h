@@ -23,8 +23,13 @@ namespace LangMgr {
         [[nodiscard]] QString analysis(const QString &input) const;
         void correct(const QList<LangNote *> &input) const;
 
+        [[nodiscard]] QWidget *configWidget();
+
     public:
         [[nodiscard]] QString id() const;
+
+        [[nodiscard]] QString g2p() const;
+        void setG2p(const QString &g2pId);
 
         [[nodiscard]] bool enabled() const;
         void setEnabled(const bool &enable);

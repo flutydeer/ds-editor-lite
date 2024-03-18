@@ -3,13 +3,24 @@
 
 #include "ILanguageFactory.h"
 
+#include <QCheckBox>
+
+#include "UI/Controls/ComboBox.h"
+
+#include "../G2pMgr/IG2pManager.h"
+
+#include <QObject>
+#include <QLabel>
+#include <QVBoxLayout>
+
 namespace LangMgr {
 
-    class ILanguageFactoryPrivate final {
+    class ILanguageFactoryPrivate final : public QObject {
+        Q_OBJECT
         Q_DECLARE_PUBLIC(ILanguageFactory)
     public:
         ILanguageFactoryPrivate();
-        virtual ~ILanguageFactoryPrivate();
+        ~ILanguageFactoryPrivate() override;
 
         void init();
 
@@ -26,6 +37,8 @@ namespace LangMgr {
 
         QString author;
         QString displayCategory;
+
+        QString m_selectedG2p;
     };
 
 }
