@@ -464,10 +464,12 @@ namespace FillLyric {
 
     // Line Operations
     void PhonicWidget::lineBreak(const QModelIndex &index) const {
-        const auto a = new LineActions();
-        a->lineBreak(index, model);
-        a->execute();
-        ModelHistory::instance()->record(a);
+        if (!autoWrap) {
+            const auto a = new LineActions();
+            a->lineBreak(index, model);
+            a->execute();
+            ModelHistory::instance()->record(a);
+        }
     }
 
     void PhonicWidget::addPrevLine(const QModelIndex &index) const {
