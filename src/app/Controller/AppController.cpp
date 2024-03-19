@@ -17,8 +17,8 @@ AppController::AppController() {
     connect(task, &RunLanguageEngineTask::finished, this, [=] {
         handleRunLanguageEngineTaskFinished(task);
     });
-    TaskManager::instance()->addTask(task);
-    TaskManager::instance()->startTask(task);
+    // TaskManager::instance()->addTask(task);
+    // TaskManager::instance()->startTask(task);
 }
 void AppController::onNewProject() {
     AppModel::instance()->newProject();
