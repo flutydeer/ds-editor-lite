@@ -50,8 +50,13 @@ int main(int argc, char *argv[]) {
     // as.openAudioSettings();
 
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
-    const G2pMgr::IG2pManager g2pMgr;
+    G2pMgr::IG2pManager g2pMgr;
     const LangMgr::ILanguageManager langMgr;
+
+    QString errorMsg;
+    g2pMgr.initialize(errorMsg);
+
+    qDebug() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr.initialized();
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     auto editor = AppModel::instance()->workspaceEditor("flutydeer.filllyrics");
@@ -70,7 +75,7 @@ int main(int argc, char *argv[]) {
     // qDebug() << privateWorkspace.value("recent_model_path").toString();
 
     QObject::connect(AppOptions::instance(), &AppOptions::optionsChanged, ThemeManager::instance(),
-            &ThemeManager::onAppOptionsChanged);
+                     &ThemeManager::onAppOptionsChanged);
 
     auto w = new MainWindow;
     auto scr = QApplication::screenAt(QCursor::pos());

@@ -18,6 +18,8 @@ namespace G2pMgr {
         explicit IG2pFactory(const QString &id, QObject *parent = nullptr);
         ~IG2pFactory() override;
 
+        virtual bool initialize(QString &errMsg);
+
         Phonic convert(const Note *&input) const;
         [[nodiscard]] QList<Phonic> convert(const QList<Note *> &input) const;
         [[nodiscard]] Phonic convert(const QString &input) const;

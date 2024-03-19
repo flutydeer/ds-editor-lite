@@ -20,6 +20,8 @@ namespace G2pMgr {
 
         QMap<QString, IG2pFactory *> g2ps;
 
+        bool initialized = false;
+
         QStringList baseG2p = {"Slur", "Linebreak", "Number", "Space"};
     };
 

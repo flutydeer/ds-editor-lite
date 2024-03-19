@@ -4,11 +4,17 @@
 #include <QVBoxLayout>
 
 namespace G2pMgr {
-    Cantonese::Cantonese(QObject *parent)
-        : IG2pFactory("cantonese", parent), m_cantonese(new IKg2p::Cantonese()) {
+    Cantonese::Cantonese(QObject *parent) : IG2pFactory("cantonese", parent) {
     }
 
     Cantonese::~Cantonese() = default;
+
+    bool Cantonese::initialize(QString &errMsg) {
+        m_cantonese = new IKg2p::Cantonese();
+        if (m_cantonese->getDefaultPinyin("好").isEmpty())
+            return false;
+        return true;
+    }
 
     QList<Phonic> Cantonese::convert(QStringList &input) const {
         QList<Phonic> result;

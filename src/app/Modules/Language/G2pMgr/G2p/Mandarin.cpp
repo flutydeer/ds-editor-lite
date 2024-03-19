@@ -5,11 +5,17 @@
 #include <QVBoxLayout>
 
 namespace G2pMgr {
-    Mandarin::Mandarin(QObject *parent)
-        : IG2pFactory("Mandarin", parent), m_mandarin(new IKg2p::Mandarin()) {
+    Mandarin::Mandarin(QObject *parent) : IG2pFactory("Mandarin", parent) {
     }
 
     Mandarin::~Mandarin() = default;
+
+    bool Mandarin::initialize(QString &errMsg) {
+        m_mandarin = new IKg2p::Mandarin();
+        if (m_mandarin->getDefaultPinyin("好").isEmpty())
+            return false;
+        return true;
+    }
 
     QList<Phonic> Mandarin::convert(QStringList &input) const {
         QList<Phonic> result;

@@ -29,6 +29,11 @@ namespace G2pMgr {
         d.init();
     }
 
+    bool IG2pFactory::initialize(QString &errMsg) {
+        Q_UNUSED(errMsg);
+        return true;
+    }
+
     QString IG2pFactory::id() const {
         Q_D(const IG2pFactory);
         return d->id;

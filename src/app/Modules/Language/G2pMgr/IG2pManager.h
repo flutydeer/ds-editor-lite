@@ -17,6 +17,8 @@ namespace G2pMgr {
         explicit IG2pManager(QObject *parent = nullptr);
         ~IG2pManager() override;
 
+        bool initialize(QString &errMsg);
+        bool initialized();
         static IG2pManager *instance();
 
     public:

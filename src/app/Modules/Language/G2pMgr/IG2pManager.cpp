@@ -133,4 +133,22 @@ namespace G2pMgr {
         addG2p(new Unknown());
     }
 
+    bool IG2pManager::initialize(QString &errMsg) {
+        Q_D(IG2pManager);
+        const auto g2ps = d->g2ps.values();
+        for (const auto g2p : g2ps) {
+            g2p->initialize(errMsg);
+            if (!errMsg.isEmpty()) {
+                return false;
+            }
+        }
+        d->initialized = true;
+        return true;
+    }
+
+    bool IG2pManager::initialized() {
+        Q_D(const IG2pManager);
+        return d->initialized;
+    }
+
 }

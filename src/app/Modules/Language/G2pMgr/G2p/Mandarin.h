@@ -15,6 +15,8 @@ namespace G2pMgr {
         explicit Mandarin(QObject *parent = nullptr);
         ~Mandarin() override;
 
+        bool initialize(QString &errMsg) override;
+
         QList<Phonic> convert(QStringList &input) const override;
 
         QJsonObject config() override;

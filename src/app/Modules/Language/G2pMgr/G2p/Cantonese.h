@@ -15,6 +15,8 @@ namespace G2pMgr {
         explicit Cantonese(QObject *parent = nullptr);
         ~Cantonese() override;
 
+        bool initialize(QString &errMsg) override;
+
         QList<Phonic> convert(QStringList &input) const override;
 
         QJsonObject config() override;
