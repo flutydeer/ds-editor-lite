@@ -163,11 +163,13 @@ namespace LangMgr {
 
         const auto g2pLabel = new QLabel(tr("Select G2P:"));
         const auto g2pComboBox = new ComboBox();
-        g2pComboBox->setMaximumWidth(100);
+        g2pComboBox->setMaximumWidth(120);
         const auto g2pList = g2pMgr->g2pList();
         g2pComboBox->addItems(g2pList);
         if (g2pList.contains(d->m_selectedG2p)) {
             g2pComboBox->setCurrentText(d->m_selectedG2p);
+        } else {
+            g2pComboBox->setCurrentText("Unknown");
         }
 
         mainLayout->addWidget(enabledCheckBox);

@@ -4,7 +4,7 @@
 #include <QVBoxLayout>
 
 namespace G2pMgr {
-    Cantonese::Cantonese(QObject *parent) : IG2pFactory("cantonese", parent) {
+    Cantonese::Cantonese(QObject *parent) : IG2pFactory("Cantonese", parent) {
     }
 
     Cantonese::~Cantonese() = default;
