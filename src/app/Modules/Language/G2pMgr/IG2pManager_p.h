@@ -22,7 +22,7 @@ namespace G2pMgr {
 
         bool initialized = false;
 
-        QStringList baseG2p = {"Slur", "Linebreak", "Number", "Space"};
+        QStringList baseG2p = {"Slur", "Linebreak", "Number", "Space", "Punctuation"};
     };
 
 }
