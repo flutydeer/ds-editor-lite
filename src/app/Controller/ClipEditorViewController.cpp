@@ -205,24 +205,26 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
 void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const {
     QList<Note::NoteWordProperties *> args;
 
-    const auto g2pMgr = G2pMgr::IG2pManager::instance();
-    const auto g2p_man = g2pMgr->g2p("Mandarin");
+    const auto langMgr = LangMgr::ILanguageManager::instance();
 
     auto syllable2p = S2p::instance();
-    QStringList lyrics;
+    QList<LangNote *> langNotes;
     QList<Phonemes> notesPhonemes;
     for (const auto note : notes) {
-        lyrics.append(note->lyric());
+        // TODO:: Note->language
+        langNotes.append(new LangNote(note->lyric(), "Unknown"));
         notesPhonemes.append(note->phonemes());
     }
 
-    auto g2pRes = g2p_man->convert(lyrics);
-    for (int i = 0; i < g2pRes.size(); i++) {
+    langMgr->correct(langNotes);
+    langMgr->convert(langNotes);
+
+    for (int i = 0; i < langNotes.size(); i++) {
         const auto properties = new Note::NoteWordProperties;
-        properties->lyric = lyrics[i];
-        properties->pronunciation.original = g2pRes[i].pronunciation.original;
+        properties->lyric = langNotes[i]->lyric;
+        properties->pronunciation.original = langNotes[i]->syllable;
         properties->phonemes.edited = notesPhonemes[i].edited;
-        const auto phonemes = syllable2p->syllableToPhoneme(g2pRes[i].pronunciation.original);
+        const auto phonemes = syllable2p->syllableToPhoneme(langNotes[i]->syllable);
         if (!phonemes.isEmpty()) {
             if (phonemes.count() == 1) {
                 properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.first(), 0));

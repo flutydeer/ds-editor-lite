@@ -16,6 +16,8 @@
 #include "LangAnalysis/EnglishAnalysis.h"
 #include "LangAnalysis/KanaAnalysis.h"
 
+#include "Modules/Language/G2pMgr/IG2pManager.h"
+
 namespace LangMgr {
     ILanguageManagerPrivate::ILanguageManagerPrivate() {
     }
@@ -212,6 +214,33 @@ namespace LangMgr {
         addLanguage(new CantoneseAnalysis());
         addLanguage(new EnglishAnalysis());
         addLanguage(new KanaAnalysis());
+    }
+
+    void ILanguageManager::convert(const QList<LangNote *> &input) const {
+        const auto g2pMgr = G2pMgr::IG2pManager::instance();
+
+        QMap<QString, QList<int>> languageIndexMap;
+        QMap<QString, QStringList> languageLyricMap;
+
+        for (int i = 0; i < input.size(); ++i) {
+            const LangNote *note = input.at(i);
+            languageIndexMap[note->language].append(i); // 记录原始索引
+            languageLyricMap[note->language].append(note->lyric);
+        }
+
+        const auto languages = languageIndexMap.keys();
+        for (const auto &language : languages) {
+            const auto rawLyrics = languageLyricMap[language];
+            const auto g2pFactory = g2pMgr->g2p(this->language(language)->selectedG2p());
+            const auto g2pConfig = this->language(language)->g2pConfig();
+
+            const auto tempRes = g2pFactory->convert(rawLyrics, g2pConfig);
+            for (int i = 0; i < tempRes.size(); i++) {
+                const auto index = languageIndexMap[language][i];
+                input[index]->syllable = tempRes[i].pronunciation.original;
+                input[index]->candidates = tempRes[i].candidates;
+            }
+        }
     }
 
 } // LangMgr

@@ -14,8 +14,7 @@
 
 namespace FillLyric {
     PhonicWidget::PhonicWidget(QWidget *parent)
-        : g2pMgr(G2pMgr::IG2pManager::instance()), langMgr(LangMgr::ILanguageManager::instance()),
-          QWidget(parent) {
+        : langMgr(LangMgr::ILanguageManager::instance()), QWidget(parent) {
 
         // 创建模型和视图
         tableView = new PhonicTableView();
@@ -101,7 +100,7 @@ namespace FillLyric {
             for (int j = 0; j < lyrics.size(); j++) {
                 langNote.append(new LangNote(lyrics[j], labels[j]));
             }
-            G2pMgr::IG2pManager::instance()->convert(langNote);
+            langMgr->convert(langNote);
 
             for (int j = 0; j < lyricRes[i].size(); j++) {
                 const auto syllable = langNote[j]->syllable;
@@ -159,7 +158,7 @@ namespace FillLyric {
         }
 
         langMgr->correct(langNote);
-        g2pMgr->convert(langNote);
+        langMgr->convert(langNote);
         // 设置当前行所有单元格的Syllable
         for (int i = 0; i < oldPhonics.size(); i++) {
             newPhonics[i].syllable = langNote[i]->syllable;
@@ -202,7 +201,7 @@ namespace FillLyric {
             Phonic newPhonic = oldPhonicList[col];
             const QList<LangNote *> langNote = {new LangNote(text, "Unknown")};
             langMgr->correct(langNote);
-            g2pMgr->convert(langNote);
+            langMgr->convert(langNote);
 
             newPhonic.lyric = text;
             newPhonic.syllable = langNote[0]->syllable;

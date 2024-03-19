@@ -9,7 +9,11 @@ namespace G2pMgr {
 
     English::~English() = default;
 
-    QList<Phonic> English::convert(QStringList &input) const {
+    QList<Phonic> English::convert(const QStringList &input, const QJsonObject *config) const {
+        const auto toLower = config && config->keys().contains("toLower")
+                                 ? config->value("toLower").toBool()
+                                 : this->toLower;
+
         QList<Phonic> result;
         for (auto &c : input) {
             const auto syllable = toLower ? c.toLower() : c;

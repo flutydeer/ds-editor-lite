@@ -84,30 +84,6 @@ namespace G2pMgr {
         return d->g2ps.values();
     }
 
-    void IG2pManager::convert(const QList<LangNote *> &input) const {
-        QMap<QString, QList<int>> languageIndexMap;
-        QMap<QString, QStringList> languageLyricMap;
-
-        for (int i = 0; i < input.size(); ++i) {
-            const LangNote *note = input.at(i);
-            languageIndexMap[note->language].append(i); // 记录原始索引
-            languageLyricMap[note->language].append(note->lyric);
-        }
-
-        const auto languages = languageIndexMap.keys();
-        for (const auto &language : languages) {
-            auto rawLyrics = languageLyricMap[language];
-            const auto g2p = this->g2p(language);
-            const auto tempRes = g2p->convert(rawLyrics);
-            for (int i = 0; i < tempRes.size(); i++) {
-                const auto index = languageIndexMap[language][i];
-                input[index]->syllable = tempRes[i].pronunciation.original;
-                input[index]->candidates = tempRes[i].candidates;
-            }
-        }
-    }
-
-
     void IG2pManager::clearG2ps() {
         Q_D(IG2pManager);
         d->g2ps.clear();

@@ -6,7 +6,9 @@ namespace G2pMgr {
 
     Unknown::~Unknown() = default;
 
-    QList<Phonic> Unknown::convert(QStringList &input) const {
+    QList<Phonic> Unknown::convert(const QStringList &input, const QJsonObject *config) const {
+        Q_UNUSED(config);
+
         QList<Phonic> result;
         for (const auto &i : input) {
             Phonic phonic;

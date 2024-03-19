@@ -11,7 +11,7 @@ namespace G2pMgr {
         explicit English(QObject *parent = nullptr);
         ~English() override;
 
-        QList<Phonic> convert(QStringList &input) const override;
+        QList<Phonic> convert(const QStringList &input, const QJsonObject *config) const override;
 
         QJsonObject config() override;
         QWidget *configWidget(QJsonObject *config) override;

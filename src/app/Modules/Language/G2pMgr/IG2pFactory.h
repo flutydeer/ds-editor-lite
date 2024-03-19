@@ -5,7 +5,7 @@
 #include <QWidget>
 #include <QJsonObject>
 
-#include "G2pCommon.h"
+#include "../LangCommon.h"
 
 namespace G2pMgr {
 
@@ -20,10 +20,11 @@ namespace G2pMgr {
 
         virtual bool initialize(QString &errMsg);
 
-        Phonic convert(const Note *&input) const;
-        [[nodiscard]] QList<Phonic> convert(const QList<Note *> &input) const;
-        [[nodiscard]] Phonic convert(const QString &input) const;
-        virtual QList<Phonic> convert(QStringList &input) const;
+        Phonic convert(const Note *&input, const QJsonObject *config) const;
+        [[nodiscard]] QList<Phonic> convert(const QList<Note *> &input,
+                                            const QJsonObject *config) const;
+        [[nodiscard]] Phonic convert(const QString &input, const QJsonObject *config) const;
+        virtual QList<Phonic> convert(const QStringList &input, const QJsonObject *config) const;
 
         virtual QJsonObject config();
         virtual QWidget *configWidget(QJsonObject *config);

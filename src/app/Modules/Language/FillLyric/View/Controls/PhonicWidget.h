@@ -4,7 +4,6 @@
 #include <QWidget>
 
 #include "g2pglobal.h"
-#include "Modules/Language/G2pMgr/IG2pManager.h"
 #include "Modules/Language/LangMgr/ILanguageManager.h"
 
 #include "../../Utils/SplitLyric.h"
@@ -78,7 +77,6 @@ namespace FillLyric {
         PhonicEventFilter *eventFilter;
 
         // Model
-        G2pMgr::IG2pManager *g2pMgr;
         LangMgr::ILanguageManager *langMgr;
 
         // Layout

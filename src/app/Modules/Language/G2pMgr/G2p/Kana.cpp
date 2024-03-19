@@ -1,12 +1,23 @@
 #include "Kana.h"
 
 namespace G2pMgr {
-    Kana::Kana(QObject *parent) : IG2pFactory("Kana", parent), m_kana(new IKg2p::JpG2p()) {
+    Kana::Kana(QObject *parent) : IG2pFactory("Kana", parent) {
     }
 
     Kana::~Kana() = default;
 
-    QList<Phonic> Kana::convert(QStringList &input) const {
+    bool Kana::initialize(QString &errMsg) {
+        m_kana = new IKg2p::JpG2p();
+        if (m_kana->kanaToRomaji("かな").isEmpty()) {
+            errMsg = "Failed to initialize Kana";
+            return false;
+        }
+        return true;
+    }
+
+    QList<Phonic> Kana::convert(const QStringList &input, const QJsonObject *config) const {
+        Q_UNUSED(config);
+
         QList<Phonic> result;
         auto g2pRes = m_kana->kanaToRomaji(input);
         for (int i = 0; i < g2pRes.size(); i++) {

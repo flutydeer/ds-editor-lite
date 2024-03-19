@@ -112,7 +112,7 @@ namespace FillLyric {
 
     void LyricTab::_on_btnInsertText_clicked() const {
         const QString text =
-            "Halloween蝉声--陪伴着qwe行云流浪---\n回-忆-开始132后安静遥望远方\n荒草覆没的古井--"
+            "Halloween蝉声--陪かな伴着qwe行云流浪---\n回-忆-开始132后安静遥望远方\n荒草覆没的古井--"
             "枯塘\n匀-散asdaw一缕过往\n";
         m_lyricBaseWidget->m_textEdit->setText(text);
     }

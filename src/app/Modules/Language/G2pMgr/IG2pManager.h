@@ -32,8 +32,6 @@ namespace G2pMgr {
         [[nodiscard]] QStringList g2pList() const;
         [[nodiscard]] QList<IG2pFactory *> g2ps() const;
 
-        void convert(const QList<LangNote *> &input) const;
-
     private:
         explicit IG2pManager(IG2pManagerPrivate &d, QObject *parent = nullptr);
 

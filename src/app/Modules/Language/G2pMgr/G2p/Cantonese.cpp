@@ -18,7 +18,13 @@ namespace G2pMgr {
         return true;
     }
 
-    QList<Phonic> Cantonese::convert(QStringList &input) const {
+    QList<Phonic> Cantonese::convert(const QStringList &input, const QJsonObject *config) const {
+        const auto tone =
+            config && config->keys().contains("tone") ? config->value("tone").toBool() : this->tone;
+        const auto convertNum = config && config->keys().contains("convertNum")
+                                    ? config->value("convertNum").toBool()
+                                    : this->convertNum;
+
         QList<Phonic> result;
         auto g2pRes = m_cantonese->hanziToPinyin(input, tone, convertNum);
         for (int i = 0; i < g2pRes.size(); i++) {

@@ -15,7 +15,9 @@ namespace G2pMgr {
         explicit Kana(QObject *parent = nullptr);
         ~Kana() override;
 
-        QList<Phonic> convert(QStringList &input) const override;
+        bool initialize(QString &errMsg) override;
+
+        QList<Phonic> convert(const QStringList &input, const QJsonObject *config) const override;
 
         QJsonObject config() override;
         QWidget *configWidget(QJsonObject *config) override;

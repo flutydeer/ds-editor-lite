@@ -63,24 +63,26 @@ namespace G2pMgr {
         return {};
     }
 
-    Phonic IG2pFactory::convert(const QString &input) const {
-        return convert(QStringList() << input).at(0);
+    Phonic IG2pFactory::convert(const QString &input, const QJsonObject *config) const {
+        return convert(QStringList() << input, config).at(0);
     }
 
-    Phonic IG2pFactory::convert(const Note *&input) const {
-        return convert(input->lyric());
+    Phonic IG2pFactory::convert(const Note *&input, const QJsonObject *config) const {
+        return convert(input->lyric(), config);
     }
 
-    QList<Phonic> IG2pFactory::convert(const QList<Note *> &input) const {
+    QList<Phonic> IG2pFactory::convert(const QList<Note *> &input,
+                                       const QJsonObject *config) const {
         QStringList inputText;
         for (const auto note : input) {
             inputText.append(note->lyric());
         }
-        return convert(inputText);
+        return convert(inputText, config);
     }
 
-    QList<Phonic> IG2pFactory::convert(QStringList &input) const {
+    QList<Phonic> IG2pFactory::convert(const QStringList &input, const QJsonObject *config) const {
         Q_UNUSED(input);
+        Q_UNUSED(config);
         return {};
     }
 

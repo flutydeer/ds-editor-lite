@@ -3,6 +3,16 @@
 
 #include <QString>
 
+#include "Model/Note.h"
+
+struct Phonic {
+    QString text;
+    Pronunciation pronunciation;
+    QList<QString> candidates;
+    bool isSlur = false;
+    bool error = false;
+};
+
 struct LangNote {
     QString lyric;
     QString syllable = QString();
