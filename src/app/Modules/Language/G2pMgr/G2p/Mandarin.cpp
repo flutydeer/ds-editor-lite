@@ -12,8 +12,10 @@ namespace G2pMgr {
 
     bool Mandarin::initialize(QString &errMsg) {
         m_mandarin = new IKg2p::Mandarin();
-        if (m_mandarin->getDefaultPinyin("好").isEmpty())
+        if (m_mandarin->getDefaultPinyin("好").isEmpty()) {
+            errMsg = "Failed to initialize Mandarin G2P";
             return false;
+        }
         return true;
     }
 

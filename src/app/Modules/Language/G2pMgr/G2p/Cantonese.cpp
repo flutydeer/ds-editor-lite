@@ -11,8 +11,10 @@ namespace G2pMgr {
 
     bool Cantonese::initialize(QString &errMsg) {
         m_cantonese = new IKg2p::Cantonese();
-        if (m_cantonese->getDefaultPinyin("好").isEmpty())
+        if (m_cantonese->getDefaultPinyin("好").isEmpty()) {
+            errMsg = "Failed to initialize Cantonese G2P";
             return false;
+        }
         return true;
     }
 
