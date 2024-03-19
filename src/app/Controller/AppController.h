@@ -9,6 +9,8 @@
 
 #include "Utils/Singleton.h"
 
+
+class RunLanguageEngineTask;
 class AppModel;
 class DecodeAudioTask;
 class AudioClip;
@@ -17,10 +19,12 @@ class AppController final : public QObject, public Singleton<AppController> {
     Q_OBJECT
 
 public:
-    explicit AppController() = default;
+    explicit AppController();
     ~AppController() override = default;
 
     [[nodiscard]] QString lastProjectPath() const;
+
+    [[nodiscard]] bool isLanguageEngineReady() const;
 
 public slots:
     void onNewProject();
@@ -41,9 +45,11 @@ private:
     bool isPowerOf2(int num);
     void decodeAllAudioClips(AppModel &model);
     void createDecodeAudioTask(AudioClip *clip);
-    void handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate);
+    static void handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate);
+    void handleRunLanguageEngineTaskFinished(RunLanguageEngineTask *task);
 
     QString m_lastProjectPath;
+    bool m_isLanguageEngineReady = false;
 };
 
 // using ControllerSingleton = Singleton<Controller>;
