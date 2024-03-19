@@ -31,11 +31,13 @@ namespace FillLyric {
         void _on_splitComboBox_currentIndexChanged(int index) const;
 
     private:
-        QVBoxLayout *m_textEditLayout;
+        QVBoxLayout *m_mainLayout;
         QHBoxLayout *m_textTopLayout;
         QHBoxLayout *m_textBottomLayout;
 
-        QWidget *m_splitWidget;
+        QWidget *m_optWidget;
+        QVBoxLayout *m_optLayout;
+        QHBoxLayout *m_optLabelLayout;
         QHBoxLayout *m_splitLayout;
         QHBoxLayout *m_skipSlurLayout;
 
@@ -50,9 +52,14 @@ namespace FillLyric {
         // CheckBox
         QCheckBox *skipSlur;
 
+        QLabel *m_optLabel;
+        QPushButton *m_optButton;
+
         QLabel *m_splitLabel;
         ComboBox *m_splitComboBox;
         LineEdit *m_splitters;
+
+        Button *m_btnToTable;
     };
 
 

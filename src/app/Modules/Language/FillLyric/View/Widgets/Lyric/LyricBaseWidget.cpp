@@ -25,18 +25,34 @@ namespace FillLyric {
 
         m_textBottomLayout = new QHBoxLayout();
         m_textCountLabel = new QLabel(tr("Note Count: 0"));
-        m_textBottomLayout->addStretch(1);
+
+        m_btnToTable = new Button(">>");
+        m_btnToTable->setFixedSize(40, 20);
+
         m_textBottomLayout->addWidget(m_textCountLabel);
+        m_textBottomLayout->addStretch(1);
+        m_textBottomLayout->addWidget(m_btnToTable);
 
-        m_textEditLayout = new QVBoxLayout();
-        m_textEditLayout->setContentsMargins(0, 0, 0, 0);
-        m_textEditLayout->addLayout(m_textTopLayout);
-        m_textEditLayout->addWidget(m_textEdit);
-        m_textEditLayout->addLayout(m_textBottomLayout);
+        m_mainLayout = new QVBoxLayout();
+        m_mainLayout->setContentsMargins(0, 0, 0, 0);
+        m_mainLayout->addLayout(m_textTopLayout);
+        m_mainLayout->addWidget(m_textEdit);
+        m_mainLayout->addLayout(m_textBottomLayout);
 
-        m_splitWidget = new QWidget();
-        m_splitWidget->setContentsMargins(0, 0, 0, 0);
-        m_splitWidget->setVisible(false);
+        m_optLabelLayout = new QHBoxLayout();
+        m_optLabel = new QLabel(tr("Fill-in Options:"));
+        m_optButton = new QPushButton();
+        m_optButton->setFixedSize(20, 20);
+        m_optButton->setIcon(QIcon(":/svg/icons/chevron_down_16_filled_white.svg"));
+
+        m_optLabelLayout->addWidget(m_optLabel);
+        m_optLabelLayout->addStretch(1);
+        m_optLabelLayout->addWidget(m_optButton);
+        m_mainLayout->addLayout(m_optLabelLayout);
+
+        m_optWidget = new QWidget();
+        m_optWidget->setContentsMargins(0, 0, 0, 0);
+
         // bottom layout
         m_splitLayout = new QHBoxLayout();
         m_splitLayout->setContentsMargins(0, 0, 0, 0);
@@ -50,17 +66,19 @@ namespace FillLyric {
         m_splitLayout->addWidget(m_splitComboBox);
         m_splitLayout->addWidget(m_splitters);
         m_splitLayout->addStretch(1);
-        m_splitWidget->setLayout(m_splitLayout);
-        m_textEditLayout->addWidget(m_splitWidget);
 
         skipSlur = new QCheckBox(tr("Skip Slur Note"));
         m_skipSlurLayout = new QHBoxLayout();
         m_skipSlurLayout->addWidget(skipSlur);
         m_skipSlurLayout->addStretch(1);
 
-        m_textEditLayout->addLayout(m_skipSlurLayout);
+        m_optLayout = new QVBoxLayout();
+        m_optLayout->addLayout(m_splitLayout);
+        m_optLayout->addLayout(m_skipSlurLayout);
+        m_optWidget->setLayout(m_optLayout);
+        m_mainLayout->addWidget(m_optWidget);
 
-        this->setLayout(m_textEditLayout);
+        this->setLayout(m_mainLayout);
 
         // textEditTop signals
         connect(btnImportLrc, &QAbstractButton::clicked, this,
@@ -72,6 +90,9 @@ namespace FillLyric {
 
         connect(m_splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
                 &LyricBaseWidget::_on_splitComboBox_currentIndexChanged);
+
+        connect(m_optButton, &QPushButton::clicked,
+                [this]() { m_optWidget->setVisible(!m_optWidget->isVisible()); });
     }
 
     LyricBaseWidget::~LyricBaseWidget() = default;

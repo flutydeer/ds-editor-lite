@@ -153,10 +153,10 @@ namespace LangMgr {
         auto *widget = new QWidget();
         const auto mainLayout = new QVBoxLayout(widget);
 
-        const auto enabledCheckBox = new QCheckBox(tr("Enabled: "));
+        const auto enabledCheckBox = new QCheckBox(tr("Enabled"));
         enabledCheckBox->setChecked(d->enabled);
 
-        const auto discardResultCheckBox = new QCheckBox(tr("Discard result: "));
+        const auto discardResultCheckBox = new QCheckBox(tr("Discard result"));
         discardResultCheckBox->setChecked(d->discardResult);
 
         const auto g2pMgr = G2pMgr::IG2pManager::instance();

@@ -11,17 +11,13 @@ namespace FillLyric {
         // textWidget
         m_lyricBaseWidget = new LyricBaseWidget();
 
-        // lyric option widget
-        m_lyricOptWidget = new LyricOptWidget();
-
         // lyricExtWidget
         m_lyricExtWidget = new LyricExtWidget(&notesCount);
 
         // lyric layout
         m_lyricLayout = new QHBoxLayout();
-        m_lyricLayout->addWidget(m_lyricBaseWidget, 3);
-        m_lyricLayout->addWidget(m_lyricOptWidget);
-        m_lyricLayout->addWidget(m_lyricExtWidget, 5);
+        m_lyricLayout->addWidget(m_lyricBaseWidget, 1);
+        m_lyricLayout->addWidget(m_lyricExtWidget, 2);
 
         // main layout
         m_mainLayout = new QVBoxLayout(this);
@@ -33,25 +29,17 @@ namespace FillLyric {
                 &LyricTab::setPhonics);
 
         // phonicWidget signals
-        connect(m_lyricOptWidget->btnInsertText, &QAbstractButton::clicked, this,
+        connect(m_lyricExtWidget->m_btnInsertText, &QAbstractButton::clicked, this,
                 &LyricTab::_on_btnInsertText_clicked);
-        connect(m_lyricOptWidget->btnToTable, &QAbstractButton::clicked, this,
+        connect(m_lyricBaseWidget->m_btnToTable, &QAbstractButton::clicked, this,
                 &LyricTab::_on_btnToTable_clicked);
-        connect(m_lyricOptWidget->btnToText, &QAbstractButton::clicked, this,
+        connect(m_lyricExtWidget->m_btnToText, &QAbstractButton::clicked, this,
                 &LyricTab::_on_btnToText_clicked);
-
-        // splitComboBox
-        connect(m_lyricOptWidget->splitComboBox,
-                QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-                &LyricTab::_on_splitComboBox_currentIndexChanged);
 
         // fold right
         connect(m_lyricBaseWidget->btnLyricPrev, &QPushButton::clicked, [this]() {
             m_lyricBaseWidget->btnLyricPrev->setText(
                 m_lyricExtWidget->isVisible() ? tr("Lyric Prev") : tr("Fold Preview"));
-            m_lyricBaseWidget->m_splitWidget->setVisible(
-                !m_lyricBaseWidget->m_splitWidget->isVisible());
-            m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
             m_lyricExtWidget->setVisible(!m_lyricExtWidget->isVisible());
             m_lyricExtWidget->m_tableConfigWidget->setVisible(false);
 
@@ -67,7 +55,6 @@ namespace FillLyric {
             m_lyricExtWidget->btnFoldLeft->setText(
                 m_lyricBaseWidget->isVisible() ? tr("Expand Left") : tr("Fold Left"));
             m_lyricBaseWidget->setVisible(!m_lyricBaseWidget->isVisible());
-            m_lyricOptWidget->setVisible(!m_lyricOptWidget->isVisible());
         });
     }
 
@@ -133,7 +120,7 @@ namespace FillLyric {
     void LyricTab::_on_btnToTable_clicked() const {
         const auto skipSlurRes = m_lyricBaseWidget->skipSlur->isChecked();
         const auto splitType =
-            static_cast<SplitType>(m_lyricOptWidget->splitComboBox->currentIndex());
+            static_cast<SplitType>(m_lyricBaseWidget->m_splitComboBox->currentIndex());
 
         // 获取文本框的内容
         QString text = m_lyricBaseWidget->m_textEdit->toPlainText();
@@ -148,7 +135,7 @@ namespace FillLyric {
             splitRes = CleanLyric::splitByChar(text);
         } else if (splitType == Custom) {
             splitRes =
-                CleanLyric::splitCustom(text, m_lyricOptWidget->m_splitters->text().split(' '));
+                CleanLyric::splitCustom(text, m_lyricBaseWidget->m_splitters->text().split(' '));
         }
 
         m_lyricExtWidget->m_phonicWidget->_init(splitRes);
@@ -170,11 +157,6 @@ namespace FillLyric {
         }
         // 设置文本框内容
         m_lyricBaseWidget->m_textEdit->setText(res.join("\n"));
-    }
-
-    void LyricTab::_on_splitComboBox_currentIndexChanged(int index) const {
-        const auto splitType = static_cast<SplitType>(index);
-        m_lyricOptWidget->m_splitters->setVisible(splitType == Custom);
     }
 
 } // FillLyric

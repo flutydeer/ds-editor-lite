@@ -4,7 +4,6 @@
 #include <QWidget>
 
 #include "../Widgets/Lyric/LyricBaseWidget.h"
-#include "../Widgets/Lyric/LyricOptWidget.h"
 #include "../Widgets/Lyric/LyricExtWidget.h"
 
 #include "../../Model/PhonicCommon.h"
@@ -33,7 +32,6 @@ namespace FillLyric {
         void _on_btnInsertText_clicked() const;
         void _on_btnToTable_clicked() const;
         void _on_btnToText_clicked() const;
-        void _on_splitComboBox_currentIndexChanged(int index) const;
 
     private:
         QList<Phonic *> m_phonics;
@@ -46,7 +44,6 @@ namespace FillLyric {
         QHBoxLayout *m_lyricLayout;
 
         LyricBaseWidget *m_lyricBaseWidget;
-        LyricOptWidget *m_lyricOptWidget;
         LyricExtWidget *m_lyricExtWidget;
     };
 

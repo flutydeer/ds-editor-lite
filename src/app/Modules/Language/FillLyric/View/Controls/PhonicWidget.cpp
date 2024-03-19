@@ -24,6 +24,7 @@ namespace FillLyric {
 
         // 隐藏行头
         tableView->horizontalHeader()->hide();
+        tableView->verticalHeader()->hide();
 
         // 设置委托
         delegate = new PhonicDelegate(tableView);

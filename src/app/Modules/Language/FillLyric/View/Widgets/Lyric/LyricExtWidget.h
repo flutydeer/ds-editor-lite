@@ -32,11 +32,16 @@ namespace FillLyric {
         QHBoxLayout *m_mainLayout;
         QVBoxLayout *m_tableLayout;
         QHBoxLayout *m_tableCountLayout;
-        QHBoxLayout *m_tableBottomLayout;
+        QHBoxLayout *m_epOptLabelLayout;
+
+        QWidget *m_epOptWidget;
+        QVBoxLayout *m_epOptLayout;
 
         // Widgets
         PhonicWidget *m_phonicWidget;
         TableConfigWidget *m_tableConfigWidget;
+
+        Button *m_btnToText;
 
         // Labels
         QLabel *noteCountLabel;
@@ -46,9 +51,12 @@ namespace FillLyric {
         QCheckBox *autoWrap;
         QPushButton *btnUndo;
         QPushButton *btnRedo;
+        Button *m_btnInsertText;
         QPushButton *btnTableConfig;
 
-        QLabel *exportLabel;
+        QLabel *exportOptLabel;
+        QPushButton *exportOptButton;
+
         QCheckBox *exportSkipSlur;
         QCheckBox *exportExcludeSpace;
         QCheckBox *exportLanguage;

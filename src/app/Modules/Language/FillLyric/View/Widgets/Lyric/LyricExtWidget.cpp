@@ -28,31 +28,53 @@ namespace FillLyric {
         btnTableConfig->setFixedWidth(24);
         btnTableConfig->setIcon(QIcon(":svg/icons/settings_16_filled_white.svg"));
 
+        m_btnInsertText = new Button(tr("Test"));
         m_tableTopLayout->addWidget(btnFoldLeft);
         m_tableTopLayout->addWidget(btnToggleFermata);
         m_tableTopLayout->addWidget(btnUndo);
         m_tableTopLayout->addWidget(btnRedo);
+        m_tableTopLayout->addWidget(m_btnInsertText);
         m_tableTopLayout->addStretch(1);
         m_tableTopLayout->addWidget(autoWrap);
         m_tableTopLayout->addWidget(btnTableConfig);
 
         m_tableCountLayout = new QHBoxLayout();
         noteCountLabel = new QLabel("0/0");
+
+        m_btnToText = new Button("<<");
+        m_btnToText->setFixedSize(40, 20);
+        m_tableCountLayout->addWidget(m_btnToText);
         m_tableCountLayout->addStretch(1);
         m_tableCountLayout->addWidget(noteCountLabel);
 
-        m_tableBottomLayout = new QHBoxLayout();
-        exportLabel = new QLabel(tr("Export Option:"));
+        // export option
+        m_epOptLabelLayout = new QHBoxLayout();
+        exportOptLabel = new QLabel(tr("Export Option:"));
+        exportOptButton = new QPushButton();
+        exportOptButton->setFixedSize(20, 20);
+        exportOptButton->setIcon(QIcon(":/svg/icons/chevron_down_16_filled_white.svg"));
+
+        m_epOptLabelLayout->addWidget(exportOptLabel);
+        m_epOptLabelLayout->addStretch(1);
+        m_epOptLabelLayout->addWidget(exportOptButton);
+
+        // export option layout
+        m_epOptWidget = new QWidget();
+        m_epOptLayout = new QVBoxLayout();
         exportSkipSlur = new QCheckBox(tr("Skipping Slur"));
         exportExcludeSpace = new QCheckBox(tr("Ignoring end of sentence spaces"));
         exportLanguage = new QCheckBox(tr("Automatically mark languages"));
         exportExcludeSpace->setCheckState(Qt::Checked);
 
-        m_tableBottomLayout->addWidget(exportLabel);
-        m_tableBottomLayout->addWidget(exportSkipSlur);
-        m_tableBottomLayout->addWidget(exportExcludeSpace);
-        m_tableBottomLayout->addWidget(exportLanguage);
-        m_tableBottomLayout->addStretch(1);
+        m_epOptLayout->addWidget(exportSkipSlur);
+        m_epOptLayout->addWidget(exportExcludeSpace);
+        m_epOptLayout->addWidget(exportLanguage);
+        m_epOptLayout->addStretch(1);
+
+        m_epOptWidget = new QWidget();
+        m_epOptWidget->setVisible(false);
+        m_epOptWidget->setContentsMargins(0, 0, 0, 0);
+        m_epOptWidget->setLayout(m_epOptLayout);
 
         // table layout
         m_tableLayout = new QVBoxLayout();
@@ -60,13 +82,15 @@ namespace FillLyric {
         m_tableLayout->addLayout(m_tableTopLayout);
         m_tableLayout->addWidget(m_phonicWidget->tableView);
         m_tableLayout->addLayout(m_tableCountLayout);
-        m_tableLayout->addLayout(m_tableBottomLayout);
+        m_tableLayout->addLayout(m_epOptLabelLayout);
+        m_tableLayout->addWidget(m_epOptWidget);
 
         m_mainLayout = new QHBoxLayout();
+        m_mainLayout->setContentsMargins(0, 0, 0, 0);
         m_mainLayout->addLayout(m_tableLayout);
 
         // table setting widget
-        m_tableConfigWidget = new TableConfigWidget(m_phonicWidget->tableView);
+        m_tableConfigWidget = new TableConfigWidget();
         m_tableConfigWidget->setVisible(false);
 
         m_mainLayout->addWidget(m_tableConfigWidget);
@@ -93,6 +117,10 @@ namespace FillLyric {
         // phonicWidget label
         connect(m_phonicWidget->model, &PhonicModel::dataChanged, this,
                 &LyricExtWidget::_on_modelDataChanged);
+
+        // exportOptButton
+        connect(exportOptButton, &QPushButton::clicked,
+                [this]() { m_epOptWidget->setVisible(!m_epOptWidget->isVisible()); });
 
         // tableConfig
         connect(btnTableConfig, &QPushButton::clicked,
