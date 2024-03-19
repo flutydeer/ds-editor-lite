@@ -7,18 +7,20 @@
 
 #include <boost/intrusive/options.hpp>
 
+#include "Utils/Singleton.h"
+
 namespace LangMgr {
 
     class ILanguageManagerPrivate;
 
-    class ILanguageManager final : public QObject {
+    class ILanguageManager final : public QObject, public Singleton<ILanguageManager>{
         Q_OBJECT
         Q_DECLARE_PRIVATE(ILanguageManager)
     public:
         explicit ILanguageManager(QObject *parent = nullptr);
         ~ILanguageManager() override;
 
-        static ILanguageManager *instance();
+        // static ILanguageManager *instance();
 
     public:
         [[nodiscard]] ILanguageFactory *language(const QString &id) const;

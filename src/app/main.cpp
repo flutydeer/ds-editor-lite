@@ -49,14 +49,14 @@ int main(int argc, char *argv[]) {
     as.initialize(QApplication::arguments().contains("-vst"));
     // as.openAudioSettings();
 
-    IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
-    G2pMgr::IG2pManager g2pMgr;
-    const LangMgr::ILanguageManager langMgr;
-
-    QString errorMsg;
-    g2pMgr.initialize(errorMsg);
-
-    qDebug() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr.initialized();
+    // IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
+    // G2pMgr::IG2pManager g2pMgr;
+    // const LangMgr::ILanguageManager langMgr;
+    //
+    // QString errorMsg;
+    // g2pMgr.initialize(errorMsg);
+    //
+    // qDebug() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr.initialized();
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     auto editor = AppModel::instance()->workspaceEditor("flutydeer.filllyrics");

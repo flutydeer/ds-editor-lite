@@ -5,12 +5,13 @@
 
 #include "IG2pFactory.h"
 #include "Modules/Language/LangCommon.h"
+#include "Utils/Singleton.h"
 
 namespace G2pMgr {
 
     class IG2pManagerPrivate;
 
-    class IG2pManager final : public QObject {
+    class IG2pManager final : public QObject, public Singleton<IG2pManager> {
         Q_OBJECT
         Q_DECLARE_PRIVATE(IG2pManager)
     public:
@@ -19,7 +20,7 @@ namespace G2pMgr {
 
         bool initialize(QString &errMsg);
         bool initialized();
-        static IG2pManager *instance();
+        // static IG2pManager *instance();
 
     public:
         [[nodiscard]] IG2pFactory *g2p(const QString &id) const;

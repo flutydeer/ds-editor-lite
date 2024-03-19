@@ -18,6 +18,8 @@ void RunLanguageEngineTask::runTask() {
     G2pMgr::IG2pManager g2pMgr;
     const LangMgr::ILanguageManager langMgr;
 
+    // QThread::sleep(5);
+    
     QString errorMsg;
     g2pMgr.initialize(errorMsg);
 

@@ -25,11 +25,11 @@ namespace LangMgr {
     void ILanguageManagerPrivate::init() {
     }
 
-    static ILanguageManager *m_instance = nullptr;
-
-    ILanguageManager *ILanguageManager::instance() {
-        return m_instance;
-    }
+    // static ILanguageManager *m_instance = nullptr;
+    //
+    // ILanguageManager *ILanguageManager::instance() {
+    //     return m_instance;
+    // }
 
     ILanguageFactory *ILanguageManager::language(const QString &id) const {
         Q_D(const ILanguageManager);
@@ -192,12 +192,12 @@ namespace LangMgr {
     }
 
     ILanguageManager::~ILanguageManager() {
-        m_instance = nullptr;
+        // m_instance = nullptr;
     }
 
     ILanguageManager::ILanguageManager(ILanguageManagerPrivate &d, QObject *parent)
         : QObject(parent), d_ptr(&d) {
-        m_instance = this;
+        // m_instance = this;
         d.q_ptr = this;
 
         d.init();

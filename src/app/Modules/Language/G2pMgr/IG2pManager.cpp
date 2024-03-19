@@ -21,11 +21,11 @@ namespace G2pMgr {
     void IG2pManagerPrivate::init() {
     }
 
-    static IG2pManager *m_instance = nullptr;
+    // static IG2pManager *m_instance = nullptr;
 
-    IG2pManager *IG2pManager::instance() {
-        return m_instance;
-    }
+    // IG2pManager *IG2pManager::instance() {
+    //     return m_instance;
+    // }
 
     IG2pFactory *IG2pManager::g2p(const QString &id) const {
         Q_D(const IG2pManager);
@@ -117,11 +117,11 @@ namespace G2pMgr {
     }
 
     IG2pManager::~IG2pManager() {
-        m_instance = nullptr;
+        // m_instance = nullptr;
     }
 
     IG2pManager::IG2pManager(IG2pManagerPrivate &d, QObject *parent) : QObject(parent), d_ptr(&d) {
-        m_instance = this;
+        // m_instance = this;
         d.q_ptr = this;
 
         d.init();
