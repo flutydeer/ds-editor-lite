@@ -1,9 +1,7 @@
 #include "LangListWidget.h"
 
 #include <QDragEnterEvent>
-#include <QApplication>
 #include <QCheckBox>
-#include <QHBoxLayout>
 #include <QHeaderView>
 
 #include "../LangMgr/ILanguageManager.h"
@@ -29,4 +27,14 @@ namespace LangMgr {
     }
 
     LangListWidget::~LangListWidget() = default;
+
+    void LangListWidget::dropEvent(QDropEvent *event) {
+        QListWidget::dropEvent(event);
+        const auto langMgr = ILanguageManager::instance();
+        QStringList order;
+        for (int i = 0; i < this->count(); ++i) {
+            order << this->item(i)->text();
+        }
+        langMgr->setLanguageOrder(order);
+    }
 } // LangMgr

@@ -31,6 +31,9 @@ namespace LangMgr {
     public:
         [[nodiscard]] QString id() const;
 
+        [[nodiscard]] QString category() const;
+        void setCategory(const QString &category);
+
         [[nodiscard]] QString selectedG2p() const;
         void setG2p(const QString &g2pId);
 
@@ -39,9 +42,6 @@ namespace LangMgr {
 
         [[nodiscard]] bool discardResult() const;
         void setDiscardResult(const bool &discard);
-
-        [[nodiscard]] QString displayName() const;
-        void setDisplayName(const QString &displayName);
 
         [[nodiscard]] QString author() const;
         void setAuthor(const QString &author);

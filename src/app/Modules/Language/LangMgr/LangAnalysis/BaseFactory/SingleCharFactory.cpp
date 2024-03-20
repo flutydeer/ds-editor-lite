@@ -23,7 +23,7 @@ namespace LangMgr {
 
             if (contains(currentChar)) {
                 note.lyric = input.mid(pos, 1);
-                note.language = id();
+                note.language = category();
                 pos++;
             } else {
                 const int start = pos;

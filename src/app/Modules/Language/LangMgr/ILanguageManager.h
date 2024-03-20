@@ -34,10 +34,15 @@ namespace LangMgr {
         void setLanguageConfig(const QList<LangConfig> &configs);
 
         [[nodiscard]] QList<ILanguageFactory *>
-            orderedLanguages(const QStringList &priorityList = {}) const;
+            priorityLanguages(const QStringList &priorityList = {}) const;
+
+        [[nodiscard]] QStringList languageOrder() const;
+        void setLanguageOrder(const QStringList &order);
 
         [[nodiscard]] QList<ILanguageFactory *> languages() const;
         [[nodiscard]] QList<LangNote> split(const QString &input) const;
+
+        [[nodiscard]] QStringList categoryList() const;
 
         void correct(const QList<LangNote *> &input) const;
 

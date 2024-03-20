@@ -28,7 +28,7 @@ namespace LangMgr {
 
         bool discardResult = false;
 
-        QString displayName;
+        QString categroy;
         QString description;
 
         QString author;

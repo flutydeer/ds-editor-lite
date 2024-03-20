@@ -12,6 +12,9 @@ namespace LangMgr {
     public:
         explicit LangListWidget(QWidget *parent = nullptr);
         ~LangListWidget() override;
+
+    protected:
+        void dropEvent(QDropEvent *event) override;
     };
 
 } // LangMgr

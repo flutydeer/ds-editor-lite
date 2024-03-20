@@ -12,7 +12,7 @@ namespace LangMgr {
             : ILanguageFactory(id, parent) {
         }
 
-        QList<LangNote> split(const QString &input) const override;
+        [[nodiscard]] QList<LangNote> split(const QString &input) const override;
     };
 
 } // LangMgr

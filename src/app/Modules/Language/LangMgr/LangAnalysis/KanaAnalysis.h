@@ -9,6 +9,7 @@ namespace LangMgr {
         Q_OBJECT
     public:
         explicit KanaAnalysis(QObject *parent = nullptr) : ILanguageFactory("Kana", parent) {
+            setCategory("Japanese");
         }
 
         [[nodiscard]] bool contains(const QString &input) const override;

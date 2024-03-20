@@ -11,8 +11,8 @@ namespace LangMgr {
         explicit EnglishAnalysis(QObject *parent = nullptr) : MultiCharFactory("English", parent) {
         }
 
-        bool contains(const QChar &c) const override;
-        bool contains(const QString &input) const override;
+        [[nodiscard]] bool contains(const QChar &c) const override;
+        [[nodiscard]] bool contains(const QString &input) const override;
     };
 
 } // LangMgr

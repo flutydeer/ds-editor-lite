@@ -8,6 +8,7 @@
 #include <QVBoxLayout>
 
 #include "../G2pMgr/IG2pManager.h"
+#include "ILanguageManager.h"
 
 namespace LangMgr {
 
@@ -30,6 +31,7 @@ namespace LangMgr {
         : QObject(parent), d_ptr(&d) {
         d.q_ptr = this;
         d.id = id;
+        d.categroy = id;
 
         d.init();
         d.m_selectedG2p = id;
@@ -39,6 +41,16 @@ namespace LangMgr {
     QString ILanguageFactory::id() const {
         Q_D(const ILanguageFactory);
         return d->id;
+    }
+
+    QString ILanguageFactory::category() const {
+        Q_D(const ILanguageFactory);
+        return d->categroy;
+    }
+
+    void ILanguageFactory::setCategory(const QString &category) {
+        Q_D(ILanguageFactory);
+        d->categroy = category;
     }
 
     QString ILanguageFactory::selectedG2p() const {
@@ -81,16 +93,6 @@ namespace LangMgr {
         d->description = description;
     }
 
-    QString ILanguageFactory::displayName() const {
-        Q_D(const ILanguageFactory);
-        return d->displayName;
-    }
-
-    void ILanguageFactory::setDisplayName(const QString &displayName) {
-        Q_D(ILanguageFactory);
-        d->displayName = displayName;
-    }
-
     QString ILanguageFactory::author() const {
         Q_D(const ILanguageFactory);
         return d->author;
@@ -118,12 +120,16 @@ namespace LangMgr {
 
     QList<LangNote> ILanguageFactory::split(const QList<LangNote> &input) const {
         Q_D(const ILanguageFactory);
+        if (!d->enabled) {
+            return input;
+        }
+
         QList<LangNote> result;
         for (const auto &note : input) {
             if (note.language == "Unknown") {
                 const auto splitRes = split(note.lyric);
                 for (const auto &res : splitRes) {
-                    if (res.language == id() && d->discardResult) {
+                    if (res.language == category() && d->discardResult) {
                         continue;
                     }
                     result.append(res);
@@ -159,6 +165,19 @@ namespace LangMgr {
         const auto discardResultCheckBox = new QCheckBox(tr("Discard result"));
         discardResultCheckBox->setChecked(d->discardResult);
 
+        const auto langMgr = ILanguageManager::instance();
+
+        const auto cateLabel = new QLabel(tr("Select Category:"));
+        const auto cateComboBox = new ComboBox();
+        cateComboBox->setMaximumWidth(120);
+        const auto cateList = langMgr->categoryList();
+        cateComboBox->addItems(cateList);
+        if (cateList.contains(d->categroy)) {
+            cateComboBox->setCurrentText(d->categroy);
+        } else {
+            cateComboBox->setCurrentText("Unknown");
+        }
+
         const auto g2pMgr = G2pMgr::IG2pManager::instance();
 
         const auto g2pLabel = new QLabel(tr("Select G2P:"));
@@ -175,6 +194,9 @@ namespace LangMgr {
         mainLayout->addWidget(enabledCheckBox);
         mainLayout->addWidget(discardResultCheckBox);
 
+        mainLayout->addWidget(cateLabel);
+        mainLayout->addWidget(cateComboBox);
+
         mainLayout->addWidget(g2pLabel);
         mainLayout->addWidget(g2pComboBox);
 
@@ -184,6 +206,9 @@ namespace LangMgr {
                 [this](const bool &checked) { setEnabled(checked); });
         connect(discardResultCheckBox, &QCheckBox::toggled,
                 [this](const bool &checked) { setDiscardResult(checked); });
+        connect(cateComboBox, &ComboBox::currentTextChanged,
+                [this](const QString &text) { setCategory(text); });
+
         connect(g2pComboBox, &ComboBox::currentTextChanged, [this](const QString &text) {
             d_ptr->m_selectedG2p = text;
             Q_EMIT g2pChanged(text);

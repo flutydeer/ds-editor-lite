@@ -14,7 +14,7 @@ namespace LangMgr {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = id();
+                note.language = category();
             } else {
                 const int start = pos;
                 while (pos < input.length() && !contains(input[pos])) {

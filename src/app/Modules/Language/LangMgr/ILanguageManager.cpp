@@ -12,9 +12,11 @@
 #include "LangAnalysis/BaseAnalysis/Punctuation.h"
 
 #include "LangAnalysis/MandarinAnalysis.h"
+#include "LangAnalysis/PinyinAnalysis.h"
 #include "LangAnalysis/CantoneseAnalysis.h"
-#include "LangAnalysis/EnglishAnalysis.h"
 #include "LangAnalysis/KanaAnalysis.h"
+#include "LangAnalysis/RomajiAnalysis.h"
+#include "LangAnalysis/EnglishAnalysis.h"
 
 #include "Modules/Language/G2pMgr/IG2pManager.h"
 
@@ -97,7 +99,7 @@ namespace LangMgr {
 
     QList<LangConfig> ILanguageManager::languageConfigs() const {
         Q_D(const ILanguageManager);
-        const auto factories = orderedLanguages();
+        const auto factories = priorityLanguages();
 
         QList<LangConfig> result;
         for (const auto &factory : factories) {
@@ -121,21 +123,37 @@ namespace LangMgr {
     }
 
     QList<ILanguageFactory *>
-        ILanguageManager::orderedLanguages(const QStringList &priorityList) const {
+        ILanguageManager::priorityLanguages(const QStringList &priorityList) const {
         Q_D(const ILanguageManager);
         QStringList order = d->order;
 
         QList<ILanguageFactory *> result;
-        for (const auto &id : priorityList) {
-            result.append(language(id));
+        for (const auto &category : priorityList) {
+            for (const auto &lang : order) {
+                const auto factory = language(lang);
+                if (factory->category() == category) {
+                    result.append(factory);
+                }
+            }
         }
 
         for (const auto &id : order) {
-            if (priorityList.contains(id))
-                continue;
-            result.append(language(id));
+            const auto factory = language(id);
+            if (!result.contains(factory)) {
+                result.append(factory);
+            }
         }
         return result;
+    }
+
+    QStringList ILanguageManager::languageOrder() const {
+        Q_D(const ILanguageManager);
+        return d->order;
+    }
+
+    void ILanguageManager::setLanguageOrder(const QStringList &order) {
+        Q_D(ILanguageManager);
+        d->order = order;
     }
 
     QList<ILanguageFactory *> ILanguageManager::languages() const {
@@ -144,7 +162,7 @@ namespace LangMgr {
     }
 
     QList<LangNote> ILanguageManager::split(const QString &input) const {
-        auto analysis = this->orderedLanguages();
+        auto analysis = this->priorityLanguages();
         QList<LangNote> result = {LangNote(input)};
         for (const auto &factory : analysis) {
             result = factory->split(result);
@@ -152,8 +170,13 @@ namespace LangMgr {
         return result;
     }
 
+    QStringList ILanguageManager::categoryList() const {
+        Q_D(const ILanguageManager);
+        return d->category;
+    }
+
     void ILanguageManager::correct(const QList<LangNote *> &input) const {
-        auto analysis = this->orderedLanguages();
+        auto analysis = this->priorityLanguages();
         for (const auto &factory : analysis) {
             factory->correct(input);
         }
@@ -161,7 +184,7 @@ namespace LangMgr {
 
     QString ILanguageManager::analysis(const QString &input) const {
         QString result = "Unknown";
-        auto analysis = this->orderedLanguages();
+        auto analysis = this->priorityLanguages();
 
         for (const auto &factory : analysis) {
             result = factory->analysis(input);
@@ -173,7 +196,7 @@ namespace LangMgr {
     }
 
     QStringList ILanguageManager::analysis(const QStringList &input) const {
-        auto analysis = this->orderedLanguages();
+        auto analysis = this->priorityLanguages();
         QList<LangNote *> inputNote;
         for (const auto &lyric : input) {
             inputNote.append(new LangNote(lyric));
@@ -211,9 +234,11 @@ namespace LangMgr {
         addLanguage(new Punctuation());
 
         addLanguage(new MandarinAnalysis());
+        addLanguage(new PinyinAnalysis());
         addLanguage(new CantoneseAnalysis());
-        addLanguage(new EnglishAnalysis());
         addLanguage(new KanaAnalysis());
+        addLanguage(new RomajiAnalysis());
+        addLanguage(new EnglishAnalysis());
     }
 
     void ILanguageManager::convert(const QList<LangNote *> &input) const {
