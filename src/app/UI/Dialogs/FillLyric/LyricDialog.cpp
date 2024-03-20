@@ -78,6 +78,8 @@ void LyricDialog::exportPhonics() {
 
     const bool skipSlurRes = m_lyricWidget->exportSkipSlur();
 
+    const bool exportLangRes = m_lyricWidget->exportLanguage();
+
     QList<Note *> notes;
     for (const auto note : m_notes) {
         if (skipSlurRes && note->isSlur())
@@ -94,6 +96,10 @@ void LyricDialog::exportPhonics() {
         note->setLyric(phonic.lyric);
         note->setPronunciation(Pronunciation(phonic.syllable, phonic.syllableRevised));
         note->setPronCandidates(phonic.candidates);
+        if (exportLangRes) {
+            // TODO: set language
+            // note->setLanguage(phonic.language);
+        }
         note->setLineFeed(phonic.lineFeed);
     }
     }

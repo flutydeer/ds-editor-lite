@@ -92,6 +92,10 @@ namespace FillLyric {
                                              : m_lyricBaseWidget->skipSlur->isChecked();
     }
 
+    bool LyricTab::exportLanguage() const {
+        return m_lyricExtWidget->exportLanguage->isChecked();
+    }
+
     QList<Phonic> LyricTab::modelExport() const {
         const auto model = m_lyricExtWidget->m_phonicWidget->model;
         const bool skipSpaceRes = m_lyricExtWidget->exportExcludeSpace;
