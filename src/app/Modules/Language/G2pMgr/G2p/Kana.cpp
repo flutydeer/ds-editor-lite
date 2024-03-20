@@ -2,6 +2,9 @@
 
 namespace G2pMgr {
     Kana::Kana(QObject *parent) : IG2pFactory("Kana", parent) {
+        setAuthor(tr("Xiao Lang"));
+        setDisplayName(tr("Kana"));
+        setDescription(tr("Kana to Romanization converter."));
     }
 
     Kana::~Kana() = default;
@@ -9,7 +12,7 @@ namespace G2pMgr {
     bool Kana::initialize(QString &errMsg) {
         m_kana = new IKg2p::JpG2p();
         if (m_kana->kanaToRomaji("かな").isEmpty()) {
-            errMsg = "Failed to initialize Kana";
+            errMsg = tr("Failed to initialize Kana");
             return false;
         }
         return true;

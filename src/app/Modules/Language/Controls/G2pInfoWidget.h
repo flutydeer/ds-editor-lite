@@ -23,8 +23,10 @@ namespace LangMgr {
 
         QVBoxLayout *m_mainLayout;
         QVBoxLayout *m_topLayout;
+        QHBoxLayout *m_authorLayout;
 
-        QLabel *m_langueLabel;
+        QLabel *m_label;
+        QLabel *m_languageLabel;
         QLabel *m_authorLabel;
 
         QGroupBox *m_descriptionGroupBox;

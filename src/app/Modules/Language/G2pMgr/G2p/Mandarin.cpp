@@ -6,6 +6,9 @@
 
 namespace G2pMgr {
     Mandarin::Mandarin(QObject *parent) : IG2pFactory("Mandarin", parent) {
+        setAuthor(tr("Xiao Lang"));
+        setDisplayName(tr("Mandarin"));
+        setDescription(tr("Using Pinyin as the phonetic notation method."));
     }
 
     Mandarin::~Mandarin() = default;
@@ -13,7 +16,7 @@ namespace G2pMgr {
     bool Mandarin::initialize(QString &errMsg) {
         m_mandarin = new IKg2p::Mandarin();
         if (m_mandarin->getDefaultPinyin("好").isEmpty()) {
-            errMsg = "Failed to initialize Mandarin G2P";
+            errMsg = tr("Failed to initialize Mandarin G2P");
             return false;
         }
         return true;

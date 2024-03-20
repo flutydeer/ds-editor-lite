@@ -12,14 +12,14 @@ namespace G2pMgr {
         Q_DECLARE_PUBLIC(IG2pFactory)
     public:
         IG2pFactoryPrivate();
-        virtual ~IG2pFactoryPrivate();
+        ~IG2pFactoryPrivate() override;
 
         void init();
 
         IG2pFactory *q_ptr;
 
         QString id;
-
+        QString displayName;
         QString author;
         QString description;
     };

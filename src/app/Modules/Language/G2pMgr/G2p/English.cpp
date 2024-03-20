@@ -5,6 +5,9 @@
 
 namespace G2pMgr {
     English::English(QObject *parent) : IG2pFactory("English", parent) {
+        setAuthor(tr("Xiao Lang"));
+        setDisplayName(tr("English"));
+        setDescription(tr("Greedy matching of consecutive English letters."));
     }
 
     English::~English() = default;

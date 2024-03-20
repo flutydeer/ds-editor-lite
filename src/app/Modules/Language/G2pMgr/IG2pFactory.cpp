@@ -39,6 +39,16 @@ namespace G2pMgr {
         return d->id;
     }
 
+    QString IG2pFactory::displayName() const {
+        Q_D(const IG2pFactory);
+        return d->displayName;
+    }
+
+    void IG2pFactory::setDisplayName(const QString &displayName) {
+        Q_D(IG2pFactory);
+        d->displayName = displayName;
+    }
+
     QString IG2pFactory::author() const {
         Q_D(const IG2pFactory);
         return d->author;

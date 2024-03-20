@@ -33,6 +33,9 @@ namespace LangMgr {
     public:
         [[nodiscard]] QString id() const;
 
+        [[nodiscard]] QString displayName() const;
+        void setDisplayName(const QString &name);
+
         [[nodiscard]] QString category() const;
         void setCategory(const QString &category);
 

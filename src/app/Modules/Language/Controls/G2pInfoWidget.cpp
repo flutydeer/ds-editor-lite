@@ -7,20 +7,27 @@ namespace LangMgr {
     G2pInfoWidget::G2pInfoWidget(QWidget *parent) : QWidget(parent) {
         this->m_mainLayout = new QVBoxLayout();
         this->m_topLayout = new QVBoxLayout();
+        this->m_authorLayout = new QHBoxLayout();
 
-        this->m_langueLabel = new QLabel(tr("Language: "));
+        this->m_label = new QLabel(tr("G2P Config:"));
+
+        this->m_languageLabel = new QLabel(tr("Language: "));
         this->m_authorLabel = new QLabel(tr("Author: "));
+        this->m_authorLayout->addWidget(this->m_languageLabel);
+        this->m_authorLayout->addStretch(1);
+        this->m_authorLayout->addWidget(this->m_authorLabel);
 
         this->m_descriptionGroupBox = new QGroupBox(tr("Description "));
         this->m_descriptionLayout = new QVBoxLayout();
         this->m_descriptionLabel = new QLabel();
         this->m_descriptionLabel->setWordWrap(true);
         this->m_descriptionLayout->addWidget(this->m_descriptionLabel);
+        this->m_descriptionLayout->setContentsMargins(0, 0, 0, 0);
 
         this->m_descriptionGroupBox->setLayout(this->m_descriptionLayout);
 
-        this->m_topLayout->addWidget(this->m_langueLabel);
-        this->m_topLayout->addWidget(this->m_authorLabel);
+        this->m_topLayout->addWidget(this->m_label);
+        this->m_topLayout->addLayout(this->m_authorLayout);
         this->m_topLayout->addWidget(this->m_descriptionGroupBox);
         this->m_topLayout->addStretch(1);
 
@@ -42,9 +49,9 @@ namespace LangMgr {
         const auto langMgr = ILanguageManager::instance()->language(language);
         const auto g2pFactory = G2pMgr::IG2pManager::instance()->g2p(g2pId);
 
-        m_langueLabel->setText(tr("Language: ") + g2pId);
-        m_authorLabel->setText(tr("Author: ") + g2pId);
-        m_descriptionLabel->setText(g2pId);
+        m_languageLabel->setText(tr("Language: ") + g2pFactory->displayName());
+        m_authorLabel->setText(tr("Author: ") + g2pFactory->author());
+        m_descriptionLabel->setText(g2pFactory->description());
 
         removeWidget();
         this->m_mainLayout->addWidget(g2pFactory->configWidget(langMgr->g2pConfig()), 1);

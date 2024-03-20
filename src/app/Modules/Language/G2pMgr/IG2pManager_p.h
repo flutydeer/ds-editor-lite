@@ -8,7 +8,8 @@
 
 namespace G2pMgr {
 
-    class IG2pManagerPrivate final {
+    class IG2pManagerPrivate final : public QObject {
+        Q_OBJECT
         Q_DECLARE_PUBLIC(IG2pManager)
     public:
         IG2pManagerPrivate();

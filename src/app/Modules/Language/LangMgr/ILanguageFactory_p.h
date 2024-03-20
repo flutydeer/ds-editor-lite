@@ -30,7 +30,7 @@ namespace LangMgr {
 
         QString categroy;
         QString description;
-
+        QString displayName;
         QString author;
         QString displayCategory;
 

@@ -2,6 +2,9 @@
 
 namespace G2pMgr {
     Unknown::Unknown(QObject *parent) : IG2pFactory("Unknown", parent) {
+        setAuthor(tr("Xiao Lang"));
+        setDisplayName(tr("Unknown"));
+        setDescription(tr("Unknown language, no conversion required."));
     }
 
     Unknown::~Unknown() = default;

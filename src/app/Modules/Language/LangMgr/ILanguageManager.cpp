@@ -10,6 +10,7 @@
 #include "LangAnalysis/BaseAnalysis/SpaceAnalysis.h"
 #include "LangAnalysis/BaseAnalysis/LinebreakAnalysis.h"
 #include "LangAnalysis/BaseAnalysis/Punctuation.h"
+#include "LangAnalysis/BaseAnalysis/UnknownAnalysis.h"
 
 #include "LangAnalysis/MandarinAnalysis.h"
 #include "LangAnalysis/PinyinAnalysis.h"
@@ -91,8 +92,9 @@ namespace LangMgr {
         Q_D(const ILanguageManager);
         const auto factory = language(id);
 
-        LangConfig result = {factory->id(), factory->enabled(), factory->discardResult(),
-                             factory->author(), factory->description()};
+        LangConfig result = {factory->id(),      factory->displayName(),
+                             factory->enabled(), factory->discardResult(),
+                             factory->author(),  factory->description()};
 
         return result;
     }
@@ -103,8 +105,8 @@ namespace LangMgr {
 
         QList<LangConfig> result;
         for (const auto &factory : factories) {
-            result.append({factory->id(), factory->enabled(), factory->discardResult(),
-                           factory->author(), factory->description()});
+            result.append({factory->id(), factory->displayName(), factory->enabled(),
+                           factory->discardResult(), factory->author(), factory->description()});
         }
         return result;
     }
@@ -173,6 +175,15 @@ namespace LangMgr {
     QStringList ILanguageManager::categoryList() const {
         Q_D(const ILanguageManager);
         return d->category;
+    }
+
+    QStringList ILanguageManager::categoryTrans() const {
+        Q_D(const ILanguageManager);
+        QStringList result;
+        for (const auto &category : categoryList()) {
+            result.append(language(category)->displayName());
+        }
+        return result;
     }
 
     void ILanguageManager::correct(const QList<LangNote *> &input) const {
@@ -248,6 +259,7 @@ namespace LangMgr {
         addLanguage(new SpaceAnalysis());
         addLanguage(new LinebreakAnalysis());
         addLanguage(new Punctuation());
+        addLanguage(new UnknownAnalysis());
 
         addLanguage(new MandarinAnalysis());
         addLanguage(new PinyinAnalysis());

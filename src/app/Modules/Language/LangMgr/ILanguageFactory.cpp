@@ -48,6 +48,16 @@ namespace LangMgr {
         return d->id;
     }
 
+    QString ILanguageFactory::displayName() const {
+        Q_D(const ILanguageFactory);
+        return d->displayName;
+    }
+
+    void ILanguageFactory::setDisplayName(const QString &name) {
+        Q_D(ILanguageFactory);
+        d->displayName = name;
+    }
+
     QString ILanguageFactory::category() const {
         Q_D(const ILanguageFactory);
         return d->categroy;
@@ -175,12 +185,15 @@ namespace LangMgr {
         const auto cateLabel = new QLabel(tr("Select Category:"));
         const auto cateComboBox = new ComboBox();
         cateComboBox->setMaximumWidth(120);
+        cateComboBox->setMinimumHeight(28);
         const auto cateList = langMgr->categoryList();
-        cateComboBox->addItems(cateList);
+        const auto cateTrans = langMgr->categoryTrans();
+
+        cateComboBox->addItems(cateTrans);
         if (cateList.contains(d->categroy)) {
-            cateComboBox->setCurrentText(d->categroy);
+            cateComboBox->setCurrentText(cateTrans.at(cateList.indexOf(d->categroy)));
         } else {
-            cateComboBox->setCurrentText("Unknown");
+            cateComboBox->setCurrentText(tr("Unknown"));
         }
 
         const auto g2pMgr = G2pMgr::IG2pManager::instance();
@@ -188,12 +201,15 @@ namespace LangMgr {
         const auto g2pLabel = new QLabel(tr("Select G2P:"));
         const auto g2pComboBox = new ComboBox();
         g2pComboBox->setMaximumWidth(120);
+        g2pComboBox->setMinimumHeight(28);
         const auto g2pList = g2pMgr->g2pList();
-        g2pComboBox->addItems(g2pList);
+        const auto g2pTrans = g2pMgr->g2pTrans();
+
+        g2pComboBox->addItems(g2pTrans);
         if (g2pList.contains(d->m_selectedG2p)) {
-            g2pComboBox->setCurrentText(d->m_selectedG2p);
+            g2pComboBox->setCurrentText(g2pTrans.at(g2pList.indexOf(d->m_selectedG2p)));
         } else {
-            g2pComboBox->setCurrentText("Unknown");
+            g2pComboBox->setCurrentText(tr("Unknown"));
         }
 
         mainLayout->addWidget(enabledCheckBox);
@@ -211,13 +227,19 @@ namespace LangMgr {
                 [this](const bool &checked) { setEnabled(checked); });
         connect(discardResultCheckBox, &QCheckBox::toggled,
                 [this](const bool &checked) { setDiscardResult(checked); });
-        connect(cateComboBox, &ComboBox::currentTextChanged,
-                [this](const QString &text) { setCategory(text); });
 
-        connect(g2pComboBox, &ComboBox::currentTextChanged, [this](const QString &text) {
-            d_ptr->m_selectedG2p = text;
-            Q_EMIT g2pChanged(text);
-        });
+        connect(cateComboBox, &ComboBox::currentTextChanged,
+                [this, cateList, cateTrans](const QString &text) {
+                    const auto index = cateTrans.indexOf(text);
+                    setCategory(index >= 0 ? cateList.at(index) : tr("Unknown"));
+                });
+
+        connect(g2pComboBox, &ComboBox::currentTextChanged,
+                [this, g2pList, g2pTrans](const QString &text) {
+                    const auto index = g2pTrans.indexOf(text);
+                    setG2p(index >= 0 ? g2pList.at(index) : tr("Unknown"));
+                    Q_EMIT g2pChanged(selectedG2p());
+                });
         return widget;
     }
 

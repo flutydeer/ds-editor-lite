@@ -12,7 +12,10 @@ namespace LangMgr {
     public:
         explicit RomajiAnalysis(const QString &id = "Romaji", QObject *parent = nullptr)
             : DictFactory(id, parent) {
-            setCategory("Japanese");
+            setAuthor(tr("Xiao Lang"));
+            setDisplayName(tr("Romaji"));
+            setDescription(tr("Capture Romaji words."));
+            setCategory("Kana");
             setG2p("Unknown");
         }
 

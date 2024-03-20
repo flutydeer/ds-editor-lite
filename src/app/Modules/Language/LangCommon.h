@@ -26,6 +26,7 @@ struct LangNote {
 };
 
 struct LangConfig {
+    QString id;
     QString language;
     bool enabled = true;
     bool discardResult = false;

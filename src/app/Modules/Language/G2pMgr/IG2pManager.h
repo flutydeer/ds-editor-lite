@@ -30,6 +30,7 @@ namespace G2pMgr {
         void clearG2ps();
 
         [[nodiscard]] QStringList g2pList() const;
+        [[nodiscard]] QStringList g2pTrans() const;
         [[nodiscard]] QList<IG2pFactory *> g2ps() const;
 
     private:

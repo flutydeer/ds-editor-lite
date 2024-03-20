@@ -8,11 +8,12 @@
 
 namespace LangMgr {
 
-    class ILanguageManagerPrivate final {
+    class ILanguageManagerPrivate final : public QObject {
+        Q_OBJECT
         Q_DECLARE_PUBLIC(ILanguageManager)
     public:
         ILanguageManagerPrivate();
-        virtual ~ILanguageManagerPrivate();
+        ~ILanguageManagerPrivate() override;
 
         void init();
 
@@ -20,10 +21,10 @@ namespace LangMgr {
 
         ILanguageManager *q_ptr;
 
-        QStringList category = {"Mandarin", "Cantonese", "Japanese", "English", "Unknown"};
+        QStringList category = {"Mandarin", "Cantonese", "Kana", "English", "Unknown"};
 
-        QStringList order = {"Mandarin", "Pinyin", "Cantonese",   "Kana",   "Romaji",   "English",
-                             "Space",    "Slur",   "Punctuation", "Number", "Linebreak"};
+        QStringList order = {"Mandarin", "Pinyin", "Cantonese",   "Kana",   "Romaji",    "English",
+                             "Space",    "Slur",   "Punctuation", "Number", "Linebreak", "Unknown"};
 
         QMap<QString, ILanguageFactory *> languages;
     };

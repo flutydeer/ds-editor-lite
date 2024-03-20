@@ -9,6 +9,9 @@ namespace LangMgr {
         Q_OBJECT
     public:
         explicit NumberAnalysis(QObject *parent = nullptr) : MultiCharFactory("Number", parent) {
+            setAuthor(tr("Xiao Lang"));
+            setDisplayName(tr("Number"));
+            setDescription(tr("Capture numbers."));
             setDiscardResult(true);
         }
 

@@ -12,6 +12,9 @@ namespace LangMgr {
     public:
         explicit PinyinAnalysis(const QString &id = "Pinyin", QObject *parent = nullptr)
             : DictFactory(id, parent) {
+            setAuthor(tr("Xiao Lang"));
+            setDisplayName(tr("Pinyin"));
+            setDescription(tr("Capture Pinyin words."));
             setCategory("Mandarin");
             setG2p("Unknown");
         }

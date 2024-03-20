@@ -22,6 +22,7 @@ namespace LangMgr {
         const auto langConfigs = langMgr->languageConfigs();
         for (const auto &config : langConfigs) {
             this->addItem(config.language);
+            this->item(this->count() - 1)->setData(Qt::UserRole, config.id);
         }
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     }
@@ -33,7 +34,7 @@ namespace LangMgr {
         const auto langMgr = ILanguageManager::instance();
         QStringList order;
         for (int i = 0; i < this->count(); ++i) {
-            order << this->item(i)->text();
+            order << this->item(i)->data(Qt::UserRole).toString();
         }
         langMgr->setLanguageOrder(order);
     }

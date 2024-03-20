@@ -46,6 +46,7 @@ namespace LangMgr {
         [[nodiscard]] QList<LangNote> split(const QString &input) const;
 
         [[nodiscard]] QStringList categoryList() const;
+        [[nodiscard]] QStringList categoryTrans() const;
 
         void correct(const QList<LangNote *> &input) const;
 

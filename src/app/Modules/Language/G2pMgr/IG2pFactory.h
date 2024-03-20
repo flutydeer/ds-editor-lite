@@ -32,6 +32,9 @@ namespace G2pMgr {
     public:
         [[nodiscard]] QString id() const;
 
+        [[nodiscard]] QString displayName() const;
+        void setDisplayName(const QString &displayName);
+
         [[nodiscard]] QString author() const;
         void setAuthor(const QString &author);
 

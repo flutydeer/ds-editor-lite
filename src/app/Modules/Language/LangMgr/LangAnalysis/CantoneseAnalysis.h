@@ -10,6 +10,9 @@ namespace LangMgr {
     public:
         explicit CantoneseAnalysis(const QString &id = "Cantonese", QObject *parent = nullptr)
             : MandarinAnalysis(id, parent) {
+            setAuthor(tr("Xiao Lang"));
+            setDisplayName(tr("Cantonese"));
+            setDescription(tr("Capture Cantonese characters."));
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;

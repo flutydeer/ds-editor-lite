@@ -212,7 +212,7 @@ void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const 
     QList<Phonemes> notesPhonemes;
     for (const auto note : notes) {
         // TODO:: Note->language
-        langNotes.append(new LangNote(note->lyric(), "Unknown"));
+        langNotes.append(new LangNote(note->lyric()));
         notesPhonemes.append(note->phonemes());
     }
 
