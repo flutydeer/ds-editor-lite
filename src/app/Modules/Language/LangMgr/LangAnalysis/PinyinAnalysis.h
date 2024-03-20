@@ -14,8 +14,9 @@ namespace LangMgr {
             : DictFactory(id, parent) {
             setCategory("Mandarin");
             setG2p("Unknown");
-            loadDict();
         }
+
+        bool initialize(QString &errMsg) override;
 
         void loadDict() override;
 

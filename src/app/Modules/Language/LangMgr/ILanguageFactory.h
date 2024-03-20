@@ -16,6 +16,8 @@ namespace LangMgr {
         explicit ILanguageFactory(const QString &id, QObject *parent = nullptr);
         ~ILanguageFactory() override;
 
+        virtual bool initialize(QString &errMsg);
+
         [[nodiscard]] virtual bool contains(const QChar &c) const;
         [[nodiscard]] virtual bool contains(const QString &input) const;
         [[nodiscard]] virtual QList<LangNote> split(const QString &input) const;

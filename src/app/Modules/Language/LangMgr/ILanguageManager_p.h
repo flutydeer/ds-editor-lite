@@ -16,6 +16,8 @@ namespace LangMgr {
 
         void init();
 
+        bool initialized = false;
+
         ILanguageManager *q_ptr;
 
         QStringList category = {"Mandarin", "Cantonese", "Japanese", "English", "Unknown"};

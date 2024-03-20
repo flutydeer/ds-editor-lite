@@ -20,6 +20,9 @@ namespace LangMgr {
         explicit ILanguageManager(QObject *parent = nullptr);
         ~ILanguageManager() override;
 
+        bool initialize(QString &errMsg);
+        bool initialized();
+
         // static ILanguageManager *instance();
 
     public:

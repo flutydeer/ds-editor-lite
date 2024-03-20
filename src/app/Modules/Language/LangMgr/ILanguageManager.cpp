@@ -220,6 +220,22 @@ namespace LangMgr {
         // m_instance = nullptr;
     }
 
+    bool ILanguageManager::initialize(QString &errMsg) {
+        Q_D(ILanguageManager);
+        for (const auto &factory : d->languages) {
+            if (!factory->initialize(errMsg)) {
+                return false;
+            }
+        }
+        d->initialized = true;
+        return true;
+    }
+
+    bool ILanguageManager::initialized() {
+        Q_D(const ILanguageManager);
+        return d->initialized;
+    }
+
     ILanguageManager::ILanguageManager(ILanguageManagerPrivate &d, QObject *parent)
         : QObject(parent), d_ptr(&d) {
         // m_instance = this;

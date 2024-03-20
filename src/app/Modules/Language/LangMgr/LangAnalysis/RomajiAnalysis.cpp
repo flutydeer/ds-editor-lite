@@ -3,6 +3,12 @@
 #include "Modules/Language/LangMgr/ILanguageManager.h"
 
 namespace LangMgr {
+    bool RomajiAnalysis::initialize(QString &errMsg) {
+        Q_UNUSED(errMsg);
+        loadDict();
+        return true;
+    }
+
     void RomajiAnalysis::loadDict() {
         QStringList initial = {"k",  "g",  "s",  "z",  "t",  "d",  "n",  "h",  "b",
                                "p",  "m",  "y",  "r",  "w",  "ky", "gy", "sh", "j",

@@ -15,17 +15,18 @@
 void RunLanguageEngineTask::runTask() {
     qDebug() << "RunLanguageEngineTask::runTask";
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
-    auto g2pMgr = G2pMgr::IG2pManager::instance();
-    const LangMgr::ILanguageManager langMgr;
+    const auto g2pMgr = G2pMgr::IG2pManager::instance();
+    const auto langMgr = LangMgr::ILanguageManager::instance();
 
-    // QThread::sleep(5);
-    
     QString errorMsg;
     g2pMgr->initialize(errorMsg);
 
     qDebug() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr->initialized();
 
-    success = g2pMgr->initialized();
+    langMgr->initialize(errorMsg);
+    qDebug() << "LangMgr: errorMsg" << errorMsg << "initialized:" << langMgr->initialized();
+
+    success = g2pMgr->initialized() && langMgr->initialized();
     errorMessage = errorMsg;
 
     emit finished(false);

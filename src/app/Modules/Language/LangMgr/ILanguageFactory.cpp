@@ -26,6 +26,11 @@ namespace LangMgr {
 
     ILanguageFactory::~ILanguageFactory() = default;
 
+    bool ILanguageFactory::initialize(QString &errMsg) {
+        Q_UNUSED(errMsg);
+        return true;
+    }
+
     ILanguageFactory::ILanguageFactory(ILanguageFactoryPrivate &d, const QString &id,
                                        QObject *parent)
         : QObject(parent), d_ptr(&d) {
