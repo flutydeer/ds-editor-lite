@@ -3,18 +3,19 @@
 //
 
 #include "DecodeAudioTask.h"
-DecodeAudioTask::DecodeAudioTask(int id) : ITask(id){
+
+#include <QDebug>
+
+DecodeAudioTask::DecodeAudioTask(int id) : ITask(id) {
     TaskStatus status;
     status.title = "Decoding audio...";
     status.message = "";
-    status.isIndetermine = true;
     setStatus(status);
 }
 void DecodeAudioTask::runTask() {
     TaskStatus status;
     status.title = "Decoding audio...";
     status.message = path;
-    status.isIndetermine = true;
     setStatus(status);
 
     auto pathStr =
@@ -47,6 +48,8 @@ void DecodeAudioTask::runTask() {
     // qDebug() << frames;
 
     std::vector<double> buffer(chunkSize * channels);
+    auto totalBufferCount = frames / chunkSize;
+    long long buffersRead = 0;
     qint64 samplesRead = 0;
     while (samplesRead < frames * channels) {
         if (m_abortFlag) {
@@ -84,6 +87,14 @@ void DecodeAudioTask::runTask() {
 
         auto pair = std::make_pair(min, max);
         peakCache.append(pair);
+        buffersRead++;
+
+        if (buffersRead % (totalBufferCount / 200) == 0) {
+            auto progress = 100 * buffersRead / totalBufferCount;
+            // qDebug() << progress;
+            status.progress = static_cast<int>(progress);
+            setStatus(status);
+        }
     }
 
     // Create mipmap from peak cache

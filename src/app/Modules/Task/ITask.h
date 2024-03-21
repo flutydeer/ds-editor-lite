@@ -49,6 +49,7 @@ public:
     }
 
     [[nodiscard]] const TaskStatus &status() const;
+    void setStatus(const TaskStatus &status);
 
 signals:
     void statusUpdated(const TaskStatus &status);
@@ -56,7 +57,6 @@ signals:
 
 protected:
     virtual void runTask() = 0;
-    void setStatus(const TaskStatus &status);
     bool m_abortFlag = false;
     bool m_started = false;
 
