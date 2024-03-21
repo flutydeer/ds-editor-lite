@@ -225,8 +225,8 @@ MainWindow::MainWindow() {
     auto menuOptions = new Menu(tr("&Options"), this);
     auto actionAudioSettings = new QAction(tr("&Audio Settings..."), this);
     connect(actionAudioSettings, &QAction::triggered, this, [=] {
-        AudioSettingsDialog dlg(this);
-        dlg.exec();
+        AppOptionsDialog dialog(AppOptionsDialog::Audio, this);
+        dialog.exec();
     });
     auto actionAppOptions = new QAction(tr("App Options"), this);
     connect(actionAppOptions, &QAction::triggered, this, [=] {

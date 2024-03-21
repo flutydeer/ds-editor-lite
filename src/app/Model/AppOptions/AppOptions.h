@@ -9,6 +9,7 @@
 
 #include "Utils/Singleton.h"
 #include "Options/AppearanceOption.h"
+#include "Options/AudioOption.h"
 
 class AppOptions : public QObject, public Singleton<AppOptions> {
     Q_OBJECT
@@ -21,13 +22,16 @@ public:
     bool save();
     void notifyOptionsChanged();
 
+    AudioOption *audio();
     AppearanceOption *appearance();
 
 signals:
     void optionsChanged();
 
 private:
+    AudioOption m_audioOption;
     AppearanceOption m_appearanceOption;
+
     QString fileName = "appConfig.json";
     QString m_configPath;
 

@@ -42,6 +42,9 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
 void OptionsCardItem::setCheckable(bool checkable) {
     m_checkBox->setVisible(checkable);
 }
+bool OptionsCardItem::isChecked() const {
+    return m_checkBox->isChecked();
+}
 void OptionsCardItem::setChecked(bool checked) {
     m_checkBox->setChecked(checked);
 }

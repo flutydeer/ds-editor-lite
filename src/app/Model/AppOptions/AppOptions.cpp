@@ -15,17 +15,22 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
     QJsonObject obj;
     if (QFile::exists(m_configPath))
         if (JsonUtils::load(m_configPath, obj)) {
+            m_audioOption.load(obj.value(m_audioOption.key()).toObject());
             m_appearanceOption.load(obj.value(m_appearanceOption.key()).toObject());
         }
 }
 bool AppOptions::save() {
     QJsonObject obj;
+    obj.insert(m_audioOption.key(), m_audioOption.value());
     obj.insert(m_appearanceOption.key(), m_appearanceOption.value());
 
     return JsonUtils::save(m_configPath, obj);
 }
 void AppOptions::notifyOptionsChanged() {
     emit optionsChanged();
+}
+AudioOption *AppOptions::audio() {
+    return &m_audioOption;
 }
 AppearanceOption *AppOptions::appearance() {
     return &m_appearanceOption;
