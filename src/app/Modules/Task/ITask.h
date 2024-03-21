@@ -8,11 +8,28 @@
 #include <QObject>
 #include <QRunnable>
 
-class ITask : public QObject, public QRunnable {
+#include "Global/TaskGlobal.h"
+#include "Utils/UniqueObject.h"
+
+class TaskStatus {
+public:
+    int id = -1;
+    int progress = 0;
+    int maximum = 100;
+    int minimum = 0;
+    bool isIndetermine = false;
+    TaskGlobal::Status runningStatus = TaskGlobal::Normal;
+    QString title = "Task";
+    QString message = "Message";
+};
+
+class ITask : public QObject, public QRunnable, public UniqueObject {
     Q_OBJECT
 public:
-    enum TaskStatus { Normal, Warning, Error };
     explicit ITask(QObject *parent = nullptr) : QObject(parent) {
+        setAutoDelete(false);
+    }
+    explicit ITask(int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
         setAutoDelete(false);
     }
     ~ITask() override {
@@ -31,14 +48,27 @@ public:
         return m_started;
     }
 
+    [[nodiscard]] const TaskStatus &status() const;
+
 signals:
-    void statusUpdated(int progress, ITask::TaskStatus status, bool isIndeterminate);
+    void statusUpdated(const TaskStatus &status);
     void finished(bool terminate);
 
 protected:
     virtual void runTask() = 0;
+    void setStatus(const TaskStatus &status);
     bool m_abortFlag = false;
     bool m_started = false;
+
+private:
+    TaskStatus m_status;
 };
+inline const TaskStatus &ITask::status() const {
+    return m_status;
+}
+inline void ITask::setStatus(const TaskStatus &status) {
+    m_status = status;
+    emit statusUpdated(status);
+}
 
 #endif // ITASK_H

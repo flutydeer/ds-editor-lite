@@ -2,7 +2,7 @@
 // Created by fluty on 24-3-19.
 //
 
-#include "RunLanguageEngineTask.h"
+#include "LaunchLanguageEngineTask.h"
 
 #include <QApplication>
 
@@ -12,7 +12,14 @@
 
 #include <QThread>
 
-void RunLanguageEngineTask::runTask() {
+LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : ITask(parent){
+    TaskStatus status;
+    status.title = "Launching language engine...";
+    status.message = "";
+    status.isIndetermine = true;
+    setStatus(status);
+}
+void LaunchLanguageEngineTask::runTask() {
     qDebug() << "RunLanguageEngineTask::runTask";
     IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
     const auto g2pMgr = G2pMgr::IG2pManager::instance();
@@ -28,6 +35,8 @@ void RunLanguageEngineTask::runTask() {
 
     success = g2pMgr->initialized() && langMgr->initialized();
     errorMessage = errorMsg;
+
+    // QThread::sleep(5);
 
     emit finished(false);
 }

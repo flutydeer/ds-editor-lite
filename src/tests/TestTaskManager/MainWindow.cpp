@@ -25,7 +25,7 @@ MainWindow::MainWindow() {
     auto taskManager = TaskManager::instance();
     auto task = new TestTask("miao");
     QObject::connect(task, &ITask::statusUpdated, this,
-                     [=](int progress, ITask::TaskStatus status, bool isIndeterminate) {
+                     [=](int progress, ITask::RunningStatus status, bool isIndeterminate) {
                          progressBar->setValue(progress);
                          if (status == ITask::Normal)
                              progressBar->setTaskStatus(ProgressIndicator::Normal);

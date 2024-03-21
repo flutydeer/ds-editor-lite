@@ -10,7 +10,7 @@
 #include "Utils/Singleton.h"
 
 
-class RunLanguageEngineTask;
+class LaunchLanguageEngineTask;
 class AppModel;
 class DecodeAudioTask;
 class AudioClip;
@@ -46,7 +46,7 @@ private:
     void decodeAllAudioClips(AppModel &model);
     void createDecodeAudioTask(AudioClip *clip);
     static void handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate);
-    void handleRunLanguageEngineTaskFinished(RunLanguageEngineTask *task);
+    void handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);
 
     QString m_lastProjectPath;
     bool m_isLanguageEngineReady = false;

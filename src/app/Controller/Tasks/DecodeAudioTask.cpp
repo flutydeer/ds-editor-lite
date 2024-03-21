@@ -3,7 +3,20 @@
 //
 
 #include "DecodeAudioTask.h"
+DecodeAudioTask::DecodeAudioTask(int id) : ITask(id){
+    TaskStatus status;
+    status.title = "Decoding audio...";
+    status.message = "";
+    status.isIndetermine = true;
+    setStatus(status);
+}
 void DecodeAudioTask::runTask() {
+    TaskStatus status;
+    status.title = "Decoding audio...";
+    status.message = path;
+    status.isIndetermine = true;
+    setStatus(status);
+
     auto pathStr =
 #ifdef Q_OS_WIN
         path.toStdWString();

@@ -10,11 +10,11 @@
 #include "Model/Track.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Modules/Task/TaskManager.h"
-#include "Tasks/RunLanguageEngineTask.h"
+#include "Tasks/LaunchLanguageEngineTask.h"
 
 AppController::AppController() {
-    auto task = new RunLanguageEngineTask;
-    connect(task, &RunLanguageEngineTask::finished, this, [=] {
+    auto task = new LaunchLanguageEngineTask;
+    connect(task, &LaunchLanguageEngineTask::finished, this, [=] {
         handleRunLanguageEngineTaskFinished(task);
     });
     TaskManager::instance()->addTask(task);
@@ -125,7 +125,7 @@ void AppController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool te
         track->notityClipPropertyChanged(audioClip);
     }
 }
-void AppController::handleRunLanguageEngineTaskFinished(RunLanguageEngineTask *task) {
+void AppController::handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
     qDebug() << "AppController::handleRunLanguageEngineTaskFinished";
     TaskManager::instance()->removeTask(task);
     m_isLanguageEngineReady = task->success;

@@ -95,7 +95,7 @@ void TracksViewController::onTrackPropertyChanged(const Track::TrackProperties &
     HistoryManager::instance()->record(a);
 }
 void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, int tick) {
-    auto decodeTask = new DecodeAudioTask;
+    auto decodeTask = new DecodeAudioTask(-1);
     decodeTask->path = path;
     decodeTask->trackIndex = trackIndex;
     decodeTask->tick = tick;

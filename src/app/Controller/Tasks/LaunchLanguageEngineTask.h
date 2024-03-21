@@ -7,10 +7,12 @@
 
 #include "Modules/Task/ITask.h"
 
-class RunLanguageEngineTask : public ITask {
+class LaunchLanguageEngineTask : public ITask {
     Q_OBJECT
 
 public:
+    explicit LaunchLanguageEngineTask(QObject *parent = nullptr);
+
     bool success = false;
     QString errorMessage;
 

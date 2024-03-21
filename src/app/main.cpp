@@ -7,10 +7,6 @@
 #include <QScreen>
 #include <QTranslator>
 
-#include "g2pglobal.h"
-#include "Modules/Language/G2pMgr/IG2pManager.h"
-#include "Modules/Language/LangMgr/ILanguageManager.h"
-
 #include "UI/Window/MainWindow.h"
 #include "Modules/Audio/AudioSystem.h"
 #include "Utils/logMessageHandler.h"
@@ -18,6 +14,7 @@
 #include "Model/WorkspaceEditor.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/ThemeManager.h"
+#include "UI/Window/TaskWindow.h"
 
 int main(int argc, char *argv[]) {
     // output log to file
@@ -47,16 +44,9 @@ int main(int argc, char *argv[]) {
 
     AudioSystem as;
     as.initialize(QApplication::arguments().contains("-vst"));
-    // as.openAudioSettings();
 
-    // IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
-    // G2pMgr::IG2pManager g2pMgr;
-    // const LangMgr::ILanguageManager langMgr;
-    //
-    // QString errorMsg;
-    // g2pMgr.initialize(errorMsg);
-    //
-    // qDebug() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr.initialized();
+    auto taskWindow = new TaskWindow;
+    taskWindow->show();
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     auto editor = AppModel::instance()->workspaceEditor("flutydeer.filllyrics");

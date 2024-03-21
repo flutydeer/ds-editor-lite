@@ -10,6 +10,7 @@
 #include <QTimer>
 
 #include "UI/Utils/IAnimatable.h"
+#include "Global/TaskGlobal.h"
 
 class ProgressIndicator : public QWidget, public IAnimatable {
     Q_OBJECT
@@ -36,8 +37,6 @@ public:
         Ring
     };
 
-    enum TaskStatus { Normal, Warning, Error };
-
     explicit ProgressIndicator(QWidget *parent = nullptr);
     explicit ProgressIndicator(IndicatorStyle indicatorStyle, QWidget *parent = nullptr);
 
@@ -47,7 +46,7 @@ public:
     [[nodiscard]] double secondaryValue() const;
     [[nodiscard]] double currentTaskValue() const;
     [[nodiscard]] bool indeterminate() const;
-    [[nodiscard]] TaskStatus taskStatus() const;
+    [[nodiscard]] TaskGlobal::Status taskStatus() const;
     //
     //    QSize sizeHint() const override;
     //    QSize minimumSizeHint() const override;
@@ -70,7 +69,7 @@ public slots:
     void setSecondaryValue(double value);
     void setCurrentTaskValue(double value);
     void setIndeterminate(bool on);
-    void setTaskStatus(ProgressIndicator::TaskStatus status);
+    void setTaskStatus(TaskGlobal::Status  status);
 
 signals:
     void valueChanged(double value);
@@ -97,7 +96,7 @@ protected:
     ColorPalette m_colorPalette;
 
     IndicatorStyle m_indicatorStyle = HorizontalBar;
-    TaskStatus m_taskStatus = Normal;
+    TaskGlobal::Status m_taskStatus = TaskGlobal::Normal;
     double m_max = 100;
     double m_min = 0;
     double m_value = 0;

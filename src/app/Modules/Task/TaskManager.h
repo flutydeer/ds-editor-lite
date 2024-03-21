@@ -25,12 +25,14 @@ signals:
 class TaskManager : public QObject, public Singleton<TaskManager> {
     Q_OBJECT
 public:
+    enum TaskChangeType { Added, Removed };
     explicit TaskManager(QObject *parent = nullptr);
     ~TaskManager() override;
     [[nodiscard]] const QList<ITask *> &tasks() const;
 
 signals:
     void allDone();
+    void taskChanged(TaskChangeType type, ITask *task, qsizetype index);
 
 public slots:
     void addTask(ITask *task);

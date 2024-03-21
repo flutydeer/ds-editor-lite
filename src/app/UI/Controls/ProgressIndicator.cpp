@@ -299,20 +299,20 @@ void ProgressIndicator::setThumbProgress(int x) {
     repaint();
 }
 
-ProgressIndicator::TaskStatus ProgressIndicator::taskStatus() const {
+ TaskGlobal::Status  ProgressIndicator::taskStatus() const {
     return m_taskStatus;
 }
 
-void ProgressIndicator::setTaskStatus(ProgressIndicator::TaskStatus status) {
+void ProgressIndicator::setTaskStatus( TaskGlobal::Status  status) {
     m_taskStatus = status;
     switch (m_taskStatus) {
-        case Normal:
+        case TaskGlobal::Normal:
             m_colorPalette = colorPaletteNormal;
             return;
-        case Warning:
+        case TaskGlobal::Warning:
             m_colorPalette = colorPaletteWarning;
             break;
-        case Error:
+        case TaskGlobal::Error:
             m_colorPalette = colorPaletteError;
             break;
     }

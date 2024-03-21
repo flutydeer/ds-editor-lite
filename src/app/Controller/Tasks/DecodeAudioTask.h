@@ -10,10 +10,10 @@
 
 #include <sndfile.hh>
 
-class DecodeAudioTask : public ITask, public UniqueObject {
+class DecodeAudioTask : public ITask {
 public:
-    explicit DecodeAudioTask() = default;
-    explicit DecodeAudioTask(int id) : UniqueObject(id){}
+    // explicit DecodeAudioTask();
+    explicit DecodeAudioTask(int id);
 
     int trackIndex = 0;
     int tick = 0;

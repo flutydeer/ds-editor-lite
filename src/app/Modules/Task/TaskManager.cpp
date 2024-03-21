@@ -31,14 +31,18 @@ void TaskManager::wait() {
     // threadPool->waitForDone();
 }
 void TaskManager::addTask(ITask *task) {
+    auto index = m_tasks.count();
     m_tasks.append(task);
+    emit taskChanged(Added, task,  index);
 }
 void TaskManager::startTask(ITask *task) {
     qDebug() << "TaskManager::startTask";
     threadPool->start(task);
 }
 void TaskManager::removeTask(ITask *task) {
+    auto index = m_tasks.indexOf(task);
     m_tasks.removeOne(task);
+    emit taskChanged(Removed, task, index);
 }
 void TaskManager::startAllTasks() {
     for (const auto &task : m_tasks)
