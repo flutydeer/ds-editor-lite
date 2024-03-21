@@ -60,6 +60,7 @@ MainWindow::MainWindow() {
     auto taskManager = TaskManager::instance();
 
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
+    connect(TaskManager::instance(), &TaskManager::taskChanged, this, &MainWindow::onTaskChanged);
 
     auto menuBar = new QMenuBar(this);
     menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -330,15 +331,18 @@ MainWindow::MainWindow() {
     actionButtonLayout->addWidget(playbackView);
     actionButtonLayout->setContentsMargins({});
 
-    auto progressBar = new ProgressIndicator;
-    progressBar->setValue(50);
-    progressBar->setFixedWidth(170);
+    m_lbTaskTitle = new QLabel;
+    m_lbTaskTitle->setVisible(false);
+
+    m_progressBar = new ProgressIndicator;
+    m_progressBar->setFixedWidth(170);
+    m_progressBar->setVisible(false);
 
     auto statusBar = new QStatusBar(this);
     statusBar->addWidget(new QLabel("Scroll: Wheel/Shift + Wheel; Zoom: Ctrl + Wheel/Alt + Wheel; "
                                     "Double click to create a singing clip"));
-    statusBar->addPermanentWidget(new QLabel("Running Inference..."));
-    statusBar->addPermanentWidget(progressBar);
+    statusBar->addPermanentWidget(m_lbTaskTitle);
+    statusBar->addPermanentWidget(m_progressBar);
     statusBar->setFixedHeight(28);
     statusBar->setSizeGripEnabled(false);
     statusBar->setStyleSheet("QStatusBar::item { border: none } QLabel {color: #A0FFFFFF}");
@@ -364,6 +368,27 @@ void MainWindow::onAllDone() {
         m_isAllDone = true;
         close();
     }
+}
+void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, ITask *task, qsizetype index) {
+    auto taskCount = TaskManager::instance()->tasks().count();
+    if (taskCount == 0) {
+        m_lbTaskTitle->setVisible(false);
+        m_progressBar->setVisible(false);
+        m_progressBar->setValue(0);
+    } else {
+        disconnect(m_firstask, &ITask::statusUpdated, this, &MainWindow::onTaskStatusChanged);
+        m_lbTaskTitle->setVisible(true);
+        m_progressBar->setVisible(true);
+        auto firstTask = TaskManager::instance()->tasks().first();
+        m_firstask = firstTask;
+        connect(m_firstask, &ITask::statusUpdated, this, &MainWindow::onTaskStatusChanged);
+    }
+}
+void MainWindow::onTaskStatusChanged(const TaskStatus &status) {
+    m_lbTaskTitle->setText(status.title);
+    m_progressBar->setValue(status.progress);
+    m_progressBar->setTaskStatus(status.runningStatus);
+    m_progressBar->setIndeterminate(status.isIndetermine);
 }
 void MainWindow::closeEvent(QCloseEvent *event) {
     if (m_isAllDone) {

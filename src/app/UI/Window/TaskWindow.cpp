@@ -20,7 +20,7 @@ TaskWindow::TaskWindow(QWidget *parent) : Window(parent) {
 
     connect(TaskManager::instance(), &TaskManager::taskChanged, this, &TaskWindow::onTaskChanged);
 
-    setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint);
+    setWindowFlags(Qt::Tool/* | Qt::WindowStaysOnTopHint*/);
     auto mainLayout = new QVBoxLayout;
     mainLayout->setContentsMargins({});
     mainLayout->addWidget(m_taskList);

@@ -7,6 +7,11 @@
 
 #include <QMainWindow>
 
+#include "Modules/Task/TaskManager.h"
+#include "Modules/Task/ITask.h"
+
+class ProgressIndicator;
+class QLabel;
 class TracksView;
 class ClipEditorView;
 
@@ -18,6 +23,8 @@ public:
 
 public slots:
     void onAllDone();
+    void onTaskChanged(TaskManager::TaskChangeType type, ITask *task, qsizetype index);
+    void onTaskStatusChanged(const TaskStatus &status);
 
 private:
     void closeEvent(QCloseEvent *event) override;
@@ -27,6 +34,10 @@ private:
 
     TracksView *m_tracksView;
     ClipEditorView *m_clipEditView;
+
+    QLabel *m_lbTaskTitle;
+    ProgressIndicator *m_progressBar;
+    ITask *m_firstask = nullptr;
 };
 
 
