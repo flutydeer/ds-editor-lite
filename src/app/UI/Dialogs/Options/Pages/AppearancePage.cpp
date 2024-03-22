@@ -79,6 +79,5 @@ void AppearancePage::modifyOption() {
     auto option = AppOptions::instance()->appearance();
     option->animationLevel = static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
     option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();
-    AppOptions::instance()->save();
-    AppOptions::instance()->notifyOptionsChanged();
+    AppOptions::instance()->saveAndNotify();
 }

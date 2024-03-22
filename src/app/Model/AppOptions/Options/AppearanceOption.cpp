@@ -4,29 +4,15 @@
 
 #include "AppearanceOption.h"
 
-AppearanceOption &AppearanceOption::operator=(const AppearanceOption &other) {
-    if (this != &other) {
-        IOption::operator=(other);
-        animationLevel = other.animationLevel;
-        animationTimeScale = other.animationTimeScale;
-    }
-    return *this;
-}
 void AppearanceOption::load(const QJsonObject &object) {
-    m_model = object;
-    if (m_model.contains(animationLevelKey))
-        animationLevel = animationLevelFromString(m_model.value(animationLevelKey).toString());
-    if (m_model.contains(animationTimeScaleKey))
-        animationTimeScale = m_model.value(animationTimeScaleKey).toDouble();
+    if (object.contains(animationLevelKey))
+        animationLevel = animationLevelFromString(object.value(animationLevelKey).toString());
+    if (object.contains(animationTimeScaleKey))
+        animationTimeScale = object.value(animationTimeScaleKey).toDouble();
 }
-void AppearanceOption::serialize() {
-    if (m_model.contains(animationLevelKey))
-        m_model.remove(animationLevelKey);
-    m_model.insert(animationLevelKey, animationLevelToString(animationLevel));
-
-    if (m_model.contains(animationTimeScaleKey))
-        m_model.remove(animationTimeScaleKey);
-    m_model.insert(animationTimeScaleKey, animationTimeScale);
+void AppearanceOption::save(QJsonObject &object) {
+    object.insert(animationLevelKey, animationLevelToString(animationLevel));
+    object.insert(animationTimeScaleKey, animationTimeScale);
 }
 AnimationGlobal::AnimationLevels AppearanceOption::animationLevelFromString(const QString &name) {
     if (name == "decreased")

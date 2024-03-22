@@ -24,9 +24,9 @@
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsRemote/RemoteAudioDevice.h>
+#include <Model/AppOptions/Options/AudioOption.h>
 
 AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
-    auto options = AppOptions::instance()->audio();
 
     auto audioOutputCard = new OptionsCard;
     audioOutputCard->setTitle(tr("Audio Output Options"));
@@ -191,16 +191,16 @@ void AudioPage::setFileBufferingSizeMsec(double value) {
     m_fileBufferingSizeMsec->setValue(value);
 }
 void AudioPage::modifyOption() {
-    QSettings settings;
-    settings.beginGroup("audio");
-    settings.setValue("hotPlugMode", hotPlugMode());
-    settings.setValue("closeDeviceAtBackground", closeDeviceAtBackground());
-    settings.setValue("closeDeviceOnPlaybackStop", closeDeviceOnPlaybackStop());
+    auto options = AppOptions::instance()->audio();
+    options->hotPlugMode = hotPlugMode();
+    options->closeDeviceAtBackground = closeDeviceAtBackground();
+    options->closeDeviceOnPlaybackStop = closeDeviceOnPlaybackStop();
     if (!qFuzzyCompare(fileBufferingSizeMsec(),
-                       settings.value("fileBufferingSizeMsec", 1000.0).toDouble())) {
-        settings.setValue("fileBufferingSizeMsec", fileBufferingSizeMsec());
+                       options->fileBufferingSizeMsec)) {
+        options->fileBufferingSizeMsec=fileBufferingSizeMsec();
         AudioSystem::instance()->audioContext()->handleFileBufferingSizeChange();
     }
+    AppOptions::instance()->saveAndNotify();
 }
 void AudioPage::updateDeviceComboBox() {
     auto deviceList = AudioSystem::instance()->driver()->devices();
@@ -313,11 +313,9 @@ void AudioPage::updateDriverComboBox() {
     });
 }
 void AudioPage::updateOptionsDisplay() {
-    QSettings settings;
-    settings.beginGroup("audio");
-    setHotPlugMode(settings.value("hotPlugMode", AudioSystem::NotifyOnAnyChange)
-                       .value<AudioSystem::HotPlugMode>());
-    setCloseDeviceAtBackground(settings.value("closeDeviceAtBackground", false).toBool());
-    setCloseDeviceOnPlaybackStop(settings.value("closeDeviceOnPlaybackStop", false).toBool());
-    setFileBufferingSizeMsec(settings.value("fileBufferingSizeMsec", 1000.0).toDouble());
+    auto options = AppOptions::instance()->audio();
+    setHotPlugMode(options->hotPlugMode);
+    setCloseDeviceAtBackground(options->closeDeviceAtBackground);
+    setCloseDeviceOnPlaybackStop(options->closeDeviceOnPlaybackStop);
+    setFileBufferingSizeMsec(options->fileBufferingSizeMsec);
 }

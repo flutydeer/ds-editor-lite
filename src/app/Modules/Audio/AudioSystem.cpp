@@ -1,5 +1,7 @@
 #include "AudioSystem.h"
 
+#include "Model/AppOptions/AppOptions.h"
+
 #include <QApplication>
 #include <QTimer>
 #include <QPushButton>
@@ -28,6 +30,7 @@
 
 #include "UI/Dialogs/Audio/AudioSettingsDialog.h"
 #include "Modules/Audio/AudioContext.h"
+#include "UI/Dialogs/Options/AppOptionsDialog.h"
 
 static AudioSystem *m_instance = nullptr;
 
@@ -41,7 +44,8 @@ AudioSystem::AudioSystem(QObject *parent) : QObject(parent) {
     m_playback.reset(new talcs::AudioSourcePlayback(m_preMixer, true, false));
     m_audioContext = new AudioContext(this);
 
-    m_masterTrack->addSource(new talcs::AudioSourceClipSeries, true); // TODO dummy source to fill length
+    m_masterTrack->addSource(new talcs::AudioSourceClipSeries,
+                             true); // TODO dummy source to fill length
 }
 
 AudioSystem::~AudioSystem() {
@@ -60,7 +64,7 @@ bool AudioSystem::findProperDriver() {
             return false;
         }
         if (i == -1) {
-            auto savedDrvName = m_settings.value("audio/driverName").toString();
+            auto savedDrvName = AppOptions::instance()->audio()->driverName;
             if (savedDrvName.isEmpty())
                 continue;
             m_drv = m_drvMgr->driver(savedDrvName);
@@ -68,7 +72,8 @@ bool AudioSystem::findProperDriver() {
             m_drv = m_drvMgr->driver(m_drvMgr->drivers()[i]);
         }
         if (m_drv && m_drv->initialize()) {
-            connect(m_drv, &talcs::AudioDriver::deviceChanged, this, &AudioSystem::handleDeviceHotPlug);
+            connect(m_drv, &talcs::AudioDriver::deviceChanged, this,
+                    &AudioSystem::handleDeviceHotPlug);
             return true;
         }
     }
@@ -80,7 +85,7 @@ bool AudioSystem::findProperDevice() {
         if (i >= m_drv->devices().size())
             return false;
         if (i == -2) {
-            auto savedDeviceName = m_settings.value("audio/deviceName").toString();
+            auto savedDeviceName = AppOptions::instance()->audio()->deviceName;
             if (!savedDeviceName.isEmpty())
                 dev.reset(m_drv->createDevice(savedDeviceName));
         } else if (i == -1) {
@@ -92,8 +97,12 @@ bool AudioSystem::findProperDevice() {
         if (!dev || !dev->isInitialized())
             continue;
         if (i == -2) {
-            auto savedBufferSize = m_settings.value("audio/adoptedBufferSize", dev->preferredBufferSize()).value<qint64>();
-            auto savedSampleRate = m_settings.value("audio/adoptedSampleRate", dev->preferredSampleRate()).value<double>();
+            auto adoptedBufferSizeInOption = AppOptions::instance()->audio()->adoptedBufferSize;
+            auto adoptedSampleRateInOption = AppOptions::instance()->audio()->adoptedSampleRate;
+            auto savedBufferSize = adoptedBufferSizeInOption == 0 ? dev->preferredBufferSize()
+                                                                  : adoptedBufferSizeInOption;
+            auto savedSampleRate = adoptedSampleRateInOption == 0 ? dev->preferredSampleRate()
+                                                                  : adoptedSampleRateInOption;
             if (!dev->open(savedBufferSize, savedSampleRate))
                 if (!dev->open(dev->preferredBufferSize(), dev->preferredSampleRate()))
                     continue;
@@ -108,7 +117,8 @@ bool AudioSystem::findProperDevice() {
     }
 }
 
-void AudioSystem::VstProcessInfoCallback::onThisBlockProcessInfo(const talcs::RemoteAudioDevice::ProcessInfo &processInfo) {
+void AudioSystem::VstProcessInfoCallback::onThisBlockProcessInfo(
+    const talcs::RemoteAudioDevice::ProcessInfo &processInfo) {
     if (processInfo.status == talcs::RemoteAudioDevice::ProcessInfo::NotPlaying) {
         if (AudioSystem::instance()->transport()->isPlaying() && !m_isPaused)
             PlaybackController::instance()->stop();
@@ -118,7 +128,8 @@ void AudioSystem::VstProcessInfoCallback::onThisBlockProcessInfo(const talcs::Re
             PlaybackController::instance()->play();
         m_isPaused = false;
         if (AudioSystem::instance()->transport()->position() != processInfo.position)
-            AudioSystem::instance()->m_audioContext->handleVstCallbackPositionChange(processInfo.position);
+            AudioSystem::instance()->m_audioContext->handleVstCallbackPositionChange(
+                processInfo.position);
     }
 }
 
@@ -133,12 +144,13 @@ bool AudioSystem::initialize(bool isVstMode) {
         m_remoteDev->addProcessInfoCallback(m_remoteTpCb.get());
         // TODO remote editor
 
-        connect(m_remoteDev, &talcs::RemoteAudioDevice::remoteOpened, this, [=](qint64 bufferSize, double sampleRate) {
-            m_preMixer->open(bufferSize, sampleRate);
-            m_remoteDev->open(bufferSize, sampleRate);
-            m_adoptedBufferSize = bufferSize;
-            m_adoptedSampleRate = sampleRate;
-        });
+        connect(m_remoteDev, &talcs::RemoteAudioDevice::remoteOpened, this,
+                [=](qint64 bufferSize, double sampleRate) {
+                    m_preMixer->open(bufferSize, sampleRate);
+                    m_remoteDev->open(bufferSize, sampleRate);
+                    m_adoptedBufferSize = bufferSize;
+                    m_adoptedSampleRate = sampleRate;
+                });
 
         m_preMixer->open(1024, 48000); // dummy
 
@@ -155,7 +167,8 @@ bool AudioSystem::initialize(bool isVstMode) {
     }
 }
 QPair<quint16, quint16> AudioSystem::checkVstConfig() {
-    auto vstConfigFilename = QStandardPaths::locate(QStandardPaths::AppDataLocation, "vstconfig.json");
+    auto vstConfigFilename =
+        QStandardPaths::locate(QStandardPaths::AppDataLocation, "vstconfig.json");
     if (vstConfigFilename.isEmpty()) {
         QDir configDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation)[0]);
         if (!configDir.exists())
@@ -164,9 +177,9 @@ QPair<quint16, quint16> AudioSystem::checkVstConfig() {
         configFile.open(QFile::WriteOnly);
         configFile.write(QJsonDocument({
                                            {"editor",      QApplication::applicationFilePath()},
-                                           {"pluginPort",  28082                             },
-                                           {"editorPort",  28081                             },
-                                           {"threadCount", 2                                 },
+                                           {"pluginPort",  28082                              },
+                                           {"editorPort",  28081                              },
+                                           {"threadCount", 2                                  },
         })
                              .toJson());
         return {28081, 28082};
@@ -174,7 +187,8 @@ QPair<quint16, quint16> AudioSystem::checkVstConfig() {
         QFile configFile(vstConfigFilename);
         configFile.open(QFile::ReadOnly);
         auto configDoc = QJsonDocument::fromJson(configFile.readAll());
-        return {configDoc["editorPort"].toVariant().value<quint16>(), configDoc["pluginPort"].toVariant().value<quint16>()};
+        return {configDoc["editorPort"].toVariant().value<quint16>(),
+                configDoc["pluginPort"].toVariant().value<quint16>()};
     }
 }
 
@@ -240,9 +254,7 @@ bool AudioSystem::setDevice(const QString &deviceName) {
     if (!m_dev->open(m_dev->preferredBufferSize(), m_dev->preferredSampleRate()))
         return false;
     postSetDevice();
-    connect(m_dev.get(), &talcs::AudioDevice::closed, this, [=] {
-        m_isDeviceAutoClosed = true;
-    });
+    connect(m_dev.get(), &talcs::AudioDevice::closed, this, [=] { m_isDeviceAutoClosed = true; });
     return true;
 }
 void AudioSystem::postSetDevice() {
@@ -255,10 +267,12 @@ void AudioSystem::postSetDevice() {
     m_isDeviceAutoClosed = false;
     m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
     m_audioContext->handleDeviceChangeDuringPlayback();
-    m_settings.setValue("audio/driverName", m_drv->name());
-    m_settings.setValue("audio/deviceName", m_dev->name());
-    m_settings.setValue("audio/adoptedBufferSize", m_adoptedBufferSize);
-    m_settings.setValue("audio/adoptedSampleRate", m_adoptedSampleRate);
+    auto options = AppOptions::instance()->audio();
+    options->driverName = m_drv->name();
+    options->deviceName = m_dev->name();
+    options->adoptedSampleRate = m_adoptedSampleRate;
+    options->adoptedBufferSize = m_adoptedBufferSize;
+    AppOptions::instance()->saveAndNotify();
 }
 
 qint64 AudioSystem::adoptedBufferSize() const {
@@ -269,7 +283,8 @@ void AudioSystem::setAdoptedBufferSize(qint64 bufferSize) {
         device()->open(bufferSize, device()->sampleRate());
     }
     m_adoptedBufferSize = bufferSize;
-    m_settings.setValue("audio/adoptedBufferSize", m_adoptedBufferSize);
+    AppOptions::instance()->audio()->adoptedBufferSize = m_adoptedBufferSize;
+    AppOptions::instance()->saveAndNotify();
     if (m_adoptedBufferSize && m_adoptedSampleRate)
         m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
     m_audioContext->handleDeviceChangeDuringPlayback();
@@ -284,7 +299,8 @@ void AudioSystem::setAdoptedSampleRate(double sampleRate) {
         device()->open(device()->bufferSize(), sampleRate);
     }
     m_adoptedSampleRate = sampleRate;
-    m_settings.setValue("audio/adoptedSampleRate", m_adoptedSampleRate);
+    AppOptions::instance()->audio()->adoptedSampleRate = m_adoptedSampleRate;
+    AppOptions::instance()->saveAndNotify();
     if (m_adoptedBufferSize && m_adoptedSampleRate)
         m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
     m_audioContext->rebuildAllClips();
@@ -313,7 +329,8 @@ void AudioSystem::testDevice() {
 }
 
 void AudioSystem::handleDeviceHotPlug() {
-    auto hotPlugMode = m_settings.value("audio/hotPlugMode", NotifyOnAnyChange).value<HotPlugMode>();
+    auto options = AppOptions::instance()->audio();
+    auto hotPlugMode = options->hotPlugMode;
     QMessageBox msgBox;
     msgBox.setText(tr("Audio device change is detected."));
     msgBox.setIcon(QMessageBox::Information);
@@ -321,10 +338,11 @@ void AudioSystem::handleDeviceHotPlug() {
     auto openAudioSettingsButton = new QPushButton(tr("Go to audio settings"));
     msgBox.addButton(openAudioSettingsButton, QMessageBox::NoRole);
     connect(openAudioSettingsButton, &QPushButton::clicked, this, [=] {
-        AudioSettingsDialog dlg;
-        dlg.exec();
+        // TODO: refactor
+        AppOptionsDialog dialog(AppOptionsDialog::Audio);
+        dialog.exec();
     });
-    switch(hotPlugMode) {
+    switch (hotPlugMode) {
         case NotifyOnAnyChange:
             msgBox.exec();
             break;

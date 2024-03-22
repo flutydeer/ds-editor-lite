@@ -13,7 +13,6 @@ class AppearanceOption : public IOption {
 public:
     explicit AppearanceOption() : IOption("appearance") {
     }
-    AppearanceOption& operator=(const AppearanceOption& other);
 
     void load(const QJsonObject &object) override;
 
@@ -24,7 +23,7 @@ public:
     static QString animationLevelToString(AnimationGlobal::AnimationLevels level);
 
 protected:
-    void serialize() override;
+    void save(QJsonObject &object) override;
 
 private:
     const QString animationLevelKey = "animationLevel";

@@ -2,7 +2,6 @@
 #define DS_EDITOR_LITE_AUDIOSYSTEM_H
 
 #include <QObject>
-#include <QSettings>
 
 #include <TalcsRemote/RemoteAudioDevice.h>
 
@@ -71,7 +70,6 @@ public:
     static QString driverDisplayName(const QString &driverName);
 
 private:
-    QSettings m_settings;
 
     talcs::AudioDriverManager *m_drvMgr;
     talcs::AudioDriver *m_drv = nullptr;

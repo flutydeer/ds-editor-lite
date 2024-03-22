@@ -558,3 +558,7 @@ QDoubleSpinBox::down-button:hover {
 QDoubleSpinBox::down-button:pressed {
     background-color: #10FFFFFF;
 }
+
+TaskWindow {
+    background-color: #202122;
+}

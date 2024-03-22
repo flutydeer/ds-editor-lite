@@ -8,6 +8,7 @@
 #include <QDoubleSpinBox>
 #include <QMessageBox>
 #include <QLabel>
+#include <QSettings>
 
 #include <TalcsDevice/AudioDriverManager.h>
 #include <TalcsDevice/AudioDriver.h>

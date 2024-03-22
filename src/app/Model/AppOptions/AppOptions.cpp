@@ -19,11 +19,12 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
             m_appearanceOption.load(obj.value(m_appearanceOption.key()).toObject());
         }
 }
-bool AppOptions::save() {
+bool AppOptions::saveAndNotify() {
     QJsonObject obj;
     obj.insert(m_audioOption.key(), m_audioOption.value());
     obj.insert(m_appearanceOption.key(), m_appearanceOption.value());
 
+    notifyOptionsChanged();
     return JsonUtils::save(m_configPath, obj);
 }
 void AppOptions::notifyOptionsChanged() {

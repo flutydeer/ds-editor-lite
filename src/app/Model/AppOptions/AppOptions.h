@@ -19,8 +19,7 @@ public:
 
     // void load(const QJsonObject &object);
     // void save(const QString &path);
-    bool save();
-    void notifyOptionsChanged();
+    bool saveAndNotify();
 
     AudioOption *audio();
     AppearanceOption *appearance();
@@ -35,6 +34,7 @@ private:
     QString fileName = "appConfig.json";
     QString m_configPath;
 
+    void notifyOptionsChanged();
 };
 
 #endif // APPOPTIONS_H

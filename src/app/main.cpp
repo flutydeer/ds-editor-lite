@@ -45,9 +45,6 @@ int main(int argc, char *argv[]) {
     AudioSystem as;
     as.initialize(QApplication::arguments().contains("-vst"));
 
-    auto taskWindow = new TaskWindow;
-    taskWindow->show();
-
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     auto editor = AppModel::instance()->workspaceEditor("flutydeer.filllyrics");
     auto workspace = editor->privateWorkspace();
@@ -74,6 +71,11 @@ int main(int argc, char *argv[]) {
     auto top = (availableRect.height() - w->height()) / 2;
     w->move(left, top);
     w->show();
+
+    auto taskWindow = new TaskWindow;
+    taskWindow->move(availableRect.width() - taskWindow->width() - 8,
+                     availableRect.height() - taskWindow->height() - 8);
+    taskWindow->show();
 
     return QApplication::exec();
 }

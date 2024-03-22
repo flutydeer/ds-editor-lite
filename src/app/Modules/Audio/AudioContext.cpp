@@ -23,6 +23,7 @@
 
 #include "Model/Track.h"
 #include "Model/Clip.h"
+#include "Model/AppOptions/AppOptions.h"
 
 static qint64 tickToSample(double tick) {
     return qint64(tick * 60.0 * AudioSystem::instance()->adoptedSampleRate() / PlaybackController::instance()->tempo() / 480.0);
@@ -93,11 +94,11 @@ talcs::FutureAudioSourceClipSeries *AudioContext::trackSynthesisClipSeries(const
 }
 
 void AudioContext::handlePlaybackStatusChange(PlaybackController::PlaybackStatus status) {
-    QSettings settings;
+    auto options = AppOptions::instance()->audio();
     switch (status) {
         case PlaybackController::Stopped:
             AudioSystem::instance()->transport()->pause();
-            if (settings.value("audio/closeDeviceOnPlaybackStop", false).toBool() && AudioSystem::instance()->device())
+            if (options->closeDeviceOnPlaybackStop && AudioSystem::instance()->device())
                 AudioSystem::instance()->device()->close();
             AudioSystem::instance()->transport()->setPosition(tickToSample(PlaybackController::instance()->lastPosition()));
             break;
@@ -218,7 +219,7 @@ void AudioContext::handleTrackControlChange(const Track *track) {
 }
 
 void AudioContext::handleClipInsertion(const Track *track, const Clip *clip) {
-    QSettings settings;
+    auto options = AppOptions::instance()->audio();
     if (clip->type() != Clip::Audio)
         return;
     auto audioClip = static_cast<const AudioClip *>(clip);
@@ -228,7 +229,7 @@ void AudioContext::handleClipInsertion(const Track *track, const Clip *clip) {
         fileSrc,
         true,
         2,
-        settings.value("audio/fileBufferingSizeMsec", 1000.0).toDouble() / 1000.0 * AudioSystem::instance()->adoptedSampleRate());
+        options->fileBufferingSizeMsec / 1000.0 * AudioSystem::instance()->adoptedSampleRate());
     if (!fileSrc->audioFormatIo()->open(QIODevice::ReadOnly) || !fileSrc->open(1024, fileSrc->audioFormatIo()->sampleRate())) {
         QMessageBox::critical(nullptr, {}, tr("Cannot read audio file:\n\n%1").arg(audioClip->path()));
         return;
@@ -300,9 +301,9 @@ void AudioContext::rebuildAllClips() {
 }
 
 void AudioContext::handleFileBufferingSizeChange() {
-    QSettings settings;
+    auto options = AppOptions::instance()->audio();
     for (auto bufSrc: m_audioClipBufferingSources) {
-        bufSrc->setReadAheadSize(settings.value("audio/fileBufferingSizeMsec", 1000.0).toDouble() / 1000.0 * AudioSystem::instance()->adoptedSampleRate());
+        bufSrc->setReadAheadSize(options->fileBufferingSizeMsec / 1000.0 * AudioSystem::instance()->adoptedSampleRate());
     }
     applyListener(m_synthesisListeners.cbegin(), m_synthesisListeners.cend(), &SynthesisListener::fileBufferingSizeChangeCallback);
 }

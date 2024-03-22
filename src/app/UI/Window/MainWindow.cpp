@@ -222,18 +222,24 @@ MainWindow::MainWindow() {
     menuModify->addAction(actionFillLyrics);
 
     auto menuOptions = new Menu(tr("&Options"), this);
-    auto actionAudioSettings = new QAction(tr("&Audio Settings..."), this);
+    auto actionGeneralOptions = new QAction(tr("&General..."), this);
+    connect(actionGeneralOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsDialog::General, this);
+        dialog.exec();
+    });
+    auto actionAudioSettings = new QAction(tr("&Audio..."), this);
     connect(actionAudioSettings, &QAction::triggered, this, [=] {
         AppOptionsDialog dialog(AppOptionsDialog::Audio, this);
         dialog.exec();
     });
-    auto actionAppOptions = new QAction(tr("App Options"), this);
-    connect(actionAppOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::General, this);
+    auto actionAppearanceOptions = new QAction(tr("Appearance..."), this);
+    connect(actionAppearanceOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsDialog::Appearance, this);
         dialog.exec();
     });
+    menuOptions->addAction(actionGeneralOptions);
     menuOptions->addAction(actionAudioSettings);
-    menuOptions->addAction(actionAppOptions);
+    menuOptions->addAction(actionAppearanceOptions);
 
     auto menuHelp = new Menu(tr("&Help"), this);
     auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);
