@@ -9,19 +9,12 @@
 #include <QStackedWidget>
 #include <QScrollArea>
 
-#include "Controller/AppOptionsController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Pages/AppearancePage.h"
 #include "Pages/GeneralPage.h"
-#include "UI/Controls/Button.h"
 #include "Pages/AudioPage.h"
 
-AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : OKCancelApplyDialog(parent) {
-
-    connect(okButton(), &Button::clicked, this, &AppOptionsDialog::accept);
-    connect(this, &AppOptionsDialog::accepted, this, &AppOptionsDialog::apply);
-    connect(cancelButton(), &Button::clicked, this, &AppOptionsDialog::cancel);
-    connect(applyButton(), &Button::clicked, this, &AppOptionsDialog::apply);
+AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) {
 
     m_tabList = new QListWidget;
     m_tabList->setFixedWidth(160);
@@ -58,13 +51,6 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : OKCancelApplyDi
     m_tabList->setCurrentRow(page);
 
     resize(900, 600);
-}
-void AppOptionsDialog::apply() {
-    AppOptionsController::instance()->apply();
-}
-void AppOptionsDialog::cancel() {
-    AppOptionsController::instance()->cancel();
-    reject();
 }
 void AppOptionsDialog::onSelectionChanged(int index) {
     m_PageContent->setCurrentWidget(m_pages.at(index));

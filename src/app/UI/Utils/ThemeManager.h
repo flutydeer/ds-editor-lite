@@ -20,7 +20,7 @@ public slots:
 
 private:
     QList<IAnimatable *> m_subscribers;
-    void applyAnimationSetings(IAnimatable *object);
+    static void applyAnimationSetings(IAnimatable *object);
 };
 
 

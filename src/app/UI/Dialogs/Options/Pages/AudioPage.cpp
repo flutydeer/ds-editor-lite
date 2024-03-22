@@ -18,6 +18,8 @@
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/OptionsCard.h"
 #include "UI/Controls/OptionsCardItem.h"
+
+#include <QCheckBox>
 #include <TalcsDevice/AudioDriverManager.h>
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDevice.h>
@@ -59,6 +61,7 @@ AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
     auto hotPlugItem = new OptionsCardItem;
     hotPlugItem->setTitle(tr("Hot Plug Mode"));
     hotPlugItem->addWidget(m_hotPlugModeComboBox);
+    connect(m_hotPlugModeComboBox, &ComboBox::currentIndexChanged, this, [=] { modifyOption(); });
 
     auto audioOutputCardLayout = new QVBoxLayout;
     audioOutputCardLayout->setContentsMargins({});
@@ -81,10 +84,14 @@ AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
     m_closeDeviceAtBackgroundItem->setCheckable(true);
     m_closeDeviceAtBackgroundItem->setTitle(
         tr("Close audio device when %1 is in the background").arg(qApp->applicationDisplayName()));
+    connect(m_closeDeviceAtBackgroundItem->checkBox(), &QCheckBox::clicked, this,
+            [=] { modifyOption(); });
 
     m_closeDeviceOnPlaybackStopItem = new OptionsCardItem;
     m_closeDeviceOnPlaybackStopItem->setCheckable(true);
     m_closeDeviceOnPlaybackStopItem->setTitle(tr("Close audio device when playback is stopped"));
+    connect(m_closeDeviceOnPlaybackStopItem->checkBox(), &QCheckBox::clicked, this,
+            [=] { modifyOption(); });
 
     auto playbackCardLayout = new QVBoxLayout;
     playbackCardLayout->setContentsMargins({});
@@ -100,6 +107,7 @@ AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
     m_fileBufferingSizeMsec = new QDoubleSpinBox;
     m_fileBufferingSizeMsec->setRange(0.0, std::numeric_limits<double>::max());
     m_fileBufferingSizeMsec->setSuffix(" ms");
+    connect(m_fileBufferingSizeMsec, &QDoubleSpinBox::valueChanged, this, [=] { modifyOption(); });
     auto fileBufferingItem = new OptionsCardItem;
     fileBufferingItem->setTitle(tr("Buffer size when reading from file"));
     fileBufferingItem->addWidget(m_fileBufferingSizeMsec);

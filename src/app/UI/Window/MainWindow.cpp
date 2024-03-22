@@ -28,7 +28,6 @@
 #include "UI/Views/ActionButtonsView.h"
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/ProgressIndicator.h"
-#include "Controller/AppOptions/AppearanceOptionController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 

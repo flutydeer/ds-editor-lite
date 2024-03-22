@@ -61,3 +61,6 @@ void OptionsCardItem::addWidget(QWidget *widget) {
 void OptionsCardItem::removeWidget(QWidget *widget) {
     m_mainLayout->removeWidget(widget);
 }
+QCheckBox *OptionsCardItem::checkBox() {
+    return m_checkBox;
+}

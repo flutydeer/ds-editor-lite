@@ -24,6 +24,7 @@ public:
     void setDescription(const QString &desc);
     void addWidget(QWidget *widget);
     void removeWidget(QWidget *widget);
+    QCheckBox *checkBox();
 
 private:
     QHBoxLayout *m_mainLayout;

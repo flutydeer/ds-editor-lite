@@ -5,8 +5,7 @@
 #ifndef APPOPTIONSDIALOG_H
 #define APPOPTIONSDIALOG_H
 
-#include "UI/Dialogs/Base/OKCancelApplyDialog.h"
-
+#include "UI/Dialogs/Base/Dialog.h"
 
 class AudioPage;
 class AppearancePage;
@@ -16,7 +15,7 @@ class QListWidget;
 class Button;
 class QStackedWidget;
 
-class AppOptionsDialog : public OKCancelApplyDialog {
+class AppOptionsDialog : public Dialog {
     Q_OBJECT
 
 public:
@@ -25,8 +24,6 @@ public:
     explicit AppOptionsDialog(Page page, QWidget *parent = nullptr);
 
 private slots:
-    void apply();
-    void cancel();
     void onSelectionChanged(int index);
 
 private:

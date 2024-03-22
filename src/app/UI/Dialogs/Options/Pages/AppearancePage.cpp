@@ -9,7 +9,6 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
-#include "Controller/AppOptionsController.h"
 #include "UI/Controls/CardView.h"
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/OptionsCard.h"
@@ -77,10 +76,9 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     setLayout(mainLayout);
 }
 void AppearancePage::modifyOption() {
-    AppearanceOption option;
-    option.animationLevel =
-        static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
-    option.animationTimeScale = m_leAnimationTimeScale->text().toDouble();
-    auto controller = AppOptionsController::instance()->appearanceController();
-    controller->modifyOption(option);
+    auto option = AppOptions::instance()->appearance();
+    option->animationLevel = static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
+    option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();
+    AppOptions::instance()->save();
+    AppOptions::instance()->notifyOptionsChanged();
 }
