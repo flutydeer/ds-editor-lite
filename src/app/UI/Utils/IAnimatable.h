@@ -22,33 +22,42 @@ protected:
 
     virtual void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) = 0;
     virtual void afterSetTimeScale(double scale) = 0;
+    void initializeAnimation();
 
 private:
     AnimationGlobal::AnimationLevels m_level = AnimationGlobal::Full;
     double m_scale = 1.0;
+    bool m_initialized = false;
 };
 inline IAnimatable::IAnimatable() {
-    ThemeManager::instance()->addSubscriber(this);
+    ThemeManager::instance()->addAnimationObserver(this);
 }
 inline IAnimatable::~IAnimatable() {
-    ThemeManager::instance()->removeSubscriber(this);
+    ThemeManager::instance()->removeAnimationObserver(this);
 }
 inline AnimationGlobal::AnimationLevels IAnimatable::animationLevel() const {
     return m_level;
 }
 inline void IAnimatable::setAnimationLevel(AnimationGlobal::AnimationLevels level) {
     m_level = level;
-    afterSetAnimationLevel(level);
+    if (m_initialized)
+        afterSetAnimationLevel(level);
 }
 inline double IAnimatable::animationTimeScale() const {
     return m_scale;
 }
 inline void IAnimatable::setTimeScale(double scale) {
     m_scale = scale;
-    afterSetTimeScale(scale);
+    if (m_initialized)
+        afterSetTimeScale(scale);
 }
 inline int IAnimatable::getScaledAnimationTime(int ms) const {
     return static_cast<int>(ms * m_scale);
+}
+inline void IAnimatable::initializeAnimation() {
+    m_initialized = true;
+    afterSetAnimationLevel(animationLevel());
+    afterSetTimeScale(animationTimeScale());
 }
 
 #endif // IANIMATABLE_H

@@ -12,14 +12,15 @@ class IAnimatable;
 
 class ThemeManager : public QObject, public Singleton<ThemeManager> {
 public:
-    void addSubscriber(IAnimatable *object);
-    void removeSubscriber(IAnimatable *object);
+    void addAnimationObserver(IAnimatable *object);
+    void removeAnimationObserver(IAnimatable *object);
 
 public slots:
     void onAppOptionsChanged();
 
 private:
     QList<IAnimatable *> m_subscribers;
+    void applyAnimationSetings(IAnimatable *object);
 };
 
 

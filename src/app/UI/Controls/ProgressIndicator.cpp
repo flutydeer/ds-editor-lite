@@ -55,6 +55,8 @@ void ProgressIndicator::initUi() {
             calculateRingParams();
             break;
     }
+
+    initializeAnimation();
 }
 
 void ProgressIndicator::paintEvent(QPaintEvent *event) {

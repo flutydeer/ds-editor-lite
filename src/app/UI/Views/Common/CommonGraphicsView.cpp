@@ -34,12 +34,13 @@ CommonGraphicsView::CommonGraphicsView(QWidget *parent) : QGraphicsView(parent) 
     m_vBarAnimation.setPropertyName("verticalScrollBarValue");
     m_vBarAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
-    updateAnimationDuration();
-
     connect(horizontalScrollBar(), &QScrollBar::valueChanged, this,
             &CommonGraphicsView::notifyVisibleRectChanged);
     connect(verticalScrollBar(), &QScrollBar::valueChanged, this,
             &CommonGraphicsView::notifyVisibleRectChanged);
+
+    initializeAnimation();
+    updateAnimationDuration();
 
 #ifndef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
     m_timer.setInterval(400);
@@ -279,7 +280,9 @@ bool CommonGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
 }
 void CommonGraphicsView::updateAnimationDuration() {
     const int animationDurationBase = 150;
-    auto duration = animationLevel() == AnimationGlobal::Full ? getScaledAnimationTime(animationDurationBase) : 0;
+    auto duration = animationLevel() == AnimationGlobal::Full
+                        ? getScaledAnimationTime(animationDurationBase)
+                        : 0;
     m_scaleXAnimation.setDuration(duration);
     m_scaleYAnimation.setDuration(duration);
     m_hBarAnimation.setDuration(duration);

@@ -7,21 +7,23 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/IAnimatable.h"
 
-void ThemeManager::addSubscriber(IAnimatable *object) {
+void ThemeManager::addAnimationObserver(IAnimatable *object) {
     m_subscribers += object;
-    qDebug() << "ThemeManager::addSubscriber" << object;
+    applyAnimationSetings(object);
+    // qDebug() << "ThemeManager::addAnimationObserver" << object;
 }
-void ThemeManager::removeSubscriber(IAnimatable *object) {
+void ThemeManager::removeAnimationObserver(IAnimatable *object) {
     m_subscribers.removeOne(object);
 }
 void ThemeManager::onAppOptionsChanged() {
-    qDebug() << "ThemeManager::onAppOptionsChanged";
+    // qDebug() << "ThemeManager::onAppOptionsChanged";
+    for (auto object : m_subscribers)
+        applyAnimationSetings(object);
+}
+void ThemeManager::applyAnimationSetings(IAnimatable *object) {
     auto option = AppOptions::instance()->appearance();
     auto level = option->animationLevel;
     auto scale = option->animationTimeScale;
-    qDebug() << level << scale;
-    for (auto object : m_subscribers) {
-        object->setAnimationLevel(level);
-        object->setTimeScale(scale);
-    }
+    object->setAnimationLevel(level);
+    object->setTimeScale(scale);
 }
