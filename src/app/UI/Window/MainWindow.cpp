@@ -232,7 +232,7 @@ MainWindow::MainWindow() {
         AppOptionsDialog dialog(AppOptionsDialog::Audio, this);
         dialog.exec();
     });
-    auto actionAppearanceOptions = new QAction(tr("Appearance..."), this);
+    auto actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
     connect(actionAppearanceOptions, &QAction::triggered, this, [=] {
         AppOptionsDialog dialog(AppOptionsDialog::Appearance, this);
         dialog.exec();

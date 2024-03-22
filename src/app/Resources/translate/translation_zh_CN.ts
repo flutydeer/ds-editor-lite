@@ -30,19 +30,19 @@
 <context>
     <name>AppOptionsDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="33"/>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="30"/>
         <source>General</source>
-        <translation type="unfinished"></translation>
+        <translation>常规</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="33"/>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="30"/>
         <source>Audio</source>
-        <translation type="unfinished"></translation>
+        <translation>音频</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="34"/>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="31"/>
         <source>Appearance</source>
-        <translation type="unfinished"></translation>
+        <translation>外观</translation>
     </message>
 </context>
 <context>
@@ -50,33 +50,53 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="23"/>
         <source>Full</source>
-        <translation type="unfinished"></translation>
+        <translation>完全</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="23"/>
         <source>Decreased</source>
-        <translation type="unfinished"></translation>
+        <translation>减弱</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="23"/>
         <source>None</source>
-        <translation type="unfinished"></translation>
+        <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="53"/>
-        <source>动画</source>
-        <translation type="unfinished"></translation>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="34"/>
+        <source>Level</source>
+        <translation>等级</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="35"/>
+        <source>Choose an animation level that suitables for you</source>
+        <translation>选择一个适合你的动画等级</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="39"/>
+        <source>Time scale</source>
+        <translation>时间缩放</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="40"/>
+        <source>Adjust animations&apos; duration</source>
+        <translation>调整动画的持续时间</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="51"/>
+        <source>Animation</source>
+        <translation>动画</translation>
     </message>
 </context>
 <context>
     <name>AudioContext</name>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="108"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="109"/>
         <source>Cannot open audio device!</source>
         <translation>无法打开音频设备！</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="233"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="234"/>
         <source>Cannot read audio file:
 
 %1</source>
@@ -373,101 +393,216 @@
     </message>
 </context>
 <context>
-    <name>AudioSettingsDialog</name>
+    <name>AudioPage</name>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="27"/>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="31"/>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="53"/>
-        <source> (Not working)</source>
-        <translation> （不可用）</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="52"/>
-        <source>Audio device %1 is not available!</source>
-        <translation>音频设备 %1 不可用！</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="84"/>
-        <source>Audio Settings</source>
-        <translation>音频设置</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="87"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="32"/>
         <source>Audio Output Options</source>
         <translation>音频输出选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="90"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="36"/>
         <source>Audio Driver</source>
         <translation>音频驱动</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="94"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="40"/>
         <source>Test</source>
         <translation>测试</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="96"/>
-        <source>Audio Device</source>
-        <translation>音频设备</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="97"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="41"/>
         <source>Device Control Panel</source>
         <translation>设备控制面板</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="100"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="43"/>
+        <source>Audio Device</source>
+        <translation>音频设备</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="50"/>
         <source>Buffer Size</source>
         <translation>缓冲区大小</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="102"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="55"/>
         <source>Sample Rate</source>
         <translation>采样率</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="105"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="60"/>
         <source>Notify any device change</source>
         <translation>通知任何设备更改</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="105"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="60"/>
         <source>Notify current device removal</source>
         <translation>通知当前设备的移除</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="105"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="60"/>
         <source>Do not notify</source>
         <translation>不通知</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="106"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="62"/>
         <source>Hot Plug Mode</source>
         <translation>热插拔模式</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="110"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="81"/>
         <source>Playback Options</source>
         <translation>回放选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="113"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="86"/>
         <source>Close audio device when %1 is in the background</source>
         <translation>%1 在后台时关闭音频设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="116"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="92"/>
         <source>Close audio device when playback is stopped</source>
         <translation>回放停止后关闭音频设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="121"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="105"/>
         <source>File Options</source>
         <translation>文件选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="126"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="112"/>
+        <source>Buffer size when reading from file</source>
+        <translation>读取文件时的缓冲区大小</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="144"/>
+        <source>These options are disabled in plugged mode.</source>
+        <translation>这些选项在插入模式下被禁用。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="209"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="213"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="235"/>
+        <source> (Not working)</source>
+        <translation> （不可用）</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="234"/>
+        <source>Audio device %1 is not available!</source>
+        <translation>音频设备 %1 不可用！</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="267"/>
+        <source>No audio driver available on this computer!</source>
+        <translation>此计算机上没有可用的音频驱动！</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="281"/>
+        <source>No audio device available in driver mode %1!</source>
+        <translation>驱动模式 %1 下没有可用的音频设备！</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="307"/>
+        <source>Driver mode %1 cannot initialize!</source>
+        <translation>驱动模式 %1 无法初始化！</translation>
+    </message>
+</context>
+<context>
+    <name>AudioSettingsDialog</name>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="28"/>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="32"/>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="54"/>
+        <source> (Not working)</source>
+        <translation> （不可用）</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="53"/>
+        <source>Audio device %1 is not available!</source>
+        <translation>音频设备 %1 不可用！</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="85"/>
+        <source>Audio Settings</source>
+        <translation>音频设置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="88"/>
+        <source>Audio Output Options</source>
+        <translation>音频输出选项</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="91"/>
+        <source>Audio Driver</source>
+        <translation>音频驱动</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="95"/>
+        <source>Test</source>
+        <translation>测试</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="97"/>
+        <source>Audio Device</source>
+        <translation>音频设备</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="98"/>
+        <source>Device Control Panel</source>
+        <translation>设备控制面板</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="101"/>
+        <source>Buffer Size</source>
+        <translation>缓冲区大小</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="103"/>
+        <source>Sample Rate</source>
+        <translation>采样率</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="106"/>
+        <source>Notify any device change</source>
+        <translation>通知任何设备更改</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="106"/>
+        <source>Notify current device removal</source>
+        <translation>通知当前设备的移除</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="106"/>
+        <source>Do not notify</source>
+        <translation>不通知</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="107"/>
+        <source>Hot Plug Mode</source>
+        <translation>热插拔模式</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="111"/>
+        <source>Playback Options</source>
+        <translation>回放选项</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="114"/>
+        <source>Close audio device when %1 is in the background</source>
+        <translation>%1 在后台时关闭音频设备</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="117"/>
+        <source>Close audio device when playback is stopped</source>
+        <translation>回放停止后关闭音频设备</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="122"/>
+        <source>File Options</source>
+        <translation>文件选项</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="127"/>
         <source>Buffer size when reading from file</source>
         <translation>读取文件时的缓冲区大小</translation>
     </message>
@@ -484,22 +619,22 @@
         <translation type="vanished">应用</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="148"/>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="149"/>
         <source>These options are disabled in plugged mode.</source>
         <translation>这些选项在插入模式下被禁用。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="177"/>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="178"/>
         <source>No audio driver available on this computer!</source>
         <translation>此计算机上没有可用的音频驱动！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="191"/>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="192"/>
         <source>No audio device available in driver mode %1!</source>
         <translation>驱动模式 %1 下没有可用的音频设备！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="217"/>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="218"/>
         <source>Driver mode %1 cannot initialize!</source>
         <translation>驱动模式 %1 无法初始化！</translation>
     </message>
@@ -507,17 +642,17 @@
 <context>
     <name>AudioSystem</name>
     <message>
-        <location filename="../../Modules/Audio/AudioSystem.cpp" line="131"/>
+        <location filename="../../Modules/Audio/AudioSystem.cpp" line="142"/>
         <source>Host Audio</source>
         <translation>宿主音频</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioSystem.cpp" line="318"/>
+        <location filename="../../Modules/Audio/AudioSystem.cpp" line="335"/>
         <source>Audio device change is detected.</source>
         <translation>检测到音频设备更改。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioSystem.cpp" line="321"/>
+        <location filename="../../Modules/Audio/AudioSystem.cpp" line="338"/>
         <source>Go to audio settings</source>
         <translation>前往音频设置</translation>
     </message>
@@ -575,7 +710,7 @@
     <message>
         <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="43"/>
         <source>Fill-in Options:</source>
-        <translation type="unfinished"></translation>
+        <translation>填入选项：</translation>
     </message>
     <message>
         <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="59"/>
@@ -683,7 +818,7 @@
     <message>
         <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="31"/>
         <source>Test</source>
-        <translation type="unfinished">测试</translation>
+        <translation>测试</translation>
     </message>
     <message>
         <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="52"/>
@@ -1441,30 +1576,35 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
     </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="225"/>
-        <source>&amp;Audio Settings...</source>
-        <translation>音频设置(&amp;A)...</translation>
+        <source>&amp;General...</source>
+        <translation>常规(&amp;G)...</translation>
     </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="230"/>
-        <source>App Options</source>
-        <translation type="unfinished"></translation>
+        <source>&amp;Audio...</source>
+        <translation>音频(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="240"/>
+        <source>Appearance...</source>
+        <translation type="obsolete">外观...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="246"/>
         <source>About...</source>
         <translation>关于...</translation>
     </message>
     <message>
-        <source>&amp;Audio Settings</source>
-        <translation type="vanished">音频设置(&amp;A)</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="238"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="244"/>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="239"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="235"/>
+        <source>A&amp;ppearance...</source>
+        <translation type="unfinished">外观(&amp;P)...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="245"/>
         <source>Check for Updates</source>
         <translation>检查更新</translation>
     </message>

@@ -14,8 +14,6 @@
 #include "UI/Controls/OptionsCard.h"
 #include "UI/Controls/OptionsCardItem.h"
 
-#include <QPushButton>
-
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     auto option = AppOptions::instance()->appearance();
     m_cbxAnimationLevel = new ComboBox;
@@ -33,12 +31,13 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
             &AppearancePage::modifyOption);
 
     auto animationLevelItem = new OptionsCardItem;
-    animationLevelItem->setTitle("等级");
-    animationLevelItem->setDescription("选择让你感到舒适的动画强度");
+    animationLevelItem->setTitle(tr("Level"));
+    animationLevelItem->setDescription(tr("Choose an animation level that suitables for you"));
     animationLevelItem->addWidget(m_cbxAnimationLevel);
 
     auto animationTimeScaleItem = new OptionsCardItem;
-    animationTimeScaleItem->setTitle("时间缩放");
+    animationTimeScaleItem->setTitle(tr("Time scale"));
+    animationTimeScaleItem->setDescription(tr("Adjust animations' duration"));
     animationTimeScaleItem->addWidget(m_leAnimationTimeScale);
 
     auto animationCardLayout = new QVBoxLayout;
@@ -49,26 +48,11 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     animationCardLayout->setSpacing(0);
 
     auto animationCard = new OptionsCard;
-    animationCard->setTitle(tr("动画"));
+    animationCard->setTitle(tr("Animation"));
     animationCard->card()->setLayout(animationCardLayout);
-
-    auto testCardLayout = new QVBoxLayout;
-    auto item1 = new OptionsCardItem;
-    item1->setTitle("Test1");
-    item1->addWidget(new QPushButton("Test"));
-    item1->addWidget(new QPushButton("Test"));
-    item1->setCheckable(true);
-    testCardLayout->addWidget(item1);
-    testCardLayout->setSpacing(0);
-    testCardLayout->setContentsMargins({});
-
-    auto testCard = new OptionsCard;
-    testCard->setTitle("测试");
-    testCard->card()->setLayout(testCardLayout);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(animationCard);
-    mainLayout->addWidget(testCard);
     mainLayout->addSpacerItem(
         new QSpacerItem(8, 4, QSizePolicy::Expanding, QSizePolicy::Expanding));
     mainLayout->setContentsMargins({});
