@@ -6,7 +6,7 @@
 #include <Model/Note.h>
 
 #include "Modules/Language/FillLyric/View/Tabs/LyricTab.h"
-#include "Modules/Language/Widgets/LangMgrWidget.h"
+#include "UI/Dialogs/Options/Pages/LanguagePage.h"
 
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Controls/Button.h"
@@ -29,7 +29,7 @@ private:
     QTabWidget *m_tabWidget;
 
     FillLyric::LyricTab *m_lyricWidget;
-    LangMgr::LangMgrWidget *m_langMgrWidget;
+    LanguagePage *m_langPage;
 
     Button *m_btnOk;
     Button *m_btnCancel;

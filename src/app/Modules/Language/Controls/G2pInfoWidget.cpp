@@ -5,17 +5,21 @@
 
 namespace LangMgr {
     G2pInfoWidget::G2pInfoWidget(QWidget *parent) : QWidget(parent) {
+        this->setContentsMargins(0, 0, 0, 0);
+
         this->m_mainLayout = new QVBoxLayout();
+        this->m_mainLayout->setContentsMargins(0, 0, 0, 0);
         this->m_topLayout = new QVBoxLayout();
         this->m_authorLayout = new QHBoxLayout();
 
-        this->m_label = new QLabel(tr("G2P Config:"));
+        this->m_label = new QLabel(tr("G2P Config"));
 
         this->m_languageLabel = new QLabel(tr("Language: "));
         this->m_authorLabel = new QLabel(tr("Author: "));
         this->m_authorLayout->addWidget(this->m_languageLabel);
-        this->m_authorLayout->addStretch(1);
+        this->m_authorLayout->addStretch();
         this->m_authorLayout->addWidget(this->m_authorLabel);
+        this->m_authorLayout->addStretch();
 
         this->m_descriptionGroupBox = new QGroupBox(tr("Description "));
         this->m_descriptionLayout = new QVBoxLayout();
@@ -54,6 +58,10 @@ namespace LangMgr {
         m_descriptionLabel->setText(g2pFactory->description());
 
         removeWidget();
-        this->m_mainLayout->addWidget(g2pFactory->configWidget(langMgr->g2pConfig()), 1);
+        const auto g2pConfigWidget = g2pFactory->configWidget(langMgr->g2pConfig());
+        this->m_mainLayout->addWidget(g2pConfigWidget, 1);
+
+        connect(g2pFactory, &G2pMgr::IG2pFactory::g2pConfigChanged, this,
+                &G2pInfoWidget::g2pConfigChanged);
     }
 } // LangMgr

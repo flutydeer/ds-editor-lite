@@ -30,19 +30,24 @@
 <context>
     <name>AppOptionsDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="30"/>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="40"/>
         <source>General</source>
         <translation>常规</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="30"/>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="40"/>
         <source>Audio</source>
         <translation>音频</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="31"/>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="41"/>
         <source>Appearance</source>
         <translation>外观</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="41"/>
+        <source>Language</source>
+        <translation>语言</translation>
     </message>
 </context>
 <context>
@@ -480,29 +485,29 @@
         <translation>这些选项在插入模式下被禁用。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="209"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="213"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="235"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="208"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="212"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="234"/>
         <source> (Not working)</source>
         <translation> （不可用）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="234"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="233"/>
         <source>Audio device %1 is not available!</source>
         <translation>音频设备 %1 不可用！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="267"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="266"/>
         <source>No audio driver available on this computer!</source>
         <translation>此计算机上没有可用的音频驱动！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="281"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="280"/>
         <source>No audio device available in driver mode %1!</source>
         <translation>驱动模式 %1 下没有可用的音频设备！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="307"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="306"/>
         <source>Driver mode %1 cannot initialize!</source>
         <translation>驱动模式 %1 无法初始化！</translation>
     </message>
@@ -1098,24 +1103,28 @@
 <context>
     <name>LangMgr::G2pInfoWidget</name>
     <message>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="12"/>
         <source>G2P Config:</source>
-        <translation>G2p设置：</translation>
+        <translation type="vanished">G2p设置：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="14"/>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="52"/>
+        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="15"/>
+        <source>G2P Config</source>
+        <translation>G2p设置</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="17"/>
+        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="56"/>
         <source>Language: </source>
         <translation>语种：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="15"/>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="53"/>
+        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="18"/>
+        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="57"/>
         <source>Author: </source>
         <translation>作者：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="20"/>
+        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="24"/>
         <source>Description </source>
         <translation>简介：</translation>
     </message>
@@ -1123,32 +1132,40 @@
 <context>
     <name>LangMgr::ILanguageFactory</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="177"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="179"/>
         <source>Enabled</source>
         <translation>启用</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="180"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="182"/>
         <source>Discard result</source>
         <translation>丢弃结果</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="185"/>
-        <source>Select Category:</source>
-        <translation>选择语种：</translation>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="188"/>
+        <source>Analysis results </source>
+        <translation>分析结果</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="196"/>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="212"/>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="234"/>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="240"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="205"/>
+        <source>Subordinate G2p</source>
+        <translation>下属G2p</translation>
+    </message>
+    <message>
+        <source>Select Category:</source>
+        <translation type="vanished">选择语种：</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="199"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="216"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="247"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="254"/>
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="201"/>
         <source>Select G2P:</source>
-        <translation>选择G2p：</translation>
+        <translation type="vanished">选择G2p：</translation>
     </message>
 </context>
 <context>
@@ -1172,24 +1189,28 @@
 <context>
     <name>LangMgr::LangInfoWidget</name>
     <message>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="14"/>
         <source>Language Config:</source>
-        <translation>语种设置：</translation>
+        <translation type="vanished">语种设置：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="16"/>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="54"/>
+        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="17"/>
+        <source>Language Config</source>
+        <translation>语言设置</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="19"/>
+        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="57"/>
         <source>Language: </source>
         <translation>语种：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="17"/>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="55"/>
+        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="20"/>
+        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="58"/>
         <source>Author: </source>
         <translation>作者：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="23"/>
+        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="26"/>
         <source>Description </source>
         <translation>简介：</translation>
     </message>
@@ -1197,16 +1218,14 @@
 <context>
     <name>LangMgr::LangMgrWidget</name>
     <message>
-        <location filename="../../Modules/Language/Widgets/LangMgrWidget.cpp" line="13"/>
         <source>Apply</source>
-        <translation>应用</translation>
+        <translation type="vanished">应用</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Widgets/LangMgrWidget.cpp" line="32"/>
         <source>The original text is analyzed by various language analyzers to identify the corresponding language in sequence;
 If a certain analyzer is disabled in the first column, it will not participate in word segmentation;
 If &quot;Discard Result&quot; is checked, the results of word segmentation and analysis will not enter the notes.</source>
-        <translation>各语言分析器对原文进行分析，按顺序识别相应的语言；
+        <translation type="vanished">各语言分析器对原文进行分析，按顺序识别相应的语言；
 若某个分析器在第一列中被禁用，它将不参与分词；
 若勾选“放弃结果”，分词和分析的结果将不会进入注释。</translation>
     </message>
@@ -1371,6 +1390,19 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
         <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="15"/>
         <source>Capture unknown characters.</source>
         <translation>捕获未知字符。</translation>
+    </message>
+</context>
+<context>
+    <name>LanguagePage</name>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="23"/>
+        <source>Language</source>
+        <translation>语言</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="29"/>
+        <source>Language Priority</source>
+        <translation>语种优先级</translation>
     </message>
 </context>
 <context>
@@ -1589,12 +1621,12 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
         <translation type="obsolete">外观...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="246"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="252"/>
         <source>About...</source>
         <translation>关于...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="244"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="250"/>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
@@ -1604,7 +1636,12 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
         <translation type="unfinished">外观(&amp;P)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="245"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="240"/>
+        <source>Language...</source>
+        <translation>语言...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="251"/>
         <source>Check for Updates</source>
         <translation>检查更新</translation>
     </message>

@@ -5,6 +5,8 @@
 
 #include "../LangCommon.h"
 
+#include <QLabel>
+
 namespace LangMgr {
 
     class LangListWidget final : public QListWidget {

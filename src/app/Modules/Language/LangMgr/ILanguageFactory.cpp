@@ -184,7 +184,8 @@ namespace LangMgr {
 
         const auto langMgr = ILanguageManager::instance();
 
-        const auto cateLabel = new QLabel(tr("Select Category:"));
+        const auto cateLayout = new QHBoxLayout();
+        const auto cateLabel = new QLabel(tr("Analysis results "));
         const auto cateComboBox = new ComboBox();
         cateComboBox->setMaximumWidth(120);
         cateComboBox->setMinimumHeight(28);
@@ -200,7 +201,8 @@ namespace LangMgr {
 
         const auto g2pMgr = G2pMgr::IG2pManager::instance();
 
-        const auto g2pLabel = new QLabel(tr("Select G2P:"));
+        const auto g2pLayout = new QHBoxLayout();
+        const auto g2pLabel = new QLabel(tr("Subordinate G2p"));
         const auto g2pComboBox = new ComboBox();
         g2pComboBox->setMaximumWidth(120);
         g2pComboBox->setMinimumHeight(28);
@@ -217,11 +219,15 @@ namespace LangMgr {
         mainLayout->addWidget(enabledCheckBox);
         mainLayout->addWidget(discardResultCheckBox);
 
-        mainLayout->addWidget(cateLabel);
-        mainLayout->addWidget(cateComboBox);
+        cateLayout->addWidget(cateLabel);
+        cateLayout->addWidget(cateComboBox);
+        cateLayout->addStretch();
+        mainLayout->addLayout(cateLayout);
 
-        mainLayout->addWidget(g2pLabel);
-        mainLayout->addWidget(g2pComboBox);
+        g2pLayout->addWidget(g2pLabel);
+        g2pLayout->addWidget(g2pComboBox);
+        g2pLayout->addStretch();
+        mainLayout->addLayout(g2pLayout);
 
         widget->setLayout(mainLayout);
 

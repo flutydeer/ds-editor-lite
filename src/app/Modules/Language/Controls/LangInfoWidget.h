@@ -18,9 +18,6 @@ namespace LangMgr {
 
         void setInfo(const QString &id);
 
-        [[nodiscard]] QString currentLangId() const;
-        [[nodiscard]] QJsonObject currentConfig() const;
-
     Q_SIGNALS:
         void g2pSelected(const QString &language, const QString &g2pId) const;
         void langConfigChanged() const;
@@ -39,9 +36,6 @@ namespace LangMgr {
         QGroupBox *m_descriptionGroupBox;
         QVBoxLayout *m_descriptionLayout;
         QLabel *m_descriptionLabel;
-
-        QString m_currentLangId;
-        QJsonObject m_currentConfig;
     };
 
 } // LangMgr
