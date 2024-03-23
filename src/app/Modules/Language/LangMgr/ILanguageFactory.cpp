@@ -10,6 +10,8 @@
 #include "../G2pMgr/IG2pManager.h"
 #include "ILanguageManager.h"
 
+#include <QtConcurrent/QtConcurrent>
+
 namespace LangMgr {
 
     ILanguageFactoryPrivate::ILanguageFactoryPrivate() {
@@ -223,15 +225,21 @@ namespace LangMgr {
 
         widget->setLayout(mainLayout);
 
-        connect(enabledCheckBox, &QCheckBox::toggled,
-                [this](const bool &checked) { setEnabled(checked); });
-        connect(discardResultCheckBox, &QCheckBox::toggled,
-                [this](const bool &checked) { setDiscardResult(checked); });
+        connect(enabledCheckBox, &QCheckBox::toggled, [this](const bool &checked) {
+            setEnabled(checked);
+            Q_EMIT langConfigChanged(id());
+        });
+
+        connect(discardResultCheckBox, &QCheckBox::toggled, [this](const bool &checked) {
+            setDiscardResult(checked);
+            Q_EMIT langConfigChanged(id());
+        });
 
         connect(cateComboBox, &ComboBox::currentTextChanged,
                 [this, cateList, cateTrans](const QString &text) {
                     const auto index = cateTrans.indexOf(text);
                     setCategory(index >= 0 ? cateList.at(index) : tr("Unknown"));
+                    Q_EMIT langConfigChanged(id());
                 });
 
         connect(g2pComboBox, &ComboBox::currentTextChanged,
@@ -239,6 +247,7 @@ namespace LangMgr {
                     const auto index = g2pTrans.indexOf(text);
                     setG2p(index >= 0 ? g2pList.at(index) : tr("Unknown"));
                     Q_EMIT g2pChanged(selectedG2p());
+                    Q_EMIT langConfigChanged(id());
                 });
         return widget;
     }
@@ -252,6 +261,36 @@ namespace LangMgr {
     QJsonObject *ILanguageFactory::g2pConfig() {
         Q_D(const ILanguageFactory);
         return d->m_g2pConfig;
+    }
+
+    void ILanguageFactory::loadConfig(const QJsonObject &config) {
+        Q_D(ILanguageFactory);
+        if (config.contains("enabled")) {
+            d->enabled = config.value("enabled").toBool();
+        }
+        if (config.contains("discardResult")) {
+            d->discardResult = config.value("discardResult").toBool();
+        }
+        if (config.contains("category")) {
+            d->categroy = config.value("category").toString();
+        }
+        if (config.contains("g2p")) {
+            d->m_selectedG2p = config.value("g2p").toString();
+        }
+        if (config.contains("g2pConfig")) {
+            d->m_g2pConfig = new QJsonObject(config.value("g2pConfig").toObject());
+        }
+    }
+
+    QJsonObject ILanguageFactory::exportConfig() const {
+        Q_D(const ILanguageFactory);
+        QJsonObject config;
+        config.insert("enabled", d->enabled);
+        config.insert("discardResult", d->discardResult);
+        config.insert("category", d->categroy);
+        config.insert("g2p", d->m_selectedG2p);
+        config.insert("g2pConfig", *d->m_g2pConfig);
+        return config;
     }
 
 } // LangMgr

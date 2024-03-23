@@ -12,6 +12,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Pages/AppearancePage.h"
 #include "Pages/GeneralPage.h"
+#include "Pages/LanguagePage.h"
 #include "Pages/AudioPage.h"
 
 AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) {
@@ -24,11 +25,13 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_generalPage = new GeneralPage;
     m_audioPage = new AudioPage;
     m_appearancePage = new AppearancePage;
+    m_languagePage = new LanguagePage;
 
     m_PageContent = new QStackedWidget;
     m_PageContent->addWidget(m_generalPage);
     m_PageContent->addWidget(m_audioPage);
     m_PageContent->addWidget(m_appearancePage);
+    m_PageContent->addWidget(m_languagePage);
     m_PageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
 
     auto pageScrollArea = new QScrollArea;
@@ -38,6 +41,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_pages.append(m_generalPage);
     m_pages.append(m_audioPage);
     m_pages.append(m_appearancePage);
+    m_pages.append(m_languagePage);
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_tabList);

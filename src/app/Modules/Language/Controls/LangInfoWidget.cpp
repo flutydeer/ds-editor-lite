@@ -48,8 +48,10 @@ namespace LangMgr {
         }
     }
 
-    void LangInfoWidget::setInfo(const QString &id) const {
+    void LangInfoWidget::setInfo(const QString &id) {
+        this->m_currentLangId = id;
         const auto langMgr = ILanguageManager::instance();
+        const auto g2pMgr = G2pMgr::IG2pManager::instance();
         const auto config = langMgr->languageConfig(id);
         this->m_languageLabel->setText(tr("Language: ") + config.language);
         this->m_authorLabel->setText(tr("Author: ") + config.author);
@@ -61,6 +63,25 @@ namespace LangMgr {
         Q_EMIT g2pSelected(id, langMgr->language(id)->selectedG2p());
 
         connect(langMgr->language(id), &ILanguageFactory::g2pChanged, this,
-                [this, id](const QString &g2pId) { Q_EMIT g2pSelected(id, g2pId); });
+                [this, id, g2pMgr](const QString &g2pId) {
+                    Q_EMIT g2pSelected(id, g2pId);
+                    connect(g2pMgr->g2p(g2pId), &G2pMgr::IG2pFactory::g2pConfigChanged, this,
+                            [this] { Q_EMIT langConfigChanged(); });
+                });
+
+        connect(langMgr->language(id), &ILanguageFactory::langConfigChanged, this,
+                [this, langMgr](const QString &langId) {
+                    m_currentLangId = langId;
+                    m_currentConfig = langMgr->language(langId)->exportConfig();
+                    Q_EMIT langConfigChanged();
+                });
+    }
+
+    QString LangInfoWidget::currentLangId() const {
+        return this->m_currentLangId;
+    }
+
+    QJsonObject LangInfoWidget::currentConfig() const {
+        return this->m_currentConfig;
     }
 } // LangMgr

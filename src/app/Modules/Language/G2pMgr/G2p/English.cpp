@@ -53,8 +53,10 @@ namespace G2pMgr {
 
         widget->setLayout(layout);
 
-        connect(toLowerCheckBox, &QCheckBox::toggled,
-                [this, config](const bool checked) { config->insert("toLower", checked); });
+        connect(toLowerCheckBox, &QCheckBox::toggled, [this, config](const bool checked) {
+            config->insert("toLower", checked);
+            Q_EMIT g2pConfigChanged();
+        });
         return widget;
     }
 } // G2pMgr

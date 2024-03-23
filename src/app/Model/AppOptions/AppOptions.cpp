@@ -17,12 +17,14 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
         if (JsonUtils::load(m_configPath, obj)) {
             m_audioOption.load(obj.value(m_audioOption.key()).toObject());
             m_appearanceOption.load(obj.value(m_appearanceOption.key()).toObject());
+            m_languageOption.load(obj.value(m_languageOption.key()).toObject());
         }
 }
 bool AppOptions::saveAndNotify() {
     QJsonObject obj;
     obj.insert(m_audioOption.key(), m_audioOption.value());
     obj.insert(m_appearanceOption.key(), m_appearanceOption.value());
+    obj.insert(m_languageOption.key(), m_languageOption.value());
 
     notifyOptionsChanged();
     return JsonUtils::save(m_configPath, obj);
@@ -35,4 +37,7 @@ AudioOption *AppOptions::audio() {
 }
 AppearanceOption *AppOptions::appearance() {
     return &m_appearanceOption;
+}
+LanguageOption *AppOptions::language() {
+    return &m_languageOption;
 }

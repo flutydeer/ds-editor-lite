@@ -13,6 +13,8 @@ namespace LangMgr {
         explicit LangListWidget(QWidget *parent = nullptr);
         ~LangListWidget() override;
 
+        [[nodiscard]] QStringList langOrder() const;
+
     protected:
         void dropEvent(QDropEvent *event) override;
     };

@@ -237,9 +237,15 @@ MainWindow::MainWindow() {
         AppOptionsDialog dialog(AppOptionsDialog::Appearance, this);
         dialog.exec();
     });
+    const auto actionLanguage = new QAction(tr("Language..."), this);
+    connect(actionLanguage, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsDialog::Language, this);
+        dialog.exec();
+    });
     menuOptions->addAction(actionGeneralOptions);
     menuOptions->addAction(actionAudioSettings);
     menuOptions->addAction(actionAppearanceOptions);
+    menuOptions->addAction(actionLanguage);
 
     auto menuHelp = new Menu(tr("&Help"), this);
     auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);

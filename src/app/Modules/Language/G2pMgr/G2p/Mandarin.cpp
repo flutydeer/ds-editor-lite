@@ -69,10 +69,14 @@ namespace G2pMgr {
 
         widget->setLayout(layout);
 
-        connect(toneCheckBox, &QCheckBox::toggled,
-                [this, config](const bool checked) { config->insert("tone", checked); });
-        connect(convertNumCheckBox, &QCheckBox::toggled,
-                [this, config](const bool checked) { config->insert("convertNum", checked); });
+        connect(toneCheckBox, &QCheckBox::toggled, [this, config](const bool checked) {
+            config->insert("tone", checked);
+            Q_EMIT g2pConfigChanged();
+        });
+        connect(convertNumCheckBox, &QCheckBox::toggled, [this, config](const bool checked) {
+            config->insert("convertNum", checked);
+            Q_EMIT g2pConfigChanged();
+        });
         return widget;
     }
 } // G2pMgr

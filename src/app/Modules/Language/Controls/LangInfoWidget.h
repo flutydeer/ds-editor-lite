@@ -6,6 +6,7 @@
 #include <QLabel>
 
 #include <QGroupBox>
+#include <QJsonObject>
 
 namespace LangMgr {
 
@@ -15,10 +16,14 @@ namespace LangMgr {
         explicit LangInfoWidget(QWidget *parent = nullptr);
         ~LangInfoWidget() override;
 
-        void setInfo(const QString &id) const;
+        void setInfo(const QString &id);
+
+        [[nodiscard]] QString currentLangId() const;
+        [[nodiscard]] QJsonObject currentConfig() const;
 
     Q_SIGNALS:
         void g2pSelected(const QString &language, const QString &g2pId) const;
+        void langConfigChanged() const;
 
     private:
         void removeWidget() const;
@@ -34,6 +39,9 @@ namespace LangMgr {
         QGroupBox *m_descriptionGroupBox;
         QVBoxLayout *m_descriptionLayout;
         QLabel *m_descriptionLabel;
+
+        QString m_currentLangId;
+        QJsonObject m_currentConfig;
     };
 
 } // LangMgr

@@ -29,13 +29,17 @@ namespace LangMgr {
 
     LangListWidget::~LangListWidget() = default;
 
-    void LangListWidget::dropEvent(QDropEvent *event) {
-        QListWidget::dropEvent(event);
-        const auto langMgr = ILanguageManager::instance();
+    QStringList LangListWidget::langOrder() const {
         QStringList order;
         for (int i = 0; i < this->count(); ++i) {
             order << this->item(i)->data(Qt::UserRole).toString();
         }
-        langMgr->setLanguageOrder(order);
+        return order;
+    }
+
+    void LangListWidget::dropEvent(QDropEvent *event) {
+        QListWidget::dropEvent(event);
+        const auto langMgr = ILanguageManager::instance();
+        langMgr->setLanguageOrder(this->langOrder());
     }
 } // LangMgr

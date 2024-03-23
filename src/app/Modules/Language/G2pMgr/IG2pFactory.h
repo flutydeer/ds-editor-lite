@@ -41,6 +41,9 @@ namespace G2pMgr {
         [[nodiscard]] QString description() const;
         void setDescription(const QString &description);
 
+    Q_SIGNALS:
+        void g2pConfigChanged() const;
+
     protected:
         IG2pFactory(IG2pFactoryPrivate &d, const QString &id, QObject *parent = nullptr);
 
