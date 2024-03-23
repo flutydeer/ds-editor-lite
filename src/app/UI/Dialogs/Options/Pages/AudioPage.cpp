@@ -64,7 +64,7 @@ AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
     connect(m_hotPlugModeComboBox, &ComboBox::currentIndexChanged, this, [=] { modifyOption(); });
 
     auto audioOutputCardLayout = new QVBoxLayout;
-    audioOutputCardLayout->setContentsMargins({});
+    audioOutputCardLayout->setContentsMargins(5, 5, 5, 5);
     audioOutputCardLayout->setSpacing(0);
     audioOutputCardLayout->addWidget(driverItem);
     audioOutputCardLayout->addWidget(new DividerLine(Qt::Horizontal));
@@ -94,7 +94,7 @@ AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
             [=] { modifyOption(); });
 
     auto playbackCardLayout = new QVBoxLayout;
-    playbackCardLayout->setContentsMargins({});
+    playbackCardLayout->setContentsMargins(5, 5, 5, 5);
     playbackCardLayout->setSpacing(0);
     playbackCardLayout->addWidget(m_closeDeviceAtBackgroundItem);
     playbackCardLayout->addWidget(new DividerLine(Qt::Horizontal));
@@ -113,7 +113,7 @@ AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
     fileBufferingItem->addWidget(m_fileBufferingSizeMsec);
 
     auto fileCardLayout = new QVBoxLayout;
-    fileCardLayout->setContentsMargins({});
+    fileCardLayout->setContentsMargins(5, 5, 5, 5);
     fileCardLayout->setSpacing(0);
     fileCardLayout->addWidget(fileBufferingItem);
 
@@ -195,9 +195,8 @@ void AudioPage::modifyOption() {
     options->hotPlugMode = hotPlugMode();
     options->closeDeviceAtBackground = closeDeviceAtBackground();
     options->closeDeviceOnPlaybackStop = closeDeviceOnPlaybackStop();
-    if (!qFuzzyCompare(fileBufferingSizeMsec(),
-                       options->fileBufferingSizeMsec)) {
-        options->fileBufferingSizeMsec=fileBufferingSizeMsec();
+    if (!qFuzzyCompare(fileBufferingSizeMsec(), options->fileBufferingSizeMsec)) {
+        options->fileBufferingSizeMsec = fileBufferingSizeMsec();
         AudioSystem::instance()->audioContext()->handleFileBufferingSizeChange();
     }
     AppOptions::instance()->saveAndNotify();

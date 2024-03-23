@@ -65,12 +65,12 @@ void DialogButtonBar::reset() {
             m_mainLayout->removeWidget(button);
 }
 Dialog::Dialog(QWidget *parent, Qt::WindowFlags f) : QDialog(parent, f) {
-    // #ifdef Q_OS_WIN
-    //     bool micaOn = true;
-    //     auto version = QSysInfo::productVersion();
-    //     if (micaOn && version == "11")
-    //         this->setStyleSheet("QDialog { background: transparent; }");
-    // #endif
+    #ifdef Q_OS_WIN
+        bool micaOn = true;
+        auto version = QSysInfo::productVersion();
+        if (micaOn && version == "11")
+            this->setStyleSheet("QDialog { background: transparent; }");
+    #endif
 
     WindowFrameUtils::applyFrameEffects(this);
 

@@ -44,7 +44,7 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     animationCardLayout->addWidget(animationLevelItem);
     animationCardLayout->addWidget(new DividerLine(Qt::Horizontal));
     animationCardLayout->addWidget(animationTimeScaleItem);
-    animationCardLayout->setContentsMargins({});
+    animationCardLayout->setContentsMargins(5, 5, 5, 5);
     animationCardLayout->setSpacing(0);
 
     auto animationCard = new OptionsCard;
@@ -61,7 +61,8 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
 }
 void AppearancePage::modifyOption() {
     auto option = AppOptions::instance()->appearance();
-    option->animationLevel = static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
+    option->animationLevel =
+        static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
     option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();
     AppOptions::instance()->saveAndNotify();
 }
