@@ -56,8 +56,10 @@ void LyricDialog::noteToPhonic() {
         phonic->syllableRevised = note->pronunciation().edited;
         phonic->candidates = note->pronCandidates();
 
-        if (note->isSlur())
+        if (note->isSlur()) {
             phonic->language = "Slur";
+            phonic->category = "Slur";
+        }
 
         m_phonics.append(phonic);
     }
