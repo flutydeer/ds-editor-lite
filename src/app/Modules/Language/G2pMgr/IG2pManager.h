@@ -20,18 +20,15 @@ namespace G2pMgr {
 
         bool initialize(QString &errMsg);
         bool initialized();
-        // static IG2pManager *instance();
 
     public:
         [[nodiscard]] IG2pFactory *g2p(const QString &id) const;
+        [[nodiscard]] QList<IG2pFactory *> g2ps() const;
+
         bool addG2p(IG2pFactory *factory);
         bool removeG2p(const IG2pFactory *factory);
         bool removeG2p(const QString &id);
         void clearG2ps();
-
-        [[nodiscard]] QStringList g2pList() const;
-        [[nodiscard]] QStringList g2pTrans() const;
-        [[nodiscard]] QList<IG2pFactory *> g2ps() const;
 
     private:
         explicit IG2pManager(IG2pManagerPrivate &d, QObject *parent = nullptr);

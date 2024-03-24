@@ -13,9 +13,7 @@ namespace G2pMgr {
         Q_DECLARE_PUBLIC(IG2pManager)
     public:
         IG2pManagerPrivate();
-        virtual ~IG2pManagerPrivate();
-
-        void init();
+        ~IG2pManagerPrivate() override;
 
         IG2pManager *q_ptr;
 

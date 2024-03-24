@@ -7,8 +7,9 @@
 void LanguageOption::load(const QJsonObject &object) {
     if (object.contains("langOrder")) {
         langOrder = object.value("langOrder").toVariant().toStringList();
-        LangMgr::ILanguageManager::instance()->setLanguageOrder(langOrder);
+        LangMgr::ILanguageManager::instance()->setDefaultOrder(langOrder);
     }
+
     if (object.contains("langConfigs")) {
         const auto langMgr = LangMgr::ILanguageManager::instance();
         langConfigs = object.value("langConfigs").toObject();

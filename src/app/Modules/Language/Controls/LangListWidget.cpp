@@ -19,10 +19,11 @@ namespace LangMgr {
 
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-        const auto langConfigs = langMgr->languageConfigs();
-        for (const auto &config : langConfigs) {
-            this->addItem(config.language);
-            this->item(this->count() - 1)->setData(Qt::UserRole, config.id);
+        const auto langOrder = langMgr->defaultOrder();
+        for (const auto &lang : langOrder) {
+            const auto langFactory = langMgr->language(lang);
+            this->addItem(langFactory->displayName());
+            this->item(this->count() - 1)->setData(Qt::UserRole, langFactory->id());
         }
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     }
@@ -40,6 +41,7 @@ namespace LangMgr {
     void LangListWidget::dropEvent(QDropEvent *event) {
         QListWidget::dropEvent(event);
         const auto langMgr = ILanguageManager::instance();
-        langMgr->setLanguageOrder(this->langOrder());
+        langMgr->setDefaultOrder(this->langOrder());
+        Q_EMIT this->priorityChanged();
     }
 } // LangMgr

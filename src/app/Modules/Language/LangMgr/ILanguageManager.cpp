@@ -27,15 +27,6 @@ namespace LangMgr {
 
     ILanguageManagerPrivate::~ILanguageManagerPrivate() = default;
 
-    void ILanguageManagerPrivate::init() {
-    }
-
-    // static ILanguageManager *m_instance = nullptr;
-    //
-    // ILanguageManager *ILanguageManager::instance() {
-    //     return m_instance;
-    // }
-
     ILanguageFactory *ILanguageManager::language(const QString &id) const {
         Q_D(const ILanguageManager);
         const auto it = d->languages.find(id);
@@ -44,6 +35,11 @@ namespace LangMgr {
             return nullptr;
         }
         return it.value();
+    }
+
+    QList<ILanguageFactory *> ILanguageManager::languages() const {
+        Q_D(const ILanguageManager);
+        return d->languages.values();
     }
 
     bool ILanguageManager::addLanguage(ILanguageFactory *factory) {
@@ -88,46 +84,10 @@ namespace LangMgr {
         d->languages.clear();
     }
 
-    LangConfig ILanguageManager::languageConfig(const QString &id) const {
-        Q_D(const ILanguageManager);
-        const auto factory = language(id);
-
-        LangConfig result = {factory->id(),      factory->displayName(),
-                             factory->enabled(), factory->discardResult(),
-                             factory->author(),  factory->description()};
-
-        return result;
-    }
-
-    QList<LangConfig> ILanguageManager::languageConfigs() const {
-        Q_D(const ILanguageManager);
-        const auto factories = priorityLanguages();
-
-        QList<LangConfig> result;
-        for (const auto &factory : factories) {
-            result.append({factory->id(), factory->displayName(), factory->enabled(),
-                           factory->discardResult(), factory->author(), factory->description()});
-        }
-        return result;
-    }
-
-    void ILanguageManager::setLanguageConfig(const QList<LangConfig> &configs) {
-        Q_D(ILanguageManager);
-        for (const auto &config : configs) {
-            const auto factory = language(config.language);
-            if (factory) {
-                factory->setEnabled(config.enabled);
-                factory->setDiscardResult(config.discardResult);
-                factory->setAuthor(config.author);
-                factory->setDescription(config.description);
-            }
-        }
-    }
-
     QList<ILanguageFactory *>
         ILanguageManager::priorityLanguages(const QStringList &priorityList) const {
         Q_D(const ILanguageManager);
-        QStringList order = d->order;
+        QStringList order = d->defaultOrder;
 
         QList<ILanguageFactory *> result;
         for (const auto &category : priorityList) {
@@ -148,19 +108,14 @@ namespace LangMgr {
         return result;
     }
 
-    QStringList ILanguageManager::languageOrder() const {
+    QStringList ILanguageManager::defaultOrder() const {
         Q_D(const ILanguageManager);
-        return d->order;
+        return d->defaultOrder;
     }
 
-    void ILanguageManager::setLanguageOrder(const QStringList &order) {
+    void ILanguageManager::setDefaultOrder(const QStringList &order) {
         Q_D(ILanguageManager);
-        d->order = order;
-    }
-
-    QList<ILanguageFactory *> ILanguageManager::languages() const {
-        Q_D(const ILanguageManager);
-        return d->languages.values();
+        d->defaultOrder = order;
     }
 
     QList<LangNote> ILanguageManager::split(const QString &input) const {
@@ -168,20 +123,6 @@ namespace LangMgr {
         QList<LangNote> result = {LangNote(input)};
         for (const auto &factory : analysis) {
             result = factory->split(result);
-        }
-        return result;
-    }
-
-    QStringList ILanguageManager::categoryList() const {
-        Q_D(const ILanguageManager);
-        return d->category;
-    }
-
-    QStringList ILanguageManager::categoryTrans() const {
-        Q_D(const ILanguageManager);
-        QStringList result;
-        for (const auto &category : categoryList()) {
-            result.append(language(category)->displayName());
         }
         return result;
     }
@@ -228,7 +169,6 @@ namespace LangMgr {
     }
 
     ILanguageManager::~ILanguageManager() {
-        // m_instance = nullptr;
     }
 
     bool ILanguageManager::initialize(QString &errMsg) {
@@ -249,10 +189,7 @@ namespace LangMgr {
 
     ILanguageManager::ILanguageManager(ILanguageManagerPrivate &d, QObject *parent)
         : QObject(parent), d_ptr(&d) {
-        // m_instance = this;
         d.q_ptr = this;
-
-        d.init();
 
         addLanguage(new NumberAnalysis());
         addLanguage(new SlurAnalysis());

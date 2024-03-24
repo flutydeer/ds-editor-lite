@@ -23,39 +23,30 @@ namespace LangMgr {
         bool initialize(QString &errMsg);
         bool initialized();
 
-        // static ILanguageManager *instance();
-
     public:
         [[nodiscard]] ILanguageFactory *language(const QString &id) const;
+        [[nodiscard]] QList<ILanguageFactory *> languages() const;
+
         bool addLanguage(ILanguageFactory *factory);
         bool removeLanguage(const ILanguageFactory *factory);
         bool removeLanguage(const QString &id);
         void clearLanguages();
 
-        [[nodiscard]] LangConfig languageConfig(const QString &id) const;
-        [[nodiscard]] QList<LangConfig> languageConfigs() const;
-        void setLanguageConfig(const QList<LangConfig> &configs);
+        [[nodiscard]] QStringList defaultOrder() const;
+        void setDefaultOrder(const QStringList &order);
 
-        [[nodiscard]] QList<ILanguageFactory *>
-            priorityLanguages(const QStringList &priorityList = {}) const;
-
-        [[nodiscard]] QStringList languageOrder() const;
-        void setLanguageOrder(const QStringList &order);
-
-        [[nodiscard]] QList<ILanguageFactory *> languages() const;
         [[nodiscard]] QList<LangNote> split(const QString &input) const;
 
-        [[nodiscard]] QStringList categoryList() const;
-        [[nodiscard]] QStringList categoryTrans() const;
-
         void correct(const QList<LangNote *> &input) const;
+        void convert(const QList<LangNote *> &input) const;
 
         [[nodiscard]] QString analysis(const QString &input) const;
         [[nodiscard]] QStringList analysis(const QStringList &input) const;
 
-        void convert(const QList<LangNote *> &input) const;
-
     private:
+        [[nodiscard]] QList<ILanguageFactory *>
+            priorityLanguages(const QStringList &priorityList = {}) const;
+
         explicit ILanguageManager(ILanguageManagerPrivate &d, QObject *parent = nullptr);
 
         QScopedPointer<ILanguageManagerPrivate> d_ptr;

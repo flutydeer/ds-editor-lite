@@ -189,8 +189,15 @@ namespace LangMgr {
         const auto cateComboBox = new ComboBox();
         cateComboBox->setMaximumWidth(120);
         cateComboBox->setMinimumHeight(28);
-        const auto cateList = langMgr->categoryList();
-        const auto cateTrans = langMgr->categoryTrans();
+
+        const auto languages = langMgr->languages();
+        QStringList cateList;
+        QStringList cateTrans;
+
+        for (const auto &lang : languages) {
+            cateList.append(lang->id());
+            cateTrans.append(lang->displayName());
+        }
 
         cateComboBox->addItems(cateTrans);
         if (cateList.contains(d->categroy)) {
@@ -206,8 +213,15 @@ namespace LangMgr {
         const auto g2pComboBox = new ComboBox();
         g2pComboBox->setMaximumWidth(120);
         g2pComboBox->setMinimumHeight(28);
-        const auto g2pList = g2pMgr->g2pList();
-        const auto g2pTrans = g2pMgr->g2pTrans();
+
+        const auto g2ps = g2pMgr->g2ps();
+        QStringList g2pList;
+        QStringList g2pTrans;
+
+        for (const auto &g2p : g2ps) {
+            g2pList.append(g2p->id());
+            g2pTrans.append(g2p->displayName());
+        }
 
         g2pComboBox->addItems(g2pTrans);
         if (g2pList.contains(d->m_selectedG2p)) {

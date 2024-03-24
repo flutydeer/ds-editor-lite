@@ -18,24 +18,20 @@ namespace G2pMgr {
 
     IG2pManagerPrivate::~IG2pManagerPrivate() = default;
 
-    void IG2pManagerPrivate::init() {
-    }
-
-    // static IG2pManager *m_instance = nullptr;
-
-    // IG2pManager *IG2pManager::instance() {
-    //     return m_instance;
-    // }
-
     IG2pFactory *IG2pManager::g2p(const QString &id) const {
         Q_D(const IG2pManager);
         const auto it = d->g2ps.find(id);
         if (it == d->g2ps.end()) {
             if (!d->baseG2p.contains(id))
                 qWarning() << "G2pMgr::IG2pManager::g2p(): factory does not exist:" << id;
-            return g2p("Unknown");
+            return d->g2ps.find("Unknown").value();
         }
         return it.value();
+    }
+
+    QList<IG2pFactory *> IG2pManager::g2ps() const {
+        Q_D(const IG2pManager);
+        return d->g2ps.values();
     }
 
     bool IG2pManager::addG2p(IG2pFactory *factory) {
@@ -74,26 +70,6 @@ namespace G2pMgr {
         return true;
     }
 
-    QStringList IG2pManager::g2pList() const {
-        Q_D(const IG2pManager);
-        return d->g2ps.keys();
-    }
-
-    QStringList IG2pManager::g2pTrans() const {
-        Q_D(const IG2pManager);
-
-        QStringList result;
-        for (const auto &g2pId : g2pList()) {
-            result.append(g2p(g2pId)->displayName());
-        }
-        return result;
-    }
-
-    QList<IG2pFactory *> IG2pManager::g2ps() const {
-        Q_D(const IG2pManager);
-        return d->g2ps.values();
-    }
-
     void IG2pManager::clearG2ps() {
         Q_D(IG2pManager);
         d->g2ps.clear();
@@ -102,15 +78,10 @@ namespace G2pMgr {
     IG2pManager::IG2pManager(QObject *parent) : IG2pManager(*new IG2pManagerPrivate(), parent) {
     }
 
-    IG2pManager::~IG2pManager() {
-        // m_instance = nullptr;
-    }
+    IG2pManager::~IG2pManager() = default;
 
     IG2pManager::IG2pManager(IG2pManagerPrivate &d, QObject *parent) : QObject(parent), d_ptr(&d) {
-        // m_instance = this;
         d.q_ptr = this;
-
-        d.init();
 
         addG2p(new Mandarin());
         addG2p(new Cantonese());

@@ -53,20 +53,20 @@ namespace LangMgr {
 
     void LangInfoWidget::setInfo(const QString &id) {
         const auto langMgr = ILanguageManager::instance();
-        const auto config = langMgr->languageConfig(id);
-        this->m_languageLabel->setText(tr("Language: ") + config.language);
-        this->m_authorLabel->setText(tr("Author: ") + config.author);
-        this->m_descriptionLabel->setText(config.description);
+        const auto langFactory = langMgr->language(id);
+        this->m_languageLabel->setText(tr("Language: ") + langFactory->displayName());
+        this->m_authorLabel->setText(tr("Author: ") + langFactory->author());
+        this->m_descriptionLabel->setText(langFactory->description());
 
         this->removeWidget();
-        this->m_mainLayout->addWidget(langMgr->language(id)->configWidget(), 1);
+        this->m_mainLayout->addWidget(langFactory->configWidget(), 1);
 
-        Q_EMIT g2pSelected(id, langMgr->language(id)->selectedG2p());
+        Q_EMIT g2pSelected(id, langFactory->selectedG2p());
 
-        connect(langMgr->language(id), &ILanguageFactory::g2pChanged, this,
+        connect(langFactory, &ILanguageFactory::g2pChanged, this,
                 [this, id](const QString &g2pId) { Q_EMIT g2pSelected(id, g2pId); });
 
-        connect(langMgr->language(id), &ILanguageFactory::langConfigChanged, this,
+        connect(langFactory, &ILanguageFactory::langConfigChanged, this,
                 [this] { Q_EMIT langConfigChanged(); });
     }
 } // LangMgr

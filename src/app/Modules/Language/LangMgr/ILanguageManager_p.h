@@ -15,15 +15,11 @@ namespace LangMgr {
         ILanguageManagerPrivate();
         ~ILanguageManagerPrivate() override;
 
-        void init();
-
         bool initialized = false;
 
         ILanguageManager *q_ptr;
 
-        QStringList category = {"Mandarin", "Cantonese", "Kana", "English", "Unknown"};
-
-        QStringList order = {"Mandarin", "Pinyin", "Cantonese",   "Kana",   "Romaji",    "English",
+        QStringList defaultOrder = {"Mandarin", "Pinyin", "Cantonese",   "Kana",   "Romaji",    "English",
                              "Space",    "Slur",   "Punctuation", "Number", "Linebreak", "Unknown"};
 
         QMap<QString, ILanguageFactory *> languages;

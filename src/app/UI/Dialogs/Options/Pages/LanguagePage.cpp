@@ -3,16 +3,12 @@
 #include <QApplication>
 #include <QLabel>
 #include <QVBoxLayout>
-#include <QDoubleSpinBox>
-#include <QMessageBox>
-#include <QPushButton>
 
 #include "UI/Controls/ComboBox.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/CardView.h"
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/OptionsCard.h"
-#include "UI/Controls/OptionsCardItem.h"
 
 #include "Modules/Language/LangMgr/ILanguageManager.h"
 
@@ -51,7 +47,7 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
 
     m_langListWidget->setCurrentIndex(m_langListWidget->model()->index(0, 0));
 
-    const auto langId = LangMgr::ILanguageManager::instance()->languageOrder().first();
+    const auto langId = LangMgr::ILanguageManager::instance()->defaultOrder().first();
     m_langInfoWidget->setInfo(langId);
 
     const auto g2pId = LangMgr::ILanguageManager::instance()->language(langId)->selectedG2p();
@@ -59,11 +55,13 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
 
     connect(m_langListWidget, &QListWidget::currentRowChanged, m_langInfoWidget, [this] {
         m_langInfoWidget->setInfo(m_langListWidget->currentItem()->data(Qt::UserRole).toString());
-        modifyOption();
     });
 
     connect(m_langInfoWidget, &LangMgr::LangInfoWidget::g2pSelected, m_g2pInfoWidget,
             &LangMgr::G2pInfoWidget::setInfo);
+
+    connect(m_langListWidget, &LangMgr::LangListWidget::priorityChanged, this,
+            &LanguagePage::modifyOption);
 
     connect(m_langInfoWidget, &LangMgr::LangInfoWidget::langConfigChanged, this,
             &LanguagePage::modifyOption);
@@ -74,7 +72,7 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
 
 void LanguagePage::modifyOption() {
     const auto options = AppOptions::instance()->language();
-    options->langOrder = LangMgr::ILanguageManager::instance()->languageOrder();
+    options->langOrder = LangMgr::ILanguageManager::instance()->defaultOrder();
     const auto langId = m_langListWidget->currentItem()->data(Qt::UserRole).toString();
     options->langConfigs[langId] =
         LangMgr::ILanguageManager::instance()->language(langId)->exportConfig();

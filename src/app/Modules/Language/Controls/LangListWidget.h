@@ -17,6 +17,9 @@ namespace LangMgr {
 
         [[nodiscard]] QStringList langOrder() const;
 
+    Q_SIGNALS:
+        void priorityChanged();
+
     protected:
         void dropEvent(QDropEvent *event) override;
     };
