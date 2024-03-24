@@ -19,14 +19,14 @@ namespace FillLyric {
         QString text = index.data(Qt::DisplayRole).toString();
         QString syllable = index.data(Syllable).toString();
         const QString syllableRevised = index.data(SyllableRevised).toString();
-        const QString lyricType = index.data(Language).toString();
         const QStringList candidateList = index.data(Candidate).toStringList();
+        const bool g2pError = index.data(G2pError).toBool();
 
         // Label colors based on analysis results.
         if (syllableRevised != "") {
             painter->setPen(QColor(255, 204, 153));
             syllable = syllableRevised;
-        } else if (text == syllable && lyricType != "Slur") {
+        } else if (g2pError) {
             painter->setPen(QColor(255, 155, 157));
         } else if (candidateList.size() > 1) {
             painter->setPen(QColor(155, 186, 255));

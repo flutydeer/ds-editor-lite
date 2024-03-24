@@ -8,7 +8,8 @@ namespace FillLyric {
         Candidate,
         SyllableRevised,
         Language,
-        FermataAddition
+        FermataAddition,
+        G2pError
     };
 
     struct Phonic {
@@ -18,6 +19,7 @@ namespace FillLyric {
         QString syllableRevised;
         QString language;
         QList<QString> fermata;
+        bool g2pError = false;
         bool lineFeed = false;
     };
 }
