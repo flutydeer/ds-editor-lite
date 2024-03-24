@@ -19,7 +19,7 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
     langCard->setTitle(tr("Language"));
 
     const auto centerLayout = new QHBoxLayout();
-    centerLayout->setContentsMargins(5, 5, 5, 5);
+    centerLayout->setContentsMargins(10, 10, 10, 10);
 
     const auto langListLayout = new QVBoxLayout();
     const auto langLabel = new QLabel(tr("Language Priority"));
@@ -41,6 +41,7 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
 
     langCard->card()->setLayout(centerLayout);
     mainLayout->addWidget(langCard);
+    mainLayout->setContentsMargins({});
     mainLayout->addStretch();
 
     setLayout(mainLayout);

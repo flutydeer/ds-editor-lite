@@ -146,6 +146,25 @@ QListWidget {
     border: none
 }
 
+QListWidget::item {
+    border: none;
+    border-radius: 6px;
+    padding: 4px 8px;
+    /* margin-top: 2px;
+    margin-bottom: 2px; */
+    color: #F0F0F0;
+}
+
+QListWidget::item:hover {
+    background-color: #10FFFFFF;
+}
+
+QListWidget::item:selected {
+    /* background-color: #1AFFFFFF; */
+    background-color: #9BBAFF;
+    color: #000;
+}
+
 QListWidget#AppOptionsDialogTabListWidget {
     outline: 0px;
     background: transparent;

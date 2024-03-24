@@ -44,7 +44,7 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     animationCardLayout->addWidget(animationLevelItem);
     animationCardLayout->addWidget(new DividerLine(Qt::Horizontal));
     animationCardLayout->addWidget(animationTimeScaleItem);
-    animationCardLayout->setContentsMargins(5, 5, 5, 5);
+    animationCardLayout->setContentsMargins(10, 5, 10, 5);
     animationCardLayout->setSpacing(0);
 
     auto animationCard = new OptionsCard;
