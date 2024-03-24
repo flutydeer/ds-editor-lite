@@ -207,12 +207,14 @@ void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const 
 
     const auto langMgr = LangMgr::ILanguageManager::instance();
 
-    auto syllable2p = S2p::instance();
+    const auto syllable2p = S2p::instance();
     QList<LangNote *> langNotes;
     QList<Phonemes> notesPhonemes;
     for (const auto note : notes) {
-        // TODO:: Note->language
-        langNotes.append(new LangNote(note->lyric()));
+        const auto language = note->language() == "Unknown" ? "Unknown" : note->language();
+        const auto category =
+            note->language() == "Unknown" ? "Unknown" : langMgr->language(language)->category();
+        langNotes.append(new LangNote(note->lyric(), language, category));
         notesPhonemes.append(note->phonemes());
     }
 

@@ -19,18 +19,18 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         QVector<Curve *> curves;
         for (const QDspx::ParamCurveRef &dspxCurveRef : dspxCurveRefs) {
             if (dspxCurveRef->type == QDspx::ParamCurve::Type::Free) {
-                auto castCurveRef = dspxCurveRef.dynamicCast<QDspx::ParamFree>();
-                auto curve = new DrawCurve;
+                const auto castCurveRef = dspxCurveRef.dynamicCast<QDspx::ParamFree>();
+                const auto curve = new DrawCurve;
                 curve->setStart(castCurveRef->start);
                 curve->step = castCurveRef->step;
                 curve->setValues(castCurveRef->values);
                 curves.append(curve);
             } else if (dspxCurveRef->type == QDspx::ParamCurve::Type::Anchor) {
-                auto castCurveRef = dspxCurveRef.dynamicCast<QDspx::ParamAnchor>();
-                auto curve = new AnchorCurve;
+                const auto castCurveRef = dspxCurveRef.dynamicCast<QDspx::ParamAnchor>();
+                const auto curve = new AnchorCurve;
                 curve->setStart(castCurveRef->start);
                 for (const auto &dspxNode : castCurveRef->nodes) {
-                    auto node = new AnchorNode(dspxNode.x, dspxNode.y);
+                    const auto node = new AnchorNode(dspxNode.x, dspxNode.y);
                     node->setInterpMode(AnchorNode::None);
                     if (dspxNode.interp == QDspx::AnchorPoint::Interpolation::Linear) {
                         node->setInterpMode(AnchorNode::Linear);
@@ -80,7 +80,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     auto decodeNotes = [&](const QList<QDspx::Note> &dspxNotes) {
         QList<Note *> notes;
         for (const QDspx::Note &dspxNote : dspxNotes) {
-            auto note = new Note;
+            const auto note = new Note;
             note->setStart(dspxNote.pos);
             note->setLength(dspxNote.length);
             note->setKeyIndex(dspxNote.keyNum);
@@ -96,8 +96,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     auto decodeClips = [&](const QList<QDspx::ClipRef> &dspxClips, Track *track) {
         for (const auto &dspxClip : dspxClips) {
             if (dspxClip->type == QDspx::Clip::Type::Singing) {
-                auto castClip = dspxClip.dynamicCast<QDspx::SingingClip>();
-                auto clip = new SingingClip;
+                const auto castClip = dspxClip.dynamicCast<QDspx::SingingClip>();
+                const auto clip = new SingingClip;
                 clip->setName(castClip->name);
                 clip->setStart(castClip->time.start);
                 clip->setClipStart(castClip->time.clipStart);
@@ -111,8 +111,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 clip->params = decodeSingingParams(castClip->params);
                 track->insertClipQuietly(clip);
             } else if (dspxClip->type == QDspx::Clip::Type::Audio) {
-                auto castClip = dspxClip.dynamicCast<QDspx::AudioClip>();
-                auto clip = new AudioClip;
+                const auto castClip = dspxClip.dynamicCast<QDspx::AudioClip>();
+                const auto clip = new AudioClip;
                 clip->setName(castClip->name);
                 clip->setStart(castClip->time.start);
                 clip->setClipStart(castClip->time.clipStart);
@@ -129,7 +129,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     auto decodeTracks = [&](const QList<QDspx::Track> &dspxTracks, AppModel *appModel) {
         int i = 0;
         for (const auto &dspxTrack : dspxTracks) {
-            auto track = new Track;
+            const auto track = new Track;
             auto trackControl = TrackControl();
             trackControl.setGain(dspxTrack.control.gain);
             trackControl.setPan(dspxTrack.control.pan);
@@ -144,9 +144,9 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     };
 
     QDspxModel dspxModel;
-    auto returnCode = dspxModel.load(path);
+    const auto returnCode = dspxModel.load(path);
     if (returnCode.type == QDspx::ReturnCode::Success) {
-        auto timeline = dspxModel.content.timeline;
+        const auto timeline = dspxModel.content.timeline;
         model->setTimeSignature(AppModel::TimeSignature(timeline.timeSignatures[0].num,
                                                         timeline.timeSignatures[0].den));
         model->setTempo(timeline.tempos[0].value);
@@ -167,8 +167,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                             QList<QDspx::ParamCurveRef> &curves) {
         for (const auto &dsCurve : dsCurves) {
             if (dsCurve->type() == Curve::CurveType::Draw) {
-                auto castCurve = dynamic_cast<DrawCurve *>(dsCurve);
-                auto curve = QDspx::ParamFreeRef::create();
+                const auto castCurve = dynamic_cast<DrawCurve *>(dsCurve);
+                const auto curve = QDspx::ParamFreeRef::create();
                 curve->start = castCurve->start();
                 curve->step = castCurve->step;
                 for (const auto v : castCurve->values()) {
@@ -176,8 +176,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 }
                 curves.append(curve);
             } else if (dsCurve->type() == Curve::CurveType::Anchor) {
-                auto castCurve = dynamic_cast<AnchorCurve *>(dsCurve);
-                auto curve = QDspx::ParamAnchorRef::create();
+                const auto castCurve = dynamic_cast<AnchorCurve *>(dsCurve);
+                const auto curve = QDspx::ParamAnchorRef::create();
                 curve->start = dsCurve->start();
                 for (const auto dsNode : castCurve->nodes()) {
                     QDspx::AnchorPoint node;
@@ -246,7 +246,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     auto encodeClips = [&](const Track *dsTrack, QDspx::Track &track) {
         for (const auto clip : dsTrack->clips()) {
             if (clip->type() == Clip::Singing) {
-                auto singingClip = dynamic_cast<SingingClip *>(clip);
+                const auto singingClip = dynamic_cast<SingingClip *>(clip);
                 auto singClip = QDspx::SingingClipRef::create();
                 singClip->name = clip->name();
                 singClip->time.start = clip->start();
@@ -259,7 +259,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 encodeSingingParams(singingClip->params, singClip->params);
                 track.clips.append(singClip);
             } else if (clip->type() == Clip::Audio) {
-                auto audioClip = dynamic_cast<AudioClip *>(clip);
+                const auto audioClip = dynamic_cast<AudioClip *>(clip);
                 auto audioClipRef = QDspx::AudioClipRef::create();
                 audioClipRef->name = clip->name();
                 audioClipRef->time.start = clip->start();
@@ -294,7 +294,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                                                         model->timeSignature().denominator));
 
     encodeTracks(model, dspxModel);
-    auto returnCode = dspxModel.save(path);
+    const auto returnCode = dspxModel.save(path);
 
     if (returnCode.type != QDspx::ReturnCode::Success) {
         QMessageBox::warning(

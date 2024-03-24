@@ -8,7 +8,7 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     setMinimumSize(720, 450);
     setWindowTitle(tr("Fill Lyric"));
     setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
-    // 窗口大小设为主程序的80%
+
     const auto size = QApplication::primaryScreen()->availableSize();
     resize(static_cast<int>(size.width() * 0.6), static_cast<int>(size.height() * 0.6));
 
@@ -51,6 +51,7 @@ void LyricDialog::noteToPhonic() {
     for (const auto note : m_notes) {
         const auto phonic = new FillLyric::Phonic;
         phonic->lyric = note->lyric();
+        phonic->category = note->language();
         phonic->syllable = note->pronunciation().original;
         phonic->syllableRevised = note->pronunciation().edited;
         phonic->candidates = note->pronCandidates();
@@ -96,10 +97,9 @@ void LyricDialog::exportPhonics() {
         note->setLyric(phonic.lyric);
         note->setPronunciation(Pronunciation(phonic.syllable, phonic.syllableRevised));
         note->setPronCandidates(phonic.candidates);
-        if (exportLangRes) {
-            // TODO: set language
-            // note->setLanguage(phonic.language);
+        if (exportLangRes && note->language() == "Unknown") {
+            note->setLanguage(phonic.category);
         }
         note->setLineFeed(phonic.lineFeed);
     }
-    }
+}

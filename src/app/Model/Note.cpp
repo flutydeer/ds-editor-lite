@@ -52,17 +52,23 @@ void Note::setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme> &phonem
     else if (type == Phonemes::Edited)
         m_phonemes.edited = phonemes;
 }
+QString Note::language() const {
+    return m_language;
+}
+void Note::setLanguage(const QString &language) {
+    m_language = language;
+}
 bool Note::lineFeed() const {
     return m_lineFeed;
 }
-void Note::setLineFeed(bool lineFeed) {
+void Note::setLineFeed(const bool &lineFeed) {
     m_lineFeed = lineFeed;
 }
 bool Note::isSlur() const {
     return m_lyric.contains('-');
 }
 int Note::compareTo(Note *obj) const {
-    auto otherStart = obj->start();
+    const auto otherStart = obj->start();
     if (start() < otherStart)
         return -1;
     if (start() > otherStart)
@@ -70,9 +76,9 @@ int Note::compareTo(Note *obj) const {
     return 0;
 }
 bool Note::isOverlappedWith(Note *obj) const {
-    auto otherStart = obj->start();
-    auto otherEnd = otherStart + obj->length();
-    auto curEnd = start() + length();
+    const auto otherStart = obj->start();
+    const auto otherEnd = otherStart + obj->length();
+    const auto curEnd = start() + length();
     if (otherEnd <= start() || curEnd <= otherStart)
         return false;
     return true;
@@ -83,6 +89,7 @@ QJsonObject Note::serialize(const Note &note) {
     objNote.insert("length", note.length());
     objNote.insert("keyIndex", note.keyIndex());
     objNote.insert("lyric", note.lyric());
+    objNote.insert("language", note.language());
     objNote.insert("pronunciation", Pronunciation::serialize(note.pronunciation()));
     objNote.insert("phonemes", Phonemes::serialize(note.phonemes()));
     return objNote;
@@ -93,8 +100,9 @@ Note Note::deserialize(const QJsonObject &objNote) {
     note.setLength(objNote.value("length").toInt());
     note.setKeyIndex(objNote.value("keyIndex").toInt());
     note.setLyric(objNote.value("lyric").toString());
-    //TODO: deserialize pronunciation
-    //TODO: deserialize phonemes
+    note.setLanguage(objNote.value("language").toString());
+    // TODO: deserialize pronunciation
+    // TODO: deserialize phonemes
     return note;
 }
 QDataStream &operator<<(QDataStream &out, const Pronunciation &pronunciation) {
@@ -168,6 +176,7 @@ QDataStream &operator<<(QDataStream &out, const Note &note) {
     out << note.m_length;
     out << note.m_keyIndex;
     out << note.m_lyric;
+    out << note.m_language;
     out << note.m_pronunciation;
     out << note.m_phonemes;
     return out;
@@ -177,6 +186,7 @@ QDataStream &operator>>(QDataStream &in, Note &note) {
     in >> note.m_length;
     in >> note.m_keyIndex;
     in >> note.m_lyric;
+    in >> note.m_language;
     in >> note.m_pronunciation;
     in >> note.m_phonemes;
     return in;

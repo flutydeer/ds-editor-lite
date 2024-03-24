@@ -32,7 +32,7 @@ namespace LangMgr {
         const auto it = d->languages.find(id);
         if (it == d->languages.end()) {
             qWarning() << "LangMgr::ILanguageManager::language(): factory does not exist:" << id;
-            return nullptr;
+            return d->languages.find("Unknown").value();
         }
         return it.value();
     }

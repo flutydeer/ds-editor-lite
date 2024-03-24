@@ -75,8 +75,10 @@ public:
     void setPronCandidates(const QStringList &pronCandidates);
     [[nodiscard]] Phonemes phonemes() const;
     void setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme> &phonemes);
+    [[nodiscard]] QString language() const;
+    void setLanguage(const QString &language);
     [[nodiscard]] bool lineFeed() const;
-    void setLineFeed(bool lineFeed);
+    void setLineFeed(const bool &lineFeed);
     [[nodiscard]] bool isSlur() const;
 
     int compareTo(Note *obj) const;
@@ -100,6 +102,7 @@ private:
     int m_length = 480;
     int m_keyIndex = 60;
     QString m_lyric;
+    QString m_language;
     Pronunciation m_pronunciation;
     QStringList m_pronCandidates;
     Phonemes m_phonemes;
