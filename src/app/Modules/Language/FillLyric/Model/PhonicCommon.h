@@ -2,8 +2,6 @@
 #define DS_EDITOR_LITE_PHONICCOMMON_H
 
 namespace FillLyric {
-    enum SplitType { Auto, ByChar, Custom };
-
     enum PhonicRole {
         Tooltip = Qt::ToolTipRole,
         Syllable = Qt::UserRole,

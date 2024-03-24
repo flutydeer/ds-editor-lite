@@ -21,7 +21,6 @@ namespace FillLyric {
 
         // main layout
         m_mainLayout = new QVBoxLayout(this);
-        // 修改左右边距
         m_mainLayout->setContentsMargins(0, 10, 0, 10);
         m_mainLayout->addLayout(m_lyricLayout);
 
@@ -73,11 +72,11 @@ namespace FillLyric {
         }
         notesCount = static_cast<int>(phonics.size());
         m_lyricBaseWidget->m_textEdit->setText(lyrics.join(" "));
-        m_lyricExtWidget->m_phonicWidget->_init(phonics);
+        m_lyricExtWidget->m_phonicTableView->_init(phonics);
     }
 
     QList<Phonic> LyricTab::exportPhonics() const {
-        const auto model = m_lyricExtWidget->m_phonicWidget->model;
+        const auto model = m_lyricExtWidget->m_phonicTableView->model;
         model->expandFermata();
 
         const auto phonics =
@@ -97,7 +96,7 @@ namespace FillLyric {
     }
 
     QList<Phonic> LyricTab::modelExport() const {
-        const auto model = m_lyricExtWidget->m_phonicWidget->model;
+        const auto model = m_lyricExtWidget->m_phonicTableView->model;
         const bool skipSpaceRes = m_lyricExtWidget->exportExcludeSpace;
         const bool skipSlurRes = exportSkipSlur();
 
@@ -116,8 +115,8 @@ namespace FillLyric {
 
     void LyricTab::_on_btnInsertText_clicked() const {
         const QString text =
-            "Halloween蝉声--陪かな伴着qwe行云流浪---\n回-忆-开始132后安静遥望远方\n荒草覆没的古井--"
-            "枯塘\n匀-散asdaw一缕过往\n";
+            "Halloween蝉声--陪かな伴着qwe行云流浪---\nka回-忆-开始132后安静遥望远方"
+            "\n荒草覆没的古井--枯塘\n匀-散asdaw一缕过往\n";
         m_lyricBaseWidget->m_textEdit->setText(text);
     }
 
@@ -126,7 +125,6 @@ namespace FillLyric {
         const auto splitType =
             static_cast<SplitType>(m_lyricBaseWidget->m_splitComboBox->currentIndex());
 
-        // 获取文本框的内容
         QString text = m_lyricBaseWidget->m_textEdit->toPlainText();
         if (skipSlurRes) {
             text = text.remove("-");
@@ -142,12 +140,12 @@ namespace FillLyric {
                 CleanLyric::splitCustom(text, m_lyricBaseWidget->m_splitters->text().split(' '));
         }
 
-        m_lyricExtWidget->m_phonicWidget->_init(splitRes);
+        m_lyricExtWidget->m_phonicTableView->_init(splitRes);
     }
 
     void LyricTab::_on_btnToText_clicked() const {
-        const auto model = m_lyricExtWidget->m_phonicWidget->model;
-        // 获取表格内容
+        const auto model = m_lyricExtWidget->m_phonicTableView->model;
+
         QStringList res;
         for (int i = 0; i < model->rowCount(); i++) {
             QStringList line;
@@ -159,7 +157,7 @@ namespace FillLyric {
             }
             res.append(line.join(""));
         }
-        // 设置文本框内容
+
         m_lyricBaseWidget->m_textEdit->setText(res.join("\n"));
     }
 

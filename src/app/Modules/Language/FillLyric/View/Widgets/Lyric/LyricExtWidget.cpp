@@ -7,7 +7,7 @@ namespace FillLyric {
         : QWidget(parent), notesCount(notesCount) {
 
         // phonicWidget
-        m_phonicWidget = new PhonicWidget();
+        m_phonicTableView = new PhonicTableView();
 
         // tableTop layout
         m_tableTopLayout = new QHBoxLayout();
@@ -80,7 +80,7 @@ namespace FillLyric {
         m_tableLayout = new QVBoxLayout();
         m_tableLayout->setContentsMargins(0, 0, 0, 0);
         m_tableLayout->addLayout(m_tableTopLayout);
-        m_tableLayout->addWidget(m_phonicWidget->tableView);
+        m_tableLayout->addWidget(m_phonicTableView);
         m_tableLayout->addLayout(m_tableCountLayout);
         m_tableLayout->addLayout(m_epOptLabelLayout);
         m_tableLayout->addWidget(m_epOptWidget);
@@ -106,16 +106,18 @@ namespace FillLyric {
                     btnRedo->setEnabled(canRedo);
                 });
         connect(autoWrap, &QCheckBox::stateChanged, modelHistory, &ModelHistory::reset);
-        connect(m_phonicWidget, &PhonicWidget::historyReset, modelHistory, &ModelHistory::reset);
+        connect(m_phonicTableView, &PhonicTableView::historyReset, modelHistory,
+                &ModelHistory::reset);
 
-        connect(autoWrap, &QCheckBox::stateChanged, m_phonicWidget, &PhonicWidget::setAutoWrap);
+        connect(autoWrap, &QCheckBox::stateChanged, m_phonicTableView,
+                &PhonicTableView::setAutoWrap);
 
         // phonicWidget toggleFermata
-        connect(btnToggleFermata, &QPushButton::clicked, m_phonicWidget,
-                &PhonicWidget::_on_btnToggleFermata_clicked);
+        connect(btnToggleFermata, &QPushButton::clicked, m_phonicTableView,
+                &PhonicTableView::_on_btnToggleFermata_clicked);
 
         // phonicWidget label
-        connect(m_phonicWidget->model, &PhonicModel::dataChanged, this,
+        connect(m_phonicTableView->model, &PhonicModel::dataChanged, this,
                 &LyricExtWidget::_on_modelDataChanged);
 
         // exportOptButton
@@ -128,19 +130,19 @@ namespace FillLyric {
 
         // tableConfigWidget
         connect(m_tableConfigWidget->m_colWidthRatioSpinBox,
-                QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_phonicWidget,
-                &PhonicWidget::setColWidthRatio);
+                QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_phonicTableView,
+                &PhonicTableView::setColWidthRatio);
         connect(m_tableConfigWidget->m_rowHeightSpinBox,
-                QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_phonicWidget,
-                &PhonicWidget::setRowHeightRatio);
+                QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_phonicTableView,
+                &PhonicTableView::setRowHeightRatio);
         connect(m_tableConfigWidget->m_fontDiffSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
-                m_phonicWidget->delegate, &PhonicDelegate::setFontSizeDiff);
+                m_phonicTableView->delegate, &PhonicDelegate::setFontSizeDiff);
     }
 
     LyricExtWidget::~LyricExtWidget() = default;
 
     void LyricExtWidget::_on_modelDataChanged() const {
-        const auto model = m_phonicWidget->model;
+        const auto model = m_phonicTableView->model;
         int lyricCount = 0;
         for (int i = 0; i < model->rowCount(); i++) {
             for (int j = 0; j < model->columnCount(); j++) {

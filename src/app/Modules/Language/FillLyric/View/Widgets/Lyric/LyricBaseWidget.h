@@ -14,6 +14,7 @@
 #include "../../Controls/PhonicTextEdit.h"
 
 namespace FillLyric {
+    enum SplitType { Auto, ByChar, Custom };
 
     class LyricBaseWidget final : public QWidget {
         Q_OBJECT

@@ -16,24 +16,17 @@ namespace FillLyric {
 
     void PhonicDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
                                const QModelIndex &index) const {
-        // 获取原文本
         QString text = index.data(Qt::DisplayRole).toString();
-
-        // 获取注音文本
         QString syllable = index.data(Syllable).toString();
-
-        // 获取人工修订的注音文本
         const QString syllableRevised = index.data(SyllableRevised).toString();
-
         const QString lyricType = index.data(Language).toString();
-
-        // 获取候选发音列表
         const QStringList candidateList = index.data(Candidate).toStringList();
-        // 若候选发音大于1个，注音颜色为红色
+
+        // Label colors based on analysis results.
         if (syllableRevised != "") {
             painter->setPen(QColor(255, 204, 153));
             syllable = syllableRevised;
-        } else if (text == syllable && lyricType != "Slur" && lyricType != "English") {
+        } else if (text == syllable && lyricType != "Slur") {
             painter->setPen(QColor(255, 155, 157));
         } else if (candidateList.size() > 1) {
             painter->setPen(QColor(155, 186, 255));
@@ -61,31 +54,31 @@ namespace FillLyric {
             Q_EMIT this->clearToolTip(index);
         }
 
-        // 文本过长时，显示省略号
+        // When the text is too long, display ellipses.
         if (addToolTip) {
             text = text.left(maxTextSize) + "...";
             Q_EMIT this->setToolTip(index);
         }
 
-        // 注音过长时，显示省略号
+        // When Zhuyin is too long, display ellipsis.
         if (syllable.size() > 1 && syllable.size() > maxSyllableSize && maxSyllableSize > 0) {
             syllable = syllable.left(maxSyllableSize) + "...";
         }
 
-        // 绘制歌词文本
+        // Draw Lyrics Text
         const int yOffset = textFontHeight / 2;
         painter->setFont(textFont);
         const QRect textRect = option.rect.adjusted(0, yOffset, 0, yOffset);
 
         painter->drawText(textRect, Qt::AlignCenter, text);
 
-        // 注音文本
+        // Draw Syllable Text
         const QRect syllableRect = option.rect.adjusted(0, -yOffset, 0, -yOffset);
 
         painter->setFont(syllableFont);
         painter->drawText(syllableRect, Qt::AlignCenter, syllable);
 
-        // 字体恢复
+        // Restore font size
         painter->setFont(textFont);
     }
 

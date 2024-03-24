@@ -8,7 +8,7 @@ namespace FillLyric {
     }
 
     int PhonicModel::shrinkModel() {
-        // 从右到左遍历所有行，找到最长的一行，赋值给modelMaxCol
+        // Traverse each row to obtain the longest word count.
         int maxCol = 0;
         for (int i = 0; i < this->rowCount(); i++) {
             maxCol = std::max(maxCol, currentLyricLength(i));

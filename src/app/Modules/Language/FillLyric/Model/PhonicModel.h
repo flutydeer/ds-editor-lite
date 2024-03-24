@@ -8,8 +8,6 @@
 #include <QScrollBar>
 #include <QVBoxLayout>
 
-#include "g2pglobal.h"
-
 #include "PhonicCommon.h"
 #include "../View/Controls/PhonicDelegate.h"
 
@@ -23,14 +21,15 @@ namespace FillLyric {
         }
 
         // Gui functions
-        void repaintItem(const QModelIndex &index, const QString &text) const;
-        int shrinkModel();
-        void expandModel(int col);
+        void repaintItem(const QModelIndex &index, const QString &text) const; // Redraw Cells
+        int shrinkModel();         // Clear trailing empty columns
+        void expandModel(int col); // Expand the number of model columns
 
         // Basic functions
-        [[nodiscard]] int currentLyricLength(int row) const;
-        void refreshTable();
-        void shrinkPhonicList();
+        [[nodiscard]] int
+            currentLyricLength(int row) const; // Get the current number of words in a row
+        void refreshTable();                   // For automatic line wrapping
+        void shrinkPhonicList();               // Discard trailing spaces
 
         // RoleData functions
         static QList<int> allRoles();

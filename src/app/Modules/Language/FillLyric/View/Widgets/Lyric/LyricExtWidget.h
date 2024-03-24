@@ -7,7 +7,7 @@
 
 #include "TableConfigWidget.h"
 
-#include "../../Controls/PhonicWidget.h"
+#include "../../Controls/PhonicTableView.h"
 
 #include "UI/Controls/Button.h"
 
@@ -38,7 +38,7 @@ namespace FillLyric {
         QVBoxLayout *m_epOptLayout;
 
         // Widgets
-        PhonicWidget *m_phonicWidget;
+        PhonicTableView *m_phonicTableView;
         TableConfigWidget *m_tableConfigWidget;
 
         Button *m_btnToText;

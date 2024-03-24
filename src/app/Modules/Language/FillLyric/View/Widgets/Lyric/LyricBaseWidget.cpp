@@ -98,41 +98,35 @@ namespace FillLyric {
     LyricBaseWidget::~LyricBaseWidget() = default;
 
     void LyricBaseWidget::_on_textEditChanged() const {
-        // 获取文本框的内容
         const QString text = this->m_textEdit->toPlainText();
-        // 获取歌词
         const QList<Phonic> res = this->splitLyric(text);
         this->m_textCountLabel->setText(QString(tr("Note Count: %1")).arg(res.size()));
     }
 
     void LyricBaseWidget::_on_btnImportLrc_clicked() {
-        // 打开文件对话框
         const QString fileName =
             QFileDialog::getOpenFileName(this, tr("Open Lrc File"), "", tr("Lrc Files (*.lrc)"));
         if (fileName.isEmpty()) {
             return;
         }
-        // 创建LrcDecoder对象
+
         LrcTools::LrcDecoder decoder;
-        // 解析歌词文件
         if (!decoder.decode(fileName)) {
-            // 解析失败
             QMessageBox::warning(this, tr("Error"), tr("Failed to decode lrc file."));
             return;
         }
-        // 获取歌词文件的元数据
+
         const auto metadata = decoder.dumpMetadata();
         qDebug() << "metadata: " << metadata;
 
-        // 获取歌词文件的歌词
         const auto lyrics = decoder.dumpLyrics();
-        // 设置文本框内容
         this->m_textEdit->setText(lyrics.join("\n"));
     }
 
     QList<Phonic> LyricBaseWidget::splitLyric(const QString &lyric) const {
         const bool skipSlurRes = this->skipSlur->isChecked();
         const auto splitType = static_cast<SplitType>(this->m_splitComboBox->currentIndex());
+
         QList<Phonic> splitPhonics;
         if (splitType == SplitType::Auto) {
             splitPhonics = CleanLyric::splitAuto(lyric);
