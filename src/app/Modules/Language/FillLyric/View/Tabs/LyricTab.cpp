@@ -105,7 +105,7 @@ namespace FillLyric {
             const int col = skipSpaceRes ? model->currentLyricLength(i) : model->columnCount();
             for (int j = 0; j < col; ++j) {
                 if (skipSlurRes &&
-                    (model->cellLyricType(i, j) == "Slur" || model->cellLyric(i, j) == "-"))
+                    (model->cellLanguage(i, j) == "Slur" || model->cellLyric(i, j) == "-"))
                     continue;
                 phonics.append(model->takeData(i, j));
             }

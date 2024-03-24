@@ -24,11 +24,9 @@ namespace FillLyric {
         model = new PhonicModel(this);
         QTableView::setModel(model);
 
-        // 隐藏行头
         this->horizontalHeader()->hide();
         this->verticalHeader()->hide();
 
-        // 设置委托
         delegate = new PhonicDelegate(this);
         this->setItemDelegate(delegate);
 
@@ -37,7 +35,7 @@ namespace FillLyric {
 
         connect(this, &PhonicTableView::sizeChanged, this, [this] { tableAutoWrap(); });
 
-        // 右键菜单
+        // context menu
         connect(this, &QTableView::customContextMenuRequested, this,
                 &PhonicTableView::_on_showContextMenu);
 
@@ -61,30 +59,33 @@ namespace FillLyric {
 
     void PhonicTableView::_init(const QList<Phonic> &phonics) {
         QList<QStringList> lyricRes;
-        QList<QStringList> labelRes;
+        QList<QStringList> langRes;
+        QList<QStringList> cateRes;
 
         QStringList curLineLyric;
-        QStringList curLineLabel;
+        QStringList curLineLang;
+        QStringList curLineCate;
         for (const auto &phonic : phonics) {
             if (phonic.lineFeed) {
                 lyricRes.append(curLineLyric);
-                labelRes.append(curLineLabel);
+                langRes.append(curLineLang);
+                cateRes.append(curLineCate);
                 curLineLyric.clear();
-                curLineLabel.clear();
+                curLineLang.clear();
+                curLineCate.clear();
                 continue;
             }
             curLineLyric.append(phonic.lyric);
-            curLineLabel.append(phonic.language);
+            curLineLang.append(phonic.language);
+            curLineCate.append(phonic.category);
         }
         if (!curLineLyric.isEmpty()) {
             lyricRes.append(curLineLyric);
-            labelRes.append(curLineLabel);
+            langRes.append(curLineLang);
+            cateRes.append(curLineCate);
         }
 
-        // 清空表格
         model->clear();
-        // 设置行列数
-        // res中最长的一行的长度为列数
         int maxCol = 0;
         for (auto &line : lyricRes) {
             if (line.size() > maxCol) {
@@ -100,29 +101,29 @@ namespace FillLyric {
 
         model->setRowCount(static_cast<int>(lyricRes.size()));
 
-        // 设置表格内容
+        // Fill the model with the lyrics
         for (int i = 0; i < lyricRes.size(); i++) {
-            auto lyrics = lyricRes[i];
-            auto labels = labelRes[i];
+            const auto lyrics = lyricRes[i];
+            const auto langs = langRes[i];
+            const auto categories = cateRes[i];
+
             QList<LangNote *> langNote;
             for (int j = 0; j < lyrics.size(); j++) {
-                langNote.append(new LangNote(lyrics[j], labels[j]));
+                langNote.append(new LangNote(lyrics[j], langs[j], categories[j]));
             }
             langMgr->convert(langNote);
 
             for (int j = 0; j < lyricRes[i].size(); j++) {
                 const auto syllable = langNote[j]->syllable;
+                const auto g2pError = langNote[j]->g2pError;
                 const auto candidateSyllables = langNote[j]->candidates;
 
-                // 设置歌词
                 model->setLyric(i, j, lyrics[j]);
-                // 设置歌词类型
-                model->setLyricType(i, j, labels[j]);
-                // 设置注音
+                model->setLanguage(i, j, langs[j]);
+                model->setCategory(i, j, categories[j]);
                 model->setSyllable(i, j, syllable);
-
+                model->setG2pError(i, j, g2pError);
                 if (candidateSyllables.size() > 1) {
-                    // 设置候选音节
                     model->setData(model->index(i, j), candidateSyllables, Candidate);
                 }
             }
@@ -154,12 +155,13 @@ namespace FillLyric {
 
         if (text == "-") {
             newPhonics[col].language = "Slur";
+            newPhonics[col].category = "Slur";
             newPhonics[col].syllable = text;
+            newPhonics[col].g2pError = false;
             newPhonics[col].candidates = QStringList() << text;
             return newPhonics;
         }
 
-        // 获取当前行所有单元格的DisplayRole
         QList<LangNote *> langNote;
         for (const auto &newPhonic : newPhonics) {
             langNote.append(new LangNote(newPhonic.lyric, newPhonic.language));
@@ -167,18 +169,12 @@ namespace FillLyric {
 
         langMgr->correct(langNote);
         langMgr->convert(langNote);
-        // 设置当前行所有单元格的Syllable
+
         for (int i = 0; i < oldPhonics.size(); i++) {
             newPhonics[i].syllable = langNote[i]->syllable;
-        }
-
-        // 设置当前行所有单元格的Candidate
-        for (int i = 0; i < oldPhonics.size(); i++) {
+            newPhonics[i].category = langNote[i]->category;
+            newPhonics[i].g2pError = langNote[i]->g2pError;
             newPhonics[i].candidates = langNote[i]->candidates;
-        }
-
-        // 设置当前行所有单元格的LyricType
-        for (int i = 0; i < oldPhonics.size(); i++) {
             newPhonics[i].language = langNote[i]->language;
         }
         return newPhonics;
@@ -186,7 +182,7 @@ namespace FillLyric {
 
     void PhonicTableView::_on_cellEditClosed(const QModelIndex &index, const QString &text) const {
         QList<Phonic> oldPhonicList;
-        // 获取当前单元格所在行列
+
         const int row = index.row();
         const int col = index.column();
 
@@ -194,7 +190,6 @@ namespace FillLyric {
             return;
         }
 
-        // 取整行的数据
         for (int i = 0; i < model->columnCount(); i++) {
             oldPhonicList.append(model->takeData(row, i));
         }
@@ -213,6 +208,8 @@ namespace FillLyric {
 
             newPhonic.lyric = text;
             newPhonic.syllable = langNote[0]->syllable;
+            newPhonic.category = langNote[0]->category;
+            newPhonic.g2pError = langNote[0]->g2pError;
             newPhonic.candidates = langNote[0]->candidates;
             newPhonic.language = langNote[0]->language;
 
@@ -235,7 +232,7 @@ namespace FillLyric {
         if (!autoWrap) {
             return;
         }
-        // 计算最大列数
+
         const int tableWidth = this->width();
         const int colWidth = this->columnWidth(0);
 
@@ -272,14 +269,11 @@ namespace FillLyric {
     }
 
     void PhonicTableView::resizeTable() const {
-        // 获取当前字体高度
         const int fontHeight = this->fontMetrics().height();
-        // 行高设置为两倍字体高度
         this->verticalHeader()->setDefaultSectionSize(
             static_cast<int>(fontHeight * rowHeightRatio));
 
         const int fontXHeight = this->fontMetrics().xHeight();
-        // 列宽设置为maxSyllableLength倍字体宽度
         this->horizontalHeader()->setDefaultSectionSize(
             static_cast<int>(fontXHeight * colWidthRatio));
 
@@ -325,68 +319,55 @@ namespace FillLyric {
     }
 
     void PhonicTableView::_on_showContextMenu(const QPoint &pos) {
-        // 获取点击位置的索引
         const QModelIndex &index = this->indexAt(pos);
-        // 获取当前选中的单元格
         auto selected = this->selectionModel()->selectedIndexes();
 
-        // 验证点击位置是否在表格内
         if (index.isValid()) {
-            // 获取当前行列数
             const int row = index.row();
             const int col = index.column();
 
-            // 创建菜单
             auto *menu = new QMenu(this);
 
             if (selected.count() > 1) {
-                // 清空单元格
-                menu->addAction("清空单元格", [this, selected]() { cellClear(selected); });
+                menu->addAction(tr("Clear Cell"), [this, selected]() { cellClear(selected); });
             } else {
-                // 添加候选音节
                 _on_changeSyllable(index, menu);
-                // 自定义音节
                 _on_changePhonetic(index, menu);
                 menu->addSeparator();
 
-                // 移动单元格
-                menu->addAction("插入空白单元格", [this, index]() { insertCell(index); });
-                // 清空单元格
-                menu->addAction("清空单元格", [this, selected]() { cellClear(selected); });
-                // 向左归并单元格
+                menu->addAction(tr("Insert New Cell"), [this, index]() { insertCell(index); });
+                menu->addAction(tr("Clear Cell"), [this, selected]() { cellClear(selected); });
                 if (col > 0 && !autoWrap) {
-                    menu->addAction("向左归并单元格", [this, index]() { cellMergeLeft(index); });
+                    menu->addAction(tr("Merge Cell To Left"),
+                                    [this, index]() { cellMergeLeft(index); });
                 }
-                menu->addAction("删除当前单元格", [this, index]() { deleteCell(index); });
+                menu->addAction(tr("Remove Cell"), [this, index]() { deleteCell(index); });
                 menu->addSeparator();
 
-                // 换行
-                if (model->cellLyricType(row, col) != "Slur" && !autoWrap)
-                    menu->addAction("换行", [this, index]() { lineBreak(index); });
-                // 合并到上一行
+                if (model->cellLanguage(row, col) != "Slur" && model->cellLyric(row, col) != "-" &&
+                    !autoWrap)
+                    menu->addAction(tr("LineBreak"), [this, index]() { lineBreak(index); });
                 if (row > 0 && col == 0 && !autoWrap)
-                    menu->addAction("合并到上一行", [this, index]() { lineMergeUp(index); });
+                    menu->addAction(tr("Merge To Up Line"),
+                                    [this, index]() { lineMergeUp(index); });
 
-                // 添加上一行
-                menu->addAction("向上插入空白行", [this, index]() { addPrevLine(index); });
-                // 添加下一行
-                menu->addAction("向下插入空白行", [this, index]() { addNextLine(index); });
-                // 删除当前行
-                menu->addAction("删除当前行", [this, index]() { removeLine(index); });
+                menu->addAction(tr("Add Prev Line"), [this, index]() { addPrevLine(index); });
+                menu->addAction(tr("Add Next Line"), [this, index]() { addNextLine(index); });
+                menu->addAction(tr("Remove Cur Line"), [this, index]() { removeLine(index); });
             }
 
-            // 显示菜单
             menu->exec(QCursor::pos());
         }
     }
 
     void PhonicTableView::_on_changePhonetic(const QModelIndex &index, QMenu *menu) {
-        auto *inputAction = new QAction("自定义音节", this);
+        auto *inputAction = new QAction(tr("Custom Syllables"), this);
         menu->addAction(inputAction);
         connect(inputAction, &QAction::triggered, this, [this, index]() {
             bool ok;
-            QString syllable =
-                QInputDialog::getText(this, "自定义音节", "请输入音节", QLineEdit::Normal, "", &ok);
+            const QString syllable =
+                QInputDialog::getText(this, tr("Custom Syllables"), tr("Please input syllables"),
+                                      QLineEdit::Normal, "", &ok);
             if (ok && !syllable.isEmpty()) {
                 cellChangePhonic(index, syllable);
             }
@@ -394,10 +375,8 @@ namespace FillLyric {
     }
 
     void PhonicTableView::_on_changeSyllable(const QModelIndex &index, QMenu *menu) const {
-        // 获取当前单元格的候选音节
         QStringList candidateSyllables = index.data(PhonicRole::Candidate).toStringList();
 
-        // 把候选音节添加到菜单，点击后设置为当前单元格的UserRoles
         for (const auto &syllable : candidateSyllables) {
             if (candidateSyllables.size() > 1) {
                 menu->addAction(syllable,

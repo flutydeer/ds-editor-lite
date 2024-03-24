@@ -8,6 +8,7 @@ namespace FillLyric {
         Candidate,
         SyllableRevised,
         Language,
+        category,
         FermataAddition,
         G2pError
     };
@@ -17,7 +18,8 @@ namespace FillLyric {
         QString syllable;
         QStringList candidates;
         QString syllableRevised;
-        QString language;
+        QString language = "Unknown";
+        QString category = "Unknown";
         QList<QString> fermata;
         bool g2pError = false;
         bool lineFeed = false;

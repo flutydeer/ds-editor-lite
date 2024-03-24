@@ -119,17 +119,17 @@ namespace LangMgr {
     }
 
     QList<LangNote> ILanguageManager::split(const QString &input) const {
-        auto analysis = this->priorityLanguages();
+        const auto langFactorys = this->priorityLanguages();
         QList<LangNote> result = {LangNote(input)};
-        for (const auto &factory : analysis) {
+        for (const auto &factory : langFactorys) {
             result = factory->split(result);
         }
         return result;
     }
 
     void ILanguageManager::correct(const QList<LangNote *> &input) const {
-        auto analysis = this->priorityLanguages();
-        for (const auto &factory : analysis) {
+        const auto langFactorys = this->priorityLanguages();
+        for (const auto &factory : langFactorys) {
             factory->correct(input);
         }
     }
@@ -168,8 +168,7 @@ namespace LangMgr {
         : ILanguageManager(*new ILanguageManagerPrivate(), parent) {
     }
 
-    ILanguageManager::~ILanguageManager() {
-    }
+    ILanguageManager::~ILanguageManager() = default;
 
     bool ILanguageManager::initialize(QString &errMsg) {
         Q_D(ILanguageManager);
@@ -214,7 +213,7 @@ namespace LangMgr {
 
         for (int i = 0; i < input.size(); ++i) {
             const LangNote *note = input.at(i);
-            languageIndexMap[note->language].append(i); // 记录原始索引
+            languageIndexMap[note->language].append(i);
             languageLyricMap[note->language].append(note->lyric);
         }
 
@@ -228,6 +227,7 @@ namespace LangMgr {
             for (int i = 0; i < tempRes.size(); i++) {
                 const auto index = languageIndexMap[language][i];
                 input[index]->syllable = tempRes[i].pronunciation.original;
+                input[index]->g2pError = tempRes[i].g2pError;
                 input[index]->candidates = tempRes[i].candidates;
             }
         }

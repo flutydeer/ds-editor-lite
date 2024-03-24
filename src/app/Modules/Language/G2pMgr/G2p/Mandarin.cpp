@@ -36,6 +36,8 @@ namespace G2pMgr {
             phonic.text = input[i];
             phonic.pronunciation = Pronunciation(g2pRes[i], QString());
             phonic.candidates = m_mandarin->getDefaultPinyin(input[i], false);
+            if (input[i] == g2pRes[i])
+                phonic.g2pError = true;
             result.append(phonic);
         }
         return result;

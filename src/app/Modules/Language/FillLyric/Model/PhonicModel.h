@@ -35,18 +35,22 @@ namespace FillLyric {
         static QList<int> allRoles();
 
         [[nodiscard]] QString cellLyric(int row, int col) const;
-        bool setLyric(int row, int col, const QString &lyric);
+        void setLyric(int row, int col, const QString &lyric);
         [[nodiscard]] QString cellSyllable(int row, int col) const;
-        bool setSyllable(int row, int col, const QString &syllable);
+        void setSyllable(int row, int col, const QString &syllable);
         [[nodiscard]] QString cellSyllableRevised(int row, int col) const;
-        bool setSyllableRevised(int row, int col, const QString &syllableRevised);
+        void setSyllableRevised(int row, int col, const QString &syllableRevised);
         [[nodiscard]] QStringList cellCandidates(int row, int col) const;
-        bool setCandidates(const int &row, const int &col, const QStringList &candidate);
-        [[nodiscard]] QString cellLyricType(int row, int col) const;
-        bool setLyricType(int row, int col, const QString &type);
+        void setCandidates(const int &row, const int &col, const QStringList &candidate);
+        [[nodiscard]] QString cellLanguage(int row, int col) const;
+        void setLanguage(int row, int col, const QString &type);
+        [[nodiscard]] QString cellCategory(int row, int col) const;
+        void setCategory(int row, int col, const QString &category);
         [[nodiscard]] QStringList cellFermata(int row, int col) const;
-        bool setFermata(int row, int col, const QList<QString> &fermata);
+        void setFermata(int row, int col, const QList<QString> &fermata);
         [[nodiscard]] QString cellToolTip(const int &row, const int &col) const;
+        [[nodiscard]] bool cellG2pError(int row, int col) const;
+        void setG2pError(int row, int col, bool error);
 
         // Cell operations
         void putData(int row, int col, const Phonic &phonic);

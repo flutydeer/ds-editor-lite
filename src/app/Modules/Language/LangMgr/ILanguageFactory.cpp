@@ -146,7 +146,7 @@ namespace LangMgr {
             if (note.language == "Unknown") {
                 const auto splitRes = split(note.lyric);
                 for (const auto &res : splitRes) {
-                    if (res.language == category() && d->discardResult) {
+                    if (res.language == id() && d->discardResult) {
                         continue;
                     }
                     result.append(res);

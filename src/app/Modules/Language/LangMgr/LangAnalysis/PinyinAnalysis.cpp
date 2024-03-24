@@ -35,7 +35,8 @@ namespace LangMgr {
         for (auto &note : enRes) {
             if (note.language == "English") {
                 if (contains(note.lyric))
-                    note.language = category();
+                    note.language = id();
+                note.category = category();
             }
         }
         return enRes;

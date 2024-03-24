@@ -1,6 +1,8 @@
 #include "SplitLyric.h"
 #include "Modules/Language/LangMgr/ILanguageManager.h"
 
+#include <QDebug>
+
 namespace FillLyric {
     QList<Phonic> CleanLyric::splitAuto(const QString &input) {
         QList<Phonic> phonics;
@@ -11,6 +13,7 @@ namespace FillLyric {
             Phonic phonic;
             phonic.lyric = note.lyric;
             phonic.language = note.language;
+            phonic.category = note.category;
             if (note.language == "Linebreak")
                 phonic.lineFeed = true;
             phonics.append(phonic);
@@ -38,6 +41,7 @@ namespace FillLyric {
             Phonic phonic;
             phonic.lyric = currentChar;
             phonic.language = langMgr->analysis(currentChar);
+            phonic.category = langMgr->language(phonic.language)->category();
             phonics.append(phonic);
         }
         return phonics;
@@ -61,6 +65,7 @@ namespace FillLyric {
                 Phonic phonic;
                 phonic.lyric = lyric;
                 phonic.language = langMgr->analysis(lyric);
+                phonic.category = langMgr->language(phonic.language)->category();
                 phonics.append(phonic);
             }
 

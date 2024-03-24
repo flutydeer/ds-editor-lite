@@ -68,7 +68,7 @@ namespace FillLyric {
     QList<int> PhonicModel::allRoles() {
         QList<int> roles;
         roles.append(Qt::DisplayRole);
-        for (int i = PhonicRole::Syllable; i <= PhonicRole::FermataAddition; i++) {
+        for (int i = PhonicRole::Syllable; i <= PhonicRole::G2pError; i++) {
             roles.append(i);
         }
         return roles;
@@ -84,64 +84,73 @@ namespace FillLyric {
         return this->data(this->index(row, col), Qt::DisplayRole).toString();
     }
 
-    bool PhonicModel::setLyric(const int row, const int col, const QString &lyric) {
+    void PhonicModel::setLyric(const int row, const int col, const QString &lyric) {
         this->setData(this->index(row, col), lyric, Qt::DisplayRole);
-        return true;
     }
 
     QString PhonicModel::cellSyllable(const int row, const int col) const {
         return this->data(this->index(row, col), PhonicRole::Syllable).toString();
     }
 
-    bool PhonicModel::setSyllable(const int row, const int col, const QString &syllable) {
+    void PhonicModel::setSyllable(const int row, const int col, const QString &syllable) {
         this->setData(this->index(row, col), syllable, PhonicRole::Syllable);
-        return true;
     }
 
     QString PhonicModel::cellSyllableRevised(const int row, const int col) const {
         return this->data(this->index(row, col), PhonicRole::SyllableRevised).toString();
     }
 
-    bool PhonicModel::setSyllableRevised(const int row, const int col,
+    void PhonicModel::setSyllableRevised(const int row, const int col,
                                          const QString &syllableRevised) {
         this->setData(this->index(row, col), syllableRevised, PhonicRole::SyllableRevised);
-        return true;
     }
 
     QStringList PhonicModel::cellCandidates(const int row, const int col) const {
         return this->data(this->index(row, col), PhonicRole::Candidate).toStringList();
     }
 
-    bool PhonicModel::setCandidates(const int &row, const int &col, const QStringList &candidate) {
+    void PhonicModel::setCandidates(const int &row, const int &col, const QStringList &candidate) {
         this->setData(this->index(row, col), candidate, PhonicRole::Candidate);
-        return true;
     }
 
-    QString PhonicModel::cellLyricType(const int row, const int col) const {
+    QString PhonicModel::cellLanguage(const int row, const int col) const {
         return this->data(this->index(row, col), PhonicRole::Language).toString();
     }
 
-    bool PhonicModel::setLyricType(const int row, const int col, const QString &type) {
+    void PhonicModel::setLanguage(const int row, const int col, const QString &type) {
         this->setData(this->index(row, col), type, PhonicRole::Language);
-        return true;
+    }
+
+    QString PhonicModel::cellCategory(const int row, const int col) const {
+        return this->data(this->index(row, col), PhonicRole::category).toString();
+    }
+
+    void PhonicModel::setCategory(const int row, const int col, const QString &category) {
+        this->setData(this->index(row, col), category, PhonicRole::category);
     }
 
     QStringList PhonicModel::cellFermata(const int row, const int col) const {
         return this->data(this->index(row, col), PhonicRole::FermataAddition).toStringList();
     }
 
-    bool PhonicModel::setFermata(const int row, const int col, const QStringList &fermata) {
+    void PhonicModel::setFermata(const int row, const int col, const QStringList &fermata) {
         this->setData(this->index(row, col), fermata, PhonicRole::FermataAddition);
-        return true;
     }
 
     QString PhonicModel::cellToolTip(const int &row, const int &col) const {
         return this->data(this->index(row, col), Qt::ToolTipRole).toString();
     }
 
+    bool PhonicModel::cellG2pError(const int row, const int col) const {
+        return this->data(this->index(row, col), PhonicRole::G2pError).toBool();
+    }
+
+    void PhonicModel::setG2pError(const int row, const int col, const bool error) {
+        this->setData(this->index(row, col), error, PhonicRole::G2pError);
+    }
+
     // Cell operations
     void PhonicModel::putData(const int row, const int col, const Phonic &phonic) {
-        // 将phonic的内容放到row行col列
         setLyric(row, col, phonic.lyric);
         if (phonic.lyric.isEmpty()) {
             return;
@@ -149,13 +158,14 @@ namespace FillLyric {
         setSyllable(row, col, phonic.syllable);
         setCandidates(row, col, phonic.candidates);
         setSyllableRevised(row, col, phonic.syllableRevised);
-        setLyricType(row, col, phonic.language);
+        setLanguage(row, col, phonic.language);
+        setCategory(row, col, phonic.category);
         setFermata(row, col, phonic.fermata);
+        setG2pError(row, col, phonic.g2pError);
     }
 
     Phonic PhonicModel::takeData(const int row, const int col) const {
         Phonic phonic;
-        // 根据span的包含的角色，将row行col列的数据取出
         phonic.lyric = cellLyric(row, col);
         if (phonic.lyric.isEmpty()) {
             return phonic;
@@ -163,8 +173,10 @@ namespace FillLyric {
         phonic.syllable = cellSyllable(row, col);
         phonic.candidates = cellCandidates(row, col);
         phonic.syllableRevised = cellSyllableRevised(row, col);
-        phonic.language = cellLyricType(row, col);
+        phonic.language = cellLanguage(row, col);
+        phonic.category = cellCategory(row, col);
         phonic.fermata = cellFermata(row, col);
+        phonic.g2pError = cellG2pError(row, col);
         return phonic;
     }
 
@@ -228,32 +240,19 @@ namespace FillLyric {
     }
 
     void PhonicModel::putCell(const QModelIndex &index, const Phonic &phonic) {
-        // 获取当前单元格坐标
-        const int row = index.row();
-        const int col = index.column();
-        // 将phonic的内容放到当前单元格
-        putData(row, col, phonic);
+        putData(index.row(), index.column(), phonic);
     }
 
     Phonic PhonicModel::takeCell(const QModelIndex &index) const {
-        // 获取当前单元格坐标
-        const int row = index.row();
-        const int col = index.column();
-        // 获取当前单元格的内容
-        return takeData(row, col);
+        return takeData(index.row(), index.column());
     }
 
     void PhonicModel::clearCell(const QModelIndex &index) {
-        // 清空当前单元格
         clearData(index.row(), index.column());
     }
 
     void PhonicModel::moveCell(const QModelIndex &source, const QModelIndex &target) {
-        // 获取当前单元格坐标
-        const int row = source.row();
-        const int col = source.column();
-        // 将source的内容移动到target
-        moveData(row, col, target.row(), target.column());
+        moveData(source.row(), source.column(), target.row(), target.column());
     }
 
     QString PhonicModel::cellToolTip(const QModelIndex &index) const {
@@ -261,7 +260,6 @@ namespace FillLyric {
     }
 
     void PhonicModel::cellMoveLeft(const QModelIndex &index) {
-        // 获取当前单元格坐标
         const int row = index.row();
         const int col = index.column();
         // 将当前的单元格的内容移动到左边的单元格，右边单元格的内容依次向左移动
@@ -271,11 +269,10 @@ namespace FillLyric {
     }
 
     void PhonicModel::cellMoveRight(const QModelIndex &index) {
-        //  获取当前单元格坐标
         const int row = index.row();
         const int col = index.column();
         // 将对应的单元格的内容移动到右边的单元格，右边单元格的内容依次向右移动，超出范围的部分向右新建单元格
-        QString lastLyric = cellLyric(row, -1);
+        const QString lastLyric = cellLyric(row, -1);
         if (!lastLyric.isEmpty()) {
             expandModel(1);
         }
@@ -288,15 +285,13 @@ namespace FillLyric {
 
     // Fermata operations
     void PhonicModel::collapseFermata() {
-        // 遍历模型每行
         for (int row = 0; row < this->rowCount(); row++) {
             int pos = 1;
             while (pos < currentLyricLength(row)) {
-                // 获取当前单元格的内容
-                auto currentType = cellLyricType(row, pos);
+                const auto currentType = cellLanguage(row, pos);
                 if (currentType == "Slur") {
                     const int start = pos;
-                    while (pos < this->columnCount() && cellLyricType(row, pos) == "Slur") {
+                    while (pos < this->columnCount() && cellLanguage(row, pos) == "Slur") {
                         pos++;
                     }
 
@@ -326,7 +321,7 @@ namespace FillLyric {
             // 遍历每行的每个单元格
             while (pos < this->columnCount()) {
                 // 获取当前单元格的FermataRole的内容
-                auto fermataList = cellFermata(row, pos);
+                const auto fermataList = cellFermata(row, pos);
 
                 if (!fermataList.isEmpty()) {
                     // 在右侧插入空白单元格
@@ -343,7 +338,7 @@ namespace FillLyric {
                         setLyric(row, pos + j + 1, fermataList[j]);
                         setSyllable(row, pos + j + 1, fermataList[j]);
                         setCandidates(row, pos + j + 1, QStringList() << fermataList[j]);
-                        setLyricType(row, pos + j + 1, "Slur");
+                        setLanguage(row, pos + j + 1, "Slur");
                     }
                     // 清空pos的FermataRole
                     setFermata(row, pos, QStringList());

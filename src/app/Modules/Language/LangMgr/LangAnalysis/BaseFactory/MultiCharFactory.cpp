@@ -14,7 +14,8 @@ namespace LangMgr {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = category();
+                note.language = id();
+                note.category = category();
             } else {
                 const int start = pos;
                 while (pos < input.length() && !contains(input[pos])) {
@@ -22,6 +23,7 @@ namespace LangMgr {
                 }
                 note.lyric = input.mid(start, pos - start);
                 note.language = "Unknown";
+                note.category = "Unknown";
             }
             if (!note.lyric.isEmpty())
                 result.append(note);

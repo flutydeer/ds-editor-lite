@@ -751,27 +751,27 @@
         <translation type="vanished">去除空格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="105"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="103"/>
         <source>Note Count: %1</source>
         <translation>字符数：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="111"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="108"/>
         <source>Open Lrc File</source>
         <translation>打开Lrc文件</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="111"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="108"/>
         <source>Lrc Files (*.lrc)</source>
         <translation>Lrc文件(*.lrc)</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="120"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="115"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="120"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="115"/>
         <source>Failed to decode lrc file.</source>
         <translation>解析Lrc文件失败。</translation>
     </message>
@@ -888,22 +888,22 @@
 <context>
     <name>FillLyric::LyricTab</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="42"/>
+        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="41"/>
         <source>Lyric Prev</source>
         <translation>预览歌词</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="42"/>
+        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="41"/>
         <source>Fold Preview</source>
         <translation>收起预览</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="56"/>
+        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="55"/>
         <source>Expand Left</source>
         <translation>展开左侧</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="56"/>
+        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="55"/>
         <source>Fold Left</source>
         <translation>收起左侧</translation>
     </message>
@@ -914,6 +914,70 @@
     <message>
         <source>Split By Space</source>
         <translation type="vanished">按空格分隔</translation>
+    </message>
+</context>
+<context>
+    <name>FillLyric::PhonicTableView</name>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="321"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="328"/>
+        <source>Clear Cell</source>
+        <translation>清空单元格</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="327"/>
+        <source>Insert New Cell</source>
+        <translation>插入新单元格</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="330"/>
+        <source>Merge Cell To Left</source>
+        <translation>合并到左侧单元格</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="333"/>
+        <source>Remove Cell</source>
+        <translation>删除单元格</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="338"/>
+        <source>LineBreak</source>
+        <translation>换行</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="340"/>
+        <source>Merge To Up Line</source>
+        <translation>合并到上一行</translation>
+    </message>
+    <message>
+        <source>Move To Up Line</source>
+        <translation type="obsolete">合并到上一行</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="342"/>
+        <source>Add Prev Line</source>
+        <translation>向上插入新行</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="343"/>
+        <source>Add Next Line</source>
+        <translation>向下插入新行</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="344"/>
+        <source>Remove Cur Line</source>
+        <translation>删除当前行</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="352"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="357"/>
+        <source>Custom Syllables</source>
+        <translation>自定义发音</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="357"/>
+        <source>Please input syllables</source>
+        <translation>请输入发音</translation>
     </message>
 </context>
 <context>
@@ -957,12 +1021,12 @@
         <translation>加载粤语G2p失败</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Cantonese.cpp" line="54"/>
+        <location filename="../../Modules/Language/G2pMgr/G2p/Cantonese.cpp" line="56"/>
         <source>Tone</source>
         <translation>声调</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Cantonese.cpp" line="55"/>
+        <location filename="../../Modules/Language/G2pMgr/G2p/Cantonese.cpp" line="57"/>
         <source>Convert number</source>
         <translation>转换数字</translation>
     </message>
@@ -1036,12 +1100,12 @@
         <translation>加载普通话G2p失败</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Mandarin.cpp" line="55"/>
+        <location filename="../../Modules/Language/G2pMgr/G2p/Mandarin.cpp" line="57"/>
         <source>Tone</source>
         <translation>声调</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Mandarin.cpp" line="56"/>
+        <location filename="../../Modules/Language/G2pMgr/G2p/Mandarin.cpp" line="58"/>
         <source>Convert number</source>
         <translation>转换数字</translation>
     </message>
@@ -1147,7 +1211,7 @@
         <translation>分析结果</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="205"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="212"/>
         <source>Subordinate G2p</source>
         <translation>下属G2p</translation>
     </message>
@@ -1156,10 +1220,10 @@
         <translation type="vanished">选择语种：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="199"/>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="216"/>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="247"/>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="254"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="206"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="230"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="261"/>
+        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="268"/>
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
@@ -1395,12 +1459,12 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LanguagePage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="23"/>
+        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="19"/>
         <source>Language</source>
         <translation>语言</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="29"/>
+        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="25"/>
         <source>Language Priority</source>
         <translation>语种优先级</translation>
     </message>
