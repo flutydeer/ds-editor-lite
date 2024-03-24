@@ -327,7 +327,9 @@ QTableWidget::QTableView QTableCornerButton::section {
 }
 
 QTabBar {
-    background-color: transparent;
+    /* background-color: transparent; */
+    background-color: #10FFFFFF;
+    border-radius: 6px;
 }
 
 QTabWidget::tab-bar {
@@ -338,16 +340,20 @@ QTabBar::tab {
     color: #F0F0F0;
     background-color: transparent;
     padding: 6px 12px;
-    border-bottom: 2px solid transparent;
+    /* border-bottom: 2px solid transparent; */
+    border-radius: 6px;
 }
 
 QTabBar::tab:hover {
-    border-bottom-color: #20FFFFFF;
+    /* border-bottom-color: #20FFFFFF; */
+    background-color: #10FFFFFF;
 }
 
 QTabBar::tab:selected {
-    color: #9BBAFF;
-    border-bottom-color: #9BBAFF;
+    /* color: #9BBAFF;
+    border-bottom-color: #9BBAFF; */
+    background-color: #9BBAFF;
+    color: #000;
 }
 
 QTextEdit {
