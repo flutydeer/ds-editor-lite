@@ -5,7 +5,7 @@
 
 #include <Model/Note.h>
 
-#include "Modules/Language/FillLyric/View/Tabs/LyricTab.h"
+#include "../../../Modules/Language/FillLyric/View/LyricTab.h"
 #include "UI/Dialogs/Options/Pages/LanguagePage.h"
 
 #include "UI/Dialogs/Base/Dialog.h"
@@ -24,6 +24,8 @@ private:
 
     void shrinkWindowRight(const int &newWidth);
     void expandWindowRight();
+
+    void switchTab(const int &index);
 
     QVBoxLayout *m_mainLayout;
     QTabWidget *m_tabWidget;

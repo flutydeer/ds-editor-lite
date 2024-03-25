@@ -3,6 +3,7 @@
 #include <QFileDialog>
 
 #include "UI/Controls/LineEdit.h"
+#include "Model/AppOptions/AppOptions.h"
 
 namespace FillLyric {
 
@@ -47,6 +48,7 @@ namespace FillLyric {
             } else {
                 Q_EMIT this->expandWindowRight();
             }
+            modifyOption();
         });
 
         // fold left
@@ -54,7 +56,22 @@ namespace FillLyric {
             m_lyricExtWidget->btnFoldLeft->setText(
                 m_lyricBaseWidget->isVisible() ? tr("Expand Left") : tr("Fold Left"));
             m_lyricBaseWidget->setVisible(!m_lyricBaseWidget->isVisible());
+            modifyOption();
         });
+
+        const auto appOptions = AppOptions::instance()->fillLyric();
+        const bool baseVisible = appOptions->baseVisible;
+        const bool extVisible = appOptions->extVisible;
+
+        if (!baseVisible) {
+            m_lyricBaseWidget->setVisible(baseVisible);
+            m_lyricExtWidget->btnFoldLeft->setText(tr("Expand Left"));
+        }
+
+        if (!extVisible) {
+            m_lyricExtWidget->setVisible(extVisible);
+            m_lyricBaseWidget->btnLyricPrev->setText(tr("Lyric Prev"));
+        }
     }
 
     LyricTab::~LyricTab() = default;
@@ -97,7 +114,7 @@ namespace FillLyric {
 
     QList<Phonic> LyricTab::modelExport() const {
         const auto model = m_lyricExtWidget->m_phonicTableView->model;
-        const bool skipSpaceRes = m_lyricExtWidget->exportExcludeSpace;
+        const bool skipSpaceRes = m_lyricExtWidget->exportSkipEndSpace;
         const bool skipSlurRes = exportSkipSlur();
 
         QList<Phonic> phonics;
@@ -161,4 +178,10 @@ namespace FillLyric {
         m_lyricBaseWidget->m_textEdit->setText(res.join("\n"));
     }
 
+    void LyricTab::modifyOption() const {
+        const auto options = AppOptions::instance()->fillLyric();
+        options->baseVisible = m_lyricBaseWidget->isVisible();
+        options->extVisible = m_lyricExtWidget->isVisible();
+        AppOptions::instance()->saveAndNotify();
+    }
 } // FillLyric
