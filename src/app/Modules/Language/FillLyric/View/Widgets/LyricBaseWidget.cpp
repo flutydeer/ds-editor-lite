@@ -85,6 +85,7 @@ namespace FillLyric {
         m_textEdit->setFontPointSize(options->textEditFontSize);
         skipSlur->setChecked(options->skipSlur);
         m_splitComboBox->setCurrentIndex(options->splitMode);
+        m_splitters->setVisible(options->splitMode == Custom);
 
         // textEditTop signals
         connect(btnImportLrc, &QAbstractButton::clicked, this,
