@@ -10,8 +10,8 @@
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
 
-#include "../../../Model/PhonicCommon.h"
-#include "../../Controls/PhonicTextEdit.h"
+#include "../../Model/PhonicCommon.h"
+#include "../Controls/PhonicTextEdit.h"
 
 namespace FillLyric {
     enum SplitType { Auto, ByChar, Custom };
@@ -32,6 +32,8 @@ namespace FillLyric {
         void _on_splitComboBox_currentIndexChanged(int index) const;
 
     private:
+        void modifyOption() const;
+
         QVBoxLayout *m_mainLayout;
         QHBoxLayout *m_textTopLayout;
         QHBoxLayout *m_textBottomLayout;

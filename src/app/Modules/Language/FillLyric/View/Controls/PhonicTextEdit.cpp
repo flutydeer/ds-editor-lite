@@ -3,7 +3,7 @@
 namespace FillLyric {
 
     PhonicTextEdit::PhonicTextEdit(QWidget *parent) : QTextEdit(parent) {
-        auto f = font();
+        QFont f = this->font();
         f.setPointSizeF(11);
         setFont(f);
     }
@@ -16,6 +16,7 @@ namespace FillLyric {
             if (newSize > 0) {
                 font.setPointSizeF(newSize);
                 this->setFont(font);
+                Q_EMIT fontChanged();
             }
             event->accept();
             return;

@@ -1,6 +1,8 @@
 #include "LyricExtWidget.h"
 
-#include "../../../History/ModelHistory.h"
+#include "../../History/ModelHistory.h"
+
+#include "Model/AppOptions/AppOptions.h"
 
 namespace FillLyric {
     LyricExtWidget::LyricExtWidget(int *notesCount, QWidget *parent)
@@ -62,12 +64,12 @@ namespace FillLyric {
         m_epOptWidget = new QWidget();
         m_epOptLayout = new QVBoxLayout();
         exportSkipSlur = new QCheckBox(tr("Skipping Slur"));
-        exportExcludeSpace = new QCheckBox(tr("Ignoring end of sentence spaces"));
+        exportSkipEndSpace = new QCheckBox(tr("Ignoring end of sentence spaces"));
         exportLanguage = new QCheckBox(tr("Automatically mark languages"));
-        exportExcludeSpace->setCheckState(Qt::Checked);
+        exportSkipEndSpace->setCheckState(Qt::Checked);
 
         m_epOptLayout->addWidget(exportSkipSlur);
-        m_epOptLayout->addWidget(exportExcludeSpace);
+        m_epOptLayout->addWidget(exportSkipEndSpace);
         m_epOptLayout->addWidget(exportLanguage);
         m_epOptLayout->addStretch(1);
 
@@ -95,6 +97,15 @@ namespace FillLyric {
 
         m_mainLayout->addWidget(m_tableConfigWidget);
         this->setLayout(m_mainLayout);
+
+        const auto appOptions = AppOptions::instance();
+        QFont font = m_phonicTableView->font();
+        font.setPointSize(appOptions->fillLyric()->tableFontSize);
+        m_phonicTableView->setFont(font);
+        autoWrap->setChecked(appOptions->fillLyric()->autoWrap);
+        exportSkipSlur->setChecked(appOptions->fillLyric()->exportSkipSlur);
+        exportSkipEndSpace->setChecked(appOptions->fillLyric()->exportSkipEndSpace);
+        exportLanguage->setChecked(appOptions->fillLyric()->exportLanguage);
 
         // undo redo
         const auto modelHistory = ModelHistory::instance();
@@ -130,13 +141,24 @@ namespace FillLyric {
 
         // tableConfigWidget
         connect(m_tableConfigWidget->m_colWidthRatioSpinBox,
-                QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_phonicTableView,
-                &PhonicTableView::setColWidthRatio);
+                QOverload<double>::of(&QDoubleSpinBox::valueChanged), [=](const double value) {
+                    m_phonicTableView->setColWidthRatio(value);
+                    modifyOption();
+                });
         connect(m_tableConfigWidget->m_rowHeightSpinBox,
-                QOverload<double>::of(&QDoubleSpinBox::valueChanged), m_phonicTableView,
-                &PhonicTableView::setRowHeightRatio);
+                QOverload<double>::of(&QDoubleSpinBox::valueChanged), [=](const double value) {
+                    m_phonicTableView->setRowHeightRatio(value);
+                    modifyOption();
+                });
         connect(m_tableConfigWidget->m_fontDiffSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
-                m_phonicTableView->delegate, &PhonicDelegate::setFontSizeDiff);
+                [=](const int value) {
+                    m_phonicTableView->delegate->setFontSizeDiff(value);
+                    modifyOption();
+                });
+
+        connect(exportSkipSlur, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
+        connect(exportSkipEndSpace, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
+        connect(exportLanguage, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
     }
 
     LyricExtWidget::~LyricExtWidget() = default;
@@ -157,6 +179,21 @@ namespace FillLyric {
             }
         }
         noteCountLabel->setText(QString::number(lyricCount) + "/" + QString::number(*notesCount));
+    }
+
+    void LyricExtWidget::modifyOption() const {
+        const auto options = AppOptions::instance()->fillLyric();
+        options->tableFontSize = m_phonicTableView->font().pointSize();
+
+        options->tableColWidthRatio = m_tableConfigWidget->m_colWidthRatioSpinBox->value();
+        options->tableRowHeightRatio = m_tableConfigWidget->m_rowHeightSpinBox->value();
+        options->tableFontDiff = m_tableConfigWidget->m_fontDiffSpinBox->value();
+
+        options->autoWrap = autoWrap->isChecked();
+        options->exportSkipSlur = exportSkipSlur->isChecked();
+        options->exportSkipEndSpace = exportSkipEndSpace->isChecked();
+        options->exportLanguage = exportLanguage->isChecked();
+        AppOptions::instance()->saveAndNotify();
     }
 
 } // FillLyric

@@ -11,6 +11,7 @@
 #include "Options/AppearanceOption.h"
 #include "Options/AudioOption.h"
 #include "Options/LanguageOption.h"
+#include "Options/FillLyricOption.h"
 
 class AppOptions : public QObject, public Singleton<AppOptions> {
     Q_OBJECT
@@ -25,6 +26,7 @@ public:
     AudioOption *audio();
     AppearanceOption *appearance();
     LanguageOption *language();
+    FillLyricOption *fillLyric();
 
 signals:
     void optionsChanged();
@@ -33,6 +35,7 @@ private:
     AudioOption m_audioOption;
     AppearanceOption m_appearanceOption;
     LanguageOption m_languageOption;
+    FillLyricOption m_fillLyricOption;
 
     QString fileName = "appConfig.json";
     QString m_configPath;

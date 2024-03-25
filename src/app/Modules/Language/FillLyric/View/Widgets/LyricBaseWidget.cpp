@@ -3,9 +3,10 @@
 #include <QFileDialog>
 #include <QMessageBox>
 
-#include "../../../Utils/SplitLyric.h"
+#include "Model/AppOptions/AppOptions.h"
 
-#include "../../../Utils/LrcTools/LrcDecoder.h"
+#include "../../Utils/SplitLyric.h"
+#include "../../Utils/LrcTools/LrcDecoder.h"
 
 namespace FillLyric {
     LyricBaseWidget::LyricBaseWidget(QWidget *parent) : QWidget(parent) {
@@ -80,6 +81,12 @@ namespace FillLyric {
 
         this->setLayout(m_mainLayout);
 
+        const auto options = AppOptions::instance()->fillLyric();
+        m_textEdit->setFontPointSize(options->textEditFontSize);
+        skipSlur->setChecked(options->skipSlur);
+        m_splitComboBox->setCurrentIndex(options->splitMode);
+        m_splitters->setVisible(options->splitMode == Custom);
+
         // textEditTop signals
         connect(btnImportLrc, &QAbstractButton::clicked, this,
                 &LyricBaseWidget::_on_btnImportLrc_clicked);
@@ -88,11 +95,15 @@ namespace FillLyric {
         connect(m_textEdit, &PhonicTextEdit::textChanged, this,
                 &LyricBaseWidget::_on_textEditChanged);
 
+        connect(m_textEdit, &PhonicTextEdit::fontChanged, this, &LyricBaseWidget::modifyOption);
+
         connect(m_splitComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
                 &LyricBaseWidget::_on_splitComboBox_currentIndexChanged);
 
         connect(m_optButton, &QPushButton::clicked,
                 [this]() { m_optWidget->setVisible(!m_optWidget->isVisible()); });
+
+        connect(skipSlur, &QCheckBox::stateChanged, this, &LyricBaseWidget::modifyOption);
     }
 
     LyricBaseWidget::~LyricBaseWidget() = default;
@@ -152,6 +163,15 @@ namespace FillLyric {
     void LyricBaseWidget::_on_splitComboBox_currentIndexChanged(int index) const {
         const auto splitType = static_cast<SplitType>(index);
         m_splitters->setVisible(splitType == Custom);
+        modifyOption();
+    }
+
+    void LyricBaseWidget::modifyOption() const {
+        const auto options = AppOptions::instance()->fillLyric();
+        options->textEditFontSize = m_textEdit->fontPointSize();
+        options->skipSlur = skipSlur->isChecked();
+        options->splitMode = m_splitComboBox->currentIndex();
+        AppOptions::instance()->saveAndNotify();
     }
 
 } // FillLyric

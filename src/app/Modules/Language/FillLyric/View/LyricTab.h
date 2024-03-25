@@ -3,19 +3,24 @@
 
 #include <QWidget>
 
-#include "../Widgets/Lyric/LyricBaseWidget.h"
-#include "../Widgets/Lyric/LyricExtWidget.h"
+#include "Widgets/LyricBaseWidget.h"
+#include "Widgets/LyricExtWidget.h"
 
-#include "../../Model/PhonicCommon.h"
+#include "../Model/PhonicCommon.h"
 
 class LineEdit;
 
 namespace FillLyric {
     class LyricTab final : public QWidget {
         Q_OBJECT
+        friend class LyricDialog;
+
     public:
         explicit LyricTab(QList<Phonic *> phonics, QWidget *parent = nullptr);
         ~LyricTab() override;
+
+        LyricBaseWidget *m_lyricBaseWidget;
+        LyricExtWidget *m_lyricExtWidget;
 
         void setPhonics();
 
@@ -35,6 +40,8 @@ namespace FillLyric {
         void _on_btnToText_clicked() const;
 
     private:
+        void modifyOption() const;
+
         QList<Phonic *> m_phonics;
 
         // Variables
@@ -43,9 +50,6 @@ namespace FillLyric {
         // Layout
         QVBoxLayout *m_mainLayout;
         QHBoxLayout *m_lyricLayout;
-
-        LyricBaseWidget *m_lyricBaseWidget;
-        LyricExtWidget *m_lyricExtWidget;
     };
 
 } // FillLyric

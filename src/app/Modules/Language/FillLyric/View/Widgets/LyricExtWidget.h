@@ -7,7 +7,7 @@
 
 #include "TableConfigWidget.h"
 
-#include "../../Controls/PhonicTableView.h"
+#include "../Controls/PhonicTableView.h"
 
 #include "UI/Controls/Button.h"
 
@@ -26,6 +26,8 @@ namespace FillLyric {
         void _on_modelDataChanged() const;
 
     private:
+        void modifyOption() const;
+
         int *notesCount = nullptr;
         QHBoxLayout *m_tableTopLayout;
 
@@ -58,7 +60,7 @@ namespace FillLyric {
         QPushButton *exportOptButton;
 
         QCheckBox *exportSkipSlur;
-        QCheckBox *exportExcludeSpace;
+        QCheckBox *exportSkipEndSpace;
         QCheckBox *exportLanguage;
     };
 

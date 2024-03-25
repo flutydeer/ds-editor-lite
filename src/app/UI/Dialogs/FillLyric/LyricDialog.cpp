@@ -19,6 +19,9 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
 
     m_lyricWidget = new FillLyric::LyricTab(m_phonics);
     m_lyricWidget->setPhonics();
+    if (!m_lyricWidget->m_lyricExtWidget->isVisible()) {
+        shrinkWindowRight(300);
+    }
 
     m_langPage = new LanguagePage(this);
 
@@ -43,6 +46,8 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
             &LyricDialog::shrinkWindowRight);
     connect(m_lyricWidget, &FillLyric::LyricTab::expandWindowRight, this,
             &LyricDialog::expandWindowRight);
+
+    connect(m_tabWidget, &QTabWidget::currentChanged, this, &LyricDialog::switchTab);
 }
 
 LyricDialog::~LyricDialog() = default;
@@ -103,5 +108,17 @@ void LyricDialog::exportPhonics() {
             note->setLanguage(phonic.category);
         }
         note->setLineFeed(phonic.lineFeed);
+    }
+}
+
+void LyricDialog::switchTab(const int &index) {
+    if (index == 0) {
+        if (!m_lyricWidget->m_lyricExtWidget->isVisible()) {
+            this->shrinkWindowRight(300);
+        }
+    } else {
+        if (!m_lyricWidget->m_lyricExtWidget->isVisible()) {
+            this->expandWindowRight();
+        }
     }
 }
