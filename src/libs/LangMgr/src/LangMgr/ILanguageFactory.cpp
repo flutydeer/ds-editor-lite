@@ -121,6 +121,10 @@ namespace LangMgr {
         d->author = author;
     }
 
+    QString ILanguageFactory::randString() const {
+        return QString();
+    }
+
     bool ILanguageFactory::contains(const QChar &c) const {
         Q_UNUSED(c);
         return false;

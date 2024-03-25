@@ -20,6 +20,9 @@ namespace LangMgr {
 
         [[nodiscard]] virtual bool contains(const QChar &c) const;
         [[nodiscard]] virtual bool contains(const QString &input) const;
+
+        [[nodiscard]] virtual QString randString() const;
+
         [[nodiscard]] virtual QList<LangNote> split(const QString &input) const;
         [[nodiscard]] QList<LangNote> split(const QList<LangNote> &input) const;
         [[nodiscard]] QString analysis(const QString &input) const;

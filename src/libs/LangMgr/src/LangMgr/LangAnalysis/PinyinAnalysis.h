@@ -3,8 +3,6 @@
 
 #include "BaseFactory/DictFactory.h"
 
-#include "EnglishAnalysis.h"
-
 namespace LangMgr {
 
     class PinyinAnalysis final : public DictFactory {

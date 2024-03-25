@@ -17,6 +17,8 @@ namespace LangMgr {
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;
+
+        [[nodiscard]] QString randString() const override;
     };
 
 } // LangMgr

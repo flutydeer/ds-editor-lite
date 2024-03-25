@@ -1,13 +1,16 @@
 #include "KanaAnalysis.h"
 
+#include <qrandom.h>
+
 namespace LangMgr {
+    static QStringView specialKana = QStringLiteral("ャュョゃゅょァィゥェォぁぃぅぇぉ");
+
     bool isKana(const QChar &c) {
         return ((c >= QChar(0x3040) && c <= QChar(0x309F)) ||
                 (c >= QChar(0x30A0) && c <= QChar(0x30FF)));
     }
 
     bool isSpecialKana(const QChar &c) {
-        static QStringView specialKana = QStringLiteral("ャュョゃゅょァィゥェォぁぃぅぇぉ");
         return specialKana.contains(c);
     }
 
@@ -29,7 +32,7 @@ namespace LangMgr {
             LangNote note;
             if (isKana(currentChar)) {
                 const int length =
-                    (pos + 1 < input.length() && isSpecialKana(input[pos + 1])) ? 2 : 1;
+                    pos + 1 < input.length() && isSpecialKana(input[pos + 1]) ? 2 : 1;
                 note.lyric = input.mid(pos, length);
                 note.language = id();
                 note.category = category();
@@ -49,5 +52,18 @@ namespace LangMgr {
 
         return results;
     }
+
+    QString KanaAnalysis::randString() const {
+        const int unicode = QRandomGenerator::global()->bounded(0x3040, 0x309F + 1);
+        const int unicode2 = QRandomGenerator::global()->bounded(0x30A0, 0x30FF + 1);
+
+        QString result =
+            QRandomGenerator::global()->bounded(2) == 0 ? QChar(unicode) : QChar(unicode2);
+        if (QRandomGenerator::global()->bounded(2) == 0) {
+            result += specialKana[QRandomGenerator::global()->bounded(specialKana.size())];
+        }
+        return result;
+    }
+
 
 } // LangMgr

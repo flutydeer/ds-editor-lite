@@ -16,6 +16,7 @@ namespace LangMgr {
 
         virtual void loadDict();
 
+        [[nodiscard]] QString randString() const override;
         [[nodiscard]] bool contains(const QChar &c) const override;
 
     protected:

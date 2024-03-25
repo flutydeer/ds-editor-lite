@@ -9,6 +9,7 @@ struct LangNote {
     QStringList candidates = QStringList();
     QString language = "Unknown";
     QString category = "Unknown";
+    QString standard = "Unknown";
     bool g2pError = false;
 
     LangNote() = default;
