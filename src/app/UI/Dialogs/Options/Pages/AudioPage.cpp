@@ -18,6 +18,7 @@
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/OptionsCard.h"
 #include "UI/Controls/OptionsCardItem.h"
+#include "UI/Controls/SwitchButton.h"
 
 #include <QCheckBox>
 #include <TalcsDevice/AudioDriverManager.h>
@@ -80,25 +81,28 @@ AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
     auto playbackCard = new OptionsCard;
     playbackCard->setTitle(tr("Playback Options"));
 
-    m_closeDeviceAtBackgroundItem = new OptionsCardItem;
-    m_closeDeviceAtBackgroundItem->setCheckable(true);
-    m_closeDeviceAtBackgroundItem->setTitle(
+    m_swCloseDeviceAtBackground = new SwitchButton;
+    auto closeDeviceAtBackgroundItem = new OptionsCardItem;
+    closeDeviceAtBackgroundItem->setTitle(
         tr("Close audio device when %1 is in the background").arg(qApp->applicationDisplayName()));
-    connect(m_closeDeviceAtBackgroundItem->checkBox(), &QCheckBox::clicked, this,
-            [=] { modifyOption(); });
+    closeDeviceAtBackgroundItem->addWidget(m_swCloseDeviceAtBackground);
+    connect(m_swCloseDeviceAtBackground, &SwitchButton::toggled, this, [=] {
+        // qDebug() << "toggled" << m_swCloseDeviceAtBackground->value();
+        modifyOption();
+    });
 
-    m_closeDeviceOnPlaybackStopItem = new OptionsCardItem;
-    m_closeDeviceOnPlaybackStopItem->setCheckable(true);
-    m_closeDeviceOnPlaybackStopItem->setTitle(tr("Close audio device when playback is stopped"));
-    connect(m_closeDeviceOnPlaybackStopItem->checkBox(), &QCheckBox::clicked, this,
-            [=] { modifyOption(); });
+    m_swCloseDeviceOnPlaybackStop = new SwitchButton;
+    auto closeDeviceOnPlaybackStop = new OptionsCardItem;
+    closeDeviceOnPlaybackStop->setTitle(tr("Close audio device when playback is stopped"));
+    closeDeviceOnPlaybackStop->addWidget(m_swCloseDeviceOnPlaybackStop);
+    connect(m_swCloseDeviceOnPlaybackStop, &SwitchButton::toggled, this, [=] { modifyOption(); });
 
     auto playbackCardLayout = new QVBoxLayout;
     playbackCardLayout->setContentsMargins(10, 5, 10, 5);
     playbackCardLayout->setSpacing(0);
-    playbackCardLayout->addWidget(m_closeDeviceAtBackgroundItem);
+    playbackCardLayout->addWidget(closeDeviceAtBackgroundItem);
     playbackCardLayout->addWidget(new DividerLine(Qt::Horizontal));
-    playbackCardLayout->addWidget(m_closeDeviceOnPlaybackStopItem);
+    playbackCardLayout->addWidget(closeDeviceOnPlaybackStop);
     playbackCard->card()->setLayout(playbackCardLayout);
 
     auto fileCard = new OptionsCard;
@@ -173,16 +177,16 @@ void AudioPage::setHotPlugMode(AudioSystem::HotPlugMode mode) {
     m_hotPlugModeComboBox->setCurrentIndex(mode);
 }
 bool AudioPage::closeDeviceAtBackground() const {
-    return m_closeDeviceAtBackgroundItem->isChecked();
+    return m_swCloseDeviceAtBackground->value();
 }
 void AudioPage::setCloseDeviceAtBackground(bool enabled) {
-    m_closeDeviceAtBackgroundItem->setChecked(enabled);
+    m_swCloseDeviceAtBackground->setValue(enabled);
 }
 bool AudioPage::closeDeviceOnPlaybackStop() const {
-    return m_closeDeviceOnPlaybackStopItem->isChecked();
+    return m_swCloseDeviceOnPlaybackStop->value();
 }
 void AudioPage::setCloseDeviceOnPlaybackStop(bool enabled) {
-    m_closeDeviceOnPlaybackStopItem->setChecked(enabled);
+    m_swCloseDeviceOnPlaybackStop->setValue(enabled);
 }
 double AudioPage::fileBufferingSizeMsec() const {
     return m_fileBufferingSizeMsec->value();

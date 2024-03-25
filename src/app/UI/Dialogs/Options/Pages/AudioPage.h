@@ -8,6 +8,8 @@
 #include "IOptionPage.h"
 #include "Modules/Audio/AudioSystem.h"
 
+
+class SwitchButton;
 class OptionsCardItem;
 class ComboBox;
 class QCheckBox;
@@ -40,8 +42,8 @@ private:
     ComboBox *m_bufferSizeComboBox;
     ComboBox *m_sampleRateComboBox;
     ComboBox *m_hotPlugModeComboBox;
-    OptionsCardItem *m_closeDeviceAtBackgroundItem;
-    OptionsCardItem *m_closeDeviceOnPlaybackStopItem;
+    SwitchButton *m_swCloseDeviceAtBackground;
+    SwitchButton *m_swCloseDeviceOnPlaybackStop;
     QDoubleSpinBox *m_fileBufferingSizeMsec;
 
     void updateDeviceComboBox();
