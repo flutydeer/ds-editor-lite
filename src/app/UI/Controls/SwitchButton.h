@@ -5,13 +5,15 @@
 #ifndef DATASET_TOOLS_SWITCHBUTTON_H
 #define DATASET_TOOLS_SWITCHBUTTON_H
 
-#include <QPushButton>
+#include <QAbstractButton>
 
 class QPropertyAnimation;
 
-class SwitchButton : public QPushButton {
+class SwitchButton : public QAbstractButton {
     Q_OBJECT
     Q_PROPERTY(bool value READ value WRITE setValue NOTIFY valueChanged)
+
+    // TODO: use QVariantAnimation
     Q_PROPERTY(double apparentValue READ apparentValue WRITE setApparentValue)
     Q_PROPERTY(int thumbScaleRatio READ thumbScaleRatio WRITE setThumbScaleRatio)
 
@@ -29,7 +31,9 @@ signals:
     void valueChanged(bool value);
 
 protected:
-    bool m_value;
+    using QAbstractButton::isChecked;
+    using QAbstractButton::setChecked;
+    // bool m_value = false;
 
     QRect m_rect;
     //    int m_penWidth;

@@ -4,6 +4,8 @@
 
 #include "OptionsCardItem.h"
 
+#include "SwitchButton.h"
+
 #include <QCheckBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -36,6 +38,7 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
     m_mainLayout->addLayout(titleDescLayout);
     m_mainLayout->addSpacerItem(new QSpacerItem(8, 4, QSizePolicy::Expanding));
     m_mainLayout->setContentsMargins(0, 3, 0, 3);
+    // addWidget(new SwitchButton);
     setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }

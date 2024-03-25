@@ -9,31 +9,34 @@
 #include <QEvent>
 #include <QPropertyAnimation>
 
-SwitchButton::SwitchButton(QWidget *parent) : QPushButton(parent) {
-    m_value = false;
+SwitchButton::SwitchButton(QWidget *parent) : QAbstractButton(parent) {
     initUi();
 }
 
-SwitchButton::SwitchButton(bool on, QWidget *parent) : QPushButton(parent), m_value(on) {
+SwitchButton::SwitchButton(bool on, QWidget *parent) : QAbstractButton(parent) {
     m_apparentValue = on ? 255 : 0;
     initUi();
+    setChecked(on);
 }
 
 SwitchButton::~SwitchButton() = default;
 
 bool SwitchButton::value() const {
-    return m_value;
+    // return m_value;
+    return isChecked();
 }
 
 void SwitchButton::setValue(bool value) {
-    m_value = value;
+    // m_value = value;
+    setChecked(value);
     m_valueAnimation->stop();
     m_valueAnimation->setStartValue(m_apparentValue);
-    m_valueAnimation->setEndValue(m_value ? 255 : 0);
+    m_valueAnimation->setEndValue(isChecked() ? 255 : 0);
     m_valueAnimation->start();
 }
 
 void SwitchButton::initUi() {
+    setCheckable(true);
     setAttribute(Qt::WA_Hover, true);
     installEventFilter(this);
 
@@ -54,7 +57,7 @@ void SwitchButton::initUi() {
     setMinimumSize(40, 20);
     setMaximumSize(40, 20);
     calculateParams();
-    connect(this, &QPushButton::clicked, this, [&]() { this->setValue(!m_value); });
+    connect(this, &QAbstractButton::clicked, this, &SwitchButton::setValue);
 }
 
 void SwitchButton::calculateParams() {
@@ -76,13 +79,13 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
 
     // Draw inactive background
     pen.setWidth(m_rect.height());
-    pen.setColor(QColor(0, 0, 0, m_apparentValue == 255 ? 0 : 32));
+    pen.setColor(QColor(255, 255, 255, m_apparentValue == 255 ? 0 : 10));
     pen.setCapStyle(Qt::RoundCap);
     painter.setPen(pen);
     painter.drawLine(m_trackStart, m_trackEnd);
 
     // Draw active background
-    pen.setColor(QColor(112, 156, 255, m_apparentValue));
+    pen.setColor(QColor(155, 186, 255, m_apparentValue));
     painter.setPen(pen);
     painter.drawLine(m_trackStart, m_trackEnd);
 
@@ -93,7 +96,7 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
     auto thumbRadius = m_thumbRadius * m_thumbScaleRatio / 100.0;
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(255, 255, 255));
+    painter.setBrush(isChecked() ? QColor(0, 0, 0) : QColor(255, 255, 255));
     painter.drawEllipse(handlePos, thumbRadius, thumbRadius);
 }
 
