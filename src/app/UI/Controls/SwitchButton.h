@@ -6,10 +6,9 @@
 #define DATASET_TOOLS_SWITCHBUTTON_H
 
 #include <QAbstractButton>
+#include <QPropertyAnimation>
 
 #include "UI/Utils/IAnimatable.h"
-
-class QPropertyAnimation;
 
 class SwitchButton : public QAbstractButton, public IAnimatable {
     Q_OBJECT
@@ -33,29 +32,21 @@ signals:
     void valueChanged(bool value);
 
 protected:
-    using QAbstractButton::isChecked;
-    using QAbstractButton::setChecked;
-    // bool m_value = false;
-
-    QRect m_rect;
-    //    int m_penWidth;
-    int m_thumbRadius{};
-    int m_halfRectHeight{};
-    QPoint m_trackStart;
-    QPoint m_trackEnd;
-    int m_trackLength{};
-    QPropertyAnimation *m_valueAnimation{};
-    QPropertyAnimation *m_thumbHoverAnimation{};
-
-    void initUi();
-    void calculateParams();
     void paintEvent(QPaintEvent *event) override;
-    void resizeEvent(QResizeEvent *event) override;
     bool eventFilter(QObject *object, QEvent *event) override;
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
     void afterSetTimeScale(double scale) override;
 
 private:
+    using QAbstractButton::isChecked;
+    using QAbstractButton::setChecked;
+    // bool m_value = false;
+
+    QPropertyAnimation m_valueAnimation;
+    QPropertyAnimation m_thumbHoverAnimation;
+
+    void initUi();
+
     // Animation
     int m_apparentValue = 0;
     [[nodiscard]] int apparentValue() const;
@@ -66,6 +57,8 @@ private:
     void setThumbScaleRatio(int ratio);
 
     void updateAnimationDuration();
+
+    double m_vPadding = 4;
 };
 
 

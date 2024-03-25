@@ -20,7 +20,6 @@
 #include "UI/Controls/OptionsCardItem.h"
 #include "UI/Controls/SwitchButton.h"
 
-#include <QCheckBox>
 #include <TalcsDevice/AudioDriverManager.h>
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDevice.h>
@@ -86,23 +85,23 @@ AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
     closeDeviceAtBackgroundItem->setTitle(
         tr("Close audio device when %1 is in the background").arg(qApp->applicationDisplayName()));
     closeDeviceAtBackgroundItem->addWidget(m_swCloseDeviceAtBackground);
-    connect(m_swCloseDeviceAtBackground, &SwitchButton::toggled, this, [=] {
-        // qDebug() << "toggled" << m_swCloseDeviceAtBackground->value();
-        modifyOption();
-    });
+    connect(m_swCloseDeviceAtBackground, &SwitchButton::clicked, this, [=] { modifyOption(); });
 
     m_swCloseDeviceOnPlaybackStop = new SwitchButton;
-    auto closeDeviceOnPlaybackStop = new OptionsCardItem;
-    closeDeviceOnPlaybackStop->setTitle(tr("Close audio device when playback is stopped"));
-    closeDeviceOnPlaybackStop->addWidget(m_swCloseDeviceOnPlaybackStop);
-    connect(m_swCloseDeviceOnPlaybackStop, &SwitchButton::toggled, this, [=] { modifyOption(); });
+    auto closeDeviceOnPlaybackStopItem = new OptionsCardItem;
+    closeDeviceOnPlaybackStopItem->setTitle(tr("Close audio device when playback is stopped"));
+    closeDeviceOnPlaybackStopItem->addWidget(m_swCloseDeviceOnPlaybackStop);
+    connect(m_swCloseDeviceOnPlaybackStop, &SwitchButton::clicked, this, [=] {
+        // qDebug() << m_swCloseDeviceOnPlaybackStop->value();
+        modifyOption();
+    });
 
     auto playbackCardLayout = new QVBoxLayout;
     playbackCardLayout->setContentsMargins(10, 5, 10, 5);
     playbackCardLayout->setSpacing(0);
     playbackCardLayout->addWidget(closeDeviceAtBackgroundItem);
     playbackCardLayout->addWidget(new DividerLine(Qt::Horizontal));
-    playbackCardLayout->addWidget(closeDeviceOnPlaybackStop);
+    playbackCardLayout->addWidget(closeDeviceOnPlaybackStopItem);
     playbackCard->card()->setLayout(playbackCardLayout);
 
     auto fileCard = new OptionsCard;
