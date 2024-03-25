@@ -38,6 +38,13 @@ file(GLOB_RECURSE _src src/*/*.h src/*/*.cpp)
 add_library(${PROJECT_NAME} STATIC ${_src})
 
 # ----------------------------------
+# Tests
+# ----------------------------------
+if (LangMgr_BUILD_TESTS)
+    add_subdirectory(tests)
+endif ()
+
+# ----------------------------------
 # find dependencies
 # ----------------------------------
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
