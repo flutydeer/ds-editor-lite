@@ -43,13 +43,11 @@ void SwitchButton::initUi() {
     m_valueAnimation = new QPropertyAnimation;
     m_valueAnimation->setTargetObject(this);
     m_valueAnimation->setPropertyName("apparentValue");
-    m_valueAnimation->setDuration(250);
     m_valueAnimation->setEasingCurve(QEasingCurve::InOutCubic);
 
     m_thumbHoverAnimation = new QPropertyAnimation;
     m_thumbHoverAnimation->setTargetObject(this);
     m_thumbHoverAnimation->setPropertyName("thumbScaleRatio");
-    m_thumbHoverAnimation->setDuration(200);
     m_thumbHoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
 
     //    setMinimumSize(32, 16);
@@ -58,6 +56,8 @@ void SwitchButton::initUi() {
     setMaximumSize(40, 20);
     calculateParams();
     connect(this, &QAbstractButton::clicked, this, &SwitchButton::setValue);
+
+    initializeAnimation();
 }
 
 void SwitchButton::calculateParams() {
@@ -79,7 +79,7 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
 
     // Draw inactive background
     pen.setWidth(m_rect.height());
-    pen.setColor(QColor(255, 255, 255, m_apparentValue == 255 ? 0 : 10));
+    pen.setColor(QColor(255, 255, 255, m_apparentValue == 255 ? 0 : 16));
     pen.setCapStyle(Qt::RoundCap);
     painter.setPen(pen);
     painter.drawLine(m_trackStart, m_trackEnd);
@@ -96,7 +96,8 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
     auto thumbRadius = m_thumbRadius * m_thumbScaleRatio / 100.0;
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(isChecked() ? QColor(0, 0, 0) : QColor(255, 255, 255));
+    auto b = 255 - m_apparentValue;
+    painter.setBrush(QColor(b, b, b));
     painter.drawEllipse(handlePos, thumbRadius, thumbRadius);
 }
 
@@ -121,6 +122,22 @@ void SwitchButton::setThumbScaleRatio(int ratio) {
     m_thumbScaleRatio = ratio;
     repaint();
 }
+void SwitchButton::updateAnimationDuration() {
+    int valueDuration = 0;
+    int hoverDuration = 0;
+    if (animationLevel() == AnimationGlobal::Full) {
+        valueDuration = 250;
+        hoverDuration = 200;
+    } else if (animationLevel() == AnimationGlobal::Decreased) {
+        valueDuration = 0;
+        hoverDuration = 200;
+    } else if (animationLevel() == AnimationGlobal::None) {
+        valueDuration = 0;
+        hoverDuration = 0;
+    }
+    m_valueAnimation->setDuration(getScaledAnimationTime(valueDuration));
+    m_thumbHoverAnimation->setDuration(getScaledAnimationTime(hoverDuration));
+}
 bool SwitchButton::eventFilter(QObject *object, QEvent *event) {
     auto type = event->type();
     if (type == QEvent::HoverEnter || type == QEvent::MouseButtonRelease) {
@@ -142,4 +159,10 @@ bool SwitchButton::eventFilter(QObject *object, QEvent *event) {
         m_thumbHoverAnimation->start();
     }
     return QObject::eventFilter(object, event);
+}
+void SwitchButton::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    updateAnimationDuration();
+}
+void SwitchButton::afterSetTimeScale(double scale) {
+    updateAnimationDuration();
 }
