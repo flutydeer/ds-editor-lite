@@ -6,13 +6,12 @@
 
 #include <QApplication>
 
-#include "g2pglobal.h"
-#include "Modules/Language/G2pMgr/IG2pManager.h"
-#include "Modules/Language/LangMgr/ILanguageManager.h"
+#include <G2pMgr/IG2pManager.h>
+#include <LangMgr/ILanguageManager.h>
 
 #include <QThread>
 
-LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : ITask(parent){
+LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : ITask(parent) {
     TaskStatus status;
     status.title = "Launching language engine...";
     status.message = "";
@@ -21,7 +20,6 @@ LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : ITask(pare
 }
 void LaunchLanguageEngineTask::runTask() {
     qDebug() << "RunLanguageEngineTask::runTask";
-    IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
     const auto g2pMgr = G2pMgr::IG2pManager::instance();
     const auto langMgr = LangMgr::ILanguageManager::instance();
 

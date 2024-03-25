@@ -2,6 +2,8 @@
 
 #include <QApplication>
 
+#include "Model/AppOptions/AppOptions.h"
+
 LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     : Dialog(parent), m_notes(std::move(note)) {
     setModal(true);
@@ -19,7 +21,8 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
 
     m_lyricWidget = new FillLyric::LyricTab(m_phonics);
     m_lyricWidget->setPhonics();
-    if (!m_lyricWidget->m_lyricExtWidget->isVisible()) {
+
+    if (!AppOptions::instance()->fillLyric()->extVisible) {
         shrinkWindowRight(300);
     }
 

@@ -2,7 +2,7 @@
 #define DS_EDITOR_LITE_PHONICTABLEVIEW_H
 
 #include <QTableView>
-#include "Modules/Language/LangMgr/ILanguageManager.h"
+#include <LangMgr/ILanguageManager.h>
 
 #include "../../Utils/SplitLyric.h"
 #include "../../Model/PhonicModel.h"

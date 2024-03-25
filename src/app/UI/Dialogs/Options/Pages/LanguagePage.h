@@ -3,13 +3,13 @@
 
 #include "IOptionPage.h"
 
-#include "Modules/Language/Controls/LangListWidget.h"
-#include "Modules/Language/Controls/LangInfoWidget.h"
-#include "Modules/Language/Controls/G2pInfoWidget.h"
+#include <LangMgr/Controls/LangListWidget.h>
+#include <LangMgr/Controls/LangInfoWidget.h>
+#include <LangMgr/Controls/G2pInfoWidget.h>
 
 class OptionsCardItem;
 
-class LanguagePage final: public IOptionPage {
+class LanguagePage final : public IOptionPage {
     Q_OBJECT
 public:
     explicit LanguagePage(QWidget *parent = nullptr);

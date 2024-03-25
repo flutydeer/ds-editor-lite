@@ -10,7 +10,7 @@
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/OptionsCard.h"
 
-#include "Modules/Language/LangMgr/ILanguageManager.h"
+#include <LangMgr/ILanguageManager.h>
 
 LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
     const auto mainLayout = new QVBoxLayout();
