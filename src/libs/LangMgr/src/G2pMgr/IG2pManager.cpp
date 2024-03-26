@@ -2,7 +2,7 @@
 #include "IG2pManager_p.h"
 
 #include "IG2pFactory_p.h"
-#include "g2pglobal.h"
+#include "G2pglobal.h"
 
 #include <QDebug>
 

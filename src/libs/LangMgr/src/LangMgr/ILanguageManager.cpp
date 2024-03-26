@@ -5,7 +5,7 @@
 
 #include <QDebug>
 
-#include "g2pglobal.h"
+#include "G2pglobal.h"
 
 #include "LangAnalysis/BaseAnalysis/NumberAnalysis.h"
 #include "LangAnalysis/BaseAnalysis/SlurAnalysis.h"
