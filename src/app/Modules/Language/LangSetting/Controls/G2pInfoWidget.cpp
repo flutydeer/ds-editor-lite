@@ -1,9 +1,11 @@
 #include "G2pInfoWidget.h"
 
-#include "../../G2pMgr/IG2pManager.h"
-#include "../ILanguageManager.h"
+#include "Modules/Language/LangSetting/ILangSetManager.h"
 
-namespace LangMgr {
+#include <G2pMgr/IG2pManager.h>
+#include <LangMgr/ILanguageManager.h>
+
+namespace LangSetting {
     G2pInfoWidget::G2pInfoWidget(QWidget *parent) : QWidget(parent) {
         this->setContentsMargins(0, 0, 0, 0);
 
@@ -50,7 +52,8 @@ namespace LangMgr {
     }
 
     void G2pInfoWidget::setInfo(const QString &language, const QString &g2pId) const {
-        const auto langMgr = ILanguageManager::instance()->language(language);
+        const auto langMgr = LangMgr::ILanguageManager::instance()->language(language);
+        const auto langSetFactory = LangSetting::ILangSetManager::instance()->g2pSet(g2pId);
         const auto g2pFactory = G2pMgr::IG2pManager::instance()->g2p(g2pId);
 
         m_languageLabel->setText(tr("Language: ") + g2pFactory->displayName());
@@ -58,10 +61,10 @@ namespace LangMgr {
         m_descriptionLabel->setText(g2pFactory->description());
 
         removeWidget();
-        const auto g2pConfigWidget = g2pFactory->configWidget(langMgr->g2pConfig());
+        const auto g2pConfigWidget = langSetFactory->configWidget(langMgr->g2pConfig());
         this->m_mainLayout->addWidget(g2pConfigWidget, 1);
 
-        connect(g2pFactory, &G2pMgr::IG2pFactory::g2pConfigChanged, this,
+        connect(langSetFactory, &LangSetting::IG2pSetFactory::g2pConfigChanged, this,
                 &G2pInfoWidget::g2pConfigChanged);
     }
 } // LangMgr

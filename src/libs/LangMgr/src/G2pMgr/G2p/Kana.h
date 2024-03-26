@@ -3,7 +3,7 @@
 
 #include <QObject>
 
-#include <jpg2p.h>
+#include <JapaneseG2p.h>
 
 #include "../IG2pFactory.h"
 
@@ -20,10 +20,9 @@ namespace G2pMgr {
         QList<LangNote> convert(const QStringList &input, const QJsonObject *config) const override;
 
         QJsonObject config() override;
-        QWidget *configWidget(QJsonObject *config) override;
 
     private:
-        IKg2p::JpG2p *m_kana;
+        IKg2p::JapaneseG2p *m_kana;
     };
 
 } // G2pMgr

@@ -1,8 +1,5 @@
 #include "Cantonese.h"
 
-#include <QCheckBox>
-#include <QVBoxLayout>
-
 namespace G2pMgr {
     Cantonese::Cantonese(QObject *parent) : IG2pFactory("Cantonese", parent) {
         setAuthor(tr("Xiao Lang"));
@@ -13,7 +10,7 @@ namespace G2pMgr {
     Cantonese::~Cantonese() = default;
 
     bool Cantonese::initialize(QString &errMsg) {
-        m_cantonese = new IKg2p::Cantonese();
+        m_cantonese = new IKg2p::CantoneseG2p();
         if (m_cantonese->getDefaultPinyin("好").isEmpty()) {
             errMsg = tr("Failed to initialize Cantonese G2P");
             return false;
@@ -22,11 +19,11 @@ namespace G2pMgr {
     }
 
     QList<LangNote> Cantonese::convert(const QStringList &input, const QJsonObject *config) const {
-        const auto tone =
-            config && config->keys().contains("tone") ? config->value("tone").toBool() : this->tone;
+        const auto tone = config && config->keys().contains("tone") ? config->value("tone").toBool()
+                                                                    : this->m_tone;
         const auto convertNum = config && config->keys().contains("convertNum")
                                     ? config->value("convertNum").toBool()
-                                    : this->convertNum;
+                                    : this->m_convertNum;
 
         QList<LangNote> result;
         auto g2pRes = m_cantonese->hanziToPinyin(input, tone, convertNum);
@@ -44,38 +41,24 @@ namespace G2pMgr {
 
     QJsonObject Cantonese::config() {
         QJsonObject config;
-        config["tone"] = tone;
-        config["convertNum"] = convertNum;
+        config["tone"] = m_tone;
+        config["convertNum"] = m_convertNum;
         return config;
     }
 
-    QWidget *Cantonese::configWidget(QJsonObject *config) {
-        auto *widget = new QWidget();
-        auto *layout = new QVBoxLayout(widget);
+    bool Cantonese::tone() const {
+        return m_tone;
+    }
 
-        auto *toneCheckBox = new QCheckBox(tr("Tone"), widget);
-        auto *convertNumCheckBox = new QCheckBox(tr("Convert number"), widget);
+    void Cantonese::setTone(const bool &tone) {
+        m_tone = tone;
+    }
 
-        layout->addWidget(toneCheckBox);
-        layout->addWidget(convertNumCheckBox);
-        layout->addStretch(1);
+    bool Cantonese::convertNum() const {
+        return m_convertNum;
+    }
 
-        if (config && config->keys().contains("tone")) {
-            toneCheckBox->setChecked(config->value("tone").toBool());
-            convertNumCheckBox->setChecked(config->value("convertNum").toBool());
-        } else {
-            toneCheckBox->setChecked(tone);
-            convertNumCheckBox->setChecked(convertNum);
-        }
-
-        connect(toneCheckBox, &QCheckBox::toggled, [this, config](const bool checked) {
-            config->insert("tone", checked);
-            Q_EMIT g2pConfigChanged();
-        });
-        connect(convertNumCheckBox, &QCheckBox::toggled, [this, config](const bool checked) {
-            config->insert("convertNum", checked);
-            Q_EMIT g2pConfigChanged();
-        });
-        return widget;
+    void Cantonese::setConvetNum(const bool &convertNum) {
+        m_convertNum = convertNum;
     }
 } // G2pMgr

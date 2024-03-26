@@ -1,7 +1,7 @@
 #ifndef DS_EDITOR_LITE_S2P_H
 #define DS_EDITOR_LITE_S2P_H
 
-#include "syllable2p.h"
+#include <Syllable2p.h>
 #include "Utils/Singleton.h"
 
 #include <QApplication>

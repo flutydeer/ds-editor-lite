@@ -1,9 +1,7 @@
 #include "IG2pFactory.h"
 #include "IG2pFactory_p.h"
 
-#include <QCheckBox>
 #include <QJsonObject>
-#include <QVBoxLayout>
 
 namespace G2pMgr {
 
@@ -81,10 +79,5 @@ namespace G2pMgr {
         Q_UNUSED(input);
         Q_UNUSED(config);
         return {};
-    }
-
-    QWidget *IG2pFactory::configWidget(QJsonObject *config) {
-        Q_UNUSED(config);
-        return new QWidget();
     }
 }

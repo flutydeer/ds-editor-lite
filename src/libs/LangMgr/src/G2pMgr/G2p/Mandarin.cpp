@@ -1,9 +1,5 @@
 #include "Mandarin.h"
 
-#include <QCheckBox>
-#include <QLabel>
-#include <QVBoxLayout>
-
 namespace G2pMgr {
     Mandarin::Mandarin(QObject *parent) : IG2pFactory("Mandarin", parent) {
         setAuthor(tr("Xiao Lang"));
@@ -14,7 +10,7 @@ namespace G2pMgr {
     Mandarin::~Mandarin() = default;
 
     bool Mandarin::initialize(QString &errMsg) {
-        m_mandarin = new IKg2p::Mandarin();
+        m_mandarin = new IKg2p::MandarinG2p();
         if (m_mandarin->getDefaultPinyin("好").isEmpty()) {
             errMsg = tr("Failed to initialize Mandarin G2P");
             return false;
@@ -23,11 +19,11 @@ namespace G2pMgr {
     }
 
     QList<LangNote> Mandarin::convert(const QStringList &input, const QJsonObject *config) const {
-        const auto tone =
-            config && config->keys().contains("tone") ? config->value("tone").toBool() : this->tone;
+        const auto tone = config && config->keys().contains("tone") ? config->value("tone").toBool()
+                                                                    : this->m_tone;
         const auto convertNum = config && config->keys().contains("convertNum")
                                     ? config->value("convertNum").toBool()
-                                    : this->convertNum;
+                                    : this->m_convertNum;
 
         QList<LangNote> result;
         auto g2pRes = m_mandarin->hanziToPinyin(input, tone, convertNum);
@@ -45,40 +41,24 @@ namespace G2pMgr {
 
     QJsonObject Mandarin::config() {
         QJsonObject config;
-        config["tone"] = tone;
-        config["convertNum"] = convertNum;
+        config["tone"] = m_tone;
+        config["convertNum"] = m_convertNum;
         return config;
     }
 
-    QWidget *Mandarin::configWidget(QJsonObject *config) {
-        auto *widget = new QWidget();
-        auto *layout = new QVBoxLayout();
+    bool Mandarin::tone() const {
+        return m_tone;
+    }
 
-        auto *toneCheckBox = new QCheckBox(tr("Tone"), widget);
-        auto *convertNumCheckBox = new QCheckBox(tr("Convert number"), widget);
+    void Mandarin::setTone(const bool &tone) {
+        m_tone = tone;
+    }
 
-        layout->addWidget(toneCheckBox);
-        layout->addWidget(convertNumCheckBox);
-        layout->addStretch(1);
+    bool Mandarin::convertNum() const {
+        return m_convertNum;
+    }
 
-        if (config && config->keys().contains("tone")) {
-            toneCheckBox->setChecked(config->value("tone").toBool());
-            convertNumCheckBox->setChecked(config->value("convertNum").toBool());
-        } else {
-            toneCheckBox->setChecked(tone);
-            convertNumCheckBox->setChecked(convertNum);
-        }
-
-        widget->setLayout(layout);
-
-        connect(toneCheckBox, &QCheckBox::toggled, [this, config](const bool checked) {
-            config->insert("tone", checked);
-            Q_EMIT g2pConfigChanged();
-        });
-        connect(convertNumCheckBox, &QCheckBox::toggled, [this, config](const bool checked) {
-            config->insert("convertNum", checked);
-            Q_EMIT g2pConfigChanged();
-        });
-        return widget;
+    void Mandarin::setConvetNum(const bool &convertNum) {
+        m_convertNum = convertNum;
     }
 } // G2pMgr

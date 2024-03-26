@@ -28,9 +28,6 @@ namespace LangMgr {
         [[nodiscard]] QString analysis(const QString &input) const;
         void correct(const QList<LangNote *> &input) const;
 
-        [[nodiscard]] virtual QWidget *configWidget();
-        [[nodiscard]] QWidget *g2pConfigWidget();
-
         [[nodiscard]] QJsonObject *g2pConfig();
 
         virtual void loadConfig(const QJsonObject &config);
@@ -59,10 +56,6 @@ namespace LangMgr {
 
         [[nodiscard]] QString description() const;
         void setDescription(const QString &description);
-
-    Q_SIGNALS:
-        void g2pChanged(const QString &g2pId);
-        void langConfigChanged(const QString &langId);
 
     protected:
         ILanguageFactory(ILanguageFactoryPrivate &d, const QString &id, QObject *parent = nullptr);

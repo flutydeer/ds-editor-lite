@@ -14,10 +14,12 @@ namespace G2pMgr {
         QList<LangNote> convert(const QStringList &input, const QJsonObject *config) const override;
 
         QJsonObject config() override;
-        QWidget *configWidget(QJsonObject *config) override;
+
+        [[nodiscard]] bool toLower() const;
+        void setToLower(const bool &toLower);
 
     private:
-        bool toLower = true;
+        bool m_toLower = true;
     };
 
 } // G2pMgr

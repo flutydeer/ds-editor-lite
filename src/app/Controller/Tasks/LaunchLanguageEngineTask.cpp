@@ -8,6 +8,7 @@
 
 #include <G2pMgr/IG2pManager.h>
 #include <LangMgr/ILanguageManager.h>
+#include "Modules/Language/LangSetting/ILangSetManager.h"
 
 #include <QThread>
 
@@ -22,6 +23,7 @@ void LaunchLanguageEngineTask::runTask() {
     qDebug() << "RunLanguageEngineTask::runTask";
     const auto g2pMgr = G2pMgr::IG2pManager::instance();
     const auto langMgr = LangMgr::ILanguageManager::instance();
+    const auto langSet = LangSetting::ILangSetManager::instance();
 
     QString errorMsg;
     g2pMgr->initialize(errorMsg);

@@ -3,11 +3,11 @@
 
 #include <QListWidget>
 
-#include "../../LangCommon.h"
+#include <LangCommon.h>
 
 #include <QLabel>
 
-namespace LangMgr {
+namespace LangSetting {
 
     class LangListWidget final : public QListWidget {
         Q_OBJECT

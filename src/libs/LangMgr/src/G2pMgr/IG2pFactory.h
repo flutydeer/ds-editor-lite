@@ -2,7 +2,6 @@
 #define IG2PFACTORY_H
 
 #include <QObject>
-#include <QWidget>
 #include <QJsonObject>
 
 #include "../LangCommon.h"
@@ -24,7 +23,6 @@ namespace G2pMgr {
         virtual QList<LangNote> convert(const QStringList &input, const QJsonObject *config) const;
 
         virtual QJsonObject config();
-        virtual QWidget *configWidget(QJsonObject *config);
 
     public:
         [[nodiscard]] QString id() const;
@@ -37,9 +35,6 @@ namespace G2pMgr {
 
         [[nodiscard]] QString description() const;
         void setDescription(const QString &description);
-
-    Q_SIGNALS:
-        void g2pConfigChanged() const;
 
     protected:
         IG2pFactory(IG2pFactoryPrivate &d, const QString &id, QObject *parent = nullptr);

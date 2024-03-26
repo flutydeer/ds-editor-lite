@@ -4,11 +4,11 @@
 #include <QCheckBox>
 #include <QHeaderView>
 
-#include "../ILanguageManager.h"
+#include <LangMgr/ILanguageManager.h>
 
-namespace LangMgr {
+namespace LangSetting {
     LangListWidget::LangListWidget(QWidget *parent) : QListWidget(parent) {
-        const auto langMgr = ILanguageManager::instance();
+        const auto langMgr = LangMgr::ILanguageManager::instance();
 
         this->setDragDropMode(InternalMove);
         this->setDropIndicatorShown(true);
@@ -40,7 +40,7 @@ namespace LangMgr {
 
     void LangListWidget::dropEvent(QDropEvent *event) {
         QListWidget::dropEvent(event);
-        const auto langMgr = ILanguageManager::instance();
+        const auto langMgr = LangMgr::ILanguageManager::instance();
         langMgr->setDefaultOrder(this->langOrder());
         Q_EMIT this->priorityChanged();
     }

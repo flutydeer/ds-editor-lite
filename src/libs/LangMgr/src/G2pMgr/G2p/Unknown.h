@@ -14,7 +14,6 @@ namespace G2pMgr {
         QList<LangNote> convert(const QStringList &input, const QJsonObject *config) const override;
 
         QJsonObject config() override;
-        QWidget *configWidget(QJsonObject *config) override;
     };
 
 } // G2pMgr

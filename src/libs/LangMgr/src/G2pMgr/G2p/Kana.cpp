@@ -10,7 +10,7 @@ namespace G2pMgr {
     Kana::~Kana() = default;
 
     bool Kana::initialize(QString &errMsg) {
-        m_kana = new IKg2p::JpG2p();
+        m_kana = new IKg2p::JapaneseG2p();
         if (m_kana->kanaToRomaji("かな").isEmpty()) {
             errMsg = tr("Failed to initialize Kana");
             return false;
@@ -35,10 +35,5 @@ namespace G2pMgr {
 
     QJsonObject Kana::config() {
         return {};
-    }
-
-    QWidget *Kana::configWidget(QJsonObject *config) {
-        Q_UNUSED(config);
-        return new QWidget();
     }
 } // G2pMgr

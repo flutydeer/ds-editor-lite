@@ -23,15 +23,15 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
 
     const auto langListLayout = new QVBoxLayout();
     const auto langLabel = new QLabel(tr("Language Priority"));
-    m_langListWidget = new LangMgr::LangListWidget();
+    m_langListWidget = new LangSetting::LangListWidget();
     langListLayout->addWidget(langLabel);
     langListLayout->addWidget(m_langListWidget);
     const auto diverLine = new DividerLine();
     diverLine->setOrientation(Qt::Vertical);
-    m_langInfoWidget = new LangMgr::LangInfoWidget();
+    m_langInfoWidget = new LangSetting::LangInfoWidget();
     const auto dividerLine2 = new DividerLine();
     dividerLine2->setOrientation(Qt::Vertical);
-    m_g2pInfoWidget = new LangMgr::G2pInfoWidget();
+    m_g2pInfoWidget = new LangSetting::G2pInfoWidget();
 
     centerLayout->addLayout(langListLayout, 1);
     centerLayout->addWidget(diverLine);
@@ -58,16 +58,16 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
         m_langInfoWidget->setInfo(m_langListWidget->currentItem()->data(Qt::UserRole).toString());
     });
 
-    connect(m_langInfoWidget, &LangMgr::LangInfoWidget::g2pSelected, m_g2pInfoWidget,
-            &LangMgr::G2pInfoWidget::setInfo);
+    connect(m_langInfoWidget, &LangSetting::LangInfoWidget::g2pSelected, m_g2pInfoWidget,
+            &LangSetting::G2pInfoWidget::setInfo);
 
-    connect(m_langListWidget, &LangMgr::LangListWidget::priorityChanged, this,
+    connect(m_langListWidget, &LangSetting::LangListWidget::priorityChanged, this,
             &LanguagePage::modifyOption);
 
-    connect(m_langInfoWidget, &LangMgr::LangInfoWidget::langConfigChanged, this,
+    connect(m_langInfoWidget, &LangSetting::LangInfoWidget::langConfigChanged, this,
             &LanguagePage::modifyOption);
 
-    connect(m_g2pInfoWidget, &LangMgr::G2pInfoWidget::g2pConfigChanged, this,
+    connect(m_g2pInfoWidget, &LangSetting::G2pInfoWidget::g2pConfigChanged, this,
             &LanguagePage::modifyOption);
 }
 

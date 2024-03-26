@@ -7,7 +7,7 @@
 
 #include <QGroupBox>
 
-namespace LangMgr {
+namespace LangSetting {
 
     class G2pInfoWidget final : public QWidget {
         Q_OBJECT

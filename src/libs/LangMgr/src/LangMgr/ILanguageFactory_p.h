@@ -4,7 +4,6 @@
 #include "ILanguageFactory.h"
 
 #include <QObject>
-#include <QLabel>
 #include <QJsonObject>
 
 namespace LangMgr {

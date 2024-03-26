@@ -26,9 +26,4 @@ namespace G2pMgr {
     QJsonObject Unknown::config() {
         return {};
     }
-
-    QWidget *Unknown::configWidget(QJsonObject *config) {
-        Q_UNUSED(config);
-        return new QWidget();
-    }
 } // G2pMgr

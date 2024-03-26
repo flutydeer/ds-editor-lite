@@ -3,7 +3,7 @@
 
 #include <QObject>
 
-#include <mandarin.h>
+#include <MandarinG2p.h>
 
 #include "../IG2pFactory.h"
 
@@ -20,13 +20,18 @@ namespace G2pMgr {
         QList<LangNote> convert(const QStringList &input, const QJsonObject *config) const override;
 
         QJsonObject config() override;
-        QWidget *configWidget(QJsonObject *config) override;
+
+        [[nodiscard]] bool tone() const;
+        void setTone(const bool &tone);
+
+        [[nodiscard]] bool convertNum() const;
+        void setConvetNum(const bool &convertNum);
 
     private:
-        IKg2p::Mandarin *m_mandarin;
+        IKg2p::MandarinG2p *m_mandarin;
 
-        bool tone = false;
-        bool convertNum = false;
+        bool m_tone = false;
+        bool m_convertNum = false;
     };
 } // G2pMgr
 

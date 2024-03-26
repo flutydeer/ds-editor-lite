@@ -2,16 +2,9 @@
 #include "ILanguageFactory_p.h"
 
 #include <QDebug>
-#include <QWidget>
-#include <QCheckBox>
-#include <QComboBox>
-#include <QLabel>
-#include <QVBoxLayout>
+#include <QtConcurrent/QtConcurrent>
 
 #include "../G2pMgr/IG2pManager.h"
-#include "ILanguageManager.h"
-
-#include <QtConcurrent/QtConcurrent>
 
 namespace LangMgr {
 
@@ -39,10 +32,10 @@ namespace LangMgr {
         : QObject(parent), d_ptr(&d) {
         d.q_ptr = this;
         d.id = id;
+        d.m_selectedG2p = id;
         d.categroy = id;
 
         d.init();
-        d.m_selectedG2p = id;
         d.m_g2pConfig = new QJsonObject();
     }
 
@@ -174,113 +167,6 @@ namespace LangMgr {
                     note->language = id();
             }
         }
-    }
-
-    QWidget *ILanguageFactory::configWidget() {
-        Q_D(const ILanguageFactory);
-        auto *widget = new QWidget();
-        const auto mainLayout = new QVBoxLayout(widget);
-
-        const auto enabledCheckBox = new QCheckBox(tr("Enabled"));
-        enabledCheckBox->setChecked(d->enabled);
-
-        const auto discardResultCheckBox = new QCheckBox(tr("Discard result"));
-        discardResultCheckBox->setChecked(d->discardResult);
-
-        const auto langMgr = ILanguageManager::instance();
-
-        const auto cateLayout = new QHBoxLayout();
-        const auto cateLabel = new QLabel(tr("Analysis results "));
-        const auto cateComboBox = new QComboBox();
-        cateComboBox->setMaximumWidth(120);
-        cateComboBox->setMinimumHeight(28);
-
-        const auto languages = langMgr->languages();
-        QStringList cateList;
-        QStringList cateTrans;
-
-        for (const auto &lang : languages) {
-            cateList.append(lang->id());
-            cateTrans.append(lang->displayName());
-        }
-
-        cateComboBox->addItems(cateTrans);
-        if (cateList.contains(d->categroy)) {
-            cateComboBox->setCurrentText(cateTrans.at(cateList.indexOf(d->categroy)));
-        } else {
-            cateComboBox->setCurrentText(tr("Unknown"));
-        }
-
-        const auto g2pMgr = G2pMgr::IG2pManager::instance();
-
-        const auto g2pLayout = new QHBoxLayout();
-        const auto g2pLabel = new QLabel(tr("Subordinate G2p"));
-        const auto g2pComboBox = new QComboBox();
-        g2pComboBox->setMaximumWidth(120);
-        g2pComboBox->setMinimumHeight(28);
-
-        const auto g2ps = g2pMgr->g2ps();
-        QStringList g2pList;
-        QStringList g2pTrans;
-
-        for (const auto &g2p : g2ps) {
-            g2pList.append(g2p->id());
-            g2pTrans.append(g2p->displayName());
-        }
-
-        g2pComboBox->addItems(g2pTrans);
-        if (g2pList.contains(d->m_selectedG2p)) {
-            g2pComboBox->setCurrentText(g2pTrans.at(g2pList.indexOf(d->m_selectedG2p)));
-        } else {
-            g2pComboBox->setCurrentText(tr("Unknown"));
-        }
-
-        mainLayout->addWidget(enabledCheckBox);
-        mainLayout->addWidget(discardResultCheckBox);
-
-        cateLayout->addWidget(cateLabel);
-        cateLayout->addWidget(cateComboBox);
-        cateLayout->addStretch();
-        mainLayout->addLayout(cateLayout);
-
-        g2pLayout->addWidget(g2pLabel);
-        g2pLayout->addWidget(g2pComboBox);
-        g2pLayout->addStretch();
-        mainLayout->addLayout(g2pLayout);
-
-        widget->setLayout(mainLayout);
-
-        connect(enabledCheckBox, &QCheckBox::toggled, [this](const bool &checked) {
-            setEnabled(checked);
-            Q_EMIT langConfigChanged(id());
-        });
-
-        connect(discardResultCheckBox, &QCheckBox::toggled, [this](const bool &checked) {
-            setDiscardResult(checked);
-            Q_EMIT langConfigChanged(id());
-        });
-
-        connect(cateComboBox, &QComboBox::currentTextChanged,
-                [this, cateList, cateTrans](const QString &text) {
-                    const auto index = cateTrans.indexOf(text);
-                    setCategory(index >= 0 ? cateList.at(index) : tr("Unknown"));
-                    Q_EMIT langConfigChanged(id());
-                });
-
-        connect(g2pComboBox, &QComboBox::currentTextChanged,
-                [this, g2pList, g2pTrans](const QString &text) {
-                    const auto index = g2pTrans.indexOf(text);
-                    setG2p(index >= 0 ? g2pList.at(index) : tr("Unknown"));
-                    Q_EMIT g2pChanged(selectedG2p());
-                    Q_EMIT langConfigChanged(id());
-                });
-        return widget;
-    }
-
-    QWidget *ILanguageFactory::g2pConfigWidget() {
-        Q_D(const ILanguageFactory);
-        const auto g2pMgr = G2pMgr::IG2pManager::instance();
-        return g2pMgr->g2p(d->m_selectedG2p)->configWidget(d->m_g2pConfig);
     }
 
     QJsonObject *ILanguageFactory::g2pConfig() {

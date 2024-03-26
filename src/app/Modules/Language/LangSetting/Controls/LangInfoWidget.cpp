@@ -1,11 +1,13 @@
 #include "LangInfoWidget.h"
 
-#include "../../G2pMgr//IG2pManager.h"
-#include "../ILanguageManager.h"
+#include "Modules/Language/LangSetting/ILangSetManager.h"
+
+#include <G2pMgr/IG2pManager.h>
+#include <LangMgr/ILanguageManager.h>
 
 #include <QDebug>
 
-namespace LangMgr {
+namespace LangSetting {
     LangInfoWidget::LangInfoWidget(QWidget *parent) : QWidget(parent) {
         this->setContentsMargins(0, 0, 0, 0);
 
@@ -51,22 +53,23 @@ namespace LangMgr {
         }
     }
 
-    void LangInfoWidget::setInfo(const QString &id) {
-        const auto langMgr = ILanguageManager::instance();
-        const auto langFactory = langMgr->language(id);
+    void LangInfoWidget::setInfo(const QString &langId) {
+        const auto langMgr = LangMgr::ILanguageManager::instance();
+        const auto langSetFactory = LangSetting::ILangSetManager::instance()->langSet(langId);
+        const auto langFactory = langMgr->language(langId);
         this->m_languageLabel->setText(tr("Language: ") + langFactory->displayName());
         this->m_authorLabel->setText(tr("Author: ") + langFactory->author());
         this->m_descriptionLabel->setText(langFactory->description());
 
         this->removeWidget();
-        this->m_mainLayout->addWidget(langFactory->configWidget(), 1);
+        this->m_mainLayout->addWidget(langSetFactory->configWidget(langId), 1);
 
-        Q_EMIT g2pSelected(id, langFactory->selectedG2p());
+        Q_EMIT g2pSelected(langId, langFactory->selectedG2p());
 
-        connect(langFactory, &ILanguageFactory::g2pChanged, this,
-                [this, id](const QString &g2pId) { Q_EMIT g2pSelected(id, g2pId); });
+        connect(langSetFactory, &LangSetting::ILangSetFactory::g2pChanged, this,
+                [this, langId](const QString &g2pId) { Q_EMIT g2pSelected(langId, g2pId); });
 
-        connect(langFactory, &ILanguageFactory::langConfigChanged, this,
+        connect(langSetFactory, &LangSetting::ILangSetFactory::langConfigChanged, this,
                 [this] { Q_EMIT langConfigChanged(); });
     }
 } // LangMgr

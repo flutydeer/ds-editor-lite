@@ -3,9 +3,9 @@
 
 #include "IOptionPage.h"
 
-#include <LangMgr/Controls/LangListWidget.h>
-#include <LangMgr/Controls/LangInfoWidget.h>
-#include <LangMgr/Controls/G2pInfoWidget.h>
+#include <Modules/Language/LangSetting/Controls/LangListWidget.h>
+#include <Modules/Language/LangSetting/Controls/LangInfoWidget.h>
+#include <Modules/Language/LangSetting/Controls/G2pInfoWidget.h>
 
 class OptionsCardItem;
 
@@ -18,9 +18,9 @@ protected:
     void modifyOption() override;
 
 private:
-    LangMgr::LangListWidget *m_langListWidget;
-    LangMgr::LangInfoWidget *m_langInfoWidget;
-    LangMgr::G2pInfoWidget *m_g2pInfoWidget;
+    LangSetting::LangListWidget *m_langListWidget;
+    LangSetting::LangInfoWidget *m_langInfoWidget;
+    LangSetting::G2pInfoWidget *m_g2pInfoWidget;
 };
 
 #endif // LANGUAGEPAGE_H

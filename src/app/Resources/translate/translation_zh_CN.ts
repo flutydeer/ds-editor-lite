@@ -96,12 +96,12 @@
 <context>
     <name>AudioContext</name>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="109"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="120"/>
         <source>Cannot open audio device!</source>
         <translation>无法打开音频设备！</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="234"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="252"/>
         <source>Cannot read audio file:
 
 %1</source>
@@ -470,44 +470,44 @@
         <translation>回放停止后关闭音频设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="105"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="108"/>
         <source>File Options</source>
         <translation>文件选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="112"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="115"/>
         <source>Buffer size when reading from file</source>
         <translation>读取文件时的缓冲区大小</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="144"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="147"/>
         <source>These options are disabled in plugged mode.</source>
         <translation>这些选项在插入模式下被禁用。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="208"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="212"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="234"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="211"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="215"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="237"/>
         <source> (Not working)</source>
         <translation> （不可用）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="233"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="236"/>
         <source>Audio device %1 is not available!</source>
         <translation>音频设备 %1 不可用！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="266"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="269"/>
         <source>No audio driver available on this computer!</source>
         <translation>此计算机上没有可用的音频驱动！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="280"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="283"/>
         <source>No audio device available in driver mode %1!</source>
         <translation>驱动模式 %1 下没有可用的音频设备！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="306"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="309"/>
         <source>Driver mode %1 cannot initialize!</source>
         <translation>驱动模式 %1 无法初始化！</translation>
     </message>
@@ -688,52 +688,52 @@
 <context>
     <name>FillLyric::LyricBaseWidget</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="14"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="15"/>
         <source>Import Lrc</source>
         <translation>导入 Lrc</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="15"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="16"/>
         <source>Reread Note</source>
         <translation>重读音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="16"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="17"/>
         <source>Lyric Prev</source>
         <translation>预览歌词</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="24"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="25"/>
         <source>Please input lyric here.</source>
         <translation>请在此输入歌词。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="27"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="28"/>
         <source>Note Count: 0</source>
         <translation>字符数：0</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="43"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="44"/>
         <source>Fill-in Options:</source>
         <translation>填入选项：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="59"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="60"/>
         <source>Split Mode :</source>
         <translation>分词模式：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="61"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="62"/>
         <source>Auto</source>
         <translation>自动</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="61"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="62"/>
         <source>By Char</source>
         <translation>按字符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="61"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="62"/>
         <source>Custom</source>
         <translation>自定义</translation>
     </message>
@@ -742,7 +742,7 @@
         <translation type="vanished">正则</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="70"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="71"/>
         <source>Skip Slur Note</source>
         <translation>跳过延音符</translation>
     </message>
@@ -751,27 +751,27 @@
         <translation type="vanished">去除空格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="103"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="114"/>
         <source>Note Count: %1</source>
         <translation>字符数：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="108"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="119"/>
         <source>Open Lrc File</source>
         <translation>打开Lrc文件</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="108"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="119"/>
         <source>Lrc Files (*.lrc)</source>
         <translation>Lrc文件(*.lrc)</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="115"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="126"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricBaseWidget.cpp" line="115"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="126"/>
         <source>Failed to decode lrc file.</source>
         <translation>解析Lrc文件失败。</translation>
     </message>
@@ -806,42 +806,42 @@
 <context>
     <name>FillLyric::LyricExtWidget</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="14"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="16"/>
         <source>Fold Left</source>
         <translation>收起左侧</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="15"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="17"/>
         <source>Toggle Fermata</source>
         <translation>收放延音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="16"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="18"/>
         <source>Auto Wrap</source>
         <translation>自动换行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="31"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="33"/>
         <source>Test</source>
         <translation>测试</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="52"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="54"/>
         <source>Export Option:</source>
         <translation>导出选项：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="64"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="66"/>
         <source>Skipping Slur</source>
         <translation>忽略延音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="65"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="67"/>
         <source>Ignoring end of sentence spaces</source>
         <translation>忽略句末空格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/LyricExtWidget.cpp" line="66"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="68"/>
         <source>Automatically mark languages</source>
         <translation>自动标记语种</translation>
     </message>
@@ -888,22 +888,24 @@
 <context>
     <name>FillLyric::LyricTab</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="41"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="42"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="73"/>
         <source>Lyric Prev</source>
         <translation>预览歌词</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="41"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="42"/>
         <source>Fold Preview</source>
         <translation>收起预览</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="55"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="57"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="68"/>
         <source>Expand Left</source>
         <translation>展开左侧</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Tabs/LyricTab.cpp" line="55"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="57"/>
         <source>Fold Left</source>
         <translation>收起左侧</translation>
     </message>
@@ -919,33 +921,33 @@
 <context>
     <name>FillLyric::PhonicTableView</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="321"/>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="328"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="332"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="339"/>
         <source>Clear Cell</source>
         <translation>清空单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="327"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="338"/>
         <source>Insert New Cell</source>
         <translation>插入新单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="330"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="341"/>
         <source>Merge Cell To Left</source>
         <translation>合并到左侧单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="333"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="344"/>
         <source>Remove Cell</source>
         <translation>删除单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="338"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="349"/>
         <source>LineBreak</source>
         <translation>换行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="340"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="351"/>
         <source>Merge To Up Line</source>
         <translation>合并到上一行</translation>
     </message>
@@ -954,28 +956,28 @@
         <translation type="obsolete">合并到上一行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="342"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="354"/>
         <source>Add Prev Line</source>
         <translation>向上插入新行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="343"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="355"/>
         <source>Add Next Line</source>
         <translation>向下插入新行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="344"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="356"/>
         <source>Remove Cur Line</source>
         <translation>删除当前行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="352"/>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="357"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="364"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="369"/>
         <source>Custom Syllables</source>
         <translation>自定义发音</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="357"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="369"/>
         <source>Please input syllables</source>
         <translation>请输入发音</translation>
     </message>
@@ -983,17 +985,17 @@
 <context>
     <name>FillLyric::TableConfigWidget</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/TableConfigWidget.cpp" line="10"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/TableConfigWidget.cpp" line="10"/>
         <source>Column Width Ratio</source>
         <translation>列宽比例</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/TableConfigWidget.cpp" line="16"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/TableConfigWidget.cpp" line="16"/>
         <source>Row Height Ratio</source>
         <translation>行高比例</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/Lyric/TableConfigWidget.cpp" line="22"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/TableConfigWidget.cpp" line="22"/>
         <source>Font Size Diff</source>
         <translation>注音字体缩减</translation>
     </message>
@@ -1001,78 +1003,75 @@
 <context>
     <name>G2pMgr::Cantonese</name>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Cantonese.cpp" line="8"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="5"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Cantonese.cpp" line="9"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="6"/>
         <source>Cantonese</source>
         <translation>粤语</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Cantonese.cpp" line="10"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="7"/>
         <source>Using Cantonese Pinyin as the phonetic notation method.</source>
         <translation>使用粤拼作为注音方式。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Cantonese.cpp" line="18"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="15"/>
         <source>Failed to initialize Cantonese G2P</source>
         <translation>加载粤语G2p失败</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Cantonese.cpp" line="56"/>
         <source>Tone</source>
-        <translation>声调</translation>
+        <translation type="vanished">声调</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Cantonese.cpp" line="57"/>
         <source>Convert number</source>
-        <translation>转换数字</translation>
+        <translation type="vanished">转换数字</translation>
     </message>
 </context>
 <context>
     <name>G2pMgr::English</name>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/English.cpp" line="8"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/English.cpp" line="5"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/English.cpp" line="9"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/English.cpp" line="6"/>
         <source>English</source>
         <translation>英语</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/English.cpp" line="10"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/English.cpp" line="7"/>
         <source>Greedy matching of consecutive English letters.</source>
         <translation>贪婪匹配英文字母。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/English.cpp" line="43"/>
         <source>To lower</source>
-        <translation>字母转小写</translation>
+        <translation type="vanished">字母转小写</translation>
     </message>
 </context>
 <context>
     <name>G2pMgr::Kana</name>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Kana.cpp" line="5"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="5"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Kana.cpp" line="6"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="6"/>
         <source>Kana</source>
         <translation>假名</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Kana.cpp" line="7"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="7"/>
         <source>Kana to Romanization converter.</source>
         <translation>假名转罗马音。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Kana.cpp" line="15"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="15"/>
         <source>Failed to initialize Kana</source>
         <translation>加载假名G2p失败</translation>
     </message>
@@ -1080,50 +1079,48 @@
 <context>
     <name>G2pMgr::Mandarin</name>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Mandarin.cpp" line="9"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="5"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Mandarin.cpp" line="10"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="6"/>
         <source>Mandarin</source>
         <translation>普通话</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Mandarin.cpp" line="11"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="7"/>
         <source>Using Pinyin as the phonetic notation method.</source>
         <translation>使用拼音作为注音方式。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Mandarin.cpp" line="19"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="15"/>
         <source>Failed to initialize Mandarin G2P</source>
         <translation>加载普通话G2p失败</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Mandarin.cpp" line="57"/>
         <source>Tone</source>
-        <translation>声调</translation>
+        <translation type="vanished">声调</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Mandarin.cpp" line="58"/>
         <source>Convert number</source>
-        <translation>转换数字</translation>
+        <translation type="vanished">转换数字</translation>
     </message>
 </context>
 <context>
     <name>G2pMgr::Unknown</name>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Unknown.cpp" line="5"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Unknown.cpp" line="5"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Unknown.cpp" line="6"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Unknown.cpp" line="6"/>
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/G2pMgr/G2p/Unknown.cpp" line="7"/>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Unknown.cpp" line="7"/>
         <source>Unknown language, no conversion required.</source>
         <translation>未知语种，无需转换。</translation>
     </message>
@@ -1131,17 +1128,17 @@
 <context>
     <name>LangMgr::CantoneseAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="14"/>
         <source>Cantonese</source>
         <translation>粤语</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="15"/>
         <source>Capture Cantonese characters.</source>
         <translation>捕获粤语字符。</translation>
     </message>
@@ -1149,17 +1146,17 @@
 <context>
     <name>LangMgr::EnglishAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/EnglishAnalysis.h" line="12"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/EnglishAnalysis.h" line="12"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/EnglishAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/EnglishAnalysis.h" line="13"/>
         <source>English</source>
         <translation>英语</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/EnglishAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/EnglishAnalysis.h" line="14"/>
         <source>Capture English words.</source>
         <translation>捕获英语单词。</translation>
     </message>
@@ -1171,61 +1168,47 @@
         <translation type="vanished">G2p设置：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="15"/>
         <source>G2P Config</source>
-        <translation>G2p设置</translation>
+        <translation type="vanished">G2p设置</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="17"/>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="56"/>
         <source>Language: </source>
-        <translation>语种：</translation>
+        <translation type="vanished">语种：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="18"/>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="57"/>
         <source>Author: </source>
-        <translation>作者：</translation>
+        <translation type="vanished">作者：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/G2pInfoWidget.cpp" line="24"/>
         <source>Description </source>
-        <translation>简介：</translation>
+        <translation type="vanished">简介：</translation>
     </message>
 </context>
 <context>
     <name>LangMgr::ILanguageFactory</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="179"/>
         <source>Enabled</source>
-        <translation>启用</translation>
+        <translation type="vanished">启用</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="182"/>
         <source>Discard result</source>
-        <translation>丢弃结果</translation>
+        <translation type="vanished">丢弃结果</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="188"/>
         <source>Analysis results </source>
-        <translation>分析结果</translation>
+        <translation type="vanished">分析结果</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="212"/>
         <source>Subordinate G2p</source>
-        <translation>下属G2p</translation>
+        <translation type="vanished">下属G2p</translation>
     </message>
     <message>
         <source>Select Category:</source>
         <translation type="vanished">选择语种：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="206"/>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="230"/>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="261"/>
-        <location filename="../../Modules/Language/LangMgr/ILanguageFactory.cpp" line="268"/>
         <source>Unknown</source>
-        <translation>未知</translation>
+        <translation type="vanished">未知</translation>
     </message>
     <message>
         <source>Select G2P:</source>
@@ -1235,17 +1218,17 @@
 <context>
     <name>LangMgr::KanaAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/KanaAnalysis.h" line="12"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/KanaAnalysis.h" line="12"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/KanaAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/KanaAnalysis.h" line="13"/>
         <source>Kana</source>
         <translation>假名</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/KanaAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/KanaAnalysis.h" line="15"/>
         <source>Capture Kana characters.</source>
         <translation>捕获假名字符。</translation>
     </message>
@@ -1257,26 +1240,20 @@
         <translation type="vanished">语种设置：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="17"/>
         <source>Language Config</source>
-        <translation>语言设置</translation>
+        <translation type="vanished">语言设置</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="19"/>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="57"/>
         <source>Language: </source>
-        <translation>语种：</translation>
+        <translation type="vanished">语种：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="20"/>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="58"/>
         <source>Author: </source>
-        <translation>作者：</translation>
+        <translation type="vanished">作者：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/Controls/LangInfoWidget.cpp" line="26"/>
         <source>Description </source>
-        <translation>简介：</translation>
+        <translation type="vanished">简介：</translation>
     </message>
 </context>
 <context>
@@ -1297,17 +1274,17 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LangMgr::LinebreakAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="14"/>
         <source>Linebreak</source>
         <translation>换行符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="15"/>
         <source>Capture linebreaks.</source>
         <translation>捕获换行符。</translation>
     </message>
@@ -1315,17 +1292,17 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LangMgr::MandarinAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/MandarinAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/MandarinAnalysis.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/MandarinAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/MandarinAnalysis.h" line="14"/>
         <source>Mandarin</source>
         <translation>普通话</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/MandarinAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/MandarinAnalysis.h" line="15"/>
         <source>Capture Mandarin characters.</source>
         <translation>捕获中文字符。</translation>
     </message>
@@ -1333,17 +1310,17 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LangMgr::NumberAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="12"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="12"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="13"/>
         <source>Number</source>
         <translation>数字</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="14"/>
         <source>Capture numbers.</source>
         <translation>捕获数字。</translation>
     </message>
@@ -1351,17 +1328,17 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LangMgr::PinyinAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/PinyinAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/PinyinAnalysis.h" line="16"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="14"/>
         <source>Pinyin</source>
         <translation>拼音</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/PinyinAnalysis.h" line="17"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="15"/>
         <source>Capture Pinyin words.</source>
         <translation>捕获拼音字符串。</translation>
     </message>
@@ -1369,17 +1346,17 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LangMgr::Punctuation</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="14"/>
         <source>Punctuation</source>
         <translation>标点</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="15"/>
         <source>Capture punctuations.</source>
         <translation>捕获标点。</translation>
     </message>
@@ -1387,17 +1364,17 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LangMgr::RomajiAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/RomajiAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/RomajiAnalysis.h" line="16"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="14"/>
         <source>Romaji</source>
         <translation>罗马音</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/RomajiAnalysis.h" line="17"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="15"/>
         <source>Capture Romaji words.</source>
         <translation>捕获罗马音字符串。</translation>
     </message>
@@ -1405,17 +1382,17 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LangMgr::SlurAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="14"/>
         <source>Slur</source>
         <translation>延音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="15"/>
         <source>Capture slurs.</source>
         <translation>捕获延音符。</translation>
     </message>
@@ -1423,17 +1400,17 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LangMgr::SpaceAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="14"/>
         <source>Space</source>
         <translation>空格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="15"/>
         <source>Capture spaces.</source>
         <translation>捕获空格。</translation>
     </message>
@@ -1441,19 +1418,134 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LangMgr::UnknownAnalysis</name>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="12"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="12"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="13"/>
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="15"/>
         <source>Capture unknown characters.</source>
         <translation>捕获未知字符。</translation>
+    </message>
+</context>
+<context>
+    <name>LangSetting::CantoneseSet</name>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/G2pSet/Cantonese.cpp" line="11"/>
+        <source>Tone</source>
+        <translation>声调</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/G2pSet/Cantonese.cpp" line="12"/>
+        <source>Convert number</source>
+        <translation>转换数字</translation>
+    </message>
+</context>
+<context>
+    <name>LangSetting::EnglishSet</name>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/G2pSet/EnglishSet.cpp" line="11"/>
+        <source>To lower</source>
+        <translation>字母转小写</translation>
+    </message>
+</context>
+<context>
+    <name>LangSetting::G2pInfoWidget</name>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="17"/>
+        <source>G2P Config</source>
+        <translation>G2p设置</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="19"/>
+        <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="59"/>
+        <source>Language: </source>
+        <translation>语种：</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="20"/>
+        <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="60"/>
+        <source>Author: </source>
+        <translation>作者：</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="26"/>
+        <source>Description </source>
+        <translation>简介：</translation>
+    </message>
+</context>
+<context>
+    <name>LangSetting::ILangSetFactory</name>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="50"/>
+        <source>Enabled</source>
+        <translation>启用</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="53"/>
+        <source>Discard result</source>
+        <translation>丢弃结果</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="57"/>
+        <source>Analysis results </source>
+        <translation>分析结果</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="75"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="100"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="132"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="139"/>
+        <source>Unknown</source>
+        <translation>未知</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="81"/>
+        <source>Subordinate G2p</source>
+        <translation>下属G2p</translation>
+    </message>
+</context>
+<context>
+    <name>LangSetting::LangInfoWidget</name>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="19"/>
+        <source>Language Config</source>
+        <translation>语言设置</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="21"/>
+        <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="60"/>
+        <source>Language: </source>
+        <translation>语种：</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="22"/>
+        <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="61"/>
+        <source>Author: </source>
+        <translation>作者：</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="28"/>
+        <source>Description </source>
+        <translation>简介：</translation>
+    </message>
+</context>
+<context>
+    <name>LangSetting::MandarinSet</name>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/G2pSet/MandarinSet.cpp" line="11"/>
+        <source>Tone</source>
+        <translation>声调</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/LangSetting/G2pSet/MandarinSet.cpp" line="12"/>
+        <source>Convert number</source>
+        <translation>转换数字</translation>
     </message>
 </context>
 <context>
@@ -1472,7 +1564,7 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LyricDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="9"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="11"/>
         <source>Fill Lyric</source>
         <translation>填入歌词</translation>
     </message>
@@ -1485,27 +1577,27 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
         <translation type="vanished">取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="25"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="31"/>
         <source>&amp;Import</source>
         <translation>导入(&amp;I)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="28"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="34"/>
         <source>&amp;Cancel</source>
         <translation>取消(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="31"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="37"/>
         <source>Lyric</source>
         <translation>歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="32"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="38"/>
         <source>Advanced</source>
         <translation>预设</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="33"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="39"/>
         <source>Help</source>
         <translation>帮助</translation>
     </message>

@@ -8,7 +8,7 @@
 #include <QGroupBox>
 #include <QJsonObject>
 
-namespace LangMgr {
+namespace LangSetting {
 
     class LangInfoWidget final : public QWidget {
         Q_OBJECT
@@ -16,7 +16,7 @@ namespace LangMgr {
         explicit LangInfoWidget(QWidget *parent = nullptr);
         ~LangInfoWidget() override;
 
-        void setInfo(const QString &id);
+        void setInfo(const QString &langId);
 
     Q_SIGNALS:
         void g2pSelected(const QString &language, const QString &g2pId) const;

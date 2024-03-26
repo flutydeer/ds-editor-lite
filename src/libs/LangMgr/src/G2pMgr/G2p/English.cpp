@@ -1,8 +1,5 @@
 #include "English.h"
 
-#include <QCheckBox>
-#include <QVBoxLayout>
-
 namespace G2pMgr {
     English::English(QObject *parent) : IG2pFactory("English", parent) {
         setAuthor(tr("Xiao Lang"));
@@ -15,7 +12,7 @@ namespace G2pMgr {
     QList<LangNote> English::convert(const QStringList &input, const QJsonObject *config) const {
         const auto toLower = config && config->keys().contains("toLower")
                                  ? config->value("toLower").toBool()
-                                 : this->toLower;
+                                 : this->m_toLower;
 
         QList<LangNote> result;
         for (auto &c : input) {
@@ -32,31 +29,15 @@ namespace G2pMgr {
 
     QJsonObject English::config() {
         QJsonObject config;
-        config["toLower"] = toLower;
+        config["toLower"] = m_toLower;
         return config;
     }
 
-    QWidget *English::configWidget(QJsonObject *config) {
-        auto *widget = new QWidget();
-        auto *layout = new QVBoxLayout();
+    bool English::toLower() const {
+        return m_toLower;
+    }
 
-        auto *toLowerCheckBox = new QCheckBox(tr("To lower"), widget);
-
-        layout->addWidget(toLowerCheckBox);
-        layout->addStretch(1);
-
-        if (config && config->keys().contains("toLower")) {
-            toLowerCheckBox->setChecked(config->value("toLower").toBool());
-        } else {
-            toLowerCheckBox->setChecked(toLower);
-        }
-
-        widget->setLayout(layout);
-
-        connect(toLowerCheckBox, &QCheckBox::toggled, [this, config](const bool checked) {
-            config->insert("toLower", checked);
-            Q_EMIT g2pConfigChanged();
-        });
-        return widget;
+    void English::setToLower(const bool &toLower) {
+        m_toLower = toLower;
     }
 } // G2pMgr
