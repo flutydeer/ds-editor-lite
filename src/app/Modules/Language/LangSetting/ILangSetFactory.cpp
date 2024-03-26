@@ -4,10 +4,12 @@
 #include "LangMgr/ILanguageManager.h"
 
 #include <QLabel>
-#include <QCheckBox>
-#include <QComboBox>
 #include <QJsonObject>
 #include <QVBoxLayout>
+
+#include "UI/Controls/ComboBox.h"
+#include "UI/Controls/SwitchButton.h"
+#include "UI/Controls/OptionsCardItem.h"
 
 namespace LangSetting {
 
@@ -47,11 +49,15 @@ namespace LangSetting {
         auto *widget = new QWidget();
         const auto mainLayout = new QVBoxLayout(widget);
 
-        const auto enabledCheckBox = new QCheckBox(tr("Enabled"));
-        enabledCheckBox->setChecked(langFactory->enabled());
+        const auto enabledItem = new OptionsCardItem();
+        enabledItem->setTitle(tr("Enabled"));
+        const auto enabledCheckBox = new SwitchButton(langFactory->enabled());
+        enabledItem->addWidget(enabledCheckBox);
 
-        const auto discardResultCheckBox = new QCheckBox(tr("Discard result"));
-        discardResultCheckBox->setChecked(langFactory->discardResult());
+        const auto discardItem = new OptionsCardItem();
+        discardItem->setTitle(tr("Discard result"));
+        const auto discardResultCheckBox = new SwitchButton(langFactory->discardResult());
+        discardItem->addWidget(discardResultCheckBox);
 
         const auto cateLayout = new QHBoxLayout();
         const auto cateLabel = new QLabel(tr("Analysis results "));
@@ -99,8 +105,8 @@ namespace LangSetting {
             g2pComboBox->setCurrentText(tr("Unknown"));
         }
 
-        mainLayout->addWidget(enabledCheckBox);
-        mainLayout->addWidget(discardResultCheckBox);
+        mainLayout->addWidget(enabledItem);
+        mainLayout->addWidget(discardItem);
 
         cateLayout->addWidget(cateLabel);
         cateLayout->addWidget(cateComboBox);
@@ -114,14 +120,15 @@ namespace LangSetting {
 
         widget->setLayout(mainLayout);
 
-        connect(enabledCheckBox, &QCheckBox::toggled, [this, langFactory](const bool &checked) {
-            langFactory->setEnabled(checked);
-            Q_EMIT langConfigChanged(id());
-        });
+        connect(enabledCheckBox, &SwitchButton::valueChanged,
+                [this, langFactory](const bool &value) {
+                    langFactory->setEnabled(value);
+                    Q_EMIT langConfigChanged(id());
+                });
 
-        connect(discardResultCheckBox, &QCheckBox::toggled,
-                [this, langFactory](const bool &checked) {
-                    langFactory->setDiscardResult(checked);
+        connect(discardResultCheckBox, &SwitchButton::valueChanged,
+                [this, langFactory](const bool &value) {
+                    langFactory->setDiscardResult(value);
                     Q_EMIT langConfigChanged(id());
                 });
 
