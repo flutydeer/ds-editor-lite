@@ -15,7 +15,11 @@ namespace FillLyric {
         m_tableTopLayout = new QHBoxLayout();
         btnFoldLeft = new Button(tr("Fold Left"));
         btnToggleFermata = new Button(tr("Toggle Fermata"));
-        autoWrap = new QCheckBox(tr("Auto Wrap"));
+        autoWrapItem = new OptionsCardItem();
+        autoWrapItem->setTitle(tr("Auto Wrap"));
+        autoWrap = new SwitchButton();
+        autoWrapItem->addWidget(autoWrap);
+
         btnUndo = new QPushButton();
 
         btnUndo->setMinimumSize(24, 24);
@@ -37,7 +41,7 @@ namespace FillLyric {
         m_tableTopLayout->addWidget(btnRedo);
         m_tableTopLayout->addWidget(m_btnInsertText);
         m_tableTopLayout->addStretch(1);
-        m_tableTopLayout->addWidget(autoWrap);
+        m_tableTopLayout->addWidget(autoWrapItem);
         m_tableTopLayout->addWidget(btnTableConfig);
 
         m_tableCountLayout = new QHBoxLayout();
@@ -102,10 +106,16 @@ namespace FillLyric {
         QFont font = m_phonicTableView->font();
         font.setPointSize(appOptions->fillLyric()->tableFontSize);
         m_phonicTableView->setFont(font);
-        autoWrap->setChecked(appOptions->fillLyric()->autoWrap);
+        autoWrap->setValue(appOptions->fillLyric()->autoWrap);
+        m_phonicTableView->autoWrap = appOptions->fillLyric()->autoWrap;
+
         exportSkipSlur->setChecked(appOptions->fillLyric()->exportSkipSlur);
         exportSkipEndSpace->setChecked(appOptions->fillLyric()->exportSkipEndSpace);
         exportLanguage->setChecked(appOptions->fillLyric()->exportLanguage);
+
+        m_phonicTableView->setColWidthRatio(appOptions->fillLyric()->tableColWidthRatio);
+        m_phonicTableView->setRowHeightRatio(appOptions->fillLyric()->tableRowHeightRatio);
+        m_phonicTableView->delegate->setFontSizeDiff(appOptions->fillLyric()->tableFontDiff);
 
         // undo redo
         const auto modelHistory = ModelHistory::instance();
@@ -116,12 +126,11 @@ namespace FillLyric {
                     btnUndo->setEnabled(canUndo);
                     btnRedo->setEnabled(canRedo);
                 });
-        connect(autoWrap, &QCheckBox::stateChanged, modelHistory, &ModelHistory::reset);
+        connect(autoWrap, &QCheckBox::clicked, modelHistory, &ModelHistory::reset);
         connect(m_phonicTableView, &PhonicTableView::historyReset, modelHistory,
                 &ModelHistory::reset);
 
-        connect(autoWrap, &QCheckBox::stateChanged, m_phonicTableView,
-                &PhonicTableView::setAutoWrap);
+        connect(autoWrap, &QCheckBox::clicked, m_phonicTableView, &PhonicTableView::setAutoWrap);
 
         // phonicWidget toggleFermata
         connect(btnToggleFermata, &QPushButton::clicked, m_phonicTableView,
@@ -138,6 +147,10 @@ namespace FillLyric {
         // tableConfig
         connect(btnTableConfig, &QPushButton::clicked,
                 [this]() { m_tableConfigWidget->setVisible(!m_tableConfigWidget->isVisible()); });
+
+        // font size
+        connect(m_phonicTableView, &PhonicTableView::wheelEventSignal, this,
+                &LyricExtWidget::modifyOption);
 
         // tableConfigWidget
         connect(m_tableConfigWidget->m_colWidthRatioSpinBox,
@@ -156,6 +169,7 @@ namespace FillLyric {
                     modifyOption();
                 });
 
+        connect(autoWrap, &SwitchButton::clicked, this, &LyricExtWidget::modifyOption);
         connect(exportSkipSlur, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
         connect(exportSkipEndSpace, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
         connect(exportLanguage, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
@@ -189,7 +203,7 @@ namespace FillLyric {
         options->tableRowHeightRatio = m_tableConfigWidget->m_rowHeightSpinBox->value();
         options->tableFontDiff = m_tableConfigWidget->m_fontDiffSpinBox->value();
 
-        options->autoWrap = autoWrap->isChecked();
+        options->autoWrap = autoWrap->value();
         options->exportSkipSlur = exportSkipSlur->isChecked();
         options->exportSkipEndSpace = exportSkipEndSpace->isChecked();
         options->exportLanguage = exportLanguage->isChecked();

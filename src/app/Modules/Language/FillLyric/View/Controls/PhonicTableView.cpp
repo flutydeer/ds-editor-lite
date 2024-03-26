@@ -52,6 +52,12 @@ namespace FillLyric {
 
     PhonicTableView::~PhonicTableView() = default;
 
+    void PhonicTableView::wheelEvent(QWheelEvent *event) {
+        this->wheelEventSignal();
+        QTableView::wheelEvent(event);
+    }
+
+
     void PhonicTableView::resizeEvent(QResizeEvent *event) {
         this->sizeChanged();
         QTableView::resizeEvent(event);

@@ -10,6 +10,8 @@
 #include "../Controls/PhonicTableView.h"
 
 #include "UI/Controls/Button.h"
+#include "UI/Controls/SwitchButton.h"
+#include "UI/Controls/OptionsCardItem.h"
 
 namespace FillLyric {
 
@@ -50,7 +52,8 @@ namespace FillLyric {
 
         Button *btnFoldLeft;
         Button *btnToggleFermata;
-        QCheckBox *autoWrap;
+        OptionsCardItem *autoWrapItem;
+        SwitchButton *autoWrap;
         QPushButton *btnUndo;
         QPushButton *btnRedo;
         Button *m_btnInsertText;

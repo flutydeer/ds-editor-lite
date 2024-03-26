@@ -120,15 +120,14 @@ namespace LangSetting {
 
         widget->setLayout(mainLayout);
 
-        connect(enabledCheckBox, &SwitchButton::valueChanged,
-                [this, langFactory](const bool &value) {
-                    langFactory->setEnabled(value);
-                    Q_EMIT langConfigChanged(id());
-                });
+        connect(enabledCheckBox, &SwitchButton::clicked, [this, langFactory](const bool &checked) {
+            langFactory->setEnabled(checked);
+            Q_EMIT langConfigChanged(id());
+        });
 
-        connect(discardResultCheckBox, &SwitchButton::valueChanged,
-                [this, langFactory](const bool &value) {
-                    langFactory->setDiscardResult(value);
+        connect(discardResultCheckBox, &SwitchButton::clicked,
+                [this, langFactory](const bool &checked) {
+                    langFactory->setDiscardResult(checked);
                     Q_EMIT langConfigChanged(id());
                 });
 

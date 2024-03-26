@@ -22,9 +22,11 @@ namespace FillLyric {
         ~PhonicTableView() override;
 
     Q_SIGNALS:
+        void wheelEventSignal() const;
         void sizeChanged() const;
 
     protected:
+        void wheelEvent(QWheelEvent *event) override;
         void resizeEvent(QResizeEvent *event) override;
         PhonicModel *model;
 
