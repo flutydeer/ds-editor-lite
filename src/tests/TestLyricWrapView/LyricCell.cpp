@@ -3,6 +3,7 @@
 #include <QDebug>
 #include <QMenu>
 
+#include <QInputDialog>
 #include <QGraphicsRectItem>
 #include <QStyleOptionGraphicsItem>
 #include <QGraphicsSceneMouseEvent>
@@ -49,9 +50,11 @@ namespace LyricWrap {
 
     void LyricCell::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
         if (lyricRect().contains(event->scenePos())) {
-            QMenu menu;
-            QAction *action = menu.addAction("Do Something");
-            menu.exec(event->screenPos());
+            auto *menu = new QMenu(m_view);
+            this->changeSyllableMenu(menu);
+            this->changePhonicMenu(menu);
+            menu->addSeparator();
+            menu->exec(event->screenPos());
             event->accept();
         }
         return QGraphicsItem::contextMenuEvent(event);
@@ -92,6 +95,12 @@ namespace LyricWrap {
         Q_EMIT this->updateLyricSignal();
     }
 
+    void LyricCell::setSyllable(const QString &syllable) const {
+        m_note->syllable = syllable;
+        m_note->revised = true;
+        Q_EMIT this->updateLyricSignal();
+    }
+
     qreal LyricCell::syllableWidth() const {
         return m_sRect.width() + 10;
     }
@@ -126,12 +135,21 @@ namespace LyricWrap {
         if (option->state & QStyle::State_Selected)
             flag = LyricCell::Selected;
 
+        int lyricFlag = 0;
+        if (m_note->revised) {
+            lyricFlag = PenType::Revised;
+        } else if (m_note->g2pError) {
+            lyricFlag = PenType::G2pError;
+        } else if (m_note->candidates.size() > 1) {
+            lyricFlag = PenType::Multitone;
+        }
+
         QFont syllableFont(m_font);
         syllableFont.setPointSize(syllableFont.pointSize() - 3);
 
         const auto sPos = syllablePos();
         painter->setFont(syllableFont);
-        painter->setPen(m_syllablePen[flag]);
+        painter->setPen(m_syllablePen[lyricFlag]);
         painter->drawText(QRectF(sPos.x() + 5, sPos.y(), syllableWidth(), m_sRect.height()),
                           m_note->syllable);
 
@@ -144,11 +162,36 @@ namespace LyricWrap {
         painter->drawRoundedRect(boxRect, m_padding * 0.5, m_padding * 0.5);
 
         painter->setFont(m_font);
-        painter->setPen(m_lyricPen[flag]);
+        painter->setPen(m_lyricPen[lyricFlag]);
         if (!isLyricEditing) {
             const auto lPos = lyricPos();
             painter->drawText(QRectF(lPos.x() + 5, lPos.y(), lyricWidth(), m_lRect.height()),
                               m_note->lyric);
         }
     }
+
+    void LyricCell::changePhonicMenu(QMenu *menu) {
+        auto *inputAction = new QAction(tr("Custom Syllables"), this);
+        menu->addAction(inputAction);
+        connect(inputAction, &QAction::triggered, this, [this]() {
+            bool ok;
+            const QString syllable =
+                QInputDialog::getText(m_view, tr("Custom Syllables"), tr("Please input syllables"),
+                                      QLineEdit::Normal, "", &ok);
+            if (ok && !syllable.isEmpty()) {
+                this->setSyllable(syllable);
+            }
+        });
+    }
+
+    void LyricCell::changeSyllableMenu(QMenu *menu) const {
+        QStringList candidateSyllables = m_note->candidates;
+
+        for (const auto &syllable : candidateSyllables) {
+            if (candidateSyllables.size() > 1) {
+                menu->addAction(syllable, [this, syllable]() { this->setSyllable(syllable); });
+            }
+        }
+    }
+
 }

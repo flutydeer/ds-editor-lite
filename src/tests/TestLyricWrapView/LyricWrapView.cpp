@@ -1,6 +1,7 @@
 #include "LyricWrapView.h"
-
+#include <QWheelEvent>
 #include <QScrollBar>
+
 namespace LyricWrap {
     LyricWrapView::LyricWrapView(QWidget *parent) {
         m_font = this->font();

@@ -5,7 +5,7 @@
 #include <QApplication>
 
 #include <QGraphicsView>
-#include <QGraphicsProxyWidget>
+#include <QGraphicsObject>
 
 #include <LangCommon.h>
 
@@ -28,6 +28,7 @@ namespace LyricWrap {
         [[nodiscard]] qreal height() const;
 
         void setLyric(const QString &lyric) const;
+        void setSyllable(const QString &syllable) const;
 
     Q_SIGNALS:
         void updateLyricSignal() const;
@@ -54,8 +55,12 @@ namespace LyricWrap {
                                        QColor(169, 196, 255)};
         QPen m_borderPen[3] = {QPen(QColor(112, 156, 255), 2), QPen(QColor(112, 156, 255), 2),
                                QPen(QColor(Qt::white), 2)};
-        QPen m_lyricPen[3] = {QColor(Qt::black), QColor(Qt::black), QColor(Qt::black)};
-        QPen m_syllablePen[3] = {QColor(Qt::white), QColor(Qt::white), QColor(Qt::white)};
+
+        enum PenType { Multitone = 1, Revised, G2pError };
+        QPen m_lyricPen[4] = {QColor(Qt::black), QColor(Qt::green), QColor(Qt::yellow),
+                              QColor(Qt::red)};
+        QPen m_syllablePen[4] = {QColor(Qt::white), QColor(Qt::green), QColor(Qt::yellow),
+                                 QColor(Qt::red)};
 
         [[nodiscard]] qreal syllableWidth() const;
         [[nodiscard]] qreal lyricWidth() const;
@@ -65,7 +70,8 @@ namespace LyricWrap {
         [[nodiscard]] QRectF lyricRect() const;
         [[nodiscard]] QPointF rectPos() const;
 
-        void updateLyric();
+        void changePhonicMenu(QMenu *menu);
+        void changeSyllableMenu(QMenu *menu) const;
 
         QRect m_lRect;
         QRect m_sRect;

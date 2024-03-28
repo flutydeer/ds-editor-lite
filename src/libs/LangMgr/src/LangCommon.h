@@ -10,6 +10,7 @@ struct LangNote {
     QString language = "Unknown";
     QString category = "Unknown";
     QString standard = "Unknown";
+    bool revised = false;
     bool g2pError = false;
 
     LangNote() = default;
