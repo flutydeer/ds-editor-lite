@@ -5,24 +5,20 @@
 namespace LyricWrap {
     SplitterItem::SplitterItem(const qreal &x, const qreal &y, const qreal &w, const qreal &lh,
                                QGraphicsItem *parent)
-        : mX(x), mY(y), mW(w), m_lineHeight(lh), QGraphicsItem(parent) {
-        mH = m_lineHeight + m_margin * 2;
+        : QGraphicsItem(parent), m_lineHeight(lh) {
+        this->setX(x);
+        this->setY(y);
+        this->setWidth(w);
     }
 
     SplitterItem::~SplitterItem() = default;
 
     QRectF SplitterItem::boundingRect() const {
-        return {mX, mY, mW, mH};
-    }
-
-    void SplitterItem::setPos(const qreal &x, const qreal &y) {
-        mX = x;
-        mY = y;
-        update();
+        return {0, 0, y(), height()};
     }
 
     qreal SplitterItem::width() const {
-        return mY;
+        return y();
     }
 
     void SplitterItem::setWidth(const qreal &w) {
@@ -31,7 +27,7 @@ namespace LyricWrap {
     }
 
     qreal SplitterItem::height() const {
-        return mH + m_margin * 2;
+        return m_lineHeight + m_margin * 2;
     }
 
     qreal SplitterItem::deltaY() const {
@@ -67,8 +63,8 @@ namespace LyricWrap {
                              QWidget *widget) {
         painter->setPen(m_pen);
         for (int i = 0; i < m_lineHeight; i++) {
-            painter->drawLine(QPointF(mX + m_margin, mY + m_margin + i),
-                              QPointF(mX + mW - m_margin, mY + m_margin + i));
+            painter->drawLine(QPointF(m_margin, m_margin + i),
+                              QPointF(mW - m_margin, m_margin + i));
         }
     }
 }

@@ -26,8 +26,6 @@ namespace LyricWrap {
         void setFontSize(const QFont &font, const qreal &lw, const qreal &lh, const qreal &sw,
                          const qreal &sh);
 
-        void setPos(const qreal &x, const qreal &y);
-
         void setLyric(const QString &lyric);
 
     Q_SIGNALS:
@@ -66,9 +64,6 @@ namespace LyricWrap {
         [[nodiscard]] QPointF rectPos() const;
 
         void updateLyric();
-
-        qreal mX;
-        qreal mY;
 
         qreal m_lyricHeight;
         qreal m_syllableHeight;

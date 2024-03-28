@@ -10,32 +10,28 @@ namespace LyricWrap {
                               QGraphicsItem *parent = nullptr);
         ~SplitterItem() override;
 
-        void setPos(const qreal &x, const qreal &y);
-
-        qreal width() const;
+        [[nodiscard]] qreal width() const;
         void setWidth(const qreal &w);
 
-        qreal height() const;
+        [[nodiscard]] qreal height() const;
 
-        qreal deltaY() const;
+        [[nodiscard]] qreal deltaY() const;
         void setLineHeight(const qreal &lh);
 
-        QPen pen() const;
+        [[nodiscard]] QPen pen() const;
         void setPen(const QPen &pen);
 
-        QRectF boundingRect() const override;
-
         void setMargin(qreal margin);
-        qreal margin() const;
+        [[nodiscard]] qreal margin() const;
+
+    protected:
+        [[nodiscard]] QRectF boundingRect() const override;
 
         void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                    QWidget *widget) override;
 
     private:
-        qreal mX;
-        qreal mY;
         qreal mW;
-        qreal mH;
 
         qreal m_lineHeight;
 

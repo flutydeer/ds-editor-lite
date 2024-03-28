@@ -50,7 +50,6 @@ namespace LyricWrap {
         m_cellLists.append(cellList);
 
         connect(cellList, &CellList::heightChanged, this, &LyricWrapView::repaintCellLists);
-        connect(cellList, &CellList::cellPosChanged, this, &LyricWrapView::resetSceneRect);
     }
 
     void LyricWrapView::setHeight(const qreal &h) {
@@ -62,13 +61,6 @@ namespace LyricWrap {
         return std::accumulate(m_heights.constBegin(), m_heights.constBegin() + index, 0.0);
     }
 
-    void LyricWrapView::resetSceneRect() {
-        const auto height = std::accumulate(m_heights.constBegin(), m_heights.constEnd(), 0.0);
-        this->setFixedHeight(static_cast<int>(std::max(height, m_widgetHeight)));
-        scene()->setSceneRect(rect());
-        this->viewport()->update();
-    }
-
     void LyricWrapView::repaintCellLists() {
         const auto width = this->width();
         for (int i = 0; i < m_cellLists.size(); i++) {
@@ -76,6 +68,5 @@ namespace LyricWrap {
             m_cellLists[i]->setWidth(width);
             m_heights[i] = m_cellLists[i]->height();
         }
-        this->resetSceneRect();
     }
 }

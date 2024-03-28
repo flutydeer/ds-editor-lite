@@ -11,7 +11,9 @@
 
 namespace LyricWrap {
     LyricCell::LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsItem *parent)
-        : QGraphicsObject(parent), mX(x), mY(y), m_note(note) {
+        : QGraphicsObject(parent), m_note(note) {
+        this->setX(x);
+        this->setY(y);
         setFlag(ItemIsSelectable);
         this->setAcceptHoverEvents(true);
     }
@@ -20,7 +22,7 @@ namespace LyricWrap {
 
 
     QRectF LyricCell::boundingRect() const {
-        return {mX, mY, width(), height()};
+        return {0, 0, width(), height()};
     }
 
     void LyricCell::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
@@ -29,7 +31,7 @@ namespace LyricWrap {
             m_lyricEdit->setFocus();
             isLyricEditing = true;
             m_lyricWidget->setWidget(m_lyricEdit.data());
-            m_lyricWidget->setPos(lyricPos().x(), rectPos().y() + m_padding / 2);
+            m_lyricWidget->setPos(x() + lyricPos().x(), y() + rectPos().y() + m_padding / 2);
             m_lyricWidget->widget()->setFocus();
             scene()->addItem(m_lyricWidget.data());
             connect(m_lyricEdit.data(), &QLineEdit::editingFinished, this, &LyricCell::updateLyric);
@@ -67,11 +69,6 @@ namespace LyricWrap {
                m_rectPadding * 2;
     }
 
-    void LyricCell::setPos(const qreal &x, const qreal &y) {
-        mX = x;
-        mY = y;
-    }
-
     void LyricCell::setLyric(const QString &lyric) {
         m_note->lyric = lyric;
         Q_EMIT this->updateWidthSignal(width());
@@ -97,21 +94,21 @@ namespace LyricWrap {
     }
 
     QPointF LyricCell::syllablePos() const {
-        return {mX + width() / 2 - syllableWidth() / 2, mY + m_padding};
+        return {width() / 2 - syllableWidth() / 2, m_padding};
     }
 
     QPointF LyricCell::lyricPos() const {
         const auto rPos = rectPos();
-        return {mX + width() / 2 - lyricWidth() / 2, rPos.y() + m_rectPadding};
+        return {width() / 2 - lyricWidth() / 2, rPos.y() + m_rectPadding};
     }
 
     QRectF LyricCell::lyricRect() const {
-        return {rectPos().x(), rectPos().y(), width() - m_padding * 2,
+        return {x() + rectPos().x(), y() + rectPos().y(), width() - m_padding * 2,
                 m_lyricHeight + m_rectPadding * 2};
     }
 
     QPointF LyricCell::rectPos() const {
-        return {mX + m_padding, mY + m_padding + m_syllableHeight + m_lsPadding};
+        return {m_padding, m_padding + m_syllableHeight + m_lsPadding};
     }
 
     void LyricCell::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,

@@ -22,7 +22,6 @@ namespace LyricWrap {
 
     private:
         [[nodiscard]] qreal cellBaseY(const int &index) const;
-        void resetSceneRect();
         void repaintCellLists();
 
         QFont m_font;
