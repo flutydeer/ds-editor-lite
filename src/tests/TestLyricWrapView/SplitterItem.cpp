@@ -34,8 +34,8 @@ namespace LyricWrap {
         return mH + m_margin * 2;
     }
 
-    qreal SplitterItem::deltaY() const{
-        return m_lineHeight / 2 + m_margin;
+    qreal SplitterItem::deltaY() const {
+        return m_lineHeight + m_margin;
     }
 
     void SplitterItem::setLineHeight(const qreal &lh) {

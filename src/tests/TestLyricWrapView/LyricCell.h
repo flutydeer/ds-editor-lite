@@ -13,7 +13,7 @@
 #include "LyricLineEdit.h"
 
 namespace LyricWrap {
-    class LyricCell final : public QObject, public QGraphicsItem {
+    class LyricCell final : public QGraphicsObject {
         Q_OBJECT
     public:
         explicit LyricCell(const qreal &x, const qreal &y, LangNote *note,
@@ -22,6 +22,9 @@ namespace LyricWrap {
 
         [[nodiscard]] qreal width() const;
         [[nodiscard]] qreal height() const;
+
+        void setFontSize(const QFont &font, const qreal &lw, const qreal &lh, const qreal &sw,
+                         const qreal &sh);
 
         void setPos(const qreal &x, const qreal &y);
 
@@ -32,6 +35,8 @@ namespace LyricWrap {
 
     protected:
         void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
+
+        void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 
         void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                    QWidget *widget) override;
@@ -52,16 +57,12 @@ namespace LyricWrap {
         QPen m_lyricPen[3] = {QColor(Qt::black), QColor(Qt::black), QColor(Qt::black)};
         QPen m_syllablePen[3] = {QColor(Qt::white), QColor(Qt::white), QColor(Qt::white)};
 
-        void updateWidth();
-        void updateHeight();
-
-        [[nodiscard]] int syllableWidth() const;
-        [[nodiscard]] int syllableHeight() const;
-        [[nodiscard]] int lyricWidth() const;
-        [[nodiscard]] int lyricHeight() const;
+        [[nodiscard]] qreal syllableWidth() const;
+        [[nodiscard]] qreal lyricWidth() const;
 
         [[nodiscard]] QPointF syllablePos() const;
         [[nodiscard]] QPointF lyricPos() const;
+        [[nodiscard]] QRectF lyricRect() const;
         [[nodiscard]] QPointF rectPos() const;
 
         void updateLyric();
@@ -69,18 +70,21 @@ namespace LyricWrap {
         qreal mX;
         qreal mY;
 
-        qreal m_lsPadding = 3;
-        qreal m_rectPadding = 5;
-        qreal m_padding = 5;
+        qreal m_lyricHeight;
+        qreal m_syllableHeight;
+
+        qreal m_lyricXHeight;
+        qreal m_syllableXHeight;
 
         LangNote *m_note;
 
-        QGraphicsTextItem *m_lyricItem;
-        QGraphicsRectItem *m_rectItem;
-        QGraphicsItemGroup *m_group;
+        qreal m_lsPadding = 5;
+        qreal m_rectPadding = 3;
+        qreal m_padding = 5;
+        qreal m_reckBorder = 2.5;
 
         QString mText;
-        QFont m_font = QApplication::font();
+        QFont m_font;
 
         bool isLyricEditing = false;
         QPointer<LyricLineEdit> m_lyricEdit = new LyricLineEdit();

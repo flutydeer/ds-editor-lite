@@ -16,8 +16,12 @@ using namespace LyricWrap;
 int main(int argc, char **argv) {
     QApplication a(argc, argv);
     QMainWindow win;
+    const auto widget = new QWidget();
     const auto lyricWrapWidget = new LyricWrapWidget();
-    win.setCentralWidget(lyricWrapWidget);
+    const auto mainlayout = new QVBoxLayout();
+    mainlayout->addWidget(lyricWrapWidget);
+    widget->setLayout(mainlayout);
+    win.setCentralWidget(widget);
     win.setMinimumSize(300, 200);
 
     const auto g2pMgr = G2pMgr::IG2pManager::instance();
@@ -37,7 +41,7 @@ int main(int argc, char **argv) {
     QList<LangNote *> langNotes;
 
     for (const auto &langId : testId) {
-        const int lenth = QRandomGenerator::global()->bounded(10, 20);
+        const int lenth = QRandomGenerator::global()->bounded(25, 26);
         const auto factory = langMgr->language(langId);
 
         for (int i = 0; i < lenth; i++) {

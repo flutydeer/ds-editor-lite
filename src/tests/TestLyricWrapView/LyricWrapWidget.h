@@ -13,6 +13,9 @@ namespace LyricWrap {
 
         void appendList(const QList<LangNote *> &noteList) const;
 
+    protected:
+        void resizeEvent(QResizeEvent *event) override;
+
     private:
         LyricWrapView *m_view;
     };

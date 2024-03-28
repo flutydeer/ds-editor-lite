@@ -4,14 +4,24 @@
 
 namespace LyricWrap {
     CellList::CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
-                       QGraphicsScene *scene)
-        : mX(x), mY(y), m_scene(scene) {
+                       QGraphicsScene *scene, const QFont &font)
+        : mX(x), mY(y), m_scene(scene), m_font(font) {
         m_splitter = new SplitterItem(mX, mY, m_curWidth, 1);
         m_scene->addItem(m_splitter);
+
+        const auto lyricHeight = QFontMetrics(m_font).height();
+        const auto lyricXHeight = QFontMetrics(m_font).xHeight();
+
+        QFont syllableFont(m_font);
+        syllableFont.setPointSize(syllableFont.pointSize() - 3);
+        const auto syllableHeight = QFontMetrics(syllableFont).height();
+        const auto syllableXHeight = QFontMetrics(syllableFont).xHeight();
 
         for (const auto &note : noteList) {
             const auto lyricCell = new LyricCell(0, mY + deltaY(), note);
 
+            lyricCell->setFontSize(font, lyricXHeight, lyricHeight, syllableXHeight,
+                                   syllableHeight);
             m_widths.append(lyricCell->width());
             m_cellHeight = lyricCell->height();
             m_cells.append(lyricCell);
@@ -42,6 +52,21 @@ namespace LyricWrap {
         this->updateCellPos();
     }
 
+    void CellList::setFont(const QFont &font) {
+        m_font = font;
+        const auto lyricHeight = QFontMetrics(font).height();
+        const auto lyricXHeight = QFontMetrics(font).xHeight();
+
+        QFont syllableFont(font);
+        syllableFont.setPointSize(syllableFont.pointSize() - 3);
+        const auto syllableHeight = QFontMetrics(syllableFont).height();
+        const auto syllableXHeight = QFontMetrics(syllableFont).xHeight();
+
+        for (const auto &cell : m_cells) {
+            cell->setFontSize(font, lyricXHeight, lyricHeight, syllableXHeight, syllableHeight);
+        }
+    }
+
     qreal CellList::deltaY() const {
         return m_splitter->deltaY();
     }
@@ -51,26 +76,28 @@ namespace LyricWrap {
     }
 
     void CellList::updateCellPos() {
-        int rowCount = 0;
         qreal x = 0;
-        qreal y = mY + deltaY();
+        qreal y = mY + m_splitter->deltaY();
 
-        for (int i = 0; i < m_widths.size(); i++) {
-            if (x + m_widths[i] > m_curWidth && autoWarp) {
+        for (const auto cell : m_cells) {
+            const auto cellWidth = cell->width();
+            if (x + cellWidth > m_curWidth && autoWarp) {
                 // Move to the next row
-                rowCount++;
                 x = 0;
-                y += m_cellHeight;
+                y += cell->height();
             }
-            m_cells[i]->setPos(x, y);
-            x += m_widths[i];
+            cell->setPos(x, y + m_cellMargin);
+            x += cellWidth;
         }
 
-        m_height = y - mY + m_cellHeight;
+        auto height = y - mY + m_splitter->margin() + m_cellMargin;
+        if (!m_cells.isEmpty())
+            height += m_cells[0]->height();
 
-        if (m_rowCount != rowCount) {
-            m_rowCount = rowCount;
-            Q_EMIT this->rowCountChanged();
+        if (m_height != height) {
+            m_height = height;
+            Q_EMIT this->heightChanged();
         }
+        Q_EMIT this->cellPosChanged();
     }
 }

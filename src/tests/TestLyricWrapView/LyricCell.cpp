@@ -1,7 +1,7 @@
 #include "LyricCell.h"
 
 #include <QDebug>
-#include <QFontMetrics>
+#include <QMenu>
 
 #include <QGraphicsRectItem>
 #include <QStyleOptionGraphicsItem>
@@ -11,26 +11,20 @@
 
 namespace LyricWrap {
     LyricCell::LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsItem *parent)
-        : mX(x), mY(y), m_note(note), QGraphicsItem(parent) {
+        : QGraphicsObject(parent), mX(x), mY(y), m_note(note) {
         setFlag(ItemIsSelectable);
         this->setAcceptHoverEvents(true);
-        this->updateWidth();
-        this->updateHeight();
     }
 
     LyricCell::~LyricCell() = default;
 
 
     QRectF LyricCell::boundingRect() const {
-        return QRectF(mX, mY, m_width, m_height);
+        return {mX, mY, width(), height()};
     }
 
     void LyricCell::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
-        const QPointF clickPos = event->scenePos();
-        const auto lyricTextRect =
-            QRectF(rectPos().x(), rectPos().y(), m_width - m_padding * 2, lyricHeight() * 1.6);
-
-        if (lyricTextRect.contains(clickPos)) {
+        if (lyricRect().contains(event->scenePos())) {
             m_lyricEdit->setText(m_note->lyric);
             m_lyricEdit->setFocus();
             isLyricEditing = true;
@@ -45,86 +39,79 @@ namespace LyricWrap {
         return QGraphicsItem::mouseDoubleClickEvent(event);
     }
 
+    void LyricCell::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
+        if (lyricRect().contains(event->scenePos())) {
+            QMenu menu;
+            QAction *action = menu.addAction("Do Something");
+            menu.exec(event->screenPos());
+            event->accept();
+        }
+        return QGraphicsItem::contextMenuEvent(event);
+    }
+
     void LyricCell::updateLyric() {
         this->setLyric(m_lyricEdit->text());
         isLyricEditing = false;
         disconnect(m_lyricEdit.data(), &QLineEdit::editingFinished, this, &LyricCell::updateLyric);
         scene()->removeItem(m_lyricWidget.data());
+        Q_EMIT this->updateWidthSignal(width());
     }
 
     qreal LyricCell::width() const {
-        return m_width;
+        return std::max(lyricWidth(), syllableWidth()) + m_padding * 2 + m_reckBorder * 2 +
+               m_rectPadding * 2;
     }
 
     qreal LyricCell::height() const {
-        return m_height;
+        return m_padding * 2 + m_syllableHeight + m_lsPadding + m_lyricHeight + m_reckBorder * 2 +
+               m_rectPadding * 2;
     }
 
     void LyricCell::setPos(const qreal &x, const qreal &y) {
         mX = x;
         mY = y;
-        update();
     }
 
     void LyricCell::setLyric(const QString &lyric) {
         m_note->lyric = lyric;
-        this->updateWidth();
+        Q_EMIT this->updateWidthSignal(width());
         update();
     }
 
-
-    void LyricCell::updateWidth() {
-        QFont syllableFont(m_font);
-        syllableFont.setPointSize(syllableFont.pointSize() - 3);
-        m_width = std::max(lyricWidth(), syllableWidth()) + m_padding * 2 + m_rectPadding * 2;
-        Q_EMIT this->updateWidthSignal(m_width);
+    void LyricCell::setFontSize(const QFont &font, const qreal &lw, const qreal &lh,
+                                const qreal &sw, const qreal &sh) {
+        m_font = font;
+        m_lyricXHeight = lw;
+        m_lyricHeight = lh;
+        m_syllableXHeight = sw;
+        m_syllableHeight = sh;
+        Q_EMIT this->updateWidthSignal(width());
     }
 
-    void LyricCell::updateHeight() {
-        QFont syllableFont(m_font);
-        syllableFont.setPointSize(syllableFont.pointSize() - 3);
-
-        const auto lyricHeight = QFontMetrics(m_font).height();
-        const auto syllableHeight = QFontMetrics(syllableFont).height();
-
-        m_height = m_padding * 2 + syllableHeight * 1.2 + m_lsPadding + lyricHeight * 1.6;
+    qreal LyricCell::syllableWidth() const {
+        return m_syllableXHeight * (static_cast<qreal>(m_note->syllable.size()) + 2);
     }
 
-    int LyricCell::syllableWidth() const {
-        QFont syllableFont(m_font);
-        syllableFont.setPointSize(syllableFont.pointSize() - 3);
-        return QFontMetrics(syllableFont).boundingRect(m_note->syllable).width();
-    }
-
-    int LyricCell::syllableHeight() const {
-        QFont syllableFont(m_font);
-        syllableFont.setPointSize(syllableFont.pointSize() - 3);
-        return QFontMetrics(syllableFont).boundingRect(m_note->syllable).height();
-    }
-
-    int LyricCell::lyricWidth() const {
-        const auto lyricxHeight = QFontMetrics(m_font).xHeight();
-        return std::max(lyricxHeight, QFontMetrics(m_font).boundingRect(m_note->lyric).width());
-    }
-
-    int LyricCell::lyricHeight() const {
-        return QFontMetrics(m_font).height();
+    qreal LyricCell::lyricWidth() const {
+        return m_lyricXHeight * (static_cast<qreal>(m_note->lyric.size()) + 2);
     }
 
     QPointF LyricCell::syllablePos() const {
-        return {mX + m_width / 2 - syllableWidth() / 2, mY + m_padding + syllableHeight() * 0.6};
+        return {mX + width() / 2 - syllableWidth() / 2, mY + m_padding};
     }
 
     QPointF LyricCell::lyricPos() const {
         const auto rPos = rectPos();
-        return {mX + m_width / 2 - lyricWidth() / 2, rPos.y() + m_lsPadding + lyricHeight() * 0.8};
+        return {mX + width() / 2 - lyricWidth() / 2, rPos.y() + m_rectPadding};
+    }
+
+    QRectF LyricCell::lyricRect() const {
+        return {rectPos().x(), rectPos().y(), width() - m_padding * 2,
+                m_lyricHeight + m_rectPadding * 2};
     }
 
     QPointF LyricCell::rectPos() const {
-        QFont syllableFont(m_font);
-        syllableFont.setPointSize(syllableFont.pointSize() - 3);
-        const auto syllableHeight = QFontMetrics(syllableFont).height();
-        return {mX + m_padding, mY + m_padding + syllableHeight + m_lsPadding};
+        return {mX + m_padding, mY + m_padding + m_syllableHeight + m_lsPadding};
     }
 
     void LyricCell::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -138,13 +125,15 @@ namespace LyricWrap {
         QFont syllableFont(m_font);
         syllableFont.setPointSize(syllableFont.pointSize() - 3);
 
+        const auto sPos = syllablePos();
         painter->setFont(syllableFont);
         painter->setPen(m_syllablePen[flag]);
-        painter->drawText(syllablePos(), m_note->syllable);
+        painter->drawText(QRectF(sPos.x(), sPos.y(), syllableWidth(), m_syllableHeight),
+                          m_note->syllable);
 
         const auto rPos = rectPos();
         const auto boxRect =
-            QRectF(rPos.x(), rPos.y(), m_width - m_padding * 2, lyricHeight() * 1.6);
+            QRectF(rPos.x(), rPos.y(), width() - m_padding * 2, m_lyricHeight + m_rectPadding * 2);
 
         painter->setBrush(m_backgroundBrush[flag]);
         painter->setPen(m_borderPen[flag]);
@@ -152,7 +141,10 @@ namespace LyricWrap {
 
         painter->setFont(m_font);
         painter->setPen(m_lyricPen[flag]);
-        if (!isLyricEditing)
-            painter->drawText(lyricPos(), m_note->lyric);
+        if (!isLyricEditing) {
+            const auto lPos = lyricPos();
+            painter->drawText(QRectF(lPos.x(), lPos.y(), lyricWidth(), m_lyricHeight),
+                              m_note->lyric);
+        }
     }
 }

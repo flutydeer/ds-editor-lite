@@ -14,19 +14,25 @@ namespace LyricWrap {
         ~LyricWrapView() override;
 
         void appendList(const QList<LangNote *> &noteList);
+        void setHeight(const qreal &h);
 
     protected:
         void resizeEvent(QResizeEvent *event) override;
+        void wheelEvent(QWheelEvent *event) override;
 
     private:
         [[nodiscard]] qreal cellBaseY(const int &index) const;
+        void resetSceneRect();
         void repaintCellLists();
-        void refreshSceneRect() const;
+
+        QFont m_font;
 
         QGraphicsScene *m_scene;
 
         QList<CellList *> m_cellLists;
         QList<qreal> m_heights;
+
+        qreal m_widgetHeight;
     };
 
 

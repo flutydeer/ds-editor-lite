@@ -3,7 +3,9 @@
 #include <QScrollBar>
 namespace LyricWrap {
     LyricWrapView::LyricWrapView(QWidget *parent) {
+        m_font = this->font();
         m_scene = new QGraphicsScene(parent);
+
         this->setScene(m_scene);
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         this->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -22,18 +24,49 @@ namespace LyricWrap {
         repaintCellLists();
     }
 
+    void LyricWrapView::wheelEvent(QWheelEvent *event) {
+        if (event->modifiers() & Qt::ControlModifier) {
+            const auto fontSizeDelta = event->angleDelta().y() / 120.0;
+            QFont font = this->font();
+            const auto newSize = font.pointSizeF() + fontSizeDelta;
+            if (newSize > 3) {
+                font.setPointSizeF(newSize);
+                this->setFont(font);
+                for (const auto &cellList : m_cellLists) {
+                    cellList->setFont(font);
+                }
+            }
+            event->accept();
+        } else {
+            QGraphicsView::wheelEvent(event);
+        }
+    }
+
     void LyricWrapView::appendList(const QList<LangNote *> &noteList) {
-        const auto cellList =
-            new CellList(0, cellBaseY(static_cast<int>(m_cellLists.size())), noteList, m_scene);
+        const auto cellList = new CellList(0, cellBaseY(static_cast<int>(m_cellLists.size())),
+                                           noteList, m_scene, m_font);
         cellList->setWidth(this->width());
         m_heights.append(cellList->height());
         m_cellLists.append(cellList);
 
-        connect(cellList, &CellList::rowCountChanged, this, &LyricWrapView::repaintCellLists);
+        connect(cellList, &CellList::heightChanged, this, &LyricWrapView::repaintCellLists);
+        connect(cellList, &CellList::cellPosChanged, this, &LyricWrapView::resetSceneRect);
+    }
+
+    void LyricWrapView::setHeight(const qreal &h) {
+        m_widgetHeight = h;
+        this->setMinimumHeight(static_cast<int>(h));
     }
 
     qreal LyricWrapView::cellBaseY(const int &index) const {
         return std::accumulate(m_heights.constBegin(), m_heights.constBegin() + index, 0.0);
+    }
+
+    void LyricWrapView::resetSceneRect() {
+        const auto height = std::accumulate(m_heights.constBegin(), m_heights.constEnd(), 0.0);
+        this->setFixedHeight(static_cast<int>(std::max(height, m_widgetHeight)));
+        scene()->setSceneRect(rect());
+        this->viewport()->update();
     }
 
     void LyricWrapView::repaintCellLists() {
@@ -43,16 +76,6 @@ namespace LyricWrap {
             m_cellLists[i]->setWidth(width);
             m_heights[i] = m_cellLists[i]->height();
         }
-        const auto height = std::accumulate(m_heights.constBegin(), m_heights.constEnd(), 0.0);
-        this->setFixedHeight(static_cast<int>(height));
-        scene()->setSceneRect(rect());
+        this->resetSceneRect();
     }
-
-    void LyricWrapView::refreshSceneRect() const {
-        QRectF sceneRect = scene()->sceneRect();
-        sceneRect.setWidth(width());
-        sceneRect.setHeight(height());
-        scene()->setSceneRect(sceneRect);
-    }
-
 }
