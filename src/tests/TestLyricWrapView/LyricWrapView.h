@@ -14,7 +14,6 @@ namespace LyricWrap {
         ~LyricWrapView() override;
 
         void appendList(const QList<LangNote *> &noteList);
-        void setHeight(const qreal &h);
 
     protected:
         void resizeEvent(QResizeEvent *event) override;

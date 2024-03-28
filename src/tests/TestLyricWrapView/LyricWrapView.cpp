@@ -8,7 +8,6 @@ namespace LyricWrap {
 
         this->setScene(m_scene);
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        this->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
         this->setBackgroundBrush(QColor(35, 36, 37));
 
@@ -52,21 +51,17 @@ namespace LyricWrap {
         connect(cellList, &CellList::heightChanged, this, &LyricWrapView::repaintCellLists);
     }
 
-    void LyricWrapView::setHeight(const qreal &h) {
-        m_widgetHeight = h;
-        this->setMinimumHeight(static_cast<int>(h));
-    }
-
     qreal LyricWrapView::cellBaseY(const int &index) const {
         return std::accumulate(m_heights.constBegin(), m_heights.constBegin() + index, 0.0);
     }
 
     void LyricWrapView::repaintCellLists() {
-        const auto width = this->width();
+        const auto width = this->width() - this->verticalScrollBar()->width();
         for (int i = 0; i < m_cellLists.size(); i++) {
             m_cellLists[i]->setBaseY(cellBaseY(i));
             m_cellLists[i]->setWidth(width);
             m_heights[i] = m_cellLists[i]->height();
         }
+        this->setSceneRect(scene()->itemsBoundingRect());
     }
 }

@@ -55,12 +55,12 @@ namespace LyricWrap {
     void CellList::setFont(const QFont &font) {
         m_font = font;
         const auto lyricHeight = QFontMetrics(font).height();
-        const auto lyricXHeight = QFontMetrics(font).xHeight();
+        const auto lyricXHeight = QFontMetrics(font).averageCharWidth();
 
         QFont syllableFont(font);
         syllableFont.setPointSize(syllableFont.pointSize() - 3);
         const auto syllableHeight = QFontMetrics(syllableFont).height();
-        const auto syllableXHeight = QFontMetrics(syllableFont).xHeight();
+        const auto syllableXHeight = QFontMetrics(syllableFont).averageCharWidth();
 
         for (const auto &cell : m_cells) {
             cell->setFontSize(font, lyricXHeight, lyricHeight, syllableXHeight, syllableHeight);
