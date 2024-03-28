@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
     QList<LangNote *> langNotes;
 
     for (const auto &langId : testId) {
-        const int lenth = QRandomGenerator::global()->bounded(100, 101);
+        const int lenth = QRandomGenerator::global()->bounded(20, 21);
         const auto factory = langMgr->language(langId);
 
         for (int i = 0; i < lenth; i++) {

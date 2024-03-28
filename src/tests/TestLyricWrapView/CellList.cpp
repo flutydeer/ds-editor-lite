@@ -9,19 +9,9 @@ namespace LyricWrap {
         m_splitter = new SplitterItem(mX, mY, m_curWidth, 1);
         m_scene->addItem(m_splitter);
 
-        const auto lyricHeight = QFontMetrics(m_font).height();
-        const auto lyricXHeight = QFontMetrics(m_font).xHeight();
-
-        QFont syllableFont(m_font);
-        syllableFont.setPointSize(syllableFont.pointSize() - 3);
-        const auto syllableHeight = QFontMetrics(syllableFont).height();
-        const auto syllableXHeight = QFontMetrics(syllableFont).xHeight();
-
         for (const auto &note : noteList) {
             const auto lyricCell = new LyricCell(0, mY + deltaY(), note);
 
-            lyricCell->setFontSize(font, lyricXHeight, lyricHeight, syllableXHeight,
-                                   syllableHeight);
             m_widths.append(lyricCell->width());
             m_cellHeight = lyricCell->height();
             m_cells.append(lyricCell);
@@ -31,6 +21,9 @@ namespace LyricWrap {
                 m_widths[m_cells.indexOf(lyricCell)] = w;
                 this->updateCellPos();
             });
+
+            connect(lyricCell, &LyricCell::updateLyricSignal,
+                    [this, lyricCell] { this->updateRect(lyricCell); });
         }
         this->updateCellPos();
     }
@@ -54,17 +47,36 @@ namespace LyricWrap {
 
     void CellList::setFont(const QFont &font) {
         m_font = font;
-        const auto lyricHeight = QFontMetrics(font).height();
-        const auto lyricXHeight = QFontMetrics(font).averageCharWidth();
-
-        QFont syllableFont(font);
+        const auto lMetric = QFontMetrics(m_font);
+        QFont syllableFont(m_font);
         syllableFont.setPointSize(syllableFont.pointSize() - 3);
-        const auto syllableHeight = QFontMetrics(syllableFont).height();
-        const auto syllableXHeight = QFontMetrics(syllableFont).averageCharWidth();
+        const auto sMetric = QFontMetrics(syllableFont);
 
         for (const auto &cell : m_cells) {
-            cell->setFontSize(font, lyricXHeight, lyricHeight, syllableXHeight, syllableHeight);
+            const auto lRect = lMetric.boundingRect(cell->lyric());
+            const auto sRect = sMetric.boundingRect(cell->syllable());
+
+            cell->setLyricRect(lRect);
+            cell->setSyllableRect(sRect);
+            cell->setFont(font);
         }
+        this->updateCellPos();
+    }
+
+    void CellList::updateRect(LyricCell *cell) {
+        const auto lMetric = QFontMetrics(m_font);
+        QFont syllableFont(m_font);
+        syllableFont.setPointSize(syllableFont.pointSize() - 3);
+        const auto sMetric = QFontMetrics(syllableFont);
+
+        const auto lRect = lMetric.boundingRect(cell->lyric());
+        const auto sRect = sMetric.boundingRect(cell->syllable());
+
+        cell->setLyricRect(lRect);
+        cell->setSyllableRect(sRect);
+        cell->setFont(m_font);
+
+        this->updateCellPos();
     }
 
     qreal CellList::deltaY() const {

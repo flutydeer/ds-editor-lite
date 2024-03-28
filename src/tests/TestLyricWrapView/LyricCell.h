@@ -20,15 +20,20 @@ namespace LyricWrap {
                            QGraphicsItem *parent = nullptr);
         ~LyricCell() override;
 
+        [[nodiscard]] QString lyric() const;
+        [[nodiscard]] QString syllable() const;
+
+        void setFont(const QFont &font);
+        void setLyricRect(const QRect &rect);
+        void setSyllableRect(const QRect &rect);
+
         [[nodiscard]] qreal width() const;
         [[nodiscard]] qreal height() const;
 
-        void setFontSize(const QFont &font, const qreal &lw, const qreal &lh, const qreal &sw,
-                         const qreal &sh);
-
-        void setLyric(const QString &lyric);
+        void setLyric(const QString &lyric) const;
 
     Q_SIGNALS:
+        void updateLyricSignal() const;
         void updateWidthSignal(const qreal &w) const;
 
     protected:
@@ -65,11 +70,8 @@ namespace LyricWrap {
 
         void updateLyric();
 
-        qreal m_lyricHeight;
-        qreal m_syllableHeight;
-
-        qreal m_lyricXHeight;
-        qreal m_syllableXHeight;
+        QRect m_lRect;
+        QRect m_sRect;
 
         LangNote *m_note;
 
@@ -79,7 +81,7 @@ namespace LyricWrap {
         qreal m_reckBorder = 2.5;
 
         QString mText;
-        QFont m_font;
+        QFont m_font = QApplication::font();
 
         bool isLyricEditing = false;
         QPointer<LyricLineEdit> m_lyricEdit = new LyricLineEdit();

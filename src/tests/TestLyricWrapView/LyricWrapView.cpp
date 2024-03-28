@@ -8,6 +8,7 @@ namespace LyricWrap {
 
         this->setScene(m_scene);
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        this->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
         this->setBackgroundBrush(QColor(35, 36, 37));
 

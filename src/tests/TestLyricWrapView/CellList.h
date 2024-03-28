@@ -22,6 +22,8 @@ namespace LyricWrap {
 
         void setFont(const QFont &font);
 
+        void updateRect(LyricCell *cell);
+
         [[nodiscard]] qreal deltaY() const;
 
     Q_SIGNALS:
