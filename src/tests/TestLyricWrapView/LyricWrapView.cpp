@@ -44,7 +44,7 @@ namespace LyricWrap {
 
     void LyricWrapView::appendList(const QList<LangNote *> &noteList) {
         const auto cellList = new CellList(0, cellBaseY(static_cast<int>(m_cellLists.size())),
-                                           noteList, m_scene, m_font);
+                                           noteList, m_scene, m_font, this);
         cellList->setWidth(this->width());
         m_heights.append(cellList->height());
         m_cellLists.append(cellList);

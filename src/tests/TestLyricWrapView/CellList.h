@@ -12,7 +12,7 @@ namespace LyricWrap {
         Q_OBJECT
     public:
         explicit CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
-                          QGraphicsScene *scene, const QFont &font);
+                          QGraphicsScene *scene, const QFont &font, QGraphicsView *view);
 
         [[nodiscard]] qreal height() const;
 
@@ -48,6 +48,7 @@ namespace LyricWrap {
         qreal m_cellMargin = 5;
 
         QGraphicsScene *m_scene;
+        QGraphicsView *m_view;
 
         SplitterItem *m_splitter;
 

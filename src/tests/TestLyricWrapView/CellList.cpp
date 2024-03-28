@@ -4,13 +4,13 @@
 
 namespace LyricWrap {
     CellList::CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
-                       QGraphicsScene *scene, const QFont &font)
-        : mX(x), mY(y), m_scene(scene), m_font(font) {
+                       QGraphicsScene *scene, const QFont &font, QGraphicsView *view)
+        : mX(x), mY(y), m_scene(scene), m_view(view), m_font(font) {
         m_splitter = new SplitterItem(mX, mY, m_curWidth, 1);
         m_scene->addItem(m_splitter);
 
         for (const auto &note : noteList) {
-            const auto lyricCell = new LyricCell(0, mY + deltaY(), note);
+            const auto lyricCell = new LyricCell(0, mY + deltaY(), note, m_view);
 
             m_widths.append(lyricCell->width());
             m_cellHeight = lyricCell->height();
@@ -69,8 +69,10 @@ namespace LyricWrap {
         syllableFont.setPointSize(syllableFont.pointSize() - 3);
         const auto sMetric = QFontMetrics(syllableFont);
 
-        const auto lRect = lMetric.boundingRect(cell->lyric());
-        const auto sRect = sMetric.boundingRect(cell->syllable());
+        const auto lyric = cell->lyric().isEmpty() ? " " : cell->lyric();
+        const auto lRect = lMetric.boundingRect(lyric);
+        const auto syllable = cell->syllable().isEmpty() ? " " : cell->syllable();
+        const auto sRect = sMetric.boundingRect(syllable);
 
         cell->setLyricRect(lRect);
         cell->setSyllableRect(sRect);

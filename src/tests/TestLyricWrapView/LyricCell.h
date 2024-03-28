@@ -2,21 +2,18 @@
 #define LYRICCELL_H
 
 #include <QObject>
-#include <QPainter>
-
-#include <LangCommon.h>
-#include <QGraphicsScene>
-#include <QGraphicsProxyWidget>
-
 #include <QApplication>
 
-#include "LyricLineEdit.h"
+#include <QGraphicsView>
+#include <QGraphicsProxyWidget>
+
+#include <LangCommon.h>
 
 namespace LyricWrap {
     class LyricCell final : public QGraphicsObject {
         Q_OBJECT
     public:
-        explicit LyricCell(const qreal &x, const qreal &y, LangNote *note,
+        explicit LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsView *view,
                            QGraphicsItem *parent = nullptr);
         ~LyricCell() override;
 
@@ -74,6 +71,7 @@ namespace LyricWrap {
         QRect m_sRect;
 
         LangNote *m_note;
+        QGraphicsView *m_view;
 
         qreal m_lsPadding = 5;
         qreal m_rectPadding = 3;
@@ -84,8 +82,6 @@ namespace LyricWrap {
         QFont m_font = QApplication::font();
 
         bool isLyricEditing = false;
-        QPointer<LyricLineEdit> m_lyricEdit = new LyricLineEdit();
-        QPointer<QGraphicsProxyWidget> m_lyricWidget = new QGraphicsProxyWidget();
 
         qreal m_width{};
         qreal m_height{};

@@ -5,13 +5,14 @@
 
 #include <QGraphicsRectItem>
 #include <QStyleOptionGraphicsItem>
-
 #include <QGraphicsSceneMouseEvent>
-#include <QLineEdit>
+
+#include "EditDialog.h"
 
 namespace LyricWrap {
-    LyricCell::LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsItem *parent)
-        : QGraphicsObject(parent), m_note(note) {
+    LyricCell::LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsView *view,
+                         QGraphicsItem *parent)
+        : QGraphicsObject(parent), m_note(note), m_view(view) {
         this->setX(x);
         this->setY(y);
         setFlag(ItemIsSelectable);
@@ -33,14 +34,13 @@ namespace LyricWrap {
 
     void LyricCell::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
         if (lyricRect().contains(event->scenePos())) {
-            m_lyricEdit->setText(m_note->lyric);
-            m_lyricEdit->setFocus();
-            isLyricEditing = true;
-            m_lyricWidget->setWidget(m_lyricEdit.data());
-            m_lyricWidget->setPos(x() + lyricPos().x(), y() + rectPos().y() + m_padding / 2);
-            m_lyricWidget->widget()->setFocus();
-            scene()->addItem(m_lyricWidget.data());
-            connect(m_lyricEdit.data(), &QLineEdit::editingFinished, this, &LyricCell::updateLyric);
+            EditDialog dlg(lyric(), lyricRect(), m_view);
+            dlg.exec();
+            if (dlg.text != lyric()) {
+                this->setLyric(dlg.text);
+                Q_EMIT this->updateWidthSignal(width());
+            }
+
             update();
             event->accept();
         }
@@ -55,14 +55,6 @@ namespace LyricWrap {
             event->accept();
         }
         return QGraphicsItem::contextMenuEvent(event);
-    }
-
-    void LyricCell::updateLyric() {
-        this->setLyric(m_lyricEdit->text());
-        isLyricEditing = false;
-        disconnect(m_lyricEdit.data(), &QLineEdit::editingFinished, this, &LyricCell::updateLyric);
-        scene()->removeItem(m_lyricWidget.data());
-        Q_EMIT this->updateWidthSignal(width());
     }
 
     QString LyricCell::lyric() const {
