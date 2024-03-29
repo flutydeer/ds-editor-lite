@@ -39,10 +39,14 @@ namespace FillLyric {
 
         void clearCell() const;
         void deleteCell() const;
+
         void addPrevCell() const;
         void addNextCell() const;
 
         void deleteLine() const;
+        void addPrevLine() const;
+        void addNextLine() const;
+
         void updateWidth(const qreal &w) const;
 
     protected:

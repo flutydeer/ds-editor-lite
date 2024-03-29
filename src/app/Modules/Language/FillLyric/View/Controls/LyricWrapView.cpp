@@ -5,6 +5,8 @@
 #include <LangMgr/ILanguageManager.h>
 
 #include "../../Commands/Line/DeleteLineCmd.h"
+#include "../../Commands/Line/AddPrevLineCmd.h"
+#include "../../Commands/Line/AddNextLineCmd.h"
 
 namespace FillLyric {
     LyricWrapView::LyricWrapView(QWidget *parent) {
@@ -52,12 +54,8 @@ namespace FillLyric {
         const auto cellList = new CellList(0, cellBaseY(static_cast<int>(m_cellLists.size())),
                                            noteList, m_scene, m_font, this, m_history);
         cellList->setWidth(width);
-        m_heights.append(cellList->height());
         m_cellLists.append(cellList);
-
-        connect(cellList, &CellList::heightChanged, this, &LyricWrapView::repaintCellLists);
-        connect(cellList, &CellList::deleteLine,
-                [this, cellList] { m_history->push(new DeleteLineCmd(this, cellList)); });
+        this->connectCellList(cellList);
     }
 
     QUndoStack *LyricWrapView::history() const {
@@ -70,11 +68,9 @@ namespace FillLyric {
             delete m_cellList;
             m_cellList = nullptr;
         }
-        m_heights.clear();
         m_cellLists.clear();
         this->update();
     }
-
 
     void LyricWrapView::init(const QList<QList<LangNote>> &noteLists) {
         this->clear();
@@ -91,19 +87,42 @@ namespace FillLyric {
         this->update();
     }
 
+    CellList *LyricWrapView::createNewList() {
+        const auto width = this->width() - this->verticalScrollBar()->width();
+        const auto cellList =
+            new CellList(0, 0, {new LangNote()}, m_scene, m_font, this, m_history);
+        cellList->setWidth(width);
+        this->connectCellList(cellList);
+        return cellList;
+    }
 
     qreal LyricWrapView::cellBaseY(const int &index) const {
-        return std::accumulate(m_heights.constBegin(), m_heights.constBegin() + index, 0.0);
+        qreal height = 0;
+        for (int i = 0; i < std::min(index, static_cast<int>(m_cellLists.size())); i++) {
+            height += m_cellLists[i]->height();
+        }
+        return height;
     }
 
     void LyricWrapView::repaintCellLists() {
+        qreal height = 0;
         const auto width = this->width() - this->verticalScrollBar()->width();
-        for (int i = 0; i < m_cellLists.size(); i++) {
-            m_cellLists[i]->setBaseY(cellBaseY(i));
-            m_cellLists[i]->setWidth(width);
-            m_heights[i] = m_cellLists[i]->height();
+        for (const auto &m_cellList : m_cellLists) {
+            m_cellList->setBaseY(height);
+            m_cellList->setWidth(width);
+            height += m_cellList->height();
         }
         this->setSceneRect(scene()->itemsBoundingRect());
         this->update();
+    }
+
+    void LyricWrapView::connectCellList(CellList *cellList) {
+        connect(cellList, &CellList::heightChanged, this, &LyricWrapView::repaintCellLists);
+        connect(cellList, &CellList::deleteLine,
+                [this, cellList] { m_history->push(new DeleteLineCmd(this, cellList)); });
+        connect(cellList, &CellList::addPrevLine,
+                [this, cellList] { m_history->push(new AddPrevLineCmd(this, cellList)); });
+        connect(cellList, &CellList::addNextLine,
+                [this, cellList] { m_history->push(new AddNextLineCmd(this, cellList)); });
     }
 }

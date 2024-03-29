@@ -20,11 +20,14 @@ namespace FillLyric {
         setFlag(ItemIsSelectable);
         this->setAcceptHoverEvents(true);
 
-        m_lRect = QFontMetrics(m_font).boundingRect(m_note->lyric);
+        const auto lyric = m_note->lyric.isEmpty() ? " " : m_note->lyric;
+        const auto syllable = m_note->syllable.isEmpty() ? " " : m_note->syllable;
+
+        m_lRect = QFontMetrics(m_font).boundingRect(lyric);
 
         QFont syllableFont(m_font);
         syllableFont.setPointSize(syllableFont.pointSize() - 3);
-        m_sRect = QFontMetrics(syllableFont).boundingRect(m_note->syllable);
+        m_sRect = QFontMetrics(syllableFont).boundingRect(syllable);
     }
 
     LyricCell::~LyricCell() = default;
@@ -69,6 +72,8 @@ namespace FillLyric {
             menu->addAction("add next cell", [this] { Q_EMIT this->addNextCell(); });
             menu->addSeparator();
             menu->addAction("delete line", [this] { Q_EMIT this->deleteLine(); });
+            menu->addAction("add prev line", [this] { Q_EMIT this->addPrevLine(); });
+            menu->addAction("add next line", [this] { Q_EMIT this->addNextLine(); });
             menu->exec(event->screenPos());
             event->accept();
         }

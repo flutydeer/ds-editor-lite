@@ -54,12 +54,9 @@ namespace FillLyric {
 
     LyricCell *CellList::createNewCell() {
         const auto lyricCell = new LyricCell(0, mY + this->deltaY(), new LangNote(), m_view);
-        this->updateRect(lyricCell);
         this->connectCell(lyricCell);
-
         return lyricCell;
     }
-
 
     void CellList::setWidth(const qreal &width) {
         m_curWidth = width;
@@ -167,6 +164,8 @@ namespace FillLyric {
 
         // line option
         connect(cell, &LyricCell::deleteLine, this, &CellList::deleteLine);
+        connect(cell, &LyricCell::addPrevLine, this, &CellList::addPrevLine);
+        connect(cell, &LyricCell::addNextLine, this, &CellList::addNextLine);
     }
 
 }

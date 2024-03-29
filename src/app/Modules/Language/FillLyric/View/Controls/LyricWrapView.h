@@ -15,6 +15,7 @@ namespace FillLyric {
 
         void clear();
         void init(const QList<QList<LangNote>> &noteLists);
+        CellList *createNewList();
         void appendList(const QList<LangNote *> &noteList);
 
         void repaintCellLists();
@@ -28,13 +29,12 @@ namespace FillLyric {
         void wheelEvent(QWheelEvent *event) override;
 
     private:
+        void connectCellList(CellList *cellList);
         [[nodiscard]] qreal cellBaseY(const int &index) const;
 
         QFont m_font;
         QUndoStack *m_history = new QUndoStack();
         QGraphicsScene *m_scene;
-
-        QList<qreal> m_heights;
     };
 
 

@@ -27,10 +27,12 @@ namespace FillLyric {
     void EditCellCmdfinal::undo() {
         m_cell->setNote(m_oldNote);
         m_list->updateRect(m_cell);
+        m_cell->update();
     }
 
     void EditCellCmdfinal::redo() {
         m_cell->setNote(m_newNote);
         m_list->updateRect(m_cell);
+        m_cell->update();
     }
 } // FillLyric

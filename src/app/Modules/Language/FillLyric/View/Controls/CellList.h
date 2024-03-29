@@ -47,6 +47,8 @@ namespace FillLyric {
         void cellPosChanged() const;
 
         void deleteLine() const;
+        void addPrevLine() const;
+        void addNextLine() const;
 
     private:
         void updateSplitterPos() const;
