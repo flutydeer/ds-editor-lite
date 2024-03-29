@@ -116,6 +116,7 @@ namespace FillLyric {
             langMgr->convert(tempNotes);
             this->appendList(tempNotes);
         }
+        this->setSceneRect(scene()->itemsBoundingRect());
         this->update();
     }
 
