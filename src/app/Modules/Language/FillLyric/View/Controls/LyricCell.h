@@ -17,21 +17,21 @@ namespace FillLyric {
                            QGraphicsItem *parent = nullptr);
         ~LyricCell() override;
 
+        [[nodiscard]] qreal width() const;
+        [[nodiscard]] qreal height() const;
+
         [[nodiscard]] LangNote *note() const;
         void setNote(LangNote *note);
 
         [[nodiscard]] QString lyric() const;
+        void setLyric(const QString &lyric) const;
+
         [[nodiscard]] QString syllable() const;
+        void setSyllable(const QString &syllable) const;
 
         void setFont(const QFont &font);
         void setLyricRect(const QRect &rect);
         void setSyllableRect(const QRect &rect);
-
-        [[nodiscard]] qreal width() const;
-        [[nodiscard]] qreal height() const;
-
-        void setLyric(const QString &lyric) const;
-        void setSyllable(const QString &syllable) const;
 
     Q_SIGNALS:
         void updateLyric(const QString &lyric) const;
@@ -39,7 +39,6 @@ namespace FillLyric {
 
         void clearCell() const;
         void deleteCell() const;
-
         void addPrevCell() const;
         void addNextCell() const;
 
@@ -50,14 +49,41 @@ namespace FillLyric {
         void updateWidth(const qreal &w) const;
 
     protected:
-        void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
+        [[nodiscard]] QRectF boundingRect() const override;
 
+        void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
         void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 
         void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                    QWidget *widget) override;
 
-        [[nodiscard]] QRectF boundingRect() const override;
+    private:
+        void updateLyricRect();
+
+        [[nodiscard]] qreal lyricWidth() const;
+        [[nodiscard]] qreal syllableWidth() const;
+
+        [[nodiscard]] QPointF lyricPos() const;
+        [[nodiscard]] QPointF rectPos() const;
+        [[nodiscard]] QPointF syllablePos() const;
+
+        [[nodiscard]] QRectF lyricRect() const;
+
+        void changePhonicMenu(QMenu *menu);
+        void changeSyllableMenu(QMenu *menu) const;
+
+        QRect m_lRect;
+        QRect m_sRect;
+
+        LangNote *m_note;
+        QGraphicsView *m_view;
+
+        qreal m_lsPadding = 5;
+        qreal m_rectPadding = 3;
+        qreal m_padding = 5;
+        qreal m_reckBorder = 2.5;
+
+        QFont m_font = QApplication::font();
 
     private:
         enum State {
@@ -76,36 +102,6 @@ namespace FillLyric {
                               QColor(Qt::red)};
         QPen m_syllablePen[4] = {QColor(Qt::white), QColor(Qt::green), QColor(Qt::yellow),
                                  QColor(Qt::red)};
-
-        [[nodiscard]] qreal syllableWidth() const;
-        [[nodiscard]] qreal lyricWidth() const;
-
-        [[nodiscard]] QPointF syllablePos() const;
-        [[nodiscard]] QPointF lyricPos() const;
-        [[nodiscard]] QRectF lyricRect() const;
-        [[nodiscard]] QPointF rectPos() const;
-
-        void changePhonicMenu(QMenu *menu);
-        void changeSyllableMenu(QMenu *menu) const;
-
-        QRect m_lRect;
-        QRect m_sRect;
-
-        LangNote *m_note;
-        QGraphicsView *m_view;
-
-        qreal m_lsPadding = 5;
-        qreal m_rectPadding = 3;
-        qreal m_padding = 5;
-        qreal m_reckBorder = 2.5;
-
-        QString mText;
-        QFont m_font = QApplication::font();
-
-        bool isLyricEditing = false;
-
-        qreal m_width{};
-        qreal m_height{};
     };
 }
 

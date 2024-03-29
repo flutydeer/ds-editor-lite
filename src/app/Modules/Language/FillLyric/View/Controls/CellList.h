@@ -19,25 +19,21 @@ namespace FillLyric {
         void clear();
 
         [[nodiscard]] qreal y() const;
+        [[nodiscard]] qreal deltaY() const;
+
+        void setBaseY(const qreal &y);
 
         [[nodiscard]] qreal height() const;
 
         [[nodiscard]] QGraphicsView *view() const;
-
         [[nodiscard]] QGraphicsScene *sence() const;
 
         LyricCell *createNewCell();
 
         void setWidth(const qreal &width);
 
-        void setBaseY(const qreal &y);
-
         void setFont(const QFont &font);
-
         void updateRect(LyricCell *cell);
-
-        [[nodiscard]] qreal deltaY() const;
-
         void updateCellPos();
 
         QList<LyricCell *> m_cells;

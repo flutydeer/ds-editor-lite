@@ -42,11 +42,20 @@ namespace FillLyric {
                 for (const auto &cellList : m_cellLists) {
                     cellList->setFont(font);
                 }
+                event->accept();
             }
-            event->accept();
         } else {
             QGraphicsView::wheelEvent(event);
         }
+    }
+
+    CellList *LyricWrapView::createNewList() {
+        const auto width = this->width() - this->verticalScrollBar()->width();
+        const auto cellList =
+            new CellList(0, 0, {new LangNote()}, m_scene, m_font, this, m_history);
+        cellList->setWidth(width);
+        this->connectCellList(cellList);
+        return cellList;
     }
 
     void LyricWrapView::appendList(const QList<LangNote *> &noteList) {
@@ -87,23 +96,6 @@ namespace FillLyric {
         this->update();
     }
 
-    CellList *LyricWrapView::createNewList() {
-        const auto width = this->width() - this->verticalScrollBar()->width();
-        const auto cellList =
-            new CellList(0, 0, {new LangNote()}, m_scene, m_font, this, m_history);
-        cellList->setWidth(width);
-        this->connectCellList(cellList);
-        return cellList;
-    }
-
-    qreal LyricWrapView::cellBaseY(const int &index) const {
-        qreal height = 0;
-        for (int i = 0; i < std::min(index, static_cast<int>(m_cellLists.size())); i++) {
-            height += m_cellLists[i]->height();
-        }
-        return height;
-    }
-
     void LyricWrapView::repaintCellLists() {
         qreal height = 0;
         const auto width = this->width() - this->verticalScrollBar()->width();
@@ -124,5 +116,13 @@ namespace FillLyric {
                 [this, cellList] { m_history->push(new AddPrevLineCmd(this, cellList)); });
         connect(cellList, &CellList::addNextLine,
                 [this, cellList] { m_history->push(new AddNextLineCmd(this, cellList)); });
+    }
+
+    qreal LyricWrapView::cellBaseY(const int &index) const {
+        qreal height = 0;
+        for (int i = 0; i < std::min(index, static_cast<int>(m_cellLists.size())); i++) {
+            height += m_cellLists[i]->height();
+        }
+        return height;
     }
 }

@@ -6,7 +6,6 @@
 #include <QGraphicsView>
 
 namespace FillLyric {
-
     class LyricWrapView final : public QGraphicsView {
         Q_OBJECT
     public:
@@ -15,6 +14,7 @@ namespace FillLyric {
 
         void clear();
         void init(const QList<QList<LangNote>> &noteLists);
+
         CellList *createNewList();
         void appendList(const QList<LangNote *> &noteList);
 
@@ -36,7 +36,5 @@ namespace FillLyric {
         QUndoStack *m_history = new QUndoStack();
         QGraphicsScene *m_scene;
     };
-
-
 }
 #endif // LYRICWRAPVIEW_H

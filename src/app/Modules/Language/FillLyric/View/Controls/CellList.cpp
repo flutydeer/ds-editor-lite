@@ -40,6 +40,16 @@ namespace FillLyric {
         return mY;
     }
 
+    qreal CellList::deltaY() const {
+        return m_splitter->deltaY();
+    }
+
+    void CellList::setBaseY(const qreal &y) {
+        mY = y;
+        m_splitter->setPos(mX, mY);
+        this->updateCellPos();
+    }
+
     qreal CellList::height() const {
         return m_height;
     }
@@ -63,12 +73,6 @@ namespace FillLyric {
         m_splitter->setWidth(width);
         this->updateCellPos();
         this->updateSplitterPos();
-    }
-
-    void CellList::setBaseY(const qreal &y) {
-        mY = y;
-        m_splitter->setPos(mX, mY);
-        this->updateCellPos();
     }
 
     void CellList::setFont(const QFont &font) {
@@ -108,14 +112,6 @@ namespace FillLyric {
         this->updateCellPos();
     }
 
-    qreal CellList::deltaY() const {
-        return m_splitter->deltaY();
-    }
-
-    void CellList::updateSplitterPos() const {
-        m_splitter->setPos(mX, mY);
-    }
-
     void CellList::updateCellPos() {
         qreal x = 0;
         qreal y = mY + m_splitter->deltaY();
@@ -140,6 +136,10 @@ namespace FillLyric {
             Q_EMIT this->heightChanged();
         }
         Q_EMIT this->cellPosChanged();
+    }
+
+    void CellList::updateSplitterPos() const {
+        m_splitter->setPos(mX, mY);
     }
 
     void CellList::connectCell(LyricCell *cell) {
