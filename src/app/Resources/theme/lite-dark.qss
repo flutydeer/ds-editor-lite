@@ -376,6 +376,16 @@ QTextEdit {
     padding: 2px;
 }
 
+QPlainTextEdit {
+    background: #202122;
+    border: 1px solid #505050;
+    border-radius: 4px;
+    color: #F0F0F0;
+    selection-color: #000;
+    selection-background-color: #9BBAFF;
+    padding: 2px;
+}
+
 QTableView {
     background-color: #202122;
     border: 1px solid #505050;

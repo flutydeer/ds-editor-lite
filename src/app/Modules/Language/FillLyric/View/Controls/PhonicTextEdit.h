@@ -2,11 +2,10 @@
 #define DS_EDITOR_LITE_PHONICTEXTEDIT_H
 
 #include <QObject>
-#include <QTextEdit>
-#include <QWheelEvent>
+#include <QPlainTextEdit>
 
 namespace FillLyric {
-    class PhonicTextEdit final : public QTextEdit {
+    class PhonicTextEdit final : public QPlainTextEdit {
         Q_OBJECT
     public:
         explicit PhonicTextEdit(QWidget *parent = nullptr);

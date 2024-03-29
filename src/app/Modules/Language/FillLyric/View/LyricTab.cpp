@@ -88,7 +88,7 @@ namespace FillLyric {
             lyrics.append(phonic->lyric);
         }
         notesCount = static_cast<int>(phonics.size());
-        m_lyricBaseWidget->m_textEdit->setText(lyrics.join(" "));
+        m_lyricBaseWidget->m_textEdit->setPlainText(lyrics.join(" "));
         m_lyricExtWidget->m_phonicTableView->_init(phonics);
     }
 
@@ -134,7 +134,7 @@ namespace FillLyric {
         const QString text =
             "Halloween蝉声--陪かな伴着qwe行云流浪---\nka回-忆-开始132后安静遥望远方"
             "\n荒草覆没的古井--枯塘\n匀-散asdaw一缕过往\n";
-        m_lyricBaseWidget->m_textEdit->setText(text);
+        m_lyricBaseWidget->m_textEdit->setPlainText(text);
     }
 
     void LyricTab::_on_btnToTable_clicked() const {
@@ -175,7 +175,7 @@ namespace FillLyric {
             res.append(line.join(""));
         }
 
-        m_lyricBaseWidget->m_textEdit->setText(res.join("\n"));
+        m_lyricBaseWidget->m_textEdit->setPlainText(res.join("\n"));
     }
 
     void LyricTab::modifyOption() const {

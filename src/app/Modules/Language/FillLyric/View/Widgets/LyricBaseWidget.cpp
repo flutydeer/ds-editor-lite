@@ -82,7 +82,9 @@ namespace FillLyric {
         this->setLayout(m_mainLayout);
 
         const auto options = AppOptions::instance()->fillLyric();
-        m_textEdit->setFontPointSize(options->textEditFontSize);
+        auto font = m_textEdit->font();
+        font.setPointSizeF(options->textEditFontSize);
+        m_textEdit->setFont(font);
         skipSlur->setChecked(options->skipSlur);
         m_splitComboBox->setCurrentIndex(options->splitMode);
         m_splitters->setVisible(options->splitMode == Custom);
@@ -131,7 +133,7 @@ namespace FillLyric {
         qDebug() << "metadata: " << metadata;
 
         const auto lyrics = decoder.dumpLyrics();
-        this->m_textEdit->setText(lyrics.join("\n"));
+        this->m_textEdit->setPlainText(lyrics.join("\n"));
     }
 
     QList<Phonic> LyricBaseWidget::splitLyric(const QString &lyric) const {
@@ -163,7 +165,7 @@ namespace FillLyric {
                 }
             }
         }
-
+        // TODO: skipSlur
         const auto res = skipSlurRes ? skipSlurPhonics : skipSlurPhonics;
         return res;
     }
@@ -176,7 +178,7 @@ namespace FillLyric {
 
     void LyricBaseWidget::modifyOption() const {
         const auto options = AppOptions::instance()->fillLyric();
-        options->textEditFontSize = m_textEdit->fontPointSize();
+        options->textEditFontSize = m_textEdit->font().pointSizeF();
         options->skipSlur = skipSlur->isChecked();
         options->splitMode = m_splitComboBox->currentIndex();
         AppOptions::instance()->saveAndNotify();

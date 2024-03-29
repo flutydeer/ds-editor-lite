@@ -2,7 +2,7 @@
 
 namespace FillLyric {
 
-    PhonicTextEdit::PhonicTextEdit(QWidget *parent) : QTextEdit(parent) {
+    PhonicTextEdit::PhonicTextEdit(QWidget *parent) : QPlainTextEdit(parent) {
         QFont f = this->font();
         f.setPointSizeF(11);
         setFont(f);
@@ -21,7 +21,7 @@ namespace FillLyric {
             event->accept();
             return;
         }
-        QTextEdit::wheelEvent(event);
+        QPlainTextEdit::wheelEvent(event);
     }
 
 } // FillLyric
