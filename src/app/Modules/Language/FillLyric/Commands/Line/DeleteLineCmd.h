@@ -14,8 +14,8 @@ namespace FillLyric {
 
     private:
         LyricWrapView *m_view;
+        int m_index;
         CellList *m_list;
-        qlonglong m_index;
     };
 
 } // FillLyric

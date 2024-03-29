@@ -112,8 +112,12 @@ namespace FillLyric {
 
     void LyricBaseWidget::_on_textEditChanged() const {
         const QString text = this->m_textEdit->toPlainText();
-        const QList<Phonic> res = this->splitLyric(text);
-        this->m_textCountLabel->setText(QString(tr("Note Count: %1")).arg(res.size()));
+        const auto splitRes = this->splitLyric(text);
+        int count = 0;
+        for (const auto &notes : splitRes) {
+            count += static_cast<int>(notes.size());
+        }
+        this->m_textCountLabel->setText(QString(tr("Note Count: %1")).arg(count));
     }
 
     void LyricBaseWidget::_on_btnImportLrc_clicked() {
@@ -136,37 +140,39 @@ namespace FillLyric {
         this->m_textEdit->setPlainText(lyrics.join("\n"));
     }
 
-    QList<Phonic> LyricBaseWidget::splitLyric(const QString &lyric) const {
+    QList<QList<LangNote>> LyricBaseWidget::splitLyric(const QString &lyric) const {
         const bool skipSlurRes = this->skipSlur->isChecked();
         const auto splitType = static_cast<SplitType>(this->m_splitComboBox->currentIndex());
 
         QList<QList<LangNote>> splitNotes;
-        if (splitType == SplitType::Auto) {
+        if (splitType == Auto) {
             splitNotes = CleanLyric::splitAuto(lyric);
-        } else if (splitType == SplitType::ByChar) {
+        } else if (splitType == ByChar) {
             splitNotes = CleanLyric::splitByChar(lyric);
-        } else if (splitType == SplitType::Custom) {
+        } else if (splitType == Custom) {
             splitNotes = CleanLyric::splitCustom(lyric, this->m_splitters->text().split(' '));
         }
 
-        QList<Phonic> skipSlurPhonics;
+        QList<QList<LangNote>> skipSlurLangNotes;
         if (skipSlurRes) {
             for (const auto &notes : splitNotes) {
+                QList<LangNote> tempNotes;
                 for (const auto &note : notes) {
                     if (note.language != "Slur" && note.lyric != "-") {
-                        Phonic phonic;
-                        phonic.lyric = note.lyric;
-                        phonic.syllable = note.syllable;
-                        phonic.candidates = note.candidates;
-                        phonic.language = note.language;
-                        phonic.category = note.category;
-                        skipSlurPhonics.append(phonic);
+                        LangNote langNote;
+                        langNote.lyric = note.lyric;
+                        langNote.syllable = note.syllable;
+                        langNote.candidates = note.candidates;
+                        langNote.language = note.language;
+                        langNote.category = note.category;
+                        tempNotes.append(langNote);
                     }
                 }
+                skipSlurLangNotes.append(tempNotes);
             }
         }
-        // TODO: skipSlur
-        const auto res = skipSlurRes ? skipSlurPhonics : skipSlurPhonics;
+
+        const auto res = skipSlurRes ? skipSlurLangNotes : splitNotes;
         return res;
     }
 

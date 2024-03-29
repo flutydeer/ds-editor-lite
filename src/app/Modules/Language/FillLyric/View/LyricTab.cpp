@@ -7,8 +7,8 @@
 
 namespace FillLyric {
 
-    LyricTab::LyricTab(QList<Phonic *> phonics, QWidget *parent)
-        : QWidget(parent), m_phonics(std::move(phonics)) {
+    LyricTab::LyricTab(QList<LangNote *> langNotes, QWidget *parent)
+        : QWidget(parent), m_langNotes(std::move(langNotes)) {
         // textWidget
         m_lyricBaseWidget = new LyricBaseWidget();
 
@@ -26,7 +26,7 @@ namespace FillLyric {
         m_mainLayout->addLayout(m_lyricLayout);
 
         connect(m_lyricBaseWidget->btnReReadNote, &QAbstractButton::clicked, this,
-                &LyricTab::setPhonics);
+                &LyricTab::setLangNotes);
 
         // phonicWidget signals
         connect(m_lyricExtWidget->m_btnInsertText, &QAbstractButton::clicked, this,
@@ -76,31 +76,31 @@ namespace FillLyric {
 
     LyricTab::~LyricTab() = default;
 
-    void LyricTab::setPhonics() {
+    void LyricTab::setLangNotes() {
         const bool skipSlurRes = m_lyricBaseWidget->skipSlur->isChecked();
 
         QStringList lyrics;
-        QList<Phonic> phonics;
-        for (const auto phonic : m_phonics) {
-            if (skipSlurRes && (phonic->language == "Slur" || phonic->lyric == "-"))
+        QList<LangNote> langNotes;
+        for (const auto langNote : m_langNotes) {
+            if (skipSlurRes && (langNote->language == "Slur" || langNote->lyric == "-"))
                 continue;
-            phonics.append(*phonic);
-            lyrics.append(phonic->lyric);
+            langNotes.append(*langNote);
+            lyrics.append(langNote->lyric);
         }
-        notesCount = static_cast<int>(phonics.size());
+        notesCount = static_cast<int>(langNotes.size());
         m_lyricBaseWidget->m_textEdit->setPlainText(lyrics.join(" "));
-        m_lyricExtWidget->m_phonicTableView->_init(phonics);
+        m_lyricExtWidget->m_wrapView->init({langNotes});
     }
 
-    QList<Phonic> LyricTab::exportPhonics() const {
+    QList<QList<LangNote>> LyricTab::exportLangNotes() const {
         const auto model = m_lyricExtWidget->m_phonicTableView->model;
         model->expandFermata();
 
-        const auto phonics =
+        const auto langNotes =
             m_lyricExtWidget->isVisible()
                 ? this->modelExport()
                 : m_lyricBaseWidget->splitLyric(m_lyricBaseWidget->m_textEdit->toPlainText());
-        return phonics;
+        return langNotes;
     }
 
     bool LyricTab::exportSkipSlur() const {
@@ -112,22 +112,22 @@ namespace FillLyric {
         return m_lyricExtWidget->exportLanguage->isChecked();
     }
 
-    QList<Phonic> LyricTab::modelExport() const {
-        const auto model = m_lyricExtWidget->m_phonicTableView->model;
-        const bool skipSpaceRes = m_lyricExtWidget->exportSkipEndSpace;
+    QList<QList<LangNote>> LyricTab::modelExport() const {
+        const auto cellLists = m_lyricExtWidget->m_wrapView->cellLists();
         const bool skipSlurRes = exportSkipSlur();
 
-        QList<Phonic> phonics;
-        for (int i = 0; i < model->rowCount(); ++i) {
-            const int col = skipSpaceRes ? model->currentLyricLength(i) : model->columnCount();
-            for (int j = 0; j < col; ++j) {
-                if (skipSlurRes &&
-                    (model->cellLanguage(i, j) == "Slur" || model->cellLyric(i, j) == "-"))
+        QList<QList<LangNote>> noteList;
+        for (const auto &cellList : cellLists) {
+            QList<LangNote> notes;
+            for (const auto &cell : cellList->m_cells) {
+                const auto note = cell->note();
+                if (skipSlurRes && (note->language != "Slur" || note->lyric == "-"))
                     continue;
-                phonics.append(model->takeData(i, j));
+                notes.append(*note);
             }
+            noteList.append(notes);
         }
-        return phonics;
+        return noteList;
     }
 
     void LyricTab::_on_btnInsertText_clicked() const {

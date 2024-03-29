@@ -10,7 +10,7 @@
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
 
-#include "../../Model/PhonicCommon.h"
+#include <LangCommon.h>
 #include "../Controls/PhonicTextEdit.h"
 
 namespace FillLyric {
@@ -24,7 +24,7 @@ namespace FillLyric {
         explicit LyricBaseWidget(QWidget *parent = nullptr);
         ~LyricBaseWidget() override;
 
-        [[nodiscard]] QList<Phonic> splitLyric(const QString &lyric) const;
+        [[nodiscard]] QList<QList<LangNote>> splitLyric(const QString &lyric) const;
 
     public Q_SLOTS:
         void _on_btnImportLrc_clicked();

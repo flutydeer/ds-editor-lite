@@ -6,8 +6,6 @@
 #include "Widgets/LyricBaseWidget.h"
 #include "Widgets/LyricExtWidget.h"
 
-#include "../Model/PhonicCommon.h"
-
 class LineEdit;
 
 namespace FillLyric {
@@ -16,16 +14,16 @@ namespace FillLyric {
         friend class LyricDialog;
 
     public:
-        explicit LyricTab(QList<Phonic *> phonics, QWidget *parent = nullptr);
+        explicit LyricTab(QList<LangNote *> langNotes, QWidget *parent = nullptr);
         ~LyricTab() override;
 
         LyricBaseWidget *m_lyricBaseWidget;
         LyricExtWidget *m_lyricExtWidget;
 
-        void setPhonics();
+        void setLangNotes();
 
-        [[nodiscard]] QList<Phonic> exportPhonics() const;
-        [[nodiscard]] QList<Phonic> modelExport() const;
+        [[nodiscard]] QList<QList<LangNote>> exportLangNotes() const;
+        [[nodiscard]] QList<QList<LangNote>> modelExport() const;
 
         [[nodiscard]] bool exportSkipSlur() const;
         [[nodiscard]] bool exportLanguage() const;
@@ -42,7 +40,7 @@ namespace FillLyric {
     private:
         void modifyOption() const;
 
-        QList<Phonic *> m_phonics;
+        QList<LangNote *> m_langNotes;
 
         // Variables
         int notesCount = 0;

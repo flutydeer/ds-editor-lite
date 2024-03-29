@@ -58,6 +58,25 @@ namespace FillLyric {
         return cellList;
     }
 
+    void LyricWrapView::insertList(const int &index, CellList *cellList) {
+        m_cellLists.insert(index, cellList);
+        for (const auto &cell : cellList->m_cells) {
+            cellList->sence()->addItem(cell);
+        }
+        this->repaintCellLists();
+    }
+
+    void LyricWrapView::removeList(const int &index) {
+        if (index >= m_cellLists.size())
+            return;
+        const auto cellList = m_cellLists[index];
+        for (const auto &cell : cellList->m_cells) {
+            m_scene->removeItem(cell);
+        }
+        m_cellLists.remove(index);
+        this->repaintCellLists();
+    }
+
     void LyricWrapView::appendList(const QList<LangNote *> &noteList) {
         const auto width = this->width() - this->verticalScrollBar()->width();
         const auto cellList = new CellList(0, cellBaseY(static_cast<int>(m_cellLists.size())),
@@ -69,6 +88,10 @@ namespace FillLyric {
 
     QUndoStack *LyricWrapView::history() const {
         return m_history;
+    }
+
+    QList<CellList *> LyricWrapView::cellLists() const {
+        return m_cellLists;
     }
 
     void LyricWrapView::clear() {

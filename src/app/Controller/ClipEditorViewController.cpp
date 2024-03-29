@@ -198,7 +198,7 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
 
     auto result = lyricDialog.result();
     if (result == QDialog::Accepted) {
-        lyricDialog.exportPhonics();
+        lyricDialog.exportLangNotes();
         ClipEditorViewController::instance()->onEditSelectedNotesLyric();
     }
 }

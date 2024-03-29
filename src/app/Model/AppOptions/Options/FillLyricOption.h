@@ -19,7 +19,6 @@ public:
     bool autoWrap = false;
 
     bool exportSkipSlur = false;
-    bool exportSkipEndSpace = true;
     bool exportLanguage = false;
 
     double textEditFontSize = 11;

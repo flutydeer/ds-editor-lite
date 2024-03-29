@@ -68,7 +68,6 @@ namespace FillLyric {
         QPushButton *exportOptButton;
 
         QCheckBox *exportSkipSlur;
-        QCheckBox *exportSkipEndSpace;
         QCheckBox *exportLanguage;
     };
 

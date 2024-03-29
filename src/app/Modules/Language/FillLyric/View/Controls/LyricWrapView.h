@@ -16,13 +16,17 @@ namespace FillLyric {
         void init(const QList<QList<LangNote>> &noteLists);
 
         CellList *createNewList();
+
+        void insertList(const int &index, CellList *cellList);
+        void removeList(const int &index);
+        void removeList(CellList *cellList);
         void appendList(const QList<LangNote *> &noteList);
 
         void repaintCellLists();
 
         [[nodiscard]] QUndoStack *history() const;
 
-        QList<CellList *> m_cellLists;
+        QList<CellList *> cellLists() const;
 
     protected:
         void resizeEvent(QResizeEvent *event) override;
@@ -35,6 +39,8 @@ namespace FillLyric {
         QFont m_font;
         QUndoStack *m_history = new QUndoStack();
         QGraphicsScene *m_scene;
+
+        QList<CellList *> m_cellLists;
     };
 }
 #endif // LYRICWRAPVIEW_H

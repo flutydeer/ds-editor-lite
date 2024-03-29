@@ -71,12 +71,9 @@ namespace FillLyric {
         m_epOptWidget = new QWidget();
         m_epOptLayout = new QVBoxLayout();
         exportSkipSlur = new QCheckBox(tr("Skipping Slur"));
-        exportSkipEndSpace = new QCheckBox(tr("Ignoring end of sentence spaces"));
         exportLanguage = new QCheckBox(tr("Automatically mark languages"));
-        exportSkipEndSpace->setCheckState(Qt::Checked);
 
         m_epOptLayout->addWidget(exportSkipSlur);
-        m_epOptLayout->addWidget(exportSkipEndSpace);
         m_epOptLayout->addWidget(exportLanguage);
         m_epOptLayout->addStretch(1);
 
@@ -113,7 +110,6 @@ namespace FillLyric {
         m_phonicTableView->autoWrap = appOptions->fillLyric()->autoWrap;
 
         exportSkipSlur->setChecked(appOptions->fillLyric()->exportSkipSlur);
-        exportSkipEndSpace->setChecked(appOptions->fillLyric()->exportSkipEndSpace);
         exportLanguage->setChecked(appOptions->fillLyric()->exportLanguage);
 
         m_phonicTableView->setColWidthRatio(appOptions->fillLyric()->tableColWidthRatio);
@@ -170,7 +166,6 @@ namespace FillLyric {
 
         connect(autoWrap, &SwitchButton::clicked, this, &LyricExtWidget::modifyOption);
         connect(exportSkipSlur, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
-        connect(exportSkipEndSpace, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
         connect(exportLanguage, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
     }
 
@@ -204,7 +199,6 @@ namespace FillLyric {
 
         options->autoWrap = autoWrap->value();
         options->exportSkipSlur = exportSkipSlur->isChecked();
-        options->exportSkipEndSpace = exportSkipEndSpace->isChecked();
         options->exportLanguage = exportLanguage->isChecked();
         AppOptions::instance()->saveAndNotify();
     }

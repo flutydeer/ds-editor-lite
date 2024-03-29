@@ -16,8 +16,6 @@ void FillLyricOption::load(const QJsonObject &object) {
 
     if (object.contains("exportSkipSlur"))
         exportSkipSlur = object["exportSkipSlur"].toBool();
-    if (object.contains("exportSkipEndSpace"))
-        exportSkipEndSpace = object["exportSkipEndSpace"].toBool();
     if (object.contains("exportLanguage"))
         exportLanguage = object["exportLanguage"].toBool();
 
@@ -44,7 +42,6 @@ void FillLyricOption::save(QJsonObject &object) {
     object["autoWrap"] = autoWrap;
 
     object["exportSkipSlur"] = exportSkipSlur;
-    object["exportSkipEndSpace"] = exportSkipEndSpace;
     object["exportLanguage"] = exportLanguage;
 
     object["textEditFontSize"] = textEditFontSize;

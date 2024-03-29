@@ -17,7 +17,7 @@ public:
     explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);
     ~LyricDialog() override;
 
-    void exportPhonics();
+    void exportLangNotes();
 
 private:
     void noteToPhonic();
@@ -37,7 +37,7 @@ private:
     Button *m_btnCancel;
 
     QList<Note *> m_notes;
-    QList<FillLyric::Phonic *> m_phonics;
+    QList<LangNote *> m_langNotes;
 };
 
 #endif // DS_EDITOR_LITE_LYRICDIALOG_H

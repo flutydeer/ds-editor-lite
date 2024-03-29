@@ -19,8 +19,8 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     m_mainLayout = new QVBoxLayout();
     m_tabWidget = new QTabWidget();
 
-    m_lyricWidget = new FillLyric::LyricTab(m_phonics);
-    m_lyricWidget->setPhonics();
+    m_lyricWidget = new FillLyric::LyricTab(m_langNotes);
+    m_lyricWidget->setLangNotes();
 
     if (!AppOptions::instance()->fillLyric()->extVisible) {
         shrinkWindowRight(300);
@@ -57,19 +57,19 @@ LyricDialog::~LyricDialog() = default;
 
 void LyricDialog::noteToPhonic() {
     for (const auto note : m_notes) {
-        const auto phonic = new FillLyric::Phonic;
-        phonic->lyric = note->lyric();
-        phonic->category = note->language();
-        phonic->syllable = note->pronunciation().original;
-        phonic->syllableRevised = note->pronunciation().edited;
-        phonic->candidates = note->pronCandidates();
+        const auto langNote = new LangNote();
+        langNote->lyric = note->lyric();
+        langNote->category = note->language();
+        langNote->syllable = note->pronunciation().original;
+        langNote->syllableRevised = note->pronunciation().edited;
+        langNote->candidates = note->pronCandidates();
 
         if (note->isSlur()) {
-            phonic->language = "Slur";
-            phonic->category = "Slur";
+            langNote->language = "Slur";
+            langNote->category = "Slur";
         }
 
-        m_phonics.append(phonic);
+        m_langNotes.append(langNote);
     }
 }
 
@@ -84,8 +84,8 @@ void LyricDialog::expandWindowRight() {
     resize(static_cast<int>(size.width() * 0.6), height());
 }
 
-void LyricDialog::exportPhonics() {
-    const QList<FillLyric::Phonic> phonics = m_lyricWidget->exportPhonics();
+void LyricDialog::exportLangNotes() {
+    const auto noteLists = m_lyricWidget->exportLangNotes();
 
     const bool skipSlurRes = m_lyricWidget->exportSkipSlur();
 
@@ -98,19 +98,24 @@ void LyricDialog::exportPhonics() {
         notes.append(note);
     }
 
-    for (int i = 0; i < phonics.size(); ++i) {
-        const auto &phonic = phonics.at(i);
-        if (i >= notes.size())
+    int count = 0;
+    for (const auto &langNotes : noteLists) {
+        if (count >= notes.size())
             break;
-        const auto note = notes.at(i);
-
-        note->setLyric(phonic.lyric);
-        note->setPronunciation(Pronunciation(phonic.syllable, phonic.syllableRevised));
-        note->setPronCandidates(phonic.candidates);
-        if (exportLangRes && note->language() == "Unknown") {
-            note->setLanguage(phonic.category);
+        for (const auto &langNote : langNotes) {
+            if (count >= notes.size())
+                break;
+            const auto note = notes.at(count);
+            note->setLyric(langNote.lyric);
+            note->setPronunciation(Pronunciation(langNote.syllable, langNote.syllableRevised));
+            note->setPronCandidates(langNote.candidates);
+            if (exportLangRes && note->language() == "Unknown") {
+                note->setLanguage(langNote.category);
+            }
+            count++;
         }
-        note->setLineFeed(phonic.lineFeed);
+        if (count >= 1)
+            notes.at(count - 1)->setLineFeed(true);
     }
 }
 
