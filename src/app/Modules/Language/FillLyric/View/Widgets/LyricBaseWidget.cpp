@@ -138,25 +138,33 @@ namespace FillLyric {
         const bool skipSlurRes = this->skipSlur->isChecked();
         const auto splitType = static_cast<SplitType>(this->m_splitComboBox->currentIndex());
 
-        QList<Phonic> splitPhonics;
+        QList<QList<LangNote>> splitNotes;
         if (splitType == SplitType::Auto) {
-            splitPhonics = CleanLyric::splitAuto(lyric);
+            splitNotes = CleanLyric::splitAuto(lyric);
         } else if (splitType == SplitType::ByChar) {
-            splitPhonics = CleanLyric::splitByChar(lyric);
+            splitNotes = CleanLyric::splitByChar(lyric);
         } else if (splitType == SplitType::Custom) {
-            splitPhonics = CleanLyric::splitCustom(lyric, this->m_splitters->text().split(' '));
+            splitNotes = CleanLyric::splitCustom(lyric, this->m_splitters->text().split(' '));
         }
 
         QList<Phonic> skipSlurPhonics;
         if (skipSlurRes) {
-            for (const auto &phonic : splitPhonics) {
-                if (phonic.language != "Slur" && phonic.lyric != "-") {
-                    skipSlurPhonics.append(phonic);
+            for (const auto &notes : splitNotes) {
+                for (const auto &note : notes) {
+                    if (note.language != "Slur" && note.lyric != "-") {
+                        Phonic phonic;
+                        phonic.lyric = note.lyric;
+                        phonic.syllable = note.syllable;
+                        phonic.candidates = note.candidates;
+                        phonic.language = note.language;
+                        phonic.category = note.category;
+                        skipSlurPhonics.append(phonic);
+                    }
                 }
             }
         }
 
-        const auto res = skipSlurRes ? skipSlurPhonics : splitPhonics;
+        const auto res = skipSlurRes ? skipSlurPhonics : skipSlurPhonics;
         return res;
     }
 

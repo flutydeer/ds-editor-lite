@@ -147,7 +147,7 @@ namespace FillLyric {
             text = text.remove("-");
         }
 
-        QList<Phonic> splitRes;
+        QList<QList<LangNote>> splitRes;
         if (splitType == Auto) {
             splitRes = CleanLyric::splitAuto(text);
         } else if (splitType == ByChar) {
@@ -157,7 +157,7 @@ namespace FillLyric {
                 CleanLyric::splitCustom(text, m_lyricBaseWidget->m_splitters->text().split(' '));
         }
 
-        m_lyricExtWidget->m_phonicTableView->_init(splitRes);
+        m_lyricExtWidget->m_wrapView->init(splitRes);
     }
 
     void LyricTab::_on_btnToText_clicked() const {

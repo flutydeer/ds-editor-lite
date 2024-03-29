@@ -4,7 +4,7 @@
 #include <QHBoxLayout>
 #include <qvalidator.h>
 
-namespace LyricWrap {
+namespace FillLyric {
     EditDialog::EditDialog(const QString &lyric, const QRectF &rect, QWidget *parent)
         : QDialog(parent) {
         setObjectName("section-edit-popup");
@@ -62,4 +62,4 @@ namespace LyricWrap {
         return QDialog::event(event);
     }
 
-} // LyricWrap
+} // FillLyric

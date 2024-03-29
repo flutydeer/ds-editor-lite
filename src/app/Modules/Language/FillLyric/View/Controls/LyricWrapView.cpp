@@ -2,7 +2,11 @@
 #include <QWheelEvent>
 #include <QScrollBar>
 
-namespace LyricWrap {
+#include <LangMgr/ILanguageManager.h>
+
+#include "../../Commands/Line/DeleteLineCmd.h"
+
+namespace FillLyric {
     LyricWrapView::LyricWrapView(QWidget *parent) {
         m_font = this->font();
         m_scene = new QGraphicsScene(parent);
@@ -44,14 +48,49 @@ namespace LyricWrap {
     }
 
     void LyricWrapView::appendList(const QList<LangNote *> &noteList) {
+        const auto width = this->width() - this->verticalScrollBar()->width();
         const auto cellList = new CellList(0, cellBaseY(static_cast<int>(m_cellLists.size())),
-                                           noteList, m_scene, m_font, this);
-        cellList->setWidth(this->width());
+                                           noteList, m_scene, m_font, this, m_history);
+        cellList->setWidth(width);
         m_heights.append(cellList->height());
         m_cellLists.append(cellList);
 
         connect(cellList, &CellList::heightChanged, this, &LyricWrapView::repaintCellLists);
+        connect(cellList, &CellList::deleteLine,
+                [this, cellList] { m_history->push(new DeleteLineCmd(this, cellList)); });
     }
+
+    QUndoStack *LyricWrapView::history() const {
+        return m_history;
+    }
+
+    void LyricWrapView::clear() {
+        for (auto &m_cellList : m_cellLists) {
+            m_cellList->clear();
+            delete m_cellList;
+            m_cellList = nullptr;
+        }
+        m_heights.clear();
+        m_cellLists.clear();
+        this->update();
+    }
+
+
+    void LyricWrapView::init(const QList<QList<LangNote>> &noteLists) {
+        this->clear();
+        const auto langMgr = LangMgr::ILanguageManager::instance();
+
+        for (const auto &notes : noteLists) {
+            QList<LangNote *> tempNotes;
+            for (const auto &note : notes) {
+                tempNotes.append(new LangNote(note));
+            }
+            langMgr->convert(tempNotes);
+            this->appendList(tempNotes);
+        }
+        this->update();
+    }
+
 
     qreal LyricWrapView::cellBaseY(const int &index) const {
         return std::accumulate(m_heights.constBegin(), m_heights.constBegin() + index, 0.0);
@@ -65,5 +104,6 @@ namespace LyricWrap {
             m_heights[i] = m_cellLists[i]->height();
         }
         this->setSceneRect(scene()->itemsBoundingRect());
+        this->update();
     }
 }

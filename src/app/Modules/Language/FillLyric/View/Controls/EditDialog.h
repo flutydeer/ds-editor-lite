@@ -4,7 +4,7 @@
 #include <QKeyEvent>
 #include <QDialog>
 
-namespace LyricWrap {
+namespace FillLyric {
     class EditDialog final : public QDialog {
     public:
         explicit EditDialog(const QString &lyric, const QRectF &rect, QWidget *parent = nullptr);
@@ -14,6 +14,6 @@ namespace LyricWrap {
     protected:
         bool event(QEvent *event) override;
     };
-} // LyricWrap
+} // FillLyric
 
 #endif // EDITDIALOG_H

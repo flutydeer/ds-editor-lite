@@ -4,10 +4,12 @@
 #include <QWidget>
 
 #include <QCheckBox>
+#include <QUndoStack>
 
 #include "TableConfigWidget.h"
 
 #include "../Controls/PhonicTableView.h"
+#include "../Controls/LyricWrapView.h"
 
 #include "UI/Controls/Button.h"
 #include "UI/Controls/SwitchButton.h"
@@ -30,6 +32,8 @@ namespace FillLyric {
     private:
         void modifyOption() const;
 
+        QUndoStack *m_history;
+
         int *notesCount = nullptr;
         QHBoxLayout *m_tableTopLayout;
 
@@ -42,6 +46,7 @@ namespace FillLyric {
         QVBoxLayout *m_epOptLayout;
 
         // Widgets
+        LyricWrapView *m_wrapView;
         PhonicTableView *m_phonicTableView;
         TableConfigWidget *m_tableConfigWidget;
 

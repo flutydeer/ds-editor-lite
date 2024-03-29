@@ -10,6 +10,7 @@ namespace FillLyric {
 
         // phonicWidget
         m_phonicTableView = new PhonicTableView();
+        m_wrapView = new LyricWrapView();
 
         // tableTop layout
         m_tableTopLayout = new QHBoxLayout();
@@ -21,15 +22,17 @@ namespace FillLyric {
         autoWrapItem->addWidget(autoWrap);
 
         btnUndo = new QPushButton();
-
+        btnUndo->setEnabled(false);
         btnUndo->setMinimumSize(24, 24);
         btnUndo->setFixedWidth(24);
         btnUndo->setIcon(QIcon(":svg/icons/arrow_undo_16_filled_white.svg"));
-        btnRedo = new QPushButton();
 
+        btnRedo = new QPushButton();
+        btnRedo->setEnabled(false);
         btnRedo->setMinimumSize(24, 24);
         btnRedo->setFixedWidth(24);
         btnRedo->setIcon(QIcon(":svg/icons/arrow_redo_16_filled_white.svg"));
+
         btnTableConfig = new QPushButton();
         btnTableConfig->setFixedWidth(24);
         btnTableConfig->setIcon(QIcon(":svg/icons/settings_16_filled_white.svg"));
@@ -86,7 +89,7 @@ namespace FillLyric {
         m_tableLayout = new QVBoxLayout();
         m_tableLayout->setContentsMargins(0, 0, 0, 0);
         m_tableLayout->addLayout(m_tableTopLayout);
-        m_tableLayout->addWidget(m_phonicTableView);
+        m_tableLayout->addWidget(m_wrapView);
         m_tableLayout->addLayout(m_tableCountLayout);
         m_tableLayout->addLayout(m_epOptLabelLayout);
         m_tableLayout->addWidget(m_epOptWidget);
@@ -118,17 +121,13 @@ namespace FillLyric {
         m_phonicTableView->delegate->setFontSizeDiff(appOptions->fillLyric()->tableFontDiff);
 
         // undo redo
-        const auto modelHistory = ModelHistory::instance();
-        connect(btnUndo, &QPushButton::clicked, modelHistory, &ModelHistory::undo);
-        connect(btnRedo, &QPushButton::clicked, modelHistory, &ModelHistory::redo);
-        connect(modelHistory, &ModelHistory::undoRedoChanged, this,
-                [=](const bool canUndo, const bool canRedo) {
-                    btnUndo->setEnabled(canUndo);
-                    btnRedo->setEnabled(canRedo);
-                });
-        connect(autoWrap, &QCheckBox::clicked, modelHistory, &ModelHistory::reset);
-        connect(m_phonicTableView, &PhonicTableView::historyReset, modelHistory,
-                &ModelHistory::reset);
+        m_history = m_wrapView->history();
+        connect(btnUndo, &QPushButton::clicked, m_history, &QUndoStack::undo);
+        connect(btnRedo, &QPushButton::clicked, m_history, &QUndoStack::redo);
+        connect(m_history, &QUndoStack::canUndoChanged, btnUndo, &QPushButton::setEnabled);
+        connect(m_history, &QUndoStack::canRedoChanged, btnRedo, &QPushButton::setEnabled);
+        connect(autoWrap, &QCheckBox::clicked, m_history, &QUndoStack::clear);
+        connect(m_phonicTableView, &PhonicTableView::historyReset, m_history, &QUndoStack::clear);
 
         connect(autoWrap, &QCheckBox::clicked, m_phonicTableView, &PhonicTableView::setAutoWrap);
 

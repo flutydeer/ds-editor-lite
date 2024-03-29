@@ -2,35 +2,92 @@
 
 #include <qdebug.h>
 
-namespace LyricWrap {
+#include "../../Commands/Cell/ClearCellCmd.h"
+#include "../../Commands/Cell/DeleteCellCmd.h"
+#include "../../Commands/Cell/AddPrevCellCmd.h"
+#include "../../Commands/Cell/AddNextCellCmd.h"
+
+namespace FillLyric {
     CellList::CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
-                       QGraphicsScene *scene, const QFont &font, QGraphicsView *view)
-        : mX(x), mY(y), m_scene(scene), m_view(view), m_font(font) {
+                       QGraphicsScene *scene, const QFont &font, QGraphicsView *view,
+                       QUndoStack *undoStack)
+        : mX(x), mY(y), m_font(font), m_view(view), m_scene(scene), m_history(undoStack) {
         m_splitter = new SplitterItem(mX, mY, m_curWidth, 1);
         m_scene->addItem(m_splitter);
 
         for (const auto &note : noteList) {
             const auto lyricCell = new LyricCell(0, mY + deltaY(), note, m_view);
-
-            m_widths.append(lyricCell->width());
-            m_cellHeight = lyricCell->height();
             m_cells.append(lyricCell);
             m_scene->addItem(lyricCell);
 
-            connect(lyricCell, &LyricCell::updateWidthSignal, [this, lyricCell](const qreal &w) {
-                m_widths[m_cells.indexOf(lyricCell)] = w;
-                this->updateCellPos();
-            });
+            connect(lyricCell, &LyricCell::updateWidth, this, &CellList::updateCellPos);
 
-            connect(lyricCell, &LyricCell::updateLyricSignal,
+            connect(lyricCell, &LyricCell::updateLyric,
                     [this, lyricCell] { this->updateRect(lyricCell); });
+
+            // cell option
+            connect(lyricCell, &LyricCell::clearCell,
+                    [this, lyricCell] { m_history->push(new ClearCellCmd(this, lyricCell)); });
+            connect(lyricCell, &LyricCell::deleteCell,
+                    [this, lyricCell] { m_history->push(new DeleteCellCmd(this, lyricCell)); });
+            connect(lyricCell, &LyricCell::addPrevCell,
+                    [this, lyricCell] { m_history->push(new AddPrevCellCmd(this, lyricCell)); });
+            connect(lyricCell, &LyricCell::addNextCell,
+                    [this, lyricCell] { m_history->push(new AddNextCellCmd(this, lyricCell)); });
+
+            // line option
+            connect(lyricCell, &LyricCell::deleteLine, this, &CellList::deleteLine);
         }
         this->updateCellPos();
+    }
+
+    void CellList::clear() {
+        for (auto &m_cell : m_cells) {
+            delete m_cell;
+            m_cell = nullptr;
+        }
+        delete m_splitter;
+        m_splitter = nullptr;
+    }
+
+    qreal CellList::y() const {
+        return mY;
     }
 
     qreal CellList::height() const {
         return m_height;
     }
+
+    QGraphicsView *CellList::view() const {
+        return m_view;
+    }
+
+    QGraphicsScene *CellList::sence() const {
+        return m_scene;
+    }
+
+    LyricCell *CellList::createNewCell() {
+        const auto lyricCell = new LyricCell(0, mY + this->deltaY(), new LangNote(), m_view);
+        this->updateRect(lyricCell);
+        connect(lyricCell, &LyricCell::updateWidth, this, &CellList::updateCellPos);
+        connect(lyricCell, &LyricCell::updateLyric,
+                [this, lyricCell] { this->updateRect(lyricCell); });
+
+        // cell option
+        connect(lyricCell, &LyricCell::clearCell,
+                [this, lyricCell] { m_history->push(new ClearCellCmd(this, lyricCell)); });
+        connect(lyricCell, &LyricCell::deleteCell,
+                [this, lyricCell] { m_history->push(new DeleteCellCmd(this, lyricCell)); });
+        connect(lyricCell, &LyricCell::addPrevCell,
+                [this, lyricCell] { m_history->push(new AddPrevCellCmd(this, lyricCell)); });
+        connect(lyricCell, &LyricCell::addNextCell,
+                [this, lyricCell] { m_history->push(new AddNextCellCmd(this, lyricCell)); });
+
+        // line option
+        connect(lyricCell, &LyricCell::deleteLine, this, &CellList::deleteLine);
+        return lyricCell;
+    }
+
 
     void CellList::setWidth(const qreal &width) {
         m_curWidth = width;

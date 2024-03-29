@@ -10,7 +10,7 @@
 
 #include "EditDialog.h"
 
-namespace LyricWrap {
+namespace FillLyric {
     LyricCell::LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsView *view,
                          QGraphicsItem *parent)
         : QGraphicsObject(parent), m_note(note), m_view(view) {
@@ -39,7 +39,7 @@ namespace LyricWrap {
             dlg.exec();
             if (dlg.text != lyric()) {
                 this->setLyric(dlg.text);
-                Q_EMIT this->updateWidthSignal(width());
+                Q_EMIT this->updateWidth(width());
             }
 
             update();
@@ -54,6 +54,13 @@ namespace LyricWrap {
             this->changeSyllableMenu(menu);
             this->changePhonicMenu(menu);
             menu->addSeparator();
+            menu->addAction("clear cell", [this] { Q_EMIT this->clearCell(); });
+            if (x() != 0)
+                menu->addAction("delete cell", [this] { Q_EMIT this->deleteCell(); });
+            menu->addAction("add prev cell", [this] { Q_EMIT this->addPrevCell(); });
+            menu->addAction("add next cell", [this] { Q_EMIT this->addNextCell(); });
+            menu->addSeparator();
+            menu->addAction("delete line", [this] { Q_EMIT this->deleteLine(); });
             menu->exec(event->screenPos());
             event->accept();
         }
@@ -92,13 +99,13 @@ namespace LyricWrap {
 
     void LyricCell::setLyric(const QString &lyric) const {
         m_note->lyric = lyric;
-        Q_EMIT this->updateLyricSignal();
+        Q_EMIT this->updateLyric();
     }
 
     void LyricCell::setSyllable(const QString &syllable) const {
         m_note->syllable = syllable;
         m_note->revised = true;
-        Q_EMIT this->updateLyricSignal();
+        Q_EMIT this->updateLyric();
     }
 
     qreal LyricCell::syllableWidth() const {

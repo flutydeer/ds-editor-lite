@@ -9,7 +9,7 @@
 
 #include <LangCommon.h>
 
-namespace LyricWrap {
+namespace FillLyric {
     class LyricCell final : public QGraphicsObject {
         Q_OBJECT
     public:
@@ -17,6 +17,7 @@ namespace LyricWrap {
                            QGraphicsItem *parent = nullptr);
         ~LyricCell() override;
 
+        [[nodiscard]] LangNote *note() const;
         [[nodiscard]] QString lyric() const;
         [[nodiscard]] QString syllable() const;
 
@@ -31,8 +32,14 @@ namespace LyricWrap {
         void setSyllable(const QString &syllable) const;
 
     Q_SIGNALS:
-        void updateLyricSignal() const;
-        void updateWidthSignal(const qreal &w) const;
+        void updateLyric() const;
+        void clearCell() const;
+        void deleteCell() const;
+        void addPrevCell() const;
+        void addNextCell() const;
+
+        void deleteLine() const;
+        void updateWidth(const qreal &w) const;
 
     protected:
         void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;

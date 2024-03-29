@@ -2,7 +2,7 @@
 
 #include <QPainter>
 
-namespace LyricWrap {
+namespace FillLyric {
     SplitterItem::SplitterItem(const qreal &x, const qreal &y, const qreal &w, const qreal &lh,
                                QGraphicsItem *parent)
         : QGraphicsItem(parent), m_lineHeight(lh) {

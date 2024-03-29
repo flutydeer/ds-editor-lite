@@ -3,7 +3,7 @@
 
 #include <QGraphicsItem>
 #include <QGraphicsScene>
-namespace LyricWrap {
+namespace FillLyric {
     class SplitterItem final : public QGraphicsItem {
     public:
         explicit SplitterItem(const qreal &x, const qreal &y, const qreal &w, const qreal &lh = 1,

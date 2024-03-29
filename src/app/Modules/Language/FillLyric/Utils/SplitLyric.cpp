@@ -4,54 +4,59 @@
 #include <QDebug>
 
 namespace FillLyric {
-    QList<Phonic> CleanLyric::splitAuto(const QString &input) {
-        QList<Phonic> phonics;
+    QList<QList<LangNote>> CleanLyric::splitAuto(const QString &input) {
+        QList<QList<LangNote>> result;
+        QList<LangNote> notes;
         const auto langMgr = LangMgr::ILanguageManager::instance();
         const auto res = langMgr->split(input);
 
         for (const auto &note : res) {
-            Phonic phonic;
-            phonic.lyric = note.lyric;
-            phonic.language = note.language;
-            phonic.category = note.category;
-            if (note.language == "Linebreak")
-                phonic.lineFeed = true;
-            phonics.append(phonic);
+            if (note.language == "Linebreak" && !notes.isEmpty()) {
+                result.append(notes);
+                notes.clear();
+                continue;
+            }
+            notes.append(note);
         }
+        result.append(notes);
 
-        return phonics;
+        return result;
     }
 
-    QList<Phonic> CleanLyric::splitByChar(const QString &input) {
+    QList<QList<LangNote>> CleanLyric::splitByChar(const QString &input) {
         const auto langMgr = LangMgr::ILanguageManager::instance();
         const auto linebreakFactory = langMgr->language("Linebreak");
 
-        QList<Phonic> phonics;
+        QList<QList<LangNote>> result;
+        QList<LangNote> notes;
         for (int i = 0; i < input.length(); i++) {
             const QChar &currentChar = input[i];
             if (currentChar == ' ') {
                 continue;
             }
-            if (linebreakFactory->contains(currentChar)) {
-                if (!phonics.isEmpty()) {
-                    phonics.last().lineFeed = true;
-                }
+            if (linebreakFactory->contains(currentChar) && !notes.isEmpty()) {
+                result.append(notes);
+                notes.clear();
                 continue;
             }
-            Phonic phonic;
-            phonic.lyric = currentChar;
-            phonic.language = langMgr->analysis(currentChar);
-            phonic.category = langMgr->language(phonic.language)->category();
-            phonics.append(phonic);
+            LangNote note;
+            note.lyric = currentChar;
+            note.language = langMgr->analysis(currentChar);
+            note.category = langMgr->language(note.language)->category();
+            notes.append(note);
         }
-        return phonics;
+
+        result.append(notes);
+        return result;
     }
 
-    QList<Phonic> CleanLyric::splitCustom(const QString &input, const QStringList &splitter) {
+    QList<QList<LangNote>> CleanLyric::splitCustom(const QString &input,
+                                                   const QStringList &splitter) {
         const auto langMgr = LangMgr::ILanguageManager::instance();
         const auto linebreakFactory = langMgr->language("Linebreak");
 
-        QList<Phonic> phonics;
+        QList<QList<LangNote>> result;
+        QList<LangNote> notes;
         int pos = 0;
         while (pos < input.length()) {
             const int start = pos;
@@ -62,20 +67,21 @@ namespace FillLyric {
 
             const auto lyric = input.mid(start, pos - start);
             if (!lyric.isEmpty() && !splitter.contains(lyric) && lyric != ' ') {
-                Phonic phonic;
-                phonic.lyric = lyric;
-                phonic.language = langMgr->analysis(lyric);
-                phonic.category = langMgr->language(phonic.language)->category();
-                phonics.append(phonic);
+                LangNote note;
+                note.lyric = lyric;
+                note.language = langMgr->analysis(lyric);
+                note.category = langMgr->language(note.language)->category();
+                notes.append(note);
             }
 
-            if (linebreakFactory->contains(input[pos])) {
-                if (!phonics.isEmpty()) {
-                    phonics.last().lineFeed = true;
-                }
+            if (linebreakFactory->contains(input[pos]) && !notes.isEmpty()) {
+                result.append(notes);
+                notes.clear();
+                continue;
             }
             pos++;
         }
-        return phonics;
+        result.append(notes);
+        return result;
     }
 }
