@@ -2,6 +2,9 @@
 
 #include <qdebug.h>
 
+#include "../../Commands/Cell/EditCellCmd.h"
+#include "../../Commands/Cell/ChangeSyllableCmd.h"
+
 #include "../../Commands/Cell/ClearCellCmd.h"
 #include "../../Commands/Cell/DeleteCellCmd.h"
 #include "../../Commands/Cell/AddPrevCellCmd.h"
@@ -19,24 +22,7 @@ namespace FillLyric {
             const auto lyricCell = new LyricCell(0, mY + deltaY(), note, m_view);
             m_cells.append(lyricCell);
             m_scene->addItem(lyricCell);
-
-            connect(lyricCell, &LyricCell::updateWidth, this, &CellList::updateCellPos);
-
-            connect(lyricCell, &LyricCell::updateLyric,
-                    [this, lyricCell] { this->updateRect(lyricCell); });
-
-            // cell option
-            connect(lyricCell, &LyricCell::clearCell,
-                    [this, lyricCell] { m_history->push(new ClearCellCmd(this, lyricCell)); });
-            connect(lyricCell, &LyricCell::deleteCell,
-                    [this, lyricCell] { m_history->push(new DeleteCellCmd(this, lyricCell)); });
-            connect(lyricCell, &LyricCell::addPrevCell,
-                    [this, lyricCell] { m_history->push(new AddPrevCellCmd(this, lyricCell)); });
-            connect(lyricCell, &LyricCell::addNextCell,
-                    [this, lyricCell] { m_history->push(new AddNextCellCmd(this, lyricCell)); });
-
-            // line option
-            connect(lyricCell, &LyricCell::deleteLine, this, &CellList::deleteLine);
+            this->connectCell(lyricCell);
         }
         this->updateCellPos();
     }
@@ -69,22 +55,8 @@ namespace FillLyric {
     LyricCell *CellList::createNewCell() {
         const auto lyricCell = new LyricCell(0, mY + this->deltaY(), new LangNote(), m_view);
         this->updateRect(lyricCell);
-        connect(lyricCell, &LyricCell::updateWidth, this, &CellList::updateCellPos);
-        connect(lyricCell, &LyricCell::updateLyric,
-                [this, lyricCell] { this->updateRect(lyricCell); });
+        this->connectCell(lyricCell);
 
-        // cell option
-        connect(lyricCell, &LyricCell::clearCell,
-                [this, lyricCell] { m_history->push(new ClearCellCmd(this, lyricCell)); });
-        connect(lyricCell, &LyricCell::deleteCell,
-                [this, lyricCell] { m_history->push(new DeleteCellCmd(this, lyricCell)); });
-        connect(lyricCell, &LyricCell::addPrevCell,
-                [this, lyricCell] { m_history->push(new AddPrevCellCmd(this, lyricCell)); });
-        connect(lyricCell, &LyricCell::addNextCell,
-                [this, lyricCell] { m_history->push(new AddNextCellCmd(this, lyricCell)); });
-
-        // line option
-        connect(lyricCell, &LyricCell::deleteLine, this, &CellList::deleteLine);
         return lyricCell;
     }
 
@@ -134,6 +106,7 @@ namespace FillLyric {
         cell->setLyricRect(lRect);
         cell->setSyllableRect(sRect);
         cell->setFont(m_font);
+        cell->update();
 
         this->updateCellPos();
     }
@@ -171,4 +144,29 @@ namespace FillLyric {
         }
         Q_EMIT this->cellPosChanged();
     }
+
+    void CellList::connectCell(LyricCell *cell) {
+        connect(cell, &LyricCell::updateWidth, this, &CellList::updateCellPos);
+        connect(cell, &LyricCell::updateLyric, [this, cell](const QString &lyric) {
+            m_history->push(new EditCellCmdfinal(this, cell, lyric));
+        });
+
+        connect(cell, &LyricCell::changeSyllable, [this, cell](const QString &syllable) {
+            m_history->push(new ChangeSyllableCmd(this, cell, syllable));
+        });
+
+        // cell option
+        connect(cell, &LyricCell::clearCell,
+                [this, cell] { m_history->push(new ClearCellCmd(this, cell)); });
+        connect(cell, &LyricCell::deleteCell,
+                [this, cell] { m_history->push(new DeleteCellCmd(this, cell)); });
+        connect(cell, &LyricCell::addPrevCell,
+                [this, cell] { m_history->push(new AddPrevCellCmd(this, cell)); });
+        connect(cell, &LyricCell::addNextCell,
+                [this, cell] { m_history->push(new AddNextCellCmd(this, cell)); });
+
+        // line option
+        connect(cell, &LyricCell::deleteLine, this, &CellList::deleteLine);
+    }
+
 }

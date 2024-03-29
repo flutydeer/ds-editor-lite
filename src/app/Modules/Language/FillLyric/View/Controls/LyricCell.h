@@ -18,6 +18,8 @@ namespace FillLyric {
         ~LyricCell() override;
 
         [[nodiscard]] LangNote *note() const;
+        void setNote(LangNote *note);
+
         [[nodiscard]] QString lyric() const;
         [[nodiscard]] QString syllable() const;
 
@@ -32,7 +34,9 @@ namespace FillLyric {
         void setSyllable(const QString &syllable) const;
 
     Q_SIGNALS:
-        void updateLyric() const;
+        void updateLyric(const QString &lyric) const;
+        void changeSyllable(const QString &syllable) const;
+
         void clearCell() const;
         void deleteCell() const;
         void addPrevCell() const;

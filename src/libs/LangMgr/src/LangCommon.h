@@ -6,6 +6,7 @@
 struct LangNote {
     QString lyric;
     QString syllable = QString();
+    QString syllableRevised = QString();
     QStringList candidates = QStringList();
     QString language = "Unknown";
     QString category = "Unknown";

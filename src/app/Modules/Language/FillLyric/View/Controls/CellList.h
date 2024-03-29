@@ -51,6 +51,8 @@ namespace FillLyric {
     private:
         void updateSplitterPos() const;
 
+        void connectCell(LyricCell *cell);
+
         bool autoWarp = true;
 
         qreal mX;

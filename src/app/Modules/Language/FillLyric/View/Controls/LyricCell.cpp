@@ -3,6 +3,7 @@
 #include <QDebug>
 #include <QMenu>
 
+#include <QScrollBar>
 #include <QInputDialog>
 #include <QGraphicsRectItem>
 #include <QStyleOptionGraphicsItem>
@@ -35,7 +36,14 @@ namespace FillLyric {
 
     void LyricCell::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
         if (lyricRect().contains(event->scenePos())) {
-            EditDialog dlg(lyric(), lyricRect(), m_view);
+            const auto lRect = lyricRect();
+            const int horizontalOffset = m_view->horizontalScrollBar()->value();
+            const int verticalOffset = m_view->verticalScrollBar()->value();
+            const auto editRect = QRectF(lRect.x() - horizontalOffset, lRect.y() - verticalOffset,
+                                         lRect.width(), lRect.height());
+            EditDialog dlg(lyric(), editRect, m_view);
+            dlg.show();
+            dlg.activateWindow();
             dlg.exec();
             if (dlg.text != lyric()) {
                 this->setLyric(dlg.text);
@@ -65,6 +73,14 @@ namespace FillLyric {
             event->accept();
         }
         return QGraphicsItem::contextMenuEvent(event);
+    }
+
+    LangNote *LyricCell::note() const {
+        return m_note;
+    }
+
+    void LyricCell::setNote(LangNote *note) {
+        m_note = note;
     }
 
     QString LyricCell::lyric() const {
@@ -98,14 +114,11 @@ namespace FillLyric {
     }
 
     void LyricCell::setLyric(const QString &lyric) const {
-        m_note->lyric = lyric;
-        Q_EMIT this->updateLyric();
+        Q_EMIT this->updateLyric(lyric);
     }
 
     void LyricCell::setSyllable(const QString &syllable) const {
-        m_note->syllable = syllable;
-        m_note->revised = true;
-        Q_EMIT this->updateLyric();
+        Q_EMIT this->changeSyllable(syllable);
     }
 
     qreal LyricCell::syllableWidth() const {
@@ -143,6 +156,7 @@ namespace FillLyric {
             flag = LyricCell::Selected;
 
         int lyricFlag = 0;
+        const auto syllable = m_note->revised ? m_note->syllableRevised : m_note->syllable;
         if (m_note->revised) {
             lyricFlag = PenType::Revised;
         } else if (m_note->g2pError) {
@@ -158,7 +172,7 @@ namespace FillLyric {
         painter->setFont(syllableFont);
         painter->setPen(m_syllablePen[lyricFlag]);
         painter->drawText(QRectF(sPos.x() + 5, sPos.y(), syllableWidth(), m_sRect.height()),
-                          m_note->syllable);
+                          syllable);
 
         const auto rPos = rectPos();
         const auto boxRect = QRectF(rPos.x(), rPos.y(), width() - m_padding * 2,
