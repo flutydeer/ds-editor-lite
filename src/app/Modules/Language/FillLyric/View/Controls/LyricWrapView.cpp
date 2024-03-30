@@ -17,7 +17,11 @@ namespace FillLyric {
         m_scene = new QGraphicsScene(parent);
 
         this->setScene(m_scene);
-        this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        if (m_autoWrap) {
+            this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        } else {
+            this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        }
         this->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
         this->setBackgroundBrush(QColor(35, 36, 37));
@@ -152,8 +156,7 @@ namespace FillLyric {
             langMgr->convert(tempNotes);
             this->appendList(tempNotes);
         }
-        this->setSceneRect(scene()->itemsBoundingRect());
-        this->update();
+        this->updateRect();
     }
 
     bool LyricWrapView::autoWrap() const {
@@ -173,7 +176,6 @@ namespace FillLyric {
             m_cellList->setAutoWrap(autoWrap);
         }
         this->repaintCellLists();
-        this->updateRect();
     }
 
     void LyricWrapView::repaintCellLists() {
