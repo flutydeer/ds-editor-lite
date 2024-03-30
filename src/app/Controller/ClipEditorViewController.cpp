@@ -15,6 +15,7 @@
 #include "Modules/History/HistoryManager.h"
 
 #include "Modules/Language/S2p.h"
+#include <LangMgr/ILanguageManager.h>
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
 
 void ClipEditorViewController::setCurrentSingingClip(SingingClip *clip) {

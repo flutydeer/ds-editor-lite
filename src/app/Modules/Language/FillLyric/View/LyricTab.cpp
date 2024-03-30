@@ -5,6 +5,8 @@
 #include "UI/Controls/LineEdit.h"
 #include "Model/AppOptions/AppOptions.h"
 
+#include "../Utils/SplitLyric.h"
+
 namespace FillLyric {
 
     LyricTab::LyricTab(QList<LangNote *> langNotes, QWidget *parent)
@@ -93,9 +95,6 @@ namespace FillLyric {
     }
 
     QList<QList<LangNote>> LyricTab::exportLangNotes() const {
-        const auto model = m_lyricExtWidget->m_phonicTableView->model;
-        model->expandFermata();
-
         const auto langNotes =
             m_lyricExtWidget->isVisible()
                 ? this->modelExport()
@@ -161,21 +160,8 @@ namespace FillLyric {
     }
 
     void LyricTab::_on_btnToText_clicked() const {
-        const auto model = m_lyricExtWidget->m_phonicTableView->model;
-
-        QStringList res;
-        for (int i = 0; i < model->rowCount(); i++) {
-            QStringList line;
-            for (int j = 0; j < model->columnCount(); j++) {
-                const auto lyric = model->cellLyric(i, j);
-                if (!lyric.isEmpty()) {
-                    line.append(lyric);
-                }
-            }
-            res.append(line.join(""));
-        }
-
-        m_lyricBaseWidget->m_textEdit->setPlainText(res.join("\n"));
+        // TODO: btnToText
+        m_lyricBaseWidget->m_textEdit->setPlainText("");
     }
 
     void LyricTab::modifyOption() const {

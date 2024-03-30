@@ -1,7 +1,5 @@
 #include "LyricExtWidget.h"
 
-#include "../../History/ModelHistory.h"
-
 #include "Model/AppOptions/AppOptions.h"
 
 namespace FillLyric {
@@ -9,7 +7,6 @@ namespace FillLyric {
         : QWidget(parent), notesCount(notesCount) {
 
         // phonicWidget
-        m_phonicTableView = new PhonicTableView();
         m_wrapView = new LyricWrapView();
 
         // tableTop layout
@@ -103,18 +100,11 @@ namespace FillLyric {
         this->setLayout(m_mainLayout);
 
         const auto appOptions = AppOptions::instance();
-        QFont font = m_phonicTableView->font();
-        font.setPointSize(appOptions->fillLyric()->tableFontSize);
-        m_phonicTableView->setFont(font);
         autoWrap->setValue(appOptions->fillLyric()->autoWrap);
         m_wrapView->setAutoWrap(appOptions->fillLyric()->autoWrap);
 
         exportSkipSlur->setChecked(appOptions->fillLyric()->exportSkipSlur);
         exportLanguage->setChecked(appOptions->fillLyric()->exportLanguage);
-
-        m_phonicTableView->setColWidthRatio(appOptions->fillLyric()->tableColWidthRatio);
-        m_phonicTableView->setRowHeightRatio(appOptions->fillLyric()->tableRowHeightRatio);
-        m_phonicTableView->delegate->setFontSizeDiff(appOptions->fillLyric()->tableFontDiff);
 
         // undo redo
         m_history = m_wrapView->history();
@@ -125,13 +115,7 @@ namespace FillLyric {
 
         connect(autoWrap, &QCheckBox::clicked, m_wrapView, &LyricWrapView::setAutoWrap);
 
-        // phonicWidget toggleFermata
-        connect(btnToggleFermata, &QPushButton::clicked, m_phonicTableView,
-                &PhonicTableView::_on_btnToggleFermata_clicked);
-
-        // phonicWidget label
-        connect(m_phonicTableView->model, &PhonicModel::dataChanged, this,
-                &LyricExtWidget::_on_modelDataChanged);
+        // TODO: toggleFermata size label
 
         // exportOptButton
         connect(exportOptButton, &QPushButton::clicked,
@@ -141,26 +125,7 @@ namespace FillLyric {
         connect(btnTableConfig, &QPushButton::clicked,
                 [this]() { m_tableConfigWidget->setVisible(!m_tableConfigWidget->isVisible()); });
 
-        // font size
-        connect(m_phonicTableView, &PhonicTableView::wheelEventSignal, this,
-                &LyricExtWidget::modifyOption);
-
-        // tableConfigWidget
-        connect(m_tableConfigWidget->m_colWidthRatioSpinBox,
-                QOverload<double>::of(&QDoubleSpinBox::valueChanged), [=](const double value) {
-                    m_phonicTableView->setColWidthRatio(value);
-                    modifyOption();
-                });
-        connect(m_tableConfigWidget->m_rowHeightSpinBox,
-                QOverload<double>::of(&QDoubleSpinBox::valueChanged), [=](const double value) {
-                    m_phonicTableView->setRowHeightRatio(value);
-                    modifyOption();
-                });
-        connect(m_tableConfigWidget->m_fontDiffSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
-                [=](const int value) {
-                    m_phonicTableView->delegate->setFontSizeDiff(value);
-                    modifyOption();
-                });
+        // TODO: view font size
 
         connect(autoWrap, &SwitchButton::clicked, this, &LyricExtWidget::modifyOption);
         connect(exportSkipSlur, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
@@ -170,26 +135,12 @@ namespace FillLyric {
     LyricExtWidget::~LyricExtWidget() = default;
 
     void LyricExtWidget::_on_modelDataChanged() const {
-        const auto model = m_phonicTableView->model;
-        int lyricCount = 0;
-        for (int i = 0; i < model->rowCount(); i++) {
-            for (int j = 0; j < model->columnCount(); j++) {
-                if (!model->cellLyric(i, j).isEmpty()) {
-                    lyricCount++;
-                }
-
-                if (const int fermataCount =
-                        static_cast<int>(model->cellFermata(i, j).size()) > 0) {
-                    lyricCount += fermataCount;
-                }
-            }
-        }
-        noteCountLabel->setText(QString::number(lyricCount) + "/" + QString::number(*notesCount));
+        // TODO: lyricCount
+        noteCountLabel->setText(QString::number(0) + "/" + QString::number(*notesCount));
     }
 
     void LyricExtWidget::modifyOption() const {
         const auto options = AppOptions::instance()->fillLyric();
-        options->tableFontSize = m_phonicTableView->font().pointSize();
 
         options->tableColWidthRatio = m_tableConfigWidget->m_colWidthRatioSpinBox->value();
         options->tableRowHeightRatio = m_tableConfigWidget->m_rowHeightSpinBox->value();

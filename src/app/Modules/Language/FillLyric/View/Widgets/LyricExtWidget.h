@@ -4,11 +4,9 @@
 #include <QWidget>
 
 #include <QCheckBox>
-#include <QUndoStack>
 
 #include "TableConfigWidget.h"
 
-#include "../Controls/PhonicTableView.h"
 #include "../Controls/LyricWrapView.h"
 
 #include "UI/Controls/Button.h"
@@ -47,7 +45,6 @@ namespace FillLyric {
 
         // Widgets
         LyricWrapView *m_wrapView;
-        PhonicTableView *m_phonicTableView;
         TableConfigWidget *m_tableConfigWidget;
 
         Button *m_btnToText;
