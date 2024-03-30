@@ -66,6 +66,11 @@ namespace FillLyric {
     }
 
     void LyricWrapView::contextMenuEvent(QContextMenuEvent *event) {
+        auto *menu = new QMenu(this);
+        menu->setAttribute(Qt::WA_TranslucentBackground);
+        menu->setWindowFlags(menu->windowFlags() | Qt::FramelessWindowHint |
+                             Qt::NoDropShadowWindowHint);
+
         const auto clickPos = event->pos();
         m_selectedItems = scene()->selectedItems();
         if (!m_selectedItems.isEmpty()) {
@@ -80,7 +85,6 @@ namespace FillLyric {
 
             // TODO: delete cells
             if (enableMenu) {
-                auto *menu = new QMenu(this);
                 menu->addAction("delete cells(还没做)");
                 menu->exec(mapToGlobal(clickPos));
                 event->accept();
@@ -89,6 +93,7 @@ namespace FillLyric {
                         item->setSelected(false);
                     }
                 }
+                delete menu;
                 return;
             }
         }
@@ -101,7 +106,6 @@ namespace FillLyric {
 
         if (!itemAt(clickPos)) {
             if (const auto cellList = mapToList(clickPos)) {
-                auto *menu = new QMenu(this);
                 menu->addAction("append cell", [this, cellList] {
                     m_history->push(new AppendCellCmd(this, cellList));
                 });
@@ -118,6 +122,7 @@ namespace FillLyric {
                 menu->exec(mapToGlobal(clickPos));
             }
             event->accept();
+            delete menu;
             return;
         }
         return QGraphicsView::contextMenuEvent(event);

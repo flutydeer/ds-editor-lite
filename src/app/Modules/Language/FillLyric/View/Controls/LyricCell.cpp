@@ -110,6 +110,9 @@ namespace FillLyric {
 
     void LyricCell::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
         auto *menu = new QMenu(m_view);
+        menu->setAttribute(Qt::WA_TranslucentBackground);
+        menu->setWindowFlags(menu->windowFlags() | Qt::FramelessWindowHint |
+                             Qt::NoDropShadowWindowHint);
         this->changeSyllableMenu(menu);
         this->changePhonicMenu(menu);
         menu->addSeparator();
@@ -124,6 +127,7 @@ namespace FillLyric {
         menu->addAction("add next line", [this] { Q_EMIT this->addNextLine(); });
         menu->exec(event->screenPos());
         event->accept();
+        delete menu;
         return QGraphicsItem::contextMenuEvent(event);
     }
 

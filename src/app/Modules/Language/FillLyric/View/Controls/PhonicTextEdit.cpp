@@ -1,5 +1,7 @@
 #include "PhonicTextEdit.h"
 
+#include <QMenu>
+
 namespace FillLyric {
 
     PhonicTextEdit::PhonicTextEdit(QWidget *parent) : QPlainTextEdit(parent) {
@@ -22,6 +24,17 @@ namespace FillLyric {
             return;
         }
         QPlainTextEdit::wheelEvent(event);
+    }
+
+    void PhonicTextEdit::contextMenuEvent(QContextMenuEvent *event) {
+        QMenu *menu = createStandardContextMenu();
+
+        menu->setAttribute(Qt::WA_TranslucentBackground);
+        menu->setWindowFlags(menu->windowFlags() | Qt::FramelessWindowHint |
+                             Qt::NoDropShadowWindowHint);
+
+        menu->exec(event->globalPos());
+        delete menu;
     }
 
 } // FillLyric
