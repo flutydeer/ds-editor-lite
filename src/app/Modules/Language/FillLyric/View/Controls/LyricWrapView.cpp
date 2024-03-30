@@ -17,6 +17,8 @@ namespace FillLyric {
         m_scene = new QGraphicsScene(parent);
 
         this->setScene(m_scene);
+        this->setDragMode(RubberBandDrag);
+
         if (m_autoWrap) {
             this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         } else {
@@ -56,9 +58,49 @@ namespace FillLyric {
         }
     }
 
+    void LyricWrapView::mousePressEvent(QMouseEvent *event) {
+        if (event->button() == Qt::RightButton) {
+            return;
+        }
+        QGraphicsView::mousePressEvent(event);
+    }
+
     void LyricWrapView::contextMenuEvent(QContextMenuEvent *event) {
-        if (!itemAt(event->pos())) {
-            if (const auto cellList = mapToList(event->pos())) {
+        const auto clickPos = event->pos();
+        m_selectedItems = scene()->selectedItems();
+        if (!m_selectedItems.isEmpty()) {
+            bool enableMenu = false;
+            for (const auto &item : m_selectedItems) {
+                if (item->type() == Qt::UserRole + 1) {
+                    const auto cell = static_cast<LyricCell *>(item);
+                    if (cell->lyricRect().contains(clickPos))
+                        enableMenu = true;
+                }
+            }
+
+            // TODO: delete cells
+            if (enableMenu) {
+                auto *menu = new QMenu(this);
+                menu->addAction("delete cells(还没做)");
+                menu->exec(mapToGlobal(clickPos));
+                event->accept();
+                if (!m_selectedItems.isEmpty()) {
+                    for (const auto &item : m_selectedItems) {
+                        item->setSelected(false);
+                    }
+                }
+                return;
+            }
+        }
+
+        if (!m_selectedItems.isEmpty()) {
+            for (const auto &item : m_selectedItems) {
+                item->setSelected(false);
+            }
+        }
+
+        if (!itemAt(clickPos)) {
+            if (const auto cellList = mapToList(clickPos)) {
                 auto *menu = new QMenu(this);
                 menu->addAction("append cell", [this, cellList] {
                     m_history->push(new AppendCellCmd(this, cellList));
@@ -73,7 +115,7 @@ namespace FillLyric {
                 menu->addAction("add next line", [this, cellList] {
                     m_history->push(new AddNextLineCmd(this, cellList));
                 });
-                menu->exec(mapToGlobal(event->pos()));
+                menu->exec(mapToGlobal(clickPos));
             }
             event->accept();
             return;
@@ -111,7 +153,7 @@ namespace FillLyric {
 
     void LyricWrapView::removeList(CellList *cellList) {
         const auto index = m_cellLists.indexOf(cellList);
-        if (0 <= index < m_cellLists.size()) {
+        if (0 <= index && index < m_cellLists.size()) {
             this->removeList(static_cast<int>(index));
         }
     }

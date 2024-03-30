@@ -20,6 +20,9 @@ namespace FillLyric {
         [[nodiscard]] qreal width() const;
         [[nodiscard]] qreal height() const;
 
+        [[nodiscard]] QRectF lyricRect() const;
+        [[nodiscard]] QRectF syllableRect() const;
+
         [[nodiscard]] LangNote *note() const;
         void setNote(LangNote *note);
 
@@ -49,6 +52,8 @@ namespace FillLyric {
         void updateWidth(const qreal &w) const;
 
     protected:
+        [[nodiscard]] int type() const override;
+        [[nodiscard]] QPainterPath shape() const override;
         [[nodiscard]] QRectF boundingRect() const override;
 
         void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
@@ -66,9 +71,6 @@ namespace FillLyric {
         [[nodiscard]] QPointF lyricPos() const;
         [[nodiscard]] QPointF rectPos() const;
         [[nodiscard]] QPointF syllablePos() const;
-
-        [[nodiscard]] QRectF lyricRect() const;
-        [[nodiscard]] QRectF syllableRect() const;
 
         void changePhonicMenu(QMenu *menu);
         void changeSyllableMenu(QMenu *menu) const;

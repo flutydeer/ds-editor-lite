@@ -25,6 +25,17 @@ namespace FillLyric {
 
     LyricCell::~LyricCell() = default;
 
+    int LyricCell::type() const {
+        return Qt::UserRole + 1;
+    }
+
+    QPainterPath LyricCell::shape() const {
+        QPainterPath path;
+        path.addRect({rectPos().x(), rectPos().y(), width() - m_padding * 2,
+                      m_lRect.height() + m_rectPadding * 2});
+        return path;
+    }
+
     QRectF LyricCell::boundingRect() const {
         return {0, 0, width(), height()};
     }
