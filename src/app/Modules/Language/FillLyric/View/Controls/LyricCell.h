@@ -68,6 +68,7 @@ namespace FillLyric {
         [[nodiscard]] QPointF syllablePos() const;
 
         [[nodiscard]] QRectF lyricRect() const;
+        [[nodiscard]] QRectF syllableRect() const;
 
         void changePhonicMenu(QMenu *menu);
         void changeSyllableMenu(QMenu *menu) const;
@@ -80,7 +81,7 @@ namespace FillLyric {
 
         qreal m_lsPadding = 5;
         qreal m_rectPadding = 3;
-        qreal m_padding = 5;
+        qreal m_padding = 3;
         qreal m_reckBorder = 2.5;
 
         QFont m_font = QApplication::font();

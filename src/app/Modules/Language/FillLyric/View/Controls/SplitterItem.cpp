@@ -14,11 +14,11 @@ namespace FillLyric {
     SplitterItem::~SplitterItem() = default;
 
     QRectF SplitterItem::boundingRect() const {
-        return {0, 0, y(), height()};
+        return {0, 0, width(), height()};
     }
 
     qreal SplitterItem::width() const {
-        return y();
+        return mW;
     }
 
     void SplitterItem::setWidth(const qreal &w) {

@@ -1,9 +1,11 @@
 #ifndef LYRICWRAPVIEW_H
 #define LYRICWRAPVIEW_H
 
+#include <QGraphicsView>
+#include <QGraphicsScene>
+
 #include "LyricCell.h"
 #include "CellList.h"
-#include <QGraphicsView>
 
 namespace FillLyric {
     class LyricWrapView final : public QGraphicsView {
@@ -14,6 +16,9 @@ namespace FillLyric {
 
         void clear();
         void init(const QList<QList<LangNote>> &noteLists);
+
+        [[nodiscard]] bool autoWrap() const;
+        void setAutoWrap(const bool &autoWrap);
 
         CellList *createNewList();
 
@@ -26,21 +31,28 @@ namespace FillLyric {
 
         [[nodiscard]] QUndoStack *history() const;
 
-        QList<CellList *> cellLists() const;
+        [[nodiscard]] QList<CellList *> cellLists() const;
 
     protected:
         void resizeEvent(QResizeEvent *event) override;
         void wheelEvent(QWheelEvent *event) override;
+        void contextMenuEvent(QContextMenuEvent *event) override;
 
     private:
         void connectCellList(CellList *cellList);
         [[nodiscard]] qreal cellBaseY(const int &index) const;
+        CellList *mapToList(const QPoint &pos);
+
+        bool m_autoWrap = false;
 
         QFont m_font;
         QUndoStack *m_history = new QUndoStack();
         QGraphicsScene *m_scene;
 
         QList<CellList *> m_cellLists;
+
+    private Q_SLOTS:
+        void updateRect();
     };
 }
 #endif // LYRICWRAPVIEW_H

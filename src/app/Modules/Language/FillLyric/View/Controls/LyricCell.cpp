@@ -98,23 +98,21 @@ namespace FillLyric {
     }
 
     void LyricCell::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
-        if (lyricRect().contains(event->scenePos())) {
-            auto *menu = new QMenu(m_view);
-            this->changeSyllableMenu(menu);
-            this->changePhonicMenu(menu);
-            menu->addSeparator();
-            menu->addAction("clear cell", [this] { Q_EMIT this->clearCell(); });
-            if (x() != 0)
-                menu->addAction("delete cell", [this] { Q_EMIT this->deleteCell(); });
-            menu->addAction("add prev cell", [this] { Q_EMIT this->addPrevCell(); });
-            menu->addAction("add next cell", [this] { Q_EMIT this->addNextCell(); });
-            menu->addSeparator();
-            menu->addAction("delete line", [this] { Q_EMIT this->deleteLine(); });
-            menu->addAction("add prev line", [this] { Q_EMIT this->addPrevLine(); });
-            menu->addAction("add next line", [this] { Q_EMIT this->addNextLine(); });
-            menu->exec(event->screenPos());
-            event->accept();
-        }
+        auto *menu = new QMenu(m_view);
+        this->changeSyllableMenu(menu);
+        this->changePhonicMenu(menu);
+        menu->addSeparator();
+        menu->addAction("clear cell", [this] { Q_EMIT this->clearCell(); });
+        if (x() != 0 || y() != 0)
+            menu->addAction("delete cell", [this] { Q_EMIT this->deleteCell(); });
+        menu->addAction("add prev cell", [this] { Q_EMIT this->addPrevCell(); });
+        menu->addAction("add next cell", [this] { Q_EMIT this->addNextCell(); });
+        menu->addSeparator();
+        menu->addAction("delete line", [this] { Q_EMIT this->deleteLine(); });
+        menu->addAction("add prev line", [this] { Q_EMIT this->addPrevLine(); });
+        menu->addAction("add next line", [this] { Q_EMIT this->addNextLine(); });
+        menu->exec(event->screenPos());
+        event->accept();
         return QGraphicsItem::contextMenuEvent(event);
     }
 
@@ -128,7 +126,6 @@ namespace FillLyric {
         syllableFont.setPointSize(syllableFont.pointSize() - 3);
         m_sRect = QFontMetrics(syllableFont).boundingRect(syllable);
     }
-
 
     qreal LyricCell::lyricWidth() const {
         return m_lRect.width() + 10;
@@ -154,6 +151,11 @@ namespace FillLyric {
     QRectF LyricCell::lyricRect() const {
         return {x() + rectPos().x(), y() + rectPos().y(), width() - m_padding * 2,
                 m_lRect.height() + m_rectPadding * 2};
+    }
+
+    QRectF LyricCell::syllableRect() const {
+        return {x() + syllablePos().x(), y() + syllablePos().y(),
+                static_cast<qreal>(m_sRect.width()), static_cast<qreal>(m_sRect.height())};
     }
 
     void LyricCell::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,

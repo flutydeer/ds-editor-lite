@@ -107,7 +107,7 @@ namespace FillLyric {
         font.setPointSize(appOptions->fillLyric()->tableFontSize);
         m_phonicTableView->setFont(font);
         autoWrap->setValue(appOptions->fillLyric()->autoWrap);
-        m_phonicTableView->autoWrap = appOptions->fillLyric()->autoWrap;
+        m_wrapView->setAutoWrap(appOptions->fillLyric()->autoWrap);
 
         exportSkipSlur->setChecked(appOptions->fillLyric()->exportSkipSlur);
         exportLanguage->setChecked(appOptions->fillLyric()->exportLanguage);
@@ -122,10 +122,8 @@ namespace FillLyric {
         connect(btnRedo, &QPushButton::clicked, m_history, &QUndoStack::redo);
         connect(m_history, &QUndoStack::canUndoChanged, btnUndo, &QPushButton::setEnabled);
         connect(m_history, &QUndoStack::canRedoChanged, btnRedo, &QPushButton::setEnabled);
-        connect(autoWrap, &QCheckBox::clicked, m_history, &QUndoStack::clear);
-        connect(m_phonicTableView, &PhonicTableView::historyReset, m_history, &QUndoStack::clear);
 
-        connect(autoWrap, &QCheckBox::clicked, m_phonicTableView, &PhonicTableView::setAutoWrap);
+        connect(autoWrap, &QCheckBox::clicked, m_wrapView, &LyricWrapView::setAutoWrap);
 
         // phonicWidget toggleFermata
         connect(btnToggleFermata, &QPushButton::clicked, m_phonicTableView,
@@ -197,7 +195,7 @@ namespace FillLyric {
         options->tableRowHeightRatio = m_tableConfigWidget->m_rowHeightSpinBox->value();
         options->tableFontDiff = m_tableConfigWidget->m_fontDiffSpinBox->value();
 
-        options->autoWrap = autoWrap->value();
+        options->autoWrap = m_wrapView->autoWrap();
         options->exportSkipSlur = exportSkipSlur->isChecked();
         options->exportLanguage = exportLanguage->isChecked();
         AppOptions::instance()->saveAndNotify();
