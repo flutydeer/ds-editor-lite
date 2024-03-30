@@ -55,6 +55,12 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
 
 LyricDialog::~LyricDialog() = default;
 
+void LyricDialog::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_Enter || event->key() == Qt::Key_Return)
+        return;
+    QDialog::keyPressEvent(event);
+}
+
 void LyricDialog::noteToPhonic() {
     for (const auto note : m_notes) {
         const auto langNote = new LangNote();

@@ -19,6 +19,9 @@ public:
 
     void exportLangNotes();
 
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+
 private:
     void noteToPhonic();
 
