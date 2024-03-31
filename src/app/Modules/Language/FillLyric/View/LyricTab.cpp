@@ -162,12 +162,15 @@ namespace FillLyric {
     void LyricTab::_on_btnToText_clicked() const {
         const auto noteLists = this->modelExport();
         QStringList lyrics;
+        QStringList line;
         for (const auto &noteList : noteLists) {
             for (const auto &note : noteList) {
-                lyrics.append(note.lyric);
+                line.append(note.lyric);
             }
+            lyrics.append(line.join(" "));
+            line.clear();
         }
-        m_lyricBaseWidget->m_textEdit->setPlainText(lyrics.join(" "));
+        m_lyricBaseWidget->m_textEdit->setPlainText(lyrics.join("\n"));
     }
 
     void LyricTab::modifyOption() const {

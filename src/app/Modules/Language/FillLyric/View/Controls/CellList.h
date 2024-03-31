@@ -29,7 +29,7 @@ namespace FillLyric {
         [[nodiscard]] QGraphicsView *view() const;
         [[nodiscard]] QGraphicsScene *sence() const;
 
-        LyricCell *createNewCell();
+        LyricCell *createNewCell() const;
 
         void appendCell(LyricCell *cell);
         void removeCell(LyricCell *cell);
@@ -42,6 +42,9 @@ namespace FillLyric {
         void updateRect(LyricCell *cell);
         void updateCellPos();
 
+        void connectCell(const LyricCell *cell) const;
+        void disconnectCell(const LyricCell *cell) const;
+
         QList<LyricCell *> m_cells;
 
     Q_SIGNALS:
@@ -51,12 +54,10 @@ namespace FillLyric {
         void deleteLine() const;
         void addPrevLine() const;
         void addNextLine() const;
-        void linebreak(const int cellIndex) const;
+        void linebreakSignal(const int &cellIndex) const;
 
     private:
         void updateSplitterPos() const;
-
-        void connectCell(LyricCell *cell);
 
         bool m_autoWarp = false;
 
@@ -75,6 +76,15 @@ namespace FillLyric {
         QUndoStack *m_history;
 
         SplitterItem *m_splitter;
+
+    private Q_SLOTS:
+        void editCell(LyricCell *cell, const QString &lyric);
+        void changeSyllable(LyricCell *cell, const QString &syllable);
+        void clearCell(LyricCell *cell);
+        void deleteCell(LyricCell *cell);
+        void addPrevCell(LyricCell *cell);
+        void addNextCell(LyricCell *cell);
+        void linebreak(LyricCell *cell) const;
     };
 }
 

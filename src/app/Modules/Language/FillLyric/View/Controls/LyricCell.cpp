@@ -62,16 +62,16 @@ namespace FillLyric {
         return m_note->lyric;
     }
 
-    void LyricCell::setLyric(const QString &lyric) const {
-        Q_EMIT this->updateLyric(lyric);
+    void LyricCell::setLyric(const QString &lyric) {
+        Q_EMIT this->updateLyric(this, lyric);
     }
 
     QString LyricCell::syllable() const {
         return m_note->syllable;
     }
 
-    void LyricCell::setSyllable(const QString &syllable) const {
-        Q_EMIT this->changeSyllable(syllable);
+    void LyricCell::setSyllable(const QString &syllable) {
+        Q_EMIT this->changeSyllable(this, syllable);
     }
 
     void LyricCell::setFont(const QFont &font) {
@@ -116,16 +116,12 @@ namespace FillLyric {
         this->changeSyllableMenu(menu);
         this->changePhonicMenu(menu);
         menu->addSeparator();
-        menu->addAction("clear cell", [this] { Q_EMIT this->clearCell(); });
+        menu->addAction("clear cell", [this] { Q_EMIT this->clearCell(this); });
         if (x() != 0 || y() != 0)
-            menu->addAction("delete cell", [this] { Q_EMIT this->deleteCell(); });
-        menu->addAction("add prev cell", [this] { Q_EMIT this->addPrevCell(); });
-        menu->addAction("add next cell", [this] { Q_EMIT this->addNextCell(); });
-        menu->addAction("linebreak", [this] { Q_EMIT this->linebreak(); });
-        menu->addSeparator();
-        menu->addAction("delete line", [this] { Q_EMIT this->deleteLine(); });
-        menu->addAction("add prev line", [this] { Q_EMIT this->addPrevLine(); });
-        menu->addAction("add next line", [this] { Q_EMIT this->addNextLine(); });
+            menu->addAction("delete cell", [this] { Q_EMIT this->deleteCell(this); });
+        menu->addAction("add prev cell", [this] { Q_EMIT this->addPrevCell(this); });
+        menu->addAction("add next cell", [this] { Q_EMIT this->addNextCell(this); });
+        menu->addAction("linebreak", [this] { Q_EMIT this->linebreak(this); });
         menu->exec(event->screenPos());
         event->accept();
         delete menu;
@@ -231,7 +227,7 @@ namespace FillLyric {
         });
     }
 
-    void LyricCell::changeSyllableMenu(QMenu *menu) const {
+    void LyricCell::changeSyllableMenu(QMenu *menu) {
         QStringList candidateSyllables = m_note->candidates;
 
         for (const auto &syllable : candidateSyllables) {

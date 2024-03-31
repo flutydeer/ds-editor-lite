@@ -61,6 +61,7 @@ namespace FillLyric {
         m_splitComboBox = new ComboBox(true);
         m_splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom")});
         m_splitters = new LineEdit();
+        m_splitters->setToolTipDuration(0);
         m_splitters->setVisible(false);
         m_splitters->setMaximumWidth(85);
         m_splitLayout->addWidget(m_splitLabel);
@@ -179,6 +180,7 @@ namespace FillLyric {
     void LyricBaseWidget::_on_splitComboBox_currentIndexChanged(int index) const {
         const auto splitType = static_cast<SplitType>(index);
         m_splitters->setVisible(splitType == Custom);
+        this->_on_textEditChanged();
         modifyOption();
     }
 

@@ -250,7 +250,7 @@ namespace FillLyric {
         connect(cellList, &CellList::heightChanged, this, &LyricWrapView::repaintCellLists);
         connect(cellList, &CellList::cellPosChanged, this, &LyricWrapView::updateRect);
 
-        connect(cellList, &CellList::linebreak, [this, cellList](const int cellIndex) {
+        connect(cellList, &CellList::linebreakSignal, [this, cellList](const int cellIndex) {
             m_history->push(new LinebreakCmd(this, cellList, cellIndex));
         });
 

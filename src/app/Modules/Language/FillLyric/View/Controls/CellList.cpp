@@ -65,7 +65,7 @@ namespace FillLyric {
         return m_scene;
     }
 
-    LyricCell *CellList::createNewCell() {
+    LyricCell *CellList::createNewCell() const{
         const auto lyricCell = new LyricCell(0, mY + this->deltaY(), new LangNote(), m_view);
         this->connectCell(lyricCell);
         return lyricCell;
@@ -172,32 +172,59 @@ namespace FillLyric {
         m_splitter->setPos(mX, mY);
     }
 
-    void CellList::connectCell(LyricCell *cell) {
+    void CellList::connectCell(const LyricCell *cell) const {
         connect(cell, &LyricCell::updateWidth, this, &CellList::updateCellPos);
-        connect(cell, &LyricCell::updateLyric, [this, cell](const QString &lyric) {
-            m_history->push(new EditCellCmdfinal(this, cell, lyric));
-        });
+        connect(cell, &LyricCell::updateLyric, this, &CellList::editCell);
 
-        connect(cell, &LyricCell::changeSyllable, [this, cell](const QString &syllable) {
-            m_history->push(new ChangeSyllableCmd(this, cell, syllable));
-        });
+        connect(cell, &LyricCell::changeSyllable, this, &CellList::changeSyllable);
 
         // cell option
-        connect(cell, &LyricCell::clearCell,
-                [this, cell] { m_history->push(new ClearCellCmd(this, cell)); });
-        connect(cell, &LyricCell::deleteCell,
-                [this, cell] { m_history->push(new DeleteCellCmd(this, cell)); });
-        connect(cell, &LyricCell::addPrevCell,
-                [this, cell] { m_history->push(new AddPrevCellCmd(this, cell)); });
-        connect(cell, &LyricCell::addNextCell,
-                [this, cell] { m_history->push(new AddNextCellCmd(this, cell)); });
-        connect(cell, &LyricCell::linebreak,
-                [this, cell] { Q_EMIT this->linebreak(m_cells.indexOf(cell)); });
+        connect(cell, &LyricCell::clearCell, this, &CellList::clearCell);
+        connect(cell, &LyricCell::deleteCell, this, &CellList::deleteCell);
+        connect(cell, &LyricCell::addPrevCell, this, &CellList::addPrevCell);
+        connect(cell, &LyricCell::addNextCell, this, &CellList::addNextCell);
+        connect(cell, &LyricCell::linebreak, this, &CellList::linebreak);
+    }
 
-        // line option
-        connect(cell, &LyricCell::deleteLine, this, &CellList::deleteLine);
-        connect(cell, &LyricCell::addPrevLine, this, &CellList::addPrevLine);
-        connect(cell, &LyricCell::addNextLine, this, &CellList::addNextLine);
+    void CellList::disconnectCell(const LyricCell *cell) const {
+        disconnect(cell, &LyricCell::updateWidth, this, &CellList::updateCellPos);
+        disconnect(cell, &LyricCell::updateLyric, this, &CellList::editCell);
+
+        disconnect(cell, &LyricCell::changeSyllable, this, &CellList::changeSyllable);
+
+        disconnect(cell, &LyricCell::clearCell, this, &CellList::clearCell);
+        disconnect(cell, &LyricCell::deleteCell, this, &CellList::deleteCell);
+        disconnect(cell, &LyricCell::addPrevCell, this, &CellList::addPrevCell);
+        disconnect(cell, &LyricCell::addNextCell, this, &CellList::addNextCell);
+        disconnect(cell, &LyricCell::linebreak, this, &CellList::linebreak);
+    }
+
+    void CellList::editCell(LyricCell *cell, const QString &lyric) {
+        m_history->push(new EditCellCmdfinal(this, cell, lyric));
+    }
+
+    void CellList::changeSyllable(LyricCell *cell, const QString &syllable) {
+        m_history->push(new ChangeSyllableCmd(this, cell, syllable));
+    }
+
+    void CellList::clearCell(LyricCell *cell) {
+        m_history->push(new ClearCellCmd(this, cell));
+    }
+
+    void CellList::deleteCell(LyricCell *cell) {
+        m_history->push(new DeleteCellCmd(this, cell));
+    }
+
+    void CellList::addPrevCell(LyricCell *cell) {
+        m_history->push(new AddPrevCellCmd(this, cell));
+    }
+
+    void CellList::addNextCell(LyricCell *cell) {
+        m_history->push(new AddNextCellCmd(this, cell));
+    }
+
+    void CellList::linebreak(LyricCell *cell) const {
+        Q_EMIT this->linebreakSignal(m_cells.indexOf(cell));
     }
 
 }

@@ -11,8 +11,9 @@ namespace FillLyric {
         const auto res = langMgr->split(input);
 
         for (const auto &note : res) {
-            if (note.language == "Linebreak" && !notes.isEmpty()) {
-                result.append(notes);
+            if (note.language == "Linebreak") {
+                if (!notes.isEmpty())
+                    result.append(notes);
                 notes.clear();
                 continue;
             }

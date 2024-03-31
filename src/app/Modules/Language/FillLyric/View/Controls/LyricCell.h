@@ -27,28 +27,24 @@ namespace FillLyric {
         void setNote(LangNote *note);
 
         [[nodiscard]] QString lyric() const;
-        void setLyric(const QString &lyric) const;
+        void setLyric(const QString &lyric);
 
         [[nodiscard]] QString syllable() const;
-        void setSyllable(const QString &syllable) const;
+        void setSyllable(const QString &syllable);
 
         void setFont(const QFont &font);
         void setLyricRect(const QRect &rect);
         void setSyllableRect(const QRect &rect);
 
     Q_SIGNALS:
-        void updateLyric(const QString &lyric) const;
-        void changeSyllable(const QString &syllable) const;
+        void updateLyric(LyricCell *cell, const QString &lyric) const;
+        void changeSyllable(LyricCell *cell, const QString &syllable) const;
 
-        void clearCell() const;
-        void deleteCell() const;
-        void addPrevCell() const;
-        void addNextCell() const;
-        void linebreak() const;
-
-        void deleteLine() const;
-        void addPrevLine() const;
-        void addNextLine() const;
+        void clearCell(LyricCell *cell) const;
+        void deleteCell(LyricCell *cell) const;
+        void addPrevCell(LyricCell *cell) const;
+        void addNextCell(LyricCell *cell) const;
+        void linebreak(LyricCell *cell) const;
 
         void updateWidth(const qreal &w) const;
 
@@ -74,7 +70,7 @@ namespace FillLyric {
         [[nodiscard]] QPointF syllablePos() const;
 
         void changePhonicMenu(QMenu *menu);
-        void changeSyllableMenu(QMenu *menu) const;
+        void changeSyllableMenu(QMenu *menu);
 
         QRect m_lRect;
         QRect m_sRect;
