@@ -25,7 +25,7 @@ namespace FillLyric {
 
     public Q_SLOTS:
         // count
-        void _on_modelDataChanged() const;
+        void _on_notesCountChanged(const int &count) const;
 
     private:
         void modifyOption() const;
@@ -53,7 +53,6 @@ namespace FillLyric {
         QLabel *noteCountLabel;
 
         Button *btnFoldLeft;
-        Button *btnToggleFermata;
         OptionsCardItem *autoWrapItem;
         SwitchButton *autoWrap;
         QPushButton *btnUndo;

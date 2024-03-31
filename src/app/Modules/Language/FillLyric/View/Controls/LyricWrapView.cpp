@@ -34,6 +34,11 @@ namespace FillLyric {
         setAlignment(Qt::AlignLeft | Qt::AlignTop);
         setRenderHint(QPainter::Antialiasing, true);
         this->installEventFilter(this);
+
+        // notesCount
+        connect(m_scene, &QGraphicsScene::changed, [this] {
+            Q_EMIT noteCountChanged(static_cast<int>(m_scene->items().size() - m_cellLists.size()));
+        });
     }
 
     LyricWrapView::~LyricWrapView() = default;

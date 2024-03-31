@@ -12,7 +12,6 @@ namespace FillLyric {
         // tableTop layout
         m_tableTopLayout = new QHBoxLayout();
         btnFoldLeft = new Button(tr("Fold Left"));
-        btnToggleFermata = new Button(tr("Toggle Fermata"));
         autoWrapItem = new OptionsCardItem();
         autoWrapItem->setTitle(tr("Auto Wrap"));
         autoWrap = new SwitchButton();
@@ -36,7 +35,6 @@ namespace FillLyric {
 
         m_btnInsertText = new Button(tr("Test"));
         m_tableTopLayout->addWidget(btnFoldLeft);
-        m_tableTopLayout->addWidget(btnToggleFermata);
         m_tableTopLayout->addWidget(btnUndo);
         m_tableTopLayout->addWidget(btnRedo);
         m_tableTopLayout->addWidget(m_btnInsertText);
@@ -115,7 +113,9 @@ namespace FillLyric {
 
         connect(autoWrap, &QCheckBox::clicked, m_wrapView, &LyricWrapView::setAutoWrap);
 
-        // TODO: toggleFermata size label
+        // notes Count
+        connect(m_wrapView, &LyricWrapView::noteCountChanged, this,
+                &LyricExtWidget::_on_notesCountChanged);
 
         // exportOptButton
         connect(exportOptButton, &QPushButton::clicked,
@@ -134,9 +134,8 @@ namespace FillLyric {
 
     LyricExtWidget::~LyricExtWidget() = default;
 
-    void LyricExtWidget::_on_modelDataChanged() const {
-        // TODO: lyricCount
-        noteCountLabel->setText(QString::number(0) + "/" + QString::number(*notesCount));
+    void LyricExtWidget::_on_notesCountChanged(const int &count) const {
+        noteCountLabel->setText(QString::number(count) + "/" + QString::number(*notesCount));
     }
 
     void LyricExtWidget::modifyOption() const {

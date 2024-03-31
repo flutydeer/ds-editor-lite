@@ -34,6 +34,9 @@ namespace FillLyric {
 
         [[nodiscard]] QList<CellList *> cellLists() const;
 
+    Q_SIGNALS:
+        void noteCountChanged(const int &count);
+
     protected:
         void resizeEvent(QResizeEvent *event) override;
         void wheelEvent(QWheelEvent *event) override;

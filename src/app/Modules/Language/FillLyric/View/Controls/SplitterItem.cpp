@@ -17,6 +17,12 @@ namespace FillLyric {
         return {0, 0, width(), height()};
     }
 
+    QPainterPath SplitterItem::shape() const {
+        QPainterPath path;
+        path.addRect({0, m_margin, width(), m_lineHeight});
+        return path;
+    }
+
     qreal SplitterItem::width() const {
         return mW;
     }

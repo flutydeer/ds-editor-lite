@@ -160,8 +160,14 @@ namespace FillLyric {
     }
 
     void LyricTab::_on_btnToText_clicked() const {
-        // TODO: btnToText
-        m_lyricBaseWidget->m_textEdit->setPlainText("");
+        const auto noteLists = this->modelExport();
+        QStringList lyrics;
+        for (const auto &noteList : noteLists) {
+            for (const auto &note : noteList) {
+                lyrics.append(note.lyric);
+            }
+        }
+        m_lyricBaseWidget->m_textEdit->setPlainText(lyrics.join(" "));
     }
 
     void LyricTab::modifyOption() const {
