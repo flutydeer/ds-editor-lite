@@ -159,8 +159,6 @@ namespace FillLyric {
         // selected handle or space
         if (!dynamic_cast<LyricCell *>(itemAtPos)) {
             if (const auto cellList = mapToList(scenePos)) {
-                if (!dynamic_cast<HandleItem *>(itemAtPos))
-                    cellList->highlight();
                 menu->addAction("append cell", [this, cellList] {
                     m_history->push(new AppendCellCmd(this, cellList));
                 });

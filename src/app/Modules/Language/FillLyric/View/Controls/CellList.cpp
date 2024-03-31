@@ -2,6 +2,7 @@
 
 #include <QGraphicsOpacityEffect>
 #include <QGraphicsSceneMouseEvent>
+#include <QStyleOptionGraphicsItem>
 
 #include "../../Commands/Cell/EditCellCmd.h"
 #include "../../Commands/Cell/ChangeSyllableCmd.h"
@@ -15,6 +16,10 @@ namespace FillLyric {
     CellList::CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
                        QGraphicsScene *scene, QGraphicsView *view, QUndoStack *undoStack)
         : mX(x), mY(y), m_view(view), m_scene(scene), m_history(undoStack) {
+        m_scene->addItem(this);
+        this->setZValue(-1);
+        setFlag(ItemIsSelectable);
+
         m_splitter = new SplitterItem(mX, mY, m_curWidth, 1);
         m_scene->addItem(m_splitter);
 
@@ -31,40 +36,20 @@ namespace FillLyric {
         this->updateCellPos();
         m_handle->setHeight(m_height);
         connect(m_handle, &HandleItem::selectAll, this, &CellList::selectList);
-
-        highlightTimer = new QTimer(this);
-        highlightTimer->setSingleShot(true);
-        connect(highlightTimer, &QTimer::timeout, this, &CellList::resetHighlight);
-        m_scene->addItem(this);
     }
 
     QRectF CellList::boundingRect() const {
         return {mX + deltaX(), mY + deltaY(), m_curWidth, m_height};
     }
 
-    void CellList::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-        const auto itemAtPos = scene()->itemAt(mapToScene(event->pos()), QTransform());
-        if (!dynamic_cast<LyricCell *>(itemAtPos)) {
-            this->highlight();
-            return;
-        }
-        QGraphicsObject::mousePressEvent(event);
-    }
-
-    void CellList::resetHighlight() {
-        m_highlightRect = {};
-        update();
-    }
-
     void CellList::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                          QWidget *widget) {
-        if (!m_highlightRect.isNull()) {
-            painter->save();
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(255, 255, 255, 10));
-            painter->drawRect(m_highlightRect);
-            painter->restore();
+        if (option->state & QStyle::State_Selected) {
+            painter->setBrush(QColor(255, 255, 255, 12));
+        } else {
+            painter->setBrush(Qt::NoBrush);
         }
+        painter->drawRect(boundingRect());
     }
 
     void CellList::clear() {
@@ -80,12 +65,6 @@ namespace FillLyric {
 
     void CellList::setAutoWrap(const bool &autoWrap) {
         m_autoWarp = autoWrap;
-    }
-
-    void CellList::highlight() {
-        m_highlightRect = boundingRect();
-        update();
-        highlightTimer->start(100);
     }
 
     qreal CellList::deltaX() const {
