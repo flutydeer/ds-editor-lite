@@ -27,6 +27,7 @@ namespace FillLyric {
         void removeList(CellList *cellList);
         void appendList(const QList<LangNote *> &noteList);
 
+        CellList *mapToList(const QPoint &pos);
         void repaintCellLists();
 
         [[nodiscard]] QUndoStack *history() const;
@@ -42,7 +43,7 @@ namespace FillLyric {
     private:
         void connectCellList(CellList *cellList);
         [[nodiscard]] qreal cellBaseY(const int &index) const;
-        CellList *mapToList(const QPoint &pos);
+        void deleteCells(const QList<QGraphicsItem *> &items);
 
         bool m_autoWrap = false;
 
@@ -52,7 +53,7 @@ namespace FillLyric {
 
         QList<CellList *> m_cellLists;
 
-        QList<QGraphicsItem *> m_selectedItems{};
+        QList<LyricCell *> m_selectedCells{};
 
     private Q_SLOTS:
         void updateRect();

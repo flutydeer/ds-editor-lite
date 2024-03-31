@@ -86,6 +86,14 @@ namespace FillLyric {
         }
     }
 
+    void CellList::insertCell(const int &index, LyricCell *cell) {
+        if (0 <= index && index < m_cells.size()) {
+            m_cells.insert(index, cell);
+            m_scene->addItem(cell);
+            this->updateCellPos();
+        }
+    }
+
     void CellList::setWidth(const qreal &width) {
         m_curWidth = width;
         m_splitter->setWidth(width);
@@ -183,6 +191,8 @@ namespace FillLyric {
                 [this, cell] { m_history->push(new AddPrevCellCmd(this, cell)); });
         connect(cell, &LyricCell::addNextCell,
                 [this, cell] { m_history->push(new AddNextCellCmd(this, cell)); });
+        connect(cell, &LyricCell::linebreak,
+                [this, cell] { Q_EMIT this->linebreak(m_cells.indexOf(cell)); });
 
         // line option
         connect(cell, &LyricCell::deleteLine, this, &CellList::deleteLine);

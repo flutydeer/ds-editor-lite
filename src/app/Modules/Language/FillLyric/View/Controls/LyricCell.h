@@ -44,6 +44,7 @@ namespace FillLyric {
         void deleteCell() const;
         void addPrevCell() const;
         void addNextCell() const;
+        void linebreak() const;
 
         void deleteLine() const;
         void addPrevLine() const;

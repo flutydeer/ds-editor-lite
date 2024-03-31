@@ -33,6 +33,7 @@ namespace FillLyric {
 
         void appendCell(LyricCell *cell);
         void removeCell(LyricCell *cell);
+        void insertCell(const int &index, LyricCell *cell);
 
         void setWidth(const qreal &width);
         void updateSpliter(const qreal &width) const;
@@ -50,6 +51,7 @@ namespace FillLyric {
         void deleteLine() const;
         void addPrevLine() const;
         void addNextLine() const;
+        void linebreak(const int cellIndex) const;
 
     private:
         void updateSplitterPos() const;

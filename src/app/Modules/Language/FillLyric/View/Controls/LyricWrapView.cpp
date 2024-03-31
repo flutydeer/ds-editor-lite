@@ -6,10 +6,13 @@
 
 #include <LangMgr/ILanguageManager.h>
 
+#include "../../Commands/Line/LinebreakCmd.h"
 #include "../../Commands/Line/AppendCellCmd.h"
 #include "../../Commands/Line/DeleteLineCmd.h"
 #include "../../Commands/Line/AddPrevLineCmd.h"
 #include "../../Commands/Line/AddNextLineCmd.h"
+
+#include "../../Commands/View/DeleteCellsCmd.h"
 
 namespace FillLyric {
     LyricWrapView::LyricWrapView(QWidget *parent) {
@@ -72,34 +75,32 @@ namespace FillLyric {
                              Qt::NoDropShadowWindowHint);
 
         const auto clickPos = event->pos();
-        m_selectedItems = scene()->selectedItems();
-        if (!m_selectedItems.isEmpty()) {
+        const auto selectedItems = scene()->selectedItems();
+        if (!selectedItems.isEmpty()) {
+            m_selectedCells.clear();
             bool enableMenu = false;
-            for (const auto &item : m_selectedItems) {
-                if (item->type() == Qt::UserRole + 1) {
-                    const auto cell = static_cast<LyricCell *>(item);
+            for (const auto &item : selectedItems) {
+                const auto cell = dynamic_cast<LyricCell *>(item);
+                if (cell) {
+                    m_selectedCells.append(cell);
                     if (cell->lyricRect().contains(clickPos))
                         enableMenu = true;
                 }
             }
 
-            // TODO: delete cells
-            if (enableMenu) {
-                menu->addAction("delete cells(还没做)");
+            if (enableMenu && !m_selectedCells.isEmpty()) {
+                menu->addAction("delete cells", [=] {
+                    m_history->push(new DeleteCellsCmd(this, m_selectedCells));
+                });
                 menu->exec(mapToGlobal(clickPos));
                 event->accept();
-                if (!m_selectedItems.isEmpty()) {
-                    for (const auto &item : m_selectedItems) {
-                        item->setSelected(false);
-                    }
-                }
                 delete menu;
                 return;
             }
         }
 
-        if (!m_selectedItems.isEmpty()) {
-            for (const auto &item : m_selectedItems) {
+        if (!selectedItems.isEmpty()) {
+            for (const auto &item : selectedItems) {
                 item->setSelected(false);
             }
         }
@@ -243,6 +244,10 @@ namespace FillLyric {
     void LyricWrapView::connectCellList(CellList *cellList) {
         connect(cellList, &CellList::heightChanged, this, &LyricWrapView::repaintCellLists);
         connect(cellList, &CellList::cellPosChanged, this, &LyricWrapView::updateRect);
+
+        connect(cellList, &CellList::linebreak, [this, cellList](const int cellIndex) {
+            m_history->push(new LinebreakCmd(this, cellList, cellIndex));
+        });
 
         connect(cellList, &CellList::deleteLine,
                 [this, cellList] { m_history->push(new DeleteLineCmd(this, cellList)); });

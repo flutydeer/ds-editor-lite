@@ -121,6 +121,7 @@ namespace FillLyric {
             menu->addAction("delete cell", [this] { Q_EMIT this->deleteCell(); });
         menu->addAction("add prev cell", [this] { Q_EMIT this->addPrevCell(); });
         menu->addAction("add next cell", [this] { Q_EMIT this->addNextCell(); });
+        menu->addAction("linebreak", [this] { Q_EMIT this->linebreak(); });
         menu->addSeparator();
         menu->addAction("delete line", [this] { Q_EMIT this->deleteLine(); });
         menu->addAction("add prev line", [this] { Q_EMIT this->addPrevLine(); });
