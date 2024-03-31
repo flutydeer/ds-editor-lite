@@ -17,13 +17,17 @@ namespace FillLyric {
         m_splitter = new SplitterItem(mX, mY, m_curWidth, 1);
         m_scene->addItem(m_splitter);
 
+        m_handle = new HandleItem(mX, mY, 10, 1);
+        m_scene->addItem(m_handle);
+
         for (const auto &note : noteList) {
-            const auto lyricCell = new LyricCell(0, mY + deltaY(), note, m_view);
+            const auto lyricCell = new LyricCell(deltaX(), mY + deltaY(), note, m_view);
             m_cells.append(lyricCell);
             m_scene->addItem(lyricCell);
             this->connectCell(lyricCell);
         }
         this->updateCellPos();
+        m_handle->setHeight(m_height);
     }
 
     void CellList::clear() {
@@ -31,12 +35,18 @@ namespace FillLyric {
             delete m_cell;
             m_cell = nullptr;
         }
+        delete m_handle;
+        m_handle = nullptr;
         delete m_splitter;
         m_splitter = nullptr;
     }
 
     void CellList::setAutoWrap(const bool &autoWrap) {
         m_autoWarp = autoWrap;
+    }
+
+    qreal CellList::deltaX() const {
+        return m_handle->width();
     }
 
     qreal CellList::y() const {
@@ -50,6 +60,7 @@ namespace FillLyric {
     void CellList::setBaseY(const qreal &y) {
         mY = y;
         m_splitter->setPos(mX, mY);
+        m_handle->setPos(mX, mY + deltaY());
         this->updateCellPos();
     }
 
@@ -65,7 +76,7 @@ namespace FillLyric {
         return m_scene;
     }
 
-    LyricCell *CellList::createNewCell() const{
+    LyricCell *CellList::createNewCell() const {
         const auto lyricCell = new LyricCell(0, mY + this->deltaY(), new LangNote(), m_view);
         this->connectCell(lyricCell);
         return lyricCell;
@@ -143,14 +154,14 @@ namespace FillLyric {
     }
 
     void CellList::updateCellPos() {
-        qreal x = 0;
+        qreal x = deltaX();
         qreal y = mY + m_splitter->deltaY();
 
         for (const auto cell : m_cells) {
             const auto cellWidth = cell->width();
             if (x + cellWidth > m_curWidth && m_autoWarp) {
                 // Move to the next row
-                x = 0;
+                x = deltaX();
                 y += cell->height();
             }
             cell->setPos(x, y + m_cellMargin);
@@ -163,6 +174,7 @@ namespace FillLyric {
 
         if (m_height != height) {
             m_height = height;
+            m_handle->setHeight(m_height);
             Q_EMIT this->heightChanged();
         }
         Q_EMIT this->cellPosChanged();
@@ -170,6 +182,7 @@ namespace FillLyric {
 
     void CellList::updateSplitterPos() const {
         m_splitter->setPos(mX, mY);
+        m_handle->setPos(mX, mY + m_splitter->deltaY());
     }
 
     void CellList::connectCell(const LyricCell *cell) const {
@@ -224,7 +237,7 @@ namespace FillLyric {
     }
 
     void CellList::linebreak(LyricCell *cell) const {
-        Q_EMIT this->linebreakSignal(m_cells.indexOf(cell));
+        Q_EMIT this->linebreakSignal(static_cast<int>(m_cells.indexOf(cell)));
     }
 
 }

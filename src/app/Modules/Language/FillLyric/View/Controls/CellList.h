@@ -3,9 +3,9 @@
 
 #include <QObject>
 #include <QUndoStack>
-#include <QApplication>
 
 #include "LyricCell.h"
+#include "HandleItem.h"
 #include "SplitterItem.h"
 
 namespace FillLyric {
@@ -19,6 +19,8 @@ namespace FillLyric {
         void clear();
         void setAutoWrap(const bool &autoWrap);
 
+        [[nodiscard]] qreal deltaX() const;
+
         [[nodiscard]] qreal y() const;
         [[nodiscard]] qreal deltaY() const;
 
@@ -29,7 +31,7 @@ namespace FillLyric {
         [[nodiscard]] QGraphicsView *view() const;
         [[nodiscard]] QGraphicsScene *sence() const;
 
-        LyricCell *createNewCell() const;
+        [[nodiscard]] LyricCell *createNewCell() const;
 
         void appendCell(LyricCell *cell);
         void removeCell(LyricCell *cell);
@@ -65,9 +67,7 @@ namespace FillLyric {
         qreal mY;
 
         qreal m_curWidth = 0;
-
         qreal m_height = 0;
-
         qreal m_cellMargin = 5;
 
         QFont m_font = QApplication::font();
@@ -76,6 +76,7 @@ namespace FillLyric {
         QUndoStack *m_history;
 
         SplitterItem *m_splitter;
+        HandleItem *m_handle;
 
     private Q_SLOTS:
         void editCell(LyricCell *cell, const QString &lyric);

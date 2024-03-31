@@ -1,20 +1,21 @@
-#ifndef SPLITTERGRAPHICSITEM_H
-#define SPLITTERGRAPHICSITEM_H
+#ifndef HANDLEITEM_H
+#define HANDLEITEM_H
 
-#include <QGraphicsItem>
 #include <QGraphicsScene>
+#include <QGraphicsRectItem>
 
 namespace FillLyric {
-    class SplitterItem final : public QGraphicsItem {
+    class HandleItem final : public QGraphicsRectItem {
     public:
-        explicit SplitterItem(const qreal &x, const qreal &y, const qreal &w, const qreal &lh = 1,
-                              QGraphicsItem *parent = nullptr);
-        ~SplitterItem() override;
+        explicit HandleItem(const qreal &x, const qreal &y, const qreal &w, const qreal &h,
+                            QGraphicsRectItem *parent = nullptr);
+        ~HandleItem() override;
 
         [[nodiscard]] qreal width() const;
         void setWidth(const qreal &w);
 
         [[nodiscard]] qreal height() const;
+        void setHeight(const qreal &h);
 
         [[nodiscard]] qreal deltaY() const;
         void setLineHeight(const qreal &lh);
@@ -33,14 +34,17 @@ namespace FillLyric {
                    QWidget *widget) override;
 
     private:
-        qreal mW;
+        qreal mW = 16;
+        qreal mH;
 
         qreal m_lineHeight;
 
-        QPen m_pen = QPen(Qt::gray, 1);
+        QPen m_pen = QPen(QColor(112, 156, 255), 1);
+        QBrush m_brush = QBrush(QColor(112, 156, 255));
 
-        qreal m_margin = 5;
+        qreal m_margin = 3;
     };
-}
 
-#endif // SPLITTERGRAPHICSITEM_H
+} // FillLyric
+
+#endif // HANDLEITEM_H
