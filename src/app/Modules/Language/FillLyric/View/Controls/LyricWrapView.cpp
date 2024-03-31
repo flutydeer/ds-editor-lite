@@ -38,7 +38,7 @@ namespace FillLyric {
         // notesCount
         connect(m_scene, &QGraphicsScene::changed, [this] {
             Q_EMIT noteCountChanged(
-                static_cast<int>(m_scene->items().size() - m_cellLists.size() * 2));
+                static_cast<int>(m_scene->items().size() - m_cellLists.size() * 3));
         });
     }
 
@@ -159,6 +159,8 @@ namespace FillLyric {
         // selected handle or space
         if (!dynamic_cast<LyricCell *>(itemAtPos)) {
             if (const auto cellList = mapToList(scenePos)) {
+                if (!dynamic_cast<HandleItem *>(itemAtPos))
+                    cellList->highlight();
                 menu->addAction("append cell", [this, cellList] {
                     m_history->push(new AppendCellCmd(this, cellList));
                 });

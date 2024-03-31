@@ -1,7 +1,7 @@
 #include "CellList.h"
 
-#include <qdebug.h>
 #include <QGraphicsOpacityEffect>
+#include <QGraphicsSceneMouseEvent>
 
 #include "../../Commands/Cell/EditCellCmd.h"
 #include "../../Commands/Cell/ChangeSyllableCmd.h"
@@ -30,8 +30,41 @@ namespace FillLyric {
         }
         this->updateCellPos();
         m_handle->setHeight(m_height);
-
         connect(m_handle, &HandleItem::selectAll, this, &CellList::selectList);
+
+        highlightTimer = new QTimer(this);
+        highlightTimer->setSingleShot(true);
+        connect(highlightTimer, &QTimer::timeout, this, &CellList::resetHighlight);
+        m_scene->addItem(this);
+    }
+
+    QRectF CellList::boundingRect() const {
+        return {mX + deltaX(), mY + deltaY(), m_curWidth, m_height};
+    }
+
+    void CellList::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+        const auto itemAtPos = scene()->itemAt(mapToScene(event->pos()), QTransform());
+        if (!dynamic_cast<LyricCell *>(itemAtPos)) {
+            this->highlight();
+            return;
+        }
+        QGraphicsObject::mousePressEvent(event);
+    }
+
+    void CellList::resetHighlight() {
+        m_highlightRect = {};
+        update();
+    }
+
+    void CellList::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                         QWidget *widget) {
+        if (!m_highlightRect.isNull()) {
+            painter->save();
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(QColor(255, 255, 255, 10));
+            painter->drawRect(m_highlightRect);
+            painter->restore();
+        }
     }
 
     void CellList::clear() {
@@ -47,6 +80,12 @@ namespace FillLyric {
 
     void CellList::setAutoWrap(const bool &autoWrap) {
         m_autoWarp = autoWrap;
+    }
+
+    void CellList::highlight() {
+        m_highlightRect = boundingRect();
+        update();
+        highlightTimer->start(100);
     }
 
     qreal CellList::deltaX() const {
@@ -115,6 +154,7 @@ namespace FillLyric {
         }
         m_scene->addItem(m_splitter);
         m_scene->addItem(m_handle);
+        m_scene->addItem(this);
     }
 
     void CellList::removeFromScene() {
@@ -123,6 +163,7 @@ namespace FillLyric {
         }
         m_scene->removeItem(m_splitter);
         m_scene->removeItem(m_handle);
+        m_scene->removeItem(this);
     }
 
     void CellList::setWidth(const qreal &width) {

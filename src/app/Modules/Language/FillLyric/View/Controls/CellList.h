@@ -2,6 +2,7 @@
 #define CELLLIST_H
 
 #include <QObject>
+#include <QTimer>
 #include <QUndoStack>
 
 #include "LyricCell.h"
@@ -10,7 +11,7 @@
 
 namespace FillLyric {
 
-    class CellList final : public QObject {
+    class CellList final : public QGraphicsObject {
         Q_OBJECT
     public:
         explicit CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
@@ -18,6 +19,8 @@ namespace FillLyric {
 
         void clear();
         void setAutoWrap(const bool &autoWrap);
+
+        void highlight();
 
         [[nodiscard]] qreal deltaX() const;
 
@@ -64,10 +67,18 @@ namespace FillLyric {
     public Q_SLOTS:
         void selectList() const;
 
+    protected:
+        void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+        [[nodiscard]] QRectF boundingRect() const override;
+        void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                   QWidget *widget) override;
+
     private:
         void updateSplitterPos() const;
 
         bool m_autoWarp = false;
+        QTimer *highlightTimer;
+        QRectF m_highlightRect = {};
 
         qreal mX;
         qreal mY;
@@ -85,6 +96,8 @@ namespace FillLyric {
         HandleItem *m_handle;
 
     private Q_SLOTS:
+        void resetHighlight();
+
         void editCell(LyricCell *cell, const QString &lyric);
         void changeSyllable(LyricCell *cell, const QString &syllable);
         void clearCell(LyricCell *cell);
