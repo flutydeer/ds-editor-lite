@@ -1,6 +1,7 @@
 #include "CellList.h"
 
 #include <qdebug.h>
+#include <QGraphicsOpacityEffect>
 
 #include "../../Commands/Cell/EditCellCmd.h"
 #include "../../Commands/Cell/ChangeSyllableCmd.h"

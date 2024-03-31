@@ -68,20 +68,29 @@ namespace FillLyric {
     }
 
     void LyricWrapView::mousePressEvent(QMouseEvent *event) {
+        const auto selectedItems = scene()->selectedItems();
+        const auto scenePos = mapToScene(event->pos()).toPoint();
+        auto itemAtPos = scene()->itemAt(scenePos, QTransform());
         if (event->button() == Qt::RightButton) {
-            const auto selectedItems = scene()->selectedItems();
-            auto itemAtPos = scene()->itemAt(mapToScene(event->pos()), QTransform());
-            if (!itemAtPos && !selectedItems.isEmpty())
-                for (const auto &item : selectedItems) {
-                    item->setSelected(false);
+            if (!dynamic_cast<HandleItem *>(itemAtPos)) {
+                if (!itemAtPos && !selectedItems.isEmpty())
+                    for (const auto &item : selectedItems) {
+                        item->setSelected(false);
+                    }
+                if (itemAtPos) {
+                    if (selectedItems.contains(itemAtPos))
+                        return;
+                    for (const auto &item : selectedItems) {
+                        item->setSelected(false);
+                    }
+                    itemAtPos->setSelected(true);
                 }
-            if (itemAtPos) {
-                if (selectedItems.contains(itemAtPos))
-                    return;
+            } else {
                 for (const auto &item : selectedItems) {
                     item->setSelected(false);
                 }
                 itemAtPos->setSelected(true);
+                mapToList(scenePos)->selectList();
             }
             return;
         }
