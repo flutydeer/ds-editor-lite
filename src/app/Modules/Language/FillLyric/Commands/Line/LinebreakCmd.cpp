@@ -12,7 +12,10 @@ namespace FillLyric {
 
     void LinebreakCmd::undo() {
         for (const auto &cell : m_cells) {
+            m_list->disconnectCell(cell);
             m_newList->removeCell(cell);
+
+            m_list->connectCell(cell);
             m_list->appendCell(cell);
         }
         m_view->removeList(m_newList);
@@ -22,7 +25,10 @@ namespace FillLyric {
     void LinebreakCmd::redo() {
         m_view->insertList(m_cellListIndex + 1, m_newList);
         for (const auto &cell : m_cells) {
+            m_list->disconnectCell(cell);
             m_list->removeCell(cell);
+
+            m_newList->connectCell(cell);
             m_newList->appendCell(cell);
         }
         m_view->repaintCellLists();

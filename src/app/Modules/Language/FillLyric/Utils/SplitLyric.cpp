@@ -19,8 +19,9 @@ namespace FillLyric {
             }
             notes.append(note);
         }
-        result.append(notes);
 
+        if (!notes.isEmpty())
+            result.append(notes);
         return result;
     }
 
@@ -35,8 +36,9 @@ namespace FillLyric {
             if (currentChar == ' ') {
                 continue;
             }
-            if (linebreakFactory->contains(currentChar) && !notes.isEmpty()) {
-                result.append(notes);
+            if (linebreakFactory->contains(currentChar)) {
+                if (!notes.isEmpty())
+                    result.append(notes);
                 notes.clear();
                 continue;
             }
@@ -47,7 +49,8 @@ namespace FillLyric {
             notes.append(note);
         }
 
-        result.append(notes);
+        if (!notes.isEmpty())
+            result.append(notes);
         return result;
     }
 
@@ -75,14 +78,17 @@ namespace FillLyric {
                 notes.append(note);
             }
 
-            if (linebreakFactory->contains(input[pos]) && !notes.isEmpty()) {
-                result.append(notes);
+            if (linebreakFactory->contains(input[pos])) {
+                if (!notes.isEmpty())
+                    result.append(notes);
                 notes.clear();
                 continue;
             }
             pos++;
         }
-        result.append(notes);
+
+        if (!notes.isEmpty())
+            result.append(notes);
         return result;
     }
 }

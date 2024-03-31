@@ -105,6 +105,22 @@ namespace FillLyric {
         }
     }
 
+    void CellList::addToScene() {
+        for (const auto &cell : m_cells) {
+            m_scene->addItem(cell);
+        }
+        m_scene->addItem(m_splitter);
+        m_scene->addItem(m_handle);
+    }
+
+    void CellList::removeFromScene() {
+        for (const auto &cell : m_cells) {
+            m_scene->removeItem(cell);
+        }
+        m_scene->removeItem(m_splitter);
+        m_scene->removeItem(m_handle);
+    }
+
     void CellList::setWidth(const qreal &width) {
         m_curWidth = width;
         m_splitter->setWidth(width);

@@ -37,6 +37,9 @@ namespace FillLyric {
         void removeCell(LyricCell *cell);
         void insertCell(const int &index, LyricCell *cell);
 
+        void addToScene();
+        void removeFromScene();
+
         void setWidth(const qreal &width);
         void updateSpliter(const qreal &width) const;
 

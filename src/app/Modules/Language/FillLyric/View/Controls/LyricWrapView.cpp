@@ -37,7 +37,8 @@ namespace FillLyric {
 
         // notesCount
         connect(m_scene, &QGraphicsScene::changed, [this] {
-            Q_EMIT noteCountChanged(static_cast<int>(m_scene->items().size() - m_cellLists.size()));
+            Q_EMIT noteCountChanged(
+                static_cast<int>(m_scene->items().size() - m_cellLists.size() * 2));
         });
     }
 
@@ -145,9 +146,7 @@ namespace FillLyric {
 
     void LyricWrapView::insertList(const int &index, CellList *cellList) {
         m_cellLists.insert(index, cellList);
-        for (const auto &cell : cellList->m_cells) {
-            cellList->sence()->addItem(cell);
-        }
+        cellList->addToScene();
         this->repaintCellLists();
     }
 
@@ -155,9 +154,7 @@ namespace FillLyric {
         if (index >= m_cellLists.size())
             return;
         const auto cellList = m_cellLists[index];
-        for (const auto &cell : cellList->m_cells) {
-            m_scene->removeItem(cell);
-        }
+        cellList->removeFromScene();
         m_cellLists.remove(index);
         this->repaintCellLists();
     }
@@ -207,7 +204,8 @@ namespace FillLyric {
                 tempNotes.append(new LangNote(note));
             }
             langMgr->convert(tempNotes);
-            this->appendList(tempNotes);
+            if (!tempNotes.isEmpty())
+                this->appendList(tempNotes);
         }
         this->updateRect();
     }
