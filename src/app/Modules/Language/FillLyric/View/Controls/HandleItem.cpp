@@ -1,17 +1,36 @@
 #include "HandleItem.h"
 
 #include <QPainter>
-#include <QGraphicsScene>
+#include <QStyleOptionGraphicsItem>
+#include <QGraphicsSceneMouseEvent>
 
 namespace FillLyric {
-    HandleItem::HandleItem(const qreal &x, const qreal &y, const qreal &w, const qreal &h,
-                           QGraphicsRectItem *parent)
-        : QGraphicsRectItem(parent), mW(w), mH(h) {
-        this->setPos(x, y);
-        this->setPen(QPen(Qt::gray, 1));
+    HandleItem::HandleItem(QGraphicsRectItem *parent) : QGraphicsRectItem(parent) {
+        setFlag(ItemIsSelectable);
+        this->setAcceptHoverEvents(true);
     }
 
     HandleItem::~HandleItem() = default;
+
+    void HandleItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+        if (!(event->modifiers() & Qt::ControlModifier)) {
+            for (auto item : scene()->selectedItems()) {
+                item->setSelected(false);
+            }
+        }
+        Q_EMIT selectAll();
+        this->setSelected(true);
+    }
+
+    void HandleItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+        if (!(event->modifiers() & Qt::ControlModifier)) {
+            for (auto item : scene()->selectedItems()) {
+                item->setSelected(false);
+            }
+        }
+        Q_EMIT selectAll();
+        this->setSelected(true);
+    }
 
     QRectF HandleItem::boundingRect() const {
         return {0, 0, width(), height()};
@@ -19,17 +38,23 @@ namespace FillLyric {
 
     QPainterPath HandleItem::shape() const {
         QPainterPath path;
-        path.addRect({0, 0, 0, 0});
+        path.addRect({m_margin, m_margin, width() - m_margin * 2, height() - m_margin * 2});
         return path;
     }
 
     void HandleItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                            QWidget *widget) {
+        int flag = 0;
+        if (option->state & QStyle::State_MouseOver)
+            flag = Hovered;
+        if (option->state & QStyle::State_Selected)
+            flag = Selected;
+
         const auto boxRect =
             QRectF(m_margin, m_margin, width() - m_margin * 2, height() - m_margin * 2);
 
-        painter->setPen(m_pen);
-        painter->setBrush(m_brush);
+        painter->setPen(m_borderPen[flag]);
+        painter->setBrush(m_backgroundBrush[flag]);
         painter->drawRoundedRect(boxRect, m_margin * 0.5, m_margin * 0.5);
     }
 
@@ -49,14 +74,6 @@ namespace FillLyric {
 
     qreal HandleItem::height() const {
         return mH;
-    }
-
-    QPen HandleItem::pen() const {
-        return m_pen;
-    }
-
-    void HandleItem::setPen(const QPen &pen) {
-        m_pen = pen;
     }
 
     void HandleItem::setMargin(qreal margin) {

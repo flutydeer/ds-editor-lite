@@ -97,7 +97,7 @@ namespace FillLyric {
         QPen m_borderPen[3] = {QPen(QColor(112, 156, 255), 2), QPen(QColor(112, 156, 255), 2),
                                QPen(QColor(Qt::white), 2)};
 
-        enum PenType { Multitone = 1, Revised, G2pError };
+        enum PenType { MultiTone = 1, Revised, G2pError };
         QPen m_lyricPen[4] = {QColor(Qt::black), QColor(Qt::green), QColor(Qt::yellow),
                               QColor(Qt::red)};
         QPen m_syllablePen[4] = {QColor(Qt::white), QColor(Qt::green), QColor(Qt::yellow),

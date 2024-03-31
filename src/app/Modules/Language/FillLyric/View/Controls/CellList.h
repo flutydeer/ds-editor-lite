@@ -29,7 +29,7 @@ namespace FillLyric {
         [[nodiscard]] qreal height() const;
 
         [[nodiscard]] QGraphicsView *view() const;
-        [[nodiscard]] QGraphicsScene *sence() const;
+        [[nodiscard]] QGraphicsScene *scene() const;
 
         [[nodiscard]] LyricCell *createNewCell() const;
 
@@ -41,7 +41,7 @@ namespace FillLyric {
         void removeFromScene();
 
         void setWidth(const qreal &width);
-        void updateSpliter(const qreal &width) const;
+        void updateSplitter(const qreal &width) const;
 
         void setFont(const QFont &font);
         void updateRect(LyricCell *cell);
@@ -60,6 +60,9 @@ namespace FillLyric {
         void addPrevLine() const;
         void addNextLine() const;
         void linebreakSignal(const int &cellIndex) const;
+
+    public Q_SLOTS:
+        void selectList() const;
 
     private:
         void updateSplitterPos() const;

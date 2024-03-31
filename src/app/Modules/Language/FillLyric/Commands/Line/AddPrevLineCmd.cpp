@@ -7,7 +7,7 @@ namespace FillLyric {
         m_newList = m_view->createNewList();
 
         for (const auto &cell : m_newList->m_cells) {
-            m_newList->sence()->removeItem(cell);
+            m_newList->scene()->removeItem(cell);
         }
     }
 

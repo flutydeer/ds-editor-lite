@@ -69,6 +69,20 @@ namespace FillLyric {
 
     void LyricWrapView::mousePressEvent(QMouseEvent *event) {
         if (event->button() == Qt::RightButton) {
+            const auto selectedItems = scene()->selectedItems();
+            auto itemAtPos = scene()->itemAt(mapToScene(event->pos()), QTransform());
+            if (!itemAtPos && !selectedItems.isEmpty())
+                for (const auto &item : selectedItems) {
+                    item->setSelected(false);
+                }
+            if (itemAtPos) {
+                if (selectedItems.contains(itemAtPos))
+                    return;
+                for (const auto &item : selectedItems) {
+                    item->setSelected(false);
+                }
+                itemAtPos->setSelected(true);
+            }
             return;
         }
         QGraphicsView::mousePressEvent(event);
@@ -81,20 +95,30 @@ namespace FillLyric {
                              Qt::NoDropShadowWindowHint);
 
         const auto clickPos = event->pos();
+        const auto scenePos = mapToScene(clickPos).toPoint();
+        auto itemAtPos = scene()->itemAt(scenePos, QTransform());
         const auto selectedItems = scene()->selectedItems();
-        if (!selectedItems.isEmpty()) {
+        QList<HandleItem *> handleItems;
+
+        // selected cells
+        if (selectedItems.size() > 1) {
             m_selectedCells.clear();
             bool enableMenu = false;
             for (const auto &item : selectedItems) {
                 const auto cell = dynamic_cast<LyricCell *>(item);
                 if (cell) {
                     m_selectedCells.append(cell);
-                    if (cell->lyricRect().contains(clickPos))
+                    if (cell->lyricRect().contains(scenePos))
                         enableMenu = true;
+                } else if (auto handle = dynamic_cast<HandleItem *>(item)) {
+                    handleItems.append(handle);
                 }
             }
 
-            if (enableMenu && !m_selectedCells.isEmpty()) {
+            if ((enableMenu && !m_selectedCells.isEmpty())) {
+                menu->addAction("clear cells(没做)", [=] {
+                    // TODO: clear cells
+                });
                 menu->addAction("delete cells", [=] {
                     m_history->push(new DeleteCellsCmd(this, m_selectedCells));
                 });
@@ -105,14 +129,27 @@ namespace FillLyric {
             }
         }
 
-        if (!selectedItems.isEmpty()) {
-            for (const auto &item : selectedItems) {
-                item->setSelected(false);
-            }
+        // selected handles
+        if (dynamic_cast<HandleItem *>(itemAtPos) && handleItems.size() > 1) {
+            menu->addSeparator();
+            menu->addAction("delete lines(没做)", [=] {
+                // TODO: delete lines
+            });
+            menu->addAction("move up(没做)", [=] {
+                // TODO: move up
+            });
+            menu->addAction("move down(没做)", [=] {
+                // TODO: move down
+            });
+            menu->exec(mapToGlobal(clickPos));
+            event->accept();
+            delete menu;
+            return;
         }
 
-        if (!itemAt(clickPos)) {
-            if (const auto cellList = mapToList(clickPos)) {
+        // selected handle or space
+        if (!dynamic_cast<LyricCell *>(itemAtPos)) {
+            if (const auto cellList = mapToList(scenePos)) {
                 menu->addAction("append cell", [this, cellList] {
                     m_history->push(new AppendCellCmd(this, cellList));
                 });
@@ -125,6 +162,13 @@ namespace FillLyric {
                 });
                 menu->addAction("add next line", [this, cellList] {
                     m_history->push(new AddNextLineCmd(this, cellList));
+                });
+                menu->addSeparator();
+                menu->addAction("move up(没做)", [=] {
+                    // TODO: move up
+                });
+                menu->addAction("move down(没做)", [=] {
+                    // TODO: move down
                 });
                 menu->exec(mapToGlobal(clickPos));
             }
@@ -238,7 +282,7 @@ namespace FillLyric {
             height += m_cellList->height();
         }
         for (const auto &m_cellList : m_cellLists) {
-            m_cellList->updateSpliter(scene()->itemsBoundingRect().width());
+            m_cellList->updateSplitter(scene()->itemsBoundingRect().width());
         }
         this->setSceneRect(scene()->itemsBoundingRect());
         this->update();
@@ -280,7 +324,7 @@ namespace FillLyric {
 
     void LyricWrapView::updateRect() {
         for (const auto &m_cellList : m_cellLists) {
-            m_cellList->updateSpliter(scene()->itemsBoundingRect().width());
+            m_cellList->updateSplitter(scene()->itemsBoundingRect().width());
         }
         this->setSceneRect(scene()->itemsBoundingRect());
         this->update();

@@ -5,10 +5,10 @@
 #include <QGraphicsRectItem>
 
 namespace FillLyric {
-    class HandleItem final : public QGraphicsRectItem {
+    class HandleItem final : public QObject, public QGraphicsRectItem {
+        Q_OBJECT
     public:
-        explicit HandleItem(const qreal &x, const qreal &y, const qreal &w, const qreal &h,
-                            QGraphicsRectItem *parent = nullptr);
+        explicit HandleItem(QGraphicsRectItem *parent = nullptr);
         ~HandleItem() override;
 
         [[nodiscard]] qreal width() const;
@@ -17,16 +17,16 @@ namespace FillLyric {
         [[nodiscard]] qreal height() const;
         void setHeight(const qreal &h);
 
-        [[nodiscard]] qreal deltaY() const;
-        void setLineHeight(const qreal &lh);
-
-        [[nodiscard]] QPen pen() const;
-        void setPen(const QPen &pen);
-
         void setMargin(qreal margin);
         [[nodiscard]] qreal margin() const;
 
+    Q_SIGNALS:
+        void selectAll() const;
+
     protected:
+        void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+        void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+
         [[nodiscard]] QRectF boundingRect() const override;
         [[nodiscard]] QPainterPath shape() const override;
 
@@ -34,13 +34,19 @@ namespace FillLyric {
                    QWidget *widget) override;
 
     private:
+        enum State {
+            Normal = 0,
+            Hovered = 1,
+            Selected = 2,
+        };
+
+        QBrush m_backgroundBrush[3] = {QColor(155, 186, 255), QColor(169, 196, 255),
+                                       QColor(169, 196, 255)};
+        QPen m_borderPen[3] = {QPen(QColor(112, 156, 255), 2), QPen(QColor(112, 156, 255), 2),
+                               QPen(QColor(Qt::white), 2)};
+
         qreal mW = 16;
         qreal mH;
-
-        qreal m_lineHeight;
-
-        QPen m_pen = QPen(QColor(112, 156, 255), 1);
-        QBrush m_brush = QBrush(QColor(112, 156, 255));
 
         qreal m_margin = 3;
     };

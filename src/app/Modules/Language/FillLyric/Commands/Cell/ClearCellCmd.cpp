@@ -10,16 +10,16 @@ namespace FillLyric {
     void ClearCellCmd::undo() {
         m_list->m_cells.insert(m_index, m_cell);
         m_list->m_cells.remove(m_index + 1);
-        m_list->sence()->addItem(m_cell);
-        m_list->sence()->removeItem(m_newCell);
+        m_list->scene()->addItem(m_cell);
+        m_list->scene()->removeItem(m_newCell);
         m_list->updateCellPos();
     }
 
     void ClearCellCmd::redo() {
         m_list->m_cells.insert(m_index, m_newCell);
         m_list->m_cells.remove(m_index + 1);
-        m_list->sence()->addItem(m_newCell);
-        m_list->sence()->removeItem(m_cell);
+        m_list->scene()->addItem(m_newCell);
+        m_list->scene()->removeItem(m_cell);
         m_list->updateCellPos();
     }
 } // FillLyric

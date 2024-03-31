@@ -1,6 +1,5 @@
 #include "LyricCell.h"
 
-#include <QDebug>
 #include <QMenu>
 
 #include <QScrollBar>
@@ -185,7 +184,7 @@ namespace FillLyric {
         } else if (m_note->g2pError) {
             lyricFlag = PenType::G2pError;
         } else if (m_note->candidates.size() > 1) {
-            lyricFlag = PenType::Multitone;
+            lyricFlag = PenType::MultiTone;
         }
 
         QFont syllableFont(m_font);

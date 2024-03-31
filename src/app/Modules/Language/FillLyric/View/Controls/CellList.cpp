@@ -17,7 +17,8 @@ namespace FillLyric {
         m_splitter = new SplitterItem(mX, mY, m_curWidth, 1);
         m_scene->addItem(m_splitter);
 
-        m_handle = new HandleItem(mX, mY, 10, 1);
+        m_handle = new HandleItem();
+        m_handle->setPos(mX, mY + m_splitter->margin());
         m_scene->addItem(m_handle);
 
         for (const auto &note : noteList) {
@@ -28,6 +29,8 @@ namespace FillLyric {
         }
         this->updateCellPos();
         m_handle->setHeight(m_height);
+
+        connect(m_handle, &HandleItem::selectAll, this, &CellList::selectList);
     }
 
     void CellList::clear() {
@@ -60,7 +63,7 @@ namespace FillLyric {
     void CellList::setBaseY(const qreal &y) {
         mY = y;
         m_splitter->setPos(mX, mY);
-        m_handle->setPos(mX, mY + deltaY());
+        m_handle->setPos(mX, mY + m_splitter->margin());
         this->updateCellPos();
     }
 
@@ -72,7 +75,7 @@ namespace FillLyric {
         return m_view;
     }
 
-    QGraphicsScene *CellList::sence() const {
+    QGraphicsScene *CellList::scene() const {
         return m_scene;
     }
 
@@ -128,7 +131,7 @@ namespace FillLyric {
         this->updateSplitterPos();
     }
 
-    void CellList::updateSpliter(const qreal &width) const {
+    void CellList::updateSplitter(const qreal &width) const {
         m_splitter->setWidth(width);
     }
 
@@ -198,7 +201,7 @@ namespace FillLyric {
 
     void CellList::updateSplitterPos() const {
         m_splitter->setPos(mX, mY);
-        m_handle->setPos(mX, mY + m_splitter->deltaY());
+        m_handle->setPos(mX, mY + m_splitter->margin());
     }
 
     void CellList::connectCell(const LyricCell *cell) const {
@@ -226,6 +229,12 @@ namespace FillLyric {
         disconnect(cell, &LyricCell::addPrevCell, this, &CellList::addPrevCell);
         disconnect(cell, &LyricCell::addNextCell, this, &CellList::addNextCell);
         disconnect(cell, &LyricCell::linebreak, this, &CellList::linebreak);
+    }
+
+    void CellList::selectList() const {
+        for (const auto &cell : m_cells) {
+            cell->setSelected(true);
+        }
     }
 
     void CellList::editCell(LyricCell *cell, const QString &lyric) {

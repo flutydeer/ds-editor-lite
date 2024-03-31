@@ -18,12 +18,14 @@ namespace FillLyric {
         autoWrapItem->addWidget(autoWrap);
 
         btnUndo = new QPushButton();
+        btnUndo->setShortcut(QKeySequence("Ctrl+Z"));
         btnUndo->setEnabled(false);
         btnUndo->setMinimumSize(24, 24);
         btnUndo->setFixedWidth(24);
         btnUndo->setIcon(QIcon(":svg/icons/arrow_undo_16_filled_white.svg"));
 
         btnRedo = new QPushButton();
+        btnRedo->setShortcut(QKeySequence("Ctrl+Y"));
         btnRedo->setEnabled(false);
         btnRedo->setMinimumSize(24, 24);
         btnRedo->setFixedWidth(24);

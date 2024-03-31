@@ -9,13 +9,13 @@ namespace FillLyric {
 
     void AddNextCellCmd::undo() {
         m_list->m_cells.remove(m_index + 1);
-        m_list->sence()->removeItem(m_newCell);
+        m_list->scene()->removeItem(m_newCell);
         m_list->updateCellPos();
     }
 
     void AddNextCellCmd::redo() {
         m_list->m_cells.insert(m_index + 1, m_newCell);
-        m_list->sence()->addItem(m_newCell);
+        m_list->scene()->addItem(m_newCell);
         m_list->updateCellPos();
     }
 } // FillLyric
