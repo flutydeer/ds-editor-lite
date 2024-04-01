@@ -28,6 +28,7 @@ namespace FillLyric {
         void setBaseY(const qreal &y);
 
         [[nodiscard]] qreal height() const;
+        [[nodiscard]] qreal cellWidth() const;
 
         [[nodiscard]] QGraphicsView *view() const;
         [[nodiscard]] QGraphicsScene *scene() const;
@@ -42,7 +43,7 @@ namespace FillLyric {
         void removeFromScene();
 
         void setWidth(const qreal &width);
-        void updateSplitter(const qreal &width) const;
+        void updateSplitter(const qreal &width);
 
         void setFont(const QFont &font);
         void updateRect(LyricCell *cell);

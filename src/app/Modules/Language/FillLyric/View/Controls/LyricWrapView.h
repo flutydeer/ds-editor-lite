@@ -47,10 +47,11 @@ namespace FillLyric {
         void contextMenuEvent(QContextMenuEvent *event) override;
 
     private:
+        [[nodiscard]] qreal maxListWidth() const;
+        [[nodiscard]] qreal height();
         void connectCellList(CellList *cellList);
         [[nodiscard]] qreal cellBaseY(const int &index) const;
         void deleteCells(const QList<QGraphicsItem *> &items);
-        void cancelHighlights();
 
         bool m_autoWrap = false;
 

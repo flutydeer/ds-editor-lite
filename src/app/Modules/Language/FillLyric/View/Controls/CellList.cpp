@@ -39,7 +39,7 @@ namespace FillLyric {
     }
 
     QRectF CellList::boundingRect() const {
-        return {mX + deltaX(), mY + deltaY(), m_curWidth, m_height};
+        return {mX + deltaX(), mY + deltaY(), m_curWidth - deltaY(), m_height};
     }
 
     void CellList::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -88,6 +88,17 @@ namespace FillLyric {
 
     qreal CellList::height() const {
         return m_height;
+    }
+
+    qreal CellList::cellWidth() const {
+        if (m_autoWarp) {
+            return m_curWidth;
+        }
+        qreal width = 0;
+        for (const auto &cell : m_cells) {
+            width += cell->width();
+        }
+        return width + deltaX();
     }
 
     QGraphicsView *CellList::view() const {
@@ -152,7 +163,8 @@ namespace FillLyric {
         this->updateSplitterPos();
     }
 
-    void CellList::updateSplitter(const qreal &width) const {
+    void CellList::updateSplitter(const qreal &width) {
+        m_curWidth = width;
         m_splitter->setWidth(width);
     }
 

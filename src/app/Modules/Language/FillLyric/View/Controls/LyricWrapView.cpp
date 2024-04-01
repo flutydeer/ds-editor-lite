@@ -326,16 +326,45 @@ namespace FillLyric {
     void LyricWrapView::repaintCellLists() {
         qreal height = 0;
         const auto width = this->width() - this->verticalScrollBar()->width();
+        const auto maxWidth = this->maxListWidth();
         for (const auto &m_cellList : m_cellLists) {
             m_cellList->setBaseY(height);
-            m_cellList->setWidth(width);
+            if (m_autoWrap)
+                m_cellList->setWidth(width);
+            else
+                m_cellList->setWidth(maxWidth);
             height += m_cellList->height();
         }
+
         for (const auto &m_cellList : m_cellLists) {
-            m_cellList->updateSplitter(scene()->itemsBoundingRect().width());
+            if (m_autoWrap)
+                m_cellList->updateSplitter(width);
+            else
+                m_cellList->updateSplitter(maxWidth);
         }
-        this->setSceneRect(scene()->itemsBoundingRect());
+
+        if (m_autoWrap)
+            this->setSceneRect(QRectF(0, 0, width, height));
+        else
+            this->setSceneRect(QRectF(0, 0, maxWidth, height));
         this->update();
+    }
+
+    qreal LyricWrapView::maxListWidth() const {
+        qreal maxWidth = 0;
+        for (const auto &m_cellList : m_cellLists) {
+            if (m_cellList->cellWidth() > maxWidth)
+                maxWidth = m_cellList->cellWidth();
+        }
+        return maxWidth;
+    }
+
+    qreal LyricWrapView::height() {
+        qreal height = 0;
+        for (const auto &m_cellList : m_cellLists) {
+            height += m_cellList->height();
+        }
+        return height;
     }
 
     void LyricWrapView::connectCellList(CellList *cellList) {
@@ -373,11 +402,19 @@ namespace FillLyric {
     }
 
     void LyricWrapView::updateRect() {
-        const auto width = scene()->itemsBoundingRect().width();
+        const auto width = this->width() - this->verticalScrollBar()->width();
+        const auto maxWidth = this->maxListWidth();
         for (const auto &m_cellList : m_cellLists) {
-            m_cellList->updateSplitter(width);
+            if (m_autoWrap)
+                m_cellList->updateSplitter(width);
+            else
+                m_cellList->updateSplitter(maxWidth);
         }
-        this->setSceneRect(scene()->itemsBoundingRect());
+
+        if (m_autoWrap)
+            this->setSceneRect(QRectF(0, 0, width, this->height()));
+        else
+            this->setSceneRect(QRectF(0, 0, maxWidth, this->height()));
         this->update();
     }
 }
