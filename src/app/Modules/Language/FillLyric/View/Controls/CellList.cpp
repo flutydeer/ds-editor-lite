@@ -1,7 +1,6 @@
 #include "CellList.h"
 
 #include <QGraphicsOpacityEffect>
-#include <QGraphicsSceneMouseEvent>
 #include <QStyleOptionGraphicsItem>
 
 #include "../../Commands/Cell/EditCellCmd.h"
@@ -15,20 +14,21 @@
 namespace FillLyric {
     CellList::CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
                        QGraphicsScene *scene, QGraphicsView *view, QUndoStack *undoStack)
-        : mX(x), mY(y), m_view(view), m_scene(scene), m_history(undoStack) {
+        : m_view(view), m_scene(scene), m_history(undoStack) {
+        this->setPos(x, y);
         m_scene->addItem(this);
         this->setZValue(-1);
         setFlag(ItemIsSelectable);
 
-        m_splitter = new SplitterItem(mX, mY, m_curWidth, 1);
+        m_splitter = new SplitterItem(0, this->y(), m_curWidth, 1);
         m_scene->addItem(m_splitter);
 
         m_handle = new HandleItem();
-        m_handle->setPos(mX, mY + m_splitter->margin());
+        m_handle->setPos(0, this->y() + m_splitter->margin());
         m_scene->addItem(m_handle);
 
         for (const auto &note : noteList) {
-            const auto lyricCell = new LyricCell(deltaX(), mY + deltaY(), note, m_view);
+            const auto lyricCell = new LyricCell(deltaX(), this->y() + deltaY(), note, m_view);
             m_cells.append(lyricCell);
             m_scene->addItem(lyricCell);
             this->connectCell(lyricCell);
@@ -39,7 +39,7 @@ namespace FillLyric {
     }
 
     QRectF CellList::boundingRect() const {
-        return {mX + deltaX(), mY + deltaY(), m_curWidth - deltaY(), m_height};
+        return {deltaX(), deltaY(), m_curWidth - deltaX(), m_height};
     }
 
     void CellList::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -71,18 +71,14 @@ namespace FillLyric {
         return m_handle->width();
     }
 
-    qreal CellList::y() const {
-        return mY;
-    }
-
     qreal CellList::deltaY() const {
         return m_splitter->deltaY();
     }
 
     void CellList::setBaseY(const qreal &y) {
-        mY = y;
-        m_splitter->setPos(mX, mY);
-        m_handle->setPos(mX, mY + m_splitter->margin());
+        this->setPos(x(), y);
+        m_splitter->setPos(x(), y);
+        m_handle->setPos(x(), y + m_splitter->margin());
         this->updateCellPos();
     }
 
@@ -110,7 +106,7 @@ namespace FillLyric {
     }
 
     LyricCell *CellList::createNewCell() const {
-        const auto lyricCell = new LyricCell(0, mY + this->deltaY(), new LangNote(), m_view);
+        const auto lyricCell = new LyricCell(0, this->y() + deltaY(), new LangNote(), m_view);
         this->connectCell(lyricCell);
         return lyricCell;
     }
@@ -142,9 +138,12 @@ namespace FillLyric {
         for (const auto &cell : m_cells) {
             m_scene->addItem(cell);
         }
-        m_scene->addItem(m_splitter);
-        m_scene->addItem(m_handle);
-        m_scene->addItem(this);
+        if (!m_scene->items().contains(m_splitter))
+            m_scene->addItem(m_splitter);
+        if (!m_scene->items().contains(m_handle))
+            m_scene->addItem(m_handle);
+        if (!m_scene->items().contains(this))
+            m_scene->addItem(this);
     }
 
     void CellList::removeFromScene() {
@@ -207,7 +206,7 @@ namespace FillLyric {
 
     void CellList::updateCellPos() {
         qreal x = deltaX();
-        qreal y = mY + m_splitter->deltaY();
+        qreal y = this->y() + m_splitter->deltaY();
 
         for (const auto cell : m_cells) {
             const auto cellWidth = cell->width();
@@ -216,11 +215,11 @@ namespace FillLyric {
                 x = deltaX();
                 y += cell->height();
             }
-            cell->setPos(x, y + m_cellMargin);
+            cell->setPos(x, y);
             x += cellWidth;
         }
 
-        auto height = y - mY + m_splitter->margin() + m_cellMargin;
+        auto height = y - this->y() + m_splitter->margin();
         if (!m_cells.isEmpty())
             height += m_cells[0]->height();
 
@@ -233,8 +232,8 @@ namespace FillLyric {
     }
 
     void CellList::updateSplitterPos() const {
-        m_splitter->setPos(mX, mY);
-        m_handle->setPos(mX, mY + m_splitter->margin());
+        m_splitter->setPos(0, this->y());
+        m_handle->setPos(0, this->y() + m_splitter->margin());
     }
 
     void CellList::connectCell(const LyricCell *cell) const {

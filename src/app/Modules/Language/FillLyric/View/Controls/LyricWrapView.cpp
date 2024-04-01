@@ -102,8 +102,6 @@ namespace FillLyric {
             return;
         }
         QGraphicsView::mousePressEvent(event);
-        if (rubberBand.isVisible())
-            mapToList(scenePos)->setSelected(false);
     }
 
     void LyricWrapView::mouseMoveEvent(QMouseEvent *event) {
@@ -112,6 +110,10 @@ namespace FillLyric {
             QRect rect = rubberBand.geometry();
             rect = rect.normalized();
 
+            if ((event->pos() - rubberBandOrigin).manhattanLength() > 10) {
+                mapToList(rubberBandOrigin)->setSelected(false);
+            }
+
             QList<QGraphicsItem *> itemsInRect = items(rect);
             for (QGraphicsItem *item : itemsInRect) {
                 if (!dynamic_cast<CellList *>(item)) {
@@ -119,7 +121,6 @@ namespace FillLyric {
                 }
             }
         }
-        QGraphicsView::mouseMoveEvent(event);
     }
 
     void LyricWrapView::mouseReleaseEvent(QMouseEvent *event) {
@@ -135,6 +136,8 @@ namespace FillLyric {
                 }
             }
         }
+        rubberBandOrigin = QPoint();
+        rubberBand.setGeometry(QRect(rubberBandOrigin, QSize()));
         QGraphicsView::mouseReleaseEvent(event);
     }
 

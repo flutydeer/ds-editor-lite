@@ -22,7 +22,6 @@ namespace FillLyric {
 
         [[nodiscard]] qreal deltaX() const;
 
-        [[nodiscard]] qreal y() const;
         [[nodiscard]] qreal deltaY() const;
 
         void setBaseY(const qreal &y);
@@ -75,9 +74,6 @@ namespace FillLyric {
         void updateSplitterPos() const;
 
         bool m_autoWarp = false;
-
-        qreal mX;
-        qreal mY;
 
         qreal m_curWidth = 0;
         qreal m_height = 0;
