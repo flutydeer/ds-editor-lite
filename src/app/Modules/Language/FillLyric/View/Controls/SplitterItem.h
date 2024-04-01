@@ -22,7 +22,7 @@ namespace FillLyric {
         [[nodiscard]] QPen pen() const;
         void setPen(const QPen &pen);
 
-        void setMargin(qreal margin);
+        void setMargin(const qreal &margin);
         [[nodiscard]] qreal margin() const;
 
     protected:
@@ -33,7 +33,7 @@ namespace FillLyric {
                    QWidget *widget) override;
 
     private:
-        qreal mW;
+        qreal mW = 0;
 
         qreal m_lineHeight;
 

@@ -30,7 +30,6 @@ namespace FillLyric {
         [[nodiscard]] qreal cellWidth() const;
 
         [[nodiscard]] QGraphicsView *view() const;
-        [[nodiscard]] QGraphicsScene *scene() const;
 
         [[nodiscard]] LyricCell *createNewCell() const;
 
@@ -88,13 +87,13 @@ namespace FillLyric {
         HandleItem *m_handle;
 
     private Q_SLOTS:
-        void editCell(LyricCell *cell, const QString &lyric);
-        void changeSyllable(LyricCell *cell, const QString &syllable);
-        void clearCell(LyricCell *cell);
-        void deleteCell(LyricCell *cell);
-        void addPrevCell(LyricCell *cell);
-        void addNextCell(LyricCell *cell);
-        void linebreak(LyricCell *cell) const;
+        void editCell(FillLyric::LyricCell *cell, const QString &lyric);
+        void changeSyllable(FillLyric::LyricCell *cell, const QString &syllable);
+        void clearCell(FillLyric::LyricCell *cell);
+        void deleteCell(FillLyric::LyricCell *cell);
+        void addPrevCell(FillLyric::LyricCell *cell);
+        void addNextCell(FillLyric::LyricCell *cell);
+        void linebreak(FillLyric::LyricCell *cell) const;
     };
 }
 

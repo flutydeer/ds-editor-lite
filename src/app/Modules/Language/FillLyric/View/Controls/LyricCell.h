@@ -37,14 +37,14 @@ namespace FillLyric {
         void setSyllableRect(const QRect &rect);
 
     Q_SIGNALS:
-        void updateLyric(LyricCell *cell, const QString &lyric) const;
-        void changeSyllable(LyricCell *cell, const QString &syllable) const;
+        void updateLyric(FillLyric::LyricCell *cell, const QString &lyric) const;
+        void changeSyllable(FillLyric::LyricCell *cell, const QString &syllable) const;
 
-        void clearCell(LyricCell *cell) const;
-        void deleteCell(LyricCell *cell) const;
-        void addPrevCell(LyricCell *cell) const;
-        void addNextCell(LyricCell *cell) const;
-        void linebreak(LyricCell *cell) const;
+        void clearCell(FillLyric::LyricCell *cell) const;
+        void deleteCell(FillLyric::LyricCell *cell) const;
+        void addPrevCell(FillLyric::LyricCell *cell) const;
+        void addNextCell(FillLyric::LyricCell *cell) const;
+        void linebreak(FillLyric::LyricCell *cell) const;
 
         void updateWidth(const qreal &w) const;
 

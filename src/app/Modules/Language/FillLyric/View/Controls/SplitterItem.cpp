@@ -56,7 +56,7 @@ namespace FillLyric {
         }
     }
 
-    void SplitterItem::setMargin(qreal margin) {
+    void SplitterItem::setMargin(const qreal &margin) {
         if (m_margin != margin) {
             m_margin = margin;
             update();

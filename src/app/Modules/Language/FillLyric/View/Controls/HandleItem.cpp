@@ -14,7 +14,7 @@ namespace FillLyric {
 
     void HandleItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
         if (!(event->modifiers() & Qt::ControlModifier)) {
-            for (auto item : scene()->selectedItems()) {
+            for (const auto item : scene()->selectedItems()) {
                 item->setSelected(false);
             }
         }
@@ -24,7 +24,7 @@ namespace FillLyric {
 
     void HandleItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
         if (!(event->modifiers() & Qt::ControlModifier)) {
-            for (auto item : scene()->selectedItems()) {
+            for (const auto item : scene()->selectedItems()) {
                 item->setSelected(false);
             }
         }
@@ -76,7 +76,7 @@ namespace FillLyric {
         return mH;
     }
 
-    void HandleItem::setMargin(qreal margin) {
+    void HandleItem::setMargin(const qreal &margin) {
         m_margin = margin;
     }
 

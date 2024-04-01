@@ -149,7 +149,7 @@ namespace FillLyric {
 
         const auto clickPos = event->pos();
         const auto scenePos = mapToScene(clickPos).toPoint();
-        auto itemAtPos = scene()->itemAt(scenePos, QTransform());
+        const auto itemAtPos = scene()->itemAt(scenePos, QTransform());
         const auto selectedItems = scene()->selectedItems();
         QList<HandleItem *> handleItems;
 
@@ -158,12 +158,11 @@ namespace FillLyric {
             m_selectedCells.clear();
             bool enableMenu = false;
             for (const auto &item : selectedItems) {
-                const auto cell = dynamic_cast<LyricCell *>(item);
-                if (cell) {
+                if (const auto cell = dynamic_cast<LyricCell *>(item)) {
                     m_selectedCells.append(cell);
                     if (cell->lyricRect().contains(scenePos))
                         enableMenu = true;
-                } else if (auto handle = dynamic_cast<HandleItem *>(item)) {
+                } else if (const auto handle = dynamic_cast<HandleItem *>(item)) {
                     handleItems.append(handle);
                 }
             }

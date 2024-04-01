@@ -17,7 +17,7 @@ namespace FillLyric {
         [[nodiscard]] qreal height() const;
         void setHeight(const qreal &h);
 
-        void setMargin(qreal margin);
+        void setMargin(const qreal &margin);
         [[nodiscard]] qreal margin() const;
 
     Q_SIGNALS:
@@ -46,7 +46,7 @@ namespace FillLyric {
                                QPen(QColor(Qt::white), 2)};
 
         qreal mW = 16;
-        qreal mH;
+        qreal mH = 0;
 
         qreal m_margin = 3;
     };

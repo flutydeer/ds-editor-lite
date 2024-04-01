@@ -101,10 +101,6 @@ namespace FillLyric {
         return m_view;
     }
 
-    QGraphicsScene *CellList::scene() const {
-        return m_scene;
-    }
-
     LyricCell *CellList::createNewCell() const {
         const auto lyricCell = new LyricCell(0, this->y() + deltaY(), new LangNote(), m_view);
         this->connectCell(lyricCell);
