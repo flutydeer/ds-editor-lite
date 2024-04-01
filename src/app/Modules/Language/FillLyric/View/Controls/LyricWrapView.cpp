@@ -2,7 +2,7 @@
 
 #include <QMenu>
 #include <QScrollBar>
-#include <QWheelEvent>
+#include <QMouseEvent>
 
 #include <LangMgr/ILanguageManager.h>
 
@@ -70,7 +70,14 @@ namespace FillLyric {
     void LyricWrapView::mousePressEvent(QMouseEvent *event) {
         const auto selectedItems = scene()->selectedItems();
         const auto scenePos = mapToScene(event->pos()).toPoint();
-        auto itemAtPos = scene()->itemAt(scenePos, QTransform());
+        const auto itemAtPos = scene()->itemAt(scenePos, QTransform());
+
+        if (event->button() == Qt::LeftButton) {
+            rubberBandOrigin = event->pos();
+            rubberBand.setGeometry(QRect(rubberBandOrigin, QSize()));
+            rubberBand.show();
+        }
+
         if (event->button() == Qt::RightButton) {
             if (!dynamic_cast<HandleItem *>(itemAtPos)) {
                 if (!itemAtPos && !selectedItems.isEmpty())
@@ -95,6 +102,40 @@ namespace FillLyric {
             return;
         }
         QGraphicsView::mousePressEvent(event);
+        if (rubberBand.isVisible())
+            mapToList(scenePos)->setSelected(false);
+    }
+
+    void LyricWrapView::mouseMoveEvent(QMouseEvent *event) {
+        if (event->buttons() & Qt::LeftButton) {
+            rubberBand.setGeometry(QRect(rubberBandOrigin, event->pos()).normalized());
+            QRect rect = rubberBand.geometry();
+            rect = rect.normalized();
+
+            QList<QGraphicsItem *> itemsInRect = items(rect);
+            for (QGraphicsItem *item : itemsInRect) {
+                if (!dynamic_cast<CellList *>(item)) {
+                    item->setSelected(true);
+                }
+            }
+        }
+        QGraphicsView::mouseMoveEvent(event);
+    }
+
+    void LyricWrapView::mouseReleaseEvent(QMouseEvent *event) {
+        if (event->button() == Qt::LeftButton) {
+            rubberBand.hide();
+            QRect rect = rubberBand.geometry();
+            rect = rect.normalized();
+
+            QList<QGraphicsItem *> itemsInRect = items(rect);
+            for (QGraphicsItem *item : itemsInRect) {
+                if (!dynamic_cast<CellList *>(item)) {
+                    item->setSelected(true);
+                }
+            }
+        }
+        QGraphicsView::mouseReleaseEvent(event);
     }
 
     void LyricWrapView::contextMenuEvent(QContextMenuEvent *event) {

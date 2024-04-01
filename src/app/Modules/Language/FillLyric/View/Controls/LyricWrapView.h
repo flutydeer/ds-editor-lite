@@ -3,6 +3,7 @@
 
 #include <QGraphicsView>
 #include <QGraphicsScene>
+#include <QRubberBand>
 
 #include "LyricCell.h"
 #include "CellList.h"
@@ -41,6 +42,8 @@ namespace FillLyric {
         void resizeEvent(QResizeEvent *event) override;
         void wheelEvent(QWheelEvent *event) override;
         void mousePressEvent(QMouseEvent *event) override;
+        void mouseMoveEvent(QMouseEvent *event) override;
+        void mouseReleaseEvent(QMouseEvent *event) override;
         void contextMenuEvent(QContextMenuEvent *event) override;
 
     private:
@@ -58,6 +61,9 @@ namespace FillLyric {
         QList<CellList *> m_cellLists;
 
         QList<LyricCell *> m_selectedCells{};
+
+        QPoint rubberBandOrigin;
+        QRubberBand rubberBand{QRubberBand::Rectangle, this};
 
     private Q_SLOTS:
         void updateRect();
