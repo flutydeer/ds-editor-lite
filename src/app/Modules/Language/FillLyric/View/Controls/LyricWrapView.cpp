@@ -73,6 +73,9 @@ namespace FillLyric {
         const auto itemAtPos = scene()->itemAt(scenePos, QTransform());
 
         if (event->button() == Qt::LeftButton) {
+            if (const auto cellList = mapToList(scenePos)) {
+                cellList->setSelected(false);
+            }
             rubberBandOrigin = event->pos();
             rubberBand.setGeometry(QRect(rubberBandOrigin, QSize()));
             rubberBand.show();
@@ -107,20 +110,26 @@ namespace FillLyric {
 
     void LyricWrapView::mouseMoveEvent(QMouseEvent *event) {
         if (event->buttons() & Qt::LeftButton) {
-            rubberBand.setGeometry(QRect(rubberBandOrigin, event->pos()).normalized());
-            QRect rect = rubberBand.geometry();
-            rect = rect.normalized();
+            if (rubberBand.isVisible()) {
+                rubberBand.setGeometry(QRect(rubberBandOrigin, event->pos()).normalized());
+                QRect rect = rubberBand.geometry();
+                rect = rect.normalized();
 
-            if ((event->pos() - rubberBandOrigin).manhattanLength() > 10) {
-                if (const auto cellList = mapToList(rubberBandOrigin))
-                    cellList->setSelected(false);
-            }
-
-            QList<QGraphicsItem *> itemsInRect = items(rect);
-            for (QGraphicsItem *item : itemsInRect) {
-                if (!dynamic_cast<CellList *>(item)) {
-                    item->setSelected(true);
+                if ((event->pos() - rubberBandOrigin).manhattanLength() > 10) {
+                    if (const auto cellList = mapToList(rubberBandOrigin))
+                        cellList->setSelected(false);
                 }
+
+                QList<QGraphicsItem *> itemsInRect = items(rect);
+                for (QGraphicsItem *item : itemsInRect) {
+                    if (dynamic_cast<LyricCell *>(item)) {
+                        item->setSelected(true);
+                    }
+                }
+            } else {
+                rubberBandOrigin = event->pos();
+                rubberBand.setGeometry(QRect(rubberBandOrigin, QSize()));
+                rubberBand.show();
             }
         }
     }
@@ -133,7 +142,7 @@ namespace FillLyric {
 
             QList<QGraphicsItem *> itemsInRect = items(rect);
             for (QGraphicsItem *item : itemsInRect) {
-                if (!dynamic_cast<CellList *>(item)) {
+                if (dynamic_cast<LyricCell *>(item)) {
                     item->setSelected(true);
                 }
             }
