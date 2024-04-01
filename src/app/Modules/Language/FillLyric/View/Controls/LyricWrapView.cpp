@@ -113,7 +113,7 @@ namespace FillLyric {
 
             if ((event->pos() - rubberBandOrigin).manhattanLength() > 10) {
                 if (const auto cellList = mapToList(rubberBandOrigin))
-                    cellList->setSelected(true);
+                    cellList->setSelected(false);
             }
 
             QList<QGraphicsItem *> itemsInRect = items(rect);
