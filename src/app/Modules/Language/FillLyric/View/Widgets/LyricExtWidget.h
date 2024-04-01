@@ -11,7 +11,6 @@
 
 #include "UI/Controls/Button.h"
 #include "UI/Controls/SwitchButton.h"
-#include "UI/Controls/OptionsCardItem.h"
 
 namespace FillLyric {
 
@@ -53,7 +52,7 @@ namespace FillLyric {
         QLabel *noteCountLabel;
 
         Button *btnFoldLeft;
-        OptionsCardItem *autoWrapItem;
+        QLabel *autoWrapLabel;
         SwitchButton *autoWrap;
         QPushButton *btnUndo;
         QPushButton *btnRedo;

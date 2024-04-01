@@ -5,17 +5,19 @@
 namespace FillLyric {
     LyricExtWidget::LyricExtWidget(int *notesCount, QWidget *parent)
         : QWidget(parent), notesCount(notesCount) {
+        this->setContentsMargins(0, 0, 0, 0);
 
         // phonicWidget
         m_wrapView = new LyricWrapView();
+        m_wrapView->setContentsMargins(0, 0, 0, 0);
 
         // tableTop layout
         m_tableTopLayout = new QHBoxLayout();
+        m_tableTopLayout->setContentsMargins(0, 0, 0, 0);
         btnFoldLeft = new Button(tr("Fold Left"));
-        autoWrapItem = new OptionsCardItem();
-        autoWrapItem->setTitle(tr("Auto Wrap"));
+
+        autoWrapLabel = new QLabel(tr("Auto Wrap"));
         autoWrap = new SwitchButton();
-        autoWrapItem->addWidget(autoWrap);
 
         btnUndo = new QPushButton();
         btnUndo->setShortcut(QKeySequence("Ctrl+Z"));
@@ -41,7 +43,8 @@ namespace FillLyric {
         m_tableTopLayout->addWidget(btnRedo);
         m_tableTopLayout->addWidget(m_btnInsertText);
         m_tableTopLayout->addStretch(1);
-        m_tableTopLayout->addWidget(autoWrapItem);
+        m_tableTopLayout->addWidget(autoWrapLabel);
+        m_tableTopLayout->addWidget(autoWrap);
         m_tableTopLayout->addWidget(btnTableConfig);
 
         m_tableCountLayout = new QHBoxLayout();
@@ -67,6 +70,7 @@ namespace FillLyric {
         // export option layout
         m_epOptWidget = new QWidget();
         m_epOptLayout = new QVBoxLayout();
+        m_epOptLayout->setContentsMargins(0, 0, 0, 0);
         exportSkipSlur = new QCheckBox(tr("Skipping Slur"));
         exportLanguage = new QCheckBox(tr("Automatically mark languages"));
 
@@ -74,7 +78,6 @@ namespace FillLyric {
         m_epOptLayout->addWidget(exportLanguage);
         m_epOptLayout->addStretch(1);
 
-        m_epOptWidget = new QWidget();
         m_epOptWidget->setVisible(false);
         m_epOptWidget->setContentsMargins(0, 0, 0, 0);
         m_epOptWidget->setLayout(m_epOptLayout);

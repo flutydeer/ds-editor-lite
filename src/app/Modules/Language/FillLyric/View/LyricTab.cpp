@@ -19,6 +19,7 @@ namespace FillLyric {
 
         // lyric layout
         m_lyricLayout = new QHBoxLayout();
+        m_lyricLayout->setContentsMargins(0, 0, 0, 0);
         m_lyricLayout->addWidget(m_lyricBaseWidget, 1);
         m_lyricLayout->addWidget(m_lyricExtWidget, 2);
 

@@ -332,8 +332,9 @@ namespace FillLyric {
     }
 
     void LyricWrapView::updateRect() {
+        const auto width = scene()->itemsBoundingRect().width();
         for (const auto &m_cellList : m_cellLists) {
-            m_cellList->updateSplitter(scene()->itemsBoundingRect().width());
+            m_cellList->updateSplitter(width);
         }
         this->setSceneRect(scene()->itemsBoundingRect());
         this->update();

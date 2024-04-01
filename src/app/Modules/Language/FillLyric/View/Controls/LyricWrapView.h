@@ -47,6 +47,7 @@ namespace FillLyric {
         void connectCellList(CellList *cellList);
         [[nodiscard]] qreal cellBaseY(const int &index) const;
         void deleteCells(const QList<QGraphicsItem *> &items);
+        void cancelHighlights();
 
         bool m_autoWrap = false;
 
