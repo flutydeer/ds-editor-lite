@@ -19,6 +19,9 @@ namespace FillLyric {
         m_font = this->font();
         m_scene = new QGraphicsScene(parent);
 
+        m_endSplitter = new SplitterItem(0, 0, this->width(), 1);
+        m_scene->addItem(m_endSplitter);
+
         this->setScene(m_scene);
         this->setDragMode(RubberBandDrag);
 
@@ -38,7 +41,7 @@ namespace FillLyric {
         // notesCount
         connect(m_scene, &QGraphicsScene::changed, [this] {
             Q_EMIT noteCountChanged(
-                static_cast<int>(m_scene->items().size() - m_cellLists.size() * 3));
+                static_cast<int>(m_scene->items().size() - m_cellLists.size() * 3 - 1));
         });
     }
 
@@ -348,12 +351,17 @@ namespace FillLyric {
                 m_cellList->setWidth(maxWidth);
             height += m_cellList->height();
         }
+        m_endSplitter->setPos(0, height);
+        height += m_endSplitter->height();
 
         for (const auto &m_cellList : m_cellLists) {
-            if (m_autoWrap)
+            if (m_autoWrap) {
                 m_cellList->updateSplitter(width);
-            else
+                m_endSplitter->setWidth(width);
+            } else {
                 m_cellList->updateSplitter(maxWidth);
+                m_endSplitter->setWidth(maxWidth);
+            }
         }
 
         if (m_autoWrap)
@@ -377,6 +385,7 @@ namespace FillLyric {
         for (const auto &m_cellList : m_cellLists) {
             height += m_cellList->height();
         }
+        height += m_endSplitter->height();
         return height;
     }
 
@@ -418,11 +427,15 @@ namespace FillLyric {
         const auto width = this->width() - this->verticalScrollBar()->width();
         const auto maxWidth = this->maxListWidth();
         for (const auto &m_cellList : m_cellLists) {
-            if (m_autoWrap)
+            if (m_autoWrap) {
                 m_cellList->updateSplitter(width);
-            else
+                m_endSplitter->setWidth(width);
+            } else {
                 m_cellList->updateSplitter(maxWidth);
+                m_endSplitter->setWidth(maxWidth);
+            }
         }
+        m_endSplitter->setPos(0, this->height() - m_endSplitter->height());
 
         if (m_autoWrap)
             this->setSceneRect(QRectF(0, 0, width, this->height()));

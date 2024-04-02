@@ -57,9 +57,9 @@ namespace FillLyric {
         QFont m_font;
         QUndoStack *m_history = new QUndoStack();
         QGraphicsScene *m_scene;
+        SplitterItem *m_endSplitter;
 
         QList<CellList *> m_cellLists;
-
         QList<LyricCell *> m_selectedCells{};
 
         QPoint rubberBandOrigin;
