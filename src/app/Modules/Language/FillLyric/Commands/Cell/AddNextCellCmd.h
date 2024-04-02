@@ -14,7 +14,7 @@ namespace FillLyric {
 
     private:
         CellList *m_list;
-        qlonglong m_index;
+        int m_index;
         LyricCell *m_newCell;
     };
 } // FillLyric

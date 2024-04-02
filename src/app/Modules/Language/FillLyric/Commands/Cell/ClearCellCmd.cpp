@@ -10,13 +10,11 @@ namespace FillLyric {
     void ClearCellCmd::undo() {
         m_list->insertCell(m_index, m_cell);
         m_list->removeCell(m_newCell);
-        m_list->scene()->addItem(m_cell);
-        m_list->scene()->removeItem(m_newCell);
         m_list->updateCellPos();
     }
 
     void ClearCellCmd::redo() {
-        m_list->m_cells.insert(m_index, m_newCell);
+        m_list->insertCell(m_index, m_newCell);
         m_list->removeCell(m_cell);
         m_list->updateCellPos();
     }

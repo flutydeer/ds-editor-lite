@@ -5,10 +5,7 @@ namespace FillLyric {
         : QUndoCommand(parent), m_view(view), m_newList(cellList) {
         m_index = static_cast<int>(m_view->cellLists().indexOf(cellList));
         m_newList = m_view->createNewList();
-
-        for (const auto &cell : m_newList->m_cells) {
-            m_newList->scene()->removeItem(cell);
-        }
+        m_newList->removeFromScene();
     }
 
     void AddPrevLineCmd::undo() {

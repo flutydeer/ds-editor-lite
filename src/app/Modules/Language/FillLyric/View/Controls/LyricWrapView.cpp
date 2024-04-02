@@ -51,6 +51,41 @@ namespace FillLyric {
 
     LyricWrapView::~LyricWrapView() = default;
 
+    void LyricWrapView::keyPressEvent(QKeyEvent *event) {
+        if (event->key() == Qt::Key_Delete) {
+            QList<LyricCell *> selectedCells;
+            for (const auto &item : scene()->selectedItems()) {
+                if (const auto cell = dynamic_cast<LyricCell *>(item)) {
+                    selectedCells.append(cell);
+                }
+            }
+            if (!selectedCells.isEmpty())
+                m_history->push(new ClearCellsCmd(this, selectedCells));
+            event->accept();
+            return;
+        }
+        if (event->key() == Qt::Key_Up || event->key() == Qt::Key_Down) {
+            const auto selectedItems = scene()->selectedItems();
+            QSet<CellList *> listSet;
+            for (const auto item : selectedItems) {
+                if (const auto handle = dynamic_cast<HandleItem *>(item)) {
+                    listSet.insert(dynamic_cast<CellList *>(handle->parentItem()));
+                } else if (const auto cellList = dynamic_cast<CellList *>(item)) {
+                    listSet.insert(cellList);
+                }
+            }
+            if (!listSet.isEmpty()) {
+                if (event->key() == Qt::Key_Up && !listSet.contains(m_cellLists.first()))
+                    m_history->push(new MoveUpLinesCmd(this, QList(listSet.values())));
+                else if (event->key() == Qt::Key_Down && !listSet.contains(m_cellLists.last()))
+                    m_history->push(new MoveDownLinesCmd(this, QList(listSet.values())));
+            }
+            event->accept();
+            return;
+        }
+        QGraphicsView::keyPressEvent(event);
+    }
+
     void LyricWrapView::resizeEvent(QResizeEvent *event) {
         QGraphicsView::resizeEvent(event);
         repaintCellLists();

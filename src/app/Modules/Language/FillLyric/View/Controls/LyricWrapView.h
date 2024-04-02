@@ -42,6 +42,7 @@ namespace FillLyric {
         void noteCountChanged(const int &count);
 
     protected:
+        void keyPressEvent(QKeyEvent *event) override;
         void resizeEvent(QResizeEvent *event) override;
         void wheelEvent(QWheelEvent *event) override;
         void mousePressEvent(QMouseEvent *event) override;
