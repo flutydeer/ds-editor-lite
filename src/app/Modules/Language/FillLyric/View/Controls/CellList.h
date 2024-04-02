@@ -70,8 +70,6 @@ namespace FillLyric {
                    QWidget *widget) override;
 
     private:
-        void updateSplitterPos() const;
-
         bool m_autoWarp = false;
 
         qreal m_curWidth = 0;

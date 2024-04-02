@@ -20,12 +20,10 @@ namespace FillLyric {
         this->setZValue(-1);
         setFlag(ItemIsSelectable);
 
-        m_splitter = new SplitterItem(0, this->y(), m_curWidth, 1);
-        m_scene->addItem(m_splitter);
+        m_splitter = new SplitterItem(0, 0, m_curWidth, 1, this);
 
-        m_handle = new HandleItem();
-        m_handle->setPos(0, this->y() + m_splitter->margin());
-        m_scene->addItem(m_handle);
+        m_handle = new HandleItem(this);
+        m_handle->setPos(0, m_splitter->margin());
 
         for (const auto &note : noteList) {
             const auto lyricCell = new LyricCell(deltaX(), this->y() + deltaY(), note, m_view);
@@ -77,8 +75,6 @@ namespace FillLyric {
 
     void CellList::setBaseY(const qreal &y) {
         this->setPos(x(), y);
-        m_splitter->setPos(x(), y);
-        m_handle->setPos(x(), y + m_splitter->margin());
         this->updateCellPos();
     }
 
@@ -134,10 +130,12 @@ namespace FillLyric {
         for (const auto &cell : m_cells) {
             m_scene->addItem(cell);
         }
-        if (!m_scene->items().contains(m_splitter))
-            m_scene->addItem(m_splitter);
-        if (!m_scene->items().contains(m_handle))
-            m_scene->addItem(m_handle);
+        if (!m_scene->items().contains(m_splitter)) {
+            m_splitter->setParentItem(this);
+        }
+        if (!m_scene->items().contains(m_handle)) {
+            m_handle->setParentItem(this);
+        }
         if (!m_scene->items().contains(this))
             m_scene->addItem(this);
     }
@@ -155,7 +153,6 @@ namespace FillLyric {
         m_curWidth = width;
         m_splitter->setWidth(width);
         this->updateCellPos();
-        this->updateSplitterPos();
     }
 
     void CellList::updateSplitter(const qreal &width) {
@@ -225,11 +222,6 @@ namespace FillLyric {
             Q_EMIT this->heightChanged();
         }
         Q_EMIT this->cellPosChanged();
-    }
-
-    void CellList::updateSplitterPos() const {
-        m_splitter->setPos(0, this->y());
-        m_handle->setPos(0, this->y() + m_splitter->margin());
     }
 
     void CellList::connectCell(const LyricCell *cell) const {

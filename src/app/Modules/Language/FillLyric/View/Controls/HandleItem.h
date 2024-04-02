@@ -8,7 +8,7 @@ namespace FillLyric {
     class HandleItem final : public QObject, public QGraphicsRectItem {
         Q_OBJECT
     public:
-        explicit HandleItem(QGraphicsRectItem *parent = nullptr);
+        explicit HandleItem(QGraphicsItem *parent = nullptr);
         ~HandleItem() override;
 
         [[nodiscard]] qreal width() const;

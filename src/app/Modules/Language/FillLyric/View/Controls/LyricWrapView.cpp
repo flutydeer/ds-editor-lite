@@ -12,7 +12,9 @@
 #include "../../Commands/Line/AddPrevLineCmd.h"
 #include "../../Commands/Line/AddNextLineCmd.h"
 
+#include "../../Commands/View/ClearCellsCmd.h"
 #include "../../Commands/View/DeleteCellsCmd.h"
+#include "../../Commands/View/DeleteLinesCmd.h"
 
 namespace FillLyric {
     LyricWrapView::LyricWrapView(QWidget *parent) {
@@ -99,9 +101,6 @@ namespace FillLyric {
                     itemAtPos->setSelected(true);
                 }
             } else {
-                for (const auto &item : selectedItems) {
-                    item->setSelected(false);
-                }
                 itemAtPos->setSelected(true);
                 if (const auto cellList = mapToList(scenePos))
                     cellList->selectList();
@@ -182,9 +181,8 @@ namespace FillLyric {
             }
 
             if ((enableMenu && !m_selectedCells.isEmpty())) {
-                menu->addAction("clear cells(没做)", [=] {
-                    // TODO: clear cells
-                });
+                menu->addAction("clear cells",
+                                [=] { m_history->push(new ClearCellsCmd(this, m_selectedCells)); });
                 menu->addAction("delete cells", [=] {
                     m_history->push(new DeleteCellsCmd(this, m_selectedCells));
                 });
@@ -197,9 +195,20 @@ namespace FillLyric {
 
         // selected handles
         if (dynamic_cast<HandleItem *>(itemAtPos) && handleItems.size() > 1) {
+            QSet<CellList *> selectedSet;
+            if (const auto cellList = mapToList(scenePos)) {
+                selectedSet.insert(cellList);
+            }
+
+            for (const auto &handle : handleItems) {
+                const auto cellList = dynamic_cast<CellList *>(handle->parentItem());
+                if (cellList != nullptr) {
+                    selectedSet.insert(cellList);
+                }
+            }
             menu->addSeparator();
-            menu->addAction("delete lines(没做)", [=] {
-                // TODO: delete lines
+            menu->addAction("delete lines", [=] {
+                m_history->push(new DeleteLinesCmd(this, QList(selectedSet.values())));
             });
             menu->addAction("move up(没做)", [=] {
                 // TODO: move up

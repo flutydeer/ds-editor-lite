@@ -5,7 +5,7 @@
 #include <QGraphicsSceneMouseEvent>
 
 namespace FillLyric {
-    HandleItem::HandleItem(QGraphicsRectItem *parent) : QGraphicsRectItem(parent) {
+    HandleItem::HandleItem(QGraphicsItem *parent) : QGraphicsRectItem(parent) {
         setFlag(ItemIsSelectable);
         this->setAcceptHoverEvents(true);
     }
