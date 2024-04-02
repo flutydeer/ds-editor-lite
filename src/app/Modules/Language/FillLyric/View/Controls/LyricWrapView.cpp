@@ -15,6 +15,8 @@
 #include "../../Commands/View/ClearCellsCmd.h"
 #include "../../Commands/View/DeleteCellsCmd.h"
 #include "../../Commands/View/DeleteLinesCmd.h"
+#include "../../Commands/View/MoveUpLinesCmd.h"
+#include "../../Commands/View/MoveDownLinesCmd.h"
 
 namespace FillLyric {
     LyricWrapView::LyricWrapView(QWidget *parent) {
@@ -101,6 +103,11 @@ namespace FillLyric {
                     itemAtPos->setSelected(true);
                 }
             } else {
+                if (itemAtPos->isSelected())
+                    return;
+                for (const auto &item : selectedItems) {
+                    item->setSelected(false);
+                }
                 itemAtPos->setSelected(true);
                 if (const auto cellList = mapToList(scenePos))
                     cellList->selectList();
@@ -210,12 +217,16 @@ namespace FillLyric {
             menu->addAction("delete lines", [=] {
                 m_history->push(new DeleteLinesCmd(this, QList(selectedSet.values())));
             });
-            menu->addAction("move up(没做)", [=] {
-                // TODO: move up
+            menu->addAction("move up", [=] {
+                m_history->push(new MoveUpLinesCmd(this, QList(selectedSet.values())));
             });
-            menu->addAction("move down(没做)", [=] {
-                // TODO: move down
+            menu->addAction("move down", [=] {
+                m_history->push(new MoveDownLinesCmd(this, QList(selectedSet.values())));
             });
+            if (selectedSet.contains(m_cellLists.first()))
+                menu->actions().at(2)->setEnabled(false);
+            if (selectedSet.contains(m_cellLists.last()))
+                menu->actions().at(3)->setEnabled(false);
             menu->exec(mapToGlobal(clickPos));
             event->accept();
             delete menu;
@@ -239,12 +250,16 @@ namespace FillLyric {
                     m_history->push(new AddNextLineCmd(this, cellList));
                 });
                 menu->addSeparator();
-                menu->addAction("move up(没做)", [=] {
-                    // TODO: move up
+                menu->addAction("move up", [this, cellList] {
+                    m_history->push(new MoveUpLinesCmd(this, {cellList}));
                 });
-                menu->addAction("move down(没做)", [=] {
-                    // TODO: move down
+                menu->addAction("move down", [this, cellList] {
+                    m_history->push(new MoveDownLinesCmd(this, {cellList}));
                 });
+                if (cellList == m_cellLists.first())
+                    menu->actions().at(6)->setEnabled(false);
+                if (cellList == m_cellLists.last())
+                    menu->actions().at(7)->setEnabled(false);
                 menu->exec(mapToGlobal(clickPos));
             }
             event->accept();
@@ -293,6 +308,22 @@ namespace FillLyric {
         cellList->setWidth(width);
         m_cellLists.append(cellList);
         this->connectCellList(cellList);
+    }
+
+    void LyricWrapView::moveUpLists(const QList<CellList *> &cellLists) {
+        for (auto cellList : cellLists) {
+            const qlonglong i = m_cellLists.indexOf(cellList);
+            if (i >= 1)
+                qSwap(m_cellLists[i], m_cellLists[i - 1]);
+        }
+    }
+
+    void LyricWrapView::moveDownLists(QList<CellList *> cellLists) {
+        for (auto it = cellLists.rbegin(); it != cellLists.rend(); ++it) {
+            const qlonglong i = m_cellLists.indexOf(*it);
+            if (i < m_cellLists.size() - 1)
+                qSwap(m_cellLists[i], m_cellLists[i + 1]);
+        }
     }
 
     QUndoStack *LyricWrapView::history() const {

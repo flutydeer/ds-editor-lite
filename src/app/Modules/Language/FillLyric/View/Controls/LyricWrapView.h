@@ -28,6 +28,9 @@ namespace FillLyric {
         void removeList(CellList *cellList);
         void appendList(const QList<LangNote *> &noteList);
 
+        void moveUpLists(const QList<CellList *>& cellLists);
+        void moveDownLists(QList<CellList *> cellLists);
+
         CellList *mapToList(const QPoint &pos);
         void repaintCellLists();
 
