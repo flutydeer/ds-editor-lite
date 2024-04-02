@@ -296,10 +296,6 @@ QAbstractSpinBox:focus {
     border-bottom: 2px solid #9BBAFF;
 }
 
-QGraphicsView {
-    border: none;
-}
-
 QLabel {
     color: #F0F0F0;
 }
@@ -508,6 +504,10 @@ QGraphicsView#TracksGraphicsView {
 
 QGraphicsView#PianoRollGraphicsView {
     background: transparent;
+}
+
+QGraphicsView#LyricWrapView {
+    background: #202122;
 }
 
 DialogButtonBar {

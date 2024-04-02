@@ -20,6 +20,8 @@
 
 namespace FillLyric {
     LyricWrapView::LyricWrapView(QWidget *parent) {
+        this->setObjectName("LyricWrapView");
+
         m_font = this->font();
         m_scene = new QGraphicsScene(parent);
 
@@ -29,14 +31,9 @@ namespace FillLyric {
         this->setScene(m_scene);
         this->setDragMode(RubberBandDrag);
 
-        if (m_autoWrap) {
-            this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        } else {
-            this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        }
+        this->setHorizontalScrollBarPolicy(m_autoWrap ? Qt::ScrollBarAlwaysOff
+                                                      : Qt::ScrollBarAsNeeded);
         this->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
-
-        this->setBackgroundBrush(QColor(35, 36, 37));
 
         setAlignment(Qt::AlignLeft | Qt::AlignTop);
         setRenderHint(QPainter::Antialiasing, true);
@@ -416,33 +413,22 @@ namespace FillLyric {
 
     void LyricWrapView::repaintCellLists() {
         qreal height = 0;
-        const auto width = this->width() - this->verticalScrollBar()->width();
-        const auto maxWidth = this->maxListWidth();
+        const auto width =
+            m_autoWrap ? this->width() - this->verticalScrollBar()->width() : this->maxListWidth();
         for (const auto &m_cellList : m_cellLists) {
             m_cellList->setBaseY(height);
-            if (m_autoWrap)
-                m_cellList->setWidth(width);
-            else
-                m_cellList->setWidth(maxWidth);
+            m_cellList->setWidth(width);
             height += m_cellList->height();
         }
         m_endSplitter->setPos(0, height);
         height += m_endSplitter->height();
 
         for (const auto &m_cellList : m_cellLists) {
-            if (m_autoWrap) {
-                m_cellList->updateSplitter(width);
-                m_endSplitter->setWidth(width);
-            } else {
-                m_cellList->updateSplitter(maxWidth);
-                m_endSplitter->setWidth(maxWidth);
-            }
+            m_cellList->updateSplitter(width);
+            m_endSplitter->setWidth(width);
         }
 
-        if (m_autoWrap)
-            this->setSceneRect(QRectF(0, 0, width, height));
-        else
-            this->setSceneRect(QRectF(0, 0, maxWidth, height));
+        this->setSceneRect(QRectF(0, 0, width, height));
         this->update();
     }
 
@@ -499,23 +485,14 @@ namespace FillLyric {
     }
 
     void LyricWrapView::updateRect() {
-        const auto width = this->width() - this->verticalScrollBar()->width();
-        const auto maxWidth = this->maxListWidth();
+        const auto width =
+            m_autoWrap ? this->width() - this->verticalScrollBar()->width() : this->maxListWidth();
         for (const auto &m_cellList : m_cellLists) {
-            if (m_autoWrap) {
-                m_cellList->updateSplitter(width);
-                m_endSplitter->setWidth(width);
-            } else {
-                m_cellList->updateSplitter(maxWidth);
-                m_endSplitter->setWidth(maxWidth);
-            }
+            m_cellList->updateSplitter(width);
+            m_endSplitter->setWidth(width);
         }
         m_endSplitter->setPos(0, this->height() - m_endSplitter->height());
-
-        if (m_autoWrap)
-            this->setSceneRect(QRectF(0, 0, width, this->height()));
-        else
-            this->setSceneRect(QRectF(0, 0, maxWidth, this->height()));
+        this->setSceneRect(QRectF(0, 0, width, this->height()));
         this->update();
     }
 }
