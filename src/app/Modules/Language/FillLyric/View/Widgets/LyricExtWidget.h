@@ -56,7 +56,6 @@ namespace FillLyric {
         QPushButton *btnUndo;
         QPushButton *btnRedo;
         Button *m_btnInsertText;
-        QPushButton *btnTableConfig;
 
         QLabel *exportOptLabel;
         QPushButton *exportOptButton;

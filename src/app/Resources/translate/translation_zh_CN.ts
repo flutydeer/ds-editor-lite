@@ -612,18 +612,6 @@
         <translation>读取文件时的缓冲区大小</translation>
     </message>
     <message>
-        <source>OK</source>
-        <translation type="vanished">确定</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation type="vanished">取消</translation>
-    </message>
-    <message>
-        <source>Apply</source>
-        <translation type="vanished">应用</translation>
-    </message>
-    <message>
         <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="149"/>
         <source>These options are disabled in plugged mode.</source>
         <translation>这些选项在插入模式下被禁用。</translation>
@@ -695,7 +683,7 @@
     <message>
         <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="16"/>
         <source>Reread Note</source>
-        <translation>重读音符</translation>
+        <translation>重新加载音符</translation>
     </message>
     <message>
         <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="17"/>
@@ -738,266 +726,181 @@
         <translation>自定义</translation>
     </message>
     <message>
-        <source>By Reg</source>
-        <translation type="vanished">正则</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="71"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="72"/>
         <source>Skip Slur Note</source>
         <translation>跳过延音符</translation>
     </message>
     <message>
-        <source>Exclude Space</source>
-        <translation type="vanished">去除空格</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="114"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="121"/>
         <source>Note Count: %1</source>
         <translation>字符数：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="119"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="126"/>
         <source>Open Lrc File</source>
         <translation>打开Lrc文件</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="119"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="126"/>
         <source>Lrc Files (*.lrc)</source>
         <translation>Lrc文件(*.lrc)</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="126"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="133"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="126"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="133"/>
         <source>Failed to decode lrc file.</source>
         <translation>解析Lrc文件失败。</translation>
     </message>
 </context>
 <context>
-    <name>FillLyric::LyricDialog</name>
+    <name>FillLyric::LyricCell</name>
     <message>
-        <source>Fill Lyric</source>
-        <translation type="vanished">填入歌词</translation>
-    </message>
-    <message>
-        <source>OK</source>
-        <translation type="vanished">确定</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation type="vanished">取消</translation>
-    </message>
-    <message>
-        <source>Lyric</source>
-        <translation type="vanished">歌词</translation>
-    </message>
-    <message>
-        <source>Advanced</source>
-        <translation type="vanished">预设</translation>
-    </message>
-    <message>
-        <source>Help</source>
-        <translation type="vanished">帮助</translation>
-    </message>
-</context>
-<context>
-    <name>FillLyric::LyricExtWidget</name>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="16"/>
-        <source>Fold Left</source>
-        <translation>收起左侧</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="17"/>
-        <source>Toggle Fermata</source>
-        <translation>收放延音符</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="18"/>
-        <source>Auto Wrap</source>
-        <translation>自动换行</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="33"/>
-        <source>Test</source>
-        <translation>测试</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="54"/>
-        <source>Export Option:</source>
-        <translation>导出选项：</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="66"/>
-        <source>Skipping Slur</source>
-        <translation>忽略延音符</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="67"/>
-        <source>Ignoring end of sentence spaces</source>
-        <translation>忽略句末空格</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="68"/>
-        <source>Automatically mark languages</source>
-        <translation>自动标记语种</translation>
-    </message>
-</context>
-<context>
-    <name>FillLyric::LyricOptWidget</name>
-    <message>
-        <source>Test</source>
-        <translation type="vanished">测试</translation>
-    </message>
-    <message>
-        <source>Split Mode :</source>
-        <translation type="vanished">分词模式：</translation>
-    </message>
-    <message>
-        <source>Auto</source>
-        <translation type="vanished">自动</translation>
-    </message>
-    <message>
-        <source>By Char</source>
-        <translation type="vanished">按字符</translation>
-    </message>
-    <message>
-        <source>Custom</source>
-        <translation type="vanished">自定义</translation>
-    </message>
-    <message>
-        <source>Custom delimiter, input with space intervals.</source>
-        <translation type="vanished">自定义分隔符，以空格分隔。</translation>
-    </message>
-    <message>
-        <source>By Reg</source>
-        <translation type="vanished">正则</translation>
-    </message>
-    <message>
-        <source>Setting</source>
-        <translation type="vanished">设置</translation>
-    </message>
-    <message>
-        <source>Custom delimiter, input with space intervals. If you want to use spaces as separators, please check the checkbox above.</source>
-        <translation type="vanished">自定义分隔符、以空格隔开；如需使用空格分割，选中以上多选框。</translation>
-    </message>
-</context>
-<context>
-    <name>FillLyric::LyricTab</name>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="42"/>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="73"/>
-        <source>Lyric Prev</source>
-        <translation>预览歌词</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="42"/>
-        <source>Fold Preview</source>
-        <translation>收起预览</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="57"/>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="68"/>
-        <source>Expand Left</source>
-        <translation>展开左侧</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="57"/>
-        <source>Fold Left</source>
-        <translation>收起左侧</translation>
-    </message>
-    <message>
-        <source>Exclude Space</source>
-        <translation type="vanished">去除空格</translation>
-    </message>
-    <message>
-        <source>Split By Space</source>
-        <translation type="vanished">按空格分隔</translation>
-    </message>
-</context>
-<context>
-    <name>FillLyric::PhonicTableView</name>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="332"/>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="339"/>
-        <source>Clear Cell</source>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="118"/>
+        <source>clear cell</source>
         <translation>清空单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="338"/>
-        <source>Insert New Cell</source>
-        <translation>插入新单元格</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="341"/>
-        <source>Merge Cell To Left</source>
-        <translation>合并到左侧单元格</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="344"/>
-        <source>Remove Cell</source>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="120"/>
+        <source>delete cell</source>
         <translation>删除单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="349"/>
-        <source>LineBreak</source>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="121"/>
+        <source>add prev cell</source>
+        <translation>向前新建单元格</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="122"/>
+        <source>add next cell</source>
+        <translation>向后新建单元格</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="123"/>
+        <source>linebreak</source>
         <translation>换行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="351"/>
-        <source>Merge To Up Line</source>
-        <translation>合并到上一行</translation>
-    </message>
-    <message>
-        <source>Move To Up Line</source>
-        <translation type="obsolete">合并到上一行</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="354"/>
-        <source>Add Prev Line</source>
-        <translation>向上插入新行</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="355"/>
-        <source>Add Next Line</source>
-        <translation>向下插入新行</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="356"/>
-        <source>Remove Cur Line</source>
-        <translation>删除当前行</translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="364"/>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="369"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="216"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="221"/>
         <source>Custom Syllables</source>
         <translation>自定义发音</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/PhonicTableView.cpp" line="369"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="221"/>
         <source>Please input syllables</source>
         <translation>请输入发音</translation>
     </message>
 </context>
 <context>
-    <name>FillLyric::TableConfigWidget</name>
+    <name>FillLyric::LyricExtWidget</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/TableConfigWidget.cpp" line="10"/>
-        <source>Column Width Ratio</source>
-        <translation>列宽比例</translation>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="17"/>
+        <source>Fold Left</source>
+        <translation>收起左侧</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/TableConfigWidget.cpp" line="16"/>
-        <source>Row Height Ratio</source>
-        <translation>行高比例</translation>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="19"/>
+        <source>Auto Wrap</source>
+        <translation>自动换行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/TableConfigWidget.cpp" line="22"/>
-        <source>Font Size Diff</source>
-        <translation>注音字体缩减</translation>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="36"/>
+        <source>Test</source>
+        <translation>测试</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="56"/>
+        <source>Export Option:</source>
+        <translation>导出选项：</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="69"/>
+        <source>Skipping Slur</source>
+        <translation>忽略延音符</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="70"/>
+        <source>Automatically mark languages</source>
+        <translation>自动标记语种</translation>
+    </message>
+</context>
+<context>
+    <name>FillLyric::LyricTab</name>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="45"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="75"/>
+        <source>Lyric Prev</source>
+        <translation>预览歌词</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="45"/>
+        <source>Fold Preview</source>
+        <translation>收起预览</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="59"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="70"/>
+        <source>Expand Left</source>
+        <translation>展开左侧</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="59"/>
+        <source>Fold Left</source>
+        <translation>收起左侧</translation>
+    </message>
+</context>
+<context>
+    <name>FillLyric::LyricWrapView</name>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="224"/>
+        <source>clear cells</source>
+        <translation>清空选中单元格</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="227"/>
+        <source>delete cells</source>
+        <translation>删除选中单元格</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="251"/>
+        <source>delete lines</source>
+        <translation>删除选中行</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="254"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="287"/>
+        <source>move up</source>
+        <translation>上移</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="257"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="290"/>
+        <source>move down</source>
+        <translation>下移</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="273"/>
+        <source>append cell</source>
+        <translation>追加单元格</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="277"/>
+        <source>delete line</source>
+        <translation>删除行</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="280"/>
+        <source>add prev line</source>
+        <translation>向上新建行</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="283"/>
+        <source>add next line</source>
+        <translation>向下新建行</translation>
     </message>
 </context>
 <context>
@@ -1022,14 +925,6 @@
         <source>Failed to initialize Cantonese G2P</source>
         <translation>加载粤语G2p失败</translation>
     </message>
-    <message>
-        <source>Tone</source>
-        <translation type="vanished">声调</translation>
-    </message>
-    <message>
-        <source>Convert number</source>
-        <translation type="vanished">转换数字</translation>
-    </message>
 </context>
 <context>
     <name>G2pMgr::English</name>
@@ -1047,10 +942,6 @@
         <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/English.cpp" line="7"/>
         <source>Greedy matching of consecutive English letters.</source>
         <translation>贪婪匹配英文字母。</translation>
-    </message>
-    <message>
-        <source>To lower</source>
-        <translation type="vanished">字母转小写</translation>
     </message>
 </context>
 <context>
@@ -1097,14 +988,6 @@
         <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="15"/>
         <source>Failed to initialize Mandarin G2P</source>
         <translation>加载普通话G2p失败</translation>
-    </message>
-    <message>
-        <source>Tone</source>
-        <translation type="vanished">声调</translation>
-    </message>
-    <message>
-        <source>Convert number</source>
-        <translation type="vanished">转换数字</translation>
     </message>
 </context>
 <context>
@@ -1162,60 +1045,6 @@
     </message>
 </context>
 <context>
-    <name>LangMgr::G2pInfoWidget</name>
-    <message>
-        <source>G2P Config:</source>
-        <translation type="vanished">G2p设置：</translation>
-    </message>
-    <message>
-        <source>G2P Config</source>
-        <translation type="vanished">G2p设置</translation>
-    </message>
-    <message>
-        <source>Language: </source>
-        <translation type="vanished">语种：</translation>
-    </message>
-    <message>
-        <source>Author: </source>
-        <translation type="vanished">作者：</translation>
-    </message>
-    <message>
-        <source>Description </source>
-        <translation type="vanished">简介：</translation>
-    </message>
-</context>
-<context>
-    <name>LangMgr::ILanguageFactory</name>
-    <message>
-        <source>Enabled</source>
-        <translation type="vanished">启用</translation>
-    </message>
-    <message>
-        <source>Discard result</source>
-        <translation type="vanished">丢弃结果</translation>
-    </message>
-    <message>
-        <source>Analysis results </source>
-        <translation type="vanished">分析结果</translation>
-    </message>
-    <message>
-        <source>Subordinate G2p</source>
-        <translation type="vanished">下属G2p</translation>
-    </message>
-    <message>
-        <source>Select Category:</source>
-        <translation type="vanished">选择语种：</translation>
-    </message>
-    <message>
-        <source>Unknown</source>
-        <translation type="vanished">未知</translation>
-    </message>
-    <message>
-        <source>Select G2P:</source>
-        <translation type="vanished">选择G2p：</translation>
-    </message>
-</context>
-<context>
     <name>LangMgr::KanaAnalysis</name>
     <message>
         <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/KanaAnalysis.h" line="12"/>
@@ -1231,44 +1060,6 @@
         <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/KanaAnalysis.h" line="15"/>
         <source>Capture Kana characters.</source>
         <translation>捕获假名字符。</translation>
-    </message>
-</context>
-<context>
-    <name>LangMgr::LangInfoWidget</name>
-    <message>
-        <source>Language Config:</source>
-        <translation type="vanished">语种设置：</translation>
-    </message>
-    <message>
-        <source>Language Config</source>
-        <translation type="vanished">语言设置</translation>
-    </message>
-    <message>
-        <source>Language: </source>
-        <translation type="vanished">语种：</translation>
-    </message>
-    <message>
-        <source>Author: </source>
-        <translation type="vanished">作者：</translation>
-    </message>
-    <message>
-        <source>Description </source>
-        <translation type="vanished">简介：</translation>
-    </message>
-</context>
-<context>
-    <name>LangMgr::LangMgrWidget</name>
-    <message>
-        <source>Apply</source>
-        <translation type="vanished">应用</translation>
-    </message>
-    <message>
-        <source>The original text is analyzed by various language analyzers to identify the corresponding language in sequence;
-If a certain analyzer is disabled in the first column, it will not participate in word segmentation;
-If &quot;Discard Result&quot; is checked, the results of word segmentation and analysis will not enter the notes.</source>
-        <translation type="vanished">各语言分析器对原文进行分析，按顺序识别相应的语言；
-若某个分析器在第一列中被禁用，它将不参与分词；
-若勾选“放弃结果”，分词和分析的结果将不会进入注释。</translation>
     </message>
 </context>
 <context>
@@ -1482,30 +1273,30 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
 <context>
     <name>LangSetting::ILangSetFactory</name>
     <message>
-        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="50"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="53"/>
         <source>Enabled</source>
         <translation>启用</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="53"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="58"/>
         <source>Discard result</source>
         <translation>丢弃结果</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="57"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="63"/>
         <source>Analysis results </source>
         <translation>分析结果</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="75"/>
-        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="100"/>
-        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="132"/>
-        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="139"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="81"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="105"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="137"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="144"/>
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="81"/>
+        <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="87"/>
         <source>Subordinate G2p</source>
         <translation>下属G2p</translation>
     </message>
@@ -1567,14 +1358,6 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
         <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="11"/>
         <source>Fill Lyric</source>
         <translation>填入歌词</translation>
-    </message>
-    <message>
-        <source>OK</source>
-        <translation type="vanished">确定</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation type="vanished">取消</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="31"/>
@@ -1771,10 +1554,6 @@ If &quot;Discard Result&quot; is checked, the results of word segmentation and a
         <location filename="../../UI/Window/MainWindow.cpp" line="230"/>
         <source>&amp;Audio...</source>
         <translation>音频(&amp;A)...</translation>
-    </message>
-    <message>
-        <source>Appearance...</source>
-        <translation type="obsolete">外观...</translation>
     </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="252"/>

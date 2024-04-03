@@ -44,6 +44,7 @@ namespace FillLyric {
             m_lyricBaseWidget->btnLyricPrev->setText(
                 m_lyricExtWidget->isVisible() ? tr("Lyric Prev") : tr("Fold Preview"));
             m_lyricExtWidget->setVisible(!m_lyricExtWidget->isVisible());
+            m_lyricBaseWidget->m_btnToTable->setVisible(m_lyricExtWidget->isVisible());
 
             if (!m_lyricExtWidget->isVisible()) {
                 Q_EMIT this->shrinkWindowRight(m_lyricBaseWidget->width() + 20);
@@ -72,6 +73,7 @@ namespace FillLyric {
 
         if (!extVisible) {
             m_lyricExtWidget->setVisible(extVisible);
+            m_lyricBaseWidget->m_btnToTable->setVisible(extVisible);
             m_lyricBaseWidget->btnLyricPrev->setText(tr("Lyric Prev"));
         }
     }

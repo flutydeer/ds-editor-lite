@@ -221,9 +221,10 @@ namespace FillLyric {
             }
 
             if ((enableMenu && !m_selectedCells.isEmpty())) {
-                menu->addAction("clear cells",
-                                [=] { m_history->push(new ClearCellsCmd(this, m_selectedCells)); });
-                menu->addAction("delete cells", [=] {
+                menu->addAction(tr("clear cells"), [this] {
+                    m_history->push(new ClearCellsCmd(this, m_selectedCells));
+                });
+                menu->addAction(tr("delete cells"), [this] {
                     m_history->push(new DeleteCellsCmd(this, m_selectedCells));
                 });
                 menu->exec(mapToGlobal(clickPos));
@@ -247,13 +248,13 @@ namespace FillLyric {
                 }
             }
             menu->addSeparator();
-            menu->addAction("delete lines", [=] {
+            menu->addAction(tr("delete lines"), [this, selectedSet] {
                 m_history->push(new DeleteLinesCmd(this, QList(selectedSet.values())));
             });
-            menu->addAction("move up", [=] {
+            menu->addAction(tr("move up"), [this, selectedSet] {
                 m_history->push(new MoveUpLinesCmd(this, QList(selectedSet.values())));
             });
-            menu->addAction("move down", [=] {
+            menu->addAction(tr("move down"), [this, selectedSet] {
                 m_history->push(new MoveDownLinesCmd(this, QList(selectedSet.values())));
             });
             if (selectedSet.contains(m_cellLists.first()))
@@ -269,24 +270,24 @@ namespace FillLyric {
         // selected handle or space
         if (!dynamic_cast<LyricCell *>(itemAtPos)) {
             if (const auto cellList = mapToList(scenePos)) {
-                menu->addAction("append cell", [this, cellList] {
+                menu->addAction(tr("append cell"), [this, cellList] {
                     m_history->push(new AppendCellCmd(this, cellList));
                 });
                 menu->addSeparator();
-                menu->addAction("delete line", [this, cellList] {
+                menu->addAction(tr("delete line"), [this, cellList] {
                     m_history->push(new DeleteLineCmd(this, cellList));
                 });
-                menu->addAction("add prev line", [this, cellList] {
+                menu->addAction(tr("add prev line"), [this, cellList] {
                     m_history->push(new AddPrevLineCmd(this, cellList));
                 });
-                menu->addAction("add next line", [this, cellList] {
+                menu->addAction(tr("add next line"), [this, cellList] {
                     m_history->push(new AddNextLineCmd(this, cellList));
                 });
                 menu->addSeparator();
-                menu->addAction("move up", [this, cellList] {
+                menu->addAction(tr("move up"), [this, cellList] {
                     m_history->push(new MoveUpLinesCmd(this, {cellList}));
                 });
-                menu->addAction("move down", [this, cellList] {
+                menu->addAction(tr("move down"), [this, cellList] {
                     m_history->push(new MoveDownLinesCmd(this, {cellList}));
                 });
                 if (cellList == m_cellLists.first())

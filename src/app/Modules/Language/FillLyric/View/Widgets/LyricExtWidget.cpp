@@ -33,10 +33,6 @@ namespace FillLyric {
         btnRedo->setFixedWidth(24);
         btnRedo->setIcon(QIcon(":svg/icons/arrow_redo_16_filled_white.svg"));
 
-        btnTableConfig = new QPushButton();
-        btnTableConfig->setFixedWidth(24);
-        btnTableConfig->setIcon(QIcon(":svg/icons/settings_16_filled_white.svg"));
-
         m_btnInsertText = new Button(tr("Test"));
         m_tableTopLayout->addWidget(btnFoldLeft);
         m_tableTopLayout->addWidget(btnUndo);
@@ -45,7 +41,6 @@ namespace FillLyric {
         m_tableTopLayout->addStretch(1);
         m_tableTopLayout->addWidget(autoWrapLabel);
         m_tableTopLayout->addWidget(autoWrap);
-        m_tableTopLayout->addWidget(btnTableConfig);
 
         m_tableCountLayout = new QHBoxLayout();
         noteCountLabel = new QLabel("0/0");

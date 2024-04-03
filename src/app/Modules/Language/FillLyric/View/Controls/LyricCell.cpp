@@ -115,12 +115,12 @@ namespace FillLyric {
         this->changeSyllableMenu(menu);
         this->changePhonicMenu(menu);
         menu->addSeparator();
-        menu->addAction("clear cell", [this] { Q_EMIT this->clearCell(this); });
+        menu->addAction(tr("clear cell"), [this] { Q_EMIT this->clearCell(this); });
         if (x() != 0 || y() != 0)
-            menu->addAction("delete cell", [this] { Q_EMIT this->deleteCell(this); });
-        menu->addAction("add prev cell", [this] { Q_EMIT this->addPrevCell(this); });
-        menu->addAction("add next cell", [this] { Q_EMIT this->addNextCell(this); });
-        menu->addAction("linebreak", [this] { Q_EMIT this->linebreak(this); });
+            menu->addAction(tr("delete cell"), [this] { Q_EMIT this->deleteCell(this); });
+        menu->addAction(tr("add prev cell"), [this] { Q_EMIT this->addPrevCell(this); });
+        menu->addAction(tr("add next cell"), [this] { Q_EMIT this->addNextCell(this); });
+        menu->addAction(tr("linebreak"), [this] { Q_EMIT this->linebreak(this); });
         menu->exec(event->screenPos());
         event->accept();
         delete menu;
