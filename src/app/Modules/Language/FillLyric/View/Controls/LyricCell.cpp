@@ -193,7 +193,7 @@ namespace FillLyric {
         const auto sPos = syllablePos();
         painter->setFont(syllableFont);
         painter->setPen(m_syllablePen[lyricFlag]);
-        painter->drawText(QRectF(sPos.x() + 5, sPos.y(), syllableWidth(), m_sRect.height()),
+        painter->drawText(QRectF(sPos.x() + 5, sPos.y(), syllableWidth(), m_sRect.height() + 0.5),
                           syllable);
 
         const auto rPos = rectPos();
@@ -208,7 +208,7 @@ namespace FillLyric {
         painter->setPen(m_lyricPen[lyricFlag]);
 
         const auto lPos = lyricPos();
-        painter->drawText(QRectF(lPos.x() + 5, lPos.y(), lyricWidth(), m_lRect.height()),
+        painter->drawText(QRectF(lPos.x() + 5, lPos.y(), lyricWidth(), m_lRect.height() + 0.5),
                           m_note->lyric);
     }
 

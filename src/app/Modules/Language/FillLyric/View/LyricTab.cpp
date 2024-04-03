@@ -44,7 +44,6 @@ namespace FillLyric {
             m_lyricBaseWidget->btnLyricPrev->setText(
                 m_lyricExtWidget->isVisible() ? tr("Lyric Prev") : tr("Fold Preview"));
             m_lyricExtWidget->setVisible(!m_lyricExtWidget->isVisible());
-            m_lyricExtWidget->m_tableConfigWidget->setVisible(false);
 
             if (!m_lyricExtWidget->isVisible()) {
                 Q_EMIT this->shrinkWindowRight(m_lyricBaseWidget->width() + 20);

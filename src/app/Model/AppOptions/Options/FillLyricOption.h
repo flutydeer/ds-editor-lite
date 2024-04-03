@@ -22,11 +22,7 @@ public:
     bool exportLanguage = false;
 
     double textEditFontSize = 11;
-    int tableFontSize = 12;
-
-    double tableColWidthRatio = 7.8;
-    double tableRowHeightRatio = 3;
-    int tableFontDiff = 3;
+    double viewFontSize = 12;
 
 protected:
     void save(QJsonObject &object) override;

@@ -93,9 +93,10 @@ namespace FillLyric {
             const auto fontSizeDelta = event->angleDelta().y() / 120.0;
             QFont font = this->font();
             const auto newSize = font.pointSizeF() + fontSizeDelta;
-            if (newSize > 3) {
+            if (newSize >= 9 && newSize != font.pointSizeF()) {
                 font.setPointSizeF(newSize);
                 this->setFont(font);
+                Q_EMIT this->fontSizeChanged();
                 for (const auto &cellList : m_cellLists) {
                     cellList->setFont(font);
                 }
@@ -304,8 +305,9 @@ namespace FillLyric {
     CellList *LyricWrapView::createNewList() {
         const auto width = this->width() - this->verticalScrollBar()->width();
         const auto cellList = new CellList(0, 0, {new LangNote()}, m_scene, this, m_history);
-        cellList->setAutoWrap(m_autoWrap);
         cellList->setWidth(width);
+        cellList->setFont(this->font());
+        cellList->setAutoWrap(m_autoWrap);
         this->connectCellList(cellList);
         return cellList;
     }
@@ -336,8 +338,9 @@ namespace FillLyric {
         const auto width = this->width() - this->verticalScrollBar()->width();
         const auto cellList = new CellList(0, cellBaseY(static_cast<int>(m_cellLists.size())),
                                            noteList, m_scene, this, m_history);
-        cellList->setAutoWrap(m_autoWrap);
         cellList->setWidth(width);
+        cellList->setFont(this->font());
+        cellList->setAutoWrap(m_autoWrap);
         m_cellLists.append(cellList);
         this->connectCellList(cellList);
     }
@@ -389,7 +392,7 @@ namespace FillLyric {
             if (!tempNotes.isEmpty())
                 this->appendList(tempNotes);
         }
-        this->updateRect();
+        this->repaintCellLists();
     }
 
     bool LyricWrapView::autoWrap() const {

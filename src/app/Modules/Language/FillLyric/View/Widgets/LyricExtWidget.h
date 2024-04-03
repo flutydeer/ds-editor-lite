@@ -3,9 +3,9 @@
 
 #include <QWidget>
 
+#include <QLabel>
 #include <QCheckBox>
-
-#include "TableConfigWidget.h"
+#include <QHBoxLayout>
 
 #include "../Controls/LyricWrapView.h"
 
@@ -44,7 +44,6 @@ namespace FillLyric {
 
         // Widgets
         LyricWrapView *m_wrapView;
-        TableConfigWidget *m_tableConfigWidget;
 
         Button *m_btnToText;
 

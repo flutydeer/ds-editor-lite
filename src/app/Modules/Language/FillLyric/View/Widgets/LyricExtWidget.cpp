@@ -94,17 +94,14 @@ namespace FillLyric {
         m_mainLayout = new QHBoxLayout();
         m_mainLayout->setContentsMargins(0, 0, 0, 0);
         m_mainLayout->addLayout(m_tableLayout);
-
-        // table setting widget
-        m_tableConfigWidget = new TableConfigWidget();
-        m_tableConfigWidget->setVisible(false);
-
-        m_mainLayout->addWidget(m_tableConfigWidget);
         this->setLayout(m_mainLayout);
 
         const auto appOptions = AppOptions::instance();
         autoWrap->setValue(appOptions->fillLyric()->autoWrap);
         m_wrapView->setAutoWrap(appOptions->fillLyric()->autoWrap);
+        QFont font = m_wrapView->font();
+        font.setPointSizeF(appOptions->fillLyric()->viewFontSize);
+        m_wrapView->setFont(font);
 
         exportSkipSlur->setChecked(appOptions->fillLyric()->exportSkipSlur);
         exportLanguage->setChecked(appOptions->fillLyric()->exportLanguage);
@@ -126,11 +123,8 @@ namespace FillLyric {
         connect(exportOptButton, &QPushButton::clicked,
                 [this]() { m_epOptWidget->setVisible(!m_epOptWidget->isVisible()); });
 
-        // tableConfig
-        connect(btnTableConfig, &QPushButton::clicked,
-                [this]() { m_tableConfigWidget->setVisible(!m_tableConfigWidget->isVisible()); });
-
-        // TODO: view font size
+        // view font size
+        connect(m_wrapView, &LyricWrapView::fontSizeChanged, this, &LyricExtWidget::modifyOption);
 
         connect(autoWrap, &SwitchButton::clicked, this, &LyricExtWidget::modifyOption);
         connect(exportSkipSlur, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
@@ -145,10 +139,7 @@ namespace FillLyric {
 
     void LyricExtWidget::modifyOption() const {
         const auto options = AppOptions::instance()->fillLyric();
-
-        options->tableColWidthRatio = m_tableConfigWidget->m_colWidthRatioSpinBox->value();
-        options->tableRowHeightRatio = m_tableConfigWidget->m_rowHeightSpinBox->value();
-        options->tableFontDiff = m_tableConfigWidget->m_fontDiffSpinBox->value();
+        options->viewFontSize = m_wrapView->font().pointSizeF();
 
         options->autoWrap = m_wrapView->autoWrap();
         options->exportSkipSlur = exportSkipSlur->isChecked();

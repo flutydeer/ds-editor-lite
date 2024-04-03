@@ -28,7 +28,7 @@ namespace FillLyric {
         void removeList(CellList *cellList);
         void appendList(const QList<LangNote *> &noteList);
 
-        void moveUpLists(const QList<CellList *>& cellLists);
+        void moveUpLists(const QList<CellList *> &cellLists);
         void moveDownLists(QList<CellList *> cellLists);
 
         CellList *mapToList(const QPoint &pos);
@@ -39,6 +39,7 @@ namespace FillLyric {
         [[nodiscard]] QList<CellList *> cellLists() const;
 
     Q_SIGNALS:
+        void fontSizeChanged();
         void noteCountChanged(const int &count);
 
     protected:

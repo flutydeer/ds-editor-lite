@@ -21,15 +21,8 @@ void FillLyricOption::load(const QJsonObject &object) {
 
     if (object.contains("textEditFontSize"))
         textEditFontSize = object["textEditFontSize"].toDouble();
-    if (object.contains("tableFontSize"))
-        tableFontSize = object["tableFontSize"].toInt();
-
-    if (object.contains("tableColWidthRatio"))
-        tableColWidthRatio = object["tableColWidthRatio"].toDouble();
-    if (object.contains("tableRowHeightRatio"))
-        tableRowHeightRatio = object["tableRowHeightRatio"].toDouble();
-    if (object.contains("tableFontDiff"))
-        tableFontDiff = object["tableFontDiff"].toInt();
+    if (object.contains("viewFontSize"))
+        viewFontSize = object["viewFontSize"].toDouble();
 }
 
 void FillLyricOption::save(QJsonObject &object) {
@@ -45,9 +38,5 @@ void FillLyricOption::save(QJsonObject &object) {
     object["exportLanguage"] = exportLanguage;
 
     object["textEditFontSize"] = textEditFontSize;
-    object["tableFontSize"] = tableFontSize;
-
-    object["tableColWidthRatio"] = tableColWidthRatio;
-    object["tableRowHeightRatio"] = tableRowHeightRatio;
-    object["tableFontDiff"] = tableFontDiff;
+    object["viewFontSize"] = viewFontSize;
 }
