@@ -35,7 +35,6 @@ namespace FillLyric {
     public Q_SLOTS:
         void _on_btnInsertText_clicked() const;
         void _on_btnToTable_clicked() const;
-        void _on_btnToText_clicked() const;
 
     private:
         void modifyOption() const;

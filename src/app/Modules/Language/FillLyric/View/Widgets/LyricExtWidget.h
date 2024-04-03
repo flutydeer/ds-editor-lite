@@ -45,8 +45,6 @@ namespace FillLyric {
         // Widgets
         LyricWrapView *m_wrapView;
 
-        Button *m_btnToText;
-
         // Labels
         QLabel *noteCountLabel;
 

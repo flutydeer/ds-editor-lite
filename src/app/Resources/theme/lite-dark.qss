@@ -508,6 +508,9 @@ QGraphicsView#PianoRollGraphicsView {
 
 QGraphicsView#LyricWrapView {
     background: transparent;
+    border: 1px solid #505050;
+    border-radius: 4px;
+    padding: 2px;
 }
 
 DialogButtonBar {

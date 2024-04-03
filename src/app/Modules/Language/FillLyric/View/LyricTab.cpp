@@ -36,8 +36,6 @@ namespace FillLyric {
                 &LyricTab::_on_btnInsertText_clicked);
         connect(m_lyricBaseWidget->m_btnToTable, &QAbstractButton::clicked, this,
                 &LyricTab::_on_btnToTable_clicked);
-        connect(m_lyricExtWidget->m_btnToText, &QAbstractButton::clicked, this,
-                &LyricTab::_on_btnToText_clicked);
 
         // fold right
         connect(m_lyricBaseWidget->btnLyricPrev, &QPushButton::clicked, [this]() {
@@ -159,20 +157,6 @@ namespace FillLyric {
         }
 
         m_lyricExtWidget->m_wrapView->init(splitRes);
-    }
-
-    void LyricTab::_on_btnToText_clicked() const {
-        const auto noteLists = this->modelExport();
-        QStringList lyrics;
-        QStringList line;
-        for (const auto &noteList : noteLists) {
-            for (const auto &note : noteList) {
-                line.append(note.lyric);
-            }
-            lyrics.append(line.join(" "));
-            line.clear();
-        }
-        m_lyricBaseWidget->m_textEdit->setPlainText(lyrics.join("\n"));
     }
 
     void LyricTab::modifyOption() const {

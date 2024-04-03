@@ -3,9 +3,9 @@
 #include <QPainter>
 
 namespace FillLyric {
-    SplitterItem::SplitterItem(const qreal &x, const qreal &y, const qreal &w, const qreal &lh,
+    SplitterItem::SplitterItem(const qreal &x, const qreal &y, const qreal &w,
                                QGraphicsItem *parent)
-        : QGraphicsItem(parent), m_lineHeight(lh) {
+        : QGraphicsItem(parent) {
         this->setX(x);
         this->setY(y);
         this->setWidth(w);
@@ -37,7 +37,7 @@ namespace FillLyric {
     }
 
     qreal SplitterItem::deltaY() const {
-        return m_lineHeight + m_margin;
+        return m_lineHeight + m_margin + 1;
     }
 
     void SplitterItem::setLineHeight(const qreal &lh) {

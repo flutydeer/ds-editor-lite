@@ -7,7 +7,7 @@
 namespace FillLyric {
     class SplitterItem final : public QGraphicsItem {
     public:
-        explicit SplitterItem(const qreal &x, const qreal &y, const qreal &w, const qreal &lh = 1,
+        explicit SplitterItem(const qreal &x, const qreal &y, const qreal &w,
                               QGraphicsItem *parent = nullptr);
         ~SplitterItem() override;
 
@@ -35,9 +35,9 @@ namespace FillLyric {
     private:
         qreal mW = 0;
 
-        qreal m_lineHeight;
+        qreal m_lineHeight = 1;
 
-        QPen m_pen = QPen(Qt::gray, 1);
+        QPen m_pen = QPen(QColor(120, 120, 120), 1);
 
         qreal m_margin = 5;
     };

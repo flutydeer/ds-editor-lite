@@ -25,7 +25,7 @@ namespace FillLyric {
         m_font = this->font();
         m_scene = new QGraphicsScene(parent);
 
-        m_endSplitter = new SplitterItem(0, 0, this->width(), 1);
+        m_endSplitter = new SplitterItem(0, 0, this->width());
         m_scene->addItem(m_endSplitter);
 
         this->setScene(m_scene);

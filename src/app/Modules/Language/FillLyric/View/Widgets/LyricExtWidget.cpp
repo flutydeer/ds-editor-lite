@@ -45,9 +45,6 @@ namespace FillLyric {
         m_tableCountLayout = new QHBoxLayout();
         noteCountLabel = new QLabel("0/0");
 
-        m_btnToText = new Button("<<");
-        m_btnToText->setFixedSize(40, 20);
-        m_tableCountLayout->addWidget(m_btnToText);
         m_tableCountLayout->addStretch(1);
         m_tableCountLayout->addWidget(noteCountLabel);
 

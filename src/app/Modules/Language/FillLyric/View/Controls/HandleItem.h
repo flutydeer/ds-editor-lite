@@ -44,10 +44,10 @@ namespace FillLyric {
 
         QBrush m_backgroundBrush[3] = {QColor(255, 255, 255, 25), QColor(255, 255, 255, 40),
                                        QColor(255, 255, 255, 40)};
-        QPen m_borderPen[3] = {QPen(QColor(255, 255, 255, 35), 1), QPen(QColor(112, 156, 255), 1),
-                               QPen(QColor(112, 156, 255), 1)};
+        QPen m_borderPen[3] = {QPen(QColor(255, 255, 255, 35), 2), QPen(QColor(112, 156, 255), 2),
+                               QPen(QColor(112, 156, 255), 2)};
 
-        qreal mW = 18;
+        qreal mW = 16;
         qreal mH = 0;
 
         qreal m_margin = 4;

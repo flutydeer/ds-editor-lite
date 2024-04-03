@@ -41,8 +41,8 @@ namespace FillLyric {
     }
 
     qreal LyricCell::height() const {
-        return m_padding + m_sRect.height() + m_lsPadding + m_lRect.height() +
-               m_reckBorder * 2 + m_rectPadding * 2;
+        return m_padding + m_sRect.height() + m_lsPadding + m_lRect.height() + m_reckBorder * 2 +
+               m_rectPadding * 2;
     }
 
     LangNote *LyricCell::note() const {
@@ -184,6 +184,8 @@ namespace FillLyric {
         }
 
         QFont syllableFont(m_font);
+        if (lyricFlag != 0)
+            syllableFont.setWeight(QFont::Bold);
         syllableFont.setPointSize(syllableFont.pointSize() - 3);
 
         const auto sPos = syllablePos();

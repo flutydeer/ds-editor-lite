@@ -17,10 +17,9 @@ namespace FillLyric {
         : m_view(view), m_scene(scene), m_history(undoStack) {
         this->setPos(x, y);
         m_scene->addItem(this);
-        this->setZValue(-1);
         setFlag(ItemIsSelectable);
 
-        m_splitter = new SplitterItem(0, 0, m_curWidth, 1, this);
+        m_splitter = new SplitterItem(0, 0, m_curWidth, this);
 
         m_handle = new HandleItem(this);
         m_handle->setPos(0, m_splitter->margin());
@@ -44,7 +43,7 @@ namespace FillLyric {
                          QWidget *widget) {
         painter->setPen(Qt::NoPen);
         if (option->state & QStyle::State_Selected) {
-            painter->setBrush(QColor(255, 255, 255, 12));
+            painter->setBrush(QColor(255, 255, 255, 10));
         } else {
             painter->setBrush(Qt::NoBrush);
         }
@@ -67,7 +66,7 @@ namespace FillLyric {
     }
 
     qreal CellList::deltaX() const {
-        return m_handle->width() + 2;
+        return m_handle->width() + 3;
     }
 
     qreal CellList::deltaY() const {
