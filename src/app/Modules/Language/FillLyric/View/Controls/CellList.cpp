@@ -37,11 +37,12 @@ namespace FillLyric {
     }
 
     QRectF CellList::boundingRect() const {
-        return {deltaX(), deltaY(), m_curWidth - deltaX(), m_height};
+        return {0, deltaY(), m_curWidth, m_height};
     }
 
     void CellList::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                          QWidget *widget) {
+        painter->setPen(Qt::NoPen);
         if (option->state & QStyle::State_Selected) {
             painter->setBrush(QColor(255, 255, 255, 12));
         } else {
@@ -66,7 +67,7 @@ namespace FillLyric {
     }
 
     qreal CellList::deltaX() const {
-        return m_handle->width();
+        return m_handle->width() + 2;
     }
 
     qreal CellList::deltaY() const {

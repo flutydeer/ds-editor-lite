@@ -1,11 +1,11 @@
 #ifndef HANDLEITEM_H
 #define HANDLEITEM_H
 
+#include <QGraphicsItem>
 #include <QGraphicsScene>
-#include <QGraphicsRectItem>
 
 namespace FillLyric {
-    class HandleItem final : public QObject, public QGraphicsRectItem {
+    class HandleItem final : public QObject, public QGraphicsItem {
         Q_OBJECT
     public:
         explicit HandleItem(QGraphicsItem *parent = nullptr);
@@ -16,6 +16,8 @@ namespace FillLyric {
 
         [[nodiscard]] qreal height() const;
         void setHeight(const qreal &h);
+
+        [[nodiscard]] qreal deltaX() const;
 
         void setMargin(const qreal &margin);
         [[nodiscard]] qreal margin() const;
@@ -40,15 +42,15 @@ namespace FillLyric {
             Selected = 2,
         };
 
-        QBrush m_backgroundBrush[3] = {QColor(155, 186, 255), QColor(169, 196, 255),
-                                       QColor(169, 196, 255)};
-        QPen m_borderPen[3] = {QPen(QColor(112, 156, 255), 2), QPen(QColor(112, 156, 255), 2),
-                               QPen(QColor(Qt::white), 2)};
+        QBrush m_backgroundBrush[3] = {QColor(255, 255, 255, 25), QColor(255, 255, 255, 40),
+                                       QColor(255, 255, 255, 40)};
+        QPen m_borderPen[3] = {QPen(QColor(255, 255, 255, 35), 1), QPen(QColor(112, 156, 255), 1),
+                               QPen(QColor(112, 156, 255), 1)};
 
-        qreal mW = 16;
+        qreal mW = 18;
         qreal mH = 0;
 
-        qreal m_margin = 3;
+        qreal m_margin = 4;
     };
 
 } // FillLyric

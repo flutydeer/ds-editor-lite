@@ -49,7 +49,6 @@ namespace FillLyric {
         void updateWidth(const qreal &w) const;
 
     protected:
-        [[nodiscard]] int type() const override;
         [[nodiscard]] QPainterPath shape() const override;
         [[nodiscard]] QRectF boundingRect() const override;
 
@@ -92,16 +91,16 @@ namespace FillLyric {
             Selected = 2,
         };
 
-        QBrush m_backgroundBrush[3] = {QColor(155, 186, 255), QColor(169, 196, 255),
-                                       QColor(169, 196, 255)};
-        QPen m_borderPen[3] = {QPen(QColor(112, 156, 255), 2), QPen(QColor(112, 156, 255), 2),
-                               QPen(QColor(Qt::white), 2)};
+        QBrush m_backgroundBrush[3] = {QColor(255, 255, 255, 25), QColor(255, 255, 255, 40),
+                                       QColor(255, 255, 255, 40)};
+        QPen m_borderPen[3] = {QPen(QColor(255, 255, 255, 35), 2), QPen(QColor(112, 156, 255), 2),
+                               QPen(QColor(112, 156, 255), 2)};
 
         enum PenType { MultiTone = 1, Revised, G2pError };
-        QPen m_lyricPen[4] = {QColor(Qt::black), QColor(Qt::green), QColor(Qt::yellow),
-                              QColor(Qt::red)};
-        QPen m_syllablePen[4] = {QColor(Qt::white), QColor(Qt::green), QColor(Qt::yellow),
-                                 QColor(Qt::red)};
+        QPen m_lyricPen[4] = {QColor(240, 240, 240), QColor(240, 240, 240), QColor(240, 240, 240),
+                              QColor(240, 240, 240)};
+        QPen m_syllablePen[4] = {QColor(240, 240, 240), QColor(155, 186, 255),
+                                 QColor(255, 204, 153), QColor(255, 155, 157)};
     };
 }
 

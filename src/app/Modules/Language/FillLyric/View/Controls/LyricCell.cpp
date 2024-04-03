@@ -24,10 +24,6 @@ namespace FillLyric {
 
     LyricCell::~LyricCell() = default;
 
-    int LyricCell::type() const {
-        return Qt::UserRole + 1;
-    }
-
     QPainterPath LyricCell::shape() const {
         QPainterPath path;
         path.addRect({rectPos().x(), rectPos().y(), width() - m_padding * 2,
@@ -45,7 +41,7 @@ namespace FillLyric {
     }
 
     qreal LyricCell::height() const {
-        return m_padding * 2 + m_sRect.height() + m_lsPadding + m_lRect.height() +
+        return m_padding + m_sRect.height() + m_lsPadding + m_lRect.height() +
                m_reckBorder * 2 + m_rectPadding * 2;
     }
 

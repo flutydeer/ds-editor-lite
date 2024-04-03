@@ -69,8 +69,7 @@ namespace FillLyric {
                              QWidget *widget) {
         painter->setPen(m_pen);
         for (int i = 0; i < m_lineHeight; i++) {
-            painter->drawLine(QPointF(m_margin, m_margin + i),
-                              QPointF(mW - m_margin, m_margin + i));
+            painter->drawLine(QPointF(0, m_margin + i), QPointF(mW, m_margin + i));
         }
     }
 }

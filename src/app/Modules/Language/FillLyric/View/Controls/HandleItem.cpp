@@ -5,7 +5,7 @@
 #include <QGraphicsSceneMouseEvent>
 
 namespace FillLyric {
-    HandleItem::HandleItem(QGraphicsItem *parent) : QGraphicsRectItem(parent) {
+    HandleItem::HandleItem(QGraphicsItem *parent) : QGraphicsItem(parent) {
         setFlag(ItemIsSelectable);
         this->setAcceptHoverEvents(true);
     }
@@ -55,12 +55,11 @@ namespace FillLyric {
 
         painter->setPen(m_borderPen[flag]);
         painter->setBrush(m_backgroundBrush[flag]);
-        painter->drawRoundedRect(boxRect, m_margin * 0.5, m_margin * 0.5);
+        painter->drawRect(boxRect);
     }
 
     void HandleItem::setWidth(const qreal &w) {
         mW = w;
-        this->setRect({x(), y(), mW, mH});
     }
 
     qreal HandleItem::width() const {
@@ -69,11 +68,14 @@ namespace FillLyric {
 
     void HandleItem::setHeight(const qreal &h) {
         mH = h;
-        this->setRect({x(), y(), mW, mH});
     }
 
     qreal HandleItem::height() const {
         return mH;
+    }
+
+    qreal HandleItem::deltaX() const {
+        return width() - margin();
     }
 
     void HandleItem::setMargin(const qreal &margin) {

@@ -173,7 +173,10 @@ namespace FillLyric {
                 rubberBand.setGeometry(QRect(rubberBandOrigin, QSize()));
                 rubberBand.show();
             }
+            event->accept();
+            return;
         }
+        QGraphicsView::mouseMoveEvent(event);
     }
 
     void LyricWrapView::mouseReleaseEvent(QMouseEvent *event) {

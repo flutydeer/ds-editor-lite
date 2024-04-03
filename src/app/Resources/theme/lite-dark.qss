@@ -507,7 +507,7 @@ QGraphicsView#PianoRollGraphicsView {
 }
 
 QGraphicsView#LyricWrapView {
-    background: #202122;
+    background: transparent;
 }
 
 DialogButtonBar {
