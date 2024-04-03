@@ -91,10 +91,10 @@ namespace FillLyric {
             Selected = 2,
         };
 
-        QBrush m_backgroundBrush[3] = {QColor(255, 255, 255, 25), QColor(255, 255, 255, 40),
-                                       QColor(255, 255, 255, 40)};
-        QPen m_borderPen[3] = {QPen(QColor(255, 255, 255, 35), 2), QPen(QColor(112, 156, 255), 2),
-                               QPen(QColor(112, 156, 255), 2)};
+        QBrush m_backgroundBrush[3] = {Qt::NoBrush, QColor(255, 255, 255, 15),
+                                       QColor(255, 255, 255, 30)};
+        QPen m_borderPen[3] = {QPen(QColor(83, 83, 85), 2), QPen(QColor(137, 137, 139), 2),
+                               QPen(QColor(155, 186, 255), 2)};
 
         enum PenType { MultiTone = 1, Revised, G2pError };
         QPen m_lyricPen[4] = {QColor(240, 240, 240), QColor(240, 240, 240), QColor(240, 240, 240),

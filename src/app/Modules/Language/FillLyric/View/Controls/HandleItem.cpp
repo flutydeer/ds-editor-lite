@@ -51,11 +51,11 @@ namespace FillLyric {
             flag = Selected;
 
         const auto boxRect =
-            QRectF(m_margin, m_margin, width() - m_margin * 2, height() - m_margin * 2);
+            QRectF(m_margin, m_margin * 1.5, width() - m_margin * 2, height() - m_margin * 3);
 
-        painter->setPen(m_borderPen[flag]);
+        painter->setPen(Qt::NoPen);
         painter->setBrush(m_backgroundBrush[flag]);
-        painter->drawRect(boxRect);
+        painter->drawRoundedRect(boxRect, m_margin * 0.5, m_margin * 0.5);
     }
 
     void HandleItem::setWidth(const qreal &w) {

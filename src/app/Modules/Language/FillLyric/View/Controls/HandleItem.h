@@ -42,12 +42,10 @@ namespace FillLyric {
             Selected = 2,
         };
 
-        QBrush m_backgroundBrush[3] = {QColor(255, 255, 255, 25), QColor(255, 255, 255, 40),
-                                       QColor(255, 255, 255, 40)};
-        QPen m_borderPen[3] = {QPen(QColor(255, 255, 255, 35), 2), QPen(QColor(112, 156, 255), 2),
-                               QPen(QColor(112, 156, 255), 2)};
+        QBrush m_backgroundBrush[3] = {QColor(83, 83, 85), QColor(137, 137, 139),
+                                       QColor(112, 156, 255)};
 
-        qreal mW = 16;
+        qreal mW = 13;
         qreal mH = 0;
 
         qreal m_margin = 4;
