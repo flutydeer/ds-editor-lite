@@ -273,6 +273,9 @@ namespace FillLyric {
         // selected handle or space
         if (!dynamic_cast<LyricCell *>(itemAtPos)) {
             if (const auto cellList = mapToList(scenePos)) {
+                for (const auto item : selectedItems)
+                    item->setSelected(false);
+                cellList->setSelected(true);
                 menu->addAction(tr("append cell"), [this, cellList] {
                     m_history->push(new AppendCellCmd(this, cellList));
                 });
