@@ -7,7 +7,8 @@
 namespace FillLyric {
     class EditDialog final : public QDialog {
     public:
-        explicit EditDialog(const QString &lyric, const QRectF &rect, QWidget *parent = nullptr);
+        explicit EditDialog(const QString &lyric, const QRectF &rect, const QFont &font,
+                            QWidget *parent = nullptr);
 
         QString text;
 

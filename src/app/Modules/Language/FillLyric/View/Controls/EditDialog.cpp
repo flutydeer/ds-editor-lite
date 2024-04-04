@@ -5,13 +5,15 @@
 #include <qvalidator.h>
 
 namespace FillLyric {
-    EditDialog::EditDialog(const QString &lyric, const QRectF &rect, QWidget *parent)
+    EditDialog::EditDialog(const QString &lyric, const QRectF &rect, const QFont &font,
+                           QWidget *parent)
         : QDialog(parent) {
         setObjectName("section-edit-popup");
         setWindowFlags(Qt::Popup);
 
         const auto lineEdit = new QLineEdit();
         lineEdit->setObjectName("tempo-text");
+        lineEdit->setFont(font);
         lineEdit->setText(lyric);
 
         const QFontMetrics fm(lineEdit->font());

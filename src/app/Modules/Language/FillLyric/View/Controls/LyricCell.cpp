@@ -88,7 +88,7 @@ namespace FillLyric {
             const int verticalOffset = m_view->verticalScrollBar()->value();
             const auto editRect = QRectF(lRect.x() - horizontalOffset, lRect.y() - verticalOffset,
                                          lRect.width(), lRect.height());
-            EditDialog dlg(lyric(), editRect, m_view);
+            EditDialog dlg(lyric(), editRect, m_font, m_view);
             dlg.show();
             dlg.activateWindow();
             dlg.exec();

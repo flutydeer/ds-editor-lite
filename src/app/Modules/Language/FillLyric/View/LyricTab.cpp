@@ -39,9 +39,9 @@ namespace FillLyric {
 
         // fold right
         connect(m_lyricBaseWidget->btnLyricPrev, &QPushButton::clicked, [this]() {
-            m_lyricBaseWidget->btnLyricPrev->setText(
-                m_lyricExtWidget->isVisible() ? tr("Lyric Prev") : tr("Fold Preview"));
             m_lyricExtWidget->setVisible(!m_lyricExtWidget->isVisible());
+            m_lyricBaseWidget->btnLyricPrev->setText(
+                m_lyricExtWidget->isVisible() ? tr("Fold Preview") : tr("Lyric Prev"));
             m_lyricBaseWidget->m_btnToTable->setVisible(m_lyricExtWidget->isVisible());
 
             if (!m_lyricExtWidget->isVisible()) {
@@ -54,9 +54,9 @@ namespace FillLyric {
 
         // fold left
         connect(m_lyricExtWidget->btnFoldLeft, &QPushButton::clicked, [this]() {
-            m_lyricExtWidget->btnFoldLeft->setText(
-                m_lyricBaseWidget->isVisible() ? tr("Expand Left") : tr("Fold Left"));
             m_lyricBaseWidget->setVisible(!m_lyricBaseWidget->isVisible());
+            m_lyricExtWidget->btnFoldLeft->setText(
+                m_lyricBaseWidget->isVisible() ? tr("Fold Left") : tr("Expand Left"));
             modifyOption();
         });
 
