@@ -10,6 +10,7 @@
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/OptionsCard.h"
 
+#include <QPushButton>
 #include <LangMgr/ILanguageManager.h>
 
 LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
@@ -22,9 +23,17 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
     centerLayout->setContentsMargins(10, 10, 10, 10);
 
     const auto langListLayout = new QVBoxLayout();
+    const auto labelLayout = new QHBoxLayout();
     const auto langLabel = new QLabel(tr("Language Priority"));
+    const auto btn_info = new QPushButton();
+    btn_info->setStyleSheet("QPushButton {border-radius: 12px;};");
+    btn_info->setFixedSize(24, 24);
+    btn_info->setIcon(QIcon(":/svg/icons/info_16_filled_white.svg"));
+    btn_info->setToolTip(tr("Swap entries can be dragged to divide words in priority order."));
     m_langListWidget = new LangSetting::LangListWidget();
-    langListLayout->addWidget(langLabel);
+    labelLayout->addWidget(langLabel);
+    labelLayout->addWidget(btn_info);
+    langListLayout->addLayout(labelLayout);
     langListLayout->addWidget(m_langListWidget);
     const auto diverLine = new DividerLine();
     diverLine->setOrientation(Qt::Vertical);

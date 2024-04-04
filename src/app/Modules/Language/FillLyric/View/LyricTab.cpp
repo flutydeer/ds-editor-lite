@@ -73,6 +73,8 @@ namespace FillLyric {
             m_lyricExtWidget->setVisible(extVisible);
             m_lyricBaseWidget->m_btnToTable->setVisible(extVisible);
             m_lyricBaseWidget->btnLyricPrev->setText(tr("Lyric Prev"));
+        } else {
+            m_lyricBaseWidget->btnLyricPrev->setText(tr("Fold Preview"));
         }
     }
 

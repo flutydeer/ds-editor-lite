@@ -759,38 +759,38 @@
 <context>
     <name>FillLyric::LyricCell</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="118"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="114"/>
         <source>clear cell</source>
         <translation>清空单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="120"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="116"/>
         <source>delete cell</source>
         <translation>删除单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="121"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="117"/>
         <source>add prev cell</source>
         <translation>向前新建单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="122"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="118"/>
         <source>add next cell</source>
         <translation>向后新建单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="123"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="119"/>
         <source>linebreak</source>
         <translation>换行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="216"/>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="221"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="214"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="219"/>
         <source>Custom Syllables</source>
         <translation>自定义发音</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="221"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricCell.cpp" line="219"/>
         <source>Please input syllables</source>
         <translation>请输入发音</translation>
     </message>
@@ -813,17 +813,17 @@
         <translation>测试</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="56"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="53"/>
         <source>Export Option:</source>
         <translation>导出选项：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="69"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="66"/>
         <source>Skipping Slur</source>
         <translation>忽略延音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="70"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="67"/>
         <source>Automatically mark languages</source>
         <translation>自动标记语种</translation>
     </message>
@@ -831,19 +831,20 @@
 <context>
     <name>FillLyric::LyricTab</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="45"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="44"/>
         <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="75"/>
         <source>Lyric Prev</source>
         <translation>预览歌词</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="45"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="44"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="77"/>
         <source>Fold Preview</source>
         <translation>收起预览</translation>
     </message>
     <message>
         <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="59"/>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="70"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="69"/>
         <source>Expand Left</source>
         <translation>展开左侧</translation>
     </message>
@@ -856,49 +857,49 @@
 <context>
     <name>FillLyric::LyricWrapView</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="224"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="227"/>
         <source>clear cells</source>
         <translation>清空选中单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="227"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="230"/>
         <source>delete cells</source>
         <translation>删除选中单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="251"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="254"/>
         <source>delete lines</source>
         <translation>删除选中行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="254"/>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="287"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="257"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="293"/>
         <source>move up</source>
         <translation>上移</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="257"/>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="290"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="260"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="296"/>
         <source>move down</source>
         <translation>下移</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="273"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="279"/>
         <source>append cell</source>
         <translation>追加单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="277"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="283"/>
         <source>delete line</source>
         <translation>删除行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="280"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="286"/>
         <source>add prev line</source>
         <translation>向上新建行</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="283"/>
+        <location filename="../../Modules/Language/FillLyric/View/Controls/LyricWrapView.cpp" line="289"/>
         <source>add next line</source>
         <translation>向下新建行</translation>
     </message>
@@ -1342,14 +1343,19 @@
 <context>
     <name>LanguagePage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="19"/>
+        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="20"/>
         <source>Language</source>
         <translation>语言</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="25"/>
+        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="27"/>
         <source>Language Priority</source>
         <translation>语种优先级</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/LanguagePage.cpp" line="32"/>
+        <source>Swap entries can be dragged to divide words in priority order.</source>
+        <translation>可拖动交换条目，按优先级顺序进行分词。</translation>
     </message>
 </context>
 <context>

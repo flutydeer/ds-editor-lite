@@ -3,10 +3,6 @@
 
 #include <QListWidget>
 
-#include <LangCommon.h>
-
-#include <QLabel>
-
 namespace LangSetting {
 
     class LangListWidget final : public QListWidget {
