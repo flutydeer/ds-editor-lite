@@ -42,7 +42,7 @@ void SwitchButton::initUi() {
 
     m_valueAnimation.setTargetObject(this);
     m_valueAnimation.setPropertyName("apparentValue");
-    m_valueAnimation.setEasingCurve(QEasingCurve::InOutCubic);
+    m_valueAnimation.setEasingCurve(QEasingCurve::OutBack);
 
     m_thumbHoverAnimation.setTargetObject(this);
     m_thumbHoverAnimation.setPropertyName("thumbScaleRatio");
@@ -83,7 +83,12 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
     painter.drawLine(m_trackStart, m_trackEnd);
 
     // Draw active background
-    pen.setColor(QColor(155, 186, 255, m_apparentValue));
+    auto alpha = m_apparentValue;
+    if (alpha > 255)
+        alpha = 255;
+    if (alpha < 0)
+        alpha = 0;
+    pen.setColor(QColor(155, 186, 255, alpha));
     painter.setPen(pen);
     painter.drawLine(m_trackStart, m_trackEnd);
 
@@ -95,6 +100,10 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
 
     painter.setPen(Qt::NoPen);
     auto b = 255 - m_apparentValue;
+    if (b > 255)
+        b = 255;
+    if (b < 0)
+        b = 0;
     painter.setBrush(QColor(b, b, b));
     painter.drawEllipse(handlePos, thumbRadius, thumbRadius);
 }
@@ -120,7 +129,7 @@ void SwitchButton::updateAnimationDuration() {
     int valueDuration = 0;
     int hoverDuration = 0;
     if (animationLevel() == AnimationGlobal::Full) {
-        valueDuration = 250;
+        valueDuration = 400;
         hoverDuration = 200;
     } else if (animationLevel() == AnimationGlobal::Decreased) {
         valueDuration = 0;

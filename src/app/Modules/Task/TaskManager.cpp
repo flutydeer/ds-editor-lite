@@ -31,6 +31,7 @@ void TaskManager::wait() {
     // threadPool->waitForDone();
 }
 void TaskManager::addTask(ITask *task) {
+    qDebug() << "TaskManager::addTask" << task->id();
     auto index = m_tasks.count();
     m_tasks.append(task);
     emit taskChanged(Added, task,  index);

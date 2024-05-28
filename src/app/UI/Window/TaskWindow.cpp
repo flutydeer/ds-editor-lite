@@ -32,11 +32,14 @@ TaskWindow::TaskWindow(QWidget *parent) : Window(parent) {
     setWindowTitle("Background Tasks - DS Editor Lite");
     m_taskList = new QListWidget;
     m_taskList->setStyleSheet("QListWidget { background: transparent; border: none; "
-                                     "border-right: 1px solid #202020; outline:0px;"
-                                     "border-top: 1px solid #202020;"
-                                     "margin-bottom: 16px } "
-                                     "QListWidget::item:hover { background: #05FFFFFF }"
-                                     "QListWidget::item:selected { background: #10FFFFFF }");
+                              "border-right: 1px solid #202020; outline:0px;"
+                              "border-top: 1px solid #202020;"
+                              "margin-bottom: 16px } "
+                              "QListWidget::item:hover { background: #05FFFFFF }"
+                              "QListWidget::item:selected { background: #10FFFFFF }");
+
+    for (auto task : TaskManager::instance()->tasks())
+        addTaskToView(task);
 
     connect(TaskManager::instance(), &TaskManager::taskChanged, this, &TaskWindow::onTaskChanged);
 
