@@ -214,6 +214,7 @@ namespace FillLyric {
 
         auto height = y - this->y() + m_splitter->margin();
         if (!m_cells.isEmpty())
+            // TODO: Fix the height when the pronunciation at the beginning of a line is empty.
             height += m_cells[0]->height();
 
         if (m_height != height) {
