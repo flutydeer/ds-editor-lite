@@ -1,10 +1,9 @@
 #include "RomajiAnalysis.h"
 
-#include "../ILanguageManager.h"
+#include <QRandomGenerator>
 
 namespace LangMgr {
     bool RomajiAnalysis::initialize(QString &errMsg) {
-        Q_UNUSED(errMsg);
         loadDict();
         return true;
     }
@@ -18,33 +17,81 @@ namespace LangMgr {
 
         for (const auto &i : initial) {
             for (const auto &f : final) {
-                m_trie->insert(i + f);
+                romajiSet.insert(i + f);
             }
         }
 
         for (const auto &s : special) {
-            m_trie->insert(s);
+            romajiSet.insert(s);
         }
 
         for (const auto &i : initial) {
-            m_trie->insert(i);
+            romajiSet.insert(i);
         }
 
         for (const auto &f : final) {
-            m_trie->insert(f);
+            romajiSet.insert(f);
         }
+    }
+
+    static bool isLetter(QChar c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '\'';
+    }
+
+    bool RomajiAnalysis::contains(const QString &input) const {
+        return romajiSet.contains(input);
     }
 
     QList<LangNote> RomajiAnalysis::split(const QString &input) const {
-        auto enRes = ILanguageManager::instance()->language("English")->split(input);
-        for (auto &note : enRes) {
-            if (note.language == "English") {
-                if (contains(note.lyric))
-                    note.language = category();
+        QList<LangNote> result;
+
+        int pos = 0;
+        while (pos < input.length()) {
+            const auto &currentChar = input[pos];
+            LangNote note;
+            if (isLetter(currentChar)) {
+                const int start = pos;
+                while (pos < input.length() && isLetter(input[pos])) {
+                    pos++;
+                }
+
+                note.lyric = input.mid(start, pos - start);
+                if (contains(note.lyric)) {
+                    note.language = id();
+                    note.category = category();
+                } else {
+                    note.language = QStringLiteral("English");
+                    note.category = QStringLiteral("English");
+                }
+            } else {
+                const int start = pos;
+                while (pos < input.length() && !isLetter(input[pos])) {
+                    pos++;
+                }
+                note.lyric = input.mid(start, pos - start);
+                note.language = QStringLiteral("Unknown");
+                note.category = QStringLiteral("Unknown");
             }
+            if (!note.lyric.isEmpty())
+                result.append(note);
         }
-        return enRes;
+        return result;
     }
 
+    template <typename T>
+    static T getRandomElementFromSet(const QSet<T> &set) {
+        const int size = set.size();
+
+        int randomIndex = QRandomGenerator::global()->bounded(size);
+
+        auto it = set.constBegin();
+        std::advance(it, randomIndex);
+
+        return *it;
+    }
+
+    QString RomajiAnalysis::randString() const {
+        return getRandomElementFromSet(romajiSet);
+    }
 
 } // LangMgr

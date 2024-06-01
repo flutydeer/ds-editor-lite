@@ -1,15 +1,17 @@
 #ifndef ROMAJIANALYSIS_H
 #define ROMAJIANALYSIS_H
 
-#include "BaseFactory/DictFactory.h"
+#include <QSet>
+
+#include "../ILanguageFactory.h"
 
 namespace LangMgr {
 
-    class RomajiAnalysis final : public DictFactory {
+    class RomajiAnalysis final : public ILanguageFactory {
         Q_OBJECT
     public:
         explicit RomajiAnalysis(const QString &id = "Romaji", QObject *parent = nullptr)
-            : DictFactory(id, parent) {
+            : ILanguageFactory(id, parent) {
             setAuthor(tr("Xiao Lang"));
             setDisplayName(tr("Romaji"));
             setDescription(tr("Capture Romaji words."));
@@ -19,9 +21,16 @@ namespace LangMgr {
 
         bool initialize(QString &errMsg) override;
 
-        void loadDict() override;
+        void loadDict();
+
+        [[nodiscard]] bool contains(const QString &input) const override;
 
         [[nodiscard]] QList<LangNote> split(const QString &input) const override;
+
+        [[nodiscard]] QString randString() const override;
+
+    private:
+        QSet<QString> romajiSet;
     };
 
 } // LangMgr

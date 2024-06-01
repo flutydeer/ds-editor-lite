@@ -45,6 +45,8 @@ namespace LangMgr {
         [[nodiscard]] bool contains(const QChar &c) const override;
         [[nodiscard]] bool contains(const QString &input) const override;
 
+        QList<LangNote> split(const QString &input) const override;
+
         [[nodiscard]] QString randString() const override;
 
     protected:

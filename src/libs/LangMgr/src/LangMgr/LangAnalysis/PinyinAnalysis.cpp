@@ -1,6 +1,6 @@
 #include "PinyinAnalysis.h"
 
-#include "../ILanguageManager.h"
+#include <QRandomGenerator>
 
 namespace LangMgr {
     bool PinyinAnalysis::initialize(QString &errMsg) {
@@ -17,29 +17,77 @@ namespace LangMgr {
 
         for (const auto &initial : initials) {
             for (const auto &final : finals) {
-                m_trie->insert(initial + final);
+                pinyinSet.insert(initial + final);
             }
         }
 
         for (const auto &initial : initials) {
-            m_trie->insert(initial);
+            pinyinSet.insert(initial);
         }
 
         for (const auto &final : finals) {
-            m_trie->insert(final);
+            pinyinSet.insert(final);
         }
     }
 
+    static bool isLetter(QChar c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '\'';
+    }
+
+    bool PinyinAnalysis::contains(const QString &input) const {
+        return pinyinSet.contains(input);
+    }
+
     QList<LangNote> PinyinAnalysis::split(const QString &input) const {
-        auto enRes = ILanguageManager::instance()->language("English")->split(input);
-        for (auto &note : enRes) {
-            if (note.language == "English") {
-                if (contains(note.lyric))
+        QList<LangNote> result;
+
+        int pos = 0;
+        while (pos < input.length()) {
+            const auto &currentChar = input[pos];
+            LangNote note;
+            if (isLetter(currentChar)) {
+                const int start = pos;
+                while (pos < input.length() && isLetter(input[pos])) {
+                    pos++;
+                }
+
+                note.lyric = input.mid(start, pos - start);
+                if (contains(note.lyric)) {
                     note.language = id();
-                note.category = category();
+                    note.category = category();
+                } else {
+                    note.language = QStringLiteral("English");
+                    note.category = QStringLiteral("English");
+                }
+            } else {
+                const int start = pos;
+                while (pos < input.length() && !isLetter(input[pos])) {
+                    pos++;
+                }
+                note.lyric = input.mid(start, pos - start);
+                note.language = QStringLiteral("Unknown");
+                note.category = QStringLiteral("Unknown");
             }
+            if (!note.lyric.isEmpty())
+                result.append(note);
         }
-        return enRes;
+        return result;
+    }
+
+    template <typename T>
+    static T getRandomElementFromSet(const QSet<T> &set) {
+        const int size = set.size();
+
+        int randomIndex = QRandomGenerator::global()->bounded(size);
+
+        auto it = set.constBegin();
+        std::advance(it, randomIndex);
+
+        return *it;
+    }
+
+    QString PinyinAnalysis::randString() const {
+        return getRandomElementFromSet(pinyinSet);
     }
 
 } // LangMgr

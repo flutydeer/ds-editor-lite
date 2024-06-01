@@ -1,8 +1,8 @@
 #include "DictFactory.h"
 
 #include "MultiCharFactory.h"
-#include <QDebug>
-#include <qrandom.h>
+
+#include <QRandomGenerator>
 
 namespace LangMgr {
 
@@ -53,6 +53,58 @@ namespace LangMgr {
 
     bool DictFactory::contains(const QString &input) const {
         return m_trie->search(input);
+    }
+
+    QList<LangNote> DictFactory::split(const QString &input) const {
+        QList<LangNote> result;
+
+        int pos = 0;
+        while (pos < input.length()) {
+            const auto &currentChar = input[pos];
+            LangNote note;
+
+            if (m_trie->search(currentChar)) {
+                const int start = pos;
+                TrieNode *currentNode = m_trie->root;
+
+                // Greedily match the longest possible word
+                for (int i = pos; i < input.length(); ++i) {
+                    if (currentNode->children.contains(input[i])) {
+                        currentNode = currentNode->children[input[i]];
+                        if (currentNode->isEnd) {
+                            pos++;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                if (pos > start) {
+                    note.lyric = input.mid(start, pos - start);
+                    note.language = id();
+                    note.category = category();
+                } else {
+                    note.lyric = currentChar;
+                    note.language = QStringLiteral("Unknown");
+                    note.category = QStringLiteral("Unknown");
+                    pos++;
+                }
+            } else {
+                const int start = pos;
+                while (pos < input.length() && !m_trie->search(input[pos])) {
+                    pos++;
+                }
+                note.lyric = input.mid(start, pos - start);
+                note.language = QStringLiteral("Unknown");
+                note.category = QStringLiteral("Unknown");
+            }
+
+            if (!note.lyric.isEmpty()) {
+                result.append(note);
+            }
+        }
+
+        return result;
     }
 
     QString DictFactory::randString() const {

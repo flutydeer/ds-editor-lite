@@ -12,7 +12,7 @@ namespace LangMgr {
 
     QString CharSetFactory::randString() const {
         if (m_charset.isEmpty()) {
-            return "";
+            return {};
         }
 
         const int randomIndex =
