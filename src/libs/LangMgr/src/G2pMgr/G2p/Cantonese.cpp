@@ -11,7 +11,7 @@ namespace G2pMgr {
 
     bool Cantonese::initialize(QString &errMsg) {
         m_cantonese = new IKg2p::CantoneseG2p();
-        if (m_cantonese->getDefaultPinyin("好").isEmpty()) {
+        if (!m_cantonese->initialized()) {
             errMsg = tr("Failed to initialize Cantonese G2P");
             return false;
         }
@@ -30,10 +30,9 @@ namespace G2pMgr {
         for (int i = 0; i < g2pRes.size(); i++) {
             LangNote langNote;
             langNote.lyric = input[i];
-            langNote.syllable = g2pRes[i];
+            langNote.syllable = g2pRes[i].syllable;
             langNote.candidates = m_cantonese->getDefaultPinyin(input[i], false);
-            if (input[i] == g2pRes[i])
-                langNote.g2pError = true;
+            langNote.error = g2pRes[i].error;
             result.append(langNote);
         }
         return result;

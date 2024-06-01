@@ -231,7 +231,7 @@ namespace LangMgr {
             for (int i = 0; i < tempRes.size(); i++) {
                 const auto index = languageIndexMap[language][i];
                 input[index]->syllable = tempRes[i].syllable;
-                input[index]->g2pError = tempRes[i].g2pError;
+                input[index]->error = tempRes[i].error;
                 input[index]->candidates = tempRes[i].candidates;
             }
         }

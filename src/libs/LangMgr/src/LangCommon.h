@@ -12,7 +12,7 @@ struct LangNote {
     QString category = "Unknown";
     QString standard = "Unknown";
     bool revised = false;
-    bool g2pError = false;
+    bool error = false;
 
     LangNote() = default;
     explicit LangNote(QString lyric) : lyric(std::move(lyric)){};

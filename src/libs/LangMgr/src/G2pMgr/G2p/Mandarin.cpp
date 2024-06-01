@@ -11,7 +11,7 @@ namespace G2pMgr {
 
     bool Mandarin::initialize(QString &errMsg) {
         m_mandarin = new IKg2p::MandarinG2p();
-        if (m_mandarin->getDefaultPinyin("好").isEmpty()) {
+        if (!m_mandarin->initialized()) {
             errMsg = tr("Failed to initialize Mandarin G2P");
             return false;
         }
@@ -30,10 +30,9 @@ namespace G2pMgr {
         for (int i = 0; i < g2pRes.size(); i++) {
             LangNote langNote;
             langNote.lyric = input[i];
-            langNote.syllable = g2pRes[i];
+            langNote.syllable = g2pRes[i].syllable;
             langNote.candidates = m_mandarin->getDefaultPinyin(input[i], false);
-            if (input[i] == g2pRes[i])
-                langNote.g2pError = true;
+            langNote.error = g2pRes[i].error;
             result.append(langNote);
         }
         return result;

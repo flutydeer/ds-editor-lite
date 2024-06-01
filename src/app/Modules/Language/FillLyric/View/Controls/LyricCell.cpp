@@ -177,7 +177,7 @@ namespace FillLyric {
         const auto syllable = m_note->revised ? m_note->syllableRevised : m_note->syllable;
         if (m_note->revised) {
             lyricFlag = PenType::Revised;
-        } else if (m_note->g2pError) {
+        } else if (m_note->error) {
             lyricFlag = PenType::G2pError;
         } else if (m_note->candidates.size() > 1) {
             lyricFlag = PenType::MultiTone;
