@@ -95,7 +95,7 @@ namespace G2pMgr {
 
     bool IG2pManager::initialize(QString &errMsg) {
         Q_D(IG2pManager);
-        IKg2p::setDictionaryPath(qApp->applicationDirPath() + "/dict");
+        IKg2p::setDictionaryPath((qApp->applicationDirPath() + "/dict").toUtf8().toStdString());
         const auto g2ps = d->g2ps.values();
         for (const auto g2p : g2ps) {
             g2p->initialize(errMsg);

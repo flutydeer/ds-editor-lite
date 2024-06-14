@@ -18,6 +18,21 @@ namespace G2pMgr {
         return true;
     }
 
+    static std::vector<std::string> toStdVector(const QStringList &input) {
+        std::vector<std::string> result;
+        result.reserve(input.size());
+        for (const auto &str : input)
+            result.push_back(str.toUtf8().toStdString());
+        return result;
+    }
+
+    static QStringList fromStdVector(const std::vector<std::string> &input) {
+        QStringList result;
+        for (const auto &str : input)
+            result.append(QString::fromUtf8(str));
+        return result;
+    }
+
     QList<LangNote> Mandarin::convert(const QStringList &input, const QJsonObject *config) const {
         const auto tone = config && config->keys().contains("tone") ? config->value("tone").toBool()
                                                                     : this->m_tone;
@@ -26,12 +41,12 @@ namespace G2pMgr {
                                     : this->m_convertNum;
 
         QList<LangNote> result;
-        auto g2pRes = m_mandarin->hanziToPinyin(input, tone, convertNum);
+        const auto g2pRes = m_mandarin->hanziToPinyin(toStdVector(input), tone, convertNum);
         for (int i = 0; i < g2pRes.size(); i++) {
             LangNote langNote;
             langNote.lyric = input[i];
-            langNote.syllable = g2pRes[i].syllable;
-            langNote.candidates = m_mandarin->getDefaultPinyin(input[i], false);
+            langNote.syllable = QString::fromUtf8(g2pRes[i].syllable);
+            langNote.candidates = fromStdVector(g2pRes[i].candidates);
             langNote.error = g2pRes[i].error;
             result.append(langNote);
         }

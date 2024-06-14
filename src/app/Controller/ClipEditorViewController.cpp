@@ -227,10 +227,12 @@ void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const 
         properties->lyric = langNotes[i]->lyric;
         properties->pronunciation.original = langNotes[i]->syllable;
         properties->phonemes.edited = notesPhonemes[i].edited;
-        const auto phonemes = syllable2p->syllableToPhoneme(langNotes[i]->syllable);
-        if (!phonemes.isEmpty()) {
-            if (phonemes.count() == 1) {
-                properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.first(), 0));
+        const auto phonemes =
+            syllable2p->syllableToPhoneme(langNotes[i]->syllable.toUtf8().toStdString());
+        if (!phonemes.empty()) {
+            if (phonemes.size() == 1) {
+                const QString first = QString::fromUtf8(phonemes.at(0));
+                properties->phonemes.original.append(Phoneme(Phoneme::Normal, first, 0));
 
                 if (properties->phonemes.edited.count() != 1) {
                     properties->phonemes.edited.clear();
@@ -239,10 +241,12 @@ void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const 
                     phoneme.start = 0;
                     properties->phonemes.edited.append(phoneme);
                 }
-                properties->phonemes.edited.last().name = phonemes.first();
-            } else if (phonemes.count() == 2) {
-                properties->phonemes.original.append(Phoneme(Phoneme::Ahead, phonemes.first(), 0));
-                properties->phonemes.original.append(Phoneme(Phoneme::Normal, phonemes.last(), 0));
+                properties->phonemes.edited.last().name = first;
+            } else if (phonemes.size() == 2) {
+                const QString first = QString::fromUtf8(phonemes.at(0));
+                const QString last = QString::fromUtf8(phonemes.at(1));
+                properties->phonemes.original.append(Phoneme(Phoneme::Ahead, first, 0));
+                properties->phonemes.original.append(Phoneme(Phoneme::Normal, last, 0));
 
                 if (properties->phonemes.edited.count() != 2) {
                     properties->phonemes.edited.clear();
@@ -255,8 +259,8 @@ void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const 
                     phoneme.start = 0;
                     properties->phonemes.edited.append(phoneme);
                 }
-                properties->phonemes.edited.first().name = phonemes.first();
-                properties->phonemes.edited.last().name = phonemes.last();
+                properties->phonemes.edited.first().name = first;
+                properties->phonemes.edited.last().name = last;
             }
         }
         args.append(properties);

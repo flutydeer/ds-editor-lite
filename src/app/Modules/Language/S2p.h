@@ -8,10 +8,11 @@
 
 class S2p final : public Singleton<S2p>, public IKg2p::Syllable2p {
 public:
-    explicit S2p(QString phonemeDict = qApp->applicationDirPath() +
-                                       "/Resources/phonemeDict/opencpop-extension.txt",
-                 QString sep1 = "\t", QString sep2 = " ")
-        : Syllable2p(std::move(phonemeDict), std::move(sep1), std::move(sep2)) {
+    explicit S2p(const QString &dictPath = qApp->applicationDirPath(),
+                 const QString &dictName = "Resources/phonemeDict/opencpop-extension.txt",
+                 QChar sep1 = '\t', const QString &sep2 = " ")
+        : Syllable2p(dictPath.toUtf8().toStdString(), dictName.toUtf8().toStdString(),
+                     sep1.unicode(), sep2.toUtf8().toStdString()) {
     }
 };
 
