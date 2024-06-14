@@ -167,12 +167,15 @@ namespace FillLyric {
         syllableFont.setPointSize(syllableFont.pointSize() - 3);
         const auto sMetric = QFontMetrics(syllableFont);
 
+        const auto minLRect = lMetric.boundingRect("0");
+        const auto minSRect = sMetric.boundingRect("0");
+
         for (const auto &cell : m_cells) {
             const auto lRect = lMetric.boundingRect(cell->lyric());
             const auto sRect = sMetric.boundingRect(cell->syllable());
 
-            cell->setLyricRect(lRect);
-            cell->setSyllableRect(sRect);
+            cell->setLyricRect(lRect.height() > 0 ? lRect : minLRect);
+            cell->setSyllableRect(sRect.height() > 0 ? sRect : minSRect);
             cell->setFont(font);
         }
         this->updateCellPos();
@@ -214,7 +217,6 @@ namespace FillLyric {
 
         auto height = y - this->y() + m_splitter->margin();
         if (!m_cells.isEmpty())
-            // TODO: Fix the height when the pronunciation at the beginning of a line is empty.
             height += m_cells[0]->height();
 
         if (m_height != height) {

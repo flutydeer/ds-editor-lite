@@ -124,8 +124,8 @@ namespace FillLyric {
     }
 
     void LyricCell::updateLyricRect() {
-        const auto lyric = m_note->lyric.isEmpty() ? " " : m_note->lyric;
-        const auto syllable = m_note->syllable.isEmpty() ? " " : m_note->syllable;
+        const auto lyric = m_note->lyric.isEmpty() ? "0" : m_note->lyric;
+        const auto syllable = m_note->syllable.isEmpty() ? "0" : m_note->syllable;
 
         m_lRect = QFontMetrics(m_font).boundingRect(lyric);
 
