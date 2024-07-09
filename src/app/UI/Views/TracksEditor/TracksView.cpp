@@ -42,6 +42,7 @@ TracksView::TracksView(QWidget *parent) : QWidget(parent) {
                                      "border-right: 1px solid #202020; outline:0px;"
                                      "border-top: 1px solid #202020;"
                                      "margin-bottom: 16px } "
+                                     "QListWidget::item { border-radius: 0px; padding: 0px; }"
                                      "QListWidget::item:hover { background: #05FFFFFF }"
                                      "QListWidget::item:selected { background: #10FFFFFF }");
     m_trackListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
