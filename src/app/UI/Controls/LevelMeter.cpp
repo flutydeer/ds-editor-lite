@@ -116,7 +116,9 @@ void LevelMeter::mousePressEvent(QMouseEvent *event) {
     auto cursorPos = event->position();
     if (event->button() == Qt::LeftButton && mouseOnClipIndicator(cursorPos))
         setClipped(false, false);
-    // QWidget::mousePressEvent(event);
+
+    QWidget::mousePressEvent(event);
+    event->ignore();
 }
 
 void LevelMeter::initBuffer(int bufferSize) {

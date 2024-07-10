@@ -8,7 +8,7 @@
 #include <QStackedWidget>
 
 class QLabel;
-class QLineEdit;
+class LineEdit;
 
 class EditLabel : public QStackedWidget {
     Q_OBJECT
@@ -18,7 +18,7 @@ public:
     // explicit EditLabel(const QString &text, QWidget *parent = nullptr);
 
     QLabel *label;
-    QLineEdit *lineEdit;
+    LineEdit *lineEdit;
 
     [[nodiscard]] QString text() const;
     void setText(const QString &text);

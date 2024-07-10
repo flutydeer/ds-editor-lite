@@ -2,28 +2,27 @@
 // Created by fluty on 2024/1/29.
 //
 
-#include "TrackControlWidget.h"
-
-#include <QPushButton>
 #include <QLabel>
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
-#include <QLineEdit>
 
+#include "TrackControlWidget.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Controls/SeekBar.h"
 #include "UI/Controls/LevelMeter.h"
 #include "Model/Track.h"
+#include "UI/Controls/Button.h"
+#include "UI/Controls/LineEdit.h"
 
 TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) : QWidget(parent) {
     m_item = item;
     setAttribute(Qt::WA_StyledBackground);
 
-    m_btnColor = new QPushButton;
-    m_btnColor->setObjectName("btnColor");
-    m_btnColor->setMaximumWidth(8);
-    m_btnColor->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+    // m_btnColor = new Button;
+    // m_btnColor->setObjectName("btnColor");
+    // m_btnColor->setMaximumWidth(8);
+    // m_btnColor->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
 
     m_lbTrackIndex = new QLabel("1");
     m_lbTrackIndex->setObjectName("lbTrackIndex");
@@ -33,7 +32,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) :
     m_lbTrackIndex->setMinimumHeight(m_buttonSize);
     m_lbTrackIndex->setMaximumHeight(m_buttonSize);
 
-    m_btnMute = new QPushButton("M");
+    m_btnMute = new Button("M");
     m_btnMute->setObjectName("btnMute");
     m_btnMute->setCheckable(true);
     m_btnMute->setChecked(false);
@@ -45,7 +44,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) :
     m_btnMute->setContentsMargins(0, 0, 0, 0);
     connect(m_btnMute, &QPushButton::clicked, this, [&] { emit propertyChanged(); });
 
-    m_btnSolo = new QPushButton("S");
+    m_btnSolo = new Button("S");
     m_btnSolo->setObjectName("btnSolo");
     m_btnSolo->setCheckable(true);
     m_btnSolo->setChecked(false);
@@ -137,7 +136,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) :
 
     m_mainLayout = new QHBoxLayout;
     m_mainLayout->setObjectName("TrackControlPanel");
-    m_mainLayout->addWidget(m_btnColor);
+    // m_mainLayout->addWidget(m_btnColor);
     m_mainLayout->addLayout(m_controlWidgetLayout);
     m_mainLayout->addWidget(m_levelMeter);
     m_mainLayout->setSpacing(0);

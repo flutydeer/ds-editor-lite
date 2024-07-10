@@ -5,6 +5,8 @@
 #ifndef APPGLOBAL_H
 #define APPGLOBAL_H
 
+#include <QColor>
+
 namespace AppGlobal {
     const int horizontalScrollBarWidth = 16;
     const int verticalScrollBarWidth = 16;
@@ -45,6 +47,8 @@ namespace AppGlobal {
     const QColor beatTextColor = QColor(160, 160, 160);
 
     enum AudioLoadStatus { Init, Loading, Loaded, Error };
+
+    enum PanelType { Unknown, TracksEditor, ClipEditor };
 }
 
 #endif // APPGLOBAL_H

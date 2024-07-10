@@ -11,7 +11,7 @@
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/SeekBar.h"
 
-class QPushButton;
+class Button;
 
 class ClipEditorToolBarView final : public QWidget {
     Q_OBJECT
@@ -30,13 +30,13 @@ private:
     int m_contentHeight = 28;
 
     EditLabel *m_elClipName;
-    QPushButton *m_btnMute{};
+    // Button *m_btnMute{};
     SeekBar *m_sBarGain{};
 
-    QPushButton *m_btnArrow;
-    QPushButton *m_btnNotePencil;
-    QPushButton *m_btnPitchPencil;
-    QPushButton *m_btnPitchAnchor;
+    Button *m_btnArrow;
+    Button *m_btnNotePencil;
+    Button *m_btnPitchPencil;
+    Button *m_btnPitchAnchor;
 
     const QIcon icoArrowBlack = QIcon(":svg/icons/cursor_24_filled.svg");
     const QIcon icoArrowWhite = QIcon(":svg/icons/cursor_24_filled_white.svg");

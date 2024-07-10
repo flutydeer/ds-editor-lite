@@ -9,6 +9,7 @@
 #include "Model/Track.h"
 #include "PhonemeView.h"
 #include "Interface/IClipEditorView.h"
+#include "Interface/IPanel.h"
 #include "Model/Clip.h"
 #include "Model/Params.h"
 
@@ -20,10 +21,13 @@ class Track;
 class TimelineView;
 class Curve;
 
-class ClipEditorView final : public QWidget, public IClipEditorView {
+class ClipEditorView final : public QWidget, public IClipEditorView, public IPanel {
     Q_OBJECT
 public:
     explicit ClipEditorView(QWidget *parent = nullptr);
+    [[nodiscard]] AppGlobal::PanelType panelType() const override {
+        return AppGlobal::ClipEditor;
+    }
 
     void centerAt(double tick, double keyIndex) override;
     void centerAt(double startTick, double length, double keyIndex) override;
@@ -50,6 +54,8 @@ private slots:
     void onParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
 
 private:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
     Track *m_track = nullptr;
     Clip *m_clip = nullptr;
     SingingClip *m_singingClip = nullptr;
@@ -68,6 +74,8 @@ private:
     void onNotePropertyChanged(SingingClip::NotePropertyType type, Note *note);
     void onNoteSelectionChanged();
     void printParts();
+    void afterSetActivated() override;
+    void updateStyleSheet();
 };
 
 

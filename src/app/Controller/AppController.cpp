@@ -6,6 +6,7 @@
 #include "Modules/History/HistoryManager.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
+#include "Interface/IPanel.h"
 #include "Model/Clip.h"
 #include "Model/Track.h"
 #include "Tasks/DecodeAudioTask.h"
@@ -14,9 +15,8 @@
 
 AppController::AppController() {
     auto task = new LaunchLanguageEngineTask;
-    connect(task, &LaunchLanguageEngineTask::finished, this, [=] {
-        handleRunLanguageEngineTaskFinished(task);
-    });
+    connect(task, &LaunchLanguageEngineTask::finished, this,
+            [=] { handleRunLanguageEngineTaskFinished(task); });
     TaskManager::instance()->addTask(task);
     TaskManager::instance()->startTask(task);
 }
@@ -82,6 +82,12 @@ void AppController::onSetQuantize(int quantize) {
 void AppController::onTrackSelectionChanged(int trackIndex) {
     AppModel::instance()->setSelectedTrack(trackIndex);
 }
+void AppController::onPanelClicked(AppGlobal::PanelType panelType) {
+    for (const auto panel : m_panels)
+        panel->setPanelActivated(panel->panelType() == panelType);
+    m_activatedPanel = panelType;
+    emit activatedPanelChanged(panelType);
+}
 bool AppController::isPowerOf2(int num) {
     return num > 0 && ((num & (num - 1)) == 0);
 }
@@ -137,4 +143,7 @@ QString AppController::lastProjectPath() const {
 }
 bool AppController::isLanguageEngineReady() const {
     return m_isLanguageEngineReady;
+}
+void AppController::registerPanel(IPanel *panel) {
+    m_panels.append(panel);
 }

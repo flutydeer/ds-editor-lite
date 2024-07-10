@@ -21,7 +21,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     : TimeGraphicsView(scene, parent), m_layerManager(scene) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("PianoRollGraphicsView");
-    
+
     setScaleXMax(5);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
 
@@ -47,7 +47,8 @@ void PianoRollGraphicsView::onPitchEditorEditCompleted() {
     auto newCurves = m_pitchItem->editedCurves();
     for (auto curve : newCurves) {
         curves.add(curve);
-        qDebug() << "curve:" << "#" << curve->id() << curve->start() << curve->endTick();
+        qDebug() << "curve:"
+                 << "#" << curve->id() << curve->start() << curve->endTick();
     }
     qDebug() << "curve count" << curves.count();
     // TODO: Add anchor curves
@@ -125,7 +126,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         return;
     }
 
-    event->accept();
+    // event->accept();
     auto scenePos = mapToScene(event->position().toPoint());
     auto tick = static_cast<int>(sceneXToTick(scenePos.x()));
     auto keyIndex = sceneYToKeyIndexInt(scenePos.y());
@@ -159,6 +160,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         }
     } else
         TimeGraphicsView::mousePressEvent(event);
+    event->ignore();
 }
 void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     if (event->modifiers() == Qt::AltModifier)

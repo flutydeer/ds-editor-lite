@@ -14,6 +14,7 @@ public:
     explicit LineEdit(const QString &text, QWidget *parent = nullptr);
 
 protected:
+    void mousePressEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
 };
 

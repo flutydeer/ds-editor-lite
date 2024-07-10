@@ -259,6 +259,10 @@ void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
     emit sizeChanged(viewport()->size());
     notifyVisibleRectChanged();
 }
+void CommonGraphicsView::mousePressEvent(QMouseEvent *event) {
+    QGraphicsView::mousePressEvent(event);
+    event->ignore();
+}
 void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     // if (event->pos().x() > rect().width() * 0.8)
     //     horizontalScrollBar()->triggerAction(QAbstractSlider::SliderSingleStepAdd);

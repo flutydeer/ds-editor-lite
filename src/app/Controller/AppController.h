@@ -8,8 +8,10 @@
 #include <QObject>
 
 #include "Utils/Singleton.h"
+#include "Global/AppGlobal.h"
 
 
+class IPanel;
 class LaunchLanguageEngineTask;
 class AppModel;
 class DecodeAudioTask;
@@ -25,6 +27,7 @@ public:
     [[nodiscard]] QString lastProjectPath() const;
 
     [[nodiscard]] bool isLanguageEngineReady() const;
+    void registerPanel(IPanel *panel);
 
 public slots:
     void onNewProject();
@@ -40,6 +43,10 @@ public slots:
     void onSetTimeSignature(int numerator, int denominator);
     void onSetQuantize(int quantize);
     void onTrackSelectionChanged(int trackIndex);
+    void onPanelClicked(AppGlobal::PanelType panel);
+
+signals:
+    void activatedPanelChanged(AppGlobal::PanelType panel);
 
 private:
     bool isPowerOf2(int num);
@@ -50,6 +57,8 @@ private:
 
     QString m_lastProjectPath;
     bool m_isLanguageEngineReady = false;
+    QList<IPanel *> m_panels;
+    AppGlobal::PanelType m_activatedPanel = AppGlobal::TracksEditor;
 };
 
 // using ControllerSingleton = Singleton<Controller>;

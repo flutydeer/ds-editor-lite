@@ -12,7 +12,7 @@
 class QListWidgetItem;
 class LevelMeter;
 class Track;
-class QPushButton;
+class Button;
 class QLabel;
 class EditLabel;
 class SeekBar;
@@ -55,10 +55,10 @@ private:
     void contextMenuEvent(QContextMenuEvent *event) override;
     QListWidgetItem *m_item;
     // controls
-    QPushButton *m_btnColor;
+    // Button *m_btnColor;
     QLabel *m_lbTrackIndex;
-    QPushButton *m_btnMute;
-    QPushButton *m_btnSolo;
+    Button *m_btnMute;
+    Button *m_btnSolo;
     EditLabel *m_leTrackName;
     SeekBar *m_sbarPan;
     EditLabel *m_lePan;

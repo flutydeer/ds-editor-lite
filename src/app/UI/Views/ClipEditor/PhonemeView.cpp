@@ -219,8 +219,10 @@ void PhonemeView::drawEighth(QPainter *painter, int tick) {
     painter->drawLine(QLineF(x, y1, x, y2));
 }
 void PhonemeView::mousePressEvent(QMouseEvent *event) {
-    if (!canEdit())
+    if (!canEdit()) {
+        event->ignore();
         return;
+    }
 
     m_mouseDownX = event->pos().x();
     auto tick = xToTick(event->pos().x());
@@ -228,8 +230,10 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
         m_freezeHoverEffects = true;
         m_curPhoneme = phoneme;
         m_mouseMoveBehavior = Move;
-    } else
+    } else {
         QWidget::mousePressEvent(event);
+        event->ignore();
+    }
 }
 void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
     if (!canEdit())

@@ -10,8 +10,9 @@
 #include "Model/AppModel.h"
 #include "Model/Track.h"
 #include "Model/Clip.h"
+#include "Interface/IPanel.h"
 
-class QListWidget;
+class TrackListWidget;
 class TracksGraphicsView;
 class TracksGraphicsScene;
 class TimelineView;
@@ -19,11 +20,14 @@ class TracksBackgroundGraphicsItem;
 class TrackViewModel;
 class AbstractClipGraphicsItem;
 
-class TracksView final : public QWidget {
+class TracksView final : public QWidget, public IPanel{
     Q_OBJECT
 
 public:
     explicit TracksView(QWidget *parent = nullptr);
+    [[nodiscard]] AppGlobal::PanelType panelType() const override {
+        return AppGlobal::TracksEditor;
+    }
 
     AbstractClipGraphicsItem *findClipItemById(int id);
 
@@ -58,7 +62,9 @@ private slots:
     void onViewScaleChanged(qreal sx, qreal sy);
 
 private:
-    QListWidget *m_trackListWidget;
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
+    TrackListWidget *m_trackListWidget;
     TracksGraphicsView *m_graphicsView;
     TracksGraphicsScene *m_tracksScene;
     TimelineView *m_timeline;
@@ -84,6 +90,8 @@ private:
     void removeTrackFromView(int index);
     void updateOverlappedState(int trackIndex);
     void reset();
+    void afterSetActivated() override;
+    void updateStyleSheet();
 };
 
 

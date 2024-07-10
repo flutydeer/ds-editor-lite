@@ -469,20 +469,6 @@ QCheckBox::indicator:unchecked:disabled {
     border: 1px solid rgb(64, 64, 64);
 }
 
-QWidget#TracksView {
-    background: #2A2B2C;
-    /*background: #B0303030;*/
-    border-radius: 6px;
-    /*border: 1px solid rgb(126, 149, 199);*/
-}
-
-QWidget#ClipEditorView {
-    background: #2A2B2C;
-    /*background: #B0303030;*/
-    border-radius: 6px;
-    border: 1px solid rgb(126, 149, 199);
-}
-
 QWidget#TimelineView {
     background: rgb(28, 29, 30);
 }

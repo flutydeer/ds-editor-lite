@@ -2,10 +2,10 @@
 // Created by fluty on 2024/2/10.
 //
 
-#include "ClipEditorView.h"
-
 #include <QVBoxLayout>
+#include <QMouseEvent>
 
+#include "ClipEditorView.h"
 #include "PianoRollGraphicsScene.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/PlaybackController.h"
@@ -17,6 +17,7 @@
 #include "ClipEditorToolBarView.h"
 #include "PhonemeView.h"
 #include "PianoRollGraphicsView.h"
+#include "Controller/AppController.h"
 #include "Model/Track.h"
 
 ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
@@ -120,7 +121,10 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     mainLayout->setContentsMargins({1, 1, 1, 1});
     setLayout(mainLayout);
 
+    updateStyleSheet();
     ClipEditorViewController::instance()->setView(this);
+    AppController::instance()->registerPanel(this);
+    installEventFilter(this);
 }
 void ClipEditorView::centerAt(double tick, double keyIndex) {
     m_pianoRollView->setViewportCenterAt(tick, keyIndex);
@@ -321,6 +325,14 @@ void ClipEditorView::onParamChanged(ParamBundle::ParamName paramName, Param::Par
         m_pianoRollView->updatePitch(paramType, *pitchParam);
     }
 }
+bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QMouseEvent::MouseButtonPress) {
+        qDebug() << "ClipEditorView MouseButtonPress";
+        AppController::instance()->onPanelClicked(AppGlobal::ClipEditor);
+    }
+
+    return QWidget::eventFilter(watched, event);
+}
 void ClipEditorView::reset() {
     m_pianoRollView->reset();
     m_phonemeView->reset();
@@ -385,4 +397,11 @@ void ClipEditorView::printParts() {
             i++;
         }
     }
+}
+void ClipEditorView::afterSetActivated() {
+    updateStyleSheet();
+}
+void ClipEditorView::updateStyleSheet() {
+    auto borderStyle = panelActivated()? "border: 1px solid rgb(126, 149, 199);" : "border: 1px solid rgb(20, 20, 20);";
+    setStyleSheet(QString("QWidget#ClipEditorView {background: #2A2B2C; border-radius: 6px; ") + borderStyle + "}");
 }

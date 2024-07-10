@@ -18,6 +18,7 @@ public:
 
 private:
     void initUi();
+    void mousePressEvent(QMouseEvent *event) override;
 };
 
 #endif // BUTTON_H

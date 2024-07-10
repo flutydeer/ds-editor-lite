@@ -2,12 +2,13 @@
 // Created by fluty on 2023/8/13.
 //
 
-#include "EditLabel.h"
 
-#include "QKeyEvent"
+#include <QKeyEvent>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QLineEdit>
+
+#include "EditLabel.h"
+#include "LineEdit.h"
 
 EditLabel::EditLabel(QWidget *parent) : QStackedWidget(parent){
     setAttribute(Qt::WA_StyledBackground);
@@ -19,7 +20,7 @@ EditLabel::EditLabel(QWidget *parent) : QStackedWidget(parent){
     label->installEventFilter(this);
     label->setStyleSheet(QString("padding: 2px;"));
 
-    lineEdit = new QLineEdit;
+    lineEdit = new LineEdit;
     lineEdit->installEventFilter(this);
     lineEdit->setContextMenuPolicy(Qt::NoContextMenu);
     // lineEdit->setStyleSheet(QString("border: 1px solid #606060;"

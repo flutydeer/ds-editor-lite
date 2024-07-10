@@ -2,15 +2,15 @@
 // Created by fluty on 2024/2/4.
 //
 
-#include "PlaybackView.h"
 
 #include <QHBoxLayout>
-#include <QLineEdit>
 #include <QLabel>
 #include <QPushButton>
 
+#include "PlaybackView.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/ComboBox.h"
+#include "UI/Controls/LineEdit.h"
 
 PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTempo = new EditLabel;

@@ -172,6 +172,7 @@ void SeekBar::mousePressEvent(QMouseEvent *event) {
         emit valueChanged(m_value);
     }
     doubleClickLocked = true;
+    event->ignore();
 }
 
 void SeekBar::mouseReleaseEvent(QMouseEvent *event) {

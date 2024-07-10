@@ -4,11 +4,11 @@
 
 #include "TracksView.h"
 
-#include <QListWidget>
 #include <QScroller>
 #include <QFileDialog>
 #include <QScrollBar>
 #include <QVBoxLayout>
+#include <QMouseEvent>
 
 #include "Global/TracksEditorGlobal.h"
 #include "Controller/AppController.h"
@@ -25,31 +25,15 @@
 #include "GraphicsItem/AudioClipGraphicsItem.h"
 #include "GraphicsItem/SingingClipGraphicsItem.h"
 #include "TrackControlWidget.h"
+#include "TrackListWidget.h"
 
 TracksView::TracksView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TracksView");
 
-    m_trackListWidget = new QListWidget;
-    // tracklist->setMinimumWidth(120);
-    m_trackListWidget->setMinimumWidth(TracksEditorGlobal::trackListWidth);
-    m_trackListWidget->setMaximumWidth(TracksEditorGlobal::trackListWidth);
-    m_trackListWidget->setViewMode(QListView::ListMode);
-    m_trackListWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_trackListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_trackListWidget->setVerticalScrollMode(QListWidget::ScrollPerPixel);
-    m_trackListWidget->setStyleSheet("QListWidget { background: transparent; border: none; "
-                                     "border-right: 1px solid #202020; outline:0px;"
-                                     "border-top: 1px solid #202020;"
-                                     "margin-bottom: 16px } "
-                                     "QListWidget::item { border-radius: 0px; padding: 0px; }"
-                                     "QListWidget::item:hover { background: #05FFFFFF }"
-                                     "QListWidget::item:selected { background: #10FFFFFF }");
-    m_trackListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    QScroller::grabGesture(m_trackListWidget, QScroller::TouchGesture);
+    m_trackListWidget = new TrackListWidget;
     connect(m_trackListWidget, &QListWidget::currentRowChanged, AppController::instance(),
             &AppController::onTrackSelectionChanged);
-
 
     m_tracksScene = new TracksGraphicsScene;
     m_graphicsView = new TracksGraphicsView(m_tracksScene);
@@ -161,6 +145,10 @@ TracksView::TracksView(QWidget *parent) : QWidget(parent) {
     mainLayout->setContentsMargins({1, 1, 1, 1});
 
     setLayout(mainLayout);
+    setPanelActivated(true);
+    updateStyleSheet();
+    AppController::instance()->registerPanel(this);
+    installEventFilter(this);
 }
 void TracksView::onModelChanged() {
     if (m_tracksScene == nullptr)
@@ -281,6 +269,14 @@ void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
         widget->setNarrowMode(sy < TracksEditorGlobal::narrowModeScaleY);
         previousHeightSum += height;
     }
+}
+bool TracksView::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QMouseEvent::MouseButtonPress) {
+        qDebug() << "TracksView MouseButtonPress";
+        AppController::instance()->onPanelClicked(AppGlobal::TracksEditor);
+    }
+
+    return QWidget::eventFilter(watched, event);
 }
 void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
     connect(dsTrack, &Track::clipChanged, this, [=](Track::ClipChangeType type, int clipId) {
@@ -546,4 +542,11 @@ void TracksView::reset() {
         }
     m_trackListWidget->clear();
     m_trackListViewModel.tracks.clear();
+}
+void TracksView::afterSetActivated() {
+    updateStyleSheet();
+}
+void TracksView::updateStyleSheet() {
+    auto borderStyle = panelActivated()? "border: 1px solid rgb(126, 149, 199);" : "border: 1px solid rgb(20, 20, 20);";
+    setStyleSheet(QString("QWidget#TracksView { background: #2A2B2C; border-radius: 6px; ") + borderStyle + "}");
 }

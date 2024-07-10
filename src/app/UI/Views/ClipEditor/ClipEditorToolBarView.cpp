@@ -2,12 +2,11 @@
 // Created by fluty on 2024/2/10.
 //
 
-#include "ClipEditorToolBarView.h"
-
 #include <QHBoxLayout>
 #include <QButtonGroup>
-#include <QPushButton>
 
+#include "ClipEditorToolBarView.h"
+#include "UI/Controls/Button.h"
 #include "UI/Controls/ToolTipFilter.h"
 
 ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) {
@@ -25,7 +24,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     connect(m_elClipName, &EditLabel::editCompleted, this,
             [=](const QString &text) { emit clipNameChanged(text); });
 
-    m_btnArrow = new QPushButton;
+    m_btnArrow = new Button;
     m_btnArrow->setObjectName("btnArrow");
     m_btnArrow->setCheckable(true);
     m_btnArrow->setFixedSize(m_contentHeight, m_contentHeight);
@@ -33,14 +32,14 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     m_btnArrow->setToolTip(tr("Select"));
     m_btnArrow->installEventFilter(new ToolTipFilter(m_btnArrow, 500, false, true));
 
-    m_btnNotePencil = new QPushButton;
+    m_btnNotePencil = new Button;
     m_btnNotePencil->setObjectName("btnNotePencil");
     m_btnNotePencil->setCheckable(true);
     m_btnNotePencil->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnNotePencil->setToolTip(tr("Draw Note"));
     m_btnNotePencil->installEventFilter(new ToolTipFilter(m_btnNotePencil, 500, false, true));
 
-    m_btnPitchAnchor = new QPushButton;
+    m_btnPitchAnchor = new Button;
     m_btnPitchAnchor->setObjectName("btnPitchAnchor");
     m_btnPitchAnchor->setCheckable(true);
     m_btnPitchAnchor->setIcon(icoPitchAnchorWhite);
@@ -48,7 +47,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     m_btnPitchAnchor->setToolTip(tr("Pitch Anchor"));
     m_btnPitchAnchor->installEventFilter(new ToolTipFilter(m_btnPitchAnchor, 500, false, true));
 
-    m_btnPitchPencil = new QPushButton;
+    m_btnPitchPencil = new Button;
     m_btnPitchPencil->setObjectName("btnPitchPencil");
     m_btnPitchPencil->setCheckable(true);
     m_btnPitchPencil->setFixedSize(m_contentHeight, m_contentHeight);

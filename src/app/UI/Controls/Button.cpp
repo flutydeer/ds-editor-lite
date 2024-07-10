@@ -2,10 +2,10 @@
 // Created by fluty on 24-2-20.
 //
 
-#include <QPainter>
-#include <QEvent>
+#include <QMouseEvent>
 
 #include "Button.h"
+
 Button::Button(QWidget *parent) : QPushButton(parent) {
     initUi();
 }
@@ -19,5 +19,9 @@ Button::Button(const QIcon &icon, const QString &text, QWidget *parent)
 }
 void Button::initUi() {
     setAttribute(Qt::WA_StyledBackground);
-    setMinimumWidth(80);
+    // setMinimumWidth(80);
+}
+void Button::mousePressEvent(QMouseEvent *event) {
+    QPushButton::mousePressEvent(event);
+    event->ignore();
 }
