@@ -75,6 +75,30 @@ int CommonGraphicsView::vBarValue() const {
 void CommonGraphicsView::setVBarValue(const int value) {
     verticalScrollBar()->setValue(value);
 }
+void CommonGraphicsView::hBarAnimateTo(int value) {
+    m_hBarAnimation.stop();
+    m_hBarAnimation.setStartValue(hBarValue());
+    m_hBarAnimation.setEndValue(value);
+    m_hBarAnimation.start();
+}
+void CommonGraphicsView::vBarAnimateTo(int value) {
+    m_vBarAnimation.stop();
+    m_vBarAnimation.setStartValue(vBarValue());
+    m_vBarAnimation.setEndValue(value);
+    m_vBarAnimation.start();
+}
+void CommonGraphicsView::hBarVBarAnimateTo(int hValue, int vValue) {
+    m_hBarAnimation.stop();
+    m_vBarAnimation.stop();
+
+    m_hBarAnimation.setStartValue(hBarValue());
+    m_hBarAnimation.setEndValue(hValue);
+    m_vBarAnimation.setStartValue(vBarValue());
+    m_vBarAnimation.setEndValue(vValue);
+
+    m_hBarAnimation.start();
+    m_vBarAnimation.start();
+}
 QRectF CommonGraphicsView::visibleRect() const {
     auto viewportRect = viewport()->rect();
     auto leftTop = mapToScene(viewportRect.left(), viewportRect.top());
@@ -120,13 +144,9 @@ void CommonGraphicsView::onWheelHorScale(QWheelEvent *event) {
         m_scaleXAnimation.stop();
         m_scaleXAnimation.setStartValue(scaleX());
         m_scaleXAnimation.setEndValue(targetScaleX);
-
-        m_hBarAnimation.stop();
-        m_hBarAnimation.setStartValue(hBarValue());
-        m_hBarAnimation.setEndValue(targetValue);
-
         m_scaleXAnimation.start();
-        m_hBarAnimation.start();
+
+        hBarAnimateTo(targetValue);
     }
 }
 bool CommonGraphicsView::event(QEvent *event) {
@@ -207,13 +227,9 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
             m_scaleYAnimation.stop();
             m_scaleYAnimation.setStartValue(scaleY());
             m_scaleYAnimation.setEndValue(targetScaleY);
-
-            m_vBarAnimation.stop();
-            m_vBarAnimation.setStartValue(vBarValue());
-            m_vBarAnimation.setEndValue(targetValue);
-
             m_scaleYAnimation.start();
-            m_vBarAnimation.start();
+
+            vBarAnimateTo(targetValue);
         }
 
     } else if (event->modifiers() == Qt::ShiftModifier) {
@@ -223,10 +239,7 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
         if (!isMouseEventFromWheel(event))
             setHBarValue(endValue);
         else {
-            m_hBarAnimation.stop();
-            m_hBarAnimation.setStartValue(startValue);
-            m_hBarAnimation.setEndValue(endValue);
-            m_hBarAnimation.start();
+            hBarAnimateTo(endValue);
         }
     } else { // No modifier
         if (!isMouseEventFromWheel(event)) {
@@ -234,11 +247,8 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
         } else {
             auto scrollLength = -1 * viewport()->height() * 0.15 * deltaY / 120;
             auto startValue = vBarValue();
-            auto endValue = startValue + scrollLength;
-            m_vBarAnimation.stop();
-            m_vBarAnimation.setStartValue(startValue);
-            m_vBarAnimation.setEndValue(endValue);
-            m_vBarAnimation.start();
+            auto endValue = static_cast<int>(startValue + scrollLength);
+            vBarAnimateTo(endValue);
         }
     }
 

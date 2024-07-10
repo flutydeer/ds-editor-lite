@@ -12,14 +12,21 @@
 #include "Utils/Singleton.h"
 #include "Model/Note.h"
 
+class IClipEditorView;
+
 class ClipEditorViewController final : public QObject, public Singleton<ClipEditorViewController> {
     Q_OBJECT
 
 public:
+    void setView(IClipEditorView *view);
     void setCurrentSingingClip(SingingClip *clip);
     void copySelectedNotesWithParams() const;
     void cutSelectedNotesWithParams();
     void pasteNotesWithParams(const NotesParamsInfo &info, int tick);
+
+    // View operations
+    void centerAt(double tick, double keyIndex);
+    void centerAt(const Note &note);
 
 signals:
     void canSelectAllChanged(bool canSelectAll);
@@ -43,6 +50,7 @@ public slots:
     void onFillLyric(QWidget *parent);
 
 private:
+    IClipEditorView *m_view = nullptr;
     SingingClip *m_clip = nullptr;
 
     void editNotesLyric(const QList<Note *> &notes) const;

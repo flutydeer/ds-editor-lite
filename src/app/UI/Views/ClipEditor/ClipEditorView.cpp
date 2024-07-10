@@ -119,6 +119,15 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({1, 1, 1, 1});
     setLayout(mainLayout);
+
+    ClipEditorViewController::instance()->setView(this);
+}
+void ClipEditorView::centerAt(double tick, double keyIndex) {
+    m_pianoRollView->setViewportCenterAt(tick, keyIndex);
+}
+void ClipEditorView::centerAt(double startTick, double length, double keyIndex) {
+    auto centerTick = startTick + length / 2;
+    m_pianoRollView->setViewportCenterAt(centerTick, keyIndex);
 }
 void ClipEditorView::onModelChanged() {
     reset();

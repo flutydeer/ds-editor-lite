@@ -31,6 +31,9 @@ public:
     void setHBarValue(int value);
     [[nodiscard]] int vBarValue() const;
     void setVBarValue(int value);
+    void hBarAnimateTo(int value);
+    void vBarAnimateTo(int value);
+    void hBarVBarAnimateTo(int hValue, int vValue);
     [[nodiscard]] QRectF visibleRect() const;
     void setEnsureSceneFillView(bool on);
 

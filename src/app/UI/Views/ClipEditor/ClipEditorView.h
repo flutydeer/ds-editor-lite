@@ -8,6 +8,7 @@
 #include "Global/ClipEditorGlobal.h"
 #include "Model/Track.h"
 #include "PhonemeView.h"
+#include "Interface/IClipEditorView.h"
 #include "Model/Clip.h"
 #include "Model/Params.h"
 
@@ -19,10 +20,13 @@ class Track;
 class TimelineView;
 class Curve;
 
-class ClipEditorView final : public QWidget {
+class ClipEditorView final : public QWidget, public IClipEditorView {
     Q_OBJECT
 public:
     explicit ClipEditorView(QWidget *parent = nullptr);
+
+    void centerAt(double tick, double keyIndex) override;
+    void centerAt(double startTick, double length, double keyIndex) override;
 
 public slots:
     void onModelChanged();

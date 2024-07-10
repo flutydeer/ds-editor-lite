@@ -83,7 +83,8 @@ void TimeGraphicsView::setLastPlaybackPosition(double tick) {
 }
 void TimeGraphicsView::setViewportStartTick(double tick) {
     auto sceneX = qRound(tickToSceneX(tick));
-    horizontalScrollBar()->setValue(sceneX);
+    // horizontalScrollBar()->setValue(sceneX);
+    hBarAnimateTo(sceneX);
 }
 void TimeGraphicsView::setViewportCenterAtTick(double tick) {
     auto tickRange = endTick() - startTick();

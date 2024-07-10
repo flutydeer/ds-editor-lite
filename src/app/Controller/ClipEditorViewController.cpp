@@ -12,12 +12,16 @@
 #include "TracksViewController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "Actions/AppModel/Param/ParamsActions.h"
+#include "Interface/IClipEditorView.h"
 #include "Modules/History/HistoryManager.h"
 
 #include "Modules/Language/S2p.h"
 #include <LangMgr/ILanguageManager.h>
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
 
+void ClipEditorViewController::setView(IClipEditorView *view) {
+    m_view = view;
+}
 void ClipEditorViewController::setCurrentSingingClip(SingingClip *clip) {
     m_clip = clip;
     // updateAndNotifyCanSelectAll();
@@ -68,6 +72,13 @@ void ClipEditorViewController::pasteNotesWithParams(const NotesParamsInfo &info,
     a->insertNotes(notesPtr, m_clip);
     a->execute();
     HistoryManager::instance()->record(a);
+}
+void ClipEditorViewController::centerAt(double tick, double keyIndex) {
+    if (m_view)
+        m_view->centerAt(tick, keyIndex);
+}
+void ClipEditorViewController::centerAt(const Note &note) {
+    m_view->centerAt(note.start(), note.length(), note.keyIndex());
 }
 void ClipEditorViewController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
     TracksViewController::instance()->onClipPropertyChanged(args);

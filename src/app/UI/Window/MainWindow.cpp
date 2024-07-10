@@ -115,6 +115,17 @@ MainWindow::MainWindow() {
         }
     });
 
+    // auto actionCenterAt = new QAction("Center at", this);
+    // connect(actionCenterAt, &QAction::triggered, this, [=] {
+    //     // ClipEditorViewController::instance()->centerAt(28800, 72);
+    //         auto clip = AppModel::instance()->tracks().first()->clips().at(0);
+    //         if (auto singingClip = dynamic_cast<SingingClip *>(clip)) {
+    //             auto note = singingClip->notes().at(m_noteIndex);
+    //             ClipEditorViewController::instance()->centerAt(*note);
+    //             m_noteIndex++;
+    //         }
+    // });
+
     auto menuImport = new Menu(tr("Import"), this);
     auto actionImportMidiFile = new QAction(tr("MIDI File..."), this);
     connect(actionImportMidiFile, &QAction::triggered, this, [=] {
@@ -152,6 +163,8 @@ MainWindow::MainWindow() {
     menuFile->addSeparator();
     menuFile->addMenu(menuImport);
     menuFile->addMenu(menuExport);
+    menuFile->addSeparator();
+    // menuFile->addAction(actionCenterAt);
 
     auto menuEdit = new Menu(tr("&Edit"), this);
 

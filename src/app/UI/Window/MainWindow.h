@@ -38,6 +38,8 @@ private:
     QLabel *m_lbTaskTitle;
     ProgressIndicator *m_progressBar;
     ITask *m_firstask = nullptr;
+
+    // int m_noteIndex = 0;
 };
 
 

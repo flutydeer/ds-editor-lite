@@ -431,7 +431,8 @@ double PianoRollGraphicsView::bottomKeyIndex() const {
 }
 void PianoRollGraphicsView::setViewportTopKey(double key) {
     auto vBarValue = qRound(keyIndexToSceneY(key));
-    verticalScrollBar()->setValue(vBarValue);
+    // verticalScrollBar()->setValue(vBarValue);
+    vBarAnimateTo(vBarValue);
 }
 void PianoRollGraphicsView::setViewportCenterAt(double tick, double keyIndex) {
     setViewportCenterAtTick(tick);
