@@ -15,7 +15,7 @@ public:
     // explicit DecodeAudioTask();
     explicit DecodeAudioTask(int id);
 
-    int trackIndex = 0;
+    int trackId = -1;
     int tick = 0;
     QString path;
     int sampleRate = 0;

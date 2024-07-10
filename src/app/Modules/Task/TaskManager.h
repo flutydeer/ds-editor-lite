@@ -29,6 +29,7 @@ public:
     explicit TaskManager(QObject *parent = nullptr);
     ~TaskManager() override;
     [[nodiscard]] const QList<ITask *> &tasks() const;
+    ITask *findTaskById(int id);
 
 signals:
     void allDone();

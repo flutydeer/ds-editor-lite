@@ -95,26 +95,29 @@ void AppController::decodeAllAudioClips(AppModel &model) {
     for (auto track : model.tracks()) {
         for (auto clip : track->clips()) {
             if (clip->type() == Clip::Audio)
-                createDecodeAudioTask(reinterpret_cast<AudioClip *>(clip));
+                createAndStartDecodeAudioTask(reinterpret_cast<AudioClip *>(clip));
         }
     }
-    TaskManager::instance()->startAllTasks();
+    // TaskManager::instance()->startAllTasks();
 }
-void AppController::createDecodeAudioTask(AudioClip *clip) {
+void AppController::createAndStartDecodeAudioTask(AudioClip *clip) {
     auto decodeTask = new DecodeAudioTask(clip->id());
     decodeTask->path = clip->path();
     connect(decodeTask, &ITask::finished, this,
             [=](bool terminate) { handleDecodeAudioTaskFinished(decodeTask, terminate); });
     TaskManager::instance()->addTask(decodeTask);
+    TaskManager::instance()->startTask(decodeTask);
 }
 void AppController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate) {
-    // TODO: refactor
+    TaskManager::instance()->removeTask(task);
     if (terminate)
         return;
 
-    TaskManager::instance()->removeTask(task);
     int trackIndex;
     auto clip = AppModel::instance()->findClipById(task->id(), trackIndex);
+    if(!clip)
+        return;
+
     if (clip->type() == Clip::Audio) {
         AudioInfoModel info;
         info.sampleRate = task->sampleRate;

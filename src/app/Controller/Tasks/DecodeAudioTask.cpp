@@ -5,6 +5,7 @@
 #include "DecodeAudioTask.h"
 
 #include <QDebug>
+#include <QThread>
 
 DecodeAudioTask::DecodeAudioTask(int id) : ITask(id) {
     TaskStatus status;
@@ -53,6 +54,7 @@ void DecodeAudioTask::runTask() {
     qint64 samplesRead = 0;
     while (samplesRead < frames * channels) {
         if (m_abortFlag) {
+            qDebug() << "Decode audio task abort:" << path;
             emit finished(true);
             return;
         }
@@ -95,6 +97,7 @@ void DecodeAudioTask::runTask() {
             status.progress = static_cast<int>(progress);
             setStatus(status);
         }
+        // QThread::msleep(1);
     }
 
     // Create mipmap from peak cache

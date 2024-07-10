@@ -138,7 +138,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             track->setName(dspxTrack.name);
             track->setControl(trackControl);
             decodeClips(dspxTrack.clips, track);
-            appModel->insertTrackQuietly(track, i);
+            appModel->insertTrack(track, i);
             i++;
         }
     };

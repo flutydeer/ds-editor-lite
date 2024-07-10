@@ -26,6 +26,13 @@ TaskManager::~TaskManager() {
 const QList<ITask *> &TaskManager::tasks() const {
     return m_tasks;
 }
+ITask *TaskManager::findTaskById(int id) {
+    for (const auto task : m_tasks)
+        if (task->id() == id)
+            return task;
+
+    return nullptr;
+}
 void TaskManager::wait() {
     m_worker.wait();
     // threadPool->waitForDone();
@@ -34,7 +41,7 @@ void TaskManager::addTask(ITask *task) {
     qDebug() << "TaskManager::addTask" << task->id();
     auto index = m_tasks.count();
     m_tasks.append(task);
-    emit taskChanged(Added, task,  index);
+    emit taskChanged(Added, task, index);
 }
 void TaskManager::startTask(ITask *task) {
     qDebug() << "TaskManager::startTask";

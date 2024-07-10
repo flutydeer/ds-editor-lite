@@ -37,13 +37,6 @@ void AppModel::insertTrack(Track *track, qsizetype index) {
     m_tracks.insert(index, track);
     emit tracksChanged(Insert, index, track);
 }
-void AppModel::insertTrackQuietly(Track *track, int index) {
-    connect(track, &Track::propertyChanged, this, [=] {
-        auto trackIndex = m_tracks.indexOf(track);
-        emit tracksChanged(PropertyUpdate, trackIndex, track);
-    });
-    m_tracks.insert(index, track);
-}
 void AppModel::appendTrack(Track *track) {
     insertTrack(track, m_tracks.count());
 }
@@ -188,6 +181,18 @@ Clip *AppModel::findClipById(int clipId, int &trackIndex) {
         }
         i++;
     }
+    return nullptr;
+}
+Track *AppModel::findTrackById(int id, int &trackIndex) {
+    int i = 0;
+    for (auto track : m_tracks) {
+        if (track->id() == id) {
+            trackIndex = i;
+            return track;
+        }
+        i++;
+    }
+    trackIndex = -1;
     return nullptr;
 }
 double AppModel::tickToMs(double tick) const {

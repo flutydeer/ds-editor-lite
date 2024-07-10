@@ -37,7 +37,6 @@ public:
     void setTempo(double tempo);
     [[nodiscard]] const QList<Track *> &tracks() const;
     void insertTrack(Track *track, qsizetype index);
-    void insertTrackQuietly(Track *track, int index);
     void appendTrack(Track *track);
     void removeTrackAt(qsizetype index);
     void removeTrack(Track *track);
@@ -65,6 +64,7 @@ public:
     [[nodiscard]] int selectedClipId() const;
 
     Clip *findClipById(int clipId, int &trackIndex);
+    Track *findTrackById(int id, int &trackIndex);
     [[nodiscard]] double tickToMs(double tick) const;
     [[nodiscard]] double msToTick(double ms) const;
 

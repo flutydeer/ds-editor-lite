@@ -56,6 +56,8 @@ void TracksViewController::onRemoveTrack(int index) {
     int ret = msgBox.exec();
     if (ret == QMessageBox::Yes) {
         auto trackToRemove = AppModel::instance()->tracks().at(index);
+        terminateDecodeAudioTasksByTrackId(trackToRemove->id());
+
         QList<Track *> tracks;
         tracks.append(trackToRemove);
         auto a = new TrackActions;
@@ -97,7 +99,7 @@ void TracksViewController::onTrackPropertyChanged(const Track::TrackProperties &
 void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, int tick) {
     auto decodeTask = new DecodeAudioTask(-1);
     decodeTask->path = path;
-    decodeTask->trackIndex = trackIndex;
+    decodeTask->trackId = AppModel::instance()->tracks().at(trackIndex)->id();
     decodeTask->tick = tick;
     connect(decodeTask, &ITask::finished, this,
             [=](bool terminate) { handleDecodeAudioTaskFinished(decodeTask, terminate); });
@@ -183,6 +185,9 @@ void TracksViewController::onRemoveClip(int clipId) {
         for (const auto &track : AppModel::instance()->tracks()) {
             auto result = track->findClipById(clipId);
             if (result != nullptr) {
+                if (result->type() == Clip::Audio)
+                    terminateDecodeAudioTaskByClipId(result->id());
+
                 auto a = new ClipActions;
                 QList<Clip *> clips;
                 clips.append(result);
@@ -226,7 +231,7 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
 
     auto tick = task->tick;
     auto path = task->path;
-    auto trackIndex = task->trackIndex;
+    auto trackId = task->trackId;
 
     auto sampleRate = task->sampleRate;
     auto tempo = AppModel::instance()->tempo();
@@ -249,11 +254,29 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     audioClip->setClipLen(length);
     audioClip->setPath(path);
     audioClip->info = info;
-    auto track = AppModel::instance()->tracks().at(trackIndex);
+    int trackIndex = 0;
+    auto track = AppModel::instance()->findTrackById(trackId, trackIndex);
+    if(!track) {
+        qDebug() << "TracksViewController::handleDecodeAudioTaskFinished track not found";
+        return;
+    }
     auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(audioClip);
     a->insertClips(clips, track);
     a->execute();
     HistoryManager::instance()->record(a);
+}
+void TracksViewController::terminateDecodeAudioTaskByClipId(int clipId) {
+    auto task = TaskManager::instance()->findTaskById(clipId);
+    if (task)
+        TaskManager::instance()->terminateTask(task);
+}
+void TracksViewController::terminateDecodeAudioTasksByTrackId(int trackId) {
+    for (auto task : TaskManager::instance()->tasks()) {
+        if (auto decodeTask = dynamic_cast<DecodeAudioTask *>(task))
+            if (decodeTask->trackId == trackId) {
+                TaskManager::instance()->terminateTask(task);
+            }
+    }
 }
