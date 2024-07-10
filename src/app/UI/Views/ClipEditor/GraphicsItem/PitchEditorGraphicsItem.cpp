@@ -136,7 +136,11 @@ void PitchEditorGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphic
     }
 }
 void PitchEditorGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-    // OverlayGraphicsItem::mousePressEvent(event);
+    if (m_transparentForMouseEvents) {
+        OverlayGraphicsItem::mousePressEvent(event);
+        return;
+    }
+
     auto scenePos = event->scenePos().toPoint();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     auto pitch = static_cast<int>(sceneYToPitch(scenePos.y()));
