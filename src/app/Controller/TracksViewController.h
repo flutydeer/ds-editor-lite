@@ -31,8 +31,6 @@ public slots:
 
 private:
     void handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate);
-    static void terminateDecodeAudioTaskByClipId(int clipId);
-    static void terminateDecodeAudioTasksByTrackId(int trackId);
 
     TracksView m_view;
 };

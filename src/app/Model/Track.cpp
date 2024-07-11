@@ -7,6 +7,10 @@
 #include "Track.h"
 #include "Clip.h"
 
+Track::~Track() {
+    for (auto clip : m_clips)
+        delete clip;
+}
 QString Track::name() const {
     return m_name;
 }
@@ -47,7 +51,7 @@ void Track::removeClipQuietly(Clip *clip) {
 void Track::insertClipQuietly(Clip *clip) {
     m_clips.add(clip);
 }
-void Track::notityClipPropertyChanged(Clip *clip) {
+void Track::notifyClipPropertyChanged(Clip *clip) {
     qDebug() << "DsTrack::notityClipPropertyChanged" << clip->id();
     emit clipChanged(PropertyChanged, clip->id(), clip);
 }

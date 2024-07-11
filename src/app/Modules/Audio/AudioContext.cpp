@@ -56,7 +56,7 @@ AudioContext::AudioContext(QObject *parent) : QObject(parent), m_levelMeterTimer
 
     connect(AppModel::instance(), &AppModel::modelChanged, this, &AudioContext::handleModelChange);
 
-    connect(AppModel::instance(), &AppModel::tracksChanged, this,
+    connect(AppModel::instance(), &AppModel::trackChanged, this,
             [=](AppModel::TrackChangeType type, int index, Track *track) {
                 Q_UNUSED(index)
                 switch (type) {

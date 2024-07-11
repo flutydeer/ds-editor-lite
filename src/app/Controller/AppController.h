@@ -50,9 +50,6 @@ signals:
 
 private:
     bool isPowerOf2(int num);
-    void decodeAllAudioClips(AppModel &model);
-    void createAndStartDecodeAudioTask(AudioClip *clip);
-    static void handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate);
     void handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);
 
     QString m_lastProjectPath;

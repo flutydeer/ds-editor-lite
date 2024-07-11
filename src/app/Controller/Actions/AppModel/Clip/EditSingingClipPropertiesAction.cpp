@@ -33,7 +33,7 @@ void EditSingingClipPropertiesAction::execute() {
     m_clip->setClipLen(m_newArgs.clipLen);
 
     m_track->insertClipQuietly(m_clip);
-    m_track->notityClipPropertyChanged(m_clip);
+    m_track->notifyClipPropertyChanged(m_clip);
 }
 void EditSingingClipPropertiesAction::undo() {
     m_track->removeClipQuietly(m_clip);
@@ -50,5 +50,5 @@ void EditSingingClipPropertiesAction::undo() {
     m_clip->setClipLen(m_oldArgs.clipLen);
 
     m_track->insertClipQuietly(m_clip);
-    m_track->notityClipPropertyChanged(m_clip);
+    m_track->notifyClipPropertyChanged(m_clip);
 }

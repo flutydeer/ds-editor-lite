@@ -3,6 +3,8 @@
 //
 
 #include "AppController.h"
+
+#include "AudioDecodingController.h"
 #include "Modules/History/HistoryManager.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
@@ -19,6 +21,11 @@ AppController::AppController() {
             [=] { handleRunLanguageEngineTaskFinished(task); });
     TaskManager::instance()->addTask(task);
     TaskManager::instance()->startTask(task);
+
+    connect(AppModel::instance(), &AppModel::modelChanged, AudioDecodingController::instance(),
+    &AudioDecodingController::onModelChanged);
+    connect(AppModel::instance(), &AppModel::trackChanged, AudioDecodingController::instance(),
+            &AudioDecodingController::onTrackChanged);
 }
 void AppController::onNewProject() {
     AppModel::instance()->newProject();
@@ -45,7 +52,6 @@ void AppController::importAproject(const QString &filePath) {
     AppModel::instance()->importAProject(filePath);
     HistoryManager::instance()->reset();
     m_lastProjectPath = "";
-    decodeAllAudioClips(*AppModel::instance());
 }
 void AppController::onSetTempo(double tempo) {
     // TODO: validate tempo
@@ -90,49 +96,6 @@ void AppController::onPanelClicked(AppGlobal::PanelType panelType) {
 }
 bool AppController::isPowerOf2(int num) {
     return num > 0 && ((num & (num - 1)) == 0);
-}
-void AppController::decodeAllAudioClips(AppModel &model) {
-    for (auto track : model.tracks()) {
-        for (auto clip : track->clips()) {
-            if (clip->type() == Clip::Audio)
-                createAndStartDecodeAudioTask(reinterpret_cast<AudioClip *>(clip));
-        }
-    }
-    // TaskManager::instance()->startAllTasks();
-}
-void AppController::createAndStartDecodeAudioTask(AudioClip *clip) {
-    auto decodeTask = new DecodeAudioTask(clip->id());
-    decodeTask->path = clip->path();
-    connect(decodeTask, &ITask::finished, this,
-            [=](bool terminate) { handleDecodeAudioTaskFinished(decodeTask, terminate); });
-    TaskManager::instance()->addTask(decodeTask);
-    TaskManager::instance()->startTask(decodeTask);
-}
-void AppController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate) {
-    TaskManager::instance()->removeTask(task);
-    if (terminate)
-        return;
-
-    int trackIndex;
-    auto clip = AppModel::instance()->findClipById(task->id(), trackIndex);
-    if(!clip)
-        return;
-
-    if (clip->type() == Clip::Audio) {
-        AudioInfoModel info;
-        info.sampleRate = task->sampleRate;
-        info.channels = task->channels;
-        info.chunkSize = task->chunkSize;
-        info.mipmapScale = task->mipmapScale;
-        info.frames = task->frames;
-        info.peakCache.swap(task->peakCache);
-        info.peakCacheMipmap.swap(task->peakCacheMipmap);
-
-        auto audioClip = reinterpret_cast<AudioClip *>(clip);
-        audioClip->info = info;
-        auto track = AppModel::instance()->tracks().at(trackIndex);
-        track->notityClipPropertyChanged(audioClip);
-    }
 }
 void AppController::handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
     qDebug() << "AppController::handleRunLanguageEngineTaskFinished";

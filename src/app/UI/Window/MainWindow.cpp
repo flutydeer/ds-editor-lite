@@ -278,7 +278,7 @@ MainWindow::MainWindow() {
     auto model = AppModel::instance();
 
     connect(model, &AppModel::modelChanged, m_tracksView, &TracksView::onModelChanged);
-    connect(model, &AppModel::tracksChanged, m_tracksView, &TracksView::onTrackChanged);
+    connect(model, &AppModel::trackChanged, m_tracksView, &TracksView::onTrackChanged);
     connect(model, &AppModel::tempoChanged, m_tracksView, &TracksView::onTempoChanged);
     connect(model, &AppModel::modelChanged, m_clipEditView, &ClipEditorView::onModelChanged);
     connect(model, &AppModel::selectedClipChanged, m_clipEditView,
@@ -394,19 +394,20 @@ void MainWindow::onAllDone() {
     }
 }
 void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, ITask *task, qsizetype index) {
-    auto taskCount = TaskManager::instance()->tasks().count();
-    if (taskCount == 0) {
-        m_lbTaskTitle->setVisible(false);
-        m_progressBar->setVisible(false);
-        m_progressBar->setValue(0);
-    } else {
-        disconnect(m_firstask, &ITask::statusUpdated, this, &MainWindow::onTaskStatusChanged);
-        m_lbTaskTitle->setVisible(true);
-        m_progressBar->setVisible(true);
-        auto firstTask = TaskManager::instance()->tasks().first();
-        m_firstask = firstTask;
-        connect(m_firstask, &ITask::statusUpdated, this, &MainWindow::onTaskStatusChanged);
-    }
+    // auto taskCount = TaskManager::instance()->tasks().count();
+    // if (taskCount == 0) {
+    //     m_lbTaskTitle->setVisible(false);
+    //     m_progressBar->setVisible(false);
+    //     m_progressBar->setValue(0);
+    // } else {
+    //     // TODO: fix bug when task was deleted
+    //     disconnect(m_firstask, &ITask::statusUpdated, this, &MainWindow::onTaskStatusChanged);
+    //     m_lbTaskTitle->setVisible(true);
+    //     m_progressBar->setVisible(true);
+    //     auto firstTask = TaskManager::instance()->tasks().first();
+    //     m_firstask = firstTask;
+    //     connect(m_firstask, &ITask::statusUpdated, this, &MainWindow::onTaskStatusChanged);
+    // }
 }
 void MainWindow::onTaskStatusChanged(const TaskStatus &status) {
     m_lbTaskTitle->setText(status.title);

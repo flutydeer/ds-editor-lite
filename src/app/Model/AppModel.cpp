@@ -32,10 +32,10 @@ const QList<Track *> &AppModel::tracks() const {
 void AppModel::insertTrack(Track *track, qsizetype index) {
     connect(track, &Track::propertyChanged, this, [=] {
         auto trackIndex = m_tracks.indexOf(track);
-        emit tracksChanged(PropertyUpdate, trackIndex, track);
+        emit trackChanged(PropertyUpdate, trackIndex, track);
     });
     m_tracks.insert(index, track);
-    emit tracksChanged(Insert, index, track);
+    emit trackChanged(Insert, index, track);
 }
 void AppModel::appendTrack(Track *track) {
     insertTrack(track, m_tracks.count());
@@ -44,7 +44,7 @@ void AppModel::removeTrackAt(qsizetype index) {
     auto track = m_tracks[index];
     onSelectedClipChanged(-1);
     m_tracks.removeAt(index);
-    emit tracksChanged(Remove, index, track);
+    emit trackChanged(Remove, index, track);
 }
 void AppModel::removeTrack(Track *track) {
     auto index = m_tracks.indexOf(track);
@@ -205,5 +205,9 @@ void AppModel::reset() {
     m_tempo = 120;
     m_timeSignature.numerator = 4;
     m_timeSignature.denominator = 4;
+    // for (int i = 0; i < m_tracks.count();i++) {
+    //     auto track = m_tracks.at(i);
+    //     delete track;
+    // }
     m_tracks.clear();
 }

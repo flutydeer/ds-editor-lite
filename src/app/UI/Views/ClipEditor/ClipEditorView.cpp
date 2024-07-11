@@ -361,7 +361,7 @@ void ClipEditorView::onNoteListChanged(SingingClip::NoteChangeType type, int id,
             break;
     }
     m_pianoRollView->updateOverlappedState(m_singingClip);
-    printParts();
+    // printParts();
 }
 void ClipEditorView::onNotePropertyChanged(SingingClip::NotePropertyType type, Note *note) {
     switch (type) {

@@ -56,8 +56,6 @@ void TracksViewController::onRemoveTrack(int index) {
     int ret = msgBox.exec();
     if (ret == QMessageBox::Yes) {
         auto trackToRemove = AppModel::instance()->tracks().at(index);
-        terminateDecodeAudioTasksByTrackId(trackToRemove->id());
-
         QList<Track *> tracks;
         tracks.append(trackToRemove);
         auto a = new TrackActions;
@@ -97,7 +95,7 @@ void TracksViewController::onTrackPropertyChanged(const Track::TrackProperties &
     HistoryManager::instance()->record(a);
 }
 void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, int tick) {
-    auto decodeTask = new DecodeAudioTask(-1);
+    auto decodeTask = new DecodeAudioTask;
     decodeTask->path = path;
     decodeTask->trackId = AppModel::instance()->tracks().at(trackIndex)->id();
     decodeTask->tick = tick;
@@ -185,9 +183,6 @@ void TracksViewController::onRemoveClip(int clipId) {
         for (const auto &track : AppModel::instance()->tracks()) {
             auto result = track->findClipById(clipId);
             if (result != nullptr) {
-                if (result->type() == Clip::Audio)
-                    terminateDecodeAudioTaskByClipId(result->id());
-
                 auto a = new ClipActions;
                 QList<Clip *> clips;
                 clips.append(result);
@@ -232,20 +227,12 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     auto tick = task->tick;
     auto path = task->path;
     auto trackId = task->trackId;
+    auto result = task->result();
 
-    auto sampleRate = task->sampleRate;
+    auto sampleRate = result.sampleRate;
     auto tempo = AppModel::instance()->tempo();
-    auto frames = task->frames;
+    auto frames = result.frames;
     auto length = frames / (sampleRate * 60 / tempo / 480);
-
-    AudioInfoModel info;
-    info.sampleRate = sampleRate;
-    info.channels = task->channels;
-    info.chunkSize = task->chunkSize;
-    info.mipmapScale = task->mipmapScale;
-    info.frames = task->frames;
-    info.peakCache.swap(task->peakCache);
-    info.peakCacheMipmap.swap(task->peakCacheMipmap);
 
     auto audioClip = new AudioClip;
     audioClip->setStart(tick);
@@ -253,7 +240,7 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     audioClip->setLength(length);
     audioClip->setClipLen(length);
     audioClip->setPath(path);
-    audioClip->info = info;
+    audioClip->info = result;
     int trackIndex = 0;
     auto track = AppModel::instance()->findTrackById(trackId, trackIndex);
     if(!track) {
@@ -266,17 +253,4 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     a->insertClips(clips, track);
     a->execute();
     HistoryManager::instance()->record(a);
-}
-void TracksViewController::terminateDecodeAudioTaskByClipId(int clipId) {
-    auto task = TaskManager::instance()->findTaskById(clipId);
-    if (task)
-        TaskManager::instance()->terminateTask(task);
-}
-void TracksViewController::terminateDecodeAudioTasksByTrackId(int trackId) {
-    for (auto task : TaskManager::instance()->tasks()) {
-        if (auto decodeTask = dynamic_cast<DecodeAudioTask *>(task))
-            if (decodeTask->trackId == trackId) {
-                TaskManager::instance()->terminateTask(task);
-            }
-    }
 }

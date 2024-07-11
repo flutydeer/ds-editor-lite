@@ -7,11 +7,22 @@
 #include <QDebug>
 #include <QThread>
 
-DecodeAudioTask::DecodeAudioTask(int id) : ITask(id) {
+DecodeAudioTask::DecodeAudioTask(/*int id*/) /*: ITask(id)*/ {
     TaskStatus status;
     status.title = "Decoding audio...";
     status.message = "";
     setStatus(status);
+}
+AudioInfoModel DecodeAudioTask::result() const {
+    AudioInfoModel info;
+    info.sampleRate = m_sampleRate;
+    info.channels = m_channels;
+    info.chunkSize = m_chunkSize;
+    info.mipmapScale = m_mipmapScale;
+    info.frames = m_frames;
+    info.peakCache = m_peakCache;
+    info.peakCacheMipmap = m_peakCacheMipmap;
+    return info;
 }
 void DecodeAudioTask::runTask() {
     TaskStatus status;
@@ -38,37 +49,42 @@ void DecodeAudioTask::runTask() {
     }
 
     QVector<std::tuple<short, short>> nullVector;
-    peakCache.swap(nullVector);
+    m_peakCache.swap(nullVector);
     QVector<std::tuple<short, short>> nullVectorThumbnail;
-    peakCacheMipmap.swap(nullVectorThumbnail);
+    m_peakCacheMipmap.swap(nullVectorThumbnail);
 
-    sampleRate = sf.samplerate();
-    channels = sf.channels();
-    frames = sf.frames();
+    m_sampleRate = sf.samplerate();
+    m_channels = sf.channels();
+    m_frames = sf.frames();
     // auto totalSize = frames * channels;
     // qDebug() << frames;
 
-    std::vector<double> buffer(chunkSize * channels);
-    auto totalBufferCount = frames / chunkSize;
+    std::vector<double> buffer(m_chunkSize * m_channels);
+    auto totalBufferCount = m_frames / m_chunkSize;
     long long buffersRead = 0;
     qint64 samplesRead = 0;
-    while (samplesRead < frames * channels) {
+    while (samplesRead < m_frames * m_channels) {
         if (m_abortFlag) {
             qDebug() << "Decode audio task abort:" << path;
+            status.title = "Canceling decoding...";
+            status.isIndetermine = true;
+            status.runningStatus = TaskGlobal::Error;
+            setStatus(status);
+            QThread::sleep(3);
             emit finished(true);
             return;
         }
-        samplesRead = sf.read(buffer.data(), chunkSize * channels);
+        samplesRead = sf.read(buffer.data(), m_chunkSize * m_channels);
         if (samplesRead == 0) {
             break;
         }
         double sampleMax = 0;
         double sampleMin = 0;
-        qint64 framesRead = samplesRead / channels;
+        qint64 framesRead = samplesRead / m_channels;
         for (qint64 i = 0; i < framesRead; i++) {
             double monoSample = 0.0;
-            for (int j = 0; j < channels; j++) {
-                monoSample += buffer[i * channels + j] / static_cast<double>(channels);
+            for (int j = 0; j < m_channels; j++) {
+                monoSample += buffer[i * m_channels + j] / static_cast<double>(m_channels);
             }
             if (monoSample > sampleMax)
                 sampleMax = monoSample;
@@ -88,7 +104,7 @@ void DecodeAudioTask::runTask() {
         short min = toShortInt(sampleMin);
 
         auto pair = std::make_pair(min, max);
-        peakCache.append(pair);
+        m_peakCache.append(pair);
         buffersRead++;
 
         if (buffersRead % (totalBufferCount / 200) == 0) {
@@ -104,18 +120,24 @@ void DecodeAudioTask::runTask() {
     short min = 0;
     short max = 0;
     bool hasTail = false;
-    for (int i = 0; i < peakCache.count(); i++) {
+    for (int i = 0; i < m_peakCache.count(); i++) {
         if (m_abortFlag) {
+            qDebug() << "Decode audio task abort:" << path;
+            status.title = "Canceling decoding...";
+            status.isIndetermine = true;
+            status.runningStatus = TaskGlobal::Error;
+            setStatus(status);
+            QThread::sleep(3);
             emit finished(true);
             return;
         }
-        if ((i + 1) % mipmapScale == 0) {
-            peakCacheMipmap.append(std::make_pair(min, max));
+        if ((i + 1) % m_mipmapScale == 0) {
+            m_peakCacheMipmap.append(std::make_pair(min, max));
             min = 0;
             max = 0;
             hasTail = false;
         } else {
-            auto frame = peakCache.at(i);
+            auto frame = m_peakCache.at(i);
             auto frameMin = std::get<0>(frame);
             auto frameMax = std::get<1>(frame);
             if (frameMin < min)
@@ -126,7 +148,7 @@ void DecodeAudioTask::runTask() {
         }
     }
     if (hasTail)
-        peakCacheMipmap.append(std::make_pair(min, max));
+        m_peakCacheMipmap.append(std::make_pair(min, max));
 
     // QThread::msleep(3000);
     success = true;
