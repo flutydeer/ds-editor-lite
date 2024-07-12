@@ -443,6 +443,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
             if (m_waitDoneDialog)
                 m_waitDoneDialog->show();
         });
+        m_waitDoneDialogDelayTimer.start();
 
         auto taskManager = TaskManager::instance();
         taskManager->terminateAllTasks();
