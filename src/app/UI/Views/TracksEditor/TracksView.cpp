@@ -2,14 +2,13 @@
 // Created by fluty on 2024/1/29.
 //
 
-#include "TracksView.h"
-
 #include <QScroller>
 #include <QFileDialog>
 #include <QScrollBar>
 #include <QVBoxLayout>
 #include <QMouseEvent>
 
+#include "TracksView.h"
 #include "Global/TracksEditorGlobal.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
@@ -26,8 +25,10 @@
 #include "GraphicsItem/SingingClipGraphicsItem.h"
 #include "TrackControlWidget.h"
 #include "TrackListWidget.h"
+#include "Controller/TracksViewController.h"
 
 TracksView::TracksView(QWidget *parent) : QWidget(parent) {
+    TracksViewController::instance()->setParentWidget(this);
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TracksView");
 

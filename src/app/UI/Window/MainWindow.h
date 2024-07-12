@@ -10,6 +10,7 @@
 #include "Modules/Task/TaskManager.h"
 #include "Modules/Task/Task.h"
 
+class TaskDialog;
 class ProgressIndicator;
 class QLabel;
 class TracksView;
@@ -37,7 +38,8 @@ private:
 
     QLabel *m_lbTaskTitle;
     ProgressIndicator *m_progressBar;
-    Task *m_firstask = nullptr;
+
+    TaskDialog *m_waitDoneDialog;
 
     // int m_noteIndex = 0;
 };

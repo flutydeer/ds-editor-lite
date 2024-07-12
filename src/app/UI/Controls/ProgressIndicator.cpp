@@ -27,7 +27,9 @@ void ProgressIndicator::initUi() {
     m_colorPalette = colorPaletteNormal;
 
     const int animationDurationBase = 250;
-    auto duration = animationLevel() == AnimationGlobal::None ? 0 : getScaledAnimationTime(animationDurationBase);
+    auto duration = animationLevel() == AnimationGlobal::None
+                        ? 0
+                        : getScaledAnimationTime(animationDurationBase);
 
     m_valueAnimation.setTargetObject(this);
     m_valueAnimation.setPropertyName("apparentValue");
@@ -301,11 +303,11 @@ void ProgressIndicator::setThumbProgress(int x) {
     repaint();
 }
 
- TaskGlobal::Status  ProgressIndicator::taskStatus() const {
+TaskGlobal::Status ProgressIndicator::taskStatus() const {
     return m_taskStatus;
 }
 
-void ProgressIndicator::setTaskStatus( TaskGlobal::Status  status) {
+void ProgressIndicator::setTaskStatus(TaskGlobal::Status status) {
     m_taskStatus = status;
     switch (m_taskStatus) {
         case TaskGlobal::Normal:

@@ -15,6 +15,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/ThemeManager.h"
 #include "UI/Window/TaskWindow.h"
+#include "Controller/TracksViewController.h"
 
 int main(int argc, char *argv[]) {
     // output log to file
@@ -65,6 +66,7 @@ int main(int argc, char *argv[]) {
                      &ThemeManager::onAppOptionsChanged);
 
     auto w = new MainWindow;
+    TracksViewController::instance()->setParentWidget(w);
     auto scr = QApplication::screenAt(QCursor::pos());
     auto availableRect = scr->availableGeometry();
     auto left = (availableRect.width() - w->width()) / 2;

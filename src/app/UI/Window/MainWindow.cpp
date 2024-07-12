@@ -11,6 +11,7 @@
 #include <QCloseEvent>
 #include <QStatusBar>
 #include <QLabel>
+#include <QApplication>
 
 #include "Utils/WindowFrameUtils.h"
 #include "Controller/AppController.h"
@@ -21,7 +22,6 @@
 #include "Controller/ClipboardController.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
-#include "UI/Dialogs/Audio/AudioSettingsDialog.h"
 #include "UI/Views/TracksEditor/TracksView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/PlaybackView.h"
@@ -29,6 +29,7 @@
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/ProgressIndicator.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 
 MainWindow::MainWindow() {
@@ -394,20 +395,22 @@ void MainWindow::onAllDone() {
     }
 }
 void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index) {
-    // auto taskCount = TaskManager::instance()->tasks().count();
-    // if (taskCount == 0) {
-    //     m_lbTaskTitle->setVisible(false);
-    //     m_progressBar->setVisible(false);
-    //     m_progressBar->setValue(0);
-    // } else {
-    //     // TODO: fix bug when task was deleted
-    //     disconnect(m_firstask, &ITask::statusUpdated, this, &MainWindow::onTaskStatusChanged);
-    //     m_lbTaskTitle->setVisible(true);
-    //     m_progressBar->setVisible(true);
-    //     auto firstTask = TaskManager::instance()->tasks().first();
-    //     m_firstask = firstTask;
-    //     connect(m_firstask, &ITask::statusUpdated, this, &MainWindow::onTaskStatusChanged);
-    // }
+    auto taskCount = TaskManager::instance()->tasks().count();
+    if (taskCount == 0) {
+        m_lbTaskTitle->setText("");
+        m_lbTaskTitle->setVisible(false);
+        m_progressBar->setVisible(false);
+        m_progressBar->setValue(0);
+        m_progressBar->setTaskStatus(TaskGlobal::Normal);
+    } else {
+        if (type == TaskManager::Removed)
+            disconnect(task, nullptr, this, nullptr);
+
+        m_lbTaskTitle->setVisible(true);
+        m_progressBar->setVisible(true);
+        auto firstTask = TaskManager::instance()->tasks().first();
+        connect(firstTask, &Task::statusUpdated, this, &MainWindow::onTaskStatusChanged);
+    }
 }
 void MainWindow::onTaskStatusChanged(const TaskStatus &status) {
     m_lbTaskTitle->setText(status.title);
@@ -420,10 +423,18 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         QMainWindow::closeEvent(event);
     } else if (m_isCloseRequested) {
         qDebug() << "Waiting for all tasks done...";
+        if(m_waitDoneDialog) {
+            m_waitDoneDialog->setMessage(tr("Please wait for all tasks done..."));
+        }
         event->ignore();
     } else {
         m_isCloseRequested = true;
-        qDebug() << "Ternimating tasks...";
+        qDebug() << "Terminating background tasks...";
+        m_waitDoneDialog = new TaskDialog(nullptr,false,false, this);
+        m_waitDoneDialog->setTitle(tr("%1 is exiting...").arg(qApp->applicationDisplayName()));
+        m_waitDoneDialog->setMessage(tr("Terminating background tasks..."));
+        m_waitDoneDialog->show();
+
         auto taskManager = TaskManager::instance();
         taskManager->terminateAllTasks();
         auto thread = new QThread;

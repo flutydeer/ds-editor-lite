@@ -11,10 +11,13 @@
 #include "Model/Clip.h"
 #include "Model/Track.h"
 #include "Tasks/DecodeAudioTask.h"
-#include "UI/Views/TracksEditor/TracksView.h"
 
+class QWidget;
 class TracksViewController final : public QObject, public Singleton<TracksViewController> {
     Q_OBJECT
+
+public:
+    void setParentWidget(QWidget *view);
 
 public slots:
     void onNewTrack();
@@ -32,7 +35,8 @@ public slots:
 private:
     void handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate);
 
-    TracksView m_view;
+    // TODO: refactor
+    QWidget *m_parentWidget = nullptr;
 };
 
 #endif // TRACKSVIEWCONTROLLER_H

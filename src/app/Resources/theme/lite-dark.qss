@@ -20,6 +20,28 @@ QPushButton:disabled {
     background-color: rgb(64, 64, 64)
 }
 
+Button {
+    background: #10FFFFFF;
+    border: none;
+    border-radius: 6px;
+    color: #f2f2f2;
+    padding: 6px 12px;
+}
+
+Button:hover {
+    background-color: #1AFFFFFF;
+}
+
+Button:pressed {
+    color: rgb(191, 191, 191);
+    background-color: #10FFFFFF;
+}
+
+Button:disabled {
+    color: rgb(127, 127, 127);
+    background-color: rgb(64, 64, 64)
+}
+
 QComboBox {
     background: #10FFFFFF;
     border: none;

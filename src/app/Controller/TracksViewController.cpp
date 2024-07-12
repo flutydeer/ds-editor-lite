@@ -13,8 +13,13 @@
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Model/AudioInfoModel.h"
+#include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/TracksEditor/GraphicsItem/AudioClipGraphicsItem.h"
 
+void TracksViewController::setParentWidget(QWidget *view) {
+    m_parentWidget = view;
+}
 void TracksViewController::onNewTrack() {
     onInsertNewTrack(AppModel::instance()->tracks().count());
 }
@@ -99,6 +104,8 @@ void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, i
     decodeTask->path = path;
     decodeTask->trackId = AppModel::instance()->tracks().at(trackIndex)->id();
     decodeTask->tick = tick;
+    auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
+    dlg->show();
     connect(decodeTask, &Task::finished, this,
             [=](bool terminate) { handleDecodeAudioTaskFinished(decodeTask, terminate); });
     TaskManager::instance()->addTask(decodeTask);
@@ -243,7 +250,7 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     audioClip->info = result;
     int trackIndex = 0;
     auto track = AppModel::instance()->findTrackById(trackId, trackIndex);
-    if(!track) {
+    if (!track) {
         qDebug() << "TracksViewController::handleDecodeAudioTaskFinished track not found";
         return;
     }
