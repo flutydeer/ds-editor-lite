@@ -16,6 +16,10 @@ class TaskDialog : public Dialog {
 
 public:
     explicit TaskDialog(Task *task = nullptr, bool cancellable = true, bool canHide = true, QWidget *parent = nullptr);
+    void forceClose();
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void onTerminateButtonClicked();
@@ -23,7 +27,7 @@ private slots:
 
 private:
     Task *m_task;
-    bool m_cancellable;
+    bool m_canHide;
     Button *m_btnHide;
     Button *m_btnCancel;
     ProgressIndicator *m_progressBar;

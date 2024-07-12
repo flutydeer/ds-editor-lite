@@ -3,6 +3,7 @@
 //
 
 #include <QHBoxLayout>
+#include <QCloseEvent>
 
 #include "TaskDialog.h"
 #include "Modules/Task/Task.h"
@@ -11,7 +12,7 @@
 #include "UI/Controls/ProgressIndicator.h"
 
 TaskDialog::TaskDialog(Task *task, bool cancellable, bool canHide, QWidget *parent)
-    : Dialog(parent), m_task(task) {
+    : Dialog(parent), m_task(task), m_canHide(canHide) {
     setModal(true);
     setMinimumWidth(360);
     m_progressBar = new ProgressIndicator(this);
@@ -21,7 +22,7 @@ TaskDialog::TaskDialog(Task *task, bool cancellable, bool canHide, QWidget *pare
         setNegativeButton(m_btnCancel);
         connect(m_btnCancel, &Button::clicked, this, &TaskDialog::onTerminateButtonClicked);
     }
-    if(canHide) {
+    if (canHide) {
         m_btnHide = new Button(tr("Hide"), this);
         setPositiveButton(m_btnHide);
         connect(m_btnHide, &Button::clicked, this, &TaskDialog::accept);
@@ -38,6 +39,16 @@ TaskDialog::TaskDialog(Task *task, bool cancellable, bool canHide, QWidget *pare
 
     connect(m_task, &Task::statusUpdated, this, &TaskDialog::onStatusUpdated);
     connect(m_task, &Task::finished, this, [this] { accept(); });
+}
+void TaskDialog::forceClose() {
+    m_canHide = true;
+    accept();
+}
+void TaskDialog::closeEvent(QCloseEvent *event) {
+    if (m_canHide)
+        Dialog::closeEvent(event);
+    else
+        event->ignore();
 }
 void TaskDialog::onTerminateButtonClicked() {
     if (m_task)

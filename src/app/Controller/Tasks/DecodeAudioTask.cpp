@@ -70,7 +70,7 @@ void DecodeAudioTask::runTask() {
             status.isIndetermine = true;
             status.runningStatus = TaskGlobal::Error;
             setStatus(status);
-            QThread::sleep(3);
+            // QThread::sleep(3);
             emit finished(true);
             return;
         }
@@ -127,7 +127,7 @@ void DecodeAudioTask::runTask() {
             status.isIndetermine = true;
             status.runningStatus = TaskGlobal::Error;
             setStatus(status);
-            QThread::sleep(3);
+            // QThread::sleep(3);
             emit finished(true);
             return;
         }

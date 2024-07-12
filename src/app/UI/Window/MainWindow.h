@@ -6,6 +6,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QTimer>
 
 #include "Modules/Task/TaskManager.h"
 #include "Modules/Task/Task.h"
@@ -39,6 +40,7 @@ private:
     QLabel *m_lbTaskTitle;
     ProgressIndicator *m_progressBar;
 
+    QTimer m_waitDoneDialogDelayTimer;
     TaskDialog *m_waitDoneDialog;
 
     // int m_noteIndex = 0;

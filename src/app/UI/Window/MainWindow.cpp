@@ -420,20 +420,29 @@ void MainWindow::onTaskStatusChanged(const TaskStatus &status) {
 }
 void MainWindow::closeEvent(QCloseEvent *event) {
     if (m_isAllDone) {
+        if (m_waitDoneDialog)
+            m_waitDoneDialog->forceClose();
+
         QMainWindow::closeEvent(event);
     } else if (m_isCloseRequested) {
         qDebug() << "Waiting for all tasks done...";
-        if(m_waitDoneDialog) {
+        if (m_waitDoneDialog) {
             m_waitDoneDialog->setMessage(tr("Please wait for all tasks done..."));
         }
         event->ignore();
     } else {
         m_isCloseRequested = true;
         qDebug() << "Terminating background tasks...";
-        m_waitDoneDialog = new TaskDialog(nullptr,false,false, this);
+        m_waitDoneDialog = new TaskDialog(nullptr, false, false, this);
         m_waitDoneDialog->setTitle(tr("%1 is exiting...").arg(qApp->applicationDisplayName()));
         m_waitDoneDialog->setMessage(tr("Terminating background tasks..."));
-        m_waitDoneDialog->show();
+
+        m_waitDoneDialogDelayTimer.setSingleShot(true);
+        m_waitDoneDialogDelayTimer.setInterval(500);
+        connect(&m_waitDoneDialogDelayTimer, &QTimer::timeout, this, [=] {
+            if (m_waitDoneDialog)
+                m_waitDoneDialog->show();
+        });
 
         auto taskManager = TaskManager::instance();
         taskManager->terminateAllTasks();
