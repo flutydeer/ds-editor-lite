@@ -99,7 +99,7 @@ void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, i
     decodeTask->path = path;
     decodeTask->trackId = AppModel::instance()->tracks().at(trackIndex)->id();
     decodeTask->tick = tick;
-    connect(decodeTask, &ITask::finished, this,
+    connect(decodeTask, &Task::finished, this,
             [=](bool terminate) { handleDecodeAudioTaskFinished(decodeTask, terminate); });
     TaskManager::instance()->addTask(decodeTask);
     TaskManager::instance()->startTask(decodeTask);

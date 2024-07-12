@@ -8,11 +8,11 @@
 #include <sndfile.hh>
 
 #include "Model/AudioInfoModel.h"
-#include "Modules/Task/ITask.h"
+#include "Modules/Task/Task.h"
 
 #include "Utils/UniqueObject.h"
 
-class DecodeAudioTask : public ITask {
+class DecodeAudioTask : public Task {
 public:
     explicit DecodeAudioTask();
     // explicit DecodeAudioTask(int id);

@@ -8,7 +8,7 @@
 #include <QMainWindow>
 
 #include "Modules/Task/TaskManager.h"
-#include "Modules/Task/ITask.h"
+#include "Modules/Task/Task.h"
 
 class ProgressIndicator;
 class QLabel;
@@ -23,7 +23,7 @@ public:
 
 public slots:
     void onAllDone();
-    void onTaskChanged(TaskManager::TaskChangeType type, ITask *task, qsizetype index);
+    void onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index);
     void onTaskStatusChanged(const TaskStatus &status);
 
 private:
@@ -37,7 +37,7 @@ private:
 
     QLabel *m_lbTaskTitle;
     ProgressIndicator *m_progressBar;
-    ITask *m_firstask = nullptr;
+    Task *m_firstask = nullptr;
 
     // int m_noteIndex = 0;
 };

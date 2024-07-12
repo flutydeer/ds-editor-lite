@@ -50,13 +50,13 @@ TaskWindow::TaskWindow(QWidget *parent) : Window(parent) {
     setLayout(mainLayout);
     resize(360, 480);
 }
-void TaskWindow::onTaskChanged(TaskManager::TaskChangeType type, ITask *task, qsizetype index) {
+void TaskWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index) {
     if (type == TaskManager::Added)
         addTaskToView(task);
     else if (type == TaskManager::Removed)
         removeTaskFromView(index);
 }
-void TaskWindow::addTaskToView(ITask *task) {
+void TaskWindow::addTaskToView(Task *task) {
     qDebug() << "TaskWindow::addTaskToView";
     auto item = new QListWidgetItem;
     auto taskView = new TaskView(task->status());
@@ -64,7 +64,7 @@ void TaskWindow::addTaskToView(ITask *task) {
     m_taskList->addItem(item);
     m_taskList->setItemWidget(item, taskView);
 
-    connect(task, &ITask::statusUpdated, taskView, &TaskView::onTaskStatusChanged);
+    connect(task, &Task::statusUpdated, taskView, &TaskView::onTaskStatusChanged);
 }
 void TaskWindow::removeTaskFromView(qsizetype index) {
     qDebug() << "TaskWindow::removeTaskFromView";

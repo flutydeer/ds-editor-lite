@@ -393,7 +393,7 @@ void MainWindow::onAllDone() {
         close();
     }
 }
-void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, ITask *task, qsizetype index) {
+void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index) {
     // auto taskCount = TaskManager::instance()->tasks().count();
     // if (taskCount == 0) {
     //     m_lbTaskTitle->setVisible(false);

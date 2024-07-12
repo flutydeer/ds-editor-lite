@@ -5,9 +5,9 @@
 #ifndef RUNLANGUAGEENGINETASK_H
 #define RUNLANGUAGEENGINETASK_H
 
-#include "Modules/Task/ITask.h"
+#include "Modules/Task/Task.h"
 
-class LaunchLanguageEngineTask : public ITask {
+class LaunchLanguageEngineTask : public Task {
     Q_OBJECT
 
 public:

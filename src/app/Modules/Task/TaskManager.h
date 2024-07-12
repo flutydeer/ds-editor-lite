@@ -10,12 +10,12 @@
 
 #include "Utils/Singleton.h"
 
-class ITask;
+class Task;
 
 class BackgroundWorker : public QObject {
     Q_OBJECT
 public:
-    static void terminateTask(ITask *task);
+    static void terminateTask(Task *task);
     void wait();
 
 signals:
@@ -28,20 +28,20 @@ public:
     enum TaskChangeType { Added, Removed };
     explicit TaskManager(QObject *parent = nullptr);
     ~TaskManager() override;
-    [[nodiscard]] const QList<ITask *> &tasks() const;
-    ITask *findTaskById(int id);
+    [[nodiscard]] const QList<Task *> &tasks() const;
+    Task *findTaskById(int id);
 
 signals:
     void allDone();
-    void taskChanged(TaskChangeType type, ITask *task, qsizetype index);
+    void taskChanged(TaskChangeType type, Task *task, qsizetype index);
 
 public slots:
-    void addTask(ITask *task);
-    void startTask(ITask *task);
-    void removeTask(ITask *task);
+    void addTask(Task *task);
+    void startTask(Task *task);
+    void removeTask(Task *task);
     // void startTask(int taskId);
     void startAllTasks();
-    void terminateTask(ITask *task);
+    void terminateTask(Task *task);
     void terminateAllTasks();
     void wait();
 
@@ -49,7 +49,7 @@ private slots:
     void onWorkerWaitDone();
 
 private:
-    QList<ITask *> m_tasks;
+    QList<Task *> m_tasks;
     QThreadPool *threadPool = QThreadPool::globalInstance();
     BackgroundWorker m_worker;
     QThread m_thread;

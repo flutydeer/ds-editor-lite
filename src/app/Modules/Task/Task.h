@@ -2,11 +2,12 @@
 // Created by fluty on 24-2-26.
 //
 
-#ifndef ITASK_H
-#define ITASK_H
+#ifndef TASK_H
+#define TASK_H
 
 #include <QObject>
 #include <QRunnable>
+#include <QMutex>
 
 #include "Global/TaskGlobal.h"
 #include "Utils/UniqueObject.h"
@@ -23,16 +24,16 @@ public:
     QString message = "Message";
 };
 
-class ITask : public QObject, public QRunnable, public UniqueObject {
+class Task : public QObject, public QRunnable, public UniqueObject {
     Q_OBJECT
 public:
-    explicit ITask(QObject *parent = nullptr) : QObject(parent) {
+    explicit Task(QObject *parent = nullptr) : QObject(parent) {
         setAutoDelete(false);
     }
-    explicit ITask(int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
+    explicit Task(int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
         setAutoDelete(false);
     }
-    ~ITask() override {
+    ~Task() override {
         terminate();
     };
     void run() override {
@@ -41,9 +42,7 @@ public:
             runTask();
         }
     }
-    void terminate() {
-        m_abortFlag = true;
-    }
+    void terminate();
     [[nodiscard]] bool started() const {
         return m_started;
     }
@@ -57,18 +56,29 @@ signals:
 
 protected:
     virtual void runTask() = 0;
-    bool m_abortFlag = false;
-    bool m_started = false;
+    bool isTerminateRequested();
 
 private:
     TaskStatus m_status;
+    QMutex m_mutex;
+    bool m_started = false;
+    bool m_abortFlag = false;
 };
-inline const TaskStatus &ITask::status() const {
+inline const TaskStatus &Task::status() const {
     return m_status;
 }
-inline void ITask::setStatus(const TaskStatus &status) {
+inline void Task::setStatus(const TaskStatus &status) {
     m_status = status;
     emit statusUpdated(status);
 }
+inline void Task::terminate() {
+    QMutexLocker locker(&m_mutex);
+    m_abortFlag = true;
+}
 
-#endif // ITASK_H
+inline bool Task::isTerminateRequested() {
+    QMutexLocker locker(&m_mutex);
+    return m_abortFlag;
+}
+
+#endif // TASK_H

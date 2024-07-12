@@ -64,7 +64,7 @@ void DecodeAudioTask::runTask() {
     long long buffersRead = 0;
     qint64 samplesRead = 0;
     while (samplesRead < m_frames * m_channels) {
-        if (m_abortFlag) {
+        if (isTerminateRequested()) {
             qDebug() << "Decode audio task abort:" << path;
             status.title = "Canceling decoding...";
             status.isIndetermine = true;
@@ -121,7 +121,7 @@ void DecodeAudioTask::runTask() {
     short max = 0;
     bool hasTail = false;
     for (int i = 0; i < m_peakCache.count(); i++) {
-        if (m_abortFlag) {
+        if (isTerminateRequested()) {
             qDebug() << "Decode audio task abort:" << path;
             status.title = "Canceling decoding...";
             status.isIndetermine = true;

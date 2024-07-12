@@ -12,7 +12,7 @@
 
 #include <QThread>
 
-LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : ITask(parent) {
+LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : Task(parent) {
     TaskStatus status;
     status.title = "Launching language engine...";
     status.message = "";

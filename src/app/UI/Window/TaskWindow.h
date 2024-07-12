@@ -19,12 +19,12 @@ public:
     explicit TaskWindow(QWidget *parent = nullptr);
 
 public slots:
-    void onTaskChanged(TaskManager::TaskChangeType type, ITask *task, qsizetype index);
+    void onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index);
 
 private:
     QListWidget *m_taskList{};
 
-    void addTaskToView(ITask *task);
+    void addTaskToView(Task *task);
     void removeTaskFromView(qsizetype index);
 };
 
