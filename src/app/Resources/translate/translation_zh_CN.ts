@@ -20,9 +20,17 @@
     </message>
 </context>
 <context>
+    <name>AppController</name>
+    <message>
+        <location filename="../../Controller/AppController.h" line="57"/>
+        <source>New Project</source>
+        <translation>新工程</translation>
+    </message>
+</context>
+<context>
     <name>AppModel</name>
     <message>
-        <location filename="../../Model/AppModel.cpp" line="88"/>
+        <location filename="../../Model/AppModel.cpp" line="81"/>
         <source>New Track</source>
         <translation>新轨道</translation>
     </message>
@@ -109,6 +117,19 @@
     </message>
 </context>
 <context>
+    <name>AudioDecodingController</name>
+    <message>
+        <location filename="../../Controller/AudioDecodingController.cpp" line="71"/>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/AudioDecodingController.cpp" line="72"/>
+        <source>Open file error:</source>
+        <translation>打开文件错误：</translation>
+    </message>
+</context>
+<context>
     <name>AudioExportDialog</name>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="16"/>
@@ -118,22 +139,22 @@
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="23"/>
         <source>Save as</source>
-        <translation type="unfinished"></translation>
+        <translation>另存为</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="25"/>
         <source>Delete</source>
-        <translation type="unfinished"></translation>
+        <translation>删除</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="27"/>
         <source>Preset</source>
-        <translation type="unfinished"></translation>
+        <translation>预设</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="34"/>
         <source>File Path</source>
-        <translation type="unfinished"></translation>
+        <translation>文件路径</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="38"/>
@@ -653,22 +674,22 @@
 <context>
     <name>ClipEditorToolBarView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="33"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="32"/>
         <source>Select</source>
         <translation>选择</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="40"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="39"/>
         <source>Draw Note</source>
         <translation>绘制音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="48"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="47"/>
         <source>Pitch Anchor</source>
         <translation>音高锚点</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="55"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="54"/>
         <source>Draw Pitch</source>
         <translation>绘制音高</translation>
     </message>
@@ -1392,199 +1413,369 @@
     </message>
 </context>
 <context>
-    <name>MainWindow</name>
+    <name>MainMenuView</name>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="67"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="22"/>
         <source>&amp;File</source>
         <translation>文件(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="68"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="23"/>
         <source>&amp;New Project</source>
         <translation>新建工程(&amp;N)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="72"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="27"/>
         <source>&amp;Open Project...</source>
         <translation>打开工程(&amp;O)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="77"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="31"/>
         <source>Select a Project File</source>
         <translation>选择工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="78"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="32"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="58"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="84"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="38"/>
         <source>Open A Project</source>
         <translation>打开A工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="88"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="41"/>
         <source>Select an A Project File</source>
         <translation>选择工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="89"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="104"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="42"/>
         <source>Project File (*.json)</source>
         <translation>工程文件 (*.json)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="96"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="49"/>
         <source>&amp;Save</source>
         <translation>保存(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="98"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="51"/>
         <source>Save &amp;As...</source>
         <translation>另存为(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="103"/>
-        <source>Save as Project File</source>
-        <translation>另存为</translation>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="57"/>
+        <source>Save project</source>
+        <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="118"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="72"/>
         <source>Import</source>
         <translation>导入</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="119"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="135"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="73"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="89"/>
         <source>MIDI File...</source>
         <translation>MIDI 文件...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="121"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="75"/>
         <source>Select a MIDI File</source>
         <translation>选择 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="122"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="138"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="76"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="92"/>
         <source>MIDI File (*.mid)</source>
         <translation>MIDI 文件 (*.mid)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="129"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="83"/>
         <source>Export</source>
         <translation>导出</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="130"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="84"/>
         <source>Audio File...</source>
         <translation>音频文件...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="137"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="91"/>
         <source>Save as MIDI File</source>
         <translation>另存为 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="156"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="111"/>
         <source>&amp;Edit</source>
         <translation>编辑(&amp;E)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="158"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="114"/>
         <source>&amp;Undo</source>
         <translation>撤销(&amp;U)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="163"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="119"/>
         <source>&amp;Redo</source>
         <translation>重做(&amp;R)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="173"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="130"/>
         <source>Select &amp;All</source>
         <translation>全选(&amp;A)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="180"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="137"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="188"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="146"/>
         <source>Cu&amp;t</source>
         <translation>剪切(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="192"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="150"/>
         <source>&amp;Copy</source>
         <translation>复制(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="196"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="154"/>
         <source>&amp;Paste</source>
         <translation>粘贴(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="210"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="168"/>
         <source>&amp;Insert</source>
         <translation>插入(&amp;I)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="212"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="171"/>
         <source>Track</source>
         <translation>轨道</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="217"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="176"/>
         <source>&amp;Modify</source>
         <translation>修改(&amp;M)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="218"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="177"/>
         <source>Fill Lyrics...</source>
         <translation>填入歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="224"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="183"/>
         <source>&amp;Options</source>
         <translation>选项(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="225"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="184"/>
         <source>&amp;General...</source>
         <translation>常规(&amp;G)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="230"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="189"/>
         <source>&amp;Audio...</source>
         <translation>音频(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="252"/>
-        <source>About...</source>
-        <translation>关于...</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="250"/>
-        <source>&amp;Help</source>
-        <translation>帮助(&amp;H)</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="235"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="194"/>
         <source>A&amp;ppearance...</source>
-        <translation type="unfinished">外观(&amp;P)...</translation>
+        <translation>外观(&amp;P)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="240"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="199"/>
         <source>Language...</source>
         <translation>语言...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="251"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="209"/>
+        <source>&amp;Help</source>
+        <translation>帮助(&amp;H)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="210"/>
         <source>Check for Updates</source>
         <translation>检查更新</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="211"/>
+        <source>About...</source>
+        <translation>关于...</translation>
+    </message>
+</context>
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>&amp;File</source>
+        <translation type="vanished">文件(&amp;F)</translation>
+    </message>
+    <message>
+        <source>&amp;New Project</source>
+        <translation type="vanished">新建工程(&amp;N)</translation>
+    </message>
+    <message>
+        <source>&amp;Open Project...</source>
+        <translation type="vanished">打开工程(&amp;O)...</translation>
+    </message>
+    <message>
+        <source>Select a Project File</source>
+        <translation type="vanished">选择工程文件</translation>
+    </message>
+    <message>
+        <source>DiffScope Project File (*.dspx)</source>
+        <translation type="vanished">DiffScope 工程文件 (*.dspx)</translation>
+    </message>
+    <message>
+        <source>Open A Project</source>
+        <translation type="vanished">打开A工程</translation>
+    </message>
+    <message>
+        <source>Select an A Project File</source>
+        <translation type="vanished">选择工程文件</translation>
+    </message>
+    <message>
+        <source>Project File (*.json)</source>
+        <translation type="vanished">工程文件 (*.json)</translation>
+    </message>
+    <message>
+        <source>&amp;Save</source>
+        <translation type="vanished">保存(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Save &amp;As...</source>
+        <translation type="vanished">另存为(&amp;A)...</translation>
+    </message>
+    <message>
+        <source>Save as Project File</source>
+        <translation type="vanished">另存为</translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation type="vanished">导入</translation>
+    </message>
+    <message>
+        <source>MIDI File...</source>
+        <translation type="vanished">MIDI 文件...</translation>
+    </message>
+    <message>
+        <source>Select a MIDI File</source>
+        <translation type="vanished">选择 MIDI 文件</translation>
+    </message>
+    <message>
+        <source>MIDI File (*.mid)</source>
+        <translation type="vanished">MIDI 文件 (*.mid)</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation type="vanished">导出</translation>
+    </message>
+    <message>
+        <source>Audio File...</source>
+        <translation type="vanished">音频文件...</translation>
+    </message>
+    <message>
+        <source>Save as MIDI File</source>
+        <translation type="vanished">另存为 MIDI 文件</translation>
+    </message>
+    <message>
+        <source>&amp;Edit</source>
+        <translation type="vanished">编辑(&amp;E)</translation>
+    </message>
+    <message>
+        <source>&amp;Undo</source>
+        <translation type="vanished">撤销(&amp;U)</translation>
+    </message>
+    <message>
+        <source>&amp;Redo</source>
+        <translation type="vanished">重做(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Select &amp;All</source>
+        <translation type="vanished">全选(&amp;A)</translation>
+    </message>
+    <message>
+        <source>&amp;Delete</source>
+        <translation type="vanished">删除(&amp;D)</translation>
+    </message>
+    <message>
+        <source>Cu&amp;t</source>
+        <translation type="vanished">剪切(&amp;T)</translation>
+    </message>
+    <message>
+        <source>&amp;Copy</source>
+        <translation type="vanished">复制(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;Paste</source>
+        <translation type="vanished">粘贴(&amp;P)</translation>
+    </message>
+    <message>
+        <source>&amp;Insert</source>
+        <translation type="vanished">插入(&amp;I)</translation>
+    </message>
+    <message>
+        <source>Track</source>
+        <translation type="vanished">轨道</translation>
+    </message>
+    <message>
+        <source>&amp;Modify</source>
+        <translation type="vanished">修改(&amp;M)</translation>
+    </message>
+    <message>
+        <source>Fill Lyrics...</source>
+        <translation type="vanished">填入歌词...</translation>
+    </message>
+    <message>
+        <source>&amp;Options</source>
+        <translation type="vanished">选项(&amp;O)</translation>
+    </message>
+    <message>
+        <source>&amp;General...</source>
+        <translation type="vanished">常规(&amp;G)...</translation>
+    </message>
+    <message>
+        <source>&amp;Audio...</source>
+        <translation type="vanished">音频(&amp;A)...</translation>
+    </message>
+    <message>
+        <source>About...</source>
+        <translation type="vanished">关于...</translation>
+    </message>
+    <message>
+        <source>&amp;Help</source>
+        <translation type="vanished">帮助(&amp;H)</translation>
+    </message>
+    <message>
+        <source>A&amp;ppearance...</source>
+        <translation type="obsolete">外观(&amp;P)...</translation>
+    </message>
+    <message>
+        <source>Language...</source>
+        <translation type="vanished">语言...</translation>
+    </message>
+    <message>
+        <source>Check for Updates</source>
+        <translation type="vanished">检查更新</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="220"/>
+        <source>Please wait for all tasks done...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="227"/>
+        <source>%1 is exiting...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="228"/>
+        <source>Terminating background tasks...</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1608,41 +1799,54 @@
 <context>
     <name>PianoRollGraphicsView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="64"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="65"/>
         <source>Select a singing clip to edit</source>
         <translation>选中歌声剪辑以编辑</translation>
     </message>
 </context>
 <context>
+    <name>TaskDialog</name>
+    <message>
+        <location filename="../../UI/Dialogs/Base/TaskDialog.cpp" line="21"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Base/TaskDialog.cpp" line="26"/>
+        <source>Hide</source>
+        <translation>隐藏</translation>
+    </message>
+</context>
+<context>
     <name>TracksViewController</name>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="33"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="38"/>
         <source>New Track</source>
         <translation>新轨道</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="52"/>
-        <location filename="../../Controller/TracksViewController.cpp" line="177"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="57"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="184"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="53"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="58"/>
         <source>Do you want to remove this track?</source>
         <translation>要移除此轨道吗？</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="178"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="185"/>
         <source>Do you want to remove this clip?</source>
         <translation>要移除此剪辑吗？</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="219"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="226"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="220"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="227"/>
         <source>Open file error:</source>
         <translation>打开文件错误：</translation>
     </message>
