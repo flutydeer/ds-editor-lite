@@ -17,7 +17,6 @@
 #include "Controller/TracksViewController.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
-#include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ProgressIndicator.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/ActionButtonsView.h"
@@ -45,6 +44,8 @@ MainWindow::MainWindow() {
 #elif defined(Q_OS_MAC)
     this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
 #endif
+
+    Dialog::setGlobalParentWidget(this);
 
     auto appController = AppController::instance();
     auto trackController = TracksViewController::instance();

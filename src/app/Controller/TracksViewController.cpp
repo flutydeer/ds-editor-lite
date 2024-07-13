@@ -5,16 +5,13 @@
 #include "TracksViewController.h"
 
 #include "AppController.h"
-
-#include <QMessageBox>
-
 #include "Actions/AppModel/Clip/ClipActions.h"
-#include "Model/AppModel.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
+#include "Model/AppModel.h"
+#include "Model/AudioInfoModel.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
-#include "Model/AudioInfoModel.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
@@ -211,7 +208,7 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
         // audioClipItem->setStatus(AppGlobal::Error);
         auto dlg = new Dialog(m_parentWidget);
         dlg->setWindowTitle(tr("Error"));
-        dlg->setTitle(tr("Open file error"));
+        dlg->setTitle(tr("Failed to open audio file:"));
         dlg->setMessage(task->path);
         dlg->setModal(true);
 

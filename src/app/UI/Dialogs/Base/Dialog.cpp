@@ -8,8 +8,10 @@
 #include <QLabel>
 #include <QPainter>
 
-#include "Utils/WindowFrameUtils.h"
 #include "UI/Controls/Button.h"
+#include "Utils/WindowFrameUtils.h"
+
+QWidget *Dialog::m_globalParent = nullptr;
 
 DialogHeader::DialogHeader(QWidget *parent) : QWidget(parent) {
     m_lbTitle = new QLabel;
@@ -64,13 +66,13 @@ void DialogButtonBar::reset() {
         if (auto button = dynamic_cast<Button *>(child))
             m_mainLayout->removeWidget(button);
 }
-Dialog::Dialog(QWidget *parent, Qt::WindowFlags f) : QDialog(parent, f) {
-    #ifdef Q_OS_WIN
-        bool micaOn = true;
-        auto version = QSysInfo::productVersion();
-        if (micaOn && version == "11")
-            this->setStyleSheet("QDialog { background: transparent; }");
-    #endif
+Dialog::Dialog(QWidget *parent, Qt::WindowFlags f) : QDialog(parent ? parent : m_globalParent, f) {
+#ifdef Q_OS_WIN
+    bool micaOn = true;
+    auto version = QSysInfo::productVersion();
+    if (micaOn && version == "11")
+        this->setStyleSheet("QDialog { background: transparent; }");
+#endif
 
     WindowFrameUtils::applyFrameEffects(this);
 
@@ -120,6 +122,12 @@ QWidget *Dialog::body() {
 }
 DialogButtonBar *Dialog::buttonBar() {
     return m_buttonBar;
+}
+QWidget *Dialog::globalParent() {
+    return m_globalParent;
+}
+void Dialog::setGlobalParentWidget(QWidget *parent) {
+    m_globalParent = parent;
 }
 void Dialog::createButtonBar() {
     m_buttonBar = new DialogButtonBar(this);

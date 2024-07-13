@@ -54,9 +54,13 @@ public:
     QWidget *body();
     DialogButtonBar *buttonBar();
 
+    [[nodiscard]] static QWidget *globalParent();
+    static void setGlobalParentWidget(QWidget *parent);
+
 private:
     using QDialog::setLayout;
 
+    static QWidget *m_globalParent;
     QVBoxLayout *m_mainLayout;
     DialogHeader *m_header;
     QWidget *m_body = nullptr;

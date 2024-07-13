@@ -125,8 +125,17 @@
     </message>
     <message>
         <location filename="../../Controller/AudioDecodingController.cpp" line="72"/>
+        <source>Failed to open audio file:</source>
+        <translation>无法打开音频文件：</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/AudioDecodingController.cpp" line="76"/>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
         <source>Open file error:</source>
-        <translation>打开文件错误：</translation>
+        <translation type="vanished">打开文件错误：</translation>
     </message>
 </context>
 <context>
@@ -1382,32 +1391,32 @@
 <context>
     <name>LyricDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="11"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="14"/>
         <source>Fill Lyric</source>
         <translation>填入歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="31"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="34"/>
         <source>&amp;Import</source>
         <translation>导入(&amp;I)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="34"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="37"/>
         <source>&amp;Cancel</source>
         <translation>取消(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="37"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="40"/>
         <source>Lyric</source>
         <translation>歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="38"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="41"/>
         <source>Advanced</source>
         <translation>预设</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="39"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="42"/>
         <source>Help</source>
         <translation>帮助</translation>
     </message>
@@ -1763,19 +1772,19 @@
         <translation type="vanished">检查更新</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="220"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="222"/>
         <source>Please wait for all tasks done...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="227"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="229"/>
         <source>%1 is exiting...</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 正在退出...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="228"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="230"/>
         <source>Terminating background tasks...</source>
-        <translation type="unfinished"></translation>
+        <translation>正在停止后台任务...</translation>
     </message>
 </context>
 <context>
@@ -1818,6 +1827,47 @@
     </message>
 </context>
 <context>
+    <name>TracksView</name>
+    <message>
+        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="280"/>
+        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="357"/>
+        <source>Warning</source>
+        <translation>警告</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="281"/>
+        <source>Do you want to delete this clip?</source>
+        <translation>要删除此剪辑吗？</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="285"/>
+        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="362"/>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="289"/>
+        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="366"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="358"/>
+        <source>Do you want to delete this track?</source>
+        <translation>要删除此轨道吗？</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="376"/>
+        <source>Select an Audio File</source>
+        <translation>选择音频文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="377"/>
+        <source>All Audio File (*.wav *.flac *.mp3);;Wave File (*.wav);;Flac File (*.flac);;MP3 File (*.mp3)</source>
+        <translation>所有音频文件 (*.wav *.flac *.mp3);;波形文件 (*.wav);;Flac 文件 (*.flac);;MP3 文件 (*.mp3)</translation>
+    </message>
+</context>
+<context>
     <name>TracksViewController</name>
     <message>
         <location filename="../../Controller/TracksViewController.cpp" line="38"/>
@@ -1825,30 +1875,35 @@
         <translation>新轨道</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="57"/>
-        <location filename="../../Controller/TracksViewController.cpp" line="184"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="211"/>
+        <source>Failed to open audio file:</source>
+        <translation>无法打开音频文件：</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/TracksViewController.cpp" line="215"/>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
         <source>Warning</source>
-        <translation>警告</translation>
+        <translation type="vanished">警告</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="58"/>
         <source>Do you want to remove this track?</source>
-        <translation>要移除此轨道吗？</translation>
+        <translation type="vanished">要移除此轨道吗？</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="185"/>
         <source>Do you want to remove this clip?</source>
-        <translation>要移除此剪辑吗？</translation>
+        <translation type="vanished">要移除此剪辑吗？</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="226"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="210"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="227"/>
         <source>Open file error:</source>
-        <translation>打开文件错误：</translation>
+        <translation type="vanished">打开文件错误：</translation>
     </message>
 </context>
 </TS>

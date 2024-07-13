@@ -2,8 +2,6 @@
 // Created by fluty on 2024/7/11.
 //
 
-#include <QMessageBox>
-
 #include "AudioDecodingController.h"
 #include "Model/Clip.h"
 #include "Modules/Task/TaskManager.h"
@@ -69,10 +67,9 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, bool ter
         return;
     }
     if (!task->success) {
-        // TODO: add parent widget
         auto dlg = new Dialog;
         dlg->setWindowTitle(tr("Error"));
-        dlg->setTitle(tr("Open file error"));
+        dlg->setTitle(tr("Failed to open audio file:"));
         dlg->setMessage(task->path);
         dlg->setModal(true);
 
