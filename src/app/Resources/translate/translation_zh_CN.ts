@@ -1141,17 +1141,17 @@
 <context>
     <name>LangMgr::PinyinAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="15"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="16"/>
         <source>Pinyin</source>
         <translation>拼音</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="17"/>
         <source>Capture Pinyin words.</source>
         <translation>捕获拼音字符串。</translation>
     </message>
@@ -1177,17 +1177,17 @@
 <context>
     <name>LangMgr::RomajiAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="15"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="16"/>
         <source>Romaji</source>
         <translation>罗马音</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="17"/>
         <source>Capture Romaji words.</source>
         <translation>捕获罗马音字符串。</translation>
     </message>
