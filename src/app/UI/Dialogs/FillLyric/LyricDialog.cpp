@@ -2,7 +2,10 @@
 
 #include <QApplication>
 
+#include "Model/Note.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "UI/Controls/AccentButton.h"
+#include "UI/Dialogs/Options/Pages/LanguagePage.h"
 
 LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     : Dialog(parent), m_notes(std::move(note)) {
@@ -28,7 +31,7 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
 
     m_langPage = new LanguagePage(this);
 
-    m_btnOk = new Button(tr("&Import"), this);
+    m_btnOk = new AccentButton(tr("&Import"), this);
     // m_btnOk->setPrimary(true);
     setPositiveButton(m_btnOk);
     m_btnCancel = new Button(tr("&Cancel"), this);

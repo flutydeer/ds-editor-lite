@@ -46,7 +46,7 @@ signals:
     void selectedClipChanged(int clipId);
     void trackPropertyChanged(const Track::TrackProperties &args);
     void insertNewTrackTriggered(int index);
-    void removeTrackTriggerd(int index);
+    void removeTrackTriggered(int index);
     void muteClicked(int index);
     void soloClicked(int index);
     void tempoChanged(double tempo);
@@ -60,6 +60,7 @@ signals:
 private slots:
     void onSceneSelectionChanged();
     void onViewScaleChanged(qreal sx, qreal sy);
+    void onClipGraphicsItemRemoveTriggered(int id);
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;

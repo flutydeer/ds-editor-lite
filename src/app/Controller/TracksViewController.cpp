@@ -4,6 +4,8 @@
 
 #include "TracksViewController.h"
 
+#include "AppController.h"
+
 #include <QMessageBox>
 
 #include "Actions/AppModel/Clip/ClipActions.h"
@@ -13,6 +15,7 @@
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Model/AudioInfoModel.h"
+#include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/TracksEditor/GraphicsItem/AudioClipGraphicsItem.h"
@@ -53,21 +56,13 @@ void TracksViewController::onAppendTrack(Track *track) {
     HistoryManager::instance()->record(a);
 }
 void TracksViewController::onRemoveTrack(int index) {
-    QMessageBox msgBox;
-    msgBox.setText(tr("Warning"));
-    msgBox.setInformativeText(tr("Do you want to remove this track?"));
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
-    msgBox.setDefaultButton(QMessageBox::Yes);
-    int ret = msgBox.exec();
-    if (ret == QMessageBox::Yes) {
-        auto trackToRemove = AppModel::instance()->tracks().at(index);
-        QList<Track *> tracks;
-        tracks.append(trackToRemove);
-        auto a = new TrackActions;
-        a->removeTracks(tracks, AppModel::instance());
-        a->execute();
-        HistoryManager::instance()->record(a);
-    }
+    auto trackToRemove = AppModel::instance()->tracks().at(index);
+    QList<Track *> tracks;
+    tracks.append(trackToRemove);
+    auto a = new TrackActions;
+    a->removeTracks(tracks, AppModel::instance());
+    a->execute();
+    HistoryManager::instance()->record(a);
 }
 void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     auto audioClip = new AudioClip;
@@ -180,25 +175,17 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
     }
 }
 void TracksViewController::onRemoveClip(int clipId) {
-    QMessageBox msgBox;
-    msgBox.setText(tr("Warning"));
-    msgBox.setInformativeText(tr("Do you want to remove this clip?"));
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
-    msgBox.setDefaultButton(QMessageBox::Yes);
-    int ret = msgBox.exec();
-    if (ret == QMessageBox::Yes) {
-        for (const auto &track : AppModel::instance()->tracks()) {
-            auto result = track->findClipById(clipId);
-            if (result != nullptr) {
-                auto a = new ClipActions;
-                QList<Clip *> clips;
-                clips.append(result);
-                a->removeClips(clips, track);
-                a->execute();
-                HistoryManager::instance()->record(a);
-            }
-        }
-    }
+    int trackIndex;
+    auto result = AppModel::instance()->findClipById(clipId, trackIndex);
+    if (!result)
+        return;
+
+    auto a = new ClipActions;
+    QList<Clip *> clips;
+    clips.append(result);
+    a->removeClips(clips, AppModel::instance()->tracks().at(trackIndex));
+    a->execute();
+    HistoryManager::instance()->record(a);
 }
 void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
     auto singingClip = new SingingClip;
@@ -222,12 +209,16 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
         // auto clipItem = m_view.findClipItemById(task->id());
         // auto audioClipItem = dynamic_cast<AudioClipGraphicsItem *>(clipItem);
         // audioClipItem->setStatus(AppGlobal::Error);
-        QMessageBox msgBox;
-        msgBox.setText(tr("Error"));
-        msgBox.setInformativeText(tr("Open file error:") + task->errorMessage);
-        msgBox.setStandardButtons(QMessageBox::Yes);
-        msgBox.setDefaultButton(QMessageBox::Yes);
-        msgBox.exec();
+        auto dlg = new Dialog(m_parentWidget);
+        dlg->setWindowTitle(tr("Error"));
+        dlg->setTitle(tr("Open file error"));
+        dlg->setMessage(task->path);
+        dlg->setModal(true);
+
+        auto btnClose = new AccentButton(tr("Close"));
+        connect(btnClose, &Button::clicked, dlg, &Dialog::accept);
+        dlg->setPositiveButton(btnClose);
+        dlg->show();
         return;
     }
 

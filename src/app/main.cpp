@@ -33,6 +33,24 @@ int main(int argc, char *argv[]) {
     // auto style = QStyleFactory::create("fusion");
     // QApplication::setStyle(style);
 
+//     QString qssBase;
+//     auto qssFile = QFile(":theme/lite-dark.qss");
+//     if (qssFile.open(QIODevice::ReadOnly)) {
+//         qssBase = qssFile.readAll();
+//         qssFile.close();
+//     }
+//     a.setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
+// #ifdef Q_OS_WIN
+//     bool micaOn = true;
+//     auto version = QSysInfo::productVersion();
+//     if (micaOn && version == "11") {
+//         // make window transparent
+//         a.setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
+//     }
+// #elif defined(Q_OS_MAC)
+//     this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
+// #endif
+
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);
     f.setPointSizeF(10);

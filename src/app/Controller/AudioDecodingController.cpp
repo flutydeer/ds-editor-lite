@@ -8,6 +8,8 @@
 #include "Model/Clip.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
+#include "UI/Controls/AccentButton.h"
+#include "UI/Dialogs/Base/Dialog.h"
 
 void AudioDecodingController::onModelChanged() {
     qDebug() << "AudioDecodingController::onModelChanged";
@@ -67,12 +69,18 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, bool ter
         return;
     }
     if (!task->success) {
-        QMessageBox msgBox;
-        msgBox.setText(tr("Error"));
-        msgBox.setInformativeText(tr("Open file error:") + task->errorMessage);
-        msgBox.setStandardButtons(QMessageBox::Yes);
-        msgBox.setDefaultButton(QMessageBox::Yes);
-        msgBox.exec();
+        // TODO: add parent widget
+        auto dlg = new Dialog;
+        dlg->setWindowTitle(tr("Error"));
+        dlg->setTitle(tr("Open file error"));
+        dlg->setMessage(task->path);
+        dlg->setModal(true);
+
+        auto btnClose = new AccentButton(tr("Close"));
+        connect(btnClose, &Button::clicked, dlg, &Dialog::accept);
+        dlg->setPositiveButton(btnClose);
+        dlg->show();
+
         delete task;
         return;
     }

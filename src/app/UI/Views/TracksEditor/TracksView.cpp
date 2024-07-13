@@ -26,6 +26,9 @@
 #include "TrackControlWidget.h"
 #include "TrackListWidget.h"
 #include "Controller/TracksViewController.h"
+#include "UI/Controls/AccentButton.h"
+#include "UI/Controls/Button.h"
+#include "UI/Dialogs/Base/Dialog.h"
 
 TracksView::TracksView(QWidget *parent) : QWidget(parent) {
     TracksViewController::instance()->setParentWidget(this);
@@ -271,6 +274,26 @@ void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
         previousHeightSum += height;
     }
 }
+void TracksView::onClipGraphicsItemRemoveTriggered(int id) {
+    auto clip = findClipItemById(id);
+    auto dlg = new Dialog(this);
+    dlg->setWindowTitle(tr("Warning"));
+    dlg->setTitle(tr("Do you want to delete this clip?"));
+    dlg->setMessage(clip->name());
+    dlg->setModal(true);
+
+    auto btnDelete = new Button(tr("Delete"));
+    connect(btnDelete, &Button::clicked, dlg, &Dialog::accept);
+    dlg->setNegativeButton(btnDelete);
+
+    auto btnCancel = new AccentButton(tr("Cancel"));
+    connect(btnCancel, &Button::clicked, dlg, &Dialog::reject);
+    dlg->setPositiveButton(btnCancel);
+
+    connect(dlg, &Dialog::accepted, this, [=] { emit removeClipTriggered(id); });
+
+    dlg->show();
+}
 bool TracksView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress) {
         qDebug() << "TracksView MouseButtonPress";
@@ -329,13 +352,30 @@ void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
     });
     connect(newTrackControlWidget, &TrackControlWidget::removeTrackTriggerd, this, [=] {
         auto i = m_trackListWidget->row(newTrackItem);
-        emit removeTrackTriggerd(i);
+
+        auto dlg = new Dialog(this);
+        dlg->setWindowTitle(tr("Warning"));
+        dlg->setTitle(tr("Do you want to delete this track?"));
+        dlg->setMessage(newTrackControlWidget->name());
+        dlg->setModal(true);
+
+        auto btnDelete = new Button(tr("Delete"));
+        connect(btnDelete, &Button::clicked, dlg, &Dialog::accept);
+        dlg->setNegativeButton(btnDelete);
+
+        auto btnCancel = new AccentButton(tr("Cancel"));
+        connect(btnCancel, &Button::clicked, dlg, &Dialog::reject);
+        dlg->setPositiveButton(btnCancel);
+
+        connect(dlg, &Dialog::accepted, this, [=] { emit removeTrackTriggered(i); });
+
+        dlg->show();
     });
     connect(newTrackControlWidget, &TrackControlWidget::addAudioClipTriggered, this, [=] {
         auto fileName =
-            QFileDialog::getOpenFileName(this, "Select an Audio File", ".",
-                                         "All Audio File (*.wav *.flac *.mp3);;Wave File "
-                                         "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)");
+            QFileDialog::getOpenFileName(this, tr("Select an Audio File"), ".",
+                                         tr("All Audio File (*.wav *.flac *.mp3);;Wave File "
+                                            "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)"));
         if (fileName.isNull())
             return;
         auto i = m_trackListWidget->row(newTrackItem);
@@ -400,7 +440,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
             }
         });
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
-                [=](int id) { emit removeClipTriggered(id); });
+                &TracksView::onClipGraphicsItemRemoveTriggered);
         track->clips.append(clipItem);
     } else if (clip->type() == Clip::Singing) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
@@ -423,7 +463,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         connect(singingClip, &SingingClip::notePropertyChanged, clipItem,
                 &SingingClipGraphicsItem::onNotePropertyChanged);
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
-                [=](int id) { emit removeClipTriggered(id); });
+                &TracksView::onClipGraphicsItemRemoveTriggered);
         connect(AppModel::instance(), &AppModel::quantizeChanged, clipItem,
                 &AbstractClipGraphicsItem::setQuantize);
         connect(clipItem, &SingingClipGraphicsItem::propertyChanged, this, [=] {
@@ -548,6 +588,8 @@ void TracksView::afterSetActivated() {
     updateStyleSheet();
 }
 void TracksView::updateStyleSheet() {
-    auto borderStyle = panelActivated()? "border: 1px solid rgb(126, 149, 199);" : "border: 1px solid rgb(20, 20, 20);";
-    setStyleSheet(QString("QWidget#TracksView { background: #2A2B2C; border-radius: 6px; ") + borderStyle + "}");
+    auto borderStyle = panelActivated() ? "border: 1px solid rgb(126, 149, 199);"
+                                        : "border: 1px solid rgb(20, 20, 20);";
+    setStyleSheet(QString("QWidget#TracksView { background: #2A2B2C; border-radius: 6px; ") +
+                  borderStyle + "}");
 }

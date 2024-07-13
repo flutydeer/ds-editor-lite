@@ -3,14 +3,12 @@
 
 #include <QTabWidget>
 
-#include <Model/Note.h>
-
-#include "../../../Modules/Language/FillLyric/View/LyricTab.h"
-#include "UI/Dialogs/Options/Pages/LanguagePage.h"
-
+#include "Modules/Language/FillLyric/View/LyricTab.h"
 #include "UI/Dialogs/Base/Dialog.h"
-#include "UI/Controls/Button.h"
 
+class LanguagePage;
+class Note;
+class AccentButton;
 class LyricDialog final : public Dialog {
     Q_OBJECT
 public:
@@ -36,7 +34,7 @@ private:
     FillLyric::LyricTab *m_lyricWidget;
     LanguagePage *m_langPage;
 
-    Button *m_btnOk;
+    AccentButton *m_btnOk;
     Button *m_btnCancel;
 
     QList<Note *> m_notes;

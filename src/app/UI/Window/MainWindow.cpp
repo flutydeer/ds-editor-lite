@@ -17,6 +17,7 @@
 #include "Controller/TracksViewController.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
+#include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ProgressIndicator.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/ActionButtonsView.h"
@@ -73,7 +74,7 @@ MainWindow::MainWindow() {
             &TracksViewController::onTrackPropertyChanged);
     connect(m_tracksView, &TracksView::insertNewTrackTriggered, trackController,
             &TracksViewController::onInsertNewTrack);
-    connect(m_tracksView, &TracksView::removeTrackTriggerd, trackController,
+    connect(m_tracksView, &TracksView::removeTrackTriggered, trackController,
             &TracksViewController::onRemoveTrack);
     connect(m_tracksView, &TracksView::addAudioClipTriggered, trackController,
             &TracksViewController::onAddAudioClip);
