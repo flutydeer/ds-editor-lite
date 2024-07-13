@@ -59,6 +59,8 @@ MainWindow::MainWindow() {
     auto clipboardController = ClipboardController::instance();
     auto taskManager = TaskManager::instance();
 
+    appController->setMainWindow(this);
+
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
     connect(TaskManager::instance(), &TaskManager::taskChanged, this, &MainWindow::onTaskChanged);
 
@@ -73,8 +75,7 @@ MainWindow::MainWindow() {
     auto actionOpen = new QAction(tr("&Open Project..."));
     actionOpen->setShortcut(QKeySequence("Ctrl+O"));
     connect(actionOpen, &QAction::triggered, this, [=] {
-        auto lastDir =
-            appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
+        auto lastDir = appController->lastProjectFolder();
         auto fileName = QFileDialog::getOpenFileName(this, tr("Select a Project File"), lastDir,
                                                      tr("DiffScope Project File (*.dspx)"));
         if (fileName.isNull())
@@ -84,8 +85,7 @@ MainWindow::MainWindow() {
     });
     auto actionOpenAProject = new QAction(tr("Open A Project"), this);
     connect(actionOpenAProject, &QAction::triggered, this, [=] {
-        auto lastDir =
-            appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
+        auto lastDir = appController->lastProjectFolder();
         auto fileName = QFileDialog::getOpenFileName(this, tr("Select an A Project File"), lastDir,
                                                      tr("Project File (*.json)"));
         if (fileName.isNull())
@@ -99,20 +99,21 @@ MainWindow::MainWindow() {
     auto actionSaveAs = new QAction(tr("Save &As..."), this);
     actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
     connect(actionSaveAs, &QAction::triggered, this, [=] {
-        auto lastDir =
-            appController->lastProjectPath().isEmpty() ? "." : appController->lastProjectPath();
-        auto fileName = QFileDialog::getSaveFileName(this, tr("Save as Project File"), lastDir,
-                                                     tr("Project File (*.json)"));
+        auto lastDir = appController->projectPath().isEmpty()
+                           ? appController->lastProjectFolder() + "/" + appController->projectName()
+                           : appController->projectPath();
+        auto fileName = QFileDialog::getSaveFileName(this, tr("Save project"), lastDir,
+                                                     tr("DiffScope Project File (*.dspx)"));
         if (fileName.isNull())
             return;
 
         appController->saveProject(fileName);
     });
     connect(actionSave, &QAction::triggered, this, [=] {
-        if (appController->lastProjectPath().isEmpty()) {
+        if (appController->projectPath().isEmpty()) {
             actionSaveAs->trigger();
         } else {
-            appController->saveProject(appController->lastProjectPath());
+            appController->saveProject(appController->projectPath());
         }
     });
 
@@ -387,6 +388,13 @@ MainWindow::MainWindow() {
     this->resize(1280, 720);
 
     WindowFrameUtils::applyFrameEffects(this);
+}
+void MainWindow::setProjectName(const QString &name) {
+    auto appName = qApp->applicationDisplayName();
+    if (name.isNull() || name.isEmpty())
+        setWindowTitle(appName);
+    else
+        setWindowTitle(name + " - " + appName);
 }
 void MainWindow::onAllDone() {
     if (m_isCloseRequested) {

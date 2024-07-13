@@ -88,7 +88,7 @@ bool AppModel::loadProject(const QString &filename) {
     auto converter = new DspxProjectConverter;
     QString errMsg;
     AppModel resultModel;
-    auto ok = converter->load(filename, this, errMsg, ImportMode::NewProject);
+    auto ok = converter->load(filename, &resultModel, errMsg, ImportMode::NewProject);
     if (ok)
         loadFromAppModel(resultModel);
     return ok;

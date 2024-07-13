@@ -8,6 +8,7 @@
 #include <QMainWindow>
 #include <QTimer>
 
+#include "Interface/IMainWindow.h"
 #include "Modules/Task/TaskManager.h"
 #include "Modules/Task/Task.h"
 
@@ -17,11 +18,12 @@ class QLabel;
 class TracksView;
 class ClipEditorView;
 
-class MainWindow final : public QMainWindow {
+class MainWindow final : public QMainWindow, public IMainWindow {
     Q_OBJECT
 
 public:
     explicit MainWindow();
+    void setProjectName(const QString &name) override;
 
 public slots:
     void onAllDone();

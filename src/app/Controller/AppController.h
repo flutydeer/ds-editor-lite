@@ -6,11 +6,12 @@
 #define TRACKSCONTROLLER_H
 
 #include <QObject>
+#include <QStandardPaths>
 
 #include "Utils/Singleton.h"
 #include "Global/AppGlobal.h"
 
-
+class IMainWindow;
 class IPanel;
 class LaunchLanguageEngineTask;
 class AppModel;
@@ -23,8 +24,12 @@ class AppController final : public QObject, public Singleton<AppController> {
 public:
     explicit AppController();
     ~AppController() override = default;
+    void setMainWindow(IMainWindow *window);
 
-    [[nodiscard]] QString lastProjectPath() const;
+    [[nodiscard]] QString lastProjectFolder()const;
+    [[nodiscard]] QString projectPath() const;
+    [[nodiscard]] QString projectName() const;
+    void setProjectName(const QString &name);
 
     [[nodiscard]] bool isLanguageEngineReady() const;
     void registerPanel(IPanel *panel);
@@ -49,10 +54,16 @@ signals:
     void activatedPanelChanged(AppGlobal::PanelType panel);
 
 private:
+    const QString defaultProjectName = tr("New Project");
+
     bool isPowerOf2(int num);
     void handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);
+    void updateProjectPathAndName(const QString &path);
 
-    QString m_lastProjectPath;
+    IMainWindow *m_mainWindow = nullptr;
+    QString m_lastProjectFolder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    QString m_projectPath;
+    QString m_projectName;
     bool m_isLanguageEngineReady = false;
     QList<IPanel *> m_panels;
     AppGlobal::PanelType m_activatedPanel = AppGlobal::TracksEditor;

@@ -2,17 +2,19 @@
 // Created by FlutyDeer on 2023/12/1.
 //
 
-#include "AppController.h"
+#include <QFileInfo>
+#include <QDir>
 
+#include "AppController.h"
 #include "AudioDecodingController.h"
-#include "Modules/History/HistoryManager.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
+#include "Interface/IMainWindow.h"
 #include "Interface/IPanel.h"
-#include "Model/Clip.h"
 #include "Model/Track.h"
-#include "Tasks/DecodeAudioTask.h"
+#include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
+#include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
 
 AppController::AppController() {
@@ -23,23 +25,24 @@ AppController::AppController() {
     TaskManager::instance()->startTask(task);
 
     connect(AppModel::instance(), &AppModel::modelChanged, AudioDecodingController::instance(),
-    &AudioDecodingController::onModelChanged);
+            &AudioDecodingController::onModelChanged);
     connect(AppModel::instance(), &AppModel::trackChanged, AudioDecodingController::instance(),
             &AudioDecodingController::onTrackChanged);
 }
 void AppController::onNewProject() {
     AppModel::instance()->newProject();
     HistoryManager::instance()->reset();
-    m_lastProjectPath = "";
+    updateProjectPathAndName("");
 }
 void AppController::openProject(const QString &filePath) {
     AppModel::instance()->loadProject(filePath);
     HistoryManager::instance()->reset();
-    m_lastProjectPath = filePath;
+    updateProjectPathAndName(filePath);
+    m_lastProjectFolder = QFileInfo(filePath).dir().path();
 }
 void AppController::saveProject(const QString &filePath) {
     if (AppModel::instance()->saveProject(filePath)) {
-        m_lastProjectPath = filePath;
+        updateProjectPathAndName(filePath);
     }
 }
 void AppController::importMidiFile(const QString &filePath) {
@@ -51,7 +54,9 @@ void AppController::exportMidiFile(const QString &filePath) {
 void AppController::importAproject(const QString &filePath) {
     AppModel::instance()->importAProject(filePath);
     HistoryManager::instance()->reset();
-    m_lastProjectPath = "";
+    updateProjectPathAndName("");
+    setProjectName(QFileInfo(filePath).baseName());
+    m_lastProjectFolder = QFileInfo(filePath).dir().path();
 }
 void AppController::onSetTempo(double tempo) {
     // TODO: validate tempo
@@ -103,9 +108,28 @@ void AppController::handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask
     m_isLanguageEngineReady = task->success;
     delete task;
 }
+void AppController::updateProjectPathAndName(const QString &path) {
+    m_projectPath = path;
+    setProjectName(m_projectPath.isEmpty() ? defaultProjectName
+                                           : QFileInfo(m_projectPath).fileName());
+}
 
-QString AppController::lastProjectPath() const {
-    return m_lastProjectPath;
+void AppController::setMainWindow(IMainWindow *window) {
+    m_mainWindow = window;
+}
+QString AppController::lastProjectFolder() const {
+    return m_lastProjectFolder;
+}
+QString AppController::projectPath() const {
+    return m_projectPath;
+}
+QString AppController::projectName() const {
+    return m_projectName;
+}
+void AppController::setProjectName(const QString &name) {
+    m_projectName = name;
+    if (m_mainWindow)
+        m_mainWindow->setProjectName(m_projectName);
 }
 bool AppController::isLanguageEngineReady() const {
     return m_isLanguageEngineReady;

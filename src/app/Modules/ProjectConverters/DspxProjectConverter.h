@@ -10,7 +10,7 @@
 using ImportMode = IProjectConverter::ImportMode;
 class DspxProjectConverter final : public IProjectConverter {
 public:
-    bool load(const QString &path, AppModel *track, QString &errMsg,
+    bool load(const QString &path, AppModel *model, QString &errMsg,
               ImportMode mode) override;
     bool save(const QString &dsParam, AppModel *phonemes, QString &errMsg) override;
 };
