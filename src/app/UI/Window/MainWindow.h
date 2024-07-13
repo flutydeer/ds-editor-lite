@@ -11,6 +11,7 @@
 #include "Interface/IMainWindow.h"
 #include "Modules/Task/TaskManager.h"
 #include "Modules/Task/Task.h"
+#include "Global/AppGlobal.h"
 
 class TaskDialog;
 class ProgressIndicator;
@@ -29,6 +30,9 @@ public slots:
     void onAllDone();
     void onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index);
     void onTaskStatusChanged(const TaskStatus &status);
+
+// private slots:
+//     void onActivePanelChanged(AppGlobal::PanelType panelType);
 
 private:
     void closeEvent(QCloseEvent *event) override;
