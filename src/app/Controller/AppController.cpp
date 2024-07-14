@@ -16,6 +16,7 @@
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
+#include "UI/Controls/Toast.h"
 
 AppController::AppController() {
     auto task = new LaunchLanguageEngineTask;
@@ -43,6 +44,7 @@ void AppController::openProject(const QString &filePath) {
 void AppController::saveProject(const QString &filePath) {
     if (AppModel::instance()->saveProject(filePath)) {
         updateProjectPathAndName(filePath);
+        Toast::show(tr("Saved"));
     }
 }
 void AppController::importMidiFile(const QString &filePath) {

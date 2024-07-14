@@ -18,6 +18,7 @@
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/ProgressIndicator.h"
+#include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/ActionButtonsView.h"
 #include "UI/Views/PlaybackView.h"
@@ -45,7 +46,8 @@ MainWindow::MainWindow() {
     this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
 #endif
 
-    Dialog::setGlobalParentWidget(this);
+    Dialog::setGlobalContext(this);
+    Toast::setGlobalContext(this);
 
     auto appController = AppController::instance();
     auto trackController = TracksViewController::instance();

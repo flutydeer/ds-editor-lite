@@ -55,7 +55,7 @@ public:
     DialogButtonBar *buttonBar();
 
     [[nodiscard]] static QWidget *globalParent();
-    static void setGlobalParentWidget(QWidget *parent);
+    static void setGlobalContext(QWidget *parent);
 
 private:
     using QDialog::setLayout;

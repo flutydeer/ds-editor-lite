@@ -126,7 +126,7 @@ DialogButtonBar *Dialog::buttonBar() {
 QWidget *Dialog::globalParent() {
     return m_globalParent;
 }
-void Dialog::setGlobalParentWidget(QWidget *parent) {
+void Dialog::setGlobalContext(QWidget *parent) {
     m_globalParent = parent;
 }
 void Dialog::createButtonBar() {

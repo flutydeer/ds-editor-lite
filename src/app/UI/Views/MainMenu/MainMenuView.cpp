@@ -10,6 +10,7 @@
 #include "Controller/TracksViewController.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Menu.h"
+#include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 
@@ -208,7 +209,13 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
 
     auto menuHelp = new Menu(tr("&Help"), this);
     auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);
+    connect(actionCheckForUpdates, &QAction::triggered, this, [=] {
+        Toast::show( tr("You are already up to date"));
+    });
     auto actionAbout = new QAction(tr("About..."), this);
+    connect(actionAbout, &QAction::triggered, this, [=] {
+        Toast::show(tr("About"));
+    });
     menuHelp->addAction(actionCheckForUpdates);
     menuHelp->addAction(actionAbout);
 
