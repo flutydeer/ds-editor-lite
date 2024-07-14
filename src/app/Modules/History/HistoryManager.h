@@ -22,9 +22,12 @@ public:
 
     [[nodiscard]] bool canUndo() const;
     [[nodiscard]] bool canRedo() const;
+    [[nodiscard]] QString undoActionName() const;
+    [[nodiscard]] QString redoActionName() const;
 
 signals:
-    void undoRedoChanged(bool canUndo, bool canRedo);
+    void undoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
+                         const QString &redoActionName);
 
 private:
     QStack<ActionSequence *> m_undoStack;

@@ -5,19 +5,27 @@
 #ifndef ACTIONSEQUENCE_H
 #define ACTIONSEQUENCE_H
 
+#include <QObject>
 #include <QList>
 
 #include "IAction.h"
 
-class ActionSequence {
+class ActionSequence : public QObject {
+    Q_OBJECT
+
 public:
     void execute();
     void undo();
     qsizetype count();
+    QString name();
 
 protected:
     QList<IAction *> m_actionSequence;
     void addAction(IAction *action);
+    void setName(const QString &name);
+
+private:
+    QString m_name;
 };
 
 

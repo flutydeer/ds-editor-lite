@@ -14,6 +14,12 @@ void ActionSequence::undo() {
 qsizetype ActionSequence::count() {
     return m_actionSequence.count();
 }
+QString ActionSequence::name() {
+    return m_name;
+}
 void ActionSequence::addAction(IAction *action) {
     m_actionSequence.append(action);
+}
+void ActionSequence::setName(const QString &name) {
+    m_name = name;
 }

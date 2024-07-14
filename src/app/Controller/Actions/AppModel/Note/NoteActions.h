@@ -11,6 +11,8 @@
 class SingingClip;
 
 class NoteActions : public ActionSequence {
+    Q_OBJECT
+
 public:
     void insertNotes(const QList<Note *> &notes, SingingClip *clip);
     void removeNotes(const QList<Note *> &notes, SingingClip *clip);
@@ -27,9 +29,9 @@ public:
 
     // Edit lyrics, pronunciations and phonemes
     void editNotesWordProperties(const QList<Note *> &notes,
-                                 const QList<Note::NoteWordProperties *> &args,
-                                 SingingClip *clip);
-    void editNotesPhoneme(const QList<Note *> &notes, const QList<Phoneme> &phonemes, SingingClip *clip);
+                                 const QList<Note::NoteWordProperties *> &args, SingingClip *clip);
+    void editNotesPhoneme(const QList<Note *> &notes, const QList<Phoneme> &phonemes,
+                          SingingClip *clip);
 };
 
 

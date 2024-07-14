@@ -122,9 +122,12 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
     actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
     connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
-            [=](bool canUndo, bool canRedo) {
+            [=](bool canUndo, const QString &undoActionName, bool canRedo,
+                const QString &redoActionName) {
                 actionUndo->setEnabled(canUndo);
+                actionUndo->setText(tr("&Undo") + " " + undoActionName);
                 actionRedo->setEnabled(canRedo);
+                actionRedo->setText(tr("&Redo") + " " + redoActionName);
             });
 
     auto clipController = ClipEditorViewController::instance();
@@ -209,13 +212,10 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
 
     auto menuHelp = new Menu(tr("&Help"), this);
     auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);
-    connect(actionCheckForUpdates, &QAction::triggered, this, [=] {
-        Toast::show( tr("You are already up to date"));
-    });
+    connect(actionCheckForUpdates, &QAction::triggered, this,
+            [=] { Toast::show(tr("You are already up to date")); });
     auto actionAbout = new QAction(tr("About..."), this);
-    connect(actionAbout, &QAction::triggered, this, [=] {
-        Toast::show(tr("About"));
-    });
+    connect(actionAbout, &QAction::triggered, this, [=] { Toast::show(tr("About")); });
     menuHelp->addAction(actionCheckForUpdates);
     menuHelp->addAction(actionAbout);
 

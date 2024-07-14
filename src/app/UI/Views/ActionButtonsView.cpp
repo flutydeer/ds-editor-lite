@@ -51,7 +51,10 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
                   "QPushButton:hover { background: #1AFFFFFF; }"
                   "QPushButton:pressed { background: #10FFFFFF; }");
 }
-void ActionButtonsView::onUndoRedoChanged(bool canUndo, bool canRedo) {
+void ActionButtonsView::onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
+                                          const QString &redoActionName) {
     m_btnUndo->setEnabled(canUndo);
+    m_btnUndo->setToolTip(tr("Undo") + " " + undoActionName);
     m_btnRedo->setEnabled(canRedo);
+    m_btnRedo->setToolTip(tr("Redo") + " " + redoActionName);
 }

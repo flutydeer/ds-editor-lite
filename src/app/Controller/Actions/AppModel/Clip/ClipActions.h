@@ -11,6 +11,8 @@
 class Track;
 
 class ClipActions : public ActionSequence {
+    Q_OBJECT
+
 public:
     void insertClips(const QList<Clip *> &clips, Track *track);
     void removeClips(const QList<Clip *> &clips, Track *track);

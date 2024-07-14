@@ -10,16 +10,19 @@
 #include "RemoveClipAction.h"
 
 void ClipActions::insertClips(const QList<Clip *> &clips, Track *track) {
+    setName(tr("Insert clip(s)"));
     for (const auto clip : clips)
         addAction(InsertClipAction::build(clip, track));
 }
 void ClipActions::removeClips(const QList<Clip *> &clips, Track *track) {
+    setName(tr("Remove clip(s)"));
     for (const auto clip : clips)
         addAction(RemoveClipAction::build(clip, track));
 }
 void ClipActions::editSingingClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                             const QList<Clip::ClipCommonProperties> &newArgs,
                                             const QList<SingingClip *> &clips, Track *track) {
+    setName(tr("Edit singing clip(s)"));
     // TODO: edit singer name and move params
     int i = 0;
     for (const auto clip : clips) {
@@ -30,6 +33,7 @@ void ClipActions::editSingingClipProperties(const QList<Clip::ClipCommonProperti
 void ClipActions::editAudioClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                           const QList<Clip::ClipCommonProperties> &newArgs,
                                           const QList<AudioClip *> &clips, Track *track) {
+    setName(tr("Edit audio clip(s)"));
     int i = 0;
     for (const auto clip : clips) {
         addAction(EditClipCommonPropertiesAction::build(oldArgs[i], newArgs[i], clip, track));

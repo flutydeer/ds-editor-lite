@@ -369,7 +369,7 @@ void ClipEditorView::onNotePropertyChanged(SingingClip::NotePropertyType type, N
             m_pianoRollView->updateNoteTimeAndKey(note);
             m_pianoRollView->updateOverlappedState(m_singingClip);
             m_phonemeView->updateNoteTime(note);
-            printParts();
+            // printParts();
             break;
         case SingingClip::Word:
             m_pianoRollView->updateNoteWord(note);

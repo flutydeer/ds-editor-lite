@@ -23,7 +23,8 @@ signals:
 public slots:
     // void updateView();
     // void onCanSaveChanged(bool b);
-    void onUndoRedoChanged(bool canUndo, bool canRedo);
+    void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
+                         const QString &redoActionName);
 
 private:
     int m_contentHeight = 32;
