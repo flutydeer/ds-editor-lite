@@ -24,7 +24,7 @@ class MainWindow final : public QMainWindow, public IMainWindow {
 
 public:
     explicit MainWindow();
-    void setProjectName(const QString &name) override;
+    void updateWindowTitle() override;
 
 public slots:
     void onAllDone();

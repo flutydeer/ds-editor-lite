@@ -20,6 +20,8 @@ public:
     void record(ActionSequence *actions);
     void reset();
 
+    [[nodiscard]] bool isOnSavePoint() const;
+    void setSavePoint();
     [[nodiscard]] bool canUndo() const;
     [[nodiscard]] bool canRedo() const;
     [[nodiscard]] QString undoActionName() const;
@@ -32,6 +34,8 @@ signals:
 private:
     QStack<ActionSequence *> m_undoStack;
     QStack<ActionSequence *> m_redoStack;
+    ActionSequence *m_savePoint = nullptr;
+    bool m_isSavePointSet = false;
 };
 
 

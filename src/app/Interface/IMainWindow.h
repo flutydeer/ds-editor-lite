@@ -10,7 +10,7 @@
 class IMainWindow {
 public:
     virtual ~IMainWindow() = default;
-    virtual void setProjectName(const QString &name) = 0;
+    virtual void updateWindowTitle() = 0;
 };
 
 

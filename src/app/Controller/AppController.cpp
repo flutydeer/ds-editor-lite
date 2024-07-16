@@ -43,8 +43,11 @@ void AppController::openProject(const QString &filePath) {
 }
 void AppController::saveProject(const QString &filePath) {
     if (AppModel::instance()->saveProject(filePath)) {
+        HistoryManager::instance()->setSavePoint();
         updateProjectPathAndName(filePath);
         Toast::show(tr("Saved"));
+    } else {
+        Toast::show(tr("Failed to save project"));
     }
 }
 void AppController::importMidiFile(const QString &filePath) {
@@ -101,6 +104,14 @@ void AppController::onPanelClicked(AppGlobal::PanelType panelType) {
     m_activatedPanel = panelType;
     emit activatedPanelChanged(panelType);
 }
+void AppController::onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
+                                      const QString &redoActionName) {
+    Q_UNUSED(canUndo);
+    Q_UNUSED(canRedo);
+    Q_UNUSED(redoActionName);
+    Q_UNUSED(undoActionName);
+    m_mainWindow->updateWindowTitle();
+}
 bool AppController::isPowerOf2(int num) {
     return num > 0 && ((num & (num - 1)) == 0);
 }
@@ -131,7 +142,7 @@ QString AppController::projectName() const {
 void AppController::setProjectName(const QString &name) {
     m_projectName = name;
     if (m_mainWindow)
-        m_mainWindow->setProjectName(m_projectName);
+        m_mainWindow->updateWindowTitle();
 }
 bool AppController::isLanguageEngineReady() const {
     return m_isLanguageEngineReady;

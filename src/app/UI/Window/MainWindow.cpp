@@ -129,13 +129,17 @@ MainWindow::MainWindow() {
     menuBarContainer->setContentsMargins(0, 6, 6, 6);
 
     auto actionButtonsView = new ActionButtonsView;
-    connect(actionButtonsView, &ActionButtonsView::saveTriggered, mainMenu->actionSave(), &QAction::trigger);
+    connect(actionButtonsView, &ActionButtonsView::saveTriggered, mainMenu->actionSave(),
+            &QAction::trigger);
     connect(actionButtonsView, &ActionButtonsView::undoTriggered, historyManager,
             &HistoryManager::undo);
     connect(actionButtonsView, &ActionButtonsView::redoTriggered, historyManager,
             &HistoryManager::redo);
     connect(historyManager, &HistoryManager::undoRedoChanged, actionButtonsView,
             &ActionButtonsView::onUndoRedoChanged);
+
+    connect(historyManager, &HistoryManager::undoRedoChanged, appController,
+            &AppController::onUndoRedoChanged);
 
     AppController::instance()->onNewProject();
 
@@ -178,12 +182,21 @@ MainWindow::MainWindow() {
 
     WindowFrameUtils::applyFrameEffects(this);
 }
-void MainWindow::setProjectName(const QString &name) {
+void MainWindow::updateWindowTitle() {
+    auto projectName = AppController::instance()->projectName();
+    auto saved = HistoryManager::instance()->isOnSavePoint();
     auto appName = qApp->applicationDisplayName();
-    if (name.isNull() || name.isEmpty())
+    if (projectName.isNull() || projectName.isEmpty())
         setWindowTitle(appName);
-    else
-        setWindowTitle(name + " - " + appName);
+    else {
+        auto projectPath = AppController::instance()->projectPath();
+        if (projectPath.isNull() || projectPath.isEmpty())
+            setWindowTitle(projectName + " - " + appName);
+        else {
+            auto indicator = saved ? "" : "● ";
+            setWindowTitle(indicator + projectName + " - " + appName);
+        }
+    }
 }
 void MainWindow::onAllDone() {
     if (m_isCloseRequested) {

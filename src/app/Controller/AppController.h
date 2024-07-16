@@ -49,6 +49,8 @@ public slots:
     void onSetQuantize(int quantize);
     void onTrackSelectionChanged(int trackIndex);
     void onPanelClicked(AppGlobal::PanelType panel);
+    void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
+                                          const QString &redoActionName);
 
 signals:
     void activatedPanelChanged(AppGlobal::PanelType panel);
