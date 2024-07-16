@@ -30,10 +30,6 @@ const QList<Track *> &AppModel::tracks() const {
 }
 
 void AppModel::insertTrack(Track *track, qsizetype index) {
-    connect(track, &Track::propertyChanged, this, [=] {
-        auto trackIndex = m_tracks.indexOf(track);
-        emit trackChanged(PropertyUpdate, trackIndex, track);
-    });
     m_tracks.insert(index, track);
     emit trackChanged(Insert, index, track);
 }

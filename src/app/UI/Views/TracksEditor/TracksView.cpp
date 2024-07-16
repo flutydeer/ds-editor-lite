@@ -183,10 +183,6 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
             insertTrackToView(model->tracks().at(index), index);
             emit trackCountChanged(m_trackListViewModel.tracks.count());
             break;
-        case AppModel::PropertyUpdate:
-            // qDebug() << "on track updated" << index;
-            updateTracksOnView();
-            break;
         case AppModel::Remove:
             // qDebug() << "on track removed" << index;
             // remove selection
@@ -202,17 +198,12 @@ void TracksView::onClipChanged(Track::ClipChangeType type, qsizetype trackIndex,
     auto dsClip = trackModel->findClipById(clipId);
     switch (type) {
         case Track::Inserted:
-            qDebug() << "TracksView on clip inserted" << trackIndex << clipId;
             insertClipToTrack(dsClip, track, trackIndex);
-            break;
-
-        case Track::PropertyChanged:
-            qDebug() << "TracksView on clip updated" << trackIndex << clipId;
-            updateClipOnView(dsClip, clipId);
+            connect(dsClip, &Clip::propertyChanged, this,
+                    [=] { updateClipOnView(dsClip, clipId); });
             break;
 
         case Track::Removed:
-            qDebug() << "TracksView on clip removed" << trackIndex << clipId;
             removeClipFromView(clipId);
             break;
     }
@@ -303,6 +294,7 @@ bool TracksView::eventFilter(QObject *watched, QEvent *event) {
     return QWidget::eventFilter(watched, event);
 }
 void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
+    connect(dsTrack, &Track::propertyChanged, this, [=] { updateTracksOnView(); });
     connect(dsTrack, &Track::clipChanged, this, [=](Track::ClipChangeType type, int clipId) {
         // workaround for slot executed for 2 times
         // if (m_prevClipId == clipId && m_prevClipChangeType == type)
@@ -458,10 +450,8 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         m_tracksScene->addCommonItem(clipItem);
         qDebug() << "Singing clip graphics item added to scene" << clipItem->id()
                  << clipItem->name();
-        connect(singingClip, &SingingClip::noteListChanged, clipItem,
+        connect(singingClip, &SingingClip::noteChanged, clipItem,
                 &SingingClipGraphicsItem::onNoteListChanged);
-        connect(singingClip, &SingingClip::notePropertyChanged, clipItem,
-                &SingingClipGraphicsItem::onNotePropertyChanged);
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
                 &TracksView::onClipGraphicsItemRemoveTriggered);
         connect(AppModel::instance(), &AppModel::quantizeChanged, clipItem,

@@ -43,6 +43,7 @@ public:
     void setGain(double gain);
     [[nodiscard]] bool mute() const;
     void setMute(bool mute);
+    void notifyPropertyChanged();
 
     int compareTo(Clip *obj) const;
     bool isOverlappedWith(Clip *obj) const;
@@ -67,6 +68,9 @@ public:
         QString path;
     };
 
+signals:
+    void propertyChanged();
+
 protected:
     QString m_name;
     int m_start = 0;
@@ -87,6 +91,7 @@ public:
     }
     void setPath(const QString &path) {
         m_path = path;
+        emit propertyChanged();
     }
     AudioInfoModel info;
 
@@ -99,7 +104,6 @@ class SingingClip final : public Clip {
 
 public:
     enum NoteChangeType { Inserted, Removed };
-    enum NotePropertyType { TimeAndKey, Word, None };
 
     class VocalPart : public UniqueObject {
     public:
@@ -120,19 +124,17 @@ public:
     [[nodiscard]] QList<Note *> selectedNotes() const;
 
     void notifyNoteSelectionChanged();
-    void notifyNotePropertyChanged(NotePropertyType type, Note *note);
     void notifyParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
 
     ParamBundle params;
-    QList<VocalPart> parts();
+    // QList<VocalPart> parts();
 
     static void copyCurves(const OverlapableSerialList<Curve> &source,
                            OverlapableSerialList<Curve> &target);
 
 signals:
-    void noteListChanged(SingingClip::NoteChangeType type, int id, Note *note);
+    void noteChanged(SingingClip::NoteChangeType type, int id, Note *note);
     void noteSelectionChanged();
-    void notePropertyChanged(SingingClip::NotePropertyType type, Note *note);
     void paramChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
 
 private:

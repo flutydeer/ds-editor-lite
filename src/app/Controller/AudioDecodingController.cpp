@@ -91,8 +91,7 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, bool ter
 
     auto audioClip = reinterpret_cast<AudioClip *>(clip);
     audioClip->info = task->result();
-    auto track = AppModel::instance()->tracks().at(trackIndex);
-    track->notifyClipPropertyChanged(audioClip);
+    audioClip->notifyPropertyChanged();
     delete task;
 }
 void AudioDecodingController::terminateTaskByClipId(int clipId) {

@@ -9,7 +9,7 @@
 
 class NotesParamsInfo {
 public:
-    QList<Note> selectedNotes{};
+    QList<Note *> selectedNotes{};
     // TODO: add params
 
     friend QDataStream& operator<<(QDataStream& out, const NotesParamsInfo &info);
@@ -18,8 +18,8 @@ public:
     static QByteArray serializeToBinary(const NotesParamsInfo &info);
     static NotesParamsInfo deserializeFromBinary(const QByteArray& byteArray);
 
-    static QJsonObject serializeToJson(const NotesParamsInfo &info);
-    static NotesParamsInfo deserializeFromJson(const QJsonObject &obj);
+    // static QJsonObject serializeToJson(const NotesParamsInfo &info);
+    // static NotesParamsInfo deserializeFromJson(const QJsonObject &obj);
 };
 
 

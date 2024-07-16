@@ -153,13 +153,12 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
         m_phonemeView->setVisible(false);
         if (m_track != nullptr) {
             qDebug() << "disconnect track and ClipEditorView";
-            disconnect(m_track, &Track::clipChanged, this, &ClipEditorView::onClipChanged);
+            disconnect(m_clip, &Clip::propertyChanged, this,
+                       &ClipEditorView::onClipPropertyChanged);
         }
         if (m_singingClip != nullptr) {
-            disconnect(m_singingClip, &SingingClip::noteListChanged, this,
+            disconnect(m_singingClip, &SingingClip::noteChanged, this,
                        &ClipEditorView::onNoteListChanged);
-            disconnect(m_singingClip, &SingingClip::notePropertyChanged, this,
-                       &ClipEditorView::onNotePropertyChanged);
             disconnect(m_singingClip, &SingingClip::noteSelectionChanged, this,
                        &ClipEditorView::onNoteSelectionChanged);
         }
@@ -174,7 +173,7 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
     m_track = track;
     m_clip = clip;
     qDebug() << "connect track and ClipEditorView";
-    connect(m_track, &Track::clipChanged, this, &ClipEditorView::onClipChanged);
+    connect(m_clip, &Clip::propertyChanged, this, &ClipEditorView::onClipPropertyChanged);
     connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_timelineView,
             &TimelineView::setTimeRange);
     m_toolbarView->setClipName(clip->name());
@@ -192,15 +191,14 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
         for (const auto note : m_singingClip->notes()) {
             m_pianoRollView->insertNote(note);
             m_phonemeView->insertNote(note);
+            m_notes.append(note);
         }
         auto firstNote = m_singingClip->notes().at(0);
         qDebug() << "first note start" << firstNote->start();
         m_pianoRollView->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
     } else
         m_pianoRollView->setViewportCenterAtKeyIndex(60);
-    connect(m_singingClip, &SingingClip::noteListChanged, this, &ClipEditorView::onNoteListChanged);
-    connect(m_singingClip, &SingingClip::notePropertyChanged, this,
-            &ClipEditorView::onNotePropertyChanged);
+    connect(m_singingClip, &SingingClip::noteChanged, this, &ClipEditorView::onNoteListChanged);
     connect(m_singingClip, &SingingClip::noteSelectionChanged, this,
             &ClipEditorView::onNoteSelectionChanged);
     connect(m_singingClip, &SingingClip::paramChanged, this, &ClipEditorView::onParamChanged);
@@ -219,16 +217,6 @@ void ClipEditorView::onClipNameEdited(const QString &name) {
     args.trackIndex = AppModel::instance()->tracks().indexOf(m_track);
 
     TracksViewController::instance()->onClipPropertyChanged(args);
-}
-void ClipEditorView::onClipChanged(Track::ClipChangeType type, int id, Clip *clip) {
-    if (m_clip == nullptr)
-        return;
-
-    if (id == m_clip->id()) {
-        if (type == Track::PropertyChanged) {
-            onClipPropertyChanged();
-        }
-    }
 }
 void ClipEditorView::onEditModeChanged(PianoRollEditMode mode) {
     m_mode = mode;
@@ -354,6 +342,9 @@ void ClipEditorView::onNoteListChanged(SingingClip::NoteChangeType type, int id,
         case SingingClip::Inserted:
             m_pianoRollView->insertNote(note);
             m_phonemeView->insertNote(note);
+            connect(note, &Note::propertyChanged, this, [=](Note::NotePropertyType type) {
+                onNotePropertyChanged(type, note);
+            });
             break;
         case SingingClip::Removed:
             m_pianoRollView->removeNote(id);
@@ -363,19 +354,19 @@ void ClipEditorView::onNoteListChanged(SingingClip::NoteChangeType type, int id,
     m_pianoRollView->updateOverlappedState(m_singingClip);
     // printParts();
 }
-void ClipEditorView::onNotePropertyChanged(SingingClip::NotePropertyType type, Note *note) {
+void ClipEditorView::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
     switch (type) {
-        case SingingClip::TimeAndKey:
+        case Note::TimeAndKey:
             m_pianoRollView->updateNoteTimeAndKey(note);
             m_pianoRollView->updateOverlappedState(m_singingClip);
             m_phonemeView->updateNoteTime(note);
             // printParts();
             break;
-        case SingingClip::Word:
+        case Note::Word:
             m_pianoRollView->updateNoteWord(note);
             m_phonemeView->updateNotePhonemes(note);
             break;
-        case SingingClip::None:
+        case Note::None:
             break;
     }
 }
@@ -383,25 +374,27 @@ void ClipEditorView::onNoteSelectionChanged() {
     auto selectedNotes = m_singingClip->selectedNotes();
     m_pianoRollView->updateNoteSelection(selectedNotes);
 }
-void ClipEditorView::printParts() {
-    auto p = m_singingClip->parts();
-    if (p.count() > 0) {
-        int i = 0;
-        for (const auto &part : p) {
-            auto notes = part.info.selectedNotes;
-            if (notes.count() == 0)
-                continue;
-            auto start = notes.first().start();
-            auto end = notes.last().start() + notes.last().length();
-            qDebug() << "Part" << i << ": [" << start << "," << end << "]" << notes.count();
-            i++;
-        }
-    }
-}
+// void ClipEditorView::printParts() {
+//     auto p = m_singingClip->parts();
+//     if (p.count() > 0) {
+//         int i = 0;
+//         for (const auto &part : p) {
+//             auto notes = part.info.selectedNotes;
+//             if (notes.count() == 0)
+//                 continue;
+//             auto start = notes.first().start();
+//             auto end = notes.last().start() + notes.last().length();
+//             qDebug() << "Part" << i << ": [" << start << "," << end << "]" << notes.count();
+//             i++;
+//         }
+//     }
+// }
 void ClipEditorView::afterSetActivated() {
     updateStyleSheet();
 }
 void ClipEditorView::updateStyleSheet() {
-    auto borderStyle = panelActivated()? "border: 1px solid rgb(126, 149, 199);" : "border: 1px solid rgb(20, 20, 20);";
-    setStyleSheet(QString("QWidget#ClipEditorView {background: #2A2B2C; border-radius: 6px; ") + borderStyle + "}");
+    auto borderStyle = panelActivated() ? "border: 1px solid rgb(126, 149, 199);"
+                                        : "border: 1px solid rgb(20, 20, 20);";
+    setStyleSheet(QString("QWidget#ClipEditorView {background: #2A2B2C; border-radius: 6px; ") +
+                  borderStyle + "}");
 }

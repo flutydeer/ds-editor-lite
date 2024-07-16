@@ -21,7 +21,7 @@ void EditNotesLengthAction::execute() {
     m_note->setLength(m_note->length() + m_deltaTick);
 
     m_clip->insertNoteQuietly(m_note);
-    m_clip->notifyNotePropertyChanged(SingingClip::TimeAndKey, m_note);
+    m_note->notifyPropertyChanged(Note::TimeAndKey);
 }
 void EditNotesLengthAction::undo() {
     m_clip->removeNoteQuietly(m_note);
@@ -29,5 +29,5 @@ void EditNotesLengthAction::undo() {
     m_note->setLength(m_note->length() - m_deltaTick);
 
     m_clip->insertNoteQuietly(m_note);
-    m_clip->notifyNotePropertyChanged(SingingClip::TimeAndKey, m_note);
+    m_note->notifyPropertyChanged(Note::TimeAndKey);
 }

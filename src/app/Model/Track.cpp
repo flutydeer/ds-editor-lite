@@ -51,10 +51,6 @@ void Track::removeClipQuietly(Clip *clip) {
 void Track::insertClipQuietly(Clip *clip) {
     m_clips.add(clip);
 }
-void Track::notifyClipPropertyChanged(Clip *clip) {
-    qDebug() << "DsTrack::notityClipPropertyChanged" << clip->id();
-    emit clipChanged(PropertyChanged, clip->id(), clip);
-}
 
 Clip *Track::findClipById(int id) {
     for (int i = 0; i < m_clips.count(); i++) {

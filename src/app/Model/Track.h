@@ -21,7 +21,7 @@ class Track final : public QObject, public UniqueObject, public ISelectable {
 
 public:
     ~Track() override;
-    enum ClipChangeType { Inserted, PropertyChanged, Removed };
+    enum ClipChangeType { Inserted, Removed };
 
     [[nodiscard]] QString name() const;
     void setName(const QString &name);
@@ -36,7 +36,6 @@ public:
     // void updateClip(DsClip *clip);
     void removeClipQuietly(Clip *clip);
     void insertClipQuietly(Clip *clip);
-    void notifyClipPropertyChanged(Clip *clip);
 
     Clip *findClipById(int id);
 

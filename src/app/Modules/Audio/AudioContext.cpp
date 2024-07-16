@@ -63,9 +63,6 @@ AudioContext::AudioContext(QObject *parent) : QObject(parent), m_levelMeterTimer
                     case AppModel::Insert:
                         handleTrackInsertion(track);
                         break;
-                    case AppModel::PropertyUpdate:
-                        handleTrackControlChange(track);
-                        break;
                     case AppModel::Remove:
                         handleTrackRemoval(track);
                         break;
@@ -182,6 +179,8 @@ void AudioContext::handleTrackInsertion(const Track *track) {
                     m_trackLevelMeterValue[track].second->setCurrentAndTargetValue(dBR);
             });
 
+    connect(track, &Track::propertyChanged, this, [=] { handleTrackControlChange(track); });
+
     for (auto clip : track->clips()) {
         handleClipInsertion(track, clip);
     }
@@ -195,9 +194,6 @@ void AudioContext::handleTrackInsertion(const Track *track) {
                         break;
                     case Track::Removed:
                         handleClipRemoval(track, clip);
-                        break;
-                    case Track::PropertyChanged:
-                        handleClipPropertyChange(track, clip);
                         break;
                 }
             });
@@ -240,6 +236,7 @@ void AudioContext::handleClipInsertion(const Track *track, const Clip *clip) {
     auto options = AppOptions::instance()->audio();
     if (clip->type() != Clip::Audio)
         return;
+    connect(clip, &Clip::propertyChanged, this, [=] { handleClipPropertyChange(track, clip); });
     auto audioClip = static_cast<const AudioClip *>(clip);
     auto f = std::make_unique<QFile>(audioClip->path());
     auto fileSrc = new talcs::AudioFormatInputSource(new talcs::AudioFormatIO(f.get()), true);

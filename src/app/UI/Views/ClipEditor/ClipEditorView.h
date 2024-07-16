@@ -38,7 +38,6 @@ public slots:
     void onClipNameEdited(const QString &name);
 
 private slots:
-    void onClipChanged(Track::ClipChangeType type, int id, Clip *clip);
     void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
@@ -52,6 +51,7 @@ private slots:
     void onPianoRollSelectionChanged();
     void onPitchEdited(const OverlapableSerialList<Curve> &curves);
     void onParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
+    void onClipPropertyChanged();
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -65,15 +65,15 @@ private:
     TimelineView *m_timelineView;
     PhonemeView *m_phonemeView;
     ClipEditorGlobal::PianoRollEditMode m_mode = ClipEditorGlobal::Select;
+    QList<Note *> m_notes;
 
     bool m_oneSingingClipSelected = false;
 
     void reset();
-    void onClipPropertyChanged();
     void onNoteListChanged(SingingClip::NoteChangeType type, int id, Note *note);
-    void onNotePropertyChanged(SingingClip::NotePropertyType type, Note *note);
+    void onNotePropertyChanged(Note::NotePropertyType type, Note *note);
     void onNoteSelectionChanged();
-    void printParts();
+    // void printParts();
     void afterSetActivated() override;
     void updateStyleSheet();
 };

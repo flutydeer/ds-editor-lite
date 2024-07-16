@@ -52,20 +52,20 @@ void ClipEditorViewController::pasteNotesWithParams(const NotesParamsInfo &info,
     qDebug() << "info.selectedNotes count" << notes.count();
     if (notes.count() == 0)
         return;
-    auto start = notes.first().start();
+    auto start = notes.first()->start();
     auto offset = tick - start;
     QList<Note *> notesPtr;
     for (auto &note : notes) {
-        note.setStart(note.start() + offset);
+        note->setStart(note->start() + offset);
 
         auto notePtr = new Note;
-        notePtr->setStart(note.start());
-        notePtr->setLength(note.length());
-        notePtr->setKeyIndex(note.keyIndex());
-        notePtr->setLyric(note.lyric());
-        notePtr->setPronunciation(note.pronunciation());
-        notePtr->setPhonemes(Phonemes::Original, note.phonemes().original);
-        notePtr->setPhonemes(Phonemes::Edited, note.phonemes().edited);
+        notePtr->setStart(note->start());
+        notePtr->setLength(note->length());
+        notePtr->setKeyIndex(note->keyIndex());
+        notePtr->setLyric(note->lyric());
+        notePtr->setPronunciation(note->pronunciation());
+        notePtr->setPhonemes(Phonemes::Original, note->phonemes().original);
+        notePtr->setPhonemes(Phonemes::Edited, note->phonemes().edited);
         notesPtr.append(notePtr);
     }
     auto a = new NoteActions;
@@ -302,6 +302,6 @@ NotesParamsInfo ClipEditorViewController::buildNoteParamsInfo() const {
     auto notes = m_clip->selectedNotes();
     NotesParamsInfo info;
     for (const auto &note : notes)
-        info.selectedNotes.append(*note);
+        info.selectedNotes.append(note);
     return info;
 }

@@ -25,9 +25,9 @@ void EditPhonemeAction::execute() {
         newPhonemes.last() = m_phoneme;
     }
     m_note->setPhonemes(Phonemes::Edited, newPhonemes);
-    m_clip->notifyNotePropertyChanged(SingingClip::Word, m_note);
+    m_note->notifyPropertyChanged(Note::Word);
 }
 void EditPhonemeAction::undo() {
     m_note->setPhonemes(Phonemes::Edited, m_phonemes);
-    m_clip->notifyNotePropertyChanged(SingingClip::Word, m_note);
+    m_note->notifyPropertyChanged(Note::Word);
 }

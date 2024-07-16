@@ -19,7 +19,7 @@ class AppModel final : public QObject, public Singleton<AppModel> {
 public:
     explicit AppModel() = default;
 
-    enum TrackChangeType { Insert, PropertyUpdate, Remove };
+    enum TrackChangeType { Insert, Remove };
 
     class TimeSignature {
     public:

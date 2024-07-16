@@ -5,6 +5,7 @@
 #ifndef DSNOTE_H
 #define DSNOTE_H
 
+#include <QObject>
 #include <QList>
 
 #include "Utils/IOverlapable.h"
@@ -54,8 +55,12 @@ public:
     static QJsonObject serialize(const Phonemes &phonemes);
 };
 
-class Note : public IOverlapable, public UniqueObject, public ISelectable {
+class Note : public QObject, public IOverlapable, public UniqueObject, public ISelectable {
+    Q_OBJECT
+
 public:
+    enum NotePropertyType { TimeAndKey, Word, None };
+
     explicit Note() = default;
     explicit Note(int start, int length, int keyIndex, QString lyric)
         : m_start(start), m_length(length), m_keyIndex(keyIndex), m_lyric(std::move(lyric)) {
@@ -81,14 +86,16 @@ public:
     void setLineFeed(const bool &lineFeed);
     [[nodiscard]] bool isSlur() const;
 
+    void notifyPropertyChanged(NotePropertyType type);
+
     int compareTo(Note *obj) const;
     bool isOverlappedWith(Note *obj) const;
 
     friend QDataStream &operator<<(QDataStream &out, const Note &note);
     friend QDataStream &operator>>(QDataStream &in, Note &note);
 
-    static QJsonObject serialize(const Note &note);
-    static Note deserialize(const QJsonObject &objNote);
+    // static QJsonObject serialize(const Note &note);
+    // static Note deserialize(const QJsonObject &objNote);
 
     class NoteWordProperties {
     public:
@@ -96,6 +103,9 @@ public:
         Pronunciation pronunciation;
         Phonemes phonemes;
     };
+
+signals:
+    void propertyChanged(Note::NotePropertyType type);
 
 private:
     int m_start = 0;

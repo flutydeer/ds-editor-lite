@@ -47,6 +47,8 @@ void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type
     switch (type) {
         case SingingClip::Inserted:
             addNote(note);
+            connect(note, &Note::propertyChanged, this,
+                    [=](Note::NotePropertyType type) { onNotePropertyChanged(type, note); });
             break;
         // case SingingClip::PropertyChanged:
         //     removeNote(id);
@@ -57,9 +59,8 @@ void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type
             break;
     }
 }
-void SingingClipGraphicsItem::onNotePropertyChanged(SingingClip::NotePropertyType type,
-                                                    Note *note) {
-    if (type == SingingClip::TimeAndKey) {
+void SingingClipGraphicsItem::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
+    if (type == Note::TimeAndKey) {
         removeNote(note->id());
         addNote(note);
     }

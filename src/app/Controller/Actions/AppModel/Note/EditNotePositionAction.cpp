@@ -23,7 +23,7 @@ void EditNotePositionAction::execute() {
     m_note->setKeyIndex(m_note->keyIndex() + m_deltaKey);
 
     m_clip->insertNoteQuietly(m_note);
-    m_clip->notifyNotePropertyChanged(SingingClip::TimeAndKey, m_note);
+    m_note->notifyPropertyChanged(Note::TimeAndKey);
 }
 void EditNotePositionAction::undo() {
     m_clip->removeNoteQuietly(m_note);
@@ -32,5 +32,5 @@ void EditNotePositionAction::undo() {
     m_note->setKeyIndex(m_note->keyIndex() - m_deltaKey);
 
     m_clip->insertNoteQuietly(m_note);
-    m_clip->notifyNotePropertyChanged(SingingClip::TimeAndKey, m_note);
+    m_note->notifyPropertyChanged(Note::TimeAndKey);
 }
