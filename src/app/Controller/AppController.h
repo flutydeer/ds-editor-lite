@@ -37,7 +37,7 @@ public:
 public slots:
     void onNewProject();
     void openProject(const QString &filePath);
-    void saveProject(const QString &filePath);
+    bool saveProject(const QString &filePath);
 
     void importMidiFile(const QString &filePath);
     void exportMidiFile(const QString &filePath);

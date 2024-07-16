@@ -4,8 +4,10 @@
 
 #include "MainWindow.h"
 
-// #include <Windows.h>
-// #include <WinUser.h>
+#ifdef Q_OS_WIN
+#  include <Windows.h>
+#  include <WinUser.h>
+#endif
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -20,6 +22,7 @@
 #include "Controller/TracksViewController.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
+#include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ProgressIndicator.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
@@ -123,13 +126,15 @@ MainWindow::MainWindow() {
             &PlaybackView::onTimeSignatureChanged);
     playbackView->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    auto mainMenu = new MainMenuView(this);
+    m_mainMenu = new MainMenuView(this);
+    connect(m_mainMenu->actionSave(), &QAction::triggered, this, &MainWindow::onSave);
+    connect(m_mainMenu->actionSaveAs(), &QAction::triggered, this, &MainWindow::onSaveAs);
     auto menuBarContainer = new QHBoxLayout;
-    menuBarContainer->addWidget(mainMenu);
+    menuBarContainer->addWidget(m_mainMenu);
     menuBarContainer->setContentsMargins(0, 6, 6, 6);
 
     auto actionButtonsView = new ActionButtonsView;
-    connect(actionButtonsView, &ActionButtonsView::saveTriggered, mainMenu->actionSave(),
+    connect(actionButtonsView, &ActionButtonsView::saveTriggered, m_mainMenu->actionSave(),
             &QAction::trigger);
     connect(actionButtonsView, &ActionButtonsView::undoTriggered, historyManager,
             &HistoryManager::undo);
@@ -198,6 +203,38 @@ void MainWindow::updateWindowTitle() {
         }
     }
 }
+bool MainWindow::askSaveChanges() {
+    auto handled = new bool;
+    auto dlg = new Dialog;
+    dlg->setWindowTitle(tr("Warning"));
+    dlg->setTitle(tr("Do you want to save changes?"));
+    dlg->setModal(true);
+
+    auto btnSave = new AccentButton(tr("Save"));
+    connect(btnSave, &AccentButton::clicked, this, [=] {
+        onSave();
+        *handled = true;
+        dlg->accept();
+    });
+    dlg->setPositiveButton(btnSave);
+
+    auto btnDoNotSave = new Button(tr("Don't save"));
+    connect(btnDoNotSave, &Button::clicked, this, [=] {
+        *handled = true;
+        dlg->accept();
+    });
+    dlg->setNegativeButton(btnDoNotSave);
+
+    auto btnCancel = new Button(tr("Cancel"));
+    connect(btnCancel, &Button::clicked, this, [=] {
+        *handled = false;
+        dlg->accept();
+    });
+    dlg->setNeutralButton(btnCancel);
+
+    dlg->exec();
+    return *handled;
+}
 void MainWindow::onAllDone() {
     if (m_isCloseRequested) {
         m_isAllDone = true;
@@ -228,7 +265,42 @@ void MainWindow::onTaskStatusChanged(const TaskStatus &status) {
     m_progressBar->setTaskStatus(status.runningStatus);
     m_progressBar->setIndeterminate(status.isIndetermine);
 }
+bool MainWindow::onSave() {
+    auto appController = AppController::instance();
+    if (appController->projectPath().isEmpty()) {
+        onSaveAs();
+    } else {
+        appController->saveProject(appController->projectPath());
+    }
+    return true;
+}
+bool MainWindow::onSaveAs() {
+    auto appController = AppController::instance();
+    auto lastDir = appController->projectPath().isEmpty()
+                       ? appController->lastProjectFolder() + "/" + appController->projectName()
+                       : appController->projectPath();
+    auto getFileName = [=] {
+        return QFileDialog::getSaveFileName(this, tr("Save project"), lastDir,
+                                            tr("DiffScope Project File (*.dspx)"));
+    };
+   auto fileName = getFileName();
+    if (fileName.isNull()) // Canceled
+        return false;
+
+    bool saved = appController->saveProject(fileName);
+    while (!saved) {
+        saved = appController->saveProject(getFileName());
+    }
+    return true;
+}
 void MainWindow::closeEvent(QCloseEvent *event) {
+    auto saved = HistoryManager::instance()->isOnSavePoint();
+    if (!saved) {
+        if (!askSaveChanges()) {
+            event->ignore();
+            return;
+        }
+    }
     if (m_isAllDone) {
         if (m_waitDoneDialog)
             m_waitDoneDialog->forceClose();
@@ -261,18 +333,21 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         taskManager->moveToThread(thread);
         connect(thread, &QThread::started, taskManager, &TaskManager::wait);
         thread->start();
-        event->ignore();
+        event->accept();
     }
     // taskManager->wait();
     // QMainWindow::closeEvent(event);
 }
-// bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
-//     if (eventType == "windows_generic_MSG") {
-//         MSG *msg = static_cast<MSG *>(message);
-//         if (msg->message == WM_QUERYENDSESSION) {
-//             *result = FALSE;
-//             return true;
-//         }
-//     }
-//     return QMainWindow::nativeEvent(eventType, message, result);
-// }
+bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
+#ifdef Q_OS_WIN
+    if (eventType == "windows_generic_MSG") {
+        MSG *msg = static_cast<MSG *>(message);
+        if (msg->message == WM_QUERYENDSESSION) {
+            *result = HistoryManager::instance()->isOnSavePoint();
+            close();
+            return true;
+        }
+    }
+#endif
+    return QMainWindow::nativeEvent(eventType, message, result);
+}

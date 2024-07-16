@@ -31,24 +31,35 @@ AppController::AppController() {
             &AudioDecodingController::onTrackChanged);
 }
 void AppController::onNewProject() {
-    AppModel::instance()->newProject();
-    HistoryManager::instance()->reset();
-    updateProjectPathAndName("");
+    auto newProject = [&] {
+        AppModel::instance()->newProject();
+        HistoryManager::instance()->reset();
+        updateProjectPathAndName("");
+    };
+    if (!HistoryManager::instance()->isOnSavePoint()) {
+        if (m_mainWindow->askSaveChanges())
+            newProject();
+    } else
+        newProject();
 }
 void AppController::openProject(const QString &filePath) {
-    AppModel::instance()->loadProject(filePath);
-    HistoryManager::instance()->reset();
-    updateProjectPathAndName(filePath);
-    m_lastProjectFolder = QFileInfo(filePath).dir().path();
+    auto openProject = [&] {
+        AppModel::instance()->loadProject(filePath);
+        HistoryManager::instance()->reset();
+        updateProjectPathAndName(filePath);
+        m_lastProjectFolder = QFileInfo(filePath).dir().path();
+    };
+    openProject();
 }
-void AppController::saveProject(const QString &filePath) {
+bool AppController::saveProject(const QString &filePath) {
     if (AppModel::instance()->saveProject(filePath)) {
         HistoryManager::instance()->setSavePoint();
         updateProjectPathAndName(filePath);
         Toast::show(tr("Saved"));
-    } else {
-        Toast::show(tr("Failed to save project"));
+        return true;
     }
+    Toast::show(tr("Failed to save project"));
+    return false;
 }
 void AppController::importMidiFile(const QString &filePath) {
     AppModel::instance()->importMidiFile(filePath);
@@ -57,11 +68,14 @@ void AppController::exportMidiFile(const QString &filePath) {
     AppModel::instance()->exportMidiFile(filePath);
 }
 void AppController::importAproject(const QString &filePath) {
-    AppModel::instance()->importAProject(filePath);
-    HistoryManager::instance()->reset();
-    updateProjectPathAndName("");
-    setProjectName(QFileInfo(filePath).baseName());
-    m_lastProjectFolder = QFileInfo(filePath).dir().path();
+    auto openAProject = [&] {
+        AppModel::instance()->importAProject(filePath);
+        HistoryManager::instance()->reset();
+        updateProjectPathAndName("");
+        setProjectName(QFileInfo(filePath).baseName());
+        m_lastProjectFolder = QFileInfo(filePath).dir().path();
+    };
+    openAProject();
 }
 void AppController::onSetTempo(double tempo) {
     // TODO: validate tempo

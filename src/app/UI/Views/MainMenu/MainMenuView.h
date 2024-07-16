@@ -16,6 +16,7 @@ public:
     explicit MainMenuView(QWidget *parent = nullptr);
 
     [[nodiscard]] QAction *actionSave() const;
+    [[nodiscard]] QAction *actionSaveAs() const;
 
 private slots:
     void onActivatedPanelChanged(AppGlobal::PanelType panel);
@@ -27,6 +28,7 @@ private slots:
 
 private:
     QAction *m_actionSave = nullptr;
+    QAction *m_actionSaveAs = nullptr;
     QAction *m_actionSelectAll = nullptr;
     QAction *m_actionDelete = nullptr;
     QAction *m_actionCut = nullptr;

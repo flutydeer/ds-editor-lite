@@ -11,8 +11,8 @@
 #include "Interface/IMainWindow.h"
 #include "Modules/Task/TaskManager.h"
 #include "Modules/Task/Task.h"
-#include "Global/AppGlobal.h"
 
+class MainMenuView;
 class TaskDialog;
 class ProgressIndicator;
 class QLabel;
@@ -25,22 +25,25 @@ class MainWindow final : public QMainWindow, public IMainWindow {
 public:
     explicit MainWindow();
     void updateWindowTitle() override;
+    bool askSaveChanges() override;
 
 public slots:
     void onAllDone();
     void onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index);
     void onTaskStatusChanged(const TaskStatus &status);
 
-// private slots:
-//     void onActivePanelChanged(AppGlobal::PanelType panelType);
+private slots:
+    bool onSave();
+    bool onSaveAs();
 
 private:
     void closeEvent(QCloseEvent *event) override;
-    // bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+    bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
 
+    MainMenuView *m_mainMenu = nullptr;
     TracksView *m_tracksView;
     ClipEditorView *m_clipEditView;
 

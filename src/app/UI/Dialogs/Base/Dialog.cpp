@@ -138,8 +138,10 @@ void Dialog::setButton() {
         createButtonBar();
     m_buttonBar->reset();
 
-    if (m_positiveButton)
+    if (m_positiveButton) {
         m_buttonBar->addButton(m_positiveButton);
+        m_positiveButton->setDefault(true);
+    }
 
     if (m_negativeButton)
         m_buttonBar->addButton(m_negativeButton);

@@ -52,26 +52,8 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
 
     m_actionSave = new QAction(tr("&Save"), this);
     m_actionSave->setShortcut(QKeySequence("Ctrl+S"));
-    auto actionSaveAs = new QAction(tr("Save &As..."), this);
-    actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
-    connect(actionSaveAs, &QAction::triggered, this, [=] {
-        auto lastDir = appController->projectPath().isEmpty()
-                           ? appController->lastProjectFolder() + "/" + appController->projectName()
-                           : appController->projectPath();
-        auto fileName = QFileDialog::getSaveFileName(this, tr("Save project"), lastDir,
-                                                     tr("DiffScope Project File (*.dspx)"));
-        if (fileName.isNull())
-            return;
-
-        appController->saveProject(fileName);
-    });
-    connect(m_actionSave, &QAction::triggered, this, [=] {
-        if (appController->projectPath().isEmpty()) {
-            actionSaveAs->trigger();
-        } else {
-            appController->saveProject(appController->projectPath());
-        }
-    });
+    m_actionSaveAs = new QAction(tr("Save &As..."), this);
+    m_actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
 
     auto menuImport = new Menu(tr("Import"), this);
     auto actionImportMidiFile = new QAction(tr("MIDI File..."), this);
@@ -106,7 +88,7 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
     menuFile->addAction(actionOpen);
     menuFile->addAction(actionOpenAProject);
     menuFile->addAction(m_actionSave);
-    menuFile->addAction(actionSaveAs);
+    menuFile->addAction(m_actionSaveAs);
     menuFile->addSeparator();
     menuFile->addMenu(menuImport);
     menuFile->addMenu(menuExport);
@@ -167,7 +149,6 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
 
     auto menuInsert = new Menu(tr("&Insert"), this);
 
-    auto trackController = TracksViewController::instance();
     auto actionInsertNewTrack = new QAction(tr("Track"), this);
     connect(actionInsertNewTrack, &QAction::triggered, TracksViewController::instance(),
             &TracksViewController::onNewTrack);
@@ -226,6 +207,9 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
 }
 QAction *MainMenuView::actionSave() const {
     return m_actionSave;
+}
+QAction *MainMenuView::actionSaveAs() const {
+    return m_actionSaveAs;
 }
 void MainMenuView::onActivatedPanelChanged(AppGlobal::PanelType panel) {
     m_panelType = panel;

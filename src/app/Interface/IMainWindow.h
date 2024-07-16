@@ -11,6 +11,7 @@ class IMainWindow {
 public:
     virtual ~IMainWindow() = default;
     virtual void updateWindowTitle() = 0;
+    [[nodiscard]] virtual bool askSaveChanges() = 0;
 };
 
 
