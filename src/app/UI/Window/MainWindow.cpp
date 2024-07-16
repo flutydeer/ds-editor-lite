@@ -343,7 +343,7 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
     if (eventType == "windows_generic_MSG") {
         MSG *msg = static_cast<MSG *>(message);
         if (msg->message == WM_QUERYENDSESSION) {
-            *result = HistoryManager::instance()->isOnSavePoint();
+            *result = HistoryManager::instance()->isOnSavePoint() ? TRUE : FALSE;
             close();
             return true;
         }
