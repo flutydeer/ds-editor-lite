@@ -10,6 +10,7 @@
 #include "UI/Utils/ITimelinePainter.h"
 #include "Utils/OverlapableSerialList.h"
 #include "Utils/IOverlapable.h"
+#include "Model/Clip.h"
 
 class Note;
 class Phoneme;
@@ -19,6 +20,7 @@ class PhonemeView final : public QWidget, public ITimelinePainter {
 
 public:
     explicit PhonemeView(QWidget *parent = nullptr);
+    void setSingingClip(SingingClip *singingClip);
     void insertNote(Note *note);
     void removeNote(int noteId);
     void updateNoteTime(Note *note);
@@ -111,11 +113,14 @@ private:
     bool m_showDebugInfo = false;
     int m_canEditTicksPerPixelThreshold = 6;
 
+    SingingClip *m_singingClip = nullptr;
+
     NoteViewModel *findNoteById(int id);
     PhonemeViewModel *phonemeAtTick(double tick);
     void buildPhonemeList();
     void resetPhonemeList();
     void clearHoverEffects(PhonemeViewModel *except = nullptr);
+    void handleAdjustCompleted(PhonemeViewModel *phonemeViewModel);
 };
 
 

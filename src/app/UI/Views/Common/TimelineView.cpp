@@ -4,16 +4,32 @@
 
 #include "TimelineView.h"
 
-#include <QWheelEvent>
 #include <QPainter>
+#include <QWheelEvent>
 
+#include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
 
 using namespace AppGlobal;
 
-TimelineView::TimelineView(QWidget *parent) : QWidget(parent){
+TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TimelineView");
+
+    auto playbackController = PlaybackController::instance();
+    auto appModel = AppModel::instance();
+    connect(this, &TimelineView::setLastPositionTriggered, playbackController, [=](double tick) {
+        playbackController->setLastPosition(tick);
+        playbackController->setPosition(tick);
+    });
+    connect(playbackController, &PlaybackController::positionChanged, this,
+            &TimelineView::setPosition);
+    connect(appModel, &AppModel::modelChanged, this, [=] {
+        setTimeSignature(appModel->timeSignature().numerator,
+                         appModel->timeSignature().denominator);
+    });
+    connect(appModel, &AppModel::timeSignatureChanged, this, &TimelineView::setTimeSignature);
+    connect(appModel, &AppModel::quantizeChanged, this, &TimelineView::setQuantize);
 }
 void TimelineView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;

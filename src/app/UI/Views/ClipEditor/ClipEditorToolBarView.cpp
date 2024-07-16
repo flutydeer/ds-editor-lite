@@ -6,6 +6,10 @@
 #include <QButtonGroup>
 
 #include "ClipEditorToolBarView.h"
+
+#include "Controller/TracksViewController.h"
+#include "Model/AppModel.h"
+#include "Model/Clip.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ToolTipFilter.h"
 
@@ -22,7 +26,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
         "QLabel:hover { background: #1AFFFFFF; }"
         "QLineEdit { border-radius: 4px; }");
     connect(m_elClipName, &EditLabel::editCompleted, this,
-            [=](const QString &text) { emit clipNameChanged(text); });
+            &ClipEditorToolBarView::onClipNameEdited);
 
     m_btnArrow = new Button;
     m_btnArrow->setObjectName("btnArrow");
@@ -113,8 +117,9 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
         "QComboBox:pressed { background: #10FFFFFF; }");
     setFixedHeight(m_contentHeight + 12);
 }
-void ClipEditorToolBarView::setClipName(const QString &name) {
-    m_elClipName->setText(name);
+void ClipEditorToolBarView::setClip(Clip *clip) {
+    m_clip = clip;
+    m_elClipName->setText(clip ? clip->name() : QString());
 }
 void ClipEditorToolBarView::setClipPropertyEditorEnabled(bool on) {
     if (on) {
@@ -126,4 +131,20 @@ void ClipEditorToolBarView::setClipPropertyEditorEnabled(bool on) {
 }
 void ClipEditorToolBarView::setPianoRollEditToolsEnabled(bool on) {
     // TODO: enable / disable arrow, pencil, ...
+}
+void ClipEditorToolBarView::onClipNameEdited(const QString &name) {
+    Clip::ClipCommonProperties args;
+    args.name = name;
+    args.id = m_clip->id();
+    args.start = m_clip->start();
+    args.clipStart = m_clip->clipStart();
+    args.length = m_clip->length();
+    args.clipLen = m_clip->clipLen();
+    args.gain = m_clip->gain();
+    args.mute = m_clip->mute();
+    int trackIndex;
+    AppModel::instance()->findClipById(m_clip->id(), trackIndex);
+    args.trackIndex = trackIndex;
+
+    TracksViewController::instance()->onClipPropertyChanged(args);
 }

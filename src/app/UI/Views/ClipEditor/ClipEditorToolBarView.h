@@ -11,6 +11,7 @@
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/SeekBar.h"
 
+class Clip;
 class Button;
 
 class ClipEditorToolBarView final : public QWidget {
@@ -18,7 +19,7 @@ class ClipEditorToolBarView final : public QWidget {
 
 public:
     explicit ClipEditorToolBarView(QWidget *parent = nullptr);
-    void setClipName(const QString &name);
+    void setClip(Clip *clip);
     void setClipPropertyEditorEnabled(bool on);
     void setPianoRollEditToolsEnabled(bool on);
 
@@ -26,8 +27,13 @@ signals:
     void clipNameChanged(const QString &name);
     void editModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
 
+private slots:
+    void onClipNameEdited(const QString &name);
+
 private:
     int m_contentHeight = 28;
+
+    Clip *m_clip = nullptr;
 
     EditLabel *m_elClipName;
     // Button *m_btnMute{};

@@ -79,14 +79,14 @@ public:
     };
 
 public slots:
-    void onSelectedClipChanged(int clipId);
+    void selectClip(int clipId);
 
 signals:
     void modelChanged();
     void tempoChanged(double tempo);
     void timeSignatureChanged(int numerator, int denominator);
     void trackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
-    void selectedClipChanged(Track *track, Clip *clip);
+    void selectedClipChanged(Clip *clip);
     void quantizeChanged(int quantize);
     void selectedTrackChanged(int trackIndex);
 

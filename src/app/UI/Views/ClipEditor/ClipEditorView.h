@@ -34,29 +34,16 @@ public:
 
 public slots:
     void onModelChanged();
-    void onSelectedClipChanged(Track *track, Clip *clip);
-    void onClipNameEdited(const QString &name);
+    void onSelectedClipChanged(Clip *clip);
 
 private slots:
     void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
-    void onPositionChanged(double tick);
-    void onLastPositionChanged(double tick);
-    void onRemoveSelectedNotes();
-    void onEditSelectedNotesLyrics();
-    void onDrawNoteCompleted(int start, int length, int keyIndex);
-    void onMoveNotesCompleted(int deltaTick, int deltaKey);
-    void onResizeNoteLeftCompleted(int noteId, int deltaTick);
-    void onResizeNoteRightCompleted(int noteId, int deltaTick);
-    void onAdjustPhonemeCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel);
-    void onPianoRollSelectionChanged();
-    void onPitchEdited(const OverlapableSerialList<Curve> &curves);
     void onParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
     void onClipPropertyChanged();
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
-    Track *m_track = nullptr;
     Clip *m_clip = nullptr;
     SingingClip *m_singingClip = nullptr;
     ClipEditorToolBarView *m_toolbarView;

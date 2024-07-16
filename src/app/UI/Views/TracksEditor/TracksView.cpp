@@ -287,7 +287,7 @@ void TracksView::onClipGraphicsItemRemoveTriggered(int id) {
 }
 bool TracksView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress) {
-        qDebug() << "TracksView MouseButtonPress";
+        // qDebug() << "TracksView MouseButtonPress";
         AppController::instance()->onPanelClicked(AppGlobal::TracksEditor);
     }
 

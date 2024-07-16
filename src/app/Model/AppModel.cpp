@@ -38,7 +38,7 @@ void AppModel::appendTrack(Track *track) {
 }
 void AppModel::removeTrackAt(qsizetype index) {
     auto track = m_tracks[index];
-    onSelectedClipChanged(-1);
+    selectClip(-1);
     m_tracks.removeAt(index);
     emit trackChanged(Remove, index, track);
 }
@@ -148,17 +148,17 @@ bool AppModel::exportMidiFile(const QString &filename) {
 int AppModel::selectedTrackIndex() const {
     return m_selectedTrackIndex;
 }
-void AppModel::onSelectedClipChanged(int clipId) {
+void AppModel::selectClip(int clipId) {
     qDebug() << "AppModel::setIsSingingClip" << clipId;
     m_selectedClipId = clipId;
     for (auto track : m_tracks) {
         auto result = track->findClipById(clipId);
         if (result) {
-            emit selectedClipChanged(track, result);
+            emit selectedClipChanged(result);
             return;
         }
     }
-    emit selectedClipChanged(nullptr, nullptr);
+    emit selectedClipChanged(nullptr);
 }
 void AppModel::setSelectedTrack(int trackIndex) {
     m_selectedTrackIndex = trackIndex;

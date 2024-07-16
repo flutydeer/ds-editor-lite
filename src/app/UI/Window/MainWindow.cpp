@@ -73,9 +73,6 @@ MainWindow::MainWindow() {
     connect(model, &AppModel::modelChanged, m_tracksView, &TracksView::onModelChanged);
     connect(model, &AppModel::trackChanged, m_tracksView, &TracksView::onTrackChanged);
     connect(model, &AppModel::tempoChanged, m_tracksView, &TracksView::onTempoChanged);
-    connect(model, &AppModel::modelChanged, m_clipEditView, &ClipEditorView::onModelChanged);
-    connect(model, &AppModel::selectedClipChanged, m_clipEditView,
-            &ClipEditorView::onSelectedClipChanged);
 
     connect(m_tracksView, &TracksView::selectedClipChanged, trackController,
             &TracksViewController::onSelectedClipChanged);

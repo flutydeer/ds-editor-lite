@@ -2,31 +2,27 @@
 // Created by fluty on 2024/2/10.
 //
 
-#include <QVBoxLayout>
-#include <QMouseEvent>
-
 #include "ClipEditorView.h"
+
+#include "ClipEditorToolBarView.h"
+#include "PhonemeView.h"
 #include "PianoRollGraphicsScene.h"
+#include "PianoRollGraphicsView.h"
+#include "Controller/AppController.h"
 #include "Controller/ClipEditorViewController.h"
-#include "Controller/PlaybackController.h"
 #include "Controller/TracksViewController.h"
-#include "GraphicsItem/PianoRollBackgroundGraphicsItem.h"
 #include "GraphicsItem/PitchEditorGraphicsItem.h"
 #include "Model/AppModel.h"
 #include "UI/Views/Common/TimelineView.h"
-#include "ClipEditorToolBarView.h"
-#include "PhonemeView.h"
-#include "PianoRollGraphicsView.h"
-#include "Controller/AppController.h"
-#include "Model/Track.h"
+
+#include <QMouseEvent>
+#include <QVBoxLayout>
 
 ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("ClipEditorView");
 
     m_toolbarView = new ClipEditorToolBarView;
-    connect(m_toolbarView, &ClipEditorToolBarView::clipNameChanged, this,
-            &ClipEditorView::onClipNameEdited);
     connect(m_toolbarView, &ClipEditorToolBarView::editModeChanged, this,
             &ClipEditorView::onEditModeChanged);
 
@@ -34,20 +30,6 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     m_pianoRollView = new PianoRollGraphicsView(m_pianoRollScene);
     m_pianoRollView->setSceneVisibility(false);
     m_pianoRollView->setDragMode(QGraphicsView::RubberBandDrag);
-    m_pianoRollView->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-    connect(m_pianoRollScene, &QGraphicsScene::selectionChanged, m_pianoRollView,
-            &PianoRollGraphicsView::onSceneSelectionChanged);
-
-    auto gridItem = new PianoRollBackgroundGraphicsItem;
-    gridItem->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-    auto appModel = AppModel::instance();
-    connect(appModel, &AppModel::modelChanged, gridItem, [=] {
-        gridItem->setTimeSignature(appModel->timeSignature().numerator,
-                                   appModel->timeSignature().denominator);
-    });
-    connect(appModel, &AppModel::timeSignatureChanged, gridItem,
-            &TimeGridGraphicsItem::setTimeSignature);
-    m_pianoRollScene->addTimeGrid(gridItem);
 
     m_timelineView = new TimelineView;
     m_timelineView->setTimeRange(m_pianoRollView->startTick(), m_pianoRollView->endTick());
@@ -56,61 +38,20 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     m_timelineView->setVisible(false);
     connect(m_timelineView, &TimelineView::wheelHorScale, m_pianoRollView,
             &CommonGraphicsView::onWheelHorScale);
-    auto playbackController = PlaybackController::instance();
-    connect(m_timelineView, &TimelineView::setLastPositionTriggered, playbackController,
-            [=](double tick) {
-                playbackController->setLastPosition(tick);
-                playbackController->setPosition(tick);
-            });
-    connect(appModel, &AppModel::modelChanged, m_timelineView, [=] {
-        m_timelineView->setTimeSignature(appModel->timeSignature().numerator,
-                                         appModel->timeSignature().denominator);
-    });
-    connect(appModel, &AppModel::timeSignatureChanged, m_timelineView,
-            &TimelineView::setTimeSignature);
     connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_timelineView,
             &TimelineView::setTimeRange);
-    connect(appModel, &AppModel::quantizeChanged, m_timelineView, &TimelineView::setQuantize);
 
     m_phonemeView = new PhonemeView;
     m_phonemeView->setTimeRange(m_pianoRollView->startTick(), m_pianoRollView->endTick());
     m_phonemeView->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     m_phonemeView->setFixedHeight(40);
     m_phonemeView->setVisible(false);
-    connect(appModel, &AppModel::modelChanged, m_phonemeView, [=] {
-        m_phonemeView->setTimeSignature(appModel->timeSignature().numerator,
-                                        appModel->timeSignature().denominator);
-    });
-    connect(appModel, &AppModel::timeSignatureChanged, m_phonemeView,
-            &PhonemeView::setTimeSignature);
     connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_phonemeView,
             &PhonemeView::setTimeRange);
-    connect(appModel, &AppModel::quantizeChanged, m_phonemeView, &PhonemeView::setQuantize);
 
-    connect(playbackController, &PlaybackController::positionChanged, this,
-            &ClipEditorView::onPositionChanged);
-    connect(playbackController, &PlaybackController::lastPositionChanged, this,
-            &ClipEditorView::onLastPositionChanged);
-
-    connect(m_pianoRollView, &PianoRollGraphicsView::removeNoteTriggered, this,
-            &ClipEditorView::onRemoveSelectedNotes);
-    connect(m_pianoRollView, &PianoRollGraphicsView::editNoteLyricTriggered, this,
-            &ClipEditorView::onEditSelectedNotesLyrics);
-    connect(m_pianoRollView, &PianoRollGraphicsView::drawNoteCompleted, this,
-            &ClipEditorView::onDrawNoteCompleted);
-    connect(m_pianoRollView, &PianoRollGraphicsView::moveNotesCompleted, this,
-            &ClipEditorView::onMoveNotesCompleted);
-    connect(m_pianoRollView, &PianoRollGraphicsView::resizeNoteLeftCompleted, this,
-            &ClipEditorView::onResizeNoteLeftCompleted);
-    connect(m_pianoRollView, &PianoRollGraphicsView::resizeNoteRightCompleted, this,
-            &ClipEditorView::onResizeNoteRightCompleted);
-    connect(m_pianoRollView, &PianoRollGraphicsView::selectedNoteChanged, this,
-            &ClipEditorView::onPianoRollSelectionChanged);
-    connect(m_pianoRollView, &PianoRollGraphicsView::pitchEdited, this,
-            &ClipEditorView::onPitchEdited);
-
-    connect(m_phonemeView, &PhonemeView::adjustCompleted, this,
-            &ClipEditorView::onAdjustPhonemeCompleted);
+    auto model = AppModel::instance();
+    connect(model, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
+    connect(model, &AppModel::selectedClipChanged, this, &ClipEditorView::onSelectedClipChanged);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_toolbarView);
@@ -136,13 +77,13 @@ void ClipEditorView::centerAt(double startTick, double length, double keyIndex) 
 void ClipEditorView::onModelChanged() {
     reset();
 }
-void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
+void ClipEditorView::onSelectedClipChanged(Clip *clip) {
     reset();
 
-    if (track == nullptr || clip == nullptr) {
+    if (clip == nullptr) {
         qDebug() << "ClipEditorView::setIsSingingClip null";
         ClipEditorViewController::instance()->setCurrentSingingClip(nullptr);
-        m_toolbarView->setClipName("");
+        m_toolbarView->setClip(nullptr);
         m_toolbarView->setClipPropertyEditorEnabled(false);
         m_toolbarView->setPianoRollEditToolsEnabled(false);
 
@@ -151,18 +92,14 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
 
         m_timelineView->setVisible(false);
         m_phonemeView->setVisible(false);
-        if (m_track != nullptr) {
-            qDebug() << "disconnect track and ClipEditorView";
-            disconnect(m_clip, &Clip::propertyChanged, this,
+        disconnect(m_clip, &Clip::propertyChanged, this,
                        &ClipEditorView::onClipPropertyChanged);
-        }
         if (m_singingClip != nullptr) {
             disconnect(m_singingClip, &SingingClip::noteChanged, this,
                        &ClipEditorView::onNoteListChanged);
             disconnect(m_singingClip, &SingingClip::noteSelectionChanged, this,
                        &ClipEditorView::onNoteSelectionChanged);
         }
-        m_track = nullptr;
         m_clip = nullptr;
         m_singingClip = nullptr;
         m_pianoRollView->setEnabled(false);
@@ -170,13 +107,12 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
     }
 
     m_pianoRollView->setEnabled(true);
-    m_track = track;
     m_clip = clip;
     qDebug() << "connect track and ClipEditorView";
     connect(m_clip, &Clip::propertyChanged, this, &ClipEditorView::onClipPropertyChanged);
     connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_timelineView,
             &TimelineView::setTimeRange);
-    m_toolbarView->setClipName(clip->name());
+    m_toolbarView->setClip(clip);
     m_toolbarView->setClipPropertyEditorEnabled(true);
 
     if (clip->type() != Clip::Singing)
@@ -187,6 +123,7 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
     m_timelineView->setVisible(true);
     m_phonemeView->setVisible(true);
     m_singingClip = dynamic_cast<SingingClip *>(m_clip);
+    m_phonemeView->setSingingClip(m_singingClip);
     if (m_singingClip->notes().count() > 0) {
         for (const auto note : m_singingClip->notes()) {
             m_pianoRollView->insertNote(note);
@@ -204,108 +141,9 @@ void ClipEditorView::onSelectedClipChanged(Track *track, Clip *clip) {
     connect(m_singingClip, &SingingClip::paramChanged, this, &ClipEditorView::onParamChanged);
     ClipEditorViewController::instance()->setCurrentSingingClip(m_singingClip);
 }
-void ClipEditorView::onClipNameEdited(const QString &name) {
-    Clip::ClipCommonProperties args;
-    args.name = name;
-    args.id = m_clip->id();
-    args.start = m_clip->start();
-    args.clipStart = m_clip->clipStart();
-    args.length = m_clip->length();
-    args.clipLen = m_clip->clipLen();
-    args.gain = m_clip->gain();
-    args.mute = m_clip->mute();
-    args.trackIndex = AppModel::instance()->tracks().indexOf(m_track);
-
-    TracksViewController::instance()->onClipPropertyChanged(args);
-}
 void ClipEditorView::onEditModeChanged(PianoRollEditMode mode) {
     m_mode = mode;
     m_pianoRollView->setEditMode(m_mode);
-}
-void ClipEditorView::onPositionChanged(double tick) {
-    m_timelineView->setPosition(tick);
-    m_pianoRollView->setPlaybackPosition(tick);
-    m_phonemeView->setPosition(tick);
-}
-void ClipEditorView::onLastPositionChanged(double tick) {
-    m_pianoRollView->setLastPlaybackPosition(tick);
-}
-void ClipEditorView::onRemoveSelectedNotes() {
-    auto notes = m_pianoRollView->selectedNotesId();
-    ClipEditorViewController::instance()->onRemoveNotes(notes);
-}
-void ClipEditorView::onEditSelectedNotesLyrics() {
-    qDebug() << "ClipEditorView::onEditSelectedNotesLyrics";
-    auto notes = m_pianoRollView->selectedNotesId();
-    ClipEditorViewController::instance()->onEditNotesLyric(notes);
-}
-void ClipEditorView::onDrawNoteCompleted(int start, int length, int keyIndex) {
-    qDebug() << "ClipEditorView::onDrawNoteCompleted" << start << length << keyIndex;
-    auto note = new Note;
-    note->setStart(start);
-    note->setLength(length);
-    note->setKeyIndex(keyIndex);
-    note->setLyric(defaultLyric);
-    note->setPronunciation(Pronunciation(defaultPronunciation, ""));
-    note->setSelected(true);
-    ClipEditorViewController::instance()->onInsertNote(note);
-}
-void ClipEditorView::onMoveNotesCompleted(int deltaTick, int deltaKey) {
-    qDebug() << "ClipEditorView::onMoveNotesCompleted"
-             << "dt" << deltaTick << "dk" << deltaKey;
-    ClipEditorViewController::instance()->onMoveNotes(m_pianoRollView->selectedNotesId(), deltaTick,
-                                                      deltaKey);
-}
-void ClipEditorView::onResizeNoteLeftCompleted(int noteId, int deltaTick) {
-    qDebug() << "ClipEditorView::onResizeNoteLeftCompleted"
-             << "id" << noteId << "dt" << deltaTick;
-    QList<int> notes;
-    notes.append(noteId);
-    ClipEditorViewController::instance()->onResizeNotesLeft(notes, deltaTick);
-}
-void ClipEditorView::onResizeNoteRightCompleted(int noteId, int deltaTick) {
-    qDebug() << "ClipEditorView::onResizeNoteRightCompleted"
-             << "id" << noteId << "dt" << deltaTick;
-    QList<int> notes;
-    notes.append(noteId);
-    ClipEditorViewController::instance()->onResizeNotesRight(notes, deltaTick);
-}
-void ClipEditorView::onAdjustPhonemeCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel) {
-    if (!phonemeViewModel)
-        return;
-
-    auto appModel = AppModel::instance();
-    QList<int> notesId;
-    QList<Phoneme> phonemes;
-    notesId.append(phonemeViewModel->noteId);
-    auto note = m_singingClip->findNoteById(phonemeViewModel->noteId);
-    Phoneme phoneme;
-    phoneme.name = phonemeViewModel->name;
-    auto noteStartInMs = appModel->tickToMs(note->start());
-    auto phonemeViewModelStartInMs =
-        appModel->tickToMs(phonemeViewModel->start + phonemeViewModel->startOffset);
-    if (phonemeViewModel->type == PhonemeView::PhonemeViewModel::Ahead) {
-        phoneme.type = Phoneme::Ahead;
-        phoneme.start = qRound(noteStartInMs - phonemeViewModelStartInMs);
-        qDebug() << "ClipEditorView::onAdjustPhonemeCompleted"
-                 << "append ahead" << phoneme.name << phoneme.start;
-    } else if (phonemeViewModel->type == PhonemeView::PhonemeViewModel::Normal) {
-        phoneme.type = Phoneme::Normal;
-        phoneme.start = qRound(phonemeViewModelStartInMs - noteStartInMs);
-        qDebug() << "ClipEditorView::onAdjustPhonemeCompleted"
-                 << "append normal" << phoneme.name << phoneme.start;
-    }
-    phonemes.append(phoneme);
-    ClipEditorViewController::instance()->onAdjustPhoneme(notesId, phonemes);
-}
-void ClipEditorView::onPianoRollSelectionChanged() {
-    auto notes = m_pianoRollView->selectedNotesId();
-    // qDebug() << "ClipEditorView::onSceneSelectionChanged"
-    //          << "selected notes" << (notes.isEmpty() ? "" : QString::number(notes.first()));
-    ClipEditorViewController::instance()->onNoteSelectionChanged(notes, true);
-}
-void ClipEditorView::onPitchEdited(const OverlapableSerialList<Curve> &curves) {
-    ClipEditorViewController::instance()->onPitchEdited(curves);
 }
 void ClipEditorView::onParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType) {
     if (paramName == ParamBundle::Pitch) {
@@ -315,7 +153,7 @@ void ClipEditorView::onParamChanged(ParamBundle::ParamName paramName, Param::Par
 }
 bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress) {
-        qDebug() << "ClipEditorView MouseButtonPress";
+        // qDebug() << "ClipEditorView MouseButtonPress";
         AppController::instance()->onPanelClicked(AppGlobal::ClipEditor);
     }
 
@@ -342,9 +180,8 @@ void ClipEditorView::onNoteListChanged(SingingClip::NoteChangeType type, int id,
         case SingingClip::Inserted:
             m_pianoRollView->insertNote(note);
             m_phonemeView->insertNote(note);
-            connect(note, &Note::propertyChanged, this, [=](Note::NotePropertyType type) {
-                onNotePropertyChanged(type, note);
-            });
+            connect(note, &Note::propertyChanged, this,
+                    [=](Note::NotePropertyType type) { onNotePropertyChanged(type, note); });
             break;
         case SingingClip::Removed:
             m_pianoRollView->removeNote(id);

@@ -43,20 +43,13 @@ public:
     void setViewportCenterAt(double tick, double keyIndex);
     void setViewportCenterAtKeyIndex(double keyIndex);
 
-signals:
-    void noteShapeEdited(ClipEditorGlobal::NoteEditMode mode, int deltaTick, int deltaKey);
-    void removeNoteTriggered();
-    void editNoteLyricTriggered();
-    void drawNoteCompleted(int start, int length, int keyIndex);
-    void moveNotesCompleted(int deltaTick, int deltaKey);
-    void resizeNoteLeftCompleted(int noteId, int deltaTick);
-    void resizeNoteRightCompleted(int noteId, int deltaTick);
-    void selectedNoteChanged(QList<int> notes);
-    void pitchEdited(const OverlapableSerialList<Curve> &curves);
-
 public slots:
-    void onSceneSelectionChanged();
+    void onSceneSelectionChanged() const;
     void onPitchEditorEditCompleted();
+
+private slots:
+    void onRemoveSelectedNotes() const;
+    void onEditSelectedNotesLyrics();
 
 private:
     void paintEvent(QPaintEvent *event) override;
@@ -67,6 +60,11 @@ private:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
+
+    static void handleDrawNoteCompleted(int start, int length, int keyIndex);
+    void handleMoveNotesCompleted(int deltaTick, int deltaKey) const;
+    static void handleResizeNoteLeftCompleted(int noteId, int deltaTick);
+    static void handleResizeNoteRightCompleted(int noteId, int deltaTick);
 
     enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
     NoteGraphicsItem *m_currentEditingNote = nullptr;
