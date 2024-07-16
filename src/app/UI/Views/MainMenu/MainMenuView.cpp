@@ -6,7 +6,6 @@
 
 #include "Controller/AppController.h"
 #include "Controller/ClipEditorViewController.h"
-#include "Controller/ClipboardController.h"
 #include "Controller/TracksViewController.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Menu.h"
@@ -20,6 +19,10 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     auto appController = AppController::instance();
+
+    connect(appController, &AppController::activatedPanelChanged, this,
+            &MainMenuView::onActivatedPanelChanged);
+
     auto menuFile = new Menu(tr("&File"), this);
     auto actionNewProject = new QAction(tr("&New Project"), this);
     actionNewProject->setShortcut(QKeySequence("Ctrl+N"));
@@ -130,44 +133,37 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
                 actionRedo->setText(tr("&Redo") + " " + redoActionName);
             });
 
-    auto clipController = ClipEditorViewController::instance();
-    auto actionSelectAll = new QAction(tr("Select &All"), this);
-    actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
-    connect(actionSelectAll, &QAction::triggered, clipController,
-            &ClipEditorViewController::onSelectAllNotes);
-    // connect(clipController, &ClipEditorViewController::canSelectAllChanged, actionSelectAll,
-    //         &QAction::setEnabled);
+    m_actionSelectAll = new QAction(tr("Select &All"), this);
+    m_actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
+    m_actionSelectAll->setEnabled(false);
+    connect(m_actionSelectAll, &QAction::triggered, this, &MainMenuView::onSelectAll);
 
-    auto actionDelete = new QAction(tr("&Delete"), this);
-    actionDelete->setShortcut(Qt::Key_Delete);
-    // TODO: fix bug
-    connect(actionDelete, &QAction::triggered, clipController,
-            &ClipEditorViewController::onRemoveSelectedNotes);
-    // connect(clipController, &ClipEditorViewController::canRemoveChanged, actionDelete,
-    //         &QAction::setEnabled);
+    m_actionDelete = new QAction(tr("&Delete"), this);
+    m_actionDelete->setShortcut(Qt::Key_Delete);
+    m_actionDelete->setEnabled(false);
+    connect(m_actionDelete, &QAction::triggered, this, &MainMenuView::onDelete);
 
-    auto clipboardController = ClipboardController::instance();
-    auto actionCut = new QAction(tr("Cu&t"), this);
-    actionCut->setShortcut(QKeySequence("Ctrl+X"));
-    connect(actionCut, &QAction::triggered, clipboardController, &ClipboardController::cut);
+    m_actionCut = new QAction(tr("Cu&t"), this);
+    m_actionCut->setShortcut(QKeySequence("Ctrl+X"));
+    connect(m_actionCut, &QAction::triggered, this, &MainMenuView::onCut);
 
-    auto actionCopy = new QAction(tr("&Copy"), this);
-    actionCopy->setShortcut(QKeySequence("Ctrl+C"));
-    connect(actionCopy, &QAction::triggered, clipboardController, &ClipboardController::copy);
+    m_actionCopy = new QAction(tr("&Copy"), this);
+    m_actionCopy->setShortcut(QKeySequence("Ctrl+C"));
+    connect(m_actionCopy, &QAction::triggered, this, &MainMenuView::onCopy);
 
-    auto actionPaste = new QAction(tr("&Paste"), this);
-    actionPaste->setShortcut(QKeySequence("Ctrl+V"));
-    connect(actionPaste, &QAction::triggered, clipboardController, &ClipboardController::paste);
+    m_actionPaste = new QAction(tr("&Paste"), this);
+    m_actionPaste->setShortcut(QKeySequence("Ctrl+V"));
+    connect(m_actionPaste, &QAction::triggered, this, &MainMenuView::onPaste);
 
     menuEdit->addAction(actionUndo);
     menuEdit->addAction(actionRedo);
     menuEdit->addSeparator();
-    menuEdit->addAction(actionSelectAll);
-    menuEdit->addAction(actionDelete);
+    menuEdit->addAction(m_actionSelectAll);
+    menuEdit->addAction(m_actionDelete);
     menuEdit->addSeparator();
-    menuEdit->addAction(actionCut);
-    menuEdit->addAction(actionCopy);
-    menuEdit->addAction(actionPaste);
+    menuEdit->addAction(m_actionCut);
+    menuEdit->addAction(m_actionCopy);
+    menuEdit->addAction(m_actionPaste);
 
     auto menuInsert = new Menu(tr("&Insert"), this);
 
@@ -177,9 +173,11 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
             &TracksViewController::onNewTrack);
     menuInsert->addAction(actionInsertNewTrack);
 
+    // TODO: 在没有选中音符之前禁用填入歌词
     auto menuModify = new Menu(tr("&Modify"), this);
     auto actionFillLyrics = new QAction(tr("Fill Lyrics..."), this);
     actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
+    auto clipController = ClipEditorViewController::instance();
     connect(actionFillLyrics, &QAction::triggered, clipController,
             [this] { ClipEditorViewController::instance()->onFillLyric(this); });
     menuModify->addAction(actionFillLyrics);
@@ -228,4 +226,42 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
 }
 QAction *MainMenuView::actionSave() const {
     return m_actionSave;
+}
+void MainMenuView::onActivatedPanelChanged(AppGlobal::PanelType panel) {
+    m_panelType = panel;
+    auto clipController = ClipEditorViewController::instance();
+    if (panel == AppGlobal::ClipEditor) {
+        m_actionSelectAll->setEnabled(clipController->canSelectAll());
+        connect(clipController, &ClipEditorViewController::canSelectAllChanged, m_actionSelectAll,
+                &QAction::setEnabled);
+        m_actionDelete->setEnabled(clipController->canDelete());
+        connect(clipController, &ClipEditorViewController::canDeleteChanged, m_actionDelete,
+                &QAction::setEnabled);
+    } else {
+        disconnect(clipController, &ClipEditorViewController::canSelectAllChanged,
+                   m_actionSelectAll, &QAction::setEnabled);
+        m_actionSelectAll->setEnabled(clipController->canDelete());
+        disconnect(clipController, &ClipEditorViewController::canDeleteChanged, m_actionDelete,
+                   &QAction::setEnabled);
+        m_actionDelete->setEnabled(false);
+    }
+}
+void MainMenuView::onSelectAll() {
+    qDebug() << "MainMenuView::onSelectAll";
+    if (m_panelType == AppGlobal::ClipEditor)
+        ClipEditorViewController::instance()->onSelectAllNotes();
+}
+void MainMenuView::onDelete() {
+    qDebug() << "MainMenuView::onDelete";
+    if (m_panelType == AppGlobal::ClipEditor)
+        ClipEditorViewController::instance()->onDeleteSelectedNotes();
+}
+void MainMenuView::onCut() {
+    qDebug() << "MainMenuView::onCut";
+}
+void MainMenuView::onCopy() {
+    qDebug() << "MainMenuView::onCopy";
+}
+void MainMenuView::onPaste() {
+    qDebug() << "MainMenuView::onPaste";
 }

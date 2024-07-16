@@ -4,6 +4,9 @@
 
 #include "MainWindow.h"
 
+// #include <Windows.h>
+// #include <WinUser.h>
+
 #include <QApplication>
 #include <QCloseEvent>
 #include <QFileDialog>
@@ -250,3 +253,13 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     // taskManager->wait();
     // QMainWindow::closeEvent(event);
 }
+// bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
+//     if (eventType == "windows_generic_MSG") {
+//         MSG *msg = static_cast<MSG *>(message);
+//         if (msg->message == WM_QUERYENDSESSION) {
+//             *result = FALSE;
+//             return true;
+//         }
+//     }
+//     return QMainWindow::nativeEvent(eventType, message, result);
+// }

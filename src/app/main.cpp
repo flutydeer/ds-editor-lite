@@ -33,23 +33,23 @@ int main(int argc, char *argv[]) {
     // auto style = QStyleFactory::create("fusion");
     // QApplication::setStyle(style);
 
-//     QString qssBase;
-//     auto qssFile = QFile(":theme/lite-dark.qss");
-//     if (qssFile.open(QIODevice::ReadOnly)) {
-//         qssBase = qssFile.readAll();
-//         qssFile.close();
-//     }
-//     a.setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
-// #ifdef Q_OS_WIN
-//     bool micaOn = true;
-//     auto version = QSysInfo::productVersion();
-//     if (micaOn && version == "11") {
-//         // make window transparent
-//         a.setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
-//     }
-// #elif defined(Q_OS_MAC)
-//     this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
-// #endif
+    //     QString qssBase;
+    //     auto qssFile = QFile(":theme/lite-dark.qss");
+    //     if (qssFile.open(QIODevice::ReadOnly)) {
+    //         qssBase = qssFile.readAll();
+    //         qssFile.close();
+    //     }
+    //     a.setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
+    // #ifdef Q_OS_WIN
+    //     bool micaOn = true;
+    //     auto version = QSysInfo::productVersion();
+    //     if (micaOn && version == "11") {
+    //         // make window transparent
+    //         a.setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
+    //     }
+    // #elif defined(Q_OS_MAC)
+    //     this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
+    // #endif
 
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);
@@ -83,14 +83,14 @@ int main(int argc, char *argv[]) {
     QObject::connect(AppOptions::instance(), &AppOptions::optionsChanged, ThemeManager::instance(),
                      &ThemeManager::onAppOptionsChanged);
 
-    auto w = new MainWindow;
-    TracksViewController::instance()->setParentWidget(w);
+    MainWindow w;
+    TracksViewController::instance()->setParentWidget(&w);
     auto scr = QApplication::screenAt(QCursor::pos());
     auto availableRect = scr->availableGeometry();
-    auto left = (availableRect.width() - w->width()) / 2;
-    auto top = (availableRect.height() - w->height()) / 2;
-    w->move(left, top);
-    w->show();
+    auto left = (availableRect.width() - w.width()) / 2;
+    auto top = (availableRect.height() - w.height()) / 2;
+    w.move(left, top);
+    w.show();
 
     auto taskWindow = new TaskWindow;
     taskWindow->move(availableRect.width() - taskWindow->width() - 8,

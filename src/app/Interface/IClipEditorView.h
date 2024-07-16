@@ -9,6 +9,11 @@ class IClipEditorView {
 
 public:
     virtual ~IClipEditorView() = default;
+
+    // View state
+
+
+    // View operations
     virtual void centerAt(double tick, double keyIndex) = 0;
     virtual void centerAt(double startTick, double length, double keyIndex) = 0;
 };

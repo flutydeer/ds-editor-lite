@@ -24,19 +24,22 @@ public:
     void cutSelectedNotesWithParams();
     void pasteNotesWithParams(const NotesParamsInfo &info, int tick);
 
+    [[nodiscard]] bool canSelectAll() const;
+    [[nodiscard]] bool canDelete() const;
+
     // View operations
     void centerAt(double tick, double keyIndex);
     void centerAt(const Note &note);
 
 signals:
     void canSelectAllChanged(bool canSelectAll);
-    void canRemoveChanged(bool canRemove);
+    void canDeleteChanged(bool canDelete); // TODO: 连接到 clip 模型监听更改
 
 public slots:
     void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     void onRemoveNotes(const QList<int> &notesId);
     void onEditNotesLyric(const QList<int> &notesId);
-    void onInsertNote(Note *note) const;
+    void onInsertNote(Note *note);
     void onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey);
     void onResizeNotesLeft(const QList<int> &notesId, int deltaTick) const;
     void onResizeNotesRight(const QList<int> &notesId, int deltaTick) const;
@@ -45,7 +48,7 @@ public slots:
     void onOriginalPitchChanged(const OverlapableSerialList<Curve> &curves) const;
     void onPitchEdited(const OverlapableSerialList<Curve> &curves) const;
     void onEditSelectedNotesLyric() const;
-    void onRemoveSelectedNotes();
+    void onDeleteSelectedNotes();
     void onSelectAllNotes();
     void onFillLyric(QWidget *parent);
 
@@ -55,8 +58,6 @@ private:
 
     void editNotesLyric(const QList<Note *> &notes) const;
     void removeNotes(const QList<Note *> &notes) const;
-    // void updateAndNotifyCanSelectAll();
-    // void notifyCanRemove();
     [[nodiscard]] NotesParamsInfo buildNoteParamsInfo() const;
 };
 

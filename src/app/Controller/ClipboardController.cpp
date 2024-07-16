@@ -12,6 +12,7 @@
 
 #include <QJsonDocument>
 
+// TODO: 要求传入类型
 void ClipboardController::copy() {
     qDebug() << "ClipboardController::copy";
     copyCutSelectedItems(ControllerGlobal::NoteWithParams, false);

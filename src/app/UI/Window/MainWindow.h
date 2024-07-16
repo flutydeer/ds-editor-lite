@@ -36,6 +36,7 @@ public slots:
 
 private:
     void closeEvent(QCloseEvent *event) override;
+    // bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
