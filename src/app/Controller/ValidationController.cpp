@@ -55,7 +55,11 @@ void ValidationController::onClipChanged(Track::ClipChangeType type, int id, Cli
     if (type == Track::Inserted) {
         m_clips.append(clip);
         connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
+    } else if (type == Track::Removed) {
+        m_clips.removeOne(clip);
+        disconnect(clip, &Clip::propertyChanged, this, nullptr);
     }
+    validate();
 }
 void ValidationController::onClipPropertyChanged(Clip *clip) {
     qDebug() << "ValidationController::onClipPropertyChanged";
