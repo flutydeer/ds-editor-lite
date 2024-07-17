@@ -197,6 +197,14 @@ double AppModel::tickToMs(double tick) const {
 double AppModel::msToTick(double ms) const {
     return ms * 480 * m_tempo / 60000;
 }
+int AppModel::projectLengthInTicks() const {
+    int length = 0;
+    for (const auto track : m_tracks)
+        for (const auto clip : track->clips())
+            if (clip->endTick() > length)
+                length = clip->endTick();
+    return length;
+}
 void AppModel::reset() {
     m_tempo = 120;
     m_timeSignature.numerator = 4;

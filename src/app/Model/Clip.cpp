@@ -14,52 +14,55 @@ QString Clip::name() const {
 }
 void Clip::setName(const QString &text) {
     m_name = text;
-    emit propertyChanged();
+    // emit propertyChanged();
 }
 int Clip::start() const {
     return m_start;
 }
 void Clip::setStart(int start) {
     m_start = start;
-    emit propertyChanged();
+    // emit propertyChanged();
 }
 int Clip::length() const {
     return m_length;
 }
 void Clip::setLength(int length) {
     m_length = length;
-    emit propertyChanged();
+    // emit propertyChanged();
 }
 int Clip::clipStart() const {
     return m_clipStart;
 }
 void Clip::setClipStart(int clipStart) {
     m_clipStart = clipStart;
-    emit propertyChanged();
+    // emit propertyChanged();
 }
 int Clip::clipLen() const {
     return m_clipLen;
 }
 void Clip::setClipLen(int clipLen) {
     m_clipLen = clipLen;
-    emit propertyChanged();
+    // emit propertyChanged();
 }
 double Clip::gain() const {
     return m_gain;
 }
 void Clip::setGain(double gain) {
     m_gain = gain;
-    emit propertyChanged();
+    // emit propertyChanged();
 }
 bool Clip::mute() const {
     return m_mute;
 }
 void Clip::setMute(bool mute) {
     m_mute = mute;
-    emit propertyChanged();
+    // emit propertyChanged();
 }
 void Clip::notifyPropertyChanged() {
     emit propertyChanged();
+}
+int Clip::endTick() const {
+    return start() + clipStart() + clipLen();
 }
 int Clip::compareTo(Clip *obj) const {
     auto curVisibleStart = start() + clipStart();

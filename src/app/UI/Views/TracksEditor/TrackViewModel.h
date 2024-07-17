@@ -6,20 +6,20 @@
 #define TRACKVIEWMODEL_H
 
 #include <QObject>
+#include "Utils/UniqueObject.h"
 
 class TrackControlWidget;
 
-class TrackViewModel : public QObject {
+class TrackViewModel : public QObject, public UniqueObject {
     Q_OBJECT
 public:
-    TrackControlWidget *widget;
-    bool isSelected;
+    explicit TrackViewModel(int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
+    }
+    TrackControlWidget *widget = nullptr;
+    bool isSelected = false;
     QList<AbstractClipGraphicsItem *> clips;
-
-    signals:
-
 };
 
 
 
-#endif //TRACKVIEWMODEL_H
+#endif // TRACKVIEWMODEL_H

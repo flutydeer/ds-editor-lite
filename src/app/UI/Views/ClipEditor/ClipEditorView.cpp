@@ -164,6 +164,9 @@ void ClipEditorView::reset() {
     m_phonemeView->reset();
 }
 void ClipEditorView::onClipPropertyChanged() {
+    if (!m_clip)
+        return;
+
     qDebug() << "ClipEditorView::handleClipPropertyChange" << m_clip->id() << m_clip->start();
     auto singingClip = dynamic_cast<SingingClip *>(m_clip);
     if (!singingClip)

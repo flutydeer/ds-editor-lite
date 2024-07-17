@@ -300,6 +300,9 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     QGraphicsRectItem::mouseMoveEvent(event);
 }
 void AbstractClipGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+    if (m_mouseDownPos == event->scenePos()) {
+        m_propertyEdited = false;
+    }
     if (m_propertyEdited) {
         emit propertyChanged();
     }

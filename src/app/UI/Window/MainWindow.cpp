@@ -20,6 +20,7 @@
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TracksViewController.h"
+#include "Controller/ValidationController.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/AccentButton.h"
@@ -143,6 +144,7 @@ MainWindow::MainWindow() {
     connect(historyManager, &HistoryManager::undoRedoChanged, appController,
             &AppController::onUndoRedoChanged);
 
+    ValidationController::instance();
     AppController::instance()->onNewProject();
 
     auto actionButtonLayout = new QHBoxLayout;

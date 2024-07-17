@@ -118,9 +118,18 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
             emit setPositionTriggered(tick);
         }
     });
-    connect(m_btnPlay, &QPushButton::clicked, this, [=] { emit playTriggered(); });
-    connect(m_btnPause, &QPushButton::clicked, this, [=] { emit pauseTriggered(); });
-    connect(m_btnStop, &QPushButton::clicked, this, [=] { emit stopTriggered(); });
+    connect(m_btnPlay, &QPushButton::clicked, this, [=] {
+        emit playTriggered();
+        updatePlaybackControlView();
+    });
+    connect(m_btnPause, &QPushButton::clicked, this, [=] {
+        emit pauseTriggered();
+        updatePlaybackControlView();
+    });
+    connect(m_btnStop, &QPushButton::clicked, this, [=] {
+        emit stopTriggered();
+        updatePlaybackControlView();
+    });
 
     m_cbQuantize = new ComboBox();
     m_cbQuantize->addItems(quantizeStrings);

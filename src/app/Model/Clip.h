@@ -45,6 +45,8 @@ public:
     void setMute(bool mute);
     void notifyPropertyChanged();
 
+    [[nodiscard]] int endTick() const;
+
     int compareTo(Clip *obj) const;
     bool isOverlappedWith(Clip *obj) const;
 

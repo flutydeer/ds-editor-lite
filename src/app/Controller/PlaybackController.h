@@ -48,12 +48,16 @@ public slots:
     void onTempoChanged(double tempo);
     void onModelChanged();
 
+private slots:
+    void onValidationFinished(bool passed);
+
 private:
     double m_position = 0;
     double m_lastPlayPosition = 0;
     double m_sampleRate = 48000;
     double m_tempo = 120;
     PlaybackStatus m_playbackStatus = Stopped;
+    bool m_playRequested = false;
 
     [[nodiscard]] double samplePosToTick(int sample) const;
     [[nodiscard]] int tickToSamplePos(double tick) const;

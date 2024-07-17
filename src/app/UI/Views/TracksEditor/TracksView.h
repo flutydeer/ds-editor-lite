@@ -74,6 +74,8 @@ private:
     class TrackListViewModel {
     public:
         QList<TrackViewModel *> tracks;
+
+        TrackViewModel *findTrackById(int id);
     };
 
     TrackListViewModel m_trackListViewModel;
@@ -89,7 +91,7 @@ private:
     void updateTracksOnView() const;
     void updateClipOnView(Clip *clip, int clipId);
     void removeTrackFromView(int index);
-    void updateOverlappedState(int trackIndex);
+    void updateOverlappedState();
     void reset();
     void afterSetActivated() override;
     void updateStyleSheet();

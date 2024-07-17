@@ -8,9 +8,9 @@
 #include <QJsonObject>
 
 #include "Utils/Singleton.h"
+#include "Clip.h"
 
 class Track;
-class Clip;
 class WorkspaceEditor;
 
 class AppModel final : public QObject, public Singleton<AppModel> {
@@ -67,6 +67,7 @@ public:
     Track *findTrackById(int id, int &trackIndex);
     [[nodiscard]] double tickToMs(double tick) const;
     [[nodiscard]] double msToTick(double ms) const;
+    [[nodiscard]] int projectLengthInTicks() const;
 
     class LevelMetersUpdatedArgs {
     public:

@@ -210,7 +210,7 @@ void TracksView::onClipChanged(Track::ClipChangeType type, qsizetype trackIndex,
     for (auto overlappedItem : trackModel->clips().overlappedItems()) {
         qDebug() << "overlappedItem" << overlappedItem->id();
     }
-    updateOverlappedState(trackIndex);
+    updateOverlappedState();
 }
 void TracksView::onPositionChanged(double tick) {
     m_timeline->setPosition(tick);
@@ -293,6 +293,13 @@ bool TracksView::eventFilter(QObject *watched, QEvent *event) {
 
     return QWidget::eventFilter(watched, event);
 }
+TrackViewModel *TracksView::TrackListViewModel::findTrackById(int id) {
+    for (const auto track : tracks) {
+        if (track->id() == id)
+            return track;
+    }
+    return nullptr;
+}
 void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
     connect(dsTrack, &Track::propertyChanged, this, [=] { updateTracksOnView(); });
     connect(dsTrack, &Track::clipChanged, this, [=](Track::ClipChangeType type, int clipId) {
@@ -305,7 +312,7 @@ void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
         m_prevClipId = clipId;
         m_prevClipChangeType = type;
     });
-    auto track = new TrackViewModel;
+    auto track = new TrackViewModel(dsTrack->id());
     for (int clipIndex = 0; clipIndex < dsTrack->clips().count(); clipIndex++) {
         auto clip = dsTrack->clips().at(clipIndex);
         insertClipToTrack(clip, track, trackIndex);
@@ -524,6 +531,8 @@ void TracksView::updateClipOnView(Clip *clip, int clipId) {
         auto singingItem = dynamic_cast<SingingClipGraphicsItem *>(item);
         singingItem->loadNotes(singingClip->notes());
     }
+
+    updateOverlappedState();
 }
 void TracksView::removeTrackFromView(int index) {
     disconnect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
@@ -554,14 +563,13 @@ void TracksView::removeTrackFromView(int index) {
     connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
             &TracksView::onSceneSelectionChanged);
 }
-void TracksView::updateOverlappedState(int trackIndex) {
-    auto trackModel = AppModel::instance()->tracks().at(trackIndex);
-    // qDebug() << "app model track clip count" << trackModel->clips().count();
-    auto track = m_trackListViewModel.tracks.at(trackIndex);
-    // qDebug() << "tracks view model clip count" << track->clips.count();
-    for (auto clipItem : track->clips) {
-        auto dsClip = trackModel->findClipById(clipItem->id());
-        clipItem->setOverlapped(dsClip->overlapped());
+void TracksView::updateOverlappedState() {
+    for (const auto trackModel : AppModel::instance()->tracks()) {
+        auto track = m_trackListViewModel.findTrackById(trackModel->id());
+        for (auto clipItem : track->clips) {
+            auto dsClip = trackModel->findClipById(clipItem->id());
+            clipItem->setOverlapped(dsClip->overlapped());
+        }
     }
     m_graphicsView->update();
 }
