@@ -235,7 +235,7 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     audioClip->setLength(length);
     audioClip->setClipLen(length);
     audioClip->setPath(path);
-    audioClip->info = result;
+    audioClip->setAudioInfo(result) ;
     int trackIndex = 0;
     auto track = AppModel::instance()->findTrackById(trackId, trackIndex);
     if (!track) {

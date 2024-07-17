@@ -40,7 +40,7 @@ void AudioDecodingController::onClipChanged(Track::ClipChangeType type, int id, 
         if (clip->type() == Clip::Audio) {
             auto audioClip = reinterpret_cast<AudioClip *>(clip);
             // TODO: 用其他方式判断是否需要重新解码
-            if (audioClip->info.peakCache.count() <= 0)
+            if (audioClip->audioInfo().peakCache.count() <= 0)
                 createAndStartTask(audioClip);
         }
     } else if (type == Track::Removed) {
@@ -90,7 +90,7 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, bool ter
     }
 
     auto audioClip = reinterpret_cast<AudioClip *>(clip);
-    audioClip->info = task->result();
+    audioClip->setAudioInfo(task->result());
     audioClip->notifyPropertyChanged();
     delete task;
 }

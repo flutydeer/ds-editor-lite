@@ -82,14 +82,11 @@ private:
     double m_tempo = 120;
     int m_samplerate = 48000;
 
-    Track::ClipChangeType m_prevClipChangeType = Track::Removed;
-    int m_prevClipId = -1;
-
     void insertTrackToView(Track *dsTrack, int trackIndex);
     void insertClipToTrack(Clip *clip, TrackViewModel *track, int trackIndex);
     void removeClipFromView(int clipId);
     void updateTracksOnView() const;
-    void updateClipOnView(Clip *clip, int clipId);
+    void updateClipOnView(Clip *clip);
     void removeTrackFromView(int index);
     void updateOverlappedState();
     void reset();

@@ -78,7 +78,6 @@ void AppController::importAproject(const QString &filePath) {
     openAProject();
 }
 void AppController::onSetTempo(double tempo) {
-    // TODO: validate tempo
     auto model = AppModel::instance();
     auto oldTempo = model->tempo();
     auto newTempo = tempo > 0 ? tempo : model->tempo();

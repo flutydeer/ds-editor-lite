@@ -84,6 +84,8 @@ protected:
 };
 
 class AudioClip final : public Clip {
+    Q_OBJECT
+
 public:
     [[nodiscard]] ClipType type() const override {
         return Audio;
@@ -95,10 +97,17 @@ public:
         m_path = path;
         emit propertyChanged();
     }
-    AudioInfoModel info;
+    [[nodiscard]] const AudioInfoModel &audioInfo() const {
+        return m_info;
+    }
+    void setAudioInfo(const AudioInfoModel &audioInfo) {
+        m_info = audioInfo;
+        emit propertyChanged();
+    }
 
 private:
     QString m_path;
+    AudioInfoModel m_info;
 };
 
 class SingingClip final : public Clip {

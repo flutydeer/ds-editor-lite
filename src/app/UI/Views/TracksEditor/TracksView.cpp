@@ -196,19 +196,11 @@ void TracksView::onClipChanged(Track::ClipChangeType type, qsizetype trackIndex,
     auto trackModel = AppModel::instance()->tracks().at(trackIndex);
     auto track = m_trackListViewModel.tracks.at(trackIndex);
     auto dsClip = trackModel->findClipById(clipId);
-    switch (type) {
-        case Track::Inserted:
-            insertClipToTrack(dsClip, track, trackIndex);
-            connect(dsClip, &Clip::propertyChanged, this,
-                    [=] { updateClipOnView(dsClip, clipId); });
-            break;
-
-        case Track::Removed:
-            removeClipFromView(clipId);
-            break;
-    }
-    for (auto overlappedItem : trackModel->clips().overlappedItems()) {
-        qDebug() << "overlappedItem" << overlappedItem->id();
+    if (type == Track::Inserted) {
+        insertClipToTrack(dsClip, track, trackIndex);
+        connect(dsClip, &Clip::propertyChanged, this, [=] { updateClipOnView(dsClip); });
+    } else if (type == Track::Removed) {
+        removeClipFromView(clipId);
     }
     updateOverlappedState();
 }
@@ -303,14 +295,8 @@ TrackViewModel *TracksView::TrackListViewModel::findTrackById(int id) {
 void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
     connect(dsTrack, &Track::propertyChanged, this, [=] { updateTracksOnView(); });
     connect(dsTrack, &Track::clipChanged, this, [=](Track::ClipChangeType type, int clipId) {
-        // workaround for slot executed for 2 times
-        // if (m_prevClipId == clipId && m_prevClipChangeType == type)
-        //     return;
-
         auto index = AppModel::instance()->tracks().indexOf(dsTrack);
         onClipChanged(type, index, clipId);
-        m_prevClipId = clipId;
-        m_prevClipChangeType = type;
     });
     auto track = new TrackViewModel(dsTrack->id());
     for (int clipIndex = 0; clipIndex < dsTrack->clips().count(); clipIndex++) {
@@ -415,7 +401,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         clipItem->setPath(audioClip->path());
         clipItem->setTempo(AppModel::instance()->tempo());
         clipItem->setOverlapped(audioClip->overlapped());
-        clipItem->setAudioInfo(audioClip->info);
+        clipItem->setAudioInfo(audioClip->audioInfo());
         m_tracksScene->addCommonItem(clipItem);
         qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
         connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
@@ -481,6 +467,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         });
         track->clips.append(clipItem);
     }
+    connect(clip, &Clip::propertyChanged, this, [=] { updateClipOnView(clip); });
 }
 void TracksView::removeClipFromView(int clipId) {
     auto clipItem = findClipItemById(clipId);
@@ -510,9 +497,9 @@ void TracksView::updateTracksOnView() const {
         widget->setControl(track->control());
     }
 }
-void TracksView::updateClipOnView(Clip *clip, int clipId) {
+void TracksView::updateClipOnView(Clip *clip) {
     // qDebug() << "TracksView::updateClipOnView" << clipId;
-    auto item = findClipItemById(clipId);
+    auto item = findClipItemById(clip->id());
     item->setName(clip->name());
     item->setStart(clip->start());
     item->setClipStart(clip->clipStart());
@@ -523,9 +510,8 @@ void TracksView::updateClipOnView(Clip *clip, int clipId) {
     if (clip->type() == Clip::Audio) {
         auto audioClip = dynamic_cast<AudioClip *>(clip);
         auto audioItem = dynamic_cast<AudioClipGraphicsItem *>(item);
-        if (audioItem->path() != audioClip->path())
-            audioItem->setPath(audioClip->path());
-        audioItem->setAudioInfo(audioClip->info);
+        audioItem->setPath(audioClip->path());
+        audioItem->setAudioInfo(audioClip->audioInfo());
     } else if (clip->type() == Clip::Singing) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
         auto singingItem = dynamic_cast<SingingClipGraphicsItem *>(item);
