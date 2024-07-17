@@ -192,7 +192,7 @@ Track *AppModel::findTrackById(int id, int &trackIndex) {
     return nullptr;
 }
 double AppModel::tickToMs(double tick) const {
-    return tick * 60000 / m_tempo / 480;
+    return tick * 60 / m_tempo / 480 * 1000;
 }
 double AppModel::msToTick(double ms) const {
     return ms * 480 * m_tempo / 60000;

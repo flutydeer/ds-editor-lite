@@ -144,7 +144,6 @@ void ClipEditorToolBarView::onClipNameEdited(const QString &name) {
     args.mute = m_clip->mute();
     int trackIndex;
     AppModel::instance()->findClipById(m_clip->id(), trackIndex);
-    args.trackIndex = trackIndex;
 
     TracksViewController::instance()->onClipPropertyChanged(args);
 }

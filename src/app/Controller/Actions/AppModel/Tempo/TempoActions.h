@@ -9,11 +9,15 @@
 
 class AppModel;
 
-class TempoActions : public ActionSequence{
+class TempoActions : public ActionSequence {
 public:
     void editTempo(double oldTempo, double newTempo, AppModel *model);
+
+private:
+    [[nodiscard]] static double tickToMs(int tick, double tempo);
+    [[nodiscard]] static int msToTick(double ms, double tempo);
 };
 
 
 
-#endif //TEMPOACTIONS_H
+#endif // TEMPOACTIONS_H

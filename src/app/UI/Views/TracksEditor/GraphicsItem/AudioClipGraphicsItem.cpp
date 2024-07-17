@@ -27,8 +27,6 @@ double AudioClipGraphicsItem::tempo() const {
 }
 void AudioClipGraphicsItem::setTempo(double tempo) {
     m_tempo = tempo;
-    if (m_status == AppGlobal::Loaded)
-        updateLength();
 }
 void AudioClipGraphicsItem::setAudioInfo(const AudioInfoModel &info) {
     m_audioInfo = info;
@@ -43,9 +41,8 @@ void AudioClipGraphicsItem::setErrorMessage(const QString &errorMessage) {
     update();
 }
 void AudioClipGraphicsItem::onTempoChange(double tempo) {
-    qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
+    // qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
     m_tempo = tempo;
-    updateLength();
 }
 void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                             int opacity) {
@@ -146,20 +143,6 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
     // painter->drawRect(waveRect);
     // painter->drawLine(waveRect.topLeft(), waveRect.bottomRight());
     // painter->drawLine(waveRect.topRight(), waveRect.bottomLeft());
-}
-void AudioClipGraphicsItem::updateLength() {
-    // TODO: move to AppModel or AppController
-    // m_chunksPerTick = static_cast<double>(m_sampleRate) / m_chunkSize * 60 / m_tempo / 480;
-    // auto targetLength = m_frames / (m_sampleRate * 60 / m_tempo / 480);
-    // qDebug() << targetLength;
-    // if (length() != targetLength)
-    //     setLength(targetLength);
-    // // TODO: improve length changing experience
-    // if (clipStart() > targetLength)
-    //     setClipStart(0);
-    // if (clipStart() + clipLen() > targetLength)
-    //     setClipLen(targetLength - clipStart());
-    // emit propertyChanged();
 }
 void AudioClipGraphicsItem::addMenuActions(Menu *menu) {
     // auto actionLocateFile = menu->addAction("Locate audio file");

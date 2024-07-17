@@ -52,6 +52,7 @@ public:
 
     class ClipCommonProperties {
     public:
+        static ClipCommonProperties fromClip(Clip *clip);
         virtual ~ClipCommonProperties() = default;
         int id = -1;
 
@@ -62,8 +63,6 @@ public:
         int clipLen = 0;
         double gain = 0;
         bool mute = false;
-
-        qsizetype trackIndex = 0;
     };
     class AudioClipPropertyChangedArgs : public ClipCommonProperties {
     public:

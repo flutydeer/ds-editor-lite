@@ -34,7 +34,6 @@ private:
     QString clipTypeName() override {
         return "[Audio] ";
     }
-    void updateLength();
     void addMenuActions(Menu *menu) override;
 
     AppGlobal::AudioLoadStatus m_status;

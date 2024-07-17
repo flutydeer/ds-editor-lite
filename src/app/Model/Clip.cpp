@@ -84,6 +84,18 @@ bool Clip::isOverlappedWith(Clip *obj) const {
         return false;
     return true;
 }
+Clip::ClipCommonProperties Clip::ClipCommonProperties::fromClip(Clip *clip) {
+    ClipCommonProperties args;
+    args.name = clip->name();
+    args.id = clip->id();
+    args.start = clip->start();
+    args.clipStart = clip->clipStart();
+    args.length = clip->length();
+    args.clipLen = clip->clipLen();
+    args.gain = clip->gain();
+    args.mute = clip->mute();
+    return args;
+}
 const OverlapableSerialList<Note> &SingingClip::notes() const {
     return m_notes;
 }

@@ -105,34 +105,14 @@ void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, i
 }
 void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
     qDebug() << "TracksViewController::onClipPropertyChanged";
-    auto track = AppModel::instance()->tracks().at(args.trackIndex);
-    auto clip = track->findClipById(args.id);
-
-    // qDebug() << "args.id" << args.id;
-    // qDebug() << "args.name" << args.name;
-    // qDebug() << "args.start" << args.start;
-    // qDebug() << "args.clipStart" << args.clipStart;
-    // qDebug() << "args.length" << args.length;
-    // qDebug() << "args.clipLen" << args.clipLen;
+    int trackIndex = -1;
+    auto clip = AppModel::instance()->findClipById(args.id, trackIndex);
+    auto track = AppModel::instance()->tracks().at(trackIndex);
 
     if (clip->type() == Clip::Audio) {
         auto audioClip = dynamic_cast<AudioClip *>(clip);
-        // qDebug() << "clip path" << audioClip->path();
-        // auto audioArgs = dynamic_cast<const DsClip::AudioClipPropertyChangedArgs *>(&args);
-        // qDebug() << "args path" << audioArgs->path;
-        // audioClip->setPath(audioArgs->path);
 
-        Clip::ClipCommonProperties oldArgs;
-        oldArgs.name = audioClip->name();
-        oldArgs.id = audioClip->id();
-        oldArgs.start = audioClip->start();
-        oldArgs.clipStart = audioClip->clipStart();
-        oldArgs.length = audioClip->length();
-        oldArgs.clipLen = audioClip->clipLen();
-        oldArgs.gain = audioClip->gain();
-        oldArgs.mute = audioClip->mute();
-        oldArgs.trackIndex = args.trackIndex;
-
+        auto oldArgs = Clip::ClipCommonProperties::fromClip(audioClip);
         QList<Clip::ClipCommonProperties> oldArgsList;
         oldArgsList.append(oldArgs);
         QList<Clip::ClipCommonProperties> newArgsList;
@@ -147,17 +127,8 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
     } else if (clip->type() == Clip::Singing) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
 
-        Clip::ClipCommonProperties oldArgs;
-        oldArgs.name = singingClip->name();
-        oldArgs.id = singingClip->id();
-        oldArgs.start = singingClip->start();
-        oldArgs.clipStart = singingClip->clipStart();
-        oldArgs.length = singingClip->length();
-        oldArgs.clipLen = singingClip->clipLen();
-        oldArgs.gain = singingClip->gain();
-        oldArgs.mute = singingClip->mute();
-        oldArgs.trackIndex = args.trackIndex;
-
+        auto oldArgs = Clip::ClipCommonProperties::fromClip(singingClip);
+        // TODO: update singer info?
         QList<Clip::ClipCommonProperties> oldArgsList;
         oldArgsList.append(oldArgs);
         QList<Clip::ClipCommonProperties> newArgsList;
@@ -235,7 +206,7 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     audioClip->setLength(length);
     audioClip->setClipLen(length);
     audioClip->setPath(path);
-    audioClip->setAudioInfo(result) ;
+    audioClip->setAudioInfo(result);
     int trackIndex = 0;
     auto track = AppModel::instance()->findTrackById(trackId, trackIndex);
     if (!track) {
