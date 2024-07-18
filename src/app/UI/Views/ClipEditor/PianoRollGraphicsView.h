@@ -43,6 +43,9 @@ public:
     void setViewportCenterAt(double tick, double keyIndex);
     void setViewportCenterAtKeyIndex(double keyIndex);
 
+signals:
+    void keyIndexRangeChanged(double start, double end);
+
 public slots:
     void onSceneSelectionChanged() const;
     void onPitchEditorEditCompleted();

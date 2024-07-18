@@ -23,10 +23,14 @@ add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} Resources/lite_res.q
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 
 find_package(SndFile CONFIG REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets OpenGLWidgets)
+find_package(OpenGL)
 target_link_libraries(${PROJECT_NAME} PUBLIC
         SndFile::sndfile
         Qt${QT_VERSION_MAJOR}::Core
         Qt${QT_VERSION_MAJOR}::Widgets
+        Qt${QT_VERSION_MAJOR}::OpenGLWidgets
+        OpenGL32
         ${PLATFORM_LIB}
         talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Synthesis talcs::Midi
         opendspx

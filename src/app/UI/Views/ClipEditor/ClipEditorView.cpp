@@ -6,6 +6,7 @@
 
 #include "ClipEditorToolBarView.h"
 #include "PhonemeView.h"
+#include "PianoKeyboardView.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
@@ -53,10 +54,23 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     connect(model, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
     connect(model, &AppModel::selectedClipChanged, this, &ClipEditorView::onSelectedClipChanged);
 
+    // auto pianoKeyboardView = new PianoKeyboardView;
+    // pianoKeyboardView->setKeyIndexRange(m_pianoRollView->topKeyIndex(),
+    //                                     m_pianoRollView->bottomKeyIndex());
+    // connect(m_pianoRollView, &PianoRollGraphicsView::keyIndexRangeChanged, pianoKeyboardView,
+    //         &PianoKeyboardView::setKeyIndexRange);
+
+    // auto pianoViewLayout = new QHBoxLayout;
+    // pianoViewLayout->setSpacing(0);
+    // pianoViewLayout->setContentsMargins(0, 0, 0, 0);
+    // pianoViewLayout->addWidget(pianoKeyboardView);
+    // pianoViewLayout->addWidget(m_pianoRollView);
+
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_toolbarView);
     mainLayout->addWidget(m_timelineView);
     mainLayout->addWidget(m_pianoRollView);
+    // mainLayout->addLayout(pianoViewLayout);
     mainLayout->addWidget(m_phonemeView);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({1, 1, 1, 1});

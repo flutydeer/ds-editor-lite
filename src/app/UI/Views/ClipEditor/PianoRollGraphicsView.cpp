@@ -48,6 +48,11 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
             &PianoRollGraphicsView::setPlaybackPosition);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &PianoRollGraphicsView::setLastPlaybackPosition);
+
+    connect(this, &CommonGraphicsView::scaleChanged, this,
+            [=] { emit keyIndexRangeChanged(topKeyIndex(), bottomKeyIndex()); });
+    connect(this, &CommonGraphicsView::visibleRectChanged, this,
+            [=] { emit keyIndexRangeChanged(topKeyIndex(), bottomKeyIndex()); });
 }
 void PianoRollGraphicsView::onSceneSelectionChanged() const {
     if (m_canNotifySelectedNoteChanged) {
