@@ -130,7 +130,10 @@ void ClipEditorToolBarView::setClipPropertyEditorEnabled(bool on) {
     }
 }
 void ClipEditorToolBarView::setPianoRollEditToolsEnabled(bool on) {
-    // TODO: enable / disable arrow, pencil, ...
+    m_btnArrow->setEnabled(on);
+    m_btnNotePencil->setEnabled(on);
+    m_btnPitchPencil->setEnabled(on);
+    m_btnPitchAnchor->setEnabled(on);
 }
 void ClipEditorToolBarView::onClipNameEdited(const QString &name) {
     Clip::ClipCommonProperties args;

@@ -45,7 +45,6 @@ private:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
     Clip *m_clip = nullptr;
-    SingingClip *m_singingClip = nullptr;
     ClipEditorToolBarView *m_toolbarView;
     PianoRollGraphicsScene *m_pianoRollScene;
     PianoRollGraphicsView *m_pianoRollView;

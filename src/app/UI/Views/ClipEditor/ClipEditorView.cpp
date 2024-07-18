@@ -80,70 +80,97 @@ void ClipEditorView::onModelChanged() {
 void ClipEditorView::onSelectedClipChanged(Clip *clip) {
     reset();
 
+    // no clip selected
     if (clip == nullptr) {
-        qDebug() << "ClipEditorView::setIsSingingClip null";
         ClipEditorViewController::instance()->setCurrentSingingClip(nullptr);
         m_toolbarView->setClip(nullptr);
+        m_toolbarView->setVisible(false);
         m_toolbarView->setClipPropertyEditorEnabled(false);
         m_toolbarView->setPianoRollEditToolsEnabled(false);
 
         m_pianoRollView->setIsSingingClip(false);
         m_pianoRollView->setSceneVisibility(false);
+        m_pianoRollView->setEnabled(false);
 
         m_timelineView->setVisible(false);
         m_phonemeView->setVisible(false);
-        disconnect(m_clip, &Clip::propertyChanged, this,
+        if (m_clip) {
+            disconnect(m_clip, &Clip::propertyChanged, this,
                        &ClipEditorView::onClipPropertyChanged);
-        if (m_singingClip != nullptr) {
-            disconnect(m_singingClip, &SingingClip::noteChanged, this,
-                       &ClipEditorView::onNoteListChanged);
-            disconnect(m_singingClip, &SingingClip::noteSelectionChanged, this,
-                       &ClipEditorView::onNoteSelectionChanged);
+            if (m_clip->type() == Clip::Singing) {
+                auto singingClip = dynamic_cast<SingingClip *>(m_clip);
+                disconnect(singingClip, &SingingClip::noteChanged, this,
+                           &ClipEditorView::onNoteListChanged);
+                disconnect(singingClip, &SingingClip::noteSelectionChanged, this,
+                           &ClipEditorView::onNoteSelectionChanged);
+            }
         }
         m_clip = nullptr;
-        m_singingClip = nullptr;
-        m_pianoRollView->setEnabled(false);
         return;
     }
 
-    m_pianoRollView->setEnabled(true);
-    m_clip = clip;
-    qDebug() << "connect track and ClipEditorView";
-    connect(m_clip, &Clip::propertyChanged, this, &ClipEditorView::onClipPropertyChanged);
-    connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_timelineView,
-            &TimelineView::setTimeRange);
+    // one clip selected
+    connect(clip, &Clip::propertyChanged, this, &ClipEditorView::onClipPropertyChanged);
+    m_toolbarView->setVisible(true);
     m_toolbarView->setClip(clip);
     m_toolbarView->setClipPropertyEditorEnabled(true);
 
-    if (clip->type() != Clip::Singing)
-        return;
-    m_toolbarView->setPianoRollEditToolsEnabled(true);
-    m_pianoRollView->setIsSingingClip(true);
-    m_pianoRollView->setSceneVisibility(true);
-    m_timelineView->setVisible(true);
-    m_phonemeView->setVisible(true);
-    m_singingClip = dynamic_cast<SingingClip *>(m_clip);
-    m_phonemeView->setSingingClip(m_singingClip);
-    if (m_singingClip->notes().count() > 0) {
-        for (const auto note : m_singingClip->notes()) {
-            m_pianoRollView->insertNote(note);
-            m_phonemeView->insertNote(note);
-            m_notes.append(note);
-        }
-        auto firstNote = m_singingClip->notes().at(0);
-        qDebug() << "first note start" << firstNote->start();
-        m_pianoRollView->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
-    } else
-        m_pianoRollView->setViewportCenterAtKeyIndex(60);
-    for (auto note : m_singingClip->notes()) {
-        connect(note, &Note::propertyChanged, this,
+    if (clip->type() == Clip::Singing) {
+        m_pianoRollView->setEnabled(true);
+        connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_timelineView,
+                &TimelineView::setTimeRange);
+        m_toolbarView->setPianoRollEditToolsEnabled(true);
+        m_pianoRollView->setIsSingingClip(true);
+        m_pianoRollView->setSceneVisibility(true);
+        m_timelineView->setVisible(true);
+        m_phonemeView->setVisible(true);
+        auto singingClip = dynamic_cast<SingingClip *>(clip);
+        m_phonemeView->setSingingClip(singingClip);
+        if (singingClip->notes().count() > 0) {
+            for (const auto note : singingClip->notes()) {
+                m_pianoRollView->insertNote(note);
+                m_phonemeView->insertNote(note);
+                m_notes.append(note);
+            }
+            auto firstNote = singingClip->notes().at(0);
+            qDebug() << "first note start" << firstNote->start();
+            m_pianoRollView->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
+        } else
+            m_pianoRollView->setViewportCenterAtKeyIndex(60);
+        for (auto note : singingClip->notes()) {
+            connect(note, &Note::propertyChanged, this,
                     [=](Note::NotePropertyType type) { onNotePropertyChanged(type, note); });
+        }
+        connect(singingClip, &SingingClip::noteChanged, this, &ClipEditorView::onNoteListChanged);
+        connect(singingClip, &SingingClip::noteSelectionChanged, this,
+                &ClipEditorView::onNoteSelectionChanged);
+        connect(singingClip, &SingingClip::paramChanged, this, &ClipEditorView::onParamChanged);
+        ClipEditorViewController::instance()->setCurrentSingingClip(singingClip);
+    } else if (clip->type() == Clip::Audio) {
+        ClipEditorViewController::instance()->setCurrentSingingClip(nullptr);
+        m_toolbarView->setPianoRollEditToolsEnabled(false);
+
+        m_pianoRollView->setIsSingingClip(false);
+        m_pianoRollView->setSceneVisibility(false);
+        m_pianoRollView->setEnabled(false);
+
+        m_timelineView->setVisible(false);
+        m_phonemeView->setVisible(false);
+
+        if (m_clip) {
+            disconnect(m_clip, &Clip::propertyChanged, this,
+                       &ClipEditorView::onClipPropertyChanged);
+            if (m_clip->type() == Clip::Singing) {
+                auto singingClip = dynamic_cast<SingingClip *>(m_clip);
+                disconnect(singingClip, &SingingClip::noteChanged, this,
+                           &ClipEditorView::onNoteListChanged);
+                disconnect(singingClip, &SingingClip::noteSelectionChanged, this,
+                           &ClipEditorView::onNoteSelectionChanged);
+            }
+        }
     }
-    connect(m_singingClip, &SingingClip::noteChanged, this, &ClipEditorView::onNoteListChanged);
-    connect(m_singingClip, &SingingClip::noteSelectionChanged, this,
-            &ClipEditorView::onNoteSelectionChanged);
-    connect(m_singingClip, &SingingClip::paramChanged, this, &ClipEditorView::onParamChanged);
-    ClipEditorViewController::instance()->setCurrentSingingClip(m_singingClip);
+
+    m_clip = clip;
 }
 void ClipEditorView::onEditModeChanged(PianoRollEditMode mode) {
     m_mode = mode;
@@ -151,7 +178,8 @@ void ClipEditorView::onEditModeChanged(PianoRollEditMode mode) {
 }
 void ClipEditorView::onParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType) {
     if (paramName == ParamBundle::Pitch) {
-        auto pitchParam = m_singingClip->params.getParamByName(paramName);
+        auto singingClip = dynamic_cast<SingingClip *>(m_clip);
+        auto pitchParam = singingClip->params.getParamByName(paramName);
         m_pianoRollView->updatePitch(paramType, *pitchParam);
     }
 }
@@ -168,9 +196,6 @@ void ClipEditorView::reset() {
     m_phonemeView->reset();
 }
 void ClipEditorView::onClipPropertyChanged() {
-    if (!m_clip)
-        return;
-
     qDebug() << "ClipEditorView::handleClipPropertyChange" << m_clip->id() << m_clip->start();
     auto singingClip = dynamic_cast<SingingClip *>(m_clip);
     if (!singingClip)
@@ -195,14 +220,16 @@ void ClipEditorView::onNoteListChanged(SingingClip::NoteChangeType type, int id,
             m_phonemeView->removeNote(id);
             break;
     }
-    m_pianoRollView->updateOverlappedState(m_singingClip);
+    auto singingClip = dynamic_cast<SingingClip *>(m_clip);
+    m_pianoRollView->updateOverlappedState(singingClip);
     // printParts();
 }
 void ClipEditorView::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
+    auto singingClip = dynamic_cast<SingingClip *>(m_clip);
     switch (type) {
         case Note::TimeAndKey:
             m_pianoRollView->updateNoteTimeAndKey(note);
-            m_pianoRollView->updateOverlappedState(m_singingClip);
+            m_pianoRollView->updateOverlappedState(singingClip);
             m_phonemeView->updateNoteTime(note);
             // printParts();
             break;
@@ -215,7 +242,8 @@ void ClipEditorView::onNotePropertyChanged(Note::NotePropertyType type, Note *no
     }
 }
 void ClipEditorView::onNoteSelectionChanged() {
-    auto selectedNotes = m_singingClip->selectedNotes();
+    auto singingClip = dynamic_cast<SingingClip *>(m_clip);
+    auto selectedNotes = singingClip->selectedNotes();
     m_pianoRollView->updateNoteSelection(selectedNotes);
 }
 // void ClipEditorView::printParts() {
