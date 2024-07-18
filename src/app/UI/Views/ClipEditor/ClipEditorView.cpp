@@ -135,6 +135,10 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
         m_pianoRollView->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
     } else
         m_pianoRollView->setViewportCenterAtKeyIndex(60);
+    for (auto note : m_singingClip->notes()) {
+        connect(note, &Note::propertyChanged, this,
+                    [=](Note::NotePropertyType type) { onNotePropertyChanged(type, note); });
+    }
     connect(m_singingClip, &SingingClip::noteChanged, this, &ClipEditorView::onNoteListChanged);
     connect(m_singingClip, &SingingClip::noteSelectionChanged, this,
             &ClipEditorView::onNoteSelectionChanged);
