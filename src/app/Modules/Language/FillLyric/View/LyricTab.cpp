@@ -9,7 +9,7 @@
 
 namespace FillLyric {
 
-    LyricTab::LyricTab(QList<LangNote *> langNotes, QWidget *parent)
+    LyricTab::LyricTab(QList<LangNote> langNotes, QWidget *parent)
         : QWidget(parent), m_langNotes(std::move(langNotes)) {
         // textWidget
         m_lyricBaseWidget = new LyricBaseWidget();
@@ -85,11 +85,11 @@ namespace FillLyric {
 
         QStringList lyrics;
         QList<LangNote> langNotes;
-        for (const auto langNote : m_langNotes) {
-            if (skipSlurRes && (langNote->language == "Slur" || langNote->lyric == "-"))
+        for (const auto &langNote : m_langNotes) {
+            if (skipSlurRes && (langNote.language == "Slur" || langNote.lyric == "-"))
                 continue;
-            langNotes.append(*langNote);
-            lyrics.append(langNote->lyric);
+            langNotes.append(langNote);
+            lyrics.append(langNote.lyric);
         }
         notesCount = static_cast<int>(langNotes.size());
         m_lyricBaseWidget->m_textEdit->setPlainText(lyrics.join(" "));

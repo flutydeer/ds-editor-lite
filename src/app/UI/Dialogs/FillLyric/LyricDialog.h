@@ -15,7 +15,7 @@ public:
     explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);
     ~LyricDialog() override;
 
-    void exportLangNotes();
+    QList<LangNote> exportLangNotes();
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -38,7 +38,7 @@ private:
     Button *m_btnCancel;
 
     QList<Note *> m_notes;
-    QList<LangNote *> m_langNotes;
+    QList<LangNote> m_langNotes;
 };
 
 #endif // DS_EDITOR_LITE_LYRICDIALOG_H

@@ -214,12 +214,27 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
             selectedNotes = dynamic_cast<SingingClip *>(selectedClip)->selectedNotes();
     }
 
-    LyricDialog lyricDialog(selectedNotes, parent);
+    QList<Note *> inputNotes;
+    for (const auto &note : selectedNotes) {
+        const auto inputNote = new Note();
+        inputNote->setLyric(note->lyric());
+        inputNote->setLanguage(note->language());
+        inputNotes.append(inputNote);
+    }
+
+    LyricDialog lyricDialog(inputNotes, parent);
     lyricDialog.exec();
 
-    auto result = lyricDialog.result();
+    const auto result = lyricDialog.result();
     if (result == QDialog::Accepted) {
-        lyricDialog.exportLangNotes();
+        auto noteRes = lyricDialog.exportLangNotes();
+        for (int i = 0; i < selectedNotes.size(); i++) {
+            selectedNotes[i]->setLyric(noteRes[i].lyric);
+            selectedNotes[i]->setLanguage(noteRes[i].language);
+            selectedNotes[i]->setPronunciation(
+                Pronunciation(noteRes[i].syllable, noteRes[i].syllableRevised));
+            selectedNotes[i]->setPronCandidates(noteRes[i].candidates);
+        }
         ClipEditorViewController::instance()->onEditSelectedNotesLyric();
     }
 }

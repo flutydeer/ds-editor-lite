@@ -14,7 +14,7 @@ namespace FillLyric {
         friend class LyricDialog;
 
     public:
-        explicit LyricTab(QList<LangNote *> langNotes, QWidget *parent = nullptr);
+        explicit LyricTab(QList<LangNote> langNotes, QWidget *parent = nullptr);
         ~LyricTab() override;
 
         LyricBaseWidget *m_lyricBaseWidget;
@@ -39,7 +39,7 @@ namespace FillLyric {
     private:
         void modifyOption() const;
 
-        QList<LangNote *> m_langNotes;
+        QList<LangNote> m_langNotes;
 
         // Variables
         int notesCount = 0;

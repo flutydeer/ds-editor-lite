@@ -78,7 +78,7 @@ namespace FillLyric {
                 notes.append(note);
             }
 
-            if (linebreakFactory->contains(input[pos])) {
+            if (linebreakFactory->contains(lyric)) {
                 if (!notes.isEmpty())
                     result.append(notes);
                 notes.clear();

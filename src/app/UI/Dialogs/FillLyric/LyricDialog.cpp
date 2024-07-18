@@ -1,5 +1,8 @@
 #include "LyricDialog.h"
 
+#include "LangMgr/ILanguageManager.h"
+#include "LangMgr/LangAnalysis/CantoneseAnalysis.h"
+
 #include <QApplication>
 
 #include "Model/Note.h"
@@ -65,17 +68,19 @@ void LyricDialog::keyPressEvent(QKeyEvent *event) {
 }
 
 void LyricDialog::noteToPhonic() {
+    const auto langMgr = LangMgr::ILanguageManager::instance();
     for (const auto note : m_notes) {
-        const auto langNote = new LangNote();
-        langNote->lyric = note->lyric();
-        langNote->category = note->language();
-        langNote->syllable = note->pronunciation().original;
-        langNote->syllableRevised = note->pronunciation().edited;
-        langNote->candidates = note->pronCandidates();
+        auto langNote = LangNote(note->lyric());
+        langNote.language =
+            note->language() != "Unknown" ? note->language() : langMgr->analysis(note->lyric());
+        langNote.category = langMgr->language(langNote.language)->category();
+        langNote.syllable = note->pronunciation().original;
+        langNote.syllableRevised = note->pronunciation().edited;
+        langNote.candidates = note->pronCandidates();
 
         if (note->isSlur()) {
-            langNote->language = "Slur";
-            langNote->category = "Slur";
+            langNote.language = "Slur";
+            langNote.category = "Slur";
         }
 
         m_langNotes.append(langNote);
@@ -93,39 +98,20 @@ void LyricDialog::expandWindowRight() {
     resize(static_cast<int>(size.width() * 0.6), height());
 }
 
-void LyricDialog::exportLangNotes() {
+QList<LangNote> LyricDialog::exportLangNotes() {
     const auto noteLists = m_lyricWidget->exportLangNotes();
 
     const bool skipSlurRes = m_lyricWidget->exportSkipSlur();
 
     const bool exportLangRes = m_lyricWidget->exportLanguage();
 
-    QList<Note *> notes;
-    for (const auto note : m_notes) {
-        if (skipSlurRes && note->isSlur())
-            continue;
-        notes.append(note);
-    }
-
-    int count = 0;
+    QList<LangNote> result;
     for (const auto &langNotes : noteLists) {
-        if (count >= notes.size())
-            break;
-        for (const auto &langNote : langNotes) {
-            if (count >= notes.size())
-                break;
-            const auto note = notes.at(count);
-            note->setLyric(langNote.lyric);
-            note->setPronunciation(Pronunciation(langNote.syllable, langNote.syllableRevised));
-            note->setPronCandidates(langNote.candidates);
-            if (exportLangRes && note->language() == "Unknown") {
-                note->setLanguage(langNote.category);
-            }
-            count++;
+        for (auto& langNote : langNotes) {
+            result.append(langNote);
         }
-        if (count >= 1)
-            notes.at(count - 1)->setLineFeed(true);
     }
+    return result;
 }
 
 void LyricDialog::switchTab(const int &index) {

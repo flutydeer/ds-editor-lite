@@ -112,7 +112,7 @@ private:
     int m_length = 480;
     int m_keyIndex = 60;
     QString m_lyric;
-    QString m_language;
+    QString m_language = "Unknown";
     Pronunciation m_pronunciation;
     QStringList m_pronCandidates;
     Phonemes m_phonemes;
