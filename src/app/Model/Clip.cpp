@@ -107,7 +107,7 @@ void SingingClip::insertNote(Note *note) {
 }
 void SingingClip::removeNote(Note *note) {
     m_notes.remove(note);
-    emit noteChanged(Removed, note->id(), nullptr);
+    emit noteChanged(Removed, note->id(), note);
 }
 void SingingClip::insertNoteQuietly(Note *note) {
     m_notes.add(note);

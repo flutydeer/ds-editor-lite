@@ -10,11 +10,11 @@
 #include "UI/Views/Common/TimeGraphicsView.h"
 #include "Layers/NoteLayer.h"
 #include "UI/Views/Common/GraphicsLayerManager.h"
+#include "Model/Clip.h"
 
 class Note;
 class PianoRollGraphicsScene;
 class PitchEditorGraphicsItem;
-class SingingClip;
 class NoteGraphicsItem;
 
 using namespace ClipEditorGlobal;
@@ -24,16 +24,10 @@ class PianoRollGraphicsView final : public TimeGraphicsView {
 
 public:
     explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent = nullptr);
-    void setIsSingingClip(bool isSingingClip);
+    void setDataContext(SingingClip *clip);
     void setEditMode(PianoRollEditMode mode);
-    void insertNote(Note *note);
-    void removeNote(int noteId);
-    void updateNoteTimeAndKey(Note *note);
-    void updateNoteWord(Note *note);
-    void updateNoteSelection(const QList<Note *> &selectedNotes);
     void reset();
     [[nodiscard]] QList<int> selectedNotesId() const;
-    void updateOverlappedState(SingingClip *singingClip);
     void clearNoteSelections(NoteGraphicsItem *except = nullptr);
     void updatePitch(Param::ParamType paramType, const Param &param);
 
@@ -47,14 +41,49 @@ signals:
     void keyIndexRangeChanged(double start, double end);
 
 public slots:
+    void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
     void onSceneSelectionChanged() const;
     void onPitchEditorEditCompleted();
 
 private slots:
+    void onNoteChanged(SingingClip::NoteChangeType type, int id, Note *note);
+    void onNoteSelectionChanged();
+    void onParamChanged(ParamBundle::ParamName name, Param::ParamType type);
+
     void onRemoveSelectedNotes() const;
-    void onEditSelectedNotesLyrics();
+    void onEditSelectedNotesLyrics() const;
 
 private:
+    SingingClip *m_clip = nullptr;
+    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
+    NoteGraphicsItem *m_currentEditingNote = nullptr;
+
+    // Layers
+    GraphicsLayerManager m_layerManager;
+    NoteLayer m_noteLayer;
+    PitchEditorGraphicsItem *m_pitchItem;
+
+    bool m_selecting = false;
+    QList<Note *> m_cachedSelectedNotes;
+
+    bool m_canNotifySelectedNoteChanged = true;
+
+    // resize and move
+    bool m_tempQuantizeOff = false;
+    QPointF m_mouseDownPos;
+    int m_mouseDownStart{};
+    int m_mouseDownLength{};
+    int m_mouseDownKeyIndex{};
+    int m_deltaTick = 0;
+    int m_deltaKey = 0;
+    bool m_movedBeforeMouseUp = false;
+    int m_moveMaxDeltaKey = 127;
+    int m_moveMinDeltaKey = 0;
+
+    PianoRollEditMode m_mode = Select;
+    MouseMoveBehavior m_mouseMoveBehavior = None;
+    NoteGraphicsItem *m_currentDrawingNote; // a fake note for drawing
+
     void paintEvent(QPaintEvent *event) override;
     void prepareForMovingOrResizingNotes(QMouseEvent *event, QPointF scenePos, int keyIndex,
                                          NoteGraphicsItem *noteItem);
@@ -69,41 +98,18 @@ private:
     static void handleResizeNoteLeftCompleted(int noteId, int deltaTick);
     static void handleResizeNoteRightCompleted(int noteId, int deltaTick);
 
-    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
-    NoteGraphicsItem *m_currentEditingNote = nullptr;
-
-    // Layers
-    GraphicsLayerManager m_layerManager;
-    NoteLayer m_noteLayer;
-    PitchEditorGraphicsItem *m_pitchItem;
-
-    bool m_selecting = false;
-    QList<Note *> m_cachedSelectedNotes;
     void updateSelectionState();
-    bool m_canNotifySelectedNoteChanged = true;
-
-    // resize and move
-    bool m_tempQuantizeOff = false;
-    QPointF m_mouseDownPos;
-    int m_mouseDownStart{};
-    int m_mouseDownLength{};
-    int m_mouseDownKeyIndex{};
-    int m_deltaTick = 0;
-    int m_deltaKey = 0;
-    bool m_movedBeforeMouseUp = false;
-    int m_moveMaxDeltaKey = 127;
-    int m_moveMinDeltaKey = 0;
+    void updateOverlappedState();
+    void insertNoteToView(Note *note);
+    void removeNoteFromView(int noteId);
+    void updateNoteTimeAndKey(Note *note);
+    void updateNoteWord(Note *note);
     void moveSelectedNotes(int startOffset, int keyOffset);
     void resetSelectedNotesOffset();
     void updateMoveDeltaKeyRange();
     void resetMoveDeltaKeyRange();
     void resizeLeftSelectedNote(int offset);
     void resizeRightSelectedNote(int offset);
-
-    bool m_isSingingClipSelected = false;
-    PianoRollEditMode m_mode = Select;
-    MouseMoveBehavior m_mouseMoveBehavior = None;
-    NoteGraphicsItem *m_currentDrawingNote; // a fake note for drawing
 
     [[nodiscard]] double keyIndexToSceneY(double index) const;
     [[nodiscard]] double sceneYToKeyIndexDouble(double y) const;
@@ -112,6 +118,10 @@ private:
     void setPitchEditMode(bool on);
     NoteGraphicsItem *noteItemAt(const QPoint &pos);
     // OverlapableSerialList<Curve> buildCurves();
+
+    void handleNoteInserted(Note *note);
+    void handleNoteRemoved(Note *note);
+    void handleNotePropertyChanged(Note::NotePropertyType type, Note *note);
 };
 
 #endif // PIANOROLLGRAPHICSVIEW_H

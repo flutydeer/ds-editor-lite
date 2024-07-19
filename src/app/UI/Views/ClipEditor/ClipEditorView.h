@@ -36,32 +36,18 @@ public slots:
     void onModelChanged();
     void onSelectedClipChanged(Clip *clip);
 
-private slots:
-    void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
-    void onParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
-    void onClipPropertyChanged();
-
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
-    Clip *m_clip = nullptr;
     ClipEditorToolBarView *m_toolbarView;
     PianoRollGraphicsScene *m_pianoRollScene;
     PianoRollGraphicsView *m_pianoRollView;
     TimelineView *m_timelineView;
     PhonemeView *m_phonemeView;
-    ClipEditorGlobal::PianoRollEditMode m_mode = ClipEditorGlobal::Select;
-    QList<Note *> m_notes;
-
-    bool m_oneSingingClipSelected = false;
 
     void reset();
-    void onNoteListChanged(SingingClip::NoteChangeType type, int id, Note *note);
-    void onNotePropertyChanged(Note::NotePropertyType type, Note *note);
-    void onNoteSelectionChanged();
     // void printParts();
     void afterSetActivated() override;
-    void updateStyleSheet();
 };
 
 

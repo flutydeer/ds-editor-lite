@@ -23,8 +23,10 @@ void EditSingingClipPropertiesAction::execute() {
 
     auto deltaTick = m_newArgs.start - m_oldArgs.start;
     if (deltaTick != 0)
-        for (auto note : m_clip->notes())
+        for (auto note : m_clip->notes()) {
             note->setStart(note->start() + deltaTick);
+            note->notifyPropertyChanged(Note::TimeAndKey);
+        }
 
     m_clip->setName(m_newArgs.name);
     m_clip->setStart(m_newArgs.start);
@@ -40,8 +42,10 @@ void EditSingingClipPropertiesAction::undo() {
 
     auto deltaTick = m_newArgs.start - m_oldArgs.start;
     if (deltaTick != 0)
-        for (auto note : m_clip->notes())
+        for (auto note : m_clip->notes()) {
             note->setStart(note->start() - deltaTick);
+            note->notifyPropertyChanged(Note::TimeAndKey);
+        }
 
     m_clip->setName(m_oldArgs.name);
     m_clip->setStart(m_oldArgs.start);
