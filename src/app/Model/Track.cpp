@@ -45,13 +45,6 @@ void Track::setColor(const QColor &color) {
     m_color = color;
     emit propertyChanged();
 }
-void Track::removeClipQuietly(Clip *clip) {
-    m_clips.remove(clip);
-}
-void Track::insertClipQuietly(Clip *clip) {
-    m_clips.add(clip);
-}
-
 Clip *Track::findClipById(int id) {
     for (int i = 0; i < m_clips.count(); i++) {
         auto clip = m_clips.at(i);

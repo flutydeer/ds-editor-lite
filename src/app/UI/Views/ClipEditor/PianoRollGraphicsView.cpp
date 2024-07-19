@@ -104,8 +104,7 @@ void PianoRollGraphicsView::onPitchEditorEditCompleted() {
     // TODO: Add anchor curves
     ClipEditorViewController::instance()->onPitchEdited(curves);
 }
-void PianoRollGraphicsView::onNoteChanged(SingingClip::NoteChangeType type, int id, Note *note) {
-    Q_UNUSED(id);
+void PianoRollGraphicsView::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
     if (type == SingingClip::Inserted)
         handleNoteInserted(note);
     else if (type == SingingClip::Removed)

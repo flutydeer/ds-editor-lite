@@ -14,7 +14,7 @@ class EditClipCommonPropertiesAction : public IAction {
 public:
     static EditClipCommonPropertiesAction *build(const Clip::ClipCommonProperties &oldArgs,
                                                  const Clip::ClipCommonProperties &newArgs,
-                                                 Clip *clip, Track *track);
+                                                 Clip *clip);
     void execute() override;
     void undo() override;
 
@@ -22,7 +22,6 @@ private:
     Clip::ClipCommonProperties m_oldArgs;
     Clip::ClipCommonProperties m_newArgs;
     Clip *m_clip = nullptr;
-    Track *m_track = nullptr;
 };
 
 

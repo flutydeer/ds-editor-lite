@@ -33,10 +33,6 @@ public:
     [[nodiscard]] QColor color() const;
     void setColor(const QColor &color);
 
-    // void updateClip(DsClip *clip);
-    void removeClipQuietly(Clip *clip);
-    void insertClipQuietly(Clip *clip);
-
     Clip *findClipById(int id);
 
     class TrackProperties {

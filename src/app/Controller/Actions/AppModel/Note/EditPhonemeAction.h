@@ -13,13 +13,12 @@ class Note;
 
 class EditPhonemeAction final : public IAction {
 public:
-    static EditPhonemeAction *build(Note *note, const Phoneme &phoneme, SingingClip *clip);
+    static EditPhonemeAction *build(Note *note, const Phoneme &phoneme);
     void execute() override;
     void undo() override;
 
 private:
     Note *m_note = nullptr;
-    SingingClip *m_clip = nullptr;
     Phoneme m_phoneme;
     QList<Phoneme> m_phonemes;
 };

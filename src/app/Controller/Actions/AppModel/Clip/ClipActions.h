@@ -18,10 +18,10 @@ public:
     void removeClips(const QList<Clip *> &clips, Track *track);
     void editSingingClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                    const QList<Clip::ClipCommonProperties> &newArgs,
-                                   const QList<SingingClip *> &clips, Track *track);
+                                   const QList<SingingClip *> &clips);
     void editAudioClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
-                                   const QList<Clip::ClipCommonProperties> &newArgs,
-                                   const QList<AudioClip *> &clips, Track *track);
+                                 const QList<Clip::ClipCommonProperties> &newArgs,
+                                 const QList<AudioClip *> &clips);
 };
 
 

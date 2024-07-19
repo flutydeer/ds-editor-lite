@@ -121,7 +121,7 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
         clips.append(audioClip);
 
         auto a = new ClipActions;
-        a->editAudioClipProperties(oldArgsList, newArgsList, clips, track);
+        a->editAudioClipProperties(oldArgsList, newArgsList, clips);
         a->execute();
         HistoryManager::instance()->record(a);
     } else if (clip->type() == Clip::Singing) {
@@ -137,7 +137,7 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
         clips.append(singingClip);
 
         auto a = new ClipActions;
-        a->editSingingClipProperties(oldArgsList, newArgsList, clips, track);
+        a->editSingingClipProperties(oldArgsList, newArgsList, clips);
         a->execute();
         HistoryManager::instance()->record(a);
     }

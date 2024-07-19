@@ -8,7 +8,7 @@
 #include "Model/Note.h"
 
 EditNotesWordPropertiesAction *
-    EditNotesWordPropertiesAction::build(Note *note, Note::NoteWordProperties *args, SingingClip *clip) {
+    EditNotesWordPropertiesAction::build(Note *note, Note::NoteWordProperties *args) {
     Note::NoteWordProperties oldArgs;
     oldArgs.lyric = note->lyric();
     oldArgs.phonemes = note->phonemes();
@@ -18,7 +18,6 @@ EditNotesWordPropertiesAction *
     a->m_note = note;
     a->m_oldArgs = oldArgs;
     a->m_newArgs = *args;
-    a->m_clip = clip;
     return a;
 }
 void EditNotesWordPropertiesAction::execute() {

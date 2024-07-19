@@ -42,8 +42,7 @@ QString SingingClipGraphicsItem::audioCachePath() const {
 void SingingClipGraphicsItem::setAudioCachePath(const QString &path) {
     m_audioCachePath = path;
 }
-void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type, int id,
-                                                Note *note) {
+void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type, Note *note) {
     switch (type) {
         case SingingClip::Inserted:
             addNote(note);
@@ -55,7 +54,7 @@ void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type
         //     addNote(note);
         //     break;
         case SingingClip::Removed:
-            removeNote(id);
+            removeNote(note->id());
             break;
     }
 }

@@ -33,7 +33,7 @@ public:
     void setAudioCachePath(const QString &path);
 
 public slots:
-    void onNoteListChanged(SingingClip::NoteChangeType type, int id, Note *note);
+    void onNoteListChanged(SingingClip::NoteChangeType type, Note *note);
     void onNotePropertyChanged(Note::NotePropertyType type, Note *note);
 
 private:

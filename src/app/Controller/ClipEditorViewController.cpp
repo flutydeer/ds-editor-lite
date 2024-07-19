@@ -124,7 +124,7 @@ void ClipEditorViewController::onMoveNotes(const QList<int> &notesId, int deltaT
         notesToEdit.append(m_clip->findNoteById(id));
 
     auto a = new NoteActions;
-    a->editNotePosition(notesToEdit, deltaTick, deltaKey, m_clip);
+    a->editNotePosition(notesToEdit, deltaTick, deltaKey);
     a->execute();
     HistoryManager::instance()->record(a);
 }
@@ -134,7 +134,7 @@ void ClipEditorViewController::onResizeNotesLeft(const QList<int> &notesId, int 
         notesToEdit.append(m_clip->findNoteById(id));
 
     auto a = new NoteActions;
-    a->editNotesStartAndLength(notesToEdit, deltaTick, m_clip);
+    a->editNotesStartAndLength(notesToEdit, deltaTick);
     a->execute();
     HistoryManager::instance()->record(a);
 }
@@ -144,7 +144,7 @@ void ClipEditorViewController::onResizeNotesRight(const QList<int> &notesId, int
         notesToEdit.append(m_clip->findNoteById(id));
 
     auto a = new NoteActions;
-    a->editNotesLength(notesToEdit, deltaTick, m_clip);
+    a->editNotesLength(notesToEdit, deltaTick);
     a->execute();
     HistoryManager::instance()->record(a);
 }
@@ -155,7 +155,7 @@ void ClipEditorViewController::onAdjustPhoneme(const QList<int> &notesId,
         notesToEdit.append(m_clip->findNoteById(id));
 
     auto a = new NoteActions;
-    a->editNotesPhoneme(notesToEdit, phonemes, m_clip);
+    a->editNotesPhoneme(notesToEdit, phonemes);
     a->execute();
     HistoryManager::instance()->record(a);
 }
@@ -302,7 +302,7 @@ void ClipEditorViewController::editNotesLyric(const QList<Note *> &notes) const 
     }
 
     auto a = new NoteActions;
-    a->editNotesWordProperties(notes, args, m_clip);
+    a->editNotesWordProperties(notes, args);
     a->execute();
     HistoryManager::instance()->record(a);
 }

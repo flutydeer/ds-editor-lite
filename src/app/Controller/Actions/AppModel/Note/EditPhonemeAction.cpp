@@ -6,12 +6,11 @@
 
 #include "Model/Clip.h"
 
-EditPhonemeAction *EditPhonemeAction::build(Note *note, const Phoneme &phoneme, SingingClip *clip) {
+EditPhonemeAction *EditPhonemeAction::build(Note *note, const Phoneme &phoneme) {
     auto a = new EditPhonemeAction;
     a->m_note = note;
     a->m_phonemes = note->phonemes().edited;
     a->m_phoneme = phoneme;
-    a->m_clip = clip;
     return a;
 }
 void EditPhonemeAction::execute() {

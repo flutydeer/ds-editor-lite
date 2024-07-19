@@ -9,18 +9,15 @@
 
 EditSingingClipPropertiesAction *
     EditSingingClipPropertiesAction::build(const Clip::ClipCommonProperties &oldArgs,
-                                     const Clip::ClipCommonProperties &newArgs,
-                                     SingingClip *clip, Track *track) {
+                                           const Clip::ClipCommonProperties &newArgs,
+                                           SingingClip *clip) {
     auto a = new EditSingingClipPropertiesAction;
     a->m_oldArgs = oldArgs;
     a->m_newArgs = newArgs;
     a->m_clip = clip;
-    a->m_track = track;
     return a;
 }
 void EditSingingClipPropertiesAction::execute() {
-    m_track->removeClipQuietly(m_clip);
-
     auto deltaTick = m_newArgs.start - m_oldArgs.start;
     if (deltaTick != 0)
         for (auto note : m_clip->notes()) {
@@ -33,13 +30,9 @@ void EditSingingClipPropertiesAction::execute() {
     m_clip->setClipStart(m_newArgs.clipStart);
     m_clip->setLength(m_newArgs.length);
     m_clip->setClipLen(m_newArgs.clipLen);
-
-    m_track->insertClipQuietly(m_clip);
     m_clip->notifyPropertyChanged();
 }
 void EditSingingClipPropertiesAction::undo() {
-    m_track->removeClipQuietly(m_clip);
-
     auto deltaTick = m_newArgs.start - m_oldArgs.start;
     if (deltaTick != 0)
         for (auto note : m_clip->notes()) {
@@ -52,7 +45,5 @@ void EditSingingClipPropertiesAction::undo() {
     m_clip->setClipStart(m_oldArgs.clipStart);
     m_clip->setLength(m_oldArgs.length);
     m_clip->setClipLen(m_oldArgs.clipLen);
-
-    m_track->insertClipQuietly(m_clip);
     m_clip->notifyPropertyChanged();
 }

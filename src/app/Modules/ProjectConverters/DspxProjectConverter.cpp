@@ -107,9 +107,9 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 clip->setMute(castClip->control.mute);
                 auto notes = decodeNotes(castClip->notes);
                 for (auto &note : notes)
-                    clip->insertNoteQuietly(note);
+                    clip->insertNote(note);
                 clip->params = decodeSingingParams(castClip->params);
-                track->insertClipQuietly(clip);
+                track->insertClip(clip);
             } else if (dspxClip->type == QDspx::Clip::Type::Audio) {
                 const auto castClip = dspxClip.dynamicCast<QDspx::AudioClip>();
                 const auto clip = new AudioClip;
@@ -121,7 +121,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 clip->setGain(castClip->control.gain);
                 clip->setMute(castClip->control.mute);
                 clip->setPath(castClip->path);
-                track->insertClipQuietly(clip);
+                track->insertClip(clip);
             }
         }
     };

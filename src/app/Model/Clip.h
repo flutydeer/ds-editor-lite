@@ -128,8 +128,6 @@ public:
     [[nodiscard]] const OverlapableSerialList<Note> &notes() const;
     void insertNote(Note *note);
     void removeNote(Note *note);
-    void insertNoteQuietly(Note *note);
-    void removeNoteQuietly(Note *note);
     Note *findNoteById(int id);
     [[nodiscard]] QList<Note *> selectedNotes() const;
 
@@ -143,7 +141,7 @@ public:
                            OverlapableSerialList<Curve> &target);
 
 signals:
-    void noteChanged(SingingClip::NoteChangeType type, int id, Note *note);
+    void noteChanged(SingingClip::NoteChangeType type, Note *note);
     void noteSelectionChanged();
     void paramChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
 

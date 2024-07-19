@@ -22,39 +22,35 @@ void NoteActions::removeNotes(const QList<Note *> &notes, SingingClip *clip) {
     for (const auto note : notes)
         addAction(RemoveNoteAction::build(note, clip));
 }
-void NoteActions::editNotesStartAndLength(const QList<Note *> &notes, int delta,
-                                          SingingClip *clip) {
+void NoteActions::editNotesStartAndLength(const QList<Note *> &notes, int delta) {
     setName(tr("Edit note start and length"));
     for (const auto note : notes)
-        addAction(EditNoteStartAndLengthAction::build(note, delta, clip));
+        addAction(EditNoteStartAndLengthAction::build(note, delta));
 }
-void NoteActions::editNotesLength(const QList<Note *> &notes, int delta, SingingClip *clip) {
+void NoteActions::editNotesLength(const QList<Note *> &notes, int delta) {
     setName(tr("Edit note length"));
     for (const auto note : notes)
-        addAction(EditNotesLengthAction::build(note, delta, clip));
+        addAction(EditNotesLengthAction::build(note, delta));
 }
-void NoteActions::editNotePosition(const QList<Note *> &notes, int deltaTick, int deltaKey,
-                                   SingingClip *clip) {
+void NoteActions::editNotePosition(const QList<Note *> &notes, int deltaTick, int deltaKey) {
     setName(tr("Edit note position"));
     for (const auto note : notes)
-        addAction(EditNotePositionAction::build(note, deltaTick, deltaKey, clip));
+        addAction(EditNotePositionAction::build(note, deltaTick, deltaKey));
 }
 void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
-                                          const QList<Note::NoteWordProperties *> &args,
-                                          SingingClip *clip) {
+                                          const QList<Note::NoteWordProperties *> &args) {
     setName(tr("Edit note word properties"));
     int i = 0;
     for (const auto note : notes) {
-        addAction(EditNotesWordPropertiesAction::build(note, args[i], clip));
+        addAction(EditNotesWordPropertiesAction::build(note, args[i]));
         i++;
     }
 }
-void NoteActions::editNotesPhoneme(const QList<Note *> &notes, const QList<Phoneme> &phonemes,
-                                   SingingClip *clip) {
+void NoteActions::editNotesPhoneme(const QList<Note *> &notes, const QList<Phoneme> &phonemes) {
     setName(tr("Edit note phoneme"));
     int i = 0;
     for (const auto note : notes) {
-        addAction(EditPhonemeAction::build(note, phonemes[i], clip));
+        addAction(EditPhonemeAction::build(note, phonemes[i]));
         i++;
     }
 }

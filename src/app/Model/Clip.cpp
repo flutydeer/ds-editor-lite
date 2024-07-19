@@ -103,17 +103,11 @@ void SingingClip::insertNote(Note *note) {
     qDebug() << "AppModel SingingClip::insertNote" << note->start() << note->length()
              << note->lyric();
     m_notes.add(note);
-    emit noteChanged(Inserted, note->id(), note);
+    emit noteChanged(Inserted, note);
 }
 void SingingClip::removeNote(Note *note) {
     m_notes.remove(note);
-    emit noteChanged(Removed, note->id(), note);
-}
-void SingingClip::insertNoteQuietly(Note *note) {
-    m_notes.add(note);
-}
-void SingingClip::removeNoteQuietly(Note *note) {
-    m_notes.remove(note);
+    emit noteChanged(Removed, note);
 }
 void SingingClip::notifyNoteSelectionChanged() {
     emit noteSelectionChanged();

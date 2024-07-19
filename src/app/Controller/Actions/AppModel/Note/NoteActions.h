@@ -18,20 +18,18 @@ public:
     void removeNotes(const QList<Note *> &notes, SingingClip *clip);
 
     // Resize from left
-    void editNotesStartAndLength(const QList<Note *> &notes, int delta, SingingClip *clip);
+    void editNotesStartAndLength(const QList<Note *> &notes, int delta);
 
     // Resize from right
-    void editNotesLength(const QList<Note *> &notes, int delta, SingingClip *clip);
+    void editNotesLength(const QList<Note *> &notes, int delta);
 
     // Move notes
-    void editNotePosition(const QList<Note *> &notes, int deltaTick, int deltaKey,
-                          SingingClip *clip);
+    void editNotePosition(const QList<Note *> &notes, int deltaTick, int deltaKey);
 
     // Edit lyrics, pronunciations and phonemes
     void editNotesWordProperties(const QList<Note *> &notes,
-                                 const QList<Note::NoteWordProperties *> &args, SingingClip *clip);
-    void editNotesPhoneme(const QList<Note *> &notes, const QList<Phoneme> &phonemes,
-                          SingingClip *clip);
+                                 const QList<Note::NoteWordProperties *> &args);
+    void editNotesPhoneme(const QList<Note *> &notes, const QList<Phoneme> &phonemes);
 };
 
 

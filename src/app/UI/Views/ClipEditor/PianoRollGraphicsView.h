@@ -46,7 +46,7 @@ public slots:
     void onPitchEditorEditCompleted();
 
 private slots:
-    void onNoteChanged(SingingClip::NoteChangeType type, int id, Note *note);
+    void onNoteChanged(SingingClip::NoteChangeType type, Note *note);
     void onNoteSelectionChanged();
     void onParamChanged(ParamBundle::ParamName name, Param::ParamType type);
 
