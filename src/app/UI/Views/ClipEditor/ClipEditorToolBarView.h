@@ -8,32 +8,42 @@
 #include <QWidget>
 
 #include "Global/ClipEditorGlobal.h"
-#include "UI/Controls/EditLabel.h"
-#include "UI/Controls/SeekBar.h"
 
+
+class EditLabel;
+class SeekBar;
+class QAbstractButton;
 class Clip;
 class Button;
+
+using namespace ClipEditorGlobal;
 
 class ClipEditorToolBarView final : public QWidget {
     Q_OBJECT
 
 public:
     explicit ClipEditorToolBarView(QWidget *parent = nullptr);
-    void setClip(Clip *clip);
-    void setClipPropertyEditorEnabled(bool on);
-    void setPianoRollEditToolsEnabled(bool on);
+    void setDataContext(Clip *clip);
+    [[nodiscard]] PianoRollEditMode editMode() const;
 
 signals:
-    void clipNameChanged(const QString &name);
     void editModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
 
 private slots:
-    void onClipNameEdited(const QString &name);
+    void onPianoRollToolButtonToggled(QAbstractButton *button, bool checked);
+    void onClipNameEdited(const QString &name) const;
+    void onClipPropertyChanged();
 
 private:
+    void moveToNullClipState() const;
+    void moveToSingingClipState() const;
+    void moveToAudioClipState() const;
+
+    void setPianoRollToolsEnabled(bool on) const;
     int m_contentHeight = 28;
 
     Clip *m_clip = nullptr;
+    PianoRollEditMode m_editMode = Select;
 
     EditLabel *m_elClipName;
     // Button *m_btnMute{};

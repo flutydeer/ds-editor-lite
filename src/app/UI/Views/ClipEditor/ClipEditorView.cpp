@@ -24,6 +24,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     setObjectName("ClipEditorView");
 
     m_toolbarView = new ClipEditorToolBarView;
+    m_toolbarView->setVisible(false);
     connect(m_toolbarView, &ClipEditorToolBarView::editModeChanged, this,
             &ClipEditorView::onEditModeChanged);
 
@@ -94,13 +95,12 @@ void ClipEditorView::onModelChanged() {
 void ClipEditorView::onSelectedClipChanged(Clip *clip) {
     reset();
 
+    m_toolbarView->setDataContext(clip);
+
     // no clip selected
     if (clip == nullptr) {
         ClipEditorViewController::instance()->setCurrentSingingClip(nullptr);
-        m_toolbarView->setClip(nullptr);
         m_toolbarView->setVisible(false);
-        m_toolbarView->setClipPropertyEditorEnabled(false);
-        m_toolbarView->setPianoRollEditToolsEnabled(false);
 
         m_pianoRollView->setIsSingingClip(false);
         m_pianoRollView->setSceneVisibility(false);
@@ -126,14 +126,11 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
     // one clip selected
     connect(clip, &Clip::propertyChanged, this, &ClipEditorView::onClipPropertyChanged);
     m_toolbarView->setVisible(true);
-    m_toolbarView->setClip(clip);
-    m_toolbarView->setClipPropertyEditorEnabled(true);
 
     if (clip->type() == Clip::Singing) {
         m_pianoRollView->setEnabled(true);
         connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_timelineView,
                 &TimelineView::setTimeRange);
-        m_toolbarView->setPianoRollEditToolsEnabled(true);
         m_pianoRollView->setIsSingingClip(true);
         m_pianoRollView->setSceneVisibility(true);
         m_timelineView->setVisible(true);
@@ -162,7 +159,6 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
         ClipEditorViewController::instance()->setCurrentSingingClip(singingClip);
     } else if (clip->type() == Clip::Audio) {
         ClipEditorViewController::instance()->setCurrentSingingClip(nullptr);
-        m_toolbarView->setPianoRollEditToolsEnabled(false);
 
         m_pianoRollView->setIsSingingClip(false);
         m_pianoRollView->setSceneVisibility(false);

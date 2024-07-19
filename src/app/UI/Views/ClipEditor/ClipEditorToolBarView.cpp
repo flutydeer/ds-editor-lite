@@ -2,16 +2,17 @@
 // Created by fluty on 2024/2/10.
 //
 
-#include <QHBoxLayout>
-#include <QButtonGroup>
-
 #include "ClipEditorToolBarView.h"
 
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel.h"
 #include "Model/Clip.h"
 #include "UI/Controls/Button.h"
+#include "UI/Controls/EditLabel.h"
 #include "UI/Controls/ToolTipFilter.h"
+
+#include <QButtonGroup>
+#include <QHBoxLayout>
 
 ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) {
     setObjectName("ClipEditorToolBarView");
@@ -65,20 +66,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
     buttonGroup->addButton(m_btnPitchAnchor);
     buttonGroup->addButton(m_btnPitchPencil);
     connect(buttonGroup, &QButtonGroup::buttonToggled, this,
-            [=](QAbstractButton *button, bool checked) {
-                if (!checked)
-                    return;
-
-                qDebug() << button->objectName();
-                if (button == m_btnArrow)
-                    emit editModeChanged(ClipEditorGlobal::Select);
-                else if (button == m_btnNotePencil)
-                    emit editModeChanged(ClipEditorGlobal::DrawNote);
-                else if (button == m_btnPitchPencil)
-                    emit editModeChanged(ClipEditorGlobal::DrawPitch);
-                else if (button == m_btnPitchAnchor)
-                    emit editModeChanged(ClipEditorGlobal::EditPitchAnchor);
-            });
+            &ClipEditorToolBarView::onPianoRollToolButtonToggled);
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_elClipName);
@@ -116,37 +104,80 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) 
         "QComboBox:hover { background: #1AFFFFFF; }"
         "QComboBox:pressed { background: #10FFFFFF; }");
     setFixedHeight(m_contentHeight + 12);
+
+    moveToNullClipState();
 }
-void ClipEditorToolBarView::setClip(Clip *clip) {
+void ClipEditorToolBarView::setDataContext(Clip *clip) {
+    if (m_clip)
+        disconnect(m_clip, &Clip::propertyChanged, this,
+                   &ClipEditorToolBarView::onClipPropertyChanged);
+
     m_clip = clip;
-    m_elClipName->setText(clip ? clip->name() : QString());
+    if (clip == nullptr) {
+        moveToNullClipState();
+        return;
+    }
+    connect(m_clip, &Clip::propertyChanged, this, &ClipEditorToolBarView::onClipPropertyChanged);
+    if (clip->type() == Clip::Singing)
+        moveToSingingClipState();
+    else if (clip->type() == Clip::Audio)
+        moveToAudioClipState();
 }
-void ClipEditorToolBarView::setClipPropertyEditorEnabled(bool on) {
-    if (on) {
-        m_elClipName->setEnabled(true);
-        // TODO: mute and gain
-    } else {
-        m_elClipName->setEnabled(false);
+PianoRollEditMode ClipEditorToolBarView::editMode() const {
+    return m_editMode;
+}
+void ClipEditorToolBarView::onPianoRollToolButtonToggled(QAbstractButton *button, bool checked) {
+    if (!checked)
+        return;
+    if (button == m_btnArrow) {
+        m_editMode = Select;
+        emit editModeChanged(Select);
+    } else if (button == m_btnNotePencil) {
+        m_editMode = DrawNote;
+        emit editModeChanged(DrawNote);
+    } else if (button == m_btnPitchPencil) {
+        m_editMode = DrawPitch;
+        emit editModeChanged(DrawPitch);
+    } else if (button == m_btnPitchAnchor) {
+        m_editMode = EditPitchAnchor;
+        emit editModeChanged(EditPitchAnchor);
     }
 }
-void ClipEditorToolBarView::setPianoRollEditToolsEnabled(bool on) {
+void ClipEditorToolBarView::onClipNameEdited(const QString &name) const {
+    auto args = Clip::ClipCommonProperties::fromClip(m_clip);
+    args.name = name;
+    int trackIndex;
+    AppModel::instance()->findClipById(m_clip->id(), trackIndex);
+    TracksViewController::instance()->onClipPropertyChanged(args);
+}
+void ClipEditorToolBarView::onClipPropertyChanged() {
+    m_elClipName->setText(m_clip->name());
+}
+void ClipEditorToolBarView::moveToNullClipState() const {
+    m_elClipName->setEnabled(false);
+    m_elClipName->setText(QString());
+
+    setPianoRollToolsEnabled(false);
+}
+void ClipEditorToolBarView::moveToSingingClipState() const {
+    m_elClipName->setEnabled(true);
+    m_elClipName->setText(m_clip->name());
+
+    setPianoRollToolsEnabled(true);
+}
+void ClipEditorToolBarView::moveToAudioClipState() const {
+    m_elClipName->setEnabled(true);
+    m_elClipName->setText(m_clip->name());
+
+    setPianoRollToolsEnabled(false);
+}
+void ClipEditorToolBarView::setPianoRollToolsEnabled(bool on) const {
+    m_btnArrow->setVisible(on);
+    m_btnNotePencil->setVisible(on);
+    m_btnPitchPencil->setVisible(on);
+    m_btnPitchAnchor->setVisible(on);
     m_btnArrow->setEnabled(on);
     m_btnNotePencil->setEnabled(on);
     m_btnPitchPencil->setEnabled(on);
     m_btnPitchAnchor->setEnabled(on);
-}
-void ClipEditorToolBarView::onClipNameEdited(const QString &name) {
-    Clip::ClipCommonProperties args;
-    args.name = name;
-    args.id = m_clip->id();
-    args.start = m_clip->start();
-    args.clipStart = m_clip->clipStart();
-    args.length = m_clip->length();
-    args.clipLen = m_clip->clipLen();
-    args.gain = m_clip->gain();
-    args.mute = m_clip->mute();
-    int trackIndex;
-    AppModel::instance()->findClipById(m_clip->id(), trackIndex);
-
-    TracksViewController::instance()->onClipPropertyChanged(args);
 }
