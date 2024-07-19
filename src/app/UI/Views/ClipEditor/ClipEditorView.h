@@ -5,13 +5,10 @@
 #ifndef CLIPEDITVIEW_H
 #define CLIPEDITVIEW_H
 
-#include "Global/ClipEditorGlobal.h"
 #include "Model/Track.h"
 #include "PhonemeView.h"
 #include "Interface/IClipEditorView.h"
 #include "Interface/IPanel.h"
-#include "Model/Clip.h"
-#include "Model/Params.h"
 
 class ClipEditorToolBarView;
 class PhonemeView;

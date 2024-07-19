@@ -4,8 +4,6 @@
 
 #include "EditClipCommonPropertiesAction.h"
 
-#include "Model/Track.h"
-
 EditClipCommonPropertiesAction *
     EditClipCommonPropertiesAction::build(const Clip::ClipCommonProperties &oldArgs,
                                           const Clip::ClipCommonProperties &newArgs, Clip *clip) {

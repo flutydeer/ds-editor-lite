@@ -5,10 +5,10 @@
 #ifndef CLIPBOARDCONTROLLER_H
 #define CLIPBOARDCONTROLLER_H
 
-#include <QObject>
-
-#include "Utils/Singleton.h"
 #include "Global/ControllerGlobal.h"
+#include "Utils/Singleton.h"
+
+#include <QObject>
 
 class ClipboardController final : public QObject, public Singleton<ClipboardController> {
     Q_OBJECT

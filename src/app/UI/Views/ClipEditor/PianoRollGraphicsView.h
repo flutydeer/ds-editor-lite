@@ -6,11 +6,11 @@
 #define PIANOROLLGRAPHICSVIEW_H
 
 #include "Global/ClipEditorGlobal.h"
-#include "Model/Params.h"
-#include "UI/Views/Common/TimeGraphicsView.h"
 #include "Layers/NoteLayer.h"
-#include "UI/Views/Common/GraphicsLayerManager.h"
 #include "Model/Clip.h"
+#include "Model/Params.h"
+#include "UI/Views/Common/GraphicsLayerManager.h"
+#include "UI/Views/Common/TimeGraphicsView.h"
 
 class Note;
 class PianoRollGraphicsScene;

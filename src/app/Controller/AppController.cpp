@@ -2,10 +2,8 @@
 // Created by FlutyDeer on 2023/12/1.
 //
 
-#include <QFileInfo>
-#include <QDir>
-
 #include "AppController.h"
+
 #include "AudioDecodingController.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
@@ -17,6 +15,9 @@
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
 #include "UI/Controls/Toast.h"
+
+#include <QDir>
+#include <QFileInfo>
 
 AppController::AppController() {
     auto task = new LaunchLanguageEngineTask;

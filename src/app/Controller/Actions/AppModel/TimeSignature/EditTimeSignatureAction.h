@@ -5,8 +5,8 @@
 #ifndef EDITTIMESIGNATUREACTION_H
 #define EDITTIMESIGNATUREACTION_H
 
-#include "Modules/History/IAction.h"
 #include "Model/AppModel.h"
+#include "Modules/History/IAction.h"
 
 class EditTimeSignatureAction : public IAction {
 public:

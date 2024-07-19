@@ -5,9 +5,9 @@
 #ifndef REMOVETRACKSACTION_H
 #define REMOVETRACKSACTION_H
 
-#include <QList>
-
 #include "Modules/History/IAction.h"
+
+#include <QList>
 
 class Track;
 class AppModel;

@@ -5,10 +5,10 @@
 #ifndef PLAYBACKCONTROLLER_H
 #define PLAYBACKCONTROLLER_H
 
-#include <QObject>
-
 #include "Model/AppModel.h"
 #include "Utils/Singleton.h"
+
+#include <QObject>
 
 class PlaybackController final : public QObject, public Singleton<PlaybackController> {
     Q_OBJECT

@@ -5,11 +5,11 @@
 #ifndef TRACKSCONTROLLER_H
 #define TRACKSCONTROLLER_H
 
+#include "Global/AppGlobal.h"
+#include "Utils/Singleton.h"
+
 #include <QObject>
 #include <QStandardPaths>
-
-#include "Utils/Singleton.h"
-#include "Global/AppGlobal.h"
 
 class IMainWindow;
 class IPanel;

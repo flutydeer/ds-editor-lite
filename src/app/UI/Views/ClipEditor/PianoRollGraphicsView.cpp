@@ -10,14 +10,14 @@
 #include "PianoRollGraphicsScene.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/PlaybackController.h"
+#include "Global/AppGlobal.h"
+#include "GraphicsItem/NoteGraphicsItem.h"
 #include "GraphicsItem/PitchEditorGraphicsItem.h"
 #include "Model/AppModel.h"
-#include "Global/AppGlobal.h"
-#include "Utils/MathUtils.h"
-#include "GraphicsItem/NoteGraphicsItem.h"
 #include "Model/Clip.h"
 #include "Model/Curve.h"
 #include "Model/Note.h"
+#include "Utils/MathUtils.h"
 
 PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent)
     : TimeGraphicsView(scene, parent), m_layerManager(scene) {

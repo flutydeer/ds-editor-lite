@@ -3,6 +3,7 @@
 //
 
 #include "AudioDecodingController.h"
+
 #include "Model/Clip.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"

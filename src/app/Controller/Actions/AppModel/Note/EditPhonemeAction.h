@@ -5,8 +5,8 @@
 #ifndef EDITPHONEMEACTION_H
 #define EDITPHONEMEACTION_H
 
-#include "Modules/History/IAction.h"
 #include "Model/Note.h"
+#include "Modules/History/IAction.h"
 
 class SingingClip;
 class Note;

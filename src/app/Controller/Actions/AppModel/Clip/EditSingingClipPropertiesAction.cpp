@@ -4,8 +4,8 @@
 
 #include "EditSingingClipPropertiesAction.h"
 
-#include "Model/Track.h"
 #include "Model/Note.h"
+#include "Model/Track.h"
 
 EditSingingClipPropertiesAction *
     EditSingingClipPropertiesAction::build(const Clip::ClipCommonProperties &oldArgs,

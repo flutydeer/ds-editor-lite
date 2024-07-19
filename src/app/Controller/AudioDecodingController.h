@@ -5,11 +5,11 @@
 #ifndef AUDIODECODINGCONTROLLER_H
 #define AUDIODECODINGCONTROLLER_H
 
-#include <QObject>
-
 #include "Utils/Singleton.h"
 #include "Model/AppModel.h"
 #include "Model/Track.h"
+
+#include <QObject>
 
 class AudioClip;
 class DecodeAudioTask;

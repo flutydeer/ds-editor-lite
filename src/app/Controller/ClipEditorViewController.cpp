@@ -4,20 +4,19 @@
 
 #include "ClipEditorViewController.h"
 
-#include <QClipboard>
-#include <QMimeData>
-
-#include "Model/AppModel.h"
-#include "Global/ControllerGlobal.h"
 #include "TracksViewController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "Actions/AppModel/Param/ParamsActions.h"
+#include "Global/ControllerGlobal.h"
 #include "Interface/IClipEditorView.h"
+#include "Model/AppModel.h"
 #include "Modules/History/HistoryManager.h"
-
 #include "Modules/Language/S2p.h"
-#include <LangMgr/ILanguageManager.h>
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
+
+#include <QClipboard>
+#include <QMimeData>
+#include <LangMgr/ILanguageManager.h>
 
 void ClipEditorViewController::setView(IClipEditorView *view) {
     m_view = view;

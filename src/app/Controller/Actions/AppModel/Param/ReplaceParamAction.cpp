@@ -3,6 +3,7 @@
 //
 
 #include "ReplaceParamAction.h"
+
 #include "Model/Clip.h"
 
 ReplaceParamAction *ReplaceParamAction::build(ParamBundle::ParamName paramName,

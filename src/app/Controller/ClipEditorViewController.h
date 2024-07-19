@@ -5,12 +5,12 @@
 #ifndef CLIPEDITVIEWCONTROLLER_H
 #define CLIPEDITVIEWCONTROLLER_H
 
-#include <QObject>
-
 #include "Model/Clip.h"
+#include "Model/Note.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Utils/Singleton.h"
-#include "Model/Note.h"
+
+#include <QObject>
 
 class IClipEditorView;
 

@@ -6,13 +6,11 @@
 
 #include "ClipEditorToolBarView.h"
 #include "PhonemeView.h"
-#include "PianoKeyboardView.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/TracksViewController.h"
-#include "GraphicsItem/PitchEditorGraphicsItem.h"
 #include "Model/AppModel.h"
 #include "UI/Views/Common/TimelineView.h"
 

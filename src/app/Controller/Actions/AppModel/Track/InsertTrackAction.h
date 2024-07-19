@@ -5,9 +5,9 @@
 #ifndef ADDTRACKSACTION_H
 #define ADDTRACKSACTION_H
 
-#include <QtTypes>
-
 #include "Modules/History/IAction.h"
+
+#include <QtTypes>
 
 class Track;
 class AppModel;

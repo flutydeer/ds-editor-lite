@@ -5,12 +5,10 @@
 #ifndef DECODEAUDIOTASK_H
 #define DECODEAUDIOTASK_H
 
-#include <sndfile.hh>
-
 #include "Model/AudioInfoModel.h"
 #include "Modules/Task/Task.h"
 
-#include "Utils/UniqueObject.h"
+#include <sndfile.hh>
 
 class DecodeAudioTask : public Task {
 public:

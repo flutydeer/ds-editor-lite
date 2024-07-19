@@ -5,8 +5,8 @@
 #ifndef EDITCLIPCOMMONPROPERTIESACTION_H
 #define EDITCLIPCOMMONPROPERTIESACTION_H
 
-#include "Modules/History/IAction.h"
 #include "Model/Clip.h"
+#include "Modules/History/IAction.h"
 
 class Track;
 

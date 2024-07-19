@@ -2,15 +2,15 @@
 // Created by fluty on 24-2-17.
 //
 
-#include <QGuiApplication>
-#include <QClipboard>
-#include <QMimeData>
-
 #include "ClipboardController.h"
+
 #include "ClipEditorViewController.h"
 #include "PlaybackController.h"
 
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QJsonDocument>
+#include <QMimeData>
 
 // TODO: 要求传入类型
 void ClipboardController::copy() {

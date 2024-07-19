@@ -5,8 +5,8 @@
 #ifndef EDITETRACKACTION_H
 #define EDITETRACKACTION_H
 
-#include "Modules/History/IAction.h"
 #include "Model/Track.h"
+#include "Modules/History/IAction.h"
 
 class EditTrackPropertiesAction final : public IAction {
 public:
