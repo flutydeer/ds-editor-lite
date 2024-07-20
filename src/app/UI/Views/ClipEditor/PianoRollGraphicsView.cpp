@@ -43,7 +43,6 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     connect(scene, &QGraphicsScene::selectionChanged, this,
             &PianoRollGraphicsView::onSceneSelectionChanged);
 
-    auto playbackController = PlaybackController::instance();
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PianoRollGraphicsView::setPlaybackPosition);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,

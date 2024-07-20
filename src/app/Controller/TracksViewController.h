@@ -5,6 +5,8 @@
 #ifndef TRACKSVIEWCONTROLLER_H
 #define TRACKSVIEWCONTROLLER_H
 
+#define trackController TracksViewController::instance()
+
 #include "Model/Clip.h"
 #include "Model/Track.h"
 #include "Tasks/DecodeAudioTask.h"

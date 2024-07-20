@@ -93,7 +93,6 @@ TracksView::TracksView(QWidget *parent) : QWidget(parent) {
     m_timeline->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
             &TracksGraphicsView::onWheelHorScale);
-    auto playbackController = PlaybackController::instance();
     connect(m_timeline, &TimelineView::setLastPositionTriggered, playbackController,
             [=](double tick) {
                 playbackController->setLastPosition(tick);

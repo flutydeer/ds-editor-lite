@@ -77,7 +77,7 @@ AudioContext::AudioContext(QObject *parent) : QObject(parent), m_levelMeterTimer
         for (auto track : AppModel::instance()->tracks()) {
             if (!m_trackLevelMeterValue.contains(track))
                 continue;
-            if (PlaybackController::instance()->playbackStatus() != PlaybackController::Playing &&
+            if (PlaybackController::instance()->playbackStatus() != Playing &&
                 (m_trackLevelMeterValue[track].first->targetValue() > -96 ||
                  m_trackLevelMeterValue[track].second->targetValue() > -96)) {
                 m_trackLevelMeterValue[track].first->setTargetValue(-96);
@@ -98,17 +98,17 @@ talcs::FutureAudioSourceClipSeries *AudioContext::trackSynthesisClipSeries(const
     return m_trackSynthesisClipSeriesDict[track];
 }
 
-void AudioContext::handlePlaybackStatusChange(PlaybackController::PlaybackStatus status) {
+void AudioContext::handlePlaybackStatusChange(PlaybackStatus status) {
     auto options = AppOptions::instance()->audio();
     switch (status) {
-        case PlaybackController::Stopped:
+        case Stopped:
             AudioSystem::instance()->transport()->pause();
             if (options->closeDeviceOnPlaybackStop && AudioSystem::instance()->device())
                 AudioSystem::instance()->device()->close();
             AudioSystem::instance()->transport()->setPosition(
-                tickToSample(PlaybackController::instance()->lastPosition()));
+                tickToSample(playbackController->lastPosition()));
             break;
-        case PlaybackController::Playing:
+        case Playing:
             if (AudioSystem::instance()->device() && !AudioSystem::instance()->device()->isOpen())
                 AudioSystem::instance()->device()->open(
                     AudioSystem::instance()->adoptedBufferSize(),
@@ -120,7 +120,7 @@ void AudioContext::handlePlaybackStatusChange(PlaybackController::PlaybackStatus
                 AudioSystem::instance()->device()->start(AudioSystem::instance()->playback());
             AudioSystem::instance()->transport()->play();
             break;
-        case PlaybackController::Paused:
+        case Paused:
             AudioSystem::instance()->transport()->pause();
             break;
     }
@@ -337,7 +337,7 @@ void AudioContext::handleDeviceChangeDuringPlayback() {
     if (AudioSystem::instance()->adoptedSampleRate())
         AudioSystem::instance()->transport()->setPosition(
             tickToSample(PlaybackController::instance()->position()));
-    if (PlaybackController::instance()->playbackStatus() == PlaybackController::Playing) {
+    if (PlaybackController::instance()->playbackStatus() == Playing) {
         if (AudioSystem::instance()->device() && !AudioSystem::instance()->device()->isStarted())
             AudioSystem::instance()->device()->start(AudioSystem::instance()->playback());
         AudioSystem::instance()->transport()->play();

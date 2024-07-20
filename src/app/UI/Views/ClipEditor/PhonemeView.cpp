@@ -28,7 +28,6 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     });
     connect(appModel, &AppModel::timeSignatureChanged, this, &PhonemeView::setTimeSignature);
     connect(appModel, &AppModel::quantizeChanged, this, &PhonemeView::setQuantize);
-    auto playbackController = PlaybackController::instance();
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PhonemeView::setPosition);
 }

@@ -3,6 +3,7 @@
 //
 
 #include "ClipboardController.h"
+#include "ClipboardController_p.h"
 
 #include "ClipEditorViewController.h"
 #include "PlaybackController.h"
@@ -12,13 +13,17 @@
 #include <QJsonDocument>
 #include <QMimeData>
 
+ClipboardController::ClipboardController() : d_ptr(new ClipboardControllerPrivate(this)){
+}
 // TODO: 要求传入类型
 void ClipboardController::copy() {
+    Q_D(ClipboardController);
     qDebug() << "ClipboardController::copy";
-    copyCutSelectedItems(ControllerGlobal::NoteWithParams, false);
+    d->copyCutSelectedItems(ControllerGlobal::NoteWithParams, false);
 }
 void ClipboardController::cut() {
-    copyCutSelectedItems(ControllerGlobal::NoteWithParams, true);
+    Q_D(ClipboardController);
+    d->copyCutSelectedItems(ControllerGlobal::NoteWithParams, true);
 }
 void ClipboardController::paste() {
     qDebug() << "ClipboardController::paste";
@@ -33,7 +38,7 @@ void ClipboardController::paste() {
         ClipEditorViewController::instance()->pasteNotesWithParams(info, static_cast<int>(tick));
     }
 }
-void ClipboardController::copyCutSelectedItems(ControllerGlobal::ElemType type, bool isCut) {
+void ClipboardControllerPrivate::copyCutSelectedItems(ControllerGlobal::ElemType type, bool isCut) {
     switch (type) {
         case ControllerGlobal::LoopStart:
             break;
@@ -54,7 +59,7 @@ void ClipboardController::copyCutSelectedItems(ControllerGlobal::ElemType type, 
             break;
     }
 }
-void ClipboardController::copyCutNoteWithParams(bool isCut) {
+void ClipboardControllerPrivate::copyCutNoteWithParams(bool isCut) {
     qDebug() << "ClipboardController::copyNoteWithParams isCut:" << isCut;
     if (isCut)
         ClipEditorViewController::instance()->cutSelectedNotesWithParams();

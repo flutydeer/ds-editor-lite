@@ -5,20 +5,22 @@
 #ifndef PLAYBACKCONTROLLER_H
 #define PLAYBACKCONTROLLER_H
 
+#define playbackController PlaybackController::instance()
+
 #include "Model/AppModel.h"
 #include "Utils/Singleton.h"
+#include "Global/PlaybackGlobal.h"
 
 #include <QObject>
 
+using namespace PlaybackGlobal;
+
+class PlaybackControllerPrivate;
 class PlaybackController final : public QObject, public Singleton<PlaybackController> {
     Q_OBJECT
 public:
     explicit PlaybackController();
-    enum PlaybackStatus {
-        Stopped,
-        Playing,
-        Paused,
-    };
+    ~PlaybackController() override;
     [[nodiscard]] PlaybackStatus playbackStatus() const;
 
     [[nodiscard]] double position() const;
@@ -48,19 +50,9 @@ public slots:
     void onTempoChanged(double tempo);
     void onModelChanged();
 
-private slots:
-    void onValidationFinished(bool passed);
-
 private:
-    double m_position = 0;
-    double m_lastPlayPosition = 0;
-    double m_sampleRate = 48000;
-    double m_tempo = 120;
-    PlaybackStatus m_playbackStatus = Stopped;
-    bool m_playRequested = false;
-
-    [[nodiscard]] double samplePosToTick(int sample) const;
-    [[nodiscard]] int tickToSamplePos(double tick) const;
+    Q_DECLARE_PRIVATE(PlaybackController)
+    PlaybackControllerPrivate *d_ptr;
 };
 
 

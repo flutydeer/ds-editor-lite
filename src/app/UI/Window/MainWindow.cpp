@@ -55,13 +55,6 @@ MainWindow::MainWindow() {
 
     Dialog::setGlobalContext(this);
     Toast::setGlobalContext(this);
-
-    auto appController = AppController::instance();
-    auto trackController = TracksViewController::instance();
-    auto playbackController = PlaybackController::instance();
-    auto historyManager = HistoryManager::instance();
-    auto taskManager = TaskManager::instance();
-
     appController->setMainWindow(this);
 
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
@@ -265,7 +258,6 @@ void MainWindow::onTaskStatusChanged(const TaskStatus &status) {
     m_progressBar->setIndeterminate(status.isIndetermine);
 }
 bool MainWindow::onSave() {
-    auto appController = AppController::instance();
     if (appController->projectPath().isEmpty()) {
         onSaveAs();
     } else {
@@ -274,7 +266,6 @@ bool MainWindow::onSave() {
     return true;
 }
 bool MainWindow::onSaveAs() {
-    auto appController = AppController::instance();
     auto lastDir = appController->projectPath().isEmpty()
                        ? appController->lastProjectFolder() + "/" + appController->projectName()
                        : appController->projectPath();
@@ -326,7 +317,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         });
         m_waitDoneDialogDelayTimer.start();
 
-        auto taskManager = TaskManager::instance();
         taskManager->terminateAllTasks();
         auto thread = new QThread;
         taskManager->moveToThread(thread);

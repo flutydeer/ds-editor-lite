@@ -5,6 +5,8 @@
 #ifndef AUDIODECODINGCONTROLLER_H
 #define AUDIODECODINGCONTROLLER_H
 
+#define audioDecodingController AudioDecodingController::instance()
+
 #include "Utils/Singleton.h"
 #include "Model/AppModel.h"
 #include "Model/Track.h"

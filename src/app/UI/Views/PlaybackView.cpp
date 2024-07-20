@@ -3,14 +3,17 @@
 //
 
 
+#include "PlaybackView.h"
+
+#include "Controller/PlaybackController.h"
+#include "Model/AppModel.h"
+#include "UI/Controls/ComboBox.h"
+#include "UI/Controls/EditLabel.h"
+#include "UI/Controls/LineEdit.h"
+
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
-
-#include "PlaybackView.h"
-#include "UI/Controls/EditLabel.h"
-#include "UI/Controls/ComboBox.h"
-#include "UI/Controls/LineEdit.h"
 
 PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTempo = new EditLabel;
@@ -46,9 +49,9 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
 
     m_btnPlayPause = new QPushButton(this);
     connect(m_btnPlayPause, &QPushButton::clicked, this, [=] {
-        if (m_status == PlaybackController::Paused || m_status == PlaybackController::Stopped)
+        if (m_status == Paused || m_status == Stopped)
             playTriggered();
-        else if (m_status == PlaybackController::Playing)
+        else if (m_status == Playing)
             pauseTriggered();
     });
     m_btnPlayPause->setShortcut(Qt::Key_Space);
@@ -174,7 +177,7 @@ void PlaybackView::updateView() {
     m_tempo = model->tempo();
     m_numerator = model->timeSignature().numerator;
     m_denominator = model->timeSignature().denominator;
-    m_tick = static_cast<int>(PlaybackController::instance()->position());
+    m_tick = static_cast<int>(playbackController->position());
     m_status = PlaybackController::instance()->playbackStatus();
 
     updateTempoView();
@@ -196,7 +199,7 @@ void PlaybackView::onPositionChanged(double tick) {
     m_tick = static_cast<int>(tick);
     updateTimeView();
 }
-void PlaybackView::onPlaybackStatusChanged(PlaybackController::PlaybackStatus status) {
+void PlaybackView::onPlaybackStatusChanged(PlaybackStatus status) {
     m_status = status;
     updatePlaybackControlView();
 }
@@ -227,13 +230,13 @@ void PlaybackView::updateTimeView() {
     m_elTime->setText(toFormattedTickTime(m_tick));
 }
 void PlaybackView::updatePlaybackControlView() {
-    if (m_status == PlaybackController::Playing) {
+    if (m_status == Playing) {
         m_btnPlay->setChecked(true);
         m_btnPlay->setIcon(icoPlayBlack);
 
         m_btnPause->setChecked(false);
         m_btnPause->setIcon(icoPauseWhite);
-    } else if (m_status == PlaybackController::Paused) {
+    } else if (m_status == Paused) {
         m_btnPlay->setChecked(false);
         m_btnPlay->setIcon(icoPlayWhite);
 

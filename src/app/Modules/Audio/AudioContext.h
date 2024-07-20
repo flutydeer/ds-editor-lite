@@ -15,6 +15,7 @@
 #include <TalcsSynthesis/FutureAudioSourceClipSeries.h>
 
 #include "Controller/PlaybackController.h"
+#include "Global/PlaybackGlobal.h"
 
 class QFile;
 
@@ -41,7 +42,7 @@ public:
     void removeSynthesisListener(SynthesisListener *listener);
 
 public slots:
-    void handlePlaybackStatusChange(PlaybackController::PlaybackStatus status);
+    void handlePlaybackStatusChange(PlaybackStatus status);
     void handlePlaybackPositionChange(double positionTick);
 
     void handleVstCallbackPositionChange(qint64 positionSample);

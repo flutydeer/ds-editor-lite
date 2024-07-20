@@ -5,6 +5,8 @@
 #ifndef CLIPEDITVIEWCONTROLLER_H
 #define CLIPEDITVIEWCONTROLLER_H
 
+#define clipController ClipEditorViewController::instance()
+
 #include "Model/Clip.h"
 #include "Model/Note.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
@@ -12,12 +14,15 @@
 
 #include <QObject>
 
+class ClipEditorViewControllerPrivate;
 class IClipEditorView;
 
 class ClipEditorViewController final : public QObject, public Singleton<ClipEditorViewController> {
     Q_OBJECT
 
 public:
+    explicit  ClipEditorViewController();
+    ~ClipEditorViewController() override;
     void setView(IClipEditorView *view);
     void setCurrentSingingClip(SingingClip *clip);
     void copySelectedNotesWithParams() const;
@@ -54,12 +59,8 @@ public slots:
     void onFillLyric(QWidget *parent);
 
 private:
-    IClipEditorView *m_view = nullptr;
-    SingingClip *m_clip = nullptr;
-
-    void editNotesLyric(const QList<Note *> &notes) const;
-    void removeNotes(const QList<Note *> &notes) const;
-    [[nodiscard]] NotesParamsInfo buildNoteParamsInfo() const;
+    Q_DECLARE_PRIVATE(ClipEditorViewController);
+    ClipEditorViewControllerPrivate *d_ptr;
 };
 
 

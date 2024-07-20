@@ -7,11 +7,13 @@
 
 #include <QWidget>
 
-#include "Controller/PlaybackController.h"
+#include "Global/PlaybackGlobal.h"
 
 class EditLabel;
 class QPushButton;
 class ComboBox;
+
+using namespace PlaybackGlobal;
 
 class PlaybackView final : public QWidget {
     Q_OBJECT
@@ -32,7 +34,7 @@ public slots:
     void onTempoChanged(double tempo);
     void onTimeSignatureChanged(int numerator, int denominator);
     void onPositionChanged(double tick);
-    void onPlaybackStatusChanged(PlaybackController::PlaybackStatus status);
+    void onPlaybackStatusChanged(PlaybackStatus status);
 
 private:
     EditLabel *m_elTempo;
@@ -49,7 +51,7 @@ private:
     int m_numerator = 4;
     int m_denominator = 4;
     int m_tick = 0;
-    PlaybackController::PlaybackStatus m_status = PlaybackController::Stopped;
+    PlaybackStatus m_status = Stopped;
 
     int m_contentHeight = 32;
 

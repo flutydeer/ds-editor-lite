@@ -24,7 +24,6 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    auto appController = AppController::instance();
     connect(appController, &AppController::activatedPanelChanged, this,
             [=](AppGlobal::PanelType panel) { d->onActivatedPanelChanged(panel); });
 
@@ -75,7 +74,6 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     auto menuEdit = new Menu(tr("&Edit"), this);
 
-    auto historyManager = HistoryManager::instance();
     d->m_actionUndo = new QAction(tr("&Undo"), this);
     d->m_actionUndo->setEnabled(false);
     d->m_actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
@@ -133,7 +131,6 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     d->m_actionFillLyrics = new QAction(tr("Fill Lyrics..."), this);
     d->m_actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
     d->m_actionFillLyrics->setEnabled(false);
-    auto clipController = ClipEditorViewController::instance();
     connect(d->m_actionFillLyrics, &QAction::triggered, clipController,
             [this] { ClipEditorViewController::instance()->onFillLyric(this); });
     menuModify->addAction(d->m_actionFillLyrics);
@@ -260,7 +257,6 @@ void MainMenuViewPrivate::onUndoRedoChanged(bool canUndo, const QString &undoNam
 void MainMenuViewPrivate::onActivatedPanelChanged(AppGlobal::PanelType panel) {
     Q_Q(MainMenuView);
     m_panelType = panel;
-    auto clipController = ClipEditorViewController::instance();
     if (panel == AppGlobal::ClipEditor) {
         m_actionSelectAll->setEnabled(clipController->canSelectAll());
         QObject::connect(clipController, &ClipEditorViewController::canSelectAllChanged,

@@ -5,13 +5,18 @@
 #ifndef CLIPBOARDCONTROLLER_H
 #define CLIPBOARDCONTROLLER_H
 
-#include "Global/ControllerGlobal.h"
+#define clipboardController ClipboardController::instance()
+
 #include "Utils/Singleton.h"
 
 #include <QObject>
 
+class ClipboardControllerPrivate;
 class ClipboardController final : public QObject, public Singleton<ClipboardController> {
     Q_OBJECT
+
+public:
+    ClipboardController();
 
 public slots:
     void copy();
@@ -19,8 +24,8 @@ public slots:
     void paste();
 
 private:
-    static void copyCutSelectedItems(ControllerGlobal::ElemType type, bool isCut);
-    static void copyCutNoteWithParams(bool isCut);
+    Q_DECLARE_PRIVATE(ClipboardController)
+    ClipboardControllerPrivate *d_ptr;
 };
 
 

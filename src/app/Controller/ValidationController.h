@@ -5,6 +5,8 @@
 #ifndef VALIDATIONCONTROLLER_H
 #define VALIDATIONCONTROLLER_H
 
+#define validationController ValidationController::instance()
+
 #include "Model/AppModel.h"
 #include "Model/Track.h"
 #include "Utils/Singleton.h"

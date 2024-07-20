@@ -5,15 +5,16 @@
 #ifndef TRACKSCONTROLLER_H
 #define TRACKSCONTROLLER_H
 
+#define appController AppController::instance()
+
 #include "Global/AppGlobal.h"
 #include "Utils/Singleton.h"
 
 #include <QObject>
-#include <QStandardPaths>
 
+class AppControllerPrivate;
 class IMainWindow;
 class IPanel;
-class LaunchLanguageEngineTask;
 class AppModel;
 class DecodeAudioTask;
 class AudioClip;
@@ -23,7 +24,7 @@ class AppController final : public QObject, public Singleton<AppController> {
 
 public:
     explicit AppController();
-    ~AppController() override = default;
+    ~AppController() override;
     void setMainWindow(IMainWindow *window);
 
     [[nodiscard]] QString lastProjectFolder()const;
@@ -56,21 +57,9 @@ signals:
     void activatedPanelChanged(AppGlobal::PanelType panel);
 
 private:
-    const QString defaultProjectName = tr("New Project");
-
-    bool isPowerOf2(int num);
-    void handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);
-    void updateProjectPathAndName(const QString &path);
-
-    IMainWindow *m_mainWindow = nullptr;
-    QString m_lastProjectFolder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-    QString m_projectPath;
-    QString m_projectName;
-    bool m_isLanguageEngineReady = false;
-    QList<IPanel *> m_panels;
-    AppGlobal::PanelType m_activatedPanel = AppGlobal::TracksEditor;
+    Q_DECLARE_PRIVATE(AppController)
+    // QScopedPointer<AppControllerPrivate> d_ptr;
+    AppControllerPrivate * d_ptr;
 };
-
-// using ControllerSingleton = Singleton<Controller>;
 
 #endif // TRACKSCONTROLLER_H

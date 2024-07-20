@@ -7,8 +7,6 @@
 
 #include <QMenuBar>
 
-#include "Global/AppGlobal.h"
-
 class MainMenuViewPrivate;
 class MainWindow;
 class MainMenuView : public QMenuBar {
