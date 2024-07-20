@@ -5,6 +5,7 @@
 #include "RemoveTrackAction.h"
 
 #include "Model/AppModel.h"
+#include "Model/Track.h"
 
 RemoveTrackAction *RemoveTrackAction::build(Track *track, AppModel *model) {
     auto a = new RemoveTrackAction;
@@ -12,6 +13,9 @@ RemoveTrackAction *RemoveTrackAction::build(Track *track, AppModel *model) {
     a->m_model = model;
     a->m_originalTracks = model->tracks();
     return a;
+}
+RemoveTrackAction::~RemoveTrackAction() {
+    delete m_track;
 }
 void RemoveTrackAction::execute() {
     m_model->removeTrack(m_track);

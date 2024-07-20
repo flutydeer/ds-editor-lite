@@ -3,6 +3,9 @@
 //
 
 #include "HistoryManager.h"
+
+#include <QDebug>
+
 void HistoryManager::undo() {
     if (m_undoStack.isEmpty())
         return;
@@ -33,6 +36,11 @@ void HistoryManager::record(ActionSequence *actions) {
     emit undoRedoChanged(canUndo(), undoActionName(), canRedo(), redoActionName());
 }
 void HistoryManager::reset() {
+    qDebug() << "HistoryManager::reset()";
+    for (auto seq : m_undoStack)
+        delete seq;
+    for (auto seq : m_redoStack)
+        delete seq;
     m_undoStack.clear();
     m_redoStack.clear();
     m_savePoint = nullptr;

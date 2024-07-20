@@ -8,6 +8,7 @@
 #include "Clip.h"
 
 Track::~Track() {
+    qDebug() << "Track::~Track()";
     for (auto clip : m_clips)
         delete clip;
 }

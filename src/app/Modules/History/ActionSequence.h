@@ -14,17 +14,18 @@ class ActionSequence : public QObject {
     Q_OBJECT
 
 public:
+    ~ActionSequence() override;
     void execute();
     void undo();
     qsizetype count();
     QString name();
 
 protected:
-    QList<IAction *> m_actionSequence;
     void addAction(IAction *action);
     void setName(const QString &name);
 
 private:
+    QList<IAction *> m_actions;
     QString m_name;
 };
 

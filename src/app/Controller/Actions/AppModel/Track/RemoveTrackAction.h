@@ -15,6 +15,7 @@ class AppModel;
 class RemoveTrackAction : public IAction {
 public:
     static RemoveTrackAction *build(Track *track, AppModel *model);
+    ~RemoveTrackAction() override;
     void execute() override;
     void undo() override;
 

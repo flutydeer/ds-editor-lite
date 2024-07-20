@@ -18,8 +18,8 @@ void ValidationController::runValidation() {
 }
 void ValidationController::onModelChanged() {
     qDebug() << "ValidationController::onModelChanged";
-    for (auto track : m_tracks)
-        disconnect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
+    // for (auto track : m_tracks)
+    //     disconnect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
     m_tracks.clear();
 
     for (const auto track : AppModel::instance()->tracks()) {
