@@ -24,6 +24,7 @@ void ClipEditorViewController::setView(IClipEditorView *view) {
 void ClipEditorViewController::setCurrentSingingClip(SingingClip *clip) {
     m_clip = clip;
     emit canSelectAllChanged(canSelectAll());
+    emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 void ClipEditorViewController::copySelectedNotesWithParams() const {
     qDebug() << "ClipEditorViewController::copySelectedNotesWithParams";
@@ -78,7 +79,7 @@ bool ClipEditorViewController::canSelectAll() const {
     // TODO: 仅在选择和绘制模式下可全选
     return true;
 }
-bool ClipEditorViewController::canDelete() const {
+bool ClipEditorViewController::hasSelectedNotes() const {
     if (!m_clip || m_clip->notes().count() == 0)
         return false;
     auto selectedNotes = m_clip->selectedNotes();
@@ -114,7 +115,7 @@ void ClipEditorViewController::onInsertNote(Note *note) {
     a->insertNotes(notes, m_clip);
     a->execute();
     HistoryManager::instance()->record(a);
-    emit canDeleteChanged(canDelete());
+    emit hasSelectedNotesChanged(hasSelectedNotes());
     // updateAndNotifyCanSelectAll();
 }
 void ClipEditorViewController::onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey) {
@@ -169,7 +170,7 @@ void ClipEditorViewController::onNoteSelectionChanged(const QList<int> &notesId,
             note->setSelected(true);
     }
     m_clip->notifyNoteSelectionChanged();
-    emit canDeleteChanged(canDelete());
+    emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 void ClipEditorViewController::onOriginalPitchChanged(
     const OverlapableSerialList<Curve> &curves) const {
@@ -191,7 +192,7 @@ void ClipEditorViewController::onEditSelectedNotesLyric() const {
 void ClipEditorViewController::onDeleteSelectedNotes() {
     auto notes = m_clip->selectedNotes();
     removeNotes(notes);
-    emit canDeleteChanged(false);
+    emit hasSelectedNotesChanged(false);
 }
 void ClipEditorViewController::onSelectAllNotes() {
     if (m_clip->notes().count() == 0)
@@ -199,7 +200,7 @@ void ClipEditorViewController::onSelectAllNotes() {
 
     for (const auto note : m_clip->notes())
         note->setSelected(true);
-    emit canDeleteChanged(true);
+    emit hasSelectedNotesChanged(true);
     m_clip->notifyNoteSelectionChanged();
 }
 void ClipEditorViewController::onFillLyric(QWidget *parent) {

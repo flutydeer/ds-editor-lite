@@ -12,43 +12,29 @@
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
+#include "UI/Window/MainWindow.h"
 
 #include <QFileDialog>
 
-MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
+MainMenuView::MainMenuView(MainWindow *mainWindow)
+    : QMenuBar(mainWindow), m_mainWindow(mainWindow) {
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     auto appController = AppController::instance();
-
     connect(appController, &AppController::activatedPanelChanged, this,
             &MainMenuView::onActivatedPanelChanged);
 
     auto menuFile = new Menu(tr("&File"), this);
     auto actionNewProject = new QAction(tr("&New Project"), this);
     actionNewProject->setShortcut(QKeySequence("Ctrl+N"));
-    connect(actionNewProject, &QAction::triggered, appController, &AppController::onNewProject);
+    connect(actionNewProject, &QAction::triggered, this, &MainMenuView::onNewProject);
 
-    auto actionOpen = new QAction(tr("&Open Project..."));
-    actionOpen->setShortcut(QKeySequence("Ctrl+O"));
-    connect(actionOpen, &QAction::triggered, this, [=] {
-        auto lastDir = appController->lastProjectFolder();
-        auto fileName = QFileDialog::getOpenFileName(this, tr("Select a Project File"), lastDir,
-                                                     tr("DiffScope Project File (*.dspx)"));
-        if (fileName.isNull())
-            return;
+    auto actionOpenProject = new QAction(tr("&Open Project..."));
+    actionOpenProject->setShortcut(QKeySequence("Ctrl+O"));
+    connect(actionOpenProject, &QAction::triggered, this, &MainMenuView::onOpenProject);
 
-        appController->openProject(fileName);
-    });
     auto actionOpenAProject = new QAction(tr("Open A Project"), this);
-    connect(actionOpenAProject, &QAction::triggered, this, [=] {
-        auto lastDir = appController->lastProjectFolder();
-        auto fileName = QFileDialog::getOpenFileName(this, tr("Select an A Project File"), lastDir,
-                                                     tr("Project File (*.json)"));
-        if (fileName.isNull())
-            return;
-
-        appController->importAproject(fileName);
-    });
+    connect(actionOpenAProject, &QAction::triggered, this, &MainMenuView::onOpenAProject);
 
     m_actionSave = new QAction(tr("&Save"), this);
     m_actionSave->setShortcut(QKeySequence("Ctrl+S"));
@@ -57,35 +43,20 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
 
     auto menuImport = new Menu(tr("Import"), this);
     auto actionImportMidiFile = new QAction(tr("MIDI File..."), this);
-    connect(actionImportMidiFile, &QAction::triggered, this, [=] {
-        auto fileName = QFileDialog::getOpenFileName(this, tr("Select a MIDI File"), ".",
-                                                     tr("MIDI File (*.mid)"));
-        if (fileName.isNull())
-            return;
-        appController->importMidiFile(fileName);
-    });
+    connect(actionImportMidiFile, &QAction::triggered, this, &MainMenuView::onImportMidiFile);
     menuImport->addAction(actionImportMidiFile);
 
     auto menuExport = new Menu(tr("Export"), this);
     auto actionExportAudio = new QAction(tr("Audio File..."), this);
-    connect(actionExportAudio, &QAction::triggered, this, [=] {
-        AudioExportDialog dlg(this);
-        dlg.exec();
-    });
+    connect(actionExportAudio, &QAction::triggered, this, &MainMenuView::onExportAudioFile);
     auto actionExportMidiFile = new QAction(tr("MIDI File..."), this);
-    connect(actionExportMidiFile, &QAction::triggered, this, [=] {
-        auto fileName = QFileDialog::getSaveFileName(this, tr("Save as MIDI File"), ".",
-                                                     tr("MIDI File (*.mid)"));
-        if (fileName.isNull())
-            return;
-        appController->exportMidiFile(fileName);
-    });
+    connect(actionExportMidiFile, &QAction::triggered, this, &MainMenuView::onExportMidiFile);
 
     menuExport->addAction(actionExportAudio);
     menuExport->addAction(actionExportMidiFile);
 
     menuFile->addAction(actionNewProject);
-    menuFile->addAction(actionOpen);
+    menuFile->addAction(actionOpenProject);
     menuFile->addAction(actionOpenAProject);
     menuFile->addAction(m_actionSave);
     menuFile->addAction(m_actionSaveAs);
@@ -97,23 +68,17 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
     auto menuEdit = new Menu(tr("&Edit"), this);
 
     auto historyManager = HistoryManager::instance();
-    auto actionUndo = new QAction(tr("&Undo"), this);
-    actionUndo->setEnabled(false);
-    actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
-    connect(actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
+    m_actionUndo = new QAction(tr("&Undo"), this);
+    m_actionUndo->setEnabled(false);
+    m_actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
+    connect(m_actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
 
-    auto actionRedo = new QAction(tr("&Redo"), this);
-    actionRedo->setEnabled(false);
-    actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
-    connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
+    m_actionRedo = new QAction(tr("&Redo"), this);
+    m_actionRedo->setEnabled(false);
+    m_actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
+    connect(m_actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
-            [=](bool canUndo, const QString &undoActionName, bool canRedo,
-                const QString &redoActionName) {
-                actionUndo->setEnabled(canUndo);
-                actionUndo->setText(tr("&Undo") + " " + undoActionName);
-                actionRedo->setEnabled(canRedo);
-                actionRedo->setText(tr("&Redo") + " " + redoActionName);
-            });
+            &MainMenuView::onUndoRedoChanged);
 
     m_actionSelectAll = new QAction(tr("Select &All"), this);
     m_actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
@@ -137,8 +102,8 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
     m_actionPaste->setShortcut(QKeySequence("Ctrl+V"));
     connect(m_actionPaste, &QAction::triggered, this, &MainMenuView::onPaste);
 
-    menuEdit->addAction(actionUndo);
-    menuEdit->addAction(actionRedo);
+    menuEdit->addAction(m_actionUndo);
+    menuEdit->addAction(m_actionRedo);
     menuEdit->addSeparator();
     menuEdit->addAction(m_actionSelectAll);
     menuEdit->addAction(m_actionDelete);
@@ -154,14 +119,14 @@ MainMenuView::MainMenuView(QWidget *parent) : QMenuBar(parent) {
             &TracksViewController::onNewTrack);
     menuInsert->addAction(actionInsertNewTrack);
 
-    // TODO: 在没有选中音符之前禁用填入歌词
     auto menuModify = new Menu(tr("&Modify"), this);
-    auto actionFillLyrics = new QAction(tr("Fill Lyrics..."), this);
-    actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
+    m_actionFillLyrics = new QAction(tr("Fill Lyrics..."), this);
+    m_actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
+    m_actionFillLyrics->setEnabled(false);
     auto clipController = ClipEditorViewController::instance();
-    connect(actionFillLyrics, &QAction::triggered, clipController,
+    connect(m_actionFillLyrics, &QAction::triggered, clipController,
             [this] { ClipEditorViewController::instance()->onFillLyric(this); });
-    menuModify->addAction(actionFillLyrics);
+    menuModify->addAction(m_actionFillLyrics);
 
     auto menuOptions = new Menu(tr("&Options"), this);
     auto actionGeneralOptions = new QAction(tr("&General..."), this);
@@ -211,6 +176,68 @@ QAction *MainMenuView::actionSave() const {
 QAction *MainMenuView::actionSaveAs() const {
     return m_actionSaveAs;
 }
+void MainMenuView::onNewProject() const {
+    if (!HistoryManager::instance()->isOnSavePoint()) {
+        if (m_mainWindow->askSaveChanges())
+            AppController::instance()->newProject();
+    } else
+        AppController::instance()->newProject();
+}
+void MainMenuView::onOpenProject() {
+    auto openProject = [=] {
+        auto lastDir = AppController::instance()->lastProjectFolder();
+        auto fileName = QFileDialog::getOpenFileName(this, tr("Select a Project File"), lastDir,
+                                                     tr("DiffScope Project File (*.dspx)"));
+        if (fileName.isNull())
+            return;
+        AppController::instance()->openProject(fileName);
+    };
+    if (!HistoryManager::instance()->isOnSavePoint()) {
+        if (m_mainWindow->askSaveChanges())
+            openProject();
+    } else
+        openProject();
+}
+void MainMenuView::onOpenAProject() {
+    auto openAProject = [=] {
+        auto lastDir = AppController::instance()->lastProjectFolder();
+        auto fileName = QFileDialog::getOpenFileName(this, tr("Select an A Project File"), lastDir,
+                                                     tr("Project File (*.json)"));
+        if (fileName.isNull())
+            return;
+        AppController::instance()->importAproject(fileName);
+    };
+    if (!HistoryManager::instance()->isOnSavePoint()) {
+        if (m_mainWindow->askSaveChanges())
+            openAProject();
+    } else
+        openAProject();
+}
+void MainMenuView::onImportMidiFile() {
+    auto fileName =
+        QFileDialog::getOpenFileName(this, tr("Select a MIDI File"), ".", tr("MIDI File (*.mid)"));
+    if (fileName.isNull())
+        return;
+    AppController::instance()->importMidiFile(fileName);
+}
+void MainMenuView::onExportMidiFile() {
+    auto fileName =
+        QFileDialog::getSaveFileName(this, tr("Save as MIDI File"), ".", tr("MIDI File (*.mid)"));
+    if (fileName.isNull())
+        return;
+    AppController::instance()->exportMidiFile(fileName);
+}
+void MainMenuView::onExportAudioFile() {
+    AudioExportDialog dlg(this);
+    dlg.exec();
+}
+void MainMenuView::onUndoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,
+                                     const QString &redoName) {
+    m_actionUndo->setEnabled(canUndo);
+    m_actionUndo->setText(tr("&Undo") + " " + undoName);
+    m_actionRedo->setEnabled(canRedo);
+    m_actionRedo->setText(tr("&Redo") + " " + redoName);
+}
 void MainMenuView::onActivatedPanelChanged(AppGlobal::PanelType panel) {
     m_panelType = panel;
     auto clipController = ClipEditorViewController::instance();
@@ -218,16 +245,26 @@ void MainMenuView::onActivatedPanelChanged(AppGlobal::PanelType panel) {
         m_actionSelectAll->setEnabled(clipController->canSelectAll());
         connect(clipController, &ClipEditorViewController::canSelectAllChanged, m_actionSelectAll,
                 &QAction::setEnabled);
-        m_actionDelete->setEnabled(clipController->canDelete());
-        connect(clipController, &ClipEditorViewController::canDeleteChanged, m_actionDelete,
+
+        m_actionDelete->setEnabled(clipController->hasSelectedNotes());
+        connect(clipController, &ClipEditorViewController::hasSelectedNotesChanged, m_actionDelete,
                 &QAction::setEnabled);
+
+        m_actionFillLyrics->setEnabled(clipController->hasSelectedNotes());
+        connect(clipController, &ClipEditorViewController::hasSelectedNotesChanged,
+                m_actionFillLyrics, &QAction::setEnabled);
     } else {
         disconnect(clipController, &ClipEditorViewController::canSelectAllChanged,
                    m_actionSelectAll, &QAction::setEnabled);
-        m_actionSelectAll->setEnabled(clipController->canDelete());
-        disconnect(clipController, &ClipEditorViewController::canDeleteChanged, m_actionDelete,
-                   &QAction::setEnabled);
+        m_actionSelectAll->setEnabled(false);
+
+        disconnect(clipController, &ClipEditorViewController::hasSelectedNotesChanged,
+                   m_actionDelete, &QAction::setEnabled);
         m_actionDelete->setEnabled(false);
+
+        disconnect(clipController, &ClipEditorViewController::hasSelectedNotesChanged,
+                   m_actionFillLyrics, &QAction::setEnabled);
+        m_actionFillLyrics->setEnabled(false);
     }
 }
 void MainMenuView::onSelectAll() {

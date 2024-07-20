@@ -145,7 +145,7 @@ MainWindow::MainWindow() {
             &AppController::onUndoRedoChanged);
 
     ValidationController::instance();
-    AppController::instance()->onNewProject();
+    AppController::instance()->newProject();
 
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addLayout(menuBarContainer);

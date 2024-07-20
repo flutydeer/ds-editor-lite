@@ -28,8 +28,8 @@ public:
     [[nodiscard]] QString redoActionName() const;
 
 signals:
-    void undoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
-                         const QString &redoActionName);
+    void undoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,
+                       const QString &redoName);
 
 private:
     QStack<ActionSequence *> m_undoStack;

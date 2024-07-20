@@ -25,15 +25,16 @@ public:
     void pasteNotesWithParams(const NotesParamsInfo &info, int tick);
 
     [[nodiscard]] bool canSelectAll() const;
-    [[nodiscard]] bool canDelete() const;
+    [[nodiscard]] bool hasSelectedNotes() const;
 
     // View operations
     void centerAt(double tick, double keyIndex);
     void centerAt(const Note &note);
 
 signals:
+    // TODO: 连接到 clip 模型监听更改
     void canSelectAllChanged(bool canSelectAll);
-    void canDeleteChanged(bool canDelete); // TODO: 连接到 clip 模型监听更改
+    void hasSelectedNotesChanged(bool has);
 
 public slots:
     void onClipPropertyChanged(const Clip::ClipCommonProperties &args);

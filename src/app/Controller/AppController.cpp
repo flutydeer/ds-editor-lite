@@ -31,26 +31,16 @@ AppController::AppController() {
     connect(AppModel::instance(), &AppModel::trackChanged, AudioDecodingController::instance(),
             &AudioDecodingController::onTrackChanged);
 }
-void AppController::onNewProject() {
-    auto newProject = [&] {
-        AppModel::instance()->newProject();
-        HistoryManager::instance()->reset();
-        updateProjectPathAndName("");
-    };
-    if (!HistoryManager::instance()->isOnSavePoint()) {
-        if (m_mainWindow->askSaveChanges())
-            newProject();
-    } else
-        newProject();
+void AppController::newProject() {
+    AppModel::instance()->newProject();
+    HistoryManager::instance()->reset();
+    updateProjectPathAndName("");
 }
 void AppController::openProject(const QString &filePath) {
-    auto openProject = [&] {
-        AppModel::instance()->loadProject(filePath);
-        HistoryManager::instance()->reset();
-        updateProjectPathAndName(filePath);
-        m_lastProjectFolder = QFileInfo(filePath).dir().path();
-    };
-    openProject();
+    AppModel::instance()->loadProject(filePath);
+    HistoryManager::instance()->reset();
+    updateProjectPathAndName(filePath);
+    m_lastProjectFolder = QFileInfo(filePath).dir().path();
 }
 bool AppController::saveProject(const QString &filePath) {
     if (AppModel::instance()->saveProject(filePath)) {
@@ -69,14 +59,11 @@ void AppController::exportMidiFile(const QString &filePath) {
     AppModel::instance()->exportMidiFile(filePath);
 }
 void AppController::importAproject(const QString &filePath) {
-    auto openAProject = [&] {
-        AppModel::instance()->importAProject(filePath);
-        HistoryManager::instance()->reset();
-        updateProjectPathAndName("");
-        setProjectName(QFileInfo(filePath).baseName());
-        m_lastProjectFolder = QFileInfo(filePath).dir().path();
-    };
-    openAProject();
+    AppModel::instance()->importAProject(filePath);
+    HistoryManager::instance()->reset();
+    updateProjectPathAndName("");
+    setProjectName(QFileInfo(filePath).baseName());
+    m_lastProjectFolder = QFileInfo(filePath).dir().path();
 }
 void AppController::onSetTempo(double tempo) {
     auto model = AppModel::instance();
@@ -95,12 +82,6 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
     if (isPowerOf2(denominator)) {
         actions->editTimeSignature(oldSig, newSig, model);
     } else {
-        // QMessageBox msgBox;
-        // msgBox.setText("Error");
-        // msgBox.setInformativeText("Denominator error.");
-        // msgBox.setStandardButtons(QMessageBox::Yes);
-        // msgBox.setDefaultButton(QMessageBox::Yes);
-        // msgBox.exec();
         actions->editTimeSignature(oldSig, oldSig, model);
     }
     actions->execute();
