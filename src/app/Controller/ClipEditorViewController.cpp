@@ -143,7 +143,7 @@ void ClipEditorViewController::onMoveNotes(const QList<int> &notesId, int deltaT
         notesToEdit.append(d->m_clip->findNoteById(id));
 
     auto a = new NoteActions;
-    a->editNotePosition(notesToEdit, deltaTick, deltaKey);
+    a->editNotePosition(notesToEdit, deltaTick, deltaKey, d->m_clip);
     a->execute();
     historyManager->record(a);
 }
@@ -154,7 +154,7 @@ void ClipEditorViewController::onResizeNotesLeft(const QList<int> &notesId, int 
         notesToEdit.append(d->m_clip->findNoteById(id));
 
     auto a = new NoteActions;
-    a->editNotesStartAndLength(notesToEdit, deltaTick);
+    a->editNotesStartAndLength(notesToEdit, deltaTick, d->m_clip);
     a->execute();
     historyManager->record(a);
 }
@@ -165,7 +165,7 @@ void ClipEditorViewController::onResizeNotesRight(const QList<int> &notesId, int
         notesToEdit.append(d->m_clip->findNoteById(id));
 
     auto a = new NoteActions;
-    a->editNotesLength(notesToEdit, deltaTick);
+    a->editNotesLength(notesToEdit, deltaTick, d->m_clip);
     a->execute();
     historyManager->record(a);
 }

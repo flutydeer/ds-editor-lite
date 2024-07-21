@@ -31,13 +31,9 @@ OverlapableSerialList<Clip> Track::clips() const {
 }
 void Track::insertClip(Clip *clip) {
     m_clips.add(clip);
-    qDebug() << "DsTrack emit clipChanged Inserted" << clip->id();
-    emit clipChanged(Inserted, clip->id(), clip);
 }
 void Track::removeClip(Clip *clip) {
     m_clips.remove(clip);
-    qDebug() << "DsTrack emit clipChanged Removed" << clip->id();
-    emit clipChanged(Removed, clip->id(), clip);
 }
 QColor Track::color() const {
     return m_color;
@@ -45,6 +41,9 @@ QColor Track::color() const {
 void Track::setColor(const QColor &color) {
     m_color = color;
     emit propertyChanged();
+}
+void Track::notifyClipChanged(ClipChangeType type, Clip *clip) {
+    emit clipChanged(type, clip->id(), clip);
 }
 Clip *Track::findClipById(int id) {
     for (int i = 0; i < m_clips.count(); i++) {

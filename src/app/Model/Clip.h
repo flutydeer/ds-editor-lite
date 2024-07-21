@@ -131,6 +131,7 @@ public:
     Note *findNoteById(int id);
     [[nodiscard]] QList<Note *> selectedNotes() const;
 
+    void notifyNoteChanged(NoteChangeType type, Note *note);
     void notifyNoteSelectionChanged();
     void notifyParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
 

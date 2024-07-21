@@ -14,7 +14,9 @@ RemoveClipAction *RemoveClipAction::build(Clip *clip, Track *track) {
 }
 void RemoveClipAction::execute() {
     m_track->removeClip(m_clip);
+    m_track->notifyClipChanged(Track::Removed, m_clip);
 }
 void RemoveClipAction::undo() {
     m_track->insertClip(m_clip);
+    m_track->notifyClipChanged(Track::Inserted, m_clip);
 }

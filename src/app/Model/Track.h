@@ -33,6 +33,7 @@ public:
     [[nodiscard]] QColor color() const;
     void setColor(const QColor &color);
 
+    void notifyClipChanged(ClipChangeType type, Clip *clip);
     Clip *findClipById(int id);
 
     class TrackProperties {

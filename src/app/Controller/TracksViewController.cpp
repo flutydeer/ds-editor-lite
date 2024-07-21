@@ -119,9 +119,11 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
         newArgsList.append(args);
         QList<AudioClip *> clips;
         clips.append(audioClip);
+        QList<Track *> tracks;
+        tracks.append(track);
 
         auto a = new ClipActions;
-        a->editAudioClipProperties(oldArgsList, newArgsList, clips);
+        a->editAudioClipProperties(oldArgsList, newArgsList, clips, tracks);
         a->execute();
         historyManager->record(a);
     } else if (clip->type() == Clip::Singing) {
@@ -135,9 +137,11 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
         newArgsList.append(args);
         QList<SingingClip *> clips;
         clips.append(singingClip);
+        QList<Track *> tracks;
+        tracks.append(track);
 
         auto a = new ClipActions;
-        a->editSingingClipProperties(oldArgsList, newArgsList, clips);
+        a->editSingingClipProperties(oldArgsList, newArgsList, clips, tracks);
         a->execute();
         historyManager->record(a);
     }

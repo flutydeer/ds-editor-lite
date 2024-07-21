@@ -108,6 +108,8 @@ void PianoRollGraphicsView::onNoteChanged(SingingClip::NoteChangeType type, Note
         handleNoteInserted(note);
     else if (type == SingingClip::Removed)
         handleNoteRemoved(note);
+
+    updateOverlappedState();
 }
 void PianoRollGraphicsView::onNoteSelectionChanged() {
     auto selectedNotes = m_clip->selectedNotes();

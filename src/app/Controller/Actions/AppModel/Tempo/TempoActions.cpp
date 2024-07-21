@@ -37,7 +37,7 @@ void TempoActions::editTempo(double oldTempo, double newTempo, AppModel *model) 
                 auto targetClipLen = static_cast<int>(oldClipLenInMs * 480 * newTempo / 60000);
                 newArgs.clipLen = targetClipLen > targetLength ? targetLength : targetClipLen;
 
-                auto action = EditClipCommonPropertiesAction::build(oldArgs, newArgs, clip);
+                auto action = EditClipCommonPropertiesAction::build(oldArgs, newArgs, clip, track);
                 addAction(action);
             }
         }

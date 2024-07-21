@@ -12,13 +12,14 @@ class Note;
 
 class EditNoteStartAndLengthAction final : public IAction {
 public:
-    static EditNoteStartAndLengthAction *build(Note *note, int deltaTick);
+    static EditNoteStartAndLengthAction *build(Note *note, int deltaTick, SingingClip *clip);
     void execute() override;
     void undo() override;
 
 private:
     Note *m_note = nullptr;
     int m_deltaTick = 0;
+    SingingClip *m_clip = nullptr;
 };
 
 

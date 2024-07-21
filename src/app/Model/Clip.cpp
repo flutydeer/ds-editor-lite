@@ -100,14 +100,10 @@ const OverlapableSerialList<Note> &SingingClip::notes() const {
     return m_notes;
 }
 void SingingClip::insertNote(Note *note) {
-    qDebug() << "AppModel SingingClip::insertNote" << note->start() << note->length()
-             << note->lyric();
     m_notes.add(note);
-    emit noteChanged(Inserted, note);
 }
 void SingingClip::removeNote(Note *note) {
     m_notes.remove(note);
-    emit noteChanged(Removed, note);
 }
 void SingingClip::notifyNoteSelectionChanged() {
     emit noteSelectionChanged();
@@ -175,6 +171,9 @@ QList<Note *> SingingClip::selectedNotes() const {
             notes.append(note);
     }
     return notes;
+}
+void SingingClip::notifyNoteChanged(NoteChangeType type, Note *note) {
+    emit noteChanged(type, note);
 }
 // const DsParams &DsSingingClip::params() const {
 //     return m_params;

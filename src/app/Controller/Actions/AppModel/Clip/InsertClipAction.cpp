@@ -14,7 +14,9 @@ InsertClipAction *InsertClipAction::build(Clip *clip, Track *track) {
 }
 void InsertClipAction::execute() {
     m_track->insertClip(m_clip);
+    m_track->notifyClipChanged(Track::Inserted, m_clip);
 }
 void InsertClipAction::undo() {
     m_track->removeClip(m_clip);
+    m_track->notifyClipChanged(Track::Removed, m_clip);
 }
