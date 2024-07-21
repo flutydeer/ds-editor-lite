@@ -146,6 +146,11 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
         AppOptionsDialog dialog(AppOptionsDialog::Audio, this);
         dialog.exec();
     });
+    auto actionMidiSettings = new QAction(tr("&MIDI..."), this);
+    connect(actionMidiSettings, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsDialog::Midi, this);
+        dialog.exec();
+    });
     auto actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
     connect(actionAppearanceOptions, &QAction::triggered, this, [=] {
         AppOptionsDialog dialog(AppOptionsDialog::Appearance, this);
@@ -158,6 +163,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     });
     menuOptions->addAction(actionGeneralOptions);
     menuOptions->addAction(actionAudioSettings);
+    menuOptions->addAction(actionMidiSettings);
     menuOptions->addAction(actionAppearanceOptions);
     menuOptions->addAction(actionLanguage);
 

@@ -8,12 +8,7 @@
 #include "IOptionPage.h"
 #include "Modules/Audio/AudioSystem.h"
 
-
-class SwitchButton;
-class OptionsCardItem;
-class ComboBox;
-class QCheckBox;
-class QDoubleSpinBox;
+class OutputPlaybackPageWidget;
 
 class AudioPage : public IOptionPage {
     Q_OBJECT
@@ -21,36 +16,11 @@ class AudioPage : public IOptionPage {
 public:
     explicit AudioPage(QWidget *parent = nullptr);
 
-    [[nodiscard]] AudioSystem::HotPlugMode hotPlugMode() const;
-    void setHotPlugMode(AudioSystem::HotPlugMode mode);
-
-    [[nodiscard]] bool closeDeviceAtBackground() const;
-    void setCloseDeviceAtBackground(bool enabled);
-
-    [[nodiscard]] bool closeDeviceOnPlaybackStop() const;
-    void setCloseDeviceOnPlaybackStop(bool enabled);
-
-    [[nodiscard]] double fileBufferingSizeMsec() const;
-    void setFileBufferingSizeMsec(double value);
-
 protected:
     void modifyOption() override;
 
 private:
-    ComboBox *m_driverComboBox;
-    ComboBox *m_deviceComboBox;
-    ComboBox *m_bufferSizeComboBox;
-    ComboBox *m_sampleRateComboBox;
-    ComboBox *m_hotPlugModeComboBox;
-    SwitchButton *m_swCloseDeviceAtBackground;
-    SwitchButton *m_swCloseDeviceOnPlaybackStop;
-    QDoubleSpinBox *m_fileBufferingSizeMsec;
-
-    void updateDeviceComboBox();
-    void updateBufferSizeAndSampleRateComboBox();
-    void updateDriverComboBox();
-
-    void updateOptionsDisplay();
+    OutputPlaybackPageWidget *m_widget;
 };
 
 

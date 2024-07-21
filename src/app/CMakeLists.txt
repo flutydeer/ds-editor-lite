@@ -32,7 +32,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         Qt${QT_VERSION_MAJOR}::OpenGLWidgets
         OpenGL32
         ${PLATFORM_LIB}
-        talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Synthesis talcs::Midi
+        talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Midi
         opendspx
         LangMgr
 )

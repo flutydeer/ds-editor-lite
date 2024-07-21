@@ -14,6 +14,7 @@
 #include "Pages/GeneralPage.h"
 #include "Pages/LanguagePage.h"
 #include "Pages/AudioPage.h"
+#include "Pages/MidiPage.h"
 
 AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) {
 
@@ -24,12 +25,14 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
 
     m_generalPage = new GeneralPage;
     m_audioPage = new AudioPage;
+    m_midiPage = new MidiPage;
     m_appearancePage = new AppearancePage;
     m_languagePage = new LanguagePage;
 
     m_PageContent = new QStackedWidget;
     m_PageContent->addWidget(m_generalPage);
     m_PageContent->addWidget(m_audioPage);
+    m_PageContent->addWidget(m_midiPage);
     m_PageContent->addWidget(m_appearancePage);
     m_PageContent->addWidget(m_languagePage);
     m_PageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
@@ -40,6 +43,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
 
     m_pages.append(m_generalPage);
     m_pages.append(m_audioPage);
+    m_pages.append(m_midiPage);
     m_pages.append(m_appearancePage);
     m_pages.append(m_languagePage);
 

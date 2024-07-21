@@ -17,6 +17,11 @@
 #include "UI/Window/TaskWindow.h"
 #include "Controller/TracksViewController.h"
 
+#include <Modules/Audio/subsystem/OutputSystem.h>
+#include <Modules/Audio/subsystem/VSTConnectionSystem.h>
+#include <Modules/Audio/subsystem/MidiSystem.h>
+#include <Modules/Audio/utils/DeviceTester.h>
+
 int main(int argc, char *argv[]) {
     // output log to file
     // qInstallMessageHandler(logMessageHandler);
@@ -61,8 +66,12 @@ int main(int argc, char *argv[]) {
     if (foundTranslation)
         QApplication::installTranslator(translator);
 
-    AudioSystem as;
-    as.initialize(QApplication::arguments().contains("-vst"));
+    AudioSystem as(QApplication::arguments().contains("-vst"));
+    AudioSystem::outputSystem()->initialize();
+    AudioSystem::vstConnectionSystem()->initialize();
+    AudioSystem::midiSystem()->initialize();
+
+    DeviceTester deviceTester;
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     auto editor = appModel->workspaceEditor("flutydeer.filllyrics");

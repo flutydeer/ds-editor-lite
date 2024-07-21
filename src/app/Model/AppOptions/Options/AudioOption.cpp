@@ -5,42 +5,45 @@
 #include "AudioOption.h"
 
 void AudioOption::load(const QJsonObject &object) {
-    if (object.contains(hotPlugModeKey))
-        hotPlugMode = hotPlugModeFromString(object.value(hotPlugModeKey).toString());
-    if (object.contains(closeDeviceAtBackgroundKey))
-        closeDeviceAtBackground = object.value(closeDeviceAtBackgroundKey).toBool();
-    if (object.contains(closeDeviceOnPlaybackStopKey))
-        closeDeviceOnPlaybackStop = object.value(closeDeviceOnPlaybackStopKey).toBool();
-    if (object.contains(fileBufferingSizeMsecKey))
-        fileBufferingSizeMsec = object.value(fileBufferingSizeMsecKey).toDouble();
-}
-AudioSystem::HotPlugMode AudioOption::hotPlugModeFromString(const QString &mode) {
-    if (mode == "notifyOnCurrentRemoval")
-        return AudioSystem::NotifyOnCurrentRemoval;
+    driverName = object.value("driverName").toString();
+    deviceName = object.value("deviceName").toString();
+    adoptedBufferSize = object.value("adoptedBufferSize").toInt();
+    adoptedSampleRate = object.value("adoptedSampleRate").toDouble();
+    deviceGain = object.value("deviceGain").toDouble(1.0);
+    devicePan = object.value("devicePan").toDouble();
+    hotPlugNotificationMode = static_cast<talcs::OutputContext::HotPlugNotificationMode>(object.value("hotPlugNotificationMode").toInt());
+    fileBufferingReadAheadSize = object.value("fileBufferingReadAheadSize").toInt();
 
-    if (mode == "none")
-        return AudioSystem::None;
+    vstEditorPort = static_cast<quint16>(object.value("vstEditorPort").toInt(28081));
+    vstPluginPort = static_cast<quint16>(object.value("vstPluginPort").toInt(28082));
+    vstPluginEditorUsesCustomTheme = object.value("vstPluginEditorUsesCustomTheme").toBool();
+    vstTheme = object.value("vstTheme").toObject();
 
-    if (mode == "notifyOnAnyChange")
-        return AudioSystem::NotifyOnAnyChange;
+    midiDeviceIndex = object.value("midiDeviceIndex").toInt();
+    midiSynthesizerGenerator = static_cast<talcs::NoteSynthesizer::Generator>(object.value("midiSynthesizerGenerator").toInt());
+    midiSynthesizerAttackMsec = object.value("midiSynthesizerAttackMsec").toInt(10);
+    midiSynthesizerReleaseMsec = object.value("midiSynthesizerReleaseMsec").toInt(50);
+    midiSynthesizerAmplitude = object.value("midiSynthesizerAmplitude").toDouble(-3.0);
+    midiSynthesizerFrequencyOfA = object.value("midiSynthesizerFrequencyOfA").toDouble();
 
-    return AudioSystem::NotifyOnAnyChange;
-}
-QString AudioOption::hotPlugModeToString(const AudioSystem::HotPlugMode &mode) {
-    if (mode == AudioSystem::NotifyOnCurrentRemoval)
-        return "notifyOnCurrentRemoval";
-
-    if (mode == AudioSystem::None)
-        return "none";
-
-    if (mode == AudioSystem::NotifyOnAnyChange)
-        return "notifyOnAnyChange";
-
-    return "notifyOnAnyChange";
 }
 void AudioOption::save(QJsonObject &object) {
-    object.insert(hotPlugModeKey, hotPlugModeToString(hotPlugMode));
-    object.insert(closeDeviceAtBackgroundKey, closeDeviceAtBackground);
-    object.insert(closeDeviceOnPlaybackStopKey, closeDeviceOnPlaybackStop);
-    object.insert(fileBufferingSizeMsecKey, fileBufferingSizeMsec);
+    object.insert("driverName", driverName);
+    object.insert("deviceName", deviceName);
+    object.insert("adoptedBufferSize", adoptedBufferSize);
+    object.insert("adoptedSampleRate", adoptedSampleRate);
+    object.insert("deviceGain", deviceGain);
+    object.insert("devicePan", devicePan);
+    object.insert("hotPlugNotificationMode", hotPlugNotificationMode);
+    object.insert("fileBufferingReadAheadSize", fileBufferingReadAheadSize);
+    object.insert("vstEditorPort", vstEditorPort);
+    object.insert("vstPluginPort", vstPluginPort);
+    object.insert("vstPluginEditorUsesCustomTheme", vstPluginEditorUsesCustomTheme);
+    object.insert("vstTheme", vstTheme);
+    object.insert("midiDeviceIndex", midiDeviceIndex);
+    object.insert("midiSynthesizerGenerator", midiSynthesizerGenerator);
+    object.insert("midiSynthesizerAttackMsec", midiSynthesizerAttackMsec);
+    object.insert("midiSynthesizerReleaseMsec", midiSynthesizerReleaseMsec);
+    object.insert("midiSynthesizerAmplitude", midiSynthesizerAmplitude);
+    object.insert("midiSynthesizerFrequencyOfA", midiSynthesizerFrequencyOfA);
 }

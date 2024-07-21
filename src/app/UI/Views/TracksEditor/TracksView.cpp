@@ -117,8 +117,8 @@ TracksView::TracksView(QWidget *parent) : QWidget(parent) {
             &TracksView::onLastPositionChanged);
     //    connect(playbackController, &PlaybackController::levelMetersUpdated, this,
     //            &TracksView::onLevelMetersUpdated);
-    connect(AudioSystem::instance()->audioContext(), &AudioContext::levelMeterUpdated, this,
-            &TracksView::onLevelMetersUpdated);
+//    connect(AudioSystem::instance()->audioContext(), &AudioContext::levelMeterUpdated, this,
+//            &TracksView::onLevelMetersUpdated);
 
     // auto splitter = new QSplitter;
     // splitter->setOrientation(Qt::Horizontal);
