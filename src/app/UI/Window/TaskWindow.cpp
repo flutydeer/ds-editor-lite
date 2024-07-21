@@ -38,10 +38,10 @@ TaskWindow::TaskWindow(QWidget *parent) : Window(parent) {
                               "QListWidget::item:hover { background: #05FFFFFF }"
                               "QListWidget::item:selected { background: #10FFFFFF }");
 
-    for (auto task : TaskManager::instance()->tasks())
+    for (auto task : taskManager->tasks())
         addTaskToView(task);
 
-    connect(TaskManager::instance(), &TaskManager::taskChanged, this, &TaskWindow::onTaskChanged);
+    connect(taskManager, &TaskManager::taskChanged, this, &TaskWindow::onTaskChanged);
 
     setWindowFlags(Qt::Tool/* | Qt::WindowStaysOnTopHint*/);
     auto mainLayout = new QVBoxLayout;

@@ -17,7 +17,6 @@ PianoRollGraphicsScene::PianoRollGraphicsScene() {
     auto h = 128 * noteHeight;
     setSceneSize(QSizeF(w, h));
 
-    auto appModel = AppModel::instance();
     auto gridItem = new PianoRollBackgroundGraphicsItem;
     gridItem->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     connect(appModel, &AppModel::modelChanged, gridItem, [=] {

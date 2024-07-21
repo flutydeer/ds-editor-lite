@@ -87,7 +87,7 @@ void PianoRollGraphicsView::onEditModeChanged(ClipEditorGlobal::PianoRollEditMod
 void PianoRollGraphicsView::onSceneSelectionChanged() const {
     if (m_canNotifySelectedNoteChanged) {
         auto notes = selectedNotesId();
-        ClipEditorViewController::instance()->onNoteSelectionChanged(notes, true);
+        clipController->onNoteSelectionChanged(notes, true);
     }
 }
 void PianoRollGraphicsView::onPitchEditorEditCompleted() {
@@ -101,7 +101,7 @@ void PianoRollGraphicsView::onPitchEditorEditCompleted() {
     }
     qDebug() << "curve count" << curves.count();
     // TODO: Add anchor curves
-    ClipEditorViewController::instance()->onPitchEdited(curves);
+    clipController->onPitchEdited(curves);
 }
 void PianoRollGraphicsView::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
     if (type == SingingClip::Inserted)
@@ -124,12 +124,12 @@ void PianoRollGraphicsView::onParamChanged(ParamBundle::ParamName name, Param::P
 void PianoRollGraphicsView::onRemoveSelectedNotes() const {
     qDebug() << "PianoRollGraphicsView::onRemoveSelectedNotes";
     auto notes = selectedNotesId();
-    ClipEditorViewController::instance()->onRemoveNotes(notes);
+    clipController->onRemoveNotes(notes);
 }
 void PianoRollGraphicsView::onEditSelectedNotesLyrics() const {
     qDebug() << "PianoRollGraphicsView::onEditSelectedNotes";
     auto notes = selectedNotesId();
-    ClipEditorViewController::instance()->onEditNotesLyric(notes);
+    clipController->onEditNotesLyric(notes);
 }
 void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     CommonGraphicsView::paintEvent(event);
@@ -179,10 +179,10 @@ void PianoRollGraphicsView::prepareForMovingOrResizingNotes(QMouseEvent *event, 
     updateMoveDeltaKeyRange();
 }
 void PianoRollGraphicsView::PrepareForDrawingNote(int tick, int keyIndex) {
-    auto snapedTick = MathUtils::roundDown(tick, 1920 / AppModel::instance()->quantize());
+    auto snapedTick = MathUtils::roundDown(tick, 1920 / appModel->quantize());
     qDebug() << "Draw note at" << snapedTick;
     m_currentDrawingNote->setStart(snapedTick);
-    m_currentDrawingNote->setLength(1920 / AppModel::instance()->quantize());
+    m_currentDrawingNote->setLength(1920 / appModel->quantize());
     m_currentDrawingNote->setKeyIndex(keyIndex);
     scene()->addCommonItem(m_currentDrawingNote);
     qDebug() << "fake note added to scene";
@@ -247,7 +247,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 
     auto scenePos = mapToScene(event->position().toPoint());
     auto tick = static_cast<int>(sceneXToTick(scenePos.x()));
-    auto quantizedTickLength = m_tempQuantizeOff ? 1 : 1920 / AppModel::instance()->quantize();
+    auto quantizedTickLength = m_tempQuantizeOff ? 1 : 1920 / appModel->quantize();
     auto snapedTick = MathUtils::roundDown(tick, quantizedTickLength);
     auto keyIndex = sceneYToKeyIndexInt(scenePos.y());
 
@@ -337,26 +337,26 @@ void PianoRollGraphicsView::handleDrawNoteCompleted(int start, int length, int k
     note->setLyric(defaultLyric);
     note->setPronunciation(Pronunciation("", ""));
     note->setSelected(true);
-    ClipEditorViewController::instance()->onInsertNote(note);
+    clipController->onInsertNote(note);
 }
 void PianoRollGraphicsView::handleMoveNotesCompleted(int deltaTick, int deltaKey) const {
     qDebug() << "PianoRollGraphicsView::handleMoveNotesCompleted"
              << "deltaTick:" << deltaTick << "deltaKey:" << deltaKey;
-    ClipEditorViewController::instance()->onMoveNotes(selectedNotesId(), deltaTick, deltaKey);
+    clipController->onMoveNotes(selectedNotesId(), deltaTick, deltaKey);
 }
 void PianoRollGraphicsView::handleResizeNoteLeftCompleted(int noteId, int deltaTick) {
     qDebug() << "PianoRollGraphicsView::handleResizeNoteLeftCompleted"
              << "noteId:" << noteId << "deltaTick:" << deltaTick;
     QList<int> notes;
     notes.append(noteId);
-    ClipEditorViewController::instance()->onResizeNotesLeft(notes, deltaTick);
+    clipController->onResizeNotesLeft(notes, deltaTick);
 }
 void PianoRollGraphicsView::handleResizeNoteRightCompleted(int noteId, int deltaTick) {
     qDebug() << "PianoRollGraphicsView::handleResizeNoteRightCompleted"
              << "noteId:" << noteId << "deltaTick:" << deltaTick;
     QList<int> notes;
     notes.append(noteId);
-    ClipEditorViewController::instance()->onResizeNotesRight(notes, deltaTick);
+    clipController->onResizeNotesRight(notes, deltaTick);
 }
 void PianoRollGraphicsView::updateSelectionState() {
     m_canNotifySelectedNoteChanged = false;

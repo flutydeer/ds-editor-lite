@@ -147,8 +147,8 @@ void ClipEditorToolBarView::onClipNameEdited(const QString &name) const {
     auto args = Clip::ClipCommonProperties::fromClip(m_clip);
     args.name = name;
     int trackIndex;
-    AppModel::instance()->findClipById(m_clip->id(), trackIndex);
-    TracksViewController::instance()->onClipPropertyChanged(args);
+    appModel->findClipById(m_clip->id(), trackIndex);
+    trackController->onClipPropertyChanged(args);
 }
 void ClipEditorToolBarView::onClipPropertyChanged() {
     m_elClipName->setText(m_clip->name());

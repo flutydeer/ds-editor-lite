@@ -28,7 +28,7 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     m_lyricWidget = new FillLyric::LyricTab(m_langNotes);
     m_lyricWidget->setLangNotes();
 
-    if (!AppOptions::instance()->fillLyric()->extVisible) {
+    if (!appOptions->fillLyric()->extVisible) {
         shrinkWindowRight(300);
     }
 

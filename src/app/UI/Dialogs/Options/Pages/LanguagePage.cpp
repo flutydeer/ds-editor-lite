@@ -81,10 +81,10 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
 }
 
 void LanguagePage::modifyOption() {
-    const auto options = AppOptions::instance()->language();
+    const auto options = appOptions->language();
     options->langOrder = LangMgr::ILanguageManager::instance()->defaultOrder();
     const auto langId = m_langListWidget->currentItem()->data(Qt::UserRole).toString();
     options->langConfigs[langId] =
         LangMgr::ILanguageManager::instance()->language(langId)->exportConfig();
-    AppOptions::instance()->saveAndNotify();
+    appOptions->saveAndNotify();
 }

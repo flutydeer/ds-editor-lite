@@ -82,7 +82,7 @@ namespace FillLyric {
 
         this->setLayout(m_mainLayout);
 
-        const auto options = AppOptions::instance()->fillLyric();
+        const auto options = appOptions->fillLyric();
         auto font = m_textEdit->font();
         font.setPointSizeF(options->textEditFontSize);
         m_textEdit->setFont(font);
@@ -185,11 +185,11 @@ namespace FillLyric {
     }
 
     void LyricBaseWidget::modifyOption() const {
-        const auto options = AppOptions::instance()->fillLyric();
+        const auto options = appOptions->fillLyric();
         options->textEditFontSize = m_textEdit->font().pointSizeF();
         options->skipSlur = skipSlur->isChecked();
         options->splitMode = m_splitComboBox->currentIndex();
-        AppOptions::instance()->saveAndNotify();
+        appOptions->saveAndNotify();
     }
 
 } // FillLyric

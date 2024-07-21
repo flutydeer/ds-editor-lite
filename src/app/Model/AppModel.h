@@ -5,6 +5,8 @@
 #ifndef DSPXMODEL_H
 #define DSPXMODEL_H
 
+#define appModel AppModel::instance()
+
 #include <QJsonObject>
 
 #include "Utils/Singleton.h"

@@ -21,7 +21,6 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     setObjectName("PhonemeView");
     installEventFilter(this);
 
-    auto appModel = AppModel::instance();
     connect(appModel, &AppModel::modelChanged, this, [=] {
         setTimeSignature(appModel->timeSignature().numerator,
                          appModel->timeSignature().denominator);
@@ -351,8 +350,6 @@ void PhonemeView::buildPhonemeList() {
     if (m_notes.count() == 0)
         return;
 
-    auto appModel = AppModel::instance();
-
     auto head = new PhonemeViewModel;
     head->noteId = -1;
     head->type = PhonemeViewModel::Sil;
@@ -413,7 +410,6 @@ void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phonemeViewModel) {
     if (!phonemeViewModel)
         return;
 
-    auto appModel = AppModel::instance();
     QList<int> notesId;
     QList<Phoneme> phonemes;
     notesId.append(phonemeViewModel->noteId);
@@ -435,5 +431,5 @@ void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phonemeViewModel) {
                  << "append normal" << phoneme.name << phoneme.start;
     }
     phonemes.append(phoneme);
-    ClipEditorViewController::instance()->onAdjustPhoneme(notesId, phonemes);
+    clipController->onAdjustPhoneme(notesId, phonemes);
 }

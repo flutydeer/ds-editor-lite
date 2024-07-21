@@ -34,8 +34,8 @@ void ClipboardController::paste() {
         auto info = NotesParamsInfo::deserializeFromBinary(array);
         // auto json = QJsonDocument::fromJson(array);
         // auto info = NotesParamsInfo::deserializeFromJson(json.object());
-        auto tick = PlaybackController::instance()->position();
-        ClipEditorViewController::instance()->pasteNotesWithParams(info, static_cast<int>(tick));
+        auto tick = playbackController->position();
+        clipController->pasteNotesWithParams(info, static_cast<int>(tick));
     }
 }
 void ClipboardControllerPrivate::copyCutSelectedItems(ControllerGlobal::ElemType type, bool isCut) {
@@ -62,7 +62,7 @@ void ClipboardControllerPrivate::copyCutSelectedItems(ControllerGlobal::ElemType
 void ClipboardControllerPrivate::copyCutNoteWithParams(bool isCut) {
     qDebug() << "ClipboardController::copyNoteWithParams isCut:" << isCut;
     if (isCut)
-        ClipEditorViewController::instance()->cutSelectedNotesWithParams();
+        clipController->cutSelectedNotesWithParams();
     else
-        ClipEditorViewController::instance()->copySelectedNotesWithParams();
+        clipController->copySelectedNotesWithParams();
 }

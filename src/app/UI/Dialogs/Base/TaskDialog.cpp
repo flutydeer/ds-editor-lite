@@ -52,7 +52,7 @@ void TaskDialog::closeEvent(QCloseEvent *event) {
 }
 void TaskDialog::onTerminateButtonClicked() {
     if (m_task)
-        TaskManager::instance()->terminateTask(m_task);
+        taskManager->terminateTask(m_task);
 }
 void TaskDialog::onStatusUpdated(const TaskStatus &status) {
     setTitle(status.title);

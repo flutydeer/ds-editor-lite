@@ -16,7 +16,6 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TimelineView");
 
-    auto appModel = AppModel::instance();
     connect(this, &TimelineView::setLastPositionTriggered, playbackController, [=](double tick) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);

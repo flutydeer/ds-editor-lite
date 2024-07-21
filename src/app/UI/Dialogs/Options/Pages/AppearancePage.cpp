@@ -15,7 +15,7 @@
 #include "UI/Controls/OptionsCardItem.h"
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
-    auto option = AppOptions::instance()->appearance();
+    auto option = appOptions->appearance();
     m_cbxAnimationLevel = new ComboBox;
     m_cbxAnimationLevel->addItems(animationLevelsName);
     m_cbxAnimationLevel->setCurrentIndex(option->animationLevel);
@@ -60,9 +60,9 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     setLayout(mainLayout);
 }
 void AppearancePage::modifyOption() {
-    auto option = AppOptions::instance()->appearance();
+    auto option = appOptions->appearance();
     option->animationLevel =
         static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
     option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();
-    AppOptions::instance()->saveAndNotify();
+    appOptions->saveAndNotify();
 }

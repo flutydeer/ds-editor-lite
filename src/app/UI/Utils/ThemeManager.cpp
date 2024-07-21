@@ -21,7 +21,7 @@ void ThemeManager::onAppOptionsChanged() {
         applyAnimationSetings(object);
 }
 void ThemeManager::applyAnimationSetings(IAnimatable *object) {
-    auto option = AppOptions::instance()->appearance();
+    auto option = appOptions->appearance();
     auto level = option->animationLevel;
     auto scale = option->animationTimeScale;
     object->setAnimationLevel(level);

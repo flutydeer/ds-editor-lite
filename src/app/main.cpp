@@ -65,26 +65,26 @@ int main(int argc, char *argv[]) {
     as.initialize(QApplication::arguments().contains("-vst"));
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
-    auto editor = AppModel::instance()->workspaceEditor("flutydeer.filllyrics");
+    auto editor = appModel->workspaceEditor("flutydeer.filllyrics");
     auto workspace = editor->privateWorkspace();
     workspace->insert("version_code", 1);
     workspace->insert("isFirstRun", false);
     workspace->insert("recent_model_path", "D:/Model/test.onnx");
     editor->commit();
 
-    auto globalWorkspace = AppModel::instance()->globalWorkspace();
+    auto globalWorkspace = appModel->globalWorkspace();
     // for (const auto &key : globalWorkspace.keys())
     //     qDebug() << "AppModel workspace contains key:" << key;
 
     // 可根据唯一名称取出存在全局 workspace 中的数据（只读）
-    auto privateWorkspace = AppModel::instance()->getPrivateWorkspaceById("flutydeer.testplugin");
+    auto privateWorkspace = appModel->getPrivateWorkspaceById("flutydeer.testplugin");
     // qDebug() << privateWorkspace.value("recent_model_path").toString();
 
-    QObject::connect(AppOptions::instance(), &AppOptions::optionsChanged, ThemeManager::instance(),
+    QObject::connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),
                      &ThemeManager::onAppOptionsChanged);
 
     MainWindow w;
-    TracksViewController::instance()->setParentWidget(&w);
+    trackController->setParentWidget(&w);
     auto scr = QApplication::screenAt(QCursor::pos());
     auto availableRect = scr->availableGeometry();
     auto left = (availableRect.width() - w.width()) / 2;

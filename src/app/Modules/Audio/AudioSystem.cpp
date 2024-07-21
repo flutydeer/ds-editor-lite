@@ -64,7 +64,7 @@ bool AudioSystem::findProperDriver() {
             return false;
         }
         if (i == -1) {
-            auto savedDrvName = AppOptions::instance()->audio()->driverName;
+            auto savedDrvName = appOptions->audio()->driverName;
             if (savedDrvName.isEmpty())
                 continue;
             m_drv = m_drvMgr->driver(savedDrvName);
@@ -85,7 +85,7 @@ bool AudioSystem::findProperDevice() {
         if (i >= m_drv->devices().size())
             return false;
         if (i == -2) {
-            auto savedDeviceName = AppOptions::instance()->audio()->deviceName;
+            auto savedDeviceName = appOptions->audio()->deviceName;
             if (!savedDeviceName.isEmpty())
                 dev.reset(m_drv->createDevice(savedDeviceName));
         } else if (i == -1) {
@@ -97,8 +97,8 @@ bool AudioSystem::findProperDevice() {
         if (!dev || !dev->isInitialized())
             continue;
         if (i == -2) {
-            auto adoptedBufferSizeInOption = AppOptions::instance()->audio()->adoptedBufferSize;
-            auto adoptedSampleRateInOption = AppOptions::instance()->audio()->adoptedSampleRate;
+            auto adoptedBufferSizeInOption = appOptions->audio()->adoptedBufferSize;
+            auto adoptedSampleRateInOption = appOptions->audio()->adoptedSampleRate;
             auto savedBufferSize = adoptedBufferSizeInOption == 0 ? dev->preferredBufferSize()
                                                                   : adoptedBufferSizeInOption;
             auto savedSampleRate = adoptedSampleRateInOption == 0 ? dev->preferredSampleRate()
@@ -121,11 +121,11 @@ void AudioSystem::VstProcessInfoCallback::onThisBlockProcessInfo(
     const talcs::RemoteAudioDevice::ProcessInfo &processInfo) {
     if (processInfo.status == talcs::RemoteAudioDevice::ProcessInfo::NotPlaying) {
         if (AudioSystem::instance()->transport()->isPlaying() && !m_isPaused)
-            PlaybackController::instance()->stop();
+            playbackController->stop();
         m_isPaused = true;
     } else {
         if (!AudioSystem::instance()->transport()->isPlaying())
-            PlaybackController::instance()->play();
+            playbackController->play();
         m_isPaused = false;
         if (AudioSystem::instance()->transport()->position() != processInfo.position)
             AudioSystem::instance()->m_audioContext->handleVstCallbackPositionChange(
@@ -267,12 +267,12 @@ void AudioSystem::postSetDevice() {
     m_isDeviceAutoClosed = false;
     m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
     m_audioContext->handleDeviceChangeDuringPlayback();
-    auto options = AppOptions::instance()->audio();
+    auto options = appOptions->audio();
     options->driverName = m_drv->name();
     options->deviceName = m_dev->name();
     options->adoptedSampleRate = m_adoptedSampleRate;
     options->adoptedBufferSize = m_adoptedBufferSize;
-    AppOptions::instance()->saveAndNotify();
+    appOptions->saveAndNotify();
 }
 
 qint64 AudioSystem::adoptedBufferSize() const {
@@ -283,8 +283,8 @@ void AudioSystem::setAdoptedBufferSize(qint64 bufferSize) {
         device()->open(bufferSize, device()->sampleRate());
     }
     m_adoptedBufferSize = bufferSize;
-    AppOptions::instance()->audio()->adoptedBufferSize = m_adoptedBufferSize;
-    AppOptions::instance()->saveAndNotify();
+    appOptions->audio()->adoptedBufferSize = m_adoptedBufferSize;
+    appOptions->saveAndNotify();
     if (m_adoptedBufferSize && m_adoptedSampleRate)
         m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
     m_audioContext->handleDeviceChangeDuringPlayback();
@@ -299,8 +299,8 @@ void AudioSystem::setAdoptedSampleRate(double sampleRate) {
         device()->open(device()->bufferSize(), sampleRate);
     }
     m_adoptedSampleRate = sampleRate;
-    AppOptions::instance()->audio()->adoptedSampleRate = m_adoptedSampleRate;
-    AppOptions::instance()->saveAndNotify();
+    appOptions->audio()->adoptedSampleRate = m_adoptedSampleRate;
+    appOptions->saveAndNotify();
     if (m_adoptedBufferSize && m_adoptedSampleRate)
         m_preMixer->open(m_adoptedBufferSize, m_adoptedSampleRate);
     m_audioContext->rebuildAllClips();
@@ -329,7 +329,7 @@ void AudioSystem::testDevice() {
 }
 
 void AudioSystem::handleDeviceHotPlug() {
-    auto options = AppOptions::instance()->audio();
+    auto options = appOptions->audio();
     auto hotPlugMode = options->hotPlugMode;
     QMessageBox msgBox;
     msgBox.setText(tr("Audio device change is detected."));

@@ -14,10 +14,10 @@ void AudioDecodingController::onModelChanged() {
     qDebug() << "AudioDecodingController::onModelChanged";
     // Terminate all decoding tasks
     for (auto task : m_tasks) {
-        TaskManager::instance()->terminateTask(task);
+        taskManager->terminateTask(task);
     }
     // Start new decoding tasks
-    for (auto track : AppModel::instance()->tracks()) {
+    for (auto track : appModel->tracks()) {
         connect(track, &Track::clipChanged, this, &AudioDecodingController::onClipChanged);
         for (auto clip : track->clips()) {
             if (clip->type() == Clip::Audio)
@@ -56,11 +56,11 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
     m_tasks.append(decodeTask);
     connect(decodeTask, &Task::finished, this,
             [=](bool terminate) { handleTaskFinished(decodeTask, terminate); });
-    TaskManager::instance()->addTask(decodeTask);
-    TaskManager::instance()->startTask(decodeTask);
+    taskManager->addTask(decodeTask);
+    taskManager->startTask(decodeTask);
 }
 void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, bool terminate) {
-    TaskManager::instance()->removeTask(task);
+    taskManager->removeTask(task);
     m_tasks.removeOne(task);
 
     if (terminate) {
@@ -84,7 +84,7 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, bool ter
     }
 
     int trackIndex;
-    auto clip = AppModel::instance()->findClipById(task->clipId, trackIndex);
+    auto clip = appModel->findClipById(task->clipId, trackIndex);
     if (!clip) {
         delete task;
         return;
@@ -98,11 +98,11 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, bool ter
 void AudioDecodingController::terminateTaskByClipId(int clipId) {
     for (const auto task : m_tasks)
         if (task->clipId == clipId)
-            TaskManager::instance()->terminateTask(task);
+            taskManager->terminateTask(task);
 }
 void AudioDecodingController::terminateTasksByTrackId(int trackId) {
     for (auto task : m_tasks) {
         if (task->trackId == trackId)
-            TaskManager::instance()->terminateTask(task);
+            taskManager->terminateTask(task);
     }
 }

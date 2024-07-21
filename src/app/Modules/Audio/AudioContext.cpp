@@ -27,12 +27,12 @@
 
 static qint64 tickToSample(double tick) {
     return qint64(tick * 60.0 * AudioSystem::instance()->adoptedSampleRate() /
-                  PlaybackController::instance()->tempo() / 480.0);
+                  playbackController->tempo() / 480.0);
 }
 
 static double sampleToTick(qint64 sample) {
     return double(sample) / AudioSystem::instance()->adoptedSampleRate() *
-           PlaybackController::instance()->tempo() / 60.0 * 480.0;
+           playbackController->tempo() / 60.0 * 480.0;
 }
 
 template <typename Iterator, typename Func, typename... Args>
@@ -47,16 +47,16 @@ AudioContext::AudioContext(QObject *parent) : QObject(parent), m_levelMeterTimer
     connect(AudioSystem::instance()->transport(),
             &talcs::TransportAudioSource::positionAboutToChange, this, [=](qint64 positionSample) {
                 if (AudioSystem::instance()->adoptedSampleRate())
-                    PlaybackController::instance()->setPosition(sampleToTick(positionSample));
+                    playbackController->setPosition(sampleToTick(positionSample));
             });
-    connect(PlaybackController::instance(), &PlaybackController::playbackStatusChanged, this,
+    connect(playbackController, &PlaybackController::playbackStatusChanged, this,
             &AudioContext::handlePlaybackStatusChange);
-    connect(PlaybackController::instance(), &PlaybackController::lastPositionChanged, this,
+    connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &AudioContext::handlePlaybackPositionChange);
 
-    connect(AppModel::instance(), &AppModel::modelChanged, this, &AudioContext::handleModelChange);
+    connect(appModel, &AppModel::modelChanged, this, &AudioContext::handleModelChange);
 
-    connect(AppModel::instance(), &AppModel::trackChanged, this,
+    connect(appModel, &AppModel::trackChanged, this,
             [=](AppModel::TrackChangeType type, int index, Track *track) {
                 Q_UNUSED(index)
                 switch (type) {
@@ -69,15 +69,15 @@ AudioContext::AudioContext(QObject *parent) : QObject(parent), m_levelMeterTimer
                 }
             });
 
-    connect(AppModel::instance(), &AppModel::tempoChanged, this, &AudioContext::rebuildAllClips);
+    connect(appModel, &AppModel::tempoChanged, this, &AudioContext::rebuildAllClips);
 
     m_levelMeterTimer->setInterval(50); // TODO make it configurable
     connect(m_levelMeterTimer, &QTimer::timeout, this, [=] {
         AppModel::LevelMetersUpdatedArgs args;
-        for (auto track : AppModel::instance()->tracks()) {
+        for (auto track : appModel->tracks()) {
             if (!m_trackLevelMeterValue.contains(track))
                 continue;
-            if (PlaybackController::instance()->playbackStatus() != Playing &&
+            if (playbackController->playbackStatus() != Playing &&
                 (m_trackLevelMeterValue[track].first->targetValue() > -96 ||
                  m_trackLevelMeterValue[track].second->targetValue() > -96)) {
                 m_trackLevelMeterValue[track].first->setTargetValue(-96);
@@ -99,7 +99,7 @@ talcs::FutureAudioSourceClipSeries *AudioContext::trackSynthesisClipSeries(const
 }
 
 void AudioContext::handlePlaybackStatusChange(PlaybackStatus status) {
-    auto options = AppOptions::instance()->audio();
+    auto options = appOptions->audio();
     switch (status) {
         case Stopped:
             AudioSystem::instance()->transport()->pause();
@@ -131,7 +131,7 @@ void AudioContext::handlePlaybackPositionChange(double positionTick) {
 }
 
 void AudioContext::handleVstCallbackPositionChange(qint64 positionSample) {
-    PlaybackController::instance()->setLastPosition(sampleToTick(positionSample));
+    playbackController->setLastPosition(sampleToTick(positionSample));
 }
 
 void AudioContext::handleModelChange() {
@@ -139,7 +139,7 @@ void AudioContext::handleModelChange() {
         handleTrackRemoval(track);
     }
 
-    for (auto track : AppModel::instance()->tracks()) {
+    for (auto track : appModel->tracks()) {
         handleTrackInsertion(track);
     }
 }
@@ -233,7 +233,7 @@ void AudioContext::handleTrackControlChange(const Track *track) {
 }
 
 void AudioContext::handleClipInsertion(const Track *track, const Clip *clip) {
-    auto options = AppOptions::instance()->audio();
+    auto options = appOptions->audio();
     if (clip->type() != Clip::Audio)
         return;
     connect(clip, &Clip::propertyChanged, this, [=] { handleClipPropertyChange(track, clip); });
@@ -301,7 +301,7 @@ void AudioContext::handleClipPropertyChange(const Track *track, const Clip *clip
 }
 
 void AudioContext::rebuildAllClips() {
-    for (auto track : AppModel::instance()->tracks()) {
+    for (auto track : appModel->tracks()) {
         auto trackClipSeries = m_trackAudioClipSeriesDict[track];
         for (auto clip : track->clips()) {
             if (clip->type() != Clip::Audio)
@@ -324,7 +324,7 @@ void AudioContext::rebuildAllClips() {
 }
 
 void AudioContext::handleFileBufferingSizeChange() {
-    auto options = AppOptions::instance()->audio();
+    auto options = appOptions->audio();
     for (auto bufSrc : m_audioClipBufferingSources) {
         bufSrc->setReadAheadSize(options->fileBufferingSizeMsec / 1000.0 *
                                  AudioSystem::instance()->adoptedSampleRate());
@@ -336,8 +336,8 @@ void AudioContext::handleFileBufferingSizeChange() {
 void AudioContext::handleDeviceChangeDuringPlayback() {
     if (AudioSystem::instance()->adoptedSampleRate())
         AudioSystem::instance()->transport()->setPosition(
-            tickToSample(PlaybackController::instance()->position()));
-    if (PlaybackController::instance()->playbackStatus() == Playing) {
+            tickToSample(playbackController->position()));
+    if (playbackController->playbackStatus() == Playing) {
         if (AudioSystem::instance()->device() && !AudioSystem::instance()->device()->isStarted())
             AudioSystem::instance()->device()->start(AudioSystem::instance()->playback());
         AudioSystem::instance()->transport()->play();

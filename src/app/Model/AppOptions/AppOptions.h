@@ -5,6 +5,8 @@
 #ifndef APPOPTIONS_H
 #define APPOPTIONS_H
 
+#define appOptions AppOptions::instance()
+
 #include <QObject>
 
 #include "Utils/Singleton.h"

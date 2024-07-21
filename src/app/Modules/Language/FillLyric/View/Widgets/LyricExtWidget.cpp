@@ -88,7 +88,6 @@ namespace FillLyric {
         m_mainLayout->addLayout(m_tableLayout);
         this->setLayout(m_mainLayout);
 
-        const auto appOptions = AppOptions::instance();
         autoWrap->setValue(appOptions->fillLyric()->autoWrap);
         m_wrapView->setAutoWrap(appOptions->fillLyric()->autoWrap);
         QFont font = m_wrapView->font();
@@ -130,13 +129,13 @@ namespace FillLyric {
     }
 
     void LyricExtWidget::modifyOption() const {
-        const auto options = AppOptions::instance()->fillLyric();
+        const auto options = appOptions->fillLyric();
         options->viewFontSize = m_wrapView->font().pointSizeF();
 
         options->autoWrap = m_wrapView->autoWrap();
         options->exportSkipSlur = exportSkipSlur->isChecked();
         options->exportLanguage = exportLanguage->isChecked();
-        AppOptions::instance()->saveAndNotify();
+        appOptions->saveAndNotify();
     }
 
 } // FillLyric

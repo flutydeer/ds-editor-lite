@@ -123,7 +123,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     auto menuInsert = new Menu(tr("&Insert"), this);
 
     auto actionInsertNewTrack = new QAction(tr("Track"), this);
-    connect(actionInsertNewTrack, &QAction::triggered, TracksViewController::instance(),
+    connect(actionInsertNewTrack, &QAction::triggered, trackController,
             &TracksViewController::onNewTrack);
     menuInsert->addAction(actionInsertNewTrack);
 
@@ -132,7 +132,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     d->m_actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
     d->m_actionFillLyrics->setEnabled(false);
     connect(d->m_actionFillLyrics, &QAction::triggered, clipController,
-            [this] { ClipEditorViewController::instance()->onFillLyric(this); });
+            [this] { clipController->onFillLyric(this); });
     menuModify->addAction(d->m_actionFillLyrics);
 
     auto menuOptions = new Menu(tr("&Options"), this);
@@ -186,24 +186,24 @@ QAction *MainMenuView::actionSaveAs() {
     return d->m_actionSaveAs;
 }
 void MainMenuViewPrivate::onNewProject() const {
-    if (!HistoryManager::instance()->isOnSavePoint()) {
+    if (!historyManager->isOnSavePoint()) {
         if (m_mainWindow->askSaveChanges())
-            AppController::instance()->newProject();
+            appController->newProject();
     } else
-        AppController::instance()->newProject();
+        appController->newProject();
 }
 void MainMenuViewPrivate::onOpenProject() {
     Q_Q(MainMenuView);
     auto openProject = [=] {
-        auto lastDir = AppController::instance()->lastProjectFolder();
+        auto lastDir = appController->lastProjectFolder();
         auto fileName =
             QFileDialog::getOpenFileName(q, q->tr("Select a Project File"), lastDir,
                                          MainMenuView::tr("DiffScope Project File (*.dspx)"));
         if (fileName.isNull())
             return;
-        AppController::instance()->openProject(fileName);
+        appController->openProject(fileName);
     };
-    if (!HistoryManager::instance()->isOnSavePoint()) {
+    if (!historyManager->isOnSavePoint()) {
         if (m_mainWindow->askSaveChanges())
             openProject();
     } else
@@ -212,14 +212,14 @@ void MainMenuViewPrivate::onOpenProject() {
 void MainMenuViewPrivate::onOpenAProject() {
     Q_Q(MainMenuView);
     auto openAProject = [=] {
-        auto lastDir = AppController::instance()->lastProjectFolder();
+        auto lastDir = appController->lastProjectFolder();
         auto fileName = QFileDialog::getOpenFileName(q, q->tr("Select an A Project File"), lastDir,
                                                      q->tr("Project File (*.json)"));
         if (fileName.isNull())
             return;
-        AppController::instance()->importAproject(fileName);
+        appController->importAproject(fileName);
     };
-    if (!HistoryManager::instance()->isOnSavePoint()) {
+    if (!historyManager->isOnSavePoint()) {
         if (m_mainWindow->askSaveChanges())
             openAProject();
     } else
@@ -231,7 +231,7 @@ void MainMenuViewPrivate::onImportMidiFile() {
                                                  q->tr("MIDI File (*.mid)"));
     if (fileName.isNull())
         return;
-    AppController::instance()->importMidiFile(fileName);
+    appController->importMidiFile(fileName);
 }
 void MainMenuViewPrivate::onExportMidiFile() {
     Q_Q(MainMenuView);
@@ -239,7 +239,7 @@ void MainMenuViewPrivate::onExportMidiFile() {
                                                  q->tr("MIDI File (*.mid)"));
     if (fileName.isNull())
         return;
-    AppController::instance()->exportMidiFile(fileName);
+    appController->exportMidiFile(fileName);
 }
 void MainMenuViewPrivate::onExportAudioFile() {
     Q_Q(MainMenuView);
@@ -287,13 +287,13 @@ void MainMenuViewPrivate::onSelectAll() {
     Q_Q(MainMenuView);
     qDebug() << "MainMenuView::onSelectAll";
     if (m_panelType == AppGlobal::ClipEditor)
-        ClipEditorViewController::instance()->onSelectAllNotes();
+        clipController->onSelectAllNotes();
 }
 void MainMenuViewPrivate::onDelete() {
     Q_Q(MainMenuView);
     qDebug() << "MainMenuView::onDelete";
     if (m_panelType == AppGlobal::ClipEditor)
-        ClipEditorViewController::instance()->onDeleteSelectedNotes();
+        clipController->onDeleteSelectedNotes();
 }
 void MainMenuViewPrivate::onCut() {
     qDebug() << "MainMenuView::onCut";

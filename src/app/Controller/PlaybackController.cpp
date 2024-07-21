@@ -11,8 +11,7 @@
 
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {
     Q_D(PlaybackController);
-    auto model = AppModel::instance();
-    connect(model, &AppModel::tempoChanged, this, &PlaybackController::onTempoChanged);
+    connect(appModel, &AppModel::tempoChanged, this, &PlaybackController::onTempoChanged);
     connect(ValidationController::instance(), &ValidationController::validationFinished, this,
             [=](bool passed) { d->onValidationFinished(passed); });
 }
@@ -76,7 +75,7 @@ void PlaybackController::onTempoChanged(double tempo) {
     d->m_tempo = tempo;
 }
 void PlaybackController::onModelChanged() {
-    auto tempo = AppModel::instance()->tempo();
+    auto tempo = appModel->tempo();
     onTempoChanged(tempo);
 }
 void PlaybackControllerPrivate::onValidationFinished(bool passed) {

@@ -25,12 +25,12 @@ AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
     auto task = new LaunchLanguageEngineTask;
     connect(task, &LaunchLanguageEngineTask::finished, this,
             [=] { d->handleRunLanguageEngineTaskFinished(task); });
-    TaskManager::instance()->addTask(task);
-    TaskManager::instance()->startTask(task);
+    taskManager->addTask(task);
+    taskManager->startTask(task);
 
-    connect(AppModel::instance(), &AppModel::modelChanged, AudioDecodingController::instance(),
+    connect(appModel, &AppModel::modelChanged, audioDecodingController,
             &AudioDecodingController::onModelChanged);
-    connect(AppModel::instance(), &AppModel::trackChanged, AudioDecodingController::instance(),
+    connect(appModel, &AppModel::trackChanged, audioDecodingController,
             &AudioDecodingController::onTrackChanged);
 }
 AppController::~AppController() {
@@ -38,21 +38,21 @@ AppController::~AppController() {
 }
 void AppController::newProject() {
     Q_D(AppController);
-    AppModel::instance()->newProject();
-    HistoryManager::instance()->reset();
+    appModel->newProject();
+    historyManager->reset();
     d->updateProjectPathAndName("");
 }
 void AppController::openProject(const QString &filePath) {
     Q_D(AppController);
-    AppModel::instance()->loadProject(filePath);
-    HistoryManager::instance()->reset();
+    appModel->loadProject(filePath);
+    historyManager->reset();
     d->updateProjectPathAndName(filePath);
     d->m_lastProjectFolder = QFileInfo(filePath).dir().path();
 }
 bool AppController::saveProject(const QString &filePath) {
     Q_D(AppController);
-    if (AppModel::instance()->saveProject(filePath)) {
-        HistoryManager::instance()->setSavePoint();
+    if (appModel->saveProject(filePath)) {
+        historyManager->setSavePoint();
         d->updateProjectPathAndName(filePath);
         Toast::show(tr("Saved"));
         return true;
@@ -61,31 +61,31 @@ bool AppController::saveProject(const QString &filePath) {
     return false;
 }
 void AppController::importMidiFile(const QString &filePath) {
-    AppModel::instance()->importMidiFile(filePath);
+    appModel->importMidiFile(filePath);
 }
 void AppController::exportMidiFile(const QString &filePath) {
-    AppModel::instance()->exportMidiFile(filePath);
+    appModel->exportMidiFile(filePath);
 }
 void AppController::importAproject(const QString &filePath) {
     Q_D(AppController);
-    AppModel::instance()->importAProject(filePath);
-    HistoryManager::instance()->reset();
+    appModel->importAProject(filePath);
+    historyManager->reset();
     d->updateProjectPathAndName("");
     setProjectName(QFileInfo(filePath).baseName());
     d->m_lastProjectFolder = QFileInfo(filePath).dir().path();
 }
 void AppController::onSetTempo(double tempo) {
-    auto model = AppModel::instance();
+    auto model = appModel;
     auto oldTempo = model->tempo();
     auto newTempo = tempo > 0 ? tempo : model->tempo();
     auto actions = new TempoActions;
     actions->editTempo(oldTempo, newTempo, model);
     actions->execute();
-    HistoryManager::instance()->record(actions);
+    historyManager->record(actions);
 }
 void AppController::onSetTimeSignature(int numerator, int denominator) {
     Q_D(AppController);
-    auto model = AppModel::instance();
+    auto model = appModel;
     auto oldSig = model->timeSignature();
     auto newSig = AppModel::TimeSignature(numerator, denominator);
     auto actions = new TimeSignatureActions;
@@ -95,13 +95,13 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
         actions->editTimeSignature(oldSig, oldSig, model);
     }
     actions->execute();
-    HistoryManager::instance()->record(actions);
+    historyManager->record(actions);
 }
 void AppController::onSetQuantize(int quantize) {
-    AppModel::instance()->setQuantize(quantize);
+    appModel->setQuantize(quantize);
 }
 void AppController::onTrackSelectionChanged(int trackIndex) {
-    AppModel::instance()->setSelectedTrack(trackIndex);
+    appModel->setSelectedTrack(trackIndex);
 }
 void AppController::onPanelClicked(AppGlobal::PanelType panelType) {
     Q_D(AppController);
@@ -155,7 +155,7 @@ bool AppControllerPrivate::isPowerOf2(int num) {
 }
 void AppControllerPrivate::handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
     qDebug() << "AppController::handleRunLanguageEngineTaskFinished";
-    TaskManager::instance()->removeTask(task);
+    taskManager->removeTask(task);
     m_isLanguageEngineReady = task->success;
     delete task;
 }
@@ -163,5 +163,5 @@ void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
     Q_Q(AppController);
     m_projectPath = path;
     q->setProjectName(m_projectPath.isEmpty() ? q->tr("New Project")
-                                           : QFileInfo(m_projectPath).fileName());
+                                              : QFileInfo(m_projectPath).fileName());
 }

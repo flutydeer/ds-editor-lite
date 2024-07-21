@@ -60,9 +60,9 @@ namespace FillLyric {
             modifyOption();
         });
 
-        const auto appOptions = AppOptions::instance()->fillLyric();
-        const bool baseVisible = appOptions->baseVisible;
-        const bool extVisible = appOptions->extVisible;
+        const auto options = appOptions->fillLyric();
+        const bool baseVisible = options->baseVisible;
+        const bool extVisible = options->extVisible;
 
         if (!baseVisible) {
             m_lyricBaseWidget->setVisible(baseVisible);
@@ -162,9 +162,9 @@ namespace FillLyric {
     }
 
     void LyricTab::modifyOption() const {
-        const auto options = AppOptions::instance()->fillLyric();
+        const auto options = appOptions->fillLyric();
         options->baseVisible = m_lyricBaseWidget->isVisible();
         options->extVisible = m_lyricExtWidget->isVisible();
-        AppOptions::instance()->saveAndNotify();
+        appOptions->saveAndNotify();
     }
 } // FillLyric

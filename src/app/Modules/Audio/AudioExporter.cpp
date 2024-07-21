@@ -216,11 +216,11 @@ QStringList AudioExporter::outputFileList() const {
     auto directory = QDir(m_option.fileDirectory); // TODO
     auto fileNameTemplate = m_option.fileName + "." + m_option.extensionName;
     fileNameTemplate.replace("${projectName}", "untitled"); // TODO
-    fileNameTemplate.replace("${tempo}", QString::number(AppModel::instance()->tempo()));
+    fileNameTemplate.replace("${tempo}", QString::number(appModel->tempo()));
     fileNameTemplate.replace("${timeSignature}",
                              QString("%1-%2")
-                                 .arg(AppModel::instance()->timeSignature().numerator)
-                                 .arg(AppModel::instance()->timeSignature().denominator));
+                                 .arg(appModel->timeSignature().numerator)
+                                 .arg(appModel->timeSignature().denominator));
     fileNameTemplate.replace("${sampleRate}", QString::number(m_option.sampleRate));
     fileNameTemplate.replace("${today}", QDate::currentDate().toString("yyyyMMdd"));
 
@@ -230,7 +230,7 @@ QStringList AudioExporter::outputFileList() const {
         QStringList list;
         QList<int> indices;
         if (m_option.sourceOption == Option::AllTracks) {
-            for (int i = 0; i < AppModel::instance()->tracks().size(); i++) {
+            for (int i = 0; i < appModel->tracks().size(); i++) {
                 indices.append(i);
             }
         } else if (m_option.sourceOption == Option::SelectedTracks) {
@@ -239,7 +239,7 @@ QStringList AudioExporter::outputFileList() const {
             indices = m_option.selectedTrackIndices;
         }
         for (int i : indices) {
-            auto track = AppModel::instance()->tracks()[i];
+            auto track = appModel->tracks()[i];
             auto trackFileNameTemplate = fileNameTemplate;
             auto trackAffix = m_option.affix;
             trackAffix.replace("${trackName}", track->name());

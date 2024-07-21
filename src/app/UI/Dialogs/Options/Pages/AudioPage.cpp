@@ -194,7 +194,7 @@ void AudioPage::setFileBufferingSizeMsec(double value) {
     m_fileBufferingSizeMsec->setValue(value);
 }
 void AudioPage::modifyOption() {
-    auto options = AppOptions::instance()->audio();
+    auto options = appOptions->audio();
     options->hotPlugMode = hotPlugMode();
     options->closeDeviceAtBackground = closeDeviceAtBackground();
     options->closeDeviceOnPlaybackStop = closeDeviceOnPlaybackStop();
@@ -202,7 +202,7 @@ void AudioPage::modifyOption() {
         options->fileBufferingSizeMsec = fileBufferingSizeMsec();
         AudioSystem::instance()->audioContext()->handleFileBufferingSizeChange();
     }
-    AppOptions::instance()->saveAndNotify();
+    appOptions->saveAndNotify();
 }
 void AudioPage::updateDeviceComboBox() {
     auto deviceList = AudioSystem::instance()->driver()->devices();
@@ -315,7 +315,7 @@ void AudioPage::updateDriverComboBox() {
     });
 }
 void AudioPage::updateOptionsDisplay() {
-    auto options = AppOptions::instance()->audio();
+    auto options = appOptions->audio();
     setHotPlugMode(options->hotPlugMode);
     setCloseDeviceAtBackground(options->closeDeviceAtBackground);
     setCloseDeviceOnPlaybackStop(options->closeDeviceOnPlaybackStop);

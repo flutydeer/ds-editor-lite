@@ -8,10 +8,9 @@
 #include "UI/Controls/Toast.h"
 
 ValidationController::ValidationController() {
-    auto model = AppModel::instance();
-    connect(model, &AppModel::modelChanged, this, &ValidationController::onModelChanged);
-    connect(model, &AppModel::tempoChanged, this, &ValidationController::onTempoChanged);
-    connect(model, &AppModel::trackChanged, this, &ValidationController::onTrackChanged);
+    connect(appModel, &AppModel::modelChanged, this, &ValidationController::onModelChanged);
+    connect(appModel, &AppModel::tempoChanged, this, &ValidationController::onTempoChanged);
+    connect(appModel, &AppModel::trackChanged, this, &ValidationController::onTrackChanged);
 }
 void ValidationController::runValidation() {
     validate();
@@ -22,7 +21,7 @@ void ValidationController::onModelChanged() {
     //     disconnect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
     m_tracks.clear();
 
-    for (const auto track : AppModel::instance()->tracks()) {
+    for (const auto track : appModel->tracks()) {
         m_tracks.append(track);
         connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
 
@@ -77,7 +76,7 @@ void ValidationController::validate() {
     }
 }
 bool ValidationController::validateProjectLength() {
-    auto length = AppModel::instance()->tickToMs(AppModel::instance()->projectLengthInTicks());
+    auto length = appModel->tickToMs(appModel->projectLengthInTicks());
     if (length > 30 * 60 * 1000) { // > 30 min
         Toast::show("ValidationController: project is too long");
         return false;
@@ -86,7 +85,7 @@ bool ValidationController::validateProjectLength() {
 }
 bool ValidationController::validateTempo() {
     // 用于测试
-    auto tempo = AppModel::instance()->tempo();
+    auto tempo = appModel->tempo();
     if (tempo < 5) {
         Toast::show("ValidationController: tempo is too slow");
         return false;
@@ -94,7 +93,7 @@ bool ValidationController::validateTempo() {
     return true;
 }
 bool ValidationController::validateClipOverlap() {
-    if (std::all_of(AppModel::instance()->tracks().begin(), AppModel::instance()->tracks().end(),
+    if (std::all_of(appModel->tracks().begin(), appModel->tracks().end(),
                     [](const auto &track) { return !track->clips().isOverlappedItemExists(); })) {
         return true;
     }

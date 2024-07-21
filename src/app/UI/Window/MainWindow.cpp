@@ -58,15 +58,14 @@ MainWindow::MainWindow() {
     appController->setMainWindow(this);
 
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
-    connect(TaskManager::instance(), &TaskManager::taskChanged, this, &MainWindow::onTaskChanged);
+    connect(taskManager, &TaskManager::taskChanged, this, &MainWindow::onTaskChanged);
 
     m_tracksView = new TracksView;
     m_clipEditView = new ClipEditorView;
-    auto model = AppModel::instance();
 
-    connect(model, &AppModel::modelChanged, m_tracksView, &TracksView::onModelChanged);
-    connect(model, &AppModel::trackChanged, m_tracksView, &TracksView::onTrackChanged);
-    connect(model, &AppModel::tempoChanged, m_tracksView, &TracksView::onTempoChanged);
+    connect(appModel, &AppModel::modelChanged, m_tracksView, &TracksView::onModelChanged);
+    connect(appModel, &AppModel::trackChanged, m_tracksView, &TracksView::onTrackChanged);
+    connect(appModel, &AppModel::tempoChanged, m_tracksView, &TracksView::onTempoChanged);
 
     connect(m_tracksView, &TracksView::selectedClipChanged, trackController,
             &TracksViewController::onSelectedClipChanged);
@@ -111,9 +110,9 @@ MainWindow::MainWindow() {
             &PlaybackView::onPlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, playbackView,
             &PlaybackView::onPositionChanged);
-    connect(model, &AppModel::modelChanged, playbackView, &PlaybackView::updateView);
-    connect(model, &AppModel::tempoChanged, playbackView, &PlaybackView::onTempoChanged);
-    connect(model, &AppModel::timeSignatureChanged, playbackView,
+    connect(appModel, &AppModel::modelChanged, playbackView, &PlaybackView::updateView);
+    connect(appModel, &AppModel::tempoChanged, playbackView, &PlaybackView::onTempoChanged);
+    connect(appModel, &AppModel::timeSignatureChanged, playbackView,
             &PlaybackView::onTimeSignatureChanged);
     playbackView->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
@@ -138,7 +137,7 @@ MainWindow::MainWindow() {
             &AppController::onUndoRedoChanged);
 
     ValidationController::instance();
-    AppController::instance()->newProject();
+    appController->newProject();
 
     auto actionButtonLayout = new QHBoxLayout;
     actionButtonLayout->addLayout(menuBarContainer);
@@ -180,13 +179,13 @@ MainWindow::MainWindow() {
     WindowFrameUtils::applyFrameEffects(this);
 }
 void MainWindow::updateWindowTitle() {
-    auto projectName = AppController::instance()->projectName();
-    auto saved = HistoryManager::instance()->isOnSavePoint();
+    auto projectName = appController->projectName();
+    auto saved = historyManager->isOnSavePoint();
     auto appName = qApp->applicationDisplayName();
     if (projectName.isNull() || projectName.isEmpty())
         setWindowTitle(appName);
     else {
-        auto projectPath = AppController::instance()->projectPath();
+        auto projectPath = appController->projectPath();
         if (projectPath.isNull() || projectPath.isEmpty())
             setWindowTitle(projectName + " - " + appName);
         else {
@@ -234,7 +233,7 @@ void MainWindow::onAllDone() {
     }
 }
 void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index) {
-    auto taskCount = TaskManager::instance()->tasks().count();
+    auto taskCount = taskManager->tasks().count();
     if (taskCount == 0) {
         m_lbTaskTitle->setText("");
         m_lbTaskTitle->setVisible(false);
@@ -247,7 +246,7 @@ void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsi
 
         m_lbTaskTitle->setVisible(true);
         m_progressBar->setVisible(true);
-        auto firstTask = TaskManager::instance()->tasks().first();
+        auto firstTask = taskManager->tasks().first();
         connect(firstTask, &Task::statusUpdated, this, &MainWindow::onTaskStatusChanged);
     }
 }
@@ -273,7 +272,7 @@ bool MainWindow::onSaveAs() {
         return QFileDialog::getSaveFileName(this, tr("Save project"), lastDir,
                                             tr("DiffScope Project File (*.dspx)"));
     };
-   auto fileName = getFileName();
+    auto fileName = getFileName();
     if (fileName.isNull()) // Canceled
         return false;
 
@@ -284,7 +283,7 @@ bool MainWindow::onSaveAs() {
     return true;
 }
 void MainWindow::closeEvent(QCloseEvent *event) {
-    auto saved = HistoryManager::instance()->isOnSavePoint();
+    auto saved = historyManager->isOnSavePoint();
     if (!saved) {
         if (!askSaveChanges()) {
             event->ignore();
@@ -332,7 +331,7 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
     if (eventType == "windows_generic_MSG") {
         MSG *msg = static_cast<MSG *>(message);
         if (msg->message == WM_QUERYENDSESSION) {
-            *result = HistoryManager::instance()->isOnSavePoint() ? TRUE : FALSE;
+            *result = historyManager->isOnSavePoint() ? TRUE : FALSE;
             close();
             return true;
         }

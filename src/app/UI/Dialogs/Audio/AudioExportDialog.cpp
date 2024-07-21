@@ -92,8 +92,8 @@ AudioExportDialog::AudioExportDialog(QWidget *parent)
     });
     mixingLayout->addRow(tr("Source"), m_sourceComboBox);
     m_sourceListWidget = new QListWidget;
-    for (int i = 0; i < AppModel::instance()->tracks().size(); i++) {
-        auto track = AppModel::instance()->tracks()[i];
+    for (int i = 0; i < appModel->tracks().size(); i++) {
+        auto track = appModel->tracks()[i];
         auto item = new QListWidgetItem(QString("%1 - %2").arg(i + 1).arg(track->name()));
         item->setFlags(item->flags() & ~Qt::ItemIsSelectable | Qt::ItemIsUserCheckable);
         m_sourceListWidget->addItem(item);
@@ -267,7 +267,7 @@ void AudioExportDialog::applyExporterOptionToDialog() {
         case AudioExporter::Option::SelectedTracks:
             for (int i = 0; i < m_sourceListWidget->count(); i++) {
                 m_sourceListWidget->item(i)->setCheckState(
-                    AppModel::instance()->selectedTrackIndex() == i ? Qt::Checked : Qt::Unchecked);
+                    appModel->selectedTrackIndex() == i ? Qt::Checked : Qt::Unchecked);
             }
             m_sourceListWidget->setDisabled(true);
             break;

@@ -173,12 +173,11 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         "QComboBox:pressed { background: #10FFFFFF; }");
 }
 void PlaybackView::updateView() {
-    auto model = AppModel::instance();
-    m_tempo = model->tempo();
-    m_numerator = model->timeSignature().numerator;
-    m_denominator = model->timeSignature().denominator;
+    m_tempo = appModel->tempo();
+    m_numerator = appModel->timeSignature().numerator;
+    m_denominator = appModel->timeSignature().denominator;
     m_tick = static_cast<int>(playbackController->position());
-    m_status = PlaybackController::instance()->playbackStatus();
+    m_status = playbackController->playbackStatus();
 
     updateTempoView();
     updateTimeSignatureView();

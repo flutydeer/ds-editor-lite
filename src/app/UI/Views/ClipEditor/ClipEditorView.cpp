@@ -49,9 +49,8 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_phonemeView,
             &PhonemeView::setTimeRange);
 
-    auto model = AppModel::instance();
-    connect(model, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
-    connect(model, &AppModel::selectedClipChanged, this, &ClipEditorView::onSelectedClipChanged);
+    connect(appModel, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
+    connect(appModel, &AppModel::selectedClipChanged, this, &ClipEditorView::onSelectedClipChanged);
 
     // auto pianoKeyboardView = new PianoKeyboardView;
     // pianoKeyboardView->setKeyIndexRange(m_pianoRollView->topKeyIndex(),
@@ -76,8 +75,8 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     setLayout(mainLayout);
 
     afterSetActivated();
-    ClipEditorViewController::instance()->setView(this);
-    AppController::instance()->registerPanel(this);
+    clipController->setView(this);
+    appController->registerPanel(this);
     installEventFilter(this);
 }
 void ClipEditorView::centerAt(double tick, double keyIndex) {
@@ -96,7 +95,7 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
 
     // no clip selected
     if (clip == nullptr) {
-        ClipEditorViewController::instance()->setCurrentSingingClip(nullptr);
+        clipController->setCurrentSingingClip(nullptr);
         m_toolbarView->setVisible(false);
         m_pianoRollView->setDataContext(nullptr);
         m_timelineView->setVisible(false);
@@ -112,9 +111,9 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
         m_pianoRollView->setDataContext(singingClip);
         m_phonemeView->setSingingClip(singingClip);
-        ClipEditorViewController::instance()->setCurrentSingingClip(singingClip);
+        clipController->setCurrentSingingClip(singingClip);
     } else if (clip->type() == Clip::Audio) {
-        ClipEditorViewController::instance()->setCurrentSingingClip(nullptr);
+        clipController->setCurrentSingingClip(nullptr);
         m_pianoRollView->setDataContext(nullptr);
         m_timelineView->setVisible(false);
         m_phonemeView->setVisible(false);
@@ -122,7 +121,7 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
 }
 bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress)
-        AppController::instance()->onPanelClicked(AppGlobal::ClipEditor);
+        appController->onPanelClicked(AppGlobal::ClipEditor);
     return QWidget::eventFilter(watched, event);
 }
 void ClipEditorView::reset() {
