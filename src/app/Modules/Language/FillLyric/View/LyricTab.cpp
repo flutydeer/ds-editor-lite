@@ -6,6 +6,8 @@
 #include "Model/AppOptions/AppOptions.h"
 
 #include "../Utils/SplitLyric.h"
+#include "LangMgr/ILanguageManager.h"
+#include "LangMgr/LangAnalysis/CantoneseAnalysis.h"
 
 namespace FillLyric {
 
@@ -97,17 +99,35 @@ namespace FillLyric {
     }
 
     QList<QList<LangNote>> LyricTab::exportLangNotes() const {
-        const auto langNotes =
-            m_lyricExtWidget->isVisible()
-                ? this->modelExport()
-                : m_lyricBaseWidget->splitLyric(m_lyricBaseWidget->m_textEdit->toPlainText());
-        qDebug() << "exportLangNotes: " << m_lyricExtWidget->isVisible();
+        if (m_lyricExtWidget->isVisible()) {
+            return this->modelExport();
+        }
+        auto langNotes = m_lyricBaseWidget->
+            splitLyric(m_lyricBaseWidget->m_textEdit->toPlainText());
+
+        QList<QList<LangNote>> result;
+        const auto langMgr = LangMgr::ILanguageManager::instance();
+        for (auto &notes : langNotes) {
+            QList<LangNote *> inputNotes;
+            QList<LangNote> lineRes;
+
+            for (auto &note : notes) {
+                inputNotes.append(&note);
+            }
+            langMgr->correct(inputNotes);
+            langMgr->convert(inputNotes);
+            for (const auto &note : inputNotes) {
+                lineRes.append(*note);
+            }
+            result.append(lineRes);
+        }
         return langNotes;
     }
 
     bool LyricTab::exportSkipSlur() const {
-        return m_lyricExtWidget->isVisible() ? m_lyricExtWidget->exportSkipSlur->isChecked()
-                                             : m_lyricBaseWidget->skipSlur->isChecked();
+        return m_lyricExtWidget->isVisible()
+                   ? m_lyricExtWidget->exportSkipSlur->isChecked()
+                   : m_lyricBaseWidget->skipSlur->isChecked();
     }
 
     bool LyricTab::exportLanguage() const {

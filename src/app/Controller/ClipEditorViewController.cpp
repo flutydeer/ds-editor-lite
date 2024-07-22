@@ -291,7 +291,7 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
 
     auto noteRes = lyricDialog.noteResult();
     QList<Note::NoteWordProperties> args;
-    for (int i = 0; i < selectedNotes.size(); i++) {
+    for (int i = 0; i < noteRes.size(); i++) {
         auto arg = Note::NoteWordProperties::fromNote(*selectedNotes[i]);
         arg.lyric = noteRes[i].lyric;
         arg.language = noteRes[i].language;
