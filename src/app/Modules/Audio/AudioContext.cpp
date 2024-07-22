@@ -306,7 +306,7 @@ void AudioContext::handlePlaybackPositionChanged(double positionTick) {
 
 void AudioContext::handleModelChanged() {
     auto oldTrackContexts = tracks();
-    for (int i = 0; i < oldTrackContexts.size(); i++) {
+    for (int i = static_cast<int>(oldTrackContexts.size()) -1; i >= 0; i--) {
         handleTrackRemoved(i, getTrackFromContext(oldTrackContexts[i]));
     }
     auto newTracks = appModel->tracks();
