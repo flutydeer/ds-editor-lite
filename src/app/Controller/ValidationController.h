@@ -19,6 +19,7 @@ public:
     void runValidation();
 
 private slots:
+    void onUndoRedoChanged();
     void onModelChanged();
     void onTempoChanged(double tempo);
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
@@ -31,6 +32,8 @@ signals:
 
 private:
     void handleClipInserted(Clip *clip);
+    void handleNoteInserted(Note *note);
+    static void handleNotePropertyChanged(Note::NotePropertyType type, Note *note);
     void validate();
     static bool validateProjectLength();
     static bool validateTempo();

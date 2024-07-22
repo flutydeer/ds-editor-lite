@@ -227,6 +227,7 @@ bool MainWindow::askSaveChanges() {
     return *handled;
 }
 void MainWindow::onAllDone() {
+    qDebug() << "MainWindow::onAllDone";
     if (m_isCloseRequested) {
         m_isAllDone = true;
         close();

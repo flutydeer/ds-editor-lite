@@ -79,8 +79,9 @@ void NoteGraphicsItem::setLyric(const QString &lyric) {
 QString NoteGraphicsItem::pronunciation() const {
     return m_pronunciation;
 }
-void NoteGraphicsItem::setPronunciation(const QString &pronunciation) {
+void NoteGraphicsItem::setPronunciation(const QString &pronunciation, bool edited) {
     m_pronunciation = pronunciation;
+    m_pronunciationEdited = edited;
     update();
 }
 bool NoteGraphicsItem::editingPitch() const {
@@ -133,7 +134,8 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     const auto foregroundColorNormal = QColor(0, 0, 0);
     const auto foregroundColorEditingPitch = QColor(126, 149, 199);
 
-    const auto pronunciationTextColor = QColor(200, 200, 200);
+    const auto pronunciationTextColorOriginal = QColor(200, 200, 200);
+    const auto pronunciationTextColorEdited = backgroundColorNormal;
 
     const auto penWidth = 1.5f;
     // const auto radius = 4.0;
@@ -219,7 +221,8 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
             // draw lryic
             painter->drawText(textRect, text, textOption);
             // draw pronunciation
-            pen.setColor(pronunciationTextColor);
+            pen.setColor(m_pronunciationEdited ? pronunciationTextColorEdited
+                                               : pronunciationTextColorOriginal);
             painter->setPen(pen);
             painter->drawText(QPointF(textRectLeft, boundingRect().bottom() - 6), m_pronunciation);
         }

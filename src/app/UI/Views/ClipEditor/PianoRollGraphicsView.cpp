@@ -30,7 +30,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
 
     m_currentDrawingNote = new NoteGraphicsItem(-1);
     m_currentDrawingNote->setLyric(defaultLyric);
-    m_currentDrawingNote->setPronunciation("");
+    m_currentDrawingNote->setPronunciation("", false);
     m_currentDrawingNote->setSelected(true);
 
     m_pitchItem = new PitchEditorGraphicsItem;
@@ -131,7 +131,7 @@ void PianoRollGraphicsView::onRemoveSelectedNotes() const {
 void PianoRollGraphicsView::onEditSelectedNotesLyrics() const {
     qDebug() << "PianoRollGraphicsView::onEditSelectedNotes";
     auto notes = selectedNotesId();
-    clipController->onEditNotesLyric(notes);
+    // clipController->onFillLyric();
 }
 void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     CommonGraphicsView::paintEvent(event);
@@ -380,15 +380,18 @@ void PianoRollGraphicsView::updateOverlappedState() {
 }
 void PianoRollGraphicsView::insertNoteToView(Note *note) {
     m_canNotifySelectedNoteChanged = false;
-    qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric();
+    qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric()
+             << note->pronunciation().original << note->pronunciation().edited;
     auto noteItem = new NoteGraphicsItem(note->id());
     noteItem->setContext(this);
     noteItem->setStart(note->start());
     noteItem->setLength(note->length());
     noteItem->setKeyIndex(note->keyIndex());
     noteItem->setLyric(note->lyric());
-    // TODO:: setEditedPronunciation
-    noteItem->setPronunciation(note->pronunciation().original);
+    auto original = note->pronunciation().original;
+    auto edited = note->pronunciation().edited;
+    auto isEdited = note->pronunciation().isEdited();
+    noteItem->setPronunciation(isEdited ? edited : original, isEdited);
     noteItem->setSelected(note->selected());
     noteItem->setOverlapped(note->overlapped());
     connect(noteItem, &NoteGraphicsItem::removeTriggered, this,
@@ -415,11 +418,13 @@ void PianoRollGraphicsView::updateNoteTimeAndKey(Note *note) {
 }
 void PianoRollGraphicsView::updateNoteWord(Note *note) {
     qDebug() << "PianoRollGraphicsView::updateNoteWord" << note->id() << note->lyric()
-             << note->pronunciation().original;
+             << note->pronunciation().original << note->pronunciation().edited;
     auto noteItem = m_noteLayer.findNoteById(note->id());
     noteItem->setLyric(note->lyric());
-    // TODO:: setEditedPronunciation
-    noteItem->setPronunciation(note->pronunciation().original);
+    auto original = note->pronunciation().original;
+    auto edited = note->pronunciation().edited;
+    auto isEdited = note->pronunciation().isEdited();
+    noteItem->setPronunciation(isEdited ? edited : original, isEdited);
 }
 double PianoRollGraphicsView::keyIndexToSceneY(double index) const {
     return (127 - index) * scaleY() * noteHeight;

@@ -5,29 +5,35 @@
 #include "ValidationController.h"
 
 #include "Model/Track.h"
+#include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Toast.h"
+#include "Utils/NoteWordUtils.h"
 
 ValidationController::ValidationController() {
     connect(appModel, &AppModel::modelChanged, this, &ValidationController::onModelChanged);
-    connect(appModel, &AppModel::tempoChanged, this, &ValidationController::onTempoChanged);
-    connect(appModel, &AppModel::trackChanged, this, &ValidationController::onTrackChanged);
+    connect(historyManager, &HistoryManager::undoRedoChanged, this,
+            &ValidationController::onUndoRedoChanged);
 }
 void ValidationController::runValidation() {
     validate();
 }
+void ValidationController::onUndoRedoChanged() {
+    // validate();
+}
 void ValidationController::onModelChanged() {
     qDebug() << "ValidationController::onModelChanged";
-    // for (auto track : m_tracks)
-    //     disconnect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
     m_tracks.clear();
 
     for (const auto track : appModel->tracks()) {
-        m_tracks.append(track);
-        connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
-
+        // m_tracks.append(track);
+        // connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
         for (const auto clip : track->clips()) {
-            m_clips.append(clip);
-            connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
+            // m_clips.append(clip);
+            // connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
+            if (clip->type() == Clip::Singing) {
+                auto singingClip = reinterpret_cast<SingingClip *>(clip);
+                NoteWordUtils::updateOriginalWordProperties(singingClip->notes().toList());
+            }
         }
     }
     validate();
@@ -67,6 +73,9 @@ void ValidationController::onClipPropertyChanged(Clip *clip) {
     validate();
 }
 void ValidationController::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
+    qDebug() << "ValidationController::onNoteChanged";
+    if (type == SingingClip::Inserted)
+        handleNoteInserted(note);
     validate();
 }
 void ValidationController::handleClipInserted(Clip *clip) {
@@ -76,6 +85,20 @@ void ValidationController::handleClipInserted(Clip *clip) {
     if (clip->type() == Clip::Singing) {
         auto singingClip = reinterpret_cast<SingingClip *>(clip);
         connect(singingClip, &SingingClip::noteChanged, this, &ValidationController::onNoteChanged);
+    }
+}
+void ValidationController::handleNoteInserted(Note *note) {
+    handleNotePropertyChanged(Note::Word, note);
+    connect(note, &Note::propertyChanged, this,
+            [=](Note::NotePropertyType type) { handleNotePropertyChanged(type, note); });
+}
+void ValidationController::handleNotePropertyChanged(Note::NotePropertyType type, Note *note) {
+    qDebug() << "ValidationController::handleNotePropertyChanged";
+    if (type == Note::Word) {
+        QList<Note *> notes;
+        for (const auto note1 : note->clip()->notes())
+            notes.append(note1);
+        NoteWordUtils::updateOriginalWordProperties(notes);
     }
 }
 void ValidationController::validate() {

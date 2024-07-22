@@ -7,6 +7,7 @@
 namespace FillLyric {
     class HandleItem final : public QObject, public QGraphicsItem {
         Q_OBJECT
+        Q_INTERFACES(QGraphicsItem)
     public:
         explicit HandleItem(QGraphicsItem *parent = nullptr);
         ~HandleItem() override;

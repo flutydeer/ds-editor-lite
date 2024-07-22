@@ -7,6 +7,12 @@
 #include <QJsonArray>
 #include <QJsonObject>
 
+SingingClip *Note::clip() const {
+    return m_clip;
+}
+void Note::setClip(SingingClip *clip) {
+    m_clip = clip;
+}
 int Note::start() const {
     return m_start;
 }
@@ -86,6 +92,14 @@ bool Note::isOverlappedWith(Note *obj) const {
         return false;
     return true;
 }
+Note::NoteWordProperties Note::NoteWordProperties::fromNote(const Note &note) {
+    NoteWordProperties properties;
+    properties.lyric = note.lyric();
+    properties.pronunciation = note.pronunciation();
+    properties.language = note.language();
+    properties.pronCandidates = note.pronCandidates();
+    return properties;
+}
 // QJsonObject Note::serialize(const Note &note) {
 //     QJsonObject objNote;
 //     objNote.insert("start", note.start());
@@ -146,6 +160,9 @@ QDataStream &operator>>(QDataStream &in, Phonemes &phonemes) {
     deserialize(in, phonemes.original);
     deserialize(in, phonemes.edited);
     return in;
+}
+bool Pronunciation::isEdited() const {
+    return !(edited.isNull() || edited.isEmpty());
 }
 QJsonObject Pronunciation::serialize(const Pronunciation &pronunciation) {
     QJsonObject objPronunciation;

@@ -29,7 +29,7 @@ public:
 
     // Edit lyrics, pronunciations and phonemes
     void editNotesWordProperties(const QList<Note *> &notes,
-                                 const QList<Note::NoteWordProperties *> &args);
+                                 const QList<Note::NoteWordProperties> &args);
     void editNotesPhoneme(const QList<Note *> &notes, const QList<Phoneme> &phonemes);
 };
 

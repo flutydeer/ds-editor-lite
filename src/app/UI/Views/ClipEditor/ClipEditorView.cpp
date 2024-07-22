@@ -95,7 +95,7 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
 
     // no clip selected
     if (clip == nullptr) {
-        clipController->setCurrentSingingClip(nullptr);
+        clipController->setClip(nullptr);
         m_toolbarView->setVisible(false);
         m_pianoRollView->setDataContext(nullptr);
         m_timelineView->setVisible(false);
@@ -111,9 +111,9 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
         m_pianoRollView->setDataContext(singingClip);
         m_phonemeView->setSingingClip(singingClip);
-        clipController->setCurrentSingingClip(singingClip);
+        clipController->setClip(singingClip);
     } else if (clip->type() == Clip::Audio) {
-        clipController->setCurrentSingingClip(nullptr);
+        clipController->setClip(nullptr);
         m_pianoRollView->setDataContext(nullptr);
         m_timelineView->setVisible(false);
         m_phonemeView->setVisible(false);

@@ -74,5 +74,6 @@ void TaskManager::terminateAllTasks() {
         BackgroundWorker::terminateTask(task);
 }
 void TaskManager::onWorkerWaitDone() {
+    qDebug() << "TaskManager allDone";
     emit allDone();
 }

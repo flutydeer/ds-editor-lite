@@ -8,7 +8,7 @@
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
 
 class Note;
-class SingingClip;
+class Clip;
 class IClipEditorView;
 class ClipEditorViewController;
 class ClipEditorViewControllerPrivate {
@@ -18,7 +18,7 @@ public:
     explicit ClipEditorViewControllerPrivate(ClipEditorViewController *q) : q_ptr(q) {
     }
     IClipEditorView *m_view = nullptr;
-    SingingClip *m_clip = nullptr;
+    Clip *m_clip = nullptr;
 
     void editNotesLyric(const QList<Note *> &notes) const;
     void removeNotes(const QList<Note *> &notes) const;

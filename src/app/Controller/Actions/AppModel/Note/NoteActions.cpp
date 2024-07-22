@@ -40,7 +40,7 @@ void NoteActions::editNotePosition(const QList<Note *> &notes, int deltaTick, in
         addAction(EditNotePositionAction::build(note, deltaTick, deltaKey, clip));
 }
 void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
-                                          const QList<Note::NoteWordProperties *> &args) {
+                                          const QList<Note::NoteWordProperties> &args) {
     setName(tr("Edit note word properties"));
     int i = 0;
     for (const auto note : notes) {

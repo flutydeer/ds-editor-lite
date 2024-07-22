@@ -20,6 +20,7 @@ public:
     [[nodiscard]] bool isOverlappedItemExists() const;
     QList<T *> findOverlappedItems(T *obj) const;
     QList<T *> overlappedItems() const;
+    QList<T *> toList() const;
 
     using iterator = typename QList<T *>::const_iterator;
     using const_iterator = typename QList<T *>::const_iterator;
@@ -167,6 +168,10 @@ QList<T *> OverlapableSerialList<T>::overlappedItems() const {
         if (item->overlapped())
             list->append(item);
     return *list;
+}
+template <typename T>
+QList<T *> OverlapableSerialList<T>::toList() const {
+    return m_list;
 }
 template <typename T>
 QList<T *> &OverlapableSerialList<T>::overlappedIOverlapables() {

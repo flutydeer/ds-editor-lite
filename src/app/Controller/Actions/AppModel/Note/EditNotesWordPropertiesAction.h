@@ -12,7 +12,7 @@ class SingingClip;
 
 class EditNotesWordPropertiesAction final : public IAction {
 public:
-    static EditNotesWordPropertiesAction *build(Note *note, Note::NoteWordProperties *args);
+    static EditNotesWordPropertiesAction *build(Note *note, Note::NoteWordProperties args);
     void execute() override;
     void undo() override;
 

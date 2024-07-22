@@ -12,6 +12,8 @@
 #include "Utils/ISelectable.h"
 #include "Utils/UniqueObject.h"
 
+
+class SingingClip;
 class QJsonObject;
 
 class Pronunciation {
@@ -23,6 +25,7 @@ public:
     Pronunciation(QString original, QString edited)
         : original(std::move(original)), edited(std::move(edited)) {
     }
+    [[nodiscard]] bool isEdited() const;
 
     friend QDataStream &operator<<(QDataStream &out, const Pronunciation &pronunciation);
     friend QDataStream &operator>>(QDataStream &in, Pronunciation &pronunciation);
@@ -66,6 +69,8 @@ public:
         : m_start(start), m_length(length), m_keyIndex(keyIndex), m_lyric(std::move(lyric)) {
     }
 
+    [[nodiscard]] SingingClip *clip() const;
+    void setClip(SingingClip *clip);
     [[nodiscard]] int start() const;
     void setStart(int start);
     [[nodiscard]] int length() const;
@@ -100,14 +105,19 @@ public:
     class NoteWordProperties {
     public:
         QString lyric;
+        QString language;
         Pronunciation pronunciation;
+        QStringList pronCandidates;
         Phonemes phonemes;
+
+        static NoteWordProperties fromNote(const Note &note);
     };
 
 signals:
     void propertyChanged(Note::NotePropertyType type);
 
 private:
+    SingingClip *m_clip = nullptr;
     int m_start = 0;
     int m_length = 480;
     int m_keyIndex = 60;

@@ -100,9 +100,11 @@ const OverlapableSerialList<Note> &SingingClip::notes() const {
     return m_notes;
 }
 void SingingClip::insertNote(Note *note) {
+    note->setClip(this);
     m_notes.add(note);
 }
 void SingingClip::removeNote(Note *note) {
+    note->setClip(nullptr);
     m_notes.remove(note);
 }
 void SingingClip::notifyNoteSelectionChanged() {

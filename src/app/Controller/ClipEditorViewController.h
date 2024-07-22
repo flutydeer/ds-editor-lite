@@ -24,7 +24,7 @@ public:
     explicit  ClipEditorViewController();
     ~ClipEditorViewController() override;
     void setView(IClipEditorView *view);
-    void setCurrentSingingClip(SingingClip *clip);
+    void setClip(Clip *clip);
     void copySelectedNotesWithParams() const;
     void cutSelectedNotesWithParams();
     void pasteNotesWithParams(const NotesParamsInfo &info, int tick);
@@ -42,9 +42,8 @@ signals:
     void hasSelectedNotesChanged(bool has);
 
 public slots:
-    void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
+    static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     void onRemoveNotes(const QList<int> &notesId);
-    void onEditNotesLyric(const QList<int> &notesId);
     void onInsertNote(Note *note);
     void onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey);
     void onResizeNotesLeft(const QList<int> &notesId, int deltaTick) const;
@@ -53,7 +52,6 @@ public slots:
     void onNoteSelectionChanged(const QList<int> &notesId, bool unselectOther);
     void onOriginalPitchChanged(const OverlapableSerialList<Curve> &curves) const;
     void onPitchEdited(const OverlapableSerialList<Curve> &curves) const;
-    void onEditSelectedNotesLyric() const;
     void onDeleteSelectedNotes();
     void onSelectAllNotes();
     void onFillLyric(QWidget *parent);
