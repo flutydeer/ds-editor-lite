@@ -107,7 +107,11 @@ void DecodeAudioTask::runTask() {
         m_peakCache.append(pair);
         buffersRead++;
 
-        if (buffersRead % (totalBufferCount / 200) == 0) {
+        int updateProgressThreshold = 200;
+        if (totalBufferCount < updateProgressThreshold) {
+            status.progress = 100;
+            setStatus(status);
+        } else if (buffersRead % (totalBufferCount / 200) == 0) {
             auto progress = 100 * buffersRead / totalBufferCount;
             // qDebug() << progress;
             status.progress = static_cast<int>(progress);
