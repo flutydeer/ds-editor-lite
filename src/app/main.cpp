@@ -21,6 +21,7 @@
 #include <Modules/Audio/subsystem/VSTConnectionSystem.h>
 #include <Modules/Audio/subsystem/MidiSystem.h>
 #include <Modules/Audio/utils/DeviceTester.h>
+#include <Modules/Audio/AudioContext.h>
 
 int main(int argc, char *argv[]) {
     // output log to file
@@ -67,11 +68,15 @@ int main(int argc, char *argv[]) {
         QApplication::installTranslator(translator);
 
     AudioSystem as(QApplication::arguments().contains("-vst"));
-    AudioSystem::outputSystem()->initialize();
-    AudioSystem::vstConnectionSystem()->initialize();
-    AudioSystem::midiSystem()->initialize();
+    if (AudioSystem::outputSystem())
+        AudioSystem::outputSystem()->initialize();
+    if (AudioSystem::vstConnectionSystem())
+        AudioSystem::vstConnectionSystem()->initialize();
+    if (AudioSystem::midiSystem())
+        AudioSystem::midiSystem()->initialize();
 
-    DeviceTester deviceTester;
+    new DeviceTester(&as);
+    new AudioContext(&as);
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     auto editor = appModel->workspaceEditor("flutydeer.filllyrics");

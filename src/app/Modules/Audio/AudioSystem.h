@@ -22,8 +22,8 @@ public:
     static MidiSystem *midiSystem();
 
 private:
-    OutputSystem *m_outputSystem;
-    VSTConnectionSystem *m_vstConnectionSystem;
+    OutputSystem *m_outputSystem = nullptr;
+    VSTConnectionSystem *m_vstConnectionSystem = nullptr;
     MidiSystem *m_midiSystem;
     bool m_isVST;
 };

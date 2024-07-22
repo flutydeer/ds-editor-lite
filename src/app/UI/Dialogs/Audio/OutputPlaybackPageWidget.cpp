@@ -176,7 +176,7 @@ void OutputPlaybackPageWidget::accept() const {
     appOptions->audio()->deviceGain = AudioSystem::outputSystem()->outputContext()->controlMixer()->gain();
     appOptions->audio()->devicePan = AudioSystem::outputSystem()->outputContext()->controlMixer()->pan();
     appOptions->audio()->fileBufferingReadAheadSize = m_fileBufferingReadAheadSizeSpinBox->value();
-    // TODO
+    AudioContext::instance()->setBufferingReadAheadSize(appOptions->audio()->fileBufferingReadAheadSize);
     appOptions->saveAndNotify();
 }
 

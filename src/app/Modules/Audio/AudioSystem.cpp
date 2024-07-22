@@ -8,9 +8,12 @@ static AudioSystem *m_instance = nullptr;
 
 AudioSystem::AudioSystem(bool isVST, QObject *parent) : QObject(parent), m_isVST(isVST) {
     m_instance = this;
-    m_outputSystem = new OutputSystem(this);
-    m_vstConnectionSystem = new VSTConnectionSystem(this);
-    m_midiSystem = new MidiSystem(this);
+    if (isVST) {
+        m_vstConnectionSystem = new VSTConnectionSystem(this);
+    } else {
+        m_outputSystem = new OutputSystem(this);
+        m_midiSystem = new MidiSystem(this);
+    }
 }
 AudioSystem::~AudioSystem() {
     m_instance = nullptr;
