@@ -9,16 +9,20 @@
 class LanguagePage;
 class Note;
 class AccentButton;
+
 class LyricDialog final : public Dialog {
     Q_OBJECT
+
 public:
     explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);
     ~LyricDialog() override;
 
+    QList<LangNote> noteResult() const;
     QList<LangNote> exportLangNotes();
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    void accept() override;
 
 private:
     void noteToPhonic();
@@ -39,6 +43,7 @@ private:
 
     QList<Note *> m_notes;
     QList<LangNote> m_langNotes;
+    QList<LangNote> m_noteResult;
 };
 
 #endif // DS_EDITOR_LITE_LYRICDIALOG_H

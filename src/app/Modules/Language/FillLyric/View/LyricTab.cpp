@@ -101,6 +101,7 @@ namespace FillLyric {
             m_lyricExtWidget->isVisible()
                 ? this->modelExport()
                 : m_lyricBaseWidget->splitLyric(m_lyricBaseWidget->m_textEdit->toPlainText());
+        qDebug() << "exportLangNotes: " << m_lyricExtWidget->isVisible();
         return langNotes;
     }
 

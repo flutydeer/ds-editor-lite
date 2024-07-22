@@ -67,6 +67,11 @@ void LyricDialog::keyPressEvent(QKeyEvent *event) {
     QDialog::keyPressEvent(event);
 }
 
+void LyricDialog::accept() {
+    this->m_noteResult = exportLangNotes();
+    Dialog::accept();
+}
+
 void LyricDialog::noteToPhonic() {
     const auto langMgr = LangMgr::ILanguageManager::instance();
     for (const auto note : m_notes) {
@@ -98,6 +103,10 @@ void LyricDialog::expandWindowRight() {
     resize(static_cast<int>(size.width() * 0.6), height());
 }
 
+QList<LangNote> LyricDialog::noteResult() const {
+    return m_noteResult;
+}
+
 QList<LangNote> LyricDialog::exportLangNotes() {
     const auto noteLists = m_lyricWidget->exportLangNotes();
 
@@ -107,7 +116,7 @@ QList<LangNote> LyricDialog::exportLangNotes() {
 
     QList<LangNote> result;
     for (const auto &langNotes : noteLists) {
-        for (auto& langNote : langNotes) {
+        for (auto &langNote : langNotes) {
             result.append(langNote);
         }
     }
