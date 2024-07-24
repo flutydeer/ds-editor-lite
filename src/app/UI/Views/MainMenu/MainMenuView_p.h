@@ -28,7 +28,7 @@ public:
     QAction *m_actionPaste = nullptr;
     QAction *m_actionFillLyrics = nullptr;
 
-    AppGlobal::PanelType m_panelType = AppGlobal::Unknown;
+    AppGlobal::PanelType m_panelType = AppGlobal::Generic;
 
     void onNewProject() const ;
     void onOpenProject();

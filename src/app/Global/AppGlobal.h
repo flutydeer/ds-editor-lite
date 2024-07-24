@@ -48,7 +48,7 @@ namespace AppGlobal {
 
     enum AudioLoadStatus { Init, Loading, Loaded, Error };
 
-    enum PanelType { Unknown, TracksEditor, ClipEditor };
+    enum PanelType { Generic, TracksEditor, ClipEditor };
 }
 
 #endif // APPGLOBAL_H

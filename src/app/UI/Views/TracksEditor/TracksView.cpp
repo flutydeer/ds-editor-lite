@@ -30,7 +30,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Dialogs/Base/Dialog.h"
 
-TracksView::TracksView(QWidget *parent) : QWidget(parent) {
+TracksView::TracksView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, parent) {
     trackController->setParentWidget(this);
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TracksView");
@@ -148,7 +148,6 @@ TracksView::TracksView(QWidget *parent) : QWidget(parent) {
 
     setLayout(mainLayout);
     setPanelActivated(true);
-    updateStyleSheet();
     appController->registerPanel(this);
     installEventFilter(this);
 }
@@ -561,13 +560,4 @@ void TracksView::reset() {
         }
     m_trackListWidget->clear();
     m_trackListViewModel.tracks.clear();
-}
-void TracksView::afterSetActivated() {
-    updateStyleSheet();
-}
-void TracksView::updateStyleSheet() {
-    auto borderStyle = panelActivated() ? "border: 1px solid rgb(126, 149, 199);"
-                                        : "border: 1px solid rgb(20, 20, 20);";
-    setStyleSheet(QString("QWidget#TracksView { background: #2A2B2C; border-radius: 6px; ") +
-                  borderStyle + "}");
 }

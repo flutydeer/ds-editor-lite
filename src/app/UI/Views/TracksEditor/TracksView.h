@@ -5,12 +5,10 @@
 #ifndef TRACKSVIEW_H
 #define TRACKSVIEW_H
 
-#include <QWidget>
-
 #include "Model/AppModel.h"
 #include "Model/Track.h"
 #include "Model/Clip.h"
-#include "Interface/IPanel.h"
+#include "UI/Views/Common/PanelView.h"
 
 class TrackListWidget;
 class TracksGraphicsView;
@@ -20,14 +18,11 @@ class TracksBackgroundGraphicsItem;
 class TrackViewModel;
 class AbstractClipGraphicsItem;
 
-class TracksView final : public QWidget, public IPanel{
+class TracksView final : public PanelView{
     Q_OBJECT
 
 public:
     explicit TracksView(QWidget *parent = nullptr);
-    [[nodiscard]] AppGlobal::PanelType panelType() const override {
-        return AppGlobal::TracksEditor;
-    }
 
     AbstractClipGraphicsItem *findClipItemById(int id);
 
@@ -90,8 +85,6 @@ private:
     void removeTrackFromView(int index);
     void updateOverlappedState();
     void reset();
-    void afterSetActivated() override;
-    void updateStyleSheet();
 };
 
 

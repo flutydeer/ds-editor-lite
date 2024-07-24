@@ -9,9 +9,11 @@
 
 class IPanel {
 public:
+    explicit IPanel(AppGlobal::PanelType type = AppGlobal::Generic) : m_type(type) {
+    }
     virtual ~IPanel() = default;
-    [[nodiscard]] virtual AppGlobal::PanelType panelType() const {
-        return AppGlobal::Unknown;
+    [[nodiscard]] AppGlobal::PanelType panelType() const {
+        return m_type;
     }
     [[nodiscard]] bool panelActivated() const {
         return m_activated;
@@ -25,6 +27,7 @@ protected:
     virtual void afterSetActivated() = 0;
 
 private:
+    AppGlobal::PanelType m_type;
     bool m_activated = false;
 };
 

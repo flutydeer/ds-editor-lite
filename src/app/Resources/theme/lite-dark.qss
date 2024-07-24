@@ -514,11 +514,11 @@ QCheckBox::indicator:unchecked:disabled {
     border: 1px solid rgb(64, 64, 64);
 }
 
-QWidget#TimelineView {
+TimelineView {
     background: rgb(28, 29, 30);
 }
 
-QWidget#PhonemeView {
+PhonemeView {
     background: rgb(28, 29, 30);
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
@@ -529,15 +529,11 @@ QWidget#tracksTimelineView {
     border-top-right-radius: 6px;
 }
 
-QGraphicsView#TracksGraphicsView {
+CommonGraphicsView {
     background: transparent;
 }
 
-QGraphicsView#PianoRollGraphicsView {
-    background: transparent;
-}
-
-QGraphicsView#LyricWrapView {
+LyricWrapView {
     background: transparent;
     border: 1px solid #505050;
     border-radius: 4px;
@@ -551,7 +547,7 @@ DialogButtonBar {
 }
 
 QLabel#DialogTitleLabel {
-    font-size: 14pt
+    font-size: 13pt
 }
 
 CardView {
@@ -640,4 +636,14 @@ QDoubleSpinBox::down-button:pressed {
 
 TaskWindow {
     background-color: #202122;
+}
+
+PanelView {
+    background: #2A2B2C;
+    border: 1px solid rgb(20, 20, 20);
+    border-radius: 6px;
+}
+
+PanelView[activePanel="true"] {
+    border: 1px solid rgb(126, 149, 199);
 }

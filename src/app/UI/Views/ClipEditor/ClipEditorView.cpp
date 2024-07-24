@@ -16,8 +16,9 @@
 
 #include <QMouseEvent>
 #include <QVBoxLayout>
+#include <QStyle>
 
-ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
+ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEditor, parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("ClipEditorView");
 
@@ -74,7 +75,6 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     mainLayout->setContentsMargins({1, 1, 1, 1});
     setLayout(mainLayout);
 
-    afterSetActivated();
     clipController->setView(this);
     appController->registerPanel(this);
     installEventFilter(this);
@@ -141,9 +141,3 @@ void ClipEditorView::reset() {
 //         }
 //     }
 // }
-void ClipEditorView::afterSetActivated() {
-    auto borderStyle = panelActivated() ? "border: 1px solid rgb(126, 149, 199);"
-                                        : "border: 1px solid rgb(20, 20, 20);";
-    setStyleSheet(QString("QWidget#ClipEditorView {background: #2A2B2C; border-radius: 6px; ") +
-                  borderStyle + "}");
-}
