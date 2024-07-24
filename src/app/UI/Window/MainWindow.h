@@ -16,7 +16,7 @@ class MainMenuView;
 class TaskDialog;
 class ProgressIndicator;
 class QLabel;
-class TracksView;
+class TrackEditorView;
 class ClipEditorView;
 
 class MainWindow final : public QMainWindow, public IMainWindow {
@@ -44,14 +44,14 @@ private:
     bool m_isAllDone = false;
 
     MainMenuView *m_mainMenu = nullptr;
-    TracksView *m_tracksView;
+    TrackEditorView *m_trackEditorView;
     ClipEditorView *m_clipEditView;
 
     QLabel *m_lbTaskTitle;
     ProgressIndicator *m_progressBar;
 
     QTimer m_waitDoneDialogDelayTimer;
-    TaskDialog *m_waitDoneDialog;
+    TaskDialog *m_waitDoneDialog = nullptr;
 
     // int m_noteIndex = 0;
 };

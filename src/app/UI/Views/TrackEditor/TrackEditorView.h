@@ -18,11 +18,11 @@ class TracksBackgroundGraphicsItem;
 class TrackViewModel;
 class AbstractClipGraphicsItem;
 
-class TracksView final : public PanelView{
+class TrackEditorView final : public PanelView {
     Q_OBJECT
 
 public:
-    explicit TracksView(QWidget *parent = nullptr);
+    explicit TrackEditorView(QWidget *parent = nullptr);
 
     AbstractClipGraphicsItem *findClipItemById(int id);
 

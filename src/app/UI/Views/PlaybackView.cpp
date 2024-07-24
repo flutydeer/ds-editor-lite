@@ -5,6 +5,7 @@
 
 #include "PlaybackView.h"
 
+#include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel.h"
 #include "UI/Controls/ComboBox.h"
@@ -159,18 +160,32 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     // setMaximumHeight(44);
     // setMaximumWidth(480);
 
-    setStyleSheet(
-        "QPushButton {padding: 0px; border: none; background: none; border-radius: 6px}"
-        "QPushButton:hover { background: #1AFFFFFF; }"
-        "QPushButton:pressed { background: #10FFFFFF; }"
-        "QPushButton#btnPlay:checked { background-color: #9BBAFF;} "
-        "QPushButton#btnPause:checked { background-color: #FFCD9B;} "
-        "QLabel { color: #F0F0F0; background: none; border-radius: 6px; }"
-        "QLabel:hover { background: #1AFFFFFF; }"
-        "QLineEdit { border-radius: 6px; }"
-        "QComboBox { color: #F0F0F0; border: none; background: transparent; border-radius: 6px; }"
-        "QComboBox:hover { background: #1AFFFFFF; }"
-        "QComboBox:pressed { background: #10FFFFFF; }");
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+    connect(this, &PlaybackView::setTempoTriggered, appController,
+                &AppController::onSetTempo);
+    connect(this, &PlaybackView::setTimeSignatureTriggered, appController,
+            &AppController::onSetTimeSignature);
+    connect(this, &PlaybackView::playTriggered, playbackController,
+            &PlaybackController::play);
+    connect(this, &PlaybackView::pauseTriggered, playbackController,
+            &PlaybackController::pause);
+    connect(this, &PlaybackView::stopTriggered, playbackController,
+            &PlaybackController::stop);
+    connect(this, &PlaybackView::setPositionTriggered, playbackController, [=](int tick) {
+        playbackController->setLastPosition(tick);
+        playbackController->setPosition(tick);
+    });
+    connect(this, &PlaybackView::setQuantizeTriggered, appController,
+            &AppController::onSetQuantize);
+    connect(playbackController, &PlaybackController::playbackStatusChanged, this,
+            &PlaybackView::onPlaybackStatusChanged);
+    connect(playbackController, &PlaybackController::positionChanged, this,
+            &PlaybackView::onPositionChanged);
+    connect(appModel, &AppModel::modelChanged, this, &PlaybackView::updateView);
+    connect(appModel, &AppModel::tempoChanged, this, &PlaybackView::onTempoChanged);
+    connect(appModel, &AppModel::timeSignatureChanged, this,
+            &PlaybackView::onTimeSignatureChanged);
 }
 void PlaybackView::updateView() {
     m_tempo = appModel->tempo();

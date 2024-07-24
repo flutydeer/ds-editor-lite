@@ -64,10 +64,6 @@ public:
         double gain = 0;
         bool mute = false;
     };
-    class AudioClipPropertyChangedArgs : public ClipCommonProperties {
-    public:
-        QString path;
-    };
 
 signals:
     void propertyChanged();
@@ -80,12 +76,20 @@ protected:
     int m_clipLen = 0;
     double m_gain = 0;
     bool m_mute = false;
+
+    static void applyPropertiesFromClip(ClipCommonProperties &args ,Clip *clip);
 };
 
 class AudioClip final : public Clip {
     Q_OBJECT
 
 public:
+    class AudioClipProperties final : public ClipCommonProperties {
+    public:
+        static AudioClipProperties fromClip(AudioClip *clip);
+        QString path;
+    };
+
     [[nodiscard]] ClipType type() const override {
         return Audio;
     }

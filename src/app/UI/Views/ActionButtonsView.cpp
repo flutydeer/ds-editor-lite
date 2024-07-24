@@ -4,6 +4,8 @@
 
 #include "ActionButtonsView.h"
 
+#include "Modules/History/HistoryManager.h"
+
 #include <QHBoxLayout>
 #include <QPushButton>
 
@@ -47,9 +49,12 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     mainLayout->addWidget(m_btnUndo);
     mainLayout->addWidget(m_btnRedo);
 
-    setStyleSheet("QPushButton {padding: 0px; border: none; background: none; border-radius: 6px}"
-                  "QPushButton:hover { background: #1AFFFFFF; }"
-                  "QPushButton:pressed { background: #10FFFFFF; }");
+    connect(this, &ActionButtonsView::undoTriggered, historyManager,
+            &HistoryManager::undo);
+    connect(this, &ActionButtonsView::redoTriggered, historyManager,
+            &HistoryManager::redo);
+    connect(historyManager, &HistoryManager::undoRedoChanged, this,
+            &ActionButtonsView::onUndoRedoChanged);
 }
 void ActionButtonsView::onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                                           const QString &redoActionName) {

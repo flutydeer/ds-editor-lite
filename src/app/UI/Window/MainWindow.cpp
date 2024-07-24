@@ -9,16 +9,7 @@
 #  include <WinUser.h>
 #endif
 
-#include <QApplication>
-#include <QCloseEvent>
-#include <QFileDialog>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QSplitter>
-#include <QStatusBar>
-
 #include "Controller/AppController.h"
-#include "Controller/PlaybackController.h"
 #include "Controller/TracksViewController.h"
 #include "Controller/ValidationController.h"
 #include "Modules/History/HistoryManager.h"
@@ -31,8 +22,16 @@
 #include "UI/Views/PlaybackView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/MainMenu/MainMenuView.h"
-#include "UI/Views/TracksEditor/TracksView.h"
+#include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "Utils/WindowFrameUtils.h"
+
+#include <QApplication>
+#include <QCloseEvent>
+#include <QFileDialog>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QSplitter>
+#include <QStatusBar>
 
 MainWindow::MainWindow() {
     QString qssBase;
@@ -60,61 +59,15 @@ MainWindow::MainWindow() {
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
     connect(taskManager, &TaskManager::taskChanged, this, &MainWindow::onTaskChanged);
 
-    m_tracksView = new TracksView;
+    m_trackEditorView = new TrackEditorView;
     m_clipEditView = new ClipEditorView;
-
-    connect(appModel, &AppModel::modelChanged, m_tracksView, &TracksView::onModelChanged);
-    connect(appModel, &AppModel::trackChanged, m_tracksView, &TracksView::onTrackChanged);
-    connect(appModel, &AppModel::tempoChanged, m_tracksView, &TracksView::onTempoChanged);
-
-    connect(m_tracksView, &TracksView::selectedClipChanged, trackController,
-            &TracksViewController::onSelectedClipChanged);
-    connect(m_tracksView, &TracksView::trackPropertyChanged, trackController,
-            &TracksViewController::onTrackPropertyChanged);
-    connect(m_tracksView, &TracksView::insertNewTrackTriggered, trackController,
-            &TracksViewController::onInsertNewTrack);
-    connect(m_tracksView, &TracksView::removeTrackTriggered, trackController,
-            &TracksViewController::onRemoveTrack);
-    connect(m_tracksView, &TracksView::addAudioClipTriggered, trackController,
-            &TracksViewController::onAddAudioClip);
-    connect(m_tracksView, &TracksView::newSingingClipTriggered, trackController,
-            &TracksViewController::onNewSingingClip);
-    connect(m_tracksView, &TracksView::clipPropertyChanged, trackController,
-            &TracksViewController::onClipPropertyChanged);
-    connect(m_tracksView, &TracksView::removeClipTriggered, trackController,
-            &TracksViewController::onRemoveClip);
 
     auto splitter = new QSplitter;
     splitter->setOrientation(Qt::Vertical);
-    splitter->addWidget(m_tracksView);
+    splitter->addWidget(m_trackEditorView);
     splitter->addWidget(m_clipEditView);
 
     auto playbackView = new PlaybackView;
-    connect(playbackView, &PlaybackView::setTempoTriggered, appController,
-            &AppController::onSetTempo);
-    connect(playbackView, &PlaybackView::setTimeSignatureTriggered, appController,
-            &AppController::onSetTimeSignature);
-    connect(playbackView, &PlaybackView::playTriggered, playbackController,
-            &PlaybackController::play);
-    connect(playbackView, &PlaybackView::pauseTriggered, playbackController,
-            &PlaybackController::pause);
-    connect(playbackView, &PlaybackView::stopTriggered, playbackController,
-            &PlaybackController::stop);
-    connect(playbackView, &PlaybackView::setPositionTriggered, playbackController, [=](int tick) {
-        playbackController->setLastPosition(tick);
-        playbackController->setPosition(tick);
-    });
-    connect(playbackView, &PlaybackView::setQuantizeTriggered, appController,
-            &AppController::onSetQuantize);
-    connect(playbackController, &PlaybackController::playbackStatusChanged, playbackView,
-            &PlaybackView::onPlaybackStatusChanged);
-    connect(playbackController, &PlaybackController::positionChanged, playbackView,
-            &PlaybackView::onPositionChanged);
-    connect(appModel, &AppModel::modelChanged, playbackView, &PlaybackView::updateView);
-    connect(appModel, &AppModel::tempoChanged, playbackView, &PlaybackView::onTempoChanged);
-    connect(appModel, &AppModel::timeSignatureChanged, playbackView,
-            &PlaybackView::onTimeSignatureChanged);
-    playbackView->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     m_mainMenu = new MainMenuView(this);
     connect(m_mainMenu->actionSave(), &QAction::triggered, this, &MainWindow::onSave);
@@ -126,12 +79,6 @@ MainWindow::MainWindow() {
     auto actionButtonsView = new ActionButtonsView;
     connect(actionButtonsView, &ActionButtonsView::saveTriggered, m_mainMenu->actionSave(),
             &QAction::trigger);
-    connect(actionButtonsView, &ActionButtonsView::undoTriggered, historyManager,
-            &HistoryManager::undo);
-    connect(actionButtonsView, &ActionButtonsView::redoTriggered, historyManager,
-            &HistoryManager::redo);
-    connect(historyManager, &HistoryManager::undoRedoChanged, actionButtonsView,
-            &ActionButtonsView::onUndoRedoChanged);
 
     connect(historyManager, &HistoryManager::undoRedoChanged, appController,
             &AppController::onUndoRedoChanged);

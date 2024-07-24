@@ -2,35 +2,34 @@
 // Created by fluty on 2024/1/29.
 //
 
-#include <QScroller>
-#include <QFileDialog>
-#include <QScrollBar>
-#include <QVBoxLayout>
-#include <QMouseEvent>
+#include "TrackEditorView.h"
 
-#include "TracksView.h"
-#include "Global/TracksEditorGlobal.h"
-#include "Controller/AppController.h"
-#include "Controller/PlaybackController.h"
+#include "TrackControlWidget.h"
+#include "TrackListHeaderView.h"
+#include "TrackListWidget.h"
+#include "TrackViewModel.h"
 #include "TracksGraphicsScene.h"
 #include "TracksGraphicsView.h"
-#include "Modules/Audio/AudioSystem.h"
-#include "Modules/Audio/AudioContext.h"
-#include "GraphicsItem/TracksBackgroundGraphicsItem.h"
-#include "UI/Views/Common/TimelineView.h"
-#include "TrackListHeaderView.h"
-#include "TrackViewModel.h"
-#include "UI/Controls/LevelMeter.h"
+#include "Controller/AppController.h"
+#include "Controller/PlaybackController.h"
+#include "Controller/TracksViewController.h"
+#include "Global/TracksEditorGlobal.h"
 #include "GraphicsItem/AudioClipGraphicsItem.h"
 #include "GraphicsItem/SingingClipGraphicsItem.h"
-#include "TrackControlWidget.h"
-#include "TrackListWidget.h"
-#include "Controller/TracksViewController.h"
+#include "GraphicsItem/TracksBackgroundGraphicsItem.h"
+#include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/Button.h"
+#include "UI/Controls/LevelMeter.h"
 #include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Views/Common/TimelineView.h"
 
-TracksView::TracksView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, parent) {
+#include <QFileDialog>
+#include <QMouseEvent>
+#include <QScrollBar>
+#include <QVBoxLayout>
+
+TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, parent) {
     trackController->setParentWidget(this);
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TracksView");
@@ -47,16 +46,16 @@ TracksView::TracksView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, par
     m_graphicsView->setEnsureSceneFillView(false);
     m_graphicsView->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
-            &TracksView::onViewScaleChanged);
+            &TrackEditorView::onViewScaleChanged);
     m_graphicsView->centerOn(0, 0);
     // connect(m_graphicsView, &TracksGraphicsView::resized, m_tracksScene,
     //         &TracksGraphicsScene::onGraphicsViewResized);
     connect(m_graphicsView, &TracksGraphicsView::sizeChanged, m_tracksScene,
             &TracksGraphicsScene::onViewResized);
-    connect(this, &TracksView::trackCountChanged, m_tracksScene,
+    connect(this, &TrackEditorView::trackCountChanged, m_tracksScene,
             &TracksGraphicsScene::onTrackCountChanged);
     connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
-            &TracksView::onSceneSelectionChanged);
+            &TrackEditorView::onSceneSelectionChanged);
     connect(m_graphicsView, &TracksGraphicsView::addSingingClipTriggered, this,
             [=](int trackIndex, int tick) { emit newSingingClipTriggered(trackIndex, tick); });
     connect(m_graphicsView, &TracksGraphicsView::addAudioClipTriggered, this,
@@ -72,7 +71,7 @@ TracksView::TracksView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, par
 
     m_gridItem = new TracksBackgroundGraphicsItem;
     m_gridItem->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
-    connect(this, &TracksView::trackCountChanged, m_gridItem,
+    connect(this, &TrackEditorView::trackCountChanged, m_gridItem,
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
     connect(appModel, &AppModel::modelChanged, m_gridItem, [=] {
         m_gridItem->setTimeSignature(appModel->timeSignature().numerator,
@@ -112,13 +111,13 @@ TracksView::TracksView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, par
     connect(lBar, &QScrollBar::valueChanged, gBar, &QScrollBar::setValue);
 
     connect(playbackController, &PlaybackController::positionChanged, this,
-            &TracksView::onPositionChanged);
+            &TrackEditorView::onPositionChanged);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
-            &TracksView::onLastPositionChanged);
+            &TrackEditorView::onLastPositionChanged);
     //    connect(playbackController, &PlaybackController::levelMetersUpdated, this,
     //            &TracksView::onLevelMetersUpdated);
     connect(AudioContext::instance(), &AudioContext::levelMeterUpdated, this,
-            &TracksView::onLevelMetersUpdated);
+            &TrackEditorView::onLevelMetersUpdated);
 
     // auto splitter = new QSplitter;
     // splitter->setOrientation(Qt::Horizontal);
@@ -150,8 +149,30 @@ TracksView::TracksView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, par
     setPanelActivated(true);
     appController->registerPanel(this);
     installEventFilter(this);
+
+
+    connect(appModel, &AppModel::modelChanged, this, &TrackEditorView::onModelChanged);
+    connect(appModel, &AppModel::trackChanged, this, &TrackEditorView::onTrackChanged);
+    connect(appModel, &AppModel::tempoChanged, this, &TrackEditorView::onTempoChanged);
+
+    connect(this, &TrackEditorView::selectedClipChanged, trackController,
+            &TracksViewController::onSelectedClipChanged);
+    connect(this, &TrackEditorView::trackPropertyChanged, trackController,
+            &TracksViewController::onTrackPropertyChanged);
+    connect(this, &TrackEditorView::insertNewTrackTriggered, trackController,
+            &TracksViewController::onInsertNewTrack);
+    connect(this, &TrackEditorView::removeTrackTriggered, trackController,
+            &TracksViewController::onRemoveTrack);
+    connect(this, &TrackEditorView::addAudioClipTriggered, trackController,
+            &TracksViewController::onAddAudioClip);
+    connect(this, &TrackEditorView::newSingingClipTriggered, trackController,
+            &TracksViewController::onNewSingingClip);
+    connect(this, &TrackEditorView::clipPropertyChanged, trackController,
+            &TracksViewController::onClipPropertyChanged);
+    connect(this, &TrackEditorView::removeClipTriggered, trackController,
+            &TracksViewController::onRemoveClip);
 }
-void TracksView::onModelChanged() {
+void TrackEditorView::onModelChanged() {
     if (m_tracksScene == nullptr)
         return;
 
@@ -166,12 +187,12 @@ void TracksView::onModelChanged() {
 
     // appController->onRunG2p();
 }
-void TracksView::onTempoChanged(double tempo) {
+void TrackEditorView::onTempoChanged(double tempo) {
     // notify audio clips
     m_tempo = tempo;
     emit tempoChanged(tempo);
 }
-void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
+void TrackEditorView::onTrackChanged(AppModel::TrackChangeType type, int index) {
     switch (type) {
         case AppModel::Insert:
             // qDebug() << "on track inserted" << index;
@@ -187,7 +208,7 @@ void TracksView::onTrackChanged(AppModel::TrackChangeType type, int index) {
             break;
     }
 }
-void TracksView::onClipChanged(Track::ClipChangeType type, qsizetype trackIndex, int clipId) {
+void TrackEditorView::onClipChanged(Track::ClipChangeType type, qsizetype trackIndex, int clipId) {
     auto trackModel = appModel->tracks().at(trackIndex);
     auto track = m_trackListViewModel.tracks.at(trackIndex);
     auto dsClip = trackModel->findClipById(clipId);
@@ -199,14 +220,14 @@ void TracksView::onClipChanged(Track::ClipChangeType type, qsizetype trackIndex,
     }
     updateOverlappedState();
 }
-void TracksView::onPositionChanged(double tick) {
+void TrackEditorView::onPositionChanged(double tick) {
     m_timeline->setPosition(tick);
     m_graphicsView->setPlaybackPosition(tick);
 }
-void TracksView::onLastPositionChanged(double tick) {
+void TrackEditorView::onLastPositionChanged(double tick) {
     m_graphicsView->setLastPlaybackPosition(tick);
 }
-void TracksView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const {
+void TrackEditorView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const {
     if (m_trackListViewModel.tracks.isEmpty())
         return;
 
@@ -217,7 +238,7 @@ void TracksView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &ar
         meter->setValue(state.valueL, state.valueR);
     }
 }
-void TracksView::onSceneSelectionChanged() {
+void TrackEditorView::onSceneSelectionChanged() {
     // find selected clip (the first one)
     bool foundSelectedClip = false;
     for (int i = 0; i < m_trackListViewModel.tracks.count(); i++) {
@@ -238,7 +259,7 @@ void TracksView::onSceneSelectionChanged() {
     if (!foundSelectedClip)
         emit selectedClipChanged(-1);
 }
-void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
+void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) {
     int previousHeightSum = 0;
     for (int i = 0; i < m_trackListWidget->count(); i++) {
         // adjust track item height
@@ -252,7 +273,7 @@ void TracksView::onViewScaleChanged(qreal sx, qreal sy) {
         previousHeightSum += height;
     }
 }
-void TracksView::onClipGraphicsItemRemoveTriggered(int id) {
+void TrackEditorView::onClipGraphicsItemRemoveTriggered(int id) {
     auto clip = findClipItemById(id);
     auto dlg = new Dialog(this);
     dlg->setWindowTitle(tr("Warning"));
@@ -272,7 +293,7 @@ void TracksView::onClipGraphicsItemRemoveTriggered(int id) {
 
     dlg->show();
 }
-bool TracksView::eventFilter(QObject *watched, QEvent *event) {
+bool TrackEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress) {
         // qDebug() << "TracksView MouseButtonPress";
         appController->onPanelClicked(AppGlobal::TracksEditor);
@@ -280,14 +301,14 @@ bool TracksView::eventFilter(QObject *watched, QEvent *event) {
 
     return QWidget::eventFilter(watched, event);
 }
-TrackViewModel *TracksView::TrackListViewModel::findTrackById(int id) {
+TrackViewModel *TrackEditorView::TrackListViewModel::findTrackById(int id) {
     for (const auto track : tracks) {
         if (track->id() == id)
             return track;
     }
     return nullptr;
 }
-void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
+void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
     connect(dsTrack, &Track::propertyChanged, this, [=] { updateTracksOnView(); });
     connect(dsTrack, &Track::clipChanged, this, [=](Track::ClipChangeType type, int clipId) {
         auto index = appModel->tracks().indexOf(dsTrack);
@@ -375,8 +396,8 @@ void TracksView::insertTrackToView(Track *dsTrack, int trackIndex) {
             }
         }
 }
-void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
-                                   int trackIndex) { // TODO: remove param track
+void TrackEditorView::insertClipToTrack(Clip *clip, TrackViewModel *track,
+                                        int trackIndex) { // TODO: remove param track
     auto start = clip->start();
     auto clipStart = clip->clipStart();
     auto length = clip->length();
@@ -399,13 +420,14 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         clipItem->setAudioInfo(audioClip->audioInfo());
         m_tracksScene->addCommonItem(clipItem);
         qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
-        connect(this, &TracksView::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
+        connect(this, &TrackEditorView::tempoChanged, clipItem,
+                &AudioClipGraphicsItem::onTempoChange);
         connect(appModel, &AppModel::quantizeChanged, clipItem,
                 &AbstractClipGraphicsItem::setQuantize);
         connect(clipItem, &AudioClipGraphicsItem::propertyChanged, this, [=] {
             auto clip = findClipItemById(clipItem->id());
             if (clip == clipItem) {
-                Clip::AudioClipPropertyChangedArgs args;
+                AudioClip::AudioClipProperties args;
                 args.name = clipItem->name();
                 args.id = clipItem->id();
                 args.start = clipItem->start();
@@ -419,7 +441,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
             }
         });
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
-                &TracksView::onClipGraphicsItemRemoveTriggered);
+                &TrackEditorView::onClipGraphicsItemRemoveTriggered);
         track->clips.append(clipItem);
     } else if (clip->type() == Clip::Singing) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
@@ -440,7 +462,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         connect(singingClip, &SingingClip::noteChanged, clipItem,
                 &SingingClipGraphicsItem::onNoteListChanged);
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
-                &TracksView::onClipGraphicsItemRemoveTriggered);
+                &TrackEditorView::onClipGraphicsItemRemoveTriggered);
         connect(appModel, &AppModel::quantizeChanged, clipItem,
                 &AbstractClipGraphicsItem::setQuantize);
         connect(clipItem, &SingingClipGraphicsItem::propertyChanged, this, [=] {
@@ -462,7 +484,7 @@ void TracksView::insertClipToTrack(Clip *clip, TrackViewModel *track,
     }
     connect(clip, &Clip::propertyChanged, this, [=] { updateClipOnView(clip); });
 }
-void TracksView::removeClipFromView(int clipId) {
+void TrackEditorView::removeClipFromView(int clipId) {
     auto clipItem = findClipItemById(clipId);
     m_tracksScene->removeCommonItem(clipItem);
     int trackIndex = 0;
@@ -474,14 +496,14 @@ void TracksView::removeClipFromView(int clipId) {
         trackIndex++;
     }
 }
-AbstractClipGraphicsItem *TracksView::findClipItemById(int id) {
+AbstractClipGraphicsItem *TrackEditorView::findClipItemById(int id) {
     for (const auto &track : m_trackListViewModel.tracks)
         for (const auto clip : track->clips)
             if (clip->id() == id)
                 return clip;
     return nullptr;
 }
-void TracksView::updateTracksOnView() const {
+void TrackEditorView::updateTracksOnView() const {
     auto tracksModel = appModel->tracks();
     for (int i = 0; i < m_trackListViewModel.tracks.count(); i++) {
         auto widget = m_trackListViewModel.tracks.at(i)->widget;
@@ -490,7 +512,7 @@ void TracksView::updateTracksOnView() const {
         widget->setControl(track->control());
     }
 }
-void TracksView::updateClipOnView(Clip *clip) {
+void TrackEditorView::updateClipOnView(Clip *clip) {
     // qDebug() << "TracksView::updateClipOnView" << clipId;
     auto item = findClipItemById(clip->id());
     item->setName(clip->name());
@@ -513,9 +535,9 @@ void TracksView::updateClipOnView(Clip *clip) {
 
     updateOverlappedState();
 }
-void TracksView::removeTrackFromView(int index) {
+void TrackEditorView::removeTrackFromView(int index) {
     disconnect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
-               &TracksView::onSceneSelectionChanged);
+               &TrackEditorView::onSceneSelectionChanged);
     // remove from view
     auto track = m_trackListViewModel.tracks.at(index);
     for (auto clip : track->clips) {
@@ -540,9 +562,9 @@ void TracksView::removeTrackFromView(int index) {
             }
         }
     connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
-            &TracksView::onSceneSelectionChanged);
+            &TrackEditorView::onSceneSelectionChanged);
 }
-void TracksView::updateOverlappedState() {
+void TrackEditorView::updateOverlappedState() {
     for (const auto trackModel : appModel->tracks()) {
         auto track = m_trackListViewModel.findTrackById(trackModel->id());
         for (auto clipItem : track->clips) {
@@ -552,7 +574,7 @@ void TracksView::updateOverlappedState() {
     }
     m_graphicsView->update();
 }
-void TracksView::reset() {
+void TrackEditorView::reset() {
     for (auto &track : m_trackListViewModel.tracks)
         for (auto clip : track->clips) {
             m_tracksScene->removeCommonItem(clip);

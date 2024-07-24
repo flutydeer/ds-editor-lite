@@ -15,7 +15,7 @@
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
-#include "UI/Views/TracksEditor/GraphicsItem/AudioClipGraphicsItem.h"
+#include "UI/Views/TrackEditor/GraphicsItem/AudioClipGraphicsItem.h"
 
 void TracksViewController::setParentWidget(QWidget *view) {
     m_parentWidget = view;
