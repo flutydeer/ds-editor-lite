@@ -6,21 +6,21 @@
 #define DSPARAMS_H
 
 #include "Curve.h"
-#include "Utils/OverlapableSerialList.h"
+#include "Utils/OverlappableSerialList.h"
 
 class Param {
 public:
     enum ParamType { Original, Edited, Envelope, Unknown };
 
-    [[nodiscard]] const OverlapableSerialList<Curve> &curves(ParamType type) const;
-    void setCurves(ParamType type, const OverlapableSerialList<Curve> &curves);
+    [[nodiscard]] const OverlappableSerialList<Curve> &curves(ParamType type) const;
+    void setCurves(ParamType type, const OverlappableSerialList<Curve> &curves);
     void setCurves(ParamType type, const QList<Curve *> &curves);
 
 private:
-    OverlapableSerialList<Curve> m_original;
-    OverlapableSerialList<Curve> m_edited;
-    OverlapableSerialList<Curve> m_envelope;
-    OverlapableSerialList<Curve> m_unknown;
+    OverlappableSerialList<Curve> m_original;
+    OverlappableSerialList<Curve> m_edited;
+    OverlappableSerialList<Curve> m_envelope;
+    OverlappableSerialList<Curve> m_unknown;
 };
 
 class ParamBundle {

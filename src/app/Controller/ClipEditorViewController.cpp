@@ -226,7 +226,7 @@ void ClipEditorViewController::onNoteSelectionChanged(const QList<int> &notesId,
 }
 
 void ClipEditorViewController::onOriginalPitchChanged(
-    const OverlapableSerialList<Curve> &curves) const {
+    const OverlappableSerialList<Curve> &curves) const {
     Q_D(const ClipEditorViewController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     auto a = new ParamsActions;
@@ -235,7 +235,7 @@ void ClipEditorViewController::onOriginalPitchChanged(
     historyManager->record(a);
 }
 
-void ClipEditorViewController::onPitchEdited(const OverlapableSerialList<Curve> &curves) const {
+void ClipEditorViewController::onPitchEdited(const OverlappableSerialList<Curve> &curves) const {
     Q_D(const ClipEditorViewController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     auto a = new ParamsActions;

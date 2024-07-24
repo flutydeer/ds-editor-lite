@@ -5,7 +5,7 @@
 #include <QDebug>
 
 #include "TestTimeObject.h"
-#include "../../app/Utils/OverlapableSerialList.h"
+#include "../../app/Utils/OverlappableSerialList.h"
 #include "../../app/Utils/VolumeUtils.h"
 
 int main(int argc, char *argv[]) {
@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
     qDebug() << "obj2" << obj2.start() << "obj3:" << obj3.start() << obj2.compareTo(&obj3);
     qDebug() << "obj1" << obj1.start() << "obj4:" << obj4.start() << obj1.compareTo(&obj4);
 
-    OverlapableSerialList<TestTimeObject> list;
+    OverlappableSerialList<TestTimeObject> list;
     list.add(&obj1);
     list.add(&obj2);
     list.add(&obj3);
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     for (const auto item : list)
         qDebug() << item->start() << item->start() + item->length();
     // qDebug() << obj3.isOverlappedWith(&obj2);
-    qDebug() << list.isOverlappedItemExists();
+    qDebug() << list.hasOverlappedItem();
     for (const auto item : list.overlappedItems())
         qDebug() << item->start() << item->start() + item->length();
 

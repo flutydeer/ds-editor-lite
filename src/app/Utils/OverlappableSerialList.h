@@ -8,7 +8,7 @@
 #include <QList>
 
 template <typename T>
-class OverlapableSerialList {
+class OverlappableSerialList {
 public:
     [[nodiscard]] int count() const;
     void add(T *item);
@@ -17,7 +17,7 @@ public:
     int indexOf(const T *item);
     bool contains(const T *item);
     T *at(int index) const;
-    [[nodiscard]] bool isOverlappedItemExists() const;
+    [[nodiscard]] bool hasOverlappedItem() const;
     QList<T *> findOverlappedItems(T *obj) const;
     QList<T *> overlappedItems() const;
     QList<T *> toList() const;
@@ -65,15 +65,15 @@ public:
     }
 
 private:
-    QList<T *> &overlappedIOverlapables();
+    QList<T *> overlappedOverlappables() const;
     QList<T *> m_list;
 };
 template <typename T>
-int OverlapableSerialList<T>::count() const {
+int OverlappableSerialList<T>::count() const {
     return m_list.size();
 }
 template <typename T>
-void OverlapableSerialList<T>::add(T *item) {
+void OverlappableSerialList<T>::add(T *item) {
     item->setOverlapped(false);
     if (m_list.empty()) {
         m_list.append(item);
@@ -103,10 +103,10 @@ void OverlapableSerialList<T>::add(T *item) {
     m_list.append(item);
 }
 template <typename T>
-void OverlapableSerialList<T>::remove(T *item) {
+void OverlappableSerialList<T>::remove(T *item) {
     if (item->overlapped()) {
         item->setOverlapped(false);
-        auto overlapedItemsInside = this->overlappedIOverlapables();
+        auto overlapedItemsInside = this->overlappedItems();
         for (auto t : overlapedItemsInside) {
             if (t->isOverlappedWith(item)) {
                 bool flag = false;
@@ -128,23 +128,23 @@ void OverlapableSerialList<T>::remove(T *item) {
 //     add(item);
 // }
 template <typename T>
-void OverlapableSerialList<T>::clear() {
+void OverlappableSerialList<T>::clear() {
     m_list.clear();
 }
 template <typename T>
-int OverlapableSerialList<T>::indexOf(const T *item) {
+int OverlappableSerialList<T>::indexOf(const T *item) {
     return m_list.indexOf(item);
 }
 template <typename T>
-bool OverlapableSerialList<T>::contains(const T *item) {
+bool OverlappableSerialList<T>::contains(const T *item) {
     return m_list.contains(item);
 }
 template <typename T>
-T *OverlapableSerialList<T>::at(int index) const {
+T *OverlappableSerialList<T>::at(int index) const {
     return m_list.at(index);
 }
 template <typename T>
-bool OverlapableSerialList<T>::isOverlappedItemExists() const {
+bool OverlappableSerialList<T>::hasOverlappedItem() const {
     bool overlapped = false;
     for (const auto &item : m_list)
         if (item->overlapped()) {
@@ -154,32 +154,32 @@ bool OverlapableSerialList<T>::isOverlappedItemExists() const {
     return overlapped;
 }
 template <typename T>
-QList<T *> OverlapableSerialList<T>::findOverlappedItems(T *obj) const {
-    auto list = new QList<T *>;
+QList<T *> OverlappableSerialList<T>::findOverlappedItems(T *obj) const {
+    QList<T *> list;
     for (const auto &item : m_list)
         if (item->isOverlappedWith(obj))
-            list->append(item);
-    return *list;
+            list.append(item);
+    return list;
 }
 template <typename T>
-QList<T *> OverlapableSerialList<T>::overlappedItems() const {
-    auto list = new QList<T *>;
+QList<T *> OverlappableSerialList<T>::overlappedItems() const {
+    QList<T *> list;
     for (const auto &item : m_list)
         if (item->overlapped())
-            list->append(item);
-    return *list;
+            list.append(item);
+    return list;
 }
 template <typename T>
-QList<T *> OverlapableSerialList<T>::toList() const {
+QList<T *> OverlappableSerialList<T>::toList() const {
     return m_list;
 }
 template <typename T>
-QList<T *> &OverlapableSerialList<T>::overlappedIOverlapables() {
-    auto list = new QList<T *>;
+QList<T *> OverlappableSerialList<T>::overlappedOverlappables() const {
+    QList<T *> list;
     for (const auto &item : m_list)
         if (item->overlapped())
-            list->append(item);
-    return *list;
+            list.append(item);
+    return list;
 }
 
 #endif // SERIALLIST_H

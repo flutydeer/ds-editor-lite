@@ -59,9 +59,9 @@ void PitchEditorGraphicsItem::loadOpensvipPitchParam() {
         }
     }
 }
-void PitchEditorGraphicsItem::loadOriginal(const OverlapableSerialList<DrawCurve> &curves) {
-    OverlapableSerialList<Curve> source;
-    OverlapableSerialList<Curve> target;
+void PitchEditorGraphicsItem::loadOriginal(const OverlappableSerialList<DrawCurve> &curves) {
+    OverlappableSerialList<Curve> source;
+    OverlappableSerialList<Curve> target;
     for (const auto curve : curves)
         source.add(curve);
 
@@ -74,10 +74,10 @@ void PitchEditorGraphicsItem::loadOriginal(const OverlapableSerialList<DrawCurve
     }
     update();
 }
-void PitchEditorGraphicsItem::loadEdited(const OverlapableSerialList<DrawCurve> &curves) {
+void PitchEditorGraphicsItem::loadEdited(const OverlappableSerialList<DrawCurve> &curves) {
     // qDebug() << "PitchEditorGraphicsItem::loadEdited count:" << curves.count();
-    OverlapableSerialList<Curve> source;
-    OverlapableSerialList<Curve> target;
+    OverlappableSerialList<Curve> source;
+    OverlappableSerialList<Curve> target;
     for (const auto curve : curves)
         source.add(curve);
 
@@ -90,7 +90,7 @@ void PitchEditorGraphicsItem::loadEdited(const OverlapableSerialList<DrawCurve> 
     }
     update();
 }
-const OverlapableSerialList<DrawCurve> &PitchEditorGraphicsItem::editedCurves() const {
+const OverlappableSerialList<DrawCurve> &PitchEditorGraphicsItem::editedCurves() const {
     return m_drawCurvesEdited;
 }
 void PitchEditorGraphicsItem::setEditMode(const EditMode &mode) {
@@ -296,7 +296,7 @@ void PitchEditorGraphicsItem::drawOpensvipPitchParam(QPainter *painter) {
     painter->drawPath(path);
 }
 void PitchEditorGraphicsItem::drawHandDrawCurves(QPainter *painter,
-                                                 const OverlapableSerialList<DrawCurve> &curves) {
+                                                 const OverlappableSerialList<DrawCurve> &curves) {
     auto drawCurve = [&](DrawCurve *curve) {
         QPainterPath path;
         int start = curve->start();

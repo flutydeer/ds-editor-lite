@@ -28,7 +28,7 @@ SingingClipGraphicsItem::SingingClipGraphicsItem(int itemId, QGraphicsItem *pare
     setCanResizeLength(true);
     // setName("New Pattern");
 }
-void SingingClipGraphicsItem::loadNotes(const OverlapableSerialList<Note> &notes) {
+void SingingClipGraphicsItem::loadNotes(const OverlappableSerialList<Note> &notes) {
     m_notes.clear();
     if (notes.count() != 0)
         for (const auto &note : notes)

@@ -5,7 +5,7 @@
 #ifndef PITCHEDITORGRAPHICSITEM_H
 #define PITCHEDITORGRAPHICSITEM_H
 
-#include "Utils/OverlapableSerialList.h"
+#include "Utils/OverlappableSerialList.h"
 #include "UI/Views/Common/OverlayGraphicsItem.h"
 
 class Curve;
@@ -21,9 +21,9 @@ public:
     [[nodiscard]] EditMode editMode() const;
     void setEditMode(const EditMode &mode);
     void loadOpensvipPitchParam();
-    void loadOriginal(const OverlapableSerialList<DrawCurve> &curves);
-    void loadEdited(const OverlapableSerialList<DrawCurve> &curves);
-    [[nodiscard]] const OverlapableSerialList<DrawCurve> &editedCurves() const;
+    void loadOriginal(const OverlappableSerialList<DrawCurve> &curves);
+    void loadEdited(const OverlappableSerialList<DrawCurve> &curves);
+    [[nodiscard]] const OverlappableSerialList<DrawCurve> &editedCurves() const;
 
 signals:
     void editCompleted();
@@ -39,7 +39,7 @@ private:
     // void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     void drawOpensvipPitchParam(QPainter *painter);
-    void drawHandDrawCurves(QPainter *painter, const OverlapableSerialList<DrawCurve> &curves);
+    void drawHandDrawCurves(QPainter *painter, const OverlappableSerialList<DrawCurve> &curves);
     static void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve *curve);
 
     EditMode m_editMode = Off;
@@ -51,8 +51,8 @@ private:
     DrawCurve *m_editingCurve = nullptr;
     DrawCurveEditType m_drawCurveEditType = None;
     bool m_mouseMoved = false;
-    OverlapableSerialList<DrawCurve> m_drawCurvesEdited;
-    OverlapableSerialList<DrawCurve> m_drawCurvesOriginal;
+    OverlappableSerialList<DrawCurve> m_drawCurvesEdited;
+    OverlappableSerialList<DrawCurve> m_drawCurvesOriginal;
 
     QList<std::tuple<int, int>> m_opensvipPitchParam;
 

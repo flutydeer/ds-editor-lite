@@ -164,7 +164,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
 bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &errMsg) {
 
-    auto encodeCurves = [&](const OverlapableSerialList<Curve> &dsCurves,
+    auto encodeCurves = [&](const OverlappableSerialList<Curve> &dsCurves,
                             QList<QDspx::ParamCurveRef> &curves) {
         for (const auto &dsCurve : dsCurves) {
             if (dsCurve->type() == Curve::CurveType::Draw) {
@@ -229,7 +229,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         }
     };
 
-    auto encodeNotes = [&](const OverlapableSerialList<Note> &dsNotes, QList<QDspx::Note> &notes) {
+    auto encodeNotes = [&](const OverlappableSerialList<Note> &dsNotes, QList<QDspx::Note> &notes) {
         for (const auto dsNote : dsNotes) {
             QDspx::Note note;
             note.pos = dsNote->start();

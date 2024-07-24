@@ -96,7 +96,7 @@ Clip::ClipCommonProperties Clip::ClipCommonProperties::fromClip(Clip *clip) {
     args.mute = clip->mute();
     return args;
 }
-const OverlapableSerialList<Note> &SingingClip::notes() const {
+const OverlappableSerialList<Note> &SingingClip::notes() const {
     return m_notes;
 }
 void SingingClip::insertNote(Note *note) {
@@ -146,8 +146,8 @@ void SingingClip::notifyParamChanged(ParamBundle::ParamName paramName, Param::Pa
 //     }
 //     return m_parts;
 // }
-void SingingClip::copyCurves(const OverlapableSerialList<Curve> &source,
-                             OverlapableSerialList<Curve> &target) {
+void SingingClip::copyCurves(const OverlappableSerialList<Curve> &source,
+                             OverlappableSerialList<Curve> &target) {
     target.clear();
     for (const auto curve : source) {
         if (curve->type() == Curve::Draw)

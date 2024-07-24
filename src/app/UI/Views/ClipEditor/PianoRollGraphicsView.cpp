@@ -92,7 +92,7 @@ void PianoRollGraphicsView::onSceneSelectionChanged() const {
 }
 void PianoRollGraphicsView::onPitchEditorEditCompleted() {
     qDebug() << "PianoRollGraphicsView::onPitchEditorEditCompleted";
-    OverlapableSerialList<Curve> curves;
+    OverlappableSerialList<Curve> curves;
     auto newCurves = m_pitchItem->editedCurves();
     for (auto curve : newCurves) {
         curves.add(curve);
@@ -535,7 +535,7 @@ void PianoRollGraphicsView::clearNoteSelections(NoteGraphicsItem *except) {
 }
 void PianoRollGraphicsView::updatePitch(Param::ParamType paramType, const Param &param) {
     qDebug() << "PianoRollGraphicsView::updatePitch";
-    OverlapableSerialList<DrawCurve> drawCurves;
+    OverlappableSerialList<DrawCurve> drawCurves;
     if (paramType == Param::Original) {
         for (const auto curve : param.curves(Param::Original))
             if (curve->type() == Curve::Draw)

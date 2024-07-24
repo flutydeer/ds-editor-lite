@@ -7,7 +7,7 @@
 
 #include "../../app/Utils/IOverlapable.h"
 #include "../../app/Utils/UniqueObject.h"
-#include "../../app/Utils/OverlapableSerialList.h"
+#include "../../app/Utils/OverlappableSerialList.h"
 
 #include <QFrame>
 
@@ -46,7 +46,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
 
-    OverlapableSerialList<HandDrawCurve> m_curves;
+    OverlappableSerialList<HandDrawCurve> m_curves;
     HandDrawCurve *m_editingCurve = new HandDrawCurve;
     bool firstDraw = true;
     QPoint m_prevPos;

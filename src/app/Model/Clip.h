@@ -9,7 +9,7 @@
 
 #include "Utils/IOverlapable.h"
 #include "Utils/ISelectable.h"
-#include "Utils/OverlapableSerialList.h"
+#include "Utils/OverlappableSerialList.h"
 #include "Utils/UniqueObject.h"
 #include "ClipboardDataModel/NotesParamsInfo.h"
 #include "Params.h"
@@ -125,7 +125,7 @@ public:
         return Singing;
     }
 
-    [[nodiscard]] const OverlapableSerialList<Note> &notes() const;
+    [[nodiscard]] const OverlappableSerialList<Note> &notes() const;
     void insertNote(Note *note);
     void removeNote(Note *note);
     Note *findNoteById(int id);
@@ -138,8 +138,8 @@ public:
     ParamBundle params;
     // QList<VocalPart> parts();
 
-    static void copyCurves(const OverlapableSerialList<Curve> &source,
-                           OverlapableSerialList<Curve> &target);
+    static void copyCurves(const OverlappableSerialList<Curve> &source,
+                           OverlappableSerialList<Curve> &target);
 
 signals:
     void noteChanged(SingingClip::NoteChangeType type, Note *note);
@@ -147,7 +147,7 @@ signals:
     void paramChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
 
 private:
-    OverlapableSerialList<Note> m_notes;
+    OverlappableSerialList<Note> m_notes;
     QList<VocalPart> m_parts;
 };
 

@@ -225,7 +225,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
                 QVariant::fromValue(reinterpret_cast<quintptr>(&midiOverlap)));
     auto midi = new QDspx::MidiConverter;
 
-    auto encodeNotes = [](const OverlapableSerialList<Note> &notes) {
+    auto encodeNotes = [](const OverlappableSerialList<Note> &notes) {
         QList<QDspx::Note> arrNotes;
         for (const auto &note : notes) {
             QDspx::Note dsNote;

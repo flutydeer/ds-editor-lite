@@ -129,7 +129,7 @@ bool ValidationController::validateTempo() {
 }
 bool ValidationController::validateClipOverlap() {
     if (std::all_of(appModel->tracks().begin(), appModel->tracks().end(),
-                    [](const auto &track) { return !track->clips().isOverlappedItemExists(); })) {
+                    [](const auto &track) { return !track->clips().hasOverlappedItem(); })) {
         return true;
     }
     Toast::show("ValidationController: clip overlapped");
@@ -140,7 +140,7 @@ bool ValidationController::validateNoteOverlap() {
         for (const auto clip : track->clips()) {
             if (clip->type() == Clip::Singing) {
                 auto singingClip = reinterpret_cast<SingingClip *>(clip);
-                if (singingClip->notes().isOverlappedItemExists()) {
+                if (singingClip->notes().hasOverlappedItem()) {
                     Toast::show("ValidationController: note overlapped");
                     return false;
                 }

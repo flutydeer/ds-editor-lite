@@ -7,7 +7,7 @@
 
 #include "AbstractClipGraphicsItem.h"
 #include "Model/Clip.h"
-#include "Utils/OverlapableSerialList.h"
+#include "Utils/OverlappableSerialList.h"
 
 class Note;
 
@@ -28,7 +28,7 @@ public:
     explicit SingingClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     ~SingingClipGraphicsItem() override = default;
 
-    void loadNotes(const OverlapableSerialList<Note> &notes);
+    void loadNotes(const OverlappableSerialList<Note> &notes);
     [[nodiscard]] QString audioCachePath() const;
     void setAudioCachePath(const QString &path);
 
@@ -46,7 +46,7 @@ private:
     }
 
     QString m_audioCachePath;
-    OverlapableSerialList<NoteViewModel> m_notes;
+    OverlappableSerialList<NoteViewModel> m_notes;
 
     void addNote(Note *note);
     void removeNote(int id);

@@ -10,7 +10,7 @@
 #include <QColor>
 
 #include "Utils/UniqueObject.h"
-#include "Utils/OverlapableSerialList.h"
+#include "Utils/OverlappableSerialList.h"
 #include "Utils/ISelectable.h"
 #include "TrackControl.h"
 
@@ -27,7 +27,7 @@ public:
     void setName(const QString &name);
     [[nodiscard]] TrackControl control() const;
     void setControl(const TrackControl &control);
-    [[nodiscard]] OverlapableSerialList<Clip> clips() const;
+    [[nodiscard]] OverlappableSerialList<Clip> clips() const;
     void insertClip(Clip *clip);
     void removeClip(Clip *clip);
     [[nodiscard]] QColor color() const;
@@ -54,7 +54,7 @@ signals:
 private:
     QString m_name;
     TrackControl m_control = TrackControl();
-    OverlapableSerialList<Clip> m_clips;
+    OverlappableSerialList<Clip> m_clips;
     QColor m_color;
 };
 

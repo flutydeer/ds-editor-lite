@@ -26,7 +26,7 @@ void Track::setControl(const TrackControl &control) {
     m_control = control;
     emit propertyChanged();
 }
-OverlapableSerialList<Clip> Track::clips() const {
+OverlappableSerialList<Clip> Track::clips() const {
     return m_clips;
 }
 void Track::insertClip(Clip *clip) {

@@ -8,7 +8,7 @@
 
 ReplaceParamAction *ReplaceParamAction::build(ParamBundle::ParamName paramName,
                                               Param::ParamType paramType,
-                                              const OverlapableSerialList<Curve> &curves,
+                                              const OverlappableSerialList<Curve> &curves,
                                               SingingClip *clip) {
     auto a = new ReplaceParamAction;
     a->m_paramName = paramName;

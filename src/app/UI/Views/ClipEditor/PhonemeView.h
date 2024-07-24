@@ -8,7 +8,7 @@
 #include <QWidget>
 
 #include "UI/Utils/ITimelinePainter.h"
-#include "Utils/OverlapableSerialList.h"
+#include "Utils/OverlappableSerialList.h"
 #include "Utils/IOverlapable.h"
 #include "Model/Clip.h"
 
@@ -103,7 +103,7 @@ private:
     double m_endTick = 0;
     double m_resizeToleranceInTick = 0;
     double m_position = 0;
-    OverlapableSerialList<NoteViewModel> m_notes;
+    OverlappableSerialList<NoteViewModel> m_notes;
     QList<PhonemeViewModel *> m_phonemes;
     MouseMoveBehavior m_mouseMoveBehavior = None;
     PhonemeViewModel *m_curPhoneme = nullptr;
