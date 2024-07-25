@@ -84,12 +84,10 @@ bool Clip::isOverlappedWith(Clip *obj) const {
         return false;
     return true;
 }
-Clip::ClipCommonProperties Clip::ClipCommonProperties::fromClip(const Clip &clip) {
-    ClipCommonProperties args;
-    applyPropertiesFromClip(args, clip);
-    return args;
+Clip::ClipCommonProperties::ClipCommonProperties(const IClip &clip) {
+    applyPropertiesFromClip(*this, clip);
 }
-void Clip::applyPropertiesFromClip(ClipCommonProperties &args, const Clip &clip) {
+void Clip::applyPropertiesFromClip(ClipCommonProperties &args, const IClip &clip) {
     args.name = clip.name();
     args.id = clip.id();
     args.start = clip.start();
@@ -102,6 +100,9 @@ void Clip::applyPropertiesFromClip(ClipCommonProperties &args, const Clip &clip)
 AudioClip::AudioClipProperties::AudioClipProperties(const AudioClip &clip) {
     applyPropertiesFromClip(*this, clip);
     path = clip.path();
+}
+AudioClip::AudioClipProperties::AudioClipProperties(const IClip &clip) {
+    applyPropertiesFromClip(*this, clip);
 }
 const OverlappableSerialList<Note> &SingingClip::notes() const {
     return m_notes;

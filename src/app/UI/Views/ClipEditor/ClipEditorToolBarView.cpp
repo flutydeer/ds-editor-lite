@@ -144,7 +144,7 @@ void ClipEditorToolBarView::onPianoRollToolButtonToggled(QAbstractButton *button
     }
 }
 void ClipEditorToolBarView::onClipNameEdited(const QString &name) const {
-    auto args = Clip::ClipCommonProperties::fromClip(*m_clip);
+    Clip::ClipCommonProperties args(*m_clip);
     args.name = name;
     int trackIndex;
     appModel->findClipById(m_clip->id(), trackIndex);

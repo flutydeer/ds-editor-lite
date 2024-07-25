@@ -54,8 +54,11 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
             [=] { emit keyIndexRangeChanged(topKeyIndex(), bottomKeyIndex()); });
 }
 void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
-    if (m_clip)
+    if (m_clip) {
         disconnect(m_clip, nullptr, this, nullptr);
+        while (m_notes.count() > 0)
+            handleNoteRemoved(m_notes.first());
+    }
 
     m_clip = clip;
     if (!clip) {
@@ -378,36 +381,6 @@ void PianoRollGraphicsView::updateOverlappedState() {
     }
     update();
 }
-void PianoRollGraphicsView::insertNoteToView(Note *note) {
-    m_canNotifySelectedNoteChanged = false;
-    qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric()
-             << note->pronunciation().original << note->pronunciation().edited;
-    auto noteItem = new NoteGraphicsItem(note->id());
-    noteItem->setContext(this);
-    noteItem->setStart(note->start());
-    noteItem->setLength(note->length());
-    noteItem->setKeyIndex(note->keyIndex());
-    noteItem->setLyric(note->lyric());
-    auto original = note->pronunciation().original;
-    auto edited = note->pronunciation().edited;
-    auto isEdited = note->pronunciation().isEdited();
-    noteItem->setPronunciation(isEdited ? edited : original, isEdited);
-    noteItem->setSelected(note->selected());
-    noteItem->setOverlapped(note->overlapped());
-    connect(noteItem, &NoteGraphicsItem::removeTriggered, this,
-            &PianoRollGraphicsView::onRemoveSelectedNotes);
-    connect(noteItem, &NoteGraphicsItem::editLyricTriggered, this,
-            &PianoRollGraphicsView::onEditSelectedNotesLyrics);
-    m_layerManager.addItem(noteItem, &m_noteLayer);
-    m_canNotifySelectedNoteChanged = true;
-}
-void PianoRollGraphicsView::removeNoteFromView(int noteId) {
-    m_canNotifySelectedNoteChanged = false;
-    qDebug() << "PianoRollGraphicsView::removeNote" << noteId;
-    auto noteItem = m_noteLayer.findNoteById(noteId);
-    m_layerManager.removeItem(noteItem, &m_noteLayer);
-    m_canNotifySelectedNoteChanged = true;
-}
 void PianoRollGraphicsView::updateNoteTimeAndKey(Note *note) {
     qDebug() << "PianoRollGraphicsView::updateNoteTimeAndKey" << note->id() << note->start()
              << note->length() << note->keyIndex();
@@ -501,12 +474,39 @@ NoteGraphicsItem *PianoRollGraphicsView::noteItemAt(const QPoint &pos) {
     return nullptr;
 }
 void PianoRollGraphicsView::handleNoteInserted(Note *note) {
-    insertNoteToView(note);
+    m_canNotifySelectedNoteChanged = false;
+    qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric()
+             << note->pronunciation().original << note->pronunciation().edited;
+    auto noteItem = new NoteGraphicsItem(note->id());
+    noteItem->setContext(this);
+    noteItem->setStart(note->start());
+    noteItem->setLength(note->length());
+    noteItem->setKeyIndex(note->keyIndex());
+    noteItem->setLyric(note->lyric());
+    auto original = note->pronunciation().original;
+    auto edited = note->pronunciation().edited;
+    auto isEdited = note->pronunciation().isEdited();
+    noteItem->setPronunciation(isEdited ? edited : original, isEdited);
+    noteItem->setSelected(note->selected());
+    noteItem->setOverlapped(note->overlapped());
+    connect(noteItem, &NoteGraphicsItem::removeTriggered, this,
+            &PianoRollGraphicsView::onRemoveSelectedNotes);
+    connect(noteItem, &NoteGraphicsItem::editLyricTriggered, this,
+            &PianoRollGraphicsView::onEditSelectedNotesLyrics);
+    m_layerManager.addItem(noteItem, &m_noteLayer);
+    m_canNotifySelectedNoteChanged = true;
+
+    m_notes.append(note);
     connect(note, &Note::propertyChanged, this,
             [=](Note::NotePropertyType type) { handleNotePropertyChanged(type, note); });
 }
 void PianoRollGraphicsView::handleNoteRemoved(Note *note) {
-    removeNoteFromView(note->id());
+    m_canNotifySelectedNoteChanged = false;
+    qDebug() << "PianoRollGraphicsView::removeNote" << note;
+    auto noteItem = m_noteLayer.findNoteById(note->id());
+    m_layerManager.removeItem(noteItem, &m_noteLayer);
+    m_canNotifySelectedNoteChanged = true;
+    m_notes.removeOne(note);
     disconnect(note, nullptr, this, nullptr);
 }
 void PianoRollGraphicsView::handleNotePropertyChanged(Note::NotePropertyType type, Note *note) {

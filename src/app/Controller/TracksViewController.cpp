@@ -52,8 +52,8 @@ void TracksViewController::onAppendTrack(Track *track) {
     a->execute();
     historyManager->record(a);
 }
-void TracksViewController::onRemoveTrack(int index) {
-    auto trackToRemove = appModel->tracks().at(index);
+void TracksViewController::onRemoveTrack(int id) {
+    auto trackToRemove = appModel->findTrackById(id);
     QList<Track *> tracks;
     tracks.append(trackToRemove);
     auto a = new TrackActions;
@@ -72,22 +72,21 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     a->execute();
     historyManager->record(a);
 }
-void TracksViewController::onSelectedClipChanged(int clipId) {
+void TracksViewController::selectClip(int clipId) {
     appModel->selectClip(clipId);
 }
 void TracksViewController::changeTrackProperty(const Track::TrackProperties &args) {
-    int trackIndex;
-    auto track = appModel->findTrackById(args.id, trackIndex);
+    auto track = appModel->findTrackById(args.id);
     auto a = new TrackActions;
     const Track::TrackProperties oldArgs(*track);
     a->editTrackProperties(oldArgs, args, track);
     a->execute();
     historyManager->record(a);
 }
-void TracksViewController::onAddAudioClip(const QString &path, int trackIndex, int tick) {
+void TracksViewController::onAddAudioClip(const QString &path, int id, int tick) {
     auto decodeTask = new DecodeAudioTask;
     decodeTask->path = path;
-    decodeTask->trackId = appModel->tracks().at(trackIndex)->id();
+    decodeTask->trackId = id;
     decodeTask->tick = tick;
     auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
     dlg->show();
@@ -105,7 +104,7 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
     if (clip->clipType() == Clip::Audio) {
         auto audioClip = dynamic_cast<AudioClip *>(clip);
 
-        auto oldArgs = Clip::ClipCommonProperties::fromClip(*audioClip);
+        Clip::ClipCommonProperties oldArgs(*audioClip);
         QList<Clip::ClipCommonProperties> oldArgsList;
         oldArgsList.append(oldArgs);
         QList<Clip::ClipCommonProperties> newArgsList;
@@ -122,7 +121,7 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
     } else if (clip->clipType() == Clip::Singing) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
 
-        auto oldArgs = Clip::ClipCommonProperties::fromClip(*singingClip);
+        Clip::ClipCommonProperties oldArgs(*singingClip);
         // TODO: update singer info?
         QList<Clip::ClipCommonProperties> oldArgsList;
         oldArgsList.append(oldArgs);
@@ -204,8 +203,7 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     audioClip->setClipLen(length);
     audioClip->setPath(path);
     audioClip->setAudioInfo(result);
-    int trackIndex = 0;
-    auto track = appModel->findTrackById(trackId, trackIndex);
+    auto track = appModel->findTrackById(trackId);
     if (!track) {
         qDebug() << "TracksViewController::handleDecodeAudioTaskFinished track not found";
         return;

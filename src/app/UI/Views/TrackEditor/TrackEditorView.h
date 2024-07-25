@@ -28,7 +28,6 @@ public:
 
 public slots:
     void onModelChanged();
-    void onTempoChanged(double tempo);
     void onTrackChanged(AppModel::TrackChangeType type, int index);
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
     void onPositionChanged(double tick);
@@ -36,23 +35,15 @@ public slots:
     void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const;
 
 signals:
-    void selectedClipChanged(int clipId);
-    void insertNewTrackTriggered(int index);
-    void removeTrackTriggered(int index);
-    void muteClicked(int index);
-    void soloClicked(int index);
     void tempoChanged(double tempo);
     void trackCountChanged(qsizetype count);
-    void addAudioClipTriggered(const QString &path, int trackIndex, int tick);
-    void clipPropertyChanged(const Clip::ClipCommonProperties &args);
     void setPositionTriggered(double tick);
-    void removeClipTriggered(int clipId);
-    void newSingingClipTriggered(int trackIndex, int tick);
 
 private slots:
-    void onSceneSelectionChanged();
+    void onSceneSelectionChanged() const;
     void onViewScaleChanged(qreal sx, qreal sy);
-    void onClipGraphicsItemRemoveTriggered(int id);
+    void onRemoveTrackTriggered(int id);
+    void onRemoveClipTriggered(int id);
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -76,6 +67,8 @@ private:
 
     void insertTrackToView(Track *dsTrack, int trackIndex);
     void insertClipToTrack(Clip *clip, TrackViewModel *track, int trackIndex);
+    void insertSingingClip(SingingClip *clip, TrackViewModel *track, int trackIndex);
+    void insertAudioClip(AudioClip *clip, TrackViewModel *track, int trackIndex);
     void removeClipFromView(int clipId);
     void updateTracksOnView() const;
     void updateClipOnView(Clip *clip);

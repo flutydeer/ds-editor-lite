@@ -97,6 +97,17 @@ void AbstractClipGraphicsItem::setTrackIndex(const int index) {
     d->m_trackIndex = index;
     updateRectAndPos();
 }
+void AbstractClipGraphicsItem::loadCommonProperties(const Clip::ClipCommonProperties &args) {
+    Q_D(AbstractClipGraphicsItem);
+    d->m_name = args.name;
+    d->m_start = args.start;
+    d->m_length = args.length;
+    d->m_clipStart = args.clipStart;
+    d->m_clipLen = args.clipLen;
+    d->m_gain = args.gain;
+    d->m_mute = args.mute;
+    updateRectAndPos();
+}
 void AbstractClipGraphicsItem::setQuantize(int quantize) {
     Q_D(AbstractClipGraphicsItem);
     d->m_quantize = quantize;
@@ -161,9 +172,10 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 
     auto fontMetrics = painter->fontMetrics();
     auto textHeight = fontMetrics.height();
-    auto controlStr =
-        QString("id: %1 ").arg(id()) +
-        QString("%1 %2dB %3 ").arg(d->m_name).arg(QString::number(d->m_gain)).arg(d->m_mute ? "M" : "");
+    auto controlStr = QString("id: %1 ").arg(id()) + QString("%1 %2dB %3 ")
+                                                         .arg(d->m_name)
+                                                         .arg(QString::number(d->m_gain))
+                                                         .arg(d->m_mute ? "M" : "");
     auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
                        .arg(d->m_start)
                        .arg(d->m_length)
@@ -232,12 +244,14 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     d->m_propertyEdited = true;
     switch (d->m_mouseMoveBehavior) {
         case AbstractClipGraphicsItemPrivate::Move:
-            left = MathUtils::round(d->m_mouseDownStart + d->m_mouseDownClipStart + delta, quantize);
+            left =
+                MathUtils::round(d->m_mouseDownStart + d->m_mouseDownClipStart + delta, quantize);
             start = left - d->m_mouseDownClipStart;
             setStart(start);
             break;
         case AbstractClipGraphicsItemPrivate::ResizeLeft:
-            left = MathUtils::round(d->m_mouseDownStart + d->m_mouseDownClipStart + delta, quantize);
+            left =
+                MathUtils::round(d->m_mouseDownStart + d->m_mouseDownClipStart + delta, quantize);
             start = d->m_mouseDownStart;
             clipStart = left - start;
             clipLen = d->m_mouseDownStart + d->m_mouseDownClipStart + d->m_mouseDownClipLen - left;
@@ -256,8 +270,9 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             }
             break;
         case AbstractClipGraphicsItemPrivate::ResizeRight:
-            right = MathUtils::round(
-                d->m_mouseDownStart + d->m_mouseDownClipStart + d->m_mouseDownClipLen + delta, quantize);
+            right = MathUtils::round(d->m_mouseDownStart + d->m_mouseDownClipStart +
+                                         d->m_mouseDownClipLen + delta,
+                                     quantize);
             clipLen = right - (d->m_mouseDownStart + d->m_mouseDownClipStart);
             if (clipLen <= 0)
                 break;

@@ -191,6 +191,12 @@ Track *AppModel::findTrackById(int id, int &trackIndex) {
     trackIndex = -1;
     return nullptr;
 }
+Track *AppModel::findTrackById(int id) {
+    for (auto track : m_tracks)
+        if (track->id() == id)
+            return track;
+    return nullptr;
+}
 double AppModel::tickToMs(double tick) const {
     return tick * 60 / m_tempo / 480 * 1000;
 }

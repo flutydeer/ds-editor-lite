@@ -25,7 +25,7 @@ class TrackControlWidget final : public QWidget, public ITrack {
     Q_OBJECT
 
 public:
-    explicit TrackControlWidget(QListWidgetItem *item, QWidget *parent = nullptr);
+    explicit TrackControlWidget(QListWidgetItem *item, int id, QWidget *parent = nullptr);
     [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int i);
     [[nodiscard]] QString name() const override;
@@ -42,10 +42,10 @@ public:
 
 signals:
     void insertNewTrackTriggered();
-    void removeTrackTriggerd();
+    void removeTrackTriggered(int id);
     // void moveUpTrack();
     // void modeDownTrack();
-    void addAudioClipTriggered();
+    // void addAudioClipTriggered();
 
 public slots:
     void onTrackUpdated(const Track &track);

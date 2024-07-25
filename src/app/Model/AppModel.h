@@ -67,6 +67,7 @@ public:
 
     Clip *findClipById(int clipId, int &trackIndex);
     Track *findTrackById(int id, int &trackIndex);
+    Track *findTrackById(int id);
     [[nodiscard]] double tickToMs(double tick) const;
     [[nodiscard]] double msToTick(double ms) const;
     [[nodiscard]] int projectLengthInTicks() const;

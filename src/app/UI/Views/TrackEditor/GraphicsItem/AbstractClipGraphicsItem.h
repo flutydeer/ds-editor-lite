@@ -6,6 +6,7 @@
 #define DATASET_TOOLS_CLIPGRAPHICSITEM_H
 
 #include "Interface/IClip.h"
+#include "Model/Clip.h"
 #include "UI/Views/Common/CommonGraphicsRectItem.h"
 #include "Utils/IOverlapable.h"
 
@@ -43,6 +44,8 @@ public:
 
     [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int index);
+
+    void loadCommonProperties(const Clip::ClipCommonProperties &args);
 
 public slots:
     void setQuantize(int quantize);

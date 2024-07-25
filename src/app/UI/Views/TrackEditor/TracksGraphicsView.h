@@ -16,9 +16,9 @@ public:
     explicit TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent = nullptr);
     void setQuantize(int quantize);
 
-signals:
-    void addSingingClipTriggered(int trackIndex, int tick);
-    void addAudioClipTriggered(int trackIndex, int tick);
+private slots:
+    void onNewSingingClip() const;
+    void onAddAudioClip();
 
 private:
     void mousePressEvent(QMouseEvent *event) override;
@@ -27,7 +27,7 @@ private:
 
     QAction *m_actionNewSingingClip;
     QAction *m_actionAddAudioClip;
-    int m_trackIndx = -1;
+    int m_trackIndex = -1;
     int m_tick = 0;
     int m_snappedTick = 0;
     int m_quantize = 16;

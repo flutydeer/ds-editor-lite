@@ -55,6 +55,7 @@ private slots:
 
 private:
     SingingClip *m_clip = nullptr;
+    QList<Note *> m_notes;
     enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
     NoteGraphicsItem *m_currentEditingNote = nullptr;
 
@@ -100,8 +101,6 @@ private:
 
     void updateSelectionState();
     void updateOverlappedState();
-    void insertNoteToView(Note *note);
-    void removeNoteFromView(int noteId);
     void updateNoteTimeAndKey(Note *note);
     void updateNoteWord(Note *note);
     void moveSelectedNotes(int startOffset, int keyOffset);

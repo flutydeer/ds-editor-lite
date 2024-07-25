@@ -18,7 +18,7 @@ void TempoActions::editTempo(double oldTempo, double newTempo, AppModel *model) 
             if (clip->clipType() == Clip::Audio) {
                 auto audioClip = dynamic_cast<AudioClip *>(clip);
                 auto audioInfo = audioClip->audioInfo();
-                auto oldArgs = Clip::ClipCommonProperties::fromClip(*clip);
+                Clip::ClipCommonProperties oldArgs(*clip);
                 auto newArgs = oldArgs;
                 auto chunksPerTick = static_cast<double>(audioInfo.sampleRate) /
                                      audioInfo.chunkSize * 60 / newTempo / 480;

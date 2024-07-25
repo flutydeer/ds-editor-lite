@@ -17,7 +17,8 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/LineEdit.h"
 
-TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) : QWidget(parent) {
+TrackControlWidget::TrackControlWidget(QListWidgetItem *item, int id, QWidget *parent)
+    : QWidget(parent), ITrack(id) {
     m_item = item;
     setAttribute(Qt::WA_StyledBackground);
 
@@ -218,14 +219,14 @@ void TrackControlWidget::contextMenuEvent(QContextMenuEvent *event) {
     auto actionInsert = new QAction("Insert new track", this);
     connect(actionInsert, &QAction::triggered, this, [&] { emit insertNewTrackTriggered(); });
     auto actionRemove = new QAction("Delete", this);
-    connect(actionRemove, &QAction::triggered, this, [&] { emit removeTrackTriggerd(); });
-    auto actionAddAudioClip = new QAction("Add audio clip", this);
-    connect(actionAddAudioClip, &QAction::triggered, this, [&] { emit addAudioClipTriggered(); });
+    connect(actionRemove, &QAction::triggered, this, [&] { emit removeTrackTriggered(id()); });
+    // auto actionAddAudioClip = new QAction("Add audio clip", this);
+    // connect(actionAddAudioClip, &QAction::triggered, this, [&] { emit addAudioClipTriggered(); });
 
     Menu menu(this);
     menu.addAction(actionInsert);
     menu.addAction(actionRemove);
-    menu.addAction(actionAddAudioClip);
+    // menu.addAction(actionAddAudioClip);
     menu.exec(event->globalPos());
     event->accept();
 }

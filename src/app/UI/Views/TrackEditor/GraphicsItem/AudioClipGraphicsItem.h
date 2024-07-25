@@ -38,7 +38,7 @@ private:
         return "[Audio] ";
     }
 
-    AppGlobal::AudioLoadStatus m_status;
+    AppGlobal::AudioLoadStatus m_status = AppGlobal::Init;
     AudioInfoModel m_audioInfo;
     QString m_errorMessage;
     double m_renderStart = 0;

@@ -19,12 +19,6 @@ PianoRollGraphicsScene::PianoRollGraphicsScene() {
 
     auto gridItem = new PianoRollBackgroundGraphicsItem;
     gridItem->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-    connect(appModel, &AppModel::modelChanged, gridItem, [=] {
-        gridItem->setTimeSignature(appModel->timeSignature().numerator,
-                                   appModel->timeSignature().denominator);
-    });
-    connect(appModel, &AppModel::timeSignatureChanged, gridItem,
-            &TimeGridGraphicsItem::setTimeSignature);
     addTimeGrid(gridItem);
 }
 void PianoRollGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {

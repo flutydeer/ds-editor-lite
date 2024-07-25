@@ -49,7 +49,8 @@ public:
 
     class ClipCommonProperties {
     public:
-        static ClipCommonProperties fromClip(const Clip &clip);
+        ClipCommonProperties() = default;
+        explicit ClipCommonProperties(const IClip &clip);
         virtual ~ClipCommonProperties() = default;
         int id = -1;
 
@@ -74,7 +75,7 @@ protected:
     double m_gain = 0;
     bool m_mute = false;
 
-    static void applyPropertiesFromClip(ClipCommonProperties &args, const Clip &clip);
+    static void applyPropertiesFromClip(ClipCommonProperties &args, const IClip &clip);
 };
 
 class AudioClip final : public Clip {
@@ -85,6 +86,7 @@ public:
     public:
         AudioClipProperties() = default;
         explicit AudioClipProperties(const AudioClip &clip);
+        explicit AudioClipProperties(const IClip &clip);
         QString path;
     };
 

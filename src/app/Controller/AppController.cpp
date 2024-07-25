@@ -100,7 +100,7 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
 void AppController::onSetQuantize(int quantize) {
     appModel->setQuantize(quantize);
 }
-void AppController::onTrackSelectionChanged(int trackIndex) {
+void AppController::selectTrack(int trackIndex) {
     appModel->setSelectedTrack(trackIndex);
 }
 void AppController::onPanelClicked(AppGlobal::PanelType panelType) {

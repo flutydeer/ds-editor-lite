@@ -3,12 +3,14 @@
 //
 
 #include "TrackListHeaderView.h"
+#include "Global/TracksEditorGlobal.h"
 
 #include <QHBoxLayout>
 #include <QPainter>
 
 TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     setObjectName("trackListHeaderView");
+    setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
 
     auto mainLayout = new QHBoxLayout;
     // mainLayout->addWidget();

@@ -55,11 +55,10 @@ Clip *Track::findClipById(int id) {
 }
 Track::TrackProperties::TrackProperties(const ITrack &track) {
     auto control = track.control();
-    TrackProperties args;
-    args.id = track.id();
-    args.name = track.name();
-    args.gain = control.gain();
-    args.pan = control.pan();
-    args.mute = control.mute();
-    args.solo = control.solo();
+    id = track.id();
+    name = track.name();
+    gain = control.gain();
+    pan = control.pan();
+    mute = control.mute();
+    solo = control.solo();
 }

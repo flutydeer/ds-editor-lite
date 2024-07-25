@@ -48,7 +48,7 @@ public slots:
     void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);
     void onSetQuantize(int quantize);
-    void onTrackSelectionChanged(int trackIndex);
+    void selectTrack(int trackIndex);
     void onPanelClicked(AppGlobal::PanelType panel);
     void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                                           const QString &redoActionName);

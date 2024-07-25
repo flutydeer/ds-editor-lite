@@ -4,10 +4,21 @@
 
 #include "TimeGridGraphicsItem.h"
 
+#include "Model/AppModel.h"
+
 #include <QPainter>
 #include <QPen>
 
 TimeGridGraphicsItem::TimeGridGraphicsItem(QGraphicsItem *parent) : CommonGraphicsRectItem(parent) {
+    
+    connect(appModel, &AppModel::modelChanged, this, [=] {
+        this->setTimeSignature(appModel->timeSignature().numerator,
+                                     appModel->timeSignature().denominator);
+        this->setQuantize(appModel->quantize());
+    });
+    connect(appModel, &AppModel::timeSignatureChanged, this,
+            &TimeGridGraphicsItem::setTimeSignature);
+    connect(appModel, &AppModel::quantizeChanged, this, &TimeGridGraphicsItem::setQuantize);
 }
 double TimeGridGraphicsItem::startTick() const {
     return sceneXToTick(visibleRect().left());

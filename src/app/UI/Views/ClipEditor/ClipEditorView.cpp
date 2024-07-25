@@ -16,7 +16,6 @@
 
 #include <QMouseEvent>
 #include <QVBoxLayout>
-#include <QStyle>
 
 ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEditor, parent) {
     setAttribute(Qt::WA_StyledBackground);
@@ -90,7 +89,6 @@ void ClipEditorView::onModelChanged() {
     reset();
 }
 void ClipEditorView::onSelectedClipChanged(Clip *clip) {
-    reset();
     m_toolbarView->setDataContext(clip);
     clipController->setClip(clip);
 
@@ -123,8 +121,7 @@ bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
     return QWidget::eventFilter(watched, event);
 }
 void ClipEditorView::reset() {
-    m_pianoRollView->reset();
-    m_phonemeView->reset();
+    onSelectedClipChanged(nullptr);
 }
 // void ClipEditorView::printParts() {
 //     auto p = m_singingClip->parts();
