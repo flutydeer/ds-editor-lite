@@ -43,7 +43,7 @@ void Track::setColor(const QColor &color) {
     emit propertyChanged();
 }
 void Track::notifyClipChanged(ClipChangeType type, Clip *clip) {
-    emit clipChanged(type, clip->id(), clip);
+    emit clipChanged(type, clip);
 }
 Clip *Track::findClipById(int id) {
     for (int i = 0; i < m_clips.count(); i++) {
@@ -52,4 +52,14 @@ Clip *Track::findClipById(int id) {
             return clip;
     }
     return nullptr;
+}
+Track::TrackProperties::TrackProperties(const ITrack &track) {
+    auto control = track.control();
+    TrackProperties args;
+    args.id = track.id();
+    args.name = track.name();
+    args.gain = control.gain();
+    args.pan = control.pan();
+    args.mute = control.mute();
+    args.solo = control.solo();
 }

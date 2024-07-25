@@ -30,16 +30,13 @@ public slots:
     void onModelChanged();
     void onTempoChanged(double tempo);
     void onTrackChanged(AppModel::TrackChangeType type, int index);
-    // void onPlaybackPositionChanged(long pos);
-    // void onSamplerateChanged(int samplerate);
-    void onClipChanged(Track::ClipChangeType type, qsizetype trackIndex, int clipIndex);
+    void onClipChanged(Track::ClipChangeType type, Clip *clip);
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
     void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const;
 
 signals:
     void selectedClipChanged(int clipId);
-    void trackPropertyChanged(const Track::TrackProperties &args);
     void insertNewTrackTriggered(int index);
     void removeTrackTriggered(int index);
     void muteClicked(int index);

@@ -2,6 +2,7 @@
 // Created by fluty on 2023/11/14.
 //
 #include "AbstractClipGraphicsItem.h"
+#include "AbstractClipGraphicsItem_p.h"
 
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
@@ -15,116 +16,96 @@
 using namespace TracksEditorGlobal;
 
 AbstractClipGraphicsItem::AbstractClipGraphicsItem(int itemId, QGraphicsItem *parent)
-    : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
+    : CommonGraphicsRectItem(parent), IClip(itemId),
+      d_ptr(new AbstractClipGraphicsItemPrivate(this)) {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
-    // setFlag(QGraphicsItem::ItemIsFocusable, true); // Must enabled, or keyPressEvent would not
-    // work. setAcceptTouchEvents(true);
-}
-QWidget *AbstractClipGraphicsItem::context() const {
-    return m_context;
-}
-void AbstractClipGraphicsItem::setContext(QWidget *context) {
-    m_context = context;
-    m_menu = new Menu(m_context);
-    auto actionRemove = m_menu->addAction("Remove");
-    connect(actionRemove, &QAction::triggered, [&] { emit removeTriggered(id()); });
-
-    m_menu->addSeparator();
-
-    addMenuActions(m_menu);
-
-    auto actionProperties = m_menu->addAction("Properties");
-    connect(actionProperties, &QAction::triggered,
-            [&] { qDebug() << "actionProperties triggered" << id(); });
 }
 
 QString AbstractClipGraphicsItem::name() const {
-    return m_name;
+    Q_D(const AbstractClipGraphicsItem);
+    return d->m_name;
 }
 
 void AbstractClipGraphicsItem::setName(const QString &text) {
-    m_name = text;
+    Q_D(AbstractClipGraphicsItem);
+    d->m_name = text;
     update();
 }
 int AbstractClipGraphicsItem::start() const {
-    return m_start;
+    Q_D(const AbstractClipGraphicsItem);
+    return d->m_start;
 }
 
 void AbstractClipGraphicsItem::setStart(const int start) {
-    m_start = start;
+    Q_D(AbstractClipGraphicsItem);
+    d->m_start = start;
     updateRectAndPos();
 }
 int AbstractClipGraphicsItem::length() const {
-    return m_length;
+    Q_D(const AbstractClipGraphicsItem);
+    return d->m_length;
 }
 void AbstractClipGraphicsItem::setLength(const int length) {
-    m_length = length;
+    Q_D(AbstractClipGraphicsItem);
+    d->m_length = length;
     updateRectAndPos();
 }
 int AbstractClipGraphicsItem::clipStart() const {
-    return m_clipStart;
+    Q_D(const AbstractClipGraphicsItem);
+    return d->m_clipStart;
 }
 void AbstractClipGraphicsItem::setClipStart(const int clipStart) {
-    m_clipStart = clipStart;
+    Q_D(AbstractClipGraphicsItem);
+    d->m_clipStart = clipStart;
     updateRectAndPos();
 }
 int AbstractClipGraphicsItem::clipLen() const {
-    return m_clipLen;
+    Q_D(const AbstractClipGraphicsItem);
+    return d->m_clipLen;
 }
 void AbstractClipGraphicsItem::setClipLen(const int clipLen) {
-    m_clipLen = clipLen;
+    Q_D(AbstractClipGraphicsItem);
+    d->m_clipLen = clipLen;
     updateRectAndPos();
 }
 
 double AbstractClipGraphicsItem::gain() const {
-    return m_gain;
+    Q_D(const AbstractClipGraphicsItem);
+    return d->m_gain;
 }
 void AbstractClipGraphicsItem::setGain(const double gain) {
-    m_gain = gain;
+    Q_D(AbstractClipGraphicsItem);
+    d->m_gain = gain;
     update();
 }
 bool AbstractClipGraphicsItem::mute() const {
-    return m_mute;
+    Q_D(const AbstractClipGraphicsItem);
+    return d->m_mute;
 }
 void AbstractClipGraphicsItem::setMute(bool mute) {
-    m_mute = mute;
+    Q_D(AbstractClipGraphicsItem);
+    d->m_mute = mute;
     update();
 }
 int AbstractClipGraphicsItem::trackIndex() const {
-    return m_trackIndex;
+    Q_D(const AbstractClipGraphicsItem);
+    return d->m_trackIndex;
 }
 void AbstractClipGraphicsItem::setTrackIndex(const int index) {
-    m_trackIndex = index;
+    Q_D(AbstractClipGraphicsItem);
+    d->m_trackIndex = index;
     updateRectAndPos();
 }
-int AbstractClipGraphicsItem::compareTo(AbstractClipGraphicsItem *obj) const {
-    auto curVisibleStart = start() + clipStart();
-    auto other = obj;
-    auto otherVisibleStart = other->start() + other->clipStart();
-    if (curVisibleStart < otherVisibleStart)
-        return -1;
-    if (curVisibleStart > otherVisibleStart)
-        return 1;
-    return 0;
-}
-bool AbstractClipGraphicsItem::isOverlappedWith(AbstractClipGraphicsItem *obj) const {
-    auto curVisibleStart = start() + clipStart();
-    auto curVisibleEnd = curVisibleStart + clipLen();
-    auto other = obj;
-    auto otherVisibleStart = other->start() + other->clipStart();
-    auto otherVisibleEnd = otherVisibleStart + other->clipLen();
-    if (otherVisibleEnd <= curVisibleStart || curVisibleEnd <= otherVisibleStart)
-        return false;
-    return true;
-}
 void AbstractClipGraphicsItem::setQuantize(int quantize) {
-    m_quantize = quantize;
+    Q_D(AbstractClipGraphicsItem);
+    d->m_quantize = quantize;
 }
-QRectF AbstractClipGraphicsItem::previewRect() const {
+QRectF AbstractClipGraphicsItemPrivate::previewRect() const {
+    Q_Q(const AbstractClipGraphicsItem);
     auto penWidth = 2.0f;
     auto paddingTop = 20;
-    auto rect = boundingRect();
+    auto rect = q->boundingRect();
     auto left = rect.left() + penWidth;
     auto top = rect.top() + paddingTop + penWidth;
     auto width = rect.width() - penWidth * 2;
@@ -135,6 +116,7 @@ QRectF AbstractClipGraphicsItem::previewRect() const {
 
 void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                      QWidget *widget) {
+    Q_D(const AbstractClipGraphicsItem);
     const auto colorPrimary = QColor(155, 186, 255);
     const auto colorPrimaryDarker = QColor(112, 156, 255);
     const auto colorForeground = QColor(0, 0, 0);
@@ -161,7 +143,7 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 
     painter->drawRoundedRect(paddedRect, 4, 4);
 
-    auto font = QFont("Microsoft Yahei UI");
+    auto font = QFont();
     font.setPointSizeF(10);
     painter->setFont(font);
     double textPadding = 2;
@@ -181,15 +163,15 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
     auto textHeight = fontMetrics.height();
     auto controlStr =
         QString("id: %1 ").arg(id()) +
-        QString("%1 %2dB %3 ").arg(m_name).arg(QString::number(m_gain)).arg(m_mute ? "M" : "");
+        QString("%1 %2dB %3 ").arg(d->m_name).arg(QString::number(d->m_gain)).arg(d->m_mute ? "M" : "");
     auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
-                       .arg(m_start)
-                       .arg(m_length)
-                       .arg(m_clipStart)
-                       .arg(m_clipLen)
+                       .arg(d->m_start)
+                       .arg(d->m_length)
+                       .arg(d->m_clipStart)
+                       .arg(d->m_clipLen)
                        .arg(scaleX())
                        .arg(scaleY());
-    auto text = clipTypeName() + controlStr + (m_showDebugInfo ? timeStr : "");
+    auto text = clipTypeName() + controlStr + (d->m_showDebugInfo ? timeStr : "");
     auto textWidth = fontMetrics.horizontalAdvance(text);
 
     pen.setColor(colorForeground);
@@ -197,7 +179,7 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
     painter->setBrush(Qt::NoBrush);
     // painter->drawRect(textRect);
     if (textWidth <= textRectWidth && textHeight <= textRectHeight) {
-        if (previewRect().height() < 32)
+        if (d->previewRect().height() < 32)
             painter->drawText(textRect, text, QTextOption(Qt::AlignVCenter));
         else
             painter->drawText(textRect, text);
@@ -206,42 +188,39 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
     // painter->setPen(pen);
     // painter->drawRect(textRect);
 
-    auto previewRectHeight = previewRect().height();
+    auto previewRectHeight = d->previewRect().height();
     if (previewRectHeight >= 32) {
         auto colorAlpha = previewRectHeight <= 48
                               ? static_cast<int>(255 * (previewRectHeight - 32) / (48 - 32))
                               : 255;
-        drawPreviewArea(painter, previewRect(), colorAlpha);
+        drawPreviewArea(painter, d->previewRect(), colorAlpha);
     }
 }
 
-void AbstractClipGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
-    m_menu->exec(event->screenPos());
-    // QGraphicsItem::contextMenuEvent(event);
-}
-
 void AbstractClipGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    Q_D(AbstractClipGraphicsItem);
     if (event->button() != Qt::LeftButton) {
-        m_mouseMoveBehavior = None;
+        d->m_mouseMoveBehavior = AbstractClipGraphicsItemPrivate::None;
         setCursor(Qt::ArrowCursor);
     }
 
     // setSelected(true);
-    m_mouseDownPos = event->scenePos();
-    m_mouseDownStart = start();
-    m_mouseDownClipStart = clipStart();
-    m_mouseDownLength = length();
-    m_mouseDownClipLen = clipLen();
+    d->m_mouseDownPos = event->scenePos();
+    d->m_mouseDownStart = start();
+    d->m_mouseDownClipStart = clipStart();
+    d->m_mouseDownLength = length();
+    d->m_mouseDownClipLen = clipLen();
     event->accept(); // Must accept event, or mouseMoveEvent would not work.
 }
 void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+    Q_D(AbstractClipGraphicsItem);
     auto curPos = event->scenePos();
     if (event->modifiers() == Qt::AltModifier)
-        m_tempQuantizeOff = true;
+        d->m_tempQuantizeOff = true;
     else
-        m_tempQuantizeOff = false;
+        d->m_tempQuantizeOff = false;
 
-    auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() / pixelsPerQuarterNote * 480;
+    auto dx = (curPos.x() - d->m_mouseDownPos.x()) / scaleX() / pixelsPerQuarterNote * 480;
 
     int start;
     int clipStart;
@@ -249,61 +228,62 @@ void AbstractClipGraphicsItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     int clipLen;
     int right;
     int delta = qRound(dx);
-    int quantize = m_tempQuantizeOff ? 1 : 1920 / m_quantize;
-    m_propertyEdited = true;
-    switch (m_mouseMoveBehavior) {
-        case Move:
-            left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
-            start = left - m_mouseDownClipStart;
+    int quantize = d->m_tempQuantizeOff ? 1 : 1920 / d->m_quantize;
+    d->m_propertyEdited = true;
+    switch (d->m_mouseMoveBehavior) {
+        case AbstractClipGraphicsItemPrivate::Move:
+            left = MathUtils::round(d->m_mouseDownStart + d->m_mouseDownClipStart + delta, quantize);
+            start = left - d->m_mouseDownClipStart;
             setStart(start);
             break;
-        case ResizeLeft:
-            left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
-            start = m_mouseDownStart;
+        case AbstractClipGraphicsItemPrivate::ResizeLeft:
+            left = MathUtils::round(d->m_mouseDownStart + d->m_mouseDownClipStart + delta, quantize);
+            start = d->m_mouseDownStart;
             clipStart = left - start;
-            clipLen = m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen - left;
+            clipLen = d->m_mouseDownStart + d->m_mouseDownClipStart + d->m_mouseDownClipLen - left;
             if (clipLen <= 0)
                 break;
 
             if (clipStart < 0) {
                 setClipStart(0);
-                setClipLen(m_mouseDownClipStart + m_mouseDownClipLen);
-            } else if (clipStart <= m_mouseDownClipStart + m_mouseDownClipLen) {
+                setClipLen(d->m_mouseDownClipStart + d->m_mouseDownClipLen);
+            } else if (clipStart <= d->m_mouseDownClipStart + d->m_mouseDownClipLen) {
                 setClipStart(clipStart);
                 setClipLen(clipLen);
             } else {
-                setClipStart(m_mouseDownClipStart + m_mouseDownClipLen);
+                setClipStart(d->m_mouseDownClipStart + d->m_mouseDownClipLen);
                 setClipLen(0);
             }
             break;
-        case ResizeRight:
+        case AbstractClipGraphicsItemPrivate::ResizeRight:
             right = MathUtils::round(
-                m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize);
-            clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
+                d->m_mouseDownStart + d->m_mouseDownClipStart + d->m_mouseDownClipLen + delta, quantize);
+            clipLen = right - (d->m_mouseDownStart + d->m_mouseDownClipStart);
             if (clipLen <= 0)
                 break;
 
-            if (!m_canResizeLength) {
-                if (m_clipStart + clipLen >= m_length)
-                    setClipLen(m_length - m_clipStart);
+            if (!d->m_canResizeLength) {
+                if (d->m_clipStart + clipLen >= d->m_length)
+                    setClipLen(d->m_length - d->m_clipStart);
                 else
                     setClipLen(clipLen);
             } else {
-                setLength(m_clipStart + clipLen);
+                setLength(d->m_clipStart + clipLen);
                 setClipLen(clipLen);
             }
             break;
-        case None:
-            m_propertyEdited = false;
+        case AbstractClipGraphicsItemPrivate::None:
+            d->m_propertyEdited = false;
             break;
     }
     QGraphicsRectItem::mouseMoveEvent(event);
 }
 void AbstractClipGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
-    if (m_mouseDownPos == event->scenePos()) {
-        m_propertyEdited = false;
+    Q_D(AbstractClipGraphicsItem);
+    if (d->m_mouseDownPos == event->scenePos()) {
+        d->m_propertyEdited = false;
     }
-    if (m_propertyEdited) {
+    if (d->m_propertyEdited) {
         emit propertyChanged();
     }
 
@@ -316,32 +296,35 @@ void AbstractClipGraphicsItem::hoverLeaveEvent(QGraphicsSceneHoverEvent *event) 
     QGraphicsRectItem::hoverLeaveEvent(event);
 }
 void AbstractClipGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
+    Q_D(AbstractClipGraphicsItem);
     const auto rx = event->pos().rx();
-    if (rx >= 0 && rx <= m_resizeTolerance) {
+    if (rx >= 0 && rx <= d->m_resizeTolerance) {
         setCursor(Qt::SizeHorCursor);
-        m_mouseMoveBehavior = ResizeLeft;
-    } else if (rx >= rect().width() - m_resizeTolerance && rx <= rect().width()) {
+        d->m_mouseMoveBehavior = AbstractClipGraphicsItemPrivate::ResizeLeft;
+    } else if (rx >= rect().width() - d->m_resizeTolerance && rx <= rect().width()) {
         setCursor(Qt::SizeHorCursor);
-        m_mouseMoveBehavior = ResizeRight;
+        d->m_mouseMoveBehavior = AbstractClipGraphicsItemPrivate::ResizeRight;
     } else {
         setCursor(Qt::ArrowCursor);
-        m_mouseMoveBehavior = Move;
+        d->m_mouseMoveBehavior = AbstractClipGraphicsItemPrivate::Move;
     }
 
     QGraphicsRectItem::hoverMoveEvent(event);
 }
 
 void AbstractClipGraphicsItem::updateRectAndPos() {
-    auto x = (m_start + m_clipStart) * scaleX() * pixelsPerQuarterNote / 480;
-    auto y = m_trackIndex * trackHeight * scaleY();
-    auto w = m_clipLen * scaleX() * pixelsPerQuarterNote / 480;
+    Q_D(AbstractClipGraphicsItem);
+    auto x = (d->m_start + d->m_clipStart) * scaleX() * pixelsPerQuarterNote / 480;
+    auto y = d->m_trackIndex * trackHeight * scaleY();
+    auto w = d->m_clipLen * scaleX() * pixelsPerQuarterNote / 480;
     auto h = trackHeight * scaleY();
     setPos(x, y);
     setRect(QRectF(0, 0, w, h));
     update();
 }
 void AbstractClipGraphicsItem::setCanResizeLength(bool on) {
-    m_canResizeLength = on;
+    Q_D(AbstractClipGraphicsItem);
+    d->m_canResizeLength = on;
 }
 double AbstractClipGraphicsItem::tickToSceneX(const double tick) const {
     return tick * scaleX() * pixelsPerQuarterNote / 480;

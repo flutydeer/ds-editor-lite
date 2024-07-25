@@ -105,13 +105,13 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
 
     // one clip selected
     m_toolbarView->setVisible(true);
-    if (clip->type() == Clip::Singing) {
+    if (clip->clipType() == Clip::Singing) {
         m_timelineView->setVisible(true);
         m_phonemeView->setVisible(true);
         auto singingClip = dynamic_cast<SingingClip *>(clip);
         m_pianoRollView->setDataContext(singingClip);
         m_phonemeView->setSingingClip(singingClip);
-    } else if (clip->type() == Clip::Audio) {
+    } else if (clip->clipType() == Clip::Audio) {
         m_pianoRollView->setDataContext(nullptr);
         m_timelineView->setVisible(false);
         m_phonemeView->setVisible(false);

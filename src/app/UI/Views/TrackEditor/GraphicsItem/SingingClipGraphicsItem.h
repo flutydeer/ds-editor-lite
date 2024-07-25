@@ -25,6 +25,9 @@ public:
         static bool isOverlappedWith(NoteViewModel *obj) ;
     };
 
+    [[nodiscard]] ClipType clipType() const override {
+        return Singing;
+    }
     explicit SingingClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     ~SingingClipGraphicsItem() override = default;
 
@@ -40,7 +43,6 @@ private:
     // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
     // override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) override;
-    void addMenuActions(Menu *menu) override;
     QString clipTypeName() override {
         return "[Singing] ";
     }

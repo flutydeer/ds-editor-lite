@@ -321,7 +321,7 @@ void AudioContext::handleTrackInserted(int index, Track *track) {
 
     handleTrackControlChanged(track);
     for (auto clip : track->clips()) {
-        if (clip->type() != Clip::Audio)
+        if (clip->clipType() != Clip::Audio)
             continue;
         handleClipInserted(track, clip->id(), static_cast<AudioClip *>(clip));
     }
@@ -331,16 +331,16 @@ void AudioContext::handleTrackInserted(int index, Track *track) {
         handleTrackControlChanged(track);
     });
 
-    connect(track, &Track::clipChanged, this, [=](Track::ClipChangeType type, int id, Clip *clip) {
-        if (clip->type() != Clip::Audio)
+    connect(track, &Track::clipChanged, this, [=](Track::ClipChangeType type, Clip *clip) {
+        if (clip->clipType() != Clip::Audio)
             return;
         DEVICE_LOCKER;
         switch(type) {
             case Track::Inserted:
-                handleClipInserted(track, id, static_cast<AudioClip *>(clip));
+                handleClipInserted(track, clip->id(), static_cast<AudioClip *>(clip));
                 break;
             case Track::Removed:
-                handleClipRemoved(track, id, static_cast<AudioClip *>(clip));
+                handleClipRemoved(track, clip->id(), static_cast<AudioClip *>(clip));
                 break;
         }
     });
@@ -369,7 +369,7 @@ void AudioContext::handleTrackInserted(int index, Track *track) {
 }
 void AudioContext::handleTrackRemoved(int index, Track *track) {
     for (auto clip : track->clips()) {
-        if (clip->type() != Clip::Audio)
+        if (clip->clipType() != Clip::Audio)
             continue;
         handleClipRemoved(track, clip->id(), static_cast<AudioClip *>(clip));
     }

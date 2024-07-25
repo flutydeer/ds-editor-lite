@@ -144,17 +144,3 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
     // painter->drawLine(waveRect.topLeft(), waveRect.bottomRight());
     // painter->drawLine(waveRect.topRight(), waveRect.bottomLeft());
 }
-void AudioClipGraphicsItem::addMenuActions(Menu *menu) {
-    // auto actionLocateFile = menu->addAction("Locate audio file");
-    // connect(actionLocateFile, &QAction::triggered, this, [=] {
-    //     auto fileName =
-    //         QFileDialog::getOpenFileName(context(), "Select an Audio File", ".",
-    //                                      "All Audio File (*.wav *.flac *.mp3);;Wave File "
-    //                                      "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)");
-    //     if (fileName.isNull())
-    //         return;
-    //     setPath(fileName);
-    //     emit propertyChanged();
-    // });
-    // menu->addSeparator();
-}

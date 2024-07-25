@@ -7,6 +7,8 @@
 #include <QHBoxLayout>
 
 #include "TrackControlWidget.h"
+
+#include "Controller/TracksViewController.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Controls/SeekBar.h"
@@ -42,7 +44,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) :
     m_btnMute->setMinimumHeight(m_buttonSize);
     m_btnMute->setMaximumHeight(m_buttonSize);
     m_btnMute->setContentsMargins(0, 0, 0, 0);
-    connect(m_btnMute, &QPushButton::clicked, this, [&] { emit propertyChanged(); });
+    connect(m_btnMute, &QPushButton::clicked, this, [&] { changeTrackProperty(); });
 
     m_btnSolo = new Button("S");
     m_btnSolo->setObjectName("btnSolo");
@@ -53,14 +55,14 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) :
     m_btnSolo->setMaximumWidth(m_buttonSize);
     m_btnSolo->setMinimumHeight(m_buttonSize);
     m_btnSolo->setMaximumHeight(m_buttonSize);
-    connect(m_btnSolo, &QPushButton::clicked, this, [&] { emit propertyChanged(); });
+    connect(m_btnSolo, &QPushButton::clicked, this, [&] { changeTrackProperty(); });
 
     m_leTrackName = new EditLabel();
     m_leTrackName->setText("Track 1");
     m_leTrackName->setObjectName("leTrackName");
     m_leTrackName->setMinimumHeight(m_buttonSize);
     m_leTrackName->setMaximumHeight(m_buttonSize);
-    connect(m_leTrackName, &EditLabel::editCompleted, this, [&] { emit propertyChanged(); });
+    connect(m_leTrackName, &EditLabel::editCompleted, this, [&] { changeTrackProperty(); });
 
     m_muteSoloTrackNameLayout = new QHBoxLayout;
     m_muteSoloTrackNameLayout->setObjectName("muteSoloTrackNameLayout");
@@ -144,72 +146,6 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, QWidget *parent) :
 
     setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    // setFixedHeight(72);
-
-    setStyleSheet(R"(
-TrackControlWidget {
-    border-style: none;
-    border-bottom: 1px solid rgb(72, 75, 78)
-}
-
-QLabel {
-    color: #F0F0F0;
-}
-
-QPushButton {
-    padding: 0px
-}
-
-SeekBar {
-    qproperty-trackInactiveColor: #707070;
-    qproperty-trackActiveColor: #9BBAFF;
-    qproperty-thumbBorderColor: #454545;
-}
-
-TrackControlWidget > QPushButton#btnColor {
-    background-color: #9BBAFF;
-    border-style: none;
-    border-radius: 0px;
-    width: 10px;
-    padding-bottom: 1px;
-}
-
-TrackControlWidget > QLabel#lbTrackIndex{
-    font-size: 11pt;
-    color: #D0D0D0;
-}
-
-TrackControlWidget > QPushButton#btnMute{
-    color: #F0F0F0;
-    font-size: 9pt;
-    background-color: #2A2B2C;
-    border-style: none;
-    border-radius: 4px;
-    border: 1px solid #606060;
-}
-
-TrackControlWidget > QPushButton#btnMute:checked {
-    color: #000;
-    background-color: #FF9B9D;
-    border: none
-}
-
-TrackControlWidget > QPushButton#btnSolo{
-    color: #F0F0F0;
-    font-size: 9pt;
-    background-color: #2A2B2C;
-    border-style: none;
-    border-radius: 4px;
-    border: 1px solid #606060;
-}
-
-TrackControlWidget > QPushButton#btnSolo:checked {
-    color: #000;
-    background-color: #FFCD9B;
-    border: none
-}
-
-)");
 }
 int TrackControlWidget::trackIndex() const {
     return m_lbTrackIndex->text().toInt();
@@ -222,7 +158,7 @@ QString TrackControlWidget::name() const {
 }
 void TrackControlWidget::setName(const QString &name) {
     m_leTrackName->setText(name);
-    // emit propertyChanged();
+    // changeTrackProperty();
 }
 TrackControl TrackControlWidget::control() const {
     TrackControl control;
@@ -243,7 +179,7 @@ void TrackControlWidget::setControl(const TrackControl &control) {
     // m_sbarPan->setValueAsync(control.pan());
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());
-    // emit propertyChanged();
+    // changeTrackProperty();
 }
 void TrackControlWidget::setNarrowMode(bool on) {
     if (on) {
@@ -273,14 +209,8 @@ void TrackControlWidget::onTrackUpdated(const Track &track) {
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());
 }
-// void TrackControlWidget::setHeight(int h) {
-//     m_item->setSizeHint(QSize(360, h));
-// }
-// void TrackControlWidget::setScale(qreal sx, qreal sy) {
-//     m_item->setSizeHint(QSize(360, qRound(72 * sy)));
-// }
 void TrackControlWidget::onSeekBarValueChanged() {
-    emit propertyChanged();
+    changeTrackProperty();
 }
 void TrackControlWidget::contextMenuEvent(QContextMenuEvent *event) {
     // QWidget::contextMenuEvent(event);
@@ -298,6 +228,10 @@ void TrackControlWidget::contextMenuEvent(QContextMenuEvent *event) {
     menu.addAction(actionAddAudioClip);
     menu.exec(event->globalPos());
     event->accept();
+}
+void TrackControlWidget::changeTrackProperty() {
+    Track::TrackProperties args(*this);
+    trackController->changeTrackProperty(args);
 }
 QString TrackControlWidget::panValueToString(double value) {
     if (value < 0)

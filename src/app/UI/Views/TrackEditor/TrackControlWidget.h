@@ -5,9 +5,10 @@
 #ifndef TRACKCONTROLWIDGET_H
 #define TRACKCONTROLWIDGET_H
 
-#include <QWidget>
-
+#include "Interface/ITrack.h"
 #include "Model/TrackControl.h"
+
+#include <QWidget>
 
 class QListWidgetItem;
 class LevelMeter;
@@ -20,23 +21,26 @@ class QSpacerItem;
 class QHBoxLayout;
 class QVBoxLayout;
 
-class TrackControlWidget final : public QWidget {
+class TrackControlWidget final : public QWidget, public ITrack {
     Q_OBJECT
 
 public:
     explicit TrackControlWidget(QListWidgetItem *item, QWidget *parent = nullptr);
     [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int i);
-    [[nodiscard]] QString name() const;
-    void setName(const QString &name);
-    [[nodiscard]] TrackControl control() const;
-    void setControl(const TrackControl &control);
+    [[nodiscard]] QString name() const override;
+    void setName(const QString &name) override;
+    [[nodiscard]] TrackControl control() const override;
+    void setControl(const TrackControl &control) override;
     void setNarrowMode(bool on);
     [[nodiscard]] LevelMeter *levelMeter() const;
+    [[nodiscard]] QColor color() const override {
+        return {};
+    }
+    void setColor(const QColor &color) override {
+    }
 
 signals:
-    void propertyChanged();
-    // void propertyChanged(const QString &name, const QString &value);
     void insertNewTrackTriggered();
     void removeTrackTriggerd();
     // void moveUpTrack();
@@ -53,6 +57,7 @@ private slots:
 
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void changeTrackProperty();
     QListWidgetItem *m_item;
     // controls
     // Button *m_btnColor;

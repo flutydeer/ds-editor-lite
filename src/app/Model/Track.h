@@ -7,49 +7,50 @@
 
 #include <QObject>
 #include <QString>
-#include <QColor>
 
-#include "Utils/UniqueObject.h"
 #include "Utils/OverlappableSerialList.h"
 #include "Utils/ISelectable.h"
 #include "TrackControl.h"
+#include "Interface/ITrack.h"
 
 class Clip;
 
-class Track final : public QObject, public UniqueObject, public ISelectable {
+class Track final : public QObject, public ITrack, public ISelectable {
     Q_OBJECT
 
 public:
     ~Track() override;
     enum ClipChangeType { Inserted, Removed };
 
-    [[nodiscard]] QString name() const;
-    void setName(const QString &name);
-    [[nodiscard]] TrackControl control() const;
-    void setControl(const TrackControl &control);
+    [[nodiscard]] QString name() const override;
+    void setName(const QString &name) override;
+    [[nodiscard]] TrackControl control() const override;
+    void setControl(const TrackControl &control) override;
     [[nodiscard]] OverlappableSerialList<Clip> clips() const;
     void insertClip(Clip *clip);
     void removeClip(Clip *clip);
-    [[nodiscard]] QColor color() const;
-    void setColor(const QColor &color);
+    [[nodiscard]] QColor color() const override;
+    void setColor(const QColor &color) override;
 
     void notifyClipChanged(ClipChangeType type, Clip *clip);
     Clip *findClipById(int id);
 
     class TrackProperties {
     public:
+        explicit TrackProperties() = default;
+        explicit TrackProperties(const ITrack &track);
+
+        int id = -1;
         QString name;
         double gain = 1.0;
         double pan = 0;
         bool mute = false;
         bool solo = false;
-
-        int index = 0;
     };
 
 signals:
     void propertyChanged();
-    void clipChanged(Track::ClipChangeType type, int id, Clip *clip);
+    void clipChanged(Track::ClipChangeType type, Clip *clip);
 
 private:
     QString m_name;

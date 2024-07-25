@@ -723,3 +723,65 @@ ActionButtonsView>QPushButton:pressed {
 ActionButtonsView>QPushButton:disabled {
     background:  none;
 }
+
+TrackControlWidget {
+    border-style: none;
+    border-bottom: 1px solid rgb(72, 75, 78)
+}
+
+TrackControlWidget>QLabel {
+    color: #F0F0F0;
+}
+
+TrackControlWidget>QPushButton {
+    padding: 0px
+}
+
+TrackControlWidget>SeekBar {
+    qproperty-trackInactiveColor: #707070;
+    qproperty-trackActiveColor: #9BBAFF;
+    qproperty-thumbBorderColor: #454545;
+}
+
+TrackControlWidget > QPushButton#btnColor {
+    background-color: #9BBAFF;
+    border-style: none;
+    border-radius: 0px;
+    width: 10px;
+    padding-bottom: 1px;
+}
+
+TrackControlWidget > QLabel#lbTrackIndex{
+    font-size: 11pt;
+    color: #D0D0D0;
+}
+
+TrackControlWidget > QPushButton#btnMute{
+    color: #F0F0F0;
+    font-size: 9pt;
+    background-color: #2A2B2C;
+    border-style: none;
+    border-radius: 4px;
+    border: 1px solid #606060;
+}
+
+TrackControlWidget > QPushButton#btnMute:checked {
+    color: #000;
+    background-color: #FF9B9D;
+    border: none
+}
+
+TrackControlWidget > QPushButton#btnSolo{
+    color: #F0F0F0;
+    font-size: 9pt;
+    background-color: #2A2B2C;
+    border-style: none;
+    border-radius: 4px;
+    border: 1px solid #606060;
+}
+
+TrackControlWidget > QPushButton#btnSolo:checked {
+    color: #000;
+    background-color: #FFCD9B;
+    border: none
+}

@@ -75,18 +75,11 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
 void TracksViewController::onSelectedClipChanged(int clipId) {
     appModel->selectClip(clipId);
 }
-void TracksViewController::onTrackPropertyChanged(const Track::TrackProperties &args) {
-    auto tracks = appModel->tracks();
-    auto track = tracks.at(args.index);
-    auto control = track->control();
+void TracksViewController::changeTrackProperty(const Track::TrackProperties &args) {
+    int trackIndex;
+    auto track = appModel->findTrackById(args.id, trackIndex);
     auto a = new TrackActions;
-    Track::TrackProperties oldArgs;
-    oldArgs.index = args.index;
-    oldArgs.name = track->name();
-    oldArgs.gain = control.gain();
-    oldArgs.pan = control.pan();
-    oldArgs.mute = control.mute();
-    oldArgs.solo = control.solo();
+    const Track::TrackProperties oldArgs(*track);
     a->editTrackProperties(oldArgs, args, track);
     a->execute();
     historyManager->record(a);
@@ -109,10 +102,10 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
     auto clip = appModel->findClipById(args.id, trackIndex);
     auto track = appModel->tracks().at(trackIndex);
 
-    if (clip->type() == Clip::Audio) {
+    if (clip->clipType() == Clip::Audio) {
         auto audioClip = dynamic_cast<AudioClip *>(clip);
 
-        auto oldArgs = Clip::ClipCommonProperties::fromClip(audioClip);
+        auto oldArgs = Clip::ClipCommonProperties::fromClip(*audioClip);
         QList<Clip::ClipCommonProperties> oldArgsList;
         oldArgsList.append(oldArgs);
         QList<Clip::ClipCommonProperties> newArgsList;
@@ -126,10 +119,10 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
         a->editAudioClipProperties(oldArgsList, newArgsList, clips, tracks);
         a->execute();
         historyManager->record(a);
-    } else if (clip->type() == Clip::Singing) {
+    } else if (clip->clipType() == Clip::Singing) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
 
-        auto oldArgs = Clip::ClipCommonProperties::fromClip(singingClip);
+        auto oldArgs = Clip::ClipCommonProperties::fromClip(*singingClip);
         // TODO: update singer info?
         QList<Clip::ClipCommonProperties> oldArgsList;
         oldArgsList.append(oldArgs);

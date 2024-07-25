@@ -96,7 +96,7 @@ bool ClipEditorViewController::canSelectAll() const {
     Q_D(const ClipEditorViewController);
     if (!d->m_clip)
         return false;
-    if (d->m_clip->type() != Clip::Singing)
+    if (d->m_clip->clipType() != Clip::Singing)
         return false;
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     if (singingClip->notes().count() == 0)
@@ -109,7 +109,7 @@ bool ClipEditorViewController::hasSelectedNotes() const {
     Q_D(const ClipEditorViewController);
     if (!d->m_clip)
         return false;
-    if (d->m_clip->type() != Clip::Singing)
+    if (d->m_clip->clipType() != Clip::Singing)
         return false;
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     if (singingClip->notes().count() == 0)

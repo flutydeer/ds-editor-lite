@@ -13,6 +13,9 @@ class AudioClipBackgroundWorker;
 
 class AudioClipGraphicsItem final : public AbstractClipGraphicsItem {
 public:
+    [[nodiscard]] ClipType clipType() const override {
+        return Audio;
+    }
     explicit AudioClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     ~AudioClipGraphicsItem() override = default;
 
@@ -34,7 +37,6 @@ private:
     QString clipTypeName() override {
         return "[Audio] ";
     }
-    void addMenuActions(Menu *menu) override;
 
     AppGlobal::AudioLoadStatus m_status;
     AudioInfoModel m_audioInfo;

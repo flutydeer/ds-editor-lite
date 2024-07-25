@@ -30,7 +30,7 @@ void ValidationController::onModelChanged() {
         for (const auto clip : track->clips()) {
             // m_clips.append(clip);
             // connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
-            if (clip->type() == Clip::Singing) {
+            if (clip->clipType() == Clip::Singing) {
                 auto singingClip = reinterpret_cast<SingingClip *>(clip);
                 NoteWordUtils::updateOriginalWordProperties(singingClip->notes().toList());
             }
@@ -55,7 +55,7 @@ void ValidationController::onTrackChanged(AppModel::TrackChangeType type, qsizet
     }
     validate();
 }
-void ValidationController::onClipChanged(Track::ClipChangeType type, int id, Clip *clip) {
+void ValidationController::onClipChanged(Track::ClipChangeType type, Clip *clip) {
     qDebug() << "ValidationController::onClipChanged" << type;
     if (type == Track::Inserted) {
         handleClipInserted(clip);
@@ -82,7 +82,7 @@ void ValidationController::handleClipInserted(Clip *clip) {
     m_clips.append(clip);
     connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
 
-    if (clip->type() == Clip::Singing) {
+    if (clip->clipType() == Clip::Singing) {
         auto singingClip = reinterpret_cast<SingingClip *>(clip);
         connect(singingClip, &SingingClip::noteChanged, this, &ValidationController::onNoteChanged);
     }
@@ -138,7 +138,7 @@ bool ValidationController::validateClipOverlap() {
 bool ValidationController::validateNoteOverlap() {
     for (const auto track : appModel->tracks()) {
         for (const auto clip : track->clips()) {
-            if (clip->type() == Clip::Singing) {
+            if (clip->clipType() == Clip::Singing) {
                 auto singingClip = reinterpret_cast<SingingClip *>(clip);
                 if (singingClip->notes().hasOverlappedItem()) {
                     Toast::show("ValidationController: note overlapped");

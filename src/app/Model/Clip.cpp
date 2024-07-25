@@ -84,26 +84,24 @@ bool Clip::isOverlappedWith(Clip *obj) const {
         return false;
     return true;
 }
-Clip::ClipCommonProperties Clip::ClipCommonProperties::fromClip(Clip *clip) {
+Clip::ClipCommonProperties Clip::ClipCommonProperties::fromClip(const Clip &clip) {
     ClipCommonProperties args;
     applyPropertiesFromClip(args, clip);
     return args;
 }
-void Clip::applyPropertiesFromClip(ClipCommonProperties &args, Clip *clip) {
-    args.name = clip->name();
-    args.id = clip->id();
-    args.start = clip->start();
-    args.clipStart = clip->clipStart();
-    args.length = clip->length();
-    args.clipLen = clip->clipLen();
-    args.gain = clip->gain();
-    args.mute = clip->mute();
+void Clip::applyPropertiesFromClip(ClipCommonProperties &args, const Clip &clip) {
+    args.name = clip.name();
+    args.id = clip.id();
+    args.start = clip.start();
+    args.clipStart = clip.clipStart();
+    args.length = clip.length();
+    args.clipLen = clip.clipLen();
+    args.gain = clip.gain();
+    args.mute = clip.mute();
 }
-AudioClip::AudioClipProperties AudioClip::AudioClipProperties::fromClip(AudioClip *clip) {
-    AudioClipProperties args;
-    applyPropertiesFromClip(args, clip);
-    args.path = clip->path();
-    return args;
+AudioClip::AudioClipProperties::AudioClipProperties(const AudioClip &clip) {
+    applyPropertiesFromClip(*this, clip);
+    path = clip.path();
 }
 const OverlappableSerialList<Note> &SingingClip::notes() const {
     return m_notes;
@@ -119,8 +117,8 @@ void SingingClip::removeNote(Note *note) {
 void SingingClip::notifyNoteSelectionChanged() {
     emit noteSelectionChanged();
 }
-void SingingClip::notifyParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType) {
-    emit paramChanged(paramName, paramType);
+void SingingClip::notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type) {
+    emit paramChanged(name, type);
 }
 // QList<SingingClip::VocalPart> SingingClip::parts() {
 //     if (m_notes.count() == 0)

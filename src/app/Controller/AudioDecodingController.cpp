@@ -20,7 +20,7 @@ void AudioDecodingController::onModelChanged() {
     for (auto track : appModel->tracks()) {
         connect(track, &Track::clipChanged, this, &AudioDecodingController::onClipChanged);
         for (auto clip : track->clips()) {
-            if (clip->type() == Clip::Audio)
+            if (clip->clipType() == Clip::Audio)
                 createAndStartTask(reinterpret_cast<AudioClip *>(clip));
         }
     }
@@ -35,17 +35,17 @@ void AudioDecodingController::onTrackChanged(AppModel::TrackChangeType type, qsi
         terminateTasksByTrackId(track->id());
     }
 }
-void AudioDecodingController::onClipChanged(Track::ClipChangeType type, int id, Clip *clip) {
+void AudioDecodingController::onClipChanged(Track::ClipChangeType type, Clip *clip) {
     qDebug() << "AudioDecodingController::onClipChanged";
     if (type == Track::Inserted) {
-        if (clip->type() == Clip::Audio) {
+        if (clip->clipType() == Clip::Audio) {
             auto audioClip = reinterpret_cast<AudioClip *>(clip);
             // TODO: 用其他方式判断是否需要重新解码
             if (audioClip->audioInfo().peakCache.count() <= 0)
                 createAndStartTask(audioClip);
         }
     } else if (type == Track::Removed) {
-        if (clip->type() == Clip::Audio)
+        if (clip->clipType() == Clip::Audio)
             terminateTaskByClipId(clip->id());
     }
 }

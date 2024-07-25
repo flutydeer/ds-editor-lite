@@ -5,44 +5,41 @@
 #ifndef DSCLIP_H
 #define DSCLIP_H
 
-#include <QObject>
-
 #include "Utils/IOverlapable.h"
 #include "Utils/ISelectable.h"
 #include "Utils/OverlappableSerialList.h"
 #include "Utils/UniqueObject.h"
 #include "ClipboardDataModel/NotesParamsInfo.h"
 #include "Params.h"
+#include "Interface/IClip.h"
 #include "Model/AudioInfoModel.h"
 
 class Params;
 class Note;
 
-class Clip : public QObject, public IOverlapable, public UniqueObject, public ISelectable {
+class Clip : public QObject, public IClip, public IOverlapable, public ISelectable {
     Q_OBJECT
 
 public:
-    enum ClipType { Audio, Singing, Generic };
-
     ~Clip() override = default;
 
-    [[nodiscard]] virtual ClipType type() const {
+    [[nodiscard]] ClipType clipType() const override {
         return Generic;
     }
-    [[nodiscard]] QString name() const;
-    void setName(const QString &text);
-    [[nodiscard]] int start() const;
-    void setStart(int start);
-    [[nodiscard]] int length() const;
-    void setLength(int length);
-    [[nodiscard]] int clipStart() const;
-    void setClipStart(int clipStart);
-    [[nodiscard]] int clipLen() const;
-    void setClipLen(int clipLen);
-    [[nodiscard]] double gain() const;
-    void setGain(double gain);
-    [[nodiscard]] bool mute() const;
-    void setMute(bool mute);
+    [[nodiscard]] QString name() const override;
+    void setName(const QString &text) override;
+    [[nodiscard]] int start() const override;
+    void setStart(int start) override;
+    [[nodiscard]] int length() const override;
+    void setLength(int length) override;
+    [[nodiscard]] int clipStart() const override;
+    void setClipStart(int clipStart) override;
+    [[nodiscard]] int clipLen() const override;
+    void setClipLen(int clipLen) override;
+    [[nodiscard]] double gain() const override;
+    void setGain(double gain) override;
+    [[nodiscard]] bool mute() const override;
+    void setMute(bool mute) override;
     void notifyPropertyChanged();
 
     [[nodiscard]] int endTick() const;
@@ -52,7 +49,7 @@ public:
 
     class ClipCommonProperties {
     public:
-        static ClipCommonProperties fromClip(Clip *clip);
+        static ClipCommonProperties fromClip(const Clip &clip);
         virtual ~ClipCommonProperties() = default;
         int id = -1;
 
@@ -77,7 +74,7 @@ protected:
     double m_gain = 0;
     bool m_mute = false;
 
-    static void applyPropertiesFromClip(ClipCommonProperties &args ,Clip *clip);
+    static void applyPropertiesFromClip(ClipCommonProperties &args, const Clip &clip);
 };
 
 class AudioClip final : public Clip {
@@ -86,11 +83,12 @@ class AudioClip final : public Clip {
 public:
     class AudioClipProperties final : public ClipCommonProperties {
     public:
-        static AudioClipProperties fromClip(AudioClip *clip);
+        AudioClipProperties() = default;
+        explicit AudioClipProperties(const AudioClip &clip);
         QString path;
     };
 
-    [[nodiscard]] ClipType type() const override {
+    [[nodiscard]] ClipType clipType() const override {
         return Audio;
     }
     [[nodiscard]] QString path() const {
@@ -125,7 +123,7 @@ public:
         QString audioCachePath;
     };
 
-    [[nodiscard]] ClipType type() const override {
+    [[nodiscard]] ClipType clipType() const override {
         return Singing;
     }
 
@@ -137,7 +135,7 @@ public:
 
     void notifyNoteChanged(NoteChangeType type, Note *note);
     void notifyNoteSelectionChanged();
-    void notifyParamChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
+    void notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type);
 
     ParamBundle params;
     // QList<VocalPart> parts();
@@ -148,7 +146,7 @@ public:
 signals:
     void noteChanged(SingingClip::NoteChangeType type, Note *note);
     void noteSelectionChanged();
-    void paramChanged(ParamBundle::ParamName paramName, Param::ParamType paramType);
+    void paramChanged(ParamBundle::ParamName name, Param::ParamType type);
 
 private:
     OverlappableSerialList<Note> m_notes;

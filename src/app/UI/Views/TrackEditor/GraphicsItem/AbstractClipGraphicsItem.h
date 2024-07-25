@@ -5,51 +5,44 @@
 #ifndef DATASET_TOOLS_CLIPGRAPHICSITEM_H
 #define DATASET_TOOLS_CLIPGRAPHICSITEM_H
 
-#include "Utils/IOverlapable.h"
-#include "Utils/UniqueObject.h"
+#include "Interface/IClip.h"
 #include "UI/Views/Common/CommonGraphicsRectItem.h"
+#include "Utils/IOverlapable.h"
 
 class Menu;
+class AbstractClipGraphicsItemPrivate;
 
-class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IOverlapable, public UniqueObject {
+class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IClip, public IOverlapable {
     Q_OBJECT
 
 public:
-    enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };
-
     explicit AbstractClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
     ~AbstractClipGraphicsItem() override = default;
 
-    [[nodiscard]] QWidget *context() const;
-    void setContext(QWidget *context);
-
-    [[nodiscard]] QString name() const;
-    void setName(const QString &text);
+    [[nodiscard]] QString name() const override;
+    void setName(const QString &text) override;
 
     // QColor color() const;
     // void setColor(const QColor &color);
 
-    [[nodiscard]] int start() const;
-    void setStart(int start);
-    [[nodiscard]] int length() const;
-    void setLength(int length);
-    [[nodiscard]] int clipStart() const;
-    void setClipStart(int clipStart);
-    [[nodiscard]] int clipLen() const;
-    void setClipLen(int clipLen);
+    [[nodiscard]] int start() const override;
+    void setStart(int start) override;
+    [[nodiscard]] int length() const override;
+    void setLength(int length) override;
+    [[nodiscard]] int clipStart() const override;
+    void setClipStart(int clipStart) override;
+    [[nodiscard]] int clipLen() const override;
+    void setClipLen(int clipLen) override;
 
-    [[nodiscard]] double gain() const;
-    void setGain(double gain);
+    [[nodiscard]] double gain() const override;
+    void setGain(double gain) override;
     // double pan() const;
     // void setPan(double gain);
-    [[nodiscard]] bool mute() const;
-    void setMute(bool mute);
+    [[nodiscard]] bool mute() const override;
+    void setMute(bool mute) override;
 
     [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int index);
-
-    int compareTo(AbstractClipGraphicsItem *obj) const;
-    bool isOverlappedWith(AbstractClipGraphicsItem *obj) const;
 
 public slots:
     void setQuantize(int quantize);
@@ -61,7 +54,6 @@ signals:
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     virtual void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) = 0;
-    void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
@@ -73,43 +65,10 @@ protected:
     void setCanResizeLength(bool on);
     [[nodiscard]] double tickToSceneX(double tick) const;
     [[nodiscard]] double sceneXToItemX(double x) const;
-    virtual void addMenuActions(Menu *menu) = 0;
-
-    // QMenu *menu();
 
 private:
-    QWidget *m_context{};
-    Menu *m_menu{};
-
-    QString m_name;
-    int m_start = 0;
-    int m_length = 0;
-    int m_clipStart = 0;
-    int m_clipLen = 0;
-    double m_gain = 0;
-    // double m_pan = 0;
-    bool m_mute = false;
-    QRectF m_rect;
-    int m_resizeTolerance = 8; // px
-    bool m_canResizeLength = false;
-    // bool m_mouseOnResizeRightArea = false;
-    // bool m_mouseOnResizeLeftArea = false;
-
-    MouseMoveBehavior m_mouseMoveBehavior = Move;
-    QPointF m_mouseDownPos;
-    // QPointF m_mouseDownScenePos;
-    int m_mouseDownStart{};
-    int m_mouseDownClipStart{};
-    int m_mouseDownLength{};
-    int m_mouseDownClipLen{};
-    bool m_propertyEdited = false;
-
-    int m_trackIndex = 0;
-    int m_quantize = 16;
-    bool m_tempQuantizeOff = false;
-    bool m_showDebugInfo = false;
-
-    [[nodiscard]] QRectF previewRect() const;
+    Q_DECLARE_PRIVATE(AbstractClipGraphicsItem)
+    AbstractClipGraphicsItemPrivate *d_ptr;
 };
 
 

@@ -157,8 +157,6 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
     connect(this, &TrackEditorView::selectedClipChanged, trackController,
             &TracksViewController::onSelectedClipChanged);
-    connect(this, &TrackEditorView::trackPropertyChanged, trackController,
-            &TracksViewController::onTrackPropertyChanged);
     connect(this, &TrackEditorView::insertNewTrackTriggered, trackController,
             &TracksViewController::onInsertNewTrack);
     connect(this, &TrackEditorView::removeTrackTriggered, trackController,
@@ -208,15 +206,15 @@ void TrackEditorView::onTrackChanged(AppModel::TrackChangeType type, int index) 
             break;
     }
 }
-void TrackEditorView::onClipChanged(Track::ClipChangeType type, qsizetype trackIndex, int clipId) {
-    auto trackModel = appModel->tracks().at(trackIndex);
+void TrackEditorView::onClipChanged(Track::ClipChangeType type, Clip *clip) {
+    int trackIndex;
+    appModel->findClipById(clip->id(), trackIndex);
     auto track = m_trackListViewModel.tracks.at(trackIndex);
-    auto dsClip = trackModel->findClipById(clipId);
     if (type == Track::Inserted) {
-        insertClipToTrack(dsClip, track, trackIndex);
-        connect(dsClip, &Clip::propertyChanged, this, [=] { updateClipOnView(dsClip); });
+        insertClipToTrack(clip, track, trackIndex);
+        connect(clip, &Clip::propertyChanged, this, [=] { updateClipOnView(clip); });
     } else if (type == Track::Removed) {
-        removeClipFromView(clipId);
+        removeClipFromView(clip->id());
     }
     updateOverlappedState();
 }
@@ -310,10 +308,8 @@ TrackViewModel *TrackEditorView::TrackListViewModel::findTrackById(int id) {
 }
 void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
     connect(dsTrack, &Track::propertyChanged, this, [=] { updateTracksOnView(); });
-    connect(dsTrack, &Track::clipChanged, this, [=](Track::ClipChangeType type, int clipId) {
-        auto index = appModel->tracks().indexOf(dsTrack);
-        onClipChanged(type, index, clipId);
-    });
+    connect(dsTrack, &Track::clipChanged, this, &TrackEditorView::onClipChanged);
+
     auto track = new TrackViewModel(dsTrack->id());
     for (int clipIndex = 0; clipIndex < dsTrack->clips().count(); clipIndex++) {
         auto clip = dsTrack->clips().at(clipIndex);
@@ -335,18 +331,7 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
     // connect(m_graphicsView, &TracksGraphicsView::scaleChanged, newTrackWidget,
     // &TrackControlWidget::setScale);
 
-    connect(newTrackControlWidget, &TrackControlWidget::propertyChanged, this, [=] {
-        auto control = newTrackControlWidget->control();
-        auto i = m_trackListWidget->row(newTrackItem);
-        Track::TrackProperties args;
-        args.name = newTrackControlWidget->name();
-        args.gain = control.gain();
-        args.pan = control.pan();
-        args.mute = control.mute();
-        args.solo = control.solo();
-        args.index = i;
-        emit trackPropertyChanged(args);
-    });
+
     connect(newTrackControlWidget, &TrackControlWidget::insertNewTrackTriggered, this, [=] {
         auto i = m_trackListWidget->row(newTrackItem);
         emit insertNewTrackTriggered(i + 1); // insert after current track
@@ -403,10 +388,9 @@ void TrackEditorView::insertClipToTrack(Clip *clip, TrackViewModel *track,
     auto length = clip->length();
     auto clipLen = clip->clipLen();
 
-    if (clip->type() == Clip::Audio) {
+    if (clip->clipType() == Clip::Audio) {
         auto audioClip = dynamic_cast<AudioClip *>(clip);
         auto clipItem = new AudioClipGraphicsItem(clip->id());
-        clipItem->setContext(this);
         clipItem->setName(clip->name());
         clipItem->setStart(start);
         clipItem->setClipStart(clipStart);
@@ -443,10 +427,9 @@ void TrackEditorView::insertClipToTrack(Clip *clip, TrackViewModel *track,
         connect(clipItem, &AbstractClipGraphicsItem::removeTriggered, this,
                 &TrackEditorView::onClipGraphicsItemRemoveTriggered);
         track->clips.append(clipItem);
-    } else if (clip->type() == Clip::Singing) {
+    } else if (clip->clipType() == Clip::Singing) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
         auto clipItem = new SingingClipGraphicsItem(clip->id());
-        clipItem->setContext(this);
         clipItem->setStart(start);
         clipItem->setClipStart(clipStart);
         clipItem->setLength(length);
@@ -522,12 +505,12 @@ void TrackEditorView::updateClipOnView(Clip *clip) {
     item->setClipLen(clip->clipLen());
     item->setOverlapped(clip->overlapped());
 
-    if (clip->type() == Clip::Audio) {
+    if (clip->clipType() == Clip::Audio) {
         auto audioClip = dynamic_cast<AudioClip *>(clip);
         auto audioItem = dynamic_cast<AudioClipGraphicsItem *>(item);
         audioItem->setPath(audioClip->path());
         audioItem->setAudioInfo(audioClip->audioInfo());
-    } else if (clip->type() == Clip::Singing) {
+    } else if (clip->clipType() == Clip::Singing) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
         auto singingItem = dynamic_cast<SingingClipGraphicsItem *>(item);
         singingItem->loadNotes(singingClip->notes());

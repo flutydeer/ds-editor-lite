@@ -240,7 +240,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
 
     auto encodeClips = [&](const Track *dsTrack, QDspx::Track *track) {
         for (const auto &clip : dsTrack->clips()) {
-            if (clip->type() == Clip::Singing) {
+            if (clip->clipType() == Clip::Singing) {
                 auto singingClip = dynamic_cast<SingingClip *>(clip);
                 auto singClip = QDspx::SingingClipRef::create();
                 singClip->name = clip->name();
@@ -250,7 +250,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
                 singClip->time.clipLen = clip->clipLen();
                 singClip->notes = encodeNotes(singingClip->notes());
                 track->clips.append(singClip);
-            } else if (clip->type() == Clip::Audio) {
+            } else if (clip->clipType() == Clip::Audio) {
                 auto audioClip = dynamic_cast<AudioClip *>(clip);
                 auto audioClipRef = QDspx::AudioClipRef::create();
                 audioClipRef->name = clip->name();

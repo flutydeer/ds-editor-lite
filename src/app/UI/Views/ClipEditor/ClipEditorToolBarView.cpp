@@ -118,9 +118,9 @@ void ClipEditorToolBarView::setDataContext(Clip *clip) {
         return;
     }
     connect(m_clip, &Clip::propertyChanged, this, &ClipEditorToolBarView::onClipPropertyChanged);
-    if (clip->type() == Clip::Singing)
+    if (clip->clipType() == Clip::Singing)
         moveToSingingClipState();
-    else if (clip->type() == Clip::Audio)
+    else if (clip->clipType() == Clip::Audio)
         moveToAudioClipState();
 }
 PianoRollEditMode ClipEditorToolBarView::editMode() const {
@@ -144,7 +144,7 @@ void ClipEditorToolBarView::onPianoRollToolButtonToggled(QAbstractButton *button
     }
 }
 void ClipEditorToolBarView::onClipNameEdited(const QString &name) const {
-    auto args = Clip::ClipCommonProperties::fromClip(m_clip);
+    auto args = Clip::ClipCommonProperties::fromClip(*m_clip);
     args.name = name;
     int trackIndex;
     appModel->findClipById(m_clip->id(), trackIndex);
