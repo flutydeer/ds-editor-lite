@@ -28,6 +28,7 @@ namespace SVS {
 }
 
 class OutputPlaybackPageWidget : public QWidget {
+    Q_OBJECT
 public:
     explicit OutputPlaybackPageWidget(QWidget *parent = nullptr);
     void accept() const;

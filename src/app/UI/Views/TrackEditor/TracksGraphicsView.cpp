@@ -34,7 +34,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     connect(m_actionNewSingingClip, &QAction::triggered, this,
             &TracksGraphicsView::onNewSingingClip);
 
-    m_actionAddAudioClip = new QAction(tr("Insert audio clip"), this);
+    m_actionAddAudioClip = new QAction(tr("Insert audio clip..."), this);
     connect(m_actionAddAudioClip, &QAction::triggered, this, &TracksGraphicsView::onAddAudioClip);
 
     m_backgroundMenu = new Menu(this);
