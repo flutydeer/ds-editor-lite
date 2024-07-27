@@ -24,15 +24,15 @@ public:
 public slots:
     void onNewTrack();
     void onInsertNewTrack(qsizetype index);
-    void onAppendTrack(Track *track);
+    static void onAppendTrack(Track *track);
     static void onRemoveTrack(int id);
-    void addAudioClipToNewTrack(const QString &filePath);
-    void selectClip(int clipId);
+    static void addAudioClipToNewTrack(const QString &filePath);
+    static void setActiveClip(int clipId);
     static void changeTrackProperty(const Track::TrackProperties &args);
     void onAddAudioClip(const QString &path, int id, int tick);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
-    void onRemoveClip(int clipId);
-    void onNewSingingClip(int trackIndex, int tick);
+    static void onRemoveClips(const QList<int> &clipsId);
+    static void onNewSingingClip(int trackIndex, int tick);
 
 private:
     void handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate);

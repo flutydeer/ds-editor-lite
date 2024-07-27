@@ -15,20 +15,20 @@ public:
     [[nodiscard]] AppGlobal::PanelType panelType() const {
         return m_type;
     }
-    [[nodiscard]] bool panelActivated() const {
-        return m_activated;
+    [[nodiscard]] bool panelActive() const {
+        return m_active;
     }
-    void setPanelActivated(bool b) {
-        m_activated = b;
-        afterSetActivated();
+    void setPanelActive(bool b) {
+        m_active = b;
+        afterSetActive();
     }
 
 protected:
-    virtual void afterSetActivated() = 0;
+    virtual void afterSetActive() = 0;
 
 private:
     AppGlobal::PanelType m_type;
-    bool m_activated = false;
+    bool m_active = false;
 };
 
 #endif // IPANEL_H

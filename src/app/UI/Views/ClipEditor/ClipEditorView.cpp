@@ -50,7 +50,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
             &PhonemeView::setTimeRange);
 
     connect(appModel, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
-    connect(appModel, &AppModel::selectedClipChanged, this, &ClipEditorView::onSelectedClipChanged);
+    connect(appModel, &AppModel::activeClipChanged, this, &ClipEditorView::onSelectedClipChanged);
 
     // auto pianoKeyboardView = new PianoKeyboardView;
     // pianoKeyboardView->setKeyIndexRange(m_pianoRollView->topKeyIndex(),

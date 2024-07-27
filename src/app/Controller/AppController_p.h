@@ -24,7 +24,7 @@ public:
     QString m_projectName;
     bool m_isLanguageEngineReady = false;
     QList<IPanel *> m_panels;
-    AppGlobal::PanelType m_activatedPanel = AppGlobal::TracksEditor;
+    AppGlobal::PanelType m_activePanel = AppGlobal::TracksEditor;
 
     bool isPowerOf2(int num);
     void handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);

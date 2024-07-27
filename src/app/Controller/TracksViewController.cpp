@@ -17,6 +17,8 @@
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AudioClipGraphicsItem.h"
 
+#include <QFileInfo>
+
 void TracksViewController::setParentWidget(QWidget *view) {
     m_parentWidget = view;
 }
@@ -72,7 +74,7 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     a->execute();
     historyManager->record(a);
 }
-void TracksViewController::selectClip(int clipId) {
+void TracksViewController::setActiveClip(int clipId) {
     appModel->selectClip(clipId);
 }
 void TracksViewController::changeTrackProperty(const Track::TrackProperties &args) {
@@ -138,25 +140,34 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
         historyManager->record(a);
     }
 }
-void TracksViewController::onRemoveClip(int clipId) {
-    int trackIndex;
-    auto result = appModel->findClipById(clipId, trackIndex);
-    if (!result)
+void TracksViewController::onRemoveClips(const QList<int> &clipsId) {
+    if (clipsId.empty())
         return;
 
     auto a = new ClipActions;
     QList<Clip *> clips;
-    clips.append(result);
-    a->removeClips(clips, appModel->tracks().at(trackIndex));
+    QList<Track *> tracks;
+    for (const auto &id : clipsId) {
+        Track *track;
+        auto clip = appModel->findClipById(id, track);
+        clips.append(clip);
+        tracks.append(track);
+    }
+    a->removeClips(clips, tracks);
     a->execute();
     historyManager->record(a);
 }
 void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
     auto singingClip = new SingingClip;
+    int bars = 4;
+    auto timeSig = appModel->timeSignature();
+    int length = 1920 * timeSig.numerator / timeSig.denominator * bars;
+    singingClip->setName(tr("New Singing Clip"));
     singingClip->setStart(tick);
     singingClip->setClipStart(0);
-    singingClip->setLength(1920);
-    singingClip->setClipLen(1920);
+    singingClip->setLength(length);
+    singingClip->setClipLen(length);
+
     auto track = appModel->tracks().at(trackIndex);
     auto a = new ClipActions;
     QList<Clip *> clips;
@@ -164,6 +175,8 @@ void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
     a->insertClips(clips, track);
     a->execute();
     historyManager->record(a);
+
+    setActiveClip(singingClip->id());
 }
 void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate) {
     taskManager->removeTask(task);
@@ -197,6 +210,7 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     auto length = frames / (sampleRate * 60 / tempo / 480);
 
     auto audioClip = new AudioClip;
+    audioClip->setName(QFileInfo(path).baseName());
     audioClip->setStart(tick);
     audioClip->setClipStart(0);
     audioClip->setLength(length);

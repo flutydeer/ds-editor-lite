@@ -40,10 +40,9 @@ signals:
     void setPositionTriggered(double tick);
 
 private slots:
-    void onSceneSelectionChanged() const;
+    // void onSceneSelectionChanged() const;
     void onViewScaleChanged(qreal sx, qreal sy);
     void onRemoveTrackTriggered(int id);
-    void onRemoveClipTriggered(int id);
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;

@@ -149,16 +149,15 @@ int AppModel::selectedTrackIndex() const {
     return m_selectedTrackIndex;
 }
 void AppModel::selectClip(int clipId) {
-    qDebug() << "AppModel::setIsSingingClip" << clipId;
     m_selectedClipId = clipId;
     for (auto track : m_tracks) {
         auto result = track->findClipById(clipId);
         if (result) {
-            emit selectedClipChanged(result);
+            emit activeClipChanged(result);
             return;
         }
     }
-    emit selectedClipChanged(nullptr);
+    emit activeClipChanged(nullptr);
 }
 void AppModel::setSelectedTrack(int trackIndex) {
     m_selectedTrackIndex = trackIndex;
@@ -167,15 +166,31 @@ void AppModel::setSelectedTrack(int trackIndex) {
 int AppModel::selectedClipId() const {
     return m_selectedClipId;
 }
+Clip *AppModel::findClipById(int clipId, Track *&trackRef) const {
+    for (const auto track : m_tracks) {
+        if (const auto result = track->findClipById(clipId)) {
+            trackRef = track;
+            return result;
+        }
+    }
+    trackRef = nullptr;
+    return nullptr;
+}
 Clip *AppModel::findClipById(int clipId, int &trackIndex) {
     int i = 0;
-    for (auto track : m_tracks) {
-        auto result = track->findClipById(clipId);
-        if (result) {
+    for (const auto track : m_tracks) {
+        if (auto result = track->findClipById(clipId)) {
             trackIndex = i;
             return result;
         }
         i++;
+    }
+    return nullptr;
+}
+Clip *AppModel::findClipById(int clipId) {
+    for (const auto track : m_tracks) {
+        if (const auto result = track->findClipById(clipId))
+            return result;
     }
     return nullptr;
 }

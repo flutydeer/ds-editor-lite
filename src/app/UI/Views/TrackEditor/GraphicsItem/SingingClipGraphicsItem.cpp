@@ -115,6 +115,9 @@ void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &p
         painter->drawRect(QRectF(left, top, width, noteHeight));
     }
 }
+QString SingingClipGraphicsItem::clipTypeName() {
+    return tr("[Singing] ");
+}
 void SingingClipGraphicsItem::addNote(Note *note) {
     auto noteViewModel = new NoteViewModel;
     noteViewModel->id = note->id();

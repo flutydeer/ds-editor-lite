@@ -22,7 +22,7 @@ public:
         int keyIndex{};
 
         int compareTo(NoteViewModel *obj) const;
-        static bool isOverlappedWith(NoteViewModel *obj) ;
+        static bool isOverlappedWith(NoteViewModel *obj);
     };
 
     [[nodiscard]] ClipType clipType() const override {
@@ -43,9 +43,7 @@ private:
     // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
     // override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) override;
-    QString clipTypeName() override {
-        return "[Singing] ";
-    }
+    QString clipTypeName() override;
 
     QString m_audioCachePath;
     OverlappableSerialList<NoteViewModel> m_notes;

@@ -106,9 +106,9 @@ void AppController::selectTrack(int trackIndex) {
 void AppController::onPanelClicked(AppGlobal::PanelType panelType) {
     Q_D(AppController);
     for (const auto panel : d->m_panels)
-        panel->setPanelActivated(panel->panelType() == panelType);
-    d->m_activatedPanel = panelType;
-    emit activatedPanelChanged(panelType);
+        panel->setPanelActive(panel->panelType() == panelType);
+    d->m_activePanel = panelType;
+    emit activePanelChanged(panelType);
 }
 void AppController::onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                                       const QString &redoActionName) {

@@ -65,7 +65,9 @@ public:
 
     [[nodiscard]] int selectedClipId() const;
 
+    Clip *findClipById(int clipId, Track *&trackRef) const;
     Clip *findClipById(int clipId, int &trackIndex);
+    Clip *findClipById(int clipId);
     Track *findTrackById(int id, int &trackIndex);
     Track *findTrackById(int id);
     [[nodiscard]] double tickToMs(double tick) const;
@@ -90,7 +92,7 @@ signals:
     void tempoChanged(double tempo);
     void timeSignatureChanged(int numerator, int denominator);
     void trackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
-    void selectedClipChanged(Clip *clip);
+    void activeClipChanged(Clip *clip);
     void quantizeChanged(int quantize);
     void selectedTrackChanged(int trackIndex);
 

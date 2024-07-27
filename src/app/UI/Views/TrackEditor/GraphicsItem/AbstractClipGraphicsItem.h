@@ -44,6 +44,7 @@ public:
 
     [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int index);
+    [[nodiscard]] bool canResizeLength()const;
 
     void loadCommonProperties(const Clip::ClipCommonProperties &args);
 
@@ -57,11 +58,9 @@ signals:
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     virtual void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) = 0;
-    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
-    void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
-    void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
-    void hoverEnterEvent(QGraphicsSceneHoverEvent *event) override;
-    void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
+    // void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    // void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
+    // void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     virtual QString clipTypeName() = 0;

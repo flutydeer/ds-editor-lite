@@ -97,6 +97,10 @@ void AbstractClipGraphicsItem::setTrackIndex(const int index) {
     d->m_trackIndex = index;
     updateRectAndPos();
 }
+bool AbstractClipGraphicsItem::canResizeLength() const {
+    Q_D(const AbstractClipGraphicsItem);
+    return d->m_canResizeLength;
+}
 void AbstractClipGraphicsItem::loadCommonProperties(const Clip::ClipCommonProperties &args) {
     Q_D(AbstractClipGraphicsItem);
     d->m_name = args.name;
@@ -172,10 +176,11 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
 
     auto fontMetrics = painter->fontMetrics();
     auto textHeight = fontMetrics.height();
-    auto controlStr = QString("id: %1 ").arg(id()) + QString("%1 %2dB %3 ")
-                                                         .arg(d->m_name)
-                                                         .arg(QString::number(d->m_gain))
-                                                         .arg(d->m_mute ? "M" : "");
+    auto controlStr = (d->m_showDebugInfo ? QString("id: %1 ").arg(id()) : "") +
+                      QString("%1 %2dB %3 ")
+                          .arg(d->m_name)
+                          .arg(QString::number(d->m_gain))
+                          .arg(d->m_mute ? "M" : "");
     auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
                        .arg(d->m_start)
                        .arg(d->m_length)
@@ -209,7 +214,7 @@ void AbstractClipGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphi
     }
 }
 
-void AbstractClipGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+/*void AbstractClipGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     Q_D(AbstractClipGraphicsItem);
     if (event->button() != Qt::LeftButton) {
         d->m_mouseMoveBehavior = AbstractClipGraphicsItemPrivate::None;
@@ -303,26 +308,14 @@ void AbstractClipGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event
     }
 
     CommonGraphicsRectItem::mouseReleaseEvent(event);
-}
-void AbstractClipGraphicsItem::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
-    QGraphicsRectItem::hoverEnterEvent(event);
-}
-void AbstractClipGraphicsItem::hoverLeaveEvent(QGraphicsSceneHoverEvent *event) {
-    QGraphicsRectItem::hoverLeaveEvent(event);
-}
+}*/
 void AbstractClipGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
-    Q_D(AbstractClipGraphicsItem);
     const auto rx = event->pos().rx();
-    if (rx >= 0 && rx <= d->m_resizeTolerance) {
+    if (rx >= 0 && rx <= AppGlobal::resizeTolarance ||
+        rx >= rect().width() - AppGlobal::resizeTolarance && rx <= rect().width())
         setCursor(Qt::SizeHorCursor);
-        d->m_mouseMoveBehavior = AbstractClipGraphicsItemPrivate::ResizeLeft;
-    } else if (rx >= rect().width() - d->m_resizeTolerance && rx <= rect().width()) {
-        setCursor(Qt::SizeHorCursor);
-        d->m_mouseMoveBehavior = AbstractClipGraphicsItemPrivate::ResizeRight;
-    } else {
+    else
         setCursor(Qt::ArrowCursor);
-        d->m_mouseMoveBehavior = AbstractClipGraphicsItemPrivate::Move;
-    }
 
     QGraphicsRectItem::hoverMoveEvent(event);
 }

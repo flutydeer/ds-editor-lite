@@ -24,7 +24,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    connect(appController, &AppController::activatedPanelChanged, this,
+    connect(appController, &AppController::activePanelChanged, this,
             [=](AppGlobal::PanelType panel) { d->onActivatedPanelChanged(panel); });
 
     auto menuFile = new Menu(tr("&File"), this);
