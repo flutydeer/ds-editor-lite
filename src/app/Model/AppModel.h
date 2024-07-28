@@ -11,29 +11,21 @@
 
 #include "Utils/Singleton.h"
 #include "Clip.h"
+#include "TimeSignature.h"
 
 class Track;
 class WorkspaceEditor;
+class AppModelPrivate;
 
 class AppModel final : public QObject, public Singleton<AppModel> {
     Q_OBJECT
 
 public:
-    explicit AppModel() = default;
+    explicit AppModel();
 
     enum TrackChangeType { Insert, Remove };
 
-    class TimeSignature {
-    public:
-        TimeSignature() = default;
-        TimeSignature(int num, int deno) : numerator(num), denominator(deno) {
-        }
-        int pos = 0;
-        int numerator = 4;
-        int denominator = 4;
-    };
-
-    [[nodiscard]] [[nodiscard]] TimeSignature timeSignature() const;
+    [[nodiscard]] TimeSignature timeSignature() const;
     void setTimeSignature(const TimeSignature &signature);
     [[nodiscard]] double tempo() const;
     void setTempo(double tempo);
@@ -44,10 +36,10 @@ public:
     void removeTrack(Track *track);
     void clearTracks();
 
-    [[nodiscard]] QJsonObject globalWorkspace() const;
-    [[nodiscard]] bool isWorkspaceExist(const QString &id) const;
-    [[nodiscard]] QJsonObject getPrivateWorkspaceById(const QString &id) const;
-    std::unique_ptr<WorkspaceEditor> workspaceEditor(const QString &id);
+    // [[nodiscard]] QJsonObject globalWorkspace() const;
+    // [[nodiscard]] bool isWorkspaceExist(const QString &id) const;
+    // [[nodiscard]] QJsonObject getPrivateWorkspaceById(const QString &id) const;
+    // std::unique_ptr<WorkspaceEditor> workspaceEditor(const QString &id);
 
     [[nodiscard]] int quantize() const;
     void setQuantize(int quantize);
@@ -63,7 +55,7 @@ public:
     [[nodiscard]] int selectedTrackIndex() const;
     void setSelectedTrack(int trackIndex);
 
-    [[nodiscard]] int selectedClipId() const;
+    [[nodiscard]] int activeClipId() const;
 
     Clip *findClipById(int clipId, Track *&trackRef) const;
     Clip *findClipById(int clipId, int &trackIndex);
@@ -85,7 +77,7 @@ public:
     };
 
 public slots:
-    void selectClip(int clipId);
+    void setActiveClip(int clipId);
 
 signals:
     void modelChanged();
@@ -97,17 +89,8 @@ signals:
     void selectedTrackChanged(int trackIndex);
 
 private:
-    void reset();
-
-    TimeSignature m_timeSignature;
-    double m_tempo = 120;
-    QList<Track *> m_tracks;
-    QJsonObject m_workspace;
-
-    int m_selectedTrackIndex = -1;
-    int m_selectedClipId = -1;
-
-    int m_quantize = 16;
+    Q_DECLARE_PRIVATE(AppModel);
+    AppModelPrivate *d_ptr;
 };
 
 

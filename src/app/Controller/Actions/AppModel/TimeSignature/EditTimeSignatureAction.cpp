@@ -4,13 +4,12 @@
 
 #include "EditTimeSignatureAction.h"
 
-EditTimeSignatureAction *EditTimeSignatureAction::build(AppModel::TimeSignature oldSig,
-                                                        AppModel::TimeSignature newSig,
+EditTimeSignatureAction *EditTimeSignatureAction::build(TimeSignature oldSig, TimeSignature newSig,
                                                         AppModel *model) {
     auto a = new EditTimeSignatureAction;
     a->m_oldSig = oldSig;
     a->m_newSig = newSig;
-    a->m_model=model;
+    a->m_model = model;
     return a;
 }
 void EditTimeSignatureAction::execute() {

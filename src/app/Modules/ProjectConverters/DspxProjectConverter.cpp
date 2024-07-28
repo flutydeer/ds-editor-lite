@@ -148,7 +148,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     const auto returnCode = dspxModel.load(path);
     if (returnCode.type == QDspx::ReturnCode::Success) {
         const auto timeline = dspxModel.content.timeline;
-        model->setTimeSignature(AppModel::TimeSignature(timeline.timeSignatures[0].num,
+        model->setTimeSignature(TimeSignature(timeline.timeSignatures[0].num,
                                                         timeline.timeSignatures[0].den));
         model->setTempo(timeline.tempos[0].value);
         decodeTracks(dspxModel.content.tracks, model);

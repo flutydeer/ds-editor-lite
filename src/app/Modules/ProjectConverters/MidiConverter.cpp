@@ -208,7 +208,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
 
     if (dspx->content.tracks.count() > 0) {
         auto timeline = dspx->content.timeline;
-        model->setTimeSignature(AppModel::TimeSignature(timeline.timeSignatures[0].num,
+        model->setTimeSignature(TimeSignature(timeline.timeSignatures[0].num,
                                                         timeline.timeSignatures[0].den));
         model->setTempo(timeline.tempos[0].value);
         decodeTracks(dspx, model, mode);

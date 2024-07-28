@@ -75,7 +75,7 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     historyManager->record(a);
 }
 void TracksViewController::setActiveClip(int clipId) {
-    appModel->selectClip(clipId);
+    appModel->setActiveClip(clipId);
 }
 void TracksViewController::changeTrackProperty(const Track::TrackProperties &args) {
     auto track = appModel->findTrackById(args.id);

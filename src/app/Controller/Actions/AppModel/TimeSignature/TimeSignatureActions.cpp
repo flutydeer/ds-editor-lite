@@ -6,7 +6,7 @@
 
 #include "EditTimeSignatureAction.h"
 
-void TimeSignatureActions::editTimeSignature(AppModel::TimeSignature oldSig,
-                                             AppModel::TimeSignature newSig, AppModel *model) {
+void TimeSignatureActions::editTimeSignature(TimeSignature oldSig, TimeSignature newSig,
+                                             AppModel *model) {
     addAction(EditTimeSignatureAction::build(oldSig, newSig, model));
 }

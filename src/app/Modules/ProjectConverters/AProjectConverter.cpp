@@ -124,7 +124,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
     QJsonObject objAProject;
     if (openJsonFile(path, &objAProject)) {
         model->setTimeSignature(
-            AppModel::TimeSignature(objAProject.value("beatsPerBar").toInt(), 4));
+            TimeSignature(objAProject.value("beatsPerBar").toInt(), 4));
         const auto tempo =
             objAProject.value("tempos").toArray().first().toObject().value("bpm").toDouble();
         m_tempo = tempo;

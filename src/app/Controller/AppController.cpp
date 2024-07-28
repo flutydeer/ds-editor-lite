@@ -87,7 +87,7 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
     Q_D(AppController);
     auto model = appModel;
     auto oldSig = model->timeSignature();
-    auto newSig = AppModel::TimeSignature(numerator, denominator);
+    auto newSig = TimeSignature(numerator, denominator);
     auto actions = new TimeSignatureActions;
     if (d->isPowerOf2(denominator)) {
         actions->editTimeSignature(oldSig, newSig, model);
