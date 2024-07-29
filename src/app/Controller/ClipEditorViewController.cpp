@@ -13,6 +13,7 @@
 #include "Model/AppModel.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Language/S2p.h"
+#include "UI/Controls/Toast.h"
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
 
 #include <QClipboard>
@@ -290,8 +291,18 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
         return;
 
     auto noteRes = lyricDialog.noteResult();
+    auto notesToEdit = selectedNotes;
+    if (noteRes.count() > selectedNotes.count()) {
+        // Toast::show("输出音符数大于输入，多余的歌词将被忽略");
+    } else if (noteRes.count() < selectedNotes.count()) {
+        // Toast::show("输出音符数小于输入");
+        auto i = noteRes.count();
+        auto n =  selectedNotes.count() - noteRes.count();
+        notesToEdit.remove(i, n);
+    }
+
     QList<Note::NoteWordProperties> args;
-    for (int i = 0; i < noteRes.size(); i++) {
+    for (int i = 0; i < notesToEdit.size(); i++) {
         auto arg = Note::NoteWordProperties::fromNote(*selectedNotes[i]);
         arg.lyric = noteRes[i].lyric;
         arg.language = noteRes[i].language;
@@ -300,7 +311,7 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
         args.append(arg);
     }
     auto a = new NoteActions;
-    a->editNotesWordProperties(selectedNotes, args);
+    a->editNotesWordProperties(notesToEdit, args);
     a->execute();
     historyManager->record(a);
 }
