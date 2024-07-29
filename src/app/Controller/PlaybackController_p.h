@@ -5,7 +5,8 @@
 #ifndef PLAYBACKCONTROLLER_P_H
 #define PLAYBACKCONTROLLER_P_H
 
-class PlaybackControllerPrivate {
+class PlaybackControllerPrivate : public QObject {
+    Q_OBJECT
     Q_DECLARE_PUBLIC(PlaybackController)
 
 public:

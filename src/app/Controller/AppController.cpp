@@ -162,6 +162,6 @@ void AppControllerPrivate::handleRunLanguageEngineTaskFinished(LaunchLanguageEng
 void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
     Q_Q(AppController);
     m_projectPath = path;
-    q->setProjectName(m_projectPath.isEmpty() ? q->tr("New Project")
+    q->setProjectName(m_projectPath.isEmpty() ? tr("New Project")
                                               : QFileInfo(m_projectPath).fileName());
 }
