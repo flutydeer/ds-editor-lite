@@ -23,18 +23,20 @@ add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} Resources/lite_res.q
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 
 find_package(SndFile CONFIG REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets OpenGLWidgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets)
 find_package(OpenGL)
+find_package(QWindowKit CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC
         SndFile::sndfile
-        Qt${QT_VERSION_MAJOR}::Core
-        Qt${QT_VERSION_MAJOR}::Widgets
-        Qt${QT_VERSION_MAJOR}::OpenGLWidgets
+        Qt6::Core
+        Qt6::Widgets
+        Qt6::OpenGLWidgets
         OpenGL32
         ${PLATFORM_LIB}
         talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Midi talcs::Dspx
         opendspx
         LangMgr
+        QWindowKit::Widgets
 )
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
