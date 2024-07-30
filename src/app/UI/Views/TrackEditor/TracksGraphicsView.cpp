@@ -11,12 +11,12 @@
 #include "GraphicsItem/TracksBackgroundGraphicsItem.h"
 #include "Model/AppModel.h"
 #include "UI/Controls/AccentButton.h"
-#include "Utils/MathUtils.h"
-#include "UI/Controls/Menu.h"
 #include "UI/Dialogs/Base/Dialog.h"
+#include "Utils/MathUtils.h"
 
-#include <QMouseEvent>
 #include <QFileDialog>
+#include <QMouseEvent>
+#include <QMWidgets/cmenu.h>
 
 TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent)
     : TimeGraphicsView(scene, parent), m_scene(scene) {
@@ -37,7 +37,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     m_actionAddAudioClip = new QAction(tr("Insert audio clip..."), this);
     connect(m_actionAddAudioClip, &QAction::triggered, this, &TracksGraphicsView::onAddAudioClip);
 
-    m_backgroundMenu = new Menu(this);
+    m_backgroundMenu = new CMenu(this);
     m_backgroundMenu->addAction(m_actionNewSingingClip);
     m_backgroundMenu->addAction(m_actionAddAudioClip);
 
@@ -150,7 +150,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             auto actionDelete = new QAction(tr("&Delete"), this);
             connect(actionDelete, &QAction::triggered, this,
                     &TracksGraphicsView::onDeleteTriggered);
-            Menu menu(this);
+            CMenu menu(this);
             menu.addAction(actionDelete);
             menu.exec(event->globalPos());
         } else {
@@ -162,6 +162,42 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
                                                         AbstractClipGraphicsItem *clipItem) {
     auto scenePos = mapToScene(event->pos());
     qDebug() << "prepareForMovingOrResizingClip";
+
+    bool ctrlDown = event->modifiers() == Qt::ControlModifier;
+    if (!ctrlDown) {
+        if (selectedClipItems().count() <= 1 || !selectedClipItems().contains(clipItem))
+            clearSelections();
+        clipItem->setSelected(true);
+    } else {
+        clipItem->setSelected(!clipItem->isSelected());
+    }
+    auto rPos = clipItem->mapFromScene(scenePos);
+    auto rx = rPos.x();
+    if (rx >= 0 && rx <= AppGlobal::resizeTolarance) {
+        // setCursor(Qt::SizeHorCursor);
+        m_mouseMoveBehavior = ResizeLeft;
+        qDebug() << "ResizeLeft";
+        clearSelections();
+        clipItem->setSelected(true);
+    } else if (rx >= clipItem->rect().width() - AppGlobal::resizeTolarance &&
+               rx <= clipItem->rect().width()) {
+        // setCursor(Qt::SizeHorCursor);
+        m_mouseMoveBehavior = ResizeRight;
+        qDebug() << "ResizeRight";
+        clearSelections();
+        clipItem->setSelected(true);
+    } else {
+        // setCursor(Qt::ArrowCursor);
+        m_mouseMoveBehavior = Move;
+        qDebug() << "Move";
+    }
+
+    m_currentEditingClip = clipItem;
+    m_mouseDownPos = scenePos;
+    m_mouseDownStart = m_currentEditingClip->start();
+    m_mouseDownClipStart = m_currentEditingClip->clipStart();
+    m_mouseDownLength = m_currentEditingClip->length();
+    m_mouseDownClipLen = m_currentEditingClip->clipLen();
 }
 AbstractClipGraphicsItem *TracksGraphicsView::findClipById(int id) {
     for (auto item : m_scene->items())

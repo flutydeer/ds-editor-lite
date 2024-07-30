@@ -37,6 +37,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         opendspx
         LangMgr
         QWindowKit::Widgets
+        qtmediate::Widgets
 )
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})

@@ -269,7 +269,7 @@ QMenu {
     padding: 4px;
     background-color: #202122;
     border: 1px solid #505050;
-    border-radius: 6px;
+    /* border-radius: 6px; */
     color: #F0F0F0;
 }
 

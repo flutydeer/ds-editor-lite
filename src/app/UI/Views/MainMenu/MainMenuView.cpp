@@ -3,19 +3,19 @@
 //
 
 #include "MainMenuView.h"
-#include "MainMenuView_p.h"
 
+#include "MainMenuView_p.h"
 #include "Controller/AppController.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/TracksViewController.h"
 #include "Modules/History/HistoryManager.h"
-#include "UI/Controls/Menu.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Window/MainWindow.h"
 
 #include <QFileDialog>
+#include <QMWidgets/cmenu.h>
 
 MainMenuView::MainMenuView(MainWindow *mainWindow)
     : QMenuBar(mainWindow), d_ptr(new MainMenuViewPrivate(mainWindow)) {
@@ -27,7 +27,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     connect(appController, &AppController::activePanelChanged, this,
             [=](AppGlobal::PanelType panel) { d->onActivatedPanelChanged(panel); });
 
-    auto menuFile = new Menu(tr("&File"), this);
+    auto menuFile = new CMenu(tr("&File"), this);
     auto actionNewProject = new QAction(tr("&New Project"), this);
     actionNewProject->setShortcut(QKeySequence("Ctrl+N"));
     connect(actionNewProject, &QAction::triggered, this, [=] { d->onNewProject(); });
@@ -44,12 +44,12 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     d->m_actionSaveAs = new QAction(tr("Save &As..."), this);
     d->m_actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
 
-    auto menuImport = new Menu(tr("Import"), this);
+    auto menuImport = new CMenu(tr("Import"), this);
     auto actionImportMidiFile = new QAction(tr("MIDI File..."), this);
     connect(actionImportMidiFile, &QAction::triggered, this, [=] { d->onImportMidiFile(); });
     menuImport->addAction(actionImportMidiFile);
 
-    auto menuExport = new Menu(tr("Export"), this);
+    auto menuExport = new CMenu(tr("Export"), this);
     auto actionExportAudio = new QAction(tr("Audio File..."), this);
     connect(actionExportAudio, &QAction::triggered, this, [=] { d->onExportAudioFile(); });
     auto actionExportMidiFile = new QAction(tr("MIDI File..."), this);
@@ -72,7 +72,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     menuFile->addSeparator();
     menuFile->addAction(actionExit);
 
-    auto menuEdit = new Menu(tr("&Edit"), this);
+    auto menuEdit = new CMenu(tr("&Edit"), this);
 
     d->m_actionUndo = new QAction(tr("&Undo"), this);
     d->m_actionUndo->setEnabled(false);
@@ -120,14 +120,14 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     menuEdit->addAction(d->m_actionCopy);
     menuEdit->addAction(d->m_actionPaste);
 
-    auto menuInsert = new Menu(tr("&Insert"), this);
+    auto menuInsert = new CMenu(tr("&Insert"), this);
 
     auto actionInsertNewTrack = new QAction(tr("Track"), this);
     connect(actionInsertNewTrack, &QAction::triggered, trackController,
             &TracksViewController::onNewTrack);
     menuInsert->addAction(actionInsertNewTrack);
 
-    auto menuModify = new Menu(tr("&Modify"), this);
+    auto menuModify = new CMenu(tr("&Modify"), this);
     d->m_actionFillLyrics = new QAction(tr("Fill Lyrics..."), this);
     d->m_actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
     d->m_actionFillLyrics->setEnabled(false);
@@ -135,7 +135,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
             [this] { clipController->onFillLyric(this); });
     menuModify->addAction(d->m_actionFillLyrics);
 
-    auto menuOptions = new Menu(tr("&Options"), this);
+    auto menuOptions = new CMenu(tr("&Options"), this);
     auto actionGeneralOptions = new QAction(tr("&General..."), this);
     connect(actionGeneralOptions, &QAction::triggered, this, [=] {
         AppOptionsDialog dialog(AppOptionsDialog::General, this);
@@ -167,7 +167,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     menuOptions->addAction(actionAppearanceOptions);
     menuOptions->addAction(actionLanguage);
 
-    auto menuHelp = new Menu(tr("&Help"), this);
+    auto menuHelp = new CMenu(tr("&Help"), this);
     auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);
     connect(actionCheckForUpdates, &QAction::triggered, this,
             [=] { Toast::show(tr("You are already up to date")); });

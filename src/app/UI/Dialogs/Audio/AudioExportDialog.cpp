@@ -2,13 +2,13 @@
 
 #include "Model/AppModel.h"
 #include "Model/Track.h"
-#include "UI/Controls/Menu.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
 
-#include <QtWidgets>
 #include <QSet>
+#include <QtWidgets>
+#include <QMWidgets/cmenu.h>
 
 AudioExportDialog::AudioExportDialog(QWidget *parent)
     : Dialog(parent), m_exporter(new AudioExporter(this)) {
@@ -44,7 +44,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent)
     m_fileNameEdit = new LineEdit;
     fileNameLayout->addWidget(m_fileNameEdit, 1);
     auto fileNameTemplateButton = new Button(tr("Template"));
-    auto fileNameTemplateMenu = new Menu(this);
+    auto fileNameTemplateMenu = new CMenu(this);
     fileNameTemplateButton->setMenu(fileNameTemplateMenu);
     fileNameLayout->addWidget(fileNameTemplateButton);
     pathLayout->addRow(tr("Name"), fileNameLayout);
@@ -111,7 +111,7 @@ AudioExportDialog::AudioExportDialog(QWidget *parent)
     m_trackAffixEdit = new LineEdit;
     trackAffixLayout->addWidget(m_trackAffixEdit, 1);
     m_trackAffixTemplateButton = new Button(tr("Template"));
-    auto trackAffixTemplateMenu = new Menu(this);
+    auto trackAffixTemplateMenu = new CMenu(this);
     m_trackAffixTemplateButton->setMenu(trackAffixTemplateMenu);
     trackAffixLayout->addWidget(m_trackAffixTemplateButton);
     mixingLayout->addRow(tr("Affix"), trackAffixLayout);

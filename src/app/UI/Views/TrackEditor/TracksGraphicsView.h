@@ -7,7 +7,7 @@
 
 #include "UI/Views/Common/TimeGraphicsView.h"
 
-class Menu;
+class CMenu;
 class AbstractClipGraphicsItem;
 class TracksGraphicsScene;
 
@@ -36,7 +36,7 @@ private:
     [[nodiscard]] QList<AbstractClipGraphicsItem *> selectedClipItems() const;
 
     TracksGraphicsScene *m_scene;
-    Menu *m_backgroundMenu = nullptr;
+    CMenu *m_backgroundMenu = nullptr;
     QAction *m_actionNewSingingClip;
     QAction *m_actionAddAudioClip;
     int m_trackIndex = -1;
@@ -45,6 +45,14 @@ private:
     int m_quantize = 16;
 
     MouseMoveBehavior m_mouseMoveBehavior = None;
+    QPointF m_mouseDownPos;
+    int m_mouseDownStart = 0;
+    int m_mouseDownClipStart = 0;
+    int m_mouseDownLength = 0;
+    int m_mouseDownClipLen = 0;
+    // int m_mouseDownTrackIndex = -1;
+    bool m_tempQuantizeOff = false;
+    AbstractClipGraphicsItem *m_currentEditingClip = nullptr;
 };
 
 #endif // DATASET_TOOLS_TRACKSGRAPHICSVIEW_H

@@ -2,20 +2,20 @@
 // Created by fluty on 2024/1/29.
 //
 
-#include <QLabel>
-#include <QContextMenuEvent>
-#include <QHBoxLayout>
-
 #include "TrackControlWidget.h"
 
 #include "Controller/TracksViewController.h"
-#include "UI/Controls/EditLabel.h"
-#include "UI/Controls/Menu.h"
-#include "UI/Controls/SeekBar.h"
-#include "UI/Controls/LevelMeter.h"
 #include "Model/Track.h"
 #include "UI/Controls/Button.h"
+#include "UI/Controls/EditLabel.h"
+#include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/LineEdit.h"
+#include "UI/Controls/SeekBar.h"
+
+#include <QContextMenuEvent>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QMWidgets/cmenu.h>
 
 TrackControlWidget::TrackControlWidget(QListWidgetItem *item, int id, QWidget *parent)
     : QWidget(parent), ITrack(id) {
@@ -223,7 +223,7 @@ void TrackControlWidget::contextMenuEvent(QContextMenuEvent *event) {
     // auto actionAddAudioClip = new QAction("Add audio clip", this);
     // connect(actionAddAudioClip, &QAction::triggered, this, [&] { emit addAudioClipTriggered(); });
 
-    Menu menu(this);
+    CMenu menu(this);
     menu.addAction(actionInsert);
     menu.addAction(actionRemove);
     // menu.addAction(actionAddAudioClip);
