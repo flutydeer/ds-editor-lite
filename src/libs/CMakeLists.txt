@@ -1,4 +1,3 @@
-add_subdirectory(qwindowkit)
 add_subdirectory(qtmediate)
 add_subdirectory(opendspx)
 add_subdirectory(talcs)

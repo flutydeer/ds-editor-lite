@@ -10,9 +10,6 @@
 [submodule "src/libs/IkG2p"]
 	path = src/libs/IkG2p
 	url = ../../wolfgitpr/IkG2p
-[submodule "src/libs/qwindowkit"]
-	path = src/libs/qwindowkit
-	url = https://github.com/stdware/qwindowkit
 [submodule "src/libs/qtmediate"]
 	path = src/libs/qtmediate
 	url = https://github.com/stdware/qtmediate
