@@ -12,6 +12,8 @@
 #include "Modules/Task/TaskManager.h"
 #include "Modules/Task/Task.h"
 
+
+class MainTitleBar;
 class MainMenuView;
 class TaskDialog;
 class ProgressIndicator;
@@ -43,6 +45,7 @@ private:
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
 
+    MainTitleBar *m_titleBar;
     MainMenuView *m_mainMenu = nullptr;
     TrackEditorView *m_trackEditorView;
     ClipEditorView *m_clipEditView;

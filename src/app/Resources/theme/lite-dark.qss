@@ -42,6 +42,26 @@ Button:disabled {
     background-color: rgb(64, 64, 64)
 }
 
+Button:checked {
+    color: rgb(0, 28, 92);
+    background: rgb(155, 186, 255);
+}
+
+Button:checked:hover {
+    color: rgb(0, 28, 92);
+    background: rgb(169, 196, 255);
+}
+
+Button:checked:pressed {
+    color: rgba(0, 28, 92, 127);
+    background: rgb(139, 175, 255);
+}
+
+Button:checked:disabled {
+    color: rgb(166, 166, 166);
+    background: rgb(205, 205, 205)
+}
+
 AccentButton {
     background: rgb(155, 186, 255);
     border: none;
@@ -299,7 +319,7 @@ QMenuBar {
 
 QMenuBar::item {
     background-color: transparent;
-    padding: 6px 12px;
+    padding: 6px 8px;
     color: #f0f0f0;
     border-radius: 6px;
 }

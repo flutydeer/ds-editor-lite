@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
     qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+    QGuiApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
     QApplication a(argc, argv);
     QApplication::setAttribute(Qt::AA_SynthesizeTouchForUnhandledMouseEvents);
     QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
