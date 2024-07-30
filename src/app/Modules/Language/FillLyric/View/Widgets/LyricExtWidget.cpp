@@ -63,10 +63,8 @@ namespace FillLyric {
         m_epOptWidget = new QWidget();
         m_epOptLayout = new QVBoxLayout();
         m_epOptLayout->setContentsMargins(0, 0, 0, 0);
-        exportSkipSlur = new QCheckBox(tr("Skipping Slur"));
         exportLanguage = new QCheckBox(tr("Automatically mark languages"));
 
-        m_epOptLayout->addWidget(exportSkipSlur);
         m_epOptLayout->addWidget(exportLanguage);
         m_epOptLayout->addStretch(1);
 
@@ -94,7 +92,6 @@ namespace FillLyric {
         font.setPointSizeF(appOptions->fillLyric()->viewFontSize);
         m_wrapView->setFont(font);
 
-        exportSkipSlur->setChecked(appOptions->fillLyric()->exportSkipSlur);
         exportLanguage->setChecked(appOptions->fillLyric()->exportLanguage);
 
         // undo redo
@@ -112,13 +109,14 @@ namespace FillLyric {
 
         // exportOptButton
         connect(exportOptButton, &QPushButton::clicked,
-                [this]() { m_epOptWidget->setVisible(!m_epOptWidget->isVisible()); });
+                [this]() {
+                    m_epOptWidget->setVisible(!m_epOptWidget->isVisible());
+                });
 
         // view font size
         connect(m_wrapView, &LyricWrapView::fontSizeChanged, this, &LyricExtWidget::modifyOption);
 
         connect(autoWrap, &SwitchButton::clicked, this, &LyricExtWidget::modifyOption);
-        connect(exportSkipSlur, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
         connect(exportLanguage, &QCheckBox::stateChanged, this, &LyricExtWidget::modifyOption);
     }
 
@@ -133,7 +131,6 @@ namespace FillLyric {
         options->viewFontSize = m_wrapView->font().pointSizeF();
 
         options->autoWrap = m_wrapView->autoWrap();
-        options->exportSkipSlur = exportSkipSlur->isChecked();
         options->exportLanguage = exportLanguage->isChecked();
         appOptions->saveAndNotify();
     }

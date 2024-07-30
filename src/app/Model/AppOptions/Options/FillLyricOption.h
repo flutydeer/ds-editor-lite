@@ -18,7 +18,6 @@ public:
 
     bool autoWrap = false;
 
-    bool exportSkipSlur = false;
     bool exportLanguage = false;
 
     double textEditFontSize = 11;
@@ -27,7 +26,6 @@ public:
 protected:
     void save(QJsonObject &object) override;
 };
-
 
 
 #endif // FILLLYRICOPTION_H

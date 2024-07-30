@@ -18,6 +18,7 @@ LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : Task(paren
     status.isIndetermine = true;
     setStatus(status);
 }
+
 void LaunchLanguageEngineTask::runTask() {
     qDebug() << "RunLanguageEngineTask::runTask";
     const auto g2pMgr = G2pMgr::IG2pManager::instance();
@@ -27,10 +28,12 @@ void LaunchLanguageEngineTask::runTask() {
     QString errorMsg;
     g2pMgr->initialize(errorMsg);
 
-    qDebug() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr->initialized();
+    if (!g2pMgr->initialized())
+        qDebug() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr->initialized();
 
     langMgr->initialize(errorMsg);
-    qDebug() << "LangMgr: errorMsg" << errorMsg << "initialized:" << langMgr->initialized();
+    if (!langMgr->initialized())
+        qDebug() << "LangMgr: errorMsg" << errorMsg << "initialized:" << langMgr->initialized();
 
     success = g2pMgr->initialized() && langMgr->initialized();
     errorMessage = errorMsg;

@@ -271,8 +271,11 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
 
     auto selectedNotes = reinterpret_cast<SingingClip *>(d->m_clip)->selectedNotes();
 
+    int slurCount = 0;
     QList<Note *> inputNotes;
     for (const auto &note : selectedNotes) {
+        if (note->lyric() == '-')
+            slurCount++;
         const auto inputNote = new Note();
         inputNote->setLyric(note->lyric());
         inputNote->setPronunciation(note->pronunciation());
@@ -290,24 +293,34 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
     if (result != QDialog::Accepted)
         return;
 
-    auto noteRes = lyricDialog.noteResult();
+    const auto lyricRes = lyricDialog.noteResult();
+    auto noteRes = lyricRes.langNotes;
     auto notesToEdit = selectedNotes;
-    if (noteRes.count() > selectedNotes.count()) {
+    if (!lyricRes.skipSlur)
+        slurCount = 0;
+    if (noteRes.count() + slurCount > selectedNotes.count()) {
         // Toast::show("输出音符数大于输入，多余的歌词将被忽略");
-    } else if (noteRes.count() < selectedNotes.count()) {
+    } else if (noteRes.count() + slurCount < selectedNotes.count()) {
         // Toast::show("输出音符数小于输入");
-        auto i = noteRes.count();
-        auto n =  selectedNotes.count() - noteRes.count();
+        auto i = noteRes.count() + slurCount;
+        auto n = selectedNotes.count() - noteRes.count() - slurCount;
         notesToEdit.remove(i, n);
     }
 
     QList<Note::NoteWordProperties> args;
+    int skipCount = 0;
     for (int i = 0; i < notesToEdit.size(); i++) {
         auto arg = Note::NoteWordProperties::fromNote(*selectedNotes[i]);
-        arg.lyric = noteRes[i].lyric;
-        arg.language = noteRes[i].language;
-        arg.pronunciation = Pronunciation(noteRes[i].syllable, noteRes[i].syllableRevised);
-        arg.pronCandidates = noteRes[i].candidates;
+        if (lyricRes.skipSlur && arg.lyric == '-') {
+            args.append(arg);
+            skipCount++;
+            continue;
+        }
+        arg.lyric = noteRes[i - skipCount].lyric;
+        arg.language = noteRes[i - skipCount].language;
+        arg.pronunciation = Pronunciation(noteRes[i - skipCount].syllable,
+                                          noteRes[i - skipCount].syllableRevised);
+        arg.pronCandidates = noteRes[i - skipCount].candidates;
         args.append(arg);
     }
     auto a = new NoteActions;

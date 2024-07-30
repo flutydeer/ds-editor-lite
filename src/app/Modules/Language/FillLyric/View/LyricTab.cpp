@@ -32,6 +32,8 @@ namespace FillLyric {
 
         connect(m_lyricBaseWidget->btnReReadNote, &QAbstractButton::clicked, this,
                 &LyricTab::setLangNotes);
+        connect(m_lyricBaseWidget->skipSlur, &QCheckBox::stateChanged, this,
+                &LyricTab::setLangNotes);
 
         // phonicWidget signals
         connect(m_lyricExtWidget->m_btnInsertText, &QAbstractButton::clicked, this,
@@ -125,9 +127,7 @@ namespace FillLyric {
     }
 
     bool LyricTab::exportSkipSlur() const {
-        return m_lyricExtWidget->isVisible()
-                   ? m_lyricExtWidget->exportSkipSlur->isChecked()
-                   : m_lyricBaseWidget->skipSlur->isChecked();
+        return m_lyricBaseWidget->skipSlur->isChecked();
     }
 
     bool LyricTab::exportLanguage() const {
@@ -136,15 +136,12 @@ namespace FillLyric {
 
     QList<QList<LangNote>> LyricTab::modelExport() const {
         const auto cellLists = m_lyricExtWidget->m_wrapView->cellLists();
-        const bool skipSlurRes = exportSkipSlur();
 
         QList<QList<LangNote>> noteList;
         for (const auto &cellList : cellLists) {
             QList<LangNote> notes;
             for (const auto &cell : cellList->m_cells) {
                 const auto note = cell->note();
-                if (skipSlurRes && (note->language != "Slur" || note->lyric == "-"))
-                    continue;
                 notes.append(*note);
             }
             noteList.append(notes);
@@ -160,14 +157,10 @@ namespace FillLyric {
     }
 
     void LyricTab::_on_btnToTable_clicked() const {
-        const auto skipSlurRes = m_lyricBaseWidget->skipSlur->isChecked();
         const auto splitType =
             static_cast<SplitType>(m_lyricBaseWidget->m_splitComboBox->currentIndex());
 
-        QString text = m_lyricBaseWidget->m_textEdit->toPlainText();
-        if (skipSlurRes) {
-            text = text.remove("-");
-        }
+        const QString text = m_lyricBaseWidget->m_textEdit->toPlainText();
 
         QList<QList<LangNote>> splitRes;
         if (splitType == Auto) {
