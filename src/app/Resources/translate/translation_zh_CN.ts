@@ -111,22 +111,22 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="23"/>
         <source>Use native frame</source>
-        <translation type="unfinished"></translation>
+        <translation>使用原生边框</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="24"/>
         <source>Restart required</source>
-        <translation type="unfinished"></translation>
+        <translation>需要重新启动</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="34"/>
         <source>Window</source>
-        <translation type="unfinished"></translation>
+        <translation>窗口</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="53"/>
         <source>Choose an animation level that suitable for you</source>
-        <translation type="unfinished"></translation>
+        <translation>选择一个适合你的动画等级</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="57"/>
