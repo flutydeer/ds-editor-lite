@@ -42,7 +42,9 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent)
 
     m_lbTitle = new QLabel(this);
 
-    auto font = QFont("Segoe Fluent Icons");
+    auto fontFamily =
+        QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
+    auto font = QFont(fontFamily);
     font.setPointSizeF(7.2);
     // font.setHintingPreference(QFont::PreferDefaultHinting);
     int systemButtonWidth = 48;
@@ -118,8 +120,7 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
         auto checked = m_window->isMaximized();
         m_btnMax->setChecked(checked);
         m_btnMax->setText(checked ? QChar(ChromeRestore) : QChar(ChromeMaximize));
-    }
-    else if (event->type() == QEvent::WindowActivate)
+    } else if (event->type() == QEvent::WindowActivate)
         setActiveStyle(true);
     else if (event->type() == QEvent::WindowDeactivate)
         setActiveStyle(false);
