@@ -20,6 +20,16 @@ QPushButton:disabled {
     background-color: rgb(64, 64, 64)
 }
 
+QPushButton#btnNewTrack {
+    image: url(:svg/icons/add_16_filled_white);
+    padding: 6px;
+    /* background-origin: content;
+    background-position: left;
+    background-repeat: no-repeat;
+    text-align: right;
+    padding-left: 22px; */
+}
+
 Button {
     background: #10FFFFFF;
     border: none;
@@ -77,7 +87,7 @@ Button#CloseButton:pressed {
     background: #B32E1D;
 }
 
-Button#MaximizeButton:checked{
+Button#MaximizeButton:checked {
     color: #f2f2f2;
 }
 
@@ -777,7 +787,7 @@ ActionButtonsView>QPushButton:pressed {
 }
 
 ActionButtonsView>QPushButton:disabled {
-    background:  none;
+    background: none;
 }
 
 TrackControlWidget {
@@ -799,7 +809,7 @@ TrackControlWidget>SeekBar {
     qproperty-thumbBorderColor: #454545;
 }
 
-TrackControlWidget > QPushButton#btnColor {
+TrackControlWidget>QPushButton#btnColor {
     background-color: #9BBAFF;
     border-style: none;
     border-radius: 0px;
@@ -807,12 +817,12 @@ TrackControlWidget > QPushButton#btnColor {
     padding-bottom: 1px;
 }
 
-TrackControlWidget > QLabel#lbTrackIndex{
+TrackControlWidget>QLabel#lbTrackIndex {
     font-size: 11pt;
     color: #D0D0D0;
 }
 
-TrackControlWidget > QPushButton#btnMute{
+TrackControlWidget>QPushButton#btnMute {
     color: #F0F0F0;
     font-size: 9pt;
     background-color: #2A2B2C;
@@ -821,13 +831,13 @@ TrackControlWidget > QPushButton#btnMute{
     border: 1px solid #606060;
 }
 
-TrackControlWidget > QPushButton#btnMute:checked {
+TrackControlWidget>QPushButton#btnMute:checked {
     color: #000;
     background-color: #FF9B9D;
     border: none
 }
 
-TrackControlWidget > QPushButton#btnSolo{
+TrackControlWidget>QPushButton#btnSolo {
     color: #F0F0F0;
     font-size: 9pt;
     background-color: #2A2B2C;
@@ -836,7 +846,7 @@ TrackControlWidget > QPushButton#btnSolo{
     border: 1px solid #606060;
 }
 
-TrackControlWidget > QPushButton#btnSolo:checked {
+TrackControlWidget>QPushButton#btnSolo:checked {
     color: #000;
     background-color: #FFCD9B;
     border: none

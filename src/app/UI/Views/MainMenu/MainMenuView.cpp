@@ -120,20 +120,22 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     menuEdit->addAction(d->m_actionCopy);
     menuEdit->addAction(d->m_actionPaste);
 
-    auto menuInsert = new CMenu(tr("&Insert"), this);
+    // auto menuInsert = new CMenu(tr("&Insert"), this);
+    //
+    // auto actionInsertNewTrack = new QAction(tr("Track"), this);
+    // connect(actionInsertNewTrack, &QAction::triggered, trackController,
+    //         &TracksViewController::onNewTrack);
+    // menuInsert->addAction(actionInsertNewTrack);
 
-    auto actionInsertNewTrack = new QAction(tr("Track"), this);
-    connect(actionInsertNewTrack, &QAction::triggered, trackController,
-            &TracksViewController::onNewTrack);
-    menuInsert->addAction(actionInsertNewTrack);
-
-    auto menuModify = new CMenu(tr("&Modify"), this);
+    // auto menuModify = new CMenu(tr("&Modify"), this);
     d->m_actionFillLyrics = new QAction(tr("Fill Lyrics..."), this);
     d->m_actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
     d->m_actionFillLyrics->setEnabled(false);
     connect(d->m_actionFillLyrics, &QAction::triggered, clipController,
             [this] { clipController->onFillLyric(this); });
-    menuModify->addAction(d->m_actionFillLyrics);
+    // menuModify->addAction(d->m_actionFillLyrics);
+    menuEdit->addSeparator();
+    menuEdit->addAction(d->m_actionFillLyrics);
 
     auto menuOptions = new CMenu(tr("&Options"), this);
     auto actionGeneralOptions = new QAction(tr("&General..."), this);
@@ -178,8 +180,8 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     addMenu(menuFile);
     addMenu(menuEdit);
-    addMenu(menuInsert);
-    addMenu(menuModify);
+    // addMenu(menuInsert);
+    // addMenu(menuModify);
     addMenu(menuOptions);
     addMenu(menuHelp);
 }

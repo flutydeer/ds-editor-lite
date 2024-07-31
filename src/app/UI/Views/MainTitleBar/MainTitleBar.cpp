@@ -72,6 +72,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent)
     connect(m_btnClose, &Button::clicked, this, &MainTitleBar::closeTriggered);
 
     auto mainLayout = new QHBoxLayout;
+    mainLayout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
     mainLayout->addLayout(menuBarContainer);
     mainLayout->addWidget(m_actionButtonsView);
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
