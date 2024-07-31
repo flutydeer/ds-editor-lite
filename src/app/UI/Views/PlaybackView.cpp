@@ -153,7 +153,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     mainLayout->addWidget(m_elTime);
     mainLayout->addWidget(m_elTempo);
     mainLayout->addWidget(m_elTimeSignature);
-    mainLayout->setContentsMargins(6, 6, 0, 6);
+    mainLayout->setContentsMargins(0, 0, 6, 0);
     mainLayout->setSpacing(6);
     setLayout(mainLayout);
     setContentsMargins({});

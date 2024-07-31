@@ -54,6 +54,7 @@ MainWindow::MainWindow() {
             showMaximized();
         else
             showNormal();
+        emulateLeaveEvent(m_titleBar->maximizeButton());
     });
     connect(m_titleBar, &MainTitleBar::closeTriggered, this, &MainWindow::close);
     installEventFilter(m_titleBar);
@@ -93,7 +94,7 @@ MainWindow::MainWindow() {
     splitter->setOrientation(Qt::Vertical);
     splitter->addWidget(m_trackEditorView);
     splitter->addWidget(m_clipEditView);
-
+    splitter->setContentsMargins(6, 0, 6, 0);
 
     ValidationController::instance();
     appController->newProject();
@@ -120,7 +121,7 @@ MainWindow::MainWindow() {
     mainLayout->addWidget(splitter);
     mainLayout->addWidget(statusBar);
     mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins({6, 0, 6, 0});
+    mainLayout->setContentsMargins({0, 0, 0, 0});
 
     auto mainWidget = new QWidget;
     mainWidget->setLayout(mainLayout);
@@ -291,4 +292,24 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
     }
 #endif
     return QMainWindow::nativeEvent(eventType, message, result);
+}
+void MainWindow::emulateLeaveEvent(QWidget *widget) {
+    Q_ASSERT(widget);
+    QTimer::singleShot(0, widget, [widget]() {
+        const QScreen *screen = widget->screen();
+        const QPoint globalPos = QCursor::pos(screen);
+        if (!QRect(widget->mapToGlobal(QPoint{0, 0}), widget->size()).contains(globalPos)) {
+            QCoreApplication::postEvent(widget, new QEvent(QEvent::Leave));
+            if (widget->testAttribute(Qt::WA_Hover)) {
+                const QPoint localPos = widget->mapFromGlobal(globalPos);
+                const QPoint scenePos = widget->window()->mapFromGlobal(globalPos);
+                static constexpr const auto oldPos = QPoint{};
+                const Qt::KeyboardModifiers modifiers = QGuiApplication::keyboardModifiers();
+                const auto event =
+                    new QHoverEvent(QEvent::HoverLeave, scenePos, globalPos, oldPos, modifiers);
+                Q_UNUSED(localPos);
+                QCoreApplication::postEvent(widget, event);
+            }
+        }
+    });
 }

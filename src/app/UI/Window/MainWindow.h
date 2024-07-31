@@ -41,6 +41,7 @@ private slots:
 private:
     void closeEvent(QCloseEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+    static void emulateLeaveEvent(QWidget *widget);
 
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;

@@ -96,7 +96,6 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins({});
     // layout->addWidget(splitter);
     mainLayout->addLayout(trackListPanelLayout);
     mainLayout->addLayout(trackTimelineAndViewLayout);
