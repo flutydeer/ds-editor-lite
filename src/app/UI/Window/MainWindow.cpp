@@ -12,6 +12,7 @@
 #include "Controller/AppController.h"
 #include "Controller/TracksViewController.h"
 #include "Controller/ValidationController.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/AccentButton.h"
@@ -36,27 +37,31 @@
 #include <QStatusBar>
 
 MainWindow::MainWindow() {
+    auto useNativeFrame = appOptions->appearance()->useNativeFrame;
     m_mainMenu = new MainMenuView(this);
-    auto agent = new QWK::WidgetWindowAgent(this);
-    agent->setup(this);
-    m_titleBar = new MainTitleBar(m_mainMenu, this);
-    agent->setTitleBar(m_titleBar);
-    agent->setSystemButton(QWK::WindowAgentBase::Minimize, m_titleBar->minimizeButton());
-    agent->setSystemButton(QWK::WindowAgentBase::Maximize, m_titleBar->maximizeButton());
-    agent->setSystemButton(QWK::WindowAgentBase::Close, m_titleBar->closeButton());
-    agent->setHitTestVisible(m_titleBar->menuView());
-    agent->setHitTestVisible(m_titleBar->actionButtonsView());
-    agent->setHitTestVisible(m_titleBar->playbackView());
+    m_titleBar = new MainTitleBar(m_mainMenu, this, useNativeFrame);
 
-    connect(m_titleBar, &MainTitleBar::minimizeTriggered, this, &MainMenuView::showMinimized);
-    connect(m_titleBar, &MainTitleBar::maximizeTriggered, this, [&](bool max) {
-        if (max)
-            showMaximized();
-        else
-            showNormal();
-        emulateLeaveEvent(m_titleBar->maximizeButton());
-    });
-    connect(m_titleBar, &MainTitleBar::closeTriggered, this, &MainWindow::close);
+    if (!useNativeFrame) {
+        auto agent = new QWK::WidgetWindowAgent(this);
+        agent->setup(this);
+        agent->setTitleBar(m_titleBar);
+        agent->setSystemButton(QWK::WindowAgentBase::Minimize, m_titleBar->minimizeButton());
+        agent->setSystemButton(QWK::WindowAgentBase::Maximize, m_titleBar->maximizeButton());
+        agent->setSystemButton(QWK::WindowAgentBase::Close, m_titleBar->closeButton());
+        agent->setHitTestVisible(m_titleBar->menuView());
+        agent->setHitTestVisible(m_titleBar->actionButtonsView());
+        agent->setHitTestVisible(m_titleBar->playbackView());
+
+        connect(m_titleBar, &MainTitleBar::minimizeTriggered, this, &MainMenuView::showMinimized);
+        connect(m_titleBar, &MainTitleBar::maximizeTriggered, this, [&](bool max) {
+            if (max)
+                showMaximized();
+            else
+                showNormal();
+            emulateLeaveEvent(m_titleBar->maximizeButton());
+        });
+        connect(m_titleBar, &MainTitleBar::closeTriggered, this, &MainWindow::close);
+    }
     installEventFilter(m_titleBar);
 
     QString qssBase;

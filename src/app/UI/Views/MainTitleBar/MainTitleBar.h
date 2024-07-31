@@ -17,7 +17,7 @@ class MainTitleBar : public QWidget {
     Q_OBJECT
 
 public:
-    explicit MainTitleBar(MainMenuView *menuView, QWidget *parent);
+    explicit MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame);
 
     [[nodiscard]] MainMenuView *menuView() const;
     [[nodiscard]] ActionButtonsView *actionButtonsView() const;
@@ -41,10 +41,10 @@ private:
     MainMenuView *m_menuView;
     ActionButtonsView *m_actionButtonsView;
     PlaybackView *m_playbackView;
-    Button *m_btnMin;
-    Button *m_btnMax;
-    Button *m_btnClose;
-    QLabel *m_lbTitle;
+    Button *m_btnMin = nullptr;
+    Button *m_btnMax = nullptr;
+    Button *m_btnClose = nullptr;
+    QLabel *m_lbTitle = nullptr;
     QGraphicsOpacityEffect *m_opacityEffect;
 };
 

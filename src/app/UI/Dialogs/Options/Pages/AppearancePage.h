@@ -7,6 +7,8 @@
 
 #include "IOptionPage.h"
 
+
+class SwitchButton;
 class ComboBox;
 class LineEdit;
 
@@ -17,6 +19,7 @@ public:
     explicit AppearancePage(QWidget *parent = nullptr);
 
 private:
+    SwitchButton *m_swUseNativeFrame;
     ComboBox *m_cbxAnimationLevel;
     LineEdit *m_leAnimationTimeScale;
 

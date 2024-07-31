@@ -23,7 +23,7 @@
 #include <QLabel>
 #include <QStyle>
 
-MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent)
+MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame)
     : QWidget(parent), m_menuView(menuView), m_window(parent) {
     setAttribute(Qt::WA_StyledBackground);
 
@@ -40,48 +40,57 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent)
     connect(historyManager, &HistoryManager::undoRedoChanged, appController,
             &AppController::onUndoRedoChanged);
 
-    m_lbTitle = new QLabel(this);
+    if (!useNativeFrame) {
+        m_lbTitle = new QLabel;
 
-    auto fontFamily =
-        QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
-    auto font = QFont(fontFamily);
-    font.setPointSizeF(7.2);
-    // font.setHintingPreference(QFont::PreferDefaultHinting);
-    int systemButtonWidth = 48;
+        auto fontFamily =
+            QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
+        auto font = QFont(fontFamily);
+        font.setPointSizeF(7.2);
+        // font.setHintingPreference(QFont::PreferDefaultHinting);
+        int systemButtonWidth = 48;
 
-    m_btnMin = new Button(QChar(ChromeMinimize), this);
-    m_btnMin->setObjectName("MinimizeButton");
-    // m_btnMin->setToolTip(tr("Minimize"));
-    // m_btnMin->installEventFilter(new ToolTipFilter(m_btnMin));
-    m_btnMin->setFont(font);
-    m_btnMin->setFixedSize(systemButtonWidth, 40);
+        m_btnMin = new Button(QChar(ChromeMinimize));
+        m_btnMin->setObjectName("MinimizeButton");
+        // m_btnMin->setToolTip(tr("Minimize"));
+        // m_btnMin->installEventFilter(new ToolTipFilter(m_btnMin));
+        m_btnMin->setFont(font);
+        m_btnMin->setFixedSize(systemButtonWidth, 40);
 
-    m_btnMax = new Button(QChar(ChromeMaximize), this);
-    m_btnMax->setObjectName("MaximizeButton");
-    m_btnMax->setFont(font);
-    m_btnMax->setCheckable(true);
-    m_btnMax->setFixedSize(systemButtonWidth, 40);
+        m_btnMax = new Button(QChar(ChromeMaximize));
+        m_btnMax->setObjectName("MaximizeButton");
+        m_btnMax->setFont(font);
+        m_btnMax->setCheckable(true);
+        m_btnMax->setFixedSize(systemButtonWidth, 40);
 
-    m_btnClose = new Button(QChar(ChromeClose), this);
-    m_btnClose->setObjectName("CloseButton");
-    m_btnClose->setFont(font);
-    m_btnClose->setFixedSize(systemButtonWidth, 40);
+        m_btnClose = new Button(QChar(ChromeClose));
+        m_btnClose->setObjectName("CloseButton");
+        m_btnClose->setFont(font);
+        m_btnClose->setFixedSize(systemButtonWidth, 40);
 
-    connect(m_btnMin, &Button::clicked, this, &MainTitleBar::minimizeTriggered);
-    connect(m_btnMax, &Button::clicked, this, &MainTitleBar::maximizeTriggered);
-    connect(m_btnClose, &Button::clicked, this, &MainTitleBar::closeTriggered);
+        connect(m_btnMin, &Button::clicked, this, &MainTitleBar::minimizeTriggered);
+        connect(m_btnMax, &Button::clicked, this, &MainTitleBar::maximizeTriggered);
+        connect(m_btnClose, &Button::clicked, this, &MainTitleBar::closeTriggered);
+    }
 
     auto mainLayout = new QHBoxLayout;
-    mainLayout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
+    if (!useNativeFrame) {
+        // TODO: app icon
+        mainLayout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
+    }
     mainLayout->addLayout(menuBarContainer);
     mainLayout->addWidget(m_actionButtonsView);
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
-    mainLayout->addWidget(m_lbTitle);
-    mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
+    if (!useNativeFrame) {
+        mainLayout->addWidget(m_lbTitle);
+        mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
+    }
     mainLayout->addWidget(m_playbackView);
-    mainLayout->addWidget(m_btnMin);
-    mainLayout->addWidget(m_btnMax);
-    mainLayout->addWidget(m_btnClose);
+    if (!useNativeFrame) {
+        mainLayout->addWidget(m_btnMin);
+        mainLayout->addWidget(m_btnMax);
+        mainLayout->addWidget(m_btnClose);
+    }
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins(6, 0, 0, 0);
 
@@ -115,12 +124,15 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
     if (watched != m_window)
         return QWidget::eventFilter(watched, event);
 
-    if (event->type() == QEvent::WindowTitleChange)
-        m_lbTitle->setText(m_window->windowTitle());
-    else if (event->type() == QEvent::WindowStateChange) {
+    if (event->type() == QEvent::WindowTitleChange) {
+        if (m_lbTitle)
+            m_lbTitle->setText(m_window->windowTitle());
+    } else if (event->type() == QEvent::WindowStateChange) {
         auto checked = m_window->isMaximized();
-        m_btnMax->setChecked(checked);
-        m_btnMax->setText(checked ? QChar(ChromeRestore) : QChar(ChromeMaximize));
+        if (m_btnMax) {
+            m_btnMax->setChecked(checked);
+            m_btnMax->setText(checked ? QChar(ChromeRestore) : QChar(ChromeMaximize));
+        }
     } else if (event->type() == QEvent::WindowActivate)
         setActiveStyle(true);
     else if (event->type() == QEvent::WindowDeactivate)

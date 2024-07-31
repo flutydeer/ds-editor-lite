@@ -5,12 +5,15 @@
 #include "AppearanceOption.h"
 
 void AppearanceOption::load(const QJsonObject &object) {
+    if (object.contains(useNativeFrameKey))
+        useNativeFrame = object.value(useNativeFrameKey).toBool();
     if (object.contains(animationLevelKey))
         animationLevel = animationLevelFromString(object.value(animationLevelKey).toString());
     if (object.contains(animationTimeScaleKey))
         animationTimeScale = object.value(animationTimeScaleKey).toDouble();
 }
 void AppearanceOption::save(QJsonObject &object) {
+    object.insert(useNativeFrameKey, useNativeFrame);
     object.insert(animationLevelKey, animationLevelToString(animationLevel));
     object.insert(animationTimeScaleKey, animationTimeScale);
 }

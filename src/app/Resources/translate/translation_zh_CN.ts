@@ -49,7 +49,7 @@
 <context>
     <name>AppModel</name>
     <message>
-        <location filename="../../Model/AppModel.cpp" line="77"/>
+        <location filename="../../Model/AppModel.cpp" line="97"/>
         <source>New Track</source>
         <translation>新轨道</translation>
     </message>
@@ -85,42 +85,61 @@
 <context>
     <name>AppearancePage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="23"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="26"/>
         <source>Full</source>
         <translation>完全</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="23"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="26"/>
         <source>Decreased</source>
         <translation>减弱</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="23"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="26"/>
         <source>None</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="34"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="52"/>
         <source>Level</source>
         <translation>等级</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="35"/>
         <source>Choose an animation level that suitables for you</source>
-        <translation>选择一个适合你的动画等级</translation>
+        <translation type="vanished">选择一个适合你的动画等级</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="39"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="23"/>
+        <source>Use native frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="24"/>
+        <source>Restart required</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="34"/>
+        <source>Window</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="53"/>
+        <source>Choose an animation level that suitable for you</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="57"/>
         <source>Time scale</source>
         <translation>时间缩放</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="40"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="58"/>
         <source>Adjust animations&apos; duration</source>
         <translation>调整动画的持续时间</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="51"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="69"/>
         <source>Animation</source>
         <translation>动画</translation>
     </message>
@@ -709,82 +728,82 @@
 <context>
     <name>FillLyric::LyricBaseWidget</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="15"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="16"/>
         <source>Import Lrc</source>
         <translation>导入 Lrc</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="16"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="17"/>
         <source>Reread Note</source>
         <translation>重新加载音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="17"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="18"/>
         <source>Lyric Prev</source>
         <translation>预览歌词</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="25"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="26"/>
         <source>Please input lyric here.</source>
         <translation>请在此输入歌词。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="28"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="29"/>
         <source>Note Count: 0</source>
         <translation>字符数：0</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="44"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="45"/>
         <source>Fill-in Options:</source>
         <translation>填入选项：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="60"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="61"/>
         <source>Split Mode :</source>
         <translation>分词模式：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="62"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="63"/>
         <source>Auto</source>
         <translation>自动</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="62"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="63"/>
         <source>By Char</source>
         <translation>按字符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="62"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="63"/>
         <source>Custom</source>
         <translation>自定义</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="72"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="73"/>
         <source>Skip Slur Note</source>
         <translation>跳过延音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="121"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="124"/>
         <source>Note Count: %1</source>
         <translation>字符数：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="126"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="129"/>
         <source>Open Lrc File</source>
         <translation>打开Lrc文件</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="126"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="129"/>
         <source>Lrc Files (*.lrc)</source>
         <translation>Lrc文件(*.lrc)</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="133"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="136"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="133"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="136"/>
         <source>Failed to decode lrc file.</source>
         <translation>解析Lrc文件失败。</translation>
     </message>
@@ -851,12 +870,11 @@
         <translation>导出选项：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="66"/>
         <source>Skipping Slur</source>
-        <translation>忽略延音符</translation>
+        <translation type="vanished">忽略延音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="67"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="66"/>
         <source>Automatically mark languages</source>
         <translation>自动标记语种</translation>
     </message>
@@ -864,25 +882,25 @@
 <context>
     <name>FillLyric::LyricTab</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="46"/>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="77"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="48"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="79"/>
         <source>Lyric Prev</source>
         <translation>预览歌词</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="46"/>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="79"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="48"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="81"/>
         <source>Fold Preview</source>
         <translation>收起预览</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="61"/>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="71"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="63"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="73"/>
         <source>Expand Left</source>
         <translation>展开左侧</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="61"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="63"/>
         <source>Fold Left</source>
         <translation>收起左侧</translation>
     </message>
@@ -1534,7 +1552,7 @@
         <translation type="vanished">选择工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="207"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="209"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
@@ -1644,19 +1662,16 @@
         <translation>粘贴(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="123"/>
         <source>&amp;Insert</source>
-        <translation>插入(&amp;I)</translation>
+        <translation type="vanished">插入(&amp;I)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="125"/>
         <source>Track</source>
-        <translation>轨道</translation>
+        <translation type="vanished">轨道</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="130"/>
         <source>&amp;Modify</source>
-        <translation>修改(&amp;M)</translation>
+        <translation type="vanished">修改(&amp;M)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="131"/>
@@ -1664,57 +1679,57 @@
         <translation>填入歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="138"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="140"/>
         <source>&amp;Options</source>
         <translation>选项(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="139"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="141"/>
         <source>&amp;General...</source>
         <translation>常规(&amp;G)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="144"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="146"/>
         <source>&amp;Audio...</source>
         <translation>音频(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="149"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="151"/>
         <source>&amp;MIDI...</source>
         <translation>&amp;MIDI...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="154"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="156"/>
         <source>A&amp;ppearance...</source>
         <translation>外观(&amp;P)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="159"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="161"/>
         <source>Language...</source>
         <translation>语言...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="170"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="172"/>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="171"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="173"/>
         <source>Check for Updates</source>
         <translation>检查更新</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="173"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="175"/>
         <source>You are already up to date</source>
         <translation>已是最新版本</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="174"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="176"/>
         <source>About...</source>
         <translation>关于...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="175"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="177"/>
         <source>About</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1722,43 +1737,43 @@
 <context>
     <name>MainMenuViewPrivate</name>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="206"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="208"/>
         <source>Select a Project File</source>
         <translation>选择工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="222"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="224"/>
         <source>Select an A Project File</source>
         <translation>选择A工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="223"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="225"/>
         <source>Project File (*.json)</source>
         <translation>工程文件 (*.json)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="236"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="238"/>
         <source>Select a MIDI File</source>
         <translation>选择 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="237"/>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="245"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="239"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="247"/>
         <source>MIDI File (*.mid)</source>
         <translation>MIDI 文件 (*.mid)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="244"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="246"/>
         <source>Save as MIDI File</source>
         <translation>另存为 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="259"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="261"/>
         <source>&amp;Undo</source>
         <translation>撤销(&amp;U)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="261"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="263"/>
         <source>&amp;Redo</source>
         <translation>重做(&amp;R)</translation>
     </message>
@@ -1782,7 +1797,7 @@
         <translation type="vanished">选择工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="221"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="232"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
@@ -1919,47 +1934,47 @@
         <translation type="vanished">检查更新</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="147"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="158"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="148"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="159"/>
         <source>Do you want to save changes?</source>
         <translation>要保存更改吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="151"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="162"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="159"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="170"/>
         <source>Don&apos;t save</source>
         <translation>不保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="166"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="177"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="220"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="231"/>
         <source>Save project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="249"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="260"/>
         <source>Please wait for all tasks done...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="256"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="267"/>
         <source>%1 is exiting...</source>
         <translation>%1 正在退出...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="257"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="268"/>
         <source>Terminating background tasks...</source>
         <translation>正在停止后台任务...</translation>
     </message>
@@ -2190,24 +2205,32 @@
 <context>
     <name>TrackEditorView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="200"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="199"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="201"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="200"/>
         <source>Do you want to delete this track?</source>
         <translation>要删除此轨道吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="205"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="204"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="209"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="208"/>
         <source>Cancel</source>
         <translation>取消</translation>
+    </message>
+</context>
+<context>
+    <name>TrackListHeaderView</name>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="22"/>
+        <source>New Track</source>
+        <translation type="unfinished">新轨道</translation>
     </message>
 </context>
 <context>
