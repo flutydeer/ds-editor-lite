@@ -1,65 +1,45 @@
-#ifndef DS_EDITOR_LITE_AUDIOEXPORTDIALOG_H
-#define DS_EDITOR_LITE_AUDIOEXPORTDIALOG_H
+#ifndef AUDIOEXPORTDIALOG_H
+#define AUDIOEXPORTDIALOG_H
 
-#include "Modules/Audio/AudioExporter.h"
-#include "UI/Dialogs/Base/Dialog.h"
+#include <QDialog>
 
-class LineEdit;
+class QLineEdit;
 class QTextEdit;
-class ComboBox;
-class Button;
+class QComboBox;
+class QPushButton;
 class QSlider;
 class QDoubleSpinBox;
 class QListWidget;
 class QCheckBox;
 class QRadioButton;
 
-class AudioExportDialog : public Dialog {
+class AudioExportDialog : public QDialog {
     Q_OBJECT
 public:
     explicit AudioExportDialog(QWidget *parent = nullptr);
     ~AudioExportDialog() override;
 
 private:
-    ComboBox *m_presetComboBox;
-    Button *m_presetDeleteButton;
-    LineEdit *m_fileDirectoryEdit;
-    LineEdit *m_fileNameEdit;
-    QPushButton *m_warningButton;
-    QTextEdit *m_previewFrame;
-    ComboBox *m_formatTypeComboBox;
-    ComboBox *m_formatOptionComboBox;
+    QComboBox *m_presetComboBox;
+    QPushButton *m_presetDeleteButton;
+    QLineEdit *m_fileDirectoryEdit;
+    QLineEdit *m_fileNameEdit;
+    QComboBox *m_fileTypeComboBox;
+    QComboBox *m_formatOptionComboBox;
     QSlider *m_vbrSlider;
-    QDoubleSpinBox *m_formatSampleRateSpinBox;
-    LineEdit *m_extensionNameEdit;
-    ComboBox *m_sourceComboBox;
+    QComboBox *m_formatSampleRateComboBox;
+    QComboBox *m_sourceComboBox;
     QListWidget *m_sourceListWidget;
-    ComboBox *m_mixingOptionComboBox;
-    LineEdit *m_trackAffixEdit;
-    Button *m_trackAffixTemplateButton;
+    QComboBox *m_mixingOptionComboBox;
     QCheckBox *m_enableMuteSoloCheckBox;
     QRadioButton *m_rangeSelectAllRadio;
     QRadioButton *m_rangeLoopIntervalRadio;
+    QCheckBox *m_keepOpenCheckBox;
+
+    QPushButton *m_warningButton;
 
     QString m_warningText;
-
-    AudioExporter *m_exporter;
-
-    void applyExporterOptionToDialog();
-    void applyDialogToExporterOption();
-    enum FileListWarning {
-        EmptyWarning = 1,
-        DuplicatedWarning = 2,
-        OverwritingWarning = 4,
-    };
-    static int checkFileListWarnings(const QStringList &list);
-
-    void onFormModified();
-    bool m_holdFormModified = false;
-    void updatePresetList();
-    void loadPreset(const QVariant &data);
-    void updateDirtyPreset();
-    void presetSaveAs();
 };
 
-#endif // DS_EDITOR_LITE_AUDIOEXPORTDIALOG_H
+
+#endif // AUDIOEXPORTDIALOG_H
