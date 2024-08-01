@@ -64,7 +64,7 @@ void Clip::notifyPropertyChanged() {
 int Clip::endTick() const {
     return start() + clipStart() + clipLen();
 }
-int Clip::compareTo(Clip *obj) const {
+int Clip::compareTo(const Clip *obj) const {
     auto curVisibleStart = start() + clipStart();
     auto other = obj;
     auto otherVisibleStart = other->start() + other->clipStart();
@@ -171,8 +171,7 @@ void SingingClip::copyCurves(const OverlappableSerialList<Curve> &source,
     }
 }
 Note *SingingClip::findNoteById(int id) {
-    for (int i = 0; i < m_notes.count(); i++) {
-        auto note = m_notes.at(i);
+    for (auto note : m_notes) {
         if (note->id() == id)
             return note;
     }
@@ -180,8 +179,7 @@ Note *SingingClip::findNoteById(int id) {
 }
 QList<Note *> SingingClip::selectedNotes() const {
     QList<Note *> notes;
-    for (int i = 0; i < m_notes.count(); i++) {
-        auto note = m_notes.at(i);
+    for (auto note : m_notes) {
         if (note->selected())
             notes.append(note);
     }

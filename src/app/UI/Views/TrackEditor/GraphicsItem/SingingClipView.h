@@ -21,7 +21,7 @@ public:
         int length{};
         int keyIndex{};
 
-        int compareTo(NoteViewModel *obj) const;
+        int compareTo(const NoteViewModel *obj) const;
         static bool isOverlappedWith(NoteViewModel *obj);
         [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
     };

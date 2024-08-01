@@ -46,8 +46,7 @@ void Track::notifyClipChanged(ClipChangeType type, Clip *clip) {
     emit clipChanged(type, clip);
 }
 Clip *Track::findClipById(int id) {
-    for (int i = 0; i < m_clips.count(); i++) {
-        auto clip = m_clips.at(i);
+    for (auto clip : m_clips) {
         if (clip->id() == id)
             return clip;
     }

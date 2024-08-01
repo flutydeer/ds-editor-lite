@@ -30,7 +30,7 @@ public:
     [[nodiscard]] int start() const;
     void setStart(int offset);
 
-    int compareTo(Curve *obj) const;
+    int compareTo(const Curve *obj) const;
     [[nodiscard]] virtual int endTick() const {
         return m_start;
     }
@@ -95,7 +95,7 @@ public:
     [[nodiscard]] InterpMode interpMode() const;
     void setInterpMode(InterpMode mode);
 
-    int compareTo(AnchorNode *obj) const;
+    int compareTo(const AnchorNode *obj) const;
     bool isOverlappedWith(AnchorNode *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 

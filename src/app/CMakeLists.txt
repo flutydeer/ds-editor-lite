@@ -40,6 +40,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         qtmediate::Widgets
 )
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
+
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
 
 # copy phoneme dict

@@ -5,22 +5,29 @@
 #ifndef IOVERLAPABLE_H
 #define IOVERLAPABLE_H
 
-#include <qtypes.h>
+#include <QtGlobal>
 #include <tuple>
 
 class Overlappable {
 public:
     virtual ~Overlappable() = default;
     [[nodiscard]] bool overlapped() const {
-        return m_overlapped;
+        return m_overlappedCounter;
     }
-    void setOverlapped(bool b) {
-        m_overlapped = b;
+    void acquireOverlappedCounter() {
+        m_overlappedCounter++;
+    }
+    void releaseOverlappedCounter() {
+        Q_ASSERT(m_overlappedCounter > 0);
+        m_overlappedCounter--;
+    }
+    void clearOverlappedCounter() {
+        m_overlappedCounter = 0;
     }
     [[nodiscard]] virtual std::tuple<qsizetype, qsizetype> interval() const = 0;
 
 private:
-    bool m_overlapped = false;
+    int m_overlappedCounter = 0;
 };
 
 #endif // IOVERLAPABLE_H

@@ -12,7 +12,7 @@
 
 using namespace TracksEditorGlobal;
 
-int SingingClipView::NoteViewModel::compareTo(NoteViewModel *obj) const {
+int SingingClipView::NoteViewModel::compareTo(const NoteViewModel *obj) const {
     auto otherStart = obj->rStart;
     if (rStart < otherStart)
         return -1;
@@ -132,8 +132,7 @@ void SingingClipView::addNote(Note *note) {
     update();
 }
 void SingingClipView::removeNote(int id) {
-    for (int i = 0; i < m_notes.count(); i++) {
-        auto note = m_notes.at(i);
+    for (auto note : m_notes) {
         if (note->id == id) {
             m_notes.remove(note);
             break;

@@ -93,7 +93,7 @@ public:
 
     void notifyPropertyChanged(NotePropertyType type);
 
-    int compareTo(Note *obj) const;
+    int compareTo(const Note *obj) const;
     bool isOverlappedWith(Note *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 

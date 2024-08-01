@@ -39,7 +39,7 @@ public:
             return start + length;
         }
 
-        int compareTo(NoteViewModel *obj) const {
+        int compareTo(const NoteViewModel *obj) const {
             auto otherStart = obj->start;
             if (start < otherStart)
                 return -1;

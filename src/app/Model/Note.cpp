@@ -76,7 +76,7 @@ bool Note::isSlur() const {
 void Note::notifyPropertyChanged(NotePropertyType type) {
     emit propertyChanged(type);
 }
-int Note::compareTo(Note *obj) const {
+int Note::compareTo(const Note *obj) const {
     const auto otherStart = obj->start();
     if (start() < otherStart)
         return -1;

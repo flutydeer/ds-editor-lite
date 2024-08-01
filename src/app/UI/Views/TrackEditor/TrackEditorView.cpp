@@ -233,8 +233,7 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
     connect(dsTrack, &Track::clipChanged, this, &TrackEditorView::onClipChanged);
 
     auto track = new TrackViewModel(dsTrack->id());
-    for (int clipIndex = 0; clipIndex < dsTrack->clips().count(); clipIndex++) {
-        auto clip = dsTrack->clips().at(clipIndex);
+    for (auto clip : dsTrack->clips()) {
         insertClipToTrack(clip, track, trackIndex);
     }
     auto newTrackItem = new QListWidgetItem;

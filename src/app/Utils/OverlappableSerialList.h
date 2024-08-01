@@ -5,122 +5,129 @@
 #ifndef SERIALLIST_H
 #define SERIALLIST_H
 
+#include <set>
+#include <unordered_set>
+
+#include <interval-tree/interval_tree.hpp>
+
 #include <QList>
 
 template <typename T>
 class OverlappableSerialList {
+    struct Interval : lib_interval_tree::interval<qsizetype, lib_interval_tree::right_open> {
+        T *item;
+        Interval(std::tuple<qsizetype, qsizetype> &&range, T *item)
+            : lib_interval_tree::interval<qsizetype, lib_interval_tree::right_open>(std::get<0>(range), std::max(std::get<0>(range), std::get<1>(range) - 1)), item(item) {
+        }
+    };
+    struct ItemCmp {
+        bool operator()(const T *a, const T *b) const {
+            if (a->compareTo(b) == 0)
+                return a < b;
+            return a->compareTo(b) < 0;
+        }
+    };
 public:
     [[nodiscard]] int count() const;
     void add(T *item);
     void remove(T *item);
     void clear();
-    int indexOf(const T *item);
     bool contains(const T *item);
-    T *at(int index) const;
     [[nodiscard]] bool hasOverlappedItem() const;
     QList<T *> findOverlappedItems(T *obj) const;
+    QList<T *> findOverlappedItems(const std::tuple<qsizetype, qsizetype> &interval);
     QList<T *> overlappedItems() const;
     QList<T *> toList() const;
 
-    using iterator = typename QList<T *>::const_iterator;
-    using const_iterator = typename QList<T *>::const_iterator;
-    using reverse_iterator = typename QList<T *>::const_reverse_iterator;
-    using const_reverse_iterator = typename QList<T *>::const_reverse_iterator;
+    using iterator = typename std::set<T *, ItemCmp>::const_iterator;
+    using const_iterator = typename std::set<T *, ItemCmp>::const_iterator;
+    using reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
+    using const_reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
 
     iterator begin() {
-        return m_list.cbegin();
+        return m_items.cbegin();
     }
     iterator end() {
-        return m_list.cend();
+        return m_items.cend();
     }
     const_iterator begin() const {
-        return m_list.cbegin();
+        return m_items.cbegin();
     }
     const_iterator end() const {
-        return m_list.cend();
+        return m_items.cend();
     }
     const_iterator cbegin() const {
-        return m_list.cbegin();
+        return m_items.cbegin();
     }
     const_iterator cend() const {
-        return m_list.cend();
+        return m_items.cend();
     }
     reverse_iterator rbegin() {
-        return m_list.crbegin();
+        return m_items.crbegin();
     }
     reverse_iterator rend() {
-        return m_list.crend();
+        return m_items.crend();
     }
     const_reverse_iterator rbegin() const {
-        return m_list.crbegin();
+        return m_items.crbegin();
     }
     const_reverse_iterator rend() const {
-        return m_list.crend();
+        return m_items.crend();
     }
     const_reverse_iterator crbegin() const {
-        return m_list.crbegin();
+        return m_items.crbegin();
     }
     const_reverse_iterator crend() const {
-        return m_list.crend();
+        return m_items.crend();
     }
 
 private:
-    QList<T *> overlappedOverlappables() const;
-    QList<T *> m_list;
+    lib_interval_tree::interval_tree<Interval> m_intervalTree;
+    std::set<T *, ItemCmp> m_items;
+    std::unordered_set<T *> m_itemHash;
+    int m_overlappedCounter{};
 };
 template <typename T>
 int OverlappableSerialList<T>::count() const {
-    return m_list.size();
+    return m_intervalTree.size();
 }
 template <typename T>
 void OverlappableSerialList<T>::add(T *item) {
-    item->setOverlapped(false);
-    if (m_list.empty()) {
-        m_list.append(item);
-        return;
-    }
-    int num = -1;
-    for (int i = 0; i < m_list.size(); i++) {
-        auto t = m_list.at(i);
-        if (num == -1 && t->compareTo(item) > 0)
-            num = i;
-        if (num == -1) {
-            if (t->isOverlappedWith(item)) {
-                t->setOverlapped(true);
-                item->setOverlapped(true);
-            }
-        } else {
-            if (!t->isOverlappedWith(item))
-                break;
-            t->setOverlapped(true);
-            item->setOverlapped(true);
-        }
-    }
-    if (num != -1) {
-        m_list.insert(num, item);
-        return;
-    }
-    m_list.append(item);
+    item->clearOverlappedCounter();
+    Interval interval(item->interval(), item);
+    m_intervalTree.overlap_find_all(interval, [this, item](auto it) {
+        if (!it.interval().item->overlapped())
+            m_overlappedCounter++;
+        it.interval().item->acquireOverlappedCounter();
+        item->acquireOverlappedCounter();
+        return true;
+    });
+    if (item->overlapped())
+        m_overlappedCounter++;
+    m_intervalTree.insert(interval);
+    m_items.insert(item);
+    m_itemHash.insert(item);
 }
 template <typename T>
 void OverlappableSerialList<T>::remove(T *item) {
-    if (item->overlapped()) {
-        item->setOverlapped(false);
-        auto overlapedItemsInside = this->overlappedItems();
-        for (auto t : overlapedItemsInside) {
-            if (t->isOverlappedWith(item)) {
-                bool flag = false;
-                for (auto t2 : overlapedItemsInside) {
-                    if (t2 != t && t2->isOverlappedWith(t)) {
-                        flag = true;
-                        break;
-                    }
-                }
-                t->setOverlapped(flag);
-            }
+    if (item->overlapped())
+        m_overlappedCounter--;
+    item->clearOverlappedCounter();
+    Interval interval(item->interval(), item);
+    auto itToErase = m_intervalTree.end();
+    m_intervalTree.overlap_find_all(interval, [this, item, &itToErase](auto it) {
+        if (it.interval().item == item)
+            itToErase = it;
+        else {
+            it.interval().item->releaseOverlappedCounter();
+            if (!it.interval().item->overlapped())
+                m_overlappedCounter--;
         }
-    }
-    m_list.removeOne(item);
+        return true;
+    });
+    m_intervalTree.erase(itToErase);
+    m_items.erase(item);
+    m_itemHash.erase(item);
 }
 // template <typename T>
 // void OverlapableSerialList<T>::update(T *item) {
@@ -129,57 +136,40 @@ void OverlappableSerialList<T>::remove(T *item) {
 // }
 template <typename T>
 void OverlappableSerialList<T>::clear() {
-    m_list.clear();
-}
-template <typename T>
-int OverlappableSerialList<T>::indexOf(const T *item) {
-    return m_list.indexOf(item);
+    m_intervalTree.clear();
+    m_overlappedCounter = 0;
 }
 template <typename T>
 bool OverlappableSerialList<T>::contains(const T *item) {
-    return m_list.contains(item);
-}
-template <typename T>
-T *OverlappableSerialList<T>::at(int index) const {
-    return m_list.at(index);
+    return m_itemHash.count(item);
 }
 template <typename T>
 bool OverlappableSerialList<T>::hasOverlappedItem() const {
-    bool overlapped = false;
-    for (const auto &item : m_list)
-        if (item->overlapped()) {
-            overlapped = true;
-            break;
-        }
-    return overlapped;
+    return m_overlappedCounter;
 }
 template <typename T>
 QList<T *> OverlappableSerialList<T>::findOverlappedItems(T *obj) const {
-    QList<T *> list;
-    for (const auto &item : m_list)
-        if (item->isOverlappedWith(obj))
-            list.append(item);
-    return list;
+    return findOverlappedItems(obj->interval());
+}
+template <typename T>
+QList<T *> OverlappableSerialList<T>::findOverlappedItems(const std::tuple<qsizetype, qsizetype> &interval_) {
+    auto interval = Interval(interval_, nullptr);
+    QList<T *> ret;
+    m_intervalTree.overlap_find_all(interval, [&ret](auto it) {
+        ret.append(it->interval().item);
+    });
+    return ret;
 }
 template <typename T>
 QList<T *> OverlappableSerialList<T>::overlappedItems() const {
-    QList<T *> list;
-    for (const auto &item : m_list)
-        if (item->overlapped())
-            list.append(item);
-    return list;
+    QList<T *> ret;
+    std::copy_if(m_itemHash.cbegin(), m_itemHash.cend(), std::back_inserter(ret), [](auto item) {
+        return item->overlapped();
+    });
 }
 template <typename T>
 QList<T *> OverlappableSerialList<T>::toList() const {
-    return m_list;
-}
-template <typename T>
-QList<T *> OverlappableSerialList<T>::overlappedOverlappables() const {
-    QList<T *> list;
-    for (const auto &item : m_list)
-        if (item->overlapped())
-            list.append(item);
-    return list;
+    return QList<T *>(m_itemHash.cbegin(), m_itemHash.cend());
 }
 
 #endif // SERIALLIST_H

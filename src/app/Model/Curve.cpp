@@ -13,7 +13,7 @@ int Curve::start() const {
 void Curve::setStart(int offset) {
     m_start = offset;
 }
-int Curve::compareTo(Curve *obj) const {
+int Curve::compareTo(const Curve *obj) const {
     auto otherStart = obj->start();
     if (m_start < otherStart)
         return -1;
@@ -145,7 +145,7 @@ AnchorNode::InterpMode AnchorNode::interpMode() const {
 void AnchorNode::setInterpMode(InterpMode mode) {
     m_interpMode = mode;
 }
-int AnchorNode::compareTo(AnchorNode *obj) const {
+int AnchorNode::compareTo(const AnchorNode *obj) const {
     auto otherPos = obj->pos();
     if (pos() < otherPos)
         return -1;

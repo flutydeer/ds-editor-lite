@@ -73,7 +73,7 @@ void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
     if (m_clip->notes().count() > 0) {
         for (const auto note : m_clip->notes())
             handleNoteInserted(note);
-        auto firstNote = m_clip->notes().at(0);
+        auto firstNote = *m_clip->notes().begin();
         setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
     } else
         setViewportCenterAtKeyIndex(60);

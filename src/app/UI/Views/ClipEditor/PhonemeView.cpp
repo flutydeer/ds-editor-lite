@@ -156,8 +156,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     };
 
     // Draw notes' word boundary
-    for (int i = 0; i < m_notes.count(); i++) {
-        auto curNote = m_notes.at(i);
+    for (auto curNote : m_notes) {
         if (curNote->end() < m_startTick)
             continue;
         if (curNote->start > m_endTick)
