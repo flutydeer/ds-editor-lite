@@ -8,7 +8,7 @@
 #include "UI/Views/Common/TimeGraphicsView.h"
 
 class CMenu;
-class AbstractClipGraphicsItem;
+class AbstractClipView;
 class TracksGraphicsScene;
 
 class TracksGraphicsView final : public TimeGraphicsView {
@@ -28,12 +28,13 @@ private:
     enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };
 
     void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
-    void prepareForMovingOrResizingClip(QMouseEvent *event, AbstractClipGraphicsItem *clipItem);
-    AbstractClipGraphicsItem *findClipById(int id);
+    void prepareForMovingOrResizingClip(QMouseEvent *event, AbstractClipView *clipItem);
+    AbstractClipView *findClipById(int id);
     void clearSelections();
-    [[nodiscard]] QList<AbstractClipGraphicsItem *> selectedClipItems() const;
+    [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
 
     TracksGraphicsScene *m_scene;
     CMenu *m_backgroundMenu = nullptr;
@@ -52,7 +53,7 @@ private:
     int m_mouseDownClipLen = 0;
     // int m_mouseDownTrackIndex = -1;
     bool m_tempQuantizeOff = false;
-    AbstractClipGraphicsItem *m_currentEditingClip = nullptr;
+    AbstractClipView *m_currentEditingClip = nullptr;
 };
 
 #endif // DATASET_TOOLS_TRACKSGRAPHICSVIEW_H

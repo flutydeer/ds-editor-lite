@@ -2,7 +2,7 @@
 // Created by fluty on 2024/1/22.
 //
 
-#include "SingingClipGraphicsItem.h"
+#include "SingingClipView.h"
 
 #include <QFile>
 #include <QPainter>
@@ -12,7 +12,7 @@
 
 using namespace TracksEditorGlobal;
 
-int SingingClipGraphicsItem::NoteViewModel::compareTo(NoteViewModel *obj) const {
+int SingingClipView::NoteViewModel::compareTo(NoteViewModel *obj) const {
     auto otherStart = obj->rStart;
     if (rStart < otherStart)
         return -1;
@@ -20,18 +20,18 @@ int SingingClipGraphicsItem::NoteViewModel::compareTo(NoteViewModel *obj) const 
         return 1;
     return 0;
 }
-bool SingingClipGraphicsItem::NoteViewModel::isOverlappedWith(NoteViewModel *obj) {
+bool SingingClipView::NoteViewModel::isOverlappedWith(NoteViewModel *obj) {
     return false;
 }
-std::tuple<qsizetype, qsizetype> SingingClipGraphicsItem::NoteViewModel::interval() const {
+std::tuple<qsizetype, qsizetype> SingingClipView::NoteViewModel::interval() const {
     return std::make_tuple(0, 0);
 }
-SingingClipGraphicsItem::SingingClipGraphicsItem(int itemId, QGraphicsItem *parent)
-    : AbstractClipGraphicsItem(itemId, parent) {
+SingingClipView::SingingClipView(int itemId, QGraphicsItem *parent)
+    : AbstractClipView(itemId, parent) {
     setCanResizeLength(true);
     // setName("New Pattern");
 }
-void SingingClipGraphicsItem::loadNotes(const OverlappableSerialList<Note> &notes) {
+void SingingClipView::loadNotes(const OverlappableSerialList<Note> &notes) {
     m_notes.clear();
     if (notes.count() != 0)
         for (const auto &note : notes)
@@ -39,13 +39,13 @@ void SingingClipGraphicsItem::loadNotes(const OverlappableSerialList<Note> &note
 
     update();
 }
-QString SingingClipGraphicsItem::audioCachePath() const {
+QString SingingClipView::audioCachePath() const {
     return m_audioCachePath;
 }
-void SingingClipGraphicsItem::setAudioCachePath(const QString &path) {
+void SingingClipView::setAudioCachePath(const QString &path) {
     m_audioCachePath = path;
 }
-void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type, Note *note) {
+void SingingClipView::onNoteListChanged(SingingClip::NoteChangeType type, Note *note) {
     switch (type) {
         case SingingClip::Inserted:
             addNote(note);
@@ -61,13 +61,13 @@ void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type
             break;
     }
 }
-void SingingClipGraphicsItem::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
+void SingingClipView::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
     if (type == Note::TimeAndKey) {
         removeNote(note->id());
         addNote(note);
     }
 }
-void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
+void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                               int opacity) {
     painter->setRenderHint(QPainter::Antialiasing, false);
 
@@ -118,10 +118,10 @@ void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &p
         painter->drawRect(QRectF(left, top, width, noteHeight));
     }
 }
-QString SingingClipGraphicsItem::clipTypeName() {
+QString SingingClipView::clipTypeName() {
     return tr("[Singing] ");
 }
-void SingingClipGraphicsItem::addNote(Note *note) {
+void SingingClipView::addNote(Note *note) {
     auto noteViewModel = new NoteViewModel;
     noteViewModel->id = note->id();
     noteViewModel->rStart = note->start() - start();
@@ -131,7 +131,7 @@ void SingingClipGraphicsItem::addNote(Note *note) {
 
     update();
 }
-void SingingClipGraphicsItem::removeNote(int id) {
+void SingingClipView::removeNote(int id) {
     for (int i = 0; i < m_notes.count(); i++) {
         auto note = m_notes.at(i);
         if (note->id == id) {

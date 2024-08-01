@@ -7,12 +7,12 @@
 
 #include "UI/Views/Common/CommonGraphicsLayer.h"
 
-class NoteGraphicsItem;
+class NoteView;
 
 class NoteLayer : public CommonGraphicsLayer {
 public:
-    [[nodiscard]] QList<NoteGraphicsItem *> noteItems() const;
-    NoteGraphicsItem *findNoteById(int id);
+    [[nodiscard]] QList<NoteView *> noteItems() const;
+    NoteView *findNoteById(int id);
     void updateOverlappedState();
 };
 

@@ -2,49 +2,46 @@
 // Created by fluty on 2023/11/16.
 //
 
-#include "AudioClipGraphicsItem.h"
+#include "AudioClipView.h"
 
 #include <QDebug>
 #include <QPainter>
 #include <QThread>
 #include <QFileDialog>
 
-#include "AudioClipBackgroundWorker.h"
-#include "UI/Controls/Menu.h"
-
-AudioClipGraphicsItem::AudioClipGraphicsItem(int itemId, QGraphicsItem *parent)
-    : AbstractClipGraphicsItem(itemId, parent) {
+AudioClipView::AudioClipView(int itemId, QGraphicsItem *parent)
+    : AbstractClipView(itemId, parent) {
 }
-QString AudioClipGraphicsItem::path() const {
+QString AudioClipView::path() const {
     return m_path;
 }
-void AudioClipGraphicsItem::setPath(const QString &path) {
+void AudioClipView::setPath(const QString &path) {
     m_path = path;
     m_status = AppGlobal::Loaded;
 }
-double AudioClipGraphicsItem::tempo() const {
+double AudioClipView::tempo() const {
     return m_tempo;
 }
-void AudioClipGraphicsItem::setTempo(double tempo) {
+void AudioClipView::setTempo(double tempo) {
     m_tempo = tempo;
 }
-void AudioClipGraphicsItem::setAudioInfo(const AudioInfoModel &info) {
+void AudioClipView::setAudioInfo(const AudioInfoModel &info) {
     m_audioInfo = info;
     update();
 }
-void AudioClipGraphicsItem::setStatus(AppGlobal::AudioLoadStatus status) {
+void AudioClipView::setStatus(AppGlobal::AudioLoadStatus status) {
     m_status = status;
     update();
 }
-void AudioClipGraphicsItem::setErrorMessage(const QString &errorMessage) {
+void AudioClipView::setErrorMessage(const QString &errorMessage) {
     m_errorMessage = errorMessage;
     update();
 }
-void AudioClipGraphicsItem::onTempoChange(double tempo) {
+void AudioClipView::onTempoChange(double tempo) {
     // qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
     m_tempo = tempo;
 }
-void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
+void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                             int opacity) {
     // QElapsedTimer mstimer;
     painter->setRenderHint(QPainter::Antialiasing, false);
@@ -145,6 +142,6 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
     // painter->drawLine(waveRect.topLeft(), waveRect.bottomRight());
     // painter->drawLine(waveRect.topRight(), waveRect.bottomLeft());
 }
-QString AudioClipGraphicsItem::clipTypeName() {
+QString AudioClipView::clipTypeName() {
     return tr("[Audio] ");
 }

@@ -11,15 +11,13 @@
 
 class CMenu;
 
-class NoteGraphicsItem final : public CommonGraphicsRectItem,
-                               public UniqueObject,
-                               public OverlappableItem {
+class NoteView final : public CommonGraphicsRectItem, public UniqueObject, public OverlappableItem {
     Q_OBJECT
 
 public:
-    explicit NoteGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
-    explicit NoteGraphicsItem(int itemId, int start, int length, int keyIndex, const QString &lyric,
-                              const QString &pronunciation, QGraphicsItem *parent = nullptr);
+    explicit NoteView(int itemId, QGraphicsItem *parent = nullptr);
+    explicit NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
+                      const QString &pronunciation, QGraphicsItem *parent = nullptr);
 
     [[nodiscard]] QWidget *context() const;
     void setContext(QWidget *context);

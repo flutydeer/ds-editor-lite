@@ -11,11 +11,11 @@
 
 class Menu;
 class QWidget;
-class AbstractClipGraphicsItem;
-class AbstractClipGraphicsItemPrivate {
-    Q_DECLARE_PUBLIC(AbstractClipGraphicsItem)
+class AbstractClipView;
+class AbstractClipViewPrivate {
+    Q_DECLARE_PUBLIC(AbstractClipView)
 public:
-    explicit AbstractClipGraphicsItemPrivate(AbstractClipGraphicsItem *q) : q_ptr(q){};
+    explicit AbstractClipViewPrivate(AbstractClipView *q) : q_ptr(q){};
 
     QString m_name;
     int m_start = 0;
@@ -41,7 +41,7 @@ public:
     [[nodiscard]] QRectF previewRect() const;
 
 private:
-    AbstractClipGraphicsItem *q_ptr;
+    AbstractClipView *q_ptr;
 };
 
 

@@ -17,7 +17,7 @@ public:
     }
     TrackControlWidget *widget = nullptr;
     bool isSelected = false;
-    QList<AbstractClipGraphicsItem *> clips;
+    QList<AbstractClipView *> clips;
 };
 
 

@@ -14,8 +14,8 @@
 #include "Controller/PlaybackController.h"
 #include "Controller/TracksViewController.h"
 #include "Global/TracksEditorGlobal.h"
-#include "GraphicsItem/AudioClipGraphicsItem.h"
-#include "GraphicsItem/SingingClipGraphicsItem.h"
+#include "GraphicsItem/AudioClipView.h"
+#include "GraphicsItem/SingingClipView.h"
 #include "GraphicsItem/TracksBackgroundGraphicsItem.h"
 #include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/AccentButton.h"
@@ -282,7 +282,7 @@ void TrackEditorView::insertClipToTrack(Clip *clip, TrackViewModel *track, int t
     connect(clip, &Clip::propertyChanged, this, [=] { updateClipOnView(clip); });
 }
 void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track, int trackIndex) {
-    auto clipItem = new SingingClipGraphicsItem(clip->id());
+    auto clipItem = new SingingClipView(clip->id());
     clipItem->loadCommonProperties(Clip::ClipCommonProperties(*clip));
     clipItem->setTrackIndex(trackIndex);
     const auto &notesRef = clip->notes();
@@ -290,9 +290,9 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     clipItem->setOverlapped(clip->overlapped());
     m_tracksScene->addCommonItem(clipItem);
     qDebug() << "Singing clip graphics item added to scene" << clipItem->id() << clipItem->name();
-    connect(clip, &SingingClip::noteChanged, clipItem, &SingingClipGraphicsItem::onNoteListChanged);
-    connect(appModel, &AppModel::quantizeChanged, clipItem, &AbstractClipGraphicsItem::setQuantize);
-    connect(clipItem, &SingingClipGraphicsItem::propertyChanged, this, [=] {
+    connect(clip, &SingingClip::noteChanged, clipItem, &SingingClipView::onNoteListChanged);
+    connect(appModel, &AppModel::quantizeChanged, clipItem, &AbstractClipView::setQuantize);
+    connect(clipItem, &SingingClipView::propertyChanged, this, [=] {
         auto clip = findClipItemById(clipItem->id());
         if (clip == clipItem) {
             Clip::ClipCommonProperties args(*clipItem);
@@ -302,7 +302,7 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     track->clips.append(clipItem);
 }
 void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, int trackIndex) {
-    auto clipItem = new AudioClipGraphicsItem(clip->id());
+    auto clipItem = new AudioClipView(clip->id());
     clipItem->loadCommonProperties(Clip::ClipCommonProperties(*clip));
     clipItem->setTrackIndex(trackIndex);
     clipItem->setPath(clip->path());
@@ -311,9 +311,9 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, in
     clipItem->setAudioInfo(clip->audioInfo());
     m_tracksScene->addCommonItem(clipItem);
     qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
-    connect(appModel, &AppModel::tempoChanged, clipItem, &AudioClipGraphicsItem::onTempoChange);
-    connect(appModel, &AppModel::quantizeChanged, clipItem, &AbstractClipGraphicsItem::setQuantize);
-    connect(clipItem, &AudioClipGraphicsItem::propertyChanged, this, [=] {
+    connect(appModel, &AppModel::tempoChanged, clipItem, &AudioClipView::onTempoChange);
+    connect(appModel, &AppModel::quantizeChanged, clipItem, &AbstractClipView::setQuantize);
+    connect(clipItem, &AudioClipView::propertyChanged, this, [=] {
         auto clip = findClipItemById(clipItem->id());
         if (clip == clipItem) {
             AudioClip::AudioClipProperties args(*clipItem);
@@ -335,7 +335,7 @@ void TrackEditorView::removeClipFromView(int clipId) {
         trackIndex++;
     }
 }
-AbstractClipGraphicsItem *TrackEditorView::findClipItemById(int id) {
+AbstractClipView *TrackEditorView::findClipItemById(int id) {
     for (const auto &track : m_trackListViewModel.tracks)
         for (const auto clip : track->clips)
             if (clip->id() == id)
@@ -363,12 +363,12 @@ void TrackEditorView::updateClipOnView(Clip *clip) {
 
     if (clip->clipType() == Clip::Audio) {
         auto audioClip = dynamic_cast<AudioClip *>(clip);
-        auto audioItem = dynamic_cast<AudioClipGraphicsItem *>(item);
+        auto audioItem = dynamic_cast<AudioClipView *>(item);
         audioItem->setPath(audioClip->path());
         audioItem->setAudioInfo(audioClip->audioInfo());
     } else if (clip->clipType() == Clip::Singing) {
         auto singingClip = dynamic_cast<SingingClip *>(clip);
-        auto singingItem = dynamic_cast<SingingClipGraphicsItem *>(item);
+        auto singingItem = dynamic_cast<SingingClipView *>(item);
         singingItem->loadNotes(singingClip->notes());
     }
 

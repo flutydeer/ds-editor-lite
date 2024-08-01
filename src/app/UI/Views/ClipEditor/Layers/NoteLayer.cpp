@@ -6,15 +6,15 @@
 
 #include <QList>
 
-#include "../GraphicsItem/NoteGraphicsItem.h"
+#include "../GraphicsItem/NoteView.h"
 
-QList<NoteGraphicsItem *> NoteLayer::noteItems() const {
-    QList<NoteGraphicsItem *> notes;
+QList<NoteView *> NoteLayer::noteItems() const {
+    QList<NoteView *> notes;
     for (auto item : items)
-        notes.append(reinterpret_cast<NoteGraphicsItem *>(item));
+        notes.append(reinterpret_cast<NoteView *>(item));
     return notes;
 }
-NoteGraphicsItem *NoteLayer::findNoteById(int id) {
+NoteView *NoteLayer::findNoteById(int id) {
     for (const auto note : noteItems())
         if (note->id() == id)
             return note;

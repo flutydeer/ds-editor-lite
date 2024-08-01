@@ -5,13 +5,13 @@
 #ifndef SINGINGCLIPGRAPHICSITEM_H
 #define SINGINGCLIPGRAPHICSITEM_H
 
-#include "AbstractClipGraphicsItem.h"
+#include "AbstractClipView.h"
 #include "Model/Clip.h"
 #include "Utils/OverlappableSerialList.h"
 
 class Note;
 
-class SingingClipGraphicsItem final : public AbstractClipGraphicsItem {
+class SingingClipView final : public AbstractClipView {
     Q_OBJECT
 public:
     class NoteViewModel : public Overlappable {
@@ -29,8 +29,8 @@ public:
     [[nodiscard]] ClipType clipType() const override {
         return Singing;
     }
-    explicit SingingClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
-    ~SingingClipGraphicsItem() override = default;
+    explicit SingingClipView(int itemId, QGraphicsItem *parent = nullptr);
+    ~SingingClipView() override = default;
 
     void loadNotes(const OverlappableSerialList<Note> &notes);
     [[nodiscard]] QString audioCachePath() const;

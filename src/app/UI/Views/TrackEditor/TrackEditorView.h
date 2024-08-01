@@ -16,7 +16,7 @@ class TracksGraphicsScene;
 class TimelineView;
 class TracksBackgroundGraphicsItem;
 class TrackViewModel;
-class AbstractClipGraphicsItem;
+class AbstractClipView;
 
 class TrackEditorView final : public PanelView {
     Q_OBJECT
@@ -24,7 +24,7 @@ class TrackEditorView final : public PanelView {
 public:
     explicit TrackEditorView(QWidget *parent = nullptr);
 
-    AbstractClipGraphicsItem *findClipItemById(int id);
+    AbstractClipView *findClipItemById(int id);
 
 public slots:
     void onModelChanged();

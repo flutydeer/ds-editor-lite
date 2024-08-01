@@ -11,14 +11,14 @@
 #include "UI/Views/Common/CommonGraphicsRectItem.h"
 
 class Menu;
-class AbstractClipGraphicsItemPrivate;
+class AbstractClipViewPrivate;
 
-class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IClip, public OverlappableItem {
+class AbstractClipView : public CommonGraphicsRectItem, public IClip, public OverlappableItem {
     Q_OBJECT
 
 public:
-    explicit AbstractClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
-    ~AbstractClipGraphicsItem() override = default;
+    explicit AbstractClipView(int itemId, QGraphicsItem *parent = nullptr);
+    ~AbstractClipView() override = default;
 
     [[nodiscard]] QString name() const override;
     void setName(const QString &text) override;
@@ -69,8 +69,8 @@ protected:
     [[nodiscard]] double sceneXToItemX(double x) const;
 
 private:
-    Q_DECLARE_PRIVATE(AbstractClipGraphicsItem)
-    AbstractClipGraphicsItemPrivate *d_ptr;
+    Q_DECLARE_PRIVATE(AbstractClipView)
+    AbstractClipViewPrivate *d_ptr;
 };
 
 

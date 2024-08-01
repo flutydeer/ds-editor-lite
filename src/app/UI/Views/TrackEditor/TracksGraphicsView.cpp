@@ -7,7 +7,7 @@
 #include "TracksGraphicsScene.h"
 #include "Controller/TracksViewController.h"
 #include "Global/TracksEditorGlobal.h"
-#include "GraphicsItem/AbstractClipGraphicsItem.h"
+#include "GraphicsItem/AbstractClipView.h"
 #include "GraphicsItem/TracksBackgroundGraphicsItem.h"
 #include "Model/AppModel.h"
 #include "UI/Controls/AccentButton.h"
@@ -97,7 +97,7 @@ void TracksGraphicsView::onDeleteTriggered() {
 }
 void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (auto item = itemAt(event->pos())) {
-        if (auto clipItem = dynamic_cast<AbstractClipGraphicsItem *>(item)) {
+        if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
             qDebug() << "TracksGraphicsView::mousePressEvent mouse down on clip";
             if (selectedClipItems().count() <= 1 || !selectedClipItems().contains(clipItem))
                 clearSelections();
@@ -115,6 +115,9 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
             CommonGraphicsView::mousePressEvent(event);
         }
     }
+}
+void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
+    TimeGraphicsView::mouseMoveEvent(event);
 }
 void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     auto scenePos = mapToScene(event->position().toPoint());
@@ -145,7 +148,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             m_tick = tick;
             m_snappedTick = MathUtils::roundDown(tick, 1920 / m_quantize);
             m_backgroundMenu->exec(event->globalPos());
-        } else if (auto clip = dynamic_cast<AbstractClipGraphicsItem *>(item)) {
+        } else if (auto clip = dynamic_cast<AbstractClipView *>(item)) {
             qDebug() << "context menu on clip" << clip->id();
             auto actionDelete = new QAction(tr("&Delete"), this);
             connect(actionDelete, &QAction::triggered, this,
@@ -159,7 +162,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     }
 }
 void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
-                                                        AbstractClipGraphicsItem *clipItem) {
+                                                        AbstractClipView *clipItem) {
     auto scenePos = mapToScene(event->pos());
     qDebug() << "prepareForMovingOrResizingClip";
 
@@ -199,9 +202,9 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
     m_mouseDownLength = m_currentEditingClip->length();
     m_mouseDownClipLen = m_currentEditingClip->clipLen();
 }
-AbstractClipGraphicsItem *TracksGraphicsView::findClipById(int id) {
+AbstractClipView *TracksGraphicsView::findClipById(int id) {
     for (auto item : m_scene->items())
-        if (auto clip = dynamic_cast<AbstractClipGraphicsItem *>(item))
+        if (auto clip = dynamic_cast<AbstractClipView *>(item))
             if (clip->id() == id)
                 return clip;
     return nullptr;
@@ -211,10 +214,10 @@ void TracksGraphicsView::clearSelections() {
         if (item->isSelected())
             item->setSelected(false);
 }
-QList<AbstractClipGraphicsItem *> TracksGraphicsView::selectedClipItems() const {
-    QList<AbstractClipGraphicsItem *> result;
+QList<AbstractClipView *> TracksGraphicsView::selectedClipItems() const {
+    QList<AbstractClipView *> result;
     for (auto item : m_scene->items())
-        if (auto clip = dynamic_cast<AbstractClipGraphicsItem *>(item))
+        if (auto clip = dynamic_cast<AbstractClipView *>(item))
             if (clip->isSelected())
                 result.append(clip);
     return result;

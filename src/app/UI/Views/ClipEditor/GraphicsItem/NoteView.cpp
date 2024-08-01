@@ -2,7 +2,7 @@
 // Created by fluty on 2024/1/23.
 //
 
-#include "NoteGraphicsItem.h"
+#include "NoteView.h"
 
 #include "Global/AppGlobal.h"
 #include "Global/ClipEditorGlobal.h"
@@ -15,11 +15,11 @@
 
 using namespace ClipEditorGlobal;
 
-NoteGraphicsItem::NoteGraphicsItem(int itemId, QGraphicsItem *parent)
+NoteView::NoteView(int itemId, QGraphicsItem *parent)
     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
     initUi();
 }
-NoteGraphicsItem::NoteGraphicsItem(int itemId, int start, int length, int keyIndex,
+NoteView::NoteView(int itemId, int start, int length, int keyIndex,
                                    const QString &lyric, const QString &pronunciation,
                                    QGraphicsItem *parent)
     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
@@ -30,10 +30,10 @@ NoteGraphicsItem::NoteGraphicsItem(int itemId, int start, int length, int keyInd
     m_pronunciation = pronunciation;
     initUi();
 }
-QWidget *NoteGraphicsItem::context() const {
+QWidget *NoteView::context() const {
     return m_context;
 }
-void NoteGraphicsItem::setContext(QWidget *context) {
+void NoteView::setContext(QWidget *context) {
     m_context = context;
     m_menu = new CMenu(m_context);
     auto actionRemove = m_menu->addAction("Remove");
@@ -48,80 +48,80 @@ void NoteGraphicsItem::setContext(QWidget *context) {
     // connect(actionProperties, &QAction::triggered,
     //         [&] { qDebug() << "actionProperties triggered" << id(); });
 }
-int NoteGraphicsItem::start() const {
+int NoteView::start() const {
     return m_start;
 }
-void NoteGraphicsItem::setStart(int start) {
+void NoteView::setStart(int start) {
     m_start = start;
     updateRectAndPos();
 }
-int NoteGraphicsItem::length() const {
+int NoteView::length() const {
     return m_length;
 }
-void NoteGraphicsItem::setLength(int length) {
+void NoteView::setLength(int length) {
     m_length = length;
     updateRectAndPos();
 }
-int NoteGraphicsItem::keyIndex() const {
+int NoteView::keyIndex() const {
     return m_keyIndex;
 }
-void NoteGraphicsItem::setKeyIndex(int keyIndex) {
+void NoteView::setKeyIndex(int keyIndex) {
     m_keyIndex = keyIndex;
     updateRectAndPos();
 }
-QString NoteGraphicsItem::lyric() const {
+QString NoteView::lyric() const {
     return m_lyric;
 }
-void NoteGraphicsItem::setLyric(const QString &lyric) {
+void NoteView::setLyric(const QString &lyric) {
     m_lyric = lyric;
     update();
 }
-QString NoteGraphicsItem::pronunciation() const {
+QString NoteView::pronunciation() const {
     return m_pronunciation;
 }
-void NoteGraphicsItem::setPronunciation(const QString &pronunciation, bool edited) {
+void NoteView::setPronunciation(const QString &pronunciation, bool edited) {
     m_pronunciation = pronunciation;
     m_pronunciationEdited = edited;
     update();
 }
-bool NoteGraphicsItem::editingPitch() const {
+bool NoteView::editingPitch() const {
     return m_editingPitch;
 }
-void NoteGraphicsItem::setEditingPitch(bool on) {
+void NoteView::setEditingPitch(bool on) {
     m_editingPitch = on;
     update();
 }
-int NoteGraphicsItem::pronunciationTextHeight() const {
+int NoteView::pronunciationTextHeight() const {
     return m_pronunciationTextHeight;
 }
-int NoteGraphicsItem::startOffset() const {
+int NoteView::startOffset() const {
     return m_startOffset;
 }
-void NoteGraphicsItem::setStartOffset(int tick) {
+void NoteView::setStartOffset(int tick) {
     m_startOffset = tick;
     updateRectAndPos();
 }
-int NoteGraphicsItem::lengthOffset() const {
+int NoteView::lengthOffset() const {
     return m_lengthOffset;
 }
-void NoteGraphicsItem::setLengthOffset(int tick) {
+void NoteView::setLengthOffset(int tick) {
     m_lengthOffset = tick;
     updateRectAndPos();
 }
-int NoteGraphicsItem::keyOffset() const {
+int NoteView::keyOffset() const {
     return m_keyOffset;
 }
-void NoteGraphicsItem::setKeyOffset(int key) {
+void NoteView::setKeyOffset(int key) {
     m_keyOffset = key;
     updateRectAndPos();
 }
-void NoteGraphicsItem::resetOffset() {
+void NoteView::resetOffset() {
     m_startOffset = 0;
     m_lengthOffset = 0;
     m_keyOffset = 0;
     updateRectAndPos();
 }
-void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
     const auto backgroundColorNormal = QColor(155, 186, 255);
     const auto backgroundColorEditingPitch = QColor(53, 59, 74);
@@ -233,7 +233,7 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     else
         drawFullNote();
 }
-void NoteGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
+void NoteView::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
     m_menu->exec(event->screenPos());
 }
 // void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
@@ -241,7 +241,7 @@ void NoteGraphicsItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 //     if (!isSelected())
 //         setSelected(true);
 // }
-void NoteGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
+void NoteView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     // qDebug() << "NoteGraphicsItem::hoverMoveEvent" << event->pos().rx();
     if (!m_editingPitch) {
         const auto rx = event->pos().rx();
@@ -253,7 +253,7 @@ void NoteGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     }
     QGraphicsRectItem::hoverMoveEvent(event);
 }
-void NoteGraphicsItem::updateRectAndPos() {
+void NoteView::updateRectAndPos() {
     const auto x = (m_start + m_startOffset) * scaleX() * pixelsPerQuarterNote / 480;
     const auto y = -(m_keyIndex + m_keyOffset - 127) * noteHeight * scaleY();
     const auto w = (m_length + m_lengthOffset) * scaleX() * pixelsPerQuarterNote / 480;
@@ -262,7 +262,7 @@ void NoteGraphicsItem::updateRectAndPos() {
     setRect(QRectF(0, 0, w, h));
     update();
 }
-void NoteGraphicsItem::initUi() {
+void NoteView::initUi() {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
 }

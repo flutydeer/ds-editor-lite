@@ -11,7 +11,7 @@
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
-#include "GraphicsItem/NoteGraphicsItem.h"
+#include "GraphicsItem/NoteView.h"
 #include "GraphicsItem/PitchEditorGraphicsItem.h"
 #include "Model/AppModel.h"
 #include "Model/Clip.h"
@@ -28,7 +28,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
 
-    m_currentDrawingNote = new NoteGraphicsItem(-1);
+    m_currentDrawingNote = new NoteView(-1);
     m_currentDrawingNote->setLyric(defaultLyric);
     m_currentDrawingNote->setPronunciation("", false);
     m_currentDrawingNote->setSelected(true);
@@ -148,8 +148,7 @@ void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
                      QTextOption(Qt::AlignCenter));
 }
 void PianoRollGraphicsView::prepareForMovingOrResizingNotes(QMouseEvent *event, QPointF scenePos,
-                                                            int keyIndex,
-                                                            NoteGraphicsItem *noteItem) {
+                                                            int keyIndex, NoteView *noteItem) {
     bool ctrlDown = event->modifiers() == Qt::ControlModifier;
     if (!ctrlDown) {
         if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteItem))
@@ -452,8 +451,8 @@ void PianoRollGraphicsView::resizeLeftSelectedNote(int offset) {
 void PianoRollGraphicsView::resizeRightSelectedNote(int offset) {
     m_currentEditingNote->setLengthOffset(offset);
 }
-QList<NoteGraphicsItem *> PianoRollGraphicsView::selectedNoteItems() const {
-    QList<NoteGraphicsItem *> list;
+QList<NoteView *> PianoRollGraphicsView::selectedNoteItems() const {
+    QList<NoteView *> list;
     for (const auto noteItem : m_noteLayer.noteItems()) {
         if (noteItem->isSelected())
             list.append(noteItem);
@@ -467,9 +466,9 @@ void PianoRollGraphicsView::setPitchEditMode(bool on) {
         clearNoteSelections();
     m_pitchItem->setTransparentForMouseEvents(!on);
 }
-NoteGraphicsItem *PianoRollGraphicsView::noteItemAt(const QPoint &pos) {
+NoteView *PianoRollGraphicsView::noteItemAt(const QPoint &pos) {
     for (const auto item : items(pos))
-        if (auto noteItem = dynamic_cast<NoteGraphicsItem *>(item))
+        if (auto noteItem = dynamic_cast<NoteView *>(item))
             return noteItem;
     return nullptr;
 }
@@ -477,7 +476,7 @@ void PianoRollGraphicsView::handleNoteInserted(Note *note) {
     m_canNotifySelectedNoteChanged = false;
     qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric()
              << note->pronunciation().original << note->pronunciation().edited;
-    auto noteItem = new NoteGraphicsItem(note->id());
+    auto noteItem = new NoteView(note->id());
     noteItem->setContext(this);
     noteItem->setStart(note->start());
     noteItem->setLength(note->length());
@@ -489,9 +488,9 @@ void PianoRollGraphicsView::handleNoteInserted(Note *note) {
     noteItem->setPronunciation(isEdited ? edited : original, isEdited);
     noteItem->setSelected(note->selected());
     noteItem->setOverlapped(note->overlapped());
-    connect(noteItem, &NoteGraphicsItem::removeTriggered, this,
+    connect(noteItem, &NoteView::removeTriggered, this,
             &PianoRollGraphicsView::onRemoveSelectedNotes);
-    connect(noteItem, &NoteGraphicsItem::editLyricTriggered, this,
+    connect(noteItem, &NoteView::editLyricTriggered, this,
             &PianoRollGraphicsView::onEditSelectedNotesLyrics);
     m_layerManager.addItem(noteItem, &m_noteLayer);
     m_canNotifySelectedNoteChanged = true;
@@ -527,7 +526,7 @@ QList<int> PianoRollGraphicsView::selectedNotesId() const {
     }
     return list;
 }
-void PianoRollGraphicsView::clearNoteSelections(NoteGraphicsItem *except) {
+void PianoRollGraphicsView::clearNoteSelections(NoteView *except) {
     for (const auto noteItem : m_noteLayer.noteItems()) {
         if (noteItem != except && noteItem->isSelected())
             noteItem->setSelected(false);

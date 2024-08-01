@@ -5,19 +5,17 @@
 #ifndef AUDIOCLIPGRAPHICSITEM_H
 #define AUDIOCLIPGRAPHICSITEM_H
 
-#include "AbstractClipGraphicsItem.h"
+#include "AbstractClipView.h"
 #include "Model/AudioInfoModel.h"
 #include "Global/AppGlobal.h"
 
-class AudioClipBackgroundWorker;
-
-class AudioClipGraphicsItem final : public AbstractClipGraphicsItem {
+class AudioClipView final : public AbstractClipView {
 public:
     [[nodiscard]] ClipType clipType() const override {
         return Audio;
     }
-    explicit AudioClipGraphicsItem(int itemId, QGraphicsItem *parent = nullptr);
-    ~AudioClipGraphicsItem() override = default;
+    explicit AudioClipView(int itemId, QGraphicsItem *parent = nullptr);
+    ~AudioClipView() override = default;
 
     [[nodiscard]] QString path() const;
     void setPath(const QString &path);
