@@ -19,9 +19,8 @@ NoteView::NoteView(int itemId, QGraphicsItem *parent)
     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
     initUi();
 }
-NoteView::NoteView(int itemId, int start, int length, int keyIndex,
-                                   const QString &lyric, const QString &pronunciation,
-                                   QGraphicsItem *parent)
+NoteView::NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
+                   const QString &pronunciation, QGraphicsItem *parent)
     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
     m_start = start;
     m_length = length;
@@ -29,24 +28,6 @@ NoteView::NoteView(int itemId, int start, int length, int keyIndex,
     m_lyric = lyric;
     m_pronunciation = pronunciation;
     initUi();
-}
-QWidget *NoteView::context() const {
-    return m_context;
-}
-void NoteView::setContext(QWidget *context) {
-    m_context = context;
-    m_menu = new CMenu(m_context);
-    auto actionRemove = m_menu->addAction("Remove");
-    connect(actionRemove, &QAction::triggered, [&] { emit removeTriggered(id()); });
-
-    m_menu->addSeparator();
-
-    auto actionEditLyric = m_menu->addAction("Edit lyric");
-    connect(actionEditLyric, &QAction::triggered, [&] { emit editLyricTriggered(id()); });
-
-    // auto actionProperties = m_menu->addAction("Properties");
-    // connect(actionProperties, &QAction::triggered,
-    //         [&] { qDebug() << "actionProperties triggered" << id(); });
 }
 int NoteView::start() const {
     return m_start;
@@ -121,8 +102,7 @@ void NoteView::resetOffset() {
     m_keyOffset = 0;
     updateRectAndPos();
 }
-void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                             QWidget *widget) {
+void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     const auto backgroundColorNormal = QColor(155, 186, 255);
     const auto backgroundColorEditingPitch = QColor(53, 59, 74);
 
@@ -233,14 +213,6 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
     else
         drawFullNote();
 }
-void NoteView::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
-    m_menu->exec(event->screenPos());
-}
-// void NoteGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-//     CommonGraphicsRectItem::mousePressEvent(event);
-//     if (!isSelected())
-//         setSelected(true);
-// }
 void NoteView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     // qDebug() << "NoteGraphicsItem::hoverMoveEvent" << event->pos().rx();
     if (!m_editingPitch) {

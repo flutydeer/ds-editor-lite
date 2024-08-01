@@ -12,6 +12,7 @@
 #include "UI/Views/Common/GraphicsLayerManager.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
+class CMenu;
 class Note;
 class PianoRollGraphicsScene;
 class PitchEditorGraphicsItem;
@@ -41,7 +42,7 @@ signals:
     void keyIndexRangeChanged(double start, double end);
 
 public slots:
-    void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
+    void onEditModeChanged(PianoRollEditMode mode);
     void onSceneSelectionChanged() const;
     void onPitchEditorEditCompleted();
 
@@ -50,8 +51,8 @@ private slots:
     void onNoteSelectionChanged();
     void onParamChanged(ParamBundle::ParamName name, Param::ParamType type);
 
-    void onRemoveSelectedNotes() const;
-    void onEditSelectedNotesLyrics() const;
+    void onDeleteSelectedNotes() const;
+    void onOpenNotePropertyDialog(int noteId);
 
 private:
     SingingClip *m_clip = nullptr;
@@ -81,9 +82,12 @@ private:
     int m_moveMaxDeltaKey = 127;
     int m_moveMinDeltaKey = 0;
 
-    PianoRollEditMode m_mode = Select;
+    PianoRollEditMode m_editMode = Select;
     MouseMoveBehavior m_mouseMoveBehavior = None;
     NoteView *m_currentDrawingNote; // a fake note for drawing
+
+    void contextMenuEvent(QContextMenuEvent *event) override;
+    CMenu *buildNoteContextMenu(NoteView *noteView);
 
     void paintEvent(QPaintEvent *event) override;
     void prepareForMovingOrResizingNotes(QMouseEvent *event, QPointF scenePos, int keyIndex,
@@ -92,7 +96,6 @@ private:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-    void mouseDoubleClickEvent(QMouseEvent *event) override;
 
     static void handleDrawNoteCompleted(int start, int length, int keyIndex);
     void handleMoveNotesCompleted(int deltaTick, int deltaKey) const;
@@ -115,7 +118,7 @@ private:
     [[nodiscard]] int sceneYToKeyIndexInt(double y) const;
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     void setPitchEditMode(bool on);
-    NoteView *noteItemAt(const QPoint &pos);
+    NoteView *noteViewAt(const QPoint &pos);
     // OverlapableSerialList<Curve> buildCurves();
 
     void handleNoteInserted(Note *note);

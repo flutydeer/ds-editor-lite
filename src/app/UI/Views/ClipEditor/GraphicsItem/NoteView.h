@@ -19,9 +19,6 @@ public:
     explicit NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
                       const QString &pronunciation, QGraphicsItem *parent = nullptr);
 
-    [[nodiscard]] QWidget *context() const;
-    void setContext(QWidget *context);
-
     [[nodiscard]] int start() const;
     void setStart(int start);
     [[nodiscard]] int length() const;
@@ -46,21 +43,12 @@ public:
     void setKeyOffset(int key);
     void resetOffset();
 
-signals:
-    void editLyricTriggered(int id);
-    void removeTriggered(int id);
-
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
-    void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
-    // void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     void initUi();
-    // void addMenuActions(QMenu *menu);
 
-    QWidget *m_context{};
-    CMenu *m_menu{};
     int m_start = 0;
     int m_length = 480;
     int m_keyIndex = 60;

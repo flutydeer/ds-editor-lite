@@ -4,9 +4,6 @@
 
 #include "PianoRollGraphicsView.h"
 
-#include <QMouseEvent>
-#include <QScrollBar>
-
 #include "PianoRollGraphicsScene.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/PlaybackController.h"
@@ -17,7 +14,12 @@
 #include "Model/Clip.h"
 #include "Model/Curve.h"
 #include "Model/Note.h"
+#include "UI/Dialogs/Note/NotePropertyDialog.h"
 #include "Utils/MathUtils.h"
+
+#include <QMouseEvent>
+#include <QScrollBar>
+#include <QMWidgets/cmenu.h>
 
 PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent)
     : TimeGraphicsView(scene, parent), m_layerManager(scene) {
@@ -83,8 +85,8 @@ void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
             &PianoRollGraphicsView::onNoteSelectionChanged);
     connect(m_clip, &SingingClip::paramChanged, this, &PianoRollGraphicsView::onParamChanged);
 }
-void PianoRollGraphicsView::onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode) {
-    m_mode = mode;
+void PianoRollGraphicsView::onEditModeChanged(PianoRollEditMode mode) {
+    m_editMode = mode;
     setEditMode(mode);
 }
 void PianoRollGraphicsView::onSceneSelectionChanged() const {
@@ -126,15 +128,45 @@ void PianoRollGraphicsView::onParamChanged(ParamBundle::ParamName name, Param::P
         updatePitch(type, *pitchParam);
     }
 }
-void PianoRollGraphicsView::onRemoveSelectedNotes() const {
-    qDebug() << "PianoRollGraphicsView::onRemoveSelectedNotes";
+void PianoRollGraphicsView::onDeleteSelectedNotes() const {
+    qDebug() << "PianoRollGraphicsView::onDeleteSelectedNotes";
     auto notes = selectedNotesId();
     clipController->onRemoveNotes(notes);
 }
-void PianoRollGraphicsView::onEditSelectedNotesLyrics() const {
-    qDebug() << "PianoRollGraphicsView::onEditSelectedNotes";
-    auto notes = selectedNotesId();
-    // clipController->onFillLyric();
+void PianoRollGraphicsView::onOpenNotePropertyDialog(int noteId) {
+    auto note = m_clip->findNoteById(noteId);
+    auto dlg = new NotePropertyDialog(note, this);
+    dlg->show();
+}
+void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
+    if (m_editMode == Select || m_editMode == DrawNote) {
+        if (auto noteView = noteViewAt(event->pos())) {
+            auto menu = buildNoteContextMenu(noteView);
+            menu->exec(event->globalPos());
+        }
+    }
+
+    TimeGraphicsView::contextMenuEvent(event);
+}
+CMenu *PianoRollGraphicsView::buildNoteContextMenu(NoteView *noteView) {
+    auto menu = new CMenu(this);
+
+    auto actionEditLyric = menu->addAction(tr("Fill lyrics..."));
+    connect(actionEditLyric, &QAction::triggered, clipController,
+            [this] { clipController->onFillLyric(this); });
+
+    menu->addSeparator();
+
+    auto actionRemove = menu->addAction(tr("Delete"));
+    connect(actionRemove, &QAction::triggered, this, &PianoRollGraphicsView::onDeleteSelectedNotes);
+
+    menu->addSeparator();
+
+    auto actionProperties = menu->addAction("Properties...");
+    // TODO: 移动到控制器？
+    connect(actionProperties, &QAction::triggered, this,
+            [=] { onOpenNotePropertyDialog(noteView->id()); });
+    return menu;
 }
 void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     CommonGraphicsView::paintEvent(event);
@@ -196,10 +228,10 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     m_selecting = true;
     if (event->button() != Qt::LeftButton) {
         m_mouseMoveBehavior = None;
-        if (auto noteItem = noteItemAt(event->pos())) {
-            if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteItem))
+        if (auto noteView = noteViewAt(event->pos())) {
+            if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteView))
                 clearNoteSelections();
-            noteItem->setSelected(true);
+            noteView->setSelected(true);
         } else {
             clearNoteSelections();
             TimeGraphicsView::mousePressEvent(event);
@@ -213,28 +245,28 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     auto tick = static_cast<int>(sceneXToTick(scenePos.x()));
     auto keyIndex = sceneYToKeyIndexInt(scenePos.y());
 
-    if (m_mode == Select) {
-        if (auto noteItem = noteItemAt(event->pos())) {
-            auto rPos = noteItem->mapFromScene(scenePos);
+    if (m_editMode == Select) {
+        if (auto noteView = noteViewAt(event->pos())) {
+            auto rPos = noteView->mapFromScene(scenePos);
             auto ry = rPos.y();
             auto mouseInFilledRect =
-                ry < noteItem->rect().height() - noteItem->pronunciationTextHeight();
+                ry < noteView->rect().height() - noteView->pronunciationTextHeight();
             if (mouseInFilledRect)
-                prepareForMovingOrResizingNotes(event, scenePos, keyIndex, noteItem);
+                prepareForMovingOrResizingNotes(event, scenePos, keyIndex, noteView);
             else
                 TimeGraphicsView::mousePressEvent(event);
         } else
             TimeGraphicsView::mousePressEvent(event);
-    } else if (m_mode == DrawNote) {
+    } else if (m_editMode == DrawNote) {
         clearNoteSelections();
-        if (auto noteItem = noteItemAt(event->pos())) {
+        if (auto noteView = noteViewAt(event->pos())) {
             qDebug() << "DrawNote mode, move or resize note";
-            auto rPos = noteItem->mapFromScene(scenePos);
+            auto rPos = noteView->mapFromScene(scenePos);
             auto ry = rPos.y();
             auto mouseInFilledRect =
-                ry < noteItem->rect().height() - noteItem->pronunciationTextHeight();
+                ry < noteView->rect().height() - noteView->pronunciationTextHeight();
             if (mouseInFilledRect)
-                prepareForMovingOrResizingNotes(event, scenePos, keyIndex, noteItem);
+                prepareForMovingOrResizingNotes(event, scenePos, keyIndex, noteView);
             else
                 PrepareForDrawingNote(tick, keyIndex);
         } else {
@@ -329,9 +361,6 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     m_selecting = false;
 
     TimeGraphicsView::mouseReleaseEvent(event);
-}
-void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
-    // TimeGraphicsView::mouseDoubleClickEvent(event);
 }
 void PianoRollGraphicsView::handleDrawNoteCompleted(int start, int length, int keyIndex) {
     qDebug() << "PianoRollGraphicsView::handleDrawNoteCompleted" << start << length << keyIndex;
@@ -467,7 +496,7 @@ void PianoRollGraphicsView::setPitchEditMode(bool on) {
         clearNoteSelections();
     m_pitchItem->setTransparentForMouseEvents(!on);
 }
-NoteView *PianoRollGraphicsView::noteItemAt(const QPoint &pos) {
+NoteView *PianoRollGraphicsView::noteViewAt(const QPoint &pos) {
     for (const auto item : items(pos))
         if (auto noteItem = dynamic_cast<NoteView *>(item))
             return noteItem;
@@ -478,7 +507,6 @@ void PianoRollGraphicsView::handleNoteInserted(Note *note) {
     qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric()
              << note->pronunciation().original << note->pronunciation().edited;
     auto noteItem = new NoteView(note->id());
-    noteItem->setContext(this);
     noteItem->setStart(note->start());
     noteItem->setLength(note->length());
     noteItem->setKeyIndex(note->keyIndex());
@@ -489,10 +517,6 @@ void PianoRollGraphicsView::handleNoteInserted(Note *note) {
     noteItem->setPronunciation(isEdited ? edited : original, isEdited);
     noteItem->setSelected(note->selected());
     noteItem->setOverlapped(note->overlapped());
-    connect(noteItem, &NoteView::removeTriggered, this,
-            &PianoRollGraphicsView::onRemoveSelectedNotes);
-    connect(noteItem, &NoteView::editLyricTriggered, this,
-            &PianoRollGraphicsView::onEditSelectedNotesLyrics);
     m_layerManager.addItem(noteItem, &m_noteLayer);
     m_canNotifySelectedNoteChanged = true;
 
@@ -570,8 +594,8 @@ void PianoRollGraphicsView::setViewportCenterAtKeyIndex(double keyIndex) {
     setViewportTopKey(keyIndexStart);
 }
 void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {
-    m_mode = mode;
-    switch (m_mode) {
+    m_editMode = mode;
+    switch (m_editMode) {
         case Select:
             setDragMode(RubberBandDrag);
             setPitchEditMode(false);

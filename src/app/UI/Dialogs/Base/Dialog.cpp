@@ -92,6 +92,7 @@ Dialog::Dialog(QWidget *parent, Qt::WindowFlags f) : QDialog(parent ? parent : m
     m_mainLayout->setSpacing(0);
     setContentsMargins(0, 0, 0, 0);
     setLayout(m_mainLayout);
+    setMinimumWidth(320);
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 }
 Dialog::~Dialog() {
