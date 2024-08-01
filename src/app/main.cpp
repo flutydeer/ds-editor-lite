@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
     qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+    QGuiApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
     QApplication a(argc, argv);
     QApplication::setAttribute(Qt::AA_SynthesizeTouchForUnhandledMouseEvents);
     QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
@@ -79,19 +80,19 @@ int main(int argc, char *argv[]) {
     new AudioContext(&as);
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
-    auto editor = appModel->workspaceEditor("flutydeer.filllyrics");
-    auto workspace = editor->privateWorkspace();
-    workspace->insert("version_code", 1);
-    workspace->insert("isFirstRun", false);
-    workspace->insert("recent_model_path", "D:/Model/test.onnx");
-    editor->commit();
+    // auto editor = appModel->workspaceEditor("flutydeer.filllyrics");
+    // auto workspace = editor->privateWorkspace();
+    // workspace->insert("version_code", 1);
+    // workspace->insert("isFirstRun", false);
+    // workspace->insert("recent_model_path", "D:/Model/test.onnx");
+    // editor->commit();
 
-    auto globalWorkspace = appModel->globalWorkspace();
+    // auto globalWorkspace = appModel->globalWorkspace();
     // for (const auto &key : globalWorkspace.keys())
     //     qDebug() << "AppModel workspace contains key:" << key;
 
     // 可根据唯一名称取出存在全局 workspace 中的数据（只读）
-    auto privateWorkspace = appModel->getPrivateWorkspaceById("flutydeer.testplugin");
+    // auto privateWorkspace = appModel->getPrivateWorkspaceById("flutydeer.testplugin");
     // qDebug() << privateWorkspace.value("recent_model_path").toString();
 
     QObject::connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),

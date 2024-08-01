@@ -3,17 +3,30 @@
 //
 
 #include "TrackListHeaderView.h"
+
+#include "Controller/TracksViewController.h"
 #include "Global/TracksEditorGlobal.h"
+#include "UI/Controls/ToolTipFilter.h"
 
 #include <QHBoxLayout>
 #include <QPainter>
+#include <QPushButton>
 
 TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     setObjectName("trackListHeaderView");
     setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
 
+    auto btnNewTrack = new QPushButton;
+    btnNewTrack->setObjectName("btnNewTrack");
+    btnNewTrack->setFixedSize(24, 24);
+    btnNewTrack->setToolTip(tr("New Track"));
+    btnNewTrack->installEventFilter(new ToolTipFilter(btnNewTrack));
+    // btnNewTrack->setText(tr("New Track"));
+    connect(btnNewTrack, &QPushButton::clicked, trackController,
+            &TracksViewController::onNewTrack);
     auto mainLayout = new QHBoxLayout;
-    // mainLayout->addWidget();
+    mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
+    mainLayout->addWidget(btnNewTrack);
     mainLayout->setContentsMargins(6, 6, 6, 6);
 
     setLayout(mainLayout);

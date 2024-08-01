@@ -47,7 +47,7 @@ DialogButtonBar::DialogButtonBar(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
 
     m_mainLayout = new QHBoxLayout;
-    m_mainLayout->setSpacing(6);
+    m_mainLayout->setSpacing(12);
     m_mainLayout->setContentsMargins({12, 12, 12, 12});
     m_mainLayout->addStretch(1);
 

@@ -5,11 +5,10 @@
 #include "ActionButtonsView.h"
 
 #include "Modules/History/HistoryManager.h"
+#include "UI/Controls/ToolTipFilter.h"
 
 #include <QHBoxLayout>
 #include <QPushButton>
-
-#include "UI/Controls/ToolTipFilter.h"
 
 ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     m_btnSave = new QPushButton;
@@ -41,7 +40,7 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     connect(m_btnRedo, &QPushButton::clicked, this, [=] { emit redoTriggered(); });
 
     auto mainLayout = new QHBoxLayout;
-    mainLayout->setContentsMargins(6, 6, 6, 6);
+    mainLayout->setContentsMargins({});
     mainLayout->setSpacing(6);
     setLayout(mainLayout);
     setContentsMargins({});

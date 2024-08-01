@@ -23,6 +23,9 @@ int SingingClipGraphicsItem::NoteViewModel::compareTo(NoteViewModel *obj) const 
 bool SingingClipGraphicsItem::NoteViewModel::isOverlappedWith(NoteViewModel *obj) {
     return false;
 }
+std::tuple<qsizetype, qsizetype> SingingClipGraphicsItem::NoteViewModel::interval() const {
+    return std::make_tuple(0, 0);
+}
 SingingClipGraphicsItem::SingingClipGraphicsItem(int itemId, QGraphicsItem *parent)
     : AbstractClipGraphicsItem(itemId, parent) {
     setCanResizeLength(true);
@@ -114,6 +117,9 @@ void SingingClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &p
         auto top = -(note->keyIndex - highestKeyIndex) * noteHeight + rectTop;
         painter->drawRect(QRectF(left, top, width, noteHeight));
     }
+}
+QString SingingClipGraphicsItem::clipTypeName() {
+    return tr("[Singing] ");
 }
 void SingingClipGraphicsItem::addNote(Note *note) {
     auto noteViewModel = new NoteViewModel;

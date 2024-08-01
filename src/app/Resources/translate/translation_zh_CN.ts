@@ -4,17 +4,19 @@
 <context>
     <name>ActionButtonsView</name>
     <message>
-        <location filename="../../UI/Views/ActionButtonsView.cpp" line="17"/>
+        <location filename="../../UI/Views/ActionButtonsView.cpp" line="19"/>
         <source>Save Project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ActionButtonsView.cpp" line="27"/>
+        <location filename="../../UI/Views/ActionButtonsView.cpp" line="29"/>
+        <location filename="../../UI/Views/ActionButtonsView.cpp" line="62"/>
         <source>Undo</source>
         <translation>撤销</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ActionButtonsView.cpp" line="37"/>
+        <location filename="../../UI/Views/ActionButtonsView.cpp" line="39"/>
+        <location filename="../../UI/Views/ActionButtonsView.cpp" line="64"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
@@ -22,20 +24,32 @@
 <context>
     <name>AppController</name>
     <message>
-        <location filename="../../Controller/AppController.h" line="57"/>
         <source>New Project</source>
-        <translation>新工程</translation>
+        <translation type="vanished">新工程</translation>
     </message>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="47"/>
+        <location filename="../../Controller/AppController.cpp" line="57"/>
         <source>Saved</source>
         <translation>已保存</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/AppController.cpp" line="60"/>
+        <source>Failed to save project</source>
+        <translation>保存工程文件失败</translation>
+    </message>
+</context>
+<context>
+    <name>AppControllerPrivate</name>
+    <message>
+        <location filename="../../Controller/AppController.cpp" line="165"/>
+        <source>New Project</source>
+        <translation>新工程</translation>
     </message>
 </context>
 <context>
     <name>AppModel</name>
     <message>
-        <location filename="../../Model/AppModel.cpp" line="81"/>
+        <location filename="../../Model/AppModel.cpp" line="97"/>
         <source>New Track</source>
         <translation>新轨道</translation>
     </message>
@@ -43,22 +57,27 @@
 <context>
     <name>AppOptionsDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="40"/>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="42"/>
         <source>General</source>
         <translation>常规</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="40"/>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="42"/>
         <source>Audio</source>
         <translation>音频</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="41"/>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="42"/>
+        <source>MIDI</source>
+        <translation>MIDI</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="43"/>
         <source>Appearance</source>
         <translation>外观</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="41"/>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="43"/>
         <source>Language</source>
         <translation>语言</translation>
     </message>
@@ -66,75 +85,101 @@
 <context>
     <name>AppearancePage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="23"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="26"/>
         <source>Full</source>
         <translation>完全</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="23"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="26"/>
         <source>Decreased</source>
         <translation>减弱</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="23"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="26"/>
         <source>None</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="34"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="52"/>
         <source>Level</source>
         <translation>等级</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="35"/>
         <source>Choose an animation level that suitables for you</source>
+        <translation type="vanished">选择一个适合你的动画等级</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="23"/>
+        <source>Use native frame</source>
+        <translation>使用原生边框</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="24"/>
+        <source>Restart required</source>
+        <translation>需要重新启动</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="34"/>
+        <source>Window</source>
+        <translation>窗口</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="53"/>
+        <source>Choose an animation level that suitable for you</source>
         <translation>选择一个适合你的动画等级</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="39"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="57"/>
         <source>Time scale</source>
         <translation>时间缩放</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="40"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="58"/>
         <source>Adjust animations&apos; duration</source>
         <translation>调整动画的持续时间</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="51"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="69"/>
         <source>Animation</source>
         <translation>动画</translation>
     </message>
 </context>
 <context>
+    <name>AudioClipGraphicsItem</name>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipGraphicsItem.cpp" line="149"/>
+        <source>[Audio] </source>
+        <translation>[音频] </translation>
+    </message>
+</context>
+<context>
     <name>AudioContext</name>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="120"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="292"/>
         <source>Cannot open audio device!</source>
         <translation>无法打开音频设备！</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="252"/>
         <source>Cannot read audio file:
 
 %1</source>
-        <translation>无法读取音频文件：\n\n%1</translation>
+        <translation type="vanished">无法读取音频文件：\n\n%1</translation>
     </message>
 </context>
 <context>
     <name>AudioDecodingController</name>
     <message>
-        <location filename="../../Controller/AudioDecodingController.cpp" line="71"/>
+        <location filename="../../Controller/AudioDecodingController.cpp" line="72"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Controller/AudioDecodingController.cpp" line="72"/>
+        <location filename="../../Controller/AudioDecodingController.cpp" line="73"/>
         <source>Failed to open audio file:</source>
         <translation>无法打开音频文件：</translation>
     </message>
     <message>
-        <location filename="../../Controller/AudioDecodingController.cpp" line="76"/>
+        <location filename="../../Controller/AudioDecodingController.cpp" line="77"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
@@ -435,275 +480,247 @@
 <context>
     <name>AudioPage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="32"/>
         <source>Audio Output Options</source>
-        <translation>音频输出选项</translation>
+        <translation type="vanished">音频输出选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="36"/>
         <source>Audio Driver</source>
-        <translation>音频驱动</translation>
+        <translation type="vanished">音频驱动</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="40"/>
         <source>Test</source>
-        <translation>测试</translation>
+        <translation type="vanished">测试</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="41"/>
         <source>Device Control Panel</source>
-        <translation>设备控制面板</translation>
+        <translation type="vanished">设备控制面板</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="43"/>
         <source>Audio Device</source>
-        <translation>音频设备</translation>
+        <translation type="vanished">音频设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="50"/>
         <source>Buffer Size</source>
-        <translation>缓冲区大小</translation>
+        <translation type="vanished">缓冲区大小</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="55"/>
         <source>Sample Rate</source>
-        <translation>采样率</translation>
+        <translation type="vanished">采样率</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="60"/>
         <source>Notify any device change</source>
-        <translation>通知任何设备更改</translation>
+        <translation type="vanished">通知任何设备更改</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="60"/>
         <source>Notify current device removal</source>
-        <translation>通知当前设备的移除</translation>
+        <translation type="vanished">通知当前设备的移除</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="60"/>
         <source>Do not notify</source>
-        <translation>不通知</translation>
+        <translation type="vanished">不通知</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="62"/>
         <source>Hot Plug Mode</source>
-        <translation>热插拔模式</translation>
+        <translation type="vanished">热插拔模式</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="81"/>
         <source>Playback Options</source>
-        <translation>回放选项</translation>
+        <translation type="vanished">回放选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="86"/>
         <source>Close audio device when %1 is in the background</source>
-        <translation>%1 在后台时关闭音频设备</translation>
+        <translation type="vanished">%1 在后台时关闭音频设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="92"/>
         <source>Close audio device when playback is stopped</source>
-        <translation>回放停止后关闭音频设备</translation>
+        <translation type="vanished">回放停止后关闭音频设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="108"/>
         <source>File Options</source>
-        <translation>文件选项</translation>
+        <translation type="vanished">文件选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="115"/>
         <source>Buffer size when reading from file</source>
-        <translation>读取文件时的缓冲区大小</translation>
+        <translation type="vanished">读取文件时的缓冲区大小</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="147"/>
         <source>These options are disabled in plugged mode.</source>
-        <translation>这些选项在插入模式下被禁用。</translation>
+        <translation type="vanished">这些选项在插入模式下被禁用。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="211"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="215"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="237"/>
         <source> (Not working)</source>
-        <translation> （不可用）</translation>
+        <translation type="vanished"> （不可用）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="236"/>
         <source>Audio device %1 is not available!</source>
-        <translation>音频设备 %1 不可用！</translation>
+        <translation type="vanished">音频设备 %1 不可用！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="269"/>
         <source>No audio driver available on this computer!</source>
-        <translation>此计算机上没有可用的音频驱动！</translation>
+        <translation type="vanished">此计算机上没有可用的音频驱动！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="283"/>
         <source>No audio device available in driver mode %1!</source>
-        <translation>驱动模式 %1 下没有可用的音频设备！</translation>
+        <translation type="vanished">驱动模式 %1 下没有可用的音频设备！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="309"/>
         <source>Driver mode %1 cannot initialize!</source>
-        <translation>驱动模式 %1 无法初始化！</translation>
+        <translation type="vanished">驱动模式 %1 无法初始化！</translation>
     </message>
 </context>
 <context>
     <name>AudioSettingsDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="28"/>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="32"/>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="54"/>
         <source> (Not working)</source>
-        <translation> （不可用）</translation>
+        <translation type="vanished"> （不可用）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="53"/>
         <source>Audio device %1 is not available!</source>
-        <translation>音频设备 %1 不可用！</translation>
+        <translation type="vanished">音频设备 %1 不可用！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="85"/>
+        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="12"/>
         <source>Audio Settings</source>
         <translation>音频设置</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="88"/>
         <source>Audio Output Options</source>
-        <translation>音频输出选项</translation>
+        <translation type="vanished">音频输出选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="91"/>
         <source>Audio Driver</source>
-        <translation>音频驱动</translation>
+        <translation type="vanished">音频驱动</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="95"/>
         <source>Test</source>
-        <translation>测试</translation>
+        <translation type="vanished">测试</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="97"/>
         <source>Audio Device</source>
-        <translation>音频设备</translation>
+        <translation type="vanished">音频设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="98"/>
         <source>Device Control Panel</source>
-        <translation>设备控制面板</translation>
+        <translation type="vanished">设备控制面板</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="101"/>
         <source>Buffer Size</source>
-        <translation>缓冲区大小</translation>
+        <translation type="vanished">缓冲区大小</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="103"/>
         <source>Sample Rate</source>
-        <translation>采样率</translation>
+        <translation type="vanished">采样率</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="106"/>
         <source>Notify any device change</source>
-        <translation>通知任何设备更改</translation>
+        <translation type="vanished">通知任何设备更改</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="106"/>
         <source>Notify current device removal</source>
-        <translation>通知当前设备的移除</translation>
+        <translation type="vanished">通知当前设备的移除</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="106"/>
         <source>Do not notify</source>
-        <translation>不通知</translation>
+        <translation type="vanished">不通知</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="107"/>
         <source>Hot Plug Mode</source>
-        <translation>热插拔模式</translation>
+        <translation type="vanished">热插拔模式</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="111"/>
         <source>Playback Options</source>
-        <translation>回放选项</translation>
+        <translation type="vanished">回放选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="114"/>
         <source>Close audio device when %1 is in the background</source>
-        <translation>%1 在后台时关闭音频设备</translation>
+        <translation type="vanished">%1 在后台时关闭音频设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="117"/>
         <source>Close audio device when playback is stopped</source>
-        <translation>回放停止后关闭音频设备</translation>
+        <translation type="vanished">回放停止后关闭音频设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="122"/>
         <source>File Options</source>
-        <translation>文件选项</translation>
+        <translation type="vanished">文件选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="127"/>
         <source>Buffer size when reading from file</source>
-        <translation>读取文件时的缓冲区大小</translation>
+        <translation type="vanished">读取文件时的缓冲区大小</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="149"/>
         <source>These options are disabled in plugged mode.</source>
-        <translation>这些选项在插入模式下被禁用。</translation>
+        <translation type="vanished">这些选项在插入模式下被禁用。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="178"/>
         <source>No audio driver available on this computer!</source>
-        <translation>此计算机上没有可用的音频驱动！</translation>
+        <translation type="vanished">此计算机上没有可用的音频驱动！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="192"/>
         <source>No audio device available in driver mode %1!</source>
-        <translation>驱动模式 %1 下没有可用的音频设备！</translation>
+        <translation type="vanished">驱动模式 %1 下没有可用的音频设备！</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioSettingsDialog.cpp" line="218"/>
         <source>Driver mode %1 cannot initialize!</source>
-        <translation>驱动模式 %1 无法初始化！</translation>
+        <translation type="vanished">驱动模式 %1 无法初始化！</translation>
     </message>
 </context>
 <context>
     <name>AudioSystem</name>
     <message>
-        <location filename="../../Modules/Audio/AudioSystem.cpp" line="142"/>
         <source>Host Audio</source>
-        <translation>宿主音频</translation>
+        <translation type="vanished">宿主音频</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioSystem.cpp" line="335"/>
         <source>Audio device change is detected.</source>
-        <translation>检测到音频设备更改。</translation>
+        <translation type="vanished">检测到音频设备更改。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioSystem.cpp" line="338"/>
         <source>Go to audio settings</source>
-        <translation>前往音频设置</translation>
+        <translation type="vanished">前往音频设置</translation>
+    </message>
+</context>
+<context>
+    <name>ClipActions</name>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="13"/>
+        <source>Insert clip(s)</source>
+        <translation>插入剪辑</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="18"/>
+        <source>Remove clip(s)</source>
+        <translation>删除剪辑</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="29"/>
+        <source>Edit singing clip(s)</source>
+        <translation>编辑歌声剪辑</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="41"/>
+        <source>Edit audio clip(s)</source>
+        <translation>编辑音频剪辑</translation>
     </message>
 </context>
 <context>
     <name>ClipEditorToolBarView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="32"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="37"/>
         <source>Select</source>
         <translation>选择</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="39"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="44"/>
         <source>Draw Note</source>
         <translation>绘制音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="47"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="52"/>
         <source>Pitch Anchor</source>
         <translation>音高锚点</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="54"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="59"/>
         <source>Draw Pitch</source>
         <translation>绘制音高</translation>
     </message>
@@ -711,82 +728,82 @@
 <context>
     <name>FillLyric::LyricBaseWidget</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="15"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="16"/>
         <source>Import Lrc</source>
         <translation>导入 Lrc</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="16"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="17"/>
         <source>Reread Note</source>
         <translation>重新加载音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="17"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="18"/>
         <source>Lyric Prev</source>
         <translation>预览歌词</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="25"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="26"/>
         <source>Please input lyric here.</source>
         <translation>请在此输入歌词。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="28"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="29"/>
         <source>Note Count: 0</source>
         <translation>字符数：0</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="44"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="45"/>
         <source>Fill-in Options:</source>
         <translation>填入选项：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="60"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="61"/>
         <source>Split Mode :</source>
         <translation>分词模式：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="62"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="63"/>
         <source>Auto</source>
         <translation>自动</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="62"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="63"/>
         <source>By Char</source>
         <translation>按字符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="62"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="63"/>
         <source>Custom</source>
         <translation>自定义</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="72"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="73"/>
         <source>Skip Slur Note</source>
         <translation>跳过延音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="121"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="124"/>
         <source>Note Count: %1</source>
         <translation>字符数：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="126"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="129"/>
         <source>Open Lrc File</source>
         <translation>打开Lrc文件</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="126"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="129"/>
         <source>Lrc Files (*.lrc)</source>
         <translation>Lrc文件(*.lrc)</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="133"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="136"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="133"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricBaseWidget.cpp" line="136"/>
         <source>Failed to decode lrc file.</source>
         <translation>解析Lrc文件失败。</translation>
     </message>
@@ -853,12 +870,11 @@
         <translation>导出选项：</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="66"/>
         <source>Skipping Slur</source>
-        <translation>忽略延音符</translation>
+        <translation type="vanished">忽略延音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="67"/>
+        <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="66"/>
         <source>Automatically mark languages</source>
         <translation>自动标记语种</translation>
     </message>
@@ -866,25 +882,25 @@
 <context>
     <name>FillLyric::LyricTab</name>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="44"/>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="75"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="48"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="79"/>
         <source>Lyric Prev</source>
         <translation>预览歌词</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="44"/>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="77"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="48"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="81"/>
         <source>Fold Preview</source>
         <translation>收起预览</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="59"/>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="69"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="63"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="73"/>
         <source>Expand Left</source>
         <translation>展开左侧</translation>
     </message>
     <message>
-        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="59"/>
+        <location filename="../../Modules/Language/FillLyric/View/LyricTab.cpp" line="63"/>
         <source>Fold Left</source>
         <translation>收起左侧</translation>
     </message>
@@ -1396,61 +1412,147 @@
 <context>
     <name>LyricDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="14"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="17"/>
         <source>Fill Lyric</source>
         <translation>填入歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="34"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="37"/>
         <source>&amp;Import</source>
         <translation>导入(&amp;I)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="37"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="40"/>
         <source>&amp;Cancel</source>
         <translation>取消(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="40"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="43"/>
         <source>Lyric</source>
         <translation>歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="41"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="44"/>
         <source>Advanced</source>
         <translation>预设</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="42"/>
+        <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="45"/>
         <source>Help</source>
         <translation>帮助</translation>
     </message>
 </context>
 <context>
+    <name>MIDIPageWidget</name>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="97"/>
+        <source>MIDI Input</source>
+        <translation>MIDI 输入</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="104"/>
+        <source>Synthesizer</source>
+        <translation>合成器</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="107"/>
+        <source>Sine wave</source>
+        <translation>正弦波</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="107"/>
+        <source>Square wave</source>
+        <translation>方波</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="107"/>
+        <source>Triangle Wave</source>
+        <translation>三角波</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="107"/>
+        <source>Sawtooth wave</source>
+        <translation>锯齿波</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="120"/>
+        <source>&amp;Amplitude (dB)</source>
+        <translation>振幅 (dB)(&amp;A)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="132"/>
+        <source>A&amp;ttack (ms)</source>
+        <translation>起音 (ms)(&amp;A)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="144"/>
+        <source>&amp;Release (ms)</source>
+        <translation>释音 (ms)(&amp;R)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="152"/>
+        <source>Ad&amp;just by the cent shift of the active project window</source>
+        <translation>根据活动工程窗口的音分偏移来调整(&amp;A)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="154"/>
+        <source>&amp;Frequency of A</source>
+        <translation>A 的频率(&amp;F)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="159"/>
+        <source>&amp;Preview</source>
+        <translation>预览(&amp;P)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="162"/>
+        <source>&amp;Interrupt All Notes</source>
+        <translation>中断所有音符(&amp;A)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="163"/>
+        <source>Interrupt all notes that are currently played by the synthesizer</source>
+        <translation>中断合成器当前正在播放的所有音符</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="172"/>
+        <source>Control</source>
+        <translation>控制</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="180"/>
+        <source>(Not working)</source>
+        <translation>（不可用）</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="192"/>
+        <source>Cannot open MIDI device %1</source>
+        <translation>无法打开 MIDI 设备 %1</translation>
+    </message>
+</context>
+<context>
     <name>MainMenuView</name>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="23"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="30"/>
         <source>&amp;File</source>
         <translation>文件(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="24"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="31"/>
         <source>&amp;New Project</source>
         <translation>新建工程(&amp;N)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="28"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="35"/>
         <source>&amp;Open Project...</source>
         <translation>打开工程(&amp;O)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="32"/>
         <source>Select a Project File</source>
-        <translation>选择工程文件</translation>
+        <translation type="vanished">选择工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="33"/>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="59"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="209"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
@@ -1460,176 +1562,220 @@
         <translation>打开A工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="42"/>
         <source>Select an A Project File</source>
-        <translation>选择工程文件</translation>
+        <translation type="vanished">选择工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="43"/>
         <source>Project File (*.json)</source>
-        <translation>工程文件 (*.json)</translation>
+        <translation type="vanished">工程文件 (*.json)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="50"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="42"/>
         <source>&amp;Save</source>
         <translation>保存(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="52"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="44"/>
         <source>Save &amp;As...</source>
         <translation>另存为(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="58"/>
         <source>Save project</source>
-        <translation>保存工程</translation>
+        <translation type="vanished">保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="73"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="47"/>
         <source>Import</source>
         <translation>导入</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="74"/>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="90"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="48"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="55"/>
         <source>MIDI File...</source>
         <translation>MIDI 文件...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="76"/>
         <source>Select a MIDI File</source>
-        <translation>选择 MIDI 文件</translation>
+        <translation type="vanished">选择 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="77"/>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="93"/>
         <source>MIDI File (*.mid)</source>
-        <translation>MIDI 文件 (*.mid)</translation>
+        <translation type="vanished">MIDI 文件 (*.mid)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="84"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="52"/>
         <source>Export</source>
         <translation>导出</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="85"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="53"/>
         <source>Audio File...</source>
         <translation>音频文件...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="92"/>
         <source>Save as MIDI File</source>
-        <translation>另存为 MIDI 文件</translation>
+        <translation type="vanished">另存为 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="112"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="61"/>
+        <source>Exit</source>
+        <translation>退出</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="75"/>
         <source>&amp;Edit</source>
         <translation>编辑(&amp;E)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="115"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="77"/>
         <source>&amp;Undo</source>
         <translation>撤销(&amp;U)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="120"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="82"/>
         <source>&amp;Redo</source>
         <translation>重做(&amp;R)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="131"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="91"/>
         <source>Select &amp;All</source>
         <translation>全选(&amp;A)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="138"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="96"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="147"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="101"/>
         <source>Cu&amp;t</source>
         <translation>剪切(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="151"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="105"/>
         <source>&amp;Copy</source>
         <translation>复制(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="155"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="109"/>
         <source>&amp;Paste</source>
         <translation>粘贴(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="169"/>
         <source>&amp;Insert</source>
-        <translation>插入(&amp;I)</translation>
+        <translation type="vanished">插入(&amp;I)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="172"/>
         <source>Track</source>
-        <translation>轨道</translation>
+        <translation type="vanished">轨道</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="177"/>
         <source>&amp;Modify</source>
-        <translation>修改(&amp;M)</translation>
+        <translation type="vanished">修改(&amp;M)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="178"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="131"/>
         <source>Fill Lyrics...</source>
         <translation>填入歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="184"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="140"/>
         <source>&amp;Options</source>
         <translation>选项(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="185"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="141"/>
         <source>&amp;General...</source>
         <translation>常规(&amp;G)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="190"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="146"/>
         <source>&amp;Audio...</source>
         <translation>音频(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="195"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="151"/>
+        <source>&amp;MIDI...</source>
+        <translation>&amp;MIDI...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="156"/>
         <source>A&amp;ppearance...</source>
         <translation>外观(&amp;P)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="200"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="161"/>
         <source>Language...</source>
         <translation>语言...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="210"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="172"/>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="211"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="173"/>
         <source>Check for Updates</source>
         <translation>检查更新</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="213"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="175"/>
         <source>You are already up to date</source>
-        <translation type="unfinished">已是最新版本</translation>
+        <translation>已是最新版本</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="215"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="176"/>
         <source>About...</source>
         <translation>关于...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="217"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="177"/>
         <source>About</source>
         <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MainMenuViewPrivate</name>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="208"/>
+        <source>Select a Project File</source>
+        <translation>选择工程文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="224"/>
+        <source>Select an A Project File</source>
+        <translation>选择A工程文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="225"/>
+        <source>Project File (*.json)</source>
+        <translation>工程文件 (*.json)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="238"/>
+        <source>Select a MIDI File</source>
+        <translation>选择 MIDI 文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="239"/>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="247"/>
+        <source>MIDI File (*.mid)</source>
+        <translation>MIDI 文件 (*.mid)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="246"/>
+        <source>Save as MIDI File</source>
+        <translation>另存为 MIDI 文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="261"/>
+        <source>&amp;Undo</source>
+        <translation>撤销(&amp;U)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainMenu/MainMenuView.cpp" line="263"/>
+        <source>&amp;Redo</source>
+        <translation>重做(&amp;R)</translation>
     </message>
 </context>
 <context>
@@ -1651,8 +1797,9 @@
         <translation type="vanished">选择工程文件</translation>
     </message>
     <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="232"/>
         <source>DiffScope Project File (*.dspx)</source>
-        <translation type="vanished">DiffScope 工程文件 (*.dspx)</translation>
+        <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
     <message>
         <source>Open A Project</source>
@@ -1787,19 +1934,87 @@
         <translation type="vanished">检查更新</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="224"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="158"/>
+        <source>Warning</source>
+        <translation>警告</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="159"/>
+        <source>Do you want to save changes?</source>
+        <translation>要保存更改吗？</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="162"/>
+        <source>Save</source>
+        <translation>保存</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="170"/>
+        <source>Don&apos;t save</source>
+        <translation>不保存</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="177"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="231"/>
+        <source>Save project</source>
+        <translation>保存工程</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="260"/>
         <source>Please wait for all tasks done...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="231"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="267"/>
         <source>%1 is exiting...</source>
         <translation>%1 正在退出...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="232"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="268"/>
         <source>Terminating background tasks...</source>
         <translation>正在停止后台任务...</translation>
+    </message>
+</context>
+<context>
+    <name>NoteActions</name>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="16"/>
+        <source>Insert note(s)</source>
+        <translation>插入音符</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="21"/>
+        <source>Remove note(s)</source>
+        <translation>删除音符</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="27"/>
+        <source>Edit note start and length</source>
+        <translation>编辑音符起始位置和长度</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="32"/>
+        <source>Edit note length</source>
+        <translation>编辑音符长度</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="38"/>
+        <source>Edit note position</source>
+        <translation>编辑音符位置</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="44"/>
+        <source>Edit note word properties</source>
+        <translation>编辑音符文字属性</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="52"/>
+        <source>Edit note phoneme</source>
+        <translation>编辑音符音素</translation>
     </message>
 </context>
 <context>
@@ -1821,11 +2036,157 @@
     </message>
 </context>
 <context>
+    <name>OutputPlaybackPageWidget</name>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="49"/>
+        <source>Audio Driver and Device</source>
+        <translation>音频驱动和设备</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="52"/>
+        <source>Audio d&amp;river</source>
+        <translation>音频驱动(&amp;D)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="56"/>
+        <source>&amp;Test</source>
+        <translation>测试(&amp;T)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="58"/>
+        <source>Control &amp;Panel</source>
+        <translation>控制面板(&amp;C)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="60"/>
+        <source>Audio &amp;device</source>
+        <translation>音频设备(&amp;D)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="64"/>
+        <source>&amp;Buffer size</source>
+        <translation>缓冲区大小(&amp;B)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="66"/>
+        <source>&amp;Sample rate</source>
+        <translation>采样率(&amp;S)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="68"/>
+        <source>Notify when any device added or removed</source>
+        <translation>添加或删除任何设备时发出通知</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="69"/>
+        <source>Notify when current device removed</source>
+        <translation>当前设备移除时通知</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="70"/>
+        <source>Do not notify</source>
+        <translation>不通知</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="71"/>
+        <source>&amp;Hot plug notification</source>
+        <translation>热插拔通知(&amp;H)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="73"/>
+        <source>Device &amp;Gain (dB)</source>
+        <translation>设备增益 (dB)(&amp;G)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="86"/>
+        <source>Device &amp;Pan</source>
+        <translation>设备声像(&amp;P)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="100"/>
+        <source>Playback</source>
+        <translation>回放</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="104"/>
+        <source>Start position</source>
+        <translation>起始位置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="105"/>
+        <source>End position</source>
+        <translation>结束位置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="107"/>
+        <source>After playback is stopped, &amp;move the play head to</source>
+        <translation>播放停止后，将播放头移至(&amp;M)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="110"/>
+        <source>&amp;Close audio device when playback is stopped</source>
+        <translation>回放停止后关闭音频设备(&amp;C)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="115"/>
+        <source>File Caching</source>
+        <translation>文件缓存</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="119"/>
+        <source>&amp;File reading buffer size (samples)</source>
+        <translation>文件读取缓冲区大小（采样数）(&amp;F)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="131"/>
+        <source>Cannot start audio playback</source>
+        <translation>无法开始音频回放</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="133"/>
+        <source>Please check the status of the audio driver and device.</source>
+        <translation>请检查音频驱动和设备的状态。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="194"/>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="231"/>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="252"/>
+        <source>(Not working)</source>
+        <translation>（不可用）</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="226"/>
+        <source>Cannot initialize %1 driver</source>
+        <translation>无法初始化 %1 驱动</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="277"/>
+        <source>Audio device %1 is not available</source>
+        <translation>音频设备 %1 不可用</translation>
+    </message>
+</context>
+<context>
     <name>PianoRollGraphicsView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="65"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="147"/>
         <source>Select a singing clip to edit</source>
         <translation>选中歌声剪辑以编辑</translation>
+    </message>
+</context>
+<context>
+    <name>PlaybackControllerPrivate</name>
+    <message>
+        <location filename="../../Controller/PlaybackController.cpp" line="91"/>
+        <source>Please fix project errors before playing</source>
+        <translation>请先修复工程错误再播放</translation>
+    </message>
+</context>
+<context>
+    <name>SingingClipGraphicsItem</name>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipGraphicsItem.cpp" line="119"/>
+        <source>[Singing] </source>
+        <translation>[歌声] </translation>
     </message>
 </context>
 <context>
@@ -1842,60 +2203,134 @@
     </message>
 </context>
 <context>
-    <name>TracksView</name>
+    <name>TrackEditorView</name>
     <message>
-        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="280"/>
-        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="357"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="199"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="281"/>
-        <source>Do you want to delete this clip?</source>
-        <translation>要删除此剪辑吗？</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="285"/>
-        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="362"/>
-        <source>Delete</source>
-        <translation>删除</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="289"/>
-        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="366"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="358"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="200"/>
         <source>Do you want to delete this track?</source>
         <translation>要删除此轨道吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="376"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="204"/>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="208"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
+    <name>TrackListHeaderView</name>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="22"/>
+        <source>New Track</source>
+        <translation type="unfinished">新轨道</translation>
+    </message>
+</context>
+<context>
+    <name>TracksGraphicsView</name>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="33"/>
+        <source>New singing clip</source>
+        <translation>新建歌声剪辑</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="37"/>
+        <source>Insert audio clip...</source>
+        <translation>插入音频剪辑...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="66"/>
         <source>Select an Audio File</source>
         <translation>选择音频文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TracksEditor/TracksView.cpp" line="377"/>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="67"/>
         <source>All Audio File (*.wav *.flac *.mp3);;Wave File (*.wav);;Flac File (*.flac);;MP3 File (*.mp3)</source>
         <translation>所有音频文件 (*.wav *.flac *.mp3);;波形文件 (*.wav);;Flac 文件 (*.flac);;MP3 文件 (*.mp3)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="77"/>
+        <source>Warning</source>
+        <translation>警告</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="78"/>
+        <source>Do you want to delete these clips?</source>
+        <translation>要删除这些剪辑吗？</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="85"/>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="89"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="150"/>
+        <source>&amp;Delete</source>
+        <translation>删除(&amp;D)</translation>
+    </message>
+</context>
+<context>
+    <name>TracksView</name>
+    <message>
+        <source>Warning</source>
+        <translation type="vanished">警告</translation>
+    </message>
+    <message>
+        <source>Do you want to delete this clip?</source>
+        <translation type="vanished">要删除此剪辑吗？</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="vanished">删除</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="vanished">取消</translation>
+    </message>
+    <message>
+        <source>Do you want to delete this track?</source>
+        <translation type="vanished">要删除此轨道吗？</translation>
+    </message>
+    <message>
+        <source>Select an Audio File</source>
+        <translation type="vanished">选择音频文件</translation>
+    </message>
+    <message>
+        <source>All Audio File (*.wav *.flac *.mp3);;Wave File (*.wav);;Flac File (*.flac);;MP3 File (*.mp3)</source>
+        <translation type="vanished">所有音频文件 (*.wav *.flac *.mp3);;波形文件 (*.wav);;Flac 文件 (*.flac);;MP3 文件 (*.mp3)</translation>
     </message>
 </context>
 <context>
     <name>TracksViewController</name>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="38"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="40"/>
         <source>New Track</source>
         <translation>新轨道</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="211"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="165"/>
+        <source>New Singing Clip</source>
+        <translation>新歌声剪辑</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/TracksViewController.cpp" line="191"/>
         <source>Failed to open audio file:</source>
         <translation>无法打开音频文件：</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="215"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="195"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
@@ -1912,13 +2347,61 @@
         <translation type="vanished">要移除此剪辑吗？</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="210"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="190"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
         <source>Open file error:</source>
         <translation type="vanished">打开文件错误：</translation>
+    </message>
+</context>
+<context>
+    <name>talcs</name>
+    <message>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="90"/>
+        <source>Option</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="94"/>
+        <source>Channel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="103"/>
+        <source>Sample rate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="106"/>
+        <source>System</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="107"/>
+        <source>Little-endian</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="108"/>
+        <source>Big-endian</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="109"/>
+        <source>Byte order</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="115"/>
+        <source>OK</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="121"/>
+        <source>Configure Raw Data</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

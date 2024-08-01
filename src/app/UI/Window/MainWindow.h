@@ -12,6 +12,8 @@
 #include "Modules/Task/TaskManager.h"
 #include "Modules/Task/Task.h"
 
+
+class MainTitleBar;
 class MainMenuView;
 class TaskDialog;
 class ProgressIndicator;
@@ -39,10 +41,12 @@ private slots:
 private:
     void closeEvent(QCloseEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+    static void emulateLeaveEvent(QWidget *widget);
 
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
 
+    MainTitleBar *m_titleBar;
     MainMenuView *m_mainMenu = nullptr;
     TrackEditorView *m_trackEditorView;
     ClipEditorView *m_clipEditView;

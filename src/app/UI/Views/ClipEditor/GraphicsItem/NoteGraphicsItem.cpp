@@ -4,14 +4,14 @@
 
 #include "NoteGraphicsItem.h"
 
+#include "Global/AppGlobal.h"
+#include "Global/ClipEditorGlobal.h"
+#include "UI/Views/Common/CommonGraphicsRectItem.h"
+
 #include <QGraphicsSceneContextMenuEvent>
 #include <QPainter>
 #include <QTextOption>
-
-#include "UI/Views/Common/CommonGraphicsRectItem.h"
-#include "Global/AppGlobal.h"
-#include "Global/ClipEditorGlobal.h"
-#include "UI/Controls/Menu.h"
+#include <QMWidgets/cmenu.h>
 
 using namespace ClipEditorGlobal;
 
@@ -35,7 +35,7 @@ QWidget *NoteGraphicsItem::context() const {
 }
 void NoteGraphicsItem::setContext(QWidget *context) {
     m_context = context;
-    m_menu = new Menu(m_context);
+    m_menu = new CMenu(m_context);
     auto actionRemove = m_menu->addAction("Remove");
     connect(actionRemove, &QAction::triggered, [&] { emit removeTriggered(id()); });
 
@@ -175,7 +175,7 @@ void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *
         QColor borderColor;
         if (isSelected())
             borderColor = borderColorSelected;
-        else if (m_overlapped)
+        else if (overlapped())
             borderColor = borderColorOverlapped;
         else if (m_editingPitch)
             borderColor = borderColorEditingPitch;

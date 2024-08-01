@@ -20,6 +20,16 @@ QPushButton:disabled {
     background-color: rgb(64, 64, 64)
 }
 
+QPushButton#btnNewTrack {
+    image: url(:svg/icons/add_16_filled_white);
+    padding: 6px;
+    /* background-origin: content;
+    background-position: left;
+    background-repeat: no-repeat;
+    text-align: right;
+    padding-left: 22px; */
+}
+
 Button {
     background: #10FFFFFF;
     border: none;
@@ -40,6 +50,62 @@ Button:pressed {
 Button:disabled {
     color: rgb(127, 127, 127);
     background-color: rgb(64, 64, 64)
+}
+
+Button:checked {
+    color: rgb(0, 28, 92);
+    background: rgb(155, 186, 255);
+}
+
+Button:checked:hover {
+    color: rgb(0, 28, 92);
+    background: rgb(169, 196, 255);
+}
+
+Button:checked:pressed {
+    color: rgba(0, 28, 92, 127);
+    background: rgb(139, 175, 255);
+}
+
+Button:checked:disabled {
+    color: rgb(166, 166, 166);
+    background: rgb(205, 205, 205)
+}
+
+Button#CloseButton {
+    border-radius: 0px;
+    padding: 6px;
+    /* image: url(:svg/title-bar/close.svg); */
+    background: transparent;
+}
+
+Button#CloseButton:hover {
+    background: #C42B1C;
+}
+
+Button#CloseButton:pressed {
+    background: #B32E1D;
+}
+
+Button#MaximizeButton:checked {
+    color: #f2f2f2;
+}
+
+Button#MinimizeButton,
+Button#MaximizeButton {
+    border-radius: 0px;
+    padding: 6px;
+    background: transparent;
+}
+
+Button#MinimizeButton:hover,
+Button#MaximizeButton:hover {
+    background: #10FFFFFF;
+}
+
+Button#MinimizeButton:pressed,
+Button#MaximizeButton:pressed {
+    background: #05FFFFFF;
 }
 
 AccentButton {
@@ -249,7 +315,7 @@ QMenu {
     padding: 4px;
     background-color: #202122;
     border: 1px solid #505050;
-    border-radius: 6px;
+    /* border-radius: 6px; */
     color: #F0F0F0;
 }
 
@@ -299,7 +365,7 @@ QMenuBar {
 
 QMenuBar::item {
     background-color: transparent;
-    padding: 6px 12px;
+    padding: 6px 8px;
     color: #f0f0f0;
     border-radius: 6px;
 }
@@ -721,7 +787,7 @@ ActionButtonsView>QPushButton:pressed {
 }
 
 ActionButtonsView>QPushButton:disabled {
-    background:  none;
+    background: none;
 }
 
 TrackControlWidget {
@@ -743,7 +809,7 @@ TrackControlWidget>SeekBar {
     qproperty-thumbBorderColor: #454545;
 }
 
-TrackControlWidget > QPushButton#btnColor {
+TrackControlWidget>QPushButton#btnColor {
     background-color: #9BBAFF;
     border-style: none;
     border-radius: 0px;
@@ -751,12 +817,12 @@ TrackControlWidget > QPushButton#btnColor {
     padding-bottom: 1px;
 }
 
-TrackControlWidget > QLabel#lbTrackIndex{
+TrackControlWidget>QLabel#lbTrackIndex {
     font-size: 11pt;
     color: #D0D0D0;
 }
 
-TrackControlWidget > QPushButton#btnMute{
+TrackControlWidget>QPushButton#btnMute {
     color: #F0F0F0;
     font-size: 9pt;
     background-color: #2A2B2C;
@@ -765,13 +831,13 @@ TrackControlWidget > QPushButton#btnMute{
     border: 1px solid #606060;
 }
 
-TrackControlWidget > QPushButton#btnMute:checked {
+TrackControlWidget>QPushButton#btnMute:checked {
     color: #000;
     background-color: #FF9B9D;
     border: none
 }
 
-TrackControlWidget > QPushButton#btnSolo{
+TrackControlWidget>QPushButton#btnSolo {
     color: #F0F0F0;
     font-size: 9pt;
     background-color: #2A2B2C;
@@ -780,7 +846,7 @@ TrackControlWidget > QPushButton#btnSolo{
     border: 1px solid #606060;
 }
 
-TrackControlWidget > QPushButton#btnSolo:checked {
+TrackControlWidget>QPushButton#btnSolo:checked {
     color: #000;
     background-color: #FFCD9B;
     border: none

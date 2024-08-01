@@ -7,6 +7,7 @@
 
 #include "../../Utils/SplitLyric.h"
 #include "../../Utils/LrcTools/LrcDecoder.h"
+#include "Modules/Language/FillLyric/View/LyricTab.h"
 
 namespace FillLyric {
     LyricBaseWidget::LyricBaseWidget(QWidget *parent) : QWidget(parent) {
@@ -104,7 +105,9 @@ namespace FillLyric {
                 &LyricBaseWidget::_on_splitComboBox_currentIndexChanged);
 
         connect(m_optButton, &QPushButton::clicked,
-                [this]() { m_optWidget->setVisible(!m_optWidget->isVisible()); });
+                [this]() {
+                    m_optWidget->setVisible(!m_optWidget->isVisible());
+                });
 
         connect(skipSlur, &QCheckBox::stateChanged, this, &LyricBaseWidget::modifyOption);
     }
@@ -142,7 +145,6 @@ namespace FillLyric {
     }
 
     QList<QList<LangNote>> LyricBaseWidget::splitLyric(const QString &lyric) const {
-        const bool skipSlurRes = this->skipSlur->isChecked();
         const auto splitType = static_cast<SplitType>(this->m_splitComboBox->currentIndex());
 
         QList<QList<LangNote>> splitNotes;
@@ -154,27 +156,7 @@ namespace FillLyric {
             splitNotes = CleanLyric::splitCustom(lyric, this->m_splitters->text().split(' '));
         }
 
-        QList<QList<LangNote>> skipSlurLangNotes;
-        if (skipSlurRes) {
-            for (const auto &notes : splitNotes) {
-                QList<LangNote> tempNotes;
-                for (const auto &note : notes) {
-                    if (note.language != "Slur" && note.lyric != "-") {
-                        LangNote langNote;
-                        langNote.lyric = note.lyric;
-                        langNote.syllable = note.syllable;
-                        langNote.candidates = note.candidates;
-                        langNote.language = note.language;
-                        langNote.category = note.category;
-                        tempNotes.append(langNote);
-                    }
-                }
-                skipSlurLangNotes.append(tempNotes);
-            }
-        }
-
-        const auto res = skipSlurRes ? skipSlurLangNotes : splitNotes;
-        return res;
+        return splitNotes;
     }
 
     void LyricBaseWidget::_on_splitComboBox_currentIndexChanged(int index) const {

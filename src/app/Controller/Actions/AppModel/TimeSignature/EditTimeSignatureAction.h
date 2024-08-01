@@ -10,14 +10,14 @@
 
 class EditTimeSignatureAction : public IAction {
 public:
-    static EditTimeSignatureAction *build(AppModel::TimeSignature oldSig,
-                                          AppModel::TimeSignature newSig, AppModel *model);
+    static EditTimeSignatureAction *build(TimeSignature oldSig, TimeSignature newSig,
+                                          AppModel *model);
     void execute() override;
     void undo() override;
 
 private:
-    AppModel::TimeSignature m_oldSig;
-    AppModel::TimeSignature m_newSig;
+    TimeSignature m_oldSig;
+    TimeSignature m_newSig;
     AppModel *m_model = nullptr;
 };
 

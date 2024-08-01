@@ -12,18 +12,21 @@
 #include "Controller/AppController.h"
 #include "Controller/TracksViewController.h"
 #include "Controller/ValidationController.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ProgressIndicator.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
-#include "UI/Views/ActionButtonsView.h"
-#include "UI/Views/PlaybackView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
-#include "UI/Views/MainMenu/MainMenuView.h"
+#include "UI/Views/MainTitleBar/ActionButtonsView.h"
+#include "UI/Views/MainTitleBar/MainMenuView.h"
+#include "UI/Views/MainTitleBar/MainTitleBar.h"
+#include "UI/Views/MainTitleBar/PlaybackView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "Utils/WindowFrameUtils.h"
+#include <QWKWidgets/widgetwindowagent.h>
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -34,6 +37,33 @@
 #include <QStatusBar>
 
 MainWindow::MainWindow() {
+    auto useNativeFrame = appOptions->appearance()->useNativeFrame;
+    m_mainMenu = new MainMenuView(this);
+    m_titleBar = new MainTitleBar(m_mainMenu, this, useNativeFrame);
+
+    if (!useNativeFrame) {
+        auto agent = new QWK::WidgetWindowAgent(this);
+        agent->setup(this);
+        agent->setTitleBar(m_titleBar);
+        agent->setSystemButton(QWK::WindowAgentBase::Minimize, m_titleBar->minimizeButton());
+        agent->setSystemButton(QWK::WindowAgentBase::Maximize, m_titleBar->maximizeButton());
+        agent->setSystemButton(QWK::WindowAgentBase::Close, m_titleBar->closeButton());
+        agent->setHitTestVisible(m_titleBar->menuView());
+        agent->setHitTestVisible(m_titleBar->actionButtonsView());
+        agent->setHitTestVisible(m_titleBar->playbackView());
+
+        connect(m_titleBar, &MainTitleBar::minimizeTriggered, this, &MainMenuView::showMinimized);
+        connect(m_titleBar, &MainTitleBar::maximizeTriggered, this, [&](bool max) {
+            if (max)
+                showMaximized();
+            else
+                showNormal();
+            emulateLeaveEvent(m_titleBar->maximizeButton());
+        });
+        connect(m_titleBar, &MainTitleBar::closeTriggered, this, &MainWindow::close);
+    }
+    installEventFilter(m_titleBar);
+
     QString qssBase;
     auto qssFile = QFile(":theme/lite-dark.qss");
     if (qssFile.open(QIODevice::ReadOnly)) {
@@ -59,6 +89,9 @@ MainWindow::MainWindow() {
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
     connect(taskManager, &TaskManager::taskChanged, this, &MainWindow::onTaskChanged);
 
+    connect(m_mainMenu->actionSave(), &QAction::triggered, this, &MainWindow::onSave);
+    connect(m_mainMenu->actionSaveAs(), &QAction::triggered, this, &MainWindow::onSaveAs);
+
     m_trackEditorView = new TrackEditorView;
     m_clipEditView = new ClipEditorView;
 
@@ -66,32 +99,10 @@ MainWindow::MainWindow() {
     splitter->setOrientation(Qt::Vertical);
     splitter->addWidget(m_trackEditorView);
     splitter->addWidget(m_clipEditView);
-
-    auto playbackView = new PlaybackView;
-
-    m_mainMenu = new MainMenuView(this);
-    connect(m_mainMenu->actionSave(), &QAction::triggered, this, &MainWindow::onSave);
-    connect(m_mainMenu->actionSaveAs(), &QAction::triggered, this, &MainWindow::onSaveAs);
-    auto menuBarContainer = new QHBoxLayout;
-    menuBarContainer->addWidget(m_mainMenu);
-    menuBarContainer->setContentsMargins(0, 6, 6, 6);
-
-    auto actionButtonsView = new ActionButtonsView;
-    connect(actionButtonsView, &ActionButtonsView::saveTriggered, m_mainMenu->actionSave(),
-            &QAction::trigger);
-
-    connect(historyManager, &HistoryManager::undoRedoChanged, appController,
-            &AppController::onUndoRedoChanged);
+    splitter->setContentsMargins(6, 0, 6, 0);
 
     ValidationController::instance();
     appController->newProject();
-
-    auto actionButtonLayout = new QHBoxLayout;
-    actionButtonLayout->addLayout(menuBarContainer);
-    actionButtonLayout->addWidget(actionButtonsView);
-    actionButtonLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
-    actionButtonLayout->addWidget(playbackView);
-    actionButtonLayout->setContentsMargins({});
 
     m_lbTaskTitle = new QLabel;
     m_lbTaskTitle->setVisible(false);
@@ -111,11 +122,11 @@ MainWindow::MainWindow() {
     setStatusBar(statusBar);
 
     auto mainLayout = new QVBoxLayout;
-    mainLayout->addLayout(actionButtonLayout);
+    mainLayout->addWidget(m_titleBar);
     mainLayout->addWidget(splitter);
     mainLayout->addWidget(statusBar);
     mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins({6, 0, 6, 0});
+    mainLayout->setContentsMargins({0, 0, 0, 0});
 
     auto mainWidget = new QWidget;
     mainWidget->setLayout(mainLayout);
@@ -286,4 +297,24 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
     }
 #endif
     return QMainWindow::nativeEvent(eventType, message, result);
+}
+void MainWindow::emulateLeaveEvent(QWidget *widget) {
+    Q_ASSERT(widget);
+    QTimer::singleShot(0, widget, [widget]() {
+        const QScreen *screen = widget->screen();
+        const QPoint globalPos = QCursor::pos(screen);
+        if (!QRect(widget->mapToGlobal(QPoint{0, 0}), widget->size()).contains(globalPos)) {
+            QCoreApplication::postEvent(widget, new QEvent(QEvent::Leave));
+            if (widget->testAttribute(Qt::WA_Hover)) {
+                const QPoint localPos = widget->mapFromGlobal(globalPos);
+                const QPoint scenePos = widget->window()->mapFromGlobal(globalPos);
+                static constexpr const auto oldPos = QPoint{};
+                const Qt::KeyboardModifiers modifiers = QGuiApplication::keyboardModifiers();
+                const auto event =
+                    new QHoverEvent(QEvent::HoverLeave, scenePos, globalPos, oldPos, modifiers);
+                Q_UNUSED(localPos);
+                QCoreApplication::postEvent(widget, event);
+            }
+        }
+    });
 }

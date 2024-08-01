@@ -73,7 +73,8 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
         return;
 
     m_resolution = scaleX() >= 0.3 ? High : Low;
-    auto chunksPerTickBase = static_cast<double>(m_audioInfo.sampleRate) / m_audioInfo.chunkSize * 60 / m_tempo / 480;
+    auto chunksPerTickBase =
+        static_cast<double>(m_audioInfo.sampleRate) / m_audioInfo.chunkSize * 60 / m_tempo / 480;
     const auto peakData = m_resolution == Low ? m_audioInfo.peakCacheMipmap : m_audioInfo.peakCache;
     const auto chunksPerTick =
         m_resolution == Low ? chunksPerTickBase / m_audioInfo.mipmapScale : chunksPerTickBase;
@@ -143,4 +144,7 @@ void AudioClipGraphicsItem::drawPreviewArea(QPainter *painter, const QRectF &pre
     // painter->drawRect(waveRect);
     // painter->drawLine(waveRect.topLeft(), waveRect.bottomRight());
     // painter->drawLine(waveRect.topRight(), waveRect.bottomLeft());
+}
+QString AudioClipGraphicsItem::clipTypeName() {
+    return tr("[Audio] ");
 }

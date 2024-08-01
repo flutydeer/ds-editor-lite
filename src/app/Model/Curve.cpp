@@ -28,6 +28,9 @@ bool Curve::isOverlappedWith(Curve *obj) const {
         return false;
     return true;
 }
+std::tuple<qsizetype, qsizetype> Curve::interval() const {
+    return std::make_tuple(start(), endTick());
+}
 DrawCurve::DrawCurve(const DrawCurve &other)  : Curve(other), step(other.step), m_values(other.m_values){
     qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start();
 }
@@ -152,6 +155,9 @@ int AnchorNode::compareTo(AnchorNode *obj) const {
 }
 bool AnchorNode::isOverlappedWith(AnchorNode *obj) const {
     return pos() == obj->pos();
+}
+std::tuple<qsizetype, qsizetype> AnchorNode::interval() const {
+    return std::make_tuple(pos(), pos());
 }
 const QList<AnchorNode *> &AnchorCurve::nodes() const {
     return m_nodes;

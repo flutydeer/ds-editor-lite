@@ -10,8 +10,7 @@
 
 class TimeSignatureActions : public ActionSequence {
 public:
-    void editTimeSignature(AppModel::TimeSignature oldSig, AppModel::TimeSignature newSig,
-                           AppModel *model);
+    void editTimeSignature(TimeSignature oldSig, TimeSignature newSig, AppModel *model);
 };
 
 

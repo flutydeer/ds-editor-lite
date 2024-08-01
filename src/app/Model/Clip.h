@@ -5,7 +5,7 @@
 #ifndef DSCLIP_H
 #define DSCLIP_H
 
-#include "Utils/IOverlapable.h"
+#include "Utils/Overlappable.h"
 #include "Utils/ISelectable.h"
 #include "Utils/OverlappableSerialList.h"
 #include "Utils/UniqueObject.h"
@@ -17,7 +17,7 @@
 class Params;
 class Note;
 
-class Clip : public QObject, public IClip, public IOverlapable, public ISelectable {
+class Clip : public QObject, public IClip, public Overlappable, public ISelectable {
     Q_OBJECT
 
 public:
@@ -46,6 +46,7 @@ public:
 
     int compareTo(Clip *obj) const;
     bool isOverlappedWith(Clip *obj) const;
+    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
     class ClipCommonProperties {
     public:

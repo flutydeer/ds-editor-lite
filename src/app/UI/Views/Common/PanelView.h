@@ -19,8 +19,8 @@ public:
     }
 
 private:
-    void afterSetActivated() override {
-        setProperty("activePanel", panelActivated());
+    void afterSetActive() override {
+        setProperty("activePanel", panelActive());
         style()->unpolish(this);
         style()->polish(this);
     }

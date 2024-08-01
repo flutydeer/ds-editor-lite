@@ -103,11 +103,11 @@ void LyricDialog::expandWindowRight() {
     resize(static_cast<int>(size.width() * 0.6), height());
 }
 
-QList<LangNote> LyricDialog::noteResult() const {
+LyricResult LyricDialog::noteResult() const {
     return m_noteResult;
 }
 
-QList<LangNote> LyricDialog::exportLangNotes() {
+LyricResult LyricDialog::exportLangNotes() const {
     const auto noteLists = m_lyricWidget->exportLangNotes();
 
     const bool skipSlurRes = m_lyricWidget->exportSkipSlur();
@@ -120,7 +120,7 @@ QList<LangNote> LyricDialog::exportLangNotes() {
             result.append(langNote);
         }
     }
-    return result;
+    return {result, skipSlurRes, exportLangRes};
 }
 
 void LyricDialog::switchTab(const int &index) {

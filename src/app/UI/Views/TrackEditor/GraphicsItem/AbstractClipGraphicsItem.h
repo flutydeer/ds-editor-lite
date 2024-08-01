@@ -7,13 +7,13 @@
 
 #include "Interface/IClip.h"
 #include "Model/Clip.h"
+#include "UI/Utils/OverlappableItem.h"
 #include "UI/Views/Common/CommonGraphicsRectItem.h"
-#include "Utils/IOverlapable.h"
 
 class Menu;
 class AbstractClipGraphicsItemPrivate;
 
-class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IClip, public IOverlapable {
+class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IClip, public OverlappableItem {
     Q_OBJECT
 
 public:
@@ -44,6 +44,7 @@ public:
 
     [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int index);
+    [[nodiscard]] bool canResizeLength()const;
 
     void loadCommonProperties(const Clip::ClipCommonProperties &args);
 
@@ -57,11 +58,9 @@ signals:
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     virtual void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) = 0;
-    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
-    void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
-    void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
-    void hoverEnterEvent(QGraphicsSceneHoverEvent *event) override;
-    void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
+    // void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    // void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
+    // void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     virtual QString clipTypeName() = 0;

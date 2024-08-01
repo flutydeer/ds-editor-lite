@@ -7,7 +7,7 @@
 
 #include <QWidget>
 
-#include "Global/PlaybackGlobal.h"
+#include "../../../Global/PlaybackGlobal.h"
 
 class EditLabel;
 class QPushButton;
@@ -53,7 +53,7 @@ private:
     int m_tick = 0;
     PlaybackStatus m_status = Stopped;
 
-    int m_contentHeight = 32;
+    int m_contentHeight = 30;
 
     QString toFormattedTickTime(int ticks) const;
     int fromTickTimeString(const QStringList &splitStr) const;

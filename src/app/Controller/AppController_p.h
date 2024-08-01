@@ -11,7 +11,8 @@
 
 class IMainWindow;
 class LaunchLanguageEngineTask;
-class AppControllerPrivate {
+class AppControllerPrivate : public QObject {
+    Q_OBJECT
     Q_DECLARE_PUBLIC(AppController)
 
 public:
@@ -24,7 +25,7 @@ public:
     QString m_projectName;
     bool m_isLanguageEngineReady = false;
     QList<IPanel *> m_panels;
-    AppGlobal::PanelType m_activatedPanel = AppGlobal::TracksEditor;
+    AppGlobal::PanelType m_activePanel = AppGlobal::TracksEditor;
 
     bool isPowerOf2(int num);
     void handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);

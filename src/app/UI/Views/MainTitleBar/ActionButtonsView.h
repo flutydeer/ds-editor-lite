@@ -27,7 +27,7 @@ public slots:
                          const QString &redoActionName);
 
 private:
-    int m_contentHeight = 32;
+    int m_contentHeight = 30;
 
     QPushButton *m_btnSave;
     QPushButton *m_btnUndo;

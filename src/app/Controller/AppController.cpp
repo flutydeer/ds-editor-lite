@@ -87,7 +87,7 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
     Q_D(AppController);
     auto model = appModel;
     auto oldSig = model->timeSignature();
-    auto newSig = AppModel::TimeSignature(numerator, denominator);
+    auto newSig = TimeSignature(numerator, denominator);
     auto actions = new TimeSignatureActions;
     if (d->isPowerOf2(denominator)) {
         actions->editTimeSignature(oldSig, newSig, model);
@@ -106,9 +106,9 @@ void AppController::selectTrack(int trackIndex) {
 void AppController::onPanelClicked(AppGlobal::PanelType panelType) {
     Q_D(AppController);
     for (const auto panel : d->m_panels)
-        panel->setPanelActivated(panel->panelType() == panelType);
-    d->m_activatedPanel = panelType;
-    emit activatedPanelChanged(panelType);
+        panel->setPanelActive(panel->panelType() == panelType);
+    d->m_activePanel = panelType;
+    emit activePanelChanged(panelType);
 }
 void AppController::onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                                       const QString &redoActionName) {
@@ -162,6 +162,6 @@ void AppControllerPrivate::handleRunLanguageEngineTaskFinished(LaunchLanguageEng
 void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
     Q_Q(AppController);
     m_projectPath = path;
-    q->setProjectName(m_projectPath.isEmpty() ? q->tr("New Project")
+    q->setProjectName(m_projectPath.isEmpty() ? tr("New Project")
                                               : QFileInfo(m_projectPath).fileName());
 }

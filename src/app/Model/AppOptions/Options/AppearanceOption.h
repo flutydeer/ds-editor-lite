@@ -16,6 +16,11 @@ public:
 
     void load(const QJsonObject &object) override;
 
+#ifdef Q_OS_MAC
+    bool useNativeFrame = true;
+#else
+    bool useNativeFrame = false;
+#endif
     AnimationGlobal::AnimationLevels animationLevel = AnimationGlobal::Full;
     double animationTimeScale = 1;
 
@@ -26,6 +31,7 @@ protected:
     void save(QJsonObject &object) override;
 
 private:
+    const QString useNativeFrameKey = "useNativeFrame";
     const QString animationLevelKey = "animationLevel";
     const QString animationTimeScaleKey = "animationTimeScale";
 };

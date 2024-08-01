@@ -54,7 +54,7 @@ public slots:
                                           const QString &redoActionName);
 
 signals:
-    void activatedPanelChanged(AppGlobal::PanelType panel);
+    void activePanelChanged(AppGlobal::PanelType panel);
 
 private:
     Q_DECLARE_PRIVATE(AppController)

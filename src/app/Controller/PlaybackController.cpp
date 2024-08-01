@@ -88,7 +88,7 @@ void PlaybackControllerPrivate::onValidationFinished(bool passed) {
             m_playbackStatus = Playing;
             emit q->playbackStatusChanged(Playing);
         } else {
-            Toast::show(q->tr("Please fix project errors before playing"));
+            Toast::show(tr("Please fix project errors before playing"));
         }
     }
 }

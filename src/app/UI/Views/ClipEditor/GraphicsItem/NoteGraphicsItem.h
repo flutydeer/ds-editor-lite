@@ -5,15 +5,15 @@
 #ifndef NOTEGRAPHICSITEM_H
 #define NOTEGRAPHICSITEM_H
 
-#include "Utils/IOverlapable.h"
-#include "Utils/UniqueObject.h"
+#include "UI/Utils/OverlappableItem.h"
 #include "UI/Views/Common/CommonGraphicsRectItem.h"
+#include "Utils/UniqueObject.h"
 
-class Menu;
+class CMenu;
 
 class NoteGraphicsItem final : public CommonGraphicsRectItem,
                                public UniqueObject,
-                               public IOverlapable {
+                               public OverlappableItem {
     Q_OBJECT
 
 public:
@@ -62,7 +62,7 @@ private:
     // void addMenuActions(QMenu *menu);
 
     QWidget *m_context{};
-    Menu *m_menu{};
+    CMenu *m_menu{};
     int m_start = 0;
     int m_length = 480;
     int m_keyIndex = 60;
