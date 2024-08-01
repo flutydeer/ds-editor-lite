@@ -52,15 +52,11 @@ public slots:
     void setQuantize(int quantize);
 
 signals:
-    void propertyChanged();
     void removeTriggered(int id);
 
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     virtual void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) = 0;
-    // void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
-    // void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
-    // void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     virtual QString clipTypeName() = 0;

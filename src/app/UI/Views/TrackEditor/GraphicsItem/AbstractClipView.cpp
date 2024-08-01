@@ -2,7 +2,7 @@
 // Created by fluty on 2023/11/14.
 //
 #include "AbstractClipView.h"
-#include "AbstractClipGraphicsItem_p.h"
+#include "AbstractClipView_p.h"
 
 #include "Global/AppGlobal.h"
 #include "Global/TracksEditorGlobal.h"
@@ -212,102 +212,6 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
         drawPreviewArea(painter, d->previewRect(), colorAlpha);
     }
 }
-
-/*void AbstractClipView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-    Q_D(AbstractClipView);
-    if (event->button() != Qt::LeftButton) {
-        d->m_mouseMoveBehavior = AbstractClipGraphicsItemPrivate::None;
-        setCursor(Qt::ArrowCursor);
-    }
-
-    // setSelected(true);
-    d->m_mouseDownPos = event->scenePos();
-    d->m_mouseDownStart = start();
-    d->m_mouseDownClipStart = clipStart();
-    d->m_mouseDownLength = length();
-    d->m_mouseDownClipLen = clipLen();
-    event->accept(); // Must accept event, or mouseMoveEvent would not work.
-}
-void AbstractClipView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-    Q_D(AbstractClipView);
-    auto curPos = event->scenePos();
-    if (event->modifiers() == Qt::AltModifier)
-        d->m_tempQuantizeOff = true;
-    else
-        d->m_tempQuantizeOff = false;
-
-    auto dx = (curPos.x() - d->m_mouseDownPos.x()) / scaleX() / pixelsPerQuarterNote * 480;
-
-    int start;
-    int clipStart;
-    int left;
-    int clipLen;
-    int right;
-    int delta = qRound(dx);
-    int quantize = d->m_tempQuantizeOff ? 1 : 1920 / d->m_quantize;
-    d->m_propertyEdited = true;
-    switch (d->m_mouseMoveBehavior) {
-        case AbstractClipGraphicsItemPrivate::Move:
-            left =
-                MathUtils::round(d->m_mouseDownStart + d->m_mouseDownClipStart + delta, quantize);
-            start = left - d->m_mouseDownClipStart;
-            setStart(start);
-            break;
-        case AbstractClipGraphicsItemPrivate::ResizeLeft:
-            left =
-                MathUtils::round(d->m_mouseDownStart + d->m_mouseDownClipStart + delta, quantize);
-            start = d->m_mouseDownStart;
-            clipStart = left - start;
-            clipLen = d->m_mouseDownStart + d->m_mouseDownClipStart + d->m_mouseDownClipLen - left;
-            if (clipLen <= 0)
-                break;
-
-            if (clipStart < 0) {
-                setClipStart(0);
-                setClipLen(d->m_mouseDownClipStart + d->m_mouseDownClipLen);
-            } else if (clipStart <= d->m_mouseDownClipStart + d->m_mouseDownClipLen) {
-                setClipStart(clipStart);
-                setClipLen(clipLen);
-            } else {
-                setClipStart(d->m_mouseDownClipStart + d->m_mouseDownClipLen);
-                setClipLen(0);
-            }
-            break;
-        case AbstractClipGraphicsItemPrivate::ResizeRight:
-            right = MathUtils::round(d->m_mouseDownStart + d->m_mouseDownClipStart +
-                                         d->m_mouseDownClipLen + delta,
-                                     quantize);
-            clipLen = right - (d->m_mouseDownStart + d->m_mouseDownClipStart);
-            if (clipLen <= 0)
-                break;
-
-            if (!d->m_canResizeLength) {
-                if (d->m_clipStart + clipLen >= d->m_length)
-                    setClipLen(d->m_length - d->m_clipStart);
-                else
-                    setClipLen(clipLen);
-            } else {
-                setLength(d->m_clipStart + clipLen);
-                setClipLen(clipLen);
-            }
-            break;
-        case AbstractClipGraphicsItemPrivate::None:
-            d->m_propertyEdited = false;
-            break;
-    }
-    QGraphicsRectItem::mouseMoveEvent(event);
-}
-void AbstractClipView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
-    Q_D(AbstractClipView);
-    if (d->m_mouseDownPos == event->scenePos()) {
-        d->m_propertyEdited = false;
-    }
-    if (d->m_propertyEdited) {
-        emit propertyChanged();
-    }
-
-    CommonGraphicsRectItem::mouseReleaseEvent(event);
-}*/
 void AbstractClipView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     const auto rx = event->pos().rx();
     if (rx >= 0 && rx <= AppGlobal::resizeTolarance ||

@@ -292,13 +292,6 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     qDebug() << "Singing clip graphics item added to scene" << clipItem->id() << clipItem->name();
     connect(clip, &SingingClip::noteChanged, clipItem, &SingingClipView::onNoteListChanged);
     connect(appModel, &AppModel::quantizeChanged, clipItem, &AbstractClipView::setQuantize);
-    connect(clipItem, &SingingClipView::propertyChanged, this, [=] {
-        auto clip = findClipItemById(clipItem->id());
-        if (clip == clipItem) {
-            Clip::ClipCommonProperties args(*clipItem);
-            trackController->onClipPropertyChanged(args);
-        }
-    });
     track->clips.append(clipItem);
 }
 void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, int trackIndex) {
@@ -313,14 +306,6 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, in
     qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
     connect(appModel, &AppModel::tempoChanged, clipItem, &AudioClipView::onTempoChange);
     connect(appModel, &AppModel::quantizeChanged, clipItem, &AbstractClipView::setQuantize);
-    connect(clipItem, &AudioClipView::propertyChanged, this, [=] {
-        auto clip = findClipItemById(clipItem->id());
-        if (clip == clipItem) {
-            AudioClip::AudioClipProperties args(*clipItem);
-            args.path = clipItem->path();
-            trackController->onClipPropertyChanged(args);
-        }
-    });
     track->clips.append(clipItem);
 }
 void TrackEditorView::removeClipFromView(int clipId) {

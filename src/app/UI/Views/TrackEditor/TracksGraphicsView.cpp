@@ -115,9 +115,91 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
             CommonGraphicsView::mousePressEvent(event);
         }
     }
+    event->ignore();
 }
 void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
+    if (event->modifiers() == Qt::AltModifier)
+        m_tempQuantizeOff = true;
+    else
+        m_tempQuantizeOff = false;
+
+    auto curPos = mapToScene(event->pos());
+    if (event->modifiers() == Qt::AltModifier)
+        m_tempQuantizeOff = true;
+    else
+        m_tempQuantizeOff = false;
+
+    auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() /
+              TracksEditorGlobal::pixelsPerQuarterNote * 480;
+
+    int start;
+    int clipStart;
+    int left;
+    int clipLen;
+    int right;
+    int delta = qRound(dx);
+    int quantize = m_tempQuantizeOff ? 1 : 1920 / m_quantize;
+    m_propertyEdited = true;
+    if (m_mouseMoveBehavior == Move) {
+        left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
+        start = left - m_mouseDownClipStart;
+        m_currentEditingClip->setStart(start);
+    } else if (m_mouseMoveBehavior == ResizeLeft) {
+        left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
+        start = m_mouseDownStart;
+        clipStart = left - start;
+        clipLen = m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen - left;
+        if (clipLen <= 0) {
+            TimeGraphicsView::mouseMoveEvent(event);
+            return;
+        }
+
+        if (clipStart < 0) {
+            m_currentEditingClip->setClipStart(0);
+            m_currentEditingClip->setClipLen(m_mouseDownClipStart + m_mouseDownClipLen);
+        } else if (clipStart <= m_mouseDownClipStart + m_mouseDownClipLen) {
+            m_currentEditingClip->setClipStart(clipStart);
+            m_currentEditingClip->setClipLen(clipLen);
+        } else {
+            m_currentEditingClip->setClipStart(m_mouseDownClipStart + m_mouseDownClipLen);
+            m_currentEditingClip->setClipLen(0);
+        }
+    } else if (m_mouseMoveBehavior == ResizeRight) {
+        right = MathUtils::round(
+            m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize);
+        clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
+        if (clipLen <= 0) {
+            TimeGraphicsView::mouseMoveEvent(event);
+            return;
+        }
+
+        auto curClipStart = m_currentEditingClip->clipStart();
+        auto curLength = m_currentEditingClip->length();
+        if (!m_currentEditingClip->canResizeLength()) {
+            if (curClipStart + clipLen >= curLength)
+                m_currentEditingClip->setClipLen(curLength - curClipStart);
+            else
+                m_currentEditingClip->setClipLen(clipLen);
+        } else {
+            m_currentEditingClip->setLength(curClipStart + clipLen);
+            m_currentEditingClip->setClipLen(clipLen);
+        }
+    } else if (m_mouseMoveBehavior == None) {
+        m_propertyEdited = false;
+    }
     TimeGraphicsView::mouseMoveEvent(event);
+}
+void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
+    auto scenePos = mapToScene(event->pos());
+    if (m_mouseDownPos == scenePos) {
+        m_propertyEdited = false;
+    }
+    if (m_propertyEdited) {
+        handleClipEdited();
+    }
+    m_mouseMoveBehavior = None;
+    m_currentEditingClip = nullptr;
+    TimeGraphicsView::mouseReleaseEvent(event);
 }
 void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     auto scenePos = mapToScene(event->position().toPoint());
@@ -179,20 +261,20 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
     if (rx >= 0 && rx <= AppGlobal::resizeTolarance) {
         // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeLeft;
-        qDebug() << "ResizeLeft";
+        // qDebug() << "ResizeLeft";
         clearSelections();
         clipItem->setSelected(true);
     } else if (rx >= clipItem->rect().width() - AppGlobal::resizeTolarance &&
                rx <= clipItem->rect().width()) {
         // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeRight;
-        qDebug() << "ResizeRight";
+        // qDebug() << "ResizeRight";
         clearSelections();
         clipItem->setSelected(true);
     } else {
         // setCursor(Qt::ArrowCursor);
         m_mouseMoveBehavior = Move;
-        qDebug() << "Move";
+        // qDebug() << "Move";
     }
 
     m_currentEditingClip = clipItem;
@@ -221,4 +303,8 @@ QList<AbstractClipView *> TracksGraphicsView::selectedClipItems() const {
             if (clip->isSelected())
                 result.append(clip);
     return result;
+}
+void TracksGraphicsView::handleClipEdited() {
+    Clip::ClipCommonProperties args(*m_currentEditingClip);
+    trackController->onClipPropertyChanged(args);
 }
