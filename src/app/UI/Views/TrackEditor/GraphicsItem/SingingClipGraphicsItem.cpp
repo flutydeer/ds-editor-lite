@@ -45,9 +45,6 @@ QString SingingClipGraphicsItem::audioCachePath() const {
 void SingingClipGraphicsItem::setAudioCachePath(const QString &path) {
     m_audioCachePath = path;
 }
-std::tuple<qsizetype, qsizetype> SingingClipGraphicsItem::interval() const {
-    return std::make_tuple(0, 0);
-}
 void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type, Note *note) {
     switch (type) {
         case SingingClip::Inserted:

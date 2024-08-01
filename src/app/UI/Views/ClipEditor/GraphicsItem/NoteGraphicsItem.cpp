@@ -121,9 +121,6 @@ void NoteGraphicsItem::resetOffset() {
     m_keyOffset = 0;
     updateRectAndPos();
 }
-std::tuple<qsizetype, qsizetype> NoteGraphicsItem::interval() const {
-    return std::make_tuple(0, 0);
-}
 void NoteGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
     const auto backgroundColorNormal = QColor(155, 186, 255);

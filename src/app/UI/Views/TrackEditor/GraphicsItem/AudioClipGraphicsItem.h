@@ -26,7 +26,6 @@ public:
     void setAudioInfo(const AudioInfoModel &info);
     void setStatus(AppGlobal::AudioLoadStatus status);
     void setErrorMessage(const QString &errorMessage);
-    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
 public slots:
     void onTempoChange(double tempo);

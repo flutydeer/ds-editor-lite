@@ -35,7 +35,6 @@ public:
     void loadNotes(const OverlappableSerialList<Note> &notes);
     [[nodiscard]] QString audioCachePath() const;
     void setAudioCachePath(const QString &path);
-    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, Note *note);
