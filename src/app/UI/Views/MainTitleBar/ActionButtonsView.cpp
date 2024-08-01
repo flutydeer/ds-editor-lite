@@ -5,11 +5,10 @@
 #include "ActionButtonsView.h"
 
 #include "Modules/History/HistoryManager.h"
+#include "UI/Controls/ToolTipFilter.h"
 
 #include <QHBoxLayout>
 #include <QPushButton>
-
-#include "UI/Controls/ToolTipFilter.h"
 
 ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     m_btnSave = new QPushButton;

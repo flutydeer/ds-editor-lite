@@ -9,13 +9,13 @@
 
 #include "MainTitleBar.h"
 
+#include "ActionButtonsView.h"
+#include "MainMenuView.h"
+#include "PlaybackView.h"
 #include "Controller/AppController.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ToolTipFilter.h"
-#include "UI/Views/ActionButtonsView.h"
-#include "UI/Views/PlaybackView.h"
-#include "UI/Views/MainMenu/MainMenuView.h"
 
 #include <QEvent>
 #include <QGraphicsOpacityEffect>
@@ -96,7 +96,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
 
     setLayout(mainLayout);
     setFixedHeight(40);
-    m_opacityEffect = new QGraphicsOpacityEffect;
+    m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
 }
 MainMenuView *MainTitleBar::menuView() const {

@@ -7,7 +7,7 @@
 
 #include <QWidget>
 
-#include "Global/PlaybackGlobal.h"
+#include "../../../Global/PlaybackGlobal.h"
 
 class EditLabel;
 class QPushButton;
