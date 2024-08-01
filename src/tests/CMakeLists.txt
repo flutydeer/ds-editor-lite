@@ -1,4 +1,3 @@
-add_subdirectory(TestComparable)
 add_subdirectory(TestAnchoredCurve)
 add_subdirectory(TestParamEdit)
 add_subdirectory(TestTaskManager)

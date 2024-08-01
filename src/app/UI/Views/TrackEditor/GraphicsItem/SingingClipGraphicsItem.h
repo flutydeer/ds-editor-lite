@@ -14,7 +14,7 @@ class Note;
 class SingingClipGraphicsItem final : public AbstractClipGraphicsItem {
     Q_OBJECT
 public:
-    class NoteViewModel : public IOverlapable {
+    class NoteViewModel : public Overlappable {
     public:
         int id{};
         int rStart{};
@@ -23,6 +23,7 @@ public:
 
         int compareTo(NoteViewModel *obj) const;
         static bool isOverlappedWith(NoteViewModel *obj);
+        [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
     };
 
     [[nodiscard]] ClipType clipType() const override {
@@ -34,6 +35,7 @@ public:
     void loadNotes(const OverlappableSerialList<Note> &notes);
     [[nodiscard]] QString audioCachePath() const;
     void setAudioCachePath(const QString &path);
+    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, Note *note);

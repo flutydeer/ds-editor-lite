@@ -224,6 +224,9 @@ int HandDrawCurve::valueAt(int tick) {
     int value = m_values.at(index);
     return value;
 }
+std::tuple<qsizetype, qsizetype> HandDrawCurve::interval() const {
+    return std::make_tuple(0, 0);
+}
 int HandDrawCurve::step() const {
     return m_step;
 }

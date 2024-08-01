@@ -5,13 +5,13 @@
 #ifndef DATASET_TOOLS_PARAMEDITAREA_H
 #define DATASET_TOOLS_PARAMEDITAREA_H
 
-#include "../../app/Utils/IOverlapable.h"
+#include "../../app/Utils/Overlappable.h"
 #include "../../app/Utils/UniqueObject.h"
 #include "../../app/Utils/OverlappableSerialList.h"
 
 #include <QFrame>
 
-class HandDrawCurve : public UniqueObject, public IOverlapable {
+class HandDrawCurve : public UniqueObject, public Overlappable {
 public:
     int start() const;
     int step() const;
@@ -26,6 +26,7 @@ public:
     bool remove(int tick);
     bool merge(const HandDrawCurve &curve);
     void clear();
+    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
 protected:
     int m_start = 0;

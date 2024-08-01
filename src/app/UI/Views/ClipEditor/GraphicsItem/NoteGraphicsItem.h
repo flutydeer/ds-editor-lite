@@ -6,14 +6,14 @@
 #define NOTEGRAPHICSITEM_H
 
 #include "UI/Views/Common/CommonGraphicsRectItem.h"
-#include "Utils/IOverlapable.h"
+#include "Utils/Overlappable.h"
 #include "Utils/UniqueObject.h"
 
 class CMenu;
 
 class NoteGraphicsItem final : public CommonGraphicsRectItem,
                                public UniqueObject,
-                               public IOverlapable {
+                               public Overlappable {
     Q_OBJECT
 
 public:
@@ -47,6 +47,7 @@ public:
     [[nodiscard]] int keyOffset() const;
     void setKeyOffset(int key);
     void resetOffset();
+    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
 signals:
     void editLyricTriggered(int id);

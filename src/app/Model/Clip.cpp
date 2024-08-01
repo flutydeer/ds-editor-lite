@@ -84,6 +84,11 @@ bool Clip::isOverlappedWith(Clip *obj) const {
         return false;
     return true;
 }
+std::tuple<qsizetype, qsizetype> Clip::interval() const {
+    auto visibleStart = start() + clipStart();
+    auto visibleEnd = visibleStart + clipLen();
+    return std::make_tuple(visibleStart, visibleEnd);
+}
 Clip::ClipCommonProperties::ClipCommonProperties(const IClip &clip) {
     applyPropertiesFromClip(*this, clip);
 }

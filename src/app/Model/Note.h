@@ -8,7 +8,7 @@
 #include <QObject>
 #include <QList>
 
-#include "Utils/IOverlapable.h"
+#include "Utils/Overlappable.h"
 #include "Utils/ISelectable.h"
 #include "Utils/UniqueObject.h"
 
@@ -58,7 +58,7 @@ public:
     static QJsonObject serialize(const Phonemes &phonemes);
 };
 
-class Note : public QObject, public IOverlapable, public UniqueObject, public ISelectable {
+class Note : public QObject, public Overlappable, public UniqueObject, public ISelectable {
     Q_OBJECT
 
 public:
@@ -95,6 +95,7 @@ public:
 
     int compareTo(Note *obj) const;
     bool isOverlappedWith(Note *obj) const;
+    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
     friend QDataStream &operator<<(QDataStream &out, const Note &note);
     friend QDataStream &operator>>(QDataStream &in, Note &note);

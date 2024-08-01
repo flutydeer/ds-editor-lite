@@ -40,6 +40,9 @@ void AudioClipGraphicsItem::setErrorMessage(const QString &errorMessage) {
     m_errorMessage = errorMessage;
     update();
 }
+std::tuple<qsizetype, qsizetype> AudioClipGraphicsItem::interval() const {
+    return std::make_tuple(0, 0);
+}
 void AudioClipGraphicsItem::onTempoChange(double tempo) {
     // qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
     m_tempo = tempo;

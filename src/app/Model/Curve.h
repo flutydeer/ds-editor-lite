@@ -7,13 +7,13 @@
 
 #include <QList>
 
-#include "Utils/IOverlapable.h"
+#include "Utils/Overlappable.h"
 #include "Utils/ISelectable.h"
 #include "Utils/UniqueObject.h"
 
 class QPoint;
 
-class Curve : public IOverlapable, public UniqueObject {
+class Curve : public Overlappable, public UniqueObject {
 public:
     enum CurveType { Generic, Draw, Anchor };
 
@@ -35,6 +35,7 @@ public:
         return m_start;
     }
     bool isOverlappedWith(Curve *obj) const;
+    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
 private:
     int m_start = 0;
@@ -80,7 +81,7 @@ private:
     int m_endTick = 0;
 };
 
-class AnchorNode : public IOverlapable, public UniqueObject, public ISelectable {
+class AnchorNode : public Overlappable, public UniqueObject, public ISelectable {
 public:
     enum InterpMode { Linear, Hermite, Cubic, None };
 
@@ -96,6 +97,7 @@ public:
 
     int compareTo(AnchorNode *obj) const;
     bool isOverlappedWith(AnchorNode *obj) const;
+    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
 private:
     int m_pos;

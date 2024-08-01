@@ -23,6 +23,9 @@ int SingingClipGraphicsItem::NoteViewModel::compareTo(NoteViewModel *obj) const 
 bool SingingClipGraphicsItem::NoteViewModel::isOverlappedWith(NoteViewModel *obj) {
     return false;
 }
+std::tuple<qsizetype, qsizetype> SingingClipGraphicsItem::NoteViewModel::interval() const {
+    return std::make_tuple(0, 0);
+}
 SingingClipGraphicsItem::SingingClipGraphicsItem(int itemId, QGraphicsItem *parent)
     : AbstractClipGraphicsItem(itemId, parent) {
     setCanResizeLength(true);
@@ -41,6 +44,9 @@ QString SingingClipGraphicsItem::audioCachePath() const {
 }
 void SingingClipGraphicsItem::setAudioCachePath(const QString &path) {
     m_audioCachePath = path;
+}
+std::tuple<qsizetype, qsizetype> SingingClipGraphicsItem::interval() const {
+    return std::make_tuple(0, 0);
 }
 void SingingClipGraphicsItem::onNoteListChanged(SingingClip::NoteChangeType type, Note *note) {
     switch (type) {

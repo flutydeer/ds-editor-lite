@@ -9,7 +9,7 @@
 
 #include "UI/Utils/ITimelinePainter.h"
 #include "Utils/OverlappableSerialList.h"
-#include "Utils/IOverlapable.h"
+#include "Utils/Overlappable.h"
 #include "Model/Clip.h"
 
 class Note;
@@ -27,7 +27,7 @@ public:
     void updateNotePhonemes(Note *note);
     void reset();
 
-    class NoteViewModel : public IOverlapable {
+    class NoteViewModel : public Overlappable {
     public:
         int id = -1;
         int start = 0;
@@ -54,6 +54,9 @@ public:
             if (otherEnd <= start || curEnd <= otherStart)
                 return false;
             return true;
+        }
+        [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override {
+            return std::make_tuple(start, start + length);
         }
     };
 

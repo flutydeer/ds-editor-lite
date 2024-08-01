@@ -8,12 +8,12 @@
 #include "Interface/IClip.h"
 #include "Model/Clip.h"
 #include "UI/Views/Common/CommonGraphicsRectItem.h"
-#include "Utils/IOverlapable.h"
+#include "Utils/Overlappable.h"
 
 class Menu;
 class AbstractClipGraphicsItemPrivate;
 
-class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IClip, public IOverlapable {
+class AbstractClipGraphicsItem : public CommonGraphicsRectItem, public IClip, public Overlappable {
     Q_OBJECT
 
 public:

@@ -92,6 +92,9 @@ bool Note::isOverlappedWith(Note *obj) const {
         return false;
     return true;
 }
+std::tuple<qsizetype, qsizetype> Note::interval() const {
+    return std::make_tuple(start(), start() + length());
+}
 Note::NoteWordProperties Note::NoteWordProperties::fromNote(const Note &note) {
     NoteWordProperties properties;
     properties.lyric = note.lyric();
