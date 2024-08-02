@@ -9,6 +9,7 @@
 #include <TalcsDevice/AudioSourcePlayback.h>
 
 #include <Model/AppOptions/AppOptions.h>
+#include <Modules/Audio/AudioSettings.h>
 
 OutputSystem::OutputSystem(QObject *parent) : AbstractOutputSystem(parent), m_outputContext(new talcs::OutputContext) {
     setContext(m_outputContext.get());
@@ -17,14 +18,14 @@ OutputSystem::OutputSystem(QObject *parent) : AbstractOutputSystem(parent), m_ou
 OutputSystem::~OutputSystem() = default;
 
 bool OutputSystem::initialize() {
-    m_outputContext->setAdoptedBufferSize(appOptions->audio()->adoptedBufferSize);
-    m_outputContext->setAdoptedSampleRate(appOptions->audio()->adoptedSampleRate);
-    m_outputContext->controlMixer()->setGain(appOptions->audio()->deviceGain);
-    m_outputContext->controlMixer()->setPan(appOptions->audio()->devicePan);
-    m_outputContext->setHotPlugNotificationMode(appOptions->audio()->hotPlugNotificationMode);
-    setFileBufferingReadAheadSize(appOptions->audio()->fileBufferingReadAheadSize);
+    m_outputContext->setAdoptedBufferSize(AudioSettings::adoptedBufferSize());
+    m_outputContext->setAdoptedSampleRate(AudioSettings::adoptedSampleRate());
+    m_outputContext->controlMixer()->setGain(static_cast<float>(AudioSettings::deviceGain()));
+    m_outputContext->controlMixer()->setPan(static_cast<float>(AudioSettings::devicePan()));
+    m_outputContext->setHotPlugNotificationMode(static_cast<talcs::OutputContext::HotPlugNotificationMode>(AudioSettings::hotPlugNotificationMode()));
+    setFileBufferingReadAheadSize(AudioSettings::fileBufferingReadAheadSize());
 
-    if (m_outputContext->initialize(appOptions->audio()->driverName, appOptions->audio()->deviceName)) {
+    if (m_outputContext->initialize(AudioSettings::driverName(), AudioSettings::deviceName())) {
         qDebug() << "Audio::OutputSystem: device initialized"
                  << m_outputContext->device()->name()
                  << m_outputContext->driver()->name()
@@ -69,7 +70,7 @@ bool OutputSystem::setDevice(const QString &deviceName) {
 }
 
 bool OutputSystem::setAdoptedBufferSize(qint64 bufferSize) {
-    appOptions->audio()->adoptedBufferSize = bufferSize;
+    AudioSettings::setAdoptedBufferSize(bufferSize);
     if (m_outputContext->setAdoptedBufferSize(bufferSize)) {
         qDebug() << "Audio::OutputSystem: buffer size changed"
                  << m_outputContext->device()->name()
@@ -88,7 +89,7 @@ bool OutputSystem::setAdoptedBufferSize(qint64 bufferSize) {
 }
 
 bool OutputSystem::setAdoptedSampleRate(double sampleRate) {
-    appOptions->audio()->adoptedSampleRate = sampleRate;
+    AudioSettings::setAdoptedSampleRate(sampleRate);
     if (m_outputContext->setAdoptedSampleRate(sampleRate)) {
         qDebug() << "Audio::OutputSystem: sample rate changed"
                  << m_outputContext->device()->name()
@@ -107,14 +108,14 @@ bool OutputSystem::setAdoptedSampleRate(double sampleRate) {
 }
 
 void OutputSystem::setHotPlugNotificationMode(talcs::OutputContext::HotPlugNotificationMode mode) {
-    appOptions->audio()->hotPlugNotificationMode = mode;
+    AudioSettings::setHotPlugNotificationMode(mode);
     m_outputContext->setHotPlugNotificationMode(mode);
     qDebug() << "Audio::OutputSystem: hot plug notification mode set to" << mode;
 }
 
 void OutputSystem::postSetDevice() const {
-    appOptions->audio()->driverName = m_outputContext->driver()->name();
-    appOptions->audio()->deviceName = m_outputContext->device()->name();
-    appOptions->audio()->adoptedSampleRate = m_outputContext->adoptedSampleRate();
-    appOptions->audio()->adoptedBufferSize = m_outputContext->adoptedBufferSize();
+    AudioSettings::setDriverName(m_outputContext->driver()->name());
+    AudioSettings::setDeviceName(m_outputContext->device()->name());
+    AudioSettings::setAdoptedSampleRate(m_outputContext->adoptedSampleRate());
+    AudioSettings::setAdoptedBufferSize(m_outputContext->adoptedBufferSize());
 }

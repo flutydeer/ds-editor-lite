@@ -26,6 +26,7 @@
 
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/AbstractOutputSystem.h>
+#include <Modules/Audio/AudioSettings.h>
 
 #include "Model/Track.h"
 #include <Model/AppOptions/AppOptions.h>
@@ -189,7 +190,7 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
     setFormatManager(formatManager);
 
-    setBufferingReadAheadSize(appOptions->audio()->fileBufferingReadAheadSize);
+    setBufferingReadAheadSize(AudioSettings::fileBufferingReadAheadSize());
 
     connect(transport(), &talcs::TransportAudioSource::positionAboutToChange, this, [=](qint64 positionSample) {
         m_transportPositionFlag = false;

@@ -5,26 +5,11 @@
 
 class QComboBox;
 class QCheckBox;
-class QSpinBox;
-class QDoubleSpinBox;
-
-class SeekBar;
 
 namespace SVS {
-    using SeekBar = ::SeekBar;
-    using ExpressionSpinBox = ::QSpinBox;
-    using ExpressionDoubleSpinBox = ::QDoubleSpinBox;
-
-    class DecibelLinearizer {
-    public:
-        inline static double decibelToLinearValue(double decibel, double factor = -24) {
-            return std::exp((decibel - factor) / - factor) - std::exp(1);
-        }
-
-        inline static double linearValueToDecibel(double linearValue, double factor = -24) {
-            return -factor * std::log(linearValue + std::exp(1)) + factor;
-        }
-    };
+    class SeekBar;
+    class ExpressionSpinBox;
+    class ExpressionDoubleSpinBox;
 }
 
 class OutputPlaybackPageWidget : public QWidget {

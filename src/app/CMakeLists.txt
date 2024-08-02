@@ -38,6 +38,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         LangMgr
         QWindowKit::Widgets
         qtmediate::Widgets
+        svscraft::Widgets
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)

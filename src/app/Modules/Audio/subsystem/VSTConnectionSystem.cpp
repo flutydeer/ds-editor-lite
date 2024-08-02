@@ -4,6 +4,7 @@
 #include <QJsonDocument>
 #include <QStandardPaths>
 #include <QFile>
+#include <QJsonObject>
 
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsCore/NoteSynthesizer.h>
@@ -16,13 +17,8 @@
 #include <TalcsRemote/RemoteMidiMessageIntegrator.h>
 #include <TalcsMidi/MidiNoteSynthesizer.h>
 
-#include <Model/AppOptions/AppOptions.h>
-
-static double msecToRate(int msec, double sampleRate) {
-    if (msec == 0)
-        return 0.005;
-    return std::pow(0.005, 1000.0 / (msec * sampleRate));
-}
+#include <Modules/Audio/AudioSettings.h>
+#include <Modules/Audio/utils/AudioHelpers.h>
 
 VSTConnectionSystem::VSTConnectionSystem(QObject *parent) : AbstractOutputSystem(parent) {
     m_remoteOutputContext = std::make_unique<talcs::RemoteOutputContext>();
@@ -72,10 +68,10 @@ bool VSTConnectionSystem::createVSTConfig() {
     }
     QJsonDocument doc({
         {"editor",      QApplication::applicationFilePath()},
-        {"editorPort",  appOptions->audio()->vstEditorPort},
-        {"pluginPort",  appOptions->audio()->vstPluginPort},
+        {"editorPort",  AudioSettings::vstEditorPort()},
+        {"pluginPort",  AudioSettings::vstPluginPort()},
         {"threadCount", QThread::idealThreadCount()},
-        {"theme",       appOptions->audio()->vstPluginEditorUsesCustomTheme ? QJsonValue(appOptions->audio()->vstTheme) : QJsonValue::Null},
+        {"theme",       AudioSettings::vstPluginEditorUsesCustomTheme() ? AudioSettings::vstTheme() : QJsonValue::Null},
     });
     vstConfigFile.write(doc.toJson());
     return true;
@@ -83,10 +79,10 @@ bool VSTConnectionSystem::createVSTConfig() {
 bool VSTConnectionSystem::initialize() {
     if (!createVSTConfig())
         return false;
-    auto editorPort = appOptions->audio()->vstEditorPort;
-    auto pluginPort = appOptions->audio()->vstPluginPort;
+    auto editorPort = AudioSettings::vstEditorPort();
+    auto pluginPort = AudioSettings::vstPluginPort();
 
-    setFileBufferingReadAheadSize(appOptions->audio()->fileBufferingReadAheadSize);
+    setFileBufferingReadAheadSize(AudioSettings::fileBufferingReadAheadSize());
     if (!m_remoteOutputContext->initialize(editorPort, pluginPort)) {
         qWarning() << "Audio::VSTConnectionSystem: fatal: socket fails to start server";
         return false;
@@ -121,16 +117,20 @@ talcs::RemoteMidiMessageIntegrator *VSTConnectionSystem::integrator() const {
 talcs::MidiNoteSynthesizer *VSTConnectionSystem::synthesizer() const {
     return m_synthesizer.get();
 }
+
 void VSTConnectionSystem::syncSynthesizerPreference() {
     auto dev = m_remoteOutputContext->device();
-    m_synthesizer->noteSynthesizer()->setGenerator(static_cast<talcs::NoteSynthesizer::Generator>(appOptions->audio()->midiSynthesizerGenerator));
-    m_synthesizer->noteSynthesizer()->setAttackRate(msecToRate(appOptions->audio()->midiSynthesizerAttackMsec, dev && dev->isOpen() ? dev->sampleRate() : 48000));
-    m_synthesizer->noteSynthesizer()->setReleaseRate(msecToRate(appOptions->audio()->midiSynthesizerReleaseMsec, dev && dev->isOpen() ? dev->sampleRate() : 48000));
-    m_synthesizerMixer->setGain(talcs::Decibels::decibelsToGain(appOptions->audio()->midiSynthesizerAmplitude));
-    if (qFuzzyIsNull(appOptions->audio()->midiSynthesizerFrequencyOfA)) {
+    auto sampleRate = dev && dev->isOpen() ? dev->sampleRate() : 48000;
+    m_synthesizer->noteSynthesizer()->setGenerator(static_cast<talcs::NoteSynthesizer::Generator>(AudioSettings::midiSynthesizerGenerator()));
+    m_synthesizer->noteSynthesizer()->setAttackTime(AudioHelpers::msecToSample(AudioSettings::midiSynthesizerAttackMsec(), sampleRate));
+    m_synthesizer->noteSynthesizer()->setDecayTime(AudioHelpers::msecToSample(AudioSettings::midiSynthesizerDecayMsec(), sampleRate));
+    m_synthesizer->noteSynthesizer()->setDecayRatio(AudioSettings::midiSynthesizerDecayRatio());
+    m_synthesizer->noteSynthesizer()->setReleaseTime(AudioHelpers::msecToSample(AudioSettings::midiSynthesizerReleaseMsec(), sampleRate));
+    m_synthesizerMixer->setGain(talcs::Decibels::decibelsToGain(AudioSettings::midiSynthesizerAmplitude()));
+    if (qFuzzyIsNull(AudioSettings::midiSynthesizerFrequencyOfA())) {
         // TODO
     } else {
-        m_synthesizer->setFrequencyOfA(appOptions->audio()->midiSynthesizerFrequencyOfA);
+        m_synthesizer->setFrequencyOfA(AudioSettings::midiSynthesizerFrequencyOfA());
     }
 }
 QPair<QString, QString> VSTConnectionSystem::hostSpecs() const {
@@ -143,8 +143,9 @@ bool VSTConnectionSystem::setEditorData(const QByteArray &data) {
     return false; // TODO
 }
 void VSTConnectionSystem::handleSampleRateChange(double sampleRate) {
-    m_synthesizer->noteSynthesizer()->setAttackRate(msecToRate(appOptions->audio()->midiSynthesizerAttackMsec, sampleRate));
-    m_synthesizer->noteSynthesizer()->setReleaseRate(msecToRate(appOptions->audio()->midiSynthesizerReleaseMsec, sampleRate));
+    m_synthesizer->noteSynthesizer()->setAttackTime(AudioHelpers::msecToSample(AudioSettings::midiSynthesizerAttackMsec(), sampleRate));
+    m_synthesizer->noteSynthesizer()->setDecayTime(AudioHelpers::msecToSample(AudioSettings::midiSynthesizerDecayMsec(), sampleRate));
+    m_synthesizer->noteSynthesizer()->setReleaseTime(AudioHelpers::msecToSample(AudioSettings::midiSynthesizerReleaseMsec(), sampleRate));
 }
 void VSTConnectionSystem::setHostSpecs(const QString &hostExecutable, const QString &pluginFormat) {
     m_hostSpecs = {hostExecutable, pluginFormat};

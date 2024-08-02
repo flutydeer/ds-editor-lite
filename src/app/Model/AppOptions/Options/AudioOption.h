@@ -17,26 +17,7 @@ public:
 
     void load(const QJsonObject &object) override;
 
-    QString driverName;
-    QString deviceName;
-    double adoptedSampleRate{};
-    qint64 adoptedBufferSize{};
-    double deviceGain = 1.0;
-    double devicePan{};
-    talcs::OutputContext::HotPlugNotificationMode hotPlugNotificationMode{};
-    double fileBufferingReadAheadSize{};
-
-    quint16 vstEditorPort = 28081;
-    quint16 vstPluginPort = 28082;
-    bool vstPluginEditorUsesCustomTheme{};
-    QJsonObject vstTheme{};
-
-    int midiDeviceIndex{};
-    talcs::NoteSynthesizer::Generator midiSynthesizerGenerator{};
-    int midiSynthesizerAttackMsec = 10;
-    int midiSynthesizerReleaseMsec = 50;
-    double midiSynthesizerAmplitude = -3.0;
-    double midiSynthesizerFrequencyOfA{};
+    QJsonObject obj;
 
 protected:
     void save(QJsonObject &object) override;

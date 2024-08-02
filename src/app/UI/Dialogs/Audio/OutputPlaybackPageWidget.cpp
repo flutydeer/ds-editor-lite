@@ -18,11 +18,17 @@
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsDevice/SDLAudioDriverDisplayNameHelper.h>
 
+#include <SVSCraftCore/decibellinearizer.h>
+#include <SVSCraftWidgets/expressionspinbox.h>
+#include <SVSCraftWidgets/expressiondoublespinbox.h>
+#include <SVSCraftWidgets/seekbar.h>
+
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/subsystem/VSTConnectionSystem.h>
 #include <Modules/Audio/AudioContext.h>
 #include <Modules/Audio/utils/DeviceTester.h>
+#include <Modules/Audio/AudioSettings.h>
 
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
@@ -164,7 +170,7 @@ OutputPlaybackPageWidget::OutputPlaybackPageWidget(QWidget *parent) : QWidget(pa
         updatePan(sliderValueToPan(value));
     });
 
-    m_fileBufferingReadAheadSizeSpinBox->setValue(appOptions->audio()->fileBufferingReadAheadSize);
+    m_fileBufferingReadAheadSizeSpinBox->setValue(AudioSettings::fileBufferingReadAheadSize());
 }
 
 void OutputPlaybackPageWidget::accept() const {
@@ -173,10 +179,9 @@ void OutputPlaybackPageWidget::accept() const {
             m_hotPlugModeComboBox->currentIndex()));
     AudioSystem::outputSystem()->setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
     AudioSystem::vstConnectionSystem()->setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
-    appOptions->audio()->deviceGain = AudioSystem::outputSystem()->outputContext()->controlMixer()->gain();
-    appOptions->audio()->devicePan = AudioSystem::outputSystem()->outputContext()->controlMixer()->pan();
-    appOptions->audio()->fileBufferingReadAheadSize = m_fileBufferingReadAheadSizeSpinBox->value();
-    AudioContext::instance()->setBufferingReadAheadSize(appOptions->audio()->fileBufferingReadAheadSize);
+    AudioSettings::setDeviceGain(AudioSystem::outputSystem()->outputContext()->controlMixer()->gain());
+    AudioSettings::setDevicePan(AudioSystem::outputSystem()->outputContext()->controlMixer()->pan());
+    AudioSettings::setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
     appOptions->saveAndNotify();
 }
 
