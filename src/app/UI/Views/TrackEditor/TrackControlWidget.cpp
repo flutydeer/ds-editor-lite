@@ -11,6 +11,7 @@
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/SeekBar.h"
+#include "UI/Views/Common/LanguageComboBox.h"
 
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
@@ -59,11 +60,13 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, int id, QWidget *p
     connect(m_btnSolo, &QPushButton::clicked, this, [&] { changeTrackProperty(); });
 
     m_leTrackName = new EditLabel();
-    m_leTrackName->setText("Track 1");
     m_leTrackName->setObjectName("leTrackName");
     m_leTrackName->setMinimumHeight(m_buttonSize);
     m_leTrackName->setMaximumHeight(m_buttonSize);
     connect(m_leTrackName, &EditLabel::editCompleted, this, [&] { changeTrackProperty(); });
+
+    m_cbLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::Unknown));
+    m_cbLanguage->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
 
     m_muteSoloTrackNameLayout = new QHBoxLayout;
     m_muteSoloTrackNameLayout->setObjectName("muteSoloTrackNameLayout");
@@ -71,6 +74,7 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, int id, QWidget *p
     m_muteSoloTrackNameLayout->addWidget(m_btnMute);
     m_muteSoloTrackNameLayout->addWidget(m_btnSolo);
     m_muteSoloTrackNameLayout->addWidget(m_leTrackName);
+    m_muteSoloTrackNameLayout->addWidget(m_cbLanguage);
     m_muteSoloTrackNameLayout->setSpacing(4);
     m_muteSoloTrackNameLayout->setContentsMargins(4, 8, 4, 8);
 
@@ -198,6 +202,9 @@ void TrackControlWidget::setNarrowMode(bool on) {
             m_panVolumeLayout->setContentsMargins(4, 0, 4, 8);
         }
     }
+}
+void TrackControlWidget::setLanguage(AppGlobal::languageType lang) {
+    m_cbLanguage->setCurrentIndex(lang);
 }
 LevelMeter *TrackControlWidget::levelMeter() const {
     return m_levelMeter;

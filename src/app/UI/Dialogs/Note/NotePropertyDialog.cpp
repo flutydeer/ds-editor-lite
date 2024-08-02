@@ -6,21 +6,35 @@
 
 #include "Global/ClipEditorGlobal.h"
 #include "Model/Note.h"
+#include "UI/Controls/AccentButton.h"
+#include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
+#include "UI/Views/Common/LanguageComboBox.h"
 
+#include <QSpinBox>
 #include <QFormLayout>
-#include <QLabel>
 
 NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     : OKCancelDialog(parent), m_note() {
-    setWindowTitle(tr("Properties of note \"%1\"").arg(note->lyric()));
+    setWindowTitle(tr("Note Properties - %1").arg(note->lyric()));
     setFocusPolicy(Qt::ClickFocus);
 
-    // TODO：用 ComboBox 选择语言
-    auto leLanguage = new QLineEdit(note->language());
+    auto sbStart = new QSpinBox;
+    sbStart->setMinimum(0);
+    sbStart->setMaximum(INT_MAX);
+    sbStart->setValue(note->start());
+    sbStart->setSingleStep(5);
+
+    auto sbLength = new QSpinBox;
+    sbLength->setMinimum(0);
+    sbLength->setMaximum(INT_MAX);
+    sbLength->setValue(note->length());
+    sbLength->setSingleStep(5);
+
+    auto cbLanguage = new LanguageComboBox(note->language());
 
     auto leLyric = new QLineEdit(note->lyric());
-    leLyric->setPlaceholderText(ClipEditorGlobal::defaultLyric);
+    leLyric->setPlaceholderText(note->lyric());
 
     auto lePron = new QLineEdit(note->pronunciation().edited);
     lePron->setPlaceholderText(note->pronunciation().original);
@@ -49,25 +63,23 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     lePhonemeFinal->setPlaceholderText(phonemesToString(originalFinal));
 
     auto mainLayout = new QFormLayout;
-    mainLayout->addRow(tr("Language:"), leLanguage);
+    mainLayout->setLabelAlignment(Qt::AlignmentFlag::AlignRight | Qt::AlignmentFlag::AlignTrailing |
+                                  Qt::AlignmentFlag::AlignVCenter);
+    mainLayout->addRow(tr("Start:"), sbStart);
+    mainLayout->addRow(tr("Length:"), sbLength);
+    mainLayout->addRow(tr("Language:"), cbLanguage);
     mainLayout->addRow(tr("Lyric:"), leLyric);
     mainLayout->addRow(tr("Pronunciation:"), lePron);
-    mainLayout->addRow(tr("Phonemes Ahead:"), lePhonemeAhead);
-    mainLayout->addRow(tr("Phonemes Normal:"), lePhonemeNormal);
-    mainLayout->addRow(tr("Phonemes Final:"), lePhonemeFinal);
+    mainLayout->addRow(tr("Ahead Phonemes:"), lePhonemeAhead);
+    mainLayout->addRow(tr("Normal Phonemes:"), lePhonemeNormal);
+    mainLayout->addRow(tr("Final Phonemes:"), lePhonemeFinal);
     mainLayout->setContentsMargins({});
-
-    // auto mainLayout = new QVBoxLayout();
-    // mainLayout->addWidget(leLanguage);
-    // mainLayout->addWidget(leLyric);
-    // mainLayout->addWidget(lePron);
-    // mainLayout->addWidget(lePhonemeAhead);
-    // mainLayout->addWidget(lePhonemeNormal);
-    // mainLayout->addWidget(lePhonemeFinal);
 
     body()->setLayout(mainLayout);
 
     setModal(true);
+    connect(okButton(), &AccentButton::clicked, this, &Dialog::accept);
+    connect(cancelButton(), &AccentButton::clicked, this, &Dialog::reject);
 }
 void NotePropertyDialog::regroupPhonemes(const QList<Phoneme> &phonemes, QList<Phoneme> &ahead,
                                          QList<Phoneme> &normal, QList<Phoneme> &final) {
@@ -88,6 +100,17 @@ QString NotePropertyDialog::phonemesToString(const QList<Phoneme> &phonemes) {
         if (i < phonemes.count() - 1)
             result.append(" ");
         i++;
+    }
+    return result;
+}
+QList<Phoneme> NotePropertyDialog::phonemesFromString(Phoneme::PhonemeType type,
+                                                      const QString &names) {
+    QList<Phoneme> result;
+    for (const auto &item : names.split(" ")) {
+        Phoneme phoneme;
+        phoneme.type = type;
+        phoneme.name = item;
+        result.append(phoneme);
     }
     return result;
 }

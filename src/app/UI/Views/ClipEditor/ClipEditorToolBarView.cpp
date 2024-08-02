@@ -3,6 +3,7 @@
 //
 
 #include "ClipEditorToolBarView.h"
+#include "ClipEditorToolBarView_p.h"
 
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel.h"
@@ -10,168 +11,160 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/ToolTipFilter.h"
+#include "UI/Views/Common/LanguageComboBox.h"
 
 #include <QButtonGroup>
 #include <QHBoxLayout>
 
-ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent) : QWidget(parent) {
+ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
+    : QWidget(parent), d_ptr(new ClipEditorToolBarViewPrivate(this)) {
+    Q_D(ClipEditorToolBarView);
     setObjectName("ClipEditorToolBarView");
 
-    m_elClipName = new EditLabel;
-    m_elClipName->setFixedWidth(128);
-    m_elClipName->setFixedHeight(m_contentHeight);
-    m_elClipName->setEnabled(false);
-    m_elClipName->setText("");
-    m_elClipName->setStyleSheet(
-        "QLabel { color: #F0F0F0; background: #10FFFFFF; border-radius: 4px; }"
-        "QLabel:hover { background: #1AFFFFFF; }"
-        "QLineEdit { border-radius: 4px; }");
-    connect(m_elClipName, &EditLabel::editCompleted, this,
-            &ClipEditorToolBarView::onClipNameEdited);
+    d->m_elClipName = new EditLabel;
+    d->m_elClipName->setObjectName("ClipNameEditLabel");
+    d->m_elClipName->setFixedWidth(128);
+    d->m_elClipName->setFixedHeight(d->m_contentHeight);
+    d->m_elClipName->setEnabled(false);
+    d->m_elClipName->setText("");
+    connect(d->m_elClipName, &EditLabel::editCompleted, d,
+            &ClipEditorToolBarViewPrivate::onClipNameEdited);
 
-    m_btnArrow = new Button;
-    m_btnArrow->setObjectName("btnArrow");
-    m_btnArrow->setCheckable(true);
-    m_btnArrow->setFixedSize(m_contentHeight, m_contentHeight);
-    m_btnArrow->setChecked(true);
-    m_btnArrow->setToolTip(tr("Select"));
-    m_btnArrow->installEventFilter(new ToolTipFilter(m_btnArrow, 500, false, true));
+    d->m_btnArrow = new Button;
+    d->m_btnArrow->setObjectName("btnArrow");
+    d->m_btnArrow->setCheckable(true);
+    d->m_btnArrow->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    d->m_btnArrow->setChecked(true);
+    d->m_btnArrow->setToolTip(tr("Select"));
+    d->m_btnArrow->installEventFilter(new ToolTipFilter(d->m_btnArrow, 500, false, true));
 
-    m_btnNotePencil = new Button;
-    m_btnNotePencil->setObjectName("btnNotePencil");
-    m_btnNotePencil->setCheckable(true);
-    m_btnNotePencil->setFixedSize(m_contentHeight, m_contentHeight);
-    m_btnNotePencil->setToolTip(tr("Draw Note"));
-    m_btnNotePencil->installEventFilter(new ToolTipFilter(m_btnNotePencil, 500, false, true));
+    d->m_btnNotePencil = new Button;
+    d->m_btnNotePencil->setObjectName("btnNotePencil");
+    d->m_btnNotePencil->setCheckable(true);
+    d->m_btnNotePencil->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    d->m_btnNotePencil->setToolTip(tr("Draw Note"));
+    d->m_btnNotePencil->installEventFilter(new ToolTipFilter(d->m_btnNotePencil, 500, false, true));
 
-    m_btnPitchAnchor = new Button;
-    m_btnPitchAnchor->setObjectName("btnPitchAnchor");
-    m_btnPitchAnchor->setCheckable(true);
-    m_btnPitchAnchor->setIcon(icoPitchAnchorWhite);
-    m_btnPitchAnchor->setFixedSize(m_contentHeight, m_contentHeight);
-    m_btnPitchAnchor->setToolTip(tr("Pitch Anchor"));
-    m_btnPitchAnchor->installEventFilter(new ToolTipFilter(m_btnPitchAnchor, 500, false, true));
+    d->m_btnPitchAnchor = new Button;
+    d->m_btnPitchAnchor->setObjectName("btnPitchAnchor");
+    d->m_btnPitchAnchor->setCheckable(true);
+    d->m_btnPitchAnchor->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    d->m_btnPitchAnchor->setToolTip(tr("Pitch Anchor"));
+    d->m_btnPitchAnchor->installEventFilter(
+        new ToolTipFilter(d->m_btnPitchAnchor, 500, false, true));
 
-    m_btnPitchPencil = new Button;
-    m_btnPitchPencil->setObjectName("btnPitchPencil");
-    m_btnPitchPencil->setCheckable(true);
-    m_btnPitchPencil->setFixedSize(m_contentHeight, m_contentHeight);
-    m_btnPitchPencil->setToolTip(tr("Draw Pitch"));
-    m_btnPitchPencil->installEventFilter(new ToolTipFilter(m_btnPitchPencil, 500, false, true));
+    d->m_btnPitchPencil = new Button;
+    d->m_btnPitchPencil->setObjectName("btnPitchPencil");
+    d->m_btnPitchPencil->setCheckable(true);
+    d->m_btnPitchPencil->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    d->m_btnPitchPencil->setToolTip(tr("Draw Pitch"));
+    d->m_btnPitchPencil->installEventFilter(
+        new ToolTipFilter(d->m_btnPitchPencil, 500, false, true));
 
     auto buttonGroup = new QButtonGroup;
     buttonGroup->setExclusive(true);
-    buttonGroup->addButton(m_btnArrow);
-    buttonGroup->addButton(m_btnNotePencil);
-    buttonGroup->addButton(m_btnPitchAnchor);
-    buttonGroup->addButton(m_btnPitchPencil);
-    connect(buttonGroup, &QButtonGroup::buttonToggled, this,
-            &ClipEditorToolBarView::onPianoRollToolButtonToggled);
+    buttonGroup->addButton(d->m_btnArrow);
+    buttonGroup->addButton(d->m_btnNotePencil);
+    buttonGroup->addButton(d->m_btnPitchAnchor);
+    buttonGroup->addButton(d->m_btnPitchPencil);
+    connect(buttonGroup, &QButtonGroup::buttonToggled, d,
+            &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
+
+    d->m_cbLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::Unknown));
 
     auto mainLayout = new QHBoxLayout;
-    mainLayout->addWidget(m_elClipName);
+    mainLayout->addWidget(d->m_elClipName);
     mainLayout->addSpacing(6);
-    mainLayout->addWidget(m_btnArrow);
-    mainLayout->addWidget(m_btnNotePencil);
-    mainLayout->addWidget(m_btnPitchAnchor);
-    mainLayout->addWidget(m_btnPitchPencil);
+    mainLayout->addWidget(d->m_btnArrow);
+    mainLayout->addWidget(d->m_btnNotePencil);
+    mainLayout->addWidget(d->m_btnPitchAnchor);
+    mainLayout->addWidget(d->m_btnPitchPencil);
     mainLayout->setSpacing(6);
     mainLayout->setContentsMargins(6, 6, 6, 6);
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
+    mainLayout->addWidget(d->m_cbLanguage);
     setLayout(mainLayout);
-    setStyleSheet(
-        "QPushButton {padding: 0px; border: none; background: none; border-radius: 6px; }"
-        "QPushButton:checked { background-color: #9BBAFF; }"
-        "QPushButton:hover { background: #1AFFFFFF; }"
-        "QPushButton:pressed { background: #10FFFFFF; }"
-        "QPushButton#btnArrow { icon: url(:svg/icons/cursor_24_filled_white.svg) }"
-        "QPushButton#btnArrow:checked { icon: url(:svg/icons/cursor_24_filled.svg)} "
-        "QPushButton#btnArrow:checked:hover { background-color: #9BBAFF;} "
+    setFixedHeight(d->m_contentHeight + 12);
 
-        "QPushButton#btnNotePencil { icon: url(:svg/icons/edit_24_filled_white.svg) }"
-        "QPushButton#btnNotePencil:checked { icon: url(:svg/icons/edit_24_filled.svg)} "
-        "QPushButton#btnNotePencil:checked:hover { background-color: #9BBAFF;} "
-
-        "QPushButton#btnPitchAnchor { icon: url(:svg/icons/pitch_anchor_24_filled_white.svg) }"
-        "QPushButton#btnPitchAnchor:checked { icon: url(:svg/icons/pitch_anchor_24_filled.svg)} "
-        "QPushButton#btnPitchAnchor:checked:hover { background-color: #9BBAFF;} "
-
-        "QPushButton#btnPitchPencil { icon: url(:svg/icons/pitch_edit_24_filled_white.svg) }"
-        "QPushButton#btnPitchPencil:checked { icon: url(:svg/icons/pitch_edit_24_filled.svg)} "
-        "QPushButton#btnPitchPencil:checked:hover { background-color: #9BBAFF;} "
-
-        "QComboBox { color: #F0F0F0; border: none; background: #10FFFFFF; border-radius: 6px; }"
-        "QComboBox:hover { background: #1AFFFFFF; }"
-        "QComboBox:pressed { background: #10FFFFFF; }");
-    setFixedHeight(m_contentHeight + 12);
-
-    moveToNullClipState();
+    d->moveToNullClipState();
 }
 void ClipEditorToolBarView::setDataContext(Clip *clip) {
-    if (m_clip)
-        disconnect(m_clip, &Clip::propertyChanged, this,
-                   &ClipEditorToolBarView::onClipPropertyChanged);
+    Q_D(ClipEditorToolBarView);
+    if (d->m_clip)
+        disconnect(d->m_clip, nullptr, d, nullptr);
+    if (d->m_singingClip)
+        disconnect(d->m_singingClip, nullptr, d, nullptr);
 
-    m_clip = clip;
+    d->m_clip = clip;
     if (clip == nullptr) {
-        moveToNullClipState();
+        d->moveToNullClipState();
         return;
     }
-    connect(m_clip, &Clip::propertyChanged, this, &ClipEditorToolBarView::onClipPropertyChanged);
-    if (clip->clipType() == Clip::Singing)
-        moveToSingingClipState();
-    else if (clip->clipType() == Clip::Audio)
-        moveToAudioClipState();
+    connect(d->m_clip, &Clip::propertyChanged, d,
+            &ClipEditorToolBarViewPrivate::onClipPropertyChanged);
+    if (clip->clipType() == Clip::Singing) {
+        d->m_singingClip = reinterpret_cast<SingingClip *>(clip);
+        d->moveToSingingClipState();
+    } else if (clip->clipType() == Clip::Audio)
+        d->moveToAudioClipState();
 }
 PianoRollEditMode ClipEditorToolBarView::editMode() const {
-    return m_editMode;
+    Q_D(const ClipEditorToolBarView);
+    return d->m_editMode;
 }
-void ClipEditorToolBarView::onPianoRollToolButtonToggled(QAbstractButton *button, bool checked) {
+void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(QAbstractButton *button,
+                                                                bool checked) {
+    Q_Q(ClipEditorToolBarView);
     if (!checked)
         return;
     if (button == m_btnArrow) {
         m_editMode = Select;
-        emit editModeChanged(Select);
+        emit q->editModeChanged(Select);
     } else if (button == m_btnNotePencil) {
         m_editMode = DrawNote;
-        emit editModeChanged(DrawNote);
+        emit q->editModeChanged(DrawNote);
     } else if (button == m_btnPitchPencil) {
         m_editMode = DrawPitch;
-        emit editModeChanged(DrawPitch);
+        emit q->editModeChanged(DrawPitch);
     } else if (button == m_btnPitchAnchor) {
         m_editMode = EditPitchAnchor;
-        emit editModeChanged(EditPitchAnchor);
+        emit q->editModeChanged(EditPitchAnchor);
     }
 }
-void ClipEditorToolBarView::onClipNameEdited(const QString &name) const {
+void ClipEditorToolBarViewPrivate::onClipNameEdited(const QString &name) const {
     Clip::ClipCommonProperties args(*m_clip);
     args.name = name;
     int trackIndex;
     appModel->findClipById(m_clip->id(), trackIndex);
     trackController->onClipPropertyChanged(args);
 }
-void ClipEditorToolBarView::onClipPropertyChanged() {
+void ClipEditorToolBarViewPrivate::onClipPropertyChanged() const {
     m_elClipName->setText(m_clip->name());
 }
-void ClipEditorToolBarView::moveToNullClipState() const {
+void ClipEditorToolBarViewPrivate::onClipLanguageChanged(AppGlobal::languageType language) const {
+    m_cbLanguage->setCurrentIndex(language);
+}
+void ClipEditorToolBarViewPrivate::onLanguageEdited(int index) {
+}
+void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
     m_elClipName->setEnabled(false);
     m_elClipName->setText(QString());
 
     setPianoRollToolsEnabled(false);
 }
-void ClipEditorToolBarView::moveToSingingClipState() const {
+void ClipEditorToolBarViewPrivate::moveToSingingClipState() const {
     m_elClipName->setEnabled(true);
     m_elClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(true);
 }
-void ClipEditorToolBarView::moveToAudioClipState() const {
+void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
     m_elClipName->setEnabled(true);
     m_elClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(false);
 }
-void ClipEditorToolBarView::setPianoRollToolsEnabled(bool on) const {
+void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(bool on) const {
     m_btnArrow->setVisible(on);
     m_btnNotePencil->setVisible(on);
     m_btnPitchPencil->setVisible(on);
@@ -180,4 +173,16 @@ void ClipEditorToolBarView::setPianoRollToolsEnabled(bool on) const {
     m_btnNotePencil->setEnabled(on);
     m_btnPitchPencil->setEnabled(on);
     m_btnPitchAnchor->setEnabled(on);
+
+    m_cbLanguage->setEnabled(on);
+    if (on) {
+        auto lang = m_singingClip->defaultLanguage();
+        m_cbLanguage->setCurrentIndex(lang);
+        connect(m_cbLanguage, &ComboBox::currentIndexChanged, this,
+                &ClipEditorToolBarViewPrivate::onLanguageEdited);
+    } else {
+        disconnect(m_cbLanguage, &ComboBox::currentIndexChanged, this,
+                   &ClipEditorToolBarViewPrivate::onLanguageEdited);
+        m_cbLanguage->setCurrentIndex(AppGlobal::Unknown);
+    }
 }

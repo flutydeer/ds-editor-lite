@@ -14,6 +14,7 @@
 #include "Model/Clip.h"
 #include "Model/Curve.h"
 #include "Model/Note.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
 #include "Utils/MathUtils.h"
 
@@ -31,7 +32,6 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     // QScroller::grabGesture(this, QScroller::TouchGesture);
 
     m_currentDrawingNote = new NoteView(-1);
-    m_currentDrawingNote->setLyric(defaultLyric);
     m_currentDrawingNote->setPronunciation("", false);
     m_currentDrawingNote->setSelected(true);
 
@@ -217,6 +217,7 @@ void PianoRollGraphicsView::prepareForMovingOrResizingNotes(QMouseEvent *event, 
 void PianoRollGraphicsView::PrepareForDrawingNote(int tick, int keyIndex) {
     auto snapedTick = MathUtils::roundDown(tick, 1920 / appModel->quantize());
     qDebug() << "Draw note at" << snapedTick;
+    m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
     m_currentDrawingNote->setStart(snapedTick);
     m_currentDrawingNote->setLength(1920 / appModel->quantize());
     m_currentDrawingNote->setKeyIndex(keyIndex);
@@ -368,7 +369,8 @@ void PianoRollGraphicsView::handleDrawNoteCompleted(int start, int length, int k
     note->setStart(start);
     note->setLength(length);
     note->setKeyIndex(keyIndex);
-    note->setLyric(defaultLyric);
+    note->setLanguage(languageKeyFromType(m_clip->defaultLanguage()));
+    note->setLyric(appOptions->general()->defaultLyric);
     note->setPronunciation(Pronunciation("", ""));
     note->setSelected(true);
     clipController->onInsertNote(note);

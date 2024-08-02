@@ -11,6 +11,7 @@
 #include "Utils/OverlappableSerialList.h"
 #include "Utils/ISelectable.h"
 #include "TrackControl.h"
+#include "Global/AppGlobal.h"
 #include "Interface/ITrack.h"
 
 class Clip;
@@ -31,6 +32,8 @@ public:
     void removeClip(Clip *clip);
     [[nodiscard]] QColor color() const override;
     void setColor(const QColor &color) override;
+    [[nodiscard]] AppGlobal::languageType defaultLanguage() const;
+    void setDefaultLanguage(AppGlobal::languageType language);
 
     void notifyClipChanged(ClipChangeType type, Clip *clip);
     Clip *findClipById(int id);
@@ -57,6 +60,7 @@ private:
     TrackControl m_control = TrackControl();
     OverlappableSerialList<Clip> m_clips;
     QColor m_color;
+    AppGlobal::languageType m_defaultLanguage = AppGlobal::Unknown;
 };
 
 

@@ -244,6 +244,7 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
     newTrackControlWidget->setTrackIndex(trackIndex + 1);
     newTrackControlWidget->setName(dsTrack->name());
     newTrackControlWidget->setControl(dsTrack->control());
+    newTrackControlWidget->setLanguage(dsTrack->defaultLanguage());
     newTrackControlWidget->setNarrowMode(m_graphicsView->scaleY() <
                                          TracksEditorGlobal::narrowModeScaleY);
     m_trackListWidget->insertItem(trackIndex, newTrackItem);

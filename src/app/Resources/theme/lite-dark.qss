@@ -668,7 +668,7 @@ QStackedWidget {
     background: transparent;
 }
 
-QDoubleSpinBox::up-button {
+QAbstractSpinBox::up-button {
     subcontrol-origin: border;
     subcontrol-position: right;
     background-color: transparent;
@@ -677,15 +677,15 @@ QDoubleSpinBox::up-button {
     border-radius: 4px;
 }
 
-QDoubleSpinBox::up-button:hover {
+QAbstractSpinBox::up-button:hover {
     background-color: #1AFFFFFF;
 }
 
-QDoubleSpinBox::up-button:pressed {
+QAbstractSpinBox::up-button:pressed {
     background-color: #10FFFFFF;
 }
 
-QDoubleSpinBox::down-button {
+QAbstractSpinBox::down-button {
     subcontrol-origin: margin;
     subcontrol-position: left;
     background-color: transparent;
@@ -694,11 +694,11 @@ QDoubleSpinBox::down-button {
     border-radius: 4px;
 }
 
-QDoubleSpinBox::down-button:hover {
+QAbstractSpinBox::down-button:hover {
     background-color: #1AFFFFFF;
 }
 
-QDoubleSpinBox::down-button:pressed {
+QAbstractSpinBox::down-button:pressed {
     background-color: #10FFFFFF;
 }
 
@@ -851,4 +851,102 @@ TrackControlWidget>QPushButton#btnSolo:checked {
     color: #000;
     background-color: #FFCD9B;
     border: none
+}
+
+ClipEditorToolBarView>QPushButton {
+    padding: 0px;
+    border: none;
+    background: none;
+    border-radius: 6px;
+}
+
+ClipEditorToolBarView>QPushButton:checked {
+    background-color:
+        #9BBAFF;
+}
+
+ClipEditorToolBarView>QPushButton:hover {
+    background: #1AFFFFFF;
+}
+
+ClipEditorToolBarView>QPushButton:pressed {
+    background: #10FFFFFF;
+}
+
+ClipEditorToolBarView>QPushButton#btnArrow {
+    icon: url(:svg/icons/cursor_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnArrow:checked {
+    icon: url(:svg/icons/cursor_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnArrow:checked:hover {
+    background-color: #9BBAFF;
+}
+
+ClipEditorToolBarView>QPushButton#btnNotePencil {
+    icon: url(:svg/icons/edit_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnNotePencil:checked {
+    icon: url(:svg/icons/edit_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnNotePencil:checked:hover {
+    background-color: #9BBAFF;
+}
+
+ClipEditorToolBarView>QPushButton#btnPitchAnchor {
+    icon: url(:svg/icons/pitch_anchor_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPitchAnchor:checked {
+    icon: url(:svg/icons/pitch_anchor_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButto n#btnPitchAnchor:checked:hover {
+    background-color: #9BBAFF;
+}
+
+ClipEditorToolBarView>QPushButton#btnPitchPencil {
+    icon: url(:svg/icons/pitch_edit_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPitchPencil:checked {
+    icon: url(:svg/icons/pitch_edit_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton #btnPitchPencil:checked:hover {
+    background-color: #9BBAFF;
+}
+
+ClipEditorToolBarView>QComboBox {
+    color: #F0F0F0;
+    border: none;
+    background: #10FFFFFF;
+    border-radius: 6px;
+}
+
+ClipEditorToolBarView>QComboBox:hover {
+    background: #1AFFFFFF;
+}
+
+ClipEditorToolBarView>QComboBox:pressed {
+    background: #10FFFFFF;
+
+}
+
+EditLabel#ClipNameEditLabel>QLabel {
+    color: #F0F0F0;
+    background: #10FFFFFF;
+    border-radius: 4px;
+}
+
+EditLabel#ClipNameEditLabel>QLabel:hover {
+    background: #1AFFFFFF;
+}
+
+EditLabel#ClipNameEditLabel>QLineEdit {
+    border-radius: 4px;
 }

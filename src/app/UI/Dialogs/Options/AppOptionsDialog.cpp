@@ -17,6 +17,7 @@
 #include "Pages/MidiPage.h"
 
 AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) {
+    setFocusPolicy(Qt::ClickFocus);
 
     m_tabList = new QListWidget;
     m_tabList->setFixedWidth(160);

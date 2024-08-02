@@ -96,8 +96,7 @@ private:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-
-    static void handleDrawNoteCompleted(int start, int length, int keyIndex);
+    void handleDrawNoteCompleted(int start, int length, int keyIndex);
     void handleMoveNotesCompleted(int deltaTick, int deltaKey) const;
     static void handleResizeNoteLeftCompleted(int noteId, int deltaTick);
     static void handleResizeNoteRightCompleted(int noteId, int deltaTick);

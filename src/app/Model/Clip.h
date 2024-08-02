@@ -11,6 +11,7 @@
 #include "Utils/UniqueObject.h"
 #include "ClipboardDataModel/NotesParamsInfo.h"
 #include "Params.h"
+#include "Global/AppGlobal.h"
 #include "Interface/IClip.h"
 #include "Model/AudioInfoModel.h"
 
@@ -130,6 +131,9 @@ public:
         return Singing;
     }
 
+    [[nodiscard]] AppGlobal::languageType defaultLanguage() const;
+    void setDefaultLanguage(AppGlobal::languageType language);
+
     [[nodiscard]] const OverlappableSerialList<Note> &notes() const;
     void insertNote(Note *note);
     void removeNote(Note *note);
@@ -150,10 +154,12 @@ signals:
     void noteChanged(SingingClip::NoteChangeType type, Note *note);
     void noteSelectionChanged();
     void paramChanged(ParamBundle::ParamName name, Param::ParamType type);
+    void defaultLanguageChanged(AppGlobal::languageType language);
 
 private:
     OverlappableSerialList<Note> m_notes;
     QList<VocalPart> m_parts;
+    AppGlobal::languageType m_defaultLanguage = AppGlobal::Unknown;
 };
 
 // using DsClipPtr = QSharedPointer<DsClip>;

@@ -14,6 +14,7 @@
 #include "Options/AudioOption.h"
 #include "Options/LanguageOption.h"
 #include "Options/FillLyricOption.h"
+#include "Options/GeneralOption.h"
 
 class AppOptions : public QObject, public Singleton<AppOptions> {
     Q_OBJECT
@@ -25,6 +26,7 @@ public:
     // void save(const QString &path);
     bool saveAndNotify();
 
+    GeneralOption *general();
     AudioOption *audio();
     AppearanceOption *appearance();
     LanguageOption *language();
@@ -34,6 +36,7 @@ signals:
     void optionsChanged();
 
 private:
+    GeneralOption m_generalOption;
     AudioOption m_audioOption;
     AppearanceOption m_appearanceOption;
     LanguageOption m_languageOption;

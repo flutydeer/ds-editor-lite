@@ -11,8 +11,6 @@ namespace ClipEditorGlobal {
     constexpr int pixelsPerQuarterNote = 96;
     constexpr double noteHeight = 24;
     constexpr int timelineViewHeight = 24;
-    const QString defaultLyric = "啦";
-    const QString defaultPronunciation = "la";
 
     enum PianoRollEditMode { Select, DrawNote, DrawPitch, EditPitchAnchor };
     enum NoteEditMode { NotePosition, Length, StartAndLength };

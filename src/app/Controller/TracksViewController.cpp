@@ -9,6 +9,7 @@
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Model/AppModel.h"
 #include "Model/AudioInfoModel.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
@@ -38,6 +39,7 @@ void TracksViewController::onInsertNewTrack(qsizetype index) {
 
     auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
+    newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
     // if (soloExists) {
     //     auto control = newTrack->control();
     //     control.setMute(true);
@@ -169,6 +171,7 @@ void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
     singingClip->setClipLen(length);
 
     auto track = appModel->tracks().at(trackIndex);
+    singingClip->setDefaultLanguage(track->defaultLanguage());
     auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(singingClip);

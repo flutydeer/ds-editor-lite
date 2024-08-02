@@ -42,6 +42,12 @@ void Track::setColor(const QColor &color) {
     m_color = color;
     emit propertyChanged();
 }
+AppGlobal::languageType Track::defaultLanguage() const {
+    return m_defaultLanguage;
+}
+void Track::setDefaultLanguage(AppGlobal::languageType language) {
+    m_defaultLanguage = language;
+}
 void Track::notifyClipChanged(ClipChangeType type, Clip *clip) {
     emit clipChanged(type, clip);
 }

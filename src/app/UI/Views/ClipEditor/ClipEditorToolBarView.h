@@ -9,7 +9,6 @@
 
 #include "Global/ClipEditorGlobal.h"
 
-
 class EditLabel;
 class SeekBar;
 class QAbstractButton;
@@ -18,6 +17,7 @@ class Button;
 
 using namespace ClipEditorGlobal;
 
+class ClipEditorToolBarViewPrivate;
 class ClipEditorToolBarView final : public QWidget {
     Q_OBJECT
 
@@ -27,41 +27,11 @@ public:
     [[nodiscard]] PianoRollEditMode editMode() const;
 
 signals:
-    void editModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
-
-private slots:
-    void onPianoRollToolButtonToggled(QAbstractButton *button, bool checked);
-    void onClipNameEdited(const QString &name) const;
-    void onClipPropertyChanged();
+    void editModeChanged(PianoRollEditMode mode);
 
 private:
-    void moveToNullClipState() const;
-    void moveToSingingClipState() const;
-    void moveToAudioClipState() const;
-
-    void setPianoRollToolsEnabled(bool on) const;
-    int m_contentHeight = 28;
-
-    Clip *m_clip = nullptr;
-    PianoRollEditMode m_editMode = Select;
-
-    EditLabel *m_elClipName;
-    // Button *m_btnMute{};
-    SeekBar *m_sBarGain{};
-
-    Button *m_btnArrow;
-    Button *m_btnNotePencil;
-    Button *m_btnPitchPencil;
-    Button *m_btnPitchAnchor;
-
-    const QIcon icoArrowBlack = QIcon(":svg/icons/cursor_24_filled.svg");
-    const QIcon icoArrowWhite = QIcon(":svg/icons/cursor_24_filled_white.svg");
-    const QIcon icoNotePencilBlack = QIcon(":svg/icons/edit_24_filled.svg");
-    const QIcon icoNotePencilWhite = QIcon(":svg/icons/edit_24_filled_white.svg");
-    const QIcon icoPitchPencilBlack = QIcon(":svg/icons/pitch_edit_24_filled.svg");
-    const QIcon icoPitchPencilWhite = QIcon(":svg/icons/pitch_edit_24_filled_white.svg");
-    const QIcon icoPitchAnchorBlack = QIcon(":svg/icons/pitch_anchor_24_filled.svg");
-    const QIcon icoPitchAnchorWhite = QIcon(":svg/icons/pitch_anchor_24_filled_white.svg");
+    Q_DECLARE_PRIVATE(ClipEditorToolBarView)
+    ClipEditorToolBarViewPrivate *d_ptr;
 };
 
 

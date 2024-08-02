@@ -7,6 +7,8 @@
 
 #include "IOptionPage.h"
 
+class LineEdit;
+class LanguageComboBox;
 class GeneralPage : public IOptionPage {
     Q_OBJECT
 
@@ -15,8 +17,10 @@ public:
 
 protected:
     void modifyOption() override;
+
+private:
+    LanguageComboBox *m_cbDefaultSingingLanguage;
+    LineEdit *m_leDefaultLyric;
 };
-
-
 
 #endif // GENERALPAGE_H

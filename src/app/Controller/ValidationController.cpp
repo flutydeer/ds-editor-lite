@@ -5,6 +5,7 @@
 #include "ValidationController.h"
 
 #include "Model/Track.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Toast.h"
 #include "Utils/NoteWordUtils.h"
@@ -25,6 +26,8 @@ void ValidationController::onModelChanged() {
     m_tracks.clear();
 
     for (const auto track : appModel->tracks()) {
+        // Set track default language
+        track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
         // m_tracks.append(track);
         // connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
         for (const auto clip : track->clips()) {
@@ -32,6 +35,7 @@ void ValidationController::onModelChanged() {
             // connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
             if (clip->clipType() == Clip::Singing) {
                 auto singingClip = reinterpret_cast<SingingClip *>(clip);
+                singingClip->setDefaultLanguage(track->defaultLanguage());
                 NoteWordUtils::updateOriginalWordProperties(singingClip->notes().toList());
             }
         }

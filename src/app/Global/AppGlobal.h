@@ -49,6 +49,22 @@ namespace AppGlobal {
     enum AudioLoadStatus { Init, Loading, Loaded, Error };
 
     enum PanelType { Generic, TracksEditor, ClipEditor };
+
+    const QStringList languageKeys = {"Mandarin", "English", "Japanese", "Unknown"};
+    enum languageType { Mandarin, English, Japanese, Unknown };
+    QString languageKeyFromType(languageType type);
+    languageType languageTypeFromKey(const QString& languageKey);
+
+    inline QString languageKeyFromType(languageType type) {
+        return languageKeys[type];
+    }
+    inline languageType languageTypeFromKey(const QString& languageKey) {
+        for (int i = 0; i < languageKeys.count(); i++) {
+            if (languageKeys[i] == languageKey)
+                return static_cast<languageType>(i);
+        }
+        return Unknown;
+    }
 }
 
 #endif // APPGLOBAL_H

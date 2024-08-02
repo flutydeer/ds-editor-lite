@@ -5,11 +5,13 @@
 #ifndef TRACKCONTROLWIDGET_H
 #define TRACKCONTROLWIDGET_H
 
+#include "Global/AppGlobal.h"
 #include "Interface/ITrack.h"
 #include "Model/TrackControl.h"
 
 #include <QWidget>
 
+class LanguageComboBox;
 class QListWidgetItem;
 class LevelMeter;
 class Track;
@@ -33,6 +35,7 @@ public:
     [[nodiscard]] TrackControl control() const override;
     void setControl(const TrackControl &control) override;
     void setNarrowMode(bool on);
+    void setLanguage(AppGlobal::languageType lang);
     [[nodiscard]] LevelMeter *levelMeter() const;
     [[nodiscard]] QColor color() const override {
         return {};
@@ -65,6 +68,7 @@ private:
     Button *m_btnMute;
     Button *m_btnSolo;
     EditLabel *m_leTrackName;
+    LanguageComboBox *m_cbLanguage;
     SeekBar *m_sbarPan;
     EditLabel *m_lePan;
     SeekBar *m_sbarGain;
