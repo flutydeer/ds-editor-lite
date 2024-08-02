@@ -702,6 +702,10 @@ QAbstractSpinBox::down-button:pressed {
     background-color: #10FFFFFF;
 }
 
+QStatusBar {
+    background: transparent;
+}
+
 TaskWindow {
     background-color: #202122;
 }
