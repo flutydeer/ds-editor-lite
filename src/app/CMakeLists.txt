@@ -26,6 +26,10 @@ find_package(SndFile CONFIG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets)
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
+find_path(INTERVAL_TREE_INCLUDE_DIRS "interval-tree/interval_tree.hpp" REQUIRED)
+target_include_directories(${PROJECT_NAME} PUBLIC
+    "$<BUILD_INTERFACE:${INTERVAL_TREE_INCLUDE_DIRS}>"
+)
 target_link_libraries(${PROJECT_NAME} PUBLIC
         SndFile::sndfile
         Qt6::Core
