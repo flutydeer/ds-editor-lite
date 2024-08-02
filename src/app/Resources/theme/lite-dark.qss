@@ -808,9 +808,10 @@ TrackControlWidget>QPushButton {
     padding: 0px
 }
 
-TrackControlWidget>SeekBar {
+SVS--SeekBar {
     qproperty-trackInactiveColor: #707070;
     qproperty-trackActiveColor: #9BBAFF;
+    qproperty-thumbFillColor: #9BBAFF;
     qproperty-thumbBorderColor: #454545;
 }
 

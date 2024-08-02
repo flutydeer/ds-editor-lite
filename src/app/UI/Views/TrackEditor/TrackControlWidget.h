@@ -11,6 +11,9 @@
 
 #include <QWidget>
 
+namespace SVS {
+    class SeekBar;
+}
 class LanguageComboBox;
 class QListWidgetItem;
 class LevelMeter;
@@ -18,7 +21,6 @@ class Track;
 class Button;
 class QLabel;
 class EditLabel;
-class SeekBar;
 class QSpacerItem;
 class QHBoxLayout;
 class QVBoxLayout;
@@ -27,7 +29,7 @@ class TrackControlWidget final : public QWidget, public ITrack {
     Q_OBJECT
 
 public:
-    explicit TrackControlWidget(QListWidgetItem *item, int id, QWidget *parent = nullptr);
+    explicit TrackControlWidget(QListWidgetItem *item, Track *track, QWidget *parent = nullptr);
     [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int i);
     [[nodiscard]] QString name() const override;
@@ -50,17 +52,16 @@ signals:
     // void modeDownTrack();
     // void addAudioClipTriggered();
 
-public slots:
-    void onTrackUpdated(const Track &track);
-    // void setScale(qreal sx, qreal sy);
-    // void setHeight(int h);
-
 private slots:
-    void onSeekBarValueChanged();
+    void onPanMoved(double value);
+    void onGainMoved(double value);
+    void onSliderReleased();
 
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void changeTrackProperty();
+    bool m_notifyBarrier = false;
+    Track *m_track = nullptr;
     QListWidgetItem *m_item;
     // controls
     // Button *m_btnColor;
@@ -69,9 +70,9 @@ private:
     Button *m_btnSolo;
     EditLabel *m_leTrackName;
     LanguageComboBox *m_cbLanguage;
-    SeekBar *m_sbarPan;
+    SVS::SeekBar *m_sbPan;
     EditLabel *m_lePan;
-    SeekBar *m_sbarGain;
+    SVS::SeekBar *m_sbGain;
     EditLabel *m_leGain;
     QSpacerItem *m_panVolumeSpacer;
     LevelMeter *m_levelMeter;
@@ -84,6 +85,8 @@ private:
 
     static QString panValueToString(double value);
     static QString gainValueToString(double value);
+    static double gainFromSliderValue(double value);
+    static double gainToSliderValue(double gain);
 };
 
 

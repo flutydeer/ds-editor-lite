@@ -5,6 +5,8 @@
 #ifndef AUDIOCONTEXT_H
 #define AUDIOCONTEXT_H
 
+#define audioContext AudioContext::instance()
+
 #include <QObject>
 #include <QMap>
 #include <QTimer>
@@ -35,6 +37,9 @@ public:
     talcs::DspxTrackContext *getContextFromTrack(Track *trackModel) const;
     talcs::DspxAudioClipContext *getContextFromAudioClip(AudioClip *audioClipModel) const;
 
+    void handlePanSliderMoved(Track *track, double pan) const;
+    void handleGainSliderMoved(Track *track, double gain) const;
+
 signals:
     void levelMeterUpdated(const AppModel::LevelMetersUpdatedArgs &args);
 
@@ -43,7 +48,9 @@ private:
     QHash<AudioClip *, talcs::DspxAudioClipContext *> m_audioClipModelDict;
 
     QTimer *m_levelMeterTimer;
-    QHash<const Track *, QPair<std::shared_ptr<talcs::SmoothedFloat>, std::shared_ptr<talcs::SmoothedFloat>>> m_trackLevelMeterValue;
+    QHash<const Track *,
+          QPair<std::shared_ptr<talcs::SmoothedFloat>, std::shared_ptr<talcs::SmoothedFloat>>>
+        m_trackLevelMeterValue;
 
 
     bool m_transportPositionFlag = true;
@@ -62,7 +69,6 @@ private:
     void handleClipPropertyChanged(AudioClip *audioClip) const;
 
     void handleTimeChanged();
-
 };
 
 #endif // AUDIOCONTEXT_H

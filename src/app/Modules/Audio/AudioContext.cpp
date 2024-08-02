@@ -277,8 +277,17 @@ AudioClip *AudioContext::getAudioClipFromContext(talcs::DspxAudioClipContext *au
 talcs::DspxTrackContext *AudioContext::getContextFromTrack(Track *trackModel) const {
     return m_trackModelDict.value(trackModel);
 }
-talcs::DspxAudioClipContext *AudioContext::getContextFromAudioClip(AudioClip *audioClipModel) const {
+talcs::DspxAudioClipContext *
+    AudioContext::getContextFromAudioClip(AudioClip *audioClipModel) const {
     return m_audioClipModelDict.value(audioClipModel);
+}
+void AudioContext::handlePanSliderMoved(Track *track, double pan) const {
+    auto trackContext = getContextFromTrack(track);
+    trackContext->controlMixer()->setPan(static_cast<float>(.01 * pan));
+}
+void AudioContext::handleGainSliderMoved(Track *track, double gain) const {
+    auto trackContext = getContextFromTrack(track);
+    trackContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(gain));
 }
 
 void AudioContext::handlePlaybackStatusChanged(PlaybackStatus status) {

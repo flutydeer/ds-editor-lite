@@ -6,20 +6,23 @@
 
 #include "Controller/TracksViewController.h"
 #include "Model/Track.h"
+#include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/LineEdit.h"
-#include "UI/Controls/SeekBar.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMWidgets/cmenu.h>
+#include <SVSCraftWidgets/seekbar.h>
 
-TrackControlWidget::TrackControlWidget(QListWidgetItem *item, int id, QWidget *parent)
-    : QWidget(parent), ITrack(id) {
+using namespace SVS;
+
+TrackControlWidget::TrackControlWidget(QListWidgetItem *item, Track *track, QWidget *parent)
+    : QWidget(parent), ITrack(track->id()), m_track(track) {
     m_item = item;
     setAttribute(Qt::WA_StyledBackground);
 
@@ -84,9 +87,11 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, int id, QWidget *p
     placeHolder->setMinimumHeight(m_buttonSize);
     placeHolder->setMaximumHeight(m_buttonSize);
 
-    m_sbarPan = new SeekBar;
-    m_sbarPan->setObjectName("m_sbarPan");
-    connect(m_sbarPan, &SeekBar::valueChanged, this, &TrackControlWidget::onSeekBarValueChanged);
+    m_sbPan = new SeekBar;
+    m_sbPan->setObjectName("m_sbarPan");
+    m_sbPan->setTracking(false);
+    connect(m_sbPan, &SeekBar::sliderMoved, this, &TrackControlWidget::onPanMoved);
+    connect(m_sbPan, &SeekBar::valueChanged, this, &TrackControlWidget::onSliderReleased);
     //        m_panSlider->setValue(50);
 
     m_lePan = new EditLabel();
@@ -98,16 +103,18 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, int id, QWidget *p
     m_lePan->label->setAlignment(Qt::AlignCenter);
     m_lePan->lineEdit->setAlignment(Qt::AlignCenter);
     m_lePan->setEnabled(false);
-    connect(m_sbarPan, &SeekBar::valueChanged, m_lePan,
+    connect(m_sbPan, &SeekBar::valueChanged, m_lePan,
             [=](int value) { m_lePan->setText(panValueToString(value)); });
 
-    m_sbarGain = new SeekBar;
-    m_sbarGain->setObjectName("m_sbarGain");
-    m_sbarGain->setMax(100); // +6dB
-    m_sbarGain->setMin(0);   // -inf
-    m_sbarGain->setDefaultValue(79.4328234724);
-    m_sbarGain->setValue(79.4328234724);
-    connect(m_sbarGain, &SeekBar::valueChanged, this, &TrackControlWidget::onSeekBarValueChanged);
+    m_sbGain = new SeekBar;
+    m_sbGain->setObjectName("m_sbarGain");
+    m_sbGain->setMaximum(100); // +6dB
+    m_sbGain->setMinimum(0);   // -inf
+    m_sbGain->setDefaultValue(79.4328234724);
+    m_sbGain->setValue(79.4328234724);
+    m_sbGain->setTracking(false);
+    connect(m_sbGain, &SeekBar::sliderMoved, this, &TrackControlWidget::onGainMoved);
+    connect(m_sbGain, &SeekBar::valueChanged, this, &TrackControlWidget::onSliderReleased);
 
     m_leGain = new EditLabel();
     m_leGain->setText("0.0dB");
@@ -118,16 +125,16 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, int id, QWidget *p
     m_leGain->setFixedWidth(2 * m_buttonSize);
     m_leGain->setFixedHeight(m_buttonSize);
     m_leGain->setEnabled(false);
-    connect(m_sbarGain, &SeekBar::valueChanged, m_leGain,
+    connect(m_sbGain, &SeekBar::valueChanged, m_leGain,
             [=](double value) { m_leGain->setText(gainValueToString(value)); });
 
     m_panVolumeSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
 
     m_panVolumeLayout = new QHBoxLayout;
     m_panVolumeLayout->addWidget(placeHolder);
-    m_panVolumeLayout->addWidget(m_sbarPan);
+    m_panVolumeLayout->addWidget(m_sbPan);
     m_panVolumeLayout->addWidget(m_lePan);
-    m_panVolumeLayout->addWidget(m_sbarGain);
+    m_panVolumeLayout->addWidget(m_sbGain);
     m_panVolumeLayout->addWidget(m_leGain);
     m_panVolumeLayout->setSpacing(0);
     m_panVolumeLayout->setContentsMargins(4, 0, 4, 8);
@@ -151,6 +158,10 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, int id, QWidget *p
 
     setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    setName(track->name());
+    setControl(track->control());
+    setLanguage(track->defaultLanguage());
 }
 int TrackControlWidget::trackIndex() const {
     return m_lbTrackIndex->text().toInt();
@@ -167,24 +178,25 @@ void TrackControlWidget::setName(const QString &name) {
 }
 TrackControl TrackControlWidget::control() const {
     TrackControl control;
-    auto gain = 60 * std::log10(m_sbarGain->value()) - 114;
+    auto gain = gainFromSliderValue(m_sbGain->value());
     control.setGain(gain);
-    control.setPan(m_sbarPan->value());
+    control.setPan(m_sbPan->value());
     control.setMute(m_btnMute->isChecked());
     control.setSolo(m_btnSolo->isChecked());
     return control;
 }
 void TrackControlWidget::setControl(const TrackControl &control) {
-    auto barValue = std::pow(10, (114 + control.gain()) / 60);
-    m_sbarGain->setValue(barValue);
+    m_notifyBarrier = true;
+    auto barValue = gainToSliderValue(control.gain());
+    m_sbGain->setValue(barValue);
     m_leGain->setText(gainValueToString(barValue));
-    m_sbarPan->setValue(control.pan());
+    m_sbPan->setValue(control.pan());
     m_lePan->setText(panValueToString(control.pan()));
     // m_sbarGain->setValueAsync(barValue);
     // m_sbarPan->setValueAsync(control.pan());
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());
-    // changeTrackProperty();
+    m_notifyBarrier = false;
 }
 void TrackControlWidget::setNarrowMode(bool on) {
     if (on) {
@@ -209,35 +221,30 @@ void TrackControlWidget::setLanguage(AppGlobal::languageType lang) {
 LevelMeter *TrackControlWidget::levelMeter() const {
     return m_levelMeter;
 }
-void TrackControlWidget::onTrackUpdated(const Track &track) {
-    m_leTrackName->setText(track.name());
-    auto control = track.control();
-    m_sbarGain->setValueAsync(control.gain());
-    m_sbarPan->setValueAsync(control.pan());
-    m_btnMute->setChecked(control.mute());
-    m_btnSolo->setChecked(control.solo());
+void TrackControlWidget::onPanMoved(double value) {
+    audioContext->handlePanSliderMoved(m_track, value);
 }
-void TrackControlWidget::onSeekBarValueChanged() {
-    changeTrackProperty();
+void TrackControlWidget::onGainMoved(double value) {
+    audioContext->handleGainSliderMoved(m_track, gainFromSliderValue(value));
+}
+void TrackControlWidget::onSliderReleased() {
+    if (!m_notifyBarrier)
+        changeTrackProperty();
 }
 void TrackControlWidget::contextMenuEvent(QContextMenuEvent *event) {
-    // QWidget::contextMenuEvent(event);
-
     auto actionInsert = new QAction("Insert new track", this);
     connect(actionInsert, &QAction::triggered, this, [&] { emit insertNewTrackTriggered(); });
     auto actionRemove = new QAction("Delete", this);
     connect(actionRemove, &QAction::triggered, this, [&] { emit removeTrackTriggered(id()); });
-    // auto actionAddAudioClip = new QAction("Add audio clip", this);
-    // connect(actionAddAudioClip, &QAction::triggered, this, [&] { emit addAudioClipTriggered(); });
 
     CMenu menu(this);
     menu.addAction(actionInsert);
     menu.addAction(actionRemove);
-    // menu.addAction(actionAddAudioClip);
     menu.exec(event->globalPos());
     event->accept();
 }
 void TrackControlWidget::changeTrackProperty() {
+    // qDebug() << "TrackControlWidget::changeTrackProperty";
     Track::TrackProperties args(*this);
     trackController->changeTrackProperty(args);
 }
@@ -260,4 +267,10 @@ QString TrackControlWidget::gainValueToString(double value) {
         sig = "-";
     }
     return sig + absVal + "dB";
+}
+double TrackControlWidget::gainToSliderValue(double gain) {
+    return std::pow(10, (114 + gain) / 60);
+}
+double TrackControlWidget::gainFromSliderValue(double value) {
+    return 60 * std::log10(value) - 114;
 }

@@ -237,14 +237,11 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
         insertClipToTrack(clip, track, trackIndex);
     }
     auto newTrackItem = new QListWidgetItem;
-    auto newTrackControlWidget = new TrackControlWidget(newTrackItem, dsTrack->id());
+    auto newTrackControlWidget = new TrackControlWidget(newTrackItem, dsTrack);
     newTrackItem->setSizeHint(
         QSize(TracksEditorGlobal::trackListWidth,
               static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
     newTrackControlWidget->setTrackIndex(trackIndex + 1);
-    newTrackControlWidget->setName(dsTrack->name());
-    newTrackControlWidget->setControl(dsTrack->control());
-    newTrackControlWidget->setLanguage(dsTrack->defaultLanguage());
     newTrackControlWidget->setNarrowMode(m_graphicsView->scaleY() <
                                          TracksEditorGlobal::narrowModeScaleY);
     m_trackListWidget->insertItem(trackIndex, newTrackItem);
