@@ -13,3 +13,6 @@
 [submodule "src/libs/qtmediate"]
 	path = src/libs/qtmediate
 	url = https://github.com/flutydeer/qtmediate
+[submodule "src/libs/svscraft"]
+	path = src/libs/svscraft
+	url = git@github.com:diffscope/svscraft
