@@ -10,6 +10,7 @@
 #include "Model/Clip.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/EditLabel.h"
+#include "UI/Controls/LineEdit.h"
 #include "UI/Controls/ToolTipFilter.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 
@@ -20,14 +21,15 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     : QWidget(parent), d_ptr(new ClipEditorToolBarViewPrivate(this)) {
     Q_D(ClipEditorToolBarView);
     setObjectName("ClipEditorToolBarView");
+    setFocusPolicy(Qt::ClickFocus);
 
-    d->m_elClipName = new EditLabel;
-    d->m_elClipName->setObjectName("ClipNameEditLabel");
-    d->m_elClipName->setFixedWidth(128);
-    d->m_elClipName->setFixedHeight(d->m_contentHeight);
-    d->m_elClipName->setEnabled(false);
-    d->m_elClipName->setText("");
-    connect(d->m_elClipName, &EditLabel::editCompleted, d,
+    d->m_leClipName = new LineEdit;
+    d->m_leClipName->setObjectName("ClipNameEditLabel");
+    d->m_leClipName->setFixedWidth(128);
+    d->m_leClipName->setFixedHeight(d->m_contentHeight);
+    d->m_leClipName->setEnabled(false);
+    d->m_leClipName->setText("");
+    connect(d->m_leClipName, &QLineEdit::editingFinished, d,
             &ClipEditorToolBarViewPrivate::onClipNameEdited);
 
     d->m_btnArrow = new Button;
@@ -73,7 +75,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::Unknown));
 
     auto mainLayout = new QHBoxLayout;
-    mainLayout->addWidget(d->m_elClipName);
+    mainLayout->addWidget(d->m_leClipName);
     mainLayout->addSpacing(6);
     mainLayout->addWidget(d->m_btnArrow);
     mainLayout->addWidget(d->m_btnNotePencil);
@@ -131,15 +133,15 @@ void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(QAbstractButton 
         emit q->editModeChanged(EditPitchAnchor);
     }
 }
-void ClipEditorToolBarViewPrivate::onClipNameEdited(const QString &name) const {
+void ClipEditorToolBarViewPrivate::onClipNameEdited() const {
     Clip::ClipCommonProperties args(*m_clip);
-    args.name = name;
+    args.name = m_leClipName->text();
     int trackIndex;
     appModel->findClipById(m_clip->id(), trackIndex);
     trackController->onClipPropertyChanged(args);
 }
 void ClipEditorToolBarViewPrivate::onClipPropertyChanged() const {
-    m_elClipName->setText(m_clip->name());
+    m_leClipName->setText(m_clip->name());
 }
 void ClipEditorToolBarViewPrivate::onClipLanguageChanged(AppGlobal::languageType language) const {
     m_cbLanguage->setCurrentIndex(language);
@@ -147,20 +149,20 @@ void ClipEditorToolBarViewPrivate::onClipLanguageChanged(AppGlobal::languageType
 void ClipEditorToolBarViewPrivate::onLanguageEdited(int index) {
 }
 void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
-    m_elClipName->setEnabled(false);
-    m_elClipName->setText(QString());
+    m_leClipName->setEnabled(false);
+    m_leClipName->setText(QString());
 
     setPianoRollToolsEnabled(false);
 }
 void ClipEditorToolBarViewPrivate::moveToSingingClipState() const {
-    m_elClipName->setEnabled(true);
-    m_elClipName->setText(m_clip->name());
+    m_leClipName->setEnabled(true);
+    m_leClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(true);
 }
 void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
-    m_elClipName->setEnabled(true);
-    m_elClipName->setText(m_clip->name());
+    m_leClipName->setEnabled(true);
+    m_leClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(false);
 }
