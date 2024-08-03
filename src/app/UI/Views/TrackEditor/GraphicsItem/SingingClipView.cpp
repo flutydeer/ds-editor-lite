@@ -8,7 +8,7 @@
 #include <QPainter>
 
 #include "Global/TracksEditorGlobal.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Note.h"
 #include "Utils/MathUtils.h"
 
 using namespace TracksEditorGlobal;

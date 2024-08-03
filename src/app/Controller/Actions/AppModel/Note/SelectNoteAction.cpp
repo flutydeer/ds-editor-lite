@@ -4,8 +4,8 @@
 
 #include "SelectNoteAction.h"
 
-#include "Model/Clip.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/Note.h"
 
 SelectNoteAction *SelectNoteAction::build(Note *note, bool selected, SingingClip *clip) {
     auto a = new SelectNoteAction;

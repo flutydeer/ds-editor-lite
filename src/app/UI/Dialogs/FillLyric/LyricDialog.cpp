@@ -5,7 +5,7 @@
 
 #include <QApplication>
 
-#include "Model/Note.h"
+#include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Options/Pages/LanguagePage.h"

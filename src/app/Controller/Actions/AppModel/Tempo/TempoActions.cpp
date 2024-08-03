@@ -6,8 +6,8 @@
 
 #include "EditTempoAction.h"
 #include "Controller/Actions/AppModel/Clip/EditClipCommonPropertiesAction.h"
-#include "Model/AppModel.h"
-#include "Model/Track.h"
+#include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/Track.h"
 
 void TempoActions::editTempo(double oldTempo, double newTempo, AppModel *model) {
     addAction(EditTempoAction::build(oldTempo, newTempo, model));

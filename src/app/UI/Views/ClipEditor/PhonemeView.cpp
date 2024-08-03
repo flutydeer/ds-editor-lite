@@ -7,9 +7,9 @@
 #include <QMouseEvent>
 #include <QPainter>
 
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 #include "Global/AppGlobal.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Note.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/PlaybackController.h"
 

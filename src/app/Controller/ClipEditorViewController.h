@@ -7,8 +7,8 @@
 
 #define clipController ClipEditorViewController::instance()
 
-#include "Model/Clip.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/Note.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Utils/Singleton.h"
 

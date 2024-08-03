@@ -4,7 +4,7 @@
 
 #include "InsertTrackAction.h"
 
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 
 InsertTrackAction *InsertTrackAction::build(Track *track, qsizetype index, AppModel *model) {
     auto a = new InsertTrackAction;

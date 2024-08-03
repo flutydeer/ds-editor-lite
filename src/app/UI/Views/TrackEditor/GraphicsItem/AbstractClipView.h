@@ -6,7 +6,7 @@
 #define DATASET_TOOLS_CLIPGRAPHICSITEM_H
 
 #include "Interface/IClip.h"
-#include "Model/Clip.h"
+#include "Model/AppModel/Clip.h"
 #include "UI/Utils/OverlappableItem.h"
 #include "UI/Views/Common/CommonGraphicsRectItem.h"
 

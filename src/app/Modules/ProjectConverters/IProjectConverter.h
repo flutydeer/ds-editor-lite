@@ -5,7 +5,7 @@
 #ifndef IPROJECTCONVERTER_H
 #define IPROJECTCONVERTER_H
 
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 
 class IProjectConverter {
 public:

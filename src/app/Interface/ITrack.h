@@ -5,7 +5,7 @@
 #ifndef ITRACK_H
 #define ITRACK_H
 
-#include "Model/TrackControl.h"
+#include "Model/AppModel/TrackControl.h"
 #include "Utils/UniqueObject.h"
 
 #include <QColor>

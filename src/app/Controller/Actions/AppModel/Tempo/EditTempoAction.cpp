@@ -4,7 +4,7 @@
 
 #include "EditTempoAction.h"
 
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 
 EditTempoAction *EditTempoAction::build(double oldTempo, double newTempo,AppModel *model) {
     auto a = new EditTempoAction;

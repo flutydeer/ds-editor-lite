@@ -5,7 +5,7 @@
 #ifndef TIMESIGNATUREACTIONS_H
 #define TIMESIGNATUREACTIONS_H
 
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 #include "Modules/History/ActionSequence.h"
 
 class TimeSignatureActions : public ActionSequence {

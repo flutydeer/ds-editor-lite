@@ -7,11 +7,11 @@
 #include <QMessageBox>
 
 #include "opendspx/qdspxmodel.h"
-#include "Model/Track.h"
-#include "Model/Clip.h"
-#include "Model/Note.h"
-#include "Model/Params.h"
-#include "Model/Curve.h"
+#include "Model/AppModel/Track.h"
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/Note.h"
+#include "Model/AppModel/Params.h"
+#include "Model/AppModel/Curve.h"
 
 bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
                                 ImportMode mode) {

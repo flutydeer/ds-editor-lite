@@ -10,7 +10,7 @@
 #include "UI/Utils/ITimelinePainter.h"
 #include "Utils/OverlappableSerialList.h"
 #include "Utils/Overlappable.h"
-#include "Model/Clip.h"
+#include "Model/AppModel/Clip.h"
 
 class Note;
 class Phoneme;

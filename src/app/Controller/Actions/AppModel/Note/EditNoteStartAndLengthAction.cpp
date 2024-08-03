@@ -4,8 +4,8 @@
 
 #include "EditNoteStartAndLengthAction.h"
 
-#include "Model/Clip.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/Note.h"
 
 EditNoteStartAndLengthAction *EditNoteStartAndLengthAction::build(Note *note, int deltaTick,
                                                                   SingingClip *clip) {

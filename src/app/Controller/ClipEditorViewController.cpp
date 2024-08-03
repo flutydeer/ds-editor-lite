@@ -10,7 +10,7 @@
 #include "Actions/AppModel/Param/ParamsActions.h"
 #include "Global/ControllerGlobal.h"
 #include "Interface/IClipEditorView.h"
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Language/S2p.h"
 #include "UI/Controls/Toast.h"

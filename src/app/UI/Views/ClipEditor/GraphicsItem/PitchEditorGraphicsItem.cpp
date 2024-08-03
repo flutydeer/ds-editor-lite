@@ -11,10 +11,10 @@
 
 #include "PitchEditorGraphicsItem.h"
 
-#include "Model/Clip.h"
+#include "Model/AppModel/Clip.h"
 #include "Utils/MathUtils.h"
 #include "Global/ClipEditorGlobal.h"
-#include "Model/Curve.h"
+#include "Model/AppModel/Curve.h"
 
 using namespace ClipEditorGlobal;
 

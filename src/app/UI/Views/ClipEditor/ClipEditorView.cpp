@@ -11,7 +11,7 @@
 #include "Controller/AppController.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/TracksViewController.h"
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 #include "UI/Views/Common/TimelineView.h"
 
 #include <QMouseEvent>

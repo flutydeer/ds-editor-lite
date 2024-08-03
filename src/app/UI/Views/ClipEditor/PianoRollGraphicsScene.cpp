@@ -8,7 +8,7 @@
 
 #include "Global/ClipEditorGlobal.h"
 #include "GraphicsItem/PianoRollBackgroundGraphicsItem.h"
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 
 using namespace ClipEditorGlobal;
 

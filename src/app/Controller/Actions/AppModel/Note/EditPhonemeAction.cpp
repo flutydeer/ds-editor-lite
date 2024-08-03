@@ -4,7 +4,7 @@
 
 #include "EditPhonemeAction.h"
 
-#include "Model/Clip.h"
+#include "Model/AppModel/Clip.h"
 
 EditPhonemeAction *EditPhonemeAction::build(Note *note, const Phoneme &phoneme) {
     auto a = new EditPhonemeAction;

@@ -9,11 +9,11 @@
 #include "Utils/ISelectable.h"
 #include "Utils/OverlappableSerialList.h"
 #include "Utils/UniqueObject.h"
-#include "ClipboardDataModel/NotesParamsInfo.h"
+#include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Params.h"
 #include "Global/AppGlobal.h"
 #include "Interface/IClip.h"
-#include "Model/AudioInfoModel.h"
+#include "Model/AppModel/AudioInfoModel.h"
 
 class Params;
 class Note;

@@ -10,7 +10,7 @@
 #include "UI/Window/MainWindow.h"
 #include "Modules/Audio/AudioSystem.h"
 #include "Utils/logMessageHandler.h"
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 #include "Model/WorkspaceEditor.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/ThemeManager.h"

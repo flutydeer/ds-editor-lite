@@ -5,7 +5,7 @@
 #ifndef NOTESPARAMSINFO_H
 #define NOTESPARAMSINFO_H
 
-#include "Model/Note.h"
+#include "Model/AppModel/Note.h"
 
 class NotesParamsInfo {
 public:

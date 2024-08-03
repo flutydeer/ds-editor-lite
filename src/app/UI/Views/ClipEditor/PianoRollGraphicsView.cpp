@@ -10,10 +10,10 @@
 #include "Global/AppGlobal.h"
 #include "GraphicsItem/NoteView.h"
 #include "GraphicsItem/PitchEditorGraphicsItem.h"
-#include "Model/AppModel.h"
-#include "Model/Clip.h"
-#include "Model/Curve.h"
-#include "Model/Note.h"
+#include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/Curve.h"
+#include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
 #include "Utils/MathUtils.h"
@@ -506,8 +506,8 @@ NoteView *PianoRollGraphicsView::noteViewAt(const QPoint &pos) {
 }
 void PianoRollGraphicsView::handleNoteInserted(Note *note) {
     m_canNotifySelectedNoteChanged = false;
-    qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric()
-             << note->pronunciation().original << note->pronunciation().edited;
+    // qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric()
+             // << note->pronunciation().original << note->pronunciation().edited;
     auto noteItem = new NoteView(note->id());
     noteItem->setStart(note->start());
     noteItem->setLength(note->length());
@@ -528,7 +528,7 @@ void PianoRollGraphicsView::handleNoteInserted(Note *note) {
 }
 void PianoRollGraphicsView::handleNoteRemoved(Note *note) {
     m_canNotifySelectedNoteChanged = false;
-    qDebug() << "PianoRollGraphicsView::removeNote" << note;
+    // qDebug() << "PianoRollGraphicsView::removeNote" << note;
     auto noteItem = m_noteLayer.findNoteById(note->id());
     m_layerManager.removeItem(noteItem, &m_noteLayer);
     m_canNotifySelectedNoteChanged = true;

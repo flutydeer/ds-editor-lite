@@ -7,7 +7,7 @@
 
 #include "Global/AppGlobal.h"
 #include "Interface/ITrack.h"
-#include "Model/TrackControl.h"
+#include "Model/AppModel/TrackControl.h"
 
 #include <QWidget>
 

@@ -10,9 +10,9 @@
 #include <QJsonObject>
 #include <QFileInfo>
 
-#include "Model/Track.h"
-#include "Model/Clip.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Track.h"
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/Note.h"
 
 static QMap<QString, QString> languageMapping = {
     {"CHN", "Mandarin"}

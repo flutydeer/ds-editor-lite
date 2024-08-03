@@ -5,7 +5,7 @@
 #include "TrackControlView.h"
 
 #include "Controller/TracksViewController.h"
-#include "Model/Track.h"
+#include "Model/AppModel/Track.h"
 #include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/EditLabel.h"

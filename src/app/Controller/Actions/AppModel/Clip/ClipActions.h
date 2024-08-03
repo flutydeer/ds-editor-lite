@@ -5,7 +5,7 @@
 #ifndef CLIPACTIONS_H
 #define CLIPACTIONS_H
 
-#include "Model/Clip.h"
+#include "Model/AppModel/Clip.h"
 #include "Modules/History/ActionSequence.h"
 
 class Track;

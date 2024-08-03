@@ -4,7 +4,7 @@
 
 #include "RemoveClipAction.h"
 
-#include "Model/Track.h"
+#include "Model/AppModel/Track.h"
 
 RemoveClipAction *RemoveClipAction::build(Clip *clip, Track *track) {
     auto a = new RemoveClipAction;

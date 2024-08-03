@@ -8,8 +8,8 @@
 #define audioDecodingController AudioDecodingController::instance()
 
 #include "Utils/Singleton.h"
-#include "Model/AppModel.h"
-#include "Model/Track.h"
+#include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/Track.h"
 
 #include <QObject>
 

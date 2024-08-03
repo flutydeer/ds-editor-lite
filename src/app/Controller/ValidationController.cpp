@@ -4,7 +4,7 @@
 
 #include "ValidationController.h"
 
-#include "Model/Track.h"
+#include "Model/AppModel/Track.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Toast.h"

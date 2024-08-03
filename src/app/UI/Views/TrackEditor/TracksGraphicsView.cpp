@@ -9,7 +9,7 @@
 #include "Global/TracksEditorGlobal.h"
 #include "GraphicsItem/AbstractClipView.h"
 #include "GraphicsItem/TracksBackgroundGraphicsItem.h"
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "Utils/MathUtils.h"

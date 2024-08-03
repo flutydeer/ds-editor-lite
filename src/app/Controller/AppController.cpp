@@ -10,7 +10,7 @@
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
 #include "Interface/IMainWindow.h"
 #include "Interface/IPanel.h"
-#include "Model/Track.h"
+#include "Model/AppModel/Track.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"

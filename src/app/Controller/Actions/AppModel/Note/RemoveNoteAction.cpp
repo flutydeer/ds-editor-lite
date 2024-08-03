@@ -4,8 +4,8 @@
 
 #include "RemoveNoteAction.h"
 
-#include "Model/Clip.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/Note.h"
 
 RemoveNoteAction *RemoveNoteAction::build(Note *note, SingingClip *clip) {
     auto a = new RemoveNoteAction;

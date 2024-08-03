@@ -6,8 +6,8 @@
 #include "ClipEditorToolBarView_p.h"
 
 #include "Controller/TracksViewController.h"
-#include "Model/AppModel.h"
-#include "Model/Clip.h"
+#include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/Clip.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"

@@ -5,7 +5,7 @@
 #include "NotePropertyDialog.h"
 
 #include "Global/ClipEditorGlobal.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Note.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"

@@ -5,7 +5,7 @@
 #ifndef REPLACEPARAMACTION_H
 #define REPLACEPARAMACTION_H
 
-#include "Model/Params.h"
+#include "Model/AppModel/Params.h"
 #include "Modules/History/IAction.h"
 
 class SingingClip;

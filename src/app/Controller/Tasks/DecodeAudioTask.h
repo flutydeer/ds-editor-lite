@@ -5,7 +5,7 @@
 #ifndef DECODEAUDIOTASK_H
 #define DECODEAUDIOTASK_H
 
-#include "Model/AudioInfoModel.h"
+#include "Model/AppModel/AudioInfoModel.h"
 #include "Modules/Task/Task.h"
 
 #include <sndfile.hh>

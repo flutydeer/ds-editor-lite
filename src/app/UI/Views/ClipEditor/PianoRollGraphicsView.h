@@ -7,8 +7,8 @@
 
 #include "Global/ClipEditorGlobal.h"
 #include "Layers/NoteLayer.h"
-#include "Model/Clip.h"
-#include "Model/Params.h"
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/Params.h"
 #include "UI/Views/Common/GraphicsLayerManager.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 

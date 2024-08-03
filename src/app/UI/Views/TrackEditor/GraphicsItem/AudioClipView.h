@@ -6,7 +6,7 @@
 #define AUDIOCLIPGRAPHICSITEM_H
 
 #include "AbstractClipView.h"
-#include "Model/AudioInfoModel.h"
+#include "Model/AppModel/AudioInfoModel.h"
 #include "Global/AppGlobal.h"
 
 class AudioClipView final : public AbstractClipView {

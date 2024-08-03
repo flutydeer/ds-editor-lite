@@ -5,9 +5,9 @@
 #ifndef TRACKSVIEW_H
 #define TRACKSVIEW_H
 
-#include "Model/AppModel.h"
-#include "Model/Track.h"
-#include "Model/Clip.h"
+#include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/Track.h"
+#include "Model/AppModel/Clip.h"
 #include "UI/Views/Common/PanelView.h"
 
 class TrackListWidget;

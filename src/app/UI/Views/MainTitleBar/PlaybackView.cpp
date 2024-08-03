@@ -7,7 +7,7 @@
 
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"

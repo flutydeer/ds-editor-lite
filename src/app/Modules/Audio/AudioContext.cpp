@@ -28,7 +28,7 @@
 #include <Modules/Audio/subsystem/AbstractOutputSystem.h>
 #include <Modules/Audio/AudioSettings.h>
 
-#include "Model/Track.h"
+#include "Model/AppModel/Track.h"
 #include <Model/AppOptions/AppOptions.h>
 
 #define DEVICE_LOCKER talcs::AudioDeviceLocker locker(AudioSystem::sessionOutputSystem()->context()->device())

@@ -4,7 +4,7 @@
 
 #include "TimeGridGraphicsItem.h"
 
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 
 #include <QPainter>
 #include <QPen>

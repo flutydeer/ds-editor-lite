@@ -7,8 +7,8 @@
 
 #define trackController TracksViewController::instance()
 
-#include "Model/Clip.h"
-#include "Model/Track.h"
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/Track.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Utils/Singleton.h"
 

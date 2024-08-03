@@ -5,7 +5,7 @@
 #ifndef NOTEPROPERTYEDITDIALOG_H
 #define NOTEPROPERTYEDITDIALOG_H
 
-#include "Model/Note.h"
+#include "Model/AppModel/Note.h"
 #include "UI/Dialogs/Base/OKCancelDialog.h"
 #include "opendspx/qdspxnote.h"
 

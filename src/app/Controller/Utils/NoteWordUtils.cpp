@@ -6,7 +6,7 @@
 
 #include "Controller/Actions/AppModel/Note/NoteActions.h"
 #include "LangMgr/ILanguageManager.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Note.h"
 #include "Modules/Language/S2p.h"
 
 void NoteWordUtils::updateOriginalWordProperties(const QList<Note *>& notes) {

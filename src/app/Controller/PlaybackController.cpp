@@ -6,7 +6,7 @@
 #include "PlaybackController_p.h"
 
 #include "ValidationController.h"
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 #include "UI/Controls/Toast.h"
 
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {

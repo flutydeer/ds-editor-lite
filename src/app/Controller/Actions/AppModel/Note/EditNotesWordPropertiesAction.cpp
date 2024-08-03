@@ -6,8 +6,8 @@
 
 #include <utility>
 
-#include "Model/Clip.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/Note.h"
 
 EditNotesWordPropertiesAction *EditNotesWordPropertiesAction::build(Note *note,
                                                                     Note::NoteWordProperties args) {

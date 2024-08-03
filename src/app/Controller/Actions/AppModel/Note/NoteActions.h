@@ -6,7 +6,7 @@
 #define NOTEACTIONS_H
 
 #include "Modules/History/ActionSequence.h"
-#include "Model/Note.h"
+#include "Model/AppModel/Note.h"
 
 class SingingClip;
 

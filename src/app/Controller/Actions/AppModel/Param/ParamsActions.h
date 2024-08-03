@@ -5,7 +5,7 @@
 #ifndef PARAMSACTIONS_H
 #define PARAMSACTIONS_H
 
-#include "Model/Params.h"
+#include "Model/AppModel/Params.h"
 #include "Modules/History/ActionSequence.h"
 
 class SingingClip;

@@ -7,7 +7,7 @@
 
 #define playbackController PlaybackController::instance()
 
-#include "Model/AppModel.h"
+#include "Model/AppModel/AppModel.h"
 #include "Utils/Singleton.h"
 #include "Global/PlaybackGlobal.h"
 

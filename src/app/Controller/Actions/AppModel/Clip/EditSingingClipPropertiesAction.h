@@ -5,7 +5,7 @@
 #ifndef EDITSINGINGCLIPPROPERTIES_H
 #define EDITSINGINGCLIPPROPERTIES_H
 
-#include "Model/Clip.h"
+#include "Model/AppModel/Clip.h"
 #include "Modules/History/IAction.h"
 
 class Track;

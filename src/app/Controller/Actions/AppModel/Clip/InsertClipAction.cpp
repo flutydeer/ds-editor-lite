@@ -4,7 +4,7 @@
 
 #include "InsertClipAction.h"
 
-#include "Model/Track.h"
+#include "Model/AppModel/Track.h"
 
 InsertClipAction *InsertClipAction::build(Clip *clip, Track *track) {
     auto a = new InsertClipAction;

@@ -6,7 +6,6 @@
 #include "AppModel_p.h"
 
 #include "Track.h"
-#include "WorkspaceEditor.h"
 #include "Modules/ProjectConverters/AProjectConverter.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
 #include "Modules/ProjectConverters/MidiConverter.h"

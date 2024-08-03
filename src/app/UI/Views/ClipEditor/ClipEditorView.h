@@ -5,7 +5,7 @@
 #ifndef CLIPEDITVIEW_H
 #define CLIPEDITVIEW_H
 
-#include "Model/Track.h"
+#include "Model/AppModel/Track.h"
 #include "PhonemeView.h"
 #include "Interface/IClipEditorView.h"
 #include "UI/Views/Common/PanelView.h"
