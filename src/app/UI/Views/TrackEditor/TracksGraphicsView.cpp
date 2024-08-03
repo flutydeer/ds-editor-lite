@@ -139,11 +139,11 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     int right;
     int delta = qRound(dx);
     int quantize = m_tempQuantizeOff ? 1 : 1920 / m_quantize;
-    m_propertyEdited = true;
     if (m_mouseMoveBehavior == Move) {
         left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
         start = left - m_mouseDownClipStart;
         m_currentEditingClip->setStart(start);
+        m_propertyEdited = true;
     } else if (m_mouseMoveBehavior == ResizeLeft) {
         left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
         start = m_mouseDownStart;
@@ -164,6 +164,7 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             m_currentEditingClip->setClipStart(m_mouseDownClipStart + m_mouseDownClipLen);
             m_currentEditingClip->setClipLen(0);
         }
+        m_propertyEdited = true;
     } else if (m_mouseMoveBehavior == ResizeRight) {
         right = MathUtils::round(
             m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize);
@@ -184,16 +185,17 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             m_currentEditingClip->setLength(curClipStart + clipLen);
             m_currentEditingClip->setClipLen(clipLen);
         }
+        m_propertyEdited = true;
     } else if (m_mouseMoveBehavior == None) {
         m_propertyEdited = false;
     }
     TimeGraphicsView::mouseMoveEvent(event);
 }
 void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
-    auto scenePos = mapToScene(event->pos());
-    if (m_mouseDownPos == scenePos) {
-        m_propertyEdited = false;
-    }
+    // auto scenePos = mapToScene(event->pos());
+    // if (m_mouseDownPos == scenePos) {
+    //     m_propertyEdited = false;
+    // }
     if (m_propertyEdited) {
         handleClipEdited();
     }
