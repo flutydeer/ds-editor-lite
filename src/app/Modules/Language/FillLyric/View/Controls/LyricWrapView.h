@@ -71,6 +71,7 @@ namespace FillLyric {
         QList<LyricCell *> m_selectedCells{};
 
         QPoint rubberBandOrigin;
+        QPoint lastClickPos;
 
     private Q_SLOTS:
         void updateRect();

@@ -115,6 +115,7 @@ namespace FillLyric {
 
         if (event->button() == Qt::LeftButton) {
             // 如果按下了shift
+            int cellCount = 0;
             if (event->modifiers() & Qt::ShiftModifier) {
                 QPoint shiftStartPos{};
                 for (const auto item : scene()->selectedItems()) {
@@ -122,11 +123,17 @@ namespace FillLyric {
                     if (cell) {
                         shiftStartPos.setX(cell->mapToScene(cell->boundingRect().center()).x());
                         shiftStartPos.setY(cell->mapToScene(cell->boundingRect().center()).y());
-                        break;
+                        cellCount++;
                     }
                 }
-                if (shiftStartPos.x() != 0 && (event->pos() - shiftStartPos).manhattanLength() >
-                    10) {
+                if (cellCount > 1) {
+                    for (const auto item : scene()->selectedItems()) {
+                        item->setSelected(false);
+                    }
+                    this->selectCells(lastClickPos, scenePos);
+                } else if (shiftStartPos.x() != 0 && (event->pos() - shiftStartPos).
+                           manhattanLength() >
+                           10) {
                     this->selectCells(shiftStartPos, scenePos);
                 }
                 event->accept();
@@ -186,6 +193,8 @@ namespace FillLyric {
     }
 
     void LyricWrapView::mouseReleaseEvent(QMouseEvent *event) {
+        if (event->button() == Qt::LeftButton && !(event->modifiers() & Qt::ShiftModifier))
+            lastClickPos = mapToScene(event->pos()).toPoint();
         QGraphicsView::mouseReleaseEvent(event);
     }
 
