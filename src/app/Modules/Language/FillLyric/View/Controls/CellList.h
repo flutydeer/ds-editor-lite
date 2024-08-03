@@ -13,6 +13,7 @@ namespace FillLyric {
 
     class CellList final : public QGraphicsObject {
         Q_OBJECT
+
     public:
         explicit CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
                           QGraphicsScene *scene, QGraphicsView *view, QUndoStack *undoStack);
@@ -32,6 +33,8 @@ namespace FillLyric {
         [[nodiscard]] QGraphicsView *view() const;
 
         [[nodiscard]] LyricCell *createNewCell() const;
+
+        void selectCells(const QPoint &startPos, const QPoint &endPos);
 
         void appendCell(LyricCell *cell);
         void removeCell(LyricCell *cell);

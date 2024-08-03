@@ -31,8 +31,9 @@ namespace FillLyric {
         this->setScene(m_scene);
         this->setDragMode(RubberBandDrag);
 
-        this->setHorizontalScrollBarPolicy(m_autoWrap ? Qt::ScrollBarAlwaysOff
-                                                      : Qt::ScrollBarAsNeeded);
+        this->setHorizontalScrollBarPolicy(m_autoWrap
+                                               ? Qt::ScrollBarAlwaysOff
+                                               : Qt::ScrollBarAsNeeded);
         this->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
         setAlignment(Qt::AlignLeft | Qt::AlignTop);
@@ -116,9 +117,7 @@ namespace FillLyric {
             if (const auto cellList = mapToList(scenePos)) {
                 cellList->setSelected(false);
             }
-            rubberBandOrigin = event->pos();
-            rubberBand.setGeometry(QRect(rubberBandOrigin, QSize()));
-            rubberBand.show();
+            rubberBandOrigin = scenePos;
         }
 
         if (event->button() == Qt::RightButton) {
@@ -152,27 +151,18 @@ namespace FillLyric {
 
     void LyricWrapView::mouseMoveEvent(QMouseEvent *event) {
         if (event->buttons() & Qt::LeftButton) {
-            if (rubberBand.isVisible()) {
-                rubberBand.setGeometry(QRect(rubberBandOrigin, event->pos()).normalized());
-                QRect rect = rubberBand.geometry();
-                rect = rect.normalized();
+            const auto scenePos = mapToScene(event->pos()).toPoint();
 
-                if ((event->pos() - rubberBandOrigin).manhattanLength() > 10) {
-                    if (const auto cellList = mapToList(rubberBandOrigin))
-                        cellList->setSelected(false);
+            if ((event->pos() - rubberBandOrigin).manhattanLength() > 10) {
+                if (const auto cellList = mapToList(rubberBandOrigin))
+                    cellList->setSelected(false);
+                if (scenePos.y() > rubberBandOrigin.y()) {
+                    this->selectCells(rubberBandOrigin, mapToScene(event->pos()).toPoint());
+                } else {
+                    this->selectCells(mapToScene(event->pos()).toPoint(), rubberBandOrigin);
                 }
-
-                QList<QGraphicsItem *> itemsInRect = items(rect);
-                for (QGraphicsItem *item : itemsInRect) {
-                    if (dynamic_cast<LyricCell *>(item)) {
-                        item->setSelected(true);
-                    }
-                }
-            } else {
-                rubberBandOrigin = event->pos();
-                rubberBand.setGeometry(QRect(rubberBandOrigin, QSize()));
-                rubberBand.show();
             }
+
             event->accept();
             return;
         }
@@ -180,20 +170,6 @@ namespace FillLyric {
     }
 
     void LyricWrapView::mouseReleaseEvent(QMouseEvent *event) {
-        if (event->button() == Qt::LeftButton) {
-            rubberBand.hide();
-            QRect rect = rubberBand.geometry();
-            rect = rect.normalized();
-
-            QList<QGraphicsItem *> itemsInRect = items(rect);
-            for (QGraphicsItem *item : itemsInRect) {
-                if (dynamic_cast<LyricCell *>(item)) {
-                    item->setSelected(true);
-                }
-            }
-        }
-        rubberBandOrigin = QPoint();
-        rubberBand.setGeometry(QRect(rubberBandOrigin, QSize()));
         QGraphicsView::mouseReleaseEvent(event);
     }
 
@@ -469,11 +445,17 @@ namespace FillLyric {
         });
 
         connect(cellList, &CellList::deleteLine,
-                [this, cellList] { m_history->push(new DeleteLineCmd(this, cellList)); });
+                [this, cellList] {
+                    m_history->push(new DeleteLineCmd(this, cellList));
+                });
         connect(cellList, &CellList::addPrevLine,
-                [this, cellList] { m_history->push(new AddPrevLineCmd(this, cellList)); });
+                [this, cellList] {
+                    m_history->push(new AddPrevLineCmd(this, cellList));
+                });
         connect(cellList, &CellList::addNextLine,
-                [this, cellList] { m_history->push(new AddNextLineCmd(this, cellList)); });
+                [this, cellList] {
+                    m_history->push(new AddNextLineCmd(this, cellList));
+                });
     }
 
     qreal LyricWrapView::cellBaseY(const int &index) const {
@@ -492,6 +474,11 @@ namespace FillLyric {
                 return cellList;
         }
         return nullptr;
+    }
+
+    void LyricWrapView::selectCells(const QPoint &startPos, const QPoint &endPos) {
+        for (const auto &cellList : m_cellLists)
+            cellList->selectCells(startPos, endPos);
     }
 
     void LyricWrapView::updateRect() {

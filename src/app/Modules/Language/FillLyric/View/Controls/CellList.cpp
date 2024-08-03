@@ -97,6 +97,50 @@ namespace FillLyric {
         return m_view;
     }
 
+    void CellList::selectCells(const QPoint &startPos, const QPoint &endPos) {
+        qreal x = deltaX() + this->x();
+        qreal y = this->y() + m_splitter->deltaY() + this->y();
+
+        for (const auto cell : m_cells) {
+            const auto cellWidth = cell->width();
+            if (x + cellWidth > m_curWidth && m_autoWarp) {
+                // Move to the next row
+                x = deltaX();
+                y += cell->height();
+            }
+
+            //起始行
+            if (startPos.y() >= y && startPos.y() < y + cell->height()) {
+                if (startPos.x() < x + cellWidth) {
+                    //此行同时作为末行
+                    if (endPos.y() > y && endPos.y() <= y + cell->height()) {
+                        if (x < endPos.x())
+                            cell->setSelected(true);
+                        else
+                            cell->setSelected(false);
+                    } else
+                        cell->setSelected(true);
+                } else
+                    cell->setSelected(false);
+            } else if (startPos.y() < y) {
+                //此行为中间行或末行
+                if (endPos.y() > y + cell->height()) //中间行
+                    cell->setSelected(true);
+                else if (endPos.y() > y && endPos.y() <= y + cell->height()) {
+                    //末行
+                    if (x < endPos.x())
+                        cell->setSelected(true);
+                    else
+                        cell->setSelected(false);
+                } else
+                    cell->setSelected(false);
+            } else {
+                cell->setSelected(false);
+            }
+            x += cellWidth;
+        }
+    }
+
     LyricCell *CellList::createNewCell() const {
         const auto lyricCell = new LyricCell(0, this->y() + deltaY(), new LangNote(), m_view);
         this->connectCell(lyricCell);

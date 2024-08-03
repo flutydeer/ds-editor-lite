@@ -11,6 +11,7 @@
 namespace FillLyric {
     class LyricWrapView final : public QGraphicsView {
         Q_OBJECT
+
     public:
         explicit LyricWrapView(QWidget *parent = nullptr);
         ~LyricWrapView() override;
@@ -32,6 +33,7 @@ namespace FillLyric {
         void moveDownLists(QList<CellList *> cellLists);
 
         CellList *mapToList(const QPoint &pos);
+        void selectCells(const QPoint &startPos, const QPoint &endPos);
         void repaintCellLists();
 
         [[nodiscard]] QUndoStack *history() const;
@@ -68,7 +70,6 @@ namespace FillLyric {
         QList<LyricCell *> m_selectedCells{};
 
         QPoint rubberBandOrigin;
-        QRubberBand rubberBand{QRubberBand::Rectangle, this};
 
     private Q_SLOTS:
         void updateRect();
