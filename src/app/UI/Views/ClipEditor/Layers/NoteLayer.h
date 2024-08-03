@@ -12,8 +12,7 @@ class NoteView;
 class NoteLayer : public CommonGraphicsLayer {
 public:
     [[nodiscard]] QList<NoteView *> noteItems() const;
-    NoteView *findNoteById(int id);
-    void updateOverlappedState();
+    [[nodiscard]] NoteView *findNoteById(int id) const;
 };
 
 

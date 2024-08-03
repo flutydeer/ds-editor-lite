@@ -36,6 +36,15 @@ public:
         }
         list.insert(low, elem);
     }
+
+    template <typename TItem, typename TContainer>
+    static TItem findItemById(const TContainer &container, int id) {
+        for (const auto item : container)
+            if (item->id() == id)
+                return item;
+        return nullptr;
+    }
+
 };
 
 

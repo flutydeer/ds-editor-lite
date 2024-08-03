@@ -6,6 +6,7 @@
 
 #include "Track.h"
 #include "Clip.h"
+#include "Utils/MathUtils.h"
 
 Track::~Track() {
     qDebug() << "Track::~Track()";
@@ -51,12 +52,8 @@ void Track::setDefaultLanguage(AppGlobal::languageType language) {
 void Track::notifyClipChanged(ClipChangeType type, Clip *clip) {
     emit clipChanged(type, clip);
 }
-Clip *Track::findClipById(int id) {
-    for (auto clip : m_clips) {
-        if (clip->id() == id)
-            return clip;
-    }
-    return nullptr;
+Clip *Track::findClipById(int id) const {
+    return MathUtils::findItemById<Clip *>(m_clips, id);
 }
 Track::TrackProperties::TrackProperties(const ITrack &track) {
     auto control = track.control();

@@ -7,6 +7,7 @@
 #include <QList>
 
 #include "../GraphicsItem/NoteView.h"
+#include "Utils/MathUtils.h"
 
 QList<NoteView *> NoteLayer::noteItems() const {
     QList<NoteView *> notes;
@@ -14,15 +15,6 @@ QList<NoteView *> NoteLayer::noteItems() const {
         notes.append(reinterpret_cast<NoteView *>(item));
     return notes;
 }
-NoteView *NoteLayer::findNoteById(int id) {
-    for (const auto note : noteItems())
-        if (note->id() == id)
-            return note;
-    return nullptr;
-}
-void NoteLayer::updateOverlappedState() {
-    // for (const auto note : singingClip->notes()) {
-    //     auto noteItem = m_noteLayer.findNoteById(note->id());
-    //     noteItem->setOverlapped(note->overlapped());
-    // }
+NoteView *NoteLayer::findNoteById(int id) const {
+    return MathUtils::findItemById<NoteView *>(noteItems(), id);
 }

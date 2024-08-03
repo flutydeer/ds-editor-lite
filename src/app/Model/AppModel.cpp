@@ -10,8 +10,9 @@
 #include "Modules/ProjectConverters/AProjectConverter.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
+#include "Utils/MathUtils.h"
 
-AppModel::AppModel() : d_ptr(new AppModelPrivate(this)){
+AppModel::AppModel() : d_ptr(new AppModelPrivate(this)) {
 }
 TimeSignature AppModel::timeSignature() const {
     Q_D(const AppModel);
@@ -241,10 +242,7 @@ Track *AppModel::findTrackById(int id, int &trackIndex) {
 }
 Track *AppModel::findTrackById(int id) {
     Q_D(const AppModel);
-    for (auto track : d->m_tracks)
-        if (track->id() == id)
-            return track;
-    return nullptr;
+    return MathUtils::findItemById<Track *>(d->m_tracks, id);
 }
 double AppModel::tickToMs(double tick) const {
     Q_D(const AppModel);

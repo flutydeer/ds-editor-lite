@@ -23,6 +23,7 @@
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Views/Common/TimelineView.h"
+#include "Utils/MathUtils.h"
 
 #include <QFileDialog>
 #include <QMouseEvent>

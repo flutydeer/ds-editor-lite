@@ -36,7 +36,7 @@ public:
     void setDefaultLanguage(AppGlobal::languageType language);
 
     void notifyClipChanged(ClipChangeType type, Clip *clip);
-    Clip *findClipById(int id);
+    Clip *findClipById(int id) const;
 
     class TrackProperties {
     public:

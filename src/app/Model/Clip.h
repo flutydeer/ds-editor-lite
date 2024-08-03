@@ -137,7 +137,7 @@ public:
     [[nodiscard]] const OverlappableSerialList<Note> &notes() const;
     void insertNote(Note *note);
     void removeNote(Note *note);
-    Note *findNoteById(int id);
+    Note *findNoteById(int id) const;
     [[nodiscard]] QList<Note *> selectedNotes() const;
 
     void notifyNoteChanged(NoteChangeType type, Note *note);

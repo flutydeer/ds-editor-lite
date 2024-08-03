@@ -8,6 +8,8 @@
 
 #include "Note.h"
 #include "Curve.h"
+#include "Utils/Linq.h"
+#include "Utils/MathUtils.h"
 
 QString Clip::name() const {
     return m_name;
@@ -177,20 +179,11 @@ void SingingClip::copyCurves(const OverlappableSerialList<Curve> &source,
         //     target.append(new AnchorCurve)
     }
 }
-Note *SingingClip::findNoteById(int id) {
-    for (auto note : m_notes) {
-        if (note->id() == id)
-            return note;
-    }
-    return nullptr;
+Note *SingingClip::findNoteById(int id) const {
+    return MathUtils::findItemById<Note *>(m_notes, id);
 }
 QList<Note *> SingingClip::selectedNotes() const {
-    QList<Note *> notes;
-    for (auto note : m_notes) {
-        if (note->selected())
-            notes.append(note);
-    }
-    return notes;
+    return Linq::where(m_notes, [](Note *note) { return note->selected(); });
 }
 void SingingClip::notifyNoteChanged(NoteChangeType type, Note *note) {
     emit noteChanged(type, note);
