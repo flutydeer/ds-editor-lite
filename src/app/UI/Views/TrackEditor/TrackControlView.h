@@ -37,7 +37,7 @@ public:
     [[nodiscard]] TrackControl control() const override;
     void setControl(const TrackControl &control) override;
     void setNarrowMode(bool on);
-    void setLanguage(AppGlobal::languageType lang);
+    // void setLanguage(AppGlobal::languageType lang);
     [[nodiscard]] LevelMeter *levelMeter() const;
     [[nodiscard]] QColor color() const override {
         return {};
@@ -69,7 +69,7 @@ private:
     Button *m_btnMute;
     Button *m_btnSolo;
     EditLabel *m_leTrackName;
-    LanguageComboBox *m_cbLanguage;
+    // LanguageComboBox *m_cbLanguage;
     SVS::SeekBar *m_sbPan;
     EditLabel *m_lePan;
     SVS::SeekBar *m_sbGain;

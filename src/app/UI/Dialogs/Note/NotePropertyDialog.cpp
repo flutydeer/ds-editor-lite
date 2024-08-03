@@ -10,6 +10,7 @@
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Views/Common/LanguageComboBox.h"
+#include "Utils/Linq.h"
 
 #include <QSpinBox>
 #include <QFormLayout>
@@ -43,24 +44,19 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     auto originalPhoneme = phoneme.original;
     auto editedPhoneme = phoneme.edited;
 
-    QList<Phoneme> originalAhead;
-    QList<Phoneme> originalNormal;
-    QList<Phoneme> originalFinal;
-    regroupPhonemes(originalPhoneme, originalAhead, originalNormal, originalFinal);
+    auto types = Phoneme::phonemesTypes();
+    auto getter = [](const Phoneme &phoneme) { return phoneme.type; };
+    const auto originalMap = Linq::groupBy(originalPhoneme, types, getter);
+    const auto editedMap = Linq::groupBy(editedPhoneme, types, getter);
 
-    QList<Phoneme> editedAhead;
-    QList<Phoneme> editedNormal;
-    QList<Phoneme> editedFinal;
-    regroupPhonemes(editedPhoneme, editedAhead, editedNormal, editedFinal);
+    auto lePhonemeAhead = new QLineEdit(phonemesToString(editedMap[Phoneme::Ahead]));
+    lePhonemeAhead->setPlaceholderText(phonemesToString(originalMap[Phoneme::Ahead]));
 
-    auto lePhonemeAhead = new QLineEdit(phonemesToString(editedAhead));
-    lePhonemeAhead->setPlaceholderText(phonemesToString(originalAhead));
+    auto lePhonemeNormal = new QLineEdit(phonemesToString(editedMap[Phoneme::Normal]));
+    lePhonemeNormal->setPlaceholderText(phonemesToString(originalMap[Phoneme::Normal]));
 
-    auto lePhonemeNormal = new QLineEdit(phonemesToString(editedNormal));
-    lePhonemeNormal->setPlaceholderText(phonemesToString(originalNormal));
-
-    auto lePhonemeFinal = new QLineEdit(phonemesToString(editedFinal));
-    lePhonemeFinal->setPlaceholderText(phonemesToString(originalFinal));
+    auto lePhonemeFinal = new QLineEdit(phonemesToString(editedMap[Phoneme::Final]));
+    lePhonemeFinal->setPlaceholderText(phonemesToString(originalMap[Phoneme::Final]));
 
     auto mainLayout = new QFormLayout;
     mainLayout->setLabelAlignment(Qt::AlignmentFlag::AlignRight | Qt::AlignmentFlag::AlignTrailing |
@@ -80,17 +76,6 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     setModal(true);
     connect(okButton(), &AccentButton::clicked, this, &Dialog::accept);
     connect(cancelButton(), &AccentButton::clicked, this, &Dialog::reject);
-}
-void NotePropertyDialog::regroupPhonemes(const QList<Phoneme> &phonemes, QList<Phoneme> &ahead,
-                                         QList<Phoneme> &normal, QList<Phoneme> &final) {
-    for (const Phoneme &phoneme : phonemes) {
-        if (phoneme.type == Phoneme::Ahead)
-            ahead.append(phoneme);
-        else if (phoneme.type == Phoneme::Normal)
-            normal.append(phoneme);
-        else if (phoneme.type == Phoneme::Final)
-            final.append(phoneme);
-    }
 }
 QString NotePropertyDialog::phonemesToString(const QList<Phoneme> &phonemes) {
     QString result;

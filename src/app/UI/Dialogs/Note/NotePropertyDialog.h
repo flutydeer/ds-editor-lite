@@ -27,8 +27,6 @@ public:
 private:
     Note *m_note;
 
-    static void regroupPhonemes(const QList<Phoneme> &phonemes, QList<Phoneme> &ahead,
-                                QList<Phoneme> &normal, QList<Phoneme> &final);
     static QString phonemesToString(const QList<Phoneme> &phonemes);
     static QList<Phoneme> phonemesFromString(Phoneme::PhonemeType type, const QString &names);
 };

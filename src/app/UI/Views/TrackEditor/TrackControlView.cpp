@@ -68,8 +68,8 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     m_leTrackName->setMaximumHeight(m_buttonSize);
     connect(m_leTrackName, &EditLabel::editCompleted, this, [&] { changeTrackProperty(); });
 
-    m_cbLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::Unknown));
-    m_cbLanguage->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+    // m_cbLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::Unknown));
+    // m_cbLanguage->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
 
     m_muteSoloTrackNameLayout = new QHBoxLayout;
     m_muteSoloTrackNameLayout->setObjectName("muteSoloTrackNameLayout");
@@ -77,7 +77,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     m_muteSoloTrackNameLayout->addWidget(m_btnMute);
     m_muteSoloTrackNameLayout->addWidget(m_btnSolo);
     m_muteSoloTrackNameLayout->addWidget(m_leTrackName);
-    m_muteSoloTrackNameLayout->addWidget(m_cbLanguage);
+    // m_muteSoloTrackNameLayout->addWidget(m_cbLanguage);
     m_muteSoloTrackNameLayout->setSpacing(4);
     m_muteSoloTrackNameLayout->setContentsMargins(4, 8, 4, 8);
 
@@ -161,7 +161,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     setName(track->name());
     setControl(track->control());
-    setLanguage(track->defaultLanguage());
+    // setLanguage(track->defaultLanguage());
 }
 int TrackControlView::trackIndex() const {
     return m_lbTrackIndex->text().toInt();
@@ -215,9 +215,9 @@ void TrackControlView::setNarrowMode(bool on) {
         }
     }
 }
-void TrackControlView::setLanguage(AppGlobal::languageType lang) {
-    m_cbLanguage->setCurrentIndex(lang);
-}
+// void TrackControlView::setLanguage(AppGlobal::languageType lang) {
+//     m_cbLanguage->setCurrentIndex(lang);
+// }
 LevelMeter *TrackControlView::levelMeter() const {
     return m_levelMeter;
 }

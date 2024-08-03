@@ -173,6 +173,9 @@ QJsonObject Pronunciation::serialize(const Pronunciation &pronunciation) {
     objPronunciation.insert("edited", pronunciation.edited);
     return objPronunciation;
 }
+QList<Phoneme::PhonemeType> Phoneme::phonemesTypes() {
+    return {Ahead, Normal, Final};
+}
 QJsonObject Phonemes::serialize(const Phonemes &phonemes) {
     QJsonObject objPhonemes;
     auto serializePhoneme = [](QJsonArray &array, const QList<Phoneme> &phonemes) {

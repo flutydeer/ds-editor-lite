@@ -41,6 +41,7 @@ public:
     Phoneme(PhonemeType type, QString name, int start)
         : type(type), name(std::move(name)), start(start) {
     }
+    static QList<PhonemeType> phonemesTypes() ;
     PhonemeType type = Normal;
     QString name;
     int start{};

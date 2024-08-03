@@ -22,6 +22,28 @@ namespace Linq {
         std::copy_if(container.begin(), container.end(), std::back_inserter(result), predicate);
         return result;
     }
+
+    template <typename TContainer, typename TKeys, typename TKeyGetter>
+    auto groupBy(const TContainer &container, const TKeys &keys, TKeyGetter getter) {
+        using TItem = std::decay_t<decltype(*container.begin())>;
+        using TKey = std::decay_t<decltype(*keys.begin())>;
+
+        QMap<TKey, QList<TItem>> map;
+        for (const auto &key : keys)
+            map.insert(key, QList<TItem>());
+
+        for (const auto &item : container) {
+            for (const auto &key : keys) {
+                if (getter(item) == key) {
+                    map[key].append(item);
+                    break;
+                }
+            }
+        }
+
+        return map;
+    }
+
 };
 
 #endif // LINQ_H
