@@ -115,12 +115,11 @@ namespace FillLyric {
 
         if (event->button() == Qt::LeftButton) {
             // 如果按下了shift
-            int cellCount = 0;
             if (event->modifiers() & Qt::ShiftModifier) {
-                QPoint shiftStartPos{};
+                int cellCount = 0;
+                QPointF shiftStartPos{};
                 for (const auto item : scene()->selectedItems()) {
-                    const auto cell = dynamic_cast<LyricCell *>(item);
-                    if (cell) {
+                    if (const auto cell = dynamic_cast<LyricCell *>(item)) {
                         shiftStartPos.setX(cell->mapToScene(cell->boundingRect().center()).x());
                         shiftStartPos.setY(cell->mapToScene(cell->boundingRect().center()).y());
                         cellCount++;
@@ -355,16 +354,14 @@ namespace FillLyric {
 
     void LyricWrapView::moveUpLists(const QList<CellList *> &cellLists) {
         for (auto cellList : cellLists) {
-            const qlonglong i = m_cellLists.indexOf(cellList);
-            if (i >= 1)
+            if (const qlonglong i = m_cellLists.indexOf(cellList) >= 1)
                 qSwap(m_cellLists[i], m_cellLists[i - 1]);
         }
     }
 
     void LyricWrapView::moveDownLists(QList<CellList *> cellLists) {
         for (auto it = cellLists.rbegin(); it != cellLists.rend(); ++it) {
-            const qlonglong i = m_cellLists.indexOf(*it);
-            if (i < m_cellLists.size() - 1)
+            if (const qlonglong i = m_cellLists.indexOf(*it) < m_cellLists.size() - 1)
                 qSwap(m_cellLists[i], m_cellLists[i + 1]);
         }
     }
@@ -491,7 +488,7 @@ namespace FillLyric {
         return height;
     }
 
-    CellList *LyricWrapView::mapToList(const QPoint &pos) {
+    CellList *LyricWrapView::mapToList(const QPointF &pos) {
         qreal height = 0;
         for (const auto &cellList : m_cellLists) {
             height += cellList->height();
@@ -501,7 +498,7 @@ namespace FillLyric {
         return nullptr;
     }
 
-    QPointF LyricWrapView::mapToCellRect(const QPoint &pos) {
+    QPointF LyricWrapView::mapToCellRect(const QPointF &pos) {
         const auto cellList = this->mapToList(pos);
         if (cellList == nullptr)
             return {};
@@ -518,8 +515,8 @@ namespace FillLyric {
         return {};
     }
 
-    void LyricWrapView::selectCells(const QPoint &startPos, const QPoint &scenePos) {
-        QPoint startCellPos, endCellPos;
+    void LyricWrapView::selectCells(const QPointF &startPos, const QPointF &scenePos) {
+        QPointF startCellPos, endCellPos;
         const auto cellRect = mapToCellRect(scenePos);
         if (cellRect.x() != 0 && cellRect.x() <= startPos.y() && cellRect.y() >=
             startPos.y() && cellRect.x() <= scenePos.y() && cellRect.y() >=
@@ -540,7 +537,7 @@ namespace FillLyric {
                 endCellPos = startPos;
             }
         }
-        qDebug() << "startCellPos: " << startCellPos << " endCellPos: " << endCellPos;
+
         for (const auto &cellList : m_cellLists)
             cellList->selectCells(startCellPos, endCellPos);
     }

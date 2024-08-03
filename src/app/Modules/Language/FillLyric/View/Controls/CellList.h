@@ -34,7 +34,7 @@ namespace FillLyric {
 
         [[nodiscard]] LyricCell *createNewCell() const;
 
-        void selectCells(const QPoint &startPos, const QPoint &endPos);
+        void selectCells(const QPointF &startPos, const QPointF &endPos);
 
         void appendCell(LyricCell *cell);
         void removeCell(LyricCell *cell);

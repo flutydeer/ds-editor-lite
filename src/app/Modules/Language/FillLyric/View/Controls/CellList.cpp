@@ -97,9 +97,9 @@ namespace FillLyric {
         return m_view;
     }
 
-    void CellList::selectCells(const QPoint &startPos, const QPoint &endPos) {
-        qreal x = deltaX() + this->x();
-        qreal y = this->y() + m_splitter->deltaY() + this->y();
+    void CellList::selectCells(const QPointF &startPos, const QPointF &endPos) {
+        qreal x = this->x() + deltaX();
+        qreal y = this->y() + m_splitter->deltaY();
 
         for (const auto cell : m_cells) {
             const auto cellWidth = cell->width();
