@@ -198,6 +198,11 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         m_transportPositionFlag = true;
     });
 
+    connect(transport(), &talcs::TransportAudioSource::playbackStatusChanged, this, [=](auto status) {
+        if (status == talcs::TransportAudioSource::Paused && playbackController->playbackStatus() == PlaybackGlobal::Stopped)
+            playbackController->setPosition(playbackController->lastPosition());
+    });
+
     connect(playbackController, &PlaybackController::playbackStatusChanged, this, &AudioContext::handlePlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, this, &AudioContext::handlePlaybackPositionChanged);
 
@@ -295,7 +300,6 @@ void AudioContext::handlePlaybackStatusChanged(PlaybackStatus status) {
     switch (status) {
         case Stopped:
             transport()->pause();
-            transport()->setPosition(tickToSample(playbackController->lastPosition()));
             break;
         case Playing:
             if (!device || !device->isOpen())
