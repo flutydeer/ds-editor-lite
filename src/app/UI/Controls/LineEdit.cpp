@@ -2,11 +2,10 @@
 // Created by fluty on 24-2-20.
 //
 
-#include <QMenu>
-#include <QContextMenuEvent>
-
-#include "ToolTipFilter.h"
 #include "LineEdit.h"
+
+#include <QContextMenuEvent>
+#include <QMWidgets/cmenu.h>
 
 LineEdit::LineEdit(QWidget *parent) : QLineEdit(parent) {
     // installEventFilter(new ToolTipFilter(this));
@@ -20,9 +19,13 @@ void LineEdit::mousePressEvent(QMouseEvent *event) {
 }
 void LineEdit::contextMenuEvent(QContextMenuEvent *event) {
     // QLineEdit::contextMenuEvent(event);
-    if (QMenu *menu = createStandardContextMenu()) {
-        menu->setWindowFlags(Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
-        menu->setAttribute(Qt::WA_TranslucentBackground, true);
+    if (const auto qMenu = createStandardContextMenu()) {
+        auto menu = new CMenu(this);
+        for (const auto action : qMenu->actions()) {
+            action->setParent(menu);
+            menu->addAction(action);
+        }
+        delete qMenu;
         menu->setAttribute(Qt::WA_DeleteOnClose);
         menu->popup(event->globalPos());
     }
