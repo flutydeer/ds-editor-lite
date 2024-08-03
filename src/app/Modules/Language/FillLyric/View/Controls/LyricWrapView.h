@@ -33,7 +33,8 @@ namespace FillLyric {
         void moveDownLists(QList<CellList *> cellLists);
 
         CellList *mapToList(const QPoint &pos);
-        void selectCells(const QPoint &startPos, const QPoint &endPos);
+        QPointF mapToCellRect(const QPoint &pos);
+        void selectCells(const QPoint &startPos, const QPoint &scenePos);
         void repaintCellLists();
 
         [[nodiscard]] QUndoStack *history() const;

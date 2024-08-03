@@ -12,6 +12,7 @@
 namespace FillLyric {
     class LyricCell final : public QGraphicsObject {
         Q_OBJECT
+
     public:
         explicit LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsView *view,
                            QGraphicsItem *parent = nullptr);
@@ -19,6 +20,9 @@ namespace FillLyric {
 
         [[nodiscard]] qreal width() const;
         [[nodiscard]] qreal height() const;
+
+        [[nodiscard]] QPainterPath shape() const override;
+        [[nodiscard]] QRectF boundingRect() const override;
 
         [[nodiscard]] QRectF lyricRect() const;
         [[nodiscard]] QRectF syllableRect() const;
@@ -49,9 +53,6 @@ namespace FillLyric {
         void updateWidth(const qreal &w) const;
 
     protected:
-        [[nodiscard]] QPainterPath shape() const override;
-        [[nodiscard]] QRectF boundingRect() const override;
-
         void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
         void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 
@@ -97,6 +98,7 @@ namespace FillLyric {
                                QPen(QColor(155, 186, 255), 2)};
 
         enum PenType { MultiTone = 1, Revised, G2pError };
+
         QPen m_lyricPen[4] = {QColor(240, 240, 240), QColor(240, 240, 240), QColor(240, 240, 240),
                               QColor(240, 240, 240)};
         QPen m_syllablePen[4] = {QColor(240, 240, 240), QColor(155, 186, 255),

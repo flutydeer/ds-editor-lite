@@ -114,6 +114,25 @@ namespace FillLyric {
         const auto itemAtPos = scene()->itemAt(scenePos, QTransform());
 
         if (event->button() == Qt::LeftButton) {
+            // 如果按下了shift
+            if (event->modifiers() & Qt::ShiftModifier) {
+                QPoint shiftStartPos{};
+                for (const auto item : scene()->selectedItems()) {
+                    const auto cell = dynamic_cast<LyricCell *>(item);
+                    if (cell) {
+                        shiftStartPos.setX(cell->mapToScene(cell->boundingRect().center()).x());
+                        shiftStartPos.setY(cell->mapToScene(cell->boundingRect().center()).y());
+                        break;
+                    }
+                }
+                if (shiftStartPos.x() != 0 && (event->pos() - shiftStartPos).manhattanLength() >
+                    10) {
+                    this->selectCells(shiftStartPos, scenePos);
+                }
+                event->accept();
+                return;
+            }
+
             if (const auto cellList = mapToList(scenePos)) {
                 cellList->setSelected(false);
             }
@@ -156,11 +175,8 @@ namespace FillLyric {
             if ((event->pos() - rubberBandOrigin).manhattanLength() > 10) {
                 if (const auto cellList = mapToList(rubberBandOrigin))
                     cellList->setSelected(false);
-                if (scenePos.y() > rubberBandOrigin.y()) {
-                    this->selectCells(rubberBandOrigin, mapToScene(event->pos()).toPoint());
-                } else {
-                    this->selectCells(mapToScene(event->pos()).toPoint(), rubberBandOrigin);
-                }
+
+                this->selectCells(rubberBandOrigin, scenePos);
             }
 
             event->accept();
@@ -476,9 +492,48 @@ namespace FillLyric {
         return nullptr;
     }
 
-    void LyricWrapView::selectCells(const QPoint &startPos, const QPoint &endPos) {
+    QPointF LyricWrapView::mapToCellRect(const QPoint &pos) {
+        const auto cellList = this->mapToList(pos);
+        if (cellList == nullptr)
+            return {};
+        for (const auto &cell : cellList->m_cells) {
+            // 获取boundingRect的上下两个y坐标
+            const qreal topY = cell->mapToScene(cell->boundingRect()).boundingRect().top();
+            const qreal bottomY = cell->mapToScene(cell->boundingRect()).boundingRect().
+                                        bottom();
+            if (topY <= pos.y() && bottomY >= pos.y()) {
+                return {topY, bottomY};
+            }
+        }
+
+        return {};
+    }
+
+    void LyricWrapView::selectCells(const QPoint &startPos, const QPoint &scenePos) {
+        QPoint startCellPos, endCellPos;
+        const auto cellRect = mapToCellRect(scenePos);
+        if (cellRect.x() != 0 && cellRect.x() <= startPos.y() && cellRect.y() >=
+            startPos.y() && cellRect.x() <= scenePos.y() && cellRect.y() >=
+            scenePos.y()) {
+            if (scenePos.x() > startPos.x()) {
+                startCellPos = startPos;
+                endCellPos = scenePos;
+            } else {
+                startCellPos = scenePos;
+                endCellPos = startPos;
+            }
+        } else {
+            if (scenePos.y() > startPos.y()) {
+                startCellPos = startPos;
+                endCellPos = scenePos;
+            } else {
+                startCellPos = scenePos;
+                endCellPos = startPos;
+            }
+        }
+        qDebug() << "startCellPos: " << startCellPos << " endCellPos: " << endCellPos;
         for (const auto &cellList : m_cellLists)
-            cellList->selectCells(startPos, endPos);
+            cellList->selectCells(startCellPos, endCellPos);
     }
 
     void LyricWrapView::updateRect() {

@@ -122,7 +122,7 @@ namespace FillLyric {
                         cell->setSelected(true);
                 } else
                     cell->setSelected(false);
-            } else if (startPos.y() < y) {
+            } else if (startPos.y() < y && endPos.y() > y) {
                 //此行为中间行或末行
                 if (endPos.y() > y + cell->height()) //中间行
                     cell->setSelected(true);
