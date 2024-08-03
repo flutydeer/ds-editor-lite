@@ -16,7 +16,7 @@ template <typename T>
 class OverlappableSerialList {
     struct Interval : lib_interval_tree::interval<qsizetype, lib_interval_tree::right_open> {
         T *item;
-        Interval(std::tuple<qsizetype, qsizetype> &&range, T *item)
+        Interval(const std::tuple<qsizetype, qsizetype> &range, T *item)
             : lib_interval_tree::interval<qsizetype, lib_interval_tree::right_open>(std::get<0>(range), std::max(std::get<0>(range), std::get<1>(range) - 1)), item(item) {
         }
     };
@@ -35,7 +35,7 @@ public:
     bool contains(const T *item);
     [[nodiscard]] bool hasOverlappedItem() const;
     QList<T *> findOverlappedItems(T *obj) const;
-    QList<T *> findOverlappedItems(const std::tuple<qsizetype, qsizetype> &interval);
+    QList<T *> findOverlappedItems(const std::tuple<qsizetype, qsizetype> &interval) const;
     QList<T *> overlappedItems() const;
     QList<T *> toList() const;
 
@@ -152,11 +152,12 @@ QList<T *> OverlappableSerialList<T>::findOverlappedItems(T *obj) const {
     return findOverlappedItems(obj->interval());
 }
 template <typename T>
-QList<T *> OverlappableSerialList<T>::findOverlappedItems(const std::tuple<qsizetype, qsizetype> &interval_) {
+QList<T *> OverlappableSerialList<T>::findOverlappedItems(const std::tuple<qsizetype, qsizetype> &interval_) const {
     auto interval = Interval(interval_, nullptr);
     QList<T *> ret;
     m_intervalTree.overlap_find_all(interval, [&ret](auto it) {
         ret.append(it->interval().item);
+        return true;
     });
     return ret;
 }
@@ -166,6 +167,7 @@ QList<T *> OverlappableSerialList<T>::overlappedItems() const {
     std::copy_if(m_itemHash.cbegin(), m_itemHash.cend(), std::back_inserter(ret), [](auto item) {
         return item->overlapped();
     });
+    return ret;
 }
 template <typename T>
 QList<T *> OverlappableSerialList<T>::toList() const {
