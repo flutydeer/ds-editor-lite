@@ -47,7 +47,7 @@ private:
     QString clipTypeName() override;
 
     QString m_audioCachePath;
-    OverlappableSerialList<NoteViewModel> m_notes;
+    QList<NoteViewModel *> m_notes;
 
     void addNote(Note *note);
     void removeNote(int id);

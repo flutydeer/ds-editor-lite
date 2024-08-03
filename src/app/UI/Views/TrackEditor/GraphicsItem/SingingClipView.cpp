@@ -9,6 +9,7 @@
 
 #include "Global/TracksEditorGlobal.h"
 #include "Model/Note.h"
+#include "Utils/MathUtils.h"
 
 using namespace TracksEditorGlobal;
 
@@ -127,14 +128,14 @@ void SingingClipView::addNote(Note *note) {
     noteViewModel->rStart = note->start() - start();
     noteViewModel->length = note->length();
     noteViewModel->keyIndex = note->keyIndex();
-    m_notes.add(noteViewModel);
-
+    MathUtils::binaryInsert(m_notes, noteViewModel);
     update();
 }
 void SingingClipView::removeNote(int id) {
     for (auto note : m_notes) {
         if (note->id == id) {
-            m_notes.remove(note);
+            m_notes.removeOne(note);
+            delete note;
             break;
         }
     }
