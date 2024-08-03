@@ -795,27 +795,27 @@ ActionButtonsView>QPushButton:disabled {
     background: none;
 }
 
-TrackControlWidget {
+TrackControlView {
     border-style: none;
     border-bottom: 1px solid rgb(72, 75, 78)
 }
 
-TrackControlWidget>QLabel {
+TrackControlView>QLabel {
     color: #F0F0F0;
 }
 
-TrackControlWidget>QPushButton {
+TrackControlView>QPushButton {
     padding: 0px
 }
 
 SVS--SeekBar {
-    qproperty-trackInactiveColor: #707070;
+    qproperty-trackInactiveColor: #60FFFFFF;
     qproperty-trackActiveColor: #9BBAFF;
     qproperty-thumbFillColor: #9BBAFF;
     qproperty-thumbBorderColor: #454545;
 }
 
-TrackControlWidget>QPushButton#btnColor {
+TrackControlView>QPushButton#btnColor {
     background-color: #9BBAFF;
     border-style: none;
     border-radius: 0px;
@@ -823,12 +823,12 @@ TrackControlWidget>QPushButton#btnColor {
     padding-bottom: 1px;
 }
 
-TrackControlWidget>QLabel#lbTrackIndex {
+TrackControlView>QLabel#lbTrackIndex {
     font-size: 11pt;
     color: #D0D0D0;
 }
 
-TrackControlWidget>QPushButton#btnMute {
+TrackControlView>QPushButton#btnMute {
     color: #F0F0F0;
     font-size: 9pt;
     background-color: #2A2B2C;
@@ -837,13 +837,13 @@ TrackControlWidget>QPushButton#btnMute {
     border: 1px solid #606060;
 }
 
-TrackControlWidget>QPushButton#btnMute:checked {
+TrackControlView>QPushButton#btnMute:checked {
     color: #000;
     background-color: #FF9B9D;
     border: none
 }
 
-TrackControlWidget>QPushButton#btnSolo {
+TrackControlView>QPushButton#btnSolo {
     color: #F0F0F0;
     font-size: 9pt;
     background-color: #2A2B2C;
@@ -852,7 +852,7 @@ TrackControlWidget>QPushButton#btnSolo {
     border: 1px solid #606060;
 }
 
-TrackControlWidget>QPushButton#btnSolo:checked {
+TrackControlView>QPushButton#btnSolo:checked {
     color: #000;
     background-color: #FFCD9B;
     border: none

@@ -25,11 +25,11 @@ class QSpacerItem;
 class QHBoxLayout;
 class QVBoxLayout;
 
-class TrackControlWidget final : public QWidget, public ITrack {
+class TrackControlView final : public QWidget, public ITrack {
     Q_OBJECT
 
 public:
-    explicit TrackControlWidget(QListWidgetItem *item, Track *track, QWidget *parent = nullptr);
+    explicit TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent = nullptr);
     [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int i);
     [[nodiscard]] QString name() const override;

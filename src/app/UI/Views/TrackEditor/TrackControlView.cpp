@@ -2,7 +2,7 @@
 // Created by fluty on 2024/1/29.
 //
 
-#include "TrackControlWidget.h"
+#include "TrackControlView.h"
 
 #include "Controller/TracksViewController.h"
 #include "Model/Track.h"
@@ -21,7 +21,7 @@
 
 using namespace SVS;
 
-TrackControlWidget::TrackControlWidget(QListWidgetItem *item, Track *track, QWidget *parent)
+TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent)
     : QWidget(parent), ITrack(track->id()), m_track(track) {
     m_item = item;
     setAttribute(Qt::WA_StyledBackground);
@@ -90,8 +90,8 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, Track *track, QWid
     m_sbPan = new SeekBar;
     m_sbPan->setObjectName("m_sbarPan");
     m_sbPan->setTracking(false);
-    connect(m_sbPan, &SeekBar::sliderMoved, this, &TrackControlWidget::onPanMoved);
-    connect(m_sbPan, &SeekBar::valueChanged, this, &TrackControlWidget::onSliderReleased);
+    connect(m_sbPan, &SeekBar::sliderMoved, this, &TrackControlView::onPanMoved);
+    connect(m_sbPan, &SeekBar::valueChanged, this, &TrackControlView::onSliderReleased);
     //        m_panSlider->setValue(50);
 
     m_lePan = new EditLabel();
@@ -113,8 +113,8 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, Track *track, QWid
     m_sbGain->setDefaultValue(79.4328234724);
     m_sbGain->setValue(79.4328234724);
     m_sbGain->setTracking(false);
-    connect(m_sbGain, &SeekBar::sliderMoved, this, &TrackControlWidget::onGainMoved);
-    connect(m_sbGain, &SeekBar::valueChanged, this, &TrackControlWidget::onSliderReleased);
+    connect(m_sbGain, &SeekBar::sliderMoved, this, &TrackControlView::onGainMoved);
+    connect(m_sbGain, &SeekBar::valueChanged, this, &TrackControlView::onSliderReleased);
 
     m_leGain = new EditLabel();
     m_leGain->setText("0.0dB");
@@ -163,20 +163,20 @@ TrackControlWidget::TrackControlWidget(QListWidgetItem *item, Track *track, QWid
     setControl(track->control());
     setLanguage(track->defaultLanguage());
 }
-int TrackControlWidget::trackIndex() const {
+int TrackControlView::trackIndex() const {
     return m_lbTrackIndex->text().toInt();
 }
-void TrackControlWidget::setTrackIndex(int i) {
+void TrackControlView::setTrackIndex(int i) {
     m_lbTrackIndex->setText(QString::number(i));
 }
-QString TrackControlWidget::name() const {
+QString TrackControlView::name() const {
     return m_leTrackName->text();
 }
-void TrackControlWidget::setName(const QString &name) {
+void TrackControlView::setName(const QString &name) {
     m_leTrackName->setText(name);
     // changeTrackProperty();
 }
-TrackControl TrackControlWidget::control() const {
+TrackControl TrackControlView::control() const {
     TrackControl control;
     auto gain = gainFromSliderValue(m_sbGain->value());
     control.setGain(gain);
@@ -185,7 +185,7 @@ TrackControl TrackControlWidget::control() const {
     control.setSolo(m_btnSolo->isChecked());
     return control;
 }
-void TrackControlWidget::setControl(const TrackControl &control) {
+void TrackControlView::setControl(const TrackControl &control) {
     m_notifyBarrier = true;
     auto barValue = gainToSliderValue(control.gain());
     m_sbGain->setValue(barValue);
@@ -198,7 +198,7 @@ void TrackControlWidget::setControl(const TrackControl &control) {
     m_btnSolo->setChecked(control.solo());
     m_notifyBarrier = false;
 }
-void TrackControlWidget::setNarrowMode(bool on) {
+void TrackControlView::setNarrowMode(bool on) {
     if (on) {
         for (int i = 0; i < m_panVolumeLayout->count(); ++i) {
             QWidget *w = m_panVolumeLayout->itemAt(i)->widget();
@@ -215,23 +215,25 @@ void TrackControlWidget::setNarrowMode(bool on) {
         }
     }
 }
-void TrackControlWidget::setLanguage(AppGlobal::languageType lang) {
+void TrackControlView::setLanguage(AppGlobal::languageType lang) {
     m_cbLanguage->setCurrentIndex(lang);
 }
-LevelMeter *TrackControlWidget::levelMeter() const {
+LevelMeter *TrackControlView::levelMeter() const {
     return m_levelMeter;
 }
-void TrackControlWidget::onPanMoved(double value) {
+void TrackControlView::onPanMoved(double value) {
+    m_lePan->setText(panValueToString(value));
     audioContext->handlePanSliderMoved(m_track, value);
 }
-void TrackControlWidget::onGainMoved(double value) {
+void TrackControlView::onGainMoved(double value) {
+    m_leGain->setText(gainValueToString(value));
     audioContext->handleGainSliderMoved(m_track, gainFromSliderValue(value));
 }
-void TrackControlWidget::onSliderReleased() {
+void TrackControlView::onSliderReleased() {
     if (!m_notifyBarrier)
         changeTrackProperty();
 }
-void TrackControlWidget::contextMenuEvent(QContextMenuEvent *event) {
+void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     auto actionInsert = new QAction("Insert new track", this);
     connect(actionInsert, &QAction::triggered, this, [&] { emit insertNewTrackTriggered(); });
     auto actionRemove = new QAction("Delete", this);
@@ -243,19 +245,19 @@ void TrackControlWidget::contextMenuEvent(QContextMenuEvent *event) {
     menu.exec(event->globalPos());
     event->accept();
 }
-void TrackControlWidget::changeTrackProperty() {
+void TrackControlView::changeTrackProperty() {
     // qDebug() << "TrackControlWidget::changeTrackProperty";
     Track::TrackProperties args(*this);
     trackController->changeTrackProperty(args);
 }
-QString TrackControlWidget::panValueToString(double value) {
+QString TrackControlView::panValueToString(double value) {
     if (value < 0)
         return "L" + QString::number(-qRound(value));
     if (value == 0)
         return "C";
     return "R" + QString::number(qRound(value));
 }
-QString TrackControlWidget::gainValueToString(double value) {
+QString TrackControlView::gainValueToString(double value) {
     auto gain = 60 * std::log10(1.0 * value) - 114;
     if (gain == -70)
         return "-inf";
@@ -268,9 +270,9 @@ QString TrackControlWidget::gainValueToString(double value) {
     }
     return sig + absVal + "dB";
 }
-double TrackControlWidget::gainToSliderValue(double gain) {
+double TrackControlView::gainToSliderValue(double gain) {
     return std::pow(10, (114 + gain) / 60);
 }
-double TrackControlWidget::gainFromSliderValue(double value) {
+double TrackControlView::gainFromSliderValue(double value) {
     return 60 * std::log10(value) - 114;
 }

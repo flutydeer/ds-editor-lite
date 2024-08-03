@@ -4,7 +4,7 @@
 
 #include "TrackEditorView.h"
 
-#include "TrackControlWidget.h"
+#include "TrackControlView.h"
 #include "TrackListHeaderView.h"
 #include "TrackListWidget.h"
 #include "TrackViewModel.h"
@@ -156,7 +156,7 @@ void TrackEditorView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArg
     auto states = args.trackMeterStates;
     for (int i = 0; i < qMin(states.size(), m_trackListViewModel.tracks.size()); i++) {
         auto state = states.at(i);
-        auto meter = m_trackListViewModel.tracks.at(i)->widget->levelMeter();
+        auto meter = m_trackListViewModel.tracks.at(i)->controlView->levelMeter();
         meter->setValue(state.valueL, state.valueR);
     }
 }
@@ -188,7 +188,7 @@ void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) {
         item->setSizeHint(QSize(TracksEditorGlobal::trackListWidth, height));
 
         // hide pan and gain slider when sy is too small
-        auto widget = m_trackListViewModel.tracks.at(i)->widget;
+        auto widget = m_trackListViewModel.tracks.at(i)->controlView;
         widget->setNarrowMode(sy < TracksEditorGlobal::narrowModeScaleY);
         previousHeightSum += height;
     }
@@ -237,22 +237,22 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
         insertClipToTrack(clip, track, trackIndex);
     }
     auto newTrackItem = new QListWidgetItem;
-    auto newTrackControlWidget = new TrackControlWidget(newTrackItem, dsTrack);
+    auto controlView = new TrackControlView(newTrackItem, dsTrack);
     newTrackItem->setSizeHint(
         QSize(TracksEditorGlobal::trackListWidth,
               static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
-    newTrackControlWidget->setTrackIndex(trackIndex + 1);
-    newTrackControlWidget->setNarrowMode(m_graphicsView->scaleY() <
+    controlView->setTrackIndex(trackIndex + 1);
+    controlView->setNarrowMode(m_graphicsView->scaleY() <
                                          TracksEditorGlobal::narrowModeScaleY);
     m_trackListWidget->insertItem(trackIndex, newTrackItem);
-    m_trackListWidget->setItemWidget(newTrackItem, newTrackControlWidget);
-    track->widget = newTrackControlWidget;
+    m_trackListWidget->setItemWidget(newTrackItem, controlView);
+    track->controlView = controlView;
 
-    connect(newTrackControlWidget, &TrackControlWidget::insertNewTrackTriggered, this, [=] {
+    connect(controlView, &TrackControlView::insertNewTrackTriggered, this, [=] {
         auto i = m_trackListWidget->row(newTrackItem);
         trackController->onInsertNewTrack(i + 1); // insert after current track
     });
-    connect(newTrackControlWidget, &TrackControlWidget::removeTrackTriggered, this,
+    connect(controlView, &TrackControlView::removeTrackTriggered, this,
             &TrackEditorView::onRemoveTrackTriggered);
     m_trackListViewModel.tracks.insert(trackIndex, track);
     if (trackIndex < m_trackListViewModel.tracks.count()) // needs to update existed tracks' index
@@ -260,7 +260,7 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
             // Update track list items' index
             auto item = m_trackListWidget->item(i);
             auto widget = m_trackListWidget->itemWidget(item);
-            auto trackWidget = dynamic_cast<TrackControlWidget *>(widget);
+            auto trackWidget = dynamic_cast<TrackControlView *>(widget);
             trackWidget->setTrackIndex(i + 1);
             // Update clips' index
             for (auto &clipItem : m_trackListViewModel.tracks.at(i)->clips) {
@@ -327,7 +327,7 @@ AbstractClipView *TrackEditorView::findClipItemById(int id) {
 void TrackEditorView::updateTracksOnView() const {
     auto tracksModel = appModel->tracks();
     for (int i = 0; i < m_trackListViewModel.tracks.count(); i++) {
-        auto widget = m_trackListViewModel.tracks.at(i)->widget;
+        auto widget = m_trackListViewModel.tracks.at(i)->controlView;
         auto track = tracksModel.at(i);
         widget->setName(track->name());
         widget->setControl(track->control());
@@ -375,7 +375,7 @@ void TrackEditorView::removeTrackFromView(int index) {
             // Update track list items' index
             auto item = m_trackListWidget->item(i);
             auto widget = m_trackListWidget->itemWidget(item);
-            auto trackWidget = dynamic_cast<TrackControlWidget *>(widget);
+            auto trackWidget = dynamic_cast<TrackControlView *>(widget);
             trackWidget->setTrackIndex(i + 1);
             // Update clips' index
             for (auto &clipItem : m_trackListViewModel.tracks.at(i)->clips) {

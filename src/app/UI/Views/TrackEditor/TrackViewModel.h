@@ -8,14 +8,14 @@
 #include <QObject>
 #include "Utils/UniqueObject.h"
 
-class TrackControlWidget;
+class TrackControlView;
 
 class TrackViewModel : public QObject, public UniqueObject {
     Q_OBJECT
 public:
     explicit TrackViewModel(int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
     }
-    TrackControlWidget *widget = nullptr;
+    TrackControlView *controlView = nullptr;
     bool isSelected = false;
     QList<AbstractClipView *> clips;
 };
