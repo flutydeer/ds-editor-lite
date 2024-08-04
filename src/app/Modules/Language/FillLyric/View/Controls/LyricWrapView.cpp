@@ -145,7 +145,9 @@ namespace FillLyric {
             rubberBandOrigin = scenePos;
         }
 
+        // 右键取消选中
         if (event->button() == Qt::RightButton) {
+            // 右击空白处取消选中&&右击Item选中、取消其他选中
             if (!dynamic_cast<HandleItem *>(itemAtPos)) {
                 if (!itemAtPos && !selectedItems.isEmpty())
                     for (const auto &item : selectedItems) {
@@ -160,6 +162,7 @@ namespace FillLyric {
                     itemAtPos->setSelected(true);
                 }
             } else {
+                // 右击行首手柄取消其他选中、选中当前整行
                 if (itemAtPos->isSelected())
                     return;
                 for (const auto &item : selectedItems) {
@@ -516,26 +519,17 @@ namespace FillLyric {
     }
 
     void LyricWrapView::selectCells(const QPointF &startPos, const QPointF &scenePos) {
-        QPointF startCellPos, endCellPos;
+        QPointF startCellPos = startPos, endCellPos = scenePos;
         const auto cellRect = mapToCellRect(scenePos);
+        // 当前鼠标位于单行音符y坐标范围内
         if (cellRect.x() != 0 && cellRect.x() <= startPos.y() && cellRect.y() >=
             startPos.y() && cellRect.x() <= scenePos.y() && cellRect.y() >=
             scenePos.y()) {
-            if (scenePos.x() > startPos.x()) {
-                startCellPos = startPos;
-                endCellPos = scenePos;
-            } else {
-                startCellPos = scenePos;
-                endCellPos = startPos;
-            }
+            if (scenePos.x() <= startPos.x())
+                qSwap(startCellPos, endCellPos);
         } else {
-            if (scenePos.y() > startPos.y()) {
-                startCellPos = startPos;
-                endCellPos = scenePos;
-            } else {
-                startCellPos = scenePos;
-                endCellPos = startPos;
-            }
+            if (scenePos.y() <= startPos.y())
+                qSwap(startCellPos, endCellPos);
         }
 
         for (const auto &cellList : m_cellLists)
