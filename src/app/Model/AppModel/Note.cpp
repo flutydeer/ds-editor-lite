@@ -4,8 +4,13 @@
 
 #include "Note.h"
 
+#include "Clip.h"
+
 #include <QJsonArray>
 #include <QJsonObject>
+
+Note::Note(SingingClip *context, QObject *parent) : QObject(parent), m_clip(context) {
+}
 
 SingingClip *Note::clip() const {
     return m_clip;
@@ -14,21 +19,34 @@ void Note::setClip(SingingClip *clip) {
     m_clip = clip;
 }
 int Note::start() const {
-    return m_start;
+    auto offset = m_clip ? m_clip->start() : 0;
+    return m_rStart + offset;
 }
 void Note::setStart(int start) {
-    m_start = start;
+    auto offset = m_clip ? m_clip->start() : 0;
+    auto rStart = start - offset;
+    Q_ASSERT(rStart >= 0);
+    m_rStart = rStart;
+}
+int Note::rStart() const {
+    return m_rStart;
+}
+void Note::setRStart(int rStart) {
+    Q_ASSERT(rStart >= 0);
+    m_rStart = rStart;
 }
 int Note::length() const {
     return m_length;
 }
 void Note::setLength(int length) {
+    Q_ASSERT(length >= 0);
     m_length = length;
 }
 int Note::keyIndex() const {
     return m_keyIndex;
 }
 void Note::setKeyIndex(int keyIndex) {
+    Q_ASSERT(keyIndex >= 0 && keyIndex <= 127);
     m_keyIndex = keyIndex;
 }
 QString Note::lyric() const {
@@ -93,7 +111,7 @@ bool Note::isOverlappedWith(Note *obj) const {
     return true;
 }
 std::tuple<qsizetype, qsizetype> Note::interval() const {
-    return std::make_tuple(start(), start() + length());
+    return std::make_tuple(rStart(), rStart() + length());
 }
 Note::NoteWordProperties Note::NoteWordProperties::fromNote(const Note &note) {
     NoteWordProperties properties;
@@ -198,7 +216,7 @@ QJsonObject Phonemes::serialize(const Phonemes &phonemes) {
 
 QDataStream &operator<<(QDataStream &out, const Note &note) {
     // out << note.m_id;
-    out << note.m_start;
+    out << note.m_rStart;
     out << note.m_length;
     out << note.m_keyIndex;
     out << note.m_lyric;
@@ -208,7 +226,7 @@ QDataStream &operator<<(QDataStream &out, const Note &note) {
     return out;
 }
 QDataStream &operator>>(QDataStream &in, Note &note) {
-    in >> note.m_start;
+    in >> note.m_rStart;
     in >> note.m_length;
     in >> note.m_keyIndex;
     in >> note.m_lyric;

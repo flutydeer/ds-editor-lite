@@ -192,6 +192,9 @@ void MainWindow::onAllDone() {
     }
 }
 void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index) {
+    if (!m_lbTaskTitle || !m_progressBar)
+        return;
+
     auto taskCount = taskManager->tasks().count();
     if (taskCount == 0) {
         m_lbTaskTitle->setText("");

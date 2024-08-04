@@ -65,15 +65,13 @@ class Note : public QObject, public Overlappable, public UniqueObject, public IS
 public:
     enum NotePropertyType { TimeAndKey, Word, None };
 
-    explicit Note() = default;
-    explicit Note(int start, int length, int keyIndex, QString lyric)
-        : m_start(start), m_length(length), m_keyIndex(keyIndex), m_lyric(std::move(lyric)) {
-    }
-
+    explicit Note(SingingClip *context = nullptr, QObject *parent = nullptr);
     [[nodiscard]] SingingClip *clip() const;
     void setClip(SingingClip *clip);
     [[nodiscard]] int start() const;
     void setStart(int start);
+    [[nodiscard]] int rStart() const;
+    void setRStart(int rStart);
     [[nodiscard]] int length() const;
     void setLength(int length);
     [[nodiscard]] int keyIndex() const;
@@ -120,7 +118,8 @@ signals:
 
 private:
     SingingClip *m_clip = nullptr;
-    int m_start = 0;
+    //int m_start = 0;
+    int m_rStart = 0;
     int m_length = 480;
     int m_keyIndex = 60;
     QString m_lyric;

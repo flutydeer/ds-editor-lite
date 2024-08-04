@@ -125,7 +125,7 @@ QString SingingClipView::clipTypeName() {
 void SingingClipView::addNote(Note *note) {
     auto noteViewModel = new NoteViewModel;
     noteViewModel->id = note->id();
-    noteViewModel->rStart = note->start() - start();
+    noteViewModel->rStart = note->rStart();
     noteViewModel->length = note->length();
     noteViewModel->keyIndex = note->keyIndex();
     MathUtils::binaryInsert(m_notes, noteViewModel);

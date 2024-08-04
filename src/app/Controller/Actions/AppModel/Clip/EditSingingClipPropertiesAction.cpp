@@ -19,16 +19,16 @@ EditSingingClipPropertiesAction *
     return a;
 }
 void EditSingingClipPropertiesAction::execute() {
-    auto deltaTick = m_newArgs.start - m_oldArgs.start;
-    if (deltaTick != 0) {
-        auto notes = m_clip->notes().toList();
-        for (auto note : notes) {
-            m_clip->removeNote(note);
-            note->setStart(note->start() + deltaTick);
-            m_clip->insertNote(note);
-            note->notifyPropertyChanged(Note::TimeAndKey);
-        }
-    }
+    //auto deltaTick = m_newArgs.start - m_oldArgs.start;
+    //if (deltaTick != 0) {
+    //    auto notes = m_clip->notes().toList();
+    //    for (auto note : notes) {
+    //        m_clip->removeNote(note);
+    //        note->setStart(note->start() + deltaTick);
+    //        m_clip->insertNote(note);
+    //        note->notifyPropertyChanged(Note::TimeAndKey);
+    //    }
+    //}
 
     m_track->removeClip(m_clip);
     m_clip->setName(m_newArgs.name);
@@ -40,16 +40,16 @@ void EditSingingClipPropertiesAction::execute() {
     m_clip->notifyPropertyChanged();
 }
 void EditSingingClipPropertiesAction::undo() {
-    auto deltaTick = m_newArgs.start - m_oldArgs.start;
-    if (deltaTick != 0) {
-        auto notes = m_clip->notes().toList();
-        for (auto note : notes) {
-            m_clip->removeNote(note);
-            note->setStart(note->start() - deltaTick);
-            m_clip->insertNote(note);
-            note->notifyPropertyChanged(Note::TimeAndKey);
-        }
-    }
+    //auto deltaTick = m_newArgs.start - m_oldArgs.start;
+    //if (deltaTick != 0) {
+    //    auto notes = m_clip->notes().toList();
+    //    for (auto note : notes) {
+    //        m_clip->removeNote(note);
+    //        note->setStart(note->start() - deltaTick);
+    //        m_clip->insertNote(note);
+    //        note->notifyPropertyChanged(Note::TimeAndKey);
+    //    }
+    //}
 
     m_track->removeClip(m_clip);
     m_clip->setName(m_oldArgs.name);

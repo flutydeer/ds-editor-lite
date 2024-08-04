@@ -21,10 +21,10 @@ TimeGridGraphicsItem::TimeGridGraphicsItem(QGraphicsItem *parent) : CommonGraphi
     connect(appModel, &AppModel::quantizeChanged, this, &TimeGridGraphicsItem::setQuantize);
 }
 double TimeGridGraphicsItem::startTick() const {
-    return sceneXToTick(visibleRect().left());
+    return sceneXToTick(visibleRect().left()) + m_offset;
 }
 double TimeGridGraphicsItem::endTick() const {
-    return sceneXToTick(visibleRect().right());
+    return sceneXToTick(visibleRect().right()) + m_offset;
 }
 void TimeGridGraphicsItem::setTimeSignature(int numerator, int denominator) {
     ITimelinePainter::setTimeSignature(numerator, denominator);
@@ -32,6 +32,10 @@ void TimeGridGraphicsItem::setTimeSignature(int numerator, int denominator) {
 }
 void TimeGridGraphicsItem::setQuantize(int quantize) {
     ITimelinePainter::setQuantize(quantize);
+    update();
+}
+void TimeGridGraphicsItem::setOffset(int tick) {
+    m_offset = tick;
     update();
 }
 void TimeGridGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -55,7 +59,7 @@ void TimeGridGraphicsItem::updateRectAndPos() {
 }
 void TimeGridGraphicsItem::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
-    auto x = sceneXToItemX(tickToSceneX(tick));
+    auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
     // pen.setColor(barTextColor);
     // painter->setPen(pen);
     // painter->drawText(QPointF(x, 10), QString::number(bar));
@@ -65,7 +69,7 @@ void TimeGridGraphicsItem::drawBar(QPainter *painter, int tick, int bar) {
 }
 void TimeGridGraphicsItem::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
-    auto x = sceneXToItemX(tickToSceneX(tick));
+    auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
     // pen.setColor(beatTextColor);
     // painter->setPen(pen);
     // painter->drawText(QPointF(x, 10), QString::number(bar) + "." + QString::number(beat));
@@ -75,7 +79,7 @@ void TimeGridGraphicsItem::drawBeat(QPainter *painter, int tick, int bar, int be
 }
 void TimeGridGraphicsItem::drawEighth(QPainter *painter, int tick) {
     QPen pen;
-    auto x = sceneXToItemX(tickToSceneX(tick));
+    auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
     pen.setColor(commonLineColor);
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));

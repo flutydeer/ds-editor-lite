@@ -51,8 +51,8 @@ private:
     TrackEditorView *m_trackEditorView;
     ClipEditorView *m_clipEditView;
 
-    QLabel *m_lbTaskTitle;
-    ProgressIndicator *m_progressBar;
+    QLabel *m_lbTaskTitle = nullptr;
+    ProgressIndicator *m_progressBar = nullptr;
 
     QTimer m_waitDoneDialogDelayTimer;
     TaskDialog *m_waitDoneDialog = nullptr;

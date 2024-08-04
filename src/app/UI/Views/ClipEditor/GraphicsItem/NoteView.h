@@ -16,11 +16,13 @@ class NoteView final : public CommonGraphicsRectItem, public UniqueObject, publi
 
 public:
     explicit NoteView(int itemId, QGraphicsItem *parent = nullptr);
-    explicit NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
-                      const QString &pronunciation, QGraphicsItem *parent = nullptr);
+    // explicit NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
+    //                   const QString &pronunciation, QGraphicsItem *parent = nullptr);
 
-    [[nodiscard]] int start() const;
-    void setStart(int start);
+    // [[nodiscard]] int start() const;
+    // void setStart(int start);
+    [[nodiscard]] int rStart() const;
+    void setRStart(int rStart);
     [[nodiscard]] int length() const;
     void setLength(int length);
     [[nodiscard]] int keyIndex() const;
@@ -49,7 +51,8 @@ private:
     void updateRectAndPos() override;
     void initUi();
 
-    int m_start = 0;
+    // int m_start = 0;
+    int m_rStart = 0;
     int m_length = 480;
     int m_keyIndex = 60;
     QString m_lyric;

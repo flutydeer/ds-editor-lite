@@ -16,10 +16,6 @@ PianoRollGraphicsScene::PianoRollGraphicsScene() {
     auto w = 1920 / 480 * pixelsPerQuarterNote * 100;
     auto h = 128 * noteHeight;
     setSceneSize(QSizeF(w, h));
-
-    auto gridItem = new PianoRollBackgroundGraphicsItem;
-    gridItem->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-    addTimeGrid(gridItem);
 }
 void PianoRollGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     if (event->button() != Qt::LeftButton) {

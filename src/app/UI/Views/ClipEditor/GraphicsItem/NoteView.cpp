@@ -19,23 +19,30 @@ NoteView::NoteView(int itemId, QGraphicsItem *parent)
     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
     initUi();
 }
-NoteView::NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
-                   const QString &pronunciation, QGraphicsItem *parent)
-    : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
-    m_start = start;
-    m_length = length;
-    m_keyIndex = keyIndex;
-    m_lyric = lyric;
-    m_pronunciation = pronunciation;
-    initUi();
+// NoteView::NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
+//                    const QString &pronunciation, QGraphicsItem *parent)
+//     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
+//     m_start = start;
+//     m_length = length;
+//     m_keyIndex = keyIndex;
+//     m_lyric = lyric;
+//     m_pronunciation = pronunciation;
+//     initUi();
+// }
+int NoteView::rStart() const {
+    return m_rStart;
 }
-int NoteView::start() const {
-    return m_start;
-}
-void NoteView::setStart(int start) {
-    m_start = start;
+void NoteView::setRStart(int rStart) {
+    m_rStart = rStart;
     updateRectAndPos();
 }
+// int NoteView::start() const {
+//     return m_start;
+// }
+// void NoteView::setStart(int start) {
+//     m_start = start;
+//     updateRectAndPos();
+// }
 int NoteView::length() const {
     return m_length;
 }
@@ -226,7 +233,7 @@ void NoteView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     QGraphicsRectItem::hoverMoveEvent(event);
 }
 void NoteView::updateRectAndPos() {
-    const auto x = (m_start + m_startOffset) * scaleX() * pixelsPerQuarterNote / 480;
+    const auto x = (m_rStart + m_startOffset) * scaleX() * pixelsPerQuarterNote / 480;
     const auto y = -(m_keyIndex + m_keyOffset - 127) * noteHeight * scaleY();
     const auto w = (m_length + m_lengthOffset) * scaleX() * pixelsPerQuarterNote / 480;
     const auto h = noteHeight * scaleY() + m_pronunciationTextHeight;

@@ -19,6 +19,7 @@ public:
 
 public slots:
     void setPosition(double tick);
+    void setOffset(int tick);
 
 protected:
     void afterSetScale() override;
@@ -27,6 +28,7 @@ protected:
 private:
     double m_time = 0;
     double m_pixelsPerQuarterNote = 64;
+    int m_offset = 0;
 
     void updateLengthAndPos();
     [[nodiscard]] double tickToItemX(double tick) const;

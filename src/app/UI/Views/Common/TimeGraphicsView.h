@@ -17,9 +17,11 @@ class TimeGraphicsView : public CommonGraphicsView {
 public:
     explicit TimeGraphicsView(TimeGraphicsScene *scene, QWidget *parent = nullptr);
     TimeGraphicsScene *scene();
+    void setGridItem(TimeGridGraphicsItem *item);
     void setSceneVisibility(bool on);
     [[nodiscard]] double startTick() const;
     [[nodiscard]] double endTick() const;
+    void setOffset(int tick);
     void setPixelsPerQuarterNote(int px);
     void setAutoTurnPage(bool on);
     void setViewportStartTick(double tick);
@@ -40,10 +42,11 @@ protected:
 
 private:
     TimeGraphicsScene *m_scene;
-    TimeGridGraphicsItem *m_gridItem{};
-    TimeIndicatorGraphicsItem *m_scenePlayPosIndicator;
-    TimeIndicatorGraphicsItem *m_sceneLastPlayPosIndicator;
+    TimeGridGraphicsItem *m_gridItem = nullptr;
+    TimeIndicatorGraphicsItem *m_scenePlayPosIndicator = nullptr;
+    TimeIndicatorGraphicsItem *m_sceneLastPlayPosIndicator = nullptr;
 
+    int m_offset = 0;
     int m_pixelsPerQuarterNote = 64;
     bool m_autoTurnPage = true;
     double m_playbackPosition = 0;

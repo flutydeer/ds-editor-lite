@@ -25,6 +25,7 @@ public:
 public slots:
     void setTimeSignature(int numerator, int denominator) override;
     void setQuantize(int quantize) override;
+    void setOffset(int tick);
     //     void onTimelineChanged();
 
 protected:
@@ -47,6 +48,8 @@ private:
     [[nodiscard]] double sceneXToTick(double pos) const;
     [[nodiscard]] double tickToSceneX(double tick) const;
     [[nodiscard]] double sceneXToItemX(double x) const;
+
+    int m_offset = 0;
 };
 
 

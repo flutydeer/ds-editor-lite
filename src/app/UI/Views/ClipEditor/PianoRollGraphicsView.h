@@ -20,21 +20,21 @@ class NoteView;
 
 using namespace ClipEditorGlobal;
 
+class PianoRollGraphicsViewPrivate;
 class PianoRollGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
 
 public:
     explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent = nullptr);
+    ~PianoRollGraphicsView() override;
     void setDataContext(SingingClip *clip);
     void setEditMode(PianoRollEditMode mode);
     void reset();
     [[nodiscard]] QList<int> selectedNotesId() const;
     void clearNoteSelections(NoteView *except = nullptr);
-    void updatePitch(Param::ParamType paramType, const Param &param);
 
     [[nodiscard]] double topKeyIndex() const;
     [[nodiscard]] double bottomKeyIndex() const;
-    void setViewportTopKey(double key);
     void setViewportCenterAt(double tick, double keyIndex);
     void setViewportCenterAtKeyIndex(double keyIndex);
 
@@ -42,87 +42,20 @@ signals:
     void keyIndexRangeChanged(double start, double end);
 
 public slots:
-    void onEditModeChanged(PianoRollEditMode mode);
+    void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
     void onSceneSelectionChanged() const;
     void onPitchEditorEditCompleted();
 
-private slots:
-    void onNoteChanged(SingingClip::NoteChangeType type, Note *note);
-    void onNoteSelectionChanged();
-    void onParamChanged(ParamBundle::ParamName name, Param::ParamType type);
-
-    void onDeleteSelectedNotes() const;
-    void onOpenNotePropertyDialog(int noteId);
-
-private:
-    SingingClip *m_clip = nullptr;
-    QList<Note *> m_notes;
-    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
-    NoteView *m_currentEditingNote = nullptr;
-
-    // Layers
-    GraphicsLayerManager m_layerManager;
-    NoteLayer m_noteLayer;
-    PitchEditorGraphicsItem *m_pitchItem;
-
-    bool m_selecting = false;
-    QList<Note *> m_cachedSelectedNotes;
-
-    bool m_canNotifySelectedNoteChanged = true;
-
-    // resize and move
-    bool m_tempQuantizeOff = false;
-    QPointF m_mouseDownPos;
-    int m_mouseDownStart{};
-    int m_mouseDownLength{};
-    int m_mouseDownKeyIndex{};
-    int m_deltaTick = 0;
-    int m_deltaKey = 0;
-    bool m_movedBeforeMouseUp = false;
-    int m_moveMaxDeltaKey = 127;
-    int m_moveMinDeltaKey = 0;
-
-    PianoRollEditMode m_editMode = Select;
-    MouseMoveBehavior m_mouseMoveBehavior = None;
-    NoteView *m_currentDrawingNote; // a fake note for drawing
-
+protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
-    CMenu *buildNoteContextMenu(NoteView *noteView);
-
     void paintEvent(QPaintEvent *event) override;
-    void prepareForMovingOrResizingNotes(QMouseEvent *event, QPointF scenePos, int keyIndex,
-                                         NoteView *noteItem);
-    void PrepareForDrawingNote(int tick, int keyIndex);
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-    void handleDrawNoteCompleted(int start, int length, int keyIndex);
-    void handleMoveNotesCompleted(int deltaTick, int deltaKey) const;
-    static void handleResizeNoteLeftCompleted(int noteId, int deltaTick);
-    static void handleResizeNoteRightCompleted(int noteId, int deltaTick);
 
-    void updateSelectionState();
-    void updateOverlappedState();
-    void updateNoteTimeAndKey(Note *note);
-    void updateNoteWord(Note *note);
-    void moveSelectedNotes(int startOffset, int keyOffset);
-    void resetSelectedNotesOffset();
-    void updateMoveDeltaKeyRange();
-    void resetMoveDeltaKeyRange();
-    void resizeLeftSelectedNote(int offset);
-    void resizeRightSelectedNote(int offset);
-
-    [[nodiscard]] double keyIndexToSceneY(double index) const;
-    [[nodiscard]] double sceneYToKeyIndexDouble(double y) const;
-    [[nodiscard]] int sceneYToKeyIndexInt(double y) const;
-    [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
-    void setPitchEditMode(bool on);
-    NoteView *noteViewAt(const QPoint &pos);
-    // OverlapableSerialList<Curve> buildCurves();
-
-    void handleNoteInserted(Note *note);
-    void handleNoteRemoved(Note *note);
-    void handleNotePropertyChanged(Note::NotePropertyType type, Note *note);
+private:
+    Q_DECLARE_PRIVATE(PianoRollGraphicsView)
+    PianoRollGraphicsViewPrivate *d_ptr;
 };
 
 #endif // PIANOROLLGRAPHICSVIEW_H
