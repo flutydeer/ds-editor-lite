@@ -34,6 +34,10 @@ AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
     setLayout(mainLayout);
 }
 
+AudioPage::~AudioPage() {
+    AudioPage::modifyOption();
+}
+
 void AudioPage::modifyOption() {
     m_widget->accept();
 }

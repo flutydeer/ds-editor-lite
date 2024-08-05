@@ -1,7 +1,7 @@
 #include "DeviceTester.h"
 
 #include <Modules/Audio/AudioSystem.h>
-#include <Modules/Audio/subsystem/AbstractOutputSystem.h>
+#include <Modules/Audio/subsystem/OutputSystem.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsDevice/AbstractOutputContext.h>
 
@@ -9,7 +9,7 @@ static DeviceTester *m_instance = nullptr;
 
 DeviceTester::DeviceTester(QObject *parent) : QObject(parent) {
     m_instance = this;
-    AudioSystem::sessionOutputSystem()->context()->preMixer()->addSource(this);
+    AudioSystem::outputSystem()->context()->preMixer()->addSource(this);
 }
 DeviceTester::~DeviceTester() {
     m_instance = nullptr;

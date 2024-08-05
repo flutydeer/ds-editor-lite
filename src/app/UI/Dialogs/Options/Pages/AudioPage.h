@@ -15,6 +15,7 @@ class AudioPage : public IOptionPage {
 
 public:
     explicit AudioPage(QWidget *parent = nullptr);
+    ~AudioPage() override;
 
 protected:
     void modifyOption() override;

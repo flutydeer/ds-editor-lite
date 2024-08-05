@@ -18,7 +18,6 @@
 #include "Controller/TracksViewController.h"
 
 #include <Modules/Audio/subsystem/OutputSystem.h>
-#include <Modules/Audio/subsystem/VSTConnectionSystem.h>
 #include <Modules/Audio/subsystem/MidiSystem.h>
 #include <Modules/Audio/utils/DeviceTester.h>
 #include <Modules/Audio/AudioContext.h>
@@ -69,13 +68,9 @@ int main(int argc, char *argv[]) {
     if (foundTranslation)
         QApplication::installTranslator(translator);
 
-    AudioSystem as(QApplication::arguments().contains("-vst"));
-    if (AudioSystem::outputSystem())
-        AudioSystem::outputSystem()->initialize();
-    if (AudioSystem::vstConnectionSystem())
-        AudioSystem::vstConnectionSystem()->initialize();
-    if (AudioSystem::midiSystem())
-        AudioSystem::midiSystem()->initialize();
+    AudioSystem as;
+    AudioSystem::outputSystem()->initialize();
+    AudioSystem::midiSystem()->initialize();
 
     new DeviceTester(&as);
     new AudioContext(&as);

@@ -31,7 +31,6 @@
 
 #include <Modules/Audio/subsystem/MidiSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
-#include <Modules/Audio/subsystem/VSTConnectionSystem.h>
 #include <Modules/Audio/utils/AudioHelpers.h>
 
 #include <UI/Controls/SeekBar.h>
@@ -314,7 +313,6 @@ public:
             }, Qt::QueuedConnection);
         connect(flushButton, &QAbstractButton::clicked, this, [=] {
             AudioSystem::midiSystem()->synthesizer()->noteSynthesizer()->flush();
-            AudioSystem::vstConnectionSystem()->synthesizer()->noteSynthesizer()->flush();
         });
     }
 
@@ -368,7 +366,6 @@ public:
         ms->setDecayRatio(m_cachedDecayRatio);
         ms->setReleaseMsec(m_cachedReleaseMsec);
         ms->setFrequencyOfA(m_cachedFrequencyOfA);
-        AudioSystem::vstConnectionSystem()->syncSynthesizerPreference();
     }
 
     talcs::MixerAudioSource m_testMixer;
@@ -400,6 +397,10 @@ MidiPage::MidiPage(QWidget *parent) : IOptionPage(parent) {
 
     mainLayout->addWidget(m_widget);
     setLayout(mainLayout);
+}
+
+MidiPage::~MidiPage() {
+    MidiPage::modifyOption();
 }
 
 void MidiPage::modifyOption() {

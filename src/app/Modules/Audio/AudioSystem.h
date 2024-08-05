@@ -5,27 +5,21 @@
 
 class AbstractOutputSystem;
 class OutputSystem;
-class VSTConnectionSystem;
 class MidiSystem;
 
 class AudioSystem : public QObject {
     Q_OBJECT
 public:
-    explicit AudioSystem(bool isVST, QObject *parent = nullptr);
+    explicit AudioSystem(QObject *parent = nullptr);
     ~AudioSystem() override;
     static AudioSystem *instance();
 
     static OutputSystem *outputSystem();
-    static VSTConnectionSystem *vstConnectionSystem();
-    static bool isVST();
-    static AbstractOutputSystem *sessionOutputSystem();
     static MidiSystem *midiSystem();
 
 private:
     OutputSystem *m_outputSystem = nullptr;
-    VSTConnectionSystem *m_vstConnectionSystem = nullptr;
     MidiSystem *m_midiSystem;
-    bool m_isVST;
 };
 
 

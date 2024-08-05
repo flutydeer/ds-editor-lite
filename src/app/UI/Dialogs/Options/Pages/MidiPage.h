@@ -9,6 +9,7 @@ class MidiPage : public IOptionPage {
     Q_OBJECT
 public:
     explicit MidiPage(QWidget *parent = nullptr);
+    ~MidiPage() override;
 
 protected:
     void modifyOption() override;

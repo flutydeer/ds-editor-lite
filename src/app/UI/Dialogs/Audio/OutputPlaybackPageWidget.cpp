@@ -25,7 +25,6 @@
 
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
-#include <Modules/Audio/subsystem/VSTConnectionSystem.h>
 #include <Modules/Audio/AudioContext.h>
 #include <Modules/Audio/utils/DeviceTester.h>
 #include <Modules/Audio/AudioSettings.h>
@@ -107,11 +106,11 @@ OutputPlaybackPageWidget::OutputPlaybackPageWidget(QWidget *parent) : QWidget(pa
     auto playbackLayout = new QFormLayout;
     m_playHeadBehaviorComboBox = new QComboBox;
     m_playHeadBehaviorComboBox->addItems({
-        tr("Start position"),
-        tr("End position"),
+        tr("Return to the start position after stopped"),
+        tr("Keep at current position after stopped, and play from current position next time"),
+        tr("Keep at current position after stopped, but play from the start position next time")
     });
-    playbackLayout->addRow(tr("After playback is stopped, &move the play head to"),
-                           m_playHeadBehaviorComboBox);
+    playbackLayout->addRow(tr("Playhead behavior"), m_playHeadBehaviorComboBox);
     m_closeDeviceOnPlaybackStopCheckBox =
         new QCheckBox(tr("&Close audio device when playback is stopped"));
     playbackLayout->addRow(m_closeDeviceOnPlaybackStopCheckBox);
@@ -170,6 +169,8 @@ OutputPlaybackPageWidget::OutputPlaybackPageWidget(QWidget *parent) : QWidget(pa
         updatePan(sliderValueToPan(value));
     });
 
+    m_playHeadBehaviorComboBox->setCurrentIndex(AudioSettings::playheadBehavior());
+
     m_fileBufferingReadAheadSizeSpinBox->setValue(AudioSettings::fileBufferingReadAheadSize());
 }
 
@@ -178,10 +179,10 @@ void OutputPlaybackPageWidget::accept() const {
         static_cast<talcs::OutputContext::HotPlugNotificationMode>(
             m_hotPlugModeComboBox->currentIndex()));
     AudioSystem::outputSystem()->setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
-    AudioSystem::vstConnectionSystem()->setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
     AudioSettings::setDeviceGain(AudioSystem::outputSystem()->outputContext()->controlMixer()->gain());
     AudioSettings::setDevicePan(AudioSystem::outputSystem()->outputContext()->controlMixer()->pan());
     AudioSettings::setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
+    AudioSettings::setPlayheadBehavior(m_playHeadBehaviorComboBox->currentIndex());
     appOptions->saveAndNotify();
 }
 

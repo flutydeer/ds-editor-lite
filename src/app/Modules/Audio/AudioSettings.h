@@ -6,26 +6,6 @@
   [[nodiscard]] static valueType readName();                                                       \
   static void writeName(const valueType &);
 
-#define AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_1(readName, writeName, valueType)               \
-  AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_2(readName, writeName, valueType, valueType{})
-
-#define AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_2(readName, writeName, valueType, defaultValue) \
-  valueType AudioSettings::readName() {                                                            \
-    auto variant = appOptions->audio()->obj[#readName].toVariant();                                \
-    return variant.isNull() ? valueType(defaultValue) : variant.value<valueType>();                \
-  }                                                                                                \
-  void AudioSettings::writeName(const valueType &v) {                                              \
-    appOptions->audio()->obj[#readName] = v;                                                       \
-  }
-#define AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_QJSONVALUE(readName, writeName)                 \
-  QJsonValue AudioSettings::readName() {                                                           \
-    return appOptions->audio()->obj[#readName];                                                    \
-  }                                                                                                \
-  void AudioSettings::writeName(const QJsonValue &v) {                                             \
-    appOptions->audio()->obj[#readName] = v;                                                       \
-  }
-
-
 #include <QJsonValue>
 
 
@@ -61,6 +41,8 @@ class AudioSettings {
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(midiSynthesizerGenerator, setMidiSynthesizerGenerator, int)
 
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(midiSynthesizerReleaseMsec, setMidiSynthesizerReleaseMsec, int)
+
+    AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(playheadBehavior, setPlayheadBehavior, int)
 
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(vstEditorPort, setVstEditorPort, int)
 

@@ -25,13 +25,13 @@
 #include <TalcsDspx/DspxAudioClipContext.h>
 
 #include <Modules/Audio/AudioSystem.h>
-#include <Modules/Audio/subsystem/AbstractOutputSystem.h>
+#include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/AudioSettings.h>
 
 #include "Model/AppModel/Track.h"
 #include <Model/AppOptions/AppOptions.h>
 
-#define DEVICE_LOCKER talcs::AudioDeviceLocker locker(AudioSystem::sessionOutputSystem()->context()->device())
+#define DEVICE_LOCKER talcs::AudioDeviceLocker locker(AudioSystem::outputSystem()->context()->device())
 
 class AudioFormatIOObject : public QObject, public talcs::AudioFormatIO {
 public:
@@ -167,13 +167,13 @@ private:
 static AudioContext *m_instance = nullptr;
 
 static qint64 tickToSample(double tick) {
-    auto dev = AudioSystem::sessionOutputSystem()->context()->device();
+    auto dev = AudioSystem::outputSystem()->context()->device();
     auto sr = dev ? !qFuzzyIsNull(dev->sampleRate()) ? dev->sampleRate() : 48000.0 : 48000.0;
     return qint64(tick * 60.0 * sr / playbackController->tempo() / 480.0);
 }
 
 static double sampleToTick(qint64 sample) {
-    auto dev = AudioSystem::sessionOutputSystem()->context()->device();
+    auto dev = AudioSystem::outputSystem()->context()->device();
     auto sr = dev ? !qFuzzyIsNull(dev->sampleRate()) ? dev->sampleRate() : 48000.0 : 48000.0;
     return double(sample) / sr * playbackController->tempo() / 60.0 * 480.0;
 }
@@ -181,7 +181,7 @@ static double sampleToTick(qint64 sample) {
 AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     m_instance = this;
 
-    AudioSystem::sessionOutputSystem()->context()->preMixer()->addSource(preMixer());
+    AudioSystem::outputSystem()->context()->preMixer()->addSource(preMixer());
 
     setTimeConverter(&tickToSample);
 
@@ -199,8 +199,10 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     });
 
     connect(transport(), &talcs::TransportAudioSource::playbackStatusChanged, this, [=](auto status) {
-        if (status == talcs::TransportAudioSource::Paused && playbackController->playbackStatus() == PlaybackGlobal::Stopped)
-            playbackController->setPosition(playbackController->lastPosition());
+        if (status == talcs::TransportAudioSource::Paused && playbackController->playbackStatus() == PlaybackGlobal::Stopped) {
+            if (AudioSettings::playheadBehavior() == ReturnToStart)
+                playbackController->setPosition(playbackController->lastPosition());
+        }
     });
 
     connect(playbackController, &PlaybackController::playbackStatusChanged, this, &AudioContext::handlePlaybackStatusChanged);
@@ -227,17 +229,17 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         handleTimeChanged();
     });
 
-    connect(AudioSystem::sessionOutputSystem()->context(), &talcs::AbstractOutputContext::bufferSizeChanged, this, [=] {
+    connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::bufferSizeChanged, this, [=] {
         playbackController->stop();
     });
 
-    connect(AudioSystem::sessionOutputSystem()->context(), &talcs::AbstractOutputContext::sampleRateChanged, this, [=] {
+    connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::sampleRateChanged, this, [=] {
         DEVICE_LOCKER;
         handleTimeChanged();
         playbackController->stop();
     });
 
-    connect(AudioSystem::sessionOutputSystem()->context(), &talcs::AbstractOutputContext::deviceChanged, this, [=] {
+    connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::deviceChanged, this, [=] {
         playbackController->stop();
     });
 
@@ -296,7 +298,7 @@ void AudioContext::handleGainSliderMoved(Track *track, double gain) const {
 }
 
 void AudioContext::handlePlaybackStatusChanged(PlaybackStatus status) {
-    auto device = AudioSystem::sessionOutputSystem()->context()->device();
+    auto device = AudioSystem::outputSystem()->context()->device();
     switch (status) {
         case Stopped:
             transport()->pause();
@@ -305,13 +307,20 @@ void AudioContext::handlePlaybackStatusChanged(PlaybackStatus status) {
             if (!device || !device->isOpen())
                 QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
             if (device && !device->isStarted())
-                device->start(AudioSystem::sessionOutputSystem()->context()->playback());
+                device->start(AudioSystem::outputSystem()->context()->playback());
+            if (m_lastStatus == Stopped) {
+                if (AudioSettings::playheadBehavior() == KeepAtCurrentButPlayFromStart)
+                    playbackController->setPosition(playbackController->lastPosition());
+                else
+                    playbackController->setLastPosition(playbackController->position());
+            }
             transport()->play();
             break;
         case Paused:
             transport()->pause();
             break;
     }
+    m_lastStatus = status;
 }
 void AudioContext::handlePlaybackPositionChanged(double positionTick) {
     if (m_transportPositionFlag)

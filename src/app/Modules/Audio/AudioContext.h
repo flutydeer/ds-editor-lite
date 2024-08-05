@@ -44,6 +44,14 @@ signals:
     void levelMeterUpdated(const AppModel::LevelMetersUpdatedArgs &args);
 
 private:
+    enum PlayheadBehavior {
+        ReturnToStart,
+        KeepAtCurrent,
+        KeepAtCurrentButPlayFromStart,
+    };
+
+    PlaybackStatus m_lastStatus = PlaybackGlobal::Stopped;
+
     QHash<Track *, talcs::DspxTrackContext *> m_trackModelDict;
     QHash<AudioClip *, talcs::DspxAudioClipContext *> m_audioClipModelDict;
 
