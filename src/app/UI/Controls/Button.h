@@ -7,8 +7,6 @@
 
 #include <QPushButton>
 
-#include "Global/AppGlobal.h"
-
 class Button : public QPushButton {
     Q_OBJECT
 public:

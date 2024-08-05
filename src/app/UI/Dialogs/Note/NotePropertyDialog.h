@@ -6,25 +6,27 @@
 #define NOTEPROPERTYEDITDIALOG_H
 
 #include "Model/AppModel/Note.h"
+#include "Model/NoteDialogResult/NoteDialogResult.h"
 #include "UI/Dialogs/Base/OKCancelDialog.h"
-#include "opendspx/qdspxnote.h"
 
+class QLineEdit;
+class LanguageComboBox;
 class Note;
 class NotePropertyDialog final : public OKCancelDialog {
     Q_OBJECT
 
 public:
-    class NoteDialogResult {
-    public:
-        QString language;
-        QString lyric;
-        Pronunciation pronunciation;
-        Phonemes phonemes;
-    };
-
     explicit NotePropertyDialog(Note *note, QWidget *parent = nullptr);
+    [[nodiscard]] NoteDialogResult result();
 
 private:
+    NoteDialogResult m_result;
+    LanguageComboBox *m_cbLanguage;
+    QLineEdit *m_leLyric;
+    QLineEdit *m_lePron;
+    QLineEdit *m_lePhonemeAhead;
+    QLineEdit *m_lePhonemeNormal;
+    QLineEdit *m_lePhonemeFinal;
     Note *m_note;
 
     static QString phonemesToString(const QList<Phoneme> &phonemes);

@@ -9,7 +9,9 @@
 
 class QAction;
 class MainWindow;
-class MainMenuViewPrivate {
+class MainMenuViewPrivate : QObject {
+    Q_OBJECT
+
     Q_DECLARE_PUBLIC(MainMenuView)
 public:
     explicit MainMenuViewPrivate(MainWindow *window) : m_mainWindow(window) {

@@ -205,7 +205,7 @@ void MainMenuViewPrivate::onOpenProject() {
     auto openProject = [=] {
         auto lastDir = appController->lastProjectFolder();
         auto fileName =
-            QFileDialog::getOpenFileName(q, q->tr("Select a Project File"), lastDir,
+            QFileDialog::getOpenFileName(q, tr("Select a Project File"), lastDir,
                                          MainMenuView::tr("DiffScope Project File (*.dspx)"));
         if (fileName.isNull())
             return;
@@ -221,8 +221,8 @@ void MainMenuViewPrivate::onOpenAProject() {
     Q_Q(MainMenuView);
     auto openAProject = [=] {
         auto lastDir = appController->lastProjectFolder();
-        auto fileName = QFileDialog::getOpenFileName(q, q->tr("Select an A Project File"), lastDir,
-                                                     q->tr("Project File (*.json)"));
+        auto fileName = QFileDialog::getOpenFileName(q, tr("Select an A Project File"), lastDir,
+                                                     tr("Project File (*.json)"));
         if (fileName.isNull())
             return;
         appController->importAproject(fileName);
@@ -235,16 +235,16 @@ void MainMenuViewPrivate::onOpenAProject() {
 }
 void MainMenuViewPrivate::onImportMidiFile() {
     Q_Q(MainMenuView);
-    auto fileName = QFileDialog::getOpenFileName(q, q->tr("Select a MIDI File"), ".",
-                                                 q->tr("MIDI File (*.mid)"));
+    auto fileName = QFileDialog::getOpenFileName(q, tr("Select a MIDI File"), ".",
+                                                 tr("MIDI File (*.mid)"));
     if (fileName.isNull())
         return;
     appController->importMidiFile(fileName);
 }
 void MainMenuViewPrivate::onExportMidiFile() {
     Q_Q(MainMenuView);
-    auto fileName = QFileDialog::getSaveFileName(q, q->tr("Save as MIDI File"), ".",
-                                                 q->tr("MIDI File (*.mid)"));
+    auto fileName = QFileDialog::getSaveFileName(q, tr("Save as MIDI File"), ".",
+                                                 tr("MIDI File (*.mid)"));
     if (fileName.isNull())
         return;
     appController->exportMidiFile(fileName);
@@ -258,9 +258,9 @@ void MainMenuViewPrivate::onUndoRedoChanged(bool canUndo, const QString &undoNam
                                             const QString &redoName) {
     Q_Q(MainMenuView);
     m_actionUndo->setEnabled(canUndo);
-    m_actionUndo->setText(q->tr("&Undo") + " " + undoName);
+    m_actionUndo->setText(tr("&Undo") + " " + undoName);
     m_actionRedo->setEnabled(canRedo);
-    m_actionRedo->setText(q->tr("&Redo") + " " + redoName);
+    m_actionRedo->setText(tr("&Redo") + " " + redoName);
 }
 void MainMenuViewPrivate::onActivatedPanelChanged(AppGlobal::PanelType panel) {
     Q_Q(MainMenuView);

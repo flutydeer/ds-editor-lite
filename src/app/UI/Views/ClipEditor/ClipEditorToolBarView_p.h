@@ -51,7 +51,7 @@ public slots:
     void onPianoRollToolButtonToggled(QAbstractButton *button, bool checked);
     void onClipNameEdited() const;
     void onClipPropertyChanged() const;
-    void onClipLanguageChanged(AppGlobal::languageType language) const;
+    void onClipLanguageChanged(AppGlobal::LanguageType language) const;
     void onLanguageEdited(int index);
 
 private:

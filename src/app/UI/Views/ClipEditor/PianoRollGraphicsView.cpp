@@ -130,6 +130,9 @@ void PianoRollGraphicsViewPrivate::onOpenNotePropertyDialog(int noteId) {
     Q_Q(PianoRollGraphicsView);
     auto note = m_clip->findNoteById(noteId);
     auto dlg = new NotePropertyDialog(note, q);
+    connect(dlg, &NotePropertyDialog::accepted, this, [=] {
+        clipController->onNotePropertiesEdited(noteId, dlg->result());
+    });
     dlg->show();
 }
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
@@ -159,7 +162,7 @@ CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
 
     menu->addSeparator();
 
-    auto actionProperties = menu->addAction("Properties...");
+    auto actionProperties = menu->addAction(tr("Properties..."));
     // TODO: 移动到控制器？
     connect(actionProperties, &QAction::triggered, this,
             [=] { onOpenNotePropertyDialog(noteView->id()); });

@@ -15,7 +15,7 @@ public:
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
 
-    AppGlobal::languageType defaultSingingLanguage = AppGlobal::Mandarin;
+    AppGlobal::LanguageType defaultSingingLanguage = AppGlobal::Mandarin;
     QString defaultLyric = "啦";
 
 private:

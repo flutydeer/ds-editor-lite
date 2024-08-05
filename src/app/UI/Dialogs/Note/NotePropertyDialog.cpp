@@ -4,6 +4,7 @@
 
 #include "NotePropertyDialog.h"
 
+#include "Global/AppGlobal.h"
 #include "Global/ClipEditorGlobal.h"
 #include "Model/AppModel/Note.h"
 #include "UI/Controls/AccentButton.h"
@@ -20,26 +21,28 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     setWindowTitle(tr("Note Properties - %1").arg(note->lyric()));
     setFocusPolicy(Qt::ClickFocus);
 
-    auto sbStart = new QSpinBox;
-    sbStart->setMinimum(0);
-    sbStart->setMaximum(INT_MAX);
-    sbStart->setValue(note->start());
-    sbStart->setSingleStep(5);
+    // auto sbStart = new QSpinBox;
+    // sbStart->setMinimum(0);
+    // sbStart->setMaximum(INT_MAX);
+    // sbStart->setValue(note->start());
+    // sbStart->setSingleStep(5);
+    //
+    // auto sbLength = new QSpinBox;
+    // sbLength->setMinimum(0);
+    // sbLength->setMaximum(INT_MAX);
+    // sbLength->setValue(note->length());
+    // sbLength->setSingleStep(5);
 
-    auto sbLength = new QSpinBox;
-    sbLength->setMinimum(0);
-    sbLength->setMaximum(INT_MAX);
-    sbLength->setValue(note->length());
-    sbLength->setSingleStep(5);
+    m_cbLanguage = new LanguageComboBox(note->language());
 
-    auto cbLanguage = new LanguageComboBox(note->language());
+    m_leLyric = new QLineEdit(note->lyric());
+    m_leLyric->setPlaceholderText(note->lyric());
 
-    auto leLyric = new QLineEdit(note->lyric());
-    leLyric->setPlaceholderText(note->lyric());
+    m_result.pronunciation = note->pronunciation();
+    m_lePron = new QLineEdit(note->pronunciation().edited);
+    m_lePron->setPlaceholderText(note->pronunciation().original);
 
-    auto lePron = new QLineEdit(note->pronunciation().edited);
-    lePron->setPlaceholderText(note->pronunciation().original);
-
+    m_result.phonemes = note->phonemes();
     auto phoneme = note->phonemes();
     auto originalPhoneme = phoneme.original;
     auto editedPhoneme = phoneme.edited;
@@ -49,26 +52,26 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     const auto originalMap = Linq::groupBy(originalPhoneme, types, getter);
     const auto editedMap = Linq::groupBy(editedPhoneme, types, getter);
 
-    auto lePhonemeAhead = new QLineEdit(phonemesToString(editedMap[Phoneme::Ahead]));
-    lePhonemeAhead->setPlaceholderText(phonemesToString(originalMap[Phoneme::Ahead]));
+    m_lePhonemeAhead = new QLineEdit(phonemesToString(editedMap[Phoneme::Ahead]));
+    m_lePhonemeAhead->setPlaceholderText(phonemesToString(originalMap[Phoneme::Ahead]));
 
-    auto lePhonemeNormal = new QLineEdit(phonemesToString(editedMap[Phoneme::Normal]));
-    lePhonemeNormal->setPlaceholderText(phonemesToString(originalMap[Phoneme::Normal]));
+    m_lePhonemeNormal = new QLineEdit(phonemesToString(editedMap[Phoneme::Normal]));
+    m_lePhonemeNormal->setPlaceholderText(phonemesToString(originalMap[Phoneme::Normal]));
 
-    auto lePhonemeFinal = new QLineEdit(phonemesToString(editedMap[Phoneme::Final]));
-    lePhonemeFinal->setPlaceholderText(phonemesToString(originalMap[Phoneme::Final]));
+    m_lePhonemeFinal = new QLineEdit(phonemesToString(editedMap[Phoneme::Final]));
+    m_lePhonemeFinal->setPlaceholderText(phonemesToString(originalMap[Phoneme::Final]));
 
     auto mainLayout = new QFormLayout;
     mainLayout->setLabelAlignment(Qt::AlignmentFlag::AlignRight | Qt::AlignmentFlag::AlignTrailing |
                                   Qt::AlignmentFlag::AlignVCenter);
-    mainLayout->addRow(tr("Start:"), sbStart);
-    mainLayout->addRow(tr("Length:"), sbLength);
-    mainLayout->addRow(tr("Language:"), cbLanguage);
-    mainLayout->addRow(tr("Lyric:"), leLyric);
-    mainLayout->addRow(tr("Pronunciation:"), lePron);
-    mainLayout->addRow(tr("Ahead Phonemes:"), lePhonemeAhead);
-    mainLayout->addRow(tr("Normal Phonemes:"), lePhonemeNormal);
-    mainLayout->addRow(tr("Final Phonemes:"), lePhonemeFinal);
+    // mainLayout->addRow(tr("Start:"), sbStart);
+    // mainLayout->addRow(tr("Length:"), sbLength);
+    mainLayout->addRow(tr("Language:"), m_cbLanguage);
+    mainLayout->addRow(tr("Lyric:"), m_leLyric);
+    mainLayout->addRow(tr("Pronunciation:"), m_lePron);
+    mainLayout->addRow(tr("Ahead Phonemes:"), m_lePhonemeAhead);
+    mainLayout->addRow(tr("Normal Phonemes:"), m_lePhonemeNormal);
+    mainLayout->addRow(tr("Final Phonemes:"), m_lePhonemeFinal);
     mainLayout->setContentsMargins({});
 
     body()->setLayout(mainLayout);
@@ -76,6 +79,16 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     setModal(true);
     connect(okButton(), &AccentButton::clicked, this, &Dialog::accept);
     connect(cancelButton(), &AccentButton::clicked, this, &Dialog::reject);
+}
+NoteDialogResult NotePropertyDialog::result() {
+    m_result.language =
+        languageKeyFromType(static_cast<AppGlobal::LanguageType>(m_cbLanguage->currentIndex()));
+    m_result.lyric = m_leLyric->text();
+    m_result.pronunciation.edited = m_lePron->text();
+    m_result.phonemes.edited = phonemesFromString(Phoneme::Ahead, m_lePhonemeAhead->text()) +
+                               phonemesFromString(Phoneme::Normal, m_lePhonemeNormal->text()) +
+                               phonemesFromString(Phoneme::Final, m_lePhonemeFinal->text());
+    return m_result;
 }
 QString NotePropertyDialog::phonemesToString(const QList<Phoneme> &phonemes) {
     QString result;

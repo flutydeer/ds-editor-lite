@@ -143,7 +143,7 @@ void ClipEditorToolBarViewPrivate::onClipNameEdited() const {
 void ClipEditorToolBarViewPrivate::onClipPropertyChanged() const {
     m_leClipName->setText(m_clip->name());
 }
-void ClipEditorToolBarViewPrivate::onClipLanguageChanged(AppGlobal::languageType language) const {
+void ClipEditorToolBarViewPrivate::onClipLanguageChanged(AppGlobal::LanguageType language) const {
     m_cbLanguage->setCurrentIndex(language);
 }
 void ClipEditorToolBarViewPrivate::onLanguageEdited(int index) {

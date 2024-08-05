@@ -51,17 +51,17 @@ namespace AppGlobal {
     enum PanelType { Generic, TracksEditor, ClipEditor };
 
     const QStringList languageKeys = {"Mandarin", "English", "Japanese", "Unknown"};
-    enum languageType { Mandarin, English, Japanese, Unknown };
-    QString languageKeyFromType(languageType type);
-    languageType languageTypeFromKey(const QString& languageKey);
+    enum LanguageType { Mandarin, English, Japanese, Unknown };
+    QString languageKeyFromType(LanguageType type);
+    LanguageType languageTypeFromKey(const QString& languageKey);
 
-    inline QString languageKeyFromType(languageType type) {
+    inline QString languageKeyFromType(LanguageType type) {
         return languageKeys[type];
     }
-    inline languageType languageTypeFromKey(const QString& languageKey) {
+    inline LanguageType languageTypeFromKey(const QString& languageKey) {
         for (int i = 0; i < languageKeys.count(); i++) {
             if (languageKeys[i] == languageKey)
-                return static_cast<languageType>(i);
+                return static_cast<LanguageType>(i);
         }
         return Unknown;
     }

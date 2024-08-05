@@ -131,8 +131,8 @@ public:
         return Singing;
     }
 
-    [[nodiscard]] AppGlobal::languageType defaultLanguage() const;
-    void setDefaultLanguage(AppGlobal::languageType language);
+    [[nodiscard]] AppGlobal::LanguageType defaultLanguage() const;
+    void setDefaultLanguage(AppGlobal::LanguageType language);
 
     [[nodiscard]] const OverlappableSerialList<Note> &notes() const;
     void insertNote(Note *note);
@@ -154,12 +154,12 @@ signals:
     void noteChanged(SingingClip::NoteChangeType type, Note *note);
     void noteSelectionChanged();
     void paramChanged(ParamBundle::ParamName name, Param::ParamType type);
-    void defaultLanguageChanged(AppGlobal::languageType language);
+    void defaultLanguageChanged(AppGlobal::LanguageType language);
 
 private:
     OverlappableSerialList<Note> m_notes;
     QList<VocalPart> m_parts;
-    AppGlobal::languageType m_defaultLanguage = AppGlobal::Unknown;
+    AppGlobal::LanguageType m_defaultLanguage = AppGlobal::Unknown;
 };
 
 // using DsClipPtr = QSharedPointer<DsClip>;

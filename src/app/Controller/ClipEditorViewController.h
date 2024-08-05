@@ -10,6 +10,7 @@
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Note.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
+#include "Model/NoteDialogResult/NoteDialogResult.h"
 #include "Utils/Singleton.h"
 
 #include <QObject>
@@ -21,7 +22,7 @@ class ClipEditorViewController final : public QObject, public Singleton<ClipEdit
     Q_OBJECT
 
 public:
-    explicit  ClipEditorViewController();
+    explicit ClipEditorViewController();
     ~ClipEditorViewController() override;
     void setView(IClipEditorView *view);
     void setClip(Clip *clip);
@@ -52,6 +53,7 @@ public slots:
     void onNoteSelectionChanged(const QList<int> &notesId, bool unselectOther);
     void onOriginalPitchChanged(const OverlappableSerialList<Curve> &curves) const;
     void onPitchEdited(const OverlappableSerialList<Curve> &curves) const;
+    void onNotePropertiesEdited(int noteId, const NoteDialogResult &result);
     void onDeleteSelectedNotes();
     void onSelectAllNotes();
     void onFillLyric(QWidget *parent);

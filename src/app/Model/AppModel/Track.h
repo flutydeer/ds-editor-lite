@@ -32,8 +32,8 @@ public:
     void removeClip(Clip *clip);
     [[nodiscard]] QColor color() const override;
     void setColor(const QColor &color) override;
-    [[nodiscard]] AppGlobal::languageType defaultLanguage() const;
-    void setDefaultLanguage(AppGlobal::languageType language);
+    [[nodiscard]] AppGlobal::LanguageType defaultLanguage() const;
+    void setDefaultLanguage(AppGlobal::LanguageType language);
 
     void notifyClipChanged(ClipChangeType type, Clip *clip);
     Clip *findClipById(int id) const;
@@ -60,7 +60,7 @@ private:
     TrackControl m_control = TrackControl();
     OverlappableSerialList<Clip> m_clips;
     QColor m_color;
-    AppGlobal::languageType m_defaultLanguage = AppGlobal::Unknown;
+    AppGlobal::LanguageType m_defaultLanguage = AppGlobal::Unknown;
 };
 
 

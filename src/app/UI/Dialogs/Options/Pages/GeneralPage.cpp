@@ -59,7 +59,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
 void GeneralPage::modifyOption() {
     auto option = appOptions->general();
     option->defaultSingingLanguage =
-        static_cast<AppGlobal::languageType>(m_cbDefaultSingingLanguage->currentIndex());
+        static_cast<AppGlobal::LanguageType>(m_cbDefaultSingingLanguage->currentIndex());
     option->defaultLyric = m_leDefaultLyric->text();
     appOptions->saveAndNotify();
 }

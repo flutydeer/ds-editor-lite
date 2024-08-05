@@ -244,6 +244,24 @@ void ClipEditorViewController::onPitchEdited(const OverlappableSerialList<Curve>
     a->execute();
     historyManager->record(a);
 }
+void ClipEditorViewController::onNotePropertiesEdited(int noteId, const NoteDialogResult &result) {
+    Q_D(ClipEditorViewController);
+    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    auto note = singingClip->findNoteById(noteId);
+    auto arg = Note::NoteWordProperties::fromNote(*note);
+    arg.language = result.language;
+    arg.lyric = result.lyric;
+    arg.pronunciation = result.pronunciation;
+    arg.phonemes = result.phonemes;
+
+    QList list = {note};
+    QList args = {arg};
+
+    auto a = new NoteActions;
+    a->editNotesWordProperties(list, args);
+    a->execute();
+    historyManager->record(a);
+}
 
 void ClipEditorViewController::onDeleteSelectedNotes() {
     Q_D(const ClipEditorViewController);
@@ -318,8 +336,8 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
         }
         arg.lyric = noteRes[i - skipCount].lyric;
         arg.language = noteRes[i - skipCount].language;
-        arg.pronunciation = Pronunciation(noteRes[i - skipCount].syllable,
-                                          noteRes[i - skipCount].syllableRevised);
+        arg.pronunciation =
+            Pronunciation(noteRes[i - skipCount].syllable, noteRes[i - skipCount].syllableRevised);
         arg.pronCandidates = noteRes[i - skipCount].candidates;
         args.append(arg);
     }
