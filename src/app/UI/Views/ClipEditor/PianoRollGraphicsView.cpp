@@ -178,7 +178,11 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
 }
 void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     Q_Q(PianoRollGraphicsView);
-    moveToNullClipState();
+    while (m_notes.count() > 0)
+        handleNoteRemoved(m_notes.first());
+    if (m_clip) {
+        disconnect(m_clip, nullptr, this, nullptr);
+    }
 
     m_clip = clip;
     m_offset = clip->start();
