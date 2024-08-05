@@ -65,6 +65,9 @@ public:
 
     CMenu *buildNoteContextMenu(NoteView *noteView);
 
+    void moveToNullClipState();
+    void moveToSingingClipState(SingingClip *clip);
+
     void prepareForEditingNotes(QMouseEvent *event, QPointF scenePos, int keyIndex,
                                 NoteView *noteItem);
     void PrepareForDrawingNote(int tick, int keyIndex);

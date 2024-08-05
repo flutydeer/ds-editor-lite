@@ -68,38 +68,10 @@ PianoRollGraphicsView::~PianoRollGraphicsView() {
 }
 void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
     Q_D(PianoRollGraphicsView);
-    if (d->m_clip) {
-        disconnect(d->m_clip, nullptr, this, nullptr);
-        while (d->m_notes.count() > 0)
-            d->handleNoteRemoved(d->m_notes.first());
-    }
-
-    d->m_clip = clip;
-    if (!clip) {
-        setSceneVisibility(false);
-        setEnabled(false);
-        return;
-    }
-
-    d->m_offset = clip->start();
-    setOffset(d->m_offset);
-    setSceneVisibility(true);
-    setEnabled(true);
-
-    if (clip->notes().count() > 0) {
-        for (const auto note : clip->notes())
-            d->handleNoteInserted(note);
-        auto firstNote = *clip->notes().begin();
-        setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
-    } else
-        setViewportCenterAtKeyIndex(60);
-
-    connect(clip, &SingingClip::propertyChanged, d,
-            &PianoRollGraphicsViewPrivate::onClipPropertyChanged);
-    connect(clip, &SingingClip::noteChanged, d, &PianoRollGraphicsViewPrivate::onNoteChanged);
-    connect(clip, &SingingClip::noteSelectionChanged, d,
-            &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
-    connect(clip, &SingingClip::paramChanged, d, &PianoRollGraphicsViewPrivate::onParamChanged);
+    if (clip == nullptr)
+        d->moveToNullClipState();
+    else
+        d->moveToSingingClipState(clip);
 }
 void PianoRollGraphicsView::onEditModeChanged(PianoRollEditMode mode) {
     Q_D(PianoRollGraphicsView);
@@ -192,6 +164,42 @@ CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
     connect(actionProperties, &QAction::triggered, this,
             [=] { onOpenNotePropertyDialog(noteView->id()); });
     return menu;
+}
+void PianoRollGraphicsViewPrivate::moveToNullClipState() {
+    Q_Q(PianoRollGraphicsView);
+    q->setSceneVisibility(false);
+    q->setEnabled(false);
+    while (m_notes.count() > 0)
+        handleNoteRemoved(m_notes.first());
+    if (m_clip) {
+        disconnect(m_clip, nullptr, this, nullptr);
+    }
+    m_clip = nullptr;
+}
+void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
+    Q_Q(PianoRollGraphicsView);
+    moveToNullClipState();
+
+    m_clip = clip;
+    m_offset = clip->start();
+    q->setOffset(m_offset);
+    q->setSceneVisibility(true);
+    q->setEnabled(true);
+
+    if (clip->notes().count() > 0) {
+        for (const auto note : clip->notes())
+            handleNoteInserted(note);
+        auto firstNote = *clip->notes().begin();
+        q->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
+    } else
+        q->setViewportCenterAtKeyIndex(60);
+
+    connect(clip, &SingingClip::propertyChanged, this,
+            &PianoRollGraphicsViewPrivate::onClipPropertyChanged);
+    connect(clip, &SingingClip::noteChanged, this, &PianoRollGraphicsViewPrivate::onNoteChanged);
+    connect(clip, &SingingClip::noteSelectionChanged, this,
+            &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
+    connect(clip, &SingingClip::paramChanged, this, &PianoRollGraphicsViewPrivate::onParamChanged);
 }
 void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     Q_D(PianoRollGraphicsView);
@@ -568,8 +576,8 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
             [=](Note::NotePropertyType type) { handleNotePropertyChanged(type, note); });
 }
 void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
+    qDebug() << "PianoRollGraphicsView::removeNote" << note->id() << note->lyric();
     m_canNotifySelectedNoteChanged = false;
-    // qDebug() << "PianoRollGraphicsView::removeNote" << note;
     auto noteItem = m_noteLayer.findNoteById(note->id());
     m_layerManager->removeItem(noteItem, &m_noteLayer);
     m_canNotifySelectedNoteChanged = true;
