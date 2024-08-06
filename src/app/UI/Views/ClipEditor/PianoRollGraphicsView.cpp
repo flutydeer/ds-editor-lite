@@ -519,7 +519,7 @@ void PianoRollGraphicsViewPrivate::updateSelectionState() {
 }
 void PianoRollGraphicsViewPrivate::updateOverlappedState() {
     Q_Q(PianoRollGraphicsView);
-    for (const auto note : m_clip->notes()) {
+    for (const auto note : m_notes) {
         auto noteItem = m_noteLayer.findNoteById(note->id());
         noteItem->setOverlapped(note->overlapped());
     }
