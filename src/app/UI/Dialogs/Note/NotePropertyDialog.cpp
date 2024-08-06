@@ -85,9 +85,28 @@ NoteDialogResult NotePropertyDialog::result() {
         languageKeyFromType(static_cast<AppGlobal::LanguageType>(m_cbLanguage->currentIndex()));
     m_result.lyric = m_leLyric->text();
     m_result.pronunciation.edited = m_lePron->text();
-    m_result.phonemes.edited = phonemesFromString(Phoneme::Ahead, m_lePhonemeAhead->text()) +
-                               phonemesFromString(Phoneme::Normal, m_lePhonemeNormal->text()) +
-                               phonemesFromString(Phoneme::Final, m_lePhonemeFinal->text());
+    m_result.phonemes.edited.clear();
+
+    auto aheadText = m_lePhonemeAhead->text();
+    if (!aheadText.isNull() && !aheadText.isEmpty()) {
+        auto aheadList = phonemesFromString(Phoneme::Ahead, m_lePhonemeAhead->text());
+        if (!aheadList.isEmpty())
+            m_result.phonemes.edited += aheadList;
+    }
+
+    auto normalText = m_lePhonemeNormal->text();
+    if (!normalText.isNull() && !normalText.isEmpty()) {
+        auto normalList = phonemesFromString(Phoneme::Normal, m_lePhonemeNormal->text());
+        if (!normalList.isEmpty())
+            m_result.phonemes.edited += normalList;
+    }
+    auto finalText = m_lePhonemeFinal->text();
+    if (!finalText.isNull() && !finalText.isEmpty()) {
+        auto finalList = phonemesFromString(Phoneme::Final, m_lePhonemeFinal->text());
+        if (!finalList.isEmpty())
+            m_result.phonemes.edited += finalList;
+    }
+
     return m_result;
 }
 QString NotePropertyDialog::phonemesToString(const QList<Phoneme> &phonemes) {
@@ -104,7 +123,8 @@ QString NotePropertyDialog::phonemesToString(const QList<Phoneme> &phonemes) {
 QList<Phoneme> NotePropertyDialog::phonemesFromString(Phoneme::PhonemeType type,
                                                       const QString &names) {
     QList<Phoneme> result;
-    for (const auto &item : names.split(" ")) {
+    auto strList = names.split(" ");
+    for (const auto &item : strList) {
         Phoneme phoneme;
         phoneme.type = type;
         phoneme.name = item;

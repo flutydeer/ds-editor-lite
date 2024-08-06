@@ -264,6 +264,8 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
 void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
     if (!canEdit())
         return;
+    if (event->button() != Qt::LeftButton)
+        return;
 
     auto deltaTick = qRound(xToTick(event->pos().x()) - xToTick(m_mouseDownX));
     if (m_mouseMoveBehavior == Move) {
@@ -420,6 +422,7 @@ void PhonemeView::buildPhonemeList() {
 
         for (const auto &phoneme : note->phonemes().edited) {
             auto phonemeViewModel = new PhonemeViewModel;
+            phonemeViewModel->name = phoneme.name;
             auto noteStartMs = appModel->tickToMs(note->start());
             if (phoneme.type == Phoneme::Ahead) {
                 phonemeViewModel->noteId = note->id();
@@ -427,11 +430,15 @@ void PhonemeView::buildPhonemeList() {
                 auto phoneStartMs = noteStartMs - phoneme.start;
                 auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
                 phonemeViewModel->start = phoneStartTick;
-                phonemeViewModel->name = phoneme.name;
             } else if (phoneme.type == Phoneme::Normal) {
                 phonemeViewModel->noteId = note->id();
                 phonemeViewModel->type = PhonemeViewModel::Normal;
-                phonemeViewModel->name = phoneme.name;
+                auto phoneStartMs = noteStartMs + phoneme.start;
+                auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
+                phonemeViewModel->start = phoneStartTick;
+            } else if (phoneme.type == Phoneme::Final) {
+                phonemeViewModel->noteId = note->id();
+                phonemeViewModel->type = PhonemeViewModel::Final;
                 auto phoneStartMs = noteStartMs + phoneme.start;
                 auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
                 phonemeViewModel->start = phoneStartTick;
@@ -468,6 +475,9 @@ void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phonemeViewModel) {
             phoneme.start = qRound(noteStartInMs - phonemeViewModelStartInMs);
         } else if (phonemeVm->type == PhonemeViewModel::Normal) {
             phoneme.type = Phoneme::Normal;
+            phoneme.start = qRound(phonemeViewModelStartInMs - noteStartInMs);
+        } else if (phonemeVm->type == PhonemeViewModel::Final) {
+            phoneme.type = Phoneme::Final;
             phoneme.start = qRound(phonemeViewModelStartInMs - noteStartInMs);
         }
         phonemes.append(phoneme);
