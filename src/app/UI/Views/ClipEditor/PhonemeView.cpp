@@ -249,6 +249,8 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
         event->ignore();
         return;
     }
+    if (event->button() != Qt::LeftButton)
+        return;
 
     m_mouseDownX = event->pos().x();
     auto tick = xToTick(event->pos().x());
@@ -264,8 +266,8 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
 void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
     if (!canEdit())
         return;
-    if (event->button() != Qt::LeftButton)
-        return;
+    // if (event->button() != Qt::LeftButton)
+    //     return;
 
     auto deltaTick = qRound(xToTick(event->pos().x()) - xToTick(m_mouseDownX));
     if (m_mouseMoveBehavior == Move) {
@@ -448,6 +450,9 @@ void PhonemeView::buildPhonemeList() {
             prior = phonemeViewModel;
         }
     }
+
+    for (const auto phoneme : m_phonemes)
+        qDebug() << phoneme->name << phoneme->start << phoneme->type;
 }
 void PhonemeView::resetPhonemeList() {
     for (auto phoneme : m_phonemes)
