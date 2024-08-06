@@ -20,45 +20,7 @@ class PhonemeView final : public QWidget, public ITimelinePainter {
 
 public:
     explicit PhonemeView(QWidget *parent = nullptr);
-    void setSingingClip(SingingClip *singingClip);
-    void insertNote(Note *note);
-    void removeNote(int noteId);
-    void updateNoteTime(Note *note);
-    void updateNotePhonemes(Note *note);
-    void reset();
-
-    class NoteViewModel : public Overlappable {
-    public:
-        int id = -1;
-        int start = 0;
-        int length = 0;
-        bool isSlur = false;
-        QList<Phoneme> originalPhonemes;
-        QList<Phoneme> editedPhonemes;
-        [[nodiscard]] int end() const {
-            return start + length;
-        }
-
-        int compareTo(const NoteViewModel *obj) const {
-            auto otherStart = obj->start;
-            if (start < otherStart)
-                return -1;
-            if (start > otherStart)
-                return 1;
-            return 0;
-        }
-        bool isOverlappedWith(NoteViewModel *obj) const {
-            auto otherStart = obj->start;
-            auto otherEnd = otherStart + obj->length;
-            auto curEnd = start + length;
-            if (otherEnd <= start || curEnd <= otherStart)
-                return false;
-            return true;
-        }
-        [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override {
-            return std::make_tuple(start, start + length);
-        }
-    };
+    void setDataContext(SingingClip *clip);
 
     class PhonemeViewModel {
     public:
@@ -66,8 +28,6 @@ public:
         PhonemeItemType type;
         int noteId;
         int start;
-        int noteStart;
-        int noteEnd;
         QString name;
 
         PhonemeViewModel *prior;
@@ -86,6 +46,12 @@ public slots:
     void setPosition(double tick);
     void setQuantize(int quantize) override;
 
+private slots:
+    void onClipPropertyChanged();
+    void onNoteChanged(SingingClip::NoteChangeType type, Note *note);
+    void onNotePropertyChanged(Note::NotePropertyType type, Note *note);
+    // void onNoteSelectionChanged();
+
 private:
     enum MouseMoveBehavior { Move, None };
 
@@ -96,8 +62,15 @@ private:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-    void updateHoverEffects();
     bool eventFilter(QObject *object, QEvent *event) override;
+
+    void moveToSingingClipState(SingingClip *clip);
+    void moveToNullClipState();
+    void updateHoverEffects();
+    void handleNoteInserted(Note *note, bool updateView);
+    void handleNoteRemoved(Note *note, bool updateView);
+    void updateNoteTime(Note *note);
+    void reset();
     double tickToX(double tick);
     double xToTick(double x);
     [[nodiscard]] double ticksPerPixel() const;
@@ -106,20 +79,20 @@ private:
     double m_endTick = 0;
     double m_resizeToleranceInTick = 0;
     double m_position = 0;
-    OverlappableSerialList<NoteViewModel> m_notes;
+    QList<Note *> m_notes;
     QList<PhonemeViewModel *> m_phonemes;
     MouseMoveBehavior m_mouseMoveBehavior = None;
     PhonemeViewModel *m_curPhoneme = nullptr;
-    int m_mouseDownX{};
+    int m_mouseDownX = 0;
     int m_currentLengthInMs = 0;
     bool m_freezeHoverEffects = false;
     bool m_showDebugInfo = false;
     int m_canEditTicksPerPixelThreshold = 6;
 
-    SingingClip *m_singingClip = nullptr;
+    SingingClip *m_clip = nullptr;
 
-    NoteViewModel *findNoteById(int id);
     PhonemeViewModel *phonemeAtTick(double tick);
+    QList<PhonemeViewModel *> findPhonemesByNoteId(int noteId);
     void buildPhonemeList();
     void resetPhonemeList();
     void clearHoverEffects(PhonemeViewModel *except = nullptr);

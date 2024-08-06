@@ -119,6 +119,7 @@ Note::NoteWordProperties Note::NoteWordProperties::fromNote(const Note &note) {
     properties.pronunciation = note.pronunciation();
     properties.language = note.language();
     properties.pronCandidates = note.pronCandidates();
+    properties.phonemes = note.phonemes();
     return properties;
 }
 // QJsonObject Note::serialize(const Note &note) {

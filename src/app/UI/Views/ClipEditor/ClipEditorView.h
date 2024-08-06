@@ -5,8 +5,6 @@
 #ifndef CLIPEDITVIEW_H
 #define CLIPEDITVIEW_H
 
-#include "Model/AppModel/Track.h"
-#include "PhonemeView.h"
 #include "Interface/IClipEditorView.h"
 #include "UI/Views/Common/PanelView.h"
 
@@ -17,6 +15,9 @@ class PianoRollGraphicsView;
 class Track;
 class TimelineView;
 class Curve;
+class Clip;
+class SingingClip;
+class AudioClip;
 
 class ClipEditorView final : public PanelView, public IClipEditorView {
     Q_OBJECT
@@ -32,6 +33,9 @@ public slots:
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void moveToSingingClipState(SingingClip *clip) const;
+    void moveToAudioClipState(AudioClip *clip) const;
+    void moveToNullClipState() const;
 
     ClipEditorToolBarView *m_toolbarView;
     PianoRollGraphicsScene *m_pianoRollScene;

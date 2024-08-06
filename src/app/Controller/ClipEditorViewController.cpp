@@ -196,16 +196,13 @@ void ClipEditorViewController::onResizeNotesRight(const QList<int> &notesId, int
     historyManager->record(a);
 }
 
-void ClipEditorViewController::onAdjustPhoneme(const QList<int> &notesId,
-                                               const QList<Phoneme> &phonemes) const {
+void ClipEditorViewController::onAdjustPhoneme(int noteId, const QList<Phoneme> &phonemes) const {
     Q_D(const ClipEditorViewController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
-    QList<Note *> notesToEdit;
-    for (const auto id : notesId)
-        notesToEdit.append(singingClip->findNoteById(id));
+    auto note = singingClip->findNoteById(noteId);
 
     auto a = new NoteActions;
-    a->editNotesPhoneme(notesToEdit, phonemes);
+    a->editNotesPhoneme(note, phonemes);
     a->execute();
     historyManager->record(a);
 }

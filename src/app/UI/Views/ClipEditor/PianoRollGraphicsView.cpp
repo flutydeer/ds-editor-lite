@@ -99,42 +99,6 @@ void PianoRollGraphicsView::onPitchEditorEditCompleted() {
     // TODO: Add anchor curves
     clipController->onPitchEdited(curves);
 }
-void PianoRollGraphicsViewPrivate::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
-    if (type == SingingClip::Inserted)
-        handleNoteInserted(note);
-    else if (type == SingingClip::Removed)
-        handleNoteRemoved(note);
-
-    updateOverlappedState();
-}
-void PianoRollGraphicsViewPrivate::onNoteSelectionChanged() {
-    auto selectedNotes = m_clip->selectedNotes();
-    m_cachedSelectedNotes = selectedNotes;
-    if (!m_selecting)
-        updateSelectionState();
-}
-void PianoRollGraphicsViewPrivate::onParamChanged(ParamBundle::ParamName name,
-                                                  Param::ParamType type) const {
-    if (name == ParamBundle::Pitch) {
-        auto pitchParam = m_clip->params.getParamByName(name);
-        updatePitch(type, *pitchParam);
-    }
-}
-void PianoRollGraphicsViewPrivate::onDeleteSelectedNotes() const {
-    Q_Q(const PianoRollGraphicsView);
-    qDebug() << "PianoRollGraphicsView::onDeleteSelectedNotes";
-    auto notes = q->selectedNotesId();
-    clipController->onRemoveNotes(notes);
-}
-void PianoRollGraphicsViewPrivate::onOpenNotePropertyDialog(int noteId) {
-    Q_Q(PianoRollGraphicsView);
-    auto note = m_clip->findNoteById(noteId);
-    auto dlg = new NotePropertyDialog(note, q);
-    connect(dlg, &NotePropertyDialog::accepted, this, [=] {
-        clipController->onNotePropertiesEdited(noteId, dlg->result());
-    });
-    dlg->show();
-}
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     Q_D(PianoRollGraphicsView);
     if (d->m_editMode == Select || d->m_editMode == DrawNote) {
@@ -145,68 +109,6 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     }
 
     TimeGraphicsView::contextMenuEvent(event);
-}
-CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
-    Q_Q(PianoRollGraphicsView);
-    auto menu = new CMenu(q);
-
-    auto actionEditLyric = menu->addAction(tr("Fill lyrics..."));
-    connect(actionEditLyric, &QAction::triggered, clipController,
-            [=] { clipController->onFillLyric(q); });
-
-    menu->addSeparator();
-
-    auto actionRemove = menu->addAction(tr("Delete"));
-    connect(actionRemove, &QAction::triggered, this,
-            &PianoRollGraphicsViewPrivate::onDeleteSelectedNotes);
-
-    menu->addSeparator();
-
-    auto actionProperties = menu->addAction(tr("Properties..."));
-    // TODO: 移动到控制器？
-    connect(actionProperties, &QAction::triggered, this,
-            [=] { onOpenNotePropertyDialog(noteView->id()); });
-    return menu;
-}
-void PianoRollGraphicsViewPrivate::moveToNullClipState() {
-    Q_Q(PianoRollGraphicsView);
-    q->setSceneVisibility(false);
-    q->setEnabled(false);
-    while (m_notes.count() > 0)
-        handleNoteRemoved(m_notes.first());
-    if (m_clip) {
-        disconnect(m_clip, nullptr, this, nullptr);
-    }
-    m_clip = nullptr;
-}
-void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
-    Q_Q(PianoRollGraphicsView);
-    while (m_notes.count() > 0)
-        handleNoteRemoved(m_notes.first());
-    if (m_clip) {
-        disconnect(m_clip, nullptr, this, nullptr);
-    }
-
-    m_clip = clip;
-    m_offset = clip->start();
-    q->setOffset(m_offset);
-    q->setSceneVisibility(true);
-    q->setEnabled(true);
-
-    if (clip->notes().count() > 0) {
-        for (const auto note : clip->notes())
-            handleNoteInserted(note);
-        auto firstNote = *clip->notes().begin();
-        q->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
-    } else
-        q->setViewportCenterAtKeyIndex(60);
-
-    connect(clip, &SingingClip::propertyChanged, this,
-            &PianoRollGraphicsViewPrivate::onClipPropertyChanged);
-    connect(clip, &SingingClip::noteChanged, this, &PianoRollGraphicsViewPrivate::onNoteChanged);
-    connect(clip, &SingingClip::noteSelectionChanged, this,
-            &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
-    connect(clip, &SingingClip::paramChanged, this, &PianoRollGraphicsViewPrivate::onParamChanged);
 }
 void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     Q_D(PianoRollGraphicsView);
@@ -219,54 +121,6 @@ void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     painter.setPen(QColor(160, 160, 160));
     painter.drawText(viewport()->rect(), tr("Select a singing clip to edit"),
                      QTextOption(Qt::AlignCenter));
-}
-void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QPointF scenePos,
-                                                          int keyIndex, NoteView *noteItem) {
-    Q_Q(PianoRollGraphicsView);
-    bool ctrlDown = event->modifiers() == Qt::ControlModifier;
-    if (!ctrlDown) {
-        if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteItem))
-            q->clearNoteSelections();
-        noteItem->setSelected(true);
-    } else {
-        noteItem->setSelected(!noteItem->isSelected());
-    }
-    auto rPos = noteItem->mapFromScene(scenePos);
-    auto rx = rPos.x();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolarance) {
-        // setCursor(Qt::SizeHorCursor);
-        m_mouseMoveBehavior = ResizeLeft;
-        q->clearNoteSelections();
-        noteItem->setSelected(true);
-    } else if (rx >= noteItem->rect().width() - AppGlobal::resizeTolarance &&
-               rx <= noteItem->rect().width()) {
-        // setCursor(Qt::SizeHorCursor);
-        m_mouseMoveBehavior = ResizeRight;
-        q->clearNoteSelections();
-        noteItem->setSelected(true);
-    } else {
-        // setCursor(Qt::ArrowCursor);
-        m_mouseMoveBehavior = Move;
-    }
-
-    m_currentEditingNote = noteItem;
-    m_mouseDownPos = scenePos;
-    m_mouseDownRStart = m_currentEditingNote->rStart();
-    m_mouseDownLength = m_currentEditingNote->length();
-    m_mouseDownKeyIndex = keyIndex;
-    updateMoveDeltaKeyRange();
-}
-void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(int tick, int keyIndex) {
-    Q_Q(PianoRollGraphicsView);
-    auto snappedTick = MathUtils::roundDown(tick, 1920 / appModel->quantize());
-    qDebug() << "Draw note at" << snappedTick;
-    m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
-    m_currentDrawingNote->setRStart(snappedTick - m_offset);
-    m_currentDrawingNote->setLength(1920 / appModel->quantize());
-    m_currentDrawingNote->setKeyIndex(keyIndex);
-    q->scene()->addCommonItem(m_currentDrawingNote);
-    qDebug() << "fake note added to scene";
-    m_mouseMoveBehavior = UpdateDrawingNote;
 }
 void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
@@ -412,6 +266,213 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
 
     TimeGraphicsView::mouseReleaseEvent(event);
 }
+void PianoRollGraphicsView::reset() {
+    Q_D(PianoRollGraphicsView);
+    d->m_layerManager->destroyItems(&d->m_noteLayer);
+}
+QList<int> PianoRollGraphicsView::selectedNotesId() const {
+    Q_D(const PianoRollGraphicsView);
+    QList<int> list;
+    for (const auto noteItem : d->m_noteLayer.noteItems()) {
+        if (noteItem->isSelected())
+            list.append(noteItem->id());
+    }
+    return list;
+}
+void PianoRollGraphicsView::clearNoteSelections(NoteView *except) {
+    Q_D(PianoRollGraphicsView);
+    for (const auto noteItem : d->m_noteLayer.noteItems()) {
+        if (noteItem != except && noteItem->isSelected())
+            noteItem->setSelected(false);
+    }
+}
+
+double PianoRollGraphicsView::topKeyIndex() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->sceneYToKeyIndexDouble(visibleRect().top());
+}
+double PianoRollGraphicsView::bottomKeyIndex() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->sceneYToKeyIndexDouble(visibleRect().bottom());
+}
+void PianoRollGraphicsView::setViewportCenterAt(double tick, double keyIndex) {
+    setViewportCenterAtTick(tick);
+    setViewportCenterAtKeyIndex(keyIndex);
+}
+void PianoRollGraphicsView::setViewportCenterAtKeyIndex(double keyIndex) {
+    Q_D(PianoRollGraphicsView);
+    auto keyIndexRange = topKeyIndex() - bottomKeyIndex();
+    auto keyIndexStart = keyIndex + keyIndexRange / 2 + 0.5;
+    qDebug() << "keyIndexStart" << keyIndexStart;
+    auto vBarValue = qRound(d->keyIndexToSceneY(keyIndexStart));
+    // verticalScrollBar()->setValue(vBarValue);
+    vBarAnimateTo(vBarValue);
+}
+void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {
+    Q_D(PianoRollGraphicsView);
+    d->m_editMode = mode;
+    switch (d->m_editMode) {
+        case Select:
+            setDragMode(RubberBandDrag);
+            d->setPitchEditMode(false);
+            break;
+        case DrawNote:
+            setDragMode(NoDrag);
+            d->setPitchEditMode(false);
+            break;
+        case DrawPitch:
+        case EditPitchAnchor:
+            setDragMode(NoDrag);
+            d->setPitchEditMode(true);
+            break;
+    }
+}
+void PianoRollGraphicsViewPrivate::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
+    if (type == SingingClip::Inserted)
+        handleNoteInserted(note);
+    else if (type == SingingClip::Removed)
+        handleNoteRemoved(note);
+
+    updateOverlappedState();
+}
+void PianoRollGraphicsViewPrivate::onNoteSelectionChanged() {
+    auto selectedNotes = m_clip->selectedNotes();
+    m_cachedSelectedNotes = selectedNotes;
+    if (!m_selecting)
+        updateSelectionState();
+}
+void PianoRollGraphicsViewPrivate::onParamChanged(ParamBundle::ParamName name,
+                                                  Param::ParamType type) const {
+    if (name == ParamBundle::Pitch) {
+        auto pitchParam = m_clip->params.getParamByName(name);
+        updatePitch(type, *pitchParam);
+    }
+}
+void PianoRollGraphicsViewPrivate::onDeleteSelectedNotes() const {
+    Q_Q(const PianoRollGraphicsView);
+    qDebug() << "PianoRollGraphicsView::onDeleteSelectedNotes";
+    auto notes = q->selectedNotesId();
+    clipController->onRemoveNotes(notes);
+}
+void PianoRollGraphicsViewPrivate::onOpenNotePropertyDialog(int noteId) {
+    Q_Q(PianoRollGraphicsView);
+    auto note = m_clip->findNoteById(noteId);
+    auto dlg = new NotePropertyDialog(note, q);
+    connect(dlg, &NotePropertyDialog::accepted, this,
+            [=] { clipController->onNotePropertiesEdited(noteId, dlg->result()); });
+    dlg->show();
+}
+CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
+    Q_Q(PianoRollGraphicsView);
+    auto menu = new CMenu(q);
+
+    auto actionEditLyric = menu->addAction(tr("Fill lyrics..."));
+    connect(actionEditLyric, &QAction::triggered, clipController,
+            [=] { clipController->onFillLyric(q); });
+
+    menu->addSeparator();
+
+    auto actionRemove = menu->addAction(tr("Delete"));
+    connect(actionRemove, &QAction::triggered, this,
+            &PianoRollGraphicsViewPrivate::onDeleteSelectedNotes);
+
+    menu->addSeparator();
+
+    auto actionProperties = menu->addAction(tr("Properties..."));
+    // TODO: 移动到控制器？
+    connect(actionProperties, &QAction::triggered, this,
+            [=] { onOpenNotePropertyDialog(noteView->id()); });
+    return menu;
+}
+void PianoRollGraphicsViewPrivate::moveToNullClipState() {
+    Q_Q(PianoRollGraphicsView);
+    q->setSceneVisibility(false);
+    q->setEnabled(false);
+    while (m_notes.count() > 0)
+        handleNoteRemoved(m_notes.first());
+    if (m_clip) {
+        disconnect(m_clip, nullptr, this, nullptr);
+    }
+    m_clip = nullptr;
+}
+
+void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
+    Q_Q(PianoRollGraphicsView);
+    while (m_notes.count() > 0)
+        handleNoteRemoved(m_notes.first());
+    if (m_clip) {
+        disconnect(m_clip, nullptr, this, nullptr);
+    }
+
+    m_clip = clip;
+    m_offset = clip->start();
+    q->setOffset(m_offset);
+    q->setSceneVisibility(true);
+    q->setEnabled(true);
+
+    if (clip->notes().count() > 0) {
+        for (const auto note : clip->notes())
+            handleNoteInserted(note);
+        auto firstNote = *clip->notes().begin();
+        q->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
+    } else
+        q->setViewportCenterAtKeyIndex(60);
+
+    connect(clip, &SingingClip::propertyChanged, this,
+            &PianoRollGraphicsViewPrivate::onClipPropertyChanged);
+    connect(clip, &SingingClip::noteChanged, this, &PianoRollGraphicsViewPrivate::onNoteChanged);
+    connect(clip, &SingingClip::noteSelectionChanged, this,
+            &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
+    connect(clip, &SingingClip::paramChanged, this, &PianoRollGraphicsViewPrivate::onParamChanged);
+}
+void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QPointF scenePos,
+                                                          int keyIndex, NoteView *noteItem) {
+    Q_Q(PianoRollGraphicsView);
+    bool ctrlDown = event->modifiers() == Qt::ControlModifier;
+    if (!ctrlDown) {
+        if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteItem))
+            q->clearNoteSelections();
+        noteItem->setSelected(true);
+    } else {
+        noteItem->setSelected(!noteItem->isSelected());
+    }
+    auto rPos = noteItem->mapFromScene(scenePos);
+    auto rx = rPos.x();
+    if (rx >= 0 && rx <= AppGlobal::resizeTolarance) {
+        // setCursor(Qt::SizeHorCursor);
+        m_mouseMoveBehavior = ResizeLeft;
+        q->clearNoteSelections();
+        noteItem->setSelected(true);
+    } else if (rx >= noteItem->rect().width() - AppGlobal::resizeTolarance &&
+               rx <= noteItem->rect().width()) {
+        // setCursor(Qt::SizeHorCursor);
+        m_mouseMoveBehavior = ResizeRight;
+        q->clearNoteSelections();
+        noteItem->setSelected(true);
+    } else {
+        // setCursor(Qt::ArrowCursor);
+        m_mouseMoveBehavior = Move;
+    }
+
+    m_currentEditingNote = noteItem;
+    m_mouseDownPos = scenePos;
+    m_mouseDownRStart = m_currentEditingNote->rStart();
+    m_mouseDownLength = m_currentEditingNote->length();
+    m_mouseDownKeyIndex = keyIndex;
+    updateMoveDeltaKeyRange();
+}
+void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(int tick, int keyIndex) {
+    Q_Q(PianoRollGraphicsView);
+    auto snappedTick = MathUtils::roundDown(tick, 1920 / appModel->quantize());
+    qDebug() << "Draw note at" << snappedTick;
+    m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
+    m_currentDrawingNote->setRStart(snappedTick - m_offset);
+    m_currentDrawingNote->setLength(1920 / appModel->quantize());
+    m_currentDrawingNote->setKeyIndex(keyIndex);
+    q->scene()->addCommonItem(m_currentDrawingNote);
+    qDebug() << "fake note added to scene";
+    m_mouseMoveBehavior = UpdateDrawingNote;
+}
 void PianoRollGraphicsViewPrivate::handleNoteDrew(int rStart, int length, int keyIndex) const {
     qDebug() << "PianoRollGraphicsView::handleDrawNoteCompleted" << rStart << length << keyIndex;
     auto note = new Note;
@@ -465,16 +526,16 @@ void PianoRollGraphicsViewPrivate::updateOverlappedState() {
     q->update();
 }
 void PianoRollGraphicsViewPrivate::updateNoteTimeAndKey(Note *note) const {
-    qDebug() << "PianoRollGraphicsView::updateNoteTimeAndKey" << note->id() << note->start()
-             << note->length() << note->keyIndex();
+    // qDebug() << "PianoRollGraphicsView::updateNoteTimeAndKey" << note->id() << note->start()
+             // << note->length() << note->keyIndex();
     auto noteItem = m_noteLayer.findNoteById(note->id());
     noteItem->setRStart(note->rStart());
     noteItem->setLength(note->length());
     noteItem->setKeyIndex(note->keyIndex());
 }
 void PianoRollGraphicsViewPrivate::updateNoteWord(Note *note) const {
-    qDebug() << "PianoRollGraphicsView::updateNoteWord" << note->id() << note->lyric()
-             << note->pronunciation().original << note->pronunciation().edited;
+    // qDebug() << "PianoRollGraphicsView::updateNoteWord" << note->id() << note->lyric()
+             // << note->pronunciation().original << note->pronunciation().edited;
     auto noteItem = m_noteLayer.findNoteById(note->id());
     noteItem->setLyric(note->lyric());
     auto original = note->pronunciation().original;
@@ -583,7 +644,7 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
             [=](Note::NotePropertyType type) { handleNotePropertyChanged(type, note); });
 }
 void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
-    qDebug() << "PianoRollGraphicsView::removeNote" << note->id() << note->lyric();
+    // qDebug() << "PianoRollGraphicsView::removeNote" << note->id() << note->lyric();
     m_canNotifySelectedNoteChanged = false;
     auto noteItem = m_noteLayer.findNoteById(note->id());
     m_layerManager->removeItem(noteItem, &m_noteLayer);
@@ -609,26 +670,6 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
         updateNoteTimeAndKey(note);
     }
 }
-void PianoRollGraphicsView::reset() {
-    Q_D(PianoRollGraphicsView);
-    d->m_layerManager->destroyItems(&d->m_noteLayer);
-}
-QList<int> PianoRollGraphicsView::selectedNotesId() const {
-    Q_D(const PianoRollGraphicsView);
-    QList<int> list;
-    for (const auto noteItem : d->m_noteLayer.noteItems()) {
-        if (noteItem->isSelected())
-            list.append(noteItem->id());
-    }
-    return list;
-}
-void PianoRollGraphicsView::clearNoteSelections(NoteView *except) {
-    Q_D(PianoRollGraphicsView);
-    for (const auto noteItem : d->m_noteLayer.noteItems()) {
-        if (noteItem != except && noteItem->isSelected())
-            noteItem->setSelected(false);
-    }
-}
 void PianoRollGraphicsViewPrivate::updatePitch(Param::ParamType paramType,
                                                const Param &param) const {
     qDebug() << "PianoRollGraphicsView::updatePitch";
@@ -643,45 +684,5 @@ void PianoRollGraphicsViewPrivate::updatePitch(Param::ParamType paramType,
             if (curve->type() == Curve::Draw)
                 drawCurves.add(dynamic_cast<DrawCurve *>(curve));
         m_pitchItem->loadEdited(drawCurves);
-    }
-}
-double PianoRollGraphicsView::topKeyIndex() const {
-    Q_D(const PianoRollGraphicsView);
-    return d->sceneYToKeyIndexDouble(visibleRect().top());
-}
-double PianoRollGraphicsView::bottomKeyIndex() const {
-    Q_D(const PianoRollGraphicsView);
-    return d->sceneYToKeyIndexDouble(visibleRect().bottom());
-}
-void PianoRollGraphicsView::setViewportCenterAt(double tick, double keyIndex) {
-    setViewportCenterAtTick(tick);
-    setViewportCenterAtKeyIndex(keyIndex);
-}
-void PianoRollGraphicsView::setViewportCenterAtKeyIndex(double keyIndex) {
-    Q_D(PianoRollGraphicsView);
-    auto keyIndexRange = topKeyIndex() - bottomKeyIndex();
-    auto keyIndexStart = keyIndex + keyIndexRange / 2 + 0.5;
-    qDebug() << "keyIndexStart" << keyIndexStart;
-    auto vBarValue = qRound(d->keyIndexToSceneY(keyIndexStart));
-    // verticalScrollBar()->setValue(vBarValue);
-    vBarAnimateTo(vBarValue);
-}
-void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {
-    Q_D(PianoRollGraphicsView);
-    d->m_editMode = mode;
-    switch (d->m_editMode) {
-        case Select:
-            setDragMode(RubberBandDrag);
-            d->setPitchEditMode(false);
-            break;
-        case DrawNote:
-            setDragMode(NoDrag);
-            d->setPitchEditMode(false);
-            break;
-        case DrawPitch:
-        case EditPitchAnchor:
-            setDragMode(NoDrag);
-            d->setPitchEditMode(true);
-            break;
     }
 }

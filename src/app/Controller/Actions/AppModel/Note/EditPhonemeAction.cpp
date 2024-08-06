@@ -6,27 +6,18 @@
 
 #include "Model/AppModel/Clip.h"
 
-EditPhonemeAction *EditPhonemeAction::build(Note *note, const Phoneme &phoneme) {
+EditPhonemeAction *EditPhonemeAction::build(Note *note, const QList<Phoneme> &phonemes) {
     auto a = new EditPhonemeAction;
     a->m_note = note;
-    a->m_phonemes = note->phonemes().edited;
-    a->m_phoneme = phoneme;
+    a->m_oldPhonemes = note->phonemes().edited;
+    a->m_newPhonemes = phonemes;
     return a;
 }
 void EditPhonemeAction::execute() {
-    QList<Phoneme> newPhonemes;
-    for (const auto &phoneme : m_phonemes) {
-        newPhonemes.append(phoneme);
-    }
-    if (m_phoneme.type == Phoneme::Ahead) {
-        newPhonemes.first() = m_phoneme;
-    } else if (m_phoneme.type == Phoneme::Normal) {
-        newPhonemes.last() = m_phoneme;
-    }
-    m_note->setPhonemes(Phonemes::Edited, newPhonemes);
+    m_note->setPhonemes(Phonemes::Edited, m_newPhonemes);
     m_note->notifyPropertyChanged(Note::Word);
 }
 void EditPhonemeAction::undo() {
-    m_note->setPhonemes(Phonemes::Edited, m_phonemes);
+    m_note->setPhonemes(Phonemes::Edited, m_oldPhonemes);
     m_note->notifyPropertyChanged(Note::Word);
 }

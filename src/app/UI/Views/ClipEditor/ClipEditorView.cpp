@@ -33,7 +33,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
 
     m_timelineView = new TimelineView;
     m_timelineView->setTimeRange(m_pianoRollView->startTick(), m_pianoRollView->endTick());
-    m_timelineView->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
+    m_timelineView->setPixelsPerQuarterNote(pixelsPerQuarterNote);
     m_timelineView->setFixedHeight(timelineViewHeight);
     m_timelineView->setVisible(false);
     connect(m_timelineView, &TimelineView::wheelHorScale, m_pianoRollView,
@@ -43,7 +43,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
 
     m_phonemeView = new PhonemeView;
     m_phonemeView->setTimeRange(m_pianoRollView->startTick(), m_pianoRollView->endTick());
-    m_phonemeView->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
+    m_phonemeView->setPixelsPerQuarterNote(pixelsPerQuarterNote);
     m_phonemeView->setFixedHeight(40);
     m_phonemeView->setVisible(false);
     connect(m_pianoRollView, &TimeGraphicsView::timeRangeChanged, m_phonemeView,
@@ -92,33 +92,42 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
     m_toolbarView->setDataContext(clip);
     clipController->setClip(clip);
 
-    // no clip selected
-    if (clip == nullptr) {
-        m_toolbarView->setVisible(false);
-        m_pianoRollView->setDataContext(nullptr);
-        m_timelineView->setVisible(false);
-        m_phonemeView->setVisible(false);
-        return;
-    }
-
-    // one clip selected
-    m_toolbarView->setVisible(true);
-    if (clip->clipType() == Clip::Singing) {
-        m_timelineView->setVisible(true);
-        m_phonemeView->setVisible(true);
-        auto singingClip = dynamic_cast<SingingClip *>(clip);
-        m_pianoRollView->setDataContext(singingClip);
-        m_phonemeView->setSingingClip(singingClip);
-    } else if (clip->clipType() == Clip::Audio) {
-        m_pianoRollView->setDataContext(nullptr);
-        m_timelineView->setVisible(false);
-        m_phonemeView->setVisible(false);
-    }
+    if (clip == nullptr)
+        moveToNullClipState();
+    else if (clip->clipType() == Clip::Singing)
+        moveToSingingClipState(dynamic_cast<SingingClip *>(clip));
+    else if (clip->clipType() == Clip::Audio)
+        moveToAudioClipState(nullptr);
 }
 bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress)
         appController->onPanelClicked(AppGlobal::ClipEditor);
     return QWidget::eventFilter(watched, event);
+}
+void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
+    m_toolbarView->setVisible(true);
+    m_timelineView->setVisible(true);
+    m_phonemeView->setVisible(true);
+
+    m_pianoRollView->setDataContext(clip);
+    m_phonemeView->setDataContext(clip);
+}
+void ClipEditorView::moveToAudioClipState(AudioClip *clip) const {
+    Q_UNUSED(clip);
+    m_toolbarView->setVisible(true);
+    m_timelineView->setVisible(false);
+    m_phonemeView->setVisible(false);
+
+    m_pianoRollView->setDataContext(nullptr);
+    m_phonemeView->setDataContext(nullptr);
+}
+void ClipEditorView::moveToNullClipState() const {
+    m_toolbarView->setVisible(false);
+    m_timelineView->setVisible(false);
+    m_phonemeView->setVisible(false);
+
+    m_pianoRollView->setDataContext(nullptr);
+    m_phonemeView->setDataContext(nullptr);
 }
 void ClipEditorView::reset() {
     onSelectedClipChanged(nullptr);

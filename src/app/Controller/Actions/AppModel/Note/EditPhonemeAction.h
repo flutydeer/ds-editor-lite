@@ -13,14 +13,14 @@ class Note;
 
 class EditPhonemeAction final : public IAction {
 public:
-    static EditPhonemeAction *build(Note *note, const Phoneme &phoneme);
+    static EditPhonemeAction *build(Note *note, const QList<Phoneme> &phonemes);
     void execute() override;
     void undo() override;
 
 private:
     Note *m_note = nullptr;
-    Phoneme m_phoneme;
-    QList<Phoneme> m_phonemes;
+    QList<Phoneme> m_oldPhonemes;
+    QList<Phoneme> m_newPhonemes;
 };
 
 

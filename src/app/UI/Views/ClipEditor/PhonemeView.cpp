@@ -12,6 +12,7 @@
 #include "Model/AppModel/Note.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/PlaybackController.h"
+#include "Utils/MathUtils.h"
 
 using namespace AppGlobal;
 
@@ -30,55 +31,38 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PhonemeView::setPosition);
 }
-void PhonemeView::setSingingClip(SingingClip *singingClip) {
-    m_singingClip = singingClip;
+void PhonemeView::setDataContext(SingingClip *clip) {
+    clip == nullptr ? moveToNullClipState() : moveToSingingClipState(clip);
 }
-void PhonemeView::insertNote(Note *note) {
-    auto noteViewModel = new NoteViewModel;
-    noteViewModel->id = note->id();
-    noteViewModel->start = note->start();
-    noteViewModel->length = note->length();
-    noteViewModel->isSlur = note->isSlur();
-    noteViewModel->originalPhonemes = note->phonemes().original;
-    noteViewModel->editedPhonemes = note->phonemes().edited;
-    m_notes.add(noteViewModel);
+void PhonemeView::handleNoteInserted(Note *note, bool updateView) {
+    MathUtils::binaryInsert(m_notes, note);
+    connect(note, &Note::propertyChanged, this,
+            [=](Note::NotePropertyType type) { onNotePropertyChanged(type, note); });
+    if (!updateView)
+        return;
     resetPhonemeList();
     buildPhonemeList();
     update();
 }
-void PhonemeView::removeNote(int noteId) {
-    qDebug() << "PhonemeView::removeNote" << noteId;
-    auto note = findNoteById(noteId);
-    m_notes.remove(note);
-    delete note;
+void PhonemeView::handleNoteRemoved(Note *note, bool updateView) {
+    m_notes.removeOne(note);
+    disconnect(note, nullptr, this, nullptr);
+    if (!updateView)
+        return;
     resetPhonemeList();
     buildPhonemeList();
     update();
 }
 void PhonemeView::updateNoteTime(Note *note) {
-    qDebug() << "PhonemeView::updateNoteTime" << note->id() << note->lyric()
-             << note->pronunciation().original;
-    auto noteViewModel = findNoteById(note->id());
-    m_notes.remove(noteViewModel);
-    noteViewModel->start = note->start();
-    noteViewModel->length = note->length();
-    m_notes.add(noteViewModel);
-    resetPhonemeList();
-    buildPhonemeList();
-    update();
-}
-void PhonemeView::updateNotePhonemes(Note *note) {
-    auto noteViewModel = findNoteById(note->id());
-    noteViewModel->originalPhonemes = note->phonemes().original;
-    noteViewModel->editedPhonemes = note->phonemes().edited;
+    m_notes.removeOne(note);
+    MathUtils::binaryInsert(m_notes, note);
     resetPhonemeList();
     buildPhonemeList();
     update();
 }
 void PhonemeView::reset() {
-    for (auto note : m_notes)
-        delete note;
     m_notes.clear();
+    resetPhonemeList();
     update();
 }
 void PhonemeView::setTimeRange(double startTick, double endTick) {
@@ -100,11 +84,40 @@ void PhonemeView::setQuantize(int quantize) {
     ITimelinePainter::setQuantize(quantize);
     update();
 }
+void PhonemeView::onClipPropertyChanged() {
+    qDebug() << "PhonemeView::onClipPropertyChanged";
+    moveToSingingClipState(m_clip);
+    update();
+}
+void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
+    if (type == SingingClip::Inserted)
+        handleNoteInserted(note, false);
+    else if (type == SingingClip::Removed)
+        handleNoteRemoved(note, false);
+
+    resetPhonemeList();
+    buildPhonemeList();
+    update();
+}
+void PhonemeView::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
+    qDebug() << "PhonemeView::onNotePropertyChanged" << note->lyric();
+    m_notes.removeOne(note);
+    MathUtils::binaryInsert(m_notes, note);
+    resetPhonemeList();
+    buildPhonemeList();
+    update();
+}
 void PhonemeView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     QPen pen;
+
+    if (!canEdit()) {
+        painter.setPen(QColor(255, 255, 255, 80));
+        painter.drawText(rect(), tr("Zoom in to edit phonemes"), QTextOption(Qt::AlignCenter));
+        return;
+    }
 
     auto mainColor = QColor(155, 186, 255);
     auto fillColor = QColor(155, 186, 255, 50);
@@ -156,26 +169,26 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     };
 
     // Draw notes' word boundary
-    for (auto curNote : m_notes) {
-        if (curNote->end() < m_startTick)
-            continue;
-        if (curNote->start > m_endTick)
-            break;
-
-        // if (!curNote->isSlur)
-        //     drawSolidLine(curNote->start, 1, noteBoundaryColor);
-        //
-        // if (i < m_notes.count() - 1) {
-        //     auto nextNote = m_notes.at(i + 1);
-        //     if (!nextNote->isSlur)
-        //         drawSolidLine(curNote->end(), 1, noteBoundaryColor);
-        // } else
-        //     drawSolidLine(curNote->end(), 1, noteBoundaryColor);
-
-        if (canEdit())
-            painter.setRenderHint(QPainter::Antialiasing, false);
-        drawSolidRect(curNote->start, curNote->end(), fillColor);
-    }
+    // for (auto curNote : m_notes) {
+    //     if (curNote->start() < m_startTick)
+    //         continue;
+    //     if (curNote->start() > m_endTick)
+    //         break;
+    //
+    //     // if (!curNote->isSlur)
+    //     //     drawSolidLine(curNote->start, 1, noteBoundaryColor);
+    //     //
+    //     // if (i < m_notes.count() - 1) {
+    //     //     auto nextNote = m_notes.at(i + 1);
+    //     //     if (!nextNote->isSlur)
+    //     //         drawSolidLine(curNote->end(), 1, noteBoundaryColor);
+    //     // } else
+    //     //     drawSolidLine(curNote->end(), 1, noteBoundaryColor);
+    //
+    //     if (canEdit())
+    //         painter.setRenderHint(QPainter::Antialiasing, false);
+    //     drawSolidRect(curNote->start, curNote->end(), fillColor);
+    // }
 
     if (canEdit()) {
         // TODO： use binary find
@@ -274,10 +287,6 @@ void PhonemeView::mouseReleaseEvent(QMouseEvent *event) {
     if (m_mouseMoveBehavior == Move)
         handleAdjustCompleted(m_curPhoneme);
 
-    if (m_curPhoneme) {
-        m_curPhoneme->startOffset = 0;
-        m_curPhoneme = nullptr;
-    }
     m_mouseMoveBehavior = None;
     m_freezeHoverEffects = false;
     updateHoverEffects();
@@ -314,6 +323,43 @@ bool PhonemeView::eventFilter(QObject *object, QEvent *event) {
 
     return QWidget::eventFilter(object, event);
 }
+void PhonemeView::moveToSingingClipState(SingingClip *clip) {
+    qDebug() << "PhonemeView::moveToSingingClipState";
+    while (m_notes.count() > 0) {
+        handleNoteRemoved(m_notes.first(), false);
+        resetPhonemeList();
+    }
+    if (m_clip) {
+        disconnect(m_clip, nullptr, this, nullptr);
+    }
+
+    m_clip = clip;
+    setEnabled(true);
+
+    if (clip->notes().count() > 0)
+        for (const auto note : clip->notes()) {
+            handleNoteInserted(note, false);
+        }
+
+    connect(clip, &SingingClip::propertyChanged, this, &PhonemeView::onClipPropertyChanged);
+    connect(clip, &SingingClip::noteChanged, this, &PhonemeView::onNoteChanged);
+    // connect(clip, &SingingClip::noteSelectionChanged, this,
+    //         &PhonemeView::onNoteSelectionChanged);
+    resetPhonemeList();
+    buildPhonemeList();
+    update();
+}
+void PhonemeView::moveToNullClipState() {
+    while (m_notes.count() > 0) {
+        handleNoteRemoved(m_notes.first(), false);
+        resetPhonemeList();
+    }
+    if (m_clip) {
+        disconnect(m_clip, nullptr, this, nullptr);
+    }
+    m_clip = nullptr;
+    update();
+}
 double PhonemeView::tickToX(double tick) {
     auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
     auto x = (rect().width() - verticalScrollBarWidth) * ratio;
@@ -332,18 +378,20 @@ double PhonemeView::ticksPerPixel() const {
 bool PhonemeView::canEdit() const {
     return ticksPerPixel() < m_canEditTicksPerPixelThreshold;
 }
-PhonemeView::NoteViewModel *PhonemeView::findNoteById(int id) {
-    for (const auto note : m_notes)
-        if (note->id == id)
-            return note;
-    return nullptr;
-}
 PhonemeView::PhonemeViewModel *PhonemeView::phonemeAtTick(double tick) {
     for (const auto phoneme : m_phonemes) {
         if (qAbs(tick - phoneme->start) < m_resizeToleranceInTick)
             return phoneme;
     }
     return nullptr;
+}
+QList<PhonemeView::PhonemeViewModel *> PhonemeView::findPhonemesByNoteId(int noteId) {
+    QList<PhonemeViewModel *> phonemes;
+    for (const auto phoneme : m_phonemes) {
+        if (phoneme->noteId == noteId)
+            phonemes.append(phoneme);
+    }
+    return phonemes;
 }
 void PhonemeView::buildPhonemeList() {
     if (m_notes.count() == 0)
@@ -367,21 +415,21 @@ void PhonemeView::buildPhonemeList() {
     };
 
     for (const auto note : m_notes) {
-        if (note->isSlur)
+        if (note->isSlur())
             continue;
 
-        for (const auto &phoneme : note->editedPhonemes) {
+        for (const auto &phoneme : note->phonemes().edited) {
             auto phonemeViewModel = new PhonemeViewModel;
-            auto noteStartMs = appModel->tickToMs(note->start);
+            auto noteStartMs = appModel->tickToMs(note->start());
             if (phoneme.type == Phoneme::Ahead) {
-                phonemeViewModel->noteId = note->id;
+                phonemeViewModel->noteId = note->id();
                 phonemeViewModel->type = PhonemeViewModel::Ahead;
                 auto phoneStartMs = noteStartMs - phoneme.start;
                 auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
                 phonemeViewModel->start = phoneStartTick;
                 phonemeViewModel->name = phoneme.name;
             } else if (phoneme.type == Phoneme::Normal) {
-                phonemeViewModel->noteId = note->id;
+                phonemeViewModel->noteId = note->id();
                 phonemeViewModel->type = PhonemeViewModel::Normal;
                 phonemeViewModel->name = phoneme.name;
                 auto phoneStartMs = noteStartMs + phoneme.start;
@@ -406,29 +454,27 @@ void PhonemeView::clearHoverEffects(PhonemeViewModel *except) {
     }
 }
 void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phonemeViewModel) {
-    if (!phonemeViewModel)
-        return;
-
-    QList<int> notesId;
     QList<Phoneme> phonemes;
-    notesId.append(phonemeViewModel->noteId);
-    auto note = m_singingClip->findNoteById(phonemeViewModel->noteId);
-    Phoneme phoneme;
-    phoneme.name = phonemeViewModel->name;
+    auto phonemeViewModels = findPhonemesByNoteId(phonemeViewModel->noteId);
+    auto note = m_clip->findNoteById(phonemeViewModel->noteId);
     auto noteStartInMs = appModel->tickToMs(note->start());
-    auto phonemeViewModelStartInMs =
-        appModel->tickToMs(phonemeViewModel->start + phonemeViewModel->startOffset);
-    if (phonemeViewModel->type == PhonemeView::PhonemeViewModel::Ahead) {
-        phoneme.type = Phoneme::Ahead;
-        phoneme.start = qRound(noteStartInMs - phonemeViewModelStartInMs);
-        qDebug() << "ClipEditorView::onAdjustPhonemeCompleted"
-                 << "append ahead" << phoneme.name << phoneme.start;
-    } else if (phonemeViewModel->type == PhonemeView::PhonemeViewModel::Normal) {
-        phoneme.type = Phoneme::Normal;
-        phoneme.start = qRound(phonemeViewModelStartInMs - noteStartInMs);
-        qDebug() << "ClipEditorView::onAdjustPhonemeCompleted"
-                 << "append normal" << phoneme.name << phoneme.start;
+    for (auto phonemeVm : phonemeViewModels) {
+        Phoneme phoneme;
+        phoneme.name = phonemeVm->name;
+        auto phonemeViewModelStartInMs =
+            appModel->tickToMs(phonemeVm->start + phonemeVm->startOffset);
+        if (phonemeVm->type == PhonemeViewModel::Ahead) {
+            phoneme.type = Phoneme::Ahead;
+            phoneme.start = qRound(noteStartInMs - phonemeViewModelStartInMs);
+        } else if (phonemeVm->type == PhonemeViewModel::Normal) {
+            phoneme.type = Phoneme::Normal;
+            phoneme.start = qRound(phonemeViewModelStartInMs - noteStartInMs);
+        }
+        phonemes.append(phoneme);
     }
-    phonemes.append(phoneme);
-    clipController->onAdjustPhoneme(notesId, phonemes);
+    if (m_curPhoneme) {
+        m_curPhoneme->startOffset = 0;
+        m_curPhoneme = nullptr;
+    }
+    clipController->onAdjustPhoneme(phonemeViewModel->noteId, phonemes);
 }

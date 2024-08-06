@@ -11,6 +11,7 @@ class Note;
 class NoteWordUtils {
 public:
     static void updateOriginalWordProperties(const QList<Note *> &notes);
+    static void fillEditedPhonemeNames(const QList<Note *> &notes);
 };
 
 #endif // NOTEWORDUTILS_H

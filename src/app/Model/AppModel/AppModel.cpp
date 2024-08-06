@@ -6,6 +6,8 @@
 #include "AppModel_p.h"
 
 #include "Track.h"
+#include "Controller/Utils/NoteWordUtils.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/ProjectConverters/AProjectConverter.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
@@ -123,8 +125,19 @@ bool AppModel::importAProject(const QString &filename) {
     QString errMsg;
     AppModel resultModel;
     auto ok = converter->load(filename, &resultModel, errMsg, ImportMode::NewProject);
-    if (ok)
+    if (ok) {
+        for (const auto track : resultModel.tracks()) {
+            track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
+            for (const auto clip : track->clips()) {
+                if (clip->clipType() == Clip::Singing) {
+                    auto singingClip = reinterpret_cast<SingingClip *>(clip);
+                    singingClip->setDefaultLanguage(track->defaultLanguage());
+                    NoteWordUtils::fillEditedPhonemeNames(singingClip->notes().toList());
+                }
+            }
+        }
         loadFromAppModel(resultModel);
+    }
     return ok;
 }
 void AppModel::loadFromAppModel(const AppModel &model) {

@@ -240,7 +240,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             note.pronunciation.org = dsNote->pronunciation().original;
             note.pronunciation.edited = dsNote->pronunciation().edited;
             encodePhonemes(dsNote->phonemes().original, note.phonemes.org);
-            encodePhonemes(dsNote->phonemes().original, note.phonemes.edited);
+            encodePhonemes(dsNote->phonemes().edited, note.phonemes.edited);
             notes.append(note);
         }
     };

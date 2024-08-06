@@ -48,12 +48,8 @@ void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
         i++;
     }
 }
-void NoteActions::editNotesPhoneme(const QList<Note *> &notes, const QList<Phoneme> &phonemes) {
+void NoteActions::editNotesPhoneme(Note *note, const QList<Phoneme> &phonemes) {
     setName(tr("Edit note phoneme"));
-    int i = 0;
-    for (const auto note : notes) {
-        addAction(EditPhonemeAction::build(note, phonemes[i]));
-        i++;
-    }
+    addAction(EditPhonemeAction::build(note, phonemes));
 }
 // TODO::editNotesLanguage
