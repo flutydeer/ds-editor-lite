@@ -42,6 +42,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
 
     if (!useNativeFrame) {
         m_lbTitle = new QLabel;
+        m_lbTitle->setMinimumWidth(8);
 
         auto fontFamily =
             QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
@@ -118,15 +119,19 @@ Button *MainTitleBar::closeButton() const {
     return m_btnClose;
 }
 void MainTitleBar::setTitle(const QString &title) const {
+    if (!m_lbTitle)
+        return;
     m_lbTitle->setText(title);
+    // QFontMetrics fontWidth(m_lbTitle->font());
+    // auto elidedText = fontWidth.elidedText(title, Qt::ElideRight, m_lbTitle->width());
+    // m_lbTitle->setText(elidedText);
 }
 bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
     if (watched != m_window)
         return QWidget::eventFilter(watched, event);
 
     if (event->type() == QEvent::WindowTitleChange) {
-        if (m_lbTitle)
-            m_lbTitle->setText(m_window->windowTitle());
+        setTitle(m_window->windowTitle());
     } else if (event->type() == QEvent::WindowStateChange) {
         auto checked = m_window->isMaximized();
         if (m_btnMax) {
@@ -137,6 +142,8 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
         setActiveStyle(true);
     else if (event->type() == QEvent::WindowDeactivate)
         setActiveStyle(false);
+    // else if (event->type() == QEvent::Resize)
+    //     setTitle(m_window->windowTitle());
 
     return QWidget::eventFilter(watched, event);
 }

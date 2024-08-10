@@ -9,6 +9,7 @@
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "UI/Controls/ComboBox.h"
+#include "UI/Controls/DividerLine.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"
 
@@ -25,7 +26,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTempo->setUpdateLabelWhenEditCompleted(false);
     m_elTempo->lineEdit->setAlignment(Qt::AlignCenter);
     m_elTempo->label->setAlignment(Qt::AlignCenter);
-    m_elTempo->setFixedSize(64, m_contentHeight);
+    m_elTempo->setFixedSize(56, m_contentHeight);
 
     m_elTimeSignature = new EditLabel;
     m_elTimeSignature->setObjectName("elTimeSignature");
@@ -33,7 +34,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTimeSignature->lineEdit->setAlignment(Qt::AlignCenter);
     m_elTimeSignature->label->setAlignment(Qt::AlignCenter);
     m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
-    m_elTimeSignature->setFixedSize(52, m_contentHeight);
+    m_elTimeSignature->setFixedSize(48, m_contentHeight);
 
     m_btnStop = new QPushButton;
     m_btnStop->setObjectName("btnStop");
@@ -71,7 +72,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTime->lineEdit->setAlignment(Qt::AlignCenter);
     m_elTime->label->setAlignment(Qt::AlignCenter);
     m_elTime->setText(toFormattedTickTime(m_tick));
-    m_elTime->setFixedSize(88, m_contentHeight);
+    m_elTime->setFixedSize(80, m_contentHeight);
 
     connect(m_elTempo, &EditLabel::editCompleted, this, [=](const QString &value) {
         auto tempo = value.toDouble();
@@ -138,23 +139,30 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_cbQuantize = new ComboBox();
     m_cbQuantize->addItems(quantizeStrings);
     m_cbQuantize->setCurrentIndex(3);
-    m_cbQuantize->setFixedSize(80, m_contentHeight);
+    m_cbQuantize->setFixedSize(68, m_contentHeight);
 
     connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [=](int index) {
         auto value = quantizeValues.at(index);
         emit setQuantizeTriggered(value);
     });
 
+    auto divider1 = new DividerLine(Qt::Vertical);
+    divider1->setFixedHeight(m_contentHeight - 6);
+    auto divider2 = new DividerLine(Qt::Vertical);
+    divider2->setFixedHeight(m_contentHeight - 6);
+
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_cbQuantize);
+    mainLayout->addWidget(divider1);
     mainLayout->addWidget(m_btnStop);
     mainLayout->addWidget(m_btnPlay);
     mainLayout->addWidget(m_btnPause);
     mainLayout->addWidget(m_elTime);
+    mainLayout->addWidget(divider2);
     mainLayout->addWidget(m_elTempo);
     mainLayout->addWidget(m_elTimeSignature);
     mainLayout->setContentsMargins(0, 0, 6, 0);
-    mainLayout->setSpacing(6);
+    mainLayout->setSpacing(4);
     setLayout(mainLayout);
     setContentsMargins({});
     // setMaximumHeight(44);

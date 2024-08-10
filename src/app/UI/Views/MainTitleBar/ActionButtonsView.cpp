@@ -5,12 +5,16 @@
 #include "ActionButtonsView.h"
 
 #include "Modules/History/HistoryManager.h"
+#include "UI/Controls/DividerLine.h"
 #include "UI/Controls/ToolTipFilter.h"
 
 #include <QHBoxLayout>
 #include <QPushButton>
 
 ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
+    auto dividerLine = new DividerLine(Qt::Vertical);
+    dividerLine->setFixedHeight(m_contentHeight - 6);
+
     m_btnSave = new QPushButton;
     m_btnSave->setObjectName("btnSave");
     m_btnSave->setFixedSize(m_contentHeight, m_contentHeight);
@@ -40,18 +44,17 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     connect(m_btnRedo, &QPushButton::clicked, this, [=] { emit redoTriggered(); });
 
     auto mainLayout = new QHBoxLayout;
-    mainLayout->setContentsMargins({});
-    mainLayout->setSpacing(6);
+    mainLayout->setContentsMargins(4, 0, 6, 0);
+    mainLayout->setSpacing(4);
     setLayout(mainLayout);
     setContentsMargins({});
+    mainLayout->addWidget(dividerLine);
     mainLayout->addWidget(m_btnSave);
     mainLayout->addWidget(m_btnUndo);
     mainLayout->addWidget(m_btnRedo);
 
-    connect(this, &ActionButtonsView::undoTriggered, historyManager,
-            &HistoryManager::undo);
-    connect(this, &ActionButtonsView::redoTriggered, historyManager,
-            &HistoryManager::redo);
+    connect(this, &ActionButtonsView::undoTriggered, historyManager, &HistoryManager::undo);
+    connect(this, &ActionButtonsView::redoTriggered, historyManager, &HistoryManager::redo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             &ActionButtonsView::onUndoRedoChanged);
 }
