@@ -326,6 +326,13 @@ QMenu::indicator {
     height: 20px;
 }
 
+QMenu::right-arrow {
+    right: 6px;
+    width: 14px;
+    height: 14px;
+    image: url(:svg/icons/chevron_right_16_filled_white.svg)
+}
+
 QMenu::icon {
     left: 6px;
 }
