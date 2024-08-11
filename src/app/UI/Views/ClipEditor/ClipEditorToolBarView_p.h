@@ -45,7 +45,7 @@ public:
     Button *m_btnPitchPencil = nullptr;
     Button *m_btnPitchAnchor = nullptr;
 
-    LanguageComboBox *m_cbLanguage = nullptr;
+    LanguageComboBox *m_cbClipLanguage = nullptr;
 
 public slots:
     void onPianoRollToolButtonToggled(QAbstractButton *button, bool checked);

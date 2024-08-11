@@ -459,8 +459,8 @@ void PhonemeView::buildPhonemeList() {
         }
     }
 
-    for (const auto phoneme : m_phonemes)
-        qDebug() << phoneme->name << phoneme->start << phoneme->type;
+    // for (const auto phoneme : m_phonemes)
+    //     qDebug() << phoneme->name << phoneme->start << phoneme->type;
 }
 void PhonemeView::resetPhonemeList() {
     for (auto phoneme : m_phonemes)

@@ -9,6 +9,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Clip.h"
 #include "UI/Controls/Button.h"
+#include "UI/Controls/DividerLine.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/ToolTipFilter.h"
@@ -25,6 +26,8 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     d->m_leClipName = new LineEdit;
     d->m_leClipName->setObjectName("ClipNameEditLabel");
+    d->m_leClipName->installEventFilter(new ToolTipFilter(d->m_leClipName, 0));
+    d->m_leClipName->setToolTip(tr("Clip Name"));
     d->m_leClipName->setFixedWidth(128);
     d->m_leClipName->setFixedHeight(d->m_contentHeight);
     d->m_leClipName->setEnabled(false);
@@ -72,19 +75,21 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(buttonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
-    d->m_cbLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::unknown));
+    d->m_cbClipLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::unknown));
+    d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 0));
+    d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(d->m_leClipName);
-    mainLayout->addSpacing(6);
+    mainLayout->addWidget(d->m_cbClipLanguage);
+    mainLayout->addWidget(new DividerLine(Qt::Vertical));
+    // mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
     mainLayout->addWidget(d->m_btnArrow);
     mainLayout->addWidget(d->m_btnNotePencil);
     mainLayout->addWidget(d->m_btnPitchAnchor);
     mainLayout->addWidget(d->m_btnPitchPencil);
-    mainLayout->setSpacing(6);
-    mainLayout->setContentsMargins(6, 6, 6, 6);
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
-    mainLayout->addWidget(d->m_cbLanguage);
+    mainLayout->setContentsMargins(6, 6, 6, 6);
     setLayout(mainLayout);
     setFixedHeight(d->m_contentHeight + 12);
 
@@ -150,7 +155,7 @@ void ClipEditorToolBarViewPrivate::onClipPropertyChanged() const {
 }
 
 void ClipEditorToolBarViewPrivate::onClipLanguageChanged(AppGlobal::LanguageType language) const {
-    m_cbLanguage->setCurrentIndex(language);
+    m_cbClipLanguage->setCurrentIndex(language);
 }
 
 void ClipEditorToolBarViewPrivate::onLanguageEdited(int index) {
@@ -178,24 +183,26 @@ void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
 }
 
 void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(bool on) const {
+    m_cbClipLanguage->setVisible(on);
     m_btnArrow->setVisible(on);
     m_btnNotePencil->setVisible(on);
     m_btnPitchPencil->setVisible(on);
     m_btnPitchAnchor->setVisible(on);
+
+    m_cbClipLanguage->setEnabled(on);
     m_btnArrow->setEnabled(on);
     m_btnNotePencil->setEnabled(on);
     m_btnPitchPencil->setEnabled(on);
     m_btnPitchAnchor->setEnabled(on);
 
-    m_cbLanguage->setEnabled(on);
     if (on) {
         auto lang = m_singingClip->defaultLanguage();
-        m_cbLanguage->setCurrentIndex(lang);
-        connect(m_cbLanguage, &ComboBox::currentIndexChanged, this,
+        m_cbClipLanguage->setCurrentIndex(lang);
+        connect(m_cbClipLanguage, &ComboBox::currentIndexChanged, this,
                 &ClipEditorToolBarViewPrivate::onLanguageEdited);
     } else {
-        disconnect(m_cbLanguage, &ComboBox::currentIndexChanged, this,
+        disconnect(m_cbClipLanguage, &ComboBox::currentIndexChanged, this,
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);
-        m_cbLanguage->setCurrentIndex(AppGlobal::unknown);
+        m_cbClipLanguage->setCurrentIndex(AppGlobal::unknown);
     }
 }
