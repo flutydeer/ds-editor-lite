@@ -76,7 +76,7 @@ namespace LangMgr {
         Q_D(ILanguageManager);
         if (!d->languages.contains(id)) {
             qWarning() << "LangMgr::ILanguageManager::removeLanguage(): factory does not exist:"
-                       << id;
+                << id;
             return false;
         }
         d->languages.remove(id);
@@ -131,16 +131,18 @@ namespace LangMgr {
         return result;
     }
 
-    void ILanguageManager::correct(const QList<LangNote *> &input) const {
-        const auto langFactorys = this->priorityLanguages();
+    void ILanguageManager::correct(const QList<LangNote *> &input,
+                                   const QStringList &priorityList) const {
+        const auto langFactorys = this->priorityLanguages(priorityList);
         for (const auto &factory : langFactorys) {
             factory->correct(input);
         }
     }
 
-    QString ILanguageManager::analysis(const QString &input) const {
+    QString ILanguageManager::analysis(const QString &input,
+                                       const QStringList &priorityList) const {
         QString result = "unknown";
-        auto analysis = this->priorityLanguages();
+        auto analysis = this->priorityLanguages(priorityList);
 
         for (const auto &factory : analysis) {
             result = factory->analysis(input);
@@ -151,8 +153,9 @@ namespace LangMgr {
         return result;
     }
 
-    QStringList ILanguageManager::analysis(const QStringList &input) const {
-        auto analysis = this->priorityLanguages();
+    QStringList ILanguageManager::analysis(const QStringList &input,
+                                           const QStringList &priorityList) const {
+        auto analysis = this->priorityLanguages(priorityList);
         QList<LangNote *> inputNote;
         for (const auto &lyric : input) {
             inputNote.append(new LangNote(lyric));

@@ -14,6 +14,7 @@ namespace LangMgr {
     class ILanguageManager final : public QObject, public Singleton<ILanguageManager> {
         Q_OBJECT
         Q_DECLARE_PRIVATE(ILanguageManager)
+
     public:
         explicit ILanguageManager(QObject *parent = nullptr);
         ~ILanguageManager() override;
@@ -35,11 +36,13 @@ namespace LangMgr {
 
         [[nodiscard]] QList<LangNote> split(const QString &input) const;
 
-        void correct(const QList<LangNote *> &input) const;
+        void correct(const QList<LangNote *> &input, const QStringList &priorityList = {}) const;
         void convert(const QList<LangNote *> &input) const;
 
-        [[nodiscard]] QString analysis(const QString &input) const;
-        [[nodiscard]] QStringList analysis(const QStringList &input) const;
+        [[nodiscard]] QString analysis(const QString &input,
+                                       const QStringList &priorityList = {}) const;
+        [[nodiscard]] QStringList analysis(const QStringList &input,
+                                           const QStringList &priorityList = {}) const;
 
     private:
         [[nodiscard]] QList<ILanguageFactory *>
