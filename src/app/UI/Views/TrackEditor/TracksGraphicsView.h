@@ -36,7 +36,6 @@ private:
     AbstractClipView *findClipById(int id);
     void clearSelections();
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
-    void handleClipEdited();
 
     TracksGraphicsScene *m_scene;
     CMenu *m_backgroundMenu = nullptr;
@@ -56,7 +55,6 @@ private:
     // int m_mouseDownTrackIndex = -1;
     bool m_tempQuantizeOff = false;
     AbstractClipView *m_currentEditingClip = nullptr;
-    bool m_propertyEdited = false;
 };
 
 #endif // DATASET_TOOLS_TRACKSGRAPHICSVIEW_H

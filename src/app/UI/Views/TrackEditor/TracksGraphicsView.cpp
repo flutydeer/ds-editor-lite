@@ -144,7 +144,6 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
         start = left - m_mouseDownClipStart;
         m_currentEditingClip->setStart(start);
-        m_propertyEdited = true;
     } else if (m_mouseMoveBehavior == ResizeLeft) {
         left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
         start = m_mouseDownStart;
@@ -165,7 +164,6 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             m_currentEditingClip->setClipStart(m_mouseDownClipStart + m_mouseDownClipLen);
             m_currentEditingClip->setClipLen(0);
         }
-        m_propertyEdited = true;
     } else if (m_mouseMoveBehavior == ResizeRight) {
         right = MathUtils::round(
             m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize);
@@ -186,9 +184,6 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             m_currentEditingClip->setLength(curClipStart + clipLen);
             m_currentEditingClip->setClipLen(clipLen);
         }
-        m_propertyEdited = true;
-    } else if (m_mouseMoveBehavior == None) {
-        m_propertyEdited = false;
     }
     TimeGraphicsView::mouseMoveEvent(event);
 }
@@ -197,8 +192,9 @@ void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     // if (m_mouseDownPos == scenePos) {
     //     m_propertyEdited = false;
     // }
-    if (m_propertyEdited) {
-        handleClipEdited();
+    if (m_mouseMoveBehavior != None) {
+        Clip::ClipCommonProperties args(*m_currentEditingClip);
+        trackController->onClipPropertyChanged(args);
     }
     m_mouseMoveBehavior = None;
     m_currentEditingClip = nullptr;
@@ -308,8 +304,4 @@ QList<AbstractClipView *> TracksGraphicsView::selectedClipItems() const {
             if (clip->isSelected())
                 result.append(clip);
     return result;
-}
-void TracksGraphicsView::handleClipEdited() {
-    Clip::ClipCommonProperties args(*m_currentEditingClip);
-    trackController->onClipPropertyChanged(args);
 }
