@@ -35,7 +35,6 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
         auto path = QDir::toNativeSeparators(appOptions->configPath());
         ShellExecuteW(NULL, L"open", L"explorer",
                       QString("/select, \"%1\"").arg(path).toStdWString().c_str(), NULL, SW_SHOW);
-
 #else
         auto folder = QFileInfo(appOptions->configPath()).absoluteDir().path();
         QDesktopServices::openUrl(QUrl(folder));

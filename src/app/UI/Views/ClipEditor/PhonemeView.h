@@ -47,6 +47,7 @@ public slots:
     void setQuantize(int quantize) override;
 
 private slots:
+    void onTempoChanged(double tempo);
     void onClipPropertyChanged();
     void onNoteChanged(SingingClip::NoteChangeType type, Note *note);
     void onNotePropertyChanged(Note::NotePropertyType type, Note *note);

@@ -26,6 +26,7 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
         setTimeSignature(appModel->timeSignature().numerator,
                          appModel->timeSignature().denominator);
     });
+    connect(appModel, &AppModel::tempoChanged, this, &PhonemeView::onTempoChanged);
     connect(appModel, &AppModel::timeSignatureChanged, this, &PhonemeView::setTimeSignature);
     connect(appModel, &AppModel::quantizeChanged, this, &PhonemeView::setQuantize);
     connect(playbackController, &PlaybackController::positionChanged, this,
@@ -83,6 +84,13 @@ void PhonemeView::setPosition(double tick) {
 void PhonemeView::setQuantize(int quantize) {
     ITimelinePainter::setQuantize(quantize);
     update();
+}
+void PhonemeView::onTempoChanged(double tempo) {
+    if (m_clip) {
+        resetPhonemeList();
+        buildPhonemeList();
+        update();
+    }
 }
 void PhonemeView::onClipPropertyChanged() {
     qDebug() << "PhonemeView::onClipPropertyChanged";
