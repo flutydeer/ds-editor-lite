@@ -22,9 +22,11 @@ public:
     QString edited;
 
     Pronunciation() = default;
+
     Pronunciation(QString original, QString edited)
         : original(std::move(original)), edited(std::move(edited)) {
     }
+
     [[nodiscard]] bool isEdited() const;
 
     friend QDataStream &operator<<(QDataStream &out, const Pronunciation &pronunciation);
@@ -38,10 +40,12 @@ public:
     enum PhonemeType { Ahead, Normal, Final };
 
     Phoneme() = default;
+
     Phoneme(PhonemeType type, QString name, int start)
         : type(type), name(std::move(name)), start(start) {
     }
-    static QList<PhonemeType> phonemesTypes() ;
+
+    static QList<PhonemeType> phonemesTypes();
     PhonemeType type = Normal;
     QString name;
     int start{};
@@ -50,6 +54,7 @@ public:
 class Phonemes {
 public:
     enum PhonemesType { Original, Edited };
+
     QList<Phoneme> original;
     QList<Phoneme> edited;
 
@@ -123,7 +128,7 @@ private:
     int m_length = 480;
     int m_keyIndex = 60;
     QString m_lyric;
-    QString m_language = "Unknown";
+    QString m_language = "unknown";
     Pronunciation m_pronunciation;
     QStringList m_pronCandidates;
     Phonemes m_phonemes;
