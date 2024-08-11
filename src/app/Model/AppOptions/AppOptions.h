@@ -22,6 +22,8 @@ class AppOptions : public QObject, public Singleton<AppOptions> {
 public:
     explicit AppOptions(QObject *parent = nullptr);
 
+    [[nodiscard]] QString configPath() const;
+
     // void load(const QJsonObject &object);
     // void save(const QString &path);
     bool saveAndNotify();

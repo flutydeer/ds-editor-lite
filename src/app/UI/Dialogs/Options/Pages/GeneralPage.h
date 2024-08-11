@@ -7,6 +7,7 @@
 
 #include "IOptionPage.h"
 
+class Button;
 class LineEdit;
 class LanguageComboBox;
 class GeneralPage : public IOptionPage {
@@ -19,6 +20,7 @@ protected:
     void modifyOption() override;
 
 private:
+    Button *m_btnOpenConfigFolder;
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
 };

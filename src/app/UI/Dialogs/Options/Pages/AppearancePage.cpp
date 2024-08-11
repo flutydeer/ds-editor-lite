@@ -21,7 +21,7 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     m_swUseNativeFrame = new SwitchButton(option->useNativeFrame);
     auto useNativeFrameItem = new OptionsCardItem;
     useNativeFrameItem->setTitle(tr("Use native frame"));
-    useNativeFrameItem->setDescription(tr("Restart required"));
+    useNativeFrameItem->setDescription(tr("App needs a restart to take effect"));
     useNativeFrameItem->addWidget(m_swUseNativeFrame);
     connect(m_swUseNativeFrame, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
 
