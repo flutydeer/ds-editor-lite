@@ -112,16 +112,19 @@ int main(int argc, char *argv[]) {
                      availableRect.height() - taskWindow->height() - 8);
     taskWindow->show();
 
-    auto filePath = QApplication::arguments().at(1);
-    qDebug() << filePath;
-    if (!filePath.isEmpty()) {
-        appController->openProject(filePath);
-        auto tracks = appModel->tracks();
-        if (!tracks.isEmpty()) {
-            auto clips = tracks.first()->clips();
-            if (clips.count() > 0) {
-                trackController->setActiveClip(clips.toList().first()->id());
-                appController->onPanelClicked(AppGlobal::ClipEditor);
+    auto args = QApplication::arguments();
+    if (args.count() > 1) {
+        auto filePath = QApplication::arguments().at(1);
+        qDebug() << filePath;
+        if (!filePath.isEmpty()) {
+            appController->openProject(filePath);
+            auto tracks = appModel->tracks();
+            if (!tracks.isEmpty()) {
+                auto clips = tracks.first()->clips();
+                if (clips.count() > 0) {
+                    trackController->setActiveClip(clips.toList().first()->id());
+                    appController->onPanelClicked(AppGlobal::ClipEditor);
+                }
             }
         }
     }
