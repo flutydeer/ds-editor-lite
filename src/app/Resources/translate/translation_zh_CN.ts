@@ -4,29 +4,25 @@
 <context>
     <name>ActionButtonsView</name>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="18"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="22"/>
         <source>Save Project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="28"/>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="61"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="32"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="64"/>
         <source>Undo</source>
         <translation>撤销</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="38"/>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="63"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="42"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="66"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
 </context>
 <context>
     <name>AppController</name>
-    <message>
-        <source>New Project</source>
-        <translation type="vanished">新工程</translation>
-    </message>
     <message>
         <location filename="../../Controller/AppController.cpp" line="57"/>
         <source>Saved</source>
@@ -49,7 +45,7 @@
 <context>
     <name>AppModel</name>
     <message>
-        <location filename="../../Model/AppModel/AppModel.cpp" line="97"/>
+        <location filename="../../Model/AppModel/AppModel.cpp" line="99"/>
         <source>New Track</source>
         <translation>新轨道</translation>
     </message>
@@ -105,10 +101,6 @@
         <translation>等级</translation>
     </message>
     <message>
-        <source>Choose an animation level that suitables for you</source>
-        <translation type="vanished">选择一个适合你的动画等级</translation>
-    </message>
-    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="23"/>
         <source>Use native frame</source>
         <translation>使用原生边框</translation>
@@ -145,13 +137,6 @@
     </message>
 </context>
 <context>
-    <name>AudioClipGraphicsItem</name>
-    <message>
-        <source>[Audio] </source>
-        <translation type="vanished">[音频] </translation>
-    </message>
-</context>
-<context>
     <name>AudioClipView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="146"/>
@@ -165,12 +150,6 @@
         <location filename="../../Modules/Audio/AudioContext.cpp" line="308"/>
         <source>Cannot open audio device!</source>
         <translation>无法打开音频设备！</translation>
-    </message>
-    <message>
-        <source>Cannot read audio file:
-
-%1</source>
-        <translation type="vanished">无法读取音频文件：\n\n%1</translation>
     </message>
 </context>
 <context>
@@ -190,10 +169,6 @@
         <source>Close</source>
         <translation>关闭</translation>
     </message>
-    <message>
-        <source>Open file error:</source>
-        <translation type="vanished">打开文件错误：</translation>
-    </message>
 </context>
 <context>
     <name>AudioExportDialog</name>
@@ -201,18 +176,6 @@
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="21"/>
         <source>Export Audio</source>
         <translation>导出音频</translation>
-    </message>
-    <message>
-        <source>Save as</source>
-        <translation type="vanished">另存为</translation>
-    </message>
-    <message>
-        <source>Delete</source>
-        <translation type="vanished">删除</translation>
-    </message>
-    <message>
-        <source>Preset</source>
-        <translation type="vanished">预设</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="42"/>
@@ -233,10 +196,6 @@
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="86"/>
         <source>Format</source>
         <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Sample Rate</source>
-        <translation type="vanished">采样率</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="28"/>
@@ -420,207 +379,6 @@
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="102"/>
         <source>MP3 - Separate all tracks</source>
         <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>AudioPage</name>
-    <message>
-        <source>Audio Output Options</source>
-        <translation type="vanished">音频输出选项</translation>
-    </message>
-    <message>
-        <source>Audio Driver</source>
-        <translation type="vanished">音频驱动</translation>
-    </message>
-    <message>
-        <source>Test</source>
-        <translation type="vanished">测试</translation>
-    </message>
-    <message>
-        <source>Device Control Panel</source>
-        <translation type="vanished">设备控制面板</translation>
-    </message>
-    <message>
-        <source>Audio Device</source>
-        <translation type="vanished">音频设备</translation>
-    </message>
-    <message>
-        <source>Buffer Size</source>
-        <translation type="vanished">缓冲区大小</translation>
-    </message>
-    <message>
-        <source>Sample Rate</source>
-        <translation type="vanished">采样率</translation>
-    </message>
-    <message>
-        <source>Notify any device change</source>
-        <translation type="vanished">通知任何设备更改</translation>
-    </message>
-    <message>
-        <source>Notify current device removal</source>
-        <translation type="vanished">通知当前设备的移除</translation>
-    </message>
-    <message>
-        <source>Do not notify</source>
-        <translation type="vanished">不通知</translation>
-    </message>
-    <message>
-        <source>Hot Plug Mode</source>
-        <translation type="vanished">热插拔模式</translation>
-    </message>
-    <message>
-        <source>Playback Options</source>
-        <translation type="vanished">回放选项</translation>
-    </message>
-    <message>
-        <source>Close audio device when %1 is in the background</source>
-        <translation type="vanished">%1 在后台时关闭音频设备</translation>
-    </message>
-    <message>
-        <source>Close audio device when playback is stopped</source>
-        <translation type="vanished">回放停止后关闭音频设备</translation>
-    </message>
-    <message>
-        <source>File Options</source>
-        <translation type="vanished">文件选项</translation>
-    </message>
-    <message>
-        <source>Buffer size when reading from file</source>
-        <translation type="vanished">读取文件时的缓冲区大小</translation>
-    </message>
-    <message>
-        <source>These options are disabled in plugged mode.</source>
-        <translation type="vanished">这些选项在插入模式下被禁用。</translation>
-    </message>
-    <message>
-        <source> (Not working)</source>
-        <translation type="vanished"> （不可用）</translation>
-    </message>
-    <message>
-        <source>Audio device %1 is not available!</source>
-        <translation type="vanished">音频设备 %1 不可用！</translation>
-    </message>
-    <message>
-        <source>No audio driver available on this computer!</source>
-        <translation type="vanished">此计算机上没有可用的音频驱动！</translation>
-    </message>
-    <message>
-        <source>No audio device available in driver mode %1!</source>
-        <translation type="vanished">驱动模式 %1 下没有可用的音频设备！</translation>
-    </message>
-    <message>
-        <source>Driver mode %1 cannot initialize!</source>
-        <translation type="vanished">驱动模式 %1 无法初始化！</translation>
-    </message>
-</context>
-<context>
-    <name>AudioSettingsDialog</name>
-    <message>
-        <source> (Not working)</source>
-        <translation type="vanished"> （不可用）</translation>
-    </message>
-    <message>
-        <source>Audio device %1 is not available!</source>
-        <translation type="vanished">音频设备 %1 不可用！</translation>
-    </message>
-    <message>
-        <source>Audio Settings</source>
-        <translation type="vanished">音频设置</translation>
-    </message>
-    <message>
-        <source>Audio Output Options</source>
-        <translation type="vanished">音频输出选项</translation>
-    </message>
-    <message>
-        <source>Audio Driver</source>
-        <translation type="vanished">音频驱动</translation>
-    </message>
-    <message>
-        <source>Test</source>
-        <translation type="vanished">测试</translation>
-    </message>
-    <message>
-        <source>Audio Device</source>
-        <translation type="vanished">音频设备</translation>
-    </message>
-    <message>
-        <source>Device Control Panel</source>
-        <translation type="vanished">设备控制面板</translation>
-    </message>
-    <message>
-        <source>Buffer Size</source>
-        <translation type="vanished">缓冲区大小</translation>
-    </message>
-    <message>
-        <source>Sample Rate</source>
-        <translation type="vanished">采样率</translation>
-    </message>
-    <message>
-        <source>Notify any device change</source>
-        <translation type="vanished">通知任何设备更改</translation>
-    </message>
-    <message>
-        <source>Notify current device removal</source>
-        <translation type="vanished">通知当前设备的移除</translation>
-    </message>
-    <message>
-        <source>Do not notify</source>
-        <translation type="vanished">不通知</translation>
-    </message>
-    <message>
-        <source>Hot Plug Mode</source>
-        <translation type="vanished">热插拔模式</translation>
-    </message>
-    <message>
-        <source>Playback Options</source>
-        <translation type="vanished">回放选项</translation>
-    </message>
-    <message>
-        <source>Close audio device when %1 is in the background</source>
-        <translation type="vanished">%1 在后台时关闭音频设备</translation>
-    </message>
-    <message>
-        <source>Close audio device when playback is stopped</source>
-        <translation type="vanished">回放停止后关闭音频设备</translation>
-    </message>
-    <message>
-        <source>File Options</source>
-        <translation type="vanished">文件选项</translation>
-    </message>
-    <message>
-        <source>Buffer size when reading from file</source>
-        <translation type="vanished">读取文件时的缓冲区大小</translation>
-    </message>
-    <message>
-        <source>These options are disabled in plugged mode.</source>
-        <translation type="vanished">这些选项在插入模式下被禁用。</translation>
-    </message>
-    <message>
-        <source>No audio driver available on this computer!</source>
-        <translation type="vanished">此计算机上没有可用的音频驱动！</translation>
-    </message>
-    <message>
-        <source>No audio device available in driver mode %1!</source>
-        <translation type="vanished">驱动模式 %1 下没有可用的音频设备！</translation>
-    </message>
-    <message>
-        <source>Driver mode %1 cannot initialize!</source>
-        <translation type="vanished">驱动模式 %1 无法初始化！</translation>
-    </message>
-</context>
-<context>
-    <name>AudioSystem</name>
-    <message>
-        <source>Host Audio</source>
-        <translation type="vanished">宿主音频</translation>
-    </message>
-    <message>
-        <source>Audio device change is detected.</source>
-        <translation type="vanished">检测到音频设备更改。</translation>
-    </message>
-    <message>
-        <source>Go to audio settings</source>
-        <translation type="vanished">前往音频设置</translation>
     </message>
 </context>
 <context>
@@ -812,10 +570,6 @@
         <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="53"/>
         <source>Export Option:</source>
         <translation>导出选项：</translation>
-    </message>
-    <message>
-        <source>Skipping Slur</source>
-        <translation type="vanished">忽略延音符</translation>
     </message>
     <message>
         <location filename="../../Modules/Language/FillLyric/View/Widgets/LyricExtWidget.cpp" line="66"/>
@@ -1014,7 +768,7 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="37"/>
         <source>Default Lyric</source>
-        <translation type="unfinished">默认歌词</translation>
+        <translation>默认歌词</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="48"/>
@@ -1025,17 +779,17 @@
 <context>
     <name>LangMgr::CantoneseAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="14"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="15"/>
         <source>Cantonese</source>
         <translation>粤语</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="16"/>
         <source>Capture Cantonese characters.</source>
         <translation>捕获粤语字符。</translation>
     </message>
@@ -1043,35 +797,53 @@
 <context>
     <name>LangMgr::EnglishAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/EnglishAnalysis.h" line="12"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/EnglishAnalysis.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/EnglishAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/EnglishAnalysis.h" line="14"/>
         <source>English</source>
         <translation>英语</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/EnglishAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/EnglishAnalysis.h" line="15"/>
         <source>Capture English words.</source>
         <translation>捕获英语单词。</translation>
     </message>
 </context>
 <context>
-    <name>LangMgr::KanaAnalysis</name>
+    <name>LangMgr::JyutpingAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/KanaAnalysis.h" line="12"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/JyutpingAnalysis.h" line="17"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/JyutpingAnalysis.h" line="18"/>
+        <source>Jyutping</source>
+        <translation>粤拼</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/JyutpingAnalysis.h" line="19"/>
+        <source>Capture Jyutping words.</source>
+        <translation>捕获粤语拼音字符串。</translation>
+    </message>
+</context>
+<context>
+    <name>LangMgr::KanaAnalysis</name>
+    <message>
         <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/KanaAnalysis.h" line="13"/>
+        <source>Xiao Lang</source>
+        <translation>小狼</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/KanaAnalysis.h" line="14"/>
         <source>Kana</source>
         <translation>假名</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/KanaAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/KanaAnalysis.h" line="16"/>
         <source>Capture Kana characters.</source>
         <translation>捕获假名字符。</translation>
     </message>
@@ -1079,17 +851,17 @@
 <context>
     <name>LangMgr::LinebreakAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="14"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="15"/>
         <source>Linebreak</source>
         <translation>换行符</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="16"/>
         <source>Capture linebreaks.</source>
         <translation>捕获换行符。</translation>
     </message>
@@ -1115,17 +887,17 @@
 <context>
     <name>LangMgr::NumberAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="12"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="14"/>
         <source>Number</source>
         <translation>数字</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/NumberAnalysis.h" line="15"/>
         <source>Capture numbers.</source>
         <translation>捕获数字。</translation>
     </message>
@@ -1133,17 +905,17 @@
 <context>
     <name>LangMgr::PinyinAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="16"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="16"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="17"/>
         <source>Pinyin</source>
         <translation>拼音</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="17"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/PinyinAnalysis.h" line="18"/>
         <source>Capture Pinyin words.</source>
         <translation>捕获拼音字符串。</translation>
     </message>
@@ -1151,17 +923,17 @@
 <context>
     <name>LangMgr::Punctuation</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="14"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="15"/>
         <source>Punctuation</source>
         <translation>标点</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/Punctuation.h" line="16"/>
         <source>Capture punctuations.</source>
         <translation>捕获标点。</translation>
     </message>
@@ -1169,17 +941,17 @@
 <context>
     <name>LangMgr::RomajiAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="16"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="16"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="17"/>
         <source>Romaji</source>
         <translation>罗马音</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="17"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/RomajiAnalysis.h" line="18"/>
         <source>Capture Romaji words.</source>
         <translation>捕获罗马音字符串。</translation>
     </message>
@@ -1187,17 +959,17 @@
 <context>
     <name>LangMgr::SlurAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="14"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="15"/>
         <source>Slur</source>
         <translation>延音符</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SlurAnalysis.h" line="16"/>
         <source>Capture slurs.</source>
         <translation>捕获延音符。</translation>
     </message>
@@ -1205,17 +977,17 @@
 <context>
     <name>LangMgr::SpaceAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="14"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="14"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="15"/>
         <source>Space</source>
         <translation>空格</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="15"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="16"/>
         <source>Capture spaces.</source>
         <translation>捕获空格。</translation>
     </message>
@@ -1223,12 +995,12 @@
 <context>
     <name>LangMgr::UnknownAnalysis</name>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="12"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="13"/>
         <source>Xiao Lang</source>
         <translation>小狼</translation>
     </message>
     <message>
-        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="13"/>
+        <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/UnknownAnalysis.h" line="14"/>
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
@@ -1270,18 +1042,18 @@
         <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="19"/>
         <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="59"/>
         <source>Language: </source>
-        <translation>语种：</translation>
+        <translation>语种： </translation>
     </message>
     <message>
         <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="20"/>
         <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="60"/>
         <source>Author: </source>
-        <translation>作者：</translation>
+        <translation>作者： </translation>
     </message>
     <message>
         <location filename="../../Modules/Language/LangSetting/Controls/G2pInfoWidget.cpp" line="26"/>
         <source>Description </source>
-        <translation>简介：</translation>
+        <translation>简介 </translation>
     </message>
 </context>
 <context>
@@ -1299,14 +1071,14 @@
     <message>
         <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="63"/>
         <source>Analysis results </source>
-        <translation>分析结果</translation>
+        <translation>分析结果 </translation>
     </message>
     <message>
         <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="81"/>
         <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="105"/>
         <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="137"/>
         <location filename="../../Modules/Language/LangSetting/ILangSetFactory.cpp" line="144"/>
-        <source>Unknown</source>
+        <source>unknown</source>
         <translation>未知</translation>
     </message>
     <message>
@@ -1326,18 +1098,18 @@
         <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="21"/>
         <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="60"/>
         <source>Language: </source>
-        <translation>语种：</translation>
+        <translation>语种： </translation>
     </message>
     <message>
         <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="22"/>
         <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="61"/>
         <source>Author: </source>
-        <translation>作者：</translation>
+        <translation>作者： </translation>
     </message>
     <message>
         <location filename="../../Modules/Language/LangSetting/Controls/LangInfoWidget.cpp" line="28"/>
         <source>Description </source>
-        <translation>简介：</translation>
+        <translation>简介 </translation>
     </message>
 </context>
 <context>
@@ -1553,10 +1325,6 @@
         <translation>打开工程(&amp;O)...</translation>
     </message>
     <message>
-        <source>Select a Project File</source>
-        <translation type="vanished">选择工程文件</translation>
-    </message>
-    <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="209"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
@@ -1567,14 +1335,6 @@
         <translation>打开A工程</translation>
     </message>
     <message>
-        <source>Select an A Project File</source>
-        <translation type="vanished">选择工程文件</translation>
-    </message>
-    <message>
-        <source>Project File (*.json)</source>
-        <translation type="vanished">工程文件 (*.json)</translation>
-    </message>
-    <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="42"/>
         <source>&amp;Save</source>
         <translation>保存(&amp;S)</translation>
@@ -1583,10 +1343,6 @@
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="44"/>
         <source>Save &amp;As...</source>
         <translation>另存为(&amp;A)...</translation>
-    </message>
-    <message>
-        <source>Save project</source>
-        <translation type="vanished">保存工程</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="47"/>
@@ -1600,14 +1356,6 @@
         <translation>MIDI 文件...</translation>
     </message>
     <message>
-        <source>Select a MIDI File</source>
-        <translation type="vanished">选择 MIDI 文件</translation>
-    </message>
-    <message>
-        <source>MIDI File (*.mid)</source>
-        <translation type="vanished">MIDI 文件 (*.mid)</translation>
-    </message>
-    <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="52"/>
         <source>Export</source>
         <translation>导出</translation>
@@ -1616,10 +1364,6 @@
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="53"/>
         <source>Audio File...</source>
         <translation>音频文件...</translation>
-    </message>
-    <message>
-        <source>Save as MIDI File</source>
-        <translation type="vanished">另存为 MIDI 文件</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="61"/>
@@ -1665,18 +1409,6 @@
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="109"/>
         <source>&amp;Paste</source>
         <translation>粘贴(&amp;P)</translation>
-    </message>
-    <message>
-        <source>&amp;Insert</source>
-        <translation type="vanished">插入(&amp;I)</translation>
-    </message>
-    <message>
-        <source>Track</source>
-        <translation type="vanished">轨道</translation>
-    </message>
-    <message>
-        <source>&amp;Modify</source>
-        <translation type="vanished">修改(&amp;M)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="131"/>
@@ -1786,157 +1518,9 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <source>&amp;File</source>
-        <translation type="vanished">文件(&amp;F)</translation>
-    </message>
-    <message>
-        <source>&amp;New Project</source>
-        <translation type="vanished">新建工程(&amp;N)</translation>
-    </message>
-    <message>
-        <source>&amp;Open Project...</source>
-        <translation type="vanished">打开工程(&amp;O)...</translation>
-    </message>
-    <message>
-        <source>Select a Project File</source>
-        <translation type="vanished">选择工程文件</translation>
-    </message>
-    <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="235"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
-    </message>
-    <message>
-        <source>Open A Project</source>
-        <translation type="vanished">打开A工程</translation>
-    </message>
-    <message>
-        <source>Select an A Project File</source>
-        <translation type="vanished">选择工程文件</translation>
-    </message>
-    <message>
-        <source>Project File (*.json)</source>
-        <translation type="vanished">工程文件 (*.json)</translation>
-    </message>
-    <message>
-        <source>&amp;Save</source>
-        <translation type="vanished">保存(&amp;S)</translation>
-    </message>
-    <message>
-        <source>Save &amp;As...</source>
-        <translation type="vanished">另存为(&amp;A)...</translation>
-    </message>
-    <message>
-        <source>Save as Project File</source>
-        <translation type="vanished">另存为</translation>
-    </message>
-    <message>
-        <source>Import</source>
-        <translation type="vanished">导入</translation>
-    </message>
-    <message>
-        <source>MIDI File...</source>
-        <translation type="vanished">MIDI 文件...</translation>
-    </message>
-    <message>
-        <source>Select a MIDI File</source>
-        <translation type="vanished">选择 MIDI 文件</translation>
-    </message>
-    <message>
-        <source>MIDI File (*.mid)</source>
-        <translation type="vanished">MIDI 文件 (*.mid)</translation>
-    </message>
-    <message>
-        <source>Export</source>
-        <translation type="vanished">导出</translation>
-    </message>
-    <message>
-        <source>Audio File...</source>
-        <translation type="vanished">音频文件...</translation>
-    </message>
-    <message>
-        <source>Save as MIDI File</source>
-        <translation type="vanished">另存为 MIDI 文件</translation>
-    </message>
-    <message>
-        <source>&amp;Edit</source>
-        <translation type="vanished">编辑(&amp;E)</translation>
-    </message>
-    <message>
-        <source>&amp;Undo</source>
-        <translation type="vanished">撤销(&amp;U)</translation>
-    </message>
-    <message>
-        <source>&amp;Redo</source>
-        <translation type="vanished">重做(&amp;R)</translation>
-    </message>
-    <message>
-        <source>Select &amp;All</source>
-        <translation type="vanished">全选(&amp;A)</translation>
-    </message>
-    <message>
-        <source>&amp;Delete</source>
-        <translation type="vanished">删除(&amp;D)</translation>
-    </message>
-    <message>
-        <source>Cu&amp;t</source>
-        <translation type="vanished">剪切(&amp;T)</translation>
-    </message>
-    <message>
-        <source>&amp;Copy</source>
-        <translation type="vanished">复制(&amp;C)</translation>
-    </message>
-    <message>
-        <source>&amp;Paste</source>
-        <translation type="vanished">粘贴(&amp;P)</translation>
-    </message>
-    <message>
-        <source>&amp;Insert</source>
-        <translation type="vanished">插入(&amp;I)</translation>
-    </message>
-    <message>
-        <source>Track</source>
-        <translation type="vanished">轨道</translation>
-    </message>
-    <message>
-        <source>&amp;Modify</source>
-        <translation type="vanished">修改(&amp;M)</translation>
-    </message>
-    <message>
-        <source>Fill Lyrics...</source>
-        <translation type="vanished">填入歌词...</translation>
-    </message>
-    <message>
-        <source>&amp;Options</source>
-        <translation type="vanished">选项(&amp;O)</translation>
-    </message>
-    <message>
-        <source>&amp;General...</source>
-        <translation type="vanished">常规(&amp;G)...</translation>
-    </message>
-    <message>
-        <source>&amp;Audio...</source>
-        <translation type="vanished">音频(&amp;A)...</translation>
-    </message>
-    <message>
-        <source>About...</source>
-        <translation type="vanished">关于...</translation>
-    </message>
-    <message>
-        <source>&amp;Help</source>
-        <translation type="vanished">帮助(&amp;H)</translation>
-    </message>
-    <message>
-        <source>A&amp;ppearance...</source>
-        <translation type="obsolete">外观(&amp;P)...</translation>
-    </message>
-    <message>
-        <source>Language...</source>
-        <translation type="vanished">语言...</translation>
-    </message>
-    <message>
-        <source>Check for Updates</source>
-        <translation type="vanished">检查更新</translation>
     </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="158"/>
@@ -2061,21 +1645,6 @@
     </message>
 </context>
 <context>
-    <name>OKCancelApplyDialog</name>
-    <message>
-        <source>&amp;OK</source>
-        <translation type="vanished">确定(&amp;O)</translation>
-    </message>
-    <message>
-        <source>&amp;Cancel</source>
-        <translation type="vanished">取消(&amp;C)</translation>
-    </message>
-    <message>
-        <source>&amp;Apply</source>
-        <translation type="vanished">应用(&amp;A)</translation>
-    </message>
-</context>
-<context>
     <name>OKCancelDialog</name>
     <message>
         <location filename="../../UI/Dialogs/Base/OKCancelDialog.cpp" line="11"/>
@@ -2181,18 +1750,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Start position</source>
-        <translation type="vanished">起始位置</translation>
-    </message>
-    <message>
-        <source>End position</source>
-        <translation type="vanished">结束位置</translation>
-    </message>
-    <message>
-        <source>After playback is stopped, &amp;move the play head to</source>
-        <translation type="vanished">播放停止后，将播放头移至(&amp;M)</translation>
-    </message>
-    <message>
         <location filename="../../UI/Dialogs/Audio/OutputPlaybackPageWidget.cpp" line="115"/>
         <source>&amp;Close audio device when playback is stopped</source>
         <translation>回放停止后关闭音频设备(&amp;C)</translation>
@@ -2236,9 +1793,17 @@
     </message>
 </context>
 <context>
+    <name>PhonemeView</name>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PhonemeView.cpp" line="118"/>
+        <source>Zoom in to edit phonemes</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PianoRollGraphicsView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="220"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="122"/>
         <source>Select a singing clip to edit</source>
         <translation>选中歌声剪辑以编辑</translation>
     </message>
@@ -2246,17 +1811,17 @@
 <context>
     <name>PianoRollGraphicsViewPrivate</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="153"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="369"/>
         <source>Fill lyrics...</source>
         <translation>填入歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="159"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="375"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="165"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="381"/>
         <source>Properties...</source>
         <translation>属性...</translation>
     </message>
@@ -2360,13 +1925,6 @@
     </message>
 </context>
 <context>
-    <name>SingingClipGraphicsItem</name>
-    <message>
-        <source>[Singing] </source>
-        <translation type="vanished">[歌声] </translation>
-    </message>
-</context>
-<context>
     <name>SingingClipView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="123"/>
@@ -2467,37 +2025,6 @@
     </message>
 </context>
 <context>
-    <name>TracksView</name>
-    <message>
-        <source>Warning</source>
-        <translation type="vanished">警告</translation>
-    </message>
-    <message>
-        <source>Do you want to delete this clip?</source>
-        <translation type="vanished">要删除此剪辑吗？</translation>
-    </message>
-    <message>
-        <source>Delete</source>
-        <translation type="vanished">删除</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation type="vanished">取消</translation>
-    </message>
-    <message>
-        <source>Do you want to delete this track?</source>
-        <translation type="vanished">要删除此轨道吗？</translation>
-    </message>
-    <message>
-        <source>Select an Audio File</source>
-        <translation type="vanished">选择音频文件</translation>
-    </message>
-    <message>
-        <source>All Audio File (*.wav *.flac *.mp3);;Wave File (*.wav);;Flac File (*.flac);;MP3 File (*.mp3)</source>
-        <translation type="vanished">所有音频文件 (*.wav *.flac *.mp3);;波形文件 (*.wav);;Flac 文件 (*.flac);;MP3 文件 (*.mp3)</translation>
-    </message>
-</context>
-<context>
     <name>TracksViewController</name>
     <message>
         <location filename="../../Controller/TracksViewController.cpp" line="41"/>
@@ -2520,25 +2047,9 @@
         <translation>关闭</translation>
     </message>
     <message>
-        <source>Warning</source>
-        <translation type="vanished">警告</translation>
-    </message>
-    <message>
-        <source>Do you want to remove this track?</source>
-        <translation type="vanished">要移除此轨道吗？</translation>
-    </message>
-    <message>
-        <source>Do you want to remove this clip?</source>
-        <translation type="vanished">要移除此剪辑吗？</translation>
-    </message>
-    <message>
         <location filename="../../Controller/TracksViewController.cpp" line="193"/>
         <source>Error</source>
         <translation>错误</translation>
-    </message>
-    <message>
-        <source>Open file error:</source>
-        <translation type="vanished">打开文件错误：</translation>
     </message>
 </context>
 <context>

@@ -20,9 +20,9 @@ namespace LangMgr {
 
         ILanguageManager *q_ptr;
 
-        QStringList defaultOrder = {"cmn", "cmn-pinyin", "yue", "ja-kana", "ja-romaji", "en",
-                                    "space", "slur", "punctuation", "number", "linebreak",
-                                    "unknown"};
+        QStringList defaultOrder = {"cmn", "cmn-pinyin", "yue", "yue-jyutping", "ja-kana",
+                                    "ja-romaji", "en", "space", "slur", "punctuation", "number",
+                                    "linebreak", "unknown"};
 
         QMap<QString, ILanguageFactory *> languages;
     };

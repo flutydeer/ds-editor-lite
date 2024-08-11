@@ -17,6 +17,7 @@
 #include "LangAnalysis/MandarinAnalysis.h"
 #include "LangAnalysis/PinyinAnalysis.h"
 #include "LangAnalysis/CantoneseAnalysis.h"
+#include "LangAnalysis/JyutpingAnalysis.h"
 #include "LangAnalysis/KanaAnalysis.h"
 #include "LangAnalysis/RomajiAnalysis.h"
 #include "LangAnalysis/EnglishAnalysis.h"
@@ -207,6 +208,7 @@ namespace LangMgr {
         addLanguage(new MandarinAnalysis());
         addLanguage(new PinyinAnalysis());
         addLanguage(new CantoneseAnalysis());
+        addLanguage(new JyutpingAnalysis());
         addLanguage(new KanaAnalysis());
         addLanguage(new RomajiAnalysis());
         addLanguage(new EnglishAnalysis());
