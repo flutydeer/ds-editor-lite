@@ -21,7 +21,7 @@ static QMap<QString, QString> languageMapping = {
 QString langMappping(const QString &lang) {
     if (languageMapping.contains(lang))
         return languageMapping[lang];
-    return "Unknown";
+    return "unknown";
 }
 
 bool AProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,

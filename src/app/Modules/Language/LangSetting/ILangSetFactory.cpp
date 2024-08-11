@@ -78,7 +78,7 @@ namespace LangSetting {
         if (cateList.contains(langFactory->category())) {
             cateComboBox->setCurrentText(cateTrans.at(cateList.indexOf(langFactory->category())));
         } else {
-            cateComboBox->setCurrentText(tr("Unknown"));
+            cateComboBox->setCurrentText(tr("unknown"));
         }
 
         const auto g2pMgr = G2pMgr::IG2pManager::instance();
@@ -102,7 +102,7 @@ namespace LangSetting {
         if (g2pList.contains(langFactory->selectedG2p())) {
             g2pComboBox->setCurrentText(g2pTrans.at(g2pList.indexOf(langFactory->selectedG2p())));
         } else {
-            g2pComboBox->setCurrentText(tr("Unknown"));
+            g2pComboBox->setCurrentText(tr("unknown"));
         }
 
         mainLayout->addWidget(enabledItem);
@@ -134,14 +134,14 @@ namespace LangSetting {
         connect(cateComboBox, &QComboBox::currentTextChanged,
                 [this, cateList, cateTrans, langFactory](const QString &text) {
                     const auto index = cateTrans.indexOf(text);
-                    langFactory->setCategory(index >= 0 ? cateList.at(index) : tr("Unknown"));
+                    langFactory->setCategory(index >= 0 ? cateList.at(index) : tr("unknown"));
                     Q_EMIT langConfigChanged(id());
                 });
 
         connect(g2pComboBox, &QComboBox::currentTextChanged,
                 [this, g2pList, g2pTrans, langFactory](const QString &text) {
                     const auto index = g2pTrans.indexOf(text);
-                    langFactory->setG2p(index >= 0 ? g2pList.at(index) : tr("Unknown"));
+                    langFactory->setG2p(index >= 0 ? g2pList.at(index) : tr("unknown"));
                     Q_EMIT g2pChanged(langFactory->selectedG2p());
                     Q_EMIT langConfigChanged(id());
                 });

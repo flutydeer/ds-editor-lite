@@ -1,7 +1,7 @@
 #include "Kana.h"
 
 namespace G2pMgr {
-    Kana::Kana(QObject *parent) : IG2pFactory("Kana", parent) {
+    Kana::Kana(QObject *parent) : IG2pFactory("ja-kana", parent) {
         setAuthor(tr("Xiao Lang"));
         setDisplayName(tr("Kana"));
         setDescription(tr("Kana to Romanization converter."));

@@ -11,6 +11,7 @@ namespace G2pMgr {
     class IG2pManagerPrivate final : public QObject {
         Q_OBJECT
         Q_DECLARE_PUBLIC(IG2pManager)
+
     public:
         IG2pManagerPrivate();
         ~IG2pManagerPrivate() override;
@@ -21,7 +22,7 @@ namespace G2pMgr {
 
         bool initialized = false;
 
-        QStringList baseG2p = {"Slur", "Linebreak", "Number", "Space", "Punctuation"};
+        QStringList baseG2p = {"slur", "linebreak", "number", "space", "punctuation"};
     };
 
 }

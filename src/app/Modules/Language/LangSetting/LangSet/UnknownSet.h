@@ -7,8 +7,9 @@ namespace LangSetting {
 
     class UnknownSet final : public ILangSetFactory {
         Q_OBJECT
+
     public:
-        explicit UnknownSet(QObject *parent = nullptr) : ILangSetFactory("Unknown", parent) {
+        explicit UnknownSet(QObject *parent = nullptr) : ILangSetFactory("unknown", parent) {
         }
     };
 

@@ -36,7 +36,7 @@ namespace LangMgr {
         const auto it = d->languages.find(id);
         if (it == d->languages.end()) {
             qWarning() << "LangMgr::ILanguageManager::language(): factory does not exist:" << id;
-            return d->languages.find("Unknown").value();
+            return d->languages.find("unknown").value();
         }
         return it.value();
     }
@@ -139,12 +139,12 @@ namespace LangMgr {
     }
 
     QString ILanguageManager::analysis(const QString &input) const {
-        QString result = "Unknown";
+        QString result = "unknown";
         auto analysis = this->priorityLanguages();
 
         for (const auto &factory : analysis) {
             result = factory->analysis(input);
-            if (result != "Unknown")
+            if (result != "unknown")
                 break;
         }
 

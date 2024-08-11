@@ -7,11 +7,11 @@ namespace LangMgr {
 
     class UnknownAnalysis final : public ILanguageFactory {
         Q_OBJECT
+
     public:
-        explicit UnknownAnalysis(QObject *parent = nullptr) : ILanguageFactory("Unknown", parent) {
+        explicit UnknownAnalysis(QObject *parent = nullptr) : ILanguageFactory("unknown", parent) {
             setAuthor(tr("Xiao Lang"));
             setDisplayName(tr("Unknown"));
-            setCategory("Unknown");
             setDescription(tr("Capture unknown characters."));
         }
 

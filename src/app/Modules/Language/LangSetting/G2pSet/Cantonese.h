@@ -9,8 +9,9 @@
 namespace LangSetting {
     class CantoneseSet final : public IG2pSetFactory {
         Q_OBJECT
+
     public:
-        explicit CantoneseSet(QObject *parent = nullptr) : IG2pSetFactory("Cantonese", parent) {
+        explicit CantoneseSet(QObject *parent = nullptr) : IG2pSetFactory("yue", parent) {
             d = dynamic_cast<G2pMgr::Cantonese *>(G2pMgr::IG2pManager::instance()->g2p(id()));
         }
 

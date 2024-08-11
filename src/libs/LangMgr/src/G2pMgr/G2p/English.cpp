@@ -1,7 +1,7 @@
 #include "English.h"
 
 namespace G2pMgr {
-    English::English(QObject *parent) : IG2pFactory("English", parent) {
+    English::English(QObject *parent) : IG2pFactory("en", parent) {
         setAuthor(tr("Xiao Lang"));
         setDisplayName(tr("English"));
         setDescription(tr("Greedy matching of consecutive English letters."));

@@ -141,7 +141,7 @@ namespace LangMgr {
 
         QList<LangNote> result;
         for (const auto &note : input) {
-            if (note.language == "Unknown") {
+            if (note.language == "Unknown" || note.language == "unknown" || note.language == "") {
                 const auto splitRes = split(note.lyric);
                 for (const auto &res : splitRes) {
                     if (res.language == id() && d->discardResult) {
@@ -157,12 +157,12 @@ namespace LangMgr {
     }
 
     QString ILanguageFactory::analysis(const QString &input) const {
-        return contains(input) ? id() : "Unknown";
+        return contains(input) ? id() : "unknown";
     }
 
     void ILanguageFactory::correct(const QList<LangNote *> &input) const {
         for (const auto &note : input) {
-            if (note->language == "Unknown") {
+            if (note->language == "unknown") {
                 if (contains(note->lyric))
                     note->language = id();
             }

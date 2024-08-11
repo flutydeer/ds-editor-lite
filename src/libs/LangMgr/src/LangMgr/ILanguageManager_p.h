@@ -11,6 +11,7 @@ namespace LangMgr {
     class ILanguageManagerPrivate final : public QObject {
         Q_OBJECT
         Q_DECLARE_PUBLIC(ILanguageManager)
+
     public:
         ILanguageManagerPrivate();
         ~ILanguageManagerPrivate() override;
@@ -19,8 +20,9 @@ namespace LangMgr {
 
         ILanguageManager *q_ptr;
 
-        QStringList defaultOrder = {"Mandarin", "Pinyin", "Cantonese",   "Kana",   "Romaji",    "English",
-                             "Space",    "Slur",   "Punctuation", "Number", "Linebreak", "Unknown"};
+        QStringList defaultOrder = {"cmn", "cmn-pinyin", "yue", "ja-kana", "ja-romaji", "en",
+                                    "space", "slur", "punctuation", "number", "linebreak",
+                                    "unknown"};
 
         QMap<QString, ILanguageFactory *> languages;
     };

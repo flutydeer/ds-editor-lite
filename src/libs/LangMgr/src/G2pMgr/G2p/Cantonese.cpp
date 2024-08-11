@@ -1,7 +1,7 @@
 #include "Cantonese.h"
 
 namespace G2pMgr {
-    Cantonese::Cantonese(QObject *parent) : IG2pFactory("Cantonese", parent) {
+    Cantonese::Cantonese(QObject *parent) : IG2pFactory("yue", parent) {
         setAuthor(tr("Xiao Lang"));
         setDisplayName(tr("Cantonese"));
         setDescription(tr("Using Cantonese Pinyin as the phonetic notation method."));
@@ -34,8 +34,9 @@ namespace G2pMgr {
     }
 
     QList<LangNote> Cantonese::convert(const QStringList &input, const QJsonObject *config) const {
-        const auto tone = config && config->keys().contains("tone") ? config->value("tone").toBool()
-                                                                    : this->m_tone;
+        const auto tone = config && config->keys().contains("tone")
+                              ? config->value("tone").toBool()
+                              : this->m_tone;
         const auto convertNum = config && config->keys().contains("convertNum")
                                     ? config->value("convertNum").toBool()
                                     : this->m_convertNum;

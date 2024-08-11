@@ -10,8 +10,9 @@ namespace LangSetting {
 
     class MandarinSet final : public IG2pSetFactory {
         Q_OBJECT
+
     public:
-        explicit MandarinSet(QObject *parent = nullptr) : IG2pSetFactory("Mandarin", parent) {
+        explicit MandarinSet(QObject *parent = nullptr) : IG2pSetFactory("cmn", parent) {
             d = dynamic_cast<G2pMgr::Mandarin *>(G2pMgr::IG2pManager::instance()->g2p(id()));
         }
 

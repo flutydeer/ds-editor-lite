@@ -85,8 +85,8 @@ namespace LangMgr {
                     note.category = category();
                 } else {
                     note.lyric = currentChar;
-                    note.language = QStringLiteral("Unknown");
-                    note.category = QStringLiteral("Unknown");
+                    note.language = QStringLiteral("unknown");
+                    note.category = QStringLiteral("unknown");
                     pos++;
                 }
             } else {
@@ -95,8 +95,8 @@ namespace LangMgr {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = QStringLiteral("Unknown");
-                note.category = QStringLiteral("Unknown");
+                note.language = QStringLiteral("unknown");
+                note.category = QStringLiteral("unknown");
             }
 
             if (!note.lyric.isEmpty()) {

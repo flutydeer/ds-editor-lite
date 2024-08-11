@@ -9,8 +9,8 @@ namespace LangMgr {
     }
 
     void RomajiAnalysis::loadDict() {
-        QStringList initial = {"k",  "g",  "s",  "z",  "t",  "d",  "n",  "h",  "b",
-                               "p",  "m",  "y",  "r",  "w",  "ky", "gy", "sh", "j",
+        QStringList initial = {"k", "g", "s", "z", "t", "d", "n", "h", "b",
+                               "p", "m", "y", "r", "w", "ky", "gy", "sh", "j",
                                "ch", "ny", "hy", "by", "py", "my", "ry"};
         QStringList final = {"a", "i", "u", "e", "o"};
         QStringList special = {"n", "nn", "m"};
@@ -60,8 +60,8 @@ namespace LangMgr {
                     note.language = id();
                     note.category = category();
                 } else {
-                    note.language = QStringLiteral("English");
-                    note.category = QStringLiteral("English");
+                    note.language = QStringLiteral("en");
+                    note.category = QStringLiteral("en");
                 }
             } else {
                 const int start = pos;
@@ -69,8 +69,8 @@ namespace LangMgr {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = QStringLiteral("Unknown");
-                note.category = QStringLiteral("Unknown");
+                note.language = QStringLiteral("unknown");
+                note.category = QStringLiteral("unknown");
             }
             if (!note.lyric.isEmpty())
                 result.append(note);

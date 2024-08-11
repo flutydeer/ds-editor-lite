@@ -90,7 +90,7 @@ namespace FillLyric {
         QStringList lyrics;
         QList<LangNote> langNotes;
         for (const auto &langNote : m_langNotes) {
-            if (skipSlurRes && (langNote.language == "Slur" || langNote.lyric == "-"))
+            if (skipSlurRes && (langNote.language == "slur" || langNote.lyric == "-"))
                 continue;
             langNotes.append(langNote);
             lyrics.append(langNote.lyric);

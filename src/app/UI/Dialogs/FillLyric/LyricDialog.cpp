@@ -77,15 +77,15 @@ void LyricDialog::noteToPhonic() {
     for (const auto note : m_notes) {
         auto langNote = LangNote(note->lyric());
         langNote.language =
-            note->language() != "Unknown" ? note->language() : langMgr->analysis(note->lyric());
+            note->language() != "unknown" ? note->language() : langMgr->analysis(note->lyric());
         langNote.category = langMgr->language(langNote.language)->category();
         langNote.syllable = note->pronunciation().original;
         langNote.syllableRevised = note->pronunciation().edited;
         langNote.candidates = note->pronCandidates();
 
         if (note->isSlur()) {
-            langNote.language = "Slur";
-            langNote.category = "Slur";
+            langNote.language = "slur";
+            langNote.category = "slur";
         }
 
         m_langNotes.append(langNote);

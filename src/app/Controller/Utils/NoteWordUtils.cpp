@@ -16,9 +16,9 @@ void NoteWordUtils::updateOriginalWordProperties(const QList<Note *> &notes) {
     QList<LangNote *> langNotes;
     QList<Phonemes> notesPhonemes;
     for (const auto note : notes) {
-        const auto language = note->language() == "Unknown" ? "Unknown" : note->language();
+        const auto language = note->language() == "unknown" ? "unknown" : note->language();
         const auto category =
-            note->language() == "Unknown" ? "Unknown" : langMgr->language(language)->category();
+            note->language() == "unknown" ? "unknown" : langMgr->language(language)->category();
         langNotes.append(new LangNote(note->lyric(), language, category));
         notesPhonemes.append(note->phonemes());
     }
@@ -76,15 +76,16 @@ void NoteWordUtils::updateOriginalWordProperties(const QList<Note *> &notes) {
     a->execute();
     // historyManager->record(a);
 }
+
 void NoteWordUtils::fillEditedPhonemeNames(const QList<Note *> &notes) {
     const auto langMgr = LangMgr::ILanguageManager::instance();
     const auto syllable2p = S2p::instance();
     QList<LangNote *> langNotes;
     QList<Phonemes> notesPhonemes;
     for (const auto note : notes) {
-        const auto language = note->language() == "Unknown" ? "Unknown" : note->language();
+        const auto language = note->language() == "unknown" ? "unknown" : note->language();
         const auto category =
-            note->language() == "Unknown" ? "Unknown" : langMgr->language(language)->category();
+            note->language() == "unknown" ? "unknown" : langMgr->language(language)->category();
         langNotes.append(new LangNote(note->lyric(), language, category));
         notesPhonemes.append(note->phonemes());
     }
@@ -105,8 +106,9 @@ void NoteWordUtils::fillEditedPhonemeNames(const QList<Note *> &notes) {
             } else if (phonemes.size() == 2) {
                 const QString first = QString::fromUtf8(phonemes.at(0));
                 const QString last = QString::fromUtf8(phonemes.at(1));
-                auto phones = {Phoneme(Phoneme::Ahead, first, notePhonemes.edited.first().start),
-                               Phoneme(Phoneme::Normal, last, notePhonemes.edited.last().start)};
+                const auto phones = {
+                    Phoneme(Phoneme::Ahead, first, notePhonemes.edited.first().start),
+                    Phoneme(Phoneme::Normal, last, notePhonemes.edited.last().start)};
                 note->setPhonemes(Phonemes::Edited, phones);
             }
         }

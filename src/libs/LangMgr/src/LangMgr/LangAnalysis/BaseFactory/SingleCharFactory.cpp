@@ -32,8 +32,8 @@ namespace LangMgr {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = "Unknown";
-                note.category = "Unknown";
+                note.language = "unknown";
+                note.category = "unknown";
             }
             if (!note.lyric.isEmpty())
                 result.append(note);

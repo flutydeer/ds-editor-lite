@@ -7,12 +7,14 @@ namespace LangMgr {
 
     class NumberAnalysis final : public MultiCharFactory {
         Q_OBJECT
+
     public:
-        explicit NumberAnalysis(QObject *parent = nullptr) : MultiCharFactory("Number", parent) {
+        explicit NumberAnalysis(QObject *parent = nullptr) : MultiCharFactory("number", parent) {
             setAuthor(tr("Xiao Lang"));
             setDisplayName(tr("Number"));
             setDescription(tr("Capture numbers."));
             setDiscardResult(true);
+            setG2p("unknown");
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;

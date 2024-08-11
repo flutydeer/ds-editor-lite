@@ -7,8 +7,9 @@ namespace LangMgr {
 
     class EnglishAnalysis final : public MultiCharFactory {
         Q_OBJECT
+
     public:
-        explicit EnglishAnalysis(QObject *parent = nullptr) : MultiCharFactory("English", parent) {
+        explicit EnglishAnalysis(QObject *parent = nullptr) : MultiCharFactory("en", parent) {
             setAuthor(tr("Xiao Lang"));
             setDisplayName(tr("English"));
             setDescription(tr("Capture English words."));

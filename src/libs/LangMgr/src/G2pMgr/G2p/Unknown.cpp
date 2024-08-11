@@ -1,7 +1,7 @@
 #include "Unknown.h"
 
 namespace G2pMgr {
-    Unknown::Unknown(QObject *parent) : IG2pFactory("Unknown", parent) {
+    Unknown::Unknown(QObject *parent) : IG2pFactory("unknown", parent) {
         setAuthor(tr("Xiao Lang"));
         setDisplayName(tr("Unknown"));
         setDescription(tr("Unknown language, no conversion required."));

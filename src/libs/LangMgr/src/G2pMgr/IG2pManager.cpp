@@ -27,7 +27,7 @@ namespace G2pMgr {
         if (it == d->g2ps.end()) {
             if (!d->baseG2p.contains(id))
                 qWarning() << "G2pMgr::IG2pManager::g2p(): factory does not exist:" << id;
-            return d->g2ps.find("Unknown").value();
+            return d->g2ps.find("unknown").value();
         }
         return it.value();
     }
@@ -45,7 +45,7 @@ namespace G2pMgr {
         }
         if (d->g2ps.contains(factory->id())) {
             qWarning() << "G2pMgr::IG2pManager::addG2p(): trying to add duplicated factory:"
-                       << factory->id();
+                << factory->id();
             return false;
         }
         factory->setParent(this);

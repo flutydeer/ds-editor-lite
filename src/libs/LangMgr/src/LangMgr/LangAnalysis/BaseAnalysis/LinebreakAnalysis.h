@@ -7,12 +7,14 @@ namespace LangMgr {
 
     class LinebreakAnalysis final : public SingleCharFactory {
         Q_OBJECT
+
     public:
-        explicit LinebreakAnalysis(const QString &id = "Linebreak", QObject *parent = nullptr)
+        explicit LinebreakAnalysis(const QString &id = "linebreak", QObject *parent = nullptr)
             : SingleCharFactory(id, parent) {
             setAuthor(tr("Xiao Lang"));
             setDisplayName(tr("Linebreak"));
             setDescription(tr("Capture linebreaks."));
+            setG2p("unknown");
         }
 
         [[nodiscard]] bool contains(const QChar &c) const override;

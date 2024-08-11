@@ -7,8 +7,9 @@ namespace LangSetting {
 
     class UnknownG2pSet final : public IG2pSetFactory {
         Q_OBJECT
+
     public:
-        explicit UnknownG2pSet(QObject *parent = nullptr) : IG2pSetFactory("Unknown", parent) {
+        explicit UnknownG2pSet(QObject *parent = nullptr) : IG2pSetFactory("unknown", parent) {
         }
 
         QWidget *configWidget(QJsonObject *config) override;

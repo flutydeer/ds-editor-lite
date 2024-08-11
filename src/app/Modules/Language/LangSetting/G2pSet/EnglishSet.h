@@ -10,8 +10,9 @@ namespace LangSetting {
 
     class EnglishSet final : public IG2pSetFactory {
         Q_OBJECT
+
     public:
-        explicit EnglishSet(QObject *parent = nullptr) : IG2pSetFactory("English", parent) {
+        explicit EnglishSet(QObject *parent = nullptr) : IG2pSetFactory("en", parent) {
             d = dynamic_cast<G2pMgr::English *>(G2pMgr::IG2pManager::instance()->g2p(id()));
         }
 

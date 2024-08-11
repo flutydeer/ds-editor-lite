@@ -1,7 +1,7 @@
 #include "Mandarin.h"
 
 namespace G2pMgr {
-    Mandarin::Mandarin(QObject *parent) : IG2pFactory("Mandarin", parent) {
+    Mandarin::Mandarin(QObject *parent) : IG2pFactory("cmn", parent) {
         setAuthor(tr("Xiao Lang"));
         setDisplayName(tr("Mandarin"));
         setDescription(tr("Using Pinyin as the phonetic notation method."));
@@ -34,8 +34,9 @@ namespace G2pMgr {
     }
 
     QList<LangNote> Mandarin::convert(const QStringList &input, const QJsonObject *config) const {
-        const auto tone = config && config->keys().contains("tone") ? config->value("tone").toBool()
-                                                                    : this->m_tone;
+        const auto tone = config && config->keys().contains("tone")
+                              ? config->value("tone").toBool()
+                              : this->m_tone;
         const auto convertNum = config && config->keys().contains("convertNum")
                                     ? config->value("convertNum").toBool()
                                     : this->m_convertNum;

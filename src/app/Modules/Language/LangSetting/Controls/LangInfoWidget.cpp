@@ -67,9 +67,13 @@ namespace LangSetting {
         Q_EMIT g2pSelected(langId, langFactory->selectedG2p());
 
         connect(langSetFactory, &LangSetting::ILangSetFactory::g2pChanged, this,
-                [this, langId](const QString &g2pId) { Q_EMIT g2pSelected(langId, g2pId); });
+                [this, langId](const QString &g2pId) {
+                    Q_EMIT g2pSelected(langId, g2pId);
+                });
 
         connect(langSetFactory, &LangSetting::ILangSetFactory::langConfigChanged, this,
-                [this] { Q_EMIT langConfigChanged(); });
+                [this] {
+                    Q_EMIT langConfigChanged();
+                });
     }
 } // LangMgr

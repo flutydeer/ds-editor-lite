@@ -159,7 +159,7 @@ signals:
 private:
     OverlappableSerialList<Note> m_notes;
     QList<VocalPart> m_parts;
-    AppGlobal::LanguageType m_defaultLanguage = AppGlobal::Unknown;
+    AppGlobal::LanguageType m_defaultLanguage = AppGlobal::unknown;
 };
 
 // using DsClipPtr = QSharedPointer<DsClip>;

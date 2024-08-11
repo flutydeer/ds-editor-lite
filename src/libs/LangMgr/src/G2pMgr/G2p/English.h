@@ -7,6 +7,7 @@ namespace G2pMgr {
 
     class English final : public IG2pFactory {
         Q_OBJECT
+
     public:
         explicit English(QObject *parent = nullptr);
         ~English() override;
@@ -19,7 +20,7 @@ namespace G2pMgr {
         void setToLower(const bool &toLower);
 
     private:
-        bool m_toLower = true;
+        bool m_toLower = false;
     };
 
 } // G2pMgr

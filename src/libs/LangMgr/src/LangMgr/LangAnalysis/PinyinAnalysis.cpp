@@ -9,10 +9,10 @@ namespace LangMgr {
     }
 
     void PinyinAnalysis::loadDict() {
-        QStringList initials = {"b", "p", "m",  "f",  "d",  "t", "n", "l", "g", "k", "h", "j",
+        QStringList initials = {"b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "h", "j",
                                 "q", "x", "zh", "ch", "sh", "r", "z", "c", "s", "y", "w"};
-        QStringList finals = {"a",  "o",  "e",  "i",  "u",   "v",   "ai",  "ei",
-                              "ui", "ao", "ou", "iu", "ie",  "ve",  "er",  "an",
+        QStringList finals = {"a", "o", "e", "i", "u", "v", "ai", "ei",
+                              "ui", "ao", "ou", "iu", "ie", "ve", "er", "an",
                               "en", "in", "un", "vn", "ang", "eng", "ing", "ong"};
 
         for (const auto &initial : initials) {
@@ -56,8 +56,8 @@ namespace LangMgr {
                     note.language = id();
                     note.category = category();
                 } else {
-                    note.language = QStringLiteral("English");
-                    note.category = QStringLiteral("English");
+                    note.language = QStringLiteral("en");
+                    note.category = QStringLiteral("en");
                 }
             } else {
                 const int start = pos;
@@ -65,8 +65,8 @@ namespace LangMgr {
                     pos++;
                 }
                 note.lyric = input.mid(start, pos - start);
-                note.language = QStringLiteral("Unknown");
-                note.category = QStringLiteral("Unknown");
+                note.language = QStringLiteral("unknown");
+                note.category = QStringLiteral("unknown");
             }
             if (!note.lyric.isEmpty())
                 result.append(note);

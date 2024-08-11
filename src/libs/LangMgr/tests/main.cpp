@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
     langMgr->initialize(errorMsg);
     qDebug() << "LangMgr: errorMsg" << errorMsg << "initialized:" << langMgr->initialized();
 
-    const QStringList testId = {"Mandarin", "Pinyin", "Number", "Space", "Linebreak", "Slur"};
+    const QStringList testId = {"cmn", "cmn-pinyin", "number", "space", "linebreak", "slur"};
     langMgr->setDefaultOrder(testId);
 
     QList<LangNote *> langNotes;
@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
     for (const auto &note : langNotes) {
         if (note->language != note->standard) {
             qDebug() << "lyric: " << note->lyric << " standard: " << note->standard
-                     << " res: " << note->language;
+                << " res: " << note->language;
         }
     }
 

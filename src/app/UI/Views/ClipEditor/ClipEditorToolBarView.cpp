@@ -72,7 +72,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(buttonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
-    d->m_cbLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::Unknown));
+    d->m_cbLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::unknown));
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(d->m_leClipName);
@@ -90,6 +90,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     d->moveToNullClipState();
 }
+
 void ClipEditorToolBarView::setDataContext(Clip *clip) {
     Q_D(ClipEditorToolBarView);
     if (d->m_clip)
@@ -110,10 +111,12 @@ void ClipEditorToolBarView::setDataContext(Clip *clip) {
     } else if (clip->clipType() == Clip::Audio)
         d->moveToAudioClipState();
 }
+
 PianoRollEditMode ClipEditorToolBarView::editMode() const {
     Q_D(const ClipEditorToolBarView);
     return d->m_editMode;
 }
+
 void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(QAbstractButton *button,
                                                                 bool checked) {
     Q_Q(ClipEditorToolBarView);
@@ -133,6 +136,7 @@ void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(QAbstractButton 
         emit q->editModeChanged(EditPitchAnchor);
     }
 }
+
 void ClipEditorToolBarViewPrivate::onClipNameEdited() const {
     Clip::ClipCommonProperties args(*m_clip);
     args.name = m_leClipName->text();
@@ -140,32 +144,39 @@ void ClipEditorToolBarViewPrivate::onClipNameEdited() const {
     appModel->findClipById(m_clip->id(), trackIndex);
     trackController->onClipPropertyChanged(args);
 }
+
 void ClipEditorToolBarViewPrivate::onClipPropertyChanged() const {
     m_leClipName->setText(m_clip->name());
 }
+
 void ClipEditorToolBarViewPrivate::onClipLanguageChanged(AppGlobal::LanguageType language) const {
     m_cbLanguage->setCurrentIndex(language);
 }
+
 void ClipEditorToolBarViewPrivate::onLanguageEdited(int index) {
 }
+
 void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
     m_leClipName->setEnabled(false);
     m_leClipName->setText(QString());
 
     setPianoRollToolsEnabled(false);
 }
+
 void ClipEditorToolBarViewPrivate::moveToSingingClipState() const {
     m_leClipName->setEnabled(true);
     m_leClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(true);
 }
+
 void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
     m_leClipName->setEnabled(true);
     m_leClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(false);
 }
+
 void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(bool on) const {
     m_btnArrow->setVisible(on);
     m_btnNotePencil->setVisible(on);
@@ -185,6 +196,6 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(bool on) const {
     } else {
         disconnect(m_cbLanguage, &ComboBox::currentIndexChanged, this,
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);
-        m_cbLanguage->setCurrentIndex(AppGlobal::Unknown);
+        m_cbLanguage->setCurrentIndex(AppGlobal::unknown);
     }
 }

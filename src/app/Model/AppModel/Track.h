@@ -21,6 +21,7 @@ class Track final : public QObject, public ITrack, public ISelectable {
 
 public:
     ~Track() override;
+
     enum ClipChangeType { Inserted, Removed };
 
     [[nodiscard]] QString name() const override;
@@ -60,9 +61,8 @@ private:
     TrackControl m_control = TrackControl();
     OverlappableSerialList<Clip> m_clips;
     QColor m_color;
-    AppGlobal::LanguageType m_defaultLanguage = AppGlobal::Unknown;
+    AppGlobal::LanguageType m_defaultLanguage = AppGlobal::unknown;
 };
-
 
 
 #endif // TRACKSMODEL_H

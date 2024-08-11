@@ -25,7 +25,7 @@ namespace LangSetting {
         const auto it = d->langSets.find(id);
         if (it == d->langSets.end()) {
             // qWarning() << "LangSet::ILangSetManager::langSet(): factory does not exist:" << id;
-            return d->langSets.find("Unknown").value();
+            return d->langSets.find("unknown").value();
         }
         return it.value();
     }
@@ -66,7 +66,7 @@ namespace LangSetting {
         const auto it = d->langSets.find(id);
         if (it == d->langSets.end()) {
             qWarning() << "LangSet::ILangSetManager::removeLangSet(): factory does not exist:"
-                       << id;
+                << id;
             return false;
         }
         it.value()->setParent(nullptr);
@@ -86,7 +86,7 @@ namespace LangSetting {
         const auto it = d->g2pSets.find(id);
         if (it == d->g2pSets.end()) {
             // qWarning() << "LangSet::ILangSetManager::g2pSet(): factory does not exist:" << id;
-            return d->g2pSets.find("Unknown").value();
+            return d->g2pSets.find("unknown").value();
         }
         return it.value();
     }
@@ -104,7 +104,7 @@ namespace LangSetting {
         }
         if (d->g2pSets.contains(factory->id())) {
             qWarning() << "LangSet::ILangSetManager::addG2pSet(): trying to add duplicated factory:"
-                       << factory->id();
+                << factory->id();
             return false;
         }
         factory->setParent(this);

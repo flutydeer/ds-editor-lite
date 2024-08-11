@@ -10,19 +10,19 @@
 
 class GeneralOption final : public IOption {
 public:
-    explicit GeneralOption() : IOption("general"){};
+    explicit GeneralOption() : IOption("general") {
+    };
 
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
 
-    AppGlobal::LanguageType defaultSingingLanguage = AppGlobal::Mandarin;
+    AppGlobal::LanguageType defaultSingingLanguage = AppGlobal::cmn;
     QString defaultLyric = "啦";
 
 private:
     const QString defaultSingingLanguageKey = "defaultSingLanguage";
     const QString defaultLyricKey = "defaultLyric";
 };
-
 
 
 #endif // GENERALOPTION_H

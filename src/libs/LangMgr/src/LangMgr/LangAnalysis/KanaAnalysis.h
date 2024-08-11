@@ -7,11 +7,12 @@ namespace LangMgr {
 
     class KanaAnalysis final : public ILanguageFactory {
         Q_OBJECT
+
     public:
-        explicit KanaAnalysis(QObject *parent = nullptr) : ILanguageFactory("Kana", parent) {
+        explicit KanaAnalysis(QObject *parent = nullptr) : ILanguageFactory("ja-kana", parent) {
             setAuthor(tr("Xiao Lang"));
             setDisplayName(tr("Kana"));
-            setCategory("Kana");
+            setCategory("ja");
             setDescription(tr("Capture Kana characters."));
         }
 
