@@ -2,6 +2,9 @@
 // Created by fluty on 2023/8/27.
 //
 
+#include "Controller/AppController.h"
+
+
 #include <QApplication>
 #include <QStyleFactory>
 #include <QScreen>
@@ -25,6 +28,7 @@
 int main(int argc, char *argv[]) {
     // output log to file
     // qInstallMessageHandler(logMessageHandler);
+    qputenv("QT_ASSUME_STDERR_HAS_CONSOLE", "1");
     qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
@@ -107,6 +111,20 @@ int main(int argc, char *argv[]) {
     taskWindow->move(availableRect.width() - taskWindow->width() - 8,
                      availableRect.height() - taskWindow->height() - 8);
     taskWindow->show();
+
+    auto filePath = QApplication::arguments().at(1);
+    qDebug() << filePath;
+    if (!filePath.isEmpty()) {
+        appController->openProject(filePath);
+        auto tracks = appModel->tracks();
+        if (!tracks.isEmpty()) {
+            auto clips = tracks.first()->clips();
+            if (clips.count() > 0) {
+                trackController->setActiveClip(clips.toList().first()->id());
+                appController->onPanelClicked(AppGlobal::ClipEditor);
+            }
+        }
+    }
 
     return QApplication::exec();
 }
