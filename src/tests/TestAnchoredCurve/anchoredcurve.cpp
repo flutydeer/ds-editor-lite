@@ -32,7 +32,7 @@ Knot<T, U> &Knot<T, U>::operator=(const Knot &other) {
 }
 
 template <typename T, typename U>
-const T Knot<T, U>::getPosition() const {
+T Knot<T, U>::getPosition() const {
     return position;
 }
 
@@ -42,7 +42,7 @@ void Knot<T, U>::setPosition(T position) {
 }
 
 template <typename T, typename U>
-const U Knot<T, U>::getValue() const {
+U Knot<T, U>::getValue() const {
     return value;
 }
 
@@ -52,7 +52,7 @@ void Knot<T, U>::setValue(U value) {
 }
 
 template <typename T, typename U>
-const double Knot<T, U>::getSlope() const {
+double Knot<T, U>::getSlope() const {
     return slope;
 }
 
@@ -62,7 +62,7 @@ void Knot<T, U>::setSlope(double slope) {
 }
 
 template <typename T, typename U>
-const bool Knot<T, U>::operator==(const Knot &other) const {
+bool Knot<T, U>::operator==(const Knot &other) const {
     return this->position == other.position;
 }
 
@@ -100,7 +100,7 @@ Segment<T, U> &Segment<T, U>::operator=(const Segment &other) {
 }
 
 template <typename T, typename U>
-const U Segment<T, U>::getValue(T position) const {
+U Segment<T, U>::getValue(T position) const {
     assert((x_k <= position) && (position <= x_k1));
     T x_k1_minus_x_k = x_k1 - x_k;
     T x_minus_x_k = position - x_k;
@@ -119,8 +119,7 @@ AnchoredCurve<T, U>::AnchoredCurve() {
 }
 
 template <typename T, typename U>
-AnchoredCurve<T, U>::~AnchoredCurve() {
-}
+AnchoredCurve<T, U>::~AnchoredCurve() = default;
 
 template <typename T, typename U>
 AnchoredCurve<T, U>::AnchoredCurve(const AnchoredCurve &other) {
@@ -138,7 +137,7 @@ AnchoredCurve<T, U> &AnchoredCurve<T, U>::operator=(const AnchoredCurve &other) 
 }
 
 template <typename T, typename U>
-AnchoredCurve<T, U>::AnchoredCurve(const QList<Knot<T, U>> knots) {
+AnchoredCurve<T, U>::AnchoredCurve(const QList<Knot<T, U>> &knots) {
     this->knots = knots;
     this->updateAll();
 }
@@ -154,7 +153,7 @@ AnchoredCurve<T, U>::AnchoredCurve(std::initializer_list<T> positions,
 }
 
 template <typename T, typename U>
-const U AnchoredCurve<T, U>::getValue(const T position) const {
+U AnchoredCurve<T, U>::getValue(const T position) const {
     if (segments.count() <= 0) {
         return U();
     }
@@ -171,8 +170,8 @@ const U AnchoredCurve<T, U>::getValue(const T position) const {
 }
 
 template <typename T, typename U>
-const std::vector<std::pair<T, U>> AnchoredCurve<T, U>::getValueLinspace(const T start, const T end,
-                                                                         const int num) {
+std::vector<std::pair<T, U>> AnchoredCurve<T, U>::getValueLinspace(const T start, const T end,
+                                                                   const int num) const {
     std::vector<std::pair<T, U>> res;
     if (num == 0) {
         return res;
@@ -182,8 +181,8 @@ const std::vector<std::pair<T, U>> AnchoredCurve<T, U>::getValueLinspace(const T
     int curr_segment_index = std::distance(knots.begin(), knot_it) - 1;
     double num_d = num;
     for (int i = 0; i < num; i++) {
-        double w = (double(i) / num_d);
-        T position = (T) ((1.0 - w) * start + w * end);
+        double w = (static_cast<double>(i) / num_d);
+        T position = static_cast<T>((1.0 - w) * start + w * end);
 
         if (curr_segment_index < 0) {
             if (knots.front().getPosition() <= position) {
@@ -193,7 +192,7 @@ const std::vector<std::pair<T, U>> AnchoredCurve<T, U>::getValueLinspace(const T
 
         } else {
             if (knots[curr_segment_index + 1].getPosition() <= position) {
-                curr_segment_index++;
+                ++curr_segment_index;
             }
         }
 
@@ -249,7 +248,7 @@ void AnchoredCurve<T, U>::insert(T position, U value) {
 }
 
 template <typename T, typename U>
-void AnchoredCurve<T, U>::merge(const QList<Knot<T, U>> knots) {
+void AnchoredCurve<T, U>::merge(const QList<Knot<T, U>> &knots) {
     this->knots = this->knots + knots;
     this->updateAll();
 }
@@ -304,12 +303,12 @@ void AnchoredCurve<T, U>::removeRange(T l, T r) {
 }
 
 template <typename T, typename U>
-const QList<Knot<T, U>> AnchoredCurve<T, U>::getKnots() const {
+const QList<Knot<T, U>> &AnchoredCurve<T, U>::getKnots() const {
     return knots;
 }
 
 template <typename T, typename U>
-const QList<Segment<T, U>> AnchoredCurve<T, U>::getSegments() const {
+const QList<Segment<T, U>> &AnchoredCurve<T, U>::getSegments() const {
     return segments;
 }
 
@@ -319,14 +318,13 @@ double AnchoredCurve<T, U>::getInteriorSlope(int index) const {
     U delta_y_r = (knots[index + 1].getValue() - knots[index].getValue());
     if ((delta_y_l * delta_y_r) <= 0) {
         return 0;
-    } else {
-        T delta_x_l = (knots[index].getPosition() - knots[index - 1].getPosition());
-        T delta_x_r = (knots[index + 1].getPosition() - knots[index].getPosition());
-        double slope_l = delta_y_l / delta_x_l;
-        double slope_r = delta_y_r / delta_x_r;
-        double w_l = delta_x_l + 2 * delta_x_r, w_r = 2 * delta_x_l + delta_x_r;
-        return (w_l + w_r) / (w_l / slope_l + w_r / slope_r);
     }
+    T delta_x_l = (knots[index].getPosition() - knots[index - 1].getPosition());
+    T delta_x_r = (knots[index + 1].getPosition() - knots[index].getPosition());
+    double slope_l = delta_y_l / delta_x_l;
+    double slope_r = delta_y_r / delta_x_r;
+    double w_l = delta_x_l + 2 * delta_x_r, w_r = 2 * delta_x_l + delta_x_r;
+    return (w_l + w_r) / (w_l / slope_l + w_r / slope_r);
 }
 
 template <typename T, typename U>
@@ -343,10 +341,10 @@ void AnchoredCurve<T, U>::updateAllKnots() {
     int len = knots.count();
 
     std::sort(knots.begin(), knots.end(), knotCmp<T, U>);
-    double slope_start = (double) (knots[1].getValue() - knots.front().getValue()) /
+    double slope_start = static_cast<double>(knots[1].getValue() - knots.front().getValue()) /
                          (knots[1].getPosition() - knots.front().getPosition());
     knots.front().setSlope(slope_start);
-    double slope_end = (double) (knots.back().getValue() - knots[len - 2].getValue()) /
+    double slope_end = static_cast<double>(knots.back().getValue() - knots[len - 2].getValue()) /
                        (knots.back().getPosition() - knots[len - 2].getPosition());
     knots.back().setSlope(slope_end);
     if (len <= 2) {

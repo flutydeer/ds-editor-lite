@@ -191,7 +191,6 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 
     // TODO: 优化移动和调整音符
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
-        auto deltaX = static_cast<int>(sceneXToTick(scenePos.x() - d->m_mouseDownPos.x()));
         auto startOffset = MathUtils::round(deltaX, quantizedTickLength);
         auto keyOffset = keyIndex - d->m_mouseDownKeyIndex;
         if (keyOffset > d->m_moveMaxDeltaKey)
