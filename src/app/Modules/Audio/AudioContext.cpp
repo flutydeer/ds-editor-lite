@@ -27,6 +27,7 @@
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/AudioSettings.h>
+#include <Modules/Audio/TrackSynthesizer.h>
 
 #include "Model/AppModel/Track.h"
 #include <Model/AppOptions/AppOptions.h>
@@ -227,6 +228,7 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(appModel, &AppModel::tempoChanged, this, [=] {
         DEVICE_LOCKER;
         handleTimeChanged();
+        handlePlaybackPositionChanged(playbackController->position());
     });
 
     connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::bufferSizeChanged, this, [=] {
@@ -266,6 +268,9 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 }
 
 AudioContext::~AudioContext() {
+    for (auto trackSynthesizer : m_trackSynthDict.values()) {
+        delete trackSynthesizer;
+    }
     m_instance = nullptr;
 }
 
@@ -389,6 +394,8 @@ void AudioContext::handleTrackInserted(int index, Track *track) {
         else
             m_trackLevelMeterValue[track].second->setCurrentAndTargetValue(dBR);
     });
+
+    m_trackSynthDict.insert(track, new TrackSynthesizer(trackContext, track));
 }
 void AudioContext::handleTrackRemoved(int index, Track *track) {
     for (auto clip : track->clips()) {
@@ -398,6 +405,7 @@ void AudioContext::handleTrackRemoved(int index, Track *track) {
     }
     removeTrack(index);
     m_trackModelDict.remove(track);
+    delete m_trackSynthDict.take(track);
 }
 
 void AudioContext::handleTrackControlChanged(Track *track) {

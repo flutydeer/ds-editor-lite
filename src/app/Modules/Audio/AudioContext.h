@@ -23,6 +23,8 @@ namespace talcs {
     class DspxAudioClipContext;
 }
 
+class TrackSynthesizer;
+
 class AudioContext : public talcs::DspxProjectContext {
     Q_OBJECT
 public:
@@ -54,6 +56,8 @@ private:
 
     QHash<Track *, talcs::DspxTrackContext *> m_trackModelDict;
     QHash<AudioClip *, talcs::DspxAudioClipContext *> m_audioClipModelDict;
+
+    QHash<Track *, TrackSynthesizer *> m_trackSynthDict;
 
     QTimer *m_levelMeterTimer;
     QHash<const Track *,
