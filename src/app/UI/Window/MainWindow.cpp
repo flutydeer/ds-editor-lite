@@ -33,6 +33,7 @@
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QProcess>
 #include <QSplitter>
 #include <QStatusBar>
 
@@ -184,6 +185,13 @@ bool MainWindow::askSaveChanges() {
     dlg->exec();
     return *handled;
 }
+void MainWindow::quit() {
+    close();
+}
+void MainWindow::restart() {
+    m_restartRequested = true;
+    close();
+}
 void MainWindow::onAllDone() {
     qDebug() << "MainWindow::onAllDone";
     if (m_isCloseRequested) {
@@ -255,13 +263,11 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     if (m_isAllDone) {
         if (m_waitDoneDialog)
             m_waitDoneDialog->forceClose();
-
+        if (m_restartRequested)
+            restartApp();
         QMainWindow::closeEvent(event);
     } else if (m_isCloseRequested) {
         qDebug() << "Waiting for all tasks done...";
-        if (m_waitDoneDialog) {
-            m_waitDoneDialog->setMessage(tr("Please wait for all tasks done..."));
-        }
         event->ignore();
     } else {
         m_isCloseRequested = true;
@@ -320,4 +326,9 @@ void MainWindow::emulateLeaveEvent(QWidget *widget) {
             }
         }
     });
+}
+void MainWindow::restartApp() {
+    auto program = QCoreApplication::applicationFilePath();
+    qDebug() << "restart" << program;
+    QProcess::startDetached(program);
 }

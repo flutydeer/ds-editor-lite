@@ -124,6 +124,15 @@ void AppController::setMainWindow(IMainWindow *window) {
     Q_D(AppController);
     d->m_mainWindow = window;
 }
+void AppController::quit() {
+    Q_D(AppController);
+    d->m_mainWindow->quit();
+}
+void AppController::restart() {
+    qDebug() << "AppController::restart";
+    Q_D(AppController);
+    d->m_mainWindow->restart();
+}
 QString AppController::lastProjectFolder() const {
     Q_D(const AppController);
     return d->m_lastProjectFolder;

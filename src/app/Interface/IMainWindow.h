@@ -5,13 +5,13 @@
 #ifndef IMAINWINDOW_H
 #define IMAINWINDOW_H
 
-#include <QString>
-
 class IMainWindow {
 public:
     virtual ~IMainWindow() = default;
     virtual void updateWindowTitle() = 0;
     [[nodiscard]] virtual bool askSaveChanges() = 0;
+    virtual void quit() = 0;
+    virtual void restart() = 0;
 };
 
 

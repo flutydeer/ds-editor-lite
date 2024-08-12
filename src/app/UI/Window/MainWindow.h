@@ -28,6 +28,8 @@ public:
     explicit MainWindow();
     void updateWindowTitle() override;
     bool askSaveChanges() override;
+    void quit() override;
+    void restart() override;
 
 public slots:
     void onAllDone();
@@ -42,7 +44,9 @@ private:
     void closeEvent(QCloseEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
     static void emulateLeaveEvent(QWidget *widget);
+    static void restartApp();
 
+    bool m_restartRequested = false;
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
 

@@ -36,6 +36,8 @@ public:
     void registerPanel(IPanel *panel);
 
 public slots:
+    void quit();
+    void restart();
     void newProject();
     void openProject(const QString &filePath);
     bool saveProject(const QString &filePath);

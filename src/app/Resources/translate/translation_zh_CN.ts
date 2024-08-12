@@ -37,7 +37,7 @@
 <context>
     <name>AppControllerPrivate</name>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="165"/>
+        <location filename="../../Controller/AppController.cpp" line="174"/>
         <source>New Project</source>
         <translation>新工程</translation>
     </message>
@@ -96,42 +96,51 @@
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="52"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="59"/>
         <source>Level</source>
         <translation>等级</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="23"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="24"/>
         <source>Use native frame</source>
         <translation>使用原生边框</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="24"/>
         <source>Restart required</source>
-        <translation>需要重新启动</translation>
+        <translation type="vanished">需要重新启动</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="34"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="25"/>
+        <source>App needs a restart to take effect</source>
+        <translation>需要重启以生效</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="29"/>
+        <source>The settings will take effect after restarting the app. Do you want to restart now?</source>
+        <translation>重启应用后设置会生效。要现在重启吗？</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="41"/>
         <source>Window</source>
         <translation>窗口</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="53"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="60"/>
         <source>Choose an animation level that suitable for you</source>
         <translation>选择一个适合你的动画等级</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="57"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="64"/>
         <source>Time scale</source>
         <translation>时间缩放</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="58"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="65"/>
         <source>Adjust animations&apos; duration</source>
         <translation>调整动画的持续时间</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="69"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="76"/>
         <source>Animation</source>
         <translation>动画</translation>
     </message>
@@ -407,24 +416,34 @@
 <context>
     <name>ClipEditorToolBarView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="40"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="30"/>
+        <source>Clip Name</source>
+        <translation>剪辑名称</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="43"/>
         <source>Select</source>
         <translation>选择</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="47"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="50"/>
         <source>Draw Note</source>
         <translation>绘制音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="54"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="57"/>
         <source>Pitch Anchor</source>
         <translation>音高锚点</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="62"/>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="65"/>
         <source>Draw Pitch</source>
         <translation>绘制音高</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorToolBarView.cpp" line="80"/>
+        <source>Clip Default Language</source>
+        <translation>剪辑默认语种</translation>
     </message>
 </context>
 <context>
@@ -761,19 +780,34 @@
 <context>
     <name>GeneralPage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="27"/>
-        <source>Default Singing Language</source>
-        <translation type="unfinished"></translation>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="33"/>
+        <source>Open Folder...</source>
+        <translation>打开目录...</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="37"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="47"/>
+        <source>Config File</source>
+        <translation>配置文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="56"/>
+        <source>App Config</source>
+        <translation>应用配置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="65"/>
+        <source>Default Singing Language</source>
+        <translation>默认演唱语言</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="75"/>
         <source>Default Lyric</source>
         <translation>默认歌词</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="48"/>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="86"/>
         <source>Singing</source>
-        <translation type="unfinished"></translation>
+        <translation>演唱</translation>
     </message>
 </context>
 <context>
@@ -1518,52 +1552,47 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="235"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="243"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="158"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="159"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="159"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="160"/>
         <source>Do you want to save changes?</source>
         <translation>要保存更改吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="162"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="163"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="170"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="171"/>
         <source>Don&apos;t save</source>
         <translation>不保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="177"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="178"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="234"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="242"/>
         <source>Save project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="263"/>
-        <source>Please wait for all tasks done...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="270"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="276"/>
         <source>%1 is exiting...</source>
         <translation>%1 正在退出...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="271"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="277"/>
         <source>Terminating background tasks...</source>
         <translation>正在停止后台任务...</translation>
     </message>
@@ -1795,9 +1824,9 @@
 <context>
     <name>PhonemeView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PhonemeView.cpp" line="118"/>
+        <location filename="../../UI/Views/ClipEditor/PhonemeView.cpp" line="126"/>
         <source>Zoom in to edit phonemes</source>
-        <translation type="unfinished"></translation>
+        <translation>放大以编辑音素</translation>
     </message>
 </context>
 <context>
@@ -1811,17 +1840,17 @@
 <context>
     <name>PianoRollGraphicsViewPrivate</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="369"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="368"/>
         <source>Fill lyrics...</source>
         <translation>填入歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="375"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="374"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="381"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="380"/>
         <source>Properties...</source>
         <translation>属性...</translation>
     </message>
@@ -1832,6 +1861,29 @@
         <location filename="../../Controller/PlaybackController.cpp" line="91"/>
         <source>Please fix project errors before playing</source>
         <translation>请先修复工程错误再播放</translation>
+    </message>
+</context>
+<context>
+    <name>RestartDialog</name>
+    <message>
+        <location filename="../../UI/Dialogs/Base/RestartDialog.cpp" line="17"/>
+        <source>Information</source>
+        <translation>信息</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Base/RestartDialog.cpp" line="18"/>
+        <source>%1 requires a restart</source>
+        <translation>%1 需要重新启动</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Base/RestartDialog.cpp" line="21"/>
+        <source>Restart Now</source>
+        <translation>现在重启</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Base/RestartDialog.cpp" line="27"/>
+        <source>Restart Later</source>
+        <translation>稍后重启</translation>
     </message>
 </context>
 <context>
@@ -1979,47 +2031,47 @@
 <context>
     <name>TracksGraphicsView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="33"/>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="34"/>
         <source>New singing clip</source>
         <translation>新建歌声剪辑</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="37"/>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="38"/>
         <source>Insert audio clip...</source>
         <translation>插入音频剪辑...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="66"/>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="67"/>
         <source>Select an Audio File</source>
         <translation>选择音频文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="67"/>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="68"/>
         <source>All Audio File (*.wav *.flac *.mp3);;Wave File (*.wav);;Flac File (*.flac);;MP3 File (*.mp3)</source>
         <translation>所有音频文件 (*.wav *.flac *.mp3);;波形文件 (*.wav);;Flac 文件 (*.flac);;MP3 文件 (*.mp3)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="77"/>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="78"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="78"/>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="79"/>
         <source>Do you want to delete these clips?</source>
         <translation>要删除这些剪辑吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="85"/>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="86"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="89"/>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="90"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="237"/>
+        <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="236"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
@@ -2032,22 +2084,22 @@
         <translation>新轨道</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="167"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="168"/>
         <source>New Singing Clip</source>
         <translation>新歌声剪辑</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="194"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="195"/>
         <source>Failed to open audio file:</source>
         <translation>无法打开音频文件：</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="198"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="199"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../../Controller/TracksViewController.cpp" line="193"/>
+        <location filename="../../Controller/TracksViewController.cpp" line="194"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>

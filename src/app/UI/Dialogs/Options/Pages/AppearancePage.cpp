@@ -14,6 +14,7 @@
 #include "UI/Controls/OptionsCard.h"
 #include "UI/Controls/OptionsCardItem.h"
 #include "UI/Controls/SwitchButton.h"
+#include "UI/Dialogs/Base/RestartDialog.h"
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     auto option = appOptions->appearance();
@@ -23,7 +24,13 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     useNativeFrameItem->setTitle(tr("Use native frame"));
     useNativeFrameItem->setDescription(tr("App needs a restart to take effect"));
     useNativeFrameItem->addWidget(m_swUseNativeFrame);
-    connect(m_swUseNativeFrame, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
+    connect(m_swUseNativeFrame, &SwitchButton::toggled, this, [=] {
+        modifyOption();
+        auto message = tr(
+            "The settings will take effect after restarting the app. Do you want to restart now?");
+        auto dlg = new RestartDialog(message, true, this);
+        dlg->show();
+    });
 
     auto windowCardLayout = new QVBoxLayout;
     windowCardLayout->addWidget(useNativeFrameItem);
