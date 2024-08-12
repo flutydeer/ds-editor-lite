@@ -5,80 +5,80 @@
 #include <utility>
 #include <QList>
 
-template <typename T, typename U>
+template <typename TPos, typename TValue>
 class Knot {
 public:
     Knot();
-    Knot(T position, U value);
-    Knot(T position, U value, double slope);
+    Knot(TPos position, TValue value);
+    Knot(TPos position, TValue value, double slope);
     Knot(const Knot &other);
     Knot &operator=(const Knot &other);
 
-    T getPosition() const;
-    void setPosition(T position);
-    U getValue() const;
-    void setValue(U value);
+    TPos getPosition() const;
+    void setPosition(TPos position);
+    TValue getValue() const;
+    void setValue(TValue value);
     [[nodiscard]] double getSlope() const;
     void setSlope(double slope);
 
     bool operator==(const Knot &other) const;
 
 private:
-    T position;
-    U value;
+    TPos position;
+    TValue value;
     double slope;
 };
 
-template <typename T, typename U>
-bool knotCmp(Knot<T, U> a, Knot<T, U> b) {
+template <typename TPos, typename TValue>
+bool knotCmp(Knot<TPos, TValue> a, Knot<TPos, TValue> b) {
     return a.getPosition() < b.getPosition();
 }
 
-template <typename T, typename U>
+template <typename TPos, typename TValue>
 class Segment {
 public:
     Segment();
-    Segment(Knot<T, U> k1, Knot<T, U> k2);
+    Segment(Knot<TPos, TValue> k1, Knot<TPos, TValue> k2);
     Segment(const Segment &other);
     Segment &operator=(const Segment &other);
 
-    U getValue(T position) const;
+    TValue getValue(TPos position) const;
 
 private:
-    T x_k;
-    T x_k1;
-    U y_k;
-    U y_k1;
+    TPos x_k;
+    TPos x_k1;
+    TValue y_k;
+    TValue y_k1;
     double m_k;
     double m_k1;
 };
 
-template <typename T, typename U>
+template <typename TPos, typename TValue>
 class AnchoredCurve {
 public:
     AnchoredCurve();
     ~AnchoredCurve();
     AnchoredCurve(const AnchoredCurve &other);
     AnchoredCurve &operator=(const AnchoredCurve &other);
-    explicit AnchoredCurve(const QList<Knot<T, U>> &knots);
-    AnchoredCurve(std::initializer_list<T> positions, std::initializer_list<U> values);
+    explicit AnchoredCurve(const QList<Knot<TPos, TValue>> &knots);
+    AnchoredCurve(std::initializer_list<TPos> positions, std::initializer_list<TValue> values);
 
-    U getValue(T position) const;
-    std::vector<std::pair<T, U>> getValueLinspace(T start, T end, int num) const;
-    void insert(Knot<T, U> knot);
-    void insert(T position, U value);
-    void merge(const QList<Knot<T, U>> &knots);
+    TValue getValue(TPos position) const;
+    std::vector<std::pair<TPos, TValue>> getValueLinspace(TPos start, TPos end, int num) const;
+    void insert(Knot<TPos, TValue> knot);
+    void insert(TPos position, TValue value);
+    void merge(const QList<Knot<TPos, TValue>> &knots);
     void merge(const AnchoredCurve &other);
-    void merge(std::initializer_list<T> positions, std::initializer_list<U> values);
-    void remove(T x);
-    void removeRange(T l, T r); // 移除闭区间[l,r]
+    void merge(std::initializer_list<TPos> positions, std::initializer_list<TValue> values);
+    void remove(TPos x);
+    void removeRange(TPos l, TPos r); // 移除闭区间[l,r]
 
-    const QList<Knot<T, U>> &getKnots() const;
-    const QList<Segment<T, U>> &getSegments() const;
+    const QList<Knot<TPos, TValue>> &getKnots() const;
+    const QList<Segment<TPos, TValue>> &getSegments() const;
 
 private:
-    QList<Knot<T, U>> knots;
-    QList<Segment<T, U>> segments;
+    QList<Knot<TPos, TValue>> knots;
+    QList<Segment<TPos, TValue>> segments;
 
     [[nodiscard]] double getInteriorSlope(int index) const;
 
