@@ -19,26 +19,28 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QProcess>
+#include <QMCore/qmsystem.h>
 
-#ifdef Q_OS_WIN
-#  include <Windows.h>
-#  include <WinUser.h>
-#  include <shellapi.h>
-#endif
+// #ifdef Q_OS_WIN
+// #  include <Windows.h>
+// #  include <WinUser.h>
+// #  include <shellapi.h>
+// #endif
 
 GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     auto option = appOptions->general();
 
     m_btnOpenConfigFolder = new Button(tr("Open Folder..."), this);
     connect(m_btnOpenConfigFolder, &Button::clicked, this, [=] {
-#ifdef Q_OS_WIN
-        auto path = QDir::toNativeSeparators(appOptions->configPath());
-        ShellExecuteW(NULL, L"open", L"explorer",
-                      QString("/select, \"%1\"").arg(path).toStdWString().c_str(), NULL, SW_SHOW);
-#else
-        auto folder = QFileInfo(appOptions->configPath()).absoluteDir().path();
-        QDesktopServices::openUrl(QUrl(folder));
-#endif
+        QM::reveal(appOptions->configPath());
+// #ifdef Q_OS_WIN
+//         auto path = QDir::toNativeSeparators(appOptions->configPath());
+//         ShellExecuteW(NULL, L"open", L"explorer",
+//                       QString("/select, \"%1\"").arg(path).toStdWString().c_str(), NULL, SW_SHOW);
+// #else
+//         auto folder = QFileInfo(appOptions->configPath()).absoluteDir().path();
+//         QDesktopServices::openUrl(QUrl(folder));
+// #endif
     });
 
     auto configFileItem = new OptionsCardItem;
