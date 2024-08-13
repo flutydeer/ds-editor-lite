@@ -172,7 +172,7 @@ void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
     singingClip->setClipLen(length);
 
     auto track = appModel->tracks().at(trackIndex);
-    singingClip->setDefaultLanguage(track->defaultLanguage());
+    singingClip->defaultLanguage = track->defaultLanguage();
     auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(singingClip);

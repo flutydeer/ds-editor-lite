@@ -131,7 +131,7 @@ bool AppModel::importAProject(const QString &filename) {
             for (const auto clip : track->clips()) {
                 if (clip->clipType() == Clip::Singing) {
                     auto singingClip = reinterpret_cast<SingingClip *>(clip);
-                    singingClip->setDefaultLanguage(track->defaultLanguage());
+                    singingClip->defaultLanguage = track->defaultLanguage();
                     NoteWordUtils::fillEditedPhonemeNames(singingClip->notes().toList());
                 }
             }

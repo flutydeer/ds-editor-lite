@@ -243,8 +243,7 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
         QSize(TracksEditorGlobal::trackListWidth,
               static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
     controlView->setTrackIndex(trackIndex + 1);
-    controlView->setNarrowMode(m_graphicsView->scaleY() <
-                                         TracksEditorGlobal::narrowModeScaleY);
+    controlView->setNarrowMode(m_graphicsView->scaleY() < TracksEditorGlobal::narrowModeScaleY);
     m_trackListWidget->insertItem(trackIndex, newTrackItem);
     m_trackListWidget->setItemWidget(newTrackItem, controlView);
     track->controlView = controlView;
@@ -280,17 +279,20 @@ void TrackEditorView::insertClipToTrack(Clip *clip, TrackViewModel *track, int t
     connect(clip, &Clip::propertyChanged, this, [=] { updateClipOnView(clip); });
 }
 void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track, int trackIndex) {
-    auto clipItem = new SingingClipView(clip->id());
-    clipItem->loadCommonProperties(Clip::ClipCommonProperties(*clip));
-    clipItem->setTrackIndex(trackIndex);
+    auto clipView = new SingingClipView(clip->id());
+    clipView->loadCommonProperties(Clip::ClipCommonProperties(*clip));
+    clipView->setTrackIndex(trackIndex);
     const auto &notesRef = clip->notes();
-    clipItem->loadNotes(notesRef);
-    clipItem->setOverlapped(clip->overlapped());
-    m_tracksScene->addCommonItem(clipItem);
-    qDebug() << "Singing clip graphics item added to scene" << clipItem->id() << clipItem->name();
-    connect(clip, &SingingClip::noteChanged, clipItem, &SingingClipView::onNoteListChanged);
-    connect(appModel, &AppModel::quantizeChanged, clipItem, &AbstractClipView::setQuantize);
-    track->clips.append(clipItem);
+    clipView->loadNotes(notesRef);
+    clipView->setDefaultLanguage(clip->defaultLanguage);
+    clipView->setOverlapped(clip->overlapped());
+    m_tracksScene->addCommonItem(clipView);
+    qDebug() << "Singing clip graphics item added to scene" << clipView->id() << clipView->name();
+    connect(clip, &SingingClip::defaultLanguageChanged, clipView,
+            &SingingClipView::setDefaultLanguage);
+    connect(clip, &SingingClip::noteChanged, clipView, &SingingClipView::onNoteListChanged);
+    connect(appModel, &AppModel::quantizeChanged, clipView, &AbstractClipView::setQuantize);
+    track->clips.append(clipView);
 }
 void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, int trackIndex) {
     auto clipItem = new AudioClipView(clip->id());
@@ -307,16 +309,15 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, in
     track->clips.append(clipItem);
 }
 void TrackEditorView::removeClipFromView(int clipId) {
-    auto clipItem = findClipItemById(clipId);
-    m_tracksScene->removeCommonItem(clipItem);
-    int trackIndex = 0;
+    auto clipView = findClipItemById(clipId);
+    m_tracksScene->removeCommonItem(clipView);
     for (const auto &track : m_trackListViewModel.tracks) {
-        if (track->clips.contains(clipItem)) {
-            track->clips.removeOne(clipItem);
+        if (track->clips.contains(clipView)) {
+            track->clips.removeOne(clipView);
             break;
         }
-        trackIndex++;
     }
+    // delete clipView;
 }
 AbstractClipView *TrackEditorView::findClipItemById(int id) {
     for (const auto &track : m_trackListViewModel.tracks)

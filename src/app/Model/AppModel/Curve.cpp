@@ -6,33 +6,26 @@
 
 #include <QDebug>
 
-int Curve::start() const {
-    return m_start;
-}
-
-void Curve::setStart(int offset) {
-    m_start = offset;
-}
 int Curve::compareTo(const Curve *obj) const {
-    auto otherStart = obj->start();
-    if (m_start < otherStart)
+    int otherStart = obj->start;
+    if (start < otherStart)
         return -1;
-    if (m_start > otherStart)
+    if (start > otherStart)
         return 1;
     return 0;
 }
 bool Curve::isOverlappedWith(Curve *obj) const {
-    auto otherStart = obj->start();
+    int otherStart = obj->start;
     auto otherEnd = obj->endTick();
-    if (otherEnd <= start() || endTick() <= otherStart)
+    if (otherEnd <= start || endTick() <= otherStart)
         return false;
     return true;
 }
 std::tuple<qsizetype, qsizetype> Curve::interval() const {
-    return std::make_tuple(start(), endTick());
+    return std::make_tuple(start, endTick());
 }
 DrawCurve::DrawCurve(const DrawCurve &other)  : Curve(other), step(other.step), m_values(other.m_values){
-    qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start();
+    qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start;
 }
 const QList<int> &DrawCurve::values() const {
     return m_values;
@@ -60,8 +53,8 @@ void DrawCurve::replaceValue(int index, int value) {
     m_values.replace(index, value);
 }
 void DrawCurve::mergeWith(const DrawCurve &other) {
-    auto curStart = start();
-    auto otherStart = other.start();
+    int curStart = start;
+    int otherStart = other.start;
     auto curEnd = endTick();
     auto otherEnd = other.endTick();
     if (otherStart > curStart && otherEnd < curEnd)
@@ -77,7 +70,7 @@ void DrawCurve::mergeWith(const DrawCurve &other) {
         for (int i = 0; i < earlyCurvePointCount; i++)
             earlyCurve.append(other.values().at(i));
         insertValues(0, earlyCurve);
-        setStart(otherStart);
+        start = otherStart;
         if (curEnd < otherEnd) {
             auto startIndex = (otherEnd - curEnd) / step;
             for (int i = startIndex; i < other.values().count(); i++)
@@ -86,8 +79,8 @@ void DrawCurve::mergeWith(const DrawCurve &other) {
     }
 }
 void DrawCurve::overlayMergeWith(const DrawCurve &other) {
-    auto curStart = start();
-    auto otherStart = other.start();
+    int curStart = start;
+    int otherStart = other.start;
     auto curEnd = endTick();
     auto otherEnd = other.endTick();
     // qDebug() << "DrawCurve::overlayMergeWith" << otherStart << otherEnd;
@@ -107,19 +100,19 @@ void DrawCurve::overlayMergeWith(const DrawCurve &other) {
     } else { // otherStart <= curStart
         if (otherEnd >= curEnd) {
             clearValues();
-            setStart(otherStart);
+            start = otherStart;
             for (int i = 0; i < other.values().count(); i++)
                 appendValue(other.values().at(i));
         } else { // otherEnd<curEnd
             auto removeEndIndex = (otherEnd - curStart) / step;
             removeValueRange(0, removeEndIndex);
-            setStart(otherStart);
+            start = otherStart;
             insertValues(0, other.values());
         }
     }
 }
 int DrawCurve::endTick() const {
-    return start() + step * m_values.count();
+    return start + step * m_values.count();
 }
 void ProbeLine::setEndTick(int tick) {
     m_endTick = tick;
@@ -153,7 +146,7 @@ int AnchorNode::compareTo(const AnchorNode *obj) const {
         return 1;
     return 0;
 }
-bool AnchorNode::isOverlappedWith(AnchorNode *obj) const {
+bool AnchorNode::isOverlappedWith(const AnchorNode *obj) const {
     return pos() == obj->pos();
 }
 std::tuple<qsizetype, qsizetype> AnchorNode::interval() const {

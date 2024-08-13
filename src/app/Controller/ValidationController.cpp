@@ -35,7 +35,7 @@ void ValidationController::onModelChanged() {
             // connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
             if (clip->clipType() == Clip::Singing) {
                 auto singingClip = reinterpret_cast<SingingClip *>(clip);
-                singingClip->setDefaultLanguage(track->defaultLanguage());
+                singingClip->defaultLanguage = track->defaultLanguage();
                 NoteWordUtils::updateOriginalWordProperties(singingClip->notes().toList());
             }
         }

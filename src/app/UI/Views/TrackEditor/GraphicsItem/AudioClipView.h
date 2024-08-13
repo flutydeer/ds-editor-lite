@@ -32,7 +32,7 @@ private:
     enum RenderResolution { High, Low };
 
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) override;
-    QString clipTypeName() override;
+    QString clipTypeName() const override;
 
     AppGlobal::AudioLoadStatus m_status = AppGlobal::Init;
     AudioInfoModel m_audioInfo;

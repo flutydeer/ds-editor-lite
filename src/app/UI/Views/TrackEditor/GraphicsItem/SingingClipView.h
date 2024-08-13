@@ -33,21 +33,21 @@ public:
     ~SingingClipView() override = default;
 
     void loadNotes(const OverlappableSerialList<Note> &notes);
-    [[nodiscard]] QString audioCachePath() const;
-    void setAudioCachePath(const QString &path);
 
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, Note *note);
     void onNotePropertyChanged(Note::NotePropertyType type, Note *note);
+    void setDefaultLanguage(AppGlobal::LanguageType language);
 
 private:
     // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
     // override;
+    QString text() const override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) override;
-    QString clipTypeName() override;
+    QString clipTypeName() const override;
 
-    QString m_audioCachePath;
     QList<NoteViewModel *> m_notes;
+    AppGlobal::LanguageType m_language = AppGlobal::unknown;
 
     void addNote(Note *note);
     void removeNote(int id);

@@ -15,8 +15,7 @@
 using namespace TracksEditorGlobal;
 
 AbstractClipView::AbstractClipView(int itemId, QGraphicsItem *parent)
-    : CommonGraphicsRectItem(parent), IClip(itemId),
-      d_ptr(new AbstractClipViewPrivate(this)) {
+    : CommonGraphicsRectItem(parent), IClip(itemId), d_ptr(new AbstractClipViewPrivate(this)) {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
 }
@@ -128,8 +127,22 @@ QRectF AbstractClipViewPrivate::previewRect() const {
     return paddedRect;
 }
 
+QString AbstractClipView::text() const {
+    Q_D(const AbstractClipView);
+    auto controlStr =
+        (d->m_showDebugInfo ? QString("id: %1 ").arg(id()) : "") +
+        QString("%1 %2dB %3 ").arg(name()).arg(QString::number(gain())).arg(mute() ? "M" : "");
+    auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
+                       .arg(start())
+                       .arg(length())
+                       .arg(clipStart())
+                       .arg(clipLen())
+                       .arg(scaleX())
+                       .arg(scaleY());
+    return clipTypeName() + controlStr + (d->m_showDebugInfo ? timeStr : "");
+}
 void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                                     QWidget *widget) {
+                             QWidget *widget) {
     Q_D(const AbstractClipView);
     const auto colorPrimary = QColor(155, 186, 255);
     const auto colorPrimaryDarker = QColor(112, 156, 255);
@@ -175,20 +188,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 
     auto fontMetrics = painter->fontMetrics();
     auto textHeight = fontMetrics.height();
-    auto controlStr = (d->m_showDebugInfo ? QString("id: %1 ").arg(id()) : "") +
-                      QString("%1 %2dB %3 ")
-                          .arg(d->m_name)
-                          .arg(QString::number(d->m_gain))
-                          .arg(d->m_mute ? "M" : "");
-    auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
-                       .arg(d->m_start)
-                       .arg(d->m_length)
-                       .arg(d->m_clipStart)
-                       .arg(d->m_clipLen)
-                       .arg(scaleX())
-                       .arg(scaleY());
-    auto text = clipTypeName() + controlStr + (d->m_showDebugInfo ? timeStr : "");
-    auto textWidth = fontMetrics.horizontalAdvance(text);
+    auto textWidth = fontMetrics.horizontalAdvance(text());
 
     pen.setColor(colorForeground);
     painter->setPen(pen);
@@ -196,9 +196,9 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     // painter->drawRect(textRect);
     if (textWidth <= textRectWidth && textHeight <= textRectHeight) {
         if (d->previewRect().height() < 32)
-            painter->drawText(textRect, text, QTextOption(Qt::AlignVCenter));
+            painter->drawText(textRect, text(), QTextOption(Qt::AlignVCenter));
         else
-            painter->drawText(textRect, text);
+            painter->drawText(textRect, text());
     }
     // pen.setColor(Qt::red);
     // painter->setPen(pen);

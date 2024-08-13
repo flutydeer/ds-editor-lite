@@ -93,7 +93,7 @@ void PianoRollGraphicsView::onPitchEditorEditCompleted() {
     for (auto curve : newCurves) {
         curves.add(curve);
         qDebug() << "curve:"
-                 << "#" << curve->id() << curve->start() << curve->endTick();
+                 << "#" << curve->id() << curve->start << curve->endTick();
     }
     qDebug() << "curve count" << curves.count();
     // TODO: Add anchor curves
@@ -478,7 +478,7 @@ void PianoRollGraphicsViewPrivate::handleNoteDrew(int rStart, int length, int ke
     note->setRStart(rStart);
     note->setLength(length);
     note->setKeyIndex(keyIndex);
-    note->setLanguage(languageKeyFromType(m_clip->defaultLanguage()));
+    note->setLanguage(languageKeyFromType(m_clip->defaultLanguage));
     note->setLyric(appOptions->general()->defaultLyric);
     note->setPronunciation(Pronunciation("", ""));
     note->setSelected(true);

@@ -5,11 +5,12 @@
 #include "LanguageComboBox.h"
 
 #include "Global/AppGlobal.h"
+#include "UI/Utils/LanguageNameUtils.h"
 
-LanguageComboBox::LanguageComboBox(const QString &langKey, QWidget *parent) : ComboBox(parent) {
+LanguageComboBox::LanguageComboBox(const QString &langKey, bool scrollWheelChangeSelection,
+                                   QWidget *parent)
+    : ComboBox(scrollWheelChangeSelection, parent) {
     auto languageType = AppGlobal::languageTypeFromKey(langKey);
-    const QStringList languageNames = {tr("Mandarin"), tr("English"), tr("Japanese"),
-                                       tr("Unknown")};
-    addItems(languageNames);
+    addItems(langNameUtils->names());
     setCurrentIndex(languageType);
 }

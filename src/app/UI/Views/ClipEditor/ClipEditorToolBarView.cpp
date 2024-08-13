@@ -75,7 +75,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(buttonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
-    d->m_cbClipLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::unknown));
+    d->m_cbClipLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::unknown), true);
     d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 0));
     d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
 
@@ -158,7 +158,9 @@ void ClipEditorToolBarViewPrivate::onClipLanguageChanged(AppGlobal::LanguageType
     m_cbClipLanguage->setCurrentIndex(language);
 }
 
-void ClipEditorToolBarViewPrivate::onLanguageEdited(int index) {
+void ClipEditorToolBarViewPrivate::onLanguageEdited(int index) const {
+    if (m_singingClip)
+        m_singingClip->defaultLanguage = static_cast<AppGlobal::LanguageType>(index);
 }
 
 void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
@@ -196,10 +198,12 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(bool on) const {
     m_btnPitchAnchor->setEnabled(on);
 
     if (on) {
-        auto lang = m_singingClip->defaultLanguage();
+        auto lang = m_singingClip->defaultLanguage;
         m_cbClipLanguage->setCurrentIndex(lang);
         connect(m_cbClipLanguage, &ComboBox::currentIndexChanged, this,
                 &ClipEditorToolBarViewPrivate::onLanguageEdited);
+        connect(m_singingClip, &SingingClip::defaultLanguageChanged, m_cbClipLanguage,
+                &ComboBox::setCurrentIndex);
     } else {
         disconnect(m_cbClipLanguage, &ComboBox::currentIndexChanged, this,
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);

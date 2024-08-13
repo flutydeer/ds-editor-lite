@@ -150,10 +150,10 @@ void PitchEditorGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     if (curve) {
         m_editingCurve = curve;
         m_drawCurveEditType = EditExistCurve;
-        qDebug() << "Edit exist curve" << curve->id() << curve->start();
+        qDebug() << "Edit exist curve" << curve->id() << curve->start;
     } else {
         m_editingCurve = new DrawCurve;
-        m_editingCurve->setStart(tick);
+        m_editingCurve->start = tick;
         m_editingCurve->appendValue(pitch);
         m_drawCurveEditType = CreateNewCurve;
         m_drawCurvesEdited.add(m_editingCurve);
@@ -251,14 +251,14 @@ double PitchEditorGraphicsItem::sceneYToPitch(double y) const {
 }
 DrawCurve *PitchEditorGraphicsItem::curveAt(double tick) {
     for (const auto curve : m_drawCurvesEdited)
-        if (curve->start() <= tick && curve->endTick() > tick)
+        if (curve->start <= tick && curve->endTick() > tick)
             return curve;
     return nullptr;
 }
 QList<DrawCurve *> PitchEditorGraphicsItem::curvesIn(int startTick, int endTick) {
     QList<DrawCurve *> result;
     ProbeLine line = ProbeLine();
-    line.setStart(startTick);
+    line.start = startTick;
     line.setEndTick(endTick);
     for (const auto curve : m_drawCurvesEdited) {
         if (curve->isOverlappedWith(&line))
@@ -299,7 +299,7 @@ void PitchEditorGraphicsItem::drawHandDrawCurves(QPainter *painter,
                                                  const OverlappableSerialList<DrawCurve> &curves) {
     auto drawCurve = [&](DrawCurve *curve) {
         QPainterPath path;
-        int start = curve->start();
+        int start = curve->start;
         auto firstValue = curve->values().first();
         auto firstPos = QPointF(tickToItemX(start), pitchToItemY(firstValue));
         path.moveTo(firstPos);
@@ -320,7 +320,7 @@ void PitchEditorGraphicsItem::drawHandDrawCurves(QPainter *painter,
     for (const auto curve : curves) {
         if (curve->endTick() < startTick())
             continue;
-        if (curve->start() > endTick())
+        if (curve->start > endTick())
             break;
 
         drawCurve(curve);
@@ -352,7 +352,7 @@ void PitchEditorGraphicsItem::drawLine(const QPoint &p1, const QPoint &p2, DrawC
     }
     auto line = DrawCurve(-1);
     auto start = startPoint.x();
-    line.setStart(start);
+    line.start = start;
     int linePointCount = (endPoint.x() - startPoint.x()) / curve->step;
     for (int i = 0; i < linePointCount; i++) {
         auto tick = start + i * curve->step;

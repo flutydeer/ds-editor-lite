@@ -9,8 +9,7 @@
 #include <QThread>
 #include <QFileDialog>
 
-AudioClipView::AudioClipView(int itemId, QGraphicsItem *parent)
-    : AbstractClipView(itemId, parent) {
+AudioClipView::AudioClipView(int itemId, QGraphicsItem *parent) : AbstractClipView(itemId, parent) {
 }
 QString AudioClipView::path() const {
     return m_path;
@@ -41,8 +40,7 @@ void AudioClipView::onTempoChange(double tempo) {
     // qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
     m_tempo = tempo;
 }
-void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
-                                            int opacity) {
+void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {
     // QElapsedTimer mstimer;
     painter->setRenderHint(QPainter::Antialiasing, false);
 
@@ -142,6 +140,6 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     // painter->drawLine(waveRect.topLeft(), waveRect.bottomRight());
     // painter->drawLine(waveRect.topRight(), waveRect.bottomLeft());
 }
-QString AudioClipView::clipTypeName() {
+QString AudioClipView::clipTypeName() const {
     return tr("[Audio] ");
 }

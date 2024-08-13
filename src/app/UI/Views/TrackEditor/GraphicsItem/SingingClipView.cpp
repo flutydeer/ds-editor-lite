@@ -9,6 +9,7 @@
 
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppModel/Note.h"
+#include "UI/Utils/LanguageNameUtils.h"
 #include "Utils/MathUtils.h"
 
 using namespace TracksEditorGlobal;
@@ -40,12 +41,6 @@ void SingingClipView::loadNotes(const OverlappableSerialList<Note> &notes) {
 
     update();
 }
-QString SingingClipView::audioCachePath() const {
-    return m_audioCachePath;
-}
-void SingingClipView::setAudioCachePath(const QString &path) {
-    m_audioCachePath = path;
-}
 void SingingClipView::onNoteListChanged(SingingClip::NoteChangeType type, Note *note) {
     switch (type) {
         case SingingClip::Inserted:
@@ -68,8 +63,14 @@ void SingingClipView::onNotePropertyChanged(Note::NotePropertyType type, Note *n
         addNote(note);
     }
 }
-void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
-                                              int opacity) {
+void SingingClipView::setDefaultLanguage(AppGlobal::LanguageType language) {
+    m_language = language;
+    update();
+}
+QString SingingClipView::text() const {
+    return AbstractClipView::text() + langNameUtils->name(m_language) + " ";
+}
+void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {
     painter->setRenderHint(QPainter::Antialiasing, false);
 
     auto rectTop = previewRect.top();
@@ -119,7 +120,7 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
         painter->drawRect(QRectF(left, top, width, noteHeight));
     }
 }
-QString SingingClipView::clipTypeName() {
+QString SingingClipView::clipTypeName() const {
     return tr("[Singing] ");
 }
 void SingingClipView::addNote(Note *note) {

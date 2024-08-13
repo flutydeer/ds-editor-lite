@@ -9,6 +9,7 @@
 
 #include "Utils/Overlappable.h"
 #include "Utils/ISelectable.h"
+#include "Utils/Property.h"
 #include "Utils/UniqueObject.h"
 
 class QPoint;
@@ -17,28 +18,24 @@ class Curve : public Overlappable, public UniqueObject {
 public:
     enum CurveType { Generic, Draw, Anchor };
 
+    Property<int> start = 0;
+
     Curve() = default;
     explicit Curve(int id) : UniqueObject(id) {
     }
-    Curve(const Curve &other) : UniqueObject(other.id()), m_start(other.m_start) {
+    Curve(const Curve &other) : UniqueObject(other.id()), start(other.start) {
     }
-    virtual ~Curve() = default;
 
     virtual CurveType type() {
         return Generic;
     }
-    [[nodiscard]] int start() const;
-    void setStart(int offset);
 
     int compareTo(const Curve *obj) const;
     [[nodiscard]] virtual int endTick() const {
-        return m_start;
+        return start;
     }
-    bool isOverlappedWith(Curve *obj) const;
+    virtual bool isOverlappedWith(Curve *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
-
-private:
-    int m_start = 0;
 };
 
 class DrawCurve final : public Curve {
@@ -96,7 +93,7 @@ public:
     void setInterpMode(InterpMode mode);
 
     int compareTo(const AnchorNode *obj) const;
-    bool isOverlappedWith(AnchorNode *obj) const;
+    bool isOverlappedWith(const AnchorNode *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
 private:

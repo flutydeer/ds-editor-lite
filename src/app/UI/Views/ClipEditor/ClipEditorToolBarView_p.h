@@ -52,7 +52,7 @@ public slots:
     void onClipNameEdited() const;
     void onClipPropertyChanged() const;
     void onClipLanguageChanged(AppGlobal::LanguageType language) const;
-    void onLanguageEdited(int index);
+    void onLanguageEdited(int index) const;
 
 private:
     ClipEditorToolBarView *q_ptr;

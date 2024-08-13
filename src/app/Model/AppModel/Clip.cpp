@@ -111,12 +111,9 @@ AudioClip::AudioClipProperties::AudioClipProperties(const AudioClip &clip) {
 AudioClip::AudioClipProperties::AudioClipProperties(const IClip &clip) {
     applyPropertiesFromClip(*this, clip);
 }
-AppGlobal::LanguageType SingingClip::defaultLanguage() const {
-    return m_defaultLanguage;
-}
-void SingingClip::setDefaultLanguage(AppGlobal::LanguageType language) {
-    m_defaultLanguage = language;
-    emit defaultLanguageChanged(language);
+SingingClip::SingingClip() : Clip() {
+    defaultLanguage.setNotifyCallback(
+        [=](const AppGlobal::LanguageType value) { emit defaultLanguageChanged(value); });
 }
 const OverlappableSerialList<Note> &SingingClip::notes() const {
     return m_notes;

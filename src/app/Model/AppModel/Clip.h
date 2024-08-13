@@ -121,29 +121,22 @@ class SingingClip final : public Clip {
 public:
     enum NoteChangeType { Inserted, Removed };
 
-    class VocalPart : public UniqueObject {
-    public:
-        NotesParamsInfo info;
-        QString audioCachePath;
-    };
-
+    explicit SingingClip();
     [[nodiscard]] ClipType clipType() const override {
         return Singing;
     }
 
-    [[nodiscard]] AppGlobal::LanguageType defaultLanguage() const;
-    void setDefaultLanguage(AppGlobal::LanguageType language);
-
     [[nodiscard]] const OverlappableSerialList<Note> &notes() const;
     void insertNote(Note *note);
     void removeNote(Note *note);
-    Note *findNoteById(int id) const;
+    [[nodiscard]] Note *findNoteById(int id) const;
     [[nodiscard]] QList<Note *> selectedNotes() const;
 
     void notifyNoteChanged(NoteChangeType type, Note *note);
     void notifyNoteSelectionChanged();
     void notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type);
 
+    Property<AppGlobal::LanguageType> defaultLanguage = AppGlobal::unknown;
     ParamBundle params;
     // QList<VocalPart> parts();
 
@@ -158,8 +151,6 @@ signals:
 
 private:
     OverlappableSerialList<Note> m_notes;
-    QList<VocalPart> m_parts;
-    AppGlobal::LanguageType m_defaultLanguage = AppGlobal::unknown;
 };
 
 // using DsClipPtr = QSharedPointer<DsClip>;
