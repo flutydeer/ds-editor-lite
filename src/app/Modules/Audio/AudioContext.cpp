@@ -403,9 +403,9 @@ void AudioContext::handleTrackRemoved(int index, Track *track) {
             continue;
         handleClipRemoved(track, clip->id(), static_cast<AudioClip *>(clip));
     }
+    delete m_trackSynthDict.take(track);
     removeTrack(index);
     m_trackModelDict.remove(track);
-    delete m_trackSynthDict.take(track);
 }
 
 void AudioContext::handleTrackControlChanged(Track *track) {
