@@ -14,13 +14,13 @@ void NoteWordUtils::updateOriginalWordProperties(const QList<Note *> &notes) {
 
     const auto syllable2p = S2p::instance();
     QList<LangNote *> langNotes;
-    QList<Phonemes> notesPhonemes;
+    QList<PhonemeInfo> notesPhonemes;
     for (const auto note : notes) {
         const auto language = note->language() == "unknown" ? "unknown" : note->language();
         const auto category =
             note->language() == "unknown" ? "unknown" : langMgr->language(language)->category();
         langNotes.append(new LangNote(note->lyric(), language, category));
-        notesPhonemes.append(note->phonemes());
+        notesPhonemes.append(note->phonemeInfo());
     }
 
     langMgr->correct(langNotes);
@@ -81,13 +81,13 @@ void NoteWordUtils::fillEditedPhonemeNames(const QList<Note *> &notes) {
     const auto langMgr = LangMgr::ILanguageManager::instance();
     const auto syllable2p = S2p::instance();
     QList<LangNote *> langNotes;
-    QList<Phonemes> notesPhonemes;
+    QList<PhonemeInfo> notesPhonemes;
     for (const auto note : notes) {
         const auto language = note->language() == "unknown" ? "unknown" : note->language();
         const auto category =
             note->language() == "unknown" ? "unknown" : langMgr->language(language)->category();
         langNotes.append(new LangNote(note->lyric(), language, category));
-        notesPhonemes.append(note->phonemes());
+        notesPhonemes.append(note->phonemeInfo());
     }
 
     langMgr->correct(langNotes);
@@ -95,13 +95,13 @@ void NoteWordUtils::fillEditedPhonemeNames(const QList<Note *> &notes) {
 
     for (int i = 0; i < langNotes.size(); i++) {
         auto note = notes[i];
-        auto notePhonemes = note->phonemes();
+        auto notePhonemes = note->phonemeInfo();
         const auto phonemes =
             syllable2p->syllableToPhoneme(langNotes[i]->syllable.toUtf8().toStdString());
         if (!phonemes.empty()) {
             if (phonemes.size() == 1) {
                 const QString first = QString::fromUtf8(phonemes.at(0));
-                note->setPhonemes(Phonemes::Edited, {Phoneme(Phoneme::Normal, first,
+                note->setPhonemeInfo(PhonemeInfo::Edited, {Phoneme(Phoneme::Normal, first,
                                                              notePhonemes.edited.first().start)});
             } else if (phonemes.size() == 2) {
                 const QString first = QString::fromUtf8(phonemes.at(0));
@@ -109,7 +109,7 @@ void NoteWordUtils::fillEditedPhonemeNames(const QList<Note *> &notes) {
                 const auto phones = {
                     Phoneme(Phoneme::Ahead, first, notePhonemes.edited.first().start),
                     Phoneme(Phoneme::Normal, last, notePhonemes.edited.last().start)};
-                note->setPhonemes(Phonemes::Edited, phones);
+                note->setPhonemeInfo(PhonemeInfo::Edited, phones);
             }
         }
     }

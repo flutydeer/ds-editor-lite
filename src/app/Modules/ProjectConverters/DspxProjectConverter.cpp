@@ -88,8 +88,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             note->setLanguage(dspxNote.language);
             note->setPronunciation(
                 Pronunciation(dspxNote.pronunciation.org, dspxNote.pronunciation.edited));
-            note->setPhonemes(Phonemes::Original, decodePhonemes(dspxNote.phonemes.org));
-            note->setPhonemes(Phonemes::Edited, decodePhonemes(dspxNote.phonemes.edited));
+            note->setPhonemeInfo(PhonemeInfo::Original, decodePhonemes(dspxNote.phonemes.org));
+            note->setPhonemeInfo(PhonemeInfo::Edited, decodePhonemes(dspxNote.phonemes.edited));
             notes.append(note);
         }
         return notes;
@@ -239,8 +239,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             note.language = dsNote->language();
             note.pronunciation.org = dsNote->pronunciation().original;
             note.pronunciation.edited = dsNote->pronunciation().edited;
-            encodePhonemes(dsNote->phonemes().original, note.phonemes.org);
-            encodePhonemes(dsNote->phonemes().edited, note.phonemes.edited);
+            encodePhonemes(dsNote->phonemeInfo().original, note.phonemes.org);
+            encodePhonemes(dsNote->phonemeInfo().edited, note.phonemes.edited);
             notes.append(note);
         }
     };

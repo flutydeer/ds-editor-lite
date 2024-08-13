@@ -23,6 +23,22 @@ public:
     }
 
     template <typename T>
+    static qsizetype binaryFind(QList<T *> &list, T *elem) {
+        int low = 0;
+        int high = list.count() - 1;
+        while (low <= high) {
+            int mid = (low + high) / 2;
+            if (list[mid]->compareTo(elem) == 0)
+                return mid;
+            if (list[mid]->compareTo(elem) < 0)
+                low = mid + 1;
+            else
+                high = mid - 1;
+        }
+        return -1;
+    }
+
+    template <typename T>
     static void binaryInsert(QList<T *> &list, T *elem) {
         int low = 0;
         int high = list.count() - 1;
@@ -44,7 +60,6 @@ public:
                 return item;
         return nullptr;
     }
-
 };
 
 

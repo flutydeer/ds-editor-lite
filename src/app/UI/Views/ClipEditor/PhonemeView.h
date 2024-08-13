@@ -29,12 +29,12 @@ public:
         int noteId;
         int start;
         QString name;
+        bool edited = false;
+        bool hoverOnControlBar = false;
+        int startOffset = 0;
 
         PhonemeViewModel *prior;
         PhonemeViewModel *next;
-
-        bool hoverOnControlBar = false;
-        int startOffset = 0;
     };
 
 signals:
@@ -68,8 +68,8 @@ private:
     void moveToSingingClipState(SingingClip *clip);
     void moveToNullClipState();
     void updateHoverEffects();
-    void handleNoteInserted(Note *note, bool updateView);
-    void handleNoteRemoved(Note *note, bool updateView);
+    void handleNoteInserted(Note *note);
+    void handleNoteRemoved(Note *note);
     void updateNoteTime(Note *note);
     void reset();
     double tickToX(double tick);

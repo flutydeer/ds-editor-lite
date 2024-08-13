@@ -42,8 +42,8 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     m_lePron = new QLineEdit(note->pronunciation().edited);
     m_lePron->setPlaceholderText(note->pronunciation().original);
 
-    m_result.phonemes = note->phonemes();
-    auto phoneme = note->phonemes();
+    m_result.phonemes = note->phonemeInfo();
+    auto phoneme = note->phonemeInfo();
     auto originalPhoneme = phoneme.original;
     auto editedPhoneme = phoneme.edited;
 

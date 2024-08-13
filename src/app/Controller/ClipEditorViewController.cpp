@@ -296,8 +296,8 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
         inputNote->setPronunciation(note->pronunciation());
         inputNote->setPronCandidates(note->pronCandidates());
         inputNote->setLanguage(note->language());
-        inputNote->setPhonemes(Phonemes::Original, note->phonemes().original);
-        inputNote->setPhonemes(Phonemes::Edited, note->phonemes().edited);
+        inputNote->setPhonemeInfo(PhonemeInfo::Original, note->phonemeInfo().original);
+        inputNote->setPhonemeInfo(PhonemeInfo::Edited, note->phonemeInfo().edited);
         inputNotes.append(inputNote);
     }
 

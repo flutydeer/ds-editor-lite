@@ -5,65 +5,15 @@
 #ifndef DSNOTE_H
 #define DSNOTE_H
 
-#include <QObject>
-#include <QList>
-
 #include "Utils/Overlappable.h"
 #include "Utils/ISelectable.h"
 #include "Utils/UniqueObject.h"
+#include "PhonemeInfo.h"
+#include "Pronunciation.h"
 
+#include <QObject>
 
 class SingingClip;
-class QJsonObject;
-
-class Pronunciation {
-public:
-    QString original;
-    QString edited;
-
-    Pronunciation() = default;
-
-    Pronunciation(QString original, QString edited)
-        : original(std::move(original)), edited(std::move(edited)) {
-    }
-
-    [[nodiscard]] bool isEdited() const;
-
-    friend QDataStream &operator<<(QDataStream &out, const Pronunciation &pronunciation);
-    friend QDataStream &operator>>(QDataStream &in, Pronunciation &pronunciation);
-
-    static QJsonObject serialize(const Pronunciation &pronunciation);
-};
-
-class Phoneme {
-public:
-    enum PhonemeType { Ahead, Normal, Final };
-
-    Phoneme() = default;
-
-    Phoneme(PhonemeType type, QString name, int start)
-        : type(type), name(std::move(name)), start(start) {
-    }
-
-    static QList<PhonemeType> phonemesTypes();
-    PhonemeType type = Normal;
-    QString name;
-    int start{};
-};
-
-class Phonemes {
-public:
-    enum PhonemesType { Original, Edited };
-
-    QList<Phoneme> original;
-    QList<Phoneme> edited;
-
-    friend QDataStream &operator<<(QDataStream &out, const Phonemes &phonemes);
-    friend QDataStream &operator>>(QDataStream &in, Phonemes &phonemes);
-
-    static QJsonObject serialize(const Phonemes &phonemes);
-};
-
 class Note : public QObject, public Overlappable, public UniqueObject, public ISelectable {
     Q_OBJECT
 
@@ -87,8 +37,9 @@ public:
     void setPronunciation(const Pronunciation &pronunciation);
     [[nodiscard]] QStringList pronCandidates() const;
     void setPronCandidates(const QStringList &pronCandidates);
-    [[nodiscard]] Phonemes phonemes() const;
-    void setPhonemes(Phonemes::PhonemesType type, const QList<Phoneme> &phonemes);
+    [[nodiscard]] PhonemeInfo phonemeInfo() const;
+    void setPhonemeInfo(PhonemeInfo::PhonemeType type, const QList<Phoneme> &phonemes);
+    void setPhonemeInfo(const QList<Phoneme> &original, const QList<Phoneme> &edited);
     [[nodiscard]] QString language() const;
     void setLanguage(const QString &language);
     [[nodiscard]] bool lineFeed() const;
@@ -113,7 +64,7 @@ public:
         QString language;
         Pronunciation pronunciation;
         QStringList pronCandidates;
-        Phonemes phonemes;
+        PhonemeInfo phonemes;
 
         static NoteWordProperties fromNote(const Note &note);
     };
@@ -123,7 +74,7 @@ signals:
 
 private:
     SingingClip *m_clip = nullptr;
-    //int m_start = 0;
+    // int m_start = 0;
     int m_rStart = 0;
     int m_length = 480;
     int m_keyIndex = 60;
@@ -131,7 +82,7 @@ private:
     QString m_language = "unknown";
     Pronunciation m_pronunciation;
     QStringList m_pronCandidates;
-    Phonemes m_phonemes;
+    PhonemeInfo m_phonemes;
     bool m_lineFeed = false;
 };
 
