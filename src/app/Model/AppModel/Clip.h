@@ -15,6 +15,8 @@
 #include "Interface/IClip.h"
 #include "Model/AppModel/AudioInfoModel.h"
 
+
+class DrawCurve;
 class Params;
 class Note;
 
@@ -135,13 +137,12 @@ public:
     void notifyNoteChanged(NoteChangeType type, Note *note);
     void notifyNoteSelectionChanged();
     void notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type);
-
     Property<AppGlobal::LanguageType> defaultLanguage = AppGlobal::unknown;
     ParamBundle params;
     // QList<VocalPart> parts();
 
-    static void copyCurves(const OverlappableSerialList<Curve> &source,
-                           OverlappableSerialList<Curve> &target);
+    static void copyCurves(const QList<Curve *> &source, QList<Curve *> &target);
+    static void copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target);
 
 signals:
     void noteChanged(SingingClip::NoteChangeType type, Note *note);

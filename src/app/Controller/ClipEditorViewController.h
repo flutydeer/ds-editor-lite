@@ -51,8 +51,8 @@ public slots:
     void onResizeNotesRight(const QList<int> &notesId, int deltaTick) const;
     void onAdjustPhoneme(int noteId, const QList<Phoneme> &phonemes) const;
     void onNoteSelectionChanged(const QList<int> &notesId, bool unselectOther);
-    void onOriginalPitchChanged(const OverlappableSerialList<Curve> &curves) const;
-    void onPitchEdited(const OverlappableSerialList<Curve> &curves) const;
+    void onOriginalPitchChanged(const QList<Curve *> &curves) const;
+    void onPitchEdited(const QList<Curve *> &curves) const;
     void onNotePropertiesEdited(int noteId, const NoteDialogResult &result);
     void onDeleteSelectedNotes();
     void onSelectAllNotes();

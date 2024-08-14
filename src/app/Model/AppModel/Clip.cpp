@@ -8,6 +8,7 @@
 
 #include "Note.h"
 #include "Curve.h"
+#include "DrawCurve.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
@@ -165,16 +166,20 @@ void SingingClip::notifyParamChanged(ParamBundle::ParamName name, Param::ParamTy
 //     }
 //     return m_parts;
 // }
-void SingingClip::copyCurves(const OverlappableSerialList<Curve> &source,
-                             OverlappableSerialList<Curve> &target) {
+void SingingClip::copyCurves(const QList<Curve *> &source, QList<Curve *> &target) {
     target.clear();
     for (const auto curve : source) {
         if (curve->type() == Curve::Draw)
-            target.add(new DrawCurve(*dynamic_cast<DrawCurve *>(curve)));
+            target.append(new DrawCurve(*dynamic_cast<DrawCurve *>(curve)));
         // TODO: copy anchor curve
         // else if (curve->type() == Curve::Anchor)
         //     target.append(new AnchorCurve)
     }
+}
+void SingingClip::copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target) {
+    target.clear();
+    for (const auto curve : source)
+        target.append(new DrawCurve(*curve));
 }
 Note *SingingClip::findNoteById(int id) const {
     return MathUtils::findItemById<Note *>(m_notes, id);

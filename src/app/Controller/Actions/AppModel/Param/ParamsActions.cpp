@@ -7,14 +7,12 @@
 #include "ReplaceParamAction.h"
 
 void ParamsActions::replaceParam(ParamBundle::ParamName paramName, Param::ParamType paramType,
-                                 const OverlappableSerialList<Curve> &curves, SingingClip *clip) {
+                                 const QList<Curve *> &curves, SingingClip *clip) {
     addAction(ReplaceParamAction::build(paramName, paramType, curves, clip));
 }
-void ParamsActions::replacePitchOriginal(const OverlappableSerialList<Curve> &curves,
-                                         SingingClip *clip) {
+void ParamsActions::replacePitchOriginal(const QList<Curve *> &curves, SingingClip *clip) {
     addAction(ReplaceParamAction::build(ParamBundle::Pitch, Param::Original, curves, clip));
 }
-void ParamsActions::replacePitchEdited(const OverlappableSerialList<Curve> &curves,
-                                       SingingClip *clip) {
+void ParamsActions::replacePitchEdited(const QList<Curve *> &curves, SingingClip *clip) {
     addAction(ReplaceParamAction::build(ParamBundle::Pitch, Param::Edited, curves, clip));
 }

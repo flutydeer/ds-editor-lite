@@ -17,7 +17,7 @@ class QMouseEvent;
 class QPaintEvent;
 class CMenu;
 class QContextMenuEvent;
-class PitchEditorGraphicsItem;
+class CommonParamEditorView;
 class NoteView;
 class Note;
 class PianoRollGraphicsView;
@@ -40,7 +40,7 @@ public:
     // Layers
     GraphicsLayerManager *m_layerManager = nullptr;
     NoteLayer m_noteLayer;
-    PitchEditorGraphicsItem *m_pitchItem = nullptr;
+    CommonParamEditorView *m_pitchEditor = nullptr;
 
     bool m_selecting = false;
     QList<Note *> m_cachedSelectedNotes;

@@ -11,13 +11,14 @@
 #include "Global/AppGlobal.h"
 #include "GraphicsItem/NoteView.h"
 #include "GraphicsItem/PianoRollBackgroundGraphicsItem.h"
-#include "GraphicsItem/PitchEditorGraphicsItem.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Curve.h"
+#include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
+#include "UI/Views/Common/CommonParamEditorView.h"
 #include "Utils/MathUtils.h"
 
 #include <QMouseEvent>
@@ -43,12 +44,12 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     gridItem->setPixelsPerQuarterNote(pixelsPerQuarterNote);
     setGridItem(gridItem);
 
-    d->m_pitchItem = new PitchEditorGraphicsItem;
-    d->m_pitchItem->setZValue(2);
-    connect(d->m_pitchItem, &PitchEditorGraphicsItem::editCompleted, this,
+    d->m_pitchEditor = new CommonParamEditorView;
+    d->m_pitchEditor->setZValue(2);
+    connect(d->m_pitchEditor, &CommonParamEditorView::editCompleted, this,
             &PianoRollGraphicsView::onPitchEditorEditCompleted);
-    scene->addCommonItem(d->m_pitchItem);
-    d->m_pitchItem->setTransparentForMouseEvents(true);
+    scene->addCommonItem(d->m_pitchEditor);
+    d->m_pitchEditor->setTransparentForMouseEvents(true);
 
     connect(scene, &QGraphicsScene::selectionChanged, this,
             &PianoRollGraphicsView::onSceneSelectionChanged);
@@ -88,10 +89,10 @@ void PianoRollGraphicsView::onSceneSelectionChanged() const {
 void PianoRollGraphicsView::onPitchEditorEditCompleted() {
     Q_D(PianoRollGraphicsView);
     qDebug() << "PianoRollGraphicsView::onPitchEditorEditCompleted";
-    OverlappableSerialList<Curve> curves;
-    auto newCurves = d->m_pitchItem->editedCurves();
+    QList<Curve *> curves;
+    auto newCurves = d->m_pitchEditor->editedCurves();
     for (auto curve : newCurves) {
-        curves.add(curve);
+        curves.append(curve);
         qDebug() << "curve:"
                  << "#" << curve->id() << curve->start << curve->endTick();
     }
@@ -526,7 +527,7 @@ void PianoRollGraphicsViewPrivate::updateOverlappedState() {
 }
 void PianoRollGraphicsViewPrivate::updateNoteTimeAndKey(Note *note) const {
     // qDebug() << "PianoRollGraphicsView::updateNoteTimeAndKey" << note->id() << note->start()
-             // << note->length() << note->keyIndex();
+    // << note->length() << note->keyIndex();
     auto noteItem = m_noteLayer.findNoteById(note->id());
     noteItem->setRStart(note->rStart());
     noteItem->setLength(note->length());
@@ -534,7 +535,7 @@ void PianoRollGraphicsViewPrivate::updateNoteTimeAndKey(Note *note) const {
 }
 void PianoRollGraphicsViewPrivate::updateNoteWord(Note *note) const {
     // qDebug() << "PianoRollGraphicsView::updateNoteWord" << note->id() << note->lyric()
-             // << note->pronunciation().original << note->pronunciation().edited;
+    // << note->pronunciation().original << note->pronunciation().edited;
     auto noteItem = m_noteLayer.findNoteById(note->id());
     noteItem->setLyric(note->lyric());
     auto original = note->pronunciation().original;
@@ -611,7 +612,7 @@ void PianoRollGraphicsViewPrivate::setPitchEditMode(bool on) {
         note->setEditingPitch(on);
     if (on)
         q->clearNoteSelections();
-    m_pitchItem->setTransparentForMouseEvents(!on);
+    m_pitchEditor->setTransparentForMouseEvents(!on);
 }
 NoteView *PianoRollGraphicsViewPrivate::noteViewAt(const QPoint &pos) {
     Q_Q(PianoRollGraphicsView);
@@ -672,16 +673,17 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
 void PianoRollGraphicsViewPrivate::updatePitch(Param::ParamType paramType,
                                                const Param &param) const {
     qDebug() << "PianoRollGraphicsView::updatePitch";
-    OverlappableSerialList<DrawCurve> drawCurves;
+    QList<DrawCurve*> drawCurves;
     if (paramType == Param::Original) {
         for (const auto curve : param.curves(Param::Original))
-            if (curve->type() == Curve::Draw)
-                drawCurves.add(dynamic_cast<DrawCurve *>(curve));
-        m_pitchItem->loadOriginal(drawCurves);
+            if (curve->type() == Curve::Draw) {
+                MathUtils::binaryInsert(drawCurves, reinterpret_cast<DrawCurve *>(curve));
+            }
+        m_pitchEditor->loadOriginal(drawCurves);
     } else {
         for (const auto curve : param.curves(Param::Edited))
             if (curve->type() == Curve::Draw)
-                drawCurves.add(dynamic_cast<DrawCurve *>(curve));
-        m_pitchItem->loadEdited(drawCurves);
+                MathUtils::binaryInsert(drawCurves, reinterpret_cast<DrawCurve *>(curve));
+        m_pitchEditor->loadEdited(drawCurves);
     }
 }

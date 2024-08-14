@@ -15,7 +15,7 @@
 class CMenu;
 class Note;
 class PianoRollGraphicsScene;
-class PitchEditorGraphicsItem;
+class CommonParamEditorView;
 class NoteView;
 
 using namespace ClipEditorGlobal;

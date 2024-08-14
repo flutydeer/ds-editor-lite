@@ -26,7 +26,7 @@ public:
     Curve(const Curve &other) : UniqueObject(other.id()), start(other.start) {
     }
 
-    virtual CurveType type() {
+    virtual CurveType type() const {
         return Generic;
     }
 
@@ -36,35 +36,6 @@ public:
     }
     virtual bool isOverlappedWith(Curve *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
-};
-
-class DrawCurve final : public Curve {
-public:
-    DrawCurve() = default;
-    explicit DrawCurve(int id) : Curve(id) {
-    }
-    DrawCurve(const DrawCurve &other);
-
-    CurveType type() override {
-        return Draw;
-    }
-    int step = 5; // TODO: remove
-    [[nodiscard]] const QList<int> &values() const;
-    void setValues(const QList<int> &values);
-    void insertValue(int index, int value);
-    void insertValues(int index, const QList<int> &values);
-    void removeValueRange(int i, int n);
-    void clearValues();
-    void appendValue(int value);
-    void replaceValue(int index, int value);
-    void mergeWith(const DrawCurve &other);
-    void overlayMergeWith(const DrawCurve &other);
-
-    [[nodiscard]] int endTick() const override;
-
-private:
-    // int m_step = 5;
-    QList<int> m_values;
 };
 
 class ProbeLine final : public Curve {
@@ -104,7 +75,7 @@ private:
 
 class AnchorCurve final : public Curve {
 public:
-    CurveType type() override {
+    CurveType type() const override {
         return Anchor;
     }
     // TODO: use OverlapableSerialList

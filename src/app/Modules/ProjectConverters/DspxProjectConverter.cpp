@@ -12,6 +12,7 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/Params.h"
 #include "Model/AppModel/Curve.h"
+#include "Model/AppModel/DrawCurve.h"
 
 bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
                                 ImportMode mode) {
@@ -148,8 +149,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     const auto returnCode = dspxModel.load(path);
     if (returnCode.type == QDspx::ReturnCode::Success) {
         const auto timeline = dspxModel.content.timeline;
-        model->setTimeSignature(TimeSignature(timeline.timeSignatures[0].num,
-                                                        timeline.timeSignatures[0].den));
+        model->setTimeSignature(
+            TimeSignature(timeline.timeSignatures[0].num, timeline.timeSignatures[0].den));
         model->setTempo(timeline.tempos[0].value);
         decodeTracks(dspxModel.content.tracks, model);
         return true;
@@ -164,8 +165,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
 bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &errMsg) {
 
-    auto encodeCurves = [&](const OverlappableSerialList<Curve> &dsCurves,
-                            QList<QDspx::ParamCurveRef> &curves) {
+    auto encodeCurves = [&](const QList<Curve *> &dsCurves, QList<QDspx::ParamCurveRef> &curves) {
         for (const auto &dsCurve : dsCurves) {
             if (dsCurve->type() == Curve::CurveType::Draw) {
                 const auto castCurve = dynamic_cast<DrawCurve *>(dsCurve);

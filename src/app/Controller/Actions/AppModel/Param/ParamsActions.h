@@ -13,9 +13,9 @@ class SingingClip;
 class ParamsActions : public ActionSequence {
 public:
     void replaceParam(ParamBundle::ParamName paramName, Param::ParamType paramType,
-                      const OverlappableSerialList<Curve> &curves, SingingClip* clip);
-    void replacePitchOriginal(const OverlappableSerialList<Curve> &curves, SingingClip* clip);
-    void replacePitchEdited(const OverlappableSerialList<Curve> &curves, SingingClip* clip);
+                      const QList<Curve *> &curves, SingingClip *clip);
+    void replacePitchOriginal(const QList<Curve *> &curves, SingingClip *clip);
+    void replacePitchEdited(const QList<Curve *> &curves, SingingClip *clip);
 };
 
 #endif // PARAMSACTIONS_H
