@@ -15,6 +15,7 @@
 TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     setObjectName("trackListHeaderView");
     setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
+    setFixedWidth(TracksEditorGlobal::trackListWidth);
 
     auto btnNewTrack = new QPushButton;
     btnNewTrack->setObjectName("btnNewTrack");
