@@ -44,7 +44,7 @@ signals:
 public slots:
     void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
     void onSceneSelectionChanged() const;
-    void onPitchEditorEditCompleted();
+    void onPitchEditorEditCompleted(const QList<DrawCurve *> &curves);
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;

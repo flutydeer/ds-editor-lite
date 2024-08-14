@@ -92,6 +92,9 @@ void DrawCurve::overlayMergeWith(const DrawCurve &other) {
         }
     }
 }
+void DrawCurve::eraseWith(const DrawCurve &other) {
+    // TODO:
+}
 int DrawCurve::endTick() const {
     return start + step * m_values.count();
 }

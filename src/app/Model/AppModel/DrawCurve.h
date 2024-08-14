@@ -27,6 +27,7 @@ public:
     void replaceValue(int index, int value);
     void mergeWith(const DrawCurve &other);
     void overlayMergeWith(const DrawCurve &other);
+    void eraseWith(const DrawCurve &other);
 
     [[nodiscard]] int endTick() const override;
 

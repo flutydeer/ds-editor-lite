@@ -13,11 +13,11 @@
 #include <QObject>
 #include <QPointF>
 
+class PitchEditorView;
 class QMouseEvent;
 class QPaintEvent;
 class CMenu;
 class QContextMenuEvent;
-class CommonParamEditorView;
 class NoteView;
 class Note;
 class PianoRollGraphicsView;
@@ -40,7 +40,7 @@ public:
     // Layers
     GraphicsLayerManager *m_layerManager = nullptr;
     NoteLayer m_noteLayer;
-    CommonParamEditorView *m_pitchEditor = nullptr;
+    PitchEditorView *m_pitchEditor = nullptr;
 
     bool m_selecting = false;
     QList<Note *> m_cachedSelectedNotes;

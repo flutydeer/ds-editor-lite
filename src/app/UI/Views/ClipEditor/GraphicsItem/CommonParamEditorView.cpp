@@ -6,6 +6,7 @@
 
 #include "Global/ClipEditorGlobal.h"
 #include "Model/AppModel/Clip.h"
+#include "UI/Views/Common/CommonGraphicsScene.h"
 #include "Utils/MathUtils.h"
 
 #include <QPainter>
@@ -30,12 +31,23 @@ void CommonParamEditorView::loadEdited(const QList<DrawCurve *> &curves) {
 const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
     return m_drawCurvesEdited;
 }
+bool CommonParamEditorView::fillCurve() const {
+    return m_fillCurve;
+}
+void CommonParamEditorView::setFillCurve(bool on) {
+    m_fillCurve = on;
+    update();
+}
+double CommonParamEditorView::valueToSceneY(double value) const {
+    auto y = value * scene()->height();
+    return MathUtils::clip(y, 0, scene()->height());
+}
+double CommonParamEditorView::sceneYToValue(double y) const {
+    auto value = y / scene()->height();
+    return MathUtils::clip(value, 0, 1);
+}
 void CommonParamEditorView::setEditMode(const EditMode &mode) {
-    if (mode == Off)
-        setTransparentForMouseEvents(true);
-    else {
-        setTransparentForMouseEvents(false);
-    }
+    setTransparentForMouseEvents(mode == Off);
     m_editMode = mode;
 }
 void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -57,14 +69,14 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         scaleX() < hideThreshold + fadeLength ? 255 * (scaleX() - hideThreshold) / fadeLength : 255;
 
     if (m_drawCurvesOriginal.count() > 0) {
-        pen.setColor(QColor(127, 127, 127, static_cast<int>(colorAlpha)));
-        painter->setPen(pen);
+        // pen.setColor(QColor(127, 127, 127, static_cast<int>(colorAlpha)));
+        // painter->setPen(pen);
         drawHandDrawCurves(painter, m_drawCurvesOriginal);
     }
 
     if (m_drawCurvesEdited.count() > 0) {
-        pen.setColor(QColor(255, 255, 255, static_cast<int>(colorAlpha)));
-        painter->setPen(pen);
+        // pen.setColor(QColor(255, 255, 255, static_cast<int>(colorAlpha)));
+        // painter->setPen(pen);
         drawHandDrawCurves(painter, m_drawCurvesEdited);
     }
 }
@@ -76,8 +88,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 
     auto scenePos = event->scenePos().toPoint();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
-    auto pitch = static_cast<int>(sceneYToPitch(scenePos.y()));
-    // qDebug() << "PitchEditorGraphicsItem::mousePressEvent tick:" << tick << "pitch:" << pitch;
+    auto value = static_cast<int>(sceneYToValue(scenePos.y()));
 
     if (auto curve = curveAt(tick)) {
         m_editingCurve = curve;
@@ -86,20 +97,20 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     } else {
         m_editingCurve = new DrawCurve;
         m_editingCurve->start = tick;
-        m_editingCurve->appendValue(pitch);
+        m_editingCurve->appendValue(value);
         m_drawCurveEditType = CreateNewCurve;
         MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
         qDebug() << "New curve added" << m_editingCurve->id();
     }
-    m_mouseDownPos = QPoint(tick, pitch);
+    m_mouseDownPos = QPoint(tick, value);
     m_prevPos = m_mouseDownPos;
 }
 void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     m_mouseMoved = true;
     auto scenePos = event->scenePos();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
-    auto pitch = static_cast<int>(sceneYToPitch(scenePos.y()));
-    auto curPos = QPoint(tick, pitch);
+    auto value = static_cast<int>(sceneYToValue(scenePos.y()));
+    auto curPos = QPoint(tick, value);
     // qDebug() << "Draw curve at" << curPos;
 
     int startTick;
@@ -127,8 +138,6 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     update();
 }
 void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
-    // OverlayGraphicsItem::mouseReleaseEvent(event);
-    qDebug() << "PitchEditorGraphicsItem::mouseReleaseEvent moved:" << m_mouseMoved;
     if (!m_mouseMoved) {
         if (m_drawCurveEditType == CreateNewCurve) {
             m_drawCurvesEdited.removeOne(m_editingCurve);
@@ -137,8 +146,8 @@ void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
         m_editingCurve = nullptr;
         m_drawCurveEditType = None;
     } else {
-        emit editCompleted();
-        qDebug() << "PitchEditorGraphicsItem emit editCompleted";
+        emit editCompleted(editedCurves());
+        qDebug() << "CommonParamEditorView editCompleted";
     }
 
     m_mouseMoved = false;
@@ -168,17 +177,11 @@ double CommonParamEditorView::sceneXToItemX(double x) const {
 double CommonParamEditorView::tickToItemX(double tick) const {
     return sceneXToItemX(tickToSceneX(tick));
 }
-double CommonParamEditorView::pitchToSceneY(double pitch) const {
-    return (12700 - pitch + 50) * scaleY() * noteHeight / 100;
-}
 double CommonParamEditorView::sceneYToItemY(double y) const {
     return mapFromScene(QPointF(0, y)).y();
 }
-double CommonParamEditorView::pitchToItemY(double pitch) const {
-    return sceneYToItemY(pitchToSceneY(pitch));
-}
-double CommonParamEditorView::sceneYToPitch(double y) const {
-    return -(y * 100 / noteHeight / scaleY() - 12700 - 50);
+double CommonParamEditorView::valueToItemY(double value) const {
+    return sceneYToItemY(valueToSceneY(value));
 }
 DrawCurve *CommonParamEditorView::curveAt(double tick) {
     for (const auto curve : m_drawCurvesEdited)
@@ -197,64 +200,15 @@ QList<DrawCurve *> CommonParamEditorView::curvesIn(int startTick, int endTick) {
     }
     return result;
 }
-// void CommonParamEditorView::drawOpensvipPitchParam(QPainter *painter) {
-//     QPainterPath path;
-//     bool firstPoint = true;
-//     int prevPos = 0;
-//     int prevValue = 0;
-//     for (const auto &point : m_opensvipPitchParam) {
-//         auto pos = std::get<0>(point) - 480 * 3; // opensvip's "feature"
-//         auto value = std::get<1>(point);
-//
-//         if (pos < startTick()) {
-//             prevPos = pos;
-//             prevValue = value;
-//             continue;
-//         }
-//
-//         if (firstPoint) {
-//             path.moveTo(tickToItemX(prevPos), pitchToItemY(prevValue));
-//             path.lineTo(tickToItemX(pos), pitchToItemY(value));
-//             firstPoint = false;
-//         } else
-//             path.lineTo(tickToItemX(pos), pitchToItemY(value));
-//
-//         if (pos > endTick()) {
-//             path.lineTo(tickToItemX(pos), pitchToItemY(value));
-//             break;
-//         }
-//     }
-//     painter->drawPath(path);
-// }
 void CommonParamEditorView::drawHandDrawCurves(QPainter *painter,
                                                const QList<DrawCurve *> &curves) const {
-    auto drawCurve = [&](const DrawCurve &curve) {
-        QPainterPath path;
-        int start = curve.start;
-        auto firstValue = curve.values().first();
-        auto firstPos = QPointF(tickToItemX(start), pitchToItemY(firstValue));
-        path.moveTo(firstPos);
-        painter->drawText(firstPos, QString("#%1").arg(curve.id()));
-        for (int i = 0; i < curve.values().count(); i++) {
-            auto pos = start + curve.step * i;
-            auto value = curve.values().at(i);
-            if (pos < startTick())
-                continue;
-            if (pos > endTick())
-                break;
-
-            path.lineTo(tickToItemX(pos), pitchToItemY(value));
-        }
-        painter->drawPath(path);
-    };
-
     for (const auto curve : curves) {
         if (curve->endTick() < startTick())
             continue;
         if (curve->start > endTick())
             break;
 
-        drawCurve(*curve);
+        drawCurve(painter, *curve);
     }
 }
 void CommonParamEditorView::drawLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve) {
@@ -291,4 +245,61 @@ void CommonParamEditorView::drawLine(const QPoint &p1, const QPoint &p2, DrawCur
         line.appendValue(value);
     }
     curve.overlayMergeWith(line);
+}
+void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve) const {
+    auto sceneHeight = scene()->height();
+    QLinearGradient gradient(0, 0, 0, visibleRect().height());
+    gradient.setColorAt(0, QColor(155, 186, 255, 180));
+    gradient.setColorAt(1, QColor(155, 186, 255, 0));
+
+    QPainterPath fillPath;
+    int start = curve.start;
+    auto firstValue = curve.values().first();
+    auto firstPos = QPointF(tickToItemX(start), valueToItemY(firstValue));
+
+    // 绘制多边形填充
+    if (m_fillCurve) {
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(gradient);
+        fillPath.moveTo(firstPos.x(), sceneHeight);
+        fillPath.lineTo(firstPos);
+        int lastX = 0;
+        for (int i = 0; i < curve.values().count(); i++) {
+            const auto pos = start + curve.step * i;
+            const auto value = curve.values().at(i);
+            if (pos < startTick())
+                continue;
+            if (pos > endTick())
+                break;
+            const auto x = tickToItemX(pos);
+            fillPath.lineTo(x, valueToItemY(value));
+            lastX = x;
+        }
+        fillPath.lineTo(lastX, sceneHeight);
+        painter->drawPath(fillPath);
+    }
+
+    // 绘制曲线
+    QPen pen;
+    pen.setWidthF(1.8);
+    pen.setColor(QColor(240, 240, 240, 255));
+    painter->setPen(pen);
+    painter->setBrush(Qt::NoBrush);
+    QPainterPath curvePath;
+    curvePath.moveTo(firstPos);
+
+    if (m_showDebugInfo)
+        painter->drawText(firstPos, QString("#%1").arg(curve.id()));
+
+    for (int i = 0; i < curve.values().count(); i++) {
+        const auto pos = start + curve.step * i;
+        const auto value = curve.values().at(i);
+        if (pos < startTick())
+            continue;
+        if (pos > endTick())
+            break;
+        const auto x = tickToItemX(pos);
+        curvePath.lineTo(x, valueToItemY(value));
+    }
+    painter->drawPath(curvePath);
 }

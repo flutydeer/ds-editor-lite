@@ -9,6 +9,13 @@
 
 class MathUtils {
 public:
+    static double clip(double value, double min, double max) {
+        if (value < min)
+            return min;
+        if (value > max)
+            return max;
+        return value;
+    }
     static int round(int tick, int step) {
         int times = tick / step;
         int mod = tick % step;

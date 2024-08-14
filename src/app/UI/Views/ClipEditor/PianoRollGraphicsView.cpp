@@ -18,7 +18,7 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
-#include "UI/Views/Common/CommonParamEditorView.h"
+#include "GraphicsItem/PitchEditorView.h"
 #include "Utils/MathUtils.h"
 
 #include <QMouseEvent>
@@ -44,7 +44,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     gridItem->setPixelsPerQuarterNote(pixelsPerQuarterNote);
     setGridItem(gridItem);
 
-    d->m_pitchEditor = new CommonParamEditorView;
+    d->m_pitchEditor = new PitchEditorView;
     d->m_pitchEditor->setZValue(2);
     connect(d->m_pitchEditor, &CommonParamEditorView::editCompleted, this,
             &PianoRollGraphicsView::onPitchEditorEditCompleted);
@@ -86,19 +86,17 @@ void PianoRollGraphicsView::onSceneSelectionChanged() const {
         clipController->onNoteSelectionChanged(notes, true);
     }
 }
-void PianoRollGraphicsView::onPitchEditorEditCompleted() {
+void PianoRollGraphicsView::onPitchEditorEditCompleted(const QList<DrawCurve *> &curves) {
     Q_D(PianoRollGraphicsView);
     qDebug() << "PianoRollGraphicsView::onPitchEditorEditCompleted";
-    QList<Curve *> curves;
-    auto newCurves = d->m_pitchEditor->editedCurves();
-    for (auto curve : newCurves) {
-        curves.append(curve);
+    QList<Curve *> list;
+    for (auto curve : curves) {
+        list.append(curve);
         qDebug() << "curve:"
                  << "#" << curve->id() << curve->start << curve->endTick();
     }
-    qDebug() << "curve count" << curves.count();
-    // TODO: Add anchor curves
-    clipController->onPitchEdited(curves);
+    qDebug() << "curve count" << list.count();
+    clipController->onPitchEdited(list);
 }
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     Q_D(PianoRollGraphicsView);
@@ -673,7 +671,7 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
 void PianoRollGraphicsViewPrivate::updatePitch(Param::ParamType paramType,
                                                const Param &param) const {
     qDebug() << "PianoRollGraphicsView::updatePitch";
-    QList<DrawCurve*> drawCurves;
+    QList<DrawCurve *> drawCurves;
     if (paramType == Param::Original) {
         for (const auto curve : param.curves(Param::Original))
             if (curve->type() == Curve::Draw) {
