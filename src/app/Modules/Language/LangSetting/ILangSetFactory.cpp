@@ -61,7 +61,7 @@ namespace LangSetting {
 
         const auto cateLayout = new QHBoxLayout();
         const auto cateLabel = new QLabel(tr("Analysis results "));
-        const auto cateComboBox = new QComboBox();
+        const auto cateComboBox = new ComboBox();
         cateComboBox->setMinimumContentsLength(8);
         cateComboBox->setMinimumHeight(28);
 
@@ -85,7 +85,7 @@ namespace LangSetting {
 
         const auto g2pLayout = new QHBoxLayout();
         const auto g2pLabel = new QLabel(tr("Subordinate G2p"));
-        const auto g2pComboBox = new QComboBox();
+        const auto g2pComboBox = new ComboBox();
         g2pComboBox->setMinimumContentsLength(8);
         g2pComboBox->setMinimumHeight(28);
 
