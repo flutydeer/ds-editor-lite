@@ -26,6 +26,8 @@
 #include <Modules/Audio/AudioContext.h>
 
 int main(int argc, char *argv[]) {
+    QElapsedTimer mstimer;
+    mstimer.start();
     // output log to file
     // qInstallMessageHandler(logMessageHandler);
     qputenv("QT_ASSUME_STDERR_HAS_CONSOLE", "1");
@@ -40,36 +42,17 @@ int main(int argc, char *argv[]) {
     QApplication::setOrganizationName("OpenVPI");
     QApplication::setApplicationName("DS Editor Lite");
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
-
-    // auto style = QStyleFactory::create("fusion");
-    // QApplication::setStyle(style);
-
-    //     QString qssBase;
-    //     auto qssFile = QFile(":theme/lite-dark.qss");
-    //     if (qssFile.open(QIODevice::ReadOnly)) {
-    //         qssBase = qssFile.readAll();
-    //         qssFile.close();
-    //     }
-    //     a.setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
-    // #ifdef Q_OS_WIN
-    //     bool micaOn = true;
-    //     auto version = QSysInfo::productVersion();
-    //     if (micaOn && version == "11") {
-    //         // make window transparent
-    //         a.setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
-    //     }
-    // #elif defined(Q_OS_MAC)
-    //     this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
-    // #endif
+    if (QSysInfo::productType() == "macos")
+        QApplication::setStyle(QStyleFactory::create("windows"));
 
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);
-    f.setPointSizeF(10);
+    auto factor = (QSysInfo::productType() == "windows") ? 1.0 : 96.0 / 72;
+    f.setPointSizeF(10 * factor);
     QApplication::setFont(f);
 
     auto translator = new QTranslator;
-    auto foundTranslation = translator->load(":translate/translation_zh_CN.qm");
-    if (foundTranslation)
+    if (translator->load(":translate/translation_zh_CN.qm"))
         QApplication::installTranslator(translator);
 
     AudioSystem as;
@@ -128,6 +111,9 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+
+    const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
+    qDebug() << "App launched in" << time << "ms";
 
     return QApplication::exec();
 }

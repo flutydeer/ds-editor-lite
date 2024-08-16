@@ -170,9 +170,6 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 
     painter->drawRoundedRect(paddedRect, 4, 4);
 
-    auto font = QFont();
-    font.setPointSizeF(10);
-    painter->setFont(font);
     double textPadding = 2;
     auto rectLeft = mapToScene(rect.topLeft()).x();
     auto rectRight = mapToScene(rect.bottomRight()).x();
