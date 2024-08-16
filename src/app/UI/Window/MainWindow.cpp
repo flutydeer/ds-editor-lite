@@ -65,23 +65,17 @@ MainWindow::MainWindow() {
     }
     installEventFilter(m_titleBar);
 
-    QString qssBase;
-    auto qssFile = QFile(":theme/lite-dark.qss");
-    if (qssFile.open(QIODevice::ReadOnly)) {
-        qssBase = qssFile.readAll();
+    if (auto qssFile = QFile(":theme/lite-dark.qss"); qssFile.open(QIODevice::ReadOnly)) {
+        const auto qssBase = qssFile.readAll();
         qssFile.close();
+        if (QSysInfo::productType() == "windows") {
+            if (QSysInfo::productVersion() == "11")
+                setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
+            else
+                setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
+        } else
+            setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
     }
-    this->setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
-#ifdef Q_OS_WIN
-    bool micaOn = true;
-    auto version = QSysInfo::productVersion();
-    if (micaOn && version == "11") {
-        // make window transparent
-        this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
-    }
-#elif defined(Q_OS_MAC)
-    this->setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
-#endif
 
     Dialog::setGlobalContext(this);
     Toast::setGlobalContext(this);
