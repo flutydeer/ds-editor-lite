@@ -62,7 +62,7 @@ namespace LangSetting {
         const auto cateLayout = new QHBoxLayout();
         const auto cateLabel = new QLabel(tr("Analysis results "));
         const auto cateComboBox = new QComboBox();
-        cateComboBox->setMaximumWidth(120);
+        cateComboBox->setMinimumContentsLength(8);
         cateComboBox->setMinimumHeight(28);
 
         const auto languages = langMgr->languages();
@@ -86,7 +86,7 @@ namespace LangSetting {
         const auto g2pLayout = new QHBoxLayout();
         const auto g2pLabel = new QLabel(tr("Subordinate G2p"));
         const auto g2pComboBox = new QComboBox();
-        g2pComboBox->setMaximumWidth(120);
+        g2pComboBox->setMinimumContentsLength(8);
         g2pComboBox->setMinimumHeight(28);
 
         const auto g2ps = g2pMgr->g2ps();
