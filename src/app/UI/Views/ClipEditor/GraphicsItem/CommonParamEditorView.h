@@ -44,12 +44,13 @@ private:
     bool m_fillCurve = true;
     EditMode m_editMode = Off;
 
-    enum DrawCurveEditType { CreateNewCurve, EditExistCurve, None };
+    enum EditType { CreateCurve, EditExistCurve, None };
 
-    QPoint m_mouseDownPos;
+    QPoint m_mouseDownPos; // x: tick, y: value
     QPoint m_prevPos;
     DrawCurve *m_editingCurve = nullptr;
-    DrawCurveEditType m_drawCurveEditType = None;
+    EditType m_editType = None;
+    bool m_newCurveCreated = false;
     bool m_mouseMoved = false;
     QList<DrawCurve *> m_drawCurvesEdited;
     QList<DrawCurve *> m_drawCurvesOriginal;

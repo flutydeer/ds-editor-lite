@@ -92,21 +92,25 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 
     if (auto curve = curveAt(tick)) {
         m_editingCurve = curve;
-        m_drawCurveEditType = EditExistCurve;
+        m_editType = EditExistCurve;
         qDebug() << "Edit exist curve" << curve->id() << curve->start;
     } else {
-        m_editingCurve = new DrawCurve;
-        m_editingCurve->start = tick;
-        m_editingCurve->appendValue(value);
-        m_drawCurveEditType = CreateNewCurve;
-        MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
-        qDebug() << "New curve added" << m_editingCurve->id();
+        m_editingCurve = nullptr;
+        m_editType = CreateCurve;
     }
     m_mouseDownPos = QPoint(tick, value);
     m_prevPos = m_mouseDownPos;
 }
 void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     m_mouseMoved = true;
+    if (!m_newCurveCreated && m_editType == CreateCurve) {
+        m_editingCurve = new DrawCurve;
+        m_editingCurve->start = m_mouseDownPos.x();
+        m_editingCurve->appendValue(m_mouseDownPos.y());
+        MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
+        qDebug() << "New curve added" << m_editingCurve->id();
+        m_newCurveCreated = true;
+    }
     auto scenePos = event->scenePos();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
@@ -139,18 +143,15 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 }
 void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     if (!m_mouseMoved) {
-        if (m_drawCurveEditType == CreateNewCurve) {
-            m_drawCurvesEdited.removeOne(m_editingCurve);
-            qDebug() << "New curve removed";
-        }
         m_editingCurve = nullptr;
-        m_drawCurveEditType = None;
+        m_editType = None;
     } else {
         emit editCompleted(editedCurves());
         qDebug() << "CommonParamEditorView editCompleted";
     }
 
     m_mouseMoved = false;
+    m_newCurveCreated = false;
     update();
 }
 void CommonParamEditorView::updateRectAndPos() {
@@ -213,17 +214,6 @@ void CommonParamEditorView::drawLine(const QPoint &p1, const QPoint &p2, DrawCur
     if (p1.x() == p2.x())
         return;
 
-    auto valueAt = [](const QPoint &p1, const QPoint &p2, int x) {
-        int x1 = p1.x();
-        int y1 = p1.y();
-        int x2 = p2.x();
-        int y2 = p2.y();
-        double dx = x2 - x1;
-        double dy = y2 - y1;
-        double ratio = dy / dx;
-        return static_cast<int>(y1 + (x - x1) * ratio);
-    };
-
     QPoint startPoint;
     QPoint endPoint;
     if (p1.x() < p2.x()) {
@@ -239,8 +229,8 @@ void CommonParamEditorView::drawLine(const QPoint &p1, const QPoint &p2, DrawCur
     int linePointCount = (endPoint.x() - startPoint.x()) / curve.step;
     for (int i = 0; i < linePointCount; i++) {
         auto tick = start + i * curve.step;
-        auto value = valueAt(startPoint, endPoint, tick);
-        line.appendValue(value);
+        auto value = MathUtils::linearValueAt(startPoint, endPoint, tick);
+        line.appendValue(qRound(value));
     }
     curve.overlayMergeWith(line);
 }
@@ -261,7 +251,7 @@ void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve)
         painter->setBrush(gradient);
         fillPath.moveTo(firstPos.x(), sceneHeight);
         fillPath.lineTo(firstPos);
-        int lastX = 0;
+        double lastX = 0;
         for (int i = 0; i < curve.values().count(); i++) {
             const auto pos = start + curve.step * i;
             const auto value = curve.values().at(i);

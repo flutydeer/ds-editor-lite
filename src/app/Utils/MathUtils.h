@@ -5,7 +5,7 @@
 #ifndef MATHUTILS_H
 #define MATHUTILS_H
 
-
+#include <QPoint>
 
 class MathUtils {
 public:
@@ -27,6 +27,17 @@ public:
     static int roundDown(int tick, int step) {
         int times = tick / step;
         return step * times;
+    }
+
+    static double linearValueAt(const QPoint &p1, const QPoint &p2, int x) {
+        int x1 = p1.x();
+        int y1 = p1.y();
+        int x2 = p2.x();
+        int y2 = p2.y();
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        double ratio = dy / dx;
+        return y1 + (x - x1) * ratio;
     }
 
     template <typename T>

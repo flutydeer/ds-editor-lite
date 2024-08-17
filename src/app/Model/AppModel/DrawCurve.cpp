@@ -4,6 +4,8 @@
 
 #include "DrawCurve.h"
 
+#include <stdexcept>
+
 DrawCurve::DrawCurve(const DrawCurve &other)
     : Curve(other), step(other.step), m_values(other.m_values) {
     // qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start;
@@ -93,7 +95,22 @@ void DrawCurve::overlayMergeWith(const DrawCurve &other) {
     }
 }
 void DrawCurve::eraseWith(const DrawCurve &other) {
-    // TODO:
+    int curStart = start;
+    int otherStart = other.start;
+    auto curEnd = endTick();
+    auto otherEnd = other.endTick();
+
+    if (otherStart < curStart && otherEnd > curEnd)
+        qFatal("DrawCurve::eraseWith: other curve fully covered current curve");
+
+    if (otherStart > curStart) {
+        auto eraseStartIndex = (curEnd - otherStart) / step;
+        removeValueRange(eraseStartIndex, values().count() - eraseStartIndex);
+    } else { // otherStart <= curStart
+        auto removeEndIndex = (otherEnd - curStart) / step;
+        removeValueRange(0, removeEndIndex);
+        start = otherEnd;
+    }
 }
 int DrawCurve::endTick() const {
     return start + step * m_values.count();
