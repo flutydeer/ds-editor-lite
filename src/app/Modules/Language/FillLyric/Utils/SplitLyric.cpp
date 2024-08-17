@@ -11,7 +11,7 @@ namespace FillLyric {
         const auto res = langMgr->split(input);
 
         for (const auto &note : res) {
-            if (note.language == "Linebreak") {
+            if (note.language == "linebreak") {
                 if (!notes.isEmpty())
                     result.append(notes);
                 notes.clear();
@@ -27,7 +27,7 @@ namespace FillLyric {
 
     QList<QList<LangNote>> CleanLyric::splitByChar(const QString &input) {
         const auto langMgr = LangMgr::ILanguageManager::instance();
-        const auto linebreakFactory = langMgr->language("Linebreak");
+        const auto linebreakFactory = langMgr->language("linebreak");
 
         QList<QList<LangNote>> result;
         QList<LangNote> notes;
@@ -57,7 +57,7 @@ namespace FillLyric {
     QList<QList<LangNote>> CleanLyric::splitCustom(const QString &input,
                                                    const QStringList &splitter) {
         const auto langMgr = LangMgr::ILanguageManager::instance();
-        const auto linebreakFactory = langMgr->language("Linebreak");
+        const auto linebreakFactory = langMgr->language("linebreak");
 
         QList<QList<LangNote>> result;
         QList<LangNote> notes;
