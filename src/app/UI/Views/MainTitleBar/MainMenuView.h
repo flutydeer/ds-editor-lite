@@ -14,6 +14,7 @@ class MainMenuView : public QMenuBar {
 
 public:
     explicit MainMenuView(MainWindow *mainWindow);
+    ~MainMenuView() override;
 
     [[nodiscard]] QAction *actionSave();
     [[nodiscard]] QAction *actionSaveAs() ;

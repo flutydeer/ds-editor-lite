@@ -185,6 +185,9 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     addMenu(menuOptions);
     addMenu(menuHelp);
 }
+
+MainMenuView::~MainMenuView() = default;
+
 QAction *MainMenuView::actionSave() {
     Q_D(MainMenuView);
     return d->m_actionSave;
