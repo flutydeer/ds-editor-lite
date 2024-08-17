@@ -3,11 +3,12 @@
 
 #include <QObject>
 
-#include "IG2pFactory.h"
-#include "../LangCommon.h"
-#include "../Singleton.h"
+#include <LangMgr/LangCommon.h>
 
-namespace G2pMgr {
+#include "../src/G2pMgr/IG2pFactory.h"
+#include "../src/Singleton.h"
+
+namespace LangMgr {
 
     class IG2pManagerPrivate;
 

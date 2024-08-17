@@ -33,10 +33,10 @@ void NoteWordUtils::updateOriginalWordProperties(const QList<Note *> &notes) {
         arg.pronunciation.original = langNotes[i]->syllable;
         arg.phonemes.original = notesPhonemes[i].original;
         const auto phonemes =
-            syllable2p->syllableToPhoneme(langNotes[i]->syllable.toUtf8().toStdString());
+            syllable2p->syllableToPhoneme(langNotes[i]->syllable);
         if (!phonemes.empty()) {
             if (phonemes.size() == 1) {
-                const QString first = QString::fromUtf8(phonemes.at(0));
+                const QString &first = phonemes.at(0);
                 arg.phonemes.original.append(Phoneme(Phoneme::Normal, first, 0));
 
                 if (arg.phonemes.original.count() != 1) {
@@ -48,8 +48,8 @@ void NoteWordUtils::updateOriginalWordProperties(const QList<Note *> &notes) {
                 }
                 arg.phonemes.original.last().name = first;
             } else if (phonemes.size() == 2) {
-                const QString first = QString::fromUtf8(phonemes.at(0));
-                const QString last = QString::fromUtf8(phonemes.at(1));
+                const QString &first = phonemes.at(0);
+                const QString &last = phonemes.at(1);
                 arg.phonemes.original.append(Phoneme(Phoneme::Ahead, first, 0));
                 arg.phonemes.original.append(Phoneme(Phoneme::Normal, last, 0));
 
@@ -97,15 +97,15 @@ void NoteWordUtils::fillEditedPhonemeNames(const QList<Note *> &notes) {
         auto note = notes[i];
         auto notePhonemes = note->phonemeInfo();
         const auto phonemes =
-            syllable2p->syllableToPhoneme(langNotes[i]->syllable.toUtf8().toStdString());
+            syllable2p->syllableToPhoneme(langNotes[i]->syllable);
         if (!phonemes.empty()) {
             if (phonemes.size() == 1) {
-                const QString first = QString::fromUtf8(phonemes.at(0));
+                const QString &first = phonemes.at(0);
                 note->setPhonemeInfo(PhonemeInfo::Edited, {Phoneme(Phoneme::Normal, first,
-                                                             notePhonemes.edited.first().start)});
+                                         notePhonemes.edited.first().start)});
             } else if (phonemes.size() == 2) {
-                const QString first = QString::fromUtf8(phonemes.at(0));
-                const QString last = QString::fromUtf8(phonemes.at(1));
+                const QString &first = phonemes.at(0);
+                const QString &last = phonemes.at(1);
                 const auto phones = {
                     Phoneme(Phoneme::Ahead, first, notePhonemes.edited.first().start),
                     Phoneme(Phoneme::Normal, last, notePhonemes.edited.last().start)};

@@ -1,10 +1,12 @@
-#include "IG2pManager.h"
-#include "IG2pManager_p.h"
-
-#include "IG2pFactory_p.h"
-#include "G2pglobal.h"
+#include <LangMgr/IG2pManager.h>
 
 #include <QDebug>
+#include <QCoreApplication>
+
+#include "IG2pManager_p.h"
+#include "IG2pFactory.h"
+
+#include <cpp-pinyin/G2pglobal.h>
 
 #include "G2p/Mandarin.h"
 #include "G2p/Cantonese.h"
@@ -12,9 +14,7 @@
 #include "G2p/Kana.h"
 #include "G2p/Unknown.h"
 
-#include <qcoreapplication.h>
-
-namespace G2pMgr {
+namespace LangMgr {
 
     IG2pManagerPrivate::IG2pManagerPrivate() {
     }
@@ -26,7 +26,7 @@ namespace G2pMgr {
         const auto it = d->g2ps.find(id);
         if (it == d->g2ps.end()) {
             if (!d->baseG2p.contains(id))
-                qWarning() << "G2pMgr::IG2pManager::g2p(): factory does not exist:" << id;
+                qWarning() << "LangMgr::IG2pManager::g2p(): factory does not exist:" << id;
             return d->g2ps.find("unknown").value();
         }
         return it.value();
@@ -40,11 +40,11 @@ namespace G2pMgr {
     bool IG2pManager::addG2p(IG2pFactory *factory) {
         Q_D(IG2pManager);
         if (!factory) {
-            qWarning() << "G2pMgr::IG2pManager::addG2p(): trying to add null factory";
+            qWarning() << "LangMgr::IG2pManager::addG2p(): trying to add null factory";
             return false;
         }
         if (d->g2ps.contains(factory->id())) {
-            qWarning() << "G2pMgr::IG2pManager::addG2p(): trying to add duplicated factory:"
+            qWarning() << "LangMgr::IG2pManager::addG2p(): trying to add duplicated factory:"
                 << factory->id();
             return false;
         }
@@ -55,7 +55,7 @@ namespace G2pMgr {
 
     bool IG2pManager::removeG2p(const IG2pFactory *factory) {
         if (factory == nullptr) {
-            qWarning() << "G2pMgr::IG2pManager::removeG2p(): trying to remove null factory";
+            qWarning() << "LangMgr::IG2pManager::removeG2p(): trying to remove null factory";
             return false;
         }
         return removeG2p(factory->id());
@@ -65,7 +65,7 @@ namespace G2pMgr {
         Q_D(IG2pManager);
         const auto it = d->g2ps.find(id);
         if (it == d->g2ps.end()) {
-            qWarning() << "G2pMgr::IG2pManager::removeG2p(): factory does not exist:" << id;
+            qWarning() << "LangMgr::IG2pManager::removeG2p(): factory does not exist:" << id;
             return false;
         }
         it.value()->setParent(nullptr);
@@ -89,13 +89,13 @@ namespace G2pMgr {
         addG2p(new Mandarin());
         addG2p(new Cantonese());
         addG2p(new English());
-        addG2p(new Kana());
+        addG2p(new KanaG2p());
         addG2p(new Unknown());
     }
 
     bool IG2pManager::initialize(QString &errMsg) {
         Q_D(IG2pManager);
-        IKg2p::setDictionaryPath((qApp->applicationDirPath() + "/dict").toUtf8().toStdString());
+        Pinyin::setDictionaryPath((qApp->applicationDirPath() + "/dict").toUtf8().toStdString());
         const auto g2ps = d->g2ps.values();
         for (const auto g2p : g2ps) {
             g2p->initialize(errMsg);

@@ -8,7 +8,7 @@
 
 #include <QApplication>
 #include <QThread>
-#include <G2pMgr/IG2pManager.h>
+#include <LangMgr/IG2pManager.h>
 #include <LangMgr/ILanguageManager.h>
 
 LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : Task(parent) {
@@ -21,7 +21,7 @@ LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : Task(paren
 
 void LaunchLanguageEngineTask::runTask() {
     qDebug() << "RunLanguageEngineTask::runTask";
-    const auto g2pMgr = G2pMgr::IG2pManager::instance();
+    const auto g2pMgr = LangMgr::IG2pManager::instance();
     const auto langMgr = LangMgr::ILanguageManager::instance();
     const auto langSet = LangSetting::ILangSetManager::instance();
 

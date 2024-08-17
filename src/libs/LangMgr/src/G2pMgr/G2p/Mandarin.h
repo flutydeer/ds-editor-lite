@@ -3,11 +3,11 @@
 
 #include <QObject>
 
-#include <MandarinG2p.h>
+#include <cpp-pinyin/Pinyin.h>
 
 #include "../IG2pFactory.h"
 
-namespace G2pMgr {
+namespace LangMgr {
 
     class Mandarin final : public IG2pFactory {
         Q_OBJECT
@@ -28,11 +28,11 @@ namespace G2pMgr {
         void setConvetNum(const bool &convertNum);
 
     private:
-        IKg2p::MandarinG2p *m_mandarin;
+        Pinyin::Pinyin *m_mandarin;
 
         bool m_tone = false;
         bool m_convertNum = false;
     };
-} // G2pMgr
+} // LangMgr
 
 #endif // MANDARIN_H

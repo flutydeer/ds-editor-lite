@@ -2,7 +2,7 @@
 
 #include "Modules/Language/LangSetting/ILangSetManager.h"
 
-#include <G2pMgr/IG2pManager.h>
+#include <LangMgr/IG2pManager.h>
 #include <LangMgr/ILanguageManager.h>
 
 namespace LangSetting {
@@ -54,7 +54,7 @@ namespace LangSetting {
     void G2pInfoWidget::setInfo(const QString &language, const QString &g2pId) const {
         const auto langMgr = LangMgr::ILanguageManager::instance()->language(language);
         const auto langSetFactory = LangSetting::ILangSetManager::instance()->g2pSet(g2pId);
-        const auto g2pFactory = G2pMgr::IG2pManager::instance()->g2p(g2pId);
+        const auto g2pFactory = LangMgr::IG2pManager::instance()->g2p(g2pId);
 
         m_languageLabel->setText(tr("Language: ") + g2pFactory->displayName());
         m_authorLabel->setText(tr("Author: ") + g2pFactory->author());

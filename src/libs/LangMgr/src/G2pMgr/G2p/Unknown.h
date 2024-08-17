@@ -3,7 +3,7 @@
 
 #include "../IG2pFactory.h"
 
-namespace G2pMgr {
+namespace LangMgr {
 
     class Unknown final : public IG2pFactory {
         Q_OBJECT
@@ -16,6 +16,6 @@ namespace G2pMgr {
         QJsonObject config() override;
     };
 
-} // G2pMgr
+} // LangMgr
 
 #endif // UNKNOWN_H

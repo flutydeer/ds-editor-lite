@@ -1,6 +1,6 @@
 #include "Cantonese.h"
 
-namespace G2pMgr {
+namespace LangMgr {
     Cantonese::Cantonese(QObject *parent) : IG2pFactory("yue", parent) {
         setAuthor(tr("Xiao Lang"));
         setDisplayName(tr("Cantonese"));
@@ -10,7 +10,7 @@ namespace G2pMgr {
     Cantonese::~Cantonese() = default;
 
     bool Cantonese::initialize(QString &errMsg) {
-        m_cantonese = new IKg2p::CantoneseG2p();
+        m_cantonese = new Pinyin::Jyutping();
         if (!m_cantonese->initialized()) {
             errMsg = tr("Failed to initialize Cantonese G2P");
             return false;
@@ -37,16 +37,15 @@ namespace G2pMgr {
         const auto tone = config && config->keys().contains("tone")
                               ? config->value("tone").toBool()
                               : this->m_tone;
-        const auto convertNum = config && config->keys().contains("convertNum")
-                                    ? config->value("convertNum").toBool()
-                                    : this->m_convertNum;
+
+        const auto style = tone ? Pinyin::CanTone::Style::TONE3 : Pinyin::CanTone::Style::NORMAL;
 
         QList<LangNote> result;
-        const auto g2pRes = m_cantonese->hanziToPinyin(toStdVector(input), tone, convertNum);
+        const auto g2pRes = m_cantonese->hanziToPinyin(toStdVector(input), style);
         for (int i = 0; i < g2pRes.size(); i++) {
             LangNote langNote;
             langNote.lyric = input[i];
-            langNote.syllable = QString::fromUtf8(g2pRes[i].syllable);
+            langNote.syllable = QString::fromUtf8(g2pRes[i].pinyin);
             langNote.candidates = fromStdVector(g2pRes[i].candidates);
             langNote.error = g2pRes[i].error;
             result.append(langNote);
@@ -76,4 +75,4 @@ namespace G2pMgr {
     void Cantonese::setConvetNum(const bool &convertNum) {
         m_convertNum = convertNum;
     }
-} // G2pMgr
+} // LangMgr

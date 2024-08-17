@@ -1,6 +1,6 @@
 #include "ILangSetFactory.h"
 #include "ILangSetFactory_p.h"
-#include "G2pMgr/IG2pManager.h"
+#include "LangMgr/IG2pManager.h"
 #include "LangMgr/ILanguageManager.h"
 
 #include <QLabel>
@@ -81,7 +81,7 @@ namespace LangSetting {
             cateComboBox->setCurrentText(tr("unknown"));
         }
 
-        const auto g2pMgr = G2pMgr::IG2pManager::instance();
+        const auto g2pMgr = LangMgr::IG2pManager::instance();
 
         const auto g2pLayout = new QHBoxLayout();
         const auto g2pLabel = new QLabel(tr("Subordinate G2p"));

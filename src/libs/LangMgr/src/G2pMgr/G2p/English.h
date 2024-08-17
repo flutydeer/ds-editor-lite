@@ -3,7 +3,7 @@
 
 #include "../IG2pFactory.h"
 
-namespace G2pMgr {
+namespace LangMgr {
 
     class English final : public IG2pFactory {
         Q_OBJECT
@@ -23,6 +23,6 @@ namespace G2pMgr {
         bool m_toLower = false;
     };
 
-} // G2pMgr
+} // LangMgr
 
 #endif // ENGLISH_H

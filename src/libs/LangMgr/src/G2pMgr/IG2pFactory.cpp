@@ -3,7 +3,7 @@
 
 #include <QJsonObject>
 
-namespace G2pMgr {
+namespace LangMgr {
 
     IG2pFactoryPrivate::IG2pFactoryPrivate() {
     }

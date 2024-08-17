@@ -11,7 +11,9 @@
     "rpclib",
     "rtmidi",
     "interval-tree",
-    "boost-interprocess"
+    "boost-interprocess",
+    "cpp-pinyin",
+    "cpp-kana"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [

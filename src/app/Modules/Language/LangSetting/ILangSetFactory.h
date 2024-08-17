@@ -5,7 +5,7 @@
 #include <QWidget>
 #include <QJsonObject>
 
-#include <LangCommon.h>
+#include <LangMgr/LangCommon.h>
 
 namespace LangSetting {
 

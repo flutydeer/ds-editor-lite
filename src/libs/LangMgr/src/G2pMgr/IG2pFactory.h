@@ -4,9 +4,9 @@
 #include <QObject>
 #include <QJsonObject>
 
-#include "../LangCommon.h"
+#include <LangMgr/LangCommon.h>
 
-namespace G2pMgr {
+namespace LangMgr {
 
     class IG2pFactoryPrivate;
 

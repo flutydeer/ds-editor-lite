@@ -3,11 +3,11 @@
 
 #include <QObject>
 
-#include <CantoneseG2p.h>
+#include <cpp-pinyin/Jyutping.h>
 
 #include "../IG2pFactory.h"
 
-namespace G2pMgr {
+namespace LangMgr {
 
     class Cantonese final : public IG2pFactory {
         Q_OBJECT
@@ -28,12 +28,12 @@ namespace G2pMgr {
         void setConvetNum(const bool &convertNum);
 
     private:
-        IKg2p::CantoneseG2p *m_cantonese;
+        Pinyin::Jyutping *m_cantonese;
 
         bool m_tone = false;
         bool m_convertNum = false;
     };
 
-} // G2pMgr
+} // LangMgr
 
 #endif // CANTONESE_H

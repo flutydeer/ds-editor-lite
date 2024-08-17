@@ -1,22 +1,15 @@
 #include "Kana.h"
 
-namespace G2pMgr {
-    Kana::Kana(QObject *parent) : IG2pFactory("ja-kana", parent) {
+#include <cpp-kana/Kana.h>
+
+namespace LangMgr {
+    KanaG2p::KanaG2p(QObject *parent) : IG2pFactory("ja-kana", parent) {
         setAuthor(tr("Xiao Lang"));
         setDisplayName(tr("Kana"));
         setDescription(tr("Kana to Romanization converter."));
     }
 
-    Kana::~Kana() = default;
-
-    bool Kana::initialize(QString &errMsg) {
-        m_kana = new IKg2p::JapaneseG2p();
-        if (m_kana->kanaToRomaji("かな").empty()) {
-            errMsg = tr("Failed to initialize Kana");
-            return false;
-        }
-        return true;
-    }
+    KanaG2p::~KanaG2p() = default;
 
     static std::vector<std::string> toStdVector(const QStringList &input) {
         std::vector<std::string> result;
@@ -26,22 +19,23 @@ namespace G2pMgr {
         return result;
     }
 
-    QList<LangNote> Kana::convert(const QStringList &input, const QJsonObject *config) const {
+    QList<LangNote> KanaG2p::convert(const QStringList &input, const QJsonObject *config) const {
         Q_UNUSED(config);
 
         QList<LangNote> result;
-        const auto g2pRes = m_kana->kanaToRomaji(toStdVector(input));
+        const auto g2pRes = Kana::kanaToRomaji(toStdVector(input),Kana::Error::Default, false);
         for (int i = 0; i < g2pRes.size(); i++) {
             LangNote langNote;
             langNote.lyric = input[i];
-            langNote.syllable = QString::fromUtf8(g2pRes[i]);
+            langNote.syllable = QString::fromUtf8(g2pRes[i].romaji);
             langNote.candidates = QStringList() << langNote.syllable;
+            langNote.error = g2pRes[i].error;
             result.append(langNote);
         }
         return result;
     }
 
-    QJsonObject Kana::config() {
+    QJsonObject KanaG2p::config() {
         return {};
     }
-} // G2pMgr
+} // LangMgr

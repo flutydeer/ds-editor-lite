@@ -1,11 +1,9 @@
-#include "ILanguageManager.h"
+#include <LangMgr/ILanguageManager.h>
 #include "ILanguageManager_p.h"
 
-#include "ILanguageFactory_p.h"
+#include "ILanguageFactory.h"
 
 #include <QDebug>
-
-#include "G2pglobal.h"
 
 #include "LangAnalysis/BaseAnalysis/NumberAnalysis.h"
 #include "LangAnalysis/BaseAnalysis/SlurAnalysis.h"
@@ -22,7 +20,7 @@
 #include "LangAnalysis/RomajiAnalysis.h"
 #include "LangAnalysis/EnglishAnalysis.h"
 
-#include "../G2pMgr/IG2pManager.h"
+#include <LangMgr/IG2pManager.h>
 
 #include <QCoreApplication>
 
@@ -215,7 +213,7 @@ namespace LangMgr {
     }
 
     void ILanguageManager::convert(const QList<LangNote *> &input) const {
-        const auto g2pMgr = G2pMgr::IG2pManager::instance();
+        const auto g2pMgr = LangMgr::IG2pManager::instance();
 
         QMap<QString, QList<int>> languageIndexMap;
         QMap<QString, QStringList> languageLyricMap;

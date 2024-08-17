@@ -4,7 +4,7 @@
 #include <QDebug>
 #include <QtConcurrent/QtConcurrent>
 
-#include "../G2pMgr/IG2pManager.h"
+#include <LangMgr/IG2pManager.h>
 
 namespace LangMgr {
 

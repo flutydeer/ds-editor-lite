@@ -5,7 +5,7 @@
 
 #include "IG2pFactory.h"
 
-namespace G2pMgr {
+namespace LangMgr {
 
     class IG2pFactoryPrivate final : public QObject {
         Q_OBJECT

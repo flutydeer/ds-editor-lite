@@ -1,6 +1,6 @@
 #include "Unknown.h"
 
-namespace G2pMgr {
+namespace LangMgr {
     Unknown::Unknown(QObject *parent) : IG2pFactory("unknown", parent) {
         setAuthor(tr("Xiao Lang"));
         setDisplayName(tr("Unknown"));
@@ -26,4 +26,4 @@ namespace G2pMgr {
     QJsonObject Unknown::config() {
         return {};
     }
-} // G2pMgr
+} // LangMgr

@@ -2,11 +2,10 @@
 #define IG2PPRIVATE_H
 
 #include <QObject>
-#include <QMap>
 
-#include "IG2pManager.h"
+#include <LangMgr/IG2pManager.h>
 
-namespace G2pMgr {
+namespace LangMgr {
 
     class IG2pManagerPrivate final : public QObject {
         Q_OBJECT

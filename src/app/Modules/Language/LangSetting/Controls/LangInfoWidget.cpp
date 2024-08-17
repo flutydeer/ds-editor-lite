@@ -2,7 +2,7 @@
 
 #include "Modules/Language/LangSetting/ILangSetManager.h"
 
-#include <G2pMgr/IG2pManager.h>
+#include <LangMgr/IG2pManager.h>
 #include <LangMgr/ILanguageManager.h>
 
 #include <QDebug>

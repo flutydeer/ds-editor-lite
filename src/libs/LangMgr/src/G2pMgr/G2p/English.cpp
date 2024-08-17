@@ -1,6 +1,6 @@
 #include "English.h"
 
-namespace G2pMgr {
+namespace LangMgr {
     English::English(QObject *parent) : IG2pFactory("en", parent) {
         setAuthor(tr("Xiao Lang"));
         setDisplayName(tr("English"));
@@ -40,4 +40,4 @@ namespace G2pMgr {
     void English::setToLower(const bool &toLower) {
         m_toLower = toLower;
     }
-} // G2pMgr
+} // LangMgr

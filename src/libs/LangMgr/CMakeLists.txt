@@ -34,7 +34,7 @@ endif ()
 # ----------------------------------
 # Main Project
 # ----------------------------------
-file(GLOB_RECURSE _src src/*/*.h src/*/*.cpp)
+file(GLOB_RECURSE _src include/*.h src/*/*.h src/*/*.cpp)
 add_library(${PROJECT_NAME} STATIC ${_src})
 
 # ----------------------------------
@@ -51,28 +51,22 @@ find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 
+find_package(cpp-pinyin CONFIG REQUIRED)
+find_package(cpp-kana CONFIG REQUIRED)
+
 # ----------------------------------
 # link libraries
 # ----------------------------------
-target_link_libraries(${PROJECT_NAME} PUBLIC
+target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
-        IKg2p
+        cpp-pinyin::cpp-pinyin
+        cpp-kana::cpp-kana
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC src)
+target_include_directories(${PROJECT_NAME} PUBLIC include src)
 
-# ----------------------------------
-# install
-# ----------------------------------
-if (LangMgr_INSTALL)
-    target_include_directories(${PROJECT_NAME} PUBLIC
-            "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-    )
-
-    install(TARGETS ${PROJECT_NAME}
-            EXPORT ${OPENDSPX_INSTALL_NAME}Targets
-            RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" OPTIONAL
-            LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" OPTIONAL
-            ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" OPTIONAL
-    )
-endif ()
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/${PORT}/dict
+        ${CMAKE_BINARY_DIR}/bin/dict
+)

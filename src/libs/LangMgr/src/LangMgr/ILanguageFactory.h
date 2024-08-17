@@ -3,7 +3,7 @@
 
 #include <QObject>
 
-#include "../LangCommon.h"
+#include <LangMgr/LangCommon.h>
 
 namespace LangMgr {
 

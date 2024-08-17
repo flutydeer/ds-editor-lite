@@ -3,28 +3,22 @@
 
 #include <QObject>
 
-#include <JapaneseG2p.h>
-
 #include "../IG2pFactory.h"
 
-namespace G2pMgr {
+namespace LangMgr {
 
-    class Kana final : public IG2pFactory {
+    class KanaG2p final : public IG2pFactory {
         Q_OBJECT
-    public:
-        explicit Kana(QObject *parent = nullptr);
-        ~Kana() override;
 
-        bool initialize(QString &errMsg) override;
+    public:
+        explicit KanaG2p(QObject *parent = nullptr);
+        ~KanaG2p() override;
 
         QList<LangNote> convert(const QStringList &input, const QJsonObject *config) const override;
 
         QJsonObject config() override;
-
-    private:
-        IKg2p::JapaneseG2p *m_kana;
     };
 
-} // G2pMgr
+} // LangMgr
 
 #endif // KANA_H
