@@ -6,7 +6,7 @@
 #include "S2p/Syllable2p.h"
 #include "Utils/Singleton.h"
 
-class S2p final : public Singleton<S2p>, public IKg2p::Syllable2p {
+class S2p final : public Singleton<S2p>, public FillLyric::Syllable2p {
 public:
     explicit S2p(const QString &dictPath = qApp->applicationDirPath(),
                  const QString &dictName = "Resources/phonemeDict/opencpop-extension.txt",

@@ -5,7 +5,7 @@
 
 #include "Syllable2p.h"
 
-namespace IKg2p {
+namespace FillLyric {
     class Syllable2pPrivate {
     public:
         explicit Syllable2pPrivate(QString dictPath, QString dictName, const QChar &sep1 = '\t',

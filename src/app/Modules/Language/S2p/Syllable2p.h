@@ -4,7 +4,7 @@
 #include <memory>
 #include <QString>
 
-namespace IKg2p {
+namespace FillLyric {
     class Syllable2pPrivate;
 
     class Syllable2p {

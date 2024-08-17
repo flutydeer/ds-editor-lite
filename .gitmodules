@@ -7,9 +7,6 @@
 [submodule "src/libs/talcs"]
 	path = src/libs/talcs
 	url = git@github.com:CrSjimo/talcs
-[submodule "src/libs/IkG2p"]
-	path = src/libs/IkG2p
-	url = ../../wolfgitpr/IkG2p
 [submodule "src/libs/qtmediate"]
 	path = src/libs/qtmediate
 	url = https://github.com/flutydeer/qtmediate

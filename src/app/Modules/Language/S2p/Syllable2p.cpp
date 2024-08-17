@@ -9,7 +9,7 @@
 #include <utility>
 
 
-namespace IKg2p {
+namespace FillLyric {
     Syllable2pPrivate::Syllable2pPrivate(QString dictPath, QString dictName, const QChar &sep1,
                                          QString sep2) : dictPath(std::move(dictPath)),
                                                          dictName(std::move(dictName)),
