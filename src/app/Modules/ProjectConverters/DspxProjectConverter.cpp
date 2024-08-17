@@ -4,6 +4,8 @@
 
 #include "DspxProjectConverter.h"
 
+#include "Model/AppModel/AnchorCurve.h"
+
 #include <QMessageBox>
 
 #include "opendspx/qdspxmodel.h"

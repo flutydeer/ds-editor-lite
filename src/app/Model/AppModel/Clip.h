@@ -8,12 +8,12 @@
 #include "Utils/Overlappable.h"
 #include "Utils/ISelectable.h"
 #include "Utils/OverlappableSerialList.h"
-#include "Utils/UniqueObject.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Params.h"
 #include "Global/AppGlobal.h"
 #include "Interface/IClip.h"
 #include "Model/AppModel/AudioInfoModel.h"
+#include "Utils/Property.h"
 
 
 class DrawCurve;

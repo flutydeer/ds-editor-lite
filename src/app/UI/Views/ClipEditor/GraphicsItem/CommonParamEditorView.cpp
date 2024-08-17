@@ -191,9 +191,7 @@ DrawCurve *CommonParamEditorView::curveAt(double tick) {
 }
 QList<DrawCurve *> CommonParamEditorView::curvesIn(int startTick, int endTick) {
     QList<DrawCurve *> result;
-    ProbeLine line = ProbeLine();
-    line.start = startTick;
-    line.setEndTick(endTick);
+    ProbeLine line(startTick, endTick);
     for (const auto &curve : m_drawCurvesEdited) {
         if (curve->isOverlappedWith(&line))
             result.append(curve);
