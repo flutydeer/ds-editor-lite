@@ -17,9 +17,6 @@ using namespace ClipEditorGlobal;
 CommonParamEditorView::CommonParamEditorView() {
     setBackgroundColor(Qt::transparent);
 }
-CommonParamEditorView::EditMode CommonParamEditorView::editMode() const {
-    return m_editMode;
-}
 void CommonParamEditorView::loadOriginal(const QList<DrawCurve *> &curves) {
     SingingClip::copyCurves(curves, m_drawCurvesOriginal);
     update();
@@ -45,10 +42,6 @@ double CommonParamEditorView::valueToSceneY(double value) const {
 double CommonParamEditorView::sceneYToValue(double y) const {
     auto value = y / scene()->height();
     return MathUtils::clip(value, 0, 1);
-}
-void CommonParamEditorView::setEditMode(const EditMode &mode) {
-    setTransparentForMouseEvents(mode == Off);
-    m_editMode = mode;
 }
 void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                   QWidget *widget) {
@@ -81,6 +74,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
     }
 }
 void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    qDebug() << "CommonParamEditorView::mousePressEvent" << event->button();
     if (m_transparentForMouseEvents) {
         OverlayGraphicsItem::mousePressEvent(event);
         return;
@@ -90,27 +84,32 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
 
-    if (auto curve = curveAt(tick)) {
-        m_editingCurve = curve;
-        m_editType = EditExistCurve;
-        qDebug() << "Edit exist curve" << curve->id() << curve->start;
+    if (event->button() == Qt::LeftButton) {
+        if (auto curve = curveAt(tick)) {
+            m_editingCurve = curve;
+            m_editType = DrawOnCurve;
+            qDebug() << "Edit exist curve" << curve->id() << curve->start;
+        } else {
+            m_editingCurve = nullptr;
+            m_editType = DrawOnInterval;
+            qDebug() << "Create new curve";
+        }
+    } else if (event->button() == Qt::RightButton) {
+        m_editType = Erase;
+        qDebug() << "Erase curve";
     } else {
-        m_editingCurve = nullptr;
-        m_editType = CreateCurve;
+        m_editType = None;
+        qDebug() << "No editing curve";
     }
+
     m_mouseDownPos = QPoint(tick, value);
     m_prevPos = m_mouseDownPos;
 }
 void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+    if (m_editType == None)
+        return;
+
     m_mouseMoved = true;
-    if (!m_newCurveCreated && m_editType == CreateCurve) {
-        m_editingCurve = new DrawCurve;
-        m_editingCurve->start = m_mouseDownPos.x();
-        m_editingCurve->appendValue(m_mouseDownPos.y());
-        MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
-        qDebug() << "New curve added" << m_editingCurve->id();
-        m_newCurveCreated = true;
-    }
     auto scenePos = event->scenePos();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
@@ -126,18 +125,52 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         endTick = m_prevPos.x();
         startTick = curPos.x();
     }
-    drawLine(m_prevPos, curPos, *m_editingCurve);
-    auto overlappedCurves = curvesIn(startTick, endTick);
-    if (!overlappedCurves.isEmpty()) {
-        for (auto curve : overlappedCurves) {
-            if (curve == m_editingCurve)
-                continue;
 
-            m_editingCurve->mergeWith(*curve);
-            m_drawCurvesEdited.removeOne(curve);
-            // delete curve;
+    auto overlappedCurves = curvesIn(startTick, endTick);
+    if (m_editType == Erase) {
+        if (!overlappedCurves.isEmpty()) {
+            for (auto curve : overlappedCurves) {
+                if (curve->start >= startTick &&
+                    curve->endTick() <= endTick) { // 区间覆盖整条曲线，直接移除该曲线
+                    m_drawCurvesEdited.removeOne(curve);
+                    // qDebug() << "Remove curve" << curve->id();
+                } else if (curve->start < startTick &&
+                           curve->endTick() > endTick) { // 区间在曲线内，将曲线切成两段
+                    auto newCurve = new DrawCurve;
+                    newCurve->start = endTick;
+                    auto rightPoints = curve->mid(endTick);
+                    newCurve->setValues(rightPoints); // 将区间右端点之后的点移动到新曲线上
+                    curve->eraseTailFrom(startTick);
+                    MathUtils::binaryInsert(m_drawCurvesEdited, newCurve);
+                } else {
+                    curve->erase(startTick, endTick);
+                    // qDebug() << "Erase curve" << curve->id() << startTick << endTick;
+                }
+            }
+        }
+    } else { // Draw
+        if (!m_newCurveCreated && m_editType == DrawOnInterval) {
+            m_editingCurve = new DrawCurve;
+            m_editingCurve->start = m_mouseDownPos.x();
+            m_editingCurve->appendValue(m_mouseDownPos.y());
+            MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
+            qDebug() << "New curve added" << m_editingCurve->id();
+            m_newCurveCreated = true;
+        }
+
+        drawLine(m_prevPos, curPos, *m_editingCurve);
+        if (!overlappedCurves.isEmpty()) {
+            for (auto curve : overlappedCurves) {
+                if (curve == m_editingCurve)
+                    continue;
+
+                m_editingCurve->mergeWith(*curve);
+                m_drawCurvesEdited.removeOne(curve);
+                // delete curve;
+            }
         }
     }
+
     m_prevPos = curPos;
     update();
 }

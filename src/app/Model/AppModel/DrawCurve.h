@@ -18,16 +18,19 @@ public:
     }
     int step = 5;
     [[nodiscard]] const QList<int> &values() const;
+    [[nodiscard]] QList<int> mid(int tick) const;
     void setValues(const QList<int> &values);
     void insertValue(int index, int value);
     void insertValues(int index, const QList<int> &values);
-    void removeValueRange(int i, int n);
+    void removeValueRange(qsizetype i, qsizetype n);
     void clearValues();
     void appendValue(int value);
     void replaceValue(int index, int value);
     void mergeWith(const DrawCurve &other);
     void overlayMergeWith(const DrawCurve &other);
-    void eraseWith(const DrawCurve &other);
+    void erase(int otherStart, int otherEnd);
+    void eraseTail(int length);
+    void eraseTailFrom(int tick);
 
     [[nodiscard]] int endTick() const override;
 

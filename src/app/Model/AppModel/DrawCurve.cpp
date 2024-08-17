@@ -4,7 +4,7 @@
 
 #include "DrawCurve.h"
 
-#include <stdexcept>
+#include <QDebug>
 
 DrawCurve::DrawCurve(const DrawCurve &other)
     : Curve(other), step(other.step), m_values(other.m_values) {
@@ -12,6 +12,13 @@ DrawCurve::DrawCurve(const DrawCurve &other)
 }
 const QList<int> &DrawCurve::values() const {
     return m_values;
+}
+QList<int> DrawCurve::mid(int tick) const {
+    auto startIndex = (tick - start) / step;
+    QList<int> result;
+    for (int i = startIndex; i < m_values.count(); i++)
+        result.append(m_values.at(i));
+    return result;
 }
 void DrawCurve::setValues(const QList<int> &values) {
     m_values = values;
@@ -23,7 +30,7 @@ void DrawCurve::insertValues(int index, const QList<int> &values) {
     for (int i = 0; i < values.count(); i++)
         m_values.insert(index + i, values.at(i));
 }
-void DrawCurve::removeValueRange(int i, int n) {
+void DrawCurve::removeValueRange(qsizetype i, qsizetype n) {
     m_values.remove(i, n);
 }
 void DrawCurve::clearValues() {
@@ -94,23 +101,29 @@ void DrawCurve::overlayMergeWith(const DrawCurve &other) {
         }
     }
 }
-void DrawCurve::eraseWith(const DrawCurve &other) {
+void DrawCurve::erase(int otherStart, int otherEnd) {
     int curStart = start;
-    int otherStart = other.start;
     auto curEnd = endTick();
-    auto otherEnd = other.endTick();
 
-    if (otherStart < curStart && otherEnd > curEnd)
+    if (otherStart <= curStart && otherEnd >= curEnd)
         qFatal("DrawCurve::eraseWith: other curve fully covered current curve");
 
     if (otherStart > curStart) {
-        auto eraseStartIndex = (curEnd - otherStart) / step;
-        removeValueRange(eraseStartIndex, values().count() - eraseStartIndex);
+        auto eraseLength = curEnd - otherStart;
+        eraseTail(eraseLength);
     } else { // otherStart <= curStart
         auto removeEndIndex = (otherEnd - curStart) / step;
         removeValueRange(0, removeEndIndex);
         start = otherEnd;
     }
+}
+void DrawCurve::eraseTail(int length) {
+    auto count = length / step;
+    removeValueRange(values().count() - count, count);
+}
+void DrawCurve::eraseTailFrom(int tick) {
+    auto length = endTick() - tick;
+    eraseTail(length);
 }
 int DrawCurve::endTick() const {
     return start + step * m_values.count();

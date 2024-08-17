@@ -124,7 +124,8 @@ void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
 void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
     d->m_selecting = true;
-    if (event->button() != Qt::LeftButton) {
+    if (event->button() != Qt::LeftButton &&
+        (d->m_editMode == Select || d->m_editMode == DrawNote)) {
         d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
         if (auto noteView = d->noteViewAt(event->pos())) {
             if (d->selectedNoteItems().count() <= 1 || !d->selectedNoteItems().contains(noteView))
@@ -134,6 +135,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
             clearNoteSelections();
             TimeGraphicsView::mousePressEvent(event);
         }
+        TimeGraphicsView::mousePressEvent(event);
         event->ignore();
         return;
     }
@@ -176,6 +178,11 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
 }
 void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
+    if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::None) {
+        TimeGraphicsView::mouseMoveEvent(event);
+        return;
+    }
+
     if (event->modifiers() == Qt::AltModifier)
         d->m_tempQuantizeOff = true;
     else

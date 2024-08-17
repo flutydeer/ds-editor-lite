@@ -15,8 +15,6 @@ public:
     enum EditMode { Free, Anchor, Off };
     explicit CommonParamEditorView();
 
-    [[nodiscard]] EditMode editMode() const;
-    void setEditMode(const EditMode &mode);
     void loadOriginal(const QList<DrawCurve *> &curves);
     void loadEdited(const QList<DrawCurve *> &curves);
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
@@ -42,9 +40,8 @@ private:
 
     bool m_showDebugInfo = true;
     bool m_fillCurve = true;
-    EditMode m_editMode = Off;
 
-    enum EditType { CreateCurve, EditExistCurve, None };
+    enum EditType { DrawOnInterval, DrawOnCurve, Erase, None };
 
     QPoint m_mouseDownPos; // x: tick, y: value
     QPoint m_prevPos;
