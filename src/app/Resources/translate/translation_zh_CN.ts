@@ -106,10 +106,6 @@
         <translation>使用原生边框</translation>
     </message>
     <message>
-        <source>Restart required</source>
-        <translation type="vanished">需要重新启动</translation>
-    </message>
-    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="25"/>
         <source>App needs a restart to take effect</source>
         <translation>需要重启以生效</translation>
@@ -148,7 +144,7 @@
 <context>
     <name>AudioClipView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="146"/>
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="144"/>
         <source>[Audio] </source>
         <translation>[音频] </translation>
     </message>
@@ -156,7 +152,7 @@
 <context>
     <name>AudioContext</name>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="308"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="313"/>
         <source>Cannot open audio device!</source>
         <translation>无法打开音频设备！</translation>
     </message>
@@ -673,111 +669,6 @@
     </message>
 </context>
 <context>
-    <name>G2pMgr::Cantonese</name>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="5"/>
-        <source>Xiao Lang</source>
-        <translation>小狼</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="6"/>
-        <source>Cantonese</source>
-        <translation>粤语</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="7"/>
-        <source>Using Cantonese Pinyin as the phonetic notation method.</source>
-        <translation>使用粤拼作为注音方式。</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="15"/>
-        <source>Failed to initialize Cantonese G2P</source>
-        <translation>加载粤语G2p失败</translation>
-    </message>
-</context>
-<context>
-    <name>G2pMgr::English</name>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/English.cpp" line="5"/>
-        <source>Xiao Lang</source>
-        <translation>小狼</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/English.cpp" line="6"/>
-        <source>English</source>
-        <translation>英语</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/English.cpp" line="7"/>
-        <source>Greedy matching of consecutive English letters.</source>
-        <translation>贪婪匹配英文字母。</translation>
-    </message>
-</context>
-<context>
-    <name>G2pMgr::Kana</name>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="5"/>
-        <source>Xiao Lang</source>
-        <translation>小狼</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="6"/>
-        <source>Kana</source>
-        <translation>假名</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="7"/>
-        <source>Kana to Romanization converter.</source>
-        <translation>假名转罗马音。</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="15"/>
-        <source>Failed to initialize Kana</source>
-        <translation>加载假名G2p失败</translation>
-    </message>
-</context>
-<context>
-    <name>G2pMgr::Mandarin</name>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="5"/>
-        <source>Xiao Lang</source>
-        <translation>小狼</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="6"/>
-        <source>Mandarin</source>
-        <translation>普通话</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="7"/>
-        <source>Using Pinyin as the phonetic notation method.</source>
-        <translation>使用拼音作为注音方式。</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="15"/>
-        <source>Failed to initialize Mandarin G2P</source>
-        <translation>加载普通话G2p失败</translation>
-    </message>
-</context>
-<context>
-    <name>G2pMgr::Unknown</name>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Unknown.cpp" line="5"/>
-        <source>Xiao Lang</source>
-        <translation>小狼</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Unknown.cpp" line="6"/>
-        <source>Unknown</source>
-        <translation>未知</translation>
-    </message>
-    <message>
-        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Unknown.cpp" line="7"/>
-        <source>Unknown language, no conversion required.</source>
-        <translation>未知语种，无需转换。</translation>
-    </message>
-</context>
-<context>
     <name>GeneralPage</name>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="33"/>
@@ -811,6 +702,29 @@
     </message>
 </context>
 <context>
+    <name>LangMgr::Cantonese</name>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="5"/>
+        <source>Xiao Lang</source>
+        <translation>小狼</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="6"/>
+        <source>Cantonese</source>
+        <translation>粤语</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="7"/>
+        <source>Using Cantonese Pinyin as the phonetic notation method.</source>
+        <translation>使用粤拼作为注音方式。</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Cantonese.cpp" line="15"/>
+        <source>Failed to initialize Cantonese G2P</source>
+        <translation>加载粤语G2p失败</translation>
+    </message>
+</context>
+<context>
     <name>LangMgr::CantoneseAnalysis</name>
     <message>
         <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="14"/>
@@ -826,6 +740,24 @@
         <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/CantoneseAnalysis.h" line="16"/>
         <source>Capture Cantonese characters.</source>
         <translation>捕获粤语字符。</translation>
+    </message>
+</context>
+<context>
+    <name>LangMgr::English</name>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/English.cpp" line="5"/>
+        <source>Xiao Lang</source>
+        <translation>小狼</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/English.cpp" line="6"/>
+        <source>English</source>
+        <translation>英语</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/English.cpp" line="7"/>
+        <source>Greedy matching of consecutive English letters.</source>
+        <translation>贪婪匹配英文字母。</translation>
     </message>
 </context>
 <context>
@@ -883,6 +815,24 @@
     </message>
 </context>
 <context>
+    <name>LangMgr::KanaG2p</name>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="7"/>
+        <source>Xiao Lang</source>
+        <translation>小狼</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="8"/>
+        <source>Kana</source>
+        <translation>假名</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Kana.cpp" line="9"/>
+        <source>Kana to Romanization converter.</source>
+        <translation>假名转罗马音。</translation>
+    </message>
+</context>
+<context>
     <name>LangMgr::LinebreakAnalysis</name>
     <message>
         <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="14"/>
@@ -898,6 +848,29 @@
         <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/LinebreakAnalysis.h" line="16"/>
         <source>Capture linebreaks.</source>
         <translation>捕获换行符。</translation>
+    </message>
+</context>
+<context>
+    <name>LangMgr::Mandarin</name>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="5"/>
+        <source>Xiao Lang</source>
+        <translation>小狼</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="6"/>
+        <source>Mandarin</source>
+        <translation>普通话</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="7"/>
+        <source>Using Pinyin as the phonetic notation method.</source>
+        <translation>使用拼音作为注音方式。</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Mandarin.cpp" line="15"/>
+        <source>Failed to initialize Mandarin G2P</source>
+        <translation>加载普通话G2p失败</translation>
     </message>
 </context>
 <context>
@@ -1024,6 +997,24 @@
         <location filename="../../../libs/LangMgr/src/LangMgr/LangAnalysis/BaseAnalysis/SpaceAnalysis.h" line="16"/>
         <source>Capture spaces.</source>
         <translation>捕获空格。</translation>
+    </message>
+</context>
+<context>
+    <name>LangMgr::Unknown</name>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Unknown.cpp" line="5"/>
+        <source>Xiao Lang</source>
+        <translation>小狼</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Unknown.cpp" line="6"/>
+        <source>Unknown</source>
+        <translation>未知</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/LangMgr/src/G2pMgr/G2p/Unknown.cpp" line="7"/>
+        <source>Unknown language, no conversion required.</source>
+        <translation>未知语种，无需转换。</translation>
     </message>
 </context>
 <context>
@@ -1160,24 +1151,24 @@
     </message>
 </context>
 <context>
-    <name>LanguageComboBox</name>
+    <name>LanguageNameUtils</name>
     <message>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="11"/>
+        <location filename="../../UI/Utils/LanguageNameUtils.h" line="27"/>
         <source>Mandarin</source>
         <translation>普通话</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="11"/>
+        <location filename="../../UI/Utils/LanguageNameUtils.h" line="27"/>
         <source>English</source>
         <translation>英语</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="11"/>
+        <location filename="../../UI/Utils/LanguageNameUtils.h" line="27"/>
         <source>Japanese</source>
         <translation>日语</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="12"/>
+        <location filename="../../UI/Utils/LanguageNameUtils.h" line="28"/>
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
@@ -1359,7 +1350,7 @@
         <translation>打开工程(&amp;O)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="209"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="212"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
@@ -1508,43 +1499,43 @@
 <context>
     <name>MainMenuViewPrivate</name>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="208"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="211"/>
         <source>Select a Project File</source>
         <translation>选择工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="224"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="227"/>
         <source>Select an A Project File</source>
         <translation>选择A工程文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="225"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="228"/>
         <source>Project File (*.json)</source>
         <translation>工程文件 (*.json)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="238"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="241"/>
         <source>Select a MIDI File</source>
         <translation>选择 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="239"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="247"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="242"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="250"/>
         <source>MIDI File (*.mid)</source>
         <translation>MIDI 文件 (*.mid)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="246"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="249"/>
         <source>Save as MIDI File</source>
         <translation>另存为 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="261"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="264"/>
         <source>&amp;Undo</source>
         <translation>撤销(&amp;U)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="263"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="266"/>
         <source>&amp;Redo</source>
         <translation>重做(&amp;R)</translation>
     </message>
@@ -1552,47 +1543,47 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="243"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="237"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="159"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="153"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="160"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="154"/>
         <source>Do you want to save changes?</source>
         <translation>要保存更改吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="163"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="157"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="171"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="165"/>
         <source>Don&apos;t save</source>
         <translation>不保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="178"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="172"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="242"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="236"/>
         <source>Save project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="276"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="270"/>
         <source>%1 is exiting...</source>
         <translation>%1 正在退出...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="277"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="271"/>
         <source>Terminating background tasks...</source>
         <translation>正在停止后台任务...</translation>
     </message>
@@ -1824,7 +1815,7 @@
 <context>
     <name>PhonemeView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PhonemeView.cpp" line="126"/>
+        <location filename="../../UI/Views/ClipEditor/PhonemeView.cpp" line="116"/>
         <source>Zoom in to edit phonemes</source>
         <translation>放大以编辑音素</translation>
     </message>
@@ -1832,7 +1823,7 @@
 <context>
     <name>PianoRollGraphicsView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="122"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="121"/>
         <source>Select a singing clip to edit</source>
         <translation>选中歌声剪辑以编辑</translation>
     </message>
@@ -1840,17 +1831,17 @@
 <context>
     <name>PianoRollGraphicsViewPrivate</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="368"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="374"/>
         <source>Fill lyrics...</source>
         <translation>填入歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="374"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="380"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="380"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRollGraphicsView.cpp" line="386"/>
         <source>Properties...</source>
         <translation>属性...</translation>
     </message>
@@ -1979,7 +1970,7 @@
 <context>
     <name>SingingClipView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="123"/>
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="124"/>
         <source>[Singing] </source>
         <translation>[歌声] </translation>
     </message>
@@ -2023,7 +2014,7 @@
 <context>
     <name>TrackListHeaderView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="22"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="23"/>
         <source>New Track</source>
         <translation>新建轨道</translation>
     </message>
@@ -2107,47 +2098,47 @@
 <context>
     <name>talcs</name>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="91"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="92"/>
         <source>Option</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="95"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="96"/>
         <source>Channel</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="104"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="105"/>
         <source>Sample rate</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="107"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="108"/>
         <source>System</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="108"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="109"/>
         <source>Little-endian</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="109"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="110"/>
         <source>Big-endian</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="110"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="111"/>
         <source>Byte order</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="116"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="117"/>
         <source>OK</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="122"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="123"/>
         <source>Configure Raw Data</source>
         <translation type="unfinished"></translation>
     </message>
