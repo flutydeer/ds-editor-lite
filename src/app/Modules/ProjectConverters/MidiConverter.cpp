@@ -164,7 +164,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
 
     auto returnCode = midi->load(path, dspx, args);
 
-    if (returnCode.type != QDspx::ReturnCode::Success) {
+    if (returnCode.type != QDspx::Result::Success) {
         QMessageBox::warning(nullptr, "Warning",
                              QString("Failed to load midi file.\r\npath: %1\r\ntype: %2 code: %3")
                                  .arg(path)
@@ -282,7 +282,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
     encodeTracks(model, dspx);
     auto returnCode = midi->save(path, dspx, args);
 
-    if (returnCode.type != QDspx::ReturnCode::Success) {
+    if (returnCode.type != QDspx::Result::Success) {
         QMessageBox::warning(nullptr, "Warning",
                              QString("Failed to save midi file.\r\npath: %1\r\ntype: %2 code: %3")
                                  .arg(path)
