@@ -15,58 +15,74 @@
 QString Clip::name() const {
     return m_name;
 }
+
 void Clip::setName(const QString &text) {
     m_name = text;
     // emit propertyChanged();
 }
+
 int Clip::start() const {
     return m_start;
 }
+
 void Clip::setStart(int start) {
     m_start = start;
     // emit propertyChanged();
 }
+
 int Clip::length() const {
     return m_length;
 }
+
 void Clip::setLength(int length) {
     m_length = length;
     // emit propertyChanged();
 }
+
 int Clip::clipStart() const {
     return m_clipStart;
 }
+
 void Clip::setClipStart(int clipStart) {
     m_clipStart = clipStart;
     // emit propertyChanged();
 }
+
 int Clip::clipLen() const {
     return m_clipLen;
 }
+
 void Clip::setClipLen(int clipLen) {
     m_clipLen = clipLen;
     // emit propertyChanged();
 }
+
 double Clip::gain() const {
     return m_gain;
 }
+
 void Clip::setGain(double gain) {
     m_gain = gain;
     // emit propertyChanged();
 }
+
 bool Clip::mute() const {
     return m_mute;
 }
+
 void Clip::setMute(bool mute) {
     m_mute = mute;
     // emit propertyChanged();
 }
+
 void Clip::notifyPropertyChanged() {
     emit propertyChanged();
 }
+
 int Clip::endTick() const {
     return start() + clipStart() + clipLen();
 }
+
 int Clip::compareTo(const Clip *obj) const {
     auto curVisibleStart = start() + clipStart();
     auto other = obj;
@@ -77,6 +93,7 @@ int Clip::compareTo(const Clip *obj) const {
         return 1;
     return 0;
 }
+
 bool Clip::isOverlappedWith(Clip *obj) const {
     auto curVisibleStart = start() + clipStart();
     auto curVisibleEnd = curVisibleStart + clipLen();
@@ -87,14 +104,17 @@ bool Clip::isOverlappedWith(Clip *obj) const {
         return false;
     return true;
 }
+
 std::tuple<qsizetype, qsizetype> Clip::interval() const {
     auto visibleStart = start() + clipStart();
     auto visibleEnd = visibleStart + clipLen();
     return std::make_tuple(visibleStart, visibleEnd);
 }
+
 Clip::ClipCommonProperties::ClipCommonProperties(const IClip &clip) {
     applyPropertiesFromClip(*this, clip);
 }
+
 void Clip::applyPropertiesFromClip(ClipCommonProperties &args, const IClip &clip) {
     args.name = clip.name();
     args.id = clip.id();
@@ -105,34 +125,43 @@ void Clip::applyPropertiesFromClip(ClipCommonProperties &args, const IClip &clip
     args.gain = clip.gain();
     args.mute = clip.mute();
 }
+
 AudioClip::AudioClipProperties::AudioClipProperties(const AudioClip &clip) {
     applyPropertiesFromClip(*this, clip);
     path = clip.path();
 }
+
 AudioClip::AudioClipProperties::AudioClipProperties(const IClip &clip) {
     applyPropertiesFromClip(*this, clip);
 }
+
 SingingClip::SingingClip() : Clip() {
     defaultLanguage.setNotifyCallback(
         [=](const AppGlobal::LanguageType value) { emit defaultLanguageChanged(value); });
 }
+
 const OverlappableSerialList<Note> &SingingClip::notes() const {
     return m_notes;
 }
+
 void SingingClip::insertNote(Note *note) {
     note->setClip(this);
     m_notes.add(note);
 }
+
 void SingingClip::removeNote(Note *note) {
     note->setClip(nullptr);
     m_notes.remove(note);
 }
+
 void SingingClip::notifyNoteSelectionChanged() {
     emit noteSelectionChanged();
 }
+
 void SingingClip::notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type) {
     emit paramChanged(name, type);
 }
+
 // QList<SingingClip::VocalPart> SingingClip::parts() {
 //     if (m_notes.count() == 0)
 //         return m_parts;
@@ -176,20 +205,25 @@ void SingingClip::copyCurves(const QList<Curve *> &source, QList<Curve *> &targe
         //     target.append(new AnchorCurve)
     }
 }
+
 void SingingClip::copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target) {
     target.clear();
     for (const auto curve : source)
         target.append(new DrawCurve(*curve));
 }
+
 Note *SingingClip::findNoteById(int id) const {
     return MathUtils::findItemById<Note *>(m_notes, id);
 }
+
 QList<Note *> SingingClip::selectedNotes() const {
     return Linq::where(m_notes, [](Note *note) { return note->selected(); });
 }
+
 void SingingClip::notifyNoteChanged(NoteChangeType type, Note *note) {
     emit noteChanged(type, note);
 }
+
 // const DsParams &DsSingingClip::params() const {
 //     return m_params;
 // }

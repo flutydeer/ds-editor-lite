@@ -21,6 +21,7 @@ class NoteView;
 using namespace ClipEditorGlobal;
 
 class PianoRollGraphicsViewPrivate;
+
 class PianoRollGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
 

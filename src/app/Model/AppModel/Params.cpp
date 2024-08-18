@@ -3,6 +3,7 @@
 //
 
 #include "Params.h"
+
 const QList<Curve *> &Param::curves(ParamType type) const {
     switch (type) {
         case Original:
@@ -16,6 +17,7 @@ const QList<Curve *> &Param::curves(ParamType type) const {
             return m_unknown;
     }
 }
+
 void Param::setCurves(ParamType type, const QList<Curve *> &curves) {
     switch (type) {
         case Original:
@@ -31,6 +33,7 @@ void Param::setCurves(ParamType type, const QList<Curve *> &curves) {
             break;
     }
 }
+
 Param *ParamBundle::getParamByName(ParamName name) {
     switch (name) {
         case Pitch:

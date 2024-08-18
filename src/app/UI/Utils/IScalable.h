@@ -37,20 +37,25 @@ private:
     double m_fixedScaleX = 1;
     double m_fixedScaleY = 1;
 };
+
 inline double IScalable::scaleX() const {
     return m_useFixedScaleX ? m_fixedScaleX : m_scaleX;
 }
+
 inline void IScalable::setScaleX(double scaleX) {
     m_scaleX = scaleX;
     afterSetScale();
 }
+
 inline double IScalable::scaleY() const {
     return m_useFixedScaleY ? m_fixedScaleY : m_scaleY;
 }
+
 inline void IScalable::setScaleY(double scaleY) {
     m_scaleY = scaleY;
     afterSetScale();
 }
+
 inline void IScalable::setScaleXY(double scaleX, double scaleY) {
     if (!m_useFixedScaleX)
         m_scaleX = scaleX;
@@ -58,32 +63,41 @@ inline void IScalable::setScaleXY(double scaleX, double scaleY) {
         m_scaleY = scaleY;
     afterSetScale();
 }
+
 inline bool IScalable::useFixedScaleX() const {
     return m_useFixedScaleX;
 }
+
 inline bool IScalable::useFixedScaleY() const {
     return m_useFixedScaleY;
 }
+
 inline void IScalable::setUseFixedScaleX(bool on) {
     m_useFixedScaleX = on;
 }
+
 inline void IScalable::setUseFixedScaleY(bool on) {
     m_useFixedScaleY = on;
 }
+
 inline double IScalable::fixedScaleX() const {
     return m_fixedScaleX;
 }
+
 inline void IScalable::setFixedScaleX(double scaleX) {
     m_fixedScaleX = scaleX;
     setScaleX(scaleX);
 }
+
 inline double IScalable::fixedScaleY() const {
     return m_fixedScaleY;
 }
+
 inline void IScalable::setFixedScaleY(double scaleY) {
     m_fixedScaleY = scaleY;
     setScaleY(scaleY);
 }
+
 inline void IScalable::setFixedScaleXY(double scaleX, double scaleY) {
     m_fixedScaleX = scaleX;
     m_fixedScaleY = scaleY;

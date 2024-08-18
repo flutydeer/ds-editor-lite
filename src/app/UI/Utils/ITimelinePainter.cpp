@@ -50,16 +50,20 @@ void ITimelinePainter::drawTimeline(QPainter *painter, double startTick, double 
     else
         drawBarBeatEighthLines();
 }
+
 int ITimelinePainter::pixelsPerQuarterNote() const {
     return m_pixelsPerQuarterNote;
 }
+
 void ITimelinePainter::setPixelsPerQuarterNote(int px) {
     m_pixelsPerQuarterNote = px;
 }
+
 void ITimelinePainter::setTimeSignature(int numerator, int denominator) {
     m_numerator = numerator;
     m_denominator = denominator;
 }
+
 void ITimelinePainter::setQuantize(int quantize) {
     m_quantize = quantize;
 }

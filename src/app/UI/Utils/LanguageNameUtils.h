@@ -12,13 +12,14 @@
 
 #include <QObject>
 
-class LanguageNameUtils : public QObject, public Singleton<LanguageNameUtils>{
+class LanguageNameUtils : public QObject, public Singleton<LanguageNameUtils> {
     Q_OBJECT
 
 public:
     const QStringList &names() const {
         return m_languageNames;
     }
+
     QString name(AppGlobal::LanguageType type) const {
         return m_languageNames[type];
     }

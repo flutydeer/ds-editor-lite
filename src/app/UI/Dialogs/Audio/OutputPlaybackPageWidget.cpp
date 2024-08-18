@@ -36,14 +36,18 @@
 #include <Model/AppOptions/AppOptions.h>
 
 static inline double sliderValueToGain(double sliderValue) {
-    return talcs::Decibels::decibelsToGain(SVS::DecibelLinearizer::linearValueToDecibel(sliderValue));
+    return talcs::Decibels::decibelsToGain(
+        SVS::DecibelLinearizer::linearValueToDecibel(sliderValue));
 }
+
 static inline double gainToSliderValue(float gain) {
     return SVS::DecibelLinearizer::decibelToLinearValue(talcs::Decibels::gainToDecibels(gain));
 }
+
 static inline double sliderValueToPan(int sliderValue) {
     return sliderValue / 100.0;
 }
+
 static inline int panToSliderValue(double pan) {
     return static_cast<int>(round(pan * 100.0));
 }
@@ -78,7 +82,8 @@ OutputPlaybackPageWidget::OutputPlaybackPageWidget(QWidget *parent) : QWidget(pa
     auto deviceGainLayoutLabel = new QLabel(tr("Device &Gain (dB)"));
     auto deviceGainLayout = new QHBoxLayout;
     m_deviceGainSlider = new SVS::SeekBar;
-    m_deviceGainSlider->setRange(SVS::DecibelLinearizer::decibelToLinearValue(-96), SVS::DecibelLinearizer::decibelToLinearValue(6));
+    m_deviceGainSlider->setRange(SVS::DecibelLinearizer::decibelToLinearValue(-96),
+                                 SVS::DecibelLinearizer::decibelToLinearValue(6));
     deviceGainLayout->addWidget(m_deviceGainSlider);
     m_deviceGainSpinBox = new SVS::ExpressionDoubleSpinBox;
     m_deviceGainSpinBox->setDecimals(1);
@@ -105,11 +110,10 @@ OutputPlaybackPageWidget::OutputPlaybackPageWidget(QWidget *parent) : QWidget(pa
     auto playbackGroupBox = new QGroupBox(tr("Playback"));
     auto playbackLayout = new QFormLayout;
     m_playHeadBehaviorComboBox = new QComboBox;
-    m_playHeadBehaviorComboBox->addItems({
-        tr("Return to the start position after stopped"),
-        tr("Keep at current position after stopped, and play from current position next time"),
-        tr("Keep at current position after stopped, but play from the start position next time")
-    });
+    m_playHeadBehaviorComboBox->addItems(
+        {tr("Return to the start position after stopped"),
+         tr("Keep at current position after stopped, and play from current position next time"),
+         tr("Keep at current position after stopped, but play from the start position next time")});
     playbackLayout->addRow(tr("Playhead behavior"), m_playHeadBehaviorComboBox);
     m_closeDeviceOnPlaybackStopCheckBox =
         new QCheckBox(tr("&Close audio device when playback is stopped"));
@@ -121,7 +125,8 @@ OutputPlaybackPageWidget::OutputPlaybackPageWidget(QWidget *parent) : QWidget(pa
     auto fileLayout = new QFormLayout;
     m_fileBufferingReadAheadSizeSpinBox = new SVS::ExpressionSpinBox;
     m_fileBufferingReadAheadSizeSpinBox->setRange(0, std::numeric_limits<int>::max());
-    fileLayout->addRow(tr("&File reading buffer size (samples)"), m_fileBufferingReadAheadSizeSpinBox);
+    fileLayout->addRow(tr("&File reading buffer size (samples)"),
+                       m_fileBufferingReadAheadSizeSpinBox);
     fileGroupBox->setLayout(fileLayout);
     mainLayout->addWidget(fileGroupBox);
     mainLayout->addStretch();
@@ -152,22 +157,24 @@ OutputPlaybackPageWidget::OutputPlaybackPageWidget(QWidget *parent) : QWidget(pa
     m_hotPlugModeComboBox->setCurrentIndex(
         AudioSystem::outputSystem()->outputContext()->hotPlugNotificationMode());
 
-    m_deviceGainSlider->setValue(gainToSliderValue(outputSys->outputContext()->controlMixer()->gain()));
-    connect(m_deviceGainSlider, &SVS::SeekBar::valueChanged, this, [=](double value) {
-        updateGain(sliderValueToGain(value));
-    });
-    m_deviceGainSpinBox->setValue(talcs::Decibels::gainToDecibels(outputSys->outputContext()->controlMixer()->gain()));
-    connect(m_deviceGainSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double value) {
-        updateGain(talcs::Decibels::decibelsToGain(static_cast<float>(value)));
-    });
-    m_devicePanSlider->setValue(panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
-    connect(m_devicePanSlider, &SVS::SeekBar::valueChanged, this, [=](int value) {
-        updatePan(sliderValueToPan(value));
-    });
-    m_devicePanSpinBox->setValue(panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
-    connect(m_devicePanSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [=](int value) {
-        updatePan(sliderValueToPan(value));
-    });
+    m_deviceGainSlider->setValue(
+        gainToSliderValue(outputSys->outputContext()->controlMixer()->gain()));
+    connect(m_deviceGainSlider, &SVS::SeekBar::valueChanged, this,
+            [=](double value) { updateGain(sliderValueToGain(value)); });
+    m_deviceGainSpinBox->setValue(
+        talcs::Decibels::gainToDecibels(outputSys->outputContext()->controlMixer()->gain()));
+    connect(m_deviceGainSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            [=](double value) {
+                updateGain(talcs::Decibels::decibelsToGain(static_cast<float>(value)));
+            });
+    m_devicePanSlider->setValue(
+        panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
+    connect(m_devicePanSlider, &SVS::SeekBar::valueChanged, this,
+            [=](int value) { updatePan(sliderValueToPan(value)); });
+    m_devicePanSpinBox->setValue(
+        panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
+    connect(m_devicePanSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this,
+            [=](int value) { updatePan(sliderValueToPan(value)); });
 
     m_playHeadBehaviorComboBox->setCurrentIndex(AudioSettings::playheadBehavior());
 
@@ -178,9 +185,12 @@ void OutputPlaybackPageWidget::accept() const {
     AudioSystem::outputSystem()->setHotPlugNotificationMode(
         static_cast<talcs::OutputContext::HotPlugNotificationMode>(
             m_hotPlugModeComboBox->currentIndex()));
-    AudioSystem::outputSystem()->setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
-    AudioSettings::setDeviceGain(AudioSystem::outputSystem()->outputContext()->controlMixer()->gain());
-    AudioSettings::setDevicePan(AudioSystem::outputSystem()->outputContext()->controlMixer()->pan());
+    AudioSystem::outputSystem()->setFileBufferingReadAheadSize(
+        m_fileBufferingReadAheadSizeSpinBox->value());
+    AudioSettings::setDeviceGain(
+        AudioSystem::outputSystem()->outputContext()->controlMixer()->gain());
+    AudioSettings::setDevicePan(
+        AudioSystem::outputSystem()->outputContext()->controlMixer()->pan());
     AudioSettings::setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
     AudioSettings::setPlayheadBehavior(m_playHeadBehaviorComboBox->currentIndex());
     appOptions->saveAndNotify();
@@ -191,9 +201,10 @@ void OutputPlaybackPageWidget::updateDriverComboBox() {
 
     auto driverList = outputSys->outputContext()->driverManager()->drivers();
     for (int i = 0; i < driverList.size(); i++) {
-        m_driverComboBox->addItem(talcs::SDLAudioDriverDisplayNameHelper::getDisplayName(driverList[i]),
-                                  driverList[i]);
-        if (outputSys->outputContext()->driver() && driverList[i] == outputSys->outputContext()->driver()->name())
+        m_driverComboBox->addItem(
+            talcs::SDLAudioDriverDisplayNameHelper::getDisplayName(driverList[i]), driverList[i]);
+        if (outputSys->outputContext()->driver() &&
+            driverList[i] == outputSys->outputContext()->driver()->name())
             m_driverComboBox->setCurrentIndex(i);
     }
     if (!outputSys->outputContext()->driver()) {
@@ -204,54 +215,58 @@ void OutputPlaybackPageWidget::updateDriverComboBox() {
     updateDeviceComboBox();
 
     if (outputSys->outputContext()->driver()) {
-        connect(outputSys->outputContext()->driver(), &talcs::AudioDriver::deviceChanged, this, [=] {
+        connect(outputSys->outputContext()->driver(), &talcs::AudioDriver::deviceChanged, this,
+                [=] {
+                    disconnect(m_deviceComboBox, nullptr, this, nullptr);
+                    m_deviceComboBox->clear();
+                    disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
+                    m_bufferSizeComboBox->clear();
+                    disconnect(m_sampleRateComboBox, nullptr, this, nullptr);
+                    m_sampleRateComboBox->clear();
+                    updateDeviceComboBox();
+                });
+    }
+
+    connect(
+        m_driverComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        [=](int index) {
+            auto newDrvName = m_driverComboBox->itemData(index).toString();
+            if (newDrvName.isEmpty())
+                return;
             disconnect(m_deviceComboBox, nullptr, this, nullptr);
             m_deviceComboBox->clear();
             disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
             m_bufferSizeComboBox->clear();
             disconnect(m_sampleRateComboBox, nullptr, this, nullptr);
             m_sampleRateComboBox->clear();
-            updateDeviceComboBox();
-        });
-    }
-
-    connect(m_driverComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [=](int index) {
-                auto newDrvName = m_driverComboBox->itemData(index).toString();
-                if (newDrvName.isEmpty())
-                    return;
-                disconnect(m_deviceComboBox, nullptr, this, nullptr);
-                m_deviceComboBox->clear();
-                disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
-                m_bufferSizeComboBox->clear();
-                disconnect(m_sampleRateComboBox, nullptr, this, nullptr);
-                m_sampleRateComboBox->clear();
-                if (!outputSys->setDriver(newDrvName)) {
-                    QMessageBox::warning(
-                        this, {},
-                        tr("Cannot initialize %1 driver")
-                            .arg(talcs::SDLAudioDriverDisplayNameHelper::getDisplayName(newDrvName)));
-                    if (m_driverComboBox->itemData(m_driverComboBox->count() - 1).isNull()) {
-                        m_driverComboBox->setCurrentIndex(m_driverComboBox->count() - 1);
-                    } else {
-                        m_driverComboBox->addItem(tr("(Not working)"));
-                        m_driverComboBox->setCurrentIndex(m_driverComboBox->count() - 1);
-                    }
+            if (!outputSys->setDriver(newDrvName)) {
+                QMessageBox::warning(
+                    this, {},
+                    tr("Cannot initialize %1 driver")
+                        .arg(talcs::SDLAudioDriverDisplayNameHelper::getDisplayName(newDrvName)));
+                if (m_driverComboBox->itemData(m_driverComboBox->count() - 1).isNull()) {
+                    m_driverComboBox->setCurrentIndex(m_driverComboBox->count() - 1);
                 } else {
-                    if (m_driverComboBox->itemData(m_driverComboBox->count() - 1).isNull()) {
-                        m_driverComboBox->removeItem(m_driverComboBox->count() - 1);
-                    }
-                    updateDeviceComboBox();
+                    m_driverComboBox->addItem(tr("(Not working)"));
+                    m_driverComboBox->setCurrentIndex(m_driverComboBox->count() - 1);
                 }
-            });
+            } else {
+                if (m_driverComboBox->itemData(m_driverComboBox->count() - 1).isNull()) {
+                    m_driverComboBox->removeItem(m_driverComboBox->count() - 1);
+                }
+                updateDeviceComboBox();
+            }
+        });
 }
+
 void OutputPlaybackPageWidget::updateDeviceComboBox() {
     auto outputSys = AudioSystem::outputSystem();
 
     auto deviceList = outputSys->outputContext()->driver()->devices();
     for (int i = 0; i < deviceList.size(); i++) {
         m_deviceComboBox->addItem(deviceList[i], deviceList[i]);
-        if (outputSys->outputContext()->device() && deviceList[i] == outputSys->outputContext()->device()->name())
+        if (outputSys->outputContext()->device() &&
+            deviceList[i] == outputSys->outputContext()->device()->name())
             m_deviceComboBox->setCurrentIndex(i);
     }
     if (!outputSys->outputContext()->device()) {
@@ -263,36 +278,38 @@ void OutputPlaybackPageWidget::updateDeviceComboBox() {
         updateBufferSizeAndSampleRateComboBox();
     }
 
-    connect(
-        m_deviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-        [=](int index) {
-            auto newDevName = m_deviceComboBox->itemData(index).toString();
-            if (newDevName.isNull())
-                return;
-            if (!outputSys->setDevice(newDevName)) {
-                for (int i = 0; i < m_deviceComboBox->count(); i++) {
-                    if ((!outputSys->outputContext()->device() && m_deviceComboBox->itemData(i).isNull()) ||
-                        (outputSys->outputContext()->device() && outputSys->outputContext()->device()->name() ==
-                                                                     m_deviceComboBox->itemData(i).toString())) {
-                        QSignalBlocker blocker(m_deviceComboBox);
-                        m_deviceComboBox->setCurrentIndex(i);
-                        break;
+    connect(m_deviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            [=](int index) {
+                auto newDevName = m_deviceComboBox->itemData(index).toString();
+                if (newDevName.isNull())
+                    return;
+                if (!outputSys->setDevice(newDevName)) {
+                    for (int i = 0; i < m_deviceComboBox->count(); i++) {
+                        if ((!outputSys->outputContext()->device() &&
+                             m_deviceComboBox->itemData(i).isNull()) ||
+                            (outputSys->outputContext()->device() &&
+                             outputSys->outputContext()->device()->name() ==
+                                 m_deviceComboBox->itemData(i).toString())) {
+                            QSignalBlocker blocker(m_deviceComboBox);
+                            m_deviceComboBox->setCurrentIndex(i);
+                            break;
+                        }
                     }
+                    QMessageBox::warning(this, {},
+                                         tr("Audio device %1 is not available").arg(newDevName));
+                } else {
+                    if (m_deviceComboBox->itemData(m_deviceComboBox->count() - 1).isNull()) {
+                        m_deviceComboBox->removeItem(m_deviceComboBox->count() - 1);
+                    }
+                    disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
+                    m_bufferSizeComboBox->clear();
+                    disconnect(m_sampleRateComboBox, nullptr, this, nullptr);
+                    m_sampleRateComboBox->clear();
+                    updateBufferSizeAndSampleRateComboBox();
                 }
-                QMessageBox::warning(this, {},
-                                     tr("Audio device %1 is not available").arg(newDevName));
-            } else {
-                if (m_deviceComboBox->itemData(m_deviceComboBox->count() - 1).isNull()) {
-                    m_deviceComboBox->removeItem(m_deviceComboBox->count() - 1);
-                }
-                disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
-                m_bufferSizeComboBox->clear();
-                disconnect(m_sampleRateComboBox, nullptr, this, nullptr);
-                m_sampleRateComboBox->clear();
-                updateBufferSizeAndSampleRateComboBox();
-            }
-        });
+            });
 }
+
 void OutputPlaybackPageWidget::updateBufferSizeAndSampleRateComboBox() {
     auto outputSys = AudioSystem::outputSystem();
 
@@ -319,6 +336,7 @@ void OutputPlaybackPageWidget::updateBufferSizeAndSampleRateComboBox() {
                 outputSys->setAdoptedSampleRate(newSampleRate);
             });
 }
+
 void OutputPlaybackPageWidget::updateGain(double gain) {
     QSignalBlocker sliderBlocker(m_deviceGainSlider);
     QSignalBlocker spinBoxBlocker(m_deviceGainSpinBox);
@@ -327,6 +345,7 @@ void OutputPlaybackPageWidget::updateGain(double gain) {
     m_deviceGainSpinBox->setValue(talcs::Decibels::gainToDecibels(static_cast<float>(gain)));
     AudioSystem::outputSystem()->outputContext()->controlMixer()->setGain(static_cast<float>(gain));
 }
+
 void OutputPlaybackPageWidget::updatePan(double pan) {
     QSignalBlocker sliderBlocker(m_devicePanSlider);
     QSignalBlocker spinBoxBlocker(m_devicePanSpinBox);

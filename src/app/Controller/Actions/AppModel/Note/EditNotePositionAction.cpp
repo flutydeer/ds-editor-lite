@@ -16,6 +16,7 @@ EditNotePositionAction *EditNotePositionAction::build(Note *note, int deltaTick,
     a->m_clip = clip;
     return a;
 }
+
 void EditNotePositionAction::execute() {
     m_clip->removeNote(m_note);
     m_note->setStart(m_note->start() + m_deltaTick);
@@ -23,6 +24,7 @@ void EditNotePositionAction::execute() {
     m_clip->insertNote(m_note);
     m_note->notifyPropertyChanged(Note::TimeAndKey);
 }
+
 void EditNotePositionAction::undo() {
     m_clip->removeNote(m_note);
     m_note->setStart(m_note->start() - m_deltaTick);

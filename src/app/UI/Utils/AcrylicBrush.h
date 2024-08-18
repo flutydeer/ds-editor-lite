@@ -11,7 +11,8 @@
 #include <QImage>
 #include <QPainterPath>
 
-// Port from https://github.com/zhiyiYo/PyQt-Fluent-Widgets/blob/master/qfluentwidgets/components/widgets/acrylic_label.py
+// Port from
+// https://github.com/zhiyiYo/PyQt-Fluent-Widgets/blob/master/qfluentwidgets/components/widgets/acrylic_label.py
 class AcrylicBrush {
 public:
     AcrylicBrush(QWidget *device, int blurRadius, QColor tintColor = QColor(242, 242, 242, 150),

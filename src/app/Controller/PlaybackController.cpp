@@ -15,6 +15,7 @@ PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(t
     connect(ValidationController::instance(), &ValidationController::validationFinished, this,
             [=](bool passed) { d->onValidationFinished(passed); });
 }
+
 PlaybackController::~PlaybackController() {
     delete d_ptr;
 }
@@ -23,14 +24,17 @@ PlaybackStatus PlaybackController::playbackStatus() const {
     Q_D(const PlaybackController);
     return d->m_playbackStatus;
 }
+
 double PlaybackController::position() const {
     Q_D(const PlaybackController);
     return d->m_position;
 }
+
 double PlaybackController::lastPosition() const {
     Q_D(const PlaybackController);
     return d->m_lastPlayPosition;
 }
+
 double PlaybackController::tempo() const {
     Q_D(const PlaybackController);
     return d->m_tempo;
@@ -48,6 +52,7 @@ void PlaybackController::pause() {
     d->m_playbackStatus = Paused;
     emit playbackStatusChanged(Paused);
 }
+
 void PlaybackController::stop() {
     Q_D(PlaybackController);
     d->m_playRequested = false;
@@ -60,6 +65,7 @@ void PlaybackController::setPosition(double tick) {
     d->m_position = tick;
     emit positionChanged(tick);
 }
+
 void PlaybackController::setLastPosition(double tick) {
     Q_D(PlaybackController);
     d->m_lastPlayPosition = tick;
@@ -70,14 +76,17 @@ void PlaybackController::sampleRateChanged(double sr) {
     Q_D(PlaybackController);
     d->m_sampleRate = sr;
 }
+
 void PlaybackController::onTempoChanged(double tempo) {
     Q_D(PlaybackController);
     d->m_tempo = tempo;
 }
+
 void PlaybackController::onModelChanged() {
     auto tempo = appModel->tempo();
     onTempoChanged(tempo);
 }
+
 void PlaybackControllerPrivate::onValidationFinished(bool passed) {
     Q_Q(PlaybackController);
     qDebug() << "PlaybackController::onValidationFinished"
@@ -92,11 +101,13 @@ void PlaybackControllerPrivate::onValidationFinished(bool passed) {
         }
     }
 }
+
 double PlaybackControllerPrivate::samplePosToTick(int sample) const {
     auto secs = sample / m_sampleRate;
     auto tick = secs * 60 / m_tempo * 480;
     return tick;
 }
+
 int PlaybackControllerPrivate::tickToSamplePos(double tick) const {
     auto pos = tick * m_tempo * m_sampleRate / 60 / 480;
     return static_cast<int>(pos);

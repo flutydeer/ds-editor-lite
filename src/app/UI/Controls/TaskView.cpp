@@ -24,9 +24,11 @@ TaskView::TaskView(const TaskStatus &initialStatus, QWidget *parent)
 
     updateUi(initialStatus);
 }
+
 void TaskView::onTaskStatusChanged(const TaskStatus &status) {
     updateUi(status);
 }
+
 void TaskView::updateUi(const TaskStatus &status) {
     m_lbTitle->setText(status.title);
     m_lbMsg->setText(status.message);

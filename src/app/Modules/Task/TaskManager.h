@@ -13,10 +13,12 @@
 
 class Task;
 class TaskManagerPrivate;
+
 class TaskManager : public QObject, public Singleton<TaskManager> {
     Q_OBJECT
 public:
     enum TaskChangeType { Added, Removed };
+
     explicit TaskManager(QObject *parent = nullptr);
     ~TaskManager() override;
     [[nodiscard]] const QList<Task *> &tasks() const;

@@ -12,6 +12,7 @@ void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(defaultLyricKey))
         defaultLyric = object[defaultLyricKey].toString();
 }
+
 void GeneralOption::save(QJsonObject &object) {
     object[defaultSingingLanguageKey] = languageKeyFromType(defaultSingingLanguage);
     object[defaultLyricKey] = defaultLyric;

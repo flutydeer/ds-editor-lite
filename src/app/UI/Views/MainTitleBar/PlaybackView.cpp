@@ -170,16 +170,12 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
 
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    connect(this, &PlaybackView::setTempoTriggered, appController,
-                &AppController::onSetTempo);
+    connect(this, &PlaybackView::setTempoTriggered, appController, &AppController::onSetTempo);
     connect(this, &PlaybackView::setTimeSignatureTriggered, appController,
             &AppController::onSetTimeSignature);
-    connect(this, &PlaybackView::playTriggered, playbackController,
-            &PlaybackController::play);
-    connect(this, &PlaybackView::pauseTriggered, playbackController,
-            &PlaybackController::pause);
-    connect(this, &PlaybackView::stopTriggered, playbackController,
-            &PlaybackController::stop);
+    connect(this, &PlaybackView::playTriggered, playbackController, &PlaybackController::play);
+    connect(this, &PlaybackView::pauseTriggered, playbackController, &PlaybackController::pause);
+    connect(this, &PlaybackView::stopTriggered, playbackController, &PlaybackController::stop);
     connect(this, &PlaybackView::setPositionTriggered, playbackController, [=](int tick) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
@@ -192,9 +188,9 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
             &PlaybackView::onPositionChanged);
     connect(appModel, &AppModel::modelChanged, this, &PlaybackView::updateView);
     connect(appModel, &AppModel::tempoChanged, this, &PlaybackView::onTempoChanged);
-    connect(appModel, &AppModel::timeSignatureChanged, this,
-            &PlaybackView::onTimeSignatureChanged);
+    connect(appModel, &AppModel::timeSignatureChanged, this, &PlaybackView::onTimeSignatureChanged);
 }
+
 void PlaybackView::updateView() {
     m_tempo = appModel->tempo();
     m_numerator = appModel->timeSignature().numerator;
@@ -207,24 +203,29 @@ void PlaybackView::updateView() {
     updateTimeView();
     updatePlaybackControlView();
 }
+
 void PlaybackView::onTempoChanged(double tempo) {
     m_tempo = tempo;
     updateTempoView();
 }
+
 void PlaybackView::onTimeSignatureChanged(int numerator, int denominator) {
     m_numerator = numerator;
     m_denominator = denominator;
     updateTimeSignatureView();
     updateTimeView();
 }
+
 void PlaybackView::onPositionChanged(double tick) {
     m_tick = static_cast<int>(tick);
     updateTimeView();
 }
+
 void PlaybackView::onPlaybackStatusChanged(PlaybackStatus status) {
     m_status = status;
     updatePlaybackControlView();
 }
+
 QString PlaybackView::toFormattedTickTime(int ticks) const {
     int barTicks = 1920 * m_numerator / m_denominator;
     int beatTicks = 1920 / m_denominator;
@@ -235,6 +236,7 @@ QString PlaybackView::toFormattedTickTime(int ticks) const {
                QString::asprintf("%03d", tick);
     return str;
 }
+
 int PlaybackView::fromTickTimeString(const QStringList &splitStr) const {
     auto bar = splitStr.at(0).toInt();
     auto beat = splitStr.at(1).toInt();
@@ -242,15 +244,19 @@ int PlaybackView::fromTickTimeString(const QStringList &splitStr) const {
     return (bar - 1) * 1920 * m_numerator / m_denominator + (beat - 1) * 1920 / m_denominator +
            tick;
 }
+
 void PlaybackView::updateTempoView() {
     m_elTempo->setText(QString::number(m_tempo));
 }
+
 void PlaybackView::updateTimeSignatureView() {
     m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
 }
+
 void PlaybackView::updateTimeView() {
     m_elTime->setText(toFormattedTickTime(m_tick));
 }
+
 void PlaybackView::updatePlaybackControlView() {
     if (m_status == Playing) {
         m_btnPlay->setChecked(true);

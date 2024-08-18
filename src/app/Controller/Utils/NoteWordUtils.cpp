@@ -32,8 +32,7 @@ void NoteWordUtils::updateOriginalWordProperties(const QList<Note *> &notes) {
         arg.lyric = langNotes[i]->lyric;
         arg.pronunciation.original = langNotes[i]->syllable;
         arg.phonemes.original = notesPhonemes[i].original;
-        const auto phonemes =
-            syllable2p->syllableToPhoneme(langNotes[i]->syllable);
+        const auto phonemes = syllable2p->syllableToPhoneme(langNotes[i]->syllable);
         if (!phonemes.empty()) {
             if (phonemes.size() == 1) {
                 const QString &first = phonemes.at(0);
@@ -96,13 +95,13 @@ void NoteWordUtils::fillEditedPhonemeNames(const QList<Note *> &notes) {
     for (int i = 0; i < langNotes.size(); i++) {
         auto note = notes[i];
         auto notePhonemes = note->phonemeInfo();
-        const auto phonemes =
-            syllable2p->syllableToPhoneme(langNotes[i]->syllable);
+        const auto phonemes = syllable2p->syllableToPhoneme(langNotes[i]->syllable);
         if (!phonemes.empty()) {
             if (phonemes.size() == 1) {
                 const QString &first = phonemes.at(0);
-                note->setPhonemeInfo(PhonemeInfo::Edited, {Phoneme(Phoneme::Normal, first,
-                                         notePhonemes.edited.first().start)});
+                note->setPhonemeInfo(
+                    PhonemeInfo::Edited,
+                    {Phoneme(Phoneme::Normal, first, notePhonemes.edited.first().start)});
             } else if (phonemes.size() == 2) {
                 const QString &first = phonemes.at(0);
                 const QString &last = phonemes.at(1);

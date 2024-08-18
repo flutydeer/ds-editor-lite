@@ -12,6 +12,7 @@
 class QLineEdit;
 class LanguageComboBox;
 class Note;
+
 class NotePropertyDialog final : public OKCancelDialog {
     Q_OBJECT
 

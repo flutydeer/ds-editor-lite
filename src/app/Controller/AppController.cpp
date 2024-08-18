@@ -33,15 +33,18 @@ AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
     connect(appModel, &AppModel::trackChanged, audioDecodingController,
             &AudioDecodingController::onTrackChanged);
 }
+
 AppController::~AppController() {
     delete d_ptr;
 }
+
 void AppController::newProject() {
     Q_D(AppController);
     appModel->newProject();
     historyManager->reset();
     d->updateProjectPathAndName("");
 }
+
 void AppController::openProject(const QString &filePath) {
     Q_D(AppController);
     appModel->loadProject(filePath);
@@ -49,6 +52,7 @@ void AppController::openProject(const QString &filePath) {
     d->updateProjectPathAndName(filePath);
     d->m_lastProjectFolder = QFileInfo(filePath).dir().path();
 }
+
 bool AppController::saveProject(const QString &filePath) {
     Q_D(AppController);
     if (appModel->saveProject(filePath)) {
@@ -60,12 +64,15 @@ bool AppController::saveProject(const QString &filePath) {
     Toast::show(tr("Failed to save project"));
     return false;
 }
+
 void AppController::importMidiFile(const QString &filePath) {
     appModel->importMidiFile(filePath);
 }
+
 void AppController::exportMidiFile(const QString &filePath) {
     appModel->exportMidiFile(filePath);
 }
+
 void AppController::importAproject(const QString &filePath) {
     Q_D(AppController);
     appModel->importAProject(filePath);
@@ -74,6 +81,7 @@ void AppController::importAproject(const QString &filePath) {
     setProjectName(QFileInfo(filePath).baseName());
     d->m_lastProjectFolder = QFileInfo(filePath).dir().path();
 }
+
 void AppController::onSetTempo(double tempo) {
     auto model = appModel;
     auto oldTempo = model->tempo();
@@ -83,6 +91,7 @@ void AppController::onSetTempo(double tempo) {
     actions->execute();
     historyManager->record(actions);
 }
+
 void AppController::onSetTimeSignature(int numerator, int denominator) {
     Q_D(AppController);
     auto model = appModel;
@@ -97,12 +106,15 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
     actions->execute();
     historyManager->record(actions);
 }
+
 void AppController::onSetQuantize(int quantize) {
     appModel->setQuantize(quantize);
 }
+
 void AppController::selectTrack(int trackIndex) {
     appModel->setSelectedTrack(trackIndex);
 }
+
 void AppController::onPanelClicked(AppGlobal::PanelType panelType) {
     Q_D(AppController);
     for (const auto panel : d->m_panels)
@@ -110,6 +122,7 @@ void AppController::onPanelClicked(AppGlobal::PanelType panelType) {
     d->m_activePanel = panelType;
     emit activePanelChanged(panelType);
 }
+
 void AppController::onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                                       const QString &redoActionName) {
     Q_D(AppController);
@@ -124,50 +137,61 @@ void AppController::setMainWindow(IMainWindow *window) {
     Q_D(AppController);
     d->m_mainWindow = window;
 }
+
 void AppController::quit() {
     Q_D(AppController);
     d->m_mainWindow->quit();
 }
+
 void AppController::restart() {
     qDebug() << "AppController::restart";
     Q_D(AppController);
     d->m_mainWindow->restart();
 }
+
 QString AppController::lastProjectFolder() const {
     Q_D(const AppController);
     return d->m_lastProjectFolder;
 }
+
 QString AppController::projectPath() const {
     Q_D(const AppController);
     return d->m_projectPath;
 }
+
 QString AppController::projectName() const {
     Q_D(const AppController);
     return d->m_projectName;
 }
+
 void AppController::setProjectName(const QString &name) {
     Q_D(AppController);
     d->m_projectName = name;
     if (d->m_mainWindow)
         d->m_mainWindow->updateWindowTitle();
 }
+
 bool AppController::isLanguageEngineReady() const {
     Q_D(const AppController);
     return d->m_isLanguageEngineReady;
 }
+
 void AppController::registerPanel(IPanel *panel) {
     Q_D(AppController);
     d->m_panels.append(panel);
 }
+
 bool AppControllerPrivate::isPowerOf2(int num) {
     return num > 0 && ((num & (num - 1)) == 0);
 }
+
 void AppControllerPrivate::handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
     qDebug() << "AppController::handleRunLanguageEngineTaskFinished";
     taskManager->removeTask(task);
     m_isLanguageEngineReady = task->success;
     delete task;
 }
+
 void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
     Q_Q(AppController);
     m_projectPath = path;

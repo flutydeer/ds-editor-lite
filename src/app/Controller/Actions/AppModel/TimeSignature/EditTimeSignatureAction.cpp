@@ -12,9 +12,11 @@ EditTimeSignatureAction *EditTimeSignatureAction::build(TimeSignature oldSig, Ti
     a->m_model = model;
     return a;
 }
+
 void EditTimeSignatureAction::execute() {
     m_model->setTimeSignature(m_newSig);
 }
+
 void EditTimeSignatureAction::undo() {
     m_model->setTimeSignature(m_oldSig);
 }

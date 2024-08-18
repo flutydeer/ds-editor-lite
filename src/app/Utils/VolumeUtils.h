@@ -14,6 +14,7 @@ public:
             return qMax(20 * std::log10(volume), -70.0);
         return -70;
     }
+
     static double dBToLinear(double gain) {
         if (gain <= -70)
             return 0;

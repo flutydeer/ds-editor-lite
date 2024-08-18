@@ -25,4 +25,4 @@ private:
     QList<Track *> m_originalTracks;
 };
 
-#endif //REMOVETRACKSACTION_H
+#endif // REMOVETRACKSACTION_H

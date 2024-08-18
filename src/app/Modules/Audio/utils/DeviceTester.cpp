@@ -11,12 +11,15 @@ DeviceTester::DeviceTester(QObject *parent) : QObject(parent) {
     m_instance = this;
     AudioSystem::outputSystem()->context()->preMixer()->addSource(this);
 }
+
 DeviceTester::~DeviceTester() {
     m_instance = nullptr;
 }
+
 void DeviceTester::playTestSound() {
     m_instance->startTest();
 }
+
 bool DeviceTester::open(qint64 bufferSize, double sampleRate) {
     static const double PI = std::acos(-1);
     m_sound.resize(1, qint64(sampleRate));
@@ -25,25 +28,30 @@ bool DeviceTester::open(qint64 bufferSize, double sampleRate) {
     double rate = std::pow(0.99, 20000.0 / sampleRate);
     qint64 i, j;
     for (i = 0; i < m_sound.sampleCount() && fadeIn < 1.0; i++) {
-        m_sound.sampleAt(0, i) = float(0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * double(i)) * fadeIn);
+        m_sound.sampleAt(0, i) =
+            float(0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * double(i)) * fadeIn);
         fadeIn /= rate;
     }
     for (j = m_sound.sampleCount() - 1; j >= 0 && fadeOut < 1.0; j--) {
-        m_sound.sampleAt(0, j) = float(0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * double(j)) * fadeOut);
+        m_sound.sampleAt(0, j) =
+            float(0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * double(j)) * fadeOut);
         fadeOut /= rate;
     }
-    for (;i <= j; i++) {
+    for (; i <= j; i++) {
         m_sound.sampleAt(0, i) = float(0.5 * std::sin(2.0 * PI * 440.0 / sampleRate * double(i)));
     }
     m_pos = -1;
     return talcs::AudioSource::open(bufferSize, sampleRate);
 }
+
 void DeviceTester::close() {
     talcs::AudioSource::close();
 }
+
 void DeviceTester::startTest() {
     m_pos = 0;
 }
+
 qint64 DeviceTester::processReading(const talcs::AudioSourceReadData &readData) {
     qint64 pos = m_pos;
     if (pos < 0)

@@ -7,13 +7,15 @@
 
 #include <QPixmap>
 #include <QImage>
+
 // #include <opencv2/opencv.hpp>
 
 class ImageUtils {
-    public:
-   static QPixmap gaussianBlur(const QPixmap& pixmap, int blurRadius = 18, double brightFactor = 1.0, QSize blurPicSize = QSize());
+public:
+    static QPixmap gaussianBlur(const QPixmap &pixmap, int blurRadius = 18,
+                                double brightFactor = 1.0, QSize blurPicSize = QSize());
 };
 
 
 
-#endif //IMAGEUTILS_H
+#endif // IMAGEUTILS_H

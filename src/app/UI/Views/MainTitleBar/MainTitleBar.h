@@ -13,6 +13,7 @@ class ActionButtonsView;
 class PlaybackView;
 class Button;
 class MainMenuView;
+
 class MainTitleBar : public QWidget {
     Q_OBJECT
 

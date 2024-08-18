@@ -24,4 +24,4 @@ private:
 
 
 
-#endif //EDITNOTESLENGTHACTION_H
+#endif // EDITNOTESLENGTHACTION_H

@@ -40,7 +40,6 @@ private:
     void handleNotePropertyChanged(Note *note);
 
     void handleTimeChanged();
-
 };
 
 #endif // TRACKSYNTHESIZER_H

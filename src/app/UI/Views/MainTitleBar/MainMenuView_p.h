@@ -9,6 +9,7 @@
 
 class QAction;
 class MainWindow;
+
 class MainMenuViewPrivate : QObject {
     Q_OBJECT
 
@@ -32,7 +33,7 @@ public:
 
     AppGlobal::PanelType m_panelType = AppGlobal::Generic;
 
-    void onNewProject() const ;
+    void onNewProject() const;
     void onOpenProject();
     void onOpenAProject();
     void onImportMidiFile();

@@ -14,6 +14,7 @@
 #include <QObject>
 
 class SingingClip;
+
 class Note : public QObject, public Overlappable, public UniqueObject, public ISelectable {
     Q_OBJECT
 

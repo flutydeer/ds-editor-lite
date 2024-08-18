@@ -110,6 +110,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     connect(appModel, &AppModel::modelChanged, this, &TrackEditorView::onModelChanged);
     connect(appModel, &AppModel::trackChanged, this, &TrackEditorView::onTrackChanged);
 }
+
 void TrackEditorView::onModelChanged() {
     if (m_tracksScene == nullptr)
         return;
@@ -123,6 +124,7 @@ void TrackEditorView::onModelChanged() {
     }
     emit trackCountChanged(m_trackListViewModel.tracks.count());
 }
+
 void TrackEditorView::onTrackChanged(AppModel::TrackChangeType type, int index) {
     if (type == AppModel::Insert) {
         insertTrackToView(appModel->tracks().at(index), index);
@@ -132,6 +134,7 @@ void TrackEditorView::onTrackChanged(AppModel::TrackChangeType type, int index) 
     }
     emit trackCountChanged(m_trackListViewModel.tracks.count());
 }
+
 void TrackEditorView::onClipChanged(Track::ClipChangeType type, Clip *clip) {
     if (type == Track::Inserted) {
         int trackIndex;
@@ -144,12 +147,15 @@ void TrackEditorView::onClipChanged(Track::ClipChangeType type, Clip *clip) {
     }
     updateOverlappedState();
 }
+
 void TrackEditorView::onPositionChanged(double tick) {
     m_graphicsView->setPlaybackPosition(tick);
 }
+
 void TrackEditorView::onLastPositionChanged(double tick) {
     m_graphicsView->setLastPlaybackPosition(tick);
 }
+
 void TrackEditorView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const {
     if (m_trackListViewModel.tracks.isEmpty())
         return;
@@ -161,6 +167,7 @@ void TrackEditorView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArg
         meter->setValue(state.valueL, state.valueR);
     }
 }
+
 // void TrackEditorView::onSceneSelectionChanged() const {
 //     // find selected clip (the first one)
 //     bool foundSelectedClip = false;
@@ -194,6 +201,7 @@ void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) {
         previousHeightSum += height;
     }
 }
+
 void TrackEditorView::onRemoveTrackTriggered(int id) {
     auto track = appModel->findTrackById(id);
     auto dlg = new Dialog(this);
@@ -214,6 +222,7 @@ void TrackEditorView::onRemoveTrackTriggered(int id) {
 
     dlg->show();
 }
+
 bool TrackEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress) {
         // qDebug() << "TracksView MouseButtonPress";
@@ -222,6 +231,7 @@ bool TrackEditorView::eventFilter(QObject *watched, QEvent *event) {
 
     return QWidget::eventFilter(watched, event);
 }
+
 TrackViewModel *TrackEditorView::TrackListViewModel::findTrackById(int id) {
     for (const auto track : tracks) {
         if (track->id() == id)
@@ -229,6 +239,7 @@ TrackViewModel *TrackEditorView::TrackListViewModel::findTrackById(int id) {
     }
     return nullptr;
 }
+
 void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
     connect(dsTrack, &Track::propertyChanged, this, [=] { updateTracksOnView(); });
     connect(dsTrack, &Track::clipChanged, this, &TrackEditorView::onClipChanged);
@@ -268,6 +279,7 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
             }
         }
 }
+
 void TrackEditorView::insertClipToTrack(Clip *clip, TrackViewModel *track, int trackIndex) {
     if (clip->clipType() == Clip::Audio) {
         auto audioClip = reinterpret_cast<AudioClip *>(clip);
@@ -278,6 +290,7 @@ void TrackEditorView::insertClipToTrack(Clip *clip, TrackViewModel *track, int t
     }
     connect(clip, &Clip::propertyChanged, this, [=] { updateClipOnView(clip); });
 }
+
 void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track, int trackIndex) {
     auto clipView = new SingingClipView(clip->id());
     clipView->loadCommonProperties(Clip::ClipCommonProperties(*clip));
@@ -294,6 +307,7 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     connect(appModel, &AppModel::quantizeChanged, clipView, &AbstractClipView::setQuantize);
     track->clips.append(clipView);
 }
+
 void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, int trackIndex) {
     auto clipItem = new AudioClipView(clip->id());
     clipItem->loadCommonProperties(Clip::ClipCommonProperties(*clip));
@@ -308,6 +322,7 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, in
     connect(appModel, &AppModel::quantizeChanged, clipItem, &AbstractClipView::setQuantize);
     track->clips.append(clipItem);
 }
+
 void TrackEditorView::removeClipFromView(int clipId) {
     auto clipView = findClipItemById(clipId);
     m_tracksScene->removeCommonItem(clipView);
@@ -319,6 +334,7 @@ void TrackEditorView::removeClipFromView(int clipId) {
     }
     // delete clipView;
 }
+
 AbstractClipView *TrackEditorView::findClipItemById(int id) {
     for (const auto &track : m_trackListViewModel.tracks)
         for (const auto clip : track->clips)
@@ -326,6 +342,7 @@ AbstractClipView *TrackEditorView::findClipItemById(int id) {
                 return clip;
     return nullptr;
 }
+
 void TrackEditorView::updateTracksOnView() const {
     auto tracksModel = appModel->tracks();
     for (int i = 0; i < m_trackListViewModel.tracks.count(); i++) {
@@ -335,6 +352,7 @@ void TrackEditorView::updateTracksOnView() const {
         widget->setControl(track->control());
     }
 }
+
 void TrackEditorView::updateClipOnView(Clip *clip) {
     // qDebug() << "TracksView::updateClipOnView" << clipId;
     auto item = findClipItemById(clip->id());
@@ -358,6 +376,7 @@ void TrackEditorView::updateClipOnView(Clip *clip) {
 
     updateOverlappedState();
 }
+
 void TrackEditorView::removeTrackFromView(int index) {
     // disconnect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
     //            &TrackEditorView::onSceneSelectionChanged);
@@ -387,6 +406,7 @@ void TrackEditorView::removeTrackFromView(int index) {
     // connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
     //         &TrackEditorView::onSceneSelectionChanged);
 }
+
 void TrackEditorView::updateOverlappedState() {
     for (const auto trackModel : appModel->tracks()) {
         auto track = m_trackListViewModel.findTrackById(trackModel->id());
@@ -397,6 +417,7 @@ void TrackEditorView::updateOverlappedState() {
     }
     m_graphicsView->update();
 }
+
 void TrackEditorView::reset() {
     // disconnect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
     //         &TrackEditorView::onSceneSelectionChanged);

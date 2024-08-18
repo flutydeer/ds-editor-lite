@@ -20,9 +20,11 @@ protected:
 private:
     QRectF m_visibleRect;
 };
+
 inline QRectF IScalableItem::visibleRect() const {
     return m_visibleRect;
 }
+
 inline void IScalableItem::setVisibleRect(const QRectF &rect) {
     m_visibleRect = rect;
     afterSetVisibleRect();

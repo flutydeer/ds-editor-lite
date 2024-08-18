@@ -11,19 +11,24 @@
 class Overlappable {
 public:
     virtual ~Overlappable() = default;
+
     [[nodiscard]] bool overlapped() const {
         return m_overlappedCounter;
     }
+
     void acquireOverlappedCounter() {
         m_overlappedCounter++;
     }
+
     void releaseOverlappedCounter() {
         Q_ASSERT(m_overlappedCounter > 0);
         m_overlappedCounter--;
     }
+
     void clearOverlappedCounter() {
         m_overlappedCounter = 0;
     }
+
     [[nodiscard]] virtual std::tuple<qsizetype, qsizetype> interval() const = 0;
 
 private:

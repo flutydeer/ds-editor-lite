@@ -29,31 +29,39 @@ private:
     double m_scale = 1.0;
     bool m_initialized = false;
 };
+
 inline IAnimatable::IAnimatable() {
     ThemeManager::instance()->addAnimationObserver(this);
 }
+
 inline IAnimatable::~IAnimatable() {
     ThemeManager::instance()->removeAnimationObserver(this);
 }
+
 inline AnimationGlobal::AnimationLevels IAnimatable::animationLevel() const {
     return m_level;
 }
+
 inline void IAnimatable::setAnimationLevel(AnimationGlobal::AnimationLevels level) {
     m_level = level;
     if (m_initialized)
         afterSetAnimationLevel(level);
 }
+
 inline double IAnimatable::animationTimeScale() const {
     return m_scale;
 }
+
 inline void IAnimatable::setTimeScale(double scale) {
     m_scale = scale;
     if (m_initialized)
         afterSetTimeScale(scale);
 }
+
 inline int IAnimatable::getScaledAnimationTime(int ms) const {
     return static_cast<int>(ms * m_scale);
 }
+
 inline void IAnimatable::initializeAnimation() {
     m_initialized = true;
     afterSetAnimationLevel(animationLevel());

@@ -10,7 +10,6 @@
 class AudioExporter : public QObject {
     Q_OBJECT
 public:
-
     explicit AudioExporter(QObject *parent = nullptr);
     ~AudioExporter() override;
 
@@ -28,13 +27,16 @@ public:
             SelectedTracks,
             CustomTracks,
         };
+
         SourceOption sourceOption;
         QList<int> selectedTrackIndices;
+
         enum MixingOption {
             Mixed,
             Seperated,
             SeparatedThroughMasterTrack,
         };
+
         MixingOption mixingOption;
         QString affix;
         bool enableMuteSolo;
@@ -44,6 +46,7 @@ public:
             LoopInterval,
             CustomRange,
         };
+
         TimeRangeOption timeRangeOption;
         qint64 rangeStartTick;
         qint64 rangeEndTick;
@@ -53,8 +56,8 @@ public:
 
     void savePreset(const QString &name) const;
     bool loadPreset(const QString &name);
-    static bool deletePreset(const QString &name) ;
-    static QVariant lastUsedPreset() ;
+    static bool deletePreset(const QString &name);
+    static QVariant lastUsedPreset();
     static QStringList presets();
 
     void setOption(const Option &option);
@@ -79,6 +82,7 @@ public:
         Interrupted,
         Failure,
     };
+
     Status exec();
 
 public slots:
@@ -86,7 +90,6 @@ public slots:
 
 private:
     Option m_option = {};
-
 };
 
 

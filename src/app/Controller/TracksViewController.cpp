@@ -23,9 +23,11 @@
 void TracksViewController::setParentWidget(QWidget *view) {
     m_parentWidget = view;
 }
+
 void TracksViewController::onNewTrack() {
     onInsertNewTrack(appModel->tracks().count());
 }
+
 void TracksViewController::onInsertNewTrack(qsizetype index) {
     // bool soloExists = false;
     // auto tracks = appModel->tracks();
@@ -50,12 +52,14 @@ void TracksViewController::onInsertNewTrack(qsizetype index) {
     a->execute();
     historyManager->record(a);
 }
+
 void TracksViewController::onAppendTrack(Track *track) {
     auto a = new TrackActions;
     a->insertTrack(track, appModel->tracks().count(), appModel);
     a->execute();
     historyManager->record(a);
 }
+
 void TracksViewController::onRemoveTrack(int id) {
     auto trackToRemove = appModel->findTrackById(id);
     QList<Track *> tracks;
@@ -65,6 +69,7 @@ void TracksViewController::onRemoveTrack(int id) {
     a->execute();
     historyManager->record(a);
 }
+
 void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     auto audioClip = new AudioClip;
     audioClip->setPath(filePath);
@@ -76,10 +81,12 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     a->execute();
     historyManager->record(a);
 }
+
 void TracksViewController::setActiveClip(int clipId) {
     if (appModel->activeClipId() != clipId)
         appModel->setActiveClip(clipId);
 }
+
 void TracksViewController::changeTrackProperty(const Track::TrackProperties &args) {
     auto track = appModel->findTrackById(args.id);
     auto a = new TrackActions;
@@ -88,6 +95,7 @@ void TracksViewController::changeTrackProperty(const Track::TrackProperties &arg
     a->execute();
     historyManager->record(a);
 }
+
 void TracksViewController::onAddAudioClip(const QString &path, int id, int tick) {
     auto decodeTask = new DecodeAudioTask;
     decodeTask->path = path;
@@ -100,6 +108,7 @@ void TracksViewController::onAddAudioClip(const QString &path, int id, int tick)
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
+
 void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
     qDebug() << "TracksViewController::onClipPropertyChanged";
     int trackIndex = -1;
@@ -143,6 +152,7 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
         historyManager->record(a);
     }
 }
+
 void TracksViewController::onRemoveClips(const QList<int> &clipsId) {
     if (clipsId.empty())
         return;
@@ -160,6 +170,7 @@ void TracksViewController::onRemoveClips(const QList<int> &clipsId) {
     a->execute();
     historyManager->record(a);
 }
+
 void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
     auto singingClip = new SingingClip;
     int bars = 4;
@@ -182,6 +193,7 @@ void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
 
     setActiveClip(singingClip->id());
 }
+
 void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate) {
     taskManager->removeTask(task);
     if (terminate)

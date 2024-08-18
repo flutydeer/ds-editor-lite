@@ -15,10 +15,12 @@ SelectNoteAction *SelectNoteAction::build(Note *note, bool selected, SingingClip
     a->m_clip = clip;
     return a;
 }
+
 void SelectNoteAction::execute() {
     m_note->setSelected(m_newValue);
     m_clip->notifyNoteSelectionChanged();
 }
+
 void SelectNoteAction::undo() {
     m_note->setSelected(m_oldValue);
     m_clip->notifyNoteSelectionChanged();

@@ -20,6 +20,7 @@ EditNotesWordPropertiesAction *EditNotesWordPropertiesAction::build(Note *note,
     a->m_newArgs = std::move(args);
     return a;
 }
+
 void EditNotesWordPropertiesAction::execute() {
     m_note->setLyric(m_newArgs.lyric);
     m_note->setLanguage(m_newArgs.language);
@@ -29,6 +30,7 @@ void EditNotesWordPropertiesAction::execute() {
     m_note->setPronCandidates(m_newArgs.pronCandidates);
     m_note->notifyPropertyChanged(Note::Word);
 }
+
 void EditNotesWordPropertiesAction::undo() {
     m_note->setLyric(m_oldArgs.lyric);
     m_note->setLanguage(m_oldArgs.language);

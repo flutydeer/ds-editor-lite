@@ -22,4 +22,4 @@ protected:
 
 
 
-#endif //RUNLANGUAGEENGINETASK_H
+#endif // RUNLANGUAGEENGINETASK_H

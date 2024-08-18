@@ -29,6 +29,7 @@ public:
     [[nodiscard]] ClipType clipType() const override {
         return Generic;
     }
+
     [[nodiscard]] QString name() const override;
     void setName(const QString &text) override;
     [[nodiscard]] int start() const override;
@@ -97,16 +98,20 @@ public:
     [[nodiscard]] ClipType clipType() const override {
         return Audio;
     }
+
     [[nodiscard]] QString path() const {
         return m_path;
     }
+
     void setPath(const QString &path) {
         m_path = path;
         emit propertyChanged();
     }
+
     [[nodiscard]] const AudioInfoModel &audioInfo() const {
         return m_info;
     }
+
     void setAudioInfo(const AudioInfoModel &audioInfo) {
         m_info = audioInfo;
         emit propertyChanged();
@@ -124,6 +129,7 @@ public:
     enum NoteChangeType { Inserted, Removed };
 
     explicit SingingClip();
+
     [[nodiscard]] ClipType clipType() const override {
         return Singing;
     }

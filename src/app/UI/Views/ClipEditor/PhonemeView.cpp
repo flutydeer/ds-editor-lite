@@ -32,18 +32,22 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PhonemeView::setPosition);
 }
+
 void PhonemeView::setDataContext(SingingClip *clip) {
     clip == nullptr ? moveToNullClipState() : moveToSingingClipState(clip);
 }
+
 void PhonemeView::handleNoteInserted(Note *note) {
     MathUtils::binaryInsert(m_notes, note);
     connect(note, &Note::propertyChanged, this,
             [=](Note::NotePropertyType type) { onNotePropertyChanged(type, note); });
 }
+
 void PhonemeView::handleNoteRemoved(Note *note) {
     m_notes.removeOne(note);
     disconnect(note, nullptr, this, nullptr);
 }
+
 void PhonemeView::updateNoteTime(Note *note) {
     m_notes.removeOne(note);
     MathUtils::binaryInsert(m_notes, note);
@@ -51,11 +55,13 @@ void PhonemeView::updateNoteTime(Note *note) {
     buildPhonemeList();
     update();
 }
+
 void PhonemeView::reset() {
     m_notes.clear();
     resetPhonemeList();
     update();
 }
+
 void PhonemeView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
@@ -63,18 +69,22 @@ void PhonemeView::setTimeRange(double startTick, double endTick) {
     m_resizeToleranceInTick = ticksPerPixel * AppGlobal::resizeTolarance;
     update();
 }
+
 void PhonemeView::setTimeSignature(int numerator, int denominator) {
     ITimelinePainter::setTimeSignature(numerator, denominator);
     update();
 }
+
 void PhonemeView::setPosition(double tick) {
     m_position = tick;
     update();
 }
+
 void PhonemeView::setQuantize(int quantize) {
     ITimelinePainter::setQuantize(quantize);
     update();
 }
+
 void PhonemeView::onTempoChanged(double tempo) {
     if (m_clip) {
         resetPhonemeList();
@@ -82,11 +92,13 @@ void PhonemeView::onTempoChanged(double tempo) {
         update();
     }
 }
+
 void PhonemeView::onClipPropertyChanged() {
     qDebug() << "PhonemeView::onClipPropertyChanged";
     moveToSingingClipState(m_clip);
     update();
 }
+
 void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
     if (type == SingingClip::Inserted)
         handleNoteInserted(note);
@@ -97,6 +109,7 @@ void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
     buildPhonemeList();
     update();
 }
+
 void PhonemeView::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
     qDebug() << "PhonemeView::onNotePropertyChanged" << note->lyric();
     m_notes.removeOne(note);
@@ -105,6 +118,7 @@ void PhonemeView::onNotePropertyChanged(Note::NotePropertyType type, Note *note)
     buildPhonemeList();
     update();
 }
+
 void PhonemeView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
     QPainter painter(this);
@@ -218,6 +232,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     auto x = tickToX(m_position);
     painter.drawLine(QLineF(x, 0, x, rect().height()));
 }
+
 void PhonemeView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
     auto x = tickToX(tick); // tick to itemX
@@ -227,6 +242,7 @@ void PhonemeView::drawBar(QPainter *painter, int tick, int bar) {
     auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
+
 void PhonemeView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
     auto x = tickToX(tick);
@@ -236,6 +252,7 @@ void PhonemeView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
+
 void PhonemeView::drawEighth(QPainter *painter, int tick) {
     QPen pen;
     auto x = tickToX(tick);
@@ -245,6 +262,7 @@ void PhonemeView::drawEighth(QPainter *painter, int tick) {
     auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
+
 void PhonemeView::mousePressEvent(QMouseEvent *event) {
     if (!canEdit()) {
         event->ignore();
@@ -264,6 +282,7 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
         event->ignore();
     }
 }
+
 void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
     if (!canEdit())
         return;
@@ -288,6 +307,7 @@ void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
 
     update();
 }
+
 void PhonemeView::mouseReleaseEvent(QMouseEvent *event) {
     if (m_mouseMoveBehavior == Move)
         handleAdjustCompleted(m_curPhoneme);
@@ -297,6 +317,7 @@ void PhonemeView::mouseReleaseEvent(QMouseEvent *event) {
     updateHoverEffects();
     QWidget::mouseReleaseEvent(event);
 }
+
 void PhonemeView::updateHoverEffects() {
     auto pos = mapFromGlobal(QCursor::pos());
     auto tick = xToTick(pos.x());
@@ -311,6 +332,7 @@ void PhonemeView::updateHoverEffects() {
         update();
     }
 }
+
 bool PhonemeView::eventFilter(QObject *object, QEvent *event) {
     if (m_freezeHoverEffects)
         return QWidget::eventFilter(object, event);
@@ -328,6 +350,7 @@ bool PhonemeView::eventFilter(QObject *object, QEvent *event) {
 
     return QWidget::eventFilter(object, event);
 }
+
 void PhonemeView::moveToSingingClipState(SingingClip *clip) {
     qDebug() << "PhonemeView::moveToSingingClipState";
     while (m_notes.count() > 0) {
@@ -354,6 +377,7 @@ void PhonemeView::moveToSingingClipState(SingingClip *clip) {
     buildPhonemeList();
     update();
 }
+
 void PhonemeView::moveToNullClipState() {
     while (m_notes.count() > 0)
         handleNoteRemoved(m_notes.first());
@@ -365,11 +389,13 @@ void PhonemeView::moveToNullClipState() {
     resetPhonemeList();
     update();
 }
+
 double PhonemeView::tickToX(double tick) {
     auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
     auto x = (rect().width() - verticalScrollBarWidth) * ratio;
     return x;
 }
+
 double PhonemeView::xToTick(double x) {
     auto tick = 1.0 * x / (rect().width() - verticalScrollBarWidth) * (m_endTick - m_startTick) +
                 m_startTick;
@@ -377,12 +403,15 @@ double PhonemeView::xToTick(double x) {
         tick = 0;
     return tick;
 }
+
 double PhonemeView::ticksPerPixel() const {
     return (m_endTick - m_startTick) / rect().width();
 }
+
 bool PhonemeView::canEdit() const {
     return ticksPerPixel() < m_canEditTicksPerPixelThreshold;
 }
+
 PhonemeView::PhonemeViewModel *PhonemeView::phonemeAtTick(double tick) {
     for (const auto phoneme : m_phonemes) {
         if (qAbs(tick - phoneme->start) < m_resizeToleranceInTick)
@@ -390,6 +419,7 @@ PhonemeView::PhonemeViewModel *PhonemeView::phonemeAtTick(double tick) {
     }
     return nullptr;
 }
+
 QList<PhonemeView::PhonemeViewModel *> PhonemeView::findPhonemesByNoteId(int noteId) {
     QList<PhonemeViewModel *> phonemes;
     for (const auto phoneme : m_phonemes) {
@@ -398,6 +428,7 @@ QList<PhonemeView::PhonemeViewModel *> PhonemeView::findPhonemesByNoteId(int not
     }
     return phonemes;
 }
+
 void PhonemeView::buildPhonemeList() {
     if (m_notes.count() == 0)
         return;
@@ -457,17 +488,20 @@ void PhonemeView::buildPhonemeList() {
         }
     }
 }
+
 void PhonemeView::resetPhonemeList() {
     for (auto phoneme : m_phonemes)
         delete phoneme;
     m_phonemes.clear();
 }
+
 void PhonemeView::clearHoverEffects(PhonemeViewModel *except) {
     for (const auto item : m_phonemes) {
         if (item != except && item->hoverOnControlBar)
             item->hoverOnControlBar = false;
     }
 }
+
 void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phonemeViewModel) {
     QList<Phoneme> phonemes;
     auto phonemeViewModels = findPhonemesByNoteId(phonemeViewModel->noteId);

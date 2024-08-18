@@ -11,8 +11,7 @@
 class EditTrackPropertiesAction final : public IAction {
 public:
     static EditTrackPropertiesAction *build(const Track::TrackProperties &oldArgs,
-                                            const Track::TrackProperties &newArgs,
-                                            Track *track);
+                                            const Track::TrackProperties &newArgs, Track *track);
     void execute() override;
     void undo() override;
 

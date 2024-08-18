@@ -3,6 +3,7 @@
 //
 
 #include "EditTrackPropertiesAction.h"
+
 EditTrackPropertiesAction *EditTrackPropertiesAction::build(const Track::TrackProperties &oldArgs,
                                                             const Track::TrackProperties &newArgs,
                                                             Track *track) {
@@ -12,6 +13,7 @@ EditTrackPropertiesAction *EditTrackPropertiesAction::build(const Track::TrackPr
     a->m_track = track;
     return a;
 }
+
 void EditTrackPropertiesAction::execute() {
     m_track->setName(m_newArgs.name);
     auto control = m_track->control();
@@ -21,6 +23,7 @@ void EditTrackPropertiesAction::execute() {
     control.setSolo(m_newArgs.solo);
     m_track->setControl(control);
 }
+
 void EditTrackPropertiesAction::undo() {
     m_track->setName(m_oldArgs.name);
     auto control = m_track->control();

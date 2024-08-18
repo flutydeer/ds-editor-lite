@@ -12,6 +12,7 @@
 #include <QObject>
 
 class ClipboardControllerPrivate;
+
 class ClipboardController final : public QObject, public Singleton<ClipboardController> {
     Q_OBJECT
 

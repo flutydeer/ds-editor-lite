@@ -16,6 +16,7 @@ public:
     CurveType type() const override {
         return Draw;
     }
+
     int step = 5;
     [[nodiscard]] const QList<int> &values() const;
     [[nodiscard]] QList<int> mid(int tick) const;

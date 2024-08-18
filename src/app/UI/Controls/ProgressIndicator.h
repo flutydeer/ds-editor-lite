@@ -69,7 +69,7 @@ public slots:
     void setSecondaryValue(double value);
     void setCurrentTaskValue(double value);
     void setIndeterminate(bool on);
-    void setTaskStatus(TaskGlobal::Status  status);
+    void setTaskStatus(TaskGlobal::Status status);
 
 signals:
     void valueChanged(double value);
@@ -122,8 +122,10 @@ protected:
     void calculateRingParams();
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override {
     }
+
     void afterSetTimeScale(double scale) override {
     }
 

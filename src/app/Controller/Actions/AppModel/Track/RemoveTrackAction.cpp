@@ -14,12 +14,15 @@ RemoveTrackAction *RemoveTrackAction::build(Track *track, AppModel *model) {
     a->m_originalTracks = model->tracks();
     return a;
 }
+
 RemoveTrackAction::~RemoveTrackAction() {
     delete m_track;
 }
+
 void RemoveTrackAction::execute() {
     m_model->removeTrack(m_track);
 }
+
 void RemoveTrackAction::undo() {
     m_model->clearTracks();
     for (const auto track : m_originalTracks)

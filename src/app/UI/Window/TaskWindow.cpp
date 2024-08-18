@@ -43,19 +43,21 @@ TaskWindow::TaskWindow(QWidget *parent) : Window(parent) {
 
     connect(taskManager, &TaskManager::taskChanged, this, &TaskWindow::onTaskChanged);
 
-    setWindowFlags(Qt::Tool/* | Qt::WindowStaysOnTopHint*/);
+    setWindowFlags(Qt::Tool /* | Qt::WindowStaysOnTopHint*/);
     auto mainLayout = new QVBoxLayout;
     mainLayout->setContentsMargins({});
     mainLayout->addWidget(m_taskList);
     setLayout(mainLayout);
     resize(360, 480);
 }
+
 void TaskWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index) {
     if (type == TaskManager::Added)
         addTaskToView(task);
     else if (type == TaskManager::Removed)
         removeTaskFromView(index);
 }
+
 void TaskWindow::addTaskToView(Task *task) {
     qDebug() << "TaskWindow::addTaskToView";
     auto item = new QListWidgetItem;
@@ -66,6 +68,7 @@ void TaskWindow::addTaskToView(Task *task) {
 
     connect(task, &Task::statusUpdated, taskView, &TaskView::onTaskStatusChanged);
 }
+
 void TaskWindow::removeTaskFromView(qsizetype index) {
     qDebug() << "TaskWindow::removeTaskFromView";
     auto item = m_taskList->takeItem(index);

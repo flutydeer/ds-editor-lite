@@ -85,6 +85,7 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
 
     setLayout(mainLayout);
 }
+
 void AppearancePage::modifyOption() {
     auto option = appOptions->appearance();
     option->useNativeFrame = m_swUseNativeFrame->value();

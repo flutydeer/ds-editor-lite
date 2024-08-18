@@ -240,6 +240,7 @@ void ClipEditorViewController::onPitchEdited(const QList<Curve *> &curves) const
     a->execute();
     historyManager->record(a);
 }
+
 void ClipEditorViewController::onNotePropertiesEdited(int noteId, const NoteDialogResult &result) {
     Q_D(ClipEditorViewController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);

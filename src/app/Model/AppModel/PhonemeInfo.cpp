@@ -9,6 +9,7 @@
 bool PhonemeInfo::isEdited() const {
     return !edited.isEmpty();
 }
+
 QDataStream &operator<<(QDataStream &out, const PhonemeInfo &phonemes) {
     auto serialize = [](QDataStream &out, const QList<Phoneme> &phonemes) {
         out << phonemes.count();
@@ -22,6 +23,7 @@ QDataStream &operator<<(QDataStream &out, const PhonemeInfo &phonemes) {
     serialize(out, phonemes.edited);
     return out;
 }
+
 QDataStream &operator>>(QDataStream &in, PhonemeInfo &phonemes) {
     auto deserialize = [](QDataStream &in, QList<Phoneme> &phonemes) {
         int count;
@@ -38,6 +40,7 @@ QDataStream &operator>>(QDataStream &in, PhonemeInfo &phonemes) {
     deserialize(in, phonemes.edited);
     return in;
 }
+
 QJsonObject PhonemeInfo::serialize(const PhonemeInfo &phonemes) {
     QJsonObject objPhonemes;
     auto serializePhoneme = [](QJsonArray &array, const QList<Phoneme> &phonemes) {

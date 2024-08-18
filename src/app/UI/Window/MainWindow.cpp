@@ -131,6 +131,7 @@ MainWindow::MainWindow() {
 
     WindowFrameUtils::applyFrameEffects(this);
 }
+
 void MainWindow::updateWindowTitle() {
     auto projectName = appController->projectName();
     auto saved = historyManager->isOnSavePoint();
@@ -147,6 +148,7 @@ void MainWindow::updateWindowTitle() {
         }
     }
 }
+
 bool MainWindow::askSaveChanges() {
     auto handled = new bool;
     auto dlg = new Dialog;
@@ -179,13 +181,16 @@ bool MainWindow::askSaveChanges() {
     dlg->exec();
     return *handled;
 }
+
 void MainWindow::quit() {
     close();
 }
+
 void MainWindow::restart() {
     m_restartRequested = true;
     close();
 }
+
 void MainWindow::onAllDone() {
     qDebug() << "MainWindow::onAllDone";
     if (m_isCloseRequested) {
@@ -193,6 +198,7 @@ void MainWindow::onAllDone() {
         close();
     }
 }
+
 void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index) {
     if (!m_lbTaskTitle || !m_progressBar)
         return;
@@ -214,12 +220,14 @@ void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsi
         connect(firstTask, &Task::statusUpdated, this, &MainWindow::onTaskStatusChanged);
     }
 }
+
 void MainWindow::onTaskStatusChanged(const TaskStatus &status) {
     m_lbTaskTitle->setText(status.title);
     m_progressBar->setValue(status.progress);
     m_progressBar->setTaskStatus(status.runningStatus);
     m_progressBar->setIndeterminate(status.isIndetermine);
 }
+
 bool MainWindow::onSave() {
     if (appController->projectPath().isEmpty()) {
         onSaveAs();
@@ -228,6 +236,7 @@ bool MainWindow::onSave() {
     }
     return true;
 }
+
 bool MainWindow::onSaveAs() {
     auto lastDir = appController->projectPath().isEmpty()
                        ? appController->lastProjectFolder() + "/" + appController->projectName()
@@ -246,6 +255,7 @@ bool MainWindow::onSaveAs() {
     }
     return true;
 }
+
 void MainWindow::closeEvent(QCloseEvent *event) {
     auto saved = historyManager->isOnSavePoint();
     if (!saved) {
@@ -288,6 +298,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     // taskManager->wait();
     // QMainWindow::closeEvent(event);
 }
+
 bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
 #ifdef Q_OS_WIN
     if (eventType == "windows_generic_MSG") {
@@ -301,6 +312,7 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
 #endif
     return QMainWindow::nativeEvent(eventType, message, result);
 }
+
 void MainWindow::emulateLeaveEvent(QWidget *widget) {
     Q_ASSERT(widget);
     QTimer::singleShot(0, widget, [widget]() {
@@ -321,6 +333,7 @@ void MainWindow::emulateLeaveEvent(QWidget *widget) {
         }
     });
 }
+
 void MainWindow::restartApp() {
     auto program = QCoreApplication::applicationFilePath();
     qDebug() << "restart" << program;

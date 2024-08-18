@@ -100,24 +100,31 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
 }
+
 MainMenuView *MainTitleBar::menuView() const {
     return m_menuView;
 }
+
 ActionButtonsView *MainTitleBar::actionButtonsView() const {
     return m_actionButtonsView;
 }
+
 PlaybackView *MainTitleBar::playbackView() const {
     return m_playbackView;
 }
+
 Button *MainTitleBar::minimizeButton() const {
     return m_btnMin;
 }
+
 Button *MainTitleBar::maximizeButton() const {
     return m_btnMax;
 }
+
 Button *MainTitleBar::closeButton() const {
     return m_btnClose;
 }
+
 void MainTitleBar::setTitle(const QString &title) const {
     if (!m_lbTitle)
         return;
@@ -126,6 +133,7 @@ void MainTitleBar::setTitle(const QString &title) const {
     // auto elidedText = fontWidth.elidedText(title, Qt::ElideRight, m_lbTitle->width());
     // m_lbTitle->setText(elidedText);
 }
+
 bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
     if (watched != m_window)
         return QWidget::eventFilter(watched, event);
@@ -147,6 +155,7 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
 
     return QWidget::eventFilter(watched, event);
 }
+
 void MainTitleBar::setActiveStyle(bool active) {
     m_opacityEffect->setOpacity(active ? 1.0 : 0.5);
     // setProperty("windowActive", active);

@@ -13,7 +13,8 @@
 
 class AudioOption : public IOption {
 public:
-    explicit AudioOption() : IOption("audio"){}
+    explicit AudioOption() : IOption("audio") {
+    }
 
     void load(const QJsonObject &object) override;
 
@@ -21,9 +22,8 @@ public:
 
 protected:
     void save(QJsonObject &object) override;
-
 };
 
 
 
-#endif //AUDIOOPTION_H
+#endif // AUDIOOPTION_H

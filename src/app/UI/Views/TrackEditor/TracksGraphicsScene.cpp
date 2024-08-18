@@ -11,6 +11,7 @@ using namespace TracksEditorGlobal;
 TracksGraphicsScene::TracksGraphicsScene() {
     setSceneSize(QSizeF(1920.0 / 480 * pixelsPerQuarterNote * 100, 2000));
 }
+
 int TracksGraphicsScene::trackIndexAt(double sceneY) {
     auto yToTrackIndex = [&](double y) { return static_cast<int>(y / (trackHeight * scaleY())); };
     auto index = yToTrackIndex(sceneY);
@@ -18,17 +19,21 @@ int TracksGraphicsScene::trackIndexAt(double sceneY) {
         index = -1;
     return index;
 }
+
 int TracksGraphicsScene::tickAt(double sceneX) {
     return static_cast<int>(480 * sceneX / scaleX() / pixelsPerQuarterNote);
 }
+
 void TracksGraphicsScene::onViewResized(QSize size) {
     m_graphicsViewSize = size;
     updateSceneRect();
 }
+
 void TracksGraphicsScene::onTrackCountChanged(int count) {
     m_trackCount = count;
     updateSceneRect();
 }
+
 void TracksGraphicsScene::updateSceneRect() {
     // CommonGraphicsScene::updateSceneRect();
     auto targetSceneWidth = sceneSize().width() * scaleX();

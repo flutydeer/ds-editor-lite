@@ -10,17 +10,21 @@
 PitchEditorView::PitchEditorView() {
     setFillCurve(false);
 }
+
 double PitchEditorView::valueToSceneY(double value) const {
     int min = 0;
     int max = 12700;
-    return (12700 - MathUtils::clip(value, min, max) + 50) * scaleY() * ClipEditorGlobal::noteHeight / 100;
+    return (12700 - MathUtils::clip(value, min, max) + 50) * scaleY() *
+           ClipEditorGlobal::noteHeight / 100;
 }
+
 double PitchEditorView::sceneYToValue(double y) const {
     int min = 0;
     int max = 12700;
     auto value = -(y * 100 / ClipEditorGlobal::noteHeight / scaleY() - 12700 - 50);
     return MathUtils::clip(value, min, max);
 }
+
 // void CommonParamEditorView::drawOpensvipPitchParam(QPainter *painter) {
 //     QPainterPath path;
 //     bool firstPoint = true;

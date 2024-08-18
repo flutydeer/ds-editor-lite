@@ -12,8 +12,9 @@
 class QListWidgetItem;
 class QListWidget;
 class TaskView;
+
 class TaskWindow : public Window {
-Q_OBJECT
+    Q_OBJECT
 
 public:
     explicit TaskWindow(QWidget *parent = nullptr);
@@ -30,4 +31,4 @@ private:
 
 
 
-#endif //TASKWINDOW_H
+#endif // TASKWINDOW_H

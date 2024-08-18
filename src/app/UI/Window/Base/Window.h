@@ -11,7 +11,7 @@ class Window : public QWidget {
     Q_OBJECT
 
 public:
-    explicit Window(QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
+    explicit Window(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
 };
 
 

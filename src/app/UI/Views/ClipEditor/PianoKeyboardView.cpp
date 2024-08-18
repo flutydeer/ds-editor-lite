@@ -11,16 +11,19 @@
 PianoKeyboardView::PianoKeyboardView(QWidget *parent) : QOpenGLWidget(parent) {
     setFixedWidth(64);
 }
+
 void PianoKeyboardView::setKeyIndexRange(double startKeyIndex, double endKeyIndex) {
     m_startKeyIndex = startKeyIndex;
     m_endKeyIndex = endKeyIndex;
     update();
 }
+
 void PianoKeyboardView::initializeGL() {
     // QOpenGLWidget::initializeGL();
     initializeOpenGLFunctions();
     glClearColor(0 / 255.0, 0 / 255.0, 0 / 255.0, 1.0f);
 }
+
 void PianoKeyboardView::resizeGL(int w, int h) {
     glViewport(0, 0, w, h - AppGlobal::horizontalScrollBarWidth);
     glMatrixMode(GL_PROJECTION);
@@ -28,6 +31,7 @@ void PianoKeyboardView::resizeGL(int w, int h) {
     glOrtho(0, w, h - AppGlobal::horizontalScrollBarWidth, 0, -1, 1);
     // QOpenGLWidget::resizeGL(w, h);
 }
+
 void PianoKeyboardView::paintGL() {
     QPainter painter(this);
     QPen pen;
@@ -59,7 +63,7 @@ void PianoKeyboardView::paintGL() {
         auto b = isWhiteKey(i) ? 255.0f : 0.0f;
         glColor3f(b / 255.0f, b / 255.0f, b / 255.0f);
         glRectf(0, y, width(), y + keyHeight);
-        qDebug() << y  << y + keyHeight;
+        qDebug() << y << y + keyHeight;
 
         auto keyIndexTextColor = isWhiteKey(i) ? QColor(20, 20, 20) : QColor(240, 240, 240);
         auto keyRect = QRect(0, y, width(), y + keyHeight);

@@ -13,8 +13,10 @@ class AccentButton : public Button {
 public:
     explicit AccentButton(QWidget *parent = nullptr) : Button(parent) {
     }
+
     explicit AccentButton(const QString &text, QWidget *parent = nullptr) : Button(text, parent) {
     }
+
     AccentButton(const QIcon &icon, const QString &text, QWidget *parent = nullptr)
         : Button(icon, text, parent) {
     }

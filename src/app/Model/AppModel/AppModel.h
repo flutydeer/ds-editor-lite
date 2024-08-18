@@ -73,6 +73,7 @@ public:
             double valueL = 0;
             double valueR = 0;
         };
+
         QList<State> trackMeterStates;
     };
 

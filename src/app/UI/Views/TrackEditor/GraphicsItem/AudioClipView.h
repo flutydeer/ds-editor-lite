@@ -14,6 +14,7 @@ public:
     [[nodiscard]] ClipType clipType() const override {
         return Audio;
     }
+
     explicit AudioClipView(int itemId, QGraphicsItem *parent = nullptr);
     ~AudioClipView() override = default;
 

@@ -13,6 +13,7 @@ class CommonParamEditorView : public OverlayGraphicsItem {
 
 public:
     enum EditMode { Free, Anchor, Off };
+
     explicit CommonParamEditorView();
 
     void loadOriginal(const QList<DrawCurve *> &curves);

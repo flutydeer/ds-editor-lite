@@ -36,35 +36,35 @@
 #include <UI/Controls/SeekBar.h>
 
 static talcs::NoteSynthesizerDetectorMessage scores[] = {
-    {0, {47, .5, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {0, {75, 1, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {2, {75, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
-    {2, {66, .5, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {4, {66, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
-    {4, {73, .7, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {6, {73, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
-    {6, {71, 1, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {8, {71, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
-    {8, {66, .5, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {10, {66, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
+    {0,  {47, .5, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
+    {0,  {75, 1, talcs::NoteSynthesizerDetectorMessage::NoteOn} },
+    {2,  {75, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
+    {2,  {66, .5, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
+    {4,  {66, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
+    {4,  {73, .7, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
+    {6,  {73, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
+    {6,  {71, 1, talcs::NoteSynthesizerDetectorMessage::NoteOn} },
+    {8,  {71, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
+    {8,  {66, .5, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
+    {10, {66, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
     {10, {73, .7, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {12, {47, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
-    {12, {73, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
+    {12, {47, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
+    {12, {73, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
 
     {12, {49, .5, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {12, {75, 1, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {14, {75, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
+    {12, {75, 1, talcs::NoteSynthesizerDetectorMessage::NoteOn} },
+    {14, {75, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
     {14, {66, .5, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {15, {66, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
-    {15, {76, 1, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {16, {76, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
+    {15, {66, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
+    {15, {76, 1, talcs::NoteSynthesizerDetectorMessage::NoteOn} },
+    {16, {76, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
     {16, {75, .7, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {18, {49, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
-    {18, {75, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
+    {18, {49, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
+    {18, {75, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
     {18, {42, .5, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {18, {73, 1, talcs::NoteSynthesizerDetectorMessage::NoteOn}},
-    {24, {42, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
-    {24, {73, talcs::NoteSynthesizerDetectorMessage::NoteOff}},
+    {18, {73, 1, talcs::NoteSynthesizerDetectorMessage::NoteOn} },
+    {24, {42, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
+    {24, {73, talcs::NoteSynthesizerDetectorMessage::NoteOff}   },
     talcs::NoteSynthesizerDetectorMessage::Null,
 };
 
@@ -84,13 +84,15 @@ public:
         auto synthesizerGroupBox = new QGroupBox(tr("Synthesizer"));
         auto synthesizerLayout = new QFormLayout;
         auto generatorComboBox = new QComboBox;
-        generatorComboBox->addItems({tr("Sine wave"), tr("Square wave"), tr("Triangle Wave"), tr("Sawtooth wave")});
+        generatorComboBox->addItems(
+            {tr("Sine wave"), tr("Square wave"), tr("Triangle Wave"), tr("Sawtooth wave")});
         synthesizerLayout->addRow(tr("&Generator"), generatorComboBox);
 
         auto amplitudeLayout = new QHBoxLayout;
         auto amplitudeSlider = new SVS::SeekBar;
         amplitudeSlider->setDefaultValue(SVS::DecibelLinearizer::decibelToLinearValue(-3));
-        amplitudeSlider->setRange(SVS::DecibelLinearizer::decibelToLinearValue(-96), SVS::DecibelLinearizer::decibelToLinearValue(0));
+        amplitudeSlider->setRange(SVS::DecibelLinearizer::decibelToLinearValue(-96),
+                                  SVS::DecibelLinearizer::decibelToLinearValue(0));
         amplitudeLayout->addWidget(amplitudeSlider);
         auto amplitudeSpinBox = new SVS::ExpressionDoubleSpinBox;
         amplitudeSpinBox->setDecimals(1);
@@ -154,9 +156,11 @@ public:
 
         auto frequencyOfALayout = new QVBoxLayout;
         auto frequencyOfASpinBox = new SVS::ExpressionDoubleSpinBox;
-        frequencyOfASpinBox->setRange(440.0 * std::pow(2, -1.0/24.0), 440.0 * std::pow(2, 1.0/24.0));
+        frequencyOfASpinBox->setRange(440.0 * std::pow(2, -1.0 / 24.0),
+                                      440.0 * std::pow(2, 1.0 / 24.0));
         frequencyOfALayout->addWidget(frequencyOfASpinBox);
-        auto adjustByProjectCheckBox = new QCheckBox(tr("Ad&just by the cent shift of the active project window"));
+        auto adjustByProjectCheckBox =
+            new QCheckBox(tr("Ad&just by the cent shift of the active project window"));
         frequencyOfALayout->addWidget(adjustByProjectCheckBox);
         auto frequencyOfALabel = new QLabel(tr("&Frequency of A"));
         frequencyOfALabel->setBuddy(frequencyOfASpinBox);
@@ -167,7 +171,8 @@ public:
         synthesizerTestButton->setCheckable(true);
         synthesizerButtonLayout->addWidget(synthesizerTestButton);
         auto flushButton = new QPushButton(tr("&Interrupt All Notes"));
-        flushButton->setToolTip(tr("Interrupt all notes that are currently played by the synthesizer"));
+        flushButton->setToolTip(
+            tr("Interrupt all notes that are currently played by the synthesizer"));
         synthesizerButtonLayout->addWidget(flushButton);
         synthesizerButtonLayout->addStretch();
         synthesizerLayout->addRow(synthesizerButtonLayout);
@@ -191,70 +196,88 @@ public:
             if (ms->device() && i == ms->device()->deviceIndex())
                 deviceComboBox->setCurrentIndex(i);
         }
-        connect(deviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
-            auto i = deviceComboBox->itemData(index).toInt();
-            if (i == -1)
-                return;
-            if (!ms->setDevice(i)) {
-                QMessageBox::critical(this, {}, tr("Cannot open MIDI device %1").arg(deviceComboBox->itemText(index)));
-                QSignalBlocker o(deviceComboBox);
-                deviceComboBox->setCurrentIndex(deviceComboBox->findData(ms->device() ? ms->device()->deviceIndex() : -1));
-            } else {
-                QSignalBlocker o(deviceComboBox);
-                if (auto notWorkingIndex = deviceComboBox->findData(-1); notWorkingIndex != -1)
-                    deviceComboBox->removeItem(notWorkingIndex);
-            }
-        });
-        connect(generatorComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
-            m_cachedGenerator = index;
-            m_testSynthesizer.setGenerator(static_cast<talcs::NoteSynthesizer::Generator>(index));
-        });
+        connect(
+            deviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            [=](int index) {
+                auto i = deviceComboBox->itemData(index).toInt();
+                if (i == -1)
+                    return;
+                if (!ms->setDevice(i)) {
+                    QMessageBox::critical(
+                        this, {},
+                        tr("Cannot open MIDI device %1").arg(deviceComboBox->itemText(index)));
+                    QSignalBlocker o(deviceComboBox);
+                    deviceComboBox->setCurrentIndex(
+                        deviceComboBox->findData(ms->device() ? ms->device()->deviceIndex() : -1));
+                } else {
+                    QSignalBlocker o(deviceComboBox);
+                    if (auto notWorkingIndex = deviceComboBox->findData(-1); notWorkingIndex != -1)
+                        deviceComboBox->removeItem(notWorkingIndex);
+                }
+            });
+        connect(generatorComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+                [=](int index) {
+                    m_cachedGenerator = index;
+                    m_testSynthesizer.setGenerator(
+                        static_cast<talcs::NoteSynthesizer::Generator>(index));
+                });
         connect(amplitudeSlider, &SVS::SeekBar::valueChanged, this, [=](double value) {
             amplitudeSpinBox->setValue(SVS::DecibelLinearizer::linearValueToDecibel(value));
         });
-        connect(amplitudeSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double decibel) {
-            QSignalBlocker o(amplitudeSlider);
-            m_cachedAmplitude = decibel;
-            amplitudeSlider->setValue(SVS::DecibelLinearizer::decibelToLinearValue(decibel));
-            m_testMixer.setGain(talcs::Decibels::decibelsToGain(decibel));
-        });
+        connect(amplitudeSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+                [=](double decibel) {
+                    QSignalBlocker o(amplitudeSlider);
+                    m_cachedAmplitude = decibel;
+                    amplitudeSlider->setValue(
+                        SVS::DecibelLinearizer::decibelToLinearValue(decibel));
+                    m_testMixer.setGain(talcs::Decibels::decibelsToGain(decibel));
+                });
         connect(attackSlider, &SVS::SeekBar::valueChanged, attackSpinBox, &QSpinBox::setValue);
         connect(attackSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [=](int value) {
             QSignalBlocker o(attackSlider);
             m_cachedAttackMsec = value;
             attackSlider->setValue(value);
-            m_testSynthesizer.setAttackTime(AudioHelpers::msecToSample(value, m_testSynthesizer.sampleRate()));
+            m_testSynthesizer.setAttackTime(
+                AudioHelpers::msecToSample(value, m_testSynthesizer.sampleRate()));
         });
         connect(decaySlider, &SVS::SeekBar::valueChanged, decaySpinBox, &QSpinBox::setValue);
         connect(decaySpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [=](int value) {
             QSignalBlocker o(decaySlider);
             m_cachedDecayMsec = value;
             decaySlider->setValue(value);
-            m_testSynthesizer.setDecayTime(AudioHelpers::msecToSample(value, m_testSynthesizer.sampleRate()));
+            m_testSynthesizer.setDecayTime(
+                AudioHelpers::msecToSample(value, m_testSynthesizer.sampleRate()));
         });
-        connect(decayRatioSlider, &SVS::SeekBar::valueChanged, decayRatioSpinBox, &QDoubleSpinBox::setValue);
-        connect(decayRatioSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double value) {
-            QSignalBlocker o(decayRatioSlider);
-            m_cachedDecayRatio = value;
-            decayRatioSlider->setValue(value);
-            m_testSynthesizer.setDecayRatio(value);
-        });
+        connect(decayRatioSlider, &SVS::SeekBar::valueChanged, decayRatioSpinBox,
+                &QDoubleSpinBox::setValue);
+        connect(decayRatioSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+                [=](double value) {
+                    QSignalBlocker o(decayRatioSlider);
+                    m_cachedDecayRatio = value;
+                    decayRatioSlider->setValue(value);
+                    m_testSynthesizer.setDecayRatio(value);
+                });
         connect(releaseSlider, &SVS::SeekBar::valueChanged, releaseSpinBox, &QSpinBox::setValue);
         connect(releaseSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [=](int value) {
             m_cachedReleaseMsec = value;
             releaseSlider->setValue(value);
-            m_testSynthesizer.setReleaseTime(AudioHelpers::msecToSample(value, m_testSynthesizer.sampleRate()));
+            m_testSynthesizer.setReleaseTime(
+                AudioHelpers::msecToSample(value, m_testSynthesizer.sampleRate()));
         });
-        connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::sampleRateChanged, this, [=](double sampleRate) {
-            m_testSynthesizer.setAttackTime(AudioHelpers::msecToSample(attackSpinBox->value(), sampleRate));
-            m_testSynthesizer.setReleaseTime(AudioHelpers::msecToSample(releaseSpinBox->value(), sampleRate));
-        });
-        connect(frequencyOfASpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double value) {
-            m_mutex.lock();
-            m_cachedFrequencyOfA = value;
-            m_mutex.unlock();
-            m_testSynthesizer.flush();
-        });
+        connect(AudioSystem::outputSystem()->context(),
+                &talcs::AbstractOutputContext::sampleRateChanged, this, [=](double sampleRate) {
+                    m_testSynthesizer.setAttackTime(
+                        AudioHelpers::msecToSample(attackSpinBox->value(), sampleRate));
+                    m_testSynthesizer.setReleaseTime(
+                        AudioHelpers::msecToSample(releaseSpinBox->value(), sampleRate));
+                });
+        connect(frequencyOfASpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+                [=](double value) {
+                    m_mutex.lock();
+                    m_cachedFrequencyOfA = value;
+                    m_mutex.unlock();
+                    m_testSynthesizer.flush();
+                });
         connect(adjustByProjectCheckBox, &QAbstractButton::clicked, this, [=](bool checked) {
             m_mutex.lock();
             if (checked) {
@@ -270,7 +293,8 @@ public:
 
         generatorComboBox->setCurrentIndex(m_cachedGenerator = ms->generator());
         amplitudeSpinBox->setValue(m_cachedAmplitude = ms->amplitudeDecibel());
-        amplitudeSlider->setValue(SVS::DecibelLinearizer::decibelToLinearValue(amplitudeSpinBox->value()));
+        amplitudeSlider->setValue(
+            SVS::DecibelLinearizer::decibelToLinearValue(amplitudeSpinBox->value()));
         attackSpinBox->setValue(m_cachedAttackMsec = ms->attackMsec());
         decaySpinBox->setValue(m_cachedDecayMsec = ms->decayMsec());
         decayRatioSpinBox->setValue(m_cachedDecayRatio = ms->decayRatio());
@@ -287,12 +311,16 @@ public:
         m_testSynthesizer.setDetector(this);
         m_testMixer.addSource(&m_testSynthesizer);
         AudioSystem::outputSystem()->context()->preMixer()->addSource(&m_testMixer);
-        m_testSynthesizer.setGenerator(static_cast<talcs::NoteSynthesizer::Generator>(ms->generator()));
+        m_testSynthesizer.setGenerator(
+            static_cast<talcs::NoteSynthesizer::Generator>(ms->generator()));
         m_testMixer.setGain(talcs::Decibels::decibelsToGain(ms->amplitudeDecibel()));
-        m_testSynthesizer.setAttackTime(AudioHelpers::msecToSample(ms->attackMsec(), m_testSynthesizer.sampleRate()));
-        m_testSynthesizer.setDecayTime(AudioHelpers::msecToSample(ms->decayMsec(), m_testSynthesizer.sampleRate()));
+        m_testSynthesizer.setAttackTime(
+            AudioHelpers::msecToSample(ms->attackMsec(), m_testSynthesizer.sampleRate()));
+        m_testSynthesizer.setDecayTime(
+            AudioHelpers::msecToSample(ms->decayMsec(), m_testSynthesizer.sampleRate()));
         m_testSynthesizer.setDecayRatio(ms->decayRatio());
-        m_testSynthesizer.setReleaseTime(AudioHelpers::msecToSample(ms->releaseMsec(), m_testSynthesizer.sampleRate()));
+        m_testSynthesizer.setReleaseTime(
+            AudioHelpers::msecToSample(ms->releaseMsec(), m_testSynthesizer.sampleRate()));
 
         connect(synthesizerTestButton, &QAbstractButton::clicked, this, [=](bool checked) {
             QMutexLocker locker(&m_mutex);
@@ -308,12 +336,11 @@ public:
                 m_currentScoreIndex = -2;
             }
         });
-        connect(this, &MIDIPageWidget::testFinished, this, [=] {
-                synthesizerTestButton->setChecked(false);
-            }, Qt::QueuedConnection);
-        connect(flushButton, &QAbstractButton::clicked, this, [=] {
-            AudioSystem::midiSystem()->synthesizer()->noteSynthesizer()->flush();
-        });
+        connect(
+            this, &MIDIPageWidget::testFinished, this,
+            [=] { synthesizerTestButton->setChecked(false); }, Qt::QueuedConnection);
+        connect(flushButton, &QAbstractButton::clicked, this,
+                [=] { AudioSystem::midiSystem()->synthesizer()->noteSynthesizer()->flush(); });
     }
 
     ~MIDIPageWidget() override {
@@ -332,9 +359,11 @@ public:
             emit testFinished();
             return;
         }
-        m_currentInterval = 97.0 / 60.0 * 4.0 * static_cast<double>(intervalLength) / m_testMixer.sampleRate();
+        m_currentInterval =
+            97.0 / 60.0 * 4.0 * static_cast<double>(intervalLength) / m_testMixer.sampleRate();
         m_currentPosition += m_currentInterval;
     }
+
     talcs::NoteSynthesizerDetectorMessage nextMessage() override {
         QMutexLocker locker(&m_mutex);
         if (m_currentScoreIndex == -3) {
@@ -351,8 +380,12 @@ public:
         if (static_cast<double>(message.position) > m_currentPosition) {
             return talcs::NoteSynthesizerDetectorMessage::Null;
         }
-        message.position = static_cast<qint64>(std::round((static_cast<double>(message.position)  - (m_currentPosition - m_currentInterval)) * m_testMixer.sampleRate() / (97.0 / 60.0 * 4.0)));
-        message.note.frequency = talcs::MidiMessage::getMidiNoteInHertz(static_cast<int>(message.note.frequency), qFuzzyIsNull(m_cachedFrequencyOfA) ? 440.0 : m_cachedFrequencyOfA);
+        message.position = static_cast<qint64>(std::round(
+            (static_cast<double>(message.position) - (m_currentPosition - m_currentInterval)) *
+            m_testMixer.sampleRate() / (97.0 / 60.0 * 4.0)));
+        message.note.frequency = talcs::MidiMessage::getMidiNoteInHertz(
+            static_cast<int>(message.note.frequency),
+            qFuzzyIsNull(m_cachedFrequencyOfA) ? 440.0 : m_cachedFrequencyOfA);
         m_currentScoreIndex++;
         return message;
     }
@@ -387,7 +420,6 @@ public:
 
 signals:
     void testFinished();
-
 };
 
 MidiPage::MidiPage(QWidget *parent) : IOptionPage(parent) {

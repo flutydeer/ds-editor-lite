@@ -17,6 +17,7 @@ PianoRollGraphicsScene::PianoRollGraphicsScene() {
     auto h = 128 * noteHeight;
     setSceneSize(QSizeF(w, h));
 }
+
 void PianoRollGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     // if (event->button() != Qt::LeftButton) {
     //     event->accept();

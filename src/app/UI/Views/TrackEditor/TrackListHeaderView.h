@@ -19,4 +19,4 @@ private:
 
 
 
-#endif //TRACKLISTHEADERVIEW_H
+#endif // TRACKLISTHEADERVIEW_H

@@ -8,6 +8,7 @@
 #include <QThreadPool>
 
 class Task;
+
 class BackgroundWorker : public QObject {
     Q_OBJECT
 public:
@@ -19,12 +20,14 @@ signals:
 };
 
 class TaskManager;
+
 class TaskManagerPrivate {
     Q_DECLARE_PUBLIC(TaskManager)
 
 public:
     explicit TaskManagerPrivate(TaskManager *q) : q_ptr(q) {
     }
+
     QList<Task *> m_tasks;
     QThreadPool *threadPool = QThreadPool::globalInstance();
     BackgroundWorker m_worker;

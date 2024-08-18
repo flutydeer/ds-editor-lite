@@ -10,6 +10,7 @@
 class QHBoxLayout;
 class QCheckBox;
 class QLabel;
+
 class OptionsCardItem : public QWidget {
     Q_OBJECT
 public:

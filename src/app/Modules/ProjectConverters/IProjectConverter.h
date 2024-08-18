@@ -10,8 +10,8 @@
 class IProjectConverter {
 public:
     enum ImportMode { NewProject, AppendToProject };
-    virtual bool load(const QString &path, AppModel *model, QString &errMsg,
-                      ImportMode mode) = 0;
+
+    virtual bool load(const QString &path, AppModel *model, QString &errMsg, ImportMode mode) = 0;
     virtual bool save(const QString &path, AppModel *model, QString &errMsg) = 0;
     virtual ~IProjectConverter() = default;
 };

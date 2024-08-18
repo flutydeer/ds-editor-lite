@@ -9,6 +9,7 @@
 
 class MainMenuViewPrivate;
 class MainWindow;
+
 class MainMenuView : public QMenuBar {
     Q_OBJECT
 
@@ -17,7 +18,7 @@ public:
     ~MainMenuView() override;
 
     [[nodiscard]] QAction *actionSave();
-    [[nodiscard]] QAction *actionSaveAs() ;
+    [[nodiscard]] QAction *actionSaveAs();
 
 private:
     Q_DECLARE_PRIVATE(MainMenuView)

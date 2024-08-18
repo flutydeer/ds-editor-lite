@@ -12,9 +12,11 @@ AppendTrackAction *AppendTrackAction::build(Track *track, AppModel *model) {
     a->m_model = model;
     return a;
 }
+
 void AppendTrackAction::execute() {
     m_model->appendTrack(m_track);
 }
+
 void AppendTrackAction::undo() {
     m_model->removeTrack(m_track);
 }

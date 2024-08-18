@@ -8,6 +8,7 @@
 #include <QString>
 
 class QJsonObject;
+
 class Pronunciation {
 public:
     QString original;

@@ -32,6 +32,7 @@ inline bool JsonUtils::load(const QString &filename, QJsonObject &jsonObj) {
         return true;
     }
 }
+
 inline bool JsonUtils::save(const QString &filename, const QJsonObject &jsonObj) {
     QFile file(filename);
     file.open(QFile::WriteOnly);

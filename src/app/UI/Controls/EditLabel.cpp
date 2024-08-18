@@ -10,7 +10,7 @@
 #include "EditLabel.h"
 #include "LineEdit.h"
 
-EditLabel::EditLabel(QWidget *parent) : QStackedWidget(parent){
+EditLabel::EditLabel(QWidget *parent) : QStackedWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setAttribute(Qt::WA_Hover, true);
 
@@ -91,6 +91,7 @@ void EditLabel::setText(const QString &text) {
     label->setText(text);
     // emit valueChanged(text);
 }
+
 void EditLabel::setUpdateLabelWhenEditCompleted(bool on) {
     m_updateLabelWhenEditCompleted = on;
 }

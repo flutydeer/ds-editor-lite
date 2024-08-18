@@ -29,6 +29,7 @@ LevelMeter::LevelMeter(QWidget *parent) : QWidget(parent) {
     });
     initBuffer(32);
 }
+
 LevelMeter::~LevelMeter() {
     delete[] m_bufferL;
     delete[] m_bufferR;
@@ -112,6 +113,7 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
     drawVerticalBar(leftLevelBar, m_smoothedLevelL);
     drawVerticalBar(rightLevelBar, m_smoothedLevelR);
 }
+
 void LevelMeter::mousePressEvent(QMouseEvent *event) {
     auto cursorPos = event->position();
     if (event->button() == Qt::LeftButton && mouseOnClipIndicator(cursorPos))
@@ -181,11 +183,13 @@ void LevelMeter::setFreeze(bool on) {
         m_freezed = false;
     }
 }
+
 void LevelMeter::resetBuffer() {
     for (int i = 0; i < m_bufferSize; i++)
         m_bufferL[i] = 0;
     m_bufferPos = 0;
 }
+
 bool LevelMeter::mouseOnClipIndicator(const QPointF &pos) const {
     // return pos.y() <= m_spacing + m_clipIndicatorLength + m_spacing;
     return pos.y() <= m_clipIndicatorLength + 8;

@@ -10,13 +10,16 @@
 LineEdit::LineEdit(QWidget *parent) : QLineEdit(parent) {
     // installEventFilter(new ToolTipFilter(this));
 }
+
 LineEdit::LineEdit(const QString &text, QWidget *parent) : QLineEdit(text, parent) {
     // installEventFilter(new ToolTipFilter(this));
 }
+
 void LineEdit::mousePressEvent(QMouseEvent *event) {
     QLineEdit::mousePressEvent(event);
     event->ignore();
 }
+
 void LineEdit::contextMenuEvent(QContextMenuEvent *event) {
     // QLineEdit::contextMenuEvent(event);
     if (const auto qMenu = createStandardContextMenu()) {

@@ -12,6 +12,7 @@
 #include "Utils/Singleton.h"
 
 class Note;
+
 class ValidationController : public QObject, public Singleton<ValidationController> {
     Q_OBJECT
 public:

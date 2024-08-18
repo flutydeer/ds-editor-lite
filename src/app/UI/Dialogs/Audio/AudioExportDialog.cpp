@@ -53,20 +53,26 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : QDialog(parent) {
     fileNameTemplateButton->setMenu(fileNameTemplateMenu);
     fileNameLayout->addWidget(fileNameTemplateButton);
     auto fileNameTemplateContextHelpButton = new QPushButton;
-    fileNameTemplateContextHelpButton->setToolTip(tr("<p>You can specify the name (including extension name) of exported files.</p>"
-                                                     "<p>Template tags in the file name will be replaced with the corresponding text. The following are the available template tags:</p>"
-                                                     "<ul>"
-                                                     "<li><b>${projectName}</b>: the base name of the project file (excluding extension name)</li>"
-                                                     "<li><b>${sampleRate}</b>: the sample rate specified in export configuration</li>"
-                                                     "<li><b>${today}</b>: today's date in \"yyyyMMdd\" format (e. g. \"19260817\" for August 17, 1926)</li>"
-                                                     "<li><b>${$}</b>: a single \"$\" character</li>"
-                                                     "</ul>"
-                                                     "<p>In particular, the following template tags are available only when the mixing option is not \"mixed\":</p>"
-                                                     "<ul>"
-                                                     "<li><b>${trackName}</b>: the name of track</li>"
-                                                     "<li><b>${trackIndex}</b>: the index of track (starting from 1)</li>"
-                                                     "</ul>"
-                                                     "<p>You can select the template tag in the pop-up menu. The selected template tag will be appended to the end of the file name.</p>"));
+    fileNameTemplateContextHelpButton->setToolTip(
+        tr("<p>You can specify the name (including extension name) of exported files.</p>"
+           "<p>Template tags in the file name will be replaced with the corresponding text. The "
+           "following are the available template tags:</p>"
+           "<ul>"
+           "<li><b>${projectName}</b>: the base name of the project file (excluding extension "
+           "name)</li>"
+           "<li><b>${sampleRate}</b>: the sample rate specified in export configuration</li>"
+           "<li><b>${today}</b>: today's date in \"yyyyMMdd\" format (e. g. \"19260817\" for "
+           "August 17, 1926)</li>"
+           "<li><b>${$}</b>: a single \"$\" character</li>"
+           "</ul>"
+           "<p>In particular, the following template tags are available only when the mixing "
+           "option is not \"mixed\":</p>"
+           "<ul>"
+           "<li><b>${trackName}</b>: the name of track</li>"
+           "<li><b>${trackIndex}</b>: the index of track (starting from 1)</li>"
+           "</ul>"
+           "<p>You can select the template tag in the pop-up menu. The selected template tag will "
+           "be appended to the end of the file name.</p>"));
     fileNameTemplateContextHelpButton->setIcon(style()->standardIcon(QStyle::SP_DialogHelpButton));
     fileNameLayout->addWidget(fileNameTemplateContextHelpButton);
     auto nameLabel = new QLabel(tr("&Name"));
@@ -92,10 +98,11 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : QDialog(parent) {
     formatLayout->addRow(tr("&Quality"), m_vbrSlider);
     m_formatSampleRateComboBox = new QComboBox;
     m_formatSampleRateComboBox->setEditable(true);
-    m_formatSampleRateComboBox->setValidator(new QDoubleValidator(0.01, std::numeric_limits<double>::max(), 2));
-    m_formatSampleRateComboBox->addItems({"8000",   "11025",  "12000",  "16000",  "22050",  "24000",
-                                          "32000",  "44100",  "48000",  "64000",  "88200",  "96000",
-                                          "128000", "176400", "192000", "256000", "352800", "384000"});
+    m_formatSampleRateComboBox->setValidator(
+        new QDoubleValidator(0.01, std::numeric_limits<double>::max(), 2));
+    m_formatSampleRateComboBox->addItems(
+        {"8000", "11025", "12000", "16000", "22050", "24000", "32000", "44100", "48000", "64000",
+         "88200", "96000", "128000", "176400", "192000", "256000", "352800", "384000"});
     formatLayout->addRow(tr("&Sample rate"), m_formatSampleRateComboBox);
     formatGroupBox->setLayout(formatLayout);
     leftLayout->addWidget(formatGroupBox);
@@ -152,7 +159,8 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : QDialog(parent) {
     buttonLayout->addWidget(dryRunButton);
     auto dryRunContextHelpButton = new QPushButton;
     dryRunContextHelpButton->setIcon(style()->standardIcon(QStyle::SP_DialogHelpButton));
-    dryRunContextHelpButton->setToolTip(tr("\"Dry Run\" shows the paths of files to export. No files will actually be exported."));
+    dryRunContextHelpButton->setToolTip(
+        tr("\"Dry Run\" shows the paths of files to export. No files will actually be exported."));
     buttonLayout->addWidget(dryRunContextHelpButton);
     buttonLayout->addStretch();
     m_warningButton = new QPushButton;
@@ -169,5 +177,6 @@ AudioExportDialog::AudioExportDialog(QWidget *parent) : QDialog(parent) {
 
     setLayout(mainLayout);
 }
+
 AudioExportDialog::~AudioExportDialog() {
 }

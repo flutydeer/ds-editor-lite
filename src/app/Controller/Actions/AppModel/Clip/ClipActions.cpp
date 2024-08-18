@@ -14,6 +14,7 @@ void ClipActions::insertClips(const QList<Clip *> &clips, Track *track) {
     for (const auto clip : clips)
         addAction(InsertClipAction::build(clip, track));
 }
+
 void ClipActions::removeClips(const QList<Clip *> &clips, const QList<Track *> &tracks) {
     setName(tr("Remove clip(s)"));
     int i = 0;
@@ -22,6 +23,7 @@ void ClipActions::removeClips(const QList<Clip *> &clips, const QList<Track *> &
         i++;
     }
 }
+
 void ClipActions::editSingingClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                             const QList<Clip::ClipCommonProperties> &newArgs,
                                             const QList<SingingClip *> &clips,
@@ -34,6 +36,7 @@ void ClipActions::editSingingClipProperties(const QList<Clip::ClipCommonProperti
         i++;
     }
 }
+
 void ClipActions::editAudioClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                           const QList<Clip::ClipCommonProperties> &newArgs,
                                           const QList<AudioClip *> &clips,

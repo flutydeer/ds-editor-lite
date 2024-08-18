@@ -6,6 +6,7 @@
 #define APPMODEL_P_H
 
 class AppModel;
+
 class AppModelPrivate {
     Q_DECLARE_PUBLIC(AppModel)
 

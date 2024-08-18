@@ -192,10 +192,12 @@ QAction *MainMenuView::actionSave() {
     Q_D(MainMenuView);
     return d->m_actionSave;
 }
+
 QAction *MainMenuView::actionSaveAs() {
     Q_D(MainMenuView);
     return d->m_actionSaveAs;
 }
+
 void MainMenuViewPrivate::onNewProject() const {
     if (!historyManager->isOnSavePoint()) {
         if (m_mainWindow->askSaveChanges())
@@ -203,6 +205,7 @@ void MainMenuViewPrivate::onNewProject() const {
     } else
         appController->newProject();
 }
+
 void MainMenuViewPrivate::onOpenProject() {
     Q_Q(MainMenuView);
     auto openProject = [=] {
@@ -220,6 +223,7 @@ void MainMenuViewPrivate::onOpenProject() {
     } else
         openProject();
 }
+
 void MainMenuViewPrivate::onOpenAProject() {
     Q_Q(MainMenuView);
     auto openAProject = [=] {
@@ -236,27 +240,31 @@ void MainMenuViewPrivate::onOpenAProject() {
     } else
         openAProject();
 }
+
 void MainMenuViewPrivate::onImportMidiFile() {
     Q_Q(MainMenuView);
-    auto fileName = QFileDialog::getOpenFileName(q, tr("Select a MIDI File"), ".",
-                                                 tr("MIDI File (*.mid)"));
+    auto fileName =
+        QFileDialog::getOpenFileName(q, tr("Select a MIDI File"), ".", tr("MIDI File (*.mid)"));
     if (fileName.isNull())
         return;
     appController->importMidiFile(fileName);
 }
+
 void MainMenuViewPrivate::onExportMidiFile() {
     Q_Q(MainMenuView);
-    auto fileName = QFileDialog::getSaveFileName(q, tr("Save as MIDI File"), ".",
-                                                 tr("MIDI File (*.mid)"));
+    auto fileName =
+        QFileDialog::getSaveFileName(q, tr("Save as MIDI File"), ".", tr("MIDI File (*.mid)"));
     if (fileName.isNull())
         return;
     appController->exportMidiFile(fileName);
 }
+
 void MainMenuViewPrivate::onExportAudioFile() {
     Q_Q(MainMenuView);
     AudioExportDialog dlg(q);
     dlg.exec();
 }
+
 void MainMenuViewPrivate::onUndoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,
                                             const QString &redoName) {
     Q_Q(MainMenuView);
@@ -265,6 +273,7 @@ void MainMenuViewPrivate::onUndoRedoChanged(bool canUndo, const QString &undoNam
     m_actionRedo->setEnabled(canRedo);
     m_actionRedo->setText(tr("&Redo") + " " + redoName);
 }
+
 void MainMenuViewPrivate::onActivatedPanelChanged(AppGlobal::PanelType panel) {
     Q_Q(MainMenuView);
     m_panelType = panel;
@@ -294,27 +303,33 @@ void MainMenuViewPrivate::onActivatedPanelChanged(AppGlobal::PanelType panel) {
         m_actionFillLyrics->setEnabled(false);
     }
 }
+
 void MainMenuViewPrivate::onSelectAll() {
     Q_Q(MainMenuView);
     qDebug() << "MainMenuView::onSelectAll";
     if (m_panelType == AppGlobal::ClipEditor)
         clipController->onSelectAllNotes();
 }
+
 void MainMenuViewPrivate::onDelete() {
     Q_Q(MainMenuView);
     qDebug() << "MainMenuView::onDelete";
     if (m_panelType == AppGlobal::ClipEditor)
         clipController->onDeleteSelectedNotes();
 }
+
 void MainMenuViewPrivate::onCut() {
     qDebug() << "MainMenuView::onCut";
 }
+
 void MainMenuViewPrivate::onCopy() {
     qDebug() << "MainMenuView::onCopy";
 }
+
 void MainMenuViewPrivate::onPaste() {
     qDebug() << "MainMenuView::onPaste";
 }
+
 void MainMenuViewPrivate::exitApp() {
     qDebug() << "MainMenuViewPrivate::exitApp";
     m_mainWindow->close();

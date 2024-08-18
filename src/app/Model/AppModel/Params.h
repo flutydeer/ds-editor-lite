@@ -25,6 +25,7 @@ private:
 class ParamBundle {
 public:
     enum ParamName { Pitch, Energy, Tension, Breathiness, Unknown };
+
     Param pitch;
     Param energy;
     Param tension;

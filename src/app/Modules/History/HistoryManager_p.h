@@ -9,6 +9,7 @@
 
 class ActionSequence;
 class HistoryManager;
+
 class HistoryManagerPrivate {
     Q_DECLARE_PUBLIC(HistoryManager);
 

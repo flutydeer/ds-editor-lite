@@ -20,4 +20,4 @@ public:
 
 
 
-#endif //ICLIPEDITORVIEW_H
+#endif // ICLIPEDITORVIEW_H

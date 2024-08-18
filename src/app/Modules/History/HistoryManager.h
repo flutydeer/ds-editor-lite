@@ -13,6 +13,7 @@
 
 class HistoryManagerPrivate;
 class ActionSequence;
+
 class HistoryManager final : public QObject, public Singleton<HistoryManager> {
     Q_OBJECT
 
@@ -33,7 +34,7 @@ public:
 
 signals:
     void undoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,
-                       const QString &redoName);
+                         const QString &redoName);
 
 private:
     Q_DECLARE_PRIVATE(HistoryManager)
