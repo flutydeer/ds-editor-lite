@@ -1,6 +1,3 @@
-[submodule "scripts/vcpkg"]
-	path = scripts/vcpkg
-	url = ../../stdware/vcpkg-overlay.git
 [submodule "src/libs/opendspx"]
 	path = src/libs/opendspx
 	url = ../../diffscope/opendspx.git
