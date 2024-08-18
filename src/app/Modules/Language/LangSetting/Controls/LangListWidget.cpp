@@ -4,7 +4,7 @@
 #include <QCheckBox>
 #include <QHeaderView>
 
-#include <LangMgr/ILanguageManager.h>
+#include <language-manager/ILanguageManager.h>
 
 namespace LangSetting {
     LangListWidget::LangListWidget(QWidget *parent) : QListWidget(parent) {

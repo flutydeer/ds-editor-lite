@@ -4,7 +4,7 @@
 #include <QScrollBar>
 #include <QMouseEvent>
 
-#include <LangMgr/ILanguageManager.h>
+#include <language-manager/ILanguageManager.h>
 
 #include "../../Commands/Line/LinebreakCmd.h"
 #include "../../Commands/Line/AppendCellCmd.h"

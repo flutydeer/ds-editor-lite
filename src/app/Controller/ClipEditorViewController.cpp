@@ -18,7 +18,7 @@
 
 #include <QClipboard>
 #include <QMimeData>
-#include <LangMgr/ILanguageManager.h>
+#include <language-manager/ILanguageManager.h>
 
 ClipEditorViewController::ClipEditorViewController()
     : d_ptr(new ClipEditorViewControllerPrivate(this)) {

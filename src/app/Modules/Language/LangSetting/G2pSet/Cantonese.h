@@ -3,7 +3,7 @@
 
 #include "../IG2pSetFactory.h"
 
-#include <LangMgr/IG2pManager.h>
+#include <language-manager/IG2pManager.h>
 
 namespace LangSetting {
     class CantoneseSet final : public IG2pSetFactory {

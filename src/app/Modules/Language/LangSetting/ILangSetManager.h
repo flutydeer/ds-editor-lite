@@ -6,7 +6,7 @@
 #include "ILangSetFactory.h"
 #include "IG2pSetFactory.h"
 
-#include <LangMgr/LangCommon.h>
+#include <language-manager/LangCommon.h>
 #include <Utils/Singleton.h>
 
 namespace LangSetting {

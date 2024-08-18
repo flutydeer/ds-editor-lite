@@ -1,17 +1,17 @@
 vcpkg_from_github(
         OUT_SOURCE_PATH SOURCE_PATH
-        REPO wolfgitpr/cpp-pinyin
-        REF  3bd4133fe965b2484256a824df5a7b69f31ec298
-        SHA512 5615aad31422219df4ed7a289a73190c6a3fba9aec06a5708216db993836585020076ed07d0d753f895d7e80278b688363cac9ae7924f7afbf4e0cc0f2876100
+        REPO wolfgitpr/language-manager
+        REF 6dd476cedfdc6824dc4fdf34103d3b61498d939c
+        SHA512 67d7a25baaadff1a81cef5237cfbbb3a2b6ba660572f1afd968d093da6ed1e7b38a3d61180d14c7e1f502915a8b4369b61b7b397913b082561c032da3d18e583
         HEAD_REF main
 )
 
 vcpkg_cmake_configure(
         SOURCE_PATH "${SOURCE_PATH}"
         OPTIONS
-        -DCPP_PINYIN_BUILD_STATIC=FALSE
-        -DCPP_PINYIN_BUILD_TESTS=FALSE
-        -DVCPKG_DICT_DIR=${CURRENT_PACKAGES_DIR}/share/${PORT}
+        -DLANG_MANAGER_BUILD_STATIC=FALSE
+        -DLANG_MANAGER_BUILD_TESTS=FALSE
+        -DLANG_VCPKG_INSTALL=TRUE
 )
 
 vcpkg_cmake_install()

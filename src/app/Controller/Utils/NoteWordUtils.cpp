@@ -5,7 +5,7 @@
 #include "NoteWordUtils.h"
 
 #include "Controller/Actions/AppModel/Note/NoteActions.h"
-#include "LangMgr/ILanguageManager.h"
+#include "language-manager/ILanguageManager.h"
 #include "Model/AppModel/Note.h"
 #include "Modules/Language/S2p.h"
 

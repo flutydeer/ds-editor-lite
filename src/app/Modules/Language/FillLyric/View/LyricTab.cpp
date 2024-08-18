@@ -6,7 +6,7 @@
 #include "Model/AppOptions/AppOptions.h"
 
 #include "../Utils/SplitLyric.h"
-#include "LangMgr/ILanguageManager.h"
+#include "language-manager/ILanguageManager.h"
 
 namespace FillLyric {
 

@@ -13,7 +13,8 @@
     "interval-tree",
     "boost-interprocess",
     "cpp-pinyin",
-    "cpp-kana"
+    "cpp-kana",
+    "language-manager"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [

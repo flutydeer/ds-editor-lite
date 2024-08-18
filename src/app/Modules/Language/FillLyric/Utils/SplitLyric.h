@@ -2,7 +2,7 @@
 #define DS_EDITOR_LITE_CLEANLYRIC_H
 
 #include <QList>
-#include <LangMgr/LangCommon.h>
+#include <language-manager/LangCommon.h>
 
 namespace FillLyric {
     class CleanLyric {

@@ -10,7 +10,7 @@
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
 
-#include <LangMgr/LangCommon.h>
+#include <language-manager/LangCommon.h>
 #include "../Controls/PhonicTextEdit.h"
 
 namespace FillLyric {
