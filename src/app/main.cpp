@@ -44,6 +44,8 @@ int main(int argc, char *argv[]) {
     if (QSysInfo::productType() == "macos")
         QApplication::setStyle(QStyleFactory::create("windows"));
 
+    Logger::logSystemInfo();
+
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);
     auto factor = (QSysInfo::productType() == "windows") ? 1.0 : 96.0 / 72;
