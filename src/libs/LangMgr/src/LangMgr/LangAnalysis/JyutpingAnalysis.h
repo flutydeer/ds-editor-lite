@@ -4,7 +4,7 @@
 
 #include <QSet>
 
-#include "../ILanguageFactory.h"
+#include "../../../include/LangMgr/ILanguageFactory.h"
 
 namespace LangMgr {
 

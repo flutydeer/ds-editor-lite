@@ -1,9 +1,7 @@
 #include <LangMgr/ILanguageManager.h>
 #include "ILanguageManager_p.h"
 
-#include "ILanguageFactory.h"
-
-#include <QDebug>
+#include <LangMgr/ILanguageFactory.h>
 
 #include "LangAnalysis/BaseAnalysis/NumberAnalysis.h"
 #include "LangAnalysis/BaseAnalysis/SlurAnalysis.h"

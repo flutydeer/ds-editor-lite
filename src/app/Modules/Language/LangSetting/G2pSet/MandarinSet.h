@@ -4,7 +4,6 @@
 #include "../IG2pSetFactory.h"
 
 #include <LangMgr/IG2pManager.h>
-#include <G2pMgr/G2p/Mandarin.h>
 
 namespace LangSetting {
 
@@ -13,13 +12,13 @@ namespace LangSetting {
 
     public:
         explicit MandarinSet(QObject *parent = nullptr) : IG2pSetFactory("cmn", parent) {
-            d = dynamic_cast<LangMgr::Mandarin *>(LangMgr::IG2pManager::instance()->g2p(id()));
+            d = dynamic_cast<LangMgr::IG2pFactory *>(LangMgr::IG2pManager::instance()->g2p(id()));
         }
 
         QWidget *configWidget(QJsonObject *config) override;
 
     private:
-        LangMgr::Mandarin *d;
+        LangMgr::IG2pFactory *d;
     };
 
 } // LangSetting

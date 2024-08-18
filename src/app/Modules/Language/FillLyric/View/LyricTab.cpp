@@ -7,7 +7,6 @@
 
 #include "../Utils/SplitLyric.h"
 #include "LangMgr/ILanguageManager.h"
-#include "LangMgr/LangAnalysis/CantoneseAnalysis.h"
 
 namespace FillLyric {
 

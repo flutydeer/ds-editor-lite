@@ -5,7 +5,7 @@
 
 #include <cpp-pinyin/Jyutping.h>
 
-#include "../IG2pFactory.h"
+#include <LangMgr/IG2pFactory.h>
 
 namespace LangMgr {
 

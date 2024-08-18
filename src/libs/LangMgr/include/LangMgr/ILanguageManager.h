@@ -3,8 +3,8 @@
 
 #include <QObject>
 
-#include "../src/LangMgr/ILanguageFactory.h"
-#include "../src/Singleton.h"
+#include <LangMgr/Singleton.h>
+#include <LangMgr/ILanguageFactory.h>
 
 namespace LangMgr {
 

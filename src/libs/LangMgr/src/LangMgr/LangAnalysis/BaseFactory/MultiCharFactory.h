@@ -1,7 +1,7 @@
 #ifndef MULTICHARFACTORY_H
 #define MULTICHARFACTORY_H
 
-#include "../../ILanguageFactory.h"
+#include <LangMgr/ILanguageFactory.h>
 
 namespace LangMgr {
 

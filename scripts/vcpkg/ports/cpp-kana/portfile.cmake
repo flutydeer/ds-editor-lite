@@ -1,16 +1,15 @@
-vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
-
 vcpkg_from_github(
         OUT_SOURCE_PATH SOURCE_PATH
         REPO wolfgitpr/cpp-kana
-        REF 1c8f80fda30847ec73c53975f819c70a68a87432
-        SHA512 a65db2fb77cfa0d1d85adbd34d0f1c00e3a4e0ef8b17d3f7763b950c1b5593252a44921578c2c6b8fabc1b38b3f89a6a63e6f0bfb58224382f482e0f5b85f068
+        REF 52efec85c4d6709444da0f74295c8f2fbf9467f7
+        SHA512 44c0ba6d7a7f43471b24936fbdc31c84e07345cbbc8a9a9daefd4119daee4396cc4d5f8fbd2380e99368d454bc3da1a0fdf2eadfa5621f01069d857e25da2e31
         HEAD_REF main
 )
 
 vcpkg_cmake_configure(
         SOURCE_PATH "${SOURCE_PATH}"
         OPTIONS
+        -DCPP_KANA_BUILD_STATIC=FALSE
         -DCPP_KANA_BUILD_TESTS=OFF
 )
 

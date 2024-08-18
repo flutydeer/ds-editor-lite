@@ -3,7 +3,7 @@
 
 #include <QObject>
 
-#include "IG2pFactory.h"
+#include <LangMgr/IG2pFactory.h>
 
 namespace LangMgr {
 

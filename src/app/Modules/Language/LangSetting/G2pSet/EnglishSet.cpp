@@ -16,7 +16,7 @@ namespace LangSetting {
         if (config && config->keys().contains("toLower")) {
             toLowerCheckBox->setChecked(config->value("toLower").toBool());
         } else {
-            toLowerCheckBox->setChecked(d->toLower());
+            toLowerCheckBox->setChecked(false);
         }
         return widget;
     }

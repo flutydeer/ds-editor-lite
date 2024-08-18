@@ -4,7 +4,6 @@
 #include "../IG2pSetFactory.h"
 
 #include <LangMgr/IG2pManager.h>
-#include <G2pMgr/G2p/Cantonese.h>
 
 namespace LangSetting {
     class CantoneseSet final : public IG2pSetFactory {
@@ -12,13 +11,13 @@ namespace LangSetting {
 
     public:
         explicit CantoneseSet(QObject *parent = nullptr) : IG2pSetFactory("yue", parent) {
-            d = dynamic_cast<LangMgr::Cantonese *>(LangMgr::IG2pManager::instance()->g2p(id()));
+            d = dynamic_cast<LangMgr::IG2pFactory *>(LangMgr::IG2pManager::instance()->g2p(id()));
         }
 
         QWidget *configWidget(QJsonObject *config) override;
 
     private:
-        LangMgr::Cantonese *d;
+        LangMgr::IG2pFactory *d;
     };
 }
 

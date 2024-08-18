@@ -3,10 +3,10 @@
 
 #include <QObject>
 
+#include <LangMgr/Singleton.h>
 #include <LangMgr/LangCommon.h>
 
-#include "../src/G2pMgr/IG2pFactory.h"
-#include "../src/Singleton.h"
+#include <LangMgr/IG2pFactory.h>
 
 namespace LangMgr {
 

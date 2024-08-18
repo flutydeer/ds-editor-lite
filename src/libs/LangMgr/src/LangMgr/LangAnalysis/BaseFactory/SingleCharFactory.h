@@ -1,7 +1,7 @@
 #ifndef SINGLECHARFACTORY_H
 #define SINGLECHARFACTORY_H
 
-#include "../../ILanguageFactory.h"
+#include <LangMgr/ILanguageFactory.h>
 
 namespace LangMgr {
 

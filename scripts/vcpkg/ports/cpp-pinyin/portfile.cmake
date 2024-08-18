@@ -1,16 +1,15 @@
-vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
-
 vcpkg_from_github(
         OUT_SOURCE_PATH SOURCE_PATH
         REPO wolfgitpr/cpp-pinyin
-        REF  5a44de01b37429620180784e47f501f4870a299f
-        SHA512 ff1db54683dc4348c1ca4d45ceb21e15bd7aeb82f0615cad13cb96ca774dc1e351b6eb20df355e10383068e9bce28eb8a26deb0e966a566474e8b0e39147771f
+        REF  48181d0c7d9453a9787bdf4a180cc0394bf7d04b
+        SHA512 d31660ec713aa81758f7eaf521e993efe0ead0517e838600f03b652640881e0fc830d8bb6528e1a9d5a5973fbf3d577727b88e4bc4a1632ae132e66aacf0cbdf
         HEAD_REF main
 )
 
 vcpkg_cmake_configure(
         SOURCE_PATH "${SOURCE_PATH}"
         OPTIONS
+        -DCPP_PINYIN_BUILD_STATIC=FALSE
         -DCPP_PINYIN_BUILD_TESTS=OFF
 )
 

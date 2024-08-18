@@ -1,7 +1,7 @@
 #ifndef KANAANALYSIS_H
 #define KANAANALYSIS_H
 
-#include "../ILanguageFactory.h"
+#include <LangMgr/ILanguageFactory.h>
 
 namespace LangMgr {
 

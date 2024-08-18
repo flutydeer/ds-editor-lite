@@ -63,7 +63,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         cpp-kana::cpp-kana
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC include src)
+target_include_directories(${PROJECT_NAME} PRIVATE src)
+target_include_directories(${PROJECT_NAME} PUBLIC include)
+
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory

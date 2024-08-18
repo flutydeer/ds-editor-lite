@@ -4,7 +4,7 @@
 #include <QCoreApplication>
 
 #include "IG2pManager_p.h"
-#include "IG2pFactory.h"
+#include <LangMgr/IG2pFactory.h>
 
 #include <cpp-pinyin/G2pglobal.h>
 

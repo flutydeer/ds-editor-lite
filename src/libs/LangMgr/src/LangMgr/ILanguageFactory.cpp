@@ -1,4 +1,4 @@
-#include "ILanguageFactory.h"
+#include <LangMgr/ILanguageFactory.h>
 #include "ILanguageFactory_p.h"
 
 #include <QDebug>
