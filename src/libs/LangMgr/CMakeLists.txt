@@ -144,10 +144,14 @@ if (LANG_MANAGER_INSTALL)
             "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
             DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
     )
-#
-#    install(EXPORT ${PROJECT_NAME}Targets
-#            FILE ${PROJECT_NAME}Targets.cmake
-#            NAMESPACE ${PROJECT_NAME}::
-#            DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
-#    )
+
+    #    install(EXPORT ${PROJECT_NAME}Targets
+    #            FILE ${PROJECT_NAME}Targets.cmake
+    #            NAMESPACE ${PROJECT_NAME}::
+    #            DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+    #    )
+
+    install(DIRECTORY ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/${PORT}/dict
+            DESTINATION ${CMAKE_INSTALL_PREFIX}
+    )
 endif ()
