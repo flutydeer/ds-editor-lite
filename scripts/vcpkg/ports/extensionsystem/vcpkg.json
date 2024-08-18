@@ -1,0 +1,22 @@
+{
+  "name": "extensionsystem",
+  "version": "0.0.0.0",
+  "port-version": 1,
+  "description": "QtCreator plugin framework, port from QtCreator 3.6",
+  "homepage": "https://github.com/stdware/ExtensionSystem",
+  "license": "LGPL-2.1-or-later",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    {
+      "name": "qmsetup",
+      "host": true
+    }
+  ]
+}
