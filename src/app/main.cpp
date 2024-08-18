@@ -12,9 +12,8 @@
 
 #include "UI/Window/MainWindow.h"
 #include "Modules/Audio/AudioSystem.h"
-#include "Utils/logMessageHandler.h"
+#include "Utils/Logger.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/WorkspaceEditor.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/ThemeManager.h"
 #include "UI/Window/TaskWindow.h"
@@ -29,7 +28,7 @@ int main(int argc, char *argv[]) {
     QElapsedTimer mstimer;
     mstimer.start();
     // output log to file
-    // qInstallMessageHandler(logMessageHandler);
+    qInstallMessageHandler(Logger::handler);
     qputenv("QT_ASSUME_STDERR_HAS_CONSOLE", "1");
     qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
