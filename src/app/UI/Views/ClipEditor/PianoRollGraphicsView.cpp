@@ -143,7 +143,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
             clearNoteSelections();
             TimeGraphicsView::mousePressEvent(event);
         }
-        TimeGraphicsView::mousePressEvent(event);
+        // TimeGraphicsView::mousePressEvent(event);
         event->ignore();
         return;
     }
