@@ -29,6 +29,7 @@ SeekBar::SeekBar(QWidget *parent) : QWidget(parent) {
     m_thumbHoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
     calculateParams();
 }
+
 double SeekBar::value() const {
     return m_value;
 }
@@ -49,7 +50,8 @@ void SeekBar::calculateParams() {
     m_trackEndPoint.setY(m_halfHeight);
 
     // Calculate slider track active
-    m_activeStartPos = int(m_actualLength * (m_trackActiveStartValue - m_min) / (m_max - m_min)) + m_padding;
+    m_activeStartPos =
+        int(m_actualLength * (m_trackActiveStartValue - m_min) / (m_max - m_min)) + m_padding;
     m_activeStartPoint.setX(m_activeStartPos);
     m_activeStartPoint.setY(m_halfHeight);
     m_valuePos = int(m_actualLength * (m_value - m_min) / (m_max - m_min)) + m_padding;
@@ -99,6 +101,7 @@ void SeekBar::setValue(double value) {
     m_value = value;
     repaint();
 }
+
 void SeekBar::setValueAsync(double value) {
     m_cachedValue = value;
     m_hasAsyncSetValueTask = true;

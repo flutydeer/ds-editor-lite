@@ -7,7 +7,7 @@
 
 #include <QListWidget>
 
-class TrackListWidget : public QListWidget{
+class TrackListWidget : public QListWidget {
 public:
     explicit TrackListWidget(QWidget *parent = nullptr);
 
@@ -17,4 +17,4 @@ private:
 
 
 
-#endif //TRACKLISTWIDGET_H
+#endif // TRACKLISTWIDGET_H

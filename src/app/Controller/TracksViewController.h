@@ -15,6 +15,7 @@
 #include <QObject>
 
 class QWidget;
+
 class TracksViewController final : public QObject, public Singleton<TracksViewController> {
     Q_OBJECT
 

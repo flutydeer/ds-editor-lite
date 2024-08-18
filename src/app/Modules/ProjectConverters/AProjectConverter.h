@@ -8,10 +8,10 @@
 #include "IProjectConverter.h"
 
 using ImportMode = IProjectConverter::ImportMode;
+
 class AProjectConverter final : public IProjectConverter {
 public:
-    bool load(const QString &path, AppModel *model, QString &errMsg,
-              ImportMode mode) override;
+    bool load(const QString &path, AppModel *model, QString &errMsg, ImportMode mode) override;
     bool save(const QString &path, AppModel *model, QString &errMsg) override;
 
 private:

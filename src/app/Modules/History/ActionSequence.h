@@ -31,4 +31,4 @@ private:
 
 
 
-#endif //ACTIONSEQUENCE_H
+#endif // ACTIONSEQUENCE_H

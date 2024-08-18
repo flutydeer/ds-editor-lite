@@ -29,4 +29,4 @@ private:
 
 
 
-#endif //OPTIONSCARD_H
+#endif // OPTIONSCARD_H

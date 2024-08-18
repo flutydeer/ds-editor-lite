@@ -30,19 +30,24 @@ public:
     explicit Task(QObject *parent = nullptr) : QObject(parent) {
         setAutoDelete(false);
     }
+
     explicit Task(int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
         setAutoDelete(false);
     }
+
     ~Task() override {
         terminate();
     };
+
     void run() override {
         if (!m_started) {
             m_started = true;
             runTask();
         }
     }
+
     void terminate();
+
     [[nodiscard]] bool started() const {
         return m_started;
     }
@@ -64,13 +69,16 @@ private:
     bool m_started = false;
     bool m_abortFlag = false;
 };
+
 inline const TaskStatus &Task::status() const {
     return m_status;
 }
+
 inline void Task::setStatus(const TaskStatus &status) {
     m_status = status;
     emit statusUpdated(status);
 }
+
 inline void Task::terminate() {
     QMutexLocker locker(&m_mutex);
     m_abortFlag = true;

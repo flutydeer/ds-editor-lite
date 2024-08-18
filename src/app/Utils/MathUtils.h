@@ -16,6 +16,7 @@ public:
             return max;
         return value;
     }
+
     static int round(int tick, int step) {
         int times = tick / step;
         int mod = tick % step;

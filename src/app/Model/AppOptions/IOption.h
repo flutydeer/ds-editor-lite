@@ -11,17 +11,21 @@ class IOption {
 public:
     explicit IOption(QString key) : m_key(std::move(key)) {
     }
+
     IOption(const IOption &other) : m_key(other.m_key) {
     }
+
     IOption &operator=(const IOption &other);
     virtual ~IOption() = default;
 
     virtual void load(const QJsonObject &object) = 0;
+
     [[nodiscard]] QJsonObject value() {
         QJsonObject object;
         save(object);
         return object;
     }
+
     [[nodiscard]] const QString &key() const {
         return m_key;
     }

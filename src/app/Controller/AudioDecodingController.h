@@ -15,6 +15,7 @@
 
 class AudioClip;
 class DecodeAudioTask;
+
 class AudioDecodingController final : public QObject, public Singleton<AudioDecodingController> {
     Q_OBJECT
 

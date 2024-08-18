@@ -8,7 +8,7 @@
 
 #include "ToolTip.h"
 
-ToolTip::ToolTip(const QString& title, QWidget *parent) : QFrame(parent) {
+ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     m_lbTitle = new QLabel(title);
     m_lbTitle->setStyleSheet("color: #F0F0F0; font-size: 10pt");
     m_lbTitle->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);

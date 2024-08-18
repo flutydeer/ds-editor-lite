@@ -10,6 +10,7 @@
 class Button;
 class LineEdit;
 class LanguageComboBox;
+
 class GeneralPage : public IOptionPage {
     Q_OBJECT
 

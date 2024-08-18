@@ -28,9 +28,11 @@ OptionsCard::OptionsCard(QWidget *parent) : QWidget(parent) {
     setLayout(mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }
+
 void OptionsCard::setTitle(const QString &title) const {
     m_lbTitle->setText(title);
 }
+
 CardView *OptionsCard::card() {
     return m_card;
 }

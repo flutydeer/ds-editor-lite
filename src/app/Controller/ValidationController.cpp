@@ -15,12 +15,15 @@ ValidationController::ValidationController() {
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             &ValidationController::onUndoRedoChanged);
 }
+
 void ValidationController::runValidation() {
     validate();
 }
+
 void ValidationController::onUndoRedoChanged() {
     // validate();
 }
+
 void ValidationController::onModelChanged() {
     qDebug() << "ValidationController::onModelChanged";
     m_tracks.clear();
@@ -42,11 +45,13 @@ void ValidationController::onModelChanged() {
     }
     validate();
 }
+
 void ValidationController::onTempoChanged(double tempo) {
     qDebug() << "ValidationController::onTempoChanged" << tempo;
     // terminate all validate tasks
     validate();
 }
+
 void ValidationController::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
                                           Track *track) {
     qDebug() << "ValidationController::onTrackChanged" << type;
@@ -59,6 +64,7 @@ void ValidationController::onTrackChanged(AppModel::TrackChangeType type, qsizet
     }
     validate();
 }
+
 void ValidationController::onClipChanged(Track::ClipChangeType type, Clip *clip) {
     qDebug() << "ValidationController::onClipChanged" << type;
     if (type == Track::Inserted) {
@@ -69,6 +75,7 @@ void ValidationController::onClipChanged(Track::ClipChangeType type, Clip *clip)
     }
     validate();
 }
+
 void ValidationController::onClipPropertyChanged(Clip *clip) {
     qDebug() << "ValidationController::onClipPropertyChanged";
     if (!m_clips.contains(clip))
@@ -76,12 +83,14 @@ void ValidationController::onClipPropertyChanged(Clip *clip) {
 
     validate();
 }
+
 void ValidationController::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
     qDebug() << "ValidationController::onNoteChanged";
     if (type == SingingClip::Inserted)
         handleNoteInserted(note);
     validate();
 }
+
 void ValidationController::handleClipInserted(Clip *clip) {
     m_clips.append(clip);
     connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
@@ -91,11 +100,13 @@ void ValidationController::handleClipInserted(Clip *clip) {
         connect(singingClip, &SingingClip::noteChanged, this, &ValidationController::onNoteChanged);
     }
 }
+
 void ValidationController::handleNoteInserted(Note *note) {
     handleNotePropertyChanged(Note::Word, note);
     connect(note, &Note::propertyChanged, this,
             [=](Note::NotePropertyType type) { handleNotePropertyChanged(type, note); });
 }
+
 void ValidationController::handleNotePropertyChanged(Note::NotePropertyType type, Note *note) {
     qDebug() << "ValidationController::handleNotePropertyChanged";
     if (type == Note::Word) {
@@ -105,6 +116,7 @@ void ValidationController::handleNotePropertyChanged(Note::NotePropertyType type
         NoteWordUtils::updateOriginalWordProperties(notes);
     }
 }
+
 void ValidationController::validate() {
     qDebug() << "ValidationController::validate";
     if (!validateProjectLength() || !validateTempo() || !validateClipOverlap() ||
@@ -114,6 +126,7 @@ void ValidationController::validate() {
         emit validationFinished(true);
     }
 }
+
 bool ValidationController::validateProjectLength() {
     auto length = appModel->tickToMs(appModel->projectLengthInTicks());
     if (length > 30 * 60 * 1000) { // > 30 min
@@ -122,6 +135,7 @@ bool ValidationController::validateProjectLength() {
     }
     return true;
 }
+
 bool ValidationController::validateTempo() {
     // 用于测试
     auto tempo = appModel->tempo();
@@ -131,6 +145,7 @@ bool ValidationController::validateTempo() {
     }
     return true;
 }
+
 bool ValidationController::validateClipOverlap() {
     if (std::all_of(appModel->tracks().begin(), appModel->tracks().end(),
                     [](const auto &track) { return !track->clips().hasOverlappedItem(); })) {
@@ -139,6 +154,7 @@ bool ValidationController::validateClipOverlap() {
     Toast::show("ValidationController: clip overlapped");
     return false;
 }
+
 bool ValidationController::validateNoteOverlap() {
     for (const auto track : appModel->tracks()) {
         for (const auto clip : track->clips()) {

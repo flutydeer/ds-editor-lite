@@ -30,6 +30,7 @@ void AbstractClipView::setName(const QString &text) {
     d->m_name = text;
     update();
 }
+
 int AbstractClipView::start() const {
     Q_D(const AbstractClipView);
     return d->m_start;
@@ -40,28 +41,34 @@ void AbstractClipView::setStart(const int start) {
     d->m_start = start;
     updateRectAndPos();
 }
+
 int AbstractClipView::length() const {
     Q_D(const AbstractClipView);
     return d->m_length;
 }
+
 void AbstractClipView::setLength(const int length) {
     Q_D(AbstractClipView);
     d->m_length = length;
     updateRectAndPos();
 }
+
 int AbstractClipView::clipStart() const {
     Q_D(const AbstractClipView);
     return d->m_clipStart;
 }
+
 void AbstractClipView::setClipStart(const int clipStart) {
     Q_D(AbstractClipView);
     d->m_clipStart = clipStart;
     updateRectAndPos();
 }
+
 int AbstractClipView::clipLen() const {
     Q_D(const AbstractClipView);
     return d->m_clipLen;
 }
+
 void AbstractClipView::setClipLen(const int clipLen) {
     Q_D(AbstractClipView);
     d->m_clipLen = clipLen;
@@ -72,33 +79,40 @@ double AbstractClipView::gain() const {
     Q_D(const AbstractClipView);
     return d->m_gain;
 }
+
 void AbstractClipView::setGain(const double gain) {
     Q_D(AbstractClipView);
     d->m_gain = gain;
     update();
 }
+
 bool AbstractClipView::mute() const {
     Q_D(const AbstractClipView);
     return d->m_mute;
 }
+
 void AbstractClipView::setMute(bool mute) {
     Q_D(AbstractClipView);
     d->m_mute = mute;
     update();
 }
+
 int AbstractClipView::trackIndex() const {
     Q_D(const AbstractClipView);
     return d->m_trackIndex;
 }
+
 void AbstractClipView::setTrackIndex(const int index) {
     Q_D(AbstractClipView);
     d->m_trackIndex = index;
     updateRectAndPos();
 }
+
 bool AbstractClipView::canResizeLength() const {
     Q_D(const AbstractClipView);
     return d->m_canResizeLength;
 }
+
 void AbstractClipView::loadCommonProperties(const Clip::ClipCommonProperties &args) {
     Q_D(AbstractClipView);
     d->m_name = args.name;
@@ -110,10 +124,12 @@ void AbstractClipView::loadCommonProperties(const Clip::ClipCommonProperties &ar
     d->m_mute = args.mute;
     updateRectAndPos();
 }
+
 void AbstractClipView::setQuantize(int quantize) {
     Q_D(AbstractClipView);
     d->m_quantize = quantize;
 }
+
 QRectF AbstractClipViewPrivate::previewRect() const {
     Q_Q(const AbstractClipView);
     auto penWidth = 2.0f;
@@ -141,6 +157,7 @@ QString AbstractClipView::text() const {
                        .arg(scaleY());
     return clipTypeName() + controlStr + (d->m_showDebugInfo ? timeStr : "");
 }
+
 void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
     Q_D(const AbstractClipView);
@@ -209,6 +226,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
         drawPreviewArea(painter, d->previewRect(), colorAlpha);
     }
 }
+
 void AbstractClipView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     const auto rx = event->pos().rx();
     if (rx >= 0 && rx <= AppGlobal::resizeTolarance ||
@@ -230,13 +248,16 @@ void AbstractClipView::updateRectAndPos() {
     setRect(QRectF(0, 0, w, h));
     update();
 }
+
 void AbstractClipView::setCanResizeLength(bool on) {
     Q_D(AbstractClipView);
     d->m_canResizeLength = on;
 }
+
 double AbstractClipView::tickToSceneX(const double tick) const {
     return tick * scaleX() * pixelsPerQuarterNote / 480;
 }
+
 double AbstractClipView::sceneXToItemX(const double x) const {
     return mapFromScene(QPointF(x, 0)).x();
 }

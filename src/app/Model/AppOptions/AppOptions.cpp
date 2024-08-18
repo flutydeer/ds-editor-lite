@@ -23,9 +23,11 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
         }
     saveAndNotify();
 }
+
 QString AppOptions::configPath() const {
     return m_configPath;
 }
+
 bool AppOptions::saveAndNotify() {
     QJsonObject obj;
     obj.insert(m_generalOption.key(), m_generalOption.value());
@@ -37,21 +39,27 @@ bool AppOptions::saveAndNotify() {
     notifyOptionsChanged();
     return JsonUtils::save(m_configPath, obj);
 }
+
 GeneralOption *AppOptions::general() {
     return &m_generalOption;
 }
+
 void AppOptions::notifyOptionsChanged() {
     emit optionsChanged();
 }
+
 AudioOption *AppOptions::audio() {
     return &m_audioOption;
 }
+
 AppearanceOption *AppOptions::appearance() {
     return &m_appearanceOption;
 }
+
 LanguageOption *AppOptions::language() {
     return &m_languageOption;
 }
+
 FillLyricOption *AppOptions::fillLyric() {
     return &m_fillLyricOption;
 }

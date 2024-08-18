@@ -34,8 +34,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         SndFile::sndfile
         Qt6::Core
         Qt6::Widgets
-        Qt6::OpenGLWidgets
-        OpenGL32
         ${PLATFORM_LIB}
         talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Midi talcs::Dspx
         opendspx

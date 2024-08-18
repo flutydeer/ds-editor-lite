@@ -19,13 +19,17 @@ public:
     Curve() = default;
     explicit Curve(int id) : UniqueObject(id){};
     Curve(const Curve &other) : UniqueObject(other.id()), start(other.start){};
+
     [[nodiscard]] virtual CurveType type() const {
         return Generic;
     }
+
     int compareTo(const Curve *obj) const;
+
     [[nodiscard]] virtual int endTick() const {
         return start;
     }
+
     virtual bool isOverlappedWith(Curve *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 

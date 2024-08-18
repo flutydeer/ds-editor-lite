@@ -29,6 +29,7 @@ TrackListWidget::TrackListWidget(QWidget *parent) : QListWidget(parent) {
     installEventFilter(this);
     QScroller::grabGesture(this, QScroller::TouchGesture);
 }
+
 void TrackListWidget::mousePressEvent(QMouseEvent *event) {
     QListWidget::mousePressEvent(event);
     event->ignore();

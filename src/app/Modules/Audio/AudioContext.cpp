@@ -32,13 +32,15 @@
 #include "Model/AppModel/Track.h"
 #include <Model/AppOptions/AppOptions.h>
 
-#define DEVICE_LOCKER talcs::AudioDeviceLocker locker(AudioSystem::outputSystem()->context()->device())
+#define DEVICE_LOCKER                                                                              \
+    talcs::AudioDeviceLocker locker(AudioSystem::outputSystem()->context()->device())
 
 class AudioFormatIOObject : public QObject, public talcs::AudioFormatIO {
 public:
-    explicit AudioFormatIOObject(QIODevice *stream = nullptr, QObject *parent = nullptr) : QObject(parent), talcs::AudioFormatIO(stream) {
-
+    explicit AudioFormatIOObject(QIODevice *stream = nullptr, QObject *parent = nullptr)
+        : QObject(parent), talcs::AudioFormatIO(stream) {
     }
+
     ~AudioFormatIOObject() override = default;
 };
 
@@ -57,9 +59,8 @@ public:
                 fmtExtensions += subtypeInfo.extensions;
             }
             extensionHintSet.insert(fmtExtensions.cbegin(), fmtExtensions.cend());
-            std::transform(fmtExtensions.cbegin(), fmtExtensions.cend(), fmtExtensions.begin(), [](const QString &extension) {
-                return "*." + extension;
-            });
+            std::transform(fmtExtensions.cbegin(), fmtExtensions.cend(), fmtExtensions.begin(),
+                           [](const QString &extension) { return "*." + extension; });
             m_filters.append(QString("%1 (%2)").arg(fmtInfo.name, fmtExtensions.join(" ")));
         }
         m_extensionHints = QStringList(extensionHintSet.cbegin(), extensionHintSet.cend());
@@ -70,11 +71,13 @@ public:
     QStringList filters() const override {
         return m_filters;
     }
+
     QStringList extensionHints() const override {
         return m_extensionHints;
     }
 
-    talcs::AbstractAudioFormatIO *getFormatOpen(const QString &filename, QVariant &userData, QWidget *win) {
+    talcs::AbstractAudioFormatIO *getFormatOpen(const QString &filename, QVariant &userData,
+                                                QWidget *win) {
         std::unique_ptr<AudioFormatIOObject> io = std::make_unique<AudioFormatIOObject>();
         std::unique_ptr<QFile> f = std::make_unique<QFile>(filename, io.get());
         if (!f->open(QIODevice::ReadOnly))
@@ -101,7 +104,8 @@ public:
                                           "128000", "176400", "192000", "256000", "352800",
                                           "384000"});
             sampleRateComboBox->setEditable(true);
-            sampleRateComboBox->setValidator(new QDoubleValidator(0.01, std::numeric_limits<double>::max(), 2));
+            sampleRateComboBox->setValidator(
+                new QDoubleValidator(0.01, std::numeric_limits<double>::max(), 2));
             optionsLayout->addRow(tr("Sample rate"), sampleRateComboBox);
 
             auto byteOrderComboBox = new QComboBox;
@@ -125,15 +129,15 @@ public:
             if (dlg.exec() != QDialog::Accepted)
                 return nullptr;
             userData = QVariantMap({
-                {"subtype", subtypeComboBox->currentData()},
-                {"channelCount", channelCountSpinBox->value()},
-                {"sampleRate", QLocale().toDouble(sampleRateComboBox->currentText())},
-                {"byteOrder", byteOrderComboBox->currentData()}
+                {"subtype",      subtypeComboBox->currentData()                       },
+                {"channelCount", channelCountSpinBox->value()                         },
+                {"sampleRate",   QLocale().toDouble(sampleRateComboBox->currentText())},
+                {"byteOrder",    byteOrderComboBox->currentData()                     }
             });
-            io->setFormat(talcs::AudioFormatIO::RAW | subtypeComboBox->currentData().toInt() | byteOrderComboBox->currentData().toInt());
+            io->setFormat(talcs::AudioFormatIO::RAW | subtypeComboBox->currentData().toInt() |
+                          byteOrderComboBox->currentData().toInt());
             io->setChannelCount(channelCountSpinBox->value());
             io->setSampleRate(QLocale().toDouble(sampleRateComboBox->currentText()));
-
         }
         if (!io->open(talcs::AbstractAudioFormatIO::Read))
             return nullptr;
@@ -141,7 +145,8 @@ public:
         return io.release();
     }
 
-    talcs::AbstractAudioFormatIO *getFormatLoad(const QString &filename, const QVariant &userData) override {
+    talcs::AbstractAudioFormatIO *getFormatLoad(const QString &filename,
+                                                const QVariant &userData) override {
         std::unique_ptr<AudioFormatIOObject> io = std::make_unique<AudioFormatIOObject>();
         std::unique_ptr<QFile> f = std::make_unique<QFile>(filename, io.get());
         if (!f->open(QIODevice::ReadOnly))
@@ -149,7 +154,8 @@ public:
         io->setStream(f.release());
         if (filename.endsWith(".raw")) {
             auto rawOptions = userData.toMap();
-            io->setFormat(talcs::AudioFormatIO::RAW | rawOptions.value("subtype").toInt() | rawOptions.value("byteOrder").toInt());
+            io->setFormat(talcs::AudioFormatIO::RAW | rawOptions.value("subtype").toInt() |
+                          rawOptions.value("byteOrder").toInt());
             io->setChannelCount(rawOptions.value("channelCount").toInt());
             io->setSampleRate(rawOptions.value("sampleRate").toDouble());
         }
@@ -193,37 +199,43 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
     setBufferingReadAheadSize(AudioSettings::fileBufferingReadAheadSize());
 
-    connect(transport(), &talcs::TransportAudioSource::positionAboutToChange, this, [=](qint64 positionSample) {
-        m_transportPositionFlag = false;
-        playbackController->setPosition(sampleToTick(positionSample));
-        m_transportPositionFlag = true;
-    });
+    connect(transport(), &talcs::TransportAudioSource::positionAboutToChange, this,
+            [=](qint64 positionSample) {
+                m_transportPositionFlag = false;
+                playbackController->setPosition(sampleToTick(positionSample));
+                m_transportPositionFlag = true;
+            });
 
-    connect(transport(), &talcs::TransportAudioSource::playbackStatusChanged, this, [=](auto status) {
-        if (status == talcs::TransportAudioSource::Paused && playbackController->playbackStatus() == PlaybackGlobal::Stopped) {
-            if (AudioSettings::playheadBehavior() == ReturnToStart)
-                playbackController->setPosition(playbackController->lastPosition());
-        }
-    });
+    connect(transport(), &talcs::TransportAudioSource::playbackStatusChanged, this,
+            [=](auto status) {
+                if (status == talcs::TransportAudioSource::Paused &&
+                    playbackController->playbackStatus() == PlaybackGlobal::Stopped) {
+                    if (AudioSettings::playheadBehavior() == ReturnToStart)
+                        playbackController->setPosition(playbackController->lastPosition());
+                }
+            });
 
-    connect(playbackController, &PlaybackController::playbackStatusChanged, this, &AudioContext::handlePlaybackStatusChanged);
-    connect(playbackController, &PlaybackController::positionChanged, this, &AudioContext::handlePlaybackPositionChanged);
+    connect(playbackController, &PlaybackController::playbackStatusChanged, this,
+            &AudioContext::handlePlaybackStatusChanged);
+    connect(playbackController, &PlaybackController::positionChanged, this,
+            &AudioContext::handlePlaybackPositionChanged);
 
     connect(appModel, &AppModel::modelChanged, this, [this] {
         DEVICE_LOCKER;
         handleModelChanged();
     });
-    connect(appModel, &AppModel::trackChanged, this, [=](AppModel::TrackChangeType type, int index, Track *track) {
-        DEVICE_LOCKER;
-        switch (type) {
-            case AppModel::Insert:
-                handleTrackInserted(index, track);
-                break;
-            case AppModel::Remove:
-                handleTrackRemoved(index, track);
-                break;
-        }
-    });
+    connect(appModel, &AppModel::trackChanged, this,
+            [=](AppModel::TrackChangeType type, int index, Track *track) {
+                DEVICE_LOCKER;
+                switch (type) {
+                    case AppModel::Insert:
+                        handleTrackInserted(index, track);
+                        break;
+                    case AppModel::Remove:
+                        handleTrackRemoved(index, track);
+                        break;
+                }
+            });
 
     connect(appModel, &AppModel::tempoChanged, this, [=] {
         DEVICE_LOCKER;
@@ -231,22 +243,22 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         handlePlaybackPositionChanged(playbackController->position());
     });
 
-    connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::bufferSizeChanged, this, [=] {
-        playbackController->stop();
-    });
+    connect(AudioSystem::outputSystem()->context(),
+            &talcs::AbstractOutputContext::bufferSizeChanged, this,
+            [=] { playbackController->stop(); });
 
-    connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::sampleRateChanged, this, [=] {
-        DEVICE_LOCKER;
-        handleTimeChanged();
-        playbackController->stop();
-    });
+    connect(AudioSystem::outputSystem()->context(),
+            &talcs::AbstractOutputContext::sampleRateChanged, this, [=] {
+                DEVICE_LOCKER;
+                handleTimeChanged();
+                playbackController->stop();
+            });
 
-    connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::deviceChanged, this, [=] {
-        playbackController->stop();
-    });
+    connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::deviceChanged,
+            this, [=] { playbackController->stop(); });
 
     m_levelMeterTimer = new QTimer(this);
-    m_levelMeterTimer->setInterval(50);  // TODO make it configurable
+    m_levelMeterTimer->setInterval(50); // TODO make it configurable
     connect(m_levelMeterTimer, &QTimer::timeout, this, [=] {
         AppModel::LevelMetersUpdatedArgs args;
         for (auto track : appModel->tracks()) {
@@ -264,7 +276,6 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         emit levelMeterUpdated(args);
     });
     m_levelMeterTimer->start();
-
 }
 
 AudioContext::~AudioContext() {
@@ -282,21 +293,27 @@ Track *AudioContext::getTrackFromContext(talcs::DspxTrackContext *trackContext) 
     Q_UNUSED(this)
     return trackContext->data().value<Track *>();
 }
-AudioClip *AudioContext::getAudioClipFromContext(talcs::DspxAudioClipContext *audioClipContext) const {
+
+AudioClip *
+    AudioContext::getAudioClipFromContext(talcs::DspxAudioClipContext *audioClipContext) const {
     Q_UNUSED(this)
     return audioClipContext->data().value<AudioClip *>();
 }
+
 talcs::DspxTrackContext *AudioContext::getContextFromTrack(Track *trackModel) const {
     return m_trackModelDict.value(trackModel);
 }
+
 talcs::DspxAudioClipContext *
     AudioContext::getContextFromAudioClip(AudioClip *audioClipModel) const {
     return m_audioClipModelDict.value(audioClipModel);
 }
+
 void AudioContext::handlePanSliderMoved(Track *track, double pan) const {
     auto trackContext = getContextFromTrack(track);
     trackContext->controlMixer()->setPan(static_cast<float>(.01 * pan));
 }
+
 void AudioContext::handleGainSliderMoved(Track *track, double gain) const {
     auto trackContext = getContextFromTrack(track);
     trackContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(gain));
@@ -327,6 +344,7 @@ void AudioContext::handlePlaybackStatusChanged(PlaybackStatus status) {
     }
     m_lastStatus = status;
 }
+
 void AudioContext::handlePlaybackPositionChanged(double positionTick) {
     if (m_transportPositionFlag)
         transport()->setPosition(tickToSample(positionTick));
@@ -334,7 +352,7 @@ void AudioContext::handlePlaybackPositionChanged(double positionTick) {
 
 void AudioContext::handleModelChanged() {
     auto oldTrackContexts = tracks();
-    for (int i = static_cast<int>(oldTrackContexts.size()) -1; i >= 0; i--) {
+    for (int i = static_cast<int>(oldTrackContexts.size()) - 1; i >= 0; i--) {
         handleTrackRemoved(i, getTrackFromContext(oldTrackContexts[i]));
     }
     auto newTracks = appModel->tracks();
@@ -342,6 +360,7 @@ void AudioContext::handleModelChanged() {
         handleTrackInserted(i, newTracks[i]);
     }
 }
+
 void AudioContext::handleTrackInserted(int index, Track *track) {
     auto trackContext = addTrack(index);
     trackContext->setData(QVariant::fromValue(track));
@@ -363,7 +382,7 @@ void AudioContext::handleTrackInserted(int index, Track *track) {
         if (clip->clipType() != Clip::Audio)
             return;
         DEVICE_LOCKER;
-        switch(type) {
+        switch (type) {
             case Track::Inserted:
                 handleClipInserted(track, clip->id(), static_cast<AudioClip *>(clip));
                 break;
@@ -373,30 +392,33 @@ void AudioContext::handleTrackInserted(int index, Track *track) {
         }
     });
 
-    m_trackLevelMeterValue[track] = {std::make_shared<talcs::SmoothedFloat>(-96), std::make_shared<talcs::SmoothedFloat>(-96)};
+    m_trackLevelMeterValue[track] = {std::make_shared<talcs::SmoothedFloat>(-96),
+                                     std::make_shared<talcs::SmoothedFloat>(-96)};
     m_trackLevelMeterValue[track].first->setRampLength(8); // TODO make it configurable
     m_trackLevelMeterValue[track].second->setRampLength(8);
     trackContext->controlMixer()->setLevelMeterChannelCount(2);
-    connect(trackContext->controlMixer(), &talcs::PositionableMixerAudioSource::levelMetered, this, [=](QVector<float> values) {
-        if (!m_trackLevelMeterValue.contains(track))
-            return;
-        if (masterTrackMixer()->isMutedBySoloSetting(trackContext->controlMixer()))
-            values = {0, 0};
-        auto dBL = static_cast<float>(talcs::Decibels::gainToDecibels(values[0]));
-        auto dBR = static_cast<float>(talcs::Decibels::gainToDecibels(values[1]));
-        if (dBL < m_trackLevelMeterValue[track].first->currentValue())
-            m_trackLevelMeterValue[track].first->setTargetValue(dBL);
-        else
-            m_trackLevelMeterValue[track].first->setCurrentAndTargetValue(dBL);
+    connect(trackContext->controlMixer(), &talcs::PositionableMixerAudioSource::levelMetered, this,
+            [=](QVector<float> values) {
+                if (!m_trackLevelMeterValue.contains(track))
+                    return;
+                if (masterTrackMixer()->isMutedBySoloSetting(trackContext->controlMixer()))
+                    values = {0, 0};
+                auto dBL = static_cast<float>(talcs::Decibels::gainToDecibels(values[0]));
+                auto dBR = static_cast<float>(talcs::Decibels::gainToDecibels(values[1]));
+                if (dBL < m_trackLevelMeterValue[track].first->currentValue())
+                    m_trackLevelMeterValue[track].first->setTargetValue(dBL);
+                else
+                    m_trackLevelMeterValue[track].first->setCurrentAndTargetValue(dBL);
 
-        if (dBR < m_trackLevelMeterValue[track].second->currentValue())
-            m_trackLevelMeterValue[track].second->setTargetValue(dBR);
-        else
-            m_trackLevelMeterValue[track].second->setCurrentAndTargetValue(dBR);
-    });
+                if (dBR < m_trackLevelMeterValue[track].second->currentValue())
+                    m_trackLevelMeterValue[track].second->setTargetValue(dBR);
+                else
+                    m_trackLevelMeterValue[track].second->setCurrentAndTargetValue(dBR);
+            });
 
     m_trackSynthDict.insert(track, new TrackSynthesizer(trackContext, track));
 }
+
 void AudioContext::handleTrackRemoved(int index, Track *track) {
     for (auto clip : track->clips()) {
         if (clip->clipType() != Clip::Audio)
@@ -415,6 +437,7 @@ void AudioContext::handleTrackControlChanged(Track *track) {
     trackContext->controlMixer()->setSilentFlags(track->control().mute() ? -1 : 0);
     masterTrackMixer()->setSourceSolo(trackContext->controlMixer(), track->control().solo());
 }
+
 void AudioContext::handleClipInserted(Track *track, int id, AudioClip *audioClip) {
     auto trackContext = getContextFromTrack(track);
     auto audioClipContext = trackContext->addAudioClip(id);
@@ -427,6 +450,7 @@ void AudioContext::handleClipInserted(Track *track, int id, AudioClip *audioClip
         handleClipPropertyChanged(audioClip);
     });
 }
+
 void AudioContext::handleClipRemoved(Track *track, int id, AudioClip *audioClip) {
     auto trackContext = getContextFromTrack(track);
     trackContext->removeAudioClip(id);

@@ -14,8 +14,10 @@
 class ITrack : public UniqueObject {
 public:
     ITrack() = default;
+
     explicit ITrack(int id) : UniqueObject(id) {
     }
+
     virtual ~ITrack() = default;
     [[nodiscard]] virtual QString name() const = 0;
     virtual void setName(const QString &name) = 0;

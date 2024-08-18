@@ -11,16 +11,19 @@
 ComboBox::ComboBox(QWidget *parent) : QComboBox(parent) {
     initUi();
 }
+
 ComboBox::ComboBox(bool scrollWheelChangeSelection, QWidget *parent)
     : QComboBox(parent), m_scrollWheelChangeSelection(scrollWheelChangeSelection) {
     initUi();
 }
+
 void ComboBox::wheelEvent(QWheelEvent *event) {
     if (m_scrollWheelChangeSelection)
         QComboBox::wheelEvent(event);
     else
         event->ignore();
 }
+
 void ComboBox::initUi() {
     auto styledItemDelegate = new QStyledItemDelegate();
     setItemDelegate(styledItemDelegate);

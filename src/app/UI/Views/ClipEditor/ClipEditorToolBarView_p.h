@@ -18,6 +18,7 @@ class SeekBar;
 class LineEdit;
 class Button;
 class ClipEditorToolBarView;
+
 class ClipEditorToolBarViewPrivate : public QObject {
     Q_OBJECT
     Q_DECLARE_PUBLIC(ClipEditorToolBarView)

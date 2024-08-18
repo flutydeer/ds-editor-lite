@@ -25,4 +25,4 @@ private:
 
 
 
-#endif //EDITPHONEMEACTION_H
+#endif // EDITPHONEMEACTION_H

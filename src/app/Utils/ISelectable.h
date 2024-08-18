@@ -10,6 +10,7 @@ public:
     [[nodiscard]] bool selected() const {
         return m_selected;
     }
+
     void setSelected(bool b) {
         m_selected = b;
     }
@@ -18,4 +19,4 @@ protected:
     bool m_selected = false;
 };
 
-#endif //ISELECTABLE_H
+#endif // ISELECTABLE_H

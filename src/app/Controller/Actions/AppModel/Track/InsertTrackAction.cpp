@@ -13,9 +13,11 @@ InsertTrackAction *InsertTrackAction::build(Track *track, qsizetype index, AppMo
     a->m_model = model;
     return a;
 }
+
 void InsertTrackAction::execute() {
     m_model->insertTrack(m_track, m_index);
 }
+
 void InsertTrackAction::undo() {
     m_model->removeTrackAt(m_index);
 }

@@ -29,23 +29,28 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::timeSignatureChanged, this, &TimelineView::setTimeSignature);
     connect(appModel, &AppModel::quantizeChanged, this, &TimelineView::setQuantize);
 }
+
 void TimelineView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
     update();
 }
+
 void TimelineView::setTimeSignature(int numerator, int denominator) {
     ITimelinePainter::setTimeSignature(numerator, denominator);
     update();
 }
+
 void TimelineView::setPosition(double tick) {
     m_position = tick;
     update();
 }
+
 void TimelineView::setQuantize(int quantize) {
     ITimelinePainter::setQuantize(quantize);
     update();
 }
+
 void TimelineView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
     QPainter painter(this);
@@ -81,6 +86,7 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     QPointF points[3]{p1, p2, p3};
     painter.drawPolygon(points, 3);
 }
+
 void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
     auto x = tickToX(tick); // tick to itemX
@@ -93,6 +99,7 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
+
 void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
     auto x = tickToX(tick);
@@ -106,6 +113,7 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
+
 void TimelineView::drawEighth(QPainter *painter, int tick) {
     QPen pen;
     auto x = tickToX(tick);
@@ -115,25 +123,30 @@ void TimelineView::drawEighth(QPainter *painter, int tick) {
     auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
+
 void TimelineView::wheelEvent(QWheelEvent *event) {
     emit wheelHorScale(event);
     QWidget::wheelEvent(event);
 }
+
 void TimelineView::mousePressEvent(QMouseEvent *event) {
     emit setLastPositionTriggered(xToTick(event->position().x()));
     // setPosition(xToTick(event->position().x()));
     event->ignore();
 }
+
 void TimelineView::mouseMoveEvent(QMouseEvent *event) {
     emit setLastPositionTriggered(xToTick(event->position().x()));
     // setPosition(xToTick(event->position().x()));
     QWidget::mouseMoveEvent(event);
 }
+
 double TimelineView::tickToX(double tick) {
     auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
     auto x = (rect().width() - AppGlobal::verticalScrollBarWidth) * ratio;
     return x;
 }
+
 double TimelineView::xToTick(double x) {
     auto tick =
         1.0 * x / (rect().width() - AppGlobal::verticalScrollBarWidth) * (m_endTick - m_startTick) +

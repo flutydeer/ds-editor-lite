@@ -16,7 +16,6 @@ protected:
 
 private:
     MIDIPageWidget *m_widget;
-
 };
 
 

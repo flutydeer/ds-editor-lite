@@ -80,6 +80,7 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     connect(okButton(), &AccentButton::clicked, this, &Dialog::accept);
     connect(cancelButton(), &AccentButton::clicked, this, &Dialog::reject);
 }
+
 NoteDialogResult NotePropertyDialog::result() {
     m_result.language =
         languageKeyFromType(static_cast<AppGlobal::LanguageType>(m_cbLanguage->currentIndex()));
@@ -109,6 +110,7 @@ NoteDialogResult NotePropertyDialog::result() {
 
     return m_result;
 }
+
 QString NotePropertyDialog::phonemesToString(const QList<Phoneme> &phonemes) {
     QString result;
     int i = 0;
@@ -120,6 +122,7 @@ QString NotePropertyDialog::phonemesToString(const QList<Phoneme> &phonemes) {
     }
     return result;
 }
+
 QList<Phoneme> NotePropertyDialog::phonemesFromString(Phoneme::PhonemeType type,
                                                       const QString &names) {
     QList<Phoneme> result;

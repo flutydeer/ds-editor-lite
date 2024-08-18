@@ -61,6 +61,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
 
     resize(900, 600);
 }
+
 void AppOptionsDialog::onSelectionChanged(int index) {
     m_PageContent->setCurrentWidget(m_pages.at(index));
 }

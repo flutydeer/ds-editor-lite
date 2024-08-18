@@ -10,7 +10,8 @@
 
 using namespace ClipEditorGlobal;
 
-void PianoRollBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+void PianoRollBackgroundGraphicsItem::paint(QPainter *painter,
+                                            const QStyleOptionGraphicsItem *option,
                                             QWidget *widget) {
     // Draw background
     auto backgroundColor = QColor(42, 43, 44);
@@ -29,13 +30,16 @@ void PianoRollBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptio
 
     auto sceneYToKeyIndex = [&](const double y) { return 127 - y / scaleY() / noteHeight; };
 
-    auto keyIndexToSceneY = [&](const double index) { return (127 - index) * scaleY() * noteHeight; };
+    auto keyIndexToSceneY = [&](const double index) {
+        return (127 - index) * scaleY() * noteHeight;
+    };
 
     auto sceneYToItemY = [&](const double y) { return mapFromScene(QPointF(0, y)).y(); };
 
     auto isWhiteKey = [](const int midiKey) -> bool {
         int index = midiKey % 12;
-        bool pianoKeys[] = {true, false, true, false, true, true, false, true, false, true, false, true};
+        bool pianoKeys[] = {true,  false, true,  false, true,  true,
+                            false, true,  false, true,  false, true};
         return pianoKeys[index];
     };
 

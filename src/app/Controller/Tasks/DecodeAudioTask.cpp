@@ -13,6 +13,7 @@ DecodeAudioTask::DecodeAudioTask(/*int id*/) /*: ITask(id)*/ {
     status.message = "";
     setStatus(status);
 }
+
 AudioInfoModel DecodeAudioTask::result() const {
     AudioInfoModel info;
     info.sampleRate = m_sampleRate;
@@ -24,6 +25,7 @@ AudioInfoModel DecodeAudioTask::result() const {
     info.peakCacheMipmap = m_peakCacheMipmap;
     return info;
 }
+
 void DecodeAudioTask::runTask() {
     TaskStatus status;
     status.title = "Decoding audio...";

@@ -29,19 +29,23 @@ DialogHeader::DialogHeader(QWidget *parent) : QWidget(parent) {
 
     setLayout(m_mainLayout);
 }
+
 DialogHeader::~DialogHeader() {
     delete m_mainLayout;
     delete m_lbTitle;
     delete m_lbMessage;
 }
+
 void DialogHeader::setTitle(const QString &title) {
     m_lbTitle->setVisible(true);
     m_lbTitle->setText(title);
 }
+
 void DialogHeader::setMessage(const QString &msg) {
     m_lbMessage->setVisible(true);
     m_lbMessage->setText(msg);
 }
+
 DialogButtonBar::DialogButtonBar(QWidget *parent) : QWidget(parent) {
     setObjectName("DialogButtonBar");
     setAttribute(Qt::WA_StyledBackground);
@@ -55,17 +59,21 @@ DialogButtonBar::DialogButtonBar(QWidget *parent) : QWidget(parent) {
     setContentsMargins({});
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }
+
 DialogButtonBar::~DialogButtonBar() {
     delete m_mainLayout;
 }
+
 void DialogButtonBar::addButton(Button *button) {
     m_mainLayout->addWidget(button);
 }
+
 void DialogButtonBar::reset() {
     for (auto child : m_mainLayout->children())
         if (auto button = dynamic_cast<Button *>(child))
             m_mainLayout->removeWidget(button);
 }
+
 Dialog::Dialog(QWidget *parent, Qt::WindowFlags f) : QDialog(parent ? parent : m_globalParent, f) {
 #ifdef Q_OS_WIN
     bool micaOn = true;
@@ -95,45 +103,57 @@ Dialog::Dialog(QWidget *parent, Qt::WindowFlags f) : QDialog(parent ? parent : m
     setMinimumWidth(320);
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 }
+
 Dialog::~Dialog() {
     delete m_buttonBar;
 }
+
 void Dialog::setTitle(const QString &title) {
     m_header->setVisible(true);
     m_header->setTitle(title);
 }
+
 void Dialog::setMessage(const QString &msg) {
     m_header->setVisible(true);
     m_header->setMessage(msg);
 }
+
 void Dialog::setPositiveButton(Button *button) {
     m_positiveButton = button;
     setButton();
 }
+
 void Dialog::setNegativeButton(Button *button) {
     m_negativeButton = button;
     setButton();
 }
+
 void Dialog::setNeutralButton(Button *button) {
     m_neutralButton = button;
     setButton();
 }
+
 QWidget *Dialog::body() {
     return m_body;
 }
+
 DialogButtonBar *Dialog::buttonBar() {
     return m_buttonBar;
 }
+
 QWidget *Dialog::globalParent() {
     return m_globalParent;
 }
+
 void Dialog::setGlobalContext(QWidget *parent) {
     m_globalParent = parent;
 }
+
 void Dialog::createButtonBar() {
     m_buttonBar = new DialogButtonBar(this);
     m_mainLayout->addWidget(m_buttonBar);
 }
+
 void Dialog::setButton() {
     if (!m_buttonBar)
         createButtonBar();

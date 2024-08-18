@@ -8,6 +8,7 @@
 #include "Dialog.h"
 
 class AccentButton;
+
 class OKCancelDialog : public Dialog {
     Q_OBJECT
 
@@ -24,4 +25,4 @@ private:
 
 
 
-#endif //OKCANCELAPPLYDIALOG_H
+#endif // OKCANCELAPPLYDIALOG_H

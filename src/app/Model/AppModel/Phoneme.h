@@ -13,6 +13,7 @@ public:
     enum PhonemeType { Ahead, Normal, Final };
 
     Phoneme() = default;
+
     Phoneme(PhonemeType type, QString name, int start)
         : type(type), name(std::move(name)), start(start) {
     }
@@ -20,9 +21,10 @@ public:
     static QList<PhonemeType> phonemesTypes() {
         return {Ahead, Normal, Final};
     }
+
     PhonemeType type = Normal;
     QString name;
     int start = 0;
 };
 
-#endif //PHONEME_H
+#endif // PHONEME_H

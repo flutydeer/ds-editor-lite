@@ -51,42 +51,53 @@ CommonGraphicsView::CommonGraphicsView(QWidget *parent) : QGraphicsView(parent) 
     });
 #endif
 }
+
 qreal CommonGraphicsView::scaleXMax() const {
     return m_scaleXMax;
 }
+
 void CommonGraphicsView::setScaleXMax(qreal max) {
     m_scaleXMax = max;
 }
+
 double CommonGraphicsView::scaleYMin() const {
     return m_scaleYMin;
 }
+
 void CommonGraphicsView::setScaleYMin(double min) {
     m_scaleYMin = min;
 }
+
 int CommonGraphicsView::hBarValue() const {
     return horizontalScrollBar()->value();
 }
+
 void CommonGraphicsView::setHBarValue(const int value) {
     horizontalScrollBar()->setValue(value);
 }
+
 int CommonGraphicsView::vBarValue() const {
     return verticalScrollBar()->value();
 }
+
 void CommonGraphicsView::setVBarValue(const int value) {
     verticalScrollBar()->setValue(value);
 }
+
 void CommonGraphicsView::hBarAnimateTo(int value) {
     m_hBarAnimation.stop();
     m_hBarAnimation.setStartValue(hBarValue());
     m_hBarAnimation.setEndValue(value);
     m_hBarAnimation.start();
 }
+
 void CommonGraphicsView::vBarAnimateTo(int value) {
     m_vBarAnimation.stop();
     m_vBarAnimation.setStartValue(vBarValue());
     m_vBarAnimation.setEndValue(value);
     m_vBarAnimation.start();
 }
+
 void CommonGraphicsView::hBarVBarAnimateTo(int hValue, int vValue) {
     m_hBarAnimation.stop();
     m_vBarAnimation.stop();
@@ -99,6 +110,7 @@ void CommonGraphicsView::hBarVBarAnimateTo(int hValue, int vValue) {
     m_hBarAnimation.start();
     m_vBarAnimation.start();
 }
+
 QRectF CommonGraphicsView::visibleRect() const {
     auto viewportRect = viewport()->rect();
     auto leftTop = mapToScene(viewportRect.left(), viewportRect.top());
@@ -106,12 +118,15 @@ QRectF CommonGraphicsView::visibleRect() const {
     auto rect = QRectF(leftTop, rightBottom);
     return rect;
 }
+
 void CommonGraphicsView::setEnsureSceneFillView(bool on) {
     m_ensureSceneFillView = on;
 }
+
 void CommonGraphicsView::notifyVisibleRectChanged() {
     emit visibleRectChanged(visibleRect());
 }
+
 void CommonGraphicsView::onWheelHorScale(QWheelEvent *event) {
     auto cursorPos = event->position().toPoint();
     auto scenePos = mapToScene(cursorPos);
@@ -149,6 +164,7 @@ void CommonGraphicsView::onWheelHorScale(QWheelEvent *event) {
         hBarAnimateTo(targetValue);
     }
 }
+
 bool CommonGraphicsView::event(QEvent *event) {
 #ifdef Q_OS_MAC
     // Mac Trackpad smooth zooming
@@ -190,6 +206,7 @@ bool CommonGraphicsView::event(QEvent *event) {
 #endif
     return QGraphicsView::event(event);
 }
+
 void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
     auto cursorPos = event->position().toPoint();
     auto scenePos = mapToScene(cursorPos);
@@ -254,20 +271,24 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
 
     notifyVisibleRectChanged();
 }
+
 void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
     QGraphicsView::resizeEvent(event);
     emit sizeChanged(viewport()->size());
     notifyVisibleRectChanged();
 }
+
 void CommonGraphicsView::mousePressEvent(QMouseEvent *event) {
     QGraphicsView::mousePressEvent(event);
     event->ignore();
 }
+
 void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     // if (event->pos().x() > rect().width() * 0.8)
     //     horizontalScrollBar()->triggerAction(QAbstractSlider::SliderSingleStepAdd);
     QGraphicsView::mouseMoveEvent(event);
 }
+
 bool CommonGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
 #ifdef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
     return event->deviceType() == QInputDevice::DeviceType::Mouse;
@@ -292,6 +313,7 @@ bool CommonGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
     return false;
 #endif
 }
+
 void CommonGraphicsView::updateAnimationDuration() {
     const int animationDurationBase = 150;
     auto duration = animationLevel() == AnimationGlobal::Full
@@ -302,12 +324,15 @@ void CommonGraphicsView::updateAnimationDuration() {
     m_hBarAnimation.setDuration(duration);
     m_vBarAnimation.setDuration(duration);
 }
+
 void CommonGraphicsView::afterSetScale() {
     emit scaleChanged(scaleX(), scaleY());
 }
+
 void CommonGraphicsView::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
     updateAnimationDuration();
 }
+
 void CommonGraphicsView::afterSetTimeScale(double scale) {
     updateAnimationDuration();
 }

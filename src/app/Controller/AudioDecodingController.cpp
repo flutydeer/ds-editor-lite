@@ -25,6 +25,7 @@ void AudioDecodingController::onModelChanged() {
         }
     }
 }
+
 void AudioDecodingController::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
                                              Track *track) {
     qDebug() << "AudioDecodingController::onTrackChanged";
@@ -35,6 +36,7 @@ void AudioDecodingController::onTrackChanged(AppModel::TrackChangeType type, qsi
         terminateTasksByTrackId(track->id());
     }
 }
+
 void AudioDecodingController::onClipChanged(Track::ClipChangeType type, Clip *clip) {
     qDebug() << "AudioDecodingController::onClipChanged";
     if (type == Track::Inserted) {
@@ -49,6 +51,7 @@ void AudioDecodingController::onClipChanged(Track::ClipChangeType type, Clip *cl
             terminateTaskByClipId(clip->id());
     }
 }
+
 void AudioDecodingController::createAndStartTask(AudioClip *clip) {
     auto decodeTask = new DecodeAudioTask;
     decodeTask->clipId = clip->id();
@@ -59,6 +62,7 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
+
 void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, bool terminate) {
     taskManager->removeTask(task);
     m_tasks.removeOne(task);
@@ -95,11 +99,13 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, bool ter
     audioClip->notifyPropertyChanged();
     delete task;
 }
+
 void AudioDecodingController::terminateTaskByClipId(int clipId) {
     for (const auto task : m_tasks)
         if (task->clipId == clipId)
             taskManager->terminateTask(task);
 }
+
 void AudioDecodingController::terminateTasksByTrackId(int trackId) {
     for (auto task : m_tasks) {
         if (task->trackId == trackId)

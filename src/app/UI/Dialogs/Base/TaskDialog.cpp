@@ -40,20 +40,24 @@ TaskDialog::TaskDialog(Task *task, bool cancellable, bool canHide, QWidget *pare
     connect(m_task, &Task::statusUpdated, this, &TaskDialog::onStatusUpdated);
     connect(m_task, &Task::finished, this, [this] { accept(); });
 }
+
 void TaskDialog::forceClose() {
     m_canHide = true;
     accept();
 }
+
 void TaskDialog::closeEvent(QCloseEvent *event) {
     if (m_canHide)
         Dialog::closeEvent(event);
     else
         event->ignore();
 }
+
 void TaskDialog::onTerminateButtonClicked() {
     if (m_task)
         taskManager->terminateTask(m_task);
 }
+
 void TaskDialog::onStatusUpdated(const TaskStatus &status) {
     setTitle(status.title);
     setMessage(status.message);

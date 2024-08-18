@@ -17,6 +17,7 @@ EditClipCommonPropertiesAction *
     a->m_track = track;
     return a;
 }
+
 void EditClipCommonPropertiesAction::execute() {
     m_track->removeClip(m_clip);
     m_clip->setName(m_newArgs.name);
@@ -27,6 +28,7 @@ void EditClipCommonPropertiesAction::execute() {
     m_track->insertClip(m_clip);
     m_clip->notifyPropertyChanged();
 }
+
 void EditClipCommonPropertiesAction::undo() {
     m_track->removeClip(m_clip);
     m_clip->setName(m_oldArgs.name);

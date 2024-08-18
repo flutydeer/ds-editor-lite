@@ -21,7 +21,7 @@ public:
     [[nodiscard]] bool freeze() const;
     void setFreeze(bool on);
 
-// public slots:
+    // public slots:
     void readSample(double sampleL, double sampleR);
     void setValue(double valueL, double valueR);
 

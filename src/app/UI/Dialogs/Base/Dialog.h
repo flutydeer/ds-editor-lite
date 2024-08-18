@@ -14,7 +14,7 @@ class Button;
 
 class DialogHeader : public QWidget {
 public:
-    explicit DialogHeader(QWidget* parent = nullptr);
+    explicit DialogHeader(QWidget *parent = nullptr);
     ~DialogHeader() override;
 
     void setTitle(const QString &title);
@@ -30,7 +30,7 @@ class DialogButtonBar : public QWidget {
     Q_OBJECT
 
 public:
-    explicit DialogButtonBar(QWidget* parent = nullptr);
+    explicit DialogButtonBar(QWidget *parent = nullptr);
     ~DialogButtonBar() override;
     // void addButtonToStart(Button *button);
     void addButton(Button *button);

@@ -29,6 +29,7 @@ public:
     [[nodiscard]] ClipType clipType() const override {
         return Singing;
     }
+
     explicit SingingClipView(int itemId, QGraphicsItem *parent = nullptr);
     ~SingingClipView() override = default;
 

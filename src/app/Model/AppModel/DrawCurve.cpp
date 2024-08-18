@@ -10,9 +10,11 @@ DrawCurve::DrawCurve(const DrawCurve &other)
     : Curve(other), step(other.step), m_values(other.m_values) {
     // qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start;
 }
+
 const QList<int> &DrawCurve::values() const {
     return m_values;
 }
+
 QList<int> DrawCurve::mid(int tick) const {
     auto startIndex = (tick - start) / step;
     QList<int> result;
@@ -20,28 +22,36 @@ QList<int> DrawCurve::mid(int tick) const {
         result.append(m_values.at(i));
     return result;
 }
+
 void DrawCurve::setValues(const QList<int> &values) {
     m_values = values;
 }
+
 void DrawCurve::insertValue(int index, int value) {
     m_values.insert(index, value);
 }
+
 void DrawCurve::insertValues(int index, const QList<int> &values) {
     for (int i = 0; i < values.count(); i++)
         m_values.insert(index + i, values.at(i));
 }
+
 void DrawCurve::removeValueRange(qsizetype i, qsizetype n) {
     m_values.remove(i, n);
 }
+
 void DrawCurve::clearValues() {
     m_values.clear();
 }
+
 void DrawCurve::appendValue(int value) {
     m_values.append(value);
 }
+
 void DrawCurve::replaceValue(int index, int value) {
     m_values.replace(index, value);
 }
+
 void DrawCurve::mergeWith(const DrawCurve &other) {
     int curStart = start;
     int otherStart = other.start;
@@ -68,6 +78,7 @@ void DrawCurve::mergeWith(const DrawCurve &other) {
         }
     }
 }
+
 void DrawCurve::overlayMergeWith(const DrawCurve &other) {
     int curStart = start;
     int otherStart = other.start;
@@ -101,6 +112,7 @@ void DrawCurve::overlayMergeWith(const DrawCurve &other) {
         }
     }
 }
+
 void DrawCurve::erase(int otherStart, int otherEnd) {
     int curStart = start;
     auto curEnd = endTick();
@@ -117,14 +129,17 @@ void DrawCurve::erase(int otherStart, int otherEnd) {
         start = otherEnd;
     }
 }
+
 void DrawCurve::eraseTail(int length) {
     auto count = length / step;
     removeValueRange(values().count() - count, count);
 }
+
 void DrawCurve::eraseTailFrom(int tick) {
     auto length = endTick() - tick;
     eraseTail(length);
 }
+
 int DrawCurve::endTick() const {
     return start + step * m_values.count();
 }

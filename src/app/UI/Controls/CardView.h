@@ -13,6 +13,7 @@ class CardView : public QWidget {
 public:
     explicit CardView(QWidget *parent = nullptr);
 };
+
 inline CardView::CardView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setContentsMargins({});

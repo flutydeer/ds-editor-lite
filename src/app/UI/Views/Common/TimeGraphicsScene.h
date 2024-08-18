@@ -16,7 +16,6 @@ class TimeGraphicsScene : public CommonGraphicsScene {
 public:
     void addTimeGrid(TimeGridGraphicsItem *item);
     void addTimeIndicator(TimeIndicatorGraphicsItem *item);
-
 };
 
 #endif // TIMEGRAPHICSSCENE_H

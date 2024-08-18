@@ -25,6 +25,7 @@ public:
     class PhonemeViewModel {
     public:
         enum PhonemeItemType { Ahead, Normal, Final, Sil };
+
         PhonemeItemType type;
         int noteId;
         int start;

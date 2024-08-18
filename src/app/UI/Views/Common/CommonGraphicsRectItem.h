@@ -12,13 +12,16 @@
 class CommonGraphicsRectItem : public QObject, public QGraphicsRectItem, public IScalableItem {
     Q_OBJECT
 public:
-    explicit CommonGraphicsRectItem(QGraphicsItem *parent = nullptr) : QGraphicsRectItem(parent){}
+    explicit CommonGraphicsRectItem(QGraphicsItem *parent = nullptr) : QGraphicsRectItem(parent) {
+    }
 
 protected:
     virtual void updateRectAndPos() = 0;
+
     void afterSetScale() override {
         updateRectAndPos();
     }
+
     void afterSetVisibleRect() override {
         updateRectAndPos();
     }

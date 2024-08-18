@@ -22,17 +22,21 @@ int SingingClipView::NoteViewModel::compareTo(const NoteViewModel *obj) const {
         return 1;
     return 0;
 }
+
 bool SingingClipView::NoteViewModel::isOverlappedWith(NoteViewModel *obj) {
     return false;
 }
+
 std::tuple<qsizetype, qsizetype> SingingClipView::NoteViewModel::interval() const {
     return std::make_tuple(0, 0);
 }
+
 SingingClipView::SingingClipView(int itemId, QGraphicsItem *parent)
     : AbstractClipView(itemId, parent) {
     setCanResizeLength(true);
     // setName("New Pattern");
 }
+
 void SingingClipView::loadNotes(const OverlappableSerialList<Note> &notes) {
     m_notes.clear();
     if (notes.count() != 0)
@@ -41,6 +45,7 @@ void SingingClipView::loadNotes(const OverlappableSerialList<Note> &notes) {
 
     update();
 }
+
 void SingingClipView::onNoteListChanged(SingingClip::NoteChangeType type, Note *note) {
     switch (type) {
         case SingingClip::Inserted:
@@ -57,19 +62,23 @@ void SingingClipView::onNoteListChanged(SingingClip::NoteChangeType type, Note *
             break;
     }
 }
+
 void SingingClipView::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
     if (type == Note::TimeAndKey) {
         removeNote(note->id());
         addNote(note);
     }
 }
+
 void SingingClipView::setDefaultLanguage(AppGlobal::LanguageType language) {
     m_language = language;
     update();
 }
+
 QString SingingClipView::text() const {
     return AbstractClipView::text() + langNameUtils->name(m_language) + " ";
 }
+
 void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {
     painter->setRenderHint(QPainter::Antialiasing, false);
 
@@ -120,9 +129,11 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
         painter->drawRect(QRectF(left, top, width, noteHeight));
     }
 }
+
 QString SingingClipView::clipTypeName() const {
     return tr("[Singing] ");
 }
+
 void SingingClipView::addNote(Note *note) {
     auto noteViewModel = new NoteViewModel;
     noteViewModel->id = note->id();
@@ -132,6 +143,7 @@ void SingingClipView::addNote(Note *note) {
     MathUtils::binaryInsert(m_notes, noteViewModel);
     update();
 }
+
 void SingingClipView::removeNote(int id) {
     for (auto note : m_notes) {
         if (note->id == id) {

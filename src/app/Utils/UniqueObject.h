@@ -12,8 +12,10 @@ public:
     UniqueObject() {
         m_id = IdGenerator::instance()->next();
     }
+
     explicit UniqueObject(int id) : m_id(id) {
     }
+
     [[nodiscard]] int id() const {
         return m_id;
     }

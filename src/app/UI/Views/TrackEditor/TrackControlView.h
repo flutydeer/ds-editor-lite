@@ -39,9 +39,11 @@ public:
     void setNarrowMode(bool on);
     // void setLanguage(AppGlobal::languageType lang);
     [[nodiscard]] LevelMeter *levelMeter() const;
+
     [[nodiscard]] QColor color() const override {
         return {};
     }
+
     void setColor(const QColor &color) override {
     }
 

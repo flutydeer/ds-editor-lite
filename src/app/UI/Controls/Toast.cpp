@@ -58,13 +58,16 @@ void Toast::show(const QString &message) {
     if (!instance()->m_isShowingToast)
         instance()->showNextToast();
 }
+
 void Toast::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
 }
+
 void Toast::afterSetTimeScale(double scale) {
     m_opacityAnimation.setDuration(getScaledAnimationTime(animationDurationBase));
     m_posAnimation.setDuration(getScaledAnimationTime(animationDurationBase));
     m_destroyWidgetTimer.setInterval(getScaledAnimationTime(animationDurationBase));
 }
+
 void Toast::hideToast() {
     m_opacityAnimation.stop();
     m_opacityAnimation.setStartValue(m_toastWidget->windowOpacity());
@@ -72,6 +75,7 @@ void Toast::hideToast() {
     m_opacityAnimation.start();
     m_destroyWidgetTimer.start();
 }
+
 Toast::Toast(QObject *parent) : QObject(parent) {
     m_keepOnScreenTimer.setInterval(1500);
     m_keepOnScreenTimer.setSingleShot(true);
@@ -98,9 +102,11 @@ Toast::Toast(QObject *parent) : QObject(parent) {
 
     initializeAnimation();
 }
+
 void Toast::setGlobalContext(QWidget *context) {
     m_globalContext = context;
 }
+
 void Toast::showNextToast() {
     if (m_queue.count() <= 0)
         return;
@@ -131,6 +137,7 @@ void Toast::showNextToast() {
     m_opacityAnimation.start();
     m_keepOnScreenTimer.start();
 }
+
 void Toast::oneToastShowFinished() {
     m_queue.removeFirst();
     m_isShowingToast = false;

@@ -11,11 +11,13 @@ class TaskStatus;
 class Task;
 class ProgressIndicator;
 class Button;
+
 class TaskDialog : public Dialog {
     Q_OBJECT
 
 public:
-    explicit TaskDialog(Task *task = nullptr, bool cancellable = true, bool canHide = true, QWidget *parent = nullptr);
+    explicit TaskDialog(Task *task = nullptr, bool cancellable = true, bool canHide = true,
+                        QWidget *parent = nullptr);
     void forceClose();
 
 protected:

@@ -27,7 +27,7 @@ public:
     ~AppController() override;
     void setMainWindow(IMainWindow *window);
 
-    [[nodiscard]] QString lastProjectFolder()const;
+    [[nodiscard]] QString lastProjectFolder() const;
     [[nodiscard]] QString projectPath() const;
     [[nodiscard]] QString projectName() const;
     void setProjectName(const QString &name);
@@ -53,7 +53,7 @@ public slots:
     void selectTrack(int trackIndex);
     void onPanelClicked(AppGlobal::PanelType panel);
     void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
-                                          const QString &redoActionName);
+                           const QString &redoActionName);
 
 signals:
     void activePanelChanged(AppGlobal::PanelType panel);
@@ -61,7 +61,7 @@ signals:
 private:
     Q_DECLARE_PRIVATE(AppController)
     // QScopedPointer<AppControllerPrivate> d_ptr;
-    AppControllerPrivate * d_ptr;
+    AppControllerPrivate *d_ptr;
 };
 
 #endif // TRACKSCONTROLLER_H

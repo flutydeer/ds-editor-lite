@@ -38,6 +38,7 @@ public:
     [[nodiscard]] CurveType type() const override {
         return Anchor;
     }
+
     [[nodiscard]] const OverlappableSerialList<AnchorNode> &nodes() const;
     void insertNode(AnchorNode *node);
     void removeNode(AnchorNode *node);
@@ -49,4 +50,4 @@ private:
 
 
 
-#endif //ANCHORCURVE_H
+#endif // ANCHORCURVE_H

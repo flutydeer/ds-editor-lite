@@ -14,8 +14,10 @@ public:
     enum ClipType { Audio, Singing, Generic };
 
     IClip() = default;
+
     explicit IClip(int id) : UniqueObject(id) {
     }
+
     virtual ~IClip() = default;
     [[nodiscard]] virtual ClipType clipType() const = 0;
     [[nodiscard]] virtual QString name() const = 0;

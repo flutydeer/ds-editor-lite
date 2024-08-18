@@ -27,7 +27,7 @@ public:
     //        BOTTOM_RIGHT
     //    };
 
-    explicit ToolTip(const QString& title = "", QWidget *parent = nullptr);
+    explicit ToolTip(const QString &title = "", QWidget *parent = nullptr);
     ~ToolTip() override;
 
     [[nodiscard]] QString title() const;

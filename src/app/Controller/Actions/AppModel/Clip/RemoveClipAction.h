@@ -10,7 +10,7 @@
 class Track;
 class Clip;
 
-class RemoveClipAction final: public IAction {
+class RemoveClipAction final : public IAction {
 public:
     static RemoveClipAction *build(Clip *clip, Track *track);
     void execute() override;

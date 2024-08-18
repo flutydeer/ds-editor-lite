@@ -33,15 +33,18 @@ template <typename T>
 T Property<T>::get() const {
     return value;
 }
+
 template <typename T>
 [[nodiscard]] Property<T>::operator T() const {
     return get();
 }
+
 template <typename T>
 Property<T> &Property<T>::operator=(const Property &other) {
     set(other.value);
     return *this;
 }
+
 template <typename T>
 void Property<T>::set(const T &newValue) {
     if (value != newValue) {
@@ -51,6 +54,7 @@ void Property<T>::set(const T &newValue) {
         // emit valueChanged(newValue);
     }
 }
+
 template <typename T>
 void Property<T>::setNotifyCallback(std::function<void(const T &newValue)> func) {
     notify = func;

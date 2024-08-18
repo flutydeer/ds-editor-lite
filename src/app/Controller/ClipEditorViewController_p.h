@@ -11,12 +11,14 @@ class Note;
 class Clip;
 class IClipEditorView;
 class ClipEditorViewController;
+
 class ClipEditorViewControllerPrivate {
     Q_DECLARE_PUBLIC(ClipEditorViewController);
 
 public:
     explicit ClipEditorViewControllerPrivate(ClipEditorViewController *q) : q_ptr(q) {
     }
+
     IClipEditorView *m_view = nullptr;
     Clip *m_clip = nullptr;
 

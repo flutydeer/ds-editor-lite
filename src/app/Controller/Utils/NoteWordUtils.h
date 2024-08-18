@@ -8,6 +8,7 @@
 #include <QList>
 
 class Note;
+
 class NoteWordUtils {
 public:
     static void updateOriginalWordProperties(const QList<Note *> &notes);

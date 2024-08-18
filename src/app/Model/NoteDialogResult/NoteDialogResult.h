@@ -17,4 +17,4 @@ public:
 
 
 
-#endif //NOTEDIALOGRESULT_H
+#endif // NOTEDIALOGRESULT_H

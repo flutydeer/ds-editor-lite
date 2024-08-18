@@ -34,7 +34,9 @@ public:
     SingingClip *m_clip = nullptr;
     int m_offset = 0; // Clip 's "start" property
     QList<Note *> m_notes;
+
     enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
+
     NoteView *m_currentEditingNote = nullptr;
 
     // Layers

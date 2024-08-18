@@ -17,4 +17,4 @@ public:
 
 
 
-#endif //NOTELAYER_H
+#endif // NOTELAYER_H

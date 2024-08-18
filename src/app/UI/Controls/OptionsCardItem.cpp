@@ -39,6 +39,7 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
     setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }
+
 // void OptionsCardItem::setCheckable(bool checkable) {
 //     m_checkBox->setVisible(checkable);
 // }
@@ -51,16 +52,20 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
 void OptionsCardItem::setTitle(const QString &title) {
     m_lbTitle->setText(title);
 }
+
 void OptionsCardItem::setDescription(const QString &desc) {
     m_lbDesc->setVisible(true);
     m_lbDesc->setText(desc);
 }
+
 void OptionsCardItem::addWidget(QWidget *widget) {
     m_mainLayout->addWidget(widget);
 }
+
 void OptionsCardItem::removeWidget(QWidget *widget) {
     m_mainLayout->removeWidget(widget);
 }
+
 // QCheckBox *OptionsCardItem::checkBox() {
 //     return m_checkBox;
 // }

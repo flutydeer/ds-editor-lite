@@ -11,9 +11,11 @@
 Menu::Menu(QWidget *parent) : QMenu(parent) {
     applyEffects();
 }
+
 Menu::Menu(const QString &title, QWidget *parent) : QMenu(title, parent) {
     applyEffects();
 }
+
 void Menu::applyEffects() {
     setWindowFlags(windowFlags() | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
     setAttribute(Qt::WA_TranslucentBackground, true);
@@ -23,6 +25,7 @@ void Menu::applyEffects() {
     // shadowEffect->setOffset(0, 4);
     // setGraphicsEffect(shadowEffect);
 }
+
 void Menu::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
@@ -30,11 +33,13 @@ void Menu::paintEvent(QPaintEvent *event) {
     m_brush.paint();
     QMenu::paintEvent(event);
 }
+
 QPainterPath Menu::clipPath() const {
     QPainterPath path;
     path.addRoundedRect(QRectF(rect()).adjusted(0, 0, -2.5, -2.5), 8, 8);
     return path;
 }
+
 void Menu::showEvent(QShowEvent *event) {
     QMenu::showEvent(event);
     auto size = sizeHint();

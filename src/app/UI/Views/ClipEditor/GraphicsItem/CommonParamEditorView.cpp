@@ -17,32 +17,40 @@ using namespace ClipEditorGlobal;
 CommonParamEditorView::CommonParamEditorView() {
     setBackgroundColor(Qt::transparent);
 }
+
 void CommonParamEditorView::loadOriginal(const QList<DrawCurve *> &curves) {
     SingingClip::copyCurves(curves, m_drawCurvesOriginal);
     update();
 }
+
 void CommonParamEditorView::loadEdited(const QList<DrawCurve *> &curves) {
     SingingClip::copyCurves(curves, m_drawCurvesEdited);
     update();
 }
+
 const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
     return m_drawCurvesEdited;
 }
+
 bool CommonParamEditorView::fillCurve() const {
     return m_fillCurve;
 }
+
 void CommonParamEditorView::setFillCurve(bool on) {
     m_fillCurve = on;
     update();
 }
+
 double CommonParamEditorView::valueToSceneY(double value) const {
     auto y = value * scene()->height();
     return MathUtils::clip(y, 0, scene()->height());
 }
+
 double CommonParamEditorView::sceneYToValue(double y) const {
     auto value = y / scene()->height();
     return MathUtils::clip(value, 0, 1);
 }
+
 void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                   QWidget *widget) {
     OverlayGraphicsItem::paint(painter, option, widget);
@@ -73,6 +81,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         drawHandDrawCurves(painter, m_drawCurvesEdited);
     }
 }
+
 void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     qDebug() << "CommonParamEditorView::mousePressEvent" << event->button();
     if (m_transparentForMouseEvents) {
@@ -105,6 +114,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     m_mouseDownPos = QPoint(tick, value);
     m_prevPos = m_mouseDownPos;
 }
+
 void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     if (m_editType == None)
         return;
@@ -174,6 +184,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     m_prevPos = curPos;
     update();
 }
+
 void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     if (!m_mouseMoved) {
         m_editingCurve = nullptr;
@@ -187,42 +198,53 @@ void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     m_newCurveCreated = false;
     update();
 }
+
 void CommonParamEditorView::updateRectAndPos() {
     auto pos = visibleRect().topLeft();
     setPos(pos);
     setRect(QRectF(0, 0, visibleRect().width(), visibleRect().height()));
     update();
 }
+
 double CommonParamEditorView::startTick() const {
     return sceneXToTick(visibleRect().left());
 }
+
 double CommonParamEditorView::endTick() const {
     return sceneXToTick(visibleRect().right());
 }
+
 double CommonParamEditorView::sceneXToTick(double x) const {
     return 480 * x / scaleX() / pixelsPerQuarterNote;
 }
+
 double CommonParamEditorView::tickToSceneX(double tick) const {
     return tick * scaleX() * pixelsPerQuarterNote / 480;
 }
+
 double CommonParamEditorView::sceneXToItemX(double x) const {
     return mapFromScene(QPointF(x, 0)).x();
 }
+
 double CommonParamEditorView::tickToItemX(double tick) const {
     return sceneXToItemX(tickToSceneX(tick));
 }
+
 double CommonParamEditorView::sceneYToItemY(double y) const {
     return mapFromScene(QPointF(0, y)).y();
 }
+
 double CommonParamEditorView::valueToItemY(double value) const {
     return sceneYToItemY(valueToSceneY(value));
 }
+
 DrawCurve *CommonParamEditorView::curveAt(double tick) {
     for (const auto curve : m_drawCurvesEdited)
         if (curve->start <= tick && curve->endTick() > tick)
             return curve;
     return nullptr;
 }
+
 QList<DrawCurve *> CommonParamEditorView::curvesIn(int startTick, int endTick) {
     QList<DrawCurve *> result;
     ProbeLine line(startTick, endTick);
@@ -232,6 +254,7 @@ QList<DrawCurve *> CommonParamEditorView::curvesIn(int startTick, int endTick) {
     }
     return result;
 }
+
 void CommonParamEditorView::drawHandDrawCurves(QPainter *painter,
                                                const QList<DrawCurve *> &curves) const {
     for (const auto curve : curves) {
@@ -243,6 +266,7 @@ void CommonParamEditorView::drawHandDrawCurves(QPainter *painter,
         drawCurve(painter, *curve);
     }
 }
+
 void CommonParamEditorView::drawLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve) {
     if (p1.x() == p2.x())
         return;
@@ -267,6 +291,7 @@ void CommonParamEditorView::drawLine(const QPoint &p1, const QPoint &p2, DrawCur
     }
     curve.overlayMergeWith(line);
 }
+
 void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve) const {
     auto sceneHeight = scene()->height();
     QLinearGradient gradient(0, 0, 0, visibleRect().height());

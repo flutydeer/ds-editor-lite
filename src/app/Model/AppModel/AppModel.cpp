@@ -15,25 +15,30 @@
 
 AppModel::AppModel() : d_ptr(new AppModelPrivate(this)) {
 }
+
 TimeSignature AppModel::timeSignature() const {
     Q_D(const AppModel);
     return d->m_timeSignature;
 }
+
 void AppModel::setTimeSignature(const TimeSignature &signature) {
     Q_D(AppModel);
     d->m_timeSignature = signature;
     emit timeSignatureChanged(d->m_timeSignature.numerator, d->m_timeSignature.denominator);
 }
+
 double AppModel::tempo() const {
     Q_D(const AppModel);
     return d->m_tempo;
 }
+
 void AppModel::setTempo(double tempo) {
     Q_D(AppModel);
     qDebug() << "AppModel::setTempo" << tempo;
     d->m_tempo = tempo;
     emit tempoChanged(d->m_tempo);
 }
+
 const QList<Track *> &AppModel::tracks() const {
     Q_D(const AppModel);
     return d->m_tracks;
@@ -44,10 +49,12 @@ void AppModel::insertTrack(Track *track, qsizetype index) {
     d->m_tracks.insert(index, track);
     emit trackChanged(Insert, index, track);
 }
+
 void AppModel::appendTrack(Track *track) {
     Q_D(AppModel);
     insertTrack(track, d->m_tracks.count());
 }
+
 void AppModel::removeTrackAt(qsizetype index) {
     Q_D(AppModel);
     auto track = d->m_tracks[index];
@@ -55,16 +62,19 @@ void AppModel::removeTrackAt(qsizetype index) {
     d->m_tracks.removeAt(index);
     emit trackChanged(Remove, index, track);
 }
+
 void AppModel::removeTrack(Track *track) {
     Q_D(AppModel);
     auto index = d->m_tracks.indexOf(track);
     removeTrackAt(index);
 }
+
 void AppModel::clearTracks() {
     Q_D(AppModel);
     while (d->m_tracks.count() > 0)
         removeTrackAt(0);
 }
+
 // QJsonObject AppModel::globalWorkspace() const {
 //     Q_D(const AppModel);
 //     return d->m_workspace;
@@ -86,12 +96,14 @@ int AppModel::quantize() const {
     Q_D(const AppModel);
     return d->m_quantize;
 }
+
 void AppModel::setQuantize(int quantize) {
     Q_D(AppModel);
     d->m_quantize = quantize;
     emit quantizeChanged(quantize);
     qDebug() << "AppModel quantizeChanged" << quantize;
 }
+
 void AppModel::newProject() {
     Q_D(AppModel);
     d->reset();
@@ -112,6 +124,7 @@ bool AppModel::loadProject(const QString &filename) {
         loadFromAppModel(resultModel);
     return ok;
 }
+
 bool AppModel::saveProject(const QString &filename) {
     Q_D(AppModel);
     auto converter = new DspxProjectConverter;
@@ -119,6 +132,7 @@ bool AppModel::saveProject(const QString &filename) {
     auto ok = converter->save(filename, this, errMsg);
     return ok;
 }
+
 bool AppModel::importAProject(const QString &filename) {
     Q_D(AppModel);
     auto converter = new AProjectConverter;
@@ -140,6 +154,7 @@ bool AppModel::importAProject(const QString &filename) {
     }
     return ok;
 }
+
 void AppModel::loadFromAppModel(const AppModel &model) {
     Q_D(AppModel);
     d->reset();
@@ -187,6 +202,7 @@ int AppModel::selectedTrackIndex() const {
     Q_D(const AppModel);
     return d->m_selectedTrackIndex;
 }
+
 void AppModel::setActiveClip(int clipId) {
     Q_D(AppModel);
     d->m_activeClipId = clipId;
@@ -199,15 +215,18 @@ void AppModel::setActiveClip(int clipId) {
     }
     emit activeClipChanged(nullptr);
 }
+
 void AppModel::setSelectedTrack(int trackIndex) {
     Q_D(AppModel);
     d->m_selectedTrackIndex = trackIndex;
     emit selectedTrackChanged(trackIndex);
 }
+
 int AppModel::activeClipId() const {
     Q_D(const AppModel);
     return d->m_activeClipId;
 }
+
 Clip *AppModel::findClipById(int clipId, Track *&trackRef) const {
     Q_D(const AppModel);
     for (const auto track : d->m_tracks) {
@@ -219,6 +238,7 @@ Clip *AppModel::findClipById(int clipId, Track *&trackRef) const {
     trackRef = nullptr;
     return nullptr;
 }
+
 Clip *AppModel::findClipById(int clipId, int &trackIndex) {
     Q_D(const AppModel);
     int i = 0;
@@ -231,6 +251,7 @@ Clip *AppModel::findClipById(int clipId, int &trackIndex) {
     }
     return nullptr;
 }
+
 Clip *AppModel::findClipById(int clipId) {
     Q_D(const AppModel);
     for (const auto track : d->m_tracks) {
@@ -239,6 +260,7 @@ Clip *AppModel::findClipById(int clipId) {
     }
     return nullptr;
 }
+
 Track *AppModel::findTrackById(int id, int &trackIndex) {
     Q_D(const AppModel);
     int i = 0;
@@ -252,18 +274,22 @@ Track *AppModel::findTrackById(int id, int &trackIndex) {
     trackIndex = -1;
     return nullptr;
 }
+
 Track *AppModel::findTrackById(int id) {
     Q_D(const AppModel);
     return MathUtils::findItemById<Track *>(d->m_tracks, id);
 }
+
 double AppModel::tickToMs(double tick) const {
     Q_D(const AppModel);
     return tick * 60 / d->m_tempo / 480 * 1000;
 }
+
 double AppModel::msToTick(double ms) const {
     Q_D(const AppModel);
     return ms * 480 * d->m_tempo / 60000;
 }
+
 int AppModel::projectLengthInTicks() const {
     Q_D(const AppModel);
     int length = 0;
@@ -273,6 +299,7 @@ int AppModel::projectLengthInTicks() const {
                 length = clip->endTick();
     return length;
 }
+
 void AppModelPrivate::reset() {
     m_tempo = 120;
     m_timeSignature.numerator = 4;

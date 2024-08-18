@@ -12,6 +12,7 @@ class PlaybackControllerPrivate : public QObject {
 public:
     explicit PlaybackControllerPrivate(PlaybackController *q) : q_ptr(q) {
     }
+
     double m_position = 0;
     double m_lastPlayPosition = 0;
     double m_sampleRate = 48000;

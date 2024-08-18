@@ -78,16 +78,20 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
     appController->registerPanel(this);
     installEventFilter(this);
 }
+
 void ClipEditorView::centerAt(double tick, double keyIndex) {
     m_pianoRollView->setViewportCenterAt(tick, keyIndex);
 }
+
 void ClipEditorView::centerAt(double startTick, double length, double keyIndex) {
     auto centerTick = startTick + length / 2;
     m_pianoRollView->setViewportCenterAt(centerTick, keyIndex);
 }
+
 void ClipEditorView::onModelChanged() {
     reset();
 }
+
 void ClipEditorView::onSelectedClipChanged(Clip *clip) {
     m_toolbarView->setDataContext(clip);
     clipController->setClip(clip);
@@ -99,11 +103,13 @@ void ClipEditorView::onSelectedClipChanged(Clip *clip) {
     else if (clip->clipType() == Clip::Audio)
         moveToAudioClipState(nullptr);
 }
+
 bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress)
         appController->onPanelClicked(AppGlobal::ClipEditor);
     return QWidget::eventFilter(watched, event);
 }
+
 void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
     m_toolbarView->setVisible(true);
     m_timelineView->setVisible(true);
@@ -112,6 +118,7 @@ void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
     m_pianoRollView->setDataContext(clip);
     m_phonemeView->setDataContext(clip);
 }
+
 void ClipEditorView::moveToAudioClipState(AudioClip *clip) const {
     Q_UNUSED(clip);
     m_toolbarView->setVisible(true);
@@ -121,6 +128,7 @@ void ClipEditorView::moveToAudioClipState(AudioClip *clip) const {
     m_pianoRollView->setDataContext(nullptr);
     m_phonemeView->setDataContext(nullptr);
 }
+
 void ClipEditorView::moveToNullClipState() const {
     m_toolbarView->setVisible(false);
     m_timelineView->setVisible(false);
@@ -129,9 +137,11 @@ void ClipEditorView::moveToNullClipState() const {
     m_pianoRollView->setDataContext(nullptr);
     m_phonemeView->setDataContext(nullptr);
 }
+
 void ClipEditorView::reset() {
     onSelectedClipChanged(nullptr);
 }
+
 // void ClipEditorView::printParts() {
 //     auto p = m_singingClip->parts();
 //     if (p.count() > 0) {

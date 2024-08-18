@@ -12,11 +12,13 @@ void AppearanceOption::load(const QJsonObject &object) {
     if (object.contains(animationTimeScaleKey))
         animationTimeScale = object.value(animationTimeScaleKey).toDouble();
 }
+
 void AppearanceOption::save(QJsonObject &object) {
     object.insert(useNativeFrameKey, useNativeFrame);
     object.insert(animationLevelKey, animationLevelToString(animationLevel));
     object.insert(animationTimeScaleKey, animationTimeScale);
 }
+
 AnimationGlobal::AnimationLevels AppearanceOption::animationLevelFromString(const QString &name) {
     if (name == "decreased")
         return AnimationGlobal::Decreased;
@@ -28,6 +30,7 @@ AnimationGlobal::AnimationLevels AppearanceOption::animationLevelFromString(cons
     //     return AnimationGlobal::Full;
     return AnimationGlobal::Full;
 }
+
 QString AppearanceOption::animationLevelToString(AnimationGlobal::AnimationLevels level) {
     switch (level) {
         case AnimationGlobal::Decreased:

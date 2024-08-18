@@ -10,34 +10,40 @@
 #include <QPen>
 
 TimeGridGraphicsItem::TimeGridGraphicsItem(QGraphicsItem *parent) : CommonGraphicsRectItem(parent) {
-    
+
     connect(appModel, &AppModel::modelChanged, this, [=] {
         this->setTimeSignature(appModel->timeSignature().numerator,
-                                     appModel->timeSignature().denominator);
+                               appModel->timeSignature().denominator);
         this->setQuantize(appModel->quantize());
     });
     connect(appModel, &AppModel::timeSignatureChanged, this,
             &TimeGridGraphicsItem::setTimeSignature);
     connect(appModel, &AppModel::quantizeChanged, this, &TimeGridGraphicsItem::setQuantize);
 }
+
 double TimeGridGraphicsItem::startTick() const {
     return sceneXToTick(visibleRect().left()) + m_offset;
 }
+
 double TimeGridGraphicsItem::endTick() const {
     return sceneXToTick(visibleRect().right()) + m_offset;
 }
+
 void TimeGridGraphicsItem::setTimeSignature(int numerator, int denominator) {
     ITimelinePainter::setTimeSignature(numerator, denominator);
     update();
 }
+
 void TimeGridGraphicsItem::setQuantize(int quantize) {
     ITimelinePainter::setQuantize(quantize);
     update();
 }
+
 void TimeGridGraphicsItem::setOffset(int tick) {
     m_offset = tick;
     update();
 }
+
 void TimeGridGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                  QWidget *widget) {
     auto penWidth = 1;
@@ -57,6 +63,7 @@ void TimeGridGraphicsItem::updateRectAndPos() {
     setRect(QRectF(0, 0, visibleRect().width(), visibleRect().height()));
     update();
 }
+
 void TimeGridGraphicsItem::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
@@ -67,6 +74,7 @@ void TimeGridGraphicsItem::drawBar(QPainter *painter, int tick, int bar) {
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
 }
+
 void TimeGridGraphicsItem::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
@@ -77,6 +85,7 @@ void TimeGridGraphicsItem::drawBeat(QPainter *painter, int tick, int bar, int be
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
 }
+
 void TimeGridGraphicsItem::drawEighth(QPainter *painter, int tick) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
@@ -84,12 +93,15 @@ void TimeGridGraphicsItem::drawEighth(QPainter *painter, int tick) {
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
 }
+
 double TimeGridGraphicsItem::sceneXToTick(double pos) const {
     return 480 * pos / scaleX() / pixelsPerQuarterNote();
 }
+
 double TimeGridGraphicsItem::tickToSceneX(double tick) const {
     return tick * scaleX() * pixelsPerQuarterNote() / 480;
 }
+
 double TimeGridGraphicsItem::sceneXToItemX(double x) const {
     return mapFromScene(QPointF(x, 0)).x();
 }

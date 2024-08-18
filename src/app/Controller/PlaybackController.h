@@ -16,6 +16,7 @@
 using namespace PlaybackGlobal;
 
 class PlaybackControllerPrivate;
+
 class PlaybackController final : public QObject, public Singleton<PlaybackController> {
     Q_OBJECT
 public:

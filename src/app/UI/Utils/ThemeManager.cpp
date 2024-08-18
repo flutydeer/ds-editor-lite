@@ -12,14 +12,17 @@ void ThemeManager::addAnimationObserver(IAnimatable *object) {
     applyAnimationSetings(object);
     // qDebug() << "ThemeManager::addAnimationObserver" << object;
 }
+
 void ThemeManager::removeAnimationObserver(IAnimatable *object) {
     m_subscribers.removeOne(object);
 }
+
 void ThemeManager::onAppOptionsChanged() {
     // qDebug() << "ThemeManager::onAppOptionsChanged";
     for (auto object : m_subscribers)
         applyAnimationSetings(object);
 }
+
 void ThemeManager::applyAnimationSetings(IAnimatable *object) {
     auto option = appOptions->appearance();
     auto level = option->animationLevel;

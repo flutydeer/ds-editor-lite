@@ -24,4 +24,4 @@ private:
 
 
 
-#endif //EDITNOTESTARTACTION_H
+#endif // EDITNOTESTARTACTION_H

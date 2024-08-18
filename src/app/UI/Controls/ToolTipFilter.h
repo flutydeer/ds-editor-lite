@@ -53,4 +53,4 @@ protected:
 
 
 
-#endif //TOOLTIPFILTER_H
+#endif // TOOLTIPFILTER_H

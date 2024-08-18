@@ -67,7 +67,6 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
     }
 }
 
-
 int MidiConverter::midiImportHandler() {
     QMessageBox msgBox;
     msgBox.setText("MIDI Import");
@@ -208,8 +207,8 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
 
     if (dspx->content.tracks.count() > 0) {
         auto timeline = dspx->content.timeline;
-        model->setTimeSignature(TimeSignature(timeline.timeSignatures[0].num,
-                                                        timeline.timeSignatures[0].den));
+        model->setTimeSignature(
+            TimeSignature(timeline.timeSignatures[0].num, timeline.timeSignatures[0].den));
         model->setTempo(timeline.tempos[0].value);
         decodeTracks(dspx, model, mode);
         return true;

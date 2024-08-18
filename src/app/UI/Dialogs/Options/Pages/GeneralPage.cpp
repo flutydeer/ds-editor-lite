@@ -33,14 +33,15 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     m_btnOpenConfigFolder = new Button(tr("Open Folder..."), this);
     connect(m_btnOpenConfigFolder, &Button::clicked, this, [=] {
         QM::reveal(appOptions->configPath());
-// #ifdef Q_OS_WIN
-//         auto path = QDir::toNativeSeparators(appOptions->configPath());
-//         ShellExecuteW(NULL, L"open", L"explorer",
-//                       QString("/select, \"%1\"").arg(path).toStdWString().c_str(), NULL, SW_SHOW);
-// #else
-//         auto folder = QFileInfo(appOptions->configPath()).absoluteDir().path();
-//         QDesktopServices::openUrl(QUrl(folder));
-// #endif
+        // #ifdef Q_OS_WIN
+        //         auto path = QDir::toNativeSeparators(appOptions->configPath());
+        //         ShellExecuteW(NULL, L"open", L"explorer",
+        //                       QString("/select, \"%1\"").arg(path).toStdWString().c_str(), NULL,
+        //                       SW_SHOW);
+        // #else
+        //         auto folder = QFileInfo(appOptions->configPath()).absoluteDir().path();
+        //         QDesktopServices::openUrl(QUrl(folder));
+        // #endif
     });
 
     auto configFileItem = new OptionsCardItem;
@@ -95,6 +96,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
 
     setLayout(mainLayout);
 }
+
 void GeneralPage::modifyOption() {
     auto option = appOptions->general();
     option->defaultSingingLanguage =

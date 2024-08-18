@@ -152,6 +152,7 @@ void AudioExporter::savePreset(const QString &name) const {
         settings.setValue(name, preset);
     }
 }
+
 bool AudioExporter::loadPreset(const QString &name) {
     QSettings settings;
     QVariantMap preset;
@@ -180,6 +181,7 @@ bool AudioExporter::loadPreset(const QString &name) {
     presetToOption(timeRangeOption);
     return true;
 }
+
 bool AudioExporter::deletePreset(const QString &name) {
     QSettings settings;
     if (name.isEmpty()) {
@@ -194,33 +196,36 @@ bool AudioExporter::deletePreset(const QString &name) {
         settings.remove(name);
     }
     return true;
-
 }
+
 QVariant AudioExporter::lastUsedPreset() {
     QSettings settings;
     settings.beginGroup("audio");
     return settings.value("lastUsedExportPreset", 0);
 }
+
 QStringList AudioExporter::presets() {
     QSettings settings;
     settings.beginGroup("audio/exportPresets");
     return settings.childKeys();
 }
+
 void AudioExporter::setOption(const AudioExporter::Option &option) {
     m_option = option;
 }
+
 AudioExporter::Option AudioExporter::option() const {
     return m_option;
 }
+
 QStringList AudioExporter::outputFileList() const {
     auto directory = QDir(m_option.fileDirectory); // TODO
     auto fileNameTemplate = m_option.fileName + "." + m_option.extensionName;
     fileNameTemplate.replace("${projectName}", "untitled"); // TODO
     fileNameTemplate.replace("${tempo}", QString::number(appModel->tempo()));
-    fileNameTemplate.replace("${timeSignature}",
-                             QString("%1-%2")
-                                 .arg(appModel->timeSignature().numerator)
-                                 .arg(appModel->timeSignature().denominator));
+    fileNameTemplate.replace("${timeSignature}", QString("%1-%2")
+                                                     .arg(appModel->timeSignature().numerator)
+                                                     .arg(appModel->timeSignature().denominator));
     fileNameTemplate.replace("${sampleRate}", QString::number(m_option.sampleRate));
     fileNameTemplate.replace("${today}", QDate::currentDate().toString("yyyyMMdd"));
 
@@ -279,12 +284,14 @@ static QList<AudioExporter::Format> m_formats = {
 QList<AudioExporter::Format> AudioExporter::formats() {
     return m_formats;
 }
+
 int AudioExporter::findFormatIndex(int flag) {
     auto it = std::find_if(m_formats.cbegin(), m_formats.cend(), [=](const Format &format) {
         return format.flag == flag || format.flag == (flag & talcs::AudioFormatIO::MajorFormatMask);
     });
     return it == m_formats.cend() ? -1 : std::distance(m_formats.cbegin(), it);
 }
+
 int AudioExporter::Format::findOptionIndex(int flag) const {
     auto it = std::find_if(options.begin(), options.end(), [=](const QPair<QString, int> &v) {
         return v.second == (flag & talcs::AudioFormatIO::SubtypeMask);
@@ -295,5 +302,6 @@ int AudioExporter::Format::findOptionIndex(int flag) const {
 AudioExporter::Status AudioExporter::exec() {
     return AudioExporter::Success;
 }
+
 void AudioExporter::interrupt() {
 }

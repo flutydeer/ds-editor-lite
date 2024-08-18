@@ -43,9 +43,11 @@ void TempoActions::editTempo(double oldTempo, double newTempo, AppModel *model) 
         }
     }
 }
+
 double TempoActions::tickToMs(int tick, double tempo) {
     return tick * 60 / tempo / 480 * 1000;
 }
+
 int TempoActions::msToTick(double ms, double tempo) {
     return static_cast<int>(ms * 480 * tempo / 60000);
 }

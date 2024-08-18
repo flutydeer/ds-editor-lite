@@ -19,4 +19,4 @@ private:
     QString m_key;
 };
 
-#endif //WORKSPACEEDITOR_H
+#endif // WORKSPACEEDITOR_H

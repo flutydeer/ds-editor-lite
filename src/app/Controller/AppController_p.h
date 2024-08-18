@@ -11,6 +11,7 @@
 
 class IMainWindow;
 class LaunchLanguageEngineTask;
+
 class AppControllerPrivate : public QObject {
     Q_OBJECT
     Q_DECLARE_PUBLIC(AppController)
@@ -18,6 +19,7 @@ class AppControllerPrivate : public QObject {
 public:
     explicit AppControllerPrivate(AppController *q) : q_ptr(q) {
     }
+
     IMainWindow *m_mainWindow = nullptr;
     QString m_lastProjectFolder =
         QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);

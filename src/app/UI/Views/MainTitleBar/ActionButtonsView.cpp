@@ -58,6 +58,7 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             &ActionButtonsView::onUndoRedoChanged);
 }
+
 void ActionButtonsView::onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                                           const QString &redoActionName) {
     m_btnUndo->setEnabled(canUndo);

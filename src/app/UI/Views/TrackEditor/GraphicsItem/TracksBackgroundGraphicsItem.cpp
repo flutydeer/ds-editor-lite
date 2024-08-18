@@ -14,11 +14,13 @@ void TracksBackgroundGraphicsItem::onTrackCountChanged(int count) {
     m_trackCount = count;
     update();
 }
+
 // blocked because of index issue
 void TracksBackgroundGraphicsItem::onTrackSelectionChanged(int trackIndex) {
     // m_trackIndex = trackIndex;
     // update();
 }
+
 void TracksBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                          QWidget *widget) {
     auto sceneYToTrackIndex = [&](const double y) { return y / scaleY() / trackHeight; };

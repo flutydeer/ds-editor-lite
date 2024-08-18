@@ -12,6 +12,7 @@
 class Menu;
 class QWidget;
 class AbstractClipView;
+
 class AbstractClipViewPrivate {
     Q_DECLARE_PUBLIC(AbstractClipView)
 public:

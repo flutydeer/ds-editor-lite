@@ -128,3 +128,6 @@ FixNamespaceComments: false
 StatementMacros: ['__qas_attr__', '__qas_exclude__', '__qas_include__']
 
 ForEachMacros: [ foreach, Q_FOREACH, BOOST_FOREACH, forever, Q_FOREVER, QBENCHMARK, QBENCHMARK_ONCE ]
+
+# 指定使用空行分隔定义块，包括类、结构、枚举和函数。
+SeparateDefinitionBlocks: Always

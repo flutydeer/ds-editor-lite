@@ -8,6 +8,7 @@
 #include "Dialog.h"
 
 class AccentButton;
+
 class RestartDialog : public Dialog {
     Q_OBJECT
 

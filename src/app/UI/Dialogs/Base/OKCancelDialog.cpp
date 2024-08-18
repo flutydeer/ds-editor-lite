@@ -14,9 +14,11 @@ OKCancelDialog::OKCancelDialog(QWidget *parent) : Dialog(parent) {
     setPositiveButton(m_btnOk);
     setNegativeButton(m_btnCancel);
 }
+
 AccentButton *OKCancelDialog::okButton() const {
     return m_btnOk;
 }
+
 Button *OKCancelDialog::cancelButton() const {
     return m_btnCancel;
 }

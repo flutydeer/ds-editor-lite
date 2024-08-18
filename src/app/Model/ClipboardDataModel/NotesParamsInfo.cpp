@@ -14,12 +14,14 @@ QByteArray NotesParamsInfo::serializeToBinary(const NotesParamsInfo &info) {
     stream << info;
     return byteArray;
 }
+
 NotesParamsInfo NotesParamsInfo::deserializeFromBinary(const QByteArray &byteArray) {
     NotesParamsInfo obj;
     QDataStream stream(byteArray);
     stream >> obj;
     return obj;
 }
+
 // QJsonObject NotesParamsInfo::serializeToJson(const NotesParamsInfo &info) {
 //     QJsonObject obj;
 //
@@ -49,6 +51,7 @@ QDataStream &operator<<(QDataStream &out, const NotesParamsInfo &info) {
         out << *note;
     return out;
 }
+
 QDataStream &operator>>(QDataStream &in, NotesParamsInfo &info) {
     qsizetype noteListCount;
     in >> noteListCount;

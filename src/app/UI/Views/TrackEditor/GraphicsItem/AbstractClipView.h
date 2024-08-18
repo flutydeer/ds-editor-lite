@@ -44,7 +44,7 @@ public:
 
     [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int index);
-    [[nodiscard]] bool canResizeLength()const;
+    [[nodiscard]] bool canResizeLength() const;
 
     void loadCommonProperties(const Clip::ClipCommonProperties &args);
 

@@ -80,8 +80,8 @@ void AcrylicBrush::paint() const {
         painter.setClipPath(clipPath);
     }
 
-    QPixmap scaledImage =
-            image.scaled(device->size() * 1.25, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    QPixmap scaledImage = image.scaled(device->size() * 1.25, Qt::KeepAspectRatioByExpanding,
+                                       Qt::SmoothTransformation);
     painter.drawPixmap(0, 0, scaledImage);
     // painter.fillRect(device->rect(), QBrush(textureImage()));
 }

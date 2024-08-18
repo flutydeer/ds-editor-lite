@@ -13,9 +13,11 @@ HistoryManager::HistoryManager() : d_ptr(new HistoryManagerPrivate) {
     Q_D(HistoryManager);
     d->q_ptr = this;
 }
+
 HistoryManager::~HistoryManager() {
     delete d_ptr;
 }
+
 void HistoryManager::undo() {
     Q_D(HistoryManager);
     if (d->m_undoStack.isEmpty())
@@ -27,6 +29,7 @@ void HistoryManager::undo() {
 
     emit undoRedoChanged(canUndo(), undoActionName(), canRedo(), redoActionName());
 }
+
 void HistoryManager::redo() {
     Q_D(HistoryManager);
     if (d->m_redoStack.isEmpty())
@@ -38,6 +41,7 @@ void HistoryManager::redo() {
 
     emit undoRedoChanged(canUndo(), undoActionName(), canRedo(), redoActionName());
 }
+
 void HistoryManager::record(ActionSequence *actions) {
     Q_D(HistoryManager);
     if (actions->count() <= 0)
@@ -47,6 +51,7 @@ void HistoryManager::record(ActionSequence *actions) {
     d->m_redoStack.clear();
     emit undoRedoChanged(canUndo(), undoActionName(), canRedo(), redoActionName());
 }
+
 void HistoryManager::reset() {
     Q_D(HistoryManager);
     qDebug() << "HistoryManager::reset()";
@@ -60,6 +65,7 @@ void HistoryManager::reset() {
     d->m_isSavePointSet = false;
     emit undoRedoChanged(canUndo(), "", canRedo(), "");
 }
+
 bool HistoryManager::isOnSavePoint() const {
     Q_D(const HistoryManager);
     auto flag = false;
@@ -77,6 +83,7 @@ bool HistoryManager::isOnSavePoint() const {
         flag = true;
     return flag;
 }
+
 void HistoryManager::setSavePoint() {
     Q_D(HistoryManager);
     d->m_isSavePointSet = true;
@@ -86,18 +93,22 @@ void HistoryManager::setSavePoint() {
     }
     d->m_savePoint = d->m_undoStack.top();
 }
+
 bool HistoryManager::canUndo() const {
     Q_D(const HistoryManager);
     return !d->m_undoStack.isEmpty();
 }
+
 bool HistoryManager::canRedo() const {
     Q_D(const HistoryManager);
     return !d->m_redoStack.isEmpty();
 }
+
 QString HistoryManager::undoActionName() const {
     Q_D(const HistoryManager);
     return d->m_undoStack.isEmpty() ? "" : d->m_undoStack.top()->name();
 }
+
 QString HistoryManager::redoActionName() const {
     Q_D(const HistoryManager);
     return d->m_redoStack.isEmpty() ? "" : d->m_redoStack.top()->name();

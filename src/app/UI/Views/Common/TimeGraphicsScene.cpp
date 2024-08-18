@@ -10,6 +10,7 @@ void TimeGraphicsScene::addTimeGrid(TimeGridGraphicsItem *item) {
     item->setZValue(-1);
     addCommonItem(item);
 }
+
 void TimeGraphicsScene::addTimeIndicator(TimeIndicatorGraphicsItem *item) {
     item->setZValue(100);
     addCommonItem(item);

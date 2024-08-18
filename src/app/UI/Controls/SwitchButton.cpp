@@ -125,6 +125,7 @@ void SwitchButton::setThumbScaleRatio(int ratio) {
     m_thumbScaleRatio = ratio;
     repaint();
 }
+
 void SwitchButton::updateAnimationDuration() {
     int valueDuration = 0;
     int hoverDuration = 0;
@@ -141,6 +142,7 @@ void SwitchButton::updateAnimationDuration() {
     m_valueAnimation.setDuration(getScaledAnimationTime(valueDuration));
     m_thumbHoverAnimation.setDuration(getScaledAnimationTime(hoverDuration));
 }
+
 bool SwitchButton::eventFilter(QObject *object, QEvent *event) {
     auto type = event->type();
     if (type == QEvent::HoverEnter || type == QEvent::MouseButtonRelease) {
@@ -163,9 +165,11 @@ bool SwitchButton::eventFilter(QObject *object, QEvent *event) {
     }
     return QObject::eventFilter(object, event);
 }
+
 void SwitchButton::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
     updateAnimationDuration();
 }
+
 void SwitchButton::afterSetTimeScale(double scale) {
     updateAnimationDuration();
 }

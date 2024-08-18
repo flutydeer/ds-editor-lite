@@ -18,6 +18,7 @@ class Button;
 using namespace ClipEditorGlobal;
 
 class ClipEditorToolBarViewPrivate;
+
 class ClipEditorToolBarView final : public QWidget {
     Q_OBJECT
 

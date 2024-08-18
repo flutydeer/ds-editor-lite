@@ -16,9 +16,11 @@
 #include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/AudioSettings.h>
 
-#define DEVICE_LOCKER talcs::AudioDeviceLocker locker(AudioSystem::outputSystem()->context()->device())
+#define DEVICE_LOCKER                                                                              \
+    talcs::AudioDeviceLocker locker(AudioSystem::outputSystem()->context()->device())
 
-TrackSynthesizer::TrackSynthesizer(talcs::DspxTrackContext *trackContext, Track *track) : talcs::DspxPseudoSingerContext(trackContext), m_track(track) {
+TrackSynthesizer::TrackSynthesizer(talcs::DspxTrackContext *trackContext, Track *track)
+    : talcs::DspxPseudoSingerContext(trackContext), m_track(track) {
     talcs::NoteSynthesizerConfig config_;
     config_.setAttackTime(480);
     config_.setDecayTime(48000);
@@ -36,10 +38,11 @@ TrackSynthesizer::TrackSynthesizer(talcs::DspxTrackContext *trackContext, Track 
         DEVICE_LOCKER;
         handleTimeChanged();
     });
-    connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::sampleRateChanged, this, [=] {
-        DEVICE_LOCKER;
-        handleTimeChanged();
-    });
+    connect(AudioSystem::outputSystem()->context(),
+            &talcs::AbstractOutputContext::sampleRateChanged, this, [=] {
+                DEVICE_LOCKER;
+                handleTimeChanged();
+            });
 
 
     connect(track, &Track::clipChanged, this, [=](Track::ClipChangeType type, Clip *clip) {
@@ -56,8 +59,10 @@ TrackSynthesizer::TrackSynthesizer(talcs::DspxTrackContext *trackContext, Track 
         }
     });
 }
+
 TrackSynthesizer::~TrackSynthesizer() {
 }
+
 void TrackSynthesizer::handleSingingClipInserted(SingingClip *clip) {
     auto singingClipContext = addSingingClip(clip->id());
     m_singingClipModelDict.insert(clip, singingClipContext);
@@ -71,18 +76,20 @@ void TrackSynthesizer::handleSingingClipInserted(SingingClip *clip) {
         DEVICE_LOCKER;
         handleSingingClipPropertyChanged(clip);
     });
-    connect(clip, &SingingClip::noteChanged, this, [=](SingingClip::NoteChangeType noteChangeType, Note *note) {
-        DEVICE_LOCKER;
-        switch (noteChangeType) {
-            case SingingClip::Inserted:
-                handleNoteInserted(clip, note);
-                break;
-            case SingingClip::Removed:
-                handleNoteRemoved(clip, note);
-                break;
-        }
-    });
+    connect(clip, &SingingClip::noteChanged, this,
+            [=](SingingClip::NoteChangeType noteChangeType, Note *note) {
+                DEVICE_LOCKER;
+                switch (noteChangeType) {
+                    case SingingClip::Inserted:
+                        handleNoteInserted(clip, note);
+                        break;
+                    case SingingClip::Removed:
+                        handleNoteRemoved(clip, note);
+                        break;
+                }
+            });
 }
+
 void TrackSynthesizer::handleSingingClipRemoved(SingingClip *clip) {
     for (auto note : clip->notes()) {
         handleNoteRemoved(clip, note);
@@ -90,6 +97,7 @@ void TrackSynthesizer::handleSingingClipRemoved(SingingClip *clip) {
     removeSingingClip(clip->id());
     m_singingClipModelDict.remove(clip);
 }
+
 void TrackSynthesizer::handleSingingClipPropertyChanged(SingingClip *clip) {
     auto singingClipContext = m_singingClipModelDict.value(clip);
     singingClipContext->setStart(clip->start());
@@ -99,6 +107,7 @@ void TrackSynthesizer::handleSingingClipPropertyChanged(SingingClip *clip) {
     singingClipContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(clip->gain()));
     singingClipContext->controlMixer()->setSilentFlags(clip->mute() ? -1 : 0);
 }
+
 void TrackSynthesizer::handleNoteInserted(SingingClip *clip, Note *note) {
     auto singingClipContext = m_singingClipModelDict.value(clip);
     auto noteContext = singingClipContext->addNote(note->id());
@@ -112,19 +121,21 @@ void TrackSynthesizer::handleNoteInserted(SingingClip *clip, Note *note) {
             handleNotePropertyChanged(note);
         }
     });
-
 }
+
 void TrackSynthesizer::handleNoteRemoved(SingingClip *clip, Note *note) {
     auto singingClipContext = m_singingClipModelDict.value(clip);
     singingClipContext->removeNote(note->id());
     m_noteModelDict.remove(note);
 }
+
 void TrackSynthesizer::handleNotePropertyChanged(Note *note) {
     auto noteContext = m_noteModelDict.value(note);
     noteContext->setKeyCent(note->keyIndex() * 100);
     noteContext->setPos(note->rStart());
     noteContext->setLength(note->length());
 }
+
 void TrackSynthesizer::handleTimeChanged() {
     for (auto singingClipContext : clips()) {
         singingClipContext->updatePosition();

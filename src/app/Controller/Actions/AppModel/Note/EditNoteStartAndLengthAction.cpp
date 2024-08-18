@@ -15,6 +15,7 @@ EditNoteStartAndLengthAction *EditNoteStartAndLengthAction::build(Note *note, in
     a->m_clip = clip;
     return a;
 }
+
 void EditNoteStartAndLengthAction::execute() {
     m_clip->removeNote(m_note);
     m_note->setStart(m_note->start() + m_deltaTick);
@@ -22,6 +23,7 @@ void EditNoteStartAndLengthAction::execute() {
     m_clip->insertNote(m_note);
     m_note->notifyPropertyChanged(Note::TimeAndKey);
 }
+
 void EditNoteStartAndLengthAction::undo() {
     m_clip->removeNote(m_note);
     m_note->setStart(m_note->start() - m_deltaTick);

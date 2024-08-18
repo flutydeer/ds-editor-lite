@@ -13,24 +13,28 @@
 #include <QJsonDocument>
 #include <QMimeData>
 
-ClipboardController::ClipboardController() : d_ptr(new ClipboardControllerPrivate(this)){
+ClipboardController::ClipboardController() : d_ptr(new ClipboardControllerPrivate(this)) {
 }
+
 // TODO: 要求传入类型
 void ClipboardController::copy() {
     Q_D(ClipboardController);
     qDebug() << "ClipboardController::copy";
     d->copyCutSelectedItems(ControllerGlobal::NoteWithParams, false);
 }
+
 void ClipboardController::cut() {
     Q_D(ClipboardController);
     d->copyCutSelectedItems(ControllerGlobal::NoteWithParams, true);
 }
+
 void ClipboardController::paste() {
     qDebug() << "ClipboardController::paste";
     auto mimeData = QGuiApplication::clipboard()->mimeData();
     if (mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams))) {
         qDebug() << "Mime data has NoteWithParams";
-        auto array = mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
+        auto array =
+            mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
         auto info = NotesParamsInfo::deserializeFromBinary(array);
         // auto json = QJsonDocument::fromJson(array);
         // auto info = NotesParamsInfo::deserializeFromJson(json.object());
@@ -38,6 +42,7 @@ void ClipboardController::paste() {
         clipController->pasteNotesWithParams(info, static_cast<int>(tick));
     }
 }
+
 void ClipboardControllerPrivate::copyCutSelectedItems(ControllerGlobal::ElemType type, bool isCut) {
     switch (type) {
         case ControllerGlobal::LoopStart:
@@ -59,6 +64,7 @@ void ClipboardControllerPrivate::copyCutSelectedItems(ControllerGlobal::ElemType
             break;
     }
 }
+
 void ClipboardControllerPrivate::copyCutNoteWithParams(bool isCut) {
     qDebug() << "ClipboardController::copyNoteWithParams isCut:" << isCut;
     if (isCut)

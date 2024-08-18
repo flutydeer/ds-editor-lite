@@ -15,6 +15,7 @@ class TrackViewModel : public QObject, public UniqueObject {
 public:
     explicit TrackViewModel(int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
     }
+
     TrackControlView *controlView = nullptr;
     bool isSelected = false;
     QList<AbstractClipView *> clips;

@@ -15,6 +15,7 @@ QList<NoteView *> NoteLayer::noteItems() const {
         notes.append(reinterpret_cast<NoteView *>(item));
     return notes;
 }
+
 NoteView *NoteLayer::findNoteById(int id) const {
     return MathUtils::findItemById<NoteView *>(noteItems(), id);
 }

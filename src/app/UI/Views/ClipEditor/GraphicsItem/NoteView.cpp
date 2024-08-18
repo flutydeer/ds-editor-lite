@@ -19,6 +19,7 @@ NoteView::NoteView(int itemId, QGraphicsItem *parent)
     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
     initUi();
 }
+
 // NoteView::NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
 //                    const QString &pronunciation, QGraphicsItem *parent)
 //     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
@@ -32,10 +33,12 @@ NoteView::NoteView(int itemId, QGraphicsItem *parent)
 int NoteView::rStart() const {
     return m_rStart;
 }
+
 void NoteView::setRStart(int rStart) {
     m_rStart = rStart;
     updateRectAndPos();
 }
+
 // int NoteView::start() const {
 //     return m_start;
 // }
@@ -46,69 +49,87 @@ void NoteView::setRStart(int rStart) {
 int NoteView::length() const {
     return m_length;
 }
+
 void NoteView::setLength(int length) {
     m_length = length;
     updateRectAndPos();
 }
+
 int NoteView::keyIndex() const {
     return m_keyIndex;
 }
+
 void NoteView::setKeyIndex(int keyIndex) {
     m_keyIndex = keyIndex;
     updateRectAndPos();
 }
+
 QString NoteView::lyric() const {
     return m_lyric;
 }
+
 void NoteView::setLyric(const QString &lyric) {
     m_lyric = lyric;
     update();
 }
+
 QString NoteView::pronunciation() const {
     return m_pronunciation;
 }
+
 void NoteView::setPronunciation(const QString &pronunciation, bool edited) {
     m_pronunciation = pronunciation;
     m_pronunciationEdited = edited;
     update();
 }
+
 bool NoteView::editingPitch() const {
     return m_editingPitch;
 }
+
 void NoteView::setEditingPitch(bool on) {
     m_editingPitch = on;
     update();
 }
+
 int NoteView::pronunciationTextHeight() const {
     return m_pronunciationTextHeight;
 }
+
 int NoteView::startOffset() const {
     return m_startOffset;
 }
+
 void NoteView::setStartOffset(int tick) {
     m_startOffset = tick;
     updateRectAndPos();
 }
+
 int NoteView::lengthOffset() const {
     return m_lengthOffset;
 }
+
 void NoteView::setLengthOffset(int tick) {
     m_lengthOffset = tick;
     updateRectAndPos();
 }
+
 int NoteView::keyOffset() const {
     return m_keyOffset;
 }
+
 void NoteView::setKeyOffset(int key) {
     m_keyOffset = key;
     updateRectAndPos();
 }
+
 void NoteView::resetOffset() {
     m_startOffset = 0;
     m_lengthOffset = 0;
     m_keyOffset = 0;
     updateRectAndPos();
 }
+
 void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     const auto backgroundColorNormal = QColor(155, 186, 255);
     const auto backgroundColorEditingPitch = QColor(53, 59, 74);
@@ -220,6 +241,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     else
         drawFullNote();
 }
+
 void NoteView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     // qDebug() << "NoteGraphicsItem::hoverMoveEvent" << event->pos().rx();
     if (!m_editingPitch) {
@@ -232,6 +254,7 @@ void NoteView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     }
     QGraphicsRectItem::hoverMoveEvent(event);
 }
+
 void NoteView::updateRectAndPos() {
     const auto x = (m_rStart + m_startOffset) * scaleX() * pixelsPerQuarterNote / 480;
     const auto y = -(m_keyIndex + m_keyOffset - 127) * noteHeight * scaleY();
@@ -241,6 +264,7 @@ void NoteView::updateRectAndPos() {
     setRect(QRectF(0, 0, w, h));
     update();
 }
+
 void NoteView::initUi() {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);

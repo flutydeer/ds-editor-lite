@@ -11,35 +11,44 @@
 
 AudioClipView::AudioClipView(int itemId, QGraphicsItem *parent) : AbstractClipView(itemId, parent) {
 }
+
 QString AudioClipView::path() const {
     return m_path;
 }
+
 void AudioClipView::setPath(const QString &path) {
     m_path = path;
     m_status = AppGlobal::Loaded;
 }
+
 double AudioClipView::tempo() const {
     return m_tempo;
 }
+
 void AudioClipView::setTempo(double tempo) {
     m_tempo = tempo;
 }
+
 void AudioClipView::setAudioInfo(const AudioInfoModel &info) {
     m_audioInfo = info;
     update();
 }
+
 void AudioClipView::setStatus(AppGlobal::AudioLoadStatus status) {
     m_status = status;
     update();
 }
+
 void AudioClipView::setErrorMessage(const QString &errorMessage) {
     m_errorMessage = errorMessage;
     update();
 }
+
 void AudioClipView::onTempoChange(double tempo) {
     // qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
     m_tempo = tempo;
 }
+
 void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {
     // QElapsedTimer mstimer;
     painter->setRenderHint(QPainter::Antialiasing, false);
@@ -140,6 +149,7 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     // painter->drawLine(waveRect.topLeft(), waveRect.bottomRight());
     // painter->drawLine(waveRect.topRight(), waveRect.bottomLeft());
 }
+
 QString AudioClipView::clipTypeName() const {
     return tr("[Audio] ");
 }

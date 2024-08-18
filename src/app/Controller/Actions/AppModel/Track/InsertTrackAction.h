@@ -12,7 +12,7 @@
 class Track;
 class AppModel;
 
-class InsertTrackAction final: public IAction {
+class InsertTrackAction final : public IAction {
 public:
     static InsertTrackAction *build(Track *track, qsizetype index, AppModel *model);
     void execute() override;
