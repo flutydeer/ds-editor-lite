@@ -4,13 +4,14 @@
 #include <QObject>
 #include <QJsonObject>
 
+#include <LangMgr/LangGlobal.h>
 #include <LangMgr/LangCommon.h>
 
 namespace LangMgr {
 
     class IG2pFactoryPrivate;
 
-    class IG2pFactory : public QObject {
+    class LANG_MANAGER_EXPORT IG2pFactory : public QObject {
         Q_OBJECT
         Q_DECLARE_PRIVATE(IG2pFactory)
     public:

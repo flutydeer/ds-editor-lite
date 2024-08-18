@@ -3,6 +3,7 @@
 
 #include <QObject>
 
+#include <LangMgr/LangGlobal.h>
 #include <LangMgr/Singleton.h>
 #include <LangMgr/ILanguageFactory.h>
 
@@ -10,7 +11,8 @@ namespace LangMgr {
 
     class ILanguageManagerPrivate;
 
-    class ILanguageManager final : public QObject, public Singleton<ILanguageManager> {
+    class LANG_MANAGER_EXPORT ILanguageManager final : public QObject,
+                                                       public Singleton<ILanguageManager> {
         Q_OBJECT
         Q_DECLARE_PRIVATE(ILanguageManager)
 

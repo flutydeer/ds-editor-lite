@@ -3,6 +3,7 @@
 
 #include <QObject>
 
+#include <LangMgr/LangGlobal.h>
 #include <LangMgr/Singleton.h>
 #include <LangMgr/LangCommon.h>
 
@@ -12,7 +13,7 @@ namespace LangMgr {
 
     class IG2pManagerPrivate;
 
-    class IG2pManager final : public QObject, public Singleton<IG2pManager> {
+    class LANG_MANAGER_EXPORT IG2pManager final : public QObject, public Singleton<IG2pManager> {
         Q_OBJECT
         Q_DECLARE_PRIVATE(IG2pManager)
     public:

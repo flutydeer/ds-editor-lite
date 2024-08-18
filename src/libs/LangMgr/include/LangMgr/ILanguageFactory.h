@@ -3,13 +3,14 @@
 
 #include <QObject>
 
+#include <LangMgr/LangGlobal.h>
 #include <LangMgr/LangCommon.h>
 
 namespace LangMgr {
 
     class ILanguageFactoryPrivate;
 
-    class ILanguageFactory : public QObject {
+    class LANG_MANAGER_EXPORT ILanguageFactory : public QObject {
         Q_OBJECT
         Q_DECLARE_PRIVATE(ILanguageFactory)
     public:

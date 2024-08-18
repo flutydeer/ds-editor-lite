@@ -10,10 +10,10 @@ class Singleton {
 public:
     Singleton() = default;
     virtual ~Singleton() = default;
-    static T* instance() {
+    static T *instance() {
         static T obj;
         return &obj;
     }
 };
 
-#endif //SINGLETON_H
+#endif // SINGLETON_H

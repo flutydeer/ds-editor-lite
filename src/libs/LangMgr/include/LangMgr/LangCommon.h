@@ -3,8 +3,9 @@
 
 #include <QString>
 
-struct LangNote
-{
+#include <LangMgr/LangGlobal.h>
+
+struct LANG_MANAGER_EXPORT LangNote {
     QString lyric;
     QString syllable = QString();
     QString syllableRevised = QString();
@@ -17,18 +18,12 @@ struct LangNote
 
     LangNote() = default;
 
-    explicit LangNote(QString lyric) : lyric(std::move(lyric))
-    {
-    };
+    explicit LangNote(QString lyric) : lyric(std::move(lyric)){};
 
     LangNote(QString lyric, QString language)
-        : lyric(std::move(lyric)), language(std::move(language))
-    {
-    };
+        : lyric(std::move(lyric)), language(std::move(language)){};
 
     LangNote(QString lyric, QString language, QString categrory)
-        : lyric(std::move(lyric)), language(std::move(language)), category(std::move(categrory))
-    {
-    };
+        : lyric(std::move(lyric)), language(std::move(language)), category(std::move(categrory)){};
 };
 #endif // LANGCOMMON_H
