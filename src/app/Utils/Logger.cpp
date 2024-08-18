@@ -22,45 +22,43 @@ void Logger::handler(QtMsgType type, const QMessageLogContext &context, const QS
     QTextStream consoleStream(stdout);
     consoleStream.setEncoding(QStringConverter::System);
 
-    QString logFilePath = instance()->m_logFolder + QDir::separator() + instance()->m_logFileName;
-    QFile logFile(logFilePath);
-    logFile.open(QIODevice::WriteOnly | QIODevice::Append);
-    QTextStream fileStream(&logFile);
     QString message = messageTimeStr();
     switch (type) {
         case QtInfoMsg:
             message += "[I] " + msg;
-            fileStream << message << Qt::endl;
             consoleStream << colorMessage(Info, message) << Qt::endl;
             break;
         case QtDebugMsg:
             message += "[D] " + msg;
-            fileStream << message << Qt::endl;
             consoleStream << colorMessage(Debug, message) << Qt::endl;
             break;
         case QtWarningMsg:
             message += "[W] " + msg;
-            fileStream << message << Qt::endl;
             consoleStream << colorMessage(Warning, message) << Qt::endl;
             break;
         case QtCriticalMsg:
             message += "[E] " + msg;
-            fileStream << message << Qt::endl;
             consoleStream << colorMessage(Error, message) << Qt::endl;
             break;
         case QtFatalMsg:
             message += "[F] " + msg;
-            fileStream << message << Qt::endl;
             consoleStream << colorMessage(Error, message) << Qt::endl;
             abort();
         default:
             message += "[?] " + msg;
-            fileStream << message << Qt::endl;
             consoleStream << colorMessage(Info, message) << Qt::endl;
             break;
     }
 
-    logFile.close();
+    if (instance()->m_logToFile) {
+        QString logFilePath =
+            instance()->m_logFolder + QDir::separator() + instance()->m_logFileName;
+        QFile logFile(logFilePath);
+        logFile.open(QIODevice::WriteOnly | QIODevice::Append);
+        QTextStream fileStream(&logFile);
+        fileStream << message << Qt::endl;
+        logFile.close();
+    }
 }
 
 void Logger::logSystemInfo() {

@@ -23,6 +23,7 @@ private:
 
     QString m_logFolder;
     QString m_logFileName;
+    bool m_logToFile = false;
 };
 
 
