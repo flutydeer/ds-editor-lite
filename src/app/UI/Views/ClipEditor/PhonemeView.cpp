@@ -111,7 +111,7 @@ void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
 }
 
 void PhonemeView::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
-    qDebug() << "PhonemeView::onNotePropertyChanged" << note->lyric();
+    // qDebug() << "PhonemeView::onNotePropertyChanged" << note->lyric();
     m_notes.removeOne(note);
     MathUtils::binaryInsert(m_notes, note);
     resetPhonemeList();

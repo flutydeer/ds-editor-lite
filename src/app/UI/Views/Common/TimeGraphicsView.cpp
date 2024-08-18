@@ -47,7 +47,8 @@ TimeGraphicsScene *TimeGraphicsView::scene() {
 }
 
 void TimeGraphicsView::setGridItem(TimeGridGraphicsItem *item) {
-    m_scene->removeCommonItem(m_gridItem);
+    if (m_gridItem)
+        m_scene->removeCommonItem(m_gridItem);
     m_gridItem = item;
     m_scene->addTimeGrid(item);
     m_gridItem->setOffset(m_offset);

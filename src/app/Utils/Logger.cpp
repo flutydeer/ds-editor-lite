@@ -19,6 +19,10 @@ Logger::Logger() {
 }
 
 void Logger::handler(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
+    if (msg.startsWith("QWindowsWindow::setGeometry: Unable to set geometry")) {
+        return;
+    }
+
     QTextStream consoleStream(stdout);
     consoleStream.setEncoding(QStringConverter::System);
 
