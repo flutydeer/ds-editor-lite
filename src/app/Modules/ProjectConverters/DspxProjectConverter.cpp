@@ -149,7 +149,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
     QDspxModel dspxModel;
     const auto returnCode = dspxModel.load(path);
-    if (returnCode.type == QDspx::ReturnCode::Success) {
+    if (returnCode.type == QDspx::Result::Success) {
         const auto timeline = dspxModel.content.timeline;
         model->setTimeSignature(
             TimeSignature(timeline.timeSignatures[0].num, timeline.timeSignatures[0].den));
@@ -300,7 +300,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     encodeTracks(model, dspxModel);
     const auto returnCode = dspxModel.save(path);
 
-    if (returnCode.type != QDspx::ReturnCode::Success) {
+    if (returnCode.type != QDspx::Result::Success) {
         QMessageBox::warning(
             nullptr, "Warning",
             QString("Failed to save project file.\r\npath: %1\r\ntype: %2 code: %3")

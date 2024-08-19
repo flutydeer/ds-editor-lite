@@ -10,7 +10,7 @@ vcpkg_cmake_configure(
         SOURCE_PATH "${SOURCE_PATH}"
         OPTIONS
         -DCPP_KANA_BUILD_STATIC=FALSE
-        -DCPP_KANA_BUILD_TESTS=OFF
+        -DCPP_KANA_BUILD_TESTS=FALSE
 )
 
 vcpkg_cmake_install()

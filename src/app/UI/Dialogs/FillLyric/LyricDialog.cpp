@@ -1,6 +1,6 @@
 #include "LyricDialog.h"
 
-#include "LangMgr/ILanguageManager.h"
+#include "language-manager/ILanguageManager.h"
 
 #include <QApplication>
 

@@ -7,7 +7,7 @@
 #include <QGraphicsView>
 #include <QGraphicsObject>
 
-#include <LangMgr/LangCommon.h>
+#include <language-manager/LangCommon.h>
 
 namespace FillLyric {
     class LyricCell final : public QGraphicsObject {

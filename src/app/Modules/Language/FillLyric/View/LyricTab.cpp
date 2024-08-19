@@ -6,7 +6,9 @@
 #include "Model/AppOptions/AppOptions.h"
 
 #include "../Utils/SplitLyric.h"
-#include "LangMgr/ILanguageManager.h"
+#include "language-manager/ILanguageManager.h"
+
+#include <QMessageBox>
 
 namespace FillLyric {
 
@@ -103,8 +105,8 @@ namespace FillLyric {
         if (m_lyricExtWidget->isVisible()) {
             return this->modelExport();
         }
-        auto langNotes = m_lyricBaseWidget->
-            splitLyric(m_lyricBaseWidget->m_textEdit->toPlainText());
+        auto langNotes =
+            m_lyricBaseWidget->splitLyric(m_lyricBaseWidget->m_textEdit->toPlainText());
 
         QList<QList<LangNote>> result;
         const auto langMgr = LangMgr::ILanguageManager::instance();
@@ -171,7 +173,12 @@ namespace FillLyric {
                 CleanLyric::splitCustom(text, m_lyricBaseWidget->m_splitters->text().split(' '));
         }
 
-        m_lyricExtWidget->m_wrapView->init(splitRes);
+        const QMessageBox::StandardButton res = QMessageBox::question(
+            nullptr, tr("Preview Lyric"), tr("Split the lyric into Preview window?"),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+
+        if (res == QMessageBox::Yes)
+            m_lyricExtWidget->m_wrapView->init(splitRes);
     }
 
     void LyricTab::modifyOption() const {

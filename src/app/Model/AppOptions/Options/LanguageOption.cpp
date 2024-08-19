@@ -2,7 +2,7 @@
 
 #include <QJsonArray>
 
-#include <LangMgr/ILanguageManager.h>
+#include <language-manager/ILanguageManager.h>
 
 void LanguageOption::load(const QJsonObject &object) {
     if (object.contains("langOrder")) {

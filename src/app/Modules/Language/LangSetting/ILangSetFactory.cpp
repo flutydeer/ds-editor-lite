@@ -1,7 +1,7 @@
 #include "ILangSetFactory.h"
 #include "ILangSetFactory_p.h"
-#include "LangMgr/IG2pManager.h"
-#include "LangMgr/ILanguageManager.h"
+#include "language-manager/IG2pManager.h"
+#include "language-manager/ILanguageManager.h"
 
 #include <QLabel>
 #include <QJsonObject>

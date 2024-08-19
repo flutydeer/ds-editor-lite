@@ -1,6 +1,6 @@
 #include "EditCellCmd.h"
 
-#include <LangMgr/ILanguageManager.h>
+#include <language-manager/ILanguageManager.h>
 
 namespace FillLyric {
     EditCellCmdfinal::EditCellCmdfinal(CellList *cellList, LyricCell *cell, const QString &lyric,

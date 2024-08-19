@@ -11,7 +11,7 @@
 #include "UI/Controls/OptionsCard.h"
 
 #include <QPushButton>
-#include <LangMgr/ILanguageManager.h>
+#include <language-manager/ILanguageManager.h>
 
 LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
     const auto mainLayout = new QVBoxLayout();

@@ -1,17 +1,13 @@
 vcpkg_from_github(
         OUT_SOURCE_PATH SOURCE_PATH
-        REPO wolfgitpr/cpp-pinyin
-        REF  3bd4133fe965b2484256a824df5a7b69f31ec298
-        SHA512 5615aad31422219df4ed7a289a73190c6a3fba9aec06a5708216db993836585020076ed07d0d753f895d7e80278b688363cac9ae7924f7afbf4e0cc0f2876100
+        REPO diffscope/opendspx
+        REF e838780a69ace74912d251a072584f4e8ac64b7a
+        SHA512 cb8c0c951a08b48191a82adf122ed71555e691417e37d615b6662d95380825e129199b4bcecd932c1ae65dbf77856d2e87929117d37b3b5412814b000162f41b
         HEAD_REF main
 )
 
 vcpkg_cmake_configure(
         SOURCE_PATH "${SOURCE_PATH}"
-        OPTIONS
-        -DCPP_PINYIN_BUILD_STATIC=FALSE
-        -DCPP_PINYIN_BUILD_TESTS=FALSE
-        -DVCPKG_DICT_DIR=${CURRENT_PACKAGES_DIR}/share/${PORT}
 )
 
 vcpkg_cmake_install()

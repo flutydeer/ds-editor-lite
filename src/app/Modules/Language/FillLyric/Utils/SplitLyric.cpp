@@ -1,5 +1,5 @@
 #include "SplitLyric.h"
-#include <LangMgr/ILanguageManager.h>
+#include <language-manager/ILanguageManager.h>
 
 #include <QDebug>
 
