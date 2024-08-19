@@ -84,13 +84,13 @@ QString Logger::messageTimeStr() {
 
 QString Logger::colorMessage(LogLevel level, const QString &message) {
     if (level == Debug) {
-        return QString("\033[0m\033[1;32m%1\033[0m").arg(message);
+        return QString("\033[0m\033[32m%1\033[0m").arg(message);
     }
     if (level == Warning) {
-        return QString("\033[0m\033[1;33m%1\033[0m").arg(message);
+        return QString("\033[0m\033[33m%1\033[0m").arg(message);
     }
     if (level == Error) {
-        return QString("\033[0m\033[1;31m%1\033[0m").arg(message);
+        return QString("\033[0m\033[31m%1\033[0m").arg(message);
     }
     return message; // Info
 }
