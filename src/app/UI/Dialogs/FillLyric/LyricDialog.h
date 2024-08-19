@@ -3,7 +3,9 @@
 
 #include <QTabWidget>
 
-#include "Modules/Language/FillLyric/View/LyricTab.h"
+#include <lyric-tab/LyricTab.h>
+#include <language-manager/LangCommon.h>
+
 #include "UI/Dialogs/Base/Dialog.h"
 
 class LanguagePage;
@@ -37,6 +39,8 @@ private:
     void expandWindowRight();
 
     void switchTab(const int &index);
+
+    static void _on_modifyOption(const FillLyric::LyricTabConfig &config);
 
     QVBoxLayout *m_mainLayout;
     QTabWidget *m_tabWidget;

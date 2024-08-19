@@ -29,6 +29,9 @@ find_package(QWindowKit CONFIG REQUIRED)
 find_package(language-manager CONFIG REQUIRED)
 find_package(Qastool CONFIG REQUIRED)
 find_package(opendspx CONFIG REQUIRED)
+find_package(lyric-tab CONFIG REQUIRED)
+
+set(USE_LITE_CONTROLS OFF)
 
 find_path(INTERVAL_TREE_INCLUDE_DIRS "interval-tree/interval_tree.hpp" REQUIRED)
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -43,6 +46,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Midi talcs::Dspx
         opendspx::opendspx
         language-manager::language-manager
+        lyric-tab::lyric-tab
         QWindowKit::Widgets
         qtmediate::Widgets
         svscraft::Widgets

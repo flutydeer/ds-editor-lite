@@ -9,6 +9,9 @@
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Options/Pages/LanguagePage.h"
 
+#include <QKeyEvent>
+#include <QScreen>
+
 LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     : Dialog(parent), m_notes(std::move(note)) {
     setModal(true);
@@ -24,7 +27,12 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     m_mainLayout = new QVBoxLayout();
     m_tabWidget = new QTabWidget();
 
-    m_lyricWidget = new FillLyric::LyricTab(m_langNotes);
+    m_lyricWidget = new FillLyric::LyricTab(
+        m_langNotes,
+        {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
+         appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
+         appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
+         appOptions->fillLyric()->autoWrap, appOptions->fillLyric()->exportLanguage});
     m_lyricWidget->setLangNotes();
 
     if (!appOptions->fillLyric()->extVisible) {
@@ -54,6 +62,9 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
             &LyricDialog::shrinkWindowRight);
     connect(m_lyricWidget, &FillLyric::LyricTab::expandWindowRight, this,
             &LyricDialog::expandWindowRight);
+
+    connect(m_lyricWidget, &FillLyric::LyricTab::modifyOptionSignal, this,
+            &LyricDialog::_on_modifyOption);
 
     connect(m_tabWidget, &QTabWidget::currentChanged, this, &LyricDialog::switchTab);
 }
@@ -132,4 +143,19 @@ void LyricDialog::switchTab(const int &index) {
             this->expandWindowRight();
         }
     }
+}
+
+void LyricDialog::_on_modifyOption(const FillLyric::LyricTabConfig &config) {
+    const auto options = appOptions->fillLyric();
+    options->baseVisible = config.lyricBaseVisible;
+    options->extVisible = config.lyricExtVisible;
+
+    options->textEditFontSize = config.lyricBaseFontSize;
+    options->skipSlur = config.baseSkipSlur;
+    options->splitMode = config.splitMode;
+
+    options->viewFontSize = config.lyricExtFontSize;
+    options->autoWrap = config.autoWrap;
+    options->exportLanguage = config.exportLanguage;
+    appOptions->saveAndNotify();
 }

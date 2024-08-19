@@ -15,7 +15,8 @@
     "cpp-pinyin",
     "cpp-kana",
     "language-manager",
-    "opendspx"
+    "opendspx",
+    "lyric-tab"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [
