@@ -2,13 +2,15 @@
 
 #include "Model/AppOptions/AppOptions.h"
 
+#include <QFile>
+
 namespace FillLyric {
     LyricExtWidget::LyricExtWidget(int *notesCount, QWidget *parent)
         : QWidget(parent), notesCount(notesCount) {
         this->setContentsMargins(0, 0, 0, 0);
 
         // phonicWidget
-        m_wrapView = new LyricWrapView();
+        m_wrapView = new LyricWrapView(":theme/lyricwarpview-dark.qss");
         m_wrapView->setContentsMargins(0, 0, 0, 0);
 
         // tableTop layout
@@ -109,9 +111,7 @@ namespace FillLyric {
 
         // exportOptButton
         connect(exportOptButton, &QPushButton::clicked,
-                [this]() {
-                    m_epOptWidget->setVisible(!m_epOptWidget->isVisible());
-                });
+                [this]() { m_epOptWidget->setVisible(!m_epOptWidget->isVisible()); });
 
         // view font size
         connect(m_wrapView, &LyricWrapView::fontSizeChanged, this, &LyricExtWidget::modifyOption);

@@ -19,9 +19,9 @@ namespace FillLyric {
         m_scene->addItem(this);
         setFlag(ItemIsSelectable);
 
-        m_splitter = new SplitterItem(0, 0, m_curWidth, this);
+        m_splitter = new SplitterItem(0, 0, m_curWidth, m_view, this);
 
-        m_handle = new HandleItem(this);
+        m_handle = new HandleItem(m_view, this);
         m_handle->setPos(0, m_splitter->margin());
 
         for (const auto &note : noteList) {
@@ -109,10 +109,10 @@ namespace FillLyric {
                 y += cell->height();
             }
 
-            //起始行
+            // 起始行
             if (startPos.y() >= y && startPos.y() < y + cell->height()) {
                 if (startPos.x() < x + cellWidth) {
-                    //此行同时作为末行
+                    // 此行同时作为末行
                     if (endPos.y() > y && endPos.y() <= y + cell->height()) {
                         if (x < endPos.x())
                             cell->setSelected(true);
@@ -123,11 +123,11 @@ namespace FillLyric {
                 } else
                     cell->setSelected(false);
             } else if (startPos.y() < y && endPos.y() > y) {
-                //此行为中间行或末行
-                if (endPos.y() > y + cell->height()) //中间行
+                // 此行为中间行或末行
+                if (endPos.y() > y + cell->height()) // 中间行
                     cell->setSelected(true);
                 else if (endPos.y() > y && endPos.y() <= y + cell->height()) {
-                    //末行
+                    // 末行
                     if (x < endPos.x())
                         cell->setSelected(true);
                     else

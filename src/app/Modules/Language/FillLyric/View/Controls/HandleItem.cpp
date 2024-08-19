@@ -5,9 +5,12 @@
 #include <QGraphicsSceneMouseEvent>
 
 namespace FillLyric {
-    HandleItem::HandleItem(QGraphicsItem *parent) : QGraphicsItem(parent) {
+    HandleItem::HandleItem(QGraphicsView *view, QGraphicsItem *parent)
+        : QGraphicsItem(parent), m_view(view) {
         setFlag(ItemIsSelectable);
         this->setAcceptHoverEvents(true);
+
+        this->setQss();
     }
 
     HandleItem::~HandleItem() = default;
@@ -86,5 +89,27 @@ namespace FillLyric {
         return m_margin;
     }
 
+    void HandleItem::setQss() {
+        const auto cellBackBrush = m_view->property("handleBackgroundBrush").toStringList()[1];
+        if (!cellBackBrush.isEmpty()) {
+            const auto brushList = cellBackBrush.split('|');
+            if (brushList.size() == 3) {
+                for (int i = 0; i < 3; i++) {
+                    if (brushList[i] == "NoBrush")
+                        m_backgroundBrush[i] = QBrush(Qt::NoBrush);
+                    else {
+                        const auto colorStr = brushList[i].split(',');
+                        const QVector<int> colorValue = {colorStr[0].toInt(), colorStr[1].toInt(),
+                                                         colorStr[2].toInt(), colorStr[3].toInt()};
 
+                        if (colorValue.size() == 4) {
+                            m_backgroundBrush[i] =
+                                QBrush(QColor(colorStr[0].toInt(), colorStr[1].toInt(),
+                                              colorStr[2].toInt(), colorStr[3].toInt()));
+                        }
+                    }
+                }
+            }
+        }
+    }
 } // FillLyric

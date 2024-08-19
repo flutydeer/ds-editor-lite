@@ -3,6 +3,7 @@
 #include <QMenu>
 #include <QScrollBar>
 #include <QMouseEvent>
+#include <utility>
 
 #include <language-manager/ILanguageManager.h>
 
@@ -18,22 +19,26 @@
 #include "../../Commands/View/MoveUpLinesCmd.h"
 #include "../../Commands/View/MoveDownLinesCmd.h"
 
+#include <QFile>
+#include <QRegExp>
+
 namespace FillLyric {
-    LyricWrapView::LyricWrapView(QWidget *parent) {
-        this->setObjectName("LyricWrapView");
+    LyricWrapView::LyricWrapView(QString qssPath, QWidget *parent) : m_qssPath(std::move(qssPath)) {
+        setAttribute(Qt::WA_StyledBackground, true);
+        auto qssFile = QFile(m_qssPath);
+        if (qssFile.open(QIODevice::ReadOnly)) {
+            this->setStyleSheet(qssFile.readAll());
+            qssFile.close();
+        }
 
         m_font = this->font();
         m_scene = new QGraphicsScene(parent);
 
-        m_endSplitter = new SplitterItem(0, 0, this->width());
-        m_scene->addItem(m_endSplitter);
-
         this->setScene(m_scene);
         this->setDragMode(RubberBandDrag);
 
-        this->setHorizontalScrollBarPolicy(m_autoWrap
-                                               ? Qt::ScrollBarAlwaysOff
-                                               : Qt::ScrollBarAsNeeded);
+        this->setHorizontalScrollBarPolicy(m_autoWrap ? Qt::ScrollBarAlwaysOff
+                                                      : Qt::ScrollBarAsNeeded);
         this->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
         setAlignment(Qt::AlignLeft | Qt::AlignTop);
@@ -130,9 +135,8 @@ namespace FillLyric {
                         item->setSelected(false);
                     }
                     this->selectCells(lastClickPos, scenePos);
-                } else if (shiftStartPos.x() != 0 && (event->pos() - shiftStartPos).
-                           manhattanLength() >
-                           10) {
+                } else if (shiftStartPos.x() != 0 &&
+                           (event->pos() - shiftStartPos).manhattanLength() > 10) {
                     this->selectCells(shiftStartPos, scenePos);
                 }
                 event->accept();
@@ -389,6 +393,9 @@ namespace FillLyric {
 
     void LyricWrapView::init(const QList<QList<LangNote>> &noteLists) {
         this->clear();
+        m_startSplitter = new SplitterItem(0, 0, this->width(), this);
+        m_scene->addItem(m_startSplitter);
+
         const auto langMgr = LangMgr::ILanguageManager::instance();
 
         for (const auto &notes : noteLists) {
@@ -431,12 +438,16 @@ namespace FillLyric {
             m_cellList->setWidth(width);
             height += m_cellList->height();
         }
-        m_endSplitter->setPos(0, height);
-        height += m_endSplitter->height();
+
+        if (m_startSplitter != nullptr) {
+            m_startSplitter->setPos(0, height);
+            height += m_startSplitter->height();
+        }
 
         for (const auto &m_cellList : m_cellLists) {
             m_cellList->updateSplitter(width);
-            m_endSplitter->setWidth(width);
+            if (m_startSplitter != nullptr)
+                m_startSplitter->setWidth(width);
         }
 
         this->setSceneRect(QRectF(0, 0, width, height));
@@ -457,7 +468,7 @@ namespace FillLyric {
         for (const auto &m_cellList : m_cellLists) {
             height += m_cellList->height();
         }
-        height += m_endSplitter->height();
+        height += m_startSplitter->height();
         return height;
     }
 
@@ -470,17 +481,11 @@ namespace FillLyric {
         });
 
         connect(cellList, &CellList::deleteLine,
-                [this, cellList] {
-                    m_history->push(new DeleteLineCmd(this, cellList));
-                });
+                [this, cellList] { m_history->push(new DeleteLineCmd(this, cellList)); });
         connect(cellList, &CellList::addPrevLine,
-                [this, cellList] {
-                    m_history->push(new AddPrevLineCmd(this, cellList));
-                });
+                [this, cellList] { m_history->push(new AddPrevLineCmd(this, cellList)); });
         connect(cellList, &CellList::addNextLine,
-                [this, cellList] {
-                    m_history->push(new AddNextLineCmd(this, cellList));
-                });
+                [this, cellList] { m_history->push(new AddNextLineCmd(this, cellList)); });
     }
 
     qreal LyricWrapView::cellBaseY(const int &index) const {
@@ -508,8 +513,7 @@ namespace FillLyric {
         for (const auto &cell : cellList->m_cells) {
             // 获取boundingRect的上下两个y坐标
             const qreal topY = cell->mapToScene(cell->boundingRect()).boundingRect().top();
-            const qreal bottomY = cell->mapToScene(cell->boundingRect()).boundingRect().
-                                        bottom();
+            const qreal bottomY = cell->mapToScene(cell->boundingRect()).boundingRect().bottom();
             if (topY <= pos.y() && bottomY >= pos.y()) {
                 return {topY, bottomY};
             }
@@ -522,9 +526,8 @@ namespace FillLyric {
         QPointF startCellPos = startPos, endCellPos = scenePos;
         const auto cellRect = mapToCellRect(scenePos);
         // 当前鼠标位于单行音符y坐标范围内
-        if (cellRect.x() != 0 && cellRect.x() <= startPos.y() && cellRect.y() >=
-            startPos.y() && cellRect.x() <= scenePos.y() && cellRect.y() >=
-            scenePos.y()) {
+        if (cellRect.x() != 0 && cellRect.x() <= startPos.y() && cellRect.y() >= startPos.y() &&
+            cellRect.x() <= scenePos.y() && cellRect.y() >= scenePos.y()) {
             if (scenePos.x() <= startPos.x())
                 qSwap(startCellPos, endCellPos);
         } else {
@@ -541,10 +544,59 @@ namespace FillLyric {
             m_autoWrap ? this->width() - this->verticalScrollBar()->width() : this->maxListWidth();
         for (const auto &m_cellList : m_cellLists) {
             m_cellList->updateSplitter(width);
-            m_endSplitter->setWidth(width);
+            m_startSplitter->setWidth(width);
         }
-        m_endSplitter->setPos(0, this->height() - m_endSplitter->height());
+        m_startSplitter->setPos(0, this->height() - m_startSplitter->height());
         this->setSceneRect(QRectF(0, 0, width, this->height()));
         this->update();
     }
+
+    QStringList LyricWrapView::cellBackgroundBrush() const {
+        return m_cellBackgroundBrush;
+    }
+
+    void LyricWrapView::setCellBackgroundBrush(const QStringList &cellBackgroundBrush) {
+        m_cellBackgroundBrush = cellBackgroundBrush;
+    }
+
+    QStringList LyricWrapView::cellBorderPen() const {
+        return m_cellBorderPen;
+    }
+
+    void LyricWrapView::setCellBorderPen(const QStringList &cellBorderPen) {
+        m_cellBorderPen = cellBorderPen;
+    }
+
+    QStringList LyricWrapView::cellLyricPen() const {
+        return m_cellLyricPen;
+    }
+
+    void LyricWrapView::setCellLyricPen(const QStringList &cellLyricPen) {
+        m_cellLyricPen = cellLyricPen;
+    }
+
+    QStringList LyricWrapView::cellSyllablePen() const {
+        return m_cellSyllablePen;
+    }
+
+    void LyricWrapView::setCellSyllablePen(const QStringList &cellSyllablePen) {
+        m_cellSyllablePen = cellSyllablePen;
+    }
+
+    QStringList LyricWrapView::handleBackgroundBrush() const {
+        return m_handleBackgroundBrush;
+    }
+
+    void LyricWrapView::setHandleBackgroundBrush(const QStringList &handleBackgroundBrush) {
+        m_handleBackgroundBrush = handleBackgroundBrush;
+    }
+
+    QStringList LyricWrapView::spliterPen() const {
+        return m_spliterPen;
+    }
+
+    void LyricWrapView::setSpliterPen(const QStringList &spliterPen) {
+        m_spliterPen = spliterPen;
+    }
+
 }

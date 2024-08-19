@@ -12,8 +12,17 @@ namespace FillLyric {
     class LyricWrapView final : public QGraphicsView {
         Q_OBJECT
 
+        Q_PROPERTY(
+            QStringList cellBackgroundBrush READ cellBackgroundBrush WRITE setCellBackgroundBrush)
+        Q_PROPERTY(QStringList cellBorderPen READ cellBorderPen WRITE setCellBorderPen)
+        Q_PROPERTY(QStringList cellLyricPen READ cellLyricPen WRITE setCellLyricPen)
+        Q_PROPERTY(QStringList cellSyllablePen READ cellSyllablePen WRITE setCellSyllablePen)
+        Q_PROPERTY(QStringList handleBackgroundBrush READ handleBackgroundBrush WRITE
+                       setHandleBackgroundBrush)
+        Q_PROPERTY(QStringList spliterPen READ spliterPen WRITE setSpliterPen)
+
     public:
-        explicit LyricWrapView(QWidget *parent = nullptr);
+        explicit LyricWrapView(QString qssPath = "", QWidget *parent = nullptr);
         ~LyricWrapView() override;
 
         void clear();
@@ -54,6 +63,31 @@ namespace FillLyric {
         void mouseReleaseEvent(QMouseEvent *event) override;
         void contextMenuEvent(QContextMenuEvent *event) override;
 
+
+        QStringList m_cellBackgroundBrush;
+        QStringList cellBackgroundBrush() const;
+        void setCellBackgroundBrush(const QStringList &cellBackgroundBrush);
+
+        QStringList m_cellBorderPen;
+        QStringList cellBorderPen() const;
+        void setCellBorderPen(const QStringList &cellBorderPen);
+
+        QStringList m_cellLyricPen;
+        QStringList cellLyricPen() const;
+        void setCellLyricPen(const QStringList &cellLyricPen);
+
+        QStringList m_cellSyllablePen;
+        QStringList cellSyllablePen() const;
+        void setCellSyllablePen(const QStringList &cellSyllablePen);
+
+        QStringList m_handleBackgroundBrush;
+        QStringList handleBackgroundBrush() const;
+        void setHandleBackgroundBrush(const QStringList &handleBackgroundBrush);
+
+        QStringList m_spliterPen;
+        QStringList spliterPen() const;
+        void setSpliterPen(const QStringList &spliterPen);
+
     private:
         [[nodiscard]] qreal maxListWidth() const;
         [[nodiscard]] qreal height();
@@ -65,13 +99,18 @@ namespace FillLyric {
         QFont m_font;
         QUndoStack *m_history = new QUndoStack();
         QGraphicsScene *m_scene;
-        SplitterItem *m_endSplitter;
+        SplitterItem *m_startSplitter = nullptr;
 
         QList<CellList *> m_cellLists;
         QList<LyricCell *> m_selectedCells{};
 
         QPoint rubberBandOrigin;
         QPoint lastClickPos;
+
+        QString m_qssPath;
+
+    Q_SIGNALS:
+        void cellBackgroundBrushChanged();
 
     private Q_SLOTS:
         void updateRect();

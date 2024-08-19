@@ -2,12 +2,12 @@
 #define SPLITTERGRAPHICSITEM_H
 
 #include <QGraphicsItem>
-#include <QGraphicsScene>
+#include <QGraphicsView>
 
 namespace FillLyric {
     class SplitterItem final : public QGraphicsItem {
     public:
-        explicit SplitterItem(const qreal &x, const qreal &y, const qreal &w,
+        explicit SplitterItem(const qreal &x, const qreal &y, const qreal &w, QGraphicsView *view,
                               QGraphicsItem *parent = nullptr);
         ~SplitterItem() override;
 
@@ -29,6 +29,8 @@ namespace FillLyric {
         [[nodiscard]] QRectF boundingRect() const override;
         [[nodiscard]] QPainterPath shape() const override;
 
+        void setQss();
+
         void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                    QWidget *widget) override;
 
@@ -40,6 +42,8 @@ namespace FillLyric {
         QPen m_pen = QPen(QColor(120, 120, 120), 1);
 
         qreal m_margin = 5;
+
+        QGraphicsView *m_view;
     };
 }
 

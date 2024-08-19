@@ -61,6 +61,8 @@ namespace FillLyric {
 
     private:
         void updateLyricRect();
+        void setQss();
+        QVector<QPen> qssPens(const QString &property) const;
 
         [[nodiscard]] qreal lyricWidth() const;
         [[nodiscard]] qreal syllableWidth() const;
@@ -92,17 +94,17 @@ namespace FillLyric {
             Selected = 2,
         };
 
-        QBrush m_backgroundBrush[3] = {Qt::NoBrush, QColor(255, 255, 255, 15),
-                                       QColor(255, 255, 255, 30)};
-        QPen m_borderPen[3] = {QPen(QColor(83, 83, 85), 2), QPen(QColor(137, 137, 139), 2),
-                               QPen(QColor(155, 186, 255), 2)};
+        QVector<QBrush> m_backgroundBrush = {Qt::NoBrush, QColor(255, 255, 255, 15),
+                                             QColor(255, 255, 255, 30)};
+        QVector<QPen> m_borderPen = {QPen(QColor(83, 83, 85), 2), QPen(QColor(137, 137, 139), 2),
+                                     QPen(QColor(155, 186, 255), 2)};
 
         enum PenType { MultiTone = 1, Revised, G2pError };
 
-        QPen m_lyricPen[4] = {QColor(240, 240, 240), QColor(240, 240, 240), QColor(240, 240, 240),
-                              QColor(240, 240, 240)};
-        QPen m_syllablePen[4] = {QColor(240, 240, 240), QColor(155, 186, 255),
-                                 QColor(255, 204, 153), QColor(255, 155, 157)};
+        QVector<QPen> m_lyricPen = {QColor(240, 240, 240), QColor(240, 240, 240),
+                                    QColor(240, 240, 240), QColor(240, 240, 240)};
+        QVector<QPen> m_syllablePen = {QColor(240, 240, 240), QColor(155, 186, 255),
+                                       QColor(255, 204, 153), QColor(255, 155, 157)};
     };
 }
 

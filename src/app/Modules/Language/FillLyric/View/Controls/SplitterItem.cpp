@@ -3,12 +3,14 @@
 #include <QPainter>
 
 namespace FillLyric {
-    SplitterItem::SplitterItem(const qreal &x, const qreal &y, const qreal &w,
+    SplitterItem::SplitterItem(const qreal &x, const qreal &y, const qreal &w, QGraphicsView *view,
                                QGraphicsItem *parent)
-        : QGraphicsItem(parent) {
+        : QGraphicsItem(parent), m_view(view) {
         this->setX(x);
         this->setY(y);
         this->setWidth(w);
+
+        this->setQss();
     }
 
     SplitterItem::~SplitterItem() = default;
@@ -62,14 +64,31 @@ namespace FillLyric {
             update();
         }
     }
+
     qreal SplitterItem::margin() const {
         return m_margin;
     }
+
     void SplitterItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
         painter->setPen(m_pen);
         for (int i = 0; i < m_lineHeight; i++) {
             painter->drawLine(QPointF(0, m_margin + i), QPointF(mW, m_margin + i));
+        }
+    }
+
+    void SplitterItem::setQss() {
+        const auto cellBackBrush = m_view->property("spliterPen").toStringList()[1];
+        if (!cellBackBrush.isEmpty()) {
+            const auto colorStr = cellBackBrush.split(',');
+            const QVector<int> colorValue = {colorStr[0].toInt(), colorStr[1].toInt(),
+                                             colorStr[2].toInt(), colorStr[3].toInt()};
+
+            if (colorStr.size() == 5) {
+                m_pen = QPen(QColor(colorStr[0].toInt(), colorStr[1].toInt(), colorStr[2].toInt(),
+                                    colorStr[3].toInt()),
+                             colorStr[4].toInt());
+            }
         }
     }
 }

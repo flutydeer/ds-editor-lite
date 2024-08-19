@@ -10,6 +10,8 @@
 
 #include "EditDialog.h"
 
+#include <QRegExp>
+
 namespace FillLyric {
     LyricCell::LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsView *view,
                          QGraphicsItem *parent)
@@ -18,6 +20,7 @@ namespace FillLyric {
         this->setY(y);
         setFlag(ItemIsSelectable);
         this->setAcceptHoverEvents(true);
+        this->setQss();
 
         this->updateLyricRect();
     }
@@ -234,4 +237,58 @@ namespace FillLyric {
         }
     }
 
+    QVector<QPen> LyricCell::qssPens(const QString &property) const {
+        QVector<QPen> penList;
+        const auto penStr = m_view->property(property.toUtf8()).toStringList()[1];
+        if (!penStr.isEmpty()) {
+            const auto penListStr = penStr.split('|');
+            for (const auto &pen : penListStr) {
+                const auto penValue = pen.split(',');
+                if (penValue.size() == 4)
+                    penList.append(QPen(QColor(penValue[0].toInt(), penValue[1].toInt(),
+                                               penValue[2].toInt(), penValue[3].toInt())));
+                else if (penValue.size() == 5)
+                    penList.append(QPen(QColor(penValue[0].toInt(), penValue[1].toInt(),
+                                               penValue[2].toInt(), penValue[3].toInt()),
+                                        penValue[4].toInt()));
+            }
+        }
+        return penList;
+    }
+
+    void LyricCell::setQss() {
+        const auto cellBackBrush = m_view->property("cellBackgroundBrush").toStringList()[1];
+        if (!cellBackBrush.isEmpty()) {
+            const auto brushList = cellBackBrush.split('|');
+            if (brushList.size() == 3) {
+                for (int i = 0; i < 3; i++) {
+                    if (brushList[i] == "NoBrush")
+                        m_backgroundBrush[i] = QBrush(Qt::NoBrush);
+                    else {
+                        const auto colorStr = brushList[i].split(',');
+                        const QVector<int> colorValue = {colorStr[0].toInt(), colorStr[1].toInt(),
+                                                         colorStr[2].toInt(), colorStr[3].toInt()};
+
+                        if (colorValue.size() == 4) {
+                            m_backgroundBrush[i] =
+                                QBrush(QColor(colorStr[0].toInt(), colorStr[1].toInt(),
+                                              colorStr[2].toInt(), colorStr[3].toInt()));
+                        }
+                    }
+                }
+            }
+        }
+
+        const auto lyricPen = qssPens("cellLyricPen");
+        if (lyricPen.size() == 4)
+            m_lyricPen = {lyricPen[0], lyricPen[1], lyricPen[2], lyricPen[3]};
+
+        const auto syllablePen = qssPens("cellSyllablePen");
+        if (syllablePen.size() == 4)
+            m_syllablePen = {syllablePen[0], syllablePen[1], syllablePen[2], syllablePen[3]};
+
+        const auto borderPen = qssPens("cellBorderPen");
+        if (borderPen.size() == 4)
+            m_borderPen = {borderPen[0], borderPen[1], borderPen[2], borderPen[3]};
+    }
 }

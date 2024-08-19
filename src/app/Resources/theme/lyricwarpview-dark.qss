@@ -1,0 +1,9 @@
+FillLyric--LyricWrapView {
+    qproperty-cellBackgroundBrush: cellBackgroundBrush(NoBrush|255,255,255,15|255,255,255,30); /* r,g,b,a Normal|Hovered|Selected */
+    qproperty-cellBorderPen: cellBorderPen(83,83,83,255,2|137,137,139,255,2|155,186,255,255,2); /* r,g,b,a,width Normal|Hovered|Selected */
+    qproperty-cellLyricPen: cellLyricPen(240,240,240,255|240,240,240,255|240,240,240,255|240,240,240,255); /* r,g,b,a Normal|MultiTone|Revised|G2pError */
+    qproperty-cellSyllablePen: cellSyllablePen(240,240,240,255|155,186,255,255|255,204,153,255|255,155,157,255); /* r,g,b,a Normal|MultiTone|Revised|G2pError */
+
+    qproperty-handleBackgroundBrush: handleBackgroundBrush(83,83,83,255|137,137,139,255|112,156,255,255); /* r,g,b,a Normal|Hovered|Selected */
+    qproperty-spliterPen: spliterPen(120,120,120,255,1); /* r,g,b,a,width */
+}

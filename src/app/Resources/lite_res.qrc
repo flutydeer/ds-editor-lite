@@ -74,6 +74,7 @@
         <file>svg/icons/pitch_vibrato_24_filled.svg</file>
 
         <file>theme/lite-dark.qss</file>
+        <file>theme/lyricwarpview-dark.qss</file>
 
         <file>translate/translation_zh_CN.qm</file>
 
