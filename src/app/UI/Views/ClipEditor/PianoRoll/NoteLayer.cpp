@@ -6,7 +6,7 @@
 
 #include <QList>
 
-#include "../GraphicsItem/NoteView.h"
+#include "NoteView.h"
 #include "Utils/MathUtils.h"
 
 QList<NoteView *> NoteLayer::noteItems() const {

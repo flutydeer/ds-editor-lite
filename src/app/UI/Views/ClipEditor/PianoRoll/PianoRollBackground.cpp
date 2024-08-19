@@ -2,7 +2,7 @@
 // Created by fluty on 2024/1/24.
 //
 
-#include "PianoRollBackgroundGraphicsItem.h"
+#include "PianoRollBackground.h"
 
 #include <QPainter>
 
@@ -10,7 +10,7 @@
 
 using namespace ClipEditorGlobal;
 
-void PianoRollBackgroundGraphicsItem::paint(QPainter *painter,
+void PianoRollBackground::paint(QPainter *painter,
                                             const QStyleOptionGraphicsItem *option,
                                             QWidget *widget) {
     // Draw background

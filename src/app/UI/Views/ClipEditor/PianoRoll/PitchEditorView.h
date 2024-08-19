@@ -5,7 +5,7 @@
 #ifndef PITCHEDITORVIEW_H
 #define PITCHEDITORVIEW_H
 
-#include "CommonParamEditorView.h"
+#include "UI/Views/ClipEditor/CommonParamEditorView.h"
 
 class PitchEditorView : public CommonParamEditorView {
     Q_OBJECT
