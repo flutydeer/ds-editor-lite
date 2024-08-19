@@ -7,7 +7,7 @@
 
 #include "UI/Views/Common/TimeGridGraphicsItem.h"
 
-class PianoRollBackgroundGraphicsItem final : public TimeGridGraphicsItem {
+class PianoRollBackground final : public TimeGridGraphicsItem {
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 };

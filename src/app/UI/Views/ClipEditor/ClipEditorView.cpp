@@ -4,14 +4,14 @@
 
 #include "ClipEditorView.h"
 
-#include "ClipEditorToolBarView.h"
 #include "PhonemeView.h"
-#include "PianoRollGraphicsScene.h"
-#include "PianoRollGraphicsView.h"
+#include "PianoRoll/PianoRollGraphicsScene.h"
+#include "PianoRoll/PianoRollGraphicsView.h"
 #include "Controller/AppController.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel/AppModel.h"
+#include "ToolBar/ClipEditorToolBarView.h"
 #include "UI/Views/Common/TimelineView.h"
 
 #include <QMouseEvent>

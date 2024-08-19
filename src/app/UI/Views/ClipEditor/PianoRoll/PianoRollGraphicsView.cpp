@@ -9,8 +9,8 @@
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
-#include "GraphicsItem/NoteView.h"
-#include "GraphicsItem/PianoRollBackgroundGraphicsItem.h"
+#include "NoteView.h"
+#include "PianoRollBackground.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Curve.h"
@@ -18,7 +18,7 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
-#include "GraphicsItem/PitchEditorView.h"
+#include "PitchEditorView.h"
 #include "Utils/MathUtils.h"
 
 #include <QMouseEvent>
@@ -40,7 +40,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     d->m_currentDrawingNote->setPronunciation("", false);
     d->m_currentDrawingNote->setSelected(true);
 
-    auto gridItem = new PianoRollBackgroundGraphicsItem;
+    auto gridItem = new PianoRollBackground;
     gridItem->setPixelsPerQuarterNote(pixelsPerQuarterNote);
     setGridItem(gridItem);
 
