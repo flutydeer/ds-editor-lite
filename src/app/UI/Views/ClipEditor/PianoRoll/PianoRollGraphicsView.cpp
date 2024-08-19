@@ -60,9 +60,9 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
             &PianoRollGraphicsView::setLastPlaybackPosition);
 
     connect(this, &CommonGraphicsView::scaleChanged, this,
-            [=] { emit keyIndexRangeChanged(topKeyIndex(), bottomKeyIndex()); });
+            &PianoRollGraphicsView::notifyKeyRangeChanged);
     connect(this, &CommonGraphicsView::visibleRectChanged, this,
-            [=] { emit keyIndexRangeChanged(topKeyIndex(), bottomKeyIndex()); });
+            &PianoRollGraphicsView::notifyKeyRangeChanged);
 }
 
 PianoRollGraphicsView::~PianoRollGraphicsView() {
@@ -102,6 +102,10 @@ void PianoRollGraphicsView::onPitchEditorEditCompleted(const QList<DrawCurve *> 
     }
     qDebug() << "curve count" << list.count();
     clipController->onPitchEdited(list);
+}
+
+void PianoRollGraphicsView::notifyKeyRangeChanged() {
+    emit keyRangeChanged(topKeyIndex(), bottomKeyIndex());
 }
 
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {

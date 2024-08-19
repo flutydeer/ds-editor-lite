@@ -4,6 +4,8 @@
 
 #include "PianoRollBackground.h"
 
+#include "PianoPaintUtils.h"
+
 #include <QPainter>
 
 #include "Global/ClipEditorGlobal.h"
@@ -19,7 +21,7 @@ void PianoRollBackground::paint(QPainter *painter,
     painter->drawRect(boundingRect());
 
     auto lineColor = QColor(57, 59, 61);
-    auto keyIndexTextColor = QColor(160, 160, 160);
+    // auto keyIndexTextColor = QColor(160, 160, 160);
     auto penWidth = 1;
 
     QPen pen;
@@ -36,35 +38,20 @@ void PianoRollBackground::paint(QPainter *painter,
 
     auto sceneYToItemY = [&](const double y) { return mapFromScene(QPointF(0, y)).y(); };
 
-    auto isWhiteKey = [](const int midiKey) -> bool {
-        int index = midiKey % 12;
-        bool pianoKeys[] = {true,  false, true,  false, true,  true,
-                            false, true,  false, true,  false, true};
-        return pianoKeys[index];
-    };
-
-    auto toNoteName = [](const int &midiKey) {
-        QString noteNames[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
-        int index = qAbs(midiKey) % 12;
-        int octave = midiKey / 12 - 1;
-        QString noteName = noteNames[index] + QString::number(octave);
-        return noteName;
-    };
-
     auto startKeyIndex = sceneYToKeyIndex(visibleRect().top());
     auto endKeyIndex = sceneYToKeyIndex(visibleRect().bottom());
     auto prevKeyIndex = static_cast<int>(startKeyIndex) + 1;
     for (int i = prevKeyIndex; i > endKeyIndex; i--) {
         auto y = sceneYToItemY(keyIndexToSceneY(i));
 
-        painter->setBrush(isWhiteKey(i) ? QColor(42, 43, 44) : QColor(35, 36, 37));
+        painter->setBrush(PianoPaintUtils::isWhiteKey(i) ? QColor(42, 43, 44) : QColor(35, 36, 37));
         auto gridRect = QRectF(0, y, visibleRect().width(), noteHeight * scaleY());
         painter->setPen(Qt::NoPen);
         painter->drawRect(gridRect);
 
-        pen.setColor(keyIndexTextColor);
-        painter->setPen(pen);
-        painter->drawText(gridRect, toNoteName(i), QTextOption(Qt::AlignVCenter));
+        // pen.setColor(keyIndexTextColor);
+        // painter->setPen(pen);
+        // painter->drawText(gridRect, PianoPaintUtils::noteName(i), QTextOption(Qt::AlignVCenter));
 
         pen.setColor(lineColor);
         painter->setPen(pen);

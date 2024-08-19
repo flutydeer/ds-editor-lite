@@ -40,12 +40,15 @@ public:
     void setViewportCenterAtKeyIndex(double keyIndex);
 
 signals:
-    void keyIndexRangeChanged(double start, double end);
+    void keyRangeChanged(double start, double end);
 
 public slots:
     void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
     void onSceneSelectionChanged() const;
     void onPitchEditorEditCompleted(const QList<DrawCurve *> &curves);
+
+private slots:
+    void notifyKeyRangeChanged();
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;

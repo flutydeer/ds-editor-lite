@@ -11,6 +11,7 @@
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel/AppModel.h"
+#include "PianoRoll/PianoKeyboardView.h"
 #include "ToolBar/ClipEditorToolBarView.h"
 #include "UI/Views/Common/TimelineView.h"
 
@@ -52,24 +53,42 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
     connect(appModel, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
     connect(appModel, &AppModel::activeClipChanged, this, &ClipEditorView::onSelectedClipChanged);
 
-    // auto pianoKeyboardView = new PianoKeyboardView;
-    // pianoKeyboardView->setKeyIndexRange(m_pianoRollView->topKeyIndex(),
-    //                                     m_pianoRollView->bottomKeyIndex());
-    // connect(m_pianoRollView, &PianoRollGraphicsView::keyIndexRangeChanged, pianoKeyboardView,
-    //         &PianoKeyboardView::setKeyIndexRange);
+    m_pianoKeyboardView = new PianoKeyboardView;
+    m_pianoKeyboardView->setKeyRange(m_pianoRollView->topKeyIndex(),
+                                     m_pianoRollView->bottomKeyIndex());
+    connect(m_pianoRollView, &PianoRollGraphicsView::keyRangeChanged, m_pianoKeyboardView,
+            &PianoKeyboardView::setKeyRange);
 
-    // auto pianoViewLayout = new QHBoxLayout;
-    // pianoViewLayout->setSpacing(0);
-    // pianoViewLayout->setContentsMargins(0, 0, 0, 0);
-    // pianoViewLayout->addWidget(pianoKeyboardView);
-    // pianoViewLayout->addWidget(m_pianoRollView);
+    auto pianoKeyboardLayout = new QVBoxLayout;
+    pianoKeyboardLayout->setContentsMargins(0, 0, 0, 0);
+    pianoKeyboardLayout->setSpacing(0);
+    pianoKeyboardLayout->addSpacing(timelineViewHeight);
+    pianoKeyboardLayout->addWidget(m_pianoKeyboardView);
+    pianoKeyboardLayout->addSpacing(AppGlobal::horizontalScrollBarHeight);
+
+    auto timelineAndPianoRollLayout = new QVBoxLayout;
+    timelineAndPianoRollLayout->setContentsMargins(0, 0, 0, 0);
+    timelineAndPianoRollLayout->setSpacing(0);
+    timelineAndPianoRollLayout->addWidget(m_timelineView);
+    timelineAndPianoRollLayout->addWidget(m_pianoRollView);
+
+    auto pianoViewLayout = new QHBoxLayout;
+    pianoViewLayout->setContentsMargins(0, 0, 0, 0);
+    pianoViewLayout->setSpacing(0);
+    pianoViewLayout->addLayout(pianoKeyboardLayout);
+    pianoViewLayout->addLayout(timelineAndPianoRollLayout);
+
+    auto phonemeLayout = new QHBoxLayout;
+    phonemeLayout->setContentsMargins(0, 0, 0, 0);
+    phonemeLayout->setSpacing(0);
+    phonemeLayout->addSpacing(m_pianoKeyboardView->width());
+    phonemeLayout->addWidget(m_phonemeView);
+    phonemeLayout->addSpacing(AppGlobal::verticalScrollBarWidth);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_toolbarView);
-    mainLayout->addWidget(m_timelineView);
-    mainLayout->addWidget(m_pianoRollView);
-    // mainLayout->addLayout(pianoViewLayout);
-    mainLayout->addWidget(m_phonemeView);
+    mainLayout->addLayout(pianoViewLayout);
+    mainLayout->addLayout(phonemeLayout);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({1, 1, 1, 1});
     setLayout(mainLayout);
@@ -114,6 +133,7 @@ void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
     m_toolbarView->setVisible(true);
     m_timelineView->setVisible(true);
     m_phonemeView->setVisible(true);
+    m_pianoKeyboardView->setVisible(true);
 
     m_pianoRollView->setDataContext(clip);
     m_phonemeView->setDataContext(clip);
@@ -124,6 +144,7 @@ void ClipEditorView::moveToAudioClipState(AudioClip *clip) const {
     m_toolbarView->setVisible(true);
     m_timelineView->setVisible(false);
     m_phonemeView->setVisible(false);
+    m_pianoKeyboardView->setVisible(false);
 
     m_pianoRollView->setDataContext(nullptr);
     m_phonemeView->setDataContext(nullptr);
@@ -133,6 +154,7 @@ void ClipEditorView::moveToNullClipState() const {
     m_toolbarView->setVisible(false);
     m_timelineView->setVisible(false);
     m_phonemeView->setVisible(false);
+    m_pianoKeyboardView->setVisible(false);
 
     m_pianoRollView->setDataContext(nullptr);
     m_phonemeView->setDataContext(nullptr);

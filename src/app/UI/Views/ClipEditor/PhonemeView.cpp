@@ -14,8 +14,6 @@
 #include "Controller/PlaybackController.h"
 #include "Utils/MathUtils.h"
 
-using namespace AppGlobal;
-
 PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_Hover, true);
     setAttribute(Qt::WA_StyledBackground, true);
@@ -236,7 +234,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
 void PhonemeView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
     auto x = tickToX(tick); // tick to itemX
-    pen.setColor(barLineColor);
+    pen.setColor(AppGlobal::barLineColor);
     painter->setPen(pen);
     auto y1 = 0;
     auto y2 = rect().height();
@@ -246,7 +244,7 @@ void PhonemeView::drawBar(QPainter *painter, int tick, int bar) {
 void PhonemeView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
     auto x = tickToX(tick);
-    pen.setColor(beatLineColor);
+    pen.setColor(AppGlobal::beatLineColor);
     painter->setPen(pen);
     auto y1 = 0;
     auto y2 = rect().height();
@@ -256,7 +254,7 @@ void PhonemeView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
 void PhonemeView::drawEighth(QPainter *painter, int tick) {
     QPen pen;
     auto x = tickToX(tick);
-    pen.setColor(commonLineColor);
+    pen.setColor(AppGlobal::commonLineColor);
     painter->setPen(pen);
     auto y1 = 0;
     auto y2 = rect().height();
@@ -392,12 +390,12 @@ void PhonemeView::moveToNullClipState() {
 
 double PhonemeView::tickToX(double tick) {
     auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
-    auto x = (rect().width() - verticalScrollBarWidth) * ratio;
+    auto x = rect().width() * ratio;
     return x;
 }
 
 double PhonemeView::xToTick(double x) {
-    auto tick = 1.0 * x / (rect().width() - verticalScrollBarWidth) * (m_endTick - m_startTick) +
+    auto tick = 1.0 * x / rect().width() * (m_endTick - m_startTick) +
                 m_startTick;
     if (tick < 0)
         tick = 0;

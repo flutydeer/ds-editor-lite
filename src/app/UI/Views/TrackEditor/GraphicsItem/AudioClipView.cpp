@@ -50,7 +50,8 @@ void AudioClipView::onTempoChange(double tempo) {
 }
 
 void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {
-    // QElapsedTimer mstimer;
+    QElapsedTimer mstimer;
+    mstimer.start();
     painter->setRenderHint(QPainter::Antialiasing, false);
 
     auto rectLeft = previewRect.left();
@@ -72,7 +73,6 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     pen.setWidth(1);
     painter->setPen(pen);
 
-    // mstimer.start();
     if (m_audioInfo.peakCache.count() == 0 || m_audioInfo.peakCacheMipmap.count() == 0)
         return;
 

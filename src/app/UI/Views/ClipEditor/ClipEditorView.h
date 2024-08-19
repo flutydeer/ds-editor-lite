@@ -8,6 +8,8 @@
 #include "Interface/IClipEditorView.h"
 #include "UI/Views/Common/PanelView.h"
 
+
+class PianoKeyboardView;
 class ClipEditorToolBarView;
 class PhonemeView;
 class PianoRollGraphicsScene;
@@ -40,6 +42,7 @@ private:
     ClipEditorToolBarView *m_toolbarView;
     PianoRollGraphicsScene *m_pianoRollScene;
     PianoRollGraphicsView *m_pianoRollView;
+    PianoKeyboardView *m_pianoKeyboardView;
     TimelineView *m_timelineView;
     PhonemeView *m_phonemeView;
 
