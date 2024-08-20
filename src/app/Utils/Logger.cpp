@@ -78,10 +78,10 @@ void Logger::handler(QtMsgType type, const QMessageLogContext &context, const QS
 
 void Logger::logSystemInfo() {
     const auto tag = QStringLiteral("Logger");
-    d(tag, "-------- System Info Begin --------");
+    i(tag, "-------- System Info Begin --------");
     i(tag, "Build CPU Architecture: " + QSysInfo::buildCpuArchitecture());
-    w(tag, "Current CPU Architecture: " + QSysInfo::currentCpuArchitecture());
-    e(tag, "Product Type: " + QSysInfo::productType());
+    i(tag, "Current CPU Architecture: " + QSysInfo::currentCpuArchitecture());
+    i(tag, "Product Type: " + QSysInfo::productType());
     i(tag, "Product Name: " + QSysInfo::prettyProductName());
     i(tag, "Product Version: " + QSysInfo::productVersion());
     i(tag, "Kernel Type: " + QSysInfo::kernelType());
