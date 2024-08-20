@@ -37,7 +37,7 @@ void PianoKeyboardView::paintEvent(QPaintEvent *paint_event) {
     auto prevKeyIndex = static_cast<int>(m_top) + 1;
     bool prevIsWhiteKey = false;
     for (int i = prevKeyIndex; i > m_bottom; i--) {
-        constexpr auto radius = 6.0;
+        constexpr auto radius = 4.0;
         auto y = keyToY(i);
 
         auto isWhiteKey = PianoPaintUtils::isWhiteKey(i);
