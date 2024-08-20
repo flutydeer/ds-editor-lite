@@ -68,8 +68,8 @@ void PianoKeyboardView::paintEvent(QPaintEvent *paint_event) {
 
         prevIsWhiteKey = isWhiteKey;
     }
-    const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
-    Logger::d("PianoKeyboardView", "paint time: " + QString::number(time));
+    // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
+    // Logger::d("PianoKeyboardView", "paint time: " + QString::number(time));
 }
 
 double PianoKeyboardView::keyToY(double key) const {
