@@ -7,8 +7,10 @@
 #include "Global/ClipEditorGlobal.h"
 #include "Model/AppModel/Clip.h"
 #include "UI/Views/Common/CommonGraphicsScene.h"
+#include "Utils/Logger.h"
 #include "Utils/MathUtils.h"
 
+#include <QElapsedTimer>
 #include <QPainter>
 #include <QGraphicsSceneMouseEvent>
 
@@ -53,15 +55,19 @@ double CommonParamEditorView::sceneYToValue(double y) const {
 
 void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                   QWidget *widget) {
+    QElapsedTimer mstimer;
+    mstimer.start();
     OverlayGraphicsItem::paint(painter, option, widget);
 
-    // painter->setRenderHint(QPainter::Antialiasing, false);
-    auto noAntialiasingThreshold = 0.8;
     auto hideThreshold = 0.4;
     auto fadeLength = 0.1;
     if (scaleX() < hideThreshold)
         return;
-    if (scaleX() < noAntialiasingThreshold)
+
+    auto dpr = painter->device()->devicePixelRatio();
+    if ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) < 1)
+        painter->setRenderHint(QPainter::Antialiasing, true);
+    else
         painter->setRenderHint(QPainter::Antialiasing, false);
 
     QPen pen;
@@ -80,10 +86,12 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         // painter->setPen(pen);
         drawHandDrawCurves(painter, m_drawCurvesEdited);
     }
+
+    const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
+    // Logger::d(className, "Render time: " + QString::number(time));
 }
 
 void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-    // qDebug() << "CommonParamEditorView::mousePressEvent" << event->button();
     if (m_transparentForMouseEvents) {
         OverlayGraphicsItem::mousePressEvent(event);
         return;
@@ -97,18 +105,15 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
         if (auto curve = curveAt(tick)) {
             m_editingCurve = curve;
             m_editType = DrawOnCurve;
-            qDebug() << "Edit exist curve" << curve->id() << curve->start;
+            Logger::d(className, QString("Edit exist curve: #") + QString::number(curve->id()));
         } else {
             m_editingCurve = nullptr;
             m_editType = DrawOnInterval;
-            qDebug() << "Create new curve";
         }
     } else if (event->button() == Qt::RightButton) {
         m_editType = Erase;
-        qDebug() << "Erase curve";
     } else {
         m_editType = None;
-        qDebug() << "No editing curve";
     }
 
     m_mouseDownPos = QPoint(tick, value);
@@ -124,7 +129,6 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
     auto curPos = QPoint(tick, value);
-    // qDebug() << "Draw curve at" << curPos;
 
     int startTick;
     int endTick;
@@ -143,7 +147,8 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                 if (curve->start >= startTick &&
                     curve->endTick() <= endTick) { // 区间覆盖整条曲线，直接移除该曲线
                     m_drawCurvesEdited.removeOne(curve);
-                    // qDebug() << "Remove curve" << curve->id();
+                    Logger::d(className,
+                              QString("Erase: Remove curve #") + QString::number(curve->id()));
                 } else if (curve->start < startTick &&
                            curve->endTick() > endTick) { // 区间在曲线内，将曲线切成两段
                     auto newCurve = new DrawCurve;
@@ -154,7 +159,10 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                     MathUtils::binaryInsert(m_drawCurvesEdited, newCurve);
                 } else {
                     curve->erase(startTick, endTick);
-                    // qDebug() << "Erase curve" << curve->id() << startTick << endTick;
+                    // Logger::d(className,
+                    //           QString("Erase curve: #%1 start: %2 end: %3")
+                    //               .arg(QString::number(curve->id()), QString::number(startTick),
+                    //                    QString::number(endTick)));
                 }
             }
         }
@@ -164,7 +172,8 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             m_editingCurve->start = m_mouseDownPos.x();
             m_editingCurve->appendValue(m_mouseDownPos.y());
             MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
-            qDebug() << "New curve added" << m_editingCurve->id();
+            Logger::d(className,
+                      QString("Create new curve: #") + QString::number(m_editingCurve->id()));
             m_newCurveCreated = true;
         }
 
@@ -190,8 +199,8 @@ void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
         m_editingCurve = nullptr;
         m_editType = None;
     } else {
+        Logger::d(className, "Edit completed");
         emit editCompleted(editedCurves());
-        qDebug() << "CommonParamEditorView editCompleted";
     }
 
     m_mouseMoved = false;
@@ -302,6 +311,11 @@ void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve)
     int start = curve.start;
     auto firstValue = curve.values().first();
     auto firstPos = QPointF(tickToItemX(start), valueToItemY(firstValue));
+    int startIndex =
+        start >= startTick()
+            ? 0
+            : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
+                  curve.step;
 
     // 绘制多边形填充
     if (m_fillCurve) {
@@ -310,11 +324,9 @@ void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve)
         fillPath.moveTo(firstPos.x(), sceneHeight);
         fillPath.lineTo(firstPos);
         double lastX = 0;
-        for (int i = 0; i < curve.values().count(); i++) {
+        for (int i = startIndex; i < curve.values().count(); i++) {
             const auto pos = start + curve.step * i;
             const auto value = curve.values().at(i);
-            if (pos < startTick())
-                continue;
             if (pos > endTick())
                 break;
             const auto x = tickToItemX(pos);
@@ -331,21 +343,23 @@ void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve)
     pen.setColor(QColor(240, 240, 240, 255));
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
-    QPainterPath curvePath;
-    curvePath.moveTo(firstPos);
 
     if (m_showDebugInfo)
         painter->drawText(firstPos, QString("#%1").arg(curve.id()));
 
-    for (int i = 0; i < curve.values().count(); i++) {
+    int pointCount = 0;
+    QPainterPath curvePath;
+    curvePath.moveTo(firstPos);
+    for (int i = startIndex; i < curve.values().count(); i++) {
         const auto pos = start + curve.step * i;
         const auto value = curve.values().at(i);
-        if (pos < startTick())
-            continue;
         if (pos > endTick())
             break;
         const auto x = tickToItemX(pos);
         curvePath.lineTo(x, valueToItemY(value));
+        pointCount++;
     }
     painter->drawPath(curvePath);
+
+    // Logger::d(className, "points:" + QString::number(pointCount));
 }

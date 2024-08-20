@@ -63,6 +63,8 @@ private:
     [[nodiscard]] double valueToItemY(double value) const;
     DrawCurve *curveAt(double tick);
     QList<DrawCurve *> curvesIn(int startTick, int endTick);
+
+    const QString className = QString("CommonParamEditorView");
 };
 
 #endif // PITCHEDITORGRAPHICSITEM_H

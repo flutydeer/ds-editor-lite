@@ -174,7 +174,6 @@ bool Logger::canLogToConsole(const LogMessage &message) {
 
     return std::any_of(instance()->m_tagFilter.begin(), instance()->m_tagFilter.end(),
                        [&](const QString &tag) { return tag == message.tag; });
-    return false;
 }
 
 // QString Logger::prettyMethodName(const char *function) {
