@@ -1,8 +1,8 @@
 vcpkg_from_github(
         OUT_SOURCE_PATH SOURCE_PATH
         REPO wolfgitpr/cpp-kana
-        REF 52efec85c4d6709444da0f74295c8f2fbf9467f7
-        SHA512 44c0ba6d7a7f43471b24936fbdc31c84e07345cbbc8a9a9daefd4119daee4396cc4d5f8fbd2380e99368d454bc3da1a0fdf2eadfa5621f01069d857e25da2e31
+        REF 110819eda26e258db28e2031d25247f15ed737d0
+        SHA512 e55bf17d5d75be9f549fe940cafd52fab4a8fbf79d437b909355fe501df8fd4ca5d24b51d7965d4f77d5c7047f0942c6188256f85b64f3f7c80d54b388081a71
         HEAD_REF main
 )
 
