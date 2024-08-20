@@ -7,6 +7,7 @@
 #include "PianoPaintUtils.h"
 #include "Utils/Logger.h"
 
+#include <QElapsedTimer>
 #include <QPainter>
 
 PianoKeyboardView::PianoKeyboardView(QWidget *parent) {
