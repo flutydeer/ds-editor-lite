@@ -83,7 +83,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 }
 
 void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-    qDebug() << "CommonParamEditorView::mousePressEvent" << event->button();
+    // qDebug() << "CommonParamEditorView::mousePressEvent" << event->button();
     if (m_transparentForMouseEvents) {
         OverlayGraphicsItem::mousePressEvent(event);
         return;

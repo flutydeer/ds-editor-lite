@@ -5,6 +5,7 @@
 #include "PianoKeyboardView.h"
 
 #include "PianoPaintUtils.h"
+#include "Utils/Logger.h"
 
 #include <QPainter>
 
@@ -19,6 +20,8 @@ void PianoKeyboardView::setKeyRange(double top, double bottom) {
 }
 
 void PianoKeyboardView::paintEvent(QPaintEvent *paint_event) {
+    QElapsedTimer mstimer;
+    mstimer.start();
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
@@ -64,6 +67,8 @@ void PianoKeyboardView::paintEvent(QPaintEvent *paint_event) {
 
         prevIsWhiteKey = isWhiteKey;
     }
+    const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
+    Logger::d("PianoKeyboardView", "paint time: " + QString::number(time));
 }
 
 double PianoKeyboardView::keyToY(double key) const {

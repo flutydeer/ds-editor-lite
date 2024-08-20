@@ -44,6 +44,10 @@ int main(int argc, char *argv[]) {
     if (QSysInfo::productType() == "macos")
         QApplication::setStyle(QStyleFactory::create("windows"));
 
+    // 设置日志等级和过滤器
+    Logger::setConsoleLogLevel(Logger::Debug);
+    // Logger::setConsoleTagFilter({"PianoKeyboardView"});
+
     Logger::logSystemInfo();
 
     auto f = QFont();
