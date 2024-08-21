@@ -5,9 +5,9 @@
 #ifndef PIANOROLLTOOLBARVIEW_H
 #define PIANOROLLTOOLBARVIEW_H
 
-#include <QWidget>
+#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
-#include "Global/ClipEditorGlobal.h"
+#include <QWidget>
 
 class EditLabel;
 class SeekBar;

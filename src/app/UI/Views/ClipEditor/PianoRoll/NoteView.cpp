@@ -5,7 +5,7 @@
 #include "NoteView.h"
 
 #include "Global/AppGlobal.h"
-#include "Global/ClipEditorGlobal.h"
+#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/CommonGraphicsRectItem.h"
 
 #include <QGraphicsSceneContextMenuEvent>

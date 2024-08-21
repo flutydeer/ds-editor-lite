@@ -4,9 +4,9 @@
 
 #include "PianoRollGraphicsScene.h"
 
-#include <QGraphicsSceneMouseEvent>
+#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
-#include "Global/ClipEditorGlobal.h"
+#include <QGraphicsSceneMouseEvent>
 
 using namespace ClipEditorGlobal;
 

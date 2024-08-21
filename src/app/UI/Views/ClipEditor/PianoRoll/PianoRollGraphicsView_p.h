@@ -5,7 +5,6 @@
 #ifndef PIANOROLLGRAPHICSVIEW_P_H
 #define PIANOROLLGRAPHICSVIEW_P_H
 
-#include "Global/ClipEditorGlobal.h"
 #include "NoteLayer.h"
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Params.h"
@@ -74,7 +73,7 @@ public:
                                 NoteView *noteItem);
     void PrepareForDrawingNote(int tick, int keyIndex);
 
-    void handleNoteDrew(int rStart, int length, int keyIndex) const;
+    void handleNoteDrawn(int rStart, int length, int keyIndex) const;
     void handleNotesMoved(int deltaTick, int deltaKey) const;
     static void handleNoteLeftResized(int noteId, int deltaTick);
     static void handleNoteRightResized(int noteId, int deltaTick);

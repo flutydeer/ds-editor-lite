@@ -2,6 +2,8 @@
 // Created by fluty on 2024/1/23.
 //
 
+#define CLASS_NAME "PianoRollGraphicsView"
+
 #include "PianoRollGraphicsView.h"
 
 #include "PianoRollGraphicsScene.h"
@@ -19,6 +21,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
 #include "PitchEditorView.h"
+#include "Utils/Logger.h"
 #include "Utils/MathUtils.h"
 
 #include <QMouseEvent>
@@ -77,12 +80,6 @@ void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
         d->moveToSingingClipState(clip);
 }
 
-void PianoRollGraphicsView::onEditModeChanged(PianoRollEditMode mode) {
-    Q_D(PianoRollGraphicsView);
-    d->m_editMode = mode;
-    setEditMode(mode);
-}
-
 void PianoRollGraphicsView::onSceneSelectionChanged() const {
     Q_D(const PianoRollGraphicsView);
     if (d->m_canNotifySelectedNoteChanged) {
@@ -93,14 +90,10 @@ void PianoRollGraphicsView::onSceneSelectionChanged() const {
 
 void PianoRollGraphicsView::onPitchEditorEditCompleted(const QList<DrawCurve *> &curves) {
     Q_D(PianoRollGraphicsView);
-    qDebug() << "PianoRollGraphicsView::onPitchEditorEditCompleted";
     QList<Curve *> list;
     for (auto curve : curves) {
         list.append(curve);
-        qDebug() << "curve:"
-                 << "#" << curve->id() << curve->start << curve->endTick();
     }
-    qDebug() << "curve count" << list.count();
     clipController->onPitchEdited(list);
 }
 
@@ -118,19 +111,6 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     }
 
     TimeGraphicsView::contextMenuEvent(event);
-}
-
-void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
-    Q_D(PianoRollGraphicsView);
-    CommonGraphicsView::paintEvent(event);
-
-    if (d->m_clip)
-        return;
-
-    QPainter painter(viewport());
-    painter.setPen(QColor(160, 160, 160));
-    painter.drawText(viewport()->rect(), tr("Select a singing clip to edit"),
-                     QTextOption(Qt::AlignCenter));
 }
 
 void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
@@ -172,7 +152,6 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     } else if (d->m_editMode == DrawNote) {
         clearNoteSelections();
         if (auto noteView = d->noteViewAt(event->pos())) {
-            qDebug() << "DrawNote mode, move or resize note";
             auto rPos = noteView->mapFromScene(scenePos);
             auto ry = rPos.y();
             auto mouseInFilledRect =
@@ -235,7 +214,6 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         auto deltaLength = length - d->m_mouseDownLength;
         if (length < quantizedTickLength)
             deltaLength = -(d->m_mouseDownLength - quantizedTickLength);
-        // qDebug() << "deltaLength" << deltaLength;
         d->m_deltaTick = deltaLength;
         d->resizeRightSelectedNote(d->m_deltaTick);
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
@@ -252,7 +230,6 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
 
     if (scene()->items().contains(d->m_currentDrawingNote)) {
         scene()->removeCommonItem(d->m_currentDrawingNote);
-        qDebug() << "fake note removed from scene";
     }
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
         if (d->m_movedBeforeMouseUp) {
@@ -270,8 +247,8 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
         PianoRollGraphicsViewPrivate::handleNoteRightResized(d->m_currentEditingNote->id(),
                                                              d->m_deltaTick);
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
-        d->handleNoteDrew(d->m_currentDrawingNote->rStart(), d->m_currentDrawingNote->length(),
-                          d->m_currentDrawingNote->keyIndex());
+        d->handleNoteDrawn(d->m_currentDrawingNote->rStart(), d->m_currentDrawingNote->length(),
+                           d->m_currentDrawingNote->keyIndex());
     }
     d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
     d->m_deltaTick = 0;
@@ -328,7 +305,6 @@ void PianoRollGraphicsView::setViewportCenterAtKeyIndex(double keyIndex) {
     Q_D(PianoRollGraphicsView);
     auto keyIndexRange = topKeyIndex() - bottomKeyIndex();
     auto keyIndexStart = keyIndex + keyIndexRange / 2 + 0.5;
-    qDebug() << "keyIndexStart" << keyIndexStart;
     auto vBarValue = qRound(d->keyIndexToSceneY(keyIndexStart));
     // verticalScrollBar()->setValue(vBarValue);
     vBarAnimateTo(vBarValue);
@@ -380,7 +356,6 @@ void PianoRollGraphicsViewPrivate::onParamChanged(ParamBundle::ParamName name,
 
 void PianoRollGraphicsViewPrivate::onDeleteSelectedNotes() const {
     Q_Q(const PianoRollGraphicsView);
-    qDebug() << "PianoRollGraphicsView::onDeleteSelectedNotes";
     auto notes = q->selectedNotesId();
     clipController->onRemoveNotes(notes);
 }
@@ -411,7 +386,6 @@ CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
     menu->addSeparator();
 
     auto actionProperties = menu->addAction(tr("Properties..."));
-    // TODO: 移动到控制器？
     connect(actionProperties, &QAction::triggered, this,
             [=] { onOpenNotePropertyDialog(noteView->id()); });
     return menu;
@@ -499,18 +473,18 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QP
 void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(int tick, int keyIndex) {
     Q_Q(PianoRollGraphicsView);
     auto snappedTick = MathUtils::roundDown(tick, 1920 / appModel->quantize());
-    qDebug() << "Draw note at" << snappedTick;
+    Logger::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
     m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
     m_currentDrawingNote->setRStart(snappedTick - m_offset);
     m_currentDrawingNote->setLength(1920 / appModel->quantize());
     m_currentDrawingNote->setKeyIndex(keyIndex);
     q->scene()->addCommonItem(m_currentDrawingNote);
-    qDebug() << "fake note added to scene";
     m_mouseMoveBehavior = UpdateDrawingNote;
 }
 
-void PianoRollGraphicsViewPrivate::handleNoteDrew(int rStart, int length, int keyIndex) const {
-    qDebug() << "PianoRollGraphicsView::handleDrawNoteCompleted" << rStart << length << keyIndex;
+void PianoRollGraphicsViewPrivate::handleNoteDrawn(int rStart, int length, int keyIndex) const {
+    Logger::d(CLASS_NAME, QString("Note drawn rStart:%1 len:%2 key:%3")
+                              .arg(qStrNum(rStart), qStrNum(length), qStrNum(keyIndex)));
     auto note = new Note;
     note->setRStart(rStart);
     note->setLength(length);
@@ -524,22 +498,21 @@ void PianoRollGraphicsViewPrivate::handleNoteDrew(int rStart, int length, int ke
 
 void PianoRollGraphicsViewPrivate::handleNotesMoved(int deltaTick, int deltaKey) const {
     Q_Q(const PianoRollGraphicsView);
-    qDebug() << "PianoRollGraphicsView::handleMoveNotesCompleted"
-             << "deltaTick:" << deltaTick << "deltaKey:" << deltaKey;
+    Logger::d(CLASS_NAME, QString("Notes moved dt:%1 dk:%2 ").arg(deltaTick).arg(deltaKey));
     clipController->onMoveNotes(q->selectedNotesId(), deltaTick, deltaKey);
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteLeftResized(int noteId, int deltaTick) {
-    qDebug() << "PianoRollGraphicsView::handleResizeNoteLeftCompleted"
-             << "noteId:" << noteId << "deltaTick:" << deltaTick;
+    Logger::d(CLASS_NAME,
+              QString("Note left resized id:%1 dt:%2").arg(qStrNum(noteId), qStrNum(deltaTick)));
     QList<int> notes;
     notes.append(noteId);
     clipController->onResizeNotesLeft(notes, deltaTick);
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteRightResized(int noteId, int deltaTick) {
-    qDebug() << "PianoRollGraphicsView::handleResizeNoteRightCompleted"
-             << "noteId:" << noteId << "deltaTick:" << deltaTick;
+    Logger::d(CLASS_NAME,
+              QString("Note right resized id:%1 dt:%2").arg(qStrNum(noteId), qStrNum(deltaTick)));
     QList<int> notes;
     notes.append(noteId);
     clipController->onResizeNotesRight(notes, deltaTick);
@@ -568,8 +541,6 @@ void PianoRollGraphicsViewPrivate::updateOverlappedState() {
 }
 
 void PianoRollGraphicsViewPrivate::updateNoteTimeAndKey(Note *note) const {
-    // qDebug() << "PianoRollGraphicsView::updateNoteTimeAndKey" << note->id() << note->start()
-    // << note->length() << note->keyIndex();
     auto noteItem = m_noteLayer.findNoteById(note->id());
     noteItem->setRStart(note->rStart());
     noteItem->setLength(note->length());
@@ -577,8 +548,6 @@ void PianoRollGraphicsViewPrivate::updateNoteTimeAndKey(Note *note) const {
 }
 
 void PianoRollGraphicsViewPrivate::updateNoteWord(Note *note) const {
-    // qDebug() << "PianoRollGraphicsView::updateNoteWord" << note->id() << note->lyric()
-    // << note->pronunciation().original << note->pronunciation().edited;
     auto noteItem = m_noteLayer.findNoteById(note->id());
     noteItem->setLyric(note->lyric());
     auto original = note->pronunciation().original;
@@ -632,8 +601,6 @@ void PianoRollGraphicsViewPrivate::updateMoveDeltaKeyRange() {
     }
     m_moveMaxDeltaKey = 127 - highestKey;
     m_moveMinDeltaKey = -lowestKey;
-    qDebug() << "PianoRollGraphicsView::updateMoveDeltaKeyRange" << m_moveMaxDeltaKey
-             << m_moveMinDeltaKey;
 }
 
 void PianoRollGraphicsViewPrivate::resetMoveDeltaKeyRange() {
@@ -679,8 +646,6 @@ NoteView *PianoRollGraphicsViewPrivate::noteViewAt(const QPoint &pos) {
 
 void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
     m_canNotifySelectedNoteChanged = false;
-    // qDebug() << "PianoRollGraphicsView::insertNote" << note->id() << note->lyric()
-    // << note->pronunciation().original << note->pronunciation().edited;
     auto noteItem = new NoteView(note->id());
     noteItem->setRStart(note->rStart());
     noteItem->setLength(note->length());
@@ -722,7 +687,6 @@ void PianoRollGraphicsViewPrivate::handleNotePropertyChanged(Note::NotePropertyT
 void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
     Q_Q(PianoRollGraphicsView);
     m_offset = m_clip->start();
-    // qDebug() << "PianoRollGraphicsViewPrivate::onClipPropertyChanged()" << m_offset;
     q->setOffset(m_offset);
 
     for (auto note : m_notes) {
@@ -732,15 +696,16 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
 
 void PianoRollGraphicsViewPrivate::updatePitch(Param::ParamType paramType,
                                                const Param &param) const {
-    qDebug() << "PianoRollGraphicsView::updatePitch";
     QList<DrawCurve *> drawCurves;
     if (paramType == Param::Original) {
+        Logger::d(CLASS_NAME, "Update original pitch ");
         for (const auto curve : param.curves(Param::Original))
             if (curve->type() == Curve::Draw) {
                 MathUtils::binaryInsert(drawCurves, reinterpret_cast<DrawCurve *>(curve));
             }
         m_pitchEditor->loadOriginal(drawCurves);
     } else {
+        Logger::d(CLASS_NAME, "Update edited pitch ");
         for (const auto curve : param.curves(Param::Edited))
             if (curve->type() == Curve::Draw)
                 MathUtils::binaryInsert(drawCurves, reinterpret_cast<DrawCurve *>(curve));

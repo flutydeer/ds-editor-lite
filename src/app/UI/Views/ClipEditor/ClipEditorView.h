@@ -8,14 +8,10 @@
 #include "Interface/IClipEditorView.h"
 #include "UI/Views/Common/PanelView.h"
 
-
-class PianoKeyboardView;
+class PianoRollView;
 class ClipEditorToolBarView;
 class PhonemeView;
-class PianoRollGraphicsScene;
-class PianoRollGraphicsView;
 class Track;
-class TimelineView;
 class Curve;
 class Clip;
 class SingingClip;
@@ -40,10 +36,7 @@ private:
     void moveToNullClipState() const;
 
     ClipEditorToolBarView *m_toolbarView;
-    PianoRollGraphicsScene *m_pianoRollScene;
-    PianoRollGraphicsView *m_pianoRollView;
-    PianoKeyboardView *m_pianoKeyboardView;
-    TimelineView *m_timelineView;
+    PianoRollView *m_pianoRollView;
     PhonemeView *m_phonemeView;
 
     void reset();

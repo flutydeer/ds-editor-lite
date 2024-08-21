@@ -962,3 +962,7 @@ EditLabel#ClipNameEditLabel>QLabel:hover {
 EditLabel#ClipNameEditLabel>QLineEdit {
     border-radius: 4px;
 }
+
+PianoRollView > QLabel#lbNullClipTip {
+    color: #80FFFFFF;
+}

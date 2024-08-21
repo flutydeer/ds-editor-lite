@@ -4,7 +4,7 @@
 
 #include "PitchEditorView.h"
 
-#include "Global/ClipEditorGlobal.h"
+#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "Utils/MathUtils.h"
 
 PitchEditorView::PitchEditorView() {
