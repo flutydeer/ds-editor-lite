@@ -9,7 +9,6 @@
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel/AppModel.h"
-#include "PianoRoll/PianoKeyboardView.h"
 #include "PianoRoll/PianoRollGraphicsView.h"
 #include "PianoRoll/PianoRollView.h"
 #include "ToolBar/ClipEditorToolBarView.h"
@@ -44,7 +43,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
     auto phonemeLayout = new QHBoxLayout;
     phonemeLayout->setContentsMargins(0, 0, 0, 0);
     phonemeLayout->setSpacing(0);
-    phonemeLayout->addSpacing(m_pianoRollView->keyboardView()->width());
+    phonemeLayout->addSpacing(pianoKeyboardWidth);
     phonemeLayout->addWidget(m_phonemeView);
     phonemeLayout->addSpacing(AppGlobal::verticalScrollBarWidth);
 

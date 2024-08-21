@@ -5,13 +5,14 @@
 #include "PianoKeyboardView.h"
 
 #include "PianoPaintUtils.h"
+#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "Utils/Logger.h"
 
 #include <QElapsedTimer>
 #include <QPainter>
 
-PianoKeyboardView::PianoKeyboardView(QWidget *parent) {
-    setFixedWidth(56);
+PianoKeyboardView::PianoKeyboardView(QWidget *parent) : QWidget(parent) {
+    setFixedWidth(ClipEditorGlobal::pianoKeyboardWidth);
 }
 
 void PianoKeyboardView::setKeyRange(double top, double bottom) {

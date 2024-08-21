@@ -6,7 +6,6 @@
 #define CLIPEDITORTOOLBARVIEW_P_H
 
 #include "Global/AppGlobal.h"
-#include "Global/ClipEditorGlobal.h"
 
 #include <QObject>
 

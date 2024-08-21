@@ -5,7 +5,6 @@
 #include "NotePropertyDialog.h"
 
 #include "Global/AppGlobal.h"
-#include "Global/ClipEditorGlobal.h"
 #include "Model/AppModel/Note.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ComboBox.h"
@@ -13,7 +12,6 @@
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Utils/Linq.h"
 
-#include <QSpinBox>
 #include <QFormLayout>
 
 NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)

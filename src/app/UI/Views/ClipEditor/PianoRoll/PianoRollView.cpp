@@ -66,10 +66,6 @@ PianoRollGraphicsView *PianoRollView::graphicsView() const {
     return m_graphicsView;
 }
 
-PianoKeyboardView *PianoRollView::keyboardView() const {
-    return m_keyboardView;
-}
-
 void PianoRollView::setDataContext(SingingClip *clip) const {
     m_graphicsView->setDataContext(clip);
 

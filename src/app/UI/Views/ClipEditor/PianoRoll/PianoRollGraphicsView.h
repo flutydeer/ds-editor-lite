@@ -5,10 +5,10 @@
 #ifndef PIANOROLLGRAPHICSVIEW_H
 #define PIANOROLLGRAPHICSVIEW_H
 
-#include "Global/ClipEditorGlobal.h"
 #include "NoteLayer.h"
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Params.h"
+#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/GraphicsLayerManager.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 

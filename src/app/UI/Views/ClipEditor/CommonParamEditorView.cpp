@@ -4,7 +4,7 @@
 
 #include "CommonParamEditorView.h"
 
-#include "Global/ClipEditorGlobal.h"
+#include "ClipEditorGlobal.h"
 #include "Model/AppModel/Clip.h"
 #include "UI/Views/Common/CommonGraphicsScene.h"
 #include "Utils/Logger.h"

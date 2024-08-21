@@ -5,7 +5,7 @@
 #ifndef PIANOROLLVIEW_H
 #define PIANOROLLVIEW_H
 
-#include "Global/ClipEditorGlobal.h"
+#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include <QWidget>
 
@@ -22,7 +22,6 @@ class PianoRollView final : public QWidget {
 public:
     explicit PianoRollView(QWidget *parent = nullptr);
     [[nodiscard]] PianoRollGraphicsView *graphicsView() const;
-    [[nodiscard]] PianoKeyboardView *keyboardView() const;
     void setDataContext(SingingClip *clip) const;
 
 public slots:

@@ -5,7 +5,6 @@
 #ifndef PIANOROLLGRAPHICSVIEW_P_H
 #define PIANOROLLGRAPHICSVIEW_P_H
 
-#include "Global/ClipEditorGlobal.h"
 #include "NoteLayer.h"
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Params.h"
