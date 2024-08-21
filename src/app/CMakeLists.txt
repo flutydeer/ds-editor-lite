@@ -27,7 +27,7 @@ find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Core5Compat)
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
 find_package(language-manager CONFIG REQUIRED)
-find_package(Qastool CONFIG REQUIRED)
+find_package(QasTool CONFIG REQUIRED)
 find_package(opendspx CONFIG REQUIRED)
 find_package(lyric-tab CONFIG REQUIRED)
 
