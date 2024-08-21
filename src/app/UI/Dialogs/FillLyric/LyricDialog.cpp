@@ -17,7 +17,7 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     setModal(true);
     setMinimumSize(720, 450);
     setWindowTitle(tr("Fill Lyric"));
-    setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
+    setWindowFlags(windowFlags() | Qt::WindowMaximizeButtonHint);
 
     const auto size = QApplication::primaryScreen()->availableSize();
     resize(static_cast<int>(size.width() * 0.6), static_cast<int>(size.height() * 0.6));
