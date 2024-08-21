@@ -74,7 +74,7 @@ public:
                                 NoteView *noteItem);
     void PrepareForDrawingNote(int tick, int keyIndex);
 
-    void handleNoteDrew(int rStart, int length, int keyIndex) const;
+    void handleNoteDrawn(int rStart, int length, int keyIndex) const;
     void handleNotesMoved(int deltaTick, int deltaKey) const;
     static void handleNoteLeftResized(int noteId, int deltaTick);
     static void handleNoteRightResized(int noteId, int deltaTick);

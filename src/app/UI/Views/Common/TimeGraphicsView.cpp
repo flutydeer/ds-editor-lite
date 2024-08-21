@@ -116,7 +116,7 @@ void TimeGraphicsView::setViewportStartTick(double tick) {
 void TimeGraphicsView::setViewportCenterAtTick(double tick) {
     auto tickRange = endTick() - startTick();
     auto targetStart = tick - tickRange / 2;
-    qDebug() << "tickRange" << tickRange << "tick" << tick << "targetStart" << targetStart;
+    // qDebug() << "tickRange" << tickRange << "tick" << tick << "targetStart" << targetStart;
     setViewportStartTick(targetStart);
 }
 

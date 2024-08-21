@@ -5,6 +5,8 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
+#define qStrNum(num) QString::number(num)
+
 #include "Singleton.h"
 
 #include <QCoreApplication>

@@ -43,7 +43,6 @@ signals:
     void keyRangeChanged(double start, double end);
 
 public slots:
-    void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode);
     void onSceneSelectionChanged() const;
     void onPitchEditorEditCompleted(const QList<DrawCurve *> &curves);
 
@@ -52,7 +51,6 @@ private slots:
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
-    void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;

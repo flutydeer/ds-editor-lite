@@ -34,7 +34,6 @@ double AppModel::tempo() const {
 
 void AppModel::setTempo(double tempo) {
     Q_D(AppModel);
-    qDebug() << "AppModel::setTempo" << tempo;
     d->m_tempo = tempo;
     emit tempoChanged(d->m_tempo);
 }
@@ -101,7 +100,6 @@ void AppModel::setQuantize(int quantize) {
     Q_D(AppModel);
     d->m_quantize = quantize;
     emit quantizeChanged(quantize);
-    qDebug() << "AppModel quantizeChanged" << quantize;
 }
 
 void AppModel::newProject() {
