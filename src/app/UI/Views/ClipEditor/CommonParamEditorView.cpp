@@ -2,6 +2,8 @@
 // Created by fluty on 2024/1/25.
 //
 
+#define CLASS_NAME "CommonParamEditorView"
+
 #include "CommonParamEditorView.h"
 
 #include "ClipEditorGlobal.h"
@@ -44,13 +46,17 @@ void CommonParamEditorView::setFillCurve(bool on) {
 }
 
 double CommonParamEditorView::valueToSceneY(double value) const {
-    auto y = value * scene()->height();
-    return MathUtils::clip(y, 0, scene()->height());
+    auto y = (1 - value / 1000) * scene()->height();
+    auto clippedY = MathUtils::clip(y, 0, scene()->height());
+    // Logger::d(CLASS_NAME, QString("valueToSceneY value:%1 y:%2").arg(value).arg(clippedY));
+    return clippedY;
 }
 
 double CommonParamEditorView::sceneYToValue(double y) const {
-    auto value = y / scene()->height();
-    return MathUtils::clip(value, 0, 1);
+    auto value = (1 - y / scene()->height()) * 1000;
+    auto clippedValue = MathUtils::clip(value, 0, 1000);
+    // Logger::d(CLASS_NAME, QString("sceneYToValue y:%1 value:%2").arg(y).arg(clippedValue));
+    return clippedValue;
 }
 
 void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -305,7 +311,7 @@ void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve)
     auto sceneHeight = scene()->height();
     QLinearGradient gradient(0, 0, 0, visibleRect().height());
     gradient.setColorAt(0, QColor(155, 186, 255, 180));
-    gradient.setColorAt(1, QColor(155, 186, 255, 0));
+    gradient.setColorAt(1, QColor(155, 186, 255, 10));
 
     QPainterPath fillPath;
     int start = curve.start;

@@ -9,6 +9,7 @@
 
 #include <QWidget>
 
+class PhonemeView;
 class QLabel;
 class SingingClip;
 class PianoRollGraphicsScene;
@@ -32,6 +33,7 @@ private:
     PianoRollGraphicsView *m_graphicsView;
     PianoKeyboardView *m_keyboardView;
     TimelineView *m_timelineView;
+    PhonemeView *m_phonemeView;
     QLabel *m_lbTip;
 };
 

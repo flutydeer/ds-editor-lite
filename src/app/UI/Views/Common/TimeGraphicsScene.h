@@ -14,6 +14,8 @@ class TimeGraphicsScene : public CommonGraphicsScene {
     Q_OBJECT
 
 public:
+    explicit TimeGraphicsScene(QObject *parent = nullptr) : CommonGraphicsScene(parent){};
+
     void addTimeGrid(TimeGridGraphicsItem *item);
     void addTimeIndicator(TimeIndicatorGraphicsItem *item);
 };

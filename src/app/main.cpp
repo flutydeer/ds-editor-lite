@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     QApplication::setOrganizationName("OpenVPI");
     QApplication::setApplicationName("DS Editor Lite");
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
-    if (QSysInfo::productType() == "macos")
+    if (QSysInfo::productType() != "windows")
         QApplication::setStyle(QStyleFactory::create("windows"));
 
     // 设置日志等级和过滤器
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
 
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);
-    auto factor = (QSysInfo::productType() == "windows") ? 1.0 : 96.0 / 72;
+    auto factor = (QSysInfo::productType() == "macos") ? 96.0 / 72 : 1.0;
     f.setPointSizeF(10 * factor);
     QApplication::setFont(f);
 

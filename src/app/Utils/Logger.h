@@ -7,6 +7,14 @@
 
 #define qStrNum(num) QString::number(num)
 
+#define qStrRect(r)                                                                                \
+    QString("QRect (%1, %2) %3x%4")                                                                \
+        .arg(qStrNum(r.left()), qStrNum(r.top()), qStrNum(r.width()), qStrNum(r.height()))
+
+#define qStrRectF(r)                                                                               \
+    QString("QRectF (%1, %2) %3x%4")                                                               \
+        .arg(qStrNum(r.left()), qStrNum(r.top()), qStrNum(r.width()), qStrNum(r.height()))
+
 #include "Singleton.h"
 
 #include <QCoreApplication>

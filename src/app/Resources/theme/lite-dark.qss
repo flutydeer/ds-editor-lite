@@ -182,10 +182,13 @@ QComboBox::down-arrow {
     image: url(:svg/icons/chevron_down_16_filled_white.svg)
 }
 
+QScrollBar{
+    background-color: transparent;
+    border-style: none;
+}
+
 QScrollBar::vertical {
     width: 16px;
-    background-color: #05FFFFFF;
-    border-style: none;
 }
 
 QScrollBar::add-page:vertical,
@@ -216,8 +219,6 @@ QScrollBar::sub-line::vertical {
 
 QScrollBar::horizontal {
     height: 16px;
-    background-color: #05FFFFFF;
-    border-style: none;
 }
 
 QScrollBar::add-page:horizontal,
@@ -595,8 +596,7 @@ TimelineView {
 
 PhonemeView {
     background: rgb(28, 29, 30);
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
+    border-radius: 6px;
 }
 
 QWidget#tracksTimelineView {
@@ -965,4 +965,9 @@ EditLabel#ClipNameEditLabel>QLineEdit {
 
 PianoRollView > QLabel#lbNullClipTip {
     color: #80FFFFFF;
+}
+
+ParamEditorGraphicsView {
+    background: rgb(28, 29, 30);
+    border-radius: 6px;
 }

@@ -9,6 +9,7 @@
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel/AppModel.h"
+#include "ParamEditor/ParamEditorView.h"
 #include "PianoRoll/PianoRollGraphicsView.h"
 #include "PianoRoll/PianoRollView.h"
 #include "ToolBar/ClipEditorToolBarView.h"
@@ -16,6 +17,7 @@
 
 #include <QLabel>
 #include <QMouseEvent>
+#include <QSplitter>
 #include <QVBoxLayout>
 
 ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEditor, parent) {
@@ -29,28 +31,19 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
     connect(m_toolbarView, &ClipEditorToolBarView::editModeChanged, m_pianoRollView,
             &PianoRollView::onEditModeChanged);
 
-    m_phonemeView = new PhonemeView;
-    m_phonemeView->setTimeRange(m_pianoRollView->graphicsView()->startTick(), m_pianoRollView->graphicsView()->endTick());
-    m_phonemeView->setPixelsPerQuarterNote(pixelsPerQuarterNote);
-    m_phonemeView->setFixedHeight(40);
-    m_phonemeView->setVisible(false);
-    connect(m_pianoRollView->graphicsView(), &TimeGraphicsView::timeRangeChanged, m_phonemeView,
-            &PhonemeView::setTimeRange);
+    m_paramEditorView = new ParamEditorView;
 
     connect(appModel, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
     connect(appModel, &AppModel::activeClipChanged, this, &ClipEditorView::onSelectedClipChanged);
 
-    auto phonemeLayout = new QHBoxLayout;
-    phonemeLayout->setContentsMargins(0, 0, 0, 0);
-    phonemeLayout->setSpacing(0);
-    phonemeLayout->addSpacing(pianoKeyboardWidth);
-    phonemeLayout->addWidget(m_phonemeView);
-    phonemeLayout->addSpacing(AppGlobal::verticalScrollBarWidth);
+    m_splitter = new QSplitter(Qt::Vertical);
+    // m_splitter->setContentsMargins(0, 0, 0, 0);
+    m_splitter->addWidget(m_pianoRollView);
+    m_splitter->addWidget(m_paramEditorView);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_toolbarView);
-    mainLayout->addWidget(m_pianoRollView);
-    mainLayout->addLayout(phonemeLayout);
+    mainLayout->addWidget(m_splitter);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({1, 1, 1, 1});
     setLayout(mainLayout);
@@ -94,30 +87,27 @@ bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
 void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
     m_toolbarView->setVisible(true);
     // m_pianoRollView->setVisible(true);
-    m_phonemeView->setVisible(true);
+    m_splitter->setVisible(true);
 
     m_pianoRollView->setDataContext(clip);
     m_pianoRollView->onEditModeChanged(m_toolbarView->editMode());
-    m_phonemeView->setDataContext(clip);
 }
 
 void ClipEditorView::moveToAudioClipState(AudioClip *clip) const {
     Q_UNUSED(clip);
     m_toolbarView->setVisible(true);
     // m_pianoRollView->setVisible(false);
-    m_phonemeView->setVisible(false);
+    m_splitter->setVisible(false);
 
     m_pianoRollView->setDataContext(nullptr);
-    m_phonemeView->setDataContext(nullptr);
 }
 
 void ClipEditorView::moveToNullClipState() const {
     m_toolbarView->setVisible(false);
     // m_pianoRollView->setVisible(false);
-    m_phonemeView->setVisible(false);
+    m_splitter->setVisible(false);
 
     m_pianoRollView->setDataContext(nullptr);
-    m_phonemeView->setDataContext(nullptr);
 }
 
 void ClipEditorView::reset() {

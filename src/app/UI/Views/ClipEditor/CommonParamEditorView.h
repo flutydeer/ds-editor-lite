@@ -39,7 +39,7 @@ private:
     static void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve);
     void drawCurve(QPainter *painter, const DrawCurve &curve) const;
 
-    bool m_showDebugInfo = true;
+    bool m_showDebugInfo = false;
     bool m_fillCurve = true;
 
     enum EditType { DrawOnInterval, DrawOnCurve, Erase, None };

@@ -8,9 +8,11 @@
 #include "Interface/IClipEditorView.h"
 #include "UI/Views/Common/PanelView.h"
 
+
+class QSplitter;
+class ParamEditorView;
 class PianoRollView;
 class ClipEditorToolBarView;
-class PhonemeView;
 class Track;
 class Curve;
 class Clip;
@@ -37,7 +39,8 @@ private:
 
     ClipEditorToolBarView *m_toolbarView;
     PianoRollView *m_pianoRollView;
-    PhonemeView *m_phonemeView;
+    ParamEditorView *m_paramEditorView;
+    QSplitter *m_splitter;
 
     void reset();
     // void printParts();
