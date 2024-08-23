@@ -307,6 +307,10 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
             *result = historyManager->isOnSavePoint() ? TRUE : FALSE;
             close();
             return true;
+        } else if (msg->message == WM_SETTINGCHANGE) {
+            if (lstrcmpW(reinterpret_cast<LPCWSTR>(msg->lParam), L"ImmersiveColorSet") == 0) {
+                qDebug() << "WM_SETTINGCHANGE triggered: ImmersiveColorSet";
+            }
         }
     }
 #endif
