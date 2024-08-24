@@ -2,8 +2,8 @@
 // Created by fluty on 24-8-18.
 //
 
-#ifndef LOGGER_H
-#define LOGGER_H
+#ifndef LOG_H
+#define LOG_H
 
 #define qStrNum(num) QString::number(num)
 
@@ -20,7 +20,7 @@
 #include <QCoreApplication>
 #include <utility>
 
-class Logger : public Singleton<Logger> {
+class Log : public Singleton<Log> {
 public:
     enum LogLevel { Debug, Info, Warning, Error, Fatal }; // Green, Blue, Yellow, Red
 
@@ -45,7 +45,7 @@ public:
         const int consoleTagWidth = 24;
     };
 
-    Logger();
+    Log();
     static void handler(QtMsgType type, const QMessageLogContext &context, const QString &msg);
     static void logSystemInfo();
     static void setConsoleLogLevel(LogLevel level);
@@ -73,4 +73,4 @@ private:
 };
 
 
-#endif // LOGGER_H
+#endif // LOG_H

@@ -2,29 +2,29 @@
 // Created by fluty on 24-8-18.
 //
 
-#include "Logger.h"
+#include "Log.h"
 
 #include <QTextStream>
 #include <QDir>
 #include <qmessagebox.h>
 
-QString Logger::LogMessage::toPlainText() const {
+QString Log::LogMessage::toPlainText() const {
     return QString("%1 [%2] [%3] %4")
         .arg(time, padText(tag, consoleTagWidth), levelText(level), text);
 }
 
-QString Logger::LogMessage::toConsoleText() const {
+QString Log::LogMessage::toConsoleText() const {
     auto levelStr = colorTextHighlight(level, QString(" %1 ").arg(levelText(level)));
     auto textStr = colorText(level, text);
     return QString("%1 %2 %3 %4").arg(time, padText(tag, consoleTagWidth), levelStr, textStr);
 }
 
-QString Logger::LogMessage::levelText(LogLevel level) {
+QString Log::LogMessage::levelText(LogLevel level) {
     const QStringList levels{"D", "I", "W", "E", "F"};
     return levels[level];
 }
 
-QString Logger::LogMessage::padText(const QString &text, int spaces) {
+QString Log::LogMessage::padText(const QString &text, int spaces) {
     QString result;
     if (text.length() >= spaces)
         result = text.left(spaces);
@@ -38,7 +38,7 @@ QString Logger::LogMessage::padText(const QString &text, int spaces) {
     return result;
 }
 
-Logger::Logger() {
+Log::Log() {
     m_logFolder = QCoreApplication::applicationDirPath() + QDir::separator() + "log";
     m_logFileName = QDateTime::currentDateTime().toString("yyyy_MM_dd_hh_mm_ss") + ".log";
 
@@ -49,8 +49,9 @@ Logger::Logger() {
     }
 }
 
-void Logger::handler(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
-    if (msg.startsWith("QWindowsWindow::setGeometry: Unable to set geometry"))
+void Log::handler(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
+    if (msg.startsWith("QWindowsWindow::setGeometry: Unable to set geometry") ||
+        msg.startsWith("skipping QEventPoint(id=1 ts=0 pos=0,0"))
         return;
 
     LogMessage message;
@@ -76,7 +77,7 @@ void Logger::handler(QtMsgType type, const QMessageLogContext &context, const QS
     }
 }
 
-void Logger::logSystemInfo() {
+void Log::logSystemInfo() {
     const auto tag = QStringLiteral("Logger");
     i(tag, "-------- System Info Begin --------");
     i(tag, "Build CPU Architecture: " + QSysInfo::buildCpuArchitecture());
@@ -90,44 +91,44 @@ void Logger::logSystemInfo() {
     i(tag, "-------- System Info End --------");
 }
 
-void Logger::setConsoleLogLevel(LogLevel level) {
+void Log::setConsoleLogLevel(LogLevel level) {
     instance()->m_consoleLogLevel = level;
 }
 
-void Logger::setConsoleTagFilter(const QStringList &tags) {
+void Log::setConsoleTagFilter(const QStringList &tags) {
     instance()->m_tagFilter = tags;
 }
 
-void Logger::d(const QString &tag, const QString &msg) {
+void Log::d(const QString &tag, const QString &msg) {
     const LogMessage message(timeStr(), Debug, tag, msg);
     log(message);
 }
 
-void Logger::i(const QString &tag, const QString &msg) {
+void Log::i(const QString &tag, const QString &msg) {
     const LogMessage message(timeStr(), Info, tag, msg);
     log(message);
 }
 
-void Logger::w(const QString &tag, const QString &msg) {
+void Log::w(const QString &tag, const QString &msg) {
     const LogMessage message(timeStr(), Warning, tag, msg);
     log(message);
 }
 
-void Logger::e(const QString &tag, const QString &msg) {
+void Log::e(const QString &tag, const QString &msg) {
     const LogMessage message(timeStr(), Error, tag, msg);
     log(message);
 }
 
-void Logger::f(const QString &tag, const QString &msg) {
+void Log::f(const QString &tag, const QString &msg) {
     const LogMessage message(timeStr(), Fatal, tag, msg);
     log(message);
 }
 
-QString Logger::timeStr() {
+QString Log::timeStr() {
     return QDateTime::currentDateTime().toString("hh:mm:ss");
 }
 
-QString Logger::colorText(LogLevel level, const QString &text) {
+QString Log::colorText(LogLevel level, const QString &text) {
     if (level == Debug)
         return QString("\033[0m\033[32m%1\033[0m").arg(text);
     if (level == Info)
@@ -137,7 +138,7 @@ QString Logger::colorText(LogLevel level, const QString &text) {
     return QString("\033[0m\033[31m%1\033[0m").arg(text); // Error or Fatal
 }
 
-QString Logger::colorTextHighlight(LogLevel level, const QString &text) {
+QString Log::colorTextHighlight(LogLevel level, const QString &text) {
     if (level == Debug)
         return QString("\033[0m\033[42;30m%1\033[0m").arg(text);
     if (level == Info)
@@ -147,7 +148,7 @@ QString Logger::colorTextHighlight(LogLevel level, const QString &text) {
     return QString("\033[0m\033[41;30m%1\033[0m").arg(text); // Error or Fatal
 }
 
-void Logger::log(const LogMessage &message) {
+void Log::log(const LogMessage &message) {
     QTextStream consoleStream(stdout);
     consoleStream.setEncoding(QStringConverter::System);
 
@@ -165,7 +166,7 @@ void Logger::log(const LogMessage &message) {
     }
 }
 
-bool Logger::canLogToConsole(const LogMessage &message) {
+bool Log::canLogToConsole(const LogMessage &message) {
     if (instance()->m_consoleLogLevel > message.level)
         return false;
 

@@ -9,7 +9,7 @@
 #include "ClipEditorGlobal.h"
 #include "Model/AppModel/Clip.h"
 #include "UI/Views/Common/CommonGraphicsScene.h"
-#include "Utils/Logger.h"
+#include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
 #include <QElapsedTimer>
@@ -111,7 +111,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
         if (auto curve = curveAt(tick)) {
             m_editingCurve = curve;
             m_editType = DrawOnCurve;
-            Logger::d(className, QString("Edit exist curve: #") + QString::number(curve->id()));
+            Log::d(className, QString("Edit exist curve: #") + QString::number(curve->id()));
         } else {
             m_editingCurve = nullptr;
             m_editType = DrawOnInterval;
@@ -153,7 +153,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                 if (curve->start >= startTick &&
                     curve->endTick() <= endTick) { // 区间覆盖整条曲线，直接移除该曲线
                     m_drawCurvesEdited.removeOne(curve);
-                    Logger::d(className,
+                    Log::d(className,
                               QString("Erase: Remove curve #") + QString::number(curve->id()));
                 } else if (curve->start < startTick &&
                            curve->endTick() > endTick) { // 区间在曲线内，将曲线切成两段
@@ -178,7 +178,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             m_editingCurve->start = m_mouseDownPos.x();
             m_editingCurve->appendValue(m_mouseDownPos.y());
             MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
-            Logger::d(className,
+            Log::d(className,
                       QString("Create new curve: #") + QString::number(m_editingCurve->id()));
             m_newCurveCreated = true;
         }
@@ -205,7 +205,7 @@ void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
         m_editingCurve = nullptr;
         m_editType = None;
     } else {
-        Logger::d(className, "Edit completed");
+        Log::d(className, "Edit completed");
         emit editCompleted(editedCurves());
     }
 

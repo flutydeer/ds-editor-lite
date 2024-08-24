@@ -7,7 +7,7 @@
 #include "AppOptions.h"
 
 #include "Utils/JsonUtils.h"
-#include "Utils/Logger.h"
+#include "Utils/Log.h"
 
 #include <QStandardPaths>
 #include <QDir>
@@ -16,13 +16,13 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
     QDir configDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
     if (!configDir.exists()) {
         if (configDir.mkpath("."))
-            Logger::d(CLASS_NAME, "Successfully created config directory");
+            Log::d(CLASS_NAME, "Successfully created config directory");
         else
-            Logger::e(CLASS_NAME, "Failed to create config directory");
+            Log::e(CLASS_NAME, "Failed to create config directory");
     } else
-        Logger::d(CLASS_NAME, "Config directory already exists");
+        Log::d(CLASS_NAME, "Config directory already exists");
     m_configPath = configDir.absoluteFilePath(fileName);
-    Logger::i(CLASS_NAME, "Config path: " + m_configPath);
+    Log::i(CLASS_NAME, "Config path: " + m_configPath);
     QJsonObject obj;
     if (QFile::exists(m_configPath))
         if (JsonUtils::load(m_configPath, obj)) {

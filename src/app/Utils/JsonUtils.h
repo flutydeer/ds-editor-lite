@@ -5,7 +5,7 @@
 #ifndef JSONUTILS_H
 #define JSONUTILS_H
 
-#include "Logger.h"
+#include "Log.h"
 
 #include <QFile>
 #include <QJsonObject>
@@ -21,7 +21,7 @@ inline bool JsonUtils::load(const QString &filename, QJsonObject &jsonObj) {
     {
         QFile file(filename);
         if (!file.open(QIODevice::ReadOnly)) {
-            Logger::e("JsonUtils", "Failed to open file for reading: " + filename);
+            Log::e("JsonUtils", "Failed to open file for reading: " + filename);
             return false;
         }
 
@@ -30,7 +30,7 @@ inline bool JsonUtils::load(const QString &filename, QJsonObject &jsonObj) {
         QJsonParseError err;
         QJsonDocument json = QJsonDocument::fromJson(data, &err);
         if (err.error != QJsonParseError::NoError) {
-            Logger::e("JsonUtils", QString("Failed to parse json file: %1 error: %2")
+            Log::e("JsonUtils", QString("Failed to parse json file: %1 error: %2")
                                        .arg(filename, err.errorString()));
             return false;
         }
@@ -43,7 +43,7 @@ inline bool JsonUtils::load(const QString &filename, QJsonObject &jsonObj) {
 inline bool JsonUtils::save(const QString &filename, const QJsonObject &jsonObj) {
     QFile file(filename);
     if (!file.open(QIODevice::WriteOnly)) {
-        Logger::e("JsonUtils", "Failed to open file for writing: " + filename);
+        Log::e("JsonUtils", "Failed to open file for writing: " + filename);
         return false;
     }
 

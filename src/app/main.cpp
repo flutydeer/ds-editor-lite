@@ -12,7 +12,7 @@
 
 #include "UI/Window/MainWindow.h"
 #include "Modules/Audio/AudioSystem.h"
-#include "Utils/Logger.h"
+#include "Utils/Log.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/ThemeManager.h"
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     QElapsedTimer mstimer;
     mstimer.start();
     // output log to file
-    qInstallMessageHandler(Logger::handler);
+    qInstallMessageHandler(Log::handler);
     qputenv("QT_ASSUME_STDERR_HAS_CONSOLE", "1");
     qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
@@ -45,10 +45,10 @@ int main(int argc, char *argv[]) {
         QApplication::setStyle(QStyleFactory::create("windows"));
 
     // 设置日志等级和过滤器
-    Logger::setConsoleLogLevel(Logger::Debug);
+    Log::setConsoleLogLevel(Log::Debug);
     // Logger::setConsoleTagFilter({"PianoKeyboardView"});
 
-    Logger::logSystemInfo();
+    Log::logSystemInfo();
 
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);

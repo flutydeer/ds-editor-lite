@@ -6,7 +6,7 @@
 
 #include "PianoPaintUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "Utils/Logger.h"
+#include "Utils/Log.h"
 
 #include <QElapsedTimer>
 #include <QPainter>

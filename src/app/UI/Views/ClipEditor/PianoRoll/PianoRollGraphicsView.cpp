@@ -21,7 +21,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
 #include "PitchEditorView.h"
-#include "Utils/Logger.h"
+#include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
 #include <QMouseEvent>
@@ -473,7 +473,7 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QP
 void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(int tick, int keyIndex) {
     Q_Q(PianoRollGraphicsView);
     auto snappedTick = MathUtils::roundDown(tick, 1920 / appModel->quantize());
-    Logger::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
+    Log::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
     m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
     m_currentDrawingNote->setRStart(snappedTick - m_offset);
     m_currentDrawingNote->setLength(1920 / appModel->quantize());
@@ -483,7 +483,7 @@ void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(int tick, int keyIndex)
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteDrawn(int rStart, int length, int keyIndex) const {
-    Logger::d(CLASS_NAME, QString("Note drawn rStart:%1 len:%2 key:%3")
+    Log::d(CLASS_NAME, QString("Note drawn rStart:%1 len:%2 key:%3")
                               .arg(qStrNum(rStart), qStrNum(length), qStrNum(keyIndex)));
     auto note = new Note;
     note->setRStart(rStart);
@@ -498,12 +498,12 @@ void PianoRollGraphicsViewPrivate::handleNoteDrawn(int rStart, int length, int k
 
 void PianoRollGraphicsViewPrivate::handleNotesMoved(int deltaTick, int deltaKey) const {
     Q_Q(const PianoRollGraphicsView);
-    Logger::d(CLASS_NAME, QString("Notes moved dt:%1 dk:%2 ").arg(deltaTick).arg(deltaKey));
+    Log::d(CLASS_NAME, QString("Notes moved dt:%1 dk:%2 ").arg(deltaTick).arg(deltaKey));
     clipController->onMoveNotes(q->selectedNotesId(), deltaTick, deltaKey);
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteLeftResized(int noteId, int deltaTick) {
-    Logger::d(CLASS_NAME,
+    Log::d(CLASS_NAME,
               QString("Note left resized id:%1 dt:%2").arg(qStrNum(noteId), qStrNum(deltaTick)));
     QList<int> notes;
     notes.append(noteId);
@@ -511,7 +511,7 @@ void PianoRollGraphicsViewPrivate::handleNoteLeftResized(int noteId, int deltaTi
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteRightResized(int noteId, int deltaTick) {
-    Logger::d(CLASS_NAME,
+    Log::d(CLASS_NAME,
               QString("Note right resized id:%1 dt:%2").arg(qStrNum(noteId), qStrNum(deltaTick)));
     QList<int> notes;
     notes.append(noteId);
@@ -698,14 +698,14 @@ void PianoRollGraphicsViewPrivate::updatePitch(Param::ParamType paramType,
                                                const Param &param) const {
     QList<DrawCurve *> drawCurves;
     if (paramType == Param::Original) {
-        Logger::d(CLASS_NAME, "Update original pitch ");
+        Log::d(CLASS_NAME, "Update original pitch ");
         for (const auto curve : param.curves(Param::Original))
             if (curve->type() == Curve::Draw) {
                 MathUtils::binaryInsert(drawCurves, reinterpret_cast<DrawCurve *>(curve));
             }
         m_pitchEditor->loadOriginal(drawCurves);
     } else {
-        Logger::d(CLASS_NAME, "Update edited pitch ");
+        Log::d(CLASS_NAME, "Update edited pitch ");
         for (const auto curve : param.curves(Param::Edited))
             if (curve->type() == Curve::Draw)
                 MathUtils::binaryInsert(drawCurves, reinterpret_cast<DrawCurve *>(curve));

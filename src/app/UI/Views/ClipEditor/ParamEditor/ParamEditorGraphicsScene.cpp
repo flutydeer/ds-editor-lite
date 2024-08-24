@@ -7,7 +7,7 @@
 #include "ParamEditorGraphicsScene.h"
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "Utils/Logger.h"
+#include "Utils/Log.h"
 
 using namespace ClipEditorGlobal;
 
@@ -24,5 +24,5 @@ void ParamEditorGraphicsScene::updateSceneRect() {
     auto targetSceneWidth = sceneSize().width() * scaleX();
     auto targetRect = QRectF(0, 0, targetSceneWidth, m_viewSize.height());
     setSceneRect(targetRect);
-    Logger::d(CLASS_NAME, QString("Update scene rect: ") + qStrRectF(targetRect));
+    Log::d(CLASS_NAME, QString("Update scene rect: ") + qStrRectF(targetRect));
 }

@@ -44,6 +44,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         m_lbTitle = new QLabel;
         m_lbTitle->setMinimumWidth(8);
 
+        // TODO: 制作标题栏按钮图标
         auto fontFamily =
             QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
         auto font = QFont(fontFamily);
