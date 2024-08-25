@@ -15,6 +15,7 @@ ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setMinimumHeight(0);
 
     auto grid = new TimeGridGraphicsItem;
     grid->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);

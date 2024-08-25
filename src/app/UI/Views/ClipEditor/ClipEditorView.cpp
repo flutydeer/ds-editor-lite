@@ -40,6 +40,10 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
     // m_splitter->setContentsMargins(0, 0, 0, 0);
     m_splitter->addWidget(m_pianoRollView);
     m_splitter->addWidget(m_paramEditorView);
+    m_splitter->setCollapsible(0, false);
+    // 让参数面板在剪辑编辑器调整高度时尽量保持高度不变，优先调整钢琴卷帘区域的高度
+    m_splitter->setStretchFactor(0, 100);
+    m_splitter->setStretchFactor(1, 1);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_toolbarView);

@@ -16,11 +16,10 @@
 
 PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
+    setMinimumHeight(128);
 
     m_scene = new PianoRollGraphicsScene;
     m_graphicsView = new PianoRollGraphicsView(m_scene);
-    m_graphicsView->setSceneVisibility(false);
-    m_graphicsView->setDragMode(QGraphicsView::RubberBandDrag);
 
     m_timelineView = new TimelineView;
     m_timelineView->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());

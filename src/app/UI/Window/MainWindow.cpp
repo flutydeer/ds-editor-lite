@@ -94,6 +94,9 @@ MainWindow::MainWindow() {
     splitter->setOrientation(Qt::Vertical);
     splitter->addWidget(m_trackEditorView);
     splitter->addWidget(m_clipEditView);
+    // 让轨道编辑器高度较小，剪辑编辑器高度较大，且在纵向拉伸窗口时优先拉伸钢琴卷帘
+    splitter->setStretchFactor(0, 0);
+    splitter->setStretchFactor(1, 100);
     splitter->setContentsMargins(6, 0, 6, 0);
 
     ValidationController::instance();
@@ -107,13 +110,13 @@ MainWindow::MainWindow() {
     m_progressBar->setVisible(false);
 
     auto statusBar = new QStatusBar(this);
-    statusBar->addWidget(new QLabel("Scroll: Wheel/Shift + Wheel; Zoom: Ctrl + Wheel/Alt + Wheel; "
-                                    "Double click to create a singing clip"));
+    // statusBar->addWidget(new QLabel("Scroll: Wheel/Shift + Wheel; Zoom: Ctrl + Wheel/Alt + Wheel;
+    // "
+    //                                 "Double click to create a singing clip"));
     statusBar->addPermanentWidget(m_lbTaskTitle);
     statusBar->addPermanentWidget(m_progressBar);
     statusBar->setFixedHeight(28);
     statusBar->setSizeGripEnabled(false);
-    statusBar->setStyleSheet("QStatusBar::item { border: none } QLabel {color: #A0FFFFFF}");
     setStatusBar(statusBar);
 
     auto mainLayout = new QVBoxLayout;

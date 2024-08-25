@@ -34,9 +34,11 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     d->m_layerManager = new GraphicsLayerManager(scene);
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("PianoRollGraphicsView");
-
     setScaleXMax(5);
     setPixelsPerQuarterNote(pixelsPerQuarterNote);
+    setSceneVisibility(false);
+    setDragMode(RubberBandDrag);
+    setMinimumHeight(0);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
 
     d->m_currentDrawingNote = new NoteView(-1);

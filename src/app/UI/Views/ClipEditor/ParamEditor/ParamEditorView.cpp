@@ -23,4 +23,5 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     layout->setSpacing(0);
     layout->setContentsMargins(0, 0, 0, 6);
     setLayout(layout);
+    setMinimumHeight(128);
 }

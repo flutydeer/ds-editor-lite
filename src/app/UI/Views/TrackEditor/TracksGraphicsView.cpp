@@ -30,6 +30,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     setEnsureSceneFillView(false);
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     setDragMode(RubberBandDrag);
+    setMinimumHeight(0);
 
     m_actionNewSingingClip = new QAction(tr("New singing clip"), this);
     connect(m_actionNewSingingClip, &QAction::triggered, this,

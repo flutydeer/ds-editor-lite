@@ -182,7 +182,7 @@ QComboBox::down-arrow {
     image: url(:svg/icons/chevron_down_16_filled_white.svg)
 }
 
-QScrollBar{
+QScrollBar {
     background-color: transparent;
     border-style: none;
 }
@@ -191,12 +191,12 @@ QScrollBar::add-page,
 QScrollBar::sub-page {
     background: none;
 }
+
 QScrollBar::add-line,
 QScrollBar::sub-line {
     width: 0px;
     height: 0px;
     border: none;
-    visibility: collapse;
 }
 
 QScrollBar::vertical {
@@ -702,6 +702,14 @@ QStatusBar {
     background: transparent;
 }
 
+QStatusBar::item {
+    border: none
+}
+
+QStatusBar > QLabel {
+    color: #A0FFFFFF
+}
+
 TaskWindow {
     background-color: #202122;
 }
@@ -952,7 +960,7 @@ EditLabel#ClipNameEditLabel>QLineEdit {
     border-radius: 4px;
 }
 
-PianoRollView > QLabel#lbNullClipTip {
+PianoRollView>QLabel#lbNullClipTip {
     color: #80FFFFFF;
 }
 
