@@ -56,6 +56,7 @@ void Log::handler(QtMsgType type, const QMessageLogContext &context, const QStri
 
     LogMessage message;
     message.time = timeStr();
+    message.tag = QFileInfo(context.file).baseName();
     message.text = msg;
     // auto methodName = QString("[%1]").arg(prettyMethodName(context.function));
     if (type == QtDebugMsg) {
