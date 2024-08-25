@@ -258,11 +258,6 @@ QSplitter::handle:vertical {
     background-color: transparent;
 }
 
-QGraphicsView {
-    border: none;
-    background-color: #2A2B2C;
-}
-
 QListWidget {
     color: #F0F0F0;
     outline: 0px;
@@ -606,6 +601,7 @@ QWidget#tracksTimelineView {
 
 CommonGraphicsView {
     background: transparent;
+    border: none;
 }
 
 LyricWrapView {

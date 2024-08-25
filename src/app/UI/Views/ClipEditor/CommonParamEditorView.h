@@ -24,7 +24,7 @@ signals:
     void editCompleted(const QList<DrawCurve *> &curves);
 
 protected:
-    bool fillCurve() const;
+    [[nodiscard]] bool fillCurve() const;
     void setFillCurve(bool on);
     [[nodiscard]] virtual double valueToSceneY(double value) const;
     [[nodiscard]] virtual double sceneYToValue(double y) const;

@@ -28,6 +28,7 @@ void OverlayGraphicsItem::setBackgroundColor(QColor color) {
 
 void OverlayGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                 QWidget *widget) {
+    painter->setPen(Qt::NoPen);
     painter->setBrush(m_backgroundColor);
     painter->drawRect(boundingRect());
 }

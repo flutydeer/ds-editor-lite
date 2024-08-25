@@ -16,6 +16,7 @@ void PianoRollBackground::paint(QPainter *painter,
                                             QWidget *widget) {
     // Draw background
     auto backgroundColor = QColor(42, 43, 44);
+    painter->setPen(Qt::NoPen);
     painter->setBrush(backgroundColor);
     painter->drawRect(boundingRect());
 
