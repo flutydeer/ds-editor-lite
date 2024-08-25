@@ -187,13 +187,20 @@ QScrollBar{
     border-style: none;
 }
 
-QScrollBar::vertical {
-    width: 16px;
+QScrollBar::add-page,
+QScrollBar::sub-page {
+    background: none;
+}
+QScrollBar::add-line,
+QScrollBar::sub-line {
+    width: 0px;
+    height: 0px;
+    border: none;
+    visibility: collapse;
 }
 
-QScrollBar::add-page:vertical,
-QScrollBar::sub-page:vertical {
-    background: none;
+QScrollBar::vertical {
+    width: 16px;
 }
 
 QScrollBar::handle::vertical {
@@ -212,18 +219,9 @@ QScrollBar::handle::vertical:pressed {
     background: rgba(255, 255, 255, 0.15);
 }
 
-QScrollBar::add-line::vertical,
-QScrollBar::sub-line::vertical {
-    border: none;
-}
 
 QScrollBar::horizontal {
     height: 16px;
-}
-
-QScrollBar::add-page:horizontal,
-QScrollBar::sub-page:horizontal {
-    background: none;
 }
 
 QScrollBar::handle::horizontal {
@@ -240,11 +238,6 @@ QScrollBar::handle::horizontal::hover {
 
 QScrollBar::handle::horizontal:pressed {
     background: rgba(255, 255, 255, 0.15);
-}
-
-QScrollBar::add-line::horizontal,
-QScrollBar::sub-line::horizontal {
-    border: none;
 }
 
 QSplitter {
