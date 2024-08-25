@@ -11,6 +11,8 @@ class PianoKeyboardView : public QWidget {
     Q_OBJECT
 
 public:
+    enum KeyboardStyle { Uniform, Classic };
+
     explicit PianoKeyboardView(QWidget *parent = nullptr);
 
 public slots:
@@ -18,10 +20,17 @@ public slots:
 
 private:
     void paintEvent(QPaintEvent *) override;
-    [[nodiscard]] double keyToY(double key) const;
+    void drawUniformKeyboard(QPainter &painter);
+    void drawClassicKeyboard(QPainter &painter) const;
 
     double m_top = 0;
     double m_bottom = 127;
+    KeyboardStyle m_style = Classic;
+
+    const double penWidth = 1;
+    const QColor colorWhite = QColor(220, 220, 220);
+    const QColor colorBlack = QColor(62, 63, 68);
+    const QColor lineColor = QColor(160, 160, 160);
 };
 
 

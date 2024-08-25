@@ -11,9 +11,8 @@
 
 using namespace ClipEditorGlobal;
 
-void PianoRollBackground::paint(QPainter *painter,
-                                            const QStyleOptionGraphicsItem *option,
-                                            QWidget *widget) {
+void PianoRollBackground::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                                QWidget *widget) {
     // Draw background
     auto backgroundColor = QColor(42, 43, 44);
     painter->setPen(Qt::NoPen);
@@ -53,10 +52,12 @@ void PianoRollBackground::paint(QPainter *painter,
         // painter->setPen(pen);
         // painter->drawText(gridRect, PianoPaintUtils::noteName(i), QTextOption(Qt::AlignVCenter));
 
-        pen.setColor(lineColor);
-        painter->setPen(pen);
-        auto line = QLineF(0, y, visibleRect().width(), y);
-        painter->drawLine(line);
+        if ((i + 1) % 12 == 0) {
+            pen.setColor(lineColor);
+            painter->setPen(pen);
+            auto line = QLineF(0, y, visibleRect().width(), y);
+            painter->drawLine(line);
+        }
     }
 
     TimeGridGraphicsItem::paint(painter, option, widget);
