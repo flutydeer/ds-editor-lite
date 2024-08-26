@@ -1,3 +1,7 @@
+QWidget {
+    outline: none;
+}
+
 QPushButton {
     background: #10FFFFFF;
     border: none;
