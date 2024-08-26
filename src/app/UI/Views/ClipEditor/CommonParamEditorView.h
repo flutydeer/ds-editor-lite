@@ -64,7 +64,7 @@ private:
     DrawCurve *curveAt(double tick);
     QList<DrawCurve *> curvesIn(int startTick, int endTick);
 
-    const QString className = QString("CommonParamEditorView");
+    const int paddingTopBottom = 6;
 };
 
 #endif // PITCHEDITORGRAPHICSITEM_H

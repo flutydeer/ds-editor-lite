@@ -2,14 +2,11 @@
 // Created by fluty on 2024/1/25.
 //
 
-#define CLASS_NAME "CommonParamEditorView"
-
 #include "CommonParamEditorView.h"
 
 #include "ClipEditorGlobal.h"
 #include "Model/AppModel/Clip.h"
 #include "UI/Views/Common/CommonGraphicsScene.h"
-#include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
 #include <QElapsedTimer>
@@ -46,14 +43,20 @@ void CommonParamEditorView::setFillCurve(bool on) {
 }
 
 double CommonParamEditorView::valueToSceneY(double value) const {
-    auto y = (1 - value / 1000) * scene()->height();
-    auto clippedY = MathUtils::clip(y, 0, scene()->height());
+    auto yMin = paddingTopBottom;
+    auto yMax = scene()->height() - paddingTopBottom;
+    auto availableHeight = yMax - yMin;
+    auto y = (1 - value / 1000) * availableHeight + yMin;
+    auto clippedY = MathUtils::clip(y, yMin, yMax);
     // Logger::d(CLASS_NAME, QString("valueToSceneY value:%1 y:%2").arg(value).arg(clippedY));
     return clippedY;
 }
 
 double CommonParamEditorView::sceneYToValue(double y) const {
-    auto value = (1 - y / scene()->height()) * 1000;
+    auto yMin = paddingTopBottom;
+    auto yMax = scene()->height() - paddingTopBottom;
+    auto availableHeight = yMax - yMin;
+    auto value = (1 - (y - yMin) / availableHeight) * 1000;
     auto clippedValue = MathUtils::clip(value, 0, 1000);
     // Logger::d(CLASS_NAME, QString("sceneYToValue y:%1 value:%2").arg(y).arg(clippedValue));
     return clippedValue;
@@ -111,7 +114,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
         if (auto curve = curveAt(tick)) {
             m_editingCurve = curve;
             m_editType = DrawOnCurve;
-            Log::d(className, QString("Edit exist curve: #") + QString::number(curve->id()));
+            qDebug() << "Edit exist curve: #" << curve->id();
         } else {
             m_editingCurve = nullptr;
             m_editType = DrawOnInterval;
@@ -153,8 +156,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                 if (curve->start >= startTick &&
                     curve->endTick() <= endTick) { // 区间覆盖整条曲线，直接移除该曲线
                     m_drawCurvesEdited.removeOne(curve);
-                    Log::d(className,
-                              QString("Erase: Remove curve #") + QString::number(curve->id()));
+                    qDebug() << "Erase: Remove curve #" << curve->id();
                 } else if (curve->start < startTick &&
                            curve->endTick() > endTick) { // 区间在曲线内，将曲线切成两段
                     auto newCurve = new DrawCurve;
@@ -178,8 +180,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             m_editingCurve->start = m_mouseDownPos.x();
             m_editingCurve->appendValue(m_mouseDownPos.y());
             MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
-            Log::d(className,
-                      QString("Create new curve: #") + QString::number(m_editingCurve->id()));
+            qDebug() << "Create new curve: #" << m_editingCurve->id();
             m_newCurveCreated = true;
         }
 
@@ -205,7 +206,7 @@ void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
         m_editingCurve = nullptr;
         m_editType = None;
     } else {
-        Log::d(className, "Edit completed");
+        qDebug() << "Edit completed";
         emit editCompleted(editedCurves());
     }
 
