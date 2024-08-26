@@ -108,6 +108,10 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 
     auto scenePos = event->scenePos().toPoint();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
+    if (tick < 0) {
+        tick = 0;
+        qDebug() << "mousePressEvent: Negative tick, clipped to 0";
+    }
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
 
     if (event->button() == Qt::LeftButton) {
@@ -136,6 +140,10 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     m_mouseMoved = true;
     auto scenePos = event->scenePos();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
+    if (tick < 0) {
+        tick = 0;
+        qDebug() << "mouseMoveEvent: Negative tick, clipped to 0";
+    }
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
     auto curPos = QPoint(tick, value);
 
@@ -231,11 +239,13 @@ double CommonParamEditorView::endTick() const {
 }
 
 double CommonParamEditorView::sceneXToTick(double x) const {
-    return 480 * x / scaleX() / pixelsPerQuarterNote;
+    auto tick = 480 * x / scaleX() / pixelsPerQuarterNote;
+    return tick;
 }
 
 double CommonParamEditorView::tickToSceneX(double tick) const {
-    return tick * scaleX() * pixelsPerQuarterNote / 480;
+    auto x = tick * scaleX() * pixelsPerQuarterNote / 480;
+    return x;
 }
 
 double CommonParamEditorView::sceneXToItemX(double x) const {
