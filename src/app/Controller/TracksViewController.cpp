@@ -161,6 +161,10 @@ void TracksViewController::onRemoveClips(const QList<int> &clipsId) {
     QList<Clip *> clips;
     QList<Track *> tracks;
     for (const auto &id : clipsId) {
+        auto activeClipId = appModel->activeClipId();
+        if (id == activeClipId)
+            appModel->setActiveClip(-1);
+
         Track *track;
         auto clip = appModel->findClipById(id, track);
         clips.append(clip);

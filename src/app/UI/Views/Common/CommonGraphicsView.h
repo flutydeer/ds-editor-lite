@@ -5,6 +5,9 @@
 #ifndef COMMONGRAPHICSVIEW_H
 #define COMMONGRAPHICSVIEW_H
 
+#include "RubberBandGraphicsItem.h"
+
+
 #include <QGraphicsView>
 #include <QPropertyAnimation>
 #include <QTimer>
@@ -20,6 +23,8 @@ class CommonGraphicsView : public QGraphicsView, public IScalable, public IAnima
     Q_PROPERTY(double verticalScrollBarValue READ vBarValue WRITE setVBarValue)
 
 public:
+    enum class DragBehaviour { None, HandScroll, RectSelect };
+
     explicit CommonGraphicsView(QWidget *parent = nullptr);
     ~CommonGraphicsView() override = default;
 
@@ -36,6 +41,8 @@ public:
     void hBarVBarAnimateTo(int hValue, int vValue);
     [[nodiscard]] QRectF visibleRect() const;
     void setEnsureSceneFillView(bool on);
+    [[nodiscard]] DragBehaviour dragBehaviour() const;
+    void setDragBehaviour(DragBehaviour dragBehaviour);
 
 signals:
     void scaleChanged(double sx, double sy);
@@ -53,11 +60,14 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void afterSetScale() override;
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
     void afterSetTimeScale(double scale) override;
 
 private:
+    using QGraphicsView::setDragMode;
+
     bool isMouseEventFromWheel(QWheelEvent *event);
     void updateAnimationDuration();
 
@@ -68,11 +78,16 @@ private:
     double m_scaleYMin = 0.5;
     double m_scaleYMax = 8;
     bool m_ensureSceneFillView = true;
+    DragBehaviour m_dragBehaviour = DragBehaviour::None;
+    bool m_isDragging = false;
+    bool m_rubberBandAdded = false;
 
     QPropertyAnimation m_scaleXAnimation;
     QPropertyAnimation m_scaleYAnimation;
     QPropertyAnimation m_hBarAnimation;
     QPropertyAnimation m_vBarAnimation;
+
+    RubberBandGraphicsItem m_rubberBand;
 
     QTimer m_timer;
     bool m_touchPadLock = false;

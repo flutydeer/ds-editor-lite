@@ -123,6 +123,15 @@ void CommonGraphicsView::setEnsureSceneFillView(bool on) {
     m_ensureSceneFillView = on;
 }
 
+CommonGraphicsView::DragBehaviour CommonGraphicsView::dragBehaviour() const {
+    return m_dragBehaviour;
+}
+
+void CommonGraphicsView::setDragBehaviour(DragBehaviour dragBehaviour) {
+    m_dragBehaviour = dragBehaviour;
+    // TODO: 实现手型拖动视图
+}
+
 void CommonGraphicsView::notifyVisibleRectChanged() {
     emit visibleRectChanged(visibleRect());
 }
@@ -279,14 +288,38 @@ void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
 }
 
 void CommonGraphicsView::mousePressEvent(QMouseEvent *event) {
+    if (m_dragBehaviour == DragBehaviour::RectSelect && event->button() == Qt::LeftButton) {
+        if (scene()) {
+            m_isDragging = true;
+            m_rubberBand.mouseDown(mapToScene(event->pos()));
+            m_rubberBandAdded = false;
+        }
+    }
     QGraphicsView::mousePressEvent(event);
     event->ignore();
 }
 
 void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
-    // if (event->pos().x() > rect().width() * 0.8)
-    //     horizontalScrollBar()->triggerAction(QAbstractSlider::SliderSingleStepAdd);
+    if (m_isDragging) {
+        if (!m_rubberBandAdded) {
+            scene()->addItem(&m_rubberBand);
+            m_rubberBandAdded = true;
+        }
+        m_rubberBand.mouseMove(mapToScene(event->pos()));
+        QPainterPath path;
+        path.addRect(QRectF(m_rubberBand.pos(), m_rubberBand.boundingRect().size()));
+        scene()->setSelectionArea(path);
+    }
     QGraphicsView::mouseMoveEvent(event);
+}
+
+void CommonGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
+    if (m_isDragging) {
+        if (m_rubberBandAdded)
+            scene()->removeItem(&m_rubberBand);
+        m_isDragging = false;
+    }
+    QGraphicsView::mouseReleaseEvent(event);
 }
 
 bool CommonGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {

@@ -37,7 +37,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     setScaleXMax(5);
     setPixelsPerQuarterNote(pixelsPerQuarterNote);
     setSceneVisibility(false);
-    setDragMode(RubberBandDrag);
+    setDragBehaviour(DragBehaviour::RectSelect);
     setMinimumHeight(0);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
 
@@ -317,16 +317,16 @@ void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {
     d->m_editMode = mode;
     switch (d->m_editMode) {
         case Select:
-            setDragMode(RubberBandDrag);
+            setDragBehaviour(DragBehaviour::RectSelect);
             d->setPitchEditMode(false);
             break;
         case DrawNote:
-            setDragMode(NoDrag);
+            setDragBehaviour(DragBehaviour::None);
             d->setPitchEditMode(false);
             break;
         case DrawPitch:
         case EditPitchAnchor:
-            setDragMode(NoDrag);
+            setDragBehaviour(DragBehaviour::None);
             d->setPitchEditMode(true);
             break;
     }

@@ -592,6 +592,12 @@ QWidget#tracksTimelineView {
     border-top-right-radius: 6px;
 }
 
+QGraphicsView {
+    background: #202122;
+    border: 1px solid #505050;
+    border-radius: 6px;
+}
+
 CommonGraphicsView {
     background: transparent;
     border: none;
