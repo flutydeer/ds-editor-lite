@@ -22,6 +22,7 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     m_graphicsView = new PianoRollGraphicsView(m_scene);
 
     m_timelineView = new TimelineView;
+    m_timelineView->setObjectName("pianoRollTimelineView");
     m_timelineView->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
     m_timelineView->setPixelsPerQuarterNote(pixelsPerQuarterNote);
     m_timelineView->setFixedHeight(timelineViewHeight);
@@ -37,29 +38,35 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_phonemeView,
             &PhonemeView::setTimeRange);
 
-    auto phonemeViewLayout = new QHBoxLayout();
-    phonemeViewLayout->setSpacing(0);
-    phonemeViewLayout->setContentsMargins(0,0,0,0);
-    phonemeViewLayout->addWidget(m_phonemeView);
-    phonemeViewLayout->addSpacing(AppGlobal::verticalScrollBarWidth);
-
     m_lbTip = new QLabel(tr("Select a singing clip to edit"));
     m_lbTip->setObjectName("lbNullClipTip");
     m_lbTip->setAlignment(Qt::AlignCenter);
 
+    auto topLeftSpacing = new QWidget();
+    topLeftSpacing->setObjectName("pianoRollTopLeftSpacing");
+    topLeftSpacing->setMinimumWidth(0);
+    topLeftSpacing->setFixedHeight(timelineViewHeight);
+
+    auto bottomLeftSpacing = new QWidget();
+    bottomLeftSpacing->setObjectName("pianoRollBottomLeftSpacing");
+    bottomLeftSpacing->setMinimumWidth(0);
+    bottomLeftSpacing->setFixedHeight(m_phonemeView->height());
+
     auto pianoKeyboardLayout = new QVBoxLayout;
     pianoKeyboardLayout->setContentsMargins(0, 0, 0, 0);
     pianoKeyboardLayout->setSpacing(0);
-    pianoKeyboardLayout->addSpacing(timelineViewHeight);
+    // pianoKeyboardLayout->addSpacing(timelineViewHeight);
+    pianoKeyboardLayout->addWidget(topLeftSpacing);
     pianoKeyboardLayout->addWidget(m_keyboardView);
-    pianoKeyboardLayout->addSpacing(AppGlobal::horizontalScrollBarHeight + m_phonemeView->height());
+    // pianoKeyboardLayout->addSpacing(m_phonemeView->height());
+    pianoKeyboardLayout->addWidget(bottomLeftSpacing);
 
     auto rightLayout = new QVBoxLayout;
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(0);
     rightLayout->addWidget(m_timelineView);
     rightLayout->addWidget(m_graphicsView);
-    rightLayout->addLayout(phonemeViewLayout);
+    rightLayout->addWidget(m_phonemeView);
 
     auto layout = new QHBoxLayout;
     layout->setContentsMargins(0, 0, 0, 0);

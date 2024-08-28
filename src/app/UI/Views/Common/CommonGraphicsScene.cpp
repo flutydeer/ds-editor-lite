@@ -5,9 +5,17 @@
 #include "CommonGraphicsScene.h"
 
 #include "CommonGraphicsRectItem.h"
+#include "ScrollBarGraphicsItem.h"
 
 CommonGraphicsScene::CommonGraphicsScene(QObject *parent) : QGraphicsScene(parent) {
     setSceneRect(0, 0, m_sceneSize.width(), m_sceneSize.height());
+
+    auto hBar = new ScrollBarGraphicsItem;
+    hBar->setZValue(105);
+    addCommonItem(hBar);
+    auto vBar = new ScrollBarGraphicsItem(Qt::Vertical);
+    vBar->setZValue(105);
+    addCommonItem(vBar);
 }
 
 QSizeF CommonGraphicsScene::sceneSize() const {

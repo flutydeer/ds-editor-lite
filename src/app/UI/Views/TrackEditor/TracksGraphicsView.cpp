@@ -13,6 +13,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Views/Common/ScrollBarGraphicsItem.h"
 #include "Utils/MathUtils.h"
 
 #include <QFileDialog>
@@ -25,8 +26,8 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     setObjectName("TracksGraphicsView");
     setScaleYMin(0.575);
     // QScroller::grabGesture(m_graphicsView, QScroller::TouchGesture);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setEnsureSceneFillView(false);
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     setDragBehaviour(DragBehaviour::RectSelect);
@@ -104,6 +105,13 @@ void TracksGraphicsView::onDeleteTriggered() {
 }
 
 void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
+    // 在滚动条上按下时，交还给基类处理
+    if (dynamic_cast<ScrollBarGraphicsItem *>(itemAt(event->pos()))) {
+        CommonGraphicsView::mousePressEvent(event);
+        event->ignore();
+        return;
+    }
+
     if (auto item = itemAt(event->pos())) {
         if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
             qDebug() << "TracksGraphicsView::mousePressEvent mouse down on clip";

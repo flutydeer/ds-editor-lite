@@ -8,9 +8,6 @@
 #include <QColor>
 
 namespace AppGlobal {
-    const int horizontalScrollBarHeight = 16;
-    const int verticalScrollBarWidth = 16;
-
     const QColor overlappedViewBorder = QColor(255, 80, 80);
     const int resizeTolarance = 8;
 

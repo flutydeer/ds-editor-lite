@@ -21,6 +21,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
 #include "PitchEditorView.h"
+#include "UI/Views/Common/ScrollBarGraphicsItem.h"
 #include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
@@ -39,6 +40,8 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     setSceneVisibility(false);
     setDragBehaviour(DragBehaviour::RectSelect);
     setMinimumHeight(0);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
 
     d->m_currentDrawingNote = new NoteView(-1);
@@ -117,6 +120,13 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 
 void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
+    // 在滚动条上按下时，交还给基类处理
+    if (dynamic_cast<ScrollBarGraphicsItem *>(itemAt(event->pos()))) {
+        CommonGraphicsView::mousePressEvent(event);
+        event->ignore();
+        return;
+    }
+
     d->m_selecting = true;
     if (event->button() != Qt::LeftButton &&
         (d->m_editMode == Select || d->m_editMode == DrawNote)) {
@@ -263,6 +273,11 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     d->m_selecting = false;
 
     TimeGraphicsView::mouseReleaseEvent(event);
+}
+
+void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
+    // 禁用双击事件，防止在滚动条上双击时触发取消选中音符
+    // TimeGraphicsView::mouseDoubleClickEvent(event);
 }
 
 void PianoRollGraphicsView::reset() {

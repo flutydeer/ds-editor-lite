@@ -4,6 +4,9 @@
 
 #include "CommonGraphicsView.h"
 
+#include "ScrollBarGraphicsItem.h"
+#include "Utils/MathUtils.h"
+
 #include <QScrollBar>
 #include <QWheelEvent>
 
@@ -288,9 +291,26 @@ void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
 }
 
 void CommonGraphicsView::mousePressEvent(QMouseEvent *event) {
+    if (scene()) {
+        if (auto scrollBar =
+                dynamic_cast<ScrollBarGraphicsItem *>(itemAt(event->position().toPoint()))) {
+            auto oriStr = scrollBar->orientation() == Qt::Horizontal ? "horizontal" : "vertical";
+            qDebug() << "mouse down on" << oriStr << "scrollbar";
+            m_isDraggingScrollBar = true;
+            m_draggingScrollbarType = scrollBar->orientation();
+            m_mouseDownPos = event->position().toPoint();
+            auto bar = scrollBar->orientation() == Qt::Horizontal ? horizontalScrollBar()
+                                                                  : verticalScrollBar();
+            m_mouseDownBarValue = bar->value();
+            m_mouseDownBarMax = bar->maximum();
+            event->ignore();
+            return;
+        }
+    }
+
     if (m_dragBehaviour == DragBehaviour::RectSelect && event->button() == Qt::LeftButton) {
         if (scene()) {
-            m_isDragging = true;
+            m_isDraggingContent = true;
             m_rubberBand.mouseDown(mapToScene(event->pos()));
             m_rubberBandAdded = false;
         }
@@ -300,7 +320,38 @@ void CommonGraphicsView::mousePressEvent(QMouseEvent *event) {
 }
 
 void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
-    if (m_isDragging) {
+    if (m_isDraggingScrollBar) {
+        // TODO: 修复滑块在移动时逐渐偏离光标的问题
+        if (m_draggingScrollbarType == Qt::Horizontal) {
+            auto x = event->pos().x();
+            // qDebug() << "mouse move H" << x;
+            auto step = horizontalScrollBar()->pageStep();
+            auto clippedX = MathUtils::clip(x, rect().left(),
+                                            rect().right() - 14); // TODO: 处理滚动条宽度
+            auto x0 = m_mouseDownPos.x();
+            auto dx = clippedX - x0;
+            auto max = m_mouseDownBarMax;
+            auto ratio = 1.0 * dx / ((1 - 1.0 * step / max) * (rect().width() - 14));
+            auto value = m_mouseDownBarValue + ratio * (m_mouseDownBarMax + step); // bug
+            horizontalScrollBar()->setValue(qRound(value));
+            qDebug() << "Move horizontal bar: " << horizontalScrollBar()->value();
+        } else {
+            auto y = event->pos().y();
+            auto step = rect().height();
+            auto clippedY = MathUtils::clip(y, rect().top(),
+                                            rect().bottom() - 14);
+            auto y0 = m_mouseDownPos.y();
+            auto dy = clippedY - y0;
+            auto max = m_mouseDownBarMax;
+            auto ratio = 1.0 * dy / ((1 - 1.0 * step / max) * (rect().height() - 14));
+            auto value = m_mouseDownBarValue + ratio * (m_mouseDownBarMax + step);
+            verticalScrollBar()->setValue(qRound(value));
+            qDebug() << "Move vertical bar: " << verticalScrollBar()->value();
+        }
+        QGraphicsView::mouseMoveEvent(event);
+        return;
+    }
+    if (m_isDraggingContent) {
         if (!m_rubberBandAdded) {
             scene()->addItem(&m_rubberBand);
             m_rubberBandAdded = true;
@@ -314,10 +365,11 @@ void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void CommonGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
-    if (m_isDragging) {
+    m_isDraggingScrollBar = false;
+    if (m_isDraggingContent) {
         if (m_rubberBandAdded)
             scene()->removeItem(&m_rubberBand);
-        m_isDragging = false;
+        m_isDraggingContent = false;
     }
     QGraphicsView::mouseReleaseEvent(event);
 }
@@ -348,7 +400,7 @@ bool CommonGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
 }
 
 void CommonGraphicsView::updateAnimationDuration() {
-    const int animationDurationBase = 150;
+    const int animationDurationBase = 250;
     auto duration = animationLevel() == AnimationGlobal::Full
                         ? getScaledAnimationTime(animationDurationBase)
                         : 0;

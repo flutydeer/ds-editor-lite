@@ -141,8 +141,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     // painter.setBrush(Qt::NoBrush);
 
     // Draw graduates
-    drawTimeline(&painter, m_startTick, m_endTick,
-                 rect().width() - AppGlobal::verticalScrollBarWidth);
+    drawTimeline(&painter, m_startTick, m_endTick, rect().width());
 
     auto drawSolidRect = [&](double startTick, double endTick, const QColor &color) {
         auto start = tickToX(startTick);
@@ -395,8 +394,7 @@ double PhonemeView::tickToX(double tick) {
 }
 
 double PhonemeView::xToTick(double x) {
-    auto tick = 1.0 * x / rect().width() * (m_endTick - m_startTick) +
-                m_startTick;
+    auto tick = 1.0 * x / rect().width() * (m_endTick - m_startTick) + m_startTick;
     if (tick < 0)
         tick = 0;
     return tick;

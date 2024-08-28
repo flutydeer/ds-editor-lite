@@ -6,7 +6,6 @@
 
 #include "ParamEditorGraphicsScene.h"
 #include "ParamEditorGraphicsView.h"
-#include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include <QVBoxLayout>
@@ -19,8 +18,6 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     auto layout = new QHBoxLayout;
     layout->addSpacing(ClipEditorGlobal::pianoKeyboardWidth);
     layout->addWidget(m_graphicsView);
-    layout->addSpacing(AppGlobal::verticalScrollBarWidth);
-    layout->setSpacing(0);
     layout->setContentsMargins(0, 0, 0, 6);
     setLayout(layout);
     setMinimumHeight(128);

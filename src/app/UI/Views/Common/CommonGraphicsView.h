@@ -79,8 +79,14 @@ private:
     double m_scaleYMax = 8;
     bool m_ensureSceneFillView = true;
     DragBehaviour m_dragBehaviour = DragBehaviour::None;
-    bool m_isDragging = false;
+    bool m_isDraggingContent = false;
     bool m_rubberBandAdded = false;
+
+    bool m_isDraggingScrollBar = false;
+    Qt::Orientation m_draggingScrollbarType = Qt::Horizontal;
+    QPoint m_mouseDownPos;
+    int m_mouseDownBarValue = 0;
+    int m_mouseDownBarMax = 0;
 
     QPropertyAnimation m_scaleXAnimation;
     QPropertyAnimation m_scaleYAnimation;

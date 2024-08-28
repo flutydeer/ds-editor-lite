@@ -588,11 +588,14 @@ TimelineView {
 
 PhonemeView {
     background: rgb(28, 29, 30);
-    border-radius: 6px;
+    border-bottom-right-radius: 6px;
 }
 
-QWidget#tracksTimelineView {
-    background: rgb(28, 29, 30);
+TimelineView#tracksTimelineView {
+    border-top-right-radius: 6px;
+}
+
+TimelineView#pianoRollTimelineView {
     border-top-right-radius: 6px;
 }
 
@@ -716,7 +719,7 @@ QStatusBar::item {
     border: none
 }
 
-QStatusBar > QLabel {
+QStatusBar>QLabel {
     color: #A0FFFFFF
 }
 
@@ -725,7 +728,7 @@ TaskWindow {
 }
 
 PanelView {
-    background: #2A2B2C;
+    background: #09FFFFFF;
     border: 1px solid rgb(20, 20, 20);
     border-radius: 6px;
 }
@@ -977,4 +980,23 @@ PianoRollView>QLabel#lbNullClipTip {
 ParamEditorGraphicsView {
     background: rgb(28, 29, 30);
     border-radius: 6px;
+}
+
+PianoRollView {
+    /* background: #1C1D1E; */
+    border-radius: 6px;
+}
+
+QWidget#pianoRollTopLeftSpacing {
+    background: #1C1D1E;
+    border-top-left-radius: 6px;
+}
+
+QWidget#pianoRollBottomLeftSpacing {
+    background: #1C1D1E;
+    border-bottom-left-radius: 6px;
+}
+
+PianoKeyboardView {
+    border-bottom-left-radius: 6px;
 }

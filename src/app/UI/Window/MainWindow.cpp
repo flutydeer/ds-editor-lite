@@ -130,7 +130,7 @@ MainWindow::MainWindow() {
     mainWidget->setLayout(mainLayout);
 
     this->setCentralWidget(mainWidget);
-    this->resize(1280, 720);
+    this->resize(1366, 768);
 
     WindowFrameUtils::applyFrameEffects(this);
 }

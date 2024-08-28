@@ -19,7 +19,7 @@ public slots:
     void setKeyRange(double top, double bottom);
 
 private:
-    void paintEvent(QPaintEvent *) override;
+    void paintEvent(QPaintEvent *event) override;
     void drawUniformKeyboard(QPainter &painter);
     void drawClassicKeyboard(QPainter &painter) const;
 

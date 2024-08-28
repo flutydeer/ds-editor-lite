@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
     auto taskWindow = new TaskWindow;
     taskWindow->move(availableRect.width() - taskWindow->width() - 8,
                      availableRect.height() - taskWindow->height() - 8);
-    taskWindow->show();
+    // taskWindow->show();
 
     auto args = QApplication::arguments();
     if (args.count() > 1) {

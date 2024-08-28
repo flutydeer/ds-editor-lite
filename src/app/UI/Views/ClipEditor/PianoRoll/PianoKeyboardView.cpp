@@ -21,7 +21,7 @@ void PianoKeyboardView::setKeyRange(double top, double bottom) {
     update();
 }
 
-void PianoKeyboardView::paintEvent(QPaintEvent *paint_event) {
+void PianoKeyboardView::paintEvent(QPaintEvent *event) {
     QElapsedTimer mstimer;
     mstimer.start();
     QPainter painter(this);
