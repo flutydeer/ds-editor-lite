@@ -20,9 +20,9 @@ public:
     explicit ScrollBarGraphicsItem(Qt::Orientation orientation);
     [[nodiscard]] Qt::Orientation orientation() const;
     void setOrientation(Qt::Orientation orientation);
+    void updateRectAndPos() override;
 
 protected:
-    void updateRectAndPos() override;
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
     void afterSetTimeScale(double scale) override;
 
@@ -47,7 +47,7 @@ private:
     const int handleAlphaHover = 64;
     const int handleAlphaPressed = 80;
     const int handleAlphaNormal = 40;
-    QVariantAnimation m_statusAnimation;// Normal, Hover, Pressed
+    QVariantAnimation m_statusAnimation; // Normal, Hover, Pressed
     bool m_mouseHoverOnHandle = false;
 
     double m_minimum = 0;

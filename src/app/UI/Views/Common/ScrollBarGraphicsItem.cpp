@@ -62,11 +62,15 @@ void ScrollBarGraphicsItem::setHandleHoverAnimationValue(const QVariant &value) 
 
 void ScrollBarGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                   QWidget *widget) {
+    // if (m_pageStep >= (m_maximum - m_minimum))
+    //     return;
+
     painter->setRenderHint(QPainter::Antialiasing);
     // TODO: fix status animation
     auto aniRatio = (m_statusAnimationValue - 127) / (255.0 - 127);
     int alpha = handleAlphaNormal + qRound(aniRatio * (handleAlphaHover - handleAlphaNormal));
     const auto backgroundColor = QColor(255, 255, 255, alpha);
+    // const auto backgroundColor = QColor(32 + alpha, 32 + alpha, 32 + alpha);
     const auto radiusBase = 2;
     auto padding = 5 - aniRatio * 3;
 

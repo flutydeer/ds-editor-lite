@@ -86,7 +86,7 @@ private:
 
     bool m_isDraggingScrollBar = false;
     Qt::Orientation m_draggingScrollbarType = Qt::Horizontal;
-    QPoint m_mouseDownPos;
+    QPointF m_mouseDownPos;
     int m_mouseDownBarValue = 0;
     int m_mouseDownBarMax = 0;
 

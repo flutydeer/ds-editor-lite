@@ -5,10 +5,10 @@
 #ifndef COMMONGRAPHICSSCENE_H
 #define COMMONGRAPHICSSCENE_H
 
-#include <QGraphicsScene>
-
+#include "ScrollBarGraphicsItem.h"
 #include "UI/Utils/IScalableItem.h"
 
+#include <QGraphicsScene>
 
 class CommonGraphicsLayer;
 class IScalableItem;
@@ -33,6 +33,8 @@ private:
     using QGraphicsScene::removeItem;
     QSizeF m_sceneSize = QSizeF(1920, 1080);
     QList<IScalableItem *> m_items;
+    ScrollBarGraphicsItem m_hBar = ScrollBarGraphicsItem();
+    ScrollBarGraphicsItem m_vBar = ScrollBarGraphicsItem(Qt::Vertical);
 };
 
 #endif // COMMONGRAPHICSSCENE_H

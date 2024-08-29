@@ -331,31 +331,31 @@ void CommonGraphicsView::mousePressEvent(QMouseEvent *event) {
 
 void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     if (m_isDraggingScrollBar) {
-        // TODO: 修复滑块在移动时逐渐偏离光标的问题
+        int barWidth = 14;
+        auto value0 = m_mouseDownBarValue;
+        auto max = m_mouseDownBarMax;
+        auto ratio = 1.0 * value0 / max;
         if (m_draggingScrollbarType == Qt::Horizontal) {
-            auto x = event->pos().x();
-            // qDebug() << "mouse move H" << x;
             auto step = horizontalScrollBar()->pageStep();
-            auto clippedX = MathUtils::clip(x, rect().left(),
-                                            rect().right() - 14); // TODO: 处理滚动条宽度
+            auto x = event->position().x();
             auto x0 = m_mouseDownPos.x();
-            auto dx = clippedX - x0;
-            auto max = m_mouseDownBarMax;
-            auto ratio = 1.0 * dx / ((1 - 1.0 * step / max) * (rect().width() - 14));
-            auto value = m_mouseDownBarValue + ratio * (m_mouseDownBarMax + step); // bug
+            auto dx = x - x0;
+            auto handleStep = 1.0 * step / (max + step) * (rect().width() - barWidth);
+            auto scrollingLength = rect().width() - handleStep - barWidth;
+            auto handleStart = ratio * scrollingLength;
+            auto value = (handleStart + dx) / scrollingLength * max;
             horizontalScrollBar()->setValue(qRound(value));
-            qDebug() << "Move horizontal bar: " << horizontalScrollBar()->value();
+            // qDebug() << "Move horizontal bar: " << horizontalScrollBar()->value();
         } else {
-            auto y = event->pos().y();
-            auto step = rect().height();
-            auto clippedY = MathUtils::clip(y, rect().top(), rect().bottom() - 14);
+            auto step = verticalScrollBar()->pageStep();
+            auto y = event->position().y();
             auto y0 = m_mouseDownPos.y();
-            auto dy = clippedY - y0;
-            auto max = m_mouseDownBarMax;
-            auto ratio = 1.0 * dy / ((1 - 1.0 * step / max) * (rect().height() - 14));
-            auto value = m_mouseDownBarValue + ratio * (m_mouseDownBarMax + step);
+            auto dy = y - y0;
+            auto handleStep = 1.0 * step / (max + step) * (rect().height() - barWidth);
+            auto scrollingLength = rect().height() - handleStep - barWidth;
+            auto handleStart = ratio * scrollingLength;
+            auto value = (handleStart + dy) / scrollingLength * max;
             verticalScrollBar()->setValue(qRound(value));
-            qDebug() << "Move vertical bar: " << verticalScrollBar()->value();
         }
         QGraphicsView::mouseMoveEvent(event);
         return;
