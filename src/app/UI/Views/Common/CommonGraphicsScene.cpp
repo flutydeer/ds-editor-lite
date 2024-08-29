@@ -20,11 +20,11 @@ CommonGraphicsScene::CommonGraphicsScene(QObject *parent) : QGraphicsScene(paren
     });
 }
 
-QSizeF CommonGraphicsScene::sceneSize() const {
+QSizeF CommonGraphicsScene::sceneBaseSize() const {
     return m_sceneSize;
 }
 
-void CommonGraphicsScene::setSceneSize(const QSizeF &size) {
+void CommonGraphicsScene::setSceneBaseSize(const QSizeF &size) {
     m_sceneSize = size;
     updateSceneRect();
 }

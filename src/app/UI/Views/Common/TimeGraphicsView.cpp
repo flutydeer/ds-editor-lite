@@ -35,6 +35,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, QWidget *parent)
     m_scene->addTimeIndicator(m_sceneLastPlayPosIndicator);
 
     setScene(m_scene);
+    setEnsureSceneFillViewX(true);
 
     connect(this, &CommonGraphicsView::scaleChanged, this,
             [=] { emit timeRangeChanged(startTick(), endTick()); });

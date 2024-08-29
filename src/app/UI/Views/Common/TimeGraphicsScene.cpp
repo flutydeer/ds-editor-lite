@@ -15,3 +15,11 @@ void TimeGraphicsScene::addTimeIndicator(TimeIndicatorGraphicsItem *item) {
     item->setZValue(100);
     addCommonItem(item);
 }
+
+void TimeGraphicsScene::setSceneLength(int tick) {
+    setSceneBaseSize(QSizeF(tick * m_pixelsPerQuarterNote / 480.0, sceneBaseSize().height()));
+}
+
+void TimeGraphicsScene::setPixelsPerQuarterNote(int px) {
+    m_pixelsPerQuarterNote = px;
+}

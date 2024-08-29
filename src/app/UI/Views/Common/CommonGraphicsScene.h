@@ -18,8 +18,8 @@ class CommonGraphicsScene : public QGraphicsScene, public IScalableItem {
 public:
     explicit CommonGraphicsScene(QObject *parent = nullptr);
     ~CommonGraphicsScene() override = default;
-    [[nodiscard]] QSizeF sceneSize() const;
-    void setSceneSize(const QSizeF &size);
+    [[nodiscard]] QSizeF sceneBaseSize() const;
+    void setSceneBaseSize(const QSizeF &size);
     void addCommonItem(IScalableItem *item);
     void removeCommonItem(IScalableItem *item);
 

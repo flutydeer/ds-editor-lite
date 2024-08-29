@@ -40,7 +40,8 @@ public:
     void vBarAnimateTo(int value);
     void hBarVBarAnimateTo(int hValue, int vValue);
     [[nodiscard]] QRectF visibleRect() const;
-    void setEnsureSceneFillView(bool on);
+    void setEnsureSceneFillViewX(bool on);
+    void setEnsureSceneFillViewY(bool on);
     [[nodiscard]] DragBehaviour dragBehaviour() const;
     void setDragBehaviour(DragBehaviour dragBehaviour);
 
@@ -79,7 +80,8 @@ private:
     double m_scaleXMax = 3; // 3x
     double m_scaleYMin = 0.5;
     double m_scaleYMax = 8;
-    bool m_ensureSceneFillView = true;
+    bool m_ensureSceneFillViewX = true;
+    bool m_ensureSceneFillViewY = true;
     DragBehaviour m_dragBehaviour = DragBehaviour::None;
     bool m_isDraggingContent = false;
     bool m_rubberBandAdded = false;

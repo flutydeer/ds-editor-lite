@@ -18,6 +18,11 @@ public:
 
     void addTimeGrid(TimeGridGraphicsItem *item);
     void addTimeIndicator(TimeIndicatorGraphicsItem *item);
+    void setSceneLength(int tick);
+    void setPixelsPerQuarterNote(int px);
+
+private:
+    int m_pixelsPerQuarterNote = 32;
 };
 
 #endif // TIMEGRAPHICSSCENE_H

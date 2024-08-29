@@ -3,17 +3,13 @@
 //
 
 #include "PianoRollGraphicsScene.h"
-
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
-#include <QGraphicsSceneMouseEvent>
-
-using namespace ClipEditorGlobal;
-
 PianoRollGraphicsScene::PianoRollGraphicsScene() {
-    auto w = 1920 / 480 * pixelsPerQuarterNote * 100;
-    auto h = 128 * noteHeight;
-    setSceneSize(QSizeF(w, h));
+    setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
+    auto w = 1920.0 / 480 * ClipEditorGlobal::pixelsPerQuarterNote * 80;// TODO: Use project length
+    auto h = 128 * ClipEditorGlobal::noteHeight;
+    setSceneBaseSize(QSizeF(w, h));
 }
 
 void PianoRollGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {

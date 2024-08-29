@@ -6,22 +6,21 @@
 
 #include "Global/TracksEditorGlobal.h"
 
-using namespace TracksEditorGlobal;
-
 TracksGraphicsScene::TracksGraphicsScene() {
-    setSceneSize(QSizeF(1920.0 / 480 * pixelsPerQuarterNote * 100, 2000));
+    setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
+    setSceneLength(1920.0 * 80);//TODO: replace with project length
 }
 
-int TracksGraphicsScene::trackIndexAt(double sceneY) {
-    auto yToTrackIndex = [&](double y) { return static_cast<int>(y / (trackHeight * scaleY())); };
+int TracksGraphicsScene::trackIndexAt(double sceneY) const {
+    auto yToTrackIndex = [&](double y) { return static_cast<int>(y / (TracksEditorGlobal::trackHeight * scaleY())); };
     auto index = yToTrackIndex(sceneY);
     if (index >= m_trackCount)
         index = -1;
     return index;
 }
 
-int TracksGraphicsScene::tickAt(double sceneX) {
-    return static_cast<int>(480 * sceneX / scaleX() / pixelsPerQuarterNote);
+int TracksGraphicsScene::tickAt(double sceneX) const {
+    return static_cast<int>(480 * sceneX / scaleX() / TracksEditorGlobal::pixelsPerQuarterNote);
 }
 
 void TracksGraphicsScene::onViewResized(QSize size) {
@@ -36,9 +35,9 @@ void TracksGraphicsScene::onTrackCountChanged(int count) {
 
 void TracksGraphicsScene::updateSceneRect() {
     // CommonGraphicsScene::updateSceneRect();
-    auto targetSceneWidth = sceneSize().width() * scaleX();
+    auto targetSceneWidth = sceneBaseSize().width() * scaleX();
     // auto targetSceneHeight = sceneSize().height() * scaleY();
-    auto totalTrackHeight = m_trackCount * trackHeight * scaleY();
+    auto totalTrackHeight = m_trackCount * TracksEditorGlobal::trackHeight * scaleY();
     auto viewHeight = m_graphicsViewSize.height();
 
     auto targetSceneHeight = totalTrackHeight;

@@ -28,7 +28,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     // QScroller::grabGesture(m_graphicsView, QScroller::TouchGesture);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setEnsureSceneFillView(false);
+    setEnsureSceneFillViewY(false);
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     setDragBehaviour(DragBehaviour::RectSelect);
     setMinimumHeight(0);

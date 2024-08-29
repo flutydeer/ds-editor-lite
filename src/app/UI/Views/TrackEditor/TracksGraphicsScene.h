@@ -10,8 +10,8 @@
 class TracksGraphicsScene final : public TimeGraphicsScene {
 public:
     explicit TracksGraphicsScene();
-    int trackIndexAt(double sceneY);
-    int tickAt(double sceneX);
+    int trackIndexAt(double sceneY) const;
+    int tickAt(double sceneX) const;
 
 public slots:
     // void onProjectLengthChanged(int length); // tick

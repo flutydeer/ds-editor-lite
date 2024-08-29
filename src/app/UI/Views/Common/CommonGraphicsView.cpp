@@ -122,8 +122,14 @@ QRectF CommonGraphicsView::visibleRect() const {
     return rect;
 }
 
-void CommonGraphicsView::setEnsureSceneFillView(bool on) {
-    m_ensureSceneFillView = on;
+
+
+void CommonGraphicsView::setEnsureSceneFillViewX(bool on) {
+    m_ensureSceneFillViewX = on;
+}
+
+void CommonGraphicsView::setEnsureSceneFillViewY(bool on) {
+    m_ensureSceneFillViewY = on;
 }
 
 CommonGraphicsView::DragBehaviour CommonGraphicsView::dragBehaviour() const {
@@ -194,7 +200,7 @@ void CommonGraphicsView::onWheelVerScale(QWheelEvent *event) {
         targetScaleY = m_scaleYMax;
 
     auto scaledSceneHeight = sceneRect().height() * (targetScaleY / scaleY());
-    if (m_ensureSceneFillView && scaledSceneHeight < viewport()->height()) {
+    if (m_ensureSceneFillViewY && scaledSceneHeight < viewport()->height()) {
         auto targetSceneHeight = viewport()->height();
         targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
     }
@@ -295,6 +301,17 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
 }
 
 void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
+    if (m_ensureSceneFillViewX && sceneRect().width() < viewport()->width()) {
+        auto targetSceneWidth = viewport()->width();
+        auto targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
+        setScaleX(targetScaleX);
+        qDebug() << "Scene width < viewport width, adjust scaleX to" << targetScaleX;
+    } else if (m_ensureSceneFillViewY && sceneRect().height() < viewport()->height()) {
+        auto targetSceneHeight = viewport()->height();
+        auto targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
+        setScaleY(targetScaleY);
+        qDebug() << "Scene height < viewport height, adjust scaleY to" << targetScaleY;
+    }
     QGraphicsView::resizeEvent(event);
     emit sizeChanged(viewport()->size());
     notifyVisibleRectChanged();
@@ -304,8 +321,8 @@ void CommonGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (scene()) {
         if (auto scrollBar =
                 dynamic_cast<ScrollBarGraphicsItem *>(itemAt(event->position().toPoint()))) {
-            auto oriStr = scrollBar->orientation() == Qt::Horizontal ? "horizontal" : "vertical";
-            qDebug() << "mouse down on" << oriStr << "scrollbar";
+            // auto oriStr = scrollBar->orientation() == Qt::Horizontal ? "horizontal" : "vertical";
+            // qDebug() << "mouse down on" << oriStr << "scrollbar";
             m_isDraggingScrollBar = true;
             m_draggingScrollbarType = scrollBar->orientation();
             m_mouseDownPos = event->position().toPoint();
