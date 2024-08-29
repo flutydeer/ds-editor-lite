@@ -10,7 +10,7 @@
 #include "Model/AppModel/Clip.h"
 #include "UI/Views/Common/PanelView.h"
 
-class TrackListWidget;
+class TrackListView;
 class TracksGraphicsView;
 class TracksGraphicsScene;
 class TimelineView;
@@ -41,13 +41,13 @@ signals:
 
 private slots:
     // void onSceneSelectionChanged() const;
-    void onViewScaleChanged(qreal sx, qreal sy);
+    void onViewScaleChanged(qreal sx, qreal sy) const;
     void onRemoveTrackTriggered(int id);
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
-    TrackListWidget *m_trackListWidget;
+    TrackListView *m_trackListView;
     TracksGraphicsView *m_graphicsView;
     TracksGraphicsScene *m_tracksScene;
     TimelineView *m_timeline;
@@ -61,8 +61,6 @@ private:
     };
 
     TrackListViewModel m_trackListViewModel;
-    double m_tempo = 120;
-    int m_samplerate = 48000;
 
     void insertTrackToView(Track *dsTrack, int trackIndex);
     void insertClipToTrack(Clip *clip, TrackViewModel *track, int trackIndex);

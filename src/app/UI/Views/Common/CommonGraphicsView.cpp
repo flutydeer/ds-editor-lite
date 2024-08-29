@@ -177,6 +177,68 @@ void CommonGraphicsView::onWheelHorScale(QWheelEvent *event) {
     }
 }
 
+void CommonGraphicsView::onWheelVerScale(QWheelEvent *event) {
+    auto cursorPos = event->position().toPoint();
+    auto scenePos = mapToScene(cursorPos);
+
+    auto deltaX = event->angleDelta().x();
+    auto targetScaleY = scaleY();
+    if (deltaX > 0)
+        targetScaleY = scaleY() * (1 + m_vZoomingStep * deltaX / 120);
+    else if (deltaX < 0)
+        targetScaleY = scaleY() / (1 + m_vZoomingStep * -deltaX / 120);
+
+    if (targetScaleY < m_scaleYMin)
+        targetScaleY = m_scaleYMin;
+    else if (targetScaleY > m_scaleYMax)
+        targetScaleY = m_scaleYMax;
+
+    auto scaledSceneHeight = sceneRect().height() * (targetScaleY / scaleY());
+    if (m_ensureSceneFillView && scaledSceneHeight < viewport()->height()) {
+        auto targetSceneHeight = viewport()->height();
+        targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
+    }
+
+    auto ratio = targetScaleY / scaleY();
+    auto targetSceneY = scenePos.y() * ratio;
+    auto targetValue = qRound(targetSceneY - cursorPos.y());
+    if (!isMouseEventFromWheel(event)) {
+        setScaleY(targetScaleY);
+        setVBarValue(targetValue);
+    } else {
+        m_scaleYAnimation.stop();
+        m_scaleYAnimation.setStartValue(scaleY());
+        m_scaleYAnimation.setEndValue(targetScaleY);
+        m_scaleYAnimation.start();
+
+        vBarAnimateTo(targetValue);
+    }
+}
+
+void CommonGraphicsView::onWheelHorScroll(QWheelEvent *event) {
+    auto deltaY = event->angleDelta().y();
+    auto scrollLength = -1 * viewport()->width() * 0.2 * deltaY / 120;
+    auto startValue = hBarValue();
+    auto endValue = static_cast<int>(startValue + scrollLength);
+    if (!isMouseEventFromWheel(event))
+        setHBarValue(endValue);
+    else {
+        hBarAnimateTo(endValue);
+    }
+}
+
+void CommonGraphicsView::onWheelVerScroll(QWheelEvent *event) {
+    auto deltaY = event->angleDelta().y();
+    if (!isMouseEventFromWheel(event)) {
+        QGraphicsView::wheelEvent(event);
+    } else {
+        auto scrollLength = -1 * viewport()->height() * 0.15 * deltaY / 120;
+        auto startValue = vBarValue();
+        auto endValue = static_cast<int>(startValue + scrollLength);
+        vBarAnimateTo(endValue);
+    }
+}
+
 bool CommonGraphicsView::event(QEvent *event) {
 #ifdef Q_OS_MAC
     // Mac Trackpad smooth zooming
@@ -220,67 +282,15 @@ bool CommonGraphicsView::event(QEvent *event) {
 }
 
 void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
-    auto cursorPos = event->position().toPoint();
-    auto scenePos = mapToScene(cursorPos);
-
-    auto deltaX = event->angleDelta().x();
-    auto deltaY = event->angleDelta().y();
-
     if (event->modifiers() == Qt::ControlModifier) {
         onWheelHorScale(event);
     } else if (event->modifiers() == Qt::AltModifier) {
-        auto targetScaleY = scaleY();
-        if (deltaX > 0)
-            targetScaleY = scaleY() * (1 + m_vZoomingStep * deltaX / 120);
-        else if (deltaX < 0)
-            targetScaleY = scaleY() / (1 + m_vZoomingStep * -deltaX / 120);
-
-        if (targetScaleY < m_scaleYMin)
-            targetScaleY = m_scaleYMin;
-        else if (targetScaleY > m_scaleYMax)
-            targetScaleY = m_scaleYMax;
-
-        auto scaledSceneHeight = sceneRect().height() * (targetScaleY / scaleY());
-        if (m_ensureSceneFillView && scaledSceneHeight < viewport()->height()) {
-            auto targetSceneHeight = viewport()->height();
-            targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
-        }
-
-        auto ratio = targetScaleY / scaleY();
-        auto targetSceneY = scenePos.y() * ratio;
-        auto targetValue = qRound(targetSceneY - cursorPos.y());
-        if (!isMouseEventFromWheel(event)) {
-            setScaleY(targetScaleY);
-            setVBarValue(targetValue);
-        } else {
-            m_scaleYAnimation.stop();
-            m_scaleYAnimation.setStartValue(scaleY());
-            m_scaleYAnimation.setEndValue(targetScaleY);
-            m_scaleYAnimation.start();
-
-            vBarAnimateTo(targetValue);
-        }
-
+        onWheelVerScale(event);
     } else if (event->modifiers() == Qt::ShiftModifier) {
-        auto scrollLength = -1 * viewport()->width() * 0.2 * deltaY / 120;
-        auto startValue = hBarValue();
-        auto endValue = static_cast<int>(startValue + scrollLength);
-        if (!isMouseEventFromWheel(event))
-            setHBarValue(endValue);
-        else {
-            hBarAnimateTo(endValue);
-        }
-    } else { // No modifier
-        if (!isMouseEventFromWheel(event)) {
-            QGraphicsView::wheelEvent(event);
-        } else {
-            auto scrollLength = -1 * viewport()->height() * 0.15 * deltaY / 120;
-            auto startValue = vBarValue();
-            auto endValue = static_cast<int>(startValue + scrollLength);
-            vBarAnimateTo(endValue);
-        }
+        onWheelHorScroll(event);
+    } else if (event->modifiers() == Qt::NoModifier) {
+        onWheelVerScroll(event);
     }
-
     notifyVisibleRectChanged();
 }
 
@@ -338,8 +348,7 @@ void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         } else {
             auto y = event->pos().y();
             auto step = rect().height();
-            auto clippedY = MathUtils::clip(y, rect().top(),
-                                            rect().bottom() - 14);
+            auto clippedY = MathUtils::clip(y, rect().top(), rect().bottom() - 14);
             auto y0 = m_mouseDownPos.y();
             auto dy = clippedY - y0;
             auto max = m_mouseDownBarMax;

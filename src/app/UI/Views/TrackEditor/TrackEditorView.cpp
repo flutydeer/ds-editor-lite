@@ -6,7 +6,7 @@
 
 #include "TrackControlView.h"
 #include "TrackListHeaderView.h"
-#include "TrackListWidget.h"
+#include "TrackListView.h"
 #include "TrackViewModel.h"
 #include "TracksGraphicsScene.h"
 #include "TracksGraphicsView.h"
@@ -23,7 +23,6 @@
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Views/Common/TimelineView.h"
-#include "Utils/MathUtils.h"
 
 #include <QFileDialog>
 #include <QMouseEvent>
@@ -35,52 +34,24 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TracksView");
 
-    m_trackListWidget = new TrackListWidget;
-    connect(m_trackListWidget, &QListWidget::currentRowChanged, appController,
-            &AppController::selectTrack);
+    m_trackListView = new TrackListView;
 
     m_tracksScene = new TracksGraphicsScene;
     m_graphicsView = new TracksGraphicsView(m_tracksScene);
-    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
-            &TrackEditorView::onViewScaleChanged);
     m_graphicsView->centerOn(0, 0);
-
-    connect(m_graphicsView, &TracksGraphicsView::sizeChanged, m_tracksScene,
-            &TracksGraphicsScene::onViewResized);
-    connect(this, &TrackEditorView::trackCountChanged, m_tracksScene,
-            &TracksGraphicsScene::onTrackCountChanged);
-    // connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
-    //         &TrackEditorView::onSceneSelectionChanged);
-
     m_gridItem = new TracksBackgroundGraphicsItem;
     m_gridItem->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
-    connect(this, &TrackEditorView::trackCountChanged, m_gridItem,
-            &TracksBackgroundGraphicsItem::onTrackCountChanged);
-    connect(appModel, &AppModel::selectedTrackChanged, m_gridItem,
-            &TracksBackgroundGraphicsItem::onTrackSelectionChanged);
     m_tracksScene->addTimeGrid(m_gridItem);
+    m_trackListView->setGraphicsView(m_graphicsView);
 
     m_timeline = new TimelineView;
     m_timeline->setObjectName("tracksTimelineView");
     m_timeline->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
     m_timeline->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     m_timeline->setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
-    connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
-            &TracksGraphicsView::onWheelHorScale);
-    connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeline,
-            &TimelineView::setTimeRange);
 
     auto gBar = m_graphicsView->verticalScrollBar();
-    auto lBar = m_trackListWidget->verticalScrollBar();
-    connect(gBar, &QScrollBar::valueChanged, lBar, &QScrollBar::setValue);
-    connect(lBar, &QScrollBar::valueChanged, gBar, &QScrollBar::setValue);
-
-    connect(playbackController, &PlaybackController::positionChanged, this,
-            &TrackEditorView::onPositionChanged);
-    connect(playbackController, &PlaybackController::lastPositionChanged, this,
-            &TrackEditorView::onLastPositionChanged);
-    connect(AudioContext::instance(), &AudioContext::levelMeterUpdated, this,
-            &TrackEditorView::onLevelMetersUpdated);
+    auto lBar = m_trackListView->verticalScrollBar();
 
     // auto splitter = new QSplitter;
     // splitter->setOrientation(Qt::Horizontal);
@@ -89,7 +60,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
     auto trackListPanelLayout = new QVBoxLayout;
     trackListPanelLayout->addWidget(new TrackListHeaderView);
-    trackListPanelLayout->addWidget(m_trackListWidget);
+    trackListPanelLayout->addWidget(m_trackListView);
 
     auto trackTimelineAndViewLayout = new QVBoxLayout;
     trackTimelineAndViewLayout->addWidget(m_timeline);
@@ -107,6 +78,31 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     appController->registerPanel(this);
     installEventFilter(this);
 
+    connect(m_trackListView, &QListWidget::currentRowChanged, appController,
+            &AppController::selectTrack);
+    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
+            &TrackEditorView::onViewScaleChanged);
+    connect(m_graphicsView, &TracksGraphicsView::sizeChanged, m_tracksScene,
+            &TracksGraphicsScene::onViewResized);
+    connect(this, &TrackEditorView::trackCountChanged, m_tracksScene,
+            &TracksGraphicsScene::onTrackCountChanged);
+    connect(this, &TrackEditorView::trackCountChanged, m_gridItem,
+            &TracksBackgroundGraphicsItem::onTrackCountChanged);
+    connect(appModel, &AppModel::selectedTrackChanged, m_gridItem,
+            &TracksBackgroundGraphicsItem::onTrackSelectionChanged);
+    connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
+            &TracksGraphicsView::onWheelHorScale);
+    connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeline,
+            &TimelineView::setTimeRange);
+    connect(gBar, &QScrollBar::valueChanged, lBar, &QScrollBar::setValue);
+    // connect(lBar, &QScrollBar::valueChanged, gBar, &QScrollBar::setValue);
+
+    connect(playbackController, &PlaybackController::positionChanged, this,
+            &TrackEditorView::onPositionChanged);
+    connect(playbackController, &PlaybackController::lastPositionChanged, this,
+            &TrackEditorView::onLastPositionChanged);
+    connect(AudioContext::instance(), &AudioContext::levelMeterUpdated, this,
+            &TrackEditorView::onLevelMetersUpdated);
     connect(appModel, &AppModel::modelChanged, this, &TrackEditorView::onModelChanged);
     connect(appModel, &AppModel::trackChanged, this, &TrackEditorView::onTrackChanged);
 }
@@ -116,7 +112,6 @@ void TrackEditorView::onModelChanged() {
         return;
 
     reset();
-    m_tempo = appModel->tempo();
     int index = 0;
     for (const auto track : appModel->tracks()) {
         insertTrackToView(track, index);
@@ -187,11 +182,11 @@ void TrackEditorView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArg
 //     if (!foundSelectedClip)
 //         trackController->selectClip(-1);
 // }
-void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) {
+void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) const {
     int previousHeightSum = 0;
-    for (int i = 0; i < m_trackListWidget->count(); i++) {
+    for (int i = 0; i < m_trackListView->count(); i++) {
         // adjust track item height
-        auto item = m_trackListWidget->item(i);
+        auto item = m_trackListView->item(i);
         int height = qRound((i + 1) * TracksEditorGlobal::trackHeight * sy - previousHeightSum);
         item->setSizeHint(QSize(TracksEditorGlobal::trackListWidth, height));
 
@@ -255,12 +250,12 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
               static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
     controlView->setTrackIndex(trackIndex + 1);
     controlView->setNarrowMode(m_graphicsView->scaleY() < TracksEditorGlobal::narrowModeScaleY);
-    m_trackListWidget->insertItem(trackIndex, newTrackItem);
-    m_trackListWidget->setItemWidget(newTrackItem, controlView);
+    m_trackListView->insertItem(trackIndex, newTrackItem);
+    m_trackListView->setItemWidget(newTrackItem, controlView);
     track->controlView = controlView;
 
     connect(controlView, &TrackControlView::insertNewTrackTriggered, this, [=] {
-        auto i = m_trackListWidget->row(newTrackItem);
+        auto i = m_trackListView->row(newTrackItem);
         trackController->onInsertNewTrack(i + 1); // insert after current track
     });
     connect(controlView, &TrackControlView::removeTrackTriggered, this,
@@ -269,8 +264,8 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
     if (trackIndex < m_trackListViewModel.tracks.count()) // needs to update existed tracks' index
         for (int i = trackIndex + 1; i < m_trackListViewModel.tracks.count(); i++) {
             // Update track list items' index
-            auto item = m_trackListWidget->item(i);
-            auto widget = m_trackListWidget->itemWidget(item);
+            auto item = m_trackListView->item(i);
+            auto widget = m_trackListView->itemWidget(item);
             auto trackWidget = dynamic_cast<TrackControlView *>(widget);
             trackWidget->setTrackIndex(i + 1);
             // Update clips' index
@@ -386,16 +381,16 @@ void TrackEditorView::removeTrackFromView(int index) {
         m_tracksScene->removeCommonItem(clip);
         delete clip;
     }
-    auto item = m_trackListWidget->takeItem(index);
-    m_trackListWidget->removeItemWidget(item);
+    auto item = m_trackListView->takeItem(index);
+    m_trackListView->removeItemWidget(item);
     // remove from viewmodel
     m_trackListViewModel.tracks.removeAt(index);
     // update index
     if (index < m_trackListViewModel.tracks.count()) // needs to update existed tracks' index
         for (int i = index; i < m_trackListViewModel.tracks.count(); i++) {
             // Update track list items' index
-            auto item = m_trackListWidget->item(i);
-            auto widget = m_trackListWidget->itemWidget(item);
+            auto item = m_trackListView->item(i);
+            auto widget = m_trackListView->itemWidget(item);
             auto trackWidget = dynamic_cast<TrackControlView *>(widget);
             trackWidget->setTrackIndex(i + 1);
             // Update clips' index
@@ -426,7 +421,7 @@ void TrackEditorView::reset() {
             m_tracksScene->removeCommonItem(clip);
             delete clip;
         }
-    m_trackListWidget->clear();
+    m_trackListView->clear();
     m_trackListViewModel.tracks.clear();
     // connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
     //         &TrackEditorView::onSceneSelectionChanged);

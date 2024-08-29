@@ -1000,3 +1000,24 @@ QWidget#pianoRollBottomLeftSpacing {
 PianoKeyboardView {
     border-bottom-left-radius: 6px;
 }
+
+TrackListView {
+    background: transparent;
+    border: none;
+    border-right: 1px solid #202020;
+    outline: 0px;
+    border-top: 1px solid #202020;
+}
+
+TrackListView::item {
+    border-radius: 0px;
+    padding: 0px;
+}
+
+TrackListView::item:hover {
+    background: #05FFFFFF
+}
+
+TrackListView::item:selected {
+    background: #10FFFFFF
+}

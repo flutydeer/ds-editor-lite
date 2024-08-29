@@ -52,11 +52,13 @@ signals:
 public slots:
     void notifyVisibleRectChanged();
     void onWheelHorScale(QWheelEvent *event);
+    void onWheelVerScale(QWheelEvent *event);
+    void onWheelHorScroll(QWheelEvent *event);
+    void onWheelVerScroll(QWheelEvent *event);
 
 protected:
     bool event(QEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
-    // bool eventFilter(QObject *object, QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
