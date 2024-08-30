@@ -22,6 +22,7 @@ public:
     enum NotePropertyType { TimeAndKey, Word, None };
 
     explicit Note(SingingClip *context = nullptr, QObject *parent = nullptr);
+    ~Note()override;
     [[nodiscard]] SingingClip *clip() const;
     void setClip(SingingClip *clip);
     [[nodiscard]] int start() const;

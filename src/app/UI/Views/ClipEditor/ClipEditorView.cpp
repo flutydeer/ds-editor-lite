@@ -14,7 +14,6 @@
 #include "PianoRoll/PianoRollGraphicsView.h"
 #include "PianoRoll/PianoRollView.h"
 #include "ToolBar/ClipEditorToolBarView.h"
-#include "UI/Views/Common/TimelineView.h"
 
 #include <QLabel>
 #include <QMouseEvent>
@@ -69,6 +68,7 @@ void ClipEditorView::centerAt(double startTick, double length, double keyIndex) 
 }
 
 void ClipEditorView::onModelChanged() {
+    m_toolbarView->setDataContext(nullptr);
     reset();
 }
 

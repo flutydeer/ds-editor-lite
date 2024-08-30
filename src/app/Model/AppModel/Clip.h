@@ -95,6 +95,8 @@ public:
         QString path;
     };
 
+    ~AudioClip() override;
+
     [[nodiscard]] ClipType clipType() const override {
         return Audio;
     }
@@ -129,6 +131,7 @@ public:
     enum NoteChangeType { Inserted, Removed };
 
     explicit SingingClip();
+    ~SingingClip() override;
 
     [[nodiscard]] ClipType clipType() const override {
         return Singing;

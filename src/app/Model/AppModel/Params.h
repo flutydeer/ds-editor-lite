@@ -12,6 +12,7 @@ class Param {
 public:
     enum ParamType { Original, Edited, Envelope, Unknown };
 
+    ~Param();
     [[nodiscard]] const QList<Curve *> &curves(ParamType type) const;
     void setCurves(ParamType type, const QList<Curve *> &curves);
 

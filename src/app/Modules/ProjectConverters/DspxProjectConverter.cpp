@@ -51,19 +51,19 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     };
 
     auto decodeSingingParam = [&](const QDspx::ParamInfo &dspxParam) {
-        Param param;
-        param.setCurves(Param::Original, decodeCurves(dspxParam.org));
-        param.setCurves(Param::Edited, decodeCurves(dspxParam.edited));
-        param.setCurves(Param::Envelope, decodeCurves(dspxParam.envelope));
+        auto param = new Param;
+        param->setCurves(Param::Original, decodeCurves(dspxParam.org));
+        param->setCurves(Param::Edited, decodeCurves(dspxParam.edited));
+        param->setCurves(Param::Envelope, decodeCurves(dspxParam.envelope));
         return param;
     };
 
     auto decodeSingingParams = [&](const QDspx::SingleParam &dspxParams) {
         ParamBundle params;
-        params.pitch = decodeSingingParam(dspxParams.pitch);
-        params.energy = decodeSingingParam(dspxParams.energy);
-        params.tension = decodeSingingParam(dspxParams.tension);
-        params.breathiness = decodeSingingParam(dspxParams.breathiness);
+        params.pitch = *decodeSingingParam(dspxParams.pitch);
+        params.energy = *decodeSingingParam(dspxParams.energy);
+        params.tension = *decodeSingingParam(dspxParams.tension);
+        params.breathiness = *decodeSingingParam(dspxParams.breathiness);
         return params;
     };
 

@@ -41,7 +41,8 @@ public:
 
     void terminate();
 
-    [[nodiscard]] bool started() const {
+    [[nodiscard]] bool started() {
+        QMutexLocker locker(&m_mutex);
         return m_started;
     }
 
@@ -59,7 +60,6 @@ protected:
 private:
     friend class TaskManager;
     void run() override {
-        QMutexLocker locker(&m_mutex);
         if (!m_started) {
             m_started = true;
             runTask();

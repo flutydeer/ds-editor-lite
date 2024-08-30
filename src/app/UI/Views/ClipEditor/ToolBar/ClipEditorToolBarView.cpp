@@ -100,8 +100,6 @@ void ClipEditorToolBarView::setDataContext(Clip *clip) {
     Q_D(ClipEditorToolBarView);
     if (d->m_clip)
         disconnect(d->m_clip, nullptr, d, nullptr);
-    if (d->m_singingClip)
-        disconnect(d->m_singingClip, nullptr, d, nullptr);
 
     d->m_clip = clip;
     if (clip == nullptr) {
@@ -113,8 +111,10 @@ void ClipEditorToolBarView::setDataContext(Clip *clip) {
     if (clip->clipType() == Clip::Singing) {
         d->m_singingClip = reinterpret_cast<SingingClip *>(clip);
         d->moveToSingingClipState();
-    } else if (clip->clipType() == Clip::Audio)
+    } else if (clip->clipType() == Clip::Audio) {
+        d->m_singingClip = nullptr;
         d->moveToAudioClipState();
+    }
 }
 
 PianoRollEditMode ClipEditorToolBarView::editMode() const {

@@ -4,8 +4,6 @@
 
 #include "AppOptionsDialog.h"
 
-#include <QHBoxLayout>
-#include <QListWidget>
 #include <QStackedWidget>
 #include <QScrollArea>
 

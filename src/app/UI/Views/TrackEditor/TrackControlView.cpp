@@ -11,7 +11,6 @@
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/LineEdit.h"
-#include "UI/Views/Common/LanguageComboBox.h"
 
 #include <QContextMenuEvent>
 #include <QHBoxLayout>

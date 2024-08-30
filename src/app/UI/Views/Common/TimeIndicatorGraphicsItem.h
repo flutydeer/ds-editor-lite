@@ -5,7 +5,6 @@
 #ifndef TIMEINDICATORGRAPHICSITEM_H
 #define TIMEINDICATORGRAPHICSITEM_H
 
-#include <QObject>
 #include <QGraphicsLineItem>
 
 #include "UI/Utils/IScalableItem.h"

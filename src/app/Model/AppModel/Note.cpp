@@ -7,9 +7,12 @@
 #include "Clip.h"
 
 #include <QJsonArray>
-#include <QJsonObject>
 
 Note::Note(SingingClip *context, QObject *parent) : QObject(parent), m_clip(context) {
+}
+
+Note::~Note() {
+    qDebug() << "~Note()" << id() << m_lyric;
 }
 
 SingingClip *Note::clip() const {

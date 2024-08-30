@@ -14,10 +14,12 @@ public:
     explicit AppModelPrivate(AppModel *q) : q_ptr(q){};
 
     void reset();
+    void dispose() const;
 
     TimeSignature m_timeSignature;
     double m_tempo = 120;
     QList<Track *> m_tracks;
+    QList<Track *> m_previousTracks;
     QJsonObject m_workspace;
 
     int m_selectedTrackIndex = -1;

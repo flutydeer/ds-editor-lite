@@ -110,6 +110,7 @@ void AppModel::newProject() {
     newTrack->setName(tr("New Track"));
     d->m_tracks.append(newTrack);
     emit modelChanged();
+    d->dispose();
 }
 
 bool AppModel::loadProject(const QString &filename) {
@@ -161,6 +162,7 @@ void AppModel::loadFromAppModel(const AppModel &model) {
     d->m_timeSignature = model.timeSignature();
     d->m_tracks = model.tracks();
     emit modelChanged();
+    d->dispose();
     // emit tempoChanged(d->m_tempo);
 }
 
@@ -277,9 +279,14 @@ void AppModelPrivate::reset() {
     m_tempo = 120;
     m_timeSignature.numerator = 4;
     m_timeSignature.denominator = 4;
-    // for (int i = 0; i < d->m_tracks.count();i++) {
-    //     auto track = d->m_tracks.at(i);
-    //     delete track;
-    // }
+    m_previousTracks = m_tracks;
     m_tracks.clear();
+}
+
+void AppModelPrivate::dispose() const {
+    qDebug() << "dispose";
+    for (int i = 0; i < m_previousTracks.count();i++) {
+        auto track = m_previousTracks.at(i);
+        delete track;
+    }
 }

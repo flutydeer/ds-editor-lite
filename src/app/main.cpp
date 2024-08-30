@@ -57,9 +57,9 @@ int main(int argc, char *argv[]) {
     f.setPointSizeF(10 * factor);
     QApplication::setFont(f);
 
-    auto translator = new QTranslator;
-    if (translator->load(":translate/translation_zh_CN.qm"))
-        QApplication::installTranslator(translator);
+    QTranslator translator;
+    if (translator.load(":translate/translation_zh_CN.qm"))
+        QApplication::installTranslator(&translator);
 
     AudioSystem as;
     AudioSystem::outputSystem()->initialize();

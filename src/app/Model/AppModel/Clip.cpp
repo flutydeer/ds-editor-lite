@@ -135,9 +135,21 @@ AudioClip::AudioClipProperties::AudioClipProperties(const IClip &clip) {
     applyPropertiesFromClip(*this, clip);
 }
 
+AudioClip::~AudioClip() {
+    qDebug() << "~AudioClip()" << id() << m_name;
+}
+
 SingingClip::SingingClip() : Clip() {
     defaultLanguage.setNotifyCallback(
         [=](const AppGlobal::LanguageType value) { emit defaultLanguageChanged(value); });
+}
+
+SingingClip::~SingingClip() {
+    qDebug() << "~SingingClip() " << id() << m_name;
+    auto notes = m_notes.toList();
+    for (int i = 0; i < notes.count(); i++) {
+        delete notes[i];
+    }
 }
 
 const OverlappableSerialList<Note> &SingingClip::notes() const {
