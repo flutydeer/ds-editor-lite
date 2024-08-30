@@ -413,6 +413,10 @@ QLabel {
     color: #F0F0F0;
 }
 
+QTreeView {
+    background: #202122;
+}
+
 QDialog {
     background: #202122;
 }

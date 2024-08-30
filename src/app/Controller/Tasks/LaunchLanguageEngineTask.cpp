@@ -29,16 +29,14 @@ void LaunchLanguageEngineTask::runTask() {
     g2pMgr->initialize(errorMsg);
 
     if (!g2pMgr->initialized())
-        qDebug() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr->initialized();
+        qCritical() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr->initialized();
 
     langMgr->initialize(errorMsg);
     if (!langMgr->initialized())
-        qDebug() << "LangMgr: errorMsg" << errorMsg << "initialized:" << langMgr->initialized();
+        qCritical() << "LangMgr: errorMsg" << errorMsg << "initialized:" << langMgr->initialized();
 
     success = g2pMgr->initialized() && langMgr->initialized();
     errorMessage = errorMsg;
-
-    // QThread::sleep(5);
 
     emit finished(false);
 }

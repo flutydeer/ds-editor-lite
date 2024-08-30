@@ -197,6 +197,10 @@ void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineT
     taskManager->removeTask(task);
     auto status = task->success ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
     appStatus->languageModuleStatus = status;
+    if (task->success)
+        qInfo() << "Successfully launched language module";
+    else
+        qCritical() << "Failed to launch language module: " << task->errorMessage;
     delete task;
 }
 
