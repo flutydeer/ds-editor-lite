@@ -243,6 +243,24 @@ void CommonGraphicsView::onWheelVerScroll(QWheelEvent *event) {
     }
 }
 
+void CommonGraphicsView::adjustScaleXToFillView() {
+    if (sceneRect().width() < viewport()->width()) {
+        auto targetSceneWidth = viewport()->width();
+        auto targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
+        setScaleX(targetScaleX);
+        qDebug() << "Scene width < viewport width, adjust scaleX to" << targetScaleX;
+    }
+}
+
+void CommonGraphicsView::adjustScaleYToFillView() {
+    if (sceneRect().height() < viewport()->height()) {
+        auto targetSceneHeight = viewport()->height();
+        auto targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
+        setScaleY(targetScaleY);
+        qDebug() << "Scene height < viewport height, adjust scaleY to" << targetScaleY;
+    }
+}
+
 bool CommonGraphicsView::event(QEvent *event) {
 #ifdef Q_OS_MAC
     // Mac Trackpad smooth zooming
@@ -300,16 +318,10 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
 
 void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
     if (scene()) {
-        if (m_ensureSceneFillViewX && sceneRect().width() < viewport()->width()) {
-            auto targetSceneWidth = viewport()->width();
-            auto targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
-            setScaleX(targetScaleX);
-            qDebug() << "Scene width < viewport width, adjust scaleX to" << targetScaleX;
-        } else if (m_ensureSceneFillViewY && sceneRect().height() < viewport()->height()) {
-            auto targetSceneHeight = viewport()->height();
-            auto targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
-            setScaleY(targetScaleY);
-            qDebug() << "Scene height < viewport height, adjust scaleY to" << targetScaleY;
+        if (m_ensureSceneFillViewX) {
+            adjustScaleXToFillView();
+        } else if (m_ensureSceneFillViewY) {
+            adjustScaleYToFillView();
         }
     }
 

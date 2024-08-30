@@ -3,6 +3,7 @@
 //
 
 #include "Controller/AppController.h"
+#include "Controller/ProjectStatusController.h"
 
 
 #include <QApplication>
@@ -66,6 +67,8 @@ int main(int argc, char *argv[]) {
 
     new DeviceTester(&as);
     new AudioContext(&as);
+
+    AppController::instance();
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     // auto editor = appModel->workspaceEditor("flutydeer.filllyrics");

@@ -8,7 +8,6 @@
 
 TracksGraphicsScene::TracksGraphicsScene() {
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
-    setSceneLength(1920.0 * 80);//TODO: replace with project length
 }
 
 int TracksGraphicsScene::trackIndexAt(double sceneY) const {

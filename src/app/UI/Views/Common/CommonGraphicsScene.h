@@ -15,6 +15,7 @@ class IScalableItem;
 class CommonGraphicsRectItem;
 
 class CommonGraphicsScene : public QGraphicsScene, public IScalableItem {
+    Q_OBJECT
 public:
     explicit CommonGraphicsScene(QObject *parent = nullptr);
     ~CommonGraphicsScene() override = default;
@@ -22,6 +23,9 @@ public:
     void setSceneBaseSize(const QSizeF &size);
     void addCommonItem(IScalableItem *item);
     void removeCommonItem(IScalableItem *item);
+
+signals:
+    void baseSizeChanged(const QSizeF &size);
 
 protected:
     virtual void updateSceneRect();

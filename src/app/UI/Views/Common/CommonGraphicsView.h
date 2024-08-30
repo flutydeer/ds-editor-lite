@@ -56,6 +56,8 @@ public slots:
     void onWheelVerScale(QWheelEvent *event);
     void onWheelHorScroll(QWheelEvent *event);
     void onWheelVerScroll(QWheelEvent *event);
+    void adjustScaleXToFillView();
+    void adjustScaleYToFillView();
 
 protected:
     bool event(QEvent *event) override;

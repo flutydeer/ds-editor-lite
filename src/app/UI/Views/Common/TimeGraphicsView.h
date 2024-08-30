@@ -31,6 +31,7 @@ signals:
     void timeRangeChanged(double startTick, double endTick);
 
 public slots:
+    void setSceneLength(int tick) const;
     void setPlaybackPosition(double tick);
     void setLastPlaybackPosition(double tick);
     void pageAdd();

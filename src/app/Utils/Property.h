@@ -5,6 +5,8 @@
 #ifndef PROPERTY_H
 #define PROPERTY_H
 
+#include <functional>
+
 template <typename T>
 class Property {
 

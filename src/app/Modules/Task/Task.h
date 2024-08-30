@@ -39,13 +39,6 @@ public:
         terminate();
     };
 
-    void run() override {
-        if (!m_started) {
-            m_started = true;
-            runTask();
-        }
-    }
-
     void terminate();
 
     [[nodiscard]] bool started() const {
@@ -64,6 +57,15 @@ protected:
     bool isTerminateRequested();
 
 private:
+    friend class TaskManager;
+    void run() override {
+        QMutexLocker locker(&m_mutex);
+        if (!m_started) {
+            m_started = true;
+            runTask();
+        }
+    }
+
     TaskStatus m_status;
     QMutex m_mutex;
     bool m_started = false;

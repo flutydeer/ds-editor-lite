@@ -27,6 +27,7 @@ QSizeF CommonGraphicsScene::sceneBaseSize() const {
 void CommonGraphicsScene::setSceneBaseSize(const QSizeF &size) {
     m_sceneSize = size;
     updateSceneRect();
+    emit baseSizeChanged(size);
 }
 
 void CommonGraphicsScene::addCommonItem(IScalableItem *item) {

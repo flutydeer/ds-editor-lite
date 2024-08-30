@@ -6,11 +6,13 @@
 #include "AppController_p.h"
 
 #include "AudioDecodingController.h"
+#include "ProjectStatusController.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
 #include "Interface/IMainWindow.h"
 #include "Interface/IPanel.h"
 #include "Model/AppModel/Track.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
@@ -22,16 +24,27 @@
 
 AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
     Q_D(AppController);
+    ProjectStatusController::instance();
+
     auto task = new LaunchLanguageEngineTask;
     connect(task, &LaunchLanguageEngineTask::finished, this,
-            [=] { d->handleRunLanguageEngineTaskFinished(task); });
+            [=] { d->onRunLanguageEngineTaskFinished(task); });
     taskManager->addTask(task);
     taskManager->startTask(task);
+    appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
 
     connect(appModel, &AppModel::modelChanged, audioDecodingController,
             &AudioDecodingController::onModelChanged);
     connect(appModel, &AppModel::trackChanged, audioDecodingController,
             &AudioDecodingController::onTrackChanged);
+
+    // 测试 Property 信号
+    // connect(appStatus, &AppStatus::moduleStatusChanged ,this, [=](AppStatus::ModuleType module, AppStatus::ModuleStatus status) {
+    //     if (module == AppStatus::ModuleType::Language) {
+    //         if (status == AppStatus::ModuleStatus::Ready)
+    //             qDebug() << "Language module ready";
+    //     }
+    // });
 }
 
 AppController::~AppController() {
@@ -171,11 +184,6 @@ void AppController::setProjectName(const QString &name) {
         d->m_mainWindow->updateWindowTitle();
 }
 
-bool AppController::isLanguageEngineReady() const {
-    Q_D(const AppController);
-    return d->m_isLanguageEngineReady;
-}
-
 void AppController::registerPanel(IPanel *panel) {
     Q_D(AppController);
     d->m_panels.append(panel);
@@ -185,10 +193,10 @@ bool AppControllerPrivate::isPowerOf2(int num) {
     return num > 0 && ((num & (num - 1)) == 0);
 }
 
-void AppControllerPrivate::handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
-    qDebug() << "AppController::handleRunLanguageEngineTaskFinished";
+void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
     taskManager->removeTask(task);
-    m_isLanguageEngineReady = task->success;
+    auto status = task->success ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
+    appStatus->languageModuleStatus = status;
     delete task;
 }
 

@@ -16,6 +16,8 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, QWidget *parent)
             [=](const QRectF &rect) { m_scene->setVisibleRect(rect); });
     connect(this, &TimeGraphicsView::scaleChanged,
             [=](double sx, double sy) { m_scene->setScaleXY(sx, sy); });
+    connect(m_scene, &TimeGraphicsScene::baseSizeChanged, this,
+            &TimeGraphicsView::adjustScaleXToFillView);
 
     m_scenePlayPosIndicator = new TimeIndicatorGraphicsItem;
     m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
@@ -86,6 +88,10 @@ void TimeGraphicsView::setAutoTurnPage(bool on) {
     m_autoTurnPage = on;
     if (m_playbackPosition > endTick())
         pageAdd();
+}
+
+void TimeGraphicsView::setSceneLength(int tick) const {
+    m_scene->setSceneLength(tick);
 }
 
 void TimeGraphicsView::setPlaybackPosition(double tick) {

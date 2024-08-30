@@ -25,12 +25,11 @@ public:
         QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     QString m_projectPath;
     QString m_projectName;
-    bool m_isLanguageEngineReady = false;
     QList<IPanel *> m_panels;
     AppGlobal::PanelType m_activePanel = AppGlobal::TracksEditor;
 
-    bool isPowerOf2(int num);
-    void handleRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);
+    static bool isPowerOf2(int num);
+    static void onRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);
     void updateProjectPathAndName(const QString &path);
 
 private:
