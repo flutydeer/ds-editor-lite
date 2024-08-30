@@ -29,7 +29,7 @@ public:
 
 public slots:
     void onModelChanged();
-    void onSelectedClipChanged(Clip *clip);
+    void onActiveClipChanged(int clipId) const;
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;

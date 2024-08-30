@@ -43,12 +43,12 @@ public slots:
     static void importMidiFile(const QString &filePath);
     static void exportMidiFile(const QString &filePath);
 
-    void importAproject(const QString &filePath);
+    void importAceProject(const QString &filePath);
 
     static void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);
     static void onSetQuantize(int quantize);
-    void selectTrack(int trackIndex);
+    static void selectTrack(int trackIndex);
     void onPanelClicked(AppGlobal::PanelType panel);
     void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                            const QString &redoActionName);

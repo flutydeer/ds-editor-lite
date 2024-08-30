@@ -11,7 +11,7 @@ ProjectStatusController::ProjectStatusController() {
 }
 
 void ProjectStatusController::onModelChanged() {
-    qDebug() << "onModelChanged";
+    // qDebug() << "onModelChanged";
     for (const auto track : m_tracks)
         onTrackChanged(AppModel::Remove, -1, track);
 
@@ -22,13 +22,13 @@ void ProjectStatusController::onModelChanged() {
 void ProjectStatusController::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
                                              Track *track) {
     if (type == AppModel::Insert) {
-        qDebug() << "onTrackChanged" << "Insert";
+        // qDebug() << "onTrackChanged" << "Insert";
         m_tracks.append(track);
         for (const auto clip : track->clips())
             handleClipInserted(clip);
         connect(track, &Track::clipChanged, this, &ProjectStatusController::onClipChanged);
     } else if (type == AppModel::Remove) {
-        qDebug() << "onTrackChanged" << "Remove";
+        // qDebug() << "onTrackChanged" << "Remove";
         m_tracks.removeOne(track);
         for (const auto clip : track->clips())
             handleClipInserted(clip);
@@ -38,10 +38,10 @@ void ProjectStatusController::onTrackChanged(AppModel::TrackChangeType type, qsi
 
 void ProjectStatusController::onClipChanged(Track::ClipChangeType type, Clip *clip) {
     if (type == Track::Inserted) {
-        qDebug() << "onClipChanged" << "Inserted";
+        // qDebug() << "onClipChanged" << "Inserted";
         handleClipInserted(clip);
     } else if (type == Track::Removed) {
-        qDebug() << "onClipChanged" << "Removed";
+        // qDebug() << "onClipChanged" << "Removed";
         handleClipRemoved(clip);
     }
     updateProjectEditableLength();
@@ -66,5 +66,5 @@ void ProjectStatusController::updateProjectEditableLength() {
         }
     }
     appStatus->projectEditableLength = maxEndTick;
-    qDebug() << "updateProjectEditableLength:" << maxEndTick;
+    qDebug() << "Update project editable length:" << maxEndTick;
 }

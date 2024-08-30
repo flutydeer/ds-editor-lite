@@ -8,6 +8,7 @@
 #include "Track.h"
 #include "Controller/Utils/NoteWordUtils.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/AProjectConverter.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
@@ -57,7 +58,7 @@ void AppModel::appendTrack(Track *track) {
 void AppModel::removeTrackAt(qsizetype index) {
     Q_D(AppModel);
     auto track = d->m_tracks[index];
-    setActiveClip(-1);
+    appStatus->activeClipId = -1;
     d->m_tracks.removeAt(index);
     emit trackChanged(Remove, index, track);
 }
@@ -131,7 +132,7 @@ bool AppModel::saveProject(const QString &filename) {
     return ok;
 }
 
-bool AppModel::importAProject(const QString &filename) {
+bool AppModel::importAceProject(const QString &filename) {
     Q_D(AppModel);
     auto converter = new AProjectConverter;
     QString errMsg;
@@ -196,35 +197,6 @@ bool AppModel::exportMidiFile(const QString &filename) {
     return ok;
 }
 
-int AppModel::selectedTrackIndex() const {
-    Q_D(const AppModel);
-    return d->m_selectedTrackIndex;
-}
-
-void AppModel::setActiveClip(int clipId) {
-    Q_D(AppModel);
-    d->m_activeClipId = clipId;
-    for (auto track : d->m_tracks) {
-        auto result = track->findClipById(clipId);
-        if (result) {
-            emit activeClipChanged(result);
-            return;
-        }
-    }
-    emit activeClipChanged(nullptr);
-}
-
-void AppModel::setSelectedTrack(int trackIndex) {
-    Q_D(AppModel);
-    d->m_selectedTrackIndex = trackIndex;
-    emit selectedTrackChanged(trackIndex);
-}
-
-int AppModel::activeClipId() const {
-    Q_D(const AppModel);
-    return d->m_activeClipId;
-}
-
 Clip *AppModel::findClipById(int clipId, Track *&trackRef) const {
     Q_D(const AppModel);
     for (const auto track : d->m_tracks) {
@@ -252,6 +224,9 @@ Clip *AppModel::findClipById(int clipId, int &trackIndex) {
 
 Clip *AppModel::findClipById(int clipId) {
     Q_D(const AppModel);
+    if (clipId == -1)
+        return nullptr;
+
     for (const auto track : d->m_tracks) {
         if (const auto result = track->findClipById(clipId))
             return result;

@@ -86,9 +86,9 @@ void AppController::exportMidiFile(const QString &filePath) {
     appModel->exportMidiFile(filePath);
 }
 
-void AppController::importAproject(const QString &filePath) {
+void AppController::importAceProject(const QString &filePath) {
     Q_D(AppController);
-    appModel->importAProject(filePath);
+    appModel->importAceProject(filePath);
     historyManager->reset();
     d->updateProjectPathAndName("");
     setProjectName(QFileInfo(filePath).baseName());
@@ -125,7 +125,7 @@ void AppController::onSetQuantize(int quantize) {
 }
 
 void AppController::selectTrack(int trackIndex) {
-    appModel->setSelectedTrack(trackIndex);
+    appStatus->selectedTrackIndex = trackIndex;
 }
 
 void AppController::onPanelClicked(AppGlobal::PanelType panelType) {
@@ -157,7 +157,7 @@ void AppController::quit() {
 }
 
 void AppController::restart() {
-    qDebug() << "AppController::restart";
+    qDebug() << "restart";
     Q_D(AppController);
     d->m_mainWindow->restart();
 }

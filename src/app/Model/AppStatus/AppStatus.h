@@ -26,11 +26,17 @@ public:
 
     // Project
     Property<int> projectEditableLength = 1920 * 100;
+    Property<int> selectedTrackIndex = -1;
     Property<int> activeClipId = -1;
 
 signals:
+    // Modules
     void moduleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
+
+    // Project
     void projectEditableLengthChanged(int newLength);
+    void selectedTrackIndexChanged(int trackIndex);
+    void activeClipIdChanged(int newId);
 };
 
 #endif // APPSTATUS_H

@@ -232,7 +232,7 @@ void MainMenuViewPrivate::onOpenAProject() {
                                                      tr("Project File (*.json)"));
         if (fileName.isNull())
             return;
-        appController->importAproject(fileName);
+        appController->importAceProject(fileName);
     };
     if (!historyManager->isOnSavePoint()) {
         if (m_mainWindow->askSaveChanges())

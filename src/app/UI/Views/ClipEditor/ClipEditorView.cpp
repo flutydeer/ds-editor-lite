@@ -9,6 +9,7 @@
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "ParamEditor/ParamEditorView.h"
 #include "PianoRoll/PianoRollGraphicsView.h"
 #include "PianoRoll/PianoRollView.h"
@@ -34,7 +35,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
     m_paramEditorView = new ParamEditorView;
 
     connect(appModel, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
-    connect(appModel, &AppModel::activeClipChanged, this, &ClipEditorView::onSelectedClipChanged);
+    connect(appStatus, &AppStatus::activeClipIdChanged, this, &ClipEditorView::onActiveClipChanged);
 
     m_splitter = new QSplitter(Qt::Vertical);
     // m_splitter->setContentsMargins(0, 0, 0, 0);
@@ -71,7 +72,8 @@ void ClipEditorView::onModelChanged() {
     reset();
 }
 
-void ClipEditorView::onSelectedClipChanged(Clip *clip) {
+void ClipEditorView::onActiveClipChanged(int clipId) const {
+    auto clip = appModel->findClipById(clipId);
     m_toolbarView->setDataContext(clip);
     clipController->setClip(clip);
 
@@ -116,7 +118,7 @@ void ClipEditorView::moveToNullClipState() const {
 }
 
 void ClipEditorView::reset() {
-    onSelectedClipChanged(nullptr);
+    onActiveClipChanged(-1);
 }
 
 // void ClipEditorView::printParts() {

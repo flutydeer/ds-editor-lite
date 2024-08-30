@@ -90,7 +90,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
             &TracksGraphicsScene::onTrackCountChanged);
     connect(this, &TrackEditorView::trackCountChanged, m_gridItem,
             &TracksBackgroundGraphicsItem::onTrackCountChanged);
-    connect(appModel, &AppModel::selectedTrackChanged, m_gridItem,
+    connect(appStatus, &AppStatus::selectedTrackIndexChanged, m_gridItem,
             &TracksBackgroundGraphicsItem::onTrackSelectionChanged);
     connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
             &TracksGraphicsView::onWheelHorScale);

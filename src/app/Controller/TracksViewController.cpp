@@ -10,6 +10,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/AudioInfoModel.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
@@ -83,8 +84,7 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
 }
 
 void TracksViewController::setActiveClip(int clipId) {
-    if (appModel->activeClipId() != clipId)
-        appModel->setActiveClip(clipId);
+    appStatus->activeClipId = clipId;
 }
 
 void TracksViewController::changeTrackProperty(const Track::TrackProperties &args) {
@@ -161,9 +161,9 @@ void TracksViewController::onRemoveClips(const QList<int> &clipsId) {
     QList<Clip *> clips;
     QList<Track *> tracks;
     for (const auto &id : clipsId) {
-        auto activeClipId = appModel->activeClipId();
+        auto activeClipId = appStatus->activeClipId;
         if (id == activeClipId)
-            appModel->setActiveClip(-1);
+            appStatus->activeClipId = -1;
 
         Track *track;
         auto clip = appModel->findClipById(id, track);

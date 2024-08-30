@@ -49,13 +49,8 @@ public:
     bool exportMidiFile(const QString &filename);
     bool loadProject(const QString &filename);
     bool saveProject(const QString &filename);
-    bool importAProject(const QString &filename);
+    bool importAceProject(const QString &filename);
     void loadFromAppModel(const AppModel &model);
-
-    [[nodiscard]] int selectedTrackIndex() const;
-    void setSelectedTrack(int trackIndex);
-
-    [[nodiscard]] int activeClipId() const;
 
     Clip *findClipById(int clipId, Track *&trackRef) const;
     Clip *findClipById(int clipId, int &trackIndex);
@@ -77,17 +72,12 @@ public:
         QList<State> trackMeterStates;
     };
 
-public slots:
-    void setActiveClip(int clipId);
-
 signals:
     void modelChanged();
     void tempoChanged(double tempo);
     void timeSignatureChanged(int numerator, int denominator);
     void trackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
-    void activeClipChanged(Clip *clip);
     void quantizeChanged(int quantize);
-    void selectedTrackChanged(int trackIndex);
 
 private:
     Q_DECLARE_PRIVATE(AppModel);

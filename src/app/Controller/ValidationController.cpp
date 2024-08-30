@@ -14,7 +14,8 @@ ValidationController::ValidationController() {
     connect(appModel, &AppModel::modelChanged, this, &ValidationController::onModelChanged);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             &ValidationController::onUndoRedoChanged);
-    connect(appStatus, &AppStatus::moduleStatusChanged, this, &ValidationController::onModuleStatusChanged );
+    connect(appStatus, &AppStatus::moduleStatusChanged, this,
+            &ValidationController::onModuleStatusChanged);
 }
 
 void ValidationController::runValidation() {
@@ -183,7 +184,7 @@ bool ValidationController::validateNoteOverlap() {
     return true;
 }
 
-void ValidationController::processPendingUpdateNotes(){
+void ValidationController::processPendingUpdateNotes() {
     NoteWordUtils::updateOriginalWordProperties(m_notesPendingUpdateNoteWordProperty);
     m_notesPendingUpdateNoteWordProperty.clear();
     validate();
