@@ -122,8 +122,6 @@ QRectF CommonGraphicsView::visibleRect() const {
     return rect;
 }
 
-
-
 void CommonGraphicsView::setEnsureSceneFillViewX(bool on) {
     m_ensureSceneFillViewX = on;
 }
@@ -301,17 +299,20 @@ void CommonGraphicsView::wheelEvent(QWheelEvent *event) {
 }
 
 void CommonGraphicsView::resizeEvent(QResizeEvent *event) {
-    if (m_ensureSceneFillViewX && sceneRect().width() < viewport()->width()) {
-        auto targetSceneWidth = viewport()->width();
-        auto targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
-        setScaleX(targetScaleX);
-        qDebug() << "Scene width < viewport width, adjust scaleX to" << targetScaleX;
-    } else if (m_ensureSceneFillViewY && sceneRect().height() < viewport()->height()) {
-        auto targetSceneHeight = viewport()->height();
-        auto targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
-        setScaleY(targetScaleY);
-        qDebug() << "Scene height < viewport height, adjust scaleY to" << targetScaleY;
+    if (scene()) {
+        if (m_ensureSceneFillViewX && sceneRect().width() < viewport()->width()) {
+            auto targetSceneWidth = viewport()->width();
+            auto targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
+            setScaleX(targetScaleX);
+            qDebug() << "Scene width < viewport width, adjust scaleX to" << targetScaleX;
+        } else if (m_ensureSceneFillViewY && sceneRect().height() < viewport()->height()) {
+            auto targetSceneHeight = viewport()->height();
+            auto targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
+            setScaleY(targetScaleY);
+            qDebug() << "Scene height < viewport height, adjust scaleY to" << targetScaleY;
+        }
     }
+
     QGraphicsView::resizeEvent(event);
     emit sizeChanged(viewport()->size());
     notifyVisibleRectChanged();
