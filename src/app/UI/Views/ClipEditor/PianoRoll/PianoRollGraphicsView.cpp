@@ -687,6 +687,7 @@ void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
     m_canNotifySelectedNoteChanged = false;
     auto noteItem = m_noteLayer.findNoteById(note->id());
     m_layerManager->removeItem(noteItem, &m_noteLayer);
+    delete noteItem;
     m_canNotifySelectedNoteChanged = true;
     m_notes.removeOne(note);
     disconnect(note, nullptr, this, nullptr);

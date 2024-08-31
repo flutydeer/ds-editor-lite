@@ -18,7 +18,7 @@ class AbstractClipView : public CommonGraphicsRectItem, public IClip, public Ove
 
 public:
     explicit AbstractClipView(int itemId, QGraphicsItem *parent = nullptr);
-    ~AbstractClipView() override = default;
+    ~AbstractClipView() override;
 
     [[nodiscard]] QString name() const override;
     void setName(const QString &text) override;

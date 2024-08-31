@@ -12,12 +12,17 @@
 #include <QPainter>
 #include <QTextOption>
 #include <QMWidgets/cmenu.h>
+#include <QDebug>
 
 using namespace ClipEditorGlobal;
 
 NoteView::NoteView(int itemId, QGraphicsItem *parent)
     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
     initUi();
+}
+
+NoteView::~NoteView() {
+    // qDebug() << "~NoteView()" << m_lyric;
 }
 
 // NoteView::NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,

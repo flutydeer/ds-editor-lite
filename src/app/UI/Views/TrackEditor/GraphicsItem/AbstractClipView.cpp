@@ -20,6 +20,10 @@ AbstractClipView::AbstractClipView(int itemId, QGraphicsItem *parent)
     setFlag(ItemIsSelectable);
 }
 
+AbstractClipView::~AbstractClipView() {
+    // qDebug() << "~AbstractClipView()";
+}
+
 QString AbstractClipView::name() const {
     Q_D(const AbstractClipView);
     return d->m_name;

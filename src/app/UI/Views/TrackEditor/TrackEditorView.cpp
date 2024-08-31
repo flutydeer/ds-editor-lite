@@ -329,6 +329,7 @@ void TrackEditorView::removeClipFromView(int clipId) {
     for (const auto &track : m_trackListViewModel.tracks) {
         if (track->clips.contains(clipView)) {
             track->clips.removeOne(clipView);
+            delete clipView;
             break;
         }
     }
@@ -388,14 +389,16 @@ void TrackEditorView::removeTrackFromView(int index) {
     }
     auto item = m_trackListView->takeItem(index);
     m_trackListView->removeItemWidget(item);
+    delete item;
     // remove from viewmodel
     m_trackListViewModel.tracks.removeAt(index);
+    delete track;
     // update index
     if (index < m_trackListViewModel.tracks.count()) // needs to update existed tracks' index
         for (int i = index; i < m_trackListViewModel.tracks.count(); i++) {
             // Update track list items' index
-            auto item = m_trackListView->item(i);
-            auto widget = m_trackListView->itemWidget(item);
+            auto widgetItem = m_trackListView->item(i);
+            auto widget = m_trackListView->itemWidget(widgetItem);
             auto trackWidget = dynamic_cast<TrackControlView *>(widget);
             trackWidget->setTrackIndex(i + 1);
             // Update clips' index

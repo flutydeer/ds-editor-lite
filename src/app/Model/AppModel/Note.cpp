@@ -12,7 +12,7 @@ Note::Note(SingingClip *context, QObject *parent) : QObject(parent), m_clip(cont
 }
 
 Note::~Note() {
-    qDebug() << "~Note()" << id() << m_lyric;
+    // qDebug() << "~Note()" << id() << m_lyric;
 }
 
 SingingClip *Note::clip() const {

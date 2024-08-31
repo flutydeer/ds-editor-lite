@@ -16,6 +16,7 @@ class NoteView final : public CommonGraphicsRectItem, public UniqueObject, publi
 
 public:
     explicit NoteView(int itemId, QGraphicsItem *parent = nullptr);
+    ~NoteView() override;
     // explicit NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
     //                   const QString &pronunciation, QGraphicsItem *parent = nullptr);
 
