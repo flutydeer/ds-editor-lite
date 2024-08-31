@@ -36,6 +36,10 @@ public slots:
     void onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index);
     void onTaskStatusChanged(const TaskStatus &status);
 
+protected:
+    void dropEvent(QDropEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+
 private slots:
     bool onSave();
     bool onSaveAs();

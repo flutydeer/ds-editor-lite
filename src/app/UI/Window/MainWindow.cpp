@@ -36,8 +36,11 @@
 #include <QProcess>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QMimeData>
 
 MainWindow::MainWindow() {
+    setAcceptDrops(true);
+
     auto useNativeFrame = appOptions->appearance()->useNativeFrame;
     m_mainMenu = new MainMenuView(this);
     m_titleBar = new MainTitleBar(m_mainMenu, this, useNativeFrame);
@@ -345,4 +348,44 @@ void MainWindow::restartApp() {
     auto program = QCoreApplication::applicationFilePath();
     qDebug() << "restart" << program;
     QProcess::startDetached(program);
+}
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
+    if (event->mimeData()->hasUrls()) {
+        bool validFile = false;
+
+        for (const QUrl &url : event->mimeData()->urls()) {
+            const QFileInfo fileInfo(url.toLocalFile());
+            if (fileInfo.suffix().toLower() == "dspx") {
+                validFile = true;
+                break;
+            }
+        }
+
+        if (validFile) {
+            event->acceptProposedAction();
+            return;
+        }
+    }
+    event->ignore();
+}
+
+void MainWindow::dropEvent(QDropEvent *event) {
+    for (const QUrl &url : event->mimeData()->urls()) {
+        const QFileInfo fileInfo(url.toLocalFile());
+
+        if (fileInfo.suffix().toLower() == "dspx") {
+            auto openProject = [=] {
+                const auto fileName = fileInfo.absoluteFilePath();
+                if (fileName.isNull())
+                    return;
+                appController->openProject(fileName);
+            };
+            if (!historyManager->isOnSavePoint()) {
+                if (this->askSaveChanges())
+                    openProject();
+            } else
+                openProject();
+        }
+    }
 }
