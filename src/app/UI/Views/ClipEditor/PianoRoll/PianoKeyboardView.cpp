@@ -10,6 +10,7 @@
 
 #include <QElapsedTimer>
 #include <QPainter>
+#include <QWheelEvent>
 
 PianoKeyboardView::PianoKeyboardView(QWidget *parent) : QWidget(parent) {
     setFixedWidth(ClipEditorGlobal::pianoKeyboardWidth);
@@ -34,6 +35,14 @@ void PianoKeyboardView::paintEvent(QPaintEvent *event) {
 
     // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
     // Logger::d("PianoKeyboardView", "paint time: " + QString::number(time));
+}
+
+void PianoKeyboardView::wheelEvent(QWheelEvent *e) {
+    auto angleDelta = e->angleDelta().transposed();
+    auto event = new QWheelEvent(e->position(), e->globalPosition(), e->pixelDelta(), angleDelta,
+                                 e->buttons(), e->modifiers(), e->phase(), e->inverted());
+    emit wheelScroll(event);
+    // QWidget::wheelEvent(event);
 }
 
 void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) {

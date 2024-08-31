@@ -78,6 +78,8 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
 
     connect(m_timelineView, &TimelineView::wheelHorScale, m_graphicsView,
             &CommonGraphicsView::onWheelHorScale);
+    connect(m_keyboardView, &PianoKeyboardView::wheelScroll, m_graphicsView,
+            &CommonGraphicsView::onWheelVerScale);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timelineView,
             &TimelineView::setTimeRange);
     connect(m_graphicsView, &PianoRollGraphicsView::keyRangeChanged, m_keyboardView,

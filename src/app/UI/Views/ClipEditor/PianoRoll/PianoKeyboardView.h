@@ -18,8 +18,12 @@ public:
 public slots:
     void setKeyRange(double top, double bottom);
 
+signals:
+    void wheelScroll(QWheelEvent *event);
+
 private:
     void paintEvent(QPaintEvent *event) override;
+    void wheelEvent(QWheelEvent *e) override;
     void drawUniformKeyboard(QPainter &painter);
     void drawClassicKeyboard(QPainter &painter) const;
 
