@@ -20,6 +20,7 @@ CommonGraphicsView::CommonGraphicsView(QWidget *parent) : QGraphicsView(parent) 
     // setCacheMode(QGraphicsView::CacheNone);
     // setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     setMinimumHeight(150);
+    setAcceptDrops(true);
 
     m_scaleXAnimation.setTargetObject(this);
     m_scaleXAnimation.setPropertyName("scaleX");
@@ -259,6 +260,21 @@ void CommonGraphicsView::adjustScaleYToFillView() {
         setScaleY(targetScaleY);
         qDebug() << "Scene height < viewport height, adjust scaleY to" << targetScaleY;
     }
+}
+
+void CommonGraphicsView::dragEnterEvent(QDragEnterEvent *event) {
+    QGraphicsView::dragEnterEvent(event);
+    event->ignore();
+}
+
+void CommonGraphicsView::dragMoveEvent(QDragMoveEvent *event) {
+    QGraphicsView::dragMoveEvent(event);
+    event->ignore();
+}
+
+void CommonGraphicsView::dragLeaveEvent(QDragLeaveEvent *event) {
+    QGraphicsView::dragLeaveEvent(event);
+    event->ignore();
 }
 
 bool CommonGraphicsView::event(QEvent *event) {

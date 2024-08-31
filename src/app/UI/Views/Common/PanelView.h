@@ -16,6 +16,7 @@ class PanelView : public QWidget, public IPanel {
 public:
     explicit PanelView(AppGlobal::PanelType type = AppGlobal::Generic, QWidget *parent = nullptr)
         : QWidget(parent), IPanel(type) {
+        setAcceptDrops(true);
     }
 
 private:
