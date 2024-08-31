@@ -51,19 +51,19 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     };
 
     auto decodeSingingParam = [&](const QDspx::ParamInfo &dspxParam) {
-        auto param = new Param;
-        param->setCurves(Param::Original, decodeCurves(dspxParam.org));
-        param->setCurves(Param::Edited, decodeCurves(dspxParam.edited));
-        param->setCurves(Param::Envelope, decodeCurves(dspxParam.envelope));
+        Param param;
+        param.setCurves(Param::Original, decodeCurves(dspxParam.org));
+        param.setCurves(Param::Edited, decodeCurves(dspxParam.edited));
+        param.setCurves(Param::Envelope, decodeCurves(dspxParam.envelope));
         return param;
     };
 
     auto decodeSingingParams = [&](const QDspx::SingleParam &dspxParams) {
         ParamBundle params;
-        params.pitch = *decodeSingingParam(dspxParams.pitch);
-        params.energy = *decodeSingingParam(dspxParams.energy);
-        params.tension = *decodeSingingParam(dspxParams.tension);
-        params.breathiness = *decodeSingingParam(dspxParams.breathiness);
+        params.pitch = std::move(decodeSingingParam(dspxParams.pitch));
+        params.energy = std::move(decodeSingingParam(dspxParams.energy));
+        params.tension = std::move(decodeSingingParam(dspxParams.tension));
+        params.breathiness = std::move(decodeSingingParam(dspxParams.breathiness));
         return params;
     };
 
@@ -112,7 +112,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 auto notes = decodeNotes(castClip->notes);
                 for (auto &note : notes)
                     clip->insertNote(note);
-                clip->params = decodeSingingParams(castClip->params);
+                clip->params = std::move(decodeSingingParams(castClip->params));
                 track->insertClip(clip);
             } else if (dspxClip->type == QDspx::Clip::Type::Audio) {
                 const auto castClip = dspxClip.dynamicCast<QDspx::AudioClip>();

@@ -7,17 +7,15 @@
 #include <QDebug>
 
 Param::~Param() {
-    // TODO: 修复析构时的段错误
-    // qDebug() << "~Param()";
-    // auto dispose = [=](const QList<Curve *> &curves) {
-    //     for (int i = 0; i < curves.count(); i++) {
-    //         delete curves[i];
-    //     }
-    // };
-    // dispose(m_edited);
-    // dispose(m_envelope);
-    // dispose(m_original);
-    // dispose(m_unknown);
+    auto dispose = [=](const QList<Curve *> &curves) {
+        for (int i = 0; i < curves.count(); i++) {
+            delete curves[i];
+        }
+    };
+    dispose(m_edited);
+    dispose(m_envelope);
+    dispose(m_original);
+    dispose(m_unknown);
 }
 
 const QList<Curve *> &Param::curves(ParamType type) const {
