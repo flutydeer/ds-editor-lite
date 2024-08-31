@@ -52,6 +52,7 @@ private:
     int m_mouseDownClipStart = 0;
     int m_mouseDownLength = 0;
     int m_mouseDownClipLen = 0;
+    bool m_movedBeforeMouseUp = false;
     // int m_mouseDownTrackIndex = -1;
     bool m_tempQuantizeOff = false;
     AbstractClipView *m_currentEditingClip = nullptr;

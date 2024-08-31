@@ -157,6 +157,7 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     int delta = qRound(dx);
     int quantize = m_tempQuantizeOff ? 1 : 1920 / m_quantize;
     if (m_mouseMoveBehavior == Move) {
+        m_movedBeforeMouseUp = true;
         left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
         start = left - m_mouseDownClipStart;
         m_currentEditingClip->setStart(start);
@@ -209,11 +210,12 @@ void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     // if (m_mouseDownPos == scenePos) {
     //     m_propertyEdited = false;
     // }
-    if (m_mouseMoveBehavior != None) {
+    if (m_mouseMoveBehavior != None && m_movedBeforeMouseUp) {
         Clip::ClipCommonProperties args(*m_currentEditingClip);
         trackController->onClipPropertyChanged(args);
     }
     m_mouseMoveBehavior = None;
+    m_movedBeforeMouseUp = false;
     m_currentEditingClip = nullptr;
     TimeGraphicsView::mouseReleaseEvent(event);
 }
@@ -304,6 +306,7 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
     m_mouseDownClipStart = m_currentEditingClip->clipStart();
     m_mouseDownLength = m_currentEditingClip->length();
     m_mouseDownClipLen = m_currentEditingClip->clipLen();
+    m_movedBeforeMouseUp = false;
 }
 
 AbstractClipView *TracksGraphicsView::findClipById(int id) {
