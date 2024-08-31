@@ -116,10 +116,10 @@ void AppModel::newProject() {
 bool AppModel::loadProject(const QString &filename) {
     Q_D(AppModel);
     d->reset();
-    auto converter = new DspxProjectConverter;
+    DspxProjectConverter converter;
     QString errMsg;
     AppModel resultModel;
-    auto ok = converter->load(filename, &resultModel, errMsg, ImportMode::NewProject);
+    auto ok = converter.load(filename, &resultModel, errMsg, ImportMode::NewProject);
     if (ok)
         loadFromAppModel(resultModel);
     return ok;
@@ -127,18 +127,18 @@ bool AppModel::loadProject(const QString &filename) {
 
 bool AppModel::saveProject(const QString &filename) {
     Q_D(AppModel);
-    auto converter = new DspxProjectConverter;
+    DspxProjectConverter converter;
     QString errMsg;
-    auto ok = converter->save(filename, this, errMsg);
+    auto ok = converter.save(filename, this, errMsg);
     return ok;
 }
 
 bool AppModel::importAceProject(const QString &filename) {
     Q_D(AppModel);
-    auto converter = new AProjectConverter;
+    AProjectConverter converter;
     QString errMsg;
     AppModel resultModel;
-    auto ok = converter->load(filename, &resultModel, errMsg, ImportMode::NewProject);
+    auto ok = converter.load(filename, &resultModel, errMsg, ImportMode::NewProject);
     if (ok) {
         for (const auto track : resultModel.tracks()) {
             track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
@@ -179,8 +179,8 @@ bool AppModel::importMidiFile(const QString &filename) {
     }
 
     AppModel resultModel;
-    auto converter = new MidiConverter;
-    auto ok = converter->load(filename, &resultModel, errMsg,
+    MidiConverter converter;
+    auto ok = converter.load(filename, &resultModel, errMsg,
                               static_cast<IProjectConverter::ImportMode>(midiImport));
     if (midiImport == ImportMode::NewProject) {
         loadFromAppModel(resultModel);
@@ -193,9 +193,9 @@ bool AppModel::importMidiFile(const QString &filename) {
 }
 
 bool AppModel::exportMidiFile(const QString &filename) {
-    auto converter = new MidiConverter;
+    MidiConverter converter;
     QString errMsg;
-    auto ok = converter->save(filename, this, errMsg);
+    auto ok = converter.save(filename, this, errMsg);
     return ok;
 }
 
