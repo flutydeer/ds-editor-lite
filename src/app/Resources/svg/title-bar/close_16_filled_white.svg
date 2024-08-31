@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_关闭" data-name="关闭" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #f0f0f0;
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+        stroke-width: 1.5px;
+      }
+    </style>
+  </defs>
+  <line class="cls-1" x1="2.93" y1="2.93" x2="13.07" y2="13.07"/>
+  <line class="cls-1" x1="13.07" y1="2.93" x2="2.93" y2="13.07"/>
+</svg>

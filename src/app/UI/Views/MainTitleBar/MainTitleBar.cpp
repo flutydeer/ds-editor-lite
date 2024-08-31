@@ -44,31 +44,43 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         m_lbTitle = new QLabel;
         m_lbTitle->setMinimumWidth(8);
 
-        // TODO: 制作标题栏按钮图标
-        auto fontFamily =
-            QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
-        auto font = QFont(fontFamily);
-        font.setPointSizeF(7.2);
-        // font.setHintingPreference(QFont::PreferDefaultHinting);
         int systemButtonWidth = 48;
 
-        m_btnMin = new Button(QChar(ChromeMinimize));
+        m_btnMin = new Button;
         m_btnMin->setObjectName("MinimizeButton");
-        // m_btnMin->setToolTip(tr("Minimize"));
-        // m_btnMin->installEventFilter(new ToolTipFilter(m_btnMin));
-        m_btnMin->setFont(font);
         m_btnMin->setFixedSize(systemButtonWidth, 40);
 
-        m_btnMax = new Button(QChar(ChromeMaximize));
-        m_btnMax->setObjectName("MaximizeButton");
-        m_btnMax->setFont(font);
+        m_btnMax = new Button;
         m_btnMax->setCheckable(true);
+        m_btnMax->setObjectName("MaximizeButton");
         m_btnMax->setFixedSize(systemButtonWidth, 40);
 
-        m_btnClose = new Button(QChar(ChromeClose));
+        m_btnClose = new Button;
         m_btnClose->setObjectName("CloseButton");
-        m_btnClose->setFont(font);
         m_btnClose->setFixedSize(systemButtonWidth, 40);
+
+        if (QSysInfo::productType() == "windows") {
+            auto fontFamily =
+                QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
+            auto font = QFont(fontFamily);
+            font.setPointSizeF(7.2);
+
+            m_btnMin->setText(QChar(ChromeMinimize));
+            m_btnMin->setFont(font);
+            m_btnMax->setText(QChar(ChromeMaximize));
+            m_btnMax->setFont(font);
+            m_btnClose->setText(QChar(ChromeClose));
+            m_btnClose->setFont(font);
+        } else {
+            constexpr auto icoSize = QSize(14, 14);
+            m_btnMin->setIconSize(icoSize);
+            m_btnMin->setIcon(QIcon(":svg/title-bar/minimize_16_filled_white.svg"));
+            m_btnMax->setIconSize(icoSize);
+            m_btnMax->setIcon(QIcon(":svg/title-bar/maximize_16_filled_white.svg"));
+            m_btnClose->setIconSize(icoSize);
+            m_btnClose->setIcon(QIcon(":svg/title-bar/close_16_filled_white.svg"));
+        }
+
 
         connect(m_btnMin, &Button::clicked, this, &MainTitleBar::minimizeTriggered);
         connect(m_btnMax, &Button::clicked, this, &MainTitleBar::maximizeTriggered);
@@ -145,7 +157,11 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
         auto checked = m_window->isMaximized();
         if (m_btnMax) {
             m_btnMax->setChecked(checked);
-            m_btnMax->setText(checked ? QChar(ChromeRestore) : QChar(ChromeMaximize));
+            if (QSysInfo::productType() == "windows")
+                m_btnMax->setText(checked ? QChar(ChromeRestore) : QChar(ChromeMaximize));
+            else
+                m_btnMax->setIcon(checked ? QIcon(":svg/title-bar/restore_16_filled_white.svg")
+                                          : QIcon(":svg/title-bar/maximize_16_filled_white.svg"));
         }
     } else if (event->type() == QEvent::WindowActivate)
         setActiveStyle(true);
