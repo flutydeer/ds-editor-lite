@@ -23,6 +23,8 @@ public:
     void setSceneBaseSize(const QSizeF &size);
     void addCommonItem(IScalableItem *item);
     void removeCommonItem(IScalableItem *item);
+    [[nodiscard]] ScrollBarGraphicsItem *hBar();
+    [[nodiscard]] ScrollBarGraphicsItem *vBar();
 
 signals:
     void baseSizeChanged(const QSizeF &size);

@@ -162,6 +162,7 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         start = left - m_mouseDownClipStart;
         m_currentEditingClip->setStart(start);
     } else if (m_mouseMoveBehavior == ResizeLeft) {
+        m_movedBeforeMouseUp = true;
         left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
         start = m_mouseDownStart;
         clipStart = left - start;
@@ -182,6 +183,7 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             m_currentEditingClip->setClipLen(0);
         }
     } else if (m_mouseMoveBehavior == ResizeRight) {
+        m_movedBeforeMouseUp = true;
         right = MathUtils::round(
             m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize);
         clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);

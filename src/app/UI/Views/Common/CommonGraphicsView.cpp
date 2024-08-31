@@ -4,6 +4,7 @@
 
 #include "CommonGraphicsView.h"
 
+#include "CommonGraphicsScene.h"
 #include "ScrollBarGraphicsItem.h"
 #include "Utils/MathUtils.h"
 
@@ -17,6 +18,7 @@
 CommonGraphicsView::CommonGraphicsView(QWidget *parent) : QGraphicsView(parent) {
     setRenderHint(QPainter::Antialiasing);
     setAttribute(Qt::WA_AcceptTouchEvents);
+    setAttribute(Qt::WA_Hover);
     // setCacheMode(QGraphicsView::CacheNone);
     // setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     setMinimumHeight(150);
@@ -316,6 +318,12 @@ bool CommonGraphicsView::event(QEvent *event) {
         }
     }
 #endif
+    if (event->type() == QEvent::HoverEnter)
+        handleHoverEnterEvent(dynamic_cast<QHoverEvent *>(event)->position());
+    else if (event->type() == QEvent::HoverLeave)
+        handleHoverLeaveEvent(dynamic_cast<QHoverEvent *>(event));
+    else if (event->type() == QEvent::HoverMove)
+        handleHoverMoveEvent(dynamic_cast<QHoverEvent *>(event));
     return QGraphicsView::event(event);
 }
 
@@ -357,6 +365,8 @@ void CommonGraphicsView::mousePressEvent(QMouseEvent *event) {
             m_mouseDownPos = event->position().toPoint();
             auto bar = scrollBar->orientation() == Qt::Horizontal ? horizontalScrollBar()
                                                                   : verticalScrollBar();
+            scrollBar->moveToPressedState();
+            m_scrollBarPressed = true;
             m_mouseDownBarValue = bar->value();
             m_mouseDownBarMax = bar->maximum();
             event->ignore();
@@ -420,7 +430,12 @@ void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void CommonGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
+    // 模拟从按下切换到悬停状态
+    m_scrollBarPressed = false;
+    if (m_isDraggingScrollBar)
+        handleHoverEnterEvent(event->position());
     m_isDraggingScrollBar = false;
+
     if (m_isDraggingContent) {
         if (m_rubberBandAdded)
             scene()->removeItem(&m_rubberBand);
@@ -463,6 +478,84 @@ void CommonGraphicsView::updateAnimationDuration() {
     m_scaleYAnimation.setDuration(duration);
     m_hBarAnimation.setDuration(duration);
     m_vBarAnimation.setDuration(duration);
+}
+
+void CommonGraphicsView::handleHoverEnterEvent(const QPointF &pos) {
+    if (!scene() || m_scrollBarPressed)
+        return;
+
+    if (auto scrollBar = scrollBarAt(pos.toPoint())) {
+        m_prevHoveredItem = scrollBar->orientation() == Qt::Horizontal ? ItemType::HorizontalBar
+                                                                       : ItemType::VerticalBar;
+        if (scrollBar->mouseOnHandle(pos))
+            scrollBar->moveToHoverState();
+        else
+            scrollBar->moveToNormalState();
+    } else {
+        if (auto commonScene = dynamic_cast<CommonGraphicsScene *>(scene())) {
+            commonScene->hBar()->moveToNormalState();
+            commonScene->vBar()->moveToNormalState();
+        }
+        m_prevHoveredItem = ItemType::Content;
+    }
+}
+
+void CommonGraphicsView::handleHoverLeaveEvent(QHoverEvent *event) const {
+    if (!scene() || m_scrollBarPressed)
+        return;
+
+    if (auto commonScene = dynamic_cast<CommonGraphicsScene *>(scene())) {
+        commonScene->hBar()->moveToNormalState();
+        commonScene->vBar()->moveToNormalState();
+    }
+}
+
+void CommonGraphicsView::handleHoverMoveEvent(QHoverEvent *event) {
+    if (!scene() || m_scrollBarPressed)
+        return;
+
+    auto isSameBar = [&](Qt::Orientation orientation) {
+        if (orientation == Qt::Horizontal && m_prevHoveredItem == ItemType::HorizontalBar)
+            return true;
+        if (orientation == Qt::Vertical && m_prevHoveredItem == ItemType::VerticalBar)
+            return true;
+        return false;
+    };
+
+    auto pos = event->position().toPoint();
+    if (auto scrollBar = scrollBarAt(pos)) {
+        // qDebug() << scrollBar->orientation();
+        auto orientation = scrollBar->orientation();
+
+        if (scrollBar->mouseOnHandle(pos)) {
+            // qDebug() << "mouseOnHandle true";
+            scrollBar->moveToHoverState();
+        } else {
+            // qDebug() << "mouseOnHandle false";
+            if (auto commonScene = dynamic_cast<CommonGraphicsScene *>(scene())) {
+                commonScene->hBar()->moveToNormalState();
+                commonScene->vBar()->moveToNormalState();
+            }
+        }
+        m_prevHoveredItem =
+            orientation == Qt::Horizontal ? ItemType::HorizontalBar : ItemType::VerticalBar;
+    } else {
+        if (auto commonScene = dynamic_cast<CommonGraphicsScene *>(scene())) {
+            commonScene->hBar()->moveToNormalState();
+            commonScene->vBar()->moveToNormalState();
+        }
+        m_prevHoveredItem = ItemType::Content;
+    }
+}
+
+ScrollBarGraphicsItem *CommonGraphicsView::scrollBarAt(const QPoint &pos) const {
+    if (!scene() || !dynamic_cast<CommonGraphicsScene *>(scene()))
+        return nullptr;
+
+    for (const auto item : items(pos))
+        if (auto bar = dynamic_cast<ScrollBarGraphicsItem *>(item))
+            return bar;
+    return nullptr;
 }
 
 void CommonGraphicsView::afterSetScale() {

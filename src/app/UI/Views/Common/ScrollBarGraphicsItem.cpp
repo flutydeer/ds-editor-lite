@@ -8,8 +8,6 @@
 #include "Global/AppGlobal.h"
 
 #include <QPainter>
-#include <QGraphicsSceneHoverEvent>
-#include <QCursor>
 
 ScrollBarGraphicsItem::ScrollBarGraphicsItem() {
     initUi();
@@ -49,14 +47,44 @@ void ScrollBarGraphicsItem::updateRectAndPos() {
     update();
 }
 
+void ScrollBarGraphicsItem::moveToNormalState() {
+    performStateChangeAnimation(handleAlphaNormal, handlePaddingNormal, 300);
+}
+
+void ScrollBarGraphicsItem::moveToHoverState() {
+    performStateChangeAnimation(handleAlphaHover, handlePaddingHover, 100);
+}
+
+void ScrollBarGraphicsItem::moveToPressedState() {
+    performStateChangeAnimation(handleAlphaPressed, handlePaddingPressed, 100);
+}
+
+bool ScrollBarGraphicsItem::mouseOnHandle(const QPointF &scenePos) const {
+    if (m_orientation == Qt::Horizontal) {
+        auto x = scenePos.x();
+        if (x > handleStart() && x < handleEnd())
+            return true;
+    } else {
+        auto y = scenePos.y();
+        if (y > handleStart() && y < handleEnd())
+            return true;
+    }
+    return false;
+}
+
 void ScrollBarGraphicsItem::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
 }
 
 void ScrollBarGraphicsItem::afterSetTimeScale(double scale) {
 }
 
-void ScrollBarGraphicsItem::setHandleHoverAnimationValue(const QVariant &value) {
-    m_statusAnimationValue = value.toInt();
+void ScrollBarGraphicsItem::setHandleAlpha(const QVariant &value) {
+    m_handleAlpha = value.toInt();
+    update();
+}
+
+void ScrollBarGraphicsItem::setHandlePadding(const QVariant &value) {
+    m_handlePadding = value.toDouble();
     update();
 }
 
@@ -66,13 +94,9 @@ void ScrollBarGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsI
     //     return;
 
     painter->setRenderHint(QPainter::Antialiasing);
-    // TODO: fix status animation
-    auto aniRatio = (m_statusAnimationValue - 127) / (255.0 - 127);
-    int alpha = handleAlphaNormal + qRound(aniRatio * (handleAlphaHover - handleAlphaNormal));
-    const auto backgroundColor = QColor(255, 255, 255, alpha);
-    // const auto backgroundColor = QColor(32 + alpha, 32 + alpha, 32 + alpha);
+    const auto backgroundColor = QColor(255, 255, 255, m_handleAlpha);
     const auto radiusBase = 2;
-    auto padding = 5 - aniRatio * 3;
+    auto padding = m_handlePadding;
 
     QRectF handleRect;
     if (m_orientation == Qt::Horizontal) {
@@ -98,75 +122,16 @@ void ScrollBarGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsI
     painter->drawRoundedRect(handleRect, radius, radius);
 }
 
-void ScrollBarGraphicsItem::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
-    // qDebug() << "hover enter";
-    if (m_orientation == Qt::Horizontal) {
-        auto x = event->pos().x();
-        if (x > handleStart() && x < handleEnd()) {
-            m_mouseHoverOnHandle = true;
-            performHoverEnterAnimation();
-        }
-    } else {
-        auto y = event->pos().y();
-        if (y > handleStart() && y < handleEnd()) {
-            m_mouseHoverOnHandle = true;
-            performHoverEnterAnimation();
-        }
-    }
-    CommonGraphicsRectItem::hoverEnterEvent(event);
-}
-
-void ScrollBarGraphicsItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
-    // const auto x = event->pos().x();
-    // auto start = handleStart();
-    // auto end = handleEnd();
-    // if (x >= start && x <= start + AppGlobal::resizeTolarance ||
-    //     x >= end - AppGlobal::resizeTolarance && x <= end)
-    //     setCursor(Qt::SizeHorCursor);
-    // else
-    //     setCursor(Qt::ArrowCursor);
-
-    if (m_orientation == Qt::Horizontal) {
-        auto x = event->pos().x();
-        if (x > handleStart() && x < handleEnd()) {
-            if (!m_mouseHoverOnHandle)
-                performHoverEnterAnimation();
-            m_mouseHoverOnHandle = true;
-        } else {
-            m_mouseHoverOnHandle = false;
-            performHoverLeaveAnimation();
-        }
-    } else {
-        auto y = event->pos().y();
-        if (y > handleStart() && y < handleEnd()) {
-            if (!m_mouseHoverOnHandle)
-                performHoverEnterAnimation();
-            m_mouseHoverOnHandle = true;
-        } else {
-            m_mouseHoverOnHandle = false;
-            performHoverLeaveAnimation();
-        }
-    }
-
-    CommonGraphicsRectItem::hoverMoveEvent(event);
-}
-
-void ScrollBarGraphicsItem::hoverLeaveEvent(QGraphicsSceneHoverEvent *event) {
-    // qDebug() << "hover leave";
-    if (m_mouseHoverOnHandle)
-        performHoverLeaveAnimation();
-    m_mouseHoverOnHandle = false;
-    CommonGraphicsRectItem::hoverLeaveEvent(event);
-}
-
 void ScrollBarGraphicsItem::initUi() {
-    setAcceptHoverEvents(true);
     updateRectAndPos();
     initializeAnimation();
 
-    m_statusAnimation.setEasingCurve(QEasingCurve::OutCubic);
-    connect(&m_statusAnimation, &QVariantAnimation::valueChanged, this,
-            &ScrollBarGraphicsItem::setHandleHoverAnimationValue);
+    m_aniHandleAlpha.setEasingCurve(QEasingCurve::OutCubic);
+    m_aniHandlePadding.setEasingCurve(QEasingCurve::OutCubic);
+    connect(&m_aniHandleAlpha, &QVariantAnimation::valueChanged, this,
+            &ScrollBarGraphicsItem::setHandleAlpha);
+    connect(&m_aniHandlePadding, &QVariantAnimation::valueChanged, this,
+            &ScrollBarGraphicsItem::setHandlePadding);
 }
 
 double ScrollBarGraphicsItem::handleStart() const {
@@ -186,18 +151,20 @@ double ScrollBarGraphicsItem::handleEnd() const {
     return handleStart() + handleLength();
 }
 
-void ScrollBarGraphicsItem::performHoverEnterAnimation() {
-    m_statusAnimation.stop();
-    m_statusAnimation.setDuration(static_cast<int>(animationTimeScale() * 100));
-    m_statusAnimation.setStartValue(m_statusAnimationValue);
-    m_statusAnimation.setEndValue(255);
-    m_statusAnimation.start();
-}
+void ScrollBarGraphicsItem::performStateChangeAnimation(int targetAlpha, double targetPadding,
+                                                        int duration) {
+    m_aniHandleAlpha.stop();
+    m_aniHandlePadding.stop();
 
-void ScrollBarGraphicsItem::performHoverLeaveAnimation() {
-    m_statusAnimation.stop();
-    m_statusAnimation.setDuration(static_cast<int>(animationTimeScale() * 400));
-    m_statusAnimation.setStartValue(m_statusAnimationValue);
-    m_statusAnimation.setEndValue(127);
-    m_statusAnimation.start();
+    m_aniHandleAlpha.setDuration(static_cast<int>(animationTimeScale() * duration));
+    m_aniHandlePadding.setDuration(static_cast<int>(animationTimeScale() * duration));
+
+    m_aniHandleAlpha.setStartValue(m_handleAlpha);
+    m_aniHandlePadding.setStartValue(m_handlePadding);
+
+    m_aniHandleAlpha.setEndValue(targetAlpha);
+    m_aniHandlePadding.setEndValue(targetPadding);
+
+    m_aniHandleAlpha.start();
+    m_aniHandlePadding.start();
 }

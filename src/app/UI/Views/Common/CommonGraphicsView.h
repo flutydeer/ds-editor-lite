@@ -15,6 +15,9 @@
 #include "UI/Utils/IScalable.h"
 #include "UI/Utils/IAnimatable.h"
 
+
+class ScrollBarGraphicsItem;
+
 class CommonGraphicsView : public QGraphicsView, public IScalable, public IAnimatable {
     Q_OBJECT
     Q_PROPERTY(double scaleX READ scaleX WRITE setScaleX)
@@ -74,10 +77,17 @@ protected:
     void afterSetTimeScale(double scale) override;
 
 private:
+    enum class ItemType { HorizontalBar, VerticalBar, Content };
+
     using QGraphicsView::setDragMode;
 
     bool isMouseEventFromWheel(QWheelEvent *event);
     void updateAnimationDuration();
+    void handleHoverEnterEvent(const QPointF &pos);
+    void handleHoverLeaveEvent(QHoverEvent *event) const;
+    void handleHoverMoveEvent(QHoverEvent *event);
+
+    [[nodiscard]] ScrollBarGraphicsItem *scrollBarAt(const QPoint &pos) const;
 
     double m_hZoomingStep = 0.4;
     double m_vZoomingStep = 0.3;
@@ -103,6 +113,8 @@ private:
     QPropertyAnimation m_vBarAnimation;
 
     RubberBandGraphicsItem m_rubberBand;
+    ItemType m_prevHoveredItem = ItemType::Content;
+    bool m_scrollBarPressed = false;
 
     QTimer m_timer;
     bool m_touchPadLock = false;

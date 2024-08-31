@@ -45,6 +45,14 @@ void CommonGraphicsScene::removeCommonItem(IScalableItem *item) {
     m_items.removeOne(item);
 }
 
+ScrollBarGraphicsItem *CommonGraphicsScene::hBar() {
+    return &m_hBar;
+}
+
+ScrollBarGraphicsItem *CommonGraphicsScene::vBar() {
+    return &m_vBar;
+}
+
 void CommonGraphicsScene::updateSceneRect() {
     auto scaledWidth = m_sceneSize.width() * scaleX();
     auto scaledHeight = m_sceneSize.height() * scaleY();
