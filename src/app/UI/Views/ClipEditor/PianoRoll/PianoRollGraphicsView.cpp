@@ -412,6 +412,7 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
     Q_Q(PianoRollGraphicsView);
     q->setSceneVisibility(false);
     q->setEnabled(false);
+    m_pitchEditor->clearParams();
     while (m_notes.count() > 0)
         handleNoteRemoved(m_notes.first());
     if (m_clip) {
@@ -441,6 +442,9 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
         q->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
     } else
         q->setViewportCenterAtKeyIndex(60);
+
+    updatePitch(Param::Original, *m_clip->params.getParamByName(ParamBundle::Pitch));
+    updatePitch(Param::Edited, *m_clip->params.getParamByName(ParamBundle::Pitch));
 
     connect(clip, &SingingClip::propertyChanged, this,
             &PianoRollGraphicsViewPrivate::onClipPropertyChanged);
@@ -501,7 +505,7 @@ void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(int tick, int keyIndex)
 
 void PianoRollGraphicsViewPrivate::handleNoteDrawn(int rStart, int length, int keyIndex) const {
     Log::d(CLASS_NAME, QString("Note drawn rStart:%1 len:%2 key:%3")
-                              .arg(qStrNum(rStart), qStrNum(length), qStrNum(keyIndex)));
+                           .arg(qStrNum(rStart), qStrNum(length), qStrNum(keyIndex)));
     auto note = new Note;
     note->setRStart(rStart);
     note->setLength(length);
@@ -521,7 +525,7 @@ void PianoRollGraphicsViewPrivate::handleNotesMoved(int deltaTick, int deltaKey)
 
 void PianoRollGraphicsViewPrivate::handleNoteLeftResized(int noteId, int deltaTick) {
     Log::d(CLASS_NAME,
-              QString("Note left resized id:%1 dt:%2").arg(qStrNum(noteId), qStrNum(deltaTick)));
+           QString("Note left resized id:%1 dt:%2").arg(qStrNum(noteId), qStrNum(deltaTick)));
     QList<int> notes;
     notes.append(noteId);
     clipController->onResizeNotesLeft(notes, deltaTick);
@@ -529,7 +533,7 @@ void PianoRollGraphicsViewPrivate::handleNoteLeftResized(int noteId, int deltaTi
 
 void PianoRollGraphicsViewPrivate::handleNoteRightResized(int noteId, int deltaTick) {
     Log::d(CLASS_NAME,
-              QString("Note right resized id:%1 dt:%2").arg(qStrNum(noteId), qStrNum(deltaTick)));
+           QString("Note right resized id:%1 dt:%2").arg(qStrNum(noteId), qStrNum(deltaTick)));
     QList<int> notes;
     notes.append(noteId);
     clipController->onResizeNotesRight(notes, deltaTick);

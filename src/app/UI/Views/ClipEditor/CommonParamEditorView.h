@@ -18,6 +18,7 @@ public:
 
     void loadOriginal(const QList<DrawCurve *> &curves);
     void loadEdited(const QList<DrawCurve *> &curves);
+    void clearParams();
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
 
 signals:

@@ -29,6 +29,12 @@ void CommonParamEditorView::loadEdited(const QList<DrawCurve *> &curves) {
     update();
 }
 
+void CommonParamEditorView::clearParams() {
+    m_drawCurvesOriginal.clear();
+    m_drawCurvesEdited.clear();
+    update();
+}
+
 const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
     return m_drawCurvesEdited;
 }
