@@ -42,6 +42,9 @@ public:
     [[nodiscard]] bool mute() const override;
     void setMute(bool mute) override;
 
+    [[nodiscard]] bool activeClip() const;
+    void setActiveClip(bool active);
+
     [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int index);
     [[nodiscard]] bool canResizeLength() const;

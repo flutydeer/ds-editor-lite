@@ -34,7 +34,8 @@ private:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void prepareForMovingOrResizingClip(QMouseEvent *event, AbstractClipView *clipItem);
     AbstractClipView *findClipById(int id);
-    void clearSelections();
+    void clearSelections() const;
+    void resetActiveClips() const;
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
 
     TracksGraphicsScene *m_scene;

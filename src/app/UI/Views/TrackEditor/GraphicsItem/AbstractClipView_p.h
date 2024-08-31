@@ -26,6 +26,7 @@ public:
     double m_gain = 0;
     // double m_pan = 0;
     bool m_mute = false;
+    bool m_activeClip = false;
     bool m_canResizeLength = false;
     QPointF m_mouseDownPos;
     int m_mouseDownStart = 0;

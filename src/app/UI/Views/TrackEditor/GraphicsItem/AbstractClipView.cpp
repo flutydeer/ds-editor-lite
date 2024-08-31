@@ -101,6 +101,17 @@ void AbstractClipView::setMute(bool mute) {
     update();
 }
 
+bool AbstractClipView::activeClip() const {
+    Q_D(const AbstractClipView);
+    return d->m_activeClip;
+}
+
+void AbstractClipView::setActiveClip(bool active) {
+    Q_D(AbstractClipView);
+    d->m_activeClip = active;
+    update();
+}
+
 int AbstractClipView::trackIndex() const {
     Q_D(const AbstractClipView);
     return d->m_trackIndex;
@@ -167,6 +178,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     Q_D(const AbstractClipView);
     const auto colorPrimary = QColor(155, 186, 255);
     const auto colorPrimaryDarker = QColor(112, 156, 255);
+    const auto colorPrimaryBrighter = QColor(175, 200, 255);
     const auto colorForeground = QColor(0, 0, 0);
     auto penWidth = 2.0f;
 
@@ -187,7 +199,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 
     pen.setWidthF(penWidth);
     painter->setPen(pen);
-    painter->setBrush(colorPrimary);
+    painter->setBrush(activeClip() ? colorPrimaryBrighter : colorPrimary);
 
     painter->drawRoundedRect(paddedRect, 4, 4);
 

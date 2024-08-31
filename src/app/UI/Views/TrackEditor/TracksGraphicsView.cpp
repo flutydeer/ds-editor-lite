@@ -11,6 +11,7 @@
 #include "GraphicsItem/AbstractClipView.h"
 #include "GraphicsItem/TracksBackgroundGraphicsItem.h"
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Views/Common/ScrollBarGraphicsItem.h"
@@ -44,13 +45,18 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     m_backgroundMenu->addAction(m_actionNewSingingClip);
     m_backgroundMenu->addAction(m_actionAddAudioClip);
 
-    // connect(appModel, &AppModel::activeClipChanged, this, [=](Clip *clip) {
-    //     clearSelections();
-    //     if (clip) {
-    //         auto clipItem = findClipById(clip->id());
-    //         clipItem->setSelected(true);
-    //     }
-    // });
+    connect(appStatus, &AppStatus::activeClipIdChanged, this, [=](int clipId) {
+        if (clipId == -1) {
+            resetActiveClips();
+            return;
+        }
+
+        if (auto clipItem = findClipById(clipId)) {
+            resetActiveClips();
+            clipItem->setActiveClip(true);
+        } else
+            qFatal() << "Clip not found: " << clipId;
+    });
 }
 
 void TracksGraphicsView::setQuantize(int quantize) {
@@ -127,7 +133,7 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
             }
         } else {
             clearSelections();
-            trackController->setActiveClip(-1);
+            // trackController->setActiveClip(-1);
             CommonGraphicsView::mousePressEvent(event);
         }
     }
@@ -319,10 +325,17 @@ AbstractClipView *TracksGraphicsView::findClipById(int id) {
     return nullptr;
 }
 
-void TracksGraphicsView::clearSelections() {
+void TracksGraphicsView::clearSelections() const {
     for (auto item : m_scene->items())
         if (item->isSelected())
             item->setSelected(false);
+}
+
+void TracksGraphicsView::resetActiveClips() const {
+    for (auto item : m_scene->items())
+        if (auto clip = dynamic_cast<AbstractClipView *>(item))
+            if (clip->activeClip())
+                clip->setActiveClip(false);
 }
 
 QList<AbstractClipView *> TracksGraphicsView::selectedClipItems() const {
