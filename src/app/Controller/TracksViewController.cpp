@@ -200,8 +200,10 @@ void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
 
 void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate) {
     taskManager->removeTask(task);
-    if (terminate)
+    if (terminate) {
+        delete task;
         return;
+    }
     if (!task->success) {
         // auto clipItem = m_view.findClipItemById(task->id());
         // auto audioClipItem = dynamic_cast<AudioClipGraphicsItem *>(clipItem);
@@ -216,6 +218,8 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
         connect(btnClose, &Button::clicked, dlg, &Dialog::accept);
         dlg->setPositiveButton(btnClose);
         dlg->show();
+
+        delete task;
         return;
     }
 
@@ -239,7 +243,8 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     audioClip->setAudioInfo(result);
     auto track = appModel->findTrackById(trackId);
     if (!track) {
-        qDebug() << "TracksViewController::handleDecodeAudioTaskFinished track not found";
+        qDebug() << "handleDecodeAudioTaskFinished: track not found";
+        delete task;
         return;
     }
     auto a = new ClipActions;
@@ -248,4 +253,5 @@ void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, 
     a->insertClips(clips, track);
     a->execute();
     historyManager->record(a);
+    delete task;
 }
