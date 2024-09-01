@@ -11,6 +11,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
+#include <QSvgRenderer>
 
 using namespace TracksEditorGlobal;
 
@@ -170,7 +171,7 @@ QString AbstractClipView::text() const {
                        .arg(clipLen())
                        .arg(scaleX())
                        .arg(scaleY());
-    return clipTypeName() + controlStr + (d->m_showDebugInfo ? timeStr : "");
+    return controlStr + (d->m_showDebugInfo ? timeStr : "");
 }
 
 void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -203,18 +204,22 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 
     painter->drawRoundedRect(paddedRect, 4, 4);
 
+    double iconWidth = 16;
     double textPadding = 2;
     auto rectLeft = mapToScene(rect.topLeft()).x();
     auto rectRight = mapToScene(rect.bottomRight()).x();
-    auto textRectLeft = visibleRect().left() < rectLeft
-                            ? paddedRect.left() + textPadding
-                            : visibleRect().left() - rectLeft + textPadding + penWidth / 2;
-    auto textRectTop = paddedRect.top() + textPadding;
-    auto textRectWidth = rectLeft < visibleRect().left()
-                             ? rectRight - visibleRect().left() - 2 * (textPadding + penWidth)
-                             : rectRight - rectLeft - 2 * (textPadding + penWidth);
-    auto textRectHeight = paddedRect.height() - 2 * textPadding;
-    auto textRect = QRectF(textRectLeft, textRectTop, textRectWidth, textRectHeight);
+    auto titleRectLeft = visibleRect().left() < rectLeft
+                             ? paddedRect.left() + textPadding
+                             : visibleRect().left() - rectLeft + textPadding + penWidth / 2;
+    auto titleRectTop = paddedRect.top() + textPadding;
+    auto titleRectWidth = rectLeft < visibleRect().left()
+                              ? rectRight - visibleRect().left() - 2 * (textPadding + penWidth)
+                              : rectRight - rectLeft - 2 * (textPadding + penWidth);
+    auto titleRectHeight = paddedRect.height() - 2 * textPadding;
+
+
+    auto textRect = QRectF(titleRectLeft + iconWidth, titleRectTop, titleRectWidth - iconWidth,
+                           titleRectHeight);
 
     auto fontMetrics = painter->fontMetrics();
     auto textHeight = fontMetrics.height();
@@ -224,12 +229,19 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
     // painter->drawRect(textRect);
-    if (textWidth <= textRectWidth && textHeight <= textRectHeight) {
-        if (d->previewRect().height() < 32)
+    QRectF iconRect;
+    if (textWidth <= titleRectWidth && textHeight <= titleRectHeight) {
+        if (d->previewRect().height() < 32) {
             painter->drawText(textRect, text(), QTextOption(Qt::AlignVCenter));
-        else
+            iconRect = QRectF(titleRectLeft, titleRectTop, iconWidth, titleRectHeight);
+        } else {
             painter->drawText(textRect, text());
+            iconRect = QRectF(titleRectLeft, titleRectTop, iconWidth, textHeight);
+        }
     }
+    QSvgRenderer renderer(iconPath());
+    renderer.setAspectRatioMode(Qt::KeepAspectRatio);
+    renderer.render(painter, iconRect);
     // pen.setColor(Qt::red);
     // painter->setPen(pen);
     // painter->drawRect(textRect);

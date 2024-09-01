@@ -153,3 +153,7 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
 QString AudioClipView::clipTypeName() const {
     return tr("[Audio] ");
 }
+
+QString AudioClipView::iconPath() const {
+    return ":svg/icons/audio_clip_16_filled.svg";
+}

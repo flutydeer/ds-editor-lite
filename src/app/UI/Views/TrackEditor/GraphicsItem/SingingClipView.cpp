@@ -134,6 +134,10 @@ QString SingingClipView::clipTypeName() const {
     return tr("[Singing] ");
 }
 
+QString SingingClipView::iconPath() const {
+    return ":svg/icons/midi_clip_16_filled.svg";
+}
+
 void SingingClipView::addNote(Note *note) {
     auto noteViewModel = new NoteViewModel;
     noteViewModel->id = note->id();

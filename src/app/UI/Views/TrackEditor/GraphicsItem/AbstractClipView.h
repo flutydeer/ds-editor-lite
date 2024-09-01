@@ -58,12 +58,13 @@ signals:
     void removeTriggered(int id);
 
 protected:
-    virtual QString text() const;
+    [[nodiscard]] virtual QString text() const;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     virtual void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) = 0;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
-    virtual QString clipTypeName() const = 0;
+    [[nodiscard]] virtual QString clipTypeName() const = 0;
+    [[nodiscard]] virtual QString iconPath() const = 0;
     void setCanResizeLength(bool on);
     [[nodiscard]] double tickToSceneX(double tick) const;
     [[nodiscard]] double sceneXToItemX(double x) const;

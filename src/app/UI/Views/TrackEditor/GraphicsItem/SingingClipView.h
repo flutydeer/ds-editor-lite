@@ -43,9 +43,10 @@ public slots:
 private:
     // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
     // override;
-    QString text() const override;
+    [[nodiscard]] QString text() const override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) override;
-    QString clipTypeName() const override;
+    [[nodiscard]] QString clipTypeName() const override;
+    [[nodiscard]] QString iconPath() const override;
 
     QList<NoteViewModel *> m_notes;
     AppGlobal::LanguageType m_language = AppGlobal::unknown;
