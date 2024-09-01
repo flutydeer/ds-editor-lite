@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_时间选择光标" data-name="时间选择光标" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #f0f0f0;
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+        stroke-width: 1.5px;
+      }
+    </style>
+  </defs>
+  <path class="cls-1" d="M8.63,21.27c1.86,0,3.37-1.11,3.37-2.48V5.21c0-1.37-1.51-2.48-3.37-2.48"/>
+  <path class="cls-1" d="M15.37,21.27c-1.86,0-3.37-1.11-3.37-2.48V5.21c0-1.37,1.51-2.48,3.37-2.48"/>
+</svg>
