@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_人声MIDI" data-name="人声MIDI" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #f0f0f0;
+      }
+    </style>
+  </defs>
+  <path class="cls-1" d="M12.84,2.17H3.17c-.55,0-1,.45-1,1v1.06h6.95c.55,0,1,.45,1,1v.62c0,.55-.45,1-1,1H2.17v2.28h6.95c.55,0,1,.45,1,1v.62c0,.55-.45,1-1,1H2.17v1.08c0,.55,.45,1,1,1H12.84c.55,0,1-.45,1-1V3.17c0-.55-.45-1-1-1Z"/>
+</svg>

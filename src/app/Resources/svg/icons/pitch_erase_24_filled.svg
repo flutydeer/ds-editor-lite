@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_擦除音高" data-name="擦除音高" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #000;
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+        stroke-width: 2px;
+      }
+    </style>
+  </defs>
+  <g id="_橡皮擦" data-name="橡皮擦">
+    <path d="M15.62,13.62l-.55,.55c-.49,.49-1.29,.49-1.78,0l-3.46-3.46c-.49-.49-.49-1.29,0-1.78l.55-.55,5.24,5.24Zm6-7.78l-3.46-3.46c-.49-.49-1.29-.49-1.78,0l-4.96,4.96,5.24,5.24,4.96-4.96c.49-.49,.49-1.29,0-1.78Z"/>
+  </g>
+  <path class="cls-1" d="M3.02,20.98s.31-5.85,2.27-6.1c1.63-.21,2.26,2.19,3.91,2.14s6.85-.11,8.51-.02c1.32,.07,3.2,1.51,3.2,1.51"/>
+</svg>

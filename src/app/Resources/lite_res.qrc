@@ -10,6 +10,11 @@
         <file>svg/title-bar/minimize_16_filled_white.svg</file>
         <file>svg/title-bar/restore_16_filled_white.svg</file>
 
+        <file>svg/icons/midi_clip_16_filled_white.svg</file>
+        <file>svg/icons/midi_clip_16_filled.svg</file>
+        <file>svg/icons/audio_clip_16_filled_white.svg</file>
+        <file>svg/icons/audio_clip_16_filled.svg</file>
+
         <file>svg/icons/add_16_filled_white.svg</file>
         <file>svg/icons/checkmark_16_filled.svg</file>
         <file>svg/icons/more_horizontal_24_regular.svg</file>
