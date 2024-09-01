@@ -14,6 +14,6 @@
       }
     </style>
   </defs>
-  <rect id="_当前窗口" data-name="当前窗口" class="cls-1" x="2.9" y="5.13" width="7.96" height="7.96" rx="1.72" ry="1.72"/>
-  <path id="_背景窗口边缘" data-name="背景窗口边缘" class="cls-2" d="M4.62,2.9h4.54c2.18,0,3.95,1.77,3.95,3.95v4.54"/>
+  <rect class="cls-1" x="2.9" y="5.13" width="7.96" height="7.96" rx="1.72" ry="1.72"/>
+  <path class="cls-2" d="M5.13,2.91h5.77c1.21,0,2.19,.98,2.19,2.19v5.77"/>
 </svg>
