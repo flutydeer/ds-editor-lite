@@ -9,9 +9,11 @@
 
 class RubberBandGraphicsItem : public CommonGraphicsRectItem {
 public:
+    enum class SelectMode { RectSelect, BeamSelect };
     explicit RubberBandGraphicsItem();
     void mouseDown(const QPointF &pos);
     void mouseMove(const QPointF &pos);
+    void setSelectMode(SelectMode mode);
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -21,6 +23,7 @@ private:
     QPointF m_currentMousePos;
     QPointF m_pos;
     QSizeF m_size;
+    SelectMode m_selectMode = SelectMode::BeamSelect;
 };
 
 

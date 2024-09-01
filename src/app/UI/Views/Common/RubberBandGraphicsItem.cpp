@@ -4,6 +4,8 @@
 
 #include "RubberBandGraphicsItem.h"
 
+#include "CommonGraphicsScene.h"
+
 #include <QPainter>
 
 RubberBandGraphicsItem::RubberBandGraphicsItem() {
@@ -29,6 +31,10 @@ void RubberBandGraphicsItem::mouseMove(const QPointF &pos) {
     updateRectAndPos();
 }
 
+void RubberBandGraphicsItem::setSelectMode(SelectMode mode) {
+    m_selectMode = mode;
+}
+
 void RubberBandGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                    QWidget *widget) {
     painter->setRenderHint(QPainter::Antialiasing);
@@ -45,13 +51,27 @@ void RubberBandGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphics
     QPen pen;
     pen.setWidthF(penWidth);
     pen.setColor(borderColor);
-    painter->setPen(pen);
     painter->setBrush(backgroundColor);
-    painter->drawRoundedRect(boundingRect(), radius, radius);
+    if (m_selectMode == SelectMode::RectSelect) {
+        painter->setPen(pen);
+        painter->drawRoundedRect(boundingRect(), radius, radius);
+    } else if (m_selectMode == SelectMode::BeamSelect) {
+        painter->setPen(Qt::NoPen);
+        painter->drawRect(boundingRect());
+        painter->setPen(pen);
+        painter->drawLine(boundingRect().topLeft(), boundingRect().bottomLeft());
+        painter->drawLine(boundingRect().topRight(), boundingRect().bottomRight());
+    }
 }
 
 void RubberBandGraphicsItem::updateRectAndPos() {
-    setPos(m_pos);
-    setRect(QRectF(QPointF(0, 0), m_size));
+    constexpr auto topLeft = QPointF(0, 0);
+    if (m_selectMode == SelectMode::RectSelect) {
+        setPos(m_pos);
+        setRect(QRectF(topLeft, m_size));
+    } else if (m_selectMode == SelectMode::BeamSelect && scene()) {
+        setPos(m_pos.x(), 0);
+        setRect(QRectF(topLeft, QPointF(m_size.width(), scene()->sceneRect().height())));
+    }
     update();
 }

@@ -35,6 +35,12 @@ void CommonParamEditorView::clearParams() {
     update();
 }
 
+void CommonParamEditorView::setEraseMode(bool on) {
+    // qDebug() << "setEraseMode:" << on;
+    m_eraseMode = on;
+    update();
+}
+
 const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
     return m_drawCurvesEdited;
 }
@@ -121,16 +127,20 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
 
     if (event->button() == Qt::LeftButton) {
-        if (auto curve = curveAt(tick)) {
-            m_editingCurve = curve;
-            m_editType = DrawOnCurve;
-            qDebug() << "Edit exist curve: #" << curve->id();
+        if (m_eraseMode) {
+            m_editType = Erase;
         } else {
-            m_editingCurve = nullptr;
-            m_editType = DrawOnInterval;
+            if (auto curve = curveAt(tick)) {
+                m_editingCurve = curve;
+                m_editType = DrawOnCurve;
+                qDebug() << "Edit exist curve: #" << curve->id();
+            } else {
+                m_editingCurve = nullptr;
+                m_editType = DrawOnInterval;
+            }
         }
     } else if (event->button() == Qt::RightButton) {
-        m_editType = Erase;
+        m_editType = m_eraseMode ? None : Erase;
     } else {
         m_editType = None;
     }

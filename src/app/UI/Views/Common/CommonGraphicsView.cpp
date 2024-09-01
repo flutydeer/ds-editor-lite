@@ -133,12 +133,12 @@ void CommonGraphicsView::setEnsureSceneFillViewY(bool on) {
     m_ensureSceneFillViewY = on;
 }
 
-CommonGraphicsView::DragBehaviour CommonGraphicsView::dragBehaviour() const {
-    return m_dragBehaviour;
+CommonGraphicsView::DragBehavior CommonGraphicsView::dragBehavior() const {
+    return m_dragBehavior;
 }
 
-void CommonGraphicsView::setDragBehaviour(DragBehaviour dragBehaviour) {
-    m_dragBehaviour = dragBehaviour;
+void CommonGraphicsView::setDragBehavior(DragBehavior dragBehaviour) {
+    m_dragBehavior = dragBehaviour;
     // TODO: 实现手型拖动视图
 }
 
@@ -374,9 +374,14 @@ void CommonGraphicsView::mousePressEvent(QMouseEvent *event) {
         }
     }
 
-    if (m_dragBehaviour == DragBehaviour::RectSelect && event->button() == Qt::LeftButton) {
+    const auto isSelect = m_dragBehavior == DragBehavior::RectSelect || m_dragBehavior == DragBehavior::IntervalSelect;
+    if (isSelect && event->button() == Qt::LeftButton) {
         if (scene()) {
             m_isDraggingContent = true;
+            if (m_dragBehavior == DragBehavior::RectSelect)
+                m_rubberBand.setSelectMode(RubberBandGraphicsItem::SelectMode::RectSelect);
+            else
+                m_rubberBand.setSelectMode(RubberBandGraphicsItem::SelectMode::BeamSelect);
             m_rubberBand.mouseDown(mapToScene(event->pos()));
             m_rubberBandAdded = false;
         }

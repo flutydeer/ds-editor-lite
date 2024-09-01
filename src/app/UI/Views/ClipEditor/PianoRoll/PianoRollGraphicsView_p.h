@@ -34,7 +34,7 @@ public:
     int m_offset = 0; // Clip 's "start" property
     QList<Note *> m_notes;
 
-    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
+    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, EraseNotes, None };
 
     NoteView *m_currentEditingNote = nullptr;
 
@@ -60,6 +60,8 @@ public:
     int m_moveMaxDeltaKey = 127;
     int m_moveMinDeltaKey = 0;
 
+    QList<int> m_notesToErase;
+
     PianoRollEditMode m_editMode = Select;
     MouseMoveBehavior m_mouseMoveBehavior = None;
     NoteView *m_currentDrawingNote = nullptr; // a fake note for drawing
@@ -78,6 +80,9 @@ public:
     static void handleNoteLeftResized(int noteId, int deltaTick);
     static void handleNoteRightResized(int noteId, int deltaTick);
 
+    void handleNotesErased();
+    void eraseNoteFromView(NoteView *noteView);
+
     void updateSelectionState();
     void updateOverlappedState();
     void updateNoteTimeAndKey(Note *note) const;
@@ -95,9 +100,9 @@ public:
     [[nodiscard]] double sceneYToKeyIndexDouble(double y) const;
     [[nodiscard]] int sceneYToKeyIndexInt(double y) const;
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
-    void setPitchEditMode(bool on);
+    void setPitchEditMode(bool on, bool isErase);
     NoteView *noteViewAt(const QPoint &pos);
-    // OverlapableSerialList<Curve> buildCurves();
+    static bool mouseInFilledRect(QPointF scenePos, NoteView* view);
 
     void handleNoteInserted(Note *note);
     void handleNoteRemoved(Note *note);

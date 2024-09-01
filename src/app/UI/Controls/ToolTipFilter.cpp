@@ -10,6 +10,8 @@
 #include "ToolTip.h"
 #include "ToolTipFilter.h"
 
+#include <QPushButton>
+
 ToolTipFilter::ToolTipFilter(QWidget *parent, int showDelay, bool followCursor, bool animation)
     : QObject(parent) {
     m_parent = parent;
@@ -19,6 +21,11 @@ ToolTipFilter::ToolTipFilter(QWidget *parent, int showDelay, bool followCursor, 
     m_animation = animation;
 
     m_tooltip = new ToolTip(m_parent->toolTip(), parent);
+    if (auto button = dynamic_cast<QAbstractButton *>(parent)) {
+        auto shortcut = button->shortcut();
+        if (!shortcut.isEmpty())
+            m_tooltip->setShortcutKey(shortcut.toString());
+    }
 
     m_opacityAnimation = new QPropertyAnimation(m_tooltip, "windowOpacity");
     m_opacityAnimation->setDuration(150);

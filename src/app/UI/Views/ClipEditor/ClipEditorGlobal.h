@@ -11,7 +11,15 @@ namespace ClipEditorGlobal {
     constexpr int timelineViewHeight = 24;
     constexpr int pianoKeyboardWidth = 80;
 
-    enum PianoRollEditMode { Select, DrawNote, DrawPitch, EditPitchAnchor };
+    enum PianoRollEditMode {
+        Select,
+        IntervalSelect,
+        DrawNote,
+        EraseNote,
+        DrawPitch,
+        EditPitchAnchor,
+        ErasePitch
+    };
 }
 
 #endif // PIANOROLLGLOBAL_H

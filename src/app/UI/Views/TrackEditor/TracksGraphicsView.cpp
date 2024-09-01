@@ -31,7 +31,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setEnsureSceneFillViewY(false);
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
-    setDragBehaviour(DragBehaviour::RectSelect);
+    setDragBehavior(DragBehavior::RectSelect);
     setMinimumHeight(0);
 
     m_actionNewSingingClip = new QAction(tr("New singing clip"), this);

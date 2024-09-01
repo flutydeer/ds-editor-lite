@@ -887,8 +887,11 @@ ClipEditorToolBarView>QPushButton {
 }
 
 ClipEditorToolBarView>QPushButton:checked {
-    background-color:
-        #9BBAFF;
+    background-color: #9BBAFF;
+}
+
+ClipEditorToolBarView>QPushButton:checked:hover {
+    background-color: rgb(169, 196, 255);
 }
 
 ClipEditorToolBarView>QPushButton:hover {
@@ -907,8 +910,12 @@ ClipEditorToolBarView>QPushButton#btnArrow:checked {
     icon: url(:svg/icons/cursor_24_filled.svg)
 }
 
-ClipEditorToolBarView>QPushButton#btnArrow:checked:hover {
-    background-color: #9BBAFF;
+ClipEditorToolBarView>QPushButton#btnBeam {
+    icon: url(:svg/icons/beam_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnBeam:checked {
+    icon: url(:svg/icons/beam_24_filled.svg)
 }
 
 ClipEditorToolBarView>QPushButton#btnNotePencil {
@@ -919,8 +926,12 @@ ClipEditorToolBarView>QPushButton#btnNotePencil:checked {
     icon: url(:svg/icons/edit_24_filled.svg)
 }
 
-ClipEditorToolBarView>QPushButton#btnNotePencil:checked:hover {
-    background-color: #9BBAFF;
+ClipEditorToolBarView>QPushButton#btnNoteEraser {
+    icon: url(:svg/icons/eraser_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnNoteEraser:checked {
+    icon: url(:svg/icons/eraser_24_filled.svg)
 }
 
 ClipEditorToolBarView>QPushButton#btnPitchAnchor {
@@ -931,10 +942,6 @@ ClipEditorToolBarView>QPushButton#btnPitchAnchor:checked {
     icon: url(:svg/icons/pitch_anchor_24_filled.svg)
 }
 
-ClipEditorToolBarView>QPushButto n#btnPitchAnchor:checked:hover {
-    background-color: #9BBAFF;
-}
-
 ClipEditorToolBarView>QPushButton#btnPitchPencil {
     icon: url(:svg/icons/pitch_edit_24_filled_white.svg)
 }
@@ -943,24 +950,12 @@ ClipEditorToolBarView>QPushButton#btnPitchPencil:checked {
     icon: url(:svg/icons/pitch_edit_24_filled.svg)
 }
 
-ClipEditorToolBarView>QPushButton #btnPitchPencil:checked:hover {
-    background-color: #9BBAFF;
+ClipEditorToolBarView>QPushButton#btnPitchEraser {
+    icon: url(:svg/icons/pitch_erase_24_filled_white.svg)
 }
 
-ClipEditorToolBarView>QComboBox {
-    color: #F0F0F0;
-    border: none;
-    background: #10FFFFFF;
-    border-radius: 6px;
-}
-
-ClipEditorToolBarView>QComboBox:hover {
-    background: #1AFFFFFF;
-}
-
-ClipEditorToolBarView>QComboBox:pressed {
-    background: #10FFFFFF;
-
+ClipEditorToolBarView>QPushButton#btnPitchEraser:checked {
+    icon: url(:svg/icons/pitch_erase_24_filled.svg)
 }
 
 EditLabel#ClipNameEditLabel>QLabel {

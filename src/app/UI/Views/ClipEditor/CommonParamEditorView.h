@@ -19,6 +19,7 @@ public:
     void loadOriginal(const QList<DrawCurve *> &curves);
     void loadEdited(const QList<DrawCurve *> &curves);
     void clearParams();
+    void setEraseMode(bool on);
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
 
 signals:
@@ -49,6 +50,7 @@ private:
     QPoint m_prevPos;
     DrawCurve *m_editingCurve = nullptr;
     EditType m_editType = None;
+    bool m_eraseMode = false;
     bool m_newCurveCreated = false;
     bool m_mouseMoved = false;
     QList<DrawCurve *> m_drawCurvesEdited;

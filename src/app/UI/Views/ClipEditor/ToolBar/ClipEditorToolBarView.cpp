@@ -26,7 +26,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     d->m_leClipName = new LineEdit;
     d->m_leClipName->setObjectName("ClipNameEditLabel");
-    d->m_leClipName->installEventFilter(new ToolTipFilter(d->m_leClipName, 0));
+    d->m_leClipName->installEventFilter(new ToolTipFilter(d->m_leClipName, 500));
     d->m_leClipName->setToolTip(tr("Clip Name"));
     d->m_leClipName->setFixedWidth(128);
     d->m_leClipName->setFixedHeight(d->m_contentHeight);
@@ -35,20 +35,49 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(d->m_leClipName, &QLineEdit::editingFinished, d,
             &ClipEditorToolBarViewPrivate::onClipNameEdited);
 
+    d->m_cbClipLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::unknown), true);
+    d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 500));
+    d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
+
     d->m_btnArrow = new Button;
     d->m_btnArrow->setObjectName("btnArrow");
     d->m_btnArrow->setCheckable(true);
     d->m_btnArrow->setFixedSize(d->m_contentHeight, d->m_contentHeight);
     d->m_btnArrow->setChecked(true);
+    d->m_btnArrow->setShortcut(Qt::Key_V);
     d->m_btnArrow->setToolTip(tr("Select"));
-    d->m_btnArrow->installEventFilter(new ToolTipFilter(d->m_btnArrow, 500, false, true));
+    auto btnArrowToolTip = new ToolTipFilter(d->m_btnArrow, 500, false, true);
+    // btnArrowToolTip->appendMessage(tr("Drag to select notes"));
+    d->m_btnArrow->installEventFilter(btnArrowToolTip);
+
+    d->m_btnBeam = new Button;
+    d->m_btnBeam->setObjectName("btnBeam");
+    d->m_btnBeam->setCheckable(true);
+    d->m_btnBeam->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    d->m_btnBeam->setShortcut(Qt::Key_B);
+    d->m_btnBeam->setToolTip(tr("Interval Select"));
+    auto btnBeamToolTip = new ToolTipFilter(d->m_btnBeam, 500, false, true);
+    d->m_btnBeam->installEventFilter(btnBeamToolTip);
 
     d->m_btnNotePencil = new Button;
     d->m_btnNotePencil->setObjectName("btnNotePencil");
     d->m_btnNotePencil->setCheckable(true);
     d->m_btnNotePencil->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    d->m_btnNotePencil->setShortcut(Qt::Key_N);
     d->m_btnNotePencil->setToolTip(tr("Draw Note"));
-    d->m_btnNotePencil->installEventFilter(new ToolTipFilter(d->m_btnNotePencil, 500, false, true));
+    auto btnNotePencilToolTip = new ToolTipFilter(d->m_btnNotePencil, 500, false, true);
+    btnNotePencilToolTip->appendMessage(
+        tr("Drag in the blank to draw a note,\nor drag on a note to edit it"));
+    d->m_btnNotePencil->installEventFilter(btnNotePencilToolTip);
+
+    d->m_btnNoteEraser = new Button;
+    d->m_btnNoteEraser->setObjectName("btnNoteEraser");
+    d->m_btnNoteEraser->setCheckable(true);
+    d->m_btnNoteEraser->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    d->m_btnNoteEraser->setShortcut(Qt::Key_M);
+    d->m_btnNoteEraser->setToolTip(tr("Erase Note"));
+    auto btnNoteEraserToolTip = new ToolTipFilter(d->m_btnNoteEraser, 500, false, true);
+    d->m_btnNoteEraser->installEventFilter(btnNoteEraserToolTip);
 
     d->m_btnPitchAnchor = new Button;
     d->m_btnPitchAnchor->setObjectName("btnPitchAnchor");
@@ -63,33 +92,47 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnPitchPencil->setCheckable(true);
     d->m_btnPitchPencil->setFixedSize(d->m_contentHeight, d->m_contentHeight);
     d->m_btnPitchPencil->setToolTip(tr("Draw Pitch"));
-    d->m_btnPitchPencil->installEventFilter(
-        new ToolTipFilter(d->m_btnPitchPencil, 500, false, true));
+    auto btnPitchPencilToolTip = new ToolTipFilter(d->m_btnPitchPencil, 500, false, true);
+    btnPitchPencilToolTip->appendMessage(
+        tr("Left drag to edit pitch curves,\nor right drag to erase"));
+    d->m_btnPitchPencil->installEventFilter(btnPitchPencilToolTip);
+
+    d->m_btnPitchEraser = new Button;
+    d->m_btnPitchEraser->setObjectName("btnPitchEraser");
+    d->m_btnPitchEraser->setCheckable(true);
+    d->m_btnPitchEraser->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    d->m_btnPitchEraser->setToolTip(tr("Erase Pitch"));
+    auto btnPitchEraserToolTip = new ToolTipFilter(d->m_btnPitchEraser, 500, false, true);
+    // btnPitchEraserToolTip->appendMessage(tr("Drag to erase pitch curves"));
+    d->m_btnPitchEraser->installEventFilter(btnPitchEraserToolTip);
 
     auto buttonGroup = new QButtonGroup;
     buttonGroup->setExclusive(true);
     buttonGroup->addButton(d->m_btnArrow);
+    buttonGroup->addButton(d->m_btnBeam);
     buttonGroup->addButton(d->m_btnNotePencil);
+    buttonGroup->addButton(d->m_btnNoteEraser);
     buttonGroup->addButton(d->m_btnPitchAnchor);
     buttonGroup->addButton(d->m_btnPitchPencil);
+    buttonGroup->addButton(d->m_btnPitchEraser);
     connect(buttonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
-
-    d->m_cbClipLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::unknown), true);
-    d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 0));
-    d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(d->m_leClipName);
     mainLayout->addWidget(d->m_cbClipLanguage);
     mainLayout->addWidget(new DividerLine(Qt::Vertical));
-    // mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
     mainLayout->addWidget(d->m_btnArrow);
+    mainLayout->addWidget(d->m_btnBeam);
     mainLayout->addWidget(d->m_btnNotePencil);
+    mainLayout->addWidget(d->m_btnNoteEraser);
+    mainLayout->addWidget(new DividerLine(Qt::Vertical));
     mainLayout->addWidget(d->m_btnPitchAnchor);
     mainLayout->addWidget(d->m_btnPitchPencil);
+    mainLayout->addWidget(d->m_btnPitchEraser);
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
     mainLayout->setContentsMargins(6, 6, 6, 6);
+    mainLayout->setSpacing(6);
     setLayout(mainLayout);
     setFixedHeight(d->m_contentHeight + 12);
 
@@ -127,19 +170,25 @@ void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(QAbstractButton 
     Q_Q(ClipEditorToolBarView);
     if (!checked)
         return;
+
     if (button == m_btnArrow) {
         m_editMode = Select;
-        emit q->editModeChanged(Select);
+    } else if (button == m_btnBeam) {
+        m_editMode = IntervalSelect;
     } else if (button == m_btnNotePencil) {
         m_editMode = DrawNote;
-        emit q->editModeChanged(DrawNote);
+    } else if (button == m_btnNoteEraser) {
+        m_editMode = EraseNote;
     } else if (button == m_btnPitchPencil) {
         m_editMode = DrawPitch;
-        emit q->editModeChanged(DrawPitch);
     } else if (button == m_btnPitchAnchor) {
         m_editMode = EditPitchAnchor;
-        emit q->editModeChanged(EditPitchAnchor);
-    }
+    } else if (button == m_btnPitchEraser) {
+        m_editMode = ErasePitch;
+    } else
+        qFatal() << "Unhandled button clicked";
+
+    emit q->editModeChanged(m_editMode);
 }
 
 void ClipEditorToolBarViewPrivate::onClipNameEdited() const {

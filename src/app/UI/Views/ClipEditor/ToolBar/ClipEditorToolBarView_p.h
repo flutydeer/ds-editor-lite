@@ -41,9 +41,12 @@ public:
     // SeekBar *m_sBarGain;
 
     Button *m_btnArrow = nullptr;
+    Button *m_btnBeam = nullptr;
     Button *m_btnNotePencil = nullptr;
+    Button *m_btnNoteEraser = nullptr;
     Button *m_btnPitchPencil = nullptr;
     Button *m_btnPitchAnchor = nullptr;
+    Button *m_btnPitchEraser = nullptr;
 
     LanguageComboBox *m_cbClipLanguage = nullptr;
 

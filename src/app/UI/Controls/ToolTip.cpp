@@ -21,6 +21,7 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     auto titleShortcutLayout = new QHBoxLayout;
     titleShortcutLayout->addWidget(m_lbTitle);
     titleShortcutLayout->addWidget(m_lbShortcutKey);
+    titleShortcutLayout->addStretch();
     titleShortcutLayout->setContentsMargins({});
 
     m_messageLayout = new QVBoxLayout;
@@ -37,6 +38,7 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     container->setObjectName("container");
     container->setLayout(m_cardLayout);
     container->setContentsMargins(8, 4, 8, 4);
+    container->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
     container->setStyleSheet("QFrame#container {"
                              "background: #202122; "
                              "border: 1px solid #606060; "
@@ -58,6 +60,7 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     setAttribute(Qt::WA_TranslucentBackground);
     setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
     setWindowOpacity(0);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
 }
 
 ToolTip::~ToolTip() {

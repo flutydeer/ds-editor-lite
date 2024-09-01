@@ -26,7 +26,7 @@ class CommonGraphicsView : public QGraphicsView, public IScalable, public IAnima
     Q_PROPERTY(double verticalScrollBarValue READ vBarValue WRITE setVBarValue)
 
 public:
-    enum class DragBehaviour { None, HandScroll, RectSelect };
+    enum class DragBehavior { None, HandScroll, RectSelect, IntervalSelect };
 
     explicit CommonGraphicsView(QWidget *parent = nullptr);
     ~CommonGraphicsView() override = default;
@@ -45,8 +45,8 @@ public:
     [[nodiscard]] QRectF visibleRect() const;
     void setEnsureSceneFillViewX(bool on);
     void setEnsureSceneFillViewY(bool on);
-    [[nodiscard]] DragBehaviour dragBehaviour() const;
-    void setDragBehaviour(DragBehaviour dragBehaviour);
+    [[nodiscard]] DragBehavior dragBehavior() const;
+    void setDragBehavior(DragBehavior dragBehaviour);
 
 signals:
     void scaleChanged(double sx, double sy);
@@ -97,7 +97,7 @@ private:
     double m_scaleYMax = 8;
     bool m_ensureSceneFillViewX = true;
     bool m_ensureSceneFillViewY = true;
-    DragBehaviour m_dragBehaviour = DragBehaviour::None;
+    DragBehavior m_dragBehavior = DragBehavior::None;
     bool m_isDraggingContent = false;
     bool m_rubberBandAdded = false;
 
