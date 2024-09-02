@@ -346,7 +346,7 @@ void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {
     } else if (mode == DrawPitch || mode == EditPitchAnchor) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, false);
-    } else if (mode == ErasePitch) {
+    } else if (mode == ErasePitch || mode == FreezePitch) { // TODO: 实现冻结自动音高
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, true);
     }

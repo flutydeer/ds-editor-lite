@@ -18,7 +18,8 @@ namespace ClipEditorGlobal {
         EraseNote,
         DrawPitch,
         EditPitchAnchor,
-        ErasePitch
+        ErasePitch,
+        FreezePitch
     };
 }
 

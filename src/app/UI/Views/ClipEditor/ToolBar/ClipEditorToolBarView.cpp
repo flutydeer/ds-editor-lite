@@ -16,6 +16,7 @@
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/ToolTipFilter.h"
 #include "UI/Views/Common/LanguageComboBox.h"
+#include "Utils/SystemUtils.h"
 
 #include <QButtonGroup>
 #include <QHBoxLayout>
@@ -43,72 +44,21 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 500));
     d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
 
-    d->m_btnArrow = new Button;
-    d->m_btnArrow->setObjectName("btnArrow");
-    d->m_btnArrow->setCheckable(true);
-    d->m_btnArrow->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    d->m_btnArrow = d->buildToolButton("btnArrow", tr("Select"), Qt::Key_V);
     d->m_btnArrow->setChecked(true);
-    d->m_btnArrow->setShortcut(Qt::Key_V);
-    d->m_btnArrow->setToolTip(tr("Select"));
-    auto btnArrowToolTip = new ToolTipFilter(d->m_btnArrow, 500, false, true);
-    // btnArrowToolTip->appendMessage(tr("Drag to select notes"));
-    d->m_btnArrow->installEventFilter(btnArrowToolTip);
-
-    d->m_btnBeam = new Button;
-    d->m_btnBeam->setObjectName("btnBeam");
-    d->m_btnBeam->setCheckable(true);
-    d->m_btnBeam->setFixedSize(d->m_contentHeight, d->m_contentHeight);
-    d->m_btnBeam->setShortcut(Qt::Key_B);
-    d->m_btnBeam->setToolTip(tr("Interval Select"));
-    auto btnBeamToolTip = new ToolTipFilter(d->m_btnBeam, 500, false, true);
-    d->m_btnBeam->installEventFilter(btnBeamToolTip);
-
-    d->m_btnNotePencil = new Button;
-    d->m_btnNotePencil->setObjectName("btnNotePencil");
-    d->m_btnNotePencil->setCheckable(true);
-    d->m_btnNotePencil->setFixedSize(d->m_contentHeight, d->m_contentHeight);
-    d->m_btnNotePencil->setShortcut(Qt::Key_N);
-    d->m_btnNotePencil->setToolTip(tr("Draw Note"));
-    auto btnNotePencilToolTip = new ToolTipFilter(d->m_btnNotePencil, 500, false, true);
-    btnNotePencilToolTip->appendMessage(
-        tr("Drag in the blank to draw a note,\nor drag on a note to edit it"));
-    d->m_btnNotePencil->installEventFilter(btnNotePencilToolTip);
-
-    d->m_btnNoteEraser = new Button;
-    d->m_btnNoteEraser->setObjectName("btnNoteEraser");
-    d->m_btnNoteEraser->setCheckable(true);
-    d->m_btnNoteEraser->setFixedSize(d->m_contentHeight, d->m_contentHeight);
-    d->m_btnNoteEraser->setShortcut(Qt::Key_M);
-    d->m_btnNoteEraser->setToolTip(tr("Erase Note"));
-    auto btnNoteEraserToolTip = new ToolTipFilter(d->m_btnNoteEraser, 500, false, true);
-    d->m_btnNoteEraser->installEventFilter(btnNoteEraserToolTip);
-
-    d->m_btnPitchAnchor = new Button;
-    d->m_btnPitchAnchor->setObjectName("btnPitchAnchor");
-    d->m_btnPitchAnchor->setCheckable(true);
-    d->m_btnPitchAnchor->setFixedSize(d->m_contentHeight, d->m_contentHeight);
-    d->m_btnPitchAnchor->setToolTip(tr("Pitch Anchor"));
-    d->m_btnPitchAnchor->installEventFilter(
-        new ToolTipFilter(d->m_btnPitchAnchor, 500, false, true));
-
-    d->m_btnPitchPencil = new Button;
-    d->m_btnPitchPencil->setObjectName("btnPitchPencil");
-    d->m_btnPitchPencil->setCheckable(true);
-    d->m_btnPitchPencil->setFixedSize(d->m_contentHeight, d->m_contentHeight);
-    d->m_btnPitchPencil->setToolTip(tr("Draw Pitch"));
-    auto btnPitchPencilToolTip = new ToolTipFilter(d->m_btnPitchPencil, 500, false, true);
-    btnPitchPencilToolTip->appendMessage(
-        tr("Left drag to edit pitch curves,\nor right drag to erase"));
-    d->m_btnPitchPencil->installEventFilter(btnPitchPencilToolTip);
-
-    d->m_btnPitchEraser = new Button;
-    d->m_btnPitchEraser->setObjectName("btnPitchEraser");
-    d->m_btnPitchEraser->setCheckable(true);
-    d->m_btnPitchEraser->setFixedSize(d->m_contentHeight, d->m_contentHeight);
-    d->m_btnPitchEraser->setToolTip(tr("Erase Pitch"));
-    auto btnPitchEraserToolTip = new ToolTipFilter(d->m_btnPitchEraser, 500, false, true);
-    // btnPitchEraserToolTip->appendMessage(tr("Drag to erase pitch curves"));
-    d->m_btnPitchEraser->installEventFilter(btnPitchEraserToolTip);
+    d->m_btnBeam = d->buildToolButton("btnBeam", tr("Interval Select"), Qt::Key_B);
+    auto notePencilDesc = tr("Drag in the blank: Draw a new note\nDrag on a note: Edit the note");
+    d->m_btnNotePencil =
+        d->buildToolButton("btnNotePencil", tr("Draw Note"), Qt::Key_N, notePencilDesc);
+    d->m_btnNoteEraser = d->buildToolButton("btnNoteEraser", tr("Erase Note"), Qt::Key_M);
+    d->m_btnPitchAnchor = d->buildToolButton("btnPitchAnchor", tr("Pitch Anchor"), Qt::Key_F);
+    auto pitchPencilDesc = tr("Left drag: Draw\nRight drag: Erase");
+    d->m_btnPitchPencil =
+        d->buildToolButton("btnPitchPencil", tr("Draw Pitch"), Qt::Key_G, pitchPencilDesc);
+    d->m_btnPitchEraser = d->buildToolButton("btnPitchEraser", tr("Erase Pitch"), Qt::Key_H);
+    auto freezePitchDesc = tr("Copy automatic pitch inference results to edited pitch");
+    d->m_btnFreezePitch =
+        d->buildToolButton("btnFreezePitch", tr("Freeze Pitch"), Qt::Key_J, freezePitchDesc);
 
     auto buttonGroup = new QButtonGroup;
     buttonGroup->setExclusive(true);
@@ -119,13 +69,10 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     buttonGroup->addButton(d->m_btnPitchAnchor);
     buttonGroup->addButton(d->m_btnPitchPencil);
     buttonGroup->addButton(d->m_btnPitchEraser);
+    buttonGroup->addButton(d->m_btnFreezePitch);
     connect(buttonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
-    auto btnFreezePitch = new Button;
-    btnFreezePitch->setObjectName("btnFreezePitch");
-    btnFreezePitch->setCheckable(true);
-    btnFreezePitch->setFixedSize(d->m_contentHeight, d->m_contentHeight);
 
     auto sbGain = new SVS::SeekBar;
     // sbGain->setObjectName("m_sbarGain");
@@ -146,29 +93,16 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     leGain->setFixedHeight(d->m_contentHeight);
     leGain->setEnabled(false);
 
-    auto btnMute = new Button();
-    btnMute->setObjectName("btnMute");
-    btnMute->setCheckable(true);
-    btnMute->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    auto btnMute = d->buildToolButton("btnMute", tr("Mute or unmute clip"));
     btnMute->setText("M");
 
-    auto btnPhonemeView = new Button;
-    btnPhonemeView->setObjectName("btnPhonemeView");
-    btnPhonemeView->setFixedSize(d->m_contentHeight, d->m_contentHeight);
-    btnPhonemeView->setCheckable(true);
+    auto btnPhonemeView = d->buildToolButton("btnPhonemeView", tr("Toggle phoneme editor"));
     btnPhonemeView->setChecked(true);
 
-    auto btnParamView = new Button;
-    btnParamView->setObjectName("btnParamView");
-    btnParamView->setFixedSize(d->m_contentHeight, d->m_contentHeight);
-    btnParamView->setCheckable(true);
+    auto btnParamView = d->buildToolButton("btnParamView", tr("Toggle param editor"));
     btnParamView->setChecked(true);
 
-    auto btnMaximize = new Button;
-    btnMaximize->setObjectName("btnPanelMaximize");
-    btnMaximize->setFixedSize(d->m_contentHeight, d->m_contentHeight);
-    btnMaximize->setToolTip(tr("Maximize Panel"));
-    btnMaximize->setCheckable(true);
+    auto btnMaximize = d->buildToolButton("btnPanelMaximize", tr("Maximize or restore"));
     connect(btnMaximize, &Button::clicked, this, [=] {
         if (appStatus->trackPanelCollapsed)
             appController->setTrackAndClipPanelCollapsed(false, false);
@@ -178,10 +112,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(appStatus, &AppStatus::trackPanelCollapseStateChanged, btnMaximize,
             &Button::setChecked);
 
-    auto btnHide = new Button;
-    btnHide->setObjectName("btnPanelHide");
-    btnHide->setFixedSize(d->m_contentHeight, d->m_contentHeight);
-    btnHide->setToolTip(tr("Hide Panel"));
+    auto btnHide = d->buildCommonButton("btnPanelHide", tr("Hide"));
     connect(btnHide, &Button::clicked, this,
             [=] { appController->setTrackAndClipPanelCollapsed(false, true); });
 
@@ -201,7 +132,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     mainLayout->addWidget(d->m_btnPitchAnchor);
     mainLayout->addWidget(d->m_btnPitchPencil);
     mainLayout->addWidget(d->m_btnPitchEraser);
-    mainLayout->addWidget(btnFreezePitch);
+    mainLayout->addWidget(d->m_btnFreezePitch);
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
     mainLayout->addWidget(btnPhonemeView);
     mainLayout->addWidget(btnParamView);
@@ -263,8 +194,9 @@ void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(QAbstractButton 
         m_editMode = EditPitchAnchor;
     } else if (button == m_btnPitchEraser) {
         m_editMode = ErasePitch;
-    } else
-        qFatal() << "Unhandled button clicked";
+    } else {
+        m_editMode = FreezePitch;
+    }
 
     emit q->editModeChanged(m_editMode);
 }
@@ -309,6 +241,41 @@ void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
     m_leClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(false);
+}
+
+Button *ClipEditorToolBarViewPrivate::buildToolButton(const QString &objName,
+                                                      const QString &tipTitle,
+                                                      const QKeySequence &shortcut,
+                                                      const QString &tipDesc) const {
+    const auto btn = buildCommonButton(objName, tipTitle, shortcut, tipDesc);
+    btn->setCheckable(true);
+    return btn;
+}
+
+Button *ClipEditorToolBarViewPrivate::buildCommonButton(const QString &objName,
+                                                        const QString &tipTitle,
+                                                        const QKeySequence &shortcut,
+                                                        const QString &tipDesc) const {
+    const auto btn = new Button;
+    btn->setObjectName(objName);
+    btn->setFixedSize(m_contentHeight, m_contentHeight);
+    btn->setShortcut(shortcut);
+    if (SystemUtils::productType() == SystemUtils::SystemProductType::Windows) {
+        btn->setToolTip(tipTitle);
+        const auto toolTip = new ToolTipFilter(btn, 500, false, true);
+        if (!tipDesc.isEmpty())
+            toolTip->appendMessage(tipDesc);
+        btn->installEventFilter(toolTip);
+    } else {
+        QString shortcutStr;
+        QString descStr;
+        if (!shortcut.isEmpty())
+            shortcutStr = " (" + shortcut.toString() + ")";
+        if (!tipDesc.isEmpty())
+            descStr = "\n" + tipDesc;
+        btn->setToolTip(tipTitle + shortcutStr + descStr);
+    }
+    return btn;
 }
 
 void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(bool on) const {

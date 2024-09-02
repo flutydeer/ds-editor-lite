@@ -29,6 +29,13 @@ public:
     void moveToSingingClipState() const;
     void moveToAudioClipState() const;
 
+    [[nodiscard]] Button *buildToolButton(const QString &objName, const QString &tipTitle,
+                                          const QKeySequence &shortcut = QKeySequence(),
+                                          const QString &tipDesc = QString()) const;
+    Button *buildCommonButton(const QString &objName, const QString &tipTitle,
+                              const QKeySequence &shortcut = QKeySequence(),
+                              const QString &tipDesc = QString()) const;
+
     void setPianoRollToolsEnabled(bool on) const;
     int m_contentHeight = 28;
 
@@ -47,6 +54,7 @@ public:
     Button *m_btnPitchPencil = nullptr;
     Button *m_btnPitchAnchor = nullptr;
     Button *m_btnPitchEraser = nullptr;
+    Button *m_btnFreezePitch = nullptr;
 
     LanguageComboBox *m_cbClipLanguage = nullptr;
 
