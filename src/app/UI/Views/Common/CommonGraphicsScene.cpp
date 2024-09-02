@@ -12,8 +12,10 @@ CommonGraphicsScene::CommonGraphicsScene(QObject *parent) : QGraphicsScene(paren
 
     m_hBar.setZValue(105);
     addCommonItem(&m_hBar);
+    m_hBarAdded = true;
     m_vBar.setZValue(105);
     addCommonItem(&m_vBar);
+    m_vBarAdded = true;
     connect(this, &CommonGraphicsScene::sceneRectChanged, this, [&] {
         m_hBar.updateRectAndPos();
         m_vBar.updateRectAndPos();
@@ -51,6 +53,34 @@ ScrollBarGraphicsItem *CommonGraphicsScene::hBar() {
 
 ScrollBarGraphicsItem *CommonGraphicsScene::vBar() {
     return &m_vBar;
+}
+
+void CommonGraphicsScene::setHBarVisibility(bool visible) {
+    if (visible) {
+        if (!m_hBarAdded) {
+            addCommonItem(&m_hBar);
+            m_hBarAdded = true;
+        }
+    } else {
+        if (m_hBarAdded) {
+            removeCommonItem(&m_hBar);
+            m_hBarAdded = false;
+        }
+    }
+}
+
+void CommonGraphicsScene::setVBarVisibility(bool visible) {
+    if (visible) {
+        if (!m_vBarAdded) {
+            addCommonItem(&m_vBar);
+            m_vBarAdded = true;
+        }
+    } else {
+        if (m_vBarAdded) {
+            removeCommonItem(&m_vBar);
+            m_vBarAdded = false;
+        }
+    }
 }
 
 void CommonGraphicsScene::updateSceneRect() {

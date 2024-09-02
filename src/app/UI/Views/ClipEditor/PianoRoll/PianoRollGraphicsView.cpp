@@ -40,8 +40,6 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     setSceneVisibility(false);
     setDragBehavior(DragBehavior::RectSelect);
     setMinimumHeight(0);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     // QScroller::grabGesture(this, QScroller::TouchGesture);
 
     d->m_currentDrawingNote = new NoteView(-1);

@@ -25,6 +25,8 @@ public:
     void removeCommonItem(IScalableItem *item);
     [[nodiscard]] ScrollBarGraphicsItem *hBar();
     [[nodiscard]] ScrollBarGraphicsItem *vBar();
+    void setHBarVisibility(bool visible);
+    void setVBarVisibility(bool visible);
 
 signals:
     void baseSizeChanged(const QSizeF &size);
@@ -41,6 +43,8 @@ private:
     QList<IScalableItem *> m_items;
     ScrollBarGraphicsItem m_hBar = ScrollBarGraphicsItem();
     ScrollBarGraphicsItem m_vBar = ScrollBarGraphicsItem(Qt::Vertical);
+    bool m_hBarAdded = false;
+    bool m_vBarAdded = false;
 };
 
 #endif // COMMONGRAPHICSSCENE_H

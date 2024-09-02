@@ -23,6 +23,8 @@ CommonGraphicsView::CommonGraphicsView(QWidget *parent) : QGraphicsView(parent) 
     // setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     setMinimumHeight(150);
     setAcceptDrops(true);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     m_scaleXAnimation.setTargetObject(this);
     m_scaleXAnimation.setPropertyName("scaleX");
@@ -140,6 +142,17 @@ CommonGraphicsView::DragBehavior CommonGraphicsView::dragBehavior() const {
 void CommonGraphicsView::setDragBehavior(DragBehavior dragBehaviour) {
     m_dragBehavior = dragBehaviour;
     // TODO: 实现手型拖动视图
+}
+
+void CommonGraphicsView::setScrollBarVisibility(Qt::Orientation orientation,
+                                                bool visibility) const {
+    if (auto commonScene = dynamic_cast<CommonGraphicsScene *>(scene())) {
+        if (orientation == Qt::Horizontal) {
+            commonScene->setHBarVisibility(visibility);
+        } else
+            commonScene->setVBarVisibility(visibility);
+    } else
+        qCritical() << "Scene is not CommonGraphicsView";
 }
 
 void CommonGraphicsView::notifyVisibleRectChanged() {
@@ -374,7 +387,8 @@ void CommonGraphicsView::mousePressEvent(QMouseEvent *event) {
         }
     }
 
-    const auto isSelect = m_dragBehavior == DragBehavior::RectSelect || m_dragBehavior == DragBehavior::IntervalSelect;
+    const auto isSelect = m_dragBehavior == DragBehavior::RectSelect ||
+                          m_dragBehavior == DragBehavior::IntervalSelect;
     if (isSelect && event->button() == Qt::LeftButton) {
         if (scene()) {
             m_isDraggingContent = true;

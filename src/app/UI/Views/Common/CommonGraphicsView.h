@@ -27,6 +27,7 @@ class CommonGraphicsView : public QGraphicsView, public IScalable, public IAnima
 
 public:
     enum class DragBehavior { None, HandScroll, RectSelect, IntervalSelect };
+    // enum class ScrollBarVisibility { AlwaysVisible, AutoHide, AlwaysHide };
 
     explicit CommonGraphicsView(QWidget *parent = nullptr);
     ~CommonGraphicsView() override = default;
@@ -47,6 +48,7 @@ public:
     void setEnsureSceneFillViewY(bool on);
     [[nodiscard]] DragBehavior dragBehavior() const;
     void setDragBehavior(DragBehavior dragBehaviour);
+    void setScrollBarVisibility(Qt::Orientation orientation, bool visibility) const;
 
 signals:
     void scaleChanged(double sx, double sy);
@@ -80,6 +82,8 @@ private:
     enum class ItemType { HorizontalBar, VerticalBar, Content };
 
     using QGraphicsView::setDragMode;
+    using QGraphicsView::setHorizontalScrollBarPolicy;
+    using QGraphicsView::setVerticalScrollBarPolicy;
 
     bool isMouseEventFromWheel(QWheelEvent *event);
     void updateAnimationDuration();
