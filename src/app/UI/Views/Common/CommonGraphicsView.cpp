@@ -419,7 +419,7 @@ void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             auto scrollingLength = rect().width() - handleStep - barWidth;
             auto handleStart = ratio * scrollingLength;
             auto value = (handleStart + dx) / scrollingLength * max;
-            horizontalScrollBar()->setValue(qRound(value));
+            setHBarValue(qRound(value));
             // qDebug() << "Move horizontal bar: " << horizontalScrollBar()->value();
         } else {
             auto step = verticalScrollBar()->pageStep();
@@ -430,7 +430,7 @@ void CommonGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             auto scrollingLength = rect().height() - handleStep - barWidth;
             auto handleStart = ratio * scrollingLength;
             auto value = (handleStart + dy) / scrollingLength * max;
-            verticalScrollBar()->setValue(qRound(value));
+            setVBarValue(qRound(value));
         }
         QGraphicsView::mouseMoveEvent(event);
         return;

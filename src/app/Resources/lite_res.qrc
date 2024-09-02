@@ -86,6 +86,8 @@
         <file>svg/icons/pitch_edit_24_filled.svg</file>
         <file>svg/icons/pitch_edit_24_filled_white.svg</file>
         <file>svg/icons/pitch_vibrato_24_filled.svg</file>
+        <file>svg/icons/pitch_freeze_16_filled.svg</file>
+        <file>svg/icons/pitch_freeze_16_filled_white.svg</file>
 
         <file>theme/lite-dark.qss</file>
         <file>theme/lyricwarpview-dark.qss</file>
