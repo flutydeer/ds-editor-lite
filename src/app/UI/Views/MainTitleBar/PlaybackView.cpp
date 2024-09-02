@@ -136,7 +136,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         updatePlaybackControlView();
     });
 
-    m_cbQuantize = new ComboBox();
+    m_cbQuantize = new ComboBox(true);
     m_cbQuantize->addItems(quantizeStrings);
     m_cbQuantize->setCurrentIndex(3);
     m_cbQuantize->setFixedSize(68, m_contentHeight);

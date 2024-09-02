@@ -92,16 +92,6 @@ void AppModel::clearTracks() {
 //     Q_D(const AppModel);
 //     return std::make_unique<WorkspaceEditor>(d->m_workspace, id);
 // }
-int AppModel::quantize() const {
-    Q_D(const AppModel);
-    return d->m_quantize;
-}
-
-void AppModel::setQuantize(int quantize) {
-    Q_D(AppModel);
-    d->m_quantize = quantize;
-    emit quantizeChanged(quantize);
-}
 
 void AppModel::newProject() {
     Q_D(AppModel);

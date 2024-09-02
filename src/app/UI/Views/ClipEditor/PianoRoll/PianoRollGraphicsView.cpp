@@ -21,6 +21,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
 #include "PitchEditorView.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/ScrollBarGraphicsItem.h"
 #include "Utils/Log.h"
 #include "Utils/MathUtils.h"
@@ -186,7 +187,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 
     auto scenePos = mapToScene(event->position().toPoint());
     auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
-    auto quantizedTickLength = d->m_tempQuantizeOff ? 1 : 1920 / appModel->quantize();
+    auto quantizedTickLength = d->m_tempQuantizeOff ? 1 : 1920 / appStatus->quantize;
     auto snappedTick = MathUtils::roundDown(tick, quantizedTickLength);
     auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
     auto deltaX = static_cast<int>(sceneXToTick(scenePos.x() - d->m_mouseDownPos.x()));
@@ -497,11 +498,11 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QP
 
 void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(int tick, int keyIndex) {
     Q_Q(PianoRollGraphicsView);
-    auto snappedTick = MathUtils::roundDown(tick, 1920 / appModel->quantize());
+    auto snappedTick = MathUtils::roundDown(tick, 1920 / appStatus->quantize);
     Log::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
     m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
     m_currentDrawingNote->setRStart(snappedTick - m_offset);
-    m_currentDrawingNote->setLength(1920 / appModel->quantize());
+    m_currentDrawingNote->setLength(1920 / appStatus->quantize);
     m_currentDrawingNote->setKeyIndex(keyIndex);
     q->scene()->addCommonItem(m_currentDrawingNote);
     m_mouseMoveBehavior = UpdateDrawingNote;

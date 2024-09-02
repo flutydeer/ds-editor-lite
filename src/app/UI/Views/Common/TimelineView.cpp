@@ -9,6 +9,7 @@
 
 #include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
+#include "Model/AppStatus/AppStatus.h"
 
 using namespace AppGlobal;
 
@@ -27,7 +28,7 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
                          appModel->timeSignature().denominator);
     });
     connect(appModel, &AppModel::timeSignatureChanged, this, &TimelineView::setTimeSignature);
-    connect(appModel, &AppModel::quantizeChanged, this, &TimelineView::setQuantize);
+    connect(appStatus, &AppStatus::quantizeChanged, this, &TimelineView::setQuantize);
 }
 
 void TimelineView::setTimeRange(double startTick, double endTick) {

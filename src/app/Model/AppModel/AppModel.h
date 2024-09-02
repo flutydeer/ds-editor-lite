@@ -21,10 +21,9 @@ class AppModel final : public QObject, public Singleton<AppModel> {
     Q_OBJECT
 
 public:
-    explicit AppModel();
-
     enum TrackChangeType { Insert, Remove };
 
+    explicit AppModel();
     [[nodiscard]] TimeSignature timeSignature() const;
     void setTimeSignature(const TimeSignature &signature);
     [[nodiscard]] double tempo() const;
@@ -40,9 +39,6 @@ public:
     // [[nodiscard]] bool isWorkspaceExist(const QString &id) const;
     // [[nodiscard]] QJsonObject getPrivateWorkspaceById(const QString &id) const;
     // std::unique_ptr<WorkspaceEditor> workspaceEditor(const QString &id);
-
-    [[nodiscard]] int quantize() const;
-    void setQuantize(int quantize);
 
     void newProject();
     bool importMidiFile(const QString &filename);
@@ -77,7 +73,6 @@ signals:
     void tempoChanged(double tempo);
     void timeSignatureChanged(int numerator, int denominator);
     void trackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
-    void quantizeChanged(int quantize);
 
 private:
     Q_DECLARE_PRIVATE(AppModel);

@@ -5,6 +5,7 @@
 #include "TimeGridGraphicsItem.h"
 
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppStatus/AppStatus.h"
 
 #include <QPainter>
 #include <QPen>
@@ -14,11 +15,11 @@ TimeGridGraphicsItem::TimeGridGraphicsItem(QGraphicsItem *parent) : CommonGraphi
     connect(appModel, &AppModel::modelChanged, this, [=] {
         this->setTimeSignature(appModel->timeSignature().numerator,
                                appModel->timeSignature().denominator);
-        this->setQuantize(appModel->quantize());
+        this->setQuantize(appStatus->quantize);
     });
     connect(appModel, &AppModel::timeSignatureChanged, this,
             &TimeGridGraphicsItem::setTimeSignature);
-    connect(appModel, &AppModel::quantizeChanged, this, &TimeGridGraphicsItem::setQuantize);
+    connect(appStatus, &AppStatus::quantizeChanged, this, &TimeGridGraphicsItem::setQuantize);
 }
 
 double TimeGridGraphicsItem::startTick() const {

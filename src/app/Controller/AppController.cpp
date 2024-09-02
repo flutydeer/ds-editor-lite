@@ -121,7 +121,7 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
 }
 
 void AppController::onSetQuantize(int quantize) {
-    appModel->setQuantize(quantize);
+    appStatus->quantize = quantize;
 }
 
 void AppController::selectTrack(int trackIndex) {

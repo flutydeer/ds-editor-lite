@@ -304,7 +304,7 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     connect(clip, &SingingClip::defaultLanguageChanged, clipView,
             &SingingClipView::setDefaultLanguage);
     connect(clip, &SingingClip::noteChanged, clipView, &SingingClipView::onNoteListChanged);
-    connect(appModel, &AppModel::quantizeChanged, clipView, &AbstractClipView::setQuantize);
+    connect(appStatus, &AppStatus::quantizeChanged, clipView, &AbstractClipView::setQuantize);
     track->clips.append(clipView);
 }
 
@@ -319,7 +319,7 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, in
     m_tracksScene->addCommonItem(clipItem);
     qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
     connect(appModel, &AppModel::tempoChanged, clipItem, &AudioClipView::onTempoChange);
-    connect(appModel, &AppModel::quantizeChanged, clipItem, &AbstractClipView::setQuantize);
+    connect(appStatus, &AppStatus::quantizeChanged, clipItem, &AbstractClipView::setQuantize);
     track->clips.append(clipItem);
 }
 

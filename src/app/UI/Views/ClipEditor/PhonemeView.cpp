@@ -12,6 +12,7 @@
 #include "Model/AppModel/Note.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/PlaybackController.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "Utils/MathUtils.h"
 
 PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
@@ -26,7 +27,7 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     });
     connect(appModel, &AppModel::tempoChanged, this, &PhonemeView::onTempoChanged);
     connect(appModel, &AppModel::timeSignatureChanged, this, &PhonemeView::setTimeSignature);
-    connect(appModel, &AppModel::quantizeChanged, this, &PhonemeView::setQuantize);
+    connect(appStatus, &AppStatus::quantizeChanged, this, &PhonemeView::setQuantize);
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PhonemeView::setPosition);
 }
