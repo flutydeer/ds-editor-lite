@@ -86,8 +86,17 @@
         <file>svg/icons/pitch_edit_24_filled.svg</file>
         <file>svg/icons/pitch_edit_24_filled_white.svg</file>
         <file>svg/icons/pitch_vibrato_24_filled.svg</file>
-        <file>svg/icons/pitch_freeze_16_filled.svg</file>
-        <file>svg/icons/pitch_freeze_16_filled_white.svg</file>
+        <file>svg/icons/pitch_freeze_24_filled.svg</file>
+        <file>svg/icons/pitch_freeze_24_filled_white.svg</file>
+
+        <file>svg/icons/phoneme_view_24_filled_white.svg</file>
+        <file>svg/icons/phoneme_view_24_filled.svg</file>
+        <file>svg/icons/param_view_24_filled_white.svg</file>
+        <file>svg/icons/param_view_24_filled.svg</file>
+        <file>svg/icons/panel_maximize_24_filled_white.svg</file>
+        <file>svg/icons/panel_maximize_24_filled.svg</file>
+        <file>svg/icons/panel_hide_24_filled_white.svg</file>
+        <file>svg/icons/panel_hide_24_filled.svg</file>
 
         <file>theme/lite-dark.qss</file>
         <file>theme/lyricwarpview-dark.qss</file>

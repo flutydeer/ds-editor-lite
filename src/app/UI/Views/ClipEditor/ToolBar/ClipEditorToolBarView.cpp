@@ -17,6 +17,8 @@
 
 #include <QButtonGroup>
 #include <QHBoxLayout>
+#include <SVSCraftWidgets/seekbar.h>
+#include <QLabel>
 
 ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     : QWidget(parent), d_ptr(new ClipEditorToolBarViewPrivate(this)) {
@@ -118,8 +120,62 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(buttonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
+    auto btnFreezePitch = new Button;
+    btnFreezePitch->setObjectName("btnFreezePitch");
+    btnFreezePitch->setCheckable(true);
+    btnFreezePitch->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+
+    auto sbGain = new SVS::SeekBar;
+    // sbGain->setObjectName("m_sbarGain");
+    sbGain->setMaximum(100); // +6dB
+    sbGain->setMinimum(0);   // -inf
+    sbGain->setDefaultValue(79.4328234724);
+    sbGain->setValue(79.4328234724);
+    sbGain->setTracking(false);
+    sbGain->setFixedWidth(d->m_contentHeight * 4);
+
+    auto leGain = new EditLabel();
+    leGain->setText("0.0dB");
+    leGain->setObjectName("leGain");
+    leGain->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    leGain->label->setAlignment(Qt::AlignCenter);
+    leGain->lineEdit->setAlignment(Qt::AlignCenter);
+    leGain->setFixedWidth(d->m_contentHeight * 2);
+    leGain->setFixedHeight(d->m_contentHeight);
+    leGain->setEnabled(false);
+
+    auto btnMute = new Button();
+    btnMute->setObjectName("btnMute");
+    btnMute->setCheckable(true);
+    btnMute->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    btnMute->setText("M");
+
+    auto btnPhonemeView = new Button;
+    btnPhonemeView->setObjectName("btnPhonemeView");
+    btnPhonemeView->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    btnPhonemeView->setCheckable(true);
+    btnPhonemeView->setChecked(true);
+
+    auto btnParamView = new Button;
+    btnParamView->setObjectName("btnParamView");
+    btnParamView->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    btnParamView->setCheckable(true);
+    btnParamView->setChecked(true);
+
+    auto btnMaximize = new Button;
+    btnMaximize->setObjectName("btnPanelMaximize");
+    btnMaximize->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+
+    auto btnHide = new Button;
+    btnHide->setObjectName("btnPanelHide");
+    btnHide->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(d->m_leClipName);
+    mainLayout->addWidget(btnMute);
+    mainLayout->addWidget(sbGain);
+    mainLayout->addWidget(leGain);
+    mainLayout->addWidget(new DividerLine(Qt::Vertical));
     mainLayout->addWidget(d->m_cbClipLanguage);
     mainLayout->addWidget(new DividerLine(Qt::Vertical));
     mainLayout->addWidget(d->m_btnArrow);
@@ -130,7 +186,14 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     mainLayout->addWidget(d->m_btnPitchAnchor);
     mainLayout->addWidget(d->m_btnPitchPencil);
     mainLayout->addWidget(d->m_btnPitchEraser);
+    mainLayout->addWidget(btnFreezePitch);
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
+    mainLayout->addWidget(btnPhonemeView);
+    mainLayout->addWidget(btnParamView);
+    // mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
+    mainLayout->addWidget(new DividerLine(Qt::Vertical));
+    mainLayout->addWidget(btnMaximize);
+    mainLayout->addWidget(btnHide);
     mainLayout->setContentsMargins(6, 6, 6, 6);
     mainLayout->setSpacing(6);
     setLayout(mainLayout);

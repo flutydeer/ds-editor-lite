@@ -902,6 +902,19 @@ ClipEditorToolBarView>QPushButton:pressed {
     background: #10FFFFFF;
 }
 
+ClipEditorToolBarView>QPushButton#btnMute {
+    background: #10FFFFFF;
+}
+
+ClipEditorToolBarView>QPushButton#btnMute:hover {
+    background: #1AFFFFFF;
+}
+
+ClipEditorToolBarView>QPushButton#btnMute:checked,
+ClipEditorToolBarView>QPushButton#btnMute:checked:hover {
+    background-color: #FF9B9D;
+}
+
 ClipEditorToolBarView>QPushButton#btnArrow {
     icon: url(:svg/icons/cursor_24_filled_white.svg)
 }
@@ -909,7 +922,6 @@ ClipEditorToolBarView>QPushButton#btnArrow {
 ClipEditorToolBarView>QPushButton#btnArrow:checked {
     icon: url(:svg/icons/cursor_24_filled.svg)
 }
-
 ClipEditorToolBarView>QPushButton#btnBeam {
     icon: url(:svg/icons/beam_24_filled_white.svg)
 }
@@ -956,6 +968,38 @@ ClipEditorToolBarView>QPushButton#btnPitchEraser {
 
 ClipEditorToolBarView>QPushButton#btnPitchEraser:checked {
     icon: url(:svg/icons/pitch_erase_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnFreezePitch {
+    icon: url(:svg/icons/pitch_freeze_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnFreezePitch:checked {
+    icon: url(:svg/icons/pitch_freeze_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPhonemeView {
+    icon: url(:svg/icons/phoneme_view_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPhonemeView:checked {
+    icon: url(:svg/icons/phoneme_view_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnParamView {
+    icon: url(:svg/icons/param_view_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnParamView:checked {
+    icon: url(:svg/icons/param_view_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPanelMaximize {
+    icon: url(:svg/icons/panel_maximize_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPanelHide {
+    icon: url(:svg/icons/panel_hide_24_filled_white.svg)
 }
 
 EditLabel#ClipNameEditLabel>QLabel {
