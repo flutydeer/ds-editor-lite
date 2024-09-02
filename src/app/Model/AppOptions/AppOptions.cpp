@@ -22,7 +22,7 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
     } else
         Log::d(CLASS_NAME, "Config directory already exists");
     m_configPath = configDir.absoluteFilePath(fileName);
-    Log::i(CLASS_NAME, "Config path: " + m_configPath);
+    // Log::i(CLASS_NAME, "Config path: " + m_configPath);
     QJsonObject obj;
     if (QFile::exists(m_configPath))
         if (JsonUtils::load(m_configPath, obj)) {

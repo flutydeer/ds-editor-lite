@@ -4,10 +4,12 @@
 
 #include "ClipEditorToolBarView.h"
 #include "ClipEditorToolBarView_p.h"
+#include "Controller/AppController.h"
 
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Clip.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/EditLabel.h"
@@ -165,10 +167,23 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     auto btnMaximize = new Button;
     btnMaximize->setObjectName("btnPanelMaximize");
     btnMaximize->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    btnMaximize->setToolTip(tr("Maximize Panel"));
+    btnMaximize->setCheckable(true);
+    connect(btnMaximize, &Button::clicked, this, [=] {
+        if (appStatus->trackPanelCollapsed)
+            appController->setTrackAndClipPanelCollapsed(false, false);
+        else
+            appController->setTrackAndClipPanelCollapsed(true, false);
+    });
+    connect(appStatus, &AppStatus::trackPanelCollapseStateChanged, btnMaximize,
+            &Button::setChecked);
 
     auto btnHide = new Button;
     btnHide->setObjectName("btnPanelHide");
     btnHide->setFixedSize(d->m_contentHeight, d->m_contentHeight);
+    btnHide->setToolTip(tr("Hide Panel"));
+    connect(btnHide, &Button::clicked, this,
+            [=] { appController->setTrackAndClipPanelCollapsed(false, true); });
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(d->m_leClipName);

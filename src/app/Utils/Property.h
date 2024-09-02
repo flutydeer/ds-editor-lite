@@ -13,9 +13,9 @@ class Property {
 public:
     virtual ~Property() = default;
     [[nodiscard]] virtual T get() const;
-    [[nodiscard]] operator T() const;
+    [[nodiscard]] operator T() const; // NOLINT(*-explicit-constructor)
     Property &operator=(const Property &other);
-    Property(const T &value) : value(value){};
+    Property(const T &value) : value(value){}; // NOLINT(*-explicit-constructor)
 
     // public slots:
     virtual void set(const T &newValue);

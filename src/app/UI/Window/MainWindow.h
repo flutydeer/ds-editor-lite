@@ -13,6 +13,7 @@
 #include "Modules/Task/Task.h"
 
 
+class QSplitter;
 class MainTitleBar;
 class MainMenuView;
 class TaskDialog;
@@ -30,6 +31,7 @@ public:
     bool askSaveChanges() override;
     void quit() override;
     void restart() override;
+    void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) override;
 
 public slots:
     void onAllDone();
@@ -43,6 +45,7 @@ protected:
 private slots:
     bool onSave();
     bool onSaveAs();
+    void onSplitterMoved(int pos, int index) const;
 
 private:
     void closeEvent(QCloseEvent *event) override;
@@ -58,6 +61,8 @@ private:
     MainMenuView *m_mainMenu = nullptr;
     TrackEditorView *m_trackEditorView;
     ClipEditorView *m_clipEditView;
+    QSplitter *m_splitter;
+    QByteArray m_splitterState;
 
     QLabel *m_lbTaskTitle = nullptr;
     ProgressIndicator *m_progressBar = nullptr;

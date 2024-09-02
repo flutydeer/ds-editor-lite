@@ -226,7 +226,7 @@ void TrackEditorView::onRemoveTrackTriggered(int id) {
 bool TrackEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress) {
         // qDebug() << "TracksView MouseButtonPress";
-        appController->onPanelClicked(AppGlobal::TracksEditor);
+        appController->setActivePanel(AppGlobal::TracksEditor);
     }
 
     return QWidget::eventFilter(watched, event);

@@ -87,7 +87,7 @@ void ClipEditorView::onActiveClipChanged(int clipId) const {
 
 bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress)
-        appController->onPanelClicked(AppGlobal::ClipEditor);
+        appController->setActivePanel(AppGlobal::ClipEditor);
     return QWidget::eventFilter(watched, event);
 }
 

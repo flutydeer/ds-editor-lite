@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
                 auto clips = tracks.first()->clips();
                 if (clips.count() > 0) {
                     trackController->setActiveClip(clips.toList().first()->id());
-                    appController->onPanelClicked(AppGlobal::ClipEditor);
+                    appController->setActivePanel(AppGlobal::ClipEditor);
                 }
             }
         }

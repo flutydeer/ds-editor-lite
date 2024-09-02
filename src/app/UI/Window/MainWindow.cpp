@@ -93,14 +93,15 @@ MainWindow::MainWindow() {
     m_trackEditorView = new TrackEditorView;
     m_clipEditView = new ClipEditorView;
 
-    auto splitter = new QSplitter;
-    splitter->setOrientation(Qt::Vertical);
-    splitter->addWidget(m_trackEditorView);
-    splitter->addWidget(m_clipEditView);
+    m_splitter = new QSplitter;
+    m_splitter->setOrientation(Qt::Vertical);
+    m_splitter->addWidget(m_trackEditorView);
+    m_splitter->addWidget(m_clipEditView);
     // 让轨道编辑器高度较小，剪辑编辑器高度较大，且在纵向拉伸窗口时优先拉伸钢琴卷帘
-    splitter->setStretchFactor(0, 0);
-    splitter->setStretchFactor(1, 100);
-    splitter->setContentsMargins(6, 0, 6, 0);
+    m_splitter->setStretchFactor(0, 0);
+    m_splitter->setStretchFactor(1, 100);
+    m_splitter->setContentsMargins(6, 0, 6, 0);
+    connect(m_splitter, &QSplitter::splitterMoved, this, &MainWindow::onSplitterMoved);
 
     ValidationController::instance();
     appController->newProject();
@@ -124,7 +125,7 @@ MainWindow::MainWindow() {
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_titleBar);
-    mainLayout->addWidget(splitter);
+    mainLayout->addWidget(m_splitter);
     mainLayout->addWidget(statusBar);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({0, 0, 0, 0});
@@ -197,6 +198,29 @@ void MainWindow::restart() {
     close();
 }
 
+void MainWindow::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) {
+    if (trackCollapsed && clipCollapsed) {
+        qFatal() << "Cannot set track and clip panel collapsed";
+        return;
+    }
+
+    if (trackCollapsed) {
+        m_splitterState = m_splitter->saveState();
+        m_splitter->setSizes({0, 100});
+        appStatus->trackPanelCollapsed = true;
+        appStatus->clipPanelCollapsed = false;
+    } else if (clipCollapsed) {
+        m_splitterState = m_splitter->saveState();
+        m_splitter->setSizes({100, 0});
+        appStatus->trackPanelCollapsed = false;
+        appStatus->clipPanelCollapsed = true;
+    } else {
+        m_splitter->restoreState(m_splitterState);
+        appStatus->trackPanelCollapsed = false;
+        appStatus->clipPanelCollapsed = false;
+    }
+}
+
 void MainWindow::onAllDone() {
     qDebug() << "MainWindow::onAllDone";
     if (m_isCloseRequested) {
@@ -260,6 +284,21 @@ bool MainWindow::onSaveAs() {
         saved = appController->saveProject(getFileName());
     }
     return true;
+}
+
+void MainWindow::onSplitterMoved(int pos, int index) const {
+    if (m_splitter->sizes().at(0) == 0) {
+        appStatus->trackPanelCollapsed = true;
+        appStatus->clipPanelCollapsed = false;
+        // qDebug() << "Track editor collapsed";
+    } else if (m_splitter->sizes().at(1) == 0) {
+        appStatus->trackPanelCollapsed = false;
+        appStatus->clipPanelCollapsed = true;
+        // qDebug() << "Clip editor collapsed";
+    } else {
+        appStatus->trackPanelCollapsed = false;
+        appStatus->clipPanelCollapsed = false;
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {

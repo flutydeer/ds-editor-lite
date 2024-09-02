@@ -998,6 +998,10 @@ ClipEditorToolBarView>QPushButton#btnPanelMaximize {
     icon: url(:svg/icons/panel_maximize_24_filled_white.svg)
 }
 
+ClipEditorToolBarView>QPushButton#btnPanelMaximize:checked {
+    icon: url(:svg/icons/panel_maximize_24_filled.svg)
+}
+
 ClipEditorToolBarView>QPushButton#btnPanelHide {
     icon: url(:svg/icons/panel_hide_24_filled_white.svg)
 }

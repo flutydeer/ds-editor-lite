@@ -88,7 +88,7 @@ void Log::logSystemInfo() {
     i(tag, "Product Version: " + QSysInfo::productVersion());
     i(tag, "Kernel Type: " + QSysInfo::kernelType());
     i(tag, "Kernel Version: " + QSysInfo::kernelVersion());
-    i(tag, "Host Name: " + QSysInfo::machineHostName());
+    // i(tag, "Host Name: " + QSysInfo::machineHostName());
     i(tag, "-------- System Info End --------");
 }
 

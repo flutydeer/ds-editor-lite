@@ -235,7 +235,7 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     auto tick = m_scene->tickAt(scenePos.x());
     if (auto item = itemAt(event->pos())) {
         if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
-            appController->onPanelClicked(AppGlobal::ClipEditor);
+            appController->setActivePanel(AppGlobal::ClipEditor);
         } else if (dynamic_cast<TracksBackgroundGraphicsItem *>(item)) {
             m_tick = MathUtils::roundDown(tick, 1920 / m_quantize);
             onNewSingingClip();

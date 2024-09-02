@@ -39,7 +39,8 @@ AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
             &AudioDecodingController::onTrackChanged);
 
     // 测试 Property 信号
-    // connect(appStatus, &AppStatus::moduleStatusChanged ,this, [=](AppStatus::ModuleType module, AppStatus::ModuleStatus status) {
+    // connect(appStatus, &AppStatus::moduleStatusChanged ,this, [=](AppStatus::ModuleType module,
+    // AppStatus::ModuleStatus status) {
     //     if (module == AppStatus::ModuleType::Language) {
     //         if (status == AppStatus::ModuleStatus::Ready)
     //             qDebug() << "Language module ready";
@@ -128,7 +129,7 @@ void AppController::selectTrack(int trackIndex) {
     appStatus->selectedTrackIndex = trackIndex;
 }
 
-void AppController::onPanelClicked(AppGlobal::PanelType panelType) {
+void AppController::setActivePanel(AppGlobal::PanelType panelType) {
     Q_D(AppController);
     for (const auto panel : d->m_panels)
         panel->setPanelActive(panel->panelType() == panelType);
@@ -187,6 +188,11 @@ void AppController::setProjectName(const QString &name) {
 void AppController::registerPanel(IPanel *panel) {
     Q_D(AppController);
     d->m_panels.append(panel);
+}
+
+void AppController::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) {
+    Q_D(AppController);
+    d->m_mainWindow->setTrackAndClipPanelCollapsed(trackCollapsed, clipCollapsed);
 }
 
 bool AppControllerPrivate::isPowerOf2(int num) {

@@ -9,6 +9,12 @@ AppStatus::AppStatus() {
     languageModuleStatus.setNotifyCallback(
         [=](const ModuleStatus value) { emit moduleStatusChanged(ModuleType::Language, value); });
 
+    // Main Window
+    trackPanelCollapsed.setNotifyCallback(
+        [=](const bool value) { emit trackPanelCollapseStateChanged(value); });
+    clipPanelCollapsed.setNotifyCallback(
+        [=](const bool value) { emit clipPanelCollapseStateChanged(value); });
+
     // Project
     quantize.setNotifyCallback([=](const int value) { emit quantizeChanged(value); });
     projectEditableLength.setNotifyCallback(

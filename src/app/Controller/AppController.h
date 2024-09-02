@@ -40,6 +40,8 @@ public slots:
     void openProject(const QString &filePath);
     bool saveProject(const QString &filePath);
 
+    void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed);
+
     static void importMidiFile(const QString &filePath);
     static void exportMidiFile(const QString &filePath);
 
@@ -49,7 +51,7 @@ public slots:
     void onSetTimeSignature(int numerator, int denominator);
     static void onSetQuantize(int quantize);
     static void selectTrack(int trackIndex);
-    void onPanelClicked(AppGlobal::PanelType panel);
+    void setActivePanel(AppGlobal::PanelType panel);
     void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                            const QString &redoActionName);
 

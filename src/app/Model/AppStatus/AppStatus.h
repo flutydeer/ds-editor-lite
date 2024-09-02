@@ -24,6 +24,10 @@ public:
     // Modules
     Property<ModuleStatus> languageModuleStatus = ModuleStatus::Unknown;
 
+    // Main Window
+    Property<bool> trackPanelCollapsed = false;
+    Property<bool> clipPanelCollapsed = false;
+
     // Project
     Property<int> quantize = 16;
     Property<int> projectEditableLength = 1920 * 100;
@@ -33,6 +37,10 @@ public:
 signals:
     // Modules
     void moduleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
+
+    // Main Window
+    void trackPanelCollapseStateChanged(bool collapsed);
+    void clipPanelCollapseStateChanged(bool collapsed);
 
     // Project
     void quantizeChanged(int quantize);
