@@ -3,6 +3,7 @@
 //
 
 #include "Controller/AppController.h"
+#include "Controller/ParamController.h"
 #include "Controller/ProjectStatusController.h"
 
 
@@ -69,6 +70,7 @@ int main(int argc, char *argv[]) {
     new AudioContext(&as);
 
     AppController::instance();
+    ParamController::instance();
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     // auto editor = appModel->workspaceEditor("flutydeer.filllyrics");
@@ -101,7 +103,7 @@ int main(int argc, char *argv[]) {
     auto taskWindow = new TaskWindow;
     taskWindow->move(availableRect.width() - taskWindow->width() - 8,
                      availableRect.height() - taskWindow->height() - 8);
-    // taskWindow->show();
+    taskWindow->show();
 
     auto args = QApplication::arguments();
     if (args.count() > 1) {

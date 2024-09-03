@@ -13,14 +13,15 @@
 
 LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : Task(parent) {
     TaskStatus status;
-    status.title = "Launching language engine...";
+    status.title = tr("Launching language module...");
     status.message = "";
     status.isIndetermine = true;
     setStatus(status);
 }
 
 void LaunchLanguageEngineTask::runTask() {
-    qDebug() << "RunLanguageEngineTask::runTask";
+    qDebug() << "Launching language module...";
+    QThread::sleep(1);
     const auto g2pMgr = LangMgr::IG2pManager::instance();
     const auto langMgr = LangMgr::ILanguageManager::instance();
     const auto langSet = LangSetting::ILangSetManager::instance();
@@ -38,5 +39,9 @@ void LaunchLanguageEngineTask::runTask() {
     success = g2pMgr->initialized() && langMgr->initialized();
     errorMessage = errorMsg;
 
+    if (success)
+        qInfo() << "Successfully launched language module";
+    else
+        qCritical() << "Failed to launch language module: " << errorMessage;
     emit finished(false);
 }

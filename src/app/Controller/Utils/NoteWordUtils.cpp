@@ -4,16 +4,15 @@
 
 #include "NoteWordUtils.h"
 
-#include "Controller/Actions/AppModel/Note/NoteActions.h"
 #include "language-manager/ILanguageManager.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Language/S2p.h"
 
-void NoteWordUtils::updateOriginalWordProperties(const QList<Note *> &notes) {
+QList<Note::NoteWordProperties> NoteWordUtils::getOriginalWordProperties(const QList<Note *> &notes) {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
         qFatal() << "Language module not ready yet";
-        return;
+        return QList<Note::NoteWordProperties>();
     }
     const auto langMgr = LangMgr::ILanguageManager::instance();
 
@@ -75,10 +74,7 @@ void NoteWordUtils::updateOriginalWordProperties(const QList<Note *> &notes) {
         args.append(arg);
     }
 
-    auto a = new NoteActions;
-    a->editNotesWordProperties(notes, args);
-    a->execute();
-    // historyManager->record(a);
+    return args;
 }
 
 void NoteWordUtils::fillEditedPhonemeNames(const QList<Note *> &notes) {

@@ -28,7 +28,6 @@ private slots:
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
     void onClipPropertyChanged(Clip *clip);
     void onNoteChanged(SingingClip::NoteChangeType type, Note *note);
-    void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
 
 signals:
     void validationFinished(bool passed);
@@ -42,12 +41,9 @@ private:
     static bool validateTempo();
     static bool validateClipOverlap();
     static bool validateNoteOverlap();
-    void processPendingUpdateNotes();
 
     QList<Track *> m_tracks;
     QList<Clip *> m_clips;
-
-    QList<Note *> m_notesPendingUpdateNoteWordProperty;
 };
 
 

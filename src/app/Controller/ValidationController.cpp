@@ -14,8 +14,6 @@ ValidationController::ValidationController() {
     connect(appModel, &AppModel::modelChanged, this, &ValidationController::onModelChanged);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             &ValidationController::onUndoRedoChanged);
-    connect(appStatus, &AppStatus::moduleStatusChanged, this,
-            &ValidationController::onModuleStatusChanged);
 }
 
 void ValidationController::runValidation() {
@@ -42,10 +40,10 @@ void ValidationController::onModelChanged() {
                 auto singingClip = reinterpret_cast<SingingClip *>(clip);
                 singingClip->defaultLanguage = track->defaultLanguage();
                 // NoteWordUtils::updateOriginalWordProperties(singingClip->notes().toList());
-                if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
-                    NoteWordUtils::updateOriginalWordProperties(singingClip->notes().toList());
-                else
-                    m_notesPendingUpdateNoteWordProperty.append(singingClip->notes().toList());
+                // if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+                //     NoteWordUtils::updateOriginalWordProperties(singingClip->notes().toList());
+                // else
+                //     m_notesPendingUpdateNoteWordProperty.append(singingClip->notes().toList());
             }
         }
     }
@@ -97,14 +95,6 @@ void ValidationController::onNoteChanged(SingingClip::NoteChangeType type, Note 
     validate();
 }
 
-void ValidationController::onModuleStatusChanged(AppStatus::ModuleType module,
-                                                 AppStatus::ModuleStatus status) {
-    if (module == AppStatus::ModuleType::Language) {
-        if (status == AppStatus::ModuleStatus::Ready)
-            processPendingUpdateNotes();
-    }
-}
-
 void ValidationController::handleClipInserted(Clip *clip) {
     m_clips.append(clip);
     connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
@@ -124,10 +114,10 @@ void ValidationController::handleNoteInserted(Note *note) {
 void ValidationController::handleNotePropertyChanged(Note::NotePropertyType type, Note *note) {
     qDebug() << "ValidationController::handleNotePropertyChanged";
     if (type == Note::Word) {
-        if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
-            NoteWordUtils::updateOriginalWordProperties(note->clip()->notes().toList());
-        else
-            m_notesPendingUpdateNoteWordProperty.append(note->clip()->notes().toList());
+        // if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+        //     NoteWordUtils::updateOriginalWordProperties(note->clip()->notes().toList());
+        // else
+        //     m_notesPendingUpdateNoteWordProperty.append(note->clip()->notes().toList());
     }
 }
 
@@ -182,10 +172,4 @@ bool ValidationController::validateNoteOverlap() {
         }
     }
     return true;
-}
-
-void ValidationController::processPendingUpdateNotes() {
-    NoteWordUtils::updateOriginalWordProperties(m_notesPendingUpdateNoteWordProperty);
-    m_notesPendingUpdateNoteWordProperty.clear();
-    validate();
 }

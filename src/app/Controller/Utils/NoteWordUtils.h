@@ -5,13 +5,13 @@
 #ifndef NOTEWORDUTILS_H
 #define NOTEWORDUTILS_H
 
-#include <QList>
+#include "Model/AppModel/Note.h"
 
-class Note;
+#include <QList>
 
 class NoteWordUtils {
 public:
-    static void updateOriginalWordProperties(const QList<Note *> &notes);
+    static QList<Note::NoteWordProperties> getOriginalWordProperties(const QList<Note *> &notes);
     static void fillEditedPhonemeNames(const QList<Note *> &notes);
 };
 

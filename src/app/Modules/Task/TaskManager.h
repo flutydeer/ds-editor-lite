@@ -31,6 +31,7 @@ signals:
 public slots:
     void addTask(Task *task);
     void startTask(Task *task);
+    void addAndStartTask(Task *task);
     void removeTask(Task *task);
     // void startTask(int taskId);
     void startAllTasks();

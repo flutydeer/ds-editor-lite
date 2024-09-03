@@ -51,7 +51,7 @@ void TaskManager::wait() {
 
 void TaskManager::addTask(Task *task) {
     Q_D(TaskManager);
-    qDebug() << "TaskManager::addTask" << task->id();
+    qDebug() << "addTask:" << task->id() << task->status().title;
     auto index = d->m_tasks.count();
     d->m_tasks.append(task);
     emit taskChanged(Added, task, index);
@@ -59,8 +59,13 @@ void TaskManager::addTask(Task *task) {
 
 void TaskManager::startTask(Task *task) {
     Q_D(TaskManager);
-    qDebug() << "TaskManager::startTask";
+    qDebug() << "startTask" << task->id() << task->status().title;
     d->threadPool->start(task);
+}
+
+void TaskManager::addAndStartTask(Task *task) {
+    addTask(task);
+    startTask(task);
 }
 
 void TaskManager::removeTask(Task *task) {

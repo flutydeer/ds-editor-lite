@@ -138,14 +138,16 @@ void NoteView::resetOffset() {
 void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
     const auto backgroundColorNormal = QColor(155, 186, 255);
     const auto backgroundColorEditingPitch = QColor(53, 59, 74);
+    const auto backgroundColorOverlapped = QColor(110, 129, 171);
 
     const auto borderColorNormal = QColor(112, 156, 255);
     const auto borderColorSelected = QColor(255, 255, 255);
-    const auto borderColorOverlapped = AppGlobal::overlappedViewBorder;
+    const auto borderColorOverlapped = QColor(110, 129, 171);
     const auto borderColorEditingPitch = QColor(126, 149, 199);
 
     const auto foregroundColorNormal = QColor(0, 0, 0);
     const auto foregroundColorEditingPitch = QColor(126, 149, 199);
+    const auto foregroundColorOverlapped = QColor(0, 0, 0, 127);
 
     const auto pronunciationTextColorOriginal = QColor(200, 200, 200);
     const auto pronunciationTextColorEdited = backgroundColorNormal;
@@ -171,6 +173,8 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         QColor brushColor;
         if (isSelected())
             brushColor = borderColorSelected;
+        else if (overlapped())
+            brushColor = borderColorOverlapped;
         else if (m_editingPitch)
             brushColor = borderColorEditingPitch;
         else
@@ -186,18 +190,29 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
 
     auto drawFullNote = [&] {
         QColor borderColor;
-        if (isSelected())
+        QColor backgroundColor;
+        QColor foregroundColor;
+        if (isSelected()) {
             borderColor = borderColorSelected;
-        else if (overlapped())
+            backgroundColor = backgroundColorNormal;
+            foregroundColor = foregroundColorNormal;
+        } else if (overlapped()) {
             borderColor = borderColorOverlapped;
-        else if (m_editingPitch)
+            backgroundColor = backgroundColorOverlapped;
+            foregroundColor = foregroundColorOverlapped;
+        } else if (m_editingPitch) {
             borderColor = borderColorEditingPitch;
-        else
+            backgroundColor = backgroundColorEditingPitch;
+            foregroundColor = foregroundColorEditingPitch;
+        } else {
             borderColor = borderColorNormal;
+            backgroundColor = backgroundColorNormal;
+            foregroundColor = foregroundColorNormal;
+        }
         pen.setColor(borderColor);
         pen.setWidthF(penWidth);
         painter->setPen(pen);
-        painter->setBrush(m_editingPitch ? backgroundColorEditingPitch : backgroundColorNormal);
+        painter->setBrush(backgroundColor);
         // auto straightX = paddedRect.width() - radius * 2;
         // auto straightY = paddedRect.height() - radius * 2;
         // auto xRadius = radius;
@@ -209,7 +224,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         // painter->drawRoundedRect(paddedRect, xRadius, yRadius);
         painter->drawRoundedRect(paddedRect, 2, 2);
 
-        pen.setColor(m_editingPitch ? foregroundColorEditingPitch : foregroundColorNormal);
+        pen.setColor(foregroundColor);
         painter->setPen(pen);
         auto font = QFont();
         font.setPointSizeF(10);

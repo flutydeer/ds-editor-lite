@@ -563,9 +563,10 @@ void PianoRollGraphicsViewPrivate::updateSelectionState() {
     m_canNotifySelectedNoteChanged = false;
     q->clearNoteSelections();
 
+    // TODO: 修复状态不一致的 bug
     for (const auto note : m_cachedSelectedNotes) {
-        auto noteItem = m_noteLayer.findNoteById(note->id());
-        noteItem->setSelected(note->selected());
+        if (auto noteItem = m_noteLayer.findNoteById(note->id()))
+            noteItem->setSelected(note->selected());
     }
     m_cachedSelectedNotes.clear();
     m_canNotifySelectedNoteChanged = true;
