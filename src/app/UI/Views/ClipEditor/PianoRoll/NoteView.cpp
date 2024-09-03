@@ -251,8 +251,12 @@ void NoteView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     // qDebug() << "NoteGraphicsItem::hoverMoveEvent" << event->pos().rx();
     if (!m_editingPitch) {
         const auto rx = event->pos().rx();
-        if (rx >= 0 && rx <= AppGlobal::resizeTolarance ||
-            rx >= rect().width() - AppGlobal::resizeTolarance && rx <= rect().width())
+        const auto ry = event->pos().ry();
+        const bool xInFilledRect =
+            rx >= 0 && rx <= AppGlobal::resizeTolarance ||
+            rx >= rect().width() - AppGlobal::resizeTolarance && rx <= rect().width();
+        const bool yInFilledRect = ry >= 0 && ry <= rect().height() - pronunciationTextHeight();
+        if (yInFilledRect && xInFilledRect)
             setCursor(Qt::SizeHorCursor);
         else
             setCursor(Qt::ArrowCursor);
