@@ -41,11 +41,6 @@ ToolTipFilter::ToolTipFilter(QWidget *parent, int showDelay, bool followCursor, 
 }
 
 bool ToolTipFilter::eventFilter(QObject *object, QEvent *event) {
-    // 透明工具窗口在 linux 上可能存在问题，只在 win 和 mac 上使用自定义 tooltip 样式
-    auto productType = QSysInfo::productType();
-    if (productType != "windows" && productType != "macos")
-        return QObject::eventFilter(object, event);
-
     auto type = event->type();
     if (type == QEvent::ToolTip)
         return true; // discard the original QToolTip event

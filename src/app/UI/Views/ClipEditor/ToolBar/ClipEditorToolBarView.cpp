@@ -260,13 +260,13 @@ Button *ClipEditorToolBarViewPrivate::buildCommonButton(const QString &objName,
     btn->setObjectName(objName);
     btn->setFixedSize(m_contentHeight, m_contentHeight);
     btn->setShortcut(shortcut);
-    if (SystemUtils::productType() == SystemUtils::SystemProductType::Windows) {
-        btn->setToolTip(tipTitle);
-        const auto toolTip = new ToolTipFilter(btn, 500, false, true);
-        if (!tipDesc.isEmpty())
-            toolTip->appendMessage(tipDesc);
-        btn->installEventFilter(toolTip);
-    } else {
+    /*if (SystemUtils::productType() == SystemUtils::SystemProductType::Windows) {*/
+    btn->setToolTip(tipTitle);
+    const auto toolTip = new ToolTipFilter(btn, 500, false, true);
+    if (!tipDesc.isEmpty())
+        toolTip->appendMessage(tipDesc);
+    btn->installEventFilter(toolTip);
+    /*} else {
         QString shortcutStr;
         QString descStr;
         if (!shortcut.isEmpty())
@@ -274,7 +274,7 @@ Button *ClipEditorToolBarViewPrivate::buildCommonButton(const QString &objName,
         if (!tipDesc.isEmpty())
             descStr = "\n" + tipDesc;
         btn->setToolTip(tipTitle + shortcutStr + descStr);
-    }
+    }*/
     return btn;
 }
 

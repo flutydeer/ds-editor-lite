@@ -49,7 +49,7 @@ ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent)
 
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setAttribute(Qt::WA_TranslucentBackground);
-    setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     setWindowOpacity(0);
 }
 

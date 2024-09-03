@@ -58,7 +58,7 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
 
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setAttribute(Qt::WA_TranslucentBackground);
-    setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
+    setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     setWindowOpacity(0);
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
 }
