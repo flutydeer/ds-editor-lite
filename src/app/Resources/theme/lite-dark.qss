@@ -393,6 +393,7 @@ QLineEdit:focus {
 }
 
 QAbstractSpinBox {
+    min-width: 64;
     background: #10FFFFFF;
     border: 1px solid transparent;
     border-bottom: 1px solid #A0A0A0;
@@ -1067,4 +1068,11 @@ TrackListView::item:hover {
 
 TrackListView::item:selected {
     background: #10FFFFFF
+}
+
+QToolTip {
+    padding: 2px 4px;
+    background-color: #202122;
+    border: 1px solid #505050;
+    color: #F0F0F0;
 }
