@@ -21,6 +21,7 @@ endif ()
 add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} Resources/lite_res.qrc)
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
+target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)
 
 find_package(SndFile CONFIG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Core5Compat)
