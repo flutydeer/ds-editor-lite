@@ -28,12 +28,11 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     m_tabWidget = new QTabWidget();
 
     m_lyricWidget = new FillLyric::LyricTab(
-        m_langNotes,
-        {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
-         appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
-         appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
-         appOptions->fillLyric()->autoWrap, appOptions->fillLyric()->exportLanguage});
-    m_lyricWidget->setLangNotes();
+        m_langNotes, {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
+                      appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
+                      appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
+                      appOptions->fillLyric()->autoWrap, appOptions->fillLyric()->exportLanguage});
+    m_lyricWidget->setLangNotes(false);
 
     if (!appOptions->fillLyric()->extVisible) {
         shrinkWindowRight(300);
