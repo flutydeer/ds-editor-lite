@@ -9,8 +9,6 @@
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/GetPronTask.h"
 
-#include <bits/fs_fwd.h>
-
 ParamController::ParamController() {
     connect(appModel, &AppModel::modelChanged, this, &ParamController::onModelChanged);
     connect(appStatus, &AppStatus::moduleStatusChanged, this,
