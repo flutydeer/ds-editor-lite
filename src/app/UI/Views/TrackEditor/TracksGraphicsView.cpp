@@ -6,6 +6,8 @@
 
 #include "TracksGraphicsScene.h"
 #include "Controller/AppController.h"
+#include "Controller/ClipEditorViewController.h"
+#include "Controller/PlaybackController.h"
 #include "Controller/TracksViewController.h"
 #include "Global/TracksEditorGlobal.h"
 #include "GraphicsItem/AbstractClipView.h"
@@ -235,7 +237,11 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     auto tick = m_scene->tickAt(scenePos.x());
     if (auto item = itemAt(event->pos())) {
         if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
-            appController->setActivePanel(AppGlobal::ClipEditor);
+            // appController->setActivePanel(AppGlobal::ClipEditor);
+            if (appStatus->clipPanelCollapsed) {
+                appController->setTrackAndClipPanelCollapsed(false, false);
+                clipController->centerAt(playbackController->position(), 60);
+            }
         } else if (dynamic_cast<TracksBackgroundGraphicsItem *>(item)) {
             m_tick = MathUtils::roundDown(tick, 1920 / m_quantize);
             onNewSingingClip();
