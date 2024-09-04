@@ -107,7 +107,6 @@ void ParamController::handleGetPronTaskFinished(GetPronTask *task) {
     auto a = new NoteActions;
     a->editNotesWordProperties(task->notesRef, task->result);
     a->execute();
-    delete task;
 
     auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task->id()));
     if (validatePronAndPhoneme(task->id())) {
@@ -119,6 +118,8 @@ void ParamController::handleGetPronTaskFinished(GetPronTask *task) {
         connect(durTask, &Task::finished, this, [=] { handleInferDurTaskFinished(durTask); });
         taskManager->addAndStartTask(durTask);
     }
+    
+    delete task;
 }
 
 void ParamController::handleInferDurTaskFinished(InferDurationTask *task) {
