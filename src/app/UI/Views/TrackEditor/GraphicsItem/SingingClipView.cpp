@@ -50,8 +50,8 @@ void SingingClipView::onNoteListChanged(SingingClip::NoteChangeType type, Note *
     switch (type) {
         case SingingClip::Inserted:
             addNote(note);
-            connect(note, &Note::propertyChanged, this,
-                    [=](Note::NotePropertyType type) { onNotePropertyChanged(type, note); });
+            connect(note, &Note::timeKeyPropertyChanged, this,
+                    [=] { onNotePropertyChanged(note); });
             break;
         // case SingingClip::PropertyChanged:
         //     removeNote(id);
@@ -63,11 +63,9 @@ void SingingClipView::onNoteListChanged(SingingClip::NoteChangeType type, Note *
     }
 }
 
-void SingingClipView::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
-    if (type == Note::TimeAndKey) {
-        removeNote(note->id());
-        addNote(note);
-    }
+void SingingClipView::onNotePropertyChanged(Note *note) {
+    removeNote(note->id());
+    addNote(note);
 }
 
 void SingingClipView::setDefaultLanguage(AppGlobal::LanguageType language) {

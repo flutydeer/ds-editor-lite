@@ -245,7 +245,7 @@ void ClipEditorViewController::onNotePropertiesEdited(int noteId, const NoteDial
     Q_D(ClipEditorViewController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     auto note = singingClip->findNoteById(noteId);
-    auto arg = Note::NoteWordProperties::fromNote(*note);
+    auto arg = Note::WordProperties::fromNote(*note);
     arg.language = result.language;
     arg.lyric = result.lyric;
     arg.pronunciation = result.pronunciation;
@@ -296,8 +296,8 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
         inputNote->setPronunciation(note->pronunciation());
         inputNote->setPronCandidates(note->pronCandidates());
         inputNote->setLanguage(note->language());
-        inputNote->setPhonemeInfo(PhonemeInfo::Original, note->phonemeInfo().original);
-        inputNote->setPhonemeInfo(PhonemeInfo::Edited, note->phonemeInfo().edited);
+        inputNote->setPhonemeInfo(Note::Original, note->phonemeInfo().original);
+        inputNote->setPhonemeInfo(Note::Edited, note->phonemeInfo().edited);
         inputNotes.append(inputNote);
     }
 
@@ -322,10 +322,10 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
         notesToEdit.remove(i, n);
     }
 
-    QList<Note::NoteWordProperties> args;
+    QList<Note::WordProperties> args;
     int skipCount = 0;
     for (int i = 0; i < notesToEdit.size(); i++) {
-        auto arg = Note::NoteWordProperties::fromNote(*selectedNotes[i]);
+        auto arg = Note::WordProperties::fromNote(*selectedNotes[i]);
         if (lyricRes.skipSlur && arg.lyric == '-') {
             args.append(arg);
             skipCount++;

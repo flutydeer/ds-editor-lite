@@ -22,7 +22,7 @@ void EditNotePositionAction::execute() {
     m_note->setStart(m_note->start() + m_deltaTick);
     m_note->setKeyIndex(m_note->keyIndex() + m_deltaKey);
     m_clip->insertNote(m_note);
-    m_note->notifyPropertyChanged(Note::TimeAndKey);
+    m_note->notifyTimeKeyPropertyChanged();
 }
 
 void EditNotePositionAction::undo() {
@@ -30,5 +30,5 @@ void EditNotePositionAction::undo() {
     m_note->setStart(m_note->start() - m_deltaTick);
     m_note->setKeyIndex(m_note->keyIndex() - m_deltaKey);
     m_clip->insertNote(m_note);
-    m_note->notifyPropertyChanged(Note::TimeAndKey);
+    m_note->notifyTimeKeyPropertyChanged();
 }

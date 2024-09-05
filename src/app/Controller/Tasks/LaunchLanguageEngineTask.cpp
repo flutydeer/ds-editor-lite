@@ -21,7 +21,7 @@ LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : Task(paren
 
 void LaunchLanguageEngineTask::runTask() {
     qDebug() << "Launching language module...";
-    QThread::sleep(1);
+    // QThread::sleep(1);
     const auto g2pMgr = LangMgr::IG2pManager::instance();
     const auto langMgr = LangMgr::ILanguageManager::instance();
     const auto langSet = LangSetting::ILangSetManager::instance();

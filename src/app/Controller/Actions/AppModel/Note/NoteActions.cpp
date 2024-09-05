@@ -7,7 +7,7 @@
 #include "EditNotePositionAction.h"
 #include "EditNoteStartAndLengthAction.h"
 #include "EditNotesLengthAction.h"
-#include "EditNotesWordPropertiesAction.h"
+#include "EditNoteWordPropertiesAction.h"
 #include "EditPhonemeAction.h"
 #include "InsertNoteAction.h"
 #include "RemoveNoteAction.h"
@@ -45,11 +45,11 @@ void NoteActions::editNotePosition(const QList<Note *> &notes, int deltaTick, in
 }
 
 void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
-                                          const QList<Note::NoteWordProperties> &args) {
+                                          const QList<Note::WordProperties> &args) {
     setName(tr("Edit note word properties"));
     int i = 0;
     for (const auto note : notes) {
-        addAction(EditNotesWordPropertiesAction::build(note, args[i]));
+        addAction(EditNoteWordPropertiesAction::build(note, args[i]));
         i++;
     }
 }

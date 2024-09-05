@@ -37,7 +37,7 @@ public:
 
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, Note *note);
-    void onNotePropertyChanged(Note::NotePropertyType type, Note *note);
+    void onNotePropertyChanged(Note *note);
     void setDefaultLanguage(AppGlobal::LanguageType language);
 
 private:

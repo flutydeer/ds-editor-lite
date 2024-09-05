@@ -121,6 +121,7 @@ MainWindow::MainWindow() {
     statusBar->addPermanentWidget(m_progressBar);
     statusBar->setFixedHeight(28);
     statusBar->setSizeGripEnabled(false);
+    statusBar->setContentsMargins(6, 0, 6, 0);
     setStatusBar(statusBar);
 
     auto mainLayout = new QVBoxLayout;

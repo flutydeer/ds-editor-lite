@@ -10,16 +10,16 @@
 
 class SingingClip;
 
-class EditNotesWordPropertiesAction final : public IAction {
+class EditNoteWordPropertiesAction final : public IAction {
 public:
-    static EditNotesWordPropertiesAction *build(Note *note, Note::NoteWordProperties args);
+    static EditNoteWordPropertiesAction *build(Note *note, Note::WordProperties args);
     void execute() override;
     void undo() override;
 
 private:
     Note *m_note = nullptr;
-    Note::NoteWordProperties m_oldArgs;
-    Note::NoteWordProperties m_newArgs;
+    Note::WordProperties m_oldArgs;
+    Note::WordProperties m_newArgs;
 };
 
 

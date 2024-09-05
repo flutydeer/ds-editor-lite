@@ -25,7 +25,7 @@ GetPronTask::GetPronTask(int clipId, const QList<Note *> &notes) : Task(clipId) 
         }
     }
     TaskStatus status;
-    status.title = "正在获取发音和音素信息...";
+    status.title = "获取发音和音素信息";
     status.message = m_previewText;
     status.isIndetermine = true;
     setStatus(status);
@@ -75,7 +75,19 @@ void GetPronTask::processNotes() {
     auto newStatus = status();
     newStatus.message = "正在处理: " + m_previewText;
     setStatus(newStatus);
-    QThread::sleep(1);
+    // QThread::sleep(1);
+    // for (int i = 0; i < 100; i++) {
+    //     QThread::msleep(10);
+    //     if (isTerminateRequested()) {
+    //         newStatus = status();
+    //         newStatus.message = "正在停止: " + m_previewText;
+    //         newStatus.runningStatus = TaskGlobal::Error;
+    //         setStatus(newStatus);
+    //         QThread::sleep(2);
+    //         emit finished(true);
+    //         return;
+    //     }
+    // }
     result = NoteWordUtils::getOriginalWordProperties(m_notes);
     emit finished(false);
 }

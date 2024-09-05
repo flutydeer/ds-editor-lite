@@ -38,8 +38,9 @@ void PhonemeView::setDataContext(SingingClip *clip) {
 
 void PhonemeView::handleNoteInserted(Note *note) {
     MathUtils::binaryInsert(m_notes, note);
-    connect(note, &Note::propertyChanged, this,
-            [=](Note::NotePropertyType type) { onNotePropertyChanged(type, note); });
+    connect(note, &Note::timeKeyPropertyChanged, this, [=] { onNotePropertyChanged(note); });
+    connect(note, &Note::wordPropertyChanged, this,
+            [=](Note::WordPropertyType type) { onNotePropertyChanged(note); });
 }
 
 void PhonemeView::handleNoteRemoved(Note *note) {
@@ -109,7 +110,7 @@ void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
     update();
 }
 
-void PhonemeView::onNotePropertyChanged(Note::NotePropertyType type, Note *note) {
+void PhonemeView::onNotePropertyChanged(Note *note) {
     // qDebug() << "PhonemeView::onNotePropertyChanged" << note->lyric();
     m_notes.removeOne(note);
     MathUtils::binaryInsert(m_notes, note);

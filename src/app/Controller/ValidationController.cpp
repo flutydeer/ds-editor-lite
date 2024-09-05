@@ -106,20 +106,9 @@ void ValidationController::handleClipInserted(Clip *clip) {
 }
 
 void ValidationController::handleNoteInserted(Note *note) {
-    handleNotePropertyChanged(Note::Word, note);
-    connect(note, &Note::propertyChanged, this,
-            [=](Note::NotePropertyType type) { handleNotePropertyChanged(type, note); });
+
 }
 
-void ValidationController::handleNotePropertyChanged(Note::NotePropertyType type, Note *note) {
-    qDebug() << "ValidationController::handleNotePropertyChanged";
-    if (type == Note::Word) {
-        // if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
-        //     NoteWordUtils::updateOriginalWordProperties(note->clip()->notes().toList());
-        // else
-        //     m_notesPendingUpdateNoteWordProperty.append(note->clip()->notes().toList());
-    }
-}
 
 void ValidationController::validate() {
     qDebug() << "ValidationController::validate";

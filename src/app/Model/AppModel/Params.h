@@ -5,9 +5,7 @@
 #ifndef DSPARAMS_H
 #define DSPARAMS_H
 
-#include <QDebug>
 #include "Curve.h"
-#include "Utils/OverlappableSerialList.h"
 
 class Param {
 public:

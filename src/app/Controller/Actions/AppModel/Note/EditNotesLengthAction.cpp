@@ -19,12 +19,12 @@ void EditNotesLengthAction::execute() {
     m_clip->removeNote(m_note);
     m_note->setLength(m_note->length() + m_deltaTick);
     m_clip->insertNote(m_note);
-    m_note->notifyPropertyChanged(Note::TimeAndKey);
+    m_note->notifyTimeKeyPropertyChanged();
 }
 
 void EditNotesLengthAction::undo() {
     m_clip->removeNote(m_note);
     m_note->setLength(m_note->length() - m_deltaTick);
     m_clip->insertNote(m_note);
-    m_note->notifyPropertyChanged(Note::TimeAndKey);
+    m_note->notifyTimeKeyPropertyChanged();
 }

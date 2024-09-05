@@ -5,35 +5,34 @@
 #ifndef ICLIP_H
 #define ICLIP_H
 
+#include "Utils/Macros.h"
 #include "Utils/UniqueObject.h"
 
 #include <QString>
 
-class IClip : public UniqueObject {
-public:
+interface IClip : public UniqueObject {
+    I_DECL(IClip)
+
     enum ClipType { Audio, Singing, Generic };
 
     IClip() = default;
+    explicit IClip(int id) : UniqueObject(id){};
 
-    explicit IClip(int id) : UniqueObject(id) {
-    }
-
-    virtual ~IClip() = default;
-    [[nodiscard]] virtual ClipType clipType() const = 0;
-    [[nodiscard]] virtual QString name() const = 0;
-    virtual void setName(const QString &text) = 0;
-    [[nodiscard]] virtual int start() const = 0;
-    virtual void setStart(int start) = 0;
-    [[nodiscard]] virtual int length() const = 0;
-    virtual void setLength(int length) = 0;
-    [[nodiscard]] virtual int clipStart() const = 0;
-    virtual void setClipStart(int clipStart) = 0;
-    [[nodiscard]] virtual int clipLen() const = 0;
-    virtual void setClipLen(int clipLen) = 0;
-    [[nodiscard]] virtual double gain() const = 0;
-    virtual void setGain(double gain) = 0;
-    [[nodiscard]] virtual bool mute() const = 0;
-    virtual void setMute(bool mute) = 0;
+    I_NODSCD(ClipType clipType() const);
+    I_NODSCD(QString name() const);
+    I_METHOD(void setName(const QString &text));
+    I_NODSCD(int start() const);
+    I_METHOD(void setStart(int start));
+    I_NODSCD(int length() const);
+    I_METHOD(void setLength(int length));
+    I_NODSCD(int clipStart() const);
+    I_METHOD(void setClipStart(int clipStart));
+    I_NODSCD(int clipLen() const);
+    I_METHOD(void setClipLen(int clipLen));
+    I_NODSCD(double gain() const);
+    I_METHOD(void setGain(double gain));
+    I_NODSCD(bool mute() const);
+    I_METHOD(void setMute(bool mute));
 };
 
 #endif // ICLIP_H

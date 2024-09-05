@@ -15,7 +15,7 @@ public:
     // [[nodiscard]] QList<Note *> &notes();
     QList<Note *> notesRef;
 
-    QList<Note::NoteWordProperties> result;
+    QList<Note::WordProperties> result;
 
 private:
     void runTask() override;

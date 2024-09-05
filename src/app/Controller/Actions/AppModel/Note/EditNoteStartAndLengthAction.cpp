@@ -21,7 +21,7 @@ void EditNoteStartAndLengthAction::execute() {
     m_note->setStart(m_note->start() + m_deltaTick);
     m_note->setLength(m_note->length() - m_deltaTick);
     m_clip->insertNote(m_note);
-    m_note->notifyPropertyChanged(Note::TimeAndKey);
+    m_note->notifyTimeKeyPropertyChanged();
 }
 
 void EditNoteStartAndLengthAction::undo() {
@@ -29,5 +29,5 @@ void EditNoteStartAndLengthAction::undo() {
     m_note->setStart(m_note->start() - m_deltaTick);
     m_note->setLength(m_note->length() + m_deltaTick);
     m_clip->insertNote(m_note);
-    m_note->notifyPropertyChanged(Note::TimeAndKey);
+    m_note->notifyTimeKeyPropertyChanged();
 }

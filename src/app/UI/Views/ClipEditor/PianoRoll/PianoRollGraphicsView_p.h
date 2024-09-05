@@ -106,7 +106,6 @@ public:
 
     void handleNoteInserted(Note *note);
     void handleNoteRemoved(Note *note);
-    void handleNotePropertyChanged(Note::NotePropertyType type, Note *note);
 
 public slots:
     void onClipPropertyChanged();

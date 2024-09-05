@@ -5,17 +5,16 @@
 #ifndef ICLIPEDITORVIEW_H
 #define ICLIPEDITORVIEW_H
 
-class IClipEditorView {
+#include "Utils/Macros.h"
 
-public:
-    virtual ~IClipEditorView() = default;
-
+interface IClipEditorView {
+    I_DECL(IClipEditorView)
     // View state
 
 
     // View operations
-    virtual void centerAt(double tick, double keyIndex) = 0;
-    virtual void centerAt(double startTick, double length, double keyIndex) = 0;
+    I_METHOD(void centerAt(double tick, double keyIndex));
+    I_METHOD(void centerAt(double startTick, double length, double keyIndex));
 };
 
 

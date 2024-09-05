@@ -11,7 +11,7 @@
 
 class NoteWordUtils {
 public:
-    static QList<Note::NoteWordProperties> getOriginalWordProperties(const QList<Note *> &notes);
+    static QList<Note::WordProperties> getOriginalWordProperties(const QList<Note *> &notes);
     static void fillEditedPhonemeNames(const QList<Note *> &notes);
 };
 

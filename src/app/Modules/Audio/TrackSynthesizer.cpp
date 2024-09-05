@@ -115,11 +115,9 @@ void TrackSynthesizer::handleNoteInserted(SingingClip *clip, Note *note) {
 
     handleNotePropertyChanged(note);
 
-    connect(note, &Note::propertyChanged, this, [=](Note::NotePropertyType type) {
-        if (type == Note::TimeAndKey) {
-            DEVICE_LOCKER;
-            handleNotePropertyChanged(note);
-        }
+    connect(note, &Note::timeKeyPropertyChanged, this, [=] {
+        DEVICE_LOCKER;
+        handleNotePropertyChanged(note);
     });
 }
 

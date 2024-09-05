@@ -714,8 +714,11 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
     m_canNotifySelectedNoteChanged = true;
 
     m_notes.append(note);
-    connect(note, &Note::propertyChanged, this,
-            [=](Note::NotePropertyType type) { handleNotePropertyChanged(type, note); });
+    connect(note, &Note::timeKeyPropertyChanged, this, [=] {
+        updateNoteTimeAndKey(note);
+        updateOverlappedState();
+    });
+    connect(note, &Note::wordPropertyChanged, this, [=] { updateNoteWord(note); });
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
@@ -728,15 +731,6 @@ void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
     m_canNotifySelectedNoteChanged = true;
     m_notes.removeOne(note);
     disconnect(note, nullptr, this, nullptr);
-}
-
-void PianoRollGraphicsViewPrivate::handleNotePropertyChanged(Note::NotePropertyType type,
-                                                             Note *note) {
-    if (type == Note::TimeAndKey) {
-        updateNoteTimeAndKey(note);
-        updateOverlappedState();
-    } else if (type == Note::Word)
-        updateNoteWord(note);
 }
 
 void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {

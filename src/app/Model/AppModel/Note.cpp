@@ -78,6 +78,13 @@ void Note::setPronunciation(const Pronunciation &pronunciation) {
     m_pronunciation = pronunciation;
 }
 
+void Note::setPronunciation(WordPropertyType type, const QString &text) {
+    if (type == Original)
+        m_pronunciation.original = text;
+    else if (type == Edited)
+        m_pronunciation.edited = text;
+}
+
 QStringList Note::pronCandidates() const {
     return m_pronCandidates;
 }
@@ -90,10 +97,10 @@ PhonemeInfo Note::phonemeInfo() const {
     return m_phonemes;
 }
 
-void Note::setPhonemeInfo(PhonemeInfo::PhonemeType type, const QList<Phoneme> &phonemes) {
-    if (type == PhonemeInfo::Original)
+void Note::setPhonemeInfo(WordPropertyType type, const QList<Phoneme> &phonemes) {
+    if (type == Original)
         m_phonemes.original = phonemes;
-    else if (type == PhonemeInfo::Edited)
+    else if (type == Edited)
         m_phonemes.edited = phonemes;
 }
 
@@ -122,8 +129,12 @@ bool Note::isSlur() const {
     return m_lyric.contains('-');
 }
 
-void Note::notifyPropertyChanged(NotePropertyType type) {
-    emit propertyChanged(type);
+void Note::notifyTimeKeyPropertyChanged() {
+    emit timeKeyPropertyChanged();
+}
+
+void Note::notifyWordPropertyChanged(WordPropertyType type) {
+    emit wordPropertyChanged(type);
 }
 
 int Note::compareTo(const Note *obj) const {
@@ -148,8 +159,8 @@ std::tuple<qsizetype, qsizetype> Note::interval() const {
     return std::make_tuple(rStart(), rStart() + length());
 }
 
-Note::NoteWordProperties Note::NoteWordProperties::fromNote(const Note &note) {
-    NoteWordProperties properties;
+Note::WordProperties Note::WordProperties::fromNote(const Note &note) {
+    WordProperties properties;
     properties.lyric = note.lyric();
     properties.pronunciation = note.pronunciation();
     properties.language = note.language();

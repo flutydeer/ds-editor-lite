@@ -75,7 +75,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
                 phonemes.append(phoneme);
             }
 
-            note->setPhonemeInfo(PhonemeInfo::Edited, phonemes);
+            note->setPhonemeInfo(Note::Edited, phonemes);
             notes.append(note);
             phonemes.clear();
         }

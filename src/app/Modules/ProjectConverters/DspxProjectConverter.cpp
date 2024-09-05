@@ -91,8 +91,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             note->setLanguage(dspxNote.language);
             note->setPronunciation(
                 Pronunciation(dspxNote.pronunciation.org, dspxNote.pronunciation.edited));
-            note->setPhonemeInfo(PhonemeInfo::Original, decodePhonemes(dspxNote.phonemes.org));
-            note->setPhonemeInfo(PhonemeInfo::Edited, decodePhonemes(dspxNote.phonemes.edited));
+            note->setPhonemeInfo(Note::Original, decodePhonemes(dspxNote.phonemes.org));
+            note->setPhonemeInfo(Note::Edited, decodePhonemes(dspxNote.phonemes.edited));
             notes.append(note);
         }
         return notes;

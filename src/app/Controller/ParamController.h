@@ -28,18 +28,31 @@ private slots:
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
 
-
 private:
     void handleClipInserted(Clip *clip);
     void handleClipRemoved(Clip *clip);
 
-    void handleGetPronTaskFinished(GetPronTask *task);
-    void handleInferDurTaskFinished(InferDurationTask *task);
-    static bool validatePronAndPhoneme(int clipId);
+    void handleNoteChanged(SingingClip::NoteChangeType type, Note *note, SingingClip *clip);
+    void handleNoteInserted(Note *note, SingingClip *clip);
+    void handleNoteRemoved(Note *note, SingingClip *clip);
+    void handleNotePropertyChanged(Note *note);
+
+    void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
+
+    void handleGetPronTaskFinished(GetPronTask *task, bool terminate);
+    void handleInferDurTaskFinished(InferDurationTask *task, bool terminate);
+    static bool validateForInferDuration(int clipId);
+
+    void createAndStartGetPronTask(SingingClip *clip);
+    void cancelClipRelatedTasks(Clip *clip);
 
     QList<Track *> m_tracks;
     // QList<Clip *> m_clips;
     QList<GetPronTask *> m_pendingGetPronTasks;
+    QList<GetPronTask *> m_runningGetPronTasks;
+
+    QList<InferDurationTask *> m_pendingInferDurTasks;
+    QList<InferDurationTask *> m_runningInferDurTasks;
 };
 
 

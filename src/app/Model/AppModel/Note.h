@@ -19,10 +19,9 @@ class Note : public QObject, public Overlappable, public UniqueObject, public IS
     Q_OBJECT
 
 public:
-    enum NotePropertyType { TimeAndKey, Word, None };
-
+    enum WordPropertyType { Original, Edited };
     explicit Note(SingingClip *context = nullptr, QObject *parent = nullptr);
-    ~Note()override;
+    ~Note() override;
     [[nodiscard]] SingingClip *clip() const;
     void setClip(SingingClip *clip);
     [[nodiscard]] int start() const;
@@ -37,10 +36,11 @@ public:
     void setLyric(const QString &lyric);
     [[nodiscard]] Pronunciation pronunciation() const;
     void setPronunciation(const Pronunciation &pronunciation);
+    void setPronunciation(WordPropertyType type, const QString &text);
     [[nodiscard]] QStringList pronCandidates() const;
     void setPronCandidates(const QStringList &pronCandidates);
     [[nodiscard]] PhonemeInfo phonemeInfo() const;
-    void setPhonemeInfo(PhonemeInfo::PhonemeType type, const QList<Phoneme> &phonemes);
+    void setPhonemeInfo(WordPropertyType type, const QList<Phoneme> &phonemes);
     void setPhonemeInfo(const QList<Phoneme> &original, const QList<Phoneme> &edited);
     [[nodiscard]] QString language() const;
     void setLanguage(const QString &language);
@@ -48,7 +48,8 @@ public:
     void setLineFeed(const bool &lineFeed);
     [[nodiscard]] bool isSlur() const;
 
-    void notifyPropertyChanged(NotePropertyType type);
+    void notifyTimeKeyPropertyChanged();
+    void notifyWordPropertyChanged(WordPropertyType type);
 
     int compareTo(const Note *obj) const;
     bool isOverlappedWith(Note *obj) const;
@@ -60,7 +61,7 @@ public:
     // static QJsonObject serialize(const Note &note);
     // static Note deserialize(const QJsonObject &objNote);
 
-    class NoteWordProperties {
+    class WordProperties {
     public:
         QString lyric;
         QString language;
@@ -68,11 +69,12 @@ public:
         QStringList pronCandidates;
         PhonemeInfo phonemes;
 
-        static NoteWordProperties fromNote(const Note &note);
+        static WordProperties fromNote(const Note &note);
     };
 
 signals:
-    void propertyChanged(Note::NotePropertyType type);
+    void timeKeyPropertyChanged();
+    void wordPropertyChanged(Note::WordPropertyType type);
 
 private:
     SingingClip *m_clip = nullptr;

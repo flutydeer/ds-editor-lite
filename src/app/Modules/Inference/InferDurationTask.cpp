@@ -36,8 +36,18 @@ QList<Phoneme> InferDurationTask::result() {
 void InferDurationTask::runTask() {
     qDebug() << "run task";
     int i = 0;
+    auto newStatus = status();
     for (const auto note : m_notes) {
         QThread::msleep(5);
+        if (isTerminateRequested()) {
+            newStatus = status();
+            newStatus.message = "正在停止: " + m_previewText;
+            newStatus.runningStatus = TaskGlobal::Error;
+            setStatus(newStatus);
+            QThread::sleep(2);
+            emit finished(true);
+            return;
+        }
         for (const auto &phoneme : note->phonemeInfo().original) {
             auto resultPhoneme = phoneme;
             if (phoneme.type == Phoneme::Ahead) {
@@ -47,7 +57,7 @@ void InferDurationTask::runTask() {
         }
         i++;
 
-        auto newStatus = status();
+        newStatus = status();
         newStatus.progress = i;
         setStatus(newStatus);
     }

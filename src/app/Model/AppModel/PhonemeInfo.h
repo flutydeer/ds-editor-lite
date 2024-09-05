@@ -12,8 +12,6 @@
 
 class PhonemeInfo {
 public:
-    enum PhonemeType { Original, Edited };
-
     QList<Phoneme> original;
     QList<Phoneme> edited;
 
