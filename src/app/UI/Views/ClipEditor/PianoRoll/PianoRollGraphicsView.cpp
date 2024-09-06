@@ -355,11 +355,19 @@ void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {
     }
 }
 
-void PianoRollGraphicsViewPrivate::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
-    if (type == SingingClip::Inserted)
-        handleNoteInserted(note);
-    else if (type == SingingClip::Removed)
-        handleNoteRemoved(note);
+void PianoRollGraphicsViewPrivate::onNoteChanged(SingingClip::NoteChangeType type,
+                                                 const QList<Note *> &notes) {
+    if (type == SingingClip::Insert)
+        for (const auto &note : notes)
+            handleNoteInserted(note);
+    else if (type == SingingClip::Remove) {
+        for (const auto &note : notes)
+            handleNoteRemoved(note);
+        QList<int> notesId;
+        for (const auto &note : notes)
+            notesId.append(note->id());
+        clipController->unselectNotes(notesId);
+    }
 
     updateOverlappedState();
 }
@@ -698,6 +706,7 @@ bool PianoRollGraphicsViewPrivate::mouseInFilledRect(QPointF scenePos, NoteView 
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
+    m_selectionChangeBarrier = true;
     auto noteItem = new NoteView(note->id());
     noteItem->setRStart(note->rStart());
     noteItem->setLength(note->length());
@@ -717,9 +726,11 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
     });
     connect(note, &Note::wordPropertyChanged, this, [=] { updateNoteWord(note); });
     // clipController->selectNotes(QList{note->id()}, false);
+    m_selectionChangeBarrier = false;
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
+    m_selectionChangeBarrier = true;
     // qDebug() << "PianoRollGraphicsView::removeNote" << note->id() << note->lyric();
     if (auto noteItem = m_noteLayer.findNoteById(note->id())) {
         m_layerManager->removeItem(noteItem, &m_noteLayer);
@@ -727,6 +738,7 @@ void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
     }
     m_notes.removeOne(note);
     disconnect(note, nullptr, this, nullptr);
+    m_selectionChangeBarrier = false;
 }
 
 void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {

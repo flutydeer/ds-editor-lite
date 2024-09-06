@@ -99,11 +99,13 @@ void PhonemeView::onClipPropertyChanged() {
     update();
 }
 
-void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
-    if (type == SingingClip::Inserted)
-        handleNoteInserted(note);
-    else if (type == SingingClip::Removed)
-        handleNoteRemoved(note);
+void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes) {
+    if (type == SingingClip::Insert)
+        for (const auto &note : notes)
+            handleNoteInserted(note);
+    else if (type == SingingClip::Remove)
+        for (const auto &note : notes)
+            handleNoteRemoved(note);
 
     resetPhonemeList();
     buildPhonemeList();
@@ -429,6 +431,7 @@ QList<PhonemeView::PhonemeViewModel *> PhonemeView::findPhonemesByNoteId(int not
 }
 
 void PhonemeView::buildPhonemeList() {
+    // qDebug() << "build phoneme list";
     if (m_notes.count() == 0)
         return;
 

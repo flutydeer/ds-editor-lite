@@ -38,7 +38,7 @@ public:
     void centerAt(const Note &note);
 
 signals:
-    // TODO: 连接到 clip 模型监听更改
+    // TODO: 连接到 AppStatus 模型监听更改
     void canSelectAllChanged(bool canSelectAll);
     void hasSelectedNotesChanged(bool has);
 
@@ -51,6 +51,7 @@ public slots:
     void onResizeNotesRight(const QList<int> &notesId, int deltaTick) const;
     void onAdjustPhoneme(int noteId, const QList<Phoneme> &phonemes) const;
     void selectNotes(const QList<int> &notesId, bool unselectOther);
+    void unselectNotes(const QList<int> &notesId);
     void onOriginalPitchChanged(const QList<Curve *> &curves) const;
     void onPitchEdited(const QList<Curve *> &curves) const;
     void onNotePropertiesEdited(int noteId, const NoteDialogResult &result);

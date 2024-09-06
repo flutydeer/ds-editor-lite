@@ -7,17 +7,20 @@
 
 #include "Modules/History/IAction.h"
 
+#include <QList>
+
 class SingingClip;
 class Note;
 
 class RemoveNoteAction final : public IAction {
 public:
-    static RemoveNoteAction *build(Note *note, SingingClip *clip);
+    explicit RemoveNoteAction(const QList<Note *> &notes, SingingClip *clip)
+        : m_notes(notes), m_clip(clip){};
     void execute() override;
     void undo() override;
 
 private:
-    Note *m_note = nullptr;
+    QList<Note *> m_notes;
     SingingClip *m_clip = nullptr;
 };
 

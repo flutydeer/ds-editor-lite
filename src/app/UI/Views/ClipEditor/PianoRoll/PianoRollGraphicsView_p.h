@@ -107,7 +107,7 @@ public:
 
 public slots:
     void onClipPropertyChanged();
-    void onNoteChanged(SingingClip::NoteChangeType type, Note *note);
+    void onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void onNoteSelectionChanged();
     void onParamChanged(ParamBundle::ParamName name, Param::ParamType type) const;
 

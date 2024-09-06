@@ -6,19 +6,14 @@
 
 #include "Model/AppModel/Clip.h"
 
-InsertNoteAction *InsertNoteAction::build(Note *note, SingingClip *clip) {
-    auto a = new InsertNoteAction;
-    a->m_note = note;
-    a->m_clip = clip;
-    return a;
-}
-
 void InsertNoteAction::execute() {
-    m_clip->insertNote(m_note);
-    m_clip->notifyNoteChanged(SingingClip::Inserted, m_note);
+    for (const auto &note : m_notes)
+        m_clip->insertNote(note);
+    m_clip->notifyNoteChanged(SingingClip::Insert, m_notes);
 }
 
 void InsertNoteAction::undo() {
-    m_clip->removeNote(m_note);
-    m_clip->notifyNoteChanged(SingingClip::Removed, m_note);
+    for (const auto &note : m_notes)
+        m_clip->removeNote(note);
+    m_clip->notifyNoteChanged(SingingClip::Remove, m_notes);
 }

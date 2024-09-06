@@ -14,14 +14,12 @@
 
 void NoteActions::insertNotes(const QList<Note *> &notes, SingingClip *clip) {
     setName(tr("Insert note(s)"));
-    for (const auto note : notes)
-        addAction(InsertNoteAction::build(note, clip));
+    addAction(new InsertNoteAction(notes, clip));
 }
 
 void NoteActions::removeNotes(const QList<Note *> &notes, SingingClip *clip) {
     setName(tr("Remove note(s)"));
-    for (const auto note : notes)
-        addAction(RemoveNoteAction::build(note, clip));
+    addAction(new RemoveNoteAction(notes, clip));
 }
 
 void NoteActions::editNotesStartAndLength(const QList<Note *> &notes, int delta,

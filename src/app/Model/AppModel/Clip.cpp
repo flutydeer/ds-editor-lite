@@ -224,8 +224,8 @@ Note *SingingClip::findNoteById(int id) const {
     return MathUtils::findItemById<Note *>(m_notes, id);
 }
 
-void SingingClip::notifyNoteChanged(NoteChangeType type, Note *note) {
-    emit noteChanged(type, note);
+void SingingClip::notifyNoteChanged(NoteChangeType type, const QList<Note *> &notes) {
+    emit noteChanged(type, notes);
 }
 
 // const DsParams &DsSingingClip::params() const {

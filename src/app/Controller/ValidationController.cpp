@@ -88,10 +88,12 @@ void ValidationController::onClipPropertyChanged(Clip *clip) {
     validate();
 }
 
-void ValidationController::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
+void ValidationController::onNoteChanged(SingingClip::NoteChangeType type,
+                                         const QList<Note *> &notes) {
     qDebug() << "ValidationController::onNoteChanged";
-    if (type == SingingClip::Inserted)
-        handleNoteInserted(note);
+    if (type == SingingClip::Insert)
+        for (const auto &note : notes)
+            handleNoteInserted(note);
     validate();
 }
 
@@ -106,9 +108,7 @@ void ValidationController::handleClipInserted(Clip *clip) {
 }
 
 void ValidationController::handleNoteInserted(Note *note) {
-
 }
-
 
 void ValidationController::validate() {
     qDebug() << "ValidationController::validate";

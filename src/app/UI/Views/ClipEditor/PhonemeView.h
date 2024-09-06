@@ -50,7 +50,7 @@ public slots:
 private slots:
     void onTempoChanged(double tempo);
     void onClipPropertyChanged();
-    void onNoteChanged(SingingClip::NoteChangeType type, Note *note);
+    void onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void onNotePropertyChanged(Note *note);
     // void onNoteSelectionChanged();
 

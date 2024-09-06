@@ -17,7 +17,7 @@ InferDurationTask::InferDurationTask(int clipId, const QList<Note *> &notes) : T
         }
     }
     TaskStatus status;
-    status.title = "正在推理音素长度...";
+    status.title = "推理音素长度";
     status.message = m_previewText;
     status.maximum = m_notes.count();
     setStatus(status);
@@ -37,14 +37,15 @@ void InferDurationTask::runTask() {
     qDebug() << "run task";
     int i = 0;
     auto newStatus = status();
+    newStatus.message = "正在推理: " + m_previewText;
     for (const auto note : m_notes) {
-        QThread::msleep(5);
+        // QThread::msleep(5);
         if (isTerminateRequested()) {
             newStatus = status();
             newStatus.message = "正在停止: " + m_previewText;
             newStatus.runningStatus = TaskGlobal::Error;
             setStatus(newStatus);
-            QThread::sleep(2);
+            // QThread::sleep(2);
             emit finished(true);
             return;
         }

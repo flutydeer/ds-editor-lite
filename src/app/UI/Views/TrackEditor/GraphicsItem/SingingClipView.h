@@ -36,7 +36,7 @@ public:
     void loadNotes(const OverlappableSerialList<Note> &notes);
 
 public slots:
-    void onNoteListChanged(SingingClip::NoteChangeType type, Note *note);
+    void onNoteListChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void onNotePropertyChanged(Note *note);
     void setDefaultLanguage(AppGlobal::LanguageType language);
 

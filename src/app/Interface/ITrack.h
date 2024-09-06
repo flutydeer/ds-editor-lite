@@ -7,24 +7,22 @@
 
 #include "Model/AppModel/TrackControl.h"
 #include "Utils/UniqueObject.h"
+#include "Utils/Macros.h"
 
 #include <QColor>
 #include <QString>
 
-class ITrack : public UniqueObject {
-public:
+interface ITrack : public UniqueObject {
+    I_DECL(ITrack)
     ITrack() = default;
+    explicit ITrack(int id) : UniqueObject(id){}
 
-    explicit ITrack(int id) : UniqueObject(id) {
-    }
-
-    virtual ~ITrack() = default;
-    [[nodiscard]] virtual QString name() const = 0;
-    virtual void setName(const QString &name) = 0;
-    [[nodiscard]] virtual TrackControl control() const = 0;
-    virtual void setControl(const TrackControl &control) = 0;
-    [[nodiscard]] virtual QColor color() const = 0;
-    virtual void setColor(const QColor &color) = 0;
+    I_NODSCD(QString name() const);
+    I_METHOD(void setName(const QString &name));
+    I_NODSCD(TrackControl control() const);
+    I_METHOD(void setControl(const TrackControl &control));
+    I_NODSCD(QColor color() const);
+    I_METHOD(void setColor(const QColor &color));
 };
 
 #endif // ITRACK_H

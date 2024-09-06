@@ -27,7 +27,7 @@ private slots:
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
     void onClipPropertyChanged(Clip *clip);
-    void onNoteChanged(SingingClip::NoteChangeType type, Note *note);
+    void onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
 
 signals:
     void validationFinished(bool passed);

@@ -77,14 +77,16 @@ void TrackSynthesizer::handleSingingClipInserted(SingingClip *clip) {
         handleSingingClipPropertyChanged(clip);
     });
     connect(clip, &SingingClip::noteChanged, this,
-            [=](SingingClip::NoteChangeType noteChangeType, Note *note) {
+            [=](SingingClip::NoteChangeType noteChangeType, const QList<Note *> &notes) {
                 DEVICE_LOCKER;
                 switch (noteChangeType) {
-                    case SingingClip::Inserted:
-                        handleNoteInserted(clip, note);
+                    case SingingClip::Insert:
+                        for (const auto &note : notes)
+                            handleNoteInserted(clip, note);
                         break;
-                    case SingingClip::Removed:
-                        handleNoteRemoved(clip, note);
+                    case SingingClip::Remove:
+                        for (const auto &note : notes)
+                            handleNoteRemoved(clip, note);
                         break;
                 }
             });

@@ -67,8 +67,8 @@ void ParamController::handleClipInserted(Clip *clip) {
         for (const auto note : singingClip->notes())
             handleNoteInserted(note, singingClip);
         connect(singingClip, &SingingClip::noteChanged, this,
-                [=](SingingClip::NoteChangeType type, Note *note) {
-                    handleNoteChanged(type, note, singingClip);
+                [=](SingingClip::NoteChangeType type, const QList<Note *> &notes) {
+                    handleNoteChanged(type, notes, singingClip);
                 });
         createAndStartGetPronTask(singingClip);
     }
@@ -81,13 +81,15 @@ void ParamController::handleClipRemoved(Clip *clip) {
     disconnect(clip, nullptr, this, nullptr);
 }
 
-void ParamController::handleNoteChanged(SingingClip::NoteChangeType type, Note *note,
-                                        SingingClip *clip) {
+void ParamController::handleNoteChanged(SingingClip::NoteChangeType type,
+                                        const QList<Note *> &notes, SingingClip *clip) {
     cancelClipRelatedTasks(clip);
-    if (type == SingingClip::Inserted) {
-        handleNoteInserted(note, clip);
-    } else if (type == SingingClip::Removed) {
-        handleNoteRemoved(note, clip);
+    if (type == SingingClip::Insert) {
+        for (const auto &note : notes)
+            handleNoteInserted(note, clip);
+    } else if (type == SingingClip::Remove) {
+        for (const auto &note : notes)
+            handleNoteRemoved(note, clip);
     }
     createAndStartGetPronTask(clip);
 }

@@ -128,7 +128,7 @@ class SingingClip final : public Clip {
     Q_OBJECT
 
 public:
-    enum NoteChangeType { Inserted, Removed };
+    enum NoteChangeType { Insert, Remove, TimeKeyPropertyChange, WordPropertyChange };
 
     explicit SingingClip();
     ~SingingClip() override;
@@ -142,7 +142,7 @@ public:
     void removeNote(Note *note);
     [[nodiscard]] Note *findNoteById(int id) const;
 
-    void notifyNoteChanged(NoteChangeType type, Note *note);
+    void notifyNoteChanged(NoteChangeType type, const QList<Note *> &notes);
     void notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type);
     Property<AppGlobal::LanguageType> defaultLanguage = AppGlobal::unknown;
     ParamBundle params;
@@ -152,7 +152,7 @@ public:
     static void copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target);
 
 signals:
-    void noteChanged(SingingClip::NoteChangeType type, Note *note);
+    void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamBundle::ParamName name, Param::ParamType type);
     void defaultLanguageChanged(AppGlobal::LanguageType language);
 

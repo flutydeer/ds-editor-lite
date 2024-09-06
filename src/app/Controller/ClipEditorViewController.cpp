@@ -218,6 +218,15 @@ void ClipEditorViewController::selectNotes(const QList<int> &notesId, bool unsel
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
+void ClipEditorViewController::unselectNotes(const QList<int> &notesId){
+    auto selectedNotes = appStatus->selectedNotes.get();
+    for (const auto id : notesId)
+        selectedNotes.removeIf([=](int note){return note == id;});
+    appStatus->selectedNotes = selectedNotes;
+    qDebug() << "unselect notes:" << notesId;
+    emit hasSelectedNotesChanged(hasSelectedNotes());
+}
+
 void ClipEditorViewController::onOriginalPitchChanged(const QList<Curve *> &curves) const {
     Q_D(const ClipEditorViewController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);

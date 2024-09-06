@@ -5,11 +5,12 @@
 #ifndef IACTION_H
 #define IACTION_H
 
-class IAction {
-public:
-    virtual void execute() = 0;
-    virtual void undo() = 0;
-    virtual ~IAction() = default;
+#include "Utils/Macros.h"
+
+interface IAction {
+    I_DECL(IAction)
+    I_METHOD(void execute());
+    I_METHOD(void undo());
 };
 
 #endif // IACTION_H
