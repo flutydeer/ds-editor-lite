@@ -44,9 +44,7 @@ public:
     PitchEditorView *m_pitchEditor = nullptr;
 
     bool m_selecting = false;
-    QList<Note *> m_cachedSelectedNotes;
-
-    bool m_canNotifySelectedNoteChanged = true;
+    bool m_selectionChangeBarrier = false;
 
     // resize and move
     bool m_tempQuantizeOff = false;
@@ -83,7 +81,7 @@ public:
     void handleNotesErased();
     void eraseNoteFromView(NoteView *noteView);
 
-    void updateSelectionState();
+    void updateSceneSelectionState();
     void updateOverlappedState();
     void updateNoteTimeAndKey(Note *note) const;
     void updateNoteWord(Note *note) const;

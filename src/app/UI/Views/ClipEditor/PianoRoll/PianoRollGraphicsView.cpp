@@ -13,7 +13,6 @@
 #include "Global/AppGlobal.h"
 #include "NoteView.h"
 #include "PianoRollBackground.h"
-#include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Curve.h"
 #include "Model/AppModel/DrawCurve.h"
@@ -70,6 +69,9 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
             &PianoRollGraphicsView::notifyKeyRangeChanged);
     connect(this, &CommonGraphicsView::visibleRectChanged, this,
             &PianoRollGraphicsView::notifyKeyRangeChanged);
+
+    connect(appStatus, &AppStatus::noteSelectionChanged, d,
+            &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
 }
 
 PianoRollGraphicsView::~PianoRollGraphicsView() {
@@ -86,9 +88,9 @@ void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
 
 void PianoRollGraphicsView::onSceneSelectionChanged() const {
     Q_D(const PianoRollGraphicsView);
-    if (d->m_canNotifySelectedNoteChanged) {
+    if (!d->m_selectionChangeBarrier) {
         auto notes = selectedNotesId();
-        clipController->onNoteSelectionChanged(notes, true);
+        clipController->selectNotes(notes, true);
     }
 }
 
@@ -127,6 +129,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     }
 
     d->m_selecting = true;
+    d->m_selectionChangeBarrier = true;
     if (event->button() != Qt::LeftButton &&
         (d->m_editMode == Select || d->m_editMode == DrawNote || d->m_editMode == EraseNote)) {
         d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
@@ -272,9 +275,9 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     d->m_movedBeforeMouseUp = false;
     d->m_currentEditingNote = nullptr;
 
-    if (!d->m_cachedSelectedNotes.isEmpty())
-        d->updateSelectionState();
     d->m_selecting = false;
+    auto notes = selectedNotesId();
+    clipController->selectNotes(notes, true);
 
     TimeGraphicsView::mouseReleaseEvent(event);
 }
@@ -362,10 +365,11 @@ void PianoRollGraphicsViewPrivate::onNoteChanged(SingingClip::NoteChangeType typ
 }
 
 void PianoRollGraphicsViewPrivate::onNoteSelectionChanged() {
-    auto selectedNotes = m_clip->selectedNotes();
-    m_cachedSelectedNotes = selectedNotes;
-    if (!m_selecting)
-        updateSelectionState();
+    qDebug() << "on note selection changed" << appStatus->selectedNotes.get();
+    Q_Q(PianoRollGraphicsView);
+    // if (!m_selecting)
+    if (m_clip)
+        updateSceneSelectionState();
 }
 
 void PianoRollGraphicsViewPrivate::onParamChanged(ParamBundle::ParamName name,
@@ -428,6 +432,7 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
 
 void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     Q_Q(PianoRollGraphicsView);
+    m_selectionChangeBarrier = true;
     while (m_notes.count() > 0)
         handleNoteRemoved(m_notes.first());
     if (m_clip) {
@@ -454,9 +459,8 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     connect(clip, &SingingClip::propertyChanged, this,
             &PianoRollGraphicsViewPrivate::onClipPropertyChanged);
     connect(clip, &SingingClip::noteChanged, this, &PianoRollGraphicsViewPrivate::onNoteChanged);
-    connect(clip, &SingingClip::noteSelectionChanged, this,
-            &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
     connect(clip, &SingingClip::paramChanged, this, &PianoRollGraphicsViewPrivate::onParamChanged);
+    m_selectionChangeBarrier = false;
 }
 
 void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QPointF scenePos,
@@ -518,8 +522,8 @@ void PianoRollGraphicsViewPrivate::handleNoteDrawn(int rStart, int length, int k
     note->setLanguage(languageKeyFromType(m_clip->defaultLanguage));
     note->setLyric(appOptions->general()->defaultLyric);
     note->setPronunciation(Pronunciation("", ""));
-    note->setSelected(true);
     clipController->onInsertNote(note);
+    clipController->selectNotes(QList({note->id()}), true);
 }
 
 void PianoRollGraphicsViewPrivate::handleNotesMoved(int deltaTick, int deltaKey) const {
@@ -552,24 +556,20 @@ void PianoRollGraphicsViewPrivate::handleNotesErased() {
 
 void PianoRollGraphicsViewPrivate::eraseNoteFromView(NoteView *noteView) {
     m_notesToErase.append(noteView->id());
-    m_canNotifySelectedNoteChanged = false;
     m_layerManager->removeItem(noteView, &m_noteLayer);
     delete noteView;
-    m_canNotifySelectedNoteChanged = true;
 }
 
-void PianoRollGraphicsViewPrivate::updateSelectionState() {
+void PianoRollGraphicsViewPrivate::updateSceneSelectionState() {
     Q_Q(PianoRollGraphicsView);
-    m_canNotifySelectedNoteChanged = false;
+    m_selectionChangeBarrier = true;
     q->clearNoteSelections();
 
-    // TODO: 修复状态不一致的 bug
-    for (const auto note : m_cachedSelectedNotes) {
-        if (auto noteItem = m_noteLayer.findNoteById(note->id()))
-            noteItem->setSelected(note->selected());
+    for (const auto id : appStatus->selectedNotes.get()) {
+        if (auto noteItem = m_noteLayer.findNoteById(id))
+            noteItem->setSelected(true);
     }
-    m_cachedSelectedNotes.clear();
-    m_canNotifySelectedNoteChanged = true;
+    m_selectionChangeBarrier = false;
 }
 
 void PianoRollGraphicsViewPrivate::updateOverlappedState() {
@@ -698,7 +698,6 @@ bool PianoRollGraphicsViewPrivate::mouseInFilledRect(QPointF scenePos, NoteView 
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
-    m_canNotifySelectedNoteChanged = false;
     auto noteItem = new NoteView(note->id());
     noteItem->setRStart(note->rStart());
     noteItem->setLength(note->length());
@@ -708,10 +707,8 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
     auto edited = note->pronunciation().edited;
     auto isEdited = note->pronunciation().isEdited();
     noteItem->setPronunciation(isEdited ? edited : original, isEdited);
-    noteItem->setSelected(note->selected());
     noteItem->setOverlapped(note->overlapped());
     m_layerManager->addItem(noteItem, &m_noteLayer);
-    m_canNotifySelectedNoteChanged = true;
 
     m_notes.append(note);
     connect(note, &Note::timeKeyPropertyChanged, this, [=] {
@@ -719,16 +716,15 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
         updateOverlappedState();
     });
     connect(note, &Note::wordPropertyChanged, this, [=] { updateNoteWord(note); });
+    // clipController->selectNotes(QList{note->id()}, false);
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
     // qDebug() << "PianoRollGraphicsView::removeNote" << note->id() << note->lyric();
-    m_canNotifySelectedNoteChanged = false;
     if (auto noteItem = m_noteLayer.findNoteById(note->id())) {
         m_layerManager->removeItem(noteItem, &m_noteLayer);
         delete noteItem;
     }
-    m_canNotifySelectedNoteChanged = true;
     m_notes.removeOne(note);
     disconnect(note, nullptr, this, nullptr);
 }

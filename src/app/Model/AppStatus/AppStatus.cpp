@@ -22,4 +22,6 @@ AppStatus::AppStatus() {
     selectedTrackIndex.setNotifyCallback(
         [=](const int value) { emit selectedTrackIndexChanged(value); });
     activeClipId.setNotifyCallback([=](const int value) { emit activeClipIdChanged(value); });
+    selectedNotes.setNotifyCallback(
+        [=](const QList<int> &value) { emit noteSelectionChanged(value); });
 }

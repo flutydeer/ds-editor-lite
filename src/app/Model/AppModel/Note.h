@@ -6,7 +6,6 @@
 #define DSNOTE_H
 
 #include "Utils/Overlappable.h"
-#include "Utils/ISelectable.h"
 #include "Utils/UniqueObject.h"
 #include "PhonemeInfo.h"
 #include "Pronunciation.h"
@@ -15,7 +14,7 @@
 
 class SingingClip;
 
-class Note : public QObject, public Overlappable, public UniqueObject, public ISelectable {
+class Note : public QObject, public Overlappable, public UniqueObject {
     Q_OBJECT
 
 public:

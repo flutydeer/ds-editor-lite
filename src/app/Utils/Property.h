@@ -17,6 +17,10 @@ public:
     Property &operator=(const Property &other);
     Property(const T &value) : value(value){}; // NOLINT(*-explicit-constructor)
 
+    Property() {
+        value = T();
+    }
+
     // public slots:
     virtual void set(const T &newValue);
     void setNotifyCallback(std::function<void(const T &newValue)> func);

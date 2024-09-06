@@ -78,7 +78,7 @@ QString SingingClipView::text() const {
 }
 
 void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {
-    painter->setRenderHint(QPainter::Antialiasing, false);
+    painter->setRenderHint(QPainter::Antialiasing);
 
     auto rectTop = previewRect.top();
     auto rectWidth = previewRect.width();

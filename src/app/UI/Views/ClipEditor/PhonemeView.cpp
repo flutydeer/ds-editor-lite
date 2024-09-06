@@ -111,6 +111,7 @@ void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, Note *note) {
 }
 
 void PhonemeView::onNotePropertyChanged(Note *note) {
+    // TODO: 将音符自动参数的更新通知移动到 clip 上以避免不必要的重建和更新
     // qDebug() << "PhonemeView::onNotePropertyChanged" << note->lyric();
     m_notes.removeOne(note);
     MathUtils::binaryInsert(m_notes, note);

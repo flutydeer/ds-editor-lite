@@ -166,10 +166,6 @@ void SingingClip::removeNote(Note *note) {
     m_notes.remove(note);
 }
 
-void SingingClip::notifyNoteSelectionChanged() {
-    emit noteSelectionChanged();
-}
-
 void SingingClip::notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type) {
     emit paramChanged(name, type);
 }
@@ -226,10 +222,6 @@ void SingingClip::copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *
 
 Note *SingingClip::findNoteById(int id) const {
     return MathUtils::findItemById<Note *>(m_notes, id);
-}
-
-QList<Note *> SingingClip::selectedNotes() const {
-    return Linq::where(m_notes, [](Note *note) { return note->selected(); });
 }
 
 void SingingClip::notifyNoteChanged(NoteChangeType type, Note *note) {

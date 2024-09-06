@@ -33,6 +33,7 @@ public:
     Property<int> projectEditableLength = 1920 * 100;
     Property<int> selectedTrackIndex = -1;
     Property<int> activeClipId = -1;
+    Property<QList<int>> selectedNotes;
 
 signals:
     // Modules
@@ -47,6 +48,7 @@ signals:
     void projectEditableLengthChanged(int newLength);
     void selectedTrackIndexChanged(int trackIndex);
     void activeClipIdChanged(int newId);
+    void noteSelectionChanged(const QList<int> &selectedNotes);
 };
 
 #endif // APPSTATUS_H

@@ -10,7 +10,7 @@
 #include "Actions/AppModel/Param/ParamsActions.h"
 #include "Global/ControllerGlobal.h"
 #include "Interface/IClipEditorView.h"
-#include "Model/AppModel/AppModel.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Language/S2p.h"
 #include "UI/Controls/Toast.h"
@@ -18,7 +18,6 @@
 
 #include <QClipboard>
 #include <QMimeData>
-#include <language-manager/ILanguageManager.h>
 
 ClipEditorViewController::ClipEditorViewController()
     : d_ptr(new ClipEditorViewControllerPrivate(this)) {
@@ -115,8 +114,8 @@ bool ClipEditorViewController::hasSelectedNotes() const {
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     if (singingClip->notes().count() == 0)
         return false;
-    auto selectedNotes = singingClip->selectedNotes();
-    return !selectedNotes.isEmpty();
+    auto selectedNotes = appStatus->selectedNotes;
+    return !selectedNotes.get().isEmpty();
 }
 
 void ClipEditorViewController::centerAt(double tick, double keyIndex) {
@@ -207,19 +206,15 @@ void ClipEditorViewController::onAdjustPhoneme(int noteId, const QList<Phoneme> 
     historyManager->record(a);
 }
 
-void ClipEditorViewController::onNoteSelectionChanged(const QList<int> &notesId,
-                                                      bool unselectOther) {
+void ClipEditorViewController::selectNotes(const QList<int> &notesId, bool unselectOther) {
     Q_D(ClipEditorViewController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    auto selectedNotes = appStatus->selectedNotes.get();
     if (unselectOther)
-        for (const auto note : singingClip->notes())
-            note->setSelected(false);
+        selectedNotes.clear();
 
-    for (const auto id : notesId) {
-        if (auto note = singingClip->findNoteById(id))
-            note->setSelected(true);
-    }
-    singingClip->notifyNoteSelectionChanged();
+    selectedNotes.append(notesId);
+    appStatus->selectedNotes = selectedNotes;
+    qDebug() << "select notes:" << selectedNotes;
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
@@ -263,7 +258,8 @@ void ClipEditorViewController::onNotePropertiesEdited(int noteId, const NoteDial
 void ClipEditorViewController::onDeleteSelectedNotes() {
     Q_D(const ClipEditorViewController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
-    auto notes = singingClip->selectedNotes();
+    auto notes =
+        ClipEditorViewControllerPrivate::selectedNotesFromId(appStatus->selectedNotes, singingClip);
     d->removeNotes(notes);
     emit hasSelectedNotesChanged(false);
 }
@@ -271,10 +267,11 @@ void ClipEditorViewController::onDeleteSelectedNotes() {
 void ClipEditorViewController::onSelectAllNotes() {
     Q_D(const ClipEditorViewController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    QList<int> notesId;
     for (const auto note : singingClip->notes())
-        note->setSelected(true);
+        notesId.append(note->id());
     emit hasSelectedNotesChanged(true);
-    singingClip->notifyNoteSelectionChanged();
+    appStatus->selectedNotes = notesId;
 }
 
 void ClipEditorViewController::onFillLyric(QWidget *parent) {
@@ -284,7 +281,9 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
     // if (d->m_clip->type() != Clip::Singing)
     //     return;
 
-    auto selectedNotes = reinterpret_cast<SingingClip *>(d->m_clip)->selectedNotes();
+    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    auto selectedNotes =
+        ClipEditorViewControllerPrivate::selectedNotesFromId(appStatus->selectedNotes, singingClip);
 
     int slurCount = 0;
     QList<Note *> inputNotes;
@@ -355,9 +354,17 @@ void ClipEditorViewControllerPrivate::removeNotes(const QList<Note *> &notes) co
 
 NotesParamsInfo ClipEditorViewControllerPrivate::buildNoteParamsInfo() const {
     auto singingClip = reinterpret_cast<SingingClip *>(m_clip);
-    auto notes = singingClip->selectedNotes();
+    auto notes = selectedNotesFromId(appStatus->selectedNotes, singingClip);
     NotesParamsInfo info;
     for (const auto &note : notes)
         info.selectedNotes.append(note);
     return info;
+}
+
+QList<Note *> ClipEditorViewControllerPrivate::selectedNotesFromId(const QList<int> &notesId,
+                                                                   SingingClip *clip) {
+    QList<Note *> notes;
+    for (const auto &id : notesId)
+        notes.append(clip->findNoteById(id));
+    return notes;
 }

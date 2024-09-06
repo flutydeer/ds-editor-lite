@@ -141,10 +141,8 @@ public:
     void insertNote(Note *note);
     void removeNote(Note *note);
     [[nodiscard]] Note *findNoteById(int id) const;
-    [[nodiscard]] QList<Note *> selectedNotes() const;
 
     void notifyNoteChanged(NoteChangeType type, Note *note);
-    void notifyNoteSelectionChanged();
     void notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type);
     Property<AppGlobal::LanguageType> defaultLanguage = AppGlobal::unknown;
     ParamBundle params;
@@ -155,7 +153,6 @@ public:
 
 signals:
     void noteChanged(SingingClip::NoteChangeType type, Note *note);
-    void noteSelectionChanged();
     void paramChanged(ParamBundle::ParamName name, Param::ParamType type);
     void defaultLanguageChanged(AppGlobal::LanguageType language);
 

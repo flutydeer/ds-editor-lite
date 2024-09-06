@@ -25,6 +25,7 @@ public:
     void editNotesLyric(const QList<Note *> &notes) const;
     void removeNotes(const QList<Note *> &notes) const;
     [[nodiscard]] NotesParamsInfo buildNoteParamsInfo() const;
+    [[nodiscard]] static QList<Note *> selectedNotesFromId(const QList<int> &notesId, SingingClip *clip) ;
 
 private:
     ClipEditorViewController *q_ptr;

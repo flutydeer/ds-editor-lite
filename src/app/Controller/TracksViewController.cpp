@@ -84,7 +84,10 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
 }
 
 void TracksViewController::setActiveClip(int clipId) {
-    appStatus->activeClipId = clipId;
+    if (clipId != appStatus->activeClipId) {
+        appStatus->selectedNotes = QList<int>();
+        appStatus->activeClipId = clipId;
+    }
 }
 
 void TracksViewController::changeTrackProperty(const Track::TrackProperties &args) {
@@ -163,7 +166,7 @@ void TracksViewController::onRemoveClips(const QList<int> &clipsId) {
     for (const auto &id : clipsId) {
         auto activeClipId = appStatus->activeClipId;
         if (id == activeClipId)
-            appStatus->activeClipId = -1;
+            setActiveClip(-1);
 
         Track *track;
         auto clip = appModel->findClipById(id, track);
