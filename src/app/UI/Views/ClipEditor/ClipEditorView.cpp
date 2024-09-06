@@ -37,8 +37,9 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &ClipEditorView::onActiveClipChanged);
 
     m_splitter = new QSplitter(Qt::Vertical);
-    // m_splitter->setContentsMargins(0, 0, 0, 0);
-    m_splitter->setContentsMargins(6, 0, 6, 0);
+    m_splitter->setObjectName("ClipEditorSplitter");
+    m_splitter->setContentsMargins(0, 0, 0, 0);
+    // m_splitter->setContentsMargins(6, 0, 6, 0);
     m_splitter->addWidget(m_pianoRollView);
     m_splitter->addWidget(m_paramEditorView);
     m_splitter->setCollapsible(0, false);

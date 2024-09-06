@@ -26,17 +26,16 @@
 #include "UI/Views/MainTitleBar/PlaybackView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "Utils/WindowFrameUtils.h"
-#include <QWKWidgets/widgetwindowagent.h>
 
 #include <QApplication>
-#include <QCloseEvent>
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMimeData>
 #include <QProcess>
 #include <QSplitter>
 #include <QStatusBar>
-#include <QMimeData>
+#include <QWKWidgets/widgetwindowagent.h>
 
 MainWindow::MainWindow() {
     setAcceptDrops(true);

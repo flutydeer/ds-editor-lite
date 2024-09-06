@@ -89,7 +89,7 @@ void Log::logSystemInfo() {
     i(tag, "Kernel Type: " + QSysInfo::kernelType());
     i(tag, "Kernel Version: " + QSysInfo::kernelVersion());
     // i(tag, "Host Name: " + QSysInfo::machineHostName());
-    i(tag, "-------- System Info End --------");
+    i(tag, "--------- System Info End ---------");
 }
 
 void Log::setConsoleLogLevel(LogLevel level) {

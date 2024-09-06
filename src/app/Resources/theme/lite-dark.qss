@@ -593,7 +593,7 @@ TimelineView {
 
 PhonemeView {
     background: rgb(28, 29, 30);
-    border-bottom-right-radius: 6px;
+    /* border-bottom-right-radius: 6px; */
 }
 
 TimelineView#tracksTimelineView {
@@ -1027,27 +1027,40 @@ PianoRollView>QLabel#lbNullClipTip {
 
 ParamEditorGraphicsView {
     background: rgb(28, 29, 30);
-    border-radius: 6px;
+    border-radius: 0px;
+    border-bottom-right-radius: 6px;
 }
 
 PianoRollView {
     /* background: #1C1D1E; */
-    border-radius: 6px;
+    /* border-radius: 6px; */
+    border-radius: 0px;
 }
 
 QWidget#pianoRollTopLeftSpacing {
     background: #1C1D1E;
-    border-top-left-radius: 6px;
+    /* border-top-left-radius: 6px; */
 }
 
 QWidget#pianoRollBottomLeftSpacing {
     background: #1C1D1E;
+    /* border-bottom-left-radius: 6px; */
+} 
+
+/* PianoKeyboardView {
     border-bottom-left-radius: 6px;
+} */
+
+QSplitter#ClipEditorSplitter {
+    background-color: #2A2B2C;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px
 }
 
-PianoKeyboardView {
-    border-bottom-left-radius: 6px;
-}
+/* QSplitter#ClipEditorSplitter::handle {
+    background-color: #2A2B2C;
+    border-bottom-right-radius: 6px;
+} */
 
 TrackListView {
     background: transparent;

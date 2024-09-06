@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
     }
 
     const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
-    qDebug() << "App launched in" << time << "ms";
+    qInfo() << "App launched in" << time << "ms";
 
     return QApplication::exec();
 }

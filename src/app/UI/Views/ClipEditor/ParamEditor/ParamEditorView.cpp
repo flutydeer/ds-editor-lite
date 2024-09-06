@@ -18,7 +18,8 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     auto layout = new QHBoxLayout;
     layout->addSpacing(ClipEditorGlobal::pianoKeyboardWidth);
     layout->addWidget(m_graphicsView);
-    layout->setContentsMargins(0, 0, 0, 6);
+    // layout->setContentsMargins(0, 0, 0, 6);
+    layout->setContentsMargins(0, 0, 0, 0);
     setLayout(layout);
     setMinimumHeight(128);
 }
