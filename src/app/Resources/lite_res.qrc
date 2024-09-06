@@ -98,7 +98,13 @@
         <file>svg/icons/panel_hide_24_filled_white.svg</file>
         <file>svg/icons/panel_hide_24_filled.svg</file>
 
-        <file>theme/lite-dark.qss</file>
+        <file>theme/lite-dark/manifest.json</file>
+        <file>theme/lite-dark/base.qss</file>
+        <file>theme/lite-dark/controls.qss</file>
+        <file>theme/lite-dark/title-bar.qss</file>
+        <file>theme/lite-dark/track-editor.qss</file>
+        <file>theme/lite-dark/clip-editor.qss</file>
+
         <file>theme/lyricwarpview-dark.qss</file>
 
         <file>translate/translation_zh_CN.qm</file>

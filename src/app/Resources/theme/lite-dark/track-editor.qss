@@ -1,0 +1,97 @@
+/* Button */
+QPushButton#btnNewTrack {
+    image: url(:svg/icons/add_16_filled_white);
+    padding: 6px;
+    /* background-origin: content;
+    background-position: left;
+    background-repeat: no-repeat;
+    text-align: right;
+    padding-left: 22px; */
+}
+
+
+/* TimelineView */
+TimelineView#tracksTimelineView {
+    border-top-right-radius: 6px;
+}
+
+
+/* TrackControlView */
+TrackControlView {
+    border-style: none;
+    border-bottom: 1px solid rgb(72, 75, 78)
+}
+
+TrackControlView>QLabel {
+    color: #F0F0F0;
+}
+
+TrackControlView>QPushButton {
+    padding: 0px
+}
+
+TrackControlView>QPushButton#btnColor {
+    background-color: #9BBAFF;
+    border-style: none;
+    border-radius: 0px;
+    width: 10px;
+    padding-bottom: 1px;
+}
+
+TrackControlView>QLabel#lbTrackIndex {
+    font-size: 11pt;
+    color: #D0D0D0;
+}
+
+TrackControlView>QPushButton#btnMute {
+    color: #F0F0F0;
+    font-size: 9pt;
+    background-color: #2A2B2C;
+    border-style: none;
+    border-radius: 4px;
+    border: 1px solid #606060;
+}
+
+TrackControlView>QPushButton#btnMute:checked {
+    color: #000;
+    background-color: #FF9B9D;
+    border: none
+}
+
+TrackControlView>QPushButton#btnSolo {
+    color: #F0F0F0;
+    font-size: 9pt;
+    background-color: #2A2B2C;
+    border-style: none;
+    border-radius: 4px;
+    border: 1px solid #606060;
+}
+
+TrackControlView>QPushButton#btnSolo:checked {
+    color: #000;
+    background-color: #FFCD9B;
+    border: none
+}
+
+
+/* TrackListView */
+TrackListView {
+    background: transparent;
+    border: none;
+    border-right: 1px solid #202020;
+    outline: 0px;
+    border-top: 1px solid #202020;
+}
+
+TrackListView::item {
+    border-radius: 0px;
+    padding: 0px;
+}
+
+TrackListView::item:hover {
+    background: #05FFFFFF
+}
+
+TrackListView::item:selected {
+    background: #10FFFFFF
+}

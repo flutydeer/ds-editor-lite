@@ -67,17 +67,29 @@ MainWindow::MainWindow() {
     }
     installEventFilter(m_titleBar);
 
-    if (auto qssFile = QFile(":theme/lite-dark.qss"); qssFile.open(QIODevice::ReadOnly)) {
-        const auto qssBase = qssFile.readAll();
-        qssFile.close();
-        if (QSysInfo::productType() == "windows") {
-            if (QSysInfo::productVersion() == "11")
-                setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
-            else
-                setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
-        } else
-            setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
+    QString qssBase;
+    QStringList qssFileList = {
+        ":theme/lite-dark/base.qss",        ":theme/lite-dark/controls.qss",
+        ":theme/lite-dark/title-bar.qss",   ":theme/lite-dark/track-editor.qss",
+        ":theme/lite-dark/clip-editor.qss",
+    };
+
+    for (const auto &file : qssFileList) {
+        if (auto qssFile = QFile(file); qssFile.open(QIODevice::ReadOnly)) {
+            qssBase += qssFile.readAll();
+            qssFile.close();
+        } else {
+            qCritical() << "Failed to open qss:" << file;
+        }
     }
+
+    if (QSysInfo::productType() == "windows") {
+        if (QSysInfo::productVersion() == "11")
+            setStyleSheet(QString("QMainWindow { background: transparent }") + qssBase);
+        else
+            setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
+    } else
+        setStyleSheet(QString("QMainWindow { background: #232425; }") + qssBase);
 
     Dialog::setGlobalContext(this);
     Toast::setGlobalContext(this);

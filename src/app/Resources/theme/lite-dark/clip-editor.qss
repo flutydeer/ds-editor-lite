@@ -1,0 +1,201 @@
+/* Panel Tool Bar */
+ClipEditorToolBarView>QPushButton {
+    padding: 0px;
+    border: none;
+    background: none;
+    border-radius: 6px;
+}
+
+ClipEditorToolBarView>QPushButton:checked {
+    background-color: #9BBAFF;
+}
+
+ClipEditorToolBarView>QPushButton:checked:hover {
+    background-color: rgb(169, 196, 255);
+}
+
+ClipEditorToolBarView>QPushButton:hover {
+    background: #1AFFFFFF;
+}
+
+ClipEditorToolBarView>QPushButton:pressed {
+    background: #10FFFFFF;
+}
+
+ClipEditorToolBarView>QPushButton#btnMute {
+    background: #10FFFFFF;
+}
+
+ClipEditorToolBarView>QPushButton#btnMute:hover {
+    background: #1AFFFFFF;
+}
+
+ClipEditorToolBarView>QPushButton#btnMute:checked,
+ClipEditorToolBarView>QPushButton#btnMute:checked:hover {
+    background-color: #FF9B9D;
+}
+
+ClipEditorToolBarView>QPushButton#btnArrow {
+    icon: url(:svg/icons/cursor_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnArrow:checked {
+    icon: url(:svg/icons/cursor_24_filled.svg)
+}
+ClipEditorToolBarView>QPushButton#btnBeam {
+    icon: url(:svg/icons/beam_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnBeam:checked {
+    icon: url(:svg/icons/beam_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnNotePencil {
+    icon: url(:svg/icons/edit_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnNotePencil:checked {
+    icon: url(:svg/icons/edit_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnNoteEraser {
+    icon: url(:svg/icons/eraser_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnNoteEraser:checked {
+    icon: url(:svg/icons/eraser_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPitchAnchor {
+    icon: url(:svg/icons/pitch_anchor_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPitchAnchor:checked {
+    icon: url(:svg/icons/pitch_anchor_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPitchPencil {
+    icon: url(:svg/icons/pitch_edit_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPitchPencil:checked {
+    icon: url(:svg/icons/pitch_edit_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPitchEraser {
+    icon: url(:svg/icons/pitch_erase_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPitchEraser:checked {
+    icon: url(:svg/icons/pitch_erase_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnFreezePitch {
+    icon: url(:svg/icons/pitch_freeze_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnFreezePitch:checked {
+    icon: url(:svg/icons/pitch_freeze_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPhonemeView {
+    icon: url(:svg/icons/phoneme_view_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPhonemeView:checked {
+    icon: url(:svg/icons/phoneme_view_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnParamView {
+    icon: url(:svg/icons/param_view_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnParamView:checked {
+    icon: url(:svg/icons/param_view_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPanelMaximize {
+    icon: url(:svg/icons/panel_maximize_24_filled_white.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPanelMaximize:checked {
+    icon: url(:svg/icons/panel_maximize_24_filled.svg)
+}
+
+ClipEditorToolBarView>QPushButton#btnPanelHide {
+    icon: url(:svg/icons/panel_hide_24_filled_white.svg)
+}
+
+EditLabel#ClipNameEditLabel>QLabel {
+    color: #F0F0F0;
+    background: #10FFFFFF;
+    border-radius: 4px;
+}
+
+EditLabel#ClipNameEditLabel>QLabel:hover {
+    background: #1AFFFFFF;
+}
+
+EditLabel#ClipNameEditLabel>QLineEdit {
+    border-radius: 4px;
+}
+
+/* TimelineView */
+TimelineView#pianoRollTimelineView {
+    border-top-right-radius: 6px;
+}
+
+
+/* PianoRollView */
+PianoRollView {
+    /* background: #1C1D1E; */
+    /* border-radius: 6px; */
+    border-radius: 0px;
+}
+
+PianoRollView>QLabel#lbNullClipTip {
+    color: #80FFFFFF;
+}
+
+ParamEditorGraphicsView {
+    background: rgb(28, 29, 30);
+    border-radius: 0px;
+    border-bottom-right-radius: 6px;
+}
+
+PhonemeView {
+    background: rgb(28, 29, 30);
+    /* border-bottom-right-radius: 6px; */
+}
+
+LyricWrapView {
+    background: transparent;
+    border: 1px solid #505050;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+QWidget#pianoRollTopLeftSpacing {
+    background: #1C1D1E;
+    /* border-top-left-radius: 6px; */
+}
+
+QWidget#pianoRollBottomLeftSpacing {
+    background: #1C1D1E;
+    /* border-bottom-left-radius: 6px; */
+} 
+
+/* PianoKeyboardView {
+    border-bottom-left-radius: 6px;
+} */
+
+QSplitter#ClipEditorSplitter {
+    background-color: #2A2B2C;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px
+}
+
+/* QSplitter#ClipEditorSplitter::handle {
+    background-color: #2A2B2C;
+    border-bottom-right-radius: 6px;
+} */

@@ -1,0 +1,115 @@
+/* System Buttons */
+Button#CloseButton {
+    border-radius: 0px;
+    padding: 6px;
+    /* image: url(:svg/title-bar/close.svg); */
+    background: transparent;
+}
+
+Button#CloseButton:hover {
+    background: #C42B1C;
+}
+
+Button#CloseButton:pressed {
+    background: #B32E1D;
+}
+
+Button#MaximizeButton:checked {
+    color: #f2f2f2;
+}
+
+Button#MinimizeButton,
+Button#MaximizeButton {
+    border-radius: 0px;
+    padding: 6px;
+    background: transparent;
+}
+
+Button#MinimizeButton:hover,
+Button#MaximizeButton:hover {
+    background: #10FFFFFF;
+}
+
+Button#MinimizeButton:pressed,
+Button#MaximizeButton:pressed {
+    background: #05FFFFFF;
+}
+
+
+/* PlaybackView */
+PlaybackView>QPushButton {
+    padding: 0px;
+    border: none;
+    background: none;
+    border-radius: 6px
+}
+
+PlaybackView>QPushButton:hover {
+    background: #1AFFFFFF
+}
+
+PlaybackView>QPushButton:pressed {
+    background: #10FFFFFF
+}
+
+PlaybackView>QPushButton#btnPlay:checked {
+    background-color: #9BBAFF;
+}
+
+PlaybackView>QPushButton#btnPause:checked {
+    background-color: #FFCD9B;
+}
+
+PlaybackView>QLabel {
+    color: #F0F0F0;
+    background: none;
+    border-radius: 6px;
+}
+
+PlaybackView>QLabel:hover {
+    background: #1AFFFFFF;
+}
+
+PlaybackView>QLabel:pressed {
+    background: #10FFFFFF;
+}
+
+PlaybackView>QLineEdit {
+    border-radius: 6px;
+}
+
+PlaybackView>QComboBox {
+    color: #F0F0F0;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+}
+
+PlaybackView>QComboBox:hover {
+    background: #1AFFFFFF;
+}
+
+PlaybackView>QComboBox:pressed {
+    background: #10FFFFFF;
+}
+
+
+/* ActionButtonsView */
+ActionButtonsView>QPushButton {
+    padding: 0px;
+    border: none;
+    background: none;
+    border-radius: 6px
+}
+
+ActionButtonsView>QPushButton:hover {
+    background: #1AFFFFFF;
+}
+
+ActionButtonsView>QPushButton:pressed {
+    background: #10FFFFFF;
+}
+
+ActionButtonsView>QPushButton:disabled {
+    background: none;
+}
