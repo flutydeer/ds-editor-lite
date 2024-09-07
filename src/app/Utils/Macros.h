@@ -21,7 +21,7 @@ private:                                                                        
 #define interface class
 #define I_DECL(InterfaceName)                                                                      \
 public:                                                                                            \
-    virtual ~##InterfaceName() = default;
+    virtual ~InterfaceName() = default;
 #define I_METHOD(Method) virtual Method = 0
 #define I_NODSCD(Method) [[nodiscard]] virtual Method = 0
 
