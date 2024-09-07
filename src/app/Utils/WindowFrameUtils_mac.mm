@@ -30,6 +30,7 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
     [content addSubview:visualEffectView positioned:NSWindowBelow relativeTo:nullptr];
 
     window.titlebarAppearsTransparent = YES;
+    window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
 }
 
 #endif
