@@ -32,7 +32,6 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
                       appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
                       appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
                       appOptions->fillLyric()->autoWrap, appOptions->fillLyric()->exportLanguage});
-    m_lyricWidget->setLangNotes(false);
 
     if (!appOptions->fillLyric()->extVisible) {
         shrinkWindowRight(300);
@@ -69,6 +68,10 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
 }
 
 LyricDialog::~LyricDialog() = default;
+
+void LyricDialog::setLangNotes() const {
+    m_lyricWidget->setLangNotes(false);
+}
 
 void LyricDialog::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_Enter || event->key() == Qt::Key_Return)

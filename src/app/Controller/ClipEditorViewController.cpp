@@ -218,10 +218,10 @@ void ClipEditorViewController::selectNotes(const QList<int> &notesId, bool unsel
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
-void ClipEditorViewController::unselectNotes(const QList<int> &notesId){
+void ClipEditorViewController::unselectNotes(const QList<int> &notesId) {
     auto selectedNotes = appStatus->selectedNotes.get();
     for (const auto id : notesId)
-        selectedNotes.removeIf([=](int note){return note == id;});
+        selectedNotes.removeIf([=](int note) { return note == id; });
     appStatus->selectedNotes = selectedNotes;
     qDebug() << "unselect notes:" << notesId;
     emit hasSelectedNotesChanged(hasSelectedNotes());
@@ -310,6 +310,8 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
     }
 
     LyricDialog lyricDialog(inputNotes, parent);
+    lyricDialog.show();
+    lyricDialog.setLangNotes();
     lyricDialog.exec();
 
     const auto result = lyricDialog.result();

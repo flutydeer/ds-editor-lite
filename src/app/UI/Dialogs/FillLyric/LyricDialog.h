@@ -25,6 +25,8 @@ public:
     explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);
     ~LyricDialog() override;
 
+    void setLangNotes() const;
+
     LyricResult noteResult() const;
     LyricResult exportLangNotes() const;
 
