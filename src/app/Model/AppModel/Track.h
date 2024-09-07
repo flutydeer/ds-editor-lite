@@ -9,14 +9,13 @@
 #include <QString>
 
 #include "Utils/OverlappableSerialList.h"
-#include "Utils/ISelectable.h"
 #include "TrackControl.h"
 #include "Global/AppGlobal.h"
 #include "Interface/ITrack.h"
 
 class Clip;
 
-class Track final : public QObject, public ITrack, public ISelectable {
+class Track final : public QObject, public ITrack {
     Q_OBJECT
 
 public:

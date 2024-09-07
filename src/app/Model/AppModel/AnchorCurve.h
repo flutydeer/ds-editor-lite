@@ -7,9 +7,8 @@
 
 #include "Curve.h"
 #include "Utils/OverlappableSerialList.h"
-#include "Utils/ISelectable.h"
 
-class AnchorNode : public Overlappable, public UniqueObject, public ISelectable {
+class AnchorNode : public Overlappable, public UniqueObject {
 public:
     enum InterpMode { Linear, Hermite, Cubic, None };
 

@@ -6,7 +6,6 @@
 #define DSCLIP_H
 
 #include "Utils/Overlappable.h"
-#include "Utils/ISelectable.h"
 #include "Utils/OverlappableSerialList.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Params.h"
@@ -20,7 +19,7 @@ class DrawCurve;
 class Params;
 class Note;
 
-class Clip : public QObject, public IClip, public Overlappable, public ISelectable {
+class Clip : public QObject, public IClip, public Overlappable {
     Q_OBJECT
 
 public:
