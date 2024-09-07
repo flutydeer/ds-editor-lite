@@ -6,20 +6,20 @@
 
 #include "Model/AppModel/Clip.h"
 
-EditPhonemeAction *EditPhonemeAction::build(Note *note, const QList<Phoneme> &phonemes) {
-    auto a = new EditPhonemeAction;
-    a->m_note = note;
-    a->m_oldPhonemes = note->phonemeInfo().edited;
-    a->m_newPhonemes = phonemes;
-    return a;
+EditPhonemeAction::EditPhonemeAction(Note *note, const QList<Phoneme> &phonemes,
+                                     SingingClip *clip) {
+    m_note = note;
+    m_oldPhonemes = note->phonemeInfo().edited;
+    m_newPhonemes = phonemes;
+    m_clip = clip;
 }
 
 void EditPhonemeAction::execute() {
     m_note->setPhonemeInfo(Note::Edited, m_newPhonemes);
-    m_note->notifyWordPropertyChanged(Note::Edited);
+    m_clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange, {m_note});
 }
 
 void EditPhonemeAction::undo() {
     m_note->setPhonemeInfo(Note::Edited, m_oldPhonemes);
-    m_note->notifyWordPropertyChanged(Note::Edited);
+    m_clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange, {m_note});
 }

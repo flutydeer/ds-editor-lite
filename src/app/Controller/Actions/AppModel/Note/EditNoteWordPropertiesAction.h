@@ -12,14 +12,17 @@ class SingingClip;
 
 class EditNoteWordPropertiesAction final : public IAction {
 public:
-    static EditNoteWordPropertiesAction *build(Note *note, Note::WordProperties args);
+    explicit EditNoteWordPropertiesAction(const QList<Note *> &notes,
+                                          const QList<Note::WordProperties> &args,
+                                          SingingClip *clip);
     void execute() override;
     void undo() override;
 
 private:
-    Note *m_note = nullptr;
-    Note::WordProperties m_oldArgs;
-    Note::WordProperties m_newArgs;
+    QList<Note *> m_notes;
+    QList<Note::WordProperties> m_oldArgs;
+    QList<Note::WordProperties> m_newArgs;
+    SingingClip *m_clip = nullptr;
 };
 
 

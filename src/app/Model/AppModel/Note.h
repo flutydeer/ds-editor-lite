@@ -47,9 +47,6 @@ public:
     void setLineFeed(const bool &lineFeed);
     [[nodiscard]] bool isSlur() const;
 
-    void notifyTimeKeyPropertyChanged();
-    void notifyWordPropertyChanged(WordPropertyType type);
-
     int compareTo(const Note *obj) const;
     bool isOverlappedWith(Note *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
@@ -70,10 +67,6 @@ public:
 
         static WordProperties fromNote(const Note &note);
     };
-
-signals:
-    void timeKeyPropertyChanged();
-    void wordPropertyChanged(Note::WordPropertyType type);
 
 private:
     SingingClip *m_clip = nullptr;

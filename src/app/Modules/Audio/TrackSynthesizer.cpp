@@ -88,6 +88,11 @@ void TrackSynthesizer::handleSingingClipInserted(SingingClip *clip) {
                         for (const auto &note : notes)
                             handleNoteRemoved(clip, note);
                         break;
+                    case SingingClip::TimeKeyPropertyChange:
+                        for (const auto &note : notes)
+                            handleNotePropertyChanged(note);
+                    default:
+                        break;
                 }
             });
 }
@@ -116,11 +121,6 @@ void TrackSynthesizer::handleNoteInserted(SingingClip *clip, Note *note) {
     m_noteModelDict.insert(note, noteContext);
 
     handleNotePropertyChanged(note);
-
-    connect(note, &Note::timeKeyPropertyChanged, this, [=] {
-        DEVICE_LOCKER;
-        handleNotePropertyChanged(note);
-    });
 }
 
 void TrackSynthesizer::handleNoteRemoved(SingingClip *clip, Note *note) {

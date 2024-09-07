@@ -10,7 +10,7 @@
 class OriginalParamUtils {
 public:
     static void updateNotePronPhoneme(const QList<Note *> &notes,
-                                         const QList<Note::WordProperties> &args);
+                                      const QList<Note::WordProperties> &args, SingingClip *clip);
 };
 
 #endif // ORIGINALPARAMUTILS_H

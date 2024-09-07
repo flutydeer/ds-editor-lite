@@ -51,7 +51,6 @@ private slots:
     void onTempoChanged(double tempo);
     void onClipPropertyChanged();
     void onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
-    void onNotePropertyChanged(Note *note);
     // void onNoteSelectionChanged();
 
 private:
@@ -69,8 +68,6 @@ private:
     void moveToSingingClipState(SingingClip *clip);
     void moveToNullClipState();
     void updateHoverEffects();
-    void handleNoteInserted(Note *note);
-    void handleNoteRemoved(Note *note);
     void updateNoteTime(Note *note);
     void reset();
     double tickToX(double tick);

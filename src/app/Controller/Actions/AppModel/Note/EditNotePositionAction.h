@@ -7,18 +7,21 @@
 
 #include "Modules/History/IAction.h"
 
+#include <QList>
+
 class SingingClip;
 class Note;
 
 class EditNotePositionAction final : public IAction {
 public:
-    static EditNotePositionAction *build(Note *note, int deltaTick, int deltaKey,
-                                         SingingClip *clip);
+    explicit EditNotePositionAction(const QList<Note *> &notes, int deltaTick, int deltaKey,
+                                    SingingClip *clip)
+        : m_notes(notes), m_deltaTick(deltaTick), m_deltaKey(deltaKey), m_clip(clip){};
     void execute() override;
     void undo() override;
 
 private:
-    Note *m_note = nullptr;
+    QList<Note *> m_notes;
     int m_deltaTick = 0;
     int m_deltaKey = 0;
     SingingClip *m_clip = nullptr;

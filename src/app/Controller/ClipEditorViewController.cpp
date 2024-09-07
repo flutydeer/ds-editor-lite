@@ -201,7 +201,7 @@ void ClipEditorViewController::onAdjustPhoneme(int noteId, const QList<Phoneme> 
     auto note = singingClip->findNoteById(noteId);
 
     auto a = new NoteActions;
-    a->editNotesPhoneme(note, phonemes);
+    a->editNotesPhoneme(note, phonemes, singingClip);
     a->execute();
     historyManager->record(a);
 }
@@ -259,7 +259,7 @@ void ClipEditorViewController::onNotePropertiesEdited(int noteId, const NoteDial
     QList args = {arg};
 
     auto a = new NoteActions;
-    a->editNotesWordProperties(list, args);
+    a->editNotesWordProperties(list, args, singingClip);
     a->execute();
     historyManager->record(a);
 }
@@ -347,7 +347,7 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
         args.append(arg);
     }
     auto a = new NoteActions;
-    a->editNotesWordProperties(notesToEdit, args);
+    a->editNotesWordProperties(notesToEdit, args, singingClip);
     a->execute();
     historyManager->record(a);
 }

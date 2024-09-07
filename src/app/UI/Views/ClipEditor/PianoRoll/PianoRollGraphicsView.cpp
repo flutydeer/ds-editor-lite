@@ -367,6 +367,12 @@ void PianoRollGraphicsViewPrivate::onNoteChanged(SingingClip::NoteChangeType typ
         for (const auto &note : notes)
             notesId.append(note->id());
         clipController->unselectNotes(notesId);
+    } else if (type == SingingClip::TimeKeyPropertyChange) {
+        for (const auto &note : notes)
+            updateNoteTimeAndKey(note);
+    } else if (type == SingingClip::OriginalWordPropertyChange || type == SingingClip::EditedWordPropertyChange) {
+        for (const auto &note : notes)
+            updateNoteWord(note);
     }
 
     updateOverlappedState();
@@ -720,11 +726,6 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
     m_layerManager->addItem(noteItem, &m_noteLayer);
 
     m_notes.append(note);
-    connect(note, &Note::timeKeyPropertyChanged, this, [=] {
-        updateNoteTimeAndKey(note);
-        updateOverlappedState();
-    });
-    connect(note, &Note::wordPropertyChanged, this, [=] { updateNoteWord(note); });
     // clipController->selectNotes(QList{note->id()}, false);
     m_selectionChangeBarrier = false;
 }

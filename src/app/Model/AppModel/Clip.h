@@ -128,7 +128,13 @@ class SingingClip final : public Clip {
     Q_OBJECT
 
 public:
-    enum NoteChangeType { Insert, Remove, TimeKeyPropertyChange, WordPropertyChange };
+    enum NoteChangeType {
+        Insert,
+        Remove,
+        TimeKeyPropertyChange,
+        OriginalWordPropertyChange,
+        EditedWordPropertyChange
+    };
 
     explicit SingingClip();
     ~SingingClip() override;

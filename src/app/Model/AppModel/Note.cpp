@@ -129,14 +129,6 @@ bool Note::isSlur() const {
     return m_lyric.contains('-');
 }
 
-void Note::notifyTimeKeyPropertyChanged() {
-    emit timeKeyPropertyChanged();
-}
-
-void Note::notifyWordPropertyChanged(WordPropertyType type) {
-    emit wordPropertyChanged(type);
-}
-
 int Note::compareTo(const Note *obj) const {
     const auto otherStart = obj->start();
     if (start() < otherStart)

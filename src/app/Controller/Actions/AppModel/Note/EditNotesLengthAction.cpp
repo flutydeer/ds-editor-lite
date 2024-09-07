@@ -7,24 +7,20 @@
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Note.h"
 
-EditNotesLengthAction *EditNotesLengthAction::build(Note *note, int deltaTick, SingingClip *clip) {
-    auto a = new EditNotesLengthAction;
-    a->m_note = note;
-    a->m_deltaTick = deltaTick;
-    a->m_clip = clip;
-    return a;
-}
-
 void EditNotesLengthAction::execute() {
-    m_clip->removeNote(m_note);
-    m_note->setLength(m_note->length() + m_deltaTick);
-    m_clip->insertNote(m_note);
-    m_note->notifyTimeKeyPropertyChanged();
+    for (const auto &note : m_notes) {
+        m_clip->removeNote(note);
+        note->setLength(note->length() + m_deltaTick);
+        m_clip->insertNote(note);
+    }
+    m_clip->notifyNoteChanged(SingingClip::TimeKeyPropertyChange, m_notes);
 }
 
 void EditNotesLengthAction::undo() {
-    m_clip->removeNote(m_note);
-    m_note->setLength(m_note->length() - m_deltaTick);
-    m_clip->insertNote(m_note);
-    m_note->notifyTimeKeyPropertyChanged();
+    for (const auto &note : m_notes) {
+        m_clip->removeNote(note);
+        note->setLength(note->length() - m_deltaTick);
+        m_clip->insertNote(note);
+    }
+    m_clip->notifyNoteChanged(SingingClip::TimeKeyPropertyChange, m_notes);
 }

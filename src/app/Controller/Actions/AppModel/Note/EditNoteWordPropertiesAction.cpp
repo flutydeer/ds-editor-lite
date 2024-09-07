@@ -4,39 +4,46 @@
 
 #include "EditNoteWordPropertiesAction.h"
 
-#include <utility>
-
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Note.h"
 
-EditNoteWordPropertiesAction *EditNoteWordPropertiesAction::build(Note *note,
-                                                                  Note::WordProperties args) {
-    Note::WordProperties oldArgs;
-    oldArgs = Note::WordProperties::fromNote(*note);
-
-    auto a = new EditNoteWordPropertiesAction;
-    a->m_note = note;
-    a->m_oldArgs = oldArgs;
-    a->m_newArgs = std::move(args);
-    return a;
+EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &notes,
+                                                           const QList<Note::WordProperties> &args,
+                                                           SingingClip *clip) {
+    m_notes = notes;
+    m_newArgs = args;
+    m_clip = clip;
+    for (const auto &note : notes) {
+        auto properties = Note::WordProperties::fromNote(*note);
+        m_oldArgs.append(properties);
+    }
 }
 
 void EditNoteWordPropertiesAction::execute() {
-    m_note->setLyric(m_newArgs.lyric);
-    m_note->setLanguage(m_newArgs.language);
-    // m_note->setPhonemeInfo(Note::Original, m_newArgs.phonemes.original);
-    m_note->setPhonemeInfo(Note::Edited, m_newArgs.phonemes.edited);
-    m_note->setPronunciation(Note::Edited, m_newArgs.pronunciation.edited);
-    m_note->setPronCandidates(m_newArgs.pronCandidates);
-    m_note->notifyWordPropertyChanged(Note::Edited);
+    qsizetype i = 0;
+    for (const auto note : m_notes) {
+        auto arg = m_newArgs.at(i);
+        note->setLyric(arg.lyric);
+        note->setLanguage(arg.language);
+        // note->setPhonemeInfo(Note::Original, arg.phonemes.original);
+        note->setPhonemeInfo(Note::Edited, arg.phonemes.edited);
+        note->setPronunciation(Note::Edited, arg.pronunciation.edited);
+        note->setPronCandidates(arg.pronCandidates);
+        i++;
+    }
+    m_clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange, m_notes);
 }
 
 void EditNoteWordPropertiesAction::undo() {
-    m_note->setLyric(m_oldArgs.lyric);
-    m_note->setLanguage(m_oldArgs.language);
-    // m_note->setPhonemeInfo(Note::Original, m_oldArgs.phonemes.original);
-    m_note->setPhonemeInfo(Note::Edited, m_oldArgs.phonemes.edited);
-    m_note->setPronunciation(Note::Edited, m_newArgs.pronunciation.edited);
-    m_note->setPronCandidates(m_oldArgs.pronCandidates);
-    m_note->notifyWordPropertyChanged(Note::Edited);
+    for (auto i = m_notes.count() - 1; i >= 0; i--) {
+        auto arg = m_oldArgs.at(i);
+        auto note = m_notes.at(i);
+        note->setLyric(arg.lyric);
+        note->setLanguage(arg.language);
+        // note->setPhonemeInfo(Note::Original, arg.phonemes.original);
+        note->setPhonemeInfo(Note::Edited, arg.phonemes.edited);
+        note->setPronunciation(Note::Edited, arg.pronunciation.edited);
+        note->setPronCandidates(arg.pronCandidates);
+    }
+    m_clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange, m_notes);
 }

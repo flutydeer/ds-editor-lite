@@ -36,18 +36,6 @@ void PhonemeView::setDataContext(SingingClip *clip) {
     clip == nullptr ? moveToNullClipState() : moveToSingingClipState(clip);
 }
 
-void PhonemeView::handleNoteInserted(Note *note) {
-    MathUtils::binaryInsert(m_notes, note);
-    connect(note, &Note::timeKeyPropertyChanged, this, [=] { onNotePropertyChanged(note); });
-    connect(note, &Note::wordPropertyChanged, this,
-            [=](Note::WordPropertyType type) { onNotePropertyChanged(note); });
-}
-
-void PhonemeView::handleNoteRemoved(Note *note) {
-    m_notes.removeOne(note);
-    disconnect(note, nullptr, this, nullptr);
-}
-
 void PhonemeView::updateNoteTime(Note *note) {
     m_notes.removeOne(note);
     MathUtils::binaryInsert(m_notes, note);
@@ -100,23 +88,26 @@ void PhonemeView::onClipPropertyChanged() {
 }
 
 void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes) {
-    if (type == SingingClip::Insert)
-        for (const auto &note : notes)
-            handleNoteInserted(note);
-    else if (type == SingingClip::Remove)
-        for (const auto &note : notes)
-            handleNoteRemoved(note);
+    switch (type) {
+        case SingingClip::Insert:
+            for (const auto &note : notes)
+                MathUtils::binaryInsert(m_notes, note);
+            break;
+        case SingingClip::Remove:
+            for (const auto &note : notes)
+                m_notes.removeOne(note);
+            break;
+        case SingingClip::TimeKeyPropertyChange:
+            for (const auto &note : notes) {
+                m_notes.removeOne(note);
+                MathUtils::binaryInsert(m_notes, note);
+            }
+            break;
+        case SingingClip::OriginalWordPropertyChange:
+        case SingingClip::EditedWordPropertyChange:
+            break;
+    }
 
-    resetPhonemeList();
-    buildPhonemeList();
-    update();
-}
-
-void PhonemeView::onNotePropertyChanged(Note *note) {
-    // TODO: 将音符自动参数的更新通知移动到 clip 上以避免不必要的重建和更新
-    // qDebug() << "PhonemeView::onNotePropertyChanged" << note->lyric();
-    m_notes.removeOne(note);
-    MathUtils::binaryInsert(m_notes, note);
     resetPhonemeList();
     buildPhonemeList();
     update();
@@ -355,10 +346,8 @@ bool PhonemeView::eventFilter(QObject *object, QEvent *event) {
 
 void PhonemeView::moveToSingingClipState(SingingClip *clip) {
     qDebug() << "PhonemeView::moveToSingingClipState";
-    while (m_notes.count() > 0) {
-        handleNoteRemoved(m_notes.first());
-        resetPhonemeList();
-    }
+    m_notes.clear();
+    resetPhonemeList();
     if (m_clip) {
         disconnect(m_clip, nullptr, this, nullptr);
     }
@@ -367,9 +356,8 @@ void PhonemeView::moveToSingingClipState(SingingClip *clip) {
     setEnabled(true);
 
     if (clip->notes().count() > 0)
-        for (const auto note : clip->notes()) {
-            handleNoteInserted(note);
-        }
+        for (const auto note : clip->notes())
+            MathUtils::binaryInsert(m_notes, note);
 
     connect(clip, &SingingClip::propertyChanged, this, &PhonemeView::onClipPropertyChanged);
     connect(clip, &SingingClip::noteChanged, this, &PhonemeView::onNoteChanged);
@@ -381,8 +369,7 @@ void PhonemeView::moveToSingingClipState(SingingClip *clip) {
 }
 
 void PhonemeView::moveToNullClipState() {
-    while (m_notes.count() > 0)
-        handleNoteRemoved(m_notes.first());
+    m_notes.clear();
 
     if (m_clip)
         disconnect(m_clip, nullptr, this, nullptr);
@@ -431,7 +418,7 @@ QList<PhonemeView::PhonemeViewModel *> PhonemeView::findPhonemesByNoteId(int not
 }
 
 void PhonemeView::buildPhonemeList() {
-    // qDebug() << "build phoneme list";
+    qDebug() << "build phoneme list";
     if (m_notes.count() == 0)
         return;
 

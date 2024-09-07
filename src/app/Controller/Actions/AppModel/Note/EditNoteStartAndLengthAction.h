@@ -7,17 +7,22 @@
 
 #include "Modules/History/IAction.h"
 
+#include <QList>
+
 class SingingClip;
 class Note;
 
 class EditNoteStartAndLengthAction final : public IAction {
 public:
-    static EditNoteStartAndLengthAction *build(Note *note, int deltaTick, SingingClip *clip);
+    explicit EditNoteStartAndLengthAction(const QList<Note *> &notes, int deltaTick,
+                                          SingingClip *clip)
+        : m_notes(notes), m_deltaTick(deltaTick), m_clip(clip){};
+
     void execute() override;
     void undo() override;
 
 private:
-    Note *m_note = nullptr;
+    QList<Note *> m_notes;
     int m_deltaTick = 0;
     SingingClip *m_clip = nullptr;
 };

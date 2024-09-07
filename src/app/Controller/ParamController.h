@@ -33,9 +33,6 @@ private:
     void handleClipRemoved(Clip *clip);
 
     void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes, SingingClip *clip);
-    void handleNoteInserted(Note *note, SingingClip *clip);
-    void handleNoteRemoved(Note *note, SingingClip *clip);
-    void handleNotePropertyChanged(Note *note);
 
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
 

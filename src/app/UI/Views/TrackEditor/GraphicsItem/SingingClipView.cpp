@@ -50,21 +50,23 @@ void SingingClipView::onNoteListChanged(SingingClip::NoteChangeType type,
                                         const QList<Note *> &notes) {
     switch (type) {
         case SingingClip::Insert:
-            for (const auto &note : notes) {
+            for (const auto &note : notes)
                 addNote(note);
-                connect(note, &Note::timeKeyPropertyChanged, this,
-                        [=] { onNotePropertyChanged(note); });
+            break;
+        case SingingClip::TimeKeyPropertyChange:
+            for (const auto &note : notes) {
+                removeNote(note->id());
+                addNote(note);
             }
             break;
-        // case SingingClip::PropertyChanged:
-        //     removeNote(id);
-        //     addNote(note);
-        //     break;
         case SingingClip::Remove:
             for (const auto &note : notes)
                 removeNote(note->id());
             break;
+        default:
+            break;
     }
+    update();
 }
 
 void SingingClipView::onNotePropertyChanged(Note *note) {
@@ -141,18 +143,15 @@ QString SingingClipView::iconPath() const {
 }
 
 void SingingClipView::addNote(Note *note) {
-    // TODO: 批量插入音符
     auto noteViewModel = new NoteViewModel;
     noteViewModel->id = note->id();
     noteViewModel->rStart = note->rStart();
     noteViewModel->length = note->length();
     noteViewModel->keyIndex = note->keyIndex();
     MathUtils::binaryInsert(m_notes, noteViewModel);
-    update();
 }
 
 void SingingClipView::removeNote(int id) {
-    // TODO: 批量移除音符
     for (auto note : m_notes) {
         if (note->id == id) {
             m_notes.removeOne(note);
@@ -160,5 +159,4 @@ void SingingClipView::removeNote(int id) {
             break;
         }
     }
-    update();
 }

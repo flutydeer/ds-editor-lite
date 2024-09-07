@@ -25,36 +25,28 @@ void NoteActions::removeNotes(const QList<Note *> &notes, SingingClip *clip) {
 void NoteActions::editNotesStartAndLength(const QList<Note *> &notes, int delta,
                                           SingingClip *clip) {
     setName(tr("Edit note start and length"));
-    for (const auto note : notes)
-        addAction(EditNoteStartAndLengthAction::build(note, delta, clip));
+    addAction(new EditNoteStartAndLengthAction(notes, delta, clip));
 }
 
 void NoteActions::editNotesLength(const QList<Note *> &notes, int delta, SingingClip *clip) {
     setName(tr("Edit note length"));
-    for (const auto note : notes)
-        addAction(EditNotesLengthAction::build(note, delta, clip));
+    addAction(new EditNotesLengthAction(notes, delta, clip));
 }
 
 void NoteActions::editNotePosition(const QList<Note *> &notes, int deltaTick, int deltaKey,
                                    SingingClip *clip) {
     setName(tr("Edit note position"));
-    for (const auto note : notes)
-        addAction(EditNotePositionAction::build(note, deltaTick, deltaKey, clip));
+    addAction(new EditNotePositionAction(notes, deltaTick, deltaKey, clip));
 }
 
 void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
-                                          const QList<Note::WordProperties> &args) {
+                                          const QList<Note::WordProperties> &args,
+                                          SingingClip *clip) {
     setName(tr("Edit note word properties"));
-    int i = 0;
-    for (const auto note : notes) {
-        addAction(EditNoteWordPropertiesAction::build(note, args[i]));
-        i++;
-    }
+    addAction(new EditNoteWordPropertiesAction(notes, args, clip));
 }
 
-void NoteActions::editNotesPhoneme(Note *note, const QList<Phoneme> &phonemes) {
+void NoteActions::editNotesPhoneme(Note *note, const QList<Phoneme> &phonemes, SingingClip *clip) {
     setName(tr("Edit note phoneme"));
-    addAction(EditPhonemeAction::build(note, phonemes));
+    addAction(new EditPhonemeAction(note, phonemes, clip));
 }
-
-// TODO::editNotesLanguage

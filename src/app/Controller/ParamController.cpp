@@ -64,8 +64,6 @@ void ParamController::handleClipInserted(Clip *clip) {
     // m_clips.append(clip);
     if (clip->clipType() == Clip::Singing) {
         auto singingClip = reinterpret_cast<SingingClip *>(clip);
-        for (const auto note : singingClip->notes())
-            handleNoteInserted(note, singingClip);
         connect(singingClip, &SingingClip::noteChanged, this,
                 [=](SingingClip::NoteChangeType type, const QList<Note *> &notes) {
                     handleNoteChanged(type, notes, singingClip);
@@ -83,32 +81,17 @@ void ParamController::handleClipRemoved(Clip *clip) {
 
 void ParamController::handleNoteChanged(SingingClip::NoteChangeType type,
                                         const QList<Note *> &notes, SingingClip *clip) {
-    cancelClipRelatedTasks(clip);
-    if (type == SingingClip::Insert) {
-        for (const auto &note : notes)
-            handleNoteInserted(note, clip);
-    } else if (type == SingingClip::Remove) {
-        for (const auto &note : notes)
-            handleNoteRemoved(note, clip);
-    }
-    createAndStartGetPronTask(clip);
-}
-
-void ParamController::handleNoteInserted(Note *note, SingingClip *clip) {
-    connect(note, &Note::timeKeyPropertyChanged, this, [=] { handleNotePropertyChanged(note); });
-    connect(note, &Note::wordPropertyChanged, this, [=](Note::WordPropertyType type) {
-        if (type == Note::Edited)
-            handleNotePropertyChanged(note);
-    });
-}
-
-void ParamController::handleNoteRemoved(Note *note, SingingClip *clip) {
-    disconnect(note, nullptr, this, nullptr);
-}
-
-void ParamController::handleNotePropertyChanged(Note *note) {
-    cancelClipRelatedTasks(note->clip());
-    createAndStartGetPronTask(note->clip());
+    switch (type) {
+        case SingingClip::Insert:
+        case SingingClip::Remove:
+        case SingingClip::EditedWordPropertyChange:
+        case SingingClip::TimeKeyPropertyChange:
+            cancelClipRelatedTasks(clip);
+            createAndStartGetPronTask(clip);
+            break;
+        default:
+            break;
+    } // Ignore original word property change
 }
 
 void ParamController::handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status) {
@@ -139,9 +122,9 @@ void ParamController::handleGetPronTaskFinished(GetPronTask *task, bool terminat
         return;
     }
 
-    OriginalParamUtils::updateNotePronPhoneme(task->notesRef, task->result);
-
     auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task->id()));
+    OriginalParamUtils::updateNotePronPhoneme(task->notesRef, task->result, singingClip);
+
     if (validateForInferDuration(task->id())) {
         QList<Note *> notes;
         for (const auto note : singingClip->notes()) {
@@ -182,7 +165,7 @@ void ParamController::handleInferDurTaskFinished(InferDurationTask *task, bool t
         notes.append(note);
     }
 
-    OriginalParamUtils::updateNotePronPhoneme(notes, args);
+    OriginalParamUtils::updateNotePronPhoneme(notes, args, singingClip);
     delete task;
 }
 
