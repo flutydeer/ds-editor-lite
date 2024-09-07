@@ -27,7 +27,7 @@ void LaunchLanguageEngineTask::runTask() {
     const auto langSet = LangSetting::ILangSetManager::instance();
 
     QString errorMsg;
-    g2pMgr->initialize(errorMsg);
+    g2pMgr->initialize(qApp->applicationDirPath() + "/dict", errorMsg);
 
     if (!g2pMgr->initialized())
         qCritical() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr->initialized();
