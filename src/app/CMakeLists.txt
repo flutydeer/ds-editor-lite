@@ -58,25 +58,53 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
 
 # copy phoneme dict
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND
-        ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/Resources
-        ${CMAKE_BINARY_DIR}/bin/Resources
-)
-install(
-        DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Resources
-        DESTINATION .
-)
+
+if (APPLE)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND
+            ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/Resources
+            $<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/Resources
+    )
+
+    install(
+            DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Resources
+            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>
+    )
+else ()
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND
+            ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/Resources
+            ${CMAKE_BINARY_DIR}/bin/Resources
+    )
+
+    install(
+            DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Resources
+            DESTINATION .
+    )
+endif ()
 
 # copy cpp-pinyin dict
 
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/cpp-pinyin/dict
-        ${CMAKE_BINARY_DIR}/bin/dict
-)
+if (APPLE)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/cpp-pinyin/dict
+            $<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/Resources/dict
+    )
 
-install(DIRECTORY ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/cpp-pinyin/dict
-        DESTINATION .
-)
+    install(DIRECTORY ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/cpp-pinyin/dict
+            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/Resources
+    )
+else ()
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/cpp-pinyin/dict
+            ${CMAKE_BINARY_DIR}/bin/dict
+    )
+
+    install(DIRECTORY ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/cpp-pinyin/dict
+            DESTINATION .
+    )
+endif ()

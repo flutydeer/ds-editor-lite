@@ -9,9 +9,18 @@
 class S2p final : public Singleton<S2p>, public FillLyric::Syllable2p {
 public:
     explicit S2p(const QString &dictPath = qApp->applicationDirPath(),
-                 const QString &dictName = "Resources/phonemeDict/opencpop-extension.txt",
+                 const QString &dictName = getDefaultDictName(),
                  QChar sep1 = '\t', const QString &sep2 = " ")
         : Syllable2p(dictPath, dictName, sep1, sep2) {
+    }
+
+private:
+    static QString getDefaultDictName() {
+#ifdef Q_OS_MAC
+        return QStringLiteral("../Resources/phonemeDict/opencpop-extension.txt");
+#else
+        return QStringLiteral("Resources/phonemeDict/opencpop-extension.txt");
+#endif
     }
 };
 
