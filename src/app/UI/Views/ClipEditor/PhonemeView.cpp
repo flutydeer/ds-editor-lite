@@ -125,8 +125,8 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         return;
     }
 
-    auto originalColor = QColor(155, 186, 255);
-    // auto editedColor = QColor(255, 204, 153);
+    auto originalColor = QColor(180, 180, 180);
+    auto editedColor = QColor(155, 186, 255);
     auto fillColor = QColor(155, 186, 255, 50);
     auto positionLineColor = QColor(255, 204, 153);
     // auto noteBoundaryColor = QColor(100, 100, 100);
@@ -160,8 +160,8 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         auto start = tickToX(phoneme->start + phoneme->startOffset);
         auto length = 80;
         auto textRect = QRectF(start + 2, 0, length - 4, rect().height());
-        // painter.setPen(phoneme->edited ? editedColor : originalColor);
-        painter.setPen(originalColor);
+        painter.setPen(phoneme->edited ? editedColor : originalColor);
+        // painter.setPen(originalColor);
         painter.setBrush(fillColor);
 
         QString text;
@@ -210,8 +210,8 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
             auto start = phoneme->start + phoneme->startOffset;
             auto phonemePenWidth = phoneme->hoverOnControlBar ? 2.5 : 1.0;
             painter.setRenderHint(QPainter::Antialiasing);
-            // drawSolidLine(start, phonemePenWidth, phoneme->edited ? editedColor : originalColor);
-            drawSolidLine(start, phonemePenWidth, originalColor);
+            drawSolidLine(start, phonemePenWidth, phoneme->edited ? editedColor : originalColor);
+            // drawSolidLine(start, phonemePenWidth, originalColor);
             drawPhoneName(phoneme);
         }
     }
