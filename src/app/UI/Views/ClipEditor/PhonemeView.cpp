@@ -208,7 +208,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
                 continue;
 
             auto start = phoneme->start + phoneme->startOffset;
-            auto phonemePenWidth = phoneme->hoverOnControlBar ? 2.5 : 1.0;
+            auto phonemePenWidth = phoneme->hoverOnControlBar ? 2.5 : 1.5;
             painter.setRenderHint(QPainter::Antialiasing);
             drawSolidLine(start, phonemePenWidth, phoneme->edited ? editedColor : originalColor);
             // drawSolidLine(start, phonemePenWidth, originalColor);
