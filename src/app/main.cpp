@@ -17,14 +17,12 @@
 #include "Utils/Log.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Utils/ThemeManager.h"
 #include "UI/Window/TaskWindow.h"
 #include "Controller/TracksViewController.h"
-
-#include <Modules/Audio/subsystem/OutputSystem.h>
-#include <Modules/Audio/subsystem/MidiSystem.h>
-#include <Modules/Audio/utils/DeviceTester.h>
-#include <Modules/Audio/AudioContext.h>
+#include "Modules/Audio/AudioContext.h"
+#include "Modules/Audio/subsystem/MidiSystem.h"
+#include "Modules/Audio/subsystem/OutputSystem.h"
+#include "Modules/Audio/utils/DeviceTester.h"
 
 int main(int argc, char *argv[]) {
     QElapsedTimer mstimer;
@@ -49,7 +47,6 @@ int main(int argc, char *argv[]) {
     // 设置日志等级和过滤器
     Log::setConsoleLogLevel(Log::Debug);
     // Logger::setConsoleTagFilter({"PianoKeyboardView"});
-
     Log::logSystemInfo();
 
     auto f = QFont();
@@ -65,12 +62,9 @@ int main(int argc, char *argv[]) {
     AudioSystem as;
     AudioSystem::outputSystem()->initialize();
     AudioSystem::midiSystem()->initialize();
-
     new DeviceTester(&as);
     new AudioContext(&as);
-
     AppController::instance();
-    ParamController::instance();
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     // auto editor = appModel->workspaceEditor("flutydeer.filllyrics");
@@ -87,9 +81,6 @@ int main(int argc, char *argv[]) {
     // 可根据唯一名称取出存在全局 workspace 中的数据（只读）
     // auto privateWorkspace = appModel->getPrivateWorkspaceById("flutydeer.testplugin");
     // qDebug() << privateWorkspace.value("recent_model_path").toString();
-
-    QObject::connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),
-                     &ThemeManager::onAppOptionsChanged);
 
     MainWindow w;
     trackController->setParentWidget(&w);

@@ -114,9 +114,6 @@ MainWindow::MainWindow() {
     m_splitter->setContentsMargins(6, 0, 6, 0);
     connect(m_splitter, &QSplitter::splitterMoved, this, &MainWindow::onSplitterMoved);
 
-    ValidationController::instance();
-    appController->newProject();
-
     m_lbTaskTitle = new QLabel;
     m_lbTaskTitle->setVisible(false);
 
@@ -149,6 +146,7 @@ MainWindow::MainWindow() {
     this->resize(1366, 768);
 
     WindowFrameUtils::applyFrameEffects(this);
+    appController->newProject();
 }
 
 void MainWindow::updateWindowTitle() {

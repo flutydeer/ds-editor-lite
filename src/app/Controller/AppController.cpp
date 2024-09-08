@@ -3,28 +3,34 @@
 //
 
 #include "AppController.h"
-#include "AppController_p.h"
 
+#include "AppController_p.h"
 #include "AudioDecodingController.h"
+#include "ParamController.h"
 #include "ProjectStatusController.h"
+#include "ValidationController.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
 #include "Interface/IMainWindow.h"
 #include "Interface/IPanel.h"
 #include "Model/AppModel/Track.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Audio/AudioContext.h"
+#include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
 #include "UI/Controls/Toast.h"
+#include "Utils/Log.h"
 
 #include <QDir>
 #include <QFileInfo>
 
 AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
     Q_D(AppController);
-    ProjectStatusController::instance();
+    AppControllerPrivate::initializeModules();
 
     auto task = new LaunchLanguageEngineTask;
     connect(task, &LaunchLanguageEngineTask::finished, this,
@@ -33,10 +39,6 @@ AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
     taskManager->startTask(task);
     appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
 
-    connect(appModel, &AppModel::modelChanged, audioDecodingController,
-            &AudioDecodingController::onModelChanged);
-    connect(appModel, &AppModel::trackChanged, audioDecodingController,
-            &AudioDecodingController::onTrackChanged);
 
     // 测试 Property 信号
     // connect(appStatus, &AppStatus::moduleStatusChanged ,this, [=](AppStatus::ModuleType module,
@@ -195,6 +197,19 @@ void AppController::registerPanel(IPanel *panel) {
 void AppController::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) {
     Q_D(AppController);
     d->m_mainWindow->setTrackAndClipPanelCollapsed(trackCollapsed, clipCollapsed);
+}
+
+void AppControllerPrivate::initializeModules() {
+    ParamController::instance();
+    ProjectStatusController::instance();
+    ValidationController::instance();
+
+    connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),
+                     &ThemeManager::onAppOptionsChanged);
+    connect(appModel, &AppModel::modelChanged, audioDecodingController,
+            &AudioDecodingController::onModelChanged);
+    connect(appModel, &AppModel::trackChanged, audioDecodingController,
+            &AudioDecodingController::onTrackChanged);
 }
 
 bool AppControllerPrivate::isPowerOf2(int num) {
