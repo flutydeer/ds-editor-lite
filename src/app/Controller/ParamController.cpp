@@ -108,9 +108,10 @@ void ParamController::handleLanguageModuleStatusChanged(AppStatus::ModuleStatus 
     }
 }
 
-void ParamController::handleGetPronTaskFinished(GetPronTask *task, bool terminate) {
-    qDebug() << "get pron and phone task finished. clipId:" << task->clipId
-             << "terminate:" << terminate;
+void ParamController::handleGetPronTaskFinished(GetPronTask *task) {
+    auto terminate = task->terminated();
+    qInfo() << "获取发音和音素任务完成 clipId:" << task->clipId << "taskId:" << task->id()
+            << "terminate:" << terminate;
     disconnect(task, nullptr, this, nullptr);
     taskManager->removeTask(task);
     m_runningGetPronTask = nullptr;
@@ -122,14 +123,16 @@ void ParamController::handleGetPronTaskFinished(GetPronTask *task, bool terminat
         return;
     }
 
-    auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task->clipId));
+    auto singingClip = dynamic_cast<SingingClip *>(clip);
     OriginalParamUtils::updateNotePronPhoneme(task->notesRef, task->result, singingClip);
     createAndRunInferDurTask(singingClip);
     delete task;
 }
 
-void ParamController::handleInferDurTaskFinished(InferDurationTask *task, bool terminate) {
-    qDebug() << "infer dur task finished. clipId:" << task->clipId << "terminate" << terminate;
+void ParamController::handleInferDurTaskFinished(InferDurationTask *task) {
+    auto terminate = task->terminated();
+    qInfo() << "时长推理任务完成 clipId:" << task->clipId << "taskId:" << task->id()
+            << "terminate:" << terminate;
     disconnect(task, nullptr, this, nullptr);
     taskManager->removeTask(task);
     m_runningInferDurTask = nullptr;
@@ -145,6 +148,11 @@ void ParamController::handleInferDurTaskFinished(InferDurationTask *task, bool t
     int phoneIndex = 0;
     QList<Note *> notes;
     auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task->clipId));
+    auto modelNoteCount = singingClip->notes().count();
+    auto taskNoteCount = task->notes().count();
+    qDebug() << "模型音符数：" << modelNoteCount << "任务音符数：" << taskNoteCount;
+    if (modelNoteCount != taskNoteCount)
+        qFatal() << "模型音符数不等于任务音符数";
     QList<Note::WordProperties> args;
     for (const auto note : singingClip->notes()) {
         auto arg = Note::WordProperties::fromNote(*note);
@@ -185,8 +193,10 @@ void ParamController::createAndRunGetPronTask(SingingClip *clip) {
         notes.append(note);
     }
     auto task = new GetPronTask(clip->id(), notes);
+    qInfo() << "创建获取发音和音素任务 clipId:" << clip->id() << "taskId:" << task->id()
+            << "noteCount:" << notes.size();
     connect(task, &Task::finished, this,
-            [=](bool terminate) { handleGetPronTaskFinished(task, terminate); });
+            [=] { handleGetPronTaskFinished(task); });
     taskManager->addTask(task);
     m_getPronTaskQueue.enqueue(task);
     if (!m_runningGetPronTask)
@@ -195,14 +205,15 @@ void ParamController::createAndRunGetPronTask(SingingClip *clip) {
 
 void ParamController::createAndRunInferDurTask(SingingClip *clip) {
     if (validateForInferDuration(clip->id())) {
-        qDebug() << "音素序列校验通过，创建时长推理任务 clipId:" << clip->id();
         QList<Note *> notes;
         for (const auto note : clip->notes()) {
             notes.append(note);
         }
         auto durTask = new InferDurationTask(clip->id(), notes);
+        qDebug() << "音素序列校验通过，创建时长推理任务 clipId:" << clip->id()
+                 << "taskId:" << durTask->id();
         connect(durTask, &Task::finished, this,
-                [=](bool isTerminate) { handleInferDurTaskFinished(durTask, isTerminate); });
+                [=] { handleInferDurTaskFinished(durTask); });
         taskManager->addTask(durTask);
         m_inferDurTaskQueue.enqueue(durTask);
         if (!m_runningInferDurTask)
@@ -212,7 +223,8 @@ void ParamController::createAndRunInferDurTask(SingingClip *clip) {
 }
 
 void ParamController::cancelClipRelatedTasks(Clip *clip) {
-    qDebug() << "模型发生改动，取消歌声剪辑相关任务";
+    qInfo() << "--------------------------------";
+    qInfo() << "模型发生改动，取消歌声剪辑相关任务";
     auto getPronTaskPred = [=](GetPronTask *task) { return task->clipId == clip->id(); };
     auto inferDurTaskPred = [=](InferDurationTask *task) { return task->clipId == clip->id(); };
 
@@ -221,12 +233,14 @@ void ParamController::cancelClipRelatedTasks(Clip *clip) {
         disconnect(task, nullptr, this, nullptr);
         m_getPronTaskQueue.remove(task);
         taskManager->removeTask(task);
-        qDebug() << "取消待运行的获取发音和音素任务 clipId:" << task->clipId;
+        qDebug() << "移除待运行的获取发音和音素任务 clipId:" << task->clipId
+                 << "taskId:" << task->id();
         delete task;
     }
-    if (m_runningGetPronTask) {
+    if (m_runningGetPronTask && m_runningGetPronTask->clipId == clip->id()) {
         taskManager->terminateTask(m_runningGetPronTask);
-        qDebug() << "取消正在运行的获取发音和音素任务 clipId:" << m_runningGetPronTask->clipId;
+        qDebug() << "终止正在运行的获取发音和音素任务 clipId:" << m_runningGetPronTask->clipId
+                 << "taskId:" << m_runningGetPronTask->id();
     }
 
     // Cancel infer dur tasks
@@ -234,12 +248,13 @@ void ParamController::cancelClipRelatedTasks(Clip *clip) {
         disconnect(task, nullptr, this, nullptr);
         m_inferDurTaskQueue.remove(task);
         taskManager->removeTask(task);
-        qDebug() << "取消待运行的时长推理任务 clipId:" << task->clipId;
+        qDebug() << "移除待运行的时长推理任务 clipId:" << task->clipId << "taskId:" << task->id();
         delete task;
     }
-    if (m_runningInferDurTask) {
+    if (m_runningInferDurTask && m_runningInferDurTask->clipId == clip->id()) {
         taskManager->terminateTask(m_runningInferDurTask);
-        qDebug() << "取消正在运行的时长推理任务 clipId:" << m_runningInferDurTask->clipId;
+        qDebug() << "终止正在运行的时长推理任务 clipId:" << m_runningInferDurTask->clipId
+                 << "taskId:" << m_runningInferDurTask->id();
     }
 }
 
@@ -250,17 +265,17 @@ void ParamController::runNextGetPronTask() {
         return;
 
     const auto task = m_getPronTaskQueue.dequeue();
-    qDebug() << "运行获取音素和发音任务 clipId:" << task->clipId;
+    qDebug() << "运行获取发音和音素任务 clipId:" << task->clipId << "taskId:" << task->id();
     taskManager->startTask(task);
     m_runningGetPronTask = task;
 }
 
-void ParamController::runNextInferDurTask(){
+void ParamController::runNextInferDurTask() {
     if (m_inferDurTaskQueue.count() <= 0)
         return;
 
     const auto task = m_inferDurTaskQueue.dequeue();
-    qDebug() << "运行时长推理任务 clipId:" << task->clipId;
+    qDebug() << "运行时长推理任务 clipId:" << task->clipId << "taskId:" << task->id();
     taskManager->startTask(task);
     m_runningInferDurTask = task;
 }

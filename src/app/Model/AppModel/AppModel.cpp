@@ -106,9 +106,21 @@ void AppModel::clearTracks() {
 void AppModel::newProject() {
     Q_D(AppModel);
     d->reset();
+
+    auto singingClip = new SingingClip;
+    int bars = 4;
+    auto timeSig = appModel->timeSignature();
+    int length = 1920 * timeSig.numerator / timeSig.denominator * bars;
+    singingClip->setName(tr("New Singing Clip"));
+    singingClip->setStart(0);
+    singingClip->setClipStart(0);
+    singingClip->setLength(length);
+    singingClip->setClipLen(length);
     auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
+    newTrack->insertClip(singingClip);
     d->m_tracks.append(newTrack);
+
     emit modelChanged();
     d->dispose();
 }

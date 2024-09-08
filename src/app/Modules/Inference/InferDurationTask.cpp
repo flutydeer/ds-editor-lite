@@ -34,7 +34,6 @@ QList<Phoneme> InferDurationTask::result() {
 }
 
 void InferDurationTask::runTask() {
-    qDebug() << "run task";
     int i = 0;
     auto newStatus = status();
     newStatus.message = "正在推理: " + m_previewText;
@@ -60,14 +59,16 @@ void InferDurationTask::runTask() {
         abort();
         return;
     }
-    emit finished(false);
+    qDebug() << "任务正常完成 taskId:" << id();
+    emit finished();
 }
 
 void InferDurationTask::abort() {
+    qWarning() << "任务被终止 taskId:" << id();
     auto newStatus = status();
     newStatus.message = "正在停止: " + m_previewText;
     newStatus.isIndetermine = true;
     setStatus(newStatus);
     QThread::sleep(2);
-    emit finished(true);
+    emit finished();
 }

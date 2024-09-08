@@ -16,6 +16,9 @@ class InferDurationTask : public Task {
 public:
     explicit InferDurationTask(int clipId, const QList<Note *> &notes);
     ~InferDurationTask() override;
+    const QList<Note*> &notes() const {
+        return m_notes;
+    }
     QList<Phoneme> result();
     int clipId = -1;
 

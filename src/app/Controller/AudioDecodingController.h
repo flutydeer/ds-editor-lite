@@ -28,7 +28,7 @@ private:
     QList<DecodeAudioTask *> m_tasks;
 
     void createAndStartTask(AudioClip *clip);
-    void handleTaskFinished(DecodeAudioTask *task, bool terminate);
+    void handleTaskFinished(DecodeAudioTask *task);
     void terminateTaskByClipId(int clipId);
     void terminateTasksByTrackId(int trackId);
 };

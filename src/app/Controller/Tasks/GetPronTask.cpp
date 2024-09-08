@@ -64,10 +64,12 @@ void GetPronTask::runTask() {
         }
     }*/
     if (isTerminateRequested()) {
-        emit finished(true);
+        qWarning() << "任务被终止 taskId:" << id();
+        emit finished();
         return;
     }
-    emit finished(false);
+    qDebug() << "任务正常完成 taskId:" << id();
+    emit finished();
 }
 
 void GetPronTask::processNotes() {

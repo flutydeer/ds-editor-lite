@@ -37,8 +37,8 @@ private:
 
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
 
-    void handleGetPronTaskFinished(GetPronTask *task, bool terminate);
-    void handleInferDurTaskFinished(InferDurationTask *task, bool terminate);
+    void handleGetPronTaskFinished(GetPronTask *task);
+    void handleInferDurTaskFinished(InferDurationTask *task);
     static bool validateForInferDuration(int clipId);
 
     void createAndRunGetPronTask(SingingClip *clip);

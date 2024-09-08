@@ -6,8 +6,10 @@
 
 #include "AppController_p.h"
 #include "AudioDecodingController.h"
+#include "ClipEditorViewController.h"
 #include "ParamController.h"
 #include "ProjectStatusController.h"
+#include "TracksViewController.h"
 #include "ValidationController.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
@@ -59,6 +61,21 @@ void AppController::newProject() {
     appModel->newProject();
     historyManager->reset();
     d->updateProjectPathAndName("");
+    trackController->setActiveClip(appModel->tracks().first()->clips().toList().first()->id());
+    appController->setActivePanel(AppGlobal::ClipEditor);
+
+    // Test
+    // for (int i = 0; i < 16; i++) {
+    //     auto note = new Note;
+    //     note->setRStart(i * 240);
+    //     note->setLength(240);
+    //     note->setKeyIndex(66);
+    //     note->setLanguage("cmn");
+    //     note->setLyric(appOptions->general()->defaultLyric);
+    //     clipController->onInsertNote(note);
+    // }
+    // for (int i = 0; i < 16; i++)
+    //     historyManager->undo();
 }
 
 void AppController::openProject(const QString &filePath) {
@@ -205,7 +222,7 @@ void AppControllerPrivate::initializeModules() {
     ValidationController::instance();
 
     connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),
-                     &ThemeManager::onAppOptionsChanged);
+            &ThemeManager::onAppOptionsChanged);
     connect(appModel, &AppModel::modelChanged, audioDecodingController,
             &AudioDecodingController::onModelChanged);
     connect(appModel, &AppModel::trackChanged, audioDecodingController,

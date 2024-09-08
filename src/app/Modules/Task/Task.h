@@ -46,12 +46,22 @@ public:
         return m_started;
     }
 
+    bool stopped() {
+        QMutexLocker locker(&m_mutex);
+        return m_stopped;
+    }
+
+    bool terminated() {
+        QMutexLocker locker(&m_mutex);
+        return m_abortFlag;
+    }
+
     [[nodiscard]] const TaskStatus &status() const;
     void setStatus(const TaskStatus &status);
 
 signals:
     void statusUpdated(const TaskStatus &status);
-    void finished(bool terminate);
+    void finished();
 
 protected:
     virtual void runTask() = 0;
@@ -63,6 +73,7 @@ private:
         if (!m_started) {
             m_started = true;
             runTask();
+            m_stopped = true;
         }
     }
 
@@ -70,6 +81,7 @@ private:
     QMutex m_mutex;
     bool m_started = false;
     bool m_abortFlag = false;
+    bool m_stopped = false;
 };
 
 inline const TaskStatus &Task::status() const {

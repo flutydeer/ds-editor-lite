@@ -49,5 +49,5 @@ void LaunchLanguageEngineTask::runTask() {
         qInfo() << "Successfully launched language module";
     else
         qCritical() << "Failed to launch language module: " << errorMessage;
-    emit finished(false);
+    emit finished();
 }

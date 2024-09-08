@@ -95,3 +95,8 @@ TrackListView::item:hover {
 TrackListView::item:selected {
     background: #10FFFFFF
 }
+
+
+TracksGraphicsView {
+    background: #2A2B2C
+}

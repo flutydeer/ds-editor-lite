@@ -58,12 +58,13 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
     decodeTask->path = clip->path();
     m_tasks.append(decodeTask);
     connect(decodeTask, &Task::finished, this,
-            [=](bool terminate) { handleTaskFinished(decodeTask, terminate); });
+            [=] { handleTaskFinished(decodeTask); });
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
 
-void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, bool terminate) {
+void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
+    auto terminate = task->terminated();
     taskManager->removeTask(task);
     m_tasks.removeOne(task);
 

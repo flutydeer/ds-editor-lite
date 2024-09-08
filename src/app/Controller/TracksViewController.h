@@ -36,7 +36,7 @@ public slots:
     static void onNewSingingClip(int trackIndex, int tick);
 
 private:
-    void handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate);
+    void handleDecodeAudioTaskFinished(DecodeAudioTask *task);
 
     // TODO: refactor
     QWidget *m_parentWidget = nullptr;

@@ -465,7 +465,7 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
         auto firstNote = *clip->notes().begin();
         q->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
     } else
-        q->setViewportCenterAtKeyIndex(60);
+        q->setViewportCenterAt(clip->start(), 60);
 
     updatePitch(Param::Original, *m_clip->params.getParamByName(ParamBundle::Pitch));
     updatePitch(Param::Edited, *m_clip->params.getParamByName(ParamBundle::Pitch));

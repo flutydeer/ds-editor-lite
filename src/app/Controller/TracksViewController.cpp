@@ -107,7 +107,7 @@ void TracksViewController::onAddAudioClip(const QString &path, int id, int tick)
     auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
     dlg->show();
     connect(decodeTask, &Task::finished, this,
-            [=](bool terminate) { handleDecodeAudioTaskFinished(decodeTask, terminate); });
+            [=] { handleDecodeAudioTaskFinished(decodeTask); });
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
@@ -201,7 +201,8 @@ void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
     setActiveClip(singingClip->id());
 }
 
-void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task, bool terminate) {
+void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
+    auto terminate = task->terminated();
     taskManager->removeTask(task);
     if (terminate) {
         delete task;

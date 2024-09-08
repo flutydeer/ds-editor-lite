@@ -418,7 +418,7 @@ QList<PhonemeView::PhonemeViewModel *> PhonemeView::findPhonemesByNoteId(int not
 }
 
 void PhonemeView::buildPhonemeList() {
-    qDebug() << "build phoneme list";
+    // qDebug() << "build phoneme list";
     if (m_notes.count() == 0)
         return;
 
