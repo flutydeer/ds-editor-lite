@@ -54,7 +54,7 @@ ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent)
 }
 
 void Toast::show(const QString &message) {
-    instance()->m_queue.append(message);
+    instance()->m_queue.enqueue(message);
     if (!instance()->m_isShowingToast)
         instance()->showNextToast();
 }
@@ -112,7 +112,7 @@ void Toast::showNextToast() {
         return;
 
     m_isShowingToast = true;
-    m_toastWidget = new ToastWidget(m_queue.first());
+    m_toastWidget = new ToastWidget(m_queue.dequeue());
     m_toastWidget->show();
 
     m_opacityAnimation.setTargetObject(m_toastWidget);
@@ -139,7 +139,6 @@ void Toast::showNextToast() {
 }
 
 void Toast::oneToastShowFinished() {
-    m_queue.removeFirst();
     m_isShowingToast = false;
     showNextToast();
 }

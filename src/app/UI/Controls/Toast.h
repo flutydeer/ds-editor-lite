@@ -5,12 +5,12 @@
 #ifndef TOAST_H
 #define TOAST_H
 
-#include <QWidget>
-#include <QTimer>
-
 #include "Utils/Singleton.h"
 #include "UI/Utils/IAnimatable.h"
+#include "Utils/Queue.h"
 
+#include <QWidget>
+#include <QTimer>
 #include <QPropertyAnimation>
 
 class QVBoxLayout;
@@ -50,7 +50,7 @@ private:
     const int animationDurationBase = 300;
     static QWidget *m_globalContext;
     ToastWidget *m_toastWidget = nullptr;
-    QList<QString> m_queue;
+    Queue<QString> m_queue;
     QTimer m_keepOnScreenTimer;
     QTimer m_destroyWidgetTimer;
     QPropertyAnimation m_opacityAnimation;
