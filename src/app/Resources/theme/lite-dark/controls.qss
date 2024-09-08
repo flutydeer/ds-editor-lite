@@ -22,6 +22,7 @@ QPushButton:disabled {
 }
 
 Button {
+    qproperty-dropShadow: "4 4 24 #809BBAFF";/* offset-x, offset-y, blur-radius, color(HEX) */
     background: #10FFFFFF;
     border: none;
     border-radius: 6px;

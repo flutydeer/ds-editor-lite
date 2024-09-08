@@ -1,5 +1,6 @@
 /* System Buttons */
 Button#CloseButton {
+    qproperty-dropShadow: "";
     border-radius: 0px;
     padding: 6px;
     /* image: url(:svg/title-bar/close.svg); */
@@ -20,6 +21,7 @@ Button#MaximizeButton:checked {
 
 Button#MinimizeButton,
 Button#MaximizeButton {
+    qproperty-dropShadow: "";
     border-radius: 0px;
     padding: 6px;
     background: transparent;
