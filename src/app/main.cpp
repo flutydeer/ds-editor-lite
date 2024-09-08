@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 
     // 设置日志等级和过滤器
     Log::setConsoleLogLevel(Log::Debug);
-    // Logger::setConsoleTagFilter({"PianoKeyboardView"});
+    Log::setConsoleTagFilter({"ParamController"});
     Log::logSystemInfo();
 
     auto f = QFont();
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
     w.move(left, top);
     w.show();
 
-    auto taskWindow = new TaskWindow;
+    auto taskWindow = new TaskWindow(&w);
     taskWindow->move(availableRect.width() - taskWindow->width() - 8,
                      availableRect.height() - taskWindow->height() - 8);
     taskWindow->show();

@@ -9,7 +9,7 @@
 
 #include <QThread>
 
-InferDurationTask::InferDurationTask(int clipId, const QList<Note *> &notes) : Task(clipId) {
+InferDurationTask::InferDurationTask(int clipId, const QList<Note *> &notes) : clipId(clipId) {
     AppModelUtils::copyNotes(notes, m_notes);
     for (const auto note : m_notes) {
         for (const auto &phoneme : note->phonemeInfo().original) {
@@ -18,7 +18,7 @@ InferDurationTask::InferDurationTask(int clipId, const QList<Note *> &notes) : T
     }
     TaskStatus status;
     status.title = "推理音素长度";
-    status.message = m_previewText;
+    status.message = "正在等待：" + m_previewText;
     status.maximum = m_notes.count();
     setStatus(status);
 }
@@ -39,14 +39,9 @@ void InferDurationTask::runTask() {
     auto newStatus = status();
     newStatus.message = "正在推理: " + m_previewText;
     for (const auto note : m_notes) {
-        // QThread::msleep(5);
+        QThread::msleep(5);
         if (isTerminateRequested()) {
-            newStatus = status();
-            newStatus.message = "正在停止: " + m_previewText;
-            newStatus.runningStatus = TaskGlobal::Error;
-            setStatus(newStatus);
-            // QThread::sleep(2);
-            emit finished(true);
+            abort();
             return;
         }
         for (const auto &phoneme : note->phonemeInfo().original) {
@@ -58,9 +53,21 @@ void InferDurationTask::runTask() {
         }
         i++;
 
-        newStatus = status();
         newStatus.progress = i;
         setStatus(newStatus);
     }
+    if (isTerminateRequested()) {
+        abort();
+        return;
+    }
     emit finished(false);
+}
+
+void InferDurationTask::abort() {
+    auto newStatus = status();
+    newStatus.message = "正在停止: " + m_previewText;
+    newStatus.isIndetermine = true;
+    setStatus(newStatus);
+    QThread::sleep(2);
+    emit finished(true);
 }

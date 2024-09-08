@@ -17,9 +17,11 @@ public:
     explicit InferDurationTask(int clipId, const QList<Note *> &notes);
     ~InferDurationTask() override;
     QList<Phoneme> result();
+    int clipId = -1;
 
 private:
     void runTask() override;
+    void abort();
 
     QMutex m_mutex;
     QList<Note *> m_notes;

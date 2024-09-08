@@ -13,7 +13,7 @@
 #include <QMutexLocker>
 #include <QThread>
 
-GetPronTask::GetPronTask(int clipId, const QList<Note *> &notes) : Task(clipId) {
+GetPronTask::GetPronTask(int clipId, const QList<Note *> &notes) : clipId(clipId) {
     notesRef = notes;
     AppModelUtils::copyNotes(notes, m_notes);
     for (int i = 0; i < notes.count(); i++) {
@@ -30,11 +30,6 @@ GetPronTask::GetPronTask(int clipId, const QList<Note *> &notes) : Task(clipId) 
     status.isIndetermine = true;
     setStatus(status);
 }
-
-// QList<Note *> &GetPronTask::notes() {
-//     QMutexLocker locker(&m_mutex);
-//     return m_notes;
-// }
 
 void GetPronTask::runTask() {
     // if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
@@ -68,6 +63,11 @@ void GetPronTask::runTask() {
             emit finished(false);
         }
     }*/
+    if (isTerminateRequested()) {
+        emit finished(true);
+        return;
+    }
+    emit finished(false);
 }
 
 void GetPronTask::processNotes() {
@@ -75,19 +75,5 @@ void GetPronTask::processNotes() {
     auto newStatus = status();
     newStatus.message = "正在处理: " + m_previewText;
     setStatus(newStatus);
-    // QThread::sleep(1);
-    // for (int i = 0; i < 100; i++) {
-    //     QThread::msleep(10);
-    //     if (isTerminateRequested()) {
-    //         newStatus = status();
-    //         newStatus.message = "正在停止: " + m_previewText;
-    //         newStatus.runningStatus = TaskGlobal::Error;
-    //         setStatus(newStatus);
-    //         QThread::sleep(2);
-    //         emit finished(true);
-    //         return;
-    //     }
-    // }
     result = NoteWordUtils::getOriginalWordProperties(m_notes);
-    emit finished(false);
 }

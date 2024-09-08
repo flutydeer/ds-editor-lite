@@ -13,6 +13,7 @@ class GetPronTask : public Task {
 public:
     explicit GetPronTask(int clipId, const QList<Note *> &notes);
     // [[nodiscard]] QList<Note *> &notes();
+    int clipId = -1;
     QList<Note *> notesRef;
 
     QList<Note::WordProperties> result;

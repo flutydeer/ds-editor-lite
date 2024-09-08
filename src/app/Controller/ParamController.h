@@ -9,6 +9,7 @@
 #include "Model/AppModel/Track.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/InferDurationTask.h"
+#include "Utils/Queue.h"
 #include "Utils/Singleton.h"
 
 #include <QObject>
@@ -40,16 +41,18 @@ private:
     void handleInferDurTaskFinished(InferDurationTask *task, bool terminate);
     static bool validateForInferDuration(int clipId);
 
-    void createAndStartGetPronTask(SingingClip *clip);
+    void createAndRunGetPronTask(SingingClip *clip);
+    void createAndRunInferDurTask(SingingClip *clip);
     void cancelClipRelatedTasks(Clip *clip);
+    void runNextGetPronTask();
+    void runNextInferDurTask();
 
     QList<Track *> m_tracks;
     // QList<Clip *> m_clips;
-    QList<GetPronTask *> m_pendingGetPronTasks;
-    QList<GetPronTask *> m_runningGetPronTasks;
-
-    QList<InferDurationTask *> m_pendingInferDurTasks;
-    QList<InferDurationTask *> m_runningInferDurTasks;
+    Queue<GetPronTask *> m_getPronTaskQueue;
+    GetPronTask *m_runningGetPronTask = nullptr;
+    Queue<InferDurationTask *> m_inferDurTaskQueue;
+    InferDurationTask *m_runningInferDurTask = nullptr;
 };
 
 

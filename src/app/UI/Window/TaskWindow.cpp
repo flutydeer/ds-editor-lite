@@ -10,6 +10,8 @@
 
 #include "UI/Controls/TaskView.h"
 
+#include <QApplication>
+
 TaskWindow::TaskWindow(QWidget *parent) : Window(parent) {
     QString qssBase;
     auto qssFile = QFile(":theme/lite-dark.qss");
@@ -29,7 +31,7 @@ TaskWindow::TaskWindow(QWidget *parent) : Window(parent) {
     this->setStyleSheet(QString("indow { background: transparent }") + qssBase);
 #endif
 
-    setWindowTitle("Background Tasks - DS Editor Lite");
+    setWindowTitle(tr("Background Tasks - %1").arg(QGuiApplication::applicationDisplayName()));
     m_taskList = new QListWidget;
     m_taskList->setStyleSheet("QListWidget { background: transparent; border: none; "
                               "border-right: 1px solid #202020; outline:0px;"
@@ -61,7 +63,7 @@ void TaskWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsi
 void TaskWindow::addTaskToView(Task *task) {
     // qDebug() << "TaskWindow::addTaskToView";
     auto item = new QListWidgetItem;
-    auto taskView = new TaskView(task->status());
+    auto taskView = new TaskView(task->status(), this);
     item->setSizeHint(QSize(m_taskList->width() - 4, 72));
     m_taskList->addItem(item);
     m_taskList->setItemWidget(item, taskView);
