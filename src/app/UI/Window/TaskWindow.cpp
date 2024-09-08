@@ -13,24 +13,6 @@
 #include <QApplication>
 
 TaskWindow::TaskWindow(QWidget *parent) : Window(parent) {
-    QString qssBase;
-    auto qssFile = QFile(":theme/lite-dark.qss");
-    if (qssFile.open(QIODevice::ReadOnly)) {
-        qssBase = qssFile.readAll();
-        qssFile.close();
-    }
-    this->setStyleSheet(QString("Window { background: #232425; }") + qssBase);
-#ifdef Q_OS_WIN
-    bool micaOn = true;
-    auto version = QSysInfo::productVersion();
-    if (micaOn && version == "11") {
-        // make window transparent
-        this->setStyleSheet(QString("Window { background: transparent }") + qssBase);
-    }
-#elif defined(Q_OS_MAC)
-    this->setStyleSheet(QString("indow { background: transparent }") + qssBase);
-#endif
-
     setWindowTitle(tr("Background Tasks - %1").arg(QGuiApplication::applicationDisplayName()));
     m_taskList = new QListWidget;
     m_taskList->setStyleSheet("QListWidget { background: transparent; border: none; "
