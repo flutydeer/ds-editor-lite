@@ -230,7 +230,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     painter->setBrush(Qt::NoBrush);
     // painter->drawRect(textRect);
     QRectF iconRect;
-    if (textWidth <= titleRectWidth && textHeight <= titleRectHeight) {
+    if (textWidth + iconWidth <= titleRectWidth && textHeight <= titleRectHeight) {
         if (d->previewRect().height() < 32) {
             painter->drawText(textRect, text(), QTextOption(Qt::AlignVCenter));
             iconRect = QRectF(titleRectLeft, titleRectTop, iconWidth, titleRectHeight);
@@ -238,10 +238,10 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
             painter->drawText(textRect, text());
             iconRect = QRectF(titleRectLeft, titleRectTop, iconWidth, textHeight);
         }
+        QSvgRenderer renderer(iconPath());
+        renderer.setAspectRatioMode(Qt::KeepAspectRatio);
+        renderer.render(painter, iconRect);
     }
-    QSvgRenderer renderer(iconPath());
-    renderer.setAspectRatioMode(Qt::KeepAspectRatio);
-    renderer.render(painter, iconRect);
     // pen.setColor(Qt::red);
     // painter->setPen(pen);
     // painter->drawRect(textRect);
