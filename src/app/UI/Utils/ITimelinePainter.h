@@ -12,6 +12,7 @@ public:
     void setPixelsPerQuarterNote(int px);
     virtual void setTimeSignature(int numerator, int denominator);
     virtual void setQuantize(int quantize);
+    [[nodiscard]] int denominator() const;
 
 protected:
     void drawTimeline(QPainter *painter, double startTick, double endTick, double rectWidth);

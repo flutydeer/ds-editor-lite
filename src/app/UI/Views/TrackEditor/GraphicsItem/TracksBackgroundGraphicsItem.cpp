@@ -30,10 +30,10 @@ void TracksBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptionGr
     auto endTrackIndex = sceneYToTrackIndex(visibleRect().bottom());
 
     // Draw background
-    auto backgroundColor = QColor(42, 43, 44);
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(backgroundColor);
-    painter->drawRect(boundingRect());
+    // auto backgroundColor = QColor(42, 43, 44);
+    // painter->setPen(Qt::NoPen);
+    // painter->setBrush(backgroundColor);
+    // painter->drawRect(boundingRect());
 
     // Draw selected track background
     auto selectionBackgroundColor = QColor(55, 56, 57);

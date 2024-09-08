@@ -67,3 +67,7 @@ void ITimelinePainter::setTimeSignature(int numerator, int denominator) {
 void ITimelinePainter::setQuantize(int quantize) {
     m_quantize = quantize;
 }
+
+int ITimelinePainter::denominator() const {
+    return m_denominator;
+}

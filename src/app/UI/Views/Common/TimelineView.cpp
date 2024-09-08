@@ -64,8 +64,7 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     // painter.setBrush(Qt::NoBrush);
 
     // Draw graduates
-    drawTimeline(&painter, m_startTick, m_endTick,
-                 rect().width());
+    drawTimeline(&painter, m_startTick, m_endTick, rect().width());
 
     // Draw playback indicator
     auto penWidth = 2.0;
@@ -93,7 +92,8 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     auto x = tickToX(tick); // tick to itemX
     pen.setColor(barTextColor);
     painter->setPen(pen);
-    painter->drawText(QPointF(x + m_textPaddingLeft, 10), QString::number(bar));
+    auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
+    painter->drawText(QPointF(x + m_textPaddingLeft, 10), text);
     pen.setColor(barLineColor);
     painter->setPen(pen);
     auto y1 = 0;
@@ -106,8 +106,10 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     auto x = tickToX(tick);
     pen.setColor(beatTextColor);
     painter->setPen(pen);
-    painter->drawText(QPointF(x + m_textPaddingLeft, 10),
-                      QString::number(bar) + "." + QString::number(beat));
+    // 在负坐标获取的 int bar 错误，暂不绘制文本
+    if (beat > 0)
+        painter->drawText(QPointF(x + m_textPaddingLeft, 10),
+                          QString::number(bar) + "." + QString::number(beat));
     pen.setColor(beatLineColor);
     painter->setPen(pen);
     auto y1 = 2.0 / 3 * rect().height();
@@ -149,9 +151,7 @@ double TimelineView::tickToX(double tick) {
 }
 
 double TimelineView::xToTick(double x) {
-    auto tick =
-        1.0 * x / rect().width() * (m_endTick - m_startTick) +
-        m_startTick;
+    auto tick = 1.0 * x / rect().width() * (m_endTick - m_startTick) + m_startTick;
     if (tick < 0)
         tick = 0;
     return tick;
