@@ -159,11 +159,13 @@ const OverlappableSerialList<Note> &SingingClip::notes() const {
 void SingingClip::insertNote(Note *note) {
     note->setClip(this);
     m_notes.add(note);
+    qDebug() << "insert note #" << note->id() << note->lyric() << "clip #" << id();
 }
 
 void SingingClip::removeNote(Note *note) {
     note->setClip(nullptr);
     m_notes.remove(note);
+    qDebug() << "remove note #" << note->id() << note->lyric() << "clip #" << id();
 }
 
 void SingingClip::notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type) {
