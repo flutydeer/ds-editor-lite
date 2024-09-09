@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 
     // 设置日志等级和过滤器
     Log::setConsoleLogLevel(Log::Debug);
-    Log::setConsoleTagFilter({/*"ParamController", "InferDurationTask",*/ "Clip"});
+    Log::setConsoleTagFilter({/*"ParamController", "InferDurationTask",*/ "OverlappableSerialList"});
     Log::logSystemInfo();
 
     auto f = QFont();
