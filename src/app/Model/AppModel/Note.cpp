@@ -24,12 +24,20 @@ void Note::setClip(SingingClip *clip) {
 }
 
 int Note::start() const {
-    auto offset = m_clip ? m_clip->start() : 0;
+    if (!m_clip) {
+        qFatal() << "SingingClip is null";
+        return 0;
+    }
+    auto offset = m_clip->start();
     return m_rStart + offset;
 }
 
 void Note::setStart(int start) {
-    auto offset = m_clip ? m_clip->start() : 0;
+    if (!m_clip) {
+        qFatal() << "SingingClip is null";
+        return;
+    }
+    auto offset = m_clip->start();
     auto rStart = start - offset;
     Q_ASSERT(rStart >= 0);
     m_rStart = rStart;
@@ -130,21 +138,20 @@ bool Note::isSlur() const {
 }
 
 int Note::compareTo(const Note *obj) const {
-    const auto otherStart = obj->start();
-    if (start() < otherStart)
+    if (!m_clip) {
+        qFatal() << "SingingClip is null";
+        return 0;
+    }
+    if (m_clip != obj->m_clip) {
+        qFatal() << "SingingClip is not the same";
+        return 0;
+    }
+    const auto otherStart = obj->rStart();
+    if (rStart() < otherStart)
         return -1;
-    if (start() > otherStart)
+    if (rStart() > otherStart)
         return 1;
     return 0;
-}
-
-bool Note::isOverlappedWith(Note *obj) const {
-    const auto otherStart = obj->start();
-    const auto otherEnd = otherStart + obj->length();
-    const auto curEnd = start() + length();
-    if (otherEnd <= start() || curEnd <= otherStart)
-        return false;
-    return true;
 }
 
 std::tuple<qsizetype, qsizetype> Note::interval() const {

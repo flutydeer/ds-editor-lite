@@ -5,16 +5,12 @@
 #ifndef SERIALLIST_H
 #define SERIALLIST_H
 
-#include "MathUtils.h"
-
-
 #include <set>
 #include <unordered_set>
 
 #include <interval-tree/interval_tree.hpp>
 
 #include <QList>
-#include <QDebug>
 
 template <typename T>
 class OverlappableSerialList {
@@ -28,14 +24,13 @@ class OverlappableSerialList {
         }
     };
 
-    // struct ItemCmp {
-    //     bool operator()(const T *a, const T *b) const {
-    //         qDebug() << "ItemCmp" << a << b;
-    //         if (a->compareTo(b) == 0)
-    //             return a < b;
-    //         return a->compareTo(b) < 0;
-    //     }
-    // };
+    struct ItemCmp {
+        bool operator()(const T *a, const T *b) const {
+            if (a->compareTo(b) == 0)
+                return a < b;
+            return a->compareTo(b) < 0;
+        }
+    };
 
 public:
     [[nodiscard]] int count() const;
@@ -49,15 +44,10 @@ public:
     QList<T *> overlappedItems() const;
     QList<T *> toList() const;
 
-    using iterator = typename QList<T *>::const_iterator;
-    using const_iterator = typename QList<T *>::const_iterator;
-    using reverse_iterator = typename QList<T *>::const_reverse_iterator;
-    using const_reverse_iterator = typename QList<T *>::const_reverse_iterator;
-
-    // using iterator = typename std::set<T *, ItemCmp>::const_iterator;
-    // using const_iterator = typename std::set<T *, ItemCmp>::const_iterator;
-    // using reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
-    // using const_reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
+    using iterator = typename std::set<T *, ItemCmp>::const_iterator;
+    using const_iterator = typename std::set<T *, ItemCmp>::const_iterator;
+    using reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
+    using const_reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
 
     iterator begin() {
         return m_items.cbegin();
@@ -109,8 +99,7 @@ public:
 
 private:
     lib_interval_tree::interval_tree<Interval> m_intervalTree;
-    // std::set<T *, ItemCmp> m_items;
-    QList<T *> m_items;
+    std::set<T *, ItemCmp> m_items;
     std::unordered_set<T *> m_itemHash;
     int m_overlappedCounter{};
 };
@@ -134,10 +123,8 @@ void OverlappableSerialList<T>::add(T *item) {
     if (item->overlapped())
         m_overlappedCounter++;
     m_intervalTree.insert(interval);
-    // m_items.insert(item);
-    MathUtils::binaryInsert(m_items, item);
+    m_items.insert(item);
     m_itemHash.insert(item);
-    // qDebug() << "insert" << item;
 }
 
 template <typename T>
@@ -159,33 +146,10 @@ void OverlappableSerialList<T>::remove(T *item) {
     });
     // qDebug() << "erase" << item;
     m_intervalTree.erase(itToErase);
-
-    // auto it = m_items.find(item);
-    // if (it != m_items.end()) {
-    //     qInfo() << "Item found";
-    // } else {
-    //     qCritical() << "Item not found!";
-    // }
-    //
-    // qDebug() << "m_items before:";
-    // for (auto i : m_items)
-    //     qDebug() << i;
-
-    // m_items.erase(item);
-    m_items.removeOne(item);
-
-    // qDebug() << "m_items after:";
-    // for (auto i : m_items)
-    //     qDebug() << i;
-
+    m_items.erase(item);
     m_itemHash.erase(item);
 }
 
-// template <typename T>
-// void OverlapableSerialList<T>::update(T *item) {
-//     remove(item);
-//     add(item);
-// }
 template <typename T>
 void OverlappableSerialList<T>::clear() {
     m_intervalTree.clear();

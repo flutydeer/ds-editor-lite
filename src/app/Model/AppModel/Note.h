@@ -48,7 +48,6 @@ public:
     [[nodiscard]] bool isSlur() const;
 
     int compareTo(const Note *obj) const;
-    bool isOverlappedWith(Note *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
     friend QDataStream &operator<<(QDataStream &out, const Note &note);
