@@ -25,8 +25,8 @@ void Note::setClip(SingingClip *clip) {
 
 int Note::start() const {
     if (!m_clip) {
-        qFatal() << "SingingClip is null";
-        return 0;
+        qWarning() << "SingingClip is null";
+        return m_rStart;
     }
     auto offset = m_clip->start();
     return m_rStart + offset;
@@ -34,7 +34,8 @@ int Note::start() const {
 
 void Note::setStart(int start) {
     if (!m_clip) {
-        qFatal() << "SingingClip is null";
+        qWarning() << "SingingClip is null";
+        m_rStart = start;
         return;
     }
     auto offset = m_clip->start();

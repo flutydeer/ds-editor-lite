@@ -10,7 +10,7 @@
 void EditNotePositionAction::execute() {
     for (const auto &note : m_notes) {
         m_clip->removeNote(note);
-        note->setStart(note->start() + m_deltaTick);
+        note->setRStart(note->rStart() + m_deltaTick);
         note->setKeyIndex(note->keyIndex() + m_deltaKey);
         m_clip->insertNote(note);
     }
@@ -20,7 +20,7 @@ void EditNotePositionAction::execute() {
 void EditNotePositionAction::undo() {
     for (const auto &note : m_notes) {
         m_clip->removeNote(note);
-        note->setStart(note->start() - m_deltaTick);
+        note->setRStart(note->rStart() - m_deltaTick);
         note->setKeyIndex(note->keyIndex() - m_deltaKey);
         m_clip->insertNote(note);
     }

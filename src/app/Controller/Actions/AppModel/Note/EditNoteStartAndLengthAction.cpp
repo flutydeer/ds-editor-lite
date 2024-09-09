@@ -10,7 +10,7 @@
 void EditNoteStartAndLengthAction::execute() {
     for (const auto &note : m_notes) {
         m_clip->removeNote(note);
-        note->setStart(note->start() + m_deltaTick);
+        note->setRStart(note->rStart() + m_deltaTick);
         note->setLength(note->length() - m_deltaTick);
         m_clip->insertNote(note);
     }
@@ -20,7 +20,7 @@ void EditNoteStartAndLengthAction::execute() {
 void EditNoteStartAndLengthAction::undo() {
     for (const auto &note : m_notes) {
         m_clip->removeNote(note);
-        note->setStart(note->start() - m_deltaTick);
+        note->setRStart(note->rStart() - m_deltaTick);
         note->setLength(note->length() + m_deltaTick);
         m_clip->insertNote(note);
     }
