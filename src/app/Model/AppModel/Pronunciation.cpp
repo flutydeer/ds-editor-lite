@@ -10,6 +10,10 @@ bool Pronunciation::isEdited() const {
     return !(edited.isNull() || edited.isEmpty());
 }
 
+QString Pronunciation::result() const {
+    return isEdited() ? edited : original;
+}
+
 QJsonObject Pronunciation::serialize(const Pronunciation &pronunciation) {
     QJsonObject objPronunciation;
     objPronunciation.insert("original", pronunciation.original);

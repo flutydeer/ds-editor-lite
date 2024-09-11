@@ -8,7 +8,7 @@
 #include "EditNoteStartAndLengthAction.h"
 #include "EditNotesLengthAction.h"
 #include "EditNoteWordPropertiesAction.h"
-#include "EditPhonemeAction.h"
+#include "EditPhonemeOffsetAction.h"
 #include "InsertNoteAction.h"
 #include "RemoveNoteAction.h"
 
@@ -46,7 +46,8 @@ void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
     addAction(new EditNoteWordPropertiesAction(notes, args, clip));
 }
 
-void NoteActions::editNotesPhoneme(Note *note, const QList<Phoneme> &phonemes, SingingClip *clip) {
-    setName(tr("Edit note phoneme"));
-    addAction(new EditPhonemeAction(note, phonemes, clip));
+void NoteActions::editNotePhonemeOffset(Note *note, PhonemeInfoSeperated::PhonemeType type,
+                                        const QList<int> &offsets, SingingClip *clip) {
+    setName(tr("Edite phoneme offset"));
+    addAction(new EditPhonemeOffsetAction(note, type, offsets, clip));
 }

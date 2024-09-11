@@ -26,7 +26,8 @@ void EditNoteWordPropertiesAction::execute() {
         note->setLyric(arg.lyric);
         note->setLanguage(arg.language);
         // note->setPhonemeInfo(Note::Original, arg.phonemes.original);
-        note->setPhonemeInfo(Note::Edited, arg.phonemes.edited);
+        // note->setPhonemeInfo(Note::Edited, arg.phonemes.edited);
+        note->setPhonemes(arg.phonemes);
         note->setPronunciation(Note::Edited, arg.pronunciation.edited);
         note->setPronCandidates(arg.pronCandidates);
         i++;
@@ -41,7 +42,7 @@ void EditNoteWordPropertiesAction::undo() {
         note->setLyric(arg.lyric);
         note->setLanguage(arg.language);
         // note->setPhonemeInfo(Note::Original, arg.phonemes.original);
-        note->setPhonemeInfo(Note::Edited, arg.phonemes.edited);
+        note->setPhonemes(arg.phonemes);
         note->setPronunciation(Note::Edited, arg.pronunciation.edited);
         note->setPronCandidates(arg.pronCandidates);
     }

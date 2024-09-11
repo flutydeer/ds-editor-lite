@@ -46,13 +46,13 @@ void ClipEditorViewController::copySelectedNotesWithParams() const {
     if (info.selectedNotes.count() < 0)
         return;
 
-    auto array = NotesParamsInfo::serializeToBinary(info);
+    // auto array = NotesParamsInfo::serializeToBinary(info);
     // auto jObj = NotesParamsInfo::serializeToJson(info);
     // QJsonDocument jDoc;
     // jDoc.setObject(jObj);
     // auto array = jDoc.toJson();
     auto data = new QMimeData;
-    data->setData(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams), array);
+    // data->setData(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams), array);
     QGuiApplication::clipboard()->setMimeData(data);
     // qDebug() << QString("Copied %1 notes").arg(info.selectedNotes.count());
 }
@@ -195,16 +195,30 @@ void ClipEditorViewController::onResizeNotesRight(const QList<int> &notesId, int
     historyManager->record(a);
 }
 
-void ClipEditorViewController::onAdjustPhoneme(int noteId, const QList<Phoneme> &phonemes) const {
+void ClipEditorViewController::onAdjustPhonemeOffset(int noteId,
+                                                     PhonemeInfoSeperated::PhonemeType type,
+                                                     const QList<int> &offsets) const {
     Q_D(const ClipEditorViewController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     auto note = singingClip->findNoteById(noteId);
 
     auto a = new NoteActions;
-    a->editNotesPhoneme(note, phonemes, singingClip);
+    a->editNotePhonemeOffset(note, type, offsets, singingClip);
     a->execute();
     historyManager->record(a);
 }
+
+// void ClipEditorViewController::onAdjustPhoneme(int noteId, const QList<Phoneme> &phonemes) const
+// {
+//     Q_D(const ClipEditorViewController);
+//     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+//     auto note = singingClip->findNoteById(noteId);
+//
+//     auto a = new NoteActions;
+//     a->editNotesPhoneme(note, phonemes, singingClip);
+//     a->execute();
+//     historyManager->record(a);
+// }
 
 void ClipEditorViewController::selectNotes(const QList<int> &notesId, bool unselectOther) {
     Q_D(ClipEditorViewController);
@@ -253,7 +267,18 @@ void ClipEditorViewController::onNotePropertiesEdited(int noteId, const NoteDial
     arg.language = result.language;
     arg.lyric = result.lyric;
     arg.pronunciation = result.pronunciation;
-    arg.phonemes = result.phonemes;
+
+    // 检查音素名称是否经过编辑，如果已编辑，则需重置相应的音素时长
+    auto curNameInfo = arg.phonemes.nameInfo;
+    auto resultNameInfo = result.phonemeNameInfo;
+    if (!curNameInfo.ahead.editedEqualsWith(resultNameInfo.ahead))
+        arg.phonemes.offsetInfo.ahead.clear();
+    if (!curNameInfo.normal.editedEqualsWith(resultNameInfo.normal))
+        arg.phonemes.offsetInfo.normal.clear();
+    if (!curNameInfo.final.editedEqualsWith(resultNameInfo.final))
+        arg.phonemes.offsetInfo.final.clear();
+
+    arg.phonemes.nameInfo = resultNameInfo;
 
     QList list = {note};
     QList args = {arg};
@@ -304,8 +329,6 @@ void ClipEditorViewController::onFillLyric(QWidget *parent) {
         inputNote->setPronunciation(note->pronunciation());
         inputNote->setPronCandidates(note->pronCandidates());
         inputNote->setLanguage(note->language());
-        inputNote->setPhonemeInfo(Note::Original, note->phonemeInfo().original);
-        inputNote->setPhonemeInfo(Note::Edited, note->phonemeInfo().edited);
         inputNotes.append(inputNote);
     }
 

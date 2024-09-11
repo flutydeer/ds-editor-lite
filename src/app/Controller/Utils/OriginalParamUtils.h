@@ -6,11 +6,17 @@
 #define ORIGINALPARAMUTILS_H
 
 #include "Model/AppModel/Note.h"
+#include "Model/Inference/InferDurationDataModel.h"
+#include "Model/Inference/PhonemeNameModel.h"
 
 class OriginalParamUtils {
 public:
-    static void updateNotePronPhoneme(const QList<Note *> &notes,
-                                      const QList<Note::WordProperties> &args, SingingClip *clip);
+    static void updateNotesPronunciation(const QList<Note *> &notes, const QList<QString> &args,
+                                         SingingClip *clip);
+    static void updateNotesPhonemeName(const QList<Note *> &notes,
+                                       const QList<PhonemeNameResult> &args, SingingClip *clip);
+    static void updateNotesPhonemeOffset(const QList<Note *> &notes,
+                                         const QList<InferDurNote> &args, SingingClip *clip);
 };
 
 #endif // ORIGINALPARAMUTILS_H

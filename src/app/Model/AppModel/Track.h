@@ -11,11 +11,12 @@
 #include "Utils/OverlappableSerialList.h"
 #include "TrackControl.h"
 #include "Global/AppGlobal.h"
+#include "Interface/ISerializable.h"
 #include "Interface/ITrack.h"
 
 class Clip;
 
-class Track final : public QObject, public ITrack {
+class Track final : public QObject, public ITrack, public ISerializable {
     Q_OBJECT
 
 public:
@@ -50,6 +51,9 @@ public:
         bool mute = false;
         bool solo = false;
     };
+
+    [[nodiscard]] QJsonObject serialize() const override;
+    bool deserialize(const QJsonObject &obj) override;
 
 signals:
     void propertyChanged();

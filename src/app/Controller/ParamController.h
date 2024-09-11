@@ -15,7 +15,9 @@
 #include <QObject>
 
 
-class GetPronTask;
+
+class GetPronunciationTask;
+class GetPhonemeNameTask;
 
 class ParamController : public QObject, public Singleton<ParamController> {
     Q_OBJECT
@@ -36,21 +38,28 @@ private:
     void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes, SingingClip *clip);
 
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
-
-    void handleGetPronTaskFinished(GetPronTask *task);
+    void handleGetPronTaskFinished(GetPronunciationTask *task);
+    void handleGetPhonemeNameTaskFinished(GetPhonemeNameTask *task);
     void handleInferDurTaskFinished(InferDurationTask *task);
     static bool validateForInferDuration(int clipId);
 
     void createAndRunGetPronTask(SingingClip *clip);
+    void createAndRunGetPhonemeNameTask(SingingClip *clip);
     void createAndRunInferDurTask(SingingClip *clip);
     void cancelClipRelatedTasks(Clip *clip);
     void runNextGetPronTask();
+    void runNextGetPhonemeNameTask();
     void runNextInferDurTask();
 
     QList<Track *> m_tracks;
     // QList<Clip *> m_clips;
-    Queue<GetPronTask *> m_getPronTaskQueue;
-    GetPronTask *m_runningGetPronTask = nullptr;
+
+    Queue<GetPronunciationTask *> m_getPronTaskQueue;
+    GetPronunciationTask *m_runningGetPronTask = nullptr;
+
+    Queue<GetPhonemeNameTask *> m_getPhonemeNameTaskQueue;
+    GetPhonemeNameTask *m_runningGetPhonemeNameTask = nullptr;
+
     Queue<InferDurationTask *> m_inferDurTaskQueue;
     InferDurationTask *m_runningInferDurTask = nullptr;
 };

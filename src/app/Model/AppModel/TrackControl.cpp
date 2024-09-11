@@ -35,3 +35,20 @@ bool TrackControl::solo() const {
 void TrackControl::setSolo(bool solo) {
     m_solo = solo;
 }
+
+QJsonObject TrackControl::serialize() const {
+    return QJsonObject{
+        {"gain", m_gain},
+        {"pan",  m_pan },
+        {"mute", m_mute},
+        {"solo", m_solo}
+    };
+}
+
+bool TrackControl::deserialize(const QJsonObject &obj) {
+    m_gain = obj["gain"].toDouble();
+    m_pan = obj["pan"].toDouble();
+    m_mute = obj["mute"].toBool();
+    m_solo = obj["solo"].toBool();
+    return true;
+}

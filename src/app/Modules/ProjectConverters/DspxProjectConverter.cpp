@@ -67,32 +67,33 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         return params;
     };
 
-    auto decodePhonemes = [&](const QList<QDspx::Phoneme> &dspxPhonemes) {
-        QList<Phoneme> phonemes;
-        for (const QDspx::Phoneme &dspxPhoneme : dspxPhonemes) {
-            Phoneme phoneme(Phoneme::PhonemeType::Normal, dspxPhoneme.token, dspxPhoneme.start);
-            if (dspxPhoneme.type == QDspx::Phoneme::Type::Ahead) {
-                phoneme.type = Phoneme::PhonemeType::Ahead;
-            } else if (dspxPhoneme.type == QDspx::Phoneme::Type::Final) {
-                phoneme.type = Phoneme::PhonemeType::Final;
-            }
-            phonemes.append(phoneme);
-        }
-        return phonemes;
-    };
-    auto decodeNotes = [&](const QList<QDspx::Note> &dspxNotes) {
+    // auto decodePhonemes = [&](const QList<QDspx::Phoneme> &dspxPhonemes) {
+    //     QList<Phoneme> phonemes;
+    //     for (const QDspx::Phoneme &dspxPhoneme : dspxPhonemes) {
+    //         Phoneme phoneme(Phoneme::PhonemeType::Normal, dspxPhoneme.token, dspxPhoneme.start);
+    //         if (dspxPhoneme.type == QDspx::Phoneme::Type::Ahead) {
+    //             phoneme.type = Phoneme::PhonemeType::Ahead;
+    //         } else if (dspxPhoneme.type == QDspx::Phoneme::Type::Final) {
+    //             phoneme.type = Phoneme::PhonemeType::Final;
+    //         }
+    //         phonemes.append(phoneme);
+    //     }
+    //     return phonemes;
+    // };
+    auto decodeNotes = [&](const QList<QDspx::Note> &dspxNotes, int offset) {
         QList<Note *> notes;
         for (const QDspx::Note &dspxNote : dspxNotes) {
             const auto note = new Note;
-            note->setStart(dspxNote.pos);
+            note->setRStart(dspxNote.pos - offset);
             note->setLength(dspxNote.length);
             note->setKeyIndex(dspxNote.keyNum);
             note->setLyric(dspxNote.lyric);
             note->setLanguage(dspxNote.language);
             note->setPronunciation(
                 Pronunciation(dspxNote.pronunciation.org, dspxNote.pronunciation.edited));
-            note->setPhonemeInfo(Note::Original, decodePhonemes(dspxNote.phonemes.org));
-            note->setPhonemeInfo(Note::Edited, decodePhonemes(dspxNote.phonemes.edited));
+            note->setWorkspace(dspxNote.workspace);
+            // note->setPhonemeInfo(Note::Original, decodePhonemes(dspxNote.phonemes.org));
+            // note->setPhonemeInfo(Note::Edited, decodePhonemes(dspxNote.phonemes.edited));
             notes.append(note);
         }
         return notes;
@@ -109,7 +110,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 clip->setClipLen(castClip->time.clipLen);
                 clip->setGain(castClip->control.gain);
                 clip->setMute(castClip->control.mute);
-                auto notes = decodeNotes(castClip->notes);
+                auto notes = decodeNotes(castClip->notes, castClip->time.start);
                 for (auto &note : notes)
                     clip->insertNote(note);
                 clip->params = std::move(decodeSingingParams(castClip->params));
@@ -215,21 +216,21 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         encodeSingingParam(dsParams.breathiness, params.breathiness);
     };
 
-    auto encodePhonemes = [&](const QList<Phoneme> &dsPhonemes, QList<QDspx::Phoneme> &phonemes) {
-        for (const auto &dsPhoneme : dsPhonemes) {
-            QDspx::Phoneme phoneme;
-            phoneme.start = dsPhoneme.start;
-            phoneme.token = dsPhoneme.name;
-            if (dsPhoneme.type == Phoneme::PhonemeType::Ahead) {
-                phoneme.type = QDspx::Phoneme::Type::Ahead;
-            } else if (dsPhoneme.type == Phoneme::PhonemeType::Final) {
-                phoneme.type = QDspx::Phoneme::Type::Final;
-            } else {
-                phoneme.type = QDspx::Phoneme::Type::Normal;
-            }
-            phonemes.append(phoneme);
-        }
-    };
+    // auto encodePhonemes = [&](const QList<Phoneme> &dsPhonemes, QList<QDspx::Phoneme> &phonemes) {
+    //     for (const auto &dsPhoneme : dsPhonemes) {
+    //         QDspx::Phoneme phoneme;
+    //         phoneme.start = dsPhoneme.start;
+    //         phoneme.token = dsPhoneme.name;
+    //         if (dsPhoneme.type == Phoneme::PhonemeType::Ahead) {
+    //             phoneme.type = QDspx::Phoneme::Type::Ahead;
+    //         } else if (dsPhoneme.type == Phoneme::PhonemeType::Final) {
+    //             phoneme.type = QDspx::Phoneme::Type::Final;
+    //         } else {
+    //             phoneme.type = QDspx::Phoneme::Type::Normal;
+    //         }
+    //         phonemes.append(phoneme);
+    //     }
+    // };
 
     auto encodeNotes = [&](const OverlappableSerialList<Note> &dsNotes, QList<QDspx::Note> &notes) {
         for (const auto dsNote : dsNotes) {
@@ -241,8 +242,9 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             note.language = dsNote->language();
             note.pronunciation.org = dsNote->pronunciation().original;
             note.pronunciation.edited = dsNote->pronunciation().edited;
-            encodePhonemes(dsNote->phonemeInfo().original, note.phonemes.org);
-            encodePhonemes(dsNote->phonemeInfo().edited, note.phonemes.edited);
+            // encodePhonemes(dsNote->phonemeInfo().original, note.phonemes.org);
+            // encodePhonemes(dsNote->phonemeInfo().edited, note.phonemes.edited);
+            note.workspace = dsNote->workspace();
             notes.append(note);
         }
     };

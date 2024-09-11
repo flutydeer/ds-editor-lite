@@ -6,14 +6,52 @@
 
 #include "Model/AppModel/Clip.h"
 
-void OriginalParamUtils::updateNotePronPhoneme(const QList<Note *> &notes,
-                                               const QList<Note::WordProperties> &args,
-                                               SingingClip *clip) {
+void OriginalParamUtils::updateNotesPronunciation(const QList<Note *> &notes,
+                                                  const QList<QString> &args, SingingClip *clip) {
+    if (notes.count() != args.count()) {
+        qFatal() << "updateNotesPronunciation() note count != args count:" << notes.count()
+                 << args.count();
+        return;
+    }
     int i = 0;
     for (const auto note : notes) {
-        note->setPhonemeInfo(Note::Original, args[i].phonemes.original);
-        note->setPronunciation(Note::Original, args[i].pronunciation.original);
-        note->setPronCandidates(args[i].pronCandidates);
+        note->setPronunciation(Note::Original, args[i]);
+        i++;
+    }
+    clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
+}
+
+void OriginalParamUtils::updateNotesPhonemeName(const QList<Note *> &notes,
+                                                const QList<PhonemeNameResult> &args,
+                                                SingingClip *clip) {
+    if (notes.count() != args.count()) {
+        qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
+                 << args.count();
+        return;
+    }
+    int i = 0;
+    for (const auto note : notes) {
+        note->setPhonemeNameInfo(PhonemeInfoSeperated::Ahead, Note::Original, args[i].aheadNames);
+        note->setPhonemeNameInfo(PhonemeInfoSeperated::Normal, Note::Original, args[i].normalNames);
+        note->setPhonemeNameInfo(PhonemeInfoSeperated::Final, Note::Original, args[i].finalNames);
+        i++;
+    }
+    clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
+}
+
+void OriginalParamUtils::updateNotesPhonemeOffset(const QList<Note *> &notes,
+                                                  const QList<InferDurNote> &args,
+                                                  SingingClip *clip) {
+    if (notes.count() != args.count()) {
+        qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
+                 << args.count();
+        return;
+    }
+    int i = 0;
+    for (const auto note : notes) {
+        note->setPhonemeOffsetInfo(PhonemeInfoSeperated::Ahead, Note::Original, args[i].aheadOffsets);
+        note->setPhonemeOffsetInfo(PhonemeInfoSeperated::Normal, Note::Original, args[i].normalOffsets);
+        note->setPhonemeOffsetInfo(PhonemeInfoSeperated::Final, Note::Original, args[i].finalOffsets);
         i++;
     }
     clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);

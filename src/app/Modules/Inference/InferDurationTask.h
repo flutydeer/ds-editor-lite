@@ -6,30 +6,24 @@
 #define INFERDURATIONTASK_H
 
 #include "Model/AppModel/Phoneme.h"
+#include "Model/Inference/InferDurationDataModel.h"
 #include "Modules/Task/Task.h"
-
-
-class Note;
 
 class InferDurationTask : public Task {
 
 public:
-    explicit InferDurationTask(int clipId, const QList<Note *> &notes);
-    ~InferDurationTask() override;
-    const QList<Note*> &notes() const {
-        return m_notes;
-    }
-    QList<Phoneme> result();
+    explicit InferDurationTask(int clipId, const QList<InferDurNote> &input);
+    QList<InferDurNote> result();
     int clipId = -1;
 
 private:
     void runTask() override;
     void abort();
+    void buildPreviewText();
 
     QMutex m_mutex;
-    QList<Note *> m_notes;
+    QList<InferDurNote> m_notes;
     QString m_previewText;
-    QList<Phoneme> m_result;
 };
 
 

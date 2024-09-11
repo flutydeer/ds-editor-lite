@@ -14,6 +14,8 @@
 #include "Modules/ProjectConverters/MidiConverter.h"
 #include "Utils/MathUtils.h"
 
+#include <QJsonArray>
+
 AppModel::AppModel() : d_ptr(new AppModelPrivate(this)) {
 }
 
@@ -158,7 +160,7 @@ bool AppModel::importAceProject(const QString &filename) {
                 if (clip->clipType() == Clip::Singing) {
                     auto singingClip = reinterpret_cast<SingingClip *>(clip);
                     singingClip->defaultLanguage = track->defaultLanguage();
-                    NoteWordUtils::fillEditedPhonemeNames(singingClip->notes().toList());
+                    // NoteWordUtils::fillEditedPhonemeNames(singingClip->notes().toList());
                 }
             }
         }
@@ -178,6 +180,62 @@ void AppModel::loadFromAppModel(const AppModel &model) {
     // emit tempoChanged(d->m_tempo);
 }
 
+QJsonObject AppModel::serialize() const {
+    Q_D(const AppModel);
+    const QJsonObject objGlobal{
+        {"author",    QString()},
+        {"centShift", 0        },
+        {"name",      QString()}
+    };
+
+    const QJsonObject objControl{
+        {"gain", 0    },
+        {"mute", false},
+        {"pan",  0    }
+    };
+
+    QJsonObject objMaster{
+        {"control", objControl}
+    };
+
+    const QJsonObject objTempo{
+        {"pos",   0         },
+        {"value", d->m_tempo}
+    };
+
+    QJsonArray arrTempos = {objTempo};
+
+    const auto objTimeSignature = d->m_timeSignature.serialize();
+    QJsonArray arrTimeSignatures = {objTimeSignature};
+
+    QJsonObject objTimeLine{
+        {"labels",         QJsonArray()     },
+        {"tempos",         arrTempos        },
+        {"timeSignatures", arrTimeSignatures}
+    };
+
+    QJsonArray arrTracks;
+    for (const auto track : d->m_tracks)
+        arrTracks.append(track->serialize());
+
+    QJsonObject objContent{
+        {"global",   objGlobal  },
+        {"master",   objMaster  },
+        {"timeline", objTimeLine},
+        {"tracks",   arrTracks  },
+        {"workspace", QJsonObject()}
+    };
+
+    return QJsonObject{
+        {"content", objContent},
+        {"version", "0.0.1"   }
+    };
+}
+
+bool AppModel::deserialize(const QJsonObject &obj) {
+    return false;
+}
+
 bool AppModel::importMidiFile(const QString &filename) {
     Q_D(AppModel);
     QString errMsg;
@@ -193,7 +251,7 @@ bool AppModel::importMidiFile(const QString &filename) {
     AppModel resultModel;
     MidiConverter converter;
     auto ok = converter.load(filename, &resultModel, errMsg,
-                              static_cast<IProjectConverter::ImportMode>(midiImport));
+                             static_cast<IProjectConverter::ImportMode>(midiImport));
     if (midiImport == ImportMode::NewProject) {
         loadFromAppModel(resultModel);
     } else if (midiImport == ImportMode::AppendToProject) {
@@ -297,7 +355,7 @@ void AppModelPrivate::reset() {
 
 void AppModelPrivate::dispose() const {
     qDebug() << "dispose";
-    for (int i = 0; i < m_previousTracks.count();i++) {
+    for (int i = 0; i < m_previousTracks.count(); i++) {
         auto track = m_previousTracks.at(i);
         delete track;
     }

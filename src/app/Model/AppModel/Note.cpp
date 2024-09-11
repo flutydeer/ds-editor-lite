@@ -102,20 +102,88 @@ void Note::setPronCandidates(const QStringList &pronCandidates) {
     m_pronCandidates = pronCandidates;
 }
 
-PhonemeInfo Note::phonemeInfo() const {
-    return m_phonemes;
+// PhonemeInfo Note::phonemeInfo() const {
+//     return m_phonemes;
+// }
+//
+// void Note::setPhonemeInfo(WordPropertyType type, const QList<Phoneme> &phonemes) {
+//     if (type == Original)
+//         m_phonemes.original = phonemes;
+//     else if (type == Edited)
+//         m_phonemes.edited = phonemes;
+// }
+//
+// void Note::setPhonemeInfo(const QList<Phoneme> &original, const QList<Phoneme> &edited) {
+//     m_phonemes.original = original;
+//     m_phonemes.edited = edited;
+// }
+//
+// void Note::setPhonemeInfo(const PhonemeInfo &info) {
+//     qCritical() << "Deprecated method setPhonemeInfo() called";
+// }
+
+const PhonemeInfoSeperated &Note::phonemes() const {
+    return m_phonemeInfo;
 }
 
-void Note::setPhonemeInfo(WordPropertyType type, const QList<Phoneme> &phonemes) {
-    if (type == Original)
-        m_phonemes.original = phonemes;
-    else if (type == Edited)
-        m_phonemes.edited = phonemes;
+void Note::setPhonemes(const PhonemeInfoSeperated &phonemes) {
+    m_phonemeInfo = phonemes;
 }
 
-void Note::setPhonemeInfo(const QList<Phoneme> &original, const QList<Phoneme> &edited) {
-    m_phonemes.original = original;
-    m_phonemes.edited = edited;
+const PhonemeNameInfo &Note::phonemeNameInfo() const {
+    return m_phonemeInfo.nameInfo;
+}
+
+void Note::setPhonemeNameInfo(const PhonemeNameInfo &info) {
+    m_phonemeInfo.nameInfo = info;
+}
+
+void Note::setPhonemeNameInfo(PhonemeInfoSeperated::PhonemeType phType, WordPropertyType wordType,
+                              const QList<QString> &nameSeq) {
+    if (phType == PhonemeInfoSeperated::Ahead) {
+        if (wordType == Original)
+            m_phonemeInfo.nameInfo.ahead.original = nameSeq;
+        else if (wordType == Edited)
+            m_phonemeInfo.nameInfo.ahead.edited = nameSeq;
+    } else if (phType == PhonemeInfoSeperated::Normal) {
+        if (wordType == Original)
+            m_phonemeInfo.nameInfo.normal.original = nameSeq;
+        else if (wordType == Edited)
+            m_phonemeInfo.nameInfo.normal.edited = nameSeq;
+    } else if (phType == PhonemeInfoSeperated::Final) {
+        if (wordType == Original)
+            m_phonemeInfo.nameInfo.final.original = nameSeq;
+        else if (wordType == Edited)
+            m_phonemeInfo.nameInfo.final.edited = nameSeq;
+    }
+}
+
+const PhonemeOffsetInfo &Note::phonemeOffsetInfo() const {
+    return m_phonemeInfo.offsetInfo;
+}
+
+void Note::setPhonemeOffsetInfo(const PhonemeOffsetInfo &info) {
+    m_phonemeInfo.offsetInfo = info;
+}
+
+void Note::setPhonemeOffsetInfo(PhonemeInfoSeperated::PhonemeType phType, WordPropertyType wordType,
+                                const QList<int> &offsetSeq) {
+    if (phType == PhonemeInfoSeperated::Ahead) {
+        if (wordType == Original)
+            m_phonemeInfo.offsetInfo.ahead.original = offsetSeq;
+        else if (wordType == Edited)
+            m_phonemeInfo.offsetInfo.ahead.edited = offsetSeq;
+    } else if (phType == PhonemeInfoSeperated::Normal) {
+        if (wordType == Original)
+            m_phonemeInfo.offsetInfo.normal.original = offsetSeq;
+        else if (wordType == Edited)
+            m_phonemeInfo.offsetInfo.normal.edited = offsetSeq;
+    } else if (phType == PhonemeInfoSeperated::Final) {
+        if (wordType == Original)
+            m_phonemeInfo.offsetInfo.final.original = offsetSeq;
+        else if (wordType == Edited)
+            m_phonemeInfo.offsetInfo.final.edited = offsetSeq;
+    }
 }
 
 QString Note::language() const {
@@ -136,6 +204,25 @@ void Note::setLineFeed(const bool &lineFeed) {
 
 bool Note::isSlur() const {
     return m_lyric.contains('-');
+}
+
+QMap<QString, QJsonObject> Note::workspace() const {
+    QJsonObject objLite{
+        {"phoneme", m_phonemeInfo.serialize()}
+    };
+    return QMap<QString, QJsonObject>{
+        {"ds-editor-lite", objLite}
+    };
+}
+
+void Note::setWorkspace(const QMap<QString, QJsonObject> &workspace) {
+    if (workspace.contains("ds-editor-lite")) {
+        auto objLite = workspace["ds-editor-lite"];
+        if (objLite.contains("phoneme")) {
+            auto objPhoneme = objLite["phoneme"].toObject();
+            m_phonemeInfo.deserialize(objPhoneme);
+        }
+    }
 }
 
 int Note::compareTo(const Note *obj) const {
@@ -159,35 +246,20 @@ std::tuple<qsizetype, qsizetype> Note::interval() const {
     return std::make_tuple(rStart(), rStart() + length());
 }
 
+QJsonObject Note::serialize() const {
+    return QJsonObject();
+}
+
+bool Note::deserialize(const QJsonObject &obj) {
+    return false;
+}
+
 Note::WordProperties Note::WordProperties::fromNote(const Note &note) {
     WordProperties properties;
     properties.lyric = note.lyric();
     properties.pronunciation = note.pronunciation();
     properties.language = note.language();
     properties.pronCandidates = note.pronCandidates();
-    properties.phonemes = note.phonemeInfo();
+    properties.phonemes = note.phonemes();
     return properties;
-}
-
-QDataStream &operator<<(QDataStream &out, const Note &note) {
-    // out << note.m_id;
-    out << note.m_rStart;
-    out << note.m_length;
-    out << note.m_keyIndex;
-    out << note.m_lyric;
-    out << note.m_language;
-    out << note.m_pronunciation;
-    out << note.m_phonemes;
-    return out;
-}
-
-QDataStream &operator>>(QDataStream &in, Note &note) {
-    in >> note.m_rStart;
-    in >> note.m_length;
-    in >> note.m_keyIndex;
-    in >> note.m_lyric;
-    in >> note.m_language;
-    in >> note.m_pronunciation;
-    in >> note.m_phonemes;
-    return in;
 }

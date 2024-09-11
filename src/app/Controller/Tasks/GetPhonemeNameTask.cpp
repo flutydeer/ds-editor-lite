@@ -2,18 +2,18 @@
 // Created by OrangeCat on 24-9-3.
 //
 
-#include "GetPronTask.h"
+#include "GetPhonemeNameTask.h"
 
 #include "Controller/Utils/NoteWordUtils.h"
 #include "Model/AppModel/Note.h"
 #include "Utils/AppModelUtils.h"
 
 #include <QDebug>
-#include <QEventLoop>
+// #include <QEventLoop>
 #include <QMutexLocker>
 #include <QThread>
 
-GetPronTask::GetPronTask(int clipId, const QList<Note *> &notes) : clipId(clipId) {
+GetPhonemeNameTask::GetPhonemeNameTask(int clipId, const QList<Note *> &notes) : clipId(clipId) {
     notesRef = notes;
     AppModelUtils::copyNotes(notes, m_notes);
     for (int i = 0; i < notes.count(); i++) {
@@ -25,13 +25,13 @@ GetPronTask::GetPronTask(int clipId, const QList<Note *> &notes) : clipId(clipId
         }
     }
     TaskStatus status;
-    status.title = "获取发音和音素信息";
+    status.title = "获取音素信息";
     status.message = m_previewText;
     status.isIndetermine = true;
     setStatus(status);
 }
 
-void GetPronTask::runTask() {
+void GetPhonemeNameTask::runTask() {
     // if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
     processNotes();
     /*else {
@@ -72,10 +72,16 @@ void GetPronTask::runTask() {
     emit finished();
 }
 
-void GetPronTask::processNotes() {
+void GetPhonemeNameTask::processNotes() {
     // qDebug() << "Language module ready, start to process notes";
     auto newStatus = status();
     newStatus.message = "正在处理: " + m_previewText;
     setStatus(newStatus);
-    result = NoteWordUtils::getOriginalWordProperties(m_notes);
+
+    QList<QString> inputs;
+    for (const auto note : m_notes) {
+        // 如果发音已编辑，则使用已编辑的发音作为获取音素名称的输入
+        inputs.append(note->pronunciation().result());
+    }
+    result = NoteWordUtils::getPhonemeNames(inputs);
 }

@@ -12,12 +12,6 @@ public:
     QList<Note *> selectedNotes{};
     // TODO: add params
 
-    friend QDataStream &operator<<(QDataStream &out, const NotesParamsInfo &info);
-    friend QDataStream &operator>>(QDataStream &in, NotesParamsInfo &info);
-
-    static QByteArray serializeToBinary(const NotesParamsInfo &info);
-    static NotesParamsInfo deserializeFromBinary(const QByteArray &byteArray);
-
     // static QJsonObject serializeToJson(const NotesParamsInfo &info);
     // static NotesParamsInfo deserializeFromJson(const QJsonObject &obj);
 };

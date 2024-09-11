@@ -24,18 +24,22 @@ public:
 
     class PhonemeViewModel {
     public:
-        enum PhonemeItemType { Ahead, Normal, Final, Sil };
+        enum PhonemeType { Ahead, Normal, Final, Sil };
 
-        PhonemeItemType type;
-        int noteId;
-        int start;
+        PhonemeType type;
+        int noteId = -1;
+        int noteStart = 0;
+        int noteLength = 0;
+        int start = 0;
         QString name;
-        bool edited = false;
+        bool nameEdited = false;
+        bool offsetEdited = false;
+        bool offsetReady = false;
         bool hoverOnControlBar = false;
         int startOffset = 0;
 
-        PhonemeViewModel *prior;
-        PhonemeViewModel *next;
+        PhonemeViewModel *prior = nullptr;
+        PhonemeViewModel *next = nullptr;
     };
 
 signals:
@@ -87,6 +91,7 @@ private:
     bool m_freezeHoverEffects = false;
     bool m_showDebugInfo = false;
     int m_canEditTicksPerPixelThreshold = 6;
+    bool m_mouseMoved = false;
 
     SingingClip *m_clip = nullptr;
 
@@ -95,7 +100,7 @@ private:
     void buildPhonemeList();
     void resetPhonemeList();
     void clearHoverEffects(PhonemeViewModel *except = nullptr);
-    void handleAdjustCompleted(PhonemeViewModel *phonemeViewModel);
+    void handleAdjustCompleted(PhonemeViewModel *phVm);
 };
 
 

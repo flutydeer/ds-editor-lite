@@ -35,11 +35,11 @@ void ClipboardController::paste() {
         qDebug() << "Mime data has NoteWithParams";
         auto array =
             mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
-        auto info = NotesParamsInfo::deserializeFromBinary(array);
+        // auto info = NotesParamsInfo::deserializeFromBinary(array);
         // auto json = QJsonDocument::fromJson(array);
         // auto info = NotesParamsInfo::deserializeFromJson(json.object());
         auto tick = playbackController->position();
-        clipController->pasteNotesWithParams(info, static_cast<int>(tick));
+        // clipController->pasteNotesWithParams(info, static_cast<int>(tick));
     }
 }
 

@@ -9,114 +9,96 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Language/S2p.h"
 
-QList<Note::WordProperties> NoteWordUtils::getOriginalWordProperties(const QList<Note *> &notes) {
+QList<QString> NoteWordUtils::getPronunciations(const QList<Note *> &notes) {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
         qFatal() << "Language module not ready yet";
-        return QList<Note::WordProperties>();
+        return {};
     }
     const auto langMgr = LangMgr::ILanguageManager::instance();
-
-    const auto syllable2p = S2p::instance();
     QList<LangNote *> langNotes;
-    QList<PhonemeInfo> notesPhonemes;
     for (const auto note : notes) {
         const auto language = note->language() == "unknown" ? "unknown" : note->language();
         const auto category =
             note->language() == "unknown" ? "unknown" : langMgr->language(language)->category();
         langNotes.append(new LangNote(note->lyric(), language, category));
-        notesPhonemes.append(note->phonemeInfo());
     }
 
     langMgr->correct(langNotes);
     langMgr->convert(langNotes);
 
-    QList<Note::WordProperties> args;
-    for (int i = 0; i < langNotes.size(); i++) {
-        auto arg = Note::WordProperties::fromNote(*notes[i]);
-        arg.lyric = langNotes[i]->lyric;
-        arg.pronunciation.original = langNotes[i]->syllable;
-        arg.phonemes.original = notesPhonemes[i].original;
-        // const auto phonemes = syllable2p->syllableToPhoneme(langNotes[i]->syllable);
-        auto pron = arg.pronunciation.isEdited() ? arg.pronunciation.edited : langNotes[i]->syllable;
-        const auto phonemes = syllable2p->syllableToPhoneme(pron);
-        if (!phonemes.empty()) {
-            if (phonemes.size() == 1) {
-                const QString &first = phonemes.at(0);
-                arg.phonemes.original.append(Phoneme(Phoneme::Normal, first, 0));
-
-                if (arg.phonemes.original.count() != 1) {
-                    arg.phonemes.original.clear();
-                    auto phoneme = Phoneme();
-                    phoneme.type = Phoneme::Normal;
-                    phoneme.start = 0;
-                    arg.phonemes.original.append(phoneme);
-                }
-                arg.phonemes.original.last().name = first;
-            } else if (phonemes.size() == 2) {
-                const QString &first = phonemes.at(0);
-                const QString &last = phonemes.at(1);
-                arg.phonemes.original.append(Phoneme(Phoneme::Ahead, first, 0));
-                arg.phonemes.original.append(Phoneme(Phoneme::Normal, last, 0));
-
-                if (arg.phonemes.original.count() != 2) {
-                    arg.phonemes.original.clear();
-                    auto phoneme = Phoneme();
-                    phoneme.type = Phoneme::Ahead;
-                    phoneme.start = 0;
-                    arg.phonemes.original.append(phoneme);
-
-                    phoneme.type = Phoneme::Normal;
-                    phoneme.start = 0;
-                    arg.phonemes.original.append(phoneme);
-                }
-                arg.phonemes.original.first().name = first;
-                arg.phonemes.original.last().name = last;
-            }
-        }
-        args.append(arg);
+    QList<QString> result;
+    for (const auto pNote : langNotes) {
+        result.append(pNote->syllable);
+        delete pNote;
     }
-
-    return args;
+    return result;
 }
 
-void NoteWordUtils::fillEditedPhonemeNames(const QList<Note *> &notes) {
+QList<PhonemeNameResult> NoteWordUtils::getPhonemeNames(const QList<QString> &input) {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
         qFatal() << "Language module not ready yet";
-        return;
+        return {};
     }
-    const auto langMgr = LangMgr::ILanguageManager::instance();
     const auto syllable2p = S2p::instance();
-    QList<LangNote *> langNotes;
-    QList<PhonemeInfo> notesPhonemes;
-    for (const auto note : notes) {
-        const auto language = note->language() == "unknown" ? "unknown" : note->language();
-        const auto category =
-            note->language() == "unknown" ? "unknown" : langMgr->language(language)->category();
-        langNotes.append(new LangNote(note->lyric(), language, category));
-        notesPhonemes.append(note->phonemeInfo());
-    }
-
-    langMgr->correct(langNotes);
-    langMgr->convert(langNotes);
-
-    for (int i = 0; i < langNotes.size(); i++) {
-        auto note = notes[i];
-        auto notePhonemes = note->phonemeInfo();
-        const auto phonemes = syllable2p->syllableToPhoneme(langNotes[i]->syllable);
-        if (!phonemes.empty()) {
+    QList<PhonemeNameResult> result;
+    for (const auto &pronunciation : input) {
+        PhonemeNameResult note;
+        if (const auto phonemes = syllable2p->syllableToPhoneme(pronunciation); !phonemes.empty()) {
             if (phonemes.size() == 1) {
-                const QString &first = phonemes.at(0);
-                note->setPhonemeInfo(
-                    Note::Edited,
-                    {Phoneme(Phoneme::Normal, first, notePhonemes.edited.first().start)});
+                note.normalNames.append(phonemes.at(0));
             } else if (phonemes.size() == 2) {
-                const QString &first = phonemes.at(0);
-                const QString &last = phonemes.at(1);
-                const auto phones = {
-                    Phoneme(Phoneme::Ahead, first, notePhonemes.edited.first().start),
-                    Phoneme(Phoneme::Normal, last, notePhonemes.edited.last().start)};
-                note->setPhonemeInfo(Note::Edited, phones);
-            }
+                note.aheadNames.append(phonemes.at(0));
+                note.normalNames.append(phonemes.at(1));
+            } else
+                qCritical() << "Cannot handle more than 2 phonemes" << phonemes;
+        } else {
+            //TODO: 处理转音记号
+            qCritical() << "Failed to get phoneme names of pronunciation:" << pronunciation;
         }
+        result.append(note);
     }
+
+    return result;
 }
+
+// void NoteWordUtils::fillEditedPhonemeNames(const QList<Note *> &notes) {
+//     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
+//         qFatal() << "Language module not ready yet";
+//         return;
+//     }
+//     const auto langMgr = LangMgr::ILanguageManager::instance();
+//     const auto syllable2p = S2p::instance();
+//     QList<LangNote *> langNotes;
+//     QList<PhonemeInfo> notesPhonemes;
+//     for (const auto note : notes) {
+//         const auto language = note->language() == "unknown" ? "unknown" : note->language();
+//         const auto category =
+//             note->language() == "unknown" ? "unknown" : langMgr->language(language)->category();
+//         langNotes.append(new LangNote(note->lyric(), language, category));
+//         notesPhonemes.append(note->phonemeInfo());
+//     }
+//
+//     langMgr->correct(langNotes);
+//     langMgr->convert(langNotes);
+//
+//     for (int i = 0; i < langNotes.size(); i++) {
+//         auto note = notes[i];
+//         auto notePhonemes = note->phonemeInfo();
+//         const auto phonemes = syllable2p->syllableToPhoneme(langNotes[i]->syllable);
+//         if (!phonemes.empty()) {
+//             if (phonemes.size() == 1) {
+//                 const QString &first = phonemes.at(0);
+//                 note->setPhonemeInfo(
+//                     Note::Edited,
+//                     {Phoneme(Phoneme::Normal, first, notePhonemes.edited.first().start)});
+//             } else if (phonemes.size() == 2) {
+//                 const QString &first = phonemes.at(0);
+//                 const QString &last = phonemes.at(1);
+//                 const auto phones = {
+//                     Phoneme(Phoneme::Ahead, first, notePhonemes.edited.first().start),
+//                     Phoneme(Phoneme::Normal, last, notePhonemes.edited.last().start)};
+//                 note->setPhonemeInfo(Note::Edited, phones);
+//             }
+//         }
+//     }
+// }

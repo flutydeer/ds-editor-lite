@@ -2,21 +2,22 @@
 // Created by OrangeCat on 24-9-3.
 //
 
-#ifndef GETPRONTASK_H
-#define GETPRONTASK_H
+#ifndef GETPHONEMENAMETASK_H
+#define GETPHONEMENAMETASK_H
 
 #include "Model/AppModel/Note.h"
+#include "Model/Inference/PhonemeNameModel.h"
 #include "Modules/Task/Task.h"
 
-class GetPronTask : public Task {
+class GetPhonemeNameTask : public Task {
     Q_OBJECT
 public:
-    explicit GetPronTask(int clipId, const QList<Note *> &notes);
+    explicit GetPhonemeNameTask(int clipId, const QList<Note *> &notes);
     // [[nodiscard]] QList<Note *> &notes();
     int clipId = -1;
     QList<Note *> notesRef;
 
-    QList<Note::WordProperties> result;
+    QList<PhonemeNameResult> result;
 
 private:
     void runTask() override;
@@ -29,4 +30,4 @@ private:
 
 
 
-#endif // GETPRONTASK_H
+#endif // GETPHONEMENAMETASK_H

@@ -6,13 +6,15 @@
 #define NOTEWORDUTILS_H
 
 #include "Model/AppModel/Note.h"
+#include "Model/Inference/PhonemeNameModel.h"
 
 #include <QList>
 
 class NoteWordUtils {
 public:
-    static QList<Note::WordProperties> getOriginalWordProperties(const QList<Note *> &notes);
-    static void fillEditedPhonemeNames(const QList<Note *> &notes);
+    static QList<QString> getPronunciations(const QList<Note *> &notes);
+    static QList<PhonemeNameResult> getPhonemeNames(const QList<QString> &input);
+    // static void fillEditedPhonemeNames(const QList<Note *> &notes);
 };
 
 #endif // NOTEWORDUTILS_H

@@ -30,8 +30,8 @@ private:
     QLineEdit *m_lePhonemeFinal;
     Note *m_note;
 
-    static QString phonemesToString(const QList<Phoneme> &phonemes);
-    static QList<Phoneme> phonemesFromString(Phoneme::PhonemeType type, const QString &names);
+    static QString phonemesToString(const QList<QString> &phonemes);
+    static QStringList phonemesFromString(const QString &names);
 };
 
 

@@ -49,7 +49,7 @@ public slots:
     void onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey);
     void onResizeNotesLeft(const QList<int> &notesId, int deltaTick) const;
     void onResizeNotesRight(const QList<int> &notesId, int deltaTick) const;
-    void onAdjustPhoneme(int noteId, const QList<Phoneme> &phonemes) const;
+    void onAdjustPhonemeOffset(int noteId, PhonemeInfoSeperated::PhonemeType type,const QList<int> &offsets) const;
     void selectNotes(const QList<int> &notesId, bool unselectOther);
     void unselectNotes(const QList<int> &notesId);
     void onOriginalPitchChanged(const QList<Curve *> &curves) const;

@@ -12,7 +12,7 @@ public:
     QString language;
     QString lyric;
     Pronunciation pronunciation;
-    PhonemeInfo phonemes;
+    PhonemeNameInfo phonemeNameInfo;
 };
 
 

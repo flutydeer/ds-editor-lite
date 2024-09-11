@@ -7,17 +7,16 @@
 
 #define appModel AppModel::instance()
 
-#include <QJsonObject>
-
 #include "Utils/Singleton.h"
 #include "Clip.h"
 #include "TimeSignature.h"
+#include "Interface/ISerializable.h"
 
 class Track;
 class WorkspaceEditor;
 class AppModelPrivate;
 
-class AppModel final : public QObject, public Singleton<AppModel> {
+class AppModel final : public QObject, public Singleton<AppModel>, public ISerializable {
     Q_OBJECT
 
 public:
@@ -47,6 +46,9 @@ public:
     bool saveProject(const QString &filename);
     bool importAceProject(const QString &filename);
     void loadFromAppModel(const AppModel &model);
+
+    [[nodiscard]] QJsonObject serialize() const override;
+    bool deserialize(const QJsonObject &obj) override;
 
     Clip *findClipById(int clipId, Track *&trackRef) const;
     Clip *findClipById(int clipId, int &trackIndex);

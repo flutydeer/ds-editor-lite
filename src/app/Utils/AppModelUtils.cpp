@@ -18,7 +18,7 @@ void AppModelUtils::copyNotes(const QList<Note *> &source, QList<Note *> &target
         newNote->setLyric(note->lyric());
         newNote->setPronunciation(note->pronunciation());
         newNote->setPronCandidates(note->pronCandidates());
-        newNote->setPhonemeInfo(note->phonemeInfo().original, note->phonemeInfo().edited);
+        newNote->setPhonemes(note->phonemes());
         newNote->setLanguage(note->language());
         newNote->setLineFeed(note->lineFeed());
         target.append(newNote);

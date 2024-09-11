@@ -5,7 +5,9 @@
 #ifndef DSTRACKCONTROL_H
 #define DSTRACKCONTROL_H
 
-class TrackControl {
+#include "Interface/ISerializable.h"
+
+class TrackControl : public ISerializable{
 public:
     [[nodiscard]] double gain() const;
     void setGain(double gain);
@@ -15,6 +17,9 @@ public:
     void setMute(bool mute);
     [[nodiscard]] bool solo() const;
     void setSolo(bool solo);
+
+    [[nodiscard]] QJsonObject serialize() const override;
+    bool deserialize(const QJsonObject &obj) override;
 
 private:
     double m_gain = 0.0;

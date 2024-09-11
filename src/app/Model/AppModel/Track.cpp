@@ -8,6 +8,8 @@
 #include "Clip.h"
 #include "Utils/MathUtils.h"
 
+#include <QJsonArray>
+
 Track::~Track() {
     qDebug() << "Track::~Track()";
     for (auto clip : m_clips)
@@ -77,4 +79,19 @@ Track::TrackProperties::TrackProperties(const ITrack &track) {
     pan = control.pan();
     mute = control.mute();
     solo = control.solo();
+}
+
+QJsonObject Track::serialize() const {
+    QJsonArray arrClips;
+    return QJsonObject{
+        {"name",      m_name               },
+        {"control",   m_control.serialize()},
+        {"clips",     arrClips             },
+        {"extra",     QJsonObject()        },
+        {"workspace", QJsonObject()        }
+    };
+}
+
+bool Track::deserialize(const QJsonObject &obj) {
+    return true;
 }
