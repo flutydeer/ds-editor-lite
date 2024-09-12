@@ -25,8 +25,7 @@ EditLabel::EditLabel(QWidget *parent) : QStackedWidget(parent) {
 void EditLabel::mouseDoubleClickEvent(QMouseEvent *event) {
     const auto editRect = QRectF(label->x(), label->y(), label->width(), label->height());
     EditDialog dlg(label->text(), editRect, this->font(), this);
-    dlg.show();
-    dlg.activateWindow();
+    dlg.setModal(true);
     dlg.exec();
     if (dlg.text != label->text()) {
         label->setText(dlg.text);
