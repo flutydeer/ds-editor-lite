@@ -9,6 +9,7 @@
 
 class AudioPage;
 class MidiPage;
+class PseudoSingerPage;
 class AppearancePage;
 class LanguagePage;
 class GeneralPage;
@@ -25,6 +26,7 @@ public:
         General,
         Audio,
         Midi,
+        PseudoSinger,
         Appearance,
         Language,
         Save,
@@ -39,7 +41,7 @@ private slots:
     void onSelectionChanged(int index);
 
 private:
-    QStringList m_pageNames = {tr("General"),          tr("Audio"), tr("MIDI"),
+    QStringList m_pageNames = {tr("General"),          tr("Audio"), tr("MIDI"), tr("Pseudo Singer"),
                                tr("Appearance"),       tr("Language"),
                             /* tr("Save"),               tr("Inference"),
                              * tr("Preview Functions"),  tr("Developer Options")*/};
@@ -50,6 +52,7 @@ private:
     GeneralPage *m_generalPage;
     AudioPage *m_audioPage;
     MidiPage *m_midiPage;
+    PseudoSingerPage *m_pseudoSingerPage;
     AppearancePage *m_appearancePage;
     LanguagePage *m_languagePage;
     QList<IOptionPage *> m_pages;

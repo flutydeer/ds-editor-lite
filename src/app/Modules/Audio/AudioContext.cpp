@@ -30,6 +30,8 @@
 #include <Modules/Audio/TrackSynthesizer.h>
 
 #include "Model/AppModel/Track.h"
+#include "utils/PseudoSingerConfigNotifier.h"
+
 #include <Model/AppOptions/AppOptions.h>
 
 #define DEVICE_LOCKER                                                                              \
@@ -276,6 +278,8 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         emit levelMeterUpdated(args);
     });
     m_levelMeterTimer->start();
+
+    new PseudoSingerConfigNotifier(this);
 }
 
 AudioContext::~AudioContext() {

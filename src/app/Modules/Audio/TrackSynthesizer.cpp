@@ -15,18 +15,18 @@
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/AudioSettings.h>
+#include <Modules/Audio/utils/PseudoSingerConfigNotifier.h>
 
 #define DEVICE_LOCKER                                                                              \
     talcs::AudioDeviceLocker locker(AudioSystem::outputSystem()->context()->device())
 
 TrackSynthesizer::TrackSynthesizer(talcs::DspxTrackContext *trackContext, Track *track)
-    : talcs::DspxPseudoSingerContext(trackContext), m_track(track) {
-    talcs::NoteSynthesizerConfig config_;
-    config_.setAttackTime(480);
-    config_.setDecayTime(48000);
-    config_.setDecayRatio(0.5);
-    config_.setReleaseTime(2400);
-    setConfig(config_);
+    : DspxPseudoSingerContext(trackContext), m_track(track) {
+    setConfig(PseudoSingerConfigNotifier::config(0));
+    connect(PseudoSingerConfigNotifier::instance(), &PseudoSingerConfigNotifier::configChanged, this, [=](int synthIndex, const talcs::NoteSynthesizerConfig &config) {
+        if (synthIndex == 0)
+            setConfig(config);
+    });
 
     for (auto clip : track->clips()) {
         if (clip->clipType() != IClip::Singing)
