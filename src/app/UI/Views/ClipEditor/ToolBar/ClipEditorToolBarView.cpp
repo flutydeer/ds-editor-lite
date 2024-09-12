@@ -88,7 +88,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     leGain->setObjectName("leGain");
     leGain->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     leGain->label->setAlignment(Qt::AlignCenter);
-    leGain->lineEdit->setAlignment(Qt::AlignCenter);
     leGain->setFixedWidth(d->m_contentHeight * 2);
     leGain->setFixedHeight(d->m_contentHeight);
     leGain->setEnabled(false);

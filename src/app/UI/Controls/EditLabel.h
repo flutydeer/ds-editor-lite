@@ -15,23 +15,18 @@ class EditLabel : public QStackedWidget {
 
 public:
     explicit EditLabel(QWidget *parent = nullptr);
-    // explicit EditLabel(const QString &text, QWidget *parent = nullptr);
 
     QLabel *label;
     LineEdit *lineEdit;
 
-    [[nodiscard]] QString text() const;
+    QString text() const;
     void setText(const QString &text);
-    void setUpdateLabelWhenEditCompleted(bool on);
 
 signals:
     void editCompleted(const QString &text);
 
-private:
-    bool eventFilter(QObject *object, QEvent *event) override;
-
-    bool m_editing = false;
-    bool m_updateLabelWhenEditCompleted = true;
+protected:
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
 };
 
 #endif // DATASET_TOOLS_EDITLABEL_H
