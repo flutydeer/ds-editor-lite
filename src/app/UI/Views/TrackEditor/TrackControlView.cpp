@@ -100,7 +100,6 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     m_lePan->setFixedHeight(m_buttonSize);
     m_lePan->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     m_lePan->label->setAlignment(Qt::AlignCenter);
-    m_lePan->lineEdit->setAlignment(Qt::AlignCenter);
     m_lePan->setEnabled(false);
     connect(m_sbPan, &SeekBar::valueChanged, m_lePan,
             [=](int value) { m_lePan->setText(panValueToString(value)); });
@@ -120,7 +119,6 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     m_leGain->setObjectName("leGain");
     m_leGain->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     m_leGain->label->setAlignment(Qt::AlignCenter);
-    m_leGain->lineEdit->setAlignment(Qt::AlignCenter);
     m_leGain->setFixedWidth(2 * m_buttonSize);
     m_leGain->setFixedHeight(m_buttonSize);
     m_leGain->setEnabled(false);

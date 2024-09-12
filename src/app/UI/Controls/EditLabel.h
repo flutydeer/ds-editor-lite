@@ -17,7 +17,6 @@ public:
     explicit EditLabel(QWidget *parent = nullptr);
 
     QLabel *label;
-    LineEdit *lineEdit;
 
     QString text() const;
     void setText(const QString &text);

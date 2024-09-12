@@ -21,15 +21,11 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTempo = new EditLabel;
     m_elTempo->setObjectName("elTempo");
     m_elTempo->setText(QString::number(m_tempo));
-    auto doubleValidator = new QDoubleValidator(m_elTempo->lineEdit);
-    m_elTempo->lineEdit->setValidator(doubleValidator);
-    m_elTempo->lineEdit->setAlignment(Qt::AlignCenter);
     m_elTempo->label->setAlignment(Qt::AlignCenter);
     m_elTempo->setFixedSize(56, m_contentHeight);
 
     m_elTimeSignature = new EditLabel;
     m_elTimeSignature->setObjectName("elTimeSignature");
-    m_elTimeSignature->lineEdit->setAlignment(Qt::AlignCenter);
     m_elTimeSignature->label->setAlignment(Qt::AlignCenter);
     m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
     m_elTimeSignature->setFixedSize(48, m_contentHeight);
@@ -66,7 +62,6 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
 
     m_elTime = new EditLabel;
     m_elTime->setObjectName("elTime");
-    m_elTime->lineEdit->setAlignment(Qt::AlignCenter);
     m_elTime->label->setAlignment(Qt::AlignCenter);
     m_elTime->setText(toFormattedTickTime(m_tick));
     m_elTime->setFixedSize(80, m_contentHeight);

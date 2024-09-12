@@ -7,7 +7,6 @@
 #include <QLabel>
 
 #include "EditDialog.h"
-#include "LineEdit.h"
 
 EditLabel::EditLabel(QWidget *parent) : QStackedWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
