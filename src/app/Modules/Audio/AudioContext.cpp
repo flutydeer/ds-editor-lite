@@ -428,6 +428,7 @@ void AudioContext::handleTrackRemoved(int index, Track *track) {
     delete m_trackSynthDict.take(track);
     removeTrack(index);
     m_trackModelDict.remove(track);
+    m_trackLevelMeterValue.remove(track);
 }
 
 void AudioContext::handleTrackControlChanged(Track *track) {
