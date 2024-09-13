@@ -42,7 +42,7 @@ signals:
 private slots:
     // void onSceneSelectionChanged() const;
     void onViewScaleChanged(qreal sx, qreal sy) const;
-    void onRemoveTrackTriggered(int id);
+    static void onRemoveTrackTriggered(int id);
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;

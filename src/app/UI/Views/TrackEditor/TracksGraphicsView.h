@@ -22,7 +22,7 @@ public:
 private slots:
     void onNewSingingClip() const;
     void onAddAudioClip();
-    void onDeleteTriggered();
+    void onDeleteTriggered() const;
 
 private:
     enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };

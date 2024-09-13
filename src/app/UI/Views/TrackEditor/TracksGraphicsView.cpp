@@ -85,29 +85,30 @@ void TracksGraphicsView::onAddAudioClip() {
     trackController->onAddAudioClip(fileName, track->id(), m_tick);
 }
 
-void TracksGraphicsView::onDeleteTriggered() {
-    auto selectedClips = selectedClipItems();
-    auto dlg = new Dialog(this);
-    dlg->setWindowTitle(tr("Warning"));
-    dlg->setTitle(tr("Do you want to delete these clips?"));
-    QString msg;
-    for (const auto clipItem : selectedClips)
-        msg.append(clipItem->name() + "\n");
-    dlg->setMessage(msg);
-    dlg->setModal(true);
-
-    auto btnDelete = new Button(tr("Delete"));
-    connect(btnDelete, &Button::clicked, dlg, &Dialog::accept);
-    dlg->setNegativeButton(btnDelete);
-
-    auto btnCancel = new AccentButton(tr("Cancel"));
-    connect(btnCancel, &Button::clicked, dlg, &Dialog::reject);
-    dlg->setPositiveButton(btnCancel);
-
-    connect(dlg, &Dialog::accepted, this,
-            [=] { trackController->onRemoveClips(selectedClipsId()); });
-
-    dlg->show();
+void TracksGraphicsView::onDeleteTriggered() const {
+    trackController->onRemoveClips(selectedClipsId());
+    // auto selectedClips = selectedClipItems();
+    // auto dlg = new Dialog(this);
+    // dlg->setWindowTitle(tr("Warning"));
+    // dlg->setTitle(tr("Do you want to delete these clips?"));
+    // QString msg;
+    // for (const auto clipItem : selectedClips)
+    //     msg.append(clipItem->name() + "\n");
+    // dlg->setMessage(msg);
+    // dlg->setModal(true);
+    //
+    // auto btnDelete = new Button(tr("Delete"));
+    // connect(btnDelete, &Button::clicked, dlg, &Dialog::accept);
+    // dlg->setNegativeButton(btnDelete);
+    //
+    // auto btnCancel = new AccentButton(tr("Cancel"));
+    // connect(btnCancel, &Button::clicked, dlg, &Dialog::reject);
+    // dlg->setPositiveButton(btnCancel);
+    //
+    // connect(dlg, &Dialog::accepted, this,
+    //         [=] { trackController->onRemoveClips(selectedClipsId()); });
+    //
+    // dlg->show();
 }
 
 void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {

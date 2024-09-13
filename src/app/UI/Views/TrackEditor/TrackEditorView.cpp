@@ -203,24 +203,25 @@ void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) const {
 }
 
 void TrackEditorView::onRemoveTrackTriggered(int id) {
-    auto track = appModel->findTrackById(id);
-    auto dlg = new Dialog(this);
-    dlg->setWindowTitle(tr("Warning"));
-    dlg->setTitle(tr("Do you want to delete this track?"));
-    dlg->setMessage(track->name());
-    dlg->setModal(true);
-
-    auto btnDelete = new Button(tr("Delete"));
-    connect(btnDelete, &Button::clicked, dlg, &Dialog::accept);
-    dlg->setNegativeButton(btnDelete);
-
-    auto btnCancel = new AccentButton(tr("Cancel"));
-    connect(btnCancel, &Button::clicked, dlg, &Dialog::reject);
-    dlg->setPositiveButton(btnCancel);
-
-    connect(dlg, &Dialog::accepted, this, [=] { trackController->onRemoveTrack(id); });
-
-    dlg->show();
+    trackController->onRemoveTrack(id);
+    // auto track = appModel->findTrackById(id);
+    // auto dlg = new Dialog(this);
+    // dlg->setWindowTitle(tr("Warning"));
+    // dlg->setTitle(tr("Do you want to delete this track?"));
+    // dlg->setMessage(track->name());
+    // dlg->setModal(true);
+    //
+    // auto btnDelete = new Button(tr("Delete"));
+    // connect(btnDelete, &Button::clicked, dlg, &Dialog::accept);
+    // dlg->setNegativeButton(btnDelete);
+    //
+    // auto btnCancel = new AccentButton(tr("Cancel"));
+    // connect(btnCancel, &Button::clicked, dlg, &Dialog::reject);
+    // dlg->setPositiveButton(btnCancel);
+    //
+    // connect(dlg, &Dialog::accepted, this, [=] { trackController->onRemoveTrack(id); });
+    //
+    // dlg->show();
 }
 
 bool TrackEditorView::eventFilter(QObject *watched, QEvent *event) {
