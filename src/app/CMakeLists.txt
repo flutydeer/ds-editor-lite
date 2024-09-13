@@ -44,7 +44,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         Qt6::Widgets
         Qt6::Core5Compat
         ${PLATFORM_LIB}
-        talcs::Core talcs::Device talcs::Format talcs::Remote talcs::Midi talcs::Dspx
+        talcs::Core talcs::Device talcs::Format talcs::Midi talcs::Dspx
         opendspx::opendspx
         language-manager::language-manager
         lyric-tab::lyric-tab

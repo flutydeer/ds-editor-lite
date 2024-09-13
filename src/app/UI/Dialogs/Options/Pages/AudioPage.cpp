@@ -16,7 +16,6 @@
 #include <TalcsDevice/AudioDriverManager.h>
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDevice.h>
-#include <TalcsRemote/RemoteAudioDevice.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsDevice/SDLAudioDriverDisplayNameHelper.h>
 
