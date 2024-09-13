@@ -45,6 +45,7 @@ public:
 
     bool m_selecting = false;
     bool m_selectionChangeBarrier = false;
+    bool m_isEditPitchMode = false;
 
     // resize and move
     bool m_tempQuantizeOff = false;

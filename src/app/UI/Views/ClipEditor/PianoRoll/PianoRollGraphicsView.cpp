@@ -684,6 +684,7 @@ QList<NoteView *> PianoRollGraphicsViewPrivate::selectedNoteItems() const {
 
 void PianoRollGraphicsViewPrivate::setPitchEditMode(bool on, bool isErase) {
     Q_Q(PianoRollGraphicsView);
+    m_isEditPitchMode = on;
     for (auto note : m_noteLayer.noteItems())
         note->setEditingPitch(on);
     if (on)
@@ -713,17 +714,18 @@ bool PianoRollGraphicsViewPrivate::mouseInFilledRect(QPointF scenePos, NoteView 
 
 void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
     m_selectionChangeBarrier = true;
-    auto noteItem = new NoteView(note->id());
-    noteItem->setRStart(note->rStart());
-    noteItem->setLength(note->length());
-    noteItem->setKeyIndex(note->keyIndex());
-    noteItem->setLyric(note->lyric());
+    auto noteView = new NoteView(note->id());
+    noteView->setRStart(note->rStart());
+    noteView->setLength(note->length());
+    noteView->setKeyIndex(note->keyIndex());
+    noteView->setLyric(note->lyric());
     auto original = note->pronunciation().original;
     auto edited = note->pronunciation().edited;
     auto isEdited = note->pronunciation().isEdited();
-    noteItem->setPronunciation(isEdited ? edited : original, isEdited);
-    noteItem->setOverlapped(note->overlapped());
-    m_layerManager->addItem(noteItem, &m_noteLayer);
+    noteView->setPronunciation(isEdited ? edited : original, isEdited);
+    noteView->setOverlapped(note->overlapped());
+    noteView->setEditingPitch(m_isEditPitchMode);
+    m_layerManager->addItem(noteView, &m_noteLayer);
 
     m_notes.append(note);
     // clipController->selectNotes(QList{note->id()}, false);
