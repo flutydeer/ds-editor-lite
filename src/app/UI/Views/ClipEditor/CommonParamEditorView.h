@@ -5,10 +5,11 @@
 #ifndef PITCHEDITORGRAPHICSITEM_H
 #define PITCHEDITORGRAPHICSITEM_H
 
+#include "Interface/IAtomicAction.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "UI/Views/Common/OverlayGraphicsItem.h"
 
-class CommonParamEditorView : public OverlayGraphicsItem {
+class CommonParamEditorView : public OverlayGraphicsItem, public IAtomicAction {
     Q_OBJECT
 
 public:
@@ -21,6 +22,8 @@ public:
     void clearParams();
     void setEraseMode(bool on);
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
+    void cancelAction() override;
+    void commitAction() override;
 
 signals:
     void editCompleted(const QList<DrawCurve *> &curves);
@@ -55,6 +58,7 @@ private:
     bool m_mouseMoved = false;
     QList<DrawCurve *> m_drawCurvesEdited;
     QList<DrawCurve *> m_drawCurvesOriginal;
+    QList<DrawCurve *> m_drawCurvesEditedBak;
 
     [[nodiscard]] double startTick() const;
     [[nodiscard]] double endTick() const;

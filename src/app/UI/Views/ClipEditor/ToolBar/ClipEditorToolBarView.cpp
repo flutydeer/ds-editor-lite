@@ -60,17 +60,17 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnFreezePitch =
         d->buildToolButton("btnFreezePitch", tr("Freeze Pitch"), Qt::Key_J, freezePitchDesc);
 
-    auto buttonGroup = new QButtonGroup;
-    buttonGroup->setExclusive(true);
-    buttonGroup->addButton(d->m_btnArrow);
-    buttonGroup->addButton(d->m_btnBeam);
-    buttonGroup->addButton(d->m_btnNotePencil);
-    buttonGroup->addButton(d->m_btnNoteEraser);
-    buttonGroup->addButton(d->m_btnPitchAnchor);
-    buttonGroup->addButton(d->m_btnPitchPencil);
-    buttonGroup->addButton(d->m_btnPitchEraser);
-    buttonGroup->addButton(d->m_btnFreezePitch);
-    connect(buttonGroup, &QButtonGroup::buttonToggled, d,
+    d->m_toolButtonGroup = new QButtonGroup;
+    d->m_toolButtonGroup->setExclusive(true);
+    d->m_toolButtonGroup->addButton(d->m_btnArrow);
+    d->m_toolButtonGroup->addButton(d->m_btnBeam);
+    d->m_toolButtonGroup->addButton(d->m_btnNotePencil);
+    d->m_toolButtonGroup->addButton(d->m_btnNoteEraser);
+    d->m_toolButtonGroup->addButton(d->m_btnPitchAnchor);
+    d->m_toolButtonGroup->addButton(d->m_btnPitchPencil);
+    d->m_toolButtonGroup->addButton(d->m_btnPitchEraser);
+    d->m_toolButtonGroup->addButton(d->m_btnFreezePitch);
+    connect(d->m_toolButtonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
 
@@ -278,17 +278,13 @@ Button *ClipEditorToolBarViewPrivate::buildCommonButton(const QString &objName,
 }
 
 void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(bool on) const {
-    m_cbClipLanguage->setVisible(on);
-    m_btnArrow->setVisible(on);
-    m_btnNotePencil->setVisible(on);
-    m_btnPitchPencil->setVisible(on);
-    m_btnPitchAnchor->setVisible(on);
+    for (auto btn : m_toolButtonGroup->buttons()) {
+        btn->setVisible(on);
+        btn->setEnabled(on);
+    }
 
+    m_cbClipLanguage->setVisible(on);
     m_cbClipLanguage->setEnabled(on);
-    m_btnArrow->setEnabled(on);
-    m_btnNotePencil->setEnabled(on);
-    m_btnPitchPencil->setEnabled(on);
-    m_btnPitchAnchor->setEnabled(on);
 
     if (on) {
         auto lang = m_singingClip->defaultLanguage;

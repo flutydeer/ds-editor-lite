@@ -7,6 +7,7 @@
 
 #include "Global/AppGlobal.h"
 
+#include <QButtonGroup>
 #include <QObject>
 
 class SingingClip;
@@ -47,6 +48,7 @@ public:
     // Button *m_btnMute;
     // SeekBar *m_sBarGain;
 
+    QButtonGroup *m_toolButtonGroup = nullptr;
     Button *m_btnArrow = nullptr;
     Button *m_btnBeam = nullptr;
     Button *m_btnNotePencil = nullptr;

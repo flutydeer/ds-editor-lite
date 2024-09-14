@@ -60,6 +60,7 @@ public:
     int m_moveMinDeltaKey = 0;
 
     QList<int> m_notesToErase;
+    QList<NoteView *> m_noteViewsToErase;
 
     PianoRollEditMode m_editMode = Select;
     MouseMoveBehavior m_mouseMoveBehavior = None;
@@ -81,6 +82,7 @@ public:
 
     void handleNotesErased();
     void eraseNoteFromView(NoteView *noteView);
+    void cancelEraseNote();
 
     void updateSceneSelectionState();
     void updateOverlappedState();

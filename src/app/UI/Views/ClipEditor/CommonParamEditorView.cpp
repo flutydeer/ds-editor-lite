@@ -13,6 +13,7 @@
 #include <QElapsedTimer>
 #include <QPainter>
 #include <QGraphicsSceneMouseEvent>
+#include <QKeyEvent>
 
 using namespace ClipEditorGlobal;
 
@@ -44,6 +45,34 @@ void CommonParamEditorView::setEraseMode(bool on) {
 
 const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
     return m_drawCurvesEdited;
+}
+
+void CommonParamEditorView::cancelAction() {
+    qDebug() << "cancelAction";
+    m_drawCurvesEdited = m_drawCurvesEditedBak;
+    m_mouseMoved = false;
+    m_newCurveCreated = false;
+    cancelRequested = true;
+    appStatus->editing = false;
+    update();
+}
+
+void CommonParamEditorView::commitAction() {
+    qDebug() << "commitAction";
+    if (!m_mouseMoved) {
+        m_editingCurve = nullptr;
+        m_editType = None;
+    } else {
+        qDebug() << "Edit completed";
+        emit editCompleted(editedCurves());
+    }
+
+    m_mouseMoved = false;
+    m_newCurveCreated = false;
+    cancelRequested = false;
+    m_drawCurvesEditedBak.clear();
+    update();
+    appStatus->editing = false;
 }
 
 bool CommonParamEditorView::fillCurve() const {
@@ -119,7 +148,9 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
         return;
     }
 
+    cancelRequested = false;
     appStatus->editing = true;
+    SingingClip::copyCurves(m_drawCurvesEdited, m_drawCurvesEditedBak);
     auto scenePos = event->scenePos().toPoint();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     if (tick < 0) {
@@ -152,7 +183,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-    if (m_editType == None)
+    if (cancelRequested || m_editType == None || transparentForMouseEvents())
         return;
 
     m_mouseMoved = true;
@@ -228,18 +259,8 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
-    if (!m_mouseMoved) {
-        m_editingCurve = nullptr;
-        m_editType = None;
-    } else {
-        qDebug() << "Edit completed";
-        emit editCompleted(editedCurves());
-    }
-
-    appStatus->editing = false;
-    m_mouseMoved = false;
-    m_newCurveCreated = false;
-    update();
+    if (!cancelRequested)
+        commitAction();
 }
 
 void CommonParamEditorView::updateRectAndPos() {

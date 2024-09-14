@@ -337,10 +337,10 @@ bool CommonGraphicsView::event(QEvent *event) {
         handleHoverLeaveEvent(dynamic_cast<QHoverEvent *>(event));
     else if (event->type() == QEvent::HoverMove)
         handleHoverMoveEvent(dynamic_cast<QHoverEvent *>(event));
-    else if (event->type() == QEvent::WindowActivate)
-        qDebug() << "Window activated";
-    else if (event->type() == QEvent::WindowDeactivate)
-        qDebug() << "Window deactivated";
+    // else if (event->type() == QEvent::WindowActivate)
+    //     qDebug() << "Window activated";
+    // else if (event->type() == QEvent::WindowDeactivate)
+    //     qDebug() << "Window deactivated";
     return QGraphicsView::event(event);
 }
 

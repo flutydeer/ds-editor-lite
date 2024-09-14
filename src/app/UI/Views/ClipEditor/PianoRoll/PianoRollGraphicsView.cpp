@@ -107,6 +107,18 @@ void PianoRollGraphicsView::notifyKeyRangeChanged() {
     emit keyRangeChanged(topKeyIndex(), bottomKeyIndex());
 }
 
+bool PianoRollGraphicsView::event(QEvent *event) {
+    if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
+        auto key = dynamic_cast<QKeyEvent *>(event)->key();
+        if (key == Qt::Key_Escape) {
+            cancelAction();
+        }
+    } else if (event->type() == QEvent::WindowDeactivate) {
+        cancelAction();
+    };
+    return TimeGraphicsView::event(event);
+}
+
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     Q_D(PianoRollGraphicsView);
     if (d->m_editMode == Select || d->m_editMode == DrawNote) {
@@ -128,6 +140,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         return;
     }
 
+    cancelRequested = false;
     d->m_selecting = true;
     d->m_selectionChangeBarrier = true;
     if (event->button() != Qt::LeftButton &&
@@ -178,6 +191,8 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
 
 void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
+    if (cancelRequested)
+        return;
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::None) {
         TimeGraphicsView::mouseMoveEvent(event);
         return;
@@ -243,44 +258,15 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 
 void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
+    if (!cancelRequested)
+        commitAction();
     bool ctrlDown = event->modifiers() == Qt::ControlModifier;
-
-    if (scene()->items().contains(d->m_currentDrawingNote)) {
-        scene()->removeCommonItem(d->m_currentDrawingNote);
-    }
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
-        if (d->m_movedBeforeMouseUp) {
-            d->resetSelectedNotesOffset();
-            d->handleNotesMoved(d->m_deltaTick, d->m_deltaKey);
-        } else if (!ctrlDown) {
+        if (!d->m_movedBeforeMouseUp && !ctrlDown) {
             clearNoteSelections(d->m_currentEditingNote);
         }
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeLeft) {
-        d->resetSelectedNotesOffset();
-        PianoRollGraphicsViewPrivate::handleNoteLeftResized(d->m_currentEditingNote->id(),
-                                                            d->m_deltaTick);
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeRight) {
-        d->resetSelectedNotesOffset();
-        PianoRollGraphicsViewPrivate::handleNoteRightResized(d->m_currentEditingNote->id(),
-                                                             d->m_deltaTick);
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
-        d->handleNoteDrawn(d->m_currentDrawingNote->rStart(), d->m_currentDrawingNote->length(),
-                           d->m_currentDrawingNote->keyIndex());
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::EraseNotes) {
-        d->handleNotesErased();
     }
-    d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
-    d->m_deltaTick = 0;
-    d->m_deltaKey = 0;
-    d->m_movedBeforeMouseUp = false;
-    d->m_currentEditingNote = nullptr;
-
-    d->m_selecting = false;
-    auto notes = selectedNotesId();
-    clipController->selectNotes(notes, true);
-
-    appStatus->editing = false;
-
+    cancelRequested = false;
     TimeGraphicsView::mouseReleaseEvent(event);
 }
 
@@ -312,6 +298,72 @@ void PianoRollGraphicsView::clearNoteSelections(NoteView *except) {
     }
 }
 
+void PianoRollGraphicsView::cancelAction() {
+    Q_D(PianoRollGraphicsView);
+    d->m_pitchEditor->cancelAction();
+    cancelRequested = true;
+    if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
+        if (d->m_movedBeforeMouseUp) {
+            d->resetSelectedNotesOffset();
+        }
+    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeLeft) {
+        d->resetSelectedNotesOffset();
+    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeRight) {
+        d->resetSelectedNotesOffset();
+    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
+        scene()->removeCommonItem(d->m_currentDrawingNote);
+    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::EraseNotes) {
+        d->cancelEraseNote();
+    }
+    d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
+    d->m_deltaTick = 0;
+    d->m_deltaKey = 0;
+    d->m_movedBeforeMouseUp = false;
+    d->m_currentEditingNote = nullptr;
+
+    d->m_selecting = false;
+    auto notes = selectedNotesId();
+    clipController->selectNotes(notes, true);
+
+    appStatus->editing = false;
+}
+
+void PianoRollGraphicsView::commitAction() {
+    Q_D(PianoRollGraphicsView);
+    d->m_pitchEditor->commitAction();
+    if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
+        if (d->m_movedBeforeMouseUp) {
+            d->resetSelectedNotesOffset();
+            d->handleNotesMoved(d->m_deltaTick, d->m_deltaKey);
+        }
+    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeLeft) {
+        d->resetSelectedNotesOffset();
+        PianoRollGraphicsViewPrivate::handleNoteLeftResized(d->m_currentEditingNote->id(),
+                                                            d->m_deltaTick);
+    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeRight) {
+        d->resetSelectedNotesOffset();
+        PianoRollGraphicsViewPrivate::handleNoteRightResized(d->m_currentEditingNote->id(),
+                                                             d->m_deltaTick);
+    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
+        scene()->removeCommonItem(d->m_currentDrawingNote);
+        d->handleNoteDrawn(d->m_currentDrawingNote->rStart(), d->m_currentDrawingNote->length(),
+                           d->m_currentDrawingNote->keyIndex());
+    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::EraseNotes) {
+        d->handleNotesErased();
+    }
+    d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
+    d->m_deltaTick = 0;
+    d->m_deltaKey = 0;
+    d->m_movedBeforeMouseUp = false;
+    d->m_currentEditingNote = nullptr;
+
+    d->m_selecting = false;
+    auto notes = selectedNotesId();
+    clipController->selectNotes(notes, true);
+
+    appStatus->editing = false;
+}
+
 double PianoRollGraphicsView::topKeyIndex() const {
     Q_D(const PianoRollGraphicsView);
     return d->sceneYToKeyIndexDouble(visibleRect().top());
@@ -338,6 +390,8 @@ void PianoRollGraphicsView::setViewportCenterAtKeyIndex(double keyIndex) {
 
 void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {
     Q_D(PianoRollGraphicsView);
+    if (d->m_editMode != mode)
+        commitAction();
     d->m_editMode = mode;
     if (mode == Select) {
         setDragBehavior(DragBehavior::RectSelect);
@@ -372,7 +426,8 @@ void PianoRollGraphicsViewPrivate::onNoteChanged(SingingClip::NoteChangeType typ
     } else if (type == SingingClip::TimeKeyPropertyChange) {
         for (const auto &note : notes)
             updateNoteTimeAndKey(note);
-    } else if (type == SingingClip::OriginalWordPropertyChange || type == SingingClip::EditedWordPropertyChange) {
+    } else if (type == SingingClip::OriginalWordPropertyChange ||
+               type == SingingClip::EditedWordPropertyChange) {
         for (const auto &note : notes)
             updateNoteWord(note);
     }
@@ -570,13 +625,22 @@ void PianoRollGraphicsViewPrivate::handleNotesErased() {
     qDebug() << "Note erased count:" << m_notesToErase.count();
     clipController->onRemoveNotes(m_notesToErase);
     m_notesToErase.clear();
+    m_noteViewsToErase.clear();
 }
 
 void PianoRollGraphicsViewPrivate::eraseNoteFromView(NoteView *noteView) {
     appStatus->editing = true;
     m_notesToErase.append(noteView->id());
+    m_noteViewsToErase.append(noteView);
     m_layerManager->removeItem(noteView, &m_noteLayer);
-    delete noteView;
+    // delete noteView;
+}
+
+void PianoRollGraphicsViewPrivate::cancelEraseNote(){
+    m_notesToErase.clear();
+    for (const auto noteView : m_noteViewsToErase) {
+        m_layerManager->addItem(noteView, &m_noteLayer);
+    }
 }
 
 void PianoRollGraphicsViewPrivate::updateSceneSelectionState() {
