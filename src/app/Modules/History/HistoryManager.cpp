@@ -8,6 +8,7 @@
 #include <QDebug>
 
 #include "ActionSequence.h"
+#include "Model/AppStatus/AppStatus.h"
 
 HistoryManager::HistoryManager() : d_ptr(new HistoryManagerPrivate) {
     Q_D(HistoryManager);
@@ -20,6 +21,10 @@ HistoryManager::~HistoryManager() {
 
 void HistoryManager::undo() {
     Q_D(HistoryManager);
+    if (appStatus->editing) {
+        qWarning() << "Cannot undo because editing not finished";
+        return;
+    }
     if (d->m_undoStack.isEmpty())
         return;
 
@@ -32,6 +37,10 @@ void HistoryManager::undo() {
 
 void HistoryManager::redo() {
     Q_D(HistoryManager);
+    if (appStatus->editing) {
+        qWarning() << "Cannot redo because editing not finished";
+        return;
+    }
     if (d->m_redoStack.isEmpty())
         return;
 
