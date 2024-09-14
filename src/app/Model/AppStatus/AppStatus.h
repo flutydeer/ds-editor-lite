@@ -34,6 +34,7 @@ public:
     Property<int> selectedTrackIndex = -1;
     Property<int> activeClipId = -1;
     Property<QList<int>> selectedNotes;
+    Property<bool> editing = false;
 
 signals:
     // Modules
@@ -49,6 +50,7 @@ signals:
     void selectedTrackIndexChanged(int trackIndex);
     void activeClipIdChanged(int newId);
     void noteSelectionChanged(const QList<int> &selectedNotes);
+    void editingChanged(bool isEditing);
 };
 
 #endif // APPSTATUS_H

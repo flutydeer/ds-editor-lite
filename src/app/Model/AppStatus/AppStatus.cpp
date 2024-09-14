@@ -24,4 +24,5 @@ AppStatus::AppStatus() {
     activeClipId.setNotifyCallback([=](const int value) { emit activeClipIdChanged(value); });
     selectedNotes.setNotifyCallback(
         [=](const QList<int> &value) { emit noteSelectionChanged(value); });
+    editing.setNotifyCallback([=](const bool value) { emit editingChanged(value); });
 }

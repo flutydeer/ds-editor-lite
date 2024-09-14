@@ -6,6 +6,7 @@
 
 #include "ClipEditorGlobal.h"
 #include "Model/AppModel/Clip.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/CommonGraphicsScene.h"
 #include "Utils/MathUtils.h"
 
@@ -118,6 +119,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
         return;
     }
 
+    appStatus->editing = true;
     auto scenePos = event->scenePos().toPoint();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     if (tick < 0) {
@@ -234,6 +236,7 @@ void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
         emit editCompleted(editedCurves());
     }
 
+    appStatus->editing = false;
     m_mouseMoved = false;
     m_newCurveCreated = false;
     update();

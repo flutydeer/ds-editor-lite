@@ -279,6 +279,8 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     auto notes = selectedNotesId();
     clipController->selectNotes(notes, true);
 
+    appStatus->editing = false;
+
     TimeGraphicsView::mouseReleaseEvent(event);
 }
 
@@ -480,6 +482,7 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
 void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QPointF scenePos,
                                                           int keyIndex, NoteView *noteItem) {
     Q_Q(PianoRollGraphicsView);
+    appStatus->editing = true;
     bool ctrlDown = event->modifiers() == Qt::ControlModifier;
     if (!ctrlDown) {
         if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteItem))
@@ -516,6 +519,7 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QP
 
 void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(int tick, int keyIndex) {
     Q_Q(PianoRollGraphicsView);
+    appStatus->editing = true;
     auto snappedTick = MathUtils::roundDown(tick, 1920 / appStatus->quantize);
     Log::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
     m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
@@ -569,6 +573,7 @@ void PianoRollGraphicsViewPrivate::handleNotesErased() {
 }
 
 void PianoRollGraphicsViewPrivate::eraseNoteFromView(NoteView *noteView) {
+    appStatus->editing = true;
     m_notesToErase.append(noteView->id());
     m_layerManager->removeItem(noteView, &m_noteLayer);
     delete noteView;

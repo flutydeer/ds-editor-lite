@@ -268,6 +268,8 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return;
 
+
+    appStatus->editing = true;
     m_mouseMoved = false;
     m_mouseDownX = event->pos().x();
     auto tick = xToTick(event->pos().x());
@@ -315,6 +317,7 @@ void PhonemeView::mouseReleaseEvent(QMouseEvent *event) {
     m_mouseMoveBehavior = None;
     m_freezeHoverEffects = false;
     updateHoverEffects();
+    appStatus->editing = false;
     QWidget::mouseReleaseEvent(event);
 }
 

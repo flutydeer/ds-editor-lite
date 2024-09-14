@@ -119,6 +119,7 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
         return;
     }
 
+
     if (auto item = itemAt(event->pos())) {
         if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
             qDebug() << "TracksGraphicsView::mousePressEvent mouse down on clip";
@@ -226,6 +227,7 @@ void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     m_mouseMoveBehavior = None;
     m_movedBeforeMouseUp = false;
     m_currentEditingClip = nullptr;
+    appStatus->editing = false;
     TimeGraphicsView::mouseReleaseEvent(event);
 }
 
@@ -281,8 +283,9 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 
 void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
                                                         AbstractClipView *clipItem) {
+    appStatus->editing = true;
     auto scenePos = mapToScene(event->pos());
-    qDebug() << "prepareForMovingOrResizingClip";
+    // qDebug() << "prepareForMovingOrResizingClip";
 
     bool ctrlDown = event->modifiers() == Qt::ControlModifier;
     if (!ctrlDown) {

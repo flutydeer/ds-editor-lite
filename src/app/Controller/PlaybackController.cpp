@@ -42,6 +42,8 @@ double PlaybackController::tempo() const {
 
 void PlaybackController::play() {
     Q_D(PlaybackController);
+    if (appStatus->editing)
+        return;
     d->m_playRequested = true;
     ValidationController::instance()->runValidation();
 }
