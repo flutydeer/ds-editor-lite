@@ -4,6 +4,7 @@
 
 #include "ValidationController.h"
 
+#include "PlaybackController.h"
 #include "Model/AppModel/Track.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/History/HistoryManager.h"
@@ -11,6 +12,7 @@
 #include "Utils/NoteWordUtils.h"
 
 ValidationController::ValidationController() {
+    qDebug() << "ValidationController::ValidationController";
     connect(appModel, &AppModel::modelChanged, this, &ValidationController::onModelChanged);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             &ValidationController::onUndoRedoChanged);
@@ -26,24 +28,20 @@ void ValidationController::onUndoRedoChanged() {
 
 void ValidationController::onModelChanged() {
     qDebug() << "ValidationController::onModelChanged";
-    m_tracks.clear();
+    for (const auto track : m_tracks)
+        onTrackChanged(AppModel::Remove, -1, track);
 
     for (const auto track : appModel->tracks()) {
         // Set track default language
         track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
-        // m_tracks.append(track);
-        // connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
+        onTrackChanged(AppModel::Insert, -1, track);
+        connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
         for (const auto clip : track->clips()) {
             // m_clips.append(clip);
-            // connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
+            handleClipInserted(clip);
             if (clip->clipType() == Clip::Singing) {
                 auto singingClip = reinterpret_cast<SingingClip *>(clip);
                 singingClip->defaultLanguage = track->defaultLanguage();
-                // NoteWordUtils::updateOriginalWordProperties(singingClip->notes().toList());
-                // if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
-                //     NoteWordUtils::updateOriginalWordProperties(singingClip->notes().toList());
-                // else
-                //     m_notesPendingUpdateNoteWordProperty.append(singingClip->notes().toList());
             }
         }
     }
@@ -64,6 +62,8 @@ void ValidationController::onTrackChanged(AppModel::TrackChangeType type, qsizet
         connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
     } else if (type == AppModel::Remove) {
         m_tracks.removeOne(track);
+        // for (const auto clip : track->clips())
+        //     handleClipRemoved(clip);
         disconnect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
     }
     validate();
@@ -90,10 +90,7 @@ void ValidationController::onClipPropertyChanged(Clip *clip) {
 
 void ValidationController::onNoteChanged(SingingClip::NoteChangeType type,
                                          const QList<Note *> &notes) {
-    qDebug() << "ValidationController::onNoteChanged";
-    if (type == SingingClip::Insert)
-        for (const auto &note : notes)
-            handleNoteInserted(note);
+    qDebug() << "onNoteChanged";
     validate();
 }
 
@@ -105,9 +102,7 @@ void ValidationController::handleClipInserted(Clip *clip) {
         auto singingClip = reinterpret_cast<SingingClip *>(clip);
         connect(singingClip, &SingingClip::noteChanged, this, &ValidationController::onNoteChanged);
     }
-}
-
-void ValidationController::handleNoteInserted(Note *note) {
+    validate();
 }
 
 void ValidationController::validate() {
@@ -115,6 +110,7 @@ void ValidationController::validate() {
     if (!validateProjectLength() || !validateTempo() || !validateClipOverlap() ||
         !validateNoteOverlap()) {
         emit validationFinished(false);
+        playbackController->stop();
     } else {
         emit validationFinished(true);
     }
@@ -123,7 +119,7 @@ void ValidationController::validate() {
 bool ValidationController::validateProjectLength() {
     auto length = appModel->tickToMs(appModel->projectLengthInTicks());
     if (length > 30 * 60 * 1000) { // > 30 min
-        Toast::show("ValidationController: project is too long");
+        Toast::show("Project is too long");
         return false;
     }
     return true;
@@ -133,7 +129,7 @@ bool ValidationController::validateTempo() {
     // 用于测试
     auto tempo = appModel->tempo();
     if (tempo < 5) {
-        Toast::show("ValidationController: tempo is too slow");
+        Toast::show("Tempo is too slow");
         return false;
     }
     return true;
@@ -144,7 +140,7 @@ bool ValidationController::validateClipOverlap() {
                     [](const auto &track) { return !track->clips().hasOverlappedItem(); })) {
         return true;
     }
-    Toast::show("ValidationController: clip overlapped");
+    Toast::show("Clip overlapped");
     return false;
 }
 
@@ -154,7 +150,7 @@ bool ValidationController::validateNoteOverlap() {
             if (clip->clipType() == Clip::Singing) {
                 auto singingClip = reinterpret_cast<SingingClip *>(clip);
                 if (singingClip->notes().hasOverlappedItem()) {
-                    Toast::show("ValidationController: note overlapped");
+                    Toast::show("Note overlapped");
                     return false;
                 }
             }

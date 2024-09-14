@@ -34,7 +34,6 @@ signals:
 
 private:
     void handleClipInserted(Clip *clip);
-    void handleNoteInserted(Note *note);
     void validate();
     static bool validateProjectLength();
     static bool validateTempo();
