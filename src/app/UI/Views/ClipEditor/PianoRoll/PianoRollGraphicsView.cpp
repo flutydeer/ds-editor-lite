@@ -243,6 +243,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             deltaStart = d->m_mouseDownLength - quantizedTickLength;
         d->m_deltaTick = deltaStart;
         d->resizeLeftSelectedNote(d->m_deltaTick);
+        d->m_movedBeforeMouseUp = true;
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeRight) {
         auto lengthOffset = MathUtils::round(deltaX, quantizedTickLength);
         auto right = d->m_mouseDownRStart + d->m_mouseDownLength + lengthOffset;
@@ -252,6 +253,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             deltaLength = -(d->m_mouseDownLength - quantizedTickLength);
         d->m_deltaTick = deltaLength;
         d->resizeRightSelectedNote(d->m_deltaTick);
+        d->m_movedBeforeMouseUp = true;
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
         auto targetLength = snappedTick - d->m_offset - d->m_currentDrawingNote->rStart();
         if (targetLength >= quantizedTickLength)
@@ -352,13 +354,17 @@ void PianoRollGraphicsView::commitAction() {
             d->handleNotesMoved(d->m_deltaTick, d->m_deltaKey);
         }
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeLeft) {
-        d->resetSelectedNotesOffset();
-        PianoRollGraphicsViewPrivate::handleNoteLeftResized(d->m_currentEditingNote->id(),
-                                                            d->m_deltaTick);
+        if (d->m_movedBeforeMouseUp) {
+            d->resetSelectedNotesOffset();
+            PianoRollGraphicsViewPrivate::handleNoteLeftResized(d->m_currentEditingNote->id(),
+                                                                d->m_deltaTick);
+        }
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeRight) {
-        d->resetSelectedNotesOffset();
-        PianoRollGraphicsViewPrivate::handleNoteRightResized(d->m_currentEditingNote->id(),
-                                                             d->m_deltaTick);
+        if (d->m_movedBeforeMouseUp) {
+            d->resetSelectedNotesOffset();
+            PianoRollGraphicsViewPrivate::handleNoteRightResized(d->m_currentEditingNote->id(),
+                                                                 d->m_deltaTick);
+        }
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
         scene()->removeCommonItem(d->m_currentDrawingNote);
         d->handleNoteDrawn(d->m_currentDrawingNote->rStart(), d->m_currentDrawingNote->length(),
@@ -651,7 +657,7 @@ void PianoRollGraphicsViewPrivate::eraseNoteFromView(NoteView *noteView) {
     // delete noteView;
 }
 
-void PianoRollGraphicsViewPrivate::cancelEraseNote(){
+void PianoRollGraphicsViewPrivate::cancelEraseNote() {
     m_notesToErase.clear();
     for (const auto noteView : m_noteViewsToErase) {
         m_layerManager->addItem(noteView, &m_noteLayer);
