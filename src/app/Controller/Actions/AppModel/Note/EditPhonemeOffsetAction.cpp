@@ -19,10 +19,10 @@ EditPhonemeOffsetAction::EditPhonemeOffsetAction(Note *note, PhonemeInfoSeperate
 
 void EditPhonemeOffsetAction::execute() {
     m_note->setPhonemeOffsetInfo(m_type, Note::Edited, m_newOffsets);
-    m_clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange, {m_note});
+    m_clip->notifyNoteChanged(SingingClip::EditedPhonemeOffsetChange, {m_note});
 }
 
 void EditPhonemeOffsetAction::undo() {
     m_note->setPhonemeOffsetInfo(m_type, Note::Edited, m_oldOffsets);
-    m_clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange, {m_note});
+    m_clip->notifyNoteChanged(SingingClip::EditedPhonemeOffsetChange, {m_note});
 }

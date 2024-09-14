@@ -106,6 +106,7 @@ void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, const QList<No
             break;
         case SingingClip::OriginalWordPropertyChange:
         case SingingClip::EditedWordPropertyChange:
+        case SingingClip::EditedPhonemeOffsetChange:
             break;
     }
 

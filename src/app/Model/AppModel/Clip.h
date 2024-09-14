@@ -132,7 +132,8 @@ public:
         Remove,
         TimeKeyPropertyChange,
         OriginalWordPropertyChange,
-        EditedWordPropertyChange
+        EditedWordPropertyChange,
+        EditedPhonemeOffsetChange
     };
 
     explicit SingingClip();
