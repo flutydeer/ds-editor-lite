@@ -109,7 +109,7 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     // 在负坐标获取的 int bar 错误，暂不绘制文本
     if (beat > 0)
         painter->drawText(QPointF(x + m_textPaddingLeft, 10),
-                          QString::number(bar) + "." + QString::number(beat));
+                          /*QString::number(bar) + "." +*/ QString::number(beat));
     pen.setColor(beatLineColor);
     painter->setPen(pen);
     auto y1 = 2.0 / 3 * rect().height();
