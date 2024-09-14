@@ -34,7 +34,7 @@ public:
     Property<int> selectedTrackIndex = -1;
     Property<int> activeClipId = -1;
     Property<QList<int>> selectedNotes;
-    Property<bool> editing = false;
+    Property<bool> editing = false; // TODO: 提供更详细的编辑类型
 
 signals:
     // Modules

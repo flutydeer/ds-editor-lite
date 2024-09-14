@@ -30,6 +30,7 @@ private slots:
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
+    void onEditingChanged(bool isEditing);
 
 private:
     void handleClipInserted(Clip *clip);

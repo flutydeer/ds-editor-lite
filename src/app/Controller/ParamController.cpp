@@ -18,6 +18,7 @@ ParamController::ParamController() {
     connect(appModel, &AppModel::modelChanged, this, &ParamController::onModelChanged);
     connect(appStatus, &AppStatus::moduleStatusChanged, this,
             &ParamController::onModuleStatusChanged);
+    connect(appStatus, &AppStatus::editingChanged, this, &ParamController::onEditingChanged);
 }
 
 void ParamController::onModelChanged() {
@@ -59,6 +60,14 @@ void ParamController::onModuleStatusChanged(AppStatus::ModuleType module,
                                             AppStatus::ModuleStatus status) {
     if (module == AppStatus::ModuleType::Language) {
         handleLanguageModuleStatusChanged(status);
+    }
+}
+
+void ParamController::onEditingChanged(bool isEditing) {
+    if (isEditing) {
+        qWarning() << "正在编辑工程，取消相关任务";
+        auto clip = appModel->findClipById(appStatus->activeClipId);
+        cancelClipRelatedTasks(clip);
     }
 }
 
