@@ -240,14 +240,14 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
 
         auto fontMetrics = painter->fontMetrics();
         auto textHeight = fontMetrics.height();
-        auto text = m_lyric;
-        auto textWidth = fontMetrics.horizontalAdvance(text);
+        auto lyricTextWidth = fontMetrics.horizontalAdvance(m_lyric);
+        auto pronTextWidth = fontMetrics.horizontalAdvance(m_pronunciation);
         QTextOption textOption(Qt::AlignVCenter);
         textOption.setWrapMode(QTextOption::NoWrap);
 
-        if (textWidth < textRectWidth && textHeight < textRectHeight) {
+        if (qMax(lyricTextWidth, pronTextWidth) < textRectWidth && textHeight < textRectHeight) {
             // draw lryic
-            painter->drawText(textRect, text, textOption);
+            painter->drawText(textRect, m_lyric, textOption);
             // draw pronunciation
             pen.setColor(m_pronunciationEdited ? pronunciationTextColorEdited
                                                : pronunciationTextColorOriginal);
