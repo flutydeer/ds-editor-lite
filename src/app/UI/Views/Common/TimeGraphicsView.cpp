@@ -9,6 +9,7 @@
 #include "TimeGraphicsScene.h"
 #include "TimeGridGraphicsItem.h"
 #include "TimeIndicatorGraphicsItem.h"
+#include "Model/AppStatus/AppStatus.h"
 
 TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, QWidget *parent)
     : CommonGraphicsView(parent), m_scene(scene) {
@@ -99,7 +100,7 @@ void TimeGraphicsView::setPlaybackPosition(double tick) {
     if (m_scenePlayPosIndicator != nullptr)
         m_scenePlayPosIndicator->setPosition(tick);
 
-    if (!m_autoTurnPage)
+    if (!m_autoTurnPage || appStatus->editing)
         return;
 
     if (m_playbackPosition > endTick()) {
