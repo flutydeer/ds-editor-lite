@@ -25,6 +25,7 @@
 #include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
+#include <QApplication>
 #include <QMouseEvent>
 #include <QScrollBar>
 #include <QMWidgets/cmenu.h>
@@ -133,6 +134,14 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 
 void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
+    if (d->m_mouseDown) {
+        qWarning() << "Ignored mousePressEvent" << event
+                   << "because there is already one mouse button pressed";
+        return;
+    }
+    d->m_mouseDown = true;
+    d->m_mouseDownButton = event->button();
+
     // 在滚动条上按下时，交还给基类处理
     if (dynamic_cast<ScrollBarGraphicsItem *>(itemAt(event->pos()))) {
         CommonGraphicsView::mousePressEvent(event);
@@ -191,7 +200,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
 
 void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
-    if (cancelRequested)
+    if (cancelRequested || d->m_mouseDown == false)
         return;
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::None) {
         TimeGraphicsView::mouseMoveEvent(event);
@@ -258,6 +267,12 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 
 void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
+    if (event->button() != d->m_mouseDownButton) {
+        qWarning() << "Ignored mouseReleaseEvent" << event;
+        return;
+    }
+    d->m_mouseDown = false;
+    d->m_mouseDownButton = Qt::NoButton;
     if (!cancelRequested)
         commitAction();
     bool ctrlDown = event->modifiers() == Qt::ControlModifier;

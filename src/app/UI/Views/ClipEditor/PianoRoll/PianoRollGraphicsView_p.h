@@ -43,6 +43,8 @@ public:
     NoteLayer m_noteLayer;
     PitchEditorView *m_pitchEditor = nullptr;
 
+    bool m_mouseDown = false;
+    Qt::MouseButton m_mouseDownButton;
     bool m_selecting = false;
     bool m_selectionChangeBarrier = false;
     bool m_isEditPitchMode = false;

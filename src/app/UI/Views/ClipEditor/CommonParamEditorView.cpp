@@ -53,6 +53,8 @@ void CommonParamEditorView::cancelAction() {
     m_mouseMoved = false;
     m_newCurveCreated = false;
     cancelRequested = true;
+    m_mouseDown = false;
+    m_mouseDownButton = Qt::NoButton;
     appStatus->editing = false;
     update();
 }
@@ -71,6 +73,8 @@ void CommonParamEditorView::commitAction() {
     m_newCurveCreated = false;
     cancelRequested = false;
     m_drawCurvesEditedBak.clear();
+    m_mouseDown = false;
+    m_mouseDownButton = Qt::NoButton;
     update();
     appStatus->editing = false;
 }
@@ -148,6 +152,13 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
         return;
     }
 
+    if (m_mouseDown) {
+        qWarning() << "Ignored mousePressEvent" << event
+                   << "because there is already one mouse button pressed";
+        return;
+    }
+    m_mouseDown = true;
+    m_mouseDownButton = event->button();
     cancelRequested = false;
     appStatus->editing = true;
     SingingClip::copyCurves(m_drawCurvesEdited, m_drawCurvesEditedBak);
@@ -183,7 +194,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-    if (cancelRequested || m_editType == None || transparentForMouseEvents())
+    if (cancelRequested || m_editType == None || transparentForMouseEvents() || m_mouseDown == false)
         return;
 
     m_mouseMoved = true;
@@ -259,6 +270,12 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+    if (event->button() != m_mouseDownButton) {
+        qWarning() << "Ignored mouseReleaseEvent" << event;
+        return;
+    }
+    m_mouseDown = false;
+    m_mouseDownButton = Qt::NoButton;
     if (!cancelRequested)
         commitAction();
 }

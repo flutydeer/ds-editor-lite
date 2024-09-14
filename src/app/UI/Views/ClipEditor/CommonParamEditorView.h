@@ -49,6 +49,8 @@ private:
 
     enum EditType { DrawOnInterval, DrawOnCurve, Erase, None };
 
+    bool m_mouseDown = false;
+    Qt::MouseButton m_mouseDownButton;
     QPoint m_mouseDownPos; // x: tick, y: value
     QPoint m_prevPos;
     DrawCurve *m_editingCurve = nullptr;
