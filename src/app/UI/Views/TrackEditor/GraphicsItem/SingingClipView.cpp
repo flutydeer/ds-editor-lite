@@ -47,6 +47,8 @@ void SingingClipView::loadNotes(const OverlappableSerialList<Note> &notes) {
 }
 
 int SingingClipView::contentLength() const {
+    if (m_notes.isEmpty())
+        return 1920;
     auto lastNote = m_notes.last();
     return lastNote->rStart + lastNote->length;
 }
