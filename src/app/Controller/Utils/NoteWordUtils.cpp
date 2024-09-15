@@ -51,8 +51,7 @@ QList<PhonemeNameResult> NoteWordUtils::getPhonemeNames(const QList<QString> &in
                 note.normalNames.append(phonemes.at(1));
             } else
                 qCritical() << "Cannot handle more than 2 phonemes" << phonemes;
-        } else {
-            //TODO: 处理转音记号
+        } else if (pronunciation != "-") {
             qCritical() << "Failed to get phoneme names of pronunciation:" << pronunciation;
         }
         result.append(note);
