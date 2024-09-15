@@ -38,7 +38,7 @@ public:
 
     int m_trackIndex = 0;
     int m_quantize = 16;
-    bool m_showDebugInfo = false;
+    bool m_showDebugInfo = true;
 
     [[nodiscard]] QRectF previewRect() const;
 

@@ -202,13 +202,16 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 
         auto curClipStart = m_currentEditingClip->clipStart();
         auto curLength = m_currentEditingClip->length();
-        if (!m_currentEditingClip->canResizeLength()) {
+        if (!m_currentEditingClip->canResizeLength()) { // Audio Clip
             if (curClipStart + clipLen >= curLength)
                 m_currentEditingClip->setClipLen(curLength - curClipStart);
             else
                 m_currentEditingClip->setClipLen(clipLen);
-        } else {
-            m_currentEditingClip->setLength(curClipStart + clipLen);
+        } else { // Singing Clip
+            auto targetLen = curClipStart + clipLen;
+            if (targetLen < m_currentEditingClip->contentLength())
+                targetLen = m_currentEditingClip->contentLength();
+            m_currentEditingClip->setLength(targetLen);
             m_currentEditingClip->setClipLen(clipLen);
         }
     }

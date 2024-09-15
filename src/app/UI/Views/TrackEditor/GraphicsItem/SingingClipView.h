@@ -34,6 +34,7 @@ public:
     ~SingingClipView() override = default;
 
     void loadNotes(const OverlappableSerialList<Note> &notes);
+    [[nodiscard]] int contentLength() const override;
 
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);

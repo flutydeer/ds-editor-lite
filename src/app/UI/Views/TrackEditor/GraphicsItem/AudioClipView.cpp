@@ -44,6 +44,10 @@ void AudioClipView::setErrorMessage(const QString &errorMessage) {
     update();
 }
 
+int AudioClipView::contentLength() const {
+    return length();
+}
+
 void AudioClipView::onTempoChange(double tempo) {
     // qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
     m_tempo = tempo;

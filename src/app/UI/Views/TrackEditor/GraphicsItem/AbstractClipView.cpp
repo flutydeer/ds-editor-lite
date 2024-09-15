@@ -129,6 +129,10 @@ bool AbstractClipView::canResizeLength() const {
     return d->m_canResizeLength;
 }
 
+int AbstractClipView::contentLength() const {
+    return 0;
+}
+
 void AbstractClipView::loadCommonProperties(const Clip::ClipCommonProperties &args) {
     Q_D(AbstractClipView);
     d->m_name = args.name;

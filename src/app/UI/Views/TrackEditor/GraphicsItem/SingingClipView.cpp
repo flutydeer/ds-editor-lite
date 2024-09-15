@@ -46,6 +46,11 @@ void SingingClipView::loadNotes(const OverlappableSerialList<Note> &notes) {
     update();
 }
 
+int SingingClipView::contentLength() const {
+    auto lastNote = m_notes.last();
+    return lastNote->rStart + lastNote->length;
+}
+
 void SingingClipView::onNoteListChanged(SingingClip::NoteChangeType type,
                                         const QList<Note *> &notes) {
     switch (type) {
