@@ -22,13 +22,7 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     setObjectName("PhonemeView");
     installEventFilter(this);
 
-    connect(appModel, &AppModel::modelChanged, this, [=] {
-        setTimeSignature(appModel->timeSignature().numerator,
-                         appModel->timeSignature().denominator);
-    });
     connect(appModel, &AppModel::tempoChanged, this, &PhonemeView::onTempoChanged);
-    connect(appModel, &AppModel::timeSignatureChanged, this, &PhonemeView::setTimeSignature);
-    connect(appStatus, &AppStatus::quantizeChanged, this, &PhonemeView::setQuantize);
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PhonemeView::setPosition);
 }
@@ -59,18 +53,8 @@ void PhonemeView::setTimeRange(double startTick, double endTick) {
     update();
 }
 
-void PhonemeView::setTimeSignature(int numerator, int denominator) {
-    ITimelinePainter::setTimeSignature(numerator, denominator);
-    update();
-}
-
 void PhonemeView::setPosition(double tick) {
     m_position = tick;
-    update();
-}
-
-void PhonemeView::setQuantize(int quantize) {
-    ITimelinePainter::setQuantize(quantize);
     update();
 }
 
@@ -137,9 +121,6 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     // painter.setBrush(QColor(28, 29, 30));
     // painter.drawRect(rect());
     // painter.setBrush(Qt::NoBrush);
-
-    // Draw graduates
-    drawTimeline(&painter, m_startTick, m_endTick, rect().width());
 
     auto drawSolidRect = [&](double startTick, double endTick, const QColor &color) {
         auto start = tickToX(startTick);
@@ -229,36 +210,6 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     painter.setPen(pen);
     auto x = tickToX(m_position);
     painter.drawLine(QLineF(x, 0, x, rect().height()));
-}
-
-void PhonemeView::drawBar(QPainter *painter, int tick, int bar) {
-    QPen pen;
-    auto x = tickToX(tick); // tick to itemX
-    pen.setColor(AppGlobal::barLineColor);
-    painter->setPen(pen);
-    auto y1 = 0;
-    auto y2 = rect().height();
-    painter->drawLine(QLineF(x, y1, x, y2));
-}
-
-void PhonemeView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
-    QPen pen;
-    auto x = tickToX(tick);
-    pen.setColor(AppGlobal::beatLineColor);
-    painter->setPen(pen);
-    auto y1 = 0;
-    auto y2 = rect().height();
-    painter->drawLine(QLineF(x, y1, x, y2));
-}
-
-void PhonemeView::drawEighth(QPainter *painter, int tick) {
-    QPen pen;
-    auto x = tickToX(tick);
-    pen.setColor(AppGlobal::commonLineColor);
-    painter->setPen(pen);
-    auto y1 = 0;
-    auto y2 = rect().height();
-    painter->drawLine(QLineF(x, y1, x, y2));
 }
 
 void PhonemeView::mousePressEvent(QMouseEvent *event) {

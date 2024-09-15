@@ -15,7 +15,7 @@
 class Note;
 class Phoneme;
 
-class PhonemeView final : public QWidget, public ITimelinePainter {
+class PhonemeView final : public QWidget {
     Q_OBJECT
 
 public:
@@ -47,9 +47,7 @@ signals:
 
 public slots:
     void setTimeRange(double startTick, double endTick);
-    void setTimeSignature(int numerator, int denominator) override;
     void setPosition(double tick);
-    void setQuantize(int quantize) override;
 
 private slots:
     void onTempoChanged(double tempo);
@@ -61,9 +59,6 @@ private:
     enum MouseMoveBehavior { Move, None };
 
     void paintEvent(QPaintEvent *event) override;
-    void drawBar(QPainter *painter, int tick, int bar) override;
-    void drawBeat(QPainter *painter, int tick, int bar, int beat) override;
-    void drawEighth(QPainter *painter, int tick) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;

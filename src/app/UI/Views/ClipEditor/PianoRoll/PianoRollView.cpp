@@ -32,7 +32,6 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
 
     m_phonemeView = new PhonemeView;
     m_phonemeView->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
-    m_phonemeView->setPixelsPerQuarterNote(pixelsPerQuarterNote);
     m_phonemeView->setFixedHeight(40);
     m_phonemeView->setVisible(false);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_phonemeView,
