@@ -48,7 +48,7 @@ const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
 }
 
 void CommonParamEditorView::discardAction() {
-    qDebug() << "discardAction";
+    // qDebug() << "discardAction";
     m_drawCurvesEdited = m_drawCurvesEditedBak;
     m_mouseMoved = false;
     m_newCurveCreated = false;
@@ -60,7 +60,7 @@ void CommonParamEditorView::discardAction() {
 }
 
 void CommonParamEditorView::commitAction() {
-    qDebug() << "commitAction";
+    // qDebug() << "commitAction";
     if (!m_mouseMoved) {
         m_editingCurve = nullptr;
         m_editType = None;

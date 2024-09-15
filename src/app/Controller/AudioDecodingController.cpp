@@ -11,7 +11,7 @@
 #include "UI/Dialogs/Base/Dialog.h"
 
 void AudioDecodingController::onModelChanged() {
-    qDebug() << "AudioDecodingController::onModelChanged";
+    // qDebug() << "AudioDecodingController::onModelChanged";
     // Terminate all decoding tasks
     for (auto task : m_tasks) {
         taskManager->terminateTask(task);
@@ -28,7 +28,7 @@ void AudioDecodingController::onModelChanged() {
 
 void AudioDecodingController::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
                                              Track *track) {
-    qDebug() << "AudioDecodingController::onTrackChanged";
+    // qDebug() << "AudioDecodingController::onTrackChanged";
     if (type == AppModel::Insert)
         connect(track, &Track::clipChanged, this, &AudioDecodingController::onClipChanged);
     else if (type == AppModel::Remove) {
@@ -38,7 +38,7 @@ void AudioDecodingController::onTrackChanged(AppModel::TrackChangeType type, qsi
 }
 
 void AudioDecodingController::onClipChanged(Track::ClipChangeType type, Clip *clip) {
-    qDebug() << "AudioDecodingController::onClipChanged";
+    // qDebug() << "AudioDecodingController::onClipChanged";
     if (type == Track::Inserted) {
         if (clip->clipType() == Clip::Audio) {
             auto audioClip = reinterpret_cast<AudioClip *>(clip);

@@ -67,7 +67,7 @@ void PhonemeView::onTempoChanged(double tempo) {
 }
 
 void PhonemeView::onClipPropertyChanged() {
-    qDebug() << "PhonemeView::onClipPropertyChanged";
+    // qDebug() << "PhonemeView::onClipPropertyChanged";
     moveToSingingClipState(m_clip);
     update();
 }
@@ -307,7 +307,7 @@ bool PhonemeView::eventFilter(QObject *object, QEvent *event) {
 }
 
 void PhonemeView::moveToSingingClipState(SingingClip *clip) {
-    qDebug() << "PhonemeView::moveToSingingClipState";
+    // qDebug() << "PhonemeView::moveToSingingClipState";
     m_notes.clear();
     resetPhonemeList();
     if (m_clip) {

@@ -11,8 +11,9 @@
 #include "UI/Controls/Toast.h"
 #include "Utils/NoteWordUtils.h"
 
+// TODO: 调整逻辑避免不必要的 validation
 ValidationController::ValidationController() {
-    qDebug() << "ValidationController::ValidationController";
+    // qDebug() << "ValidationController::ValidationController";
     connect(appModel, &AppModel::modelChanged, this, &ValidationController::onModelChanged);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             &ValidationController::onUndoRedoChanged);
@@ -27,7 +28,7 @@ void ValidationController::onUndoRedoChanged() {
 }
 
 void ValidationController::onModelChanged() {
-    qDebug() << "ValidationController::onModelChanged";
+    // qDebug() << "ValidationController::onModelChanged";
     for (const auto track : m_tracks)
         onTrackChanged(AppModel::Remove, -1, track);
 
@@ -49,14 +50,14 @@ void ValidationController::onModelChanged() {
 }
 
 void ValidationController::onTempoChanged(double tempo) {
-    qDebug() << "ValidationController::onTempoChanged" << tempo;
+    // qDebug() << "ValidationController::onTempoChanged" << tempo;
     // terminate all validate tasks
     validate();
 }
 
 void ValidationController::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
                                           Track *track) {
-    qDebug() << "ValidationController::onTrackChanged" << type;
+    // qDebug() << "ValidationController::onTrackChanged" << type;
     if (type == AppModel::Insert) {
         m_tracks.append(track);
         connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
@@ -70,7 +71,7 @@ void ValidationController::onTrackChanged(AppModel::TrackChangeType type, qsizet
 }
 
 void ValidationController::onClipChanged(Track::ClipChangeType type, Clip *clip) {
-    qDebug() << "ValidationController::onClipChanged" << type;
+    // qDebug() << "ValidationController::onClipChanged" << type;
     if (type == Track::Inserted) {
         handleClipInserted(clip);
     } else if (type == Track::Removed) {
@@ -81,7 +82,7 @@ void ValidationController::onClipChanged(Track::ClipChangeType type, Clip *clip)
 }
 
 void ValidationController::onClipPropertyChanged(Clip *clip) {
-    qDebug() << "ValidationController::onClipPropertyChanged";
+    // qDebug() << "ValidationController::onClipPropertyChanged";
     if (!m_clips.contains(clip))
         return;
 
@@ -90,8 +91,16 @@ void ValidationController::onClipPropertyChanged(Clip *clip) {
 
 void ValidationController::onNoteChanged(SingingClip::NoteChangeType type,
                                          const QList<Note *> &notes) {
-    qDebug() << "onNoteChanged";
-    validate();
+    // qDebug() << "onNoteChanged";
+    switch (type) {
+        case SingingClip::Insert:
+        case SingingClip::Remove:
+        case SingingClip::TimeKeyPropertyChange:
+            validate();
+            break;
+        default:
+            break;
+    }
 }
 
 void ValidationController::handleClipInserted(Clip *clip) {
@@ -106,7 +115,7 @@ void ValidationController::handleClipInserted(Clip *clip) {
 }
 
 void ValidationController::validate() {
-    qDebug() << "ValidationController::validate";
+    // qDebug() << "ValidationController::validate";
     if (!validateProjectLength() || !validateTempo() || !validateClipOverlap() ||
         !validateNoteOverlap()) {
         emit validationFinished(false);
