@@ -93,6 +93,7 @@ PianoRollGraphicsView *PianoRollView::graphicsView() const {
 void PianoRollView::setDataContext(SingingClip *clip) const {
     m_graphicsView->setDataContext(clip);
     m_phonemeView->setDataContext(clip);
+    m_timelineView->setDataContext(clip);
 
     const bool notNull = clip != nullptr;
     m_timelineView->setVisible(notNull);

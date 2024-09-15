@@ -5,19 +5,19 @@
 #ifndef DSCLIP_H
 #define DSCLIP_H
 
-#include "Utils/Overlappable.h"
-#include "Utils/OverlappableSerialList.h"
-#include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Params.h"
 #include "Global/AppGlobal.h"
 #include "Interface/IClip.h"
 #include "Model/AppModel/AudioInfoModel.h"
+#include "Model/ClipboardDataModel/NotesParamsInfo.h"
+#include "Utils/Overlappable.h"
+#include "Utils/OverlappableSerialList.h"
 #include "Utils/Property.h"
-
 
 class DrawCurve;
 class Params;
 class Note;
+class InferPiece;
 
 class Clip : public QObject, public IClip, public Overlappable {
     Q_OBJECT
@@ -152,7 +152,8 @@ public:
     void notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type);
     Property<AppGlobal::LanguageType> defaultLanguage = AppGlobal::unknown;
     ParamBundle params;
-    // QList<VocalPart> parts();
+    [[nodiscard]] const QList<InferPiece *> &pieces() const;
+    void reSegment();
 
     static void copyCurves(const QList<Curve *> &source, QList<Curve *> &target);
     static void copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target);
@@ -161,9 +162,11 @@ signals:
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamBundle::ParamName name, Param::ParamType type);
     void defaultLanguageChanged(AppGlobal::LanguageType language);
+    void piecesChanged(const QList<InferPiece *> &pieces);
 
 private:
     OverlappableSerialList<Note> m_notes;
+    QList<InferPiece *> m_pieces;
 };
 
 // using DsClipPtr = QSharedPointer<DsClip>;

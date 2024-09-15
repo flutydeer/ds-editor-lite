@@ -6,12 +6,12 @@
 #define APPMODELUTILS_H
 #include <QList>
 
-
 class Note;
 
 class AppModelUtils {
 public:
     static void copyNotes(const QList<Note *> &source, QList<Note *> &target);
+    static QList<QList<Note *>> simpleSegment(const QList<Note *> &source, double threshold = 1500);
 };
 
 

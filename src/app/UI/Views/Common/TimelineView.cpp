@@ -10,6 +10,7 @@
 #include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Model/Inference/InferPiece.h"
 
 using namespace AppGlobal;
 
@@ -52,6 +53,24 @@ void TimelineView::setQuantize(int quantize) {
     update();
 }
 
+void TimelineView::setDataContext(SingingClip *clip) {
+    if (!clip) {
+        if (m_clip)
+            disconnect(m_clip, nullptr, this, nullptr);
+        onPiecesChanged({});
+    } else {
+        connect(clip, &SingingClip::piecesChanged, this, &TimelineView::onPiecesChanged);
+        m_pieces = clip->pieces();
+    }
+    m_clip = clip;
+    update();
+}
+
+// void TimelineView::setPieces(const QList<InferPiece *> &pieces) {
+//     m_pieces = pieces;
+//     update();
+// }
+
 void TimelineView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
     QPainter painter(this);
@@ -65,6 +84,10 @@ void TimelineView::paintEvent(QPaintEvent *event) {
 
     // Draw graduates
     drawTimeline(&painter, m_startTick, m_endTick, rect().width());
+
+    // Draw Pieces
+    if (m_clip)
+        drawPieces(&painter);
 
     // Draw playback indicator
     auto penWidth = 2.0;
@@ -96,7 +119,7 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     painter->drawText(QPointF(x + m_textPaddingLeft, 10), text);
     pen.setColor(barLineColor);
     painter->setPen(pen);
-    auto y1 = 0;
+    auto y1 = rect().height() - 24;
     auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
@@ -112,7 +135,7 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
                           /*QString::number(bar) + "." +*/ QString::number(beat));
     pen.setColor(beatLineColor);
     painter->setPen(pen);
-    auto y1 = 2.0 / 3 * rect().height();
+    auto y1 = rect().height() - 16;
     auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
@@ -122,7 +145,7 @@ void TimelineView::drawEighth(QPainter *painter, int tick) {
     auto x = tickToX(tick);
     pen.setColor(commonLineColor);
     painter->setPen(pen);
-    auto y1 = 3.0 / 4 * rect().height();
+    auto y1 = rect().height() - 8;
     auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
@@ -142,6 +165,33 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
     emit setLastPositionTriggered(xToTick(event->position().x()));
     // setPosition(xToTick(event->position().x()));
     QWidget::mouseMoveEvent(event);
+}
+
+void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
+    // for (const auto piece : m_pieces) {
+    //     disconnect(piece, nullptr, this, nullptr);
+    // }
+    // for (const auto piece : pieces) {
+    //     connect(piece, &InferPiece::statusChanged, this, [=](){});
+    // }
+    m_pieces = pieces;
+    update();
+}
+
+void TimelineView::drawPieces(QPainter *painter) {
+    auto penWidth = 2;
+    auto y = rect().height() - penWidth;
+    QPen pen;
+    pen.setWidthF(2);
+    pen.setColor(QColor(159,189,255));
+    pen.setCapStyle(Qt::RoundCap);
+    painter->setPen(pen);
+    painter->setBrush(Qt::NoBrush);
+    for (const auto &piece : m_clip->pieces()) {
+        auto x1 = tickToX(piece->startTick() + m_clip->start());
+        auto x2 = tickToX(piece->endTick() + m_clip->start());
+        painter->drawLine(x1, y, x2, y);
+    }
 }
 
 double TimelineView::tickToX(double tick) {

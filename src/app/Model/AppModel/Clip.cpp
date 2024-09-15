@@ -9,6 +9,8 @@
 #include "Note.h"
 #include "Curve.h"
 #include "DrawCurve.h"
+#include "Model/Inference/InferPiece.h"
+#include "Utils/AppModelUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
@@ -172,39 +174,43 @@ void SingingClip::notifyParamChanged(ParamBundle::ParamName name, Param::ParamTy
     emit paramChanged(name, type);
 }
 
-// QList<SingingClip::VocalPart> SingingClip::parts() {
-//     if (m_notes.count() == 0)
-//         return m_parts;
-//
-//     m_parts.clear();
-//     QList<Note *> buffer;
-//
-//     auto commit = [](VocalPart &part, QList<Note *> &buffer) {
-//         part.info.selectedNotes.clear();
-//         for (const auto note : buffer) {
-//             Note newNote;
-//             newNote.setStart(note->start());
-//             newNote.setLength(note->length());
-//             part.info.selectedNotes.append(newNote);
-//         }
-//         buffer.clear();
-//     };
-//
-//     for (int i = 0; i < m_notes.count(); i++) {
-//         auto note = notes().at(i);
-//         buffer.append(note);
-//         bool commitFlag = i < m_notes.count() - 1 &&
-//                           m_notes.at(i + 1)->start() - (note->start() + note->length()) > 0;
-//         if (i == m_notes.count() - 1)
-//             commitFlag = true;
-//         if (commitFlag) {
-//             VocalPart part;
-//             commit(part, buffer);
-//             m_parts.append(part);
-//         }
-//     }
-//     return m_parts;
-// }
+const QList<InferPiece *> &SingingClip::pieces() const {
+    return m_pieces;
+}
+
+void SingingClip::reSegment() {
+    QList<Note *> notes;
+    for (auto note : m_notes)
+        notes.append(note);
+
+    auto newSegments = AppModelUtils::simpleSegment(notes);
+    QList<InferPiece*> newPieces;
+    for (const auto &segment : newSegments) {
+        bool exists = false;
+        for (int i = 0; i < m_pieces.count(); i++) {
+            auto piece = m_pieces[i];
+            if (piece->notes == segment) {
+                exists = true;
+                newPieces.append(piece);
+                m_pieces.removeAt(i);
+                break;
+            }
+        }
+        if (!exists) {
+            auto newPiece = new InferPiece();
+            newPiece->notes = segment;
+            newPieces.append(newPiece);
+        }
+    }
+    QList<InferPiece *> temp = m_pieces;
+    m_pieces.clear();
+    m_pieces = newPieces;
+    emit piecesChanged(m_pieces);
+    qInfo() << "piecesChanged";
+    for (const auto piece : temp)
+        delete piece;
+}
+
 void SingingClip::copyCurves(const QList<Curve *> &source, QList<Curve *> &target) {
     target.clear();
     for (const auto curve : source) {
@@ -229,7 +235,3 @@ Note *SingingClip::findNoteById(int id) const {
 void SingingClip::notifyNoteChanged(NoteChangeType type, const QList<Note *> &notes) {
     emit noteChanged(type, notes);
 }
-
-// const DsParams &DsSingingClip::params() const {
-//     return m_params;
-// }

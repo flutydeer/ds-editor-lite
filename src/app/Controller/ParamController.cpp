@@ -79,6 +79,7 @@ void ParamController::handleClipInserted(Clip *clip) {
                 [=](SingingClip::NoteChangeType type, const QList<Note *> &notes) {
                     handleNoteChanged(type, notes, singingClip);
                 });
+        singingClip->reSegment();
         createAndRunGetPronTask(singingClip);
     }
 }
@@ -97,6 +98,7 @@ void ParamController::handleNoteChanged(SingingClip::NoteChangeType type,
         case SingingClip::Remove:
         case SingingClip::EditedWordPropertyChange:
         case SingingClip::TimeKeyPropertyChange:
+            clip->reSegment();
             cancelClipRelatedTasks(clip);
             createAndRunGetPronTask(clip);
             break;
@@ -207,8 +209,8 @@ bool ParamController::validateForInferDuration(int clipId) {
         }
         // TODO: 校验音素名称序列
         // if (note->phonemeNameInfo().isEmpty()) {
-        //     qCritical() << "Invalid note phonemeNameInfo" << "note" << note->lyric() << note->pronunciation().result();
-        //     return false;
+        //     qCritical() << "Invalid note phonemeNameInfo" << "note" << note->lyric() <<
+        //     note->pronunciation().result(); return false;
         // }
     }
     return true;

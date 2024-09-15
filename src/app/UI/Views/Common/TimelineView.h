@@ -8,6 +8,9 @@
 #include <QWidget>
 #include "UI/Utils/ITimelinePainter.h"
 
+class SingingClip;
+class InferPiece;
+
 class TimelineView : public QWidget, public ITimelinePainter {
     Q_OBJECT
 
@@ -19,6 +22,8 @@ public slots:
     void setTimeSignature(int numerator, int denominator) override;
     void setPosition(double tick);
     void setQuantize(int quantize) override;
+    void setDataContext(SingingClip *clip);
+    // void setPieces(const QList<InferPiece *> &pieces);
 
 signals:
     void wheelHorScale(QWheelEvent *event);
@@ -35,13 +40,19 @@ protected:
 
     enum MouseMoveBehavior { SetPosition, SelectLoopRange };
 
+private slots:
+    void onPiecesChanged(const QList<InferPiece *> &pieces);
+
 private:
+    void drawPieces(QPainter *painter);
     double tickToX(double tick);
     double xToTick(double x);
     double m_startTick = 0;
     double m_endTick = 0;
     int m_textPaddingLeft = 2;
     double m_position = 0;
+    QList<InferPiece *> m_pieces;
+    SingingClip *m_clip = nullptr;
 };
 
 
