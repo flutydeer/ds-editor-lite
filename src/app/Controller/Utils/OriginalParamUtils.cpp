@@ -31,9 +31,9 @@ void OriginalParamUtils::updateNotesPhonemeName(const QList<Note *> &notes,
     }
     int i = 0;
     for (const auto note : notes) {
-        note->setPhonemeNameInfo(PhonemeInfoSeperated::Ahead, Note::Original, args[i].aheadNames);
-        note->setPhonemeNameInfo(PhonemeInfoSeperated::Normal, Note::Original, args[i].normalNames);
-        note->setPhonemeNameInfo(PhonemeInfoSeperated::Final, Note::Original, args[i].finalNames);
+        note->setPhonemeNameInfo(Phonemes::Ahead, Note::Original, args[i].aheadNames);
+        note->setPhonemeNameInfo(Phonemes::Normal, Note::Original, args[i].normalNames);
+        note->setPhonemeNameInfo(Phonemes::Final, Note::Original, args[i].finalNames);
         i++;
     }
     clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
@@ -49,9 +49,9 @@ void OriginalParamUtils::updateNotesPhonemeOffset(const QList<Note *> &notes,
     }
     int i = 0;
     for (const auto note : notes) {
-        note->setPhonemeOffsetInfo(PhonemeInfoSeperated::Ahead, Note::Original, args[i].aheadOffsets);
-        note->setPhonemeOffsetInfo(PhonemeInfoSeperated::Normal, Note::Original, args[i].normalOffsets);
-        note->setPhonemeOffsetInfo(PhonemeInfoSeperated::Final, Note::Original, args[i].finalOffsets);
+        note->setPhonemeOffsetInfo(Phonemes::Ahead, Note::Original, args[i].aheadOffsets);
+        note->setPhonemeOffsetInfo(Phonemes::Normal, Note::Original, args[i].normalOffsets);
+        note->setPhonemeOffsetInfo(Phonemes::Final, Note::Original, args[i].finalOffsets);
         i++;
     }
     clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);

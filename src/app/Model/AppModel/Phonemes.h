@@ -2,11 +2,10 @@
 // Created by fluty on 24-9-10.
 //
 
-#ifndef PHONEMEINFOSEPERATED_H
-#define PHONEMEINFOSEPERATED_H
+#ifndef PHONEMES_H
+#define PHONEMES_H
 
 #include "Interface/ISerializable.h"
-
 
 #include <QList>
 
@@ -56,9 +55,9 @@ public:
     bool deserialize(const QJsonObject &obj) override;
 };
 
-class PhonemeInfoSeperated : public ISerializable {
+class Phonemes : public ISerializable {
 public:
-    enum PhonemeType { Ahead, Normal, Final };
+    enum Type { Ahead, Normal, Final };
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
@@ -69,4 +68,4 @@ public:
 
 
 
-#endif // PHONEMEINFOSEPERATED_H
+#endif // PHONEMES_H

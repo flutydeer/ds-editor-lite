@@ -122,11 +122,11 @@ void Note::setPronCandidates(const QStringList &pronCandidates) {
 //     qCritical() << "Deprecated method setPhonemeInfo() called";
 // }
 
-const PhonemeInfoSeperated &Note::phonemes() const {
+const Phonemes &Note::phonemes() const {
     return m_phonemeInfo;
 }
 
-void Note::setPhonemes(const PhonemeInfoSeperated &phonemes) {
+void Note::setPhonemes(const Phonemes &phonemes) {
     m_phonemeInfo = phonemes;
 }
 
@@ -138,19 +138,19 @@ void Note::setPhonemeNameInfo(const PhonemeNameInfo &info) {
     m_phonemeInfo.nameInfo = info;
 }
 
-void Note::setPhonemeNameInfo(PhonemeInfoSeperated::PhonemeType phType, WordPropertyType wordType,
+void Note::setPhonemeNameInfo(Phonemes::Type phType, WordPropertyType wordType,
                               const QList<QString> &nameSeq) {
-    if (phType == PhonemeInfoSeperated::Ahead) {
+    if (phType == Phonemes::Ahead) {
         if (wordType == Original)
             m_phonemeInfo.nameInfo.ahead.original = nameSeq;
         else if (wordType == Edited)
             m_phonemeInfo.nameInfo.ahead.edited = nameSeq;
-    } else if (phType == PhonemeInfoSeperated::Normal) {
+    } else if (phType == Phonemes::Normal) {
         if (wordType == Original)
             m_phonemeInfo.nameInfo.normal.original = nameSeq;
         else if (wordType == Edited)
             m_phonemeInfo.nameInfo.normal.edited = nameSeq;
-    } else if (phType == PhonemeInfoSeperated::Final) {
+    } else if (phType == Phonemes::Final) {
         if (wordType == Original)
             m_phonemeInfo.nameInfo.final.original = nameSeq;
         else if (wordType == Edited)
@@ -166,19 +166,19 @@ void Note::setPhonemeOffsetInfo(const PhonemeOffsetInfo &info) {
     m_phonemeInfo.offsetInfo = info;
 }
 
-void Note::setPhonemeOffsetInfo(PhonemeInfoSeperated::PhonemeType phType, WordPropertyType wordType,
+void Note::setPhonemeOffsetInfo(Phonemes::Type phType, WordPropertyType wordType,
                                 const QList<int> &offsetSeq) {
-    if (phType == PhonemeInfoSeperated::Ahead) {
+    if (phType == Phonemes::Ahead) {
         if (wordType == Original)
             m_phonemeInfo.offsetInfo.ahead.original = offsetSeq;
         else if (wordType == Edited)
             m_phonemeInfo.offsetInfo.ahead.edited = offsetSeq;
-    } else if (phType == PhonemeInfoSeperated::Normal) {
+    } else if (phType == Phonemes::Normal) {
         if (wordType == Original)
             m_phonemeInfo.offsetInfo.normal.original = offsetSeq;
         else if (wordType == Edited)
             m_phonemeInfo.offsetInfo.normal.edited = offsetSeq;
-    } else if (phType == PhonemeInfoSeperated::Final) {
+    } else if (phType == Phonemes::Final) {
         if (wordType == Original)
             m_phonemeInfo.offsetInfo.final.original = offsetSeq;
         else if (wordType == Edited)

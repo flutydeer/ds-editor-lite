@@ -554,21 +554,21 @@ void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phVm) {
     }
     auto note = m_clip->findNoteById(phVm->noteId);
     auto noteStartInMs = appModel->tickToMs(note->start());
-    PhonemeInfoSeperated::PhonemeType type;
+    Phonemes::Type type;
     if (phVm->type == PhonemeViewModel::Ahead) {
-        type = PhonemeInfoSeperated::Ahead;
+        type = Phonemes::Ahead;
         for (auto phoneme : relatedPhonemes) {
             auto phonemeStartInMs = appModel->tickToMs(phoneme->start + phoneme->startOffset);
             offsets.append(qRound(noteStartInMs - phonemeStartInMs));
         }
     } else if (phVm->type == PhonemeViewModel::Normal) {
-        type = PhonemeInfoSeperated::Normal;
+        type = Phonemes::Normal;
         for (auto phoneme : relatedPhonemes) {
             auto phonemeStartInMs = appModel->tickToMs(phoneme->start + phoneme->startOffset);
             offsets.append(qRound(phonemeStartInMs - noteStartInMs));
         }
     } else if (phVm->type == PhonemeViewModel::Final) {
-        type = PhonemeInfoSeperated::Final;
+        type = Phonemes::Final;
         for (auto phoneme : relatedPhonemes) {
             auto phonemeStartInMs = appModel->tickToMs(phoneme->start + phoneme->startOffset);
             offsets.append(qRound(phonemeStartInMs - noteStartInMs));

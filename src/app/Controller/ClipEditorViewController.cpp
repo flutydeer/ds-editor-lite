@@ -195,8 +195,7 @@ void ClipEditorViewController::onResizeNotesRight(const QList<int> &notesId, int
     historyManager->record(a);
 }
 
-void ClipEditorViewController::onAdjustPhonemeOffset(int noteId,
-                                                     PhonemeInfoSeperated::PhonemeType type,
+void ClipEditorViewController::onAdjustPhonemeOffset(int noteId, Phonemes::Type type,
                                                      const QList<int> &offsets) const {
     Q_D(const ClipEditorViewController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);

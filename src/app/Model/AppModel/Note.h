@@ -8,7 +8,7 @@
 #include "Utils/Overlappable.h"
 #include "Utils/UniqueObject.h"
 // #include "PhonemeInfo.h"
-#include "PhonemeInfoSeperated.h"
+#include "Phonemes.h"
 #include "Pronunciation.h"
 
 #include <QObject>
@@ -45,18 +45,18 @@ public:
     // void setPhonemeInfo(WordPropertyType type, const QList<Phoneme> &phonemes);
     // void setPhonemeInfo(const QList<Phoneme> &original, const QList<Phoneme> &edited);
     // void setPhonemeInfo(const PhonemeInfo &info);
-    [[nodiscard]] const PhonemeInfoSeperated &phonemes() const;
-    void setPhonemes(const PhonemeInfoSeperated &phonemes);
+    [[nodiscard]] const Phonemes &phonemes() const;
+    void setPhonemes(const Phonemes &phonemes);
 
     [[nodiscard]] const PhonemeNameInfo &phonemeNameInfo() const;
     void setPhonemeNameInfo(const PhonemeNameInfo &info);
-    void setPhonemeNameInfo(PhonemeInfoSeperated::PhonemeType phType, WordPropertyType wordType,
+    void setPhonemeNameInfo(Phonemes::Type phType, WordPropertyType wordType,
                             const QList<QString> &nameSeq);
 
     [[nodiscard]] const PhonemeOffsetInfo &phonemeOffsetInfo() const;
     void setPhonemeOffsetInfo(const PhonemeOffsetInfo &info);
-    void setPhonemeOffsetInfo(PhonemeInfoSeperated::PhonemeType phType, WordPropertyType wordType,
-                            const QList<int> &offsetSeq);
+    void setPhonemeOffsetInfo(Phonemes::Type phType, WordPropertyType wordType,
+                              const QList<int> &offsetSeq);
 
     [[nodiscard]] QString language() const;
     void setLanguage(const QString &language);
@@ -80,7 +80,7 @@ public:
         Pronunciation pronunciation;
         QStringList pronCandidates;
         // PhonemeInfo phonemes;
-        PhonemeInfoSeperated phonemes;
+        Phonemes phonemes;
 
         static WordProperties fromNote(const Note &note);
     };
@@ -96,7 +96,7 @@ private:
     Pronunciation m_pronunciation;
     QStringList m_pronCandidates;
     // PhonemeInfo m_phonemes;
-    PhonemeInfoSeperated m_phonemeInfo;
+    Phonemes m_phonemeInfo;
     bool m_lineFeed = false;
 };
 

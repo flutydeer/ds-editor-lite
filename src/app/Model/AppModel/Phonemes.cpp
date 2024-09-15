@@ -2,7 +2,7 @@
 // Created by fluty on 24-9-10.
 //
 
-#include "PhonemeInfoSeperated.h"
+#include "Phonemes.h"
 
 #include <QJsonArray>
 
@@ -125,14 +125,14 @@ bool PhonemeOffsetInfo::deserialize(const QJsonObject &obj) {
     return true;
 }
 
-QJsonObject PhonemeInfoSeperated::serialize() const {
+QJsonObject Phonemes::serialize() const {
     return QJsonObject{
         {"name", nameInfo.serialize() },
         {"offset", offsetInfo.serialize() },
     };
 }
 
-bool PhonemeInfoSeperated::deserialize(const QJsonObject &obj) {
+bool Phonemes::deserialize(const QJsonObject &obj) {
     nameInfo.deserialize(obj.value("name").toObject());
     offsetInfo.deserialize(obj.value("offset").toObject());
     return true;

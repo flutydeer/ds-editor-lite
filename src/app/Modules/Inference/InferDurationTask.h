@@ -5,7 +5,6 @@
 #ifndef INFERDURATIONTASK_H
 #define INFERDURATIONTASK_H
 
-#include "Model/AppModel/Phoneme.h"
 #include "Model/Inference/InferDurationDataModel.h"
 #include "Modules/Task/Task.h"
 

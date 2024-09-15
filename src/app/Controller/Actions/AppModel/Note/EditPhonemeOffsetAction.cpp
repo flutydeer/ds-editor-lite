@@ -6,14 +6,14 @@
 
 #include "Model/AppModel/Clip.h"
 
-EditPhonemeOffsetAction::EditPhonemeOffsetAction(Note *note, PhonemeInfoSeperated::PhonemeType type,
+EditPhonemeOffsetAction::EditPhonemeOffsetAction(Note *note, Phonemes::Type type,
                                                  const QList<int> &offsets, SingingClip *clip)
     : m_note(note), m_type(type), m_newOffsets(offsets), m_clip(clip) {
-    if (type == PhonemeInfoSeperated::Ahead)
+    if (type == Phonemes::Ahead)
         m_oldOffsets = m_note->phonemeOffsetInfo().ahead.edited;
-    else if (type == PhonemeInfoSeperated::Normal)
+    else if (type == Phonemes::Normal)
         m_oldOffsets = m_note->phonemeOffsetInfo().normal.edited;
-    else if (type == PhonemeInfoSeperated::Final)
+    else if (type == Phonemes::Final)
         m_oldOffsets = m_note->phonemeOffsetInfo().final.edited;
 }
 

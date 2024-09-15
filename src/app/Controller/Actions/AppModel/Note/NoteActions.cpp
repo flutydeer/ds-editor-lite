@@ -46,7 +46,7 @@ void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
     addAction(new EditNoteWordPropertiesAction(notes, args, clip));
 }
 
-void NoteActions::editNotePhonemeOffset(Note *note, PhonemeInfoSeperated::PhonemeType type,
+void NoteActions::editNotePhonemeOffset(Note *note, Phonemes::Type type,
                                         const QList<int> &offsets, SingingClip *clip) {
     setName(tr("Edite phoneme offset"));
     addAction(new EditPhonemeOffsetAction(note, type, offsets, clip));
