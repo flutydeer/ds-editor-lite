@@ -112,10 +112,10 @@ bool PianoRollGraphicsView::event(QEvent *event) {
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
         auto key = dynamic_cast<QKeyEvent *>(event)->key();
         if (key == Qt::Key_Escape) {
-            cancelAction();
+            discardAction();
         }
     } else if (event->type() == QEvent::WindowDeactivate) {
-        cancelAction();
+        discardAction();
     };
     return TimeGraphicsView::event(event);
 }
@@ -315,9 +315,9 @@ void PianoRollGraphicsView::clearNoteSelections(NoteView *except) {
     }
 }
 
-void PianoRollGraphicsView::cancelAction() {
+void PianoRollGraphicsView::discardAction() {
     Q_D(PianoRollGraphicsView);
-    d->m_pitchEditor->cancelAction();
+    d->m_pitchEditor->discardAction();
     cancelRequested = true;
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
         if (d->m_movedBeforeMouseUp) {

@@ -22,7 +22,7 @@ public:
     void clearParams();
     void setEraseMode(bool on);
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
-    void cancelAction() override;
+    void discardAction() override;
     void commitAction() override;
 
 signals:

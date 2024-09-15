@@ -34,7 +34,7 @@ public:
     [[nodiscard]] QList<int> selectedNotesId() const;
     void clearNoteSelections(NoteView *except = nullptr);
 
-    void cancelAction() override;
+    void discardAction() override;
     void commitAction() override;
 
     [[nodiscard]] double topKeyIndex() const;

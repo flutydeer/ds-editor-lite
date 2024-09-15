@@ -9,7 +9,7 @@
 
 interface IAtomicAction {
     I_DECL(IAtomicAction)
-    I_METHOD(void cancelAction()); // Revert to original state
+    I_METHOD(void discardAction()); // Revert to original state
     I_METHOD(void commitAction()); // Commit current action
     I_MEMBER(bool cancelRequested = false);
 };
