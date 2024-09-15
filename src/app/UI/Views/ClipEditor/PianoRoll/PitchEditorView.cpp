@@ -9,6 +9,7 @@
 
 PitchEditorView::PitchEditorView() {
     setFillCurve(false);
+    setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
 }
 
 double PitchEditorView::valueToSceneY(double value) const {

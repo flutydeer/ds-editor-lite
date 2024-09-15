@@ -15,10 +15,9 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 
-using namespace ClipEditorGlobal;
-
 CommonParamEditorView::CommonParamEditorView() {
-    setBackgroundColor(Qt::transparent);
+    // setBackgroundColor(Qt::transparent);
+    setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
 }
 
 void CommonParamEditorView::loadOriginal(const QList<DrawCurve *> &curves) {
@@ -112,7 +111,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
                                   QWidget *widget) {
     QElapsedTimer mstimer;
     mstimer.start();
-    OverlayGraphicsItem::paint(painter, option, widget);
+    TimeOverlayGraphicsItem::paint(painter, option, widget);
 
     auto hideThreshold = 0.4;
     auto fadeLength = 0.1;
@@ -147,8 +146,8 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 }
 
 void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-    if (m_transparentForMouseEvents) {
-        OverlayGraphicsItem::mousePressEvent(event);
+    if (transparentMouseEvents()) {
+        TimeOverlayGraphicsItem::mousePressEvent(event);
         return;
     }
 
@@ -194,7 +193,8 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-    if (cancelRequested || m_editType == None || transparentForMouseEvents() || m_mouseDown == false)
+    if (cancelRequested || m_editType == None || transparentMouseEvents() ||
+        m_mouseDown == false)
         return;
 
     m_mouseMoved = true;
@@ -285,36 +285,6 @@ void CommonParamEditorView::updateRectAndPos() {
     setPos(pos);
     setRect(QRectF(0, 0, visibleRect().width(), visibleRect().height()));
     update();
-}
-
-double CommonParamEditorView::startTick() const {
-    return sceneXToTick(visibleRect().left());
-}
-
-double CommonParamEditorView::endTick() const {
-    return sceneXToTick(visibleRect().right());
-}
-
-double CommonParamEditorView::sceneXToTick(double x) const {
-    auto tick = 480 * x / scaleX() / pixelsPerQuarterNote;
-    return tick;
-}
-
-double CommonParamEditorView::tickToSceneX(double tick) const {
-    auto x = tick * scaleX() * pixelsPerQuarterNote / 480;
-    return x;
-}
-
-double CommonParamEditorView::sceneXToItemX(double x) const {
-    return mapFromScene(QPointF(x, 0)).x();
-}
-
-double CommonParamEditorView::tickToItemX(double tick) const {
-    return sceneXToItemX(tickToSceneX(tick));
-}
-
-double CommonParamEditorView::sceneYToItemY(double y) const {
-    return mapFromScene(QPointF(0, y)).y();
 }
 
 double CommonParamEditorView::valueToItemY(double value) const {

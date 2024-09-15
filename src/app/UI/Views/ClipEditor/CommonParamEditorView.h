@@ -7,9 +7,9 @@
 
 #include "Interface/IAtomicAction.h"
 #include "Model/AppModel/DrawCurve.h"
-#include "UI/Views/Common/OverlayGraphicsItem.h"
+#include "UI/Views/Common/TimeOverlayGraphicsItem.h"
 
-class CommonParamEditorView : public OverlayGraphicsItem, public IAtomicAction {
+class CommonParamEditorView : public TimeOverlayGraphicsItem, public IAtomicAction {
     Q_OBJECT
 
 public:
@@ -50,7 +50,7 @@ private:
     enum EditType { DrawOnInterval, DrawOnCurve, Erase, None };
 
     bool m_mouseDown = false;
-    Qt::MouseButton m_mouseDownButton;
+    Qt::MouseButton m_mouseDownButton = Qt::NoButton;
     QPoint m_mouseDownPos; // x: tick, y: value
     QPoint m_prevPos;
     DrawCurve *m_editingCurve = nullptr;
@@ -62,13 +62,6 @@ private:
     QList<DrawCurve *> m_drawCurvesOriginal;
     QList<DrawCurve *> m_drawCurvesEditedBak;
 
-    [[nodiscard]] double startTick() const;
-    [[nodiscard]] double endTick() const;
-    [[nodiscard]] double sceneXToTick(double x) const;
-    [[nodiscard]] double tickToSceneX(double tick) const;
-    [[nodiscard]] double sceneXToItemX(double x) const;
-    [[nodiscard]] double tickToItemX(double tick) const;
-    [[nodiscard]] double sceneYToItemY(double y) const;
     [[nodiscard]] double valueToItemY(double value) const;
     DrawCurve *curveAt(double tick);
     QList<DrawCurve *> curvesIn(int startTick, int endTick);

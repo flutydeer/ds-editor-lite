@@ -6,6 +6,7 @@
 
 #include "PianoRollGraphicsView.h"
 
+#include "ClipRangeOverlay.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView_p.h"
 #include "Controller/ClipEditorViewController.h"
@@ -56,7 +57,11 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     connect(d->m_pitchEditor, &CommonParamEditorView::editCompleted, this,
             &PianoRollGraphicsView::onPitchEditorEditCompleted);
     scene->addCommonItem(d->m_pitchEditor);
-    d->m_pitchEditor->setTransparentForMouseEvents(true);
+    d->m_pitchEditor->setTransparentMouseEvents(true);
+
+    d->m_clipRangeOverlay = new ClipRangeOverlay;
+    d->m_clipRangeOverlay->setZValue(3);
+    scene->addCommonItem(d->m_clipRangeOverlay);
 
     connect(scene, &QGraphicsScene::selectionChanged, this,
             &PianoRollGraphicsView::onSceneSelectionChanged);
@@ -536,6 +541,8 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     q->setOffset(m_offset);
     q->setSceneVisibility(true);
     q->setEnabled(true);
+    q->setSceneLength(m_clip->length());
+    m_clipRangeOverlay->setClipRange(clip->clipStart(), clip->clipLen());
 
     if (clip->notes().count() > 0) {
         for (const auto note : clip->notes())
@@ -779,7 +786,7 @@ void PianoRollGraphicsViewPrivate::setPitchEditMode(bool on, bool isErase) {
         note->setEditingPitch(on);
     if (on)
         q->clearNoteSelections();
-    m_pitchEditor->setTransparentForMouseEvents(!on);
+    m_pitchEditor->setTransparentMouseEvents(!on);
     m_pitchEditor->setEraseMode(isErase);
 }
 
@@ -838,6 +845,8 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
     Q_Q(PianoRollGraphicsView);
     m_offset = m_clip->start();
     q->setOffset(m_offset);
+    q->setSceneLength(m_clip->length());
+    m_clipRangeOverlay->setClipRange(m_clip->clipStart(), m_clip->clipLen());
 
     for (auto note : m_notes) {
         updateNoteTimeAndKey(note);

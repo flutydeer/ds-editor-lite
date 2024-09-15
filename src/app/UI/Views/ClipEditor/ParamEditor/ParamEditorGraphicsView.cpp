@@ -23,6 +23,6 @@ ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene
 
     auto editor = new CommonParamEditorView;
     editor->setZValue(2);
-    editor->setTransparentForMouseEvents(false);
+    editor->setTransparentMouseEvents(false);
     scene->addCommonItem(editor);
 }

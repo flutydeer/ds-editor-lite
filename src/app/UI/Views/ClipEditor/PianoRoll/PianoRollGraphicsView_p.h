@@ -12,6 +12,7 @@
 #include <QObject>
 #include <QPointF>
 
+class ClipRangeOverlay;
 class PitchEditorView;
 class QMouseEvent;
 class QPaintEvent;
@@ -42,9 +43,10 @@ public:
     GraphicsLayerManager *m_layerManager = nullptr;
     NoteLayer m_noteLayer;
     PitchEditorView *m_pitchEditor = nullptr;
+    ClipRangeOverlay *m_clipRangeOverlay = nullptr;
 
     bool m_mouseDown = false;
-    Qt::MouseButton m_mouseDownButton;
+    Qt::MouseButton m_mouseDownButton = Qt::NoButton;
     bool m_selecting = false;
     bool m_selectionChangeBarrier = false;
     bool m_isEditPitchMode = false;
