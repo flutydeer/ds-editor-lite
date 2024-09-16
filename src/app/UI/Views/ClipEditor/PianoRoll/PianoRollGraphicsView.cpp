@@ -347,7 +347,7 @@ void PianoRollGraphicsView::discardAction() {
     auto notes = selectedNotesId();
     clipController->selectNotes(notes, true);
 
-    appStatus->editing = false;
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
 void PianoRollGraphicsView::commitAction() {
@@ -387,7 +387,7 @@ void PianoRollGraphicsView::commitAction() {
     auto notes = selectedNotesId();
     clipController->selectNotes(notes, true);
 
-    appStatus->editing = false;
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
 double PianoRollGraphicsView::topKeyIndex() const {
@@ -565,7 +565,7 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
 void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QPointF scenePos,
                                                           int keyIndex, NoteView *noteItem) {
     Q_Q(PianoRollGraphicsView);
-    appStatus->editing = true;
+    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     bool ctrlDown = event->modifiers() == Qt::ControlModifier;
     if (!ctrlDown) {
         if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteItem))
@@ -602,7 +602,7 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QP
 
 void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(int tick, int keyIndex) {
     Q_Q(PianoRollGraphicsView);
-    appStatus->editing = true;
+    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     auto snappedTick = MathUtils::roundDown(tick, 1920 / appStatus->quantize);
     Log::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
     m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
@@ -657,7 +657,7 @@ void PianoRollGraphicsViewPrivate::handleNotesErased() {
 }
 
 void PianoRollGraphicsViewPrivate::eraseNoteFromView(NoteView *noteView) {
-    appStatus->editing = true;
+    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     m_notesToErase.append(noteView->id());
     m_noteViewsToErase.append(noteView);
     m_layerManager->removeItem(noteView, &m_noteLayer);

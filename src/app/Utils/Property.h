@@ -23,7 +23,7 @@ public:
 
     // public slots:
     virtual void set(const T &newValue);
-    void setNotifyCallback(std::function<void(const T &newValue)> func);
+    void setNotify(std::function<void(const T &newValue)> callback);
 
     // signals:
     //     void valueChanged(const T &newValue);
@@ -62,8 +62,8 @@ void Property<T>::set(const T &newValue) {
 }
 
 template <typename T>
-void Property<T>::setNotifyCallback(std::function<void(const T &newValue)> func) {
-    notify = func;
+void Property<T>::setNotify(std::function<void(const T &newValue)> callback) {
+    notify = callback;
 }
 
 #endif // PROPERTY_H

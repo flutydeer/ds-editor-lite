@@ -54,7 +54,7 @@ void CommonParamEditorView::discardAction() {
     cancelRequested = true;
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
-    appStatus->editing = false;
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
     update();
 }
 
@@ -75,7 +75,7 @@ void CommonParamEditorView::commitAction() {
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
     update();
-    appStatus->editing = false;
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
 bool CommonParamEditorView::fillCurve() const {
@@ -159,7 +159,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     m_mouseDown = true;
     m_mouseDownButton = event->button();
     cancelRequested = false;
-    appStatus->editing = true;
+    appStatus->currentEditObject = AppStatus::EditObjectType::Param;
     SingingClip::copyCurves(m_drawCurvesEdited, m_drawCurvesEditedBak);
     auto scenePos = event->scenePos().toPoint();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);

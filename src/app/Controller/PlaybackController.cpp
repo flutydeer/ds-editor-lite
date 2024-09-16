@@ -42,7 +42,7 @@ double PlaybackController::tempo() const {
 
 void PlaybackController::play() {
     Q_D(PlaybackController);
-    if (appStatus->editing) {
+    if (appStatus->currentEditObject != AppStatus::EditObjectType::None) {
         qWarning() << "Cannot start playing because mouse button not released";
         Toast::show(tr("Please release mouse button before playing"));
         return;

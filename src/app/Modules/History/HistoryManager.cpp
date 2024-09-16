@@ -21,7 +21,7 @@ HistoryManager::~HistoryManager() {
 
 void HistoryManager::undo() {
     Q_D(HistoryManager);
-    if (appStatus->editing) {
+    if (appStatus->currentEditObject != AppStatus::EditObjectType::None) {
         qWarning() << "Cannot undo because editing not finished";
         return;
     }
@@ -37,7 +37,7 @@ void HistoryManager::undo() {
 
 void HistoryManager::redo() {
     Q_D(HistoryManager);
-    if (appStatus->editing) {
+    if (appStatus->currentEditObject != AppStatus::EditObjectType::None) {
         qWarning() << "Cannot redo because editing not finished";
         return;
     }

@@ -18,6 +18,7 @@ class AppStatus : public QObject, public Singleton<AppStatus> {
 public:
     enum class ModuleType { Audio, Language };
     enum class ModuleStatus { Ready, Loading, Error, Unknown };
+    enum class EditObjectType { None, Clip, Note, Phoneme, Param };
 
     explicit AppStatus();
 
@@ -34,7 +35,7 @@ public:
     Property<int> selectedTrackIndex = -1;
     Property<int> activeClipId = -1;
     Property<QList<int>> selectedNotes;
-    Property<bool> editing = false; // TODO: 提供更详细的编辑类型
+    Property<EditObjectType> currentEditObject = EditObjectType::None;
 
 signals:
     // Modules
@@ -50,7 +51,7 @@ signals:
     void selectedTrackIndexChanged(int trackIndex);
     void activeClipIdChanged(int newId);
     void noteSelectionChanged(const QList<int> &selectedNotes);
-    void editingChanged(bool isEditing);
+    void editingChanged(AppStatus::EditObjectType type);
 };
 
 #endif // APPSTATUS_H

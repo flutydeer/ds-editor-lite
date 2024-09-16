@@ -6,23 +6,24 @@
 
 AppStatus::AppStatus() {
     // Modules
-    languageModuleStatus.setNotifyCallback(
+    languageModuleStatus.setNotify(
         [=](const ModuleStatus value) { emit moduleStatusChanged(ModuleType::Language, value); });
 
     // Main Window
-    trackPanelCollapsed.setNotifyCallback(
+    trackPanelCollapsed.setNotify(
         [=](const bool value) { emit trackPanelCollapseStateChanged(value); });
-    clipPanelCollapsed.setNotifyCallback(
+    clipPanelCollapsed.setNotify(
         [=](const bool value) { emit clipPanelCollapseStateChanged(value); });
 
     // Project
-    quantize.setNotifyCallback([=](const int value) { emit quantizeChanged(value); });
-    projectEditableLength.setNotifyCallback(
+    quantize.setNotify([=](const int value) { emit quantizeChanged(value); });
+    projectEditableLength.setNotify(
         [=](const int value) { emit projectEditableLengthChanged(value); });
-    selectedTrackIndex.setNotifyCallback(
+    selectedTrackIndex.setNotify(
         [=](const int value) { emit selectedTrackIndexChanged(value); });
-    activeClipId.setNotifyCallback([=](const int value) { emit activeClipIdChanged(value); });
-    selectedNotes.setNotifyCallback(
+    activeClipId.setNotify([=](const int value) { emit activeClipIdChanged(value); });
+    selectedNotes.setNotify(
         [=](const QList<int> &value) { emit noteSelectionChanged(value); });
-    editing.setNotifyCallback([=](const bool value) { emit editingChanged(value); });
+    currentEditObject.setNotify(
+        [=](const EditObjectType value) { emit editingChanged(value); });
 }

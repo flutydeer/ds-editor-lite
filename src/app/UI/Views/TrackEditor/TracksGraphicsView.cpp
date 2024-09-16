@@ -230,7 +230,7 @@ void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     m_mouseMoveBehavior = None;
     m_movedBeforeMouseUp = false;
     m_currentEditingClip = nullptr;
-    appStatus->editing = false;
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
     TimeGraphicsView::mouseReleaseEvent(event);
 }
 
@@ -286,7 +286,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 
 void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
                                                         AbstractClipView *clipItem) {
-    appStatus->editing = true;
+    appStatus->currentEditObject = AppStatus::EditObjectType::Clip;
     auto scenePos = mapToScene(event->pos());
     // qDebug() << "prepareForMovingOrResizingClip";
 

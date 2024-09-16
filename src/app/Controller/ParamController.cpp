@@ -63,17 +63,21 @@ void ParamController::onModuleStatusChanged(AppStatus::ModuleType module,
     }
 }
 
-void ParamController::onEditingChanged(bool isEditing) {
-    if (isEditing) {
+void ParamController::onEditingChanged(AppStatus::EditObjectType type) {
+    if (type == AppStatus::EditObjectType::Note) {
         qWarning() << "正在编辑工程，取消相关任务";
         auto clip = appModel->findClipById(appStatus->activeClipId);
         cancelClipRelatedTasks(clip);
-    }else {
-        qInfo() << "编辑完成，重新创建任务";
-        auto clip = appModel->findClipById(appStatus->activeClipId);
-        if (clip->clipType() == IClip::Singing)
-        createAndRunGetPronTask(dynamic_cast<SingingClip *>(clip));
+    } else if (type == AppStatus::EditObjectType::None) {
+        // TODO: 按需重建相关任务
+        // if (m_lastEditObjectType == AppStatus::EditObjectType::Note) {
+        // qInfo() << "编辑完成，重新创建任务";
+        // auto clip = appModel->findClipById(appStatus->activeClipId);
+        // if (clip->clipType() == IClip::Singing)
+        //     createAndRunGetPronTask(dynamic_cast<SingingClip *>(clip));
+        // }
     }
+    m_lastEditObjectType = type;
 }
 
 void ParamController::handleClipInserted(Clip *clip) {
@@ -191,7 +195,8 @@ void ParamController::handleInferDurTaskFinished(InferDurationTask *task) {
         qFatal() << "模型音符数不等于任务音符数";
         return;
     }
-    OriginalParamUtils::updateNotesPhonemeOffset(singingClip->notes().toList(), task->result(), singingClip);
+    OriginalParamUtils::updateNotesPhonemeOffset(singingClip->notes().toList(), task->result(),
+                                                 singingClip);
     delete task;
 }
 

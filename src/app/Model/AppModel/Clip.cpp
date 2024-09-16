@@ -142,7 +142,7 @@ AudioClip::~AudioClip() {
 }
 
 SingingClip::SingingClip() : Clip() {
-    defaultLanguage.setNotifyCallback(
+    defaultLanguage.setNotify(
         [=](const AppGlobal::LanguageType value) { emit defaultLanguageChanged(value); });
 }
 

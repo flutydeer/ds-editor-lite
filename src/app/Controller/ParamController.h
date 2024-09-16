@@ -30,7 +30,7 @@ private slots:
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
-    void onEditingChanged(bool isEditing);
+    void onEditingChanged(AppStatus::EditObjectType type);
 
 private:
     void handleClipInserted(Clip *clip);
@@ -51,6 +51,8 @@ private:
     void runNextGetPronTask();
     void runNextGetPhonemeNameTask();
     void runNextInferDurTask();
+
+    AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
     QList<Track *> m_tracks;
     // QList<Clip *> m_clips;

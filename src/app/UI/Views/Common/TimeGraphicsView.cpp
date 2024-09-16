@@ -100,7 +100,7 @@ void TimeGraphicsView::setPlaybackPosition(double tick) {
     if (m_scenePlayPosIndicator != nullptr)
         m_scenePlayPosIndicator->setPosition(tick);
 
-    if (!m_autoTurnPage || appStatus->editing)
+    if (!m_autoTurnPage || appStatus->currentEditObject != AppStatus::EditObjectType::None)
         return;
 
     if (m_playbackPosition > endTick()) {
