@@ -68,6 +68,11 @@ void ParamController::onEditingChanged(bool isEditing) {
         qWarning() << "正在编辑工程，取消相关任务";
         auto clip = appModel->findClipById(appStatus->activeClipId);
         cancelClipRelatedTasks(clip);
+    }else {
+        qInfo() << "编辑完成，重新创建任务";
+        auto clip = appModel->findClipById(appStatus->activeClipId);
+        if (clip->clipType() == IClip::Singing)
+        createAndRunGetPronTask(dynamic_cast<SingingClip *>(clip));
     }
 }
 
@@ -268,7 +273,7 @@ void ParamController::createAndRunInferDurTask(SingingClip *clip) {
 
 void ParamController::cancelClipRelatedTasks(Clip *clip) {
     qInfo() << "--------------------------------";
-    qInfo() << "模型发生改动，取消歌声剪辑相关任务";
+    qInfo() << "取消歌声剪辑相关任务";
     auto getPronTaskPred = [=](GetPhonemeNameTask *task) { return task->clipId == clip->id(); };
     auto inferDurTaskPred = [=](InferDurationTask *task) { return task->clipId == clip->id(); };
 
