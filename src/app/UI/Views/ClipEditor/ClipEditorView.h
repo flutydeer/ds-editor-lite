@@ -5,6 +5,7 @@
 #ifndef CLIPEDITVIEW_H
 #define CLIPEDITVIEW_H
 
+#include "PianoRollEditorView.h"
 #include "Interface/IClipEditorView.h"
 #include "UI/Views/Common/PanelView.h"
 
@@ -38,11 +39,9 @@ private:
     void moveToNullClipState() const;
 
     ClipEditorToolBarView *m_toolbarView;
-    PianoRollView *m_pianoRollView;
-    ParamEditorView *m_paramEditorView;
-    QSplitter *m_splitter;
+    PianoRollEditorView *m_pianoRollEditorView;
 
-    void reset();
+    void reset() const;
     // void printParts();
 };
 

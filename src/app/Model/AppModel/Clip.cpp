@@ -170,7 +170,7 @@ void SingingClip::removeNote(Note *note) {
     // qDebug() << "remove note #" << note->id() << note->lyric() << "clip #" << id();
 }
 
-void SingingClip::notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type) {
+void SingingClip::notifyParamChanged(ParamInfo::Name name, Param::Type type) {
     emit paramChanged(name, type);
 }
 

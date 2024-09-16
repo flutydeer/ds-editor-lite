@@ -2,20 +2,20 @@
 // Created by fluty on 2024/1/27.
 //
 
-#ifndef DSPARAMS_H
-#define DSPARAMS_H
+#ifndef PARAMS_H
+#define PARAMS_H
 
 #include "Curve.h"
 
 class Param {
 public:
-    enum ParamType { Original, Edited, Envelope, Unknown };
+    enum Type { Original, Edited, Envelope, Unknown };
 
     Param() = default;
     Param(const Param&) = default;
     ~Param();
-    [[nodiscard]] const QList<Curve *> &curves(ParamType type) const;
-    void setCurves(ParamType type, const QList<Curve *> &curves);
+    [[nodiscard]] const QList<Curve *> &curves(Type type) const;
+    void setCurves(Type type, const QList<Curve *> &curves);
 
     Param& operator=(const Param& from) = default;
     Param& operator=(Param &&from) {
@@ -39,16 +39,16 @@ private:
     QList<Curve *> m_unknown;
 };
 
-class ParamBundle {
+class ParamInfo {
 public:
-    enum ParamName { Pitch, Energy, Tension, Breathiness, Unknown };
+    enum Name { Pitch, Energy, Tension, Breathiness, Unknown };
 
     Param pitch;
     Param energy;
     Param tension;
     Param breathiness;
 
-    Param *getParamByName(ParamName name);
+    Param *getParamByName(Name name);
 
 private:
     Param unknown;
@@ -56,4 +56,4 @@ private:
 
 
 
-#endif // DSPARAMS_H
+#endif // PARAMS_H

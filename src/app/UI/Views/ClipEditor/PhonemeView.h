@@ -43,6 +43,8 @@ public:
     };
 
 signals:
+    void wheelHorScale(QWheelEvent *event);
+    void wheelHorScroll(QWheelEvent *event);
     void adjustCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel);
 
 public slots:
@@ -58,6 +60,7 @@ private slots:
 private:
     enum MouseMoveBehavior { Move, None };
 
+    void wheelEvent(QWheelEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;

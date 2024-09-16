@@ -18,7 +18,7 @@ Param::~Param() {
     dispose(m_unknown);
 }
 
-const QList<Curve *> &Param::curves(ParamType type) const {
+const QList<Curve *> &Param::curves(Type type) const {
     switch (type) {
         case Original:
             return m_original;
@@ -32,7 +32,7 @@ const QList<Curve *> &Param::curves(ParamType type) const {
     }
 }
 
-void Param::setCurves(ParamType type, const QList<Curve *> &curves) {
+void Param::setCurves(Type type, const QList<Curve *> &curves) {
     switch (type) {
         case Original:
             m_original = curves;
@@ -48,7 +48,7 @@ void Param::setCurves(ParamType type, const QList<Curve *> &curves) {
     }
 }
 
-Param *ParamBundle::getParamByName(ParamName name) {
+Param *ParamInfo::getParamByName(Name name) {
     switch (name) {
         case Pitch:
             return &pitch;

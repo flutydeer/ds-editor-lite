@@ -111,7 +111,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
                                   QWidget *widget) {
     QElapsedTimer mstimer;
     mstimer.start();
-    TimeOverlayGraphicsItem::paint(painter, option, widget);
+    painter->setBrush(Qt::NoBrush);
 
     auto hideThreshold = 0.4;
     auto fadeLength = 0.1;

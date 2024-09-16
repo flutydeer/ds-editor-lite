@@ -149,9 +149,9 @@ public:
     [[nodiscard]] Note *findNoteById(int id) const;
 
     void notifyNoteChanged(NoteChangeType type, const QList<Note *> &notes);
-    void notifyParamChanged(ParamBundle::ParamName name, Param::ParamType type);
+    void notifyParamChanged(ParamInfo::Name name, Param::Type type);
     Property<AppGlobal::LanguageType> defaultLanguage = AppGlobal::unknown;
-    ParamBundle params;
+    ParamInfo params;
     [[nodiscard]] const QList<InferPiece *> &pieces() const;
     void reSegment();
 
@@ -160,7 +160,7 @@ public:
 
 signals:
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
-    void paramChanged(ParamBundle::ParamName name, Param::ParamType type);
+    void paramChanged(ParamInfo::Name name, Param::Type type);
     void defaultLanguageChanged(AppGlobal::LanguageType language);
     void piecesChanged(const QList<InferPiece *> &pieces);
 

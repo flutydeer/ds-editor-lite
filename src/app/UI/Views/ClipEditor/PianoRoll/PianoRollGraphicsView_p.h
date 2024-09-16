@@ -99,7 +99,7 @@ public:
     void resizeLeftSelectedNote(int offset) const;
     void resizeRightSelectedNote(int offset) const;
 
-    void updatePitch(Param::ParamType paramType, const Param &param) const;
+    void updatePitch(Param::Type paramType, const Param &param) const;
 
     [[nodiscard]] double keyIndexToSceneY(double index) const;
     [[nodiscard]] double sceneYToKeyIndexDouble(double y) const;
@@ -116,7 +116,7 @@ public slots:
     void onClipPropertyChanged();
     void onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void onNoteSelectionChanged();
-    void onParamChanged(ParamBundle::ParamName name, Param::ParamType type) const;
+    void onParamChanged(ParamInfo::Name name, Param::Type type) const;
 
     void onDeleteSelectedNotes() const;
     void onOpenNotePropertyDialog(int noteId);

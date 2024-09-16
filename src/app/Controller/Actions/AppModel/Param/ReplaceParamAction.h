@@ -12,14 +12,14 @@ class SingingClip;
 
 class ReplaceParamAction final : public IAction {
 public:
-    static ReplaceParamAction *build(ParamBundle::ParamName paramName, Param::ParamType paramType,
+    static ReplaceParamAction *build(ParamInfo::Name paramName, Param::Type paramType,
                                      const QList<Curve *> &curves, SingingClip *clip);
     void execute() override;
     void undo() override;
 
 private:
-    ParamBundle::ParamName m_paramName = ParamBundle::Unknown;
-    Param::ParamType m_paramType = Param::ParamType::Unknown;
+    ParamInfo::Name m_paramName = ParamInfo::Unknown;
+    Param::Type m_paramType = Param::Type::Unknown;
     QList<Curve *> m_oldCurves;
     QList<Curve *> m_newCurves;
     SingingClip *m_clip = nullptr;

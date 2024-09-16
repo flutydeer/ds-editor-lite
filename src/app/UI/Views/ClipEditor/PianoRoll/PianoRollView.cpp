@@ -36,6 +36,10 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     m_phonemeView->setVisible(false);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_phonemeView,
             &PhonemeView::setTimeRange);
+    connect(m_phonemeView, &PhonemeView::wheelHorScale, m_graphicsView,
+            &CommonGraphicsView::onWheelHorScale);
+    connect(m_phonemeView, &PhonemeView::wheelHorScroll, m_graphicsView,
+            &CommonGraphicsView::onWheelHorScroll);
 
     m_lbTip = new QLabel(tr("Select a singing clip to edit"));
     m_lbTip->setObjectName("lbNullClipTip");

@@ -59,7 +59,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     };
 
     auto decodeSingingParams = [&](const QDspx::SingleParam &dspxParams) {
-        ParamBundle params;
+        ParamInfo params;
         params.pitch = std::move(decodeSingingParam(dspxParams.pitch));
         params.energy = std::move(decodeSingingParam(dspxParams.energy));
         params.tension = std::move(decodeSingingParam(dspxParams.tension));
@@ -209,7 +209,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         encodeCurves(dsParam.curves(Param::Envelope), param.envelope);
     };
 
-    auto encodeSingingParams = [&](const ParamBundle &dsParams, QDspx::SingleParam &params) {
+    auto encodeSingingParams = [&](const ParamInfo &dsParams, QDspx::SingleParam &params) {
         encodeSingingParam(dsParams.pitch, params.pitch);
         encodeSingingParam(dsParams.energy, params.energy);
         encodeSingingParam(dsParams.tension, params.tension);

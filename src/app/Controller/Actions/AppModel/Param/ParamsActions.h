@@ -12,7 +12,7 @@ class SingingClip;
 
 class ParamsActions : public ActionSequence {
 public:
-    void replaceParam(ParamBundle::ParamName paramName, Param::ParamType paramType,
+    void replaceParam(ParamInfo::Name paramName, Param::Type paramType,
                       const QList<Curve *> &curves, SingingClip *clip);
     void replacePitchOriginal(const QList<Curve *> &curves, SingingClip *clip);
     void replacePitchEdited(const QList<Curve *> &curves, SingingClip *clip);

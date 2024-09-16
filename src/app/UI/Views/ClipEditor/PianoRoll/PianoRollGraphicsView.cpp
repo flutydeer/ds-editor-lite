@@ -66,11 +66,6 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     connect(scene, &QGraphicsScene::selectionChanged, this,
             &PianoRollGraphicsView::onSceneSelectionChanged);
 
-    connect(playbackController, &PlaybackController::positionChanged, this,
-            &PianoRollGraphicsView::setPlaybackPosition);
-    connect(playbackController, &PlaybackController::lastPositionChanged, this,
-            &PianoRollGraphicsView::setLastPlaybackPosition);
-
     connect(this, &CommonGraphicsView::scaleChanged, this,
             &PianoRollGraphicsView::notifyKeyRangeChanged);
     connect(this, &CommonGraphicsView::visibleRectChanged, this,
@@ -469,9 +464,8 @@ void PianoRollGraphicsViewPrivate::onNoteSelectionChanged() {
         updateSceneSelectionState();
 }
 
-void PianoRollGraphicsViewPrivate::onParamChanged(ParamBundle::ParamName name,
-                                                  Param::ParamType type) const {
-    if (name == ParamBundle::Pitch) {
+void PianoRollGraphicsViewPrivate::onParamChanged(ParamInfo::Name name, Param::Type type) const {
+    if (name == ParamInfo::Pitch) {
         auto pitchParam = m_clip->params.getParamByName(name);
         updatePitch(type, *pitchParam);
     }
@@ -552,8 +546,8 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     } else
         q->setViewportCenterAt(clip->start(), 60);
 
-    updatePitch(Param::Original, *m_clip->params.getParamByName(ParamBundle::Pitch));
-    updatePitch(Param::Edited, *m_clip->params.getParamByName(ParamBundle::Pitch));
+    updatePitch(Param::Original, *m_clip->params.getParamByName(ParamInfo::Pitch));
+    updatePitch(Param::Edited, *m_clip->params.getParamByName(ParamInfo::Pitch));
 
     connect(clip, &SingingClip::propertyChanged, this,
             &PianoRollGraphicsViewPrivate::onClipPropertyChanged);
@@ -853,18 +847,17 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
     }
 }
 
-void PianoRollGraphicsViewPrivate::updatePitch(Param::ParamType paramType,
-                                               const Param &param) const {
+void PianoRollGraphicsViewPrivate::updatePitch(Param::Type paramType, const Param &param) const {
     QList<DrawCurve *> drawCurves;
     if (paramType == Param::Original) {
-        Log::d(CLASS_NAME, "Update original pitch ");
+        // Log::d(CLASS_NAME, "Update original pitch ");
         for (const auto curve : param.curves(Param::Original))
             if (curve->type() == Curve::Draw) {
                 MathUtils::binaryInsert(drawCurves, reinterpret_cast<DrawCurve *>(curve));
             }
         m_pitchEditor->loadOriginal(drawCurves);
     } else {
-        Log::d(CLASS_NAME, "Update edited pitch ");
+        // Log::d(CLASS_NAME, "Update edited pitch ");
         for (const auto curve : param.curves(Param::Edited))
             if (curve->type() == Curve::Draw)
                 MathUtils::binaryInsert(drawCurves, reinterpret_cast<DrawCurve *>(curve));

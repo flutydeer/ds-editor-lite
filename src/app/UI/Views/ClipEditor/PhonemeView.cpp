@@ -99,6 +99,14 @@ void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, const QList<No
     update();
 }
 
+void PhonemeView::wheelEvent(QWheelEvent *event) {
+    if (event->modifiers() == Qt::ControlModifier) {
+        emit wheelHorScale(event);
+    } else if (event->modifiers() == Qt::ShiftModifier) {
+        emit wheelHorScroll(event);
+    }
+}
+
 void PhonemeView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
     QPainter painter(this);

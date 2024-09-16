@@ -6,8 +6,8 @@
 
 #include "Model/AppModel/Clip.h"
 
-ReplaceParamAction *ReplaceParamAction::build(ParamBundle::ParamName paramName,
-                                              Param::ParamType paramType,
+ReplaceParamAction *ReplaceParamAction::build(ParamInfo::Name paramName,
+                                              Param::Type paramType,
                                               const QList<Curve *> &curves, SingingClip *clip) {
     auto a = new ReplaceParamAction;
     a->m_paramName = paramName;

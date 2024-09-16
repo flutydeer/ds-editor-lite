@@ -1,17 +1,13 @@
 //
 // Created by fluty on 24-8-21.
 //
-
-#define CLASS_NAME "ParamEditorGraphicsScene"
-
 #include "ParamEditorGraphicsScene.h"
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "Utils/Log.h"
 
-using namespace ClipEditorGlobal;
-
 ParamEditorGraphicsScene::ParamEditorGraphicsScene(QObject *parent) : TimeGraphicsScene(parent) {
+    setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
 }
 
 void ParamEditorGraphicsScene::onViewResized(QSize size) {
@@ -24,5 +20,4 @@ void ParamEditorGraphicsScene::updateSceneRect() {
     auto targetSceneWidth = sceneBaseSize().width() * scaleX();
     auto targetRect = QRectF(0, 0, targetSceneWidth, m_viewSize.height());
     setSceneRect(targetRect);
-    // Log::d(CLASS_NAME, QString("Update scene rect: ") + qStrRectF(targetRect));
 }
