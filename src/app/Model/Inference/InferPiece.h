@@ -5,8 +5,6 @@
 #ifndef INFERPIECE_H
 #define INFERPIECE_H
 
-#include "InferParam.h"
-#include "InferPhoneme.h"
 #include "Interface/IInferPiece.h"
 
 #include <QList>
@@ -20,14 +18,14 @@ public:
     QString singerName;
 
     QList<Note *> notes;
-    QList<InferPhoneme> phonemes;
-
-    InferParam pitch;
-    InferParam breathiness;
-    InferParam velocity;
-    InferParam tension;
-    InferParam gender;
-    InferParam voicing;
+    // QList<InferPhoneme> phonemes;
+    //
+    // InferParam pitch;
+    // InferParam breathiness;
+    // InferParam velocity;
+    // InferParam tension;
+    // InferParam gender;
+    // InferParam voicing;
 
     [[nodiscard]] int startTick() const override;
     [[nodiscard]] int endTick() const override;
