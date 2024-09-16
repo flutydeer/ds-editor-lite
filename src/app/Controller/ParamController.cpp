@@ -68,6 +68,11 @@ void ParamController::onEditingChanged(bool isEditing) {
         qWarning() << "正在编辑工程，取消相关任务";
         auto clip = appModel->findClipById(appStatus->activeClipId);
         cancelClipRelatedTasks(clip);
+    }else {
+        qInfo() << "编辑完成，重新创建任务";
+        auto clip = appModel->findClipById(appStatus->activeClipId);
+        if (clip->clipType() == IClip::Singing)
+        createAndRunGetPronTask(dynamic_cast<SingingClip *>(clip));
     }
 }
 
@@ -179,10 +184,6 @@ void ParamController::handleInferDurTaskFinished(InferDurationTask *task) {
     }
 
     auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task->clipId));
-    QList<Note *> notes;
-    for (const auto note : singingClip->notes()) {
-        notes.append(note);
-    }
     auto modelNoteCount = singingClip->notes().count();
     auto taskNoteCount = task->result().count();
     qDebug() << "模型音符数：" << modelNoteCount << "任务音符数：" << taskNoteCount;
@@ -190,7 +191,7 @@ void ParamController::handleInferDurTaskFinished(InferDurationTask *task) {
         qFatal() << "模型音符数不等于任务音符数";
         return;
     }
-    OriginalParamUtils::updateNotesPhonemeOffset(notes, task->result(), singingClip);
+    OriginalParamUtils::updateNotesPhonemeOffset(singingClip->notes().toList(), task->result(), singingClip);
     delete task;
 }
 
@@ -217,11 +218,7 @@ bool ParamController::validateForInferDuration(int clipId) {
 }
 
 void ParamController::createAndRunGetPronTask(SingingClip *clip) {
-    QList<Note *> notes;
-    for (const auto note : clip->notes())
-        notes.append(note);
-
-    auto task = new GetPronunciationTask(clip->id(), notes);
+    auto task = new GetPronunciationTask(clip->id(), clip->notes().toList());
     qInfo() << "创建获取发音任务 clipId:" << clip->id() << "taskId:" << task->id();
     connect(task, &Task::finished, this, [=] { handleGetPronTaskFinished(task); });
     taskManager->addTask(task);
@@ -231,13 +228,13 @@ void ParamController::createAndRunGetPronTask(SingingClip *clip) {
 }
 
 void ParamController::createAndRunGetPhonemeNameTask(SingingClip *clip) {
-    QList<Note *> notes;
+    QList<PhonemeNameInput> inputs;
     for (const auto note : clip->notes())
-        notes.append(note);
-
-    auto task = new GetPhonemeNameTask(clip->id(), notes);
+        inputs.append({note->lyric(), note->pronunciation().result()});
+    auto task = new GetPhonemeNameTask(clip->id(), inputs);
+    task->notesRef = clip->notes().toList();
     qInfo() << "创建获取音素任务 clipId:" << clip->id() << "taskId:" << task->id()
-            << "noteCount:" << notes.size();
+            << "noteCount:" << clip->notes().count();
     connect(task, &Task::finished, this, [=] { handleGetPhonemeNameTaskFinished(task); });
     taskManager->addTask(task);
     m_getPhonemeNameTaskQueue.enqueue(task);
@@ -276,7 +273,7 @@ void ParamController::createAndRunInferDurTask(SingingClip *clip) {
 
 void ParamController::cancelClipRelatedTasks(Clip *clip) {
     qInfo() << "--------------------------------";
-    qInfo() << "模型发生改动，取消歌声剪辑相关任务";
+    qInfo() << "取消歌声剪辑相关任务";
     auto getPronTaskPred = [=](GetPhonemeNameTask *task) { return task->clipId == clip->id(); };
     auto inferDurTaskPred = [=](InferDurationTask *task) { return task->clipId == clip->id(); };
 

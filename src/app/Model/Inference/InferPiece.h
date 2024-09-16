@@ -14,7 +14,7 @@
 
 class Note;
 
-class InferPiece : public QObject, public IInferPiece {
+class InferPiece : public QObject, public IInferPiece, public UniqueObject {
     Q_OBJECT
 public:
     QString singerName;

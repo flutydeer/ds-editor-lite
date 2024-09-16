@@ -183,7 +183,7 @@ void TimelineView::drawPieces(QPainter *painter) {
     auto y = rect().height() - penWidth;
     QPen pen;
     pen.setWidthF(2);
-    pen.setColor(QColor(159,189,255));
+    pen.setColor(QColor(159, 189, 255));
     pen.setCapStyle(Qt::RoundCap);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
@@ -191,6 +191,7 @@ void TimelineView::drawPieces(QPainter *painter) {
         auto x1 = tickToX(piece->startTick() + m_clip->start());
         auto x2 = tickToX(piece->endTick() + m_clip->start());
         painter->drawLine(x1, y, x2, y);
+        painter->drawText(QPointF(x1, y), "#" + QString::number(piece->id()));
     }
 }
 

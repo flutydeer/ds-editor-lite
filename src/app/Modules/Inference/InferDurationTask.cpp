@@ -62,7 +62,7 @@ void InferDurationTask::abort() {
     newStatus.message = "正在停止: " + m_previewText;
     newStatus.isIndetermine = true;
     setStatus(newStatus);
-    QThread::sleep(2);
+    // QThread::sleep(2);
     emit finished();
 }
 

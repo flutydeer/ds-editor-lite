@@ -13,12 +13,10 @@
 #include <QMutexLocker>
 #include <QThread>
 
-GetPhonemeNameTask::GetPhonemeNameTask(int clipId, const QList<Note *> &notes) : clipId(clipId) {
-    notesRef = notes;
-    AppModelUtils::copyNotes(notes, m_notes);
-    for (int i = 0; i < notes.count(); i++) {
-        auto note = notes.at(i);
-        m_previewText.append(note->lyric());
+GetPhonemeNameTask::GetPhonemeNameTask(int clipId, const QList<PhonemeNameInput> &inputs) : clipId(clipId), m_inputs(inputs) {
+    for (int i = 0; i < inputs.count(); i++) {
+        const auto& note = inputs.at(i);
+        m_previewText.append(note.lyric);
         if (i == 20) {
             m_previewText.append("...");
             break;
@@ -79,9 +77,9 @@ void GetPhonemeNameTask::processNotes() {
     setStatus(newStatus);
 
     QList<QString> inputs;
-    for (const auto note : m_notes) {
+    for (const auto &note : m_inputs) {
         // 如果发音已编辑，则使用已编辑的发音作为获取音素名称的输入
-        inputs.append(note->pronunciation().result());
+        inputs.append(note.pronunciation);
     }
     result = NoteWordUtils::getPhonemeNames(inputs);
 }

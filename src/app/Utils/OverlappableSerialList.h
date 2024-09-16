@@ -193,7 +193,10 @@ QList<T *> OverlappableSerialList<T>::overlappedItems() const {
 
 template <typename T>
 QList<T *> OverlappableSerialList<T>::toList() const {
-    return QList<T *>(m_itemHash.cbegin(), m_itemHash.cend());
+    QList<T*> result;
+    for (const auto &item : m_items)
+        result.append(item);
+    return result;
 }
 
 #endif // SERIALLIST_H

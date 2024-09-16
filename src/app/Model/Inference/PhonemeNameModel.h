@@ -8,10 +8,11 @@
 #include <QList>
 #include <QString>
 
-// class PhonemeNameInput {
-// public:
-//     QString pronunciation;
-// };
+class PhonemeNameInput {
+public:
+    QString lyric;
+    QString pronunciation;
+};
 
 class PhonemeNameResult {
 public:
