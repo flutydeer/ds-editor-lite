@@ -15,10 +15,10 @@
 #include "Model/AppModel/Note.h"
 
 static QMap<QString, QString> languageMapping = {
-    {"CHN", "Mandarin"}
+    {"CHN", "cmn"}
 };
 
-QString langMappping(const QString &lang) {
+QString langMapping(const QString &lang) {
     if (languageMapping.contains(lang))
         return languageMapping[lang];
     return "unknown";
@@ -55,7 +55,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
             note->setLength(objNote.value("dur").toInt());
             note->setKeyIndex(objNote.value("pitch").toInt());
             note->setLyric(objNote.value("lyric").toString());
-            note->setLanguage(langMappping(objNote.value("language").toString()));
+            note->setLanguage(langMapping(objNote.value("language").toString()));
             note->setPronunciation(Pronunciation("", ""));
 
             // const auto headPhonemes = objNote.value("headConsonants").toArray();
