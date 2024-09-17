@@ -61,7 +61,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
             &AppOptionsDialog::onSelectionChanged);
     m_tabList->setCurrentRow(page);
 
-    resize(900, 600);
+    resize(950, 600);
 }
 
 void AppOptionsDialog::onSelectionChanged(int index) {
