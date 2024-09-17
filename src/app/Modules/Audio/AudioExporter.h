@@ -1,97 +1,161 @@
-//
-// Created by Crs_1 on 2024/2/6.
-//
-
-#ifndef DS_EDITOR_LITE_AUDIOEXPORTER_H
-#define DS_EDITOR_LITE_AUDIOEXPORTER_H
+#ifndef AUDIO_AUDIOEXPORTER_H
+#define AUDIO_AUDIOEXPORTER_H
 
 #include <QObject>
+#include <QSharedData>
 
-class AudioExporter : public QObject {
-    Q_OBJECT
-public:
-    explicit AudioExporter(QObject *parent = nullptr);
-    ~AudioExporter() override;
+#include <TalcsCore/ErrorStringProvider.h>
 
-    struct Option {
-        QString fileDirectory;
-        QString fileName;
+namespace Core {
+    class IProjectWindow;
+}
 
-        int formatFlag;
-        int vbrQuality;
-        double sampleRate;
-        QString extensionName;
+namespace Audio {
 
-        enum SourceOption {
-            AllTracks,
-            SelectedTracks,
-            CustomTracks,
+
+    namespace Internal {
+        class AudioExportDialog;
+    }
+
+    class AudioExporter;
+
+    class AudioExporterConfigData;
+    class AudioExporterPrivate;
+
+    class AudioExporterConfig {
+    public:
+        AudioExporterConfig();
+        ~AudioExporterConfig();
+
+        QString fileName() const;
+        void setFileName(const QString &);
+
+        QString fileDirectory() const;
+        void setFileDirectory(const QString &);
+
+        enum FileType {
+            FT_Wav,
+            FT_Flac,
+            FT_OggVorbis,
+            FT_Mp3,
         };
+        FileType fileType() const;
+        void setFileType(FileType);
 
-        SourceOption sourceOption;
-        QList<int> selectedTrackIndices;
+        bool formatMono() const;
+        void setFormatMono(bool);
+
+        [[nodiscard]] static QStringList formatOptionsOfType(FileType type);
+        [[nodiscard]] static QString extensionOfType(FileType type);
+
+        int formatOption() const;
+        void setFormatOption(int);
+
+        int formatQuality() const;
+        void setFormatQuality(int);
+
+        double formatSampleRate() const;
+        void setFormatSampleRate(double);
 
         enum MixingOption {
-            Mixed,
-            Seperated,
-            SeparatedThroughMasterTrack,
+            MO_Mixed,
+            MO_Separated,
+            MO_SeparatedThruMaster,
         };
+        MixingOption mixingOption() const;
+        void setMixingOption(MixingOption);
 
-        MixingOption mixingOption;
-        QString affix;
-        bool enableMuteSolo;
+        bool isMuteSoloEnabled() const;
+        void setMuteSoloEnabled(bool);
 
-        enum TimeRangeOption {
-            All,
-            LoopInterval,
-            CustomRange,
+        enum SourceOption {
+            SO_All,
+            SO_Selected,
+            SO_Custom,
         };
+        SourceOption sourceOption() const;
+        void setSourceOption(SourceOption);
 
-        TimeRangeOption timeRangeOption;
-        qint64 rangeStartTick;
-        qint64 rangeEndTick;
+        QList<int> source() const;
+        void setSource(const QList<int> &);
+
+        enum TimeRange {
+            TR_All,
+            TR_LoopSection,
+        };
+        TimeRange timeRange() const;
+        void setTimeRange(TimeRange);
+
+        QVariantMap toVariantMap() const;
+        [[nodiscard]] static AudioExporterConfig fromVariantMap(const QVariantMap &map);
+
+        bool operator==(const AudioExporterConfig &other) const;
+
+    private:
+        QSharedDataPointer<AudioExporterConfigData> d;
     };
 
-    static QList<QPair<QString, Option>> builtInPresets();
-
-    void savePreset(const QString &name) const;
-    bool loadPreset(const QString &name);
-    static bool deletePreset(const QString &name);
-    static QVariant lastUsedPreset();
-    static QStringList presets();
-
-    void setOption(const Option &option);
-    Option option() const;
-
-    QStringList outputFileList() const;
-
-    struct Format {
-        QString formatName;
-        int flag;
-        bool isVBRAvailable;
-        QString extensionName;
-        QList<QPair<QString, int>> options;
-        int findOptionIndex(int flag) const;
+    class AudioExporterListener {
+    public:
+        virtual bool willStartCallback(AudioExporter *exporter) = 0;
+        virtual void willFinishCallback(AudioExporter *exporter) = 0;
     };
 
-    static QList<Format> formats();
-    static int findFormatIndex(int flag);
+    class AudioExporter : public QObject, public talcs::ErrorStringProvider {
+        Q_OBJECT
+        Q_DECLARE_PRIVATE(AudioExporter)
+        friend class Internal::AudioExportDialog;
+    public:
 
-    enum Status {
-        Success,
-        Interrupted,
-        Failure,
+        explicit AudioExporter(Core::IProjectWindow *window, QObject *parent = nullptr);
+        ~AudioExporter() override;
+
+        Core::IProjectWindow *windowHandle() const;
+
+        [[nodiscard]] static QStringList presets();
+        [[nodiscard]] static QList<QPair<QString, AudioExporterConfig>> predefinedPresets();
+        [[nodiscard]] static AudioExporterConfig preset(const QString &name);
+        static void addPreset(const QString &name, const AudioExporterConfig &config);
+        static bool removePreset(const QString &name);
+
+        static void registerListener(AudioExporterListener *listener);
+
+        void setConfig(const AudioExporterConfig &config);
+        AudioExporterConfig config() const;
+
+        enum WarningFlag {
+            W_NoFile = 0x0001,
+            W_DuplicatedFile = 0x0002,
+            W_WillOverwrite = 0x0004,
+            W_UnrecognizedTemplate = 0x0008,
+            W_LossyFormat = 0x00010,
+        };
+        Q_DECLARE_FLAGS(Warning, WarningFlag)
+        Warning warning() const;
+        [[nodiscard]]static QStringList warningText(Warning warning);
+
+        QStringList dryRun() const;
+
+        enum Result {
+            R_OK,
+            R_Fail,
+            R_Abort,
+        };
+        Result exec();
+
+        void cancel(bool isFail = false, const QString &message = {});
+
+    signals:
+        void progressChanged(double progressRatio, int sourceIndex);
+        void clippingDetected(int sourceIndex);
+
+    private:
+        QScopedPointer<AudioExporterPrivate> d_ptr;
     };
 
-    Status exec();
+} // Audio
 
-public slots:
-    void interrupt();
+using AudioExporter = Audio::AudioExporter;
+using AudioExporterConfig = Audio::AudioExporterConfig;
 
-private:
-    Option m_option = {};
-};
-
-
-
-#endif // DS_EDITOR_LITE_AUDIOEXPORTER_H
+#endif // AUDIO_AUDIOEXPORTER_H
