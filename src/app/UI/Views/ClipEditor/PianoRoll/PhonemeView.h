@@ -7,10 +7,10 @@
 
 #include <QWidget>
 
-#include "UI/Utils/ITimelinePainter.h"
-#include "Utils/OverlappableSerialList.h"
-#include "Utils/Overlappable.h"
-#include "Model/AppModel/Clip.h"
+#include "../../../Utils/ITimelinePainter.h"
+#include "../../../../Utils/OverlappableSerialList.h"
+#include "../../../../Utils/Overlappable.h"
+#include "../../../../Model/AppModel/Clip.h"
 
 class Note;
 class Phoneme;

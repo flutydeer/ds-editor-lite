@@ -7,14 +7,14 @@
 #include <QMouseEvent>
 #include <QPainter>
 
-#include "Model/AppModel/AppModel.h"
-#include "Global/AppGlobal.h"
-#include "Model/AppModel/Note.h"
-#include "Controller/ClipEditorViewController.h"
-#include "Controller/PlaybackController.h"
-#include "Model/AppStatus/AppStatus.h"
-#include "Utils/Linq.h"
-#include "Utils/MathUtils.h"
+#include "../../../../Model/AppModel/AppModel.h"
+#include "../../../../Global/AppGlobal.h"
+#include "../../../../Model/AppModel/Note.h"
+#include "../../../../Controller/ClipEditorViewController.h"
+#include "../../../../Controller/PlaybackController.h"
+#include "../../../../Model/AppStatus/AppStatus.h"
+#include "../../../../Utils/Linq.h"
+#include "../../../../Utils/MathUtils.h"
 
 PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_Hover, true);

@@ -4,20 +4,18 @@
 
 #include "ClipEditorView.h"
 
-#include "PhonemeView.h"
 #include "Controller/AppController.h"
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "ParamEditor/ParamEditorView.h"
+#include "PianoRoll/PhonemeView.h"
 #include "PianoRoll/PianoRollGraphicsView.h"
 #include "PianoRoll/PianoRollView.h"
 #include "ToolBar/ClipEditorToolBarView.h"
 
 #include <QLabel>
 #include <QMouseEvent>
-#include <QSplitter>
 #include <QVBoxLayout>
 
 ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEditor, parent) {

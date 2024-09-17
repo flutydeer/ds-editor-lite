@@ -7,7 +7,7 @@
 #include "PianoKeyboardView.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
-#include "UI/Views/ClipEditor/PhonemeView.h"
+#include "PhonemeView.h"
 #include "UI/Views/Common/CommonGraphicsView.h"
 #include "UI/Views/Common/TimelineView.h"
 
