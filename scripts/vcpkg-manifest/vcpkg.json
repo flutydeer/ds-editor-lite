@@ -16,7 +16,11 @@
     "cpp-kana",
     "language-manager",
     "opendspx",
-    "lyric-tab"
+    "lyric-tab",
+    "loadso",
+    "syscmdline",
+    "nlohmann-json",
+    "yaml-cpp"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [
