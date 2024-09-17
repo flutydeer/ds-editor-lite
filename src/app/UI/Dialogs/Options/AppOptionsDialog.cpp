@@ -38,6 +38,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_PageContent->addWidget(m_appearancePage);
     m_PageContent->addWidget(m_languagePage);
     m_PageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
+    m_PageContent->setMinimumWidth(600);
 
     auto pageScrollArea = new QScrollArea;
     pageScrollArea->setWidget(m_PageContent);
@@ -61,7 +62,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
             &AppOptionsDialog::onSelectionChanged);
     m_tabList->setCurrentRow(page);
 
-    resize(950, 600);
+    resize(900, 600);
 }
 
 void AppOptionsDialog::onSelectionChanged(int index) {
