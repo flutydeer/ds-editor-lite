@@ -15,6 +15,8 @@
 
 #include <QObject>
 
+
+class Curve;
 class ClipEditorViewControllerPrivate;
 class IClipEditorView;
 

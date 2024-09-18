@@ -14,7 +14,7 @@
 #include "Global/AppGlobal.h"
 #include "NoteView.h"
 #include "PianoRollBackground.h"
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/Curve.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"

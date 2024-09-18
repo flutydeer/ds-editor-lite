@@ -4,16 +4,6 @@
 
 #include "Clip.h"
 
-#include <QDebug>
-
-#include "Note.h"
-#include "Curve.h"
-#include "DrawCurve.h"
-#include "Model/Inference/InferPiece.h"
-#include "Utils/AppModelUtils.h"
-#include "Utils/Linq.h"
-#include "Utils/MathUtils.h"
-
 QString Clip::name() const {
     return m_name;
 }
@@ -126,17 +116,4 @@ void Clip::applyPropertiesFromClip(ClipCommonProperties &args, const IClip &clip
     args.clipLen = clip.clipLen();
     args.gain = clip.gain();
     args.mute = clip.mute();
-}
-
-AudioClip::AudioClipProperties::AudioClipProperties(const AudioClip &clip) {
-    applyPropertiesFromClip(*this, clip);
-    path = clip.path();
-}
-
-AudioClip::AudioClipProperties::AudioClipProperties(const IClip &clip) {
-    applyPropertiesFromClip(*this, clip);
-}
-
-AudioClip::~AudioClip() {
-    qDebug() << "~AudioClip()" << id() << m_name;
 }

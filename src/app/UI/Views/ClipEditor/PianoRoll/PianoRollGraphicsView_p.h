@@ -6,7 +6,7 @@
 #define PIANOROLLGRAPHICSVIEW_P_H
 
 #include "NoteLayer.h"
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/Params.h"
 #include "Model/AppModel/SingingClip.h"
 

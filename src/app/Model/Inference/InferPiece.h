@@ -6,6 +6,7 @@
 #define INFERPIECE_H
 
 #include "Interface/IInferPiece.h"
+#include "Model/AppModel/Note.h"
 
 #include <QList>
 

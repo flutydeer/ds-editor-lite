@@ -6,6 +6,13 @@
 #define SINGINGCLIP_H
 
 #include "Clip.h"
+#include "Params.h"
+#include "Global/AppGlobal.h"
+#include "Utils/Property.h"
+
+class DrawCurve;
+class InferPiece;
+class Note;
 
 class SingingClip final : public Clip {
     Q_OBJECT

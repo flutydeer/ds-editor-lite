@@ -4,6 +4,8 @@
 
 #include "AProjectConverter.h"
 
+#include "Model/AppModel/AudioClip.h"
+
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -11,7 +13,7 @@
 #include <QFileInfo>
 
 #include "Model/AppModel/Track.h"
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
 

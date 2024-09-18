@@ -7,7 +7,7 @@
 #include "ParamEditorGraphicsScene.h"
 #include "ParamEditorGraphicsView.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/SingingClip.h"
 
 #include <QVBoxLayout>

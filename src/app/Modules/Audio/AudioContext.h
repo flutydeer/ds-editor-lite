@@ -18,6 +18,7 @@
 
 #include "Controller/PlaybackController.h"
 #include "Global/PlaybackGlobal.h"
+#include "Model/AppModel/AudioClip.h"
 
 namespace talcs {
     class DspxAudioClipContext;

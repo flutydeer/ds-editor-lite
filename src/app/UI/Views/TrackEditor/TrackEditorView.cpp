@@ -17,6 +17,7 @@
 #include "GraphicsItem/AudioClipView.h"
 #include "GraphicsItem/SingingClipView.h"
 #include "GraphicsItem/TracksBackgroundGraphicsItem.h"
+#include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"

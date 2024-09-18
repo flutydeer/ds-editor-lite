@@ -7,9 +7,11 @@
 
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Track.h"
-#include "Model/AppModel/Clip.h"
 #include "UI/Views/Common/PanelView.h"
 
+
+class AudioClip;
+class SingingClip;
 class TrackListView;
 class TracksGraphicsView;
 class TracksGraphicsScene;

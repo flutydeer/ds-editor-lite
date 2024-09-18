@@ -8,6 +8,7 @@
 #include "EditSingingClipPropertiesAction.h"
 #include "InsertClipAction.h"
 #include "RemoveClipAction.h"
+#include "Model/AppModel/AudioClip.h"
 
 void ClipActions::insertClips(const QList<Clip *> &clips, Track *track) {
     setName(tr("Insert clip(s)"));

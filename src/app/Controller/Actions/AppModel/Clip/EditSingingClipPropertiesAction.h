@@ -8,6 +8,8 @@
 #include "Model/AppModel/Clip.h"
 #include "Modules/History/IAction.h"
 
+
+class SingingClip;
 class Track;
 
 class EditSingingClipPropertiesAction : public IAction {

@@ -8,6 +8,9 @@
 #include "Model/AppModel/Clip.h"
 #include "Modules/History/ActionSequence.h"
 
+
+class AudioClip;
+class SingingClip;
 class Track;
 
 class ClipActions : public ActionSequence {

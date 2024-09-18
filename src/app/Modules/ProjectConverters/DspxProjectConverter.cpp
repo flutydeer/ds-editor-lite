@@ -5,12 +5,13 @@
 #include "DspxProjectConverter.h"
 
 #include "Model/AppModel/AnchorCurve.h"
+#include "Model/AppModel/AudioClip.h"
 
 #include <QMessageBox>
 
 #include "opendspx/qdspxmodel.h"
 #include "Model/AppModel/Track.h"
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/Params.h"
 #include "Model/AppModel/Curve.h"

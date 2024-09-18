@@ -4,7 +4,7 @@
 
 #include "InsertNoteAction.h"
 
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/SingingClip.h"
 
 void InsertNoteAction::execute() {

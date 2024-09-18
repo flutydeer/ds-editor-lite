@@ -4,7 +4,7 @@
 
 #include "OriginalParamUtils.h"
 
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/SingingClip.h"
 
 void OriginalParamUtils::updateNotesPronunciation(const QList<Note *> &notes,

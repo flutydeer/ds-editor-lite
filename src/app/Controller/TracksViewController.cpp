@@ -8,6 +8,7 @@
 #include "Actions/AppModel/Clip/ClipActions.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/AudioInfoModel.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"

@@ -2,22 +2,14 @@
 // Created by fluty on 2024/1/27.
 //
 
-#ifndef DSCLIP_H
-#define DSCLIP_H
+#ifndef CLIP_H
+#define CLIP_H
 
-#include "Params.h"
-#include "Global/AppGlobal.h"
 #include "Interface/IClip.h"
-#include "Model/AppModel/AudioInfoModel.h"
-#include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Utils/Overlappable.h"
 #include "Utils/OverlappableSerialList.h"
-#include "Utils/Property.h"
 
-class DrawCurve;
-class Params;
-class Note;
-class InferPiece;
+#include <QObject>
 
 class Clip : public QObject, public IClip, public Overlappable {
     Q_OBJECT
@@ -82,45 +74,4 @@ protected:
     static void applyPropertiesFromClip(ClipCommonProperties &args, const IClip &clip);
 };
 
-class AudioClip final : public Clip {
-    Q_OBJECT
-
-public:
-    class AudioClipProperties final : public ClipCommonProperties {
-    public:
-        AudioClipProperties() = default;
-        explicit AudioClipProperties(const AudioClip &clip);
-        explicit AudioClipProperties(const IClip &clip);
-        QString path;
-    };
-
-    ~AudioClip() override;
-
-    [[nodiscard]] ClipType clipType() const override {
-        return Audio;
-    }
-
-    [[nodiscard]] QString path() const {
-        return m_path;
-    }
-
-    void setPath(const QString &path) {
-        m_path = path;
-        emit propertyChanged();
-    }
-
-    [[nodiscard]] const AudioInfoModel &audioInfo() const {
-        return m_info;
-    }
-
-    void setAudioInfo(const AudioInfoModel &audioInfo) {
-        m_info = audioInfo;
-        emit propertyChanged();
-    }
-
-private:
-    QString m_path;
-    AudioInfoModel m_info;
-};
-
-#endif // DSCLIP_H
+#endif // CLIP_H

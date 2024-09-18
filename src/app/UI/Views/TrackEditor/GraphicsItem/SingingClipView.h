@@ -6,7 +6,7 @@
 #define SINGINGCLIPGRAPHICSITEM_H
 
 #include "AbstractClipView.h"
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/SingingClip.h"
 #include "Utils/OverlappableSerialList.h"
 

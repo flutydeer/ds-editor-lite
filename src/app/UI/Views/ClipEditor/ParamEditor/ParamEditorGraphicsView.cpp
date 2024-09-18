@@ -5,7 +5,7 @@
 #include "ParamEditorGraphicsView.h"
 
 #include "ParamEditorGraphicsScene.h"
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/SingingClip.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"

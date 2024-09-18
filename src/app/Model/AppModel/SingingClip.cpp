@@ -5,6 +5,7 @@
 #include "SingingClip.h"
 
 #include "DrawCurve.h"
+#include "Note.h"
 #include "Model/Inference/InferPiece.h"
 #include "Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"

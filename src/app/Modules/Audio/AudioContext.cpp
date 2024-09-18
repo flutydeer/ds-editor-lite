@@ -1,5 +1,7 @@
 #include "AudioContext.h"
 
+#include "Model/AppModel/AudioClip.h"
+
 #include <set>
 
 #include <QMessageBox>

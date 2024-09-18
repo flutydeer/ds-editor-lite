@@ -5,7 +5,7 @@
 #ifndef PHONEMEPARAMEDITOR_H
 #define PHONEMEPARAMEDITOR_H
 
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/SingingClip.h"
 
 #include <QWidget>

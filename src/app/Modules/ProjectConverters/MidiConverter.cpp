@@ -1,5 +1,6 @@
 #include "MidiConverter.h"
 
+#include "Model/AppModel/AudioClip.h"
 #include "opendspx/qdspxtrack.h"
 #include "opendspx/qdspxtimeline.h"
 #include "opendspx/qdspxmodel.h"
@@ -14,7 +15,7 @@
 #include <QDialog>
 
 #include "Model/AppModel/Track.h"
-#include "Model/AppModel/Clip.h"
+
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
 
