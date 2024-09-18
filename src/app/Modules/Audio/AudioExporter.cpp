@@ -61,7 +61,7 @@ namespace Audio {
                                             "32-bit float (IEEE 754)"),
                     QApplication::translate("Audio::AudioExporterConfig", "24-bit PCM"),
                     QApplication::translate("Audio::AudioExporterConfig", "16-bit PCM"),
-                    QApplication::translate("Audio::AudioExporterConfig", "8-bit PCM"),
+                    QApplication::translate("Audio::AudioExporterConfig", "Unsigned 8-bit PCM"),
                 };
             case FT_Flac:
                 return {
@@ -185,7 +185,8 @@ namespace Audio {
 
     QString AudioExporterPrivate::projectName() const {
         // project file's base name
-        return QFileInfo(appController->projectPath()).baseName();
+        auto s = QFileInfo(appController->projectPath()).baseName();
+        return s.isEmpty() ? QStringLiteral("Untitled") : s;
     }
     QString AudioExporterPrivate::projectDirectory() const {
         if (auto dir = QFileInfo(appController->projectPath()).dir(); dir.isRelative()) {
@@ -201,7 +202,7 @@ namespace Audio {
         return AudioContext::instance();
     }
     QPair<int, int> AudioExporterPrivate::calculateRange() const {
-        return {}; // TODO
+        return {0, appModel->projectLengthInTicks()}; // TODO
     }
     QList<int> AudioExporterPrivate::selectedSources() const {
         return {}; // TODO
@@ -247,6 +248,51 @@ namespace Audio {
         templateString = result;
         return allTemplatesMatch;
     }
+
+    int AudioExporterPrivate::calculateFormat() const {
+        int format = 0;
+        switch (config.fileType()) {
+            case AudioExporterConfig::FT_Wav:
+                format |= talcs::AudioFormatIO::WAV;
+                switch (config.formatOption()) {
+                    case 0:
+                        format |= talcs::AudioFormatIO::FLOAT;
+                        return format;
+                    case 1:
+                        format |= talcs::AudioFormatIO::PCM_24;
+                        return format;
+                    case 2:
+                        format |= talcs::AudioFormatIO::PCM_16;
+                        return format;
+                    case 3:
+                        format |= talcs::AudioFormatIO::PCM_U8;
+                        return format;
+                }
+                break;
+            case AudioExporterConfig::FT_Flac:
+                format |= talcs::AudioFormatIO::FLAC;
+                switch (config.formatOption()) {
+                    case 0:
+                        format |= talcs::AudioFormatIO::PCM_24;
+                        return format;
+                    case 1:
+                        format |= talcs::AudioFormatIO::PCM_16;
+                        return format;
+                    case 2:
+                        format |= talcs::AudioFormatIO::PCM_S8;
+                        return format;
+                }
+                break;
+            case AudioExporterConfig::FT_OggVorbis:
+                format |= (talcs::AudioFormatIO::OGG | talcs::AudioFormatIO::VORBIS);
+                return format;
+            case AudioExporterConfig::FT_Mp3:
+                format |= (talcs::AudioFormatIO::MPEG | talcs::AudioFormatIO::MPEG_LAYER_III);
+                return format;
+        }
+        return 0;
+    }
+
     void AudioExporterPrivate::updateFileListAndWarnings() {
         warning = {};
         if (config.fileType() == AudioExporterConfig::FT_Mp3 || config.fileType() == AudioExporterConfig::FT_OggVorbis)
@@ -476,12 +522,12 @@ namespace Audio {
             io.setStream(file);
             io.setSampleRate(config.formatSampleRate());
             io.setChannelCount(config.formatMono() ? 1 : 2);
-            io.setFormat(talcs::AudioFormatIO::WAV | talcs::AudioFormatIO::FLOAT); // TODO calculte AudioFormatIO format from config
-            io.setCompressionLevel(0.01 * (100 - config.formatQuality()));
+            io.setFormat(d->calculateFormat());
             if (!io.open(talcs::AbstractAudioFormatIO::Write)) {
                 setErrorString(tr("Format not supported: %1").arg(io.errorString()));
                 return R_Fail;
             }
+            io.setCompressionLevel(0.01 * (100 - config.formatQuality()));
         }
 
         // create and configure talcs::DspxProjectAudioExporter
@@ -556,9 +602,9 @@ namespace Audio {
             emit clippingDetected(sourceIndexMap.value(track));
         });
         auto ret = exporter.exec();
-        if (ret & talcs::DspxProjectAudioExporter::OK)
+        if (ret == talcs::DspxProjectAudioExporter::OK)
             return R_OK;
-        if (ret & talcs::DspxProjectAudioExporter::Interrupted)
+        if (ret == talcs::DspxProjectAudioExporter::Interrupted)
             return R_Abort;
 
         if (errorString().isEmpty())

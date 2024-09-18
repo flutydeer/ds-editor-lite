@@ -23,12 +23,18 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QInputDialog>
+#include <QProgressBar>
+#include <QTimer>
 
 #include <SVSCraftWidgets/expressionspinbox.h>
 
 #include <Modules/Audio/AudioExporter_p.h>
 
 namespace Audio::Internal {
+
+    static AudioExporterConfig m_temporaryPreset;
+    static bool m_hasTemporaryPreset = false;
+
     AudioExportDialog::AudioExportDialog(Core::IProjectWindow *windowHandle, QWidget *parent) : QDialog(parent), m_audioExporter(new AudioExporter(windowHandle, this)) {
         setWindowTitle(tr("Export Audio"));
         setWindowFlag(Qt::WindowContextHelpButtonHint, false);
@@ -375,6 +381,10 @@ namespace Audio::Internal {
             m_presetComboBox->setCurrentIndex(currentPresetKey.toInt());
         }
         emit m_presetComboBox->currentIndexChanged(m_presetComboBox->currentIndex());
+        if (hasTemporaryPreset()) {
+            restoreTemporaryPreset();
+            updateView();
+        }
 
         connect(exportButton, &QAbstractButton::clicked, this, &AudioExportDialog::runExport);
         connect(cancelButton, &QAbstractButton::clicked, this, &QDialog::reject);
@@ -551,20 +561,131 @@ namespace Audio::Internal {
                 return;
         }
 
-        QDialog progressDialog;
+        QDialog progressDialog(this);
         auto layout = new QVBoxLayout;
 
         auto mainPromptLayout = new QHBoxLayout;
         auto mainPromptWarningButton = new QPushButton;
+        mainPromptWarningButton->setVisible(false);
         mainPromptWarningButton->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
-        mainPromptLayout->addWidget(mainPromptWarningButton);
-        auto mainPromptLabel = new QLabel;
-        mainPromptLayout->addWidget(mainPromptLabel);
+        mainPromptLayout->addWidget(mainPromptWarningButton, 0);
+        auto mainPromptLabel = new QLabel(tr("Exporting..."));
+        mainPromptLayout->addWidget(mainPromptLabel, 1);
         layout->addLayout(mainPromptLayout);
-        
+
+        auto mainProgressBar = new QProgressBar;
+        mainProgressBar->setRange(0, 100);
+        mainProgressBar->setValue(0);
+        layout->addWidget(mainProgressBar);
+
+        auto buttonLayout = new QHBoxLayout;
+        buttonLayout->addStretch();
+        auto abortButton = new QPushButton(tr("Cancel"));
+        buttonLayout->addWidget(abortButton);
+        layout->addLayout(buttonLayout);
+
+        progressDialog.setLayout(layout);
+        progressDialog.resize(400, progressDialog.height());
+
+        QHash<int, double> progressRatioHash;
+
+        if (m_audioExporter->config().mixingOption() == AudioExporterConfig::MO_Mixed) {
+            connect(m_audioExporter, &AudioExporter::progressChanged, &progressDialog, [=](double ratio) {
+                mainProgressBar->setValue(static_cast<int>(ratio * 100.0));
+            });
+        } else {
+            int sourceCount = m_audioExporter->config().source().size();
+            connect(m_audioExporter, &AudioExporter::progressChanged, &progressDialog, [=, &progressRatioHash](double ratio, int sourceIndex) {
+                progressRatioHash[sourceIndex] = ratio;
+                double totalRatio = 0;
+                for (auto value : progressRatioHash.values()) {
+                    totalRatio += value;
+                }
+                mainProgressBar->setValue(static_cast<int>(totalRatio / sourceCount * 100.0));
+            });
+        }
+
+        QDialog warningListDialog(this);
+        auto warningListDialogLayout = new QVBoxLayout;
+        auto warningList = new QListWidget;
+        warningListDialogLayout->addWidget(warningList);
+        warningListDialog.setLayout(warningListDialogLayout);
+        warningListDialog.resize(300, 300);
+        warningListDialog.setWindowTitle(tr("Warnings"));
+        connect(m_audioExporter, &AudioExporter::clippingDetected, &progressDialog, [=](int sourceIndex) {
+            auto item = new QListWidgetItem;
+            if (sourceIndex == -1) {
+                item->setText(tr("Clipping is detected"));
+            } else {
+                item->setText(tr("Clipping is detected in track %1 \"%2\"").arg(sourceIndex + 1).arg(m_audioExporter->d_func()->trackName(sourceIndex)));
+            }
+            item->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
+            warningList->addItem(item);
+            mainPromptWarningButton->setVisible(true);
+            mainPromptWarningButton->setToolTip(tr("%n warning(s)", nullptr, warningList->count()));
+        });
+        connect(m_audioExporter, &AudioExporter::warningAdded, &progressDialog, [=](const QString &message, int sourceIndex) {
+            Q_UNUSED(sourceIndex); // may be used in future
+            auto item = new QListWidgetItem;
+            item->setText(message);
+            item->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
+            warningList->addItem(item);
+            mainPromptWarningButton->setVisible(true);
+            mainPromptWarningButton->setToolTip(tr("%n warning(s)", nullptr, warningList->count()));
+        });
+
+        connect(mainPromptWarningButton, &QAbstractButton::clicked, &progressDialog, [=, &warningListDialog] {
+            warningListDialog.open();
+        });
+
+        bool interruptFlag = true;
+        connect(abortButton, &QAbstractButton::clicked, &progressDialog, [=, &interruptFlag, &progressDialog] {
+            if (interruptFlag) {
+                m_audioExporter->cancel();
+            } else {
+                progressDialog.reject();
+            }
+        });
+
+        QTimer::singleShot(0, [=, &interruptFlag, &progressDialog] {
+            auto ret = m_audioExporter->exec();
+            interruptFlag = false;
+            abortButton->setText(tr("Close"));
+            if (warningList->count()) {
+                switch (ret) {
+                    case AudioExporter::R_OK:
+                        mainPromptLabel->setText(tr("Export finished with %n warning(s)", nullptr, warningList->count()));
+                        break;
+                    case AudioExporter::R_Abort:
+                        mainPromptLabel->setText(tr("Export aborted with %n warning(s)", nullptr, warningList->count()));
+                        break;
+                    case AudioExporter::R_Fail:
+                        mainPromptLabel->setText(tr("Export failed with %n warning(s)\n%1", nullptr, warningList->count()).arg(m_audioExporter->errorString()));
+                        break;
+                }
+            } else {
+                switch (ret) {
+                    case AudioExporter::R_OK:
+                        progressDialog.accept();
+                        break;
+                    case AudioExporter::R_Abort:
+                        progressDialog.reject();
+                        break;
+                    case AudioExporter::R_Fail:
+                        mainPromptLabel->setText(tr("Export failed\n%1").arg(m_audioExporter->errorString()));
+                        break;
+                }
+            }
+        });
+        if (progressDialog.exec() == QDialog::Accepted) {
+            saveTemporaryPreset();
+            if (!m_keepOpenCheckBox->isChecked())
+                accept();
+        }
     }
 
-    bool AudioExportDialog::askWarningBeforeExport(AudioExporter::Warning warning, bool canIgnored) {
+    bool AudioExportDialog::askWarningBeforeExport(AudioExporter::Warning warning,
+                                                   bool canIgnored) {
         if (AudioSettings::audioExporterIgnoredWarningFlag() & warning)
             return true;
         QMessageBox msgBox(this);
@@ -578,10 +699,26 @@ namespace Audio::Internal {
         }
         if (msgBox.exec() == QMessageBox::Yes) {
             if (canIgnored && checkBox->isChecked())
-                AudioSettings::setAudioExporterIgnoredWarningFlag(AudioSettings::audioExporterIgnoredWarningFlag() | warning);
+                AudioSettings::setAudioExporterIgnoredWarningFlag(
+                    AudioSettings::audioExporterIgnoredWarningFlag() | warning);
             return true;
         } else {
             return false;
         }
     }
+
+    void AudioExportDialog::saveTemporaryPreset() {
+        m_temporaryPreset = m_audioExporter->config();
+        m_hasTemporaryPreset = true;
+    }
+
+    void AudioExportDialog::restoreTemporaryPreset() {
+        m_audioExporter->setConfig(m_temporaryPreset);
+    }
+
+    bool AudioExportDialog::hasTemporaryPreset() const {
+        return m_hasTemporaryPreset;
+    }
+
+
 }

@@ -71,6 +71,10 @@ namespace Audio::Internal {
         void runExport();
 
         bool askWarningBeforeExport(AudioExporter::Warning warning, bool canIgnored = false);
+
+        void saveTemporaryPreset();
+        void restoreTemporaryPreset();
+        bool hasTemporaryPreset() const;
     };
 
 }
