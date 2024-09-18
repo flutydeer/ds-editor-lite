@@ -4,7 +4,7 @@
 
 #include "TrackListHeaderView.h"
 
-#include "Controller/TracksViewController.h"
+#include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
 #include "UI/Controls/ToolTipFilter.h"
 
@@ -23,7 +23,7 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     btnNewTrack->setToolTip(tr("New Track"));
     btnNewTrack->installEventFilter(new ToolTipFilter(btnNewTrack));
     // btnNewTrack->setText(tr("New Track"));
-    connect(btnNewTrack, &QPushButton::clicked, trackController, &TracksViewController::onNewTrack);
+    connect(btnNewTrack, &QPushButton::clicked, trackController, &TrackController::onNewTrack);
     auto mainLayout = new QHBoxLayout;
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
     mainLayout->addWidget(btnNewTrack);

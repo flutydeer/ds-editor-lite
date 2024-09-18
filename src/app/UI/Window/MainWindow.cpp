@@ -10,7 +10,7 @@
 #endif
 
 #include "Controller/AppController.h"
-#include "Controller/TracksViewController.h"
+#include "Controller/TrackController.h"
 #include "Controller/ValidationController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/History/HistoryManager.h"

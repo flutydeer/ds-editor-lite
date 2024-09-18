@@ -5,8 +5,8 @@
 #include "ClipEditorView.h"
 
 #include "Controller/AppController.h"
-#include "Controller/ClipEditorViewController.h"
-#include "Controller/TracksViewController.h"
+#include "Controller/ClipController.h"
+#include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"

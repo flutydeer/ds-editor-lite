@@ -2,10 +2,10 @@
 // Created by fluty on 2024/2/10.
 //
 
-#ifndef CLIPEDITVIEWCONTROLLER_H
-#define CLIPEDITVIEWCONTROLLER_H
+#ifndef CLIPCONTROLLER_H
+#define CLIPCONTROLLER_H
 
-#define clipController ClipEditorViewController::instance()
+#define clipController ClipController::instance()
 
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Note.h"
@@ -17,15 +17,15 @@
 
 
 class Curve;
-class ClipEditorViewControllerPrivate;
+class ClipControllerPrivate;
 class IClipEditorView;
 
-class ClipEditorViewController final : public QObject, public Singleton<ClipEditorViewController> {
+class ClipController final : public QObject, public Singleton<ClipController> {
     Q_OBJECT
 
 public:
-    explicit ClipEditorViewController();
-    ~ClipEditorViewController() override;
+    explicit ClipController();
+    ~ClipController() override;
     void setView(IClipEditorView *view);
     void setClip(Clip *clip);
     void copySelectedNotesWithParams() const;
@@ -62,10 +62,10 @@ public slots:
     void onFillLyric(QWidget *parent);
 
 private:
-    Q_DECLARE_PRIVATE(ClipEditorViewController);
-    ClipEditorViewControllerPrivate *d_ptr;
+    Q_DECLARE_PRIVATE(ClipController);
+    ClipControllerPrivate *d_ptr;
 };
 
 
 
-#endif // CLIPEDITVIEWCONTROLLER_H
+#endif // CLIPCONTROLLER_H

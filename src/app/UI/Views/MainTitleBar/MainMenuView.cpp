@@ -6,8 +6,8 @@
 
 #include "MainMenuView_p.h"
 #include "Controller/AppController.h"
-#include "Controller/ClipEditorViewController.h"
-#include "Controller/TracksViewController.h"
+#include "Controller/ClipController.h"
+#include "Controller/TrackController.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
@@ -124,7 +124,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     //
     // auto actionInsertNewTrack = new QAction(tr("Track"), this);
     // connect(actionInsertNewTrack, &QAction::triggered, trackController,
-    //         &TracksViewController::onNewTrack);
+    //         &TrackController::onNewTrack);
     // menuInsert->addAction(actionInsertNewTrack);
 
     // auto menuModify = new CMenu(tr("&Modify"), this);
@@ -279,26 +279,26 @@ void MainMenuViewPrivate::onActivatedPanelChanged(AppGlobal::PanelType panel) {
     m_panelType = panel;
     if (panel == AppGlobal::ClipEditor) {
         m_actionSelectAll->setEnabled(clipController->canSelectAll());
-        QObject::connect(clipController, &ClipEditorViewController::canSelectAllChanged,
+        QObject::connect(clipController, &ClipController::canSelectAllChanged,
                          m_actionSelectAll, &QAction::setEnabled);
 
         m_actionDelete->setEnabled(clipController->hasSelectedNotes());
-        QObject::connect(clipController, &ClipEditorViewController::hasSelectedNotesChanged,
+        QObject::connect(clipController, &ClipController::hasSelectedNotesChanged,
                          m_actionDelete, &QAction::setEnabled);
 
         m_actionFillLyrics->setEnabled(clipController->hasSelectedNotes());
-        QObject::connect(clipController, &ClipEditorViewController::hasSelectedNotesChanged,
+        QObject::connect(clipController, &ClipController::hasSelectedNotesChanged,
                          m_actionFillLyrics, &QAction::setEnabled);
     } else {
-        QObject::disconnect(clipController, &ClipEditorViewController::canSelectAllChanged,
+        QObject::disconnect(clipController, &ClipController::canSelectAllChanged,
                             m_actionSelectAll, &QAction::setEnabled);
         m_actionSelectAll->setEnabled(false);
 
-        QObject::disconnect(clipController, &ClipEditorViewController::hasSelectedNotesChanged,
+        QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged,
                             m_actionDelete, &QAction::setEnabled);
         m_actionDelete->setEnabled(false);
 
-        QObject::disconnect(clipController, &ClipEditorViewController::hasSelectedNotesChanged,
+        QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged,
                             m_actionFillLyrics, &QAction::setEnabled);
         m_actionFillLyrics->setEnabled(false);
     }

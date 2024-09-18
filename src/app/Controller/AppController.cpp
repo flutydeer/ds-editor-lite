@@ -6,10 +6,10 @@
 
 #include "AppController_p.h"
 #include "AudioDecodingController.h"
-#include "ClipEditorViewController.h"
+#include "ClipController.h"
 #include "ParamController.h"
 #include "ProjectStatusController.h"
-#include "TracksViewController.h"
+#include "TrackController.h"
 #include "ValidationController.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"

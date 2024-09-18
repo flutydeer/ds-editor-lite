@@ -4,7 +4,7 @@
 
 #include "PhonemeView.h"
 
-#include "Controller/ClipEditorViewController.h"
+#include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"

@@ -12,7 +12,7 @@
 #include "TracksGraphicsView.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
-#include "Controller/TracksViewController.h"
+#include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
 #include "GraphicsItem/AudioClipView.h"
 #include "GraphicsItem/SingingClipView.h"

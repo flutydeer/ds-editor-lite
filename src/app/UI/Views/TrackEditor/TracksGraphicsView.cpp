@@ -6,9 +6,9 @@
 
 #include "TracksGraphicsScene.h"
 #include "Controller/AppController.h"
-#include "Controller/ClipEditorViewController.h"
+#include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
-#include "Controller/TracksViewController.h"
+#include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
 #include "GraphicsItem/AbstractClipView.h"
 #include "GraphicsItem/TracksBackgroundGraphicsItem.h"

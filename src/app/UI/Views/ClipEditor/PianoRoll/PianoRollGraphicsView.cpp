@@ -9,7 +9,7 @@
 #include "ClipRangeOverlay.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView_p.h"
-#include "Controller/ClipEditorViewController.h"
+#include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
 #include "NoteView.h"

@@ -2,10 +2,10 @@
 // Created by fluty on 2024/1/31.
 //
 
-#ifndef TRACKSVIEWCONTROLLER_H
-#define TRACKSVIEWCONTROLLER_H
+#ifndef TRACKCONTROLLER_H
+#define TRACKCONTROLLER_H
 
-#define trackController TracksViewController::instance()
+#define trackController TrackController::instance()
 
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Track.h"
@@ -16,7 +16,7 @@
 
 class QWidget;
 
-class TracksViewController final : public QObject, public Singleton<TracksViewController> {
+class TrackController final : public QObject, public Singleton<TrackController> {
     Q_OBJECT
 
 public:
@@ -42,4 +42,4 @@ private:
     QWidget *m_parentWidget = nullptr;
 };
 
-#endif // TRACKSVIEWCONTROLLER_H
+#endif // TRACKCONTROLLER_H

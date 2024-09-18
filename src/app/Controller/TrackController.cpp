@@ -2,7 +2,7 @@
 // Created by fluty on 2024/1/31.
 //
 
-#include "TracksViewController.h"
+#include "TrackController.h"
 
 #include "AppController.h"
 #include "Actions/AppModel/Clip/ClipActions.h"
@@ -23,15 +23,15 @@
 
 #include <QFileInfo>
 
-void TracksViewController::setParentWidget(QWidget *view) {
+void TrackController::setParentWidget(QWidget *view) {
     m_parentWidget = view;
 }
 
-void TracksViewController::onNewTrack() {
+void TrackController::onNewTrack() {
     onInsertNewTrack(appModel->tracks().count());
 }
 
-void TracksViewController::onInsertNewTrack(qsizetype index) {
+void TrackController::onInsertNewTrack(qsizetype index) {
     // bool soloExists = false;
     // auto tracks = appModel->tracks();
     // for (auto dsTrack : tracks) {
@@ -56,14 +56,14 @@ void TracksViewController::onInsertNewTrack(qsizetype index) {
     historyManager->record(a);
 }
 
-void TracksViewController::onAppendTrack(Track *track) {
+void TrackController::onAppendTrack(Track *track) {
     auto a = new TrackActions;
     a->insertTrack(track, appModel->tracks().count(), appModel);
     a->execute();
     historyManager->record(a);
 }
 
-void TracksViewController::onRemoveTrack(int id) {
+void TrackController::onRemoveTrack(int id) {
     auto trackToRemove = appModel->findTrackById(id);
     QList<Track *> tracks;
     tracks.append(trackToRemove);
@@ -73,7 +73,7 @@ void TracksViewController::onRemoveTrack(int id) {
     historyManager->record(a);
 }
 
-void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
+void TrackController::addAudioClipToNewTrack(const QString &filePath) {
     auto audioClip = new AudioClip;
     audioClip->setPath(filePath);
     auto newTrack = new Track;
@@ -85,14 +85,14 @@ void TracksViewController::addAudioClipToNewTrack(const QString &filePath) {
     historyManager->record(a);
 }
 
-void TracksViewController::setActiveClip(int clipId) {
+void TrackController::setActiveClip(int clipId) {
     if (clipId != appStatus->activeClipId) {
         appStatus->selectedNotes = QList<int>();
         appStatus->activeClipId = clipId;
     }
 }
 
-void TracksViewController::changeTrackProperty(const Track::TrackProperties &args) {
+void TrackController::changeTrackProperty(const Track::TrackProperties &args) {
     auto track = appModel->findTrackById(args.id);
     auto a = new TrackActions;
     const Track::TrackProperties oldArgs(*track);
@@ -101,21 +101,20 @@ void TracksViewController::changeTrackProperty(const Track::TrackProperties &arg
     historyManager->record(a);
 }
 
-void TracksViewController::onAddAudioClip(const QString &path, int id, int tick) {
+void TrackController::onAddAudioClip(const QString &path, int id, int tick) {
     auto decodeTask = new DecodeAudioTask;
     decodeTask->path = path;
     decodeTask->trackId = id;
     decodeTask->tick = tick;
     auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
     dlg->show();
-    connect(decodeTask, &Task::finished, this,
-            [=] { handleDecodeAudioTaskFinished(decodeTask); });
+    connect(decodeTask, &Task::finished, this, [=] { handleDecodeAudioTaskFinished(decodeTask); });
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
 
-void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
-    qDebug() << "TracksViewController::onClipPropertyChanged";
+void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
+    qDebug() << "TrackController::onClipPropertyChanged";
     int trackIndex = -1;
     auto clip = appModel->findClipById(args.id, trackIndex);
     auto track = appModel->tracks().at(trackIndex);
@@ -158,7 +157,7 @@ void TracksViewController::onClipPropertyChanged(const Clip::ClipCommonPropertie
     }
 }
 
-void TracksViewController::onRemoveClips(const QList<int> &clipsId) {
+void TrackController::onRemoveClips(const QList<int> &clipsId) {
     if (clipsId.empty())
         return;
 
@@ -180,7 +179,7 @@ void TracksViewController::onRemoveClips(const QList<int> &clipsId) {
     historyManager->record(a);
 }
 
-void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
+void TrackController::onNewSingingClip(int trackIndex, int tick) {
     auto singingClip = new SingingClip;
     int bars = 4;
     auto timeSig = appModel->timeSignature();
@@ -203,7 +202,7 @@ void TracksViewController::onNewSingingClip(int trackIndex, int tick) {
     setActiveClip(singingClip->id());
 }
 
-void TracksViewController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
+void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     auto terminate = task->terminated();
     taskManager->removeTask(task);
     if (terminate) {

@@ -6,7 +6,7 @@
 #include "ClipEditorToolBarView_p.h"
 #include "Controller/AppController.h"
 
-#include "Controller/TracksViewController.h"
+#include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 
 #include "Model/AppModel/SingingClip.h"

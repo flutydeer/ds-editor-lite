@@ -18,7 +18,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Window/TaskWindow.h"
-#include "Controller/TracksViewController.h"
+#include "Controller/TrackController.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"

@@ -2,8 +2,8 @@
 // Created by FlutyDeer on 2023/12/1.
 //
 
-#ifndef TRACKSCONTROLLER_H
-#define TRACKSCONTROLLER_H
+#ifndef APPCONTROLLER_H
+#define APPCONTROLLER_H
 
 #define appController AppController::instance()
 
@@ -64,4 +64,4 @@ private:
     AppControllerPrivate *d_ptr;
 };
 
-#endif // TRACKSCONTROLLER_H
+#endif // APPCONTROLLER_H

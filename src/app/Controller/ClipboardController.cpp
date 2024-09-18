@@ -5,7 +5,7 @@
 #include "ClipboardController.h"
 #include "ClipboardController_p.h"
 
-#include "ClipEditorViewController.h"
+#include "ClipController.h"
 #include "PlaybackController.h"
 
 #include <QClipboard>

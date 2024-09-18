@@ -4,7 +4,7 @@
 
 #include "TrackControlView.h"
 
-#include "Controller/TracksViewController.h"
+#include "Controller/TrackController.h"
 #include "Model/AppModel/Track.h"
 #include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/Button.h"

@@ -2,21 +2,21 @@
 // Created by fluty on 24-7-21.
 //
 
-#ifndef CLIPEDITORVIEWCONTROLLER_P_H
-#define CLIPEDITORVIEWCONTROLLER_P_H
+#ifndef CLIPCONTROLLER_P_H
+#define CLIPCONTROLLER_P_H
 
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
 
 class Note;
 class Clip;
 class IClipEditorView;
-class ClipEditorViewController;
+class ClipController;
 
-class ClipEditorViewControllerPrivate {
-    Q_DECLARE_PUBLIC(ClipEditorViewController);
+class ClipControllerPrivate {
+    Q_DECLARE_PUBLIC(ClipController);
 
 public:
-    explicit ClipEditorViewControllerPrivate(ClipEditorViewController *q) : q_ptr(q) {
+    explicit ClipControllerPrivate(ClipController *q) : q_ptr(q) {
     }
 
     IClipEditorView *m_view = nullptr;
@@ -28,7 +28,7 @@ public:
     [[nodiscard]] static QList<Note *> selectedNotesFromId(const QList<int> &notesId, SingingClip *clip) ;
 
 private:
-    ClipEditorViewController *q_ptr;
+    ClipController *q_ptr;
 };
 
-#endif // CLIPEDITORVIEWCONTROLLER_P_H
+#endif // CLIPCONTROLLER_P_H
