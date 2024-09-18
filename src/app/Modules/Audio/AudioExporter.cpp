@@ -533,7 +533,7 @@ namespace Audio {
         // create and configure talcs::DspxProjectAudioExporter
         talcs::DspxProjectAudioExporter exporter(projectContext);
         auto cleanup = [=](void *) {d->currentExporter = nullptr;};
-        std::unique_ptr<void, decltype(cleanup)> _1(nullptr, cleanup);
+        std::unique_ptr<void, decltype(cleanup)> _1(this, cleanup);
         d->currentExporter = &exporter;
         exporter.setMonoChannel(config.formatMono());
         exporter.setThruMaster(config.mixingOption() == AudioExporterConfig::MO_SeparatedThruMaster);
@@ -574,7 +574,7 @@ namespace Audio {
             if (!projectContext->preMixer()->open(currentBufferSize, currentSampleRate))
                 qDebug() << "AudioExporter: Cannot reopen pre-mixer after exported";
         };
-        std::unique_ptr<void, decltype(reopenMixer)> _2(nullptr, reopenMixer);
+        std::unique_ptr<void, decltype(reopenMixer)> _2(this, reopenMixer);
         if (!projectContext->preMixer()->open(1024, config.formatSampleRate())) { // TODO let user configure buffer size in settings
             setErrorString(tr("Cannot start audio exporting"));
             return R_Fail;
@@ -582,12 +582,12 @@ namespace Audio {
 
         // call listeners
         QList<AudioExporterListener *> listenerToCallFinishList;
-        auto callFinish = [=](void *) {
+        auto callFinish = [&](void *) {
             for (auto listener : listenerToCallFinishList) {
                 listener->willFinishCallback(this);
             }
         };
-        std::unique_ptr<void, decltype(callFinish)> _3(nullptr, callFinish);
+        std::unique_ptr<void, decltype(callFinish)> _3(this, callFinish);
         for (auto listener : m_listeners) {
             if (!listener->willStartCallback(this))
                 return R_Fail;

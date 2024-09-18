@@ -21,7 +21,7 @@ PseudoSingerConfigNotifier *PseudoSingerConfigNotifier::instance() {
     return m_instance;
 }
 
-static qint64 msecToSample(int msec, double sampleRate = {}) {
+static qint64 msecToSample(int msec, double sampleRate = {}) { // FIXME use exporter sample rate
     auto audioDevice = AudioSystem::outputSystem()->outputContext()->device();
     sampleRate = qFuzzyIsNull(sampleRate)
                      ? audioDevice && audioDevice->isOpen() ? audioDevice->sampleRate() : 48000.0

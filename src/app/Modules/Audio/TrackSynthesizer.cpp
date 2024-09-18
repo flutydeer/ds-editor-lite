@@ -1,5 +1,7 @@
 #include "TrackSynthesizer.h"
 
+#include "AudioContext.h"
+#include "../../../libs/talcs/src/dspx/DspxTrackContext.h"
 #include "Model/AppModel/SingingClip.h"
 
 #include <TalcsCore/Decibels.h>
@@ -46,6 +48,7 @@ TrackSynthesizer::TrackSynthesizer(talcs::DspxTrackContext *trackContext, Track 
                 handleTimeChanged();
             });
 
+    connect(static_cast<AudioContext *>(trackContext->projectContext()), &AudioContext::exporterCausedTimeChanged, this, &TrackSynthesizer::handleTimeChanged);
 
     connect(track, &Track::clipChanged, this, [=](Track::ClipChangeType type, Clip *clip) {
         if (clip->clipType() != IClip::Singing)

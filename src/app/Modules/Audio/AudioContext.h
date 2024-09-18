@@ -19,14 +19,16 @@
 #include "Controller/PlaybackController.h"
 #include "Global/PlaybackGlobal.h"
 #include "Model/AppModel/AudioClip.h"
+#include "AudioExporter.h"
 
 namespace talcs {
     class DspxAudioClipContext;
 }
 
 class TrackSynthesizer;
+class AudioContextAudioExporterListener;
 
-class AudioContext : public talcs::DspxProjectContext {
+class AudioContext : public talcs::DspxProjectContext, public Audio::AudioExporterListener {
     Q_OBJECT
 public:
     explicit AudioContext(QObject *parent = nullptr);
@@ -45,6 +47,7 @@ public:
 
 signals:
     void levelMeterUpdated(const AppModel::LevelMetersUpdatedArgs &args);
+    void exporterCausedTimeChanged();
 
 private:
     enum PlayheadBehavior {
@@ -82,6 +85,9 @@ private:
     void handleClipPropertyChanged(AudioClip *audioClip) const;
 
     void handleTimeChanged();
+
+    bool willStartCallback(AudioExporter *exporter) override;
+    void willFinishCallback(AudioExporter *exporter) override;
 };
 
 #endif // AUDIOCONTEXT_H

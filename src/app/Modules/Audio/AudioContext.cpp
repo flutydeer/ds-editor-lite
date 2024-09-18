@@ -177,15 +177,18 @@ private:
 
 static AudioContext *m_instance = nullptr;
 
+static bool m_isExporting = false;
+static double m_exportSampleRate;
+
 static qint64 tickToSample(double tick) {
     auto dev = AudioSystem::outputSystem()->context()->device();
-    auto sr = dev ? !qFuzzyIsNull(dev->sampleRate()) ? dev->sampleRate() : 48000.0 : 48000.0;
+    auto sr = m_isExporting ? m_exportSampleRate : dev ? !qFuzzyIsNull(dev->sampleRate()) ? dev->sampleRate() : 48000.0 : 48000.0;
     return qint64(tick * 60.0 * sr / playbackController->tempo() / 480.0);
 }
 
 static double sampleToTick(qint64 sample) {
     auto dev = AudioSystem::outputSystem()->context()->device();
-    auto sr = dev ? !qFuzzyIsNull(dev->sampleRate()) ? dev->sampleRate() : 48000.0 : 48000.0;
+    auto sr = m_isExporting ? m_exportSampleRate : dev ? !qFuzzyIsNull(dev->sampleRate()) ? dev->sampleRate() : 48000.0 : 48000.0;
     return double(sample) / sr * playbackController->tempo() / 60.0 * 480.0;
 }
 
@@ -261,6 +264,8 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::deviceChanged,
             this, [=] { playbackController->stop(); });
 
+    connect(this, &AudioContext::exporterCausedTimeChanged, this, &AudioContext::handleTimeChanged);
+
     m_levelMeterTimer = new QTimer(this);
     m_levelMeterTimer->setInterval(50); // TODO make it configurable
     connect(m_levelMeterTimer, &QTimer::timeout, this, [=] {
@@ -282,6 +287,8 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     m_levelMeterTimer->start();
 
     new PseudoSingerConfigNotifier(this);
+
+    AudioExporter::registerListener(this);
 }
 
 AudioContext::~AudioContext() {
@@ -484,4 +491,15 @@ void AudioContext::handleTimeChanged() {
             audioClipContext->updatePosition();
         }
     }
+}
+
+bool AudioContext::willStartCallback(AudioExporter *exporter) {
+    m_isExporting = true;
+    m_exportSampleRate = exporter->config().formatSampleRate();
+    emit exporterCausedTimeChanged();
+    return true;
+}
+void AudioContext::willFinishCallback(AudioExporter *exporter) {
+    m_isExporting = false;
+    emit exporterCausedTimeChanged();
 }
