@@ -1,6 +1,7 @@
 #include "audioexportdialog.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Track.h"
+#include "Modules/Audio/AudioSettings.h"
 
 #include <limits>
 
@@ -163,7 +164,7 @@ namespace Audio::Internal {
         });
         connect(m_mixingOptionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), fileNameTemplateTrackNameAction, &QAction::setEnabled);
         connect(m_mixingOptionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), fileNameTemplateTrackIndexAction, &QAction::setEnabled);
-        mixingLayout->addRow(tr("&Mixing Option"), m_mixingOptionComboBox);
+        mixingLayout->addRow(tr("&Mixing option"), m_mixingOptionComboBox);
         m_enableMuteSoloCheckBox = new QCheckBox(tr("Enable m&ute/solo"));
         m_enableMuteSoloCheckBox->setChecked(true);
         mixingLayout->addRow(m_enableMuteSoloCheckBox);
@@ -244,6 +245,8 @@ namespace Audio::Internal {
         connect(m_fileNameEdit, &QLineEdit::textChanged, this, &AudioExportDialog::updateConfig);
         connect(m_fileDirectoryEdit, &QLineEdit::textChanged, this, &AudioExportDialog::updateConfig);
         connect(m_fileTypeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
+            QFileInfo fileInfo(m_fileNameEdit->text());
+            m_fileNameEdit->setText(fileInfo.baseName() + "." + AudioExporterConfig::extensionOfType(static_cast<AudioExporterConfig::FileType>(index)));
             m_formatOptionComboBox->clear();
             auto options = AudioExporterConfig::formatOptionsOfType(static_cast<AudioExporterConfig::FileType>(index));
             if (options.isEmpty()) {
@@ -359,8 +362,22 @@ namespace Audio::Internal {
 
         emit m_fileTypeComboBox->currentIndexChanged(0);
         emit m_sourceComboBox->currentIndexChanged(0);
-        m_presetComboBox->setCurrentIndex(0); // TODO
-        emit m_presetComboBox->currentIndexChanged(0);
+        emit m_mixingOptionComboBox->currentIndexChanged(0);
+        auto currentPresetKey = AudioSettings::audioExporterCurrentPreset();
+        if (currentPresetKey.isString()) {
+            for (int i = 0; i < m_presetComboBox->count(); i++) {
+                if (m_presetComboBox->itemData(i).toString() == currentPresetKey.toString()) {
+                    m_presetComboBox->setCurrentIndex(i);
+                    break;
+                }
+            }
+        } else {
+            m_presetComboBox->setCurrentIndex(currentPresetKey.toInt());
+        }
+        emit m_presetComboBox->currentIndexChanged(m_presetComboBox->currentIndex());
+
+        connect(exportButton, &QAbstractButton::clicked, this, &AudioExportDialog::runExport);
+        connect(cancelButton, &QAbstractButton::clicked, this, &QDialog::reject);
 
     }
     AudioExportDialog::~AudioExportDialog() {
@@ -398,7 +415,63 @@ namespace Audio::Internal {
                              AudioExporter::warningText(m_audioExporter->warning()).join("\n\n"));
     }
     void AudioExportDialog::showDryRunResult() {
-        // TODO
+        QDialog dlg(this);
+        auto layout = new QVBoxLayout;
+        auto fileListGroupBox = new QGroupBox(tr("File List"));
+        auto fileListLayout = new QVBoxLayout;
+        auto fileListWidget = new QListWidget;
+        fileListWidget->setSelectionMode(QAbstractItemView::NoSelection);
+        auto fileList = m_audioExporter->dryRun();
+        QHash<QString, int> fileListCountDict;
+        for (const auto &file : fileList) {
+            fileListCountDict[file]++;
+        }
+        for (const auto &file : fileList) {
+            auto item = new QListWidgetItem;
+            item->setText(file);
+            AudioExporter::Warning fileWarning;
+            if (QFileInfo::exists(file) && QFileInfo(file).isFile()) {
+                fileWarning |= AudioExporter::W_WillOverwrite;
+            }
+            if (fileListCountDict.value(file) > 1) {
+                fileWarning |= AudioExporter::W_DuplicatedFile;
+            }
+            if (fileWarning) {
+                item->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
+                item->setToolTip(AudioExporter::warningText(fileWarning).join('\n'));
+            }
+            fileListWidget->addItem(item);
+        }
+        fileListLayout->addWidget(fileListWidget);
+        fileListGroupBox->setLayout(fileListLayout);
+        layout->addWidget(fileListGroupBox);
+        if (m_audioExporter->warning()) {
+            auto warningGroupBox = new QGroupBox(tr("Warnings"));
+            auto warningLayout = new QVBoxLayout;
+            auto warningWidget = new QListWidget;
+            warningWidget->setWordWrap(true);
+            warningWidget->setSelectionMode(QAbstractItemView::NoSelection);
+            for (const auto &warning : AudioExporter::warningText(m_audioExporter->warning())) {
+                auto item = new QListWidgetItem;
+                item->setText(warning);
+                item->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
+                warningWidget->addItem(item);
+            }
+            warningLayout->addWidget(warningWidget);
+            warningGroupBox->setLayout(warningLayout);
+            layout->addWidget(warningGroupBox);
+        }
+        auto buttonLayout = new QHBoxLayout();
+        auto okButton = new QPushButton(tr("OK"));
+        buttonLayout->addStretch();
+        buttonLayout->addWidget(okButton);
+        layout->addLayout(buttonLayout);
+        dlg.setLayout(layout);
+        connect(okButton, &QAbstractButton::clicked, &dlg, &QDialog::accept);
+        dlg.setWindowTitle(tr("Dry Run"));
+        dlg.setWindowFlag(Qt::WindowContextHelpButtonHint, false);
+        dlg.resize(600, 400);
+        dlg.exec();
     }
     void AudioExportDialog::updateConfig() {
         if (skipUpdateFlag)
@@ -453,5 +526,62 @@ namespace Audio::Internal {
         m_rangeSelectAllRadio->setChecked(config.timeRange() == AudioExporterConfig::TR_All);
         skipUpdateFlag = false;
         updateConfig();
+    }
+
+    void AudioExportDialog::runExport() {
+        auto warning = m_audioExporter->warning();
+        if (warning & AudioExporter::W_LossyFormat) {
+            if (!askWarningBeforeExport(AudioExporter::W_LossyFormat, true))
+                return;
+        }
+        if (warning & AudioExporter::W_UnrecognizedTemplate) {
+            if (!askWarningBeforeExport(AudioExporter::W_UnrecognizedTemplate, true))
+                return;
+        }
+        if (warning & AudioExporter::W_NoFile) {
+            if (!askWarningBeforeExport(AudioExporter::W_NoFile))
+                return;
+        }
+        if (warning & AudioExporter::W_WillOverwrite) {
+            if (!askWarningBeforeExport(AudioExporter::W_WillOverwrite))
+                return;
+        }
+        if (warning & AudioExporter::W_DuplicatedFile) {
+            if (!askWarningBeforeExport(AudioExporter::W_DuplicatedFile))
+                return;
+        }
+
+        QDialog progressDialog;
+        auto layout = new QVBoxLayout;
+
+        auto mainPromptLayout = new QHBoxLayout;
+        auto mainPromptWarningButton = new QPushButton;
+        mainPromptWarningButton->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
+        mainPromptLayout->addWidget(mainPromptWarningButton);
+        auto mainPromptLabel = new QLabel;
+        mainPromptLayout->addWidget(mainPromptLabel);
+        layout->addLayout(mainPromptLayout);
+        
+    }
+
+    bool AudioExportDialog::askWarningBeforeExport(AudioExporter::Warning warning, bool canIgnored) {
+        if (AudioSettings::audioExporterIgnoredWarningFlag() & warning)
+            return true;
+        QMessageBox msgBox(this);
+        msgBox.setText(AudioExporter::warningText(warning)[0] + "\n\n" + tr("Continue to export?"));
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        QCheckBox *checkBox = nullptr;
+        if (canIgnored) {
+            checkBox = new QCheckBox(tr("Don't ask again"));
+            msgBox.setCheckBox(checkBox);
+        }
+        if (msgBox.exec() == QMessageBox::Yes) {
+            if (canIgnored && checkBox->isChecked())
+                AudioSettings::setAudioExporterIgnoredWarningFlag(AudioSettings::audioExporterIgnoredWarningFlag() | warning);
+            return true;
+        } else {
+            return false;
+        }
     }
 }

@@ -144,10 +144,12 @@ namespace Audio {
         Result exec();
 
         void cancel(bool isFail = false, const QString &message = {});
+        void addWarning(const QString &message, int sourceIndex = -1);
 
     signals:
         void progressChanged(double progressRatio, int sourceIndex);
         void clippingDetected(int sourceIndex);
+        void warningAdded(const QString &message, int sourceIndex);
 
     private:
         QScopedPointer<AudioExporterPrivate> d_ptr;

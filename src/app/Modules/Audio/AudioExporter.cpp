@@ -233,6 +233,8 @@ namespace Audio {
                     replacedText = trackName;
                 } else if (templateName == "trackIndex") {
                     replacedText = QString::number(trackIndex + 1);
+                } else {
+                    allTemplatesMatch = false;
                 }
             } else {
                 allTemplatesMatch = false;
@@ -254,7 +256,7 @@ namespace Audio {
             auto calculatedFileName = config.fileName();
             if (!calculateTemplate(calculatedFileName))
                 warning |= AudioExporter::W_UnrecognizedTemplate;
-            auto fileInfo = QFileInfo(QDir(projectDirectory()).absoluteFilePath(QDir(config.fileDirectory()).absoluteFilePath(calculatedFileName)));
+            auto fileInfo = QFileInfo(QDir(QDir(projectDirectory()).absoluteFilePath(config.fileDirectory())).absoluteFilePath(calculatedFileName));
             if (fileInfo.exists())
                 warning |= AudioExporter::W_WillOverwrite;
             fileList.append(fileInfo.absoluteFilePath());
@@ -266,7 +268,7 @@ namespace Audio {
                 auto calculatedFileName = config.fileName();
                 if (!calculateTemplate(calculatedFileName, trackName(index), index))
                     warning |= AudioExporter::W_UnrecognizedTemplate;
-                auto fileInfo = QFileInfo(QDir(projectDirectory()).absoluteFilePath(QDir(config.fileDirectory()).absoluteFilePath(calculatedFileName)));
+                auto fileInfo = QFileInfo(QDir(QDir(projectDirectory()).absoluteFilePath(config.fileDirectory())).absoluteFilePath(calculatedFileName));
                 if (fileInfo.exists())
                     warning |= AudioExporter::W_WillOverwrite;
                 if (fileSet.contains(fileInfo.absoluteFilePath()))
@@ -316,7 +318,7 @@ namespace Audio {
             {"formatOption", 0},
             {"formatQuality", 100},
             {"formatSampleRate", 48000},
-            {"mixingOption", AudioExporterConfig::MO_Separated},
+            {"mixingOption", AudioExporterConfig::MO_SeparatedThruMaster},
             {"isMuteSoloEnabled", true},
             {"sourceOption", AudioExporterConfig::SO_All},
             {"source", {}},
@@ -344,7 +346,7 @@ namespace Audio {
             {"formatOption", 0},
             {"formatQuality", 100},
             {"formatSampleRate", 48000},
-            {"mixingOption", AudioExporterConfig::MO_Separated},
+            {"mixingOption", AudioExporterConfig::MO_SeparatedThruMaster},
             {"isMuteSoloEnabled", true},
             {"sourceOption", AudioExporterConfig::SO_All},
             {"source", {}},
@@ -372,7 +374,7 @@ namespace Audio {
             {"formatOption", 0},
             {"formatQuality", 100},
             {"formatSampleRate", 48000},
-            {"mixingOption", AudioExporterConfig::MO_Separated},
+            {"mixingOption", AudioExporterConfig::MO_SeparatedThruMaster},
             {"isMuteSoloEnabled", true},
             {"sourceOption", AudioExporterConfig::SO_All},
             {"source", {}},
@@ -571,5 +573,9 @@ namespace Audio {
         if (isFail)
             setErrorString(message.isEmpty() ? tr("Unknown error") : message);
         d->currentExporter->interrupt(isFail);
+    }
+
+    void AudioExporter::addWarning(const QString &message, int sourceIndex) {
+        emit warningAdded(message, sourceIndex);
     }
 } // Audio

@@ -1,6 +1,9 @@
 #ifndef AUDIO_AUDIOEXPORTDIALOG_H
 #define AUDIO_AUDIOEXPORTDIALOG_H
 
+#include "Modules/Audio/AudioExporter.h"
+
+
 #include <QDialog>
 
 namespace Audio {
@@ -64,6 +67,10 @@ namespace Audio::Internal {
         void updateView();
 
         bool skipUpdateFlag = false;
+
+        void runExport();
+
+        bool askWarningBeforeExport(AudioExporter::Warning warning, bool canIgnored = false);
     };
 
 }
