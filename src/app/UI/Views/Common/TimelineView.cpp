@@ -9,6 +9,7 @@
 
 #include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/Inference/InferPiece.h"
 

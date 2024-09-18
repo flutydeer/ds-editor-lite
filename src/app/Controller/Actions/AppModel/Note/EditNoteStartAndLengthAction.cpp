@@ -4,8 +4,8 @@
 
 #include "EditNoteStartAndLengthAction.h"
 
-#include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Note.h"
+#include "Model/AppModel/SingingClip.h"
 
 void EditNoteStartAndLengthAction::execute() {
     for (const auto &note : m_notes) {

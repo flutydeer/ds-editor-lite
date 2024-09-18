@@ -3,13 +3,13 @@
 //
 
 #include "ClipEditorViewController.h"
-#include "ClipEditorViewController_p.h"
 
+#include "ClipEditorViewController_p.h"
 #include "TracksViewController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "Actions/AppModel/Param/ParamsActions.h"
-#include "Global/ControllerGlobal.h"
 #include "Interface/IClipEditorView.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Language/S2p.h"

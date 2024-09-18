@@ -21,6 +21,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
 #include "PitchEditorView.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/ScrollBarGraphicsItem.h"
 #include "Utils/Log.h"

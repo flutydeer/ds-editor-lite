@@ -8,6 +8,7 @@
 #include "Controller/ClipEditorViewController.h"
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "PianoRoll/PhonemeView.h"
 #include "PianoRoll/PianoRollGraphicsView.h"

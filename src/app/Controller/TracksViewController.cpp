@@ -9,6 +9,7 @@
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/AudioInfoModel.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"

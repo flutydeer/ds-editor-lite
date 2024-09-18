@@ -3,8 +3,9 @@
 //
 
 #include "AppModel.h"
-#include "AppModel_p.h"
 
+#include "AppModel_p.h"
+#include "SingingClip.h"
 #include "Track.h"
 #include "Controller/Utils/NoteWordUtils.h"
 #include "Model/AppOptions/AppOptions.h"

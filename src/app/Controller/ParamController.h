@@ -6,6 +6,7 @@
 #define PARAMCONTROLLER_H
 
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/Track.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/InferDurationTask.h"
@@ -13,8 +14,6 @@
 #include "Utils/Singleton.h"
 
 #include <QObject>
-
-
 
 class GetPronunciationTask;
 class GetPhonemeNameTask;

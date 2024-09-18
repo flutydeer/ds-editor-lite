@@ -1,5 +1,7 @@
 #include "TrackSynthesizer.h"
 
+#include "Model/AppModel/SingingClip.h"
+
 #include <TalcsCore/Decibels.h>
 #include <TalcsCore/PositionableMixerAudioSource.h>
 #include <TalcsCore/NoteSynthesizer.h>

@@ -4,8 +4,8 @@
 
 #include "RemoveNoteAction.h"
 
-#include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Note.h"
+#include "Model/AppModel/SingingClip.h"
 
 void RemoveNoteAction::execute() {
     for (const auto &note : m_notes)

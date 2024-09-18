@@ -5,12 +5,10 @@
 #ifndef PHONEMEPARAMEDITOR_H
 #define PHONEMEPARAMEDITOR_H
 
-#include <QWidget>
+#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/SingingClip.h"
 
-#include "../../../Utils/ITimelinePainter.h"
-#include "../../../../Utils/OverlappableSerialList.h"
-#include "../../../../Utils/Overlappable.h"
-#include "../../../../Model/AppModel/Clip.h"
+#include <QWidget>
 
 class Note;
 class Phoneme;
@@ -45,7 +43,6 @@ public:
 signals:
     void wheelHorScale(QWheelEvent *event);
     void wheelHorScroll(QWheelEvent *event);
-    void adjustCompleted(PhonemeView::PhonemeViewModel *phonemeViewModel);
 
 public slots:
     void setTimeRange(double startTick, double endTick);

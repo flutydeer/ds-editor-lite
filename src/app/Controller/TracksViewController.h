@@ -23,8 +23,8 @@ public:
     void setParentWidget(QWidget *view);
 
 public slots:
-    void onNewTrack();
-    void onInsertNewTrack(qsizetype index);
+    static void onNewTrack();
+    static void onInsertNewTrack(qsizetype index);
     static void onAppendTrack(Track *track);
     static void onRemoveTrack(int id);
     static void addAudioClipToNewTrack(const QString &filePath);

@@ -5,6 +5,7 @@
 #include "Note.h"
 
 #include "Clip.h"
+#include "SingingClip.h"
 
 #include <QJsonArray>
 

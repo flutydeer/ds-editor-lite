@@ -8,6 +8,7 @@
 #include "NoteLayer.h"
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Params.h"
+#include "Model/AppModel/SingingClip.h"
 
 #include <QObject>
 #include <QPointF>

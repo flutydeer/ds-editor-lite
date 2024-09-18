@@ -4,7 +4,7 @@
 
 #include "ReplaceParamAction.h"
 
-#include "Model/AppModel/Clip.h"
+#include "Model/AppModel/SingingClip.h"
 
 ReplaceParamAction *ReplaceParamAction::build(ParamInfo::Name paramName,
                                               Param::Type paramType,

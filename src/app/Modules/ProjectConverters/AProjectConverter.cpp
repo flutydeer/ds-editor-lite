@@ -13,6 +13,7 @@
 #include "Model/AppModel/Track.h"
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Note.h"
+#include "Model/AppModel/SingingClip.h"
 
 static QMap<QString, QString> languageMapping = {
     {"CHN", "cmn"}

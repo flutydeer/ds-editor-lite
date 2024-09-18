@@ -4,7 +4,7 @@
 
 #include "EditSingingClipPropertiesAction.h"
 
-#include "Model/AppModel/Note.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/Track.h"
 
 EditSingingClipPropertiesAction *

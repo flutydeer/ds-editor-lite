@@ -15,6 +15,7 @@
 #include "Model/AppModel/Params.h"
 #include "Model/AppModel/Curve.h"
 #include "Model/AppModel/DrawCurve.h"
+#include "Model/AppModel/SingingClip.h"
 
 bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
                                 ImportMode mode) {

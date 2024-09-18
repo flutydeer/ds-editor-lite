@@ -16,6 +16,7 @@
 #include "Model/AppModel/Track.h"
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Note.h"
+#include "Model/AppModel/SingingClip.h"
 
 bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                    const QList<QByteArray> &labelList, QList<int> *selectIDs, QTextCodec *codec) {

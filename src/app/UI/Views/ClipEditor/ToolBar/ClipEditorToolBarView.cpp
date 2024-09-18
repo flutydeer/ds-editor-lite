@@ -9,6 +9,7 @@
 #include "Controller/TracksViewController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Clip.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/DividerLine.h"
