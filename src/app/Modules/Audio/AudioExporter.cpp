@@ -485,13 +485,13 @@ namespace Audio {
             list.append(tr("The files to be exported contain files with duplicate names. Please check if the file name template is unique for each source."));
         }
         if (warning & W_WillOverwrite) {
-            list.append(tr("The files to be exported contain files with the same name as existing files."));
+            list.append(tr("The files to be exported contain files with the same name as existing files. If continue, the existing files will be overwritten."));
         }
         if (warning & W_UnrecognizedTemplate) {
             list.append(tr("Unrecognized file name template. Please check the syntax of the file name template."));
         }
         if (warning & W_LossyFormat) {
-            list.append(tr("Currently selected file type is a lossy format. Please use WAV or FLAC format to avoid loss of sound quality."));
+            list.append(tr("The currently selected file type is a lossy format. To avoid loss of sound quality, please use WAV or FLAC format."));
         }
         return list;
     }
