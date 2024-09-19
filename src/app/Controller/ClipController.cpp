@@ -239,20 +239,11 @@ void ClipController::unselectNotes(const QList<int> &notesId) {
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
-void ClipController::onOriginalPitchChanged(const QList<Curve *> &curves) const {
+void ClipController::onParamEdited(ParamInfo::Name name, const QList<Curve *> &curves) const {
     Q_D(const ClipController);
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     auto a = new ParamsActions;
-    a->replacePitchOriginal(curves, singingClip);
-    a->execute();
-    historyManager->record(a);
-}
-
-void ClipController::onPitchEdited(const QList<Curve *> &curves) const {
-    Q_D(const ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
-    auto a = new ParamsActions;
-    a->replacePitchEdited(curves, singingClip);
+    a->replaceParam(name, Param::Edited, curves, singingClip);
     a->execute();
     historyManager->record(a);
 }

@@ -5,6 +5,7 @@
 #include "ParamEditorGraphicsView.h"
 
 #include "ParamEditorGraphicsScene.h"
+#include "Controller/ClipController.h"
 
 #include "Model/AppModel/SingingClip.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
@@ -35,13 +36,28 @@ ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene
     m_foreground->setZValue(2);
     m_foreground->setTransparentMouseEvents(false);
     scene->addCommonItem(m_foreground);
+
+    connect(m_foreground, &CommonParamEditorView::editCompleted, this,
+            &ParamEditorGraphicsView::onEditCompleted);
 }
 
 void ParamEditorGraphicsView::setDataContext(SingingClip *clip) {
     clip == nullptr ? moveToNullClipState() : moveToSingingClipState(clip);
 }
 
-void ParamEditorGraphicsView::setForegroundParam(Param::Type type, const Param &param) const {
+void ParamEditorGraphicsView::setForeground(ParamInfo::Name name) {
+    m_foregroundParam = name;
+    updateForeground(Param::Original, *m_clip->params.getParamByName(m_foregroundParam));
+    updateForeground(Param::Edited, *m_clip->params.getParamByName(m_foregroundParam));
+}
+
+void ParamEditorGraphicsView::setBackground(ParamInfo::Name name) {
+    m_backgroundParam = name;
+    updateBackground(Param::Original, *m_clip->params.getParamByName(m_backgroundParam));
+    updateBackground(Param::Edited, *m_clip->params.getParamByName(m_backgroundParam));
+}
+
+void ParamEditorGraphicsView::updateForeground(Param::Type type, const Param &param) const {
     if (type == Param::Original) {
         m_foreground->loadOriginal(getDrawCurves(param.curves(Param::Original)));
     } else if (type == Param::Edited) {
@@ -51,7 +67,7 @@ void ParamEditorGraphicsView::setForegroundParam(Param::Type type, const Param &
     }
 }
 
-void ParamEditorGraphicsView::setBackgroundParam(Param::Type type, const Param &param) {
+void ParamEditorGraphicsView::updateBackground(Param::Type type, const Param &param) const {
     if (type == Param::Original) {
         m_background->loadOriginal(getDrawCurves(param.curves(Param::Original)));
     } else if (type == Param::Edited) {
@@ -63,6 +79,21 @@ void ParamEditorGraphicsView::setBackgroundParam(Param::Type type, const Param &
 
 void ParamEditorGraphicsView::onClipPropertyChanged() const {
     setSceneLength(m_clip->length());
+}
+
+void ParamEditorGraphicsView::onParamChanged(ParamInfo::Name name, Param::Type type) const {
+    auto param = m_clip->params.getParamByName(name);
+    if (m_foregroundParam == name) {
+        updateForeground(type, *param);
+    } else if (m_backgroundParam == name)
+        updateBackground(type, *param);
+}
+
+void ParamEditorGraphicsView::onEditCompleted(const QList<DrawCurve *> &curves) const {
+    QList<Curve *> list;
+    for (const auto curve : curves)
+        list.append(curve);
+    clipController->onParamEdited(m_foregroundParam, list);
 }
 
 void ParamEditorGraphicsView::wheelEvent(QWheelEvent *event) {
@@ -101,9 +132,15 @@ void ParamEditorGraphicsView::moveToSingingClipState(SingingClip *clip) {
     //         handleNoteInserted(note);
     // }
 
+    updateForeground(Param::Original, *m_clip->params.getParamByName(m_foregroundParam));
+    updateForeground(Param::Edited, *m_clip->params.getParamByName(m_foregroundParam));
+    updateBackground(Param::Original, *m_clip->params.getParamByName(m_backgroundParam));
+    updateBackground(Param::Edited, *m_clip->params.getParamByName(m_backgroundParam));
+
     connect(clip, &SingingClip::propertyChanged, this,
             &ParamEditorGraphicsView::onClipPropertyChanged);
     // connect(clip, &SingingClip::noteChanged, this, &PianoRollGraphicsViewPrivate::onNoteChanged);
+    connect(clip, &SingingClip::paramChanged, this, &ParamEditorGraphicsView::onParamChanged);
 }
 
 QList<DrawCurve *> ParamEditorGraphicsView::getDrawCurves(const QList<Curve *> &curves) {

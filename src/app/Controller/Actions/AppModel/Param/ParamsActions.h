@@ -14,8 +14,6 @@ class ParamsActions : public ActionSequence {
 public:
     void replaceParam(ParamInfo::Name paramName, Param::Type paramType,
                       const QList<Curve *> &curves, SingingClip *clip);
-    void replacePitchOriginal(const QList<Curve *> &curves, SingingClip *clip);
-    void replacePitchEdited(const QList<Curve *> &curves, SingingClip *clip);
 };
 
 #endif // PARAMSACTIONS_H

@@ -300,13 +300,13 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
     }
     auto rPos = clipItem->mapFromScene(scenePos);
     auto rx = rPos.x();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolarance) {
+    if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
         // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeLeft;
         // qDebug() << "ResizeLeft";
         clearSelections();
         clipItem->setSelected(true);
-    } else if (rx >= clipItem->rect().width() - AppGlobal::resizeTolarance &&
+    } else if (rx >= clipItem->rect().width() - AppGlobal::resizeTolerance &&
                rx <= clipItem->rect().width()) {
         // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeRight;

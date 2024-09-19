@@ -9,6 +9,7 @@
 
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Note.h"
+#include "Model/AppModel/Params.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Model/NoteDialogResult/NoteDialogResult.h"
 #include "Utils/Singleton.h"
@@ -54,8 +55,7 @@ public slots:
     void onAdjustPhonemeOffset(int noteId, Phonemes::Type type, const QList<int> &offsets) const;
     void selectNotes(const QList<int> &notesId, bool unselectOther);
     void unselectNotes(const QList<int> &notesId);
-    void onOriginalPitchChanged(const QList<Curve *> &curves) const;
-    void onPitchEdited(const QList<Curve *> &curves) const;
+    void onParamEdited(ParamInfo::Name name, const QList<Curve *> &curves) const;
     void onNotePropertiesEdited(int noteId, const NoteDialogResult &result);
     void onDeleteSelectedNotes();
     void onSelectAllNotes();

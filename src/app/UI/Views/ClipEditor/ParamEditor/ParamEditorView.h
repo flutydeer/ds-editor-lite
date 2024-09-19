@@ -21,13 +21,12 @@ public:
     [[nodiscard]] ParamEditorGraphicsView *graphicsView() const;
 
 public slots:
-    void onParamChanged(ParamInfo::Name name, Param::Type type) const;
+    void onForegroundChanged(ParamInfo::Name name) const;
+    void onBackgroundChanged(ParamInfo::Name name) const;
 
 private:
     SingingClip *m_clip = nullptr;
     ParamEditorGraphicsView *m_graphicsView;
-    ParamInfo::Name m_foregroundParam = ParamInfo::Breathiness;
-    ParamInfo::Name m_backgroundParam = ParamInfo::Tension;
 };
 
 

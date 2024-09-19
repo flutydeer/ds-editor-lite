@@ -124,6 +124,10 @@ QComboBox QAbstractItemView:item {
     border: none;
 }
 
+QComboBox QAbstractItemView::item:checked {
+    color: rgb(155, 186, 255);
+}
+
 QComboBox QAbstractItemView::item:selected {
     color: #F0F0F0;
     background-color: #1AFFFFFF;

@@ -47,7 +47,7 @@ void PhonemeView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
     auto ticksPerPixel = (m_endTick - m_startTick) / rect().width();
-    m_resizeToleranceInTick = ticksPerPixel * AppGlobal::resizeTolarance;
+    m_resizeToleranceInTick = ticksPerPixel * AppGlobal::resizeTolerance;
     update();
 }
 

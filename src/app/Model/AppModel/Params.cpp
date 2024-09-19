@@ -52,14 +52,24 @@ Param *ParamInfo::getParamByName(Name name) {
     switch (name) {
         case Pitch:
             return &pitch;
-        case Energy:
-            return &energy;
-        case Tension:
-            return &tension;
         case Breathiness:
             return &breathiness;
-        case Unknown:
-        default:
+        case Tension:
+            return &tension;
+        case Velocity:
+            return &velocity;
+        case Voicing:
+            return &voicing;
+        case KeyShift:
+            return &keyShift;
+        case Gender:
+            return &gender;
+        case Energy:
+            return &energy;
+        case Unknown: {
             return nullptr;
+        }
     }
+    qFatal() << "Param type out of range" << name;
+    return nullptr;
 }

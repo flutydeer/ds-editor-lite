@@ -22,8 +22,10 @@ public:
     void setDataContext(SingingClip *clip);
 
 public slots:
-    void setForegroundParam(Param::Type type, const Param &param) const;
-    void setBackgroundParam(Param::Type type, const Param &param);
+    void setForeground(ParamInfo::Name name);
+    void setBackground(ParamInfo::Name name);
+    void updateForeground(Param::Type type, const Param &param) const;
+    void updateBackground(Param::Type type, const Param &param) const;
 
 signals:
     void wheelHorScale(QWheelEvent *event);
@@ -31,6 +33,8 @@ signals:
 
 private slots:
     void onClipPropertyChanged() const;
+    void onParamChanged(ParamInfo::Name name, Param::Type type) const;
+    void onEditCompleted(const QList<DrawCurve *> &curves) const;
 
 private:
     void wheelEvent(QWheelEvent *event) override;
@@ -42,6 +46,9 @@ private:
     SingingClip *m_clip = nullptr;
     CommonParamEditorView *m_foreground;
     CommonParamEditorView *m_background;
+
+    ParamInfo::Name m_foregroundParam = ParamInfo::Breathiness;
+    ParamInfo::Name m_backgroundParam = ParamInfo::Tension;
 };
 
 #endif // PARAMEDITORGRAPHICSVIEW_H

@@ -8,12 +8,9 @@
 #include <QWheelEvent>
 
 #include "Controller/PlaybackController.h"
-#include "Global/AppGlobal.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/Inference/InferPiece.h"
-
-using namespace AppGlobal;
 
 TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
@@ -114,11 +111,11 @@ void TimelineView::paintEvent(QPaintEvent *event) {
 void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
     auto x = tickToX(tick); // tick to itemX
-    pen.setColor(barTextColor);
+    pen.setColor(QColor(200, 200, 200));
     painter->setPen(pen);
     auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
     painter->drawText(QPointF(x + m_textPaddingLeft, 10), text);
-    pen.setColor(barLineColor);
+    pen.setColor(QColor(92, 96, 100));
     painter->setPen(pen);
     auto y1 = rect().height() - 24;
     auto y2 = rect().height();
@@ -128,13 +125,13 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
 void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
     auto x = tickToX(tick);
-    pen.setColor(beatTextColor);
+    pen.setColor(QColor(160, 160, 160));
     painter->setPen(pen);
     // 在负坐标获取的 int bar 错误，暂不绘制文本
     if (beat > 0)
         painter->drawText(QPointF(x + m_textPaddingLeft, 10),
                           /*QString::number(bar) + "." +*/ QString::number(beat));
-    pen.setColor(beatLineColor);
+    pen.setColor(QColor(72, 75, 78));
     painter->setPen(pen);
     auto y1 = rect().height() - 16;
     auto y2 = rect().height();
@@ -144,7 +141,7 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
 void TimelineView::drawEighth(QPainter *painter, int tick) {
     QPen pen;
     auto x = tickToX(tick);
-    pen.setColor(commonLineColor);
+    pen.setColor(QColor(57, 59, 61));
     painter->setPen(pen);
     auto y1 = rect().height() - 8;
     auto y2 = rect().height();

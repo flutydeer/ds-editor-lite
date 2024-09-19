@@ -102,7 +102,7 @@ void PianoRollGraphicsView::onPitchEditorEditCompleted(const QList<DrawCurve *> 
     for (auto curve : curves) {
         list.append(curve);
     }
-    clipController->onPitchEdited(list);
+    clipController->onParamEdited(ParamInfo::Pitch, list);
 }
 
 void PianoRollGraphicsView::notifyKeyRangeChanged() {
@@ -571,12 +571,12 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(QMouseEvent *event, QP
     }
     auto rPos = noteItem->mapFromScene(scenePos);
     auto rx = rPos.x();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolarance) {
+    if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
         // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeLeft;
         q->clearNoteSelections();
         noteItem->setSelected(true);
-    } else if (rx >= noteItem->rect().width() - AppGlobal::resizeTolarance &&
+    } else if (rx >= noteItem->rect().width() - AppGlobal::resizeTolerance &&
                rx <= noteItem->rect().width()) {
         // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeRight;

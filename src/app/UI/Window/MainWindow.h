@@ -65,7 +65,7 @@ private:
     QByteArray m_splitterState;
 
     QLabel *m_lbTaskTitle = nullptr;
-    ProgressIndicator *m_progressBar = nullptr;
+    ProgressIndicator *m_statusProgressBar = nullptr;
 
     QTimer m_waitDoneDialogDelayTimer;
     TaskDialog *m_waitDoneDialog = nullptr;

@@ -6,9 +6,11 @@
 
 #include "ParamEditorGraphicsScene.h"
 #include "ParamEditorGraphicsView.h"
+#include "ParamEditorToolBarView.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include "Model/AppModel/SingingClip.h"
+#include "UI/Utils/ParamNameUtils.h"
 
 #include <QVBoxLayout>
 
@@ -23,8 +25,21 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     layout->addWidget(m_graphicsView);
     // layout->setContentsMargins(0, 0, 0, 6);
     layout->setContentsMargins(0, 0, 0, 0);
-    setLayout(layout);
+
+    auto toolBar = new ParamEditorToolBarView;
+
+    auto mainLayout = new QVBoxLayout();
+    mainLayout->setSpacing(0);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->addWidget(toolBar);
+    mainLayout->addLayout(layout);
+    setLayout(mainLayout);
     setMinimumHeight(128);
+
+    connect(toolBar, &ParamEditorToolBarView::foregroundChanged, this,
+            &ParamEditorView::onForegroundChanged);
+    connect(toolBar, &ParamEditorToolBarView::backgroundChanged, this,
+            &ParamEditorView::onBackgroundChanged);
 }
 
 void ParamEditorView::setDataContext(SingingClip *clip) const {
@@ -35,10 +50,12 @@ ParamEditorGraphicsView *ParamEditorView::graphicsView() const {
     return m_graphicsView;
 }
 
-void ParamEditorView::onParamChanged(ParamInfo::Name name, Param::Type type) const {
-    auto param = m_clip->params.getParamByName(name);
-    if (m_foregroundParam == name) {
-        m_graphicsView->setForegroundParam(type, *param);
-    } else if (m_backgroundParam == name)
-        m_graphicsView->setBackgroundParam(type, *param);
+void ParamEditorView::onForegroundChanged(ParamInfo::Name name) const {
+    qDebug() << "foreground changed" << paramNameUtils->nameFromType(name);
+    m_graphicsView->setForeground(name);
+}
+
+void ParamEditorView::onBackgroundChanged(ParamInfo::Name name) const {
+    qDebug() << "background changed" << paramNameUtils->nameFromType(name);
+    m_graphicsView->setBackground(name);
 }

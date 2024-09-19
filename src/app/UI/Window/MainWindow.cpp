@@ -117,19 +117,20 @@ MainWindow::MainWindow() {
     m_lbTaskTitle = new QLabel;
     m_lbTaskTitle->setVisible(false);
 
-    m_progressBar = new ProgressIndicator;
-    m_progressBar->setFixedWidth(170);
-    m_progressBar->setVisible(false);
+    m_statusProgressBar = new ProgressIndicator;
+    m_statusProgressBar->setFixedWidth(170);
+    m_statusProgressBar->setVisible(false);
 
     auto statusBar = new QStatusBar(this);
     // statusBar->addWidget(new QLabel("Scroll: Wheel/Shift + Wheel; Zoom: Ctrl + Wheel/Alt + Wheel;
     // "
     //                                 "Double click to create a singing clip"));
     statusBar->addPermanentWidget(m_lbTaskTitle);
-    statusBar->addPermanentWidget(m_progressBar);
+    statusBar->addPermanentWidget(m_statusProgressBar);
     statusBar->setFixedHeight(28);
     statusBar->setSizeGripEnabled(false);
     statusBar->setContentsMargins(6, 0, 6, 0);
+    statusBar->setVisible(false);
     setStatusBar(statusBar);
 
     auto mainLayout = new QVBoxLayout;
@@ -137,13 +138,19 @@ MainWindow::MainWindow() {
     mainLayout->addWidget(m_splitter);
     mainLayout->addWidget(statusBar);
     mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins({0, 0, 0, 0});
+    mainLayout->setContentsMargins(0, 0, 0, 6);
 
     auto mainWidget = new QWidget;
     mainWidget->setLayout(mainLayout);
 
     this->setCentralWidget(mainWidget);
-    this->resize(1366, 768);
+
+    auto scr = QApplication::screenAt(QCursor::pos());
+    auto availableRect = scr->availableGeometry();
+    if (availableRect.width() > 1536 || availableRect.height() > 816)
+        resize(1536, 816);
+    else
+        resize(1366, 768);
 
     WindowFrameUtils::applyFrameEffects(this);
     appController->newProject();
@@ -240,22 +247,22 @@ void MainWindow::onAllDone() {
 }
 
 void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index) {
-    if (!m_lbTaskTitle || !m_progressBar)
+    if (!m_lbTaskTitle || !m_statusProgressBar)
         return;
 
     auto taskCount = taskManager->tasks().count();
     if (taskCount == 0) {
         m_lbTaskTitle->setText("");
         m_lbTaskTitle->setVisible(false);
-        m_progressBar->setVisible(false);
-        m_progressBar->setValue(0);
-        m_progressBar->setTaskStatus(TaskGlobal::Normal);
+        m_statusProgressBar->setVisible(false);
+        m_statusProgressBar->setValue(0);
+        m_statusProgressBar->setTaskStatus(TaskGlobal::Normal);
     } else {
         if (type == TaskManager::Removed)
             disconnect(task, nullptr, this, nullptr);
 
         m_lbTaskTitle->setVisible(true);
-        m_progressBar->setVisible(true);
+        m_statusProgressBar->setVisible(true);
         auto firstTask = taskManager->tasks().first();
         connect(firstTask, &Task::statusUpdated, this, &MainWindow::onTaskStatusChanged);
     }
@@ -263,9 +270,9 @@ void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsi
 
 void MainWindow::onTaskStatusChanged(const TaskStatus &status) {
     m_lbTaskTitle->setText(status.title);
-    m_progressBar->setValue(status.progress);
-    m_progressBar->setTaskStatus(status.runningStatus);
-    m_progressBar->setIndeterminate(status.isIndetermine);
+    m_statusProgressBar->setValue(status.progress);
+    m_statusProgressBar->setTaskStatus(status.runningStatus);
+    m_statusProgressBar->setIndeterminate(status.isIndetermine);
 }
 
 bool MainWindow::onSave() {

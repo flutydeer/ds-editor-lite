@@ -191,7 +191,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     if (isSelected())
         pen.setColor(QColor(255, 255, 255));
     else if (overlapped())
-        pen.setColor(AppGlobal::overlappedViewBorder);
+        pen.setColor(QColor(255, 80, 80));
     else
         pen.setColor(colorPrimaryDarker);
 
@@ -261,8 +261,8 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 
 void AbstractClipView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     const auto rx = event->pos().rx();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolarance ||
-        rx >= rect().width() - AppGlobal::resizeTolarance && rx <= rect().width())
+    if (rx >= 0 && rx <= AppGlobal::resizeTolerance ||
+        rx >= rect().width() - AppGlobal::resizeTolerance && rx <= rect().width())
         setCursor(Qt::SizeHorCursor);
     else
         setCursor(Qt::ArrowCursor);

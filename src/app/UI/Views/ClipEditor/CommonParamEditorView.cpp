@@ -116,8 +116,9 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 
     auto hideThreshold = 0.4;
     auto fadeLength = 0.1;
-    if (scaleX() < hideThreshold)
-        return;
+    // TODO: 优化较小缩放下的渲染
+    // if (scaleX() < hideThreshold)
+    //     return;
 
     auto dpr = painter->device()->devicePixelRatio();
     if ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) < 1)
@@ -194,8 +195,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-    if (cancelRequested || m_editType == None || transparentMouseEvents() ||
-        m_mouseDown == false)
+    if (cancelRequested || m_editType == None || transparentMouseEvents() || m_mouseDown == false)
         return;
 
     m_mouseMoved = true;
@@ -365,7 +365,11 @@ void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve)
     // 绘制多边形填充
     if (m_fillCurve) {
         painter->setPen(Qt::NoPen);
-        painter->setBrush(gradient);
+        if (transparentMouseEvents())
+            painter->setBrush(QColor(255, 255, 255, 40));
+        else
+            painter->setBrush(gradient);
+
         fillPath.moveTo(firstPos.x(), sceneHeight);
         fillPath.lineTo(firstPos);
         double lastX = 0;
@@ -383,28 +387,30 @@ void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve)
     }
 
     // 绘制曲线
-    QPen pen;
-    pen.setWidthF(1.8);
-    pen.setColor(QColor(240, 240, 240, 255));
-    painter->setPen(pen);
-    painter->setBrush(Qt::NoBrush);
+    if (!m_fillCurve || !transparentMouseEvents()) {
+        QPen pen;
+        pen.setWidthF(1.8);
+        pen.setColor(QColor(240, 240, 240, 255));
+        painter->setPen(pen);
+        painter->setBrush(Qt::NoBrush);
 
-    if (m_showDebugInfo)
-        painter->drawText(firstPos, QString("#%1").arg(curve.id()));
+        if (m_showDebugInfo)
+            painter->drawText(firstPos, QString("#%1").arg(curve.id()));
 
-    int pointCount = 0;
-    QPainterPath curvePath;
-    curvePath.moveTo(firstPos);
-    for (int i = startIndex; i < curve.values().count(); i++) {
-        const auto pos = start + curve.step * i;
-        const auto value = curve.values().at(i);
-        if (pos > endTick())
-            break;
-        const auto x = tickToItemX(pos);
-        curvePath.lineTo(x, valueToItemY(value));
-        pointCount++;
+        int pointCount = 0;
+        QPainterPath curvePath;
+        curvePath.moveTo(firstPos);
+        for (int i = startIndex; i < curve.values().count(); i++) {
+            const auto pos = start + curve.step * i;
+            const auto value = curve.values().at(i);
+            if (pos > endTick())
+                break;
+            const auto x = tickToItemX(pos);
+            curvePath.lineTo(x, valueToItemY(value));
+            pointCount++;
+        }
+        painter->drawPath(curvePath);
     }
-    painter->drawPath(curvePath);
 
     // Logger::d(className, "points:" + QString::number(pointCount));
 }

@@ -12,13 +12,14 @@ public:
     enum Type { Original, Edited, Envelope, Unknown };
 
     Param() = default;
-    Param(const Param&) = default;
+    Param(const Param &) = default;
     ~Param();
     [[nodiscard]] const QList<Curve *> &curves(Type type) const;
     void setCurves(Type type, const QList<Curve *> &curves);
 
-    Param& operator=(const Param& from) = default;
-    Param& operator=(Param &&from) {
+    Param &operator=(const Param &from) = default;
+
+    Param &operator=(Param &&from) {
         m_original = from.m_original;
         m_edited = from.m_edited;
         m_envelope = from.m_envelope;
@@ -41,17 +42,18 @@ private:
 
 class ParamInfo {
 public:
-    enum Name { Pitch, Energy, Tension, Breathiness, Unknown };
+    enum Name { Pitch, Breathiness, Tension, Velocity, Voicing, KeyShift, Gender, Energy, Unknown };
 
     Param pitch;
-    Param energy;
-    Param tension;
     Param breathiness;
+    Param tension;
+    Param velocity;
+    Param voicing;
+    Param keyShift;
+    Param gender;
+    Param energy;
 
     Param *getParamByName(Name name);
-
-private:
-    Param unknown;
 };
 
 

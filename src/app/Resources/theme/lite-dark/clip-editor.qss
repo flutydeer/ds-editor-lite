@@ -42,6 +42,7 @@ ClipEditorToolBarView>QPushButton#btnArrow {
 ClipEditorToolBarView>QPushButton#btnArrow:checked {
     icon: url(:svg/icons/cursor_24_filled.svg)
 }
+
 ClipEditorToolBarView>QPushButton#btnBeam {
     icon: url(:svg/icons/beam_24_filled_white.svg)
 }
@@ -183,7 +184,7 @@ QWidget#pianoRollTopLeftSpacing {
 QWidget#pianoRollBottomLeftSpacing {
     background: #1C1D1E;
     /* border-bottom-left-radius: 6px; */
-} 
+}
 
 /* PianoKeyboardView {
     border-bottom-left-radius: 6px;
@@ -199,3 +200,9 @@ QSplitter#ClipEditorSplitter {
     background-color: #2A2B2C;
     border-bottom-right-radius: 6px;
 } */
+
+ParamEditorToolBarView {
+    background: #232425;
+    /* border-top: 1px solid #10FFFFFF;
+    border-bottom: 1px solid #10FFFFFF; */
+}
