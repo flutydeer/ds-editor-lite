@@ -16,6 +16,7 @@
 #include <QSpinBox>
 #include <QPushButton>
 #include <QCheckBox>
+#include <QCoreApplication>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QRadioButton>
@@ -656,6 +657,7 @@ namespace Audio::Internal {
         });
 
         QTimer::singleShot(0, [=, &interruptFlag, &progressDialog] {
+            QCoreApplication::processEvents();
             auto ret = m_audioExporter->exec();
             interruptFlag = false;
             abortButton->setText(tr("Close"));
@@ -686,6 +688,8 @@ namespace Audio::Internal {
             }
         });
         if (progressDialog.exec() == QDialog::Accepted) {
+            auto currentData = m_presetComboBox->currentData();
+            AudioSettings::setAudioExporterCurrentPreset(currentData.isNull() ? QJsonValue(m_presetComboBox->currentIndex()) : QJsonValue(currentData.toString()));
             saveTemporaryPreset();
             if (!m_keepOpenCheckBox->isChecked())
                 accept();
