@@ -361,6 +361,8 @@ void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve)
             ? 0
             : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
                   curve.step;
+    auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve.step),
+                                   valueToItemY(curve.values().at(startIndex)));
 
     // 绘制多边形填充
     if (m_fillCurve) {
@@ -370,8 +372,8 @@ void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve)
         else
             painter->setBrush(gradient);
 
-        fillPath.moveTo(firstPos.x(), sceneHeight);
-        fillPath.lineTo(firstPos);
+        fillPath.moveTo(visibleFirstPoint.x(), sceneHeight);
+        fillPath.lineTo(visibleFirstPoint);
         double lastX = 0;
         for (int i = startIndex; i < curve.values().count(); i++) {
             const auto pos = start + curve.step * i;
@@ -399,7 +401,7 @@ void CommonParamEditorView::drawCurve(QPainter *painter, const DrawCurve &curve)
 
         int pointCount = 0;
         QPainterPath curvePath;
-        curvePath.moveTo(firstPos);
+        curvePath.moveTo(visibleFirstPoint);
         for (int i = startIndex; i < curve.values().count(); i++) {
             const auto pos = start + curve.step * i;
             const auto value = curve.values().at(i);
