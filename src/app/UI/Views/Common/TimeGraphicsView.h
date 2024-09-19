@@ -15,7 +15,7 @@ class TimeGraphicsView : public CommonGraphicsView {
     Q_OBJECT
 
 public:
-    explicit TimeGraphicsView(TimeGraphicsScene *scene, QWidget *parent = nullptr);
+    explicit TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition = true, QWidget *parent = nullptr);
     TimeGraphicsScene *scene();
     void setGridItem(TimeGridGraphicsItem *item);
     void setSceneVisibility(bool on);

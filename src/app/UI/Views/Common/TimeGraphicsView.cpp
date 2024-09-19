@@ -11,7 +11,8 @@
 #include "TimeIndicatorGraphicsItem.h"
 #include "Model/AppStatus/AppStatus.h"
 
-TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, QWidget *parent)
+TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition,
+                                   QWidget *parent)
     : CommonGraphicsView(parent), m_scene(scene) {
     connect(this, &TimeGraphicsView::visibleRectChanged,
             [=](const QRectF &rect) { m_scene->setVisibleRect(rect); });
@@ -35,7 +36,8 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, QWidget *parent)
     lastPlayPosPen.setColor(QColor(160, 160, 160));
     lastPlayPosPen.setStyle(Qt::DashLine);
     m_sceneLastPlayPosIndicator->setPen(lastPlayPosPen);
-    m_scene->addTimeIndicator(m_sceneLastPlayPosIndicator);
+    if (showLastPlaybackPosition)
+        m_scene->addTimeIndicator(m_sceneLastPlayPosIndicator);
 
     setScene(m_scene);
     setEnsureSceneFillViewX(true);

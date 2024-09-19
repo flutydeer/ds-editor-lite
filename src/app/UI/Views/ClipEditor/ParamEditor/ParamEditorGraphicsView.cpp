@@ -16,7 +16,7 @@
 #include <QWheelEvent>
 
 ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene, QWidget *parent)
-    : TimeGraphicsView(scene, parent) {
+    : TimeGraphicsView(scene, false, parent) {
     setAttribute(Qt::WA_StyledBackground);
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     setMinimumHeight(0);
@@ -77,8 +77,9 @@ void ParamEditorGraphicsView::updateBackground(Param::Type type, const Param &pa
     }
 }
 
-void ParamEditorGraphicsView::onClipPropertyChanged() const {
+void ParamEditorGraphicsView::onClipPropertyChanged() {
     setSceneLength(m_clip->length());
+    setOffset(m_clip->start());
 }
 
 void ParamEditorGraphicsView::onParamChanged(ParamInfo::Name name, Param::Type type) const {
@@ -106,6 +107,7 @@ void ParamEditorGraphicsView::wheelEvent(QWheelEvent *event) {
 
 void ParamEditorGraphicsView::moveToNullClipState() {
     setEnabled(false);
+    setOffset(0);
     m_background->clearParams();
     m_foreground->clearParams();
     // while (m_notes.count() > 0)
@@ -126,6 +128,7 @@ void ParamEditorGraphicsView::moveToSingingClipState(SingingClip *clip) {
     m_clip = clip;
     setEnabled(true);
     setSceneLength(m_clip->length());
+    setOffset(clip->start());
 
     // if (clip->notes().count() > 0) {
     //     for (const auto note : clip->notes())

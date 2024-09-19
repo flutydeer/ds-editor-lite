@@ -32,7 +32,7 @@ signals:
     void wheelHorScroll(QWheelEvent *event);
 
 private slots:
-    void onClipPropertyChanged() const;
+    void onClipPropertyChanged();
     void onParamChanged(ParamInfo::Name name, Param::Type type) const;
     void onEditCompleted(const QList<DrawCurve *> &curves) const;
 
