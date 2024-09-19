@@ -83,9 +83,9 @@ void ParamEditorGraphicsView::onClipPropertyChanged() const {
 
 void ParamEditorGraphicsView::onParamChanged(ParamInfo::Name name, Param::Type type) const {
     auto param = m_clip->params.getParamByName(name);
-    if (m_foregroundParam == name) {
+    if (m_foregroundParam == name)
         updateForeground(type, *param);
-    } else if (m_backgroundParam == name)
+    if (m_backgroundParam == name)
         updateBackground(type, *param);
 }
 
