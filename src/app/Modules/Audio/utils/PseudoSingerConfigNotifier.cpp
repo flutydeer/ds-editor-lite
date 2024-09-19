@@ -2,12 +2,14 @@
 
 #include <TalcsCore/Decibels.h>
 #include <TalcsCore/NoteSynthesizer.h>
+#include <TalcsCore/MixerAudioSource.h>
 #include <TalcsDevice/AudioDevice.h>
 
 #include <Modules/Audio/AudioSettings.h>
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/utils/AudioHelpers.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
+#include <Modules/Audio/AudioContext.h>
 
 static PseudoSingerConfigNotifier *m_instance = nullptr;
 
@@ -21,12 +23,9 @@ PseudoSingerConfigNotifier *PseudoSingerConfigNotifier::instance() {
     return m_instance;
 }
 
-static qint64 msecToSample(int msec, double sampleRate = {}) { // FIXME use exporter sample rate
-    auto audioDevice = AudioSystem::outputSystem()->outputContext()->device();
-    sampleRate = qFuzzyIsNull(sampleRate)
-                     ? audioDevice && audioDevice->isOpen() ? audioDevice->sampleRate() : 48000.0
-                     : sampleRate;
-    return AudioHelpers::msecToSample(msec, sampleRate);
+static qint64 msecToSample(int msec) {
+    auto sr = AudioContext::instance()->preMixer()->isOpen() ? AudioContext::instance()->preMixer()->sampleRate() : 48000.0;
+    return AudioHelpers::msecToSample(msec, sr);
 }
 
 talcs::NoteSynthesizerConfig PseudoSingerConfigNotifier::config(int synthIndex) {

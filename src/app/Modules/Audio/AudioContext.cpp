@@ -178,17 +178,14 @@ private:
 static AudioContext *m_instance = nullptr;
 
 static bool m_isExporting = false;
-static double m_exportSampleRate;
 
 static qint64 tickToSample(double tick) {
-    auto dev = AudioSystem::outputSystem()->context()->device();
-    auto sr = m_isExporting ? m_exportSampleRate : dev ? !qFuzzyIsNull(dev->sampleRate()) ? dev->sampleRate() : 48000.0 : 48000.0;
+    auto sr = m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
     return qint64(tick * 60.0 * sr / playbackController->tempo() / 480.0);
 }
 
 static double sampleToTick(qint64 sample) {
-    auto dev = AudioSystem::outputSystem()->context()->device();
-    auto sr = m_isExporting ? m_exportSampleRate : dev ? !qFuzzyIsNull(dev->sampleRate()) ? dev->sampleRate() : 48000.0 : 48000.0;
+    auto sr = m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
     return double(sample) / sr * playbackController->tempo() / 60.0 * 480.0;
 }
 
@@ -486,6 +483,8 @@ void AudioContext::handleClipPropertyChanged(AudioClip *audioClip) const {
 }
 
 void AudioContext::handleTimeChanged() {
+    for (int i = 0; i < 4; i++)
+        PseudoSingerConfigNotifier::notify(i);
     for (auto trackContext : tracks()) {
         for (auto audioClipContext : trackContext->clips()) {
             audioClipContext->updatePosition();
@@ -495,7 +494,6 @@ void AudioContext::handleTimeChanged() {
 
 bool AudioContext::willStartCallback(AudioExporter *exporter) {
     m_isExporting = true;
-    m_exportSampleRate = exporter->config().formatSampleRate();
     emit exporterCausedTimeChanged();
     return true;
 }

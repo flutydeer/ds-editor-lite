@@ -588,6 +588,8 @@ namespace Audio {
             }
         };
         std::unique_ptr<void, decltype(callFinish)> _3(this, callFinish);
+        // Note: order of destruction: call AudioExporterListener::willFinish after mixer reopened
+        std::unique_ptr<void, decltype(reopenMixer)> _4 = std::move(_2);
         for (auto listener : m_listeners) {
             if (!listener->willStartCallback(this))
                 return R_Fail;

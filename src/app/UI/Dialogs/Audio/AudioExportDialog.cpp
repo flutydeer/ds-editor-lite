@@ -569,7 +569,7 @@ namespace Audio::Internal {
         mainPromptWarningButton->setVisible(false);
         mainPromptWarningButton->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
         mainPromptLayout->addWidget(mainPromptWarningButton, 0);
-        auto mainPromptLabel = new QLabel(tr("Exporting..."));
+        auto mainPromptLabel = new QLabel(tr("Preparing..."));
         mainPromptLayout->addWidget(mainPromptLabel, 1);
         layout->addLayout(mainPromptLayout);
 
@@ -588,14 +588,22 @@ namespace Audio::Internal {
         progressDialog.resize(400, progressDialog.height());
 
         QHash<int, double> progressRatioHash;
-
+        bool isProgressing = false;
         if (m_audioExporter->config().mixingOption() == AudioExporterConfig::MO_Mixed) {
-            connect(m_audioExporter, &AudioExporter::progressChanged, &progressDialog, [=](double ratio) {
+            connect(m_audioExporter, &AudioExporter::progressChanged, &progressDialog, [=, &isProgressing](double ratio) {
+                if (!isProgressing) {
+                    isProgressing = true;
+                    mainPromptLabel->setText(tr("Exporting..."));
+                }
                 mainProgressBar->setValue(static_cast<int>(ratio * 100.0));
             });
         } else {
             int sourceCount = m_audioExporter->config().source().size();
-            connect(m_audioExporter, &AudioExporter::progressChanged, &progressDialog, [=, &progressRatioHash](double ratio, int sourceIndex) {
+            connect(m_audioExporter, &AudioExporter::progressChanged, &progressDialog, [=, &progressRatioHash, &isProgressing](double ratio, int sourceIndex) {
+                if (!isProgressing) {
+                    isProgressing = true;
+                    mainPromptLabel->setText(tr("Exporting..."));
+                }
                 progressRatioHash[sourceIndex] = ratio;
                 double totalRatio = 0;
                 for (auto value : progressRatioHash.values()) {
