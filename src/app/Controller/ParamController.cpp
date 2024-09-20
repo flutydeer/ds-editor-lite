@@ -277,36 +277,47 @@ void ParamController::createAndRunInferDurTask(SingingClip *clip) {
 }
 
 void ParamController::cancelClipRelatedTasks(Clip *clip) {
-    qInfo() << "--------------------------------";
     qInfo() << "取消歌声剪辑相关任务";
-    auto getPronTaskPred = [=](GetPhonemeNameTask *task) { return task->clipId == clip->id(); };
-    auto inferDurTaskPred = [=](InferDurationTask *task) { return task->clipId == clip->id(); };
+    auto pred = [=](auto t) { return t->clipId == clip->id(); };
 
     // Cancel get pron tasks
-    for (const auto task : Linq::where(m_getPhonemeNameTaskQueue, getPronTaskPred)) {
+    for (const auto task : Linq::where(m_getPronTaskQueue, pred)) {
+        disconnect(task, nullptr, this, nullptr);
+        m_getPronTaskQueue.remove(task);
+        taskManager->removeTask(task);
+        qDebug() << "移除待运行的获取发音任务 clipId:" << task->clipId << "taskId:" << task->id();
+        delete task;
+    }
+    if (m_runningGetPronTask && pred(m_runningGetPronTask)) {
+        taskManager->terminateTask(m_runningGetPronTask);
+        qDebug() << "终止正在运行的获取发音任务 clipId:" << m_runningGetPronTask->clipId
+                 << "taskId:" << m_runningGetPronTask->id();
+    }
+
+    // 取消获取音素名称任务
+    for (const auto task : Linq::where(m_getPhonemeNameTaskQueue, pred)) {
         disconnect(task, nullptr, this, nullptr);
         m_getPhonemeNameTaskQueue.remove(task);
         taskManager->removeTask(task);
-        qDebug() << "移除待运行的获取发音和音素任务 clipId:" << task->clipId
+        qDebug() << "移除待运行的获取音素名称任务 clipId:" << task->clipId
                  << "taskId:" << task->id();
         delete task;
     }
-    if (m_runningGetPhonemeNameTask && m_runningGetPhonemeNameTask->clipId == clip->id()) {
+    if (m_runningGetPhonemeNameTask && pred(m_runningGetPhonemeNameTask)) {
         taskManager->terminateTask(m_runningGetPhonemeNameTask);
-        qDebug() << "终止正在运行的获取发音和音素任务 clipId:"
-                 << m_runningGetPhonemeNameTask->clipId
+        qDebug() << "终止正在运行的获取音素名称任务 clipId:" << m_runningGetPhonemeNameTask->clipId
                  << "taskId:" << m_runningGetPhonemeNameTask->id();
     }
 
     // Cancel infer dur tasks
-    for (const auto task : Linq::where(m_inferDurTaskQueue, inferDurTaskPred)) {
+    for (const auto task : Linq::where(m_inferDurTaskQueue, pred)) {
         disconnect(task, nullptr, this, nullptr);
         m_inferDurTaskQueue.remove(task);
         taskManager->removeTask(task);
         qDebug() << "移除待运行的时长推理任务 clipId:" << task->clipId << "taskId:" << task->id();
         delete task;
     }
-    if (m_runningInferDurTask && m_runningInferDurTask->clipId == clip->id()) {
+    if (m_runningInferDurTask && pred(m_runningInferDurTask)) {
         taskManager->terminateTask(m_runningInferDurTask);
         qDebug() << "终止正在运行的时长推理任务 clipId:" << m_runningInferDurTask->clipId
                  << "taskId:" << m_runningInferDurTask->id();
