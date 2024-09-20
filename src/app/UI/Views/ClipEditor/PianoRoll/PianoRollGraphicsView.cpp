@@ -461,7 +461,7 @@ void PianoRollGraphicsViewPrivate::onNoteChanged(SingingClip::NoteChangeType typ
 }
 
 void PianoRollGraphicsViewPrivate::onNoteSelectionChanged() {
-    qDebug() << "on note selection changed" << appStatus->selectedNotes.get();
+    // qDebug() << "on note selection changed" << appStatus->selectedNotes.get();
     Q_Q(PianoRollGraphicsView);
     // if (!m_selecting)
     if (m_clip)

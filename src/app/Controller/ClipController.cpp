@@ -226,7 +226,7 @@ void ClipController::selectNotes(const QList<int> &notesId, bool unselectOther) 
 
     selectedNotes.append(notesId);
     appStatus->selectedNotes = selectedNotes;
-    qDebug() << "select notes:" << selectedNotes;
+    // qDebug() << "select notes:" << selectedNotes;
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
@@ -235,7 +235,7 @@ void ClipController::unselectNotes(const QList<int> &notesId) {
     for (const auto id : notesId)
         selectedNotes.removeIf([=](int note) { return note == id; });
     appStatus->selectedNotes = selectedNotes;
-    qDebug() << "unselect notes:" << notesId;
+    // qDebug() << "unselect notes:" << notesId;
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
