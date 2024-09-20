@@ -37,8 +37,12 @@ SingingClipView::SingingClipView(int itemId, QGraphicsItem *parent)
     // setName("New Pattern");
 }
 
+SingingClipView::~SingingClipView() {
+    dispose();
+}
+
 void SingingClipView::loadNotes(const OverlappableSerialList<Note> &notes) {
-    m_notes.clear();
+    dispose();
     if (notes.count() != 0)
         for (const auto &note : notes)
             addNote(note);
@@ -150,12 +154,12 @@ QString SingingClipView::iconPath() const {
 }
 
 void SingingClipView::addNote(Note *note) {
-    auto noteViewModel = new NoteViewModel;
-    noteViewModel->id = note->id();
-    noteViewModel->rStart = note->rStart();
-    noteViewModel->length = note->length();
-    noteViewModel->keyIndex = note->keyIndex();
-    MathUtils::binaryInsert(m_notes, noteViewModel);
+    auto vm = new NoteViewModel;
+    vm->id = note->id();
+    vm->rStart = note->rStart();
+    vm->length = note->length();
+    vm->keyIndex = note->keyIndex();
+    MathUtils::binaryInsert(m_notes, vm);
 }
 
 void SingingClipView::removeNote(int id) {
@@ -163,7 +167,15 @@ void SingingClipView::removeNote(int id) {
         if (note->id == id) {
             m_notes.removeOne(note);
             delete note;
-            break;
+            return;
         }
     }
+    qWarning() << "removeNote: item not found:" << id;
+}
+
+void SingingClipView::dispose() {
+    qDebug() << "dispose()";
+    for (const auto note : m_notes)
+        delete note;
+    m_notes.clear();
 }

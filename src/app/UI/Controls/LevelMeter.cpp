@@ -125,6 +125,8 @@ void LevelMeter::mousePressEvent(QMouseEvent *event) {
 
 void LevelMeter::initBuffer(int bufferSize) {
     m_bufferSize = bufferSize;
+    delete[] m_bufferL;
+    delete[] m_bufferR;
     m_bufferL = new double[m_bufferSize];
     m_bufferR = new double[m_bufferSize];
     resetBuffer();

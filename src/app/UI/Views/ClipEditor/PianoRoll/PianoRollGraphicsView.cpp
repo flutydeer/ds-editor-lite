@@ -77,6 +77,9 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
 }
 
 PianoRollGraphicsView::~PianoRollGraphicsView() {
+    Q_D(PianoRollGraphicsView);
+    delete d->m_layerManager;
+    delete d->m_pitchEditor;
     delete d_ptr;
 }
 

@@ -22,6 +22,7 @@ AbstractClipView::AbstractClipView(int itemId, QGraphicsItem *parent)
 }
 
 AbstractClipView::~AbstractClipView() {
+    delete d_ptr;
     // qDebug() << "~AbstractClipView()";
 }
 

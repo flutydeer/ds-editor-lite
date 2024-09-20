@@ -23,6 +23,7 @@ public:
     enum TrackChangeType { Insert, Remove };
 
     explicit AppModel();
+    ~AppModel() override;
     [[nodiscard]] TimeSignature timeSignature() const;
     void setTimeSignature(const TimeSignature &signature);
     [[nodiscard]] double tempo() const;

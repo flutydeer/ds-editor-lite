@@ -20,6 +20,10 @@
 AppModel::AppModel() : d_ptr(new AppModelPrivate(this)) {
 }
 
+AppModel::~AppModel() {
+    delete d_ptr;
+}
+
 TimeSignature AppModel::timeSignature() const {
     Q_D(const AppModel);
     return d->m_timeSignature;

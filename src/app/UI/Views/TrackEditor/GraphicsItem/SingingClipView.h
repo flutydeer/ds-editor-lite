@@ -17,10 +17,10 @@ class SingingClipView final : public AbstractClipView {
 public:
     class NoteViewModel : public Overlappable {
     public:
-        int id{};
-        int rStart{};
-        int length{};
-        int keyIndex{};
+        int id = -1;
+        int rStart = 0;
+        int length = 0;
+        int keyIndex = 0;
 
         int compareTo(const NoteViewModel *obj) const;
         static bool isOverlappedWith(NoteViewModel *obj);
@@ -32,7 +32,7 @@ public:
     }
 
     explicit SingingClipView(int itemId, QGraphicsItem *parent = nullptr);
-    ~SingingClipView() override = default;
+    ~SingingClipView() override;
 
     void loadNotes(const OverlappableSerialList<Note> &notes);
     [[nodiscard]] int contentLength() const override;
@@ -56,6 +56,7 @@ private:
     void addNote(Note *note);
     void removeNote(int id);
     // void updateNote(Note *note);
+    void dispose();
 };
 
 
