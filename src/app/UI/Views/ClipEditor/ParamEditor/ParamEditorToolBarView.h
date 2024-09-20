@@ -26,7 +26,7 @@ private slots:
     void onBackgroundSelectionChanged(int index);
 
 private:
-    SingingClip *m_clip;
+    SingingClip *m_clip = nullptr;
 };
 
 

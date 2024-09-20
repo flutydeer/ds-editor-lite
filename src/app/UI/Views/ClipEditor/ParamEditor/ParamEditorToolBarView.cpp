@@ -48,7 +48,8 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     connect(cbBackgroundParam, &ComboBox::currentIndexChanged, this,
             &ParamEditorToolBarView::onBackgroundSelectionChanged);
 
-    cbBackgroundParam->setCurrentIndex(1);
+    cbForegroundParam->setCurrentIndex(ParamInfo::Breathiness - 1);
+    cbBackgroundParam->setCurrentIndex(ParamInfo::Tension - 1);
 }
 
 void ParamEditorToolBarView::onForegroundSelectionChanged(int index) {

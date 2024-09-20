@@ -44,24 +44,24 @@ class ParamInfo {
 public:
     enum Name {
         Pitch,
-        Breathiness,
-        Tension,
-        Velocity,
-        Voicing,
         Expressiveness,
-        Gender,
         Energy,
+        Breathiness,
+        Voicing,
+        Tension,
+        Gender,
+        Velocity,
         Unknown
     };
 
     Param pitch;
-    Param breathiness;
-    Param tension;
-    Param velocity;
-    Param voicing;
     Param expressiveness;
-    Param gender;
     Param energy;
+    Param breathiness;
+    Param voicing;
+    Param tension;
+    Param gender;
+    Param velocity;
 
     Param *getParamByName(Name name);
 };

@@ -63,9 +63,13 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     auto decodeSingingParams = [&](const QDspx::SingleParam &dspxParams) {
         ParamInfo params;
         params.pitch = std::move(decodeSingingParam(dspxParams.pitch));
+        params.expressiveness = std::move(decodeSingingParam(dspxParams.expressiveness));
         params.energy = std::move(decodeSingingParam(dspxParams.energy));
-        params.tension = std::move(decodeSingingParam(dspxParams.tension));
         params.breathiness = std::move(decodeSingingParam(dspxParams.breathiness));
+        params.voicing =  std::move(decodeSingingParam(dspxParams.voicing));
+        params.tension = std::move(decodeSingingParam(dspxParams.tension));
+        params.gender = std::move(decodeSingingParam(dspxParams.gender));
+        params.velocity = std::move(decodeSingingParam(dspxParams.velocity));
         return params;
     };
 
@@ -213,9 +217,13 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
 
     auto encodeSingingParams = [&](const ParamInfo &dsParams, QDspx::SingleParam &params) {
         encodeSingingParam(dsParams.pitch, params.pitch);
+        encodeSingingParam(dsParams.expressiveness, params.expressiveness);
         encodeSingingParam(dsParams.energy, params.energy);
-        encodeSingingParam(dsParams.tension, params.tension);
         encodeSingingParam(dsParams.breathiness, params.breathiness);
+        encodeSingingParam(dsParams.voicing, params.voicing);
+        encodeSingingParam(dsParams.tension, params.tension);
+        encodeSingingParam(dsParams.gender, params.gender);
+        encodeSingingParam(dsParams.velocity, params.velocity);
     };
 
     // auto encodePhonemes = [&](const QList<Phoneme> &dsPhonemes, QList<QDspx::Phoneme> &phonemes) {
