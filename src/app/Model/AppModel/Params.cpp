@@ -60,8 +60,8 @@ Param *ParamInfo::getParamByName(Name name) {
             return &velocity;
         case Voicing:
             return &voicing;
-        case KeyShift:
-            return &keyShift;
+        case Expressiveness:
+            return &expressiveness;
         case Gender:
             return &gender;
         case Energy:
