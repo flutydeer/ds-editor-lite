@@ -123,12 +123,48 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
     // else
     //     painter->setRenderHint(QPainter::Antialiasing, false);
 
+    bool pitchMode = !m_fillCurve;
+    bool foreground = !transparentMouseEvents();
     QPen pen;
     pen.setWidthF(1.8);
-    if (m_drawCurvesOriginal.count() > 0)
-        drawCurves(painter, m_drawCurvesOriginal);
-    if (m_drawCurvesEdited.count() > 0)
-        drawCurves(painter, m_drawCurvesEdited);
+    if (pitchMode) {
+        painter->setBrush(Qt::NoBrush);
+        if (!m_drawCurvesOriginal.isEmpty()) {
+            pen.setColor(QColor(255, 255, 255, 127));
+            painter->setPen(pen);
+            drawCurveBorder(painter, m_drawCurvesOriginal);
+        }
+        if (!m_drawCurvesEdited.isEmpty()) {
+            pen.setColor(QColor(255, 255, 255, 230));
+            painter->setPen(pen);
+            drawCurveBorder(painter, m_drawCurvesEdited);
+        }
+    } else {
+        // 绘制填充图形
+        painter->setPen(Qt::NoPen);
+        if (foreground) {
+            QLinearGradient gradient(0, 0, 0, visibleRect().height());
+            gradient.setColorAt(0, QColor(155, 186, 255, 200));
+            gradient.setColorAt(1, QColor(155, 186, 255, 10));
+            painter->setBrush(gradient);
+        } else {
+            painter->setBrush(QColor(40, 40, 40));
+        }
+
+        auto curves = mergeCurves(m_drawCurvesOriginal, m_drawCurvesEdited);
+        if (!curves.isEmpty()) {
+            drawCurvePolygon(painter, curves);
+            for (auto curve : curves)
+                delete curve;
+        }
+
+        // 绘制已编辑描边
+        if (foreground && !m_drawCurvesEdited.isEmpty()) {
+            painter->setBrush(Qt::NoBrush);
+            painter->setPen(QColor(255, 255, 255));
+            drawCurveBorder(painter, m_drawCurvesEdited);
+        }
+    }
 
     const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
     // Logger::d(className, "Render time: " + QString::number(time));
@@ -205,7 +241,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         startTick = curPos.x();
     }
 
-    auto overlappedCurves = curvesIn(startTick, endTick);
+    auto overlappedCurves = curvesIn(m_drawCurvesEdited, startTick, endTick);
     if (m_editType == Erase) {
         if (!overlappedCurves.isEmpty()) {
             for (auto curve : overlappedCurves) {
@@ -223,10 +259,6 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                     MathUtils::binaryInsert(m_drawCurvesEdited, newCurve);
                 } else {
                     curve->erase(startTick, endTick);
-                    // Logger::d(className,
-                    //           QString("Erase curve: #%1 start: %2 end: %3")
-                    //               .arg(QString::number(curve->id()), QString::number(startTick),
-                    //                    QString::number(endTick)));
                 }
             }
         }
@@ -286,109 +318,140 @@ DrawCurve *CommonParamEditorView::curveAt(double tick) {
     return nullptr;
 }
 
-QList<DrawCurve *> CommonParamEditorView::curvesIn(int startTick, int endTick) {
+QList<DrawCurve *> CommonParamEditorView::curvesIn(const QList<DrawCurve *> &container,
+                                                   int startTick, int endTick) {
     QList<DrawCurve *> result;
     ProbeLine line(startTick, endTick);
-    for (const auto &curve : m_drawCurvesEdited) {
+    for (const auto &curve : container) {
         if (curve->isOverlappedWith(&line))
             result.append(curve);
     }
     return result;
 }
 
-void CommonParamEditorView::drawCurves(QPainter *painter, const QList<DrawCurve *> &curves) const {
+QList<DrawCurve *> CommonParamEditorView::mergeCurves(const QList<DrawCurve *> &original,
+                                                      const QList<DrawCurve *> &edited) {
+    QList<DrawCurve *> result;
+    for (const auto &curve : original)
+        result.append(new DrawCurve(*curve));
+
+    for (const auto &editedCurve : edited) {
+        auto newCurve = new DrawCurve(*editedCurve);
+        auto overlappedCurves = curvesIn(result, editedCurve->start, editedCurve->endTick());
+        if (!overlappedCurves.isEmpty()) {
+            for (auto curve : overlappedCurves) {
+                newCurve->mergeWith(*curve);
+                result.removeOne(curve);
+                delete curve;
+            }
+        }
+        MathUtils::binaryInsert(result, newCurve);
+    }
+    return result;
+}
+
+void CommonParamEditorView::drawCurveBorder(QPainter *painter,
+                                            const QList<DrawCurve *> &curves) const {
+    auto drawCurve = [=](const DrawCurve &curve) {
+        auto dpr = painter->device()->devicePixelRatio();
+        bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
+
+        int start = curve.start;
+        int startIndex =
+            start >= startTick()
+                ? 0
+                : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
+                      curve.step;
+        auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve.step),
+                                         valueToItemY(curve.values().at(startIndex)));
+
+        if (m_showDebugInfo) {
+            auto firstValue = curve.values().first();
+            auto firstPos = QPointF(tickToItemX(start), valueToItemY(firstValue));
+            painter->drawText(firstPos, QString("#%1").arg(curve.id()));
+        }
+
+        int pointCount = 0;
+        QPainterPath curvePath;
+        curvePath.moveTo(visibleFirstPoint);
+        double lastLineToX = visibleFirstPoint.x();
+        bool breakFlag = false;
+        for (int i = startIndex; i < curve.values().count(); i++) {
+            const auto pos = start + curve.step * i;
+            const auto value = curve.values().at(i);
+            if (pos > endTick())
+                breakFlag = true;
+            const auto x = tickToItemX(pos);
+            if (qAbs(lastLineToX - x) > dpr) {
+                curvePath.lineTo(x, valueToItemY(value));
+                lastLineToX = x;
+            }
+            pointCount++;
+
+            if (breakFlag)
+                break;
+        }
+        painter->drawPath(curvePath);
+    };
     for (const auto curve : curves) {
         if (curve->endTick() < startTick())
             continue;
         if (curve->start > endTick())
             break;
+        drawCurve(*curve);
+    }
+}
 
+void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
+                                             const QList<DrawCurve *> &curves) const {
+    auto drawCurve = [=](const DrawCurve &curve) {
         auto dpr = painter->device()->devicePixelRatio();
         bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
-        auto sceneHeight = scene()->height();
-        QLinearGradient gradient(0, 0, 0, visibleRect().height());
-        gradient.setColorAt(0, QColor(155, 186, 255, 180));
-        gradient.setColorAt(1, QColor(155, 186, 255, 10));
 
-        int start = curve->start;
-        auto firstValue = curve->values().first();
-        auto firstPos = QPointF(tickToItemX(start), valueToItemY(firstValue));
+        int start = curve.start;
         int startIndex =
             start >= startTick()
                 ? 0
-                : (MathUtils::roundDown(static_cast<int>(startTick()), curve->step) - start) /
-                      curve->step;
-        auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve->step),
-                                         valueToItemY(curve->values().at(startIndex)));
+                : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
+                      curve.step;
+        auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve.step),
+                                         valueToItemY(curve.values().at(startIndex)));
 
-        // 绘制多边形填充
-        if (m_fillCurve) {
-            painter->setPen(Qt::NoPen);
-            if (transparentMouseEvents())
-                painter->setBrush(QColor(255, 255, 255, 40));
-            else
-                painter->setBrush(gradient);
+        auto sceneHeight = scene()->height();
 
-            QPainterPath fillPath;
-            fillPath.moveTo(visibleFirstPoint.x(), sceneHeight);
-            fillPath.lineTo(visibleFirstPoint);
-            double lastX = 0;
-            double lastLineToX = visibleFirstPoint.x();
-            bool breakFlag = false;
-            for (int i = startIndex; i < curve->values().count(); i++) {
-                const auto pos = start + curve->step * i;
-                const auto value = curve->values().at(i);
-                if (pos > endTick())
-                    breakFlag = true;
-                const auto x = tickToItemX(pos);
-                // 只有在视图上两点距离达到一个像素以上时才绘制
-                // TODO: 使用峰值模式来绘制
-                if (qAbs(lastLineToX - x) > dpr) {
-                    fillPath.lineTo(x, valueToItemY(value));
-                    lastLineToX = x;
-                }
-                lastX = x;
-
-                if (breakFlag)
-                    break;
+        QPainterPath fillPath;
+        fillPath.moveTo(visibleFirstPoint.x(), sceneHeight);
+        fillPath.lineTo(visibleFirstPoint);
+        double lastX = 0;
+        double lastLineToX = visibleFirstPoint.x();
+        bool breakFlag = false;
+        for (int i = startIndex; i < curve.values().count(); i++) {
+            const auto pos = start + curve.step * i;
+            const auto value = curve.values().at(i);
+            if (pos > endTick())
+                breakFlag = true;
+            const auto x = tickToItemX(pos);
+            // 只有在视图上两点距离达到一个像素以上时才绘制
+            // TODO: 使用峰值模式来绘制
+            if (qAbs(lastLineToX - x) > dpr) {
+                fillPath.lineTo(x, valueToItemY(value));
+                lastLineToX = x;
             }
-            fillPath.lineTo(lastX, sceneHeight);
-            painter->drawPath(fillPath);
+            lastX = x;
+
+            if (breakFlag)
+                break;
         }
+        fillPath.lineTo(lastX, sceneHeight);
+        painter->drawPath(fillPath);
+    };
 
-        // 绘制曲线
-        if (!m_fillCurve || !transparentMouseEvents()) {
-            QPen pen;
-            pen.setWidthF(1.8);
-            pen.setColor(QColor(240, 240, 240, 255));
-            painter->setPen(pen);
-            painter->setBrush(Qt::NoBrush);
-
-            if (m_showDebugInfo)
-                painter->drawText(firstPos, QString("#%1").arg(curve->id()));
-
-            int pointCount = 0;
-            QPainterPath curvePath;
-            curvePath.moveTo(visibleFirstPoint);
-            double lastLineToX = visibleFirstPoint.x();
-            bool breakFlag = false;
-            for (int i = startIndex; i < curve->values().count(); i++) {
-                const auto pos = start + curve->step * i;
-                const auto value = curve->values().at(i);
-                if (pos > endTick())
-                    breakFlag = true;
-                const auto x = tickToItemX(pos);
-                if (qAbs(lastLineToX - x) > dpr) {
-                    curvePath.lineTo(x, valueToItemY(value));
-                    lastLineToX = x;
-                }
-                pointCount++;
-
-                if (breakFlag)
-                    break;
-            }
-            painter->drawPath(curvePath);
-        }
+    for (const auto curve : curves) {
+        if (curve->endTick() < startTick())
+            continue;
+        if (curve->start > endTick())
+            break;
+        drawCurve(*curve);
     }
 }
 

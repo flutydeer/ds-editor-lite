@@ -40,7 +40,8 @@ private:
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void updateRectAndPos() override;
-    void drawCurves(QPainter *painter, const QList<DrawCurve *> &curves) const;
+    void drawCurveBorder(QPainter *painter, const QList<DrawCurve *> &curves) const;
+    void drawCurvePolygon(QPainter *painter, const QList<DrawCurve *> &curves) const;
     static void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve);
 
     bool m_showDebugInfo = false;
@@ -63,7 +64,8 @@ private:
 
     [[nodiscard]] double valueToItemY(double value) const;
     DrawCurve *curveAt(double tick);
-    QList<DrawCurve *> curvesIn(int startTick, int endTick);
+    static QList<DrawCurve *> curvesIn(const QList<DrawCurve *> &container, int startTick, int endTick);
+    static QList<DrawCurve *> mergeCurves(const QList<DrawCurve *> &original, const QList<DrawCurve *> &edited);
 
     const int paddingTopBottom = 6;
 };
