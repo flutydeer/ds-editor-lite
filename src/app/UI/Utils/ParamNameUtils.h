@@ -24,10 +24,10 @@ public:
     }
 
 private:
-    const QStringList m_names = {tr("Pitch"),   tr("Breathiness"), tr("Tension"), tr("Velocity"),
-                                 tr("Voicing"), tr("Key Shift"),   tr("Gender"),  tr("Energy")};
-    const QStringList m_keys = {"pitch",   "breathiness", "tension", "velocity",
-                                "voicing", "keyshift",    "gender",  "energy"};
+    const QStringList m_names = {tr("Pitch"),   tr("Breathiness"),    tr("Tension"), tr("Velocity"),
+                                 tr("Voicing"), tr("Expressiveness"), tr("Gender"),  tr("Energy")};
+    const QStringList m_keys = {"pitch",   "breathiness",    "tension", "velocity",
+                                "voicing", "expressiveness", "gender",  "energy"};
 };
 
 #endif // PARAMNAMEUTILS_H

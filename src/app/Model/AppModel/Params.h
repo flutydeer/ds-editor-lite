@@ -42,14 +42,24 @@ private:
 
 class ParamInfo {
 public:
-    enum Name { Pitch, Breathiness, Tension, Velocity, Voicing, KeyShift, Gender, Energy, Unknown };
+    enum Name {
+        Pitch,
+        Breathiness,
+        Tension,
+        Velocity,
+        Voicing,
+        Expressiveness,
+        Gender,
+        Energy,
+        Unknown
+    };
 
     Param pitch;
     Param breathiness;
     Param tension;
     Param velocity;
     Param voicing;
-    Param keyShift;
+    Param expressiveness;
     Param gender;
     Param energy;
 
