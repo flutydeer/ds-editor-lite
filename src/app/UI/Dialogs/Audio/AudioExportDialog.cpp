@@ -1,4 +1,4 @@
-#include "audioexportdialog.h"
+#include "AudioExportDialog.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Track.h"
 #include "Modules/Audio/AudioSettings.h"
