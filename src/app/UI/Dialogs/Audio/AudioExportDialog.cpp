@@ -564,6 +564,7 @@ namespace Audio::Internal {
 
         QDialog progressDialog(this);
         auto layout = new QVBoxLayout;
+        layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
 
         auto mainPromptLayout = new QHBoxLayout;
         auto mainPromptWarningButton = new QPushButton;
@@ -571,6 +572,7 @@ namespace Audio::Internal {
         mainPromptWarningButton->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
         mainPromptLayout->addWidget(mainPromptWarningButton, 0);
         auto mainPromptLabel = new QLabel(tr("Preparing..."));
+        mainPromptLabel->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
         mainPromptLayout->addWidget(mainPromptLabel, 1);
         layout->addLayout(mainPromptLayout);
 
@@ -617,6 +619,7 @@ namespace Audio::Internal {
         QDialog warningListDialog(this);
         auto warningListDialogLayout = new QVBoxLayout;
         auto warningList = new QListWidget;
+        warningList->setSelectionMode(QAbstractItemView::NoSelection);
         warningListDialogLayout->addWidget(warningList);
         warningListDialog.setLayout(warningListDialogLayout);
         warningListDialog.resize(300, 300);
@@ -644,7 +647,7 @@ namespace Audio::Internal {
         });
 
         connect(mainPromptWarningButton, &QAbstractButton::clicked, &progressDialog, [=, &warningListDialog] {
-            warningListDialog.open();
+            warningListDialog.exec();
         });
 
         bool interruptFlag = true;
@@ -687,13 +690,12 @@ namespace Audio::Internal {
                 }
             }
         });
-        if (progressDialog.exec() == QDialog::Accepted) {
-            auto currentData = m_presetComboBox->currentData();
-            AudioSettings::setAudioExporterCurrentPreset(currentData.isNull() ? QJsonValue(m_presetComboBox->currentIndex()) : QJsonValue(currentData.toString()));
-            saveTemporaryPreset();
-            if (!m_keepOpenCheckBox->isChecked())
-                accept();
-        }
+        auto ret = progressDialog.exec();
+        auto currentData = m_presetComboBox->currentData();
+        AudioSettings::setAudioExporterCurrentPreset(currentData.isNull() ? QJsonValue(m_presetComboBox->currentIndex()) : QJsonValue(currentData.toString()));
+        saveTemporaryPreset();
+        if (ret == QDialog::Accepted && !m_keepOpenCheckBox->isChecked())
+            accept();
     }
 
     bool AudioExportDialog::askWarningBeforeExport(AudioExporter::Warning warning,

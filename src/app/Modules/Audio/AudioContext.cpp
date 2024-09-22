@@ -261,6 +261,8 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::deviceChanged,
             this, [=] { playbackController->stop(); });
 
+    connect(AudioSystem::outputSystem(), &AbstractOutputSystem::fileBufferingReadAheadSizeChanged, this, &AudioContext::setBufferingReadAheadSize);
+
     connect(this, &AudioContext::exporterCausedTimeChanged, this, &AudioContext::handleTimeChanged);
 
     m_levelMeterTimer = new QTimer(this);
@@ -494,10 +496,13 @@ void AudioContext::handleTimeChanged() {
 
 bool AudioContext::willStartCallback(AudioExporter *exporter) {
     m_isExporting = true;
+    playbackController->stop();
+    setBufferingReadAheadSize(0);
     emit exporterCausedTimeChanged();
     return true;
 }
 void AudioContext::willFinishCallback(AudioExporter *exporter) {
     m_isExporting = false;
+    setBufferingReadAheadSize(AudioSystem::outputSystem()->fileBufferingReadAheadSize());
     emit exporterCausedTimeChanged();
 }
