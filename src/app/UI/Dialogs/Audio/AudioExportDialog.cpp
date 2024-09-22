@@ -564,6 +564,7 @@ namespace Audio::Internal {
 
         QDialog progressDialog(this);
         auto layout = new QVBoxLayout;
+        layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
 
         auto mainPromptLayout = new QHBoxLayout;
         auto mainPromptWarningButton = new QPushButton;
@@ -571,6 +572,7 @@ namespace Audio::Internal {
         mainPromptWarningButton->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
         mainPromptLayout->addWidget(mainPromptWarningButton, 0);
         auto mainPromptLabel = new QLabel(tr("Preparing..."));
+        mainPromptLabel->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
         mainPromptLayout->addWidget(mainPromptLabel, 1);
         layout->addLayout(mainPromptLayout);
 
@@ -645,7 +647,7 @@ namespace Audio::Internal {
         });
 
         connect(mainPromptWarningButton, &QAbstractButton::clicked, &progressDialog, [=, &warningListDialog] {
-            warningListDialog.open();
+            warningListDialog.exec();
         });
 
         bool interruptFlag = true;
