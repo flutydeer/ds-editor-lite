@@ -617,6 +617,7 @@ namespace Audio::Internal {
         QDialog warningListDialog(this);
         auto warningListDialogLayout = new QVBoxLayout;
         auto warningList = new QListWidget;
+        warningList->setSelectionMode(QAbstractItemView::NoSelection);
         warningListDialogLayout->addWidget(warningList);
         warningListDialog.setLayout(warningListDialogLayout);
         warningListDialog.resize(300, 300);
@@ -687,13 +688,12 @@ namespace Audio::Internal {
                 }
             }
         });
-        if (progressDialog.exec() == QDialog::Accepted) {
-            auto currentData = m_presetComboBox->currentData();
-            AudioSettings::setAudioExporterCurrentPreset(currentData.isNull() ? QJsonValue(m_presetComboBox->currentIndex()) : QJsonValue(currentData.toString()));
-            saveTemporaryPreset();
-            if (!m_keepOpenCheckBox->isChecked())
-                accept();
-        }
+        auto ret = progressDialog.exec();
+        auto currentData = m_presetComboBox->currentData();
+        AudioSettings::setAudioExporterCurrentPreset(currentData.isNull() ? QJsonValue(m_presetComboBox->currentIndex()) : QJsonValue(currentData.toString()));
+        saveTemporaryPreset();
+        if (ret == QDialog::Accepted && !m_keepOpenCheckBox->isChecked())
+            accept();
     }
 
     bool AudioExportDialog::askWarningBeforeExport(AudioExporter::Warning warning,
