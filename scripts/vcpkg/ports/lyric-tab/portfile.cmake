@@ -1,8 +1,8 @@
 vcpkg_from_github(
         OUT_SOURCE_PATH SOURCE_PATH
         REPO wolfgitpr/lyric-tab
-        REF 18ea9513f8af36d56676450b88fe0e3b465bef3a
-        SHA512 6b952ccc46dac8220d9ae5a594ee7d8a6bc37f36d7a24470c9bb2ad354133c46c87fd78b15b5447ff35fd643e0351e4d081d3bad49b63119eaea0407584df02b
+        REF c35f7651aeb1ab61c0ca1cbf3a76ead0f8464648
+        SHA512 c8b446aaa951560d050f6aa194a6c71398c529be5336283ed201dde0f0bfb9ad435a660b5ced21cbcd0c29ab58f1c927f5475500ea9a7a176032b0ec0c0df0e9
         HEAD_REF main
 )
 
