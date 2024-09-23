@@ -13,7 +13,7 @@ public:
     explicit DrawCurve(int id) : Curve(id){};
     DrawCurve(const DrawCurve &other);
 
-    CurveType type() const override {
+    [[nodiscard]] CurveType type() const override {
         return Draw;
     }
 
@@ -27,8 +27,8 @@ public:
     void clearValues();
     void appendValue(int value);
     void replaceValue(int index, int value);
-    void mergeWith(const DrawCurve &other);
-    void overlayMergeWith(const DrawCurve &other);
+    void mergeWithCurrentPriority(const DrawCurve &other);
+    void mergeWithOtherPriority(const DrawCurve &other);
     void erase(int otherStart, int otherEnd);
     void eraseTail(int length);
     void eraseTailFrom(int tick);

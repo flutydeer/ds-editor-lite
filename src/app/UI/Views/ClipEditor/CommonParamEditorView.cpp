@@ -125,8 +125,9 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 
     bool pitchMode = !m_fillCurve;
     bool foreground = !transparentMouseEvents();
+    auto penWidth = 1.5;
     QPen pen;
-    pen.setWidthF(1.8);
+    pen.setWidthF(penWidth);
     if (pitchMode) {
         painter->setBrush(Qt::NoBrush);
         if (!m_drawCurvesOriginal.isEmpty()) {
@@ -161,7 +162,8 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         // 绘制已编辑描边
         if (foreground && !m_drawCurvesEdited.isEmpty()) {
             painter->setBrush(Qt::NoBrush);
-            painter->setPen(QColor(255, 255, 255));
+            pen.setColor(QColor(255, 255, 255));
+            painter->setPen(pen);
             drawCurveBorder(painter, m_drawCurvesEdited);
         }
     }
@@ -263,6 +265,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             }
         }
     } else { // Draw
+        // 在空白处绘制，如果未创建新曲线，则创建一条并将其设为正在编辑的曲线
         if (!m_newCurveCreated && m_editType == DrawOnInterval) {
             m_editingCurve = new DrawCurve;
             m_editingCurve->start = m_mouseDownPos.x();
@@ -278,7 +281,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                 if (curve == m_editingCurve)
                     continue;
 
-                m_editingCurve->mergeWith(*curve);
+                m_editingCurve->mergeWithCurrentPriority(*curve);
                 m_drawCurvesEdited.removeOne(curve);
                 // delete curve;
             }
@@ -329,6 +332,7 @@ QList<DrawCurve *> CommonParamEditorView::curvesIn(const QList<DrawCurve *> &con
     return result;
 }
 
+// TODO: 移动到 DrawCurve ?
 QList<DrawCurve *> CommonParamEditorView::mergeCurves(const QList<DrawCurve *> &original,
                                                       const QList<DrawCurve *> &edited) {
     QList<DrawCurve *> result;
@@ -337,12 +341,15 @@ QList<DrawCurve *> CommonParamEditorView::mergeCurves(const QList<DrawCurve *> &
 
     for (const auto &editedCurve : edited) {
         auto newCurve = new DrawCurve(*editedCurve);
-        auto overlappedCurves = curvesIn(result, editedCurve->start, editedCurve->endTick());
-        if (!overlappedCurves.isEmpty()) {
-            for (auto curve : overlappedCurves) {
-                newCurve->mergeWith(*curve);
-                result.removeOne(curve);
-                delete curve;
+        auto overlappedOriCurves = curvesIn(result, editedCurve->start, editedCurve->endTick());
+        if (!overlappedOriCurves.isEmpty()) {
+            for (auto oriCurve : overlappedOriCurves) {
+                // 如果 oriCurve 被已编辑曲线完全覆盖，直接移除
+                if (!(oriCurve->start >= newCurve->start &&
+                      oriCurve->endTick() <= newCurve->endTick()))
+                    newCurve->mergeWithCurrentPriority(*oriCurve);
+                result.removeOne(oriCurve);
+                delete oriCurve;
             }
         }
         MathUtils::binaryInsert(result, newCurve);
@@ -362,8 +369,9 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
                 ? 0
                 : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
                       curve.step;
-        auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve.step),
-                                         valueToItemY(curve.values().at(startIndex)));
+        auto x = tickToItemX(start + startIndex * curve.step);
+        auto y = valueToItemY(curve.values().at(startIndex));
+        auto visibleFirstPoint = QPointF(x, y);
 
         if (m_showDebugInfo) {
             auto firstValue = curve.values().first();
@@ -477,5 +485,5 @@ void CommonParamEditorView::drawLine(const QPoint &p1, const QPoint &p2, DrawCur
         auto value = MathUtils::linearValueAt(startPoint, endPoint, tick);
         line.appendValue(qRound(value));
     }
-    curve.overlayMergeWith(line);
+    curve.mergeWithOtherPriority(line);
 }

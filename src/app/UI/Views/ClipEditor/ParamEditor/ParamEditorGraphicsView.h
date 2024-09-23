@@ -43,6 +43,7 @@ private:
 
     static QList<DrawCurve *> getDrawCurves(const QList<Curve *> &curves);
 
+    bool m_debugMode = false;
     SingingClip *m_clip = nullptr;
     CommonParamEditorView *m_foreground;
     CommonParamEditorView *m_background;

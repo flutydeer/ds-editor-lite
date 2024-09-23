@@ -52,41 +52,49 @@ void DrawCurve::replaceValue(int index, int value) {
     m_values.replace(index, value);
 }
 
-void DrawCurve::mergeWith(const DrawCurve &other) {
+void DrawCurve::mergeWithCurrentPriority(const DrawCurve &other) {
+    if (!other.isOverlappedWith(this))
+        qCritical() << "mergeWithCurrentPriority: other is not overlapped with this";
+
     int curStart = start;
     int otherStart = other.start;
     auto curEnd = endTick();
     auto otherEnd = other.endTick();
-    if (otherStart > curStart && otherEnd < curEnd)
+
+    if (otherStart >= curStart && otherEnd <= curEnd) {
+        qWarning() << "mergeWithCurrentPriority:"
+                   << "other is in current range";
         return;
+    }
 
     if (otherStart > curStart) {
         auto startIndex = (curEnd - otherStart) / step;
         for (int i = startIndex; i < other.values().count(); i++)
             appendValue(other.values().at(i));
-    } else {
-        QList<int> earlyCurve;
+    } else { // otherStart <= curStart
+        QList<int> earlyPoints;
         auto earlyCurvePointCount = (curStart - otherStart) / step;
         for (int i = 0; i < earlyCurvePointCount; i++)
-            earlyCurve.append(other.values().at(i));
-        insertValues(0, earlyCurve);
+            earlyPoints.append(other.values().at(i));
+        insertValues(0, earlyPoints);
         start = otherStart;
         if (curEnd < otherEnd) {
-            auto startIndex = (otherEnd - curEnd) / step;
-            for (int i = startIndex; i < other.values().count(); i++)
+            auto tailCount = (otherEnd - curEnd) / step;
+            auto startIndex = other.values().count() - tailCount;
+            for (auto i = startIndex; i < other.values().count(); i++)
                 appendValue(other.values().at(i));
         }
     }
 }
 
-void DrawCurve::overlayMergeWith(const DrawCurve &other) {
+void DrawCurve::mergeWithOtherPriority(const DrawCurve &other) {
     int curStart = start;
     int otherStart = other.start;
     auto curEnd = endTick();
     auto otherEnd = other.endTick();
-    // qDebug() << "DrawCurve::overlayMergeWith" << otherStart << otherEnd;
-    // Q_ASSERT_X(otherStart <= curEnd && curStart >= otherEnd, "DrawCurve::drawCurve",
-    //            "other curve is not overlapped with current");
+    if (otherEnd < curStart || curEnd < otherStart) {
+        qCritical() << "overlayMergeWith: other curve is not overlapped with current curve";
+    }
 
     if (otherStart > curStart) {
         auto editStartIndex = (otherStart - curStart) / step;

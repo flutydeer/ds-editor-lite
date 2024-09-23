@@ -59,7 +59,8 @@ void ParamEditorGraphicsView::setBackground(ParamInfo::Name name) {
 
 void ParamEditorGraphicsView::updateForeground(Param::Type type, const Param &param) const {
     if (type == Param::Original) {
-        m_foreground->loadOriginal(getDrawCurves(param.curves(Param::Original)));
+        m_foreground->loadOriginal(
+            getDrawCurves(param.curves(m_debugMode ? Param::Edited : Param::Original)));
     } else if (type == Param::Edited) {
         m_foreground->loadEdited(getDrawCurves(param.curves(Param::Edited)));
     } else if (type == Param::Envelope) {
@@ -136,9 +137,12 @@ void ParamEditorGraphicsView::moveToSingingClipState(SingingClip *clip) {
     // }
 
     updateForeground(Param::Original, *m_clip->params.getParamByName(m_foregroundParam));
-    updateForeground(Param::Edited, *m_clip->params.getParamByName(m_foregroundParam));
-    updateBackground(Param::Original, *m_clip->params.getParamByName(m_backgroundParam));
-    updateBackground(Param::Edited, *m_clip->params.getParamByName(m_backgroundParam));
+    updateForeground(Param::Edited, *m_clip->params.getParamByName(
+                                        m_debugMode ? m_backgroundParam : m_foregroundParam));
+    if (!m_debugMode) {
+        updateBackground(Param::Original, *m_clip->params.getParamByName(m_backgroundParam));
+        updateBackground(Param::Edited, *m_clip->params.getParamByName(m_backgroundParam));
+    }
 
     connect(clip, &SingingClip::propertyChanged, this,
             &ParamEditorGraphicsView::onClipPropertyChanged);
