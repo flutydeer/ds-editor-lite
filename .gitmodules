@@ -7,3 +7,6 @@
 [submodule "src/libs/svscraft"]
 	path = src/libs/svscraft
 	url = git@github.com:diffscope/svscraft
+[submodule "src/libs/dsonnxinfer"]
+	path = src/libs/dsonnxinfer
+	url = https://github.com/Jobsecond/dsonnxinfer

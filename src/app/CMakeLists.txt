@@ -51,6 +51,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         QWindowKit::Widgets
         qtmediate::Widgets
         svscraft::Widgets
+        dsonnxinfer
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)

@@ -21,6 +21,7 @@
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/History/HistoryManager.h"
+#include "Modules/Inference/InferenceEngine.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
@@ -217,6 +218,7 @@ void AppController::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clip
 }
 
 void AppControllerPrivate::initializeModules() {
+    InferenceEngine::instance();
     ParamController::instance();
     ProjectStatusController::instance();
     ValidationController::instance();
