@@ -7,8 +7,8 @@
 #include <QThread>
 #include <QDebug>
 
-InferDurationTask::InferDurationTask(int clipId, const QList<InferDurNote> &input)
-    : clipId(clipId), m_notes(input) {
+InferDurationTask::InferDurationTask(int clipId, int pieceId, const QList<InferDurNote> &input)
+    : clipId(clipId), pieceId(pieceId), m_notes(input) {
     buildPreviewText();
     TaskStatus status;
     status.title = "推理音素长度";
@@ -39,10 +39,6 @@ void InferDurationTask::runTask() {
             const int phLen = note.length / note.normalNames.count();
             note.normalOffsets.append(normalIndex * phLen);
         }
-        for (int finalIndex = 0; finalIndex < note.finalNames.count(); finalIndex++) {
-            // note.finalOffsets.append(40 * (note.finalNames.count() - finalIndex));
-            note.finalOffsets.append(note.length);
-        }
         i++;
 
         newStatus.progress = i;
@@ -71,8 +67,6 @@ void InferDurationTask::buildPreviewText() {
         for (const auto &phoneme : note.aheadNames)
             m_previewText.append(phoneme + " ");
         for (const auto &phoneme : note.normalNames)
-            m_previewText.append(phoneme + " ");
-        for (const auto &phoneme : note.finalNames)
             m_previewText.append(phoneme + " ");
     }
 }

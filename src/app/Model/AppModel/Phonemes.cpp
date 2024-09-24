@@ -48,9 +48,10 @@ bool PhonemeNameSeq::deserialize(const QJsonObject &obj) {
 }
 
 bool PhonemeNameInfo::isEmpty() const {
-    bool result = ahead.result().isEmpty() && normal.result().isEmpty() && final.result().isEmpty();
+    bool result = ahead.result().isEmpty() && normal.result().isEmpty();
     if (result) {
-        qDebug() << "PhonemeNameInfo::isEmpty()" << "ahead:" << ahead.result() << " normal:" << normal.result() << " final:" << final.result();
+        qDebug() << "PhonemeNameInfo::isEmpty()"
+                 << "ahead:" << ahead.result() << " normal:" << normal.result();
     }
     return result;
 }
@@ -58,15 +59,13 @@ bool PhonemeNameInfo::isEmpty() const {
 QJsonObject PhonemeNameInfo::serialize() const {
     return QJsonObject{
         {"ahead",  ahead.serialize() },
-        {"normal", normal.serialize()},
-        {"final",  final.serialize() }
+        {"normal", normal.serialize()}
     };
 }
 
 bool PhonemeNameInfo::deserialize(const QJsonObject &obj) {
     ahead.deserialize(obj.value("ahead").toObject());
     normal.deserialize(obj.value("normal").toObject());
-    final.deserialize(obj.value("final").toObject());
     return true;
 }
 
@@ -91,8 +90,8 @@ QJsonObject PhonemeOffsetSeq::serialize() const {
     for (const auto &value : edited)
         arrEdited.append(value);
     return QJsonObject{
-            {"original", arrOriginal},
-            {"edited",   arrEdited  }
+        {"original", arrOriginal},
+        {"edited",   arrEdited  }
     };
 }
 
@@ -107,28 +106,26 @@ bool PhonemeOffsetSeq::deserialize(const QJsonObject &obj) {
 }
 
 bool PhonemeOffsetInfo::isEmpty() const {
-    return ahead.result().isEmpty() && normal.result().isEmpty() && final.result().isEmpty();
+    return ahead.result().isEmpty() && normal.result().isEmpty();
 }
 
 QJsonObject PhonemeOffsetInfo::serialize() const {
     return QJsonObject{
-            {"ahead",  ahead.serialize() },
-            {"normal", normal.serialize()},
-            {"final",  final.serialize() }
+        {"ahead",  ahead.serialize() },
+        {"normal", normal.serialize()}
     };
 }
 
 bool PhonemeOffsetInfo::deserialize(const QJsonObject &obj) {
     ahead.deserialize(obj.value("ahead").toObject());
     normal.deserialize(obj.value("normal").toObject());
-    final.deserialize(obj.value("final").toObject());
     return true;
 }
 
 QJsonObject Phonemes::serialize() const {
     return QJsonObject{
-        {"name", nameInfo.serialize() },
-        {"offset", offsetInfo.serialize() },
+        {"name",   nameInfo.serialize()  },
+        {"offset", offsetInfo.serialize()},
     };
 }
 

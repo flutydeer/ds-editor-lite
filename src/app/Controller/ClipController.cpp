@@ -264,8 +264,6 @@ void ClipController::onNotePropertiesEdited(int noteId, const NoteDialogResult &
         arg.phonemes.offsetInfo.ahead.clear();
     if (!curNameInfo.normal.editedEqualsWith(resultNameInfo.normal))
         arg.phonemes.offsetInfo.normal.clear();
-    if (!curNameInfo.final.editedEqualsWith(resultNameInfo.final))
-        arg.phonemes.offsetInfo.final.clear();
 
     arg.phonemes.nameInfo = resultNameInfo;
 

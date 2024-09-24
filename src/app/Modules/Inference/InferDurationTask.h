@@ -11,9 +11,10 @@
 class InferDurationTask : public Task {
 
 public:
-    explicit InferDurationTask(int clipId, const QList<InferDurNote> &input);
+    explicit InferDurationTask(int clipId, int pieceId, const QList<InferDurNote> &input);
     QList<InferDurNote> result();
     int clipId = -1;
+    int pieceId = -1;
 
 private:
     void runTask() override;

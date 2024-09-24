@@ -25,7 +25,6 @@ class PhonemeNameInfo : public ISerializable {
 public:
     PhonemeNameSeq ahead;
     PhonemeNameSeq normal;
-    PhonemeNameSeq final;
 
     [[nodiscard]] bool isEmpty() const;
     [[nodiscard]] QJsonObject serialize() const override;
@@ -48,7 +47,6 @@ class PhonemeOffsetInfo : public ISerializable {
 public:
     PhonemeOffsetSeq ahead;
     PhonemeOffsetSeq normal;
-    PhonemeOffsetSeq final;
 
     [[nodiscard]] bool isEmpty() const;
     [[nodiscard]] QJsonObject serialize() const override;
@@ -57,7 +55,7 @@ public:
 
 class Phonemes : public ISerializable {
 public:
-    enum Type { Ahead, Normal, Final };
+    enum Type { Ahead, Normal };
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;

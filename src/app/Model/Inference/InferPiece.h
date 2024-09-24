@@ -10,14 +10,17 @@
 
 #include <QList>
 
-
 class Note;
 
-class InferPiece : public QObject, public IInferPiece, public UniqueObject {
+class InferPiece : public QObject, public IInferPiece {
     Q_OBJECT
 public:
-    QString singerName;
+    explicit InferPiece(SingingClip *clip) : QObject(clip), clip(clip){};
 
+    [[nodiscard]] int clipId() const override;
+
+    SingingClip *clip;
+    QString singerName;
     QList<Note *> notes;
     // QList<InferPhoneme> phonemes;
     //
@@ -38,6 +41,10 @@ signals:
 private:
     InferStatus m_status = Pending;
 };
+
+inline int InferPiece::clipId() const {
+    return clip->id();
+}
 
 inline int InferPiece::startTick() const {
     return notes.first()->rStart();

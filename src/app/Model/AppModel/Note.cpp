@@ -151,11 +151,6 @@ void Note::setPhonemeNameInfo(Phonemes::Type phType, WordPropertyType wordType,
             m_phonemeInfo.nameInfo.normal.original = nameSeq;
         else if (wordType == Edited)
             m_phonemeInfo.nameInfo.normal.edited = nameSeq;
-    } else if (phType == Phonemes::Final) {
-        if (wordType == Original)
-            m_phonemeInfo.nameInfo.final.original = nameSeq;
-        else if (wordType == Edited)
-            m_phonemeInfo.nameInfo.final.edited = nameSeq;
     }
 }
 
@@ -179,11 +174,6 @@ void Note::setPhonemeOffsetInfo(Phonemes::Type phType, WordPropertyType wordType
             m_phonemeInfo.offsetInfo.normal.original = offsetSeq;
         else if (wordType == Edited)
             m_phonemeInfo.offsetInfo.normal.edited = offsetSeq;
-    } else if (phType == Phonemes::Final) {
-        if (wordType == Original)
-            m_phonemeInfo.offsetInfo.final.original = offsetSeq;
-        else if (wordType == Edited)
-            m_phonemeInfo.offsetInfo.final.edited = offsetSeq;
     }
 }
 

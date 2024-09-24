@@ -22,7 +22,7 @@ public:
 
     class PhonemeViewModel {
     public:
-        enum PhonemeType { Ahead, Normal, Final, Sil };
+        enum PhonemeType { Ahead, Normal, Sil };
 
         PhonemeType type;
         int noteId = -1;

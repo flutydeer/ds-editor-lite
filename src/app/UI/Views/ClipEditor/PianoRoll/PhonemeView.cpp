@@ -459,31 +459,6 @@ void PhonemeView::buildPhonemeList() {
                 prior = vm;
             }
         }
-
-        // Final
-        {
-            auto finalNames = note->phonemeNameInfo().final;
-            auto finalOffsets = note->phonemeOffsetInfo().final;
-            for (int i = 0; i < finalNames.result().count(); i++) {
-                const auto vm = new PhonemeViewModel;
-                vm->type = PhonemeViewModel::Final;
-                vm->noteId = note->id();
-                vm->noteStart = note->start();
-                vm->noteLength = note->length();
-                vm->nameEdited = finalNames.isEdited();
-                vm->offsetEdited = finalOffsets.isEdited();
-                vm->name = finalNames.result().at(i);
-                if (!finalOffsets.result().isEmpty()) {
-                    vm->offsetReady = true;
-                    auto phoneStartMs = noteStartMs + finalOffsets.result().at(i);
-                    auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
-                    vm->start = phoneStartTick;
-                }
-                m_phonemes.append(vm);
-                insertNextNode(prior, vm);
-                prior = vm;
-            }
-        }
     }
 }
 
@@ -520,12 +495,6 @@ void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phVm) {
         }
     } else if (phVm->type == PhonemeViewModel::Normal) {
         type = Phonemes::Normal;
-        for (auto phoneme : relatedPhonemes) {
-            auto phonemeStartInMs = appModel->tickToMs(phoneme->start + phoneme->startOffset);
-            offsets.append(qRound(phonemeStartInMs - noteStartInMs));
-        }
-    } else if (phVm->type == PhonemeViewModel::Final) {
-        type = Phonemes::Final;
         for (auto phoneme : relatedPhonemes) {
             auto phonemeStartInMs = appModel->tickToMs(phoneme->start + phoneme->startOffset);
             offsets.append(qRound(phonemeStartInMs - noteStartInMs));

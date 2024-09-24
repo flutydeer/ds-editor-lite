@@ -37,9 +37,6 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     m_lePhonemeNormal = new QLineEdit(phonemesToString(nameInfo.normal.edited));
     m_lePhonemeNormal->setPlaceholderText(phonemesToString(nameInfo.normal.original));
 
-    m_lePhonemeFinal = new QLineEdit(phonemesToString(nameInfo.final.edited));
-    m_lePhonemeFinal->setPlaceholderText(phonemesToString(nameInfo.final.original));
-
     auto mainLayout = new QFormLayout;
     mainLayout->setLabelAlignment(Qt::AlignmentFlag::AlignRight | Qt::AlignmentFlag::AlignTrailing |
                                   Qt::AlignmentFlag::AlignVCenter);
@@ -50,7 +47,6 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     mainLayout->addRow(tr("Pronunciation:"), m_lePron);
     mainLayout->addRow(tr("Ahead Phonemes:"), m_lePhonemeAhead);
     mainLayout->addRow(tr("Normal Phonemes:"), m_lePhonemeNormal);
-    mainLayout->addRow(tr("Final Phonemes:"), m_lePhonemeFinal);
     mainLayout->setContentsMargins({});
 
     body()->setLayout(mainLayout);
@@ -79,13 +75,6 @@ NoteDialogResult NotePropertyDialog::result() {
         m_result.phonemeNameInfo.normal.edited = normalList;
     } else
         m_result.phonemeNameInfo.normal.edited = QList<QString>();
-
-    auto finalText = m_lePhonemeFinal->text();
-    if (!finalText.isNull() && !finalText.isEmpty()) {
-        auto finalList = phonemesFromString(m_lePhonemeFinal->text());
-        m_result.phonemeNameInfo.final.edited = finalList;
-    } else
-        m_result.phonemeNameInfo.final.edited = QList<QString>();
 
     return m_result;
 }

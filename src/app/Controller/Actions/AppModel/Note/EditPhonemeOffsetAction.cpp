@@ -13,8 +13,6 @@ EditPhonemeOffsetAction::EditPhonemeOffsetAction(Note *note, Phonemes::Type type
         m_oldOffsets = m_note->phonemeOffsetInfo().ahead.edited;
     else if (type == Phonemes::Normal)
         m_oldOffsets = m_note->phonemeOffsetInfo().normal.edited;
-    else if (type == Phonemes::Final)
-        m_oldOffsets = m_note->phonemeOffsetInfo().final.edited;
 }
 
 void EditPhonemeOffsetAction::execute() {

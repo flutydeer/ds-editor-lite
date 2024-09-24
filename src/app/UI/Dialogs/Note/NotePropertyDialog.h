@@ -27,7 +27,6 @@ private:
     QLineEdit *m_lePron;
     QLineEdit *m_lePhonemeAhead;
     QLineEdit *m_lePhonemeNormal;
-    QLineEdit *m_lePhonemeFinal;
     Note *m_note;
 
     static QString phonemesToString(const QList<QString> &phonemes);

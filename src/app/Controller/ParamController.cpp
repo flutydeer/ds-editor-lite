@@ -238,7 +238,7 @@ void ParamController::createAndRunGetPhonemeNameTask(SingingClip *clip) {
         inputs.append({note->lyric(), note->pronunciation().result()});
     auto task = new GetPhonemeNameTask(clip->id(), inputs);
     task->notesRef = clip->notes().toList();
-    qInfo() << "创建获取音素任务 clipId:" << clip->id() << "taskId:" << task->id()
+    qInfo() << "创建获取音素名称任务 clipId:" << clip->id() << "taskId:" << task->id()
             << "noteCount:" << clip->notes().count();
     connect(task, &Task::finished, this, [=] { handleGetPhonemeNameTaskFinished(task); });
     taskManager->addTask(task);
@@ -261,10 +261,9 @@ void ParamController::createAndRunInferDurTask(SingingClip *clip) {
             inputNote.length = note->length();
             inputNote.aheadNames = note->phonemeNameInfo().ahead.result();
             inputNote.normalNames = note->phonemeNameInfo().normal.result();
-            inputNote.finalNames = note->phonemeNameInfo().final.result();
             input.append(inputNote);
         }
-        auto durTask = new InferDurationTask(clip->id(), input);
+        auto durTask = new InferDurationTask(clip->id(),-1, input);
         qDebug() << "音素序列校验通过，创建时长推理任务 clipId:" << clip->id()
                  << "taskId:" << durTask->id();
         connect(durTask, &Task::finished, this, [=] { handleInferDurTaskFinished(durTask); });

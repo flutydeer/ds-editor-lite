@@ -8,8 +8,9 @@
 #include "Model/Inference/InferStatus.h"
 #include "Utils/Macros.h"
 
-interface IInferPiece {
+interface IInferPiece : public UniqueObject {
     I_DECL(IInferPiece)
+    I_NODSCD(int clipId() const);
     I_NODSCD(int startTick() const);
     I_NODSCD(int endTick() const);
     I_NODSCD(InferStatus status() const);

@@ -71,7 +71,7 @@ void SingingClip::reSegment() {
             }
         }
         if (!exists) {
-            auto newPiece = new InferPiece();
+            auto newPiece = new InferPiece(this);
             newPiece->notes = segment;
             newPieces.append(newPiece);
         }

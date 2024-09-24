@@ -14,11 +14,9 @@ public:
     int length = 0;
     QStringList aheadNames;
     QStringList normalNames;
-    QStringList finalNames;
 
     QList<int> aheadOffsets;
     QList<int> normalOffsets;
-    QList<int> finalOffsets;
 };
 
 // class InferDurationInput {
