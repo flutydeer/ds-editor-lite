@@ -10,6 +10,8 @@
 #include "Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
 
+#include <QTimer>
+
 SingingClip::SingingClip() : Clip() {
     defaultLanguage.setNotify(
         [=](const AppGlobal::LanguageType value) { emit defaultLanguageChanged(value); });
@@ -57,6 +59,9 @@ const QList<InferPiece *> &SingingClip::pieces() const {
 }
 
 void SingingClip::reSegment() {
+    // for (const auto &piece : m_pieces)
+    //     piece->status = Pending;
+
     auto newSegments = AppModelUtils::simpleSegment(m_notes.toList());
     QList<InferPiece *> newPieces;
     for (const auto &segment : newSegments) {
@@ -81,6 +86,10 @@ void SingingClip::reSegment() {
     m_pieces = newPieces;
     emit piecesChanged(m_pieces);
     qInfo() << "piecesChanged";
+    // QTimer::singleShot(1500, [=] {
+    //     for (const auto &piece : m_pieces)
+    //         piece->status = Failed;
+    // });
     for (const auto piece : temp)
         delete piece;
 }

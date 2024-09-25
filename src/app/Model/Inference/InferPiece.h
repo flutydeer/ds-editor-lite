@@ -15,31 +15,22 @@ class Note;
 class InferPiece : public QObject, public IInferPiece {
     Q_OBJECT
 public:
-    explicit InferPiece(SingingClip *clip) : QObject(clip), clip(clip){};
+    explicit InferPiece(SingingClip *clip) : QObject(clip), clip(clip) {
+        status.setNotify([=](const auto &value) { emit statusChanged(value); });
+    };
 
     [[nodiscard]] int clipId() const override;
 
     SingingClip *clip;
     QString singerName;
     QList<Note *> notes;
-    // QList<InferPhoneme> phonemes;
-    //
-    // InferParam pitch;
-    // InferParam breathiness;
-    // InferParam velocity;
-    // InferParam tension;
-    // InferParam gender;
-    // InferParam voicing;
+    Property<InferStatus> status = Pending;
 
     [[nodiscard]] int startTick() const override;
     [[nodiscard]] int endTick() const override;
-    [[nodiscard]] InferStatus status() const override;
 
 signals:
     void statusChanged(InferStatus status);
-
-private:
-    InferStatus m_status = Pending;
 };
 
 inline int InferPiece::clipId() const {
@@ -52,10 +43,6 @@ inline int InferPiece::startTick() const {
 
 inline int InferPiece::endTick() const {
     return notes.last()->rStart() + notes.last()->length();
-}
-
-inline InferStatus InferPiece::status() const {
-    return m_status;
 }
 
 #endif // INFERPIECE_H

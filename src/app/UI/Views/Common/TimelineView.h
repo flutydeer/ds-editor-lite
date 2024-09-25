@@ -44,15 +44,18 @@ private slots:
     void onPiecesChanged(const QList<InferPiece *> &pieces);
 
 private:
-    void drawPieces(QPainter *painter);
-    double tickToX(double tick);
-    double xToTick(double x);
+    void drawPieces(QPainter *painter) const;
+    double tickToX(double tick) const;
+    double xToTick(double x) const;
     double m_startTick = 0;
     double m_endTick = 0;
     int m_textPaddingLeft = 2;
     double m_position = 0;
     QList<InferPiece *> m_pieces;
     SingingClip *m_clip = nullptr;
+    const QList<QColor> m_piecesColors = {
+        QColor(100, 100, 100), QColor(255, 204, 153), QColor(155, 255, 162),
+        QColor(255, 155, 157)}; // Pending, Running, Success, Failed
 };
 
 

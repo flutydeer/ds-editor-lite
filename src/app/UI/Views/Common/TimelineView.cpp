@@ -57,6 +57,7 @@ void TimelineView::setDataContext(SingingClip *clip) {
             disconnect(m_clip, nullptr, this, nullptr);
         onPiecesChanged({});
     } else {
+        onPiecesChanged(clip->pieces());
         connect(clip, &SingingClip::piecesChanged, this, &TimelineView::onPiecesChanged);
         m_pieces = clip->pieces();
     }
@@ -166,26 +167,26 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
-    // for (const auto piece : m_pieces) {
-    //     disconnect(piece, nullptr, this, nullptr);
-    // }
-    // for (const auto piece : pieces) {
-    //     connect(piece, &InferPiece::statusChanged, this, [=](){});
-    // }
+    for (const auto piece : m_pieces) {
+        disconnect(piece, nullptr, this, nullptr);
+    }
+    for (const auto piece : pieces) {
+        connect(piece, &InferPiece::statusChanged, this, [=] { update(); });
+    }
     m_pieces = pieces;
     update();
 }
 
-void TimelineView::drawPieces(QPainter *painter) {
+void TimelineView::drawPieces(QPainter *painter) const {
     auto penWidth = 2;
-    auto y = rect().height() - penWidth;
+    auto y = rect().height() - penWidth / 2;
     QPen pen;
-    pen.setWidthF(2);
-    pen.setColor(QColor(159, 189, 255));
+    pen.setWidthF(penWidth);
     pen.setCapStyle(Qt::RoundCap);
-    painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
     for (const auto &piece : m_clip->pieces()) {
+        pen.setColor(m_piecesColors[piece->status]);
+        painter->setPen(pen);
         auto x1 = tickToX(piece->startTick() + m_clip->start());
         auto x2 = tickToX(piece->endTick() + m_clip->start());
         painter->drawLine(x1, y, x2, y);
@@ -193,13 +194,13 @@ void TimelineView::drawPieces(QPainter *painter) {
     }
 }
 
-double TimelineView::tickToX(double tick) {
+double TimelineView::tickToX(double tick) const {
     auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
     auto x = rect().width() * ratio;
     return x;
 }
 
-double TimelineView::xToTick(double x) {
+double TimelineView::xToTick(double x) const {
     auto tick = 1.0 * x / rect().width() * (m_endTick - m_startTick) + m_startTick;
     if (tick < 0)
         tick = 0;

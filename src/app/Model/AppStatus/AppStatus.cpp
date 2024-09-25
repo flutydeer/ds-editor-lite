@@ -7,23 +7,19 @@
 AppStatus::AppStatus() {
     // Modules
     languageModuleStatus.setNotify(
-        [=](const ModuleStatus value) { emit moduleStatusChanged(ModuleType::Language, value); });
+        [=](auto value) { emit moduleStatusChanged(ModuleType::Language, value); });
+    inferenceEngineStatus.setNotify(
+        [=](auto value) { emit moduleStatusChanged(ModuleType::Inference, value); });
 
     // Main Window
-    trackPanelCollapsed.setNotify(
-        [=](const bool value) { emit trackPanelCollapseStateChanged(value); });
-    clipPanelCollapsed.setNotify(
-        [=](const bool value) { emit clipPanelCollapseStateChanged(value); });
+    trackPanelCollapsed.setNotify([=](auto value) { emit trackPanelCollapseStateChanged(value); });
+    clipPanelCollapsed.setNotify([=](auto value) { emit clipPanelCollapseStateChanged(value); });
 
     // Project
-    quantize.setNotify([=](const int value) { emit quantizeChanged(value); });
-    projectEditableLength.setNotify(
-        [=](const int value) { emit projectEditableLengthChanged(value); });
-    selectedTrackIndex.setNotify(
-        [=](const int value) { emit selectedTrackIndexChanged(value); });
-    activeClipId.setNotify([=](const int value) { emit activeClipIdChanged(value); });
-    selectedNotes.setNotify(
-        [=](const QList<int> &value) { emit noteSelectionChanged(value); });
-    currentEditObject.setNotify(
-        [=](const EditObjectType value) { emit editingChanged(value); });
+    quantize.setNotify([=](auto value) { emit quantizeChanged(value); });
+    projectEditableLength.setNotify([=](auto value) { emit projectEditableLengthChanged(value); });
+    selectedTrackIndex.setNotify([=](auto value) { emit selectedTrackIndexChanged(value); });
+    activeClipId.setNotify([=](auto value) { emit activeClipIdChanged(value); });
+    selectedNotes.setNotify([=](auto value) { emit noteSelectionChanged(value); });
+    currentEditObject.setNotify([=](auto value) { emit editingChanged(value); });
 }
