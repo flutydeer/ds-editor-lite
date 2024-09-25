@@ -14,7 +14,7 @@ class GetPhonemeNameTask : public Task {
 public:
     explicit GetPhonemeNameTask(int clipId, const QList<PhonemeNameInput> &inputs);
     // [[nodiscard]] QList<Note *> &notes();
-    int clipId = -1;
+    int clipId() const;
     QList<Note *> notesRef;
 
     QList<PhonemeNameResult> result;
@@ -24,6 +24,7 @@ private:
     void processNotes();
 
     QMutex m_mutex;
+    int m_clipId = -1;
     QList<PhonemeNameInput> m_inputs;
     QString m_previewText;
 };

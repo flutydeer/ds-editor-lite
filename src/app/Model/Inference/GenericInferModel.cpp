@@ -53,6 +53,13 @@ bool InferWord::deserialize(const QJsonObject &obj) {
     return true;
 }
 
+double InferWord::length() const {
+    double result = 0.0;
+    for (const auto &note : notes)
+        result += note.duration;
+    return result;
+}
+
 QJsonObject InferRetake::serialize() const {
     return QJsonObject{
         {"start", start},

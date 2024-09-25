@@ -8,7 +8,7 @@ AppStatus::AppStatus() {
     // Modules
     languageModuleStatus.setNotify(
         [=](auto value) { emit moduleStatusChanged(ModuleType::Language, value); });
-    inferenceEngineStatus.setNotify(
+    inferEngineEnvStatus.setNotify(
         [=](auto value) { emit moduleStatusChanged(ModuleType::Inference, value); });
 
     // Main Window
@@ -20,6 +20,6 @@ AppStatus::AppStatus() {
     projectEditableLength.setNotify([=](auto value) { emit projectEditableLengthChanged(value); });
     selectedTrackIndex.setNotify([=](auto value) { emit selectedTrackIndexChanged(value); });
     activeClipId.setNotify([=](auto value) { emit activeClipIdChanged(value); });
-    selectedNotes.setNotify([=](auto value) { emit noteSelectionChanged(value); });
+    selectedNotes.setNotify([=](const auto &value) { emit noteSelectionChanged(value); });
     currentEditObject.setNotify([=](auto value) { emit editingChanged(value); });
 }

@@ -9,21 +9,32 @@
 #include "Modules/Task/Task.h"
 
 class InferDurationTask : public Task {
-
 public:
-    explicit InferDurationTask(int clipId, int pieceId, const QList<InferDurNote> &input);
+    struct InferDurInput {
+        int clipId = -1;
+        int pieceId = -1;
+        QList<InferDurNote> notes;
+        QString configPath;
+        double tempo;
+    };
+
+    int clipId() const;
+    int pieceId() const;
+    bool success = false;
+
+    explicit InferDurationTask(const InferDurInput &input);
     QList<InferDurNote> result();
-    int clipId = -1;
-    int pieceId = -1;
 
 private:
     void runTask() override;
     void abort();
     void buildPreviewText();
+    QString buildInputJson() const;
+    bool processOutput(const QString &json);
 
     QMutex m_mutex;
-    QList<InferDurNote> m_notes;
     QString m_previewText;
+    InferDurInput m_input;
 };
 
 

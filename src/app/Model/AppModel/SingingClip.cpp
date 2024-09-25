@@ -13,8 +13,8 @@
 #include <QTimer>
 
 SingingClip::SingingClip() : Clip() {
-    defaultLanguage.setNotify(
-        [=](const AppGlobal::LanguageType value) { emit defaultLanguageChanged(value); });
+    defaultLanguage.setNotify([=](auto value) { emit defaultLanguageChanged(value); });
+    configPath.setNotify([=](auto value) { emit configPathChanged(value); });
 }
 
 SingingClip::~SingingClip() {
@@ -77,6 +77,7 @@ void SingingClip::reSegment() {
         }
         if (!exists) {
             auto newPiece = new InferPiece(this);
+            newPiece->singerName = configPath;
             newPiece->notes = segment;
             newPieces.append(newPiece);
         }
@@ -92,6 +93,10 @@ void SingingClip::reSegment() {
     // });
     for (const auto piece : temp)
         delete piece;
+}
+
+InferPiece *SingingClip::findPieceById(int id) const {
+    return MathUtils::findItemById<InferPiece *>(m_pieces, id);
 }
 
 void SingingClip::copyCurves(const QList<Curve *> &source, QList<Curve *> &target) {

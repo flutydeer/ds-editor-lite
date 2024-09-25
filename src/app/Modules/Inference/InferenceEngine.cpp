@@ -5,6 +5,7 @@
 #include "InferenceEngine.h"
 
 #include "InitInferEngineTask.h"
+#include "LoadInferConfigTask.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Task/TaskManager.h"
 
@@ -23,18 +24,14 @@ InferenceEngine::InferenceEngine() {
     connect(initTask, &Task::finished, this, [=] {
         taskManager->removeTask(initTask);
         if (initTask->success)
-            appStatus->inferenceEngineStatus = AppStatus::ModuleStatus::Ready;
+            appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Ready;
         else
-            appStatus->inferenceEngineStatus = AppStatus::ModuleStatus::Error;
+            appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Error;
         delete initTask;
     });
     taskManager->addAndStartTask(initTask);
-    appStatus->inferenceEngineStatus = AppStatus::ModuleStatus::Loading;
+    appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Loading;
     return;
-
-    m_env.setDeviceIndex(0);
-    m_env.setDefaultSteps(20);
-    m_env.setDefaultDepth(1.0f);
 
     // Load input data (json format)
     std::ifstream dsFile(R"(C:\Users\fluty\Downloads\test_dsinfer_data_0.json)");
@@ -153,6 +150,26 @@ InferenceEngine::InferenceEngine() {
 }
 
 InferenceEngine::~InferenceEngine() {
+    dispose();
+}
+
+bool InferenceEngine::initialized() {
+    QMutexLocker lock(&m_mutex);
+    return m_initialized;
+}
+
+void InferenceEngine::loadConfig(const QString &path) {
+    m_configLoaded = false;
+    auto task = new LoadInferConfigTask(path);
+    connect(task, &Task::finished, this, [=] {
+        taskManager->removeTask(task);
+        if (task->success) {
+            m_configLoaded = true;
+            m_configPath = path;
+        }
+        delete task;
+    });
+    taskManager->addAndStartTask(task);
 }
 
 bool InferenceEngine::initialize(QString &error) {
@@ -165,22 +182,105 @@ bool InferenceEngine::initialize(QString &error) {
         m_initialized = false;
         return false;
     }
-    qInfo() << "Successfully loaded environment. Execution provider: DirectML";
+    m_env.setDeviceIndex(0);
+    m_env.setDefaultSteps(20);
+    m_env.setDefaultDepth(1.0f);
     m_initialized = true;
+    qInfo() << "Successfully loaded environment. Execution provider: DirectML";
     return true;
 }
 
-bool InferenceEngine::initialized() {
-    QMutexLocker lock(&m_mutex);
-    return m_initialized;
-}
+bool InferenceEngine::runLoadConfig(const QString &path) {
+    if (path == m_configPath)
+        return m_configLoaded;
 
-bool InferenceEngine::loadConfig(const QString &path) {
-    m_configPath = path;
+    if (!m_initialized) {
+        qFatal() << "runLoadConfig: Environment is not initialized!";
+        return false;
+    }
+
+    // Load models
+    bool loadDsConfigOk;
+
+    std::string dsConfigPath = path.toStdString();
+    auto dsConfig = DsConfig::fromYAML(dsConfigPath, &loadDsConfigOk);
+
+    auto dsVocoderConfigPath =
+        std::filesystem::path(dsConfigPath).parent_path() / "dsvocoder" / "vocoder.yaml";
+    auto dsVocoderConfig = DsVocoderConfig::fromYAML(dsVocoderConfigPath, &loadDsConfigOk);
+
+    auto durConfigPath =
+        std::filesystem::path(dsConfigPath).parent_path() / "dsdur" / "dsconfig.yaml";
+    auto durConfig = DsDurConfig::fromYAML(durConfigPath, &loadDsConfigOk);
+
+    auto pitchConfigPath =
+        std::filesystem::path(dsConfigPath).parent_path() / "dspitch" / "dsconfig.yaml";
+    auto pitchConfig = DsPitchConfig::fromYAML(pitchConfigPath, &loadDsConfigOk);
+
+    auto varianceConfigPath =
+        std::filesystem::path(dsConfigPath).parent_path() / "dsvariance" / "dsconfig.yaml";
+    auto varianceConfig = DsVarianceConfig::fromYAML(varianceConfigPath, &loadDsConfigOk);
+
+    if (!loadDsConfigOk) {
+        qCritical() << "Failed to load config";
+        return false;
+    }
+
+    m_durationInfer = new DurationInference(durConfig);
+    m_durationInfer->open();
+
+    m_pitchInfer = new PitchInference(pitchConfig);
+    m_pitchInfer->open();
+
+    m_varianceInfer = new VarianceInference(varianceConfig);
+    m_varianceInfer->open();
+
+    m_acousticInfer = new AcousticInference(dsConfig, dsVocoderConfig);
+    m_acousticInfer->open();
+
+    qInfo() << "Successfully loaded config";
+    m_configLoaded = true;
     return true;
 }
 
-QString InferenceEngine::config() {
+bool InferenceEngine::inferDuration(const QString &input, QString &output, QString &error) const {
+    if (!m_initialized) {
+        qCritical() << "inferDuration: Environment is not initialized";
+        return false;
+    }
+    if (!m_configLoaded) {
+        qCritical() << "inferDuration: Config is not loaded";
+    }
+    Status s;
+    auto segment = Segment::fromJson(input.toStdString(), &s);
+    if (!s.isOk()) {
+        error = QString::fromStdString(s.msg);
+        return false;
+    }
+
+    // Run duration inference. The segment will be modified in-place.
+    if (!m_durationInfer->runInPlace(segment, &s)) {
+        qCritical() << "Failed to run duration inference: " << s.msg << '\n';
+        return false;
+    }
+
+    output = QString::fromStdString(segment.toJson());
+    return true;
+}
+
+void InferenceEngine::dispose() const {
+    delete m_durationInfer;
+    delete m_pitchInfer;
+    delete m_varianceInfer;
+    delete m_acousticInfer;
+}
+
+QString InferenceEngine::configPath() {
     QMutexLocker lock(&m_mutex);
     return m_configPath;
+}
+
+bool InferenceEngine::configLoaded() {
+    QMutexLocker lock(&m_mutex);
+    return m_configLoaded;
 }

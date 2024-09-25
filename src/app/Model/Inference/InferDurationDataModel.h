@@ -12,6 +12,9 @@ public:
     int id = -1;
     int start = 0;
     int length = 0;
+    int key = -1;
+    bool isRest = false;
+    bool isSlur = false;
     QStringList aheadNames;
     QStringList normalNames;
 

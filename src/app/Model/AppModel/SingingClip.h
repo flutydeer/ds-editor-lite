@@ -34,6 +34,7 @@ public:
     [[nodiscard]] const OverlappableSerialList<Note> &notes() const;
     Property<AppGlobal::LanguageType> defaultLanguage = AppGlobal::unknown;
     ParamInfo params;
+    Property<QString> configPath;
 
     void insertNote(Note *note);
     void removeNote(Note *note);
@@ -42,11 +43,13 @@ public:
     void notifyParamChanged(ParamInfo::Name name, Param::Type type);
     [[nodiscard]] const QList<InferPiece *> &pieces() const;
     void reSegment();
+    InferPiece *findPieceById(int id) const;
 
     static void copyCurves(const QList<Curve *> &source, QList<Curve *> &target);
     static void copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target);
 
 signals:
+    void configPathChanged(QString path);
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamInfo::Name name, Param::Type type);
     void defaultLanguageChanged(AppGlobal::LanguageType language);

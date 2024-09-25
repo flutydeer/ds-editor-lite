@@ -15,12 +15,13 @@ class GetPronunciationTask : public Task {
 
 public:
     explicit GetPronunciationTask(int clipId, const QList<Note *> &notes);
-    int clipId = -1;
+    int clipId() const;
     QList<Note *> notesRef;
     QStringList result;
 
 private:
     void runTask() override;
+    int m_clipId = -1;
     QList<Note *> m_notes;
     QString m_previewText;
 };

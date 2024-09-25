@@ -6,6 +6,7 @@
 #define GENERICINFERMODEL_H
 
 #include "Interface/ISerializable.h"
+#include "Modules/Inference/InferDurationTask.h"
 
 class InferPhoneme final : public ISerializable {
 public:
@@ -22,7 +23,7 @@ public:
     int key = 0;
     int cents = 0;
     double duration = 0; // s
-    QString glide;
+    QString glide = "none";
     bool is_rest = false;
 
     [[nodiscard]] QJsonObject serialize() const override;
@@ -36,6 +37,8 @@ public:
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
+
+    [[nodiscard]] double length() const;
 };
 
 class InferRetake final : public ISerializable {

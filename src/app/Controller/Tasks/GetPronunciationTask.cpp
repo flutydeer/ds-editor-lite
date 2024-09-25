@@ -9,7 +9,7 @@
 #include <QDebug>
 
 GetPronunciationTask::GetPronunciationTask(int clipId, const QList<Note *> &notes)
-    : clipId(clipId), m_notes(notes) {
+    : m_clipId(clipId), m_notes(notes) {
     notesRef = notes;
     for (int i = 0; i < notes.count(); i++) {
         m_previewText.append(notes.at(i)->lyric());
@@ -23,6 +23,10 @@ GetPronunciationTask::GetPronunciationTask(int clipId, const QList<Note *> &note
     status.message = m_previewText;
     status.isIndetermine = true;
     setStatus(status);
+}
+
+int GetPronunciationTask::clipId() const {
+    return m_clipId;
 }
 
 void GetPronunciationTask::runTask(){

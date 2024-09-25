@@ -24,7 +24,7 @@ public:
 
     // Modules
     Property<ModuleStatus> languageModuleStatus = ModuleStatus::Unknown;
-    Property<ModuleStatus> inferenceEngineStatus = ModuleStatus::Unknown;
+    Property<ModuleStatus> inferEngineEnvStatus = ModuleStatus::Unknown;
 
     // Main Window
     Property<bool> trackPanelCollapsed = false;
