@@ -16,7 +16,7 @@ class AppStatus : public QObject, public Singleton<AppStatus> {
     Q_OBJECT
 
 public:
-    enum class ModuleType { Audio, Language };
+    enum class ModuleType { Audio, Language, Inference };
     enum class ModuleStatus { Ready, Loading, Error, Unknown };
     enum class EditObjectType { None, Clip, Note, Phoneme, Param };
 
@@ -24,6 +24,7 @@ public:
 
     // Modules
     Property<ModuleStatus> languageModuleStatus = ModuleStatus::Unknown;
+    Property<ModuleStatus> inferenceEngineStatus = ModuleStatus::Unknown;
 
     // Main Window
     Property<bool> trackPanelCollapsed = false;

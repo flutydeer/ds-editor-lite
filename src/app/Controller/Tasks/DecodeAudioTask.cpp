@@ -46,7 +46,6 @@ void DecodeAudioTask::runTask() {
     if (sfErrCode) {
         success = false;
         errorMessage = sfErrMsg;
-        emit finished();
         return;
     }
 
@@ -73,7 +72,6 @@ void DecodeAudioTask::runTask() {
             status.runningStatus = TaskGlobal::Error;
             setStatus(status);
             // QThread::sleep(3);
-            emit finished();
             return;
         }
         samplesRead = sf.read(buffer.data(), m_chunkSize * m_channels);
@@ -134,7 +132,6 @@ void DecodeAudioTask::runTask() {
             status.runningStatus = TaskGlobal::Error;
             setStatus(status);
             // QThread::sleep(3);
-            emit finished();
             return;
         }
         if ((i + 1) % m_mipmapScale == 0) {
@@ -158,5 +155,4 @@ void DecodeAudioTask::runTask() {
 
     // QThread::msleep(3000);
     success = true;
-    emit finished();
 }

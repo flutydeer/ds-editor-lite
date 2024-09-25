@@ -49,7 +49,6 @@ void InferDurationTask::runTask() {
         return;
     }
     qDebug() << "任务正常完成 taskId:" << id();
-    emit finished();
 }
 
 void InferDurationTask::abort() {
@@ -59,7 +58,6 @@ void InferDurationTask::abort() {
     newStatus.isIndetermine = true;
     setStatus(newStatus);
     // QThread::sleep(2);
-    emit finished();
 }
 
 void InferDurationTask::buildPreviewText() {

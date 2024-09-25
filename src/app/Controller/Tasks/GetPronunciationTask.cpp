@@ -29,9 +29,7 @@ void GetPronunciationTask::runTask(){
     result = NoteWordUtils::getPronunciations(m_notes);
     if (isTerminateRequested()) {
         qWarning() << "任务被终止 taskId:" << id();
-        emit finished();
         return;
     }
     qDebug() << "任务正常完成 taskId:" << id();
-    emit finished();
 }

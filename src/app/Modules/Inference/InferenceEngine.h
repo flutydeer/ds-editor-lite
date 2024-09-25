@@ -5,6 +5,8 @@
 #ifndef INFERENCEENGINE_H
 #define INFERENCEENGINE_H
 
+#define inferEngine InferenceEngine::instance()
+
 #include "Utils/Singleton.h"
 
 #include <QMutex>
@@ -12,11 +14,17 @@
 
 #include <dsonnxinfer/Environment.h>
 
-class InferenceEngine : public QObject, public Singleton<InferenceEngine> {
+using namespace dsonnxinfer;
+
+class InferenceEngine final : public QObject, public Singleton<InferenceEngine> {
     Q_OBJECT
+
 public:
     InferenceEngine();
-    bool initialize();
+    ~InferenceEngine() override;
+    InferenceEngine(InferenceEngine const &) = delete;
+
+    bool initialize(QString &error);
     bool initialized();
     bool loadConfig(const QString &path);
     QString config();
@@ -25,7 +33,7 @@ private:
     QMutex m_mutex;
     bool m_initialized = false;
 
-    dsonnxinfer::Environment m_env;
+    Environment m_env;
     QString m_configPath;
 };
 

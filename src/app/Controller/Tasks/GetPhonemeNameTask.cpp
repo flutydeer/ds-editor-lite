@@ -63,11 +63,9 @@ void GetPhonemeNameTask::runTask() {
     }*/
     if (isTerminateRequested()) {
         qWarning() << "任务被终止 taskId:" << id();
-        emit finished();
         return;
     }
     qDebug() << "任务正常完成 taskId:" << id();
-    emit finished();
 }
 
 void GetPhonemeNameTask::processNotes() {

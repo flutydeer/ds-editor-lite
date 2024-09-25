@@ -4,6 +4,10 @@
 
 #include "InferenceEngine.h"
 
+#include "InitInferEngineTask.h"
+#include "Model/AppStatus/AppStatus.h"
+#include "Modules/Task/TaskManager.h"
+
 #include <dsonnxinfer/AcousticInference.h>
 #include <dsonnxinfer/DurationInference.h>
 #include <dsonnxinfer/PitchInference.h>
@@ -14,12 +18,19 @@
 #include <sstream>
 #include <fstream>
 
-using namespace dsonnxinfer;
-
 InferenceEngine::InferenceEngine() {
+    auto initTask = new InitInferEngineTask;
+    connect(initTask, &Task::finished, this, [=] {
+        taskManager->removeTask(initTask);
+        if (initTask->success)
+            appStatus->inferenceEngineStatus = AppStatus::ModuleStatus::Ready;
+        else
+            appStatus->inferenceEngineStatus = AppStatus::ModuleStatus::Error;
+        delete initTask;
+    });
+    taskManager->addAndStartTask(initTask);
+    appStatus->inferenceEngineStatus = AppStatus::ModuleStatus::Loading;
     return;
-    if (!initialize())
-        return;
 
     m_env.setDeviceIndex(0);
     m_env.setDefaultSteps(20);
@@ -141,16 +152,20 @@ InferenceEngine::InferenceEngine() {
     acousticInference.close();
 }
 
-bool InferenceEngine::initialize() {
+InferenceEngine::~InferenceEngine() {
+}
+
+bool InferenceEngine::initialize(QString &error) {
     std::string errorMessage;
 
     // Load environment (must do this before inference)
     if (!m_env.load("onnxruntime", EP_DirectML, &errorMessage)) {
         qCritical() << "Failed to load environment:" << errorMessage;
+        error += errorMessage;
         m_initialized = false;
         return false;
     }
-    qInfo() << "Successfully loaded environment. EP: DirectML";
+    qInfo() << "Successfully loaded environment. Execution provider: DirectML";
     m_initialized = true;
     return true;
 }

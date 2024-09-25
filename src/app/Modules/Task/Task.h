@@ -73,6 +73,7 @@ private:
         if (!m_started) {
             m_started = true;
             runTask();
+            emit finished();
             m_stopped = true;
         }
     }
