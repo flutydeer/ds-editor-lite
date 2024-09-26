@@ -15,7 +15,7 @@
 #include "Utils/NoteWordUtils.h"
 #include "Utils/OriginalParamUtils.h"
 
-InferController::InferController() {
+InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
     Q_D(InferController);
     connect(appModel, &AppModel::modelChanged, d, &InferControllerPrivate::onModelChanged);
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
