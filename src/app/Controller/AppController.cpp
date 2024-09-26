@@ -7,7 +7,7 @@
 #include "AppController_p.h"
 #include "AudioDecodingController.h"
 #include "ClipController.h"
-#include "ParamController.h"
+#include "InferController.h"
 #include "ProjectStatusController.h"
 #include "TrackController.h"
 #include "ValidationController.h"
@@ -21,7 +21,7 @@
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/History/HistoryManager.h"
-#include "Modules/Inference/InferenceEngine.h"
+#include "Modules/Inference/InferEngine.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
@@ -218,8 +218,8 @@ void AppController::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clip
 }
 
 void AppControllerPrivate::initializeModules() {
-    InferenceEngine::instance();
-    ParamController::instance();
+    InferEngine::instance();
+    InferController::instance();
     ProjectStatusController::instance();
     ValidationController::instance();
 

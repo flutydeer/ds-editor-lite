@@ -3,7 +3,7 @@
 //
 
 #include "Controller/AppController.h"
-#include "Controller/ParamController.h"
+#include "Controller/InferController.h"
 #include "Controller/ProjectStatusController.h"
 
 

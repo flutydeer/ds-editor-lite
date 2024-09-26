@@ -1,9 +1,9 @@
 //
-// Created by OrangeCat on 24-9-3.
+// Created by fluty on 24-9-26.
 //
 
-#ifndef PARAMCONTROLLER_H
-#define PARAMCONTROLLER_H
+#ifndef INFERCONTROLLERPRIVATE_H
+#define INFERCONTROLLERPRIVATE_H
 
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
@@ -11,31 +11,33 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/InferDurationTask.h"
 #include "Utils/Queue.h"
-#include "Utils/Singleton.h"
 
 #include <QObject>
 
 class GetPronunciationTask;
 class GetPhonemeNameTask;
+class InferController;
 
-class ParamController : public QObject, public Singleton<ParamController> {
+class InferControllerPrivate : public QObject {
     Q_OBJECT
+    Q_DECLARE_PUBLIC(InferController)
 
 public:
-    explicit ParamController();
+    explicit InferControllerPrivate(InferController *q) : q_ptr(q){};
 
-private slots:
+public slots:
     void onModelChanged();
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
     void onEditingChanged(AppStatus::EditObjectType type);
 
-private:
+public:
     void handleClipInserted(Clip *clip);
     void handleClipRemoved(Clip *clip);
 
-    void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes, SingingClip *clip);
+    void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,
+                           SingingClip *clip);
 
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
     void handleGetPronTaskFinished(GetPronunciationTask *task);
@@ -64,8 +66,11 @@ private:
 
     Queue<InferDurationTask *> m_inferDurTaskQueue;
     InferDurationTask *m_runningInferDurTask = nullptr;
+
+private:
+    InferController *q_ptr = nullptr;
 };
 
 
 
-#endif // PARAMCONTROLLER_H
+#endif // INFERCONTROLLERPRIVATE_H

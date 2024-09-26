@@ -2,10 +2,10 @@
 // Created by fluty on 24-9-25.
 //
 
-#ifndef INFERENCEENGINE_H
-#define INFERENCEENGINE_H
+#ifndef INFERENGINE_H
+#define INFERENGINE_H
 
-#define inferEngine InferenceEngine::instance()
+#define inferEngine InferEngine::instance()
 
 #include "Utils/Singleton.h"
 
@@ -23,13 +23,13 @@ namespace dsonnxinfer {
 
 using namespace dsonnxinfer;
 
-class InferenceEngine final : public QObject, public Singleton<InferenceEngine> {
+class InferEngine final : public QObject, public Singleton<InferEngine> {
     Q_OBJECT
 
 public:
-    InferenceEngine();
-    ~InferenceEngine() override;
-    InferenceEngine(InferenceEngine const &) = delete;
+    InferEngine();
+    ~InferEngine() override;
+    InferEngine(InferEngine const &) = delete;
 
     bool initialized();
     // void loadConfig(const QString &path);
@@ -59,4 +59,4 @@ private:
 };
 
 
-#endif // INFERENCEENGINE_H
+#endif // INFERENGINE_H

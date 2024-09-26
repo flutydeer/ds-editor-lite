@@ -4,7 +4,7 @@
 
 #include "InferDurationTask.h"
 
-#include "InferenceEngine.h"
+#include "InferEngine.h"
 #include "Model/Inference/GenericInferModel.h"
 #include "Utils/JsonUtils.h"
 

@@ -2,7 +2,7 @@
 // Created by fluty on 24-9-25.
 //
 
-#include "InferenceEngine.h"
+#include "InferEngine.h"
 
 #include "InitInferEngineTask.h"
 #include "LoadInferConfigTask.h"
@@ -19,7 +19,7 @@
 #include <sstream>
 #include <fstream>
 
-InferenceEngine::InferenceEngine() {
+InferEngine::InferEngine() {
     auto initTask = new InitInferEngineTask;
     connect(initTask, &Task::finished, this, [=] {
         taskManager->removeTask(initTask);
@@ -149,11 +149,11 @@ InferenceEngine::InferenceEngine() {
     acousticInference.close();
 }
 
-InferenceEngine::~InferenceEngine() {
+InferEngine::~InferEngine() {
     dispose();
 }
 
-bool InferenceEngine::initialized() {
+bool InferEngine::initialized() {
     QMutexLocker lock(&m_mutex);
     return m_initialized;
 }
@@ -172,7 +172,7 @@ bool InferenceEngine::initialized() {
 //     taskManager->addAndStartTask(task);
 // }
 
-bool InferenceEngine::initialize(QString &error) {
+bool InferEngine::initialize(QString &error) {
     std::string errorMessage;
 
     // Load environment (must do this before inference)
@@ -190,7 +190,7 @@ bool InferenceEngine::initialize(QString &error) {
     return true;
 }
 
-bool InferenceEngine::runLoadConfig(const QString &path) {
+bool InferEngine::runLoadConfig(const QString &path) {
     if (path == m_configPath) {
         qInfo() << "Already loaded config";
         return m_configLoaded;
@@ -247,7 +247,7 @@ bool InferenceEngine::runLoadConfig(const QString &path) {
     return true;
 }
 
-bool InferenceEngine::inferDuration(const QString &input, QString &output, QString &error) const {
+bool InferEngine::inferDuration(const QString &input, QString &output, QString &error) const {
     if (!m_initialized) {
         qCritical() << "inferDuration: Environment is not initialized";
         return false;
@@ -272,19 +272,19 @@ bool InferenceEngine::inferDuration(const QString &input, QString &output, QStri
     return true;
 }
 
-void InferenceEngine::dispose() const {
+void InferEngine::dispose() const {
     delete m_durationInfer;
     delete m_pitchInfer;
     delete m_varianceInfer;
     delete m_acousticInfer;
 }
 
-QString InferenceEngine::configPath() {
+QString InferEngine::configPath() {
     QMutexLocker lock(&m_mutex);
     return m_configPath;
 }
 
-bool InferenceEngine::configLoaded() {
+bool InferEngine::configLoaded() {
     QMutexLocker lock(&m_mutex);
     return m_configLoaded;
 }
