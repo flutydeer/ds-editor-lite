@@ -23,7 +23,7 @@ class InferControllerPrivate : public QObject {
     Q_DECLARE_PUBLIC(InferController)
 
 public:
-    explicit InferControllerPrivate(InferController *q) : q_ptr(q){};
+    explicit InferControllerPrivate(InferController *q) : QObject(q), q_ptr(q){};
 
 public slots:
     void onModelChanged();

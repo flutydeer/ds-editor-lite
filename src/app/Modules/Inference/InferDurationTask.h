@@ -5,10 +5,11 @@
 #ifndef INFERDURATIONTASK_H
 #define INFERDURATIONTASK_H
 
-#include "Model/Inference/InferDurationDataModel.h"
 #include "Modules/Task/Task.h"
 
-class InferDurationTask : public Task {
+class InferDurNote;
+
+class InferDurationTask final : public Task {
 public:
     struct InferDurInput {
         int clipId = -1;

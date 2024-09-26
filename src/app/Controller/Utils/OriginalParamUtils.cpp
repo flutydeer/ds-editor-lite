@@ -4,8 +4,12 @@
 
 #include "OriginalParamUtils.h"
 
-
+#include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Model/Inference/InferDurNote.h"
+#include "Model/Inference/PhonemeNameModel.h"
+
+#include <QDebug>
 
 void OriginalParamUtils::updateNotesPronunciation(const QList<Note *> &notes,
                                                   const QList<QString> &args, SingingClip *clip) {

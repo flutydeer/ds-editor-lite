@@ -5,10 +5,12 @@
 #ifndef ORIGINALPARAMUTILS_H
 #define ORIGINALPARAMUTILS_H
 
-#include "Model/AppModel/Note.h"
-#include "Model/Inference/InferDurationDataModel.h"
-#include "Model/Inference/PhonemeNameModel.h"
+#include <QList>
 
+class Note;
+class SingingClip;
+class InferDurNote;
+class PhonemeNameResult;
 class OriginalParamUtils {
 public:
     static void updateNotesPronunciation(const QList<Note *> &notes, const QList<QString> &args,

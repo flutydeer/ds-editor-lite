@@ -6,6 +6,7 @@
 #include "InferController_p.h"
 
 #include "Actions/AppModel/Note/NoteActions.h"
+#include "Model/Inference/InferDurNote.h"
 #include "Model/Inference/InferPiece.h"
 #include "Modules/Inference/InferDurationTask.h"
 #include "Modules/Task/TaskManager.h"
@@ -253,16 +254,7 @@ void InferControllerPrivate::createAndRunInferDurTask(SingingClip *clip) {
     auto inferDur = [=](const InferPiece &piece) {
         QList<InferDurNote> inputNotes;
         for (const auto note : piece.notes) {
-            InferDurNote inputNote;
-            inputNote.id = note->id();
-            inputNote.start = note->rStart();
-            inputNote.length = note->length();
-            inputNote.key = note->keyIndex();
-            inputNote.isRest = note->lyric() == "SP" || note->lyric() == "AP";
-            inputNote.isSlur = note->isSlur();
-            inputNote.aheadNames = note->phonemeNameInfo().ahead.result();
-            inputNote.normalNames = note->phonemeNameInfo().normal.result();
-            inputNotes.append(inputNote);
+            inputNotes.append(InferDurNote(*note));
         }
         auto durTask = new InferDurationTask(
             {clip->id(), piece.id(), inputNotes,

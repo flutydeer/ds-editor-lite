@@ -6,6 +6,7 @@
 
 #include "InferEngine.h"
 #include "Model/Inference/GenericInferModel.h"
+#include "Model/Inference/InferDurNote.h"
 #include "Utils/JsonUtils.h"
 
 #include <QThread>
@@ -42,6 +43,7 @@ QList<InferDurNote> InferDurationTask::result() {
 void InferDurationTask::runTask() {
     auto newStatus = status();
     newStatus.message = "正在推理: " + m_previewText;
+    setStatus(newStatus);
 
     inferEngine->runLoadConfig(m_input.configPath);
     if (isTerminateRequested()) {
