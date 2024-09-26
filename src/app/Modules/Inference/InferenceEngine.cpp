@@ -158,19 +158,19 @@ bool InferenceEngine::initialized() {
     return m_initialized;
 }
 
-void InferenceEngine::loadConfig(const QString &path) {
-    m_configLoaded = false;
-    auto task = new LoadInferConfigTask(path);
-    connect(task, &Task::finished, this, [=] {
-        taskManager->removeTask(task);
-        if (task->success) {
-            m_configLoaded = true;
-            m_configPath = path;
-        }
-        delete task;
-    });
-    taskManager->addAndStartTask(task);
-}
+// void InferenceEngine::loadConfig(const QString &path) {
+//     m_configLoaded = false;
+//     auto task = new LoadInferConfigTask(path);
+//     connect(task, &Task::finished, this, [=] {
+//         taskManager->removeTask(task);
+//         if (task->success) {
+//             m_configLoaded = true;
+//             m_configPath = path;
+//         }
+//         delete task;
+//     });
+//     taskManager->addAndStartTask(task);
+// }
 
 bool InferenceEngine::initialize(QString &error) {
     std::string errorMessage;
@@ -191,8 +191,10 @@ bool InferenceEngine::initialize(QString &error) {
 }
 
 bool InferenceEngine::runLoadConfig(const QString &path) {
-    if (path == m_configPath)
+    if (path == m_configPath) {
+        qInfo() << "Already loaded config";
         return m_configLoaded;
+    }
 
     if (!m_initialized) {
         qFatal() << "runLoadConfig: Environment is not initialized!";
@@ -200,6 +202,7 @@ bool InferenceEngine::runLoadConfig(const QString &path) {
     }
 
     // Load models
+    m_configLoaded = false;
     bool loadDsConfigOk;
 
     std::string dsConfigPath = path.toStdString();
@@ -240,6 +243,7 @@ bool InferenceEngine::runLoadConfig(const QString &path) {
 
     qInfo() << "Successfully loaded config";
     m_configLoaded = true;
+    m_configPath = path;
     return true;
 }
 

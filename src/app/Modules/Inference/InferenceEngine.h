@@ -32,7 +32,7 @@ public:
     InferenceEngine(InferenceEngine const &) = delete;
 
     bool initialized();
-    void loadConfig(const QString &path);
+    // void loadConfig(const QString &path);
     QString configPath();
     bool configLoaded();
 
