@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <QList>
 
 namespace Linq {
     // template <typename TContainer, typename TPredicate>

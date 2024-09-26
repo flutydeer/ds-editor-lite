@@ -24,7 +24,7 @@ GetPhonemeNameTask::GetPhonemeNameTask(int clipId, const QList<PhonemeNameInput>
         }
     }
     TaskStatus status;
-    status.title = "获取音素信息";
+    status.title = "获取音素名称";
     status.message = m_previewText;
     status.isIndetermine = true;
     setStatus(status);
@@ -35,37 +35,9 @@ int GetPhonemeNameTask::clipId() const {
 }
 
 void GetPhonemeNameTask::runTask() {
-    // if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+    qDebug() << "Running task..."
+             << "clipId:" << clipId() << "taskId:" << id();
     processNotes();
-    /*else {
-        qDebug() << "Waiting for language module ready";
-        auto newStatus = status();
-        newStatus.message = "正在等待语言模块就绪... ";
-        setStatus(newStatus);
-
-        QEventLoop loop;
-
-        // 连接信号，在模块状态就绪时退出事件循环
-        connect(appStatus, &AppStatus::moduleStatusChanged, this,
-                [&loop, this](AppStatus::ModuleType module, AppStatus::ModuleStatus status) {
-                    if (module == AppStatus::ModuleType::Language &&
-                        status != AppStatus::ModuleStatus::Loading) {
-                        loop.quit();
-                    }
-                });
-
-        // 运行事件循环，阻塞当前线程，直到信号触发
-        loop.exec();
-
-        // 信号触发后，执行耗时操作
-        if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
-            processNotes();
-        else {
-            qCritical()
-                << "Failed to get pronunciation and phoneme: Language module not ready";
-            emit finished(false);
-        }
-    }*/
     if (isTerminateRequested()) {
         qWarning() << "任务被终止 taskId:" << id();
         return;

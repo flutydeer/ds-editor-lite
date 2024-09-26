@@ -10,7 +10,7 @@
 #include "Model/AppModel/Track.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/InferDurationTask.h"
-#include "Utils/Queue.h"
+#include "Modules/Task/TaskQueue.h"
 
 #include <QObject>
 
@@ -58,14 +58,9 @@ public:
     QList<Track *> m_tracks;
     // QList<Clip *> m_clips;
 
-    Queue<GetPronunciationTask *> m_getPronTaskQueue;
-    GetPronunciationTask *m_runningGetPronTask = nullptr;
-
-    Queue<GetPhonemeNameTask *> m_getPhonemeNameTaskQueue;
-    GetPhonemeNameTask *m_runningGetPhonemeNameTask = nullptr;
-
-    Queue<InferDurationTask *> m_inferDurTaskQueue;
-    InferDurationTask *m_runningInferDurTask = nullptr;
+    TaskQueue<GetPronunciationTask> m_getPronTasks;
+    TaskQueue<GetPhonemeNameTask> m_getPhoneTasks;
+    TaskQueue<InferDurationTask> m_inferDurTasks;
 
 private:
     InferController *q_ptr = nullptr;

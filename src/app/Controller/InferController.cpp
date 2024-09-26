@@ -33,15 +33,13 @@ void InferControllerPrivate::onModelChanged() {
 }
 
 void InferControllerPrivate::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
-                                     Track *track) {
+                                            Track *track) {
     if (type == AppModel::Insert) {
-        // qDebug() << "onTrackChanged" << "Insert";
         m_tracks.append(track);
         for (const auto clip : track->clips())
             handleClipInserted(clip);
         connect(track, &Track::clipChanged, this, &InferControllerPrivate::onClipChanged);
     } else if (type == AppModel::Remove) {
-        // qDebug() << "onTrackChanged" << "Remove";
         m_tracks.removeOne(track);
         for (const auto clip : track->clips())
             handleClipRemoved(clip);
@@ -51,16 +49,14 @@ void InferControllerPrivate::onTrackChanged(AppModel::TrackChangeType type, qsiz
 
 void InferControllerPrivate::onClipChanged(Track::ClipChangeType type, Clip *clip) {
     if (type == Track::Inserted) {
-        // qDebug() << "onClipChanged" << "Inserted";
         handleClipInserted(clip);
     } else if (type == Track::Removed) {
-        // qDebug() << "onClipChanged" << "Removed";
         handleClipRemoved(clip);
     }
 }
 
 void InferControllerPrivate::onModuleStatusChanged(AppStatus::ModuleType module,
-                                            AppStatus::ModuleStatus status) {
+                                                   AppStatus::ModuleStatus status) {
     if (module == AppStatus::ModuleType::Language) {
         handleLanguageModuleStatusChanged(status);
     }
@@ -84,7 +80,6 @@ void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
 }
 
 void InferControllerPrivate::handleClipInserted(Clip *clip) {
-    // m_clips.append(clip);
     if (clip->clipType() == Clip::Singing) {
         auto singingClip = reinterpret_cast<SingingClip *>(clip);
         connect(singingClip, &SingingClip::noteChanged, this,
@@ -97,14 +92,12 @@ void InferControllerPrivate::handleClipInserted(Clip *clip) {
 }
 
 void InferControllerPrivate::handleClipRemoved(Clip *clip) {
-    qDebug() << "handleClipRemoved" << clip->id();
-    // m_clips.removeOne(clip);
     cancelClipRelatedTasks(clip);
     disconnect(clip, nullptr, this, nullptr);
 }
 
 void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
-                                        const QList<Note *> &notes, SingingClip *clip) {
+                                               const QList<Note *> &notes, SingingClip *clip) {
     switch (type) {
         case SingingClip::Insert:
         case SingingClip::Remove:
@@ -124,7 +117,7 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(AppStatus::Module
         qDebug() << "语言模块就绪，开始运行任务";
         runNextGetPronTask();
     } else if (status == AppStatus::ModuleStatus::Error) {
-        for (const auto task : m_getPronTaskQueue) {
+        for (const auto task : m_getPronTasks.pending) {
             taskManager->removeTask(task);
             disconnect(task, nullptr, this, nullptr);
             delete task;
@@ -139,7 +132,7 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask *tas
             << "terminate:" << terminate;
     disconnect(task, nullptr, this, nullptr);
     taskManager->removeTask(task);
-    m_runningGetPronTask = nullptr;
+    m_getPronTasks.current = nullptr;
     runNextGetPronTask();
 
     auto clip = appModel->findClipById(task->clipId());
@@ -160,7 +153,7 @@ void InferControllerPrivate::handleGetPhonemeNameTaskFinished(GetPhonemeNameTask
             << "terminate:" << terminate;
     disconnect(task, nullptr, this, nullptr);
     taskManager->removeTask(task);
-    m_runningGetPhonemeNameTask = nullptr;
+    m_getPhoneTasks.current = nullptr;
     runNextGetPhonemeNameTask();
 
     auto clip = appModel->findClipById(task->clipId());
@@ -181,7 +174,7 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask *task)
             << "terminate:" << terminate;
     disconnect(task, nullptr, this, nullptr);
     taskManager->removeTask(task);
-    m_runningInferDurTask = nullptr;
+    m_inferDurTasks.current = nullptr;
     runNextInferDurTask();
 
     auto clip = appModel->findClipById(task->clipId());
@@ -194,9 +187,9 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask *task)
     auto piece = singingClip->findPieceById(task->pieceId());
     auto modelNoteCount = piece->notes.count();
     auto taskNoteCount = task->result().count();
-    qDebug() << "模型音符数：" << modelNoteCount << "任务音符数：" << taskNoteCount;
     if (modelNoteCount != taskNoteCount) {
-        qFatal() << "模型音符数不等于任务音符数";
+        qFatal() << "模型音符数不等于任务音符数"
+                 << "模型音符数：" << modelNoteCount << "任务音符数：" << taskNoteCount;
         return;
     }
     OriginalParamUtils::updateNotesPhonemeOffset(piece->notes, task->result(), singingClip);
@@ -230,8 +223,8 @@ void InferControllerPrivate::createAndRunGetPronTask(SingingClip *clip) {
     qInfo() << "创建获取发音任务 clipId:" << clip->id() << "taskId:" << task->id();
     connect(task, &Task::finished, this, [=] { handleGetPronTaskFinished(task); });
     taskManager->addTask(task);
-    m_getPronTaskQueue.enqueue(task);
-    if (!m_runningGetPronTask)
+    m_getPronTasks.pending.enqueue(task);
+    if (!m_getPronTasks.current)
         runNextGetPronTask();
 }
 
@@ -245,8 +238,8 @@ void InferControllerPrivate::createAndRunGetPhonemeNameTask(SingingClip *clip) {
             << "noteCount:" << clip->notes().count();
     connect(task, &Task::finished, this, [=] { handleGetPhonemeNameTaskFinished(task); });
     taskManager->addTask(task);
-    m_getPhonemeNameTaskQueue.enqueue(task);
-    if (!m_runningGetPhonemeNameTask)
+    m_getPhoneTasks.pending.enqueue(task);
+    if (!m_getPhoneTasks.current)
         runNextGetPhonemeNameTask();
 }
 
@@ -256,16 +249,16 @@ void InferControllerPrivate::createAndRunInferDurTask(SingingClip *clip) {
         for (const auto note : piece.notes) {
             inputNotes.append(InferDurNote(*note));
         }
-        auto durTask = new InferDurationTask(
+        auto task = new InferDurationTask(
             {clip->id(), piece.id(), inputNotes,
              R"(F:\Sound libraries\DiffSinger\OpenUtau\Singers\Junninghua_v1.4.0_DiffSinger_OpenUtau\dsconfig.yaml)",
              appModel->tempo()});
         qDebug() << "音素序列校验通过，创建时长推理任务 clipId:" << clip->id()
-                 << "pieceId:" << piece.id() << "taskId:" << durTask->id();
-        connect(durTask, &Task::finished, this, [=] { handleInferDurTaskFinished(durTask); });
-        taskManager->addTask(durTask);
-        m_inferDurTaskQueue.enqueue(durTask);
-        if (!m_runningInferDurTask)
+                 << "pieceId:" << piece.id() << "taskId:" << task->id();
+        connect(task, &Task::finished, this, [=] { handleInferDurTaskFinished(task); });
+        taskManager->addTask(task);
+        m_inferDurTasks.pending.enqueue(task);
+        if (!m_inferDurTasks.current)
             runNextInferDurTask();
     };
 
@@ -280,82 +273,23 @@ void InferControllerPrivate::createAndRunInferDurTask(SingingClip *clip) {
 void InferControllerPrivate::cancelClipRelatedTasks(Clip *clip) {
     qInfo() << "取消歌声剪辑相关任务";
     auto pred = [=](auto t) { return t->clipId() == clip->id(); };
-
-    // Cancel get pron tasks
-    for (const auto task : Linq::where(m_getPronTaskQueue, pred)) {
-        disconnect(task, nullptr, this, nullptr);
-        m_getPronTaskQueue.remove(task);
-        taskManager->removeTask(task);
-        qDebug() << "移除待运行的获取发音任务 clipId:" << task->clipId() << "taskId:" << task->id();
-        delete task;
-    }
-    if (m_runningGetPronTask && pred(m_runningGetPronTask)) {
-        taskManager->terminateTask(m_runningGetPronTask);
-        qDebug() << "终止正在运行的获取发音任务 clipId:" << m_runningGetPronTask->clipId()
-                 << "taskId:" << m_runningGetPronTask->id();
-    }
-
-    // 取消获取音素名称任务
-    for (const auto task : Linq::where(m_getPhonemeNameTaskQueue, pred)) {
-        disconnect(task, nullptr, this, nullptr);
-        m_getPhonemeNameTaskQueue.remove(task);
-        taskManager->removeTask(task);
-        qDebug() << "移除待运行的获取音素名称任务 clipId:" << task->clipId()
-                 << "taskId:" << task->id();
-        delete task;
-    }
-    if (m_runningGetPhonemeNameTask && pred(m_runningGetPhonemeNameTask)) {
-        taskManager->terminateTask(m_runningGetPhonemeNameTask);
-        qDebug() << "终止正在运行的获取音素名称任务 clipId:"
-                 << m_runningGetPhonemeNameTask->clipId()
-                 << "taskId:" << m_runningGetPhonemeNameTask->id();
-    }
-
-    // Cancel infer dur tasks
-    for (const auto task : Linq::where(m_inferDurTaskQueue, pred)) {
-        disconnect(task, nullptr, this, nullptr);
-        m_inferDurTaskQueue.remove(task);
-        taskManager->removeTask(task);
-        qDebug() << "移除待运行的时长推理任务 clipId:" << task->clipId() << "taskId:" << task->id();
-        delete task;
-    }
-    if (m_runningInferDurTask && pred(m_runningInferDurTask)) {
-        taskManager->terminateTask(m_runningInferDurTask);
-        qDebug() << "终止正在运行的时长推理任务 clipId:" << m_runningInferDurTask->clipId()
-                 << "taskId:" << m_runningInferDurTask->id();
-    }
+    m_getPronTasks.cancelIf(pred);
+    m_getPhoneTasks.cancelIf(pred);
+    m_inferDurTasks.cancelIf(pred);
 }
 
 void InferControllerPrivate::runNextGetPronTask() {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready)
         return;
-    if (m_getPronTaskQueue.count() <= 0)
-        return;
-
-    const auto task = m_getPronTaskQueue.dequeue();
-    qDebug() << "运行获取发音任务 clipId:" << task->clipId() << "taskId:" << task->id();
-    taskManager->startTask(task);
-    m_runningGetPronTask = task;
+    m_getPronTasks.runNext();
 }
 
 void InferControllerPrivate::runNextGetPhonemeNameTask() {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready)
         return;
-    if (m_getPhonemeNameTaskQueue.count() <= 0)
-        return;
-
-    const auto task = m_getPhonemeNameTaskQueue.dequeue();
-    qDebug() << "运行获取音素任务 clipId:" << task->clipId() << "taskId:" << task->id();
-    taskManager->startTask(task);
-    m_runningGetPhonemeNameTask = task;
+    m_getPhoneTasks.runNext();
 }
 
 void InferControllerPrivate::runNextInferDurTask() {
-    if (m_inferDurTaskQueue.count() <= 0)
-        return;
-
-    const auto task = m_inferDurTaskQueue.dequeue();
-    qDebug() << "运行时长推理任务 clipId:" << task->clipId() << "taskId:" << task->id();
-    taskManager->startTask(task);
-    m_runningInferDurTask = task;
+    m_inferDurTasks.runNext();
 }

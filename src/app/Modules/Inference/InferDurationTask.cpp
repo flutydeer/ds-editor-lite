@@ -41,6 +41,8 @@ QList<InferDurNote> InferDurationTask::result() {
 }
 
 void InferDurationTask::runTask() {
+    qDebug() << "Running task..."
+             << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();
     auto newStatus = status();
     newStatus.message = "正在推理: " + m_previewText;
     setStatus(newStatus);

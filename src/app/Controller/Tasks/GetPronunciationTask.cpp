@@ -30,6 +30,7 @@ int GetPronunciationTask::clipId() const {
 }
 
 void GetPronunciationTask::runTask(){
+    qDebug() << "运行获取发音任务"<<"clipId:" << clipId() << "taskId:" << id();
     result = NoteWordUtils::getPronunciations(m_notes);
     if (isTerminateRequested()) {
         qWarning() << "任务被终止 taskId:" << id();
