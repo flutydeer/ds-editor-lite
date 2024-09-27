@@ -48,6 +48,7 @@ public:
     Log();
     static void handler(QtMsgType type, const QMessageLogContext &context, const QString &msg);
     static void logSystemInfo();
+    static void logGpuInfo();
     static void setConsoleLogLevel(LogLevel level);
     static void setConsoleTagFilter(const QStringList &tags);
 

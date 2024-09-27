@@ -48,6 +48,7 @@ int main(int argc, char *argv[]) {
     Log::setConsoleLogLevel(Log::Debug);
     // Log::setConsoleTagFilter({/*"ParamController", "InferDurationTask",*/ });
     Log::logSystemInfo();
+    Log::logGpuInfo();
 
     auto f = QFont();
     f.setHintingPreference(QFont::PreferNoHinting);

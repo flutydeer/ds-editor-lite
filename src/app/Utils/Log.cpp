@@ -4,6 +4,8 @@
 
 #include "Log.h"
 
+#include "Modules/Inference/DmlUtils.h"
+
 #include <QTextStream>
 #include <QDir>
 #include <qmessagebox.h>
@@ -79,7 +81,7 @@ void Log::handler(QtMsgType type, const QMessageLogContext &context, const QStri
 }
 
 void Log::logSystemInfo() {
-    const auto tag = QStringLiteral("Logger");
+    const auto tag = QStringLiteral("Log");
     i(tag, "-------- System Info Begin --------");
     i(tag, "Build CPU Architecture: " + QSysInfo::buildCpuArchitecture());
     i(tag, "Current CPU Architecture: " + QSysInfo::currentCpuArchitecture());
@@ -90,6 +92,14 @@ void Log::logSystemInfo() {
     i(tag, "Kernel Version: " + QSysInfo::kernelVersion());
     // i(tag, "Host Name: " + QSysInfo::machineHostName());
     i(tag, "--------- System Info End ---------");
+}
+
+void Log::logGpuInfo() {
+    qInfo() << "-------- GPU Info Begin --------";
+    for (const auto &gpu : DmlUtils::getDirectXGPUs()) {
+        qInfo() << gpu.index << gpu.description;
+    }
+    qInfo() << "--------- GPU Info End ---------";
 }
 
 void Log::setConsoleLogLevel(LogLevel level) {
