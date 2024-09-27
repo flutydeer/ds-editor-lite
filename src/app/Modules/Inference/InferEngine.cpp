@@ -191,6 +191,10 @@ bool InferEngine::initialize(QString &error) {
 }
 
 bool InferEngine::runLoadConfig(const QString &path) {
+    if (path.isNull() || path.isEmpty()) {
+        qWarning() << "Config path is null or empty";
+        return false;
+    }
     if (path == m_configPath) {
         qInfo() << "Already loaded config";
         return m_configLoaded;

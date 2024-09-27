@@ -19,9 +19,21 @@ public:
     Queue<T *> pending;
     T *current = nullptr;
 
+    void add(T *task);
     void runNext();
     void cancelIf(std::function<bool(T *task)> pred);
+    void disposePendingTasks();
+    void onCurrentFinished();
+
+private:
+    void disposePendingTask(T *task);
 };
+
+template <typename T>
+void TaskQueue<T>::add(T *task) {
+    taskManager->addTask(task);
+    pending.enqueue(task);
+}
 
 template <typename T>
 void TaskQueue<T>::runNext() {
@@ -38,18 +50,36 @@ void TaskQueue<T>::runNext() {
 template <typename T>
 void TaskQueue<T>::cancelIf(std::function<bool(T *task)> pred) {
     for (const auto task : Linq::where(pending, pred)) {
-        task->disconnect();
-        pending.remove(task);
-        taskManager->removeTask(task);
-        qDebug() << "Remove pending task"
-                 << "taskId:" << task->id();
-        delete task;
+        disposePendingTask(task);
     }
     if (current && pred(current)) {
         taskManager->terminateTask(current);
-        qDebug() << "Terminate current task"
+        qDebug() << "Terminate current task: "
                  << "taskId:" << current->id();
     }
+}
+
+template <typename T>
+void TaskQueue<T>::disposePendingTasks() {
+    for (const auto task : pending)
+        disposePendingTask(task);
+}
+
+template <typename T>
+void TaskQueue<T>::onCurrentFinished() {
+    current->disconnect();
+    taskManager->removeTask(current);
+    current = nullptr;
+}
+
+template <typename T>
+void TaskQueue<T>::disposePendingTask(T *task) {
+    qDebug() << "Dispose pending task: "
+             << "taskId:" << task->id();
+    taskManager->removeTask(task);
+    task->disconnect();
+    pending.remove(task);
+    delete task;
 }
 
 #endif // TASKQUEUE_H

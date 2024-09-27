@@ -19,22 +19,21 @@ GetPronunciationTask::GetPronunciationTask(int clipId, const QList<Note *> &note
         }
     }
     TaskStatus status;
-    status.title = "获取发音信息";
+    status.title = "获取发音";
     status.message = m_previewText;
     status.isIndetermine = true;
     setStatus(status);
+    qInfo() << "创建获取发音任务"
+            << "clipId:" << clipId << "taskId:" << id();
 }
 
 int GetPronunciationTask::clipId() const {
     return m_clipId;
 }
 
-void GetPronunciationTask::runTask(){
-    qDebug() << "运行获取发音任务"<<"clipId:" << clipId() << "taskId:" << id();
+void GetPronunciationTask::runTask() {
+    qDebug() << "运行获取发音任务"
+             << "clipId:" << clipId() << "taskId:" << id();
     result = NoteWordUtils::getPronunciations(m_notes);
-    if (isTerminateRequested()) {
-        qWarning() << "任务被终止 taskId:" << id();
-        return;
-    }
-    qDebug() << "任务正常完成 taskId:" << id();
+    qInfo() << "获取发音任务完成 taskId:" << id() << "terminate:" << terminated();
 }

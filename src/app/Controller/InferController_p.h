@@ -41,16 +41,17 @@ public:
 
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
     void handleGetPronTaskFinished(GetPronunciationTask *task);
-    void handleGetPhonemeNameTaskFinished(GetPhonemeNameTask *task);
+    void handleGetPhoneTaskFinished(GetPhonemeNameTask *task);
     void handleInferDurTaskFinished(InferDurationTask *task);
-    static bool validateForInferDuration(int clipId);
 
     void createAndRunGetPronTask(SingingClip *clip);
-    void createAndRunGetPhonemeNameTask(SingingClip *clip);
+    void createAndRunGetPhoneTask(SingingClip *clip);
     void createAndRunInferDurTask(SingingClip *clip);
-    void cancelClipRelatedTasks(Clip *clip);
+    void cancelClipRelatedTasks(const Clip *clip);
+    void cancelPieceRelatedTasks(const InferPiece *piece);
+
     void runNextGetPronTask();
-    void runNextGetPhonemeNameTask();
+    void runNextGetPhoneTask();
     void runNextInferDurTask();
 
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;

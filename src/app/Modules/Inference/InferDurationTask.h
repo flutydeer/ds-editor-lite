@@ -23,7 +23,7 @@ public:
     int pieceId() const;
     bool success = false;
 
-    explicit InferDurationTask(const InferDurInput &input);
+    explicit InferDurationTask(InferDurInput input);
     QList<InferDurNote> result();
 
 private:

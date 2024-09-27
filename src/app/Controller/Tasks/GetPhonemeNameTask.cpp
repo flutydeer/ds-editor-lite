@@ -28,6 +28,8 @@ GetPhonemeNameTask::GetPhonemeNameTask(int clipId, const QList<PhonemeNameInput>
     status.message = m_previewText;
     status.isIndetermine = true;
     setStatus(status);
+    qInfo() << "Task created"
+            << " clipId:" << clipId << "taskId:" << id() << "noteCount:" << m_inputs.count();
 }
 
 int GetPhonemeNameTask::clipId() const {
@@ -38,11 +40,8 @@ void GetPhonemeNameTask::runTask() {
     qDebug() << "Running task..."
              << "clipId:" << clipId() << "taskId:" << id();
     processNotes();
-    if (isTerminateRequested()) {
-        qWarning() << "任务被终止 taskId:" << id();
-        return;
-    }
-    qDebug() << "任务正常完成 taskId:" << id();
+    qInfo() << "TaskFinished"
+            << "clipId:" << clipId() << "taskId:" << id() << "terminate:" << terminated();
 }
 
 void GetPhonemeNameTask::processNotes() {

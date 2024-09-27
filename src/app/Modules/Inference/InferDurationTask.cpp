@@ -12,6 +12,7 @@
 #include <QThread>
 #include <QDebug>
 #include <QJsonDocument>
+#include <utility>
 
 namespace dsonnxinfer {
     struct Segment;
@@ -25,14 +26,15 @@ int InferDurationTask::pieceId() const {
     return m_input.pieceId;
 }
 
-InferDurationTask::InferDurationTask(const InferDurInput &input) : m_input(input) {
+InferDurationTask::InferDurationTask(InferDurInput input) : m_input(std::move(input)) {
     buildPreviewText();
     TaskStatus status;
     status.title = "推理音素长度";
     status.message = "正在等待：" + m_previewText;
     status.maximum = m_input.notes.count();
-    status.isIndetermine = true;
     setStatus(status);
+    qDebug() << "Task created"
+             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
 QList<InferDurNote> InferDurationTask::result() {
@@ -45,9 +47,13 @@ void InferDurationTask::runTask() {
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();
     auto newStatus = status();
     newStatus.message = "正在推理: " + m_previewText;
+    newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    inferEngine->runLoadConfig(m_input.configPath);
+    if (!inferEngine->runLoadConfig(m_input.configPath)) {
+        qCritical() << "Task failed";
+        return;
+    }
     if (isTerminateRequested()) {
         abort();
         return;
@@ -55,24 +61,26 @@ void InferDurationTask::runTask() {
 
     QString resultJson;
     QString errorMessage;
-    inferEngine->inferDuration(buildInputJson(), resultJson, errorMessage);
+    if (!inferEngine->inferDuration(buildInputJson(), resultJson, errorMessage)) {
+        qCritical() << "Task failed";
+    }
     if (isTerminateRequested()) {
         abort();
         return;
     }
 
     success = processOutput(resultJson);
-
-    qDebug() << "任务正常完成 taskId:" << id();
+    qInfo() << "时长推理任务正常完成 clipId:" << clipId() << "pieceId:" << pieceId()
+            << "taskId:" << id();
 }
 
 void InferDurationTask::abort() {
-    qWarning() << "任务被终止 taskId:" << id();
     auto newStatus = status();
     newStatus.message = "正在停止: " + m_previewText;
     newStatus.isIndetermine = true;
     setStatus(newStatus);
-    // QThread::sleep(2);
+    qInfo() << "时长推理任务被终止 clipId:" << clipId() << "pieceId:" << pieceId()
+            << "taskId:" << id();
 }
 
 void InferDurationTask::buildPreviewText() {
