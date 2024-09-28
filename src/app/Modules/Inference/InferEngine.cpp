@@ -175,8 +175,16 @@ bool InferEngine::initialized() {
 bool InferEngine::initialize(QString &error) {
     std::string errorMessage;
 
+    std::filesystem::path ortPath =
+#ifdef _WIN32
+        "onnxruntime";
+#elif defined(__APPLE__)
+        "../Frameworks/libonnxruntime.dylib";
+#else
+        "../lib/libonnxruntime.so";
+#endif
     // Load environment (must do this before inference)
-    if (!m_env.load("onnxruntime", EP_DirectML, &errorMessage)) {
+    if (!m_env.load(ortPath, EP_DirectML, &errorMessage)) {
         qCritical() << "Failed to load environment:" << errorMessage;
         error += errorMessage;
         m_initialized = false;
