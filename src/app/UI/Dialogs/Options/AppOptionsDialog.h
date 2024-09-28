@@ -13,6 +13,7 @@ class PseudoSingerPage;
 class AppearancePage;
 class LanguagePage;
 class GeneralPage;
+class InferencePage;
 class IOptionPage;
 class QListWidget;
 class Button;
@@ -43,8 +44,8 @@ private slots:
 private:
     QStringList m_pageNames = {tr("General"),          tr("Audio"), tr("MIDI"), tr("Pseudo Singer"),
                                tr("Appearance"),       tr("Language"),
-                            /* tr("Save"),               tr("Inference"),
-                             * tr("Preview Functions"),  tr("Developer Options")*/};
+                            /* tr("Save"), */            tr("Inference"),
+                            /* tr("Preview Functions"),  tr("Developer Options")*/};
 
     QListWidget *m_tabList;
     QStackedWidget *m_PageContent;
@@ -55,6 +56,7 @@ private:
     PseudoSingerPage *m_pseudoSingerPage;
     AppearancePage *m_appearancePage;
     LanguagePage *m_languagePage;
+    InferencePage *m_inferencePage;
     QList<IOptionPage *> m_pages;
 };
 
