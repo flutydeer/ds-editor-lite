@@ -14,6 +14,7 @@
 #include "Pages/AudioPage.h"
 #include "Pages/MidiPage.h"
 #include "Pages/PseudoSingerPage.h"
+#include "Pages/InferencePage.h"
 
 AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) {
     setFocusPolicy(Qt::ClickFocus);
@@ -29,6 +30,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_pseudoSingerPage = new PseudoSingerPage;
     m_appearancePage = new AppearancePage;
     m_languagePage = new LanguagePage;
+    m_inferencePage = new InferencePage;
 
     m_PageContent = new QStackedWidget;
     m_PageContent->addWidget(m_generalPage);
@@ -37,6 +39,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_PageContent->addWidget(m_pseudoSingerPage);
     m_PageContent->addWidget(m_appearancePage);
     m_PageContent->addWidget(m_languagePage);
+    m_PageContent->addWidget(m_inferencePage);
     m_PageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
     m_PageContent->setMinimumWidth(600);
 
@@ -50,6 +53,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_pages.append(m_pseudoSingerPage);
     m_pages.append(m_appearancePage);
     m_pages.append(m_languagePage);
+    m_pages.append(m_inferencePage);
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_tabList);

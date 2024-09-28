@@ -131,7 +131,8 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_cbQuantize = new ComboBox(true);
     m_cbQuantize->addItems(quantizeStrings);
     m_cbQuantize->setCurrentIndex(3);
-    m_cbQuantize->setFixedSize(68, m_contentHeight);
+    m_cbQuantize->setFixedHeight(m_contentHeight);
+    // m_cbQuantize->setFixedSize(68, m_contentHeight);
 
     connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [=](int index) {
         auto value = quantizeValues.at(index);
