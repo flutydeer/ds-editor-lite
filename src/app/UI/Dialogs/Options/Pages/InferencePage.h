@@ -3,7 +3,8 @@
 
 #include "IOptionPage.h"
 
-class InferencePageWidget;
+class LineEdit;
+class ComboBox;
 
 class InferencePage : public IOptionPage {
     Q_OBJECT
@@ -15,7 +16,10 @@ protected:
     void modifyOption() override;
 
 private:
-    InferencePageWidget *m_widget;
+    ComboBox *m_cbExecutionProvider;
+    ComboBox *m_cbDeviceList;
+    ComboBox *m_cbDsSpeedup;
+    LineEdit *m_leDsDepth;
 };
 
 
