@@ -30,22 +30,22 @@ public:
         PseudoSinger,
         Appearance,
         Language,
-        Save,
         Inference,
         PreviewFunctions,
         DeveloperOptions
     };
 
     explicit AppOptionsDialog(Page page, QWidget *parent = nullptr);
+    ~AppOptionsDialog() override;
 
 private slots:
-    void onSelectionChanged(int index);
+    void onSelectionChanged(int index) const;
 
 private:
-    QStringList m_pageNames = {tr("General"),          tr("Audio"), tr("MIDI"), tr("Pseudo Singer"),
-                               tr("Appearance"),       tr("Language"),
-                            /* tr("Save"), */            tr("Inference"),
-                            /* tr("Preview Functions"),  tr("Developer Options")*/};
+    QStringList m_pageNames = {tr("General"),       tr("Audio"),      tr("MIDI"),
+                               tr("Pseudo Singer"), tr("Appearance"), tr("Language"),
+                               tr("Inference"),
+                               /* tr("Preview Functions"),  tr("Developer Options")*/};
 
     QListWidget *m_tabList;
     QStackedWidget *m_PageContent;

@@ -18,6 +18,7 @@
 
 AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) {
     setFocusPolicy(Qt::ClickFocus);
+    setAttribute(Qt::WA_DeleteOnClose, true);
 
     m_tabList = new QListWidget;
     m_tabList->setFixedWidth(160);
@@ -69,6 +70,10 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     resize(900, 600);
 }
 
-void AppOptionsDialog::onSelectionChanged(int index) {
+AppOptionsDialog::~AppOptionsDialog() {
+    qDebug() << "dispose";
+}
+
+void AppOptionsDialog::onSelectionChanged(int index) const {
     m_PageContent->setCurrentWidget(m_pages.at(index));
 }

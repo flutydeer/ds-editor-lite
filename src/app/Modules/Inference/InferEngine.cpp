@@ -6,6 +6,7 @@
 
 #include "InitInferEngineTask.h"
 #include "LoadInferConfigTask.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Task/TaskManager.h"
 
@@ -184,15 +185,20 @@ bool InferEngine::initialize(QString &error) {
         "../lib/libonnxruntime.so";
 #endif
     // Load environment (must do this before inference)
-    if (!m_env.load(ortPath, EP_DirectML, &errorMessage)) {
+    auto ep = EP_CPU;
+    if (appOptions->inference()->executionProvider == "CPU")
+        ep = EP_CPU;
+    else if (appOptions->inference()->executionProvider == "DirectML")
+        ep = EP_DirectML;
+    if (!m_env.load(ortPath, ep, &errorMessage)) {
         qCritical() << "Failed to load environment:" << errorMessage;
         error += errorMessage;
         m_initialized = false;
         return false;
     }
-    m_env.setDeviceIndex(0);
-    m_env.setDefaultSteps(20);
-    m_env.setDefaultDepth(1.0f);
+    m_env.setDeviceIndex(appOptions->inference()->selectedGpuIndex);
+    m_env.setDefaultSteps(appOptions->inference()->samplingSteps);
+    m_env.setDefaultDepth(appOptions->inference()->depth);
     m_initialized = true;
     qInfo() << "Successfully loaded environment. Execution provider: DirectML";
     return true;

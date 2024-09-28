@@ -10,7 +10,7 @@ class InferencePage : public IOptionPage {
     Q_OBJECT
 public:
     explicit InferencePage(QWidget *parent = nullptr);
-    ~InferencePage() override;
+    // ~InferencePage() override;
 
 protected:
     void modifyOption() override;
@@ -18,7 +18,7 @@ protected:
 private:
     ComboBox *m_cbExecutionProvider;
     ComboBox *m_cbDeviceList;
-    ComboBox *m_cbDsSpeedup;
+    ComboBox *m_cbSamplingSteps;
     LineEdit *m_leDsDepth;
 };
 

@@ -15,6 +15,7 @@
 #include "Options/LanguageOption.h"
 #include "Options/FillLyricOption.h"
 #include "Options/GeneralOption.h"
+#include "Options/InferenceOption.h"
 
 class AppOptions : public QObject, public Singleton<AppOptions> {
     Q_OBJECT
@@ -33,6 +34,7 @@ public:
     AppearanceOption *appearance();
     LanguageOption *language();
     FillLyricOption *fillLyric();
+    InferenceOption *inference();
 
 signals:
     void optionsChanged();
@@ -43,6 +45,7 @@ private:
     AppearanceOption m_appearanceOption;
     LanguageOption m_languageOption;
     FillLyricOption m_fillLyricOption;
+    InferenceOption m_inferenceOption;
 
     QString fileName = "appConfig.json";
     QString m_configPath;

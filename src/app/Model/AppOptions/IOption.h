@@ -12,10 +12,6 @@ public:
     explicit IOption(QString key) : m_key(std::move(key)) {
     }
 
-    IOption(const IOption &other) : m_key(other.m_key) {
-    }
-
-    IOption &operator=(const IOption &other);
     virtual ~IOption() = default;
 
     virtual void load(const QJsonObject &object) = 0;

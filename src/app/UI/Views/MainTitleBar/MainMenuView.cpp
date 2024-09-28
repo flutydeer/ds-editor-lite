@@ -139,35 +139,29 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     auto menuOptions = new CMenu(tr("&Options"), this);
     auto actionGeneralOptions = new QAction(tr("&General..."), this);
-    connect(actionGeneralOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::General, this);
-        dialog.exec();
-    });
+    connect(actionGeneralOptions, &QAction::triggered, this,
+            [=] { (new AppOptionsDialog(AppOptionsDialog::General, this))->show(); });
     auto actionAudioSettings = new QAction(tr("&Audio..."), this);
-    connect(actionAudioSettings, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::Audio, this);
-        dialog.exec();
-    });
+    connect(actionAudioSettings, &QAction::triggered, this,
+            [=] { (new AppOptionsDialog(AppOptionsDialog::Audio, this))->show(); });
     auto actionMidiSettings = new QAction(tr("&MIDI..."), this);
-    connect(actionMidiSettings, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::Midi, this);
-        dialog.exec();
-    });
+    connect(actionMidiSettings, &QAction::triggered, this,
+            [=] { (new AppOptionsDialog(AppOptionsDialog::Midi, this))->show(); });
     auto actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
-    connect(actionAppearanceOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::Appearance, this);
-        dialog.exec();
-    });
-    const auto actionLanguage = new QAction(tr("Language..."), this);
-    connect(actionLanguage, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::Language, this);
-        dialog.exec();
-    });
+    connect(actionAppearanceOptions, &QAction::triggered, this,
+            [=] { (new AppOptionsDialog(AppOptionsDialog::Appearance, this))->show(); });
+    const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
+    connect(actionLanguageOptions, &QAction::triggered, this,
+            [=] { (new AppOptionsDialog(AppOptionsDialog::Language, this))->show(); });
+    const auto actionInferenceOptions = new QAction(tr("&Inference..."), this);
+    connect(actionInferenceOptions, &QAction::triggered, this,
+            [=] { (new AppOptionsDialog(AppOptionsDialog::Inference, this))->show(); });
     menuOptions->addAction(actionGeneralOptions);
     menuOptions->addAction(actionAudioSettings);
     menuOptions->addAction(actionMidiSettings);
     menuOptions->addAction(actionAppearanceOptions);
-    menuOptions->addAction(actionLanguage);
+    menuOptions->addAction(actionLanguageOptions);
+    menuOptions->addAction(actionInferenceOptions);
 
     auto menuHelp = new CMenu(tr("&Help"), this);
     auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);
@@ -279,19 +273,19 @@ void MainMenuViewPrivate::onActivatedPanelChanged(AppGlobal::PanelType panel) {
     m_panelType = panel;
     if (panel == AppGlobal::ClipEditor) {
         m_actionSelectAll->setEnabled(clipController->canSelectAll());
-        QObject::connect(clipController, &ClipController::canSelectAllChanged,
-                         m_actionSelectAll, &QAction::setEnabled);
+        QObject::connect(clipController, &ClipController::canSelectAllChanged, m_actionSelectAll,
+                         &QAction::setEnabled);
 
         m_actionDelete->setEnabled(clipController->hasSelectedNotes());
-        QObject::connect(clipController, &ClipController::hasSelectedNotesChanged,
-                         m_actionDelete, &QAction::setEnabled);
+        QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, m_actionDelete,
+                         &QAction::setEnabled);
 
         m_actionFillLyrics->setEnabled(clipController->hasSelectedNotes());
         QObject::connect(clipController, &ClipController::hasSelectedNotesChanged,
                          m_actionFillLyrics, &QAction::setEnabled);
     } else {
-        QObject::disconnect(clipController, &ClipController::canSelectAllChanged,
-                            m_actionSelectAll, &QAction::setEnabled);
+        QObject::disconnect(clipController, &ClipController::canSelectAllChanged, m_actionSelectAll,
+                            &QAction::setEnabled);
         m_actionSelectAll->setEnabled(false);
 
         QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged,
