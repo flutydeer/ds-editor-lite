@@ -92,10 +92,10 @@ AccentButton:disabled {
 /* ComboBox */
 QComboBox {
     background: #10FFFFFF;
-    border: none;
+    border: 1px solid #10FFFFFF;
     border-radius: 6px;
     color: rgb(242, 242, 242);
-    padding: 4px 8px;
+    padding: 3px 3px 3px 9px;
 }
 
 QComboBox:hover {
@@ -133,15 +133,40 @@ QComboBox QAbstractItemView::item:selected {
     background-color: #1AFFFFFF;
 }
 
+QComboBox:editable:hover {
+    background-color: #10FFFFFF;
+}
+
 QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 28px;
     border: none
 }
 
+QComboBox::drop-down:editable {
+    border-left: 1px solid #505050;
+    border-bottom-right-radius: 6px;
+    border-top-right-radius: 6px;
+}
+
+QComboBox::drop-down:editable:hover {
+    background: #1AFFFFFF;
+}
+
 QComboBox::down-arrow {
-    right: 8px;
-    width: 12px;
-    height: 12px;
     image: url(:svg/icons/chevron_down_16_filled_white.svg)
+}
+
+QComboBox:editable {
+    selection-color: #000;
+    selection-background-color: #9BBAFF;
+}
+
+QComboBox:editable:focus {
+    background: #202122;
+    border: 1px solid #505050;
+    border-bottom: 1px solid #9BBAFF;
 }
 
 
@@ -323,7 +348,7 @@ QMenuBar::item:selected {
 /* LineEdit */
 QLineEdit {
     background: #10FFFFFF;
-    border: 1px solid transparent;
+    border: 1px solid #10FFFFFF;
     border-bottom: 1px solid #A0A0A0;
     border-radius: 4px;
     color: #F0F0F0;
@@ -335,14 +360,14 @@ QLineEdit {
 QLineEdit:focus {
     background: #202122;
     border: 1px solid #505050;
-    border-bottom: 2px solid #9BBAFF;
+    border-bottom: 1px solid #9BBAFF;
 }
 
 /* SpinBox */
 QAbstractSpinBox {
     min-width: 64;
     background: #10FFFFFF;
-    border: 1px solid transparent;
+    border: 1px solid #10FFFFFF;
     border-bottom: 1px solid #A0A0A0;
     border-radius: 4px;
     color: #F0F0F0;
