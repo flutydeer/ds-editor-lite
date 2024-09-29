@@ -50,7 +50,7 @@ const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
 void CommonParamEditorView::discardAction() {
     // qDebug() << "discardAction";
     if (m_editType == None) {
-        qWarning() << "Discard action called, but current edit type is None";
+        // qWarning() << "Discard action called, but current edit type is None";
         return;
     }
     m_drawCurvesEdited = m_drawCurvesEditedBak;

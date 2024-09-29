@@ -5,6 +5,7 @@
 #ifndef INFERCONTROLLERPRIVATE_H
 #define INFERCONTROLLERPRIVATE_H
 
+#include "ModelChangeHandler.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/Track.h"
@@ -12,32 +13,26 @@
 #include "Modules/Inference/InferDurationTask.h"
 #include "Modules/Task/TaskQueue.h"
 
-#include <QObject>
-
 class GetPronunciationTask;
 class GetPhonemeNameTask;
 class InferController;
 
-class InferControllerPrivate : public QObject {
+class InferControllerPrivate : public ModelChangeHandler {
     Q_OBJECT
     Q_DECLARE_PUBLIC(InferController)
 
 public:
-    explicit InferControllerPrivate(InferController *q) : QObject(q), q_ptr(q){};
+    explicit InferControllerPrivate(InferController *q) : ModelChangeHandler(q), q_ptr(q){};
 
 public slots:
-    void onModelChanged();
-    void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
-    void onClipChanged(Track::ClipChangeType type, Clip *clip);
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
     void onEditingChanged(AppStatus::EditObjectType type);
 
 public:
-    void handleClipInserted(Clip *clip);
-    void handleClipRemoved(Clip *clip);
-
+    void handleSingingClipInserted(SingingClip *clip) override;
+    void handleSingingClipRemoved(SingingClip *clip) override;
     void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,
-                           SingingClip *clip);
+                           SingingClip *clip) override;
 
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
     void handleGetPronTaskFinished(GetPronunciationTask *task);
@@ -57,7 +52,7 @@ public:
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
     QList<Track *> m_tracks;
-    // QList<Clip *> m_clips;
+    QMap<int, QList<int>> m_clipPieceDict;
 
     TaskQueue<GetPronunciationTask> m_getPronTasks;
     TaskQueue<GetPhonemeNameTask> m_getPhoneTasks;

@@ -17,41 +17,9 @@
 
 InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
     Q_D(InferController);
-    connect(appModel, &AppModel::modelChanged, d, &InferControllerPrivate::onModelChanged);
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
             &InferControllerPrivate::onModuleStatusChanged);
     connect(appStatus, &AppStatus::editingChanged, d, &InferControllerPrivate::onEditingChanged);
-}
-
-void InferControllerPrivate::onModelChanged() {
-    for (const auto track : m_tracks)
-        onTrackChanged(AppModel::Remove, -1, track);
-
-    for (const auto track : appModel->tracks())
-        onTrackChanged(AppModel::Insert, -1, track);
-}
-
-void InferControllerPrivate::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
-                                            Track *track) {
-    if (type == AppModel::Insert) {
-        m_tracks.append(track);
-        for (const auto clip : track->clips())
-            handleClipInserted(clip);
-        connect(track, &Track::clipChanged, this, &InferControllerPrivate::onClipChanged);
-    } else if (type == AppModel::Remove) {
-        m_tracks.removeOne(track);
-        for (const auto clip : track->clips())
-            handleClipRemoved(clip);
-        disconnect(track, &Track::clipChanged, this, &InferControllerPrivate::onClipChanged);
-    }
-}
-
-void InferControllerPrivate::onClipChanged(Track::ClipChangeType type, Clip *clip) {
-    if (type == Track::Inserted) {
-        handleClipInserted(clip);
-    } else if (type == Track::Removed) {
-        handleClipRemoved(clip);
-    }
 }
 
 void InferControllerPrivate::onModuleStatusChanged(AppStatus::ModuleType module,
@@ -78,21 +46,15 @@ void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
     m_lastEditObjectType = type;
 }
 
-void InferControllerPrivate::handleClipInserted(Clip *clip) {
-    if (clip->clipType() != Clip::Singing)
-        return;
-    auto singingClip = reinterpret_cast<SingingClip *>(clip);
-    connect(singingClip, &SingingClip::noteChanged, this,
-            [=](SingingClip::NoteChangeType type, const QList<Note *> &notes) {
-                handleNoteChanged(type, notes, singingClip);
-            });
-    singingClip->reSegment();
-    createAndRunGetPronTask(singingClip);
+void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
+    ModelChangeHandler::handleSingingClipInserted(clip);
+    clip->reSegment();
+    createAndRunGetPronTask(clip);
 }
 
-void InferControllerPrivate::handleClipRemoved(Clip *clip) {
+void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
+    ModelChangeHandler::handleSingingClipRemoved(clip);
     cancelClipRelatedTasks(clip);
-    disconnect(clip, nullptr, this, nullptr);
 }
 
 void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,

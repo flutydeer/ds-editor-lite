@@ -43,7 +43,7 @@ public:
     void notifyParamChanged(ParamInfo::Name name, Param::Type type);
     [[nodiscard]] const QList<InferPiece *> &pieces() const;
     void reSegment();
-    InferPiece *findPieceById(int id) const;
+    [[nodiscard]] InferPiece *findPieceById(int id) const;
 
     static void copyCurves(const QList<Curve *> &source, QList<Curve *> &target);
     static void copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target);
