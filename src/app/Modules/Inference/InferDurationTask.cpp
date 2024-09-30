@@ -6,7 +6,6 @@
 
 #include "InferEngine.h"
 #include "Model/Inference/GenericInferModel.h"
-#include "Model/Inference/InferDurNote.h"
 #include "Utils/JsonUtils.h"
 
 #include <QThread>
@@ -16,6 +15,11 @@
 
 namespace dsonnxinfer {
     struct Segment;
+}
+
+bool InferDurationTask::InferDurInput::operator==(const InferDurInput &other) const {
+    return clipId == other.clipId && pieceId == other.pieceId && notes == other.notes &&
+           configPath == other.configPath && qFuzzyCompare(tempo, other.tempo);
 }
 
 int InferDurationTask::clipId() const {
@@ -37,9 +41,14 @@ InferDurationTask::InferDurationTask(InferDurInput input) : m_input(std::move(in
              << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
+InferDurationTask::InferDurInput InferDurationTask::input(){
+    QMutexLocker locker(&m_mutex);
+    return m_input;
+}
+
 QList<InferDurNote> InferDurationTask::result() {
     QMutexLocker locker(&m_mutex);
-    return m_input.notes;
+    return m_result.notes;
 }
 
 void InferDurationTask::runTask() {
@@ -177,8 +186,9 @@ bool InferDurationTask::processOutput(const QString &json) {
             offsets.append({word.length(), phoneme.start});
         }
     }
+    m_result = m_input;
     int i = 1; // Skip SP phoneme
-    for (auto &note : m_input.notes) {
+    for (auto &note : m_result.notes) {
         for (int aheadIndex = 0; aheadIndex < note.aheadNames.count(); aheadIndex++) {
             note.aheadOffsets.append(qRound((offsets[i].first - offsets[i].second) * 1000));
             i++;

@@ -6,9 +6,7 @@
 #define INFERCONTROLLERPRIVATE_H
 
 #include "ModelChangeHandler.h"
-#include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
-#include "Model/AppModel/Track.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/InferDurationTask.h"
 #include "Modules/Task/TaskQueue.h"
@@ -51,8 +49,8 @@ public:
 
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
-    QList<Track *> m_tracks;
-    QMap<int, QList<int>> m_clipPieceDict;
+    QMap<int, QList<int>> m_clipPieceDict;         // int clipId, list<int> pieceIds
+    QMap<int, InferDurationTask::InferDurInput> m_lastInferDurInputs; // int pieceId, InferDurInput input
 
     TaskQueue<GetPronunciationTask> m_getPronTasks;
     TaskQueue<GetPhonemeNameTask> m_getPhoneTasks;

@@ -25,6 +25,7 @@ public:
     QString singerName;
     QList<Note *> notes;
     Property<InferStatus> status = Pending;
+    bool dirty = false;
 
     [[nodiscard]] int startTick() const override;
     [[nodiscard]] int endTick() const override;

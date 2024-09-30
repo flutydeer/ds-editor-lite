@@ -45,6 +45,15 @@ namespace Linq {
         return map;
     }
 
+    template <typename TContainer, typename TSelector>
+    auto selectMany(const TContainer &container, TSelector selector)
+        -> QList<decltype(selector(*container.begin()))> {
+        // using TItem = std::decay_t<decltype(selector(*container.begin()))>;
+        QList<decltype(selector(*container.begin()))> result;
+        std::transform(container.begin(), container.end(), std::back_inserter(result), selector);
+        return result;
+    }
+
 };
 
 #endif // LINQ_H

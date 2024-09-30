@@ -5,9 +5,8 @@
 #ifndef INFERDURATIONTASK_H
 #define INFERDURATIONTASK_H
 
+#include "Model/Inference/InferDurNote.h"
 #include "Modules/Task/Task.h"
-
-class InferDurNote;
 
 class InferDurationTask final : public Task {
 public:
@@ -17,6 +16,7 @@ public:
         QList<InferDurNote> notes;
         QString configPath;
         double tempo;
+        bool operator==(const InferDurInput &other) const;
     };
 
     int clipId() const;
@@ -24,6 +24,7 @@ public:
     bool success = false;
 
     explicit InferDurationTask(InferDurInput input);
+    InferDurInput input();
     QList<InferDurNote> result();
 
 private:
@@ -36,6 +37,7 @@ private:
     QMutex m_mutex;
     QString m_previewText;
     InferDurInput m_input;
+    InferDurInput m_result;
 };
 
 

@@ -49,11 +49,14 @@ void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
     clip->reSegment();
+    m_clipPieceDict[clip->id()] = Linq::selectMany(clip->pieces(), [](auto p) { return p->id(); });
     createAndRunGetPronTask(clip);
 }
 
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipRemoved(clip);
+    // TODO: 移除剪辑内的分段推理输入缓存
+    m_clipPieceDict.remove(clip->id());
     cancelClipRelatedTasks(clip);
 }
 
@@ -64,8 +67,13 @@ void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
         case SingingClip::Remove:
         case SingingClip::EditedWordPropertyChange:
         case SingingClip::TimeKeyPropertyChange:
+            // 音符发生改动，其所属分段必定需要重新推理。将该分段标记为脏，以便在分段前丢弃
+            for (const auto &piece : clip->findPiecesByNotes(notes)) {
+                piece->dirty = true;
+                cancelPieceRelatedTasks(piece);
+            }
             clip->reSegment();
-            cancelClipRelatedTasks(clip);
+            // cancelClipRelatedTasks(clip);
             createAndRunGetPronTask(clip);
             break;
         default:
@@ -131,6 +139,8 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask *task)
                  << "模型音符数：" << modelNoteCount << "任务音符数：" << taskNoteCount;
         return;
     }
+    // 推理成功，保存本次推理的输入以便之后比较
+    m_lastInferDurInputs[task->pieceId()] = task->input();
     OriginalParamUtils::updateNotesPhonemeOffset(piece->notes, task->result(), singingClip);
     delete task;
 }
@@ -160,10 +170,19 @@ void InferControllerPrivate::createAndRunInferDurTask(SingingClip *clip) {
         QList<InferDurNote> inputNotes;
         for (const auto note : piece.notes)
             inputNotes.append(InferDurNote(*note));
-        auto task = new InferDurationTask(
-            {clip->id(), piece.id(), inputNotes,
-             R"(F:\Sound libraries\DiffSinger\OpenUtau\Singers\Junninghua_v1.4.0_DiffSinger_OpenUtau\dsconfig.yaml)",
-             appModel->tempo()});
+        const InferDurationTask::InferDurInput input = {
+            clip->id(), piece.id(), inputNotes,
+            R"(F:\Sound libraries\DiffSinger\OpenUtau\Singers\Junninghua_v1.4.0_DiffSinger_OpenUtau\dsconfig.yaml)",
+            appModel->tempo()};
+        // 创建分段的推理任务前，首先检查输入是否和上次的相同。如果相同，则直接忽略，避免不必要的推理
+        if (m_lastInferDurInputs.contains(piece.id())) {
+            if (const auto lastInput = m_lastInferDurInputs[piece.id()]; lastInput == input) {
+                qDebug() << "createAndRunInferDurTask: 输入与上次相同，已取消创建推理任务"
+                         << "pieceId:" << piece.id();
+                return;
+            }
+        }
+        auto task = new InferDurationTask(input);
         connect(task, &Task::finished, this, [=] { handleInferDurTaskFinished(task); });
         m_inferDurTasks.add(task);
         if (!m_inferDurTasks.current)

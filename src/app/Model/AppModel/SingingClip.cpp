@@ -68,7 +68,8 @@ void SingingClip::reSegment() {
         bool exists = false;
         for (int i = 0; i < m_pieces.count(); i++) {
             auto piece = m_pieces[i];
-            if (piece->notes == segment) {
+            // 忽略脏的分段
+            if (!piece->dirty && piece->notes == segment) {
                 exists = true;
                 newPieces.append(piece);
                 m_pieces.removeAt(i);
@@ -97,6 +98,19 @@ void SingingClip::reSegment() {
 
 InferPiece *SingingClip::findPieceById(int id) const {
     return MathUtils::findItemById<InferPiece *>(m_pieces, id);
+}
+
+QList<InferPiece *> SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
+    QSet<InferPiece *> result;
+    for (const auto &note : notes) {
+        for (const auto &piece : m_pieces) {
+            if (std::find(piece->notes.begin(), piece->notes.end(), note) != piece->notes.end()) {
+                result.insert(piece);
+                break;
+            }
+        }
+    }
+    return {result.begin(), result.end()}; // 将 QSet 转换为 QList 返回
 }
 
 void SingingClip::copyCurves(const QList<Curve *> &source, QList<Curve *> &target) {
