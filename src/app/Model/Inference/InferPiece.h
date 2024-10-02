@@ -6,8 +6,10 @@
 #define INFERPIECE_H
 
 #include "Interface/IInferPiece.h"
+#include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/DrawCurve.h"
+#include "Utils/Property.h"
 
 #include <QList>
 
@@ -29,8 +31,10 @@ public:
     Property<InferStatus> acousticInferStatus = Pending;
     bool dirty = false;
 
-    [[nodiscard]] int startTick() const override;
-    [[nodiscard]] int endTick() const override;
+    [[nodiscard]] int noteStartTick() const override;
+    [[nodiscard]] int noteEndTick() const override;
+    int realStartTick() const;
+    int realEndTick() const;
 
 signals:
     void statusChanged(InferStatus status);
@@ -40,12 +44,31 @@ inline int InferPiece::clipId() const {
     return clip->id();
 }
 
-inline int InferPiece::startTick() const {
+inline int InferPiece::noteStartTick() const {
     return notes.first()->rStart();
 }
 
-inline int InferPiece::endTick() const {
+inline int InferPiece::noteEndTick() const {
     return notes.last()->rStart() + notes.last()->length();
+}
+
+// TODO: 范围需要重构
+inline int InferPiece::realStartTick() const {
+    auto firstNote = notes.first();
+    auto phoneInfo = firstNote->phonemeOffsetInfo();
+    auto aheadInfo = phoneInfo.ahead.result();
+    auto normalInfo = phoneInfo.normal.result();
+    auto phoneOffsets = aheadInfo.isEmpty()? normalInfo : aheadInfo;
+    auto firstOffset = phoneOffsets.first();
+    auto paddingTicks = appModel->msToTick(100 + firstOffset); // SP 0.1s
+    return noteStartTick() - paddingTicks;
+    // return noteStartTick();
+}
+
+inline int InferPiece::realEndTick() const {
+    auto paddingTicks = appModel->msToTick(100); // SP 0.1s
+    return noteEndTick() + paddingTicks;
+    // return noteEndTick();
 }
 
 #endif // INFERPIECE_H

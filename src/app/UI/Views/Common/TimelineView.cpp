@@ -187,8 +187,8 @@ void TimelineView::drawPieces(QPainter *painter) const {
     for (const auto &piece : m_clip->pieces()) {
         pen.setColor(m_piecesColors[piece->acousticInferStatus]);
         painter->setPen(pen);
-        auto x1 = tickToX(piece->startTick() + m_clip->start());
-        auto x2 = tickToX(piece->endTick() + m_clip->start());
+        auto x1 = tickToX(piece->noteStartTick() + m_clip->start());
+        auto x2 = tickToX(piece->noteEndTick() + m_clip->start());
         painter->drawLine(x1, y, x2, y);
         painter->drawText(QPointF(x1, y), "#" + QString::number(piece->id()));
     }

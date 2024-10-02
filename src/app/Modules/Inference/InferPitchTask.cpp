@@ -8,12 +8,14 @@
 #include "Model/Inference/GenericInferModel.h"
 #include "Model/Inference/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
+#include "Utils/Linq.h"
+#include "Utils/MathUtils.h"
 
 #include <QDebug>
 #include <QJsonDocument>
 
 bool InferPitchTask::InferPitchInput::operator==(const InferPitchInput &other) const {
-    return clipId == other.clipId && pieceId == other.pieceId && notes == other.notes &&
+    return clipId == other.clipId /*&& pieceId == other.pieceId*/ && notes == other.notes &&
            configPath == other.configPath && qFuzzyCompare(tempo, other.tempo) &&
            expressiveness == other.expressiveness;
 }
@@ -127,13 +129,22 @@ QString InferPitchTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch};
-    JsonUtils::save(QString("infer-pitch-input-%1.json").arg(id()), model.serialize());
+    // JsonUtils::save(QString("infer-pitch-input-%1.json").arg(id()), model.serialize());
     return model.serializeToJson();
 }
 
 bool InferPitchTask::processOutput(const QString &json) {
-    QByteArray data = json.toUtf8();
-    auto object = QJsonDocument::fromJson(data).object();
-    JsonUtils::save(QString("infer-pitch-output-%1.json").arg(id()), object);
+    // QByteArray data = json.toUtf8();
+    // auto object = QJsonDocument::fromJson(data).object();
+    // JsonUtils::save(QString("infer-pitch-output-%1.json").arg(id()), object);
+
+    GenericInferModel model;
+    if (!model.deserializeFromJson(json))
+        return false;
+
+    auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
+    auto oriPitch = Linq::where(model.params, L_PRED(p, p.tag == "pitch")).first();
+    auto newInterval = tickToSec(5);
+    m_result.values = MathUtils::resample(oriPitch.values, oriPitch.interval, newInterval);
     return true;
 }

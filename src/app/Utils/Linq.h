@@ -5,6 +5,8 @@
 #ifndef LINQ_H
 #define LINQ_H
 
+#define L_PRED(ParamName, Predicate) [=](const auto &(ParamName)) { return Predicate; }
+
 #include <algorithm>
 #include <iterator>
 #include <QList>
@@ -17,9 +19,11 @@ namespace Linq {
     //     return result;
     // }
     template <typename TContainer, typename TPredicate>
-    auto where(const TContainer &container, TPredicate predicate) {
-        using TItem = std::decay_t<decltype(*container.begin())>;
-        QList<TItem> result;
+    auto where(const TContainer &container, TPredicate predicate)
+        -> QList<std::decay_t<decltype(*container.begin())>> {
+        // using TItem = std::decay_t<decltype(*container.begin())>;
+        // QList<TItem> result;
+        QList<std::decay_t<decltype(*container.begin())>> result;
         std::copy_if(container.begin(), container.end(), std::back_inserter(result), predicate);
         return result;
     }

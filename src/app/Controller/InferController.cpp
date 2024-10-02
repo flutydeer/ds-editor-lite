@@ -167,6 +167,7 @@ void InferControllerPrivate::handleInferPitchTaskFinished(InferPitchTask *task) 
         // 推理成功，保存本次推理的输入以便之后比较
         m_lastInferPitchInputs[task->pieceId()] = task->input();
         piece->acousticInferStatus = Success;
+        OriginalParamUtils::updateParam(ParamInfo::Pitch, task->result(), singingClip, piece);
     } else {
         piece->acousticInferStatus = Failed;
     }
@@ -246,7 +247,7 @@ void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
 void InferControllerPrivate::cancelClipRelatedTasks(const Clip *clip) {
     qInfo() << "取消歌声剪辑相关任务"
             << "clipId:" << clip->id();
-    auto pred = [=](auto t) { return t->clipId() == clip->id(); };
+    auto pred = L_PRED(t, t->clipId() == clip->id());
     m_getPronTasks.cancelIf(pred);
     m_getPhoneTasks.cancelIf(pred);
     m_inferDurTasks.cancelIf(pred);
@@ -255,7 +256,7 @@ void InferControllerPrivate::cancelClipRelatedTasks(const Clip *clip) {
 void InferControllerPrivate::cancelPieceRelatedTasks(const InferPiece *piece) {
     qInfo() << "取消分段相关任务"
             << "pieceId:" << piece->id();
-    auto pred = [=](auto t) { return t->pieceId() == piece->id(); };
+    auto pred = L_PRED(t, t->pieceId() == piece->id(););
     m_inferDurTasks.cancelIf(pred);
 }
 

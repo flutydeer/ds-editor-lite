@@ -11,8 +11,8 @@
 interface IInferPiece : public UniqueObject {
     I_DECL(IInferPiece)
     I_NODSCD(int clipId() const);
-    I_NODSCD(int startTick() const);
-    I_NODSCD(int endTick() const);
+    I_NODSCD(int noteStartTick() const);
+    I_NODSCD(int noteEndTick() const);
     // I_NODSCD(InferStatus status() const);
 };
 
