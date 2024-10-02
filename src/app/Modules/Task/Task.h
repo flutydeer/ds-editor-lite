@@ -35,11 +35,11 @@ public:
         setAutoDelete(false);
     }
 
-    ~Task() override {
-        terminate();
-    };
+    // ~Task() override {
+    //     terminate();
+    // };
 
-    void terminate();
+    virtual void terminate();
 
     [[nodiscard]] bool started() {
         QMutexLocker locker(&m_mutex);

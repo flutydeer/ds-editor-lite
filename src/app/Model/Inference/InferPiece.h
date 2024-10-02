@@ -7,6 +7,7 @@
 
 #include "Interface/IInferPiece.h"
 #include "Model/AppModel/Note.h"
+#include "Model/AppModel/DrawCurve.h"
 
 #include <QList>
 
@@ -16,7 +17,7 @@ class InferPiece : public QObject, public IInferPiece {
     Q_OBJECT
 public:
     explicit InferPiece(SingingClip *clip) : QObject(clip), clip(clip) {
-        status.setNotify([=](const auto &value) { emit statusChanged(value); });
+        acousticInferStatus.setNotify(qSignalCallback(statusChanged));
     };
 
     [[nodiscard]] int clipId() const override;
@@ -24,7 +25,8 @@ public:
     SingingClip *clip;
     QString singerName;
     QList<Note *> notes;
-    Property<InferStatus> status = Pending;
+    DrawCurve pitch;
+    Property<InferStatus> acousticInferStatus = Pending;
     bool dirty = false;
 
     [[nodiscard]] int startTick() const override;

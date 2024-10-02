@@ -5,7 +5,7 @@
 #include "InferController.h"
 #include "InferController_p.h"
 
-#include "Model/Inference/InferDurNote.h"
+#include "Model/Inference/InferDurPitNote.h"
 #include "Model/Inference/InferPiece.h"
 #include "Modules/Inference/InferDurationTask.h"
 #include "Tasks/GetPhonemeNameTask.h"
@@ -36,12 +36,12 @@ void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
         auto clip = appModel->findClipById(appStatus->activeClipId);
         cancelClipRelatedTasks(clip);
     } else if (type == AppStatus::EditObjectType::None) {
-        // if (m_lastEditObjectType == AppStatus::EditObjectType::Note) {
-        // qInfo() << "编辑完成，重新创建任务";
-        // auto clip = appModel->findClipById(appStatus->activeClipId);
-        // if (clip->clipType() == IClip::Singing)
-        //     createAndRunGetPronTask(dynamic_cast<SingingClip *>(clip));
-        // }
+        if (m_lastEditObjectType == AppStatus::EditObjectType::Note) {
+            qInfo() << "编辑完成，重新创建任务";
+            auto clip = appModel->findClipById(appStatus->activeClipId);
+            if (clip->clipType() == IClip::Singing)
+                createAndRunGetPronTask(dynamic_cast<SingingClip *>(clip));
+        }
     }
     m_lastEditObjectType = type;
 }
@@ -125,7 +125,7 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask *task)
     m_inferDurTasks.onCurrentFinished();
     runNextInferDurTask();
     auto clip = appModel->findClipById(task->clipId());
-    if (task->terminated() || !clip) {
+    if (task->terminated() || !task->success() || !clip) {
         delete task;
         return;
     }
@@ -135,6 +135,7 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask *task)
     auto modelNoteCount = piece->notes.count();
     auto taskNoteCount = task->result().count();
     if (modelNoteCount != taskNoteCount) {
+        // piece->acousticInferStatus = Failed;
         qFatal() << "模型音符数不等于任务音符数"
                  << "模型音符数：" << modelNoteCount << "任务音符数：" << taskNoteCount;
         return;
@@ -142,6 +143,29 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask *task)
     // 推理成功，保存本次推理的输入以便之后比较
     m_lastInferDurInputs[task->pieceId()] = task->input();
     OriginalParamUtils::updateNotesPhonemeOffset(piece->notes, task->result(), singingClip);
+    createAndRunInferPitchTask(*piece);
+    // piece->acousticInferStatus = Success;
+    delete task;
+}
+
+void InferControllerPrivate::handleInferPitchTaskFinished(InferPitchTask *task) {
+    m_inferPitchTasks.onCurrentFinished();
+    runNextInferPitchTask();
+    auto clip = appModel->findClipById(task->clipId());
+    if (task->terminated() || !clip) {
+        delete task;
+        return;
+    }
+
+    auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task->clipId()));
+    auto piece = singingClip->findPieceById(task->pieceId());
+    if (task->success()) {
+        // 推理成功，保存本次推理的输入以便之后比较
+        m_lastInferPitchInputs[task->pieceId()] = task->input();
+        piece->acousticInferStatus = Success;
+    } else {
+        piece->acousticInferStatus = Failed;
+    }
     delete task;
 }
 
@@ -166,25 +190,24 @@ void InferControllerPrivate::createAndRunGetPhoneTask(SingingClip *clip) {
 }
 
 void InferControllerPrivate::createAndRunInferDurTask(SingingClip *clip) {
-    auto inferDur = [=](const InferPiece &piece) {
-        QList<InferDurNote> inputNotes;
+    auto inferDur = [=](InferPiece &piece) {
+        QList<InferDurPitNote> inputNotes;
         for (const auto note : piece.notes)
-            inputNotes.append(InferDurNote(*note));
-        const InferDurationTask::InferDurInput input = {
-            clip->id(), piece.id(), inputNotes,
-            R"(F:\Sound libraries\DiffSinger\OpenUtau\Singers\Junninghua_v1.4.0_DiffSinger_OpenUtau\dsconfig.yaml)",
-            appModel->tempo()};
+            inputNotes.append(InferDurPitNote(*note));
+        const InferDurationTask::InferDurInput input = {clip->id(), piece.id(), inputNotes,
+                                                        m_singerConfigPath, appModel->tempo()};
         // 创建分段的推理任务前，首先检查输入是否和上次的相同。如果相同，则直接忽略，避免不必要的推理
         if (m_lastInferDurInputs.contains(piece.id())) {
             if (const auto lastInput = m_lastInferDurInputs[piece.id()]; lastInput == input) {
-                qDebug() << "createAndRunInferDurTask: 输入与上次相同，已取消创建推理任务"
-                         << "pieceId:" << piece.id();
+                // qDebug() << "createAndRunInferDurTask: 输入与上次相同，已取消创建推理任务"
+                //          << "pieceId:" << piece.id();
                 return;
             }
         }
         auto task = new InferDurationTask(input);
         connect(task, &Task::finished, this, [=] { handleInferDurTaskFinished(task); });
         m_inferDurTasks.add(task);
+        piece.acousticInferStatus = Running;
         if (!m_inferDurTasks.current)
             runNextInferDurTask();
     };
@@ -194,6 +217,24 @@ void InferControllerPrivate::createAndRunInferDurTask(SingingClip *clip) {
             inferDur(*piece);
     } else
         qWarning() << "音素序列有错误，无法创建时长推理任务 clipId:" << clip->id();
+}
+
+void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
+    QList<InferDurPitNote> inputNotes;
+    for (const auto note : piece.notes)
+        inputNotes.append(InferDurPitNote(*note));
+    const InferPitchTask::InferPitchInput input = {piece.clipId(), piece.id(), inputNotes,
+                                                   m_singerConfigPath, appModel->tempo()};
+    if (m_lastInferPitchInputs.contains(piece.id())) {
+        if (const auto lastInput = m_lastInferPitchInputs[piece.id()]; lastInput == input) {
+            return;
+        }
+    }
+    auto task = new InferPitchTask(input);
+    connect(task, &Task::finished, this, [=] { handleInferPitchTaskFinished(task); });
+    m_inferPitchTasks.add(task);
+    if (!m_inferPitchTasks.current)
+        runNextInferPitchTask();
 }
 
 void InferControllerPrivate::cancelClipRelatedTasks(const Clip *clip) {
@@ -226,4 +267,7 @@ void InferControllerPrivate::runNextGetPhoneTask() {
 
 void InferControllerPrivate::runNextInferDurTask() {
     m_inferDurTasks.runNext();
+}
+void InferControllerPrivate::runNextInferPitchTask(){
+    m_inferPitchTasks.runNext();
 }

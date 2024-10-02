@@ -5,6 +5,8 @@
 #ifndef PROPERTY_H
 #define PROPERTY_H
 
+#define qSignalCallback(SignalName) [=](const auto &value) { emit SignalName(value); }
+
 #include <functional>
 
 template <typename T>

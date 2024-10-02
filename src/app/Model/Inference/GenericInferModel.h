@@ -57,6 +57,7 @@ public:
     bool dynamic = false;
     double interval = 0.01; // s
     QList<double> values;
+    InferRetake retake;
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
@@ -70,6 +71,8 @@ public:
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
+    [[nodiscard]] QString serializeToJson() const;
+    bool deserializeFromJson(const QString &json);
 };
 
 

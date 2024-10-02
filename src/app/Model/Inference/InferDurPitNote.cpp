@@ -2,11 +2,11 @@
 // Created by fluty on 24-9-26.
 //
 
-#include "InferDurNote.h"
+#include "InferDurPitNote.h"
 
 #include "Model/AppModel/Note.h"
 
-InferDurNote::InferDurNote(const Note &note) {
+InferDurPitNote::InferDurPitNote(const Note &note) {
     id = note.id();
     start = note.rStart();
     length = note.length();
@@ -15,4 +15,6 @@ InferDurNote::InferDurNote(const Note &note) {
     isSlur = note.isSlur();
     aheadNames = note.phonemeNameInfo().ahead.result();
     normalNames = note.phonemeNameInfo().normal.result();
+    aheadOffsets = note.phonemeOffsetInfo().ahead.result();
+    normalOffsets = note.phonemeOffsetInfo().normal.result();
 }

@@ -5,6 +5,7 @@
 #include "GenericInferModel.h"
 
 #include <QJsonArray>
+#include <QJsonDocument>
 
 QJsonObject InferPhoneme::serialize() const {
     return QJsonObject{
@@ -79,10 +80,11 @@ QJsonObject InferParam::serialize() const {
         arrValues.append(value);
 
     return QJsonObject{
-        {"tag",      tag      },
-        {"dynamic",  dynamic  },
-        {"interval", interval },
-        {"values",   arrValues}
+        {"tag",      tag               },
+        {"dynamic",  dynamic           },
+        {"interval", interval          },
+        {"values",   arrValues         },
+        {"retake",   retake.serialize()}
     };
 }
 
@@ -94,6 +96,7 @@ bool InferParam::deserialize(const QJsonObject &obj) {
     for (const auto &value : obj["values"].toArray())
         newValues.append(value.toDouble());
     values = newValues;
+    retake.deserialize(obj["retake"].toObject());
     return true;
 }
 
@@ -101,13 +104,22 @@ QJsonObject GenericInferModel::serialize() const {
     return QJsonObject{
         {"offset", offset                 },
         {"words",  serializeJArray(words) },
-        {"params", serializeJArray(params)}
+        {"parameters", serializeJArray(params)}
     };
 }
 
 bool GenericInferModel::deserialize(const QJsonObject &obj) {
     offset = obj["offset"].toDouble();
     deserializeJArray(obj["words"].toArray(), words);
-    deserializeJArray(obj["params"].toArray(), params);
+    deserializeJArray(obj["parameters"].toArray(), params);
     return true;
+}
+
+QString GenericInferModel::serializeToJson() const {
+    return QJsonDocument{serialize()}.toJson();
+}
+
+bool GenericInferModel::deserializeFromJson(const QString &json) {
+    const QByteArray data = json.toUtf8();
+    return deserialize(QJsonDocument::fromJson(data).object());
 }

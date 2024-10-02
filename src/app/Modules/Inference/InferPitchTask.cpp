@@ -1,44 +1,39 @@
 //
-// Created by OrangeCat on 24-9-4.
+// Created by fluty on 24-10-2.
 //
 
-#include "InferDurationTask.h"
+#include "InferPitchTask.h"
 
 #include "InferEngine.h"
 #include "Model/Inference/GenericInferModel.h"
 #include "Model/Inference/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
 
-#include <QThread>
 #include <QDebug>
 #include <QJsonDocument>
-#include <utility>
 
-namespace dsonnxinfer {
-    struct Segment;
-}
-
-bool InferDurationTask::InferDurInput::operator==(const InferDurInput &other) const {
+bool InferPitchTask::InferPitchInput::operator==(const InferPitchInput &other) const {
     return clipId == other.clipId && pieceId == other.pieceId && notes == other.notes &&
-           configPath == other.configPath && qFuzzyCompare(tempo, other.tempo);
+           configPath == other.configPath && qFuzzyCompare(tempo, other.tempo) &&
+           expressiveness == other.expressiveness;
 }
 
-int InferDurationTask::clipId() const {
+int InferPitchTask::clipId() const {
     return m_input.clipId;
 }
 
-int InferDurationTask::pieceId() const {
+int InferPitchTask::pieceId() const {
     return m_input.pieceId;
 }
 
-bool InferDurationTask::success() const {
+bool InferPitchTask::success() const {
     return m_success;
 }
 
-InferDurationTask::InferDurationTask(InferDurInput input) : m_input(std::move(input)) {
+InferPitchTask::InferPitchTask(InferPitchInput input) : m_input(std::move(input)) {
     buildPreviewText();
     TaskStatus status;
-    status.title = "推理音素长度";
+    status.title = "推理音高参数";
     status.message = "正在等待：" + m_previewText;
     status.maximum = m_input.notes.count();
     setStatus(status);
@@ -46,17 +41,15 @@ InferDurationTask::InferDurationTask(InferDurInput input) : m_input(std::move(in
              << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
-InferDurationTask::InferDurInput InferDurationTask::input() {
-    QMutexLocker locker(&m_mutex);
+InferPitchTask::InferPitchInput InferPitchTask::input() {
     return m_input;
 }
 
-QList<InferDurPitNote> InferDurationTask::result() {
-    QMutexLocker locker(&m_mutex);
-    return m_result.notes;
+InferParamCurve InferPitchTask::result() {
+    return m_result;
 }
 
-void InferDurationTask::runTask() {
+void InferPitchTask::runTask() {
     qDebug() << "Running task..."
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();
     auto newStatus = status();
@@ -76,8 +69,9 @@ void InferDurationTask::runTask() {
 
     QString resultJson;
     QString errorMessage;
-    if (!inferEngine->inferDuration(buildInputJson(), resultJson, errorMessage)) {
+    if (!inferEngine->inferPitch(buildInputJson(), resultJson, errorMessage)) {
         qCritical() << "Task failed:" << errorMessage;
+        return;
     }
     if (isTerminateRequested()) {
         abort();
@@ -93,16 +87,17 @@ void InferDurationTask::runTask() {
                     << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
-void InferDurationTask::abort() {
+void InferPitchTask::abort() {
     auto newStatus = status();
     newStatus.message = "正在停止: " + m_previewText;
     newStatus.isIndetermine = true;
     setStatus(newStatus);
-    qInfo() << "时长推理任务被终止 clipId:" << clipId() << "pieceId:" << pieceId()
+    qInfo() << "音高参数推理任务被终止 clipId:" << clipId() << "pieceId:" << pieceId()
             << "taskId:" << id();
 }
 
-void InferDurationTask::buildPreviewText() {
+void InferPitchTask::buildPreviewText() {
+    // 可能用歌词会比较好？
     for (const auto &note : m_input.notes) {
         for (const auto &phoneme : note.aheadNames)
             m_previewText.append(phoneme + " ");
@@ -111,37 +106,27 @@ void InferDurationTask::buildPreviewText() {
     }
 }
 
-QString InferDurationTask::buildInputJson() const {
+QString InferPitchTask::buildInputJson() const {
+    // auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
+    InferRetake retake;
+    retake.end = 128;
+    InferParam pitch;
+    pitch.tag = "pitch";
+    pitch.dynamic = true;
+    pitch.retake = retake;
+    for (int i = 0; i < 128;i++)
+        pitch.values.append(0);
+
     GenericInferModel model;
-    model.words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo);
+    model.words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo, true);
+    model.params = {pitch};
+    JsonUtils::save(QString("infer-pitch-input-%1.json").arg(id()), model.serialize());
     return model.serializeToJson();
 }
 
-bool InferDurationTask::processOutput(const QString &json) {
-    GenericInferModel model;
-    if (!model.deserializeFromJson(json))
-        return false;
-
-    QList<std::pair<double, double>> offsets;
-    for (const auto &word : model.words) {
-        for (const auto &phoneme : word.phones) {
-            offsets.append({word.length(), phoneme.start});
-        }
-    }
-    m_result = m_input;
-    int phoneIndex = 1; // Skip SP phoneme
-    int noteIndex = 0;
-    for (auto &note : m_result.notes) {
-        for (int aheadIndex = 0; aheadIndex < note.aheadNames.count(); aheadIndex++) {
-            note.aheadOffsets.append(
-                qRound((offsets[phoneIndex].first - offsets[phoneIndex].second) * 1000));
-            phoneIndex++;
-        }
-        for (int normalIndex = 0; normalIndex < note.normalNames.count(); normalIndex++) {
-            note.normalOffsets.append(qRound(offsets[phoneIndex].second * 1000));
-            phoneIndex++;
-        }
-        noteIndex++;
-    }
+bool InferPitchTask::processOutput(const QString &json) {
+    QByteArray data = json.toUtf8();
+    auto object = QJsonDocument::fromJson(data).object();
+    JsonUtils::save(QString("infer-pitch-output-%1.json").arg(id()), object);
     return true;
 }

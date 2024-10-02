@@ -185,7 +185,7 @@ void TimelineView::drawPieces(QPainter *painter) const {
     pen.setCapStyle(Qt::RoundCap);
     painter->setBrush(Qt::NoBrush);
     for (const auto &piece : m_clip->pieces()) {
-        pen.setColor(m_piecesColors[piece->status]);
+        pen.setColor(m_piecesColors[piece->acousticInferStatus]);
         painter->setPen(pen);
         auto x1 = tickToX(piece->startTick() + m_clip->start());
         auto x2 = tickToX(piece->endTick() + m_clip->start());

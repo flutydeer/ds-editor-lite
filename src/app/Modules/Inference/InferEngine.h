@@ -40,10 +40,14 @@ private:
     friend class InitInferEngineTask;
     friend class LoadInferConfigTask;
     friend class InferDurationTask;
+    friend class InferPitchTask;
 
     bool initialize(QString &error);
     bool runLoadConfig(const QString &path);
     bool inferDuration(const QString &input, QString &output, QString &error) const;
+    bool inferPitch(const QString &input, QString &output, QString &error) const;
+    bool inferVariance(const QString &input, QString &output, QString &error) const;
+    bool inferAcoustic(const QString &input, QString &output, QString &error) const;
     void dispose() const;
 
     QMutex m_mutex;

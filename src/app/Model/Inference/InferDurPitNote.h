@@ -8,9 +8,9 @@
 #include <QList>
 
 class Note;
-class InferDurNote {
+class InferDurPitNote {
 public:
-    explicit InferDurNote(const Note &note);
+    explicit InferDurPitNote(const Note &note);
 
     int id = -1;
     int start = 0;
@@ -24,14 +24,14 @@ public:
     QList<int> aheadOffsets;
     QList<int> normalOffsets;
 
-    friend bool operator==(const InferDurNote &lhs, const InferDurNote &rhs) {
+    friend bool operator==(const InferDurPitNote &lhs, const InferDurPitNote &rhs) {
         return lhs.id == rhs.id && lhs.start == rhs.start && lhs.length == rhs.length &&
                lhs.key == rhs.key && lhs.isRest == rhs.isRest && lhs.isSlur == rhs.isSlur &&
                lhs.aheadNames == rhs.aheadNames && lhs.normalNames == rhs.normalNames &&
                lhs.aheadOffsets == rhs.aheadOffsets && lhs.normalOffsets == rhs.normalOffsets;
     }
 
-    friend bool operator!=(const InferDurNote &lhs, const InferDurNote &rhs) {
+    friend bool operator!=(const InferDurPitNote &lhs, const InferDurPitNote &rhs) {
         return !(lhs == rhs);
     }
 };

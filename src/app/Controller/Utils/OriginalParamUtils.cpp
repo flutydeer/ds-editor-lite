@@ -6,7 +6,7 @@
 
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
-#include "Model/Inference/InferDurNote.h"
+#include "Model/Inference/InferDurPitNote.h"
 #include "Model/Inference/PhonemeNameModel.h"
 
 #include <QDebug>
@@ -44,7 +44,7 @@ void OriginalParamUtils::updateNotesPhonemeName(const QList<Note *> &notes,
 }
 
 void OriginalParamUtils::updateNotesPhonemeOffset(const QList<Note *> &notes,
-                                                  const QList<InferDurNote> &args,
+                                                  const QList<InferDurPitNote> &args,
                                                   SingingClip *clip) {
     if (notes.count() != args.count()) {
         qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()

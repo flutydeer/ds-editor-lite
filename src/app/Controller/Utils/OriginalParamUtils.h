@@ -9,7 +9,7 @@
 
 class Note;
 class SingingClip;
-class InferDurNote;
+class InferDurPitNote;
 class PhonemeNameResult;
 class OriginalParamUtils {
 public:
@@ -18,7 +18,7 @@ public:
     static void updateNotesPhonemeName(const QList<Note *> &notes,
                                        const QList<PhonemeNameResult> &args, SingingClip *clip);
     static void updateNotesPhonemeOffset(const QList<Note *> &notes,
-                                         const QList<InferDurNote> &args, SingingClip *clip);
+                                         const QList<InferDurPitNote> &args, SingingClip *clip);
 };
 
 #endif // ORIGINALPARAMUTILS_H

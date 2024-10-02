@@ -9,6 +9,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/InferDurationTask.h"
+#include "Modules/Inference/InferPitchTask.h"
 #include "Modules/Task/TaskQueue.h"
 
 class GetPronunciationTask;
@@ -36,25 +37,35 @@ public:
     void handleGetPronTaskFinished(GetPronunciationTask *task);
     void handleGetPhoneTaskFinished(GetPhonemeNameTask *task);
     void handleInferDurTaskFinished(InferDurationTask *task);
+    void handleInferPitchTaskFinished(InferPitchTask *task);
 
     void createAndRunGetPronTask(SingingClip *clip);
     void createAndRunGetPhoneTask(SingingClip *clip);
+
     void createAndRunInferDurTask(SingingClip *clip);
+    void createAndRunInferPitchTask(InferPiece &piece);
+
     void cancelClipRelatedTasks(const Clip *clip);
     void cancelPieceRelatedTasks(const InferPiece *piece);
 
     void runNextGetPronTask();
     void runNextGetPhoneTask();
     void runNextInferDurTask();
+    void runNextInferPitchTask();
 
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
-    QMap<int, QList<int>> m_clipPieceDict;         // int clipId, list<int> pieceIds
-    QMap<int, InferDurationTask::InferDurInput> m_lastInferDurInputs; // int pieceId, InferDurInput input
+    QMap<int /*clipId*/, QList<int /*pieceId*/>> m_clipPieceDict;
+    QMap<int /*pieceId*/, InferDurationTask::InferDurInput> m_lastInferDurInputs;
+    QMap<int /*pieceId*/, InferPitchTask::InferPitchInput> m_lastInferPitchInputs;
 
     TaskQueue<GetPronunciationTask> m_getPronTasks;
     TaskQueue<GetPhonemeNameTask> m_getPhoneTasks;
     TaskQueue<InferDurationTask> m_inferDurTasks;
+    TaskQueue<InferPitchTask> m_inferPitchTasks;
+
+    const QString m_singerConfigPath =
+        R"(F:\Sound libraries\DiffSinger\OpenUtau\Singers\Junninghua_v1.4.0_DiffSinger_OpenUtau\dsconfig.yaml)";
 
 private:
     InferController *q_ptr = nullptr;
