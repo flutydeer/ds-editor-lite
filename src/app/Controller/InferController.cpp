@@ -36,12 +36,12 @@ void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
         auto clip = appModel->findClipById(appStatus->activeClipId);
         cancelClipRelatedTasks(clip);
     } else if (type == AppStatus::EditObjectType::None) {
-        if (m_lastEditObjectType == AppStatus::EditObjectType::Note) {
-            qInfo() << "编辑完成，重新创建任务";
-            auto clip = appModel->findClipById(appStatus->activeClipId);
-            if (clip->clipType() == IClip::Singing)
-                createAndRunGetPronTask(dynamic_cast<SingingClip *>(clip));
-        }
+        // if (m_lastEditObjectType == AppStatus::EditObjectType::Note) {
+        //     qInfo() << "编辑完成，重新创建任务";
+        //     auto clip = appModel->findClipById(appStatus->activeClipId);
+        //     if (clip->clipType() == IClip::Singing)
+        //         createAndRunGetPronTask(dynamic_cast<SingingClip *>(clip));
+        // }
     }
     m_lastEditObjectType = type;
 }
@@ -143,7 +143,7 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask *task)
     // 推理成功，保存本次推理的输入以便之后比较
     m_lastInferDurInputs[task->pieceId()] = task->input();
     OriginalParamUtils::updateNotesPhonemeOffset(piece->notes, task->result(), singingClip);
-    createAndRunInferPitchTask(*piece);
+    // createAndRunInferPitchTask(*piece);
     // piece->acousticInferStatus = Success;
     delete task;
 }

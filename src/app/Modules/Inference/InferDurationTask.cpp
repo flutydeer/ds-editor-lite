@@ -132,11 +132,13 @@ bool InferDurationTask::processOutput(const QString &json) {
     int phoneIndex = 1; // Skip SP phoneme
     int noteIndex = 0;
     for (auto &note : m_result.notes) {
+        note.aheadOffsets.clear();
         for (int aheadIndex = 0; aheadIndex < note.aheadNames.count(); aheadIndex++) {
             note.aheadOffsets.append(
                 qRound((offsets[phoneIndex].first - offsets[phoneIndex].second) * 1000));
             phoneIndex++;
         }
+        note.normalOffsets.clear();
         for (int normalIndex = 0; normalIndex < note.normalNames.count(); normalIndex++) {
             note.normalOffsets.append(qRound(offsets[phoneIndex].second * 1000));
             phoneIndex++;
