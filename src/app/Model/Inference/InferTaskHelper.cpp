@@ -32,6 +32,9 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferDurPitNote> &notes
         word.phones.append(spPhoneme);
 
         auto firstNote = notes.first();
+        if (firstNote.isSlur)
+            qFatal() << "分段第一个音符不能为转音";
+
         int i = 0;
         for (const auto &phoneme : firstNote.aheadNames) {
             InferPhoneme inferPhoneme;
@@ -82,7 +85,15 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferDurPitNote> &notes
             }
         }
 
-        if (!note.isSlur || noteIndex == notes.size() - 1)
+        bool commitFlag = true;
+        if (noteIndex < notes.size() - 1)
+            if (notes.at(noteIndex + 1).isSlur)
+                commitFlag = false;
+
+        if (noteIndex == notes.count() - 1)
+            commitFlag = true;
+
+        if (commitFlag)
             commitWord();
         noteIndex++;
     }

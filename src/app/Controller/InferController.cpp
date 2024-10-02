@@ -101,7 +101,7 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask *tas
     }
 
     auto singingClip = dynamic_cast<SingingClip *>(clip);
-    OriginalParamUtils::updateNotesPronunciation(task->notesRef, task->result, singingClip);
+    OriginalParamUtils::updatePronunciation(task->notesRef, task->result, singingClip);
     createAndRunGetPhoneTask(singingClip);
     delete task;
 }
@@ -116,7 +116,7 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask *task
     }
 
     auto singingClip = dynamic_cast<SingingClip *>(clip);
-    OriginalParamUtils::updateNotesPhonemeName(task->notesRef, task->result, singingClip);
+    OriginalParamUtils::updatePhoneName(task->notesRef, task->result, singingClip);
     createAndRunInferDurTask(singingClip);
     delete task;
 }
@@ -142,8 +142,8 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask *task)
     }
     // 推理成功，保存本次推理的输入以便之后比较
     m_lastInferDurInputs[task->pieceId()] = task->input();
-    OriginalParamUtils::updateNotesPhonemeOffset(piece->notes, task->result(), singingClip);
-    // createAndRunInferPitchTask(*piece);
+    OriginalParamUtils::updatePhoneOffset(piece->notes, task->result(), singingClip);
+    createAndRunInferPitchTask(*piece);
     // piece->acousticInferStatus = Success;
     delete task;
 }
@@ -159,6 +159,10 @@ void InferControllerPrivate::handleInferPitchTaskFinished(InferPitchTask *task) 
 
     auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task->clipId()));
     auto piece = singingClip->findPieceById(task->pieceId());
+    if (!piece || !task->success()) {
+        delete task;
+        return;
+    }
     if (task->success()) {
         // 推理成功，保存本次推理的输入以便之后比较
         m_lastInferPitchInputs[task->pieceId()] = task->input();
@@ -204,6 +208,8 @@ void InferControllerPrivate::createAndRunInferDurTask(SingingClip *clip) {
                 return;
             }
         }
+        // 清空原有的自动参数
+        OriginalParamUtils::resetPhoneOffset(piece.notes, clip);
         auto task = new InferDurationTask(input);
         connect(task, &Task::finished, this, [=] { handleInferDurTaskFinished(task); });
         m_inferDurTasks.add(task);

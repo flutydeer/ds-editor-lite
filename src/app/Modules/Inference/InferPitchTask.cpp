@@ -108,17 +108,24 @@ void InferPitchTask::buildPreviewText() {
 
 QString InferPitchTask::buildInputJson() const {
     // auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
-    InferRetake retake;
-    retake.end = 128;
+    auto words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo, true);
+    double totalLength = 0;
+    for (const auto &word : words)
+        totalLength += word.length();
     InferParam pitch;
     pitch.tag = "pitch";
     pitch.dynamic = true;
+
+    int frames = qRound(totalLength / pitch.interval);
+    InferRetake retake;
+    retake.end = frames;
+
     pitch.retake = retake;
-    for (int i = 0; i < 128;i++)
+    for (int i = 0; i < frames; i++)
         pitch.values.append(0);
 
     GenericInferModel model;
-    model.words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo, true);
+    model.words = words;
     model.params = {pitch};
     JsonUtils::save(QString("infer-pitch-input-%1.json").arg(id()), model.serialize());
     return model.serializeToJson();

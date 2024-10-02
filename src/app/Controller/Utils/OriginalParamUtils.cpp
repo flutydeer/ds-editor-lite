@@ -11,8 +11,8 @@
 
 #include <QDebug>
 
-void OriginalParamUtils::updateNotesPronunciation(const QList<Note *> &notes,
-                                                  const QList<QString> &args, SingingClip *clip) {
+void OriginalParamUtils::updatePronunciation(const QList<Note *> &notes, const QList<QString> &args,
+                                             SingingClip *clip) {
     if (notes.count() != args.count()) {
         qFatal() << "updateNotesPronunciation() note count != args count:" << notes.count()
                  << args.count();
@@ -26,9 +26,8 @@ void OriginalParamUtils::updateNotesPronunciation(const QList<Note *> &notes,
     clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
 }
 
-void OriginalParamUtils::updateNotesPhonemeName(const QList<Note *> &notes,
-                                                const QList<PhonemeNameResult> &args,
-                                                SingingClip *clip) {
+void OriginalParamUtils::updatePhoneName(const QList<Note *> &notes,
+                                         const QList<PhonemeNameResult> &args, SingingClip *clip) {
     if (notes.count() != args.count()) {
         qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
                  << args.count();
@@ -43,9 +42,8 @@ void OriginalParamUtils::updateNotesPhonemeName(const QList<Note *> &notes,
     clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
 }
 
-void OriginalParamUtils::updateNotesPhonemeOffset(const QList<Note *> &notes,
-                                                  const QList<InferDurPitNote> &args,
-                                                  SingingClip *clip) {
+void OriginalParamUtils::updatePhoneOffset(const QList<Note *> &notes,
+                                           const QList<InferDurPitNote> &args, SingingClip *clip) {
     if (notes.count() != args.count()) {
         qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
                  << args.count();
@@ -56,6 +54,14 @@ void OriginalParamUtils::updateNotesPhonemeOffset(const QList<Note *> &notes,
         note->setPhonemeOffsetInfo(Phonemes::Ahead, Note::Original, args[i].aheadOffsets);
         note->setPhonemeOffsetInfo(Phonemes::Normal, Note::Original, args[i].normalOffsets);
         i++;
+    }
+    clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
+}
+
+void OriginalParamUtils::resetPhoneOffset(const QList<Note *> &notes, SingingClip *clip) {
+    for (const auto note : notes) {
+        note->setPhonemeOffsetInfo(Phonemes::Ahead, Note::Original, {});
+        note->setPhonemeOffsetInfo(Phonemes::Normal, Note::Original, {});
     }
     clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
 }
