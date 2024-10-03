@@ -131,7 +131,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
     if (pitchMode) {
         painter->setBrush(Qt::NoBrush);
         if (!m_drawCurvesOriginal.isEmpty()) {
-            pen.setColor(QColor(255, 255, 255, 127));
+            pen.setColor(QColor(255, 255, 255, 96));
             painter->setPen(pen);
             drawCurveBorder(painter, m_drawCurvesOriginal);
         }

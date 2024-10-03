@@ -6,13 +6,17 @@
 
 #include <QDebug>
 
-DrawCurve::DrawCurve(const DrawCurve &other)
-    : Curve(other), step(other.step), m_values(other.m_values) {
-    // qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start;
-}
+// DrawCurve::DrawCurve(const DrawCurve &other)
+//     : Curve(other), step(other.step), m_values(other.m_values) {
+//     // qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start;
+// }
 
 const QList<int> &DrawCurve::values() const {
     return m_values;
+}
+
+bool DrawCurve::isEmpty() const {
+    return m_values.isEmpty();
 }
 
 QList<int> DrawCurve::mid(int tick) const {

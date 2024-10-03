@@ -33,6 +33,7 @@ const QList<Curve *> &Param::curves(Type type) const {
 }
 
 void Param::setCurves(Type type, const QList<Curve *> &curves) {
+    // TODO: 替换曲线前释放原有的曲线？
     switch (type) {
         case Original:
             m_original = curves;

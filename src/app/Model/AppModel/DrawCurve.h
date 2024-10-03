@@ -11,7 +11,7 @@ class DrawCurve final : public Curve {
 public:
     DrawCurve() = default;
     explicit DrawCurve(int id) : Curve(id){};
-    DrawCurve(const DrawCurve &other);
+    DrawCurve(const DrawCurve &other) = default;
 
     [[nodiscard]] CurveType type() const override {
         return Draw;
@@ -19,6 +19,7 @@ public:
 
     int step = 5;
     [[nodiscard]] const QList<int> &values() const;
+    [[nodiscard]] bool isEmpty() const;
     [[nodiscard]] QList<int> mid(int tick) const;
     void setValues(const QList<int> &values);
     void insertValue(int index, int value);

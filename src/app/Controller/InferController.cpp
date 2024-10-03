@@ -12,7 +12,7 @@
 #include "Tasks/GetPronunciationTask.h"
 #include "Utils/Linq.h"
 #include "Utils/NoteWordUtils.h"
-#include "Utils/OriginalParamUtils.h"
+#include "Utils/InferControllerHelper.h"
 #include "Utils/ValidationUtils.h"
 
 InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
@@ -66,6 +66,7 @@ void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
         case SingingClip::Insert:
         case SingingClip::Remove:
         case SingingClip::EditedWordPropertyChange:
+        case SingingClip::EditedPhonemeOffsetChange:
         case SingingClip::TimeKeyPropertyChange:
             // 音符发生改动，其所属分段必定需要重新推理。将该分段标记为脏，以便在分段前丢弃
             for (const auto &piece : clip->findPiecesByNotes(notes)) {
@@ -101,7 +102,7 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask *tas
     }
 
     auto singingClip = dynamic_cast<SingingClip *>(clip);
-    OriginalParamUtils::updatePronunciation(task->notesRef, task->result, singingClip);
+    InferControllerHelper::updatePronunciation(task->notesRef, task->result, *singingClip);
     createAndRunGetPhoneTask(singingClip);
     delete task;
 }
@@ -116,7 +117,7 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask *task
     }
 
     auto singingClip = dynamic_cast<SingingClip *>(clip);
-    OriginalParamUtils::updatePhoneName(task->notesRef, task->result, singingClip);
+    InferControllerHelper::updatePhoneName(task->notesRef, task->result, *singingClip);
     createAndRunInferDurTask(singingClip);
     delete task;
 }
@@ -142,7 +143,7 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask *task)
     }
     // 推理成功，保存本次推理的输入以便之后比较
     m_lastInferDurInputs[task->pieceId()] = task->input();
-    OriginalParamUtils::updatePhoneOffset(piece->notes, task->result(), singingClip);
+    InferControllerHelper::updatePhoneOffset(piece->notes, task->result(), *singingClip);
     createAndRunInferPitchTask(*piece);
     // piece->acousticInferStatus = Success;
     delete task;
@@ -167,7 +168,7 @@ void InferControllerPrivate::handleInferPitchTaskFinished(InferPitchTask *task) 
         // 推理成功，保存本次推理的输入以便之后比较
         m_lastInferPitchInputs[task->pieceId()] = task->input();
         piece->acousticInferStatus = Success;
-        OriginalParamUtils::updateParam(ParamInfo::Pitch, task->result(), singingClip, piece);
+        InferControllerHelper::updateParam(ParamInfo::Pitch, task->result(), *singingClip, *piece);
     } else {
         piece->acousticInferStatus = Failed;
     }
@@ -210,7 +211,7 @@ void InferControllerPrivate::createAndRunInferDurTask(SingingClip *clip) {
             }
         }
         // 清空原有的自动参数
-        OriginalParamUtils::resetPhoneOffset(piece.notes, clip);
+        InferControllerHelper::resetPhoneOffset(piece.notes, *clip);
         auto task = new InferDurationTask(input);
         connect(task, &Task::finished, this, [=] { handleInferDurTaskFinished(task); });
         m_inferDurTasks.add(task);
