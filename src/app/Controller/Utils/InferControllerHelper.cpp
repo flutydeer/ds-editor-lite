@@ -84,8 +84,11 @@ void InferControllerHelper::updateParam(const ParamInfo::Name name,
 
     // 重新获取所有分段的所有相应自动参数，更新剪辑上的自动参数信息
     QList<Curve *> newOriginalCurves;
-    for (const auto &clipPiece : clip.pieces())
-        newOriginalCurves.append(new DrawCurve(*clipPiece->getCurve(name))); // 复制分段上的参数
+    for (const auto &clipPiece : clip.pieces()) {
+        auto pieceCurve = clipPiece->getCurve(name);
+        if (!pieceCurve->isEmpty())                               // 只获取有推理结果的
+            newOriginalCurves.append(new DrawCurve(*pieceCurve)); // 复制分段上的参数
+    }
     auto param = clip.params.getParamByName(name);
     param->setCurves(Param::Original, newOriginalCurves);
     clip.notifyParamChanged(name, Param::Original);
