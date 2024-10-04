@@ -12,43 +12,49 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferDurPitNote> &notes
 
     QList<InferWord> result;
     double pos = 0;
-    int lastNoteEndTick = 0;
+    constexpr double paddingSpLen = 0.1; // s
     InferWord word;
     auto commitWord = [&] {
         result.append(word);
         word = InferWord();
     };
 
-    constexpr double paddingSpLen = 0.1; // s
-    InferNote spNote;
-    spNote.duration = paddingSpLen;
-    spNote.is_rest = true;
-    InferPhoneme spPhoneme;
-    spPhoneme.token = "SP";
-    spPhoneme.language = "zh";
 
     // TODO：处理第一个音符为 AP 的情况
     auto processFirstNote = [&] {
-        // Add head SP
-        word.notes.append(spNote);
-        word.phones.append(spPhoneme);
-
         auto firstNote = notes.first();
         if (firstNote.isSlur)
             qFatal() << "分段第一个音符不能为转音";
-        lastNoteEndTick = firstNote.start + firstNote.length;
 
+        // 计算出第一个 word 的长度
+        // Add head SP
         int i = 0;
+        double firstPhoneStart = 0;
+        if (useOffsetInfo) {
+            if (!firstNote.aheadNames.isEmpty())
+                firstPhoneStart = firstNote.aheadOffsets.at(i) / 1000.0;
+        }
+        auto firstWordLen = paddingSpLen + firstPhoneStart;
+
+        InferPhoneme spPhoneme;
+        spPhoneme.token = "SP";
+        spPhoneme.language = "zh";
+        word.phones.append(spPhoneme);
         for (const auto &phoneme : firstNote.aheadNames) {
             InferPhoneme inferPhoneme;
             inferPhoneme.token = phoneme;
             inferPhoneme.language = "zh";
             if (useOffsetInfo) {
-                inferPhoneme.start = paddingSpLen - firstNote.aheadOffsets.at(i) / 1000.0;
+                inferPhoneme.start = firstWordLen - firstNote.aheadOffsets.at(i) / 1000.0;
                 i++;
             }
             word.phones.append(inferPhoneme);
         }
+
+        InferNote spNote;
+        spNote.is_rest = true;
+        spNote.duration = firstWordLen;
+        word.notes.append(spNote);
         commitWord();
     };
     processFirstNote();
@@ -126,11 +132,16 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferDurPitNote> &notes
     int noteIndex = 0;
     for (auto &note : notes) {
         processNote(noteIndex, note);
-        lastNoteEndTick = note.start + note.length;
         noteIndex++;
     }
 
     // Add tail SP
+    InferNote spNote;
+    spNote.duration = paddingSpLen;
+    spNote.is_rest = true;
+    InferPhoneme spPhoneme;
+    spPhoneme.token = "SP";
+    spPhoneme.language = "zh";
     word.notes.append(spNote);
     word.phones.append(spPhoneme);
     commitWord();

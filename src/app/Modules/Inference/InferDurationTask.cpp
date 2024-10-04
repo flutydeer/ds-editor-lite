@@ -114,6 +114,7 @@ void InferDurationTask::buildPreviewText() {
 QString InferDurationTask::buildInputJson() const {
     GenericInferModel model;
     model.words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo);
+    // JsonUtils::save(QString("infer-dur-input-%1.json").arg(id()), model.serialize());
     return model.serializeToJson();
 }
 
