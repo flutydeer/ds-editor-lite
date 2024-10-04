@@ -27,6 +27,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferDurPitNote> &notes
     spPhoneme.token = "SP";
     spPhoneme.language = "zh";
 
+    // TODO：处理第一个音符为 AP 的情况
     auto processFirstNote = [&] {
         // Add head SP
         word.notes.append(spNote);
@@ -71,6 +72,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferDurPitNote> &notes
         }
 
         // 处理当前音符后面还有音符的情况
+        // TODO: 处理后方音符为 AP 的情况
         QList<InferPhoneme> stashedGapPhones; // 预留给间隙音符的音素列表
         int gapLen = 0;
         if (noteIndex < notes.size() - 1) {

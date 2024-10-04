@@ -124,11 +124,11 @@ bool InferDurationTask::processOutput(const QString &json) {
 
     // JsonUtils::save(QString("infer-dur-output-%1.json").arg(pieceId()), model.serialize());
 
-    QList<bool> isSpPhones;
+    QList<bool> isRestPhones;
     QList<std::pair<double, double>> offsets;
     for (const auto &word : model.words) {
         for (const auto &phoneme : word.phones) {
-            isSpPhones.append(phoneme.token == "SP");
+            isRestPhones.append(phoneme.token == "SP" || phoneme.token == "AP");
             offsets.append({word.length(), phoneme.start});
         }
     }
@@ -136,9 +136,14 @@ bool InferDurationTask::processOutput(const QString &json) {
     int phoneIndex = 1;
     int noteIndex = 0;
     for (auto &note : m_result.notes) {
-        // 如果当前音素是 SP，则后移一位跳过
-        if (isSpPhones.at(phoneIndex) == true)
+        // 跳过连续的休止、换气和转音音符
+        if (note.isRest || note.isSlur)
+            continue;
+
+        // 跳过连续的 SP 和 AP 音素
+        while (isRestPhones.at(phoneIndex) == true) {
             phoneIndex++;
+        }
 
         note.aheadOffsets.clear();
         for (int aheadIndex = 0; aheadIndex < note.aheadNames.count(); aheadIndex++) {
