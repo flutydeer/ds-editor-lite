@@ -122,16 +122,24 @@ bool InferDurationTask::processOutput(const QString &json) {
     if (!model.deserializeFromJson(json))
         return false;
 
+    // JsonUtils::save(QString("infer-dur-output-%1.json").arg(pieceId()), model.serialize());
+
+    QList<bool> isSpPhones;
     QList<std::pair<double, double>> offsets;
     for (const auto &word : model.words) {
         for (const auto &phoneme : word.phones) {
+            isSpPhones.append(phoneme.token == "SP");
             offsets.append({word.length(), phoneme.start});
         }
     }
     m_result = m_input;
-    int phoneIndex = 1; // Skip SP phoneme
+    int phoneIndex = 1;
     int noteIndex = 0;
     for (auto &note : m_result.notes) {
+        // 如果当前音素是 SP，则后移一位跳过
+        if (isSpPhones.at(phoneIndex) == true)
+            phoneIndex++;
+
         note.aheadOffsets.clear();
         for (int aheadIndex = 0; aheadIndex < note.aheadNames.count(); aheadIndex++) {
             note.aheadOffsets.append(
@@ -141,6 +149,7 @@ bool InferDurationTask::processOutput(const QString &json) {
         note.normalOffsets.clear();
         for (int normalIndex = 0; normalIndex < note.normalNames.count(); normalIndex++) {
             note.normalOffsets.append(qRound(offsets[phoneIndex].second * 1000));
+            note.normalOffsets.append(0);
             phoneIndex++;
         }
         noteIndex++;
