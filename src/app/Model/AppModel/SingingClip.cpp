@@ -13,8 +13,8 @@
 #include <QTimer>
 
 SingingClip::SingingClip() : Clip() {
-    defaultLanguage.setNotify([=](auto value) { emit defaultLanguageChanged(value); });
-    configPath.setNotify([=](auto value) { emit configPathChanged(value); });
+    defaultLanguage.setNotify(qSignalCallback(defaultLanguageChanged));
+    configPath.setNotify(qSignalCallback(configPathChanged));
 }
 
 SingingClip::~SingingClip() {
@@ -94,6 +94,19 @@ void SingingClip::reSegment() {
     // });
     for (const auto piece : temp)
         delete piece;
+}
+
+void SingingClip::updateOriginalParam(ParamInfo::Name name) {
+    // 重新获取所有分段的所有相应自动参数，更新剪辑上的自动参数信息
+    QList<Curve *> curves;
+    for (const auto &piece : m_pieces) {
+        // 只获取有推理结果的分段
+        if (const auto curve = piece->getCurve(name); !curve->isEmpty())
+            curves.append(new DrawCurve(*curve)); // 复制分段上的参数
+    }
+    auto param = params.getParamByName(name);
+    param->setCurves(Param::Original, curves);
+    notifyParamChanged(name, Param::Original);
 }
 
 InferPiece *SingingClip::findPieceById(int id) const {

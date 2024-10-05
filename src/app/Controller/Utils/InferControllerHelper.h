@@ -25,6 +25,7 @@ public:
     static void updatePhoneOffset(const QList<Note *> &notes, const QList<InferDurPitNote> &args,
                                   SingingClip &clip);
     static void resetPhoneOffset(const QList<Note *> &notes, SingingClip &clip);
+    static void resetPieceParam(ParamInfo::Name name, InferPiece &piece);
     static void updateParam(ParamInfo::Name name, const InferParamCurve &taskResult, SingingClip &clip,
                             InferPiece &piece);
 };

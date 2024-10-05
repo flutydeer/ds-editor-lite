@@ -43,6 +43,7 @@ public:
     void notifyParamChanged(ParamInfo::Name name, Param::Type type);
     [[nodiscard]] const QList<InferPiece *> &pieces() const;
     void reSegment();
+    void updateOriginalParam(ParamInfo::Name name);
     [[nodiscard]] InferPiece *findPieceById(int id) const;
     [[nodiscard]] QList<InferPiece *> findPiecesByNotes(const QList<Note *> &notes) const;
 

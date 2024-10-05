@@ -34,19 +34,19 @@ public:
                            SingingClip *clip) override;
 
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
-    void handleGetPronTaskFinished(GetPronunciationTask *task);
-    void handleGetPhoneTaskFinished(GetPhonemeNameTask *task);
-    void handleInferDurTaskFinished(InferDurationTask *task);
-    void handleInferPitchTaskFinished(InferPitchTask *task);
+    void handleGetPronTaskFinished(GetPronunciationTask &task);
+    void handleGetPhoneTaskFinished(GetPhonemeNameTask &task);
+    void handleInferDurTaskFinished(InferDurationTask &task);
+    void handleInferPitchTaskFinished(InferPitchTask &task);
 
-    void createAndRunGetPronTask(SingingClip *clip);
-    void createAndRunGetPhoneTask(SingingClip *clip);
+    void createAndRunGetPronTask(SingingClip &clip);
+    void createAndRunGetPhoneTask(SingingClip &clip);
 
     void createAndRunInferDurTask(SingingClip *clip);
     void createAndRunInferPitchTask(InferPiece &piece);
 
-    void cancelClipRelatedTasks(const Clip *clip);
-    void cancelPieceRelatedTasks(const InferPiece *piece);
+    void cancelClipRelatedTasks(SingingClip *clip);
+    void cancelPieceRelatedTasks(int pieceId);
 
     void runNextGetPronTask();
     void runNextGetPhoneTask();
