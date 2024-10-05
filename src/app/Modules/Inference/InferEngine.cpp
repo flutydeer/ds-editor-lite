@@ -32,7 +32,6 @@ InferEngine::InferEngine() {
     });
     taskManager->addAndStartTask(initTask);
     appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Loading;
-    return;
 }
 
 InferEngine::~InferEngine() {

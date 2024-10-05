@@ -51,7 +51,7 @@ InferDurationTask::InferDurInput InferDurationTask::input() {
     return m_input;
 }
 
-QList<InferDurPitNote> InferDurationTask::result() {
+QList<InferInputNote> InferDurationTask::result() {
     QMutexLocker locker(&m_mutex);
     return m_result.notes;
 }

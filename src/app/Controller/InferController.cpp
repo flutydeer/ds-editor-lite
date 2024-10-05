@@ -5,7 +5,7 @@
 #include "InferController.h"
 #include "InferController_p.h"
 
-#include "Model/Inference/InferDurPitNote.h"
+#include "Model/Inference/InferInputNote.h"
 #include "Model/Inference/InferPiece.h"
 #include "Modules/Inference/InferDurationTask.h"
 #include "Tasks/GetPhonemeNameTask.h"
@@ -168,8 +168,41 @@ void InferControllerPrivate::handleInferPitchTaskFinished(InferPitchTask &task) 
     if (task.success()) {
         // 推理成功，保存本次推理的输入以便之后比较
         m_lastInferPitchInputs[task.pieceId()] = task.input();
-        piece->acousticInferStatus = Success;
+        // piece->acousticInferStatus = Success;
         InferControllerHelper::updateParam(ParamInfo::Pitch, task.result(), *singingClip, *piece);
+        createAndRunInferVarianceTask(*piece);
+    } else {
+        piece->acousticInferStatus = Failed;
+    }
+    delete &task;
+}
+
+void InferControllerPrivate::handleInferVarianceTaskFinished(InferVarianceTask &task) {
+    m_inferVarianceTasks.onCurrentFinished();
+    runNextInferVarianceTask();
+    auto clip = appModel->findClipById(task.clipId());
+    if (task.terminated() || !clip) {
+        delete &task;
+        return;
+    }
+
+    auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
+    auto piece = singingClip->findPieceById(task.pieceId());
+    if (!piece || !task.success()) {
+        delete &task;
+        return;
+    }
+    if (task.success()) {
+        m_lastInferVarianceInputs[task.pieceId()] = task.input();
+        piece->acousticInferStatus = Success;
+        auto result = task.result();
+        InferControllerHelper::updateParam(ParamInfo::Breathiness, result.breathiness, *singingClip,
+                                           *piece);
+        InferControllerHelper::updateParam(ParamInfo::Tension, result.tension, *singingClip,
+                                           *piece);
+        InferControllerHelper::updateParam(ParamInfo::Voicing, result.voicing, *singingClip,
+                                           *piece);
+        InferControllerHelper::updateParam(ParamInfo::Energy, result.energy, *singingClip, *piece);
     } else {
         piece->acousticInferStatus = Failed;
     }
@@ -198,9 +231,9 @@ void InferControllerPrivate::createAndRunGetPhoneTask(SingingClip &clip) {
 
 void InferControllerPrivate::createAndRunInferDurTask(SingingClip *clip) {
     auto inferDur = [=](InferPiece &piece) {
-        QList<InferDurPitNote> inputNotes;
+        QList<InferInputNote> inputNotes;
         for (const auto note : piece.notes)
-            inputNotes.append(InferDurPitNote(*note));
+            inputNotes.append(InferInputNote(*note));
         const InferDurationTask::InferDurInput input = {clip->id(), piece.id(), inputNotes,
                                                         m_singerConfigPath, appModel->tempo()};
         // 创建分段的推理任务前，首先检查输入是否和上次的相同。如果相同，则直接忽略，避免不必要的推理
@@ -229,9 +262,9 @@ void InferControllerPrivate::createAndRunInferDurTask(SingingClip *clip) {
 }
 
 void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
-    QList<InferDurPitNote> inputNotes;
+    QList<InferInputNote> inputNotes;
     for (const auto note : piece.notes)
-        inputNotes.append(InferDurPitNote(*note));
+        inputNotes.append(InferInputNote(*note));
     const InferPitchTask::InferPitchInput input = {piece.clipId(), piece.id(), inputNotes,
                                                    m_singerConfigPath, appModel->tempo()};
     if (m_lastInferPitchInputs.contains(piece.id()))
@@ -243,6 +276,29 @@ void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
     m_inferPitchTasks.add(task);
     if (!m_inferPitchTasks.current)
         runNextInferPitchTask();
+}
+
+void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
+    QList<InferInputNote> inputNotes;
+    for (const auto note : piece.notes)
+        inputNotes.append(InferInputNote(*note));
+    InferParamCurve pitch;
+    for (const auto &value : piece.pitch.values())
+        pitch.values.append(value / 100.0);
+    const InferVarianceTask::InferVarianceInput input = {
+        piece.clipId(), piece.id(), inputNotes, m_singerConfigPath, appModel->tempo(), pitch};
+    if (m_lastInferVarianceInputs.contains(piece.id()))
+        if (const auto lastInput = m_lastInferVarianceInputs[piece.id()]; lastInput == input)
+            return;
+    InferControllerHelper::resetPieceParam(ParamInfo::Breathiness, piece);
+    InferControllerHelper::resetPieceParam(ParamInfo::Tension, piece);
+    InferControllerHelper::resetPieceParam(ParamInfo::Voicing, piece);
+    InferControllerHelper::resetPieceParam(ParamInfo::Energy, piece);
+    auto task = new InferVarianceTask(input);
+    connect(task, &Task::finished, this, [=] { handleInferVarianceTaskFinished(*task); });
+    m_inferVarianceTasks.add(task);
+    if (!m_inferVarianceTasks.current)
+        runNextInferVarianceTask();
 }
 
 void InferControllerPrivate::cancelClipRelatedTasks(SingingClip *clip) {
@@ -280,4 +336,6 @@ void InferControllerPrivate::runNextInferDurTask() {
 }
 void InferControllerPrivate::runNextInferPitchTask(){
     m_inferPitchTasks.runNext();
+}void InferControllerPrivate::runNextInferVarianceTask(){
+    m_inferVarianceTasks.runNext();
 }

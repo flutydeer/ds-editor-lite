@@ -7,7 +7,7 @@
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
-#include "Model/Inference/InferDurPitNote.h"
+#include "Model/Inference/InferInputNote.h"
 #include "Model/Inference/InferPiece.h"
 #include "Model/Inference/PhonemeNameModel.h"
 #include "Utils/Linq.h"
@@ -47,7 +47,7 @@ void InferControllerHelper::updatePhoneName(const QList<Note *> &notes,
 }
 
 void InferControllerHelper::updatePhoneOffset(const QList<Note *> &notes,
-                                              const QList<InferDurPitNote> &args,
+                                              const QList<InferInputNote> &args,
                                               SingingClip &clip) {
     if (notes.count() != args.count()) {
         qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()

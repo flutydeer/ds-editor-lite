@@ -2,15 +2,15 @@
 // Created by fluty on 24-9-26.
 //
 
-#ifndef INFERDURNOTE_H
-#define INFERDURNOTE_H
+#ifndef INFERINPUTNOTE_H
+#define INFERINPUTNOTE_H
 
 #include <QList>
 
 class Note;
-class InferDurPitNote {
+class InferInputNote {
 public:
-    explicit InferDurPitNote(const Note &note);
+    explicit InferInputNote(const Note &note);
 
     int id = -1;
     int start = 0;
@@ -24,16 +24,16 @@ public:
     QList<int> aheadOffsets;
     QList<int> normalOffsets;
 
-    friend bool operator==(const InferDurPitNote &lhs, const InferDurPitNote &rhs) {
+    friend bool operator==(const InferInputNote &lhs, const InferInputNote &rhs) {
         return lhs.id == rhs.id && lhs.start == rhs.start && lhs.length == rhs.length &&
                lhs.key == rhs.key && lhs.isRest == rhs.isRest && lhs.isSlur == rhs.isSlur &&
                lhs.aheadNames == rhs.aheadNames && lhs.normalNames == rhs.normalNames &&
                lhs.aheadOffsets == rhs.aheadOffsets && lhs.normalOffsets == rhs.normalOffsets;
     }
 
-    friend bool operator!=(const InferDurPitNote &lhs, const InferDurPitNote &rhs) {
+    friend bool operator!=(const InferInputNote &lhs, const InferInputNote &rhs) {
         return !(lhs == rhs);
     }
 };
 
-#endif //INFERDURNOTE_H
+#endif //INFERINPUTNOTE_H

@@ -6,7 +6,7 @@
 
 #include "GenericInferModel.h"
 
-QList<InferWord> InferTaskHelper::buildWords(const QList<InferDurPitNote> &notes, double tempo,
+QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes, double tempo,
                                              bool useOffsetInfo) {
     auto tickToSec = [&](const double &tick) { return tick * 60 / tempo / 480; };
 
@@ -59,7 +59,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferDurPitNote> &notes
     };
     processFirstNote();
 
-    auto processNote = [&](const int &noteIndex, const InferDurPitNote &note) {
+    auto processNote = [&](const int &noteIndex, const InferInputNote &note) {
         InferNote inferNote;
         inferNote.key = note.key;
         inferNote.duration = pos + tickToSec(note.length);

@@ -13,7 +13,7 @@
 class InferPiece;
 class Note;
 class SingingClip;
-class InferDurPitNote;
+class InferInputNote;
 class PhonemeNameResult;
 
 class InferControllerHelper {
@@ -22,7 +22,7 @@ public:
                                     SingingClip &clip);
     static void updatePhoneName(const QList<Note *> &notes, const QList<PhonemeNameResult> &args,
                                 SingingClip &clip);
-    static void updatePhoneOffset(const QList<Note *> &notes, const QList<InferDurPitNote> &args,
+    static void updatePhoneOffset(const QList<Note *> &notes, const QList<InferInputNote> &args,
                                   SingingClip &clip);
     static void resetPhoneOffset(const QList<Note *> &notes, SingingClip &clip);
     static void resetPieceParam(ParamInfo::Name name, InferPiece &piece);

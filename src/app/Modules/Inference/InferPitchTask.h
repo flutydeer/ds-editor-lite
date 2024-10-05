@@ -6,17 +6,16 @@
 #define INFERPITCHTASK_H
 
 #include "IInferTask.h"
-#include "Model/Inference/InferDurPitNote.h"
+#include "Model/Inference/InferInputBase.h"
 #include "Model/Inference/InferParamCurve.h"
+
+class InferInputNote;
 
 class InferPitchTask final : public IInferTask {
 public:
-    struct InferPitchInput {
-        int clipId = -1;
-        int pieceId = -1;
-        QList<InferDurPitNote> notes;
-        QString configPath;
-        double tempo;
+    class InferPitchInput {
+    public:
+        INFER_INPUT_COMMON_MEMBERS
         InferParamCurve expressiveness;
 
         bool operator==(const InferPitchInput &other) const;

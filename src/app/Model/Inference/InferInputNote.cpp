@@ -2,11 +2,11 @@
 // Created by fluty on 24-9-26.
 //
 
-#include "InferDurPitNote.h"
+#include "InferInputNote.h"
 
 #include "Model/AppModel/Note.h"
 
-InferDurPitNote::InferDurPitNote(const Note &note) {
+InferInputNote::InferInputNote(const Note &note) {
     id = note.id();
     start = note.rStart();
     length = note.length();

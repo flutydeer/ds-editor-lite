@@ -41,6 +41,7 @@ private:
     friend class LoadInferConfigTask;
     friend class InferDurationTask;
     friend class InferPitchTask;
+    friend class InferVarianceTask;
 
     bool initialize(QString &error);
     bool runLoadConfig(const QString &path);

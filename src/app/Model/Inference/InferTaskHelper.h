@@ -6,12 +6,12 @@
 #define INFERTASKHELPER_H
 #include <QList>
 
-class InferDurPitNote;
+class InferInputNote;
 class InferWord;
 
 class InferTaskHelper {
 public:
-    static QList<InferWord> buildWords(const QList<InferDurPitNote> &notes, double tempo,
+    static QList<InferWord> buildWords(const QList<InferInputNote> &notes, double tempo,
                                        bool useOffsetInfo = false);
 };
 

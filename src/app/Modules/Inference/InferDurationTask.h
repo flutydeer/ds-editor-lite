@@ -6,17 +6,15 @@
 #define INFERDURATIONTASK_H
 
 #include "IInferTask.h"
-#include "Model/Inference/InferDurPitNote.h"
+#include "Model/Inference/InferInputBase.h"
+#include "Model/Inference/InferInputNote.h"
 #include "Modules/Task/Task.h"
 
 class InferDurationTask final : public IInferTask {
 public:
-    struct InferDurInput {
-        int clipId = -1;
-        int pieceId = -1;
-        QList<InferDurPitNote> notes;
-        QString configPath;
-        double tempo;
+    class InferDurInput {
+    public:
+        INFER_INPUT_COMMON_MEMBERS
         bool operator==(const InferDurInput &other) const;
     };
 
@@ -26,7 +24,7 @@ public:
 
     explicit InferDurationTask(InferDurInput input);
     InferDurInput input();
-    QList<InferDurPitNote> result();
+    QList<InferInputNote> result();
 
 private:
     void runTask() override;

@@ -10,13 +10,14 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/InferDurationTask.h"
 #include "Modules/Inference/InferPitchTask.h"
+#include "Modules/Inference/InferVarianceTask.h"
 #include "Modules/Task/TaskQueue.h"
 
 class GetPronunciationTask;
 class GetPhonemeNameTask;
 class InferController;
 
-class InferControllerPrivate : public ModelChangeHandler {
+class InferControllerPrivate final : public ModelChangeHandler {
     Q_OBJECT
     Q_DECLARE_PUBLIC(InferController)
 
@@ -38,12 +39,14 @@ public:
     void handleGetPhoneTaskFinished(GetPhonemeNameTask &task);
     void handleInferDurTaskFinished(InferDurationTask &task);
     void handleInferPitchTaskFinished(InferPitchTask &task);
+    void handleInferVarianceTaskFinished(InferVarianceTask &task);
 
     void createAndRunGetPronTask(SingingClip &clip);
     void createAndRunGetPhoneTask(SingingClip &clip);
 
     void createAndRunInferDurTask(SingingClip *clip);
     void createAndRunInferPitchTask(InferPiece &piece);
+    void createAndRunInferVarianceTask(InferPiece &piece);
 
     void cancelClipRelatedTasks(SingingClip *clip);
     void cancelPieceRelatedTasks(int pieceId);
@@ -52,17 +55,20 @@ public:
     void runNextGetPhoneTask();
     void runNextInferDurTask();
     void runNextInferPitchTask();
+    void runNextInferVarianceTask();
 
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
     QMap<int /*clipId*/, QList<int /*pieceId*/>> m_clipPieceDict;
     QMap<int /*pieceId*/, InferDurationTask::InferDurInput> m_lastInferDurInputs;
     QMap<int /*pieceId*/, InferPitchTask::InferPitchInput> m_lastInferPitchInputs;
+    QMap<int /*pieceId*/, InferVarianceTask::InferVarianceInput> m_lastInferVarianceInputs;
 
     TaskQueue<GetPronunciationTask> m_getPronTasks;
     TaskQueue<GetPhonemeNameTask> m_getPhoneTasks;
     TaskQueue<InferDurationTask> m_inferDurTasks;
     TaskQueue<InferPitchTask> m_inferPitchTasks;
+    TaskQueue<InferVarianceTask> m_inferVarianceTasks;
 
     const QString m_singerConfigPath =
         R"(F:\Sound libraries\DiffSinger\OpenUtau\Singers\Junninghua_v1.4.0_DiffSinger_OpenUtau\dsconfig.yaml)";
