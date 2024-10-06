@@ -21,6 +21,7 @@ public:
 
 private:
     void runTask() override;
+    static QList<QString> getPronunciations(const QList<Note *> &notes);
     int m_clipId = -1;
     QList<Note *> m_notes;
     QString m_previewText;

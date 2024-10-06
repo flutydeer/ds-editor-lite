@@ -4,8 +4,8 @@
 
 #include "InferTaskHelper.h"
 
-#include "GenericInferModel.h"
-#include "InferInputNote.h"
+#include "Modules/Inference/Models/GenericInferModel.h"
+#include "Modules/Inference/Models/InferInputNote.h"
 
 QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes, double tempo,
                                              bool useOffsetInfo) {

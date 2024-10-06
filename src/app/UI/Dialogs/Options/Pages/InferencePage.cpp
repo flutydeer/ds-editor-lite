@@ -1,7 +1,7 @@
 #include "InferencePage.h"
 
 #include "Model/AppOptions/AppOptions.h"
-#include "Modules/Inference/DmlUtils.h"
+#include "Modules/Inference/Utils/DmlUtils.h"
 #include "UI/Controls/CardView.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/DividerLine.h"

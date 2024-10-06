@@ -4,11 +4,10 @@
 
 #include "InferEngine.h"
 
-#include "InitInferEngineTask.h"
-#include "LoadInferConfigTask.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Task/TaskManager.h"
+#include "Tasks/InitInferEngineTask.h"
 
 #include <dsonnxinfer/AcousticInference.h>
 #include <dsonnxinfer/DurationInference.h>
@@ -16,9 +15,6 @@
 #include <dsonnxinfer/VarianceInference.h>
 
 #include <QDebug>
-#include <iostream>
-#include <sstream>
-#include <fstream>
 
 InferEngine::InferEngine() {
     auto initTask = new InitInferEngineTask;

@@ -4,12 +4,11 @@
 
 #include "GetPhonemeNameTask.h"
 
-#include "Controller/Utils/NoteWordUtils.h"
 #include "Model/AppModel/Note.h"
-#include "Utils/AppModelUtils.h"
+#include "Model/AppStatus/AppStatus.h"
+#include "Modules/Language/S2p.h"
 
 #include <QDebug>
-// #include <QEventLoop>
 #include <QMutexLocker>
 #include <QThread>
 
@@ -55,5 +54,31 @@ void GetPhonemeNameTask::processNotes() {
         // 如果发音已编辑，则使用已编辑的发音作为获取音素名称的输入
         inputs.append(note.pronunciation);
     }
-    result = NoteWordUtils::getPhonemeNames(inputs);
+    result = getPhonemeNames(inputs);
+}
+
+QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames(const QList<QString> &input) {
+    if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
+        qFatal() << "Language module not ready yet";
+        return {};
+    }
+    const auto syllable2p = S2p::instance();
+    QList<PhonemeNameResult> result;
+    for (const auto &pronunciation : input) {
+        PhonemeNameResult note;
+        if (const auto phonemes = syllable2p->syllableToPhoneme(pronunciation); !phonemes.empty()) {
+            if (phonemes.size() == 1) {
+                note.normalNames.append(phonemes.at(0));
+            } else if (phonemes.size() == 2) {
+                note.aheadNames.append(phonemes.at(0));
+                note.normalNames.append(phonemes.at(1));
+            } else
+                qCritical() << "Cannot handle more than 2 phonemes" << phonemes;
+        } else if (pronunciation != "-") {
+            qCritical() << "Failed to get phoneme names of pronunciation:" << pronunciation;
+        }
+        result.append(note);
+    }
+
+    return result;
 }

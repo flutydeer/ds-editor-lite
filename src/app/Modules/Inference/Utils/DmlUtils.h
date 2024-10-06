@@ -5,7 +5,7 @@
 #ifndef DMLUTILS_H
 #define DMLUTILS_H
 
-#include "Model/Inference/GpuInfo.h"
+#include "Modules/Inference/Models/GpuInfo.h"
 
 #include <QList>
 

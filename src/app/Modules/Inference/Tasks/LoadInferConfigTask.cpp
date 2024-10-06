@@ -4,7 +4,7 @@
 
 #include "LoadInferConfigTask.h"
 
-#include "InferEngine.h"
+#include "Modules/Inference/InferEngine.h"
 
 #include <QDebug>
 

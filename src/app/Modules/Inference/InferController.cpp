@@ -5,13 +5,12 @@
 #include "InferController.h"
 #include "InferController_p.h"
 
-#include "Model/Inference/InferPiece.h"
-#include "Modules/Inference/InferDurationTask.h"
+#include "InferControllerHelper.h"
+#include "Model/AppModel/InferPiece.h"
+#include "Models/PhonemeNameInput.h"
 #include "Tasks/GetPhonemeNameTask.h"
 #include "Tasks/GetPronunciationTask.h"
 #include "Utils/Linq.h"
-#include "Utils/NoteWordUtils.h"
-#include "Utils/InferControllerHelper.h"
 #include "Utils/ValidationUtils.h"
 
 InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {

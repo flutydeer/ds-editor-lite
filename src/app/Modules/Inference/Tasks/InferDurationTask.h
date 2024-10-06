@@ -6,8 +6,8 @@
 #define INFERDURATIONTASK_H
 
 #include "IInferTask.h"
-#include "Model/Inference/InferInputBase.h"
-#include "Model/Inference/InferInputNote.h"
+#include "Modules/Inference/Models/InferInputBase.h"
+#include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Task/Task.h"
 
 class InferDurationTask final : public IInferTask {

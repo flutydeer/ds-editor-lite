@@ -4,10 +4,10 @@
 
 #include "InferAcousticTask.h"
 
-#include "InferEngine.h"
-#include "Model/Inference/GenericInferModel.h"
-#include "Model/Inference/InferInputNote.h"
-#include "Model/Inference/InferTaskHelper.h"
+#include "Modules/Inference/Models/InferInputNote.h"
+#include "Modules/Inference/InferEngine.h"
+#include "Modules/Inference/Models/GenericInferModel.h"
+#include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
 #include "Utils/MathUtils.h"
 
@@ -145,15 +145,15 @@ QString InferAcousticTask::buildInputJson() const {
 
     InferParam gender = param;
     gender.tag = "gender";
-    gender.values = MathUtils::resample(m_input.gender.values, 5, newInterval);
+    // gender.values = MathUtils::resample(m_input.gender.values, 5, newInterval);
 
     InferParam velocity = param;
     velocity.tag = "velocity";
-    velocity.values = MathUtils::resample(m_input.velocity.values, 5, newInterval);
+    // velocity.values = MathUtils::resample(m_input.velocity.values, 5, newInterval);
 
     for (int i = 0; i < frames; i++) {
         gender.values.append(0);
-        velocity.values.append(0);
+        velocity.values.append(1);
     }
 
     GenericInferModel model;

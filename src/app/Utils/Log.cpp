@@ -4,11 +4,10 @@
 
 #include "Log.h"
 
-#include "Modules/Inference/DmlUtils.h"
+#include "Modules/Inference/Utils/DmlUtils.h"
 
 #include <QTextStream>
 #include <QDir>
-#include <qmessagebox.h>
 
 QString Log::LogMessage::toPlainText() const {
     return QString("%1 [%2] [%3] %4")

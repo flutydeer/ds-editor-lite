@@ -6,10 +6,11 @@
 #define GETPHONEMENAMETASK_H
 
 #include "Model/AppModel/Note.h"
-#include "Model/Inference/PhonemeNameModel.h"
+#include "Modules/Inference/Models/PhonemeNameInput.h"
+#include "Modules/Inference/Models/PhonemeNameResult.h"
 #include "Modules/Task/Task.h"
 
-class GetPhonemeNameTask : public Task {
+class GetPhonemeNameTask final : public Task {
     Q_OBJECT
 public:
     explicit GetPhonemeNameTask(int clipId, const QList<PhonemeNameInput> &inputs);
@@ -22,6 +23,7 @@ public:
 private:
     void runTask() override;
     void processNotes();
+    static QList<PhonemeNameResult> getPhonemeNames(const QList<QString> &input);
 
     QMutex m_mutex;
     int m_clipId = -1;

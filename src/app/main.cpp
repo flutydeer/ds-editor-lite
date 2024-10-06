@@ -3,26 +3,23 @@
 //
 
 #include "Controller/AppController.h"
-#include "Controller/InferController.h"
 #include "Controller/ProjectStatusController.h"
-
-
-#include <QApplication>
-#include <QStyleFactory>
-#include <QScreen>
-#include <QTranslator>
-
-#include "UI/Window/MainWindow.h"
-#include "Modules/Audio/AudioSystem.h"
-#include "Utils/Log.h"
+#include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Window/TaskWindow.h"
-#include "Controller/TrackController.h"
 #include "Modules/Audio/AudioContext.h"
+#include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Audio/utils/DeviceTester.h"
+#include "UI/Window/MainWindow.h"
+#include "UI/Window/TaskWindow.h"
+#include "Utils/Log.h"
+
+#include <QApplication>
+#include <QScreen>
+#include <QStyleFactory>
+#include <QTranslator>
 
 int main(int argc, char *argv[]) {
     QElapsedTimer mstimer;

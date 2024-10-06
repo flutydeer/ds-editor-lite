@@ -7,7 +7,6 @@
 #include "AppModel_p.h"
 #include "SingingClip.h"
 #include "Track.h"
-#include "Controller/Utils/NoteWordUtils.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/AProjectConverter.h"

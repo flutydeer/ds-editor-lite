@@ -6,9 +6,9 @@
 #define INFERPITCHTASK_H
 
 #include "IInferTask.h"
-#include "Model/Inference/InferInputBase.h"
-#include "Model/Inference/InferInputNote.h"
-#include "Model/Inference/InferParamCurve.h"
+#include "Modules/Inference/Models/InferInputBase.h"
+#include "Modules/Inference/Models/InferInputNote.h"
+#include "Modules/Inference/Models/InferParamCurve.h"
 
 class InferPitchTask final : public IInferTask {
 public:

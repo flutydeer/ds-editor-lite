@@ -1,41 +1,40 @@
 //
-// Created by fluty on 24-10-5.
+// Created by fluty on 24-10-7.
 //
 
-#ifndef INFERVARIANCETASK_H
-#define INFERVARIANCETASK_H
+#ifndef INFERACOUSTICTASK_H
+#define INFERACOUSTICTASK_H
 
 #include "IInferTask.h"
-#include "Model/Inference/InferInputBase.h"
-#include "Model/Inference/InferParamCurve.h"
+#include "Modules/Inference/Models/InferInputBase.h"
+#include "Modules/Inference/Models/InferParamCurve.h"
 
 class InferInputNote;
 
-class InferVarianceTask final : public IInferTask {
+class InferAcousticTask final : public IInferTask {
 public:
-    class InferVarianceInput {
+    class InferAcousticInput {
     public:
         INFER_INPUT_COMMON_MEMBERS
         InferParamCurve pitch;
-
-        bool operator==(const InferVarianceInput &other) const;
-    };
-
-    class InferVarianceResult {
-    public:
         InferParamCurve breathiness;
         InferParamCurve tension;
         InferParamCurve voicing;
         InferParamCurve energy;
+
+        InferParamCurve gender;
+        InferParamCurve velocity;
+
+        bool operator==(const InferAcousticInput &other) const;
     };
 
     [[nodiscard]] int clipId() const override;
     [[nodiscard]] int pieceId() const override;
     [[nodiscard]] bool success() const override;
 
-    explicit InferVarianceTask(InferVarianceInput input);
-    InferVarianceInput input() const;
-    InferVarianceResult result() const;
+    explicit InferAcousticTask(InferAcousticInput input);
+    InferAcousticInput input();
+    QString result() const;
 
 private:
     void runTask() override;
@@ -45,9 +44,11 @@ private:
     bool processOutput(const QString &json);
 
     QString m_previewText;
-    InferVarianceInput m_input;
-    InferVarianceResult m_result;
+    InferAcousticInput m_input;
+    QString m_result;
     bool m_success = false;
 };
 
-#endif // INFERVARIANCETASK_H
+
+
+#endif // INFERACOUSTICTASK_H

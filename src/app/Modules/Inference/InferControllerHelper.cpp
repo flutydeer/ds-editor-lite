@@ -7,9 +7,8 @@
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
-#include "Model/Inference/InferInputNote.h"
-#include "Model/Inference/InferPiece.h"
-#include "Model/Inference/PhonemeNameModel.h"
+#include "Model/AppModel/InferPiece.h"
+#include "Models/InferInputNote.h"
 #include "Utils/Linq.h"
 
 #include <QDebug>

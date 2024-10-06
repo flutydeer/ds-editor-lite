@@ -10,7 +10,7 @@
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Model/Inference/InferPiece.h"
+#include "Model/AppModel/InferPiece.h"
 
 TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);

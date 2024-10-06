@@ -5,14 +5,14 @@
 #ifndef INFERCONTROLLERPRIVATE_H
 #define INFERCONTROLLERPRIVATE_H
 
-#include "ModelChangeHandler.h"
+#include "Controller/ModelChangeHandler.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/Inference/InferAcousticTask.h"
-#include "Modules/Inference/InferDurationTask.h"
-#include "Modules/Inference/InferPitchTask.h"
-#include "Modules/Inference/InferVarianceTask.h"
 #include "Modules/Task/TaskQueue.h"
+#include "Tasks/InferAcousticTask.h"
+#include "Tasks/InferDurationTask.h"
+#include "Tasks/InferPitchTask.h"
+#include "Tasks/InferVarianceTask.h"
 
 class GetPronunciationTask;
 class GetPhonemeNameTask;

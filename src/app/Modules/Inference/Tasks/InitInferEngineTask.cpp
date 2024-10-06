@@ -4,7 +4,7 @@
 
 #include "InitInferEngineTask.h"
 
-#include "InferEngine.h"
+#include "Modules/Inference/InferEngine.h"
 
 #include <QDebug>
 // #include <QThread>

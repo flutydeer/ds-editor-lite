@@ -6,16 +6,16 @@
 #define INFERCONTROLLERHELPER_H
 
 #include "Model/AppModel/Params.h"
-#include "Model/Inference/InferParamCurve.h"
-#include "Modules/Inference/InferVarianceTask.h"
+#include "Models/PhonemeNameResult.h"
+#include "Tasks/InferVarianceTask.h"
 
 #include <QList>
 
+class InferParamCurve;
 class InferPiece;
 class Note;
 class SingingClip;
 class InferInputNote;
-class PhonemeNameResult;
 
 class InferControllerHelper {
 public:

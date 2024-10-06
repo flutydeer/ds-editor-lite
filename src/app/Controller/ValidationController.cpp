@@ -9,7 +9,6 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Toast.h"
-#include "Utils/NoteWordUtils.h"
 
 // TODO: 调整逻辑避免不必要的 validation
 ValidationController::ValidationController() {
