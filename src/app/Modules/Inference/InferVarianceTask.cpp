@@ -148,14 +148,14 @@ QString InferVarianceTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy};
-    JsonUtils::save(QString("infer-variance-input-%1.json").arg(id()), model.serialize());
+    // JsonUtils::save(QString("infer-variance-input-%1.json").arg(id()), model.serialize());
     return model.serializeToJson();
 }
 
 bool InferVarianceTask::processOutput(const QString &json) {
-    QByteArray data = json.toUtf8();
-    auto object = QJsonDocument::fromJson(data).object();
-    JsonUtils::save(QString("infer-variance-output-%1.json").arg(id()), object);
+    // QByteArray data = json.toUtf8();
+    // auto object = QJsonDocument::fromJson(data).object();
+    // JsonUtils::save(QString("infer-variance-output-%1.json").arg(id()), object);
 
     GenericInferModel model;
     if (!model.deserializeFromJson(json))

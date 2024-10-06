@@ -44,7 +44,7 @@ public:
     void createAndRunGetPronTask(SingingClip &clip);
     void createAndRunGetPhoneTask(SingingClip &clip);
 
-    void createAndRunInferDurTask(SingingClip *clip);
+    void createAndRunInferDurTask(InferPiece &piece);
     void createAndRunInferPitchTask(InferPiece &piece);
     void createAndRunInferVarianceTask(InferPiece &piece);
 
