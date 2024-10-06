@@ -223,7 +223,7 @@ bool InferEngine::inferVariance(const QString &input, QString &output, QString &
     return true;
 }
 
-bool InferEngine::inferAcoustic(const QString &input, QString &output, QString &error) const {
+bool InferEngine::inferAcoustic(const QString &input, const QString &outputPath, QString &error) const {
     if (!m_initialized) {
         qCritical() << "inferAcoustic: Environment is not initialized";
         return false;
@@ -238,12 +238,11 @@ bool InferEngine::inferAcoustic(const QString &input, QString &output, QString &
         return false;
     }
     // Run acoustic inference and export audio.
-    if (!m_acousticInfer->runAndSaveAudio(segment, "test.wav", &s)) {
+    if (!m_acousticInfer->runAndSaveAudio(segment, outputPath.toStdString(), &s)) {
         qDebug() << "Failed to run acoustic inference: " << s.msg << '\n';
         return false;
         // return RESULT_INFERENCE_FAILED;
     }
-    output = QString::fromStdString(segment.toJson());
     return true;
 }
 

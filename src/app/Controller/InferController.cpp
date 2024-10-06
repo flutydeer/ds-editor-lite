@@ -195,6 +195,32 @@ void InferControllerPrivate::handleInferVarianceTaskFinished(InferVarianceTask &
     if (task.success()) {
         m_lastInferVarianceInputs[task.pieceId()] = task.input();
         InferControllerHelper::updateVariance(task.result(), *piece);
+        createAndRunInferAcousticTask(*piece);
+    } else {
+        piece->acousticInferStatus = Failed;
+    }
+    delete &task;
+}
+
+void InferControllerPrivate::handleInferAcousticTaskFinished(InferAcousticTask &task) {
+    m_inferAcousticTasks.onCurrentFinished();
+    runNextInferAcousticTask();
+    auto clip = appModel->findClipById(task.clipId());
+    if (task.terminated() || !clip) {
+        delete &task;
+        return;
+    }
+
+    auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
+    auto piece = singingClip->findPieceById(task.pieceId());
+    if (!piece || !task.success()) {
+        delete &task;
+        return;
+    }
+    if (task.success()) {
+        m_lastInferAcousticInputs[task.pieceId()] = task.input();
+        qInfo() << "Saved audio to" << task.result();
+        piece->acousticInferStatus = Success;
     } else {
         piece->acousticInferStatus = Failed;
     }
@@ -272,6 +298,46 @@ void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
         runNextInferVarianceTask();
 }
 
+void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
+    const auto inputNotes = InferControllerHelper::buildInferInputNotes(piece.notes);
+    InferParamCurve pitch;
+    InferParamCurve breathiness;
+    InferParamCurve tension;
+    InferParamCurve voicing;
+    InferParamCurve energy;
+    InferParamCurve gender;
+    InferParamCurve velocity;
+    for (const auto &value : piece.pitch.values())
+        pitch.values.append(value / 100.0);
+
+    for (const auto &value : piece.breathiness.values())
+        breathiness.values.append(value / 1000.0);
+    for (const auto &value : piece.tension.values())
+        tension.values.append(value / 1000.0);
+    for (const auto &value : piece.voicing.values())
+        voicing.values.append(value / 1000.0);
+    for (const auto &value : piece.energy.values()) {
+        energy.values.append(value / 1000.0);
+
+        gender.values.append(0);
+        velocity.values.append(1);
+    }
+
+    const InferAcousticTask::InferAcousticInput input = {
+        piece.clipId(),    piece.id(), inputNotes,  m_singerConfigPath,
+        appModel->tempo(), pitch,      breathiness, tension,
+        voicing,           energy,     gender,      velocity};
+    if (m_lastInferAcousticInputs.contains(piece.id()))
+        if (const auto lastInput = m_lastInferAcousticInputs[piece.id()]; lastInput == input)
+            return;
+    // InferControllerHelper::resetVariance(piece);
+    auto task = new InferAcousticTask(input);
+    connect(task, &Task::finished, this, [=] { handleInferAcousticTaskFinished(*task); });
+    m_inferAcousticTasks.add(task);
+    if (!m_inferAcousticTasks.current)
+        runNextInferAcousticTask();
+}
+
 void InferControllerPrivate::cancelClipRelatedTasks(SingingClip *clip) {
     qInfo() << "取消歌声剪辑相关任务"
             << "clipId:" << clip->id();
@@ -310,4 +376,8 @@ void InferControllerPrivate::runNextInferPitchTask(){
 
 void InferControllerPrivate::runNextInferVarianceTask(){
     m_inferVarianceTasks.runNext();
+}
+
+void InferControllerPrivate::runNextInferAcousticTask(){
+    m_inferAcousticTasks.runNext();
 }

@@ -29,7 +29,7 @@ public:
     static void updatePhoneOffset(const QList<Note *> &notes, const QList<InferInputNote> &args,
                                   SingingClip &clip);
     static void updateParam(ParamInfo::Name name, const InferParamCurve &taskResult,
-                            InferPiece &piece);
+                            InferPiece &piece, int scale = 1000);
     static void updatePitch(const InferParamCurve &taskResult, InferPiece &piece);
     static void updateVariance(const InferVarianceTask::InferVarianceResult &taskResult,
                                InferPiece &piece);

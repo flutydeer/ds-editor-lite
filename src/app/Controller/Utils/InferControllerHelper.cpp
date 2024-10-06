@@ -70,20 +70,20 @@ void InferControllerHelper::updatePhoneOffset(const QList<Note *> &notes,
     clip.notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
 }
 
-// 可能要传入转换方法，而不是直接 * 100（音高参数）
 void InferControllerHelper::updateParam(const ParamInfo::Name name,
-                                        const InferParamCurve &taskResult, InferPiece &piece) {
+                                        const InferParamCurve &taskResult, InferPiece &piece,
+                                        int scale) {
     // 将推理结果保存到分段内部
     DrawCurve resultCurve;
     resultCurve.start = piece.realStartTick();
     resultCurve.setValues(
-        Linq::selectMany(taskResult.values, L_PRED(v, static_cast<int>(v * 100))));
+        Linq::selectMany(taskResult.values, L_PRED(v, static_cast<int>(v * scale))));
     piece.setCurve(name, resultCurve);
     piece.clip->updateOriginalParam(name);
 }
 
 void InferControllerHelper::updatePitch(const InferParamCurve &taskResult, InferPiece &piece) {
-    updateParam(ParamInfo::Pitch, taskResult, piece);
+    updateParam(ParamInfo::Pitch, taskResult, piece, 100);
 }
 
 void InferControllerHelper::updateVariance(const InferVarianceTask::InferVarianceResult &taskResult,

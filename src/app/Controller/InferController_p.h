@@ -8,6 +8,7 @@
 #include "ModelChangeHandler.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Inference/InferAcousticTask.h"
 #include "Modules/Inference/InferDurationTask.h"
 #include "Modules/Inference/InferPitchTask.h"
 #include "Modules/Inference/InferVarianceTask.h"
@@ -40,6 +41,7 @@ public:
     void handleInferDurTaskFinished(InferDurationTask &task);
     void handleInferPitchTaskFinished(InferPitchTask &task);
     void handleInferVarianceTaskFinished(InferVarianceTask &task);
+    void handleInferAcousticTaskFinished(InferAcousticTask &task);
 
     void createAndRunGetPronTask(SingingClip &clip);
     void createAndRunGetPhoneTask(SingingClip &clip);
@@ -47,6 +49,7 @@ public:
     void createAndRunInferDurTask(InferPiece &piece);
     void createAndRunInferPitchTask(InferPiece &piece);
     void createAndRunInferVarianceTask(InferPiece &piece);
+    void createAndRunInferAcousticTask(InferPiece &piece);
 
     void cancelClipRelatedTasks(SingingClip *clip);
     void cancelPieceRelatedTasks(int pieceId);
@@ -56,6 +59,7 @@ public:
     void runNextInferDurTask();
     void runNextInferPitchTask();
     void runNextInferVarianceTask();
+    void runNextInferAcousticTask();
 
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
@@ -63,12 +67,14 @@ public:
     QMap<int /*pieceId*/, InferDurationTask::InferDurInput> m_lastInferDurInputs;
     QMap<int /*pieceId*/, InferPitchTask::InferPitchInput> m_lastInferPitchInputs;
     QMap<int /*pieceId*/, InferVarianceTask::InferVarianceInput> m_lastInferVarianceInputs;
+    QMap<int /*pieceId*/, InferAcousticTask::InferAcousticInput> m_lastInferAcousticInputs;
 
     TaskQueue<GetPronunciationTask> m_getPronTasks;
     TaskQueue<GetPhonemeNameTask> m_getPhoneTasks;
     TaskQueue<InferDurationTask> m_inferDurTasks;
     TaskQueue<InferPitchTask> m_inferPitchTasks;
     TaskQueue<InferVarianceTask> m_inferVarianceTasks;
+    TaskQueue<InferAcousticTask> m_inferAcousticTasks;
 
     const QString m_singerConfigPath =
         R"(F:\Sound libraries\DiffSinger\OpenUtau\Singers\Junninghua_v1.4.0_DiffSinger_OpenUtau\dsconfig.yaml)";
