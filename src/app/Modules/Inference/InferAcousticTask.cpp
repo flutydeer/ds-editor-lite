@@ -8,6 +8,7 @@
 #include "Model/Inference/GenericInferModel.h"
 #include "Model/Inference/InferInputNote.h"
 #include "Model/Inference/InferTaskHelper.h"
+#include "Utils/JsonUtils.h"
 #include "Utils/MathUtils.h"
 
 #include <QDebug>
@@ -69,7 +70,7 @@ void InferAcousticTask::runTask() {
         return;
     }
 
-    auto outputPath = QString("%1-%2.wav").arg(clipId()).arg(pieceId());
+    auto outputPath = QString("infer-acoustic-output-%1.wav").arg(pieceId());
     QString errorMessage;
     if (!inferEngine->inferAcoustic(buildInputJson(), outputPath, errorMessage)) {
         qCritical() << "Task failed:" << errorMessage;
@@ -144,9 +145,11 @@ QString InferAcousticTask::buildInputJson() const {
 
     InferParam gender = param;
     gender.tag = "gender";
+    gender.values = MathUtils::resample(m_input.gender.values, 5, newInterval);
 
     InferParam velocity = param;
     velocity.tag = "velocity";
+    velocity.values = MathUtils::resample(m_input.velocity.values, 5, newInterval);
 
     for (int i = 0; i < frames; i++) {
         gender.values.append(0);
@@ -156,5 +159,6 @@ QString InferAcousticTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, gender, velocity};
+    JsonUtils::save(QString("infer-acoustic-input-%1.json").arg(pieceId()), model.serialize());
     return model.serializeToJson();
 }
