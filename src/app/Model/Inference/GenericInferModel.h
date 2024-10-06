@@ -6,7 +6,6 @@
 #define GENERICINFERMODEL_H
 
 #include "Interface/ISerializable.h"
-#include "Modules/Inference/InferDurationTask.h"
 
 class InferPhoneme final : public ISerializable {
 public:

@@ -7,9 +7,8 @@
 
 #include "IInferTask.h"
 #include "Model/Inference/InferInputBase.h"
+#include "Model/Inference/InferInputNote.h"
 #include "Model/Inference/InferParamCurve.h"
-
-class InferInputNote;
 
 class InferPitchTask final : public IInferTask {
 public:
