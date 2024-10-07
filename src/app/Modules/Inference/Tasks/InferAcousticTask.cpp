@@ -13,6 +13,7 @@
 
 #include <QDebug>
 #include <QDir>
+#include <qcryptographichash.h>
 
 bool InferAcousticTask::InferAcousticInput::operator==(const InferAcousticInput &other) const {
     return clipId == other.clipId && notes == other.notes && configPath == other.configPath &&
@@ -77,9 +78,12 @@ void InferAcousticTask::runTask() {
             qCritical() << "Failed to create temporary directory";
             return;
         }
-    auto outputPath = QString("temp/infer-acoustic-output-%1.wav").arg(pieceId());
-    QString errorMessage;
-    if (!inferEngine->inferAcoustic(buildInputJson(), outputPath, errorMessage)) {
+
+    const auto inputJson = buildInputJson();
+    const QByteArray byteArray = inputJson.toUtf8();
+    const QByteArray hashData = QCryptographicHash::hash(byteArray, QCryptographicHash::Sha1);
+    auto outputPath = QString("temp/infer-acoustic-output-%1.wav").arg(QString(hashData.toHex()));
+    if (QString errorMessage; !inferEngine->inferAcoustic(inputJson, outputPath, errorMessage)) {
         qCritical() << "Task failed:" << errorMessage;
         return;
     }
