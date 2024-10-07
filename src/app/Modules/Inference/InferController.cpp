@@ -53,7 +53,6 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
 
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipRemoved(clip);
-    // TODO: 移除剪辑内的分段推理输入缓存
     m_clipPieceDict.remove(clip->id());
     cancelClipRelatedTasks(clip);
 }
@@ -218,11 +217,9 @@ void InferControllerPrivate::handleInferAcousticTaskFinished(InferAcousticTask &
     }
     if (task.success()) {
         m_lastInferAcousticInputs[task.pieceId()] = task.input();
-        qInfo() << "Saved audio to" << task.result();
-        piece->acousticInferStatus = Success;
-    } else {
+        InferControllerHelper::updateAcoustic(task.result(), *piece);
+    } else
         piece->acousticInferStatus = Failed;
-    }
     delete &task;
 }
 
@@ -251,11 +248,14 @@ void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
     const InferDurationTask::InferDurInput input = {piece.clip->id(), piece.id(), inputNotes,
                                                     m_singerConfigPath, appModel->tempo()};
     // 创建分段的推理任务前，首先检查输入是否和上次的相同。如果相同，则直接忽略，避免不必要的推理
-    if (m_lastInferDurInputs.contains(piece.id()))
-        if (const auto lastInput = m_lastInferDurInputs[piece.id()]; lastInput == input)
-            return;
+    if (m_lastInferDurInputs.contains(piece.id())) {
+        return;
+        // TODO: 存在比较结果错误的问题，暂时取消比较具体内容
+        // if (const auto lastInput = m_lastInferDurInputs[piece.id()]; lastInput == input)
+        //     return;
+    }
     // 清空原有的自动参数
-    InferControllerHelper::resetPhoneOffset(piece.notes, *piece.clip);
+    InferControllerHelper::resetPhoneOffset(piece.notes, piece);
     auto task = new InferDurationTask(input);
     connect(task, &Task::finished, this, [=] { handleInferDurTaskFinished(*task); });
     m_inferDurTasks.add(task);
@@ -353,6 +353,8 @@ void InferControllerPrivate::cancelPieceRelatedTasks(int pieceId) {
     auto pred = L_PRED(t, t->pieceId() == pieceId);
     m_inferDurTasks.cancelIf(pred);
     m_inferPitchTasks.cancelIf(pred);
+    m_inferVarianceTasks.cancelIf(pred);
+    m_inferAcousticTasks.cancelIf(pred);
 }
 
 void InferControllerPrivate::runNextGetPronTask() {

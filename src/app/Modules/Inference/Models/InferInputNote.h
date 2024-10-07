@@ -24,16 +24,8 @@ public:
     QList<int> aheadOffsets;
     QList<int> normalOffsets;
 
-    friend bool operator==(const InferInputNote &lhs, const InferInputNote &rhs) {
-        return lhs.id == rhs.id && lhs.start == rhs.start && lhs.length == rhs.length &&
-               lhs.key == rhs.key && lhs.isRest == rhs.isRest && lhs.isSlur == rhs.isSlur &&
-               lhs.aheadNames == rhs.aheadNames && lhs.normalNames == rhs.normalNames &&
-               lhs.aheadOffsets == rhs.aheadOffsets && lhs.normalOffsets == rhs.normalOffsets;
-    }
-
-    friend bool operator!=(const InferInputNote &lhs, const InferInputNote &rhs) {
-        return !(lhs == rhs);
-    }
+    friend bool operator==(const InferInputNote &lhs, const InferInputNote &rhs);
+    friend bool operator!=(const InferInputNote &lhs, const InferInputNote &rhs);
 };
 
 #endif //INFERINPUTNOTE_H

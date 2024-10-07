@@ -12,6 +12,7 @@
 #include "Utils/MathUtils.h"
 
 #include <QDebug>
+#include <QDir>
 
 bool InferAcousticTask::InferAcousticInput::operator==(const InferAcousticInput &other) const {
     return clipId == other.clipId && notes == other.notes && configPath == other.configPath &&
@@ -70,7 +71,13 @@ void InferAcousticTask::runTask() {
         return;
     }
 
-    auto outputPath = QString("infer-acoustic-output-%1.wav").arg(pieceId());
+    QDir cacheDir("temp");
+    if (!cacheDir.exists())
+        if (!cacheDir.mkpath(".")) {
+            qCritical() << "Failed to create temporary directory";
+            return;
+        }
+    auto outputPath = QString("temp/infer-acoustic-output-%1.wav").arg(pieceId());
     QString errorMessage;
     if (!inferEngine->inferAcoustic(buildInputJson(), outputPath, errorMessage)) {
         qCritical() << "Task failed:" << errorMessage;

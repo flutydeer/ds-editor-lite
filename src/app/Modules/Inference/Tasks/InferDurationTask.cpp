@@ -19,8 +19,12 @@ namespace dsonnxinfer {
 }
 
 bool InferDurationTask::InferDurInput::operator==(const InferDurInput &other) const {
-    return clipId == other.clipId && pieceId == other.pieceId && notes == other.notes &&
-           configPath == other.configPath && qFuzzyCompare(tempo, other.tempo);
+    bool clipIdEqual = clipId == other.clipId;
+    bool pieceIdEqual = pieceId == other.pieceId;
+    bool notesEqual = notes == other.notes;
+    bool configPathEqual = configPath == other.configPath;
+    bool tempoEqual = tempo == other.tempo;
+    return clipIdEqual && pieceIdEqual && notesEqual && configPathEqual && tempoEqual;
 }
 
 int InferDurationTask::clipId() const {
