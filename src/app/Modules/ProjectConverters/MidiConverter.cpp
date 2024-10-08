@@ -35,9 +35,10 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
     // Create checkboxes for each MIDI track
     QList<QCheckBox *> checkBoxes;
     for (const auto &trackInfo : trackInfoList) {
-        auto *checkBox = new QCheckBox(QString("track %1:  %2 notes")
+        auto *checkBox = new QCheckBox(QString("track %1:  %2 notes (%3)")
                                            .arg(trackInfo.title.constData())
-                                           .arg(trackInfo.lyrics.count()));
+                                           .arg(trackInfo.lyrics.count())
+                                           .arg(trackInfo.keyRange));
         checkBox->setChecked(false);
         checkBoxes.append(checkBox);
         layout->addWidget(checkBox);
@@ -52,7 +53,7 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
     QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
     // Execute the dialog and get the result
-    int result = dialog.exec();
+    const int result = dialog.exec();
 
     // Process the selected MIDI tracks
     if (result == QDialog::Accepted) {
