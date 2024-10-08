@@ -18,6 +18,7 @@
 #include "Singleton.h"
 
 #include <QCoreApplication>
+#include <QMutex>
 #include <utility>
 
 class Log : public Singleton<Log> {
@@ -60,12 +61,13 @@ public:
 
 private:
     static QString timeStr();
-    static QString colorText(LogLevel level, const QString &text);
-    static QString colorTextHighlight(LogLevel level, const QString &text);
+    static QString colorizeText(LogLevel level, const QString &text);
+    static QString colorizeHighlightText(LogLevel level, const QString &text);
     // static QString prettyMethodName(const char *function);
-    static void log(const LogMessage &message);
-    static bool canLogToConsole(const LogMessage &message);
+    bool canLogToConsole(const LogMessage &message);
+    void log(const LogMessage &message);
 
+    QMutex m_mutex;
     QString m_logFolder;
     QString m_logFileName;
     bool m_logToFile = false;

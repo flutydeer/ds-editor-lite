@@ -15,8 +15,8 @@ QString Log::LogMessage::toPlainText() const {
 }
 
 QString Log::LogMessage::toConsoleText() const {
-    auto levelStr = colorTextHighlight(level, QString(" %1 ").arg(levelText(level)));
-    auto textStr = colorText(level, text);
+    auto levelStr = colorizeHighlightText(level, QString(" %1 ").arg(levelText(level)));
+    auto textStr = colorizeText(level, text);
     return QString("%1 %2 %3 %4").arg(time, padText(tag, consoleTagWidth), levelStr, textStr);
 }
 
@@ -62,19 +62,19 @@ void Log::handler(QtMsgType type, const QMessageLogContext &context, const QStri
     // auto methodName = QString("[%1]").arg(prettyMethodName(context.function));
     if (type == QtDebugMsg) {
         message.level = Debug;
-        log(message);
+        instance()->log(message);
     } else if (type == QtInfoMsg) {
         message.level = Info;
-        log(message);
+        instance()->log(message);
     } else if (type == QtWarningMsg) {
         message.level = Warning;
-        log(message);
+        instance()->log(message);
     } else if (type == QtCriticalMsg) {
         message.level = Error;
-        log(message);
+        instance()->log(message);
     } else if (type == QtFatalMsg) {
         message.level = Fatal;
-        log(message);
+        instance()->log(message);
         abort();
     }
 }
@@ -111,34 +111,34 @@ void Log::setConsoleTagFilter(const QStringList &tags) {
 
 void Log::d(const QString &tag, const QString &msg) {
     const LogMessage message(timeStr(), Debug, tag, msg);
-    log(message);
+    instance()->log(message);
 }
 
 void Log::i(const QString &tag, const QString &msg) {
     const LogMessage message(timeStr(), Info, tag, msg);
-    log(message);
+    instance()->log(message);
 }
 
 void Log::w(const QString &tag, const QString &msg) {
     const LogMessage message(timeStr(), Warning, tag, msg);
-    log(message);
+    instance()->log(message);
 }
 
 void Log::e(const QString &tag, const QString &msg) {
     const LogMessage message(timeStr(), Error, tag, msg);
-    log(message);
+    instance()->log(message);
 }
 
 void Log::f(const QString &tag, const QString &msg) {
     const LogMessage message(timeStr(), Fatal, tag, msg);
-    log(message);
+    instance()->log(message);
 }
 
 QString Log::timeStr() {
     return QDateTime::currentDateTime().toString("hh:mm:ss");
 }
 
-QString Log::colorText(LogLevel level, const QString &text) {
+QString Log::colorizeText(LogLevel level, const QString &text) {
     if (level == Debug)
         return QString("\033[0m\033[32m%1\033[0m").arg(text);
     if (level == Info)
@@ -148,7 +148,7 @@ QString Log::colorText(LogLevel level, const QString &text) {
     return QString("\033[0m\033[31m%1\033[0m").arg(text); // Error or Fatal
 }
 
-QString Log::colorTextHighlight(LogLevel level, const QString &text) {
+QString Log::colorizeHighlightText(LogLevel level, const QString &text) {
     if (level == Debug)
         return QString("\033[0m\033[42;30m%1\033[0m").arg(text);
     if (level == Info)
@@ -158,33 +158,33 @@ QString Log::colorTextHighlight(LogLevel level, const QString &text) {
     return QString("\033[0m\033[41;30m%1\033[0m").arg(text); // Error or Fatal
 }
 
+bool Log::canLogToConsole(const LogMessage &message) {
+    if (m_consoleLogLevel > message.level)
+        return false;
+
+    if (m_tagFilter.isEmpty())
+        return true;
+
+    return std::any_of(m_tagFilter.begin(), m_tagFilter.end(),
+                       [&](const QString &tag) { return tag == message.tag; });
+}
+
 void Log::log(const LogMessage &message) {
+    QMutexLocker lock(&m_mutex);
     QTextStream consoleStream(stdout);
     consoleStream.setEncoding(QStringConverter::System);
 
     if (canLogToConsole(message))
         consoleStream << message.toConsoleText() << Qt::endl;
 
-    if (instance()->m_logToFile) {
-        QString logFilePath =
-            instance()->m_logFolder + QDir::separator() + instance()->m_logFileName;
+    if (m_logToFile) {
+        QString logFilePath = m_logFolder + QDir::separator() + m_logFileName;
         QFile logFile(logFilePath);
         logFile.open(QIODevice::WriteOnly | QIODevice::Append);
         QTextStream fileStream(&logFile);
         fileStream << message.toPlainText() << Qt::endl;
         logFile.close();
     }
-}
-
-bool Log::canLogToConsole(const LogMessage &message) {
-    if (instance()->m_consoleLogLevel > message.level)
-        return false;
-
-    if (instance()->m_tagFilter.isEmpty())
-        return true;
-
-    return std::any_of(instance()->m_tagFilter.begin(), instance()->m_tagFilter.end(),
-                       [&](const QString &tag) { return tag == message.tag; });
 }
 
 // QString Logger::prettyMethodName(const char *function) {
