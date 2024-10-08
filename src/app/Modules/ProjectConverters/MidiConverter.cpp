@@ -13,24 +13,101 @@
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QDialog>
+#include <QListWidget>
 
 #include "Model/AppModel/Track.h"
 
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
+#include "UI/Controls/ComboBox.h"
+
+#include <QTextEdit>
+
+QWidget *createPreviewTab(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
+                          QTextCodec **codec) {
+    // Create a widget for the tab
+    auto *tab = new QWidget();
+
+    // Create a layout for the tab
+    auto *tabLayout = new QVBoxLayout(tab);
+
+    // Create a horizontal layout for the lists and preview
+    auto *listLayout = new QHBoxLayout();
+
+    // Create a list widget to show track names
+    auto *trackListWidget = new QListWidget();
+    for (const auto &trackInfo : trackInfoList) {
+        auto *item = new QListWidgetItem(QString(trackInfo.title.constData()));
+        trackListWidget->addItem(item);
+    }
+    listLayout->addWidget(trackListWidget);
+
+    // Create a combo box for selecting common encodings
+    auto *encodingComboBox = new ComboBox();
+    encodingComboBox->addItem("UTF-8");
+    encodingComboBox->addItem("ISO 8859-1");
+    encodingComboBox->addItem("GBK");
+    encodingComboBox->addItem("Shift-JIS");
+    // Add more encodings as needed
+    listLayout->addWidget(encodingComboBox);
+
+    // Create a text edit for previewing lyrics
+    auto *lyricsPreview = new QTextEdit();
+    lyricsPreview->setReadOnly(true);
+    listLayout->addWidget(lyricsPreview);
+
+    // Add the lists and preview to the tab layout
+    tabLayout->addLayout(listLayout);
+
+    // Connect the track list selection to update the preview
+    QObject::connect(trackListWidget, &QListWidget::currentRowChanged, [=](int currentRow) {
+        if (currentRow >= 0 && currentRow < trackInfoList.size()) {
+            QByteArray lyricsData;
+            for (const auto &clip : trackInfoList[currentRow].lyrics)
+                lyricsData += clip;
+            const QTextCodec *selectedCodec =
+                QTextCodec::codecForName(encodingComboBox->currentText().toUtf8());
+            const QString decodedLyrics = selectedCodec->toUnicode(lyricsData);
+            lyricsPreview->setPlainText(decodedLyrics);
+        }
+    });
+
+    // Connect the encoding selection to update the preview
+    QObject::connect(encodingComboBox, &QComboBox::currentTextChanged,
+                     [=](const QString &codecName) {
+                         const int currentRow = trackListWidget->currentRow();
+                         if (currentRow >= 0 && currentRow < trackInfoList.size()) {
+                             QByteArray lyricsData;
+                             for (const auto &lyric : trackInfoList[currentRow].lyrics)
+                                 lyricsData += lyric + " ";
+                             if (QTextCodec::codecForName(codecName.toUtf8()) == nullptr) {
+                                 qWarning() << "Codec not found for" << codecName;
+                             } else {
+                                 *codec = QTextCodec::codecForName(codecName.toUtf8());
+                                 const QString decodedLyrics = (*codec)->toUnicode(lyricsData);
+                                 lyricsPreview->setPlainText(decodedLyrics);
+                             }
+                         }
+                     });
+    return tab;
+}
 
 bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
-                   const QList<QByteArray> &labelList, QList<int> *selectIDs, QTextCodec *codec) {
-
-    // Set UTF-8 as the text codec
-    codec = QTextCodec::codecForName("UTF-8");
-
+                   const QList<QByteArray> &labelList, QList<int> *selectIDs, QTextCodec **codec) {
     // Create a dialog
     QDialog dialog;
     dialog.setWindowTitle("MIDI Track Selector");
 
     // Create a layout for the dialog
     auto *layout = new QVBoxLayout(&dialog);
+
+    // Create a QTabWidget to hold multiple tabs
+    auto *tabWidget = new QTabWidget();
+    layout->addWidget(tabWidget);
+
+    // Create the original checkboxes tab
+    auto *checkBoxTab = new QWidget();
+    auto *checkBoxLayout = new QVBoxLayout(checkBoxTab);
 
     // Create checkboxes for each MIDI track
     QList<QCheckBox *> checkBoxes;
@@ -41,8 +118,16 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                                            .arg(trackInfo.keyRange));
         checkBox->setChecked(false);
         checkBoxes.append(checkBox);
-        layout->addWidget(checkBox);
+        checkBoxLayout->addWidget(checkBox);
     }
+
+    tabWidget->addTab(checkBoxTab, "Track Selection");
+
+    QTextCodec *newCodec = QTextCodec::codecForName("UTF-8");
+    const auto previewTab = createPreviewTab(trackInfoList, &newCodec);
+
+    // Add the preview tab using the separate function
+    tabWidget->addTab(previewTab, "Track Preview");
 
     // Create OK and Cancel buttons
     auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
@@ -63,6 +148,8 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                 selectIDs->append(i);
             }
         }
+        if (newCodec != nullptr)
+            *codec = newCodec;
         return true;
     } else {
         // User canceled the dialog
@@ -74,13 +161,13 @@ int MidiConverter::midiImportHandler() {
     QMessageBox msgBox;
     msgBox.setText("MIDI Import");
     msgBox.setInformativeText("Do you want to create a new track or use a new project?");
-    QPushButton *newTrackButton = msgBox.addButton("New Track", QMessageBox::ActionRole);
-    QPushButton *newProjectButton = msgBox.addButton("New Project", QMessageBox::ActionRole);
+    const QPushButton *newTrackButton = msgBox.addButton("New Track", QMessageBox::ActionRole);
+    const QPushButton *newProjectButton = msgBox.addButton("New Project", QMessageBox::ActionRole);
     msgBox.addButton("Cancel", QMessageBox::RejectRole);
     msgBox.exec();
 
     QAbstractButton *clickedButton = msgBox.clickedButton();
-    auto *clickedPushButton = qobject_cast<QPushButton *>(clickedButton);
+    const auto *clickedPushButton = qobject_cast<QPushButton *>(clickedButton);
     if (clickedPushButton == newTrackButton) {
         return ImportMode::AppendToProject;
     } else if (clickedPushButton == newProjectButton) {
@@ -105,15 +192,15 @@ bool midiOverlapHandler() {
 }
 
 bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, ImportMode mode) {
-    auto dspx = new QDspx::Model;
+    const auto dspx = new QDspx::Model;
     std::function<bool(const QList<QDspx::MidiConverter::TrackInfo> &, const QList<QByteArray> &,
-                       QList<int> *, QTextCodec *)>
+                       QList<int> *, QTextCodec **)>
         midiSelector = trackSelector;
     QVariantMap args = {};
     args.insert(QStringLiteral("selector"),
                 QVariant::fromValue(reinterpret_cast<quintptr>(&midiSelector)));
 
-    auto midi = new QDspx::MidiConverter;
+    const auto midi = new QDspx::MidiConverter();
 
     auto decodeNotes = [](const QList<QDspx::Note> &arrNotes) {
         QList<Note *> notes;
@@ -155,17 +242,17 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
         }
     };
 
-    auto decodeTracks = [&](const QDspx::Model *dspx, AppModel *model, ImportMode mode) {
-        for (int i = 0; i < dspx->content.tracks.count(); i++) {
-            auto track = dspx->content.tracks[i];
-            auto dsTrack = new Track;
+    auto decodeTracks = [&](const QDspx::Model *_dspx, AppModel *_model, ImportMode _mode) {
+        for (int i = 0; i < _dspx->content.tracks.count(); i++) {
+            auto track = _dspx->content.tracks[i];
+            const auto dsTrack = new Track;
             dsTrack->setName(track.name);
             decodeClips(track, dsTrack);
-            model->insertTrack(dsTrack, i);
+            _model->insertTrack(dsTrack, i);
         }
     };
 
-    auto returnCode = midi->load(path, dspx, args);
+    const auto returnCode = midi->load(path, dspx, args);
 
     if (returnCode.type != QDspx::Result::Success) {
         QMessageBox::warning(nullptr, "Warning",
@@ -266,12 +353,12 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
         }
     };
 
-    auto encodeTracks = [&](const AppModel *model, QDspx::Model &dspx) {
-        for (const auto &dsTrack : model->tracks()) {
+    auto encodeTracks = [&](const AppModel *_model, QDspx::Model &_dspx) {
+        for (const auto &dsTrack : _model->tracks()) {
             QDspx::Track track;
             track.name = dsTrack->name();
             encodeClips(dsTrack, &track);
-            dspx.content.tracks.append(track);
+            _dspx.content.tracks.append(track);
         }
     };
 
