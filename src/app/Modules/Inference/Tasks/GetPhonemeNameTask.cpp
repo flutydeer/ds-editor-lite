@@ -66,16 +66,21 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames(const QList<QString
     QList<PhonemeNameResult> result;
     for (const auto &pronunciation : input) {
         PhonemeNameResult note;
-        if (const auto phonemes = syllable2p->syllableToPhoneme(pronunciation); !phonemes.empty()) {
-            if (phonemes.size() == 1) {
-                note.normalNames.append(phonemes.at(0));
-            } else if (phonemes.size() == 2) {
-                note.aheadNames.append(phonemes.at(0));
-                note.normalNames.append(phonemes.at(1));
-            } else
-                qCritical() << "Cannot handle more than 2 phonemes" << phonemes;
-        } else if (pronunciation != "-") {
-            qCritical() << "Failed to get phoneme names of pronunciation:" << pronunciation;
+        if (pronunciation == "SP" || pronunciation == "AP") {
+            note.normalNames.append(pronunciation);
+        } else {
+            if (const auto phonemes = syllable2p->syllableToPhoneme(pronunciation);
+                !phonemes.empty()) {
+                if (phonemes.size() == 1) {
+                    note.normalNames.append(phonemes.at(0));
+                } else if (phonemes.size() == 2) {
+                    note.aheadNames.append(phonemes.at(0));
+                    note.normalNames.append(phonemes.at(1));
+                } else
+                    qCritical() << "Cannot handle more than 2 phonemes" << phonemes;
+            } else if (pronunciation != "-") {
+                qCritical() << "Failed to get phoneme names of pronunciation:" << pronunciation;
+            }
         }
         result.append(note);
     }

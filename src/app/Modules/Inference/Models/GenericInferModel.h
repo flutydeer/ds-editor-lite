@@ -9,8 +9,12 @@
 
 class InferPhoneme final : public ISerializable {
 public:
+    InferPhoneme() = default;
+    InferPhoneme(QString token, const QString &language, bool is_onset = true, double start = 0);
+
     QString token;
     QString language;
+    bool is_onset = true;
     double start = 0; // s
 
     [[nodiscard]] QJsonObject serialize() const override;
@@ -19,11 +23,14 @@ public:
 
 class InferNote final : public ISerializable {
 public:
+    InferNote() = default;
+    InferNote(int key, int cents, double duration, bool is_rest = false, QString glide = "none");
+
     int key = 0;
     int cents = 0;
     double duration = 0; // s
-    QString glide = "none";
     bool is_rest = false;
+    QString glide = "none";
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
@@ -31,6 +38,9 @@ public:
 
 class InferWord final : public ISerializable {
 public:
+    InferWord() = default;
+    InferWord(QList<InferPhoneme> phones, QList<InferNote> notes);
+
     QList<InferPhoneme> phones;
     QList<InferNote> notes;
 

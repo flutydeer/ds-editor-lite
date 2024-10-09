@@ -7,6 +7,10 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 
+InferPhoneme::InferPhoneme(QString token, const QString &language, bool is_onset, double start)
+    : token(std::move(token)), language(language), is_onset(is_onset), start(start) {
+}
+
 QJsonObject InferPhoneme::serialize() const {
     return QJsonObject{
         {"token",    token   },
@@ -20,6 +24,10 @@ bool InferPhoneme::deserialize(const QJsonObject &obj) {
     language = obj["language"].toString();
     start = obj["start"].toDouble();
     return true;
+}
+
+InferNote::InferNote(int key, int cents, double duration, bool is_rest, QString glide)
+    : key(key), cents(cents), duration(duration), is_rest(is_rest), glide(std::move(glide)) {
 }
 
 QJsonObject InferNote::serialize() const {
@@ -39,6 +47,10 @@ bool InferNote::deserialize(const QJsonObject &obj) {
     glide = obj["glide"].toString();
     is_rest = obj["is_rest"].toBool();
     return true;
+}
+
+InferWord::InferWord(QList<InferPhoneme> phones, QList<InferNote> notes)
+    : phones(std::move(phones)), notes(std::move(notes)) {
 }
 
 QJsonObject InferWord::serialize() const {
@@ -102,8 +114,8 @@ bool InferParam::deserialize(const QJsonObject &obj) {
 
 QJsonObject GenericInferModel::serialize() const {
     return QJsonObject{
-        {"offset", offset                 },
-        {"words",  serializeJArray(words) },
+        {"offset",     offset                 },
+        {"words",      serializeJArray(words) },
         {"parameters", serializeJArray(params)}
     };
 }

@@ -118,7 +118,7 @@ void InferDurationTask::buildPreviewText() {
 QString InferDurationTask::buildInputJson() const {
     GenericInferModel model;
     model.words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo);
-    // JsonUtils::save(QString("infer-dur-input-%1.json").arg(id()), model.serialize());
+    JsonUtils::save(QString("temp/infer-dur-input-%1.json").arg(id()), model.serialize());
     return model.serializeToJson();
 }
 
@@ -127,7 +127,7 @@ bool InferDurationTask::processOutput(const QString &json) {
     if (!model.deserializeFromJson(json))
         return false;
 
-    // JsonUtils::save(QString("infer-dur-output-%1.json").arg(pieceId()), model.serialize());
+    JsonUtils::save(QString("temp/infer-dur-output-%1.json").arg(pieceId()), model.serialize());
 
     QList<bool> isRestPhones;
     QList<std::pair<double, double>> offsets;

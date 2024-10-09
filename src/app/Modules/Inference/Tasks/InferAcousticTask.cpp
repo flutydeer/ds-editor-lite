@@ -170,6 +170,6 @@ QString InferAcousticTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, gender, velocity};
-    JsonUtils::save(QString("infer-acoustic-input-%1.json").arg(pieceId()), model.serialize());
+    JsonUtils::save(QString("temp/infer-acoustic-input-%1.json").arg(pieceId()), model.serialize());
     return model.serializeToJson();
 }
