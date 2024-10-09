@@ -79,31 +79,38 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
         QList<InferPhoneme> stashedNextPhones;
         if (noteIndex < notes.size() - 1) {
             // 如果当前音符之后有转音，则一直往后查找，直到能计算出当前 word 的长度
+            bool reachLast = false;
             while (notes.at(noteIndex + 1).isSlur) {
-                auto nextNote = notes.at(noteIndex + 1);
+                const auto &nextNote = notes.at(noteIndex + 1);
                 noteBuffer.append({nextNote.key, 0, tickToSec(nextNote.length), nextNote.isRest});
                 wordLen += tickToSec(nextNote.start + nextNote.length) - tickToSec(nextNote.start);
                 noteIndex++;
+                if (noteIndex == notes.size() - 1) { // 查找找到了最后一个音符
+                    reachLast = true;
+                    break;
+                }
             }
-            // 找到下一个非转音音符
-            const auto &nextNonSlurNote = notes.at(noteIndex + 1);
-            auto nextNoteStartMs = tickToSec(nextNonSlurNote.start);
-            gapLen = nextNoteStartMs - (wordStart + wordLen);
-            hasGap = !qFuzzyCompare(gapLen, 0);
+            if (!reachLast) {
+                // 找到下一个非转音音符
+                const auto &nextNonSlurNote = notes.at(noteIndex + 1);
+                auto nextNoteStartMs = tickToSec(nextNonSlurNote.start);
+                gapLen = nextNoteStartMs - (wordStart + wordLen);
+                hasGap = !qFuzzyCompare(gapLen, 0);
 
-            // 如果没有间隙，则根据当前 word 的长度来计算偏移量
-            if (hasGap) // 如果有间隙，则根据间隙长度计算偏移量
-                wordLen = gapLen;
-            for (int i = 0; i < nextNonSlurNote.aheadNames.count(); i++) {
-                auto name = nextNonSlurNote.aheadNames.at(i);
-                double start = 0;
-                if (useOffsetInfo)
-                    start = wordLen - nextNonSlurNote.aheadOffsets.at(i) / 1000.0;
-                InferPhoneme phone = {name, "zh", false, start};
-                if (!hasGap)
-                    phoneBuffer.append(phone);
-                else // 如果有间隙则暂存，留给间隙音符
-                    stashedNextPhones.append(phone);
+                // 如果没有间隙，则根据当前 word 的长度来计算偏移量
+                if (hasGap) // 如果有间隙，则根据间隙长度计算偏移量
+                    wordLen = gapLen;
+                for (int i = 0; i < nextNonSlurNote.aheadNames.count(); i++) {
+                    auto name = nextNonSlurNote.aheadNames.at(i);
+                    double start = 0;
+                    if (useOffsetInfo)
+                        start = wordLen - nextNonSlurNote.aheadOffsets.at(i) / 1000.0;
+                    InferPhoneme phone = {name, "zh", false, start};
+                    if (!hasGap)
+                        phoneBuffer.append(phone);
+                    else // 如果有间隙则暂存，留给间隙音符
+                        stashedNextPhones.append(phone);
+                }
             }
         }
         commit();

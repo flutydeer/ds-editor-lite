@@ -82,7 +82,7 @@ void InferAcousticTask::runTask() {
     const auto inputJson = buildInputJson();
     const QByteArray byteArray = inputJson.toUtf8();
     const QByteArray hashData = QCryptographicHash::hash(byteArray, QCryptographicHash::Sha1);
-    auto outputPath = QString("temp/infer-acoustic-output-%1.wav").arg(QString(hashData.toHex()));
+    auto outputPath = QString("temp/infer-acoustic-output-%1-%2.wav").arg(pieceId()).arg(QString(hashData.toHex()));
     if (QString errorMessage; !inferEngine->inferAcoustic(inputJson, outputPath, errorMessage)) {
         qCritical() << "Task failed:" << errorMessage;
         return;
