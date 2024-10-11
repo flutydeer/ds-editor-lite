@@ -33,11 +33,16 @@ void ModelChangeHandler::handleClipRemoved(Clip *clip) {
     disconnect(clip, nullptr, this, nullptr);
 }
 
+void ModelChangeHandler::handleClipPropertyChanged(Clip *clip) {
+}
+
 void ModelChangeHandler::handleSingingClipInserted(SingingClip *clip) {
     connect(clip, &SingingClip::noteChanged, this,
             [=](SingingClip::NoteChangeType type, const QList<Note *> &notes) {
                 handleNoteChanged(type, notes, clip);
             });
+    connect(clip, &SingingClip::piecesChanged, this,
+            [=](const QList<InferPiece *> &pieces) { handlePiecesChanged(pieces, clip); });
 }
 
 void ModelChangeHandler::handleSingingClipRemoved(SingingClip *clip) {

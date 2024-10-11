@@ -22,6 +22,7 @@ protected:
     virtual void handleTrackRemoved(Track *track);
     virtual void handleClipInserted(Clip *clip);
     virtual void handleClipRemoved(Clip *clip);
+    virtual void handleClipPropertyChanged(Clip *clip);
     virtual void handleSingingClipInserted(SingingClip *clip);
     virtual void handleSingingClipRemoved(SingingClip *clip);
     virtual void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,

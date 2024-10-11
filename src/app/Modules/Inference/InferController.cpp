@@ -8,10 +8,15 @@
 #include "InferControllerHelper.h"
 #include "Model/AppModel/InferPiece.h"
 #include "Models/PhonemeNameInput.h"
+#include "Modules/Audio/AudioContext.h"
 #include "Tasks/GetPhonemeNameTask.h"
 #include "Tasks/GetPronunciationTask.h"
 #include "Utils/Linq.h"
 #include "Utils/ValidationUtils.h"
+
+#include <TalcsCore/AudioSourceClipSeries.h>
+#include <TalcsCore/FutureAudioSourceClipSeries.h>
+#include <TalcsDspx/DspxTrackContext.h>
 
 InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
     Q_D(InferController);
@@ -44,17 +49,45 @@ void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
     m_lastEditObjectType = type;
 }
 
+void InferControllerPrivate::handleTrackInserted(Track *track) {
+    ModelChangeHandler::handleTrackInserted(track);
+    // auto series = new talcs::AudioSourceClipSeries;
+    // m_trackBackendDict[track] = series;
+    // auto trackContext = AudioContext::instance()->getContextFromTrack(track);
+    // trackContext->trackMixer()->addSource(series);
+}
+
+void InferControllerPrivate::handleTrackRemoved(Track *track) {
+    ModelChangeHandler::handleTrackRemoved(track);
+}
+
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
     clip->reSegment();
-    m_clipPieceDict[clip->id()] = Linq::selectMany(clip->pieces(), L_PRED(p, p->id()));
+    m_clipPieceDict[clip->id()] = clip->pieces();
+
+    // auto futureSeries = new talcs::FutureAudioSourceClipSeries;
+    // m_clipBackendDict[clip] = futureSeries;
+    // Track *track;
+    // appModel->findClipById(clip->id(), track);
+    // auto trackSeries = m_trackBackendDict[track];
+    // trackSeries->insertClip(futureSeries, 0, 0, 1);
     createAndRunGetPronTask(*clip);
 }
 
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipRemoved(clip);
     m_clipPieceDict.remove(clip->id());
+    m_clipBackendDict.remove(clip);
     cancelClipRelatedTasks(clip);
+}
+
+void InferControllerPrivate::handleClipPropertyChanged(Clip *clip) {
+    ModelChangeHandler::handleClipPropertyChanged(clip);
+    if (clip->clipType() != IClip::Singing)
+        return;
+    auto singingClip = reinterpret_cast<SingingClip *>(clip);
+    // TODO: 在音轨上响应属性更改
 }
 
 void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
@@ -71,12 +104,56 @@ void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
                 cancelPieceRelatedTasks(piece->id());
             }
             clip->reSegment();
-            // cancelClipRelatedTasks(clip);
             createAndRunGetPronTask(*clip);
             break;
         default:
             break;
     } // Ignore original word property change
+}
+
+void InferControllerPrivate::handlePiecesChanged(const QList<InferPiece *> &pieces,
+                                                 SingingClip *clip) {
+    auto &oldPieces = m_clipPieceDict[clip->id()];
+    QList<InferPiece *> newPieces;
+    for (const auto &piece : pieces) {
+        bool exists = false;
+        for (int i = 0; i < oldPieces.count(); i++) {
+            if (oldPieces[i] == piece) {
+                exists = true;
+                newPieces.append(oldPieces[i]);
+                oldPieces.removeAt(i);
+                break;
+            }
+        }
+        if (!exists) {
+            // TODO: 添加到音轨
+            connect(piece, &InferPiece::statusChanged, this,
+                    [=](InferStatus status) { handlePieceStatusChanged(status, *piece); });
+        }
+    }
+    QList<InferPiece *> removedPieces = oldPieces;
+    m_clipPieceDict[clip->id()] = newPieces;
+    for (auto &piece : removedPieces) {
+        disconnect(piece, nullptr, this, nullptr);
+        // TODO: 从音轨移除
+    }
+}
+
+void InferControllerPrivate::handlePieceStatusChanged(InferStatus status, InferPiece &piece) {
+    switch (status) {
+        case Pending:
+        case Running:
+            // TODO: 更改状态
+            break;
+        case Success:
+            // TODO: 更改状态
+            break;
+        case Failed:
+            // TODO 从音轨移除
+            break;
+        default:
+            break;
+    }
 }
 
 void InferControllerPrivate::handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status) {

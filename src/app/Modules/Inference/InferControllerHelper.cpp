@@ -93,6 +93,7 @@ namespace InferControllerHelper {
 
     void updateAcoustic(const QString &taskResult, InferPiece &piece) {
         qInfo() << "Saved audio to" << taskResult;
+        piece.audioPath = taskResult;
         piece.acousticInferStatus = Success;
     }
 
