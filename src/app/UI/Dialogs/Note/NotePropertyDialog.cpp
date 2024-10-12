@@ -52,6 +52,7 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     body()->setLayout(mainLayout);
 
     setModal(true);
+    m_leLyric->setFocus(Qt::TabFocusReason);
     connect(okButton(), &AccentButton::clicked, this, &Dialog::accept);
     connect(cancelButton(), &AccentButton::clicked, this, &Dialog::reject);
 }

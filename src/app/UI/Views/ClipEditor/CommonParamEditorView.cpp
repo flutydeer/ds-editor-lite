@@ -232,6 +232,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     }
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
     auto curPos = QPoint(tick, value);
+    qDebug() << curPos;
 
     int startTick;
     int endTick;

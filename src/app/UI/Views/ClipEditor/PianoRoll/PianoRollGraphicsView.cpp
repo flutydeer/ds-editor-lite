@@ -126,7 +126,7 @@ bool PianoRollGraphicsView::event(QEvent *event) {
 
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     Q_D(PianoRollGraphicsView);
-    if (d->m_editMode == Select || d->m_editMode == DrawNote) {
+    if (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote) {
         if (auto noteView = d->noteViewAt(event->pos())) {
             auto menu = d->buildNoteContextMenu(noteView);
             menu->exec(event->globalPos());
@@ -294,6 +294,19 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
 void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     // 禁用双击事件，防止在滚动条上双击时触发取消选中音符
     // TimeGraphicsView::mouseDoubleClickEvent(event);
+    Q_D(PianoRollGraphicsView);
+    if (!(d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote))
+        return;
+    if (event->button() != Qt::LeftButton)
+        return;
+    auto scenePos = mapToScene(event->position().toPoint());
+    auto noteView = d->noteViewAt(event->pos());
+    if (!noteView)
+        return;
+    auto mouseInNoteView = PianoRollGraphicsViewPrivate::mouseInFilledRect(scenePos, noteView);
+    if (!mouseInNoteView)
+        return;
+    d->onOpenNotePropertyDialog(noteView->id());
 }
 
 void PianoRollGraphicsView::reset() {

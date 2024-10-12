@@ -129,7 +129,7 @@ QString InferPitchTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch};
-    JsonUtils::save(QString("temp/infer-pitch-input-%1.json").arg(id()), model.serialize());
+    JsonUtils::save(QString("temp/infer-pitch-input-%1.json").arg(pieceId()), model.serialize());
     return model.serializeToJson();
 }
 
