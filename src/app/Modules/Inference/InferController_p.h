@@ -6,7 +6,6 @@
 #define INFERCONTROLLERPRIVATE_H
 
 #include "Controller/ModelChangeHandler.h"
-#include "Model/AppModel/InferStatus.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Task/TaskQueue.h"
@@ -15,10 +14,6 @@
 #include "Tasks/InferPitchTask.h"
 #include "Tasks/InferVarianceTask.h"
 
-namespace talcs {
-    class FutureAudioSourceClipSeries;
-    class AudioSourceClipSeries;
-}
 class GetPronunciationTask;
 class GetPhonemeNameTask;
 class InferController;

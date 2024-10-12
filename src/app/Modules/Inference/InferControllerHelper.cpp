@@ -10,6 +10,7 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Models/InferInputNote.h"
 #include "Utils/Linq.h"
+#include "Utils/MathUtils.h"
 
 #include <QDebug>
 
@@ -72,7 +73,7 @@ namespace InferControllerHelper {
                      InferPiece &piece, int scale) {
         // 将推理结果保存到分段内部
         DrawCurve resultCurve;
-        resultCurve.start = piece.realStartTick();
+        resultCurve.start = MathUtils::round(piece.realStartTick(), 5);
         resultCurve.setValues(
             Linq::selectMany(taskResult.values, L_PRED(v, static_cast<int>(v * scale))));
         piece.setCurve(name, resultCurve);
