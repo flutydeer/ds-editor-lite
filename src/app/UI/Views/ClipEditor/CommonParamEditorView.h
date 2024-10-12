@@ -69,9 +69,9 @@ private:
     static QList<DrawCurve *> mergeCurves(const QList<DrawCurve *> &original,
                                           const QList<DrawCurve *> &edited);
 
-    const int paddingTopBottom = 6;
-    const int dbMin = -72000; //-72dB
-    const int dbMax = 0;
+    const int paddingTopBottom = 2;
+    const int dbMin = -96000; //-96dB
+    const int dbMax = -12000; //-12dB
 };
 
 #endif // PITCHEDITORGRAPHICSITEM_H

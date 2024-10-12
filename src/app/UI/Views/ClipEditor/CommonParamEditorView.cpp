@@ -95,7 +95,7 @@ double CommonParamEditorView::valueToSceneY(double value) const {
     auto yMin = paddingTopBottom;
     auto yMax = scene()->height() - paddingTopBottom;
     auto availableHeight = yMax - yMin;
-    auto y = (1 - value / 1000) * availableHeight + yMin;
+    auto y = (1 - (value - dbMin) / (dbMax - dbMin)) * availableHeight + yMin;
     auto clippedY = MathUtils::clip(y, yMin, yMax);
     // Logger::d(CLASS_NAME, QString("valueToSceneY value:%1 y:%2").arg(value).arg(clippedY));
     return clippedY;
@@ -105,8 +105,8 @@ double CommonParamEditorView::sceneYToValue(double y) const {
     auto yMin = paddingTopBottom;
     auto yMax = scene()->height() - paddingTopBottom;
     auto availableHeight = yMax - yMin;
-    auto value = (1 - (y - yMin) / availableHeight) * 1000;
-    auto clippedValue = MathUtils::clip(value, 0, 1000);
+    auto value = (1 - (y - yMin) / availableHeight) * (dbMax - dbMin) + dbMin;
+    auto clippedValue = MathUtils::clip(value, dbMin, dbMax);
     // Logger::d(CLASS_NAME, QString("sceneYToValue y:%1 value:%2").arg(y).arg(clippedValue));
     return clippedValue;
 }
