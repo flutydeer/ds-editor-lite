@@ -71,7 +71,7 @@ private:
 
     const int paddingTopBottom = 2;
     const int dbMin = -96000; //-96dB
-    const int dbMax = -12000; //-12dB
+    const int dbMax = 0;      // 0dB
 };
 
 #endif // PITCHEDITORGRAPHICSITEM_H

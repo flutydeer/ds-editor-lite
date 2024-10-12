@@ -95,7 +95,9 @@ double CommonParamEditorView::valueToSceneY(double value) const {
     auto yMin = paddingTopBottom;
     auto yMax = scene()->height() - paddingTopBottom;
     auto availableHeight = yMax - yMin;
-    auto y = (1 - (value - dbMin) / (dbMax - dbMin)) * availableHeight + yMin;
+    auto normalizedValue = (value - dbMin) / (dbMax - dbMin);
+    auto scaledValue = MathUtils::inPowerCurveXAt(normalizedValue, 0.8);
+    auto y = (1 - scaledValue) * availableHeight + yMin;
     auto clippedY = MathUtils::clip(y, yMin, yMax);
     // Logger::d(CLASS_NAME, QString("valueToSceneY value:%1 y:%2").arg(value).arg(clippedY));
     return clippedY;
@@ -105,10 +107,12 @@ double CommonParamEditorView::sceneYToValue(double y) const {
     auto yMin = paddingTopBottom;
     auto yMax = scene()->height() - paddingTopBottom;
     auto availableHeight = yMax - yMin;
-    auto value = (1 - (y - yMin) / availableHeight) * (dbMax - dbMin) + dbMin;
-    auto clippedValue = MathUtils::clip(value, dbMin, dbMax);
+    auto value = 1 - (y - yMin) / availableHeight;
+    auto clippedValue = MathUtils::clip(value, 0, 1);
+    auto scaledValue = (MathUtils::inPowerCurveValueAt(clippedValue, 0.8) - 1) * (dbMax - dbMin);
+    // qDebug() << "clipped" << clippedValue << "scaled" << scaledValue;
     // Logger::d(CLASS_NAME, QString("sceneYToValue y:%1 value:%2").arg(y).arg(clippedValue));
-    return clippedValue;
+    return scaledValue;
 }
 
 void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,

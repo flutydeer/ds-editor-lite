@@ -6,6 +6,7 @@
 #define MATHUTILS_H
 
 #include <QPoint>
+#include <cmath>
 
 class MathUtils {
 public:
@@ -39,6 +40,22 @@ public:
         double dy = y2 - y1;
         double ratio = dy / dx;
         return y1 + (x - x1) * ratio;
+    }
+
+    static double inPowerCurveValueAt(double x, double power) {
+        if (x < 0.0 || x > 1.0) {
+            qFatal() << "x is not normalized";
+            return 0.0;
+        }
+        return 1 - std::pow(1 - x, power);
+    }
+
+    static double inPowerCurveXAt(double y, double power) {
+        if (y < 0.0 || y > 1.0) {
+            qFatal() << "y is not normalized";
+            return 0.0;
+        }
+        return 1 - std::pow(1 - y, 1 / power);
     }
 
     static QList<double> resample(const QList<double> &values, double interval,
