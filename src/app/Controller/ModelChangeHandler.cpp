@@ -46,6 +46,7 @@ void ModelChangeHandler::handleSingingClipInserted(SingingClip *clip) {
 }
 
 void ModelChangeHandler::handleSingingClipRemoved(SingingClip *clip) {
+    disconnect(clip, nullptr, this, nullptr);
 }
 
 void ModelChangeHandler::handleNoteChanged(SingingClip::NoteChangeType type,

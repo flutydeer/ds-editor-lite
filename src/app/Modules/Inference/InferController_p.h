@@ -35,15 +35,10 @@ public slots:
     void onEditingChanged(AppStatus::EditObjectType type);
 
 public:
-    void handleTrackInserted(Track *track) override;
-    void handleTrackRemoved(Track *track) override;
     void handleSingingClipInserted(SingingClip *clip) override;
     void handleSingingClipRemoved(SingingClip *clip) override;
-    void handleClipPropertyChanged(Clip *clip) override;
     void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,
                            SingingClip *clip) override;
-    void handlePiecesChanged(const QList<InferPiece *> &pieces, SingingClip *clip) override;
-    void handlePieceStatusChanged(InferStatus status, InferPiece &piece);
 
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
     void handleGetPronTaskFinished(GetPronunciationTask &task);
@@ -73,9 +68,7 @@ public:
 
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
-    QMap<Track *, talcs::AudioSourceClipSeries *> m_trackBackendDict;
-    QMap<int /*clipId*/, QList<InferPiece *>> m_clipPieceDict;
-    QMap<SingingClip *, talcs::FutureAudioSourceClipSeries *> m_clipBackendDict;
+
     QMap<int /*pieceId*/, InferDurationTask::InferDurInput> m_lastInferDurInputs;
     QMap<int /*pieceId*/, InferPitchTask::InferPitchInput> m_lastInferPitchInputs;
     QMap<int /*pieceId*/, InferVarianceTask::InferVarianceInput> m_lastInferVarianceInputs;
