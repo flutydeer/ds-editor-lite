@@ -22,6 +22,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QStyle>
+#include <QVariantAnimation>
 
 MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame)
     : QWidget(parent), m_menuView(menuView), m_window(parent) {
@@ -112,6 +113,11 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     setFixedHeight(40);
     m_opacityEffect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(m_opacityEffect);
+    m_animation = new QVariantAnimation(this);
+    m_animation->setEasingCurve(QEasingCurve::OutCubic);
+    connect(m_animation, &QVariantAnimation::valueChanged, this, [=](const QVariant & value) {
+        m_opacityEffect->setOpacity(value.toDouble());
+    });
 }
 
 MainMenuView *MainTitleBar::menuView() const {
@@ -173,8 +179,18 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
     return QWidget::eventFilter(watched, event);
 }
 
-void MainTitleBar::setActiveStyle(bool active) {
-    m_opacityEffect->setOpacity(active ? 1.0 : 0.5);
+void MainTitleBar::setActiveStyle(bool active) const {
+    m_animation->stop();
+    m_animation->setStartValue(m_opacityEffect->opacity());
+    if (active) {
+        m_animation->setEndValue(1.0);
+        m_animation->setDuration(100);
+    }else {
+        m_animation->setEndValue(0.5);
+        m_animation->setDuration(300);
+    }
+    m_animation->start();
+    // m_opacityEffect->setOpacity(active ? 1.0 : 0.5);
     // setProperty("windowActive", active);
     // style()->unpolish(this);
     // style()->polish(this);
