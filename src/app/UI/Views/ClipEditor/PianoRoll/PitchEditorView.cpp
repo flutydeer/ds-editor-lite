@@ -12,6 +12,11 @@ PitchEditorView::PitchEditorView() {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
 }
 
+void PitchEditorView::drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                                    QWidget *widget) {
+    // CommonParamEditorView::drawGraduates(painter, option, widget);
+}
+
 double PitchEditorView::valueToSceneY(double value) const {
     int min = 0;
     int max = 12700;

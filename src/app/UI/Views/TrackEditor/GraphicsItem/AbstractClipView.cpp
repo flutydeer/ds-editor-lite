@@ -184,7 +184,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     Q_D(const AbstractClipView);
     const auto colorPrimary = QColor(155, 186, 255);
     const auto colorPrimaryDarker = QColor(112, 156, 255);
-    const auto colorPrimaryBrighter = QColor(175, 200, 255);
+    const auto colorPrimaryLighter = QColor(205, 221, 255);
     const auto colorForeground = QColor(0, 0, 0);
     auto penWidth = 2.0f;
 
@@ -205,7 +205,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 
     pen.setWidthF(penWidth);
     painter->setPen(pen);
-    painter->setBrush(activeClip() ? colorPrimaryBrighter : colorPrimary);
+    painter->setBrush(activeClip() ? colorPrimaryLighter : colorPrimary);
 
     painter->drawRoundedRect(paddedRect, 4, 4);
 

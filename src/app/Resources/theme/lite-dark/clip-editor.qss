@@ -203,6 +203,15 @@ QSplitter#ClipEditorSplitter {
 
 ParamEditorToolBarView {
     background: #232425;
-    /* border-top: 1px solid #10FFFFFF;
-    border-bottom: 1px solid #10FFFFFF; */
+    border-top: 1px solid #1C1D1E;
+    border-bottom: 1px solid #1C1D1E;
+}
+
+ParamEditorInfoArea {
+    background: #232425;
+    border-bottom-left-radius: 6px;
+}
+
+ParamEditorInfoArea>QLabel {
+    color: rgb(127, 127, 127);
 }

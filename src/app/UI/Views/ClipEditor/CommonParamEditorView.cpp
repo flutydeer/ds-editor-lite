@@ -115,10 +115,29 @@ double CommonParamEditorView::sceneYToValue(double y) const {
     return scaledValue;
 }
 
+void CommonParamEditorView::drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                                          QWidget *widget) {
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setBrush(Qt::NoBrush);
+    QPen pen;
+    pen.setWidthF(1);
+    pen.setColor(QColor(72, 75, 78));
+    // pen.setColor(QColor(57, 59, 61));
+    painter->setPen(pen);
+    int lineLength = 4;
+    // int lineLength = visibleRect().width();
+    int step = 12000; //-12dB
+    for (int i = dbMax; i >= dbMin; i -= step) {
+        auto y = valueToItemY(i);
+        painter->drawLine(0, y, lineLength, y);
+    }
+}
+
 void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                   QWidget *widget) {
     QElapsedTimer mstimer;
     mstimer.start();
+    drawGraduates(painter, option, widget);
     painter->setBrush(Qt::NoBrush);
 
     // auto dpr = painter->device()->devicePixelRatio();

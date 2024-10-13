@@ -12,7 +12,8 @@ class PitchEditorView : public CommonParamEditorView {
 public:
     PitchEditorView();
 
-protected:
+private:
+    void drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     [[nodiscard]] double valueToSceneY(double value) const override;
     [[nodiscard]] double sceneYToValue(double y) const override;
     // void drawOpensvipPitchParam(QPainter *painter);
