@@ -252,14 +252,14 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     if (m_editType == Erase) {
         if (!overlappedCurves.isEmpty()) {
             for (auto curve : overlappedCurves) {
-                if (curve->start >= startTick &&
+                if (curve->start() >= startTick &&
                     curve->endTick() <= endTick) { // 区间覆盖整条曲线，直接移除该曲线
                     m_drawCurvesEdited.removeOne(curve);
                     qDebug() << "Erase: Remove curve #" << curve->id();
-                } else if (curve->start < startTick &&
+                } else if (curve->start() < startTick &&
                            curve->endTick() > endTick) { // 区间在曲线内，将曲线切成两段
                     auto newCurve = new DrawCurve;
-                    newCurve->start = endTick;
+                    newCurve->setStart(endTick);
                     auto rightPoints = curve->mid(endTick);
                     newCurve->setValues(rightPoints); // 将区间右端点之后的点移动到新曲线上
                     curve->eraseTailFrom(startTick);
@@ -273,7 +273,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         // 在空白处绘制，如果未创建新曲线，则创建一条并将其设为正在编辑的曲线
         if (!m_newCurveCreated && m_editType == DrawOnInterval) {
             m_editingCurve = new DrawCurve;
-            m_editingCurve->start = m_mouseDownPos.x();
+            m_editingCurve->setStart(m_mouseDownPos.x());
             m_editingCurve->appendValue(m_mouseDownPos.y());
             MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
             qDebug() << "Create new curve: #" << m_editingCurve->id();
@@ -321,7 +321,7 @@ double CommonParamEditorView::valueToItemY(double value) const {
 
 DrawCurve *CommonParamEditorView::curveAt(double tick) {
     for (const auto curve : m_drawCurvesEdited)
-        if (curve->start <= tick && curve->endTick() > tick)
+        if (curve->start() <= tick && curve->endTick() > tick)
             return curve;
     return nullptr;
 }
@@ -346,11 +346,11 @@ QList<DrawCurve *> CommonParamEditorView::mergeCurves(const QList<DrawCurve *> &
 
     for (const auto &editedCurve : edited) {
         auto newCurve = new DrawCurve(*editedCurve);
-        auto overlappedOriCurves = curvesIn(result, editedCurve->start, editedCurve->endTick());
+        auto overlappedOriCurves = curvesIn(result, editedCurve->start(), editedCurve->endTick());
         if (!overlappedOriCurves.isEmpty()) {
             for (auto oriCurve : overlappedOriCurves) {
                 // 如果 oriCurve 被已编辑曲线完全覆盖，直接移除
-                if (!(oriCurve->start >= newCurve->start &&
+                if (!(oriCurve->start() >= newCurve->start() &&
                       oriCurve->endTick() <= newCurve->endTick()))
                     newCurve->mergeWithCurrentPriority(*oriCurve);
                 result.removeOne(oriCurve);
@@ -368,7 +368,7 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
         auto dpr = painter->device()->devicePixelRatio();
         bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
 
-        int start = curve.start;
+        int start = curve.start();
         int startIndex =
             start >= startTick()
                 ? 0
@@ -409,7 +409,7 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
     for (const auto curve : curves) {
         if (curve->endTick() < startTick())
             continue;
-        if (curve->start > endTick())
+        if (curve->start() > endTick())
             break;
         drawCurve(*curve);
     }
@@ -421,7 +421,7 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
         auto dpr = painter->device()->devicePixelRatio();
         bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
 
-        int start = curve.start;
+        int start = curve.start();
         int startIndex =
             start >= startTick()
                 ? 0
@@ -462,7 +462,7 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
     for (const auto curve : curves) {
         if (curve->endTick() < startTick())
             continue;
-        if (curve->start > endTick())
+        if (curve->start() > endTick())
             break;
         drawCurve(*curve);
     }
@@ -483,7 +483,7 @@ void CommonParamEditorView::drawLine(const QPoint &p1, const QPoint &p2, DrawCur
     }
     auto line = DrawCurve(-1);
     auto start = startPoint.x();
-    line.start = start;
+    line.setStart(start);
     int linePointCount = (endPoint.x() - startPoint.x()) / curve.step;
     for (int i = 0; i < linePointCount; i++) {
         auto tick = start + i * curve.step;

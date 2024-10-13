@@ -11,6 +11,13 @@
 //     // qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start;
 // }
 
+void DrawCurve::setStart(int start) {
+    if (start % 5 == 0)
+        Curve::setStart(start);
+    else
+        qCritical() << "setStart: start not divisible by 5 tick";
+}
+
 const QList<int> &DrawCurve::values() const {
     return m_values;
 }
@@ -20,7 +27,7 @@ bool DrawCurve::isEmpty() const {
 }
 
 QList<int> DrawCurve::mid(int tick) const {
-    auto startIndex = (tick - start) / step;
+    auto startIndex = (tick - start()) / step;
     QList<int> result;
     for (int i = startIndex; i < m_values.count(); i++)
         result.append(m_values.at(i));
@@ -60,8 +67,8 @@ void DrawCurve::mergeWithCurrentPriority(const DrawCurve &other) {
     if (!other.isOverlappedWith(this))
         qCritical() << "mergeWithCurrentPriority: other is not overlapped with this";
 
-    int curStart = start;
-    int otherStart = other.start;
+    int curStart = start();
+    int otherStart = other.start();
     auto curEnd = endTick();
     auto otherEnd = other.endTick();
 
@@ -81,7 +88,7 @@ void DrawCurve::mergeWithCurrentPriority(const DrawCurve &other) {
         for (int i = 0; i < earlyCurvePointCount; i++)
             earlyPoints.append(other.values().at(i));
         insertValues(0, earlyPoints);
-        start = otherStart;
+        setStart(otherStart);
         if (curEnd < otherEnd) {
             auto tailCount = (otherEnd - curEnd) / step;
             auto startIndex = other.values().count() - tailCount;
@@ -92,8 +99,8 @@ void DrawCurve::mergeWithCurrentPriority(const DrawCurve &other) {
 }
 
 void DrawCurve::mergeWithOtherPriority(const DrawCurve &other) {
-    int curStart = start;
-    int otherStart = other.start;
+    int curStart = start();
+    int otherStart = other.start();
     auto curEnd = endTick();
     auto otherEnd = other.endTick();
     if (otherEnd < curStart || curEnd < otherStart) {
@@ -113,20 +120,20 @@ void DrawCurve::mergeWithOtherPriority(const DrawCurve &other) {
     } else { // otherStart <= curStart
         if (otherEnd >= curEnd) {
             clearValues();
-            start = otherStart;
+            setStart(otherStart);
             for (int i = 0; i < other.values().count(); i++)
                 appendValue(other.values().at(i));
         } else { // otherEnd<curEnd
             auto removeEndIndex = (otherEnd - curStart) / step;
             removeValueRange(0, removeEndIndex);
-            start = otherStart;
+            setStart(otherStart);
             insertValues(0, other.values());
         }
     }
 }
 
 void DrawCurve::erase(int otherStart, int otherEnd) {
-    int curStart = start;
+    int curStart = start();
     auto curEnd = endTick();
 
     if (otherStart <= curStart && otherEnd >= curEnd)
@@ -138,7 +145,7 @@ void DrawCurve::erase(int otherStart, int otherEnd) {
     } else { // otherStart <= curStart
         auto removeEndIndex = (otherEnd - curStart) / step;
         removeValueRange(0, removeEndIndex);
-        start = otherEnd;
+        setStart(otherEnd);
     }
 }
 
@@ -153,5 +160,5 @@ void DrawCurve::eraseTailFrom(int tick) {
 }
 
 int DrawCurve::endTick() const {
-    return start + step * m_values.count();
+    return start() + step * m_values.count();
 }

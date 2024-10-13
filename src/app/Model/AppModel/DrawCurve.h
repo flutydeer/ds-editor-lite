@@ -18,6 +18,7 @@ public:
     }
 
     int step = 5;
+    void setStart(int start) override;
     [[nodiscard]] const QList<int> &values() const;
     [[nodiscard]] bool isEmpty() const;
     [[nodiscard]] QList<int> mid(int tick) const;
