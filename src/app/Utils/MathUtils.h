@@ -5,6 +5,7 @@
 #ifndef MATHUTILS_H
 #define MATHUTILS_H
 
+#include <QDebug>
 #include <QPoint>
 #include <cmath>
 

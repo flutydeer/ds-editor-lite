@@ -5,20 +5,21 @@
 #include "CommonParamEditorView.h"
 
 #include "ClipEditorGlobal.h"
-
+#include "Model/AppModel/ParamProperties.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/CommonGraphicsScene.h"
 #include "Utils/MathUtils.h"
 
 #include <QElapsedTimer>
-#include <QPainter>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
+#include <QPainter>
 
 CommonParamEditorView::CommonParamEditorView() {
     // setBackgroundColor(Qt::transparent);
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
+    m_properties = new DecibelParamProperties;
 }
 
 void CommonParamEditorView::loadOriginal(const QList<DrawCurve *> &curves) {
@@ -95,9 +96,8 @@ double CommonParamEditorView::valueToSceneY(double value) const {
     auto yMin = paddingTopBottom;
     auto yMax = scene()->height() - paddingTopBottom;
     auto availableHeight = yMax - yMin;
-    auto normalizedValue = (value - dbMin) / (dbMax - dbMin);
-    auto scaledValue = MathUtils::inPowerCurveXAt(normalizedValue, 0.8);
-    auto y = (1 - scaledValue) * availableHeight + yMin;
+    auto normalizedValue = m_properties->valueToNormalized(value);
+    auto y = (1 - normalizedValue) * availableHeight + yMin;
     auto clippedY = MathUtils::clip(y, yMin, yMax);
     // Logger::d(CLASS_NAME, QString("valueToSceneY value:%1 y:%2").arg(value).arg(clippedY));
     return clippedY;
@@ -109,7 +109,7 @@ double CommonParamEditorView::sceneYToValue(double y) const {
     auto availableHeight = yMax - yMin;
     auto value = 1 - (y - yMin) / availableHeight;
     auto clippedValue = MathUtils::clip(value, 0, 1);
-    auto scaledValue = (MathUtils::inPowerCurveValueAt(clippedValue, 0.8) - 1) * (dbMax - dbMin);
+    auto scaledValue = m_properties->valueFromNormalized(clippedValue);
     // qDebug() << "clipped" << clippedValue << "scaled" << scaledValue;
     // Logger::d(CLASS_NAME, QString("sceneYToValue y:%1 value:%2").arg(y).arg(clippedValue));
     return scaledValue;
@@ -126,8 +126,10 @@ void CommonParamEditorView::drawGraduates(QPainter *painter, const QStyleOptionG
     painter->setPen(pen);
     int lineLength = 4;
     // int lineLength = visibleRect().width();
-    int step = 12000; //-12dB
-    for (int i = dbMax; i >= dbMin; i -= step) {
+    int step = m_properties->displayDivision;
+    auto min = m_properties->minimum;
+    auto max = m_properties->maximum;
+    for (int i = min; i <= max; i += step) {
         auto y = valueToItemY(i);
         painter->drawLine(0, y, lineLength, y);
     }
@@ -255,7 +257,8 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     }
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
     auto curPos = QPoint(tick, value);
-    qDebug() << curPos;
+    qDebug() << "Draw at tick:" << tick
+             << "value:" << m_properties->valueToString(value, m_properties->hasUnit());
 
     int startTick;
     int endTick;

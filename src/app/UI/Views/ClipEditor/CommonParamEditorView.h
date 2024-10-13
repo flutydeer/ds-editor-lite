@@ -9,6 +9,8 @@
 #include "Model/AppModel/DrawCurve.h"
 #include "UI/Views/Common/TimeOverlayGraphicsItem.h"
 
+class ParamProperties;
+
 class CommonParamEditorView : public TimeOverlayGraphicsItem, public IAtomicAction {
     Q_OBJECT
 
@@ -71,8 +73,7 @@ private:
                                           const QList<DrawCurve *> &edited);
 
     const int paddingTopBottom = 2;
-    const int dbMin = -96000; //-96dB
-    const int dbMax = 0;      // 0dB
+    ParamProperties *m_properties;
 };
 
 #endif // PITCHEDITORGRAPHICSITEM_H
