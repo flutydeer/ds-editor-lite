@@ -39,6 +39,13 @@ Button#MaximizeButton:pressed {
 
 
 /* PlaybackView */
+
+PlaybackView {
+    border-radius: 8px;
+    background: #1AFFFFFF;
+    /* border: 1px solid #10FFFFFF; */
+}
+
 PlaybackView>QPushButton {
     padding: 0px;
     border: none;

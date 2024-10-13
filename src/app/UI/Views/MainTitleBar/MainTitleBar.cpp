@@ -101,6 +101,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
     }
     mainLayout->addWidget(m_playbackView);
+    mainLayout->addSpacing(4);
     if (!useNativeFrame) {
         mainLayout->addWidget(m_btnMin);
         mainLayout->addWidget(m_btnMax);
@@ -115,9 +116,8 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     setGraphicsEffect(m_opacityEffect);
     m_animation = new QVariantAnimation(this);
     m_animation->setEasingCurve(QEasingCurve::OutCubic);
-    connect(m_animation, &QVariantAnimation::valueChanged, this, [=](const QVariant & value) {
-        m_opacityEffect->setOpacity(value.toDouble());
-    });
+    connect(m_animation, &QVariantAnimation::valueChanged, this,
+            [=](const QVariant &value) { m_opacityEffect->setOpacity(value.toDouble()); });
 }
 
 MainMenuView *MainTitleBar::menuView() const {
@@ -185,7 +185,7 @@ void MainTitleBar::setActiveStyle(bool active) const {
     if (active) {
         m_animation->setEndValue(1.0);
         m_animation->setDuration(100);
-    }else {
+    } else {
         m_animation->setEndValue(0.5);
         m_animation->setDuration(300);
     }

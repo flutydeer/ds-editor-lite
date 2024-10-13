@@ -18,6 +18,7 @@
 #include <QPushButton>
 
 PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
+    setAttribute(Qt::WA_StyledBackground);
     m_elTempo = new EditLabel;
     m_elTempo->setObjectName("elTempo");
     m_elTempo->setText(QString::number(m_tempo));
@@ -143,6 +144,10 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     divider1->setFixedHeight(m_contentHeight - 6);
     auto divider2 = new DividerLine(Qt::Vertical);
     divider2->setFixedHeight(m_contentHeight - 6);
+    auto divider3 = new DividerLine(Qt::Vertical);
+    divider3->setFixedHeight(m_contentHeight - 6);
+    auto divider4 = new DividerLine(Qt::Vertical);
+    divider4->setFixedHeight(m_contentHeight - 6);
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_cbQuantize);
@@ -150,14 +155,16 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     mainLayout->addWidget(m_btnStop);
     mainLayout->addWidget(m_btnPlay);
     mainLayout->addWidget(m_btnPause);
-    mainLayout->addWidget(m_elTime);
     mainLayout->addWidget(divider2);
+    mainLayout->addWidget(m_elTime);
+    mainLayout->addWidget(divider3);
     mainLayout->addWidget(m_elTempo);
+    mainLayout->addWidget(divider4);
     mainLayout->addWidget(m_elTimeSignature);
-    mainLayout->setContentsMargins(0, 0, 6, 0);
+    mainLayout->setContentsMargins({});
     mainLayout->setSpacing(4);
     setLayout(mainLayout);
-    setContentsMargins({});
+    setContentsMargins({2, 2, 2, 2});
     // setMaximumHeight(44);
     // setMaximumWidth(480);
 
