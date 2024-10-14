@@ -21,6 +21,9 @@
 #include "Model/AppModel/AudioClip.h"
 #include "AudioExporter.h"
 
+
+class TrackInferenceHandler;
+
 namespace talcs {
     class DspxAudioClipContext;
 }
@@ -62,6 +65,7 @@ private:
     QHash<AudioClip *, talcs::DspxAudioClipContext *> m_audioClipModelDict;
 
     QHash<Track *, TrackSynthesizer *> m_trackSynthDict;
+    QHash<Track *, TrackInferenceHandler *> m_trackInferDict;
 
     QTimer *m_levelMeterTimer;
     QHash<const Track *,

@@ -1,5 +1,6 @@
 #include "AudioContext.h"
 
+#include "TrackInferenceHandler.h"
 #include "Model/AppModel/AudioClip.h"
 
 #include <set>
@@ -428,7 +429,8 @@ void AudioContext::handleTrackInserted(int index, Track *track) {
                     m_trackLevelMeterValue[track].second->setCurrentAndTargetValue(dBR);
             });
 
-    m_trackSynthDict.insert(track, new TrackSynthesizer(trackContext, track));
+    // m_trackSynthDict.insert(track, new TrackSynthesizer(trackContext, track));
+    m_trackInferDict.insert(track, new TrackInferenceHandler(trackContext, track));
 }
 
 void AudioContext::handleTrackRemoved(int index, Track *track) {
@@ -437,7 +439,8 @@ void AudioContext::handleTrackRemoved(int index, Track *track) {
             continue;
         handleClipRemoved(track, clip->id(), static_cast<AudioClip *>(clip));
     }
-    delete m_trackSynthDict.take(track);
+    // delete m_trackSynthDict.take(track);
+    delete m_trackInferDict.take(track);
     removeTrack(index);
     m_trackModelDict.remove(track);
     m_trackLevelMeterValue.remove(track);

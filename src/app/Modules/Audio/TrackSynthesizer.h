@@ -25,7 +25,6 @@ public:
 
 private:
     Track *m_track;
-    QMutex m_mutex;
 
     QHash<SingingClip *, talcs::DspxSingingClipContext *> m_singingClipModelDict;
     QHash<Note *, talcs::DspxNoteContext *> m_noteModelDict;
