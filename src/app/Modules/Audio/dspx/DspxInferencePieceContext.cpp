@@ -67,6 +67,7 @@ namespace talcs {
 
     bool DspxInferencePieceContext::determine(const QString &audioFilePath) {
         Q_D(DspxInferencePieceContext);
+        d->bufSrc.reset();
         auto io = AudioContext::instance()->formatManager()->getFormatLoad(audioFilePath, {});
         if (!io) {
             d->contentSrc = std::make_unique<AudioSourceClipSeries>();
