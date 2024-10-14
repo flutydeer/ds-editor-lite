@@ -440,8 +440,8 @@ void AudioContext::handleTrackRemoved(int index, Track *track) {
         handleClipRemoved(track, clip->id(), static_cast<AudioClip *>(clip));
     }
     // delete m_trackSynthDict.take(track);
-    delete m_trackInferDict.take(track);
     removeTrack(index);
+    m_trackInferDict.remove(track);
     m_trackModelDict.remove(track);
     m_trackLevelMeterValue.remove(track);
 }
