@@ -17,8 +17,9 @@ class CommonParamEditorView : public TimeOverlayGraphicsItem, public IAtomicActi
 public:
     enum EditMode { Free, Anchor, Off };
 
-    explicit CommonParamEditorView();
+    explicit CommonParamEditorView(const ParamProperties &properties);
 
+    void setParamProperties(const ParamProperties &properties);
     void loadOriginal(const QList<DrawCurve *> &curves);
     void loadEdited(const QList<DrawCurve *> &curves);
     void clearParams();
@@ -31,8 +32,6 @@ signals:
     void editCompleted(const QList<DrawCurve *> &curves);
 
 protected:
-    [[nodiscard]] bool fillCurve() const;
-    void setFillCurve(bool on);
     [[nodiscard]] virtual double valueToSceneY(double value) const;
     [[nodiscard]] virtual double sceneYToValue(double y) const;
     virtual void drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);
@@ -48,7 +47,6 @@ private:
     static void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve);
 
     bool m_showDebugInfo = false;
-    bool m_fillCurve = true;
 
     enum EditType { DrawOnInterval, DrawOnCurve, Erase, None };
 
@@ -69,7 +67,7 @@ private:
     DrawCurve *curveAt(double tick);
 
     const int paddingTopBottom = 2;
-    ParamProperties *m_properties;
+    const ParamProperties *m_properties;
 };
 
 #endif // PITCHEDITORGRAPHICSITEM_H

@@ -6,7 +6,9 @@
 #define GENERALOPTION_H
 
 #include "Global/AppGlobal.h"
+#include "Model/AppModel/Params.h"
 #include "Model/AppOptions/IOption.h"
+#include "Utils/Property.h"
 
 class GeneralOption final : public IOption {
 public:
@@ -17,6 +19,9 @@ public:
 
     AppGlobal::LanguageType defaultSingingLanguage = AppGlobal::cmn;
     QString defaultLyric = "啦";
+
+    Property<ParamInfo::Name> defaultForegroundParam = ParamInfo::Breathiness;
+    Property<ParamInfo::Name> defaultBackgroundParam = ParamInfo::Tension;
 
 private:
     const QString defaultSingingLanguageKey = "defaultSingLanguage";

@@ -4,22 +4,30 @@
 
 #include "ParamEditorInfoArea.h"
 
+#include "Model/AppModel/ParamProperties.h"
+
 #include <QLabel>
 #include <QVBoxLayout>
 
-ParamEditorInfoArea::ParamEditorInfoArea(QWidget *parent): QWidget(parent) {
+ParamEditorInfoArea::ParamEditorInfoArea(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
-    auto lbMax = new QLabel("0 dB");
-    lbMax->setAlignment(Qt::AlignRight);
+    m_lbMax = new QLabel;
+    m_lbMax->setAlignment(Qt::AlignRight);
 
-    auto lbMin = new QLabel("-96 dB");
-    lbMin->setAlignment(Qt::AlignRight);
+    m_lbMin = new QLabel;
+    m_lbMin->setAlignment(Qt::AlignRight);
 
     auto mainLayout = new QVBoxLayout();
-    mainLayout->setContentsMargins({4,0,4,0});
+    mainLayout->setContentsMargins({4, 0, 4, 0});
     mainLayout->setSpacing(0);
-    mainLayout->addWidget(lbMax);
+    mainLayout->addWidget(m_lbMax);
     mainLayout->addStretch();
-    mainLayout->addWidget(lbMin);
+    mainLayout->addWidget(m_lbMin);
     setLayout(mainLayout);
+}
+
+void ParamEditorInfoArea::setParamProperties(const ParamProperties &properties) {
+    m_paramProperties = &properties;
+    m_lbMax->setText(m_paramProperties->valueToString(m_paramProperties->maximum, true, 1));
+    m_lbMin->setText(m_paramProperties->valueToString(m_paramProperties->minimum, true, 1));
 }

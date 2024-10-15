@@ -15,7 +15,10 @@
 
 #include <QWheelEvent>
 
-ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene, QWidget *parent)
+ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene,
+                                                 const ParamProperties &foregroundProperties,
+                                                 const ParamProperties &backgroundProperties,
+                                                 QWidget *parent)
     : TimeGraphicsView(scene, false, parent) {
     setAttribute(Qt::WA_StyledBackground);
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
@@ -27,12 +30,12 @@ ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene
     // grid->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     // setGridItem(grid);
 
-    m_background = new CommonParamEditorView;
+    m_background = new CommonParamEditorView(backgroundProperties);
     m_background->setZValue(1);
     m_background->setTransparentMouseEvents(true);
     scene->addCommonItem(m_background);
 
-    m_foreground = new CommonParamEditorView;
+    m_foreground = new CommonParamEditorView(foregroundProperties);
     m_foreground->setZValue(2);
     m_foreground->setTransparentMouseEvents(false);
     scene->addCommonItem(m_foreground);
@@ -45,14 +48,18 @@ void ParamEditorGraphicsView::setDataContext(SingingClip *clip) {
     clip == nullptr ? moveToNullClipState() : moveToSingingClipState(clip);
 }
 
-void ParamEditorGraphicsView::setForeground(ParamInfo::Name name) {
+void ParamEditorGraphicsView::setForeground(ParamInfo::Name name,
+                                            const ParamProperties &properties) {
     m_foregroundParam = name;
+    m_foreground->setParamProperties(properties);
     updateForeground(Param::Original, *m_clip->params.getParamByName(m_foregroundParam));
     updateForeground(Param::Edited, *m_clip->params.getParamByName(m_foregroundParam));
 }
 
-void ParamEditorGraphicsView::setBackground(ParamInfo::Name name) {
+void ParamEditorGraphicsView::setBackground(ParamInfo::Name name,
+                                            const ParamProperties &properties) {
     m_backgroundParam = name;
+    m_background->setParamProperties(properties);
     updateBackground(Param::Original, *m_clip->params.getParamByName(m_backgroundParam));
     updateBackground(Param::Edited, *m_clip->params.getParamByName(m_backgroundParam));
 }

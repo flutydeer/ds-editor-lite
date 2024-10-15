@@ -11,21 +11,30 @@
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include "Model/AppModel/SingingClip.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/ParamNameUtils.h"
 
 #include <QVBoxLayout>
 
 ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
-    auto scene = new ParamEditorGraphicsScene;
+    auto option = appOptions->general();
+    auto foregroundParam = option->defaultForegroundParam;
+    auto backgroundParam = option->defaultBackgroundParam;
+    auto foregroundProperties = getPropertiesByName(foregroundParam);
+    auto backgroundProperties = getPropertiesByName(backgroundParam);
 
-    auto infoArea = new ParamEditorInfoArea;
-    infoArea->setFixedWidth(ClipEditorGlobal::pianoKeyboardWidth);
-    m_graphicsView = new ParamEditorGraphicsView(scene, this);
+    m_infoArea = new ParamEditorInfoArea;
+    m_infoArea->setParamProperties(*foregroundProperties);
+    m_infoArea->setFixedWidth(ClipEditorGlobal::pianoKeyboardWidth);
+
+    auto scene = new ParamEditorGraphicsScene;
+    m_graphicsView =
+        new ParamEditorGraphicsView(scene, *foregroundProperties, *backgroundProperties, this);
     connect(m_graphicsView, &ParamEditorGraphicsView::sizeChanged, scene,
             &ParamEditorGraphicsScene::onViewResized);
 
     auto layout = new QHBoxLayout;
-    layout->addWidget(infoArea);
+    layout->addWidget(m_infoArea);
     layout->addWidget(m_graphicsView);
     // layout->setContentsMargins(0, 0, 0, 6);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -56,10 +65,33 @@ ParamEditorGraphicsView *ParamEditorView::graphicsView() const {
 
 void ParamEditorView::onForegroundChanged(ParamInfo::Name name) const {
     qDebug() << "foreground changed" << paramNameUtils->nameFromType(name);
-    m_graphicsView->setForeground(name);
+    m_infoArea->setParamProperties(*getPropertiesByName(name));
+    m_graphicsView->setForeground(name, *getPropertiesByName(name));
 }
 
 void ParamEditorView::onBackgroundChanged(ParamInfo::Name name) const {
     qDebug() << "background changed" << paramNameUtils->nameFromType(name);
-    m_graphicsView->setBackground(name);
+    m_graphicsView->setBackground(name, *getPropertiesByName(name));
+}
+
+const ParamProperties *ParamEditorView::getPropertiesByName(ParamInfo::Name name) const {
+    switch (name) {
+        case ParamInfo::Pitch:
+            return &pitchProperties;
+        case ParamInfo::Expressiveness:
+            return &exprProperties;
+        case ParamInfo::Energy:
+        case ParamInfo::Breathiness:
+        case ParamInfo::Voicing:
+            return &decibelProperties;
+        case ParamInfo::Tension:
+            return &tensionProperties;
+        case ParamInfo::Gender:
+            return &genderProperties;
+        case ParamInfo::Velocity:
+            return &velocityProperties;
+        case ParamInfo::Unknown:
+            return &defaultProperties;
+    }
+    return &defaultProperties;
 }

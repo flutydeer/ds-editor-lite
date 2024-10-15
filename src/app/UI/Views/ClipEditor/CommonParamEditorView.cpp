@@ -17,23 +17,36 @@
 #include <QKeyEvent>
 #include <QPainter>
 
-CommonParamEditorView::CommonParamEditorView() {
+CommonParamEditorView::CommonParamEditorView(const ParamProperties &properties)
+    : m_properties(&properties) {
     // setBackgroundColor(Qt::transparent);
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-    m_properties = new DecibelParamProperties;
+}
+
+void CommonParamEditorView::setParamProperties(const ParamProperties &properties) {
+    clearParams();
+    m_properties = &properties;
 }
 
 void CommonParamEditorView::loadOriginal(const QList<DrawCurve *> &curves) {
+    for (const auto curve : m_drawCurvesOriginal)
+        delete curve;
     AppModelUtils::copyCurves(curves, m_drawCurvesOriginal);
     update();
 }
 
 void CommonParamEditorView::loadEdited(const QList<DrawCurve *> &curves) {
+    for (const auto curve : m_drawCurvesEdited)
+        delete curve;
     AppModelUtils::copyCurves(curves, m_drawCurvesEdited);
     update();
 }
 
 void CommonParamEditorView::clearParams() {
+    for (const auto curve : m_drawCurvesOriginal)
+        delete curve;
+    for (const auto curve : m_drawCurvesEdited)
+        delete curve;
     m_drawCurvesOriginal.clear();
     m_drawCurvesEdited.clear();
     update();
@@ -84,15 +97,6 @@ void CommonParamEditorView::commitAction() {
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
-bool CommonParamEditorView::fillCurve() const {
-    return m_fillCurve;
-}
-
-void CommonParamEditorView::setFillCurve(bool on) {
-    m_fillCurve = on;
-    update();
-}
-
 double CommonParamEditorView::valueToSceneY(double value) const {
     auto yMin = paddingTopBottom;
     auto yMax = scene()->height() - paddingTopBottom;
@@ -118,6 +122,9 @@ double CommonParamEditorView::sceneYToValue(double y) const {
 
 void CommonParamEditorView::drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                           QWidget *widget) {
+    bool isBackground = transparentMouseEvents();
+    if (isBackground || !m_properties->showDivision)
+        return;
     painter->setRenderHint(QPainter::Antialiasing);
     painter->setBrush(Qt::NoBrush);
     QPen pen;
@@ -127,7 +134,7 @@ void CommonParamEditorView::drawGraduates(QPainter *painter, const QStyleOptionG
     painter->setPen(pen);
     int lineLength = 4;
     // int lineLength = visibleRect().width();
-    int step = m_properties->displayDivision;
+    int step = m_properties->divisionValue;
     auto min = m_properties->minimum;
     auto max = m_properties->maximum;
     for (int i = min; i <= max; i += step) {
@@ -149,12 +156,11 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
     // else
     //     painter->setRenderHint(QPainter::Antialiasing, false);
 
-    bool pitchMode = !m_fillCurve;
     bool foreground = !transparentMouseEvents();
     auto penWidth = 1.5;
     QPen pen;
     pen.setWidthF(penWidth);
-    if (pitchMode) {
+    if (m_properties->displayMode == ParamProperties::DisplayMode::CurveOnly) {
         painter->setBrush(Qt::NoBrush);
         if (!m_drawCurvesOriginal.isEmpty()) {
             pen.setColor(QColor(255, 255, 255, 96));
@@ -258,8 +264,9 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     }
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
     auto curPos = QPoint(tick, value);
-    qDebug() << "Draw at tick:" << tick
-             << "value:" << m_properties->valueToString(value, m_properties->hasUnit());
+    qDebug() << "Draw at tick:" << tick << "value:"
+             << m_properties->valueToString(value, m_properties->hasUnit(),
+                                            m_properties->displayPrecision);
 
     int startTick;
     int endTick;

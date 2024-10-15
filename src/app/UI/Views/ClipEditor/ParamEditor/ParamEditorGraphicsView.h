@@ -8,7 +8,7 @@
 #include "Model/AppModel/Params.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
-
+class ParamProperties;
 class SingingClip;
 class DrawCurve;
 class CommonParamEditorView;
@@ -18,12 +18,15 @@ class ParamEditorGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
 
 public:
-    explicit ParamEditorGraphicsView(ParamEditorGraphicsScene *scene, QWidget *parent = nullptr);
+    explicit ParamEditorGraphicsView(ParamEditorGraphicsScene *scene,
+                                     const ParamProperties &foregroundProperties,
+                                     const ParamProperties &backgroundProperties,
+                                     QWidget *parent = nullptr);
     void setDataContext(SingingClip *clip);
 
 public slots:
-    void setForeground(ParamInfo::Name name);
-    void setBackground(ParamInfo::Name name);
+    void setForeground(ParamInfo::Name name, const ParamProperties &properties);
+    void setBackground(ParamInfo::Name name, const ParamProperties &properties);
     void updateForeground(Param::Type type, const Param &param) const;
     void updateBackground(Param::Type type, const Param &param) const;
 
@@ -45,8 +48,8 @@ private:
 
     bool m_debugMode = false;
     SingingClip *m_clip = nullptr;
-    CommonParamEditorView *m_foreground;
-    CommonParamEditorView *m_background;
+    CommonParamEditorView *m_foreground = nullptr;
+    CommonParamEditorView *m_background = nullptr;
 
     ParamInfo::Name m_foregroundParam = ParamInfo::Breathiness;
     ParamInfo::Name m_backgroundParam = ParamInfo::Tension;

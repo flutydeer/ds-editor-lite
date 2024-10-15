@@ -78,7 +78,7 @@ public:
     TaskQueue<InferAcousticTask> m_inferAcousticTasks;
 
     const QString m_singerConfigPath =
-        R"(F:\Sound libraries\DiffSinger\OpenUtau\Singers\Qixuan_v2.5.0_DiffSinger_OpenUtau\dsconfig.yaml)";
+        R"(F:\Sound libraries\DiffSinger\OpenUtau\Singers\Junninghua_v1.4.0_DiffSinger_OpenUtau\dsconfig.yaml)";
 
 private:
     InferController *q_ptr = nullptr;

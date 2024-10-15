@@ -4,6 +4,7 @@
 
 #include "ParamEditorToolBarView.h"
 
+#include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/DividerLine.h"
@@ -48,8 +49,8 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     connect(cbBackgroundParam, &ComboBox::currentIndexChanged, this,
             &ParamEditorToolBarView::onBackgroundSelectionChanged);
 
-    cbForegroundParam->setCurrentIndex(ParamInfo::Breathiness - 1);
-    cbBackgroundParam->setCurrentIndex(ParamInfo::Tension - 1);
+    cbForegroundParam->setCurrentIndex(appOptions->general()->defaultForegroundParam - 1);
+    cbBackgroundParam->setCurrentIndex(appOptions->general()->defaultBackgroundParam - 1);
 }
 
 void ParamEditorToolBarView::onForegroundSelectionChanged(int index) {
