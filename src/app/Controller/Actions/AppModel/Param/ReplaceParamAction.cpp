@@ -5,6 +5,7 @@
 #include "ReplaceParamAction.h"
 
 #include "Model/AppModel/SingingClip.h"
+#include "Utils/AppModelUtils.h"
 
 ReplaceParamAction *ReplaceParamAction::build(ParamInfo::Name paramName,
                                               Param::Type paramType,
@@ -12,9 +13,9 @@ ReplaceParamAction *ReplaceParamAction::build(ParamInfo::Name paramName,
     auto a = new ReplaceParamAction;
     a->m_paramName = paramName;
     a->m_paramType = paramType;
-    SingingClip::copyCurves(clip->params.getParamByName(paramName)->curves(paramType),
-                            a->m_oldCurves);
-    SingingClip::copyCurves(curves, a->m_newCurves);
+    AppModelUtils::copyCurves(clip->params.getParamByName(paramName)->curves(paramType),
+                              a->m_oldCurves);
+    AppModelUtils::copyCurves(curves, a->m_newCurves);
     a->m_clip = clip;
     return a;
 }

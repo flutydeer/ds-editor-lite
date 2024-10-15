@@ -14,7 +14,6 @@
 #include "Utils/Linq.h"
 #include "Utils/ValidationUtils.h"
 
-
 InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
     Q_D(InferController);
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
@@ -76,6 +75,16 @@ void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
         default:
             break;
     } // Ignore original word property change
+}
+
+void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Type type,
+                                                SingingClip *clip) {
+    if (type != Param::Edited)
+    return;
+    // switch (name) {
+    //     case ParamInfo::Pitch:
+    //         InferControllerHelper::resetPitch();
+    // }
 }
 
 void InferControllerPrivate::handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status) {

@@ -67,10 +67,6 @@ private:
 
     [[nodiscard]] double valueToItemY(double value) const;
     DrawCurve *curveAt(double tick);
-    static QList<DrawCurve *> curvesIn(const QList<DrawCurve *> &container, int startTick,
-                                       int endTick);
-    static QList<DrawCurve *> mergeCurves(const QList<DrawCurve *> &original,
-                                          const QList<DrawCurve *> &edited);
 
     const int paddingTopBottom = 2;
     ParamProperties *m_properties;

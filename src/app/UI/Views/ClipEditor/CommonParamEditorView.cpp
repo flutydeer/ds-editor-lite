@@ -9,6 +9,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/CommonGraphicsScene.h"
+#include "Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
 
 #include <QElapsedTimer>
@@ -23,12 +24,12 @@ CommonParamEditorView::CommonParamEditorView() {
 }
 
 void CommonParamEditorView::loadOriginal(const QList<DrawCurve *> &curves) {
-    SingingClip::copyCurves(curves, m_drawCurvesOriginal);
+    AppModelUtils::copyCurves(curves, m_drawCurvesOriginal);
     update();
 }
 
 void CommonParamEditorView::loadEdited(const QList<DrawCurve *> &curves) {
-    SingingClip::copyCurves(curves, m_drawCurvesEdited);
+    AppModelUtils::copyCurves(curves, m_drawCurvesEdited);
     update();
 }
 
@@ -177,7 +178,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             painter->setBrush(QColor(40, 40, 40));
         }
 
-        auto curves = mergeCurves(m_drawCurvesOriginal, m_drawCurvesEdited);
+        auto curves = AppModelUtils::mergeCurves(m_drawCurvesOriginal, m_drawCurvesEdited);
         if (!curves.isEmpty()) {
             drawCurvePolygon(painter, curves);
             for (auto curve : curves)
@@ -212,7 +213,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     m_mouseDownButton = event->button();
     cancelRequested = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::Param;
-    SingingClip::copyCurves(m_drawCurvesEdited, m_drawCurvesEditedBak);
+    AppModelUtils::copyCurves(m_drawCurvesEdited, m_drawCurvesEditedBak);
     auto scenePos = event->scenePos().toPoint();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     if (tick < 0) {
@@ -270,7 +271,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         startTick = curPos.x();
     }
 
-    auto overlappedCurves = curvesIn(m_drawCurvesEdited, startTick, endTick);
+    auto overlappedCurves = AppModelUtils::curvesIn(m_drawCurvesEdited, startTick, endTick);
     if (m_editType == Erase) {
         if (!overlappedCurves.isEmpty()) {
             for (auto curve : overlappedCurves) {
@@ -346,42 +347,6 @@ DrawCurve *CommonParamEditorView::curveAt(double tick) {
         if (curve->start() <= tick && curve->endTick() > tick)
             return curve;
     return nullptr;
-}
-
-QList<DrawCurve *> CommonParamEditorView::curvesIn(const QList<DrawCurve *> &container,
-                                                   int startTick, int endTick) {
-    QList<DrawCurve *> result;
-    ProbeLine line(startTick, endTick);
-    for (const auto &curve : container) {
-        if (curve->isOverlappedWith(&line))
-            result.append(curve);
-    }
-    return result;
-}
-
-// TODO: 移动到 DrawCurve ?
-QList<DrawCurve *> CommonParamEditorView::mergeCurves(const QList<DrawCurve *> &original,
-                                                      const QList<DrawCurve *> &edited) {
-    QList<DrawCurve *> result;
-    for (const auto &curve : original)
-        result.append(new DrawCurve(*curve));
-
-    for (const auto &editedCurve : edited) {
-        auto newCurve = new DrawCurve(*editedCurve);
-        auto overlappedOriCurves = curvesIn(result, editedCurve->start(), editedCurve->endTick());
-        if (!overlappedOriCurves.isEmpty()) {
-            for (auto oriCurve : overlappedOriCurves) {
-                // 如果 oriCurve 被已编辑曲线完全覆盖，直接移除
-                if (!(oriCurve->start() >= newCurve->start() &&
-                      oriCurve->endTick() <= newCurve->endTick()))
-                    newCurve->mergeWithCurrentPriority(*oriCurve);
-                result.removeOne(oriCurve);
-                delete oriCurve;
-            }
-        }
-        MathUtils::binaryInsert(result, newCurve);
-    }
-    return result;
 }
 
 void CommonParamEditorView::drawCurveBorder(QPainter *painter,

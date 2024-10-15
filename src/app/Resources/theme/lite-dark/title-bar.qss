@@ -41,7 +41,7 @@ Button#MaximizeButton:pressed {
 /* PlaybackView */
 
 PlaybackView {
-    border-radius: 8px;
+    border-radius: 6px;
     background: #1AFFFFFF;
     /* border: 1px solid #10FFFFFF; */
 }

@@ -47,9 +47,6 @@ public:
     [[nodiscard]] InferPiece *findPieceById(int id) const;
     [[nodiscard]] QList<InferPiece *> findPiecesByNotes(const QList<Note *> &notes) const;
 
-    static void copyCurves(const QList<Curve *> &source, QList<Curve *> &target);
-    static void copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target);
-
 signals:
     void configPathChanged(QString path);
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);

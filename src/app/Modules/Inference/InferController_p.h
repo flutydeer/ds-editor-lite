@@ -34,6 +34,7 @@ public:
     void handleSingingClipRemoved(SingingClip *clip) override;
     void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,
                            SingingClip *clip) override;
+    void handleParamChanged(ParamInfo::Name name, Param::Type type, SingingClip *clip) override;
 
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
     void handleGetPronTaskFinished(GetPronunciationTask &task);
@@ -77,7 +78,7 @@ public:
     TaskQueue<InferAcousticTask> m_inferAcousticTasks;
 
     const QString m_singerConfigPath =
-        R"(E:\Qixuan_v2.5.0_DiffSinger_OpenUtau\dsconfig.yaml)";
+        R"(F:\Sound libraries\DiffSinger\OpenUtau\Singers\Qixuan_v2.5.0_DiffSinger_OpenUtau\dsconfig.yaml)";
 
 private:
     InferController *q_ptr = nullptr;

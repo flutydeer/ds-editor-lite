@@ -59,9 +59,6 @@ const QList<InferPiece *> &SingingClip::pieces() const {
 }
 
 void SingingClip::reSegment() {
-    // for (const auto &piece : m_pieces)
-    //     piece->status = Pending;
-
     auto newSegments = AppModelUtils::simpleSegment(m_notes.toList());
     QList<InferPiece *> newPieces;
     for (const auto &segment : newSegments) {
@@ -88,10 +85,6 @@ void SingingClip::reSegment() {
     m_pieces = newPieces;
     emit piecesChanged(m_pieces);
     qInfo() << "piecesChanged";
-    // QTimer::singleShot(1500, [=] {
-    //     for (const auto &piece : m_pieces)
-    //         piece->status = Failed;
-    // });
     for (const auto piece : temp)
         delete piece;
 }
@@ -124,21 +117,4 @@ QList<InferPiece *> SingingClip::findPiecesByNotes(const QList<Note *> &notes) c
         }
     }
     return {result.begin(), result.end()}; // 将 QSet 转换为 QList 返回
-}
-
-void SingingClip::copyCurves(const QList<Curve *> &source, QList<Curve *> &target) {
-    target.clear();
-    for (const auto curve : source) {
-        if (curve->type() == Curve::Draw)
-            target.append(new DrawCurve(*dynamic_cast<DrawCurve *>(curve)));
-        // TODO: copy anchor curve
-        // else if (curve->type() == Curve::Anchor)
-        //     target.append(new AnchorCurve)
-    }
-}
-
-void SingingClip::copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target) {
-    target.clear();
-    for (const auto curve : source)
-        target.append(new DrawCurve(*curve));
 }
