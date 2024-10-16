@@ -147,7 +147,7 @@ MainWindow::MainWindow() {
 
     auto scr = QApplication::screenAt(QCursor::pos());
     auto availableRect = scr->availableGeometry();
-    if (availableRect.width() > 1536 || availableRect.height() > 816)
+    if (availableRect.width() > 1536 && availableRect.height() > 816)
         resize(1536, 816);
     else
         resize(1366, 768);
