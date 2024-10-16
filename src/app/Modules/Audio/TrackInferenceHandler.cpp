@@ -99,11 +99,23 @@ void TrackInferenceHandler::handleSingingClipPropertyChanged(SingingClip *clip) 
 }
 
 void TrackInferenceHandler::handlePieceChanged(SingingClip *clip, const QList<InferPiece *> &pieces) {
+    QSet<int> pieceIds;
+    for (auto piece : pieces) {
+        pieceIds.insert(piece->id());
+    }
+    QSet<int> repeatedPieceIds;
     for (auto oldPiece : m_singingClipInferPieces.value(clip)) {
-        handlePieceRemoved(clip, oldPiece);
+        if (pieceIds.contains(oldPiece->id())) {
+            repeatedPieceIds.insert(oldPiece->id());
+        } else {
+            handlePieceRemoved(clip, oldPiece);
+        }
+
     }
     for (auto piece : pieces) {
-        handlePieceInserted(clip, piece);
+        if (!repeatedPieceIds.contains(piece->id())) {
+            handlePieceInserted(clip, piece);
+        }
     }
     m_singingClipInferPieces.insert(clip, pieces);
 }
@@ -135,6 +147,7 @@ void TrackInferenceHandler::handleInferPieceStatusChange(InferPiece *piece, Infe
             break;
         case Failed:
             inferencePieceContext->determine();
+            AudioContext::instance()->handleInferPieceFailed();
             break;
         case Pending:
         case Running:

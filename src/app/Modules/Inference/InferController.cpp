@@ -219,7 +219,7 @@ void InferControllerPrivate::handleInferAcousticTaskFinished(InferAcousticTask &
 
     auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
     auto piece = singingClip->findPieceById(task.pieceId());
-    if (!piece || !task.success()) {
+    if (!piece) {
         delete &task;
         return;
     }

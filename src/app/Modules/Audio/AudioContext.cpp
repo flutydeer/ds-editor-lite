@@ -2,6 +2,8 @@
 
 #include "TrackInferenceHandler.h"
 #include "Model/AppModel/AudioClip.h"
+#include "Model/AppModel/InferPiece.h"
+#include "Model/AppModel/SingingClip.h"
 
 #include <set>
 
@@ -178,7 +180,7 @@ private:
 
 static AudioContext *m_instance = nullptr;
 
-static bool m_isExporting = false;
+static AudioExporter *m_exporter = nullptr;
 
 static qint64 tickToSample(double tick) {
     auto sr = m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
@@ -331,6 +333,11 @@ void AudioContext::handlePanSliderMoved(Track *track, double pan) const {
 void AudioContext::handleGainSliderMoved(Track *track, double gain) const {
     auto trackContext = getContextFromTrack(track);
     trackContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(gain));
+}
+
+void AudioContext::handleInferPieceFailed() const {
+    if (m_exporter)
+        m_exporter->cancel(true, tr("Inference failed"));
 }
 
 void AudioContext::handlePlaybackStatusChanged(PlaybackStatus status) {
@@ -499,15 +506,36 @@ void AudioContext::handleTimeChanged() {
 }
 
 bool AudioContext::willStartCallback(AudioExporter *exporter) {
-    m_isExporting = true;
+    m_exporter = exporter;
     playbackController->stop();
     setBufferingReadAheadSize(0);
     emit exporterCausedTimeChanged();
-    return true;
+    for (auto trackInferenceHandler : m_trackInferDict.values()) {
+        trackInferenceHandler->setMode(talcs::DspxTrackInferenceContext::Export);
+    }
+    bool isOK = [=] {
+        for (auto track : m_trackInferDict.keys()) {
+            for (auto clip : track->clips()) {
+                if (clip->clipType() != Clip::Singing)
+                    continue;
+                for (auto piece : static_cast<SingingClip *>(clip)->pieces()) {
+                    if (piece->acousticInferStatus == Failed)
+                        return false;
+                }
+            }
+        }
+        return true;
+    }();
+    if (!isOK)
+        exporter->cancel(true, tr("Inference failed"));
+    return isOK;
 }
 
 void AudioContext::willFinishCallback(AudioExporter *exporter) {
-    m_isExporting = false;
     setBufferingReadAheadSize(AudioSystem::outputSystem()->fileBufferingReadAheadSize());
     emit exporterCausedTimeChanged();
+    for (auto trackInferenceHandler : m_trackInferDict.values()) {
+        trackInferenceHandler->setMode(talcs::DspxTrackInferenceContext::Default);
+    }
+    m_exporter = nullptr;
 }

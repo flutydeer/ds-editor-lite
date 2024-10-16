@@ -48,6 +48,8 @@ public:
     void handlePanSliderMoved(Track *track, double pan) const;
     void handleGainSliderMoved(Track *track, double gain) const;
 
+    void handleInferPieceFailed() const;
+
 signals:
     void levelMeterUpdated(const AppModel::LevelMetersUpdatedArgs &args);
     void exporterCausedTimeChanged();

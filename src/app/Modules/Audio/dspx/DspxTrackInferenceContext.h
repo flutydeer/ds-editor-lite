@@ -21,6 +21,14 @@ namespace talcs {
 
         AudioSourceClipSeries *clipSeries() const;
 
+        enum Mode {
+            Default,
+            Export,
+            VST,
+        };
+        Mode mode() const;
+        void setMode(Mode mode);
+
         DspxSingingClipInferenceContext *addSingingClip(int id);
         void removeSingingClip(int id);
 

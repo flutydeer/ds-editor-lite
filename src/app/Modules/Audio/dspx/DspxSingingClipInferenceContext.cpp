@@ -17,7 +17,7 @@ namespace talcs {
         d->controlMixer = std::make_unique<PositionableMixerAudioSource>();
         d->pieceClipSeries = std::make_unique<FutureAudioSourceClipSeries>();
         d->pieceClipSeries->setBufferingTarget(AudioContext::instance()->transport()); // TODO
-        // TODO read mode
+        d->pieceClipSeries->setReadMode(trackInferenceContext->d_func()->computeReadMode());
         d->controlMixer->addSource(d->pieceClipSeries.get());
     }
 

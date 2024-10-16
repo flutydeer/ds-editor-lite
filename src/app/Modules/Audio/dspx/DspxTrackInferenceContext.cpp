@@ -21,6 +21,20 @@ namespace talcs {
         return d->clipSeries.get();
     }
 
+    DspxTrackInferenceContext::Mode DspxTrackInferenceContext::mode() const {
+        Q_D(const DspxTrackInferenceContext);
+        return d->mode;
+    }
+
+    void DspxTrackInferenceContext::setMode(Mode mode) {
+        Q_D(DspxTrackInferenceContext);
+        d->mode = mode;
+        FutureAudioSourceClipSeries::ReadMode readMode = d->computeReadMode();
+        for (auto clip : d->clips.values()) {
+            clip->d_func()->pieceClipSeries->setReadMode(readMode);
+        }
+    }
+
     DspxSingingClipInferenceContext *DspxTrackInferenceContext::addSingingClip(int id) {
         Q_D(DspxTrackInferenceContext);
         auto clip = new DspxSingingClipInferenceContext(this);

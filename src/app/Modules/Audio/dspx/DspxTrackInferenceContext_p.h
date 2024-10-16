@@ -6,6 +6,8 @@
 
 #include "DspxTrackInferenceContext.h"
 
+#include <TalcsCore/FutureAudioSourceClipSeries.h>
+
 namespace talcs {
     class DspxTrackInferenceContextPrivate {
         Q_DECLARE_PUBLIC(DspxTrackInferenceContext)
@@ -15,6 +17,16 @@ namespace talcs {
         std::unique_ptr<AudioSourceClipSeries> clipSeries;
 
         QMap<int, DspxSingingClipInferenceContext *> clips;
+
+        DspxTrackInferenceContext::Mode mode = DspxTrackInferenceContext::Default;
+
+        constexpr FutureAudioSourceClipSeries::ReadMode computeReadMode() const {
+            if (mode == DspxTrackInferenceContext::Default)
+                return FutureAudioSourceClipSeries::Notify;
+            if (mode == DspxTrackInferenceContext::Export)
+                return FutureAudioSourceClipSeries::Block;
+            return FutureAudioSourceClipSeries::Skip;
+        }
     };
 }
 
