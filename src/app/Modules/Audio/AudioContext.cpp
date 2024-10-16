@@ -182,12 +182,12 @@ static bool m_isExporting = false;
 
 static qint64 tickToSample(double tick) {
     auto sr = m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
-    return qint64(tick * 60.0 * sr / playbackController->tempo() / 480.0);
+    return qint64(tick * 60.0 * sr / appModel->tempo() / 480.0);
 }
 
 static double sampleToTick(qint64 sample) {
     auto sr = m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
-    return double(sample) / sr * playbackController->tempo() / 60.0 * 480.0;
+    return double(sample) / sr * appModel->tempo() / 60.0 * 480.0;
 }
 
 AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
@@ -262,7 +262,8 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::deviceChanged,
             this, [=] { playbackController->stop(); });
 
-    connect(AudioSystem::outputSystem(), &AbstractOutputSystem::fileBufferingReadAheadSizeChanged, this, &AudioContext::setBufferingReadAheadSize);
+    connect(AudioSystem::outputSystem(), &AbstractOutputSystem::fileBufferingReadAheadSizeChanged,
+            this, &AudioContext::setBufferingReadAheadSize);
 
     connect(this, &AudioContext::exporterCausedTimeChanged, this, &AudioContext::handleTimeChanged);
 
@@ -504,6 +505,7 @@ bool AudioContext::willStartCallback(AudioExporter *exporter) {
     emit exporterCausedTimeChanged();
     return true;
 }
+
 void AudioContext::willFinishCallback(AudioExporter *exporter) {
     m_isExporting = false;
     setBufferingReadAheadSize(AudioSystem::outputSystem()->fileBufferingReadAheadSize());
