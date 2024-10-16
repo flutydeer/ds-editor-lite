@@ -1,4 +1,4 @@
-project(DsEditorLite)
+project(DsEditorLite VERSION 0.0.0.1)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
@@ -19,6 +19,12 @@ if (APPLE)
 endif ()
 
 add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} Resources/lite_res.qrc)
+
+if (WIN32)
+    set(RC_APPLICATION_NAME "Lite")
+    set(RC_DESCRIPTION "DS Editor Lite")
+    include("../../scripts/cmake/winrc.cmake")
+endif ()
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)

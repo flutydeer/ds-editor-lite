@@ -37,6 +37,7 @@ int main(int argc, char *argv[]) {
     QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
     QApplication::setOrganizationName("OpenVPI");
     QApplication::setApplicationName("DS Editor Lite");
+    QApplication::setApplicationDisplayName("Lite");
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
     if (QSysInfo::productType() != "windows")
         QApplication::setStyle(QStyleFactory::create("windows"));
