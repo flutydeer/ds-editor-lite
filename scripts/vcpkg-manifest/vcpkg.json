@@ -20,7 +20,8 @@
     "loadso",
     "syscmdline",
     "nlohmann-json",
-    "yaml-cpp"
+    "yaml-cpp",
+    "wavpack"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [
