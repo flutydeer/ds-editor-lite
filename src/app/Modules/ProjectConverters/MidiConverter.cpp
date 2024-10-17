@@ -138,6 +138,8 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
         checkBoxLayout->addWidget(checkBox);
     }
 
+    checkBoxLayout->addStretch();
+
     tabWidget->addTab(checkBoxTab, "Track Selection");
 
     QTextCodec *newCodec = QTextCodec::codecForName("UTF-8");
@@ -307,7 +309,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     }
 
     if (dspx->content.tracks.count() > 0) {
-        auto timeline = dspx->content.timeline;
+        const auto timeline = dspx->content.timeline;
         model->setTimeSignature(
             TimeSignature(timeline.timeSignatures[0].num, timeline.timeSignatures[0].den));
         model->setTempo(timeline.tempos[0].value);
