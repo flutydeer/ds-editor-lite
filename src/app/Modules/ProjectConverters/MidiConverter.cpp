@@ -12,8 +12,9 @@
 #include <QVBoxLayout>
 #include <QCheckBox>
 #include <QDialogButtonBox>
-#include <QDialog>
 #include <QListWidget>
+
+#include "UI/Dialogs/Base/Dialog.h"
 
 #include "Model/AppModel/Track.h"
 
@@ -40,21 +41,20 @@ QWidget *createPreviewTab(const QList<QDspx::MidiConverter::TrackInfo> &trackInf
         auto *item = new QListWidgetItem(QString(trackInfo.title.constData()));
         trackListWidget->addItem(item);
     }
-    listLayout->addWidget(trackListWidget);
+    listLayout->addWidget(trackListWidget, 2);
 
     // Create a combo box for selecting common encodings
     auto *encodingComboBox = new ComboBox();
     encodingComboBox->addItem("UTF-8");
-    encodingComboBox->addItem("ISO 8859-1");
     encodingComboBox->addItem("GBK");
     encodingComboBox->addItem("Shift-JIS");
     // Add more encodings as needed
-    listLayout->addWidget(encodingComboBox);
+    listLayout->addWidget(encodingComboBox, 1);
 
     // Create a text edit for previewing lyrics
     auto *lyricsPreview = new QTextEdit();
     lyricsPreview->setReadOnly(true);
-    listLayout->addWidget(lyricsPreview);
+    listLayout->addWidget(lyricsPreview, 3);
 
     // Add the lists and preview to the tab layout
     tabLayout->addLayout(listLayout);
@@ -64,7 +64,7 @@ QWidget *createPreviewTab(const QList<QDspx::MidiConverter::TrackInfo> &trackInf
         if (currentRow >= 0 && currentRow < trackInfoList.size()) {
             QByteArray lyricsData;
             for (const auto &clip : trackInfoList[currentRow].lyrics)
-                lyricsData += clip;
+                lyricsData += clip + " ";
             const QTextCodec *selectedCodec =
                 QTextCodec::codecForName(encodingComboBox->currentText().toUtf8());
             const QString decodedLyrics = selectedCodec->toUnicode(lyricsData);
@@ -89,17 +89,24 @@ QWidget *createPreviewTab(const QList<QDspx::MidiConverter::TrackInfo> &trackInf
                              }
                          }
                      });
+
+    if (trackListWidget->count() > 0)
+        trackListWidget->setCurrentRow(0);
+
+    encodingComboBox->setCurrentIndex(0);
+
     return tab;
 }
 
 bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                    const QList<QByteArray> &labelList, QList<int> *selectIDs, QTextCodec **codec) {
     // Create a dialog
-    QDialog dialog;
+    Dialog dialog;
     dialog.setWindowTitle("MIDI Track Selector");
 
     // Create a layout for the dialog
-    auto *layout = new QVBoxLayout(&dialog);
+    auto *layout = new QVBoxLayout();
+    dialog.body()->setLayout(layout);
 
     // Create a QTabWidget to hold multiple tabs
     auto *tabWidget = new QTabWidget();
