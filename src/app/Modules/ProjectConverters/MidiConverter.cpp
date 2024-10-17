@@ -6,23 +6,24 @@
 #include "opendspx/qdspxmodel.h"
 #include "opendspx/converters/midi.h"
 
-#include <QMessageBox>
 #include <QTextCodec>
-#include <QPushButton>
-#include <QVBoxLayout>
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QListWidget>
 
 #include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
 
 #include "Model/AppModel/Track.h"
 
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
+#include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ComboBox.h"
 
 #include <QTextEdit>
+#include <utility>
+#include <utility>
 
 QWidget *createPreviewTab(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                           QTextCodec **codec) {
@@ -101,12 +102,16 @@ QWidget *createPreviewTab(const QList<QDspx::MidiConverter::TrackInfo> &trackInf
 bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                    const QList<QByteArray> &labelList, QList<int> *selectIDs, QTextCodec **codec) {
     // Create a dialog
-    Dialog dialog;
+    MessageDialog dialog;
     dialog.setWindowTitle("MIDI Track Selector");
+
+    // Create OK and Cancel buttons
+    dialog.addButton("Yes", 1);
+    dialog.addButton("No", 0);
 
     // Create a layout for the dialog
     auto *layout = new QVBoxLayout();
-    dialog.body()->setLayout(layout);
+    dialog.mainLayout()->insertLayout(0, layout);
 
     // Create a QTabWidget to hold multiple tabs
     auto *tabWidget = new QTabWidget();
@@ -141,24 +146,13 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
     // Add the preview tab using the separate function
     tabWidget->addTab(previewTab, "Track Preview");
 
-    // Create OK and Cancel buttons
-    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    layout->addWidget(buttonBox);
-
     QObject::connect(selectAll, &QCheckBox::stateChanged, [checkBoxes, selectAll]() {
         for (const auto checkBox : checkBoxes)
             checkBox->setChecked(selectAll->checkState());
     });
 
-    // Connect the button signals to slots on the dialog
-    QObject::connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-
-    // Execute the dialog and get the result
-    const int result = dialog.exec();
-
     // Process the selected MIDI tracks
-    if (result == QDialog::Accepted) {
+    if (dialog.exec() == 1) {
         selectIDs->clear();
         for (int i = 0; i < checkBoxes.size(); ++i) {
             if (checkBoxes.at(i)->isChecked()) {
@@ -174,20 +168,22 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
     }
 }
 
-int MidiConverter::midiImportHandler() {
-    QMessageBox msgBox;
-    msgBox.setText("MIDI Import");
-    msgBox.setInformativeText("Do you want to create a new track or use a new project?");
-    const QPushButton *newTrackButton = msgBox.addButton("New Track", QMessageBox::ActionRole);
-    const QPushButton *newProjectButton = msgBox.addButton("New Project", QMessageBox::ActionRole);
-    msgBox.addButton("Cancel", QMessageBox::RejectRole);
-    msgBox.exec();
+MidiConverter::MidiConverter(TimeSignature timeSignature, const double tempo)
+    : m_timeSignature(std::move(std::move(timeSignature))), m_tempo(tempo) {
+}
 
-    QAbstractButton *clickedButton = msgBox.clickedButton();
-    const auto *clickedPushButton = qobject_cast<QPushButton *>(clickedButton);
-    if (clickedPushButton == newTrackButton) {
+int MidiConverter::midiImportHandler() {
+    MessageDialog msgBox;
+    msgBox.setWindowTitle("MIDI Import");
+    msgBox.setMessage("Do you want to create a new track or use a new project?");
+    msgBox.addButton("New Track", 1);
+    msgBox.addButton("New Project", 2);
+    msgBox.addButton("Cancel", 0);
+    const int ret = msgBox.exec();
+
+    if (ret == 1) {
         return ImportMode::AppendToProject;
-    } else if (clickedPushButton == newProjectButton) {
+    } else if (ret == 2) {
         return ImportMode::NewProject;
     } else {
         return -1;
@@ -195,13 +191,13 @@ int MidiConverter::midiImportHandler() {
 }
 
 bool midiOverlapHandler() {
-    QMessageBox msgBox;
-    msgBox.setText("MIDI Overlap");
-    msgBox.setInformativeText("The MIDI file contains overlapping notes. Do you want to continue?");
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    msgBox.setDefaultButton(QMessageBox::Yes);
-    int ret = msgBox.exec();
-    if (ret == QMessageBox::Yes) {
+    MessageDialog msgBox;
+    msgBox.setTitle("MIDI Overlap");
+    msgBox.setMessage("The MIDI file contains overlapping notes. Do you want to continue?");
+    msgBox.addButton("Yes", 1);
+    msgBox.addButton("No", 0);
+    const int ret = msgBox.exec();
+    if (ret == 1) {
         return true;
     } else {
         return false;
@@ -222,7 +218,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     auto decodeNotes = [](const QList<QDspx::Note> &arrNotes) {
         QList<Note *> notes;
         for (const QDspx::Note &dsNote : arrNotes) {
-            auto note = new Note;
+            const auto note = new Note;
             note->setStart(dsNote.pos);
             note->setLength(dsNote.length);
             note->setKeyIndex(dsNote.keyNum);
@@ -235,19 +231,19 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     auto decodeClips = [&](const QDspx::Track &track, Track *dsTack) {
         for (auto &clip : track.clips) {
             if (clip->type == QDspx::Clip::Type::Singing) {
-                auto singClip = clip.dynamicCast<QDspx::SingingClip>();
-                auto singingClip = new SingingClip;
+                const auto singClip = clip.dynamicCast<QDspx::SingingClip>();
+                const auto singingClip = new SingingClip;
                 singingClip->setName(clip->name);
                 singingClip->setStart(clip->time.start);
                 singingClip->setClipStart(clip->time.clipStart);
                 singingClip->setLength(clip->time.length);
                 singingClip->setClipLen(clip->time.clipLen);
                 auto notes = decodeNotes(singClip->notes);
-                for (auto &note : notes)
+                for (const auto &note : notes)
                     singingClip->insertNote(note);
                 dsTack->insertClip(singingClip);
             } else if (clip->type == QDspx::Clip::Type::Audio) {
-                auto audioClip = new AudioClip;
+                const auto audioClip = new AudioClip;
                 audioClip->setName(clip->name);
                 audioClip->setStart(clip->time.start);
                 audioClip->setClipStart(clip->time.clipStart);
@@ -272,11 +268,12 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     const auto returnCode = midi->load(path, dspx, args);
 
     if (returnCode.type != QDspx::Result::Success) {
-        QMessageBox::warning(nullptr, "Warning",
-                             QString("Failed to load midi file.\r\npath: %1\r\ntype: %2 code: %3")
-                                 .arg(path)
-                                 .arg(returnCode.type)
-                                 .arg(returnCode.code));
+        Dialog msgDlg;
+        msgDlg.setWindowTitle("Warning");
+        msgDlg.setMessage(QString("Failed to load midi file.\r\npath: %1\r\ntype: %2 code: %3")
+                              .arg(path)
+                              .arg(returnCode.type)
+                              .arg(returnCode.code));
         return false;
     }
 
@@ -284,29 +281,26 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
         model->newProject();
         model->clearTracks();
     } else if (mode == ImportMode::AppendToProject) {
-        if (model->timeSignature().numerator != dspx->content.timeline.timeSignatures[0].num ||
-            model->timeSignature().denominator != dspx->content.timeline.timeSignatures[0].den) {
-            QMessageBox msgBox;
-            msgBox.setText("Time Signature Mismatch");
-            msgBox.setInformativeText("The time signature of the MIDI file does not match the "
-                                      "current project. Do you want to continue?");
-            msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-            msgBox.setDefaultButton(QMessageBox::Yes);
-            int ret = msgBox.exec();
-            if (ret == QMessageBox::No) {
+        if (m_timeSignature.numerator != dspx->content.timeline.timeSignatures[0].num ||
+            m_timeSignature.denominator != dspx->content.timeline.timeSignatures[0].den) {
+            MessageDialog msgBox;
+            msgBox.setWindowTitle("Time Signature Mismatch");
+            msgBox.setMessage("The time signature of the MIDI file does not match the "
+                              "current project. Do you want to continue?");
+            msgBox.addButton("Yes", 1);
+            msgBox.addButton("No", 0);
+            if (msgBox.exec() != 1)
                 return false;
-            }
-        } else if (model->tempo() != dspx->content.timeline.tempos[0].value) {
-            QMessageBox msgBox;
-            msgBox.setText("Tempo Mismatch");
-            msgBox.setInformativeText("The tempo of the MIDI file does not match the current "
-                                      "project. Do you want to continue?");
-            msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-            msgBox.setDefaultButton(QMessageBox::Yes);
-            int ret = msgBox.exec();
-            if (ret == QMessageBox::No) {
+        }
+        if (m_tempo != dspx->content.timeline.tempos[0].value) {
+            MessageDialog msgBox;
+            msgBox.setWindowTitle("Tempo Mismatch");
+            msgBox.setMessage("The tempo of the MIDI file does not match the current "
+                              "project. Do you want to continue?");
+            msgBox.addButton("Yes", 1);
+            msgBox.addButton("No", 0);
+            if (msgBox.exec() != 1)
                 return false;
-            }
         }
     } else {
         return false;
@@ -329,7 +323,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
     QVariantMap args = {};
     args.insert(QStringLiteral("overlapHandler"),
                 QVariant::fromValue(reinterpret_cast<quintptr>(&midiOverlap)));
-    auto midi = new QDspx::MidiConverter;
+    const auto midi = new QDspx::MidiConverter;
 
     auto encodeNotes = [](const OverlappableSerialList<Note> &notes) {
         QList<QDspx::Note> arrNotes;
@@ -347,7 +341,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
     auto encodeClips = [&](const Track *dsTrack, QDspx::Track *track) {
         for (const auto &clip : dsTrack->clips()) {
             if (clip->clipType() == Clip::Singing) {
-                auto singingClip = dynamic_cast<SingingClip *>(clip);
+                const auto singingClip = dynamic_cast<SingingClip *>(clip);
                 auto singClip = QDspx::SingingClipRef::create();
                 singClip->name = clip->name();
                 singClip->time.start = clip->start();
@@ -357,7 +351,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
                 singClip->notes = encodeNotes(singingClip->notes());
                 track->clips.append(singClip);
             } else if (clip->clipType() == Clip::Audio) {
-                auto audioClip = dynamic_cast<AudioClip *>(clip);
+                const auto audioClip = dynamic_cast<AudioClip *>(clip);
                 auto audioClipRef = QDspx::AudioClipRef::create();
                 audioClipRef->name = clip->name();
                 audioClipRef->time.start = clip->start();
@@ -379,7 +373,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
         }
     };
 
-    auto timeline = new QDspx::Timeline;
+    const auto timeline = new QDspx::Timeline;
 
     timeline->tempos.append(QDspx::Tempo(0, model->tempo()));
     timeline->timeSignatures.append(QDspx::TimeSignature(0, model->timeSignature().numerator,
@@ -387,14 +381,15 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
     dspx.content.timeline = *timeline;
 
     encodeTracks(model, dspx);
-    auto returnCode = midi->save(path, dspx, args);
+    const auto returnCode = midi->save(path, dspx, args);
 
     if (returnCode.type != QDspx::Result::Success) {
-        QMessageBox::warning(nullptr, "Warning",
-                             QString("Failed to save midi file.\r\npath: %1\r\ntype: %2 code: %3")
-                                 .arg(path)
-                                 .arg(returnCode.type)
-                                 .arg(returnCode.code));
+        Dialog msgDlg;
+        msgDlg.setTitle("Warning");
+        msgDlg.setMessage(QString("Failed to save midi file.\r\npath: %1\r\ntype: %2 code: %3")
+                              .arg(path)
+                              .arg(returnCode.type)
+                              .arg(returnCode.code));
         return false;
     }
     return true;

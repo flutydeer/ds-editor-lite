@@ -12,6 +12,7 @@
 #include "Modules/ProjectConverters/AProjectConverter.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
+#include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
 #include <QJsonArray>
@@ -223,10 +224,10 @@ QJsonObject AppModel::serialize() const {
         arrTracks.append(track->serialize());
 
     QJsonObject objContent{
-        {"global",   objGlobal  },
-        {"master",   objMaster  },
-        {"timeline", objTimeLine},
-        {"tracks",   arrTracks  },
+        {"global",    objGlobal    },
+        {"master",    objMaster    },
+        {"timeline",  objTimeLine  },
+        {"tracks",    arrTracks    },
         {"workspace", QJsonObject()}
     };
 
@@ -253,13 +254,14 @@ bool AppModel::importMidiFile(const QString &filename) {
     }
 
     AppModel resultModel;
-    MidiConverter converter;
-    auto ok = converter.load(filename, &resultModel, errMsg,
-                             static_cast<IProjectConverter::ImportMode>(midiImport));
+    MidiConverter converter(appModel->timeSignature(), appModel->tempo());
+    const auto ok = converter.load(filename, &resultModel, errMsg,
+                                   static_cast<IProjectConverter::ImportMode>(midiImport));
+    Log::i("Midi importer", errMsg);
     if (midiImport == ImportMode::NewProject) {
         loadFromAppModel(resultModel);
     } else if (midiImport == ImportMode::AppendToProject) {
-        for (auto track : resultModel.tracks()) {
+        for (const auto track : resultModel.tracks()) {
             appendTrack(track);
         }
     }
@@ -267,10 +269,10 @@ bool AppModel::importMidiFile(const QString &filename) {
 }
 
 bool AppModel::exportMidiFile(const QString &filename) {
-    MidiConverter converter;
+    MidiConverter converter(appModel->timeSignature(), appModel->tempo());
     QString errMsg;
-    auto ok = converter.save(filename, this, errMsg);
-    return ok;
+    Log::i("Midi exporter", errMsg);
+    return converter.save(filename, this, errMsg);
 }
 
 Clip *AppModel::findClipById(int clipId, Track *&trackRef) const {
