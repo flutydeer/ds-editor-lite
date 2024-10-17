@@ -18,6 +18,7 @@ class ModelChangeHandler : public QObject {
 protected:
     explicit ModelChangeHandler(QObject *parent = nullptr);
 
+    virtual void handleTempoChanged(double tempo);
     virtual void handleTrackInserted(Track *track);
     virtual void handleTrackRemoved(Track *track);
     virtual void handleClipInserted(Clip *clip);
@@ -32,6 +33,7 @@ protected:
 
 private slots:
     void onModelChanged();
+    void onTempoChanged(double tempo);
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
 

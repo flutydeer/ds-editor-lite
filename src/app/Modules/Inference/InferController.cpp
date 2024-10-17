@@ -45,6 +45,11 @@ void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
     m_lastEditObjectType = type;
 }
 
+void InferControllerPrivate::handleTempoChanged(double tempo) {
+    reset();
+    recreateAllInferTasks();
+}
+
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
     clip->reSegment();
@@ -80,7 +85,7 @@ void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
 void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Type type,
                                                 SingingClip *clip) {
     if (type != Param::Edited)
-    return;
+        return;
     // switch (name) {
     //     case ParamInfo::Pitch:
     //         InferControllerHelper::resetPitch();
@@ -231,6 +236,22 @@ void InferControllerPrivate::handleInferAcousticTaskFinished(InferAcousticTask &
     delete &task;
 }
 
+void InferControllerPrivate::recreateAllInferTasks() {
+    for (const auto &track : appModel->tracks())
+        for (const auto &clip : track->clips()) {
+            if (clip->clipType() != IClip::Singing)
+                continue;
+            auto singingClip = reinterpret_cast<SingingClip *>(clip);
+            for (const auto &piece : singingClip->pieces())
+                piece->dirty = true;
+            singingClip->reSegment();
+            for (const auto &piece : singingClip->pieces()) {
+                InferControllerHelper::resetPhoneOffset(piece->notes, *piece);
+                createAndRunInferDurTask(*piece);
+            }
+        }
+}
+
 void InferControllerPrivate::createAndRunGetPronTask(SingingClip &clip) {
     auto task = new GetPronunciationTask(clip.id(), clip.notes().toList());
     connect(task, &Task::finished, this, [=] { handleGetPronTaskFinished(*task); });
@@ -343,6 +364,20 @@ void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
     m_inferAcousticTasks.add(task);
     if (!m_inferAcousticTasks.current)
         runNextInferAcousticTask();
+}
+
+void InferControllerPrivate::reset() {
+    m_getPronTasks.cancelAll();
+    m_getPhoneTasks.cancelAll();
+    m_inferDurTasks.cancelAll();
+    m_inferPitchTasks.cancelAll();
+    m_inferVarianceTasks.cancelAll();
+    m_inferAcousticTasks.cancelAll();
+
+    m_lastInferDurInputs.clear();
+    m_lastInferPitchInputs.clear();
+    m_lastInferVarianceInputs.clear();
+    m_lastInferAcousticInputs.clear();
 }
 
 void InferControllerPrivate::cancelClipRelatedTasks(SingingClip *clip) {

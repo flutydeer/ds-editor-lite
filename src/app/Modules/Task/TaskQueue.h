@@ -21,6 +21,7 @@ public:
 
     void add(T *task);
     void runNext();
+    void cancelAll();
     void cancelIf(std::function<bool(T *task)> pred);
     void disposePendingTasks();
     void onCurrentFinished();
@@ -45,6 +46,18 @@ void TaskQueue<T>::runNext() {
     const auto task = pending.dequeue();
     taskManager->startTask(task);
     current = task;
+}
+
+template <typename T>
+void TaskQueue<T>::cancelAll() {
+    for (const auto task : pending) {
+        disposePendingTask(task);
+    }
+    if (current) {
+        taskManager->terminateTask(current);
+        qDebug() << "Terminate current task: "
+                 << "taskId:" << current->id();
+    }
 }
 
 template <typename T>

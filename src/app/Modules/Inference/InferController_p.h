@@ -30,6 +30,7 @@ public slots:
     void onEditingChanged(AppStatus::EditObjectType type);
 
 public:
+    void handleTempoChanged(double tempo) override;
     void handleSingingClipInserted(SingingClip *clip) override;
     void handleSingingClipRemoved(SingingClip *clip) override;
     void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,
@@ -44,6 +45,8 @@ public:
     void handleInferVarianceTaskFinished(InferVarianceTask &task);
     void handleInferAcousticTaskFinished(InferAcousticTask &task);
 
+    void recreateAllInferTasks();
+
     void createAndRunGetPronTask(SingingClip &clip);
     void createAndRunGetPhoneTask(SingingClip &clip);
 
@@ -52,6 +55,7 @@ public:
     void createAndRunInferVarianceTask(InferPiece &piece);
     void createAndRunInferAcousticTask(InferPiece &piece);
 
+    void reset();
     void cancelClipRelatedTasks(SingingClip *clip);
     void cancelPieceRelatedTasks(int pieceId);
 
@@ -83,7 +87,6 @@ public:
 private:
     InferController *q_ptr = nullptr;
 };
-
 
 
 #endif // INFERCONTROLLERPRIVATE_H

@@ -6,6 +6,10 @@
 
 ModelChangeHandler::ModelChangeHandler(QObject *parent) : QObject(parent) {
     connect(appModel, &AppModel::modelChanged, this, &ModelChangeHandler::onModelChanged);
+    connect(appModel, &AppModel::tempoChanged, this, &ModelChangeHandler::onTempoChanged);
+}
+
+void ModelChangeHandler::handleTempoChanged(double tempo) {
 }
 
 void ModelChangeHandler::handleTrackInserted(Track *track) {
@@ -66,6 +70,10 @@ void ModelChangeHandler::onModelChanged() {
 
     for (const auto track : appModel->tracks())
         onTrackChanged(AppModel::Insert, -1, track);
+}
+
+void ModelChangeHandler::onTempoChanged(double tempo) {
+    handleTempoChanged(tempo);
 }
 
 void ModelChangeHandler::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
