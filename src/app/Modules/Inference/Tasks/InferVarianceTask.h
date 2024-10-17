@@ -39,6 +39,7 @@ public:
 
 private:
     void runTask() override;
+    void terminate() override;
     void abort();
     void buildPreviewText();
     QString buildInputJson() const;

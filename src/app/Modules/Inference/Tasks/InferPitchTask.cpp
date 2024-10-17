@@ -89,6 +89,11 @@ void InferPitchTask::runTask() {
                     << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
+void InferPitchTask::terminate() {
+    IInferTask::terminate();
+    inferEngine->terminateInferPitchAsync();
+}
+
 void InferPitchTask::abort() {
     auto newStatus = status();
     newStatus.message = "正在停止: " + m_previewText;

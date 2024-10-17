@@ -90,6 +90,11 @@ void InferVarianceTask::runTask() {
                     << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
+void InferVarianceTask::terminate() {
+    IInferTask::terminate();
+    inferEngine->terminateInferVarianceAsync();
+}
+
 void InferVarianceTask::abort() {
     auto newStatus = status();
     newStatus.message = "正在停止: " + m_previewText;

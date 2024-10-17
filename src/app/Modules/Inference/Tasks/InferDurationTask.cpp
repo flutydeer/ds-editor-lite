@@ -97,6 +97,11 @@ void InferDurationTask::runTask() {
                     << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
+void InferDurationTask::terminate() {
+    IInferTask::terminate();
+    inferEngine->terminateInferDurationAsync();
+}
+
 void InferDurationTask::abort() {
     auto newStatus = status();
     newStatus.message = "正在停止: " + m_previewText;

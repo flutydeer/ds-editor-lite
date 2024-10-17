@@ -219,7 +219,8 @@ bool InferEngine::inferVariance(const QString &input, QString &output, QString &
     return true;
 }
 
-bool InferEngine::inferAcoustic(const QString &input, const QString &outputPath, QString &error) const {
+bool InferEngine::inferAcoustic(const QString &input, const QString &outputPath,
+                                QString &error) const {
     if (!m_initialized) {
         qCritical() << "inferAcoustic: Environment is not initialized";
         return false;
@@ -240,6 +241,26 @@ bool InferEngine::inferAcoustic(const QString &input, const QString &outputPath,
         // return RESULT_INFERENCE_FAILED;
     }
     return true;
+}
+
+void InferEngine::terminateInferDurationAsync() const {
+    qInfo() << "terminateInferDurationAsync";
+    m_durationInfer->terminate();
+}
+
+void InferEngine::terminateInferPitchAsync() const {
+    qInfo() << "terminateInferPitchAsync";
+    m_pitchInfer->terminate();
+}
+
+void InferEngine::terminateInferVarianceAsync() const {
+    qInfo() << "terminateInferVarianceAsync";
+    m_varianceInfer->terminate();
+}
+
+void InferEngine::terminateInferAcousticAsync() const {
+    qInfo() << "terminateInferAcousticAsync";
+    m_acousticInfer->terminate();
 }
 
 void InferEngine::dispose() const {

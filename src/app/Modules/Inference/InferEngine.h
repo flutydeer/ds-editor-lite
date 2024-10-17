@@ -50,6 +50,10 @@ private:
     bool inferPitch(const QString &input, QString &output, QString &error) const;
     bool inferVariance(const QString &input, QString &output, QString &error) const;
     bool inferAcoustic(const QString &input, const QString &outputPath, QString &error) const;
+    void terminateInferDurationAsync() const;
+    void terminateInferPitchAsync() const;
+    void terminateInferVarianceAsync() const;
+    void terminateInferAcousticAsync() const;
     void dispose() const;
 
     QMutex m_mutex;
