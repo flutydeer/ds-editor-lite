@@ -15,11 +15,11 @@
 class MidiConverterDialogPrivate {
     Q_DECLARE_PUBLIC(MidiConverterDialog)
 public:
-    MidiConverterDialog *q_ptr;
+    MidiConverterDialog *q_ptr{};
 
     QList<QDspx::MidiConverter::TrackInfo> trackInfoList;
 
-    QTextCodec *selectedCodec;
+    QTextCodec *selectedCodec{};
 
     bool detectIsUtf8() const {
         QByteArray data;
@@ -28,11 +28,13 @@ public:
             if (data.isEmpty())
                 continue;
             QTextCodec::ConverterState state;
-            std::ignore = QTextCodec::codecForName("UTF-8")->toUnicode(data.data(), data.size(), &state);
+            std::ignore =
+                QTextCodec::codecForName("UTF-8")->toUnicode(data.data(), data.size(), &state);
             if (state.invalidChars)
                 return false;
             data = trackInfo.title;
-            std::ignore = QTextCodec::codecForName("UTF-8")->toUnicode(data.data(), data.size(), &state);
+            std::ignore =
+                QTextCodec::codecForName("UTF-8")->toUnicode(data.data(), data.size(), &state);
             if (state.invalidChars)
                 return false;
             return true;
@@ -59,22 +61,26 @@ public:
         return false;
     }
 
-    QString computeTrackItemText(const QDspx::MidiConverter::TrackInfo &trackInfo) {
+    QString computeTrackItemText(const QDspx::MidiConverter::TrackInfo &trackInfo) const {
         return MidiConverterDialog::tr("Track %1: %n note(s) (%2)", "", trackInfo.noteCount)
             .arg(selectedCodec->toUnicode(trackInfo.title), trackInfo.keyRange);
     }
 
-    QComboBox *codecComboBox;
-    QTreeWidgetItem *parentItem;
+    QComboBox *codecComboBox{};
+    QTreeWidgetItem *parentItem{};
 
     void detectCodec() {
         if (detectIsUtf8()) {
             codecComboBox->setCurrentIndex(0);
-            codecComboBox->setItemText(codecComboBox->currentIndex(), codecComboBox->currentText() + MidiConverterDialog::tr(" (auto detected)"));
+            codecComboBox->setItemText(codecComboBox->currentIndex(),
+                                       codecComboBox->currentText() +
+                                           MidiConverterDialog::tr(" (auto detected)"));
             selectedCodec = QTextCodec::codecForName("UTF-8");
         } else if (detectIsSystemEncoding()) {
             codecComboBox->setCurrentIndex(1);
-            codecComboBox->setItemText(codecComboBox->currentIndex(), codecComboBox->currentText() + MidiConverterDialog::tr(" (auto detected)"));
+            codecComboBox->setItemText(codecComboBox->currentIndex(),
+                                       codecComboBox->currentText() +
+                                           MidiConverterDialog::tr(" (auto detected)"));
             selectedCodec = QTextCodec::codecForLocale();
         } else {
             codecComboBox->setCurrentIndex(0);
@@ -82,7 +88,7 @@ public:
         }
     }
 
-    void updateTrackSelector() {
+    void updateTrackSelector() const {
         while (parentItem->childCount())
             parentItem->removeChild(parentItem->child(0));
         for (int i = 0; i < trackInfoList.size(); i++) {
@@ -98,7 +104,7 @@ public:
         }
     }
 
-    void updateText() {
+    void updateText() const {
         for (int i = 0; i < parentItem->childCount(); i++) {
             auto item = parentItem->child(i);
             const auto &trackInfo = trackInfoList.at(i);
@@ -109,7 +115,9 @@ public:
     bool useMidiTimeline = true;
 };
 
-MidiConverterDialog::MidiConverterDialog(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList, QWidget *parent) : QDialog(parent), d_ptr(new MidiConverterDialogPrivate) {
+MidiConverterDialog::MidiConverterDialog(
+    const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList, QWidget *parent)
+    : QDialog(parent), d_ptr(new MidiConverterDialogPrivate) {
     Q_D(MidiConverterDialog);
     d->q_ptr = this;
 
@@ -172,7 +180,8 @@ MidiConverterDialog::MidiConverterDialog(const QList<QDspx::MidiConverter::Track
     }
 
     d->parentItem = new QTreeWidgetItem({tr("Select All")});
-    d->parentItem->setFlags(d->parentItem->flags() & ~Qt::ItemIsSelectable | Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate);
+    d->parentItem->setFlags(d->parentItem->flags() & ~Qt::ItemIsSelectable |
+                            Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate);
     d->parentItem->setCheckState(0, Qt::Unchecked);
     trackSelector->addTopLevelItem(d->parentItem);
 
@@ -184,7 +193,8 @@ MidiConverterDialog::MidiConverterDialog(const QList<QDspx::MidiConverter::Track
             previewTextEdit->setAccessibleDescription(tr("Select a track to preview its lyrics"));
         } else {
             QStringList lyrics;
-            for (auto lyric : d->trackInfoList.at(selection[0]->data(0, Qt::UserRole).toInt()).lyrics) {
+            for (const auto &lyric :
+                 d->trackInfoList.at(selection[0]->data(0, Qt::UserRole).toInt()).lyrics) {
                 lyrics.append(d->selectedCodec->toUnicode(lyric));
             }
             if (lyrics.isEmpty()) {
@@ -194,22 +204,22 @@ MidiConverterDialog::MidiConverterDialog(const QList<QDspx::MidiConverter::Track
                 previewTextEdit->setPlaceholderText({});
                 previewTextEdit->setPlainText(lyrics.join(" "));
             }
-
         }
     };
 
-    connect(d->codecComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
-        d->selectedCodec = QTextCodec::codecForName(d->codecComboBox->itemData(index).toByteArray());
-        d->updateText();
-        updateLyricsPreview();
-    });
+    connect(d->codecComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            [=](int index) {
+                d->selectedCodec =
+                    QTextCodec::codecForName(d->codecComboBox->itemData(index).toByteArray());
+                d->updateText();
+                updateLyricsPreview();
+            });
 
     connect(trackSelector, &QTreeWidget::itemSelectionChanged, this, updateLyricsPreview);
 
     useMidiTimelineCheckBox->setChecked(true);
-    connect(useMidiTimelineCheckBox, &QAbstractButton::clicked, this, [=](bool checked) {
-        d->useMidiTimeline = checked;
-    });
+    connect(useMidiTimelineCheckBox, &QAbstractButton::clicked, this,
+            [=](bool checked) { d->useMidiTimeline = checked; });
 
     trackSelector->expandAll();
     trackSelector->setItemsExpandable(false);
@@ -221,11 +231,17 @@ MidiConverterDialog::MidiConverterDialog(const QList<QDspx::MidiConverter::Track
 
     setTrackInfoList(trackInfoList);
 
+    if (trackSelector->topLevelItemCount() > 0) {
+        const auto topItem = trackSelector->topLevelItem(0);
+        if (topItem->childCount() > 0)
+            trackSelector->setCurrentItem(topItem->child(0));
+    }
 }
 
 MidiConverterDialog::~MidiConverterDialog() = default;
 
-void MidiConverterDialog::setTrackInfoList(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList) {
+void MidiConverterDialog::setTrackInfoList(
+    const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList) {
     Q_D(MidiConverterDialog);
     d->trackInfoList = trackInfoList;
     d->detectCodec();
