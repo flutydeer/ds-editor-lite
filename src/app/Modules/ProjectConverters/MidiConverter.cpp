@@ -116,6 +116,11 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
     auto *checkBoxTab = new QWidget();
     auto *checkBoxLayout = new QVBoxLayout(checkBoxTab);
 
+    auto *selectAll = new QCheckBox("select all");
+
+    selectAll->setChecked(true);
+    checkBoxLayout->addWidget(selectAll);
+
     // Create checkboxes for each MIDI track
     QList<QCheckBox *> checkBoxes;
     for (const auto &trackInfo : trackInfoList) {
@@ -123,7 +128,7 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                                            .arg(trackInfo.title.constData())
                                            .arg(trackInfo.lyrics.count())
                                            .arg(trackInfo.keyRange));
-        checkBox->setChecked(false);
+        checkBox->setChecked(true);
         checkBoxes.append(checkBox);
         checkBoxLayout->addWidget(checkBox);
     }
@@ -139,6 +144,11 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
     // Create OK and Cancel buttons
     auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     layout->addWidget(buttonBox);
+
+    QObject::connect(selectAll, &QCheckBox::stateChanged, [checkBoxes, selectAll]() {
+        for (const auto checkBox : checkBoxes)
+            checkBox->setChecked(selectAll->checkState());
+    });
 
     // Connect the button signals to slots on the dialog
     QObject::connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
