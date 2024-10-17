@@ -106,7 +106,7 @@ bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
     dialog.setWindowTitle("MIDI Track Selector");
 
     // Create OK and Cancel buttons
-    dialog.addButton("Yes", 1);
+    dialog.addAccentButton("Yes", 1);
     dialog.addButton("No", 0);
 
     // Create a layout for the dialog
@@ -196,7 +196,7 @@ bool midiOverlapHandler() {
     MessageDialog msgBox;
     msgBox.setTitle("MIDI Overlap");
     msgBox.setMessage("The MIDI file contains overlapping notes. Do you want to continue?");
-    msgBox.addButton("Yes", 1);
+    msgBox.addAccentButton("Yes", 1);
     msgBox.addButton("No", 0);
     const int ret = msgBox.exec();
     if (ret == 1) {
@@ -289,7 +289,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
             msgBox.setWindowTitle("Time Signature Mismatch");
             msgBox.setMessage("The time signature of the MIDI file does not match the "
                               "current project. Do you want to continue?");
-            msgBox.addButton("Yes", 1);
+            msgBox.addAccentButton("Yes", 1);
             msgBox.addButton("No", 0);
             if (msgBox.exec() != 1)
                 return false;
@@ -299,7 +299,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
             msgBox.setWindowTitle("Tempo Mismatch");
             msgBox.setMessage("The tempo of the MIDI file does not match the current "
                               "project. Do you want to continue?");
-            msgBox.addButton("Yes", 1);
+            msgBox.addAccentButton("Yes", 1);
             msgBox.addButton("No", 0);
             if (msgBox.exec() != 1)
                 return false;

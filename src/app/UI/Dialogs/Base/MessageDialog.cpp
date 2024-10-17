@@ -22,6 +22,16 @@ QVBoxLayout *MessageDialog::mainLayout() const {
 }
 
 void MessageDialog::addButton(const QString &text, int buttonId) {
+    auto *button = new Button(text, this);
+    m_buttonlayout->addWidget(button);
+
+    buttons[buttonId] = button;
+
+    connect(button, &QPushButton::clicked, this,
+            [this, buttonId]() { handleButtonClicked(buttonId); });
+}
+
+void MessageDialog::addAccentButton(const QString &text, int buttonId) {
     auto *button = new AccentButton(text, this);
     m_buttonlayout->addWidget(button);
 

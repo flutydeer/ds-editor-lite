@@ -18,6 +18,7 @@ public:
     QVBoxLayout *mainLayout() const;
 
     void addButton(const QString &text, int buttonId);
+    void addAccentButton(const QString &text, int buttonId);
 
     int exec() override;
 
@@ -29,7 +30,7 @@ private:
     QHBoxLayout *m_buttonlayout;
     QLabel *messageLabel;
     int clickedButtonId = -1;
-    QMap<int, AccentButton *> buttons;
+    QMap<int, Button *> buttons;
 };
 
 #endif // MESSAGEDIALOG_H
