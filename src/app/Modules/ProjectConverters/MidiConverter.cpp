@@ -1,5 +1,6 @@
 #include "MidiConverter.h"
 
+#include "MidiConverterDialog.h"
 #include "Model/AppModel/AudioClip.h"
 #include "opendspx/qdspxtrack.h"
 #include "opendspx/qdspxtimeline.h"
@@ -101,6 +102,9 @@ QWidget *createPreviewTab(const QList<QDspx::MidiConverter::TrackInfo> &trackInf
 
 bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                    const QList<QByteArray> &labelList, QList<int> *selectIDs, QTextCodec **codec) {
+    MidiConverterDialog dlg(trackInfoList);
+    dlg.exec();
+    qDebug() << dlg.selectedCodec()->name() << dlg.selectedTracks() << dlg.useMidiTimeline();
     // Create a dialog
     MessageDialog dialog;
     dialog.setWindowTitle("MIDI Track Selector");
