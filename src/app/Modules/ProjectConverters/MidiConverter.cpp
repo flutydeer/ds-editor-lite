@@ -29,7 +29,7 @@ static bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInf
                           const QList<QByteArray> &labelList, QList<int> *selectIDs,
                           QTextCodec **codec) {
     MidiConverterDialog dlg(trackInfoList);
-    // Todo: export tempo
+    // TODO: export tempo
     if (dlg.exec()) {
         *selectIDs = dlg.selectedTracks();
         if (dlg.selectedCodec() != nullptr)
@@ -128,7 +128,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
         }
     };
 
-    auto decodeTracks = [&](const QDspx::Model *_dspx, AppModel *_model, ImportMode _mode) {
+    auto decodeTracks = [&](const QDspx::Model *_dspx, AppModel *_model) {
         for (int i = 0; i < _dspx->content.tracks.count(); i++) {
             auto track = _dspx->content.tracks[i];
             const auto dsTrack = new Track;
@@ -158,33 +158,35 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
             m_timeSignature.denominator != dspx->content.timeline.timeSignatures[0].den) {
             MessageDialog msgBox;
             msgBox.setWindowTitle("Time Signature Mismatch");
-            msgBox.setMessage("The time signature of the MIDI file does not match the "
-                              "current project. Do you want to continue?");
+            msgBox.setMessage("The timeSignature of the MIDI file does not match the "
+                              "current project. Do you want to use MIDI's timeSignature?");
             msgBox.addAccentButton("Yes", 1);
             msgBox.addButton("No", 0);
-            if (msgBox.exec() != 1)
-                return false;
+            if (msgBox.exec() == 1)
+                model->setTimeSignature(
+                    TimeSignature(dspx->content.timeline.timeSignatures[0].num,
+                                  dspx->content.timeline.timeSignatures[0].den));
+            else
+                model->setTimeSignature(m_timeSignature);
         }
         if (m_tempo != std::round(dspx->content.timeline.tempos[0].value * 1000) / 1000) {
             MessageDialog msgBox;
             msgBox.setWindowTitle("Tempo Mismatch");
             msgBox.setMessage("The tempo of the MIDI file does not match the current "
-                              "project. Do you want to continue?");
+                              "project. Do you want to use MIDI's tempo?");
             msgBox.addAccentButton("Yes", 1);
             msgBox.addButton("No", 0);
-            if (msgBox.exec() != 1)
-                return false;
+            if (msgBox.exec() == 1)
+                model->setTempo(std::round(dspx->content.timeline.tempos[0].value * 1000 / 1000));
+            else
+                model->setTempo(m_tempo);
         }
     } else {
         return false;
     }
 
     if (dspx->content.tracks.count() > 0) {
-        const auto timeline = dspx->content.timeline;
-        model->setTimeSignature(
-            TimeSignature(timeline.timeSignatures[0].num, timeline.timeSignatures[0].den));
-        model->setTempo(std::round(timeline.tempos[0].value * 1000 / 1000));
-        decodeTracks(dspx, model, mode);
+        decodeTracks(dspx, model);
         return true;
     }
     return false;

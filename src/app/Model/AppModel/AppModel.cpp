@@ -261,7 +261,8 @@ bool AppModel::importMidiFile(const QString &filename) {
     if (midiImport == ImportMode::NewProject) {
         loadFromAppModel(resultModel);
     } else if (midiImport == ImportMode::AppendToProject) {
-        // Todo: load tempo
+        setTimeSignature(resultModel.timeSignature());
+        setTempo(resultModel.tempo());
         for (const auto track : resultModel.tracks()) {
             appendTrack(track);
         }
