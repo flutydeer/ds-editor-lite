@@ -8,10 +8,21 @@
 
 namespace talcs {
 
+    class DspxTrackInferenceContextAudioSourceClipSeries : public AudioSourceClipSeries {
+    public:
+        void setNextReadPosition(qint64 pos) override {
+            static constexpr qint64 NEVER_POSITION = 1ll << 56;
+            for (const auto &clipView : findClip(AudioSourceClipSeries::nextReadPosition())) {
+                clipView.content()->setNextReadPosition(NEVER_POSITION);
+            }
+            AudioSourceClipSeries::setNextReadPosition(pos);
+        }
+    };
+
     DspxTrackInferenceContext::DspxTrackInferenceContext(QObject *parent) : QObject(parent), d_ptr(new DspxTrackInferenceContextPrivate) {
         Q_D(DspxTrackInferenceContext);
         d->q_ptr = this;
-        d->clipSeries = std::make_unique<AudioSourceClipSeries>();
+        d->clipSeries = std::make_unique<DspxTrackInferenceContextAudioSourceClipSeries>();
     }
 
     DspxTrackInferenceContext::~DspxTrackInferenceContext() = default;
