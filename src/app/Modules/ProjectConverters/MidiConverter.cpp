@@ -110,7 +110,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
                 singingClip->setStart(clip->time.start);
                 singingClip->setClipStart(clip->time.clipStart);
                 singingClip->setLength(clip->time.length);
-                singingClip->setClipLen(clip->time.clipLen);
+                singingClip->setClipLen(clip->time.clipLen + 960);
                 auto notes = decodeNotes(singClip->notes);
                 for (const auto &note : notes)
                     singingClip->insertNote(note);
