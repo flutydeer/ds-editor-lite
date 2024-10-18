@@ -417,12 +417,13 @@ void AudioContext::handleTrackInserted(int index, Track *track) {
                                      std::make_shared<talcs::SmoothedFloat>(-96)};
     m_trackLevelMeterValue[track].first->setRampLength(8); // TODO make it configurable
     m_trackLevelMeterValue[track].second->setRampLength(8);
-    trackContext->controlMixer()->setLevelMeterChannelCount(2);
-    connect(trackContext->controlMixer(), &talcs::PositionableMixerAudioSource::levelMetered, this,
+    auto trackControlMixer = trackContext->controlMixer();
+    trackControlMixer->setLevelMeterChannelCount(2);
+    connect(trackControlMixer, &talcs::PositionableMixerAudioSource::levelMetered, this,
             [=](QVector<float> values) {
                 if (!m_trackLevelMeterValue.contains(track))
                     return;
-                if (masterTrackMixer()->isMutedBySoloSetting(trackContext->controlMixer()))
+                if (masterTrackMixer()->isMutedBySoloSetting(trackControlMixer))
                     values = {0, 0};
                 auto dBL = static_cast<float>(talcs::Decibels::gainToDecibels(values[0]));
                 auto dBR = static_cast<float>(talcs::Decibels::gainToDecibels(values[1]));
@@ -447,6 +448,7 @@ void AudioContext::handleTrackRemoved(int index, Track *track) {
             continue;
         handleClipRemoved(track, clip->id(), static_cast<AudioClip *>(clip));
     }
+    disconnect(track, nullptr, this, nullptr);
     // delete m_trackSynthDict.take(track);
     removeTrack(index);
     m_trackInferDict.remove(track);
@@ -476,6 +478,7 @@ void AudioContext::handleClipInserted(Track *track, int id, AudioClip *audioClip
 }
 
 void AudioContext::handleClipRemoved(Track *track, int id, AudioClip *audioClip) {
+    disconnect(audioClip, nullptr, this, nullptr);
     auto trackContext = getContextFromTrack(track);
     trackContext->removeAudioClip(id);
     m_audioClipModelDict.remove(audioClip);

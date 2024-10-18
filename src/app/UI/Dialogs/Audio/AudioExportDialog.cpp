@@ -51,7 +51,7 @@ namespace Audio::Internal {
             m_presetComboBox->addItem(presetName, presetName);
         }
         presetOptionLayout->addWidget(m_presetComboBox, 1);
-        auto presetSaveAsButton = new QPushButton(tr("Save &As"));
+        auto presetSaveAsButton = new QPushButton(tr("Save &As..."));
         presetOptionLayout->addWidget(presetSaveAsButton);
         m_presetDeleteButton = new QPushButton(tr("&Delete"));
         presetOptionLayout->addWidget(m_presetDeleteButton);
@@ -67,7 +67,7 @@ namespace Audio::Internal {
 
         auto pathGroupBox = new QGroupBox(tr("File Path"));
         auto pathLayout = new QFormLayout;
-        auto filePathBrowseButton = new QPushButton(tr("&Browse"));
+        auto filePathBrowseButton = new QPushButton(tr("&Browse..."));
         pathLayout->addRow(filePathBrowseButton);
         auto fileNameLayout = new QHBoxLayout;
         m_fileNameEdit = new QLineEdit;
@@ -656,6 +656,30 @@ namespace Audio::Internal {
                 m_audioExporter->cancel();
             } else {
                 progressDialog.reject();
+            }
+        });
+        class CloseEventFilter : public QObject {
+        public:
+            CloseEventFilter(QDialog *progressDialog, std::function<bool()> &&cb) : cb(cb) {
+                progressDialog->installEventFilter(this);
+            }
+            std::function<bool()> cb;
+            bool eventFilter(QObject *watched, QEvent *event) override {
+                if (event->type() == QEvent::Close) {
+                    if(cb())
+                        event->accept();
+                    else
+                        event->ignore();
+                    return true;
+                }
+                return QObject::eventFilter(watched, event);
+            }
+        } o(&progressDialog, [=, &interruptFlag] {
+            if (interruptFlag) {
+                m_audioExporter->cancel();
+                return false;
+            } else {
+                return true;
             }
         });
 

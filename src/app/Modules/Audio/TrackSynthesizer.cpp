@@ -106,6 +106,7 @@ void TrackSynthesizer::handleSingingClipRemoved(SingingClip *clip) {
     for (auto note : clip->notes()) {
         handleNoteRemoved(clip, note);
     }
+    disconnect(clip, nullptr, this, nullptr);
     removeSingingClip(clip->id());
     m_singingClipModelDict.remove(clip);
 }
@@ -129,6 +130,7 @@ void TrackSynthesizer::handleNoteInserted(SingingClip *clip, Note *note) {
 }
 
 void TrackSynthesizer::handleNoteRemoved(SingingClip *clip, Note *note) {
+    disconnect(note, nullptr, this, nullptr);
     auto singingClipContext = m_singingClipModelDict.value(clip);
     singingClipContext->removeNote(note->id());
     m_noteModelDict.remove(note);

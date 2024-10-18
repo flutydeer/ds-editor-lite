@@ -84,6 +84,7 @@ void TrackInferenceHandler::handleSingingClipInserted(SingingClip *clip) {
 
 void TrackInferenceHandler::handleSingingClipRemoved(SingingClip *clip) {
     handlePieceChanged(clip, {});
+    disconnect(clip, nullptr, this, nullptr);
     removeSingingClip(clip->id());
     m_singingClipModelDict.remove(clip);
 }
@@ -134,6 +135,7 @@ void TrackInferenceHandler::handlePieceInserted(SingingClip *clip, InferPiece *i
 }
 
 void TrackInferenceHandler::handlePieceRemoved(SingingClip *clip, InferPiece *inferPiece) {
+    disconnect(inferPiece, nullptr, this, nullptr);
     auto singingClipInferenceContext = m_singingClipModelDict.value(clip);
     singingClipInferenceContext->removeInferencePiece(inferPiece->id());
     m_inferPieceModelDict.remove(inferPiece);
