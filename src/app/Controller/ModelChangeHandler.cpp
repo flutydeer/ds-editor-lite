@@ -47,6 +47,8 @@ void ModelChangeHandler::handleSingingClipInserted(SingingClip *clip) {
             });
     connect(clip, &SingingClip::piecesChanged, this,
             [=](const QList<InferPiece *> &pieces) { handlePiecesChanged(pieces, clip); });
+    connect(clip, &SingingClip::paramChanged, this,
+            [=](ParamInfo::Name name, Param::Type type) { handleParamChanged(name, type, clip); });
 }
 
 void ModelChangeHandler::handleSingingClipRemoved(SingingClip *clip) {

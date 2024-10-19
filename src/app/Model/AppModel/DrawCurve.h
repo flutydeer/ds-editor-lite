@@ -10,7 +10,7 @@
 class DrawCurve final : public Curve {
 public:
     DrawCurve() = default;
-    explicit DrawCurve(int id) : Curve(id){};
+    explicit DrawCurve(int id) : Curve(id) {};
     DrawCurve(const DrawCurve &other) = default;
 
     [[nodiscard]] CurveType type() const override {
@@ -22,6 +22,7 @@ public:
     [[nodiscard]] const QList<int> &values() const;
     [[nodiscard]] bool isEmpty() const;
     [[nodiscard]] QList<int> mid(int tick) const;
+    void clip(int clipStart, int clipEnd);
     void setValues(const QList<int> &values);
     void insertValue(int index, int value);
     void insertValues(int index, const QList<int> &values);
@@ -36,6 +37,9 @@ public:
     void eraseTailFrom(int tick);
 
     [[nodiscard]] int endTick() const override;
+
+    friend bool operator==(const DrawCurve &lhs, const DrawCurve &rhs);
+    friend bool operator!=(const DrawCurve &lhs, const DrawCurve &rhs);
 
 private:
     // int m_step = 5;

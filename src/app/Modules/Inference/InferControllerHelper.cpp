@@ -4,11 +4,13 @@
 
 #include "InferControllerHelper.h"
 
+#include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/InferPiece.h"
 #include "Models/InferInputNote.h"
+#include "Utils/AppModelUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
@@ -20,6 +22,31 @@ namespace InferControllerHelper {
         for (const auto note : notes)
             list.append(InferInputNote(*note));
         return list;
+    }
+
+    InferVarianceTask::InferVarianceInput buildInferVarianceInput(const InferPiece &piece,
+                                                                  const QString &configPath) {
+        const auto notes = buildInferInputNotes(piece.notes);
+        InferParamCurve pitch;
+        for (const auto &value : piece.inputPitch.values())
+            pitch.values.append(value / 100.0);
+        return {piece.clipId(), piece.id(), notes, configPath, appModel->tempo(), pitch};
+    }
+
+    QList<InferPiece *> findDirtyParamPieces(ParamInfo::Name name, SingingClip &clip) {
+        QList<InferPiece *> result;
+        for (auto &piece : clip.pieces()) {
+            // 重新合并参数曲线，并与之前的缓存比较
+            auto param = clip.params.getParamByName(name);
+            auto original = *piece->getOriginalCurve(name);
+            auto editedCurves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
+            if (auto resultCurve = AppModelUtils::getResultCurve(original, editedCurves);
+                resultCurve != original) {
+                piece->setInputCurve(name, resultCurve);
+                result.append(piece);
+            }
+        }
+        return result;
     }
 
     void updatePronunciation(const QList<Note *> &notes, const QList<QString> &args,
@@ -72,11 +99,16 @@ namespace InferControllerHelper {
     void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
                      InferPiece &piece, int scale) {
         // 将推理结果保存到分段内部
-        DrawCurve resultCurve;
-        resultCurve.setStart(MathUtils::round(piece.realStartTick(), 5));
-        resultCurve.setValues(
+        DrawCurve original;
+        original.setStart(MathUtils::round(piece.realStartTick(), 5));
+        original.setValues(
             Linq::selectMany(taskResult.values, L_PRED(v, static_cast<int>(v * scale))));
-        piece.setCurve(name, resultCurve);
+        piece.setOriginalCurve(name, original);
+        // 合并手绘参数
+        auto param = piece.clip->params.getParamByName(name);
+        auto editedCurves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
+        auto mergedCurve = AppModelUtils::getResultCurve(original, editedCurves);
+        piece.setInputCurve(name, mergedCurve);
         piece.clip->updateOriginalParam(name);
     }
 
@@ -110,7 +142,8 @@ namespace InferControllerHelper {
 
     void resetParam(ParamInfo::Name name, InferPiece &piece) {
         DrawCurve emptyCurve;
-        piece.setCurve(name, emptyCurve);
+        piece.setOriginalCurve(name, emptyCurve);
+        piece.setInputCurve(name, emptyCurve);
         piece.clip->updateOriginalParam(name);
     }
 

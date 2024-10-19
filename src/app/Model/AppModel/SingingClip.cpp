@@ -75,7 +75,7 @@ void SingingClip::reSegment() {
         }
         if (!exists) {
             auto newPiece = new InferPiece(this);
-            newPiece->singerName = configPath;
+            newPiece->configPath = configPath;
             newPiece->notes = segment;
             newPieces.append(newPiece);
         }
@@ -94,7 +94,7 @@ void SingingClip::updateOriginalParam(ParamInfo::Name name) {
     QList<Curve *> curves;
     for (const auto &piece : m_pieces) {
         // 只获取有推理结果的分段
-        if (const auto curve = piece->getCurve(name); !curve->isEmpty())
+        if (const auto curve = piece->getOriginalCurve(name); !curve->isEmpty())
             curves.append(new DrawCurve(*curve)); // 复制分段上的参数
     }
     auto param = params.getParamByName(name);

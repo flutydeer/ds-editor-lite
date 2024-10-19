@@ -6,6 +6,7 @@
 #define INFERCONTROLLERHELPER_H
 
 #include "Model/AppModel/Params.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Models/PhonemeNameResult.h"
 #include "Tasks/InferVarianceTask.h"
 
@@ -19,6 +20,11 @@ class InferInputNote;
 
 namespace InferControllerHelper {
     QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes);
+    InferVarianceTask::InferVarianceInput buildInferVarianceInput(const InferPiece &piece,
+                                                                  const QString &configPath);
+
+    // 查找由于编辑某个参数导致需要重新推理依赖参数的分段
+    QList<InferPiece *> findDirtyParamPieces(ParamInfo::Name name, SingingClip &clip);
 
     // Update original param methods
     void updatePronunciation(const QList<Note *> &notes, const QList<QString> &args,

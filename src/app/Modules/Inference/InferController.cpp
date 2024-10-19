@@ -86,10 +86,29 @@ void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Typ
                                                 SingingClip *clip) {
     if (type != Param::Edited)
         return;
-    // switch (name) {
-    //     case ParamInfo::Pitch:
-    //         InferControllerHelper::resetPitch();
-    // }
+    auto dirtyPieces = InferControllerHelper::findDirtyParamPieces(name, *clip);
+    switch (name) {
+        case ParamInfo::Expressiveness:
+            break;
+        case ParamInfo::Pitch:
+            for (const auto &piece : dirtyPieces) {
+                auto pred = L_PRED(t, t->pieceId() == piece->id());
+                m_inferVarianceTasks.cancelIf(pred);
+                m_inferAcousticTasks.cancelIf(pred);
+                createAndRunInferVarianceTask(*piece);
+                piece->acousticInferStatus = Running;
+            }
+            break;
+        case ParamInfo::Energy:
+        case ParamInfo::Breathiness:
+        case ParamInfo::Voicing:
+        case ParamInfo::Tension:
+            break;
+        case ParamInfo::Gender:
+        case ParamInfo::Velocity:
+        case ParamInfo::Unknown:
+            break;
+    }
 }
 
 void InferControllerPrivate::handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status) {
@@ -309,12 +328,7 @@ void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
-    const auto inputNotes = InferControllerHelper::buildInferInputNotes(piece.notes);
-    InferParamCurve pitch;
-    for (const auto &value : piece.pitch.values()) // TODO: 应该从 singing clip 里提取合并的音高参数
-        pitch.values.append(value / 100.0);
-    const InferVarianceTask::InferVarianceInput input = {
-        piece.clipId(), piece.id(), inputNotes, m_singerConfigPath, appModel->tempo(), pitch};
+    const auto input = InferControllerHelper::buildInferVarianceInput(piece, m_singerConfigPath);
     if (m_lastInferVarianceInputs.contains(piece.id()))
         if (const auto lastInput = m_lastInferVarianceInputs[piece.id()]; lastInput == input)
             return;
@@ -335,16 +349,16 @@ void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
     InferParamCurve energy;
     InferParamCurve gender;
     InferParamCurve velocity;
-    for (const auto &value : piece.pitch.values())
+    for (const auto &value : piece.inputPitch.values())
         pitch.values.append(value / 100.0);
 
-    for (const auto &value : piece.breathiness.values())
+    for (const auto &value : piece.originalBreathiness.values())
         breathiness.values.append(value / 1000.0);
-    for (const auto &value : piece.tension.values())
+    for (const auto &value : piece.originalTension.values())
         tension.values.append(value / 1000.0);
-    for (const auto &value : piece.voicing.values())
+    for (const auto &value : piece.originalVoicing.values())
         voicing.values.append(value / 1000.0);
-    for (const auto &value : piece.energy.values()) {
+    for (const auto &value : piece.originalEnergy.values()) {
         energy.values.append(value / 1000.0);
 
         gender.values.append(0);

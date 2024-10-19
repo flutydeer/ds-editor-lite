@@ -16,23 +16,33 @@
 class SingingClip;
 class Note;
 
-class InferPiece : public QObject, public IInferPiece {
+class InferPiece final : public QObject, public IInferPiece {
     Q_OBJECT
 public:
     Property<InferStatus> acousticInferStatus = Pending;
     SingingClip *clip;
     bool dirty = false;
 
-    QString singerName;
+    QString configPath;
     QList<Note *> notes;
 
     // Infer result
-    DrawCurve pitch;
-    DrawCurve breathiness;
-    DrawCurve tension;
-    DrawCurve voicing;
-    DrawCurve energy;
+    DrawCurve originalPitch;
+    DrawCurve originalBreathiness;
+    DrawCurve originalTension;
+    DrawCurve originalVoicing;
+    DrawCurve originalEnergy;
     QString audioPath;
+
+    // Cached inputs
+    DrawCurve inputExpressiveness;
+
+    DrawCurve inputPitch;
+
+    DrawCurve inputBreathiness;
+    DrawCurve inputTension;
+    DrawCurve inputVoicing;
+    DrawCurve inputEnergy;
 
     explicit InferPiece(SingingClip *clip);
 
@@ -42,8 +52,11 @@ public:
     [[nodiscard]] int realStartTick() const;
     [[nodiscard]] int realEndTick() const;
 
-    [[nodiscard]] const DrawCurve *getCurve(ParamInfo::Name name) const;
-    void setCurve(ParamInfo::Name name, DrawCurve &curve);
+    [[nodiscard]] const DrawCurve *getOriginalCurve(ParamInfo::Name name) const;
+    void setOriginalCurve(ParamInfo::Name name, DrawCurve &curve);
+
+    [[nodiscard]] const DrawCurve *getInputCurve(ParamInfo::Name name) const;
+    void setInputCurve(ParamInfo::Name name, DrawCurve &curve);
 
 signals:
     void statusChanged(InferStatus status);

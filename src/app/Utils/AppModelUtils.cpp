@@ -121,7 +121,7 @@ DrawCurve AppModelUtils::getResultCurve(const DrawCurve &original, const DrawCur
             if (curve->start() >= original.start() && curve->endTick() <= original.endTick()) {
                 // original 曲线区间覆盖整条手绘曲线，无需截断
             } else
-                newCurve->erase(original.start(), original.endTick());
+                newCurve->clip(original.start(), original.endTick());
             curvesToMerge.append(newCurve);
         }
     }
@@ -129,5 +129,13 @@ DrawCurve AppModelUtils::getResultCurve(const DrawCurve &original, const DrawCur
         result.mergeWithOtherPriority(*curve);
         delete curve;
     }
+    return result;
+}
+
+DrawCurveList AppModelUtils::getDrawCurves(const QList<Curve *> &curves) {
+    DrawCurveList result;
+    for (const auto curve : curves)
+        if (curve->type() == Curve::Draw)
+            result.append(reinterpret_cast<DrawCurve *>(curve));
     return result;
 }

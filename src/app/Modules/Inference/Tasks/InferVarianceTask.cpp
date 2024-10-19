@@ -153,18 +153,17 @@ QString InferVarianceTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy};
-    // JsonUtils::save(QString("infer-variance-input-%1.json").arg(id()), model.serialize());
+    JsonUtils::save(QString("temp/infer-variance-input-%1.json").arg(id()), model.serialize());
     return model.serializeToJson();
 }
 
 bool InferVarianceTask::processOutput(const QString &json) {
-    // QByteArray data = json.toUtf8();
-    // auto object = QJsonDocument::fromJson(data).object();
-    // JsonUtils::save(QString("infer-variance-output-%1.json").arg(id()), object);
 
     GenericInferModel model;
     if (!model.deserializeFromJson(json))
         return false;
+
+    // JsonUtils::save(QString("temp/infer-variance-output-%1.json").arg(pieceId()), model.serialize());
 
     auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
     auto newInterval = tickToSec(5);

@@ -23,6 +23,7 @@ namespace AppModelUtils {
     DrawCurveList curvesIn(const DrawCurveList &container, int startTick, int endTick);
     DrawCurveList mergeCurves(const DrawCurveList &original, const DrawCurveList &edited);
     DrawCurve getResultCurve(const DrawCurve &original, const DrawCurveList &edited);
+    DrawCurveList getDrawCurves(const QList<Curve *> &curves);
 };
 
 #endif // APPMODELUTILS_H

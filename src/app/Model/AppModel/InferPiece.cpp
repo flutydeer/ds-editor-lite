@@ -40,41 +40,81 @@ int InferPiece::realEndTick() const {
     return noteEndTick() + paddingTicks;
 }
 
-const DrawCurve *InferPiece::getCurve(ParamInfo::Name name) const {
+const DrawCurve *InferPiece::getOriginalCurve(ParamInfo::Name name) const {
     switch (name) {
         case ParamInfo::Pitch:
-            return &pitch;
+            return &originalPitch;
         case ParamInfo::Breathiness:
-            return &breathiness;
+            return &originalBreathiness;
         case ParamInfo::Tension:
-            return &tension;
+            return &originalTension;
         case ParamInfo::Voicing:
-            return &voicing;
+            return &originalVoicing;
         case ParamInfo::Energy:
-            return &energy;
+            return &originalEnergy;
         default:
             qFatal() << "Param type out of range" << name;
             return nullptr;
     }
 }
 
-void InferPiece::setCurve(ParamInfo::Name name, DrawCurve &curve) {
+void InferPiece::setOriginalCurve(ParamInfo::Name name, DrawCurve &curve) {
     switch (name) {
         case ParamInfo::Pitch:
-            pitch = curve;
+            originalPitch = curve;
             break;
         case ParamInfo::Breathiness:
-            breathiness = curve;
+            originalBreathiness = curve;
             break;
         case ParamInfo::Tension:
-            tension = curve;
+            originalTension = curve;
             break;
         case ParamInfo::Voicing:
-            voicing = curve;
+            originalVoicing = curve;
             break;
         case ParamInfo::Energy:
-            energy = curve;
+            originalEnergy = curve;
             break;
+        default:
+            qFatal() << "Param type out of range" << name;
+    }
+}
+
+const DrawCurve *InferPiece::getInputCurve(ParamInfo::Name name) const {
+    switch (name) {
+        case ParamInfo::Pitch:
+            return &inputPitch;
+        case ParamInfo::Breathiness:
+            return &inputBreathiness;
+        case ParamInfo::Tension:
+            return &inputTension;
+        case ParamInfo::Voicing:
+            return &inputVoicing;
+        case ParamInfo::Energy:
+            return &inputEnergy;
+        default:
+            qFatal() << "Param type out of range" << name;
+            return nullptr;
+    }
+}
+
+void InferPiece::setInputCurve(ParamInfo::Name name, DrawCurve &curve) {
+    switch (name) {
+        case ParamInfo::Pitch:
+            inputPitch = curve;
+        break;
+        case ParamInfo::Breathiness:
+            inputBreathiness = curve;
+        break;
+        case ParamInfo::Tension:
+            inputTension = curve;
+        break;
+        case ParamInfo::Voicing:
+            inputVoicing = curve;
+        break;
+        case ParamInfo::Energy:
+            inputEnergy = curve;
+        break;
         default:
             qFatal() << "Param type out of range" << name;
     }

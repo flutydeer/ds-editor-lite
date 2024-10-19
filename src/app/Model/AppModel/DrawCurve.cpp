@@ -34,6 +34,21 @@ QList<int> DrawCurve::mid(int tick) const {
     return result;
 }
 
+void DrawCurve::clip(int clipStart, int clipEnd) {
+    if (clipStart < start())
+        eraseTailFrom(clipEnd);
+    else if (endTick() < clipEnd) {
+        auto removeCount = (clipStart - start()) / step;
+        removeValueRange(0, removeCount);
+        setStart(clipStart);
+    } else if (clipStart > start() && clipEnd < endTick()) {
+        eraseTailFrom(clipEnd);
+        auto removeCount = (clipStart - start()) / step;
+        removeValueRange(0, removeCount);
+        setStart(clipStart);
+    }
+}
+
 void DrawCurve::setValues(const QList<int> &values) {
     m_values = values;
 }
@@ -161,4 +176,12 @@ void DrawCurve::eraseTailFrom(int tick) {
 
 int DrawCurve::endTick() const {
     return start() + step * m_values.count();
+}
+
+bool operator==(const DrawCurve &lhs, const DrawCurve &rhs) {
+    return lhs.start() == rhs.start() && lhs.step == rhs.step && lhs.m_values == rhs.m_values;
+}
+
+bool operator!=(const DrawCurve &lhs, const DrawCurve &rhs) {
+    return !(lhs == rhs);
 }
