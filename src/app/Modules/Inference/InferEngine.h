@@ -54,7 +54,7 @@ private:
     void terminateInferPitchAsync() const;
     void terminateInferVarianceAsync() const;
     void terminateInferAcousticAsync() const;
-    void dispose() const;
+    void dispose();
 
     QMutex m_mutex;
     bool m_initialized = false;

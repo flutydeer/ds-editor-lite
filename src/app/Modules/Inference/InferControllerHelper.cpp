@@ -164,6 +164,6 @@ namespace InferControllerHelper {
 
     void resetAcoustic(InferPiece &piece) {
         piece.audioPath = QString();
-        // piece.acousticInferStatus = Pending;
+        piece.acousticInferStatus = Pending;
     }
 }

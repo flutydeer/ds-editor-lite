@@ -96,7 +96,6 @@ void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Typ
                 m_inferVarianceTasks.cancelIf(pred);
                 m_inferAcousticTasks.cancelIf(pred);
                 createAndRunInferVarianceTask(*piece);
-                piece->acousticInferStatus = Running;
             }
             break;
         case ParamInfo::Energy:
@@ -336,6 +335,7 @@ void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
     auto task = new InferVarianceTask(input);
     connect(task, &Task::finished, this, [=] { handleInferVarianceTaskFinished(*task); });
     m_inferVarianceTasks.add(task);
+    piece.acousticInferStatus = Running;
     if (!m_inferVarianceTasks.current)
         runNextInferVarianceTask();
 }

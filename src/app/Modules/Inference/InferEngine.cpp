@@ -245,29 +245,37 @@ bool InferEngine::inferAcoustic(const QString &input, const QString &outputPath,
 
 void InferEngine::terminateInferDurationAsync() const {
     qInfo() << "terminateInferDurationAsync";
-    m_durationInfer->terminate();
+    if (m_durationInfer)
+        m_durationInfer->terminate();
 }
 
 void InferEngine::terminateInferPitchAsync() const {
     qInfo() << "terminateInferPitchAsync";
-    m_pitchInfer->terminate();
+    if (m_pitchInfer)
+        m_pitchInfer->terminate();
 }
 
 void InferEngine::terminateInferVarianceAsync() const {
     qInfo() << "terminateInferVarianceAsync";
-    m_varianceInfer->terminate();
+    if (m_varianceInfer)
+        m_varianceInfer->terminate();
 }
 
 void InferEngine::terminateInferAcousticAsync() const {
     qInfo() << "terminateInferAcousticAsync";
-    m_acousticInfer->terminate();
+    if (m_acousticInfer)
+        m_acousticInfer->terminate();
 }
 
-void InferEngine::dispose() const {
+void InferEngine::dispose() {
     delete m_durationInfer;
+    m_durationInfer = nullptr;
     delete m_pitchInfer;
+    m_pitchInfer = nullptr;
     delete m_varianceInfer;
+    m_varianceInfer = nullptr;
     delete m_acousticInfer;
+    m_acousticInfer = nullptr;
 }
 
 QString InferEngine::configPath() {
