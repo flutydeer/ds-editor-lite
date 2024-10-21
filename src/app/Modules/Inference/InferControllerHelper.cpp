@@ -25,6 +25,14 @@ namespace InferControllerHelper {
         return list;
     }
 
+    PitchInput buildInferPitchInput(const InferPiece &piece, const QString &configPath) {
+        InferParamCurve expr;
+        for (const auto &value : piece.inputExpressiveness.values())
+            expr.values.append(value / 1000.0);
+        const auto inputNotes = buildInferInputNotes(piece.notes);
+        return {piece.clipId(), piece.id(), inputNotes, configPath, appModel->tempo(), expr};
+    }
+
     InferVarianceTask::InferVarianceInput buildInferVarianceInput(const InferPiece &piece,
                                                                   const QString &configPath) {
         const auto notes = buildInferInputNotes(piece.notes);
@@ -61,7 +69,8 @@ namespace InferControllerHelper {
         for (const auto &value : piece.inputGender.values())
             gender.values.append(value / 1000.0);
 
-        InferParamCurve velocity = {Linq::selectMany(piece.inputVelocity.values(), L_PRED(p, p / 1000.0))};
+        InferParamCurve velocity = {
+            Linq::selectMany(piece.inputVelocity.values(), L_PRED(p, p / 1000.0))};
 
         return {piece.clipId(),    piece.id(), notes,       configPath,
                 appModel->tempo(), pitch,      breathiness, tension,

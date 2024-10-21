@@ -9,6 +9,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Models/PhonemeNameResult.h"
 #include "Tasks/InferAcousticTask.h"
+#include "Tasks/InferPitchTask.h"
 #include "Tasks/InferVarianceTask.h"
 
 #include <QList>
@@ -19,11 +20,13 @@ class Note;
 class SingingClip;
 class InferInputNote;
 
+using PitchInput = InferPitchTask::InferPitchInput;
 using VarianceInput = InferVarianceTask::InferVarianceInput;
 using AcousticInput = InferAcousticTask::InferAcousticInput;
 
 namespace InferControllerHelper {
     QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes);
+    PitchInput buildInferPitchInput(const InferPiece &piece, const QString &configPath);
     VarianceInput buildInferVarianceInput(const InferPiece &piece, const QString &configPath);
     AcousticInput buildInderAcousticInput(const InferPiece &piece, const QString &configPath);
 

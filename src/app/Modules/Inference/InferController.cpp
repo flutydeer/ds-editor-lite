@@ -89,7 +89,13 @@ void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Typ
     auto dirtyPieces = InferControllerHelper::getParamDirtyPiecesAndUpdateInput(name, *clip);
     switch (name) {
         case ParamInfo::Expressiveness:
-            // TODO: 处理表现力参数更改
+            for (const auto &piece : dirtyPieces) {
+                auto pred = L_PRED(t, t->pieceId() == piece->id());
+                m_inferPitchTasks.cancelIf(pred);
+                m_inferVarianceTasks.cancelIf(pred);
+                m_inferAcousticTasks.cancelIf(pred);
+                createAndRunInferPitchTask(*piece);
+            }
             break;
         case ParamInfo::Pitch:
             for (const auto &piece : dirtyPieces) {
@@ -327,12 +333,7 @@ void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
-    // InferParamCurve expressiveness;
-    // for (const auto &value : piece.inputExpressiveness.values())
-    //     expressiveness.values.append(value / 1000.0);
-    const auto inputNotes = InferControllerHelper::buildInferInputNotes(piece.notes);
-    const InferPitchTask::InferPitchInput input = {piece.clipId(), piece.id(), inputNotes,
-                                                   m_singerConfigPath, appModel->tempo()};
+    const auto input = InferControllerHelper::buildInferPitchInput(piece, m_singerConfigPath);
     if (m_lastInferPitchInputs.contains(piece.id()))
         if (const auto lastInput = m_lastInferPitchInputs[piece.id()]; lastInput == input)
             return;
