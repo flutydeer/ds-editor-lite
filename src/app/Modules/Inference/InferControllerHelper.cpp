@@ -13,6 +13,7 @@
 #include "Utils/AppModelUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
+#include "Utils/ParamUtils.h"
 
 #include <QDebug>
 
@@ -33,17 +34,63 @@ namespace InferControllerHelper {
         return {piece.clipId(), piece.id(), notes, configPath, appModel->tempo(), pitch};
     }
 
-    QList<InferPiece *> findDirtyParamPieces(ParamInfo::Name name, SingingClip &clip) {
+    AcousticInput buildInderAcousticInput(const InferPiece &piece, const QString &configPath) {
+
+        const auto notes = buildInferInputNotes(piece.notes);
+        InferParamCurve pitch;
+        for (const auto &value : piece.inputPitch.values())
+            pitch.values.append(value / 100.0);
+
+        InferParamCurve breathiness;
+        for (const auto &value : piece.inputBreathiness.values())
+            breathiness.values.append(value / 1000.0);
+
+        InferParamCurve tension;
+        for (const auto &value : piece.inputTension.values())
+            tension.values.append(value / 1000.0);
+
+        InferParamCurve voicing;
+        for (const auto &value : piece.inputVoicing.values())
+            voicing.values.append(value / 1000.0);
+
+        InferParamCurve energy;
+        for (const auto &value : piece.inputEnergy.values())
+            energy.values.append(value / 1000.0);
+
+        InferParamCurve gender;
+        for (const auto &value : piece.inputGender.values())
+            gender.values.append(value / 1000.0);
+
+        InferParamCurve velocity = {Linq::selectMany(piece.inputVelocity.values(), L_PRED(p, p / 1000.0))};
+
+        return {piece.clipId(),    piece.id(), notes,       configPath,
+                appModel->tempo(), pitch,      breathiness, tension,
+                voicing,           energy,     gender,      velocity};
+    }
+
+    QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(ParamInfo::Name name, SingingClip &clip) {
         QList<InferPiece *> result;
         for (auto &piece : clip.pieces()) {
             // 重新合并参数曲线，并与之前的缓存比较
             auto param = clip.params.getParamByName(name);
-            auto original = *piece->getOriginalCurve(name);
             auto editedCurves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
-            if (auto resultCurve = AppModelUtils::getResultCurve(original, editedCurves);
-                resultCurve != original) {
-                piece->setInputCurve(name, resultCurve);
-                result.append(piece);
+            auto input = *piece->getInputCurve(name);
+            bool mergeNeeded = ParamInfo::hasOriginalParam(name);
+            if (mergeNeeded) {
+                auto original = *piece->getOriginalCurve(name);
+                if (auto resultCurve = AppModelUtils::getResultCurve(original, editedCurves);
+                    resultCurve != input) {
+                    piece->setInputCurve(name, resultCurve);
+                    result.append(piece);
+                }
+            } else {
+                auto baseValue = paramUtils->getPropertiesByName(name)->defaultValue;
+                if (auto resultCurve = AppModelUtils::getResultCurve(
+                        {piece->realStartTick(), piece->realEndTick()}, baseValue, editedCurves);
+                    resultCurve != input) {
+                    piece->setInputCurve(name, resultCurve);
+                    result.append(piece);
+                }
             }
         }
         return result;

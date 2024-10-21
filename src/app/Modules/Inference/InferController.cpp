@@ -86,9 +86,10 @@ void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Typ
                                                 SingingClip *clip) {
     if (type != Param::Edited)
         return;
-    auto dirtyPieces = InferControllerHelper::findDirtyParamPieces(name, *clip);
+    auto dirtyPieces = InferControllerHelper::getParamDirtyPiecesAndUpdateInput(name, *clip);
     switch (name) {
         case ParamInfo::Expressiveness:
+            // TODO: 处理表现力参数更改
             break;
         case ParamInfo::Pitch:
             for (const auto &piece : dirtyPieces) {
@@ -102,10 +103,16 @@ void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Typ
         case ParamInfo::Breathiness:
         case ParamInfo::Voicing:
         case ParamInfo::Tension:
-            break;
         case ParamInfo::Gender:
         case ParamInfo::Velocity:
+            for (const auto &piece : dirtyPieces) {
+                auto pred = L_PRED(t, t->pieceId() == piece->id());
+                m_inferAcousticTasks.cancelIf(pred);
+                createAndRunInferAcousticTask(*piece);
+            }
+            break;
         case ParamInfo::Unknown:
+            qFatal() << "Unknown param";
             break;
     }
 }
@@ -312,6 +319,9 @@ void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
+    // InferParamCurve expressiveness;
+    // for (const auto &value : piece.inputExpressiveness.values())
+    //     expressiveness.values.append(value / 1000.0);
     const auto inputNotes = InferControllerHelper::buildInferInputNotes(piece.notes);
     const InferPitchTask::InferPitchInput input = {piece.clipId(), piece.id(), inputNotes,
                                                    m_singerConfigPath, appModel->tempo()};
@@ -341,41 +351,15 @@ void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
-    const auto inputNotes = InferControllerHelper::buildInferInputNotes(piece.notes);
-    InferParamCurve pitch;
-    InferParamCurve breathiness;
-    InferParamCurve tension;
-    InferParamCurve voicing;
-    InferParamCurve energy;
-    InferParamCurve gender;
-    InferParamCurve velocity;
-    for (const auto &value : piece.inputPitch.values())
-        pitch.values.append(value / 100.0);
-
-    for (const auto &value : piece.originalBreathiness.values())
-        breathiness.values.append(value / 1000.0);
-    for (const auto &value : piece.originalTension.values())
-        tension.values.append(value / 1000.0);
-    for (const auto &value : piece.originalVoicing.values())
-        voicing.values.append(value / 1000.0);
-    for (const auto &value : piece.originalEnergy.values()) {
-        energy.values.append(value / 1000.0);
-
-        gender.values.append(0);
-        velocity.values.append(1);
-    }
-
-    const InferAcousticTask::InferAcousticInput input = {
-        piece.clipId(),    piece.id(), inputNotes,  m_singerConfigPath,
-        appModel->tempo(), pitch,      breathiness, tension,
-        voicing,           energy,     gender,      velocity};
+    const auto input = InferControllerHelper::buildInderAcousticInput(piece, m_singerConfigPath);
     if (m_lastInferAcousticInputs.contains(piece.id()))
         if (const auto lastInput = m_lastInferAcousticInputs[piece.id()]; lastInput == input)
             return;
-    // InferControllerHelper::resetVariance(piece);
+    InferControllerHelper::resetAcoustic(piece);
     auto task = new InferAcousticTask(input);
     connect(task, &Task::finished, this, [=] { handleInferAcousticTaskFinished(*task); });
     m_inferAcousticTasks.add(task);
+    piece.acousticInferStatus = Running;
     if (!m_inferAcousticTasks.current)
         runNextInferAcousticTask();
 }

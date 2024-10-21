@@ -30,18 +30,6 @@ private:
     SingingClip *m_clip = nullptr;
     ParamEditorGraphicsView *m_graphicsView;
     ParamEditorInfoArea *m_infoArea;
-
-    const ParamProperties defaultProperties;
-    const PitchParamProperties pitchProperties;
-    const ExprParamProperties exprProperties;
-    const DecibelParamProperties decibelProperties;
-    const TensionParamProperties tensionProperties;
-    const GenderParamProperties genderProperties;
-    const VelocityParamProperties velocityProperties;
-
-    [[nodiscard]] const ParamProperties *getPropertiesByName(ParamInfo::Name name) const;
 };
-
-
 
 #endif // PARAMEDITORVIEW_H

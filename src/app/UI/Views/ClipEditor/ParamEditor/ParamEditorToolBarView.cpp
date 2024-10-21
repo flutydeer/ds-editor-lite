@@ -8,7 +8,7 @@
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/DividerLine.h"
-#include "UI/Utils/ParamNameUtils.h"
+#include "Utils/ParamUtils.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -19,12 +19,12 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
 
     auto lbForegroundParam = new QLabel(tr("Foreground:"));
     auto cbForegroundParam = new ComboBox(true);
-    cbForegroundParam->addItems(paramNameUtils->names());
+    cbForegroundParam->addItems(paramUtils->names());
     cbForegroundParam->removeItem(0); // Remove pitch
 
     auto lbBackgroundParam = new QLabel(tr("Background:"));
     auto cbBackgroundParam = new ComboBox(true);
-    cbBackgroundParam->addItems(paramNameUtils->names());
+    cbBackgroundParam->addItems(paramUtils->names());
     cbBackgroundParam->removeItem(0); // Remove pitch
 
     auto layout = new QHBoxLayout();

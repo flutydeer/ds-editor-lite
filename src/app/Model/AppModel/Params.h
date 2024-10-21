@@ -64,6 +64,7 @@ public:
     Param velocity;
 
     Param *getParamByName(Name name);
+    static bool hasOriginalParam(Name name);
 };
 
 

@@ -74,3 +74,16 @@ Param *ParamInfo::getParamByName(Name name) {
     qFatal() << "Param type out of range" << name;
     return nullptr;
 }
+
+bool ParamInfo::hasOriginalParam(Name name) {
+    switch (name) {
+        case ParamInfo::Pitch:
+        case ParamInfo::Breathiness:
+        case ParamInfo::Voicing:
+        case ParamInfo::Energy:
+        case ParamInfo::Tension:
+            return true;
+        default:
+            return false;
+    }
+}

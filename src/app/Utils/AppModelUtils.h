@@ -6,6 +6,7 @@
 #define APPMODELUTILS_H
 
 #include <QList>
+#include <utility>
 
 class Curve;
 class DrawCurve;
@@ -22,7 +23,11 @@ namespace AppModelUtils {
     void copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target);
     DrawCurveList curvesIn(const DrawCurveList &container, int startTick, int endTick);
     DrawCurveList mergeCurves(const DrawCurveList &original, const DrawCurveList &edited);
+    // 合并自动参数和手绘参数
     DrawCurve getResultCurve(const DrawCurve &original, const DrawCurveList &edited);
+    // 合并仅有手绘的参数（如包络）
+    DrawCurve getResultCurve(std::pair<int, int> tickRange, int baseValue,
+                             const DrawCurveList &edited);
     DrawCurveList getDrawCurves(const QList<Curve *> &curves);
 };
 

@@ -132,6 +132,19 @@ DrawCurve AppModelUtils::getResultCurve(const DrawCurve &original, const DrawCur
     return result;
 }
 
+DrawCurve AppModelUtils::getResultCurve(std::pair<int, int> tickRange, int baseValue,
+                                        const DrawCurveList &edited) {
+    auto startTick = MathUtils::round(tickRange.first, 5);
+    auto endTick = MathUtils::round(tickRange.second,5);
+    DrawCurve baseCurve;
+    baseCurve.setStart(startTick);
+    for (int i = startTick; i < endTick; i += 5)
+        baseCurve.appendValue(baseValue);
+
+    DrawCurve result = getResultCurve(baseCurve, edited);
+    return result;
+}
+
 DrawCurveList AppModelUtils::getDrawCurves(const QList<Curve *> &curves) {
     DrawCurveList result;
     for (const auto curve : curves)

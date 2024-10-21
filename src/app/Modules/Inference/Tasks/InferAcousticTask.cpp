@@ -163,11 +163,11 @@ QString InferAcousticTask::buildInputJson() const {
 
     InferParam gender = param;
     gender.tag = "gender";
-    // gender.values = MathUtils::resample(m_input.gender.values, 5, newInterval);
+    gender.values = MathUtils::resample(m_input.gender.values, 5, newInterval);
 
     InferParam velocity = param;
     velocity.tag = "velocity";
-    // velocity.values = MathUtils::resample(m_input.velocity.values, 5, newInterval);
+    velocity.values = MathUtils::resample(m_input.velocity.values, 5, newInterval);
 
     for (int i = 0; i < frames; i++) {
         gender.values.append(0);

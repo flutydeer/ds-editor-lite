@@ -12,7 +12,7 @@
 
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Utils/ParamNameUtils.h"
+#include "Utils/ParamUtils.h"
 
 #include <QVBoxLayout>
 
@@ -20,8 +20,8 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     auto option = appOptions->general();
     auto foregroundParam = option->defaultForegroundParam;
     auto backgroundParam = option->defaultBackgroundParam;
-    auto foregroundProperties = getPropertiesByName(foregroundParam);
-    auto backgroundProperties = getPropertiesByName(backgroundParam);
+    auto foregroundProperties = paramUtils->getPropertiesByName(foregroundParam);
+    auto backgroundProperties = paramUtils->getPropertiesByName(backgroundParam);
 
     m_infoArea = new ParamEditorInfoArea;
     m_infoArea->setParamProperties(*foregroundProperties);
@@ -64,34 +64,12 @@ ParamEditorGraphicsView *ParamEditorView::graphicsView() const {
 }
 
 void ParamEditorView::onForegroundChanged(ParamInfo::Name name) const {
-    qDebug() << "foreground changed" << paramNameUtils->nameFromType(name);
-    m_infoArea->setParamProperties(*getPropertiesByName(name));
-    m_graphicsView->setForeground(name, *getPropertiesByName(name));
+    qDebug() << "foreground changed" << paramUtils->nameFromType(name);
+    m_infoArea->setParamProperties(*paramUtils->getPropertiesByName(name));
+    m_graphicsView->setForeground(name, *paramUtils->getPropertiesByName(name));
 }
 
 void ParamEditorView::onBackgroundChanged(ParamInfo::Name name) const {
-    qDebug() << "background changed" << paramNameUtils->nameFromType(name);
-    m_graphicsView->setBackground(name, *getPropertiesByName(name));
-}
-
-const ParamProperties *ParamEditorView::getPropertiesByName(ParamInfo::Name name) const {
-    switch (name) {
-        case ParamInfo::Pitch:
-            return &pitchProperties;
-        case ParamInfo::Expressiveness:
-            return &exprProperties;
-        case ParamInfo::Energy:
-        case ParamInfo::Breathiness:
-        case ParamInfo::Voicing:
-            return &decibelProperties;
-        case ParamInfo::Tension:
-            return &tensionProperties;
-        case ParamInfo::Gender:
-            return &genderProperties;
-        case ParamInfo::Velocity:
-            return &velocityProperties;
-        case ParamInfo::Unknown:
-            return &defaultProperties;
-    }
-    return &defaultProperties;
+    qDebug() << "background changed" << paramUtils->nameFromType(name);
+    m_graphicsView->setBackground(name, *paramUtils->getPropertiesByName(name));
 }

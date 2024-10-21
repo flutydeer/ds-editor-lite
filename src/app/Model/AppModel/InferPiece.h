@@ -38,11 +38,13 @@ public:
     DrawCurve inputExpressiveness;
 
     DrawCurve inputPitch;
-
     DrawCurve inputBreathiness;
     DrawCurve inputTension;
     DrawCurve inputVoicing;
     DrawCurve inputEnergy;
+
+    DrawCurve inputGender;
+    DrawCurve inputVelocity;
 
     explicit InferPiece(SingingClip *clip);
 
