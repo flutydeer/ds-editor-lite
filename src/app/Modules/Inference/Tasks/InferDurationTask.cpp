@@ -82,6 +82,7 @@ void InferDurationTask::runTask() {
     QString errorMessage;
     if (!inferEngine->inferDuration(buildInputJson(), resultJson, errorMessage)) {
         qCritical() << "Task failed:" << errorMessage;
+        return;
     }
     if (isTerminateRequested()) {
         abort();

@@ -165,26 +165,34 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask &task)
     m_inferDurTasks.onCurrentFinished();
     runNextInferDurTask();
     auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !task.success() || !clip) {
+    if (task.terminated() || !clip) {
         delete &task;
         return;
     }
 
     auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
     auto piece = singingClip->findPieceById(task.pieceId());
-    auto modelNoteCount = piece->notes.count();
-    auto taskNoteCount = task.result().count();
-    if (modelNoteCount != taskNoteCount) {
-        // piece->acousticInferStatus = Failed;
-        qFatal() << "模型音符数不等于任务音符数"
-                 << "模型音符数：" << modelNoteCount << "任务音符数：" << taskNoteCount;
+    if (!piece) {
+        delete &task;
         return;
     }
-    // 推理成功，保存本次推理的输入以便之后比较
-    m_lastInferDurInputs[task.pieceId()] = task.input();
-    InferControllerHelper::updatePhoneOffset(piece->notes, task.result(), *singingClip);
-    createAndRunInferPitchTask(*piece);
-    // piece->acousticInferStatus = Success;
+
+    if (task.success()) {
+        auto modelNoteCount = piece->notes.count();
+        auto taskNoteCount = task.result().count();
+        if (modelNoteCount != taskNoteCount) {
+            piece->acousticInferStatus = Failed;
+            qFatal() << "模型音符数不等于任务音符数"
+                     << "模型音符数：" << modelNoteCount << "任务音符数：" << taskNoteCount;
+            return;
+        }
+        // 推理成功，保存本次推理的输入以便之后比较
+        m_lastInferDurInputs[task.pieceId()] = task.input();
+        InferControllerHelper::updatePhoneOffset(piece->notes, task.result(), *singingClip);
+        createAndRunInferPitchTask(*piece);
+    } else
+        piece->acousticInferStatus = Failed;
+
     delete &task;
 }
 
@@ -199,7 +207,7 @@ void InferControllerPrivate::handleInferPitchTaskFinished(InferPitchTask &task) 
 
     auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
     auto piece = singingClip->findPieceById(task.pieceId());
-    if (!piece || !task.success()) {
+    if (!piece) {
         delete &task;
         return;
     }
