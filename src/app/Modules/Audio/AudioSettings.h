@@ -51,6 +51,7 @@ class AudioSettings {
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(audioExporterClippingCheckEnabled, setAudioExporterClippingCheckEnabled, bool)
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(audioExporterCurrentPreset, setAudioExporterCurrentPreset, QJsonValue)
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(audioExporterIgnoredWarningFlag, setAudioExporterIgnoredWarningFlag, int)
+    AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(audioExporterUseTemporaryFile, setAudioExporterUseTemporaryFile, bool)
 
 };
 
