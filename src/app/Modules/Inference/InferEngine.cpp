@@ -14,6 +14,8 @@
 #include <dsonnxinfer/PitchInference.h>
 #include <dsonnxinfer/VarianceInference.h>
 
+#include "Utils/BasePitchCurve.h"
+
 #include <QDebug>
 
 InferEngine::InferEngine() {
@@ -185,11 +187,27 @@ bool InferEngine::inferPitch(const QString &input, QString &output, QString &err
         return false;
     }
 
-    // Run pitch inference. The segment will be modified in-place.
-    if (!m_pitchInfer->runInPlace(segment, &s)) {
-        qCritical() << "Failed to run pitch inference: " << s.msg;
-        return false;
-    }
+    constexpr double timestep = 0.01161;
+
+    const BasePitchCurve pitchCurve(segment);
+
+    std::vector<double> pitchPoints = pitchCurve.GetPitchPoints(timestep);
+
+    auto &[tag, sample_curve, retake_start, retake_end] = segment.parameters["pitch"];
+    sample_curve.samples.resize(pitchPoints.size());
+    std::copy(pitchPoints.begin(), pitchPoints.end(), sample_curve.samples.begin());
+    tag = "pitch";
+    sample_curve.timestep = timestep;
+    retake_start = 0;
+    retake_end = pitchPoints.size();
+
+    qDebug() << "Pitch Points:" << pitchPoints;
+
+    // // Run pitch inference. The segment will be modified in-place.
+    // if (!m_pitchInfer->runInPlace(segment, &s)) {
+    //     qCritical() << "Failed to run pitch inference: " << s.msg;
+    //     return false;
+    // }
 
     output = QString::fromStdString(segment.toJson());
     return true;
