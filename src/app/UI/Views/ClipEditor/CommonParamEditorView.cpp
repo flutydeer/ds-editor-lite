@@ -176,19 +176,48 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         // 绘制填充图形
         painter->setPen(Qt::NoPen);
         if (foreground) {
-            QLinearGradient gradient(0, 0, 0, visibleRect().height());
-            gradient.setColorAt(0, QColor(155, 186, 255, 200));
-            gradient.setColorAt(1, QColor(155, 186, 255, 10));
-            painter->setBrush(gradient);
+            if (m_properties->displayMode == ParamProperties::DisplayMode::FillFromBottom) {
+                QLinearGradient gradient(0, 0, 0, visibleRect().height());
+                gradient.setColorAt(0, QColor(155, 186, 255, 200));
+                gradient.setColorAt(1, QColor(155, 186, 255, 10));
+                painter->setBrush(gradient);
+            } else if (m_properties->displayMode == ParamProperties::DisplayMode::FillFromDefault) {
+                // gradient.setColorAt(0, QColor(155, 186, 255, 200));
+                // auto defaultValue =
+                // m_properties->valueToNormalized(m_properties->defaultValue);
+                // gradient.setColorAt(defaultValue, QColor(155, 186, 255, 80));
+                // gradient.setColorAt(1, QColor(155, 186, 255, 200));
+                painter->setBrush(QColor(155, 186, 255, 120));
+            }
         } else {
             painter->setBrush(QColor(40, 40, 40));
         }
 
-        auto curves = AppModelUtils::mergeCurves(m_drawCurvesOriginal, m_drawCurvesEdited);
+        DrawCurveList base;
+        DrawCurve *baseCurve = nullptr;
+        if (m_properties->valueType == ParamProperties::ValueType::Relative) {
+            int start = MathUtils::roundDown(qRound(startTick()), 5);
+            int end = MathUtils::round(qRound(endTick()), 5) + 5;
+            baseCurve = new DrawCurve(-1);
+            baseCurve->setStart(start);
+            for (int i = start; i <= end; i += 5)
+                baseCurve->appendValue(m_properties->defaultValue);
+            base = {baseCurve};
+        } else
+            base = m_drawCurvesOriginal;
+        auto overlay = m_drawCurvesEdited;
+        auto curves = AppModelUtils::mergeCurves(base, overlay);
         if (!curves.isEmpty()) {
             drawCurvePolygon(painter, curves);
             for (auto curve : curves)
                 delete curve;
+        }
+
+        if (baseCurve && m_properties->showDefaultValue) {
+            painter->setBrush(Qt::NoBrush);
+            pen.setColor(foreground ? QColor(155, 186, 255) : QColor(40, 40, 40));
+            painter->setPen(pen);
+            drawCurveBorder(painter, base);
         }
 
         // 绘制已编辑描边
@@ -424,10 +453,13 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
         auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve.step),
                                          valueToItemY(curve.values().at(startIndex)));
 
-        auto sceneHeight = scene()->height();
+        auto fillFromBottom =
+            m_properties->displayMode == ParamProperties::DisplayMode::FillFromBottom;
+        auto defaultValue = m_properties->defaultValue;
+        auto baseValue = fillFromBottom ? scene()->height() : valueToItemY(defaultValue);
 
         QPainterPath fillPath;
-        fillPath.moveTo(visibleFirstPoint.x(), sceneHeight);
+        fillPath.moveTo(visibleFirstPoint.x(), baseValue);
         fillPath.lineTo(visibleFirstPoint);
         double lastX = 0;
         double lastLineToX = visibleFirstPoint.x();
@@ -449,7 +481,7 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
             if (breakFlag)
                 break;
         }
-        fillPath.lineTo(lastX, sceneHeight);
+        fillPath.lineTo(lastX, baseValue);
         painter->drawPath(fillPath);
     };
 
