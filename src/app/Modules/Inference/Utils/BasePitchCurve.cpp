@@ -1,5 +1,11 @@
 #include "BasePitchCurve.h"
-#include <corecrt_math_defines.h>
+
+#include <algorithm>
+#include <cmath>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 void BasePitchCurve::Convolve(const std::vector<NoteInSeconds> &noteArray) {
     const int totalPoints = static_cast<int>(std::round(1000 * (noteArray.back().End + 0.12))) + 1;
