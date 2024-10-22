@@ -18,6 +18,7 @@ public:
     int maximum = 1'000;
     QString unit;
     int defaultValue = 0;
+    bool showDefaultValue = false;
     bool showDivision = true;
     int divisionValue = 200;
     int displayPrecision = 3;

@@ -119,6 +119,8 @@ bool InferEngine::runLoadConfig(const QString &path) {
     auto pitchConfigPath =
         std::filesystem::path(dsConfigPath).parent_path() / "dspitch" / "dsconfig.yaml";
     auto pitchConfig = DsPitchConfig::fromYAML(pitchConfigPath, &loadDsConfigOk);
+    // bool expr = pitchConfig.features & kfParamExpr;
+    // qDebug() << "expr" << expr;
 
     auto varianceConfigPath =
         std::filesystem::path(dsConfigPath).parent_path() / "dsvariance" / "dsconfig.yaml";

@@ -64,6 +64,7 @@ GenderParamProperties::GenderParamProperties() {
     displayMode = DisplayMode::FillFromDefault;
     minimum = -1'000;
     defaultValue = 0;
+    showDefaultValue = true;
 }
 
 VelocityParamProperties::VelocityParamProperties() {
@@ -73,6 +74,7 @@ VelocityParamProperties::VelocityParamProperties() {
     maximum = 2'000;
     defaultValue = 1'000;
     divisionValue = 250;
+    showDefaultValue = true;
 }
 
 int VelocityParamProperties::valueFromNormalized(double normalized) const {

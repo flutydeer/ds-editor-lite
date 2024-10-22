@@ -195,6 +195,12 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask &task)
         // 推理成功，保存本次推理的输入以便之后比较
         m_lastInferDurInputs[task.pieceId()] = task.input();
         InferControllerHelper::updatePhoneOffset(piece->notes, task.result(), *singingClip);
+
+        // TODO: 可能需要将更新相对参数的方法提取出来
+        InferControllerHelper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Expressiveness, *singingClip);
+        InferControllerHelper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Gender, *singingClip);
+        InferControllerHelper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Velocity, *singingClip);
+
         createAndRunInferPitchTask(*piece);
     } else
         piece->acousticInferStatus = Failed;

@@ -131,7 +131,7 @@ QString InferPitchTask::buildInputJson() const {
     param.retake = retake;
 
     InferParam expr = param;
-    expr.tag = "expressiveness";
+    expr.tag = "expr";
     expr.values = MathUtils::resample(m_input.expressiveness.values, 5, newInterval);
 
     InferParam pitch = param;
@@ -147,13 +147,11 @@ QString InferPitchTask::buildInputJson() const {
 }
 
 bool InferPitchTask::processOutput(const QString &json) {
-    // QByteArray data = json.toUtf8();
-    // auto object = QJsonDocument::fromJson(data).object();
-    // JsonUtils::save(QString("infer-pitch-output-%1.json").arg(id()), object);
-
     GenericInferModel model;
     if (!model.deserializeFromJson(json))
         return false;
+
+    JsonUtils::save(QString("temp/infer-pitch-output-%1.json").arg(id()), model.serialize());
 
     auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
     auto oriPitch = Linq::where(model.params, L_PRED(p, p.tag == "pitch")).first();
