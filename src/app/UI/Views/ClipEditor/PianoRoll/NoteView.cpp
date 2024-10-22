@@ -246,8 +246,9 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         textOption.setWrapMode(QTextOption::NoWrap);
 
         if (qMax(lyricTextWidth, pronTextWidth) < textRectWidth && textHeight < textRectHeight) {
-            // draw lryic
+            // draw lyric
             painter->drawText(textRect, m_lyric, textOption);
+            // qDebug() << "Draw Lyric";
             // draw pronunciation
             pen.setColor(m_pronunciationEdited ? pronunciationTextColorEdited
                                                : pronunciationTextColorOriginal);
