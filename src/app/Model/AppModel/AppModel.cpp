@@ -259,6 +259,8 @@ bool AppModel::importMidiFile(const QString &filename) {
                                    static_cast<IProjectConverter::ImportMode>(midiImport));
     Log::i("Midi importer", errMsg);
     if (midiImport == ImportMode::NewProject) {
+        setTimeSignature(resultModel.timeSignature());
+        setTempo(resultModel.tempo());
         loadFromAppModel(resultModel);
     } else if (midiImport == ImportMode::AppendToProject) {
         setTimeSignature(resultModel.timeSignature());
