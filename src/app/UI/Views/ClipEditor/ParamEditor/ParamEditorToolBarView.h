@@ -9,6 +9,8 @@
 
 #include <QWidget>
 
+class ComboBox;
+class QLabel;
 class SingingClip;
 
 class ParamEditorToolBarView final : public QWidget {
@@ -24,9 +26,14 @@ signals:
 private slots:
     void onForegroundSelectionChanged(int index);
     void onBackgroundSelectionChanged(int index);
+    void onSwap() const;
 
 private:
     SingingClip *m_clip = nullptr;
+    QLabel *lbForegroundParam;
+    ComboBox *cbForegroundParam;
+    QLabel *lbBackgroundParam;
+    ComboBox *cbBackgroundParam;
 };
 
 

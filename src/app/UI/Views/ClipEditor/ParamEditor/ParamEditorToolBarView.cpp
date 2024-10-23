@@ -17,19 +17,22 @@
 ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
 
-    auto lbForegroundParam = new QLabel(tr("Foreground:"));
-    auto cbForegroundParam = new ComboBox(true);
+    lbForegroundParam = new QLabel(tr("Foreground:"));
+    cbForegroundParam = new ComboBox(true);
     cbForegroundParam->addItems(paramUtils->names());
     cbForegroundParam->removeItem(0); // Remove pitch
 
-    auto lbBackgroundParam = new QLabel(tr("Background:"));
-    auto cbBackgroundParam = new ComboBox(true);
+    auto btnSwap = new Button(tr("Swap"));
+
+    lbBackgroundParam = new QLabel(tr("Background:"));
+    cbBackgroundParam = new ComboBox(true);
     cbBackgroundParam->addItems(paramUtils->names());
     cbBackgroundParam->removeItem(0); // Remove pitch
 
     auto layout = new QHBoxLayout();
     layout->addWidget(lbForegroundParam);
     layout->addWidget(cbForegroundParam);
+    layout->addWidget(btnSwap);
     layout->addWidget(lbBackgroundParam);
     layout->addWidget(cbBackgroundParam);
     // layout->addWidget(new DividerLine(Qt::Vertical));
@@ -48,6 +51,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
             &ParamEditorToolBarView::onForegroundSelectionChanged);
     connect(cbBackgroundParam, &ComboBox::currentIndexChanged, this,
             &ParamEditorToolBarView::onBackgroundSelectionChanged);
+    connect(btnSwap, &Button::clicked, this, &ParamEditorToolBarView::onSwap);
 
     cbForegroundParam->setCurrentIndex(appOptions->general()->defaultForegroundParam - 1);
     cbBackgroundParam->setCurrentIndex(appOptions->general()->defaultBackgroundParam - 1);
@@ -59,4 +63,10 @@ void ParamEditorToolBarView::onForegroundSelectionChanged(int index) {
 
 void ParamEditorToolBarView::onBackgroundSelectionChanged(int index) {
     emit backgroundChanged(static_cast<ParamInfo::Name>(index + 1));
+}
+
+void ParamEditorToolBarView::onSwap() const {
+    int temp = cbForegroundParam->currentIndex();
+    cbForegroundParam->setCurrentIndex(cbBackgroundParam->currentIndex());
+    cbBackgroundParam->setCurrentIndex(temp);
 }
