@@ -38,6 +38,7 @@ SingingClipView::SingingClipView(int itemId, QGraphicsItem *parent)
 }
 
 SingingClipView::~SingingClipView() {
+    disconnect();
     dispose();
 }
 

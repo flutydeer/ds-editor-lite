@@ -57,11 +57,6 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     auto gBar = m_graphicsView->verticalScrollBar();
     auto lBar = m_trackListView->verticalScrollBar();
 
-    // auto splitter = new QSplitter;
-    // splitter->setOrientation(Qt::Horizontal);
-    // splitter->addWidget(tracklist);
-    // splitter->addWidget(m_graphicsView);
-
     auto trackListPanelLayout = new QVBoxLayout;
     trackListPanelLayout->addWidget(new TrackListHeaderView);
     trackListPanelLayout->addWidget(m_trackListView);
@@ -72,7 +67,6 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->setSpacing(0);
-    // layout->addWidget(splitter);
     mainLayout->addLayout(trackListPanelLayout);
     mainLayout->addLayout(trackTimelineAndViewLayout);
     mainLayout->setContentsMargins({1, 1, 1, 1});
@@ -117,37 +111,36 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 }
 
 void TrackEditorView::onModelChanged() {
-    if (m_tracksScene == nullptr)
-        return;
-
-    reset();
+    for (auto i = m_viewModel.tracks.count() - 1; i >= 0; i--) {
+        auto track = m_viewModel.tracks.at(i)->dsTrack;
+        onTrackRemoved(track, i);
+    }
     int index = 0;
     for (const auto track : appModel->tracks()) {
-        insertTrackToView(track, index);
+        onTrackInserted(track, index);
         index++;
     }
-    emit trackCountChanged(m_trackListViewModel.tracks.count());
+    emit trackCountChanged(m_viewModel.tracks.count());
 }
 
-void TrackEditorView::onTrackChanged(AppModel::TrackChangeType type, int index) {
-    if (type == AppModel::Insert) {
-        insertTrackToView(appModel->tracks().at(index), index);
-    } else if (type == AppModel::Remove) {
-        trackController->setActiveClip(-1);
-        removeTrackFromView(index);
-    }
-    emit trackCountChanged(m_trackListViewModel.tracks.count());
+void TrackEditorView::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
+                                     Track *track) {
+    if (type == AppModel::Insert)
+        onTrackInserted(track, index);
+    else if (type == AppModel::Remove)
+        onTrackRemoved(track, index);
+    emit trackCountChanged(m_viewModel.tracks.count());
 }
 
-void TrackEditorView::onClipChanged(Track::ClipChangeType type, Clip *clip) {
+void TrackEditorView::onClipChanged(Track::ClipChangeType type, Clip *clip, Track *dsTrack) {
+    auto trackVm = m_viewModel.findTrack(dsTrack);
+    Q_ASSERT(trackVm);
     if (type == Track::Inserted) {
         int trackIndex;
-        appModel->findClipById(clip->id(), trackIndex);
-        auto track = m_trackListViewModel.tracks.at(trackIndex);
-        insertClipToTrack(clip, track, trackIndex);
-        connect(clip, &Clip::propertyChanged, this, [=] { updateClipOnView(clip); });
+        appModel->findTrackById(dsTrack->id(), trackIndex);
+        onClipInserted(clip, trackVm, trackIndex);
     } else if (type == Track::Removed) {
-        removeClipFromView(clip->id());
+        onClipRemoved(clip, trackVm);
     }
 }
 
@@ -160,36 +153,17 @@ void TrackEditorView::onLastPositionChanged(double tick) {
 }
 
 void TrackEditorView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const {
-    if (m_trackListViewModel.tracks.isEmpty())
+    if (m_viewModel.tracks.isEmpty())
         return;
 
     auto states = args.trackMeterStates;
-    for (int i = 0; i < qMin(states.size(), m_trackListViewModel.tracks.size()); i++) {
+    for (int i = 0; i < qMin(states.size(), m_viewModel.tracks.size()); i++) {
         auto state = states.at(i);
-        auto meter = m_trackListViewModel.tracks.at(i)->controlView->levelMeter();
+        auto meter = m_viewModel.tracks.at(i)->controlView->levelMeter();
         meter->setValue(state.valueL, state.valueR);
     }
 }
 
-// void TrackEditorView::onSceneSelectionChanged() const {
-//     // find selected clip (the first one)
-//     bool foundSelectedClip = false;
-//     for (int i = 0; i < m_trackListViewModel.tracks.count(); i++) {
-//         auto track = m_trackListViewModel.tracks.at(i);
-//         for (int j = 0; j < track->clips.count(); j++) {
-//             auto clip = track->clips.at(j);
-//             if (clip->isSelected()) {
-//                 foundSelectedClip = true;
-//                 trackController->selectClip(clip->id());
-//                 break;
-//             }
-//         }
-//         if (foundSelectedClip)
-//             break;
-//     }
-//     if (!foundSelectedClip)
-//         trackController->selectClip(-1);
-// }
 void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) const {
     int previousHeightSum = 0;
     for (int i = 0; i < m_trackListView->count(); i++) {
@@ -199,7 +173,7 @@ void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) const {
         item->setSizeHint(QSize(TracksEditorGlobal::trackListWidth, height));
 
         // hide pan and gain slider when sy is too small
-        auto widget = m_trackListViewModel.tracks.at(i)->controlView;
+        auto widget = m_viewModel.tracks.at(i)->controlView;
         widget->setNarrowMode(sy < TracksEditorGlobal::narrowModeScaleY);
         previousHeightSum += height;
     }
@@ -236,21 +210,21 @@ bool TrackEditorView::eventFilter(QObject *watched, QEvent *event) {
     return QWidget::eventFilter(watched, event);
 }
 
-TrackViewModel *TrackEditorView::TrackListViewModel::findTrackById(int id) {
-    for (const auto track : tracks) {
-        if (track->id() == id)
-            return track;
-    }
+TrackViewModel *TrackEditorView::ViewModel::findTrack(Track *dsTrack) {
+    for (const auto trackVm : tracks)
+        if (trackVm->dsTrack == dsTrack)
+            return trackVm;
     return nullptr;
 }
 
-void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
-    connect(dsTrack, &Track::propertyChanged, this, [=] { updateTracksOnView(); });
-    connect(dsTrack, &Track::clipChanged, this, &TrackEditorView::onClipChanged);
+void TrackEditorView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
+    connect(dsTrack, &Track::propertyChanged, this, [=] { onTrackPropertyChanged(); });
+    connect(dsTrack, &Track::clipChanged, this,
+            [=](Track::ClipChangeType type, Clip *clip) { onClipChanged(type, clip, dsTrack); });
 
-    auto track = new TrackViewModel(dsTrack->id());
+    auto track = new TrackViewModel(dsTrack);
     for (auto clip : dsTrack->clips()) {
-        insertClipToTrack(clip, track, trackIndex);
+        onClipInserted(clip, track, trackIndex);
     }
     auto newTrackItem = new QListWidgetItem;
     auto controlView = new TrackControlView(newTrackItem, dsTrack);
@@ -269,22 +243,22 @@ void TrackEditorView::insertTrackToView(Track *dsTrack, int trackIndex) {
     });
     connect(controlView, &TrackControlView::removeTrackTriggered, this,
             &TrackEditorView::onRemoveTrackTriggered);
-    m_trackListViewModel.tracks.insert(trackIndex, track);
-    if (trackIndex < m_trackListViewModel.tracks.count()) // needs to update existed tracks' index
-        for (int i = trackIndex + 1; i < m_trackListViewModel.tracks.count(); i++) {
+    m_viewModel.tracks.insert(trackIndex, track);
+    if (trackIndex < m_viewModel.tracks.count()) // needs to update existed tracks' index
+        for (int i = trackIndex + 1; i < m_viewModel.tracks.count(); i++) {
             // Update track list items' index
             auto item = m_trackListView->item(i);
             auto widget = m_trackListView->itemWidget(item);
             auto trackWidget = dynamic_cast<TrackControlView *>(widget);
             trackWidget->setTrackIndex(i + 1);
             // Update clips' index
-            for (auto &clipItem : m_trackListViewModel.tracks.at(i)->clips) {
+            for (auto &clipItem : m_viewModel.tracks.at(i)->clips) {
                 clipItem->setTrackIndex(i);
             }
         }
 }
 
-void TrackEditorView::insertClipToTrack(Clip *clip, TrackViewModel *track, int trackIndex) {
+void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, int trackIndex) {
     if (clip->clipType() == Clip::Audio) {
         auto audioClip = reinterpret_cast<AudioClip *>(clip);
         insertAudioClip(audioClip, track, trackIndex);
@@ -308,48 +282,44 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
             &SingingClipView::setDefaultLanguage);
     connect(clip, &SingingClip::noteChanged, clipView, &SingingClipView::onNoteListChanged);
     connect(appStatus, &AppStatus::quantizeChanged, clipView, &AbstractClipView::setQuantize);
-    track->clips.append(clipView);
+    track->clips[clip] = clipView;
 }
 
 void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, int trackIndex) {
-    auto clipItem = new AudioClipView(clip->id());
-    clipItem->loadCommonProperties(Clip::ClipCommonProperties(*clip));
-    clipItem->setTrackIndex(trackIndex);
-    clipItem->setPath(clip->path());
-    clipItem->setTempo(appModel->tempo());
-    clipItem->setAudioInfo(clip->audioInfo());
-    m_tracksScene->addCommonItem(clipItem);
-    qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
-    connect(appModel, &AppModel::tempoChanged, clipItem, &AudioClipView::onTempoChange);
-    connect(appStatus, &AppStatus::quantizeChanged, clipItem, &AbstractClipView::setQuantize);
-    track->clips.append(clipItem);
+    auto clipView = new AudioClipView(clip->id());
+    clipView->loadCommonProperties(Clip::ClipCommonProperties(*clip));
+    clipView->setTrackIndex(trackIndex);
+    clipView->setPath(clip->path());
+    clipView->setTempo(appModel->tempo());
+    clipView->setAudioInfo(clip->audioInfo());
+    m_tracksScene->addCommonItem(clipView);
+    qDebug() << "Audio clip graphics item added to scene" << clipView->id() << clipView->name();
+    connect(appModel, &AppModel::tempoChanged, clipView, &AudioClipView::onTempoChange);
+    connect(appStatus, &AppStatus::quantizeChanged, clipView, &AbstractClipView::setQuantize);
+    track->clips[clip] = clipView;
 }
 
-void TrackEditorView::removeClipFromView(int clipId) {
-    auto clipView = findClipItemById(clipId);
+void TrackEditorView::onClipRemoved(Clip *clip, TrackViewModel *track) {
+    qInfo() << "removeClipFromView" << clip->id();
+    disconnect(clip, nullptr, this, nullptr);
+    auto clipView = findClipItemById(clip->id());
     m_tracksScene->removeCommonItem(clipView);
-    for (const auto &track : m_trackListViewModel.tracks) {
-        if (track->clips.contains(clipView)) {
-            track->clips.removeOne(clipView);
-            delete clipView;
-            break;
-        }
-    }
-    // delete clipView;
+    track->clips.remove(clip);
+    delete clipView;
 }
 
 AbstractClipView *TrackEditorView::findClipItemById(int id) {
-    for (const auto &track : m_trackListViewModel.tracks)
+    for (const auto &track : m_viewModel.tracks)
         for (const auto clip : track->clips)
             if (clip->id() == id)
                 return clip;
     return nullptr;
 }
 
-void TrackEditorView::updateTracksOnView() const {
+void TrackEditorView::onTrackPropertyChanged() const {
     auto tracksModel = appModel->tracks();
-    for (int i = 0; i < m_trackListViewModel.tracks.count(); i++) {
-        auto widget = m_trackListViewModel.tracks.at(i)->controlView;
+    for (int i = 0; i < m_viewModel.tracks.count(); i++) {
+        auto widget = m_viewModel.tracks.at(i)->controlView;
         auto track = tracksModel.at(i);
         widget->setName(track->name());
         widget->setControl(track->control());
@@ -377,48 +347,34 @@ void TrackEditorView::updateClipOnView(Clip *clip) {
     }
 }
 
-void TrackEditorView::removeTrackFromView(int index) {
+void TrackEditorView::onTrackRemoved(Track *dsTrack, qsizetype index) {
+    disconnect(dsTrack, nullptr, this, nullptr);
     // disconnect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
     //            &TrackEditorView::onSceneSelectionChanged);
     // remove from view
-    auto track = m_trackListViewModel.tracks.at(index);
-    for (auto clip : track->clips) {
-        m_tracksScene->removeCommonItem(clip);
-        delete clip;
-    }
+    auto trackVm = m_viewModel.tracks.at(index);
+    auto keys = trackVm->clips.keys();
+    for (const auto &key : keys)
+        onClipRemoved(key, trackVm);
     auto item = m_trackListView->takeItem(index);
     m_trackListView->removeItemWidget(item);
     delete item;
-    // remove from viewmodel
-    m_trackListViewModel.tracks.removeAt(index);
-    delete track;
+    // remove from view model
+    m_viewModel.tracks.removeAt(index);
+    delete trackVm;
     // update index
-    if (index < m_trackListViewModel.tracks.count()) // needs to update existed tracks' index
-        for (int i = index; i < m_trackListViewModel.tracks.count(); i++) {
+    if (index < m_viewModel.tracks.count()) // needs to update existed tracks' index
+        for (int i = index; i < m_viewModel.tracks.count(); i++) {
             // Update track list items' index
             auto widgetItem = m_trackListView->item(i);
             auto widget = m_trackListView->itemWidget(widgetItem);
             auto trackWidget = dynamic_cast<TrackControlView *>(widget);
             trackWidget->setTrackIndex(i + 1);
             // Update clips' index
-            for (auto &clipItem : m_trackListViewModel.tracks.at(i)->clips) {
+            for (auto &clipItem : m_viewModel.tracks.at(i)->clips) {
                 clipItem->setTrackIndex(i);
             }
         }
-    // connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
-    //         &TrackEditorView::onSceneSelectionChanged);
-}
-
-void TrackEditorView::reset() {
-    // disconnect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
-    //         &TrackEditorView::onSceneSelectionChanged);
-    for (auto &track : m_trackListViewModel.tracks)
-        for (auto clip : track->clips) {
-            m_tracksScene->removeCommonItem(clip);
-            delete clip;
-        }
-    m_trackListView->clear();
-    m_trackListViewModel.tracks.clear();
     // connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
     //         &TrackEditorView::onSceneSelectionChanged);
 }

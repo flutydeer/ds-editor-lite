@@ -30,8 +30,8 @@ public:
 
 public slots:
     void onModelChanged();
-    void onTrackChanged(AppModel::TrackChangeType type, int index);
-    void onClipChanged(Track::ClipChangeType type, Clip *clip);
+    void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
+    void onClipChanged(Track::ClipChangeType type, Clip *clip, Track *dsTrack);
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
     void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const;
@@ -55,24 +55,22 @@ private:
     TimelineView *m_timeline;
     TracksBackgroundGraphicsItem *m_gridItem;
 
-    class TrackListViewModel {
+    class ViewModel {
     public:
         QList<TrackViewModel *> tracks;
-
-        TrackViewModel *findTrackById(int id);
+        TrackViewModel *findTrack(Track *dsTrack);
     };
 
-    TrackListViewModel m_trackListViewModel;
+    ViewModel m_viewModel;
 
-    void insertTrackToView(Track *dsTrack, int trackIndex);
-    void insertClipToTrack(Clip *clip, TrackViewModel *track, int trackIndex);
+    void onTrackInserted(Track *dsTrack, qsizetype trackIndex);
+    void onClipInserted(Clip *clip, TrackViewModel *track, int trackIndex);
     void insertSingingClip(SingingClip *clip, TrackViewModel *track, int trackIndex);
     void insertAudioClip(AudioClip *clip, TrackViewModel *track, int trackIndex);
-    void removeClipFromView(int clipId);
-    void updateTracksOnView() const;
+    void onClipRemoved(Clip *clip,TrackViewModel *track);
+    void onTrackPropertyChanged() const;
     void updateClipOnView(Clip *clip);
-    void removeTrackFromView(int index);
-    void reset();
+    void onTrackRemoved(Track *dsTrack, qsizetype index);
 };
 
 

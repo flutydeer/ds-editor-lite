@@ -5,20 +5,21 @@
 #ifndef TRACKVIEWMODEL_H
 #define TRACKVIEWMODEL_H
 
-#include <QObject>
-#include "Utils/UniqueObject.h"
+#include <QList>
 
+class Track;
 class TrackControlView;
+class AbstractClipView;
 
-class TrackViewModel : public QObject, public UniqueObject {
-    Q_OBJECT
+class TrackViewModel final {
 public:
-    explicit TrackViewModel(int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
+    explicit TrackViewModel(Track *track) : dsTrack(track) {
     }
 
+    Track *dsTrack;
     TrackControlView *controlView = nullptr;
     bool isSelected = false;
-    QList<AbstractClipView *> clips;
+    QMap<Clip *,AbstractClipView *> clips = {};
 };
 
 
