@@ -52,14 +52,14 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnNotePencil =
         d->buildToolButton("btnNotePencil", tr("Draw Note"), Qt::Key_N, notePencilDesc);
     d->m_btnNoteEraser = d->buildToolButton("btnNoteEraser", tr("Erase Note"), Qt::Key_M);
-    d->m_btnPitchAnchor = d->buildToolButton("btnPitchAnchor", tr("Pitch Anchor"), Qt::Key_F);
+    // d->m_btnPitchAnchor = d->buildToolButton("btnPitchAnchor", tr("Pitch Anchor"), Qt::Key_F);
     auto pitchPencilDesc = tr("Left drag: Draw\nRight drag: Erase");
     d->m_btnPitchPencil =
         d->buildToolButton("btnPitchPencil", tr("Draw Pitch"), Qt::Key_G, pitchPencilDesc);
     d->m_btnPitchEraser = d->buildToolButton("btnPitchEraser", tr("Erase Pitch"), Qt::Key_H);
     auto freezePitchDesc = tr("Copy automatic pitch inference results to edited pitch");
-    d->m_btnFreezePitch =
-        d->buildToolButton("btnFreezePitch", tr("Freeze Pitch"), Qt::Key_J, freezePitchDesc);
+    // d->m_btnFreezePitch =
+    //     d->buildToolButton("btnFreezePitch", tr("Freeze Pitch"), Qt::Key_J, freezePitchDesc);
 
     d->m_toolButtonGroup = new QButtonGroup;
     d->m_toolButtonGroup->setExclusive(true);
@@ -67,40 +67,40 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_toolButtonGroup->addButton(d->m_btnBeam);
     d->m_toolButtonGroup->addButton(d->m_btnNotePencil);
     d->m_toolButtonGroup->addButton(d->m_btnNoteEraser);
-    d->m_toolButtonGroup->addButton(d->m_btnPitchAnchor);
+    // d->m_toolButtonGroup->addButton(d->m_btnPitchAnchor);
     d->m_toolButtonGroup->addButton(d->m_btnPitchPencil);
     d->m_toolButtonGroup->addButton(d->m_btnPitchEraser);
-    d->m_toolButtonGroup->addButton(d->m_btnFreezePitch);
+    // d->m_toolButtonGroup->addButton(d->m_btnFreezePitch);
     connect(d->m_toolButtonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
 
-    auto sbGain = new SVS::SeekBar;
-    // sbGain->setObjectName("m_sbarGain");
-    sbGain->setMaximum(100); // +6dB
-    sbGain->setMinimum(0);   // -inf
-    sbGain->setDefaultValue(79.4328234724);
-    sbGain->setValue(79.4328234724);
-    sbGain->setTracking(false);
-    sbGain->setFixedWidth(d->m_contentHeight * 4);
+    // auto sbGain = new SVS::SeekBar;
+    // // sbGain->setObjectName("m_sbarGain");
+    // sbGain->setMaximum(100); // +6dB
+    // sbGain->setMinimum(0);   // -inf
+    // sbGain->setDefaultValue(79.4328234724);
+    // sbGain->setValue(79.4328234724);
+    // sbGain->setTracking(false);
+    // sbGain->setFixedWidth(d->m_contentHeight * 4);
 
-    auto leGain = new EditLabel();
-    leGain->setText("0.0dB");
-    leGain->setObjectName("leGain");
-    leGain->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    leGain->label->setAlignment(Qt::AlignCenter);
-    leGain->setFixedWidth(d->m_contentHeight * 2);
-    leGain->setFixedHeight(d->m_contentHeight);
-    leGain->setEnabled(false);
+    // auto leGain = new EditLabel();
+    // leGain->setText("0.0dB");
+    // leGain->setObjectName("leGain");
+    // leGain->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    // leGain->label->setAlignment(Qt::AlignCenter);
+    // leGain->setFixedWidth(d->m_contentHeight * 2);
+    // leGain->setFixedHeight(d->m_contentHeight);
+    // leGain->setEnabled(false);
 
-    auto btnMute = d->buildToolButton("btnMute", tr("Mute or unmute clip"));
-    btnMute->setText("M");
+    // auto btnMute = d->buildToolButton("btnMute", tr("Mute or unmute clip"));
+    // btnMute->setText("M");
 
-    auto btnPhonemeView = d->buildToolButton("btnPhonemeView", tr("Toggle phoneme editor"));
-    btnPhonemeView->setChecked(true);
+    // auto btnPhonemeView = d->buildToolButton("btnPhonemeView", tr("Toggle phoneme editor"));
+    // btnPhonemeView->setChecked(true);
 
-    auto btnParamView = d->buildToolButton("btnParamView", tr("Toggle param editor"));
-    btnParamView->setChecked(true);
+    // auto btnParamView = d->buildToolButton("btnParamView", tr("Toggle param editor"));
+    // btnParamView->setChecked(true);
 
     auto btnMaximize = d->buildToolButton("btnPanelMaximize", tr("Maximize or restore"));
     connect(btnMaximize, &Button::clicked, this, [=] {
@@ -118,10 +118,10 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(d->m_leClipName);
-    mainLayout->addWidget(btnMute);
-    mainLayout->addWidget(sbGain);
-    mainLayout->addWidget(leGain);
-    mainLayout->addWidget(new DividerLine(Qt::Vertical));
+    // mainLayout->addWidget(btnMute);
+    // mainLayout->addWidget(sbGain);
+    // mainLayout->addWidget(leGain);
+    // mainLayout->addWidget(new DividerLine(Qt::Vertical));
     mainLayout->addWidget(d->m_cbClipLanguage);
     mainLayout->addWidget(new DividerLine(Qt::Vertical));
     mainLayout->addWidget(d->m_btnArrow);
@@ -129,15 +129,14 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     mainLayout->addWidget(d->m_btnNotePencil);
     mainLayout->addWidget(d->m_btnNoteEraser);
     mainLayout->addWidget(new DividerLine(Qt::Vertical));
-    mainLayout->addWidget(d->m_btnPitchAnchor);
+    // mainLayout->addWidget(d->m_btnPitchAnchor);
     mainLayout->addWidget(d->m_btnPitchPencil);
     mainLayout->addWidget(d->m_btnPitchEraser);
-    mainLayout->addWidget(d->m_btnFreezePitch);
-    mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
-    mainLayout->addWidget(btnPhonemeView);
-    mainLayout->addWidget(btnParamView);
-    // mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
-    mainLayout->addWidget(new DividerLine(Qt::Vertical));
+    // mainLayout->addWidget(d->m_btnFreezePitch);
+    mainLayout->addStretch();
+    // mainLayout->addWidget(btnPhonemeView);
+    // mainLayout->addWidget(btnParamView);
+    // mainLayout->addWidget(new DividerLine(Qt::Vertical));
     mainLayout->addWidget(btnMaximize);
     mainLayout->addWidget(btnHide);
     mainLayout->setContentsMargins(6, 6, 6, 6);
@@ -190,9 +189,10 @@ void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(QAbstractButton 
         m_editMode = EraseNote;
     } else if (button == m_btnPitchPencil) {
         m_editMode = DrawPitch;
-    } else if (button == m_btnPitchAnchor) {
+    } /*else if (button == m_btnPitchAnchor) {
         m_editMode = EditPitchAnchor;
-    } else if (button == m_btnPitchEraser) {
+    }*/
+    else if (button == m_btnPitchEraser) {
         m_editMode = ErasePitch;
     } else {
         m_editMode = FreezePitch;
