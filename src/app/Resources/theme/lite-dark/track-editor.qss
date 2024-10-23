@@ -19,7 +19,7 @@ TimelineView#tracksTimelineView {
 /* TrackControlView */
 TrackControlView {
     border-style: none;
-    border-bottom: 1px solid rgb(72, 75, 78)
+    border-bottom: 1px solid #10FFFFFF
 }
 
 TrackControlView>QLabel {
@@ -39,17 +39,12 @@ TrackControlView>QPushButton#btnColor {
 }
 
 TrackControlView>QLabel#lbTrackIndex {
-    font-size: 11pt;
     color: #D0D0D0;
 }
 
 TrackControlView>QPushButton#btnMute {
-    color: #F0F0F0;
-    font-size: 9pt;
-    background-color: #2A2B2C;
-    border-style: none;
+    border: none;
     border-radius: 4px;
-    border: 1px solid #606060;
 }
 
 TrackControlView>QPushButton#btnMute:checked {
@@ -59,12 +54,8 @@ TrackControlView>QPushButton#btnMute:checked {
 }
 
 TrackControlView>QPushButton#btnSolo {
-    color: #F0F0F0;
-    font-size: 9pt;
-    background-color: #2A2B2C;
-    border-style: none;
+    border: none;
     border-radius: 4px;
-    border: 1px solid #606060;
 }
 
 TrackControlView>QPushButton#btnSolo:checked {
@@ -78,9 +69,9 @@ TrackControlView>QPushButton#btnSolo:checked {
 TrackListView {
     background: transparent;
     border: none;
-    border-right: 1px solid #202020;
+    border-right: 1px solid #20000000;
     outline: 0px;
-    border-top: 1px solid #202020;
+    border-top: 1px solid #20000000;
 }
 
 TrackListView::item {
