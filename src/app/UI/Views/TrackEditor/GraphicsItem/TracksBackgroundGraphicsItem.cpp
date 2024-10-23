@@ -15,10 +15,9 @@ void TracksBackgroundGraphicsItem::onTrackCountChanged(int count) {
     update();
 }
 
-// blocked because of index issue
 void TracksBackgroundGraphicsItem::onTrackSelectionChanged(int trackIndex) {
-    // m_trackIndex = trackIndex;
-    // update();
+    m_trackIndex = trackIndex;
+    update();
 }
 
 void TracksBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -38,6 +37,7 @@ void TracksBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptionGr
     // Draw selected track background
     auto selectionBackgroundColor = QColor(55, 56, 57);
     if (m_trackIndex != -1) {
+        painter->setPen(Qt::NoPen);
         painter->setBrush(selectionBackgroundColor);
         auto y = sceneYToItemY(trackIndexToSceneY(m_trackIndex));
         auto rect = QRectF(0, y, visibleRect().width(), trackHeight * scaleY());

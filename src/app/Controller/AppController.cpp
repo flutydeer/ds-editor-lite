@@ -148,10 +148,6 @@ void AppController::onSetQuantize(int quantize) {
     appStatus->quantize = quantize;
 }
 
-void AppController::selectTrack(int trackIndex) {
-    appStatus->selectedTrackIndex = trackIndex;
-}
-
 void AppController::setActivePanel(AppGlobal::PanelType panelType) {
     Q_D(AppController);
     for (const auto panel : d->m_panels)

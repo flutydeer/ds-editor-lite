@@ -7,6 +7,7 @@
 ModelChangeHandler::ModelChangeHandler(QObject *parent) : QObject(parent) {
     connect(appModel, &AppModel::modelChanged, this, &ModelChangeHandler::onModelChanged);
     connect(appModel, &AppModel::tempoChanged, this, &ModelChangeHandler::onTempoChanged);
+    connect(appModel, &AppModel::trackChanged, this, &ModelChangeHandler::onTrackChanged);
 }
 
 void ModelChangeHandler::handleTempoChanged(double tempo) {

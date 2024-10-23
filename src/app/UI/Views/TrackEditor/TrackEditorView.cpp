@@ -82,8 +82,10 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     appController->registerPanel(this);
     installEventFilter(this);
 
-    connect(m_trackListView, &QListWidget::currentRowChanged, appController,
-            &AppController::selectTrack);
+    // connect(m_trackListView, &QListWidget::currentRowChanged, this,
+    //         [=](int trackIndex) { appStatus->selectedTrackIndex = trackIndex; });
+    // connect(m_trackListView, &QListWidget::itemChanged, this,
+    //         [=] { appStatus->selectedTrackIndex = m_trackListView->currentRow(); });
     connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
             &TrackEditorView::onViewScaleChanged);
     connect(m_graphicsView, &TracksGraphicsView::sizeChanged, m_tracksScene,
