@@ -5,29 +5,22 @@
 #ifndef PROJECTSTATUSCONTROLLER_H
 #define PROJECTSTATUSCONTROLLER_H
 
-#include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/Track.h"
+#include "ModelChangeHandler.h"
 #include "Utils/Singleton.h"
 
-#include <QObject>
-
-class ProjectStatusController : public QObject, public Singleton<ProjectStatusController> {
+class ProjectStatusController final : public ModelChangeHandler,
+                                      public Singleton<ProjectStatusController> {
     Q_OBJECT
 
 public:
-    explicit ProjectStatusController();
-
-private slots:
-    void onModelChanged();
-    void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
-    void onClipChanged(Track::ClipChangeType type, Clip *clip);
+    explicit ProjectStatusController() = default;
 
 private:
-    void handleClipInserted(Clip *clip);
-    void handleClipRemoved(Clip *clip) const;
+    void handleTempoChanged(double tempo) override;
+    void handleClipInserted(Clip *clip) override;
+    void handleClipRemoved(Clip *clip) override;
+    void handleClipPropertyChanged(Clip *clip) override;
     static void updateProjectEditableLength();
-
-    QList<Track *> m_tracks;
 };
 
 
