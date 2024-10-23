@@ -16,6 +16,7 @@ public:
     explicit ProjectStatusController() = default;
 
 private:
+    void handleTrackRemoved(Track *track) override;
     void handleTempoChanged(double tempo) override;
     void handleClipInserted(Clip *clip) override;
     void handleClipRemoved(Clip *clip) override;

@@ -65,17 +65,6 @@ void AppModel::appendTrack(Track *track) {
 void AppModel::removeTrackAt(qsizetype index) {
     Q_D(AppModel);
     auto track = d->m_tracks[index];
-    bool trackContainsActiveClip = false;
-    for (const auto clip : track->clips()) {
-        if (clip->id() == appStatus->activeClipId) {
-            trackContainsActiveClip = true;
-            break;
-        }
-    }
-    if (trackContainsActiveClip) {
-        appStatus->selectedNotes = QList<int>();
-        appStatus->activeClipId = -1;
-    }
     d->m_tracks.removeAt(index);
     emit trackChanged(Remove, index, track);
 }

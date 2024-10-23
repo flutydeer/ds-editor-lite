@@ -6,6 +6,21 @@
 
 #include "Model/AppStatus/AppStatus.h"
 
+void ProjectStatusController::handleTrackRemoved(Track *track) {
+    ModelChangeHandler::handleTrackRemoved(track);
+    bool trackContainsActiveClip = false;
+    for (const auto clip : track->clips()) {
+        if (clip->id() == appStatus->activeClipId) {
+            trackContainsActiveClip = true;
+            break;
+        }
+    }
+    if (trackContainsActiveClip) {
+        appStatus->selectedNotes = QList<int>();
+        appStatus->activeClipId = -1;
+    }
+}
+
 void ProjectStatusController::handleTempoChanged(double tempo) {
     updateProjectEditableLength();
 }
@@ -16,6 +31,10 @@ void ProjectStatusController::handleClipInserted(Clip *clip) {
 }
 
 void ProjectStatusController::handleClipRemoved(Clip *clip) {
+    if (appStatus->activeClipId == clip->id()) {
+        appStatus->selectedNotes = QList<int>();
+        appStatus->activeClipId = -1;
+    }
     updateProjectEditableLength();
 }
 
