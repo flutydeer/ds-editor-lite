@@ -149,7 +149,6 @@ void TrackEditorView::onClipChanged(Track::ClipChangeType type, Clip *clip) {
     } else if (type == Track::Removed) {
         removeClipFromView(clip->id());
     }
-    updateOverlappedState();
 }
 
 void TrackEditorView::onPositionChanged(double tick) {
@@ -303,7 +302,6 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     const auto &notesRef = clip->notes();
     clipView->loadNotes(notesRef);
     clipView->setDefaultLanguage(clip->defaultLanguage);
-    clipView->setOverlapped(clip->overlapped());
     m_tracksScene->addCommonItem(clipView);
     qDebug() << "Singing clip graphics item added to scene" << clipView->id() << clipView->name();
     connect(clip, &SingingClip::defaultLanguageChanged, clipView,
@@ -319,7 +317,6 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track, in
     clipItem->setTrackIndex(trackIndex);
     clipItem->setPath(clip->path());
     clipItem->setTempo(appModel->tempo());
-    clipItem->setOverlapped(clip->overlapped());
     clipItem->setAudioInfo(clip->audioInfo());
     m_tracksScene->addCommonItem(clipItem);
     qDebug() << "Audio clip graphics item added to scene" << clipItem->id() << clipItem->name();
@@ -367,7 +364,6 @@ void TrackEditorView::updateClipOnView(Clip *clip) {
     item->setClipStart(clip->clipStart());
     item->setLength(clip->length());
     item->setClipLen(clip->clipLen());
-    item->setOverlapped(clip->overlapped());
 
     if (clip->clipType() == Clip::Audio) {
         auto audioClip = dynamic_cast<AudioClip *>(clip);
@@ -379,8 +375,6 @@ void TrackEditorView::updateClipOnView(Clip *clip) {
         auto singingItem = dynamic_cast<SingingClipView *>(item);
         singingItem->loadNotes(singingClip->notes());
     }
-
-    updateOverlappedState();
 }
 
 void TrackEditorView::removeTrackFromView(int index) {
@@ -413,17 +407,6 @@ void TrackEditorView::removeTrackFromView(int index) {
         }
     // connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
     //         &TrackEditorView::onSceneSelectionChanged);
-}
-
-void TrackEditorView::updateOverlappedState() {
-    for (const auto trackModel : appModel->tracks()) {
-        auto track = m_trackListViewModel.findTrackById(trackModel->id());
-        for (auto clipItem : track->clips) {
-            auto dsClip = trackModel->findClipById(clipItem->id());
-            clipItem->setOverlapped(dsClip->overlapped());
-        }
-    }
-    m_graphicsView->update();
 }
 
 void TrackEditorView::reset() {

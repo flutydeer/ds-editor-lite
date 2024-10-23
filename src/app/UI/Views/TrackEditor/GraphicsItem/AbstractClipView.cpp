@@ -191,8 +191,6 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     QPen pen;
     if (isSelected())
         pen.setColor(QColor(255, 255, 255));
-    else if (overlapped())
-        pen.setColor(QColor(255, 80, 80));
     else
         pen.setColor(colorPrimaryDarker);
 

@@ -13,7 +13,7 @@
 class Menu;
 class AbstractClipViewPrivate;
 
-class AbstractClipView : public CommonGraphicsRectItem, public IClip, public OverlappableItem {
+class AbstractClipView : public CommonGraphicsRectItem, public IClip {
     Q_OBJECT
 
 public:

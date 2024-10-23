@@ -115,8 +115,7 @@ void ValidationController::handleClipInserted(Clip *clip) {
 
 void ValidationController::validate() {
     // qDebug() << "ValidationController::validate";
-    if (!validateProjectLength() || !validateTempo() || !validateClipOverlap() ||
-        !validateNoteOverlap()) {
+    if (!validateProjectLength() || !validateTempo() || !validateNoteOverlap()) {
         emit validationFinished(false);
         playbackController->stop();
     } else {
@@ -141,15 +140,6 @@ bool ValidationController::validateTempo() {
         return false;
     }
     return true;
-}
-
-bool ValidationController::validateClipOverlap() {
-    if (std::all_of(appModel->tracks().begin(), appModel->tracks().end(),
-                    [](const auto &track) { return !track->clips().hasOverlappedItem(); })) {
-        return true;
-    }
-    Toast::show("Clip overlapped");
-    return false;
 }
 
 bool ValidationController::validateNoteOverlap() {

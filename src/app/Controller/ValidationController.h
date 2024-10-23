@@ -38,7 +38,6 @@ private:
     void validate();
     static bool validateProjectLength();
     static bool validateTempo();
-    static bool validateClipOverlap();
     static bool validateNoteOverlap();
 
     QList<Track *> m_tracks;

@@ -72,7 +72,6 @@ private:
     void updateTracksOnView() const;
     void updateClipOnView(Clip *clip);
     void removeTrackFromView(int index);
-    void updateOverlappedState();
     void reset();
 };
 
