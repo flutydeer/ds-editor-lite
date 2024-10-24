@@ -350,7 +350,7 @@ namespace Audio {
             {"formatMono", false},
             {"formatOption", 0},
             {"formatQuality", 100},
-            {"formatSampleRate", 48000},
+            {"formatSampleRate", 44100},
             {"mixingOption", AudioExporterConfig::MO_Mixed},
             {"isMuteSoloEnabled", true},
             {"sourceOption", AudioExporterConfig::SO_All},
@@ -364,7 +364,7 @@ namespace Audio {
             {"formatMono", false},
             {"formatOption", 0},
             {"formatQuality", 100},
-            {"formatSampleRate", 48000},
+            {"formatSampleRate", 44100},
             {"mixingOption", AudioExporterConfig::MO_SeparatedThruMaster},
             {"isMuteSoloEnabled", true},
             {"sourceOption", AudioExporterConfig::SO_All},
@@ -378,7 +378,7 @@ namespace Audio {
             {"formatMono", false},
             {"formatOption", 0},
             {"formatQuality", 100},
-            {"formatSampleRate", 48000},
+            {"formatSampleRate", 44100},
             {"mixingOption", AudioExporterConfig::MO_Mixed},
             {"isMuteSoloEnabled", true},
             {"sourceOption", AudioExporterConfig::SO_All},
@@ -392,7 +392,7 @@ namespace Audio {
             {"formatMono", false},
             {"formatOption", 0},
             {"formatQuality", 100},
-            {"formatSampleRate", 48000},
+            {"formatSampleRate", 44100},
             {"mixingOption", AudioExporterConfig::MO_SeparatedThruMaster},
             {"isMuteSoloEnabled", true},
             {"sourceOption", AudioExporterConfig::SO_All},
@@ -406,7 +406,7 @@ namespace Audio {
             {"formatMono", false},
             {"formatOption", 0},
             {"formatQuality", 100},
-            {"formatSampleRate", 48000},
+            {"formatSampleRate", 44100},
             {"mixingOption", AudioExporterConfig::MO_Mixed},
             {"isMuteSoloEnabled", true},
             {"sourceOption", AudioExporterConfig::SO_All},
@@ -420,7 +420,7 @@ namespace Audio {
             {"formatMono", false},
             {"formatOption", 0},
             {"formatQuality", 100},
-            {"formatSampleRate", 48000},
+            {"formatSampleRate", 44100},
             {"mixingOption", AudioExporterConfig::MO_SeparatedThruMaster},
             {"isMuteSoloEnabled", true},
             {"sourceOption", AudioExporterConfig::SO_All},
@@ -511,17 +511,26 @@ namespace Audio {
         clearErrorString();
         QHash<QString, QString> temporaryFiles;
 
+        d->temporaryFileList.clear();
+
         {
             // prepare AudioFormatIO for exporting
             QObject o;
-            std::unique_ptr<talcs::AudioFormatIO[]> ioList(new talcs::AudioFormatIO[d->fileList.size()]);
-            auto uuid = QByteArray::fromHex(QUuid::createUuid().toByteArray(QUuid::Id128)).toBase64(QByteArray::Base64UrlEncoding).mid(0, 8);
+            std::unique_ptr<talcs::AudioFormatIO[]> ioList(
+                new talcs::AudioFormatIO[d->fileList.size()]);
+            auto uuid = QByteArray::fromHex(QUuid::createUuid().toByteArray(QUuid::Id128))
+                            .toBase64(QByteArray::Base64UrlEncoding)
+                            .mid(0, 8);
             for (int i = 0; i < d->fileList.size(); i++) {
                 QString filename = d->fileList.at(i);
                 if (AudioSettings::audioExporterUseTemporaryFile()) {
-                    auto temporaryFileName = QFileInfo(filename).dir().filePath(".dstmp$" + uuid + QFileInfo(filename).fileName());
+                    auto temporaryFileName = QFileInfo(filename).dir().filePath(
+                        ".ds$" + uuid + QFileInfo(filename).fileName() + ".exporting");
                     temporaryFiles.insert(filename, temporaryFileName);
+                    d->temporaryFileList.append(temporaryFileName);
                     filename = temporaryFileName;
+                } else {
+                    d->temporaryFileList.append(filename);
                 }
                 auto file = new QFile(filename, &o);
                 if (!file->open(QIODevice::WriteOnly)) {
@@ -542,11 +551,12 @@ namespace Audio {
 
             // create and configure talcs::DspxProjectAudioExporter
             talcs::DspxProjectAudioExporter exporter(projectContext);
-            auto cleanup = [=](void *) {d->currentExporter = nullptr;};
+            auto cleanup = [=](void *) { d->currentExporter = nullptr; };
             std::unique_ptr<void, decltype(cleanup)> _1(this, cleanup);
             d->currentExporter = &exporter;
             exporter.setMonoChannel(config.formatMono());
-            exporter.setThruMaster(config.mixingOption() == AudioExporterConfig::MO_SeparatedThruMaster);
+            exporter.setThruMaster(config.mixingOption() ==
+                                   AudioExporterConfig::MO_SeparatedThruMaster);
             exporter.setClippingCheckEnabled(AudioSettings::audioExporterClippingCheckEnabled());
             exporter.setMuteSoloEnabled(config.isMuteSoloEnabled());
             auto range = d->calculateRange();
@@ -555,13 +565,13 @@ namespace Audio {
             switch (config.sourceOption()) {
                 case AudioExporterConfig::SO_All:
                     tracks = projectContext->tracks();
-                break;
+                    break;
                 case AudioExporterConfig::SO_Selected:
                 case AudioExporterConfig::SO_Custom:
                     for (auto index : config.source()) {
                         tracks.append(projectContext->tracks().at(index));
                     }
-                break;
+                    break;
             }
             if (config.mixingOption() == AudioExporterConfig::MO_Mixed) {
                 exporter.setMixedTask(tracks, &ioList[0]);
@@ -585,7 +595,9 @@ namespace Audio {
                     addWarning(tr("Cannot reopen audio after exported"));
             };
             std::unique_ptr<void, decltype(reopenMixer)> _2(this, reopenMixer);
-            if (!projectContext->preMixer()->open(1024, config.formatSampleRate())) { // TODO let user configure buffer size in settings
+            if (!projectContext->preMixer()->open(
+                    1024,
+                    config.formatSampleRate())) { // TODO let user configure buffer size in settings
                 setErrorString(tr("Cannot start audio exporting"));
                 return R_Fail;
             }
@@ -598,7 +610,8 @@ namespace Audio {
                 }
             };
             std::unique_ptr<void, decltype(callFinish)> _3(this, callFinish);
-            // Note: order of destruction: call AudioExporterListener::willFinish after mixer reopened
+            // Note: order of destruction: call AudioExporterListener::willFinish after mixer
+            // reopened
             std::unique_ptr<void, decltype(reopenMixer)> _4 = std::move(_2);
             for (auto listener : m_listeners) {
                 if (!listener->willStartCallback(this))
@@ -607,12 +620,14 @@ namespace Audio {
             }
 
             // start exporting
-            connect(&exporter, &talcs::DspxProjectAudioExporter::progressChanged, this, [=](double progressRatio, talcs::DspxTrackContext *track) {
-                emit progressChanged(progressRatio, sourceIndexMap.value(track));
-            });
-            connect(&exporter, &talcs::DspxProjectAudioExporter::clippingDetected, this, [=](talcs::DspxTrackContext *track) {
-                emit clippingDetected(sourceIndexMap.value(track));
-            });
+            connect(&exporter, &talcs::DspxProjectAudioExporter::progressChanged, this,
+                    [=](double progressRatio, talcs::DspxTrackContext *track) {
+                        emit progressChanged(progressRatio, sourceIndexMap.value(track));
+                    });
+            connect(&exporter, &talcs::DspxProjectAudioExporter::clippingDetected, this,
+                    [=](talcs::DspxTrackContext *track) {
+                        emit clippingDetected(sourceIndexMap.value(track));
+                    });
             auto ret = exporter.exec();
             if (ret == talcs::DspxProjectAudioExporter::Fail) {
                 if (errorString().isEmpty())
@@ -623,18 +638,20 @@ namespace Audio {
                 return R_Abort;
         }
 
+        d->temporaryFileList.clear();
+
         // rename temporary files
         if (AudioSettings::audioExporterUseTemporaryFile()) {
             auto temporaryFileErrorString = tr("Cannot rename temporary files to target files");
             bool failFlag = false;
             for (const auto &filename : temporaryFiles.keys()) {
-                QFile(filename).remove();
+                QFile::remove(filename);
                 auto temporaryFile = QFile(temporaryFiles.value(filename));
                 if (!temporaryFile.rename(filename)) {
                     temporaryFileErrorString += "\n" + filename;
                     setErrorString(temporaryFileErrorString);
                     failFlag = true;
-                    temporaryFile.remove();
+                    d->temporaryFileList.append(temporaryFile.fileName());
                 }
             }
             if (failFlag)
@@ -642,6 +659,13 @@ namespace Audio {
         }
 
         return R_OK;
+    }
+
+    void AudioExporter::cleanUp() {
+        Q_D(AudioExporter);
+        for (const auto &filename : d->temporaryFileList) {
+            QFile::remove(filename);
+        }
     }
 
     void AudioExporter::cancel(bool isFail, const QString &message) {

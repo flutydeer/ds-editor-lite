@@ -142,6 +142,7 @@ namespace Audio {
             R_Abort,
         };
         Result exec();
+        void cleanUp();
 
         void cancel(bool isFail = false, const QString &message = {});
         void addWarning(const QString &message, int sourceIndex = -1);

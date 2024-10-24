@@ -51,6 +51,8 @@ namespace Audio {
         QStringList fileList;
         void updateFileListAndWarnings();
 
+        QStringList temporaryFileList;
+
         talcs::DspxProjectAudioExporter *currentExporter = nullptr;
     };
 }

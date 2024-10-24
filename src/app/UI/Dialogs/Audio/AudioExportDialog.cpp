@@ -3,6 +3,7 @@
 #include "Model/AppModel/Track.h"
 #include "Modules/Audio/AudioSettings.h"
 
+#include <QApplication>
 #include <limits>
 
 #include <QBoxLayout>
@@ -78,23 +79,23 @@ namespace Audio::Internal {
         auto fileNameTemplateMenu = new QMenu(this);
         fileNameTemplateMenu->addAction(QStringLiteral("${projectName}"), this, [=] {
             QFileInfo fileInfo(m_fileNameEdit->text());
-            m_fileNameEdit->setText(fileInfo.baseName() + QStringLiteral("${projectName}.") + fileInfo.completeSuffix());
+            m_fileNameEdit->setText(fileInfo.completeBaseName() + QStringLiteral("${projectName}.") + fileInfo.suffix());
         });
         fileNameTemplateMenu->addAction(QStringLiteral("${sampleRate}"), this, [=] {
             QFileInfo fileInfo(m_fileNameEdit->text());
-            m_fileNameEdit->setText(fileInfo.baseName() + QStringLiteral("${sampleRate}.") + fileInfo.completeSuffix());
+            m_fileNameEdit->setText(fileInfo.completeBaseName() + QStringLiteral("${sampleRate}.") + fileInfo.suffix());
         });
         fileNameTemplateMenu->addAction(QStringLiteral("${today}"), this, [=] {
             QFileInfo fileInfo(m_fileNameEdit->text());
-            m_fileNameEdit->setText(fileInfo.baseName() + QStringLiteral("${today}.") + fileInfo.completeSuffix());
+            m_fileNameEdit->setText(fileInfo.completeBaseName() + QStringLiteral("${today}.") + fileInfo.suffix());
         });
         auto fileNameTemplateTrackNameAction = fileNameTemplateMenu->addAction(QStringLiteral("${trackName}"), this, [=] {
             QFileInfo fileInfo(m_fileNameEdit->text());
-            m_fileNameEdit->setText(fileInfo.baseName() + QStringLiteral("${trackName}.") + fileInfo.completeSuffix());
+            m_fileNameEdit->setText(fileInfo.completeBaseName() + QStringLiteral("${trackName}.") + fileInfo.suffix());
         });
         auto fileNameTemplateTrackIndexAction = fileNameTemplateMenu->addAction(QStringLiteral("${trackIndex}"), this, [=] {
             QFileInfo fileInfo(m_fileNameEdit->text());
-            m_fileNameEdit->setText(fileInfo.baseName() + QStringLiteral("${trackIndex}.") + fileInfo.completeSuffix());
+            m_fileNameEdit->setText(fileInfo.completeBaseName() + QStringLiteral("${trackIndex}.") + fileInfo.suffix());
         });
         fileNameTemplateButton->setMenu(fileNameTemplateMenu);
         fileNameLayout->addWidget(fileNameTemplateButton);
@@ -253,7 +254,7 @@ namespace Audio::Internal {
         connect(m_fileDirectoryEdit, &QLineEdit::textChanged, this, &AudioExportDialog::updateConfig);
         connect(m_fileTypeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
             QFileInfo fileInfo(m_fileNameEdit->text());
-            m_fileNameEdit->setText(fileInfo.baseName() + "." + AudioExporterConfig::extensionOfType(static_cast<AudioExporterConfig::FileType>(index)));
+            m_fileNameEdit->setText(fileInfo.completeBaseName() + "." + AudioExporterConfig::extensionOfType(static_cast<AudioExporterConfig::FileType>(index)));
             m_formatOptionComboBox->clear();
             auto options = AudioExporterConfig::formatOptionsOfType(static_cast<AudioExporterConfig::FileType>(index));
             if (options.isEmpty()) {
@@ -298,8 +299,8 @@ namespace Audio::Internal {
         connect(m_mixingOptionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
             if (index == AudioExporterConfig::MO_Mixed) {
                 QFileInfo fileInfo(m_fileNameEdit->text());
-                auto basename = fileInfo.baseName();
-                auto suffix = fileInfo.completeSuffix();
+                auto basename = fileInfo.completeBaseName();
+                auto suffix = fileInfo.suffix();
                 if (basename.endsWith("_${trackIndex}_${trackName}")) {
                     basename = basename.chopped(27);
                 }
@@ -309,8 +310,8 @@ namespace Audio::Internal {
                 m_fileNameEdit->setText(basename + "." + suffix);
             } else {
                 QFileInfo fileInfo(m_fileNameEdit->text());
-                auto basename = fileInfo.baseName();
-                auto suffix = fileInfo.completeSuffix();
+                auto basename = fileInfo.completeBaseName();
+                auto suffix = fileInfo.suffix();
                 if (!basename.contains("${trackIndex}") && !basename.contains("${trackName}")) {
                     basename += "_${trackIndex}_${trackName}";
                 }
@@ -417,7 +418,7 @@ namespace Audio::Internal {
         if (path.isEmpty())
             return;
         QFileInfo fileInfo(path);
-        m_fileNameEdit->setText(fileInfo.baseName() + (m_mixingOptionComboBox->currentIndex() == AudioExporterConfig::MO_Mixed ? "." : "_${trackIndex}_${trackName}.") + fileInfo.completeSuffix());
+        m_fileNameEdit->setText(fileInfo.completeBaseName() + (m_mixingOptionComboBox->currentIndex() == AudioExporterConfig::MO_Mixed ? "." : "_${trackIndex}_${trackName}.") + fileInfo.suffix());
         m_fileDirectoryEdit->setText(fileInfo.dir().canonicalPath());
         m_fileTypeComboBox->setCurrentIndex(filters.indexOf(selectedFilter));
     }
@@ -517,7 +518,7 @@ namespace Audio::Internal {
             m_warningButton->hide();
         }
         auto fileList = m_audioExporter->dryRun();
-        m_fileNamePreviewLabel->setText(fileList.isEmpty() ? QString() : QFileInfo(fileList.at(0)).fileName());
+        m_fileNamePreviewLabel->setText(fileList.isEmpty() ? QString() : QFileInfo(fileList.at(0)).filePath());
     }
     void AudioExportDialog::updateView() {
         skipUpdateFlag = true;
@@ -567,10 +568,10 @@ namespace Audio::Internal {
         layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
 
         auto mainPromptLayout = new QHBoxLayout;
-        auto mainPromptWarningButton = new QPushButton;
-        mainPromptWarningButton->setVisible(false);
-        mainPromptWarningButton->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
-        mainPromptLayout->addWidget(mainPromptWarningButton, 0);
+        auto iconLabel = new QLabel;
+        iconLabel->setPixmap(style()->standardIcon(QStyle::SP_MessageBoxCritical).pixmap(24, 24));
+        iconLabel->setVisible(false);
+        mainPromptLayout->addWidget(iconLabel);
         auto mainPromptLabel = new QLabel(tr("Preparing..."));
         mainPromptLabel->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
         mainPromptLayout->addWidget(mainPromptLabel, 1);
@@ -582,7 +583,14 @@ namespace Audio::Internal {
         layout->addWidget(mainProgressBar);
 
         auto buttonLayout = new QHBoxLayout;
+        auto keepPartialFileCheckBox = new QCheckBox(tr("&Keep partial files"));
+        keepPartialFileCheckBox->setVisible(false);
+        buttonLayout->addWidget(keepPartialFileCheckBox);
         buttonLayout->addStretch();
+        auto mainPromptWarningButton = new QPushButton;
+        mainPromptWarningButton->setVisible(false);
+        mainPromptWarningButton->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
+        buttonLayout->addWidget(mainPromptWarningButton, 0);
         auto abortButton = new QPushButton(tr("Cancel"));
         buttonLayout->addWidget(abortButton);
         layout->addLayout(buttonLayout);
@@ -635,6 +643,7 @@ namespace Audio::Internal {
             warningList->addItem(item);
             mainPromptWarningButton->setVisible(true);
             mainPromptWarningButton->setToolTip(tr("%n warning(s)", nullptr, warningList->count()));
+            QApplication::beep();
         });
         connect(m_audioExporter, &AudioExporter::warningAdded, &progressDialog, [=](const QString &message, int sourceIndex) {
             Q_UNUSED(sourceIndex); // may be used in future
@@ -644,6 +653,7 @@ namespace Audio::Internal {
             warningList->addItem(item);
             mainPromptWarningButton->setVisible(true);
             mainPromptWarningButton->setToolTip(tr("%n warning(s)", nullptr, warningList->count()));
+            QApplication::beep();
         });
 
         connect(mainPromptWarningButton, &QAbstractButton::clicked, &progressDialog, [=, &warningListDialog] {
@@ -692,12 +702,18 @@ namespace Audio::Internal {
                 switch (ret) {
                     case AudioExporter::R_OK:
                         mainPromptLabel->setText(tr("Export finished with %n warning(s)", nullptr, warningList->count()));
+                        QApplication::beep();
                         break;
                     case AudioExporter::R_Abort:
                         mainPromptLabel->setText(tr("Export aborted with %n warning(s)", nullptr, warningList->count()));
+                        QApplication::beep();
+                        keepPartialFileCheckBox->setVisible(true);
                         break;
                     case AudioExporter::R_Fail:
                         mainPromptLabel->setText(tr("Export failed with %n warning(s)\n%1", nullptr, warningList->count()).arg(m_audioExporter->errorString()));
+                        iconLabel->setVisible(true);
+                        QApplication::beep();
+                        keepPartialFileCheckBox->setVisible(true);
                         break;
                 }
             } else {
@@ -706,15 +722,23 @@ namespace Audio::Internal {
                         progressDialog.accept();
                         break;
                     case AudioExporter::R_Abort:
-                        progressDialog.reject();
+                        mainPromptLabel->setText(tr("Export aborted"));
+                        QApplication::beep();
+                        keepPartialFileCheckBox->setVisible(true);
                         break;
                     case AudioExporter::R_Fail:
                         mainPromptLabel->setText(tr("Export failed\n%1").arg(m_audioExporter->errorString()));
+                        iconLabel->setVisible(true);
+                        QApplication::beep();
+                        keepPartialFileCheckBox->setVisible(true);
                         break;
                 }
             }
         });
         auto ret = progressDialog.exec();
+        if (!keepPartialFileCheckBox->isChecked()) {
+            m_audioExporter->cleanUp();
+        }
         auto currentData = m_presetComboBox->currentData();
         AudioSettings::setAudioExporterCurrentPreset(currentData.isNull() ? QJsonValue(m_presetComboBox->currentIndex()) : QJsonValue(currentData.toString()));
         saveTemporaryPreset();
