@@ -59,6 +59,20 @@ TensionParamProperties::TensionParamProperties() {
     divisionValue = 2'000;
 }
 
+int TensionParamProperties::valueFromNormalized(double normalized) const {
+    auto base = (normalized - 0.5) * 2;
+    auto input = qAbs(base);
+    auto absValue = MathUtils::inPowerCurveValueAt(input, 0.7) * maximum;
+    return static_cast<int>(base >= 0 ? absValue : -absValue);
+}
+
+double TensionParamProperties::valueToNormalized(int value) const {
+    auto normalized = 1.0 * value / maximum;
+    auto inputValue = qAbs(normalized);
+    auto scaled = MathUtils::inPowerCurveXAt(inputValue, 0.7);
+    return scaled / 2 * (normalized > 0 ? 1 : -1) + 0.5;
+}
+
 GenderParamProperties::GenderParamProperties() {
     valueType = ValueType::Relative;
     displayMode = DisplayMode::FillFromDefault;

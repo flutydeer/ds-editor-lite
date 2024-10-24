@@ -63,8 +63,8 @@ void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
     cancelClipRelatedTasks(clip);
 }
 
-void InferControllerPrivate::handlePiecesChanged(const QList<InferPiece *> &newPieces,
-                                                 const QList<InferPiece *> &discardedPieces,
+void InferControllerPrivate::handlePiecesChanged(const PieceList &newPieces,
+                                                 const PieceList &discardedPieces,
                                                  SingingClip *clip) {
     m_getPronTasks.cancelIf(L_PRED(t, t->clipId() == clip->id()));
     m_getPhoneTasks.cancelIf(L_PRED(t, t->clipId() == clip->id()));

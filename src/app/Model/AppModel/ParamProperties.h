@@ -49,6 +49,8 @@ public:
 class TensionParamProperties final : public ParamProperties {
 public:
     explicit TensionParamProperties();
+    [[nodiscard]] int valueFromNormalized(double normalized) const override;
+    [[nodiscard]] double valueToNormalized(int value) const override;
 };
 
 class GenderParamProperties final : public ParamProperties {
