@@ -141,12 +141,14 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     const auto returnCode = midi->load(path, dspx, args);
 
     if (returnCode.type != QDspx::Result::Success) {
-        Dialog msgDlg;
-        msgDlg.setWindowTitle("Warning");
-        msgDlg.setMessage(QString("Failed to load midi file.\r\npath: %1\r\ntype: %2 code: %3")
+        MessageDialog msgBox;
+        msgBox.setWindowTitle("Warning");
+        msgBox.setMessage(QString("Failed to load midi file.\r\npath: %1\r\ntype: %2 code: %3")
                               .arg(path)
                               .arg(returnCode.type)
                               .arg(returnCode.code));
+        msgBox.addAccentButton("Ok", 1);
+        msgBox.exec();
         return false;
     }
 
@@ -159,7 +161,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
     }
 
     if (m_timeSignature.numerator != dspx->content.timeline.timeSignatures[0].num ||
-    m_timeSignature.denominator != dspx->content.timeline.timeSignatures[0].den) {
+        m_timeSignature.denominator != dspx->content.timeline.timeSignatures[0].den) {
         MessageDialog msgBox;
         msgBox.setWindowTitle("Time Signature Mismatch");
         msgBox.setMessage("The timeSignature of the MIDI file does not match the "
@@ -167,9 +169,8 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
         msgBox.addAccentButton("Yes", 1);
         msgBox.addButton("No", 0);
         if (msgBox.exec() == 1)
-            model->setTimeSignature(
-                TimeSignature(dspx->content.timeline.timeSignatures[0].num,
-                              dspx->content.timeline.timeSignatures[0].den));
+            model->setTimeSignature(TimeSignature(dspx->content.timeline.timeSignatures[0].num,
+                                                  dspx->content.timeline.timeSignatures[0].den));
         else
             model->setTimeSignature(m_timeSignature);
     }
@@ -260,12 +261,14 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
     const auto returnCode = midi->save(path, dspx, args);
 
     if (returnCode.type != QDspx::Result::Success) {
-        Dialog msgDlg;
-        msgDlg.setTitle("Warning");
-        msgDlg.setMessage(QString("Failed to save midi file.\r\npath: %1\r\ntype: %2 code: %3")
+        MessageDialog msgBox;
+        msgBox.setWindowTitle("Warning");
+        msgBox.setMessage(QString("Failed to save midi file.\r\npath: %1\r\ntype: %2 code: %3")
                               .arg(path)
                               .arg(returnCode.type)
                               .arg(returnCode.code));
+        msgBox.addAccentButton("Ok", 1);
+        msgBox.exec();
         return false;
     }
     return true;

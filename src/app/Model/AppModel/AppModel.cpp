@@ -247,15 +247,17 @@ bool AppModel::importMidiFile(const QString &filename) {
     const auto ok = converter.load(filename, &resultModel, errMsg,
                                    static_cast<IProjectConverter::ImportMode>(midiImport));
     Log::i("Midi importer", errMsg);
-    if (midiImport == ImportMode::NewProject) {
-        setTimeSignature(resultModel.timeSignature());
-        setTempo(resultModel.tempo());
-        loadFromAppModel(resultModel);
-    } else if (midiImport == ImportMode::AppendToProject) {
-        setTimeSignature(resultModel.timeSignature());
-        setTempo(resultModel.tempo());
-        for (const auto track : resultModel.tracks()) {
-            appendTrack(track);
+    if (ok) {
+        if (midiImport == ImportMode::NewProject) {
+            setTimeSignature(resultModel.timeSignature());
+            setTempo(resultModel.tempo());
+            loadFromAppModel(resultModel);
+        } else if (midiImport == ImportMode::AppendToProject) {
+            setTimeSignature(resultModel.timeSignature());
+            setTempo(resultModel.tempo());
+            for (const auto track : resultModel.tracks()) {
+                appendTrack(track);
+            }
         }
     }
     return ok;
