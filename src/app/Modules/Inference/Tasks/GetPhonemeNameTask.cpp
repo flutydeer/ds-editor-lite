@@ -35,6 +35,10 @@ int GetPhonemeNameTask::clipId() const {
     return m_clipId;
 }
 
+bool GetPhonemeNameTask::success() const {
+    return m_success;
+}
+
 void GetPhonemeNameTask::runTask() {
     qDebug() << "Running task..."
              << "clipId:" << clipId() << "taskId:" << id();
@@ -65,6 +69,7 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames(const QList<QString
     const auto syllable2p = S2p::instance();
     QList<PhonemeNameResult> result;
     for (const auto &pronunciation : input) {
+        // qInfo() << pronunciation;
         PhonemeNameResult note;
         if (pronunciation == "SP" || pronunciation == "AP") {
             note.normalNames.append(pronunciation);
@@ -80,10 +85,12 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames(const QList<QString
                     qCritical() << "Cannot handle more than 2 phonemes" << phonemes;
             } else if (pronunciation != "-") {
                 qCritical() << "Failed to get phoneme names of pronunciation:" << pronunciation;
+                return {};
             }
         }
         result.append(note);
     }
 
+    m_success = true;
     return result;
 }

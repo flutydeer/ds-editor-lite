@@ -54,13 +54,13 @@ void SingingClip::notifyParamChanged(ParamInfo::Name name, Param::Type type) {
     emit paramChanged(name, type);
 }
 
-const QList<InferPiece *> &SingingClip::pieces() const {
+const PieceList &SingingClip::pieces() const {
     return m_pieces;
 }
 
 void SingingClip::reSegment() {
     auto newSegments = AppModelUtils::simpleSegment(m_notes.toList());
-    QList<InferPiece *> newPieces;
+    PieceList newPieces;
     for (const auto &segment : newSegments) {
         bool exists = false;
         for (int i = 0; i < m_pieces.count(); i++) {
@@ -80,10 +80,10 @@ void SingingClip::reSegment() {
             newPieces.append(newPiece);
         }
     }
-    QList<InferPiece *> temp = m_pieces;
+    PieceList temp = m_pieces;
     m_pieces.clear();
     m_pieces = newPieces;
-    emit piecesChanged(m_pieces);
+    emit piecesChanged(m_pieces, newPieces, temp);
     qInfo() << "piecesChanged";
     for (const auto piece : temp)
         delete piece;
@@ -106,7 +106,7 @@ InferPiece *SingingClip::findPieceById(int id) const {
     return MathUtils::findItemById<InferPiece *>(m_pieces, id);
 }
 
-QList<InferPiece *> SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
+PieceList SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
     QSet<InferPiece *> result;
     for (const auto &note : notes) {
         for (const auto &piece : m_pieces) {

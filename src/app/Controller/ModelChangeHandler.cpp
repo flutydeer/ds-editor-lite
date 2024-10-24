@@ -48,7 +48,10 @@ void ModelChangeHandler::handleSingingClipInserted(SingingClip *clip) {
                 handleNoteChanged(type, notes, clip);
             });
     connect(clip, &SingingClip::piecesChanged, this,
-            [=](const QList<InferPiece *> &pieces) { handlePiecesChanged(pieces, clip); });
+            [=](const QList<InferPiece *> &pieces, const QList<InferPiece *> &newPieces,
+                const QList<InferPiece *> &discardedPieces) {
+                handlePiecesChanged(newPieces, discardedPieces, clip);
+            });
     connect(clip, &SingingClip::paramChanged, this,
             [=](ParamInfo::Name name, Param::Type type) { handleParamChanged(name, type, clip); });
 }
@@ -65,7 +68,9 @@ void ModelChangeHandler::handleParamChanged(ParamInfo::Name name, Param::Type ty
                                             SingingClip *clip) {
 }
 
-void ModelChangeHandler::handlePiecesChanged(const QList<InferPiece *> &pieces, SingingClip *clip) {
+void ModelChangeHandler::handlePiecesChanged(const QList<InferPiece *> &newPieces,
+                                             const QList<InferPiece *> &discardedPieces,
+                                             SingingClip *clip) {
 }
 
 void ModelChangeHandler::onModelChanged() {

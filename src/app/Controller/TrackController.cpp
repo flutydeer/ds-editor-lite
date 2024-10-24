@@ -179,7 +179,7 @@ void TrackController::onRemoveClips(const QList<int> &clipsId) {
     historyManager->record(a);
 }
 
-void TrackController::onNewSingingClip(int trackIndex, int tick) {
+SingingClip *TrackController::onNewSingingClip(int trackIndex, int tick) {
     auto singingClip = new SingingClip;
     int bars = 4;
     auto timeSig = appModel->timeSignature();
@@ -200,6 +200,7 @@ void TrackController::onNewSingingClip(int trackIndex, int tick) {
     historyManager->record(a);
 
     setActiveClip(singingClip->id());
+    return singingClip;
 }
 
 void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {

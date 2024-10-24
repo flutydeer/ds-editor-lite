@@ -46,6 +46,7 @@ namespace InferControllerHelper {
     void updateVariance(const InferVarianceTask::InferVarianceResult &taskResult,
                         InferPiece &piece);
     void updateAcoustic(const QString &taskResult, InferPiece &piece);
+    void updateAllOriginalParam(SingingClip &clip);
 
     // Reset original param methods
     void resetPhoneOffset(const QList<Note *> &notes, InferPiece &piece, bool cascadeReset = true);

@@ -14,11 +14,13 @@
 #include "Utils/Linq.h"
 #include "Utils/ValidationUtils.h"
 
+namespace Helper = InferControllerHelper;
+
 InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
     Q_D(InferController);
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
             &InferControllerPrivate::onModuleStatusChanged);
-    connect(appStatus, &AppStatus::editingChanged, d, &InferControllerPrivate::onEditingChanged);
+    // connect(appStatus, &AppStatus::editingChanged, d, &InferControllerPrivate::onEditingChanged);
 }
 
 void InferControllerPrivate::onModuleStatusChanged(AppStatus::ModuleType module,
@@ -53,12 +55,23 @@ void InferControllerPrivate::handleTempoChanged(double tempo) {
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
     clip->reSegment();
-    createAndRunGetPronTask(*clip);
+    // createAndRunGetPronTask(*clip);
 }
 
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipRemoved(clip);
     cancelClipRelatedTasks(clip);
+}
+
+void InferControllerPrivate::handlePiecesChanged(const QList<InferPiece *> &newPieces,
+                                                 const QList<InferPiece *> &discardedPieces,
+                                                 SingingClip *clip) {
+    m_getPronTasks.cancelIf(L_PRED(t, t->clipId() == clip->id()));
+    m_getPhoneTasks.cancelIf(L_PRED(t, t->clipId() == clip->id()));
+    for (const auto &piece : discardedPieces)
+        cancelPieceRelatedTasks(piece->id());
+    createAndRunGetPronTask(*clip);
+    Helper::updateAllOriginalParam(*clip);
 }
 
 void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
@@ -69,13 +82,12 @@ void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
         case SingingClip::EditedWordPropertyChange:
         case SingingClip::EditedPhonemeOffsetChange:
         case SingingClip::TimeKeyPropertyChange:
-            // 音符发生改动，其所属分段必定需要重新推理。将该分段标记为脏，以便在分段前丢弃
             for (const auto &piece : clip->findPiecesByNotes(notes)) {
                 piece->dirty = true;
-                cancelPieceRelatedTasks(piece->id());
+                // cancelPieceRelatedTasks(piece->id());
             }
             clip->reSegment();
-            createAndRunGetPronTask(*clip);
+            // createAndRunGetPronTask(*clip);
             break;
         default:
             break;
@@ -86,7 +98,7 @@ void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Typ
                                                 SingingClip *clip) {
     if (type != Param::Edited)
         return;
-    auto dirtyPieces = InferControllerHelper::getParamDirtyPiecesAndUpdateInput(name, *clip);
+    auto dirtyPieces = Helper::getParamDirtyPiecesAndUpdateInput(name, *clip);
     switch (name) {
         case ParamInfo::Expressiveness:
             for (const auto &piece : dirtyPieces) {
@@ -143,7 +155,7 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
     }
 
     auto singingClip = dynamic_cast<SingingClip *>(clip);
-    InferControllerHelper::updatePronunciation(task.notesRef, task.result, *singingClip);
+    Helper::updatePronunciation(task.notesRef, task.result, *singingClip);
     createAndRunGetPhoneTask(*singingClip);
     delete &task;
 }
@@ -158,12 +170,16 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
     }
 
     auto singingClip = dynamic_cast<SingingClip *>(clip);
-    InferControllerHelper::updatePhoneName(task.notesRef, task.result, *singingClip);
-    if (ValidationUtils::canInferDuration(*singingClip))
+    if (task.success()) {
+        Helper::updatePhoneName(task.notesRef, task.result, *singingClip);
+        if (ValidationUtils::canInferDuration(*singingClip))
+            for (const auto piece : singingClip->pieces())
+                createAndRunInferDurTask(*piece);
+        else
+            qWarning() << "音素序列有错误，无法创建时长推理任务 clipId:" << clip->id();
+    } else
         for (const auto piece : singingClip->pieces())
-            createAndRunInferDurTask(*piece);
-    else
-        qWarning() << "音素序列有错误，无法创建时长推理任务 clipId:" << clip->id();
+            piece->acousticInferStatus = Failed;
     delete &task;
 }
 
@@ -194,12 +210,12 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask &task)
         }
         // 推理成功，保存本次推理的输入以便之后比较
         m_lastInferDurInputs[task.pieceId()] = task.input();
-        InferControllerHelper::updatePhoneOffset(piece->notes, task.result(), *singingClip);
+        Helper::updatePhoneOffset(piece->notes, task.result(), *singingClip);
 
         // TODO: 可能需要将更新相对参数的方法提取出来
-        InferControllerHelper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Expressiveness, *singingClip);
-        InferControllerHelper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Gender, *singingClip);
-        InferControllerHelper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Velocity, *singingClip);
+        Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Expressiveness, *singingClip);
+        Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Gender, *singingClip);
+        Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Velocity, *singingClip);
 
         createAndRunInferPitchTask(*piece);
     } else
@@ -226,7 +242,7 @@ void InferControllerPrivate::handleInferPitchTaskFinished(InferPitchTask &task) 
     if (task.success()) {
         // 推理成功，保存本次推理的输入以便之后比较
         m_lastInferPitchInputs[task.pieceId()] = task.input();
-        InferControllerHelper::updatePitch(task.result(), *piece);
+        Helper::updatePitch(task.result(), *piece);
         createAndRunInferVarianceTask(*piece);
     } else
         piece->acousticInferStatus = Failed;
@@ -250,7 +266,7 @@ void InferControllerPrivate::handleInferVarianceTaskFinished(InferVarianceTask &
     }
     if (task.success()) {
         m_lastInferVarianceInputs[task.pieceId()] = task.input();
-        InferControllerHelper::updateVariance(task.result(), *piece);
+        Helper::updateVariance(task.result(), *piece);
         createAndRunInferAcousticTask(*piece);
     } else {
         piece->acousticInferStatus = Failed;
@@ -275,7 +291,7 @@ void InferControllerPrivate::handleInferAcousticTaskFinished(InferAcousticTask &
     }
     if (task.success()) {
         m_lastInferAcousticInputs[task.pieceId()] = task.input();
-        InferControllerHelper::updateAcoustic(task.result(), *piece);
+        Helper::updateAcoustic(task.result(), *piece);
     } else
         piece->acousticInferStatus = Failed;
     delete &task;
@@ -287,17 +303,26 @@ void InferControllerPrivate::recreateAllInferTasks() {
             if (clip->clipType() != IClip::Singing)
                 continue;
             auto singingClip = reinterpret_cast<SingingClip *>(clip);
-            for (const auto &piece : singingClip->pieces())
-                piece->dirty = true;
-            singingClip->reSegment();
             for (const auto &piece : singingClip->pieces()) {
-                InferControllerHelper::resetPhoneOffset(piece->notes, *piece);
-                createAndRunInferDurTask(*piece);
+                Helper::resetPhoneOffset(piece->notes, *piece);
+                piece->dirty = true;
             }
+            singingClip->reSegment();
+            // for (const auto &piece : singingClip->pieces())
+            //     piece->dirty = true;
+            // singingClip->reSegment();
+            // for (const auto &piece : singingClip->pieces()) {
+            //     Helper::resetPhoneOffset(piece->notes, *piece);
+            //     createAndRunInferDurTask(*piece);
+            // }
         }
 }
 
 void InferControllerPrivate::createAndRunGetPronTask(SingingClip &clip) {
+    if (clip.notes().count() <= 0) {
+        qDebug() << "createAndRunGetPhoneTask:" << "Note list is empty";
+        return;
+    }
     auto task = new GetPronunciationTask(clip.id(), clip.notes().toList());
     connect(task, &Task::finished, this, [=] { handleGetPronTaskFinished(*task); });
     m_getPronTasks.add(task);
@@ -318,7 +343,7 @@ void InferControllerPrivate::createAndRunGetPhoneTask(SingingClip &clip) {
 }
 
 void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
-    const auto inputNotes = InferControllerHelper::buildInferInputNotes(piece.notes);
+    const auto inputNotes = Helper::buildInferInputNotes(piece.notes);
     const InferDurationTask::InferDurInput input = {piece.clip->id(), piece.id(), inputNotes,
                                                     m_singerConfigPath, appModel->tempo()};
     // 创建分段的推理任务前，首先检查输入是否和上次的相同。如果相同，则直接忽略，避免不必要的推理
@@ -329,7 +354,7 @@ void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
         //     return;
     }
     // 清空原有的自动参数
-    InferControllerHelper::resetPhoneOffset(piece.notes, piece);
+    Helper::resetPhoneOffset(piece.notes, piece);
     auto task = new InferDurationTask(input);
     connect(task, &Task::finished, this, [=] { handleInferDurTaskFinished(*task); });
     m_inferDurTasks.add(task);
@@ -339,11 +364,11 @@ void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
-    const auto input = InferControllerHelper::buildInferPitchInput(piece, m_singerConfigPath);
+    const auto input = Helper::buildInferPitchInput(piece, m_singerConfigPath);
     if (m_lastInferPitchInputs.contains(piece.id()))
         if (const auto lastInput = m_lastInferPitchInputs[piece.id()]; lastInput == input)
             return;
-    InferControllerHelper::resetPitch(piece);
+    Helper::resetPitch(piece);
     auto task = new InferPitchTask(input);
     connect(task, &Task::finished, this, [=] { handleInferPitchTaskFinished(*task); });
     m_inferPitchTasks.add(task);
@@ -352,11 +377,11 @@ void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
-    const auto input = InferControllerHelper::buildInferVarianceInput(piece, m_singerConfigPath);
+    const auto input = Helper::buildInferVarianceInput(piece, m_singerConfigPath);
     if (m_lastInferVarianceInputs.contains(piece.id()))
         if (const auto lastInput = m_lastInferVarianceInputs[piece.id()]; lastInput == input)
             return;
-    InferControllerHelper::resetVariance(piece);
+    Helper::resetVariance(piece);
     auto task = new InferVarianceTask(input);
     connect(task, &Task::finished, this, [=] { handleInferVarianceTaskFinished(*task); });
     m_inferVarianceTasks.add(task);
@@ -366,11 +391,11 @@ void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
-    const auto input = InferControllerHelper::buildInderAcousticInput(piece, m_singerConfigPath);
+    const auto input = Helper::buildInderAcousticInput(piece, m_singerConfigPath);
     if (m_lastInferAcousticInputs.contains(piece.id()))
         if (const auto lastInput = m_lastInferAcousticInputs[piece.id()]; lastInput == input)
             return;
-    InferControllerHelper::resetAcoustic(piece);
+    Helper::resetAcoustic(piece);
     auto task = new InferAcousticTask(input);
     connect(task, &Task::finished, this, [=] { handleInferAcousticTaskFinished(*task); });
     m_inferAcousticTasks.add(task);

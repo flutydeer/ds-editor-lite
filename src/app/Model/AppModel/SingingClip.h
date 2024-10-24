@@ -14,6 +14,8 @@ class DrawCurve;
 class InferPiece;
 class Note;
 
+using PieceList = QList<InferPiece *>;
+
 class SingingClip final : public Clip {
     Q_OBJECT
 
@@ -41,22 +43,23 @@ public:
     [[nodiscard]] Note *findNoteById(int id) const;
     void notifyNoteChanged(NoteChangeType type, const QList<Note *> &notes);
     void notifyParamChanged(ParamInfo::Name name, Param::Type type);
-    [[nodiscard]] const QList<InferPiece *> &pieces() const;
+    [[nodiscard]] const PieceList &pieces() const;
     void reSegment();
     void updateOriginalParam(ParamInfo::Name name);
     [[nodiscard]] InferPiece *findPieceById(int id) const;
-    [[nodiscard]] QList<InferPiece *> findPiecesByNotes(const QList<Note *> &notes) const;
+    [[nodiscard]] PieceList findPiecesByNotes(const QList<Note *> &notes) const;
 
 signals:
     void configPathChanged(QString path);
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamInfo::Name name, Param::Type type);
     void defaultLanguageChanged(AppGlobal::LanguageType language);
-    void piecesChanged(const QList<InferPiece *> &pieces);
+    void piecesChanged(const PieceList &pieces, const PieceList &newPieces,
+                       const PieceList &discardedPieces);
 
 private:
     OverlappableSerialList<Note> m_notes;
-    QList<InferPiece *> m_pieces;
+    PieceList m_pieces;
 };
 
 #endif // SINGINGCLIP_H

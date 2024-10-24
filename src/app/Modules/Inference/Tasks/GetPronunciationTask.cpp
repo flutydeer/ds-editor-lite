@@ -59,6 +59,7 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
 
     QList<QString> result;
     for (const auto pNote : langNotes) {
+        Q_ASSERT(!pNote->syllable.isEmpty());
         result.append(pNote->syllable);
         delete pNote;
     }

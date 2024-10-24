@@ -7,7 +7,6 @@
 #include "AppController_p.h"
 #include "AudioDecodingController.h"
 #include "ClipController.h"
-#include "PieceController.h"
 #include "ProjectStatusController.h"
 #include "TrackController.h"
 #include "ValidationController.h"
@@ -217,7 +216,6 @@ void AppController::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clip
 void AppControllerPrivate::initializeModules() {
     InferEngine::instance();
     InferController::instance();
-    PieceController::instance();
     ProjectStatusController::instance();
     ValidationController::instance();
 

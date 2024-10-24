@@ -186,6 +186,14 @@ namespace InferControllerHelper {
         piece.acousticInferStatus = Success;
     }
 
+    void updateAllOriginalParam(SingingClip &clip) {
+        clip.updateOriginalParam(ParamInfo::Pitch);
+        clip.updateOriginalParam(ParamInfo::Breathiness);
+        clip.updateOriginalParam(ParamInfo::Tension);
+        clip.updateOriginalParam(ParamInfo::Voicing);
+        clip.updateOriginalParam(ParamInfo::Energy);
+    }
+
     void resetPhoneOffset(const QList<Note *> &notes, InferPiece &piece, bool cascadeReset) {
         if (cascadeReset)
             resetPitch(piece);

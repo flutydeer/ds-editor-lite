@@ -14,6 +14,8 @@
 
 #include <QObject>
 
+
+class SingingClip;
 class QWidget;
 
 class TrackController final : public QObject, public Singleton<TrackController> {
@@ -33,7 +35,7 @@ public slots:
     void onAddAudioClip(const QString &path, int id, int tick);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     static void onRemoveClips(const QList<int> &clipsId);
-    static void onNewSingingClip(int trackIndex, int tick);
+    static SingingClip *onNewSingingClip(int trackIndex, int tick);
 
 private:
     void handleDecodeAudioTaskFinished(DecodeAudioTask *task);
