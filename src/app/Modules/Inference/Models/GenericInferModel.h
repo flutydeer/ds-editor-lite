@@ -5,6 +5,7 @@
 #ifndef GENERICINFERMODEL_H
 #define GENERICINFERMODEL_H
 
+#include "Interface/IHashProvider.h"
 #include "Interface/ISerializable.h"
 
 class InferPhoneme final : public ISerializable {
@@ -72,7 +73,7 @@ public:
     bool deserialize(const QJsonObject &obj) override;
 };
 
-class GenericInferModel final : public ISerializable {
+class GenericInferModel final : public ISerializable, public IHashProvider {
 public:
     double offset = 0;
     QList<InferWord> words;
@@ -82,6 +83,7 @@ public:
     bool deserialize(const QJsonObject &obj) override;
     [[nodiscard]] QString serializeToJson() const;
     bool deserializeFromJson(const QString &json);
+    [[nodiscard]] QString hashData() const override;
 };
 
 

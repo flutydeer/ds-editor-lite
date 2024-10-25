@@ -70,24 +70,42 @@ void InferVarianceTask::runTask() {
         return;
     }
 
+    GenericInferModel model;
+    auto input = buildInputJson();
+    m_inputHash = input.hashData();
+    JsonUtils::save(QString("temp/infer-variance-input-%1.json").arg(m_inputHash),
+                    input.serialize());
+    bool useCache = false;
+    auto cachePath = QString("temp/infer-variance-output-%1.json").arg(m_inputHash);
+    if (QFile(cachePath).exists()) {
+        QJsonObject obj;
+        useCache = JsonUtils::load(cachePath, obj) && model.deserialize(obj);
+    }
+
     QString resultJson;
     QString errorMessage;
-    if (!inferEngine->inferVariance(buildInputJson(), resultJson, errorMessage)) {
-        qCritical() << "Task failed:" << errorMessage;
-        return;
+    if (useCache) {
+        qInfo() << "Use cached variance inference result:" << cachePath;
+    } else {
+        qDebug() << "Variance inference cache not found. Running inference...";
+        if (inferEngine->inferVariance(input.serializeToJson(), resultJson, errorMessage)) {
+            model.deserializeFromJson(resultJson);
+        } else {
+            qCritical() << "Task failed:" << errorMessage;
+            return;
+        }
     }
+
     if (isTerminateRequested()) {
         abort();
         return;
     }
 
-    m_success = processOutput(resultJson);
-    if (m_success)
-        qInfo() << "Success:"
-                << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
-    else
-        qCritical() << "Failed:"
-                    << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
+    JsonUtils::save(cachePath, model.serialize());
+    processOutput(model);
+    m_success = true;
+    qInfo() << "Success:"
+            << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
 void InferVarianceTask::terminate() {
@@ -113,7 +131,7 @@ void InferVarianceTask::buildPreviewText() {
     }
 }
 
-QString InferVarianceTask::buildInputJson() const {
+GenericInferModel InferVarianceTask::buildInputJson() const {
     auto secToTick = [&](const double &sec) { return sec * 480 * m_input.tempo / 60; };
 
     auto words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo, true);
@@ -153,18 +171,10 @@ QString InferVarianceTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy};
-    JsonUtils::save(QString("temp/infer-variance-input-%1.json").arg(id()), model.serialize());
-    return model.serializeToJson();
+    return model;
 }
 
-bool InferVarianceTask::processOutput(const QString &json) {
-
-    GenericInferModel model;
-    if (!model.deserializeFromJson(json))
-        return false;
-
-    // JsonUtils::save(QString("temp/infer-variance-output-%1.json").arg(pieceId()), model.serialize());
-
+bool InferVarianceTask::processOutput(const GenericInferModel &model) {
     auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
     auto newInterval = tickToSec(5);
 

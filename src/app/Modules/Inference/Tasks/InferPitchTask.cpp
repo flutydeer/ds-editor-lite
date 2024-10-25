@@ -69,24 +69,42 @@ void InferPitchTask::runTask() {
         return;
     }
 
+    GenericInferModel model;
+    auto input = buildInputJson();
+    m_inputHash = input.hashData();
+    JsonUtils::save(QString("temp/infer-pitch-input-%1.json").arg(m_inputHash),
+                    input.serialize());
+    bool useCache = false;
+    auto cachePath = QString("temp/infer-pitch-output-%1.json").arg(m_inputHash);
+    if (QFile(cachePath).exists()) {
+        QJsonObject obj;
+        useCache = JsonUtils::load(cachePath, obj) && model.deserialize(obj);
+    }
+
     QString resultJson;
     QString errorMessage;
-    if (!inferEngine->inferPitch(buildInputJson(), resultJson, errorMessage)) {
-        qCritical() << "Task failed:" << errorMessage;
-        return;
+    if (useCache) {
+        qInfo() << "Use cached pitch inference result:" << cachePath;
+    } else {
+        qDebug() << "Pitch inference cache not found. Running inference...";
+        if (inferEngine->inferPitch(input.serializeToJson(), resultJson, errorMessage)) {
+            model.deserializeFromJson(resultJson);
+        } else {
+            qCritical() << "Task failed:" << errorMessage;
+            return;
+        }
     }
+
     if (isTerminateRequested()) {
         abort();
         return;
     }
 
-    m_success = processOutput(resultJson);
-    if (m_success)
-        qInfo() << "Success:"
-                << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
-    else
-        qCritical() << "Failed:"
-                    << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
+    JsonUtils::save(cachePath, model.serialize());
+    processOutput(model);
+    m_success = true;
+    qInfo() << "Success:"
+            << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
 void InferPitchTask::terminate() {
@@ -113,7 +131,7 @@ void InferPitchTask::buildPreviewText() {
     }
 }
 
-QString InferPitchTask::buildInputJson() const {
+GenericInferModel InferPitchTask::buildInputJson() const {
     auto secToTick = [&](const double &sec) { return sec * 480 * m_input.tempo / 60; };
     auto words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo, true);
     double totalLength = 0;
@@ -142,17 +160,10 @@ QString InferPitchTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch, expr};
-    JsonUtils::save(QString("temp/infer-pitch-input-%1.json").arg(pieceId()), model.serialize());
-    return model.serializeToJson();
+    return model;
 }
 
-bool InferPitchTask::processOutput(const QString &json) {
-    GenericInferModel model;
-    if (!model.deserializeFromJson(json))
-        return false;
-
-    JsonUtils::save(QString("temp/infer-pitch-output-%1.json").arg(id()), model.serialize());
-
+bool InferPitchTask::processOutput(const GenericInferModel &model) {
     auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
     auto oriPitch = Linq::where(model.params, L_PRED(p, p.tag == "pitch")).first();
     auto newInterval = tickToSec(5);

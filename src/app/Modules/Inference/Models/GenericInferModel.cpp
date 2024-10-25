@@ -4,6 +4,7 @@
 
 #include "GenericInferModel.h"
 
+#include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 
@@ -134,4 +135,10 @@ QString GenericInferModel::serializeToJson() const {
 bool GenericInferModel::deserializeFromJson(const QString &json) {
     const QByteArray data = json.toUtf8();
     return deserialize(QJsonDocument::fromJson(data).object());
+}
+
+QString GenericInferModel::hashData() const {
+    const QByteArray byteArray = serializeToJson().toUtf8();
+    const QByteArray hashData = QCryptographicHash::hash(byteArray, QCryptographicHash::Sha1);
+    return hashData.toHex();
 }

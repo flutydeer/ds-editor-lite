@@ -72,30 +72,31 @@ void InferAcousticTask::runTask() {
         return;
     }
 
-    QDir cacheDir("temp");
-    if (!cacheDir.exists())
-        if (!cacheDir.mkpath(".")) {
-            qCritical() << "Failed to create temporary directory";
+    GenericInferModel model;
+    auto input = buildInputJson();
+    m_inputHash = input.hashData();
+    JsonUtils::save(QString("temp/infer-acoustic-input-%1.json").arg(m_inputHash),
+                    input.serialize());
+    bool useCache = false;
+    auto cachePath = QString("temp/infer-acoustic-output-%1.wav").arg(m_inputHash);
+    if (QFile(cachePath).exists())
+        useCache = true;
+
+    QString errorMessage;
+    if (useCache) {
+        qInfo() << "Use cached acoustic inference result:" << cachePath;
+        m_result = cachePath;
+    } else {
+        qDebug() << "acoustic inference cache not found. Running inference...";
+        if (inferEngine->inferAcoustic(input.serializeToJson(), cachePath, errorMessage)) {
+            m_result = cachePath;
+        } else {
+            qCritical() << "Task failed:" << errorMessage;
             return;
         }
-
-    const auto inputJson = buildInputJson();
-    const QByteArray byteArray = inputJson.toUtf8();
-    const QByteArray hashData = QCryptographicHash::hash(byteArray, QCryptographicHash::Sha1);
-    auto outputPath = QString("temp/infer-acoustic-output-%1-%2.wav")
-                          .arg(pieceId())
-                          .arg(QString(hashData.toHex()));
-    if (QString errorMessage; !inferEngine->inferAcoustic(inputJson, outputPath, errorMessage)) {
-        qCritical() << "Task failed:" << errorMessage;
-        return;
-    }
-    if (isTerminateRequested()) {
-        abort();
-        return;
     }
 
     m_success = true;
-    m_result = outputPath;
     qInfo() << "Success:"
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
@@ -123,7 +124,7 @@ void InferAcousticTask::buildPreviewText() {
     }
 }
 
-QString InferAcousticTask::buildInputJson() const {
+GenericInferModel InferAcousticTask::buildInputJson() const {
     auto secToTick = [&](const double &sec) { return sec * 480 * m_input.tempo / 60; };
 
     auto words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo, true);
@@ -177,6 +178,5 @@ QString InferAcousticTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, gender, velocity};
-    JsonUtils::save(QString("temp/infer-acoustic-input-%1.json").arg(pieceId()), model.serialize());
-    return model.serializeToJson();
+    return model;
 }

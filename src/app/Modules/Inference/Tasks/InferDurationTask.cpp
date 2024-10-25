@@ -11,6 +11,7 @@
 
 #include <QThread>
 #include <QDebug>
+#include <QDir>
 #include <QJsonDocument>
 #include <utility>
 
@@ -78,24 +79,49 @@ void InferDurationTask::runTask() {
         return;
     }
 
+    QDir cacheDir("temp");
+    if (!cacheDir.exists())
+        if (!cacheDir.mkpath(".")) {
+            qCritical() << "Failed to create temporary directory";
+            return;
+        }
+
+    GenericInferModel model;
+    auto input = buildInputJson();
+    m_inputHash = input.hashData();
+    JsonUtils::save(QString("temp/infer-duration-input-%1.json").arg(m_inputHash),
+                    input.serialize());
+    bool useCache = false;
+    auto cachePath = QString("temp/infer-duration-output-%1.json").arg(m_inputHash);
+    if (QFile(cachePath).exists()) {
+        QJsonObject obj;
+        useCache = JsonUtils::load(cachePath, obj) && model.deserialize(obj);
+    }
+
     QString resultJson;
     QString errorMessage;
-    if (!inferEngine->inferDuration(buildInputJson(), resultJson, errorMessage)) {
-        qCritical() << "Task failed:" << errorMessage;
-        return;
+    if (useCache) {
+        qInfo() << "Use cached duration inference result:" << cachePath;
+    } else {
+        qDebug() << "Duration inference cache not found. Running inference...";
+        if (inferEngine->inferDuration(input.serializeToJson(), resultJson, errorMessage)) {
+            model.deserializeFromJson(resultJson);
+        } else {
+            qCritical() << "Task failed:" << errorMessage;
+            return;
+        }
     }
+
     if (isTerminateRequested()) {
         abort();
         return;
     }
 
-    m_success = processOutput(resultJson);
-    if (m_success)
-        qInfo() << "Success:"
-                << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
-    else
-        qCritical() << "Failed:"
-                    << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
+    JsonUtils::save(cachePath, model.serialize());
+    processOutput(model);
+    m_success = true;
+    qInfo() << "Success:"
+            << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
 void InferDurationTask::terminate() {
@@ -121,20 +147,13 @@ void InferDurationTask::buildPreviewText() {
     }
 }
 
-QString InferDurationTask::buildInputJson() const {
+GenericInferModel InferDurationTask::buildInputJson() const {
     GenericInferModel model;
     model.words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo);
-    JsonUtils::save(QString("temp/infer-dur-input-%1.json").arg(id()), model.serialize());
-    return model.serializeToJson();
+    return model;
 }
 
-bool InferDurationTask::processOutput(const QString &json) {
-    GenericInferModel model;
-    if (!model.deserializeFromJson(json))
-        return false;
-
-    JsonUtils::save(QString("temp/infer-dur-output-%1.json").arg(pieceId()), model.serialize());
-
+bool InferDurationTask::processOutput(const GenericInferModel &model) {
     QList<bool> isRestPhones;
     QList<std::pair<double, double>> offsets;
     for (const auto &word : model.words) {

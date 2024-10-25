@@ -6,6 +6,7 @@
 #define INFERDURATIONTASK_H
 
 #include "IInferTask.h"
+#include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Task/Task.h"
@@ -31,13 +32,14 @@ private:
     void terminate() override;
     void abort();
     void buildPreviewText();
-    QString buildInputJson() const;
-    bool processOutput(const QString &json);
+    GenericInferModel buildInputJson() const;
+    bool processOutput(const GenericInferModel &model);
 
     QMutex m_mutex;
     QString m_previewText;
     InferDurInput m_input;
     InferDurInput m_result;
+    QString m_inputHash;
     bool m_success = false;
 };
 

@@ -6,6 +6,7 @@
 #define INFERPITCHTASK_H
 
 #include "IInferTask.h"
+#include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/Models/InferParamCurve.h"
@@ -33,12 +34,13 @@ private:
     void terminate() override;
     void abort();
     void buildPreviewText();
-    QString buildInputJson() const;
-    bool processOutput(const QString &json);
+    GenericInferModel buildInputJson() const;
+    bool processOutput(const GenericInferModel &model);
 
     QString m_previewText;
     InferPitchInput m_input;
     InferParamCurve m_result;
+    QString m_inputHash;
     bool m_success = false;
 };
 
