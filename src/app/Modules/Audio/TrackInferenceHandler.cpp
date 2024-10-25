@@ -148,6 +148,8 @@ void TrackInferenceHandler::handleInferPieceStatusChange(InferPiece *piece, Infe
             inferencePieceContext->determine(piece->audioPath);
             break;
         case Failed:
+            if (inferencePieceContext->isDetermined())
+                inferencePieceContext->reset();
             inferencePieceContext->determine();
             AudioContext::instance()->handleInferPieceFailed();
             break;
