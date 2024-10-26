@@ -190,7 +190,7 @@ void TimelineView::drawPieces(QPainter *painter) const {
         auto x1 = tickToX(piece->realStartTick() + m_clip->start());
         auto x2 = tickToX(piece->realEndTick() + m_clip->start());
         painter->drawLine(x1, y, x2, y);
-        painter->drawText(QPointF(x1, y), "#" + QString::number(piece->id()));
+        // painter->drawText(QPointF(x1, y), "#" + QString::number(piece->id()));
     }
 }
 

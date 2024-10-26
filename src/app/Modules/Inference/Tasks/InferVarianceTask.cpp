@@ -60,16 +60,6 @@ void InferVarianceTask::runTask() {
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    if (!inferEngine->runLoadConfig(m_input.configPath)) {
-        qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
-                    << "pieceId:" << pieceId() << "taskId:" << id();
-        return;
-    }
-    if (isTerminateRequested()) {
-        abort();
-        return;
-    }
-
     GenericInferModel model;
     auto input = buildInputJson();
     m_inputHash = input.hashData();
@@ -88,6 +78,15 @@ void InferVarianceTask::runTask() {
         qInfo() << "Use cached variance inference result:" << cachePath;
     } else {
         qDebug() << "Variance inference cache not found. Running inference...";
+        if (!inferEngine->runLoadConfig(m_input.configPath)) {
+            qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
+                        << "pieceId:" << pieceId() << "taskId:" << id();
+            return;
+        }
+        if (isTerminateRequested()) {
+            abort();
+            return;
+        }
         if (inferEngine->inferVariance(input.serializeToJson(), resultJson, errorMessage)) {
             model.deserializeFromJson(resultJson);
         } else {

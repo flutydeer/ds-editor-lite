@@ -69,16 +69,6 @@ void InferDurationTask::runTask() {
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    if (!inferEngine->runLoadConfig(m_input.configPath)) {
-        qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
-                    << "pieceId:" << pieceId() << "taskId:" << id();
-        return;
-    }
-    if (isTerminateRequested()) {
-        abort();
-        return;
-    }
-
     QDir cacheDir("temp");
     if (!cacheDir.exists())
         if (!cacheDir.mkpath(".")) {
@@ -104,6 +94,15 @@ void InferDurationTask::runTask() {
         qInfo() << "Use cached duration inference result:" << cachePath;
     } else {
         qDebug() << "Duration inference cache not found. Running inference...";
+        if (!inferEngine->runLoadConfig(m_input.configPath)) {
+            qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
+                        << "pieceId:" << pieceId() << "taskId:" << id();
+            return;
+        }
+        if (isTerminateRequested()) {
+            abort();
+            return;
+        }
         if (inferEngine->inferDuration(input.serializeToJson(), resultJson, errorMessage)) {
             model.deserializeFromJson(resultJson);
         } else {
