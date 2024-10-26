@@ -15,10 +15,37 @@
 #include <dsonnxinfer/VarianceInference.h>
 
 #include "Utils/BasePitchCurve.h"
+#include "Utils/Log.h"
 
 #include <QDebug>
 
+namespace DS = dsonnxinfer;
+
+static void loggerCallbackDs(int level, const char *category, const char *msg) {
+    switch (level) {
+        case DS::LOGGING_LEVEL_FATAL:
+            Log::f(category, msg);
+            break;
+        case DS::LOGGING_LEVEL_ERROR:
+            Log::e(category, msg);
+            break;
+        case DS::LOGGING_LEVEL_WARNING:
+            Log::w(category, msg);
+            break;
+        case DS::LOGGING_LEVEL_INFO:
+            Log::i(category, msg);
+            break;
+        case DS::LOGGING_LEVEL_DEBUG:
+            Log::d(category, msg);
+            break;
+        default:
+            break;
+    }
+}
+
 InferEngine::InferEngine() {
+    m_env.setLoggerCallback(loggerCallbackDs);
+
     auto initTask = new InitInferEngineTask;
     connect(initTask, &Task::finished, this, [=] {
         taskManager->removeTask(initTask);
@@ -67,11 +94,11 @@ bool InferEngine::initialize(QString &error) {
         "../lib/libonnxruntime.so";
 #endif
     // Load environment (must do this before inference)
-    auto ep = EP_CPU;
+    auto ep = DS::EP_CPU;
     if (appOptions->inference()->executionProvider == "CPU")
-        ep = EP_CPU;
+        ep = DS::EP_CPU;
     else if (appOptions->inference()->executionProvider == "DirectML")
-        ep = EP_DirectML;
+        ep = DS::EP_DirectML;
     if (!m_env.load(ortPath, ep, &errorMessage)) {
         qCritical() << "Failed to load environment:" << errorMessage;
         error += errorMessage;
@@ -106,41 +133,41 @@ bool InferEngine::runLoadConfig(const QString &path) {
     bool loadDsConfigOk;
 
     std::string dsConfigPath = path.toStdString();
-    auto dsConfig = DsConfig::fromYAML(dsConfigPath, &loadDsConfigOk);
+    auto dsConfig = DS::DsConfig::fromYAML(dsConfigPath, &loadDsConfigOk);
 
     auto dsVocoderConfigPath =
         std::filesystem::path(dsConfigPath).parent_path() / "dsvocoder" / "vocoder.yaml";
-    auto dsVocoderConfig = DsVocoderConfig::fromYAML(dsVocoderConfigPath, &loadDsConfigOk);
+    auto dsVocoderConfig = DS::DsVocoderConfig::fromYAML(dsVocoderConfigPath, &loadDsConfigOk);
 
     auto durConfigPath =
         std::filesystem::path(dsConfigPath).parent_path() / "dsdur" / "dsconfig.yaml";
-    auto durConfig = DsDurConfig::fromYAML(durConfigPath, &loadDsConfigOk);
+    auto durConfig = DS::DsDurConfig::fromYAML(durConfigPath, &loadDsConfigOk);
 
     auto pitchConfigPath =
         std::filesystem::path(dsConfigPath).parent_path() / "dspitch" / "dsconfig.yaml";
-    auto pitchConfig = DsPitchConfig::fromYAML(pitchConfigPath, &loadDsConfigOk);
-    // bool expr = pitchConfig.features & kfParamExpr;
+    auto pitchConfig = DS::DsPitchConfig::fromYAML(pitchConfigPath, &loadDsConfigOk);
+    // bool expr = pitchConfig.features & DS::kfParamExpr;
     // qDebug() << "expr" << expr;
 
     auto varianceConfigPath =
         std::filesystem::path(dsConfigPath).parent_path() / "dsvariance" / "dsconfig.yaml";
-    auto varianceConfig = DsVarianceConfig::fromYAML(varianceConfigPath, &loadDsConfigOk);
+    auto varianceConfig = DS::DsVarianceConfig::fromYAML(varianceConfigPath, &loadDsConfigOk);
 
     if (!loadDsConfigOk) {
         qCritical() << "Failed to load config:" << path;
         return false;
     }
 
-    m_durationInfer = new DurationInference(durConfig);
+    m_durationInfer = new DS::DurationInference(durConfig);
     m_durationInfer->open();
 
-    m_pitchInfer = new PitchInference(pitchConfig);
+    m_pitchInfer = new DS::PitchInference(pitchConfig);
     m_pitchInfer->open();
 
-    m_varianceInfer = new VarianceInference(varianceConfig);
+    m_varianceInfer = new DS::VarianceInference(varianceConfig);
     m_varianceInfer->open();
 
-    m_acousticInfer = new AcousticInference(dsConfig, dsVocoderConfig);
+    m_acousticInfer = new DS::AcousticInference(dsConfig, dsVocoderConfig);
     m_acousticInfer->open();
 
     qInfo() << "Successfully loaded config";
@@ -157,8 +184,8 @@ bool InferEngine::inferDuration(const QString &input, QString &output, QString &
     if (!m_configLoaded) {
         qCritical() << "inferDuration: Config is not loaded";
     }
-    Status s;
-    auto segment = Segment::fromJson(input.toStdString(), &s);
+    DS::Status s;
+    auto segment = DS::Segment::fromJson(input.toStdString(), &s);
     if (!s.isOk()) {
         error = QString::fromStdString(s.msg);
         return false;
@@ -182,8 +209,8 @@ bool InferEngine::inferPitch(const QString &input, QString &output, QString &err
     if (!m_configLoaded) {
         qCritical() << "inferPitch: Config is not loaded";
     }
-    Status s;
-    auto segment = Segment::fromJson(input.toStdString(), &s);
+    DS::Status s;
+    auto segment = DS::Segment::fromJson(input.toStdString(), &s);
     if (!s.isOk()) {
         error = QString::fromStdString(s.msg);
         return false;
@@ -223,8 +250,8 @@ bool InferEngine::inferVariance(const QString &input, QString &output, QString &
     if (!m_configLoaded) {
         qCritical() << "inferVariance: Config is not loaded";
     }
-    Status s;
-    auto segment = Segment::fromJson(input.toStdString(), &s);
+    DS::Status s;
+    auto segment = DS::Segment::fromJson(input.toStdString(), &s);
     if (!s.isOk()) {
         error = QString::fromStdString(s.msg);
         return false;
@@ -248,8 +275,8 @@ bool InferEngine::inferAcoustic(const QString &input, const QString &outputPath,
     if (!m_configLoaded) {
         qCritical() << "inferAcoustic: Config is not loaded";
     }
-    Status s;
-    auto segment = Segment::fromJson(input.toStdString(), &s);
+    DS::Status s;
+    auto segment = DS::Segment::fromJson(input.toStdString(), &s);
     if (!s.isOk()) {
         error = QString::fromStdString(s.msg);
         return false;

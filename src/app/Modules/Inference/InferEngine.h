@@ -21,8 +21,6 @@ namespace dsonnxinfer {
     class DurationInference;
 }
 
-using namespace dsonnxinfer;
-
 class InferEngine final : public QObject, public Singleton<InferEngine> {
     Q_OBJECT
 
@@ -59,11 +57,11 @@ private:
     QMutex m_mutex;
     bool m_initialized = false;
     bool m_configLoaded = false;
-    Environment m_env;
-    DurationInference *m_durationInfer = nullptr;
-    PitchInference *m_pitchInfer = nullptr;
-    VarianceInference *m_varianceInfer = nullptr;
-    AcousticInference *m_acousticInfer = nullptr;
+    dsonnxinfer::Environment m_env;
+    dsonnxinfer::DurationInference *m_durationInfer = nullptr;
+    dsonnxinfer::PitchInference *m_pitchInfer = nullptr;
+    dsonnxinfer::VarianceInference *m_varianceInfer = nullptr;
+    dsonnxinfer::AcousticInference *m_acousticInfer = nullptr;
 
     QString m_configPath;
 };
