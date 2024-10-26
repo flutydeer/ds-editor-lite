@@ -118,6 +118,7 @@ bool InferEngine::runLoadConfig(const QString &path) {
         qWarning() << "Config path is null or empty";
         return false;
     }
+    QMutexLocker lock(&m_mutex);
     if (path == m_configPath) {
         qInfo() << "Already loaded config";
         return m_configLoaded;
