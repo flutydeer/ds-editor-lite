@@ -1,7 +1,7 @@
 {
   "name": "lyric-tab",
-  "version": "0.0.10",
-  "homepage": "https://github.com/wolfgitpr/cpp-kana",
+  "version": "0.0.11",
+  "homepage": "https://github.com/wolfgitpr/lyric-tab",
   "description": "A view of lyrics for editing polyphonic words.",
   "license": "Apache-2.0",
   "dependencies": [
