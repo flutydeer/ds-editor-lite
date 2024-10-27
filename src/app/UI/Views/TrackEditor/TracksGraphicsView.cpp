@@ -14,6 +14,7 @@
 #include "GraphicsItem/TrackEditorBackgroundView.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Views/Common/ScrollBarView.h"
@@ -22,6 +23,8 @@
 #include <QFileDialog>
 #include <QMouseEvent>
 #include <QMWidgets/cmenu.h>
+
+#include <TalcsWidgets/AudioFileDialog.h>
 
 TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent)
     : TimeGraphicsView(scene, parent), m_scene(scene) {
@@ -75,14 +78,23 @@ void TracksGraphicsView::onNewSingingClip() const {
 }
 
 void TracksGraphicsView::onAddAudioClip() {
-    auto fileName =
-        QFileDialog::getOpenFileName(this, tr("Select an Audio File"), ".",
-                                     tr("All Audio File (*.wav *.flac *.mp3);;Wave File "
-                                        "(*.wav);;Flac File (*.flac);;MP3 File (*.mp3)"));
+    QString fileName;
+    QVariant userData;
+    QString entryClassName;
+    auto io = talcs::AudioFileDialog::getOpenAudioFileIO(AudioContext::instance()->formatManager(), fileName, userData, entryClassName, this, tr("Select an Audio File"), ".");
+
+    QByteArray data;
+    QDataStream o(&data, QIODevice::WriteOnly);
+    o << userData;
+    QJsonObject workspace {
+        {"userData", QString::fromLatin1(data.toBase64())},
+        {"entryClassName", entryClassName},
+    };
+
     if (fileName.isNull())
         return;
     auto track = appModel->tracks().at(m_trackIndex);
-    trackController->onAddAudioClip(fileName, track->id(), m_tick);
+    trackController->onAddAudioClip(fileName, io, workspace, track->id(), m_tick);
 }
 
 void TracksGraphicsView::onDeleteTriggered() const {

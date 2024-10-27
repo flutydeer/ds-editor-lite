@@ -18,6 +18,10 @@
 class SingingClip;
 class QWidget;
 
+namespace talcs {
+    class AbstractAudioFormatIO;
+}
+
 class TrackController final : public QObject, public Singleton<TrackController> {
     Q_OBJECT
 
@@ -32,7 +36,7 @@ public slots:
     static void addAudioClipToNewTrack(const QString &filePath);
     static void setActiveClip(int clipId);
     static void changeTrackProperty(const Track::TrackProperties &args);
-    void onAddAudioClip(const QString &path, int id, int tick);
+    void onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io, const QJsonObject &workspace, int id, int tick);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     static void onRemoveClips(const QList<int> &clipsId);
     static SingingClip *onNewSingingClip(int trackIndex, int tick);

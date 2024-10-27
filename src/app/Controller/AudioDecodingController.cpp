@@ -4,7 +4,10 @@
 
 #include "AudioDecodingController.h"
 
+#include <TalcsFormat/FormatManager.h>
+
 #include "Model/AppModel/AudioClip.h"
+#include "Modules/Audio/AudioContext.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "UI/Controls/AccentButton.h"
@@ -56,6 +59,14 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
     auto decodeTask = new DecodeAudioTask;
     decodeTask->clipId = clip->id();
     decodeTask->path = clip->path();
+    decodeTask->workspace = clip->workspace().value("diffscope.audio.formatData");
+
+    QVariant userData;
+    QDataStream o(QByteArray::fromBase64(decodeTask->workspace.value("userData").toString().toLatin1()));
+    o >> userData;
+    auto entryClassName = decodeTask->workspace.value("entryClassName").toString();
+    decodeTask->io = AudioContext::instance()->formatManager()->getFormatLoad(decodeTask->path, userData, entryClassName);
+
     m_tasks.append(decodeTask);
     connect(decodeTask, &Task::finished, this,
             [=] { handleTaskFinished(decodeTask); });

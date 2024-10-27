@@ -5,28 +5,33 @@
 #ifndef DECODEAUDIOTASK_H
 #define DECODEAUDIOTASK_H
 
+#include <QJsonObject>
+
 #include "Model/AppModel/AudioInfoModel.h"
 #include "Modules/Task/Task.h"
 
-#include <sndfile.hh>
+namespace talcs {
+    class AbstractAudioFormatIO;
+}
 
 class DecodeAudioTask : public Task {
 public:
     explicit DecodeAudioTask();
     // explicit DecodeAudioTask(int id);
 
+    talcs::AbstractAudioFormatIO *io{};
     int trackId = -1;
     int clipId = -1;
     int tick = 0;
     QString path;
     bool success = false;
     QString errorMessage;
+    QJsonObject workspace;
     [[nodiscard]] AudioInfoModel result() const;
 
 private:
     void runTask() override;
 
-    SndfileHandle sf;
     int m_sampleRate = 0;
     int m_channels = 0;
     long long m_frames = 0;

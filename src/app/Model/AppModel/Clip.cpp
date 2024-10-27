@@ -4,6 +4,8 @@
 
 #include "Clip.h"
 
+#include <QJsonObject>
+
 QString Clip::name() const {
     return m_name;
 }
@@ -69,6 +71,14 @@ void Clip::setMute(bool mute) {
 
 void Clip::notifyPropertyChanged() {
     emit propertyChanged();
+}
+
+QMap<QString, QJsonObject> &Clip::workspace() {
+    return m_workspace;
+}
+
+QMap<QString, QJsonObject> Clip::workspace() const {
+    return m_workspace;
 }
 
 int Clip::endTick() const {

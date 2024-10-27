@@ -101,11 +101,13 @@ void TrackController::changeTrackProperty(const Track::TrackProperties &args) {
     historyManager->record(a);
 }
 
-void TrackController::onAddAudioClip(const QString &path, int id, int tick) {
+void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io, const QJsonObject &workspace, int id, int tick) {
     auto decodeTask = new DecodeAudioTask;
+    decodeTask->io = io;
     decodeTask->path = path;
     decodeTask->trackId = id;
     decodeTask->tick = tick;
+    decodeTask->workspace = workspace;
     auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
     dlg->show();
     connect(decodeTask, &Task::finished, this, [=] { handleDecodeAudioTaskFinished(decodeTask); });
@@ -247,6 +249,7 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     audioClip->setClipLen(length);
     audioClip->setPath(path);
     audioClip->setAudioInfo(result);
+    audioClip->workspace().insert("diffscope.audio.formatData", task->workspace);
     auto track = appModel->findTrackById(trackId);
     if (!track) {
         qDebug() << "handleDecodeAudioTaskFinished: track not found";

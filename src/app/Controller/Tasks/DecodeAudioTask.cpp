@@ -7,6 +7,8 @@
 #include <QDebug>
 #include <QThread>
 
+#include <TalcsFormat/AbstractAudioFormatIO.h>
+
 DecodeAudioTask::DecodeAudioTask(/*int id*/) /*: ITask(id)*/ {
     TaskStatus status;
     status.title = "Decoding audio...";
@@ -39,13 +41,10 @@ void DecodeAudioTask::runTask() {
         path.toStdString();
 #endif
     //    SndfileHandle sf(pathStr.c_str());
-    sf = SndfileHandle(pathStr.c_str());
-    auto sfErrCode = sf.error();
-    auto sfErrMsg = sf.strError();
 
-    if (sfErrCode) {
+    if (!io || !io->open(talcs::AbstractAudioFormatIO::Read)) {
         success = false;
-        errorMessage = sfErrMsg;
+        errorMessage = "No io"; // TODO talcs::FormatEntry should provide error message
         return;
     }
 
@@ -54,13 +53,13 @@ void DecodeAudioTask::runTask() {
     QVector<std::tuple<short, short>> nullVectorThumbnail;
     m_peakCacheMipmap.swap(nullVectorThumbnail);
 
-    m_sampleRate = sf.samplerate();
-    m_channels = sf.channels();
-    m_frames = sf.frames();
+    m_sampleRate = io->sampleRate();
+    m_channels = io->channelCount();
+    m_frames = io->length();
     // auto totalSize = frames * channels;
     // qDebug() << frames;
 
-    std::vector<double> buffer(m_chunkSize * m_channels);
+    std::vector<float> buffer(m_chunkSize * m_channels);
     auto totalBufferCount = m_frames / m_chunkSize;
     long long buffersRead = 0;
     qint64 samplesRead = 0;
@@ -74,7 +73,7 @@ void DecodeAudioTask::runTask() {
             // QThread::sleep(3);
             return;
         }
-        samplesRead = sf.read(buffer.data(), m_chunkSize * m_channels);
+        samplesRead = io->read(buffer.data(), m_chunkSize);
         if (samplesRead == 0) {
             break;
         }

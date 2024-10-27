@@ -29,7 +29,6 @@ endif ()
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)
 
-find_package(SndFile CONFIG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Core5Compat)
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
@@ -45,12 +44,11 @@ target_include_directories(${PROJECT_NAME} PUBLIC
         "$<BUILD_INTERFACE:${INTERVAL_TREE_INCLUDE_DIRS}>"
 )
 target_link_libraries(${PROJECT_NAME} PUBLIC
-        SndFile::sndfile
         Qt6::Core
         Qt6::Widgets
         Qt6::Core5Compat
         ${PLATFORM_LIB}
-        talcs::Core talcs::Device talcs::Format talcs::Midi talcs::Dspx
+        talcs::Core talcs::Device talcs::Format talcs::Midi talcs::Dspx talcs::Widgets
         opendspx::opendspx
         language-manager::language-manager
         lyric-tab::lyric-tab

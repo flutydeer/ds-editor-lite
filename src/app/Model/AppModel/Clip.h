@@ -10,6 +10,7 @@
 #include "Utils/OverlappableSerialList.h"
 
 #include <QObject>
+#include <QMap>
 
 class Clip : public QObject, public IClip, public Overlappable {
     Q_OBJECT
@@ -36,6 +37,9 @@ public:
     [[nodiscard]] bool mute() const override;
     void setMute(bool mute) override;
     void notifyPropertyChanged();
+
+    QMap<QString, QJsonObject> &workspace();
+    QMap<QString, QJsonObject> workspace() const;
 
     [[nodiscard]] int endTick() const;
 
@@ -70,6 +74,7 @@ protected:
     int m_clipLen = 0;
     double m_gain = 0;
     bool m_mute = false;
+    QMap<QString, QJsonObject> m_workspace;
 
     static void applyPropertiesFromClip(ClipCommonProperties &args, const IClip &clip);
 };

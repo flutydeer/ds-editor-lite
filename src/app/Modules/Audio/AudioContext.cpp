@@ -28,6 +28,8 @@
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsDspx/DspxTrackContext.h>
 #include <TalcsDspx/DspxAudioClipContext.h>
+#include <TalcsWidgets/StandardFormatEntry.h>
+#include <TalcsWidgets/WavpackFormatEntry.h>
 
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
@@ -49,133 +51,6 @@ public:
     }
 
     ~AudioFormatIOObject() override = default;
-};
-
-class BuiltInFormatEntry : public talcs::FormatEntry {
-public:
-    explicit BuiltInFormatEntry(QObject *parent = nullptr) : FormatEntry(parent) {
-        std::set<QString> extensionHintSet;
-        for (const auto &fmtInfo : talcs::AudioFormatIO::availableFormats()) {
-            QStringList fmtExtensions;
-            fmtExtensions.append(fmtInfo.extension);
-            if (fmtInfo.extension == "raw") {
-                for (const auto &subtypeInfo : fmtInfo.subtypes)
-                    m_rawSubtypes.append({subtypeInfo.name, subtypeInfo.subtype});
-            }
-            for (const auto &subtypeInfo : fmtInfo.subtypes) {
-                fmtExtensions += subtypeInfo.extensions;
-            }
-            extensionHintSet.insert(fmtExtensions.cbegin(), fmtExtensions.cend());
-            std::transform(fmtExtensions.cbegin(), fmtExtensions.cend(), fmtExtensions.begin(),
-                           [](const QString &extension) { return "*." + extension; });
-            m_filters.append(QString("%1 (%2)").arg(fmtInfo.name, fmtExtensions.join(" ")));
-        }
-        m_extensionHints = QStringList(extensionHintSet.cbegin(), extensionHintSet.cend());
-    }
-
-    ~BuiltInFormatEntry() override = default;
-
-    QStringList filters() const override {
-        return m_filters;
-    }
-
-    QStringList extensionHints() const override {
-        return m_extensionHints;
-    }
-
-    talcs::AbstractAudioFormatIO *getFormatOpen(const QString &filename, QVariant &userData,
-                                                QWidget *win) {
-        std::unique_ptr<AudioFormatIOObject> io = std::make_unique<AudioFormatIOObject>();
-        std::unique_ptr<QFile> f = std::make_unique<QFile>(filename, io.get());
-        if (!f->open(QIODevice::ReadOnly))
-            return nullptr;
-        io->setStream(f.release());
-        if (filename.endsWith(".raw")) {
-            QDialog dlg(win);
-            auto mainLayout = new QVBoxLayout;
-            auto optionsLayout = new QFormLayout;
-
-            auto subtypeComboBox = new QComboBox;
-            for (const auto &[name, subtype] : m_rawSubtypes) {
-                subtypeComboBox->addItem(name, subtype);
-            }
-            optionsLayout->addRow(tr("Option"), subtypeComboBox);
-
-            auto channelCountSpinBox = new QSpinBox;
-            channelCountSpinBox->setMinimum(1);
-            optionsLayout->addRow(tr("Channel"), channelCountSpinBox);
-
-            auto sampleRateComboBox = new QComboBox;
-            sampleRateComboBox->addItems({"8000", "11025", "12000", "16000", "22050", "24000",
-                                          "32000", "44100", "48000", "64000", "88200", "96000",
-                                          "128000", "176400", "192000", "256000", "352800",
-                                          "384000"});
-            sampleRateComboBox->setEditable(true);
-            sampleRateComboBox->setValidator(
-                new QDoubleValidator(0.01, std::numeric_limits<double>::max(), 2));
-            optionsLayout->addRow(tr("Sample rate"), sampleRateComboBox);
-
-            auto byteOrderComboBox = new QComboBox;
-            byteOrderComboBox->addItem(tr("System"), talcs::AudioFormatIO::SystemOrder);
-            byteOrderComboBox->addItem(tr("Little-endian"), talcs::AudioFormatIO::LittleEndian);
-            byteOrderComboBox->addItem(tr("Big-endian"), talcs::AudioFormatIO::BigEndian);
-            optionsLayout->addRow(tr("Byte order"), byteOrderComboBox);
-
-            mainLayout->addLayout(optionsLayout);
-
-            auto buttonLayout = new QHBoxLayout;
-            buttonLayout->addStretch();
-            auto okButton = new QPushButton(tr("OK"));
-            buttonLayout->addWidget(okButton);
-            connect(okButton, &QAbstractButton::clicked, &dlg, &QDialog::accept);
-            mainLayout->addLayout(buttonLayout);
-
-            dlg.setLayout(mainLayout);
-            dlg.setWindowTitle(tr("Configure Raw Data"));
-            dlg.setWindowFlag(Qt::WindowContextHelpButtonHint, false);
-            if (dlg.exec() != QDialog::Accepted)
-                return nullptr;
-            userData = QVariantMap({
-                {"subtype",      subtypeComboBox->currentData()                       },
-                {"channelCount", channelCountSpinBox->value()                         },
-                {"sampleRate",   QLocale().toDouble(sampleRateComboBox->currentText())},
-                {"byteOrder",    byteOrderComboBox->currentData()                     }
-            });
-            io->setFormat(talcs::AudioFormatIO::RAW | subtypeComboBox->currentData().toInt() |
-                          byteOrderComboBox->currentData().toInt());
-            io->setChannelCount(channelCountSpinBox->value());
-            io->setSampleRate(QLocale().toDouble(sampleRateComboBox->currentText()));
-        }
-        if (!io->open(talcs::AbstractAudioFormatIO::Read))
-            return nullptr;
-        io->close();
-        return io.release();
-    }
-
-    talcs::AbstractAudioFormatIO *getFormatLoad(const QString &filename,
-                                                const QVariant &userData) override {
-        std::unique_ptr<AudioFormatIOObject> io = std::make_unique<AudioFormatIOObject>();
-        std::unique_ptr<QFile> f = std::make_unique<QFile>(filename, io.get());
-        if (!f->open(QIODevice::ReadOnly))
-            return nullptr;
-        io->setStream(f.release());
-        if (filename.endsWith(".raw")) {
-            auto rawOptions = userData.toMap();
-            io->setFormat(talcs::AudioFormatIO::RAW | rawOptions.value("subtype").toInt() |
-                          rawOptions.value("byteOrder").toInt());
-            io->setChannelCount(rawOptions.value("channelCount").toInt());
-            io->setSampleRate(rawOptions.value("sampleRate").toDouble());
-        }
-        if (!io->open(talcs::AbstractAudioFormatIO::Read))
-            return nullptr;
-        io->close();
-        return io.release();
-    }
-
-private:
-    QStringList m_filters;
-    QStringList m_extensionHints;
-    QList<QPair<QString, int>> m_rawSubtypes;
 };
 
 static AudioContext *m_instance = nullptr;
@@ -200,7 +75,8 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     setTimeConverter(&tickToSample);
 
     auto formatManager = new talcs::FormatManager(this);
-    formatManager->addEntry(new BuiltInFormatEntry);
+    formatManager->addEntry(new talcs::StandardFormatEntry);
+    formatManager->addEntry(new talcs::WavpackFormatEntry);
 
     setFormatManager(formatManager);
 
@@ -494,8 +370,16 @@ void AudioContext::handleClipPropertyChanged(AudioClip *audioClip) const {
     audioClipContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(audioClip->gain()));
     audioClipContext->controlMixer()->setSilentFlags(audioClip->mute() ? -1 : 0);
 
-    if (audioClip->path() != audioClipContext->path())
-        audioClipContext->setPathLoad(audioClip->path());
+    auto workspace = audioClip->workspace().value("diffscope.audio.formatData");
+    QVariant userData;
+    QDataStream o(QByteArray::fromBase64(workspace.value("userData").toString().toLatin1()));
+    o >> userData;
+    auto entryClassName = workspace.value("entryClassName").toString();
+
+    if (audioClip->path() != audioClipContext->path()) {
+        audioClipContext->setPathLoad(audioClip->path(), userData, entryClassName);
+    }
+
 }
 
 void AudioContext::handleTimeChanged() {

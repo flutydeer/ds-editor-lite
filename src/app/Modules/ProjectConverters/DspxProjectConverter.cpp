@@ -120,6 +120,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 for (auto &note : notes)
                     clip->insertNote(note);
                 clip->params = std::move(decodeSingingParams(castClip->params));
+                clip->workspace() = castClip->workspace;
                 track->insertClip(clip);
             } else if (dspxClip->type == QDspx::Clip::Type::Audio) {
                 const auto castClip = dspxClip.dynamicCast<QDspx::AudioClip>();
@@ -132,6 +133,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 clip->setGain(castClip->control.gain);
                 clip->setMute(castClip->control.mute);
                 clip->setPath(castClip->path);
+                clip->workspace() = castClip->workspace;
                 track->insertClip(clip);
             }
         }
@@ -271,6 +273,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 singClip->time.clipLen = clip->clipLen();
                 singClip->control.gain = clip->gain();
                 singClip->control.mute = clip->mute();
+                singClip->workspace = clip->workspace();
                 encodeNotes(singingClip->notes(), singClip->notes);
                 encodeSingingParams(singingClip->params, singClip->params);
                 track.clips.append(singClip);
@@ -285,6 +288,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 audioClipRef->control.gain = clip->gain();
                 audioClipRef->control.mute = clip->mute();
                 audioClipRef->path = audioClip->path();
+                audioClipRef->workspace = audioClip->workspace();
                 track.clips.append(audioClipRef);
             }
         }

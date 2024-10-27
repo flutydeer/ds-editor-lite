@@ -19,5 +19,6 @@ endif()
 set(PROJECT_CMAKE_MODULES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake)
 
 set(TALCS_DSPX ON)
+set(TALCS_WIDGETS ON)
 
 add_subdirectory(src)
