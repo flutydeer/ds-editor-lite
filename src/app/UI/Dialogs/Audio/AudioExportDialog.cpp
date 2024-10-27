@@ -744,6 +744,8 @@ namespace Audio::Internal {
         saveTemporaryPreset();
         if (ret == QDialog::Accepted && !m_keepOpenCheckBox->isChecked())
             accept();
+        else
+            updateView();
     }
 
     bool AudioExportDialog::askWarningBeforeExport(AudioExporter::Warning warning,
