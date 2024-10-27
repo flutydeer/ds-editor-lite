@@ -6,7 +6,7 @@
 
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "UI/Views/Common/CommonGraphicsRectItem.h"
+#include "UI/Views/Common/AbstractGraphicsRectItem.h"
 
 #include <QGraphicsSceneContextMenuEvent>
 #include <QPainter>
@@ -17,7 +17,7 @@
 using namespace ClipEditorGlobal;
 
 NoteView::NoteView(int itemId, QGraphicsItem *parent)
-    : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
+    : AbstractGraphicsRectItem(parent), UniqueObject(itemId) {
     initUi();
 }
 
@@ -263,22 +263,22 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         drawFullNote();
 }
 
-void NoteView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
-    // qDebug() << "NoteGraphicsItem::hoverMoveEvent" << event->pos().rx();
-    if (!m_editingPitch) {
-        const auto rx = event->pos().rx();
-        const auto ry = event->pos().ry();
-        const bool xInFilledRect =
-            rx >= 0 && rx <= AppGlobal::resizeTolerance ||
-            rx >= rect().width() - AppGlobal::resizeTolerance && rx <= rect().width();
-        const bool yInFilledRect = ry >= 0 && ry <= rect().height() - pronunciationTextHeight();
-        if (yInFilledRect && xInFilledRect)
-            setCursor(Qt::SizeHorCursor);
-        else
-            setCursor(Qt::ArrowCursor);
-    }
-    QGraphicsRectItem::hoverMoveEvent(event);
-}
+// void NoteView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
+//     // qDebug() << "NoteGraphicsItem::hoverMoveEvent" << event->pos().rx();
+//     if (!m_editingPitch) {
+//         const auto rx = event->pos().rx();
+//         const auto ry = event->pos().ry();
+//         const bool xInFilledRect =
+//             rx >= 0 && rx <= AppGlobal::resizeTolerance ||
+//             rx >= rect().width() - AppGlobal::resizeTolerance && rx <= rect().width();
+//         const bool yInFilledRect = ry >= 0 && ry <= rect().height() - pronunciationTextHeight();
+//         if (yInFilledRect && xInFilledRect)
+//             setCursor(Qt::SizeHorCursor);
+//         else
+//             setCursor(Qt::ArrowCursor);
+//     }
+//     QGraphicsRectItem::hoverMoveEvent(event);
+// }
 
 void NoteView::updateRectAndPos() {
     const auto x = (m_rStart + m_startOffset) * scaleX() * pixelsPerQuarterNote / 480;
@@ -291,6 +291,6 @@ void NoteView::updateRectAndPos() {
 }
 
 void NoteView::initUi() {
-    setAcceptHoverEvents(true);
+    // setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
 }

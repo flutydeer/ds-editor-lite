@@ -637,7 +637,7 @@ QGraphicsView {
     border-radius: 6px;
 }
 
-CommonGraphicsView {
+TimeGraphicsView {
     background: transparent;
     border: none;
 }

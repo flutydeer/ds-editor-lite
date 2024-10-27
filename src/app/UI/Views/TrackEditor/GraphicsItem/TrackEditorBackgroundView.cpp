@@ -2,7 +2,7 @@
 // Created by fluty on 2024/1/22.
 //
 
-#include "TracksBackgroundGraphicsItem.h"
+#include "TrackEditorBackgroundView.h"
 
 #include <QPainter>
 
@@ -10,17 +10,17 @@
 
 using namespace TracksEditorGlobal;
 
-void TracksBackgroundGraphicsItem::onTrackCountChanged(int count) {
+void TrackEditorBackgroundView::onTrackCountChanged(int count) {
     m_trackCount = count;
     update();
 }
 
-void TracksBackgroundGraphicsItem::onTrackSelectionChanged(int trackIndex) {
+void TrackEditorBackgroundView::onTrackSelectionChanged(int trackIndex) {
     m_trackIndex = trackIndex;
     update();
 }
 
-void TracksBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+void TrackEditorBackgroundView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                          QWidget *widget) {
     auto sceneYToTrackIndex = [&](const double y) { return y / scaleY() / trackHeight; };
     auto trackIndexToSceneY = [&](const double index) { return index * scaleY() * trackHeight; };
@@ -44,7 +44,7 @@ void TracksBackgroundGraphicsItem::paint(QPainter *painter, const QStyleOptionGr
         painter->drawRect(rect);
     }
 
-    TimeGridGraphicsItem::paint(painter, option, widget);
+    TimeGridView::paint(painter, option, widget);
 
     // Draw track divider
     auto lineColor = QColor(72, 75, 78);

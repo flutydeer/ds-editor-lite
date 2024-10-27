@@ -8,7 +8,7 @@
 #include <QObject>
 
 class GraphicsLayerManager;
-class CommonGraphicsRectItem;
+class AbstractGraphicsRectItem;
 class CommonGraphicsScene;
 
 class CommonGraphicsLayer : public QObject {
@@ -21,8 +21,8 @@ public:
 protected:
     friend class GraphicsLayerManager;
     qsizetype layerZValue = 0;
-    QList<CommonGraphicsRectItem *> backgroundItems;
-    QList<CommonGraphicsRectItem *> items;
+    QList<AbstractGraphicsRectItem *> backgroundItems;
+    QList<AbstractGraphicsRectItem *> items;
 };
 
 

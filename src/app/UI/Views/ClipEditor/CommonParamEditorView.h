@@ -7,11 +7,11 @@
 
 #include "Interface/IAtomicAction.h"
 #include "Model/AppModel/DrawCurve.h"
-#include "UI/Views/Common/TimeOverlayGraphicsItem.h"
+#include "UI/Views/Common/TimeOverlayView.h"
 
 class ParamProperties;
 
-class CommonParamEditorView : public TimeOverlayGraphicsItem, public IAtomicAction {
+class CommonParamEditorView : public TimeOverlayView, public IAtomicAction {
     Q_OBJECT
 
 public:

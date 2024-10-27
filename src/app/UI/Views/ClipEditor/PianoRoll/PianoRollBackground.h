@@ -5,9 +5,9 @@
 #ifndef PIANOROLLBACKGROUNDGRAPHICSITEM_H
 #define PIANOROLLBACKGROUNDGRAPHICSITEM_H
 
-#include "UI/Views/Common/TimeGridGraphicsItem.h"
+#include "UI/Views/Common/TimeGridView.h"
 
-class PianoRollBackground final : public TimeGridGraphicsItem {
+class PianoRollBackground final : public TimeGridView {
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 };

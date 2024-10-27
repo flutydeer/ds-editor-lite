@@ -16,7 +16,7 @@
 #include "Global/TracksEditorGlobal.h"
 #include "GraphicsItem/AudioClipView.h"
 #include "GraphicsItem/SingingClipView.h"
-#include "GraphicsItem/TracksBackgroundGraphicsItem.h"
+#include "GraphicsItem/TrackEditorBackgroundView.h"
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -43,7 +43,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     m_graphicsView = new TracksGraphicsView(m_tracksScene);
     m_graphicsView->centerOn(0, 0);
     m_graphicsView->setSceneLength(appStatus->projectEditableLength);
-    m_gridItem = new TracksBackgroundGraphicsItem;
+    m_gridItem = new TrackEditorBackgroundView;
     m_gridItem->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     m_tracksScene->addTimeGrid(m_gridItem);
     m_trackListView->setGraphicsView(m_graphicsView);
@@ -87,9 +87,9 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     connect(this, &TrackEditorView::trackCountChanged, m_tracksScene,
             &TracksGraphicsScene::onTrackCountChanged);
     connect(this, &TrackEditorView::trackCountChanged, m_gridItem,
-            &TracksBackgroundGraphicsItem::onTrackCountChanged);
+            &TrackEditorBackgroundView::onTrackCountChanged);
     connect(appStatus, &AppStatus::selectedTrackIndexChanged, m_gridItem,
-            &TracksBackgroundGraphicsItem::onTrackSelectionChanged);
+            &TrackEditorBackgroundView::onTrackSelectionChanged);
     connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
             &TracksGraphicsView::onWheelHorScale);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeline,

@@ -8,7 +8,7 @@
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 #include "PhonemeView.h"
-#include "UI/Views/Common/CommonGraphicsView.h"
+#include "UI/Views/Common/TimeGraphicsView.h"
 #include "UI/Views/Common/TimelineView.h"
 
 #include <QLabel>
@@ -37,9 +37,9 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_phonemeView,
             &PhonemeView::setTimeRange);
     connect(m_phonemeView, &PhonemeView::wheelHorScale, m_graphicsView,
-            &CommonGraphicsView::onWheelHorScale);
+            &TimeGraphicsView::onWheelHorScale);
     connect(m_phonemeView, &PhonemeView::wheelHorScroll, m_graphicsView,
-            &CommonGraphicsView::onWheelHorScroll);
+            &TimeGraphicsView::onWheelHorScroll);
 
     m_lbTip = new QLabel(tr("Select a singing clip to edit"));
     m_lbTip->setObjectName("lbNullClipTip");
@@ -80,9 +80,9 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     setLayout(layout);
 
     connect(m_timelineView, &TimelineView::wheelHorScale, m_graphicsView,
-            &CommonGraphicsView::onWheelHorScale);
+            &TimeGraphicsView::onWheelHorScale);
     connect(m_keyboardView, &PianoKeyboardView::wheelScroll, m_graphicsView,
-            &CommonGraphicsView::onWheelVerScale);
+            &TimeGraphicsView::onWheelVerScale);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timelineView,
             &TimelineView::setTimeRange);
     connect(m_graphicsView, &PianoRollGraphicsView::keyRangeChanged, m_keyboardView,

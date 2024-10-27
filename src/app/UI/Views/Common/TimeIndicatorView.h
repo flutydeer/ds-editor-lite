@@ -2,18 +2,18 @@
 // Created by fluty on 2024/2/3.
 //
 
-#ifndef TIMEINDICATORGRAPHICSITEM_H
-#define TIMEINDICATORGRAPHICSITEM_H
+#ifndef TIMEINDICATORVIEW_H
+#define TIMEINDICATORVIEW_H
 
 #include <QGraphicsLineItem>
 
 #include "UI/Utils/IScalableItem.h"
 
-class TimeIndicatorGraphicsItem : public QObject, public QGraphicsLineItem, public IScalableItem {
+class TimeIndicatorView : public QObject, public QGraphicsLineItem, public IScalableItem {
     Q_OBJECT
 
 public:
-    explicit TimeIndicatorGraphicsItem(QObject *parent = nullptr);
+    explicit TimeIndicatorView(QObject *parent = nullptr);
     void setPixelsPerQuarterNote(int px);
 
 public slots:
@@ -33,4 +33,4 @@ private:
     [[nodiscard]] double tickToItemX(double tick) const;
 };
 
-#endif // TIMEINDICATORGRAPHICSITEM_H
+#endif // TIMEINDICATORVIEW_H

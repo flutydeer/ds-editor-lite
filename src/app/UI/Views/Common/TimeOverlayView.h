@@ -2,12 +2,12 @@
 // Created by fluty on 2024/1/25.
 //
 
-#ifndef OVERLAYGRAPHICSITEM_H
-#define OVERLAYGRAPHICSITEM_H
+#ifndef TIMEOVERLAYVIEW
+#define TIMEOVERLAYVIEW
 
-#include "CommonGraphicsRectItem.h"
+#include "AbstractGraphicsRectItem.h"
 
-class TimeOverlayGraphicsItem : public CommonGraphicsRectItem {
+class TimeOverlayView : public AbstractGraphicsRectItem {
     Q_OBJECT
 
 public:
@@ -32,4 +32,4 @@ private:
     int pixelsPerQuarterNote = 96;
 };
 
-#endif // OVERLAYGRAPHICSITEM_H
+#endif // TIMEOVERLAYVIEW

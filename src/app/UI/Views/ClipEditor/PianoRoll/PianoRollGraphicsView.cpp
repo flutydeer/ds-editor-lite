@@ -23,7 +23,7 @@
 #include "PitchEditorView.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "UI/Views/Common/ScrollBarGraphicsItem.h"
+#include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
@@ -67,9 +67,9 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     connect(scene, &QGraphicsScene::selectionChanged, this,
             &PianoRollGraphicsView::onSceneSelectionChanged);
 
-    connect(this, &CommonGraphicsView::scaleChanged, this,
+    connect(this, &TimeGraphicsView::scaleChanged, this,
             &PianoRollGraphicsView::notifyKeyRangeChanged);
-    connect(this, &CommonGraphicsView::visibleRectChanged, this,
+    connect(this, &TimeGraphicsView::visibleRectChanged, this,
             &PianoRollGraphicsView::notifyKeyRangeChanged);
 
     connect(appStatus, &AppStatus::noteSelectionChanged, d,
@@ -147,8 +147,8 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     d->m_mouseDownButton = event->button();
 
     // 在滚动条上按下时，交还给基类处理
-    if (dynamic_cast<ScrollBarGraphicsItem *>(itemAt(event->pos()))) {
-        CommonGraphicsView::mousePressEvent(event);
+    if (dynamic_cast<ScrollBarView *>(itemAt(event->pos()))) {
+        TimeGraphicsView::mousePressEvent(event);
         event->ignore();
         return;
     }
@@ -423,7 +423,7 @@ void PianoRollGraphicsView::setViewportCenterAtKeyIndex(double keyIndex) {
     auto keyIndexStart = keyIndex + keyIndexRange / 2 + 0.5;
     auto vBarValue = qRound(d->keyIndexToSceneY(keyIndexStart));
     // verticalScrollBar()->setValue(vBarValue);
-    vBarAnimateTo(vBarValue);
+    verticalBarAnimateTo(vBarValue);
 }
 
 void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {

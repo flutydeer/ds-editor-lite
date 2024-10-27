@@ -5,10 +5,10 @@
 #include "GraphicsLayerManager.h"
 
 #include "CommonGraphicsLayer.h"
-#include "CommonGraphicsRectItem.h"
-#include "CommonGraphicsScene.h"
+#include "AbstractGraphicsRectItem.h"
+#include "TimeGraphicsScene.h"
 
-GraphicsLayerManager::GraphicsLayerManager(CommonGraphicsScene *scene) : m_scene(scene) {
+GraphicsLayerManager::GraphicsLayerManager(TimeGraphicsScene *scene) : m_scene(scene) {
 }
 
 void GraphicsLayerManager::addLayer(CommonGraphicsLayer *layer) {
@@ -35,13 +35,13 @@ void GraphicsLayerManager::setLayerZValue(qsizetype z, CommonGraphicsLayer *laye
     updateItemsZValue(layer);
 }
 
-const QList<CommonGraphicsRectItem *> &
+const QList<AbstractGraphicsRectItem *> &
     GraphicsLayerManager::items(CommonGraphicsLayer *layer) const {
     return layer->items;
 }
 
-QList<CommonGraphicsRectItem *> GraphicsLayerManager::allItems(CommonGraphicsLayer *layer) const {
-    QList<CommonGraphicsRectItem *> items;
+QList<AbstractGraphicsRectItem *> GraphicsLayerManager::allItems(CommonGraphicsLayer *layer) const {
+    QList<AbstractGraphicsRectItem *> items;
     for (const auto item : layer->backgroundItems)
         items.append(item);
     for (const auto item : layer->items)
@@ -49,20 +49,20 @@ QList<CommonGraphicsRectItem *> GraphicsLayerManager::allItems(CommonGraphicsLay
     return items;
 }
 
-void GraphicsLayerManager::addBackgroundItem(CommonGraphicsRectItem *item,
+void GraphicsLayerManager::addBackgroundItem(AbstractGraphicsRectItem *item,
                                              CommonGraphicsLayer *layer) {
     item->setZValue(layer->layerZValue * 2);
     layer->backgroundItems.append(item);
     m_scene->addCommonItem(item);
 }
 
-void GraphicsLayerManager::addItem(CommonGraphicsRectItem *item, CommonGraphicsLayer *layer) {
+void GraphicsLayerManager::addItem(AbstractGraphicsRectItem *item, CommonGraphicsLayer *layer) {
     item->setZValue(layer->layerZValue * 2 + 1);
     layer->items.append(item);
     m_scene->addCommonItem(item);
 }
 
-void GraphicsLayerManager::removeItem(CommonGraphicsRectItem *item, CommonGraphicsLayer *layer) {
+void GraphicsLayerManager::removeItem(AbstractGraphicsRectItem *item, CommonGraphicsLayer *layer) {
     layer->items.removeOne(item);
     m_scene->removeCommonItem(item);
 }

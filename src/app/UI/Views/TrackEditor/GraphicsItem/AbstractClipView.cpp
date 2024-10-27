@@ -16,7 +16,7 @@
 using namespace TracksEditorGlobal;
 
 AbstractClipView::AbstractClipView(int itemId, QGraphicsItem *parent)
-    : CommonGraphicsRectItem(parent), IClip(itemId), d_ptr(new AbstractClipViewPrivate(this)) {
+    : AbstractGraphicsRectItem(parent), IClip(itemId), d_ptr(new AbstractClipViewPrivate(this)) {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
 }

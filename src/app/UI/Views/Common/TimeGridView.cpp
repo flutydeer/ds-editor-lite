@@ -2,7 +2,7 @@
 // Created by fluty on 2024/1/21.
 //
 
-#include "TimeGridGraphicsItem.h"
+#include "TimeGridView.h"
 
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -10,7 +10,7 @@
 #include <QPainter>
 #include <QPen>
 
-TimeGridGraphicsItem::TimeGridGraphicsItem(QGraphicsItem *parent) : CommonGraphicsRectItem(parent) {
+TimeGridView::TimeGridView(QGraphicsItem *parent) : AbstractGraphicsRectItem(parent) {
 
     connect(appModel, &AppModel::modelChanged, this, [=] {
         this->setTimeSignature(appModel->timeSignature().numerator,
@@ -18,34 +18,34 @@ TimeGridGraphicsItem::TimeGridGraphicsItem(QGraphicsItem *parent) : CommonGraphi
         this->setQuantize(appStatus->quantize);
     });
     connect(appModel, &AppModel::timeSignatureChanged, this,
-            &TimeGridGraphicsItem::setTimeSignature);
-    connect(appStatus, &AppStatus::quantizeChanged, this, &TimeGridGraphicsItem::setQuantize);
+            &TimeGridView::setTimeSignature);
+    connect(appStatus, &AppStatus::quantizeChanged, this, &TimeGridView::setQuantize);
 }
 
-double TimeGridGraphicsItem::startTick() const {
+double TimeGridView::startTick() const {
     return sceneXToTick(visibleRect().left()) + m_offset;
 }
 
-double TimeGridGraphicsItem::endTick() const {
+double TimeGridView::endTick() const {
     return sceneXToTick(visibleRect().right()) + m_offset;
 }
 
-void TimeGridGraphicsItem::setTimeSignature(int numerator, int denominator) {
+void TimeGridView::setTimeSignature(int numerator, int denominator) {
     ITimelinePainter::setTimeSignature(numerator, denominator);
     update();
 }
 
-void TimeGridGraphicsItem::setQuantize(int quantize) {
+void TimeGridView::setQuantize(int quantize) {
     ITimelinePainter::setQuantize(quantize);
     update();
 }
 
-void TimeGridGraphicsItem::setOffset(int tick) {
+void TimeGridView::setOffset(int tick) {
     m_offset = tick;
     update();
 }
 
-void TimeGridGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+void TimeGridView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                  QWidget *widget) {
     auto penWidth = 1;
 
@@ -58,14 +58,14 @@ void TimeGridGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsIt
     drawTimeline(painter, startTick(), endTick(), visibleRect().width());
 }
 
-void TimeGridGraphicsItem::updateRectAndPos() {
+void TimeGridView::updateRectAndPos() {
     auto pos = visibleRect().topLeft();
     setPos(pos);
     setRect(QRectF(0, 0, visibleRect().width(), visibleRect().height()));
     update();
 }
 
-void TimeGridGraphicsItem::drawBar(QPainter *painter, int tick, int bar) {
+void TimeGridView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
     // pen.setColor(barTextColor);
@@ -76,7 +76,7 @@ void TimeGridGraphicsItem::drawBar(QPainter *painter, int tick, int bar) {
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
 }
 
-void TimeGridGraphicsItem::drawBeat(QPainter *painter, int tick, int bar, int beat) {
+void TimeGridView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
     // pen.setColor(beatTextColor);
@@ -87,7 +87,7 @@ void TimeGridGraphicsItem::drawBeat(QPainter *painter, int tick, int bar, int be
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
 }
 
-void TimeGridGraphicsItem::drawEighth(QPainter *painter, int tick) {
+void TimeGridView::drawEighth(QPainter *painter, int tick) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
     pen.setColor(commonLineColor);
@@ -95,14 +95,14 @@ void TimeGridGraphicsItem::drawEighth(QPainter *painter, int tick) {
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
 }
 
-double TimeGridGraphicsItem::sceneXToTick(double pos) const {
+double TimeGridView::sceneXToTick(double pos) const {
     return 480 * pos / scaleX() / pixelsPerQuarterNote();
 }
 
-double TimeGridGraphicsItem::tickToSceneX(double tick) const {
+double TimeGridView::tickToSceneX(double tick) const {
     return tick * scaleX() * pixelsPerQuarterNote() / 480;
 }
 
-double TimeGridGraphicsItem::sceneXToItemX(double x) const {
+double TimeGridView::sceneXToItemX(double x) const {
     return mapFromScene(QPointF(x, 0)).x();
 }

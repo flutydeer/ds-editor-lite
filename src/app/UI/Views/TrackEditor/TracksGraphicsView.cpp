@@ -11,12 +11,12 @@
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
 #include "GraphicsItem/AbstractClipView.h"
-#include "GraphicsItem/TracksBackgroundGraphicsItem.h"
+#include "GraphicsItem/TrackEditorBackgroundView.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
-#include "UI/Views/Common/ScrollBarGraphicsItem.h"
+#include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/MathUtils.h"
 
 #include <QFileDialog>
@@ -113,8 +113,8 @@ void TracksGraphicsView::onDeleteTriggered() const {
 
 void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
     // 在滚动条上按下时，交还给基类处理
-    if (dynamic_cast<ScrollBarGraphicsItem *>(itemAt(event->pos()))) {
-        CommonGraphicsView::mousePressEvent(event);
+    if (dynamic_cast<ScrollBarView *>(itemAt(event->pos()))) {
+        TimeGraphicsView::mousePressEvent(event);
         event->ignore();
         return;
     }
@@ -136,7 +136,7 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
         } else {
             clearSelections();
             // trackController->setActiveClip(-1);
-            CommonGraphicsView::mousePressEvent(event);
+            TimeGraphicsView::mousePressEvent(event);
         }
     }
     event->ignore();
@@ -248,13 +248,13 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
                 appController->setTrackAndClipPanelCollapsed(false, false);
                 clipController->centerAt(playbackController->position(), 60);
             }
-        } else if (dynamic_cast<TracksBackgroundGraphicsItem *>(item)) {
+        } else if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
             m_tick = MathUtils::roundDown(tick, 1920 / m_quantize);
             onNewSingingClip();
         }
     }
 
-    CommonGraphicsView::mouseDoubleClickEvent(event);
+    TimeGraphicsView::mouseDoubleClickEvent(event);
 }
 
 void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
@@ -265,7 +265,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 
     auto tick = m_scene->tickAt(scenePos.x());
     if (auto item = itemAt(event->pos())) {
-        if (dynamic_cast<TracksBackgroundGraphicsItem *>(item)) {
+        if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
             m_trackIndex = trackIndex;
             m_tick = tick;
             m_snappedTick = MathUtils::roundDown(tick, 1920 / m_quantize);
@@ -279,7 +279,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             menu.addAction(actionDelete);
             menu.exec(event->globalPos());
         } else {
-            CommonGraphicsView::contextMenuEvent(event);
+            TimeGraphicsView::contextMenuEvent(event);
         }
     }
 }

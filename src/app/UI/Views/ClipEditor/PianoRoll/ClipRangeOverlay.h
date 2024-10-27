@@ -5,9 +5,9 @@
 #ifndef CLIPRANGEOVERLAY_H
 #define CLIPRANGEOVERLAY_H
 
-#include "UI/Views/Common/TimeOverlayGraphicsItem.h"
+#include "UI/Views/Common/TimeOverlayView.h"
 
-class ClipRangeOverlay : public TimeOverlayGraphicsItem {
+class ClipRangeOverlay : public TimeOverlayView {
     Q_OBJECT
 
 public:

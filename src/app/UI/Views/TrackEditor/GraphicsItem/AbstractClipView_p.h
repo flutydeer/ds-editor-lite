@@ -5,7 +5,7 @@
 #ifndef ABSTRACTCLIPGRAPHICSITEM_P_H
 #define ABSTRACTCLIPGRAPHICSITEM_P_H
 
-#include "UI/Views/Common/CommonGraphicsRectItem.h"
+#include "UI/Views/Common/AbstractGraphicsRectItem.h"
 
 #include <QString>
 

@@ -8,7 +8,7 @@
 #include "Model/AppModel/ParamProperties.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "UI/Views/Common/CommonGraphicsScene.h"
+#include "UI/Views/Common/TimeGraphicsScene.h"
 #include "Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
 
@@ -235,7 +235,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 
 void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     if (transparentMouseEvents()) {
-        TimeOverlayGraphicsItem::mousePressEvent(event);
+        TimeOverlayView::mousePressEvent(event);
         return;
     }
 

@@ -10,7 +10,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"
-#include "UI/Views/Common/TimeGridGraphicsItem.h"
+#include "UI/Views/Common/TimeGridView.h"
 #include "Utils/MathUtils.h"
 
 #include <QWheelEvent>

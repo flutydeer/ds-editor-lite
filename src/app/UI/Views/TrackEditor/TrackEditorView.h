@@ -16,7 +16,7 @@ class TrackListView;
 class TracksGraphicsView;
 class TracksGraphicsScene;
 class TimelineView;
-class TracksBackgroundGraphicsItem;
+class TrackEditorBackgroundView;
 class TrackViewModel;
 class AbstractClipView;
 
@@ -53,7 +53,7 @@ private:
     TracksGraphicsView *m_graphicsView;
     TracksGraphicsScene *m_tracksScene;
     TimelineView *m_timeline;
-    TracksBackgroundGraphicsItem *m_gridItem;
+    TrackEditorBackgroundView *m_gridItem;
 
     class ViewModel {
     public:

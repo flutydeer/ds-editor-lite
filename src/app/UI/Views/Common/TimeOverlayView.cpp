@@ -2,57 +2,57 @@
 // Created by fluty on 2024/1/25.
 //
 
-#include "TimeOverlayGraphicsItem.h"
+#include "TimeOverlayView.h"
 
 #include <QGraphicsSceneMouseEvent>
 
-bool TimeOverlayGraphicsItem::transparentMouseEvents() const {
+bool TimeOverlayView::transparentMouseEvents() const {
     return m_transparentMouseEvents;
 }
 
-void TimeOverlayGraphicsItem::setTransparentMouseEvents(bool on) {
+void TimeOverlayView::setTransparentMouseEvents(bool on) {
     m_transparentMouseEvents = on;
     setAcceptHoverEvents(!m_transparentMouseEvents);
     update();
 }
 
-void TimeOverlayGraphicsItem::setPixelsPerQuarterNote(int p) {
+void TimeOverlayView::setPixelsPerQuarterNote(int p) {
     pixelsPerQuarterNote =p;
 }
 
-void TimeOverlayGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+void TimeOverlayView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     if (!m_transparentMouseEvents)
         event->accept();
     else
         QGraphicsRectItem::mousePressEvent(event);
 }
 
-double TimeOverlayGraphicsItem::startTick() const {
+double TimeOverlayView::startTick() const {
     return sceneXToTick(visibleRect().left());
 }
 
-double TimeOverlayGraphicsItem::endTick() const {
+double TimeOverlayView::endTick() const {
     return sceneXToTick(visibleRect().right());
 }
 
-double TimeOverlayGraphicsItem::sceneXToTick(double x) const {
+double TimeOverlayView::sceneXToTick(double x) const {
     auto tick = 480 * x / scaleX() / pixelsPerQuarterNote;
     return tick;
 }
 
-double TimeOverlayGraphicsItem::tickToSceneX(double tick) const {
+double TimeOverlayView::tickToSceneX(double tick) const {
     auto x = tick * scaleX() * pixelsPerQuarterNote / 480;
     return x;
 }
 
-double TimeOverlayGraphicsItem::sceneXToItemX(double x) const {
+double TimeOverlayView::sceneXToItemX(double x) const {
     return mapFromScene(QPointF(x, 0)).x();
 }
 
-double TimeOverlayGraphicsItem::tickToItemX(double tick) const {
+double TimeOverlayView::tickToItemX(double tick) const {
     return sceneXToItemX(tickToSceneX(tick));
 }
 
-double TimeOverlayGraphicsItem::sceneYToItemY(double y) const {
+double TimeOverlayView::sceneYToItemY(double y) const {
     return mapFromScene(QPointF(0, y)).y();
 }

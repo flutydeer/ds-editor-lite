@@ -2,12 +2,12 @@
 // Created by fluty on 2024/1/22.
 //
 
-#ifndef TRACKSBACKGROUNDGRAPHICSITEM_H
-#define TRACKSBACKGROUNDGRAPHICSITEM_H
+#ifndef TRACKEDITORBACKGROUNDVIEW_H
+#define TRACKEDITORBACKGROUNDVIEW_H
 
-#include "UI/Views/Common/TimeGridGraphicsItem.h"
+#include "UI/Views/Common/TimeGridView.h"
 
-class TracksBackgroundGraphicsItem final : public TimeGridGraphicsItem {
+class TrackEditorBackgroundView final : public TimeGridView {
     Q_OBJECT
 
 public slots:
@@ -21,4 +21,4 @@ private:
     int m_trackIndex = -1;
 };
 
-#endif // TRACKSBACKGROUNDGRAPHICSITEM_H
+#endif // TRACKEDITORBACKGROUNDVIEW_H

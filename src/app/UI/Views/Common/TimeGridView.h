@@ -2,13 +2,13 @@
 // Created by fluty on 2024/1/21.
 //
 
-#ifndef TIMEGRIDGRAPHICSITEM_H
-#define TIMEGRIDGRAPHICSITEM_H
+#ifndef TIMEGRIDVIEW_H
+#define TIMEGRIDVIEW_H
 
-#include "CommonGraphicsRectItem.h"
+#include "AbstractGraphicsRectItem.h"
 #include "UI/Utils/ITimelinePainter.h"
 
-class TimeGridGraphicsItem : public CommonGraphicsRectItem, public ITimelinePainter {
+class TimeGridView : public AbstractGraphicsRectItem, public ITimelinePainter {
     Q_OBJECT
 
 public:
@@ -19,8 +19,8 @@ public:
     //     int denominator = 4;
     // };
 
-    explicit TimeGridGraphicsItem(QGraphicsItem *parent = nullptr);
-    ~TimeGridGraphicsItem() override = default;
+    explicit TimeGridView(QGraphicsItem *parent = nullptr);
+    ~TimeGridView() override = default;
 
 public slots:
     void setTimeSignature(int numerator, int denominator) override;
@@ -54,4 +54,4 @@ private:
 
 
 
-#endif // TIMEGRIDGRAPHICSITEM_H
+#endif // TIMEGRIDVIEW_H

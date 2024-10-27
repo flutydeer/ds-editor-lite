@@ -2,32 +2,31 @@
 // Created by fluty on 24-8-28.
 //
 
-#include "ScrollBarGraphicsItem.h"
+#include "ScrollBarView.h"
 
-#include "CommonGraphicsScene.h"
-#include "Global/AppGlobal.h"
+#include "TimeGraphicsScene.h"
 
 #include <QPainter>
 
-ScrollBarGraphicsItem::ScrollBarGraphicsItem() {
+ScrollBarView::ScrollBarView() {
     initUi();
 }
 
-ScrollBarGraphicsItem::ScrollBarGraphicsItem(Qt::Orientation orientation)
+ScrollBarView::ScrollBarView(Qt::Orientation orientation)
     : m_orientation(orientation) {
     initUi();
 }
 
-Qt::Orientation ScrollBarGraphicsItem::orientation() const {
+Qt::Orientation ScrollBarView::orientation() const {
     return m_orientation;
 }
 
-void ScrollBarGraphicsItem::setOrientation(Qt::Orientation orientation) {
+void ScrollBarView::setOrientation(Qt::Orientation orientation) {
     m_orientation = orientation;
     updateRectAndPos();
 }
 
-void ScrollBarGraphicsItem::updateRectAndPos() {
+void ScrollBarView::updateRectAndPos() {
     if (!scene())
         return;
 
@@ -47,19 +46,19 @@ void ScrollBarGraphicsItem::updateRectAndPos() {
     update();
 }
 
-void ScrollBarGraphicsItem::moveToNormalState() {
+void ScrollBarView::moveToNormalState() {
     performStateChangeAnimation(handleAlphaNormal, handlePaddingNormal, 300);
 }
 
-void ScrollBarGraphicsItem::moveToHoverState() {
+void ScrollBarView::moveToHoverState() {
     performStateChangeAnimation(handleAlphaHover, handlePaddingHover, 100);
 }
 
-void ScrollBarGraphicsItem::moveToPressedState() {
+void ScrollBarView::moveToPressedState() {
     performStateChangeAnimation(handleAlphaPressed, handlePaddingPressed, 100);
 }
 
-bool ScrollBarGraphicsItem::mouseOnHandle(const QPointF &scenePos) const {
+bool ScrollBarView::mouseOnHandle(const QPointF &scenePos) const {
     if (m_orientation == Qt::Horizontal) {
         auto x = scenePos.x();
         if (x > handleStart() && x < handleEnd())
@@ -72,23 +71,23 @@ bool ScrollBarGraphicsItem::mouseOnHandle(const QPointF &scenePos) const {
     return false;
 }
 
-void ScrollBarGraphicsItem::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+void ScrollBarView::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
 }
 
-void ScrollBarGraphicsItem::afterSetTimeScale(double scale) {
+void ScrollBarView::afterSetTimeScale(double scale) {
 }
 
-void ScrollBarGraphicsItem::setHandleAlpha(const QVariant &value) {
+void ScrollBarView::setHandleAlpha(const QVariant &value) {
     m_handleAlpha = value.toInt();
     update();
 }
 
-void ScrollBarGraphicsItem::setHandlePadding(const QVariant &value) {
+void ScrollBarView::setHandlePadding(const QVariant &value) {
     m_handlePadding = value.toDouble();
     update();
 }
 
-void ScrollBarGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+void ScrollBarView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                   QWidget *widget) {
     // if (m_pageStep >= (m_maximum - m_minimum))
     //     return;
@@ -122,36 +121,36 @@ void ScrollBarGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsI
     painter->drawRoundedRect(handleRect, radius, radius);
 }
 
-void ScrollBarGraphicsItem::initUi() {
+void ScrollBarView::initUi() {
     updateRectAndPos();
     initializeAnimation();
 
     m_aniHandleAlpha.setEasingCurve(QEasingCurve::OutCubic);
     m_aniHandlePadding.setEasingCurve(QEasingCurve::OutCubic);
     connect(&m_aniHandleAlpha, &QVariantAnimation::valueChanged, this,
-            &ScrollBarGraphicsItem::setHandleAlpha);
+            &ScrollBarView::setHandleAlpha);
     connect(&m_aniHandlePadding, &QVariantAnimation::valueChanged, this,
-            &ScrollBarGraphicsItem::setHandlePadding);
+            &ScrollBarView::setHandlePadding);
 }
 
-double ScrollBarGraphicsItem::handleStart() const {
+double ScrollBarView::handleStart() const {
     auto ratio = (m_value - m_minimum) / (m_maximum - m_minimum);
     if (m_orientation == Qt::Horizontal)
         return boundingRect().left() + boundingRect().width() * ratio;
     return boundingRect().top() + boundingRect().height() * ratio; // Vertical
 }
 
-double ScrollBarGraphicsItem::handleLength() const {
+double ScrollBarView::handleLength() const {
     if (m_orientation == Qt::Horizontal)
         return boundingRect().width() * m_pageStep / (m_maximum - m_minimum);
     return boundingRect().height() * m_pageStep / (m_maximum - m_minimum);
 }
 
-double ScrollBarGraphicsItem::handleEnd() const {
+double ScrollBarView::handleEnd() const {
     return handleStart() + handleLength();
 }
 
-void ScrollBarGraphicsItem::performStateChangeAnimation(int targetAlpha, double targetPadding,
+void ScrollBarView::performStateChangeAnimation(int targetAlpha, double targetPadding,
                                                         int duration) {
     m_aniHandleAlpha.stop();
     m_aniHandlePadding.stop();

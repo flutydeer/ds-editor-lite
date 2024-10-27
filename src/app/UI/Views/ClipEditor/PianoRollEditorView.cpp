@@ -37,16 +37,16 @@ PianoRollEditorView::PianoRollEditorView(QWidget *parent) : QSplitter(Qt::Vertic
         pianoGraphicsView->setLastPlaybackPosition(tick);
         paramGraphicsView->setLastPlaybackPosition(tick);
     });
-    connect(pianoGraphicsView, &CommonGraphicsView::scaleChanged, [=](double sx, double sy) {
+    connect(pianoGraphicsView, &TimeGraphicsView::scaleChanged, [=](double sx, double sy) {
         paramGraphicsView->setScaleX(sx);
-        paramGraphicsView->setHBarValue(pianoGraphicsView->hBarValue());
+        paramGraphicsView->setHorizontalBarValue(pianoGraphicsView->horizontalBarValue());
     });
     connect(pianoGraphicsView->horizontalScrollBar(), &QScrollBar::valueChanged, this,
-            [=] { paramGraphicsView->setHBarValue(pianoGraphicsView->hBarValue()); });
+            [=] { paramGraphicsView->setHorizontalBarValue(pianoGraphicsView->horizontalBarValue()); });
     connect(paramGraphicsView, &ParamEditorGraphicsView::wheelHorScale, pianoGraphicsView,
-            &CommonGraphicsView::onWheelHorScale);
+            &TimeGraphicsView::onWheelHorScale);
     connect(paramGraphicsView, &ParamEditorGraphicsView::wheelHorScroll, pianoGraphicsView,
-            &CommonGraphicsView::onWheelHorScroll);
+            &TimeGraphicsView::onWheelHorScroll);
 }
 
 PianoRollView *PianoRollEditorView::pianoRollView() const {

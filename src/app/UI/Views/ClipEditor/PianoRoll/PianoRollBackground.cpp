@@ -60,5 +60,5 @@ void PianoRollBackground::paint(QPainter *painter, const QStyleOptionGraphicsIte
         }
     }
 
-    TimeGridGraphicsItem::paint(painter, option, widget);
+    TimeGridView::paint(painter, option, widget);
 }

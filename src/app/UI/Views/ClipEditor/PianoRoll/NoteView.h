@@ -6,12 +6,12 @@
 #define NOTEGRAPHICSITEM_H
 
 #include "UI/Utils/OverlappableItem.h"
-#include "UI/Views/Common/CommonGraphicsRectItem.h"
+#include "UI/Views/Common/AbstractGraphicsRectItem.h"
 #include "Utils/UniqueObject.h"
 
 class CMenu;
 
-class NoteView final : public CommonGraphicsRectItem, public UniqueObject, public OverlappableItem {
+class NoteView final : public AbstractGraphicsRectItem, public UniqueObject, public OverlappableItem {
     Q_OBJECT
 
 public:
@@ -48,7 +48,7 @@ public:
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
-    void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
+    // void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     void initUi();
 

@@ -2,22 +2,22 @@
 // Created by fluty on 24-8-28.
 //
 
-#ifndef SCROLLBARGRAPHICSITEM_H
-#define SCROLLBARGRAPHICSITEM_H
+#ifndef SCROLLBARVIEW_H
+#define SCROLLBARVIEW_H
 
-#include "CommonGraphicsRectItem.h"
+#include "AbstractGraphicsRectItem.h"
 #include "UI/Utils/IAnimatable.h"
 
 #include <QVariantAnimation>
 
 class QScrollBar;
 
-class ScrollBarGraphicsItem : public CommonGraphicsRectItem, public IAnimatable {
+class ScrollBarView : public AbstractGraphicsRectItem, public IAnimatable {
     Q_OBJECT
 
 public:
-    explicit ScrollBarGraphicsItem();
-    explicit ScrollBarGraphicsItem(Qt::Orientation orientation);
+    explicit ScrollBarView();
+    explicit ScrollBarView(Qt::Orientation orientation);
     [[nodiscard]] Qt::Orientation orientation() const;
     void setOrientation(Qt::Orientation orientation);
     void updateRectAndPos() override;
@@ -64,4 +64,4 @@ private:
 
 
 
-#endif // SCROLLBARGRAPHICSITEM_H
+#endif // SCROLLBARVIEW_H
