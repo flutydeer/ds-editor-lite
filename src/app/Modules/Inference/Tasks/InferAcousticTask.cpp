@@ -62,16 +62,6 @@ void InferAcousticTask::runTask() {
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    if (!inferEngine->runLoadConfig(m_input.configPath)) {
-        qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
-                    << "pieceId:" << pieceId() << "taskId:" << id();
-        return;
-    }
-    if (isTerminateRequested()) {
-        abort();
-        return;
-    }
-
     GenericInferModel model;
     auto input = buildInputJson();
     m_inputHash = input.hashData();
@@ -88,6 +78,15 @@ void InferAcousticTask::runTask() {
         m_result = cachePath;
     } else {
         qDebug() << "acoustic inference cache not found. Running inference...";
+        if (!inferEngine->runLoadConfig(m_input.configPath)) {
+            qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
+                        << "pieceId:" << pieceId() << "taskId:" << id();
+            return;
+        }
+        if (isTerminateRequested()) {
+            abort();
+            return;
+        }
         if (inferEngine->inferAcoustic(input.serializeToJson(), cachePath, errorMessage)) {
             m_result = cachePath;
         } else {

@@ -59,16 +59,6 @@ void InferPitchTask::runTask() {
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    if (!inferEngine->runLoadConfig(m_input.configPath)) {
-        qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
-                    << "pieceId:" << pieceId() << "taskId:" << id();
-        return;
-    }
-    if (isTerminateRequested()) {
-        abort();
-        return;
-    }
-
     GenericInferModel model;
     auto input = buildInputJson();
     m_inputHash = input.hashData();
@@ -87,6 +77,15 @@ void InferPitchTask::runTask() {
         qInfo() << "Use cached pitch inference result:" << cachePath;
     } else {
         qDebug() << "Pitch inference cache not found. Running inference...";
+        if (!inferEngine->runLoadConfig(m_input.configPath)) {
+            qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
+                        << "pieceId:" << pieceId() << "taskId:" << id();
+            return;
+        }
+        if (isTerminateRequested()) {
+            abort();
+            return;
+        }
         if (inferEngine->inferPitch(input.serializeToJson(), resultJson, errorMessage)) {
             model.deserializeFromJson(resultJson);
         } else {
