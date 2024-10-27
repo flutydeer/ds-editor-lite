@@ -196,9 +196,9 @@ void TimeGraphicsView::setDragBehavior(DragBehavior dragBehaviour) {
 void TimeGraphicsView::setScrollBarVisibility(Qt::Orientation orientation, bool visibility) {
     if (auto commonScene = scene()) {
         if (orientation == Qt::Horizontal) {
-            commonScene->setHBarVisibility(visibility);
+            commonScene->setHorizontalBarVisibility(visibility);
         } else
-            commonScene->setVBarVisibility(visibility);
+            commonScene->setVerticalBarVisibility(visibility);
     } else
         qCritical() << "Scene is not TimeGraphicsView";
 }
@@ -421,8 +421,7 @@ void TimeGraphicsView::resizeEvent(QResizeEvent *event) {
 
 void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (scene()) {
-        if (auto scrollBar =
-                dynamic_cast<ScrollBarView *>(itemAt(event->position().toPoint()))) {
+        if (auto scrollBar = scrollBarAt(event->position().toPoint())) {
             // auto oriStr = scrollBar->orientation() == Qt::Horizontal ? "horizontal" : "vertical";
             // qDebug() << "mouse down on" << oriStr << "scrollbar";
             m_isDraggingScrollBar = true;
@@ -430,7 +429,10 @@ void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
             m_mouseDownPos = event->position().toPoint();
             auto bar = scrollBar->orientation() == Qt::Horizontal ? horizontalScrollBar()
                                                                   : verticalScrollBar();
-            scrollBar->moveToPressedState();
+            if (scrollBar->mouseOnHandle(event->pos())) {
+                scrollBar->moveToPressedState();
+                m_mouseOnScrollBarHandle = true;
+            }
             m_scrollBarPressed = true;
             m_mouseDownBarValue = bar->value();
             m_mouseDownBarMax = bar->maximum();
@@ -457,7 +459,7 @@ void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
 }
 
 void TimeGraphicsView::mouseMoveEvent(QMouseEvent *event) {
-    if (m_isDraggingScrollBar) {
+    if (m_isDraggingScrollBar && m_mouseOnScrollBarHandle) {
         int barWidth = 14;
         auto value0 = m_mouseDownBarValue;
         auto max = m_mouseDownBarMax;
@@ -503,6 +505,7 @@ void TimeGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 void TimeGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     // 模拟从按下切换到悬停状态
     m_scrollBarPressed = false;
+    m_mouseOnScrollBarHandle = false;
     if (m_isDraggingScrollBar) {
         handleHoverEnterEvent(
             new QHoverEvent{QEvent::HoverEnter, event->position(), event->pos(), event->pos()});
@@ -568,10 +571,8 @@ void TimeGraphicsView::handleHoverEnterEvent(QHoverEvent *event) {
         else
             scrollBar->moveToNormalState();
     } else {
-        if (auto commonScene = dynamic_cast<TimeGraphicsScene *>(scene())) {
-            commonScene->hBar()->moveToNormalState();
-            commonScene->vBar()->moveToNormalState();
-        }
+        scene()->horizontalBar()->moveToNormalState();
+        scene()->verticalBar()->moveToNormalState();
         m_prevHoveredItem = ItemType::Content;
     }
 }
@@ -579,11 +580,8 @@ void TimeGraphicsView::handleHoverEnterEvent(QHoverEvent *event) {
 void TimeGraphicsView::handleHoverLeaveEvent(QHoverEvent *event) {
     if (!scene() || m_scrollBarPressed)
         return;
-
-    if (auto commonScene = dynamic_cast<TimeGraphicsScene *>(scene())) {
-        commonScene->hBar()->moveToNormalState();
-        commonScene->vBar()->moveToNormalState();
-    }
+    scene()->horizontalBar()->moveToNormalState();
+    scene()->verticalBar()->moveToNormalState();
 }
 
 void TimeGraphicsView::handleHoverMoveEvent(QHoverEvent *event) {
@@ -608,24 +606,20 @@ void TimeGraphicsView::handleHoverMoveEvent(QHoverEvent *event) {
             scrollBar->moveToHoverState();
         } else {
             // qDebug() << "mouseOnHandle false";
-            if (auto commonScene = dynamic_cast<TimeGraphicsScene *>(scene())) {
-                commonScene->hBar()->moveToNormalState();
-                commonScene->vBar()->moveToNormalState();
-            }
+            scene()->horizontalBar()->moveToNormalState();
+            scene()->verticalBar()->moveToNormalState();
         }
         m_prevHoveredItem =
             orientation == Qt::Horizontal ? ItemType::HorizontalBar : ItemType::VerticalBar;
     } else {
-        if (auto commonScene = dynamic_cast<TimeGraphicsScene *>(scene())) {
-            commonScene->hBar()->moveToNormalState();
-            commonScene->vBar()->moveToNormalState();
-        }
+        scene()->horizontalBar()->moveToNormalState();
+        scene()->verticalBar()->moveToNormalState();
         m_prevHoveredItem = ItemType::Content;
     }
 }
 
 ScrollBarView *TimeGraphicsView::scrollBarAt(const QPoint &pos) {
-    if (!scene() || !dynamic_cast<TimeGraphicsScene *>(scene()))
+    if (!scene())
         return nullptr;
 
     for (const auto item : items(pos))

@@ -124,6 +124,7 @@ private:
     bool m_rubberBandAdded = false;
 
     bool m_isDraggingScrollBar = false;
+    bool m_mouseOnScrollBarHandle = false;
     Qt::Orientation m_draggingScrollbarType = Qt::Horizontal;
     QPointF m_mouseDownPos;
     int m_mouseDownBarValue = 0;

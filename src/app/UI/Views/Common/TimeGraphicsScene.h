@@ -26,10 +26,6 @@ public:
     void setSceneBaseSize(const QSizeF &size);
     void addCommonItem(IScalableItem *item);
     void removeCommonItem(IScalableItem *item);
-    [[nodiscard]] ScrollBarView *hBar();
-    [[nodiscard]] ScrollBarView *vBar();
-    void setHBarVisibility(bool visible);
-    void setVBarVisibility(bool visible);
 
     void addTimeGrid(TimeGridView *item);
     void addTimeIndicator(TimeIndicatorView *item);
@@ -44,15 +40,20 @@ protected:
 
 private:
     friend class TimeGraphicsView;
+    [[nodiscard]] ScrollBarView *horizontalBar();
+    [[nodiscard]] ScrollBarView *verticalBar();
+    void setHorizontalBarVisibility(bool visible);
+    void setVerticalBarVisibility(bool visible);
+    void setSceneLength(int tick);
     using QGraphicsScene::addItem;
     using QGraphicsScene::removeItem;
+
     QSizeF m_sceneSize = QSizeF(1920, 1080);
     QList<IScalableItem *> m_items;
     ScrollBarView m_hBar = ScrollBarView();
     ScrollBarView m_vBar = ScrollBarView(Qt::Vertical);
     bool m_hBarAdded = false;
     bool m_vBarAdded = false;
-    void setSceneLength(int tick);
     int m_pixelsPerQuarterNote = 32;
 };
 

@@ -6,7 +6,7 @@
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
 
-TimeGraphicsScene::TimeGraphicsScene(QObject *parent): QGraphicsScene(parent) {
+TimeGraphicsScene::TimeGraphicsScene(QObject *parent) : QGraphicsScene(parent) {
     setSceneRect(0, 0, m_sceneSize.width(), m_sceneSize.height());
 
     m_hBar.setZValue(105);
@@ -46,40 +46,18 @@ void TimeGraphicsScene::removeCommonItem(IScalableItem *item) {
     m_items.removeOne(item);
 }
 
-ScrollBarView *TimeGraphicsScene::hBar() {
-    return &m_hBar;
+void TimeGraphicsScene::addTimeGrid(TimeGridView *item) {
+    item->setZValue(-1);
+    addCommonItem(item);
 }
 
-ScrollBarView *TimeGraphicsScene::vBar() {
-    return &m_vBar;
+void TimeGraphicsScene::addTimeIndicator(TimeIndicatorView *item) {
+    item->setZValue(100);
+    addCommonItem(item);
 }
 
-void TimeGraphicsScene::setHBarVisibility(bool visible) {
-    if (visible) {
-        if (!m_hBarAdded) {
-            addCommonItem(&m_hBar);
-            m_hBarAdded = true;
-        }
-    } else {
-        if (m_hBarAdded) {
-            removeCommonItem(&m_hBar);
-            m_hBarAdded = false;
-        }
-    }
-}
-
-void TimeGraphicsScene::setVBarVisibility(bool visible) {
-    if (visible) {
-        if (!m_vBarAdded) {
-            addCommonItem(&m_vBar);
-            m_vBarAdded = true;
-        }
-    } else {
-        if (m_vBarAdded) {
-            removeCommonItem(&m_vBar);
-            m_vBarAdded = false;
-        }
-    }
+void TimeGraphicsScene::setPixelsPerQuarterNote(int px) {
+    m_pixelsPerQuarterNote = px;
 }
 
 void TimeGraphicsScene::updateSceneRect() {
@@ -99,20 +77,42 @@ void TimeGraphicsScene::afterSetVisibleRect() {
         item->setVisibleRect(visibleRect());
 }
 
-void TimeGraphicsScene::addTimeGrid(TimeGridView *item) {
-    item->setZValue(-1);
-    addCommonItem(item);
+ScrollBarView *TimeGraphicsScene::horizontalBar() {
+    return &m_hBar;
 }
 
-void TimeGraphicsScene::addTimeIndicator(TimeIndicatorView *item) {
-    item->setZValue(100);
-    addCommonItem(item);
+ScrollBarView *TimeGraphicsScene::verticalBar() {
+    return &m_vBar;
+}
+
+void TimeGraphicsScene::setHorizontalBarVisibility(bool visible) {
+    if (visible) {
+        if (!m_hBarAdded) {
+            addCommonItem(&m_hBar);
+            m_hBarAdded = true;
+        }
+    } else {
+        if (m_hBarAdded) {
+            removeCommonItem(&m_hBar);
+            m_hBarAdded = false;
+        }
+    }
+}
+
+void TimeGraphicsScene::setVerticalBarVisibility(bool visible) {
+    if (visible) {
+        if (!m_vBarAdded) {
+            addCommonItem(&m_vBar);
+            m_vBarAdded = true;
+        }
+    } else {
+        if (m_vBarAdded) {
+            removeCommonItem(&m_vBar);
+            m_vBarAdded = false;
+        }
+    }
 }
 
 void TimeGraphicsScene::setSceneLength(int tick) {
     setSceneBaseSize(QSizeF(tick * m_pixelsPerQuarterNote / 480.0, sceneBaseSize().height()));
-}
-
-void TimeGraphicsScene::setPixelsPerQuarterNote(int px) {
-    m_pixelsPerQuarterNote = px;
 }
