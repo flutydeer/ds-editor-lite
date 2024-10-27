@@ -108,7 +108,6 @@ public:
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     void setPitchEditMode(bool on, bool isErase);
     NoteView *noteViewAt(const QPoint &pos);
-    static bool mouseInFilledRect(QPointF scenePos, NoteView* view);
 
     void handleNoteInserted(Note *note);
     void handleNoteRemoved(Note *note);

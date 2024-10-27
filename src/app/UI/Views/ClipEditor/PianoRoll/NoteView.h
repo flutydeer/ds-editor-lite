@@ -9,19 +9,16 @@
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 #include "Utils/UniqueObject.h"
 
-class CMenu;
+class PronunciationView;
 
-class NoteView final : public AbstractGraphicsRectItem, public UniqueObject, public OverlappableItem {
+class NoteView final : public AbstractGraphicsRectItem,
+                       public UniqueObject,
+                       public OverlappableItem {
     Q_OBJECT
 
 public:
     explicit NoteView(int itemId, QGraphicsItem *parent = nullptr);
     ~NoteView() override;
-    // explicit NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
-    //                   const QString &pronunciation, QGraphicsItem *parent = nullptr);
-
-    // [[nodiscard]] int start() const;
-    // void setStart(int start);
     [[nodiscard]] int rStart() const;
     void setRStart(int rStart);
     [[nodiscard]] int length() const;
@@ -30,12 +27,11 @@ public:
     void setKeyIndex(int keyIndex);
     [[nodiscard]] QString lyric() const;
     void setLyric(const QString &lyric);
-    [[nodiscard]] QString pronunciation() const;
     void setPronunciation(const QString &pronunciation, bool edited);
     [[nodiscard]] bool editingPitch() const;
     void setEditingPitch(bool on);
-
-    [[nodiscard]] int pronunciationTextHeight() const;
+    [[nodiscard]] PronunciationView *pronunciationView();
+    void setPronunciationView(PronunciationView *view);
 
     // for handle move and resize
     [[nodiscard]] int startOffset() const;
@@ -50,8 +46,10 @@ private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     // void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
+    void adjustPronView() const;
     void initUi();
 
+    PronunciationView *m_pronView = nullptr;
     // int m_start = 0;
     int m_rStart = 0;
     int m_length = 480;
@@ -64,8 +62,6 @@ private:
     int m_startOffset = 0;
     int m_lengthOffset = 0;
     int m_keyOffset = 0;
-
-    int m_pronunciationTextHeight = 20;
 };
 
 #endif // NOTEGRAPHICSITEM_H

@@ -4,6 +4,7 @@
 
 #include "NoteView.h"
 
+#include "PronunciationView.h"
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
@@ -22,19 +23,8 @@ NoteView::NoteView(int itemId, QGraphicsItem *parent)
 }
 
 NoteView::~NoteView() {
-    // qDebug() << "~NoteView()" << m_lyric;
 }
 
-// NoteView::NoteView(int itemId, int start, int length, int keyIndex, const QString &lyric,
-//                    const QString &pronunciation, QGraphicsItem *parent)
-//     : CommonGraphicsRectItem(parent), UniqueObject(itemId) {
-//     m_start = start;
-//     m_length = length;
-//     m_keyIndex = keyIndex;
-//     m_lyric = lyric;
-//     m_pronunciation = pronunciation;
-//     initUi();
-// }
 int NoteView::rStart() const {
     return m_rStart;
 }
@@ -44,13 +34,6 @@ void NoteView::setRStart(int rStart) {
     updateRectAndPos();
 }
 
-// int NoteView::start() const {
-//     return m_start;
-// }
-// void NoteView::setStart(int start) {
-//     m_start = start;
-//     updateRectAndPos();
-// }
 int NoteView::length() const {
     return m_length;
 }
@@ -78,13 +61,11 @@ void NoteView::setLyric(const QString &lyric) {
     update();
 }
 
-QString NoteView::pronunciation() const {
-    return m_pronunciation;
-}
-
 void NoteView::setPronunciation(const QString &pronunciation, bool edited) {
     m_pronunciation = pronunciation;
     m_pronunciationEdited = edited;
+    if (m_pronView)
+        m_pronView->setPronunciation(pronunciation, edited);
     update();
 }
 
@@ -97,8 +78,13 @@ void NoteView::setEditingPitch(bool on) {
     update();
 }
 
-int NoteView::pronunciationTextHeight() const {
-    return m_pronunciationTextHeight;
+PronunciationView *NoteView::pronunciationView() {
+    return m_pronView;
+}
+
+void NoteView::setPronunciationView(PronunciationView *view) {
+    m_pronView = view;
+    updateRectAndPos();
 }
 
 int NoteView::startOffset() const {
@@ -149,25 +135,24 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     const auto foregroundColorEditingPitch = QColor(126, 149, 199);
     const auto foregroundColorOverlapped = QColor(0, 0, 0, 127);
 
-    const auto pronunciationTextColorOriginal = QColor(200, 200, 200);
-    const auto pronunciationTextColorEdited = backgroundColorNormal;
-
     const auto penWidth = 1.5f;
+    const int padding = 2;
     // const auto radius = 4.0;
     // const auto radiusAdjustThreshold = 12;
 
     QPen pen;
 
     auto rect = boundingRect();
-    auto noteBoundingRect =
-        QRectF(rect.left(), rect.top(), rect.width(), rect.height() - m_pronunciationTextHeight);
-    auto left = noteBoundingRect.left() + penWidth;
-    auto top = noteBoundingRect.top() + penWidth;
-    auto width = noteBoundingRect.width() - penWidth * 2;
-    auto height = noteBoundingRect.height() - penWidth * 2;
+    auto left = rect.left() + penWidth;
+    auto top = rect.top() + penWidth;
+    auto width = rect.width() - penWidth * 2;
+    auto height = rect.height() - penWidth * 2;
     auto paddedRect = QRectF(left, top, width, height);
 
     auto drawRectOnly = [&] {
+        if (m_pronView)
+            m_pronView->setTextVisible(false);
+
         painter->setRenderHint(QPainter::Antialiasing, false);
         painter->setPen(Qt::NoPen);
         QColor brushColor;
@@ -180,11 +165,10 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         else
             brushColor = backgroundColorNormal;
         painter->setBrush(brushColor);
-        auto l = noteBoundingRect.left() + penWidth / 2;
-        auto t = noteBoundingRect.top() + penWidth / 2;
-        auto w = noteBoundingRect.width() - penWidth < 2 ? 2 : noteBoundingRect.width() - penWidth;
-        auto h =
-            noteBoundingRect.height() - penWidth < 2 ? 2 : noteBoundingRect.height() - penWidth;
+        auto l = rect.left() + penWidth / 2;
+        auto t = rect.top() + penWidth / 2;
+        auto w = rect.width() - penWidth < 2 ? 2 : rect.width() - penWidth;
+        auto h = rect.height() - penWidth < 2 ? 2 : rect.height() - penWidth;
         painter->drawRect(QRectF(l, t, w, h));
     };
 
@@ -229,7 +213,6 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         auto font = QFont();
         font.setPointSizeF(10);
         painter->setFont(font);
-        int padding = 2;
         auto textRectLeft = paddedRect.left() + padding;
         // auto textRectTop = paddedRect.top() + padding;
         auto textRectTop = paddedRect.top();
@@ -246,14 +229,14 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         textOption.setWrapMode(QTextOption::NoWrap);
 
         if (qMax(lyricTextWidth, pronTextWidth) < textRectWidth && textHeight < textRectHeight) {
-            // draw lyric
             painter->drawText(textRect, m_lyric, textOption);
-            // qDebug() << "Draw Lyric";
-            // draw pronunciation
-            pen.setColor(m_pronunciationEdited ? pronunciationTextColorEdited
-                                               : pronunciationTextColorOriginal);
-            painter->setPen(pen);
-            painter->drawText(QPointF(textRectLeft, boundingRect().bottom() - 6), m_pronunciation);
+            if (m_pronView) {
+                adjustPronView();
+                m_pronView->setTextVisible(true);
+            }
+        } else {
+            if (m_pronView)
+                m_pronView->setTextVisible(false);
         }
     };
 
@@ -284,10 +267,18 @@ void NoteView::updateRectAndPos() {
     const auto x = (m_rStart + m_startOffset) * scaleX() * pixelsPerQuarterNote / 480;
     const auto y = -(m_keyIndex + m_keyOffset - 127) * noteHeight * scaleY();
     const auto w = (m_length + m_lengthOffset) * scaleX() * pixelsPerQuarterNote / 480;
-    const auto h = noteHeight * scaleY() + m_pronunciationTextHeight;
+    const auto h = noteHeight * scaleY();
     setPos(x, y);
     setRect(QRectF(0, 0, w, h));
+    if (m_pronView)
+        adjustPronView();
+
     update();
+}
+
+void NoteView::adjustPronView() const {
+    m_pronView->setPos(pos().x(), pos().y() + boundingRect().height());
+    m_pronView->setRect(QRectF(0, 0, boundingRect().width(), m_pronView->textHeight));
 }
 
 void NoteView::initUi() {
