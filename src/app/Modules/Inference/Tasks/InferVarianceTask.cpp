@@ -4,6 +4,7 @@
 
 #include "InferVarianceTask.h"
 
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputNote.h"
@@ -63,10 +64,11 @@ void InferVarianceTask::runTask() {
     GenericInferModel model;
     auto input = buildInputJson();
     m_inputHash = input.hashData();
-    JsonUtils::save(QString("temp/infer-variance-input-%1.json").arg(m_inputHash),
+    auto cacheDir = appOptions->inference()->cacheDirectory;
+    JsonUtils::save(cacheDir + QString("/infer-variance-input-%1.json").arg(m_inputHash),
                     input.serialize());
     bool useCache = false;
-    auto cachePath = QString("temp/infer-variance-output-%1.json").arg(m_inputHash);
+    auto cachePath = cacheDir + QString("/infer-variance-output-%1.json").arg(m_inputHash);
     if (QFile(cachePath).exists()) {
         QJsonObject obj;
         useCache = JsonUtils::load(cachePath, obj) && model.deserialize(obj);

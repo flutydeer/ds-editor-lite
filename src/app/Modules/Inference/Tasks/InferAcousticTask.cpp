@@ -4,6 +4,7 @@
 
 #include "InferAcousticTask.h"
 
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
@@ -65,10 +66,11 @@ void InferAcousticTask::runTask() {
     GenericInferModel model;
     auto input = buildInputJson();
     m_inputHash = input.hashData();
-    JsonUtils::save(QString("temp/infer-acoustic-input-%1.json").arg(m_inputHash),
+    auto cacheDir = appOptions->inference()->cacheDirectory;
+    JsonUtils::save(cacheDir + QString("/infer-acoustic-input-%1.json").arg(m_inputHash),
                     input.serialize());
     bool useCache = false;
-    auto cachePath = QString("temp/infer-acoustic-output-%1.wav").arg(m_inputHash);
+    auto cachePath = cacheDir + QString("/infer-acoustic-output-%1.wav").arg(m_inputHash);
     if (QFile(cachePath).exists())
         useCache = true;
 

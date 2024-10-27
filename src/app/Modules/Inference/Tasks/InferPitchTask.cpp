@@ -4,6 +4,7 @@
 
 #include "InferPitchTask.h"
 
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
@@ -62,10 +63,11 @@ void InferPitchTask::runTask() {
     GenericInferModel model;
     auto input = buildInputJson();
     m_inputHash = input.hashData();
-    JsonUtils::save(QString("temp/infer-pitch-input-%1.json").arg(m_inputHash),
+    auto cacheDir = appOptions->inference()->cacheDirectory;
+    JsonUtils::save(cacheDir + QString("/infer-pitch-input-%1.json").arg(m_inputHash),
                     input.serialize());
     bool useCache = false;
-    auto cachePath = QString("temp/infer-pitch-output-%1.json").arg(m_inputHash);
+    auto cachePath = cacheDir + QString("/infer-pitch-output-%1.json").arg(m_inputHash);
     if (QFile(cachePath).exists()) {
         QJsonObject obj;
         useCache = JsonUtils::load(cachePath, obj) && model.deserialize(obj);

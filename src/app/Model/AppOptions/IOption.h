@@ -5,7 +5,18 @@
 #ifndef IOPTION_H
 #define IOPTION_H
 
+#define LITE_OPTION_ITEM(FieldType, FieldName, DefaultValue)                                       \
+public:                                                                                            \
+    FieldType FieldName = DefaultValue;                                                            \
+                                                                                                   \
+private:                                                                                           \
+    const QString FieldName##Key = #FieldName;                                                     \
+    [[nodiscard]] std::pair<QString, QJsonValue> serialize_##FieldName() const {                       \
+        return {FieldName##Key, FieldName};                                                        \
+    }\
+
 #include <QJsonObject>
+#include <utility>
 
 class IOption {
 public:

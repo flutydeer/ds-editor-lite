@@ -300,7 +300,7 @@ int ProgressIndicator::thumbProgress() const {
 void ProgressIndicator::setThumbProgress(int x) {
     m_thumbProgress = x;
     //    qDebug() << x;
-    repaint();
+    update();
 }
 
 TaskGlobal::Status ProgressIndicator::taskStatus() const {
@@ -363,7 +363,7 @@ double ProgressIndicator::apparentValue() const {
 
 void ProgressIndicator::setApparentValue(double x) {
     m_apparentValue = x;
-    repaint();
+    update();
 }
 
 double ProgressIndicator::apparentSecondaryValue() const {
@@ -372,7 +372,7 @@ double ProgressIndicator::apparentSecondaryValue() const {
 
 void ProgressIndicator::setApparentSecondaryValue(double x) {
     m_apparentSecondaryValue = x;
-    repaint();
+    update();
 }
 
 double ProgressIndicator::apparentCurrentTaskValue() const {
@@ -381,5 +381,5 @@ double ProgressIndicator::apparentCurrentTaskValue() const {
 
 void ProgressIndicator::setApparentCurrentTaskValue(double x) {
     m_apparentCurrentTaskValue = x;
-    repaint();
+    update();
 }

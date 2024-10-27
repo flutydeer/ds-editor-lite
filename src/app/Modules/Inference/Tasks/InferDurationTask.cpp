@@ -4,6 +4,7 @@
 
 #include "InferDurationTask.h"
 
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
@@ -69,20 +70,14 @@ void InferDurationTask::runTask() {
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    QDir cacheDir("temp");
-    if (!cacheDir.exists())
-        if (!cacheDir.mkpath(".")) {
-            qCritical() << "Failed to create temporary directory";
-            return;
-        }
-
     GenericInferModel model;
     auto input = buildInputJson();
     m_inputHash = input.hashData();
-    JsonUtils::save(QString("temp/infer-duration-input-%1.json").arg(m_inputHash),
+    auto cacheDir = appOptions->inference()->cacheDirectory;
+    JsonUtils::save(cacheDir + QString("/infer-duration-input-%1.json").arg(m_inputHash),
                     input.serialize());
     bool useCache = false;
-    auto cachePath = QString("temp/infer-duration-output-%1.json").arg(m_inputHash);
+    auto cachePath = cacheDir + QString("/infer-duration-output-%1.json").arg(m_inputHash);
     if (QFile(cachePath).exists()) {
         QJsonObject obj;
         useCache = JsonUtils::load(cachePath, obj) && model.deserialize(obj);

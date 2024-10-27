@@ -4,7 +4,22 @@
 
 #include "InferenceOption.h"
 
+#include "Utils/Log.h"
+
+#include <QDir>
+
 void InferenceOption::load(const QJsonObject &object) {
+    if (object.contains(cacheDirectoryKey))
+        cacheDirectory = object[cacheDirectoryKey].toString();
+    QDir configDir(cacheDirectory);
+    if (!configDir.exists()) {
+        if (configDir.mkpath("."))
+            qDebug() << "Successfully created cache directory";
+        else
+            qCritical() << "Failed to create cache directory";
+    } else
+        qDebug() << "Cache directory already exists";
+
     if (object.contains(executionProviderKey))
         executionProvider = object[executionProviderKey].toString();
     if (object.contains(selectedGpuIndexKey))
@@ -16,8 +31,6 @@ void InferenceOption::load(const QJsonObject &object) {
 }
 
 void InferenceOption::save(QJsonObject &object) {
-    object[executionProviderKey] = executionProvider;
-    object[selectedGpuIndexKey] = selectedGpuIndex;
-    object[samplingStepsKey] = samplingSteps;
-    object[depthKey] = depth;
+    object = {serialize_executionProvider(), serialize_selectedGpuIndex(), serialize_samplingSteps(),
+              serialize_depth(), serialize_cacheDirectory()};
 }

@@ -3,6 +3,7 @@
 //
 
 #include "Controller/AppController.h"
+#include "Controller/ClipController.h"
 #include "Controller/ProjectStatusController.h"
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
@@ -12,11 +13,13 @@
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Audio/utils/DeviceTester.h"
+#include "Modules/History/HistoryManager.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Window/TaskWindow.h"
 #include "Utils/Log.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QScreen>
 #include <QStyleFactory>
 #include <QTranslator>
@@ -43,8 +46,16 @@ int main(int argc, char *argv[]) {
         QApplication::setStyle(QStyleFactory::create("windows"));
 
     // 设置日志等级和过滤器
+    QDir appDataDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
+    if (!appDataDir.exists()) {
+        if (!appDataDir.mkpath("."))
+            qFatal() << "Failed to create app data directory";
+    }
+    // Log::setLogDirectory(
+    //     QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() + "/Logs");
     Log::setConsoleLogLevel(Log::Debug);
-    // Log::setConsoleTagFilter({/*"ParamController", "InferDurationTask",*/ });
+    Log::setConsoleTagFilter(
+        {/*"InferDurationTask", "InferPitchTask", "InferVarianceTask", "InferAcousticTask"*/});
     Log::logSystemInfo();
     Log::logGpuInfo();
 
@@ -111,6 +122,18 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+
+    // trackController->onNewTrack();
+    // auto clip = trackController->onNewSingingClip(1, 3840);
+    // clipController->setClip(clip);
+    // for (int i = 0; i < 10; i++) {
+    //     auto note = new Note;
+    //     note->setRStart(i * 240);
+    //     note->setLength(240);
+    //     note->setLyric("啦");
+    //     note->setLanguage("cmn");
+    //     clipController->onInsertNote(note);
+    // }
 
     const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
     qInfo() << "App launched in" << time << "ms";

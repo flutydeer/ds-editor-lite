@@ -5,26 +5,24 @@
 #ifndef INFERENCEOPTION_H
 #define INFERENCEOPTION_H
 
-#define OPTION_FIELD(FieldType, FieldName, DefaultValue)                                           \
-public:                                                                                            \
-    FieldType FieldName = DefaultValue;                                                            \
-                                                                                                   \
-private:                                                                                           \
-    const QString FieldName##Key = #FieldName;\
-
 #include "Model/AppOptions/IOption.h"
+
+#include <QStandardPaths>
 
 class InferenceOption final : public IOption {
 public:
-    explicit InferenceOption() : IOption("inference"){};
+    explicit InferenceOption() : IOption("inference") {};
 
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
 
-    OPTION_FIELD(QString, executionProvider, "DirectML")
-    OPTION_FIELD(int, selectedGpuIndex, 0)
-    OPTION_FIELD(int, samplingSteps, 20)
-    OPTION_FIELD(double, depth, 1.0)
+    LITE_OPTION_ITEM(QString, executionProvider, "DirectML")
+    LITE_OPTION_ITEM(int, selectedGpuIndex, 0)
+    LITE_OPTION_ITEM(int, samplingSteps, 20)
+    LITE_OPTION_ITEM(double, depth, 1.0)
+    LITE_OPTION_ITEM(QString, cacheDirectory,
+                     QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() +
+                         "/Cache")
 };
 
 

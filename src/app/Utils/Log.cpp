@@ -10,7 +10,7 @@
 #include <QDir>
 
 QString Log::LogMessage::toPlainText() const {
-    return QString("%1 [%2] [%3] %4")
+    return QString("%1 %2 [%3] %4")
         .arg(time, padText(tag, consoleTagWidth), levelText(level), text);
 }
 
@@ -40,14 +40,7 @@ QString Log::LogMessage::padText(const QString &text, int spaces) {
 }
 
 Log::Log() {
-    m_logFolder = QCoreApplication::applicationDirPath() + QDir::separator() + "log";
     m_logFileName = QDateTime::currentDateTime().toString("yyyy_MM_dd_hh_mm_ss") + ".log";
-
-    auto dir = QDir(m_logFolder);
-    if (!dir.exists()) {
-        if (!dir.mkdir(m_logFolder))
-            qFatal("Unable to create directory %s", m_logFolder.toUtf8().data());
-    }
 }
 
 void Log::handler(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
@@ -107,6 +100,16 @@ void Log::setConsoleLogLevel(LogLevel level) {
 
 void Log::setConsoleTagFilter(const QStringList &tags) {
     instance()->m_tagFilter = tags;
+}
+
+void Log::setLogDirectory(const QString &directory) {
+    auto dir = QDir(directory);
+    if (!dir.exists()) {
+        if (!dir.mkdir(directory))
+            qFatal("Unable to create directory %s", directory.toUtf8().data());
+    }
+    instance()->m_logDirectory = directory;
+    instance()->m_logToFile = true;
 }
 
 void Log::d(const QString &tag, const QString &msg) {
@@ -178,7 +181,7 @@ void Log::log(const LogMessage &message) {
         consoleStream << message.toConsoleText() << Qt::endl;
 
     if (m_logToFile) {
-        QString logFilePath = m_logFolder + QDir::separator() + m_logFileName;
+        QString logFilePath = m_logDirectory + QDir::separator() + m_logFileName;
         QFile logFile(logFilePath);
         logFile.open(QIODevice::WriteOnly | QIODevice::Append);
         QTextStream fileStream(&logFile);

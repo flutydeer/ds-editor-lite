@@ -52,6 +52,7 @@ public:
     static void logGpuInfo();
     static void setConsoleLogLevel(LogLevel level);
     static void setConsoleTagFilter(const QStringList &tags);
+    static void setLogDirectory(const QString &directory);
 
     static void d(const QString &tag, const QString &msg);
     static void i(const QString &tag, const QString &msg);
@@ -68,7 +69,7 @@ private:
     void log(const LogMessage &message);
 
     QMutex m_mutex;
-    QString m_logFolder;
+    QString m_logDirectory;
     QString m_logFileName;
     bool m_logToFile = false;
     LogLevel m_consoleLogLevel = Debug;
