@@ -46,7 +46,6 @@ signals:
 
 public slots:
     void onSceneSelectionChanged() const;
-    void onPitchEditorEditCompleted(const QList<DrawCurve *> &curves);
 
 private slots:
     void notifyKeyRangeChanged();

@@ -31,6 +31,11 @@ void ClipController::setView(IClipEditorView *view) {
     d->m_view = view;
 }
 
+Clip *ClipController::clip() {
+    Q_D(ClipController);
+    return d->m_clip;
+}
+
 void ClipController::setClip(Clip *clip) {
     Q_D(ClipController);
     d->m_clip = clip;

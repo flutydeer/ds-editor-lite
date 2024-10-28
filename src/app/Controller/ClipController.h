@@ -28,6 +28,7 @@ public:
     explicit ClipController();
     ~ClipController() override;
     void setView(IClipEditorView *view);
+    [[nodiscard]] Clip *clip();
     void setClip(Clip *clip);
     void copySelectedNotesWithParams() const;
     void cutSelectedNotesWithParams();
