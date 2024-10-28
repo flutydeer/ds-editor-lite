@@ -87,6 +87,8 @@ private:
     bool m_showDebugInfo = false;
     int m_canEditTicksPerPixelThreshold = 6;
     bool m_mouseMoved = false;
+    QMap<QString, QPixmap> m_originalTextCache;
+    QMap<QString, QPixmap> m_editedTextCache;
 
     SingingClip *m_clip = nullptr;
 
@@ -96,6 +98,8 @@ private:
     void resetPhonemeList();
     void clearHoverEffects(PhonemeViewModel *except = nullptr);
     void handleAdjustCompleted(PhonemeViewModel *phVm);
+
+    void cacheText(const QString &text, bool edited, const QPainter &painter);
 };
 
 

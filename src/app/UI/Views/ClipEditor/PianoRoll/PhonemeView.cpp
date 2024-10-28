@@ -106,6 +106,9 @@ void PhonemeView::wheelEvent(QWheelEvent *event) {
 }
 
 void PhonemeView::paintEvent(QPaintEvent *event) {
+    QElapsedTimer timer;
+    timer.start();
+
     QWidget::paintEvent(event);
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
@@ -148,8 +151,10 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     auto drawPhoneName = [&](PhonemeViewModel *phoneme) {
         auto start = tickToX(phoneme->start + phoneme->startOffset);
         auto length = 80;
+        bool edited = phoneme->nameEdited;
         auto textRect = QRectF(start + 2, 0, length - 4, rect().height());
-        painter.setPen(phoneme->nameEdited ? editedColor : originalColor);
+        auto penColor = edited ? editedColor : originalColor;
+        painter.setPen(penColor);
         // painter.setPen(originalColor);
         painter.setBrush(fillColor);
 
@@ -159,9 +164,11 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
                    QString(" s%1 so%2 l%3 lo%4").arg(phoneme->start).arg(phoneme->startOffset);
         else
             text = phoneme->name;
-        QTextOption textOption(Qt::AlignVCenter);
-        textOption.setWrapMode(QTextOption::NoWrap);
-        painter.drawText(textRect, text, textOption);
+
+        const auto &cache = edited ? m_editedTextCache : m_originalTextCache;
+        if (!cache.contains(text) || cache[text].isNull())
+            cacheText(text, edited, painter);
+        painter.drawPixmap(textRect.topLeft(), cache[text]);
     };
 
     // Draw notes' word boundary
@@ -216,6 +223,9 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     painter.setPen(pen);
     auto x = tickToX(m_position);
     painter.drawLine(QLineF(x, 0, x, rect().height()));
+
+    // const auto time = static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
+    // qDebug() << "PhonemeView painted in" << time << "ms";
 }
 
 void PhonemeView::mousePressEvent(QMouseEvent *event) {
@@ -509,4 +519,21 @@ void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phVm) {
         m_curPhoneme = nullptr;
     }
     clipController->onAdjustPhonemeOffset(phVm->noteId, type, offsets);
+}
+
+void PhonemeView::cacheText(const QString &text, bool edited, const QPainter &painter) {
+    // qDebug() << "cacheText:" << text;
+    QSize textSize = painter.fontMetrics().size(Qt::TextSingleLine, text);
+    QPixmap pixmap(textSize * painter.device()->devicePixelRatio());
+    pixmap.setDevicePixelRatio(painter.device()->devicePixelRatio());
+    pixmap.fill(Qt::transparent);
+
+    QPainter cachePainter(&pixmap);
+    cachePainter.setPen(painter.pen());
+    cachePainter.drawText(pixmap.rect(), text);
+
+    if (edited)
+        m_editedTextCache.insert(text, pixmap);
+    else
+        m_originalTextCache.insert(text, pixmap);
 }
