@@ -731,7 +731,7 @@ QToolTip {
 /* PanelView */
 PanelView {
     background: #09FFFFFF;
-    border: 1px solid rgb(20, 20, 20);
+    border: 1px solid rgba(0, 0, 0, 96);
     border-radius: 6px;
 }
 

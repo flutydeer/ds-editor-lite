@@ -14,6 +14,7 @@
 #include <QTextOption>
 #include <QMWidgets/cmenu.h>
 #include <QDebug>
+#include <QElapsedTimer>
 
 using namespace ClipEditorGlobal;
 
@@ -122,6 +123,9 @@ void NoteView::resetOffset() {
 }
 
 void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+    QElapsedTimer timer;
+    timer.start();
+
     const auto backgroundColorNormal = QColor(155, 186, 255);
     const auto backgroundColorEditingPitch = QColor(53, 59, 74);
     const auto backgroundColorOverlapped = QColor(110, 129, 171);
@@ -229,9 +233,12 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         textOption.setWrapMode(QTextOption::NoWrap);
 
         if (qMax(lyricTextWidth, pronTextWidth) < textRectWidth && textHeight < textRectHeight) {
+            // auto time1 = static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
             painter->drawText(textRect, m_lyric, textOption);
+            // auto time2 = static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
+            // qDebug() << "Lyric painted in" << time2 - time1 << "ms";
             if (m_pronView) {
-                adjustPronView();
+                // adjustPronView();
                 m_pronView->setTextVisible(true);
             }
         } else {
@@ -244,6 +251,9 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         drawRectOnly();
     else
         drawFullNote();
+
+    // const auto time = static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
+    // qDebug() << "NoteView painted in" << time << "ms";
 }
 
 // void NoteView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
@@ -264,6 +274,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
 // }
 
 void NoteView::updateRectAndPos() {
+    // qDebug() << "updateRectAndPos";
     const auto x = (m_rStart + m_startOffset) * scaleX() * pixelsPerQuarterNote / 480;
     const auto y = -(m_keyIndex + m_keyOffset - 127) * noteHeight * scaleY();
     const auto w = (m_length + m_lengthOffset) * scaleX() * pixelsPerQuarterNote / 480;
@@ -277,6 +288,7 @@ void NoteView::updateRectAndPos() {
 }
 
 void NoteView::adjustPronView() const {
+    // qDebug() << "adjustPronView";
     m_pronView->setPos(pos().x(), pos().y() + boundingRect().height());
     m_pronView->setRect(QRectF(0, 0, boundingRect().width(), m_pronView->textHeight));
 }
