@@ -5,8 +5,6 @@
 #ifndef PIANOROLLGRAPHICSVIEW_P_H
 #define PIANOROLLGRAPHICSVIEW_P_H
 
-#include "NoteLayer.h"
-
 #include "Model/AppModel/Params.h"
 #include "Model/AppModel/SingingClip.h"
 
@@ -18,7 +16,6 @@ class PitchEditorView;
 class QMouseEvent;
 class QPaintEvent;
 class CMenu;
-class QContextMenuEvent;
 class NoteView;
 class Note;
 class PianoRollGraphicsView;
@@ -30,7 +27,7 @@ class PianoRollGraphicsViewPrivate : public QObject {
     Q_DECLARE_PUBLIC(PianoRollGraphicsView)
 
 public:
-    explicit PianoRollGraphicsViewPrivate(PianoRollGraphicsView *p) : q_ptr(p){};
+    explicit PianoRollGraphicsViewPrivate(PianoRollGraphicsView *p) : q_ptr(p) {};
 
     SingingClip *m_clip = nullptr;
     int m_offset = 0; // Clip 's "start" property
@@ -39,10 +36,8 @@ public:
     enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, EraseNotes, None };
 
     NoteView *m_currentEditingNote = nullptr;
+    QList<NoteView *> noteViews;
 
-    // Layers
-    GraphicsLayerManager *m_layerManager = nullptr;
-    NoteLayer m_noteLayer;
     PitchEditorView *m_pitchEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
 
@@ -107,10 +102,13 @@ public:
     [[nodiscard]] int sceneYToKeyIndexInt(double y) const;
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     void setPitchEditMode(bool on, bool isErase);
-    NoteView *noteViewAt(const QPoint &pos);
+    [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
+    [[nodiscard]] NoteView *findNoteViewById(int id) const;
 
     void handleNoteInserted(Note *note);
     void handleNoteRemoved(Note *note);
+    void addNoteViewToScene(NoteView *view);
+    void removeNoteViewFromScene(NoteView *view);
 
 public slots:
     void onClipPropertyChanged();

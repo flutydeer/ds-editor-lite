@@ -36,7 +36,6 @@
 PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent)
     : TimeGraphicsView(scene, parent), d_ptr(new PianoRollGraphicsViewPrivate(this)) {
     Q_D(PianoRollGraphicsView);
-    d->m_layerManager = new GraphicsLayerManager(scene);
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("PianoRollGraphicsView");
     setScaleXMax(5);
@@ -79,7 +78,6 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
 
 PianoRollGraphicsView::~PianoRollGraphicsView() {
     Q_D(PianoRollGraphicsView);
-    delete d->m_layerManager;
     delete d->m_pitchEditor;
     delete d_ptr;
 }
@@ -304,24 +302,27 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
 
 void PianoRollGraphicsView::reset() {
     Q_D(PianoRollGraphicsView);
-    d->m_layerManager->destroyItems(&d->m_noteLayer);
+    for (const auto &noteView : d->noteViews) {
+        d->removeNoteViewFromScene(noteView);
+        delete noteView;
+    }
 }
 
 QList<int> PianoRollGraphicsView::selectedNotesId() const {
     Q_D(const PianoRollGraphicsView);
     QList<int> list;
-    for (const auto noteItem : d->m_noteLayer.noteItems()) {
-        if (noteItem->isSelected())
-            list.append(noteItem->id());
+    for (const auto noteView : d->noteViews) {
+        if (noteView->isSelected())
+            list.append(noteView->id());
     }
     return list;
 }
 
 void PianoRollGraphicsView::clearNoteSelections(NoteView *except) {
     Q_D(PianoRollGraphicsView);
-    for (const auto noteItem : d->m_noteLayer.noteItems()) {
-        if (noteItem != except && noteItem->isSelected())
-            noteItem->setSelected(false);
+    for (const auto noteView : d->noteViews) {
+        if (noteView != except && noteView->isSelected())
+            noteView->setSelected(false);
     }
 }
 
@@ -491,6 +492,7 @@ void PianoRollGraphicsViewPrivate::onDeleteSelectedNotes() const {
 void PianoRollGraphicsViewPrivate::onOpenNotePropertyDialog(int noteId) {
     Q_Q(PianoRollGraphicsView);
     auto note = m_clip->findNoteById(noteId);
+    Q_ASSERT(note);
     auto dlg = new NotePropertyDialog(note, q);
     connect(dlg, &NotePropertyDialog::accepted, this,
             [=] { clipController->onNotePropertiesEdited(noteId, dlg->result()); });
@@ -662,20 +664,19 @@ void PianoRollGraphicsViewPrivate::handleNotesErased() {
 }
 
 void PianoRollGraphicsViewPrivate::eraseNoteFromView(NoteView *noteView) {
+    Q_Q(PianoRollGraphicsView);
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     m_notesToErase.append(noteView->id());
     m_noteViewsToErase.append(noteView);
-    m_layerManager->removeItem(noteView, &m_noteLayer);
-    m_layerManager->removeItem(noteView->pronunciationView(), &m_noteLayer);
-    // delete noteView;
+    removeNoteViewFromScene(noteView);
 }
 
 void PianoRollGraphicsViewPrivate::cancelEraseNote() {
+    Q_Q(PianoRollGraphicsView);
     m_notesToErase.clear();
-    for (const auto noteView : m_noteViewsToErase) {
-        m_layerManager->addItem(noteView, &m_noteLayer);
-        m_layerManager->addItem(noteView->pronunciationView(), &m_noteLayer);
-    }
+    for (const auto noteView : m_noteViewsToErase)
+        addNoteViewToScene(noteView);
+    m_noteViewsToErase.clear();
 }
 
 void PianoRollGraphicsViewPrivate::updateSceneSelectionState() {
@@ -684,8 +685,9 @@ void PianoRollGraphicsViewPrivate::updateSceneSelectionState() {
     q->clearNoteSelections();
 
     for (const auto id : appStatus->selectedNotes.get()) {
-        if (auto noteItem = m_noteLayer.findNoteById(id))
-            noteItem->setSelected(true);
+        auto noteItem = findNoteViewById(id);
+        Q_ASSERT(noteItem);
+        noteItem->setSelected(true);
     }
     m_selectionChangeBarrier = false;
 }
@@ -693,21 +695,24 @@ void PianoRollGraphicsViewPrivate::updateSceneSelectionState() {
 void PianoRollGraphicsViewPrivate::updateOverlappedState() {
     Q_Q(PianoRollGraphicsView);
     for (const auto note : m_notes) {
-        if (auto noteView = m_noteLayer.findNoteById(note->id()))
-            noteView->setOverlapped(note->overlapped());
+        auto noteView = findNoteViewById(note->id());
+        Q_ASSERT(noteView);
+        noteView->setOverlapped(note->overlapped());
     }
     q->update();
 }
 
 void PianoRollGraphicsViewPrivate::updateNoteTimeAndKey(Note *note) const {
-    auto noteView = m_noteLayer.findNoteById(note->id());
+    auto noteView = findNoteViewById(note->id());
+    Q_ASSERT(noteView);
     noteView->setRStart(note->rStart());
     noteView->setLength(note->length());
     noteView->setKeyIndex(note->keyIndex());
 }
 
 void PianoRollGraphicsViewPrivate::updateNoteWord(Note *note) const {
-    auto noteView = m_noteLayer.findNoteById(note->id());
+    auto noteView = findNoteViewById(note->id());
+    Q_ASSERT(noteView);
     noteView->setLyric(note->lyric());
     auto original = note->pronunciation().original;
     auto edited = note->pronunciation().edited;
@@ -779,7 +784,7 @@ void PianoRollGraphicsViewPrivate::resizeRightSelectedNote(int offset) const {
 
 QList<NoteView *> PianoRollGraphicsViewPrivate::selectedNoteItems() const {
     QList<NoteView *> list;
-    for (const auto noteItem : m_noteLayer.noteItems()) {
+    for (const auto noteItem : noteViews) {
         if (noteItem->isSelected())
             list.append(noteItem);
     }
@@ -789,7 +794,7 @@ QList<NoteView *> PianoRollGraphicsViewPrivate::selectedNoteItems() const {
 void PianoRollGraphicsViewPrivate::setPitchEditMode(bool on, bool isErase) {
     Q_Q(PianoRollGraphicsView);
     m_isEditPitchMode = on;
-    for (auto note : m_noteLayer.noteItems())
+    for (const auto note : noteViews)
         note->setEditingPitch(on);
     if (on)
         q->clearNoteSelections();
@@ -805,7 +810,12 @@ NoteView *PianoRollGraphicsViewPrivate::noteViewAt(const QPoint &pos) {
     return nullptr;
 }
 
+NoteView *PianoRollGraphicsViewPrivate::findNoteViewById(int id) const {
+    return MathUtils::findItemById<NoteView *>(noteViews, id);
+}
+
 void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
+    Q_Q(PianoRollGraphicsView);
     m_selectionChangeBarrier = true;
     auto pronView = new PronunciationView;
     auto noteView = new NoteView(note->id());
@@ -820,8 +830,7 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
     noteView->setPronunciation(isEdited ? edited : original, isEdited);
     noteView->setOverlapped(note->overlapped());
     noteView->setEditingPitch(m_isEditPitchMode);
-    m_layerManager->addItem(noteView, &m_noteLayer);
-    m_layerManager->addItem(noteView->pronunciationView(), &m_noteLayer);
+    addNoteViewToScene(noteView);
 
     m_notes.append(note);
     // clipController->selectNotes(QList{note->id()}, false);
@@ -831,14 +840,27 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
 void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
     m_selectionChangeBarrier = true;
     // qDebug() << "PianoRollGraphicsView::removeNote" << note->id() << note->lyric();
-    if (auto noteView = m_noteLayer.findNoteById(note->id())) {
-        m_layerManager->removeItem(noteView, &m_noteLayer);
-        m_layerManager->removeItem(noteView->pronunciationView(), &m_noteLayer);
-        delete noteView;
-    }
+    auto noteView = findNoteViewById(note->id());
+    Q_ASSERT(noteView);
+    removeNoteViewFromScene(noteView);
+    delete noteView;
     m_notes.removeOne(note);
     disconnect(note, nullptr, this, nullptr);
     m_selectionChangeBarrier = false;
+}
+
+void PianoRollGraphicsViewPrivate::addNoteViewToScene(NoteView *view) {
+    Q_Q(PianoRollGraphicsView);
+    q->scene()->addCommonItem(view);
+    q->scene()->addCommonItem(view->pronunciationView());
+    noteViews.append(view);
+}
+
+void PianoRollGraphicsViewPrivate::removeNoteViewFromScene(NoteView *view) {
+    Q_Q(PianoRollGraphicsView);
+    q->scene()->removeCommonItem(view);
+    q->scene()->removeCommonItem(view->pronunciationView());
+    noteViews.removeOne(view);
 }
 
 void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {

@@ -24,6 +24,8 @@ NoteView::NoteView(int itemId, QGraphicsItem *parent)
 }
 
 NoteView::~NoteView() {
+    if (m_pronView)
+        delete m_pronView;
 }
 
 int NoteView::rStart() const {

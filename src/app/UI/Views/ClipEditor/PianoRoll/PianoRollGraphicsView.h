@@ -5,16 +5,13 @@
 #ifndef PIANOROLLGRAPHICSVIEW_H
 #define PIANOROLLGRAPHICSVIEW_H
 
-#include "NoteLayer.h"
 #include "Interface/IAtomicAction.h"
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "UI/Views/Common/GraphicsLayerManager.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
 class SingingClip;
 class DrawCurve;
-class CMenu;
 class Note;
 class PianoRollGraphicsScene;
 class CommonParamEditorView;
