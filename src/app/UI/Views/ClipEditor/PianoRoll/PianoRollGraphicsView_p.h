@@ -109,6 +109,10 @@ public:
     void addNoteViewToScene(NoteView *view);
     void removeNoteViewFromScene(NoteView *view);
 
+    void onHoverEnter(QHoverEvent *event);
+    void onHoverLeave(QHoverEvent *event);
+    void onHoverMove(QHoverEvent *event);
+
 public slots:
     void onClipPropertyChanged();
     void onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);

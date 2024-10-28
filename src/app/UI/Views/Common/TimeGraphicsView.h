@@ -93,9 +93,6 @@ protected:
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
     void afterSetTimeScale(double scale) override;
 
-    void handleHoverEnterEvent(QHoverEvent *event);
-    void handleHoverLeaveEvent(QHoverEvent *event);
-    void handleHoverMoveEvent(QHoverEvent *event);
     [[nodiscard]] double sceneXToTick(double pos) const;
     [[nodiscard]] double tickToSceneX(double tick) const;
 
@@ -108,6 +105,9 @@ private:
 
     bool isMouseEventFromWheel(QWheelEvent *event);
     void updateAnimationDuration();
+    void handleHoverEnterEvent(QHoverEvent *event);
+    void handleHoverLeaveEvent(QHoverEvent *event);
+    void handleHoverMoveEvent(QHoverEvent *event);
 
     [[nodiscard]] ScrollBarView *scrollBarAt(const QPoint &pos);
 

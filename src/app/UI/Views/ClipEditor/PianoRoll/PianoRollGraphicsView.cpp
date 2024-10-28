@@ -105,6 +105,7 @@ void PianoRollGraphicsView::notifyKeyRangeChanged() {
 }
 
 bool PianoRollGraphicsView::event(QEvent *event) {
+    Q_D(PianoRollGraphicsView);
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
         auto key = dynamic_cast<QKeyEvent *>(event)->key();
         if (key == Qt::Key_Escape) {
@@ -112,7 +113,12 @@ bool PianoRollGraphicsView::event(QEvent *event) {
         }
     } else if (event->type() == QEvent::WindowDeactivate) {
         discardAction();
-    };
+    } else if (event->type() == QEvent::HoverEnter)
+        d->onHoverEnter(dynamic_cast<QHoverEvent *>(event));
+    else if (event->type() == QEvent::HoverLeave)
+        d->onHoverLeave(dynamic_cast<QHoverEvent *>(event));
+    else if (event->type() == QEvent::HoverMove)
+        d->onHoverMove(dynamic_cast<QHoverEvent *>(event));
     return TimeGraphicsView::event(event);
 }
 
@@ -758,6 +764,9 @@ QList<NoteView *> PianoRollGraphicsViewPrivate::selectedNoteItems() const {
 
 void PianoRollGraphicsViewPrivate::setPitchEditMode(bool on, bool isErase) {
     Q_Q(PianoRollGraphicsView);
+    if (on)
+        q->setCursor(Qt::ArrowCursor);
+
     m_isEditPitchMode = on;
     for (const auto note : noteViews)
         note->setEditingPitch(on);
@@ -817,6 +826,35 @@ void PianoRollGraphicsViewPrivate::removeNoteViewFromScene(NoteView *view) {
         q->scene()->removeCommonItem(view->pronunciationView());
     }
     noteViews.removeOne(view);
+}
+
+void PianoRollGraphicsViewPrivate::onHoverEnter(QHoverEvent *event) {
+}
+
+void PianoRollGraphicsViewPrivate::onHoverLeave(QHoverEvent *event) {
+}
+
+void PianoRollGraphicsViewPrivate::onHoverMove(QHoverEvent *event) {
+    Q_Q(PianoRollGraphicsView);
+    if (m_isEditPitchMode || m_mouseDown)
+        return;
+    auto noteView = noteViewAt(event->position().toPoint());
+    if (!noteView) {
+        q->setCursor(Qt::ArrowCursor);
+        return;
+    }
+
+    auto scenePos = q->mapToScene(event->position().toPoint());
+    auto rPos = noteView->mapFromScene(scenePos);
+    auto rx = rPos.x();
+    if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
+        q->setCursor(Qt::SizeHorCursor);
+    } else if (rx >= noteView->rect().width() - AppGlobal::resizeTolerance &&
+               rx <= noteView->rect().width()) {
+        q->setCursor(Qt::SizeHorCursor);
+    } else {
+        q->setCursor(Qt::ArrowCursor);
+    }
 }
 
 void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
