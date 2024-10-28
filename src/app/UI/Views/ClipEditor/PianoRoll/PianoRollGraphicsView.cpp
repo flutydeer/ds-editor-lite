@@ -660,23 +660,23 @@ void PianoRollGraphicsViewPrivate::handleNotesErased() {
     qDebug() << "Note erased count:" << m_notesToErase.count();
     clipController->onRemoveNotes(m_notesToErase);
     m_notesToErase.clear();
-    m_noteViewsToErase.clear();
+    noteViewsToErase.clear();
 }
 
 void PianoRollGraphicsViewPrivate::eraseNoteFromView(NoteView *noteView) {
     Q_Q(PianoRollGraphicsView);
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     m_notesToErase.append(noteView->id());
-    m_noteViewsToErase.append(noteView);
+    noteViewsToErase.append(noteView);
     removeNoteViewFromScene(noteView);
 }
 
 void PianoRollGraphicsViewPrivate::cancelEraseNote() {
     Q_Q(PianoRollGraphicsView);
     m_notesToErase.clear();
-    for (const auto noteView : m_noteViewsToErase)
+    for (const auto noteView : noteViewsToErase)
         addNoteViewToScene(noteView);
-    m_noteViewsToErase.clear();
+    noteViewsToErase.clear();
 }
 
 void PianoRollGraphicsViewPrivate::updateSceneSelectionState() {
@@ -810,8 +810,10 @@ NoteView *PianoRollGraphicsViewPrivate::noteViewAt(const QPoint &pos) {
     return nullptr;
 }
 
+// 正在擦除音符时，有可能会取消操作（如按下ESC），
+// 某些情况下（如发音更新）仍需要找到并修改它们的属性
 NoteView *PianoRollGraphicsViewPrivate::findNoteViewById(int id) const {
-    return MathUtils::findItemById<NoteView *>(noteViews, id);
+    return MathUtils::findItemById<NoteView *>(noteViews + noteViewsToErase, id);
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
@@ -858,8 +860,10 @@ void PianoRollGraphicsViewPrivate::addNoteViewToScene(NoteView *view) {
 
 void PianoRollGraphicsViewPrivate::removeNoteViewFromScene(NoteView *view) {
     Q_Q(PianoRollGraphicsView);
-    q->scene()->removeCommonItem(view);
-    q->scene()->removeCommonItem(view->pronunciationView());
+    if (view->scene() == q->scene()) {
+        q->scene()->removeCommonItem(view);
+        q->scene()->removeCommonItem(view->pronunciationView());
+    }
     noteViews.removeOne(view);
 }
 
