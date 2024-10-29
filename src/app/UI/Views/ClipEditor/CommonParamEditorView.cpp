@@ -461,15 +461,24 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
         QPainterPath fillPath;
         fillPath.moveTo(visibleFirstPoint.x(), baseValue);
         fillPath.lineTo(visibleFirstPoint);
+
+        const double startTick = start;
+        const double tempEndTick = endTick();
+        const double step = curve.step;
+        const double startX = tickToItemX(startTick);
+        const double endX = tickToItemX(tempEndTick);
+        const double interval = (endX - startX) / ((tempEndTick - startTick) / step);
+
         double lastX = 0;
-        double lastLineToX = visibleFirstPoint.x();
+
+        double lastLineToX = startX;
         bool breakFlag = false;
         for (int i = startIndex; i < curve.values().count(); i++) {
             const auto pos = start + curve.step * i;
             const auto value = curve.values().at(i);
-            if (pos > endTick())
+            if (pos > tempEndTick)
                 breakFlag = true;
-            const auto x = tickToItemX(pos);
+            const double x = startX + (i * interval);
             // 只有在视图上两点距离达到一个像素以上时才绘制
             // TODO: 使用峰值模式来绘制
             if (qAbs(lastLineToX - x) > dpr) {
