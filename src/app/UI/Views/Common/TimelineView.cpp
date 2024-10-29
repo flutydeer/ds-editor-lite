@@ -119,7 +119,7 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     if (!m_textCache.contains("Bar") || !m_textCache["Bar"].contains(text) ||
         m_textCache["Bar"][text].isNull())
         cacheText("Bar", text, *painter);
-    const auto pixmap = m_textCache["Bar"][text];
+    const auto &pixmap = m_textCache["Bar"][text];
     const QRectF textRect(x + m_textPaddingLeft, 0, pixmap.width(), pixmap.height());
     painter->drawPixmap(textRect.topLeft(), pixmap);
     // painter->drawText(QPointF(x + m_textPaddingLeft, 10), text);
@@ -141,7 +141,7 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
         if (!m_textCache.contains("Beat") || !m_textCache["Beat"].contains(text) ||
             m_textCache["Beat"][text].isNull())
             cacheText("Beat", text, *painter);
-        const auto pixmap = m_textCache["Beat"][text];
+        const auto &pixmap = m_textCache["Beat"][text];
         const QRectF textRect(x + m_textPaddingLeft, 0, pixmap.width(), pixmap.height());
         painter->drawPixmap(textRect.topLeft(), pixmap);
         // painter->drawText(QPointF(x + m_textPaddingLeft, 10),
