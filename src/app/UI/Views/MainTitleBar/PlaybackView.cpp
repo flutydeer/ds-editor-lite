@@ -45,7 +45,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnPlay->setCheckable(true);
 
     m_btnPlayPause = new QPushButton(this);
-    connect(m_btnPlayPause, &QPushButton::clicked, this, [=] {
+    connect(m_btnPlayPause, &QPushButton::pressed, this, [=] {
         if (m_status == Paused || m_status == Stopped)
             playTriggered();
         else if (m_status == Playing)
