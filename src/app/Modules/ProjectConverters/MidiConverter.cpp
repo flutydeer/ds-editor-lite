@@ -19,6 +19,7 @@
 
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/ComboBox.h"
 
 #include <QTextEdit>
@@ -95,7 +96,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
             note->setStart(dsNote.pos);
             note->setLength(dsNote.length);
             note->setKeyIndex(dsNote.keyNum);
-            note->setLyric(dsNote.lyric);
+            note->setLyric(dsNote.lyric.isEmpty() ? appOptions->general()->defaultLyric : dsNote.lyric);
             notes.append(note);
         }
         return notes;
