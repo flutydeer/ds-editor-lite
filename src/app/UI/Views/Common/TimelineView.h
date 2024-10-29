@@ -47,6 +47,8 @@ private:
     void drawPieces(QPainter *painter) const;
     double tickToX(double tick) const;
     double xToTick(double x) const;
+    void cacheText(const QString &type, const QString &text, const QPainter &painter);
+
     double m_startTick = 0;
     double m_endTick = 0;
     int m_textPaddingLeft = 2;
@@ -56,6 +58,7 @@ private:
     const QList<QColor> m_piecesColors = {
         QColor(100, 100, 100), QColor(255, 204, 153), QColor(155, 255, 162),
         QColor(255, 155, 157)}; // Pending, Running, Success, Failed
+    QMap<QString, QMap<QString, QPixmap>> m_textCache;
 };
 
 

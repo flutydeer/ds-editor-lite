@@ -115,7 +115,14 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     pen.setColor(QColor(200, 200, 200));
     painter->setPen(pen);
     auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
-    painter->drawText(QPointF(x + m_textPaddingLeft, 10), text);
+
+    if (!m_textCache.contains("Bar") || !m_textCache["Bar"].contains(text) ||
+        m_textCache["Bar"][text].isNull())
+        cacheText("Bar", text, *painter);
+    const auto pixmap = m_textCache["Bar"][text];
+    const QRectF textRect(x + m_textPaddingLeft, 0, pixmap.width(), pixmap.height());
+    painter->drawPixmap(textRect.topLeft(), pixmap);
+    // painter->drawText(QPointF(x + m_textPaddingLeft, 10), text);
     pen.setColor(QColor(92, 96, 100));
     painter->setPen(pen);
     auto y1 = rect().height() - 24;
@@ -129,9 +136,18 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     pen.setColor(QColor(160, 160, 160));
     painter->setPen(pen);
     // 在负坐标获取的 int bar 错误，暂不绘制文本
-    if (beat > 0)
-        painter->drawText(QPointF(x + m_textPaddingLeft, 10),
-                          /*QString::number(bar) + "." +*/ QString::number(beat));
+    if (beat > 0) {
+        const auto text = QString::number(beat);
+        if (!m_textCache.contains("Beat") || !m_textCache["Beat"].contains(text) ||
+            m_textCache["Beat"][text].isNull())
+            cacheText("Beat", text, *painter);
+        const auto pixmap = m_textCache["Beat"][text];
+        const QRectF textRect(x + m_textPaddingLeft, 0, pixmap.width(), pixmap.height());
+        painter->drawPixmap(textRect.topLeft(), pixmap);
+        // painter->drawText(QPointF(x + m_textPaddingLeft, 10),
+        //           /*QString::number(bar) + "." +*/ QString::number(beat));
+    }
+
     pen.setColor(QColor(72, 75, 78));
     painter->setPen(pen);
     auto y1 = rect().height() - 16;
@@ -205,4 +221,18 @@ double TimelineView::xToTick(double x) const {
     if (tick < 0)
         tick = 0;
     return tick;
+}
+
+void TimelineView::cacheText(const QString &type, const QString &text, const QPainter &painter) {
+    // qDebug() << "cacheText:" << text;
+    const QSize textSize = painter.fontMetrics().size(Qt::TextSingleLine, text);
+    QPixmap pixmap(textSize * painter.device()->devicePixelRatio());
+    pixmap.setDevicePixelRatio(painter.device()->devicePixelRatio());
+    pixmap.fill(Qt::transparent);
+
+    QPainter cachePainter(&pixmap);
+    cachePainter.setPen(painter.pen());
+    cachePainter.drawText(pixmap.rect(), text);
+
+    m_textCache[type].insert(text, pixmap);
 }
