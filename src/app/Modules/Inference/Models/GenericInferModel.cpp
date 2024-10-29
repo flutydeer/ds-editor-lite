@@ -128,8 +128,11 @@ bool GenericInferModel::deserialize(const QJsonObject &obj) {
     return true;
 }
 
-QString GenericInferModel::serializeToJson() const {
-    return QJsonDocument{serialize()}.toJson();
+QString GenericInferModel::serializeToJson(bool useMetadata) const {
+    QJsonObject object = serialize();
+    if (useMetadata)
+        object["configPath"] = configPath;
+    return QJsonDocument{object}.toJson();
 }
 
 bool GenericInferModel::deserializeFromJson(const QString &json) {
@@ -138,7 +141,7 @@ bool GenericInferModel::deserializeFromJson(const QString &json) {
 }
 
 QString GenericInferModel::hashData() const {
-    const QByteArray byteArray = serializeToJson().toUtf8();
+    const QByteArray byteArray = serializeToJson(true).toUtf8();
     const QByteArray hashData = QCryptographicHash::hash(byteArray, QCryptographicHash::Sha1);
     return hashData.toHex();
 }

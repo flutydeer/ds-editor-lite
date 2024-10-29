@@ -42,6 +42,7 @@ void ValidationController::onModelChanged() {
             if (clip->clipType() == Clip::Singing) {
                 auto singingClip = reinterpret_cast<SingingClip *>(clip);
                 singingClip->defaultLanguage = track->defaultLanguage();
+                singingClip->configPath = appOptions->general()->defaultSinger;
             }
         }
     }

@@ -24,6 +24,7 @@ private:
     Button *m_btnOpenConfigFolder;
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
+    LineEdit *m_leDefaultSinger;
 };
 
 #endif // GENERALPAGE_H

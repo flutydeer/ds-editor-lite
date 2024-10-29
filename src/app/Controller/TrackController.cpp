@@ -194,6 +194,7 @@ SingingClip *TrackController::onNewSingingClip(int trackIndex, int tick) {
 
     auto track = appModel->tracks().at(trackIndex);
     singingClip->defaultLanguage = track->defaultLanguage();
+    singingClip->configPath = appOptions->general()->defaultSinger;
     auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(singingClip);

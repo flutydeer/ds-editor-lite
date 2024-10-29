@@ -76,10 +76,20 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     defaultLyricItem->setTitle(tr("Default Lyric"));
     defaultLyricItem->addWidget(m_leDefaultLyric);
 
+    m_leDefaultSinger = new LineEdit;
+    m_leDefaultSinger->setText(option->defaultSinger);
+    connect(m_leDefaultSinger, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
+
+    auto defaultSingerItem = new OptionsCardItem;
+    defaultSingerItem->setTitle(tr("Default Singer"));
+    defaultSingerItem->addWidget(m_leDefaultSinger);
+
     auto singingCardLayout = new QVBoxLayout;
     singingCardLayout->addWidget(defaultSingingLanguageItem);
     singingCardLayout->addWidget(new DividerLine(Qt::Horizontal));
     singingCardLayout->addWidget(defaultLyricItem);
+    singingCardLayout->addWidget(new DividerLine(Qt::Horizontal));
+    singingCardLayout->addWidget(defaultSingerItem);
     singingCardLayout->setContentsMargins(10, 5, 10, 5);
     singingCardLayout->setSpacing(0);
 
@@ -102,5 +112,6 @@ void GeneralPage::modifyOption() {
     option->defaultSingingLanguage =
         static_cast<AppGlobal::LanguageType>(m_cbDefaultSingingLanguage->currentIndex());
     option->defaultLyric = m_leDefaultLyric->text();
+    option->defaultSinger = m_leDefaultSinger->text();
     appOptions->saveAndNotify();
 }

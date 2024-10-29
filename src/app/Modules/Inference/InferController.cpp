@@ -345,7 +345,7 @@ void InferControllerPrivate::createAndRunGetPhoneTask(SingingClip &clip) {
 void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
     const auto inputNotes = Helper::buildInferInputNotes(piece.notes);
     const InferDurationTask::InferDurInput input = {piece.clip->id(), piece.id(), inputNotes,
-                                                    m_singerConfigPath, appModel->tempo()};
+                                                    piece.clip->configPath, appModel->tempo()};
     // 创建分段的推理任务前，首先检查输入是否和上次的相同。如果相同，则直接忽略，避免不必要的推理
     if (m_lastInferDurInputs.contains(piece.id())) {
         return;
@@ -364,7 +364,7 @@ void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
-    const auto input = Helper::buildInferPitchInput(piece, m_singerConfigPath);
+    const auto input = Helper::buildInferPitchInput(piece, piece.clip->configPath);
     if (m_lastInferPitchInputs.contains(piece.id()))
         if (const auto lastInput = m_lastInferPitchInputs[piece.id()]; lastInput == input)
             return;
@@ -377,7 +377,7 @@ void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
-    const auto input = Helper::buildInferVarianceInput(piece, m_singerConfigPath);
+    const auto input = Helper::buildInferVarianceInput(piece, piece.clip->configPath);
     if (m_lastInferVarianceInputs.contains(piece.id()))
         if (const auto lastInput = m_lastInferVarianceInputs[piece.id()]; lastInput == input)
             return;
@@ -391,7 +391,7 @@ void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
-    const auto input = Helper::buildInderAcousticInput(piece, m_singerConfigPath);
+    const auto input = Helper::buildInderAcousticInput(piece, piece.clip->configPath);
     if (m_lastInferAcousticInputs.contains(piece.id()))
         if (const auto lastInput = m_lastInferAcousticInputs[piece.id()]; lastInput == input)
             return;
