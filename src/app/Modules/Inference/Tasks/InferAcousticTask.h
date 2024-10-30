@@ -13,6 +13,8 @@
 class InferInputNote;
 
 class InferAcousticTask final : public IInferTask {
+    Q_OBJECT
+
 public:
     class InferAcousticInput {
     public:

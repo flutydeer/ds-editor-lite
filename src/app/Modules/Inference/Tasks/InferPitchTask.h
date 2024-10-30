@@ -12,6 +12,8 @@
 #include "Modules/Inference/Models/InferParamCurve.h"
 
 class InferPitchTask final : public IInferTask {
+    Q_OBJECT
+
 public:
     class InferPitchInput {
     public:

@@ -21,7 +21,7 @@ GetPronunciationTask::GetPronunciationTask(int clipId, const QList<Note *> &note
         }
     }
     TaskStatus status;
-    status.title = "获取发音";
+    status.title = tr("Fetch Pronunciation");
     status.message = m_previewText;
     status.isIndetermine = true;
     setStatus(status);

@@ -13,6 +13,7 @@
 #include "Utils/MathUtils.h"
 
 #include <QDebug>
+#include <QDir>
 #include <QJsonDocument>
 
 bool InferPitchTask::InferPitchInput::operator==(const InferPitchInput &other) const {
@@ -36,8 +37,8 @@ bool InferPitchTask::success() const {
 InferPitchTask::InferPitchTask(InferPitchInput input) : m_input(std::move(input)) {
     buildPreviewText();
     TaskStatus status;
-    status.title = "推理音高参数";
-    status.message = "正在等待：" + m_previewText;
+    status.title = tr("Infer Pitch");
+    status.message = tr("Pending infer: %1").arg(m_previewText);
     status.maximum = m_input.notes.count();
     setStatus(status);
     qDebug() << "Task created"
@@ -56,18 +57,18 @@ void InferPitchTask::runTask() {
     qDebug() << "Running task..."
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();
     auto newStatus = status();
-    newStatus.message = "正在推理: " + m_previewText;
+    newStatus.message = tr("Running inference: %1").arg(m_previewText);
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
     GenericInferModel model;
     auto input = buildInputJson();
     m_inputHash = input.hashData();
-    auto cacheDir = appOptions->inference()->cacheDirectory;
-    JsonUtils::save(cacheDir + QString("/infer-pitch-input-%1.json").arg(m_inputHash),
+    auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
+    JsonUtils::save(cacheDir.filePath(QString("infer-pitch-input-%1.json").arg(m_inputHash)),
                     input.serialize());
     bool useCache = false;
-    auto cachePath = cacheDir + QString("/infer-pitch-output-%1.json").arg(m_inputHash);
+    auto cachePath = cacheDir.filePath(QString("infer-pitch-output-%1.json").arg(m_inputHash));
     if (QFile(cachePath).exists()) {
         QJsonObject obj;
         useCache = JsonUtils::load(cachePath, obj) && model.deserialize(obj);
@@ -115,7 +116,7 @@ void InferPitchTask::terminate() {
 
 void InferPitchTask::abort() {
     auto newStatus = status();
-    newStatus.message = "正在停止: " + m_previewText;
+    newStatus.message = tr("Terminating: %1").arg(m_previewText);
     newStatus.isIndetermine = true;
     setStatus(newStatus);
     qInfo() << "音高参数推理任务被终止 clipId:" << clipId() << "pieceId:" << pieceId()

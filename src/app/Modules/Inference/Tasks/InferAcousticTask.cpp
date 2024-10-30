@@ -39,8 +39,8 @@ bool InferAcousticTask::success() const {
 InferAcousticTask::InferAcousticTask(InferAcousticInput input) : m_input(std::move(input)) {
     buildPreviewText();
     TaskStatus status;
-    status.title = "推理声学模型";
-    status.message = "正在等待：" + m_previewText;
+    status.title = tr("Infer Acoustic");
+    status.message = tr("Pending infer: %1").arg(m_previewText);
     status.maximum = m_input.notes.count();
     setStatus(status);
     qDebug() << "Task created"
@@ -59,18 +59,18 @@ void InferAcousticTask::runTask() {
     qDebug() << "Running task..."
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();
     auto newStatus = status();
-    newStatus.message = "正在推理: " + m_previewText;
+    newStatus.message = tr("Running inference: %1").arg(m_previewText);
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
     GenericInferModel model;
     auto input = buildInputJson();
     m_inputHash = input.hashData();
-    auto cacheDir = appOptions->inference()->cacheDirectory;
-    JsonUtils::save(cacheDir + QString("/infer-acoustic-input-%1.json").arg(m_inputHash),
+    auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
+    JsonUtils::save(cacheDir.filePath(QString("infer-acoustic-input-%1.json").arg(m_inputHash)),
                     input.serialize());
     bool useCache = false;
-    auto cachePath = cacheDir + QString("/infer-acoustic-output-%1.wav").arg(m_inputHash);
+    auto cachePath = cacheDir.filePath(QString("infer-acoustic-output-%1.wav").arg(m_inputHash));
     if (QFile(cachePath).exists())
         useCache = true;
 
@@ -109,7 +109,7 @@ void InferAcousticTask::terminate() {
 
 void InferAcousticTask::abort() {
     auto newStatus = status();
-    newStatus.message = "正在停止: " + m_previewText;
+    newStatus.message = tr("Terminating: %1").arg(m_previewText);
     newStatus.isIndetermine = true;
     setStatus(newStatus);
     qInfo() << "声学模型推理任务被终止 clipId:" << clipId() << "pieceId:" << pieceId()
@@ -170,11 +170,6 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     InferParam velocity = param;
     velocity.tag = "velocity";
     velocity.values = MathUtils::resample(m_input.velocity.values, 5, newInterval);
-
-    for (int i = 0; i < frames; i++) {
-        gender.values.append(0);
-        velocity.values.append(1);
-    }
 
     GenericInferModel model;
     model.words = words;

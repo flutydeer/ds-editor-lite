@@ -13,6 +13,8 @@
 class InferInputNote;
 
 class InferVarianceTask final : public IInferTask {
+    Q_OBJECT
+
 public:
     class InferVarianceInput {
     public:

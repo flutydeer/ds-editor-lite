@@ -12,6 +12,8 @@
 #include "Modules/Task/Task.h"
 
 class InferDurationTask final : public IInferTask {
+    Q_OBJECT
+
 public:
     class InferDurInput {
     public:

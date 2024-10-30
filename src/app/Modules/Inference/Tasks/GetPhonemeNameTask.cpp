@@ -23,7 +23,7 @@ GetPhonemeNameTask::GetPhonemeNameTask(int clipId, const QList<PhonemeNameInput>
         }
     }
     TaskStatus status;
-    status.title = "获取音素名称";
+    status.title = tr("Fetch Phoneme Name");
     status.message = m_previewText;
     status.isIndetermine = true;
     setStatus(status);
