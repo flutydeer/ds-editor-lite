@@ -154,6 +154,10 @@ PianoRollView {
     border-radius: 0px;
 }
 
+PianoRollGraphicsView {
+    qproperty-noteFontPixelSize: 13;
+}
+
 PianoRollView>QLabel#lbNullClipTip {
     color: #80FFFFFF;
 }

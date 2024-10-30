@@ -13,8 +13,8 @@
 #include <QTimer>
 
 SingingClip::SingingClip() : Clip() {
-    defaultLanguage.setNotify(qSignalCallback(defaultLanguageChanged));
-    configPath.setNotify(qSignalCallback(configPathChanged));
+    defaultLanguage.onChanged(qSignalCallback(defaultLanguageChanged));
+    configPath.onChanged(qSignalCallback(configPathChanged));
 }
 
 SingingClip::~SingingClip() {

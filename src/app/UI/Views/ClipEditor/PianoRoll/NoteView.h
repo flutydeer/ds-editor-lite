@@ -7,6 +7,7 @@
 
 #include "UI/Utils/OverlappableItem.h"
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
+#include "Utils/Property.h"
 #include "Utils/UniqueObject.h"
 
 class PronunciationView;
@@ -41,6 +42,9 @@ public:
     [[nodiscard]] int keyOffset() const;
     void setKeyOffset(int key);
     void resetOffset();
+
+    // Style
+    Property<int> fontPixelSize = 13;
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;

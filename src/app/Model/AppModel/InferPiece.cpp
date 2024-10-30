@@ -9,7 +9,7 @@
 #include "Note.h"
 
 InferPiece::InferPiece(SingingClip *clip) : QObject(clip), clip(clip) {
-    acousticInferStatus.setNotify(qSignalCallback(statusChanged));
+    acousticInferStatus.onChanged(qSignalCallback(statusChanged));
 }
 
 int InferPiece::clipId() const {

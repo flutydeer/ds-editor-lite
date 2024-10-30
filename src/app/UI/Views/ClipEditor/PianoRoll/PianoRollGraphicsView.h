@@ -24,6 +24,8 @@ class PianoRollGraphicsViewPrivate;
 class PianoRollGraphicsView final : public TimeGraphicsView, public IAtomicAction {
     Q_OBJECT
 
+    Q_PROPERTY(int noteFontPixelSize READ noteFontPixelSize WRITE setNoteFontPixelSize)
+
 public:
     explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent = nullptr);
     ~PianoRollGraphicsView() override;
@@ -59,6 +61,11 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *event) override;
 
 private:
+    int m_noteFontPixelSize = 13;
+
+    [[nodiscard]] int noteFontPixelSize() const;
+    void setNoteFontPixelSize(int size);
+
     Q_DECLARE_PRIVATE(PianoRollGraphicsView)
     PianoRollGraphicsViewPrivate *d_ptr;
 };

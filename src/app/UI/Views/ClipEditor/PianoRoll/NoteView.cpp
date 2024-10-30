@@ -216,7 +216,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         pen.setColor(foregroundColor);
         painter->setPen(pen);
         auto font = QFont();
-        font.setPointSizeF(10);
+        font.setPixelSize(fontPixelSize);
         painter->setFont(font);
         auto textRectLeft = paddedRect.left() + padding;
         // auto textRectTop = paddedRect.top() + padding;
@@ -297,4 +297,5 @@ void NoteView::adjustPronView() const {
 void NoteView::initUi() {
     // setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
+    fontPixelSize.onChanged([=](int) { update(); });
 }

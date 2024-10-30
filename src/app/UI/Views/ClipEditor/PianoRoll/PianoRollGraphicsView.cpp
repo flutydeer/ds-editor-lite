@@ -299,6 +299,17 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     d->onOpenNotePropertyDialog(noteView->id());
 }
 
+int PianoRollGraphicsView::noteFontPixelSize() const {
+    return m_noteFontPixelSize;
+}
+
+void PianoRollGraphicsView::setNoteFontPixelSize(int size) {
+    Q_D(PianoRollGraphicsView);
+    m_noteFontPixelSize = size;
+    for (const auto noteView : d->noteViews)
+        noteView->fontPixelSize = size;
+}
+
 void PianoRollGraphicsView::reset() {
     Q_D(PianoRollGraphicsView);
     for (const auto &noteView : d->noteViews) {
@@ -610,6 +621,7 @@ void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(int tick, int keyIndex)
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     auto snappedTick = MathUtils::roundDown(tick, 1920 / appStatus->quantize);
     Log::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
+    m_currentDrawingNote->fontPixelSize = q->m_noteFontPixelSize;
     m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
     m_currentDrawingNote->setRStart(snappedTick - m_offset);
     m_currentDrawingNote->setLength(1920 / appStatus->quantize);
@@ -794,6 +806,7 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
     Q_Q(PianoRollGraphicsView);
     m_selectionChangeBarrier = true;
     auto noteView = Helper::buildNoteView(*note);
+    noteView->fontPixelSize = q->m_noteFontPixelSize;
     noteView->setEditingPitch(m_isEditPitchMode);
     addNoteViewToScene(noteView);
     m_notes.append(note);
