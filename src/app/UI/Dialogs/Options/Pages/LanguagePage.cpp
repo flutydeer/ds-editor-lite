@@ -31,6 +31,7 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
     btn_info->setIcon(QIcon(":/svg/icons/info_16_filled_white.svg"));
     btn_info->setToolTip(tr("Swap entries can be dragged to divide words in priority order."));
     m_langListWidget = new LangSetting::LangListWidget();
+    m_langListWidget->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     labelLayout->addWidget(langLabel);
     labelLayout->addWidget(btn_info);
     langListLayout->addLayout(labelLayout);

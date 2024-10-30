@@ -11,6 +11,7 @@
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/CardView.h"
 #include "UI/Controls/DividerLine.h"
+#include "UI/Controls/OptionListCard.h"
 #include "UI/Controls/OptionsCard.h"
 #include "UI/Controls/OptionsCardItem.h"
 #include "UI/Controls/SwitchButton.h"
@@ -20,10 +21,6 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     auto option = appOptions->appearance();
 
     m_swUseNativeFrame = new SwitchButton(option->useNativeFrame);
-    auto useNativeFrameItem = new OptionsCardItem;
-    useNativeFrameItem->setTitle(tr("Use native frame"));
-    useNativeFrameItem->setDescription(tr("App needs a restart to take effect"));
-    useNativeFrameItem->addWidget(m_swUseNativeFrame);
     connect(m_swUseNativeFrame, &SwitchButton::toggled, this, [=] {
         modifyOption();
         auto message = tr(
@@ -32,14 +29,9 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
         dlg->show();
     });
 
-    auto windowCardLayout = new QVBoxLayout;
-    windowCardLayout->addWidget(useNativeFrameItem);
-    windowCardLayout->setContentsMargins(10, 5, 10, 5);
-    windowCardLayout->setSpacing(0);
-
-    auto windowCard = new OptionsCard;
-    windowCard->setTitle(tr("Window"));
-    windowCard->card()->setLayout(windowCardLayout);
+    auto windowCard = new OptionListCard(tr("Window"));
+    windowCard->addItem(tr("Use native frame"), tr("App needs a restart to take effect"),
+                        m_swUseNativeFrame);
 
     m_cbxAnimationLevel = new ComboBox;
     m_cbxAnimationLevel->addItems(animationLevelsName);
@@ -55,32 +47,14 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     connect(m_leAnimationTimeScale, &LineEdit::editingFinished, this,
             &AppearancePage::modifyOption);
 
-    auto animationLevelItem = new OptionsCardItem;
-    animationLevelItem->setTitle(tr("Level"));
-    animationLevelItem->setDescription(tr("Choose an animation level that suitable for you"));
-    animationLevelItem->addWidget(m_cbxAnimationLevel);
-
-    auto animationTimeScaleItem = new OptionsCardItem;
-    animationTimeScaleItem->setTitle(tr("Time scale"));
-    animationTimeScaleItem->setDescription(tr("Adjust animations' duration"));
-    animationTimeScaleItem->addWidget(m_leAnimationTimeScale);
-
-    auto animationCardLayout = new QVBoxLayout;
-    animationCardLayout->addWidget(animationLevelItem);
-    animationCardLayout->addWidget(new DividerLine(Qt::Horizontal));
-    animationCardLayout->addWidget(animationTimeScaleItem);
-    animationCardLayout->setContentsMargins(10, 5, 10, 5);
-    animationCardLayout->setSpacing(0);
-
-    auto animationCard = new OptionsCard;
-    animationCard->setTitle(tr("Animation"));
-    animationCard->card()->setLayout(animationCardLayout);
+    auto animationCard = new OptionListCard(tr("Animation"));
+    animationCard->addItem(tr("Level"), m_cbxAnimationLevel);
+    animationCard->addItem(tr("Duration scale"), m_leAnimationTimeScale);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(windowCard);
     mainLayout->addWidget(animationCard);
-    mainLayout->addSpacerItem(
-        new QSpacerItem(8, 4, QSizePolicy::Expanding, QSizePolicy::Expanding));
+    mainLayout->addStretch();
     mainLayout->setContentsMargins({});
 
     setLayout(mainLayout);

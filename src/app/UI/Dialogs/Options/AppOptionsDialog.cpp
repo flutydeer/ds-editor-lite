@@ -19,11 +19,13 @@
 AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) {
     setFocusPolicy(Qt::ClickFocus);
     setAttribute(Qt::WA_DeleteOnClose, true);
+    setWindowTitle(tr("Options"));
 
     m_tabList = new QListWidget;
     m_tabList->setFixedWidth(160);
     m_tabList->setObjectName("AppOptionsDialogTabListWidget");
     m_tabList->addItems(m_pageNames);
+    m_tabList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 
     m_generalPage = new GeneralPage;
     m_audioPage = new AudioPage;

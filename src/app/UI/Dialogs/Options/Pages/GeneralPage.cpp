@@ -9,6 +9,7 @@
 #include "UI/Controls/CardView.h"
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/LineEdit.h"
+#include "UI/Controls/OptionListCard.h"
 #include "UI/Controls/OptionsCard.h"
 #include "UI/Controls/OptionsCardItem.h"
 #include "UI/Views/Common/LanguageComboBox.h"
@@ -44,27 +45,14 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
         // #endif
     });
 
-    auto configFileItem = new OptionsCardItem;
-    configFileItem->setTitle(tr("Config File"));
-    configFileItem->addWidget(m_btnOpenConfigFolder);
-
-    auto configFileCardLayout = new QVBoxLayout;
-    configFileCardLayout->addWidget(configFileItem);
-    configFileCardLayout->setContentsMargins(10, 5, 10, 5);
-    configFileCardLayout->setSpacing(0);
-
-    auto configFileCard = new OptionsCard;
+    auto configFileCard = new OptionListCard(tr("App Config"));
+    configFileCard->addItem(tr("Config File"), m_btnOpenConfigFolder);
     configFileCard->setTitle(tr("App Config"));
-    configFileCard->card()->setLayout(configFileCardLayout);
 
     auto langKey = languageKeyFromType(option->defaultSingingLanguage);
     m_cbDefaultSingingLanguage = new LanguageComboBox(langKey);
     connect(m_cbDefaultSingingLanguage, &ComboBox::currentIndexChanged, this,
             &GeneralPage::modifyOption);
-
-    auto defaultSingingLanguageItem = new OptionsCardItem;
-    defaultSingingLanguageItem->setTitle(tr("Default Singing Language"));
-    defaultSingingLanguageItem->addWidget(m_cbDefaultSingingLanguage);
 
     m_leDefaultLyric = new LineEdit;
     m_leDefaultLyric->setFixedWidth(80);
@@ -72,36 +60,19 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     connect(m_leDefaultLyric, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
     // m_leDefaultLyric->setPlaceholderText(option->defaultLyric);
 
-    auto defaultLyricItem = new OptionsCardItem;
-    defaultLyricItem->setTitle(tr("Default Lyric"));
-    defaultLyricItem->addWidget(m_leDefaultLyric);
-
     m_leDefaultSinger = new LineEdit;
     m_leDefaultSinger->setText(option->defaultSinger);
     connect(m_leDefaultSinger, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
 
-    auto defaultSingerItem = new OptionsCardItem;
-    defaultSingerItem->setTitle(tr("Default Singer"));
-    defaultSingerItem->addWidget(m_leDefaultSinger);
-
-    auto singingCardLayout = new QVBoxLayout;
-    singingCardLayout->addWidget(defaultSingingLanguageItem);
-    singingCardLayout->addWidget(new DividerLine(Qt::Horizontal));
-    singingCardLayout->addWidget(defaultLyricItem);
-    singingCardLayout->addWidget(new DividerLine(Qt::Horizontal));
-    singingCardLayout->addWidget(defaultSingerItem);
-    singingCardLayout->setContentsMargins(10, 5, 10, 5);
-    singingCardLayout->setSpacing(0);
-
-    auto singingCard = new OptionsCard;
-    singingCard->setTitle(tr("Singing"));
-    singingCard->card()->setLayout(singingCardLayout);
+    auto singingCard = new OptionListCard(tr("Singing"));
+    singingCard->addItem(tr("Default Singing Language"), m_cbDefaultSingingLanguage);
+    singingCard->addItem(tr("Default Lyric"), m_leDefaultLyric);
+    singingCard->addItem(tr("Default Singer"), m_leDefaultSinger);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(configFileCard);
     mainLayout->addWidget(singingCard);
-    mainLayout->addSpacerItem(
-        new QSpacerItem(8, 4, QSizePolicy::Expanding, QSizePolicy::Expanding));
+    mainLayout->addStretch();
     mainLayout->setContentsMargins({});
 
     setLayout(mainLayout);
