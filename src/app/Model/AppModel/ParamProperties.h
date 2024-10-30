@@ -26,6 +26,7 @@ public:
     [[nodiscard]] QString valueToString(int value, bool withUnit, int precision = 3) const;
     [[nodiscard]] virtual int valueFromNormalized(double normalized) const;
     [[nodiscard]] virtual double valueToNormalized(int value) const;
+    explicit ParamProperties();
     virtual ~ParamProperties() = default;
 };
 

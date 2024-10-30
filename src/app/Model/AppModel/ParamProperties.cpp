@@ -6,6 +6,8 @@
 
 #include "Utils/MathUtils.h"
 
+ParamProperties::ParamProperties() = default;
+
 bool ParamProperties::hasUnit() const {
     return !(unit.isNull() || unit.isEmpty());
 }
