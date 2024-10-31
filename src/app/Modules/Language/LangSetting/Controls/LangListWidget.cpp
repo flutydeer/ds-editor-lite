@@ -38,6 +38,11 @@ namespace LangSetting {
         return order;
     }
 
+    void LangListWidget::showEvent(QShowEvent *event) {
+        QWidget::showEvent(event);
+        emit shown();
+    }
+
     void LangListWidget::dropEvent(QDropEvent *event) {
         QListWidget::dropEvent(event);
         const auto langMgr = LangMgr::ILanguageManager::instance();

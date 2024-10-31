@@ -12,6 +12,7 @@ public:
 
     QStringList langOrder;
     QJsonObject langConfigs;
+    QJsonObject g2pConfigs;
 
 protected:
     void save(QJsonObject &object) override;

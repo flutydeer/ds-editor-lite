@@ -15,8 +15,10 @@ namespace LangSetting {
 
     Q_SIGNALS:
         void priorityChanged();
+        void shown();
 
     protected:
+        void showEvent(QShowEvent *event) override;
         void dropEvent(QDropEvent *event) override;
     };
 

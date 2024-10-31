@@ -51,8 +51,7 @@ namespace LangSetting {
         }
     }
 
-    void G2pInfoWidget::setInfo(const QString &language, const QString &g2pId) const {
-        const auto langMgr = LangMgr::ILanguageManager::instance()->language(language);
+    void G2pInfoWidget::setInfo(const QString &g2pId) const {
         const auto langSetFactory = LangSetting::ILangSetManager::instance()->g2pSet(g2pId);
         const auto g2pFactory = LangMgr::IG2pManager::instance()->g2p(g2pId);
 
@@ -61,7 +60,7 @@ namespace LangSetting {
         m_descriptionLabel->setText(g2pFactory->description());
 
         removeWidget();
-        const auto g2pConfigWidget = langSetFactory->configWidget(langMgr->g2pConfig());
+        const auto g2pConfigWidget = langSetFactory->configWidget(g2pFactory->config(), true);
         this->m_mainLayout->addWidget(g2pConfigWidget, 1);
 
         connect(langSetFactory, &LangSetting::IG2pSetFactory::g2pConfigChanged, this,

@@ -68,8 +68,9 @@ namespace LangSetting {
         return {};
     }
 
-    QWidget *IG2pSetFactory::configWidget(QJsonObject *config) {
+    QWidget *IG2pSetFactory::configWidget(const QJsonObject &config, bool editable) {
         Q_UNUSED(config);
+        Q_UNUSED(editable);
         return new QWidget();
     }
 }

@@ -12,6 +12,7 @@ class MidiPage;
 class PseudoSingerPage;
 class AppearancePage;
 class LanguagePage;
+class G2pPage;
 class GeneralPage;
 class InferencePage;
 class IOptionPage;
@@ -30,6 +31,7 @@ public:
         PseudoSinger,
         Appearance,
         Language,
+        G2p,
         Inference,
         PreviewFunctions,
         DeveloperOptions
@@ -42,9 +44,8 @@ private slots:
     void onSelectionChanged(int index) const;
 
 private:
-    QStringList m_pageNames = {tr("General"),       tr("Audio"),      tr("MIDI"),
-                               tr("Pseudo Singer"), tr("Appearance"), tr("Language"),
-                               tr("Inference"),
+    QStringList m_pageNames = {tr("General"),    tr("Audio"),    tr("MIDI"), tr("Pseudo Singer"),
+                               tr("Appearance"), tr("Language"), tr("G2p"),  tr("Inference"),
                                /* tr("Preview Functions"),  tr("Developer Options")*/};
 
     QListWidget *m_tabList;
@@ -56,6 +57,7 @@ private:
     PseudoSingerPage *m_pseudoSingerPage;
     AppearancePage *m_appearancePage;
     LanguagePage *m_languagePage;
+    G2pPage *m_g2pPage;
     InferencePage *m_inferencePage;
     QList<IOptionPage *> m_pages;
 };

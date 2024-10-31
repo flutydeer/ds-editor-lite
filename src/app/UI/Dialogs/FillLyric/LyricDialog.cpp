@@ -28,16 +28,18 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     m_tabWidget = new QTabWidget();
 
     m_lyricWidget = new FillLyric::LyricTab(
-        m_langNotes, {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
-                      appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
-                      appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
-                      appOptions->fillLyric()->autoWrap, appOptions->fillLyric()->exportLanguage});
+        m_langNotes, {"cmn"},
+        {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
+         appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
+         appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
+         appOptions->fillLyric()->autoWrap, appOptions->fillLyric()->exportLanguage});
 
     if (!appOptions->fillLyric()->extVisible) {
         shrinkWindowRight(300);
     }
 
     m_langPage = new LanguagePage(this);
+    m_g2pPage = new G2pPage(this);
 
     m_btnOk = new AccentButton(tr("&Import"), this);
     // m_btnOk->setPrimary(true);
@@ -46,7 +48,8 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     setNegativeButton(m_btnCancel);
 
     m_tabWidget->addTab(m_lyricWidget, tr("Lyric"));
-    m_tabWidget->addTab(m_langPage, tr("Advanced"));
+    m_tabWidget->addTab(m_langPage, tr("Language"));
+    m_tabWidget->addTab(m_g2pPage, tr("G2p"));
     m_tabWidget->addTab(new QWidget, tr("Help"));
 
     m_mainLayout->addWidget(m_tabWidget);
@@ -94,10 +97,12 @@ void LyricDialog::noteToPhonic() {
         langNote.syllable = note->pronunciation().original;
         langNote.syllableRevised = note->pronunciation().edited;
         langNote.candidates = note->pronCandidates();
+        langNote.g2pId = note->g2pId();
 
         if (note->isSlur()) {
             langNote.language = "slur";
             langNote.category = "slur";
+            langNote.g2pId = "slur";
         }
 
         m_langNotes.append(langNote);

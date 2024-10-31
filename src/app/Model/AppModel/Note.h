@@ -60,6 +60,8 @@ public:
 
     [[nodiscard]] QString language() const;
     void setLanguage(const QString &language);
+    [[nodiscard]] QString g2pId() const;
+    void setG2pId(const QString &g2pId);
     [[nodiscard]] bool lineFeed() const;
     void setLineFeed(const bool &lineFeed);
     [[nodiscard]] bool isSlur() const;
@@ -93,6 +95,7 @@ private:
     int m_keyIndex = 60;
     QString m_lyric;
     QString m_language = "unknown";
+    QString m_g2pId = "unknown";
     Pronunciation m_pronunciation;
     QStringList m_pronCandidates;
     // PhonemeInfo m_phonemes;

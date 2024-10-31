@@ -185,6 +185,14 @@ void Note::setLanguage(const QString &language) {
     m_language = language;
 }
 
+QString Note::g2pId() const {
+    return m_g2pId;
+}
+
+void Note::setG2pId(const QString &g2pId) {
+    m_g2pId = g2pId;
+}
+
 bool Note::lineFeed() const {
     return m_lineFeed;
 }

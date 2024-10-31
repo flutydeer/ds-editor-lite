@@ -1,6 +1,7 @@
 #include "LanguageOption.h"
 
 #include <QJsonArray>
+#include <language-manager/IG2pManager.h>
 
 #include <language-manager/ILanguageManager.h>
 
@@ -22,6 +23,18 @@ void LanguageOption::load(const QJsonObject &object) {
             }
         }
     }
+
+    if (object.contains("g2pConfigs")) {
+        const auto g2pMgr = LangMgr::IG2pManager::instance();
+        g2pConfigs = object.value("g2pConfigs").toObject();
+        for (const auto &key : langOrder) {
+            if (g2pConfigs.contains(key)) {
+                if (const auto g2pFactory = g2pMgr->g2p(key)) {
+                    g2pFactory->loadConfig(g2pConfigs.value(key).toObject());
+                }
+            }
+        }
+    }
 }
 
 void LanguageOption::save(QJsonObject &object) {
@@ -33,5 +46,5 @@ void LanguageOption::save(QJsonObject &object) {
             langOptionsObject.insert(key, langFactory->exportConfig());
         }
     }
-    object.insert("langConfigs", langOptionsObject);
+    object.insert("g2pConfigs", langOptionsObject);
 }

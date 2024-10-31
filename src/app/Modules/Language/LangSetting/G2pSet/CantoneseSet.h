@@ -14,7 +14,7 @@ namespace LangSetting {
             d = dynamic_cast<LangMgr::IG2pFactory *>(LangMgr::IG2pManager::instance()->g2p(id()));
         }
 
-        QWidget *configWidget(QJsonObject *config) override;
+        QWidget *configWidget(const QJsonObject &config, bool editable) override;
 
     private:
         LangMgr::IG2pFactory *d;

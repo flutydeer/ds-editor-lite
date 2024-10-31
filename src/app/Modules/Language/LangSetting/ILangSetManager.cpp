@@ -9,7 +9,7 @@
 #include "LangSet/UnknownSet.h"
 
 #include "G2pSet/MandarinSet.h"
-#include "G2pSet/Cantonese.h"
+#include "G2pSet/CantoneseSet.h"
 #include "G2pSet/EnglishSet.h"
 #include "G2pSet/UnknownG2pSet.h"
 

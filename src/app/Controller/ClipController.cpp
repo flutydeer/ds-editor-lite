@@ -320,6 +320,7 @@ void ClipController::onFillLyric(QWidget *parent) {
         inputNote->setPronunciation(note->pronunciation());
         inputNote->setPronCandidates(note->pronCandidates());
         inputNote->setLanguage(note->language());
+        inputNote->setG2pId(note->language());
         inputNotes.append(inputNote);
     }
 

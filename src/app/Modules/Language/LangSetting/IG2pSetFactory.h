@@ -19,7 +19,7 @@ namespace LangSetting {
         ~IG2pSetFactory() override;
 
         virtual QJsonObject config();
-        virtual QWidget *configWidget(QJsonObject *config);
+        virtual QWidget *configWidget(const QJsonObject &config, bool editable);
 
     public:
         [[nodiscard]] QString id() const;

@@ -7,6 +7,7 @@
 #include <language-manager/LangCommon.h>
 
 #include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Dialogs/Options/Pages/G2pPage.h"
 
 class LanguagePage;
 class Note;
@@ -49,6 +50,7 @@ private:
 
     FillLyric::LyricTab *m_lyricWidget;
     LanguagePage *m_langPage;
+    G2pPage *m_g2pPage;
 
     AccentButton *m_btnOk;
     Button *m_btnCancel;

@@ -11,6 +11,7 @@
 #include "UI/Controls/OptionsCard.h"
 
 #include <QPushButton>
+#include <language-manager/IG2pManager.h>
 #include <language-manager/ILanguageManager.h>
 
 LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
@@ -62,9 +63,13 @@ LanguagePage::LanguagePage(QWidget *parent) : IOptionPage(parent) {
     m_langInfoWidget->setInfo(langId);
 
     const auto g2pId = LangMgr::ILanguageManager::instance()->language(langId)->selectedG2p();
-    m_g2pInfoWidget->setInfo(langId, g2pId);
+    m_g2pInfoWidget->setInfo(g2pId);
 
     connect(m_langListWidget, &QListWidget::currentRowChanged, m_langInfoWidget, [this] {
+        m_langInfoWidget->setInfo(m_langListWidget->currentItem()->data(Qt::UserRole).toString());
+    });
+
+    connect(m_langListWidget, &LangSetting::LangListWidget::shown, m_langInfoWidget, [this] {
         m_langInfoWidget->setInfo(m_langListWidget->currentItem()->data(Qt::UserRole).toString());
     });
 

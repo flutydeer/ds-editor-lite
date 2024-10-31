@@ -12,7 +12,7 @@ namespace LangSetting {
         explicit UnknownG2pSet(QObject *parent = nullptr) : IG2pSetFactory("unknown", parent) {
         }
 
-        QWidget *configWidget(QJsonObject *config) override;
+        QWidget *configWidget(const QJsonObject &config, bool editable) override;
     };
 
 } // LangSetting

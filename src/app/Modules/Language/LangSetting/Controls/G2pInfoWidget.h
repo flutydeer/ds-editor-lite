@@ -19,7 +19,7 @@ namespace LangSetting {
         void g2pConfigChanged() const;
 
     public Q_SLOTS:
-        void setInfo(const QString &language, const QString &g2pId) const;
+        void setInfo(const QString &g2pId) const;
 
     private:
         void removeWidget() const;
