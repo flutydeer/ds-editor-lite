@@ -21,6 +21,7 @@
 #include <QApplication>
 #include <QDir>
 #include <QScreen>
+#include <QStyleHints>
 #include <QStyleFactory>
 #include <QTranslator>
 
@@ -44,6 +45,11 @@ int main(int argc, char *argv[]) {
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
     if (QSysInfo::productType() != "windows")
         QApplication::setStyle(QStyleFactory::create("windows"));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    QApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
+#else
+    qWarning("setColorScheme is not available in this version of Qt.");
+#endif
 
     // 设置日志等级和过滤器
     QDir appDataDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
@@ -59,7 +65,7 @@ int main(int argc, char *argv[]) {
     Log::logSystemInfo();
     Log::logGpuInfo();
 
-    auto f = QFont();
+    auto f = QFont("Microsoft Yahei UI");
     f.setHintingPreference(QFont::PreferNoHinting);
     auto factor = (QSysInfo::productType() == "macos") ? 96.0 / 72 : 1.0;
     f.setPointSizeF(10 * factor);
