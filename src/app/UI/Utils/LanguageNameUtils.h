@@ -16,12 +16,9 @@ class LanguageNameUtils : public QObject, public Singleton<LanguageNameUtils> {
     Q_OBJECT
 
 public:
-    const QStringList &names() const {
-        return m_languageNames;
+    static const QStringList &names() {
+        return AppGlobal::languageNames;
     }
-
-private:
-    const QStringList m_languageNames = {"cmn", "en", "kana", "unknown"};
 };
 
 

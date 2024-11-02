@@ -17,6 +17,8 @@ namespace AppGlobal {
     enum PanelType { Generic, TracksEditor, ClipEditor };
 
     enum ParamType {};
+
+    const QStringList languageNames = {"cmn", "en", "ja-kana", "unknown"};
 }
 
 #endif // APPGLOBAL_H

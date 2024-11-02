@@ -4,7 +4,6 @@
 
 #include "NotePropertyDialog.h"
 
-#include "Global/AppGlobal.h"
 #include "Model/AppModel/Note.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ComboBox.h"

@@ -60,6 +60,8 @@ QString Track::defaultLanguage() const {
 }
 
 void Track::setDefaultLanguage(const QString &language) {
+    if (!AppGlobal::languageNames.contains(language))
+        qFatal() << "Track::Language Name Error";
     m_defaultLanguage = language;
 }
 
@@ -68,6 +70,8 @@ QString Track::defaultG2pId() const {
 }
 
 void Track::setDefaultG2pId(const QString &g2pId) {
+    if (!AppGlobal::languageNames.contains(g2pId))
+        qFatal() << "Track::G2p Name Error";
     m_defaultG2pId = g2pId;
 }
 
