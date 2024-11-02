@@ -79,13 +79,19 @@ void AppController::newProject() {
     //     historyManager->undo();
 }
 
-void AppController::openProject(const QString &filePath) {
+bool AppController::openProject(const QString &filePath) {
     Q_D(AppController);
-    appModel->loadProject(filePath);
-    historyManager->reset();
-    historyManager->setSavePoint();
-    d->updateProjectPathAndName(filePath);
-    d->m_lastProjectFolder = QFileInfo(filePath).dir().path();
+    if (QFile(filePath).exists()) {
+        appModel->loadProject(filePath);
+        historyManager->reset();
+        historyManager->setSavePoint();
+        d->updateProjectPathAndName(filePath);
+        d->m_lastProjectFolder = QFileInfo(filePath).dir().path();
+    } else {
+        Toast::show(tr("Failed to open project"));
+        return false;
+    }
+    return true;
 }
 
 bool AppController::saveProject(const QString &filePath) {
