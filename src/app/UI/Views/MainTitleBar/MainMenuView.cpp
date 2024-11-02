@@ -36,8 +36,8 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     actionOpenProject->setShortcut(QKeySequence("Ctrl+O"));
     connect(actionOpenProject, &QAction::triggered, this, [=] { d->onOpenProject(); });
 
-    auto actionOpenAProject = new QAction(tr("Open A Project"), this);
-    connect(actionOpenAProject, &QAction::triggered, this, [=] { d->onOpenAProject(); });
+    // auto actionOpenAProject = new QAction(tr("Open A Project"), this);
+    // connect(actionOpenAProject, &QAction::triggered, this, [=] { d->onOpenAProject(); });
 
     d->m_actionSave = new QAction(tr("&Save"), this);
     d->m_actionSave->setShortcut(QKeySequence("Ctrl+S"));
@@ -63,7 +63,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     menuFile->addAction(actionNewProject);
     menuFile->addAction(actionOpenProject);
-    menuFile->addAction(actionOpenAProject);
+    // menuFile->addAction(actionOpenAProject);
     menuFile->addAction(d->m_actionSave);
     menuFile->addAction(d->m_actionSaveAs);
     menuFile->addSeparator();
@@ -218,22 +218,22 @@ void MainMenuViewPrivate::onOpenProject() {
         openProject();
 }
 
-void MainMenuViewPrivate::onOpenAProject() {
-    Q_Q(MainMenuView);
-    auto openAProject = [=] {
-        auto lastDir = appController->lastProjectFolder();
-        auto fileName = QFileDialog::getOpenFileName(q, tr("Select an A Project File"), lastDir,
-                                                     tr("Project File (*.json)"));
-        if (fileName.isNull())
-            return;
-        appController->importAceProject(fileName);
-    };
-    if (!historyManager->isOnSavePoint()) {
-        if (m_mainWindow->askSaveChanges())
-            openAProject();
-    } else
-        openAProject();
-}
+// void MainMenuViewPrivate::onOpenAProject() {
+//     Q_Q(MainMenuView);
+//     auto openAProject = [=] {
+//         auto lastDir = appController->lastProjectFolder();
+//         auto fileName = QFileDialog::getOpenFileName(q, tr("Select an A Project File"), lastDir,
+//                                                      tr("Project File (*.json)"));
+//         if (fileName.isNull())
+//             return;
+//         appController->importAceProject(fileName);
+//     };
+//     if (!historyManager->isOnSavePoint()) {
+//         if (m_mainWindow->askSaveChanges())
+//             openAProject();
+//     } else
+//         openAProject();
+// }
 
 void MainMenuViewPrivate::onImportMidiFile() {
     Q_Q(MainMenuView);

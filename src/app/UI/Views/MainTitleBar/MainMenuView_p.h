@@ -35,7 +35,7 @@ public:
 
     void onNewProject() const;
     void onOpenProject();
-    void onOpenAProject();
+    // void onOpenAProject();
     void onImportMidiFile();
     void onExportMidiFile();
     void onExportAudioFile();
