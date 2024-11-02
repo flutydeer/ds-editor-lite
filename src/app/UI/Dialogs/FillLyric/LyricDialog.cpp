@@ -39,7 +39,7 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     }
 
     m_langPage = new LanguagePage(this);
-    m_g2pPage = new G2pPage(this);
+    // m_g2pPage = new G2pPage(this);
 
     m_btnOk = new AccentButton(tr("&Import"), this);
     // m_btnOk->setPrimary(true);
@@ -49,7 +49,7 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
 
     m_tabWidget->addTab(m_lyricWidget, tr("Lyric"));
     m_tabWidget->addTab(m_langPage, tr("Language"));
-    m_tabWidget->addTab(m_g2pPage, tr("G2p"));
+    // m_tabWidget->addTab(m_g2pPage, tr("G2p"));
     m_tabWidget->addTab(new QWidget, tr("Help"));
 
     m_mainLayout->addWidget(m_tabWidget);

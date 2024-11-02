@@ -6,8 +6,7 @@
 
 void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(defaultSingingLanguageKey))
-        defaultSingingLanguage =
-            AppGlobal::languageTypeFromKey(object[defaultSingingLanguageKey].toString());
+        defaultSingingLanguage = object[defaultSingingLanguageKey].toString();
 
     if (object.contains(defaultLyricKey))
         defaultLyric = object[defaultLyricKey].toString();
@@ -17,8 +16,8 @@ void GeneralOption::load(const QJsonObject &object) {
 
 void GeneralOption::save(QJsonObject &object) {
     object = {
-        {defaultSingingLanguageKey, languageKeyFromType(defaultSingingLanguage)},
-        {defaultLyricKey,           defaultLyric                               },
+        {defaultSingingLanguageKey, defaultSingingLanguage},
+        {defaultLyricKey,           defaultLyric          },
         serialize_defaultSinger()
     };
 }

@@ -86,13 +86,13 @@ void SingingClipView::onNotePropertyChanged(Note *note) {
     addNote(note);
 }
 
-void SingingClipView::setDefaultLanguage(AppGlobal::LanguageType language) {
+void SingingClipView::setDefaultLanguage(const QString &language) {
     m_language = language;
     update();
 }
 
 QString SingingClipView::text() const {
-    return AbstractClipView::text() + langNameUtils->name(m_language) + " ";
+    return AbstractClipView::text() + m_language + " ";
 }
 
 void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {

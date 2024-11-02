@@ -45,11 +45,11 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
         // #endif
     });
 
-    auto configFileCard = new OptionListCard(tr("App Config"));
+    const auto configFileCard = new OptionListCard(tr("App Config"));
     configFileCard->addItem(tr("Config File"), m_btnOpenConfigFolder);
     configFileCard->setTitle(tr("App Config"));
 
-    auto langKey = languageKeyFromType(option->defaultSingingLanguage);
+    const auto langKey = option->defaultSingingLanguage;
     m_cbDefaultSingingLanguage = new LanguageComboBox(langKey);
     connect(m_cbDefaultSingingLanguage, &ComboBox::currentIndexChanged, this,
             &GeneralPage::modifyOption);
@@ -79,9 +79,8 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
 }
 
 void GeneralPage::modifyOption() {
-    auto option = appOptions->general();
-    option->defaultSingingLanguage =
-        static_cast<AppGlobal::LanguageType>(m_cbDefaultSingingLanguage->currentIndex());
+    const auto option = appOptions->general();
+    option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentText();
     option->defaultLyric = m_leDefaultLyric->text();
     option->defaultSinger = m_leDefaultSinger->text();
     appOptions->saveAndNotify();

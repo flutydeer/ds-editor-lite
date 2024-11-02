@@ -40,7 +40,7 @@ public:
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void onNotePropertyChanged(Note *note);
-    void setDefaultLanguage(AppGlobal::LanguageType language);
+    void setDefaultLanguage(const QString &language);
 
 private:
     // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
@@ -51,7 +51,7 @@ private:
     [[nodiscard]] QString iconPath() const override;
 
     QList<NoteViewModel *> m_notes;
-    AppGlobal::LanguageType m_language = AppGlobal::unknown;
+    QString m_language = "unknown";
 
     void addNote(Note *note);
     void removeNote(int id);

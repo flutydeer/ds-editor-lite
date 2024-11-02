@@ -50,7 +50,7 @@ private:
 
     FillLyric::LyricTab *m_lyricWidget;
     LanguagePage *m_langPage;
-    G2pPage *m_g2pPage;
+    G2pPage *m_g2pPage{};
 
     AccentButton *m_btnOk;
     Button *m_btnCancel;

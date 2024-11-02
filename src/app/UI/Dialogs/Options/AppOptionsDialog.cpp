@@ -34,7 +34,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_pseudoSingerPage = new PseudoSingerPage;
     m_appearancePage = new AppearancePage;
     m_languagePage = new LanguagePage(this);
-    m_g2pPage = new G2pPage(this);
+    // m_g2pPage = new G2pPage(this);
     m_inferencePage = new InferencePage;
 
     m_PageContent = new QStackedWidget;
@@ -59,7 +59,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_pages.append(m_pseudoSingerPage);
     m_pages.append(m_appearancePage);
     m_pages.append(m_languagePage);
-    m_pages.append(m_g2pPage);
+    // m_pages.append(m_g2pPage);
     m_pages.append(m_inferencePage);
 
     auto mainLayout = new QHBoxLayout;

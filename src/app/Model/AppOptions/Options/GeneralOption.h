@@ -17,7 +17,7 @@ public:
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
 
-    AppGlobal::LanguageType defaultSingingLanguage = AppGlobal::cmn;
+    QString defaultSingingLanguage = "cmn";
     QString defaultLyric = "啦";
     LITE_OPTION_ITEM(QString, defaultSinger, QString())
 

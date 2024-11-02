@@ -64,8 +64,8 @@ public slots:
     void onPianoRollToolButtonToggled(QAbstractButton *button, bool checked);
     void onClipNameEdited() const;
     void onClipPropertyChanged() const;
-    void onClipLanguageChanged(AppGlobal::LanguageType language) const;
-    void onLanguageEdited(int index) const;
+    void onClipLanguageChanged(const QString &language) const;
+    void onLanguageEdited(const QString &language) const;
 
 private:
     ClipEditorToolBarView *q_ptr;

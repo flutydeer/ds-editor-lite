@@ -41,7 +41,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(d->m_leClipName, &QLineEdit::editingFinished, d,
             &ClipEditorToolBarViewPrivate::onClipNameEdited);
 
-    d->m_cbClipLanguage = new LanguageComboBox(languageKeyFromType(AppGlobal::unknown), true);
+    d->m_cbClipLanguage = new LanguageComboBox("unknown", true);
     d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 500));
     d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
 
@@ -213,13 +213,16 @@ void ClipEditorToolBarViewPrivate::onClipPropertyChanged() const {
     m_leClipName->setText(m_clip->name());
 }
 
-void ClipEditorToolBarViewPrivate::onClipLanguageChanged(AppGlobal::LanguageType language) const {
-    m_cbClipLanguage->setCurrentIndex(language);
+void ClipEditorToolBarViewPrivate::onClipLanguageChanged(const QString &language) const {
+    m_cbClipLanguage->setCurrentText(language);
 }
 
-void ClipEditorToolBarViewPrivate::onLanguageEdited(int index) const {
-    if (m_singingClip)
-        m_singingClip->defaultLanguage = static_cast<AppGlobal::LanguageType>(index);
+void ClipEditorToolBarViewPrivate::onLanguageEdited(const QString &language) const {
+    if (m_singingClip) {
+        m_singingClip->defaultLanguage = language;
+        // TODO: Temp Use
+        m_singingClip->defaultG2pId = language;
+    }
 }
 
 void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
@@ -288,15 +291,15 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(bool on) const {
     m_cbClipLanguage->setEnabled(on);
 
     if (on) {
-        auto lang = m_singingClip->defaultLanguage;
-        m_cbClipLanguage->setCurrentIndex(lang);
-        connect(m_cbClipLanguage, &ComboBox::currentIndexChanged, this,
+        const auto lang = m_singingClip->defaultLanguage;
+        m_cbClipLanguage->setCurrentText(lang);
+        connect(m_cbClipLanguage, &ComboBox::currentTextChanged, this,
                 &ClipEditorToolBarViewPrivate::onLanguageEdited);
         connect(m_singingClip, &SingingClip::defaultLanguageChanged, m_cbClipLanguage,
-                &ComboBox::setCurrentIndex);
+                &ComboBox::setCurrentText);
     } else {
-        disconnect(m_cbClipLanguage, &ComboBox::currentIndexChanged, this,
+        disconnect(m_cbClipLanguage, &ComboBox::currentTextChanged, this,
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);
-        m_cbClipLanguage->setCurrentIndex(AppGlobal::unknown);
+        m_cbClipLanguage->setCurrentText("unknown");
     }
 }

@@ -34,7 +34,8 @@ public:
 
     [[nodiscard]] ClipType clipType() const override;
     [[nodiscard]] const OverlappableSerialList<Note> &notes() const;
-    Property<AppGlobal::LanguageType> defaultLanguage = AppGlobal::unknown;
+    Property<QString> defaultLanguage{"unknown"};
+    Property<QString> defaultG2pId{"unknown"};
     ParamInfo params;
     Property<QString> configPath;
 
@@ -53,7 +54,8 @@ signals:
     void configPathChanged(QString path);
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamInfo::Name name, Param::Type type);
-    void defaultLanguageChanged(AppGlobal::LanguageType language);
+    void defaultLanguageChanged(QString language);
+    void defaultG2pIdChanged(QString g2pId);
     void piecesChanged(const PieceList &pieces, const PieceList &newPieces,
                        const PieceList &discardedPieces);
 

@@ -40,7 +40,7 @@ void GetPronunciationTask::runTask() {
     qInfo() << "获取发音任务完成 taskId:" << id() << "terminate:" << terminated();
 }
 
-QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &notes){
+QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &notes) {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
         qFatal() << "Language module not ready yet";
         return {};
@@ -51,11 +51,13 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
         const auto language = note->language() == "unknown" ? "unknown" : note->language();
         const auto category =
             note->language() == "unknown" ? "unknown" : langMgr->language(language)->category();
-        langNotes.append(new LangNote(note->lyric(), language, category));
+        const auto langNote = new LangNote(note->lyric(), language, category);
+        langNote->g2pId = note->g2pId();
+        langNotes.append(langNote);
     }
 
     langMgr->correct(langNotes);
-    langMgr->convert(langNotes);
+    LangMgr::ILanguageManager::convert(langNotes);
 
     QList<QString> result;
     for (const auto pNote : langNotes) {

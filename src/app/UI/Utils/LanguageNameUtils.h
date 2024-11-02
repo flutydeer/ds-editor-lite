@@ -20,13 +20,8 @@ public:
         return m_languageNames;
     }
 
-    QString name(AppGlobal::LanguageType type) const {
-        return m_languageNames[type];
-    }
-
 private:
-    const QStringList m_languageNames = {tr("Mandarin"), tr("English"), tr("Japanese"),
-                                         tr("Unknown")};
+    const QStringList m_languageNames = {"cmn", "en", "kana", "unknown"};
 };
 
 

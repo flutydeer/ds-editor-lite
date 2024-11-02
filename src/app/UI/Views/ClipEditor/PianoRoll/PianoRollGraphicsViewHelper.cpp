@@ -26,7 +26,8 @@ void PianoRollGraphicsViewHelper::drawNote(int rStart, int length, int keyIndex)
     note->setRStart(rStart);
     note->setLength(length);
     note->setKeyIndex(keyIndex);
-    note->setLanguage(AppGlobal::languageKeyFromType(singingClip->defaultLanguage));
+    note->setLanguage(singingClip->defaultLanguage);
+    note->setG2pId(singingClip->defaultG2pId);
     note->setLyric(appOptions->general()->defaultLyric);
     note->setPronunciation(Pronunciation("", ""));
     clipController->onInsertNote(note);

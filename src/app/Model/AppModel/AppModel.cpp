@@ -150,10 +150,13 @@ bool AppModel::importAceProject(const QString &filename) {
     if (ok) {
         for (const auto track : resultModel.tracks()) {
             track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
+            // TODO: Temp Use
+            track->setDefaultG2pId(appOptions->general()->defaultSingingLanguage);
             for (const auto clip : track->clips()) {
                 if (clip->clipType() == Clip::Singing) {
                     auto singingClip = reinterpret_cast<SingingClip *>(clip);
                     singingClip->defaultLanguage = track->defaultLanguage();
+                    singingClip->defaultG2pId = track->defaultG2pId();
                     // NoteWordUtils::fillEditedPhonemeNames(singingClip->notes().toList());
                 }
             }

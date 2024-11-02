@@ -55,12 +55,20 @@ void Track::setColor(const QColor &color) {
     emit propertyChanged();
 }
 
-AppGlobal::LanguageType Track::defaultLanguage() const {
+QString Track::defaultLanguage() const {
     return m_defaultLanguage;
 }
 
-void Track::setDefaultLanguage(AppGlobal::LanguageType language) {
+void Track::setDefaultLanguage(const QString &language) {
     m_defaultLanguage = language;
+}
+
+QString Track::defaultG2pId() const {
+    return m_defaultG2pId;
+}
+
+void Track::setDefaultG2pId(const QString &g2pId) {
+    m_defaultG2pId = g2pId;
 }
 
 void Track::notifyClipChanged(ClipChangeType type, Clip *clip) {
@@ -72,7 +80,7 @@ Clip *Track::findClipById(int id) const {
 }
 
 Track::TrackProperties::TrackProperties(const ITrack &track) {
-    auto control = track.control();
+    const auto control = track.control();
     id = track.id();
     name = track.name();
     gain = control.gain();

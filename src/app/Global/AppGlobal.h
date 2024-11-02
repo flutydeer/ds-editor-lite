@@ -16,27 +16,7 @@ namespace AppGlobal {
 
     enum PanelType { Generic, TracksEditor, ClipEditor };
 
-    const QStringList languageKeys = {"cmn", "en", "ja", "unknown"};
-
-    enum LanguageType { cmn, en, ja, unknown };
-
     enum ParamType {};
-
-    // Global Methods
-    QString languageKeyFromType(LanguageType type);
-    LanguageType languageTypeFromKey(const QString &languageKey);
-
-    inline QString languageKeyFromType(LanguageType type) {
-        return languageKeys[type];
-    }
-
-    inline LanguageType languageTypeFromKey(const QString &languageKey) {
-        for (int i = 0; i < languageKeys.count(); i++) {
-            if (languageKeys[i] == languageKey)
-                return static_cast<LanguageType>(i);
-        }
-        return unknown;
-    }
 }
 
 #endif // APPGLOBAL_H

@@ -58,8 +58,7 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
 }
 
 NoteDialogResult NotePropertyDialog::result() {
-    m_result.language =
-        languageKeyFromType(static_cast<AppGlobal::LanguageType>(m_cbLanguage->currentIndex()));
+    m_result.language = m_cbLanguage->currentText();
     m_result.lyric = m_leLyric->text();
     m_result.pronunciation.edited = m_lePron->text();
 

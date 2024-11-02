@@ -45,6 +45,8 @@ void TrackController::onInsertNewTrack(qsizetype index) {
     auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
     newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
+    // TODO: Temp Use
+    newTrack->setDefaultG2pId(appOptions->general()->defaultSingingLanguage);
     // if (soloExists) {
     //     auto control = newTrack->control();
     //     control.setMute(true);
@@ -101,7 +103,8 @@ void TrackController::changeTrackProperty(const Track::TrackProperties &args) {
     historyManager->record(a);
 }
 
-void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io, const QJsonObject &workspace, int id, int tick) {
+void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io,
+                                     const QJsonObject &workspace, int id, int tick) {
     auto decodeTask = new DecodeAudioTask;
     decodeTask->io = io;
     decodeTask->path = path;
@@ -194,6 +197,8 @@ SingingClip *TrackController::onNewSingingClip(int trackIndex, int tick) {
 
     auto track = appModel->tracks().at(trackIndex);
     singingClip->defaultLanguage = track->defaultLanguage();
+    // TODO: Temp Use
+    singingClip->defaultG2pId = track->defaultLanguage();
     singingClip->configPath = appOptions->general()->defaultSinger;
     auto a = new ClipActions;
     QList<Clip *> clips;
