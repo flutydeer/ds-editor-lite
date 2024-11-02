@@ -11,6 +11,7 @@ class NoteDialogResult {
 public:
     QString language;
     QString lyric;
+    QString g2pId;
     Pronunciation pronunciation;
     PhonemeNameInfo phonemeNameInfo;
 };

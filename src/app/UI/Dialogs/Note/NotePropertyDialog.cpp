@@ -59,6 +59,8 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
 
 NoteDialogResult NotePropertyDialog::result() {
     m_result.language = m_cbLanguage->currentText();
+    // TODO: Temp Use
+    m_result.g2pId = m_result.language;
     m_result.lyric = m_leLyric->text();
     m_result.pronunciation.edited = m_lePron->text();
 

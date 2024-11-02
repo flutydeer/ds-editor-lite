@@ -79,6 +79,7 @@ public:
     public:
         QString lyric;
         QString language;
+        QString g2pId;
         Pronunciation pronunciation;
         QStringList pronCandidates;
         // PhonemeInfo phonemes;

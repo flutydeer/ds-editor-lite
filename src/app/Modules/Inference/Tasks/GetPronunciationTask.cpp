@@ -56,7 +56,8 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
         langNotes.append(langNote);
     }
 
-    langMgr->correct(langNotes);
+    // TODO: add priorityG2pIds, {defaultG2pId, singer support g2pId1, singer support g2pId2 ...}
+    langMgr->correct(langNotes, {});
     LangMgr::ILanguageManager::convert(langNotes);
 
     QList<QString> result;

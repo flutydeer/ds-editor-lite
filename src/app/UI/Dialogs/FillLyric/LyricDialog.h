@@ -23,7 +23,8 @@ class LyricDialog final : public Dialog {
     Q_OBJECT
 
 public:
-    explicit LyricDialog(QList<Note *> note, QWidget *parent = nullptr);
+    explicit LyricDialog(QList<Note *> note, const QStringList &priorityG2pIds = {},
+                         QWidget *parent = nullptr);
     ~LyricDialog() override;
 
     void setLangNotes() const;

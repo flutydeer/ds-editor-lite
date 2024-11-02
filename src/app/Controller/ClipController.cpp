@@ -259,6 +259,7 @@ void ClipController::onNotePropertiesEdited(int noteId, const NoteDialogResult &
     auto note = singingClip->findNoteById(noteId);
     auto arg = Note::WordProperties::fromNote(*note);
     arg.language = result.language;
+    arg.g2pId = result.g2pId;
     arg.lyric = result.lyric;
     arg.pronunciation = result.pronunciation;
 
@@ -324,7 +325,8 @@ void ClipController::onFillLyric(QWidget *parent) {
         inputNotes.append(inputNote);
     }
 
-    LyricDialog lyricDialog(inputNotes, parent);
+    // TODO: add priorityG2pIds, {defaultG2pId, singer support g2pId1, singer support g2pId2 ...}
+    LyricDialog lyricDialog(inputNotes, {}, parent);
     lyricDialog.show();
     lyricDialog.setLangNotes();
     lyricDialog.exec();
@@ -357,7 +359,8 @@ void ClipController::onFillLyric(QWidget *parent) {
             continue;
         }
         arg.lyric = noteRes[i - skipCount].lyric;
-        arg.language = noteRes[i - skipCount].language;
+        // arg.language = noteRes[i - skipCount].language;
+        arg.g2pId = noteRes[i - skipCount].g2pId;
         arg.pronunciation =
             Pronunciation(noteRes[i - skipCount].syllable, noteRes[i - skipCount].syllableRevised);
         arg.pronCandidates = noteRes[i - skipCount].candidates;

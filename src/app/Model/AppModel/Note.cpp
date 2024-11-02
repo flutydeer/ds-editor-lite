@@ -258,6 +258,7 @@ Note::WordProperties Note::WordProperties::fromNote(const Note &note) {
     properties.lyric = note.lyric();
     properties.pronunciation = note.pronunciation();
     properties.language = note.language();
+    properties.g2pId = note.g2pId();
     properties.pronCandidates = note.pronCandidates();
     properties.phonemes = note.phonemes();
     return properties;

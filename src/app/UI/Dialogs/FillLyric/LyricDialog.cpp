@@ -12,7 +12,7 @@
 #include <QKeyEvent>
 #include <QScreen>
 
-LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
+LyricDialog::LyricDialog(QList<Note *> note, const QStringList &priorityG2pIds, QWidget *parent)
     : Dialog(parent), m_notes(std::move(note)) {
     setModal(true);
     setMinimumSize(720, 450);
@@ -28,7 +28,7 @@ LyricDialog::LyricDialog(QList<Note *> note, QWidget *parent)
     m_tabWidget = new QTabWidget();
 
     m_lyricWidget = new FillLyric::LyricTab(
-        m_langNotes, {"cmn"},
+        m_langNotes, priorityG2pIds,
         {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
          appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
          appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
