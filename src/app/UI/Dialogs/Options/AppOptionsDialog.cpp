@@ -44,7 +44,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_PageContent->addWidget(m_pseudoSingerPage);
     m_PageContent->addWidget(m_appearancePage);
     m_PageContent->addWidget(m_languagePage);
-    m_PageContent->addWidget(m_g2pPage);
+    // m_PageContent->addWidget(m_g2pPage);
     m_PageContent->addWidget(m_inferencePage);
     m_PageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
     m_PageContent->setMinimumWidth(600);
