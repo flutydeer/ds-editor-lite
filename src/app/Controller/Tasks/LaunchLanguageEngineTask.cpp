@@ -4,6 +4,7 @@
 
 #include "LaunchLanguageEngineTask.h"
 
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/Language/LangSetting/ILangSetManager.h"
 
 #include <QApplication>
@@ -42,8 +43,24 @@ void LaunchLanguageEngineTask::runTask() {
     success = langMgr->initialized();
     errorMessage = errorMsg;
 
-    if (success)
+    if (success) {
         qInfo() << "Successfully launched language module";
-    else
+        const auto options = appOptions->language();
+        for (const auto &key : options->langOrder) {
+            if (options->g2pConfigs.contains(key)) {
+                if (const auto &g2pFactory = langMgr->g2p(key)) {
+                    const auto &g2pConfig = options->g2pConfigs.value(key).toObject();
+
+                    if (!g2pConfig.empty()) {
+                        g2pFactory->loadG2pConfig(g2pConfig);
+                        const auto &langConfig = g2pConfig.value("languageConfig").toObject();
+                        if (!langConfig.empty())
+                            g2pFactory->loadLanguageConfig(langConfig);
+                    }
+                }
+            }
+        }
+        qInfo() << "Language module load config Success";
+    } else
         qCritical() << "Failed to launch language module: " << errorMessage;
 }

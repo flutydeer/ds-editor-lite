@@ -4,12 +4,11 @@
 #include <QVBoxLayout>
 
 namespace LangSetting {
-    QWidget *EnglishSet::configWidget(const QJsonObject &config, bool editable) {
+    QWidget *EnglishSet::g2pConfigWidget(const QJsonObject &config) {
         auto *widget = new QWidget();
         auto *layout = new QVBoxLayout();
 
         auto *toLowerCheckBox = new QCheckBox(tr("To lower"), widget);
-        toLowerCheckBox->setEnabled(editable);
 
         layout->addWidget(toLowerCheckBox);
         layout->addStretch(1);
@@ -21,9 +20,9 @@ namespace LangSetting {
         }
 
         connect(toLowerCheckBox, &QCheckBox::toggled, [this](const bool checked) {
-            QJsonObject tempConfig = d->config("0");
+            QJsonObject tempConfig = d->config();
             tempConfig.insert("toLower", checked);
-            d->loadG2pConfig(tempConfig, "0");
+            d->loadG2pConfig(tempConfig);
             Q_EMIT g2pConfigChanged();
         });
         return widget;

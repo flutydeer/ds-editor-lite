@@ -2,7 +2,9 @@
 #include "IG2pSetFactory_p.h"
 
 #include <QCheckBox>
+#include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
 #include <QVBoxLayout>
 
 namespace LangSetting {
@@ -68,9 +70,71 @@ namespace LangSetting {
         return {};
     }
 
-    QWidget *IG2pSetFactory::configWidget(const QJsonObject &config, bool editable) {
+    QWidget *IG2pSetFactory::langConfigWidget(QJsonObject config) {
+        auto *widget = new QWidget();
+        auto *mainlayout = new QVBoxLayout();
+        widget->setLayout(mainlayout);
+        if (config.contains("languageConfig")) {
+            const QJsonObject languageConfig = config.value("languageConfig").toObject();
+            m_languageConfigState = languageConfig;
+
+            for (auto it = languageConfig.constBegin(); it != languageConfig.constEnd(); ++it) {
+                const QString key = it.key();
+                QJsonObject valueObj = it.value().toObject();
+
+                const bool discardResult = valueObj.value("discardResult").toBool(false);
+                const bool enabled = valueObj.value("enabled").toBool(true);
+
+                auto *enableCheckBox = new QCheckBox(tr("enabled"));
+                enableCheckBox->setChecked(enabled);
+
+                auto *hlayout2 = new QHBoxLayout();
+                hlayout2->addStretch();
+                hlayout2->addWidget(enableCheckBox);
+
+                auto *discardCheckBox = new QCheckBox(tr("discardResult"));
+                discardCheckBox->setChecked(discardResult);
+
+                auto *hlayout3 = new QHBoxLayout();
+                hlayout3->addStretch();
+                hlayout3->addWidget(discardCheckBox);
+
+                auto *label = new QLabel(key);
+
+                auto *hlayout = new QHBoxLayout();
+                hlayout->addWidget(label);
+                hlayout->addLayout(hlayout2);
+                hlayout->addLayout(hlayout3);
+
+                mainlayout->addLayout(hlayout);
+
+                // 初始化 languageConfigState，确保每个 key 的初始值正确
+                m_languageConfigState.insert(key, valueObj);
+
+                // Lambda function to update JSON based on checkbox state
+                auto updateJson = [this, enableCheckBox, discardCheckBox, key]() {
+                    // 更新 languageConfigState 中对应项的状态
+                    QJsonObject langConfig;
+                    langConfig.insert("discardResult", discardCheckBox->isChecked());
+                    langConfig.insert("enabled", enableCheckBox->isChecked());
+                    m_languageConfigState.insert(key, langConfig);
+
+                    // Emit the signal with the complete JSON string
+                    emit langConfigChanged(m_languageConfigState);
+                };
+
+                // Connect stateChanged signals to the updateJson lambda function
+                QObject::connect(enableCheckBox, &QCheckBox::stateChanged, updateJson);
+                QObject::connect(discardCheckBox, &QCheckBox::stateChanged, updateJson);
+            }
+        } else {
+            qDebug() << "Key 'languageConfig' does not exist.";
+        }
+        return widget;
+    }
+
+    QWidget *IG2pSetFactory::g2pConfigWidget(const QJsonObject &config) {
         Q_UNUSED(config);
-        Q_UNUSED(editable);
         return new QWidget();
     }
 }

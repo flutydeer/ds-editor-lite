@@ -5,6 +5,26 @@
 #include <language-manager/ILanguageManager.h>
 
 namespace LangSetting {
+    static QPair<QString, QString> extractConfig(const QString &g2pId) {
+        const auto firstColonIndex = g2pId.indexOf(':');
+
+        if (firstColonIndex == -1) {
+            return {g2pId, "0"};
+        }
+
+        QString beforeColon = g2pId.left(firstColonIndex);
+        QString afterColon = g2pId.mid(firstColonIndex + 1);
+
+        bool isNumber;
+        const int value = afterColon.toInt(&isNumber);
+
+        if (!isNumber || value < 0) {
+            return {beforeColon, "0"};
+        }
+
+        return {beforeColon, afterColon};
+    }
+
     G2pInfoWidget::G2pInfoWidget(QWidget *parent) : QWidget(parent) {
         this->setContentsMargins(0, 0, 0, 0);
 
@@ -57,11 +77,20 @@ namespace LangSetting {
         m_languageLabel->setText(tr("Language: ") + g2pFactory->displayName());
         m_authorLabel->setText(tr("Author: ") + g2pFactory->author());
         m_descriptionLabel->setText(g2pFactory->description());
-
         removeWidget();
-        const auto g2pConfigWidget = g2pSetFactory->configWidget(g2pFactory->config("0"), true);
-        this->m_mainLayout->addWidget(g2pConfigWidget, 1);
 
+        const auto langConfigWidget = g2pSetFactory->langConfigWidget(g2pFactory->config());
+        const auto g2pConfigWidget = g2pSetFactory->g2pConfigWidget(g2pFactory->config());
+        this->m_mainLayout->addWidget(langConfigWidget);
+        this->m_mainLayout->addStretch();
+        this->m_mainLayout->addWidget(g2pConfigWidget);
+        this->m_mainLayout->addStretch();
+
+        connect(g2pSetFactory, &LangSetting::IG2pSetFactory::langConfigChanged, this,
+                [this, g2pFactory](const QJsonObject &json) {
+                    g2pFactory->loadLanguageConfig(json);
+                    Q_EMIT g2pConfigChanged();
+                });
         connect(g2pSetFactory, &LangSetting::IG2pSetFactory::g2pConfigChanged, this,
                 &G2pInfoWidget::g2pConfigChanged);
     }

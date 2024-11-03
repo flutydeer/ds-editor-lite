@@ -32,7 +32,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_midiPage = new MidiPage;
     m_pseudoSingerPage = new PseudoSingerPage;
     m_appearancePage = new AppearancePage;
-    m_g2pPage = new G2pPage(this);
+    m_g2pPage = new G2pPage;
     m_inferencePage = new InferencePage;
 
     m_PageContent = new QStackedWidget;

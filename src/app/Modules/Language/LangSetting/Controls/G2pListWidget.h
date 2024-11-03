@@ -11,7 +11,7 @@ namespace LangSetting {
         explicit GListWidget(QWidget *parent = nullptr);
         ~GListWidget() override;
 
-        void copyItem(int row);
+        static void copyItem(int row);
         void deleteItem(int row);
 
         void updateDeleteButtonState();

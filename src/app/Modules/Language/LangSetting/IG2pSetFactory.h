@@ -19,7 +19,11 @@ namespace LangSetting {
         ~IG2pSetFactory() override;
 
         virtual QJsonObject config();
-        virtual QWidget *configWidget(const QJsonObject &config, bool editable);
+        virtual QWidget *langConfigWidget(QJsonObject config);
+        virtual QWidget *g2pConfigWidget(const QJsonObject &config);
+
+    Q_SIGNALS:
+        void langConfigChanged(const QJsonObject &json);
 
     public:
         [[nodiscard]] QString id() const;
@@ -40,6 +44,8 @@ namespace LangSetting {
         IG2pSetFactory(IG2pSetFactoryPrivate &d, const QString &id, QObject *parent = nullptr);
 
         QScopedPointer<IG2pSetFactoryPrivate> d_ptr;
+
+        QJsonObject m_languageConfigState;
 
         friend class ILangSetManager;
     };

@@ -1,9 +1,6 @@
 #ifndef ILangSetManager_H
 #define ILangSetManager_H
 
-#include <QObject>
-
-#include "ILangSetFactory.h"
 #include "IG2pSetFactory.h"
 
 #include <language-manager/LangCommon.h>
@@ -19,15 +16,6 @@ namespace LangSetting {
     public:
         explicit ILangSetManager(QObject *parent = nullptr);
         ~ILangSetManager() override;
-
-    public:
-        [[nodiscard]] ILangSetFactory *langSet(const QString &id) const;
-        [[nodiscard]] QList<ILangSetFactory *> langSets() const;
-
-        bool addLangSet(ILangSetFactory *factory);
-        bool removeLangSet(const ILangSetFactory *factory);
-        bool removeLangSet(const QString &id);
-        void clearLangSets();
 
     public:
         [[nodiscard]] IG2pSetFactory *g2pSet(const QString &id) const;

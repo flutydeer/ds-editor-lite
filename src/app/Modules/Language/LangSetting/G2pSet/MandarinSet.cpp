@@ -4,12 +4,11 @@
 #include <QVBoxLayout>
 
 namespace LangSetting {
-    QWidget *MandarinSet::configWidget(const QJsonObject &config, bool editable) {
+    QWidget *MandarinSet::g2pConfigWidget(const QJsonObject &config) {
         auto *widget = new QWidget();
         auto *layout = new QVBoxLayout();
 
         auto *toneCheckBox = new QCheckBox(tr("Tone"), widget);
-        toneCheckBox->setEnabled(editable);
 
         layout->addWidget(toneCheckBox);
         layout->addStretch(1);
@@ -23,9 +22,9 @@ namespace LangSetting {
         widget->setLayout(layout);
 
         connect(toneCheckBox, &QCheckBox::toggled, [this](const bool checked) {
-            QJsonObject tempConfig = d->config("0");
+            QJsonObject tempConfig = d->config();
             tempConfig.insert("tone", checked);
-            d->loadG2pConfig(tempConfig, "0");
+            d->loadG2pConfig(tempConfig);
             Q_EMIT g2pConfigChanged();
         });
         return widget;

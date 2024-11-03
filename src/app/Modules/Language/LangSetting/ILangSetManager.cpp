@@ -1,12 +1,8 @@
 #include "ILangSetManager.h"
 #include "ILangSetManager_p.h"
 
-#include "ILangSetFactory.h"
-
 #include <QDebug>
 #include <qcoreapplication.h>
-
-#include "LangSet/UnknownSet.h"
 
 #include "G2pSet/MandarinSet.h"
 #include "G2pSet/CantoneseSet.h"
@@ -19,67 +15,6 @@ namespace LangSetting {
     }
 
     ILangSetManagerPrivate::~ILangSetManagerPrivate() = default;
-
-    ILangSetFactory *ILangSetManager::langSet(const QString &id) const {
-        Q_D(const ILangSetManager);
-        const auto it = d->langSets.find(id);
-        if (it == d->langSets.end()) {
-            // qWarning() << "LangSet::ILangSetManager::langSet(): factory does not exist:" << id;
-            return d->langSets.find("unknown").value();
-        }
-        return it.value();
-    }
-
-    QList<ILangSetFactory *> ILangSetManager::langSets() const {
-        Q_D(const ILangSetManager);
-        return d->langSets.values();
-    }
-
-    bool ILangSetManager::addLangSet(ILangSetFactory *factory) {
-        Q_D(ILangSetManager);
-        if (!factory) {
-            qWarning() << "LangSet::ILangSetManager::addLangSet(): trying to add null factory";
-            return false;
-        }
-        if (d->langSets.contains(factory->id())) {
-            qWarning()
-                << "LangSet::ILangSetManager::addLangSet(): trying to add duplicated factory:"
-                << factory->id();
-            return false;
-        }
-        factory->setParent(this);
-        d->langSets[factory->id()] = factory;
-        return true;
-    }
-
-    bool ILangSetManager::removeLangSet(const ILangSetFactory *factory) {
-        if (factory == nullptr) {
-            qWarning()
-                << "LangSet::ILangSetManager::removeLangSet(): trying to remove null factory";
-            return false;
-        }
-        return removeLangSet(factory->id());
-    }
-
-    bool ILangSetManager::removeLangSet(const QString &id) {
-        Q_D(ILangSetManager);
-        const auto it = d->langSets.find(id);
-        if (it == d->langSets.end()) {
-            qWarning() << "LangSet::ILangSetManager::removeLangSet(): factory does not exist:"
-                << id;
-            return false;
-        }
-        it.value()->setParent(nullptr);
-        d->langSets.erase(it);
-        return true;
-    }
-
-    void ILangSetManager::clearLangSets() {
-        Q_D(ILangSetManager);
-        d->langSets.clear();
-    }
-
-    // G2p Sets
 
     IG2pSetFactory *ILangSetManager::g2pSet(const QString &id) const {
         Q_D(const ILangSetManager);
@@ -104,7 +39,7 @@ namespace LangSetting {
         }
         if (d->g2pSets.contains(factory->id())) {
             qWarning() << "LangSet::ILangSetManager::addG2pSet(): trying to add duplicated factory:"
-                << factory->id();
+                       << factory->id();
             return false;
         }
         factory->setParent(this);
@@ -117,7 +52,7 @@ namespace LangSetting {
             qWarning() << "G2pMgr::ILangSetManager::removeG2pSet(): trying to remove null factory";
             return false;
         }
-        return removeLangSet(factory->id());
+        return removeG2pSet(factory->id());
     }
 
     bool ILangSetManager::removeG2pSet(const QString &id) {
@@ -134,7 +69,7 @@ namespace LangSetting {
 
     void ILangSetManager::clearG2pSets() {
         Q_D(ILangSetManager);
-        d->langSets.clear();
+        d->g2pSets.clear();
     }
 
     ILangSetManager::ILangSetManager(QObject *parent)
@@ -146,8 +81,6 @@ namespace LangSetting {
     ILangSetManager::ILangSetManager(ILangSetManagerPrivate &d, QObject *parent)
         : QObject(parent), d_ptr(&d) {
         d.q_ptr = this;
-
-        addLangSet(new UnknownSet());
 
         addG2pSet(new MandarinSet());
         addG2pSet(new CantoneseSet());

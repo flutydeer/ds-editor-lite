@@ -1,7 +1,6 @@
 #ifndef G2PINFOWIDGET_H
 #define G2PINFOWIDGET_H
 
-#include <QWidget>
 #include <QVBoxLayout>
 #include <QLabel>
 

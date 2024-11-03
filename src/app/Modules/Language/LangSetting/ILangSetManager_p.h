@@ -17,7 +17,6 @@ namespace LangSetting {
 
         ILangSetManager *q_ptr;
 
-        QMap<QString, ILangSetFactory *> langSets;
         QMap<QString, IG2pSetFactory *> g2pSets;
     };
 

@@ -62,6 +62,8 @@ void G2pPage::update() const {
 void G2pPage::modifyOption() {
     const auto options = appOptions->language();
     const auto g2pId = m_g2pListWidget->m_gListWidget->currentItem()->data(Qt::UserRole).toString();
-    options->g2pConfigs[g2pId] = LangMgr::ILanguageManager::instance()->g2p(g2pId)->config("0");
+    const auto g2pConfig = LangMgr::ILanguageManager::instance()->g2p(g2pId)->config();
+    if (!g2pConfig.empty())
+        options->g2pConfigs.insert(g2pId, g2pConfig);
     appOptions->saveAndNotify();
 }
