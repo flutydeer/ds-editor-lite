@@ -8,7 +8,6 @@
 
 #include <QApplication>
 #include <QThread>
-#include <language-manager/IG2pManager.h>
 #include <language-manager/ILanguageManager.h>
 
 LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : Task(parent) {
@@ -22,7 +21,6 @@ LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : Task(paren
 void LaunchLanguageEngineTask::runTask() {
     qDebug() << "Launching language module...";
     // QThread::sleep(1);
-    const auto g2pMgr = LangMgr::IG2pManager::instance();
     const auto langMgr = LangMgr::ILanguageManager::instance();
     const auto langSet = LangSetting::ILangSetManager::instance();
 
@@ -33,16 +31,15 @@ void LaunchLanguageEngineTask::runTask() {
 #else
     const QString dictPath = qApp->applicationDirPath() + QStringLiteral("/dict");
 #endif
-    g2pMgr->initialize(dictPath, errorMsg);
 
-    if (!g2pMgr->initialized())
-        qCritical() << "G2pMgr: errorMsg" << errorMsg << "initialized:" << g2pMgr->initialized();
+    auto args = QJsonObject();
+    args.insert("pinyinDictPath", dictPath);
 
-    langMgr->initialize(errorMsg);
+    langMgr->initialize(args, errorMsg);
     if (!langMgr->initialized())
         qCritical() << "LangMgr: errorMsg" << errorMsg << "initialized:" << langMgr->initialized();
 
-    success = g2pMgr->initialized() && langMgr->initialized();
+    success = langMgr->initialized();
     errorMessage = errorMsg;
 
     if (success)

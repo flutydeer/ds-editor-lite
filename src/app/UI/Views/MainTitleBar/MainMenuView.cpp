@@ -150,9 +150,9 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     auto actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
     connect(actionAppearanceOptions, &QAction::triggered, this,
             [=] { (new AppOptionsDialog(AppOptionsDialog::Appearance, this))->show(); });
-    const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
+    const auto actionLanguageOptions = new QAction(tr("&G2p..."), this);
     connect(actionLanguageOptions, &QAction::triggered, this,
-            [=] { (new AppOptionsDialog(AppOptionsDialog::Language, this))->show(); });
+            [=] { (new AppOptionsDialog(AppOptionsDialog::G2p, this))->show(); });
     const auto actionInferenceOptions = new QAction(tr("&Inference..."), this);
     connect(actionInferenceOptions, &QAction::triggered, this,
             [=] { (new AppOptionsDialog(AppOptionsDialog::Inference, this))->show(); });

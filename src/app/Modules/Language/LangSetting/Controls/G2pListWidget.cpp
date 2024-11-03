@@ -1,5 +1,4 @@
 #include "G2pListWidget.h"
-#include "LangListWidget.h"
 
 #include <QDragEnterEvent>
 #include <QCheckBox>
@@ -9,7 +8,7 @@
 #include <QVBoxLayout>
 #include <QRegularExpression>
 
-#include <language-manager/IG2pManager.h>
+#include <language-manager/ILanguageManager.h>
 
 namespace LangSetting {
     static QPair<int, QString> extractLeadingNumber(const QString &dataString) {
@@ -26,7 +25,7 @@ namespace LangSetting {
     }
 
     GListWidget::GListWidget(QWidget *parent) : QListWidget(parent) {
-        const auto g2pMgr = LangMgr::IG2pManager::instance();
+        const auto g2pMgr = LangMgr::ILanguageManager::instance();
 
         this->setDragDropMode(InternalMove);
         this->setDropIndicatorShown(true);
@@ -117,19 +116,19 @@ namespace LangSetting {
         const int newNumber = (maxNumber >= 0) ? maxNumber + 1 : 0;
         const auto newG2pId = QString::number(newNumber) + oldG2pId;
 
-        const auto g2pMgr = LangMgr::IG2pManager::instance();
+        const auto g2pMgr = LangMgr::ILanguageManager::instance();
         const auto oldG2p = g2pMgr->g2p(oldG2pId);
         if (oldG2p == nullptr)
             return;
 
-        const auto newG2p =
-            g2pMgr->addG2p(oldG2p->clone(newG2pId, oldG2p->category(), oldG2p->parent()));
-
-        if (newG2p) {
-            auto *newItem = new QListWidgetItem(itemName);
-            newItem->setData(Qt::UserRole, newG2pId);
-            this->addItem(newItem);
-        }
+        // const auto newG2p =
+        //     g2pMgr->addG2p(oldG2p->clone(newG2pId, oldG2p->category(), oldG2p->parent()));
+        //
+        // if (newG2p) {
+        //     auto *newItem = new QListWidgetItem(itemName);
+        //     newItem->setData(Qt::UserRole, newG2pId);
+        //     this->addItem(newItem);
+        // }
     }
 
     void GListWidget::deleteItem(int row) {

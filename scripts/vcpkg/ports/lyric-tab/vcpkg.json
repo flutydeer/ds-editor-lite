@@ -1,6 +1,6 @@
 {
   "name": "lyric-tab",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "homepage": "https://github.com/wolfgitpr/lyric-tab",
   "description": "A view of lyrics for editing polyphonic words.",
   "license": "Apache-2.0",
@@ -12,6 +12,9 @@
     {
       "name": "vcpkg-cmake-config",
       "host": true
-    }
+    },
+    "cpp-pinyin",
+    "cpp-kana",
+    "language-manager"
   ]
 }

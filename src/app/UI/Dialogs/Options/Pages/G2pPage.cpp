@@ -11,7 +11,7 @@
 #include "UI/Controls/OptionsCard.h"
 
 #include <QPushButton>
-#include <language-manager/IG2pManager.h>
+#include <language-manager/ILanguageManager.h>
 
 G2pPage::G2pPage(QWidget *parent) : IOptionPage(parent) {
     const auto mainLayout = new QVBoxLayout();
@@ -62,6 +62,6 @@ void G2pPage::update() const {
 void G2pPage::modifyOption() {
     const auto options = appOptions->language();
     const auto g2pId = m_g2pListWidget->m_gListWidget->currentItem()->data(Qt::UserRole).toString();
-    options->g2pConfigs[g2pId] = LangMgr::IG2pManager::instance()->g2p(g2pId)->config();
+    options->g2pConfigs[g2pId] = LangMgr::ILanguageManager::instance()->g2p(g2pId)->config("0");
     appOptions->saveAndNotify();
 }

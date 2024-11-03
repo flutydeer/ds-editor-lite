@@ -21,9 +21,9 @@ namespace LangSetting {
         }
 
         connect(toLowerCheckBox, &QCheckBox::toggled, [this](const bool checked) {
-            QJsonObject tempConfig = d->config();
+            QJsonObject tempConfig = d->config("0");
             tempConfig.insert("toLower", checked);
-            d->loadConfig(tempConfig);
+            d->loadG2pConfig(tempConfig, "0");
             Q_EMIT g2pConfigChanged();
         });
         return widget;

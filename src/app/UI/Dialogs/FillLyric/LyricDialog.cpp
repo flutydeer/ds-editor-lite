@@ -1,13 +1,11 @@
 #include "LyricDialog.h"
 
-#include "language-manager/ILanguageManager.h"
-
 #include <QApplication>
 
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/AccentButton.h"
-#include "UI/Dialogs/Options/Pages/LanguagePage.h"
+#include "UI/Dialogs/Options/Pages/G2pPage.h"
 
 #include <QKeyEvent>
 #include <QScreen>
@@ -38,8 +36,7 @@ LyricDialog::LyricDialog(QList<Note *> note, const QStringList &priorityG2pIds, 
         shrinkWindowRight(300);
     }
 
-    m_langPage = new LanguagePage(this);
-    // m_g2pPage = new G2pPage(this);
+    m_g2pPage = new G2pPage(this);
 
     m_btnOk = new AccentButton(tr("&Import"), this);
     // m_btnOk->setPrimary(true);
@@ -48,8 +45,7 @@ LyricDialog::LyricDialog(QList<Note *> note, const QStringList &priorityG2pIds, 
     setNegativeButton(m_btnCancel);
 
     m_tabWidget->addTab(m_lyricWidget, tr("Lyric"));
-    m_tabWidget->addTab(m_langPage, tr("Language"));
-    // m_tabWidget->addTab(m_g2pPage, tr("G2p"));
+    m_tabWidget->addTab(m_g2pPage, tr("G2p"));
     m_tabWidget->addTab(new QWidget, tr("Help"));
 
     m_mainLayout->addWidget(m_tabWidget);
@@ -88,22 +84,15 @@ void LyricDialog::accept() {
 }
 
 void LyricDialog::noteToPhonic() {
-    const auto langMgr = LangMgr::ILanguageManager::instance();
     for (const auto note : m_notes) {
         auto langNote = LangNote(note->lyric());
-        langNote.language =
-            note->language() != "unknown" ? note->language() : langMgr->analysis(note->lyric());
-        langNote.category = langMgr->language(langNote.language)->category();
         langNote.syllable = note->pronunciation().original;
         langNote.syllableRevised = note->pronunciation().edited;
         langNote.candidates = note->pronCandidates();
         langNote.g2pId = note->g2pId();
 
-        if (note->isSlur()) {
-            langNote.language = "slur";
-            langNote.category = "slur";
+        if (note->isSlur())
             langNote.g2pId = "slur";
-        }
 
         m_langNotes.append(langNote);
     }
@@ -129,15 +118,13 @@ LyricResult LyricDialog::exportLangNotes() const {
 
     const bool skipSlurRes = m_lyricWidget->exportSkipSlur();
 
-    const bool exportLangRes = m_lyricWidget->exportLanguage();
-
     QList<LangNote> result;
     for (const auto &langNotes : noteLists) {
         for (auto &langNote : langNotes) {
             result.append(langNote);
         }
     }
-    return {result, skipSlurRes, exportLangRes};
+    return {result, skipSlurRes};
 }
 
 void LyricDialog::switchTab(const int &index) {

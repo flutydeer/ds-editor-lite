@@ -10,7 +10,6 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Pages/AppearancePage.h"
 #include "Pages/GeneralPage.h"
-#include "Pages/LanguagePage.h"
 #include "Pages/G2pPage.h"
 #include "Pages/AudioPage.h"
 #include "Pages/MidiPage.h"
@@ -33,8 +32,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_midiPage = new MidiPage;
     m_pseudoSingerPage = new PseudoSingerPage;
     m_appearancePage = new AppearancePage;
-    m_languagePage = new LanguagePage(this);
-    // m_g2pPage = new G2pPage(this);
+    m_g2pPage = new G2pPage(this);
     m_inferencePage = new InferencePage;
 
     m_PageContent = new QStackedWidget;
@@ -43,8 +41,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_PageContent->addWidget(m_midiPage);
     m_PageContent->addWidget(m_pseudoSingerPage);
     m_PageContent->addWidget(m_appearancePage);
-    m_PageContent->addWidget(m_languagePage);
-    // m_PageContent->addWidget(m_g2pPage);
+    m_PageContent->addWidget(m_g2pPage);
     m_PageContent->addWidget(m_inferencePage);
     m_PageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
     m_PageContent->setMinimumWidth(600);
@@ -58,8 +55,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_pages.append(m_midiPage);
     m_pages.append(m_pseudoSingerPage);
     m_pages.append(m_appearancePage);
-    m_pages.append(m_languagePage);
-    // m_pages.append(m_g2pPage);
+    m_pages.append(m_g2pPage);
     m_pages.append(m_inferencePage);
 
     auto mainLayout = new QHBoxLayout;

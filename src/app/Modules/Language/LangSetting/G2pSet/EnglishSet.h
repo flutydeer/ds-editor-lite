@@ -3,7 +3,7 @@
 
 #include "../IG2pSetFactory.h"
 
-#include <language-manager/IG2pManager.h>
+#include <language-manager/ILanguageManager.h>
 
 namespace LangSetting {
 
@@ -11,8 +11,8 @@ namespace LangSetting {
         Q_OBJECT
 
     public:
-        explicit EnglishSet(QObject *parent = nullptr) : IG2pSetFactory("en", parent) {
-            d = dynamic_cast<LangMgr::IG2pFactory *>(LangMgr::IG2pManager::instance()->g2p(id()));
+        explicit EnglishSet(QObject *parent = nullptr) : IG2pSetFactory("eng", parent) {
+            d = LangMgr::ILanguageManager::instance()->g2p(id());
         }
 
         QWidget *configWidget(const QJsonObject &config, bool editable) override;

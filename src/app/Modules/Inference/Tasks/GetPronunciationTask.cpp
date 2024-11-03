@@ -48,17 +48,14 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
     const auto langMgr = LangMgr::ILanguageManager::instance();
     QList<LangNote *> langNotes;
     for (const auto note : notes) {
-        const auto language = note->language() == "unknown" ? "unknown" : note->language();
-        const auto category =
-            note->language() == "unknown" ? "unknown" : langMgr->language(language)->category();
-        const auto langNote = new LangNote(note->lyric(), language, category);
+        const auto langNote = new LangNote(note->lyric());
         langNote->g2pId = note->g2pId();
         langNotes.append(langNote);
     }
 
     // TODO: add priorityG2pIds, {defaultG2pId, singer support g2pId1, singer support g2pId2 ...}
     langMgr->correct(langNotes, {});
-    LangMgr::ILanguageManager::convert(langNotes);
+    langMgr->convert(langNotes);
 
     QList<QString> result;
     for (const auto pNote : langNotes) {

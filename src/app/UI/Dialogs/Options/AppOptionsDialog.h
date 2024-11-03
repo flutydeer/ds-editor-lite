@@ -30,8 +30,7 @@ public:
         Midi,
         PseudoSinger,
         Appearance,
-        Language,
-        // G2p,
+        G2p,
         Inference,
         PreviewFunctions,
         DeveloperOptions
@@ -44,10 +43,9 @@ private slots:
     void onSelectionChanged(int index) const;
 
 private:
-    QStringList m_pageNames = {tr("General"),       tr("Audio"),      tr("MIDI"),
-                               tr("Pseudo Singer"), tr("Appearance"), tr("Language"),
-                               tr("Inference"),
-                               /* tr("Preview Functions"), tr("G2p"), tr("Developer Options")*/};
+    QStringList m_pageNames = {tr("General"),    tr("Audio"), tr("MIDI"),      tr("Pseudo Singer"),
+                               tr("Appearance"), tr("G2p"),   tr("Inference"),
+                               /* tr("Preview Functions"), tr("Developer Options")*/};
 
     QListWidget *m_tabList;
     QStackedWidget *m_PageContent;
@@ -57,7 +55,6 @@ private:
     MidiPage *m_midiPage;
     PseudoSingerPage *m_pseudoSingerPage;
     AppearancePage *m_appearancePage;
-    LanguagePage *m_languagePage;
     G2pPage *m_g2pPage;
     InferencePage *m_inferencePage;
     QList<IOptionPage *> m_pages;

@@ -1,6 +1,6 @@
 {
   "name": "language-manager",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "homepage": "https://github.com/wolfgitpr/language-manager",
   "description": "The language analyzer is used to segment mixed language text, recognize note languages, while its subordinate G2p module is used to convert text into syllables.",
   "license": "Apache-2.0",

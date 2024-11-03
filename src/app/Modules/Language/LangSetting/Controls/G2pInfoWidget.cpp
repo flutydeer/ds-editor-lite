@@ -2,7 +2,7 @@
 
 #include "Modules/Language/LangSetting/ILangSetManager.h"
 
-#include <language-manager/IG2pManager.h>
+#include <language-manager/ILanguageManager.h>
 
 namespace LangSetting {
     G2pInfoWidget::G2pInfoWidget(QWidget *parent) : QWidget(parent) {
@@ -52,14 +52,14 @@ namespace LangSetting {
 
     void G2pInfoWidget::setInfo(const QString &g2pId) const {
         const auto g2pSetFactory = LangSetting::ILangSetManager::instance()->g2pSet(g2pId);
-        const auto g2pFactory = LangMgr::IG2pManager::instance()->g2p(g2pId);
+        const auto g2pFactory = LangMgr::ILanguageManager::instance()->g2p(g2pId);
 
         m_languageLabel->setText(tr("Language: ") + g2pFactory->displayName());
         m_authorLabel->setText(tr("Author: ") + g2pFactory->author());
         m_descriptionLabel->setText(g2pFactory->description());
 
         removeWidget();
-        const auto g2pConfigWidget = g2pSetFactory->configWidget(g2pFactory->config(), true);
+        const auto g2pConfigWidget = g2pSetFactory->configWidget(g2pFactory->config("0"), true);
         this->m_mainLayout->addWidget(g2pConfigWidget, 1);
 
         connect(g2pSetFactory, &LangSetting::IG2pSetFactory::g2pConfigChanged, this,
