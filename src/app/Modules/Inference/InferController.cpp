@@ -7,6 +7,7 @@
 
 #include "InferControllerHelper.h"
 #include "Model/AppModel/InferPiece.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Models/PhonemeNameInput.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Tasks/GetPhonemeNameTask.h"
@@ -141,7 +142,10 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(AppStatus::Module
         runNextGetPronTask();
     } else if (status == AppStatus::ModuleStatus::Error) {
         m_getPronTasks.disposePendingTasks();
-        qCritical() << "未能启动语言模块，已取消任务";
+        appOptions->language()->langOrder.clear();
+        appOptions->language()->g2pConfigs = QJsonObject();
+        appOptions->saveAndNotify();
+        qCritical() << "未能启动语言模块，已取消任务，重启编辑器以恢复默认语言设置";
     }
 }
 

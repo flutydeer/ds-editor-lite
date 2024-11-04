@@ -9,6 +9,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Toast.h"
+#include "Utils/G2pUtil.h"
 
 // TODO: 调整逻辑避免不必要的 validation
 ValidationController::ValidationController() {
@@ -35,7 +36,7 @@ void ValidationController::onModelChanged() {
         // Set track default language
         track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
         // TODO: Temp Use
-        track->setDefaultG2pId(appOptions->general()->defaultSingingLanguage);
+        track->setDefaultG2pId(defaultG2pId());
         onTrackChanged(AppModel::Insert, -1, track);
         connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
         for (const auto clip : track->clips()) {

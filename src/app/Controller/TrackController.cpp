@@ -4,7 +4,6 @@
 
 #include "TrackController.h"
 
-#include "AppController.h"
 #include "Actions/AppModel/Clip/ClipActions.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Model/AppModel/AppModel.h"
@@ -20,6 +19,7 @@
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AudioClipView.h"
+#include "Utils/G2pUtil.h"
 
 #include <QFileInfo>
 
@@ -46,7 +46,7 @@ void TrackController::onInsertNewTrack(qsizetype index) {
     newTrack->setName(tr("New Track"));
     newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
     // TODO: Temp Use
-    newTrack->setDefaultG2pId(appOptions->general()->defaultSingingLanguage);
+    newTrack->setDefaultG2pId(defaultG2pId());
     // if (soloExists) {
     //     auto control = newTrack->control();
     //     control.setMute(true);
@@ -198,7 +198,7 @@ SingingClip *TrackController::onNewSingingClip(int trackIndex, int tick) {
     auto track = appModel->tracks().at(trackIndex);
     singingClip->defaultLanguage = track->defaultLanguage();
     // TODO: Temp Use
-    singingClip->defaultG2pId = track->defaultLanguage();
+    singingClip->defaultG2pId = g2pIdFromLanguage(singingClip->defaultLanguage);
     singingClip->configPath = appOptions->general()->defaultSinger;
     auto a = new ClipActions;
     QList<Clip *> clips;

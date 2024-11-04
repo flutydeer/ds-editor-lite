@@ -17,6 +17,7 @@
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/ToolTipFilter.h"
 #include "UI/Views/Common/LanguageComboBox.h"
+#include "Utils/G2pUtil.h"
 #include "Utils/SystemUtils.h"
 
 #include <QButtonGroup>
@@ -221,7 +222,7 @@ void ClipEditorToolBarViewPrivate::onLanguageEdited(const QString &language) con
     if (m_singingClip) {
         m_singingClip->defaultLanguage = language;
         // TODO: Temp Use
-        m_singingClip->defaultG2pId = language;
+        m_singingClip->defaultG2pId = g2pIdFromLanguage(language);
     }
 }
 

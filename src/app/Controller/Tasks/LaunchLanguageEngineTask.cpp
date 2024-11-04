@@ -37,30 +37,34 @@ void LaunchLanguageEngineTask::runTask() {
     args.insert("pinyinDictPath", dictPath);
 
     langMgr->initialize(args, errorMsg);
-    if (!langMgr->initialized())
-        qCritical() << "LangMgr: errorMsg" << errorMsg << "initialized:" << langMgr->initialized();
-
-    success = langMgr->initialized();
-    errorMessage = errorMsg;
-
-    if (success) {
+    if (langMgr->initialized()) {
         qInfo() << "Successfully launched language module";
         const auto options = appOptions->language();
         for (const auto &key : options->langOrder) {
-            if (options->g2pConfigs.contains(key)) {
-                if (const auto &g2pFactory = langMgr->g2p(key)) {
-                    const auto &g2pConfig = options->g2pConfigs.value(key).toObject();
+            const auto &g2pFactory = langMgr->g2p(key);
+            if (g2pFactory == nullptr) {
+                success = false;
+                errorMessage = "Failed to load config.";
+                qCritical() << "Failed to launch language module: " << errorMessage;
+                return;
+            }
 
-                    if (!g2pConfig.empty()) {
-                        g2pFactory->loadG2pConfig(g2pConfig);
-                        const auto &langConfig = g2pConfig.value("languageConfig").toObject();
-                        if (!langConfig.empty())
-                            g2pFactory->loadLanguageConfig(langConfig);
-                    }
+            if (options->g2pConfigs.contains(key)) {
+                const auto &g2pConfig = options->g2pConfigs.value(key).toObject();
+
+                if (!g2pConfig.empty()) {
+                    g2pFactory->loadG2pConfig(g2pConfig);
+                    const auto &langConfig = g2pConfig.value("languageConfig").toObject();
+                    if (!langConfig.empty())
+                        g2pFactory->loadLanguageConfig(langConfig);
                 }
             }
         }
         qInfo() << "Language module load config Success";
-    } else
-        qCritical() << "Failed to launch language module: " << errorMessage;
+    } else {
+        success = false;
+        errorMessage = errorMsg;
+        qCritical() << "LangMgr: errorMsg" << errorMsg << "initialized:" << langMgr->initialized();
+    }
+    success = true;
 }

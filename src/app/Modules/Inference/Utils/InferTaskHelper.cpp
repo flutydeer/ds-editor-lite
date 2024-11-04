@@ -7,19 +7,7 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 
-#include "Model/AppOptions/AppOptions.h"
-
-// TODO: support multi-dict
-QString findLanguage(const QString &key) {
-    static QString defaultLanguage = appOptions->general()->defaultSingingLanguage;
-    static QMap<QString, QString> languageKey = {
-        {"cmn", "zh"},
-        {"jpn", "ja"}
-    };
-    if (key == "unknown")
-        return languageKey.contains(defaultLanguage) ? languageKey.value(defaultLanguage) : "zh";
-    return languageKey.contains(key) ? languageKey.value(key) : "zh";
-}
+#include "Utils/G2pUtil.h"
 
 QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes, double tempo,
                                              bool useOffsetInfo) {
@@ -49,7 +37,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
         }
         auto firstWordLen = paddingSpLen + firstPhoneLen;
         noteBuffer.append({0, 0, firstWordLen, true});
-        phoneBuffer.append({"SP", findLanguage(firstNote.g2pId), true, 0});
+        phoneBuffer.append({"SP", languageFromG2pId(firstNote.g2pId), true, 0});
 
         for (int i = 0; i < firstNote.aheadNames.count(); i++) {
             auto name = firstNote.aheadNames.at(i);
@@ -58,7 +46,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
                 start = firstWordLen - firstNote.aheadOffsets.at(i) / 1000.0;
                 i++;
             }
-            phoneBuffer.append({name, findLanguage(firstNote.g2pId), false, start});
+            phoneBuffer.append({name, languageFromG2pId(firstNote.g2pId), false, start});
         }
         commit();
     };
@@ -84,7 +72,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
                 else
                     start = note.normalOffsets.at(i) / 1000.0;
             }
-            phoneBuffer.append({name, findLanguage(note.g2pId), false, start});
+            phoneBuffer.append({name, languageFromG2pId(note.g2pId), false, start});
         }
 
         // 处理当前音符之后还有音符的情况
@@ -119,7 +107,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
                     double start = 0;
                     if (useOffsetInfo)
                         start = wordLen - nextNonSlurNote.aheadOffsets.at(i) / 1000.0;
-                    InferPhoneme phone = {name, findLanguage(note.g2pId), false, start};
+                    InferPhoneme phone = {name, languageFromG2pId(note.g2pId), false, start};
                     if (!hasGap)
                         phoneBuffer.append(phone);
                     else // 如果有间隙则暂存，留给间隙音符
@@ -132,7 +120,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
         // 如果存在间隙，则再提交一个填充间隙的音符
         if (hasGap) {
             noteBuffer.append({lastKey, 0, gapLen, true});
-            phoneBuffer.append({"SP", findLanguage(note.g2pId), true, 0});
+            phoneBuffer.append({"SP", languageFromG2pId(note.g2pId), true, 0});
             phoneBuffer.append(stashedNextPhones);
             commit();
         }
@@ -141,7 +129,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
 
     // Add tail SP
     noteBuffer.append({lastKey, 0, paddingSpLen, true});
-    phoneBuffer.append({"SP", findLanguage(firstNote.g2pId), true, 0});
+    phoneBuffer.append({"SP", languageFromG2pId(firstNote.g2pId), true, 0});
     commit();
 
     return result;

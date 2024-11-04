@@ -12,6 +12,7 @@
 #include "Modules/ProjectConverters/AProjectConverter.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
+#include "Utils/G2pUtil.h"
 #include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
@@ -151,7 +152,7 @@ bool AppModel::importAceProject(const QString &filename) {
         for (const auto track : resultModel.tracks()) {
             track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
             // TODO: Temp Use
-            track->setDefaultG2pId(appOptions->general()->defaultSingingLanguage);
+            track->setDefaultG2pId(defaultG2pId());
             for (const auto clip : track->clips()) {
                 if (clip->clipType() == Clip::Singing) {
                     auto singingClip = reinterpret_cast<SingingClip *>(clip);

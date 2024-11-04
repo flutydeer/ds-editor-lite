@@ -7,7 +7,7 @@
 
 #include "Modules/Task/Task.h"
 
-class LaunchLanguageEngineTask : public Task {
+class LaunchLanguageEngineTask final : public Task {
     Q_OBJECT
 
 public:
