@@ -13,6 +13,7 @@ InferInputNote::InferInputNote(const Note &note) {
     key = note.keyIndex();
     isRest = note.lyric() == "SP" || note.lyric() == "AP";
     isSlur = note.isSlur();
+    g2pId = note.g2pId();
     aheadNames = note.phonemeNameInfo().ahead.result();
     normalNames = note.phonemeNameInfo().normal.result();
     aheadOffsets = note.phonemeOffsetInfo().ahead.result();

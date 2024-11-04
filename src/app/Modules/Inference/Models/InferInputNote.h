@@ -8,6 +8,7 @@
 #include <QList>
 
 class Note;
+
 class InferInputNote {
 public:
     explicit InferInputNote(const Note &note);
@@ -18,6 +19,7 @@ public:
     int key = -1;
     bool isRest = false;
     bool isSlur = false;
+    QString g2pId;
     QStringList aheadNames;
     QStringList normalNames;
 
@@ -28,4 +30,4 @@ public:
     friend bool operator!=(const InferInputNote &lhs, const InferInputNote &rhs);
 };
 
-#endif //INFERINPUTNOTE_H
+#endif // INFERINPUTNOTE_H
