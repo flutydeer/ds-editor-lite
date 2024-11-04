@@ -19,7 +19,7 @@ public:
     int key = -1;
     bool isRest = false;
     bool isSlur = false;
-    QString g2pId;
+    QString languageDictId;
     QStringList aheadNames;
     QStringList normalNames;
 

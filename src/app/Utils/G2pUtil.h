@@ -19,17 +19,14 @@ inline QString defaultG2pId() {
     return g2pIdFromLanguage(appOptions->general()->defaultSingingLanguage);
 }
 
-static QMap<QString, QString> g2pIdToLanguage = {
-    {"cmn-pinyin", "zh"},
-    {"jpn-romaji", "ja"},
-    {"eng",        "en"}
+static QMap<QString, QString> languageToDict = {
+    {"cmn", "zh"},
+    {"jpn", "ja"},
+    {"eng", "en"}
 };
 
-inline QString languageFromG2pId(const QString &key) {
-    if (key == "unknown")
-        return g2pIdToLanguage.contains(defaultG2pId()) ? g2pIdToLanguage.value(defaultG2pId())
-                                                        : "zh";
-    return g2pIdToLanguage.contains(key) ? g2pIdToLanguage.value(key) : "zh";
+inline QString languageDefaultDictId(const QString &language) {
+    return languageToDict.contains(language) ? languageToDict.value(language) : "zh";
 }
 
 #endif // G2PUTIL_H

@@ -8,21 +8,21 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 
-InferPhoneme::InferPhoneme(QString token, const QString &language, bool is_onset, double start)
-    : token(std::move(token)), language(language), is_onset(is_onset), start(start) {
+InferPhoneme::InferPhoneme(QString token, const QString &languageDictId, bool is_onset, double start)
+    : token(std::move(token)), languageDictId(languageDictId), is_onset(is_onset), start(start) {
 }
 
 QJsonObject InferPhoneme::serialize() const {
     return QJsonObject{
         {"token",    token   },
-        {"language", language},
+        {"language", languageDictId},
         {"start",    start   }
     };
 }
 
 bool InferPhoneme::deserialize(const QJsonObject &obj) {
     token = obj["token"].toString();
-    language = obj["language"].toString();
+    languageDictId = obj["language"].toString();
     start = obj["start"].toDouble();
     return true;
 }

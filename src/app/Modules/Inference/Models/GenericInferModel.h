@@ -11,10 +11,10 @@
 class InferPhoneme final : public ISerializable {
 public:
     InferPhoneme() = default;
-    InferPhoneme(QString token, const QString &language, bool is_onset = true, double start = 0);
+    InferPhoneme(QString token, const QString &languageDictId, bool is_onset = true, double start = 0);
 
     QString token;
-    QString language;
+    QString languageDictId;
     bool is_onset = true;
     double start = 0; // s
 
