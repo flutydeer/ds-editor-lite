@@ -15,6 +15,7 @@
 #include <dsonnxinfer/VarianceInference.h>
 
 #include "Utils/BasePitchCurve.h"
+#include "Utils/DmlUtils.h"
 #include "Utils/Log.h"
 
 #include <QDebug>
@@ -93,19 +94,27 @@ bool InferEngine::initialize(QString &error) {
 #else
         "../lib/libonnxruntime.so";
 #endif
+    const auto &gpuDeviceList = DmlUtils::getDirectXGPUs();
     // Load environment (must do this before inference)
     auto ep = DS::EP_CPU;
     if (appOptions->inference()->executionProvider == "CPU")
         ep = DS::EP_CPU;
-    else if (appOptions->inference()->executionProvider == "DirectML")
+    else if (appOptions->inference()->executionProvider == "DirectML") {
+        if (gpuDeviceList.empty())
+            qCritical() << "InferEngine: Unable to find GPU device.";
         ep = DS::EP_DirectML;
+    }
     if (!m_env.load(ortPath, ep, &errorMessage)) {
         qCritical() << "Failed to load environment:" << errorMessage;
         error += errorMessage;
         m_initialized = false;
         return false;
     }
-    m_env.setDeviceIndex(appOptions->inference()->selectedGpuIndex);
+
+    const auto selectGpuIndex = appOptions->inference()->selectedGpuIndex < gpuDeviceList.size()
+                                    ? gpuDeviceList[appOptions->inference()->selectedGpuIndex].index
+                                    : gpuDeviceList.first().index;
+    m_env.setDeviceIndex(selectGpuIndex);
     m_env.setDefaultSteps(appOptions->inference()->samplingSteps);
     m_env.setDefaultDepth(appOptions->inference()->depth);
     m_initialized = true;
