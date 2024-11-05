@@ -34,6 +34,10 @@ public:
     QString configPath();
     bool configLoaded();
 
+Q_SIGNALS:
+    void cancelAllInferTasks();
+    void recreateAllInferTasks();
+
 private:
     friend class InitInferEngineTask;
     friend class LoadInferConfigTask;

@@ -117,6 +117,16 @@ bool InferEngine::initialize(QString &error) {
     m_env.setDeviceIndex(selectGpuIndex);
     m_env.setDefaultSteps(appOptions->inference()->samplingSteps);
     m_env.setDefaultDepth(appOptions->inference()->depth);
+
+    connect(appOptions, &AppOptions::optionsChanged, this, [&]() {
+        const auto &steps = appOptions->inference()->samplingSteps;
+        if (m_env.defaultSteps() != steps) {
+            Q_EMIT cancelAllInferTasks();
+            m_env.setDefaultSteps(steps);
+            Q_EMIT recreateAllInferTasks();
+        }
+    });
+
     m_initialized = true;
     qInfo() << "Successfully loaded environment. Execution provider: DirectML";
     return true;

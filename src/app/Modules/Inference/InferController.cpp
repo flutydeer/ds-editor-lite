@@ -6,6 +6,7 @@
 #include "InferController_p.h"
 
 #include "InferControllerHelper.h"
+#include "InferEngine.h"
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Models/PhonemeNameInput.h"
@@ -21,6 +22,10 @@ InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
     Q_D(InferController);
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
             &InferControllerPrivate::onModuleStatusChanged);
+    connect(inferEngine, &InferEngine::cancelAllInferTasks, d,
+            &InferControllerPrivate::cancelAllInferTasks);
+    connect(inferEngine, &InferEngine::recreateAllInferTasks, d,
+            &InferControllerPrivate::recreateAllInferTasks);
     // connect(appStatus, &AppStatus::editingChanged, d, &InferControllerPrivate::onEditingChanged);
 }
 
@@ -324,7 +329,8 @@ void InferControllerPrivate::recreateAllInferTasks() {
 
 void InferControllerPrivate::createAndRunGetPronTask(SingingClip &clip) {
     if (clip.notes().count() <= 0) {
-        qDebug() << "createAndRunGetPhoneTask:" << "Note list is empty";
+        qDebug() << "createAndRunGetPhoneTask:"
+                 << "Note list is empty";
         return;
     }
     auto task = new GetPronunciationTask(clip.id(), clip.notes().toList());
@@ -420,6 +426,16 @@ void InferControllerPrivate::reset() {
     m_lastInferPitchInputs.clear();
     m_lastInferVarianceInputs.clear();
     m_lastInferAcousticInputs.clear();
+}
+
+void InferControllerPrivate::cancelAllInferTasks() {
+    for (const auto &track : appModel->tracks())
+        for (const auto &clip : track->clips()) {
+            if (clip->clipType() != IClip::Singing)
+                continue;
+            const auto singingClip = reinterpret_cast<SingingClip *>(clip);
+            this->cancelClipRelatedTasks(singingClip);
+        }
 }
 
 void InferControllerPrivate::cancelClipRelatedTasks(SingingClip *clip) {
