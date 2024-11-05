@@ -5,12 +5,12 @@
 
 #include "Syllable2p.h"
 
+#include "phonemedictionary.h"
+
 namespace FillLyric {
     class Syllable2pPrivate {
     public:
-        explicit Syllable2pPrivate(QString dictPath, QString dictName, const QChar &sep1 = '\t',
-                                   QString sep2 = " ");
-
+        explicit Syllable2pPrivate(QString dictPath, QString dictName);
         ~Syllable2pPrivate();
 
         void init();
@@ -19,13 +19,14 @@ namespace FillLyric {
 
         Syllable2p *q_ptr{};
 
-        std::unordered_map<QString, QStringList> phonemeMap;
+        QStringList lookup(const QString &key) const;
+
+        dsutils::PhonemeDictionary fileMap;
+        mutable std::unordered_map<QString, QStringList> phonemeMap;
 
     private:
         QString dictPath;
         QString dictName;
-        QChar sep1;
-        QString sep2;
     };
 }
 #endif // SYLLABLE2PPRIVATE_H

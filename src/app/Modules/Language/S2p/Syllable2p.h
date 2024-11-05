@@ -9,9 +9,7 @@ namespace FillLyric {
 
     class Syllable2p {
     public:
-        explicit Syllable2p(QString dictPath, QString dictName, const QChar &sep1 = '\t',
-                            const QString &sep2 = " ");
-
+        explicit Syllable2p(QString dictPath, QString dictName);
         ~Syllable2p();
 
         QStringList syllableToPhoneme(const QString &syllable) const;

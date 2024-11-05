@@ -10,10 +10,9 @@
 
 class S2p final : public Singleton<S2p>, public FillLyric::Syllable2p {
 public:
-    explicit S2p(const QString &dictPath = qApp->applicationDirPath(),
-                 const QString &dictName = getDefaultDictName(), QChar sep1 = '\t',
-                 const QString &sep2 = " ")
-        : Syllable2p(dictPath, dictName, sep1, sep2) {
+    explicit S2p(const QString &dictPath = QApplication::applicationDirPath(),
+                 const QString &dictName = getDefaultDictName())
+        : Syllable2p(dictPath, dictName) {
     }
 
 private:
