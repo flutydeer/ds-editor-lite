@@ -90,7 +90,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
 
     const auto &language = appOptions->general()->defaultSingingLanguage;
 
-    auto decodeNotes = [language](const QList<QDspx::Note> &arrNotes) {
+    auto decodeNotes = [](const QList<QDspx::Note> &arrNotes) {
         QList<Note *> notes;
         for (const QDspx::Note &dsNote : arrNotes) {
             const auto note = new Note;
@@ -99,8 +99,6 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
             note->setKeyIndex(dsNote.keyNum);
             note->setLyric(dsNote.lyric.isEmpty() ? appOptions->general()->defaultLyric
                                                   : dsNote.lyric);
-            note->setLanguage(language);
-            note->setG2pId(language);
             notes.append(note);
         }
         return notes;
