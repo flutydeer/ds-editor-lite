@@ -23,7 +23,7 @@
 
 #include <QTextEdit>
 #include <utility>
-#include <utility>
+#include "Utils/G2pUtil.h"
 
 static bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                           const QList<QByteArray> &labelList, QList<int> *selectIDs,
@@ -90,7 +90,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
 
     const auto &language = appOptions->general()->defaultSingingLanguage;
 
-    auto decodeNotes = [](const QList<QDspx::Note> &arrNotes) {
+    auto decodeNotes = [language](const QList<QDspx::Note> &arrNotes) {
         QList<Note *> notes;
         for (const QDspx::Note &dsNote : arrNotes) {
             const auto note = new Note;
@@ -99,6 +99,8 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
             note->setKeyIndex(dsNote.keyNum);
             note->setLyric(dsNote.lyric.isEmpty() ? appOptions->general()->defaultLyric
                                                   : dsNote.lyric);
+            note->setLanguage(language);
+            note->setG2pId(g2pIdFromLanguage(language));
             notes.append(note);
         }
         return notes;
@@ -115,7 +117,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
                 singingClip->setLength(clip->time.length);
                 singingClip->setClipLen(clip->time.clipLen + 960);
                 singingClip->defaultLanguage = language;
-                singingClip->defaultG2pId = language;
+                singingClip->defaultG2pId = g2pIdFromLanguage(language);
                 auto notes = decodeNotes(singClip->notes);
                 for (const auto &note : notes)
                     singingClip->insertNote(note);
@@ -139,7 +141,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
             const auto dsTrack = new Track;
             dsTrack->setName(track.name);
             dsTrack->setDefaultLanguage(language);
-            dsTrack->setDefaultG2pId(language);
+            dsTrack->setDefaultG2pId(g2pIdFromLanguage(language));
             decodeClips(track, dsTrack);
             _model->insertTrack(dsTrack, i);
         }
