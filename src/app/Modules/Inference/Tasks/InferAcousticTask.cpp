@@ -67,13 +67,12 @@ void InferAcousticTask::runTask() {
     const auto input = buildInputJson();
     m_inputHash = input.hashData();
     const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
-    const auto inputCachePath = cacheDir.filePath(
-        QString("infer-%1-acoustic-input-%2.json").arg(pieceId()).arg(m_inputHash));
+    const auto inputCachePath =
+        cacheDir.filePath(QString("infer-acoustic-input-%1.json").arg(m_inputHash));
     if (!QFile(inputCachePath).exists())
         JsonUtils::save(inputCachePath, input.serialize());
     bool useCache = false;
-    const auto outputCachePath = cacheDir.filePath(QString("infer-%1-acoustic-output-%2-%3step.wav")
-                                                       .arg(pieceId())
+    const auto outputCachePath = cacheDir.filePath(QString("infer-acoustic-output-%1-%2step.wav")
                                                        .arg(m_inputHash)
                                                        .arg(inferEngine->m_env.defaultSteps()));
     if (QFile(outputCachePath).exists())
