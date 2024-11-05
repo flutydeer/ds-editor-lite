@@ -42,12 +42,14 @@ public:
                 continue;
             }
 
-            gpuList.push_back({
-                static_cast<int>(adapterIndex),
-                QString::fromWCharArray(desc.Description),
-                desc.DedicatedVideoMemory
-            });
-             }
+            gpuList.push_back({static_cast<int>(adapterIndex),
+                               QString::fromWCharArray(desc.Description),
+                               desc.DedicatedVideoMemory});
+        }
+
+        // Sort gpuList by DedicatedVideoMemory in descending order
+        std::sort(gpuList.begin(), gpuList.end(),
+                  [](const GpuInfo &a, const GpuInfo &b) { return a.memory > b.memory; });
         return gpuList;
 #else
         return {};
@@ -57,4 +59,4 @@ public:
 
 
 
-#endif //DMLUTILS_H
+#endif // DMLUTILS_H
