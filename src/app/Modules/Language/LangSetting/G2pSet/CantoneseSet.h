@@ -9,7 +9,7 @@ namespace LangSetting {
     class CantoneseSet final : public IG2pSetFactory {
         Q_OBJECT
     public:
-        explicit CantoneseSet(QObject *parent = nullptr) : IG2pSetFactory("yue", parent) {
+        explicit CantoneseSet(QObject *parent = nullptr) : IG2pSetFactory("yue-jyutping", parent) {
             d = LangMgr::ILanguageManager::instance()->g2p(id());
         }
 

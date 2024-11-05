@@ -70,7 +70,7 @@ namespace LangSetting {
         return {};
     }
 
-    QWidget *IG2pSetFactory::langConfigWidget(QJsonObject config) {
+    QWidget *IG2pSetFactory::langConfigWidget(const QJsonObject &config) {
         auto *widget = new QWidget();
         auto *mainlayout = new QVBoxLayout();
         widget->setLayout(mainlayout);

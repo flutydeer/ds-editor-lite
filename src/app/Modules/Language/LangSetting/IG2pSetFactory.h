@@ -19,7 +19,7 @@ namespace LangSetting {
         ~IG2pSetFactory() override;
 
         virtual QJsonObject config();
-        virtual QWidget *langConfigWidget(QJsonObject config);
+        virtual QWidget *langConfigWidget(const QJsonObject &config);
         virtual QWidget *g2pConfigWidget(const QJsonObject &config);
 
     Q_SIGNALS:

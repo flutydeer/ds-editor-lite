@@ -11,7 +11,7 @@ namespace LangSetting {
         Q_OBJECT
 
     public:
-        explicit MandarinSet(QObject *parent = nullptr) : IG2pSetFactory("cmn", parent) {
+        explicit MandarinSet(QObject *parent = nullptr) : IG2pSetFactory("cmn-pinyin", parent) {
             d = LangMgr::ILanguageManager::instance()->g2p(id());
         }
 
