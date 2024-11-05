@@ -23,7 +23,7 @@ public slots:
     void setPosition(double tick);
     void setQuantize(int quantize) override;
     void setDataContext(SingingClip *clip);
-    // void setPieces(const QList<InferPiece *> &pieces);
+    void setPieces(const QList<InferPiece *> &pieces);
 
 signals:
     void wheelHorScale(QWheelEvent *event);

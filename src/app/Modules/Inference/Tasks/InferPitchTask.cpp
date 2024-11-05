@@ -66,11 +66,12 @@ void InferPitchTask::runTask() {
     m_inputHash = input.hashData();
     const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
     const auto inputCachePath =
-        cacheDir.filePath(QString("infer-pitch-input-%1.json").arg(m_inputHash));
+        cacheDir.filePath(QString("infer-%1-pitch-input-%2.json").arg(pieceId()).arg(m_inputHash));
     if (!QFile(inputCachePath).exists())
         JsonUtils::save(inputCachePath, input.serialize());
     bool useCache = false;
-    const auto outputCachePath = cacheDir.filePath(QString("infer-pitch-output-%1-%2step.json")
+    const auto outputCachePath = cacheDir.filePath(QString("infer-%1-pitch-output-%2-%3step.json")
+                                                       .arg(pieceId())
                                                        .arg(m_inputHash)
                                                        .arg(inferEngine->m_env.defaultSteps()));
     if (QFile(outputCachePath).exists()) {
