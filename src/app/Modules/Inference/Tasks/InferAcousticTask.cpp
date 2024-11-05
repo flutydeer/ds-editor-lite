@@ -64,20 +64,24 @@ void InferAcousticTask::runTask() {
     setStatus(newStatus);
 
     GenericInferModel model;
-    auto input = buildInputJson();
+    const auto input = buildInputJson();
     m_inputHash = input.hashData();
-    auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
-    JsonUtils::save(cacheDir.filePath(QString("infer-acoustic-input-%1.json").arg(m_inputHash)),
-                    input.serialize());
+    const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
+    const auto inputCachePath =
+        cacheDir.filePath(QString("infer-acoustic-input-%1.json").arg(m_inputHash));
+    if (!QFile(inputCachePath).exists())
+        JsonUtils::save(inputCachePath, input.serialize());
     bool useCache = false;
-    auto cachePath = cacheDir.filePath(QString("infer-acoustic-output-%1.wav").arg(m_inputHash));
-    if (QFile(cachePath).exists())
+    const auto outputCachePath = cacheDir.filePath(QString("infer-acoustic-output-%1-%2step.wav")
+                                                       .arg(m_inputHash)
+                                                       .arg(inferEngine->m_env.defaultSteps()));
+    if (QFile(outputCachePath).exists())
         useCache = true;
 
     QString errorMessage;
     if (useCache) {
-        qInfo() << "Use cached acoustic inference result:" << cachePath;
-        m_result = cachePath;
+        qInfo() << "Use cached acoustic inference result:" << outputCachePath;
+        m_result = outputCachePath;
     } else {
         qDebug() << "acoustic inference cache not found. Running inference...";
         if (!inferEngine->runLoadConfig(m_input.configPath)) {
@@ -89,8 +93,8 @@ void InferAcousticTask::runTask() {
             abort();
             return;
         }
-        if (inferEngine->inferAcoustic(input.serializeToJson(), cachePath, errorMessage)) {
-            m_result = cachePath;
+        if (inferEngine->inferAcoustic(input.serializeToJson(), outputCachePath, errorMessage)) {
+            m_result = outputCachePath;
         } else {
             qCritical() << "Task failed:" << errorMessage;
             return;
