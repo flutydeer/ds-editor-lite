@@ -15,6 +15,7 @@
 #include "Modules/Language/S2p.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
+#include "UI/Dialogs/Search/SearchDialog.h"
 
 #include <QClipboard>
 #include <QMimeData>
@@ -302,10 +303,6 @@ void ClipController::onSelectAllNotes() {
 
 void ClipController::onFillLyric(QWidget *parent) {
     Q_D(const ClipController);
-    // if (d->m_clip == nullptr)
-    //     return;
-    // if (d->m_clip->type() != Clip::Singing)
-    //     return;
 
     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     auto selectedNotes =
@@ -370,6 +367,14 @@ void ClipController::onFillLyric(QWidget *parent) {
     a->editNotesWordProperties(notesToEdit, args, singingClip);
     a->execute();
     historyManager->record(a);
+}
+
+void ClipController::onSearchLyric(QWidget *parent) {
+    Q_D(const ClipController);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    SearchDialog searchDialog(singingClip, parent);
+    searchDialog.show();
+    searchDialog.exec();
 }
 
 void ClipControllerPrivate::removeNotes(const QList<Note *> &notes) const {

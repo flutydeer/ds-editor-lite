@@ -133,9 +133,15 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     d->m_actionFillLyrics->setEnabled(false);
     connect(d->m_actionFillLyrics, &QAction::triggered, clipController,
             [this] { clipController->onFillLyric(this); });
+
+    d->m_searchFillLyrics = new QAction(tr("Search Lyrics..."), this);
+    d->m_searchFillLyrics->setShortcut(QKeySequence("Ctrl+F"));
+    connect(d->m_searchFillLyrics, &QAction::triggered, clipController,
+            [this] { clipController->onSearchLyric(this); });
     // menuModify->addAction(d->m_actionFillLyrics);
     menuEdit->addSeparator();
     menuEdit->addAction(d->m_actionFillLyrics);
+    menuEdit->addAction(d->m_searchFillLyrics);
 
     auto menuOptions = new CMenu(tr("&Options"), this);
     auto actionGeneralOptions = new QAction(tr("&General..."), this);

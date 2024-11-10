@@ -61,6 +61,7 @@ public slots:
     void onDeleteSelectedNotes();
     void onSelectAllNotes();
     void onFillLyric(QWidget *parent);
+    void onSearchLyric(QWidget *parent);
 
 private:
     Q_DECLARE_PRIVATE(ClipController);

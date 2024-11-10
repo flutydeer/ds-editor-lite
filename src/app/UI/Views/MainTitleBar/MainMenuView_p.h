@@ -30,6 +30,7 @@ public:
     QAction *m_actionCopy = nullptr;
     QAction *m_actionPaste = nullptr;
     QAction *m_actionFillLyrics = nullptr;
+    QAction *m_searchFillLyrics = nullptr;
 
     AppGlobal::PanelType m_panelType = AppGlobal::Generic;
 

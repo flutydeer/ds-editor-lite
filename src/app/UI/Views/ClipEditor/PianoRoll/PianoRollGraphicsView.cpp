@@ -516,6 +516,10 @@ CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
     connect(actionEditLyric, &QAction::triggered, clipController,
             [=] { clipController->onFillLyric(q); });
 
+    auto actionSearchLyric = menu->addAction(tr("Search lyrics..."));
+    connect(actionSearchLyric, &QAction::triggered, clipController,
+            [=] { clipController->onSearchLyric(q); });
+
     menu->addSeparator();
 
     auto actionRemove = menu->addAction(tr("Delete"));
