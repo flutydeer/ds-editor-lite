@@ -4,7 +4,9 @@
 
 #include "GetPronunciationTask.h"
 
+#include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Note.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 
 #include <QDebug>
@@ -53,8 +55,9 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
         langNotes.append(langNote);
     }
 
+    const auto singingClip = reinterpret_cast<SingingClip *>(appModel->findClipById(m_clipId));
     // TODO: add priorityG2pIds, {defaultG2pId, singer support g2pId1, singer support g2pId2 ...}
-    langMgr->correct(langNotes, {});
+    langMgr->correct(langNotes, {singingClip->defaultG2pId});
     langMgr->convert(langNotes);
 
     QList<QString> result;

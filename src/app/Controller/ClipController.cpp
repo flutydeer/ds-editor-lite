@@ -321,12 +321,12 @@ void ClipController::onFillLyric(QWidget *parent) {
         inputNote->setPronunciation(note->pronunciation());
         inputNote->setPronCandidates(note->pronCandidates());
         inputNote->setLanguage(note->language());
-        inputNote->setG2pId(note->language());
+        inputNote->setG2pId(note->g2pId());
         inputNotes.append(inputNote);
     }
 
     // TODO: add priorityG2pIds, {defaultG2pId, singer support g2pId1, singer support g2pId2 ...}
-    LyricDialog lyricDialog(inputNotes, {}, parent);
+    LyricDialog lyricDialog(inputNotes, {singingClip->defaultG2pId}, parent);
     lyricDialog.show();
     lyricDialog.setLangNotes();
     lyricDialog.exec();
