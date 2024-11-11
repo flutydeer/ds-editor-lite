@@ -8,6 +8,7 @@
 #include <QCloseEvent>
 #include <QVBoxLayout>
 #include <QMessageBox>
+#include <QPushButton>
 
 SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     : Dialog(parent), m_clip(singingClip), m_notes(m_clip->notes().toList()) {
@@ -17,12 +18,20 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     resize(200, 80);
 
     lineEditSearch = new QLineEdit();
+    auto *searchLayout = new QHBoxLayout();
+    btnPrev = new QPushButton("↑");
+    btnNext = new QPushButton("↓");
+
+    searchLayout->addWidget(lineEditSearch);
+    searchLayout->addWidget(btnPrev);
+    searchLayout->addWidget(btnNext);
+
     resultListWidget = new QListWidget();
-    labelInfo = new QLabel("请输入搜索内容");
+    labelInfo = new QLabel("找到了 0 个匹配项");
 
     auto *layout = new QVBoxLayout();
+    layout->addLayout(searchLayout);
     layout->addWidget(labelInfo);
-    layout->addWidget(lineEditSearch);
     layout->addWidget(resultListWidget);
 
     body()->setLayout(layout);
@@ -32,6 +41,11 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     connect(lineEditSearch, &QLineEdit::textChanged, this, &SearchDialog::onSearchTextChanged);
     connect(resultListWidget, &QListWidget::currentRowChanged, this,
             &SearchDialog::onItemSelectionChanged);
+    connect(btnPrev, &QPushButton::clicked, this, &SearchDialog::onPrevClicked);
+    connect(btnNext, &QPushButton::clicked, this, &SearchDialog::onNextClicked);
+
+    btnPrev->setEnabled(false);
+    btnNext->setEnabled(false);
 
     if (parent) {
         const QRect parentGeometry = QApplication::primaryScreen()->geometry();
@@ -49,11 +63,6 @@ void SearchDialog::onSearchTextChanged(const QString &searchTerm) {
     resultListWidget->clear();
     labelInfo->clear();
 
-    if (searchTerm.isEmpty()) {
-        labelInfo->setText("请输入搜索内容");
-        return;
-    }
-
     for (const auto &note : m_notes) {
         if (note->lyric().startsWith(searchTerm, Qt::CaseInsensitive)) {
             QString displayText =
@@ -65,6 +74,9 @@ void SearchDialog::onSearchTextChanged(const QString &searchTerm) {
     }
 
     labelInfo->setText(QString("找到了 %1 个匹配项").arg(resultListWidget->count()));
+    if (resultListWidget->count() > 0)
+        resultListWidget->setCurrentRow(0);
+    updateButtonState();
 }
 
 void SearchDialog::onItemSelectionChanged(const int row) const {
@@ -74,4 +86,30 @@ void SearchDialog::onItemSelectionChanged(const int row) const {
         const auto &note = m_clip->findNoteById(noteId);
         clipController->centerAt(note->start(), note->keyIndex());
     }
+}
+
+void SearchDialog::onPrevClicked() const {
+    int currentRow = resultListWidget->currentRow();
+    if (currentRow > 0) {
+        currentRow--;
+    } else {
+        currentRow = resultListWidget->count() - 1;
+    }
+    resultListWidget->setCurrentRow(currentRow);
+}
+
+void SearchDialog::onNextClicked() const {
+    int currentRow = resultListWidget->currentRow();
+    if (currentRow < resultListWidget->count() - 1) {
+        currentRow++;
+    } else {
+        currentRow = 0;
+    }
+    resultListWidget->setCurrentRow(currentRow);
+}
+
+void SearchDialog::updateButtonState() const {
+    const bool hasItems = resultListWidget->count() > 0;
+    btnPrev->setEnabled(hasItems);
+    btnNext->setEnabled(hasItems);
 }

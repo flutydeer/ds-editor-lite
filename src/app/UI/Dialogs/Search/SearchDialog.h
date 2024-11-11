@@ -5,6 +5,8 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QListWidget>
+#include <QPushButton>
+#include <QHBoxLayout>
 
 #include "UI/Dialogs/Base/Dialog.h"
 #include "Model/AppModel/SingingClip.h"
@@ -18,13 +20,19 @@ public:
 private Q_SLOTS:
     void onSearchTextChanged(const QString &searchTerm);
     void onItemSelectionChanged(int row) const;
+    void onPrevClicked() const;
+    void onNextClicked() const;
 
 private:
+    void updateButtonState() const;
+
     SingingClip *m_clip;
     QList<Note *> m_notes;
     QLineEdit *lineEditSearch;
     QListWidget *resultListWidget;
     QLabel *labelInfo;
+    QPushButton *btnPrev;
+    QPushButton *btnNext;
     QString searchText;
 };
 
