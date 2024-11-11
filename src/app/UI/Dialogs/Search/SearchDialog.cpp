@@ -20,15 +20,9 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     resize(150, 300);
 
     lineEditSearch = new QLineEdit();
-    auto *searchLayout = new QHBoxLayout();
-    btnPrev = new QPushButton("↑");
-    btnNext = new QPushButton("↓");
-
-    searchLayout->addWidget(lineEditSearch);
-    searchLayout->addWidget(btnPrev);
-    searchLayout->addWidget(btnNext);
 
     resultListWidget = new QListWidget();
+    resultListWidget->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     labelInfo = new QLabel("找到了 0 个匹配项");
 
     // 新建单选按钮控件
@@ -60,13 +54,21 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     checkBoxLayout->addWidget(caseSensitiveCheckBox);
     checkBoxLayout->addWidget(regexCheckBox);
 
+    auto *resultLayout = new QHBoxLayout();
+    btnPrev = new QPushButton("上一个");
+    btnNext = new QPushButton("下一个");
+
+    resultLayout->addWidget(labelInfo);
+    resultLayout->addStretch();
+    resultLayout->addWidget(btnPrev);
+    resultLayout->addWidget(btnNext);
+
     // 修改布局，将单选按钮布局和复选框布局添加到主布局中
     auto *layout = new QVBoxLayout();
-    layout->addLayout(searchLayout);
+    layout->addWidget(lineEditSearch);
     layout->addLayout(checkBoxLayout);
     layout->addLayout(searchTypeLayout);
-
-    layout->addWidget(labelInfo);
+    layout->addLayout(resultLayout);
     layout->addWidget(resultListWidget);
 
     body()->setLayout(layout);
@@ -147,9 +149,8 @@ void SearchDialog::onSearchTextChanged() {
 
         if (match) {
             QString displayText =
-                QString("%1 (起始秒数: %2 s)")
-                    .arg(note->lyric(), QString::number(static_cast<int>(
-                                            appModel->tickToMs(note->start()) / 1000)));
+                QString("%1 (%2)")
+                    .arg(note->lyric(), appModel->getBarBeatTickTime(note->start()));
             auto *item = new QListWidgetItem(displayText);
             item->setData(Qt::UserRole, note->id());
             resultListWidget->addItem(item);
@@ -168,6 +169,7 @@ void SearchDialog::onItemSelectionChanged(const int row) const {
         const int noteId = item->data(Qt::UserRole).toInt();
         const auto &note = m_clip->findNoteById(noteId);
         clipController->centerAt(note->start(), note->keyIndex());
+        clipController->selectNotes({note->id()}, true);
     }
 }
 

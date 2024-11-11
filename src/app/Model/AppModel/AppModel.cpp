@@ -340,6 +340,18 @@ double AppModel::msToTick(double ms) const {
     return ms * 480 * d->m_tempo / 60000;
 }
 
+QString AppModel::getBarBeatTickTime(int ticks) const {
+    Q_D(const AppModel);
+    int barTicks = 1920 * d->m_timeSignature.numerator / d->m_timeSignature.denominator;
+    int beatTicks = 1920 / d->m_timeSignature.denominator;
+    auto bar = ticks / barTicks + 1;
+    auto beat = ticks % barTicks / beatTicks + 1;
+    auto tick = ticks % barTicks % beatTicks;
+    auto str = QString::asprintf("%03d", bar) + ":" + QString::asprintf("%02d", beat) + ":" +
+               QString::asprintf("%03d", tick);
+    return str;
+}
+
 int AppModel::projectLengthInTicks() const {
     Q_D(const AppModel);
     int length = 0;

@@ -58,6 +58,7 @@ public:
     Track *findTrackById(int id);
     [[nodiscard]] double tickToMs(double tick) const;
     [[nodiscard]] double msToTick(double ms) const;
+    [[nodiscard]] QString getBarBeatTickTime(int ticks) const;
     [[nodiscard]] int projectLengthInTicks() const;
 
     class LevelMetersUpdatedArgs {

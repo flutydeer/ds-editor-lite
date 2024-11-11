@@ -34,8 +34,8 @@ public:
 
     AppGlobal::PanelType m_panelType = AppGlobal::Generic;
 
-    void onNewProject() const;
-    void onOpenProject();
+    void onNew() const;
+    void onOpen();
     // void onOpenAProject();
     void onImportMidiFile();
     void onExportMidiFile();

@@ -28,13 +28,13 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
             [=](AppGlobal::PanelType panel) { d->onActivatedPanelChanged(panel); });
 
     auto menuFile = new CMenu(tr("&File"), this);
-    auto actionNewProject = new QAction(tr("&New Project"), this);
-    actionNewProject->setShortcut(QKeySequence("Ctrl+N"));
-    connect(actionNewProject, &QAction::triggered, this, [=] { d->onNewProject(); });
+    auto actionNew = new QAction(tr("&New"), this);
+    actionNew->setShortcut(QKeySequence("Ctrl+N"));
+    connect(actionNew, &QAction::triggered, this, [=] { d->onNew(); });
 
-    auto actionOpenProject = new QAction(tr("&Open Project..."));
-    actionOpenProject->setShortcut(QKeySequence("Ctrl+O"));
-    connect(actionOpenProject, &QAction::triggered, this, [=] { d->onOpenProject(); });
+    auto actionOpen = new QAction(tr("&Open..."));
+    actionOpen->setShortcut(QKeySequence("Ctrl+O"));
+    connect(actionOpen, &QAction::triggered, this, [=] { d->onOpen(); });
 
     // auto actionOpenAProject = new QAction(tr("Open A Project"), this);
     // connect(actionOpenAProject, &QAction::triggered, this, [=] { d->onOpenAProject(); });
@@ -61,8 +61,8 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     auto actionExit = new QAction(tr("Exit"), this);
     connect(actionExit, &QAction::triggered, this, [=] { d->exitApp(); });
 
-    menuFile->addAction(actionNewProject);
-    menuFile->addAction(actionOpenProject);
+    menuFile->addAction(actionNew);
+    menuFile->addAction(actionOpen);
     // menuFile->addAction(actionOpenAProject);
     menuFile->addAction(d->m_actionSave);
     menuFile->addAction(d->m_actionSaveAs);
@@ -198,7 +198,7 @@ QAction *MainMenuView::actionSaveAs() {
     return d->m_actionSaveAs;
 }
 
-void MainMenuViewPrivate::onNewProject() const {
+void MainMenuViewPrivate::onNew() const {
     if (!historyManager->isOnSavePoint()) {
         if (m_mainWindow->askSaveChanges())
             appController->newProject();
@@ -206,7 +206,7 @@ void MainMenuViewPrivate::onNewProject() const {
         appController->newProject();
 }
 
-void MainMenuViewPrivate::onOpenProject() {
+void MainMenuViewPrivate::onOpen() {
     Q_Q(MainMenuView);
     auto openProject = [=] {
         auto lastDir = appController->lastProjectFolder();

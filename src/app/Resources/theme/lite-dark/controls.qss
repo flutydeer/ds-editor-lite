@@ -522,6 +522,10 @@ QCheckBox::indicator:unchecked:disabled {
     border: 1px solid rgb(64, 64, 64);
 }
 
+QRadioButton {
+    color: #f2f2f2;
+}
+
 
 /* TabWidget */
 QTabWidget {
