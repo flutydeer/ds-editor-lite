@@ -7,9 +7,12 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QHBoxLayout>
+#include <QRadioButton> // 引入 QRadioButton
 
 #include "UI/Dialogs/Base/Dialog.h"
 #include "Model/AppModel/SingingClip.h"
+
+#include <QCheckBox>
 
 class SearchDialog final : public Dialog {
     Q_OBJECT
@@ -18,7 +21,7 @@ public:
     ~SearchDialog() override;
 
 private Q_SLOTS:
-    void onSearchTextChanged(const QString &searchTerm);
+    void onSearchTextChanged();
     void onItemSelectionChanged(int row) const;
     void onPrevClicked() const;
     void onNextClicked() const;
@@ -33,6 +36,11 @@ private:
     QLabel *labelInfo;
     QPushButton *btnPrev;
     QPushButton *btnNext;
+    QRadioButton *startWithRadioButton;
+    QRadioButton *fullSearchRadioButton;
+    QRadioButton *fuzzySearchRadioButton;
+    QCheckBox *caseSensitiveCheckBox;
+    QCheckBox *regexCheckBox;
     QString searchText;
 };
 

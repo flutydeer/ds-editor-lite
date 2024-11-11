@@ -5,17 +5,19 @@
 #include "Model/AppModel/Note.h"
 
 #include <QApplication>
+#include <QButtonGroup>
 #include <QCloseEvent>
 #include <QVBoxLayout>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QRegularExpression>
 
 SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     : Dialog(parent), m_clip(singingClip), m_notes(m_clip->notes().toList()) {
     setModal(true);
     setWindowTitle("搜索歌词");
 
-    resize(200, 80);
+    resize(150, 300);
 
     lineEditSearch = new QLineEdit();
     auto *searchLayout = new QHBoxLayout();
@@ -29,8 +31,41 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     resultListWidget = new QListWidget();
     labelInfo = new QLabel("找到了 0 个匹配项");
 
+    // 新建单选按钮控件
+    startWithRadioButton = new QRadioButton("起始匹配");
+    startWithRadioButton->setToolTip("以输入文本起始搜索");
+    fullSearchRadioButton = new QRadioButton("完全匹配");
+    startWithRadioButton->setToolTip("完全匹配");
+    fuzzySearchRadioButton = new QRadioButton("包含搜索");
+    fuzzySearchRadioButton->setToolTip("包含文本");
+
+    startWithRadioButton->setChecked(true);
+
+    auto *searchModeGroup = new QButtonGroup(this);
+    searchModeGroup->addButton(startWithRadioButton);
+    searchModeGroup->addButton(fullSearchRadioButton);
+    searchModeGroup->addButton(fuzzySearchRadioButton);
+
+    // 新建复选框控件
+    caseSensitiveCheckBox = new QCheckBox("区分大小写");
+    regexCheckBox = new QCheckBox("正则表达式");
+
+    // 布局调整
+    auto *searchTypeLayout = new QHBoxLayout();
+    searchTypeLayout->addWidget(startWithRadioButton);
+    searchTypeLayout->addWidget(fullSearchRadioButton);
+    searchTypeLayout->addWidget(fuzzySearchRadioButton);
+
+    auto *checkBoxLayout = new QHBoxLayout();
+    checkBoxLayout->addWidget(caseSensitiveCheckBox);
+    checkBoxLayout->addWidget(regexCheckBox);
+
+    // 修改布局，将单选按钮布局和复选框布局添加到主布局中
     auto *layout = new QVBoxLayout();
     layout->addLayout(searchLayout);
+    layout->addLayout(checkBoxLayout);
+    layout->addLayout(searchTypeLayout);
+
     layout->addWidget(labelInfo);
     layout->addWidget(resultListWidget);
 
@@ -39,6 +74,13 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     searchText = "请输入搜索内容";
 
     connect(lineEditSearch, &QLineEdit::textChanged, this, &SearchDialog::onSearchTextChanged);
+    connect(startWithRadioButton, &QRadioButton::toggled, this, &SearchDialog::onSearchTextChanged);
+    connect(fuzzySearchRadioButton, &QRadioButton::toggled, this,
+            &SearchDialog::onSearchTextChanged);
+    connect(caseSensitiveCheckBox, &QCheckBox::toggled, this, &SearchDialog::onSearchTextChanged);
+    connect(regexCheckBox, &QCheckBox::toggled, this, &SearchDialog::onSearchTextChanged);
+    connect(lineEditSearch, &QLineEdit::textChanged, this, &SearchDialog::onSearchTextChanged);
+
     connect(resultListWidget, &QListWidget::currentRowChanged, this,
             &SearchDialog::onItemSelectionChanged);
     connect(btnPrev, &QPushButton::clicked, this, &SearchDialog::onPrevClicked);
@@ -59,14 +101,55 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
 
 SearchDialog::~SearchDialog() = default;
 
-void SearchDialog::onSearchTextChanged(const QString &searchTerm) {
+void SearchDialog::onSearchTextChanged() {
+    const QString &searchTerm = lineEditSearch->text();
     resultListWidget->clear();
     labelInfo->clear();
 
+    const Qt::CaseSensitivity caseSensitivity =
+        caseSensitiveCheckBox->isChecked() ? Qt::CaseSensitive : Qt::CaseInsensitive;
+    const bool useRegex = regexCheckBox->isChecked();
+    const bool useStart = startWithRadioButton->isChecked();
+    const bool useFull = fullSearchRadioButton->isChecked();
+
     for (const auto &note : m_notes) {
-        if (note->lyric().startsWith(searchTerm, Qt::CaseInsensitive)) {
+        QString lyric = note->lyric();
+
+        bool match;
+        if (useStart) {
+            if (useRegex) {
+                QRegularExpression regex(
+                    "^" + searchTerm,
+                    static_cast<QRegularExpression::PatternOption>(!caseSensitivity));
+                match = lyric.contains(regex);
+            } else {
+                match = lyric.startsWith(searchTerm, caseSensitivity);
+            }
+        } else if (useFull) {
+            if (useRegex) {
+                QRegularExpression regex(
+                    "^" + searchTerm + "$",
+                    static_cast<QRegularExpression::PatternOption>(!caseSensitivity));
+                match = lyric.contains(regex);
+            } else {
+                match = (lyric.compare(searchTerm, caseSensitivity) == 0);
+            }
+        } else {
+            if (useRegex) {
+                QRegularExpression regex(
+                    searchTerm, static_cast<QRegularExpression::PatternOption>(!caseSensitivity));
+                match = lyric.contains(regex);
+            } else {
+                match = lyric.contains(searchTerm, caseSensitivity);
+            }
+        }
+
+
+        if (match) {
             QString displayText =
-                QString("%1 (起始tick: %2)").arg(note->lyric(), QString::number(note->start()));
+                QString("%1 (起始秒数: %2 s)")
+                    .arg(note->lyric(), QString::number(static_cast<int>(
+                                            appModel->tickToMs(note->start()) / 1000)));
             auto *item = new QListWidgetItem(displayText);
             item->setData(Qt::UserRole, note->id());
             resultListWidget->addItem(item);
