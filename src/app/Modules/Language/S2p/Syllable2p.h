@@ -2,15 +2,17 @@
 #define SYLLABLE2P_H
 
 #include <memory>
-#include <QString>
+#include <QObject>
 
 namespace FillLyric {
     class Syllable2pPrivate;
 
-    class Syllable2p {
+    class Syllable2p : public QObject {
+        Q_OBJECT
+        Q_DECLARE_PRIVATE(Syllable2p)
     public:
-        explicit Syllable2p(QString dictPath, QString dictName);
-        ~Syllable2p();
+        explicit Syllable2p(QString dictPath);
+        ~Syllable2p() override;
 
         QStringList syllableToPhoneme(const QString &syllable) const;
 
@@ -19,7 +21,7 @@ namespace FillLyric {
     protected:
         explicit Syllable2p(Syllable2pPrivate &d);
 
-        std::unique_ptr<Syllable2pPrivate> d_ptr;
+        QScopedPointer<Syllable2pPrivate> d_ptr;
     };
 }
 

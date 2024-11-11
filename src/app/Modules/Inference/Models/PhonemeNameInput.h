@@ -10,7 +10,8 @@
 class PhonemeNameInput {
 public:
     QString lyric;
+    QString language;
     QString pronunciation;
 };
 
-#endif //PHONEMENAMEINPUT_H
+#endif // PHONEMENAMEINPUT_H

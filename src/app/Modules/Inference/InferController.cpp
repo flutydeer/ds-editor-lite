@@ -343,7 +343,7 @@ void InferControllerPrivate::createAndRunGetPronTask(SingingClip &clip) {
 void InferControllerPrivate::createAndRunGetPhoneTask(SingingClip &clip) {
     QList<PhonemeNameInput> inputs;
     for (const auto note : clip.notes())
-        inputs.append({note->lyric(), note->pronunciation().result()});
+        inputs.append({note->lyric(), note->language(), note->pronunciation().result()});
     auto task = new GetPhonemeNameTask(clip.id(), inputs);
     task->notesRef = clip.notes().toList();
     connect(task, &Task::finished, this, [=] { handleGetPhoneTaskFinished(*task); });

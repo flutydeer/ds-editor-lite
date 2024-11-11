@@ -12,15 +12,13 @@
 #include <utility>
 
 namespace FillLyric {
-    Syllable2pPrivate::Syllable2pPrivate(QString dictPath, QString dictName)
-        : dictPath(std::move(dictPath)), dictName(std::move(dictName)) {
+    Syllable2pPrivate::Syllable2pPrivate(QString dictPath) : dictPath(std::move(dictPath)) {
     }
 
     Syllable2pPrivate::~Syllable2pPrivate() = default;
 
     void Syllable2pPrivate::init() {
-        const std::filesystem::path &path = (dictPath + "/" + dictName)
-                                                .
+        const std::filesystem::path &path = dictPath.
 #ifdef _WIN32
                                             toStdWString()
 #else
@@ -52,8 +50,8 @@ namespace FillLyric {
         return {};
     }
 
-    Syllable2p::Syllable2p(QString dictPath, QString dictName)
-        : Syllable2p(*new Syllable2pPrivate(std::move(dictPath), std::move(dictName))) {
+    Syllable2p::Syllable2p(QString dictPath)
+        : Syllable2p(*new Syllable2pPrivate(std::move(dictPath))) {
     }
 
     Syllable2p::~Syllable2p() = default;

@@ -53,28 +53,29 @@ void GetPhonemeNameTask::processNotes() {
     newStatus.message = "正在处理: " + m_previewText;
     setStatus(newStatus);
 
-    QList<QString> inputs;
+    QList<QPair<QString, QString>> inputs;
     for (const auto &note : m_inputs) {
         // 如果发音已编辑，则使用已编辑的发音作为获取音素名称的输入
-        inputs.append(note.pronunciation);
+        inputs.append({note.pronunciation, note.language});
     }
     result = getPhonemeNames(inputs);
 }
 
-QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames(const QList<QString> &input) {
+QList<PhonemeNameResult>
+    GetPhonemeNameTask::getPhonemeNames(const QList<QPair<QString, QString>> &input) {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
         qFatal() << "Language module not ready yet";
         return {};
     }
     const auto syllable2p = S2p::instance();
     QList<PhonemeNameResult> result;
-    for (const auto &pronunciation : input) {
+    for (const auto &[pronunciation, language] : input) {
         // qInfo() << pronunciation;
         PhonemeNameResult note;
         if (pronunciation == "SP" || pronunciation == "AP") {
             note.normalNames.append(pronunciation);
         } else {
-            if (const auto phonemes = syllable2p->syllableToPhoneme(pronunciation);
+            if (const auto phonemes = syllable2p->syllableToPhoneme(pronunciation, language);
                 !phonemes.empty()) {
                 if (phonemes.size() == 1) {
                     note.normalNames.append(phonemes.at(0));

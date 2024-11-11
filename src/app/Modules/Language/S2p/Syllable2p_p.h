@@ -8,10 +8,12 @@
 #include "phonemedictionary.h"
 
 namespace FillLyric {
-    class Syllable2pPrivate {
+    class Syllable2pPrivate final : public QObject {
+        Q_OBJECT
+        Q_DECLARE_PUBLIC(Syllable2p)
     public:
-        explicit Syllable2pPrivate(QString dictPath, QString dictName);
-        ~Syllable2pPrivate();
+        explicit Syllable2pPrivate(QString dictPath);
+        ~Syllable2pPrivate() override;
 
         void init();
 
@@ -26,7 +28,6 @@ namespace FillLyric {
 
     private:
         QString dictPath;
-        QString dictName;
     };
 }
 #endif // SYLLABLE2PPRIVATE_H

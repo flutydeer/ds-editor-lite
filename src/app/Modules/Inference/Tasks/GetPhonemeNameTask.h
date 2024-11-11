@@ -24,7 +24,7 @@ public:
 private:
     void runTask() override;
     void processNotes();
-    QList<PhonemeNameResult> getPhonemeNames(const QList<QString> &input);
+    QList<PhonemeNameResult> getPhonemeNames(const QList<QPair<QString, QString>> &input);
 
     QMutex m_mutex;
     int m_clipId = -1;
