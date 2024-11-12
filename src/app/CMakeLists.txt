@@ -90,26 +90,26 @@ else ()
     )
 endif ()
 
+find_package(cpp-pinyin)
 # copy cpp-pinyin dict
-
 if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/cpp-pinyin/dict
-            $<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/Resources/dict
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "${cpp-pinyin_DIR}/dict"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/Resources/dict"
     )
 
-    install(DIRECTORY ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/cpp-pinyin/dict
+    install(DIRECTORY "${cpp-pinyin_DIR}/dict"
             DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/Resources
     )
 else ()
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/cpp-pinyin/dict
-            ${CMAKE_BINARY_DIR}/bin/dict
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "${cpp-pinyin_DIR}/dict"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/dict"
     )
 
-    install(DIRECTORY ${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/cpp-pinyin/dict
+    install(DIRECTORY "${cpp-pinyin_DIR}/dict"
             DESTINATION .
     )
 endif ()
