@@ -2,16 +2,16 @@
 # Project
 # ----------------------------------
 cmake_minimum_required(VERSION 3.17)
-project(rmvpe-infer VERSION 1.0.0.0 LANGUAGES CXX)
+project(some-infer VERSION 1.0.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
 # ----------------------------------
 # Build Options
 # ----------------------------------
-option(RMVPE_INFER_BUILD_STATIC "Build static library" OFF)
-option(RMVPE_INFER_BUILD_TESTS "Build test cases" ON)
-option(RMVPE_INFER_INSTALL "Install library" ON)
+option(SOME_INFER_BUILD_STATIC "Build static library" OFF)
+option(SOME_INFER_BUILD_TESTS "Build test cases" ON)
+option(SOME_INFER_INSTALL "Install library" ON)
 
 # ----------------------------------
 # CMake Settings
@@ -39,7 +39,7 @@ if (MSVC)
     endif ()
 endif ()
 
-if (RMVPE_INFER_INSTALL)
+if (SOME_INFER_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 endif ()
@@ -49,13 +49,13 @@ endif ()
 include_directories(include)
 file(GLOB_RECURSE _src include/*.h src/*.h src/*.cpp src/*/*.h src/*/*.cpp)
 
-if (RMVPE_INFER_BUILD_STATIC)
+if (SOME_INFER_BUILD_STATIC)
     add_library(${PROJECT_NAME} STATIC)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC RMVPE_INFER_STATIC)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SOME_INFER_STATIC)
 else ()
     add_library(${PROJECT_NAME} SHARED)
 endif ()
-target_compile_definitions(${PROJECT_NAME} PRIVATE RMVPE_INFER_LIBRARY)
+target_compile_definitions(${PROJECT_NAME} PRIVATE SOME_INFER_LIBRARY)
 
 find_package(SndFile CONFIG REQUIRED)
 
@@ -80,7 +80,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE r8brain)
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-if (RMVPE_INFER_BUILD_TESTS)
+if (SOME_INFER_BUILD_TESTS)
     add_subdirectory(tests)
 endif ()
 
@@ -88,7 +88,7 @@ endif ()
 # Add platform specific
 # ----------------------------------
 if (WIN32)
-    set(RC_DESCRIPTION "Rmvpe model infer.")
+    set(RC_DESCRIPTION "Some model infer.")
     set(RC_COPYRIGHT "Copyright (C) 2023-2024 wolfgitpr")
     include("cmake/winrc.cmake")
 endif ()
@@ -104,7 +104,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # ----------------------------------
 # install
 # ----------------------------------
-if (RMVPE_INFER_INSTALL)
+if (SOME_INFER_INSTALL)
     target_include_directories(${PROJECT_NAME} PUBLIC
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
