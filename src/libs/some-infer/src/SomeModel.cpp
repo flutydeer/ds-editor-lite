@@ -48,9 +48,11 @@ namespace Some
     // Destructor: Release ONNX session
     SomeModel::~SomeModel() = default;
 
+    void SomeModel::terminate() { run_options.SetTerminate(); }
+
     // Forward pass through the model: takes waveform and threshold as inputs, returns f0 and uv as outputs
     bool SomeModel::forward(const std::vector<float> &waveform_data, std::vector<float> &note_midi,
-                            std::vector<bool> &note_rest, std::vector<float> &note_dur, std::string &msg) const {
+                            std::vector<bool> &note_rest, std::vector<float> &note_dur, std::string &msg) {
         try {
             size_t n_samples = waveform_data.size();
 
@@ -68,8 +70,8 @@ namespace Some
 
             const Ort::Value input_tensors[] = {std::move(waveform_tensor)};
 
-            auto output_tensors =
-                m_session->Run(Ort::RunOptions{nullptr}, input_names, input_tensors, 1, output_names, 3);
+            run_options.UnsetTerminate();
+            auto output_tensors = m_session->Run(run_options, input_names, input_tensors, 1, output_names, 3);
 
             const float *midi_array = output_tensors.at(0).GetTensorMutableData<float>();
             note_midi.assign(midi_array,

@@ -16,10 +16,13 @@ namespace Some
 
         // Forward pass through the model
         bool forward(const std::vector<float> &waveform_data, std::vector<float> &note_midi,
-                     std::vector<bool> &note_rest, std::vector<float> &note_dur, std::string &msg) const;
+                     std::vector<bool> &note_rest, std::vector<float> &note_dur, std::string &msg);
+
+        void terminate();
 
     private:
         Ort::Env m_env;
+        Ort::RunOptions run_options;
         Ort::SessionOptions m_session_options;
         Ort::Session *m_session;
         Ort::AllocatorWithDefaultOptions m_allocator;

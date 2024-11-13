@@ -1,6 +1,5 @@
 #include <some-infer/Some.h>
 
-#include <CDSPResampler.h>
 #include <sndfile.hh>
 
 #include <iostream>
