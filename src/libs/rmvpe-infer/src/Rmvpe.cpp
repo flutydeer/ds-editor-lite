@@ -5,12 +5,13 @@
 
 #include <iostream>
 
-#include "Slicer.h"
+#include <audio-util/Resample.h>
+#include <audio-util/Slicer.h>
 
 namespace Rmvpe
 {
-    Rmvpe::Rmvpe(const std::filesystem::path &modelPath) {
-        m_rmvpe = std::make_unique<RmvpeModel>(modelPath);
+    Rmvpe::Rmvpe(const std::filesystem::path &modelPath, int device_id) {
+        m_rmvpe = std::make_unique<RmvpeModel>(modelPath, device_id);
 
         if (!m_rmvpe) {
             std::cout << "Cannot load ASR Model, there must be files model.onnx and vocab.txt" << std::endl;
@@ -19,13 +20,13 @@ namespace Rmvpe
 
     Rmvpe::~Rmvpe() = default;
 
-    bool Rmvpe::get_f0(SF_VIO sf_vio, float threshold, std::vector<float> &f0, std::vector<bool> &uv,
+    bool Rmvpe::get_f0(AudioUtil::SF_VIO sf_vio, float threshold, std::vector<float> &f0, std::vector<bool> &uv,
                        std::string &msg) const {
         if (!m_rmvpe) {
             return false;
         }
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
-        Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
+        AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
 
         const auto chunks = slicer.slice();
 
@@ -45,7 +46,7 @@ namespace Rmvpe
                 continue;
             }
 
-            SF_VIO sfChunk;
+            AudioUtil::SF_VIO sfChunk;
             auto wf = SndfileHandle(sfChunk.vio, &sfChunk.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
             sf.seek(static_cast<sf_count_t>(beginFrame), SEEK_SET);
             std::vector<float> tmp(frameCount);
@@ -71,67 +72,6 @@ namespace Rmvpe
 
     bool Rmvpe::get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,
                        std::vector<bool> &uv, std::string &msg) const {
-        return get_f0(resample(filepath), threshold, f0, uv, msg);
+        return get_f0(AudioUtil::resample(filepath, 1, 16000), threshold, f0, uv, msg);
     }
-
-    SF_VIO Rmvpe::resample(const std::filesystem::path &filepath) {
-        SndfileHandle srcHandle(filepath.c_str(), SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16);
-        if (!srcHandle) {
-            std::cout << "Failed to open WAV file:" << sf_strerror(nullptr) << std::endl;
-            return {};
-        }
-
-        // 临时文件
-        SF_VIO sf_vio;
-        SndfileHandle outBuf(sf_vio.vio, &sf_vio.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
-        if (!outBuf) {
-            std::cout << "Failed to open output file:" << sf_strerror(nullptr) << std::endl;
-            return {};
-        }
-
-        // 创建 CDSPResampler 对象
-        r8b::CDSPResampler16 resampler(srcHandle.samplerate(), 16000, srcHandle.samplerate());
-
-        // 重采样并写入输出文件
-        double *op0;
-        std::vector<double> tmp(srcHandle.samplerate() * srcHandle.channels());
-        double total = 0;
-
-        // 逐块读取、重采样并写入输出文件
-        while (true) {
-            const auto bytesRead = srcHandle.read(tmp.data(), static_cast<sf_count_t>(tmp.size()));
-            if (bytesRead <= 0) {
-                break; // 读取结束
-            }
-
-            // 转单声道
-            std::vector<double> inputBuf(tmp.size() / srcHandle.channels());
-            for (int i = 0; i < tmp.size(); i += srcHandle.channels()) {
-                inputBuf[i / srcHandle.channels()] = tmp[i];
-            }
-
-            // 处理重采样
-            const int outSamples =
-                resampler.process(inputBuf.data(), static_cast<int>(bytesRead) / srcHandle.channels(), op0);
-
-            // 写入输出文件
-            const auto bytesWritten = static_cast<double>(outBuf.write(op0, outSamples));
-
-            if (bytesWritten != outSamples) {
-                std::cout << "Error writing to output file" << std::endl;
-                break;
-            }
-            total += bytesWritten;
-        }
-
-        if (const int endSize = static_cast<int>(static_cast<double>(srcHandle.frames()) /
-                                                     static_cast<double>(srcHandle.samplerate()) * 16000.0 -
-                                                 total)) {
-            std::vector<double> inputBuf(tmp.size() / srcHandle.channels());
-            resampler.process(inputBuf.data(), srcHandle.samplerate(), op0);
-            outBuf.write(op0, endSize);
-        }
-
-        return sf_vio;
-    }
-} // Rmvpe
+} // namespace Rmvpe

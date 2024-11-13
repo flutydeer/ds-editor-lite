@@ -28,10 +28,10 @@ int main(int argc, char *argv[]) {
     }
 
     const std::filesystem::path modelPath = argv[1];
-    std::filesystem::path wavPath = argv[2];
+    const std::filesystem::path wavPath = argv[2];
 
-    const Rmvpe::Rmvpe rmvpe(modelPath);
-    const float threshold = 0.03f;
+    const Rmvpe::Rmvpe rmvpe(modelPath, 1);
+    constexpr float threshold = 0.03f;
 
     std::vector<float> f0;
     std::vector<bool> uv;

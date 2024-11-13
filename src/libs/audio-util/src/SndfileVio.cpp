@@ -1,6 +1,6 @@
-#include <rmvpe-infer/SndfileVio.h>
+#include <audio-util/SndfileVio.h>
 
-namespace Rmvpe
+namespace AudioUtil
 {
     sf_count_t qvio_get_filelen(void *user_data) {
         const auto *qvio = static_cast<QVIO *>(user_data);

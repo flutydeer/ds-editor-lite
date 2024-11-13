@@ -10,7 +10,7 @@ namespace Rmvpe
 {
     class RmvpeModel {
     public:
-        explicit RmvpeModel(const std::filesystem::path &modelPath);
+        explicit RmvpeModel(const std::filesystem::path &modelPath, int device_id);
         ~RmvpeModel();
 
         // Forward pass through the model

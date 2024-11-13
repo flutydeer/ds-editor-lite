@@ -5,13 +5,12 @@
 
 namespace Rmvpe
 {
-    RmvpeModel::RmvpeModel(const std::filesystem::path &modelPath) :
+    RmvpeModel::RmvpeModel(const std::filesystem::path &modelPath, const int device_id) :
         m_env(Ort::Env(ORT_LOGGING_LEVEL_WARNING, "RmvpeModel")), m_session_options(Ort::SessionOptions()),
         m_session(nullptr), m_waveform_input_name("waveform"), m_threshold_input_name("threshold"),
         m_f0_output_name("f0"), m_uv_output_name("uv") {
         m_session_options.DisableMemPattern();
         m_session_options.SetExecutionMode(ORT_SEQUENTIAL);
-        int32_t device_id = 1;
         OrtStatus *status = OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id);
         if (status) {
             const auto &api = Ort::GetApi();

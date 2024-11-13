@@ -2,16 +2,15 @@
 # Project
 # ----------------------------------
 cmake_minimum_required(VERSION 3.17)
-project(rmvpe-infer VERSION 1.0.0.0 LANGUAGES CXX)
+project(audio-util VERSION 1.0.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
 # ----------------------------------
 # Build Options
 # ----------------------------------
-option(RMVPE_INFER_BUILD_STATIC "Build static library" OFF)
-option(RMVPE_INFER_BUILD_TESTS "Build test cases" ON)
-option(RMVPE_INFER_INSTALL "Install library" ON)
+option(AUDIO_UTIL_BUILD_STATIC "Build static library" OFF)
+option(AUDIO_UTIL_INSTALL "Install library" ON)
 
 # ----------------------------------
 # CMake Settings
@@ -39,7 +38,7 @@ if (MSVC)
     endif ()
 endif ()
 
-if (RMVPE_INFER_INSTALL)
+if (AUDIO_UTIL_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 endif ()
@@ -49,46 +48,27 @@ endif ()
 include_directories(include)
 file(GLOB_RECURSE _src include/*.h src/*.h src/*.cpp src/*/*.h src/*/*.cpp)
 
-if (RMVPE_INFER_BUILD_STATIC)
+if (AUDIO_UTIL_BUILD_STATIC)
     add_library(${PROJECT_NAME} STATIC)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC RMVPE_INFER_STATIC)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC AUDIO_UTIL_STATIC)
 else ()
     add_library(${PROJECT_NAME} SHARED)
 endif ()
-target_compile_definitions(${PROJECT_NAME} PRIVATE RMVPE_INFER_LIBRARY)
+target_compile_definitions(${PROJECT_NAME} PRIVATE AUDIO_UTIL_LIBRARY)
 
 find_package(SndFile CONFIG REQUIRED)
 
-set(ONNX_RUNTIME_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../dsonnxinfer/libs/flowonnx/libs/onnxruntime)
-
-include_directories(${ONNX_RUNTIME_PATH}/include)
-target_include_directories(${PROJECT_NAME}
-        PUBLIC
-        $<BUILD_INTERFACE:${ONNX_RUNTIME_PATH}/include>
-        $<INSTALL_INTERFACE:include>
-)
-
-target_link_directories(${PROJECT_NAME}
-        PUBLIC
-        $<BUILD_INTERFACE:${ONNX_RUNTIME_PATH}/lib>
-        $<INSTALL_INTERFACE:lib>
-)
-
-target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile audio-util)
-target_link_libraries(${PROJECT_NAME} PRIVATE r8brain onnxruntime DirectML)
+target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile)
+target_link_libraries(${PROJECT_NAME} PRIVATE r8brain)
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
-
-if (RMVPE_INFER_BUILD_TESTS)
-    add_subdirectory(tests)
-endif ()
 
 # ----------------------------------
 # Add platform specific
 # ----------------------------------
 if (WIN32)
-    set(RC_DESCRIPTION "Rmvpe model infer.")
+    set(RC_DESCRIPTION "Audio utils.")
     set(RC_COPYRIGHT "Copyright (C) 2023-2024 wolfgitpr")
     include("cmake/winrc.cmake")
 endif ()
@@ -104,7 +84,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # ----------------------------------
 # install
 # ----------------------------------
-if (RMVPE_INFER_INSTALL)
+if (AUDIO_UTIL_INSTALL)
     target_include_directories(${PROJECT_NAME} PUBLIC
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
