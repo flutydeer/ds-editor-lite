@@ -82,9 +82,9 @@ int main(int argc, char *argv[]) {
     { runInference(rmvpe, wavPath, threshold, f0, uv, msg, progressChanged); };
 
     std::future<void> inferenceFuture = std::async(std::launch::async, inferenceTask);
-
-    std::thread terminateThread(terminateRmvpeAfterDelay, std::ref(rmvpe), 10);
-    terminateThread.join();
+    //
+    // std::thread terminateThread(terminateRmvpeAfterDelay, std::ref(rmvpe), 10);
+    // terminateThread.join();
 
     inferenceFuture.get();
 

@@ -42,7 +42,8 @@ void ExtractPitchTask::runTask() {
                                 ? Rmvpe::ExecutionProvider::DML
                                 : Rmvpe::ExecutionProvider::CPU;
 
-    const Rmvpe::Rmvpe rmvpe(modelPath, rmProvider, device_id);
+    // TODO:: forced on cpu
+    const Rmvpe::Rmvpe rmvpe(modelPath, Rmvpe::ExecutionProvider::CPU, 0);
     constexpr float threshold = 0.03f;
 
     std::vector<float> f0;

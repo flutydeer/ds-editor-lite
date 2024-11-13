@@ -27,19 +27,21 @@ namespace Some
         }
 
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 44100);
-        AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
-
-        const auto chunks = slicer.slice();
-
-        if (chunks.empty()) {
-            msg = "slicer: no audio chunks for output!";
-            return false;
-        }
+        // AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
+        //
+        // const auto chunks = slicer.slice();
+        //
+        // if (chunks.empty()) {
+        //     msg = "slicer: no audio chunks for output!";
+        //     return false;
+        // }
 
         const auto frames = sf.frames();
         const auto totalSize = frames;
 
         int processedFrames = 0; // To track processed frames
+
+        const AudioUtil::MarkerList chunks = {{0, totalSize}};
 
         for (const auto &chunk : chunks) {
             const auto beginFrame = chunk.first;
