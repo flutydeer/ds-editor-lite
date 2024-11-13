@@ -4,12 +4,11 @@
 #include <filesystem>
 
 #include <audio-util/SndfileVio.h>
-
 #include <rmvpe-infer/RmvpeGlobal.h>
-#include <rmvpe-infer/RmvpeModel.h>
 
 namespace Rmvpe
 {
+    class RmvpeModel;
     class Rmvpe {
     public:
         explicit RMVPE_INFER_EXPORT Rmvpe(const std::filesystem::path &modelPath, int device_id);

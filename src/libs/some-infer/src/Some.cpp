@@ -7,6 +7,7 @@
 
 #include <audio-util/Resample.h>
 #include <audio-util/Slicer.h>
+#include <some-infer/SomeModel.h>
 
 namespace Some
 {
@@ -21,7 +22,7 @@ namespace Some
     Some::~Some() = default;
 
     bool Some::get_midi(AudioUtil::SF_VIO sf_vio, std::vector<float> &note_midi, std::vector<bool> &note_rest,
-                      std::vector<float> &note_dur, std::string &msg) const {
+                        std::vector<float> &note_dur, std::string &msg) const {
         if (!m_some) {
             return false;
         }
@@ -74,7 +75,7 @@ namespace Some
     }
 
     bool Some::get_midi(const std::filesystem::path &filepath, std::vector<float> &note_midi,
-                      std::vector<bool> &note_rest, std::vector<float> &note_dur, std::string &msg) const {
+                        std::vector<bool> &note_rest, std::vector<float> &note_dur, std::string &msg) const {
         return get_midi(AudioUtil::resample(filepath, 1, 44100), note_midi, note_rest, note_dur, msg);
     }
 } // namespace Some

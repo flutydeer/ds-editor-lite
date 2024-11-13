@@ -7,6 +7,7 @@
 
 #include <audio-util/Resample.h>
 #include <audio-util/Slicer.h>
+#include <rmvpe-infer/RmvpeModel.h>
 
 namespace Rmvpe
 {

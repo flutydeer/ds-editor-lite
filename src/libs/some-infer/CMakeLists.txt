@@ -63,19 +63,19 @@ set(ONNX_RUNTIME_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../dsonnxinfer/libs/flowonnx/l
 
 include_directories(${ONNX_RUNTIME_PATH}/include)
 target_include_directories(${PROJECT_NAME}
-        PUBLIC
+        PRIVATE
         $<BUILD_INTERFACE:${ONNX_RUNTIME_PATH}/include>
         $<INSTALL_INTERFACE:include>
 )
 
 target_link_directories(${PROJECT_NAME}
-        PUBLIC
+        PRIVATE
         $<BUILD_INTERFACE:${ONNX_RUNTIME_PATH}/lib>
         $<INSTALL_INTERFACE:lib>
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile audio-util onnxruntime DirectML)
-target_link_libraries(${PROJECT_NAME} PRIVATE r8brain)
+target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile audio-util)
+target_link_libraries(${PROJECT_NAME} PRIVATE r8brain onnxruntime DirectML)
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
