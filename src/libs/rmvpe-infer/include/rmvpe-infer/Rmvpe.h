@@ -19,7 +19,7 @@ namespace Rmvpe
 
         bool RMVPE_INFER_EXPORT get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,
                                        std::vector<bool> &uv, std::string &msg,
-                                       const std::function<void(int)> &progressChanged);
+                                       const std::function<void(int)> &progressChanged) const;
 
         void RMVPE_INFER_EXPORT terminate() const;
 

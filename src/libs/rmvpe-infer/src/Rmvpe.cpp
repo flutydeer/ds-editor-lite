@@ -77,7 +77,7 @@ namespace Rmvpe
     }
 
     bool Rmvpe::get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,
-                       std::vector<bool> &uv, std::string &msg, const std::function<void(int)> &progressChanged) {
+                       std::vector<bool> &uv, std::string &msg, const std::function<void(int)> &progressChanged) const {
         return get_f0(AudioUtil::resample(filepath, 1, 16000), threshold, f0, uv, msg, progressChanged);
     }
 

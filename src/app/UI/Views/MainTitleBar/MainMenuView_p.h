@@ -20,17 +20,18 @@ public:
 
     MainWindow *m_mainWindow;
 
-    QAction *m_actionUndo = nullptr;
-    QAction *m_actionRedo = nullptr;
-    QAction *m_actionSave = nullptr;
-    QAction *m_actionSaveAs = nullptr;
-    QAction *m_actionSelectAll = nullptr;
-    QAction *m_actionDelete = nullptr;
-    QAction *m_actionCut = nullptr;
-    QAction *m_actionCopy = nullptr;
-    QAction *m_actionPaste = nullptr;
-    QAction *m_actionFillLyrics = nullptr;
-    QAction *m_searchFillLyrics = nullptr;
+    QAction *actionUndo = nullptr;
+    QAction *actionRedo = nullptr;
+    QAction *actionSave = nullptr;
+    QAction *actionSaveAs = nullptr;
+    QAction *actionSelectAll = nullptr;
+    QAction *actionDelete = nullptr;
+    QAction *actionCut = nullptr;
+    QAction *actionCopy = nullptr;
+    QAction *actionPaste = nullptr;
+    QAction *actionFillLyrics = nullptr;
+    QAction *actionSearchLyrics = nullptr;
+    QAction *actionGetPitchParamFromAudioClip = nullptr;
 
     AppGlobal::PanelType m_panelType = AppGlobal::Generic;
 
@@ -49,6 +50,7 @@ public:
     void onCut();
     void onCopy();
     void onPaste();
+    void onGetPitchParamFromAudioClip();
     void exitApp();
 
 private:
