@@ -6,6 +6,8 @@
 
 #include <rmvpe-infer/Rmvpe.h>
 
+static void progressChanged(const int progress) { std::cout << "progress: " << progress << "%" << std::endl; }
+
 static std::vector<float> freqToMidi(const std::vector<float> &frequencies) {
     std::vector<float> midiPitches;
 
@@ -37,7 +39,7 @@ int main(int argc, char *argv[]) {
     std::vector<bool> uv;
     std::string msg;
 
-    bool success = rmvpe.get_f0(wavPath, threshold, f0, uv, msg);
+    bool success = rmvpe.get_f0(wavPath, threshold, f0, uv, msg, progressChanged);
 
     if (success) {
         std::cout << "midi output:" << std::endl;

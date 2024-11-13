@@ -6,6 +6,8 @@
 
 #include <some-infer/Some.h>
 
+static void progressChanged(const int progress) { std::cout << "progress: " << progress << "%" << std::endl; }
+
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         std::cerr << "Usage: " << argv[0] << " <model_path> <wav_path>" << std::endl;
@@ -22,7 +24,7 @@ int main(int argc, char *argv[]) {
     std::vector<float> note_dur;
     std::string msg;
 
-    bool success = some.get_midi(wavPath, note_midi, note_rest, note_dur, msg);
+    bool success = some.get_midi(wavPath, note_midi, note_rest, note_dur, msg, progressChanged);
 
     if (success) {
         std::cout << "midi output:" << std::endl;

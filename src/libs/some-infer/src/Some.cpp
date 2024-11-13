@@ -22,10 +22,11 @@ namespace Some
     Some::~Some() = default;
 
     bool Some::get_midi(AudioUtil::SF_VIO sf_vio, std::vector<float> &note_midi, std::vector<bool> &note_rest,
-                        std::vector<float> &note_dur, std::string &msg) const {
+                        std::vector<float> &note_dur, std::string &msg, void (*progressChanged)(int)) const {
         if (!m_some) {
             return false;
         }
+
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
         AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
 
@@ -38,6 +39,8 @@ namespace Some
 
         const auto frames = sf.frames();
         const auto totalSize = frames;
+
+        int processedFrames = 0; // To track processed frames
 
         for (const auto &chunk : chunks) {
             const auto beginFrame = chunk.first;
@@ -54,12 +57,6 @@ namespace Some
             sf.read(tmp.data(), static_cast<sf_count_t>(tmp.size()));
             const auto bytesWritten = wf.write(tmp.data(), static_cast<sf_count_t>(tmp.size()));
 
-            // if (bytesWritten > 60 * 16000) {
-            //     msg = "The audio contains continuous pronunciation segments that exceed 60 seconds. Please manually "
-            //           "segment and rerun the recognition program.";
-            //     return false;
-            // }
-
             std::vector<float> temp_midi;
             std::vector<bool> temp_rest;
             std::vector<float> temp_dur;
@@ -70,12 +67,22 @@ namespace Some
             note_midi.insert(note_midi.end(), temp_midi.begin(), temp_midi.end());
             note_rest.insert(note_rest.end(), temp_rest.begin(), temp_rest.end());
             note_dur.insert(note_dur.end(), temp_dur.begin(), temp_dur.end());
+
+            // Update the processed frames and calculate progress
+            processedFrames += static_cast<int>(frameCount);
+            int progress = static_cast<int>((static_cast<float>(processedFrames) / totalSize) * 100);
+
+            // Call the progress callback with the updated progress
+            if (progressChanged) {
+                progressChanged(progress); // Trigger the callback with the progress value
+            }
         }
         return true;
     }
 
     bool Some::get_midi(const std::filesystem::path &filepath, std::vector<float> &note_midi,
-                        std::vector<bool> &note_rest, std::vector<float> &note_dur, std::string &msg) const {
-        return get_midi(AudioUtil::resample(filepath, 1, 44100), note_midi, note_rest, note_dur, msg);
+                        std::vector<bool> &note_rest, std::vector<float> &note_dur, std::string &msg,
+                        void (*progressChanged)(int)) const {
+        return get_midi(AudioUtil::resample(filepath, 1, 44100), note_midi, note_rest, note_dur, msg, progressChanged);
     }
 } // namespace Some

@@ -15,11 +15,11 @@ namespace Rmvpe
         RMVPE_INFER_EXPORT ~Rmvpe();
 
         bool RMVPE_INFER_EXPORT get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,
-                                       std::vector<bool> &uv, std::string &msg) const;
+                                       std::vector<bool> &uv, std::string &msg, void (*progressChanged)(int)) const;
 
     private:
         bool get_f0(AudioUtil::SF_VIO sf_vio, float threshold, std::vector<float> &f0, std::vector<bool> &uv,
-                    std::string &msg) const;
+                    std::string &msg, void (*progressChanged)(int)) const;
 
         std::unique_ptr<RmvpeModel> m_rmvpe;
     };

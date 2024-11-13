@@ -22,7 +22,7 @@ namespace Rmvpe
     Rmvpe::~Rmvpe() = default;
 
     bool Rmvpe::get_f0(AudioUtil::SF_VIO sf_vio, float threshold, std::vector<float> &f0, std::vector<bool> &uv,
-                       std::string &msg) const {
+                       std::string &msg, void (*progressChanged)(int)) const {
         if (!m_rmvpe) {
             return false;
         }
@@ -39,6 +39,8 @@ namespace Rmvpe
         const auto frames = sf.frames();
         const auto totalSize = frames;
 
+        int processedFrames = 0; // To track processed frames
+
         for (const auto &chunk : chunks) {
             const auto beginFrame = chunk.first;
             const auto endFrame = chunk.second;
@@ -54,12 +56,6 @@ namespace Rmvpe
             sf.read(tmp.data(), static_cast<sf_count_t>(tmp.size()));
             const auto bytesWritten = wf.write(tmp.data(), static_cast<sf_count_t>(tmp.size()));
 
-            // if (bytesWritten > 60 * 16000) {
-            //     msg = "The audio contains continuous pronunciation segments that exceed 60 seconds. Please manually "
-            //           "segment and rerun the recognition program.";
-            //     return false;
-            // }
-
             std::vector<float> temp_f0;
             std::vector<bool> temp_uv;
             const bool success = m_rmvpe->forward(tmp, threshold, temp_f0, temp_uv, msg);
@@ -67,12 +63,22 @@ namespace Rmvpe
                 return false;
             f0.insert(f0.end(), temp_f0.begin(), temp_f0.end());
             uv.insert(uv.end(), temp_uv.begin(), temp_uv.end());
+
+
+            // Update the processed frames and calculate progress
+            processedFrames += static_cast<int>(frameCount);
+            int progress = static_cast<int>((static_cast<float>(processedFrames) / totalSize) * 100);
+
+            // Call the progress callback with the updated progress
+            if (progressChanged) {
+                progressChanged(progress); // Trigger the callback with the progress value
+            }
         }
         return true;
     }
 
     bool Rmvpe::get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,
-                       std::vector<bool> &uv, std::string &msg) const {
-        return get_f0(AudioUtil::resample(filepath, 1, 16000), threshold, f0, uv, msg);
+                       std::vector<bool> &uv, std::string &msg, void (*progressChanged)(int)) const {
+        return get_f0(AudioUtil::resample(filepath, 1, 16000), threshold, f0, uv, msg, progressChanged);
     }
 } // namespace Rmvpe
