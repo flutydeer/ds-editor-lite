@@ -26,8 +26,10 @@ namespace Rmvpe
                 api.ReleaseStatus(status);
             }
             std::cout << "Use Dml execution provider" << std::endl;
-        } // Add the CPU provider if selected or if DirectML failed
-        else {
+        }
+
+        // Add the CPU provider if selected or if DirectML failed
+        if (provider == ExecutionProvider::CPU) {
             status = OrtSessionOptionsAppendExecutionProvider_CPU(m_session_options, 0); // 0 for the default CPU
             if (status) {
                 const auto &api = Ort::GetApi();
