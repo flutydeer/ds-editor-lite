@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
     const std::filesystem::path modelPath = argv[1];
     const std::filesystem::path wavPath = argv[2];
 
-    const Some::Some some(modelPath, 1);
+    const Some::Some some(modelPath, Some::ExecutionProvider::DML, 1);
 
     std::vector<float> note_midi;
     std::vector<bool> note_rest;

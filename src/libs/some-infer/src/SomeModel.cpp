@@ -1,22 +1,40 @@
 #include <array>
+#include <cpu_provider_factory.h>
 #include <dml_provider_factory.h>
 #include <iostream>
 #include <some-infer/SomeModel.h>
 
 namespace Some
 {
-    SomeModel::SomeModel(const std::filesystem::path &modelPath, const int device_id) :
+    SomeModel::SomeModel(const std::filesystem::path &modelPath, ExecutionProvider provider, const int device_id) :
         m_env(Ort::Env(ORT_LOGGING_LEVEL_WARNING, "RmvpeModel")), m_session_options(Ort::SessionOptions()),
         m_session(nullptr), m_waveform_input_name("waveform"), m_note_midi_output_name("note_midi"),
         m_note_rest_output_name("note_rest"), m_note_dur_output_name("note_dur") {
         m_session_options.DisableMemPattern();
         m_session_options.SetExecutionMode(ORT_SEQUENTIAL);
-        OrtStatus *status = OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id);
-        if (status) {
-            const auto &api = Ort::GetApi();
-            const char *msg = api.GetErrorMessage(status);
-            std::cout << "Failed to enable DirectML: %s. Fallback to cpu: " << msg << std::endl;
-            api.ReleaseStatus(status);
+        m_session_options.SetInterOpNumThreads(4);
+
+        OrtStatus *status;
+        // Choose execution provider based on the provided option
+        if (provider == ExecutionProvider::DML) {
+            status = OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id);
+            if (status) {
+                const auto &api = Ort::GetApi();
+                const char *msg = api.GetErrorMessage(status);
+                std::cout << "Failed to enable DirectML: " << msg << ". Falling back to CPU." << std::endl;
+                api.ReleaseStatus(status);
+            }
+            std::cout << "Use Dml execution provider" << std::endl;
+        } // Add the CPU provider if selected or if DirectML failed
+        else {
+            status = OrtSessionOptionsAppendExecutionProvider_CPU(m_session_options, 0); // 0 for the default CPU
+            if (status) {
+                const auto &api = Ort::GetApi();
+                const char *msg = api.GetErrorMessage(status);
+                std::cout << "Failed to enable CPU execution provider: " << msg << std::endl;
+                api.ReleaseStatus(status);
+            }
+            std::cout << "Use CPU execution provider" << std::endl;
         }
 #ifdef _WIN32
         m_session = new Ort::Session(m_env, modelPath.wstring().c_str(), m_session_options);

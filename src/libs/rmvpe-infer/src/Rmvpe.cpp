@@ -1,6 +1,5 @@
 #include <rmvpe-infer/Rmvpe.h>
 
-#include <CDSPResampler.h>
 #include <sndfile.hh>
 
 #include <iostream>
@@ -11,8 +10,8 @@
 
 namespace Rmvpe
 {
-    Rmvpe::Rmvpe(const std::filesystem::path &modelPath, int device_id) {
-        m_rmvpe = std::make_unique<RmvpeModel>(modelPath, device_id);
+    Rmvpe::Rmvpe(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id) {
+        m_rmvpe = std::make_unique<RmvpeModel>(modelPath, provider, device_id);
 
         if (!m_rmvpe) {
             std::cout << "Cannot load ASR Model, there must be files model.onnx and vocab.txt" << std::endl;

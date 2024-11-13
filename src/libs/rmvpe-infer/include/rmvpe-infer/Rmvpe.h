@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include <audio-util/SndfileVio.h>
+#include <rmvpe-infer/Provider.h>
 #include <rmvpe-infer/RmvpeGlobal.h>
 
 namespace Rmvpe
@@ -11,7 +12,8 @@ namespace Rmvpe
     class RmvpeModel;
     class Rmvpe {
     public:
-        explicit RMVPE_INFER_EXPORT Rmvpe(const std::filesystem::path &modelPath, int device_id);
+        explicit RMVPE_INFER_EXPORT Rmvpe(const std::filesystem::path &modelPath, ExecutionProvider provider,
+                                          int device_id);
         RMVPE_INFER_EXPORT ~Rmvpe();
 
         bool RMVPE_INFER_EXPORT get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,

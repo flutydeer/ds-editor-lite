@@ -11,8 +11,8 @@
 
 namespace Some
 {
-    Some::Some(const std::filesystem::path &modelPath, int device_id) {
-        m_some = std::make_unique<SomeModel>(modelPath, device_id);
+    Some::Some(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id) {
+        m_some = std::make_unique<SomeModel>(modelPath, provider, device_id);
 
         if (!m_some) {
             std::cout << "Cannot load ASR Model, there must be files model.onnx and vocab.txt" << std::endl;

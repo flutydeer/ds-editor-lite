@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     const std::filesystem::path modelPath = argv[1];
     const std::filesystem::path wavPath = argv[2];
 
-    const Rmvpe::Rmvpe rmvpe(modelPath, 1);
+    const Rmvpe::Rmvpe rmvpe(modelPath, Rmvpe::ExecutionProvider::DML, 1);
     constexpr float threshold = 0.03f;
 
     std::vector<float> f0;

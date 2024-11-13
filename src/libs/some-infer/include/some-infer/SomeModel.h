@@ -3,6 +3,7 @@
 
 #include <filesystem>
 #include <onnxruntime_cxx_api.h>
+#include <some-infer/Provider.h>
 #include <string>
 #include <vector>
 
@@ -10,7 +11,7 @@ namespace Some
 {
     class SomeModel {
     public:
-        explicit SomeModel(const std::filesystem::path &modelPath, int device_id);
+        explicit SomeModel(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id);
         ~SomeModel();
 
         // Forward pass through the model

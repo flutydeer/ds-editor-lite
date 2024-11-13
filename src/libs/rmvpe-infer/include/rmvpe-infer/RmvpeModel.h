@@ -3,6 +3,7 @@
 
 #include <filesystem>
 #include <onnxruntime_cxx_api.h>
+#include <rmvpe-infer/Provider.h>
 #include <string>
 #include <vector>
 
@@ -10,7 +11,7 @@ namespace Rmvpe
 {
     class RmvpeModel {
     public:
-        explicit RmvpeModel(const std::filesystem::path &modelPath, int device_id);
+        explicit RmvpeModel(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id);
         ~RmvpeModel();
 
         // Forward pass through the model

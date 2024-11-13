@@ -4,7 +4,7 @@
 #include <filesystem>
 
 #include <audio-util/SndfileVio.h>
-
+#include <some-infer/Provider.h>
 #include <some-infer/SomeGlobal.h>
 
 namespace Some
@@ -12,7 +12,8 @@ namespace Some
     class SomeModel;
     class Some {
     public:
-        explicit SOME_INFER_EXPORT Some(const std::filesystem::path &modelPath, int device_id);
+        explicit SOME_INFER_EXPORT Some(const std::filesystem::path &modelPath, ExecutionProvider provider,
+                                        int device_id);
         SOME_INFER_EXPORT ~Some();
 
         bool SOME_INFER_EXPORT get_midi(const std::filesystem::path &filepath, std::vector<float> &note_midi,
