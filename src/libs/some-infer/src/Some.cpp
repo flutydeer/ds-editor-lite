@@ -27,7 +27,7 @@ namespace Some
             return false;
         }
 
-        SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
+        SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 44100);
         AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
 
         const auto chunks = slicer.slice();

@@ -21,11 +21,10 @@ namespace Rmvpe
     Rmvpe::~Rmvpe() = default;
 
     bool Rmvpe::get_f0(AudioUtil::SF_VIO sf_vio, float threshold, std::vector<float> &f0, std::vector<bool> &uv,
-                       std::string &msg, const std::function<void(int)>& progressChanged) {
+                       std::string &msg, const std::function<void(int)> &progressChanged) const {
         if (!m_rmvpe) {
             return false;
         }
-        terminated = false;
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
         AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
 
@@ -42,8 +41,6 @@ namespace Rmvpe
         int processedFrames = 0; // To track processed frames
 
         for (const auto &chunk : chunks) {
-            if (terminated)
-                break;
             const auto beginFrame = chunk.first;
             const auto endFrame = chunk.second;
             const auto frameCount = endFrame - beginFrame;
@@ -84,9 +81,6 @@ namespace Rmvpe
         return get_f0(AudioUtil::resample(filepath, 1, 16000), threshold, f0, uv, msg, progressChanged);
     }
 
-    void Rmvpe::terminate() {
-        m_rmvpe->terminate();
-        terminated = true;
-    }
+    void Rmvpe::terminate() const { m_rmvpe->terminate(); }
 
 } // namespace Rmvpe

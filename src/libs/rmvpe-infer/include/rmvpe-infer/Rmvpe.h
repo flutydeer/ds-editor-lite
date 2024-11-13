@@ -21,13 +21,12 @@ namespace Rmvpe
                                        std::vector<bool> &uv, std::string &msg,
                                        const std::function<void(int)> &progressChanged);
 
-        void RMVPE_INFER_EXPORT terminate();
+        void RMVPE_INFER_EXPORT terminate() const;
 
     private:
         bool get_f0(AudioUtil::SF_VIO sf_vio, float threshold, std::vector<float> &f0, std::vector<bool> &uv,
-                    std::string &msg, const std::function<void(int)> &progressChanged);
+                    std::string &msg, const std::function<void(int)> &progressChanged) const;
 
-        bool terminated = false;
         std::unique_ptr<RmvpeModel> m_rmvpe;
     };
 } // namespace Rmvpe
