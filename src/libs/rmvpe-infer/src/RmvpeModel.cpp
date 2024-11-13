@@ -49,9 +49,11 @@ namespace Rmvpe
     // Destructor: Release ONNX session
     RmvpeModel::~RmvpeModel() = default;
 
+    void RmvpeModel::terminate() { run_options.SetTerminate(); }
+
     // Forward pass through the model: takes waveform and threshold as inputs, returns f0 and uv as outputs
     bool RmvpeModel::forward(const std::vector<float> &waveform_data, float threshold, std::vector<float> &f0,
-                             std::vector<bool> &uv, std::string &msg) const {
+                             std::vector<bool> &uv, std::string &msg) {
         try {
             size_t n_samples = waveform_data.size();
 
@@ -73,8 +75,9 @@ namespace Rmvpe
 
             const Ort::Value input_tensors[] = {(std::move(waveform_tensor)), (std::move(threshold_tensor))};
 
+            run_options.UnsetTerminate();
             auto output_tensors =
-                m_session->Run(Ort::RunOptions{nullptr}, input_names, input_tensors, 2, // 输入：waveform 和 threshold
+                m_session->Run(run_options, input_names, input_tensors, 2, // 输入：waveform 和 threshold
                                output_names, 2 // 输出：f0 和 uv
                 );
 

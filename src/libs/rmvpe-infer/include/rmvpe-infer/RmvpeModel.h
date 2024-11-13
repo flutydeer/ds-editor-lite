@@ -16,10 +16,13 @@ namespace Rmvpe
 
         // Forward pass through the model
         bool forward(const std::vector<float> &waveform_data, float threshold, std::vector<float> &f0,
-                     std::vector<bool> &uv, std::string &msg) const;
+                     std::vector<bool> &uv, std::string &msg);
+
+        void terminate();
 
     private:
         Ort::Env m_env;
+        Ort::RunOptions run_options;
         Ort::SessionOptions m_session_options;
         Ort::Session *m_session;
         Ort::AllocatorWithDefaultOptions m_allocator;

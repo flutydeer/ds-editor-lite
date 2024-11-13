@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -41,6 +42,21 @@ static void writeCsv(const std::string &csvFilename, const std::vector<float> &f
     std::cout << "CSV file '" << csvFilename << "' created successfully." << std::endl;
 }
 
+void runInference(Rmvpe::Rmvpe &rmvpe, const std::filesystem::path &wavPath, float threshold, std::vector<float> &f0,
+                  std::vector<bool> &uv, std::string &msg, const std::function<void(int)> &progressChanged) {
+    bool success = rmvpe.get_f0(wavPath, threshold, f0, uv, msg, progressChanged);
+
+    if (!success) {
+        std::cerr << "Error: " << msg << std::endl;
+    }
+}
+
+void terminateRmvpeAfterDelay(Rmvpe::Rmvpe &rmvpe, int delaySeconds) {
+    std::this_thread::sleep_for(std::chrono::seconds(delaySeconds));
+    rmvpe.terminate();
+    std::cout << "Rmvpe terminated after " << delaySeconds << " seconds." << std::endl;
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 5 && argc != 6) {
         std::cerr << "Usage: " << argv[0] << " <model_path> <wav_path> <dml/cpu> <device_id> [csv_output]" << std::endl;
@@ -55,16 +71,24 @@ int main(int argc, char *argv[]) {
 
     const auto rmProvider = provider == "dml" ? Rmvpe::ExecutionProvider::DML : Rmvpe::ExecutionProvider::CPU;
 
-    const Rmvpe::Rmvpe rmvpe(modelPath, rmProvider, device_id);
+    Rmvpe::Rmvpe rmvpe(modelPath, rmProvider, device_id);
     constexpr float threshold = 0.03f;
 
     std::vector<float> f0;
     std::vector<bool> uv;
     std::string msg;
 
-    bool success = rmvpe.get_f0(wavPath, threshold, f0, uv, msg, progressChanged);
+    auto inferenceTask = [&rmvpe, &wavPath, &threshold, &f0, &uv, &msg]
+    { runInference(rmvpe, wavPath, threshold, f0, uv, msg, progressChanged); };
 
-    if (success) {
+    std::future<void> inferenceFuture = std::async(std::launch::async, inferenceTask);
+
+    std::thread terminateThread(terminateRmvpeAfterDelay, std::ref(rmvpe), 10);
+    terminateThread.join();
+
+    inferenceFuture.get();
+
+    if (!f0.empty()) {
         std::cout << "midi output:" << std::endl;
         const auto midi = freqToMidi(f0);
         for (const float value : midi) {
