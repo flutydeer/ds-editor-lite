@@ -9,6 +9,7 @@
 #include <QPainter>
 
 #include "UI/Controls/Button.h"
+#include "UI/Utils/ThemeManager.h"
 #include "Utils/WindowFrameUtils.h"
 
 QWidget *Dialog::m_globalParent = nullptr;
@@ -75,15 +76,6 @@ void DialogButtonBar::reset() {
 }
 
 Dialog::Dialog(QWidget *parent, Qt::WindowFlags f) : QDialog(parent ? parent : m_globalParent, f) {
-#ifdef Q_OS_WIN
-    bool micaOn = true;
-    auto version = QSysInfo::productVersion();
-    if (micaOn && version == "11")
-        this->setStyleSheet("QDialog { background: transparent; }");
-#endif
-
-    WindowFrameUtils::applyFrameEffects(this);
-
     m_header = new DialogHeader;
     m_header->setVisible(false);
     // setTitle("要删除此乐器吗？");
@@ -102,9 +94,12 @@ Dialog::Dialog(QWidget *parent, Qt::WindowFlags f) : QDialog(parent ? parent : m
     setLayout(m_mainLayout);
     setMinimumWidth(320);
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+
+    ThemeManager::instance()->addWindow(this);
 }
 
 Dialog::~Dialog() {
+    ThemeManager::instance()->removeWindow(this);
     delete m_buttonBar;
 }
 

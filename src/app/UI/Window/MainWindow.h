@@ -27,6 +27,7 @@ class MainWindow final : public QMainWindow, public IMainWindow {
 
 public:
     explicit MainWindow();
+    ~MainWindow() override;
     void updateWindowTitle() override;
     bool askSaveChanges() override;
     void quit() override;

@@ -4,8 +4,12 @@
 
 #include "Window.h"
 
-#include "Utils/WindowFrameUtils.h"
+#include "UI/Utils/ThemeManager.h"
 
 Window::Window(QWidget *parent, Qt::WindowFlags f) : QWidget(parent, f) {
-    WindowFrameUtils::applyFrameEffects(this);
+    ThemeManager::instance()->addWindow(this);
+}
+
+Window::~Window() {
+    ThemeManager::instance()->removeWindow(this);
 }

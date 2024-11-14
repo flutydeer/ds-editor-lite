@@ -152,8 +152,12 @@ MainWindow::MainWindow() {
     else
         resize(1366, 768);
 
-    WindowFrameUtils::applyFrameEffects(this);
+    ThemeManager::instance()->addWindow(this);
     appController->newProject();
+}
+
+MainWindow::~MainWindow() {
+    ThemeManager::instance()->removeWindow(this);
 }
 
 void MainWindow::updateWindowTitle() {
@@ -372,6 +376,7 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
         } else if (msg->message == WM_SETTINGCHANGE) {
             if (lstrcmpW(reinterpret_cast<LPCWSTR>(msg->lParam), L"ImmersiveColorSet") == 0) {
                 qDebug() << "WM_SETTINGCHANGE triggered: ImmersiveColorSet";
+                ThemeManager::instance()->onSystemThemeColorChanged(ThemeManager::ThemeColorType::Dark);
             }
         }
     }

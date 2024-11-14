@@ -12,6 +12,7 @@ class Window : public QWidget {
 
 public:
     explicit Window(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
+    ~Window() override;
 };
 
 
