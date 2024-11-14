@@ -11,6 +11,13 @@
 namespace Rmvpe
 {
     class RmvpeModel;
+
+    struct RmvpeRes {
+        float offset; // ms
+        std::vector<float> f0;
+        std::vector<bool> uv;
+    };
+
     class Rmvpe {
     public:
         explicit RMVPE_INFER_EXPORT Rmvpe(const std::filesystem::path &modelPath, ExecutionProvider provider,
