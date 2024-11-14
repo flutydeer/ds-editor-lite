@@ -39,9 +39,9 @@ namespace Some
             std::cout << "Use CPU execution provider" << std::endl;
         }
 #ifdef _WIN32
-        m_session = new Ort::Session(m_env, modelPath.wstring().c_str(), m_session_options);
+        m_session = std::make_unique<Ort::Session>(m_env, modelPath.wstring().c_str(), m_session_options);
 #else
-        m_session = new Ort::Session(m_env, model_path.c_str(), m_session_options);
+        m_session = std::make_unique<Ort::Session> Ort::Session(m_env, model_path.c_str(), m_session_options);
 #endif
     }
 

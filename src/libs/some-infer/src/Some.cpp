@@ -20,28 +20,80 @@ namespace Some
 
     Some::~Some() = default;
 
-    bool Some::get_midi(AudioUtil::SF_VIO sf_vio, std::vector<float> &note_midi, std::vector<bool> &note_rest,
-                        std::vector<float> &note_dur, std::string &msg, void (*progressChanged)(int)) const {
+    std::vector<double> cumulativeSum(const std::vector<float> &durations) {
+        std::vector<double> cumsum(durations.size());
+        cumsum[0] = static_cast<double>(durations[0]);
+        for (size_t i = 1; i < durations.size(); ++i) {
+            cumsum[i] = durations[i] + cumsum[i - 1];
+        }
+        return cumsum;
+    }
+
+    std::vector<int> calculateNoteTicks(const std::vector<float> &note_durations, const float tempo) {
+        const std::vector<double> cumsum = cumulativeSum(note_durations);
+
+        std::vector<int64_t> scaled_ticks(cumsum.size());
+        for (size_t i = 0; i < cumsum.size(); ++i) {
+            scaled_ticks[i] = static_cast<int64_t>(std::round(cumsum[i] * tempo * 8));
+        }
+
+        std::vector<int> note_ticks(scaled_ticks.size());
+        note_ticks[0] = static_cast<int>(scaled_ticks[0]);
+        for (size_t i = 1; i < scaled_ticks.size(); ++i) {
+            note_ticks[i] = scaled_ticks[i] - scaled_ticks[i - 1];
+        }
+
+        return note_ticks;
+    }
+
+    static std::vector<Midi> build_midi_note(const float &offset_s, const std::vector<float> &note_midi,
+                                             const std::vector<float> &note_dur, const std::vector<bool> &note_rest,
+                                             const float tempo) {
+        std::vector<Midi> midi_data;
+        int start_tick = static_cast<int>(offset_s * tempo * 8);
+        const std::vector<int> note_ticks = calculateNoteTicks(note_dur, tempo);
+
+        for (size_t i = 0; i < note_midi.size(); ++i) {
+            if (note_rest[i]) {
+                start_tick += note_ticks[i];
+                continue;
+            }
+            midi_data.push_back(Midi{static_cast<int>(std::round(note_midi[i])), start_tick, note_ticks[i]});
+            start_tick += note_ticks[i];
+        }
+
+        return midi_data;
+    }
+
+    static uint64_t calculateSumOfDifferences(const AudioUtil::MarkerList &markers) {
+        uint64_t sum = 0;
+        for (const auto &[fst, snd] : markers) {
+            sum += (snd - fst);
+        }
+        return sum;
+    }
+
+    bool Some::get_midi(AudioUtil::SF_VIO sf_vio, std::vector<Midi> &midis, float tempo, std::string &msg,
+                        void (*progressChanged)(int)) const {
         if (!m_some) {
             return false;
         }
 
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 44100);
-        // AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
-        //
-        // const auto chunks = slicer.slice();
-        //
-        // if (chunks.empty()) {
-        //     msg = "slicer: no audio chunks for output!";
-        //     return false;
-        // }
+        AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
+
+        const auto chunks = slicer.slice();
+
+        if (chunks.empty()) {
+            msg = "slicer: no audio chunks for output!";
+            return false;
+        }
 
         const auto frames = sf.frames();
         const auto totalSize = frames;
 
         int processedFrames = 0; // To track processed frames
-
-        const AudioUtil::MarkerList chunks = {{0, totalSize}};
+        const auto slicerFrames = calculateSumOfDifferences(chunks);
 
         for (const auto &chunk : chunks) {
             const auto beginFrame = chunk.first;
@@ -65,13 +117,13 @@ namespace Some
             const bool success = m_some->forward(tmp, temp_midi, temp_rest, temp_dur, msg);
             if (!success)
                 return false;
-            note_midi.insert(note_midi.end(), temp_midi.begin(), temp_midi.end());
-            note_rest.insert(note_rest.end(), temp_rest.begin(), temp_rest.end());
-            note_dur.insert(note_dur.end(), temp_dur.begin(), temp_dur.end());
+
+            std::vector<Midi> temp_midis = build_midi_note(chunk.first / 44100.0, temp_midi, temp_dur, temp_rest, tempo);
+            midis.insert(midis.end(), temp_midis.begin(), temp_midis.end());
 
             // Update the processed frames and calculate progress
             processedFrames += static_cast<int>(frameCount);
-            int progress = static_cast<int>((static_cast<float>(processedFrames) / totalSize) * 100);
+            int progress = static_cast<int>((static_cast<float>(processedFrames) / slicerFrames) * 100);
 
             // Call the progress callback with the updated progress
             if (progressChanged) {
@@ -81,9 +133,8 @@ namespace Some
         return true;
     }
 
-    bool Some::get_midi(const std::filesystem::path &filepath, std::vector<float> &note_midi,
-                        std::vector<bool> &note_rest, std::vector<float> &note_dur, std::string &msg,
+    bool Some::get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, float tempo, std::string &msg,
                         void (*progressChanged)(int)) const {
-        return get_midi(AudioUtil::resample(filepath, 1, 44100), note_midi, note_rest, note_dur, msg, progressChanged);
+        return get_midi(AudioUtil::resample(filepath, 1, 44100), midis, tempo, msg, progressChanged);
     }
 } // namespace Some

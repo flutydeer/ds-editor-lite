@@ -130,7 +130,7 @@ namespace Rmvpe
             }
         }
 
-        resample_f0_uv(res, f0, uv, totalSize / (16000 / 1000));
+        resample_f0_uv(res, f0, uv, totalSize / (16000.0 / 1000));
         return true;
     }
 
