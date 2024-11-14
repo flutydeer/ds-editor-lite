@@ -24,6 +24,8 @@ namespace Rmvpe
                                           int device_id);
         RMVPE_INFER_EXPORT ~Rmvpe();
 
+        bool RMVPE_INFER_EXPORT is_open() const;
+
         bool RMVPE_INFER_EXPORT get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,
                                        std::vector<bool> &uv, std::string &msg,
                                        const std::function<void(int)> &progressChanged) const;

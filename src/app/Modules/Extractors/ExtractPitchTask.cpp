@@ -41,6 +41,12 @@ void ExtractPitchTask::runTask() {
     newStatus.message = tr("Running inference: %1").arg(m_input.audioPath);
     setStatus(newStatus);
 
+    if (!m_rmvpe->is_open()) {
+        success = false;
+        qCritical() << "Error: Model is not loaded! Make sure the model exists and is valid.";
+        return;
+    }
+
     constexpr float threshold = 0.03f;
 
     std::vector<float> f0;

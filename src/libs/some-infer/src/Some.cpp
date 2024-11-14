@@ -13,12 +13,16 @@ namespace Some
     Some::Some(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id) {
         m_some = std::make_unique<SomeModel>(modelPath, provider, device_id);
 
-        if (!m_some) {
-            std::cout << "Cannot load ASR Model, there must be files model.onnx and vocab.txt" << std::endl;
+        if (!is_open()) {
+            std::cout << "Cannot load SOME Model, there must be files " + modelPath.string() << std::endl;
         }
     }
 
     Some::~Some() = default;
+
+    bool Some::is_open() const {
+        return m_some && m_some->is_open();
+    }
 
     std::vector<double> cumulativeSum(const std::vector<float> &durations) {
         std::vector<double> cumsum(durations.size());

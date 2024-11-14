@@ -21,6 +21,8 @@ namespace Some
                                         int device_id);
         SOME_INFER_EXPORT ~Some();
 
+        bool SOME_INFER_EXPORT is_open() const;
+
         bool SOME_INFER_EXPORT get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, float tempo,
                                         std::string &msg, void (*progressChanged)(int)) const;
 

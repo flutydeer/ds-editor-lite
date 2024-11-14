@@ -15,45 +15,43 @@ namespace Rmvpe
         m_session_options.SetExecutionMode(ORT_SEQUENTIAL);
         m_session_options.SetInterOpNumThreads(4);
 
-        OrtStatus *status;
         // Choose execution provider based on the provided option
         if (provider == ExecutionProvider::DML) {
-            status = OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id);
-            if (status) {
-                const auto &api = Ort::GetApi();
-                const char *msg = api.GetErrorMessage(status);
-                std::cout << "Failed to enable DirectML: " << msg << ". Falling back to CPU." << std::endl;
-                api.ReleaseStatus(status);
+            Ort::Status status(OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id));
+            if (!status.IsOK()) {
+                std::cout << "Failed to enable DirectML: " << status.GetErrorMessage() << ". Falling back to CPU." << std::endl;
+            } else {
+                std::cout << "Use Dml execution provider" << std::endl;
             }
-            std::cout << "Use Dml execution provider" << std::endl;
         }
 
-        // Add the CPU provider if selected or if DirectML failed
-        if (provider == ExecutionProvider::CPU) {
-            status = OrtSessionOptionsAppendExecutionProvider_CPU(m_session_options, 0); // 0 for the default CPU
-            if (status) {
-                const auto &api = Ort::GetApi();
-                const char *msg = api.GetErrorMessage(status);
-                std::cout << "Failed to enable CPU execution provider: " << msg << std::endl;
-                api.ReleaseStatus(status);
-            }
-            std::cout << "Use CPU execution provider" << std::endl;
-        }
+        try {
 #ifdef _WIN32
-        m_session = new Ort::Session(m_env, modelPath.wstring().c_str(), m_session_options);
+            m_session = Ort::Session(m_env, modelPath.wstring().c_str(), m_session_options);
 #else
-        m_session = new Ort::Session(m_env, model_path.c_str(), m_session_options);
+            m_session = Ort::Session(m_env, model_path.c_str(), m_session_options);
 #endif
+        } catch (const Ort::Exception &e) {
+            std::cout << "Failed to create session: " << e.what() << std::endl;
+        }
     }
 
     // Destructor: Release ONNX session
     RmvpeModel::~RmvpeModel() = default;
+
+    bool RmvpeModel::is_open() const {
+        return m_session != nullptr;
+    }
 
     void RmvpeModel::terminate() { run_options.SetTerminate(); }
 
     // Forward pass through the model: takes waveform and threshold as inputs, returns f0 and uv as outputs
     bool RmvpeModel::forward(const std::vector<float> &waveform_data, float threshold, std::vector<float> &f0,
                              std::vector<bool> &uv, std::string &msg) {
+        if (!m_session) {
+            msg = "Session is not initialized.";
+            return false;
+        }
         try {
             size_t n_samples = waveform_data.size();
 
@@ -77,7 +75,7 @@ namespace Rmvpe
 
             run_options.UnsetTerminate();
             auto output_tensors =
-                m_session->Run(run_options, input_names, input_tensors, 2, // 输入：waveform 和 threshold
+                m_session.Run(run_options, input_names, input_tensors, 2, // 输入：waveform 和 threshold
                                output_names, 2 // 输出：f0 和 uv
                 );
 

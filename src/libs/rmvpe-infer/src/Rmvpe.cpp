@@ -13,12 +13,16 @@ namespace Rmvpe
     Rmvpe::Rmvpe(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id) {
         m_rmvpe = std::make_unique<RmvpeModel>(modelPath, provider, device_id);
 
-        if (!m_rmvpe) {
-            std::cout << "Cannot load ASR Model, there must be files model.onnx and vocab.txt" << std::endl;
+        if (!is_open()) {
+            std::cout << "Cannot load RMVPE Model, there must be files " + modelPath.string() << std::endl;
         }
     }
 
     Rmvpe::~Rmvpe() = default;
+
+    bool Rmvpe::is_open() const {
+        return m_rmvpe && m_rmvpe->is_open();
+    }
 
     static float linear_interpolate(const int t, const int t1, const int t2, const float v1, const float v2) {
         if (t1 == t2)

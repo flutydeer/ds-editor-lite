@@ -14,6 +14,7 @@ namespace Rmvpe
         explicit RmvpeModel(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id);
         ~RmvpeModel();
 
+        bool is_open() const;
         // Forward pass through the model
         bool forward(const std::vector<float> &waveform_data, float threshold, std::vector<float> &f0,
                      std::vector<bool> &uv, std::string &msg);
@@ -24,7 +25,7 @@ namespace Rmvpe
         Ort::Env m_env;
         Ort::RunOptions run_options;
         Ort::SessionOptions m_session_options;
-        Ort::Session *m_session;
+        Ort::Session m_session;
         Ort::AllocatorWithDefaultOptions m_allocator;
         const char *m_waveform_input_name; // Name of the waveform input
         const char *m_threshold_input_name; // Name of the threshold input

@@ -14,35 +14,25 @@ namespace Some
         m_session_options.SetExecutionMode(ORT_SEQUENTIAL);
         m_session_options.SetInterOpNumThreads(4);
 
-        OrtStatus *status;
         // Choose execution provider based on the provided option
         if (provider == ExecutionProvider::DML) {
-            status = OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id);
-            if (status) {
-                const auto &api = Ort::GetApi();
-                const char *msg = api.GetErrorMessage(status);
-                std::cout << "Failed to enable DirectML: " << msg << ". Falling back to CPU." << std::endl;
-                api.ReleaseStatus(status);
+            Ort::Status status(OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id));
+            if (!status.IsOK()) {
+                std::cout << "Failed to enable DirectML: " << status.GetErrorMessage() << ". Falling back to CPU." << std::endl;
+            } else {
+                std::cout << "Use Dml execution provider" << std::endl;
             }
-            std::cout << "Use Dml execution provider" << std::endl;
         }
 
-        // Add the CPU provider if selected or if DirectML failed
-        if (provider == ExecutionProvider::CPU) {
-            status = OrtSessionOptionsAppendExecutionProvider_CPU(m_session_options, 0); // 0 for the default CPU
-            if (status) {
-                const auto &api = Ort::GetApi();
-                const char *msg = api.GetErrorMessage(status);
-                std::cout << "Failed to enable CPU execution provider: " << msg << std::endl;
-                api.ReleaseStatus(status);
-            }
-            std::cout << "Use CPU execution provider" << std::endl;
-        }
+        try {
 #ifdef _WIN32
-        m_session = std::make_unique<Ort::Session>(m_env, modelPath.wstring().c_str(), m_session_options);
+            m_session = Ort::Session(m_env, modelPath.wstring().c_str(), m_session_options);
 #else
-        m_session = std::make_unique<Ort::Session> Ort::Session(m_env, model_path.c_str(), m_session_options);
+            m_session = Ort::Session(m_env, model_path.c_str(), m_session_options);
 #endif
+        } catch (const Ort::Exception &e) {
+            std::cout << "Failed to create session: " << e.what() << std::endl;
+        }
     }
 
     // Destructor: Release ONNX session
@@ -50,9 +40,17 @@ namespace Some
 
     void SomeModel::terminate() { run_options.SetTerminate(); }
 
+    bool SomeModel::is_open() const {
+        return m_session != nullptr;
+    }
+
     // Forward pass through the model: takes waveform and threshold as inputs, returns f0 and uv as outputs
     bool SomeModel::forward(const std::vector<float> &waveform_data, std::vector<float> &note_midi,
                             std::vector<bool> &note_rest, std::vector<float> &note_dur, std::string &msg) {
+        if (!m_session) {
+            msg = "Session is not initialized.";
+            return false;
+        }
         try {
             size_t n_samples = waveform_data.size();
 
@@ -71,7 +69,7 @@ namespace Some
             const Ort::Value input_tensors[] = {std::move(waveform_tensor)};
 
             run_options.UnsetTerminate();
-            auto output_tensors = m_session->Run(run_options, input_names, input_tensors, 1, output_names, 3);
+            auto output_tensors = m_session.Run(run_options, input_names, input_tensors, 1, output_names, 3);
 
             const float *midi_array = output_tensors.at(0).GetTensorMutableData<float>();
             note_midi.assign(midi_array,
