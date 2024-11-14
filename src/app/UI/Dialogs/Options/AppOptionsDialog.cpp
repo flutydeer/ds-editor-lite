@@ -17,8 +17,9 @@
 #include "Pages/InferencePage.h"
 
 AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) {
+    setModal(true);
     setFocusPolicy(Qt::ClickFocus);
-    setAttribute(Qt::WA_DeleteOnClose, true);
+    // setAttribute(Qt::WA_DeleteOnClose, true);
     setWindowTitle(tr("Options"));
 
     m_tabList = new QListWidget;

@@ -157,23 +157,35 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     auto menuOptions = new CMenu(tr("&Options"), this);
     auto actionGeneralOptions = new QAction(tr("&General..."), this);
-    connect(actionGeneralOptions, &QAction::triggered, this,
-            [=] { (new AppOptionsDialog(AppOptionsDialog::General, this))->show(); });
+    connect(actionGeneralOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsDialog::General);
+        dialog.exec();
+    });
     auto actionAudioSettings = new QAction(tr("&Audio..."), this);
-    connect(actionAudioSettings, &QAction::triggered, this,
-            [=] { (new AppOptionsDialog(AppOptionsDialog::Audio, this))->show(); });
+    connect(actionAudioSettings, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsDialog::Audio);
+        dialog.exec();
+    });
     auto actionMidiSettings = new QAction(tr("&MIDI..."), this);
-    connect(actionMidiSettings, &QAction::triggered, this,
-            [=] { (new AppOptionsDialog(AppOptionsDialog::Midi, this))->show(); });
+    connect(actionMidiSettings, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsDialog::Midi);
+        dialog.exec();
+    });
     auto actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
-    connect(actionAppearanceOptions, &QAction::triggered, this,
-            [=] { (new AppOptionsDialog(AppOptionsDialog::Appearance, this))->show(); });
+    connect(actionAppearanceOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsDialog::Appearance);
+        dialog.exec();
+    });
     const auto actionLanguageOptions = new QAction(tr("&G2p..."), this);
-    connect(actionLanguageOptions, &QAction::triggered, this,
-            [=] { (new AppOptionsDialog(AppOptionsDialog::G2p, this))->show(); });
+    connect(actionLanguageOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsDialog::G2p);
+        dialog.exec();
+    });
     const auto actionInferenceOptions = new QAction(tr("&Inference..."), this);
-    connect(actionInferenceOptions, &QAction::triggered, this,
-            [=] { (new AppOptionsDialog(AppOptionsDialog::Inference, this))->show(); });
+    connect(actionInferenceOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsDialog::Inference);
+        dialog.exec();
+    });
     menuOptions->addAction(actionGeneralOptions);
     menuOptions->addAction(actionAudioSettings);
     menuOptions->addAction(actionMidiSettings);

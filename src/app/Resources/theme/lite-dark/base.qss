@@ -1,3 +1,15 @@
 QWidget {
     outline: none;
 }
+
+Dialog[transparentWindow="false"],
+Window[transparentWindow="false"],
+QMainWindow[transparentWindow="false"] {
+    background: #232425;
+}
+
+Dialog[transparentWindow="true"],
+Window[transparentWindow="true"],
+QMainWindow[transparentWindow="true"] {
+    background: transparent
+}

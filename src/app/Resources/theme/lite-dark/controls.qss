@@ -747,7 +747,3 @@ PanelView[activePanel="true"] {
 TimelineView {
     background: rgb(28, 29, 30);
 }
-
-TaskWindow {
-    background-color: #202122;
-}

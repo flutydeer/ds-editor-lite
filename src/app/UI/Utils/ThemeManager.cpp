@@ -6,9 +6,11 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/IAnimatable.h"
+#include "Utils/SystemUtils.h"
 #include "Utils/WindowFrameUtils.h"
 
 #include <QEvent>
+#include <QStyle>
 #include <QWidget>
 
 void ThemeManager::addAnimationObserver(IAnimatable *object) {
@@ -53,8 +55,18 @@ void ThemeManager::applyAnimationSettings(IAnimatable *object) {
 bool ThemeManager::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QEvent::Show)
         for (auto window : m_windows)
-            if (window == watched)
+            if (window == watched) {
                 WindowFrameUtils::applyFrameEffects(window);
+                if (SystemUtils::productType() == SystemUtils::SystemProductType::Windows) {
+                    if (QSysInfo::productVersion() == "11")
+                        window->setProperty("transparentWindow", true);
+                    else
+                        window->setProperty("transparentWindow", false);
+                } else
+                    window->setProperty("transparentWindow", false);
+                window->style()->unpolish(window);
+                window->style()->polish(window);
+            }
 
     return QObject::eventFilter(watched, event);
 }
