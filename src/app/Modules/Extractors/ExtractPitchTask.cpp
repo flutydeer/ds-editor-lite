@@ -5,6 +5,7 @@
 #include "ExtractPitchTask.h"
 
 #include "Model/AppOptions/AppOptions.h"
+#include "Modules/Inference/InferEngine.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
@@ -28,6 +29,10 @@ ExtractPitchTask::ExtractPitchTask(Input input) : m_input(std::move(input)) {
                                 ? Rmvpe::ExecutionProvider::DML
                                 : Rmvpe::ExecutionProvider::CPU;
 
+    if (!inferEngine->initialized()) {
+        return;
+    }
+
     // TODO:: forced on cpu
     m_rmvpe = std::make_unique<Rmvpe::Rmvpe>(modelPath, Rmvpe::ExecutionProvider::CPU, 0);
 }
@@ -40,6 +45,12 @@ void ExtractPitchTask::runTask() {
     auto newStatus = status();
     newStatus.message = tr("Running inference: %1").arg(m_input.audioPath);
     setStatus(newStatus);
+
+    if (!m_rmvpe) {
+        success = false;
+        qCritical() << "Error: Infer engine is not initialized!";
+        return;
+    }
 
     if (!m_rmvpe->is_open()) {
         success = false;
@@ -78,6 +89,9 @@ void ExtractPitchTask::runTask() {
 }
 
 void ExtractPitchTask::terminate() {
+    if (!m_rmvpe) {
+        return;
+    }
     m_rmvpe->terminate();
 }
 
