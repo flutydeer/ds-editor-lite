@@ -89,12 +89,12 @@ int main(int argc, char *argv[]) {
     inferenceFuture.get();
 
     if (!f0.empty()) {
-        std::cout << "midi output:" << std::endl;
-        const auto midi = freqToMidi(f0);
-        for (const float value : midi) {
-            std::cout << value << " ";
-        }
-        std::cout << std::endl;
+        // std::cout << "midi output:" << std::endl;
+        // const auto midi = freqToMidi(f0);
+        // for (const float value : midi) {
+        //     std::cout << value << " ";
+        // }
+        // std::cout << std::endl;
 
         if (!csvOutput.empty() && csvOutput.substr(csvOutput.find_last_of('.')) == ".csv") {
             writeCsv(csvOutput, f0, uv);

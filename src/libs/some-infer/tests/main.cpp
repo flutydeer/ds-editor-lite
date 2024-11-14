@@ -11,17 +11,22 @@
 static void progressChanged(const int progress) { std::cout << "progress: " << progress << "%" << std::endl; }
 
 int main(int argc, char *argv[]) {
-    if (argc != 5) {
-        std::cerr << "Usage: " << argv[0] << " <model_path> <wav_path> <out_midi_path> <tempo:float>" << std::endl;
+    if (argc != 7) {
+        std::cerr << "Usage: " << argv[0]
+                  << " <model_path> <wav_path> <dml/cpu> <device_id> <out_midi_path> <tempo:float>" << std::endl;
         return 1;
     }
 
     const std::filesystem::path modelPath = argv[1];
     const std::filesystem::path wavPath = argv[2];
-    const std::filesystem::path outMidiPath = argv[3];
-    const float tempo = std::stof(argv[4]);
+    const std::string provider = argv[3];
+    const int device_id = std::stoi(argv[4]);
+    const std::filesystem::path outMidiPath = argv[5];
+    const float tempo = std::stof(argv[6]);
 
-    const Some::Some some(modelPath, Some::ExecutionProvider::DML, 1);
+    const auto someProvider = provider == "dml" ? Some::ExecutionProvider::DML : Some::ExecutionProvider::CPU;
+
+    const Some::Some some(modelPath, someProvider, device_id);
 
     std::vector<Some::Midi> midis;
     std::string msg;
