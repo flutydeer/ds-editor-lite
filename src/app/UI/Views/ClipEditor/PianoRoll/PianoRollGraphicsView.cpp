@@ -200,12 +200,12 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
 
 void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
-    if (cancelRequested || d->m_mouseDown == false)
-        return;
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::None) {
         TimeGraphicsView::mouseMoveEvent(event);
         return;
     }
+    if (cancelRequested || d->m_mouseDown == false)
+        return;
 
     if (event->modifiers() == Qt::AltModifier)
         d->m_tempQuantizeOff = true;

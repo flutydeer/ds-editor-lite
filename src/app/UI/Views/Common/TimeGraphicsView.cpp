@@ -459,6 +459,8 @@ void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
 }
 
 void TimeGraphicsView::mouseMoveEvent(QMouseEvent *event) {
+    // qDebug() << "m_isDraggingScrollBar" << m_isDraggingScrollBar << "m_mouseOnScrollBarHandle"
+    //          << m_mouseOnScrollBarHandle << "m_isDraggingContent" << m_isDraggingContent;
     if (m_isDraggingScrollBar && m_mouseOnScrollBarHandle) {
         int barWidth = 14;
         auto value0 = m_mouseDownBarValue;
