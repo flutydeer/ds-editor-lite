@@ -11,12 +11,25 @@
 #include <rmvpe-infer/Rmvpe.h>
 #include <QDebug>
 #include <QThread>
+#include <utility>
 
-ExtractPitchTask::ExtractPitchTask(const Input &input) : m_input(input) {
+ExtractPitchTask::ExtractPitchTask(Input input) : m_input(std::move(input)) {
     TaskStatus status;
     status.title = tr("Extract Pitch");
     status.message = tr("Pending infer: %1").arg(m_input.audioPath);
     setStatus(status);
+
+    const std::filesystem::path modelPath = R"(D:\python\RMVPE\rmvpe.onnx)";
+    Q_ASSERT(!modelPath.empty());
+
+    const int device_id = appOptions->inference()->selectedGpuIndex;
+
+    const auto rmProvider = appOptions->inference()->executionProvider == "DirectML"
+                                ? Rmvpe::ExecutionProvider::DML
+                                : Rmvpe::ExecutionProvider::CPU;
+
+    // TODO:: forced on cpu
+    m_rmvpe = std::make_unique<Rmvpe::Rmvpe>(modelPath, Rmvpe::ExecutionProvider::CPU, 0);
 }
 
 const ExtractPitchTask::Input &ExtractPitchTask::input() const {
@@ -28,29 +41,19 @@ void ExtractPitchTask::runTask() {
     newStatus.message = tr("Running inference: %1").arg(m_input.audioPath);
     setStatus(newStatus);
 
-    const std::filesystem::path modelPath = "";
-    Q_ASSERT(!modelPath.empty());
-#ifdef Q_OS_WIN
-    const std::filesystem::path wavPath = m_input.audioPath.toStdWString();
-#else
-    const std::filesystem::path wavPath = m_input.audioPath.toStdString();
-#endif
-
-    const int device_id = appOptions->inference()->selectedGpuIndex;
-
-    const auto rmProvider = appOptions->inference()->executionProvider == "DirectML"
-                                ? Rmvpe::ExecutionProvider::DML
-                                : Rmvpe::ExecutionProvider::CPU;
-
-    // TODO:: forced on cpu
-    const Rmvpe::Rmvpe rmvpe(modelPath, Rmvpe::ExecutionProvider::CPU, 0);
     constexpr float threshold = 0.03f;
 
     std::vector<float> f0;
     std::vector<bool> uv;
     std::string msg;
 
-    success = rmvpe.get_f0(wavPath, threshold, f0, uv, msg, [=](int progress) {
+#ifdef Q_OS_WIN
+    const std::filesystem::path wavPath = m_input.audioPath.toStdWString();
+#else
+    const std::filesystem::path wavPath = m_input.audioPath.toStdString();
+#endif
+
+    success = m_rmvpe->get_f0(wavPath, threshold, f0, uv, msg, [=](int progress) {
         auto progressStatus = status();
         progressStatus.progress = progress;
         setStatus(progressStatus);
@@ -66,6 +69,10 @@ void ExtractPitchTask::runTask() {
     } else {
         qCritical() << "Error: " << msg;
     }
+}
+
+void ExtractPitchTask::terminate() {
+    m_rmvpe->terminate();
 }
 
 std::vector<float> ExtractPitchTask::freqToMidi(const std::vector<float> &frequencies) {

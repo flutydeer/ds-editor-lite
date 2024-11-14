@@ -6,6 +6,7 @@
 #define EXTRACTPITCHTASK_H
 
 #include "Modules/Task/Task.h"
+#include <rmvpe-infer/Rmvpe.h>
 
 class ExtractPitchTask : public Task {
     Q_OBJECT
@@ -18,7 +19,9 @@ public:
         double tempo = 0;
     };
 
-    explicit ExtractPitchTask(const Input &input);
+    explicit ExtractPitchTask(Input input);
+
+    void terminate() override;
 
     int singingClipId = -1;
     int audioClipId = -1;
@@ -32,5 +35,6 @@ private:
     void processOutput(const QList<double> &values);
 
     Input m_input;
+    std::unique_ptr<Rmvpe::Rmvpe> m_rmvpe;
 };
 #endif // EXTRACTPITCHTASK_H

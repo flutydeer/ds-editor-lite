@@ -42,7 +42,8 @@ void PitchExtractController::onExtractPitchTaskFinished(ExtractPitchTask *task) 
     }
 
     auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(task->input().audioClipId));
-    auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task->input().singingClipId));
+    auto singingClip =
+        dynamic_cast<SingingClip *>(appModel->findClipById(task->input().singingClipId));
     if (!audioClip || !singingClip) {
         delete task;
         return;
