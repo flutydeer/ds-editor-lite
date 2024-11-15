@@ -1,9 +1,9 @@
-#ifndef PROVIDER_H
-#define PROVIDER_H
+#ifndef SOMEPROVIDER_H
+#define SOMEPROVIDER_H
 
 namespace Some
 {
     enum class ExecutionProvider { CPU, DML };
 }
 
-#endif // PROVIDER_H
+#endif // SOMEPROVIDER_H

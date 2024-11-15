@@ -12,10 +12,12 @@
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Extractors/MidiExtractController.h"
 #include "Modules/Extractors/PitchExtractController.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
+#include "UI/Dialogs/Extractor/ExtractMidiDialog.h"
 #include "UI/Dialogs/Extractor/ExtractPitchParamDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Window/MainWindow.h"
@@ -154,6 +156,11 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     menuEdit->addAction(d->actionSearchLyrics);
     menuEdit->addSeparator();
     menuEdit->addAction(d->actionGetPitchParamFromAudioClip);
+
+    d->actionGetMidiFromAudioClip = new QAction(tr("Get Midi from audio clip..."));
+    connect(d->actionGetMidiFromAudioClip, &QAction::triggered, this,
+            [=] { d->onGetMidiFromAudioClip(); });
+    menuEdit->addAction(d->actionGetMidiFromAudioClip);
 
     auto menuOptions = new CMenu(tr("&Options"), this);
     auto actionGeneralOptions = new QAction(tr("&General..."), this);
@@ -352,6 +359,40 @@ void MainMenuViewPrivate::onCopy() {
 
 void MainMenuViewPrivate::onPaste() {
     qDebug() << "MainMenuView::onPaste";
+}
+
+void MainMenuViewPrivate::onGetMidiFromAudioClip() {
+    const auto singingClip =
+        dynamic_cast<SingingClip *>(appModel->findClipById(appStatus->activeClipId));
+    Q_ASSERT(singingClip);
+    if (singingClip->clipType() != IClip::Singing) {
+        // TODO: 在选中非歌声剪辑时禁用此操作
+        Toast::show("请先选中一个歌声剪辑");
+        return;
+    }
+
+    QList<AudioClip *> clips;
+    for (const auto track : appModel->tracks())
+        for (const auto clip : track->clips())
+            if (clip->clipType() == IClip::Audio) {
+                const auto audioClip = dynamic_cast<AudioClip *>(clip);
+                Q_ASSERT(audioClip);
+                clips.append(audioClip);
+            }
+    if (clips.isEmpty()) {
+        Toast::show("请先添加一个音频文件");
+        return;
+    }
+
+    ExtractPitchParamDialog dialog(clips);
+    dialog.exec();
+    if (dialog.selectedClipId == -1) {
+        qDebug() << "User canceled get pitch param from audio clip";
+        return;
+    }
+    const auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(dialog.selectedClipId));
+    Q_ASSERT(audioClip);
+    midiExtractController->runExtractMidi(audioClip, singingClip);
 }
 
 void MainMenuViewPrivate::onGetPitchParamFromAudioClip() {

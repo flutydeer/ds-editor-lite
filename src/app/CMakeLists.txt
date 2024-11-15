@@ -56,7 +56,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         qtmediate::Widgets
         svscraft::Widgets
         dsonnxinfer
-        rmvpe-infer::rmvpe-infer
+        rmvpe-infer::rmvpe-infer some-infer::some-infer
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)

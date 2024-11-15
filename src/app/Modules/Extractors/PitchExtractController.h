@@ -17,7 +17,7 @@ class ExtractPitchTask;
 class SingingClip;
 class AudioClip;
 
-class PitchExtractController :public ModelChangeHandler, public Singleton<PitchExtractController> {
+class PitchExtractController final : public ModelChangeHandler, public Singleton<PitchExtractController> {
     Q_OBJECT
 
 public:

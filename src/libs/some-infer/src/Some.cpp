@@ -76,7 +76,7 @@ namespace Some
     }
 
     bool Some::get_midi(AudioUtil::SF_VIO sf_vio, std::vector<Midi> &midis, float tempo, std::string &msg,
-                        void (*progressChanged)(int)) const {
+                        const std::function<void(int)> &progressChanged) const {
         if (!m_some) {
             return false;
         }
@@ -138,7 +138,9 @@ namespace Some
     }
 
     bool Some::get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, const float tempo,
-                        std::string &msg, void (*progressChanged)(int)) const {
+                        std::string &msg, const std::function<void(int)> &progressChanged) const {
         return get_midi(AudioUtil::resample(filepath, 1, 44100), midis, tempo, msg, progressChanged);
     }
+
+    void Some::terminate() const { m_some->terminate(); }
 } // namespace Some

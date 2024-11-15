@@ -1,7 +1,8 @@
-#ifndef RMVPE_H
-#define RMVPE_H
+#ifndef SOME_H
+#define SOME_H
 
 #include <filesystem>
+#include <functional>
 
 #include <audio-util/SndfileVio.h>
 #include <some-infer/Provider.h>
@@ -11,27 +12,28 @@ namespace Some
 {
     class SomeModel;
 
-    struct Midi {
+    struct SOME_INFER_EXPORT Midi {
         int note, start, duration;
     };
 
-    class Some {
+    class SOME_INFER_EXPORT Some {
     public:
-        explicit SOME_INFER_EXPORT Some(const std::filesystem::path &modelPath, ExecutionProvider provider,
-                                        int device_id);
-        SOME_INFER_EXPORT ~Some();
+        explicit Some(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id);
+        ~Some();
 
-        bool SOME_INFER_EXPORT is_open() const;
+        bool is_open() const;
 
-        bool SOME_INFER_EXPORT get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, float tempo,
-                                        std::string &msg, void (*progressChanged)(int)) const;
+        bool get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, float tempo, std::string &msg,
+                      const std::function<void(int)> &progressChanged) const;
+
+        void terminate() const;
 
     private:
         bool get_midi(AudioUtil::SF_VIO sf_vio, std::vector<Midi> &midis, float tempo, std::string &msg,
-                      void (*progressChanged)(int)) const;
+                      const std::function<void(int)> &progressChanged) const;
 
         std::unique_ptr<SomeModel> m_some;
     };
 } // namespace Some
 
-#endif // RMVPE_H
+#endif // SOME_H

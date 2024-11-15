@@ -18,19 +18,17 @@ namespace Rmvpe
         std::vector<bool> uv;
     };
 
-    class Rmvpe {
+    class RMVPE_INFER_EXPORT Rmvpe {
     public:
-        explicit RMVPE_INFER_EXPORT Rmvpe(const std::filesystem::path &modelPath, ExecutionProvider provider,
-                                          int device_id);
-        RMVPE_INFER_EXPORT ~Rmvpe();
+        explicit Rmvpe(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id);
+        ~Rmvpe();
 
-        bool RMVPE_INFER_EXPORT is_open() const;
+        bool is_open() const;
 
-        bool RMVPE_INFER_EXPORT get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,
-                                       std::vector<bool> &uv, std::string &msg,
-                                       const std::function<void(int)> &progressChanged) const;
+        bool get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,
+                    std::vector<bool> &uv, std::string &msg, const std::function<void(int)> &progressChanged) const;
 
-        void RMVPE_INFER_EXPORT terminate() const;
+        void terminate() const;
 
     private:
         bool get_f0(AudioUtil::SF_VIO sf_vio, float threshold, std::vector<float> &f0, std::vector<bool> &uv,

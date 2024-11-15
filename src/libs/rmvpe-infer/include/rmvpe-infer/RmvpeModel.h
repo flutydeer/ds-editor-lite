@@ -1,5 +1,5 @@
-#ifndef FBLMODEL_H
-#define FBLMODEL_H
+#ifndef RMVPEMODEL_H
+#define RMVPEMODEL_H
 
 #include <filesystem>
 #include <onnxruntime_cxx_api.h>
@@ -41,4 +41,4 @@ namespace Rmvpe
 
 } // namespace Rmvpe
 
-#endif // FBLMODEL_H
+#endif // RMVPEMODEL_H

@@ -1,5 +1,5 @@
-#ifndef FBLMODEL_H
-#define FBLMODEL_H
+#ifndef SOMEMODEL_H
+#define SOMEMODEL_H
 
 #include <filesystem>
 #include <onnxruntime_cxx_api.h>
@@ -41,4 +41,4 @@ namespace Some
 
 } // namespace Some
 
-#endif // FBLMODEL_H
+#endif // SOMEMODEL_H
