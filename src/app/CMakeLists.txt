@@ -36,6 +36,7 @@ find_package(language-manager CONFIG REQUIRED)
 find_package(QasTool CONFIG REQUIRED)
 find_package(opendspx CONFIG REQUIRED)
 find_package(lyric-tab CONFIG REQUIRED)
+find_package(talcs REQUIRED)
 
 set(USE_LITE_CONTROLS OFF)
 

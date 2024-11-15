@@ -1,0 +1,3 @@
+cmake_minimum_required(VERSION 3.17)
+
+file(WRITE ${ASIOSDK_DIR_HELPER_OUT_FILE} ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/asiosdk)

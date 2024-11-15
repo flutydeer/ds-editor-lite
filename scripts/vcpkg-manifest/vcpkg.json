@@ -21,7 +21,11 @@
     "syscmdline",
     "nlohmann-json",
     "yaml-cpp",
-    "wavpack"
+    "wavpack",
+    {
+      "name": "talcs",
+      "features": ["device", "device-sdl", "device-asio", "format", "midi", "dspx", "widgets"]
+    }
   ],
   "vcpkg-configuration": {
     "overlay-ports": [
