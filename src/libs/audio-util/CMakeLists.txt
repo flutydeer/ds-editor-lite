@@ -57,9 +57,10 @@ endif ()
 target_compile_definitions(${PROJECT_NAME} PRIVATE AUDIO_UTIL_LIBRARY)
 
 find_package(SndFile CONFIG REQUIRED)
+find_package(FLAC CONFIG REQUIRED)
+find_package(mpg123 CONFIG REQUIRED)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile)
-target_link_libraries(${PROJECT_NAME} PRIVATE r8brain)
+target_link_libraries(${PROJECT_NAME} PRIVATE SndFile::sndfile r8brain MPG123::libmpg123 FLAC::FLAC++)
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})

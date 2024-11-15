@@ -41,7 +41,13 @@ int main(int argc, char *argv[]) {
 
         midi.createTrack();
 
-        midi.createTimeSignatureEvent(0, 0, 4, 4);
+        std::vector<char> buf;
+        buf.resize(4);
+        buf[0] = static_cast<char>(4);
+        buf[1] = static_cast<char>(std::log2(4));
+        buf[2] = 24;
+        buf[3] = 8;
+        midi.createMetaEvent(0, 0, Midi::MidiEvent::TimeSignature, buf);
         midi.createTempoEvent(0, 0, tempo);
 
         std::vector<char> trackName;
