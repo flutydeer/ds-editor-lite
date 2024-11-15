@@ -61,8 +61,8 @@ Button:checked:pressed {
 }
 
 Button:checked:disabled {
-    color: rgb(166, 166, 166);
-    background: rgb(205, 205, 205)
+    color: rgba(255, 255, 255, 127);
+    background-color: rgba(255, 255, 255, 32)
 }
 
 AccentButton {
@@ -84,8 +84,8 @@ AccentButton:pressed {
 }
 
 AccentButton:disabled {
-    color: rgb(166, 166, 166);
-    background-color: rgb(205, 205, 205)
+    color: rgba(255, 255, 255, 127);
+    background-color: rgba(255, 255, 255, 32)
 }
 
 
@@ -103,8 +103,8 @@ QComboBox:hover {
 }
 
 QComboBox:disabled {
-    color: rgb(127, 127, 127);
-    background-color: rgb(64, 64, 64)
+    color: rgba(255, 255, 255, 127);
+    background-color: rgba(255, 255, 255, 32)
 }
 
 QComboBox QAbstractItemView {
@@ -500,7 +500,8 @@ QCheckBox::indicator:checked:pressed {
 
 QCheckBox::indicator:checked:disabled {
     /* border: 1px solid #606060; */
-    background-color: rgb(205, 205, 205);
+    color: rgba(255, 255, 255, 127);
+    background-color: rgba(255, 255, 255, 32)
 }
 
 QCheckBox::indicator:unchecked {

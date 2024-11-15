@@ -13,7 +13,7 @@
 #include <QVBoxLayout>
 
 ExtractMidiDialog::ExtractMidiDialog(const QList<AudioClip *> &clips) {
-    setWindowTitle(tr("Extract Midi Parameter"));
+    setWindowTitle(tr("Extract MIDI Score"));
     setTitle(tr("Select an audio clip"));
     setMinimumWidth(480);
 

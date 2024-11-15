@@ -28,6 +28,7 @@ ExtractPitchParamDialog::ExtractPitchParamDialog(const QList<AudioClip *> &clips
     layout->addWidget(clipList);
     layout->setContentsMargins({});
     body()->setLayout(layout);
+    okButton()->setEnabled(false);
 
     connect(okButton(), &Button::clicked, this, &Dialog::accept);
     connect(cancelButton(), &Button::clicked, this, [=] {
@@ -42,8 +43,10 @@ void ExtractPitchParamDialog::onSelectionChanged(int row) {
     auto item = clipList->item(row);
     if (!item) {
         selectedClipId = -1;
+        okButton()->setEnabled(false);
         return;
     }
+    okButton()->setEnabled(true);
     const int clipId = item->data(Qt::UserRole).toInt();
     selectedClipId = clipId;
 }
