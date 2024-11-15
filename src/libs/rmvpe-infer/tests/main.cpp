@@ -9,21 +9,6 @@
 
 static void progressChanged(const int progress) { std::cout << "progress: " << progress << "%" << std::endl; }
 
-static std::vector<float> freqToMidi(const std::vector<float> &frequencies) {
-    std::vector<float> midiPitches;
-
-    for (const float f : frequencies) {
-        if (f > 0) {
-            float midiPitch = 69 + 12 * std::log2(f / 440.0f);
-            midiPitches.push_back(midiPitch);
-        } else {
-            midiPitches.push_back(0);
-        }
-    }
-
-    return midiPitches;
-}
-
 static void writeCsv(const std::string &csvFilename, const std::vector<float> &f0, const std::vector<bool> &uv) {
     std::ofstream csvFile(csvFilename);
     if (!csvFile.is_open()) {
@@ -42,22 +27,23 @@ static void writeCsv(const std::string &csvFilename, const std::vector<float> &f
     std::cout << "CSV file '" << csvFilename << "' created successfully." << std::endl;
 }
 
-void runInference(Rmvpe::Rmvpe &rmvpe, const std::filesystem::path &wavPath, float threshold, std::vector<float> &f0,
-                  std::vector<bool> &uv, std::string &msg, const std::function<void(int)> &progressChanged) {
-    bool success = rmvpe.get_f0(wavPath, threshold, f0, uv, msg, progressChanged);
+void runInference(const Rmvpe::Rmvpe &rmvpe, const std::filesystem::path &wavPath, const float threshold,
+                  std::vector<float> &f0, std::vector<bool> &uv, std::string &msg,
+                  const std::function<void(int)> &progressChanged) {
+    const bool success = rmvpe.get_f0(wavPath, threshold, f0, uv, msg, progressChanged);
 
     if (!success) {
         std::cerr << "Error: " << msg << std::endl;
     }
 }
 
-void terminateRmvpeAfterDelay(Rmvpe::Rmvpe &rmvpe, int delaySeconds) {
+void terminateRmvpeAfterDelay(const Rmvpe::Rmvpe &rmvpe, const int delaySeconds) {
     std::this_thread::sleep_for(std::chrono::seconds(delaySeconds));
     rmvpe.terminate();
     std::cout << "Rmvpe terminated after " << delaySeconds << " seconds." << std::endl;
 }
 
-int main(int argc, char *argv[]) {
+int main(const int argc, char *argv[]) {
     if (argc != 5 && argc != 6) {
         std::cerr << "Usage: " << argv[0] << " <model_path> <wav_path> <dml/cpu> <device_id> [csv_output]" << std::endl;
         return 1;

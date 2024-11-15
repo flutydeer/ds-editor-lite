@@ -1,5 +1,4 @@
 #include <array>
-#include <cpu_provider_factory.h>
 #include <dml_provider_factory.h>
 #include <iostream>
 #include <rmvpe-infer/RmvpeModel.h>
@@ -17,7 +16,7 @@ namespace Rmvpe
 
         // Choose execution provider based on the provided option
         if (provider == ExecutionProvider::DML) {
-            Ort::Status status(OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id));
+            const Ort::Status status(OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id));
             if (!status.IsOK()) {
                 std::cout << "Failed to enable DirectML: " << status.GetErrorMessage() << ". Falling back to CPU." << std::endl;
             } else {
@@ -53,20 +52,19 @@ namespace Rmvpe
             return false;
         }
         try {
-            size_t n_samples = waveform_data.size();
+            const size_t n_samples = waveform_data.size();
 
-            std::array<int64_t, 2> input_waveform_shape = {1, static_cast<int64_t>(n_samples)};
+            const std::array<int64_t, 2> input_waveform_shape = {1, static_cast<int64_t>(n_samples)};
             Ort::Value waveform_tensor = Ort::Value::CreateTensor<float>(
                 m_memory_info, const_cast<float *>(waveform_data.data()), waveform_data.size(),
                 input_waveform_shape.data(), input_waveform_shape.size());
 
-            std::array<int64_t, 1> input_threshold_shape = {1}; // Scalar, shape is {1}
+            constexpr std::array<int64_t, 1> input_threshold_shape = {1}; // Scalar, shape is {1}
             Ort::Value threshold_tensor = Ort::Value::CreateTensor<float>(
                 m_memory_info, &threshold, 1, input_threshold_shape.data(), input_threshold_shape.size());
 
             std::vector<float> f0_data;
             std::vector<int> uv_data;
-            std::array<int64_t, 2> output_shape{};
 
             const char *input_names[] = {"waveform", "threshold"};
             const char *output_names[] = {"f0", "uv"};

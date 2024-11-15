@@ -20,9 +20,7 @@ namespace Some
 
     Some::~Some() = default;
 
-    bool Some::is_open() const {
-        return m_some && m_some->is_open();
-    }
+    bool Some::is_open() const { return m_some && m_some->is_open(); }
 
     std::vector<double> cumulativeSum(const std::vector<float> &durations) {
         std::vector<double> cumsum(durations.size());
@@ -44,13 +42,13 @@ namespace Some
         std::vector<int> note_ticks(scaled_ticks.size());
         note_ticks[0] = static_cast<int>(scaled_ticks[0]);
         for (size_t i = 1; i < scaled_ticks.size(); ++i) {
-            note_ticks[i] = scaled_ticks[i] - scaled_ticks[i - 1];
+            note_ticks[i] = static_cast<int>(scaled_ticks[i] - scaled_ticks[i - 1]);
         }
 
         return note_ticks;
     }
 
-    static std::vector<Midi> build_midi_note(const float &offset_s, const std::vector<float> &note_midi,
+    static std::vector<Midi> build_midi_note(const double &offset_s, const std::vector<float> &note_midi,
                                              const std::vector<float> &note_dur, const std::vector<bool> &note_rest,
                                              const float tempo) {
         std::vector<Midi> midi_data;
@@ -99,9 +97,9 @@ namespace Some
         int processedFrames = 0; // To track processed frames
         const auto slicerFrames = calculateSumOfDifferences(chunks);
 
-        for (const auto &chunk : chunks) {
-            const auto beginFrame = chunk.first;
-            const auto endFrame = chunk.second;
+        for (const auto &[fst, snd] : chunks) {
+            const auto beginFrame = fst;
+            const auto endFrame = snd;
             const auto frameCount = endFrame - beginFrame;
             if (frameCount <= 0 || beginFrame > totalSize || endFrame > totalSize) {
                 continue;
@@ -112,7 +110,7 @@ namespace Some
             sf.seek(static_cast<sf_count_t>(beginFrame), SEEK_SET);
             std::vector<float> tmp(frameCount);
             sf.read(tmp.data(), static_cast<sf_count_t>(tmp.size()));
-            const auto bytesWritten = wf.write(tmp.data(), static_cast<sf_count_t>(tmp.size()));
+            wf.write(tmp.data(), static_cast<sf_count_t>(tmp.size()));
 
             std::vector<float> temp_midi;
             std::vector<bool> temp_rest;
@@ -122,12 +120,14 @@ namespace Some
             if (!success)
                 return false;
 
-            std::vector<Midi> temp_midis = build_midi_note(chunk.first / 44100.0, temp_midi, temp_dur, temp_rest, tempo);
+            std::vector<Midi> temp_midis =
+                build_midi_note(static_cast<double>(fst) / 44100.0, temp_midi, temp_dur, temp_rest, tempo);
             midis.insert(midis.end(), temp_midis.begin(), temp_midis.end());
 
             // Update the processed frames and calculate progress
             processedFrames += static_cast<int>(frameCount);
-            int progress = static_cast<int>((static_cast<float>(processedFrames) / slicerFrames) * 100);
+            int progress =
+                static_cast<int>((static_cast<float>(processedFrames) / static_cast<float>(slicerFrames)) * 100);
 
             // Call the progress callback with the updated progress
             if (progressChanged) {
@@ -137,8 +137,8 @@ namespace Some
         return true;
     }
 
-    bool Some::get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, float tempo, std::string &msg,
-                        void (*progressChanged)(int)) const {
+    bool Some::get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, const float tempo,
+                        std::string &msg, void (*progressChanged)(int)) const {
         return get_midi(AudioUtil::resample(filepath, 1, 44100), midis, tempo, msg, progressChanged);
     }
 } // namespace Some

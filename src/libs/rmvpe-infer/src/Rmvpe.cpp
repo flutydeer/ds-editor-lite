@@ -20,9 +20,7 @@ namespace Rmvpe
 
     Rmvpe::~Rmvpe() = default;
 
-    bool Rmvpe::is_open() const {
-        return m_rmvpe && m_rmvpe->is_open();
-    }
+    bool Rmvpe::is_open() const { return m_rmvpe && m_rmvpe->is_open(); }
 
     static float linear_interpolate(const int t, const int t1, const int t2, const float v1, const float v2) {
         if (t1 == t2)
@@ -40,7 +38,7 @@ namespace Rmvpe
 
         for (const auto &[offset, f0, uv] : res) {
             for (size_t i = 0; i < f0.size(); ++i) {
-                const float time = offset + i * interval;
+                const float time = offset + static_cast<float>(i * interval);
                 if (time >= 0 && time <= totalSize) {
                     const int target_index = static_cast<int>(time / interval);
 
@@ -73,10 +71,10 @@ namespace Rmvpe
         }
     }
 
-    static uint64_t calculateSumOfDifferences(const AudioUtil::MarkerList &markers) {
-        uint64_t sum = 0;
+    static float calculateSumOfDifferences(const AudioUtil::MarkerList &markers) {
+        float sum = 0;
         for (const auto &[fst, snd] : markers) {
-            sum += (snd - fst);
+            sum += static_cast<float>(snd - fst);
         }
         return sum;
     }
@@ -100,11 +98,11 @@ namespace Rmvpe
         const auto totalSize = sf.frames();
 
         int processedFrames = 0; // To track processed frames
-        const auto slicerFrames = calculateSumOfDifferences(chunks);
+        const float slicerFrames = calculateSumOfDifferences(chunks);
 
-        for (const auto &chunk : chunks) {
-            const auto beginFrame = chunk.first;
-            const auto endFrame = chunk.second;
+        for (const auto &[fst, snd] : chunks) {
+            const auto beginFrame = fst;
+            const auto endFrame = snd;
             const auto frameCount = endFrame - beginFrame;
             if (frameCount <= 0 || beginFrame > totalSize || endFrame > totalSize) {
                 continue;
@@ -115,10 +113,10 @@ namespace Rmvpe
             sf.seek(static_cast<sf_count_t>(beginFrame), SEEK_SET);
             std::vector<float> tmp(frameCount);
             sf.read(tmp.data(), static_cast<sf_count_t>(tmp.size()));
-            const auto bytesWritten = wf.write(tmp.data(), static_cast<sf_count_t>(tmp.size()));
+            wf.write(tmp.data(), static_cast<sf_count_t>(tmp.size()));
 
             RmvpeRes tempRes;
-            tempRes.offset = chunk.first / (16000 / 1000);
+            tempRes.offset = static_cast<float>(static_cast<double>(fst) / (16000.0 / 1000));
             const bool success = m_rmvpe->forward(tmp, threshold, tempRes.f0, tempRes.uv, msg);
             if (!success)
                 return false;
@@ -130,15 +128,15 @@ namespace Rmvpe
 
             // Call the progress callback with the updated progress
             if (progressChanged) {
-                progressChanged(static_cast<int>(progress)); // Trigger the callback with the progress value
+                progressChanged(progress); // Trigger the callback with the progress value
             }
         }
 
-        resample_f0_uv(res, f0, uv, totalSize / (16000.0 / 1000));
+        resample_f0_uv(res, f0, uv, static_cast<float>(static_cast<double>(totalSize) / (16000.0 / 1000)));
         return true;
     }
 
-    bool Rmvpe::get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,
+    bool Rmvpe::get_f0(const std::filesystem::path &filepath, const float threshold, std::vector<float> &f0,
                        std::vector<bool> &uv, std::string &msg, const std::function<void(int)> &progressChanged) const {
         return get_f0(AudioUtil::resample(filepath, 1, 16000), threshold, f0, uv, msg, progressChanged);
     }

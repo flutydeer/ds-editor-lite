@@ -1,12 +1,11 @@
 #include <array>
-#include <cpu_provider_factory.h>
 #include <dml_provider_factory.h>
 #include <iostream>
 #include <some-infer/SomeModel.h>
 
 namespace Some
 {
-    SomeModel::SomeModel(const std::filesystem::path &modelPath, ExecutionProvider provider, const int device_id) :
+    SomeModel::SomeModel(const std::filesystem::path &modelPath, const ExecutionProvider provider, const int device_id) :
         m_env(Ort::Env(ORT_LOGGING_LEVEL_WARNING, "RmvpeModel")), m_session_options(Ort::SessionOptions()),
         m_session(nullptr), m_waveform_input_name("waveform"), m_note_midi_output_name("note_midi"),
         m_note_rest_output_name("note_rest"), m_note_dur_output_name("note_dur") {
@@ -16,7 +15,7 @@ namespace Some
 
         // Choose execution provider based on the provided option
         if (provider == ExecutionProvider::DML) {
-            Ort::Status status(OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id));
+            const Ort::Status status(OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id));
             if (!status.IsOK()) {
                 std::cout << "Failed to enable DirectML: " << status.GetErrorMessage() << ". Falling back to CPU." << std::endl;
             } else {
@@ -52,9 +51,9 @@ namespace Some
             return false;
         }
         try {
-            size_t n_samples = waveform_data.size();
+            const size_t n_samples = waveform_data.size();
 
-            std::array<int64_t, 2> input_waveform_shape = {1, static_cast<int64_t>(n_samples)};
+            const std::array<int64_t, 2> input_waveform_shape = {1, static_cast<int64_t>(n_samples)};
             Ort::Value waveform_tensor = Ort::Value::CreateTensor<float>(
                 m_memory_info, const_cast<float *>(waveform_data.data()), waveform_data.size(),
                 input_waveform_shape.data(), input_waveform_shape.size());
