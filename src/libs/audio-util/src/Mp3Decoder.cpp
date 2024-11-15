@@ -7,7 +7,6 @@
 #include <vector>
 
 #include <CDSPResampler.h>
-#include <FLAC++/decoder.h>
 
 namespace AudioUtil
 {
