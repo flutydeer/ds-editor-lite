@@ -32,9 +32,23 @@ namespace Rmvpe
 
     static void interp_f0(std::vector<float> &f0, std::vector<bool> &uv) {
         const int n = static_cast<int>(f0.size());
+
+        // Edge case: No unvoiced frames, no interpolation needed.
+        bool all_voiced = true;
+        for (int i = 0; i < n; ++i) {
+            if (!uv[i]) {
+                all_voiced = false;
+                break;
+            }
+        }
+        if (all_voiced) {
+            return; // No unvoiced frames, no interpolation required.
+        }
+
         int first_true = -1;
         int last_true = -1;
 
+        // Find the first unvoiced frame
         for (int i = 0; i < n; ++i) {
             if (!uv[i]) {
                 first_true = i;
@@ -42,6 +56,7 @@ namespace Rmvpe
             }
         }
 
+        // Find the last unvoiced frame
         for (int i = n - 1; i >= 0; --i) {
             if (!uv[i]) {
                 last_true = i;
@@ -49,24 +64,29 @@ namespace Rmvpe
             }
         }
 
-        if (first_true != -1) {
-            for (int i = 0; i < first_true; ++i) {
-                f0[i] = f0[first_true];
-            }
+        // If no unvoiced frames found, exit early (this should not happen with the previous check).
+        if (first_true == -1 || last_true == -1) {
+            return;
         }
 
-        if (last_true != -1) {
-            for (int i = n - 1; i > last_true; --i) {
-                f0[i] = f0[last_true];
-            }
+        // Fill frames before the first unvoiced frame with the value of the first unvoiced frame
+        for (int i = 0; i < first_true; ++i) {
+            f0[i] = f0[first_true];
         }
 
+        // Fill frames after the last unvoiced frame with the value of the last unvoiced frame
+        for (int i = n - 1; i > last_true; --i) {
+            f0[i] = f0[last_true];
+        }
+
+        // Interpolate between the first and last unvoiced frames
         for (int i = first_true; i < last_true; ++i) {
-            if (uv[i]) {
+            if (uv[i]) { // Only interpolate for voiced frames
                 const int prev = i - 1;
                 int next = i + 1;
-                while (next < n && uv[next])
+                while (next < n && uv[next]) { // Find the next unvoiced frame
                     next++;
+                }
                 if (next < n) {
                     const float ratio = std::log(f0[next] / f0[prev]);
                     f0[i] = static_cast<float>(f0[prev] *
