@@ -60,7 +60,18 @@ find_package(SndFile CONFIG REQUIRED)
 find_package(FLAC CONFIG REQUIRED)
 find_package(mpg123 CONFIG REQUIRED)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE SndFile::sndfile r8brain MPG123::libmpg123 FLAC::FLAC++)
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(PC_Soxr QUIET soxr)
+endif()
+
+find_library(Soxr_LIBRARY
+        NAMES soxr
+        PATHS ${PC_Soxr_LIBRARY_DIRS}
+        DOC "Soxr library"
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE SndFile::sndfile ${Soxr_LIBRARY} MPG123::libmpg123 FLAC::FLAC++)
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})

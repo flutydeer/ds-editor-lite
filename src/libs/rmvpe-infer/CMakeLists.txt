@@ -75,7 +75,7 @@ target_link_directories(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile audio-util)
-target_link_libraries(${PROJECT_NAME} PRIVATE r8brain onnxruntime DirectML)
+target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime DirectML)
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})

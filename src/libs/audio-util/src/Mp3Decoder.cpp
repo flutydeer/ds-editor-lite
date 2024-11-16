@@ -6,8 +6,6 @@
 #include <mpg123.h>
 #include <vector>
 
-#include <CDSPResampler.h>
-
 namespace AudioUtil
 {
     void write_mp3_to_vio(const std::filesystem::path &filepath, SF_VIO &sf_vio) {
@@ -45,7 +43,7 @@ namespace AudioUtil
         while (pos < mp3_data.size()) {
             constexpr size_t buffer_size = 8192;
             unsigned char buffer[buffer_size];
-            const size_t feed_size = min(buffer_size, mp3_data.size() - pos);
+            const size_t feed_size = std::min(buffer_size, mp3_data.size() - pos);
             std::copy_n(mp3_data.begin() + static_cast<long long>(pos), feed_size, buffer);
 
             const int feed_result = mpg123_feed(mh, buffer, feed_size);

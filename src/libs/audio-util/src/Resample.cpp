@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 
-#include <CDSPResampler.h>
+#include <soxr.h>
 
 #include "FlacDecoder.h"
 #include "Mp3Decoder.h"
@@ -72,42 +72,45 @@ namespace AudioUtil
             return {};
         }
 
-        r8b::CDSPResampler16 resampler(srcHandle.samplerate(), tar_samplerate, srcHandle.samplerate());
+        // Create a SoX resampler instance
+        soxr_error_t error;
+        const auto resampler = soxr_create(srcHandle.samplerate(), tar_samplerate, srcHandle.channels(), &error,
+                                           nullptr, nullptr, nullptr);
+        if (!resampler) {
+            std::cout << "Failed to create SoX resampler: " << soxr_strerror(error) << std::endl;
+            return {};
+        }
 
-        double *op0;
-        std::vector<double> tmp(srcHandle.samplerate() * srcHandle.channels());
-        double total = 0;
+        // Define buffers for resampling
+        std::vector<float> inputBuf(srcHandle.samplerate() * srcHandle.channels());
+        std::vector<float> outputBuf(tar_samplerate * tar_channel);
 
-        while (true) {
-            const auto bytesRead = srcHandle.read(tmp.data(), static_cast<sf_count_t>(tmp.size()));
-            if (bytesRead <= 0) {
+        size_t bytesRead;
+
+        while ((bytesRead = srcHandle.read(inputBuf.data(), static_cast<sf_count_t>(inputBuf.size()))) > 0) {
+            const size_t inputSamples = bytesRead / srcHandle.channels();
+            const size_t outputSamples = outputBuf.size() / tar_channel;
+
+            // Perform the resampling using SoX
+            size_t inputDone = 0, outputDone = 0;
+            const soxr_error_t err = soxr_process(resampler, inputBuf.data(), inputSamples, &inputDone,
+                                                  outputBuf.data(), outputSamples, &outputDone);
+
+            if (err != nullptr) {
+                std::cout << "Error during resampling: " << soxr_strerror(err) << std::endl;
                 break;
             }
 
-            std::vector<double> inputBuf(tmp.size() / srcHandle.channels());
-            for (int i = 0; i < tmp.size(); i += srcHandle.channels()) {
-                inputBuf[i / srcHandle.channels()] = tmp[i];
-            }
-
-            const int outSamples =
-                resampler.process(inputBuf.data(), static_cast<int>(bytesRead) / srcHandle.channels(), op0);
-
-            const auto bytesWritten = static_cast<double>(outBuf.write(op0, outSamples));
-
-            if (bytesWritten != outSamples) {
+            // Write the resampled data to the output file
+            const size_t bytesWritten = outBuf.write(outputBuf.data(), static_cast<sf_count_t>(outputDone));
+            if (bytesWritten != outputDone) {
                 std::cout << "Error writing to output file" << std::endl;
                 break;
             }
-            total += bytesWritten;
         }
 
-        if (const int endSize = static_cast<int>(static_cast<double>(srcHandle.frames()) /
-                                                     static_cast<double>(srcHandle.samplerate()) * tar_samplerate -
-                                                 total)) {
-            std::vector<double> inputBuf(tmp.size() / srcHandle.channels());
-            resampler.process(inputBuf.data(), srcHandle.samplerate(), op0);
-            outBuf.write(op0, endSize);
-        }
+        // Clean up
+        soxr_delete(resampler);
 
         return sf_vio;
     }

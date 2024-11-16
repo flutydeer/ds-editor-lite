@@ -24,8 +24,17 @@
     "wavpack",
     {
       "name": "talcs",
-      "features": ["device", "device-sdl", "device-asio", "format", "midi", "dspx", "widgets"]
-    }
+      "features": [
+        "device",
+        "device-sdl",
+        "device-asio",
+        "format",
+        "midi",
+        "dspx",
+        "widgets"
+      ]
+    },
+    "soxr"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [
