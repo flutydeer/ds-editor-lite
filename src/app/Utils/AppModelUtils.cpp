@@ -15,7 +15,7 @@ void AppModelUtils::copyNotes(const QList<Note *> &source, QList<Note *> &target
     for (const auto &note : source) {
         auto newNote = new Note;
         newNote->setClip(note->clip());
-        newNote->setRStart(note->rStart());
+        newNote->setLocalStart(note->localStart());
         // newNote->setStart(note->start());
         newNote->setLength(note->length());
         newNote->setKeyIndex(note->keyIndex());
@@ -47,8 +47,8 @@ QList<QList<Note *>> AppModelUtils::simpleSegment(const QList<Note *> &source, d
         buffer.append(note);
         bool commitFlag = false;
         if (i < source.count() - 1) {
-            auto nextStartInMs = appModel->tickToMs(source.at(i + 1)->start());
-            auto curEndInMs = appModel->tickToMs((note->start() + note->length()));
+            auto nextStartInMs = appModel->tickToMs(source.at(i + 1)->globalStart());
+            auto curEndInMs = appModel->tickToMs((note->globalStart() + note->length()));
             commitFlag = nextStartInMs - curEndInMs > threshold;
         } else if (i == source.count() - 1)
             commitFlag = true;
@@ -95,12 +95,12 @@ DrawCurveList AppModelUtils::mergeCurves(const DrawCurveList &original,
 
     for (const auto &editedCurve : edited) {
         auto newCurve = new DrawCurve(*editedCurve);
-        auto overlappedOriCurves = curvesIn(result, editedCurve->start(), editedCurve->endTick());
+        auto overlappedOriCurves = curvesIn(result, editedCurve->localStart(), editedCurve->localEndTick());
         if (!overlappedOriCurves.isEmpty()) {
             for (auto oriCurve : overlappedOriCurves) {
                 // 如果 oriCurve 被已编辑曲线完全覆盖，直接移除
-                if (!(oriCurve->start() >= newCurve->start() &&
-                      oriCurve->endTick() <= newCurve->endTick()))
+                if (!(oriCurve->localStart() >= newCurve->localStart() &&
+                      oriCurve->localEndTick() <= newCurve->localEndTick()))
                     newCurve->mergeWithCurrentPriority(*oriCurve);
                 result.removeOne(oriCurve);
                 delete oriCurve;
@@ -118,10 +118,10 @@ DrawCurve AppModelUtils::getResultCurve(const DrawCurve &original, const DrawCur
         if (curve->isOverlappedWith(&result)) {
             auto newCurve = new DrawCurve(*curve);
             // 截断多余的部分
-            if (curve->start() >= original.start() && curve->endTick() <= original.endTick()) {
+            if (curve->localStart() >= original.localStart() && curve->localEndTick() <= original.localEndTick()) {
                 // original 曲线区间覆盖整条手绘曲线，无需截断
             } else
-                newCurve->clip(original.start(), original.endTick());
+                newCurve->clip(original.localStart(), original.localEndTick());
             curvesToMerge.append(newCurve);
         }
     }
@@ -137,7 +137,7 @@ DrawCurve AppModelUtils::getResultCurve(std::pair<int, int> tickRange, int baseV
     auto startTick = MathUtils::round(tickRange.first, 5);
     auto endTick = MathUtils::round(tickRange.second,5);
     DrawCurve baseCurve;
-    baseCurve.setStart(startTick);
+    baseCurve.setLocalStart(startTick);
     for (int i = startTick; i < endTick; i += 5)
         baseCurve.appendValue(baseValue);
 

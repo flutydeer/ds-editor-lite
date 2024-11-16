@@ -24,9 +24,9 @@ public:
     }
 
     int compareTo(const Curve *obj) const;
-    [[nodiscard]] int start() const;
-    virtual void setStart(int start);
-    [[nodiscard]] virtual int endTick() const;
+    [[nodiscard]] int localStart() const;
+    virtual void setLocalStart(int start);
+    [[nodiscard]] virtual int localEndTick() const;
 
     virtual bool isOverlappedWith(Curve *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
@@ -40,7 +40,7 @@ class ProbeLine final : public Curve {
 public:
     ProbeLine() : Curve(-1){};
     ProbeLine(int startTick, int endTick);
-    [[nodiscard]] int endTick() const override;
+    [[nodiscard]] int localEndTick() const override;
 
 private:
     int m_endTick = 0;

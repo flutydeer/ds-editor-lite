@@ -24,18 +24,18 @@ void Note::setClip(SingingClip *clip) {
     m_clip = clip;
 }
 
-int Note::start() const {
+int Note::globalStart() const {
     if (!m_clip) {
-        qWarning() << "SingingClip is null";
+        qFatal() << "SingingClip is null";
         return m_rStart;
     }
     auto offset = m_clip->start();
     return m_rStart + offset;
 }
 
-void Note::setStart(int start) {
+void Note::setGlobalStart(int start) {
     if (!m_clip) {
-        qWarning() << "SingingClip is null";
+        qFatal() << "SingingClip is null";
         m_rStart = start;
         return;
     }
@@ -45,11 +45,11 @@ void Note::setStart(int start) {
     m_rStart = rStart;
 }
 
-int Note::rStart() const {
+int Note::localStart() const {
     return m_rStart;
 }
 
-void Note::setRStart(int rStart) {
+void Note::setLocalStart(int rStart) {
     Q_ASSERT(rStart >= 0);
     m_rStart = rStart;
 }
@@ -233,20 +233,20 @@ int Note::compareTo(const Note *obj) const {
         qFatal() << "SingingClip is not the same";
         return 0;
     }
-    const auto otherStart = obj->rStart();
-    if (rStart() < otherStart)
+    const auto otherStart = obj->localStart();
+    if (localStart() < otherStart)
         return -1;
-    if (rStart() > otherStart)
+    if (localStart() > otherStart)
         return 1;
     return 0;
 }
 
 std::tuple<qsizetype, qsizetype> Note::interval() const {
-    return std::make_tuple(rStart(), rStart() + length());
+    return std::make_tuple(localStart(), localStart() + length());
 }
 
 QJsonObject Note::serialize() const {
-    return QJsonObject();
+    return {};
 }
 
 bool Note::deserialize(const QJsonObject &obj) {

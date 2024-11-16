@@ -90,11 +90,11 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
 
     const auto &language = appOptions->general()->defaultSingingLanguage;
 
-    auto decodeNotes = [language](const QList<QDspx::Note> &arrNotes) {
+    auto decodeNotes = [language](const QList<QDspx::Note> &arrNotes, int offset) {
         QList<Note *> notes;
         for (const QDspx::Note &dsNote : arrNotes) {
             const auto note = new Note;
-            note->setStart(dsNote.pos);
+            note->setLocalStart(dsNote.pos-offset);
             note->setLength(dsNote.length);
             note->setKeyIndex(dsNote.keyNum);
             note->setLyric(dsNote.lyric.isEmpty() ? appOptions->general()->defaultLyric
@@ -118,7 +118,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
                 singingClip->setClipLen(clip->time.clipLen + 960);
                 singingClip->defaultLanguage = language;
                 singingClip->defaultG2pId = g2pIdFromLanguage(language);
-                auto notes = decodeNotes(singClip->notes);
+                auto notes = decodeNotes(singClip->notes, singClip->time.start);
                 for (const auto &note : notes)
                     singingClip->insertNote(note);
                 dsTack->insertClip(singingClip);
@@ -215,7 +215,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
         QList<QDspx::Note> arrNotes;
         for (const auto &note : notes) {
             QDspx::Note dsNote;
-            dsNote.pos = note->start();
+            dsNote.pos = note->globalStart();
             dsNote.length = note->length();
             dsNote.keyNum = note->keyIndex();
             dsNote.lyric = note->lyric();

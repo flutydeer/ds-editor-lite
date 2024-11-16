@@ -57,7 +57,7 @@ void PitchExtractController::onExtractPitchTaskFinished(ExtractPitchTask *task) 
         const int offsetTick =
             MathUtils::round(audioClip->start() - singingClip->start() + rawTick, 5);
         const auto pitchParam = new DrawCurve;
-        pitchParam->setStart(offsetTick);
+        pitchParam->setLocalStart(offsetTick);
         pitchParam->setValues(Linq::selectMany(values, L_PRED(v, static_cast<int>(v * 100))));
         curves.append(pitchParam);
     }

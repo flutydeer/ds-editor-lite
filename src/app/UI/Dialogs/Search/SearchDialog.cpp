@@ -150,7 +150,7 @@ void SearchDialog::onSearchTextChanged() {
         if (match) {
             QString displayText =
                 QString("%1 (%2)")
-                    .arg(note->lyric(), appModel->getBarBeatTickTime(note->start()));
+                    .arg(note->lyric(), appModel->getBarBeatTickTime(note->globalStart()));
             auto *item = new QListWidgetItem(displayText);
             item->setData(Qt::UserRole, note->id());
             resultListWidget->addItem(item);
@@ -168,7 +168,7 @@ void SearchDialog::onItemSelectionChanged(const int row) const {
     if (item) {
         const int noteId = item->data(Qt::UserRole).toInt();
         const auto &note = m_clip->findNoteById(noteId);
-        clipController->centerAt(note->start(), note->keyIndex());
+        clipController->centerAt(note->globalStart(), note->keyIndex());
         clipController->selectNotes({note->id()}, true);
     }
 }

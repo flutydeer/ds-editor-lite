@@ -12,6 +12,7 @@
 #include "Pronunciation.h"
 
 #include <QObject>
+#include <QPointer>
 
 class SingingClip;
 
@@ -25,10 +26,10 @@ public:
     ~Note() override;
     [[nodiscard]] SingingClip *clip() const;
     void setClip(SingingClip *clip);
-    [[nodiscard]] int start() const;
-    void setStart(int start);
-    [[nodiscard]] int rStart() const;
-    void setRStart(int rStart);
+    [[nodiscard]] int globalStart() const;
+    void setGlobalStart(int start);
+    [[nodiscard]] int localStart() const;
+    void setLocalStart(int rStart);
     [[nodiscard]] int length() const;
     void setLength(int length);
     [[nodiscard]] int keyIndex() const;
@@ -89,7 +90,7 @@ public:
     };
 
 private:
-    SingingClip *m_clip = nullptr;
+    QPointer<SingingClip> m_clip;
     // int m_start = 0;
     int m_rStart = 0;
     int m_length = 480;

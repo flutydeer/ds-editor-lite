@@ -568,7 +568,7 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
         for (const auto note : clip->notes())
             handleNoteInserted(note);
         auto firstNote = *clip->notes().begin();
-        q->setViewportCenterAt(firstNote->start(), firstNote->keyIndex());
+        q->setViewportCenterAt(firstNote->globalStart(), firstNote->keyIndex());
     } else
         q->setViewportCenterAt(clip->start(), 60);
 

@@ -418,7 +418,7 @@ void PhonemeView::buildPhonemeList() {
         if (note->overlapped())
             continue;
 
-        auto noteStartMs = appModel->tickToMs(note->start());
+        auto noteStartMs = appModel->tickToMs(note->globalStart());
 
         // Ahead
         {
@@ -428,7 +428,7 @@ void PhonemeView::buildPhonemeList() {
                 const auto vm = new PhonemeViewModel;
                 vm->type = PhonemeViewModel::Ahead;
                 vm->noteId = note->id();
-                vm->noteStart = note->start();
+                vm->noteStart = note->globalStart();
                 vm->noteLength = note->length();
                 vm->nameEdited = aheadNames.isEdited();
                 vm->offsetEdited = aheadOffsets.isEdited();
@@ -453,7 +453,7 @@ void PhonemeView::buildPhonemeList() {
                 const auto vm = new PhonemeViewModel;
                 vm->type = PhonemeViewModel::Normal;
                 vm->noteId = note->id();
-                vm->noteStart = note->start();
+                vm->noteStart = note->globalStart();
                 vm->noteLength = note->length();
                 vm->nameEdited = normalNames.isEdited();
                 vm->offsetEdited = normalOffsets.isEdited();
@@ -495,7 +495,7 @@ void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phVm) {
         return;
     }
     auto note = m_clip->findNoteById(phVm->noteId);
-    auto noteStartInMs = appModel->tickToMs(note->start());
+    auto noteStartInMs = appModel->tickToMs(note->globalStart());
     Phonemes::Type type;
     if (phVm->type == PhonemeViewModel::Ahead) {
         type = Phonemes::Ahead;

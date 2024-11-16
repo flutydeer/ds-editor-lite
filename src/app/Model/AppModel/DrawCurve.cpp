@@ -11,9 +11,9 @@
 //     // qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start;
 // }
 
-void DrawCurve::setStart(int start) {
+void DrawCurve::setLocalStart(int start) {
     if (start % 5 == 0)
-        Curve::setStart(start);
+        Curve::setLocalStart(start);
     else
         qCritical() << "setStart: start not divisible by 5 tick";
 }
@@ -27,7 +27,7 @@ bool DrawCurve::isEmpty() const {
 }
 
 QList<int> DrawCurve::mid(int tick) const {
-    auto startIndex = (tick - start()) / step;
+    auto startIndex = (tick - localStart()) / step;
     QList<int> result;
     for (int i = startIndex; i < m_values.count(); i++)
         result.append(m_values.at(i));
@@ -35,17 +35,17 @@ QList<int> DrawCurve::mid(int tick) const {
 }
 
 void DrawCurve::clip(int clipStart, int clipEnd) {
-    if (clipStart < start())
+    if (clipStart < localStart())
         eraseTailFrom(clipEnd);
-    else if (endTick() < clipEnd) {
-        auto removeCount = (clipStart - start()) / step;
+    else if (localEndTick() < clipEnd) {
+        auto removeCount = (clipStart - localStart()) / step;
         removeValueRange(0, removeCount);
-        setStart(clipStart);
-    } else if (clipStart > start() && clipEnd < endTick()) {
+        setLocalStart(clipStart);
+    } else if (clipStart > localStart() && clipEnd < localEndTick()) {
         eraseTailFrom(clipEnd);
-        auto removeCount = (clipStart - start()) / step;
+        auto removeCount = (clipStart - localStart()) / step;
         removeValueRange(0, removeCount);
-        setStart(clipStart);
+        setLocalStart(clipStart);
     }
 }
 
@@ -82,10 +82,10 @@ void DrawCurve::mergeWithCurrentPriority(const DrawCurve &other) {
     if (!other.isOverlappedWith(this))
         qCritical() << "mergeWithCurrentPriority: other is not overlapped with this";
 
-    int curStart = start();
-    int otherStart = other.start();
-    auto curEnd = endTick();
-    auto otherEnd = other.endTick();
+    int curStart = localStart();
+    int otherStart = other.localStart();
+    auto curEnd = localEndTick();
+    auto otherEnd = other.localEndTick();
 
     if (otherStart >= curStart && otherEnd <= curEnd) {
         qWarning() << "mergeWithCurrentPriority:"
@@ -103,7 +103,7 @@ void DrawCurve::mergeWithCurrentPriority(const DrawCurve &other) {
         for (int i = 0; i < earlyCurvePointCount; i++)
             earlyPoints.append(other.values().at(i));
         insertValues(0, earlyPoints);
-        setStart(otherStart);
+        setLocalStart(otherStart);
         if (curEnd < otherEnd) {
             auto tailCount = (otherEnd - curEnd) / step;
             auto startIndex = other.values().count() - tailCount;
@@ -114,10 +114,10 @@ void DrawCurve::mergeWithCurrentPriority(const DrawCurve &other) {
 }
 
 void DrawCurve::mergeWithOtherPriority(const DrawCurve &other) {
-    int curStart = start();
-    int otherStart = other.start();
-    auto curEnd = endTick();
-    auto otherEnd = other.endTick();
+    int curStart = localStart();
+    int otherStart = other.localStart();
+    auto curEnd = localEndTick();
+    auto otherEnd = other.localEndTick();
     if (otherEnd < curStart || curEnd < otherStart) {
         qCritical() << "overlayMergeWith: other curve is not overlapped with current curve";
     }
@@ -135,21 +135,21 @@ void DrawCurve::mergeWithOtherPriority(const DrawCurve &other) {
     } else { // otherStart <= curStart
         if (otherEnd >= curEnd) {
             clearValues();
-            setStart(otherStart);
+            setLocalStart(otherStart);
             for (int i = 0; i < other.values().count(); i++)
                 appendValue(other.values().at(i));
         } else { // otherEnd<curEnd
             auto removeEndIndex = (otherEnd - curStart) / step;
             removeValueRange(0, removeEndIndex);
-            setStart(otherStart);
+            setLocalStart(otherStart);
             insertValues(0, other.values());
         }
     }
 }
 
 void DrawCurve::erase(int otherStart, int otherEnd) {
-    int curStart = start();
-    auto curEnd = endTick();
+    int curStart = localStart();
+    auto curEnd = localEndTick();
 
     if (otherStart <= curStart && otherEnd >= curEnd)
         qFatal("DrawCurve::eraseWith: other curve fully covered current curve");
@@ -160,7 +160,7 @@ void DrawCurve::erase(int otherStart, int otherEnd) {
     } else { // otherStart <= curStart
         auto removeEndIndex = (otherEnd - curStart) / step;
         removeValueRange(0, removeEndIndex);
-        setStart(otherEnd);
+        setLocalStart(otherEnd);
     }
 }
 
@@ -170,16 +170,16 @@ void DrawCurve::eraseTail(int length) {
 }
 
 void DrawCurve::eraseTailFrom(int tick) {
-    auto length = endTick() - tick;
+    auto length = localEndTick() - tick;
     eraseTail(length);
 }
 
-int DrawCurve::endTick() const {
-    return start() + step * m_values.count();
+int DrawCurve::localEndTick() const {
+    return localStart() + step * m_values.count();
 }
 
 bool operator==(const DrawCurve &lhs, const DrawCurve &rhs) {
-    return lhs.start() == rhs.start() && lhs.step == rhs.step && lhs.m_values == rhs.m_values;
+    return lhs.localStart() == rhs.localStart() && lhs.step == rhs.step && lhs.m_values == rhs.m_values;
 }
 
 bool operator!=(const DrawCurve &lhs, const DrawCurve &rhs) {

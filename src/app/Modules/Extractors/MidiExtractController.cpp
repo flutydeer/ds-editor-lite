@@ -58,12 +58,12 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
     const auto singClipStart = singingClip->start();
     for (const auto &[key, start, duration] : task->result) {
         const auto note = new Note;
-        note->setRStart(start + audioClipStart - singClipStart);
+        note->setLocalStart(start + audioClipStart - singClipStart);
         note->setLength(duration);
         note->setKeyIndex(key);
         note->setLanguage(singingClip->defaultLanguage);
         note->setG2pId(singingClip->defaultG2pId);
-        if (note->start() > 0)
+        if (note->localStart() > 0)
             notes.append(note);
     }
 

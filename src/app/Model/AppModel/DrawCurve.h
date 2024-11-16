@@ -18,7 +18,7 @@ public:
     }
 
     int step = 5;
-    void setStart(int start) override;
+    void setLocalStart(int start) override;
     [[nodiscard]] const QList<int> &values() const;
     [[nodiscard]] bool isEmpty() const;
     [[nodiscard]] QList<int> mid(int tick) const;
@@ -36,7 +36,7 @@ public:
     void eraseTail(int length);
     void eraseTailFrom(int tick);
 
-    [[nodiscard]] int endTick() const override;
+    [[nodiscard]] int localEndTick() const override;
 
     friend bool operator==(const DrawCurve &lhs, const DrawCurve &rhs);
     friend bool operator!=(const DrawCurve &lhs, const DrawCurve &rhs);

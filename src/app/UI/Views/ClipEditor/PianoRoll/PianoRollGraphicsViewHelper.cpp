@@ -23,7 +23,7 @@ void PianoRollGraphicsViewHelper::drawNote(int rStart, int length, int keyIndex)
     auto singingClip = dynamic_cast<SingingClip *>(clipController->clip());
     Q_ASSERT(singingClip);
     auto note = new Note;
-    note->setRStart(rStart);
+    note->setLocalStart(rStart);
     note->setLength(length);
     note->setKeyIndex(keyIndex);
     note->setLanguage(singingClip->defaultLanguage);
@@ -44,7 +44,7 @@ void PianoRollGraphicsViewHelper::editPitch(const QList<DrawCurve *> &curves) {
 NoteView *PianoRollGraphicsViewHelper::buildNoteView(const Note &note) {
     auto noteView = new NoteView(note.id());
     noteView->setPronunciationView(new PronunciationView);
-    noteView->setRStart(note.rStart());
+    noteView->setRStart(note.localStart());
     noteView->setLength(note.length());
     noteView->setKeyIndex(note.keyIndex());
     noteView->setLyric(note.lyric());
@@ -57,7 +57,7 @@ NoteView *PianoRollGraphicsViewHelper::buildNoteView(const Note &note) {
 }
 
 void PianoRollGraphicsViewHelper::updateNoteTimeAndKey(NoteView &noteView, const Note &note) {
-    noteView.setRStart(note.rStart());
+    noteView.setRStart(note.localStart());
     noteView.setLength(note.length());
     noteView.setKeyIndex(note.keyIndex());
 }

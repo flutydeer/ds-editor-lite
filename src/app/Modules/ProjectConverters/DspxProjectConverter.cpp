@@ -26,14 +26,14 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             if (dspxCurveRef->type == QDspx::ParamCurve::Type::Free) {
                 const auto castCurveRef = dspxCurveRef.dynamicCast<QDspx::ParamFree>();
                 const auto curve = new DrawCurve;
-                curve->setStart(castCurveRef->start);
+                curve->setLocalStart(castCurveRef->start);
                 curve->step = castCurveRef->step;
                 curve->setValues(castCurveRef->values);
                 curves.append(curve);
             } else if (dspxCurveRef->type == QDspx::ParamCurve::Type::Anchor) {
                 const auto castCurveRef = dspxCurveRef.dynamicCast<QDspx::ParamAnchor>();
                 const auto curve = new AnchorCurve;
-                curve->setStart(castCurveRef->start);
+                curve->setLocalStart(castCurveRef->start);
                 for (const auto &dspxNode : castCurveRef->nodes) {
                     const auto node = new AnchorNode(dspxNode.x, dspxNode.y);
                     node->setInterpMode(AnchorNode::None);
@@ -90,7 +90,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         QList<Note *> notes;
         for (const QDspx::Note &dspxNote : dspxNotes) {
             const auto note = new Note;
-            note->setRStart(dspxNote.pos - offset);
+            note->setLocalStart(dspxNote.pos - offset);
             note->setLength(dspxNote.length);
             note->setKeyIndex(dspxNote.keyNum);
             note->setLyric(dspxNote.lyric);
@@ -181,7 +181,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             if (dsCurve->type() == Curve::CurveType::Draw) {
                 const auto castCurve = dynamic_cast<DrawCurve *>(dsCurve);
                 const auto curve = QDspx::ParamFreeRef::create();
-                curve->start = castCurve->start();
+                curve->start = castCurve->localStart();
                 curve->step = castCurve->step;
                 for (const auto v : castCurve->values()) {
                     curve->values.append(v);
@@ -190,7 +190,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             } else if (dsCurve->type() == Curve::CurveType::Anchor) {
                 const auto castCurve = dynamic_cast<AnchorCurve *>(dsCurve);
                 const auto curve = QDspx::ParamAnchorRef::create();
-                curve->start = dsCurve->start();
+                curve->start = dsCurve->localStart();
                 for (const auto dsNode : castCurve->nodes()) {
                     QDspx::AnchorPoint node;
                     node.x = dsNode->pos();
@@ -247,7 +247,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     auto encodeNotes = [&](const OverlappableSerialList<Note> &dsNotes, QList<QDspx::Note> &notes) {
         for (const auto dsNote : dsNotes) {
             QDspx::Note note;
-            note.pos = dsNote->start();
+            note.pos = dsNote->globalStart();
             note.length = dsNote->length();
             note.keyNum = dsNote->keyIndex();
             note.lyric = dsNote->lyric();

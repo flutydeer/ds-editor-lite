@@ -54,7 +54,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
         for (const auto valNote : arrNotes) {
             auto objNote = valNote.toObject();
             const auto note = new Note;
-            note->setStart(objNote.value("pos").toInt());
+            note->setGlobalStart(objNote.value("pos").toInt());
             note->setLength(objNote.value("dur").toInt());
             note->setKeyIndex(objNote.value("pitch").toInt());
             note->setLyric(objNote.value("lyric").toString());

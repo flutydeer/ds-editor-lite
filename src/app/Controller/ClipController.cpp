@@ -131,7 +131,7 @@ void ClipController::centerAt(double tick, double keyIndex) {
 
 void ClipController::centerAt(const Note &note) {
     Q_D(ClipController);
-    d->m_view->centerAt(note.start(), note.length(), note.keyIndex());
+    d->m_view->centerAt(note.globalStart(), note.length(), note.keyIndex());
 }
 
 void ClipController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {

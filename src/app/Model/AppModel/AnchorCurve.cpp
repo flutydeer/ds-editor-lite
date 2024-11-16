@@ -57,6 +57,6 @@ void AnchorCurve::removeNode(AnchorNode *node) {
     m_nodes.remove(node);
 }
 
-int AnchorCurve::endTick() const {
+int AnchorCurve::localEndTick() const {
     return m_nodes.toList().last()->pos(); // TODO: fix
 }

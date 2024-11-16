@@ -95,7 +95,7 @@ namespace InferControllerHelper {
             } else {
                 auto baseValue = paramUtils->getPropertiesByName(name)->defaultValue;
                 if (auto resultCurve = AppModelUtils::getResultCurve(
-                        {piece->realStartTick(), piece->realEndTick()}, baseValue, editedCurves);
+                        {piece->localStartTick(), piece->localEndTick()}, baseValue, editedCurves);
                     resultCurve != input) {
                     piece->setInputCurve(name, resultCurve);
                     result.append(piece);
@@ -156,7 +156,7 @@ namespace InferControllerHelper {
                      InferPiece &piece, int scale) {
         // 将推理结果保存到分段内部
         DrawCurve original;
-        original.setStart(MathUtils::round(piece.realStartTick(), 5));
+        original.setLocalStart(MathUtils::round(piece.localStartTick(), 5));
         original.setValues(
             Linq::selectMany(taskResult.values, L_PRED(v, static_cast<int>(v * scale))));
         piece.setOriginalCurve(name, original);

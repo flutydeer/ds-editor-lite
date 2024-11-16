@@ -157,7 +157,7 @@ QString SingingClipView::iconPath() const {
 void SingingClipView::addNote(Note *note) {
     auto vm = new NoteViewModel;
     vm->id = note->id();
-    vm->rStart = note->rStart();
+    vm->rStart = note->localStart();
     vm->length = note->length();
     vm->keyIndex = note->keyIndex();
     MathUtils::binaryInsert(m_notes, vm);

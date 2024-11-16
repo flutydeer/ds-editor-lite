@@ -17,26 +17,26 @@ int InferPiece::clipId() const {
 }
 
 int InferPiece::noteStartTick() const {
-    return notes.first()->rStart();
+    return notes.first()->localStart();
 }
 
 int InferPiece::noteEndTick() const {
-    return notes.last()->rStart() + notes.last()->length();
+    return notes.last()->localStart() + notes.last()->length();
 }
 
-int InferPiece::realStartTick() const {
+int InferPiece::localStartTick() const {
     auto firstNote = notes.first();
     auto phoneInfo = firstNote->phonemeOffsetInfo();
     auto aheadInfo = phoneInfo.ahead.result();
     auto normalInfo = phoneInfo.normal.result();
     auto phoneOffsets = aheadInfo.isEmpty() ? normalInfo : aheadInfo;
     auto firstOffset = phoneOffsets.isEmpty() ? 0 : phoneOffsets.first();
-    auto paddingTicks = appModel->msToTick(100 + firstOffset); // SP 0.1s
+    int paddingTicks = appModel->msToTick(100 + firstOffset); // SP 0.1s
     return noteStartTick() - paddingTicks;
 }
 
-int InferPiece::realEndTick() const {
-    auto paddingTicks = appModel->msToTick(100); // SP 0.1s
+int InferPiece::localEndTick() const {
+    int paddingTicks = appModel->msToTick(100); // SP 0.1s
     return noteEndTick() + paddingTicks;
 }
 

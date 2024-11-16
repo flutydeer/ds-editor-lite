@@ -51,8 +51,8 @@ public:
     [[nodiscard]] int clipId() const override;
     [[nodiscard]] int noteStartTick() const override;
     [[nodiscard]] int noteEndTick() const override;
-    [[nodiscard]] int realStartTick() const;
-    [[nodiscard]] int realEndTick() const;
+    [[nodiscard]] int localStartTick() const;
+    [[nodiscard]] int localEndTick() const;
 
     [[nodiscard]] const DrawCurve *getOriginalCurve(ParamInfo::Name name) const;
     void setOriginalCurve(ParamInfo::Name name, DrawCurve &curve);

@@ -139,7 +139,7 @@ void TrackSynthesizer::handleNoteRemoved(SingingClip *clip, Note *note) {
 void TrackSynthesizer::handleNotePropertyChanged(Note *note) {
     auto noteContext = m_noteModelDict.value(note);
     noteContext->setKeyCent(note->keyIndex() * 100);
-    noteContext->setPos(note->rStart());
+    noteContext->setPos(note->localStart());
     noteContext->setLength(note->length());
 }
 

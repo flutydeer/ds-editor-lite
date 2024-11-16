@@ -41,7 +41,7 @@ public:
     [[nodiscard]] const OverlappableSerialList<AnchorNode> &nodes() const;
     void insertNode(AnchorNode *node);
     void removeNode(AnchorNode *node);
-    [[nodiscard]] int endTick() const override;
+    [[nodiscard]] int localEndTick() const override;
 
 private:
     OverlappableSerialList<AnchorNode> m_nodes;

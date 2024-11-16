@@ -8,7 +8,7 @@
 
 InferInputNote::InferInputNote(const Note &note) {
     id = note.id();
-    start = note.rStart();
+    start = note.localStart();
     length = note.length();
     key = note.keyIndex();
     isRest = note.lyric() == "SP" || note.lyric() == "AP";
