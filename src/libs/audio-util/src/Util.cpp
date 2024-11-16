@@ -23,20 +23,21 @@ namespace AudioUtil
         constexpr int bufferSize = 4096;
         std::vector<float> buffer(bufferSize * sfinfo.channels, 0);
 
+        std::vector<short> shortBuffer(bufferSize * sfinfo.channels);
+        std::vector<int> intBuffer(bufferSize * sfinfo.channels);
+
         while (true) {
             sf_count_t framesRead;
 
             if (sfinfo.format & SF_FORMAT_FLOAT) { // 32-bit float
                 framesRead = sf_read_float(infile, buffer.data(), bufferSize);
             } else if (sfinfo.format & SF_FORMAT_PCM_16) { // 16-bit PCM
-                std::vector<short> shortBuffer(bufferSize * sfinfo.channels);
                 framesRead = sf_readf_short(infile, shortBuffer.data(), bufferSize);
                 // 转换为 32-bit float
                 for (sf_count_t i = 0; i < framesRead * sfinfo.channels; ++i) {
                     buffer[i] = static_cast<float>(shortBuffer[i]) / 32768.0f;
                 }
             } else if (sfinfo.format & SF_FORMAT_PCM_24) { // 24-bit PCM
-                std::vector<int> intBuffer(bufferSize * sfinfo.channels);
                 framesRead = sf_readf_int(infile, intBuffer.data(), bufferSize);
                 // 转换为 32-bit float
                 for (sf_count_t i = 0; i < framesRead * sfinfo.channels; ++i) {
@@ -56,6 +57,7 @@ namespace AudioUtil
             }
         }
     }
+
 
     bool write_audio_to_vio(const std::filesystem::path &filepath, SF_VIO &sf_vio, std::string &msg) {
         const std::string extension = filepath.extension().string();
