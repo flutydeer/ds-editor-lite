@@ -58,8 +58,8 @@ namespace AudioUtil
         }
 
         // Define buffers for resampling
-        std::vector<float> inputBuf(srcHandle.samplerate() / 100 * srcHandle.channels(), 0);
-        std::vector<float> outputBuf(tar_samplerate / 100 * srcHandle.channels(), 0);
+        std::vector<float> inputBuf(srcHandle.samplerate() * srcHandle.channels(), 0);
+        std::vector<float> outputBuf(tar_samplerate * srcHandle.channels(), 0);
 
         size_t bytesRead;
 
