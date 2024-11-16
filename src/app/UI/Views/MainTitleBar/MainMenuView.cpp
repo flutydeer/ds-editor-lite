@@ -384,10 +384,10 @@ void MainMenuViewPrivate::onGetMidiFromAudioClip() {
         return;
     }
 
-    ExtractPitchParamDialog dialog(clips);
+    ExtractMidiDialog dialog(clips);
     dialog.exec();
     if (dialog.selectedClipId == -1) {
-        qDebug() << "User canceled get pitch param from audio clip";
+        qDebug() << "User canceled get midi from audio clip";
         return;
     }
     const auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(dialog.selectedClipId));
