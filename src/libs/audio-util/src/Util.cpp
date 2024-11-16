@@ -20,7 +20,7 @@ namespace AudioUtil
             throw std::runtime_error("无法创建输出 VIO 句柄: " + std::string(sf_strerror(nullptr)));
         }
 
-        constexpr int bufferSize = 1024;
+        constexpr int bufferSize = 4096;
         std::vector<float> buffer(bufferSize * sfinfo.channels, 0);
 
         while (true) {
@@ -31,15 +31,17 @@ namespace AudioUtil
             } else if (sfinfo.format & SF_FORMAT_PCM_16) { // 16-bit PCM
                 std::vector<short> shortBuffer(bufferSize * sfinfo.channels);
                 framesRead = sf_readf_short(infile, shortBuffer.data(), bufferSize);
-                // 将 16-bit PCM 转换为 32-bit float
-                std::transform(shortBuffer.begin(), shortBuffer.begin() + framesRead * sfinfo.channels, buffer.begin(),
-                               [](const short sample) { return static_cast<float>(sample) / 32768.0f; });
+                // 转换为 32-bit float
+                for (sf_count_t i = 0; i < framesRead * sfinfo.channels; ++i) {
+                    buffer[i] = static_cast<float>(shortBuffer[i]) / 32768.0f;
+                }
             } else if (sfinfo.format & SF_FORMAT_PCM_24) { // 24-bit PCM
                 std::vector<int> intBuffer(bufferSize * sfinfo.channels);
                 framesRead = sf_readf_int(infile, intBuffer.data(), bufferSize);
-                // 将 24-bit PCM 转换为 32-bit float
-                std::transform(intBuffer.begin(), intBuffer.begin() + framesRead * sfinfo.channels, buffer.begin(),
-                               [](const int sample) { return static_cast<float>(sample) / 8388608.0f; });
+                // 转换为 32-bit float
+                for (sf_count_t i = 0; i < framesRead * sfinfo.channels; ++i) {
+                    buffer[i] = static_cast<float>(intBuffer[i]) / 8388608.0f;
+                }
             } else {
                 throw std::runtime_error("不支持的音频格式: " + std::string(sf_strerror(nullptr)));
             }
@@ -67,11 +69,12 @@ namespace AudioUtil
             msg = "Unsupported file format: " + filepath.string();
             return false;
         }
-        sf_vio.data.seek = 44;
+        sf_vio.data.seek = 0;
         return true;
     }
 
     SF_VIO resample(SF_VIO &sf_vio_in, const int tar_channel, const int tar_samplerate) {
+        std::cout << "Start resample." << std::endl;
         SndfileHandle srcHandle(sf_vio_in.vio, &sf_vio_in.data, SFM_READ, sf_vio_in.info.format,
                                 sf_vio_in.info.channels, sf_vio_in.info.samplerate);
         if (!srcHandle) {
@@ -81,6 +84,8 @@ namespace AudioUtil
 
         SF_VIO sf_vio;
         sf_vio.info = sf_vio_in.info;
+        sf_vio.info.channels = tar_channel;
+        sf_vio.info.samplerate = tar_samplerate;
         SndfileHandle outBuf(sf_vio.vio, &sf_vio.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, tar_channel,
                              tar_samplerate);
         if (!outBuf) {
@@ -127,7 +132,7 @@ namespace AudioUtil
 
         // Clean up
         soxr_delete(resampler);
-
+        std::cout << "Resample success." << std::endl;
         return sf_vio;
     }
 

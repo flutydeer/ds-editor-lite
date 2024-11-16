@@ -86,7 +86,7 @@ namespace Some
             return false;
         }
 
-        auto sf_vio = AudioUtil::resample(sf_vio_raw, 1, 16000);
+        auto sf_vio = AudioUtil::resample(sf_vio_raw, 1, 44100);
 
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 44100);
         AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
@@ -113,7 +113,7 @@ namespace Some
             }
 
             AudioUtil::SF_VIO sfChunk;
-            auto wf = SndfileHandle(sfChunk.vio, &sfChunk.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
+            auto wf = SndfileHandle(sfChunk.vio, &sfChunk.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 44100);
             sf.seek(static_cast<sf_count_t>(beginFrame), SEEK_SET);
             std::vector<float> tmp(frameCount);
             sf.read(tmp.data(), static_cast<sf_count_t>(tmp.size()));

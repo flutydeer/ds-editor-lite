@@ -7,7 +7,7 @@ namespace AudioUtil
         return qvio->byteArray.size();
     }
 
-    sf_count_t qvio_seek(sf_count_t offset, int whence, void *user_data) {
+    sf_count_t qvio_seek(const sf_count_t offset, const int whence, void *user_data) {
         auto *qvio = static_cast<QVIO *>(user_data);
         switch (whence) {
         case SEEK_SET:
@@ -25,7 +25,7 @@ namespace AudioUtil
         return qvio->seek;
     }
 
-    sf_count_t qvio_read(void *ptr, sf_count_t count, void *user_data) {
+    sf_count_t qvio_read(void *ptr, const sf_count_t count, void *user_data) {
         auto *qvio = static_cast<QVIO *>(user_data);
         const sf_count_t remainingBytes = qvio->byteArray.size() - qvio->seek;
         const sf_count_t bytesToRead = std::min(count, remainingBytes);
@@ -36,7 +36,7 @@ namespace AudioUtil
         return bytesToRead;
     }
 
-    sf_count_t qvio_write(const void *ptr, sf_count_t count, void *user_data) {
+    sf_count_t qvio_write(const void *ptr, const sf_count_t count, void *user_data) {
         auto *qvio = static_cast<QVIO *>(user_data);
         auto *data = static_cast<const char *>(ptr);
         qvio->byteArray.reserve(qvio->byteArray.size() + count);

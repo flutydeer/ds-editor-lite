@@ -52,6 +52,7 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
         return;
     }
 
+    // TODO: Fix start
     QList<Note *> notes;
     for (const auto &[key, start, duration] : task->result) {
         const auto note = new Note;
