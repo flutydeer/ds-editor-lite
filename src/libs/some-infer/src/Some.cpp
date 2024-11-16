@@ -34,9 +34,9 @@ namespace Some
     std::vector<int> calculateNoteTicks(const std::vector<float> &note_durations, const float tempo) {
         const std::vector<double> cumsum = cumulativeSum(note_durations);
 
-        std::vector<int64_t> scaled_ticks(cumsum.size());
+        std::vector<double> scaled_ticks(cumsum.size());
         for (size_t i = 0; i < cumsum.size(); ++i) {
-            scaled_ticks[i] = static_cast<int64_t>(std::round(cumsum[i] * tempo * 8));
+            scaled_ticks[i] = cumsum[i] * tempo * 8;
         }
 
         std::vector<int> note_ticks(scaled_ticks.size());
