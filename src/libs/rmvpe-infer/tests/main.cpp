@@ -28,9 +28,9 @@ static void writeCsv(const std::string &csvFilename, const std::vector<float> &f
 }
 
 void runInference(const Rmvpe::Rmvpe &rmvpe, const std::filesystem::path &wavPath, const float threshold,
-                  std::vector<float> &f0, std::vector<bool> &uv, std::string &msg,
+                  std::vector<Rmvpe::RmvpeRes> &res, std::string &msg,
                   const std::function<void(int)> &progressChanged) {
-    const bool success = rmvpe.get_f0(wavPath, threshold, f0, uv, msg, progressChanged);
+    const bool success = rmvpe.get_f0(wavPath, threshold, res, msg, progressChanged);
 
     if (!success) {
         std::cerr << "Error: " << msg << std::endl;
@@ -60,12 +60,11 @@ int main(const int argc, char *argv[]) {
     Rmvpe::Rmvpe rmvpe(modelPath, rmProvider, device_id);
     constexpr float threshold = 0.03f;
 
-    std::vector<float> f0;
-    std::vector<bool> uv;
+    std::vector<Rmvpe::RmvpeRes> res;
     std::string msg;
 
-    auto inferenceTask = [&rmvpe, &wavPath, &threshold, &f0, &uv, &msg]
-    { runInference(rmvpe, wavPath, threshold, f0, uv, msg, progressChanged); };
+    auto inferenceTask = [&rmvpe, &wavPath, &threshold, &res, &msg]
+    { runInference(rmvpe, wavPath, threshold, res, msg, progressChanged); };
 
     std::future<void> inferenceFuture = std::async(std::launch::async, inferenceTask);
     //
@@ -74,22 +73,22 @@ int main(const int argc, char *argv[]) {
 
     inferenceFuture.get();
 
-    if (!f0.empty()) {
-        // std::cout << "midi output:" << std::endl;
-        // const auto midi = freqToMidi(f0);
-        // for (const float value : midi) {
-        //     std::cout << value << " ";
-        // }
-        // std::cout << std::endl;
-
-        if (!csvOutput.empty() && csvOutput.substr(csvOutput.find_last_of('.')) == ".csv") {
-            writeCsv(csvOutput, f0, uv);
-        } else if (!csvOutput.empty()) {
-            std::cerr << "Error: The CSV output path must end with '.csv'." << std::endl;
-        }
-    } else {
-        std::cerr << "Error: " << msg << std::endl;
-    }
+    // if (!f0.empty()) {
+    //     // std::cout << "midi output:" << std::endl;
+    //     // const auto midi = freqToMidi(f0);
+    //     // for (const float value : midi) {
+    //     //     std::cout << value << " ";
+    //     // }
+    //     // std::cout << std::endl;
+    //
+    //     if (!csvOutput.empty() && csvOutput.substr(csvOutput.find_last_of('.')) == ".csv") {
+    //         writeCsv(csvOutput, f0, uv);
+    //     } else if (!csvOutput.empty()) {
+    //         std::cerr << "Error: The CSV output path must end with '.csv'." << std::endl;
+    //     }
+    // } else {
+    //     std::cerr << "Error: " << msg << std::endl;
+    // }
 
     return 0;
 }

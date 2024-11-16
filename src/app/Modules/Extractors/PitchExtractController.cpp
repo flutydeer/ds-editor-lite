@@ -14,6 +14,7 @@
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "Utils/Linq.h"
+#include "Utils/MathUtils.h"
 
 void PitchExtractController::runExtractPitch(AudioClip *audioClip, SingingClip *singingClip) {
     auto path = audioClip->path();
@@ -49,20 +50,19 @@ void PitchExtractController::onExtractPitchTaskFinished(ExtractPitchTask *task) 
         return;
     }
 
-    auto pitchParam = new DrawCurve;
-    pitchParam->setStart(audioClip->start());
-    pitchParam->setValues(Linq::selectMany(task->result, L_PRED(v, static_cast<int>(v * 100))));
-    pitchParam->erase(audioClip->start(), audioClip->start() + audioClip->clipStart());
-    pitchParam->eraseTailFrom(audioClip->endTick());
+    QList<Curve *> curves;
 
-    if (pitchParam->start() < singingClip->start() + singingClip->clipStart())
-        pitchParam->erase(pitchParam->start(), singingClip->start() + singingClip->clipStart());
-    if (pitchParam->endTick() > singingClip->endTick())
-        pitchParam->eraseTailFrom(singingClip->endTick());
-    pitchParam->setStart(pitchParam->start() - singingClip->start());
+    for (const auto &[offset, values] : task->result) {
+        const int rawTick = appModel->msToTick(offset);
+        const int offsetTick = MathUtils::round(audioClip->start() + rawTick, 5);
+        const auto pitchParam = new DrawCurve;
+        pitchParam->setStart(offsetTick);
+        pitchParam->setValues(Linq::selectMany(values, L_PRED(v, static_cast<int>(v * 100))));
+        curves.append(pitchParam);
+    }
 
     auto a = new ParamsActions;
-    a->replaceParam(ParamInfo::Pitch, Param::Edited, {pitchParam}, singingClip);
+    a->replaceParam(ParamInfo::Pitch, Param::Edited, curves, singingClip);
     a->execute();
     historyManager->record(a);
 

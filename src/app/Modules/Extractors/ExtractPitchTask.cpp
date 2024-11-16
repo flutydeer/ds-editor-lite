@@ -60,8 +60,7 @@ void ExtractPitchTask::runTask() {
 
     constexpr float threshold = 0.03f;
 
-    std::vector<float> f0;
-    std::vector<bool> uv;
+    std::vector<Rmvpe::RmvpeRes> rmvpe_res;
     std::string msg;
 
 #ifdef Q_OS_WIN
@@ -70,7 +69,7 @@ void ExtractPitchTask::runTask() {
     const std::filesystem::path wavPath = m_input.audioPath.toStdString();
 #endif
 
-    success = m_rmvpe->get_f0(wavPath, threshold, f0, uv, msg, [=](int progress) {
+    success = m_rmvpe->get_f0(wavPath, threshold, rmvpe_res, msg, [=](int progress) {
         auto progressStatus = status();
         progressStatus.progress = progress;
         setStatus(progressStatus);
@@ -78,11 +77,13 @@ void ExtractPitchTask::runTask() {
 
     if (success) {
         qDebug() << "midi output:";
-        const auto midi = freqToMidi(f0);
-        QList<double> values;
-        for (const auto &value : midi)
-            values.append(value);
-        processOutput(values);
+        for (const auto &[offset, f0, uv] : rmvpe_res) {
+            const auto midi = freqToMidi(f0);
+            QList<double> values;
+            for (const auto &value : midi)
+                values.append(value);
+            result.append({offset, processOutput(values)});
+        }
     } else {
         qCritical() << "Error: " << msg;
     }
@@ -110,9 +111,9 @@ std::vector<float> ExtractPitchTask::freqToMidi(const std::vector<float> &freque
     return midiPitches;
 }
 
-void ExtractPitchTask::processOutput(const QList<double> &values) {
+QList<double> ExtractPitchTask::processOutput(const QList<double> &values) const {
     auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
-    auto interval = 0.01;
-    auto newInterval = tickToSec(5);
-    result = MathUtils::resample(values, interval, newInterval);
+    constexpr auto interval = 0.01;
+    const auto newInterval = tickToSec(5);
+    return MathUtils::resample(values, interval, newInterval);
 }

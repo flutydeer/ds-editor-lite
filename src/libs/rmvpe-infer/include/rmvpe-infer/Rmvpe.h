@@ -25,8 +25,8 @@ namespace Rmvpe
 
         bool is_open() const;
 
-        bool get_f0(const std::filesystem::path &filepath, float threshold, std::vector<float> &f0,
-                    std::vector<bool> &uv, std::string &msg, const std::function<void(int)> &progressChanged) const;
+        bool get_f0(const std::filesystem::path &filepath, float threshold, std::vector<RmvpeRes> &res,
+                    std::string &msg, const std::function<void(int)> &progressChanged) const;
 
         void terminate() const;
 

@@ -22,55 +22,6 @@ namespace Rmvpe
 
     bool Rmvpe::is_open() const { return m_rmvpe && m_rmvpe->is_open(); }
 
-    static float linear_interpolate(const int t, const int t1, const int t2, const float v1, const float v2) {
-        if (t1 == t2)
-            return v1;
-        return v1 + (v2 - v1) * static_cast<float>(t - t1) / static_cast<float>(t2 - t1);
-    }
-
-    static void resample_f0_uv(const std::vector<RmvpeRes> &res, std::vector<float> &target_f0,
-                               std::vector<bool> &target_uv, const float totalSize) {
-        constexpr int interval = 10;
-        const int target_size = static_cast<int>(totalSize / interval);
-
-        target_f0.assign(target_size, 0.0f);
-        target_uv.assign(target_size, false);
-
-        for (const auto &[offset, f0, uv] : res) {
-            for (size_t i = 0; i < f0.size(); ++i) {
-                const float time = offset + static_cast<float>(i * interval);
-                if (time >= 0 && time <= totalSize) {
-                    const int target_index = static_cast<int>(time / interval);
-
-                    if (target_index < target_size) {
-                        target_f0[target_index] = f0[i];
-                        target_uv[target_index] = uv[i];
-                    }
-                }
-            }
-        }
-
-        for (int i = 1; i < target_size; ++i) {
-            if (target_f0[i] == 0.0f) {
-                int prev_index = i - 1;
-                int next_index = i + 1;
-
-                while (prev_index >= 0 && target_f0[prev_index] == 0.0f)
-                    prev_index--;
-                while (next_index < target_size && target_f0[next_index] == 0.0f)
-                    next_index++;
-
-                if (prev_index >= 0 && next_index < target_size) {
-                    const auto prev_time = prev_index * interval;
-                    const auto next_time = next_index * interval;
-                    target_f0[i] = linear_interpolate(i * interval, prev_time, next_time, target_f0[prev_index],
-                                                      target_f0[next_index]);
-                    target_uv[i] = target_uv[prev_index] && target_uv[next_index];
-                }
-            }
-        }
-    }
-
     static float calculateSumOfDifferences(const AudioUtil::MarkerList &markers) {
         float sum = 0;
         for (const auto &[fst, snd] : markers) {
@@ -79,12 +30,57 @@ namespace Rmvpe
         return sum;
     }
 
-    bool Rmvpe::get_f0(const std::filesystem::path &filepath, const float threshold, std::vector<float> &f0,
-                       std::vector<bool> &uv, std::string &msg, const std::function<void(int)> &progressChanged) const {
+    static void interp_f0(std::vector<float> &f0, std::vector<bool> &uv) {
+        const int n = static_cast<int>(f0.size());
+        int first_true = -1;
+        int last_true = -1;
+
+        for (int i = 0; i < n; ++i) {
+            if (!uv[i]) {
+                first_true = i;
+                break;
+            }
+        }
+
+        for (int i = n - 1; i >= 0; --i) {
+            if (!uv[i]) {
+                last_true = i;
+                break;
+            }
+        }
+
+        if (first_true != -1) {
+            for (int i = 0; i < first_true; ++i) {
+                f0[i] = f0[first_true];
+            }
+        }
+
+        if (last_true != -1) {
+            for (int i = n - 1; i > last_true; --i) {
+                f0[i] = f0[last_true];
+            }
+        }
+
+        for (int i = first_true; i < last_true; ++i) {
+            if (uv[i]) {
+                const int prev = i - 1;
+                int next = i + 1;
+                while (next < n && uv[next])
+                    next++;
+                if (next < n) {
+                    const float ratio = std::log(f0[next] / f0[prev]);
+                    f0[i] = static_cast<float>(f0[prev] *
+                                               std::exp(ratio * static_cast<long double>(i - prev) / (next - prev)));
+                }
+            }
+        }
+    }
+
+    bool Rmvpe::get_f0(const std::filesystem::path &filepath, const float threshold, std::vector<RmvpeRes> &res,
+                       std::string &msg, const std::function<void(int)> &progressChanged) const {
         if (!m_rmvpe) {
             return false;
         }
-        std::vector<RmvpeRes> res;
 
         auto sf_vio = AudioUtil::resample_to_vio(filepath, msg, 1, 16000);
 
@@ -123,6 +119,7 @@ namespace Rmvpe
             const bool success = m_rmvpe->forward(tmp, threshold, tempRes.f0, tempRes.uv, msg);
             if (!success)
                 return false;
+            interp_f0(tempRes.f0, tempRes.uv);
             res.push_back(tempRes);
 
             // Update the processed frames and calculate progress
@@ -134,8 +131,6 @@ namespace Rmvpe
                 progressChanged(progress); // Trigger the callback with the progress value
             }
         }
-
-        resample_f0_uv(res, f0, uv, static_cast<float>(static_cast<double>(totalSize) / (16000.0 / 1000)));
         return true;
     }
 

@@ -27,12 +27,12 @@ public:
     int audioClipId = -1;
     bool success = false;
     const Input &input() const;
-    QList<double> result;
+    QList<QPair<double, QList<double>>> result;
 
 private:
     void runTask() override;
     static std::vector<float> freqToMidi(const std::vector<float> &frequencies);
-    void processOutput(const QList<double> &values);
+    QList<double> processOutput(const QList<double> &values) const;
 
     Input m_input;
     std::unique_ptr<Rmvpe::Rmvpe> m_rmvpe;
