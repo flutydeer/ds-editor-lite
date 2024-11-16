@@ -84,10 +84,14 @@ namespace AudioUtil
 
         std::cout << "Rate: " << rate << ", Channels: " << channels << ", Encoding: " << encoding << std::endl;
 
+        const size_t estimated_size = total_frames * channels * sizeof(float);
+        sf_vio.data.byteArray.reserve(estimated_size);
+
         SndfileHandle outBuf(sf_vio.vio, &sf_vio.data, SFM_WRITE, sf_vio.info.format, channels, rate);
 
         if (encoding & MPG123_ENC_FLOAT_32) {
-            std::vector<float> pcm_buffer(8192, 0);
+            // 32-bit float buffer for multi-channel audio
+            std::vector<float> pcm_buffer(8192 * channels, 0);
             size_t done;
             while (true) {
                 const int err = mpg123_read(mh, pcm_buffer.data(), pcm_buffer.size() * sizeof(float), &done);
@@ -95,18 +99,20 @@ namespace AudioUtil
                     if (done == 0) {
                         break;
                     }
-                    std::cerr << "Error while decoding MP3: " << mpg123_strerror(mh) << std::endl;
+                    // std::cerr << "Error while decoding MP3: " << mpg123_strerror(mh) << std::endl;
                     break;
                 }
 
-                const sf_count_t written =
-                    outBuf.writef(pcm_buffer.data(), static_cast<sf_count_t>(done / sizeof(float)));
+                // Assuming `done` contains bytes read, convert to number of samples
+                const auto num_samples = static_cast<sf_count_t>(done / sizeof(float));
+                const sf_count_t written = outBuf.writef(pcm_buffer.data(), num_samples);
 
                 if (written > 0)
                     sf_vio.info.frames += written;
             }
         } else {
-            std::vector<short> pcm_buffer(8192, 0);
+            // 16-bit integer buffer for multi-channel audio
+            std::vector<short> pcm_buffer(8192 * channels, 0);
             size_t done;
             while (true) {
                 const int err = mpg123_read(mh, pcm_buffer.data(), pcm_buffer.size() * sizeof(short), &done);
@@ -118,8 +124,9 @@ namespace AudioUtil
                     break;
                 }
 
-                const sf_count_t written =
-                    outBuf.writef(pcm_buffer.data(), static_cast<sf_count_t>(done / sizeof(short)));
+                // Assuming `done` contains bytes read, convert to number of samples
+                const auto num_samples = static_cast<sf_count_t>(done / sizeof(short));
+                const sf_count_t written = outBuf.write(pcm_buffer.data(), num_samples);
 
                 if (written > 0)
                     sf_vio.info.frames += written;

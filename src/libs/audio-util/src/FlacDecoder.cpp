@@ -158,6 +158,9 @@ namespace AudioUtil
         sf_vio.info.sections = 1;
         sf_vio.info.seekable = 1;
 
+        const size_t estimated_size = decoder.get_total_samples() * decoder.get_channels() * sizeof(float);
+        sf_vio.data.byteArray.reserve(estimated_size);
+
         const SndfileHandle sndfile(sf_vio.vio, &sf_vio.data, SFM_WRITE, sf_vio.info.format, sf_vio.info.channels,
                                     sf_vio.info.samplerate);
         if (!sndfile) {

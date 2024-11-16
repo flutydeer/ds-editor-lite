@@ -40,6 +40,11 @@ namespace AudioUtil
             return {};
         }
 
+        const sf_count_t estimated_frames = (srcHandle.frames() * tar_samplerate) / srcHandle.samplerate();
+        const size_t estimated_size = estimated_frames * srcHandle.channels() * sizeof(float);
+
+        sf_vio.data.byteArray.reserve(estimated_size);
+
         auto dstHandle = SndfileHandle(sf_vio.vio, &sf_vio.data, SFM_WRITE, sf_vio_in.info.format, srcHandle.channels(),
                                        tar_samplerate);
         if (!dstHandle) {
