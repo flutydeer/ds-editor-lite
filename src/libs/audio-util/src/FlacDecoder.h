@@ -2,7 +2,7 @@
 #define FLACDECODER_H
 
 #include <FLAC++/decoder.h>
-#include <audio-util/Resample.h>
+#include <audio-util/Util.h>
 #include <fcntl.h>
 #include <fstream>
 #include <mpg123.h>
@@ -23,6 +23,7 @@ namespace AudioUtil
         void set_sndfile(const SndfileHandle &sndfile);
         unsigned get_channels() const override;
         unsigned get_sample_rate() const override;
+        unsigned get_bits_per_sample() const override;
         unsigned long long get_total_samples() const override;
 
         ~FLACDecoder() override;
@@ -34,6 +35,8 @@ namespace AudioUtil
         unsigned channels = 0;
         unsigned sampleRate = 0;
         unsigned totalSamples = 0;
+        unsigned bitsPerSample = 0;
+        std::vector<int32_t> buffer_out;
     };
 
     void write_flac_to_vio(const std::filesystem::path &filepath, SF_VIO &sf_vio);

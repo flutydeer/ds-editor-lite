@@ -4,8 +4,8 @@
 
 #include <iostream>
 
-#include <audio-util/Resample.h>
 #include <audio-util/Slicer.h>
+#include <audio-util/Util.h>
 #include <rmvpe-infer/RmvpeModel.h>
 
 namespace Rmvpe
@@ -79,12 +79,20 @@ namespace Rmvpe
         return sum;
     }
 
-    bool Rmvpe::get_f0(AudioUtil::SF_VIO sf_vio, float threshold, std::vector<float> &f0, std::vector<bool> &uv,
-                       std::string &msg, const std::function<void(int)> &progressChanged) const {
+    bool Rmvpe::get_f0(const std::filesystem::path &filepath, const float threshold, std::vector<float> &f0,
+                       std::vector<bool> &uv, std::string &msg, const std::function<void(int)> &progressChanged) const {
         if (!m_rmvpe) {
             return false;
         }
         std::vector<RmvpeRes> res;
+
+        AudioUtil::SF_VIO sf_vio_raw;
+        if (!AudioUtil::write_audio_to_vio(filepath, sf_vio_raw, msg)) {
+            return false;
+        }
+
+        auto sf_vio = AudioUtil::resample(sf_vio_raw, 1, 16000);
+
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
         AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
 
@@ -134,11 +142,6 @@ namespace Rmvpe
 
         resample_f0_uv(res, f0, uv, static_cast<float>(static_cast<double>(totalSize) / (16000.0 / 1000)));
         return true;
-    }
-
-    bool Rmvpe::get_f0(const std::filesystem::path &filepath, const float threshold, std::vector<float> &f0,
-                       std::vector<bool> &uv, std::string &msg, const std::function<void(int)> &progressChanged) const {
-        return get_f0(AudioUtil::resample(filepath, 1, 16000), threshold, f0, uv, msg, progressChanged);
     }
 
     void Rmvpe::terminate() const { m_rmvpe->terminate(); }

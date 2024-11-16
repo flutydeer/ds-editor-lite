@@ -17,11 +17,13 @@ namespace AudioUtil
     struct AUDIO_UTIL_EXPORT QVIO {
         uint64_t seek{};
         std::vector<char> byteArray;
+        int channels, samplerate;
     };
 
     struct AUDIO_UTIL_EXPORT SF_VIO {
         SF_VIRTUAL_IO vio{};
         QVIO data;
+        SF_INFO info;
 
         SF_VIO() {
             vio.get_filelen = qvio_get_filelen;

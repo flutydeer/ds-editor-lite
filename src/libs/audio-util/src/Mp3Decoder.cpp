@@ -62,14 +62,26 @@ namespace AudioUtil
             mpg123_exit();
             return;
         }
+
+        if (encoding & MPG123_ENC_FLOAT_32) {
+            sf_vio.info.format = SF_FORMAT_WAV | SF_FORMAT_FLOAT;
+        } else if (encoding & MPG123_ENC_SIGNED_8) {
+            sf_vio.info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_S8;
+        } else {
+            sf_vio.info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+        }
+
+        sf_vio.info.samplerate = rate;
+        sf_vio.info.channels = channels;
+
         std::cout << "Rate: " << rate << ", Channels: " << channels << ", Encoding: " << encoding << std::endl;
 
-        SndfileHandle outBuf(sf_vio.vio, &sf_vio.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, channels, rate);
+        SndfileHandle outBuf(sf_vio.vio, &sf_vio.data, SFM_WRITE, sf_vio.info.format, channels, rate);
 
         std::vector<short> pcm_buffer(8192);
         size_t done;
         while (true) {
-            int err = mpg123_read(mh, pcm_buffer.data(), pcm_buffer.size() * sizeof(short), &done);
+            const int err = mpg123_read(mh, pcm_buffer.data(), pcm_buffer.size() * sizeof(short), &done);
             if (err != MPG123_OK) {
                 if (done == 0) {
                     break;

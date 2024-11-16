@@ -4,8 +4,8 @@
 
 #include <iostream>
 
-#include <audio-util/Resample.h>
 #include <audio-util/Slicer.h>
+#include <audio-util/Util.h>
 #include <some-infer/SomeModel.h>
 
 namespace Some
@@ -75,11 +75,18 @@ namespace Some
         return sum;
     }
 
-    bool Some::get_midi(AudioUtil::SF_VIO sf_vio, std::vector<Midi> &midis, float tempo, std::string &msg,
-                        const std::function<void(int)> &progressChanged) const {
+    bool Some::get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, const float tempo,
+                        std::string &msg, const std::function<void(int)> &progressChanged) const {
         if (!m_some) {
             return false;
         }
+
+        AudioUtil::SF_VIO sf_vio_raw;
+        if (!AudioUtil::write_audio_to_vio(filepath, sf_vio_raw, msg)) {
+            return false;
+        }
+
+        auto sf_vio = AudioUtil::resample(sf_vio_raw, 1, 16000);
 
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 44100);
         AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
@@ -135,11 +142,6 @@ namespace Some
             }
         }
         return true;
-    }
-
-    bool Some::get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, const float tempo,
-                        std::string &msg, const std::function<void(int)> &progressChanged) const {
-        return get_midi(AudioUtil::resample(filepath, 1, 44100), midis, tempo, msg, progressChanged);
     }
 
     void Some::terminate() const { m_some->terminate(); }

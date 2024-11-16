@@ -31,8 +31,9 @@ namespace AudioUtil
             channels = metadata->data.stream_info.channels;
             sampleRate = metadata->data.stream_info.sample_rate;
             totalSamples = metadata->data.stream_info.total_samples;
+            bitsPerSample = metadata->data.stream_info.bits_per_sample;
             std::cout << "FLAC channels: " << channels << ", sampleRate: " << sampleRate
-                      << ", totalSamples: " << totalSamples << std::endl;
+                      << ", totalSamples: " << totalSamples << ", bitsPerSample: " << bitsPerSample << std::endl;
         }
     }
 
@@ -49,17 +50,9 @@ namespace AudioUtil
     FLAC__StreamDecoderWriteStatus FLACDecoder::write_callback(const FLAC__Frame *frame,
                                                                const FLAC__int32 *const buffer[]) {
         const unsigned samples = frame->header.blocksize;
-        const unsigned channels = frame->header.channels;
 
-        std::vector<short> buffer_out(samples);
-
-        for (unsigned i = 0; i < samples; ++i) {
-            int32_t sum = 0;
-            for (unsigned ch = 0; ch < channels; ++ch) {
-                sum += buffer[ch][i];
-            }
-            buffer_out[i] = static_cast<short>(sum / channels);
-        }
+        if (buffer_out.capacity() < samples)
+            buffer_out.resize(samples);
 
         if (sndfile.write(buffer_out.data(), samples) != samples) {
             std::cerr << "An error occurred while writing to the WAV file." << std::endl;
@@ -93,6 +86,8 @@ namespace AudioUtil
 
     unsigned FLACDecoder::get_sample_rate() const { return sampleRate; }
 
+    unsigned FLACDecoder::get_bits_per_sample() const { return bitsPerSample; }
+
     unsigned long long FLACDecoder::get_total_samples() const { return totalSamples; }
 
     void write_flac_to_vio(const std::filesystem::path &filepath, SF_VIO &sf_vio) {
@@ -108,8 +103,21 @@ namespace AudioUtil
             return;
         }
 
-        const SndfileHandle sndfile(sf_vio.vio, &sf_vio.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1,
-                                    static_cast<int>(decoder.get_sample_rate()));
+        if (decoder.get_bits_per_sample() == 32) {
+            sf_vio.info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_32;
+        } else if (decoder.get_bits_per_sample() == 24) {
+            sf_vio.info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
+        } else if (decoder.get_bits_per_sample() == 8) {
+            sf_vio.info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_S8;
+        } else {
+            sf_vio.info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+        }
+
+        sf_vio.info.samplerate = static_cast<int>(decoder.get_sample_rate());
+        sf_vio.info.channels = static_cast<int>(decoder.get_channels());
+
+        const SndfileHandle sndfile(sf_vio.vio, &sf_vio.data, SFM_WRITE, sf_vio.info.format, sf_vio.info.channels,
+                                    sf_vio.info.samplerate);
         if (!sndfile) {
             std::cerr << "Unable to open output file for writing. error message: " << sndfile.strError() << std::endl;
             return;
