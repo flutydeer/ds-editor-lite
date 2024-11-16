@@ -16,13 +16,15 @@
 InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     auto option = appOptions->inference();
     // Device - Execution Provider
+    constexpr int epIndexCpu = 0;
+    constexpr int epIndexDirectML = 1;
     m_cbExecutionProvider = new ComboBox();
-    m_cbExecutionProvider->insertItem(0, "CPU");
-    m_cbExecutionProvider->insertItem(1, "DirectML");
+    m_cbExecutionProvider->insertItem(epIndexCpu, "CPU");
+    m_cbExecutionProvider->insertItem(epIndexDirectML, "DirectML");
     if (option->executionProvider == "CPU")
-        m_cbExecutionProvider->setCurrentIndex(0);
+        m_cbExecutionProvider->setCurrentIndex(epIndexCpu);
     else if (option->executionProvider == "DirectML")
-        m_cbExecutionProvider->setCurrentIndex(1);
+        m_cbExecutionProvider->setCurrentIndex(epIndexDirectML);
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this,
             &InferencePage::modifyOption);
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this, [=] {
@@ -45,7 +47,9 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
                 .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
         m_cbDeviceList->addItem(displayText, device.index);
     }
-    m_cbDeviceList->setCurrentIndex(option->selectedGpuIndex);
+    if (const auto index_ = m_cbDeviceList->findData(option->selectedGpuIndex); index_ >= 0) {
+        m_cbDeviceList->setCurrentIndex(index_);
+    }
     connect(m_cbDeviceList, &ComboBox::currentIndexChanged, this, &InferencePage::modifyOption);
 
     // Device
@@ -54,7 +58,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
                         m_cbExecutionProvider);
     deviceCard->addItem(tr("GPU"), m_cbDeviceList);
 
-    // Render - Speedup
+    // Render - Sampling Steps
     m_cbSamplingSteps = new ComboBox();
     m_cbSamplingSteps->setEditable(true);
     m_cbSamplingSteps->setFixedWidth(80);
@@ -92,7 +96,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
 void InferencePage::modifyOption() {
     auto option = appOptions->inference();
     option->executionProvider = m_cbExecutionProvider->currentText();
-    option->selectedGpuIndex = m_cbDeviceList->currentIndex();
+    option->selectedGpuIndex = m_cbDeviceList->currentData().toInt();
     option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
     option->depth = m_leDsDepth->text().toDouble();
     appOptions->saveAndNotify();
