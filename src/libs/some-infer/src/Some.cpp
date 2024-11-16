@@ -81,9 +81,10 @@ namespace Some
             return false;
         }
 
-        auto sf_vio = AudioUtil::resample_to_vio(filepath, msg, 44100);
+        auto sf_vio = AudioUtil::resample_to_vio(filepath, msg, 1, 44100);
 
-        SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 44100);
+        SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, sf_vio.info.format, sf_vio.info.channels,
+                         sf_vio.info.samplerate);
         AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
 
         const auto chunks = slicer.slice();

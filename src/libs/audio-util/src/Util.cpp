@@ -7,7 +7,8 @@
 
 namespace AudioUtil
 {
-    SF_VIO resample_to_vio(const std::filesystem::path &filepath, std::string &msg, const int tar_samplerate) {
+    SF_VIO resample_to_vio(const std::filesystem::path &filepath, std::string &msg, const int tar_channels,
+                           const int tar_samplerate) {
         SF_VIO sf_vio_in;
         const std::string extension = filepath.extension().string();
         if (extension == ".wav") {
@@ -33,7 +34,7 @@ namespace AudioUtil
 
         SF_VIO sf_vio;
         sf_vio.info = sf_vio_in.info;
-        sf_vio.info.channels = srcHandle.channels();
+        sf_vio.info.channels = tar_channels;
         sf_vio.info.samplerate = tar_samplerate;
         if (!srcHandle) {
             std::cout << "Failed to open WAV file:" << sf_strerror(nullptr) << std::endl;
@@ -45,8 +46,8 @@ namespace AudioUtil
 
         sf_vio.data.byteArray.reserve(estimated_size);
 
-        auto dstHandle = SndfileHandle(sf_vio.vio, &sf_vio.data, SFM_WRITE, sf_vio_in.info.format, srcHandle.channels(),
-                                       tar_samplerate);
+        auto dstHandle =
+            SndfileHandle(sf_vio.vio, &sf_vio.data, SFM_WRITE, sf_vio_in.info.format, tar_channels, tar_samplerate);
         if (!dstHandle) {
             std::cout << "Failed to open output file:" << sf_strerror(nullptr) << std::endl;
             return {};
@@ -82,10 +83,23 @@ namespace AudioUtil
                 break;
             }
 
-            // Write the resampled data to the output file
+            std::vector<float> processedBuf(outputDone * tar_channels);
+            const auto src_channels = srcHandle.channels();
+            for (size_t i = 0; i < outputDone; ++i) {
+                for (size_t tar_ch = 0; tar_ch < tar_channels; ++tar_ch) {
+                    if (tar_channels > src_channels) {
+                        const size_t src_ch = tar_ch % src_channels;
+                        processedBuf[i * tar_channels + tar_ch] = outputBuf[i * src_channels + src_ch];
+                    } else {
+                        const size_t src_ch = tar_ch;
+                        processedBuf[i * tar_channels + tar_ch] = outputBuf[i * src_channels + src_ch];
+                    }
+                }
+            }
+
             const size_t bytesWritten =
-                dstHandle.write(outputBuf.data(), static_cast<sf_count_t>(outputDone * srcHandle.channels()));
-            if (bytesWritten != outputDone * srcHandle.channels()) {
+                dstHandle.write(processedBuf.data(), static_cast<sf_count_t>(outputDone * tar_channels));
+            if (bytesWritten != outputDone * tar_channels) {
                 std::cout << "Error writing to output file" << std::endl;
                 break;
             }

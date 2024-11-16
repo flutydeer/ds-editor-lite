@@ -86,7 +86,7 @@ namespace Rmvpe
         }
         std::vector<RmvpeRes> res;
 
-        auto sf_vio = AudioUtil::resample_to_vio(filepath, msg, 16000);
+        auto sf_vio = AudioUtil::resample_to_vio(filepath, msg, 1, 16000);
 
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
         AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);

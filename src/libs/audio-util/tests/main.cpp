@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
     const std::filesystem::path wav_out_path = argv[2];
 
     std::string errorMsg;
-    auto sf_vio = AudioUtil::resample_to_vio(audio_in_path, errorMsg, 16000);
+    auto sf_vio = AudioUtil::resample_to_vio(audio_in_path, errorMsg, 1, 16000);
     AudioUtil::write_vio_to_wav(sf_vio, wav_out_path, 1);
 
     return 0;
