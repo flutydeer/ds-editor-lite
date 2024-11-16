@@ -7,94 +7,47 @@
 
 namespace AudioUtil
 {
-    static void write_wav_to_vio(const std::filesystem::path &filepath, SF_VIO &sf_vio) {
-        SF_INFO sfinfo;
-        SNDFILE *infile = sf_open(filepath.string().c_str(), SFM_READ, &sfinfo);
-        if (!infile) {
-            throw std::runtime_error("无法打开输入文件进行读取: " + std::string(sf_strerror(nullptr)));
-        }
-
-        sf_vio.info = sfinfo;
-        SndfileHandle outBuf(sf_vio.vio, &sf_vio.data, SFM_WRITE, sfinfo.format, sfinfo.channels, sfinfo.samplerate);
-        if (!outBuf) {
-            throw std::runtime_error("无法创建输出 VIO 句柄: " + std::string(sf_strerror(nullptr)));
-        }
-
-        constexpr int bufferSize = 4096;
-        std::vector<float> buffer(bufferSize * sfinfo.channels, 0);
-
-        std::vector<short> shortBuffer(bufferSize * sfinfo.channels);
-        std::vector<int> intBuffer(bufferSize * sfinfo.channels);
-
-        while (true) {
-            sf_count_t framesRead;
-
-            if (sfinfo.format & SF_FORMAT_FLOAT) { // 32-bit float
-                framesRead = sf_read_float(infile, buffer.data(), bufferSize);
-            } else if (sfinfo.format & SF_FORMAT_PCM_16) { // 16-bit PCM
-                framesRead = sf_readf_short(infile, shortBuffer.data(), bufferSize);
-                // 转换为 32-bit float
-                for (sf_count_t i = 0; i < framesRead * sfinfo.channels; ++i) {
-                    buffer[i] = static_cast<float>(shortBuffer[i]) / 32768.0f;
-                }
-            } else if (sfinfo.format & SF_FORMAT_PCM_24) { // 24-bit PCM
-                framesRead = sf_readf_int(infile, intBuffer.data(), bufferSize);
-                // 转换为 32-bit float
-                for (sf_count_t i = 0; i < framesRead * sfinfo.channels; ++i) {
-                    buffer[i] = static_cast<float>(intBuffer[i]) / 8388608.0f;
-                }
-            } else {
-                throw std::runtime_error("不支持的音频格式: " + std::string(sf_strerror(nullptr)));
-            }
-
-            if (framesRead == 0) {
-                break;
-            }
-
-            const sf_count_t framesWritten = outBuf.writef(buffer.data(), framesRead);
-            if (framesWritten < 0) {
-                throw std::runtime_error("写入 VIO 失败: " + std::string(sf_strerror(nullptr)));
-            }
-        }
-    }
-
-
-    bool write_audio_to_vio(const std::filesystem::path &filepath, SF_VIO &sf_vio, std::string &msg) {
+    SF_VIO resample_to_vio(const std::filesystem::path &filepath, std::string &msg, const int tar_samplerate) {
+        SF_VIO sf_vio_in;
         const std::string extension = filepath.extension().string();
         if (extension == ".wav") {
-            write_wav_to_vio(filepath, sf_vio);
         } else if (extension == ".mp3") {
-            write_mp3_to_vio(filepath, sf_vio);
+            write_mp3_to_vio(filepath, sf_vio_in);
+            sf_vio_in.data.seek = 0;
         } else if (extension == ".flac") {
-            write_flac_to_vio(filepath, sf_vio);
+            write_flac_to_vio(filepath, sf_vio_in);
+            sf_vio_in.data.seek = 0;
         } else {
             msg = "Unsupported file format: " + filepath.string();
-            return false;
         }
-        sf_vio.data.seek = 0;
-        return true;
-    }
 
-    SF_VIO resample(SF_VIO &sf_vio_in, const int tar_channel, const int tar_samplerate) {
-        std::cout << "Start resample." << std::endl;
-        SndfileHandle srcHandle(sf_vio_in.vio, &sf_vio_in.data, SFM_READ, sf_vio_in.info.format,
-                                sf_vio_in.info.channels, sf_vio_in.info.samplerate);
+        SndfileHandle srcHandle;
+        if (extension == ".wav") {
+            srcHandle = SndfileHandle(filepath.string());
+            sf_vio_in.info.frames = srcHandle.frames();
+            sf_vio_in.info.format = srcHandle.format();
+        } else {
+            srcHandle = SndfileHandle(sf_vio_in.vio, &sf_vio_in.data, SFM_READ, sf_vio_in.info.format,
+                                      sf_vio_in.info.channels, sf_vio_in.info.samplerate);
+        }
+
+        SF_VIO sf_vio;
+        sf_vio.info = sf_vio_in.info;
+        sf_vio.info.channels = srcHandle.channels();
+        sf_vio.info.samplerate = tar_samplerate;
         if (!srcHandle) {
             std::cout << "Failed to open WAV file:" << sf_strerror(nullptr) << std::endl;
             return {};
         }
 
-        SF_VIO sf_vio;
-        sf_vio.info = sf_vio_in.info;
-        sf_vio.info.channels = tar_channel;
-        sf_vio.info.samplerate = tar_samplerate;
-        SndfileHandle outBuf(sf_vio.vio, &sf_vio.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, tar_channel,
-                             tar_samplerate);
-        if (!outBuf) {
+        auto dstHandle = SndfileHandle(sf_vio.vio, &sf_vio.data, SFM_WRITE, sf_vio_in.info.format, srcHandle.channels(),
+                                       tar_samplerate);
+        if (!dstHandle) {
             std::cout << "Failed to open output file:" << sf_strerror(nullptr) << std::endl;
             return {};
         }
 
+        std::cout << "Start resample." << std::endl;
         // Create a SoX resampler instance
         soxr_error_t error;
         const auto resampler = soxr_create(srcHandle.samplerate(), tar_samplerate, srcHandle.channels(), &error,
@@ -105,14 +58,14 @@ namespace AudioUtil
         }
 
         // Define buffers for resampling
-        std::vector<float> inputBuf(srcHandle.samplerate() * srcHandle.channels(), 0);
-        std::vector<float> outputBuf(tar_samplerate * tar_channel, 0);
+        std::vector<float> inputBuf(srcHandle.samplerate() / 100 * srcHandle.channels(), 0);
+        std::vector<float> outputBuf(tar_samplerate / 100 * srcHandle.channels(), 0);
 
         size_t bytesRead;
 
         while ((bytesRead = srcHandle.read(inputBuf.data(), static_cast<sf_count_t>(inputBuf.size()))) > 0) {
             const size_t inputSamples = bytesRead / srcHandle.channels();
-            const size_t outputSamples = outputBuf.size() / tar_channel;
+            const size_t outputSamples = outputBuf.size() / srcHandle.channels();
 
             // Perform the resampling using SoX
             size_t inputDone = 0, outputDone = 0;
@@ -125,8 +78,9 @@ namespace AudioUtil
             }
 
             // Write the resampled data to the output file
-            const size_t bytesWritten = outBuf.write(outputBuf.data(), static_cast<sf_count_t>(outputDone));
-            if (bytesWritten != outputDone) {
+            const size_t bytesWritten =
+                dstHandle.write(outputBuf.data(), static_cast<sf_count_t>(outputDone * srcHandle.channels()));
+            if (bytesWritten != outputDone * srcHandle.channels()) {
                 std::cout << "Error writing to output file" << std::endl;
                 break;
             }

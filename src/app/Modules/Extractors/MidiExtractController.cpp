@@ -54,9 +54,11 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
 
     // TODO: Fix start
     QList<Note *> notes;
+    const auto audioClipStart = audioClip->start();
+    const auto singClipStart = singingClip->start();
     for (const auto &[key, start, duration] : task->result) {
         const auto note = new Note;
-        note->setStart(start);
+        note->setRStart(start + audioClipStart - singClipStart);
         note->setLength(duration);
         note->setKeyIndex(key);
         note->setLanguage(singingClip->defaultLanguage);
