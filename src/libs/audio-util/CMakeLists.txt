@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Build Options
 # ----------------------------------
 option(AUDIO_UTIL_BUILD_STATIC "Build static library" OFF)
+option(AUDIO_UTIL_BUILD_TESTS "Build test cases" ON)
 option(AUDIO_UTIL_INSTALL "Install library" ON)
 
 # ----------------------------------
@@ -61,9 +62,9 @@ find_package(FLAC CONFIG REQUIRED)
 find_package(mpg123 CONFIG REQUIRED)
 
 find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
+if (PkgConfig_FOUND)
     pkg_check_modules(PC_Soxr QUIET soxr)
-endif()
+endif ()
 
 find_library(Soxr_LIBRARY
         NAMES soxr
@@ -71,10 +72,15 @@ find_library(Soxr_LIBRARY
         DOC "Soxr library"
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE SndFile::sndfile ${Soxr_LIBRARY} MPG123::libmpg123 FLAC::FLAC++)
+target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${Soxr_LIBRARY} MPG123::libmpg123 FLAC::FLAC++)
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+
+if (AUDIO_UTIL_BUILD_TESTS)
+    add_subdirectory(tests)
+endif ()
 
 # ----------------------------------
 # Add platform specific

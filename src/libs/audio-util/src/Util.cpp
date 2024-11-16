@@ -7,33 +7,52 @@
 
 namespace AudioUtil
 {
-    static void convert_to_mono(short *buffer, const sf_count_t frames, const int channels) {
-        if (channels == 2) {
-            for (sf_count_t i = 0; i < frames; ++i) {
-                buffer[i] = static_cast<short>((buffer[2 * i] + buffer[2 * i + 1]) / 2);
-            }
-        }
-    }
-
     static void write_wav_to_vio(const std::filesystem::path &filepath, SF_VIO &sf_vio) {
         SF_INFO sfinfo;
         SNDFILE *infile = sf_open(filepath.string().c_str(), SFM_READ, &sfinfo);
         if (!infile) {
-            std::cerr << "Failed to open WAV file: " << filepath << std::endl;
-            return;
+            throw std::runtime_error("无法打开输入文件进行读取: " + std::string(sf_strerror(nullptr)));
         }
 
         sf_vio.info = sfinfo;
-
         SndfileHandle outBuf(sf_vio.vio, &sf_vio.data, SFM_WRITE, sfinfo.format, sfinfo.channels, sfinfo.samplerate);
-
-        short buffer[1024];
-        sf_count_t frames;
-        while ((frames = sf_read_short(infile, buffer, sizeof(buffer) / 2)) > 0) {
-            convert_to_mono(buffer, frames, sfinfo.channels);
-            outBuf.write(buffer, frames);
+        if (!outBuf) {
+            throw std::runtime_error("无法创建输出 VIO 句柄: " + std::string(sf_strerror(nullptr)));
         }
-        sf_close(infile);
+
+        constexpr int bufferSize = 1024;
+        std::vector<float> buffer(bufferSize * sfinfo.channels, 0);
+
+        while (true) {
+            sf_count_t framesRead;
+
+            if (sfinfo.format & SF_FORMAT_FLOAT) { // 32-bit float
+                framesRead = sf_read_float(infile, buffer.data(), bufferSize);
+            } else if (sfinfo.format & SF_FORMAT_PCM_16) { // 16-bit PCM
+                std::vector<short> shortBuffer(bufferSize * sfinfo.channels);
+                framesRead = sf_readf_short(infile, shortBuffer.data(), bufferSize);
+                // 将 16-bit PCM 转换为 32-bit float
+                std::transform(shortBuffer.begin(), shortBuffer.begin() + framesRead * sfinfo.channels, buffer.begin(),
+                               [](const short sample) { return static_cast<float>(sample) / 32768.0f; });
+            } else if (sfinfo.format & SF_FORMAT_PCM_24) { // 24-bit PCM
+                std::vector<int> intBuffer(bufferSize * sfinfo.channels);
+                framesRead = sf_readf_int(infile, intBuffer.data(), bufferSize);
+                // 将 24-bit PCM 转换为 32-bit float
+                std::transform(intBuffer.begin(), intBuffer.begin() + framesRead * sfinfo.channels, buffer.begin(),
+                               [](const int sample) { return static_cast<float>(sample) / 8388608.0f; });
+            } else {
+                throw std::runtime_error("不支持的音频格式: " + std::string(sf_strerror(nullptr)));
+            }
+
+            if (framesRead == 0) {
+                break;
+            }
+
+            const sf_count_t framesWritten = outBuf.writef(buffer.data(), framesRead);
+            if (framesWritten < 0) {
+                throw std::runtime_error("写入 VIO 失败: " + std::string(sf_strerror(nullptr)));
+            }
+        }
     }
 
     bool write_audio_to_vio(const std::filesystem::path &filepath, SF_VIO &sf_vio, std::string &msg) {
@@ -48,7 +67,7 @@ namespace AudioUtil
             msg = "Unsupported file format: " + filepath.string();
             return false;
         }
-        sf_vio.data.seek = 0;
+        sf_vio.data.seek = 44;
         return true;
     }
 
@@ -61,6 +80,7 @@ namespace AudioUtil
         }
 
         SF_VIO sf_vio;
+        sf_vio.info = sf_vio_in.info;
         SndfileHandle outBuf(sf_vio.vio, &sf_vio.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, tar_channel,
                              tar_samplerate);
         if (!outBuf) {
@@ -78,8 +98,8 @@ namespace AudioUtil
         }
 
         // Define buffers for resampling
-        std::vector<float> inputBuf(srcHandle.samplerate() * srcHandle.channels());
-        std::vector<float> outputBuf(tar_samplerate * tar_channel);
+        std::vector<float> inputBuf(srcHandle.samplerate() * srcHandle.channels(), 0);
+        std::vector<float> outputBuf(tar_samplerate * tar_channel, 0);
 
         size_t bytesRead;
 
@@ -111,41 +131,29 @@ namespace AudioUtil
         return sf_vio;
     }
 
-    bool vio_to_wav(SF_VIO &sf_vio_in, const std::filesystem::path &filepath, int tar_channel, int tar_samplerate,
-                    int tar_sf_format) {
+    bool write_vio_to_wav(SF_VIO &sf_vio_in, const std::filesystem::path &filepath, int tar_channel) {
         const auto [frames, samplerate, channels, format, sections, seekable] = sf_vio_in.info;
 
-        // If no channel or sample rate is specified, use the defaults from the source
         if (tar_channel == -1)
             tar_channel = channels;
 
-        if (tar_samplerate == -1)
-            tar_samplerate = samplerate;
-
-        if (tar_sf_format == -1)
-            tar_sf_format = sf_vio_in.info.format;
-
         SndfileHandle readBuf(sf_vio_in.vio, &sf_vio_in.data, SFM_READ, format, channels, samplerate);
 
-        // Create a SndfileHandle for writing
-        SndfileHandle outBuf(filepath.string(), SFM_WRITE, tar_sf_format, tar_channel, tar_samplerate);
+        SndfileHandle outBuf(filepath.string(), SFM_WRITE, format, tar_channel, samplerate);
 
-        // Buffer for reading and writing
-        std::vector<short> buffer(1024 * channels); // Adjust buffer size as needed
+        std::vector<float> buffer(1024 * channels, 0);
         int readFrames;
 
-        // Read and write loop
         while ((readFrames = static_cast<int>(
                     readBuf.readf(buffer.data(), static_cast<sf_count_t>(buffer.size()) / channels))) > 0) {
-            // If the target channel is different from the source, we need to handle channel conversion
             if (tar_channel != channels) {
-                std::vector<short> convertedBuffer(1024 * tar_channel);
+                std::vector<float> convertedBuffer(1024 * tar_channel, 0);
                 for (int i = 0; i < readFrames; ++i) {
                     for (int ch = 0; ch < tar_channel; ++ch) {
                         if (ch < channels) {
                             convertedBuffer[i * tar_channel + ch] = buffer[i * channels + ch];
                         } else {
-                            convertedBuffer[i * tar_channel + ch] = 0; // Zero-fill for extra channels
+                            convertedBuffer[i * tar_channel + ch] = 0;
                         }
                     }
                 }

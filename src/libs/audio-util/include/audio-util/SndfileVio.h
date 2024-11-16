@@ -17,7 +17,6 @@ namespace AudioUtil
     struct AUDIO_UTIL_EXPORT QVIO {
         uint64_t seek{};
         std::vector<char> byteArray;
-        int channels, samplerate;
     };
 
     struct AUDIO_UTIL_EXPORT SF_VIO {

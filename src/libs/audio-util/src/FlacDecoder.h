@@ -34,9 +34,11 @@ namespace AudioUtil
         std::filesystem::path filepath;
         unsigned channels = 0;
         unsigned sampleRate = 0;
-        unsigned totalSamples = 0;
+        unsigned frames = 0;
         unsigned bitsPerSample = 0;
-        std::vector<int32_t> buffer_out;
+        std::vector<int16_t> buffer_out_16;
+        std::vector<short> buffer_out_24;
+        std::vector<int32_t> buffer_out_32;
     };
 
     void write_flac_to_vio(const std::filesystem::path &filepath, SF_VIO &sf_vio);
