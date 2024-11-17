@@ -56,24 +56,26 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
     const auto g2pId = defaultG2pId();
 
     // TODO: Fix start
-    QList<Note *> notes;
+    const QList<Note *> notes;
     const auto audioClipStart = audioClip->start();
     const auto singClipStart = audioClip->start();
     for (const auto &[key, start, duration] : task->result) {
+        const auto localStart = start + audioClipStart - singClipStart;
+        if (localStart)
+            continue;
         const auto note = new Note;
-        note->setLocalStart(start + audioClipStart - singClipStart);
+        note->setLocalStart(localStart);
         note->setLength(duration);
         note->setKeyIndex(key);
         note->setLanguage(language);
         note->setG2pId(g2pId);
-        if (note->localStart() > 0)
-            notes.append(note);
     }
 
     auto singingClip = new SingingClip{notes};
     singingClip->setStart(audioClip->start());
     singingClip->setLength(audioClip->length());
-    auto track = new Track(QFileInfo(task->input().audioPath).baseName(), {singingClip});
+    singingClip->setClipLen(audioClip->length());
+    const auto track = new Track(QFileInfo(task->input().audioPath).baseName(), {singingClip});
     track->setDefaultLanguage(language);
     // TODO: Temp Use
     track->setDefaultG2pId(g2pId);
