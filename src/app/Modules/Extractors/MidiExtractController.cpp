@@ -56,12 +56,12 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
     const auto g2pId = defaultG2pId();
 
     // TODO: Fix start
-    const QList<Note *> notes;
+    QList<Note *> notes;
     const auto audioClipStart = audioClip->start();
     const auto singClipStart = audioClip->start();
     for (const auto &[key, start, duration] : task->result) {
         const auto localStart = start + audioClipStart - singClipStart;
-        if (localStart)
+        if (localStart < 0)
             continue;
         const auto note = new Note;
         note->setLocalStart(localStart);
@@ -69,6 +69,7 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
         note->setKeyIndex(key);
         note->setLanguage(language);
         note->setG2pId(g2pId);
+        notes.append(note);
     }
 
     auto singingClip = new SingingClip{notes};
