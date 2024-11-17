@@ -21,7 +21,7 @@ class PitchExtractController final : public ModelChangeHandler, public Singleton
     Q_OBJECT
 
 public:
-    void runExtractPitch(AudioClip *audioClip, SingingClip *singingClip);
+    void runExtractPitch(const AudioClip *audioClip, const SingingClip *singingClip);
 
 private slots:
     static void onExtractPitchTaskFinished(ExtractPitchTask *task);

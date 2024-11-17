@@ -18,10 +18,12 @@
 
 #include <curve-util/CurveUtil.h>
 
-void PitchExtractController::runExtractPitch(AudioClip *audioClip, SingingClip *singingClip) {
-    auto path = audioClip->path();
-    auto task = new ExtractPitchTask({singingClip->id(), audioClip->id(), path, appModel->tempo()});
-    auto dlg = new TaskDialog(task, true, true);
+void PitchExtractController::runExtractPitch(const AudioClip *audioClip,
+                                             const SingingClip *singingClip) {
+    const auto path = audioClip->path();
+    const auto task =
+        new ExtractPitchTask({singingClip->id(), audioClip->id(), path, appModel->tempo()});
+    const auto dlg = new TaskDialog(task, true, true);
     dlg->show();
     connect(task, &Task::finished, this, [=] { onExtractPitchTaskFinished(task); });
     taskManager->addAndStartTask(task);
@@ -36,7 +38,7 @@ void PitchExtractController::onExtractPitchTaskFinished(ExtractPitchTask *task) 
             tr("Failed to extract pitch from audio:\n %1").arg(task->input().audioPath));
         dialog.setModal(true);
 
-        auto btnClose = new AccentButton(tr("Close"));
+        const auto btnClose = new AccentButton(tr("Close"));
         connect(btnClose, &Button::clicked, &dialog, &Dialog::accept);
         dialog.setPositiveButton(btnClose);
         dialog.exec();
@@ -44,8 +46,9 @@ void PitchExtractController::onExtractPitchTaskFinished(ExtractPitchTask *task) 
         return;
     }
 
-    auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(task->input().audioClipId));
-    auto singingClip =
+    const auto audioClip =
+        dynamic_cast<AudioClip *>(appModel->findClipById(task->input().audioClipId));
+    const auto singingClip =
         dynamic_cast<SingingClip *>(appModel->findClipById(task->input().singingClipId));
     if (!audioClip || !singingClip) {
         delete task;
@@ -55,16 +58,16 @@ void PitchExtractController::onExtractPitchTaskFinished(ExtractPitchTask *task) 
     QList<Curve *> curves;
     for (const auto &[offset, values] : task->result) {
         const int rawTick = appModel->msToTick(offset);
-        const auto &[offsetTick, alignValues] =
+        const auto &[alignTick, alignValues] =
             CurveUtil::alignCurve(audioClip->start() - singingClip->start() + rawTick, 5,
                                   {values.begin(), values.end()}, 5);
         const auto pitchParam = new DrawCurve;
-        pitchParam->setLocalStart(offsetTick);
+        pitchParam->setLocalStart(alignTick);
         pitchParam->setValues(Linq::selectMany(alignValues, L_PRED(v, static_cast<int>(v * 100))));
         curves.append(pitchParam);
     }
 
-    auto a = new ParamsActions;
+    const auto a = new ParamsActions;
     a->replaceParam(ParamInfo::Pitch, Param::Edited, curves, singingClip);
     a->execute();
     historyManager->record(a);

@@ -155,16 +155,16 @@ namespace InferControllerHelper {
 
     void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
                      InferPiece &piece, int scale) {
-        const auto &[offsetTick, alignValues] = CurveUtil::alignCurve(
+        const auto &[alignTick, alignValues] = CurveUtil::alignCurve(
             piece.localStartTick(), 5, {taskResult.values.begin(), taskResult.values.end()}, 5);
         // 将推理结果保存到分段内部
         DrawCurve original;
-        original.setLocalStart(MathUtils::round(offsetTick, 5));
+        original.setLocalStart(alignTick);
         original.setValues(Linq::selectMany(alignValues, L_PRED(v, static_cast<int>(v * scale))));
         piece.setOriginalCurve(name, original);
         // 合并手绘参数
-        auto param = piece.clip->params.getParamByName(name);
-        auto editedCurves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
+        const auto param = piece.clip->params.getParamByName(name);
+        const auto editedCurves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
         auto mergedCurve = AppModelUtils::getResultCurve(original, editedCurves);
         piece.setInputCurve(name, mergedCurve);
         piece.clip->updateOriginalParam(name);
