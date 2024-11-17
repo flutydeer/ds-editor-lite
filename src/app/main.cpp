@@ -113,17 +113,18 @@ int main(int argc, char *argv[]) {
     taskWindow->show();
 
     auto args = QApplication::arguments();
-    if (args.count() > 1) {
+    if (args.count() == 2) {
         auto filePath = QApplication::arguments().at(1);
-        qDebug() << filePath;
         if (!filePath.isEmpty()) {
-            appController->openProject(filePath);
-            auto tracks = appModel->tracks();
-            if (!tracks.isEmpty()) {
-                auto clips = tracks.first()->clips();
-                if (clips.count() > 0) {
-                    trackController->setActiveClip(clips.toList().first()->id());
-                    appController->setActivePanel(AppGlobal::ClipEditor);
+            QString errorMsg;
+            if (appController->openFile(filePath, errorMsg)) {
+                auto tracks = appModel->tracks();
+                if (!tracks.isEmpty()) {
+                    auto clips = tracks.first()->clips();
+                    if (clips.count() > 0) {
+                        trackController->setActiveClip(clips.toList().first()->id());
+                        appController->setActivePanel(AppGlobal::ClipEditor);
+                    }
                 }
             }
         }

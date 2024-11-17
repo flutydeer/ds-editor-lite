@@ -22,6 +22,7 @@
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
+#include "Modules/ProjectConverters/MidiConverter.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
@@ -38,19 +39,8 @@ AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
     auto task = new LaunchLanguageEngineTask;
     connect(task, &LaunchLanguageEngineTask::finished, this,
             [=] { d->onRunLanguageEngineTaskFinished(task); });
-    taskManager->addTask(task);
-    taskManager->startTask(task);
+    taskManager->addAndStartTask(task);
     appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
-
-
-    // 测试 Property 信号
-    // connect(appStatus, &AppStatus::moduleStatusChanged ,this, [=](AppStatus::ModuleType module,
-    // AppStatus::ModuleStatus status) {
-    //     if (module == AppStatus::ModuleType::Language) {
-    //         if (status == AppStatus::ModuleStatus::Ready)
-    //             qDebug() << "Language module ready";
-    //     }
-    // });
 }
 
 AppController::~AppController() {
@@ -64,46 +54,32 @@ void AppController::newProject() {
     d->updateProjectPathAndName("");
     trackController->setActiveClip(appModel->tracks().first()->clips().toList().first()->id());
     appController->setActivePanel(AppGlobal::ClipEditor);
-
-    // Test
-    // for (int i = 0; i < 16; i++) {
-    //     auto note = new Note;
-    //     note->setRStart(i * 240);
-    //     note->setLength(240);
-    //     note->setKeyIndex(66);
-    //     note->setLanguage("cmn");
-    //     note->setLyric(appOptions->general()->defaultLyric);
-    //     clipController->onInsertNote(note);
-    // }
-    // for (int i = 0; i < 16; i++)
-    //     historyManager->undo();
 }
 
-bool AppController::openProject(const QString &filePath) {
+bool AppController::openFile(const QString &filePath, QString &errorMessage) {
     Q_D(AppController);
     if (QFile(filePath).exists()) {
-        appModel->loadProject(filePath);
-        historyManager->reset();
-        historyManager->setSavePoint();
-        d->updateProjectPathAndName(filePath);
-        d->m_lastProjectFolder = QFileInfo(filePath).dir().path();
-    } else {
-        Toast::show(tr("Failed to open project"));
+        const QFileInfo info(filePath);
+        const auto suffix = info.suffix().toLower();
+        if (suffix == "dspx")
+            return d->openDspxFile(filePath, errorMessage);
+        if (suffix == "mid")
+            return d->openMidiFile(filePath, errorMessage);
+        Toast::show(tr("Unrecognized file format: %1").arg(suffix));
         return false;
     }
-    return true;
+    Toast::show(tr("File does not exist: %1").arg(filePath));
+    return false;
 }
 
-bool AppController::saveProject(const QString &filePath) {
+bool AppController::saveProject(const QString &filePath, QString &errorMessage) {
     Q_D(AppController);
-    if (appModel->saveProject(filePath)) {
-        historyManager->setSavePoint();
-        d->updateProjectPathAndName(filePath);
-        Toast::show(tr("Saved"));
-        return true;
-    }
-    Toast::show(tr("Failed to save project"));
-    return false;
+    if (!appModel->saveProject(filePath, errorMessage))
+        return false;
+
+    historyManager->setSavePoint();
+    d->updateProjectPathAndName(filePath);
+    return true;
 }
 
 void AppController::importMidiFile(const QString &filePath) {
@@ -249,4 +225,35 @@ void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
     m_projectPath = path;
     q->setProjectName(m_projectPath.isEmpty() ? tr("New Project")
                                               : QFileInfo(m_projectPath).fileName());
+}
+
+bool AppControllerPrivate::openDspxFile(const QString &path, QString &errorMessage) {
+    if (!appModel->loadProject(path, errorMessage)) {
+        qCritical() << errorMessage;
+        return false;
+    }
+
+    historyManager->reset();
+    historyManager->setSavePoint();
+    updateProjectPathAndName(path);
+    m_lastProjectFolder = QFileInfo(path).dir().path();
+    return true;
+}
+
+bool AppControllerPrivate::openMidiFile(const QString &path, QString &errorMessage) {
+    Q_Q(AppController);
+    AppModel resultModel;
+    constexpr auto midiImport = ImportMode::NewProject;
+    if (MidiConverter converter(appModel->timeSignature(), appModel->tempo());
+        !converter.load(path, &resultModel, errorMessage, midiImport)) {
+        qCritical() << errorMessage;
+        return false;
+    }
+
+    appModel->loadFromAppModel(resultModel);
+    historyManager->reset();
+    updateProjectPathAndName("");
+    q->setProjectName(QFileInfo(path).baseName());
+    m_lastProjectFolder = QFileInfo(path).dir().path();
+    return true;
 }

@@ -25,13 +25,16 @@ public:
         QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     QString m_projectPath;
     QString m_projectName;
-    QList<IPanel *> m_panels;
+    QList<IPanel *> m_panels{};
     AppGlobal::PanelType m_activePanel = AppGlobal::TracksEditor;
 
     static void initializeModules();
     static bool isPowerOf2(int num);
     static void onRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);
     void updateProjectPathAndName(const QString &path);
+
+    bool openDspxFile(const QString &path, QString &errorMessage);
+    bool openMidiFile(const QString &path, QString &errorMessage);
 
 private:
     AppController *q_ptr = nullptr;
