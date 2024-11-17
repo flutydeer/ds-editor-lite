@@ -71,6 +71,8 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
     }
 
     auto singingClip = new SingingClip{notes};
+    singingClip->setStart(audioClip->start());
+    singingClip->setLength(audioClip->length());
     auto track = new Track(QFileInfo(task->input().audioPath).baseName(), {singingClip});
     track->setDefaultLanguage(language);
     // TODO: Temp Use
