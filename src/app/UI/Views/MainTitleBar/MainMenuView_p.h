@@ -31,7 +31,7 @@ public:
     QAction *actionPaste = nullptr;
     QAction *actionFillLyrics = nullptr;
     QAction *actionSearchLyrics = nullptr;
-    QAction *actionGetMidiFromAudioClip = nullptr;
+    // QAction *actionGetMidiFromAudioClip = nullptr;
     QAction *actionGetPitchParamFromAudioClip = nullptr;
 
     AppGlobal::PanelType m_panelType = AppGlobal::Generic;
@@ -51,7 +51,7 @@ public:
     void onCut();
     void onCopy();
     void onPaste();
-    void onGetMidiFromAudioClip();
+    // void onGetMidiFromAudioClip();
     void onGetPitchParamFromAudioClip();
     void exitApp();
 

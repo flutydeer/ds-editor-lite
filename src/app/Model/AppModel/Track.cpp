@@ -10,6 +10,11 @@
 
 #include <QJsonArray>
 
+Track::Track(const QString &name, const QList<Clip *> &clips) {
+    setName(name);
+    insertClips(clips);
+}
+
 Track::~Track() {
     qDebug() << "Track::~Track()";
     for (auto clip : m_clips)
@@ -40,6 +45,11 @@ OverlappableSerialList<Clip> Track::clips() const {
 
 void Track::insertClip(Clip *clip) {
     m_clips.add(clip);
+}
+
+void Track::insertClips(const QList<Clip *> &clips) {
+    for (const auto &clip : clips)
+        m_clips.add(clip);
 }
 
 void Track::removeClip(Clip *clip) {

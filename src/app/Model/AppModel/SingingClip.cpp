@@ -13,8 +13,12 @@
 #include <QTimer>
 
 SingingClip::SingingClip() : Clip() {
-    defaultLanguage.onChanged(qSignalCallback(defaultLanguageChanged));
-    configPath.onChanged(qSignalCallback(configPathChanged));
+    init();
+}
+
+SingingClip::SingingClip(const QList<Note *> &notes) : Clip(){
+    init();
+    insertNotes(notes);
 }
 
 SingingClip::~SingingClip() {
@@ -35,6 +39,11 @@ const OverlappableSerialList<Note> &SingingClip::notes() const {
 void SingingClip::insertNote(Note *note) {
     note->setClip(this);
     m_notes.add(note);
+}
+
+void SingingClip::insertNotes(const QList<Note *> &notes) {
+    for (const auto note : notes)
+        insertNote(note);
 }
 
 void SingingClip::removeNote(Note *note) {
@@ -117,4 +126,9 @@ PieceList SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
         }
     }
     return {result.begin(), result.end()}; // 将 QSet 转换为 QList 返回
+}
+
+void SingingClip::init() {
+    defaultLanguage.onChanged(qSignalCallback(defaultLanguageChanged));
+    configPath.onChanged(qSignalCallback(configPathChanged));
 }

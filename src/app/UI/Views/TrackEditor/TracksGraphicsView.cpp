@@ -15,6 +15,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
+#include "Modules/Extractors/MidiExtractController.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Views/Common/ScrollBarView.h"
@@ -81,14 +82,16 @@ void TracksGraphicsView::onAddAudioClip() {
     QString fileName;
     QVariant userData;
     QString entryClassName;
-    auto io = talcs::AudioFileDialog::getOpenAudioFileIO(AudioContext::instance()->formatManager(), fileName, userData, entryClassName, this, tr("Select an Audio File"), ".");
+    auto io = talcs::AudioFileDialog::getOpenAudioFileIO(AudioContext::instance()->formatManager(),
+                                                         fileName, userData, entryClassName, this,
+                                                         tr("Select an Audio File"), ".");
 
     QByteArray data;
     QDataStream o(&data, QIODevice::WriteOnly);
     o << userData;
-    QJsonObject workspace {
-        {"userData", QString::fromLatin1(data.toBase64())},
-        {"entryClassName", entryClassName},
+    QJsonObject workspace{
+        {"userData",       QString::fromLatin1(data.toBase64())},
+        {"entryClassName", entryClassName                      },
     };
 
     if (fileName.isNull())
@@ -121,6 +124,12 @@ void TracksGraphicsView::onDeleteTriggered() const {
     //         [=] { trackController->onRemoveClips(selectedClipsId()); });
     //
     // dlg->show();
+}
+
+void TracksGraphicsView::onExtractMidiTriggered(int clipId) {
+    auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(clipId));
+    Q_ASSERT(audioClip);
+    midiExtractController->runExtractMidi(audioClip);
 }
 
 void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
@@ -284,11 +293,21 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             m_backgroundMenu->exec(event->globalPos());
         } else if (auto clip = dynamic_cast<AbstractClipView *>(item)) {
             qDebug() << "context menu on clip" << clip->id();
+            CMenu menu(this);
+
+            if (clip->clipType() == IClip::Audio) {
+                auto actionExtractMidi = new QAction(tr("Extract MIDI Score"));
+                connect(actionExtractMidi, &QAction::triggered, this,
+                        [=] { onExtractMidiTriggered(clip->id()); });
+                menu.addAction(actionExtractMidi);
+                menu.addSeparator();
+            }
+
             auto actionDelete = new QAction(tr("&Delete"), this);
             connect(actionDelete, &QAction::triggered, this,
                     &TracksGraphicsView::onDeleteTriggered);
-            CMenu menu(this);
             menu.addAction(actionDelete);
+
             menu.exec(event->globalPos());
         } else {
             TimeGraphicsView::contextMenuEvent(event);

@@ -21,7 +21,7 @@ class MidiExtractController final : public ModelChangeHandler, public Singleton<
     Q_OBJECT
 
 public:
-    void runExtractMidi(const AudioClip *audioClip, const SingingClip *singingClip);
+    void runExtractMidi(const AudioClip *audioClip);
 
 private slots:
     static void onExtractMidiTaskFinished(ExtractMidiTask *task);

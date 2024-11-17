@@ -30,6 +30,7 @@ public:
     };
 
     explicit SingingClip();
+    explicit SingingClip(const QList<Note *> &notes);
     ~SingingClip() override;
 
     [[nodiscard]] ClipType clipType() const override;
@@ -40,6 +41,7 @@ public:
     Property<QString> configPath;
 
     void insertNote(Note *note);
+    void insertNotes(const QList<Note *> &notes);
     void removeNote(Note *note);
     [[nodiscard]] Note *findNoteById(int id) const;
     void notifyNoteChanged(NoteChangeType type, const QList<Note *> &notes);
@@ -60,6 +62,7 @@ signals:
                        const PieceList &discardedPieces);
 
 private:
+    void init();
     OverlappableSerialList<Note> m_notes;
     PieceList m_pieces;
 };

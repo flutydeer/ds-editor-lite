@@ -13,7 +13,6 @@ class ExtractMidiTask final : public Task {
 
 public:
     struct Input {
-        int singingClipId = -1;
         int audioClipId = -1;
         QString audioPath;
         double tempo = 0;
@@ -23,7 +22,6 @@ public:
 
     void terminate() override;
 
-    int singingClipId = -1;
     int audioClipId = -1;
     bool success = false;
     const Input &input() const;

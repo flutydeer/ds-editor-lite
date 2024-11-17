@@ -20,6 +20,8 @@ class Track final : public QObject, public ITrack, public ISerializable {
     Q_OBJECT
 
 public:
+    explicit Track() = default;
+    explicit Track(const QString &name, const QList<Clip *> &clips);
     ~Track() override;
 
     enum ClipChangeType { Inserted, Removed };
@@ -30,6 +32,7 @@ public:
     void setControl(const TrackControl &control) override;
     [[nodiscard]] OverlappableSerialList<Clip> clips() const;
     void insertClip(Clip *clip);
+    void insertClips(const QList<Clip *> &clips);
     void removeClip(Clip *clip);
     [[nodiscard]] QColor color() const override;
     void setColor(const QColor &color) override;
@@ -39,7 +42,7 @@ public:
     void setDefaultG2pId(const QString &g2pId);
 
     void notifyClipChanged(ClipChangeType type, Clip *clip);
-    Clip *findClipById(int id) const;
+    [[nodiscard]] Clip *findClipById(int id) const;
 
     class TrackProperties {
     public:
