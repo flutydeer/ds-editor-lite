@@ -16,6 +16,8 @@
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
+#include <curve-util/CurveUtil.h>
+
 void PitchExtractController::runExtractPitch(AudioClip *audioClip, SingingClip *singingClip) {
     auto path = audioClip->path();
     auto task = new ExtractPitchTask({singingClip->id(), audioClip->id(), path, appModel->tempo()});
@@ -51,14 +53,14 @@ void PitchExtractController::onExtractPitchTaskFinished(ExtractPitchTask *task) 
     }
 
     QList<Curve *> curves;
-
     for (const auto &[offset, values] : task->result) {
         const int rawTick = appModel->msToTick(offset);
-        const int offsetTick =
-            MathUtils::round(audioClip->start() - singingClip->start() + rawTick, 5);
+        const auto &[offsetTick, alignValues] =
+            CurveUtil::alignCurve(audioClip->start() - singingClip->start() + rawTick, 5,
+                                  {values.begin(), values.end()}, 5);
         const auto pitchParam = new DrawCurve;
         pitchParam->setLocalStart(offsetTick);
-        pitchParam->setValues(Linq::selectMany(values, L_PRED(v, static_cast<int>(v * 100))));
+        pitchParam->setValues(Linq::selectMany(alignValues, L_PRED(v, static_cast<int>(v * 100))));
         curves.append(pitchParam);
     }
 

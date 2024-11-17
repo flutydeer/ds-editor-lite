@@ -58,6 +58,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         svscraft::Widgets
         dsonnxinfer
         rmvpe-infer::rmvpe-infer some-infer::some-infer
+        curve-util::curve-util
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
