@@ -236,7 +236,6 @@ void MainWindow::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCol
 }
 
 void MainWindow::onAllDone() {
-    qDebug() << "MainWindow::onAllDone";
     if (m_isCloseRequested) {
         m_isAllDone = true;
         close();
@@ -276,7 +275,11 @@ bool MainWindow::onSave() {
     if (appController->projectPath().isEmpty()) {
         onSaveAs();
     } else {
-        appController->saveProject(appController->projectPath());
+        if (QString errorMessage;
+            appController->saveProject(appController->projectPath(), errorMessage))
+            Toast::show(tr("Saved"));
+        else
+            Toast::show(tr("Failed to save project: %1").arg(errorMessage)); // TODO: Use dialog
     }
     return true;
 }
@@ -293,9 +296,10 @@ bool MainWindow::onSaveAs() {
     if (fileName.isNull()) // Canceled
         return false;
 
-    bool saved = appController->saveProject(fileName);
+    QString errorMessage;
+    bool saved = appController->saveProject(fileName, errorMessage);
     while (!saved) {
-        saved = appController->saveProject(getFileName());
+        saved = appController->saveProject(getFileName(), errorMessage);
     }
     return true;
 }
@@ -369,7 +373,8 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
         } else if (msg->message == WM_SETTINGCHANGE) {
             if (lstrcmpW(reinterpret_cast<LPCWSTR>(msg->lParam), L"ImmersiveColorSet") == 0) {
                 qDebug() << "WM_SETTINGCHANGE triggered: ImmersiveColorSet";
-                ThemeManager::instance()->onSystemThemeColorChanged(ThemeManager::ThemeColorType::Dark);
+                ThemeManager::instance()->onSystemThemeColorChanged(
+                    ThemeManager::ThemeColorType::Dark);
             }
         }
     }
@@ -433,7 +438,8 @@ void MainWindow::dropEvent(QDropEvent *event) {
                 const auto fileName = fileInfo.absoluteFilePath();
                 if (fileName.isNull())
                     return;
-                appController->openProject(fileName);
+                QString errorMessage;
+                appController->openFile(fileName, errorMessage);
             };
             if (!historyManager->isOnSavePoint()) {
                 if (this->askSaveChanges())

@@ -43,8 +43,8 @@ public:
     void newProject();
     bool importMidiFile(const QString &filename);
     bool exportMidiFile(const QString &filename);
-    bool loadProject(const QString &filename);
-    bool saveProject(const QString &filename);
+    bool loadProject(const QString &path, QString &errorMessage);
+    bool saveProject(const QString &path, QString &errorMessage);
     bool importAceProject(const QString &filename);
     void loadFromAppModel(const AppModel &model);
 

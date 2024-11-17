@@ -122,23 +122,21 @@ void AppModel::newProject() {
     d->dispose();
 }
 
-bool AppModel::loadProject(const QString &filename) {
+bool AppModel::loadProject(const QString &path, QString &errorMessage) {
     Q_D(AppModel);
     d->reset();
     DspxProjectConverter converter;
-    QString errMsg;
     AppModel resultModel;
-    auto ok = converter.load(filename, &resultModel, errMsg, ImportMode::NewProject);
+    auto ok = converter.load(path, &resultModel, errorMessage, ImportMode::NewProject);
     if (ok)
         loadFromAppModel(resultModel);
     return ok;
 }
 
-bool AppModel::saveProject(const QString &filename) {
+bool AppModel::saveProject(const QString &path, QString &errorMessage) {
     Q_D(AppModel);
     DspxProjectConverter converter;
-    QString errMsg;
-    auto ok = converter.save(filename, this, errMsg);
+    auto ok = converter.save(path, this, errorMessage);
     return ok;
 }
 
