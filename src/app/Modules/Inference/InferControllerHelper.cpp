@@ -14,6 +14,7 @@
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 #include "Utils/ParamUtils.h"
+#include "curve-util/CurveUtil.h"
 
 #include <QDebug>
 
@@ -154,11 +155,12 @@ namespace InferControllerHelper {
 
     void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
                      InferPiece &piece, int scale) {
+        const auto &[offsetTick, alignValues] = CurveUtil::alignCurve(
+            piece.localStartTick(), 5, {taskResult.values.begin(), taskResult.values.end()}, 5);
         // 将推理结果保存到分段内部
         DrawCurve original;
-        original.setLocalStart(MathUtils::round(piece.localStartTick(), 5));
-        original.setValues(
-            Linq::selectMany(taskResult.values, L_PRED(v, static_cast<int>(v * scale))));
+        original.setLocalStart(MathUtils::round(offsetTick, 5));
+        original.setValues(Linq::selectMany(alignValues, L_PRED(v, static_cast<int>(v * scale))));
         piece.setOriginalCurve(name, original);
         // 合并手绘参数
         auto param = piece.clip->params.getParamByName(name);
