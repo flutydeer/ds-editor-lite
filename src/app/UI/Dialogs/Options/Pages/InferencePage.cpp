@@ -13,6 +13,11 @@
 
 #include <QVBoxLayout>
 
+enum CustomRole {
+    GpuInfoRole = Qt::UserRole,
+    IsDefaultGpuRole = Qt::UserRole + 1,
+};
+
 InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     auto option = appOptions->inference();
     // Device - Execution Provider
@@ -39,13 +44,31 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     m_cbDeviceList = new ComboBox();
     auto deviceList = DmlUtils::getDirectXGPUs();
 
+    m_cbDeviceList->insertItem(0, tr("Default"));
+    m_cbDeviceList->setItemData(0, QVariant::fromValue<GpuInfo>({-1}), GpuInfoRole);
+    m_cbDeviceList->setItemData(0, true, IsDefaultGpuRole);
+
+    unsigned int selectedGpuDeviceId = 0;
+    unsigned int selectedGpuVendorId = 0;
+    bool hasChosenDevice = GpuInfo::parseIdString(option->selectedGpuId,
+                                                   selectedGpuDeviceId,
+                                                   selectedGpuVendorId);
+
     for (const auto &device : std::as_const(deviceList)) {
+        int currentIndex = m_cbDeviceList->count();
         auto displayText =
-            QStringLiteral("[%1] %2 (%3 GiB)")
-                .arg(device.index)
+            QStringLiteral("%1 (%2 GiB)")
                 .arg(device.description)
                 .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
-        m_cbDeviceList->addItem(displayText, device.index);
+        m_cbDeviceList->insertItem(currentIndex, displayText);
+        m_cbDeviceList->setItemData(currentIndex, QVariant::fromValue<GpuInfo>(device), GpuInfoRole);
+        m_cbDeviceList->setItemData(currentIndex, false, IsDefaultGpuRole);
+        if (hasChosenDevice) {
+            if (device.deviceId == selectedGpuDeviceId && device.vendorId == selectedGpuVendorId) {
+                m_cbDeviceList->setCurrentIndex(currentIndex);
+                hasChosenDevice = false;
+            }
+        }
     }
     if (const auto index_ = m_cbDeviceList->findData(option->selectedGpuIndex); index_ >= 0) {
         m_cbDeviceList->setCurrentIndex(index_);
@@ -95,8 +118,16 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
 
 void InferencePage::modifyOption() {
     auto option = appOptions->inference();
+
     option->executionProvider = m_cbExecutionProvider->currentText();
-    option->selectedGpuIndex = m_cbDeviceList->currentData().toInt();
+    if (m_cbDeviceList->currentData(IsDefaultGpuRole).toBool() == true) {
+        option->selectedGpuIndex = -1;
+        option->selectedGpuId = {};
+    } else {
+        const GpuInfo &gpuInfo = m_cbDeviceList->currentData(GpuInfoRole).value<GpuInfo>();
+        option->selectedGpuIndex = gpuInfo.index;
+        option->selectedGpuId = gpuInfo.getIdString();
+    }
     option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
     option->depth = m_leDsDepth->text().toDouble();
     appOptions->saveAndNotify();

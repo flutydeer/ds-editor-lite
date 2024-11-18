@@ -24,6 +24,8 @@ void InferenceOption::load(const QJsonObject &object) {
         executionProvider = object[executionProviderKey].toString();
     if (object.contains(selectedGpuIndexKey))
         selectedGpuIndex = object[selectedGpuIndexKey].toInt();
+    if (object.contains(selectedGpuIdKey))
+        selectedGpuId = object[selectedGpuIdKey].toString();
     if (object.contains(samplingStepsKey))
         samplingSteps = object[samplingStepsKey].toInt();
     if (object.contains(depthKey))
@@ -31,6 +33,7 @@ void InferenceOption::load(const QJsonObject &object) {
 }
 
 void InferenceOption::save(QJsonObject &object) {
-    object = {serialize_executionProvider(), serialize_selectedGpuIndex(), serialize_samplingSteps(),
+    object = {serialize_executionProvider(), serialize_selectedGpuIndex(),
+              serialize_selectedGpuId(), serialize_samplingSteps(),
               serialize_depth(), serialize_cacheDirectory()};
 }

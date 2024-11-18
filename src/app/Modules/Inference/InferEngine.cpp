@@ -111,10 +111,23 @@ bool InferEngine::initialize(QString &error) {
         return false;
     }
 
-    const auto selectGpuIndex = appOptions->inference()->selectedGpuIndex < gpuDeviceList.size()
-                                    ? gpuDeviceList[appOptions->inference()->selectedGpuIndex].index
-                                    : gpuDeviceList.first().index;
-    m_env.setDeviceIndex(selectGpuIndex);
+    //const auto selectGpuIndex = appOptions->inference()->selectedGpuIndex < gpuDeviceList.size()
+    //                                ? gpuDeviceList[appOptions->inference()->selectedGpuIndex].index
+    //                                : gpuDeviceList.first().index;
+    auto selectedGpu = DmlUtils::getGpuByIdString(appOptions->inference()->selectedGpuId);
+    if (selectedGpu.index < 0) {
+        qInfo() << "Auto selecting GPU";
+        selectedGpu = DmlUtils::getRecommendedGpu();
+    } else {
+        qInfo() << "Selecting GPU";
+    }
+
+    qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
+                            .arg(selectedGpu.description)
+                            .arg(selectedGpu.getIdString())
+                            .arg(selectedGpu.memory);
+
+    m_env.setDeviceIndex(selectedGpu.index);
     m_env.setDefaultSteps(appOptions->inference()->samplingSteps);
     m_env.setDefaultDepth(appOptions->inference()->depth);
 

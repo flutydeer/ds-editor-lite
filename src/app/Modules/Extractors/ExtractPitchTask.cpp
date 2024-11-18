@@ -6,6 +6,7 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
+#include "Modules/Inference/Utils/DmlUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
@@ -23,7 +24,15 @@ ExtractPitchTask::ExtractPitchTask(Input input) : m_input(std::move(input)) {
     const std::filesystem::path modelPath = R"(D:\python\RMVPE\rmvpe.onnx)";
     Q_ASSERT(!modelPath.empty());
 
-    const int device_id = appOptions->inference()->selectedGpuIndex;
+    const auto getCurrentGpuIndex = []() {
+        auto selectedGpu = DmlUtils::getGpuByIdString(appOptions->inference()->selectedGpuId);
+        if (selectedGpu.index < 0) {
+            selectedGpu = DmlUtils::getRecommendedGpu();
+        }
+        return selectedGpu.index;
+    };
+
+    const int device_id = getCurrentGpuIndex();
 
     const auto rmProvider = appOptions->inference()->executionProvider == "DirectML"
                                 ? Rmvpe::ExecutionProvider::DML

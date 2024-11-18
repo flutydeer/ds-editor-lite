@@ -18,6 +18,7 @@ public:
 
     LITE_OPTION_ITEM(QString, executionProvider, "DirectML")
     LITE_OPTION_ITEM(int, selectedGpuIndex, 0)
+    LITE_OPTION_ITEM(QString, selectedGpuId, "")
     LITE_OPTION_ITEM(int, samplingSteps, 20)
     LITE_OPTION_ITEM(double, depth, 1.0)
     LITE_OPTION_ITEM(QString, cacheDirectory,
