@@ -34,34 +34,34 @@ namespace Some
     std::vector<int> calculateNoteTicks(const std::vector<float> &note_durations, const float tempo) {
         const std::vector<double> cumsum = cumulativeSum(note_durations);
 
-        std::vector<double> scaled_ticks(cumsum.size());
+        std::vector<int> scaled_ticks(cumsum.size());
         for (size_t i = 0; i < cumsum.size(); ++i) {
-            scaled_ticks[i] = cumsum[i] * tempo * 8;
+            scaled_ticks[i] = static_cast<int>(cumsum[i] * tempo * 8);
         }
 
         std::vector<int> note_ticks(scaled_ticks.size());
-        note_ticks[0] = static_cast<int>(scaled_ticks[0]);
+        note_ticks[0] = scaled_ticks[0];
         for (size_t i = 1; i < scaled_ticks.size(); ++i) {
-            note_ticks[i] = static_cast<int>(scaled_ticks[i] - scaled_ticks[i - 1]);
+            note_ticks[i] = scaled_ticks[i] - scaled_ticks[i - 1];
         }
 
         return note_ticks;
     }
 
-    static std::vector<Midi> build_midi_note(const double &offset_s, const std::vector<float> &note_midi,
+    static std::vector<Midi> build_midi_note(const int start_tick, const std::vector<float> &note_midi,
                                              const std::vector<float> &note_dur, const std::vector<bool> &note_rest,
                                              const float tempo) {
         std::vector<Midi> midi_data;
-        int start_tick = static_cast<int>(offset_s * tempo * 8);
+        int start_tick_temp = start_tick;
         const std::vector<int> note_ticks = calculateNoteTicks(note_dur, tempo);
 
         for (size_t i = 0; i < note_midi.size(); ++i) {
             if (note_rest[i]) {
-                start_tick += note_ticks[i];
+                start_tick_temp += note_ticks[i];
                 continue;
             }
-            midi_data.push_back(Midi{static_cast<int>(std::round(note_midi[i])), start_tick, note_ticks[i]});
-            start_tick += note_ticks[i];
+            midi_data.push_back(Midi{static_cast<int>(std::round(note_midi[i])), start_tick_temp, note_ticks[i]});
+            start_tick_temp += note_ticks[i];
         }
 
         return midi_data;
@@ -123,8 +123,10 @@ namespace Some
             if (!success)
                 return false;
 
-            std::vector<Midi> temp_midis =
-                build_midi_note(static_cast<double>(fst) / 44100.0, temp_midi, temp_dur, temp_rest, tempo);
+            const auto start_tick = std::max(static_cast<int>(static_cast<double>(fst) / 44100.0 * tempo * 8),
+                                             !midis.empty() ? midis.end()->start + midis.end()->duration : 0);
+
+            std::vector<Midi> temp_midis = build_midi_note(start_tick, temp_midi, temp_dur, temp_rest, tempo);
             midis.insert(midis.end(), temp_midis.begin(), temp_midis.end());
 
             // Update the processed frames and calculate progress
