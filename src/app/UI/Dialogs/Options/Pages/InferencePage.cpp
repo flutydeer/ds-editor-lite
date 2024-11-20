@@ -102,7 +102,13 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
 
     // Render - decayInfer
     m_autoStartInfer = new SwitchButton(appOptions->inference()->autoStartInfer);
-    connect(m_autoStartInfer, &SwitchButton::toggled, this, &InferencePage::modifyOption);
+    connect(m_autoStartInfer, &SwitchButton::toggled, this, [=] {
+        modifyOption();
+        const auto message = tr(
+            "The settings will take effect after restarting the app. Do you want to restart now?");
+        const auto dlg = new RestartDialog(message, true, this);
+        dlg->show();
+    });
 
     auto renderCard = new OptionListCard(tr("Render"));
     renderCard->addItem(tr("Sampling Steps"), m_cbSamplingSteps);

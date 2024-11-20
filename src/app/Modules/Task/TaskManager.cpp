@@ -26,12 +26,6 @@ TaskManager::TaskManager(QObject *parent) : QObject(parent), d_ptr(new TaskManag
 
     d->delayTimer.reset(appOptions->inference()->autoStartInfer ? 0 : 99999);
 
-    connect(appOptions, &AppOptions::optionsChanged, this, [this, d] {
-        const auto autoStart = appOptions->inference()->autoStartInfer;
-        if (d->delayTimer.autoStart() != autoStart)
-            d->delayTimer.reset(autoStart ? 0 : 99999);
-    });
-
     connect(playbackController, &PlaybackController::playbackStatusChanged, this,
             [this, d](const PlaybackStatus status) {
                 if (status == Playing)
