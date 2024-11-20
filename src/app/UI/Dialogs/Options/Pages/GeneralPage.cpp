@@ -63,6 +63,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
 
     m_leDefaultSinger = new LineEdit;
     m_leDefaultSinger->setText(option->defaultSinger);
+    m_leDefaultSinger->setMinimumWidth(480);
     connect(m_leDefaultSinger, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
 
     const auto singingCard = new OptionListCard(tr("Singing"));
@@ -71,8 +72,10 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     singingCard->addItem(tr("Default Singer"), m_leDefaultSinger);
 
     m_somePath = new FileSelector;
+    m_somePath->setMinimumWidth(480);
     connect(m_somePath, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
     m_rmvpePath = new FileSelector;
+    m_rmvpePath->setMinimumWidth(480);
     connect(m_rmvpePath, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
 
     const auto modelCard = new OptionListCard(tr("Model"));
