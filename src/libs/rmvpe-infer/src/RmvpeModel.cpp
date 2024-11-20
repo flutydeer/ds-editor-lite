@@ -1,6 +1,10 @@
 #include <array>
-#include <dml_provider_factory.h>
 #include <iostream>
+
+#ifdef _WIN32
+#include <dml_provider_factory.h>
+#endif
+
 #include <rmvpe-infer/RmvpeModel.h>
 
 namespace Rmvpe
@@ -14,6 +18,7 @@ namespace Rmvpe
         m_session_options.SetExecutionMode(ORT_SEQUENTIAL);
         m_session_options.SetInterOpNumThreads(4);
 
+#ifdef _WIN32
         // Choose execution provider based on the provided option
         if (provider == ExecutionProvider::DML) {
             const Ort::Status status(OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id));
@@ -23,6 +28,7 @@ namespace Rmvpe
                 std::cout << "Use Dml execution provider" << std::endl;
             }
         }
+#endif
 
         try {
 #ifdef _WIN32

@@ -1,6 +1,10 @@
 #include <array>
-#include <dml_provider_factory.h>
 #include <iostream>
+
+#ifdef _WIN32
+#include <dml_provider_factory.h>
+#endif
+
 #include <some-infer/SomeModel.h>
 
 namespace Some
@@ -13,6 +17,7 @@ namespace Some
         m_session_options.SetExecutionMode(ORT_SEQUENTIAL);
         m_session_options.SetInterOpNumThreads(4);
 
+#ifdef _WIN32
         // Choose execution provider based on the provided option
         if (provider == ExecutionProvider::DML) {
             const Ort::Status status(OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id));
@@ -22,12 +27,13 @@ namespace Some
                 std::cout << "Use Dml execution provider" << std::endl;
             }
         }
+#endif
 
         try {
 #ifdef _WIN32
             m_session = Ort::Session(m_env, modelPath.wstring().c_str(), m_session_options);
 #else
-            m_session = Ort::Session(m_env, model_path.c_str(), m_session_options);
+            m_session = Ort::Session(m_env, modelPath.c_str(), m_session_options);
 #endif
         } catch (const Ort::Exception &e) {
             std::cout << "Failed to create session: " << e.what() << std::endl;
@@ -39,7 +45,7 @@ namespace Some
 
     void SomeModel::terminate() { run_options.SetTerminate(); }
 
-    bool SomeModel::is_open() const {
+    bool SomeModel::is_open() const { 
         return m_session != nullptr;
     }
 
