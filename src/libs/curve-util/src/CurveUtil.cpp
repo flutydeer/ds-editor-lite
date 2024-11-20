@@ -21,13 +21,18 @@ namespace CurveUtil
 
     std::vector<double> alignCurve(const double offset, const std::vector<double> &values, const double interval) {
         std::vector<double> alignValues;
+        if (offset == 0)
+            return values;
+
         if (abs(offset) >= interval) {
-            std::cerr << "Error: offset too large." << std::endl;
+            std::cerr << "CurveUtil Error: offset too large." << std::endl;
             return alignValues;
         }
 
-        if (values.size() < 2 || interval <= 0 || offset == 0)
+        if (values.size() < 2 || interval <= 0) {
+            std::cerr << "CurveUtil Error: values.size() < 2 or interval <= 0." << std::endl;
             return alignValues;
+        }
 
         if (offset > 0) {
             for (int i = 0; i < values.size() - 1; i++)
