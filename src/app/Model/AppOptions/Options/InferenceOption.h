@@ -11,7 +11,7 @@
 
 class InferenceOption final : public IOption {
 public:
-    explicit InferenceOption() : IOption("inference") {};
+    explicit InferenceOption() : IOption("inference"){};
 
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
@@ -21,6 +21,7 @@ public:
     LITE_OPTION_ITEM(QString, selectedGpuId, "")
     LITE_OPTION_ITEM(int, samplingSteps, 20)
     LITE_OPTION_ITEM(double, depth, 1.0)
+    LITE_OPTION_ITEM(int, delayInfer, 0)
     LITE_OPTION_ITEM(QString, cacheDirectory,
                      QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() +
                          "/Cache")

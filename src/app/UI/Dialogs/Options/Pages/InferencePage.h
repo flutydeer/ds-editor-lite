@@ -20,8 +20,9 @@ private:
     ComboBox *m_cbDeviceList;
     ComboBox *m_cbSamplingSteps;
     LineEdit *m_leDsDepth;
+    LineEdit *m_delayInfer;
 };
 
 
 
-#endif //INFERENCEPAGE_H
+#endif // INFERENCEPAGE_H

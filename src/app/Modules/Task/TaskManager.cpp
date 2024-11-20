@@ -8,6 +8,8 @@
 #include <QtConcurrent/QtConcurrent>
 
 #include "Task.h"
+#include "Controller/PlaybackController.h"
+#include "Model/AppOptions/AppOptions.h"
 
 void BackgroundWorker::terminateTask(Task *task) {
     task->terminate();
@@ -21,6 +23,31 @@ void BackgroundWorker::wait() {
 
 TaskManager::TaskManager(QObject *parent) : QObject(parent), d_ptr(new TaskManagerPrivate(this)) {
     Q_D(TaskManager);
+
+    const auto delay = appOptions->inference()->delayInfer;
+    this->setDelay(delay);
+
+    connect(appOptions, &AppOptions::optionsChanged, this, [this, d] {
+        const auto newDecay = appOptions->inference()->delayInfer;
+        if (d->delayTimer.decay() != newDecay)
+            d->delayTimer.reset(newDecay);
+    });
+
+    connect(playbackController, &PlaybackController::playbackStatusChanged, this,
+            [this](const PlaybackStatus status) {
+                if (status == Playing)
+                    this->triggerDelayTimer();
+            });
+
+    connect(&d->delayTimer, &DelayTimer::timeoutSignal, this, [this]() {
+        Q_D(TaskManager);
+        for (const auto &task : d->m_tasks) {
+            if (!task->started()) {
+                d->threadPool->start(task);
+            }
+        }
+    });
+
     connect(&d->m_worker, &BackgroundWorker::waitDone, this, &TaskManager::onWorkerWaitDone);
     d->m_worker.moveToThread(&d->m_thread);
 }
@@ -54,13 +81,17 @@ void TaskManager::addTask(Task *task) {
     qDebug() << "addTask:" << task->id() << task->status().title;
     auto index = d->m_tasks.count();
     d->m_tasks.append(task);
+    d->delayTimer.reset();
     emit taskChanged(Added, task, index);
 }
 
 void TaskManager::startTask(Task *task) {
     Q_D(TaskManager);
-    qDebug() << "startTask" << task->id() << task->status().title;
-    d->threadPool->start(task);
+    if (d->delayTimer.timeout() || task->priority() == 0) {
+        qDebug() << "startTask" << task->id() << task->status().title;
+        if (!task->started())
+            d->threadPool->start(task);
+    }
 }
 
 void TaskManager::addAndStartTask(Task *task) {
@@ -78,7 +109,7 @@ void TaskManager::removeTask(Task *task) {
 void TaskManager::startAllTasks() {
     Q_D(TaskManager);
     for (const auto &task : d->m_tasks)
-        d->threadPool->start(task);
+        startTask(task);
 }
 
 void TaskManager::terminateTask(Task *task) {
@@ -94,4 +125,14 @@ void TaskManager::terminateAllTasks() {
 void TaskManager::onWorkerWaitDone() {
     qDebug() << "TaskManager allDone";
     emit allDone();
+}
+
+void TaskManager::setDelay(const int delayS) {
+    Q_D(TaskManager);
+    d->delayTimer.reset(delayS);
+}
+
+void TaskManager::triggerDelayTimer() {
+    Q_D(TaskManager);
+    d->delayTimer.triggerNow();
 }

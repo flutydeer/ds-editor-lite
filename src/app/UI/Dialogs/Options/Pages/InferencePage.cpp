@@ -50,9 +50,8 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
 
     unsigned int selectedGpuDeviceId = 0;
     unsigned int selectedGpuVendorId = 0;
-    bool hasChosenDevice = GpuInfo::parseIdString(option->selectedGpuId,
-                                                   selectedGpuDeviceId,
-                                                   selectedGpuVendorId);
+    bool hasChosenDevice =
+        GpuInfo::parseIdString(option->selectedGpuId, selectedGpuDeviceId, selectedGpuVendorId);
 
     for (const auto &device : std::as_const(deviceList)) {
         int currentIndex = m_cbDeviceList->count();
@@ -61,7 +60,8 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
                 .arg(device.description)
                 .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
         m_cbDeviceList->insertItem(currentIndex, displayText);
-        m_cbDeviceList->setItemData(currentIndex, QVariant::fromValue<GpuInfo>(device), GpuInfoRole);
+        m_cbDeviceList->setItemData(currentIndex, QVariant::fromValue<GpuInfo>(device),
+                                    GpuInfoRole);
         m_cbDeviceList->setItemData(currentIndex, false, IsDefaultGpuRole);
         if (hasChosenDevice) {
             if (device.deviceId == selectedGpuDeviceId && device.vendorId == selectedGpuVendorId) {
@@ -99,9 +99,18 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     m_leDsDepth->setFixedWidth(80);
     connect(m_leDsDepth, &LineEdit::editingFinished, this, &InferencePage::modifyOption);
 
+    // Render - decayInfer
+    auto intValidator = new QIntValidator();
+    doubleValidator->setRange(0, 99999);
+    m_delayInfer = new LineEdit(QString::number(option->delayInfer));
+    m_delayInfer->setValidator(intValidator);
+    m_delayInfer->setFixedWidth(80);
+    connect(m_delayInfer, &LineEdit::editingFinished, this, &InferencePage::modifyOption);
+
     auto renderCard = new OptionListCard(tr("Render"));
     renderCard->addItem(tr("Sampling Steps"), m_cbSamplingSteps);
     renderCard->addItem(tr("Depth"), m_leDsDepth);
+    renderCard->addItem(tr("Delay Infer"), m_delayInfer);
 
     // Main Layout
     auto mainLayout = new QVBoxLayout();
@@ -130,5 +139,6 @@ void InferencePage::modifyOption() {
     }
     option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
     option->depth = m_leDsDepth->text().toDouble();
+    option->delayInfer = m_delayInfer->text().toInt();
     appOptions->saveAndNotify();
 }

@@ -56,6 +56,14 @@ public:
         return m_abortFlag;
     }
 
+    int priority() const {
+        return m_priority;
+    }
+
+    void setPriority(const int priority) {
+        m_priority = priority;
+    }
+
     [[nodiscard]] const TaskStatus &status() const;
     void setStatus(const TaskStatus &status);
 
@@ -67,8 +75,11 @@ protected:
     virtual void runTask() = 0;
     bool isTerminateRequested();
 
+    int m_priority = 0;
+
 private:
     friend class TaskManager;
+
     void run() override {
         if (!m_started) {
             m_started = true;

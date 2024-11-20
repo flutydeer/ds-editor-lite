@@ -6,6 +6,7 @@
 #define TASKMANAGER_P_H
 
 #include <QThreadPool>
+#include "DelayTimer.h"
 
 class Task;
 
@@ -27,6 +28,8 @@ class TaskManagerPrivate {
 public:
     explicit TaskManagerPrivate(TaskManager *q) : q_ptr(q) {
     }
+
+    DelayTimer delayTimer;
 
     QList<Task *> m_tasks;
     QThreadPool *threadPool = QThreadPool::globalInstance();

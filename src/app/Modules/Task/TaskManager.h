@@ -41,6 +41,8 @@ public slots:
 
 private slots:
     void onWorkerWaitDone();
+    void setDelay(int delayS);
+    void triggerDelayTimer();
 
 private:
     Q_DECLARE_PRIVATE(TaskManager)

@@ -52,6 +52,8 @@ private:
     QString m_result;
     QString m_inputHash;
     bool m_success = false;
+
+    int m_priority = 0;
 };
 
 
