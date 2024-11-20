@@ -10,6 +10,7 @@
 class Button;
 class LineEdit;
 class LanguageComboBox;
+class FileSelector;
 
 class GeneralPage : public IOptionPage {
     Q_OBJECT
@@ -25,6 +26,9 @@ private:
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
     LineEdit *m_leDefaultSinger;
+
+    FileSelector *m_somePath;
+    FileSelector *m_rmvpePath;
 };
 
 #endif // GENERALPAGE_H

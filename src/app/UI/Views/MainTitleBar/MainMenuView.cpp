@@ -242,7 +242,8 @@ void MainMenuViewPrivate::onOpen() {
         const auto lastDir = appController->lastProjectFolder();
         const auto fileName = QFileDialog::getOpenFileName(
             q, tr("Open"), lastDir,
-            MainMenuView::tr("All Supported Files (*.dspx *.mid);;DiffScope Project File (*.dspx);;MIDI File (*.mid)"));
+            MainMenuView::tr("All Supported Files (*.dspx *.mid);;DiffScope Project File "
+                             "(*.dspx);;MIDI File (*.mid)"));
         if (fileName.isNull()) {
             qDebug() << "User cancelled open";
             return;
@@ -372,9 +373,9 @@ void MainMenuViewPrivate::onPaste() {
 // }
 
 void MainMenuViewPrivate::onGetPitchParamFromAudioClip() {
-    auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(appStatus->activeClipId));
-    Q_ASSERT(singingClip);
-    if (singingClip->clipType() != IClip::Singing) {
+    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(appStatus->activeClipId));
+
+    if (!singingClip or singingClip->clipType() != IClip::Singing) {
         // TODO: 在选中非歌声剪辑时禁用此操作
         Toast::show("请先选中一个歌声剪辑");
         return;
@@ -399,7 +400,7 @@ void MainMenuViewPrivate::onGetPitchParamFromAudioClip() {
         qDebug() << "User canceled get pitch param from audio clip";
         return;
     }
-    auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(dialog.selectedClipId));
+    const auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(dialog.selectedClipId));
     Q_ASSERT(audioClip);
     pitchExtractController->runExtractPitch(audioClip, singingClip);
 }

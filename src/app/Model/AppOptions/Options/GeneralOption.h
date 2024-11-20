@@ -12,7 +12,7 @@
 
 class GeneralOption final : public IOption {
 public:
-    explicit GeneralOption() : IOption("general") {};
+    explicit GeneralOption() : IOption("general"){};
 
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
@@ -20,6 +20,9 @@ public:
     QString defaultSingingLanguage = "cmn";
     QString defaultLyric = "啦";
     LITE_OPTION_ITEM(QString, defaultSinger, QString())
+    LITE_OPTION_ITEM(QString, somePath, QString())
+    LITE_OPTION_ITEM(QString, rmvpePath, QString())
+
 
 public:
     Property<ParamInfo::Name> defaultForegroundParam = ParamInfo::Breathiness;

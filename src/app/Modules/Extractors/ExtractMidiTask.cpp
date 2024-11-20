@@ -21,7 +21,7 @@ ExtractMidiTask::ExtractMidiTask(Input input) : m_input(std::move(input)) {
     status.message = tr("Pending infer: %1").arg(m_input.audioPath);
     setStatus(status);
 
-    const std::filesystem::path modelPath = R"(D:\python\SOME\some.onnx)";
+    const std::filesystem::path modelPath = appOptions->general()->somePath.toStdString();
     Q_ASSERT(!modelPath.empty());
 
     const auto getCurrentGpuIndex = []() {

@@ -12,12 +12,19 @@ void GeneralOption::load(const QJsonObject &object) {
         defaultLyric = object[defaultLyricKey].toString();
     if (object.contains(defaultSingerKey))
         defaultSinger = object[defaultSingerKey].toString();
+
+    if (object.contains(somePathKey))
+        somePath = object[somePathKey].toString();
+    if (object.contains(rmvpePathKey))
+        rmvpePath = object[rmvpePathKey].toString();
 }
 
 void GeneralOption::save(QJsonObject &object) {
     object = {
         {defaultSingingLanguageKey, defaultSingingLanguage},
         {defaultLyricKey,           defaultLyric          },
-        serialize_defaultSinger()
+        serialize_defaultSinger(),
+        serialize_somePath(),
+        serialize_rmvpePath()
     };
 }
