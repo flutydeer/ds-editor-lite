@@ -28,7 +28,7 @@
 static bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
                           const QList<QByteArray> &labelList, QList<int> *selectIDs,
                           QTextCodec **codec) {
-    MidiConverterDialog dlg(trackInfoList);
+    MidiConverterDialog dlg(trackInfoList, Dialog::globalParent());
     // TODO: export tempo
     if (dlg.exec()) {
         *selectIDs = dlg.selectedTracks();
@@ -94,7 +94,7 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg, 
         QList<Note *> notes;
         for (const QDspx::Note &dsNote : arrNotes) {
             const auto note = new Note;
-            note->setLocalStart(dsNote.pos-offset);
+            note->setLocalStart(dsNote.pos - offset);
             note->setLength(dsNote.length);
             note->setKeyIndex(dsNote.keyNum);
             note->setLyric(dsNote.lyric.isEmpty() ? appOptions->general()->defaultLyric
