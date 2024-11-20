@@ -24,26 +24,30 @@ void BackgroundWorker::wait() {
 TaskManager::TaskManager(QObject *parent) : QObject(parent), d_ptr(new TaskManagerPrivate(this)) {
     Q_D(TaskManager);
 
-    const auto delay = appOptions->inference()->delayInfer;
-    this->setDelay(delay);
+    d->delayTimer.reset(appOptions->inference()->autoStartInfer ? 0 : 99999);
 
     connect(appOptions, &AppOptions::optionsChanged, this, [this, d] {
-        const auto newDecay = appOptions->inference()->delayInfer;
-        if (d->delayTimer.decay() != newDecay)
-            d->delayTimer.reset(newDecay);
+        const auto autoStart = appOptions->inference()->autoStartInfer;
+        if (d->delayTimer.autoStart() != autoStart)
+            d->delayTimer.reset(autoStart ? 0 : 99999);
     });
 
     connect(playbackController, &PlaybackController::playbackStatusChanged, this,
-            [this](const PlaybackStatus status) {
+            [this, d](const PlaybackStatus status) {
                 if (status == Playing)
-                    this->triggerDelayTimer();
+                    d->delayTimer.triggerNow();
             });
 
     connect(&d->delayTimer, &DelayTimer::timeoutSignal, this, [this]() {
         Q_D(TaskManager);
         for (const auto &task : d->m_tasks) {
-            if (!task->started()) {
-                d->threadPool->start(task);
+            if (task->priority() > 0) {
+                // TODO: bug on handleInferXxxTaskFinished
+                if (task->started())
+                    break;
+
+                if (this->startTask(task))
+                    break;
             }
         }
     });
@@ -85,13 +89,16 @@ void TaskManager::addTask(Task *task) {
     emit taskChanged(Added, task, index);
 }
 
-void TaskManager::startTask(Task *task) {
+bool TaskManager::startTask(Task *task) {
     Q_D(TaskManager);
     if (d->delayTimer.timeout() || task->priority() == 0) {
         qDebug() << "startTask" << task->id() << task->status().title;
-        if (!task->started())
+        if (!task->started()) {
             d->threadPool->start(task);
+            return true;
+        }
     }
+    return false;
 }
 
 void TaskManager::addAndStartTask(Task *task) {
@@ -102,8 +109,11 @@ void TaskManager::addAndStartTask(Task *task) {
 void TaskManager::removeTask(Task *task) {
     Q_D(TaskManager);
     auto index = d->m_tasks.indexOf(task);
-    d->m_tasks.removeOne(task);
-    emit taskChanged(Removed, task, index);
+    if (index >= 0) {
+        d->m_tasks.removeOne(task);
+        emit taskChanged(Removed, task, index);
+    } else
+        qWarning() << "Can not remove task: " << task->objectName();
 }
 
 void TaskManager::startAllTasks() {
@@ -125,14 +135,4 @@ void TaskManager::terminateAllTasks() {
 void TaskManager::onWorkerWaitDone() {
     qDebug() << "TaskManager allDone";
     emit allDone();
-}
-
-void TaskManager::setDelay(const int delayS) {
-    Q_D(TaskManager);
-    d->delayTimer.reset(delayS);
-}
-
-void TaskManager::triggerDelayTimer() {
-    Q_D(TaskManager);
-    d->delayTimer.triggerNow();
 }

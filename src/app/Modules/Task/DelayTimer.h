@@ -10,8 +10,11 @@ class DelayTimer final : public QObject {
 
 public:
     explicit DelayTimer(QObject *parent = nullptr) : QObject(parent), m_timer(new QTimer(this)) {
-        m_timer->setSingleShot(true);
-        connect(m_timer, &QTimer::timeout, this, &DelayTimer::timeoutSignal);
+        m_timer->setSingleShot(false);
+        connect(m_timer, &QTimer::timeout, this, [this]() {
+            if (m_decay > 0)
+                this->timeoutSignal();
+        });
     }
 
     int decay() const {
@@ -42,22 +45,22 @@ public:
         }
     }
 
-    void cancel() {
-        QMutexLocker locker(&m_mutex);
-        if (m_timer->isActive()) {
-            m_timer->stop();
-        }
-    }
-
     void triggerNow() {
         QMutexLocker locker(&m_mutex);
-        if (m_timer->isActive()) {
-            m_timer->stop();
+        if (m_decay > 0) {
+            if (m_timer->isActive()) {
+                m_timer->stop();
+            }
+            Q_EMIT this->timeoutSignal();
         }
     }
 
     bool timeout() const {
-        return !m_timer->isActive();
+        return m_decay == 0 || (!m_timer->isActive());
+    }
+
+    bool autoStart() const {
+        return !static_cast<bool>(m_decay);
     }
 
 signals:

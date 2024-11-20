@@ -30,7 +30,7 @@ signals:
 
 public slots:
     void addTask(Task *task);
-    void startTask(Task *task);
+    bool startTask(Task *task);
     void addAndStartTask(Task *task);
     void removeTask(Task *task);
     // void startTask(int taskId);
@@ -41,8 +41,6 @@ public slots:
 
 private slots:
     void onWorkerWaitDone();
-    void setDelay(int delayS);
-    void triggerDelayTimer();
 
 private:
     Q_DECLARE_PRIVATE(TaskManager)

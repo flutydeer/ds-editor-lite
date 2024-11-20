@@ -30,8 +30,8 @@ void InferenceOption::load(const QJsonObject &object) {
         samplingSteps = object[samplingStepsKey].toInt();
     if (object.contains(depthKey))
         depth = object[depthKey].toDouble();
-    if (object.contains(delayInferKey))
-        delayInfer = object[delayInferKey].toDouble();
+    if (object.contains(autoStartInferKey))
+        autoStartInfer = object[autoStartInferKey].toBool();
 }
 
 void InferenceOption::save(QJsonObject &object) {
@@ -40,6 +40,6 @@ void InferenceOption::save(QJsonObject &object) {
               serialize_selectedGpuId(),
               serialize_samplingSteps(),
               serialize_depth(),
-              serialize_delayInfer(),
+              serialize_autoStartInfer(),
               serialize_cacheDirectory()};
 }

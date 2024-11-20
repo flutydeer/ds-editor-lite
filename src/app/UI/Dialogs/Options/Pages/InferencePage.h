@@ -5,6 +5,7 @@
 
 class LineEdit;
 class ComboBox;
+class SwitchButton;
 
 class InferencePage : public IOptionPage {
     Q_OBJECT
@@ -20,7 +21,7 @@ private:
     ComboBox *m_cbDeviceList;
     ComboBox *m_cbSamplingSteps;
     LineEdit *m_leDsDepth;
-    LineEdit *m_delayInfer;
+    SwitchButton *m_autoStartInfer;
 };
 
 

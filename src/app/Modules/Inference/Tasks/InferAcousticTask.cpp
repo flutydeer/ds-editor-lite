@@ -37,6 +37,7 @@ bool InferAcousticTask::success() const {
 }
 
 InferAcousticTask::InferAcousticTask(InferAcousticInput input) : m_input(std::move(input)) {
+    setPriority(1);
     buildPreviewText();
     TaskStatus status;
     status.title = tr("Infer Acoustic");

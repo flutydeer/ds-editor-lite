@@ -21,7 +21,7 @@ public:
     LITE_OPTION_ITEM(QString, selectedGpuId, "")
     LITE_OPTION_ITEM(int, samplingSteps, 20)
     LITE_OPTION_ITEM(double, depth, 1.0)
-    LITE_OPTION_ITEM(int, delayInfer, 0)
+    LITE_OPTION_ITEM(bool, autoStartInfer, true)
     LITE_OPTION_ITEM(QString, cacheDirectory,
                      QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() +
                          "/Cache")

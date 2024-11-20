@@ -9,6 +9,7 @@
 #include "UI/Controls/OptionListCard.h"
 #include "UI/Controls/OptionsCard.h"
 #include "UI/Controls/OptionsCardItem.h"
+#include "UI/Controls/SwitchButton.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
 
 #include <QVBoxLayout>
@@ -100,17 +101,13 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     connect(m_leDsDepth, &LineEdit::editingFinished, this, &InferencePage::modifyOption);
 
     // Render - decayInfer
-    auto intValidator = new QIntValidator();
-    doubleValidator->setRange(0, 99999);
-    m_delayInfer = new LineEdit(QString::number(option->delayInfer));
-    m_delayInfer->setValidator(intValidator);
-    m_delayInfer->setFixedWidth(80);
-    connect(m_delayInfer, &LineEdit::editingFinished, this, &InferencePage::modifyOption);
+    m_autoStartInfer = new SwitchButton(appOptions->inference()->autoStartInfer);
+    connect(m_autoStartInfer, &SwitchButton::toggled, this, &InferencePage::modifyOption);
 
     auto renderCard = new OptionListCard(tr("Render"));
     renderCard->addItem(tr("Sampling Steps"), m_cbSamplingSteps);
     renderCard->addItem(tr("Depth"), m_leDsDepth);
-    renderCard->addItem(tr("Delay Infer"), m_delayInfer);
+    renderCard->addItem(tr("Auto Start Infer"), m_autoStartInfer);
 
     // Main Layout
     auto mainLayout = new QVBoxLayout();
@@ -139,6 +136,6 @@ void InferencePage::modifyOption() {
     }
     option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
     option->depth = m_leDsDepth->text().toDouble();
-    option->delayInfer = m_delayInfer->text().toInt();
+    option->autoStartInfer = m_autoStartInfer->value();
     appOptions->saveAndNotify();
 }
