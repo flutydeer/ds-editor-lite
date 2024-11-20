@@ -207,6 +207,12 @@ void AppControllerPrivate::initializeModules() {
             &AudioDecodingController::onModelChanged);
     connect(appModel, &AppModel::trackChanged, audioDecodingController,
             &AudioDecodingController::onTrackChanged);
+    connect(playbackController, &PlaybackController::playbackStatusChanged, taskManager,
+            [=](const PlaybackStatus status) {
+                if (status == Playing)
+                    // 手动触发播放任务
+                    taskManager->triggerTimer();
+            });
 }
 
 bool AppControllerPrivate::isPowerOf2(int num) {

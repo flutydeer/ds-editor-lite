@@ -26,12 +26,6 @@ TaskManager::TaskManager(QObject *parent) : QObject(parent), d_ptr(new TaskManag
 
     d->delayTimer.reset(appOptions->inference()->autoStartInfer ? 0 : 99999);
 
-    connect(playbackController, &PlaybackController::playbackStatusChanged, this,
-            [this, d](const PlaybackStatus status) {
-                if (status == Playing)
-                    d->delayTimer.triggerNow();
-            });
-
     connect(&d->delayTimer, &DelayTimer::timeoutSignal, this, [this]() {
         Q_D(TaskManager);
         for (const auto &task : d->m_tasks) {
@@ -129,4 +123,9 @@ void TaskManager::terminateAllTasks() {
 void TaskManager::onWorkerWaitDone() {
     qDebug() << "TaskManager allDone";
     emit allDone();
+}
+
+void TaskManager::triggerTimer() {
+    Q_D(TaskManager);
+    d->delayTimer.triggerNow();
 }

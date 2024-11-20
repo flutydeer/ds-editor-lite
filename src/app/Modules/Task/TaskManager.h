@@ -24,6 +24,8 @@ public:
     [[nodiscard]] const QList<Task *> &tasks() const;
     Task *findTaskById(int id);
 
+    void triggerTimer();
+
 signals:
     void allDone();
     void taskChanged(TaskChangeType type, Task *task, qsizetype index);
