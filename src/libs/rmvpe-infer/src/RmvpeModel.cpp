@@ -34,7 +34,7 @@ namespace Rmvpe
 #ifdef _WIN32
             m_session = Ort::Session(m_env, modelPath.wstring().c_str(), m_session_options);
 #else
-            m_session = Ort::Session(m_env, model_path.c_str(), m_session_options);
+            m_session = Ort::Session(m_env, modelPath.c_str(), m_session_options);
 #endif
         } catch (const Ort::Exception &e) {
             std::cout << "Failed to create session: " << e.what() << std::endl;

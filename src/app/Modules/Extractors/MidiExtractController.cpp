@@ -78,6 +78,7 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
     singingClip->setStart(audioClip->start());
     singingClip->setLength(audioClip->length());
     singingClip->setClipLen(audioClip->length());
+    singingClip->configPath = appOptions->general()->defaultSinger;
     singingClip->defaultLanguage = appOptions->general()->defaultSingingLanguage;
     singingClip->defaultG2pId = languageDefaultDictId(singingClip->defaultLanguage);
     const auto track = new Track(QFileInfo(task->input().audioPath).baseName(), {singingClip});
