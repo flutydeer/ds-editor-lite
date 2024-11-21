@@ -61,26 +61,35 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     connect(m_leDefaultLyric, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
     // m_leDefaultLyric->setPlaceholderText(option->defaultLyric);
 
-    m_leDefaultSinger = new LineEdit;
-    m_leDefaultSinger->setText(option->defaultSinger);
-    m_leDefaultSinger->setMinimumWidth(480);
-    connect(m_leDefaultSinger, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
+    const QString yamlFilesFilter = tr("YAML Files (*.yaml);;All Files (*)");
+
+    m_fsDefaultSinger = new FileSelector;
+    m_fsDefaultSinger->setFilter(yamlFilesFilter);
+    m_fsDefaultSinger->setFilePath(option->defaultSinger);
+    m_fsDefaultSinger->setMinimumWidth(480);
+    connect(m_fsDefaultSinger, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
 
     const auto singingCard = new OptionListCard(tr("Singing"));
     singingCard->addItem(tr("Default Singing Language"), m_cbDefaultSingingLanguage);
     singingCard->addItem(tr("Default Lyric"), m_leDefaultLyric);
-    singingCard->addItem(tr("Default Singer"), m_leDefaultSinger);
+    singingCard->addItem(tr("Default Singer"), m_fsDefaultSinger);
 
-    m_somePath = new FileSelector;
-    m_somePath->setMinimumWidth(480);
-    connect(m_somePath, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
-    m_rmvpePath = new FileSelector;
-    m_rmvpePath->setMinimumWidth(480);
-    connect(m_rmvpePath, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
+    const QString onnxFilesFilter = tr("ONNX Files (*.onnx);;All Files (*)");
+
+    m_fsSomePath = new FileSelector;
+    m_fsSomePath->setMinimumWidth(480);
+    m_fsSomePath->setFilter(onnxFilesFilter);
+    m_fsSomePath->setFilePath(option->somePath);
+    connect(m_fsSomePath, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
+    m_fsRmvpePath = new FileSelector;
+    m_fsRmvpePath->setMinimumWidth(480);
+    m_fsRmvpePath->setFilter(onnxFilesFilter);
+    m_fsRmvpePath->setFilePath(option->rmvpePath);
+    connect(m_fsRmvpePath, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
 
     const auto modelCard = new OptionListCard(tr("Model"));
-    modelCard->addItem(tr("Some Model Path"), m_somePath);
-    modelCard->addItem(tr("Rmvpe Model Path"), m_rmvpePath);
+    modelCard->addItem(tr("Some Model Path"), m_fsSomePath);
+    modelCard->addItem(tr("Rmvpe Model Path"), m_fsRmvpePath);
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(configFileCard);
@@ -96,9 +105,9 @@ void GeneralPage::modifyOption() {
     const auto option = appOptions->general();
     option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentText();
     option->defaultLyric = m_leDefaultLyric->text();
-    option->defaultSinger = m_leDefaultSinger->text();
+    option->defaultSinger = m_fsDefaultSinger->filePath();
 
-    option->somePath = m_somePath->filePath();
-    option->rmvpePath = m_rmvpePath->filePath();
+    option->somePath = m_fsSomePath->filePath();
+    option->rmvpePath = m_fsRmvpePath->filePath();
     appOptions->saveAndNotify();
 }

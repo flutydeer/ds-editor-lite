@@ -25,10 +25,10 @@ private:
     Button *m_btnOpenConfigFolder;
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
-    LineEdit *m_leDefaultSinger;
+    FileSelector *m_fsDefaultSinger;
 
-    FileSelector *m_somePath;
-    FileSelector *m_rmvpePath;
+    FileSelector *m_fsSomePath;
+    FileSelector *m_fsRmvpePath;
 };
 
 #endif // GENERALPAGE_H
