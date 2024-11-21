@@ -21,7 +21,12 @@ ExtractPitchTask::ExtractPitchTask(Input input) : m_input(std::move(input)) {
     status.message = tr("Pending infer: %1").arg(m_input.audioPath);
     setStatus(status);
 
-    const std::filesystem::path modelPath = appOptions->general()->rmvpePath.toStdString();
+    const std::filesystem::path modelPath =
+#ifdef _WIN32
+        appOptions->general()->rmvpePath.toStdWString();
+#else
+        appOptions->general()->rmvpePath.toStdString();
+#endif
     Q_ASSERT(!modelPath.empty());
 
     const auto getCurrentGpuIndex = []() {
