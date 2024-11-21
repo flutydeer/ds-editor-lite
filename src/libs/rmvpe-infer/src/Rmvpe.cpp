@@ -127,12 +127,9 @@ namespace Rmvpe
                 continue;
             }
 
-            AudioUtil::SF_VIO sfChunk;
-            auto wf = SndfileHandle(sfChunk.vio, &sfChunk.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
             sf.seek(static_cast<sf_count_t>(beginFrame), SEEK_SET);
             std::vector<float> tmp(frameCount);
             sf.read(tmp.data(), static_cast<sf_count_t>(tmp.size()));
-            wf.write(tmp.data(), static_cast<sf_count_t>(tmp.size()));
 
             RmvpeRes tempRes;
             tempRes.offset = static_cast<float>(static_cast<double>(fst) / (16000.0 / 1000));

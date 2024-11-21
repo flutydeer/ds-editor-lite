@@ -83,7 +83,7 @@ namespace Some
 
         auto sf_vio = AudioUtil::resample_to_vio(filepath, msg, 1, 44100);
 
-        SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, sf_vio.info.format, sf_vio.info.channels,
+        SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, sf_vio.info.channels,
                          sf_vio.info.samplerate);
         AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
 
@@ -108,12 +108,9 @@ namespace Some
                 continue;
             }
 
-            AudioUtil::SF_VIO sfChunk;
-            auto wf = SndfileHandle(sfChunk.vio, &sfChunk.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 44100);
             sf.seek(static_cast<sf_count_t>(beginFrame), SEEK_SET);
             std::vector<float> tmp(frameCount);
             sf.read(tmp.data(), static_cast<sf_count_t>(tmp.size()));
-            wf.write(tmp.data(), static_cast<sf_count_t>(tmp.size()));
 
             std::vector<float> temp_midi;
             std::vector<bool> temp_rest;
@@ -124,7 +121,7 @@ namespace Some
                 return false;
 
             const auto start_tick = std::max(static_cast<int>(static_cast<double>(fst) / 44100.0 * tempo * 8),
-                                             !midis.empty() ? midis.end()->start + midis.end()->duration : 0);
+                                             !midis.empty() ? midis.back().start + midis.back().duration : 0);
 
             std::vector<Midi> temp_midis = build_midi_note(start_tick, temp_midi, temp_dur, temp_rest, tempo);
             midis.insert(midis.end(), temp_midis.begin(), temp_midis.end());
