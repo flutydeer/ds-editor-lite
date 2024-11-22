@@ -50,3 +50,8 @@ void ExtractPitchParamDialog::onSelectionChanged(int row) {
     const int clipId = item->data(Qt::UserRole).toInt();
     selectedClipId = clipId;
 }
+
+void ExtractPitchParamDialog::closeEvent(QCloseEvent *event) {
+    selectedClipId = -1;
+    OKCancelDialog::closeEvent(event);
+}
