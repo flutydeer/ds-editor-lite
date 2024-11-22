@@ -27,7 +27,10 @@
       "features": [
         "device",
         "device-sdl",
-        "device-asio",
+        {
+          "name": "device-asio",
+          "platform": "windows & !(arm | uwp)"
+        },
         "format",
         "midi",
         "dspx",
