@@ -65,6 +65,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
 
     m_fsDefaultSinger = new FileSelector;
     m_fsDefaultSinger->setFilter(yamlFilesFilter);
+    m_fsDefaultSinger->setFileDropExtensions({"yaml"});
     m_fsDefaultSinger->setFilePath(option->defaultSinger);
     m_fsDefaultSinger->setMinimumWidth(480);
     connect(m_fsDefaultSinger, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
@@ -79,11 +80,13 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     m_fsSomePath = new FileSelector;
     m_fsSomePath->setMinimumWidth(480);
     m_fsSomePath->setFilter(onnxFilesFilter);
+    m_fsSomePath->setFileDropExtensions({"onnx"});
     m_fsSomePath->setFilePath(option->somePath);
     connect(m_fsSomePath, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
     m_fsRmvpePath = new FileSelector;
     m_fsRmvpePath->setMinimumWidth(480);
     m_fsRmvpePath->setFilter(onnxFilesFilter);
+    m_fsRmvpePath->setFileDropExtensions({"onnx"});
     m_fsRmvpePath->setFilePath(option->rmvpePath);
     connect(m_fsRmvpePath, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
 

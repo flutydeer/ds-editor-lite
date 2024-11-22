@@ -3,8 +3,10 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QMimeData>
 #include <QPushButton>
+#include <QUrl>
 #include <QVBoxLayout>
 
 #include "LineEdit.h"
@@ -34,27 +36,50 @@ void FileSelector::setFilePath(const QString &filePath) {
     m_lineEdit->setText(filePath);
 }
 
+static inline bool getFileNameFromMimeData(const QMimeData *mimeData,
+                                           const QSet<QString> &extensions,
+                                           QString *outFilePath) {
+    if (!mimeData || !mimeData->hasUrls()) {
+        return false;
+    }
+    const auto &urls = mimeData->urls();
+    if (urls.isEmpty()) {
+        return false;
+    }
+    if (extensions.isEmpty()) {
+        if (outFilePath) {
+            *outFilePath = urls.first().toLocalFile();
+        }
+        return true;
+    }
+    for (const auto &url : std::as_const(urls)) {
+        QString filePath = url.toLocalFile();
+        if (const QFileInfo info(filePath);
+            !(extensions.contains(info.suffix().toLower()) ||
+              extensions.contains(info.completeSuffix().toLower()))) {
+            continue;
+        }
+        if (outFilePath) {
+            *outFilePath = std::move(filePath);
+        }
+        return true;
+    }
+    return false;
+}
+
 void FileSelector::dragEnterEvent(QDragEnterEvent *event) {
-    const auto mimeData = event->mimeData();
-    if (mimeData && mimeData->hasUrls()) {
+    if (getFileNameFromMimeData(event->mimeData(), m_fileDropExtensions, nullptr)) {
         event->acceptProposedAction();
     }
 }
 
 void FileSelector::dropEvent(QDropEvent *event) {
-    const auto mimeData = event->mimeData();
-    if (!mimeData || !mimeData->hasUrls()) {
-        return;
+    QString filePath;
+    if (getFileNameFromMimeData(event->mimeData(), m_fileDropExtensions, &filePath)) {
+        event->acceptProposedAction();
+        m_lineEdit->setText(filePath);
+        Q_EMIT filePathChanged(filePath);
     }
-    const auto &urls = mimeData->urls();
-    if (urls.isEmpty()) {
-        return;
-    }
-    const auto filePath = urls.first().toLocalFile();
-    if (filePath.isEmpty()) {
-        return;
-    }
-    m_lineEdit->setText(filePath);
 }
 
 void FileSelector::onBrowseButtonClicked() {
@@ -62,10 +87,10 @@ void FileSelector::onBrowseButtonClicked() {
         QFileDialog::getOpenFileName(this, tr("Select a File"), QDir::currentPath(), m_filter);
     if (!selectedFile.isEmpty()) {
         m_lineEdit->setText(selectedFile);
-        emit filePathChanged(selectedFile);
+        Q_EMIT filePathChanged(selectedFile);
     }
 }
 
 void FileSelector::onTextChanged() {
-    emit filePathChanged(m_lineEdit->text());
+    Q_EMIT filePathChanged(m_lineEdit->text());
 }
