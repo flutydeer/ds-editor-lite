@@ -37,7 +37,7 @@ namespace AudioUtil
         unsigned frames = 0;
         unsigned bitsPerSample = 0;
         std::vector<int16_t> buffer_out_16;
-        std::vector<short> buffer_out_24;
+        std::vector<int32_t> buffer_out_24;
         std::vector<int32_t> buffer_out_32;
     };
 
