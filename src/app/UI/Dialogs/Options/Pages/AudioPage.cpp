@@ -33,6 +33,9 @@
 
 #include "UI/Controls/CardView.h"
 #include "UI/Controls/OptionListCard.h"
+#include "Utils/SystemUtils.h"
+
+#include <QDesktopServices>
 
 static inline double sliderValueToGain(double sliderValue) {
     return talcs::Decibels::decibelsToGain(
@@ -114,7 +117,7 @@ public:
         m_fileBufferingReadAheadSizeSpinBox->setRange(0, std::numeric_limits<int>::max());
         auto fileCard = new OptionListCard(tr("File Caching"));
         fileCard->addItem(tr("&File reading buffer size (samples)"),
-                           m_fileBufferingReadAheadSizeSpinBox);
+                          m_fileBufferingReadAheadSizeSpinBox);
         mainLayout->addWidget(fileCard);
         mainLayout->addStretch();
         setLayout(mainLayout);
@@ -135,8 +138,15 @@ public:
         });
 
         connect(deviceControlPanelButton, &QPushButton::clicked, this, [=] {
-            if (AudioSystem::outputSystem()->outputContext()->device())
-                AudioSystem::outputSystem()->outputContext()->device()->openControlPanel();
+            if (const auto device = AudioSystem::outputSystem()->outputContext()->device()) {
+                auto driverName = device->driver()->name();
+                if (SystemUtils::productType() == SystemUtils::SystemProductType::Windows &&
+                    (driverName == "winmm" || driverName == "directsound" ||
+                     driverName == "wasapi")) {
+                    QDesktopServices::openUrl(QUrl("ms-settings:sound"));
+                } else
+                    device->openControlPanel();
+            }
         });
 
         updateDriverComboBox();
