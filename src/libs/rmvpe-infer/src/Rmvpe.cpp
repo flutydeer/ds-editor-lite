@@ -105,16 +105,20 @@ namespace Rmvpe
         auto sf_vio = AudioUtil::resample_to_vio(filepath, msg, 1, 16000);
 
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 1, 16000);
-        AudioUtil::Slicer slicer(&sf, -40, 5000, 300, 10, 1000);
+        const auto totalSize = sf.frames();
 
-        const auto chunks = slicer.slice();
+        std::vector<float> audio(totalSize);
+        sf.seek(0, SEEK_SET);
+        sf.read(audio.data(), static_cast<sf_count_t>(audio.size()));
+
+        const AudioUtil::Slicer slicer(160, 0.02f, 160, 160 * 4, 500, 30, 50);
+        const auto chunks = slicer.slice(audio);
 
         if (chunks.empty()) {
             msg = "slicer: no audio chunks for output!";
             return false;
         }
 
-        const auto totalSize = sf.frames();
 
         int processedFrames = 0; // To track processed frames
         const float slicerFrames = calculateSumOfDifferences(chunks);
