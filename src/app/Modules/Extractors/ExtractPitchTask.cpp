@@ -15,19 +15,33 @@
 #include <QThread>
 #include <utility>
 
-ExtractPitchTask::ExtractPitchTask(Input input) : m_input(std::move(input)) {
+ExtractPitchTask::ExtractPitchTask(Input input) : ExtractTask(std::move(input)) {
     TaskStatus status;
     status.title = tr("Extract Pitch");
     status.message = tr("Pending infer: %1").arg(m_input.audioPath);
     setStatus(status);
 
-    const std::filesystem::path modelPath =
+    if (!inferEngine->initialized()) {
+        m_errorCode = ErrorCode::InferEngineNotLoaded;
+        m_errorMessage = tr("Inference engine is not loaded");
+        qCritical().noquote() << errorMessage();
+        return;
+    }
+
+    auto rmvpePath = appOptions->general()->rmvpePath;
+    const std::filesystem::path modelPath = rmvpePath
 #ifdef _WIN32
-        appOptions->general()->rmvpePath.toStdWString();
+        .toStdWString();
 #else
-        appOptions->general()->rmvpePath.toStdString();
+        .toStdString();
 #endif
-    Q_ASSERT(!modelPath.empty());
+
+    if (modelPath.empty() || !exists(modelPath) || is_directory(modelPath)) {
+        m_errorCode = ErrorCode::ModelNotLoaded;
+        m_errorMessage = tr("Invalid RMVPE model path: ") + rmvpePath;
+        qCritical().noquote() << errorMessage();
+        return;
+    }
 
     const auto getCurrentGpuIndex = []() {
         auto selectedGpu = DmlUtils::getGpuByIdString(appOptions->inference()->selectedGpuId);
@@ -43,16 +57,14 @@ ExtractPitchTask::ExtractPitchTask(Input input) : m_input(std::move(input)) {
                                 ? Rmvpe::ExecutionProvider::DML
                                 : Rmvpe::ExecutionProvider::CPU;
 
-    if (!inferEngine->initialized()) {
-        return;
-    }
-
     // TODO:: forced on cpu
     m_rmvpe = std::make_unique<Rmvpe::Rmvpe>(modelPath, Rmvpe::ExecutionProvider::CPU, 0);
-}
-
-const ExtractPitchTask::Input &ExtractPitchTask::input() const {
-    return m_input;
+    if (!m_rmvpe || !m_rmvpe->is_open()) {
+        m_errorCode = ErrorCode::ModelNotLoaded;
+        m_errorMessage = tr("Failed to create RMVPE session. Make sure onnx model is valid.");
+        qCritical().noquote() << errorMessage();
+        return;
+    }
 }
 
 void ExtractPitchTask::runTask() {
@@ -60,15 +72,8 @@ void ExtractPitchTask::runTask() {
     newStatus.message = tr("Running inference: %1").arg(m_input.audioPath);
     setStatus(newStatus);
 
-    if (!m_rmvpe) {
-        success = false;
-        qCritical() << "Error: Infer engine is not initialized!";
-        return;
-    }
-
-    if (!m_rmvpe->is_open()) {
-        success = false;
-        qCritical() << "Error: Model is not loaded! Make sure the model exists and is valid.";
+    if (!m_rmvpe || !m_rmvpe->is_open()) {
+        qCritical().noquote() << errorMessage();
         return;
     }
 
@@ -83,13 +88,15 @@ void ExtractPitchTask::runTask() {
     const std::filesystem::path wavPath = m_input.audioPath.toStdString();
 #endif
 
-    success = m_rmvpe->get_f0(wavPath, threshold, rmvpe_res, msg, [=](int progress) {
+    const bool runSuccess = m_rmvpe->get_f0(wavPath, threshold, rmvpe_res, msg, [=](int progress) {
         auto progressStatus = status();
         progressStatus.progress = progress;
         setStatus(progressStatus);
     });
 
-    if (success) {
+    if (runSuccess) {
+        m_errorCode = ErrorCode::Success;
+        m_errorMessage = tr("Successfully extracted pitch.");
         qDebug() << "midi output:";
         for (const auto &[offset, f0, uv] : rmvpe_res) {
             const auto midi = freqToMidi(f0);
@@ -99,7 +106,9 @@ void ExtractPitchTask::runTask() {
             result.append({offset, processOutput(values)});
         }
     } else {
-        qCritical() << "Error: " << msg;
+        m_errorCode = ErrorCode::ModelRunFailed;
+        m_errorMessage = tr("RMVPE model run failed. Reason: ") + QString::fromStdString(msg);
+        qCritical().noquote() << "Error:" << errorMessage();
     }
 }
 
@@ -108,6 +117,8 @@ void ExtractPitchTask::terminate() {
         return;
     }
     m_rmvpe->terminate();
+    m_errorCode = ErrorCode::Terminated;
+    m_errorMessage = tr("Task terminated.");
 }
 
 std::vector<float> ExtractPitchTask::freqToMidi(const std::vector<float> &frequencies) {

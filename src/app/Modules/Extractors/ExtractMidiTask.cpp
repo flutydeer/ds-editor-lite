@@ -15,19 +15,33 @@
 #include <QThread>
 #include <utility>
 
-ExtractMidiTask::ExtractMidiTask(Input input) : m_input(std::move(input)) {
+ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
     TaskStatus status;
     status.title = tr("Extract Midi");
     status.message = tr("Pending infer: %1").arg(m_input.audioPath);
     setStatus(status);
 
-    const std::filesystem::path modelPath =
+    if (!inferEngine->initialized()) {
+        m_errorCode = ErrorCode::InferEngineNotLoaded;
+        m_errorMessage = tr("Inference engine is not loaded");
+        qCritical().noquote() << "Error:" << errorMessage();
+        return;
+    }
+
+    auto somePath = appOptions->general()->somePath;
+    const std::filesystem::path modelPath = somePath
 #ifdef _WIN32
-        appOptions->general()->somePath.toStdWString();
+        .toStdWString();
 #else
-        appOptions->general()->somePath.toStdString();
+        .toStdString();
 #endif
-    Q_ASSERT(!modelPath.empty());
+
+    if (modelPath.empty() || !exists(modelPath) || is_directory(modelPath)) {
+        m_errorCode = ErrorCode::ModelNotLoaded;
+        m_errorMessage = tr("Invalid SOME model path: ") + somePath;
+        qCritical().noquote() << "Error:" << errorMessage();
+        return;
+    }
 
     const auto getCurrentGpuIndex = []() {
         auto selectedGpu = DmlUtils::getGpuByIdString(appOptions->inference()->selectedGpuId);
@@ -43,15 +57,13 @@ ExtractMidiTask::ExtractMidiTask(Input input) : m_input(std::move(input)) {
                                 ? Some::ExecutionProvider::DML
                                 : Some::ExecutionProvider::CPU;
 
-    if (!inferEngine->initialized()) {
+    m_some = std::make_unique<Some::Some>(modelPath, rmProvider, device_id);
+    if (!m_some || !m_some->is_open()) {
+        m_errorCode = ErrorCode::ModelNotLoaded;
+        m_errorMessage = tr("Failed to create SOME session. Make sure onnx model is valid.");
+        qCritical().noquote() << errorMessage();
         return;
     }
-
-    m_some = std::make_unique<Some::Some>(modelPath, rmProvider, device_id);
-}
-
-const ExtractMidiTask::Input &ExtractMidiTask::input() const {
-    return m_input;
 }
 
 void ExtractMidiTask::runTask() {
@@ -59,15 +71,8 @@ void ExtractMidiTask::runTask() {
     newStatus.message = tr("Running inference: %1").arg(m_input.audioPath);
     setStatus(newStatus);
 
-    if (!m_some) {
-        success = false;
-        qCritical() << "Error: Infer engine is not initialized!";
-        return;
-    }
-
-    if (!m_some->is_open()) {
-        success = false;
-        qCritical() << "Error: Model is not loaded! Make sure the model exists and is valid.";
+    if (!m_some || !m_some->is_open()) {
+        qCritical().noquote() << errorMessage();
         return;
     }
 
@@ -80,17 +85,21 @@ void ExtractMidiTask::runTask() {
     const std::filesystem::path wavPath = m_input.audioPath.toStdString();
 #endif
 
-    success = m_some->get_midi(wavPath, midis, appModel->tempo(), msg, [=](int progress) {
+    const bool runSuccess = m_some->get_midi(wavPath, midis, appModel->tempo(), msg, [=](int progress) {
         auto progressStatus = status();
         progressStatus.progress = progress;
         setStatus(progressStatus);
     });
 
-    if (success) {
+    if (runSuccess) {
+        m_errorCode = ErrorCode::Success;
+        m_errorMessage = tr("Successfully extracted midi.");
         qDebug() << "midi output:";
         result = midis;
     } else {
-        qCritical() << "Error: " << msg;
+        m_errorCode = ErrorCode::ModelRunFailed;
+        m_errorMessage = tr("SOME model run failed. Reason: ") + QString::fromStdString(msg);
+        qCritical().noquote() << "Error:" << errorMessage();
     }
 }
 
@@ -99,4 +108,6 @@ void ExtractMidiTask::terminate() {
         return;
     }
     m_some->terminate();
+    m_errorCode = ErrorCode::Terminated;
+    m_errorMessage = tr("Task terminated.");
 }

@@ -21,7 +21,7 @@
 
 void MidiExtractController::runExtractMidi(const AudioClip *audioClip) {
     const auto path = audioClip->path();
-    const auto task = new ExtractMidiTask({audioClip->id(), path, appModel->tempo()});
+    const auto task = new ExtractMidiTask({-1, audioClip->id(), path, appModel->tempo()});
     const auto dlg = new TaskDialog(task, true, true);
     dlg->show();
     connect(task, &Task::finished, this, [=] { onExtractMidiTaskFinished(task); });
@@ -30,11 +30,12 @@ void MidiExtractController::runExtractMidi(const AudioClip *audioClip) {
 
 void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
     taskManager->removeTask(task);
-    if (!task->success) {
+    if (!task->success()) {
         Dialog dialog;
         dialog.setTitle("Task Failed");
         dialog.setMessage(
-            tr("Failed to extract Midi from audio:\n %1").arg(task->input().audioPath));
+            tr("Failed to extract Midi from audio:\n %1\n\n%2").arg(task->input().audioPath).arg(
+                task->errorMessage()));
         dialog.setModal(true);
 
         const auto btnClose = new AccentButton(tr("Close"));
