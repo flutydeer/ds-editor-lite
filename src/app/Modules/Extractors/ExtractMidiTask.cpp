@@ -44,7 +44,7 @@ ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
     }
 
     const auto getCurrentGpuIndex = []() {
-        auto selectedGpu = DmlGpuUtils::getGpuByIdString(appOptions->inference()->selectedGpuId);
+        auto selectedGpu = DmlGpuUtils::getGpuByPciDeviceVendorIdString(appOptions->inference()->selectedGpuId);
         if (selectedGpu.index < 0) {
             selectedGpu = DmlGpuUtils::getRecommendedGpu();
         }

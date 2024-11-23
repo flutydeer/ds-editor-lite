@@ -114,7 +114,7 @@ bool InferEngine::initialize(QString &error) {
     //const auto selectGpuIndex = appOptions->inference()->selectedGpuIndex < gpuDeviceList.size()
     //                                ? gpuDeviceList[appOptions->inference()->selectedGpuIndex].index
     //                                : gpuDeviceList.first().index;
-    auto selectedGpu = DmlGpuUtils::getGpuByIdString(appOptions->inference()->selectedGpuId);
+    auto selectedGpu = DmlGpuUtils::getGpuByPciDeviceVendorIdString(appOptions->inference()->selectedGpuId);
     if (selectedGpu.index < 0) {
         qInfo() << "Auto selecting GPU";
         selectedGpu = DmlGpuUtils::getRecommendedGpu();

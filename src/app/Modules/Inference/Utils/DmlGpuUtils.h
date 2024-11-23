@@ -13,8 +13,8 @@ class DmlGpuUtils {
 public:
     static GpuInfo getGpuByIndex(int index);
     static QList<GpuInfo> getGpuList();
-    static GpuInfo getGpuById(unsigned int deviceId, unsigned int vendorId, int indexHint = 0);
-    static GpuInfo getGpuByIdString(const QString &idString, int indexHint = 0);
+    static GpuInfo getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsigned int pciVendorId, int indexHint = 0);
+    static GpuInfo getGpuByPciDeviceVendorIdString(const QString &idString, int indexHint = 0);
     static GpuInfo getRecommendedGpu();
 };
 
@@ -28,14 +28,14 @@ public:
         return {};
     }
 
-    inline GpuInfo DmlGpuUtils::getGpuById(unsigned int deviceId, unsigned int vendorId, int indexHint) {
-        Q_UNUSED(deviceId)
-        Q_UNUSED(vendorId)
+    inline GpuInfo DmlGpuUtils::getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsigned int pciVendorId, int indexHint) {
+        Q_UNUSED(pciDeviceId)
+        Q_UNUSED(pciVendorId)
         Q_UNUSED(indexHint)
         return {};
     }
 
-    inline GpuInfo DmlGpuUtils::getGpuByIdString(const QString &idString, int indexHint) {
+    inline GpuInfo DmlGpuUtils::getGpuByPciDeviceVendorIdString(const QString &idString, int indexHint) {
         Q_UNUSED(idString)
         Q_UNUSED(indexHint)
         return {};

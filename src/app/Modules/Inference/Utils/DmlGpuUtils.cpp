@@ -86,7 +86,7 @@ QList<GpuInfo> DmlGpuUtils::getGpuList() {
 
 }
 
-GpuInfo DmlGpuUtils::getGpuById(unsigned int deviceId, unsigned int vendorId, int indexHint) {
+GpuInfo DmlGpuUtils::getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsigned int pciVendorId, int indexHint) {
     if (!initDxgi()) {
         return {};
     }
@@ -103,7 +103,7 @@ GpuInfo DmlGpuUtils::getGpuById(unsigned int deviceId, unsigned int vendorId, in
             continue;
         }
 
-        if (deviceId == desc.DeviceId && vendorId == desc.VendorId) {
+        if (pciDeviceId == desc.DeviceId && pciVendorId == desc.VendorId) {
             info = createGpuInfoFromDesc(desc, adapterIndex);
             if (adapterIndex >= indexHint) {
                 break;
@@ -113,13 +113,13 @@ GpuInfo DmlGpuUtils::getGpuById(unsigned int deviceId, unsigned int vendorId, in
     return info;
 }
 
-GpuInfo DmlGpuUtils::getGpuByIdString(const QString &idString, int indexHint) {
-    unsigned int deviceId = 0;
-    unsigned int vendorId = 0;
-    if (!GpuInfo::parseIdString(idString, deviceId, vendorId)) {
+GpuInfo DmlGpuUtils::getGpuByPciDeviceVendorIdString(const QString &idString, int indexHint) {
+    unsigned int pciDeviceId = 0;
+    unsigned int pciVendorId = 0;
+    if (!GpuInfo::parseIdString(idString, pciDeviceId, pciVendorId)) {
         return {};
     }
-    return getGpuById(deviceId, vendorId, indexHint);
+    return getGpuByPciDeviceVendorId(pciDeviceId, pciVendorId, indexHint);
 }
 
 GpuInfo DmlGpuUtils::getRecommendedGpu() {
