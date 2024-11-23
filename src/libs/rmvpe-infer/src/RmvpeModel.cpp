@@ -9,6 +9,7 @@
 
 namespace Rmvpe
 {
+    static inline bool initDirectML(Ort::SessionOptions &options, int deviceIndex, std::string *errorMessage = nullptr);
     static inline bool initCUDA(Ort::SessionOptions &options, int deviceIndex, std::string *errorMessage = nullptr);
 
     RmvpeModel::RmvpeModel(const std::filesystem::path &modelPath, const ExecutionProvider provider,
@@ -24,12 +25,10 @@ namespace Rmvpe
 #ifdef ONNXRUNTIME_ENABLE_DML
         case ExecutionProvider::DML:
         {
-            const Ort::Status status(OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id));
-            if (!status.IsOK()) {
-                std::cout << "Failed to enable DirectML: " << status.GetErrorMessage() << ". Falling back to CPU." << std::endl;
+            std::string errorMessage;
+            if (!initDirectML(m_session_options, device_id, &errorMessage)) {
+                std::cout << "Failed to enable Dml: " << errorMessage << ". Falling back to CPU." << std::endl;
             } else {
-                m_session_options.DisableMemPattern();
-                m_session_options.SetExecutionMode(ORT_SEQUENTIAL);
                 std::cout << "Use Dml execution provider" << std::endl;
             }
             break;
@@ -41,9 +40,9 @@ namespace Rmvpe
         {
             std::string errorMessage;
             if (!initCUDA(m_session_options, device_id, &errorMessage)) {
-                std::cout << "Failed to enable CUDA: " << errorMessage << std::endl;
+                std::cout << "Failed to enable CUDA: " << errorMessage << ". Falling back to CPU." << std::endl;
             } else {
-                std::cout << "Using CUDA execution provider" << std::endl;
+                std::cout << "Use CUDA execution provider" << std::endl;
             }
             break;
         }
@@ -119,6 +118,55 @@ namespace Rmvpe
             msg = "Error during model inference: " + std::string(e.what());
             return false;
         }
+    }
+
+    static inline bool initDirectML(Ort::SessionOptions &options, int deviceIndex, std::string *errorMessage) {
+#ifdef ONNXRUNTIME_ENABLE_DML
+        if (!options) {
+            if (errorMessage) {
+                *errorMessage = "SessionOptions must not be nullptr!";
+            }
+            return false;
+        }
+
+        if (deviceIndex < 0) {
+            if (errorMessage) {
+                *errorMessage = "GPU device index must be a non-negative integer!";
+            }
+            return false;
+        }
+
+        const OrtApi &ortApi = Ort::GetApi();
+        const OrtDmlApi *ortDmlApi;
+        Ort::Status getApiStatus((ortApi.GetExecutionProviderApi(
+            "DML", ORT_API_VERSION, reinterpret_cast<const void **>(&ortDmlApi))));
+        if (!getApiStatus.IsOK()) {
+            // Failed to get DirectML API.
+            if (errorMessage) {
+                *errorMessage = getApiStatus.GetErrorMessage();
+            }
+            return false;
+        }
+
+        // Successfully get DirectML API
+        options.DisableMemPattern();
+        options.SetExecutionMode(ORT_SEQUENTIAL);
+
+        Ort::Status appendStatus(
+            ortDmlApi->SessionOptionsAppendExecutionProvider_DML(options, deviceIndex));
+        if (!appendStatus.IsOK()) {
+            if (errorMessage) {
+                *errorMessage = appendStatus.GetErrorMessage();
+            }
+            return false;
+        }
+        return true;
+#else
+        if (errorMessage) {
+            *errorMessage = "The library is not built with DirectML support.";
+        }
+        return false;
+#endif
     }
 
     static inline bool initCUDA(Ort::SessionOptions &options, int deviceIndex, std::string *errorMessage) {
