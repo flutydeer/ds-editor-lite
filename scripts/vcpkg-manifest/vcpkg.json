@@ -37,7 +37,8 @@
         "widgets"
       ]
     },
-    "soxr"
+    "soxr",
+    "wolf-midi"
   ],
   "vcpkg-configuration": {
     "overlay-ports": [

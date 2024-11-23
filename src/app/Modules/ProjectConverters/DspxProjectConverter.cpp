@@ -66,7 +66,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         params.expressiveness = std::move(decodeSingingParam(dspxParams.expressiveness));
         params.energy = std::move(decodeSingingParam(dspxParams.energy));
         params.breathiness = std::move(decodeSingingParam(dspxParams.breathiness));
-        params.voicing =  std::move(decodeSingingParam(dspxParams.voicing));
+        params.voicing = std::move(decodeSingingParam(dspxParams.voicing));
         params.tension = std::move(decodeSingingParam(dspxParams.tension));
         params.gender = std::move(decodeSingingParam(dspxParams.gender));
         params.velocity = std::move(decodeSingingParam(dspxParams.velocity));
@@ -95,6 +95,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             note->setKeyIndex(dspxNote.keyNum);
             note->setLyric(dspxNote.lyric);
             note->setLanguage(dspxNote.language);
+            note->setG2pId(dspxNote.g2pId);
             note->setPronunciation(
                 Pronunciation(dspxNote.pronunciation.org, dspxNote.pronunciation.edited));
             note->setWorkspace(dspxNote.workspace);
@@ -110,6 +111,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 const auto castClip = dspxClip.dynamicCast<QDspx::SingingClip>();
                 const auto clip = new SingingClip;
                 clip->setName(castClip->name);
+                clip->defaultLanguage = castClip->language;
+                clip->defaultG2pId = castClip->g2pId;
                 clip->setStart(castClip->time.start);
                 clip->setClipStart(castClip->time.clipStart);
                 clip->setLength(castClip->time.length);
@@ -149,6 +152,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             trackControl.setMute(dspxTrack.control.mute);
             trackControl.setSolo(dspxTrack.control.solo);
             track->setName(dspxTrack.name);
+            track->setDefaultLanguage(dspxTrack.language);
+            track->setDefaultG2pId(dspxTrack.g2pId);
             track->setControl(trackControl);
             decodeClips(dspxTrack.clips, track);
             model->insertTrack(track, i);
@@ -228,7 +233,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         encodeSingingParam(dsParams.velocity, params.velocity);
     };
 
-    // auto encodePhonemes = [&](const QList<Phoneme> &dsPhonemes, QList<QDspx::Phoneme> &phonemes) {
+    // auto encodePhonemes = [&](const QList<Phoneme> &dsPhonemes, QList<QDspx::Phoneme> &phonemes)
+    // {
     //     for (const auto &dsPhoneme : dsPhonemes) {
     //         QDspx::Phoneme phoneme;
     //         phoneme.start = dsPhoneme.start;
@@ -252,6 +258,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             note.keyNum = dsNote->keyIndex();
             note.lyric = dsNote->lyric();
             note.language = dsNote->language();
+            note.g2pId = dsNote->g2pId();
             note.pronunciation.org = dsNote->pronunciation().original;
             note.pronunciation.edited = dsNote->pronunciation().edited;
             // encodePhonemes(dsNote->phonemeInfo().original, note.phonemes.org);
@@ -267,6 +274,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 const auto singingClip = dynamic_cast<SingingClip *>(clip);
                 auto singClip = QDspx::SingingClipRef::create();
                 singClip->name = clip->name();
+                singClip->language = singingClip->defaultLanguage;
+                singClip->g2pId = singingClip->defaultG2pId;
                 singClip->time.start = clip->start();
                 singClip->time.clipStart = clip->clipStart();
                 singClip->time.length = clip->length();
@@ -298,6 +307,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         for (const auto dsTrack : model->tracks()) {
             QDspx::Track track;
             track.name = dsTrack->name();
+            track.language = dsTrack->defaultLanguage();
+            track.g2pId = dsTrack->defaultG2pId();
             track.control.gain = dsTrack->control().gain();
             track.control.pan = dsTrack->control().pan();
             track.control.mute = dsTrack->control().mute();

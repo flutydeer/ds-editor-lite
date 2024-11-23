@@ -1,6 +1,6 @@
 {
   "name": "opendspx",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "homepage": "https://github.com/diffscope/opendspx",
   "description": "DiffScope data exchange format.",
   "license": "Apache-2.0",
@@ -15,6 +15,7 @@
     },
     "stdutau",
     "qastool",
-    "qnrbf"
+    "qnrbf",
+    "wolf-midi"
   ]
 }

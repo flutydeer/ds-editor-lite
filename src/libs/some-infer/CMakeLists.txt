@@ -74,7 +74,8 @@ target_link_directories(${PROJECT_NAME}
         $<INSTALL_INTERFACE:lib>
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile audio-util)
+find_package(wolf-midi CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile audio-util wolf-midi::wolf-midi)
 target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime)
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
