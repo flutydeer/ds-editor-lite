@@ -13,12 +13,10 @@ class GpuInfo {
 public:
     int index = -1;
     QString description;
-    unsigned int deviceId = 0;
-    unsigned int vendorId = 0;
+    QString deviceId;
     unsigned long long memory = 0;
 
     static inline QString getIdString(unsigned int device_id, unsigned int vendor_id);
-    inline QString getIdString() const;
     static inline bool parseIdString(QStringView idString, unsigned int &device_id, unsigned int &vendor_id);
 
 };
@@ -29,10 +27,6 @@ inline QString GpuInfo::getIdString(unsigned int device_id, unsigned int vendor_
     char s[ID_STR_LEN + 1] = { '\0' };
     snprintf(s, sizeof(s), "%04X%04X", device_id, vendor_id);
     return QString::fromLatin1(s, ID_STR_LEN);
-}
-
-inline QString GpuInfo::getIdString() const {
-    return getIdString(deviceId, vendorId);
 }
 
 inline bool GpuInfo::parseIdString(QStringView idString, unsigned int &device_id, unsigned int &vendor_id) {

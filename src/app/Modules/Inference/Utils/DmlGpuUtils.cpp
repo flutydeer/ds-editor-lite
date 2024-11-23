@@ -1,6 +1,6 @@
 #ifdef _WIN32
 
-#include "DmlUtils.h"
+#include "DmlGpuUtils.h"
 
 #include <dxgi1_6.h>
 #include <wrl/client.h>
@@ -19,8 +19,7 @@ static GpuInfo createGpuInfoFromDesc(const DXGI_ADAPTER_DESC1 &desc, int index) 
     GpuInfo info;
     info.index = index;
     info.description = QString::fromWCharArray(desc.Description);
-    info.deviceId = desc.DeviceId;
-    info.vendorId = desc.VendorId;
+    info.deviceId = GpuInfo::getIdString(desc.DeviceId, desc.VendorId);
     info.memory = desc.DedicatedVideoMemory;
     return info;
 }
@@ -35,7 +34,7 @@ static bool initDxgi() {
     return true;
 }
 
-GpuInfo DmlUtils::getGpuByIndex(int adapterIndex) {
+GpuInfo DmlGpuUtils::getGpuByIndex(int adapterIndex) {
     // Create DXGI factory
     if (!initDxgi()) {
         return {};
@@ -54,7 +53,7 @@ GpuInfo DmlUtils::getGpuByIndex(int adapterIndex) {
     return createGpuInfoFromDesc(desc, adapterIndex);
 }
 
-QList<GpuInfo> DmlUtils::getDirectXGPUs() {
+QList<GpuInfo> DmlGpuUtils::getGpuList() {
     QList<GpuInfo> gpuList;
 
     // Create DXGI factory
@@ -87,7 +86,7 @@ QList<GpuInfo> DmlUtils::getDirectXGPUs() {
 
 }
 
-GpuInfo DmlUtils::getGpuById(unsigned int deviceId, unsigned int vendorId, int indexHint) {
+GpuInfo DmlGpuUtils::getGpuById(unsigned int deviceId, unsigned int vendorId, int indexHint) {
     if (!initDxgi()) {
         return {};
     }
@@ -114,7 +113,7 @@ GpuInfo DmlUtils::getGpuById(unsigned int deviceId, unsigned int vendorId, int i
     return info;
 }
 
-GpuInfo DmlUtils::getGpuByIdString(const QString &idString, int indexHint) {
+GpuInfo DmlGpuUtils::getGpuByIdString(const QString &idString, int indexHint) {
     unsigned int deviceId = 0;
     unsigned int vendorId = 0;
     if (!GpuInfo::parseIdString(idString, deviceId, vendorId)) {
@@ -123,7 +122,7 @@ GpuInfo DmlUtils::getGpuByIdString(const QString &idString, int indexHint) {
     return getGpuById(deviceId, vendorId, indexHint);
 }
 
-GpuInfo DmlUtils::getRecommendedGpu() {
+GpuInfo DmlGpuUtils::getRecommendedGpu() {
     // Create DXGI factory
     if (!initDxgi()) {
         return {};

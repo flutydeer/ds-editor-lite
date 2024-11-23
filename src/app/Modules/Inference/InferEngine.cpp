@@ -15,7 +15,7 @@
 #include <dsonnxinfer/VarianceInference.h>
 
 #include "Utils/BasePitchCurve.h"
-#include "Utils/DmlUtils.h"
+#include "Utils/DmlGpuUtils.h"
 #include "Utils/Log.h"
 
 #include <QDebug>
@@ -94,7 +94,7 @@ bool InferEngine::initialize(QString &error) {
 #else
         "../lib/libonnxruntime.so";
 #endif
-    const auto &gpuDeviceList = DmlUtils::getDirectXGPUs();
+    const auto &gpuDeviceList = DmlGpuUtils::getGpuList();
     // Load environment (must do this before inference)
     auto ep = DS::EP_CPU;
     if (appOptions->inference()->executionProvider == "CPU")
@@ -114,17 +114,17 @@ bool InferEngine::initialize(QString &error) {
     //const auto selectGpuIndex = appOptions->inference()->selectedGpuIndex < gpuDeviceList.size()
     //                                ? gpuDeviceList[appOptions->inference()->selectedGpuIndex].index
     //                                : gpuDeviceList.first().index;
-    auto selectedGpu = DmlUtils::getGpuByIdString(appOptions->inference()->selectedGpuId);
+    auto selectedGpu = DmlGpuUtils::getGpuByIdString(appOptions->inference()->selectedGpuId);
     if (selectedGpu.index < 0) {
         qInfo() << "Auto selecting GPU";
-        selectedGpu = DmlUtils::getRecommendedGpu();
+        selectedGpu = DmlGpuUtils::getRecommendedGpu();
     } else {
         qInfo() << "Selecting GPU";
     }
 
     qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
                             .arg(selectedGpu.description)
-                            .arg(selectedGpu.getIdString())
+                            .arg(selectedGpu.deviceId)
                             .arg(selectedGpu.memory);
 
     m_env.setDeviceIndex(selectedGpu.index);

@@ -4,7 +4,7 @@
 
 #include "Log.h"
 
-#include "Modules/Inference/Utils/DmlUtils.h"
+#include "Modules/Inference/Utils/DmlGpuUtils.h"
 
 #include <QTextStream>
 #include <QDir>
@@ -88,7 +88,7 @@ void Log::logSystemInfo() {
 
 void Log::logGpuInfo() {
     qInfo() << "-------- GPU Info Begin --------";
-    for (const auto &gpu : DmlUtils::getDirectXGPUs()) {
+    for (const auto &gpu : DmlGpuUtils::getGpuList()) {
         qInfo() << gpu.index << gpu.description;
     }
     qInfo() << "--------- GPU Info End ---------";

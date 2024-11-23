@@ -7,7 +7,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
-#include "Modules/Inference/Utils/DmlUtils.h"
+#include "Modules/Inference/Utils/DmlGpuUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
@@ -44,9 +44,9 @@ ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
     }
 
     const auto getCurrentGpuIndex = []() {
-        auto selectedGpu = DmlUtils::getGpuByIdString(appOptions->inference()->selectedGpuId);
+        auto selectedGpu = DmlGpuUtils::getGpuByIdString(appOptions->inference()->selectedGpuId);
         if (selectedGpu.index < 0) {
-            selectedGpu = DmlUtils::getRecommendedGpu();
+            selectedGpu = DmlGpuUtils::getRecommendedGpu();
         }
         return selectedGpu.index;
     };

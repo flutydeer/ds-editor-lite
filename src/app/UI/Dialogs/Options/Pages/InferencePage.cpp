@@ -1,7 +1,7 @@
 #include "InferencePage.h"
 
 #include "Model/AppOptions/AppOptions.h"
-#include "Modules/Inference/Utils/DmlUtils.h"
+#include "Modules/Inference/Utils/DmlGpuUtils.h"
 #include "UI/Controls/CardView.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/DividerLine.h"
@@ -43,16 +43,13 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
 
     // Device - GPU
     m_cbDeviceList = new ComboBox();
-    auto deviceList = DmlUtils::getDirectXGPUs();
+    auto deviceList = DmlGpuUtils::getGpuList();
 
     m_cbDeviceList->insertItem(0, tr("Default"));
     m_cbDeviceList->setItemData(0, QVariant::fromValue<GpuInfo>({-1}), GpuInfoRole);
     m_cbDeviceList->setItemData(0, true, IsDefaultGpuRole);
 
-    unsigned int selectedGpuDeviceId = 0;
-    unsigned int selectedGpuVendorId = 0;
-    bool hasChosenDevice =
-        GpuInfo::parseIdString(option->selectedGpuId, selectedGpuDeviceId, selectedGpuVendorId);
+    bool hasChosenDevice = false;
 
     for (const auto &device : std::as_const(deviceList)) {
         int currentIndex = m_cbDeviceList->count();
@@ -64,10 +61,10 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
         m_cbDeviceList->setItemData(currentIndex, QVariant::fromValue<GpuInfo>(device),
                                     GpuInfoRole);
         m_cbDeviceList->setItemData(currentIndex, false, IsDefaultGpuRole);
-        if (hasChosenDevice) {
-            if (device.deviceId == selectedGpuDeviceId && device.vendorId == selectedGpuVendorId) {
+        if (!hasChosenDevice) {
+            if (device.deviceId == appOptions->inference()->selectedGpuId) {
                 m_cbDeviceList->setCurrentIndex(currentIndex);
-                hasChosenDevice = false;
+                hasChosenDevice = true;
             }
         }
     }
@@ -138,7 +135,7 @@ void InferencePage::modifyOption() {
     } else {
         const GpuInfo &gpuInfo = m_cbDeviceList->currentData(GpuInfoRole).value<GpuInfo>();
         option->selectedGpuIndex = gpuInfo.index;
-        option->selectedGpuId = gpuInfo.getIdString();
+        option->selectedGpuId = gpuInfo.deviceId;
     }
     option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
     option->depth = m_leDsDepth->text().toDouble();
