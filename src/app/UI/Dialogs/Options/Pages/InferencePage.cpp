@@ -2,6 +2,7 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/Utils/DmlGpuUtils.h"
+#include "Modules/Inference/Utils/CudaGpuUtils.h"
 #include "UI/Controls/CardView.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/DividerLine.h"
@@ -24,13 +25,17 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     // Device - Execution Provider
     constexpr int epIndexCpu = 0;
     constexpr int epIndexDirectML = 1;
+    constexpr int epIndexCuda = 2;
     m_cbExecutionProvider = new ComboBox();
     m_cbExecutionProvider->insertItem(epIndexCpu, "CPU");
     m_cbExecutionProvider->insertItem(epIndexDirectML, "DirectML");
+    m_cbExecutionProvider->insertItem(epIndexCuda, "CUDA");
     if (option->executionProvider == "CPU")
         m_cbExecutionProvider->setCurrentIndex(epIndexCpu);
     else if (option->executionProvider == "DirectML")
         m_cbExecutionProvider->setCurrentIndex(epIndexDirectML);
+    else if (option->executionProvider == "CUDA")
+        m_cbExecutionProvider->setCurrentIndex(epIndexCuda);
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this,
             &InferencePage::modifyOption);
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this, [=] {
@@ -43,7 +48,15 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
 
     // Device - GPU
     m_cbDeviceList = new ComboBox();
-    auto deviceList = DmlGpuUtils::getGpuList();
+    auto deviceList = [&]() -> QList<GpuInfo> {
+        if (option->executionProvider == "DirectML") {
+            return DmlGpuUtils::getGpuList();
+        } else if (option->executionProvider == "CUDA") {
+            return CudaGpuUtils::getGpuList();
+        } else {
+            return {};
+        }
+    }();
 
     m_cbDeviceList->insertItem(0, tr("Default"));
     m_cbDeviceList->setItemData(0, QVariant::fromValue<GpuInfo>({-1}), GpuInfoRole);

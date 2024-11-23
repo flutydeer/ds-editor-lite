@@ -95,7 +95,8 @@ static inline QString getCommandOutput() {
 }
 
 GpuInfo CudaGpuUtils::getGpuByIndex(int index) {
-    const QStringView output = getCommandOutput();
+    const auto output_ = getCommandOutput();
+    const QStringView output(output_);
     if (output.isEmpty()) {
         return {};
     }
@@ -115,11 +116,13 @@ GpuInfo CudaGpuUtils::getGpuByIndex(int index) {
 }
 
 QList<GpuInfo> CudaGpuUtils::getGpuList() {
-    return parseGpuListFromOutput(getCommandOutput());
+    const auto output_ = getCommandOutput();
+    return parseGpuListFromOutput(output_);
 }
 
 GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsigned int pciVendorId, int indexHint) {
-    const QStringView output = getCommandOutput();
+    const auto output_ = getCommandOutput();
+    const QStringView output(output_);
     if (output.isEmpty()) {
         return {};
     }
@@ -160,7 +163,8 @@ GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorIdString(const QString &idString, i
 }
 
 GpuInfo CudaGpuUtils::getGpuByUuid(const QString &uuid) {
-    const QStringView output = getCommandOutput();
+    const auto output_ = getCommandOutput();
+    const QStringView output(output_);
     if (output.isEmpty()) {
         return {};
     }

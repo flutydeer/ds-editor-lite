@@ -53,9 +53,15 @@ ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
 
     const int device_id = getCurrentGpuIndex();
 
-    const auto rmProvider = appOptions->inference()->executionProvider == "DirectML"
-                                ? Some::ExecutionProvider::DML
-                                : Some::ExecutionProvider::CPU;
+    const auto rmProvider = []() {
+        const auto inference = appOptions->inference();
+        if (inference->executionProvider == "DirectML") {
+            return Some::ExecutionProvider::DML;
+        } else if (inference->executionProvider == "CUDA") {
+            return Some::ExecutionProvider::CUDA;
+        }
+        return Some::ExecutionProvider::CPU;
+    }();
 
     m_some = std::make_unique<Some::Some>(modelPath, rmProvider, device_id);
     if (!m_some || !m_some->is_open()) {

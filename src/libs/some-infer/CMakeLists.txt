@@ -74,6 +74,14 @@ target_link_directories(${PROJECT_NAME}
         $<INSTALL_INTERFACE:lib>
 )
 
+if (ONNXRUNTIME_ENABLE_CUDA)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_CUDA)
+endif()
+
+if (ONNXRUNTIME_ENABLE_DML)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_DML)
+endif()
+
 find_package(wolf-midi CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile audio-util wolf-midi::wolf-midi)
 target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime)

@@ -63,6 +63,14 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
 
+if (ONNXRUNTIME_ENABLE_CUDA)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_CUDA)
+endif()
+
+if (ONNXRUNTIME_ENABLE_DML)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_DML)
+endif()
+
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
 
 # copy phoneme dict

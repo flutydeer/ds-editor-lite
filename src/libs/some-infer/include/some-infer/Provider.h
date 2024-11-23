@@ -3,7 +3,7 @@
 
 namespace Some
 {
-    enum class ExecutionProvider { CPU, DML };
+    enum class ExecutionProvider { CPU, DML, CUDA };
 }
 
 #endif // SOMEPROVIDER_H

@@ -20,6 +20,8 @@
 
 #include <QDebug>
 
+#include "Utils/CudaGpuUtils.h"
+
 namespace DS = dsonnxinfer;
 
 static void loggerCallbackDs(int level, const char *category, const char *msg) {
@@ -94,16 +96,32 @@ bool InferEngine::initialize(QString &error) {
 #else
         "../lib/libonnxruntime.so";
 #endif
-    const auto &gpuDeviceList = DmlGpuUtils::getGpuList();
-    // Load environment (must do this before inference)
+
     auto ep = DS::EP_CPU;
     if (appOptions->inference()->executionProvider == "CPU")
         ep = DS::EP_CPU;
     else if (appOptions->inference()->executionProvider == "DirectML") {
-        if (gpuDeviceList.empty())
-            qCritical() << "InferEngine: Unable to find GPU device.";
         ep = DS::EP_DirectML;
+    } else if (appOptions->inference()->executionProvider == "CUDA") {
+        ep = DS::EP_CUDA;
     }
+
+    const auto gpuDeviceList = [](DS::ExecutionProvider ep_) -> QList<GpuInfo> {
+        switch (ep_) {
+            case DS::EP_DirectML:
+                return DmlGpuUtils::getGpuList();
+            case DS::EP_CUDA:
+                return CudaGpuUtils::getGpuList();
+            default:
+                return {};
+        }
+    }(ep);
+
+    if (ep != DS::EP_CPU && gpuDeviceList.empty()) {
+        qCritical() << "InferEngine: Unable to find GPU device.";
+    }
+
+    // Load environment (must do this before inference)
     if (!m_env.load(ortPath, ep, &errorMessage)) {
         qCritical() << "Failed to load environment:" << errorMessage;
         error += errorMessage;
@@ -111,16 +129,32 @@ bool InferEngine::initialize(QString &error) {
         return false;
     }
 
-    //const auto selectGpuIndex = appOptions->inference()->selectedGpuIndex < gpuDeviceList.size()
-    //                                ? gpuDeviceList[appOptions->inference()->selectedGpuIndex].index
-    //                                : gpuDeviceList.first().index;
-    auto selectedGpu = DmlGpuUtils::getGpuByPciDeviceVendorIdString(appOptions->inference()->selectedGpuId);
-    if (selectedGpu.index < 0) {
-        qInfo() << "Auto selecting GPU";
-        selectedGpu = DmlGpuUtils::getRecommendedGpu();
-    } else {
-        qInfo() << "Selecting GPU";
-    }
+    const auto selectedGpu = [](DS::ExecutionProvider ep_) -> GpuInfo {
+        switch (ep_) {
+            case DS::EP_DirectML: {
+                auto selectedGpu = DmlGpuUtils::getGpuByPciDeviceVendorIdString(appOptions->inference()->selectedGpuId);
+                if (selectedGpu.index < 0) {
+                    qInfo() << "Auto selecting GPU";
+                    selectedGpu = DmlGpuUtils::getRecommendedGpu();
+                } else {
+                    qInfo() << "Selecting GPU";
+                }
+                return selectedGpu;
+            }
+            case DS::EP_CUDA: {
+                auto selectedGpu = CudaGpuUtils::getGpuByUuid(appOptions->inference()->selectedGpuId);
+                if (selectedGpu.index < 0) {
+                    qInfo() << "Auto selecting GPU";
+                    selectedGpu = CudaGpuUtils::getRecommendedGpu();
+                } else {
+                    qInfo() << "Selecting GPU";
+                }
+                return selectedGpu;
+            }
+            default:
+                return {};
+        }
+    }(ep);
 
     qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
                             .arg(selectedGpu.description)
@@ -141,7 +175,8 @@ bool InferEngine::initialize(QString &error) {
     });
 
     m_initialized = true;
-    qInfo() << "Successfully loaded environment. Execution provider: DirectML";
+    qInfo().noquote() << "Successfully loaded environment. Execution provider:"
+                      << appOptions->inference()->executionProvider;
     return true;
 }
 

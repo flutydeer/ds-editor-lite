@@ -53,9 +53,15 @@ ExtractPitchTask::ExtractPitchTask(Input input) : ExtractTask(std::move(input)) 
 
     const int device_id = getCurrentGpuIndex();
 
-    const auto rmProvider = appOptions->inference()->executionProvider == "DirectML"
-                                ? Rmvpe::ExecutionProvider::DML
-                                : Rmvpe::ExecutionProvider::CPU;
+    const auto rmProvider = []() {
+        const auto inference = appOptions->inference();
+        if (inference->executionProvider == "DirectML") {
+            return Rmvpe::ExecutionProvider::DML;
+        } else if (inference->executionProvider == "CUDA") {
+            return Rmvpe::ExecutionProvider::CUDA;
+        }
+        return Rmvpe::ExecutionProvider::CPU;
+    }();
 
     // TODO:: forced on cpu
     m_rmvpe = std::make_unique<Rmvpe::Rmvpe>(modelPath, Rmvpe::ExecutionProvider::CPU, 0);

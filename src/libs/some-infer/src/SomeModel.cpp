@@ -1,7 +1,7 @@
 #include <array>
 #include <iostream>
 
-#ifdef _WIN32
+#ifdef ONNXRUNTIME_ENABLE_DML
 #include <dml_provider_factory.h>
 #endif
 
@@ -9,26 +9,50 @@
 
 namespace Some
 {
+    static inline bool initCUDA(Ort::SessionOptions &options, int deviceIndex, std::string *errorMessage = nullptr);
+
     SomeModel::SomeModel(const std::filesystem::path &modelPath, const ExecutionProvider provider, const int device_id) :
         m_env(Ort::Env(ORT_LOGGING_LEVEL_WARNING, "RmvpeModel")), m_session_options(Ort::SessionOptions()),
         m_session(nullptr), m_waveform_input_name("waveform"), m_note_midi_output_name("note_midi"),
         m_note_rest_output_name("note_rest"), m_note_dur_output_name("note_dur") {
-        m_session_options.DisableMemPattern();
-        m_session_options.SetExecutionMode(ORT_SEQUENTIAL);
+
         m_session_options.SetInterOpNumThreads(4);
 
-#ifdef _WIN32
         // Choose execution provider based on the provided option
-        if (provider == ExecutionProvider::DML) {
+        switch (provider) {
+#ifdef ONNXRUNTIME_ENABLE_DML
+        case ExecutionProvider::DML:
+        {
             const Ort::Status status(OrtSessionOptionsAppendExecutionProvider_DML(m_session_options, device_id));
             if (!status.IsOK()) {
                 std::cout << "Failed to enable DirectML: " << status.GetErrorMessage() << ". Falling back to CPU." << std::endl;
             } else {
+                m_session_options.DisableMemPattern();
+                m_session_options.SetExecutionMode(ORT_SEQUENTIAL);
                 std::cout << "Use Dml execution provider" << std::endl;
             }
+            break;
         }
 #endif
 
+#if ONNXRUNTIME_ENABLE_CUDA
+        case ExecutionProvider::CUDA:
+        {
+            std::string errorMessage;
+            if (!initCUDA(m_session_options, device_id, &errorMessage)) {
+                std::cout << "Failed to enable CUDA: " << errorMessage << std::endl;
+            } else {
+                std::cout << "Using CUDA execution provider" << std::endl;
+            }
+            break;
+        }
+#endif
+
+        default:
+            break;
+        }
+
+        // Create ONNX Runtime Session
         try {
 #ifdef _WIN32
             m_session = Ort::Session(m_env, modelPath.wstring().c_str(), m_session_options);
@@ -92,6 +116,76 @@ namespace Some
             msg = "Error during model inference: " + std::string(e.what());
             return false;
         }
+    }
+
+    static inline bool initCUDA(Ort::SessionOptions &options, int deviceIndex, std::string *errorMessage) {
+#ifdef ONNXRUNTIME_ENABLE_CUDA
+        if (!options) {
+            if (errorMessage) {
+                *errorMessage = "SessionOptions must not be nullptr!";
+            }
+            return false;
+        }
+
+        if (deviceIndex < 0) {
+            if (errorMessage) {
+                *errorMessage = "GPU device index must be a non-negative integer!";
+            }
+            return false;
+        }
+
+        const OrtApi &ortApi = Ort::GetApi();
+
+        OrtCUDAProviderOptionsV2 *cudaOptionsPtr = nullptr;
+        Ort::Status createStatus(ortApi.CreateCUDAProviderOptions(&cudaOptionsPtr));
+
+        // Currently, ORT C++ API does not have a wrapper for CUDAProviderOptionsV2.
+        // Let the smart pointer take ownership of cudaOptionsPtr so it will be released when it
+        // goes out of scope.
+        std::unique_ptr<OrtCUDAProviderOptionsV2, decltype(ortApi.ReleaseCUDAProviderOptions)>
+            cudaOptions(cudaOptionsPtr, ortApi.ReleaseCUDAProviderOptions);
+
+        if (!createStatus.IsOK()) {
+            if (errorMessage) {
+                *errorMessage = createStatus.GetErrorMessage();
+            }
+            return false;
+        }
+
+        // The following block of code sets device_id
+        {
+            // Device ID from int to string
+            auto cudaDeviceIdStr = std::to_string(deviceIndex);
+            auto cudaDeviceIdCStr = cudaDeviceIdStr.c_str();
+
+            constexpr int CUDA_OPTIONS_SIZE = 2;
+            const char *cudaOptionsKeys[CUDA_OPTIONS_SIZE] = {"device_id",
+                                                              "cudnn_conv_algo_search"};
+            const char *cudaOptionsValues[CUDA_OPTIONS_SIZE] = {cudaDeviceIdCStr, "DEFAULT"};
+            Ort::Status updateStatus(ortApi.UpdateCUDAProviderOptions(
+                cudaOptions.get(), cudaOptionsKeys, cudaOptionsValues, CUDA_OPTIONS_SIZE));
+            if (!updateStatus.IsOK()) {
+                if (errorMessage) {
+                    *errorMessage = updateStatus.GetErrorMessage();
+                }
+                return false;
+            }
+        }
+        Ort::Status appendStatus(
+            ortApi.SessionOptionsAppendExecutionProvider_CUDA_V2(options, cudaOptions.get()));
+        if (!appendStatus.IsOK()) {
+            if (errorMessage) {
+                *errorMessage = appendStatus.GetErrorMessage();
+            }
+            return false;
+        }
+        return true;
+#else
+        if (errorMessage) {
+            *errorMessage = "The library is not built with CUDA support.";
+        }
+        return false;
+#endif
     }
 
 } // namespace Some
