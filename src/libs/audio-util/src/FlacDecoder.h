@@ -3,6 +3,7 @@
 
 #include <FLAC++/decoder.h>
 #include <audio-util/Util.h>
+#include <cstdint>
 #include <fcntl.h>
 #include <fstream>
 #include <mpg123.h>
@@ -24,7 +25,7 @@ namespace AudioUtil
         unsigned get_channels() const override;
         unsigned get_sample_rate() const override;
         unsigned get_bits_per_sample() const override;
-        unsigned long long get_total_samples() const override;
+        uint64_t get_total_samples() const override;
 
         ~FLACDecoder() override;
 

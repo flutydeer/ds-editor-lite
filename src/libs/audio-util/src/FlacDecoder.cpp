@@ -127,7 +127,7 @@ namespace AudioUtil
 
     unsigned FLACDecoder::get_bits_per_sample() const { return bitsPerSample; }
 
-    unsigned long long FLACDecoder::get_total_samples() const { return frames; }
+    uint64_t FLACDecoder::get_total_samples() const { return frames; }
 
     void write_flac_to_vio(const std::filesystem::path &filepath, SF_VIO &sf_vio) {
         FLACDecoder decoder(filepath.string());

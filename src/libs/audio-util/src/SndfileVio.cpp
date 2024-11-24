@@ -1,5 +1,7 @@
 #include <audio-util/SndfileVio.h>
 
+#include <cstring>
+
 namespace AudioUtil
 {
     sf_count_t qvio_get_filelen(void *user_data) {

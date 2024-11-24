@@ -2,6 +2,7 @@
 #define AUDIOSLICER_H
 
 #include <audio-util/AudioUtilGlobal.h>
+#include <cstdint>
 #include <vector>
 
 namespace AudioUtil

@@ -1,5 +1,6 @@
 #include "Mp3Decoder.h"
 
+#include <algorithm>
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
