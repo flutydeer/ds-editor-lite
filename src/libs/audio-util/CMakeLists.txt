@@ -73,7 +73,7 @@ find_library(Soxr_LIBRARY
 )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${Soxr_LIBRARY} MPG123::libmpg123 FLAC::FLAC++)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${Soxr_LIBRARY} MPG123::libmpg123)
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
