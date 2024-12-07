@@ -6,6 +6,27 @@
 
 namespace AudioUtil
 {
+    static inline std::vector<double> get_rms_impl_basic(const std::vector<float> &samples, const int frame_length,
+                                                         const int hop_length) {
+        std::vector<double> output;
+        const size_t output_size = samples.size() / hop_length;
+        output.reserve(output_size);
+
+        for (size_t i = 0; i < output_size; ++i) {
+            const bool is_underflow = i * hop_length < frame_length / 2;
+            const size_t start = is_underflow ? 0 : (i * hop_length - frame_length / 2);
+            const size_t end = (std::min)(samples.size(), i * hop_length - frame_length / 2 + frame_length);
+
+            const double sum = std::accumulate(samples.begin() + start, samples.begin() + end, 0.0,
+                                               [](const double acc, const float value) {
+                                                   return acc + value * value;
+                                               });
+            output.push_back(std::sqrt(sum / frame_length));
+        }
+
+        return output;
+    }
+
     // https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Core/Analysis/Some.cs
     Slicer::Slicer(int sampleRate, float threshold, int hopSize, int winSize, int minLength, int minInterval,
                    int maxSilKept) :
@@ -14,22 +35,7 @@ namespace AudioUtil
 
     std::vector<double> Slicer::get_rms(const std::vector<float> &samples, const int frame_length,
                                         const int hop_length) {
-        std::vector<float> y(samples.size() + frame_length, 0);
-        std::copy(samples.begin(), samples.end(), y.begin() + frame_length / 2);
-
-        std::vector<double> output;
-        const size_t output_size = samples.size() / hop_length;
-        output.reserve(output_size);
-
-        for (size_t i = 0; i < output_size; ++i) {
-            const int start = static_cast<int>(i * hop_length);
-            const int end = start + frame_length;
-            const double sum = std::accumulate(y.begin() + start, y.begin() + end, 0.0,
-                                               [](const double acc, const float value) { return acc + value * value; });
-            output.push_back(std::sqrt(sum / frame_length));
-        }
-
-        return output;
+        return get_rms_impl_basic(samples, frame_length, hop_length);
     }
 
     int Slicer::argmin(const std::vector<double> &array) {
