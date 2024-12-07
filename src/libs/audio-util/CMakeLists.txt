@@ -75,6 +75,14 @@ find_library(Soxr_LIBRARY
 target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${Soxr_LIBRARY} MPG123::libmpg123)
 
+# If xsimd is found, use the library to vectorize calculations for better performance.
+# Otherwise, fallback to scalar approaches.
+find_package(xsimd CONFIG)
+if (xsimd_FOUND)
+    target_link_libraries(${PROJECT_NAME} PRIVATE xsimd)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE AUDIOUTIL_ENABLE_XSIMD)
+endif()
+
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 

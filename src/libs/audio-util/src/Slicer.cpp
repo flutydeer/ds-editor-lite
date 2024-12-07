@@ -4,6 +4,10 @@
 #include <cmath>
 #include <numeric>
 
+#ifdef AUDIOUTIL_ENABLE_XSIMD
+#include <xsimd/xsimd.hpp>
+#endif
+
 namespace AudioUtil
 {
     static inline std::vector<double> get_rms_impl_basic(const std::vector<float> &samples, const int frame_length,
@@ -27,6 +31,55 @@ namespace AudioUtil
         return output;
     }
 
+#ifdef AUDIOUTIL_ENABLE_XSIMD
+    static inline double simd_sum(const std::vector<float> &arr, const size_t index_start, const size_t index_end) {
+        if (index_start >= index_end) {
+            return 0.0;
+        }
+        double local_sum = 0.0;
+        constexpr size_t simd_width = xsimd::batch<float>::size;
+        size_t j = index_start;
+
+        // SIMD loop over the range [start, end)
+        for (; j + simd_width <= index_end; j += simd_width) {
+            // Load the batch of samples into SIMD registers
+            xsimd::batch<float> sample_batch = xsimd::load_unaligned(&arr[j]);
+
+            // Square the values
+            xsimd::batch<float> squared = sample_batch * sample_batch;
+
+            // Sum the values in the SIMD batch
+            local_sum += xsimd::reduce_add(squared);
+        }
+
+        // Handle any remaining elements (if any)
+        for (; j < index_end; ++j) {
+            // Process the remaining scalar values
+            local_sum += arr[j] * arr[j];
+        }
+        return local_sum;
+    }
+
+    static inline std::vector<double> get_rms_impl_xsimd(const std::vector<float> &samples, const int frame_length,
+                                                         const int hop_length) {
+        std::vector<double> output;
+        const size_t output_size = samples.size() / hop_length;
+        output.reserve(output_size);
+
+        for (size_t i = 0; i < output_size; ++i) {
+            const bool is_underflow = i * hop_length < frame_length / 2;
+            const size_t start = is_underflow ? 0 : (i * hop_length - frame_length / 2);
+            const size_t end = (std::min)(samples.size(), i * hop_length - frame_length / 2 + frame_length);
+
+            const double sum = simd_sum(samples, start, end);
+
+            output.push_back(std::sqrt(sum / frame_length));  // Calculate RMS for the frame
+        }
+
+        return output;
+    }
+#endif
+
     // https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Core/Analysis/Some.cs
     Slicer::Slicer(int sampleRate, float threshold, int hopSize, int winSize, int minLength, int minInterval,
                    int maxSilKept) :
@@ -35,7 +88,11 @@ namespace AudioUtil
 
     std::vector<double> Slicer::get_rms(const std::vector<float> &samples, const int frame_length,
                                         const int hop_length) {
+#ifdef AUDIOUTIL_ENABLE_XSIMD
+        return get_rms_impl_xsimd(samples, frame_length, hop_length);
+#else
         return get_rms_impl_basic(samples, frame_length, hop_length);
+#endif
     }
 
     int Slicer::argmin(const std::vector<double> &array) {
