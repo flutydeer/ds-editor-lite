@@ -37,12 +37,6 @@ void runInference(const Rmvpe::Rmvpe &rmvpe, const std::filesystem::path &wavPat
     }
 }
 
-void terminateRmvpeAfterDelay(const Rmvpe::Rmvpe &rmvpe, const int delaySeconds) {
-    std::this_thread::sleep_for(std::chrono::seconds(delaySeconds));
-    rmvpe.terminate();
-    std::cout << "Rmvpe terminated after " << delaySeconds << " seconds." << std::endl;
-}
-
 int main(const int argc, char *argv[]) {
     if (argc != 5 && argc != 6) {
         std::cerr << "Usage: " << argv[0] << " <model_path> <wav_path> <dml/cpu> <device_id> [csv_output]" << std::endl;
