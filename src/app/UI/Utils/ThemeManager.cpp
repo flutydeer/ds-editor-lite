@@ -57,7 +57,7 @@ bool ThemeManager::eventFilter(QObject *watched, QEvent *event) {
         for (auto window : m_windows)
             if (window == watched) {
                 WindowFrameUtils::applyFrameEffects(window);
-                if (SystemUtils::productType() == SystemUtils::SystemProductType::Windows) {
+                if (SystemUtils::isWindows()) {
                     if (QSysInfo::productVersion() == "11")
                         window->setProperty("transparentWindow", true);
                     else

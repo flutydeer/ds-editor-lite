@@ -84,7 +84,7 @@ public:
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
-    [[nodiscard]] QString serializeToJson(bool useMetadata = false) const;
+    [[nodiscard]] QString serializeToJson(bool useMetadata = true) const;
     bool deserializeFromJson(const QString &json);
     [[nodiscard]] QString hashData() const override;
 };

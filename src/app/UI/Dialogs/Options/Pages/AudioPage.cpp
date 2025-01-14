@@ -140,7 +140,7 @@ public:
         connect(deviceControlPanelButton, &QPushButton::clicked, this, [=] {
             if (const auto device = AudioSystem::outputSystem()->outputContext()->device()) {
                 auto driverName = device->driver()->name();
-                if (SystemUtils::productType() == SystemUtils::SystemProductType::Windows &&
+                if (SystemUtils::isWindows() &&
                     (driverName == "winmm" || driverName == "directsound" ||
                      driverName == "wasapi")) {
                     QDesktopServices::openUrl(QUrl("ms-settings:sound"));

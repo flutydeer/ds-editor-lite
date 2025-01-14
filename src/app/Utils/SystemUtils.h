@@ -12,6 +12,7 @@ class SystemUtils {
 public:
     enum class SystemProductType { Windows, MacOS, Linux };
     static SystemProductType productType();
+    static bool isWindows();
 };
 
 inline SystemUtils::SystemProductType SystemUtils::productType() {
@@ -20,6 +21,10 @@ inline SystemUtils::SystemProductType SystemUtils::productType() {
     if (QSysInfo::productType() == "macos")
         return SystemProductType::MacOS;
     return SystemProductType::Linux;
+}
+
+inline bool SystemUtils::isWindows() {
+    return productType() == SystemProductType::Windows;
 }
 
 #endif // SYSTEMUTILS_H

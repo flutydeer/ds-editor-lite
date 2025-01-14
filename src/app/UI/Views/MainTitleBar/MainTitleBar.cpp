@@ -2,11 +2,6 @@
 // Created by fluty on 24-7-30.
 //
 
-#define ChromeMinimize 0xE921
-#define ChromeMaximize 0xE922
-#define ChromeRestore  0xE923
-#define ChromeClose    0xE8BB
-
 #include "MainTitleBar.h"
 
 #include "ActionButtonsView.h"
@@ -16,6 +11,7 @@
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ToolTipFilter.h"
+#include "Utils/SystemUtils.h"
 
 #include <QEvent>
 #include <QGraphicsOpacityEffect>
@@ -24,8 +20,15 @@
 #include <QStyle>
 #include <QVariantAnimation>
 
+enum {
+    ChromeMinimize = 0xE921,
+    ChromeMaximize = 0xE922,
+    ChromeRestore = 0xE923,
+    ChromeClose = 0xE8BB
+};
+
 MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame)
-    : QWidget(parent), m_menuView(menuView), m_window(parent) {
+    : QWidget(parent), m_window(parent), m_menuView(menuView) {
     setAttribute(Qt::WA_StyledBackground);
 
     m_playbackView = new PlaybackView(this);
@@ -60,7 +63,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         m_btnClose->setObjectName("CloseButton");
         m_btnClose->setFixedSize(systemButtonWidth, 40);
 
-        if (QSysInfo::productType() == "windows") {
+        if (SystemUtils::isWindows()) {
             auto fontFamily =
                 QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
             auto font = QFont(fontFamily);
@@ -163,7 +166,7 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
         auto checked = m_window->isMaximized();
         if (m_btnMax) {
             m_btnMax->setChecked(checked);
-            if (QSysInfo::productType() == "windows")
+            if (SystemUtils::isWindows())
                 m_btnMax->setText(checked ? QChar(ChromeRestore) : QChar(ChromeMaximize));
             else
                 m_btnMax->setIcon(checked ? QIcon(":svg/title-bar/restore_16_filled_white.svg")
