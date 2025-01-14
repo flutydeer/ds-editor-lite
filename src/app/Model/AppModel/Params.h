@@ -15,7 +15,7 @@ public:
     Param(const Param &) = default;
     ~Param();
     [[nodiscard]] const QList<Curve *> &curves(Type type) const;
-    void setCurves(Type type, const QList<Curve *> &curves);
+    void setCurves(Type type, const QList<Curve *> &curves, SingingClip *clip);
 
     Param &operator=(const Param &from) = default;
 
@@ -54,6 +54,8 @@ public:
         Unknown
     };
 
+    explicit ParamInfo(SingingClip *clip);
+
     Param pitch;
     Param expressiveness;
     Param energy;
@@ -65,6 +67,9 @@ public:
 
     Param *getParamByName(Name name);
     static bool hasOriginalParam(Name name);
+
+private:
+    QPointer<SingingClip> m_clip;
 };
 
 

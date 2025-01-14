@@ -10,7 +10,10 @@
 #include "Utils/Overlappable.h"
 #include "Utils/UniqueObject.h"
 
+#include <QPointer>
+
 class QPoint;
+class SingingClip;
 
 class Curve : public Overlappable, public UniqueObject {
 public:
@@ -23,16 +26,21 @@ public:
         return Generic;
     }
 
-    int compareTo(const Curve *obj) const;
+    [[nodiscard]] SingingClip *clip() const;
+    void setClip(SingingClip *clip);
+    [[nodiscard]] int globalStart() const;
+    void setGlobalStart(int start);
     [[nodiscard]] int localStart() const;
     virtual void setLocalStart(int start);
     [[nodiscard]] virtual int localEndTick() const;
 
+    int compareTo(const Curve *obj) const;
     virtual bool isOverlappedWith(Curve *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
 
 private:
+    QPointer<SingingClip> m_clip;
     int m_startTick = 0;
 };
 

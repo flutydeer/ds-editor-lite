@@ -12,8 +12,8 @@ class SingingClip;
 
 class ReplaceParamAction final : public IAction {
 public:
-    static ReplaceParamAction *build(ParamInfo::Name paramName, Param::Type paramType,
-                                     const QList<Curve *> &curves, SingingClip *clip);
+    explicit ReplaceParamAction(ParamInfo::Name paramName, Param::Type paramType,
+                                const QList<Curve *> &curves, SingingClip *clip);
     void execute() override;
     void undo() override;
 

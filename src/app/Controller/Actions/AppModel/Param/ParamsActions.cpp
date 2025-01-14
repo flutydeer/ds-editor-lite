@@ -8,5 +8,5 @@
 
 void ParamsActions::replaceParam(ParamInfo::Name paramName, Param::Type paramType,
                                  const QList<Curve *> &curves, SingingClip *clip) {
-    addAction(ReplaceParamAction::build(paramName, paramType, curves, clip));
+    addAction(new ReplaceParamAction(paramName, paramType, curves, clip));
 }

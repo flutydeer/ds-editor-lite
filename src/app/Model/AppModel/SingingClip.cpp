@@ -12,11 +12,11 @@
 
 #include <QTimer>
 
-SingingClip::SingingClip() : Clip() {
+SingingClip::SingingClip() : Clip(), params(this) {
     init();
 }
 
-SingingClip::SingingClip(const QList<Note *> &notes) : Clip(){
+SingingClip::SingingClip(const QList<Note *> &notes) : Clip(), params(this) {
     init();
     insertNotes(notes);
 }
@@ -107,7 +107,7 @@ void SingingClip::updateOriginalParam(ParamInfo::Name name) {
             curves.append(new DrawCurve(*curve)); // 复制分段上的参数
     }
     auto param = params.getParamByName(name);
-    param->setCurves(Param::Original, curves);
+    param->setCurves(Param::Original, curves, this);
     notifyParamChanged(name, Param::Original);
 }
 

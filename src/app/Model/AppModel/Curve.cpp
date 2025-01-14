@@ -4,15 +4,37 @@
 
 #include "Curve.h"
 
+#include "SingingClip.h"
+
 #include <QDebug>
 
-int Curve::compareTo(const Curve *obj) const {
-    int otherStart = obj->localStart();
-    if (localStart() < otherStart)
-        return -1;
-    if (localStart() > otherStart)
-        return 1;
-    return 0;
+SingingClip *Curve::clip() const {
+    return m_clip;
+}
+
+void Curve::setClip(SingingClip *clip) {
+    m_clip = clip;
+}
+
+int Curve::globalStart() const {
+    if (!m_clip) {
+        qFatal() << "SingingClip is null";
+        return m_startTick;
+    }
+    auto offset = m_clip->start();
+    return m_startTick + offset;
+}
+
+void Curve::setGlobalStart(int start) {
+    if (!m_clip) {
+        qFatal() << "SingingClip is null";
+        setLocalStart(start);
+        return;
+    }
+    auto offset = m_clip->start();
+    auto rStart = start - offset;
+    Q_ASSERT(rStart >= 0);
+    setLocalStart(rStart);
 }
 
 int Curve::localStart() const {
@@ -25,6 +47,23 @@ void Curve::setLocalStart(int start) {
 
 int Curve::localEndTick() const {
     return m_startTick;
+}
+
+int Curve::compareTo(const Curve *obj) const {
+    if (!m_clip) {
+        qWarning() << "SingingClip is null";
+        return 0;
+    }
+    if (m_clip != obj->m_clip) {
+        qWarning() << "SingingClip is not the same";
+        return 0;
+    }
+    int otherStart = obj->localStart();
+    if (localStart() < otherStart)
+        return -1;
+    if (localStart() > otherStart)
+        return 1;
+    return 0;
 }
 
 bool Curve::isOverlappedWith(Curve *obj) const {

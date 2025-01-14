@@ -4,6 +4,8 @@
 
 #include "Params.h"
 
+#include "SingingClip.h"
+
 #include <QDebug>
 
 Param::~Param() {
@@ -32,8 +34,9 @@ const QList<Curve *> &Param::curves(Type type) const {
     }
 }
 
-void Param::setCurves(Type type, const QList<Curve *> &curves) {
-    // TODO: 替换曲线前释放原有的曲线？
+void Param::setCurves(Type type, const QList<Curve *> &curves, SingingClip *clip) {
+    for (const auto &curve : curves)
+        curve->setClip(clip);
     switch (type) {
         case Original:
             m_original = curves;
@@ -47,6 +50,11 @@ void Param::setCurves(Type type, const QList<Curve *> &curves) {
         case Unknown:
             break;
     }
+}
+
+
+ParamInfo::ParamInfo(SingingClip *clip) {
+    m_clip = clip;
 }
 
 Param *ParamInfo::getParamByName(Name name) {
