@@ -60,6 +60,9 @@ InferEngine::InferEngine() {
     });
     taskManager->addAndStartTask(initTask);
     appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Loading;
+
+    // Prevent crash on app exit
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, &InferEngine::dispose);
 }
 
 InferEngine::~InferEngine() {
