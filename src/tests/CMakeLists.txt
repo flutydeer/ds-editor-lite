@@ -1,5 +1,5 @@
 add_subdirectory(TestAnchoredCurve)
 #add_subdirectory(TestParamEdit)
-add_subdirectory(TestTaskManager)
-add_subdirectory(TestNewStyle)
-add_subdirectory(TestOpenGLWidget)
+#add_subdirectory(TestTaskManager)
+#add_subdirectory(TestNewStyle)
+#add_subdirectory(TestOpenGLWidget)

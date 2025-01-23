@@ -1,10 +1,19 @@
 //
 // Created by fluty on 24-2-11.
 //
-#include <QDebug>
+#include <QApplication>
 
-#include "anchoredcurve.h"
+#include "TestAnchorEditor.h"
 
 int main(int argc, char *argv[]) {
-    return 0;
+    QApplication app(argc, argv);
+
+    auto font = QApplication::font();
+    font.setHintingPreference(QFont::PreferNoHinting);
+    QApplication::setFont(font);
+
+    TestAnchorEditor window;
+    window.show();
+
+    return QApplication::exec();
 }

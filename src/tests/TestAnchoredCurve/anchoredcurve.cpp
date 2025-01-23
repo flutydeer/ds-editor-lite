@@ -3,26 +3,26 @@
 #include <algorithm>
 #include <utility>
 
-template <typename T, typename U>
-Knot<T, U>::Knot() : position(T()), value(U()), slope(0.0) {
+template <typename TPos, typename TValue>
+Knot<TPos, TValue>::Knot() : position(TPos()), value(TValue()), slope(0.0) {
 }
 
-template <typename T, typename U>
-Knot<T, U>::Knot(T position, U value, double slope)
+template <typename TPos, typename TValue>
+Knot<TPos, TValue>::Knot(TPos position, TValue value, double slope)
     : position(position), value(value), slope(slope) {
 }
 
-template <typename T, typename U>
-Knot<T, U>::Knot(T position, U value) : position(position), value(value), slope(0.0) {
+template <typename TPos, typename TValue>
+Knot<TPos, TValue>::Knot(TPos position, TValue value) : position(position), value(value), slope(0.0) {
 }
 
-template <typename T, typename U>
-Knot<T, U>::Knot(const Knot &other)
+template <typename TPos, typename TValue>
+Knot<TPos, TValue>::Knot(const Knot &other)
     : position(other.position), value(other.value), slope(other.slope) {
 }
 
-template <typename T, typename U>
-Knot<T, U> &Knot<T, U>::operator=(const Knot &other) {
+template <typename TPos, typename TValue>
+Knot<TPos, TValue> &Knot<TPos, TValue>::operator=(const Knot &other) {
     if (this != &other) {
         position = other.position;
         value = other.value;
@@ -31,47 +31,47 @@ Knot<T, U> &Knot<T, U>::operator=(const Knot &other) {
     return *this;
 }
 
-template <typename T, typename U>
-T Knot<T, U>::getPosition() const {
+template <typename TPos, typename TValue>
+TPos Knot<TPos, TValue>::getPosition() const {
     return position;
 }
 
-template <typename T, typename U>
-void Knot<T, U>::setPosition(T position) {
+template <typename TPos, typename TValue>
+void Knot<TPos, TValue>::setPosition(TPos position) {
     this->position = position;
 }
 
-template <typename T, typename U>
-U Knot<T, U>::getValue() const {
+template <typename TPos, typename TValue>
+TValue Knot<TPos, TValue>::getValue() const {
     return value;
 }
 
-template <typename T, typename U>
-void Knot<T, U>::setValue(U value) {
+template <typename TPos, typename TValue>
+void Knot<TPos, TValue>::setValue(TValue value) {
     this->value = value;
 }
 
-template <typename T, typename U>
-double Knot<T, U>::getSlope() const {
+template <typename TPos, typename TValue>
+double Knot<TPos, TValue>::getSlope() const {
     return slope;
 }
 
-template <typename T, typename U>
-void Knot<T, U>::setSlope(double slope) {
+template <typename TPos, typename TValue>
+void Knot<TPos, TValue>::setSlope(double slope) {
     this->slope = slope;
 }
 
-template <typename T, typename U>
-bool Knot<T, U>::operator==(const Knot &other) const {
+template <typename TPos, typename TValue>
+bool Knot<TPos, TValue>::operator==(const Knot &other) const {
     return this->position == other.position;
 }
 
-template <typename T, typename U>
-Segment<T, U>::Segment() : x_k(T()), x_k1(T()), y_k(U()), y_k1(U()), m_k(0.0), m_k1(0.0) {
+template <typename TPos, typename TValue>
+Segment<TPos, TValue>::Segment() : x_k(TPos()), x_k1(TPos()), y_k(TValue()), y_k1(TValue()), m_k(0.0), m_k1(0.0) {
 }
 
-template <typename T, typename U>
-Segment<T, U>::Segment(Knot<T, U> k1, Knot<T, U> k2) {
+template <typename TPos, typename TValue>
+Segment<TPos, TValue>::Segment(Knot<TPos, TValue> k1, Knot<TPos, TValue> k2) {
     x_k = k1.getPosition();
     x_k1 = k2.getPosition();
     y_k = k1.getValue();
@@ -80,14 +80,14 @@ Segment<T, U>::Segment(Knot<T, U> k1, Knot<T, U> k2) {
     m_k1 = k2.getSlope();
 }
 
-template <typename T, typename U>
-Segment<T, U>::Segment(const Segment &other)
+template <typename TPos, typename TValue>
+Segment<TPos, TValue>::Segment(const Segment &other)
     : x_k(other.x_k), x_k1(other.x_k1), y_k(other.y_k), y_k1(other.y_k1), m_k(other.m_k),
       m_k1(other.m_k1) {
 }
 
-template <typename T, typename U>
-Segment<T, U> &Segment<T, U>::operator=(const Segment &other) {
+template <typename TPos, typename TValue>
+Segment<TPos, TValue> &Segment<TPos, TValue>::operator=(const Segment &other) {
     if (this != &other) {
         x_k = other.x_k;
         x_k1 = other.x_k1;
@@ -99,36 +99,36 @@ Segment<T, U> &Segment<T, U>::operator=(const Segment &other) {
     return *this;
 }
 
-template <typename T, typename U>
-U Segment<T, U>::getValue(T position) const {
+template <typename TPos, typename TValue>
+TValue Segment<TPos, TValue>::getValue(TPos position) const {
     assert((x_k <= position) && (position <= x_k1));
-    T x_k1_minus_x_k = x_k1 - x_k;
-    T x_minus_x_k = position - x_k;
-    T x_minus_x_k1 = position - x_k1;
+    TPos x_k1_minus_x_k = x_k1 - x_k;
+    TPos x_minus_x_k = position - x_k;
+    TPos x_minus_x_k1 = position - x_k1;
     double a = x_minus_x_k / x_k1_minus_x_k;
     double b = -x_minus_x_k1 / x_k1_minus_x_k;
-    U res = (1 + 2 * a) * b * b * y_k + (1 + 2 * b) * a * a * y_k1 + x_minus_x_k * b * b * m_k +
+    TValue res = (1 + 2 * a) * b * b * y_k + (1 + 2 * b) * a * a * y_k1 + x_minus_x_k * b * b * m_k +
             x_minus_x_k1 * a * a * m_k1;
     return res;
 }
 
-template <typename T, typename U>
-AnchoredCurve<T, U>::AnchoredCurve() {
+template <typename TPos, typename TValue>
+AnchoredCurve<TPos, TValue>::AnchoredCurve() {
     knots.clear();
     segments.clear();
 }
 
-template <typename T, typename U>
-AnchoredCurve<T, U>::~AnchoredCurve() = default;
+template <typename TPos, typename TValue>
+AnchoredCurve<TPos, TValue>::~AnchoredCurve() = default;
 
-template <typename T, typename U>
-AnchoredCurve<T, U>::AnchoredCurve(const AnchoredCurve &other) {
+template <typename TPos, typename TValue>
+AnchoredCurve<TPos, TValue>::AnchoredCurve(const AnchoredCurve &other) {
     knots = other.knots;
     segments = other.segments;
 }
 
-template <typename T, typename U>
-AnchoredCurve<T, U> &AnchoredCurve<T, U>::operator=(const AnchoredCurve &other) {
+template <typename TPos, typename TValue>
+AnchoredCurve<TPos, TValue> &AnchoredCurve<TPos, TValue>::operator=(const AnchoredCurve &other) {
     if (this != &other) {
         knots = other.knots;
         segments = other.segments;
@@ -136,29 +136,29 @@ AnchoredCurve<T, U> &AnchoredCurve<T, U>::operator=(const AnchoredCurve &other) 
     return *this;
 }
 
-template <typename T, typename U>
-AnchoredCurve<T, U>::AnchoredCurve(const QList<Knot<T, U>> &knots) {
+template <typename TPos, typename TValue>
+AnchoredCurve<TPos, TValue>::AnchoredCurve(const QList<Knot<TPos, TValue>> &knots) {
     this->knots = knots;
     this->updateAll();
 }
 
-template <typename T, typename U>
-AnchoredCurve<T, U>::AnchoredCurve(std::initializer_list<T> positions,
-                                   std::initializer_list<U> values) {
+template <typename TPos, typename TValue>
+AnchoredCurve<TPos, TValue>::AnchoredCurve(std::initializer_list<TPos> positions,
+                                   std::initializer_list<TValue> values) {
     // 使用 std::initializer_list 的 size() 成员函数
     for (size_t i = 0; i < positions.size(); ++i) {
-        knots.push_back(Knot<T, U>(*(positions.begin() + i), *(values.begin() + i)));
+        knots.push_back(Knot<TPos, TValue>(*(positions.begin() + i), *(values.begin() + i)));
     }
     updateAll();
 }
 
-template <typename T, typename U>
-U AnchoredCurve<T, U>::getValue(const T position) const {
+template <typename TPos, typename TValue>
+TValue AnchoredCurve<TPos, TValue>::getValue(const TPos position) const {
     if (segments.count() <= 0) {
-        return U();
+        return TValue();
     }
     auto it =
-        std::lower_bound(knots.begin(), knots.end(), Knot<T, U>(position, U()), knotCmp<T, U>);
+        std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(position, TValue()), knotCmp<TPos, TValue>);
     if (it == knots.end()) {
         return knots.back().getValue();
     }
@@ -169,20 +169,20 @@ U AnchoredCurve<T, U>::getValue(const T position) const {
     return segments[index - 1].getValue(position);
 }
 
-template <typename T, typename U>
-std::vector<std::pair<T, U>> AnchoredCurve<T, U>::getValueLinspace(const T start, const T end,
+template <typename TPos, typename TValue>
+std::vector<std::pair<TPos, TValue>> AnchoredCurve<TPos, TValue>::getValueLinspace(const TPos start, const TPos end,
                                                                    const int num) const {
-    std::vector<std::pair<T, U>> res;
+    std::vector<std::pair<TPos, TValue>> res;
     if (num == 0) {
         return res;
     }
     auto knot_it =
-        std::lower_bound(knots.begin(), knots.end(), Knot<T, U>(start, 0), knotCmp<T, U>);
+        std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(start, 0), knotCmp<TPos, TValue>);
     int curr_segment_index = std::distance(knots.begin(), knot_it) - 1;
     double num_d = num;
     for (int i = 0; i < num; i++) {
         double w = (static_cast<double>(i) / num_d);
-        T position = static_cast<T>((1.0 - w) * start + w * end);
+        TPos position = static_cast<TPos>((1.0 - w) * start + w * end);
 
         if (curr_segment_index < 0) {
             if (knots.front().getPosition() <= position) {
@@ -208,15 +208,15 @@ std::vector<std::pair<T, U>> AnchoredCurve<T, U>::getValueLinspace(const T start
     return res;
 }
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::insert(const Knot<T, U> knot) {
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::insert(const Knot<TPos, TValue> knot) {
     // 边界条件，knots.count()==0
     if (knots.count() <= 0) {
         knots.push_back(knot);
         return;
     }
 
-    auto it = std::lower_bound(knots.begin(), knots.end(), knot, knotCmp<T, U>);
+    auto it = std::lower_bound(knots.begin(), knots.end(), knot, knotCmp<TPos, TValue>);
     int index;
     if (it != knots.end()) {
         index = std::distance(knots.begin(), it);
@@ -226,14 +226,14 @@ void AnchoredCurve<T, U>::insert(const Knot<T, U> knot) {
 
     if (index >= knots.count()) {
         knots.push_back(knot);
-        segments.push_back(Segment<T, U>());
+        segments.push_back(Segment<TPos, TValue>());
     } else {
         if (!(knots[index] == knot)) {
             knots.insert(index, knot);
             if (segments.count() <= 0) {
-                segments.push_back(Segment<T, U>());
+                segments.push_back(Segment<TPos, TValue>());
             } else {
-                segments.insert(index, Segment<T, U>());
+                segments.insert(index, Segment<TPos, TValue>());
             }
         } else {
             knots[index] = knot;
@@ -242,40 +242,40 @@ void AnchoredCurve<T, U>::insert(const Knot<T, U> knot) {
     this->update(index - 1, index + 1);
 }
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::insert(T position, U value) {
-    insert(Knot<T, U>(position, value));
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::insert(TPos position, TValue value) {
+    insert(Knot<TPos, TValue>(position, value));
 }
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::merge(const QList<Knot<T, U>> &knots) {
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::merge(const QList<Knot<TPos, TValue>> &knots) {
     this->knots = this->knots + knots;
     this->updateAll();
 }
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::merge(const AnchoredCurve &other) {
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::merge(const AnchoredCurve &other) {
     merge(other.getKnots());
 }
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::merge(std::initializer_list<T> positions,
-                                std::initializer_list<U> values) {
-    QList<Knot<T, U>> knots_new;
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::merge(std::initializer_list<TPos> positions,
+                                std::initializer_list<TValue> values) {
+    QList<Knot<TPos, TValue>> knots_new;
     for (size_t i = 0; i < positions.size(); ++i) {
-        knots_new.push_back(Knot<T, U>(*(positions.begin() + i), *(values.begin() + i)));
+        knots_new.push_back(Knot<TPos, TValue>(*(positions.begin() + i), *(values.begin() + i)));
     }
     merge(knots_new);
 }
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::remove(T x) {
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::remove(TPos x) {
     // 边界条件，knots.count()==0
     if (knots.count() <= 0) {
         return;
     }
 
-    auto it = std::lower_bound(knots.begin(), knots.end(), Knot<T, U>(x, U()), knotCmp<T, U>);
+    auto it = std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(x, TValue()), knotCmp<TPos, TValue>);
     if (it == knots.end()) {
         return;
     } else if (it->getPosition() == x) {
@@ -291,10 +291,10 @@ void AnchoredCurve<T, U>::remove(T x) {
 }
 
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::removeRange(T l, T r) {
-    auto start_it = std::lower_bound(knots.begin(), knots.end(), Knot<T, U>(l, U()), knotCmp<T, U>);
-    auto end_it = std::upper_bound(knots.begin(), knots.end(), Knot<T, U>(r, U()), knotCmp<T, U>);
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::removeRange(TPos l, TPos r) {
+    auto start_it = std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(l, TValue()), knotCmp<TPos, TValue>);
+    auto end_it = std::upper_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(r, TValue()), knotCmp<TPos, TValue>);
     int start_index = std::distance(knots.begin(), start_it);
     int end_index = std::distance(knots.begin(), end_it);
     knots.erase(start_it, end_it);
@@ -302,33 +302,33 @@ void AnchoredCurve<T, U>::removeRange(T l, T r) {
     update(start_index - 1, start_index);
 }
 
-template <typename T, typename U>
-const QList<Knot<T, U>> &AnchoredCurve<T, U>::getKnots() const {
+template <typename TPos, typename TValue>
+const QList<Knot<TPos, TValue>> &AnchoredCurve<TPos, TValue>::getKnots() const {
     return knots;
 }
 
-template <typename T, typename U>
-const QList<Segment<T, U>> &AnchoredCurve<T, U>::getSegments() const {
+template <typename TPos, typename TValue>
+const QList<Segment<TPos, TValue>> &AnchoredCurve<TPos, TValue>::getSegments() const {
     return segments;
 }
 
-template <typename T, typename U>
-double AnchoredCurve<T, U>::getInteriorSlope(int index) const {
-    U delta_y_l = (knots[index].getValue() - knots[index - 1].getValue());
-    U delta_y_r = (knots[index + 1].getValue() - knots[index].getValue());
+template <typename TPos, typename TValue>
+double AnchoredCurve<TPos, TValue>::getInteriorSlope(int index) const {
+    TValue delta_y_l = (knots[index].getValue() - knots[index - 1].getValue());
+    TValue delta_y_r = (knots[index + 1].getValue() - knots[index].getValue());
     if ((delta_y_l * delta_y_r) <= 0) {
         return 0;
     }
-    T delta_x_l = (knots[index].getPosition() - knots[index - 1].getPosition());
-    T delta_x_r = (knots[index + 1].getPosition() - knots[index].getPosition());
+    TPos delta_x_l = (knots[index].getPosition() - knots[index - 1].getPosition());
+    TPos delta_x_r = (knots[index + 1].getPosition() - knots[index].getPosition());
     double slope_l = delta_y_l / delta_x_l;
     double slope_r = delta_y_r / delta_x_r;
     double w_l = delta_x_l + 2 * delta_x_r, w_r = 2 * delta_x_l + delta_x_r;
     return (w_l + w_r) / (w_l / slope_l + w_r / slope_r);
 }
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::updateAll() {
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::updateAll() {
     if (knots.count() <= 1) {
         return;
     }
@@ -336,11 +336,11 @@ void AnchoredCurve<T, U>::updateAll() {
     this->updateAllSegments();
 }
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::updateAllKnots() {
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::updateAllKnots() {
     int len = knots.count();
 
-    std::sort(knots.begin(), knots.end(), knotCmp<T, U>);
+    std::sort(knots.begin(), knots.end(), knotCmp<TPos, TValue>);
     double slope_start = static_cast<double>(knots[1].getValue() - knots.front().getValue()) /
                          (knots[1].getPosition() - knots.front().getPosition());
     knots.front().setSlope(slope_start);
@@ -356,16 +356,16 @@ void AnchoredCurve<T, U>::updateAllKnots() {
     }
 }
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::updateAllSegments() {
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::updateAllSegments() {
     segments.clear();
     for (int i = 0; i < knots.count() - 1; i++) {
-        segments.push_back(Segment<T, U>(knots.at(i), knots.at(i + 1)));
+        segments.push_back(Segment<TPos, TValue>(knots.at(i), knots.at(i + 1)));
     }
 }
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::update(int start_index, int end_index) {
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::update(int start_index, int end_index) {
     if (knots.count() <= 1) {
         return;
     }
@@ -374,8 +374,8 @@ void AnchoredCurve<T, U>::update(int start_index, int end_index) {
 }
 
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::updateKnots(int start_index, int end_index) {
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::updateKnots(int start_index, int end_index) {
     int len = knots.count();
 
     for (int i = start_index; i <= end_index; i++) {
@@ -395,12 +395,12 @@ void AnchoredCurve<T, U>::updateKnots(int start_index, int end_index) {
 }
 
 
-template <typename T, typename U>
-void AnchoredCurve<T, U>::updateSegments(int start_index, int end_index) {
+template <typename TPos, typename TValue>
+void AnchoredCurve<TPos, TValue>::updateSegments(int start_index, int end_index) {
     for (int i = start_index - 1; i < end_index + 1; i++) {
         if (i < 0 || i >= segments.count()) {
             continue;
         }
-        segments[i] = Segment<T, U>(knots[i], knots[i + 1]);
+        segments[i] = Segment<TPos, TValue>(knots[i], knots[i + 1]);
     }
 }
