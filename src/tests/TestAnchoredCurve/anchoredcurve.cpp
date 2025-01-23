@@ -16,7 +16,8 @@ Knot<TPos, TValue>::Knot(TPos position, TValue value, double slope)
 }
 
 template <typename TPos, typename TValue>
-Knot<TPos, TValue>::Knot(TPos position, TValue value) : position(position), value(value), slope(0.0) {
+Knot<TPos, TValue>::Knot(TPos position, TValue value)
+    : position(position), value(value), slope(0.0) {
 }
 
 template <typename TPos, typename TValue>
@@ -70,7 +71,8 @@ bool Knot<TPos, TValue>::operator==(const Knot &other) const {
 }
 
 template <typename TPos, typename TValue>
-Segment<TPos, TValue>::Segment() : x_k(TPos()), x_k1(TPos()), y_k(TValue()), y_k1(TValue()), m_k(0.0), m_k1(0.0) {
+Segment<TPos, TValue>::Segment()
+    : x_k(TPos()), x_k1(TPos()), y_k(TValue()), y_k1(TValue()), m_k(0.0), m_k1(0.0) {
 }
 
 template <typename TPos, typename TValue>
@@ -108,10 +110,10 @@ TValue Segment<TPos, TValue>::getValue(TPos position) const {
     TPos x_k1_minus_x_k = x_k1 - x_k;
     TPos x_minus_x_k = position - x_k;
     TPos x_minus_x_k1 = position - x_k1;
-    double a = x_minus_x_k / x_k1_minus_x_k;
-    double b = -x_minus_x_k1 / x_k1_minus_x_k;
-    TValue res = (1 + 2 * a) * b * b * y_k + (1 + 2 * b) * a * a * y_k1 + x_minus_x_k * b * b * m_k +
-            x_minus_x_k1 * a * a * m_k1;
+    double a = 1.0 * x_minus_x_k / x_k1_minus_x_k;
+    double b = 1.0 * -x_minus_x_k1 / x_k1_minus_x_k;
+    TValue res = (1 + 2 * a) * b * b * y_k + (1 + 2 * b) * a * a * y_k1 +
+                 x_minus_x_k * b * b * m_k + x_minus_x_k1 * a * a * m_k1;
     return res;
 }
 
@@ -147,7 +149,7 @@ AnchoredCurve<TPos, TValue>::AnchoredCurve(const QList<Knot<TPos, TValue>> &knot
 
 template <typename TPos, typename TValue>
 AnchoredCurve<TPos, TValue>::AnchoredCurve(std::initializer_list<TPos> positions,
-                                   std::initializer_list<TValue> values) {
+                                           std::initializer_list<TValue> values) {
     // 使用 std::initializer_list 的 size() 成员函数
     for (size_t i = 0; i < positions.size(); ++i) {
         knots.push_back(Knot<TPos, TValue>(*(positions.begin() + i), *(values.begin() + i)));
@@ -160,8 +162,8 @@ TValue AnchoredCurve<TPos, TValue>::getValue(const TPos position) const {
     if (segments.count() <= 0) {
         return TValue();
     }
-    auto it =
-        std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(position, TValue()), knotCmp<TPos, TValue>);
+    auto it = std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(position, TValue()),
+                               knotCmp<TPos, TValue>);
     if (it == knots.end()) {
         return knots.back().getValue();
     }
@@ -173,14 +175,15 @@ TValue AnchoredCurve<TPos, TValue>::getValue(const TPos position) const {
 }
 
 template <typename TPos, typename TValue>
-std::vector<std::pair<TPos, TValue>> AnchoredCurve<TPos, TValue>::getValueLinspace(const TPos start, const TPos end,
-                                                                   const int num) const {
+std::vector<std::pair<TPos, TValue>>
+    AnchoredCurve<TPos, TValue>::getValueLinspace(const TPos start, const TPos end,
+                                                  const int num) const {
     std::vector<std::pair<TPos, TValue>> res;
     if (num == 0) {
         return res;
     }
-    auto knot_it =
-        std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(start, 0), knotCmp<TPos, TValue>);
+    auto knot_it = std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(start, 0),
+                                    knotCmp<TPos, TValue>);
     int curr_segment_index = std::distance(knots.begin(), knot_it) - 1;
     double num_d = num;
     for (int i = 0; i < num; i++) {
@@ -263,7 +266,7 @@ void AnchoredCurve<TPos, TValue>::merge(const AnchoredCurve &other) {
 
 template <typename TPos, typename TValue>
 void AnchoredCurve<TPos, TValue>::merge(std::initializer_list<TPos> positions,
-                                std::initializer_list<TValue> values) {
+                                        std::initializer_list<TValue> values) {
     QList<Knot<TPos, TValue>> knots_new;
     for (size_t i = 0; i < positions.size(); ++i) {
         knots_new.push_back(Knot<TPos, TValue>(*(positions.begin() + i), *(values.begin() + i)));
@@ -278,7 +281,8 @@ void AnchoredCurve<TPos, TValue>::remove(TPos x) {
         return;
     }
 
-    auto it = std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(x, TValue()), knotCmp<TPos, TValue>);
+    auto it = std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(x, TValue()),
+                               knotCmp<TPos, TValue>);
     if (it == knots.end()) {
         return;
     } else if (it->getPosition() == x) {
@@ -293,11 +297,12 @@ void AnchoredCurve<TPos, TValue>::remove(TPos x) {
     }
 }
 
-
 template <typename TPos, typename TValue>
 void AnchoredCurve<TPos, TValue>::removeRange(TPos l, TPos r) {
-    auto start_it = std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(l, TValue()), knotCmp<TPos, TValue>);
-    auto end_it = std::upper_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(r, TValue()), knotCmp<TPos, TValue>);
+    auto start_it = std::lower_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(l, TValue()),
+                                     knotCmp<TPos, TValue>);
+    auto end_it = std::upper_bound(knots.begin(), knots.end(), Knot<TPos, TValue>(r, TValue()),
+                                   knotCmp<TPos, TValue>);
     int start_index = std::distance(knots.begin(), start_it);
     int end_index = std::distance(knots.begin(), end_it);
     knots.erase(start_it, end_it);
@@ -376,7 +381,6 @@ void AnchoredCurve<TPos, TValue>::update(int start_index, int end_index) {
     this->updateSegments(start_index, end_index);
 }
 
-
 template <typename TPos, typename TValue>
 void AnchoredCurve<TPos, TValue>::updateKnots(int start_index, int end_index) {
     int len = knots.count();
@@ -396,7 +400,6 @@ void AnchoredCurve<TPos, TValue>::updateKnots(int start_index, int end_index) {
         }
     }
 }
-
 
 template <typename TPos, typename TValue>
 void AnchoredCurve<TPos, TValue>::updateSegments(int start_index, int end_index) {
