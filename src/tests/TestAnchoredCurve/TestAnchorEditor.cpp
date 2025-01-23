@@ -6,6 +6,7 @@
 
 #include <QPainter>
 #include <QPainterPath>
+#include <QDebug>
 
 TestAnchorEditor::TestAnchorEditor(QWidget *parent) {
     resize(1280, 400);
@@ -18,8 +19,10 @@ void TestAnchorEditor::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
 
     QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
     QPen pen;
     pen.setColor({112, 156, 255});
+    pen.setWidthF(1.5);
 
     // Draw curve
     painter.setPen(pen);
@@ -30,8 +33,9 @@ void TestAnchorEditor::paintEvent(QPaintEvent *event) {
 
     QPainterPath curvePath;
     bool firstPoint = true;
-    for (int i = startTick + 1; i <= endTick; i++) {
+    for (int i = startTick; i <= endTick; i++) {
         auto value = curve.getValue(i);
+        // qDebug() << value;
         if (firstPoint) {
             curvePath.moveTo(i, value);
             firstPoint = false;

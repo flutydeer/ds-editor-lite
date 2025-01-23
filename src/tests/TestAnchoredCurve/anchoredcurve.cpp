@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <utility>
 
+template class AnchoredCurve<int, int>;
+template class Knot<int, int>;
+
 template <typename TPos, typename TValue>
 Knot<TPos, TValue>::Knot() : position(TPos()), value(TValue()), slope(0.0) {
 }
