@@ -9,6 +9,7 @@
 #include <QDebug>
 #include <QMouseEvent>
 
+
 TestAnchorEditor::TestAnchorEditor(QWidget *parent) {
     resize(1280, 400);
 
@@ -61,8 +62,8 @@ void TestAnchorEditor::paintEvent(QPaintEvent *event) {
 }
 
 void TestAnchorEditor::mousePressEvent(QMouseEvent *event) {
-    auto pos = event->position().toPoint();
-    curve.insert({pos.x(), pos.y()});
+    auto pos = event->position();
+    curve.insert({static_cast<int>(pos.x()), pos.y()});
     update();
 
     // QWidget::mousePressEvent(event);

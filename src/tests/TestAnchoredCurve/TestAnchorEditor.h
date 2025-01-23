@@ -19,7 +19,7 @@ private:
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
 
-    AnchoredCurve<int, int> curve;
+    AnchoredCurve<int, double> curve;
 };
 
 
