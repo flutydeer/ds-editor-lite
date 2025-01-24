@@ -33,7 +33,7 @@ public slots:
 private:
     enum RenderResolution { High, Low };
 
-    void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) override;
+    void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) override;
     [[nodiscard]] QString clipTypeName() const override;
     [[nodiscard]] QString iconPath() const override;
 

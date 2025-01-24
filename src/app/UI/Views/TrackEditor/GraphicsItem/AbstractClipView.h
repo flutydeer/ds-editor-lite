@@ -61,7 +61,7 @@ signals:
 protected:
     [[nodiscard]] virtual QString text() const;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
-    virtual void drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) = 0;
+    virtual void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) = 0;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     [[nodiscard]] virtual QString clipTypeName() const = 0;

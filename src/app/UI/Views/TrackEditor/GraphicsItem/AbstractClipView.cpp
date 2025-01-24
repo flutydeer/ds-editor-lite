@@ -154,13 +154,13 @@ void AbstractClipView::setQuantize(int quantize) {
 
 QRectF AbstractClipViewPrivate::previewRect() const {
     Q_Q(const AbstractClipView);
-    auto penWidth = 2.0f;
-    auto paddingTop = 20;
-    auto rect = q->boundingRect();
+    auto penWidth = 1.2f;
+    auto verticalPadding = 2.0f;
+    auto rect = q->rect();
     auto left = rect.left() + penWidth;
-    auto top = rect.top() + paddingTop + penWidth;
+    auto top = rect.top() + titleHeight + verticalPadding;
     auto width = rect.width() - penWidth * 2;
-    auto height = rect.height() - paddingTop - penWidth * 2;
+    auto height = rect.height() - titleHeight - verticalPadding * 2;
     auto paddedRect = QRectF(left, top, width, height);
     return paddedRect;
 }
@@ -184,34 +184,25 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
                              QWidget *widget) {
     Q_D(const AbstractClipView);
     const auto colorPrimary = QColor(155, 186, 255);
+    const auto colorPrimaryTransparent = QColor(155, 186, 255, 64);
     const auto colorPrimaryDarker = QColor(112, 156, 255);
     const auto colorPrimaryLighter = QColor(205, 221, 255);
     const auto colorForeground = QColor(0, 0, 0);
-    auto penWidth = 2.0f;
+    auto penWidth = 1.2f;
+    auto verticalPadding = 2.0f;
 
-    QPen pen;
-    if (isSelected())
-        pen.setColor(QColor(255, 255, 255));
-    else
-        pen.setColor(colorPrimaryDarker);
-
-    auto rect = boundingRect();
-    auto left = rect.left() + penWidth;
-    auto top = rect.top() + penWidth;
-    auto width = rect.width() - penWidth * 2;
-    auto height = rect.height() - penWidth * 2;
+    auto left = rect().left() + penWidth;
+    auto top = rect().top() + verticalPadding;
+    auto width = rect().width() - penWidth * 2;
+    auto height = rect().height() - verticalPadding * 2;
     auto paddedRect = QRectF(left, top, width, height);
+    auto radius = 4;
 
-    pen.setWidthF(penWidth);
-    painter->setPen(pen);
-    painter->setBrush(activeClip() ? colorPrimaryLighter : colorPrimary);
-
-    painter->drawRoundedRect(paddedRect, 4, 4);
-
-    double iconWidth = 16;
-    double textPadding = 2;
-    auto rectLeft = mapToScene(rect.topLeft()).x();
-    auto rectRight = mapToScene(rect.bottomRight()).x();
+    // double iconWidth = 16;
+    double iconWidth = 4;
+    double textPadding = 0;
+    auto rectLeft = mapToScene(rect().topLeft()).x();
+    auto rectRight = mapToScene(rect().bottomRight()).x();
     auto titleRectLeft = visibleRect().left() < rectLeft
                              ? paddedRect.left() + textPadding
                              : visibleRect().left() - rectLeft + textPadding + penWidth / 2;
@@ -221,6 +212,50 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
                               : rectRight - rectLeft - 2 * (textPadding + penWidth);
     auto titleRectHeight = paddedRect.height() - 2 * textPadding;
 
+    auto previewRectHeight = d->previewRect().height();
+
+    // Draw Background
+    QPen pen;
+    pen.setWidthF(penWidth);
+    if (previewRectHeight >= 32) {
+        painter->setBrush(colorPrimaryTransparent);
+    } else
+        painter->setBrush(isSelected() ? colorPrimaryLighter : colorPrimary);
+    painter->setPen(Qt::NoPen);
+    painter->drawRoundedRect(paddedRect, radius, radius);
+
+    QColor borderColor;
+    if (isSelected()) {
+        borderColor = {255, 255, 255};
+    } else if (activeClip()) {
+        borderColor = colorPrimary;
+    }
+
+    // Draw title
+    if (previewRectHeight >= 32) {
+        QPainterPath titleBackgroundPath;
+        titleBackgroundPath.moveTo(paddedRect.left(), d->titleHeight);
+        titleBackgroundPath.lineTo(paddedRect.right(), d->titleHeight);
+        titleBackgroundPath.lineTo(paddedRect.right(), paddedRect.top() + radius);
+        titleBackgroundPath.arcTo(paddedRect.right() - 2 * radius, paddedRect.top(), 2 * radius,
+                                  2 * radius, 0, 90);
+        titleBackgroundPath.lineTo(paddedRect.left() + radius, paddedRect.top());
+        titleBackgroundPath.arcTo(paddedRect.left(), paddedRect.top(), 2 * radius, 2 * radius, 90,
+                                  90);
+        titleBackgroundPath.lineTo(paddedRect.left(), d->titleHeight);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(isSelected() ? colorPrimaryLighter : colorPrimary);
+        // painter->setBrush(colorPrimary);
+        painter->drawPath(titleBackgroundPath);
+    }
+
+    // Draw Border
+    if (isSelected() || activeClip()) {
+        pen.setColor(borderColor);
+        painter->setPen(pen);
+        painter->setBrush(Qt::NoBrush);
+        painter->drawRoundedRect(paddedRect, radius, radius);
+    }
 
     auto textRect = QRectF(titleRectLeft + iconWidth, titleRectTop, titleRectWidth - iconWidth,
                            titleRectHeight);
@@ -229,33 +264,31 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     auto textHeight = fontMetrics.height();
     auto textWidth = fontMetrics.horizontalAdvance(text());
 
+    // Draw text and icon
     pen.setColor(colorForeground);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
-    // painter->drawRect(textRect);
-    QRectF iconRect;
-    if (textWidth + iconWidth <= titleRectWidth && textHeight <= titleRectHeight) {
+    // QRectF iconRect;
+    if (textWidth + iconWidth <= titleRectWidth && textHeight <= d->titleHeight) {
         if (d->previewRect().height() < 32) {
             painter->drawText(textRect, text(), QTextOption(Qt::AlignVCenter));
-            iconRect = QRectF(titleRectLeft, titleRectTop, iconWidth, titleRectHeight);
+            // iconRect = QRectF(titleRectLeft, titleRectTop, iconWidth, titleRectHeight);
         } else {
             painter->drawText(textRect, text());
-            iconRect = QRectF(titleRectLeft, titleRectTop, iconWidth, textHeight);
+            // iconRect = QRectF(titleRectLeft, titleRectTop, iconWidth, textHeight);
         }
-        QSvgRenderer renderer(iconPath());
-        renderer.setAspectRatioMode(Qt::KeepAspectRatio);
-        renderer.render(painter, iconRect);
+        // QSvgRenderer renderer(iconPath());
+        // renderer.setAspectRatioMode(Qt::KeepAspectRatio);
+        // renderer.render(painter, iconRect);
     }
-    // pen.setColor(Qt::red);
-    // painter->setPen(pen);
-    // painter->drawRect(textRect);
 
-    auto previewRectHeight = d->previewRect().height();
     if (previewRectHeight >= 32) {
-        auto colorAlpha = previewRectHeight <= 48
-                              ? static_cast<int>(255 * (previewRectHeight - 32) / (48 - 32))
-                              : 255;
-        drawPreviewArea(painter, d->previewRect(), colorAlpha);
+        // auto colorAlpha = previewRectHeight <= 48
+        //                       ? static_cast<int>(255 * (previewRectHeight - 32) / (48 - 32))
+        //                       : 255;
+        painter->setClipRect(d->previewRect());
+        drawPreviewArea(painter, d->previewRect(),
+                        isSelected() ? colorPrimaryLighter : colorPrimary);
     }
 }
 

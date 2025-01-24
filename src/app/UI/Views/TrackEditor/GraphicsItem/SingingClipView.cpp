@@ -95,7 +95,10 @@ QString SingingClipView::text() const {
     return AbstractClipView::text() + m_language + " ";
 }
 
-void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {
+void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) {
+    // painter->setPen(Qt::red);
+    // painter->drawRect(previewRect);
+    // painter->setPen(Qt::NoPen);
     painter->setRenderHint(QPainter::Antialiasing);
 
     auto rectTop = previewRect.top();
@@ -104,11 +107,9 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
 
     if (rectHeight < 32 || rectWidth < 16)
         return;
-    auto colorAlpha = rectHeight <= 48 ? 255 * (rectHeight - 32) / (48 - 32) : 255;
-    auto noteColor = QColor(10, 10, 10, static_cast<int>(colorAlpha));
 
     painter->setPen(Qt::NoPen);
-    painter->setBrush(noteColor);
+    painter->setBrush(color);
 
     // find lowest and highest pitch
     int lowestKeyIndex = 127;

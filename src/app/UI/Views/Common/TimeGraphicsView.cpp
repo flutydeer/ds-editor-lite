@@ -70,7 +70,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
     QPen curPlayPosPen;
     curPlayPosPen.setWidth(1);
-    curPlayPosPen.setColor(QColor(255, 204, 153));
+    curPlayPosPen.setColor(QColor(200, 200, 200));
     m_scenePlayPosIndicator->setPen(curPlayPosPen);
     m_scene->addTimeIndicator(m_scenePlayPosIndicator);
 

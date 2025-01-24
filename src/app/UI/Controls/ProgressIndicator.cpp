@@ -113,6 +113,8 @@ void ProgressIndicator::paintEvent(QPaintEvent *event) {
     };
 
     auto drawBarIndeterminateProgress = [&]() {
+        return;
+
         // Calculate progress value
         auto thumbLength = rect().width() / 3;
         auto thumbActualRight =

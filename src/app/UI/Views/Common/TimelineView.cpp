@@ -90,7 +90,7 @@ void TimelineView::paintEvent(QPaintEvent *event) {
 
     // Draw playback indicator
     auto penWidth = 2.0;
-    auto color = QColor(255, 204, 153);
+    auto color = QColor(200, 200, 200);
     QPen pen;
     pen.setWidthF(penWidth);
     pen.setColor(color);

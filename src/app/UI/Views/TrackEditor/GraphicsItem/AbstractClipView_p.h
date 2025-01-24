@@ -38,7 +38,9 @@ public:
 
     int m_trackIndex = 0;
     int m_quantize = 16;
-    bool m_showDebugInfo = true;
+    bool m_showDebugInfo = false;
+
+    int titleHeight = 20;
 
     [[nodiscard]] QRectF previewRect() const;
 

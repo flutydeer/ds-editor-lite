@@ -53,27 +53,27 @@ void AudioClipView::onTempoChange(double tempo) {
     m_tempo = tempo;
 }
 
-void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, int opacity) {
+void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) {
     QElapsedTimer mstimer;
     mstimer.start();
     painter->setRenderHint(QPainter::Antialiasing, false);
 
     auto rectLeft = previewRect.left();
+    qDebug() << rectLeft;
     auto rectTop = previewRect.top();
     auto rectWidth = previewRect.width();
     auto rectHeight = previewRect.height();
     auto halfRectHeight = rectHeight / 2;
-    auto peakColor = QColor(10, 10, 10, opacity);
 
     QPen pen;
 
     if (m_status == AppGlobal::Loading) {
-        pen.setColor(peakColor);
+        pen.setColor(color);
         painter->setPen(pen);
         painter->drawText(previewRect, "Loading...", QTextOption(Qt::AlignCenter));
     }
 
-    pen.setColor(peakColor);
+    pen.setColor(color);
     pen.setWidth(1);
     painter->setPen(pen);
 
