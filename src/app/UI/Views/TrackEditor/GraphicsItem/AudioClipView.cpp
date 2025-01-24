@@ -59,7 +59,7 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     painter->setRenderHint(QPainter::Antialiasing, false);
 
     auto rectLeft = previewRect.left();
-    qDebug() << rectLeft;
+    // qDebug() << rectLeft;
     auto rectTop = previewRect.top();
     auto rectWidth = previewRect.width();
     auto rectHeight = previewRect.height();

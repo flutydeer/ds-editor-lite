@@ -155,11 +155,11 @@ void AbstractClipView::setQuantize(int quantize) {
 QRectF AbstractClipViewPrivate::previewRect() const {
     Q_Q(const AbstractClipView);
     auto penWidth = 1.2f;
-    auto verticalPadding = 2.0f;
+    auto verticalPadding = 1.2f;
     auto rect = q->rect();
-    auto left = rect.left() + penWidth;
+    auto left = rect.left() + penWidth / 2;
     auto top = rect.top() + titleHeight + verticalPadding;
-    auto width = rect.width() - penWidth * 2;
+    auto width = rect.width() - penWidth;
     auto height = rect.height() - titleHeight - verticalPadding * 2;
     auto paddedRect = QRectF(left, top, width, height);
     return paddedRect;
@@ -189,11 +189,11 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     const auto colorPrimaryLighter = QColor(205, 221, 255);
     const auto colorForeground = QColor(0, 0, 0);
     auto penWidth = 1.2f;
-    auto verticalPadding = 2.0f;
+    auto verticalPadding = 1.2f;
 
-    auto left = rect().left() + penWidth;
+    auto left = rect().left() + penWidth / 2;
     auto top = rect().top() + verticalPadding;
-    auto width = rect().width() - penWidth * 2;
+    auto width = rect().width() - penWidth;
     auto height = rect().height() - verticalPadding * 2;
     auto paddedRect = QRectF(left, top, width, height);
     auto radius = 4;
