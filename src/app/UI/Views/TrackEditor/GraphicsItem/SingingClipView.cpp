@@ -123,7 +123,12 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
     }
 
     int divideCount = highestKeyIndex - lowestKeyIndex + 1;
-    auto noteHeight = (rectHeight - rectTop) / divideCount;
+    auto noteHeight = rectHeight / divideCount;
+    auto totalHeight = rectHeight;
+    if (noteHeight > 16) {
+        noteHeight = 16;
+        totalHeight = divideCount * noteHeight;
+    }
 
     for (const auto &note : m_notes) {
         auto clipLeft = start() + clipStart();
