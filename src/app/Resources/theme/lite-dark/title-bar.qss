@@ -37,37 +37,73 @@ Button#MaximizeButton:pressed {
     background: #05FFFFFF;
 }
 
+/* TitleControlGroup */
 
-/* PlaybackView */
-
-PlaybackView {
-    border-radius: 6px;
-    background: #1AFFFFFF;
-    /* border: 1px solid #10FFFFFF; */
-}
-
-PlaybackView>QPushButton {
+TitleControlGroup>QPushButton {
+    width: 40px;
+    height: 28px;
     padding: 0px;
     border: none;
-    background: none;
-    border-radius: 6px
+    background: #10FFFFFF;
+    border-radius: 1px;
 }
 
-PlaybackView>QPushButton:hover {
+TitleControlGroup>QPushButton#btnStop {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+TitleControlGroup>QPushButton:hover {
     background: #1AFFFFFF
 }
 
-PlaybackView>QPushButton:pressed {
+TitleControlGroup>QPushButton:pressed {
     background: #10FFFFFF
 }
 
-PlaybackView>QPushButton#btnPlay:checked {
-    background-color: #9BBAFF;
+TitleControlGroup>QPushButton#btnPlay:checked {
+    /* background-color: #9BBAFF; */
+    background-color: #409BBAFF;
 }
 
-PlaybackView>QPushButton#btnPause:checked {
-    background-color: #FFCD9B;
+TitleControlGroup>QPushButton#btnPause:checked {
+    /* background-color: #FFCD9B; */
+    background-color: #40FFCD9B;
 }
+
+TitleControlGroup>EditLabel {
+    height: 28px;
+    padding: 0px 8px;
+    border: none;
+    background: #10FFFFFF;
+    border-radius: 1px;
+}
+
+TitleControlGroup>EditLabel>QLabel {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+TitleControlGroup>EditLabel#elTime {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+TitleControlGroup>EditLabel#elTempo {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+TitleControlGroup>EditLabel#elTimeSignature {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+TitleControlGroup {
+    border-radius: 4px;
+}
+
+/* PlaybackView */
 
 PlaybackView>QLabel {
     color: #F0F0F0;

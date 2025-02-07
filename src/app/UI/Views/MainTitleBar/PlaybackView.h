@@ -53,7 +53,7 @@ private:
     int m_tick = 0;
     PlaybackStatus m_status = Stopped;
 
-    int m_contentHeight = 26;
+    int m_contentHeight = 28;
 
     QString toFormattedTickTime(int ticks) const;
     int fromTickTimeString(const QStringList &splitStr) const;

@@ -17,6 +17,7 @@
 #include "UI/Window/MainWindow.h"
 #include "UI/Window/TaskWindow.h"
 #include "Utils/Log.h"
+#include "Utils/SystemUtils.h"
 
 #include <QApplication>
 #include <QDir>
@@ -65,10 +66,9 @@ int main(int argc, char *argv[]) {
     Log::logSystemInfo();
     Log::logGpuInfo();
 
-    auto f = QFont("Microsoft Yahei UI");
+    auto f = SystemUtils::isWindows() ? QFont("Microsoft Yahei UI") : QFont();
     f.setHintingPreference(QFont::PreferNoHinting);
-    auto factor = (QSysInfo::productType() == "macos") ? 96.0 / 72 : 1.0;
-    f.setPointSizeF(10 * factor);
+    f.setPixelSize(13);
     QApplication::setFont(f);
 
     QTranslator translator;

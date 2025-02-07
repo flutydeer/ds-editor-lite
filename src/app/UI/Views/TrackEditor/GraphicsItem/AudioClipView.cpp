@@ -80,7 +80,7 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     if (m_audioInfo.peakCache.count() == 0 || m_audioInfo.peakCacheMipmap.count() == 0)
         return;
 
-    m_resolution = scaleX() >= 0.3 ? High : Low;
+    m_resolution = scaleX() >= 0.2 ? High : Low;
     auto chunksPerTickBase =
         static_cast<double>(m_audioInfo.sampleRate) / m_audioInfo.chunkSize * 60 / m_tempo / 480;
     const auto peakData = m_resolution == Low ? m_audioInfo.peakCacheMipmap : m_audioInfo.peakCache;

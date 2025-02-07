@@ -5,11 +5,11 @@
 
 #include "PlaybackView.h"
 
+#include "TitleControlGroup.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "UI/Controls/ComboBox.h"
-#include "UI/Controls/DividerLine.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"
 
@@ -23,23 +23,18 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTempo->setObjectName("elTempo");
     m_elTempo->setText(QString::number(m_tempo));
     m_elTempo->label->setAlignment(Qt::AlignCenter);
-    m_elTempo->setFixedSize(56, m_contentHeight);
 
     m_elTimeSignature = new EditLabel;
     m_elTimeSignature->setObjectName("elTimeSignature");
     m_elTimeSignature->label->setAlignment(Qt::AlignCenter);
     m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
-    m_elTimeSignature->setFixedSize(48, m_contentHeight);
 
     m_btnStop = new QPushButton;
     m_btnStop->setObjectName("btnStop");
-    m_btnStop->setFixedSize(m_contentHeight, m_contentHeight);
-    // m_btnStop->setText("Stop");
     m_btnStop->setIcon(icoStopWhite);
 
     m_btnPlay = new QPushButton;
     m_btnPlay->setObjectName("btnPlay");
-    m_btnPlay->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnPlay->setIcon(icoPlayWhite);
     // m_btnPlay->setText("Play");
     m_btnPlay->setCheckable(true);
@@ -56,7 +51,6 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
 
     m_btnPause = new QPushButton;
     m_btnPause->setObjectName("btnPause");
-    m_btnPause->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnPause->setIcon(icoPauseWhite);
     // m_btnPause->setText("Pause");
     m_btnPause->setCheckable(true);
@@ -65,7 +59,6 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTime->setObjectName("elTime");
     m_elTime->label->setAlignment(Qt::AlignCenter);
     m_elTime->setText(toFormattedTickTime(m_tick));
-    m_elTime->setFixedSize(80, m_contentHeight);
 
     connect(m_elTempo, &EditLabel::editCompleted, this, [=](const QString &value) {
         auto tempo = value.toDouble();
@@ -132,41 +125,39 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_cbQuantize = new ComboBox(true);
     m_cbQuantize->addItems(quantizeStrings);
     m_cbQuantize->setCurrentIndex(3);
-    m_cbQuantize->setFixedHeight(m_contentHeight);
-    // m_cbQuantize->setFixedSize(68, m_contentHeight);
 
     connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [=](int index) {
         auto value = quantizeValues.at(index);
         emit setQuantizeTriggered(value);
     });
 
-    auto divider1 = new DividerLine(Qt::Vertical);
-    divider1->setFixedHeight(m_contentHeight - 6);
-    auto divider2 = new DividerLine(Qt::Vertical);
-    divider2->setFixedHeight(m_contentHeight - 6);
-    auto divider3 = new DividerLine(Qt::Vertical);
-    divider3->setFixedHeight(m_contentHeight - 6);
-    auto divider4 = new DividerLine(Qt::Vertical);
-    divider4->setFixedHeight(m_contentHeight - 6);
+    auto transportLayout = new QHBoxLayout;
+    transportLayout->addWidget(m_btnStop);
+    transportLayout->addWidget(m_btnPlay);
+    transportLayout->addWidget(m_btnPause);
+    transportLayout->addWidget(m_elTime);
+    transportLayout->setSpacing(1);
+    transportLayout->setContentsMargins({});
+
+    auto transportWidget = new TitleControlGroup;
+    transportWidget->setLayout(transportLayout);
+
+    auto scoreGlobalLayout = new QHBoxLayout;
+    scoreGlobalLayout->addWidget(m_elTempo);
+    scoreGlobalLayout->addWidget(m_elTimeSignature);
+    scoreGlobalLayout->setSpacing(1);
+    scoreGlobalLayout->setContentsMargins({});
+
+    auto scoreGlobalWidget = new TitleControlGroup;
+    scoreGlobalWidget->setLayout(scoreGlobalLayout);
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_cbQuantize);
-    mainLayout->addWidget(divider1);
-    mainLayout->addWidget(m_btnStop);
-    mainLayout->addWidget(m_btnPlay);
-    mainLayout->addWidget(m_btnPause);
-    mainLayout->addWidget(divider2);
-    mainLayout->addWidget(m_elTime);
-    mainLayout->addWidget(divider3);
-    mainLayout->addWidget(m_elTempo);
-    mainLayout->addWidget(divider4);
-    mainLayout->addWidget(m_elTimeSignature);
+    mainLayout->addWidget(transportWidget);
+    mainLayout->addWidget(scoreGlobalWidget);
     mainLayout->setContentsMargins({});
-    mainLayout->setSpacing(4);
+    mainLayout->setSpacing(6);
     setLayout(mainLayout);
-    setContentsMargins({2, 2, 2, 2});
-    // setMaximumHeight(44);
-    // setMaximumWidth(480);
 
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
