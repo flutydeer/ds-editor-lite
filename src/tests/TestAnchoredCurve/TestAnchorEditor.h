@@ -5,9 +5,14 @@
 #ifndef TESTANCHOREDITOR_H
 #define TESTANCHOREDITOR_H
 
-#include "anchoredcurve.h"
+#include "AnchorCurve.h"
 
 #include <QWidget>
+
+class NodeView {
+    public:
+
+};
 
 class TestAnchorEditor : public QWidget {
     Q_OBJECT
@@ -18,8 +23,13 @@ public:
 private:
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
+    bool event(QEvent *event) override;
+    void handleHoverEvent(QHoverEvent *event);
+    [[nodiscard]] AnchorNode *findNode(QPointF position) const;
 
-    AnchoredCurve<int, double> curve;
+    AnchorCurve curve;
+    AnchorNode *hoveredNode = nullptr;
+    AnchorNode *currentEditNode = nullptr;
 };
 
 

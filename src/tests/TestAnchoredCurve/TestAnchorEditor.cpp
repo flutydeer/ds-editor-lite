@@ -4,14 +4,16 @@
 
 #include "TestAnchorEditor.h"
 
+#include "../../app/Utils/Linq.h"
+
 #include <QPainter>
 #include <QPainterPath>
 #include <QDebug>
 #include <QMouseEvent>
 
-
 TestAnchorEditor::TestAnchorEditor(QWidget *parent) {
     resize(1280, 400);
+    setAttribute(Qt::WA_Hover);
 
     // curve.insert({100, 100});
     // curve.insert({200, 50});
@@ -28,18 +30,18 @@ void TestAnchorEditor::paintEvent(QPaintEvent *event) {
     pen.setColor(primaryColor);
     pen.setWidthF(1.5);
 
-    if (curve.getKnots().count() >= 2) {
+    if (curve.nodes().count() >= 2) {
         // Draw curve
         painter.setPen(pen);
         painter.setBrush(Qt::NoBrush);
-        auto knots = curve.getKnots();
-        auto startTick = knots.first().getPosition();
-        auto endTick = knots.last().getPosition();
+        auto knots = curve.nodes();
+        auto startTick = knots.toList().first()->pos();
+        auto endTick = knots.toList().last()->pos();
 
         QPainterPath curvePath;
         bool firstPoint = true;
         for (int i = startTick; i <= endTick; i++) {
-            auto value = curve.getValue(i);
+            auto value = curve.valueAt(i);
             // qDebug() << value;
             if (firstPoint) {
                 curvePath.moveTo(i, value);
@@ -55,16 +57,59 @@ void TestAnchorEditor::paintEvent(QPaintEvent *event) {
     pen.setWidthF(2);
     painter.setPen(pen);
     painter.setBrush(primaryColor);
-    for (const auto &knot : curve.getKnots()) {
-        auto pos = QPoint(knot.getPosition(), knot.getValue());
+    for (const auto &knot : curve.nodes()) {
+        auto pos = QPoint(knot->pos(), knot->value());
         painter.drawEllipse(pos, 6, 6);
     }
 }
 
 void TestAnchorEditor::mousePressEvent(QMouseEvent *event) {
-    auto pos = event->position();
-    curve.insert({static_cast<int>(pos.x()), pos.y()});
+    auto pos = event->position().toPoint();
+    if (event->button() == Qt::LeftButton) {
+        curve.insertNode(new AnchorNode{pos.x(), pos.y()});
+    }else if (event->button() == Qt::RightButton) {
+        if (auto node = findNode(pos)) {
+            curve.removeNode(node);
+            delete node;
+        }
+    }
     update();
 
     // QWidget::mousePressEvent(event);
+}
+
+bool TestAnchorEditor::event(QEvent *event) {
+    switch (event->type()) {
+        case QEvent::HoverEnter:
+        case QEvent::HoverMove:
+        case QEvent::HoverLeave:
+            handleHoverEvent(static_cast<QHoverEvent *>(event));
+            break;
+        default:
+            break;
+    }
+    return QWidget::event(event);
+}
+
+void TestAnchorEditor::handleHoverEvent(QHoverEvent *event) {
+    if (event->type() == QEvent::HoverMove) {
+        auto node = findNode(event->position().toPoint());
+        hoveredNode = node;
+        if (node)
+            qDebug() << "Hovered node at " << node->pos();
+    } else if (event->type() == QEvent::HoverLeave) {
+        hoveredNode = nullptr;
+    }
+}
+
+AnchorNode *TestAnchorEditor::findNode(QPointF position) const {
+    auto nodes = curve.nodes().toList();
+    auto results = Linq::where(nodes, [&](AnchorNode *node) {
+        auto distance =
+            sqrt(pow(node->pos() - position.x(), 2) + pow(node->value() - position.y(), 2));
+        return distance < 8;
+    });
+    if (results.isEmpty())
+        return nullptr;
+    return results.first();
 }
