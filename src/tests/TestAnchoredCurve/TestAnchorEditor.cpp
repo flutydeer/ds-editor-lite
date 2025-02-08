@@ -66,16 +66,43 @@ void TestAnchorEditor::paintEvent(QPaintEvent *event) {
 void TestAnchorEditor::mousePressEvent(QMouseEvent *event) {
     auto pos = event->position().toPoint();
     if (event->button() == Qt::LeftButton) {
-        curve.insertNode(new AnchorNode{pos.x(), pos.y()});
-    }else if (event->button() == Qt::RightButton) {
+        if (const auto node = findNode(pos)) {
+            currentEditNode = node;
+        } else {
+            auto newNode = new AnchorNode{pos.x(), pos.y()};
+            curve.insertNode(newNode);
+            currentEditNode = newNode;
+        }
+    } else if (event->button() == Qt::RightButton) {
         if (auto node = findNode(pos)) {
             curve.removeNode(node);
+            if (currentEditNode == node)
+                currentEditNode = nullptr;
             delete node;
         }
     }
     update();
 
     // QWidget::mousePressEvent(event);
+}
+
+void TestAnchorEditor::mouseMoveEvent(QMouseEvent *event) {
+    auto pos = event->position().toPoint();
+    if (currentEditNode) {
+        curve.removeNode(currentEditNode);
+        currentEditNode->setPos(pos.x());
+        currentEditNode->setValue(pos.y());
+        curve.insertNode(currentEditNode);
+        update();
+    }
+    // QWidget::mouseMoveEvent(event);
+}
+
+void TestAnchorEditor::mouseReleaseEvent(QMouseEvent *event) {
+    currentEditNode = nullptr;
+
+    update();
+    // QWidget::mouseReleaseEvent(event);
 }
 
 bool TestAnchorEditor::event(QEvent *event) {
@@ -95,8 +122,8 @@ void TestAnchorEditor::handleHoverEvent(QHoverEvent *event) {
     if (event->type() == QEvent::HoverMove) {
         auto node = findNode(event->position().toPoint());
         hoveredNode = node;
-        if (node)
-            qDebug() << "Hovered node at " << node->pos();
+        // if (node)
+        //     qDebug() << "Hovered node at " << node->pos();
     } else if (event->type() == QEvent::HoverLeave) {
         hoveredNode = nullptr;
     }
