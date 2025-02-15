@@ -148,6 +148,7 @@ void InferDurationTask::buildPreviewText() {
 GenericInferModel InferDurationTask::buildInputJson() const {
     GenericInferModel model;
     model.words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo);
+    model.configPath = m_input.configPath;
     return model;
 }
 

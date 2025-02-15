@@ -48,7 +48,7 @@ InferAcousticTask::InferAcousticTask(InferAcousticInput input) : m_input(std::mo
              << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
-InferAcousticTask::InferAcousticInput InferAcousticTask::input() {
+InferAcousticTask::InferAcousticInput InferAcousticTask::input() const {
     return m_input;
 }
 
@@ -179,5 +179,6 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, gender, velocity};
+    model.configPath = input().configPath;
     return model;
 }

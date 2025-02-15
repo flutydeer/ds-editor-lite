@@ -45,7 +45,7 @@ InferPitchTask::InferPitchTask(InferPitchInput input) : m_input(std::move(input)
              << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
-InferPitchTask::InferPitchInput InferPitchTask::input() {
+InferPitchTask::InferPitchInput InferPitchTask::input() const{
     return m_input;
 }
 
@@ -166,6 +166,7 @@ GenericInferModel InferPitchTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch, expr};
+    model.configPath = input().configPath;
     return model;
 }
 

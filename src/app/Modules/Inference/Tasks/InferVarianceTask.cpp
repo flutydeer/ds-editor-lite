@@ -177,6 +177,7 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
     GenericInferModel model;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy};
+    model.configPath = input().configPath;
     return model;
 }
 

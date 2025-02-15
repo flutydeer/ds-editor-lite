@@ -36,7 +36,7 @@ public:
     [[nodiscard]] bool success() const override;
 
     explicit InferAcousticTask(InferAcousticInput input);
-    InferAcousticInput input();
+    InferAcousticInput input() const;
     QString result() const;
 
 private:

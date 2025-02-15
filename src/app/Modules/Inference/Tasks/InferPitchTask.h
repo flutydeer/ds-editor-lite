@@ -28,7 +28,7 @@ public:
     [[nodiscard]] bool success() const override;
 
     explicit InferPitchTask(InferPitchInput input);
-    InferPitchInput input();
+    InferPitchInput input() const;
     InferParamCurve result();
 
 private:
