@@ -31,7 +31,7 @@ int InferPiece::localStartTick() const {
     auto normalInfo = phoneInfo.normal.result();
     auto phoneOffsets = aheadInfo.isEmpty() ? normalInfo : aheadInfo;
     auto firstOffset = phoneOffsets.isEmpty() ? 0 : phoneOffsets.first();
-    int paddingTicks = appModel->msToTick(100 + firstOffset); // SP 0.1s
+    int paddingTicks = appModel->msToTick(150 + firstOffset); // SP 0.15s
     return noteStartTick() - paddingTicks;
 }
 

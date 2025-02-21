@@ -12,7 +12,7 @@
 QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes, double tempo,
                                              bool useOffsetInfo) {
     auto tickToSec = [&](const double &tick) { return tick * 60 / tempo / 480; };
-    constexpr double paddingSpLen = 0.1; // s
+    constexpr double paddingSpLen = 0.15; // s
 
     QList<InferWord> result;
     QList<InferNote> noteBuffer;

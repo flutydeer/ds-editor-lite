@@ -107,10 +107,10 @@ int main(int argc, char *argv[]) {
     w.move(left, top);
     w.show();
 
-    auto taskWindow = new TaskWindow(&w);
-    taskWindow->move(availableRect.width() - taskWindow->width() - 8,
-                     availableRect.height() - taskWindow->height() - 8);
-    taskWindow->show();
+    // auto taskWindow = new TaskWindow(&w);
+    // taskWindow->move(availableRect.width() - taskWindow->width() - 8,
+    //                  availableRect.height() - taskWindow->height() - 8);
+    // taskWindow->show();
 
     auto args = QApplication::arguments();
     if (args.count() == 2) {
