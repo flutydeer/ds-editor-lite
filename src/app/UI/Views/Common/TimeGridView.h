@@ -35,11 +35,11 @@ protected:
     void drawBeat(QPainter *painter, int tick, int bar, int beat) override;
     void drawEighth(QPainter *painter, int tick) override;
 
-    const QColor barLineColor = QColor(92, 96, 100);
+    const QColor barLineColor = QColor(25, 28, 33);
     const QColor barTextColor = QColor(200, 200, 200);
     const QColor backgroundColor = QColor(42, 43, 44);
-    const QColor beatLineColor = QColor(72, 75, 78);
-    const QColor commonLineColor = QColor(57, 59, 61);
+    const QColor beatLineColor = QColor(31, 35, 41);
+    const QColor commonLineColor = QColor(33, 38, 43);
     const QColor beatTextColor = QColor(160, 160, 160);
 
 private:

@@ -747,16 +747,20 @@ QToolTip {
 
 /* PanelView */
 PanelView {
-    background: #09FFFFFF;
-    border: 1px solid rgba(0, 0, 0, 96);
+    /* background: #09FFFFFF; */
+    background: #272A33;
+    /* border: 1px solid rgba(0, 0, 0, 96); */
+    border: 1px solid #161616;
     border-radius: 6px;
 }
 
 PanelView[activePanel="true"] {
-    border: 1px solid rgb(126, 149, 199);
+    /* border: 1px solid rgb(126, 149, 199); */
+    border: 1px solid #6A7182;
 }
 
 /* TimelineView */
 TimelineView {
-    background: rgb(28, 29, 30);
+    /* background: rgb(28, 29, 30); */
+    background: #21242B;
 }

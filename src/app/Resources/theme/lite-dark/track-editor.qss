@@ -89,5 +89,6 @@ TrackListView::item:selected {
 
 
 TracksGraphicsView {
-    background: #2A2B2C
+    /* background: #2A2B2C */
+    background: #292D36
 }

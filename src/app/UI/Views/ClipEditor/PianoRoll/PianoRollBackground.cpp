@@ -19,7 +19,7 @@ void PianoRollBackground::paint(QPainter *painter, const QStyleOptionGraphicsIte
     painter->setBrush(backgroundColor);
     painter->drawRect(boundingRect());
 
-    auto lineColor = QColor(57, 59, 61);
+    auto lineColor = QColor(33, 38, 43);
     // auto keyIndexTextColor = QColor(160, 160, 160);
     auto penWidth = 1;
 
@@ -43,7 +43,7 @@ void PianoRollBackground::paint(QPainter *painter, const QStyleOptionGraphicsIte
     for (int i = prevKeyIndex; i > endKeyIndex; i--) {
         auto y = sceneYToItemY(keyIndexToSceneY(i));
 
-        painter->setBrush(PianoPaintUtils::isWhiteKey(i) ? QColor(42, 43, 44) : QColor(35, 36, 37));
+        painter->setBrush(PianoPaintUtils::isWhiteKey(i) ? QColor(47, 50, 61) : QColor(41, 45, 54));
         auto gridRect = QRectF(0, y, visibleRect().width(), noteHeight * scaleY());
         painter->setPen(Qt::NoPen);
         painter->drawRect(gridRect);

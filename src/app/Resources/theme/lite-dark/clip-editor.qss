@@ -163,13 +163,15 @@ PianoRollView>QLabel#lbNullClipTip {
 }
 
 ParamEditorGraphicsView {
-    background: rgb(28, 29, 30);
+    /* background: rgb(28, 29, 30); */
+    background: #21242B;
     border-radius: 0px;
     border-bottom-right-radius: 6px;
 }
 
 PhonemeView {
-    background: rgb(28, 29, 30);
+    /* background: rgb(28, 29, 30); */
+    background: #21242B;
     /* border-bottom-right-radius: 6px; */
 }
 
@@ -181,12 +183,14 @@ LyricWrapView {
 }
 
 QWidget#pianoRollTopLeftSpacing {
-    background: #1C1D1E;
+    /* background: #1C1D1E; */
+    background: #272A33;
     /* border-top-left-radius: 6px; */
 }
 
 QWidget#pianoRollBottomLeftSpacing {
-    background: #1C1D1E;
+    /* background: #1C1D1E; */
+    background: #272A33;
     /* border-bottom-left-radius: 6px; */
 }
 
@@ -195,7 +199,8 @@ QWidget#pianoRollBottomLeftSpacing {
 } */
 
 QSplitter#ClipEditorSplitter {
-    background-color: #2A2B2C;
+    /* background-color: #2A2B2C; */
+    background: #2F323B;
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px
 }
@@ -206,13 +211,15 @@ QSplitter#ClipEditorSplitter {
 } */
 
 ParamEditorToolBarView {
-    background: #232425;
+    /* background: #232425; */
+    background: #272A33;
     border-top: 1px solid #1C1D1E;
-    border-bottom: 1px solid #1C1D1E;
+    /* border-bottom: 1px solid #1C1D1E; */
 }
 
 ParamEditorInfoArea {
-    background: #232425;
+    /* background: #232425; */
+    background: #272A33;
     border-bottom-left-radius: 6px;
 }
 

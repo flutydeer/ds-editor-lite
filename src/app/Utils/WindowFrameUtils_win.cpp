@@ -8,7 +8,7 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
 
     // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler
 
-    bool micaOn = true;
+    bool micaOn = false;
     auto version = QSysInfo::productVersion();
     if (micaOn && version == "11") {
         // Enable Mica background

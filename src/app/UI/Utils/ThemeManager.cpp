@@ -57,13 +57,14 @@ bool ThemeManager::eventFilter(QObject *watched, QEvent *event) {
         for (auto window : m_windows)
             if (window == watched) {
                 WindowFrameUtils::applyFrameEffects(window);
-                if (SystemUtils::isWindows()) {
-                    if (QSysInfo::productVersion() == "11")
-                        window->setProperty("transparentWindow", true);
-                    else
-                        window->setProperty("transparentWindow", false);
-                } else
-                    window->setProperty("transparentWindow", false);
+                // if (SystemUtils::isWindows()) {
+                //     if (QSysInfo::productVersion() == "11")
+                //         window->setProperty("transparentWindow", true);
+                //     else
+                //         window->setProperty("transparentWindow", false);
+                // } else
+                //     window->setProperty("transparentWindow", false);
+                window->setProperty("transparentWindow", false);
                 window->style()->unpolish(window);
                 window->style()->polish(window);
             }
