@@ -175,6 +175,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
     auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
     auto noteView = d->noteViewAt(event->pos());
+    auto pronView = d->pronViewAt(event->pos());
 
     if (d->m_editMode == Select) {
         if (noteView) {
@@ -185,6 +186,9 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         clearNoteSelections();
         if (noteView) {
             d->prepareForEditingNotes(event, scenePos, keyIndex, noteView);
+        } else if (pronView) {
+            auto currentNoteView = d->findNoteViewById(pronView->id());
+            currentNoteView->setSelected(true);
         } else
             d->PrepareForDrawingNote(tick, keyIndex);
     } else if (d->m_editMode == EraseNote) {
@@ -293,10 +297,14 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
         return;
     if (event->button() != Qt::LeftButton)
         return;
-    auto noteView = d->noteViewAt(event->pos());
-    if (!noteView)
-        return;
-    d->onOpenNotePropertyDialog(noteView->id());
+
+    for (const auto item : items(event->pos()))
+        if (auto noteView = dynamic_cast<NoteView *>(item)) {
+            d->onOpenNotePropertyDialog(noteView->id(), AppGlobal::Lyric);
+            break;
+        } else if (auto pronView = dynamic_cast<PronunciationView *>(item)) {
+            d->onOpenNotePropertyDialog(pronView->id(), AppGlobal::Pronunciation);
+        }
 }
 
 int PianoRollGraphicsView::noteFontPixelSize() const {
@@ -498,11 +506,12 @@ void PianoRollGraphicsViewPrivate::onDeleteSelectedNotes() const {
     clipController->onRemoveNotes(notes);
 }
 
-void PianoRollGraphicsViewPrivate::onOpenNotePropertyDialog(int noteId) {
+void PianoRollGraphicsViewPrivate::onOpenNotePropertyDialog(
+    int noteId, AppGlobal::NotePropertyType propertyType) {
     Q_Q(PianoRollGraphicsView);
     auto note = m_clip->findNoteById(noteId);
     Q_ASSERT(note);
-    auto dlg = new NotePropertyDialog(note, q);
+    auto dlg = new NotePropertyDialog(note, propertyType, q);
     connect(dlg, &NotePropertyDialog::accepted, this,
             [=] { clipController->onNotePropertiesEdited(noteId, dlg->result()); });
     dlg->show();
@@ -530,7 +539,7 @@ CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
 
     auto actionProperties = menu->addAction(tr("Properties..."));
     connect(actionProperties, &QAction::triggered, this,
-            [=] { onOpenNotePropertyDialog(noteView->id()); });
+            [=] { onOpenNotePropertyDialog(noteView->id(), AppGlobal::Lyric); });
     return menu;
 }
 
@@ -797,6 +806,14 @@ NoteView *PianoRollGraphicsViewPrivate::noteViewAt(const QPoint &pos) {
     for (const auto item : q->items(pos))
         if (auto noteItem = dynamic_cast<NoteView *>(item))
             return noteItem;
+    return nullptr;
+}
+
+PronunciationView *PianoRollGraphicsViewPrivate::pronViewAt(const QPoint &pos) {
+    Q_Q(PianoRollGraphicsView);
+    for (const auto item : q->items(pos))
+        if (auto pronView = dynamic_cast<PronunciationView *>(item))
+            return pronView;
     return nullptr;
 }
 

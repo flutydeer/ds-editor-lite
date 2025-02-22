@@ -6,17 +6,19 @@
 #define PRONUNCIATIONVIEW_H
 
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
+#include "Utils/UniqueObject.h"
 
-class PronunciationView final: public AbstractGraphicsRectItem {
+class PronunciationView final : public AbstractGraphicsRectItem, public UniqueObject {
 public:
-    explicit PronunciationView(QGraphicsItem *parent = nullptr);
-
-    void setPronunciation(const QString &pronunciation, bool edited);
-    void setTextVisible(bool visible);
+    explicit PronunciationView(int noteId, QGraphicsItem *parent = nullptr);
 
     const int textHeight = 20;
 
 private:
+    friend class NoteView;
+    void setPronunciation(const QString &pronunciation, bool edited);
+    void setTextVisible(bool visible);
+
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void updateRectAndPos() override;
 
@@ -29,4 +31,4 @@ private:
 
 
 
-#endif //PRONUNCIATIONVIEW_H
+#endif // PRONUNCIATIONVIEW_H

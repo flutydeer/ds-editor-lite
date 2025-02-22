@@ -762,5 +762,5 @@ PanelView[activePanel="true"] {
 /* TimelineView */
 TimelineView {
     /* background: rgb(28, 29, 30); */
-    background: #21242B;
+    background: #1D2026;
 }

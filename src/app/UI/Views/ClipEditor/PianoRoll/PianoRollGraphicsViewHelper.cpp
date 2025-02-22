@@ -43,7 +43,7 @@ void PianoRollGraphicsViewHelper::editPitch(const QList<DrawCurve *> &curves) {
 
 NoteView *PianoRollGraphicsViewHelper::buildNoteView(const Note &note) {
     auto noteView = new NoteView(note.id());
-    noteView->setPronunciationView(new PronunciationView);
+    noteView->setPronunciationView(new PronunciationView(note.id()));
     noteView->setRStart(note.localStart());
     noteView->setLength(note.length());
     noteView->setKeyIndex(note.keyIndex());

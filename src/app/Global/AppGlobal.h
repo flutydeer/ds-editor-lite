@@ -16,9 +16,12 @@ namespace AppGlobal {
 
     enum PanelType { Generic, TracksEditor, ClipEditor };
 
+    enum NotePropertyType { Language, Lyric, Pronunciation, Phonemes };
+
     enum ParamType {};
 
     const QStringList languageNames = {"cmn", "eng", "jpn", "unknown"};
+
 }
 
 #endif // APPGLOBAL_H

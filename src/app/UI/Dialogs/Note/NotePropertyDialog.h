@@ -8,6 +8,7 @@
 #include "Model/AppModel/Note.h"
 #include "Model/NoteDialogResult/NoteDialogResult.h"
 #include "UI/Dialogs/Base/OKCancelDialog.h"
+#include "Global/AppGlobal.h"
 
 class QLineEdit;
 class LanguageComboBox;
@@ -17,7 +18,9 @@ class NotePropertyDialog final : public OKCancelDialog {
     Q_OBJECT
 
 public:
-    explicit NotePropertyDialog(Note *note, QWidget *parent = nullptr);
+    explicit NotePropertyDialog(Note *note,
+                                AppGlobal::NotePropertyType propertyType = AppGlobal::Lyric,
+                                QWidget *parent = nullptr);
     [[nodiscard]] NoteDialogResult result();
 
 private:

@@ -14,11 +14,13 @@
 class ClipRangeOverlay;
 class PitchEditorView;
 class QMouseEvent;
+class QHoverEvent;
 class QPaintEvent;
 class CMenu;
 class NoteView;
 class Note;
 class PianoRollGraphicsView;
+class PronunciationView;
 
 using namespace ClipEditorGlobal;
 
@@ -102,6 +104,7 @@ public:
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     void setPitchEditMode(bool on, bool isErase);
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
+    [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
     [[nodiscard]] NoteView *findNoteViewById(int id) const;
 
     void handleNoteInserted(Note *note);
@@ -120,7 +123,7 @@ public slots:
     void onParamChanged(ParamInfo::Name name, Param::Type type) const;
 
     void onDeleteSelectedNotes() const;
-    void onOpenNotePropertyDialog(int noteId);
+    void onOpenNotePropertyDialog(int noteId, AppGlobal::NotePropertyType propertyType);
 
 private:
     PianoRollGraphicsView *q_ptr;

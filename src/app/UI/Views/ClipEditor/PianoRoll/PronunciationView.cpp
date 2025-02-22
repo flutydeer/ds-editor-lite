@@ -7,7 +7,8 @@
 #include <QElapsedTimer>
 #include <QPainter>
 
-PronunciationView::PronunciationView(QGraphicsItem *parent) : AbstractGraphicsRectItem(parent) {
+PronunciationView::PronunciationView(int noteId, QGraphicsItem *parent)
+    : AbstractGraphicsRectItem(parent), UniqueObject(noteId) {
 }
 
 void PronunciationView::setPronunciation(const QString &pronunciation, bool edited) {

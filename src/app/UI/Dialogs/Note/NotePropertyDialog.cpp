@@ -14,7 +14,8 @@
 
 #include <QFormLayout>
 
-NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
+NotePropertyDialog::NotePropertyDialog(Note *note, AppGlobal::NotePropertyType propertyType,
+                                       QWidget *parent)
     : OKCancelDialog(parent), m_note() {
     setWindowTitle(tr("Note Properties - %1").arg(note->lyric()));
     setFocusPolicy(Qt::ClickFocus);
@@ -52,7 +53,20 @@ NotePropertyDialog::NotePropertyDialog(Note *note, QWidget *parent)
     body()->setLayout(mainLayout);
 
     setModal(true);
-    m_leLyric->setFocus(Qt::TabFocusReason);
+    switch (propertyType) {
+        case AppGlobal::Language:
+            m_cbLanguage->setFocus(Qt::TabFocusReason);
+            break;
+        case AppGlobal::Lyric:
+            m_leLyric->setFocus(Qt::TabFocusReason);
+            break;
+        case AppGlobal::Pronunciation:
+            m_lePron->setFocus(Qt::TabFocusReason);
+            break;
+        case AppGlobal::Phonemes:
+            m_lePhonemeAhead->setFocus(Qt::TabFocusReason);
+            break;
+    }
     connect(okButton(), &AccentButton::clicked, this, &Dialog::accept);
     connect(cancelButton(), &AccentButton::clicked, this, &Dialog::reject);
 }
