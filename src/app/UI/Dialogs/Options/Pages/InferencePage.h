@@ -21,6 +21,7 @@ private:
     ComboBox *m_cbDeviceList;
     ComboBox *m_cbSamplingSteps;
     LineEdit *m_leDsDepth;
+    SwitchButton *m_swRunVocoderOnCpu;
     SwitchButton *m_autoStartInfer;
 };
 

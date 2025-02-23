@@ -30,6 +30,8 @@ void InferenceOption::load(const QJsonObject &object) {
         samplingSteps = object[samplingStepsKey].toInt();
     if (object.contains(depthKey))
         depth = object[depthKey].toDouble();
+    if (object.contains(runVocoderOnCpuKey))
+        runVocoderOnCpu = object[runVocoderOnCpuKey].toBool();
     if (object.contains(autoStartInferKey))
         autoStartInfer = object[autoStartInferKey].toBool();
 }
@@ -40,6 +42,7 @@ void InferenceOption::save(QJsonObject &object) {
               serialize_selectedGpuId(),
               serialize_samplingSteps(),
               serialize_depth(),
+              serialize_runVocoderOnCpu(),
               serialize_autoStartInfer(),
               serialize_cacheDirectory()};
 }

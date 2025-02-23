@@ -238,7 +238,7 @@ bool InferEngine::runLoadConfig(const QString &path) {
     m_varianceInfer = new DS::VarianceInference(varianceConfig);
     m_varianceInfer->open();
 
-    m_acousticInfer = new DS::AcousticInference(dsConfig, dsVocoderConfig);
+    m_acousticInfer = new DS::AcousticInference(dsConfig, dsVocoderConfig, appOptions->inference()->runVocoderOnCpu);
     m_acousticInfer->open();
 
     qInfo() << "Successfully loaded config";

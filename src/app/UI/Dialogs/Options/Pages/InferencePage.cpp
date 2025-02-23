@@ -95,7 +95,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     // Render - Sampling Steps
     m_cbSamplingSteps = new ComboBox();
     m_cbSamplingSteps->setEditable(true);
-    m_cbSamplingSteps->setFixedWidth(80);
+    m_cbSamplingSteps->setFixedWidth(100);
     // m_cbSamplingSteps->setStyleSheet("padding-left:0;margin-left:0"); // avoid leading spacing
     m_cbSamplingSteps->setValidator(new QIntValidator(1, 1000));
     m_cbSamplingSteps->addItems({"1", "5", "10", "20", "50", "100"});
@@ -107,22 +107,28 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     doubleValidator->setRange(0.0, 1.0);
     m_leDsDepth = new LineEdit(QString::number(option->depth));
     m_leDsDepth->setValidator(doubleValidator);
-    m_leDsDepth->setFixedWidth(80);
+    m_leDsDepth->setFixedWidth(100);
     connect(m_leDsDepth, &LineEdit::editingFinished, this, &InferencePage::modifyOption);
 
-    // Render - decayInfer
-    m_autoStartInfer = new SwitchButton(appOptions->inference()->autoStartInfer);
-    connect(m_autoStartInfer, &SwitchButton::toggled, this, [=] {
+    // Render - Run vocoder on CPU
+    auto modifyAndRestart = [&] {
         modifyOption();
         const auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");
         const auto dlg = new RestartDialog(message, true, this);
         dlg->show();
-    });
+    };
+    m_swRunVocoderOnCpu = new SwitchButton(appOptions->inference()->runVocoderOnCpu);
+    connect(m_swRunVocoderOnCpu, &SwitchButton::toggled, this, modifyAndRestart);
+
+    // Render - decayInfer
+    m_autoStartInfer = new SwitchButton(appOptions->inference()->autoStartInfer);
+    connect(m_autoStartInfer, &SwitchButton::toggled, this, modifyAndRestart);
 
     auto renderCard = new OptionListCard(tr("Render"));
     renderCard->addItem(tr("Sampling Steps"), m_cbSamplingSteps);
     renderCard->addItem(tr("Depth"), m_leDsDepth);
+    renderCard->addItem(tr("Run Vocoder on CPU"), tr("For compatibility with legacy vocoders"), m_swRunVocoderOnCpu);
     renderCard->addItem(tr("Auto Start Infer"), m_autoStartInfer);
 
     // Main Layout
@@ -152,6 +158,7 @@ void InferencePage::modifyOption() {
     }
     option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
     option->depth = m_leDsDepth->text().toDouble();
+    option->runVocoderOnCpu = m_swRunVocoderOnCpu->value();
     option->autoStartInfer = m_autoStartInfer->value();
     appOptions->saveAndNotify();
 }
