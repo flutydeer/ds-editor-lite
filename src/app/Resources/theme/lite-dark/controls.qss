@@ -167,7 +167,7 @@ QComboBox:editable {
 }
 
 QComboBox:editable:focus {
-    background: #202122;
+    background:  #1A1C22;
     border: 1px solid #505050;
     border-bottom: 1px solid #9BBAFF;
 }
@@ -364,7 +364,7 @@ QLineEdit {
 }
 
 QLineEdit:focus {
-    background: #202122;
+    background:  #1A1C22;
     border-left: 1px solid #505050;
     border-top: 1px solid #505050;
     border-right: 1px solid #505050;
@@ -383,52 +383,54 @@ QAbstractSpinBox {
     color: #e0e0e0;
     selection-color: #000;
     selection-background-color: #9BBAFF;
-    padding: 0px 8px;
-    height: 26px;
+    padding: 0px;
+    height: 24px;
 }
 
 QAbstractSpinBox:focus {
-    background: #202122;
+    background:  #1A1C22;
     border-left: 1px solid #505050;
     border-top: 1px solid #505050;
     border-right: 1px solid #505050;
     border-bottom: 1px solid #9BBAFF;
 }
 
-QAbstractSpinBox::up-button {
-    subcontrol-origin: border;
-    subcontrol-position: right;
+QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {
+    subcontrol-origin: content;
     background-color: transparent;
-    image: url(:svg/icons/chevron_right_16_filled_white.svg);
-    padding: 4px;
+    width: 28px;
+    height: 28px;
     border-radius: 4px;
 }
 
-QAbstractSpinBox::up-button:hover {
-    background-color: #1AFFFFFF;
-}
-
-QAbstractSpinBox::up-button:pressed {
-    background-color: #10FFFFFF;
+QAbstractSpinBox::up-button {
+    subcontrol-position: right;
 }
 
 QAbstractSpinBox::down-button {
-    subcontrol-origin: margin;
     subcontrol-position: left;
-    background-color: transparent;
-    image: url(:svg/icons/chevron_left_16_filled_white.svg);
-    padding: 4px;
-    border-radius: 4px;
 }
 
-QAbstractSpinBox::down-button:hover {
+QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover {
     background-color: #1AFFFFFF;
 }
 
-QAbstractSpinBox::down-button:pressed {
+QAbstractSpinBox::up-button:pressed, QAbstractSpinBox::down-button:pressed {
     background-color: #10FFFFFF;
 }
 
+QAbstractSpinBox::up-arrow, QAbstractSpinBox::down-arrow {
+    subcontrol-position: center;
+    padding: 8px;
+}
+
+QAbstractSpinBox::up-arrow {
+    image: url(:svg/icons/chevron_right_16_filled_white.svg);
+}
+
+QAbstractSpinBox::down-arrow {
+    image: url(:svg/icons/chevron_left_16_filled_white.svg);
+}
 
 /* Label */
 QLabel {
@@ -438,13 +440,13 @@ QLabel {
 
 /* TreeView */
 QTreeView {
-    background: #202122;
+    background:  #1A1C22;
 }
 
 
 /* Dialog */
 QDialog {
-    background: #202122;
+    background:  #1A1C22;
 }
 
 QLabel#DialogTitleLabel {
@@ -588,7 +590,7 @@ QTabBar::tab:selected {
 
 /* TextEdit */
 QTextEdit {
-    background: #202122;
+    background:  #1A1C22;
     border: 1px solid #505050;
     border-radius: 4px;
     color: #e0e0e0;
@@ -598,7 +600,7 @@ QTextEdit {
 }
 
 QPlainTextEdit {
-    background: #202122;
+    background:  #1A1C22;
     border: 1px solid #505050;
     border-radius: 4px;
     color: #e0e0e0;
@@ -649,7 +651,7 @@ QGroupBox::title {
 
 /* GraphicsView */
 QGraphicsView {
-    background: #202122;
+    background:  #1A1C22;
     border: 1px solid #505050;
     border-radius: 6px;
 }
