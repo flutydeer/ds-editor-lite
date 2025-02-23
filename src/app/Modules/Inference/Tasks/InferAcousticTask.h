@@ -27,6 +27,7 @@ public:
 
         InferParamCurve gender;
         InferParamCurve velocity;
+        InferParamCurve toneShift;
 
         bool operator==(const InferAcousticInput &other) const;
     };

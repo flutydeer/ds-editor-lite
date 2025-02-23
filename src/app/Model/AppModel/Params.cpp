@@ -52,7 +52,6 @@ void Param::setCurves(Type type, const QList<Curve *> &curves, SingingClip *clip
     }
 }
 
-
 ParamInfo::ParamInfo(SingingClip *clip) {
     m_clip = clip;
 }
@@ -75,9 +74,10 @@ Param *ParamInfo::getParamByName(Name name) {
             return &gender;
         case Energy:
             return &energy;
-        case Unknown: {
-            return nullptr;
-        }
+        case ToneShift:
+            return &toneShift;
+        default:
+            break;
     }
     qFatal() << "Param type out of range" << name;
     return nullptr;

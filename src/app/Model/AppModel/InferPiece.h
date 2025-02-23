@@ -45,6 +45,7 @@ public:
 
     DrawCurve inputGender;
     DrawCurve inputVelocity;
+    DrawCurve inputToneShift;
 
     explicit InferPiece(SingingClip *clip);
 

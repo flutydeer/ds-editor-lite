@@ -23,7 +23,7 @@ public:
     int divisionValue = 200;
     int displayPrecision = 3;
     [[nodiscard]] bool hasUnit() const;
-    [[nodiscard]] QString valueToString(int value, bool withUnit, int precision = 3) const;
+    [[nodiscard]] virtual QString valueToString(int value, bool withUnit, int precision = 3) const;
     [[nodiscard]] virtual int valueFromNormalized(double normalized) const;
     [[nodiscard]] virtual double valueToNormalized(int value) const;
     explicit ParamProperties();
@@ -64,6 +64,12 @@ public:
     explicit VelocityParamProperties();
     [[nodiscard]] int valueFromNormalized(double normalized) const override;
     [[nodiscard]] double valueToNormalized(int value) const override;
+};
+
+class ToneShiftParamProperties final : public ParamProperties {
+public:
+    explicit ToneShiftParamProperties();
+    [[nodiscard]] QString valueToString(int value, bool withUnit, int precision = 3) const override;
 };
 
 #endif // PARAMPROPERTIES_H

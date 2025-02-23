@@ -98,6 +98,8 @@ const DrawCurve *InferPiece::getInputCurve(ParamInfo::Name name) const {
             return &inputGender;
         case ParamInfo::Velocity:
             return &inputVelocity;
+        case ParamInfo::ToneShift:
+            return &inputToneShift;
         default:
             qFatal() << "Param type out of range" << name;
             return nullptr;
@@ -129,6 +131,8 @@ void InferPiece::setInputCurve(ParamInfo::Name name, DrawCurve &curve) {
         case ParamInfo::Velocity:
             inputVelocity = curve;
             break;
+        case ParamInfo::ToneShift:
+            inputToneShift = curve;
         default:
             qFatal() << "Param type out of range" << name;
     }

@@ -51,6 +51,7 @@ public:
         Tension,
         Gender,
         Velocity,
+        ToneShift,
         Unknown
     };
 
@@ -64,6 +65,7 @@ public:
     Param tension;
     Param gender;
     Param velocity;
+    Param toneShift;
 
     Param *getParamByName(Name name);
     static bool hasOriginalParam(Name name);

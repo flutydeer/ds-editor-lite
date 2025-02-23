@@ -18,7 +18,6 @@
 #include "UI/Controls/ToolTipFilter.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Utils/G2pUtil.h"
-#include "Utils/SystemUtils.h"
 
 #include <QButtonGroup>
 #include <QHBoxLayout>

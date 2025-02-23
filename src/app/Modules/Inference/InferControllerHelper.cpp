@@ -73,9 +73,12 @@ namespace InferControllerHelper {
         InferParamCurve velocity = {
             Linq::selectMany(piece.inputVelocity.values(), L_PRED(p, p / 1000.0))};
 
-        return {piece.clipId(),    piece.id(), notes,       configPath,
-                appModel->tempo(), pitch,      breathiness, tension,
-                voicing,           energy,     gender,      velocity};
+        InferParamCurve toneShift = {
+            Linq::selectMany(piece.inputToneShift.values(), L_PRED(p, p * 1.0))};
+
+        return {piece.clipId(), piece.id(),  notes,    configPath, appModel->tempo(),
+                pitch,          breathiness, tension,  voicing,    energy,
+                gender,         velocity,    toneShift};
     }
 
     QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(ParamInfo::Name name, SingingClip &clip) {

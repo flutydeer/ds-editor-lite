@@ -103,3 +103,21 @@ double VelocityParamProperties::valueToNormalized(int value) const {
     auto num = std::log2(value / 1000.0) + 1;
     return num / 2;
 }
+
+ToneShiftParamProperties::ToneShiftParamProperties() {
+    valueType = ValueType::Relative;
+    displayMode = DisplayMode::FillFromDefault;
+    minimum = -1'200;
+    maximum = 1'200;
+    defaultValue = 0;
+    showDefaultValue = true;
+    unit = "cent";
+}
+
+QString ToneShiftParamProperties::valueToString(int value, bool withUnit, int precision) const {
+    Q_UNUSED(precision);
+    auto strValue = QString::number(value);
+    if (withUnit)
+        return QString("%1 %2").arg(strValue, unit);
+    return strValue;
+}

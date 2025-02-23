@@ -28,6 +28,8 @@ const ParamProperties *ParamUtils::getPropertiesByName(ParamInfo::Name name) con
             return &genderProperties;
         case ParamInfo::Velocity:
             return &velocityProperties;
+        case ParamInfo::ToneShift:
+            return &toneShiftProperties;
         case ParamInfo::Unknown:
             return &defaultProperties;
     }

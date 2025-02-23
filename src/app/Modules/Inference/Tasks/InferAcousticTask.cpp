@@ -21,7 +21,7 @@ bool InferAcousticTask::InferAcousticInput::operator==(const InferAcousticInput 
            qFuzzyCompare(tempo, other.tempo) && pitch == other.pitch &&
            breathiness == other.breathiness && tension == other.tension &&
            voicing == other.voicing && energy == other.energy && gender == other.gender &&
-           velocity == other.velocity;
+           velocity == other.velocity && toneShift == other.toneShift;
 }
 
 int InferAcousticTask::clipId() const {
@@ -176,9 +176,13 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     velocity.tag = "velocity";
     velocity.values = MathUtils::resample(m_input.velocity.values, 5, newInterval);
 
+    InferParam toneShift = param;
+    toneShift.tag = "tone_shift";
+    toneShift.values = MathUtils::resample(m_input.toneShift.values, 5, newInterval);
+
     GenericInferModel model;
     model.words = words;
-    model.params = {pitch, breathiness, tension, voicing, energy, gender, velocity};
+    model.params = {pitch, breathiness, tension, voicing, energy, gender, velocity, toneShift};
     model.configPath = input().configPath;
     return model;
 }
