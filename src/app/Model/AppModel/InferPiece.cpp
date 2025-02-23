@@ -133,6 +133,7 @@ void InferPiece::setInputCurve(ParamInfo::Name name, DrawCurve &curve) {
             break;
         case ParamInfo::ToneShift:
             inputToneShift = curve;
+            break;
         default:
             qFatal() << "Param type out of range" << name;
     }

@@ -129,6 +129,7 @@ void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Typ
         case ParamInfo::Tension:
         case ParamInfo::Gender:
         case ParamInfo::Velocity:
+        case ParamInfo::ToneShift:
             for (const auto &piece : dirtyPieces) {
                 auto pred = L_PRED(t, t->pieceId() == piece->id());
                 m_inferAcousticTasks.cancelIf(pred);
