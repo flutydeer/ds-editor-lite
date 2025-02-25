@@ -60,7 +60,7 @@ void OptionsCardItem::setDescription(const QString &desc) {
 
 void OptionsCardItem::addWidget(QWidget *widget) {
     m_mainLayout->addWidget(widget);
-    m_lbDesc->setBuddy(widget);
+    m_lbTitle->setBuddy(widget);
 }
 
 void OptionsCardItem::removeWidget(QWidget *widget) {

@@ -7,6 +7,11 @@ class LineEdit;
 class ComboBox;
 class SwitchButton;
 
+namespace SVS {
+    class ExpressionDoubleSpinBox;
+    class SeekBar;
+}
+
 class InferencePage : public IOptionPage {
     Q_OBJECT
 public:
@@ -20,7 +25,8 @@ private:
     ComboBox *m_cbExecutionProvider;
     ComboBox *m_cbDeviceList;
     ComboBox *m_cbSamplingSteps;
-    LineEdit *m_leDsDepth;
+    SVS::SeekBar *m_dsDepthSlider;
+    SVS::ExpressionDoubleSpinBox *m_dsDepthSpinBox;
     SwitchButton *m_swRunVocoderOnCpu;
     SwitchButton *m_autoStartInfer;
 };

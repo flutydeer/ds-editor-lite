@@ -10,6 +10,8 @@
 #include "UI/Controls/OptionListCard.h"
 #include "UI/Controls/OptionsCard.h"
 #include "UI/Controls/OptionsCardItem.h"
+#include "UI/Controls/SvsExpressiondoublespinbox.h"
+#include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/SwitchButton.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
 
@@ -103,12 +105,33 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     connect(m_cbSamplingSteps, &ComboBox::currentTextChanged, this, &InferencePage::modifyOption);
 
     // Render - Depth
-    auto doubleValidator = new QDoubleValidator();
-    doubleValidator->setRange(0.0, 1.0);
-    m_leDsDepth = new LineEdit(QString::number(option->depth));
-    m_leDsDepth->setValidator(doubleValidator);
-    m_leDsDepth->setFixedWidth(100);
-    connect(m_leDsDepth, &LineEdit::editingFinished, this, &InferencePage::modifyOption);
+    constexpr double kDsDepthMin = 0.0;
+    constexpr double kDsDepthMax = 1.0;
+    constexpr double kDsDepthSingleStep = 0.01;
+
+    auto currentDsDepth = option->depth;
+    m_dsDepthSlider = new SVS::SeekBar();
+    m_dsDepthSlider->setFixedWidth(256);
+    m_dsDepthSlider->setRange(kDsDepthMin, kDsDepthMax);
+    m_dsDepthSlider->setSingleStep(kDsDepthSingleStep);
+    m_dsDepthSlider->setValue(currentDsDepth);
+    m_dsDepthSpinBox = new SVS::ExpressionDoubleSpinBox();
+    m_dsDepthSpinBox->setRange(kDsDepthMin, kDsDepthMax);
+    m_dsDepthSpinBox->setSingleStep(kDsDepthSingleStep);
+    m_dsDepthSpinBox->setValue(currentDsDepth);
+
+    connect(m_dsDepthSlider, &SVS::SeekBar::valueChanged, this, [&](double value) {
+        m_dsDepthSpinBox->setValue(value);
+        appOptions->inference()->depth = value;
+    });
+    connect(m_dsDepthSlider, &SVS::SeekBar::sliderReleased, this, &InferencePage::modifyOption);
+    connect(m_dsDepthSlider, &SVS::SeekBar::releaseKeyboard, this, &InferencePage::modifyOption);
+
+    connect(m_dsDepthSpinBox, &SVS::ExpressionDoubleSpinBox::valueChanged, this, [&](double value) {
+        m_dsDepthSlider->setValue(value);
+        appOptions->inference()->depth = value;
+    });
+    connect(m_dsDepthSpinBox, &SVS::ExpressionDoubleSpinBox::editingFinished, this, &InferencePage::modifyOption);
 
     // Render - Run vocoder on CPU
     auto modifyAndRestart = [&] {
@@ -127,7 +150,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
 
     auto renderCard = new OptionListCard(tr("Render"));
     renderCard->addItem(tr("Sampling Steps"), m_cbSamplingSteps);
-    renderCard->addItem(tr("Depth"), m_leDsDepth);
+    renderCard->addItem(tr("Depth"), {m_dsDepthSlider, m_dsDepthSpinBox});
     renderCard->addItem(tr("Run Vocoder on CPU"), tr("For compatibility with legacy vocoders"), m_swRunVocoderOnCpu);
     renderCard->addItem(tr("Auto Start Infer"), m_autoStartInfer);
 
@@ -157,7 +180,7 @@ void InferencePage::modifyOption() {
         option->selectedGpuId = gpuInfo.deviceId;
     }
     option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
-    option->depth = m_leDsDepth->text().toDouble();
+    option->depth = m_dsDepthSpinBox->value();
     option->runVocoderOnCpu = m_swRunVocoderOnCpu->value();
     option->autoStartInfer = m_autoStartInfer->value();
     appOptions->saveAndNotify();
