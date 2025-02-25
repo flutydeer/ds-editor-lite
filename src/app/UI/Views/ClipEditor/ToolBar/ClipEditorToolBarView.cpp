@@ -15,13 +15,13 @@
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"
+#include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/ToolTipFilter.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Utils/G2pUtil.h"
 
 #include <QButtonGroup>
 #include <QHBoxLayout>
-#include <SVSCraftWidgets/seekbar.h>
 #include <QLabel>
 
 ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)

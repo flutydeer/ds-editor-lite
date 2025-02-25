@@ -37,6 +37,7 @@ find_package(QasTool CONFIG REQUIRED)
 find_package(opendspx CONFIG REQUIRED)
 find_package(lyric-tab CONFIG REQUIRED)
 find_package(talcs REQUIRED)
+find_package(unofficial-tinyexpr CONFIG REQUIRED)
 
 set(USE_LITE_CONTROLS OFF)
 
@@ -55,10 +56,10 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         lyric-tab::lyric-tab
         QWindowKit::Widgets
         qtmediate::Widgets
-        svscraft::Widgets
         dsonnxinfer
         rmvpe-infer::rmvpe-infer some-infer::some-infer
         curve-util::curve-util
+        unofficial::tinyexpr::tinyexpr
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)

@@ -19,10 +19,10 @@
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsDevice/SDLAudioDriverDisplayNameHelper.h>
 
-#include <SVSCraftCore/decibellinearizer.h>
-#include <SVSCraftWidgets/expressionspinbox.h>
-#include <SVSCraftWidgets/expressiondoublespinbox.h>
-#include <SVSCraftWidgets/seekbar.h>
+#include "Utils/Decibellinearizer.h"
+#include "UI/Controls/SvsSeekbar.h"
+#include "UI/Controls/SvsExpressionspinbox.h"
+#include "UI/Controls/SvsExpressiondoublespinbox.h"
 
 #include <Model/AppOptions/AppOptions.h>
 #include <Modules/Audio/AudioSystem.h>
@@ -39,11 +39,11 @@
 
 static inline double sliderValueToGain(double sliderValue) {
     return talcs::Decibels::decibelsToGain(
-        SVS::DecibelLinearizer::linearValueToDecibel(sliderValue));
+        DecibelLinearizer::linearValueToDecibel(sliderValue));
 }
 
 static inline double gainToSliderValue(float gain) {
-    return SVS::DecibelLinearizer::decibelToLinearValue(talcs::Decibels::gainToDecibels(gain));
+    return DecibelLinearizer::decibelToLinearValue(talcs::Decibels::gainToDecibels(gain));
 }
 
 static inline double sliderValueToPan(int sliderValue) {
@@ -74,10 +74,10 @@ public:
 
         m_deviceGainSlider = new SVS::SeekBar;
         m_deviceGainSlider->setFixedWidth(256);
-        m_deviceGainSlider->setRange(SVS::DecibelLinearizer::decibelToLinearValue(-96),
-                                     SVS::DecibelLinearizer::decibelToLinearValue(6));
+        m_deviceGainSlider->setRange(DecibelLinearizer::decibelToLinearValue(-96),
+                                     DecibelLinearizer::decibelToLinearValue(6));
         m_deviceGainSlider->setDisplayValueConverter(
-            [](double v) { return SVS::DecibelLinearizer::linearValueToDecibel(v); });
+            [](double v) { return DecibelLinearizer::linearValueToDecibel(v); });
         m_deviceGainSpinBox = new SVS::ExpressionDoubleSpinBox;
         m_deviceGainSpinBox->setDecimals(1);
         m_deviceGainSpinBox->setRange(-96, 6);

@@ -21,6 +21,7 @@
     "nlohmann-json",
     "yaml-cpp",
     "wavpack",
+    "tinyexpr",
     {
       "name": "talcs",
       "features": [

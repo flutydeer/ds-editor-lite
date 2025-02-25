@@ -7,10 +7,10 @@
 #include <TalcsCore/Decibels.h>
 #include <TalcsMidi/MidiMessage.h>
 
-#include <SVSCraftCore/decibellinearizer.h>
-#include <SVSCraftWidgets/seekbar.h>
-#include <SVSCraftWidgets/expressionspinbox.h>
-#include <SVSCraftWidgets/expressiondoublespinbox.h>
+#include "Utils/Decibellinearizer.h"
+#include "UI/Controls/SvsSeekbar.h"
+#include "UI/Controls/SvsExpressionspinbox.h"
+#include "UI/Controls/SvsExpressiondoublespinbox.h"
 
 #include <Modules/Audio/utils/AudioHelpers.h>
 #include <Modules/Audio/AudioSystem.h>
@@ -135,12 +135,12 @@ void SettingPageSynthHelper::initialize(
         m_testSynthesizer.setGenerator(static_cast<talcs::NoteSynthesizer::Generator>(index));
     });
     connect(amplitudeSlider, &SVS::SeekBar::valueChanged, this, [=](double value) {
-        amplitudeSpinBox->setValue(SVS::DecibelLinearizer::linearValueToDecibel(value));
+        amplitudeSpinBox->setValue(DecibelLinearizer::linearValueToDecibel(value));
     });
     connect(amplitudeSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double decibel) {
         QSignalBlocker o(amplitudeSlider);
         m_cachedAmplitude = decibel;
-        amplitudeSlider->setValue(SVS::DecibelLinearizer::decibelToLinearValue(decibel));
+        amplitudeSlider->setValue(DecibelLinearizer::decibelToLinearValue(decibel));
         m_testMixer.setGain(talcs::Decibels::decibelsToGain(decibel));
     });
     connect(attackSlider, &SVS::SeekBar::valueChanged, attackSpinBox, &QSpinBox::setValue);

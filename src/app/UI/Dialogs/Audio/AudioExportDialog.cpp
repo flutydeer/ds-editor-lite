@@ -28,7 +28,7 @@
 #include <QProgressBar>
 #include <QTimer>
 
-#include <SVSCraftWidgets/expressionspinbox.h>
+#include "UI/Controls/SvsExpressionspinbox.h"
 
 #include <Modules/Audio/AudioExporter_p.h>
 

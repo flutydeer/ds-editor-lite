@@ -16,7 +16,8 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMWidgets/cmenu.h>
-#include <SVSCraftWidgets/seekbar.h>
+
+#include "UI/Controls/SvsSeekbar.h"
 
 using namespace SVS;
 

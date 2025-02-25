@@ -1,7 +1,7 @@
 add_subdirectory(dsonnxinfer)
 add_subdirectory(qtmediate)
 #add_subdirectory(talcs)
-add_subdirectory(svscraft)
+#add_subdirectory(svscraft)
 add_subdirectory(rmvpe-infer)
 add_subdirectory(audio-util)
 add_subdirectory(some-infer)

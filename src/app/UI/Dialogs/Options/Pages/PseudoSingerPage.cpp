@@ -11,10 +11,10 @@
 #include <QPushButton>
 #include <QCheckBox>
 
-#include <SVSCraftCore/decibellinearizer.h>
-#include <SVSCraftWidgets/seekbar.h>
-#include <SVSCraftWidgets/expressionspinbox.h>
-#include <SVSCraftWidgets/expressiondoublespinbox.h>
+#include "Utils/Decibellinearizer.h"
+#include "UI/Controls/SvsSeekbar.h"
+#include "UI/Controls/SvsExpressionspinbox.h"
+#include "UI/Controls/SvsExpressiondoublespinbox.h"
 
 #include <Modules/Audio/utils/SettingPagesSynthHelper.h>
 #include <Modules/Audio/AudioSettings.h>
@@ -52,8 +52,8 @@ public:
 
         auto amplitudeLayout = new QHBoxLayout;
         auto amplitudeSlider = new SVS::SeekBar;
-        amplitudeSlider->setDefaultValue(SVS::DecibelLinearizer::decibelToLinearValue(-3));
-        amplitudeSlider->setRange(SVS::DecibelLinearizer::decibelToLinearValue(-96), SVS::DecibelLinearizer::decibelToLinearValue(0));
+        amplitudeSlider->setDefaultValue(DecibelLinearizer::decibelToLinearValue(-3));
+        amplitudeSlider->setRange(DecibelLinearizer::decibelToLinearValue(-96), DecibelLinearizer::decibelToLinearValue(0));
         amplitudeLayout->addWidget(amplitudeSlider);
         auto amplitudeSpinBox = new SVS::ExpressionDoubleSpinBox;
         amplitudeSpinBox->setDecimals(1);
@@ -150,10 +150,10 @@ public:
         d->m_cachedReleaseMsec = m_cachedSynthConfig[0].releaseMsec;
 
         static double amplitudeDefaultValue[] = {
-            SVS::DecibelLinearizer::decibelToLinearValue(-4.0),
-            SVS::DecibelLinearizer::decibelToLinearValue(-7.0),
-            SVS::DecibelLinearizer::decibelToLinearValue(-4.0),
-            SVS::DecibelLinearizer::decibelToLinearValue(-6.0)};
+            DecibelLinearizer::decibelToLinearValue(-4.0),
+            DecibelLinearizer::decibelToLinearValue(-7.0),
+            DecibelLinearizer::decibelToLinearValue(-4.0),
+            DecibelLinearizer::decibelToLinearValue(-6.0)};
         amplitudeSlider->setDefaultValue(amplitudeDefaultValue[d->m_cachedGenerator]);
 
         d->initialize(generatorComboBox, amplitudeSlider, amplitudeSpinBox, attackSlider,
