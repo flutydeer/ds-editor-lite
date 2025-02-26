@@ -6,14 +6,11 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/Button.h"
-#include "UI/Controls/CardView.h"
-#include "UI/Controls/DividerLine.h"
 #include "UI/Controls/FileSelector.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/OptionListCard.h"
-#include "UI/Controls/OptionsCard.h"
-#include "UI/Controls/OptionsCardItem.h"
 #include "UI/Views/Common/LanguageComboBox.h"
+#include "Global/AppOptionsGlobal.h"
 
 #include <QLabel>
 #include <QVBoxLayout>
@@ -112,5 +109,5 @@ void GeneralPage::modifyOption() {
 
     option->somePath = m_fsSomePath->filePath();
     option->rmvpePath = m_fsRmvpePath->filePath();
-    appOptions->saveAndNotify();
+    appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
 }

@@ -14,6 +14,7 @@
 #include "Tasks/InferPitchTask.h"
 #include "Tasks/InferVarianceTask.h"
 #include "Global/PlaybackGlobal.h"
+#include "Global/AppOptionsGlobal.h"
 
 class GetPronunciationTask;
 class GetPhonemeNameTask;
@@ -29,7 +30,7 @@ public:
 public slots:
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
     void onEditingChanged(AppStatus::EditObjectType type);
-    void onInferOptionChanged();
+    void onInferOptionChanged(AppOptionsGlobal::Option option);
     void onPlaybackStatusChanged(PlaybackGlobal::PlaybackStatus status);
 
 public:

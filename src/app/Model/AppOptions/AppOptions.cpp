@@ -33,32 +33,34 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
             m_fillLyricOption.load(obj.value(m_fillLyricOption.key()).toObject());
             m_inferenceOption.load(obj.value(m_inferenceOption.key()).toObject());
         }
-    saveAndNotify();
+    saveAndNotify(AppOptionsGlobal::All);
 }
 
 QString AppOptions::configPath() const {
     return m_configPath;
 }
 
-bool AppOptions::saveAndNotify() {
-    QJsonObject obj;
-    obj.insert(m_generalOption.key(), m_generalOption.value());
-    obj.insert(m_audioOption.key(), m_audioOption.value());
-    obj.insert(m_appearanceOption.key(), m_appearanceOption.value());
-    obj.insert(m_languageOption.key(), m_languageOption.value());
-    obj.insert(m_fillLyricOption.key(), m_fillLyricOption.value());
-    obj.insert(m_inferenceOption.key(), m_inferenceOption.value());
+bool AppOptions::saveAndNotify(AppOptionsGlobal::Option option) {
+    QJsonObject obj{
+        {m_generalOption.key(),    m_generalOption.value()   },
+        {m_audioOption.key(),      m_audioOption.value()     },
+        {m_appearanceOption.key(), m_appearanceOption.value()},
+        {m_languageOption.key(),   m_languageOption.value()  },
+        {m_fillLyricOption.key(),  m_fillLyricOption.value() },
+        {m_inferenceOption.key(),  m_inferenceOption.value() }
+    };
 
-    notifyOptionsChanged();
-    return JsonUtils::save(m_configPath, obj);
+    auto success = JsonUtils::save(m_configPath, obj);
+    notifyOptionsChanged(option);
+    return success;
 }
 
 GeneralOption *AppOptions::general() {
     return &m_generalOption;
 }
 
-void AppOptions::notifyOptionsChanged() {
-    emit optionsChanged();
+void AppOptions::notifyOptionsChanged(AppOptionsGlobal::Option option) {
+    emit optionsChanged(option);
 }
 
 AudioOption *AppOptions::audio() {

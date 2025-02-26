@@ -169,6 +169,7 @@ bool InferEngine::initialize(QString &error) {
     m_env.setDefaultDepth(appOptions->inference()->depth);
 
     connect(appOptions, &AppOptions::optionsChanged, this, [&]() {
+        // TODO: 重构
         const auto &steps = appOptions->inference()->samplingSteps;
         if (m_env.defaultSteps() != steps) {
             Q_EMIT cancelAllInferTasks();

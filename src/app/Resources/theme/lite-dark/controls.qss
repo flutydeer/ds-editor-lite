@@ -113,7 +113,7 @@ QComboBox QAbstractItemView {
     outline: 0px;
     border: 1px solid #80606060;
     color: #e0e0e0;
-    background-color: #202122;
+    background-color: #191C21;
     border: 1px solid #606060;
     selection-background-color: #1AFFFFFF;
     border-radius: 6px;
@@ -277,7 +277,7 @@ QListWidget::item:selected {
 /* Menu */
 QMenu {
     padding: 4px;
-    background-color: #202122;
+    background-color: #191C21;
     border: 1px solid #505050;
     /* border-radius: 6px; */
     color: #e0e0e0;
@@ -475,11 +475,13 @@ QListWidget#AppOptionsDialogTabListWidget::item {
 }
 
 QListWidget#AppOptionsDialogTabListWidget::item:hover {
-    background-color: #10FFFFFF;
+    background-color: #1BC7D8FF;
 }
 
 QListWidget#AppOptionsDialogTabListWidget::item:selected {
-    background-color: #1AFFFFFF;
+    background-color: #409BBAFF;
+    color: #9BBAFF;
+    font-weight: bold;
 }
 
 /* CheckBox */
@@ -612,7 +614,7 @@ QPlainTextEdit {
 
 /* TableView */
 QTableView {
-    background-color: #202122;
+    background-color: #191C21;
     border: 1px solid #505050;
     border-radius: 4px;
     color: #e0e0e0;
@@ -665,7 +667,7 @@ TimeGraphicsView {
 /* CardView */
 CardView {
     border-radius: 8px;
-    background-color: #10FFFFFF;
+    background-color: #1BC7D8FF;
 }
 
 OptionsCard {
@@ -741,7 +743,7 @@ SVS--SeekBar {
 /* ToolTip */
 QToolTip {
     padding: 2px 4px;
-    background-color: #202122;
+    background-color: #191C21;
     border: 1px solid #505050;
     color: #e0e0e0;
 }

@@ -7,6 +7,7 @@
 
 #include <QObject>
 #include "Utils/Singleton.h"
+#include "Global/AppOptionsGlobal.h"
 
 class IAnimatable;
 
@@ -19,7 +20,7 @@ public:
     void removeWindow(QWidget *window);
 
 public slots:
-    void onAppOptionsChanged();
+    void onAppOptionsChanged(AppOptionsGlobal::Option option);
     void onSystemThemeColorChanged(ThemeColorType colorType);
 
 private:

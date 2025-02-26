@@ -20,6 +20,7 @@
 #include "UI/Dialogs/Extractor/ExtractPitchParamDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Window/MainWindow.h"
+#include "Global/AppOptionsGlobal.h"
 
 #include <QFileDialog>
 #include <QMWidgets/cmenu.h>
@@ -164,32 +165,32 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     auto menuOptions = new CMenu(tr("&Options"), this);
     auto actionGeneralOptions = new QAction(tr("&General..."), this);
     connect(actionGeneralOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::General);
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::General);
         dialog.exec();
     });
     auto actionAudioSettings = new QAction(tr("&Audio..."), this);
     connect(actionAudioSettings, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::Audio);
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::Audio);
         dialog.exec();
     });
     auto actionMidiSettings = new QAction(tr("&MIDI..."), this);
     connect(actionMidiSettings, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::Midi);
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::Midi);
         dialog.exec();
     });
     auto actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
     connect(actionAppearanceOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::Appearance);
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::Appearance);
         dialog.exec();
     });
-    const auto actionLanguageOptions = new QAction(tr("&G2p..."), this);
+    const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
     connect(actionLanguageOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::G2p);
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::Language);
         dialog.exec();
     });
     const auto actionInferenceOptions = new QAction(tr("&Inference..."), this);
     connect(actionInferenceOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsDialog::Inference);
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::Inference);
         dialog.exec();
     });
     menuOptions->addAction(actionGeneralOptions);

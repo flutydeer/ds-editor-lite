@@ -183,5 +183,5 @@ void InferencePage::modifyOption() {
     option->depth = m_dsDepthSpinBox->value();
     option->runVocoderOnCpu = m_swRunVocoderOnCpu->value();
     option->autoStartInfer = m_autoStartInfer->value();
-    appOptions->saveAndNotify();
+    appOptions->saveAndNotify(AppOptionsGlobal::Inference);
 }

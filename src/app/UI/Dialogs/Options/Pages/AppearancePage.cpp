@@ -66,5 +66,5 @@ void AppearancePage::modifyOption() {
     option->animationLevel =
         static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
     option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();
-    appOptions->saveAndNotify();
+    appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
 }

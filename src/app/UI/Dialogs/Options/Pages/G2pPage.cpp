@@ -65,5 +65,5 @@ void G2pPage::modifyOption() {
     const auto g2pConfig = LangMgr::ILanguageManager::instance()->g2p(g2pId)->config();
     if (!g2pConfig.empty())
         options->g2pConfigs.insert(g2pId, g2pConfig);
-    appOptions->saveAndNotify();
+    appOptions->saveAndNotify(AppOptionsGlobal::Language);
 }

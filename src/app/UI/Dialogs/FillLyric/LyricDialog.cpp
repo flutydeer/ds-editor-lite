@@ -151,5 +151,5 @@ void LyricDialog::_on_modifyOption(const FillLyric::LyricTabConfig &config) {
     options->viewFontSize = config.lyricExtFontSize;
     options->autoWrap = config.autoWrap;
     options->exportLanguage = config.exportLanguage;
-    appOptions->saveAndNotify();
+    appOptions->saveAndNotify(AppOptionsGlobal::Language);
 }

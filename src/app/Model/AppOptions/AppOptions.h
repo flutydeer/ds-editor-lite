@@ -16,6 +16,7 @@
 #include "Options/FillLyricOption.h"
 #include "Options/GeneralOption.h"
 #include "Options/InferenceOption.h"
+#include "Global/AppOptionsGlobal.h"
 
 class AppOptions : public QObject, public Singleton<AppOptions> {
     Q_OBJECT
@@ -27,7 +28,7 @@ public:
 
     // void load(const QJsonObject &object);
     // void save(const QString &path);
-    bool saveAndNotify();
+    bool saveAndNotify(AppOptionsGlobal::Option option);
 
     GeneralOption *general();
     AudioOption *audio();
@@ -37,7 +38,7 @@ public:
     InferenceOption *inference();
 
 signals:
-    void optionsChanged();
+    void optionsChanged(AppOptionsGlobal::Option option);
 
 private:
     GeneralOption m_generalOption;
@@ -50,7 +51,7 @@ private:
     QString fileName = "appConfig.json";
     QString m_configPath;
 
-    void notifyOptionsChanged();
+    void notifyOptionsChanged(AppOptionsGlobal::Option option);
 };
 
 #endif // APPOPTIONS_H

@@ -33,8 +33,11 @@ void ThemeManager::removeWindow(QWidget *window) {
     window->removeEventFilter(this);
 }
 
-void ThemeManager::onAppOptionsChanged() {
+void ThemeManager::onAppOptionsChanged(AppOptionsGlobal::Option option) {
     // qDebug() << "ThemeManager::onAppOptionsChanged";
+    if (option != AppOptionsGlobal::All && option != AppOptionsGlobal::Appearance)
+        return;
+
     for (auto object : m_subscribers)
         applyAnimationSettings(object);
 }

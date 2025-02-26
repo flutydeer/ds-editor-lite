@@ -190,7 +190,7 @@ public:
             AudioSystem::outputSystem()->outputContext()->controlMixer()->pan());
         AudioSettings::setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
         AudioSettings::setPlayheadBehavior(m_playHeadBehaviorComboBox->currentIndex());
-        appOptions->saveAndNotify();
+        appOptions->saveAndNotify(AppOptionsGlobal::Audio);
     }
 
     QComboBox *m_driverComboBox = nullptr;

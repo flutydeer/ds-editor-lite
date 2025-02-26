@@ -59,7 +59,10 @@ void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
     m_lastEditObjectType = type;
 }
 
-void InferControllerPrivate::onInferOptionChanged() {
+void InferControllerPrivate::onInferOptionChanged(AppOptionsGlobal::Option option) {
+    if (option != AppOptionsGlobal::All && option != AppOptionsGlobal::Inference)
+        return;
+    
     m_autoStartAcousticInfer = appOptions->inference()->autoStartInfer;
     runInferAcousticIfNeeded();
 }
@@ -168,7 +171,7 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(AppStatus::Module
         m_getPronTasks.disposePendingTasks();
         appOptions->language()->langOrder.clear();
         appOptions->language()->g2pConfigs = QJsonObject();
-        appOptions->saveAndNotify();
+        appOptions->saveAndNotify(AppOptionsGlobal::Language);
         qCritical() << "未能启动语言模块，已取消任务，重启编辑器以恢复默认语言设置";
     }
 }

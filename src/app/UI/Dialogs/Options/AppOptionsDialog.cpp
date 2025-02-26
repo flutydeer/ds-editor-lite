@@ -7,16 +7,16 @@
 #include <QStackedWidget>
 #include <QScrollArea>
 
-#include "Model/AppOptions/AppOptions.h"
 #include "Pages/AppearancePage.h"
 #include "Pages/GeneralPage.h"
 #include "Pages/G2pPage.h"
 #include "Pages/AudioPage.h"
 #include "Pages/MidiPage.h"
-#include "Pages/PseudoSingerPage.h"
+// #include "Pages/PseudoSingerPage.h"
 #include "Pages/InferencePage.h"
 
-AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) {
+AppOptionsDialog::AppOptionsDialog(AppOptionsGlobal::Option option, QWidget *parent)
+    : Dialog(parent) {
     setModal(true);
     setFocusPolicy(Qt::ClickFocus);
     // setAttribute(Qt::WA_DeleteOnClose, true);
@@ -31,7 +31,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_generalPage = new GeneralPage;
     m_audioPage = new AudioPage;
     m_midiPage = new MidiPage;
-    m_pseudoSingerPage = new PseudoSingerPage;
+    // m_pseudoSingerPage = new PseudoSingerPage;
     m_appearancePage = new AppearancePage;
     m_g2pPage = new G2pPage;
     m_inferencePage = new InferencePage;
@@ -40,7 +40,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_PageContent->addWidget(m_generalPage);
     m_PageContent->addWidget(m_audioPage);
     m_PageContent->addWidget(m_midiPage);
-    m_PageContent->addWidget(m_pseudoSingerPage);
+    // m_PageContent->addWidget(m_pseudoSingerPage);
     m_PageContent->addWidget(m_appearancePage);
     m_PageContent->addWidget(m_g2pPage);
     m_PageContent->addWidget(m_inferencePage);
@@ -54,7 +54,7 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
     m_pages.append(m_generalPage);
     m_pages.append(m_audioPage);
     m_pages.append(m_midiPage);
-    m_pages.append(m_pseudoSingerPage);
+    // m_pages.append(m_pseudoSingerPage);
     m_pages.append(m_appearancePage);
     m_pages.append(m_g2pPage);
     m_pages.append(m_inferencePage);
@@ -68,7 +68,8 @@ AppOptionsDialog::AppOptionsDialog(Page page, QWidget *parent) : Dialog(parent) 
 
     connect(m_tabList, &QListWidget::currentRowChanged, this,
             &AppOptionsDialog::onSelectionChanged);
-    m_tabList->setCurrentRow(page);
+    auto pageIndex = option >= 1 ? option - 1 : 0; // Skip enum "All"
+    m_tabList->setCurrentRow(pageIndex);
 
     resize(900, 600);
 }
