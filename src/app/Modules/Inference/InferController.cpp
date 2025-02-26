@@ -14,11 +14,14 @@
 #include "Tasks/GetPronunciationTask.h"
 #include "Utils/Linq.h"
 #include "Utils/ValidationUtils.h"
+#include "Controller/PlaybackController.h"
 
 namespace Helper = InferControllerHelper;
 
 InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
     Q_D(InferController);
+    d->m_autoStartAcousticInfer = appOptions->inference()->autoStartInfer;
+
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
             &InferControllerPrivate::onModuleStatusChanged);
     connect(inferEngine, &InferEngine::cancelAllInferTasks, d,
@@ -26,6 +29,10 @@ InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
     connect(inferEngine, &InferEngine::recreateAllInferTasks, d,
             &InferControllerPrivate::recreateAllInferTasks);
     // connect(appStatus, &AppStatus::editingChanged, d, &InferControllerPrivate::onEditingChanged);
+    connect(appOptions, &AppOptions::optionsChanged, d,
+            &InferControllerPrivate::onInferOptionChanged);
+    connect(playbackController, &PlaybackController::playbackStatusChanged, d,
+            &InferControllerPrivate::onPlaybackStatusChanged);
 }
 
 void InferControllerPrivate::onModuleStatusChanged(AppStatus::ModuleType module,
@@ -50,6 +57,18 @@ void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
         // }
     }
     m_lastEditObjectType = type;
+}
+
+void InferControllerPrivate::onInferOptionChanged() {
+    m_autoStartAcousticInfer = appOptions->inference()->autoStartInfer;
+    runInferAcousticIfNeeded();
+}
+
+void InferControllerPrivate::onPlaybackStatusChanged(PlaybackGlobal::PlaybackStatus status) {
+    if (status == PlaybackGlobal::Playing) {
+        if (!m_inferAcousticTasks.current)
+            runNextInferAcousticTask();
+    }
 }
 
 void InferControllerPrivate::handleTempoChanged(double tempo) {
@@ -388,8 +407,7 @@ void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
     connect(task, &Task::finished, this, [=] { handleInferAcousticTaskFinished(*task); });
     m_inferAcousticTasks.add(task);
     piece.acousticInferStatus = Running;
-    if (!m_inferAcousticTasks.current)
-        runNextInferAcousticTask();
+    runInferAcousticIfNeeded();
 }
 
 void InferControllerPrivate::reset() {
@@ -445,14 +463,21 @@ void InferControllerPrivate::runNextInferDurTask() {
     m_inferDurTasks.runNext();
 }
 
-void InferControllerPrivate::runNextInferPitchTask(){
+void InferControllerPrivate::runNextInferPitchTask() {
     m_inferPitchTasks.runNext();
 }
 
-void InferControllerPrivate::runNextInferVarianceTask(){
+void InferControllerPrivate::runNextInferVarianceTask() {
     m_inferVarianceTasks.runNext();
 }
 
-void InferControllerPrivate::runNextInferAcousticTask(){
+void InferControllerPrivate::runNextInferAcousticTask() {
     m_inferAcousticTasks.runNext();
+}
+
+void InferControllerPrivate::runInferAcousticIfNeeded() {
+    if (m_autoStartAcousticInfer && !m_inferAcousticTasks.current)
+        runNextInferAcousticTask();
+    else
+        qInfo() << "由于用户设置，暂不推理声学模型";
 }

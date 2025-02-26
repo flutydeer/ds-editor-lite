@@ -8,8 +8,6 @@
 #include <QtConcurrent/QtConcurrent>
 
 #include "Task.h"
-#include "Controller/PlaybackController.h"
-#include "Model/AppOptions/AppOptions.h"
 
 void BackgroundWorker::terminateTask(Task *task) {
     task->terminate();
@@ -23,23 +21,6 @@ void BackgroundWorker::wait() {
 
 TaskManager::TaskManager(QObject *parent) : QObject(parent), d_ptr(new TaskManagerPrivate(this)) {
     Q_D(TaskManager);
-
-    d->delayTimer.reset(appOptions->inference()->autoStartInfer ? 0 : 99999);
-
-    connect(&d->delayTimer, &DelayTimer::timeoutSignal, this, [this]() {
-        Q_D(TaskManager);
-        for (const auto &task : d->m_tasks) {
-            if (task->priority() > 0) {
-                // TODO: bug on handleInferXxxTaskFinished
-                if (task->started())
-                    break;
-
-                if (this->startTask(task))
-                    break;
-            }
-        }
-    });
-
     connect(&d->m_worker, &BackgroundWorker::waitDone, this, &TaskManager::onWorkerWaitDone);
     d->m_worker.moveToThread(&d->m_thread);
 }
@@ -73,20 +54,13 @@ void TaskManager::addTask(Task *task) {
     qDebug() << "addTask:" << task->id() << task->status().title;
     auto index = d->m_tasks.count();
     d->m_tasks.append(task);
-    d->delayTimer.reset();
     emit taskChanged(Added, task, index);
 }
 
-bool TaskManager::startTask(Task *task) {
+void TaskManager::startTask(Task *task) {
     Q_D(TaskManager);
-    if (d->delayTimer.timeout() || task->priority() == 0) {
-        qDebug() << "startTask" << task->id() << task->status().title;
-        if (!task->started()) {
-            d->threadPool->start(task);
-            return true;
-        }
-    }
-    return false;
+    qDebug() << "startTask" << task->id() << task->status().title;
+    d->threadPool->start(task);
 }
 
 void TaskManager::addAndStartTask(Task *task) {
@@ -123,9 +97,4 @@ void TaskManager::terminateAllTasks() {
 void TaskManager::onWorkerWaitDone() {
     qDebug() << "TaskManager allDone";
     emit allDone();
-}
-
-void TaskManager::triggerTimer() {
-    Q_D(TaskManager);
-    d->delayTimer.triggerNow();
 }

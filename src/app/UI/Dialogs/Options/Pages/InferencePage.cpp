@@ -146,7 +146,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
 
     // Render - decayInfer
     m_autoStartInfer = new SwitchButton(appOptions->inference()->autoStartInfer);
-    connect(m_autoStartInfer, &SwitchButton::toggled, this, modifyAndRestart);
+    connect(m_autoStartInfer, &SwitchButton::toggled, this, &InferencePage::modifyOption);
 
     auto renderCard = new OptionListCard(tr("Render"));
     renderCard->addItem(tr("Sampling Steps"), m_cbSamplingSteps);

@@ -13,6 +13,7 @@
 #include "Tasks/InferDurationTask.h"
 #include "Tasks/InferPitchTask.h"
 #include "Tasks/InferVarianceTask.h"
+#include "Global/PlaybackGlobal.h"
 
 class GetPronunciationTask;
 class GetPhonemeNameTask;
@@ -23,11 +24,13 @@ class InferControllerPrivate final : public ModelChangeHandler {
     Q_DECLARE_PUBLIC(InferController)
 
 public:
-    explicit InferControllerPrivate(InferController *q) : ModelChangeHandler(q), q_ptr(q){};
+    explicit InferControllerPrivate(InferController *q) : ModelChangeHandler(q), q_ptr(q) {};
 
 public slots:
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
     void onEditingChanged(AppStatus::EditObjectType type);
+    void onInferOptionChanged();
+    void onPlaybackStatusChanged(PlaybackGlobal::PlaybackStatus status);
 
 public:
     void handleTempoChanged(double tempo) override;
@@ -71,6 +74,8 @@ public:
     void runNextInferVarianceTask();
     void runNextInferAcousticTask();
 
+    void runInferAcousticIfNeeded();
+
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
     TaskQueue<GetPronunciationTask> m_getPronTasks;
@@ -79,6 +84,8 @@ public:
     TaskQueue<InferPitchTask> m_inferPitchTasks;
     TaskQueue<InferVarianceTask> m_inferVarianceTasks;
     TaskQueue<InferAcousticTask> m_inferAcousticTasks;
+
+    bool m_autoStartAcousticInfer = true;
 
 private:
     InferController *q_ptr = nullptr;

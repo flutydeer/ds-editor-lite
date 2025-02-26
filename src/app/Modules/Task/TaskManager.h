@@ -24,15 +24,13 @@ public:
     [[nodiscard]] const QList<Task *> &tasks() const;
     Task *findTaskById(int id);
 
-    void triggerTimer();
-
 signals:
     void allDone();
     void taskChanged(TaskChangeType type, Task *task, qsizetype index);
 
 public slots:
     void addTask(Task *task);
-    bool startTask(Task *task);
+    void startTask(Task *task);
     void addAndStartTask(Task *task);
     void removeTask(Task *task);
     // void startTask(int taskId);
