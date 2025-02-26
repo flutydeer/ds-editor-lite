@@ -73,12 +73,6 @@ public:
 
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
-
-    QMap<int /*pieceId*/, InferDurationTask::InferDurInput> m_lastInferDurInputs;
-    QMap<int /*pieceId*/, InferPitchTask::InferPitchInput> m_lastInferPitchInputs;
-    QMap<int /*pieceId*/, InferVarianceTask::InferVarianceInput> m_lastInferVarianceInputs;
-    QMap<int /*pieceId*/, InferAcousticTask::InferAcousticInput> m_lastInferAcousticInputs;
-
     TaskQueue<GetPronunciationTask> m_getPronTasks;
     TaskQueue<GetPhonemeNameTask> m_getPhoneTasks;
     TaskQueue<InferDurationTask> m_inferDurTasks;

@@ -10,7 +10,6 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Models/PhonemeNameInput.h"
-#include "Modules/Audio/AudioContext.h"
 #include "Tasks/GetPhonemeNameTask.h"
 #include "Tasks/GetPronunciationTask.h"
 #include "Utils/Linq.h"
@@ -218,8 +217,6 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask &task)
                      << "模型音符数：" << modelNoteCount << "任务音符数：" << taskNoteCount;
             return;
         }
-        // 推理成功，保存本次推理的输入以便之后比较
-        m_lastInferDurInputs[task.pieceId()] = task.input();
         Helper::updatePhoneOffset(piece->notes, task.result(), *singingClip);
 
         // TODO: 可能需要将更新相对参数的方法提取出来
@@ -250,8 +247,6 @@ void InferControllerPrivate::handleInferPitchTaskFinished(InferPitchTask &task) 
         return;
     }
     if (task.success()) {
-        // 推理成功，保存本次推理的输入以便之后比较
-        m_lastInferPitchInputs[task.pieceId()] = task.input();
         Helper::updatePitch(task.result(), *piece);
         createAndRunInferVarianceTask(*piece);
     } else
@@ -275,7 +270,6 @@ void InferControllerPrivate::handleInferVarianceTaskFinished(InferVarianceTask &
         return;
     }
     if (task.success()) {
-        m_lastInferVarianceInputs[task.pieceId()] = task.input();
         Helper::updateVariance(task.result(), *piece);
         createAndRunInferAcousticTask(*piece);
     } else {
@@ -300,7 +294,6 @@ void InferControllerPrivate::handleInferAcousticTaskFinished(InferAcousticTask &
         return;
     }
     if (task.success()) {
-        m_lastInferAcousticInputs[task.pieceId()] = task.input();
         Helper::updateAcoustic(task.result(), *piece);
     } else
         piece->acousticInferStatus = Failed;
@@ -357,13 +350,6 @@ void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
     const auto inputNotes = Helper::buildInferInputNotes(piece.notes);
     const InferDurationTask::InferDurInput input = {piece.clip->id(), piece.id(), inputNotes,
                                                     piece.clip->configPath, appModel->tempo()};
-    // 创建分段的推理任务前，首先检查输入是否和上次的相同。如果相同，则直接忽略，避免不必要的推理
-    if (m_lastInferDurInputs.contains(piece.id())) {
-        return;
-        // TODO: 存在比较结果错误的问题，暂时取消比较具体内容
-        // if (const auto lastInput = m_lastInferDurInputs[piece.id()]; lastInput == input)
-        //     return;
-    }
     // 清空原有的自动参数
     Helper::resetPhoneOffset(piece.notes, piece);
     auto task = new InferDurationTask(input);
@@ -376,9 +362,6 @@ void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
 
 void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
     const auto input = Helper::buildInferPitchInput(piece, piece.clip->configPath);
-    if (m_lastInferPitchInputs.contains(piece.id()))
-        if (const auto lastInput = m_lastInferPitchInputs[piece.id()]; lastInput == input)
-            return;
     Helper::resetPitch(piece);
     auto task = new InferPitchTask(input);
     connect(task, &Task::finished, this, [=] { handleInferPitchTaskFinished(*task); });
@@ -389,9 +372,6 @@ void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
 
 void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
     const auto input = Helper::buildInferVarianceInput(piece, piece.clip->configPath);
-    if (m_lastInferVarianceInputs.contains(piece.id()))
-        if (const auto lastInput = m_lastInferVarianceInputs[piece.id()]; lastInput == input)
-            return;
     Helper::resetVariance(piece);
     auto task = new InferVarianceTask(input);
     connect(task, &Task::finished, this, [=] { handleInferVarianceTaskFinished(*task); });
@@ -403,9 +383,6 @@ void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
 
 void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
     const auto input = Helper::buildInderAcousticInput(piece, piece.clip->configPath);
-    if (m_lastInferAcousticInputs.contains(piece.id()))
-        if (const auto lastInput = m_lastInferAcousticInputs[piece.id()]; lastInput == input)
-            return;
     Helper::resetAcoustic(piece);
     auto task = new InferAcousticTask(input);
     connect(task, &Task::finished, this, [=] { handleInferAcousticTaskFinished(*task); });
@@ -422,11 +399,6 @@ void InferControllerPrivate::reset() {
     m_inferPitchTasks.cancelAll();
     m_inferVarianceTasks.cancelAll();
     m_inferAcousticTasks.cancelAll();
-
-    m_lastInferDurInputs.clear();
-    m_lastInferPitchInputs.clear();
-    m_lastInferVarianceInputs.clear();
-    m_lastInferAcousticInputs.clear();
 }
 
 void InferControllerPrivate::cancelAllInferTasks() {
