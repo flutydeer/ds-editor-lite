@@ -73,9 +73,8 @@ void InferAcousticTask::runTask() {
     if (!QFile(inputCachePath).exists())
         JsonUtils::save(inputCachePath, input.serialize());
     bool useCache = false;
-    const auto outputCachePath = cacheDir.filePath(QString("infer-acoustic-output-%1-%2step.wav")
-                                                       .arg(m_inputHash)
-                                                       .arg(inferEngine->m_env.defaultSteps()));
+    const auto outputCachePath =
+        cacheDir.filePath(QString("infer-acoustic-output-%1.wav").arg(m_inputHash));
     if (QFile(outputCachePath).exists())
         useCache = true;
 
@@ -184,5 +183,6 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, gender, velocity, toneShift};
     model.configPath = input().configPath;
+    model.steps = inferEngine->m_env.defaultSteps();
     return model;
 }

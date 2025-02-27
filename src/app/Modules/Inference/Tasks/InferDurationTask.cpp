@@ -79,9 +79,8 @@ void InferDurationTask::runTask() {
     if (!QFile(inputCachePath).exists())
         JsonUtils::save(inputCachePath, input.serialize());
     bool useCache = false;
-    const auto outputCachePath = cacheDir.filePath(QString("infer-duration-output-%1-%2step.json")
-                                                       .arg(m_inputHash)
-                                                       .arg(inferEngine->m_env.defaultSteps()));
+    const auto outputCachePath =
+        cacheDir.filePath(QString("infer-duration-output-%1.json").arg(m_inputHash));
     if (QFile(outputCachePath).exists()) {
         QJsonObject obj;
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
@@ -149,6 +148,7 @@ GenericInferModel InferDurationTask::buildInputJson() const {
     GenericInferModel model;
     model.words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo);
     model.configPath = m_input.configPath;
+    model.steps = inferEngine->m_env.defaultSteps();
     return model;
 }
 

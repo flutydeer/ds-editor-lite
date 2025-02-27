@@ -79,8 +79,9 @@ public:
     QList<InferWord> words;
     QList<InferParam> params;
 
-    // 元数据，用于区分不同模型
+    // 元数据
     QString configPath;
+    int steps = -1;
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;

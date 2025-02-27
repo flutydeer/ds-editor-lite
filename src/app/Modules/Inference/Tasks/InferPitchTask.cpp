@@ -45,7 +45,7 @@ InferPitchTask::InferPitchTask(InferPitchInput input) : m_input(std::move(input)
              << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
-InferPitchTask::InferPitchInput InferPitchTask::input() const{
+InferPitchTask::InferPitchInput InferPitchTask::input() const {
     return m_input;
 }
 
@@ -70,9 +70,8 @@ void InferPitchTask::runTask() {
     if (!QFile(inputCachePath).exists())
         JsonUtils::save(inputCachePath, input.serialize());
     bool useCache = false;
-    const auto outputCachePath = cacheDir.filePath(QString("infer-pitch-output-%1-%2step.json")
-                                                       .arg(m_inputHash)
-                                                       .arg(inferEngine->m_env.defaultSteps()));
+    const auto outputCachePath =
+        cacheDir.filePath(QString("infer-pitch-output-%1.json").arg(m_inputHash));
     if (QFile(outputCachePath).exists()) {
         QJsonObject obj;
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
@@ -167,6 +166,7 @@ GenericInferModel InferPitchTask::buildInputJson() const {
     model.words = words;
     model.params = {pitch, expr};
     model.configPath = input().configPath;
+    model.steps = inferEngine->m_env.defaultSteps();
     return model;
 }
 

@@ -128,10 +128,12 @@ bool GenericInferModel::deserialize(const QJsonObject &obj) {
     return true;
 }
 
-QString GenericInferModel::serializeToJson(bool useMetadata) const {
+QString GenericInferModel::serializeToJson(bool useMetaData) const {
     QJsonObject object = serialize();
-    if (useMetadata)
+    if (useMetaData){
         object["configPath"] = configPath;
+        object["steps"] = steps;
+    }
     return QJsonDocument{object}.toJson();
 }
 

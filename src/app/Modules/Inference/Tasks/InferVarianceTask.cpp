@@ -71,9 +71,8 @@ void InferVarianceTask::runTask() {
     if (!QFile(inputCachePath).exists())
         JsonUtils::save(inputCachePath, input.serialize());
     bool useCache = false;
-    const auto outputCachePath = cacheDir.filePath(QString("infer-variance-output-%1-%2step.json")
-                                                       .arg(m_inputHash)
-                                                       .arg(inferEngine->m_env.defaultSteps()));
+    const auto outputCachePath =
+        cacheDir.filePath(QString("infer-variance-output-%1.json").arg(m_inputHash));
     if (QFile(outputCachePath).exists()) {
         QJsonObject obj;
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
@@ -178,6 +177,7 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy};
     model.configPath = input().configPath;
+    model.steps = inferEngine->m_env.defaultSteps();
     return model;
 }
 
