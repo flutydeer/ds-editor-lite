@@ -156,7 +156,7 @@ namespace AudioUtil
         }
 
         if (silence_start >= 0 && rms_list.size() - silence_start >= min_interval) {
-            const int silence_end = std::min<int>(static_cast<int>(rms_list.size()), silence_start + max_sil_kept);
+            const int silence_end = std::min<int>(static_cast<int>(rms_list.size() - 1), silence_start + max_sil_kept);
             int pos = argmin({rms_list.begin() + silence_start, rms_list.begin() + silence_end + 1});
             pos += silence_start;
             sil_tags.emplace_back(pos, rms_list.size() + 1);
