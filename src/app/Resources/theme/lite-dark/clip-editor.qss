@@ -156,6 +156,9 @@ PianoRollView {
 
 PianoRollGraphicsView {
     qproperty-noteFontPixelSize: 13;
+    qproperty-whiteKeyColor: #292C36;
+    qproperty-blackKeyColor: #23262E;
+    qproperty-octaveDividerColor: #1C2024;
 }
 
 PianoRollView>QLabel#lbNullClipTip {

@@ -24,6 +24,9 @@ class TimeGraphicsView : public QGraphicsView, public IScalable, public IAnimata
     Q_PROPERTY(double scaleY READ scaleY WRITE setScaleY)
     Q_PROPERTY(double horizontalScrollBarValue READ horizontalBarValue WRITE setHorizontalBarValue)
     Q_PROPERTY(double verticalScrollBarValue READ verticalBarValue WRITE setVerticalBarValue)
+    Q_PROPERTY(QColor barLineColor READ barLineColor WRITE setBarLineColor)
+    Q_PROPERTY(QColor beatLineColor READ beatLineColor WRITE setBeatLineColor)
+    Q_PROPERTY(QColor commonLineColor READ commonLineColor WRITE setCommonLineColor)
 
 public:
     enum class DragBehavior { None, HandScroll, RectSelect, IntervalSelect };
@@ -96,6 +99,13 @@ protected:
     [[nodiscard]] double sceneXToTick(double pos) const;
     [[nodiscard]] double tickToSceneX(double tick) const;
 
+    QColor barLineColor() const;
+    void setBarLineColor(const QColor &color);
+    QColor beatLineColor() const;
+    void setBeatLineColor(const QColor &color);
+    QColor commonLineColor() const;
+    void setCommonLineColor(const QColor &color);
+
 private:
     enum class ItemType { HorizontalBar, VerticalBar, Content };
 
@@ -152,6 +162,10 @@ private:
     bool m_autoTurnPage = true;
     double m_playbackPosition = 0;
     double m_lastPlaybackPosition = 0;
+
+    QColor m_barLineColor = {8, 9, 10};
+    QColor m_beatLineColor = {22, 25, 28};
+    QColor m_commonLineColor = {28, 32, 36};
 };
 
 

@@ -14,18 +14,15 @@ using namespace ClipEditorGlobal;
 void PianoRollBackground::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                 QWidget *widget) {
     // Draw background
-    auto backgroundColor = QColor(42, 43, 44);
     painter->setPen(Qt::NoPen);
-    painter->setBrush(backgroundColor);
+    painter->setBrush(m_whiteKeyColor);
     painter->drawRect(boundingRect());
 
-    auto lineColor = QColor(33, 38, 43);
-    // auto keyIndexTextColor = QColor(160, 160, 160);
     auto penWidth = 1;
 
     QPen pen;
     pen.setWidthF(penWidth);
-    pen.setColor(lineColor);
+    pen.setColor(m_octaveDividerColor);
     painter->setPen(pen);
     // painter->setRenderHint(QPainter::Antialiasing);
 
@@ -43,7 +40,7 @@ void PianoRollBackground::paint(QPainter *painter, const QStyleOptionGraphicsIte
     for (int i = prevKeyIndex; i > endKeyIndex; i--) {
         auto y = sceneYToItemY(keyIndexToSceneY(i));
 
-        painter->setBrush(PianoPaintUtils::isWhiteKey(i) ? QColor(47, 50, 61) : QColor(41, 45, 54));
+        painter->setBrush(PianoPaintUtils::isWhiteKey(i) ? m_whiteKeyColor : m_blackKeyColor);
         auto gridRect = QRectF(0, y, visibleRect().width(), noteHeight * scaleY());
         painter->setPen(Qt::NoPen);
         painter->drawRect(gridRect);
@@ -53,7 +50,7 @@ void PianoRollBackground::paint(QPainter *painter, const QStyleOptionGraphicsIte
         // painter->drawText(gridRect, PianoPaintUtils::noteName(i), QTextOption(Qt::AlignVCenter));
 
         if ((i + 1) % 12 == 0) {
-            pen.setColor(lineColor);
+            pen.setColor(m_octaveDividerColor);
             painter->setPen(pen);
             auto line = QLineF(0, y, visibleRect().width(), y);
             painter->drawLine(line);
@@ -61,4 +58,31 @@ void PianoRollBackground::paint(QPainter *painter, const QStyleOptionGraphicsIte
     }
 
     TimeGridView::paint(painter, option, widget);
+}
+
+QColor PianoRollBackground::whiteKeyColor() const {
+    return m_whiteKeyColor;
+}
+
+void PianoRollBackground::setWhiteKeyColor(const QColor &color) {
+    m_whiteKeyColor = color;
+    update();
+}
+
+QColor PianoRollBackground::blackKeyColor() const {
+    return m_blackKeyColor;
+}
+
+void PianoRollBackground::setBlackKeyColor(const QColor &color) {
+    m_blackKeyColor = color;
+    update();
+}
+
+QColor PianoRollBackground::octaveDividerColor() const {
+    return m_octaveDividerColor;
+}
+
+void PianoRollBackground::setOctaveDividerColor(const QColor &color) {
+    m_octaveDividerColor = color;
+    update();
 }

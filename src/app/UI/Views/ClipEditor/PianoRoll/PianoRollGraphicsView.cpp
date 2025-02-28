@@ -51,9 +51,9 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     // d->m_currentDrawingNote->setPronunciation("", false);
     d->m_currentDrawingNote->setSelected(true);
 
-    auto gridItem = new PianoRollBackground;
-    gridItem->setPixelsPerQuarterNote(pixelsPerQuarterNote);
-    setGridItem(gridItem);
+    d->m_gridItem = new PianoRollBackground;
+    d->m_gridItem->setPixelsPerQuarterNote(pixelsPerQuarterNote);
+    setGridItem(d->m_gridItem);
 
     d->m_pitchEditor = new PitchEditorView;
     d->m_pitchEditor->setZValue(2);
@@ -316,6 +316,36 @@ void PianoRollGraphicsView::setNoteFontPixelSize(int size) {
     m_noteFontPixelSize = size;
     for (const auto noteView : d->noteViews)
         noteView->fontPixelSize = size;
+}
+
+QColor PianoRollGraphicsView::whiteKeyColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_gridItem->whiteKeyColor();
+}
+
+void PianoRollGraphicsView::setWhiteKeyColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_gridItem->setWhiteKeyColor(color);
+}
+
+QColor PianoRollGraphicsView::blackKeyColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_gridItem->blackKeyColor();
+}
+
+void PianoRollGraphicsView::setBlackKeyColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_gridItem->setBlackKeyColor(color);
+}
+
+QColor PianoRollGraphicsView::octaveDividerColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_gridItem->octaveDividerColor();
+}
+
+void PianoRollGraphicsView::setOctaveDividerColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_gridItem->setOctaveDividerColor(color);
 }
 
 void PianoRollGraphicsView::reset() {

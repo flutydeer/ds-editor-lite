@@ -10,6 +10,7 @@
 
 #include <QObject>
 #include <QPointF>
+#include <QColor>
 
 class ClipRangeOverlay;
 class PitchEditorView;
@@ -21,6 +22,7 @@ class NoteView;
 class Note;
 class PianoRollGraphicsView;
 class PronunciationView;
+class PianoRollBackground;
 
 using namespace ClipEditorGlobal;
 
@@ -38,6 +40,7 @@ public:
     enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, EraseNotes, None };
 
     NoteView *m_currentEditingNote = nullptr;
+    PianoRollBackground *m_gridItem = nullptr;
     QList<NoteView *> noteViews;
 
     PitchEditorView *m_pitchEditor = nullptr;

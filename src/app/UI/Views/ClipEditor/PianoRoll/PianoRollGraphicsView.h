@@ -23,8 +23,10 @@ class PianoRollGraphicsViewPrivate;
 
 class PianoRollGraphicsView final : public TimeGraphicsView, public IAtomicAction {
     Q_OBJECT
-
     Q_PROPERTY(int noteFontPixelSize READ noteFontPixelSize WRITE setNoteFontPixelSize)
+    Q_PROPERTY(QColor whiteKeyColor READ whiteKeyColor WRITE setWhiteKeyColor)
+    Q_PROPERTY(QColor blackKeyColor READ blackKeyColor WRITE setBlackKeyColor)
+    Q_PROPERTY(QColor octaveDividerColor READ octaveDividerColor WRITE setOctaveDividerColor)
 
 public:
     explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent = nullptr);
@@ -65,6 +67,12 @@ private:
 
     [[nodiscard]] int noteFontPixelSize() const;
     void setNoteFontPixelSize(int size);
+    QColor whiteKeyColor() const;
+    void setWhiteKeyColor(const QColor &color);
+    QColor blackKeyColor() const;
+    void setBlackKeyColor(const QColor &color);
+    QColor octaveDividerColor() const;
+    void setOctaveDividerColor(const QColor &color);
 
     Q_DECLARE_PRIVATE(PianoRollGraphicsView)
     PianoRollGraphicsViewPrivate *d_ptr;

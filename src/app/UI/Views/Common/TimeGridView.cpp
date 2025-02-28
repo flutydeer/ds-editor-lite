@@ -52,7 +52,7 @@ void TimeGridView::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
     QPen pen;
     pen.setWidthF(penWidth);
     painter->setBrush(Qt::NoBrush);
-    pen.setColor(commonLineColor);
+    pen.setColor(m_commonLineColor);
     painter->setPen(pen);
     // painter->setRenderHint(QPainter::Antialiasing);
     drawTimeline(painter, startTick(), endTick(), visibleRect().width());
@@ -71,7 +71,7 @@ void TimeGridView::drawBar(QPainter *painter, int tick, int bar) {
     // pen.setColor(barTextColor);
     // painter->setPen(pen);
     // painter->drawText(QPointF(x, 10), QString::number(bar));
-    pen.setColor(barLineColor);
+    pen.setColor(m_barLineColor);
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
 }
@@ -82,7 +82,7 @@ void TimeGridView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     // pen.setColor(beatTextColor);
     // painter->setPen(pen);
     // painter->drawText(QPointF(x, 10), QString::number(bar) + "." + QString::number(beat));
-    pen.setColor(beatLineColor);
+    pen.setColor(m_beatLineColor);
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
 }
@@ -90,7 +90,7 @@ void TimeGridView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
 void TimeGridView::drawEighth(QPainter *painter, int tick) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
-    pen.setColor(commonLineColor);
+    pen.setColor(m_commonLineColor);
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
 }
@@ -105,4 +105,31 @@ double TimeGridView::tickToSceneX(double tick) const {
 
 double TimeGridView::sceneXToItemX(double x) const {
     return mapFromScene(QPointF(x, 0)).x();
+}
+
+QColor TimeGridView::barLineColor() const {
+    return m_barLineColor;
+}
+
+void TimeGridView::setBarLineColor(const QColor &color) {
+    m_barLineColor = color;
+    update();
+}
+
+QColor TimeGridView::beatLineColor() const {
+    return m_beatLineColor;
+}
+
+void TimeGridView::setBeatLineColor(const QColor &color) {
+    m_beatLineColor = color;
+    update();
+}
+
+QColor TimeGridView::commonLineColor() const {
+    return m_commonLineColor;
+}
+
+void TimeGridView::setCommonLineColor(const QColor &color) {
+    m_commonLineColor = color;
+    update();
 }

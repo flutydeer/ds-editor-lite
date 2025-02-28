@@ -103,6 +103,9 @@ void TimeGraphicsView::setGridItem(TimeGridView *item) {
     m_gridItem = item;
     m_scene->addTimeGrid(item);
     m_gridItem->setOffset(m_offset);
+    setBarLineColor(barLineColor());
+    setBeatLineColor(beatLineColor());
+    setCommonLineColor(commonLineColor());
 }
 
 void TimeGraphicsView::setSceneVisibility(bool on) {
@@ -721,4 +724,34 @@ double TimeGraphicsView::sceneXToTick(double pos) const {
 
 double TimeGraphicsView::tickToSceneX(double tick) const {
     return tick * scaleX() * m_pixelsPerQuarterNote / 480;
+}
+
+QColor TimeGraphicsView::barLineColor() const {
+    return m_barLineColor;
+}
+
+void TimeGraphicsView::setBarLineColor(const QColor &color) {
+    m_barLineColor = color;
+    if (m_gridItem)
+        m_gridItem->setBarLineColor(m_barLineColor);
+}
+
+QColor TimeGraphicsView::beatLineColor() const {
+    return m_beatLineColor;
+}
+
+void TimeGraphicsView::setBeatLineColor(const QColor &color) {
+    m_beatLineColor = color;
+    if (m_gridItem)
+        m_gridItem->setBeatLineColor(m_beatLineColor);
+}
+
+QColor TimeGraphicsView::commonLineColor() const {
+    return m_commonLineColor;
+}
+
+void TimeGraphicsView::setCommonLineColor(const QColor &color) {
+    m_commonLineColor = color;
+    if (m_gridItem)
+        m_gridItem->setCommonLineColor(m_commonLineColor);
 }
