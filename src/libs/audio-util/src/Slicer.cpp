@@ -1,8 +1,10 @@
 #include <audio-util/Slicer.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <numeric>
+#include <utility>
 
 #ifdef AUDIOUTIL_ENABLE_XSIMD
 #include <xsimd/xsimd.hpp>
@@ -10,6 +12,22 @@
 
 namespace AudioUtil
 {
+
+    /**
+     * @brief Returns the offset from `begin` to the first minimum element
+     * @tparam Iterator Forward iterator type
+     * @param begin Start of range (inclusive)
+     * @param end End of range (exclusive)
+     * @return Distance from `begin` to the minimum element
+     * @pre `[begin, end)` must be non-empty (assert enforced)
+     * @note For equivalent elements, returns the first occurrence
+     */
+    template <typename Iterator>
+    static inline int64_t argmin(const Iterator &begin, const Iterator &end) {
+        assert(begin != end && "Empty iterator range");
+        return std::distance(begin, std::min_element(begin, end));
+    }
+
     static inline std::vector<double> get_rms_impl_basic(const std::vector<float> &samples, const int frame_length,
                                                          const int hop_length) {
         std::vector<double> output;
@@ -95,26 +113,22 @@ namespace AudioUtil
 #endif
     }
 
-    int Slicer::argmin(const std::vector<double> &array) {
-        return std::distance(array.begin(), std::min_element(array.begin(), array.end()));
-    }
-
     MarkerList Slicer::slice(const std::vector<float> &samples) const {
         if ((samples.size() + hop_size - 1) / hop_size <= min_length) {
             return {{0, samples.size()}};
         }
 
         auto rms_list = get_rms(samples, win_size, hop_size);
-        std::vector<std::tuple<int, int>> sil_tags;
-        int silence_start = -1;
-        int clip_start = 0;
+        MarkerList sil_tags;
+        int64_t silence_start = -1;
+        int64_t clip_start = 0;
 
-        for (size_t i = 0; i < rms_list.size(); ++i) {
+        for (int64_t i = 0; i < rms_list.size(); ++i) {
             const double rms = rms_list[i];
 
             if (rms < threshold) {
                 if (silence_start < 0) {
-                    silence_start = static_cast<int>(i);
+                    silence_start = i;
                 }
                 continue;
             }
@@ -132,16 +146,16 @@ namespace AudioUtil
             }
 
             if (i - silence_start <= max_sil_kept) {
-                int pos = argmin({rms_list.begin() + silence_start, rms_list.begin() + i + 1});
+                int64_t pos = argmin(rms_list.begin() + silence_start, rms_list.begin() + i + 1);
                 pos += silence_start;
                 sil_tags.emplace_back((silence_start == 0 ? 0 : pos), pos);
                 clip_start = pos;
             } else {
-                int pos_l =
-                    argmin({rms_list.begin() + silence_start, rms_list.begin() + silence_start + max_sil_kept + 1});
-                int pos_r = argmin({rms_list.begin() + i - max_sil_kept, rms_list.begin() + i + 1});
+                int64_t pos_l =
+                    argmin(rms_list.begin() + silence_start, rms_list.begin() + silence_start + max_sil_kept + 1);
+                int64_t pos_r = argmin(rms_list.begin() + i - max_sil_kept, rms_list.begin() + i + 1);
                 pos_l += silence_start;
-                pos_r += static_cast<int>(i - max_sil_kept);
+                pos_r += i - max_sil_kept;
 
                 if (silence_start == 0) {
                     sil_tags.emplace_back(0, pos_r);
@@ -156,8 +170,8 @@ namespace AudioUtil
         }
 
         if (silence_start >= 0 && rms_list.size() - silence_start >= min_interval) {
-            const int silence_end = std::min<int>(static_cast<int>(rms_list.size() - 1), silence_start + max_sil_kept);
-            int pos = argmin({rms_list.begin() + silence_start, rms_list.begin() + silence_end + 1});
+            const int64_t silence_end = (std::min)(static_cast<int64_t>(rms_list.size() - 1), silence_start + max_sil_kept);
+            int64_t pos = argmin(rms_list.begin() + silence_start, rms_list.begin() + silence_end + 1);
             pos += silence_start;
             sil_tags.emplace_back(pos, rms_list.size() + 1);
         }
@@ -167,16 +181,16 @@ namespace AudioUtil
         } else {
             MarkerList chunks;
 
-            if (std::get<0>(sil_tags[0]) > 0) {
-                chunks.emplace_back(0, std::get<0>(sil_tags[0]) * hop_size);
+            if (sil_tags[0].first > 0) {
+                chunks.emplace_back(0, sil_tags[0].first * hop_size);
             }
 
             for (size_t i = 0; i < sil_tags.size() - 1; ++i) {
-                chunks.emplace_back(std::get<1>(sil_tags[i]) * hop_size, std::get<0>(sil_tags[i + 1]) * hop_size);
+                chunks.emplace_back(sil_tags[i].second * hop_size, sil_tags[i + 1].first * hop_size);
             }
 
-            if (std::get<1>(sil_tags.back()) < rms_list.size()) {
-                chunks.emplace_back(std::get<1>(sil_tags.back()) * hop_size, rms_list.size() * hop_size);
+            if (sil_tags.back().second < rms_list.size()) {
+                chunks.emplace_back(sil_tags.back().second * hop_size, rms_list.size() * hop_size);
             }
             return chunks;
         }

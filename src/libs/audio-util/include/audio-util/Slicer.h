@@ -7,7 +7,7 @@
 
 namespace AudioUtil
 {
-    using MarkerList = std::vector<std::pair<uint64_t, uint64_t>>;
+    using MarkerList = std::vector<std::pair<int64_t, int64_t>>;
 
     class AUDIO_UTIL_EXPORT Slicer {
     public:
@@ -25,8 +25,6 @@ namespace AudioUtil
         int max_sil_kept;
 
         static std::vector<double> get_rms(const std::vector<float> &samples, int frame_length, int hop_length);
-
-        static int argmin(const std::vector<double> &array);
     };
 } // namespace AudioUtil
 #endif // AUDIOSLICER_H
