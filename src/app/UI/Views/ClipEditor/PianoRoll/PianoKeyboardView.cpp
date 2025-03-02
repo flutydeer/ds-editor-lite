@@ -22,6 +22,33 @@ void PianoKeyboardView::setKeyRange(double top, double bottom) {
     update();
 }
 
+QColor PianoKeyboardView::whiteKeyColor() const {
+    return m_whiteKeyColor;
+}
+
+void PianoKeyboardView::setWhiteKeyColor(const QColor &whiteKeyColor) {
+    m_whiteKeyColor = whiteKeyColor;
+    update();
+}
+
+QColor PianoKeyboardView::blackKeyColor() const {
+    return m_blackKeyColor;
+}
+
+void PianoKeyboardView::setBlackKeyColor(const QColor &blackKeyColor) {
+    m_blackKeyColor = blackKeyColor;
+    update();
+}
+
+QColor PianoKeyboardView::dividerColor() const {
+    return m_dividerColor;
+}
+
+void PianoKeyboardView::setDividerColor(const QColor &dividerColor) {
+    m_dividerColor = dividerColor;
+    update();
+}
+
 void PianoKeyboardView::paintEvent(QPaintEvent *event) {
     QElapsedTimer mstimer;
     mstimer.start();
@@ -64,7 +91,7 @@ void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) {
         auto y = keyToY(i);
 
         auto isWhiteKey = PianoPaintUtils::isWhiteKey(i);
-        painter.setBrush(isWhiteKey ? colorWhite : colorBlack);
+        painter.setBrush(isWhiteKey ? m_whiteKeyColor : m_blackKeyColor);
         auto keyRect = QRectF(-radius, y, width() + radius, pixelsPerKey);
         painter.setPen(Qt::NoPen);
         painter.drawRoundedRect(keyRect, radius, radius);
@@ -74,7 +101,7 @@ void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) {
             auto fontMetrics = painter.fontMetrics();
             auto textHeight = fontMetrics.height();
             if (textRect.height() > textHeight) {
-                pen.setColor(isWhiteKey ? colorBlack : colorWhite);
+                pen.setColor(isWhiteKey ? m_blackKeyColor : m_whiteKeyColor);
                 painter.setPen(pen);
                 painter.drawText(textRect, PianoPaintUtils::noteName(i),
                                  QTextOption(Qt::AlignVCenter));
@@ -82,7 +109,7 @@ void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) {
         }
 
         if (prevIsWhiteKey && isWhiteKey) {
-            pen.setColor(lineColor);
+            pen.setColor(m_dividerColor);
             painter.setPen(pen);
             auto line = QLineF(0, y, width() - radius + 1, y);
             painter.drawLine(line);
@@ -145,12 +172,12 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
                 continue;
 
             auto y = whiteKeyToY(i);
-            painter.setBrush(colorWhite);
+            painter.setBrush(m_whiteKeyColor);
             auto keyRect = QRectF(-radius, y, width() + radius, pixelsPerWhiteKey);
             painter.setPen(Qt::NoPen);
             painter.drawRoundedRect(keyRect, radius, radius);
 
-            pen.setColor(lineColor);
+            pen.setColor(m_dividerColor);
             painter.setPen(pen);
             auto line = QLineF(0, y, width() - radius + 1, y);
             painter.drawLine(line);
@@ -160,7 +187,7 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
                 auto fontMetrics = painter.fontMetrics();
                 auto textHeight = fontMetrics.height();
                 if (textRect.height() > textHeight) {
-                    pen.setColor(colorBlack);
+                    pen.setColor(m_blackKeyColor);
                     painter.setPen(pen);
                     painter.drawText(textRect, PianoPaintUtils::noteName(i),
                                      QTextOption(Qt::AlignVCenter | Qt::AlignRight));
@@ -175,7 +202,7 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
                 continue;
 
             auto y = blackKeyToY(i);
-            painter.setBrush(colorBlack);
+            painter.setBrush(m_blackKeyColor);
             auto keyRect = QRectF(-radius, y, width() / 5.0 * 3 + radius, pixelsPerBlackKey);
             painter.setPen(Qt::NoPen);
             painter.drawRoundedRect(keyRect, radius, radius);
@@ -184,7 +211,7 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
             // auto fontMetrics = painter.fontMetrics();
             // auto textHeight = fontMetrics.height();
             // if (textRect.height() > textHeight) {
-            //     pen.setColor(colorWhite);
+            //     pen.setColor(m_whiteKeyColor);
             //     painter.setPen(pen);
             //     painter.drawText(textRect, PianoPaintUtils::noteName(i),
             //                      QTextOption(Qt::AlignVCenter));

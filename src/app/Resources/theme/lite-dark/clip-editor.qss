@@ -146,6 +146,12 @@ TimelineView#pianoRollTimelineView {
     border-top-right-radius: 6px;
 }
 
+/* PianoKeyboardView */
+PianoKeyboardView {
+    qproperty-whiteKeyColor: #DADBE0;
+    qproperty-blackKeyColor: #3B3F47;
+    qproperty-dividerColor: #AAACB5;
+}
 
 /* PianoRollView */
 PianoRollView {
