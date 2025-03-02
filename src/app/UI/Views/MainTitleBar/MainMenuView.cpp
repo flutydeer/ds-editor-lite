@@ -300,19 +300,19 @@ void MainMenuViewPrivate::initFileActions() {
     actionSave = new QAction(tr("&Save"), this);
     actionSave->setShortcut(QKeySequence("Ctrl+S"));
 
-    actionSaveAs = new QAction(tr("Save &As..."), this);
+    actionSaveAs = new QAction(tr("Save &as..."), this);
     actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
 
-    actionImportMidi = new QAction(tr("MIDI File..."), this);
+    actionImportMidi = new QAction(tr("MIDI file..."), this);
     connect(actionImportMidi, &QAction::triggered, this, [=] { onImportMidiFile(); });
 
-    actionExportAudio = new QAction(tr("Audio File..."), this);
+    actionExportAudio = new QAction(tr("Audio file..."), this);
     connect(actionExportAudio, &QAction::triggered, this, [=] { onExportAudioFile(); });
 
-    actionExportMidi = new QAction(tr("MIDI File..."), this);
+    actionExportMidi = new QAction(tr("MIDI file..."), this);
     connect(actionExportMidi, &QAction::triggered, this, [=] { onExportMidiFile(); });
 
-    actionExit = new QAction(tr("Exit"), this);
+    actionExit = new QAction(tr("E&xit"), this);
     connect(actionExit, &QAction::triggered, this, [=] { exitApp(); });
 }
 
@@ -332,7 +332,7 @@ void MainMenuViewPrivate::initEditActions() {
                 onUndoRedoChanged(canUndo, undoName, canRedo, redoName);
             });
 
-    actionSelectAll = new QAction(tr("Select &All"), this);
+    actionSelectAll = new QAction(tr("Select &all"), this);
     actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
     actionSelectAll->setEnabled(false);
     connect(actionSelectAll, &QAction::triggered, this, [=] { onSelectAll(); });
@@ -362,13 +362,13 @@ void MainMenuViewPrivate::initEditActions() {
     actionOctaveDown->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Down));
     connect(actionOctaveDown, &QAction::triggered, this, [=] { onOctaveDown(); });
 
-    actionFillLyrics = new QAction(tr("Fill Lyrics..."), this);
+    actionFillLyrics = new QAction(tr("Fill lyrics..."), this);
     actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
     actionFillLyrics->setEnabled(false);
     connect(actionFillLyrics, &QAction::triggered, clipController,
             [this, q] { clipController->onFillLyric(q); });
 
-    actionSearchLyrics = new QAction(tr("Search Lyrics..."), this);
+    actionSearchLyrics = new QAction(tr("Search lyrics..."), this);
     actionSearchLyrics->setShortcut(QKeySequence("Ctrl+F"));
     connect(actionSearchLyrics, &QAction::triggered, clipController,
             [this, q] { clipController->onSearchLyric(q); });
@@ -480,7 +480,7 @@ CMenu *MainMenuViewPrivate::buildOptionsMenu() {
 
 CMenu *MainMenuViewPrivate::buildHelpMenu() {
     Q_Q(MainMenuView);
-    auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);
+    auto actionCheckForUpdates = new QAction(tr("Check for updates"), this);
     connect(actionCheckForUpdates, &QAction::triggered, this,
             [=] { Toast::show(tr("You are already up to date")); });
     auto actionAbout = new QAction(tr("About..."), this);
