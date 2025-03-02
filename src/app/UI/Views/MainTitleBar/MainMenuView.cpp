@@ -35,186 +35,11 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
     connect(appController, &AppController::activePanelChanged, this,
             [=](AppGlobal::PanelType panel) { d->onActivatedPanelChanged(panel); });
 
-    auto menuFile = new CMenu(tr("&File"), this);
-    auto actionNew = new QAction(tr("&New"), this);
-    actionNew->setShortcut(QKeySequence("Ctrl+N"));
-    connect(actionNew, &QAction::triggered, this, [=] { d->onNew(); });
-
-    auto actionOpen = new QAction(tr("&Open..."));
-    actionOpen->setShortcut(QKeySequence("Ctrl+O"));
-    connect(actionOpen, &QAction::triggered, this, [=] { d->onOpen(); });
-
-    // auto actionOpenAProject = new QAction(tr("Open A Project"), this);
-    // connect(actionOpenAProject, &QAction::triggered, this, [=] { d->onOpenAProject(); });
-
-    d->actionSave = new QAction(tr("&Save"), this);
-    d->actionSave->setShortcut(QKeySequence("Ctrl+S"));
-    d->actionSaveAs = new QAction(tr("Save &As..."), this);
-    d->actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
-
-    auto menuImport = new CMenu(tr("Import"), this);
-    auto actionImportMidiFile = new QAction(tr("MIDI File..."), this);
-    connect(actionImportMidiFile, &QAction::triggered, this, [=] { d->onImportMidiFile(); });
-    menuImport->addAction(actionImportMidiFile);
-
-    auto menuExport = new CMenu(tr("Export"), this);
-    auto actionExportAudio = new QAction(tr("Audio File..."), this);
-    connect(actionExportAudio, &QAction::triggered, this, [=] { d->onExportAudioFile(); });
-    auto actionExportMidiFile = new QAction(tr("MIDI File..."), this);
-    connect(actionExportMidiFile, &QAction::triggered, this, [=] { d->onExportMidiFile(); });
-
-    menuExport->addAction(actionExportAudio);
-    menuExport->addAction(actionExportMidiFile);
-
-    auto actionExit = new QAction(tr("Exit"), this);
-    connect(actionExit, &QAction::triggered, this, [=] { d->exitApp(); });
-
-    menuFile->addAction(actionNew);
-    menuFile->addAction(actionOpen);
-    // menuFile->addAction(actionOpenAProject);
-    menuFile->addAction(d->actionSave);
-    menuFile->addAction(d->actionSaveAs);
-    menuFile->addSeparator();
-    menuFile->addMenu(menuImport);
-    menuFile->addMenu(menuExport);
-    menuFile->addSeparator();
-    menuFile->addAction(actionExit);
-
-    auto menuEdit = new CMenu(tr("&Edit"), this);
-
-    d->actionUndo = new QAction(tr("&Undo"), this);
-    d->actionUndo->setEnabled(false);
-    d->actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
-    connect(d->actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
-
-    d->actionRedo = new QAction(tr("&Redo"), this);
-    d->actionRedo->setEnabled(false);
-    d->actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
-    connect(d->actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
-    connect(historyManager, &HistoryManager::undoRedoChanged, this,
-            [=](bool canUndo, const QString &undoName, bool canRedo, const QString &redoName) {
-                d->onUndoRedoChanged(canUndo, undoName, canRedo, redoName);
-            });
-
-    d->actionSelectAll = new QAction(tr("Select &All"), this);
-    d->actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
-    d->actionSelectAll->setEnabled(false);
-    connect(d->actionSelectAll, &QAction::triggered, this, [=] { d->onSelectAll(); });
-
-    d->actionDelete = new QAction(tr("&Delete"), this);
-    d->actionDelete->setShortcut(Qt::Key_Delete);
-    d->actionDelete->setEnabled(false);
-    connect(d->actionDelete, &QAction::triggered, this, [=] { d->onDelete(); });
-
-    d->actionCut = new QAction(tr("Cu&t"), this);
-    d->actionCut->setShortcut(QKeySequence("Ctrl+X"));
-    connect(d->actionCut, &QAction::triggered, this, [=] { d->onCut(); });
-
-    d->actionCopy = new QAction(tr("&Copy"), this);
-    d->actionCopy->setShortcut(QKeySequence("Ctrl+C"));
-    connect(d->actionCopy, &QAction::triggered, this, [=] { d->onCopy(); });
-
-    d->actionPaste = new QAction(tr("&Paste"), this);
-    d->actionPaste->setShortcut(QKeySequence("Ctrl+V"));
-    connect(d->actionPaste, &QAction::triggered, this, [=] { d->onPaste(); });
-
-    menuEdit->addAction(d->actionUndo);
-    menuEdit->addAction(d->actionRedo);
-    menuEdit->addSeparator();
-    menuEdit->addAction(d->actionSelectAll);
-    menuEdit->addAction(d->actionDelete);
-    menuEdit->addSeparator();
-    menuEdit->addAction(d->actionCut);
-    menuEdit->addAction(d->actionCopy);
-    menuEdit->addAction(d->actionPaste);
-
-    // auto menuInsert = new CMenu(tr("&Insert"), this);
-    //
-    // auto actionInsertNewTrack = new QAction(tr("Track"), this);
-    // connect(actionInsertNewTrack, &QAction::triggered, trackController,
-    //         &TrackController::onNewTrack);
-    // menuInsert->addAction(actionInsertNewTrack);
-
-    // auto menuModify = new CMenu(tr("&Modify"), this);
-    d->actionFillLyrics = new QAction(tr("Fill Lyrics..."), this);
-    d->actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
-    d->actionFillLyrics->setEnabled(false);
-    connect(d->actionFillLyrics, &QAction::triggered, clipController,
-            [this] { clipController->onFillLyric(this); });
-
-    d->actionSearchLyrics = new QAction(tr("Search Lyrics..."), this);
-    d->actionSearchLyrics->setShortcut(QKeySequence("Ctrl+F"));
-    connect(d->actionSearchLyrics, &QAction::triggered, clipController,
-            [this] { clipController->onSearchLyric(this); });
-    // menuModify->addAction(d->m_actionFillLyrics);
-
-    d->actionGetPitchParamFromAudioClip = new QAction(tr("Get pitch parameter from audio clip..."));
-    connect(d->actionGetPitchParamFromAudioClip, &QAction::triggered, this,
-            [=] { d->onGetPitchParamFromAudioClip(); });
-    menuEdit->addSeparator();
-    menuEdit->addAction(d->actionFillLyrics);
-    menuEdit->addAction(d->actionSearchLyrics);
-    menuEdit->addSeparator();
-    menuEdit->addAction(d->actionGetPitchParamFromAudioClip);
-
-    // d->actionGetMidiFromAudioClip = new QAction(tr("Get Midi from audio clip..."));
-    // connect(d->actionGetMidiFromAudioClip, &QAction::triggered, this,
-    //         [=] { d->onGetMidiFromAudioClip(); });
-    // menuEdit->addAction(d->actionGetMidiFromAudioClip);
-
-    auto menuOptions = new CMenu(tr("&Options"), this);
-    auto actionGeneralOptions = new QAction(tr("&General..."), this);
-    connect(actionGeneralOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::General);
-        dialog.exec();
-    });
-    auto actionAudioSettings = new QAction(tr("&Audio..."), this);
-    connect(actionAudioSettings, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::Audio);
-        dialog.exec();
-    });
-    auto actionMidiSettings = new QAction(tr("&MIDI..."), this);
-    connect(actionMidiSettings, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::Midi);
-        dialog.exec();
-    });
-    auto actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
-    connect(actionAppearanceOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::Appearance);
-        dialog.exec();
-    });
-    const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
-    connect(actionLanguageOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::Language);
-        dialog.exec();
-    });
-    const auto actionInferenceOptions = new QAction(tr("&Inference..."), this);
-    connect(actionInferenceOptions, &QAction::triggered, this, [=] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::Inference);
-        dialog.exec();
-    });
-    menuOptions->addAction(actionGeneralOptions);
-    menuOptions->addAction(actionAudioSettings);
-    menuOptions->addAction(actionMidiSettings);
-    menuOptions->addAction(actionAppearanceOptions);
-    menuOptions->addAction(actionLanguageOptions);
-    menuOptions->addAction(actionInferenceOptions);
-
-    auto menuHelp = new CMenu(tr("&Help"), this);
-    auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);
-    connect(actionCheckForUpdates, &QAction::triggered, this,
-            [=] { Toast::show(tr("You are already up to date")); });
-    auto actionAbout = new QAction(tr("About..."), this);
-    connect(actionAbout, &QAction::triggered, this, [=] { Toast::show(tr("About")); });
-    menuHelp->addAction(actionCheckForUpdates);
-    menuHelp->addAction(actionAbout);
-
-    addMenu(menuFile);
-    addMenu(menuEdit);
-    // addMenu(menuInsert);
-    // addMenu(menuModify);
-    addMenu(menuOptions);
-    addMenu(menuHelp);
+    d->initActions();
+    addMenu(d->buildFileMenu());
+    addMenu(d->buildEditMenu());
+    addMenu(d->buildOptionsMenu());
+    addMenu(d->buildHelpMenu());
 }
 
 MainMenuView::~MainMenuView() = default;
@@ -315,29 +140,9 @@ void MainMenuViewPrivate::onActivatedPanelChanged(AppGlobal::PanelType panel) {
     Q_Q(MainMenuView);
     m_panelType = panel;
     if (panel == AppGlobal::ClipEditor) {
-        actionSelectAll->setEnabled(clipController->canSelectAll());
-        QObject::connect(clipController, &ClipController::canSelectAllChanged, actionSelectAll,
-                         &QAction::setEnabled);
-
-        actionDelete->setEnabled(clipController->hasSelectedNotes());
-        QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionDelete,
-                         &QAction::setEnabled);
-
-        actionFillLyrics->setEnabled(clipController->hasSelectedNotes());
-        QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionFillLyrics,
-                         &QAction::setEnabled);
+        enterClipEditorState();
     } else {
-        QObject::disconnect(clipController, &ClipController::canSelectAllChanged, actionSelectAll,
-                            &QAction::setEnabled);
-        actionSelectAll->setEnabled(false);
-
-        QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionDelete,
-                            &QAction::setEnabled);
-        actionDelete->setEnabled(false);
-
-        QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged,
-                            actionFillLyrics, &QAction::setEnabled);
-        actionFillLyrics->setEnabled(false);
+        exitClipEditorState();
     }
 }
 
@@ -373,8 +178,9 @@ void MainMenuViewPrivate::onPaste() {
 //     midiExtractController->runExtractMidi(audioClip);
 // }
 
-void MainMenuViewPrivate::onGetPitchParamFromAudioClip() {
-    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(appStatus->activeClipId));
+void MainMenuViewPrivate::onExtractPitchParam() {
+    const auto singingClip =
+        dynamic_cast<SingingClip *>(appModel->findClipById(appStatus->activeClipId));
 
     if (!singingClip or singingClip->clipType() != IClip::Singing) {
         // TODO: 在选中非歌声剪辑时禁用此操作
@@ -406,7 +212,288 @@ void MainMenuViewPrivate::onGetPitchParamFromAudioClip() {
     pitchExtractController->runExtractPitch(audioClip, singingClip);
 }
 
+void MainMenuViewPrivate::onOctaveUp() {
+    qDebug() << "MainMenuViewPrivate::onOctaveUp";
+    const auto singingClip =
+        dynamic_cast<SingingClip *>(appModel->findClipById(appStatus->activeClipId));
+    Q_ASSERT(singingClip);
+
+    clipController->onMoveNotes(appStatus->selectedNotes, 0, 12);
+}
+
+void MainMenuViewPrivate::onOctaveDown() {
+    qDebug() << "MainMenuViewPrivate::onOctaveDown";
+    const auto singingClip =
+        dynamic_cast<SingingClip *>(appModel->findClipById(appStatus->activeClipId));
+    Q_ASSERT(singingClip);
+
+    clipController->onMoveNotes(appStatus->selectedNotes, 0, -12);
+}
+
 void MainMenuViewPrivate::exitApp() {
     qDebug() << "MainMenuViewPrivate::exitApp";
     m_mainWindow->close();
 }
+
+void MainMenuViewPrivate::enterClipEditorState() {
+    bool hasSelectedNotes = clipController->hasSelectedNotes();
+
+    actionSelectAll->setEnabled(clipController->canSelectAll());
+    QObject::connect(clipController, &ClipController::canSelectAllChanged, actionSelectAll,
+                     &QAction::setEnabled);
+
+    actionDelete->setEnabled(hasSelectedNotes);
+    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionDelete,
+                     &QAction::setEnabled);
+
+    actionOctaveUp->setEnabled(hasSelectedNotes);
+    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveUp,
+                     &QAction::setEnabled);
+
+    actionOctaveDown->setEnabled(hasSelectedNotes);
+    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveDown,
+                     &QAction::setEnabled);
+
+    actionFillLyrics->setEnabled(hasSelectedNotes);
+    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionFillLyrics,
+                     &QAction::setEnabled);
+}
+
+void MainMenuViewPrivate::exitClipEditorState() {
+    QObject::disconnect(clipController, &ClipController::canSelectAllChanged, actionSelectAll,
+                        &QAction::setEnabled);
+    actionSelectAll->setEnabled(false);
+
+    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionDelete,
+                        &QAction::setEnabled);
+    actionDelete->setEnabled(false);
+
+    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveUp,
+                        &QAction::setEnabled);
+    actionOctaveUp->setEnabled(false);
+
+    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveDown,
+                        &QAction::setEnabled);
+    actionOctaveDown->setEnabled(false);
+
+    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionFillLyrics,
+                        &QAction::setEnabled);
+    actionFillLyrics->setEnabled(false);
+}
+
+void MainMenuViewPrivate::initActions() {
+    initFileActions();
+    initEditActions();
+    // initOptionsActions();
+    // initHelpActions();
+}
+
+void MainMenuViewPrivate::initFileActions() {
+    actionNew = new QAction(tr("&New"), this);
+    actionNew->setShortcut(QKeySequence("Ctrl+N"));
+    connect(actionNew, &QAction::triggered, this, [=] { onNew(); });
+
+    actionOpen = new QAction(tr("&Open..."));
+    actionOpen->setShortcut(QKeySequence("Ctrl+O"));
+    connect(actionOpen, &QAction::triggered, this, [=] { onOpen(); });
+
+    actionSave = new QAction(tr("&Save"), this);
+    actionSave->setShortcut(QKeySequence("Ctrl+S"));
+
+    actionSaveAs = new QAction(tr("Save &As..."), this);
+    actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
+
+    actionImportMidi = new QAction(tr("MIDI File..."), this);
+    connect(actionImportMidi, &QAction::triggered, this, [=] { onImportMidiFile(); });
+
+    actionExportAudio = new QAction(tr("Audio File..."), this);
+    connect(actionExportAudio, &QAction::triggered, this, [=] { onExportAudioFile(); });
+
+    actionExportMidi = new QAction(tr("MIDI File..."), this);
+    connect(actionExportMidi, &QAction::triggered, this, [=] { onExportMidiFile(); });
+
+    actionExit = new QAction(tr("Exit"), this);
+    connect(actionExit, &QAction::triggered, this, [=] { exitApp(); });
+}
+
+void MainMenuViewPrivate::initEditActions() {
+    Q_Q(MainMenuView);
+    actionUndo = new QAction(tr("&Undo"), this);
+    actionUndo->setEnabled(false);
+    actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
+    connect(actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
+
+    actionRedo = new QAction(tr("&Redo"), this);
+    actionRedo->setEnabled(false);
+    actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
+    connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
+    connect(historyManager, &HistoryManager::undoRedoChanged, this,
+            [=](bool canUndo, const QString &undoName, bool canRedo, const QString &redoName) {
+                onUndoRedoChanged(canUndo, undoName, canRedo, redoName);
+            });
+
+    actionSelectAll = new QAction(tr("Select &All"), this);
+    actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
+    actionSelectAll->setEnabled(false);
+    connect(actionSelectAll, &QAction::triggered, this, [=] { onSelectAll(); });
+
+    actionDelete = new QAction(tr("&Delete"), this);
+    actionDelete->setShortcut(Qt::Key_Delete);
+    actionDelete->setEnabled(false);
+    connect(actionDelete, &QAction::triggered, this, [=] { onDelete(); });
+
+    actionCut = new QAction(tr("Cu&t"), this);
+    actionCut->setShortcut(QKeySequence("Ctrl+X"));
+    connect(actionCut, &QAction::triggered, this, [=] { onCut(); });
+
+    actionCopy = new QAction(tr("&Copy"), this);
+    actionCopy->setShortcut(QKeySequence("Ctrl+C"));
+    connect(actionCopy, &QAction::triggered, this, [=] { onCopy(); });
+
+    actionPaste = new QAction(tr("&Paste"), this);
+    actionPaste->setShortcut(QKeySequence("Ctrl+V"));
+    connect(actionPaste, &QAction::triggered, this, [=] { onPaste(); });
+
+    actionOctaveUp = new QAction(tr("Move an octave up"), this);
+    actionOctaveUp->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Up));
+    connect(actionOctaveUp, &QAction::triggered, this, [=] { onOctaveUp(); });
+
+    actionOctaveDown = new QAction(tr("Move an octave down"), this);
+    actionOctaveDown->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Down));
+    connect(actionOctaveDown, &QAction::triggered, this, [=] { onOctaveDown(); });
+
+    actionFillLyrics = new QAction(tr("Fill Lyrics..."), this);
+    actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
+    actionFillLyrics->setEnabled(false);
+    connect(actionFillLyrics, &QAction::triggered, clipController,
+            [this, q] { clipController->onFillLyric(q); });
+
+    actionSearchLyrics = new QAction(tr("Search Lyrics..."), this);
+    actionSearchLyrics->setShortcut(QKeySequence("Ctrl+F"));
+    connect(actionSearchLyrics, &QAction::triggered, clipController,
+            [this, q] { clipController->onSearchLyric(q); });
+
+    actionExtractPitchParam = new QAction(tr("Extract pitch parameter..."));
+    connect(actionExtractPitchParam, &QAction::triggered, this, [=] { onExtractPitchParam(); });
+}
+
+CMenu *MainMenuViewPrivate::buildFileMenu() {
+    Q_Q(MainMenuView);
+    auto menuFile = new CMenu(tr("&File"), q);
+    menuFile->addAction(actionNew);
+    menuFile->addAction(actionOpen);
+    menuFile->addAction(actionSave);
+    menuFile->addAction(actionSaveAs);
+
+    menuFile->addSeparator();
+
+    auto menuImport = new CMenu(tr("Import"), q);
+    menuImport->addAction(actionImportMidi);
+    menuFile->addMenu(menuImport);
+
+    auto menuExport = new CMenu(tr("Export"), q);
+    menuExport->addAction(actionExportAudio);
+    menuExport->addAction(actionExportMidi);
+    menuFile->addMenu(menuExport);
+
+    menuFile->addSeparator();
+
+    menuFile->addAction(actionExit);
+    return menuFile;
+}
+
+CMenu *MainMenuViewPrivate::buildEditMenu() {
+    Q_Q(MainMenuView);
+    auto menuEdit = new CMenu(tr("&Edit"), q);
+    menuEdit->addAction(actionUndo);
+    menuEdit->addAction(actionRedo);
+
+    menuEdit->addSeparator();
+
+    menuEdit->addAction(actionSelectAll);
+    menuEdit->addAction(actionDelete);
+
+    menuEdit->addSeparator();
+
+    menuEdit->addAction(actionCut);
+    menuEdit->addAction(actionCopy);
+    menuEdit->addAction(actionPaste);
+
+    menuEdit->addSeparator();
+
+    menuEdit->addAction(actionOctaveUp);
+    menuEdit->addAction(actionOctaveDown);
+
+    menuEdit->addSeparator();
+
+    menuEdit->addAction(actionFillLyrics);
+    menuEdit->addAction(actionSearchLyrics);
+
+    menuEdit->addSeparator();
+
+    menuEdit->addAction(actionExtractPitchParam);
+    return menuEdit;
+}
+
+CMenu *MainMenuViewPrivate::buildOptionsMenu() {
+    Q_Q(MainMenuView);
+    auto actionGeneralOptions = new QAction(tr("&General..."), this);
+    connect(actionGeneralOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::General);
+        dialog.exec();
+    });
+    auto actionAudioSettings = new QAction(tr("&Audio..."), this);
+    connect(actionAudioSettings, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::Audio);
+        dialog.exec();
+    });
+    auto actionMidiSettings = new QAction(tr("&MIDI..."), this);
+    connect(actionMidiSettings, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::Midi);
+        dialog.exec();
+    });
+    auto actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
+    connect(actionAppearanceOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::Appearance);
+        dialog.exec();
+    });
+    const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
+    connect(actionLanguageOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::Language);
+        dialog.exec();
+    });
+    const auto actionInferenceOptions = new QAction(tr("&Inference..."), this);
+    connect(actionInferenceOptions, &QAction::triggered, this, [=] {
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::Inference);
+        dialog.exec();
+    });
+
+    auto menuOptions = new CMenu(tr("&Options"), q);
+    menuOptions->addAction(actionGeneralOptions);
+    menuOptions->addAction(actionAudioSettings);
+    menuOptions->addAction(actionMidiSettings);
+    menuOptions->addAction(actionAppearanceOptions);
+    menuOptions->addAction(actionLanguageOptions);
+    menuOptions->addAction(actionInferenceOptions);
+    return menuOptions;
+}
+
+CMenu *MainMenuViewPrivate::buildHelpMenu() {
+    Q_Q(MainMenuView);
+    auto actionCheckForUpdates = new QAction(tr("Check for Updates"), this);
+    connect(actionCheckForUpdates, &QAction::triggered, this,
+            [=] { Toast::show(tr("You are already up to date")); });
+    auto actionAbout = new QAction(tr("About..."), this);
+    connect(actionAbout, &QAction::triggered, this, [=] { Toast::show(tr("About")); });
+
+    auto menuHelp = new CMenu(tr("&Help"), q);
+    menuHelp->addAction(actionCheckForUpdates);
+    menuHelp->addAction(actionAbout);
+    return menuHelp;
+}
+
+// void MainMenuViewPrivate::initOptionsActions() {
+// }
+
+// void MainMenuViewPrivate::initHelpActions() {
+// }

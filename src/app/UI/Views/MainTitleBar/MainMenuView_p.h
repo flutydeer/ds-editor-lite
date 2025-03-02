@@ -7,7 +7,10 @@
 
 #include "Global/AppGlobal.h"
 
+#include <QObject>
+
 class QAction;
+class CMenu;
 class MainWindow;
 
 class MainMenuViewPrivate : QObject {
@@ -20,6 +23,13 @@ public:
 
     MainWindow *m_mainWindow;
 
+    QAction *actionNew = nullptr;
+    QAction *actionOpen = nullptr;
+    QAction *actionImportMidi = nullptr;
+    QAction *actionExportAudio = nullptr;
+    QAction *actionExportMidi = nullptr;
+    QAction *actionExit = nullptr;
+
     QAction *actionUndo = nullptr;
     QAction *actionRedo = nullptr;
     QAction *actionSave = nullptr;
@@ -29,10 +39,12 @@ public:
     QAction *actionCut = nullptr;
     QAction *actionCopy = nullptr;
     QAction *actionPaste = nullptr;
+    QAction *actionOctaveUp = nullptr;
+    QAction *actionOctaveDown = nullptr;
     QAction *actionFillLyrics = nullptr;
     QAction *actionSearchLyrics = nullptr;
     // QAction *actionGetMidiFromAudioClip = nullptr;
-    QAction *actionGetPitchParamFromAudioClip = nullptr;
+    QAction *actionExtractPitchParam = nullptr;
 
     AppGlobal::PanelType m_panelType = AppGlobal::Generic;
 
@@ -52,8 +64,25 @@ public:
     void onCopy();
     void onPaste();
     // void onGetMidiFromAudioClip();
-    void onGetPitchParamFromAudioClip();
+    void onExtractPitchParam();
+    void onOctaveUp();
+    void onOctaveDown();
+    // void onTranspose();
     void exitApp();
+
+    void enterClipEditorState();
+    void exitClipEditorState(); // TODO: 需要重构以支持轨道编辑器
+
+    void initActions();
+    void initFileActions();
+    void initEditActions();
+    // void initOptionsActions();
+    // void initHelpActions();
+
+    CMenu *buildFileMenu();
+    CMenu *buildEditMenu();
+    CMenu *buildOptionsMenu();
+    CMenu *buildHelpMenu();
 
 private:
     MainMenuView *q_ptr = nullptr;
