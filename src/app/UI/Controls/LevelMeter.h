@@ -11,6 +11,7 @@
 class LevelMeter : public QWidget {
     Q_OBJECT
 public:
+    enum class MeterStyle { Segmented, Gradient };
     explicit LevelMeter(QWidget *parent = nullptr);
     ~LevelMeter() override;
 
@@ -31,12 +32,17 @@ private:
     void resetBuffer();
     [[nodiscard]] bool mouseOnClipIndicator(const QPointF &pos) const;
 
-    QColor m_colorBackground = QColor(0, 0, 0, 60);
+    void drawSegmentedBar(QPainter &painter, const QRectF &rect, const double &level);
+    void drawGradientBar(QPainter &painter, const QRectF &rect, const double &level);
+
+    // QColor m_colorBackground = QColor(0, 0, 0, 60);
+    MeterStyle m_style = LevelMeter::MeterStyle::Gradient;
     QColor m_colorSafe = QColor(155, 186, 255);
     QColor m_colorWarn = QColor(255, 205, 155);
     QColor m_colorCritical = QColor(255, 155, 157);
-    const double m_safeThreshold = 0.707946; //-3 dB
-    const double m_warnThreshold = 0.891251; //-1 dB
+    const double m_safeThreshold = 0.707946;    //-3 dB
+    const double m_warnThreshold = 0.891251;    //-1 dB
+    const double m_safeThresholdAlt = 0.501187; //-6 dB
     double m_smoothedLevelL = 0;
     double m_smoothedLevelR = 0;
     bool m_clippedL = false;

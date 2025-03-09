@@ -38,9 +38,7 @@ LevelMeter::~LevelMeter() {
 
 void LevelMeter::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
-    // Fill background
-    painter.setPen(Qt::NoPen);
-    painter.fillRect(rect(), m_colorBackground);
+
     auto paddedRect = QRectF(rect().left() + m_spacing, rect().top() + m_spacing,
                              rect().width() - 2 * m_spacing, rect().height() - 2 * m_spacing);
     auto channelWidth = (paddedRect.width() - m_spacing) / 2;
@@ -60,58 +58,16 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
     if (m_clippedR)
         painter.fillRect(rightIndicatorRect, m_colorCritical);
 
-    auto drawVerticalBar = [&](const QRectF &rect, const double level) {
-        auto rectLeft = rect.left();
-        auto rectTop = rect.top();
-        auto rectWidth = rect.width();
-        auto rectHeight = rect.height();
-
-        auto safeLength = rectHeight * m_safeThreshold;
-        auto warnLength = rectHeight * m_warnThreshold - safeLength;
-
-        auto safeStart = rectTop + rectHeight - safeLength;
-        auto warnStart = rectTop + rectHeight - safeLength - warnLength;
-        auto criticalStart = rectTop;
-        auto levelLength = rectHeight * level;
-        auto criticalLength = rectHeight - safeLength - warnLength;
-
-        auto fullSafeChunk = QRectF(rectLeft, safeStart, rectWidth, safeLength);
-        auto fullWarnChunk = QRectF(rectLeft, warnStart, rectWidth, warnLength);
-        auto fullCriticalChunk = QRectF(rectLeft, criticalStart, rectWidth, criticalLength);
-
-        // draw safe chunk
-        if (level < m_safeThreshold) {
-            auto height = levelLength;
-            auto top = rectTop + rectHeight - height;
-            auto chunk = QRectF(rectLeft, top, rectWidth, height);
-            painter.fillRect(chunk, m_colorSafe);
-        } else if (level < m_warnThreshold) {
-            painter.fillRect(fullSafeChunk, m_colorSafe);
-
-            auto height = levelLength - safeLength;
-            auto top = rectTop + rectHeight - levelLength;
-            auto chunk = QRectF(rectLeft, top, rectWidth, height);
-            painter.fillRect(chunk, m_colorWarn);
-        } else if (level < 1) {
-            painter.fillRect(fullSafeChunk, m_colorSafe);
-            painter.fillRect(fullWarnChunk, m_colorWarn);
-
-            auto height = levelLength - safeLength - warnLength;
-            auto top = rectTop + rectHeight - levelLength;
-            auto chunk = QRectF(rectLeft, top, rectWidth, height);
-            painter.fillRect(chunk, m_colorCritical);
-        } else {
-            painter.fillRect(fullSafeChunk, m_colorSafe);
-            painter.fillRect(fullWarnChunk, m_colorWarn);
-            painter.fillRect(fullCriticalChunk, m_colorCritical);
-        }
-    };
-
     // draw levels
     auto leftLevelBar = QRectF(leftChannelLeft, channelTop, channelWidth, channelLength);
     auto rightLevelBar = QRectF(rightChannelLeft, channelTop, channelWidth, channelLength);
-    drawVerticalBar(leftLevelBar, m_smoothedLevelL);
-    drawVerticalBar(rightLevelBar, m_smoothedLevelR);
+    if (m_style == MeterStyle::Segmented) {
+        drawSegmentedBar(painter, leftLevelBar, m_smoothedLevelL);
+        drawSegmentedBar(painter, rightLevelBar, m_smoothedLevelR);
+    } else if (m_style == MeterStyle::Gradient) {
+        drawGradientBar(painter, leftLevelBar, m_smoothedLevelL);
+        drawGradientBar(painter, rightLevelBar, m_smoothedLevelR);
+    }
 }
 
 void LevelMeter::mousePressEvent(QMouseEvent *event) {
@@ -195,4 +151,68 @@ void LevelMeter::resetBuffer() {
 bool LevelMeter::mouseOnClipIndicator(const QPointF &pos) const {
     // return pos.y() <= m_spacing + m_clipIndicatorLength + m_spacing;
     return pos.y() <= m_clipIndicatorLength + 8;
+}
+
+void LevelMeter::drawSegmentedBar(QPainter &painter, const QRectF &rect, const double &level) {
+    auto rectLeft = rect.left();
+    auto rectTop = rect.top();
+    auto rectWidth = rect.width();
+    auto rectHeight = rect.height();
+
+    auto safeLength = rectHeight * m_safeThreshold;
+    auto warnLength = rectHeight * m_warnThreshold - safeLength;
+
+    auto safeStart = rectTop + rectHeight - safeLength;
+    auto warnStart = rectTop + rectHeight - safeLength - warnLength;
+    auto criticalStart = rectTop;
+    auto levelLength = rectHeight * level;
+    auto criticalLength = rectHeight - safeLength - warnLength;
+
+    auto fullSafeChunk = QRectF(rectLeft, safeStart, rectWidth, safeLength);
+    auto fullWarnChunk = QRectF(rectLeft, warnStart, rectWidth, warnLength);
+    auto fullCriticalChunk = QRectF(rectLeft, criticalStart, rectWidth, criticalLength);
+
+    // draw safe chunk
+    if (level < m_safeThreshold) {
+        auto height = levelLength;
+        auto top = rectTop + rectHeight - height;
+        auto chunk = QRectF(rectLeft, top, rectWidth, height);
+        painter.fillRect(chunk, m_colorSafe);
+    } else if (level < m_warnThreshold) {
+        painter.fillRect(fullSafeChunk, m_colorSafe);
+
+        auto height = levelLength - safeLength;
+        auto top = rectTop + rectHeight - levelLength;
+        auto chunk = QRectF(rectLeft, top, rectWidth, height);
+        painter.fillRect(chunk, m_colorWarn);
+    } else if (level < 1) {
+        painter.fillRect(fullSafeChunk, m_colorSafe);
+        painter.fillRect(fullWarnChunk, m_colorWarn);
+
+        auto height = levelLength - safeLength - warnLength;
+        auto top = rectTop + rectHeight - levelLength;
+        auto chunk = QRectF(rectLeft, top, rectWidth, height);
+        painter.fillRect(chunk, m_colorCritical);
+    } else {
+        painter.fillRect(fullSafeChunk, m_colorSafe);
+        painter.fillRect(fullWarnChunk, m_colorWarn);
+        painter.fillRect(fullCriticalChunk, m_colorCritical);
+    }
+}
+
+void LevelMeter::drawGradientBar(QPainter &painter, const QRectF &rect, const double &level) {
+    if (level <= 1){
+        QLinearGradient gradient(0, 0, 0, rect.height());
+        gradient.setColorAt(0, {255, 224, 155});
+        gradient.setColorAt(m_safeThresholdAlt, {155, 255, 174});
+        gradient.setColorAt(1, {155, 224, 255});
+        auto height = rect.height() * level;
+        auto top = rect.bottom() - height;
+        auto clipRect = QRectF(rect.left(), top, rect.width(), height);
+        painter.setClipRect(clipRect);
+        painter.fillRect(rect, gradient);
+    }
+    else {
+        painter.fillRect(rect, m_colorCritical);
+    }
 }
