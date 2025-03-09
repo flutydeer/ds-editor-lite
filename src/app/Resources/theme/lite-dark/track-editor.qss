@@ -19,7 +19,7 @@ TimelineView#tracksTimelineView {
 /* TrackControlView */
 TrackControlView {
     border-style: none;
-    border-bottom: 1px solid #10FFFFFF
+    border-bottom: 1px solid #1D1F26;
 }
 
 TrackControlView>QLabel {
@@ -39,31 +39,43 @@ TrackControlView>QPushButton#btnColor {
 }
 
 TrackControlView>QLabel#lbTrackIndex {
-    color: #D0D0D0;
+    min-width: 24;
+    background-color: #9BBAFF;
+    color: #000;
+    margin-left: 1px;
+    margin-bottom: 1px;
 }
 
-TrackControlView>QPushButton#btnMute {
+TrackControlView>EditLabel#leTrackName {
+    height: 24px;
     border: none;
+}
+
+TrackControlView>QPushButton#btnMute,
+TrackControlView>QPushButton#btnSolo {
+    background-color: #0FC7D8FF;
+    width: 24;
+    height: 24;
     border-radius: 4px;
+    border: none;
 }
 
 TrackControlView>QPushButton#btnMute:checked {
-    color: #000;
-    background-color: #FF9B9D;
-    border: none
-}
-
-TrackControlView>QPushButton#btnSolo {
-    border: none;
-    border-radius: 4px;
+    color: #FF9BA0;
+    background-color: #40FF9BA0;
 }
 
 TrackControlView>QPushButton#btnSolo:checked {
-    color: #000;
-    background-color: #FFCD9B;
-    border: none
+    color: #FFCD9B;
+    background-color: #40FFCD9B;
 }
 
+TrackControlView>ComboBox {
+    height: 24;
+    border: none;
+    padding-left: 4px;
+    background: transparent;
+}
 
 /* TrackListView */
 TrackListView {

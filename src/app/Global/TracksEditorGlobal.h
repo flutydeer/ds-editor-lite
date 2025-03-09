@@ -8,8 +8,8 @@
 namespace TracksEditorGlobal {
     const int pixelsPerQuarterNote = 32;
     const double trackHeight = 72;
-    const int trackListWidth = 360;
-    const double narrowModeScaleY = 0.8;
+    const int trackListWidth = 320;
+    const double narrowModeScaleY = 1;
     const int trackViewHeaderHeight = 36;
 };
 

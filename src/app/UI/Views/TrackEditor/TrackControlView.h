@@ -24,6 +24,7 @@ class EditLabel;
 class QSpacerItem;
 class QHBoxLayout;
 class QVBoxLayout;
+class ComboBox;
 
 class TrackControlView final : public QWidget, public ITrack {
     Q_OBJECT
@@ -37,7 +38,7 @@ public:
     [[nodiscard]] TrackControl control() const override;
     void setControl(const TrackControl &control) override;
     void setNarrowMode(bool on);
-    // void setLanguage(AppGlobal::languageType lang);
+    void setLanguage(const QString &language);
     [[nodiscard]] LevelMeter *levelMeter() const;
 
     [[nodiscard]] QColor color() const override {
@@ -66,22 +67,22 @@ private:
     Track *m_track = nullptr;
     QListWidgetItem *m_item;
     // controls
-    // Button *m_btnColor;
-    QLabel *m_lbTrackIndex;
-    Button *m_btnMute;
-    Button *m_btnSolo;
-    EditLabel *m_leTrackName;
-    // LanguageComboBox *m_cbLanguage;
-    SVS::SeekBar *m_sbPan;
-    EditLabel *m_lePan;
-    SVS::SeekBar *m_sbGain;
-    EditLabel *m_leGain;
-    QSpacerItem *m_panVolumeSpacer;
+    QLabel *lbTrackIndex;
+    Button *btnMute;
+    Button *btnSolo;
+    EditLabel *leTrackName;
+    ComboBox *cbSinger;
+    LanguageComboBox *cbLanguage;
+    SVS::SeekBar *sbPan;
+    EditLabel *lePan;
+    SVS::SeekBar *sbGain;
+    EditLabel *leGain;
+    QSpacerItem *panVolumeSpacer;
     LevelMeter *m_levelMeter;
-    QHBoxLayout *m_mainLayout;
-    QVBoxLayout *m_controlWidgetLayout;
-    QHBoxLayout *m_muteSoloTrackNameLayout;
-    QHBoxLayout *m_panVolumeLayout;
+    QHBoxLayout *mainLayout;
+    QVBoxLayout *controlWidgetLayout;
+    QHBoxLayout *muteSoloTrackNameLayout;
+    QHBoxLayout *panVolumeLayout;
 
     int m_buttonSize = 24;
 
