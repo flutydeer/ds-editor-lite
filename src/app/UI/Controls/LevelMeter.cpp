@@ -201,7 +201,7 @@ void LevelMeter::drawSegmentedBar(QPainter &painter, const QRectF &rect, const d
 }
 
 void LevelMeter::drawGradientBar(QPainter &painter, const QRectF &rect, const double &level) {
-    if (level <= 1){
+    if (level <= 1) {
         QLinearGradient gradient(0, 0, 0, rect.height());
         gradient.setColorAt(0, {255, 224, 155});
         gradient.setColorAt(m_safeThresholdAlt, {155, 255, 174});
@@ -211,8 +211,8 @@ void LevelMeter::drawGradientBar(QPainter &painter, const QRectF &rect, const do
         auto clipRect = QRectF(rect.left(), top, rect.width(), height);
         painter.setClipRect(clipRect);
         painter.fillRect(rect, gradient);
-    }
-    else {
+    } else {
+        painter.setClipRect(rect);
         painter.fillRect(rect, m_colorCritical);
     }
 }
