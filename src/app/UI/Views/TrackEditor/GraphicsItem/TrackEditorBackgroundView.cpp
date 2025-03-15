@@ -21,7 +21,7 @@ void TrackEditorBackgroundView::onTrackSelectionChanged(int trackIndex) {
 }
 
 void TrackEditorBackgroundView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                                         QWidget *widget) {
+                                      QWidget *widget) {
     auto sceneYToTrackIndex = [&](const double y) { return y / scaleY() / trackHeight; };
     auto trackIndexToSceneY = [&](const double index) { return index * scaleY() * trackHeight; };
     auto sceneYToItemY = [&](const double y) { return mapFromScene(QPointF(0, y)).y(); };
@@ -47,19 +47,18 @@ void TrackEditorBackgroundView::paint(QPainter *painter, const QStyleOptionGraph
     TimeGridView::paint(painter, option, widget);
 
     // Draw track divider
-    auto lineColor = QColor(72, 75, 78);
     auto penWidth = 1;
 
     QPen pen;
     pen.setWidthF(penWidth);
-    pen.setColor(lineColor);
+    pen.setColor(commonLineColor());
     painter->setPen(pen);
     // painter->setRenderHint(QPainter::Antialiasing);
 
     if (m_trackCount < endTrackIndex)
         endTrackIndex = m_trackCount + 1;
     auto prevLineTrackIndex = static_cast<int>(startTrackIndex);
-    for (int i = prevLineTrackIndex; i < endTrackIndex; i++) {
+    for (int i = prevLineTrackIndex + 1; i < endTrackIndex; i++) {
         auto y = sceneYToItemY(trackIndexToSceneY(i));
         auto line = QLineF(0, y, visibleRect().width(), y);
         painter->drawLine(line);

@@ -17,8 +17,7 @@ TimeGridView::TimeGridView(QGraphicsItem *parent) : AbstractGraphicsRectItem(par
                                appModel->timeSignature().denominator);
         this->setQuantize(appStatus->quantize);
     });
-    connect(appModel, &AppModel::timeSignatureChanged, this,
-            &TimeGridView::setTimeSignature);
+    connect(appModel, &AppModel::timeSignatureChanged, this, &TimeGridView::setTimeSignature);
     connect(appStatus, &AppStatus::quantizeChanged, this, &TimeGridView::setQuantize);
 }
 
@@ -46,7 +45,7 @@ void TimeGridView::setOffset(int tick) {
 }
 
 void TimeGridView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                                 QWidget *widget) {
+                         QWidget *widget) {
     auto penWidth = 1;
 
     QPen pen;
@@ -95,18 +94,6 @@ void TimeGridView::drawEighth(QPainter *painter, int tick) {
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
 }
 
-double TimeGridView::sceneXToTick(double pos) const {
-    return 480 * pos / scaleX() / pixelsPerQuarterNote();
-}
-
-double TimeGridView::tickToSceneX(double tick) const {
-    return tick * scaleX() * pixelsPerQuarterNote() / 480;
-}
-
-double TimeGridView::sceneXToItemX(double x) const {
-    return mapFromScene(QPointF(x, 0)).x();
-}
-
 QColor TimeGridView::barLineColor() const {
     return m_barLineColor;
 }
@@ -132,4 +119,16 @@ QColor TimeGridView::commonLineColor() const {
 void TimeGridView::setCommonLineColor(const QColor &color) {
     m_commonLineColor = color;
     update();
+}
+
+double TimeGridView::sceneXToTick(double pos) const {
+    return 480 * pos / scaleX() / pixelsPerQuarterNote();
+}
+
+double TimeGridView::tickToSceneX(double tick) const {
+    return tick * scaleX() * pixelsPerQuarterNote() / 480;
+}
+
+double TimeGridView::sceneXToItemX(double x) const {
+    return mapFromScene(QPointF(x, 0)).x();
 }

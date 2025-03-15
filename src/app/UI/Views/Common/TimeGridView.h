@@ -34,6 +34,12 @@ protected:
     void drawBar(QPainter *painter, int tick, int bar) override;
     void drawBeat(QPainter *painter, int tick, int bar, int beat) override;
     void drawEighth(QPainter *painter, int tick) override;
+    QColor barLineColor() const;
+    void setBarLineColor(const QColor &color);
+    QColor beatLineColor() const;
+    void setBeatLineColor(const QColor &color);
+    QColor commonLineColor() const;
+    void setCommonLineColor(const QColor &color);
 
 private:
     friend class TimeGraphicsView;
@@ -42,13 +48,6 @@ private:
     [[nodiscard]] double sceneXToTick(double pos) const;
     [[nodiscard]] double tickToSceneX(double tick) const;
     [[nodiscard]] double sceneXToItemX(double x) const;
-
-    QColor barLineColor() const;
-    void setBarLineColor(const QColor &color);
-    QColor beatLineColor() const;
-    void setBeatLineColor(const QColor &color);
-    QColor commonLineColor() const;
-    void setCommonLineColor(const QColor &color);
 
     int m_offset = 0;
     QColor m_barLineColor = {8, 9, 10};
