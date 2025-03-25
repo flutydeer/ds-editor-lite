@@ -77,6 +77,21 @@ TrackControlView>ComboBox {
     background: transparent;
 }
 
+TrackControlView>LevelMeter {
+    background: #1F2229;
+    min-width: 12;
+    qproperty-padding: 0;
+    qproperty-spacing: 1;
+    qproperty-clipIndicatorLength: 6;
+    qproperty-showValueWhenHover: false;
+    qproperty-dimmedColor: transparent;
+    qproperty-clippedColor: rgb(255, 155, 157);
+    qproperty-safeColor: rgb(155, 224, 255);
+    qproperty-warnColor: rgb(155, 255, 174);
+    qproperty-criticalColor: rgb(255, 224, 155);
+    qproperty-currentValueColor: rgb(211, 214, 224);
+}
+
 /* TrackListView */
 TrackListView {
     background: transparent;

@@ -11,10 +11,12 @@
 #include "Utils/VolumeUtils.h"
 
 LevelMeter::LevelMeter(QWidget *parent) : QWidget(parent) {
-    m_timer = new QTimer;
-    m_timer->setInterval(16);
+    setAttribute(Qt::WA_StyledBackground);
+    setAttribute(Qt::WA_Hover);
+
+    smoothValueTimer.setInterval(16);
     // m_timer->start();
-    connect(m_timer, &QTimer::timeout, this, [=]() {
+    connect(&smoothValueTimer, &QTimer::timeout, this, [=]() {
         double sumL = 0;
         double sumR = 0;
         for (int i = 0; i < m_bufferSize; i++) {
@@ -28,24 +30,32 @@ LevelMeter::LevelMeter(QWidget *parent) : QWidget(parent) {
         update();
     });
     initBuffer(32);
+
+    // toolTipFilter = new ToolTipFilter(this);
+    // toolTipFilter->setFollowCursor(true);
+    // toolTipFilter->setShowDelay(0);
+    // installEventFilter(toolTipFilter);
 }
 
 LevelMeter::~LevelMeter() {
     delete[] m_bufferL;
     delete[] m_bufferR;
-    delete m_timer;
+}
+
+void LevelMeter::resizeEvent(QResizeEvent *event) {
+    paddedRect = QRectF(rect().left() + m_padding, rect().top() + m_padding,
+                        rect().width() - 2 * m_padding, rect().height() - 2 * m_padding);
+    channelWidth = (paddedRect.width() - m_spacing) / 2;
+    channelTop = paddedRect.top() + m_clipIndicatorLength + m_spacing;
+    channelLength = paddedRect.bottom() - channelTop;
 }
 
 void LevelMeter::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
 
-    auto paddedRect = QRectF(rect().left() + m_spacing, rect().top() + m_spacing,
-                             rect().width() - 2 * m_spacing, rect().height() - 2 * m_spacing);
-    auto channelWidth = (paddedRect.width() - m_spacing) / 2;
     auto leftChannelLeft = paddedRect.left();
     auto rightChannelLeft = leftChannelLeft + channelWidth + m_spacing;
-    auto channelTop = paddedRect.top() + m_clipIndicatorLength + m_spacing;
-    auto channelLength = paddedRect.bottom() - channelTop;
 
     // draw clip indicator
     auto leftIndicatorRect =
@@ -53,10 +63,8 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
     auto rightIndicatorRect =
         QRectF(rightChannelLeft, paddedRect.top(), channelWidth, m_clipIndicatorLength);
 
-    if (m_clippedL)
-        painter.fillRect(leftIndicatorRect, m_colorCritical);
-    if (m_clippedR)
-        painter.fillRect(rightIndicatorRect, m_colorCritical);
+    painter.fillRect(leftIndicatorRect, m_clippedL ? m_colorClipped : m_colorDimmed);
+    painter.fillRect(rightIndicatorRect, m_clippedR ? m_colorClipped : m_colorDimmed);
 
     // draw levels
     auto leftLevelBar = QRectF(leftChannelLeft, channelTop, channelWidth, channelLength);
@@ -67,6 +75,31 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
     } else if (m_style == MeterStyle::Gradient) {
         drawGradientBar(painter, leftLevelBar, m_smoothedLevelL);
         drawGradientBar(painter, rightLevelBar, m_smoothedLevelR);
+    }
+
+    // draw cursor value
+    if (m_showValueWhenHover && m_mouseOnBar) {
+        painter.setClipRect(rect());
+
+        // Draw value background
+        auto textHeight = painter.fontMetrics().height();
+        auto textRect = QRectF(rect().left(), mouseY - textHeight, rect().width(), textHeight);
+        painter.setBrush(QColor(33, 36, 43, 192));
+        painter.setPen(Qt::NoPen);
+        painter.drawRect(textRect);
+
+        // Draw value text
+        QPen currentValuePen;
+        currentValuePen.setColor(m_colorCurrentValue);
+        currentValuePen.setWidthF(1.2);
+        painter.setPen(currentValuePen);
+        painter.setBrush(Qt::NoBrush);
+        QTextOption textOption(Qt::AlignCenter);
+        painter.drawText(textRect, m_currentValueText, textOption);
+
+        // Draw line
+        auto line = QLineF(rect().left(), mouseY, rect().right(), mouseY);
+        painter.drawLine(line);
     }
 }
 
@@ -134,10 +167,10 @@ bool LevelMeter::freeze() const {
 
 void LevelMeter::setFreeze(bool on) {
     if (on) {
-        m_timer->stop();
+        smoothValueTimer.stop();
         m_freezed = true;
     } else {
-        m_timer->start();
+        smoothValueTimer.start();
         m_freezed = false;
     }
 }
@@ -151,6 +184,58 @@ void LevelMeter::resetBuffer() {
 bool LevelMeter::mouseOnClipIndicator(const QPointF &pos) const {
     // return pos.y() <= m_spacing + m_clipIndicatorLength + m_spacing;
     return pos.y() <= m_clipIndicatorLength + 8;
+}
+
+bool LevelMeter::event(QEvent *event) {
+    if (event->type() == QEvent::HoverEnter || event->type() == QEvent::HoverMove) {
+        onHover(static_cast<QHoverEvent *>(event));
+    } else if (event->type() == QEvent::HoverLeave) {
+        m_mouseOnBar = false;
+        update();
+    }
+    return QWidget::event(event);
+}
+
+void LevelMeter::onHover(QHoverEvent *event) {
+    auto cursorY = mapFromGlobal(QCursor::pos()).y();
+    auto mouseOnBar = [&](double y) { return y >= channelTop && y <= channelTop + channelLength; };
+    auto mouseOnIndicator = [&](double y) {
+        return y >= paddedRect.top() && y <= paddedRect.top() + m_clipIndicatorLength;
+    };
+    mouseY = cursorY;
+
+    if (mouseOnBar(cursorY)) {
+        m_mouseOnBar = true;
+        handleHoverOnBar();
+    } else if (mouseOnIndicator(cursorY)) {
+        m_mouseOnBar = false;
+        handleHoverOnClipIndicator();
+    } else {
+        m_mouseOnBar = false;
+        // setToolTip({});
+    }
+    update();
+}
+
+void LevelMeter::handleHoverOnBar() {
+    auto yToLinear = [&](const double &y) { return 1 - (y - channelTop) / channelLength; };
+
+    auto cursorY = mapFromGlobal(QCursor::pos()).y();
+    auto db = VolumeUtils::linearTodB(yToLinear(cursorY));
+    auto toolTip = gainValueToString(db);
+    m_currentValueText = gainValueToString(db);
+
+    // setToolTip(toolTip);
+    // toolTipFilter->setTitle(toolTip);
+}
+
+void LevelMeter::handleHoverOnClipIndicator() {
+    auto clipped = m_clippedL || m_clippedR;
+    if (clipped) {
+        auto toolTip = tr("Clipped");
+        // setToolTip(toolTip);
+        // toolTipFilter->setTitle(toolTip);
+    }
 }
 
 void LevelMeter::drawSegmentedBar(QPainter &painter, const QRectF &rect, const double &level) {
@@ -172,40 +257,33 @@ void LevelMeter::drawSegmentedBar(QPainter &painter, const QRectF &rect, const d
     auto fullWarnChunk = QRectF(rectLeft, warnStart, rectWidth, warnLength);
     auto fullCriticalChunk = QRectF(rectLeft, criticalStart, rectWidth, criticalLength);
 
-    // draw safe chunk
-    if (level < m_safeThreshold) {
-        auto height = levelLength;
-        auto top = rectTop + rectHeight - height;
-        auto chunk = QRectF(rectLeft, top, rectWidth, height);
-        painter.fillRect(chunk, m_colorSafe);
-    } else if (level < m_warnThreshold) {
-        painter.fillRect(fullSafeChunk, m_colorSafe);
+    if (level <= 1) {
+        // Draw background
+        painter.setClipRect(rect);
+        painter.fillRect(rect, m_colorDimmed);
 
-        auto height = levelLength - safeLength;
-        auto top = rectTop + rectHeight - levelLength;
-        auto chunk = QRectF(rectLeft, top, rectWidth, height);
-        painter.fillRect(chunk, m_colorWarn);
-    } else if (level < 1) {
-        painter.fillRect(fullSafeChunk, m_colorSafe);
-        painter.fillRect(fullWarnChunk, m_colorWarn);
-
-        auto height = levelLength - safeLength - warnLength;
-        auto top = rectTop + rectHeight - levelLength;
-        auto chunk = QRectF(rectLeft, top, rectWidth, height);
-        painter.fillRect(chunk, m_colorCritical);
-    } else {
+        auto height = rect.height() * level;
+        auto top = rect.bottom() - height;
+        auto clipRect = QRectF(rect.left(), top, rect.width(), height);
+        painter.setClipRect(clipRect);
         painter.fillRect(fullSafeChunk, m_colorSafe);
         painter.fillRect(fullWarnChunk, m_colorWarn);
         painter.fillRect(fullCriticalChunk, m_colorCritical);
+    } else {
+        painter.fillRect(rect, m_colorClipped);
     }
 }
 
 void LevelMeter::drawGradientBar(QPainter &painter, const QRectF &rect, const double &level) {
+    // Draw background
+    painter.setClipRect(rect);
+    painter.fillRect(rect, m_colorDimmed);
+
     if (level <= 1) {
         QLinearGradient gradient(0, 0, 0, rect.height());
-        gradient.setColorAt(0, {255, 224, 155});
-        gradient.setColorAt(m_safeThresholdAlt, {155, 255, 174});
-        gradient.setColorAt(1, {155, 224, 255});
+        gradient.setColorAt(0, m_colorCritical);
+        gradient.setColorAt(m_safeThresholdAlt, m_colorWarn);
+        gradient.setColorAt(1, m_colorSafe);
         auto height = rect.height() * level;
         auto top = rect.bottom() - height;
         auto clipRect = QRectF(rect.left(), top, rect.width(), height);
@@ -213,6 +291,109 @@ void LevelMeter::drawGradientBar(QPainter &painter, const QRectF &rect, const do
         painter.fillRect(rect, gradient);
     } else {
         painter.setClipRect(rect);
-        painter.fillRect(rect, m_colorCritical);
+        painter.fillRect(rect, m_colorClipped);
     }
+}
+
+QString LevelMeter::gainValueToString(double gain) {
+    if (gain == -70)
+        return "-inf";
+    auto absVal = QString::number(qAbs(gain), 'f', 1);
+    QString sig = "";
+    if (gain > 0) {
+        sig = "+";
+    } else if (gain < 0 && gain <= -0.1) {
+        sig = "-";
+    }
+    return sig + absVal /* + "dB" */;
+}
+
+double LevelMeter::padding() const {
+    return m_padding;
+}
+
+void LevelMeter::setPadding(double padding) {
+    m_padding = padding;
+    update();
+}
+
+double LevelMeter::spacing() const {
+    return m_spacing;
+}
+
+void LevelMeter::setSpacing(double spacing) {
+    m_spacing = spacing;
+    update();
+}
+
+double LevelMeter::clipIndicatorLength() const {
+    return m_clipIndicatorLength;
+}
+
+void LevelMeter::setClipIndicatorLength(double length) {
+    m_clipIndicatorLength = length;
+    update();
+}
+
+bool LevelMeter::showValueWhenHover() const {
+    return m_showValueWhenHover;
+}
+
+void LevelMeter::setShowValueWhenHover(bool on) {
+    m_showValueWhenHover = on;
+    update();
+}
+
+QColor LevelMeter::dimmedColor() const {
+    return m_colorDimmed;
+}
+
+void LevelMeter::setDimmedColor(const QColor &color) {
+    m_colorDimmed = color;
+    update();
+}
+
+QColor LevelMeter::clippedColor() const {
+    return m_colorClipped;
+}
+
+void LevelMeter::setClippedColor(const QColor &color) {
+    m_colorClipped = color;
+    update();
+}
+
+QColor LevelMeter::safeColor() const {
+    return m_colorSafe;
+}
+
+void LevelMeter::setSafeColor(const QColor &color) {
+    m_colorSafe = color;
+    update();
+}
+
+QColor LevelMeter::warnColor() const {
+    return m_colorWarn;
+}
+
+void LevelMeter::setWarnColor(const QColor &color) {
+    m_colorWarn = color;
+    update();
+}
+
+QColor LevelMeter::criticalColor() const {
+    return m_colorCritical;
+}
+
+void LevelMeter::setCriticalColor(const QColor &color) {
+    m_colorCritical = color;
+    update();
+}
+
+QColor LevelMeter::currentValueColor() const {
+    return m_colorCurrentValue;
+}
+
+void LevelMeter::setCurrentValueColor(const QColor &color) {
+    m_colorCurrentValue = color;
+    update();
 }

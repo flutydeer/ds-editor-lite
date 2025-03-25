@@ -133,6 +133,7 @@ int ToolTipFilter::showDelay() const {
 
 void ToolTipFilter::setShowDelay(int delay) {
     m_showDelay = delay;
+    m_timer.setInterval(m_showDelay);
 }
 
 bool ToolTipFilter::followCursor() const {

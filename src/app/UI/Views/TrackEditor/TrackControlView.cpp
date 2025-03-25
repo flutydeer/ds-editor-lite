@@ -65,7 +65,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     cbLanguage = new LanguageComboBox("unknown");
     cbLanguage->setObjectName("cbLanguage");
 
-        sbPan = new SeekBar;
+    sbPan = new SeekBar;
     sbPan->setObjectName("m_sbarPan");
     sbPan->setTracking(false);
     connect(sbPan, &SeekBar::sliderMoved, this, &TrackControlView::onPanMoved);
@@ -123,7 +123,13 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     m_levelMeter = new LevelMeter();
     m_levelMeter->initBuffer(8);
-    m_levelMeter->setFixedWidth(12);
+    // m_levelMeter->setFixedWidth(12);
+
+    // m_levelMeter->resize(32, 256);
+    // m_levelMeter->setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint);
+    // m_levelMeter->setStyleSheet("LevelMeter { background-color: #21242B; qproperty-padding: 0 }");
+    // m_levelMeter->show();
+    // connect(this, &QObject::destroyed, m_levelMeter, [=] { m_levelMeter->close(); });
 
     mainLayout = new QHBoxLayout;
     mainLayout->setObjectName("TrackControlPanel");
@@ -201,6 +207,7 @@ void TrackControlView::setNarrowMode(bool on) {
 void TrackControlView::setLanguage(const QString &language) {
     cbLanguage->setCurrentText(language);
 }
+
 LevelMeter *TrackControlView::levelMeter() const {
     return m_levelMeter;
 }

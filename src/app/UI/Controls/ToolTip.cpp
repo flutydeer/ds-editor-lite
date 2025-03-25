@@ -11,17 +11,17 @@
 ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     m_lbTitle = new QLabel(title);
     m_lbTitle->setStyleSheet("color: #F0F0F0; font-size: 10pt");
-    m_lbTitle->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    m_lbTitle->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
 
     m_lbShortcutKey = new QLabel();
     m_lbShortcutKey->setStyleSheet("color: #808080");
-    m_lbShortcutKey->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    m_lbShortcutKey->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     m_lbShortcutKey->setVisible(false);
 
     auto titleShortcutLayout = new QHBoxLayout;
     titleShortcutLayout->addWidget(m_lbTitle);
     titleShortcutLayout->addWidget(m_lbShortcutKey);
-    titleShortcutLayout->addStretch();
+    // titleShortcutLayout->addStretch();
     titleShortcutLayout->setContentsMargins({});
 
     m_messageLayout = new QVBoxLayout;
@@ -38,7 +38,7 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     container->setObjectName("container");
     container->setLayout(m_cardLayout);
     container->setContentsMargins(8, 4, 8, 4);
-    container->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
+    container->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     container->setStyleSheet("QFrame#container {"
                              "background: #202122; "
                              "border: 1px solid #606060; "

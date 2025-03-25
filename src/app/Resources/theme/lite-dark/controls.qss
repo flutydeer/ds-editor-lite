@@ -775,3 +775,8 @@ TimeGraphicsView {
     qproperty-beatLineColor: #16191C;
     qproperty-commonLineColor: #1C2024;
 }
+
+/* LevelMeter */
+/* LevelMeter {
+    background: #21242B;
+} */
