@@ -26,6 +26,7 @@
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Views/Common/TimelineView.h"
+#include "UI/Views/MixConsole/ChannelView.h"
 
 #include <QFileDialog>
 #include <QMouseEvent>
@@ -75,6 +76,10 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     setPanelActive(true);
     appController->registerPanel(this);
     installEventFilter(this);
+
+    masterChannel = new ChannelView;
+    masterChannel->setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint);
+    masterChannel->show();
 
     // connect(m_trackListView, &QListWidget::currentRowChanged, this,
     //         [=](int trackIndex) { appStatus->selectedTrackIndex = trackIndex; });
@@ -153,15 +158,14 @@ void TrackEditorView::onLastPositionChanged(double tick) {
 }
 
 void TrackEditorView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const {
-    if (m_viewModel.tracks.isEmpty())
-        return;
-
     auto states = args.trackMeterStates;
     for (int i = 0; i < qMin(states.size(), m_viewModel.tracks.size()); i++) {
         auto state = states.at(i);
         auto meter = m_viewModel.tracks.at(i)->controlView->levelMeter();
         meter->setValue(state.valueL, state.valueR);
     }
+    auto state = args.trackMeterStates.last();
+    masterChannel->levelMeter->setValue(state.valueL, state.valueR);
 }
 
 void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) const {

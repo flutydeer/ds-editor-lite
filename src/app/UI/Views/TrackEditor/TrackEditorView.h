@@ -19,6 +19,7 @@ class TimelineView;
 class TrackEditorBackgroundView;
 class TrackViewModel;
 class AbstractClipView;
+class ChannelView;
 
 class TrackEditorView final : public PanelView {
     Q_OBJECT
@@ -55,6 +56,8 @@ private:
     TimelineView *m_timeline;
     TrackEditorBackgroundView *m_gridItem;
 
+    ChannelView *masterChannel;
+
     class ViewModel {
     public:
         QList<TrackViewModel *> tracks;
@@ -67,7 +70,7 @@ private:
     void onClipInserted(Clip *clip, TrackViewModel *track, int trackIndex);
     void insertSingingClip(SingingClip *clip, TrackViewModel *track, int trackIndex);
     void insertAudioClip(AudioClip *clip, TrackViewModel *track, int trackIndex);
-    void onClipRemoved(Clip *clip,TrackViewModel *track);
+    void onClipRemoved(Clip *clip, TrackViewModel *track);
     void onTrackPropertyChanged() const;
     void updateClipOnView(Clip *clip);
     void onTrackRemoved(Track *dsTrack, qsizetype index);

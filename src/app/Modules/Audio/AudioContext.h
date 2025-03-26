@@ -73,6 +73,7 @@ private:
     QHash<const Track *,
           QPair<std::shared_ptr<talcs::SmoothedFloat>, std::shared_ptr<talcs::SmoothedFloat>>>
         m_trackLevelMeterValue;
+    Track *masterChannel;
 
 
     bool m_transportPositionFlag = true;
@@ -94,6 +95,8 @@ private:
 
     bool willStartCallback(AudioExporter *exporter) override;
     void willFinishCallback(AudioExporter *exporter) override;
+
+    void updateTrackLevelMeterValue(Track *track, QList<float> values);
 };
 
 #endif // AUDIOCONTEXT_H

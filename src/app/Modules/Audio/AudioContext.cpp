@@ -145,13 +145,28 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
     connect(this, &AudioContext::exporterCausedTimeChanged, this, &AudioContext::handleTimeChanged);
 
+    masterChannel = new Track;
+    m_trackLevelMeterValue[masterChannel] = {std::make_shared<talcs::SmoothedFloat>(-96),
+                                             std::make_shared<talcs::SmoothedFloat>(-96)};
+    m_trackLevelMeterValue[masterChannel].first->setRampLength(8); // TODO make it configurable
+    m_trackLevelMeterValue[masterChannel].second->setRampLength(8);
+    auto trackControlMixer = masterControlMixer();
+    trackControlMixer->setLevelMeterChannelCount(2);
+    connect(trackControlMixer, &talcs::PositionableMixerAudioSource::levelMetered, this,
+            [=](QVector<float> values) {
+                // if (!m_trackLevelMeterValue.contains(masterChannel))
+                //     return;
+                if (masterTrackMixer()->isMutedBySoloSetting(trackControlMixer))
+                    values = {0, 0};
+                updateTrackLevelMeterValue(masterChannel, values);
+            });
+
     m_levelMeterTimer = new QTimer(this);
     m_levelMeterTimer->setInterval(50); // TODO make it configurable
     connect(m_levelMeterTimer, &QTimer::timeout, this, [=] {
         AppModel::LevelMetersUpdatedArgs args;
-        for (auto track : appModel->tracks()) {
-            if (!m_trackLevelMeterValue.contains(track))
-                continue;
+
+        auto addChannelLevel = [&](Track *track) {
             if (playbackController->playbackStatus() != Playing &&
                 (m_trackLevelMeterValue[track].first->targetValue() > -96 ||
                  m_trackLevelMeterValue[track].second->targetValue() > -96)) {
@@ -160,7 +175,14 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
             }
             args.trackMeterStates.append({m_trackLevelMeterValue[track].first->nextValue(),
                                           m_trackLevelMeterValue[track].second->nextValue()});
+        };
+        for (auto track : appModel->tracks()) {
+            if (!m_trackLevelMeterValue.contains(track))
+                continue;
+            addChannelLevel(track);
         }
+        // Add master level
+        addChannelLevel(masterChannel);
         emit levelMeterUpdated(args);
     });
     m_levelMeterTimer->start();
@@ -379,7 +401,6 @@ void AudioContext::handleClipPropertyChanged(AudioClip *audioClip) const {
     if (audioClip->path() != audioClipContext->path()) {
         audioClipContext->setPathLoad(audioClip->path(), userData, entryClassName);
     }
-
 }
 
 void AudioContext::handleTimeChanged() {
@@ -425,4 +446,18 @@ void AudioContext::willFinishCallback(AudioExporter *exporter) {
         trackInferenceHandler->setMode(talcs::DspxTrackInferenceContext::Default);
     }
     m_exporter = nullptr;
+}
+
+void AudioContext::updateTrackLevelMeterValue(Track *track, QList<float> values) {
+    auto dBL = static_cast<float>(talcs::Decibels::gainToDecibels(values[0]));
+    auto dBR = static_cast<float>(talcs::Decibels::gainToDecibels(values[1]));
+    if (dBL < m_trackLevelMeterValue[track].first->currentValue())
+        m_trackLevelMeterValue[track].first->setTargetValue(dBL);
+    else
+        m_trackLevelMeterValue[track].first->setCurrentAndTargetValue(dBL);
+
+    if (dBR < m_trackLevelMeterValue[track].second->currentValue())
+        m_trackLevelMeterValue[track].second->setTargetValue(dBR);
+    else
+        m_trackLevelMeterValue[track].second->setCurrentAndTargetValue(dBR);
 }
