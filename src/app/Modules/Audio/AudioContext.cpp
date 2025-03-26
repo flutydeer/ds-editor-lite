@@ -148,8 +148,9 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     masterChannel = new Track;
     m_trackLevelMeterValue[masterChannel] = {std::make_shared<talcs::SmoothedFloat>(-96),
                                              std::make_shared<talcs::SmoothedFloat>(-96)};
-    m_trackLevelMeterValue[masterChannel].first->setRampLength(8); // TODO make it configurable
-    m_trackLevelMeterValue[masterChannel].second->setRampLength(8);
+    m_trackLevelMeterValue[masterChannel].first->setRampLength(
+        m_levelMeterRampLength); // TODO make it configurable
+    m_trackLevelMeterValue[masterChannel].second->setRampLength(m_levelMeterRampLength);
     auto trackControlMixer = masterControlMixer();
     trackControlMixer->setLevelMeterChannelCount(2);
     connect(trackControlMixer, &talcs::PositionableMixerAudioSource::levelMetered, this,
@@ -162,7 +163,7 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
             });
 
     m_levelMeterTimer = new QTimer(this);
-    m_levelMeterTimer->setInterval(50); // TODO make it configurable
+    m_levelMeterTimer->setInterval(8); // TODO make it configurable
     connect(m_levelMeterTimer, &QTimer::timeout, this, [=] {
         AppModel::LevelMetersUpdatedArgs args;
 
@@ -313,8 +314,9 @@ void AudioContext::handleTrackInserted(int index, Track *track) {
 
     m_trackLevelMeterValue[track] = {std::make_shared<talcs::SmoothedFloat>(-96),
                                      std::make_shared<talcs::SmoothedFloat>(-96)};
-    m_trackLevelMeterValue[track].first->setRampLength(8); // TODO make it configurable
-    m_trackLevelMeterValue[track].second->setRampLength(8);
+    m_trackLevelMeterValue[track].first->setRampLength(
+        m_levelMeterRampLength); // TODO make it configurable
+    m_trackLevelMeterValue[track].second->setRampLength(m_levelMeterRampLength);
     auto trackControlMixer = trackContext->controlMixer();
     trackControlMixer->setLevelMeterChannelCount(2);
     connect(trackControlMixer, &talcs::PositionableMixerAudioSource::levelMetered, this,
