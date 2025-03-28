@@ -22,11 +22,16 @@ public:
 
 private:
     // Names and keys
-    const QStringList m_names = {tr("Pitch"),       tr("Expressiveness"), tr("Energy"),
-                                 tr("Breathiness"), tr("Voicing"),        tr("Tension"),
-                                 tr("Gender"),      tr("Velocity"),       tr("Tone Shift")};
-    const QStringList m_keys = {"pitch",   "expressiveness", "energy",   "breathiness", "voicing",
-                                "tension", "gender",         "velocity", "tone_shift"};
+    const QStringList m_names = {
+        tr("Pitch"), tr("Expressiveness"), tr("Energy"), tr("Breathiness"),
+        tr("Voicing"), tr("Tension"), tr("Mouth Opening"),
+        tr("Gender"), tr("Velocity"), tr("Tone Shift")
+    };
+    const QStringList m_keys = {
+        "pitch", "expressiveness", "energy", "breathiness",
+        "voicing", "tension", "mouth_opening",
+        "gender", "velocity", "tone_shift"
+    };
 
     // Properties
     const ParamProperties defaultProperties;
@@ -34,6 +39,7 @@ private:
     const ExprParamProperties exprProperties;
     const DecibelParamProperties decibelProperties;
     const TensionParamProperties tensionProperties;
+    const MouthOpeningParamProperties mouthOpeningProperties;
     const GenderParamProperties genderProperties;
     const VelocityParamProperties velocityProperties;
     const ToneShiftParamProperties toneShiftProperties;

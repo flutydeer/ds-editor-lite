@@ -24,6 +24,7 @@ public:
         InferParamCurve tension;
         InferParamCurve voicing;
         InferParamCurve energy;
+        InferParamCurve mouthOpening;
 
         InferParamCurve gender;
         InferParamCurve velocity;

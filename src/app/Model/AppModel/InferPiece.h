@@ -32,6 +32,7 @@ public:
     DrawCurve originalTension;
     DrawCurve originalVoicing;
     DrawCurve originalEnergy;
+    DrawCurve originalMouthOpening;
     QString audioPath;
 
     // Cached inputs
@@ -42,6 +43,7 @@ public:
     DrawCurve inputTension;
     DrawCurve inputVoicing;
     DrawCurve inputEnergy;
+    DrawCurve inputMouthOpening;
 
     DrawCurve inputGender;
     DrawCurve inputVelocity;

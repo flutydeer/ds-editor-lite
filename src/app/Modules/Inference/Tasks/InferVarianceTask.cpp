@@ -166,16 +166,19 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
     voicing.tag = "voicing";
     InferParam energy = param;
     energy.tag = "energy";
+    InferParam mouthOpening = param;
+    mouthOpening.tag = "mouth_opening";
     for (int i = 0; i < frames; i++) {
         breathiness.values.append(0);
         tension.values.append(0);
         voicing.values.append(0);
         energy.values.append(0);
+        mouthOpening.values.append(0);
     }
 
     GenericInferModel model;
     model.words = words;
-    model.params = {pitch, breathiness, tension, voicing, energy};
+    model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening};
     model.configPath = input().configPath;
     model.steps = inferEngine->m_env.defaultSteps();
     return model;
@@ -197,5 +200,8 @@ bool InferVarianceTask::processOutput(const GenericInferModel &model) {
 
     auto energy = Linq::where(model.params, L_PRED(p, p.tag == "energy")).first();
     m_result.energy.values = MathUtils::resample(energy.values, energy.interval, newInterval);
+
+    auto mouthOpening = Linq::where(model.params, L_PRED(p, p.tag == "mouth_opening")).first();
+    m_result.mouthOpening.values = MathUtils::resample(mouthOpening.values, mouthOpening.interval, newInterval);
     return true;
 }

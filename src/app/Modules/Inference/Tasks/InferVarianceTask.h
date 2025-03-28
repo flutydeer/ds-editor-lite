@@ -30,6 +30,7 @@ public:
         InferParamCurve tension;
         InferParamCurve voicing;
         InferParamCurve energy;
+        InferParamCurve mouthOpening;
     };
 
     [[nodiscard]] int clipId() const override;

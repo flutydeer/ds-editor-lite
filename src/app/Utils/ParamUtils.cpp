@@ -24,6 +24,8 @@ const ParamProperties *ParamUtils::getPropertiesByName(ParamInfo::Name name) con
             return &decibelProperties;
         case ParamInfo::Tension:
             return &tensionProperties;
+        case ParamInfo::MouthOpening:
+            return &mouthOpeningProperties;
         case ParamInfo::Gender:
             return &genderProperties;
         case ParamInfo::Velocity:

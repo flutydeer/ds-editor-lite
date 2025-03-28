@@ -66,6 +66,10 @@ namespace InferControllerHelper {
         for (const auto &value : piece.inputEnergy.values())
             energy.values.append(value / 1000.0);
 
+        InferParamCurve mouthOpening;
+        for (const auto &value : piece.inputMouthOpening.values())
+            mouthOpening.values.append(value / 1000.0);
+
         InferParamCurve gender;
         for (const auto &value : piece.inputGender.values())
             gender.values.append(value / 1000.0);
@@ -78,7 +82,7 @@ namespace InferControllerHelper {
 
         return {piece.clipId(), piece.id(),  notes,    configPath, appModel->tempo(),
                 pitch,          breathiness, tension,  voicing,    energy,
-                gender,         velocity,    toneShift};
+                mouthOpening,   gender,         velocity,    toneShift};
     }
 
     QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(ParamInfo::Name name, SingingClip &clip) {
@@ -183,6 +187,7 @@ namespace InferControllerHelper {
         updateParam(ParamInfo::Tension, taskResult.tension, piece);
         updateParam(ParamInfo::Voicing, taskResult.voicing, piece);
         updateParam(ParamInfo::Energy, taskResult.energy, piece);
+        updateParam(ParamInfo::MouthOpening, taskResult.mouthOpening, piece);
     }
 
     void updateAcoustic(const QString &taskResult, InferPiece &piece) {
@@ -196,6 +201,7 @@ namespace InferControllerHelper {
         clip.updateOriginalParam(ParamInfo::Tension);
         clip.updateOriginalParam(ParamInfo::Voicing);
         clip.updateOriginalParam(ParamInfo::Energy);
+        clip.updateOriginalParam(ParamInfo::MouthOpening);
     }
 
     void resetPhoneOffset(const QList<Note *> &notes, InferPiece &piece, bool cascadeReset) {
@@ -228,6 +234,7 @@ namespace InferControllerHelper {
         resetParam(ParamInfo::Tension, piece);
         resetParam(ParamInfo::Voicing, piece);
         resetParam(ParamInfo::Energy, piece);
+        resetParam(ParamInfo::MouthOpening, piece);
     }
 
     void resetAcoustic(InferPiece &piece) {
