@@ -20,8 +20,8 @@ bool InferAcousticTask::InferAcousticInput::operator==(const InferAcousticInput 
     return clipId == other.clipId && notes == other.notes && configPath == other.configPath &&
            qFuzzyCompare(tempo, other.tempo) && pitch == other.pitch &&
            breathiness == other.breathiness && tension == other.tension &&
-           voicing == other.voicing && energy == other.energy && gender == other.gender &&
-           velocity == other.velocity && toneShift == other.toneShift;
+           voicing == other.voicing && energy == other.energy && mouthOpening == other.mouthOpening &&
+           gender == other.gender && velocity == other.velocity && toneShift == other.toneShift;
 }
 
 int InferAcousticTask::clipId() const {
@@ -167,6 +167,10 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     energy.tag = "energy";
     energy.values = MathUtils::resample(m_input.energy.values, 5, newInterval);
 
+    InferParam mouthOpening = param;
+    mouthOpening.tag = "mouth_opening";
+    mouthOpening.values = MathUtils::resample(m_input.mouthOpening.values, 5, newInterval);
+
     InferParam gender = param;
     gender.tag = "gender";
     gender.values = MathUtils::resample(m_input.gender.values, 5, newInterval);
@@ -181,7 +185,7 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
 
     GenericInferModel model;
     model.words = words;
-    model.params = {pitch, breathiness, tension, voicing, energy, gender, velocity, toneShift};
+    model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening, gender, velocity, toneShift};
     model.configPath = input().configPath;
     model.steps = inferEngine->m_env.defaultSteps();
     return model;

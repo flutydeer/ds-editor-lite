@@ -148,6 +148,7 @@ void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Typ
         case ParamInfo::Breathiness:
         case ParamInfo::Voicing:
         case ParamInfo::Tension:
+        case ParamInfo::MouthOpening:
         case ParamInfo::Gender:
         case ParamInfo::Velocity:
         case ParamInfo::ToneShift:

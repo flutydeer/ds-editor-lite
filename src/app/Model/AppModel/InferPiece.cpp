@@ -52,6 +52,8 @@ const DrawCurve *InferPiece::getOriginalCurve(ParamInfo::Name name) const {
             return &originalVoicing;
         case ParamInfo::Energy:
             return &originalEnergy;
+        case ParamInfo::MouthOpening:
+            return &originalMouthOpening;
         default:
             qFatal() << "Param type out of range" << name;
             return nullptr;
@@ -75,6 +77,9 @@ void InferPiece::setOriginalCurve(ParamInfo::Name name, DrawCurve &curve) {
         case ParamInfo::Energy:
             originalEnergy = curve;
             break;
+        case ParamInfo::MouthOpening:
+            originalMouthOpening = curve;
+            break;
         default:
             qFatal() << "Param type out of range" << name;
     }
@@ -94,6 +99,8 @@ const DrawCurve *InferPiece::getInputCurve(ParamInfo::Name name) const {
             return &inputVoicing;
         case ParamInfo::Energy:
             return &inputEnergy;
+        case ParamInfo::MouthOpening:
+            return &inputMouthOpening;
         case ParamInfo::Gender:
             return &inputGender;
         case ParamInfo::Velocity:
@@ -124,6 +131,9 @@ void InferPiece::setInputCurve(ParamInfo::Name name, DrawCurve &curve) {
             break;
         case ParamInfo::Energy:
             inputEnergy = curve;
+            break;
+        case ParamInfo::MouthOpening:
+            inputMouthOpening = curve;
             break;
         case ParamInfo::Gender:
             inputGender = curve;

@@ -75,6 +75,8 @@ double TensionParamProperties::valueToNormalized(int value) const {
     return scaled / 2 * (normalized > 0 ? 1 : -1) + 0.5;
 }
 
+MouthOpeningParamProperties::MouthOpeningParamProperties() = default;
+
 GenderParamProperties::GenderParamProperties() {
     valueType = ValueType::Relative;
     displayMode = DisplayMode::FillFromDefault;

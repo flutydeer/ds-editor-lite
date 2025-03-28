@@ -54,6 +54,11 @@ public:
     [[nodiscard]] double valueToNormalized(int value) const override;
 };
 
+class MouthOpeningParamProperties final : public ParamProperties {
+public:
+    explicit MouthOpeningParamProperties();
+};
+
 class GenderParamProperties final : public ParamProperties {
 public:
     explicit GenderParamProperties();

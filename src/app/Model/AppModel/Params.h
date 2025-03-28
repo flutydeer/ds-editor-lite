@@ -49,6 +49,7 @@ public:
         Breathiness,
         Voicing,
         Tension,
+        MouthOpening,
         Gender,
         Velocity,
         ToneShift,
@@ -63,6 +64,7 @@ public:
     Param breathiness;
     Param voicing;
     Param tension;
+    Param mouthOpening;
     Param gender;
     Param velocity;
     Param toneShift;

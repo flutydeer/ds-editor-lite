@@ -74,6 +74,8 @@ Param *ParamInfo::getParamByName(Name name) {
             return &gender;
         case Energy:
             return &energy;
+        case MouthOpening:
+            return &mouthOpening;
         case ToneShift:
             return &toneShift;
         default:
@@ -90,6 +92,7 @@ bool ParamInfo::hasOriginalParam(Name name) {
         case ParamInfo::Voicing:
         case ParamInfo::Energy:
         case ParamInfo::Tension:
+        case ParamInfo::MouthOpening:
             return true;
         default:
             return false;

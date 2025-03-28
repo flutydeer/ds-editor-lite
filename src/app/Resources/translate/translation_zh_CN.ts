@@ -1959,17 +1959,17 @@ Right drag: Erase</source>
 <context>
     <name>ParamUtils</name>
     <message>
-        <location filename="../../Utils/ParamUtils.h" line="25"/>
+        <location filename="../../Utils/ParamUtils.h" line="26"/>
         <source>Pitch</source>
         <translation>音高</translation>
     </message>
     <message>
-        <location filename="../../Utils/ParamUtils.h" line="25"/>
+        <location filename="../../Utils/ParamUtils.h" line="26"/>
         <source>Expressiveness</source>
         <translation>表现力</translation>
     </message>
     <message>
-        <location filename="../../Utils/ParamUtils.h" line="25"/>
+        <location filename="../../Utils/ParamUtils.h" line="26"/>
         <source>Energy</source>
         <translation>能量</translation>
     </message>
@@ -1979,27 +1979,32 @@ Right drag: Erase</source>
         <translation>气声</translation>
     </message>
     <message>
-        <location filename="../../Utils/ParamUtils.h" line="26"/>
+        <location filename="../../Utils/ParamUtils.h" line="27"/>
         <source>Voicing</source>
         <translation>发声</translation>
     </message>
     <message>
-        <location filename="../../Utils/ParamUtils.h" line="26"/>
+        <location filename="../../Utils/ParamUtils.h" line="27"/>
         <source>Tension</source>
         <translation>张力</translation>
     </message>
     <message>
         <location filename="../../Utils/ParamUtils.h" line="27"/>
+        <source>Mouth Opening</source>
+        <translation>开口度</translation>
+    </message>
+    <message>
+        <location filename="../../Utils/ParamUtils.h" line="28"/>
         <source>Gender</source>
         <translation>性别偏移</translation>
     </message>
     <message>
-        <location filename="../../Utils/ParamUtils.h" line="27"/>
+        <location filename="../../Utils/ParamUtils.h" line="28"/>
         <source>Velocity</source>
         <translation>发音速度</translation>
     </message>
     <message>
-        <location filename="../../Utils/ParamUtils.h" line="27"/>
+        <location filename="../../Utils/ParamUtils.h" line="28"/>
         <source>Tone Shift</source>
         <translation>音区偏移</translation>
     </message>
