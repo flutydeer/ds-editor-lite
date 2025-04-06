@@ -20,12 +20,10 @@
 #include <QStyle>
 #include <QVariantAnimation>
 
-enum {
-    ChromeMinimize = 0xE921,
-    ChromeMaximize = 0xE922,
-    ChromeRestore = 0xE923,
-    ChromeClose = 0xE8BB
-};
+#define ChromeMinimize  QStringLiteral(u"\ue921")
+#define ChromeMaximize  QStringLiteral(u"\ue922")
+#define ChromeRestore   QStringLiteral(u"\ue923")
+#define ChromeClose     QStringLiteral(u"\ue8bb")
 
 MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame)
     : QWidget(parent), m_window(parent), m_menuView(menuView) {
@@ -69,11 +67,11 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
             auto font = QFont(fontFamily);
             font.setPointSizeF(7.2);
 
-            m_btnMin->setText(QChar(ChromeMinimize));
+            m_btnMin->setText(ChromeMinimize);
             m_btnMin->setFont(font);
-            m_btnMax->setText(QChar(ChromeMaximize));
+            m_btnMax->setText(ChromeMaximize);
             m_btnMax->setFont(font);
-            m_btnClose->setText(QChar(ChromeClose));
+            m_btnClose->setText(ChromeClose);
             m_btnClose->setFont(font);
         } else {
             constexpr auto icoSize = QSize(14, 14);
@@ -167,7 +165,7 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
         if (m_btnMax) {
             m_btnMax->setChecked(checked);
             if (SystemUtils::isWindows())
-                m_btnMax->setText(checked ? QChar(ChromeRestore) : QChar(ChromeMaximize));
+                m_btnMax->setText(checked ? ChromeRestore : ChromeMaximize);
             else
                 m_btnMax->setIcon(checked ? QIcon(":svg/title-bar/restore_16_filled_white.svg")
                                           : QIcon(":svg/title-bar/maximize_16_filled_white.svg"));
