@@ -38,7 +38,11 @@
       ]
     },
     "soxr",
-    "wolf-midi"
+    "wolf-midi",
+    {
+      "name": "qt-win32-direct-manipulate-helper",
+      "platform": "windows"
+    }
   ],
   "vcpkg-configuration": {
     "overlay-ports": [

@@ -51,9 +51,19 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     animationCard->addItem(tr("Level"), m_cbxAnimationLevel);
     animationCard->addItem(tr("Duration scale"), m_leAnimationTimeScale);
 
+#if defined(WITH_DIRECT_MANIPULATION)
+    auto touchCard = new OptionListCard(tr("Touch"));
+    m_swEnableDirectManipulation = new SwitchButton(option->enableDirectManipulation);
+    connect(m_swEnableDirectManipulation, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
+    touchCard->addItem(tr("Enable Direct Manipulation"), m_swEnableDirectManipulation);
+#endif
+
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(windowCard);
     mainLayout->addWidget(animationCard);
+#if defined(WITH_DIRECT_MANIPULATION)
+    mainLayout->addWidget(touchCard);
+#endif
     mainLayout->addStretch();
     mainLayout->setContentsMargins({});
 
@@ -63,6 +73,9 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
 void AppearancePage::modifyOption() {
     auto option = appOptions->appearance();
     option->useNativeFrame = m_swUseNativeFrame->value();
+#if defined(WITH_DIRECT_MANIPULATION)
+    option->enableDirectManipulation = m_swEnableDirectManipulation->value();
+#endif
     option->animationLevel =
         static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
     option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();

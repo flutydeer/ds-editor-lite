@@ -7,6 +7,8 @@
 void AppearanceOption::load(const QJsonObject &object) {
     if (object.contains(useNativeFrameKey))
         useNativeFrame = object.value(useNativeFrameKey).toBool();
+    if (object.contains(enableDirectManipulationKey))
+        enableDirectManipulation = object.value(enableDirectManipulationKey).toBool();
     if (object.contains(animationLevelKey))
         animationLevel = animationLevelFromString(object.value(animationLevelKey).toString());
     if (object.contains(animationTimeScaleKey))
@@ -15,6 +17,7 @@ void AppearanceOption::load(const QJsonObject &object) {
 
 void AppearanceOption::save(QJsonObject &object) {
     object.insert(useNativeFrameKey, useNativeFrame);
+    object.insert(enableDirectManipulationKey, enableDirectManipulation);
     object.insert(animationLevelKey, animationLevelToString(animationLevel));
     object.insert(animationTimeScaleKey, animationTimeScale);
 }

@@ -344,8 +344,7 @@ void TimeGraphicsView::dragLeaveEvent(QDragLeaveEvent *event) {
 }
 
 bool TimeGraphicsView::event(QEvent *event) {
-#ifdef Q_OS_MAC
-    // Mac Trackpad smooth zooming
+    // Touchpad smooth zooming
     if (event->type() == QEvent::NativeGesture) {
         auto gestureEvent = static_cast<QNativeGestureEvent *>(event);
 
@@ -381,7 +380,7 @@ bool TimeGraphicsView::event(QEvent *event) {
             return true;
         }
     }
-#endif
+
     if (event->type() == QEvent::HoverEnter)
         handleHoverEnterEvent(dynamic_cast<QHoverEvent *>(event));
     else if (event->type() == QEvent::HoverLeave)

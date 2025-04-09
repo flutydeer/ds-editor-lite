@@ -47,9 +47,15 @@ private slots:
     bool onSave();
     bool onSaveAs();
     void onSplitterMoved(int pos, int index) const;
+#if defined(WITH_DIRECT_MANIPULATION)
+    void onDirectManipulationEnabled();
+    void onDirectManipulationDisabled();
+#endif
 
 private:
     void closeEvent(QCloseEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
     static void emulateLeaveEvent(QWidget *widget);
     static void restartApp();
@@ -57,6 +63,7 @@ private:
     bool m_restartRequested = false;
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
+    bool m_isDirectManipulationEnabled = false;
 
     MainTitleBar *m_titleBar;
     MainMenuView *m_mainMenu = nullptr;

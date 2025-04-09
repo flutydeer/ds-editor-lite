@@ -21,6 +21,7 @@ public:
 #else
     bool useNativeFrame = false;
 #endif
+    bool enableDirectManipulation = true;
     AnimationGlobal::AnimationLevels animationLevel = AnimationGlobal::Full;
     double animationTimeScale = 1;
 
@@ -32,6 +33,7 @@ protected:
 
 private:
     const QString useNativeFrameKey = "useNativeFrame";
+    const QString enableDirectManipulationKey = "enableDirectManipulation";
     const QString animationLevelKey = "animationLevel";
     const QString animationTimeScaleKey = "animationTimeScale";
 };

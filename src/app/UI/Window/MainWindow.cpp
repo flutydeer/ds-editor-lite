@@ -37,6 +37,10 @@
 #include <QStatusBar>
 #include <QWKWidgets/widgetwindowagent.h>
 
+#if defined(WITH_DIRECT_MANIPULATION)
+#  include <QWDMHCore/DirectManipulationSystem.h>
+#endif
+
 MainWindow::MainWindow() {
     setAcceptDrops(true);
 
@@ -146,6 +150,17 @@ MainWindow::MainWindow() {
         resize(1366, 768);
 
     ThemeManager::instance()->addWindow(this);
+#if defined(WITH_DIRECT_MANIPULATION)
+    connect(appOptions, &AppOptions::optionsChanged, [&](AppOptionsGlobal::Option option) {
+        if (option == AppOptionsGlobal::Option::Appearance) {
+            if (appOptions->appearance()->enableDirectManipulation) {
+                onDirectManipulationEnabled();
+            } else {
+                onDirectManipulationDisabled();
+            }
+        }
+    });
+#endif
     appController->newProject();
 }
 
@@ -360,6 +375,38 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     }
     // taskManager->wait();
     // QMainWindow::closeEvent(event);
+}
+
+#if defined(WITH_DIRECT_MANIPULATION)
+void MainWindow::onDirectManipulationEnabled() {
+    if (!m_isDirectManipulationEnabled) {
+        QWDMH::DirectManipulationSystem::registerWindow(windowHandle());
+        m_isDirectManipulationEnabled = true;
+    }
+}
+
+void MainWindow::onDirectManipulationDisabled() {
+    if (m_isDirectManipulationEnabled) {
+        QWDMH::DirectManipulationSystem::unregisterWindow(windowHandle());
+        m_isDirectManipulationEnabled = false;
+    }
+}
+#endif
+
+void MainWindow::showEvent(QShowEvent *event) {
+#if defined(WITH_DIRECT_MANIPULATION)
+    if (appOptions->appearance()->enableDirectManipulation) {
+        onDirectManipulationEnabled();
+    }
+#endif
+}
+
+void MainWindow::hideEvent(QHideEvent *event) {
+#if defined(WITH_DIRECT_MANIPULATION)
+    if (appOptions->appearance()->enableDirectManipulation) {
+        onDirectManipulationDisabled();
+    }
+#endif
 }
 
 bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
