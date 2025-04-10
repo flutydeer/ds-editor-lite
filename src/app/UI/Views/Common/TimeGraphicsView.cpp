@@ -5,17 +5,25 @@
 #include "TimeGraphicsView.h"
 
 #include <QScrollBar>
+#include <QWheelEvent>
 
 #include "TimeGraphicsScene.h"
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
 #include "Model/AppStatus/AppStatus.h"
-
-#include <QWheelEvent>
+#include "Model/AppOptions/AppOptions.h"
 
 #if defined(Q_OS_MAC) && QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #  define SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
 #endif
+
+static inline bool isDirectManipulationEnabled() {
+#if defined(WITH_DIRECT_MANIPULATION)
+    return appOptions->appearance()->enableDirectManipulation;
+#else
+    return false;
+#endif
+}
 
 TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition,
                                    QWidget *parent)
@@ -239,7 +247,7 @@ void TimeGraphicsView::onWheelHorScale(QWheelEvent *event) {
     auto ratio = targetScaleX / scaleX();
     auto targetSceneX = scenePos.x() * ratio;
     auto targetValue = qRound(targetSceneX - cursorPos.x());
-    if (!isMouseEventFromWheel(event)) {
+    if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
         setScaleX(targetScaleX);
         setHorizontalBarValue(targetValue);
     } else {
@@ -277,7 +285,7 @@ void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
     auto ratio = targetScaleY / scaleY();
     auto targetSceneY = scenePos.y() * ratio;
     auto targetValue = qRound(targetSceneY - cursorPos.y());
-    if (!isMouseEventFromWheel(event)) {
+    if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
         setScaleY(targetScaleY);
         setVerticalBarValue(targetValue);
     } else {
@@ -295,7 +303,7 @@ void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
     auto scrollLength = -1 * viewport()->width() * 0.2 * deltaY / 120;
     auto startValue = horizontalBarValue();
     auto endValue = static_cast<int>(startValue + scrollLength);
-    if (!isMouseEventFromWheel(event))
+    if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event))
         setHorizontalBarValue(endValue);
     else {
         horizontalBarAnimateTo(endValue);
@@ -304,7 +312,7 @@ void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
 
 void TimeGraphicsView::onWheelVerScroll(QWheelEvent *event) {
     auto deltaY = event->angleDelta().y();
-    if (!isMouseEventFromWheel(event)) {
+    if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
         QGraphicsView::wheelEvent(event);
     } else {
         auto scrollLength = -1 * viewport()->height() * 0.15 * deltaY / 120;
