@@ -114,6 +114,9 @@ int main(int argc, char *argv[]) {
     auto top = (availableRect.height() - w.height()) / 2;
     w.move(left, top);
     w.show();
+#if defined(WITH_DIRECT_MANIPULATION)
+    w.registerDirectManipulation();
+#endif
 
     // auto taskWindow = new TaskWindow(&w);
     // taskWindow->move(availableRect.width() - taskWindow->width() - 8,

@@ -33,6 +33,10 @@ public:
     void quit() override;
     void restart() override;
     void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) override;
+#if defined(WITH_DIRECT_MANIPULATION)
+    void registerDirectManipulation();
+    void unregisterDirectManipulation();
+#endif
 
 public slots:
     void onAllDone();
@@ -47,15 +51,9 @@ private slots:
     bool onSave();
     bool onSaveAs();
     void onSplitterMoved(int pos, int index) const;
-#if defined(WITH_DIRECT_MANIPULATION)
-    void onDirectManipulationEnabled();
-    void onDirectManipulationDisabled();
-#endif
 
 private:
     void closeEvent(QCloseEvent *event) override;
-    void showEvent(QShowEvent *event) override;
-    void hideEvent(QHideEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
     static void emulateLeaveEvent(QWidget *widget);
     static void restartApp();
@@ -63,7 +61,7 @@ private:
     bool m_restartRequested = false;
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
-    bool m_isDirectManipulationEnabled = false;
+    bool m_isDirectManipulationRegistered = false;
 
     MainTitleBar *m_titleBar;
     MainMenuView *m_mainMenu = nullptr;

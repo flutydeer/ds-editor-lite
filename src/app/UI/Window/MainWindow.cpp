@@ -154,9 +154,9 @@ MainWindow::MainWindow() {
     connect(appOptions, &AppOptions::optionsChanged, [&](AppOptionsGlobal::Option option) {
         if (option == AppOptionsGlobal::Option::Appearance) {
             if (appOptions->appearance()->enableDirectManipulation) {
-                onDirectManipulationEnabled();
+                registerDirectManipulation();
             } else {
-                onDirectManipulationDisabled();
+                unregisterDirectManipulation();
             }
         }
     });
@@ -378,36 +378,20 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 }
 
 #if defined(WITH_DIRECT_MANIPULATION)
-void MainWindow::onDirectManipulationEnabled() {
-    if (!m_isDirectManipulationEnabled) {
+void MainWindow::registerDirectManipulation() {
+    if (!m_isDirectManipulationRegistered) {
         QWDMH::DirectManipulationSystem::registerWindow(windowHandle());
-        m_isDirectManipulationEnabled = true;
+        m_isDirectManipulationRegistered = true;
     }
 }
 
-void MainWindow::onDirectManipulationDisabled() {
-    if (m_isDirectManipulationEnabled) {
+void MainWindow::unregisterDirectManipulation() {
+    if (m_isDirectManipulationRegistered) {
         QWDMH::DirectManipulationSystem::unregisterWindow(windowHandle());
-        m_isDirectManipulationEnabled = false;
+        m_isDirectManipulationRegistered = false;
     }
 }
 #endif
-
-void MainWindow::showEvent(QShowEvent *event) {
-#if defined(WITH_DIRECT_MANIPULATION)
-    if (appOptions->appearance()->enableDirectManipulation) {
-        onDirectManipulationEnabled();
-    }
-#endif
-}
-
-void MainWindow::hideEvent(QHideEvent *event) {
-#if defined(WITH_DIRECT_MANIPULATION)
-    if (appOptions->appearance()->enableDirectManipulation) {
-        onDirectManipulationDisabled();
-    }
-#endif
-}
 
 bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
 #ifdef Q_OS_WIN

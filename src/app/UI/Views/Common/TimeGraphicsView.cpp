@@ -13,6 +13,10 @@
 
 #include <QWheelEvent>
 
+#if defined(Q_OS_MAC) && QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#  define SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
+#endif
+
 TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition,
                                    QWidget *parent)
     : QGraphicsView(parent), m_scene(scene) {
