@@ -145,6 +145,16 @@
         <source>Animation</source>
         <translation>动画</translation>
     </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="55"/>
+        <source>Touch</source>
+        <translation>触摸</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="58"/>
+        <source>Enable Direct Manipulation</source>
+        <translation>启用 Direct Manipulation</translation>
+    </message>
 </context>
 <context>
     <name>Audio::AudioExporter</name>
