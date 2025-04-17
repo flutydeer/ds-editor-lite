@@ -19,6 +19,7 @@ AnimationView::AnimationView(QWidget *parent) : QWidget(parent) {
 
 void AnimationView::onPositionUpdated(QPointF position, QPointF velocity) {
     m_objectPosition = position;
+    qDebug() << position << velocity;
     update();
 }
 
