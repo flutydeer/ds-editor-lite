@@ -5,6 +5,7 @@ u	u
 e	e
 o	o
 n	N
+N   N
 ka	k a
 ki	k i
 ku	k u
