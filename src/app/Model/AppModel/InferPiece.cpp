@@ -36,7 +36,7 @@ int InferPiece::localStartTick() const {
 }
 
 int InferPiece::localEndTick() const {
-    int paddingTicks = appModel->msToTick(150); // SP 0.1s
+    int paddingTicks = appModel->msToTick(100); // SP 0.1s
     return noteEndTick() + paddingTicks;
 }
 
