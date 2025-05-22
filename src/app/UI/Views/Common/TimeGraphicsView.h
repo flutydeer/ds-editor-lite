@@ -8,9 +8,9 @@
 #include "RubberBandView.h"
 #include "UI/Utils/IAnimatable.h"
 #include "UI/Utils/IScalable.h"
-#include "UI/Utils/ElasticAnimator.h"
 
 #include <QGraphicsView>
+#include <QPropertyAnimation>
 #include <QTimer>
 
 class TimeGraphicsScene;
@@ -45,7 +45,9 @@ public:
     void setHorizontalBarValue(int value);
     [[nodiscard]] int verticalBarValue() const;
     void setVerticalBarValue(int value);
-    void horizontalVerticalBarAnimateTo(int hValue, int vValue);
+    void horizontalBarAnimateTo(int value);
+    void verticalBarAnimateTo(int value);
+    void horizontalBarVBarAnimateTo(int hValue, int vValue);
     [[nodiscard]] QRectF visibleRect() const;
     void setEnsureSceneFillViewX(bool on);
     void setEnsureSceneFillViewY(bool on);
@@ -138,9 +140,10 @@ private:
     int m_mouseDownBarValue = 0;
     int m_mouseDownBarMax = 0;
 
-    ElasticAnimator m_scaleXAnimation;
-    ElasticAnimator m_scaleYAnimation;
-    ElasticAnimator m_scrollBarAnimation;
+    QPropertyAnimation m_scaleXAnimation;
+    QPropertyAnimation m_scaleYAnimation;
+    QPropertyAnimation m_hBarAnimation;
+    QPropertyAnimation m_vBarAnimation;
 
     RubberBandView m_rubberBand;
     ItemType m_prevHoveredItem = ItemType::Content;

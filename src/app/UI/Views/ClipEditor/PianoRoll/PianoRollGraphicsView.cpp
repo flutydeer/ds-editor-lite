@@ -465,7 +465,7 @@ void PianoRollGraphicsView::setViewportCenterAtKeyIndex(double keyIndex) {
     auto keyIndexStart = keyIndex + keyIndexRange / 2 + 0.5;
     auto vBarValue = qRound(d->keyIndexToSceneY(keyIndexStart));
     // verticalScrollBar()->setValue(vBarValue);
-    horizontalVerticalBarAnimateTo(horizontalBarValue(), vBarValue);
+    verticalBarAnimateTo(vBarValue);
 }
 
 void PianoRollGraphicsView::setEditMode(PianoRollEditMode mode) {
