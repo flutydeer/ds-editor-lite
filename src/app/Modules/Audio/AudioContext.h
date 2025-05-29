@@ -47,6 +47,7 @@ public:
 
     void handlePanSliderMoved(Track *track, double pan) const;
     void handleGainSliderMoved(Track *track, double gain) const;
+    void handleMasterGainSliderMoved(double gain) const;
 
     void handleInferPieceFailed() const;
 
@@ -86,6 +87,7 @@ private:
     void handleTrackInserted(int index, Track *track);
     void handleTrackRemoved(int index, Track *track);
 
+    void handleMasterControlChanged(const TrackControl &control);
     void handleTrackControlChanged(Track *track);
     void handleClipInserted(Track *track, int id, AudioClip *audioClip);
     void handleClipRemoved(Track *track, int id, AudioClip *audioClip);

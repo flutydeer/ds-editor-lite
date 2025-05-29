@@ -32,6 +32,8 @@
 #include <QDir>
 #include <QFileInfo>
 
+#include "Actions/AppModel/MasterControl/MasterControlActions.h"
+
 AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
     Q_D(AppController);
     AppControllerPrivate::initializeModules();
@@ -127,6 +129,13 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
 
 void AppController::onSetQuantize(int quantize) {
     appStatus->quantize = quantize;
+}
+
+void AppController::changeMasterControl(const TrackControl &control) {
+    auto actions = new MasterControlActions;
+    actions->editMasterControl(control, appModel);
+    actions->execute();
+    historyManager->record(actions);
 }
 
 void AppController::setActivePanel(AppGlobal::PanelType panelType) {

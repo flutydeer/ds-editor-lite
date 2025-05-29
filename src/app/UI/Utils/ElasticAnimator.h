@@ -17,6 +17,7 @@ public:
 
     void setSmoothness(qreal value);
     void setResponsiveness(qreal value);
+    [[nodiscard]] QPointF target() const;
     void setTarget(const QPointF &target);
 
     QPointF position() const;

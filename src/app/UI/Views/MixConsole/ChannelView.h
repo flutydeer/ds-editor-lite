@@ -7,6 +7,7 @@
 
 #include <QWidget>
 
+class Fader;
 class LevelMeter;
 
 class ChannelView : public QWidget {
@@ -15,6 +16,7 @@ class ChannelView : public QWidget {
 public:
     explicit ChannelView(QWidget *parent = nullptr);
 
+    Fader *fader;
     LevelMeter *levelMeter;
 };
 

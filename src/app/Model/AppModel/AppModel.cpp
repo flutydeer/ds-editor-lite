@@ -47,6 +47,17 @@ void AppModel::setTempo(double tempo) {
     emit tempoChanged(d->m_tempo);
 }
 
+TrackControl AppModel::masterControl() const {
+    Q_D(const AppModel);
+    return d->m_masterControl;
+}
+
+void AppModel::setMasterControl(const TrackControl &control) {
+    Q_D(AppModel);
+    d->m_masterControl = control;
+    emit masterControlChanged(d->m_masterControl);
+}
+
 const QList<Track *> &AppModel::tracks() const {
     Q_D(const AppModel);
     return d->m_tracks;
@@ -364,6 +375,7 @@ void AppModelPrivate::reset() {
     m_tempo = 120;
     m_timeSignature.numerator = 4;
     m_timeSignature.denominator = 4;
+    m_masterControl = TrackControl();
     m_previousTracks = m_tracks;
     m_tracks.clear();
 }

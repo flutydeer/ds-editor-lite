@@ -106,6 +106,7 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(appModel, &AppModel::modelChanged, this, [this] {
         DEVICE_LOCKER;
         handleModelChanged();
+        handleMasterControlChanged(appModel->masterControl());
     });
     connect(appModel, &AppModel::trackChanged, this,
             [=](AppModel::TrackChangeType type, int index, Track *track) {
@@ -124,6 +125,11 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         DEVICE_LOCKER;
         handleTimeChanged();
         handlePlaybackPositionChanged(playbackController->position());
+    });
+
+    connect(appModel, &AppModel::masterControlChanged, this, [=](const TrackControl &control) {
+        DEVICE_LOCKER;
+        handleMasterControlChanged(control);
     });
 
     connect(AudioSystem::outputSystem()->context(),
@@ -232,6 +238,10 @@ void AudioContext::handlePanSliderMoved(Track *track, double pan) const {
 void AudioContext::handleGainSliderMoved(Track *track, double gain) const {
     auto trackContext = getContextFromTrack(track);
     trackContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(gain));
+}
+
+void AudioContext::handleMasterGainSliderMoved(double gain) const {
+    masterControlMixer()->setGain(talcs::Decibels::decibelsToGain(gain));
 }
 
 void AudioContext::handleInferPieceFailed() const {
@@ -354,6 +364,10 @@ void AudioContext::handleTrackRemoved(int index, Track *track) {
     m_trackInferDict.remove(track);
     m_trackModelDict.remove(track);
     m_trackLevelMeterValue.remove(track);
+}
+
+void AudioContext::handleMasterControlChanged(const TrackControl &control) {
+    masterControlMixer()->setGain(talcs::Decibels::decibelsToGain(control.gain()));
 }
 
 void AudioContext::handleTrackControlChanged(Track *track) {

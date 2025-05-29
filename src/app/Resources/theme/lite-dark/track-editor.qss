@@ -44,6 +44,8 @@ TrackControlView>QLabel#lbTrackIndex {
     color: #000;
     margin-left: 1px;
     margin-bottom: 1px;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
 }
 
 TrackControlView>EditLabel#leTrackName {

@@ -18,6 +18,7 @@ class IPanel;
 class AppModel;
 class DecodeAudioTask;
 class AudioClip;
+class TrackControl;
 
 class AppController final : public QObject, public Singleton<AppController> {
     Q_OBJECT
@@ -50,6 +51,7 @@ public slots:
     static void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);
     static void onSetQuantize(int quantize);
+    void changeMasterControl(const TrackControl &control);
     void setActivePanel(AppGlobal::PanelType panel);
     void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                            const QString &redoActionName);

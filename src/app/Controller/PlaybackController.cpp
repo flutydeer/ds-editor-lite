@@ -14,6 +14,13 @@ PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(t
     connect(appModel, &AppModel::tempoChanged, this, &PlaybackController::onTempoChanged);
     connect(ValidationController::instance(), &ValidationController::validationFinished, this,
             [=](bool passed) { d->onValidationFinished(passed); });
+    connect(appModel, &AppModel::modelChanged, this, [=] {
+        if (d->m_playbackStatus != Stopped) {
+            stop();
+            setPosition(0);
+            setLastPosition(0);
+        }
+    });
 }
 
 PlaybackController::~PlaybackController() {

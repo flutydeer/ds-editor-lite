@@ -18,6 +18,7 @@ public:
 
     TimeSignature m_timeSignature;
     double m_tempo = 120;
+    TrackControl m_masterControl;
     QList<Track *> m_tracks;
     QList<Track *> m_previousTracks;
     QJsonObject m_workspace;

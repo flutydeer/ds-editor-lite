@@ -11,6 +11,7 @@
 #include "Clip.h"
 #include "TimeSignature.h"
 #include "Interface/ISerializable.h"
+#include "TrackControl.h"
 
 class Track;
 class WorkspaceEditor;
@@ -28,6 +29,8 @@ public:
     void setTimeSignature(const TimeSignature &signature);
     [[nodiscard]] double tempo() const;
     void setTempo(double tempo);
+    [[nodiscard]] TrackControl masterControl() const;
+    void setMasterControl(const TrackControl &control);
     [[nodiscard]] const QList<Track *> &tracks() const;
     void insertTrack(Track *track, qsizetype index);
     void appendTrack(Track *track);
@@ -76,6 +79,7 @@ signals:
     void modelChanged();
     void tempoChanged(double tempo);
     void timeSignatureChanged(int numerator, int denominator);
+    void masterControlChanged(const TrackControl &control);
     void trackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
 
 private:

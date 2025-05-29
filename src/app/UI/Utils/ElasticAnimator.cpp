@@ -23,6 +23,10 @@ void ElasticAnimator::setResponsiveness(qreal value) {
     m_responsiveness = qBound(0.01, value, 0.2);
 }
 
+QPointF ElasticAnimator::target() const {
+    return m_target;
+}
+
 void ElasticAnimator::setTarget(const QPointF &target) {
     m_target = target;
     if (!m_timer->isActive())
