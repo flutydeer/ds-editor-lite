@@ -64,10 +64,15 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     trackTimelineAndViewLayout->addWidget(m_timeline);
     trackTimelineAndViewLayout->addWidget(m_graphicsView);
 
+    masterChannel = new ChannelView;
+    masterChannel->setChannelTitle(tr("Master"));
+    masterChannel->setFixedWidth(97);
+
     auto mainLayout = new QHBoxLayout;
     mainLayout->setSpacing(0);
     mainLayout->addLayout(trackListPanelLayout);
     mainLayout->addLayout(trackTimelineAndViewLayout);
+    mainLayout->addWidget(masterChannel);
     mainLayout->setContentsMargins({1, 1, 1, 1});
 
     setLayout(mainLayout);
@@ -75,16 +80,13 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     appController->registerPanel(this);
     installEventFilter(this);
 
-    masterChannel = new ChannelView;
-    masterChannel->setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint);
-    masterChannel->show();
 
     connect(masterChannel->fader(), &Fader::sliderMoved, this, [=](double gain) {
-        qDebug() << "Fader::sliderMoved" << gain;
+        // qDebug() << "Fader::sliderMoved" << gain;
         audioContext->handleMasterGainSliderMoved(gain);
     });
     connect(masterChannel->fader(), &Fader::valueChanged, this, [=](double gain) {
-        qInfo() << "Fader::valueChanged" << gain;
+        // qInfo() << "Fader::valueChanged" << gain;
         if (!m_notifyBarrier)
             changeMasterControl();
     });

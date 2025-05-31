@@ -76,7 +76,7 @@ private:
         m_trackLevelMeterValue;
     Track *masterChannel;
 
-    int m_levelMeterRampLength = 64;
+    int m_levelMeterRampLength = 128;
 
     bool m_transportPositionFlag = true;
 

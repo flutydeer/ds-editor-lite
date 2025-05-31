@@ -95,11 +95,11 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
     auto leftLevelBar = QRectF(leftChannelLeft, channelTop, channelWidth, channelLength);
     auto rightLevelBar = QRectF(rightChannelLeft, channelTop, channelWidth, channelLength);
     if (m_style == MeterStyle::Segmented) {
-        drawSegmentedBar(painter, leftLevelBar, m_leftChannel.currentValue);
-        drawSegmentedBar(painter, rightLevelBar, m_rightChannel.currentValue);
+        drawSegmentedBar(painter, leftLevelBar, m_leftChannel.currentLevel);
+        drawSegmentedBar(painter, rightLevelBar, m_rightChannel.currentLevel);
     } else if (m_style == MeterStyle::Gradient) {
-        drawGradientBar(painter, leftLevelBar, m_leftChannel.currentValue);
-        drawGradientBar(painter, rightLevelBar, m_rightChannel.currentValue);
+        drawGradientBar(painter, leftLevelBar, m_leftChannel.currentLevel);
+        drawGradientBar(painter, rightLevelBar, m_rightChannel.currentLevel);
     }
     painter.setClipRect(rect());
 
@@ -143,16 +143,16 @@ void LevelMeter::mousePressEvent(QMouseEvent *event) {
 }
 
 void LevelMeter::setValue(double valueL, double valueR) {
-    m_leftChannel.currentValue = VolumeUtils::dBToLinear(valueL);
-    m_rightChannel.currentValue = VolumeUtils::dBToLinear(valueR);
-    auto clippedValueL = m_leftChannel.currentValue;
-    auto clippedValueR = m_rightChannel.currentValue;
+    m_leftChannel.currentLevel = VolumeUtils::dBToLinear(valueL);
+    m_rightChannel.currentLevel = VolumeUtils::dBToLinear(valueR);
+    auto clippedValueL = m_leftChannel.currentLevel;
+    auto clippedValueR = m_rightChannel.currentLevel;
 
-    if (m_leftChannel.currentValue > 1) {
+    if (m_leftChannel.currentLevel > 1) {
         m_leftChannel.clipped = true;
         clippedValueL = 1;
     }
-    if (m_rightChannel.currentValue > 1) {
+    if (m_rightChannel.currentLevel > 1) {
         m_rightChannel.clipped = true;
         clippedValueR = 1;
     }
@@ -161,6 +161,10 @@ void LevelMeter::setValue(double valueL, double valueR) {
     updatePeakValue(m_rightChannel, clippedValueR);
 
     update();
+}
+
+double LevelMeter::peakValue() const {
+    return VolumeUtils::linearTodB(getPeakValueForTextDisplaying());
 }
 
 void LevelMeter::setClipped(bool onL, bool onR) {
@@ -290,13 +294,15 @@ void LevelMeter::drawGradientBar(QPainter &painter, const QRectF &rect, const do
     }
 }
 
-void LevelMeter::drawPeakHold(QPainter &painter, const QRectF &rect, const double &level) {
+void LevelMeter::drawPeakHold(QPainter &painter, const QRectF &rect, double level) {
     QPen pen;
     pen.setColor(m_colorPeakHold);
     pen.setWidthF(m_peakHoldWidth);
     painter.setPen(pen);
     painter.setBrush(Qt::NoBrush);
 
+    if (level > 1)
+        level = 1;
     auto height = rect.height() * level;
     auto top = rect.bottom() - height;
     auto p1 = QPointF(rect.left(), top);
@@ -316,14 +322,17 @@ void LevelMeter::startDecayAnimation(ChannelData &channel) {
     channel.decayAnimation->start();
 }
 
-void LevelMeter::updatePeakValue(ChannelData &channel, double newValue) {
+void LevelMeter::updatePeakValue(ChannelData &channel, double clippedValue) {
     // qDebug() << "LevelMeter::updatePeakValue" << channel.displayedPeak << newValue;
-    if (newValue > channel.displayedPeak) {
+    if (channel.currentLevel > channel.displayedPeak) {
         cancelDecayAnimation(channel);
 
-        channel.displayedPeak = newValue;
+        channel.peak = channel.currentLevel;
+        channel.displayedPeak = channel.peak;
         channel.peakHoldTimer->stop();
         channel.peakHoldTimer->start(m_peakHoldTime);
+
+        notifyDisplayedPeakChange();
     }
 }
 
@@ -336,15 +345,28 @@ void LevelMeter::cancelDecayAnimation(ChannelData &channel) {
 
 void LevelMeter::handleAnimationUpdate(const QVariant &value, ChannelData &channel) {
     channel.displayedPeak = value.toDouble();
+    notifyDisplayedPeakChange();
     update();
 }
 
-void LevelMeter::notifyPeakValueChange() {
-    auto peakValue = std::max(m_leftChannel.displayedPeak, m_rightChannel.displayedPeak);
+void LevelMeter::notifyDisplayedPeakChange() {
+    auto peakValue = getPeakValueForTextDisplaying();
     if (!qFuzzyCompare(m_lastPeakValue, peakValue)) {
         emit peakValueChanged(VolumeUtils::linearTodB(peakValue));
         m_lastPeakValue = peakValue;
     }
+}
+
+double LevelMeter::getPeakValueForTextDisplaying() const {
+    auto peakL = qFuzzyCompare(m_leftChannel.displayedPeak, 1.0)
+                 && m_leftChannel.peak > m_leftChannel.displayedPeak
+                     ? m_leftChannel.peak
+                     : m_leftChannel.displayedPeak;
+    auto peakR = qFuzzyCompare(m_rightChannel.displayedPeak, 1.0)
+                 && m_rightChannel.peak > m_rightChannel.displayedPeak
+                     ? m_rightChannel.peak
+                     : m_rightChannel.displayedPeak;
+    return std::max(peakL, peakR);
 }
 
 QString LevelMeter::gainValueToString(double gain) {

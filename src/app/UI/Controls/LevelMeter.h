@@ -32,15 +32,16 @@ public:
     void setClipped(bool onL, bool onR);
     void clearClipped();
     void setValue(double valueL, double valueR);
+    [[nodiscard]] double peakValue() const;
 
 signals:
     void peakValueChanged(double value);
 
 private:
     struct ChannelData {
-        double currentValue = 0.0;
-        // double peakValue = 0.0;
-        double displayedPeak = 0.0;
+        double currentLevel = 0;
+        double peak = 0;
+        double displayedPeak = 0; // Clipped to 0
         QTimer *peakHoldTimer = nullptr;
         QVariantAnimation *decayAnimation = nullptr;
         bool isDecaying = false;
@@ -59,14 +60,15 @@ private:
 
     void drawSegmentedBar(QPainter &painter, const QRectF &rect, const double &level);
     void drawGradientBar(QPainter &painter, const QRectF &rect, const double &level);
-    void drawPeakHold(QPainter &painter, const QRectF &rect, const double &level);
+    void drawPeakHold(QPainter &painter, const QRectF &rect, double level);
 
     void startDecayAnimation(ChannelData &channel);
-    void updatePeakValue(ChannelData &channel, double newValue);
+    void updatePeakValue(ChannelData &channel, double clippedValue);
     void cancelDecayAnimation(ChannelData &channel);
     void handleAnimationUpdate(const QVariant &value, ChannelData &channel);
 
-    void notifyPeakValueChange();
+    void notifyDisplayedPeakChange();
+    double getPeakValueForTextDisplaying() const;
 
     QString gainValueToString(double gain); // TODO: refactor
 
@@ -114,7 +116,7 @@ private:
     const double m_safeThresholdAlt = 0.501187; //-6 dB
     ChannelData m_leftChannel;
     ChannelData m_rightChannel;
-    int m_peakHoldTime = 2000;
+    int m_peakHoldTime = 2500;
     int m_decayTime = 1000;
 
     QRectF paddedRect;
