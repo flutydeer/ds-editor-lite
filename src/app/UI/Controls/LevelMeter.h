@@ -6,8 +6,9 @@
 #define CHORUSKIT_LEVELMETER_H
 
 #include <QWidget>
-#include <QTimer>
 
+class QTimer;
+class QVariantAnimation;
 class ToolTipFilter;
 
 class LevelMeter : public QWidget {
@@ -25,25 +26,30 @@ class LevelMeter : public QWidget {
 
 public:
     enum class MeterStyle { Segmented, Gradient };
+
     explicit LevelMeter(QWidget *parent = nullptr);
-    ~LevelMeter() override;
 
     void setClipped(bool onL, bool onR);
-    [[nodiscard]] int bufferSize() const;
-    void setBufferSize(int size);
-    void initBuffer(int bufferSize);
-    [[nodiscard]] bool freeze() const;
-    void setFreeze(bool on);
-
-    // public slots:
-    void readSample(double sampleL, double sampleR);
+    void clearClipped();
     void setValue(double valueL, double valueR);
 
+signals:
+    void peakValueChanged(double value);
+
 private:
+    struct ChannelData {
+        double currentValue = 0.0;
+        // double peakValue = 0.0;
+        double displayedPeak = 0.0;
+        QTimer *peakHoldTimer = nullptr;
+        QVariantAnimation *decayAnimation = nullptr;
+        bool isDecaying = false;
+        bool clipped = false;
+    };
+
     void resizeEvent(QResizeEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
-    void resetBuffer();
     [[nodiscard]] bool mouseOnClipIndicator(const QPointF &pos) const;
     bool event(QEvent *event) override;
 
@@ -53,6 +59,14 @@ private:
 
     void drawSegmentedBar(QPainter &painter, const QRectF &rect, const double &level);
     void drawGradientBar(QPainter &painter, const QRectF &rect, const double &level);
+    void drawPeakHold(QPainter &painter, const QRectF &rect, const double &level);
+
+    void startDecayAnimation(ChannelData &channel);
+    void updatePeakValue(ChannelData &channel, double newValue);
+    void cancelDecayAnimation(ChannelData &channel);
+    void handleAnimationUpdate(const QVariant &value, ChannelData &channel);
+
+    void notifyPeakValueChange();
 
     QString gainValueToString(double gain); // TODO: refactor
 
@@ -89,21 +103,20 @@ private:
     QColor m_colorWarn = {155, 255, 174};
     QColor m_colorCritical = {255, 224, 155};
     QColor m_colorCurrentValue = {211, 214, 224};
+    QColor m_colorPeakHold = {211, 214, 224};
+    double m_peakHoldWidth = 1.2;
+    double m_lastPeakValue = 0.0;
 
     // For drawing
-    MeterStyle m_style = LevelMeter::MeterStyle::Gradient;
+    MeterStyle m_style = MeterStyle::Gradient;
     const double m_safeThreshold = 0.707946;    //-3 dB
     const double m_warnThreshold = 0.891251;    //-1 dB
     const double m_safeThresholdAlt = 0.501187; //-6 dB
-    double m_smoothedLevelL = 0;
-    double m_smoothedLevelR = 0;
-    bool m_clippedL = false;
-    bool m_clippedR = false;
-    double *m_bufferL = nullptr;
-    double *m_bufferR = nullptr;
-    int m_bufferPos = 0;
-    int m_bufferSize = 8;
-    bool m_freezed = false;
+    ChannelData m_leftChannel;
+    ChannelData m_rightChannel;
+    int m_peakHoldTime = 2000;
+    int m_decayTime = 1000;
+
     QRectF paddedRect;
     double channelWidth = 0;
     double channelTop = 0;
@@ -112,12 +125,7 @@ private:
     bool m_mouseOnBar = false;
     QString m_currentValueText;
 
-    QTimer smoothValueTimer;
-    // QTimer peakValueHoldTimerL;
-    // QTimer peakValueHoldTimerR;
-    // ToolTipFilter *toolTipFilter;
 };
-
 
 
 #endif // CHORUSKIT_LEVELMETER_H

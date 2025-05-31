@@ -122,7 +122,6 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     controlWidgetLayout->addItem(panVolumeSpacer);
 
     m_levelMeter = new LevelMeter();
-    m_levelMeter->initBuffer(8);
     // m_levelMeter->setFixedWidth(12);
 
     // m_levelMeter->resize(32, 256);

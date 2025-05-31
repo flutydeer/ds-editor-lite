@@ -10,19 +10,19 @@
 #include <QVBoxLayout>
 
 ChannelView::ChannelView(QWidget *parent) : QWidget(parent) {
-    fader = new Fader;
-    fader->setStyleSheet("Fader { background: #21242B; border-radius: 4px; }");
-    fader->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    fader->setFixedWidth(32);
+    m_fader = new Fader;
+    m_fader->setStyleSheet("Fader { background: #21242B; border-radius: 4px; }");
+    m_fader->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    m_fader->setFixedWidth(32);
 
-    levelMeter = new LevelMeter;
-    levelMeter->setStyleSheet("LevelMeter { background: #21242B; border-radius: 4px; }");
-    levelMeter->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    levelMeter->setFixedWidth(32);
+    m_levelMeter = new LevelMeter;
+    m_levelMeter->setStyleSheet("LevelMeter { background: #21242B; border-radius: 4px; }");
+    m_levelMeter->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    m_levelMeter->setFixedWidth(32);
 
     auto faderLevelMeterLayout = new QHBoxLayout;
-    faderLevelMeterLayout->addWidget(fader);
-    faderLevelMeterLayout->addWidget(levelMeter);
+    faderLevelMeterLayout->addWidget(m_fader);
+    faderLevelMeterLayout->addWidget(m_levelMeter);
     faderLevelMeterLayout->setContentsMargins({});
     faderLevelMeterLayout->setSpacing(8);
 
@@ -32,4 +32,16 @@ ChannelView::ChannelView(QWidget *parent) : QWidget(parent) {
 
     resize(97, 400);
     setWindowTitle("Master Channel");
+
+    connect(m_levelMeter, &LevelMeter::peakValueChanged, this, [=](double value) {
+        qDebug() << "Peak:"<< value << "dB";
+    });
+}
+
+Fader *const &ChannelView::fader() const {
+    return m_fader;
+}
+
+LevelMeter *const &ChannelView::levelMeter() const {
+    return m_levelMeter;
 }

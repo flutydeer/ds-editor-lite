@@ -16,7 +16,7 @@ EditLabel::EditLabel(QWidget *parent) : QStackedWidget(parent) {
     label->setText("Label");
     label->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
     label->installEventFilter(this);
-    label->setStyleSheet(QString("padding: 2px;"));
+    // label->setStyleSheet(QString("padding: 2px;"));
 
     this->addWidget(label);
     this->setCurrentWidget(label);

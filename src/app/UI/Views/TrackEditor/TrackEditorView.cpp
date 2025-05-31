@@ -79,11 +79,11 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     masterChannel->setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint);
     masterChannel->show();
 
-    connect(masterChannel->fader, &Fader::sliderMoved, this, [=](double gain) {
+    connect(masterChannel->fader(), &Fader::sliderMoved, this, [=](double gain) {
         qDebug() << "Fader::sliderMoved" << gain;
         audioContext->handleMasterGainSliderMoved(gain);
     });
-    connect(masterChannel->fader, &Fader::valueChanged, this, [=](double gain) {
+    connect(masterChannel->fader(), &Fader::valueChanged, this, [=](double gain) {
         qInfo() << "Fader::valueChanged" << gain;
         if (!m_notifyBarrier)
             changeMasterControl();
@@ -162,7 +162,7 @@ void TrackEditorView::onClipChanged(Track::ClipChangeType type, Clip *clip, Trac
 
 void TrackEditorView::onMasterControlChanged(const TrackControl &control) {
     m_notifyBarrier = true;
-    masterChannel->fader->setValue(control.gain());
+    masterChannel->fader()->setValue(control.gain());
     m_notifyBarrier = false;
 }
 
@@ -182,7 +182,7 @@ void TrackEditorView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArg
         meter->setValue(state.valueL, state.valueR);
     }
     auto state = args.trackMeterStates.last();
-    masterChannel->levelMeter->setValue(state.valueL, state.valueR);
+    masterChannel->levelMeter()->setValue(state.valueL, state.valueR);
 }
 
 void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) const {
@@ -402,6 +402,6 @@ void TrackEditorView::onTrackRemoved(Track *dsTrack, qsizetype index) {
 
 void TrackEditorView::changeMasterControl() const {
     TrackControl control;
-    control.setGain(masterChannel->fader->value());
+    control.setGain(masterChannel->fader()->value());
     appController->changeMasterControl(control);
 }

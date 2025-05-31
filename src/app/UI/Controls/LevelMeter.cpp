@@ -7,6 +7,8 @@
 #include <QDebug>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QTimer>
+#include <QVariantAnimation>
 
 #include "Utils/VolumeUtils.h"
 
@@ -14,32 +16,55 @@ LevelMeter::LevelMeter(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setAttribute(Qt::WA_Hover);
 
-    smoothValueTimer.setInterval(16);
-    // m_timer->start();
-    connect(&smoothValueTimer, &QTimer::timeout, this, [=]() {
-        double sumL = 0;
-        double sumR = 0;
-        for (int i = 0; i < m_bufferSize; i++) {
-            sumL += m_bufferL[i];
-            sumR += m_bufferR[i];
-        }
-        m_smoothedLevelL = sumL / m_bufferSize;
-        m_smoothedLevelR = sumR / m_bufferSize;
-        // qDebug() << averageLevel;
-        //        repaint();
-        update();
+    m_leftChannel.peakHoldTimer = new QTimer(this);
+    m_rightChannel.peakHoldTimer = new QTimer(this);
+    m_leftChannel.peakHoldTimer->setSingleShot(true);
+    m_rightChannel.peakHoldTimer->setSingleShot(true);
+
+    m_leftChannel.decayAnimation = new QVariantAnimation(this);
+    m_rightChannel.decayAnimation = new QVariantAnimation(this);
+
+    connect(m_leftChannel.peakHoldTimer, &QTimer::timeout, [this] {
+        startDecayAnimation(m_leftChannel);
     });
-    initBuffer(32);
 
-    // toolTipFilter = new ToolTipFilter(this);
-    // toolTipFilter->setFollowCursor(true);
-    // toolTipFilter->setShowDelay(0);
-    // installEventFilter(toolTipFilter);
-}
+    connect(m_rightChannel.peakHoldTimer, &QTimer::timeout, [this] {
+        startDecayAnimation(m_rightChannel);
+    });
 
-LevelMeter::~LevelMeter() {
-    delete[] m_bufferL;
-    delete[] m_bufferR;
+    auto setupAnimation = [&](QVariantAnimation *anim, ChannelData &channel) {
+        anim->setDuration(m_decayTime);
+        anim->setEasingCurve(QEasingCurve::InOutCubic);
+    };
+
+    setupAnimation(m_leftChannel.decayAnimation, m_leftChannel);
+    setupAnimation(m_rightChannel.decayAnimation, m_rightChannel);
+
+    connect(m_leftChannel.decayAnimation, &QVariantAnimation::valueChanged,
+            [this](const QVariant &value) {
+                handleAnimationUpdate(value, m_leftChannel);
+            });
+
+    connect(m_rightChannel.decayAnimation, &QVariantAnimation::valueChanged,
+            [this](const QVariant &value) {
+                handleAnimationUpdate(value, m_rightChannel);
+            });
+
+    connect(m_leftChannel.decayAnimation, &QVariantAnimation::finished, [this]() {
+        if (m_leftChannel.isDecaying && !m_leftChannel.peakHoldTimer->isActive()) {
+            m_leftChannel.displayedPeak = 0.0;
+            m_leftChannel.isDecaying = false;
+            update();
+        }
+    });
+
+    connect(m_rightChannel.decayAnimation, &QVariantAnimation::finished, [this]() {
+        if (m_rightChannel.isDecaying && !m_rightChannel.peakHoldTimer->isActive()) {
+            m_rightChannel.displayedPeak = 0.0;
+            m_rightChannel.isDecaying = false;
+            update();
+        }
+    });
 }
 
 void LevelMeter::resizeEvent(QResizeEvent *event) {
@@ -57,27 +82,32 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
     auto leftChannelLeft = paddedRect.left();
     auto rightChannelLeft = leftChannelLeft + channelWidth + m_spacing;
 
-    // draw clip indicator
+    // Draw clip indicator
     auto leftIndicatorRect =
         QRectF(leftChannelLeft, paddedRect.top(), channelWidth, m_clipIndicatorLength);
     auto rightIndicatorRect =
         QRectF(rightChannelLeft, paddedRect.top(), channelWidth, m_clipIndicatorLength);
 
-    painter.fillRect(leftIndicatorRect, m_clippedL ? m_colorClipped : m_colorDimmed);
-    painter.fillRect(rightIndicatorRect, m_clippedR ? m_colorClipped : m_colorDimmed);
+    painter.fillRect(leftIndicatorRect, m_leftChannel.clipped ? m_colorClipped : m_colorDimmed);
+    painter.fillRect(rightIndicatorRect, m_leftChannel.clipped ? m_colorClipped : m_colorDimmed);
 
-    // draw levels
+    // Draw levels
     auto leftLevelBar = QRectF(leftChannelLeft, channelTop, channelWidth, channelLength);
     auto rightLevelBar = QRectF(rightChannelLeft, channelTop, channelWidth, channelLength);
     if (m_style == MeterStyle::Segmented) {
-        drawSegmentedBar(painter, leftLevelBar, m_smoothedLevelL);
-        drawSegmentedBar(painter, rightLevelBar, m_smoothedLevelR);
+        drawSegmentedBar(painter, leftLevelBar, m_leftChannel.currentValue);
+        drawSegmentedBar(painter, rightLevelBar, m_rightChannel.currentValue);
     } else if (m_style == MeterStyle::Gradient) {
-        drawGradientBar(painter, leftLevelBar, m_smoothedLevelL);
-        drawGradientBar(painter, rightLevelBar, m_smoothedLevelR);
+        drawGradientBar(painter, leftLevelBar, m_leftChannel.currentValue);
+        drawGradientBar(painter, rightLevelBar, m_rightChannel.currentValue);
     }
+    painter.setClipRect(rect());
 
-    // draw cursor value
+    // Draw peak hold value
+    drawPeakHold(painter, leftLevelBar, m_leftChannel.displayedPeak);
+    drawPeakHold(painter, rightLevelBar, m_rightChannel.displayedPeak);
+
+    // Draw cursor value
     if (m_showValueWhenHover && m_mouseOnBar) {
         painter.setClipRect(rect());
 
@@ -112,73 +142,34 @@ void LevelMeter::mousePressEvent(QMouseEvent *event) {
     event->ignore();
 }
 
-void LevelMeter::initBuffer(int bufferSize) {
-    m_bufferSize = bufferSize;
-    delete[] m_bufferL;
-    delete[] m_bufferR;
-    m_bufferL = new double[m_bufferSize];
-    m_bufferR = new double[m_bufferSize];
-    resetBuffer();
-}
-
-void LevelMeter::readSample(double sampleL, double sampleR) {
-    m_bufferL[m_bufferPos] = sampleL;
-    m_bufferR[m_bufferPos] = sampleR;
-    m_bufferPos++;
-    if (m_bufferPos == m_bufferSize) {
-        m_bufferPos = 0;
-    }
-    if (sampleL > 1)
-        m_clippedL = true;
-    if (sampleR > 1)
-        m_clippedR = true;
-}
-
 void LevelMeter::setValue(double valueL, double valueR) {
-    m_smoothedLevelL = VolumeUtils::dBToLinear(valueL);
-    m_smoothedLevelR = VolumeUtils::dBToLinear(valueR);
-    if (m_smoothedLevelL > 1)
-        m_clippedL = true;
-    if (m_smoothedLevelR > 1)
-        m_clippedR = true;
+    m_leftChannel.currentValue = VolumeUtils::dBToLinear(valueL);
+    m_rightChannel.currentValue = VolumeUtils::dBToLinear(valueR);
+    auto clippedValueL = m_leftChannel.currentValue;
+    auto clippedValueR = m_rightChannel.currentValue;
+
+    if (m_leftChannel.currentValue > 1) {
+        m_leftChannel.clipped = true;
+        clippedValueL = 1;
+    }
+    if (m_rightChannel.currentValue > 1) {
+        m_rightChannel.clipped = true;
+        clippedValueR = 1;
+    }
+
+    updatePeakValue(m_leftChannel, clippedValueL);
+    updatePeakValue(m_rightChannel, clippedValueR);
+
     update();
 }
 
 void LevelMeter::setClipped(bool onL, bool onR) {
-    m_clippedL = onL;
-    m_clippedR = onR;
+    m_leftChannel.clipped = onL;
+    m_rightChannel.clipped = onR;
 }
 
-int LevelMeter::bufferSize() const {
-    return m_bufferSize;
-}
-
-void LevelMeter::setBufferSize(int size) {
-    setFreeze(true);
-    delete[] m_bufferL;
-    delete[] m_bufferR;
-    initBuffer(size);
-    setFreeze(false);
-}
-
-bool LevelMeter::freeze() const {
-    return m_freezed;
-}
-
-void LevelMeter::setFreeze(bool on) {
-    if (on) {
-        smoothValueTimer.stop();
-        m_freezed = true;
-    } else {
-        smoothValueTimer.start();
-        m_freezed = false;
-    }
-}
-
-void LevelMeter::resetBuffer() {
-    for (int i = 0; i < m_bufferSize; i++)
-        m_bufferL[i] = 0;
-    m_bufferPos = 0;
+void LevelMeter::clearClipped() {
+    setClipped(false, false);
 }
 
 bool LevelMeter::mouseOnClipIndicator(const QPointF &pos) const {
@@ -198,7 +189,9 @@ bool LevelMeter::event(QEvent *event) {
 
 void LevelMeter::onHover(QHoverEvent *event) {
     auto cursorY = mapFromGlobal(QCursor::pos()).y();
-    auto mouseOnBar = [&](double y) { return y >= channelTop && y <= channelTop + channelLength; };
+    auto mouseOnBar = [&](double y) {
+        return y >= channelTop && y <= channelTop + channelLength;
+    };
     auto mouseOnIndicator = [&](double y) {
         return y >= paddedRect.top() && y <= paddedRect.top() + m_clipIndicatorLength;
     };
@@ -218,7 +211,9 @@ void LevelMeter::onHover(QHoverEvent *event) {
 }
 
 void LevelMeter::handleHoverOnBar() {
-    auto yToLinear = [&](const double &y) { return 1 - (y - channelTop) / channelLength; };
+    auto yToLinear = [&](const double &y) {
+        return 1 - (y - channelTop) / channelLength;
+    };
 
     auto cursorY = mapFromGlobal(QCursor::pos()).y();
     auto db = VolumeUtils::linearTodB(yToLinear(cursorY));
@@ -230,7 +225,7 @@ void LevelMeter::handleHoverOnBar() {
 }
 
 void LevelMeter::handleHoverOnClipIndicator() {
-    auto clipped = m_clippedL || m_clippedR;
+    auto clipped = m_leftChannel.clipped || m_rightChannel.clipped;
     if (clipped) {
         auto toolTip = tr("Clipped");
         // setToolTip(toolTip);
@@ -292,6 +287,63 @@ void LevelMeter::drawGradientBar(QPainter &painter, const QRectF &rect, const do
     } else {
         painter.setClipRect(rect);
         painter.fillRect(rect, m_colorClipped);
+    }
+}
+
+void LevelMeter::drawPeakHold(QPainter &painter, const QRectF &rect, const double &level) {
+    QPen pen;
+    pen.setColor(m_colorPeakHold);
+    pen.setWidthF(m_peakHoldWidth);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+
+    auto height = rect.height() * level;
+    auto top = rect.bottom() - height;
+    auto p1 = QPointF(rect.left(), top);
+    auto p2 = QPointF(rect.right(), top);
+    painter.drawLine({p1, p2});
+}
+
+void LevelMeter::startDecayAnimation(ChannelData &channel) {
+    // qInfo() << "LevelMeter::startDecayAnimation";
+    if (channel.displayedPeak <= 0.0)
+        return;
+
+    channel.isDecaying = true;
+    channel.decayAnimation->stop();
+    channel.decayAnimation->setStartValue(channel.displayedPeak);
+    channel.decayAnimation->setEndValue(0.0);
+    channel.decayAnimation->start();
+}
+
+void LevelMeter::updatePeakValue(ChannelData &channel, double newValue) {
+    // qDebug() << "LevelMeter::updatePeakValue" << channel.displayedPeak << newValue;
+    if (newValue > channel.displayedPeak) {
+        cancelDecayAnimation(channel);
+
+        channel.displayedPeak = newValue;
+        channel.peakHoldTimer->stop();
+        channel.peakHoldTimer->start(m_peakHoldTime);
+    }
+}
+
+void LevelMeter::cancelDecayAnimation(ChannelData &channel) {
+    if (channel.isDecaying) {
+        channel.decayAnimation->stop();
+        channel.isDecaying = false;
+    }
+}
+
+void LevelMeter::handleAnimationUpdate(const QVariant &value, ChannelData &channel) {
+    channel.displayedPeak = value.toDouble();
+    update();
+}
+
+void LevelMeter::notifyPeakValueChange() {
+    auto peakValue = std::max(m_leftChannel.displayedPeak, m_rightChannel.displayedPeak);
+    if (!qFuzzyCompare(m_lastPeakValue, peakValue)) {
+        emit peakValueChanged(VolumeUtils::linearTodB(peakValue));
+        m_lastPeakValue = peakValue;
     }
 }
 
