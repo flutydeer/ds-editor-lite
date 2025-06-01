@@ -7,6 +7,10 @@
 
 #include <QWidget>
 
+class Button;
+class QVBoxLayout;
+class QHBoxLayout;
+class QStackedWidget;
 class QLabel;
 class EditLabel;
 class Fader;
@@ -23,6 +27,8 @@ public:
 
     explicit ChannelView(QWidget *parent = nullptr);
 
+    void setIsMasterChannel(bool on);
+
     // [[nodiscard]] ChannelType channelType() const;
 
     [[nodiscard]] Fader *const &fader() const;
@@ -36,21 +42,30 @@ public slots:
 private:
     void onFaderMoved(double gain);
     void onGainEdited(const QString &text);
-
     void onPeakChanged(double peak);
 
     static QString gainValueToString(double gain);
+    QHBoxLayout *buildFaderLevelMeterLayout();
+    QVBoxLayout *buildChannelContentLayout();
+    QStackedWidget *buildMuteSoloStack();
+    QStackedWidget *buildIndexStack();
 
     bool m_isMasterChannel = false;
 
-    Fader *m_fader;
-    EditLabel *m_elGain;
+    Fader *m_fader = nullptr;
+    EditLabel *m_elGain = nullptr;
 
-    LevelMeter *m_levelMeter;
-    QLabel *m_lbPeakLevel;
+    LevelMeter *m_levelMeter = nullptr;
+    QLabel *m_lbPeakLevel = nullptr;
 
-    QLabel *m_lbTitle;
-    QLabel *m_lbIndex;
+    Button *m_btnMute;
+    Button *m_btnSolo;
+
+    QLabel *m_lbTitle = nullptr;
+    QLabel *m_lbIndex  = nullptr;
+
+    QStackedWidget *m_muteSoloStack = nullptr;
+    QStackedWidget *m_indexStack = nullptr;
 };
 
 #endif // CHANNELVIEW_H

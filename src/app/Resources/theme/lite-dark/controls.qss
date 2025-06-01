@@ -167,7 +167,7 @@ QComboBox:editable {
 }
 
 QComboBox:editable:focus {
-    background:  #1A1C22;
+    background: #1A1C22;
     border: 1px solid #505050;
     border-bottom: 1px solid #9BBAFF;
 }
@@ -364,7 +364,7 @@ QLineEdit {
 }
 
 QLineEdit:focus {
-    background:  #1A1C22;
+    background: #1A1C22;
     border-left: 1px solid #505050;
     border-top: 1px solid #505050;
     border-right: 1px solid #505050;
@@ -388,14 +388,15 @@ QAbstractSpinBox {
 }
 
 QAbstractSpinBox:focus {
-    background:  #1A1C22;
+    background: #1A1C22;
     border-left: 1px solid #505050;
     border-top: 1px solid #505050;
     border-right: 1px solid #505050;
     border-bottom: 1px solid #9BBAFF;
 }
 
-QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {
+QAbstractSpinBox::up-button,
+QAbstractSpinBox::down-button {
     subcontrol-origin: content;
     background-color: transparent;
     width: 28px;
@@ -411,15 +412,18 @@ QAbstractSpinBox::down-button {
     subcontrol-position: left;
 }
 
-QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover {
+QAbstractSpinBox::up-button:hover,
+QAbstractSpinBox::down-button:hover {
     background-color: #1AFFFFFF;
 }
 
-QAbstractSpinBox::up-button:pressed, QAbstractSpinBox::down-button:pressed {
+QAbstractSpinBox::up-button:pressed,
+QAbstractSpinBox::down-button:pressed {
     background-color: #10FFFFFF;
 }
 
-QAbstractSpinBox::up-arrow, QAbstractSpinBox::down-arrow {
+QAbstractSpinBox::up-arrow,
+QAbstractSpinBox::down-arrow {
     subcontrol-position: center;
     padding: 8px;
 }
@@ -440,13 +444,13 @@ QLabel {
 
 /* TreeView */
 QTreeView {
-    background:  #1A1C22;
+    background: #1A1C22;
 }
 
 
 /* Dialog */
 QDialog {
-    background:  #1A1C22;
+    background: #1A1C22;
 }
 
 QLabel#DialogTitleLabel {
@@ -592,7 +596,7 @@ QTabBar::tab:selected {
 
 /* TextEdit */
 QTextEdit {
-    background:  #1A1C22;
+    background: #1A1C22;
     border: 1px solid #505050;
     border-radius: 4px;
     color: #e0e0e0;
@@ -602,7 +606,7 @@ QTextEdit {
 }
 
 QPlainTextEdit {
-    background:  #1A1C22;
+    background: #1A1C22;
     border: 1px solid #505050;
     border-radius: 4px;
     color: #e0e0e0;
@@ -653,7 +657,7 @@ QGroupBox::title {
 
 /* GraphicsView */
 QGraphicsView {
-    background:  #1A1C22;
+    background: #1A1C22;
     border: 1px solid #505050;
     border-radius: 6px;
 }
@@ -780,3 +784,76 @@ TimeGraphicsView {
 /* LevelMeter {
     background: #21242B;
 } */
+/* ChannelView */
+ChannelView {
+    background: #272A33;
+    border-right: 1px solid #1D1F26;
+    min-width: 97px;
+}
+
+ChannelView>Fader {
+    background: #21242B;
+    border-radius: 4px;
+    min-width: 32px
+}
+
+ChannelView>EditLabel {
+    min-width: 36px
+}
+
+ChannelView>EditLabel>QLabel {
+    color: #8CD7D8DB;
+}
+
+ChannelView>LevelMeter {
+    background: #21242B;
+    border-radius: 4px;
+    min-width: 32px
+}
+
+ChannelView>QLabel#lbPeakLevel {
+    min-width: 36px;
+    color: #8CD7D8DB
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute,
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo {
+    background: red;
+    padding: 0px;
+    background-color: #0CC7D8FF;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute:checked {
+    color: #FF9BA0;
+    background-color: #40FF9BA0;
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo:checked {
+    color: #FFCD9B;
+    background-color: #40FFCD9B;
+}
+
+ChannelView>QWidget#muteSoloPlaceHolder {
+    min-height: 28px;
+}
+
+ChannelView>QLabel#lbTitle {
+    min-width: 76px;
+    color: #8CD7D8DB
+}
+
+ChannelView QStackedWidget#indexStack QLabel#lbIndex {
+    color: #000000;
+    background: #9BBAFF;
+    min-height: 20px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+ChannelView>QWidget#indexPlaceholder {
+    min-height: 20px;
+}

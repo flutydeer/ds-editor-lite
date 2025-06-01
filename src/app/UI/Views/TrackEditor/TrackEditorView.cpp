@@ -66,7 +66,8 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
     masterChannel = new ChannelView;
     masterChannel->setChannelTitle(tr("Master"));
-    masterChannel->setFixedWidth(97);
+    masterChannel->setChannelIndex(114);
+    // masterChannel->setIsMasterChannel(true);
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->setSpacing(0);
