@@ -190,15 +190,15 @@ void AppModel::loadFromAppModel(const AppModel &model) {
 QJsonObject AppModel::serialize() const {
     Q_D(const AppModel);
     const QJsonObject objGlobal{
-        {"author",    QString()},
-        {"centShift", 0        },
-        {"name",      QString()}
+        {"author", QString()},
+        {"centShift", 0},
+        {"name", QString()}
     };
 
     const QJsonObject objControl{
-        {"gain", 0    },
+        {"gain", 0},
         {"mute", false},
-        {"pan",  0    }
+        {"pan", 0}
     };
 
     QJsonObject objMaster{
@@ -206,7 +206,7 @@ QJsonObject AppModel::serialize() const {
     };
 
     const QJsonObject objTempo{
-        {"pos",   0         },
+        {"pos", 0},
         {"value", d->m_tempo}
     };
 
@@ -216,8 +216,8 @@ QJsonObject AppModel::serialize() const {
     QJsonArray arrTimeSignatures = {objTimeSignature};
 
     QJsonObject objTimeLine{
-        {"labels",         QJsonArray()     },
-        {"tempos",         arrTempos        },
+        {"labels", QJsonArray()},
+        {"tempos", arrTempos},
         {"timeSignatures", arrTimeSignatures}
     };
 
@@ -226,16 +226,16 @@ QJsonObject AppModel::serialize() const {
         arrTracks.append(track->serialize());
 
     QJsonObject objContent{
-        {"global",    objGlobal    },
-        {"master",    objMaster    },
-        {"timeline",  objTimeLine  },
-        {"tracks",    arrTracks    },
+        {"global", objGlobal},
+        {"master", objMaster},
+        {"timeline", objTimeLine},
+        {"tracks", arrTracks},
         {"workspace", QJsonObject()}
     };
 
     return QJsonObject{
         {"content", objContent},
-        {"version", "0.0.1"   }
+        {"version", "0.0.1"}
     };
 }
 
@@ -248,9 +248,7 @@ bool AppModel::importMidiFile(const QString &filename) {
     QString errMsg;
     int midiImport = MidiConverter::midiImportHandler();
 
-    if (midiImport == ImportMode::NewProject) {
-        d->reset();
-    } else if (midiImport == -1) {
+    if (midiImport == -1) {
         errMsg = "User canceled the import.";
         return false;
     }
@@ -262,6 +260,7 @@ bool AppModel::importMidiFile(const QString &filename) {
     Log::i("Midi importer", errMsg);
     if (ok) {
         if (midiImport == ImportMode::NewProject) {
+            d->reset();
             setTimeSignature(resultModel.timeSignature());
             setTempo(resultModel.tempo());
             loadFromAppModel(resultModel);
