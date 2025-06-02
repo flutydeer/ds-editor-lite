@@ -205,8 +205,10 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
     if (task.success()) {
         Helper::updatePhoneName(task.notesRef, task.result, *singingClip);
         if (ValidationUtils::canInferDuration(*singingClip))
-            for (const auto piece : singingClip->pieces())
-                createAndRunInferDurTask(*piece);
+            for (const auto piece : singingClip->pieces()) {
+                if (piece->acousticInferStatus != InferStatus::Success)
+                    createAndRunInferDurTask(*piece);
+        }
         else
             qWarning() << "音素序列有错误，无法创建时长推理任务 clipId:" << clip->id();
     } else
