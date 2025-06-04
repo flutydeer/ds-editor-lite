@@ -24,6 +24,7 @@
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/MainTitleBar/PlaybackView.h"
+#include "UI/Views/MixConsole/MixConsoleView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "Utils/WindowFrameUtils.h"
 
@@ -100,6 +101,12 @@ MainWindow::MainWindow() {
 
     m_trackEditorView = new TrackEditorView;
     m_clipEditView = new ClipEditorView;
+
+    auto mixConsoleView = new MixConsoleView(this);
+    mixConsoleView->setWindowTitle("Mix Console");
+    mixConsoleView->setWindowFlags(Qt::Tool);
+    mixConsoleView->resize(1280, 480);
+    mixConsoleView->show();
 
     m_splitter = new QSplitter;
     m_splitter->setOrientation(Qt::Vertical);

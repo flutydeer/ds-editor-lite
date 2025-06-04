@@ -33,7 +33,6 @@ public slots:
     void onModelChanged();
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
     void onClipChanged(Track::ClipChangeType type, Clip *clip, Track *dsTrack);
-    void onMasterControlChanged(const TrackControl &control);
     void onPositionChanged(double tick);
     void onLastPositionChanged(double tick);
     void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const;
@@ -57,9 +56,6 @@ private:
     TimelineView *m_timeline;
     TrackEditorBackgroundView *m_gridItem;
 
-    ChannelView *masterChannel;
-    bool m_notifyBarrier = false;
-
     class ViewModel {
     public:
         QList<TrackViewModel *> tracks;
@@ -76,7 +72,6 @@ private:
     void onTrackPropertyChanged() const;
     void updateClipOnView(Clip *clip);
     void onTrackRemoved(Track *dsTrack, qsizetype index);
-    void changeMasterControl() const;
 };
 
 

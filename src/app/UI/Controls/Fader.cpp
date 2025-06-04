@@ -361,6 +361,9 @@ void Fader::mouseDoubleClickEvent(QMouseEvent* event) {
 
 void Fader::mousePressEvent(QMouseEvent* event) {
     Q_D(Fader);
+    if (event->button() != Qt::LeftButton)
+        return;
+
     d->thumbHoverAnimation->stop();
     d->thumbHoverAnimation->setStartValue(d->thumbBorderRatio);
     d->thumbHoverAnimation->setEndValue(114);
@@ -379,6 +382,7 @@ void Fader::mousePressEvent(QMouseEvent* event) {
 
         if (d->doubleClickWindow) {
             resetValue();
+            d->canMoveThumb = false;
             d->doubleClickWindow = false;
         }
         else {
@@ -402,11 +406,15 @@ void Fader::mousePressEvent(QMouseEvent* event) {
 
 void Fader::mouseReleaseEvent(QMouseEvent* event) {
     Q_D(Fader);
+    if (event->button() != Qt::LeftButton)
+        return;
+
     d->thumbHoverAnimation->stop();
     d->thumbHoverAnimation->setStartValue(d->thumbBorderRatio);
     d->thumbHoverAnimation->setEndValue(77);
     d->thumbHoverAnimation->start();
     setSliderDown(false);
+    d->canMoveThumb = true;
     d->setDecibelValue(d->decibelSliderValue);
     QWidget::mouseReleaseEvent(event);
 }

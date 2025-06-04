@@ -4,6 +4,8 @@
 
 #include "ChannelView.h"
 
+#include "Model/AppModel/Track.h"
+#include "Model/AppModel/TrackControl.h"
 #include "UI/Controls/Fader.h"
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/EditLabel.h"
@@ -13,23 +15,18 @@
 #include <QLabel>
 
 ChannelView::ChannelView(QWidget *parent) : QWidget(parent) {
-    m_indexStack = buildIndexStack();
+    initUi();
+}
 
-    auto mainLayout = new QVBoxLayout;
-    mainLayout->addLayout(buildChannelContentLayout());
-    mainLayout->addWidget(m_indexStack);
-    mainLayout->setContentsMargins(0, 0, 1, 1);
-    mainLayout->setSpacing(0);
-    setLayout(mainLayout);
-    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+ChannelView::ChannelView(Track &track, QWidget *parent): QWidget(parent), ITrack(track.id()),
+                                                          m_context(&track) {
+    initUi();
+    ChannelView::setName(track.name());
+    ChannelView::setControl(track.control());
+}
 
-    onFaderMoved(m_fader->value());
-    connect(m_fader, &Fader::sliderMoved, this, &ChannelView::onFaderMoved);
-    connect(m_fader, &Fader::valueChanged, this, &ChannelView::onFaderMoved);
-    connect(m_elGain, &EditLabel::editCompleted, this, &ChannelView::onGainEdited);
-
-    onPeakChanged(m_levelMeter->peakValue());
-    connect(m_levelMeter, &LevelMeter::peakValueChanged, this, &ChannelView::onPeakChanged);
+Track &ChannelView::context() const {
+    return *m_context;
 }
 
 void ChannelView::setIsMasterChannel(bool on) {
@@ -43,6 +40,25 @@ void ChannelView::setIsMasterChannel(bool on) {
     }
 }
 
+TrackControl ChannelView::control() const {
+    TrackControl control;
+    control.setGain(m_fader->value());
+    control.setMute(m_btnMute->isChecked());
+    control.setSolo(m_btnSolo->isChecked());
+    return control;
+}
+
+QString ChannelView::name() const {
+    return m_lbTitle->text();
+}
+
+QColor ChannelView::color() const {
+    return {};
+}
+
+void ChannelView::setColor(const QColor &color) {
+}
+
 Fader *const &ChannelView::fader() const {
     return m_fader;
 }
@@ -51,16 +67,29 @@ LevelMeter *const &ChannelView::levelMeter() const {
     return m_levelMeter;
 }
 
-void ChannelView::setChannelTitle(const QString &title) {
-    m_lbTitle->setText(title);
+void ChannelView::setName(const QString &name) {
+    m_lbTitle->setText(name);
 }
 
 void ChannelView::setChannelIndex(int index) {
     m_lbIndex->setText(QString::number(index));
 }
 
+void ChannelView::setControl(const TrackControl &control) {
+    m_notifyBarrier = true;
+    m_fader->setValue(control.gain());
+    m_btnMute->setChecked(control.mute());
+    m_btnSolo->setChecked(control.solo());
+    m_notifyBarrier = false;
+}
+
 void ChannelView::onFaderMoved(double gain) {
     m_elGain->setText(gainValueToString(gain));
+}
+
+void ChannelView::onFaderReleased(double gain) {
+    m_elGain->setText(gainValueToString(gain));
+    emit controlChanged(control());
 }
 
 void ChannelView::onGainEdited(const QString &text) {
@@ -69,6 +98,34 @@ void ChannelView::onGainEdited(const QString &text) {
 
 void ChannelView::onPeakChanged(double peak) {
     m_lbPeakLevel->setText(gainValueToString(peak));
+}
+
+void ChannelView::initUi() {
+    setAttribute(Qt::WA_StyledBackground);
+    m_indexStack = buildIndexStack();
+
+    auto mainLayout = new QVBoxLayout;
+    mainLayout->addLayout(buildChannelContentLayout());
+    mainLayout->addWidget(m_indexStack);
+    mainLayout->setContentsMargins(0, 0, 1, 1);
+    mainLayout->setSpacing(0);
+    setLayout(mainLayout);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+
+    onFaderMoved(m_fader->value());
+    connect(m_fader, &Fader::sliderMoved, this, &ChannelView::onFaderMoved);
+    connect(m_fader, &Fader::valueChanged, this, &ChannelView::onFaderReleased);
+    connect(m_elGain, &EditLabel::editCompleted, this, &ChannelView::onGainEdited);
+
+    onPeakChanged(m_levelMeter->peakValue());
+    connect(m_levelMeter, &LevelMeter::peakValueChanged, this, &ChannelView::onPeakChanged);
+
+    connect(m_btnMute, &QPushButton::clicked, this, [=] {
+        emit controlChanged(control());
+    });
+    connect(m_btnSolo, &QPushButton::clicked, this, [=] {
+        emit controlChanged(control());
+    });
 }
 
 QString ChannelView::gainValueToString(double gain) {

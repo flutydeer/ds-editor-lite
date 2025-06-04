@@ -857,3 +857,16 @@ ChannelView QStackedWidget#indexStack QLabel#lbIndex {
 ChannelView>QWidget#indexPlaceholder {
     min-height: 20px;
 }
+
+MixConsoleView {
+    background: #272A33;
+}
+
+MixConsoleView QListWidget#channelListView::item {
+    border-radius: 0px;
+    padding: 0px;
+}
+
+MixConsoleView QListWidget#channelListView::item:selected {
+    background: #1AFFFFFF;
+}

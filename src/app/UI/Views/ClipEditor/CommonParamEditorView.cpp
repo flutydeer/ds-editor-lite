@@ -190,7 +190,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
                 painter->setBrush(QColor(155, 186, 255, 120));
             }
         } else {
-            painter->setBrush(QColor(40, 40, 40));
+            painter->setBrush(QColor(41, 44, 54));
         }
 
         DrawCurveList base;
@@ -215,7 +215,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 
         if (baseCurve && m_properties->showDefaultValue) {
             painter->setBrush(Qt::NoBrush);
-            pen.setColor(foreground ? QColor(155, 186, 255) : QColor(40, 40, 40));
+            pen.setColor(foreground ? QColor(155, 186, 255) : QColor(41, 44, 54));
             painter->setPen(pen);
             drawCurveBorder(painter, base);
         }
@@ -241,7 +241,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 
     if (m_mouseDown) {
         qWarning() << "Ignored mousePressEvent" << event
-                   << "because there is already one mouse button pressed";
+            << "because there is already one mouse button pressed";
         return;
     }
     m_mouseDown = true;
@@ -294,8 +294,8 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     auto value = static_cast<int>(sceneYToValue(scenePos.y()));
     auto curPos = QPoint(tick, value);
     qDebug() << "Draw at tick:" << tick << "value:"
-             << m_properties->valueToString(value, m_properties->hasUnit(),
-                                            m_properties->displayPrecision);
+        << m_properties->valueToString(value, m_properties->hasUnit(),
+                                       m_properties->displayPrecision);
 
     int startTick;
     int endTick;
@@ -312,11 +312,13 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         if (!overlappedCurves.isEmpty()) {
             for (auto curve : overlappedCurves) {
                 if (curve->localStart() >= startTick &&
-                    curve->localEndTick() <= endTick) { // 区间覆盖整条曲线，直接移除该曲线
+                    curve->localEndTick() <= endTick) {
+                    // 区间覆盖整条曲线，直接移除该曲线
                     m_drawCurvesEdited.removeOne(curve);
                     qDebug() << "Erase: Remove curve #" << curve->id();
                 } else if (curve->localStart() < startTick &&
-                           curve->localEndTick() > endTick) { // 区间在曲线内，将曲线切成两段
+                           curve->localEndTick() > endTick) {
+                    // 区间在曲线内，将曲线切成两段
                     auto newCurve = new DrawCurve;
                     newCurve->setLocalStart(endTick);
                     auto rightPoints = curve->mid(endTick);
@@ -328,7 +330,8 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                 }
             }
         }
-    } else { // Draw
+    } else {
+        // Draw
         // 在空白处绘制，如果未创建新曲线，则创建一条并将其设为正在编辑的曲线
         if (!m_newCurveCreated && m_editType == DrawOnInterval) {
             m_editingCurve = new DrawCurve;
@@ -396,7 +399,7 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
             start >= startTick()
                 ? 0
                 : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
-                      curve.step;
+                  curve.step;
         auto x = tickToItemX(start + startIndex * curve.step);
         auto y = valueToItemY(curve.values().at(startIndex));
         auto visibleFirstPoint = QPointF(x, y);
@@ -457,7 +460,7 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
             start >= startTick()
                 ? 0
                 : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
-                      curve.step;
+                  curve.step;
         auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve.step),
                                          valueToItemY(curve.values().at(startIndex)));
 

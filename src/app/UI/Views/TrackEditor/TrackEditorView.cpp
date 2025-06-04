@@ -64,33 +64,16 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     trackTimelineAndViewLayout->addWidget(m_timeline);
     trackTimelineAndViewLayout->addWidget(m_graphicsView);
 
-    masterChannel = new ChannelView;
-    masterChannel->setChannelTitle(tr("Master"));
-    masterChannel->setChannelIndex(114);
-    // masterChannel->setIsMasterChannel(true);
-
     auto mainLayout = new QHBoxLayout;
     mainLayout->setSpacing(0);
     mainLayout->addLayout(trackListPanelLayout);
     mainLayout->addLayout(trackTimelineAndViewLayout);
-    mainLayout->addWidget(masterChannel);
     mainLayout->setContentsMargins({1, 1, 1, 1});
 
     setLayout(mainLayout);
     setPanelActive(true);
     appController->registerPanel(this);
     installEventFilter(this);
-
-
-    connect(masterChannel->fader(), &Fader::sliderMoved, this, [=](double gain) {
-        // qDebug() << "Fader::sliderMoved" << gain;
-        audioContext->handleMasterGainSliderMoved(gain);
-    });
-    connect(masterChannel->fader(), &Fader::valueChanged, this, [=](double gain) {
-        // qInfo() << "Fader::valueChanged" << gain;
-        if (!m_notifyBarrier)
-            changeMasterControl();
-    });
 
     // connect(m_trackListView, &QListWidget::currentRowChanged, this,
     //         [=](int trackIndex) { appStatus->selectedTrackIndex = trackIndex; });
@@ -121,15 +104,12 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
             &TrackEditorView::onLevelMetersUpdated);
     connect(appModel, &AppModel::modelChanged, this, &TrackEditorView::onModelChanged);
     connect(appModel, &AppModel::trackChanged, this, &TrackEditorView::onTrackChanged);
-    connect(appModel, &AppModel::masterControlChanged , this, &TrackEditorView::onMasterControlChanged);
 
     connect(appStatus, &AppStatus::projectEditableLengthChanged, m_graphicsView,
             &TracksGraphicsView::setSceneLength);
 }
 
 void TrackEditorView::onModelChanged() {
-    onMasterControlChanged(appModel->masterControl());
-
     for (auto i = m_viewModel.tracks.count() - 1; i >= 0; i--) {
         auto track = m_viewModel.tracks.at(i)->dsTrack;
         onTrackRemoved(track, i);
@@ -163,12 +143,6 @@ void TrackEditorView::onClipChanged(Track::ClipChangeType type, Clip *clip, Trac
     }
 }
 
-void TrackEditorView::onMasterControlChanged(const TrackControl &control) {
-    m_notifyBarrier = true;
-    masterChannel->fader()->setValue(control.gain());
-    m_notifyBarrier = false;
-}
-
 void TrackEditorView::onPositionChanged(double tick) {
     m_graphicsView->setPlaybackPosition(tick);
 }
@@ -184,8 +158,6 @@ void TrackEditorView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArg
         auto meter = m_viewModel.tracks.at(i)->controlView->levelMeter();
         meter->setValue(state.valueL, state.valueR);
     }
-    auto state = args.trackMeterStates.last();
-    masterChannel->levelMeter()->setValue(state.valueL, state.valueR);
 }
 
 void TrackEditorView::onViewScaleChanged(qreal sx, qreal sy) const {
@@ -401,10 +373,4 @@ void TrackEditorView::onTrackRemoved(Track *dsTrack, qsizetype index) {
         }
     // connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
     //         &TrackEditorView::onSceneSelectionChanged);
-}
-
-void TrackEditorView::changeMasterControl() const {
-    TrackControl control;
-    control.setGain(masterChannel->fader()->value());
-    appController->changeMasterControl(control);
 }

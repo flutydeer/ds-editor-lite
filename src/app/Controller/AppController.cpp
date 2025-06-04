@@ -131,7 +131,7 @@ void AppController::onSetQuantize(int quantize) {
     appStatus->quantize = quantize;
 }
 
-void AppController::changeMasterControl(const TrackControl &control) {
+void AppController::editMasterControl(const TrackControl &control) {
     auto actions = new MasterControlActions;
     actions->editMasterControl(control, appModel);
     actions->execute();

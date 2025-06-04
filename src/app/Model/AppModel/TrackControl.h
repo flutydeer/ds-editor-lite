@@ -7,7 +7,7 @@
 
 #include "Interface/ISerializable.h"
 
-class TrackControl : public ISerializable{
+class TrackControl : public ISerializable {
 public:
     [[nodiscard]] double gain() const;
     void setGain(double gain);
