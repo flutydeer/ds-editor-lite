@@ -104,7 +104,7 @@ MainWindow::MainWindow() {
 
     auto mixConsoleView = new MixConsoleView(this);
     mixConsoleView->setWindowTitle("Mix Console");
-    mixConsoleView->setWindowFlags(Qt::Tool);
+    mixConsoleView->setWindowFlags(Qt::Window);
     mixConsoleView->resize(1280, 480);
     mixConsoleView->show();
 
