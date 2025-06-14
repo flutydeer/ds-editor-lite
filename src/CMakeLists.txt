@@ -9,6 +9,7 @@ add_subdirectory(app)
 if (LITE_BUILD_TESTS)
     add_subdirectory(tests)
 endif ()
+add_subdirectory(tools)
 
 # "QT_QMAKE_EXECUTABLE" is usually defined by QtCreator.
 if(NOT DEFINED QT_QMAKE_EXECUTABLE)
