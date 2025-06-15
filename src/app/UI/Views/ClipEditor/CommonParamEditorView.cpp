@@ -400,6 +400,11 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
                 ? 0
                 : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
                   curve.step;
+
+        // TODO: 重新设计计算方法
+        if (startIndex >= curve.values().count())
+            return;
+
         auto x = tickToItemX(start + startIndex * curve.step);
         auto y = valueToItemY(curve.values().at(startIndex));
         auto visibleFirstPoint = QPointF(x, y);
@@ -461,6 +466,11 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
                 ? 0
                 : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
                   curve.step;
+
+        // TODO: 重新设计计算方法
+        if (startIndex >= curve.values().count())
+            return;
+
         auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve.step),
                                          valueToItemY(curve.values().at(startIndex)));
 
