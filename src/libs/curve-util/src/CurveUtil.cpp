@@ -85,37 +85,41 @@ namespace CurveUtil
     }
 
     std::vector<double> SinusoidalSmoothingConv1d::forward(const std::vector<double> &x) const {
-        // Early returns for edge cases
-        if (kernel_size == 1 || x.empty()) {
+        if (kernel_size == 1)
             return x;
-        }
+        if (x.empty())
+            return {};
 
         const int K = kernel_size;
-        const int L = static_cast<int>(x.size());
+        const int L = x.size();
         const int total_pad = K - 1;
         const int left_pad = total_pad / 2;
+        const int right_pad = total_pad - left_pad;
 
-        // Pre-allocate output vector
+        std::vector<double> padded_x;
+        padded_x.reserve(L + total_pad);
+
+        for (int i = 0; i < left_pad; ++i) {
+            padded_x.push_back(x[0]);
+        }
+
+        padded_x.insert(padded_x.end(), x.begin(), x.end());
+
+        for (int i = 0; i < right_pad; ++i) {
+            padded_x.push_back(x.back());
+        }
+
         std::vector<double> output;
         output.reserve(L);
 
-        // Direct computation without full padding
         for (int i = 0; i < L; ++i) {
-            double conv_sum = 0.0f;
-
-            // Compute valid convolution range
-            const int start = std::max(0, left_pad - i);
-            const int end = std::min(K, L + left_pad - i);
-
-            for (int j = start; j < end; ++j) {
-                // Calculate index with boundary handling
-                const int idx = i + j - left_pad;
-                // Apply boundary conditions
-                const double value = idx < 0 ? x.front() : idx >= L ? x.back() : x[idx];
-                conv_sum += value * kernel[j];
+            double conv_sum = 0.0;
+            for (int j = 0; j < K; ++j) {
+                conv_sum += padded_x[i + j] * kernel[j];
             }
             output.push_back(conv_sum);
         }
+
         return output;
     }
 
