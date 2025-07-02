@@ -70,8 +70,8 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
         int currentIndex = m_cbDeviceList->count();
         auto displayText =
             QStringLiteral("%1 (%2 GiB)")
-                .arg(device.description)
-                .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
+            .arg(device.description)
+            .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
         m_cbDeviceList->insertItem(currentIndex, displayText);
         m_cbDeviceList->setItemData(currentIndex, QVariant::fromValue<GpuInfo>(device),
                                     GpuInfoRole);
@@ -131,7 +131,8 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
         m_dsDepthSlider->setValue(value);
         appOptions->inference()->depth = value;
     });
-    connect(m_dsDepthSpinBox, &SVS::ExpressionDoubleSpinBox::editingFinished, this, &InferencePage::modifyOption);
+    connect(m_dsDepthSpinBox, &SVS::ExpressionDoubleSpinBox::editingFinished, this,
+            &InferencePage::modifyOption);
 
     // Render - Run vocoder on CPU
     auto modifyAndRestart = [&] {
@@ -148,11 +149,46 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     m_autoStartInfer = new SwitchButton(appOptions->inference()->autoStartInfer);
     connect(m_autoStartInfer, &SwitchButton::toggled, this, &InferencePage::modifyOption);
 
+    // Render - pitch smooth kernel size
+    constexpr int pitchSmoothKernelSizeMin = 0;
+    constexpr double pitchSmoothKernelSizeMax = 30;
+    constexpr double pitchSmoothKernelSizeStep = 1;
+
+    const auto currentSmoothKernelSize = option->pitch_smooth_kernel_size;
+    m_smoothSlider = new SVS::SeekBar();
+    m_smoothSlider->setFixedWidth(256);
+    m_smoothSlider->setRange(pitchSmoothKernelSizeMin, pitchSmoothKernelSizeMax);
+    m_smoothSlider->setSingleStep(pitchSmoothKernelSizeStep);
+    m_smoothSlider->setValue(currentSmoothKernelSize);
+
+    m_smoothSpinBox = new SVS::ExpressionSpinBox();
+    m_smoothSpinBox->setRange(pitchSmoothKernelSizeMin, pitchSmoothKernelSizeMax);
+    m_smoothSpinBox->setSingleStep(pitchSmoothKernelSizeStep);
+    m_smoothSpinBox->setValue(currentSmoothKernelSize);
+
+    connect(m_smoothSlider, &SVS::SeekBar::valueChanged, this, [&](int value) {
+        m_smoothSpinBox->setValue(value);
+        appOptions->inference()->pitch_smooth_kernel_size = value;
+    });
+    connect(m_smoothSlider, &SVS::SeekBar::sliderReleased, this, &InferencePage::modifyOption);
+    connect(m_smoothSlider, &SVS::SeekBar::releaseKeyboard, this, &InferencePage::modifyOption);
+
+    connect(m_smoothSpinBox, &SVS::ExpressionSpinBox::valueChanged, this, [&](int value) {
+        m_smoothSlider->setValue(value);
+        appOptions->inference()->pitch_smooth_kernel_size = value;
+    });
+    connect(m_smoothSpinBox, &SVS::ExpressionSpinBox::editingFinished, this,
+            &InferencePage::modifyOption);
+
     auto renderCard = new OptionListCard(tr("Render"));
     renderCard->addItem(tr("Sampling Steps"), m_cbSamplingSteps);
     renderCard->addItem(tr("Depth"), {m_dsDepthSlider, m_dsDepthSpinBox});
-    renderCard->addItem(tr("Run Vocoder on CPU"), tr("For compatibility with legacy vocoders"), m_swRunVocoderOnCpu);
+    renderCard->addItem(tr("Run Vocoder on CPU"), tr("For compatibility with legacy vocoders"),
+                        m_swRunVocoderOnCpu);
     renderCard->addItem(tr("Auto Start Infer"), m_autoStartInfer);
+    renderCard->addItem(tr("Pitch Smooth Kernel Size"),
+                        tr("Smooth the pitch curve with a sinusoidal kernel"),
+                        {m_smoothSlider, m_smoothSpinBox});
 
     // Main Layout
     auto mainLayout = new QVBoxLayout();

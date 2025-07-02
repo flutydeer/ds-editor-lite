@@ -11,7 +11,7 @@
 void InferenceOption::load(const QJsonObject &object) {
     if (object.contains(cacheDirectoryKey))
         cacheDirectory = object[cacheDirectoryKey].toString();
-    QDir configDir(cacheDirectory);
+    const QDir configDir(cacheDirectory);
     if (!configDir.exists()) {
         if (configDir.mkpath("."))
             qDebug() << "Successfully created cache directory";
@@ -34,6 +34,8 @@ void InferenceOption::load(const QJsonObject &object) {
         runVocoderOnCpu = object[runVocoderOnCpuKey].toBool();
     if (object.contains(autoStartInferKey))
         autoStartInfer = object[autoStartInferKey].toBool();
+    if (object.contains(pitch_smooth_kernel_sizeKey))
+        pitch_smooth_kernel_size = object[pitch_smooth_kernel_sizeKey].toInt();
 }
 
 void InferenceOption::save(QJsonObject &object) {
@@ -44,5 +46,7 @@ void InferenceOption::save(QJsonObject &object) {
               serialize_depth(),
               serialize_runVocoderOnCpu(),
               serialize_autoStartInfer(),
-              serialize_cacheDirectory()};
+              serialize_cacheDirectory(),
+              serialize_pitch_smooth_kernel_size()
+    };
 }

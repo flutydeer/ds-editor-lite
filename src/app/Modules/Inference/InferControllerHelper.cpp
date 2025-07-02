@@ -18,6 +18,8 @@
 
 #include <QDebug>
 
+#include "Model/AppOptions/AppOptions.h"
+
 namespace InferControllerHelper {
     QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes) {
         QList<InferInputNote> list;
@@ -35,7 +37,7 @@ namespace InferControllerHelper {
     }
 
     InferVarianceTask::InferVarianceInput buildInferVarianceInput(const InferPiece &piece,
-                                                                  const QString &configPath) {
+        const QString &configPath) {
         const auto notes = buildInferInputNotes(piece.notes);
         InferParamCurve pitch;
         for (const auto &value : piece.inputPitch.values())
@@ -80,9 +82,9 @@ namespace InferControllerHelper {
         InferParamCurve toneShift = {
             Linq::selectMany(piece.inputToneShift.values(), L_PRED(p, p * 1.0))};
 
-        return {piece.clipId(), piece.id(),  notes,    configPath, appModel->tempo(),
-                pitch,          breathiness, tension,  voicing,    energy,
-                mouthOpening,   gender,         velocity,    toneShift};
+        return {piece.clipId(), piece.id(), notes, configPath, appModel->tempo(),
+                pitch, breathiness, tension, voicing, energy,
+                mouthOpening, gender, velocity, toneShift};
     }
 
     QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(ParamInfo::Name name, SingingClip &clip) {
@@ -117,7 +119,7 @@ namespace InferControllerHelper {
                              SingingClip &clip) {
         if (notes.count() != args.count()) {
             qFatal() << "updateNotesPronunciation() note count != args count:" << notes.count()
-                     << args.count();
+                << args.count();
             return;
         }
         int i = 0;
@@ -132,7 +134,7 @@ namespace InferControllerHelper {
                          SingingClip &clip) {
         if (notes.count() != args.count()) {
             qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
-                     << args.count();
+                << args.count();
             return;
         }
         int i = 0;
@@ -148,7 +150,7 @@ namespace InferControllerHelper {
                            SingingClip &clip) {
         if (notes.count() != args.count()) {
             qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
-                     << args.count();
+                << args.count();
             return;
         }
         int i = 0;
@@ -164,10 +166,20 @@ namespace InferControllerHelper {
                      InferPiece &piece, int scale) {
         const auto &[alignTick, alignValues] = CurveUtil::alignCurve(
             piece.localStartTick(), 5, {taskResult.values.begin(), taskResult.values.end()}, 5);
+
+        const auto smooth_kernel_size = appOptions->inference()->pitch_smooth_kernel_size;
+        std::vector<double> paramValue;
+        if (name == ParamInfo::Pitch && smooth_kernel_size > 0) {
+            const auto smoother = std::make_unique<CurveUtil::SinusoidalSmoothingConv1d>(
+                smooth_kernel_size);
+            paramValue = smoother->forward(alignValues);
+        } else
+            paramValue = alignValues;
+
         // 将推理结果保存到分段内部
         DrawCurve original;
         original.setLocalStart(alignTick);
-        original.setValues(Linq::selectMany(alignValues, L_PRED(v, static_cast<int>(v * scale))));
+        original.setValues(Linq::selectMany(paramValue, L_PRED(v, static_cast<int>(v * scale))));
         piece.setOriginalCurve(name, original);
         // 合并手绘参数
         const auto param = piece.clip->params.getParamByName(name);

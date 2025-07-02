@@ -2,6 +2,7 @@
 #define INFERENCEPAGE_H
 
 #include "IOptionPage.h"
+#include "UI/Controls/SvsExpressionspinbox.h"
 
 class LineEdit;
 class ComboBox;
@@ -14,6 +15,7 @@ namespace SVS {
 
 class InferencePage : public IOptionPage {
     Q_OBJECT
+
 public:
     explicit InferencePage(QWidget *parent = nullptr);
     // ~InferencePage() override;
@@ -29,8 +31,9 @@ private:
     SVS::ExpressionDoubleSpinBox *m_dsDepthSpinBox;
     SwitchButton *m_swRunVocoderOnCpu;
     SwitchButton *m_autoStartInfer;
+    SVS::SeekBar *m_smoothSlider;
+    SVS::ExpressionSpinBox *m_smoothSpinBox;
 };
-
 
 
 #endif // INFERENCEPAGE_H
