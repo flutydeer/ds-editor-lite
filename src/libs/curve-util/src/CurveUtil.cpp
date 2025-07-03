@@ -1,5 +1,7 @@
 #include <curve-util/CurveUtil.h>
 
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <vector>
 
