@@ -5,11 +5,8 @@
 #include "Modules/Inference/Utils/CudaGpuUtils.h"
 #include "UI/Controls/CardView.h"
 #include "UI/Controls/ComboBox.h"
-#include "UI/Controls/DividerLine.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/OptionListCard.h"
-#include "UI/Controls/OptionsCard.h"
-#include "UI/Controls/OptionsCardItem.h"
 #include "UI/Controls/SvsExpressiondoublespinbox.h"
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/SwitchButton.h"
@@ -23,7 +20,7 @@ enum CustomRole {
 };
 
 InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
-    auto option = appOptions->inference();
+    const auto option = appOptions->inference();
     // Device - Execution Provider
     constexpr int epIndexCpu = 0;
     constexpr int epIndexDirectML = 1;
@@ -42,9 +39,9 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
             &InferencePage::modifyOption);
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this, [=] {
         // modifyOption();
-        auto message = tr(
+        const auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");
-        auto dlg = new RestartDialog(message, true, this);
+        const auto dlg = new RestartDialog(message, true, this);
         dlg->show();
     });
 
@@ -53,11 +50,11 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     auto deviceList = [&]() -> QList<GpuInfo> {
         if (option->executionProvider == "DirectML") {
             return DmlGpuUtils::getGpuList();
-        } else if (option->executionProvider == "CUDA") {
-            return CudaGpuUtils::getGpuList();
-        } else {
-            return {};
         }
+        if (option->executionProvider == "CUDA") {
+            return CudaGpuUtils::getGpuList();
+        }
+        return {};
     }();
 
     m_cbDeviceList->insertItem(0, tr("Default"));
@@ -67,7 +64,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     bool hasChosenDevice = false;
 
     for (const auto &device : std::as_const(deviceList)) {
-        int currentIndex = m_cbDeviceList->count();
+        const int currentIndex = m_cbDeviceList->count();
         auto displayText =
             QStringLiteral("%1 (%2 GiB)")
             .arg(device.description)
@@ -89,7 +86,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     connect(m_cbDeviceList, &ComboBox::currentIndexChanged, this, &InferencePage::modifyOption);
 
     // Device
-    auto deviceCard = new OptionListCard(tr("Device"));
+    const auto deviceCard = new OptionListCard(tr("Device"));
     deviceCard->addItem(tr("Execution Provider"), tr("App needs a restart to take effect"),
                         m_cbExecutionProvider);
     deviceCard->addItem(tr("GPU"), m_cbDeviceList);
@@ -109,29 +106,14 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     constexpr double kDsDepthMax = 1.0;
     constexpr double kDsDepthSingleStep = 0.01;
 
-    auto currentDsDepth = option->depth;
-    m_dsDepthSlider = new SVS::SeekBar();
-    m_dsDepthSlider->setFixedWidth(256);
-    m_dsDepthSlider->setRange(kDsDepthMin, kDsDepthMax);
-    m_dsDepthSlider->setSingleStep(kDsDepthSingleStep);
-    m_dsDepthSlider->setValue(currentDsDepth);
-    m_dsDepthSpinBox = new SVS::ExpressionDoubleSpinBox();
-    m_dsDepthSpinBox->setRange(kDsDepthMin, kDsDepthMax);
-    m_dsDepthSpinBox->setSingleStep(kDsDepthSingleStep);
-    m_dsDepthSpinBox->setValue(currentDsDepth);
-
-    connect(m_dsDepthSlider, &SVS::SeekBar::valueChanged, this, [&](double value) {
-        m_dsDepthSpinBox->setValue(value);
-        appOptions->inference()->depth = value;
-    });
-    connect(m_dsDepthSlider, &SVS::SeekBar::sliderReleased, this, &InferencePage::modifyOption);
-    connect(m_dsDepthSlider, &SVS::SeekBar::releaseKeyboard, this, &InferencePage::modifyOption);
-
-    connect(m_dsDepthSpinBox, &SVS::ExpressionDoubleSpinBox::valueChanged, this, [&](double value) {
-        m_dsDepthSlider->setValue(value);
-        appOptions->inference()->depth = value;
-    });
-    connect(m_dsDepthSpinBox, &SVS::ExpressionDoubleSpinBox::editingFinished, this,
+    m_dsDepthSlider = new DoubleSeekBarSpinboxGroup(kDsDepthMin, kDsDepthMax, kDsDepthSingleStep,
+                                                    option->depth);
+    m_dsDepthSlider->seekbar->setFixedWidth(256);
+    connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::valueChanged, this,
+            [&](const double value) {
+                appOptions->inference()->depth = value;
+            });
+    connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::editFinished, this,
             &InferencePage::modifyOption);
 
     // Render - Run vocoder on CPU
@@ -150,48 +132,27 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     connect(m_autoStartInfer, &SwitchButton::toggled, this, &InferencePage::modifyOption);
 
     // Render - pitch smooth kernel size
-    constexpr int pitchSmoothKernelSizeMin = 0;
-    constexpr double pitchSmoothKernelSizeMax = 30;
-    constexpr double pitchSmoothKernelSizeStep = 1;
+    m_smoothSlider = new SeekBarSpinboxGroup(0, 50, 1, option->pitch_smooth_kernel_size);
+    m_smoothSlider->seekbar->setFixedWidth(256);
 
-    const auto currentSmoothKernelSize = option->pitch_smooth_kernel_size;
-    m_smoothSlider = new SVS::SeekBar();
-    m_smoothSlider->setFixedWidth(256);
-    m_smoothSlider->setRange(pitchSmoothKernelSizeMin, pitchSmoothKernelSizeMax);
-    m_smoothSlider->setSingleStep(pitchSmoothKernelSizeStep);
-    m_smoothSlider->setValue(currentSmoothKernelSize);
-
-    m_smoothSpinBox = new SVS::ExpressionSpinBox();
-    m_smoothSpinBox->setRange(pitchSmoothKernelSizeMin, pitchSmoothKernelSizeMax);
-    m_smoothSpinBox->setSingleStep(pitchSmoothKernelSizeStep);
-    m_smoothSpinBox->setValue(currentSmoothKernelSize);
-
-    connect(m_smoothSlider, &SVS::SeekBar::valueChanged, this, [&](int value) {
-        m_smoothSpinBox->setValue(value);
+    connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this, [&](const double value) {
         appOptions->inference()->pitch_smooth_kernel_size = value;
     });
-    connect(m_smoothSlider, &SVS::SeekBar::sliderReleased, this, &InferencePage::modifyOption);
-    connect(m_smoothSlider, &SVS::SeekBar::releaseKeyboard, this, &InferencePage::modifyOption);
+    connect(m_smoothSlider, &SeekBarSpinboxGroup::editFinished, this, &InferencePage::modifyOption);
 
-    connect(m_smoothSpinBox, &SVS::ExpressionSpinBox::valueChanged, this, [&](int value) {
-        m_smoothSlider->setValue(value);
-        appOptions->inference()->pitch_smooth_kernel_size = value;
-    });
-    connect(m_smoothSpinBox, &SVS::ExpressionSpinBox::editingFinished, this,
-            &InferencePage::modifyOption);
 
-    auto renderCard = new OptionListCard(tr("Render"));
+    const auto renderCard = new OptionListCard(tr("Render"));
     renderCard->addItem(tr("Sampling Steps"), m_cbSamplingSteps);
-    renderCard->addItem(tr("Depth"), {m_dsDepthSlider, m_dsDepthSpinBox});
+    renderCard->addItem(tr("Depth"), {m_dsDepthSlider->seekbar, m_dsDepthSlider->spinbox});
     renderCard->addItem(tr("Run Vocoder on CPU"), tr("For compatibility with legacy vocoders"),
                         m_swRunVocoderOnCpu);
     renderCard->addItem(tr("Auto Start Infer"), m_autoStartInfer);
     renderCard->addItem(tr("Pitch Smooth Kernel Size"),
                         tr("Smooth the pitch curve with a sinusoidal kernel"),
-                        {m_smoothSlider, m_smoothSpinBox});
+                        {m_smoothSlider->seekbar, m_smoothSlider->spinbox});
 
     // Main Layout
-    auto mainLayout = new QVBoxLayout();
+    const auto mainLayout = new QVBoxLayout();
     mainLayout->addWidget(deviceCard);
     mainLayout->addWidget(renderCard);
     mainLayout->addStretch();
@@ -204,7 +165,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
 // }
 
 void InferencePage::modifyOption() {
-    auto option = appOptions->inference();
+    const auto option = appOptions->inference();
 
     option->executionProvider = m_cbExecutionProvider->currentText();
     if (m_cbDeviceList->currentData(IsDefaultGpuRole).toBool() == true) {
