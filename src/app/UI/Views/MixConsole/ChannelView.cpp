@@ -10,6 +10,7 @@
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/Button.h"
+#include "UI/Controls/PanSlider.h"
 
 #include <QVBoxLayout>
 #include <QLabel>
@@ -200,8 +201,13 @@ QVBoxLayout *ChannelView::buildChannelContentLayout() {
     m_lbTitle->setObjectName("lbTitle");
     m_lbTitle->setAlignment(Qt::AlignCenter);
 
+    m_panSlider = new PanSlider;
+    m_panSlider->setObjectName("panSlider");
+    m_panSlider->setValue(1);
+
     auto channelContentLayout = new QVBoxLayout;
     // TODO: pan
+    // channelContentLayout->addWidget(m_panSlider);
     channelContentLayout->addLayout(buildFaderLevelMeterLayout());
     channelContentLayout->addWidget(m_muteSoloStack);
     channelContentLayout->addWidget(m_lbTitle);

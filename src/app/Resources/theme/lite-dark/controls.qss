@@ -811,6 +811,12 @@ ChannelView>LevelMeter {
     min-width: 32px
 }
 
+ChannelView>PanSlider {
+    background: #21242B;
+    border-radius: 4px;
+    min-height: 24px
+}
+
 ChannelView>QLabel#lbPeakLevel {
     min-width: 36px;
     color: #8CD7D8DB

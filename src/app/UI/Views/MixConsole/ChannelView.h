@@ -9,6 +9,7 @@
 
 #include <QWidget>
 
+class PanSlider;
 class Track;
 class TrackControl;
 class Button;
@@ -66,6 +67,8 @@ private:
     Track *m_context = nullptr;
     bool m_isMasterChannel = false;
     bool m_notifyBarrier = false;
+
+    PanSlider *m_panSlider = nullptr;
 
     Fader *m_fader = nullptr;
     EditLabel *m_elGain = nullptr;
