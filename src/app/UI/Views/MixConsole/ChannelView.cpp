@@ -20,7 +20,7 @@ ChannelView::ChannelView(QWidget *parent) : QWidget(parent) {
 }
 
 ChannelView::ChannelView(Track &track, QWidget *parent): QWidget(parent), ITrack(track.id()),
-                                                          m_context(&track) {
+                                                         m_context(&track) {
     initUi();
     ChannelView::setName(track.name());
     ChannelView::setControl(track.control());
@@ -44,6 +44,7 @@ void ChannelView::setIsMasterChannel(bool on) {
 TrackControl ChannelView::control() const {
     TrackControl control;
     control.setGain(m_fader->value());
+    control.setPan(m_panSlider->value());
     control.setMute(m_btnMute->isChecked());
     control.setSolo(m_btnSolo->isChecked());
     return control;
@@ -58,6 +59,10 @@ QColor ChannelView::color() const {
 }
 
 void ChannelView::setColor(const QColor &color) {
+}
+
+PanSlider * const & ChannelView::panSlider() const {
+    return m_panSlider;
 }
 
 Fader *const &ChannelView::fader() const {
@@ -79,9 +84,25 @@ void ChannelView::setChannelIndex(int index) {
 void ChannelView::setControl(const TrackControl &control) {
     m_notifyBarrier = true;
     m_fader->setValue(control.gain());
+    m_panSlider->setValue(control.pan());
     m_btnMute->setChecked(control.mute());
     m_btnSolo->setChecked(control.solo());
     m_notifyBarrier = false;
+}
+
+void ChannelView::onPanMoved(double pan) {
+    // qDebug() << "ChannelView::onPanMoved" << pan;
+    m_elPan->setText(panValueToString(pan));
+}
+
+void ChannelView::onPanReleased(double pan) {
+    m_elPan->setText(panValueToString(pan));
+    emit controlChanged(control());
+}
+
+void ChannelView::onPanEdited(const QString &text) {
+    m_panSlider->setValue(panValueFromString(text));
+    m_elPan->setText(panValueToString(m_panSlider->value()));
 }
 
 void ChannelView::onFaderMoved(double gain) {
@@ -113,6 +134,11 @@ void ChannelView::initUi() {
     setLayout(mainLayout);
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
 
+    onPanMoved(m_panSlider->value());
+    connect(m_panSlider, &PanSlider::sliderMoved, this, &ChannelView::onPanMoved);
+    connect(m_panSlider, &PanSlider::valueChanged, this, &ChannelView::onPanReleased);
+    connect(m_elPan, &EditLabel::editCompleted, this, &ChannelView::onPanEdited);
+
     onFaderMoved(m_fader->value());
     connect(m_fader, &Fader::sliderMoved, this, &ChannelView::onFaderMoved);
     connect(m_fader, &Fader::valueChanged, this, &ChannelView::onFaderReleased);
@@ -130,16 +156,94 @@ void ChannelView::initUi() {
 }
 
 QString ChannelView::gainValueToString(double gain) {
-    if (gain <= -54)
+    if (gain <= -54.0)
         return "-∞";
-    auto absVal = QString::number(qAbs(gain), 'f', 1);
-    QString sig = "";
-    if (gain > 0) {
-        sig = "+";
-    } else if (gain < 0 && gain <= -0.1) {
-        sig = "-";
+
+    if (qAbs(gain) < 0.05)
+        return "0.0";
+
+    const QString absVal = QString::number(qAbs(gain), 'f', 1);
+    QString sign;
+
+    if (gain > 0.05)
+        sign = "+";
+    else if (gain < -0.05)
+        sign = "-";
+
+    return sign + absVal;
+}
+
+QString ChannelView::panValueToString(double pan) {
+    if (pan <= -0.995) {
+        return "L100";
     }
-    return sig + absVal /* + "dB" */;
+    if (pan >= 0.995) {
+        return "R100";
+    }
+    if (qAbs(pan) < 0.005) {
+        return "C";
+    }
+    if (pan < 0) {
+        return "L" + QString::number(qRound(-pan * 100));
+    }
+    return "R" + QString::number(qRound(pan * 100));
+}
+
+double ChannelView::panValueFromString(const QString &panStr) {
+    if (panStr.isEmpty()) {
+        return 0.0; // 默认居中
+    }
+
+    // 处理字母格式：Lxx / Rxx / C
+    if (panStr.startsWith('L', Qt::CaseInsensitive)) {
+        const QString numStr = panStr.mid(1).trimmed();
+        bool ok = false;
+        const double value = numStr.toDouble(&ok);
+        if (ok && value >= 0.0 && value <= 100.0) {
+            return -value / 100.0; // L50 → -0.5
+        }
+    } else if (panStr.startsWith('R', Qt::CaseInsensitive)) {
+        const QString numStr = panStr.mid(1).trimmed();
+        bool ok = false;
+        const double value = numStr.toDouble(&ok);
+        if (ok && value >= 0.0 && value <= 100.0) {
+            return value / 100.0; // R50 → +0.5
+        }
+    } else if (panStr.compare("C", Qt::CaseInsensitive) == 0) {
+        return 0.0;
+    }
+
+    // 处理数值格式：-xx / 0 / +xx
+    bool ok = false;
+    const double value = panStr.toDouble(&ok);
+    if (ok) {
+        if (value < -100.0) {
+            return -1.0; // 限制最小 -100 → -1.0
+        }
+        if (value > 100.0) {
+            return 1.0; // 限制最大 +100 → +1.0
+        }
+        return value / 100.0; // -50 → -0.5, +30 → +0.3
+    }
+
+    return 0.0;
+}
+
+QVBoxLayout *ChannelView::buildPanSliderLayout() {
+    m_panSlider = new PanSlider;
+    m_panSlider->setObjectName("panSlider");
+
+    m_elPan = new EditLabel;
+    m_elPan->setObjectName("elPan");
+    m_elPan->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    m_elPan->label->setAlignment(Qt::AlignCenter);
+
+    auto layout = new QVBoxLayout;
+    layout->addWidget(m_panSlider);
+    layout->addWidget(m_elPan);
+    layout->setContentsMargins({});
+    layout->setSpacing(2);
+    return layout;
 }
 
 QHBoxLayout *ChannelView::buildFaderLevelMeterLayout() {
@@ -201,13 +305,8 @@ QVBoxLayout *ChannelView::buildChannelContentLayout() {
     m_lbTitle->setObjectName("lbTitle");
     m_lbTitle->setAlignment(Qt::AlignCenter);
 
-    m_panSlider = new PanSlider;
-    m_panSlider->setObjectName("panSlider");
-    m_panSlider->setValue(1);
-
     auto channelContentLayout = new QVBoxLayout;
-    // TODO: pan
-    // channelContentLayout->addWidget(m_panSlider);
+    channelContentLayout->addLayout(buildPanSliderLayout());
     channelContentLayout->addLayout(buildFaderLevelMeterLayout());
     channelContentLayout->addWidget(m_muteSoloStack);
     channelContentLayout->addWidget(m_lbTitle);

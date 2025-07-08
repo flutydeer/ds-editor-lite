@@ -32,7 +32,7 @@ public:
     void setAnimationDuration(int dur);
 
 public Q_SLOTS:
-    void setValue(double dB);
+    void setValue(double pan);
     void resetValue();
 
 Q_SIGNALS:

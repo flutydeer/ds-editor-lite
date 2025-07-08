@@ -10,6 +10,7 @@
 #include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/Fader.h"
 #include "UI/Controls/LevelMeter.h"
+#include "UI/Controls/PanSlider.h"
 #include "UI/Views/MixConsole/ChannelView.h"
 
 #include <QHBoxLayout>
@@ -45,7 +46,10 @@ MixConsoleView::MixConsoleView(QWidget *parent) : QWidget(parent) {
     connect(m_masterChannel->fader(), &Fader::sliderMoved, this, [=](double gain) {
         audioContext->handleMasterGainSliderMoved(gain);
     });
-    connect(m_masterChannel,&ChannelView::controlChanged,this, [&](const TrackControl &control) {
+    connect(m_masterChannel->panSlider(), &PanSlider::sliderMoved, this, [=](double pan) {
+        audioContext->handleMasterPanSliderMoved(pan);
+    });
+    connect(m_masterChannel, &ChannelView::controlChanged, this, [&](const TrackControl &control) {
         appController->editMasterControl(control);
     });
 }
@@ -98,7 +102,10 @@ void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
     auto channelView = new ChannelView(*dsTrack);
     channelView->setChannelIndex(trackIndex + 1);
     connect(channelView->fader(), &Fader::sliderMoved, this, [=](double gain) {
-        audioContext->audioContext->handleGainSliderMoved(&channelView->context(), gain);
+        audioContext->handleGainSliderMoved(&channelView->context(), gain);
+    });
+    connect(channelView->panSlider(), &PanSlider::sliderMoved, this, [=](double pan) {
+        audioContext->handlePanSliderMoved(&channelView->context(), pan);
     });
     connect(channelView, &ChannelView::controlChanged, this, [=](const TrackControl &control) {
         const Track::TrackProperties args(*channelView);
@@ -138,6 +145,7 @@ void MixConsoleView::onTrackPropertyChanged() const {
     for (int i = 0; i < m_channelListView->count(); i++) {
         auto item = m_channelListView->item(i);
         auto channelView = qobject_cast<ChannelView *>(m_channelListView->itemWidget(item));
+        const QSignalBlocker blocker(channelView);
         auto track = tracksModel.at(i);
         channelView->setName(track->name());
         channelView->setControl(track->control());

@@ -70,7 +70,7 @@ private:
     void notifyDisplayedPeakChange();
     double getPeakValueForTextDisplaying() const;
 
-    QString gainValueToString(double gain); // TODO: refactor
+    static QString gainValueToString(double gain);
 
     // Properties getters and setters
     double padding() const;

@@ -40,6 +40,7 @@ public:
     [[nodiscard]] QColor color() const override;
     void setColor(const QColor &color) override;
 
+    [[nodiscard]] PanSlider *const &panSlider() const;
     [[nodiscard]] Fader *const &fader() const;
     [[nodiscard]] LevelMeter *const &levelMeter() const;
 
@@ -52,6 +53,10 @@ signals:
     void controlChanged(const TrackControl &control);
 
 private:
+    void onPanMoved(double pan);
+    void onPanReleased(double pan);
+    void onPanEdited(const QString &text);
+
     void onFaderMoved(double gain);
     void onFaderReleased(double gain);
     void onGainEdited(const QString &text);
@@ -59,6 +64,9 @@ private:
 
     void initUi();
     static QString gainValueToString(double gain);
+    static QString panValueToString(double pan);
+    double panValueFromString(const QString &panStr);
+    QVBoxLayout *buildPanSliderLayout();
     QHBoxLayout *buildFaderLevelMeterLayout();
     QVBoxLayout *buildChannelContentLayout();
     QStackedWidget *buildMuteSoloStack();
@@ -69,6 +77,7 @@ private:
     bool m_notifyBarrier = false;
 
     PanSlider *m_panSlider = nullptr;
+    EditLabel *m_elPan = nullptr;
 
     Fader *m_fader = nullptr;
     EditLabel *m_elGain = nullptr;

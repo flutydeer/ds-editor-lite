@@ -95,7 +95,7 @@ void TrackController::setActiveClip(int clipId) {
 }
 
 void TrackController::changeTrackProperty(const Track::TrackProperties &args) {
-    qDebug() << "TrackController::changeTrackProperty" << args.gain;
+    qDebug() << "TrackController::changeTrackProperty" << args.gain << args.pan;
     auto track = appModel->findTrackById(args.id);
     auto a = new TrackActions;
     const Track::TrackProperties oldArgs(*track);

@@ -47,7 +47,7 @@ public:
 
     double boundAndRound(double value) const;
     void setSliderPosition(double value);
-    void setDecibelValue(double value);
+    void setPanValue(double value);
 
     double panToX(double pan) const;
     double xToPan(double x) const;
@@ -76,7 +76,7 @@ void PanSliderPrivate::setSliderPosition(double value_) {
     }
 }
 
-void PanSliderPrivate::setDecibelValue(double value_) {
+void PanSliderPrivate::setPanValue(double value_) {
     Q_Q(PanSlider);
     value_ = boundAndRound(value_);
     if (!qFuzzyCompare(value_, panSliderValue)) {
@@ -150,14 +150,14 @@ double PanSlider::value() const {
     return d->panSliderValue;
 }
 
-void PanSlider::setValue(double dB) {
+void PanSlider::setValue(double pan) {
     Q_D(PanSlider);
-    d->setDecibelValue(dB);
+    d->setPanValue(pan);
 }
 
 void PanSlider::resetValue() {
     Q_D(PanSlider);
-    d->setDecibelValue(d->panDefaultValue);
+    d->setPanValue(d->panDefaultValue);
 }
 
 void PanSlider::paintEvent(QPaintEvent *event) {
@@ -269,7 +269,7 @@ void PanSlider::mouseReleaseEvent(QMouseEvent *event) {
     d->canMoveThumb = true;
     auto currentPos = event->pos();
     if (currentPos != d->mouseDownPos)
-        d->setDecibelValue(d->panSliderValue);
+        d->setPanValue(d->panSliderValue);
 
     QWidget::mouseReleaseEvent(event);
 }

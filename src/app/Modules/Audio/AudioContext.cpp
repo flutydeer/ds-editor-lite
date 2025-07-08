@@ -232,12 +232,16 @@ talcs::DspxAudioClipContext *
 
 void AudioContext::handlePanSliderMoved(Track *track, double pan) const {
     auto trackContext = getContextFromTrack(track);
-    trackContext->controlMixer()->setPan(static_cast<float>(.01 * pan));
+    trackContext->controlMixer()->setPan(pan);
 }
 
 void AudioContext::handleGainSliderMoved(Track *track, double gain) const {
     auto trackContext = getContextFromTrack(track);
     trackContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(gain));
+}
+
+void AudioContext::handleMasterPanSliderMoved(double pan) const {
+    masterControlMixer()->setPan(pan);
 }
 
 void AudioContext::handleMasterGainSliderMoved(double gain) const {
@@ -373,7 +377,7 @@ void AudioContext::handleMasterControlChanged(const TrackControl &control) {
 void AudioContext::handleTrackControlChanged(Track *track) {
     auto trackContext = getContextFromTrack(track);
     trackContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(track->control().gain()));
-    trackContext->controlMixer()->setPan(static_cast<float>(.01 * track->control().pan()));
+    trackContext->controlMixer()->setPan(track->control().pan());
     trackContext->controlMixer()->setSilentFlags(track->control().mute() ? -1 : 0);
     masterTrackMixer()->setSourceSolo(trackContext->controlMixer(), track->control().solo());
 }

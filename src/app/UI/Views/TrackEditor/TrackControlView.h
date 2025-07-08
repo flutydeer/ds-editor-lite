@@ -55,16 +55,12 @@ signals:
     // void modeDownTrack();
     // void addAudioClipTriggered();
 
-private slots:
-    void onPanMoved(double value);
-    void onGainMoved(double value);
-    void onSliderReleased();
-
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void changeTrackProperty();
     bool m_notifyBarrier = false;
     Track *m_track = nullptr;
+    TrackControl m_control;
     QListWidgetItem *m_item;
     // controls
     QLabel *lbTrackIndex;
@@ -73,10 +69,6 @@ private:
     EditLabel *leTrackName;
     ComboBox *cbSinger;
     LanguageComboBox *cbLanguage;
-    SVS::SeekBar *sbPan;
-    EditLabel *lePan;
-    SVS::SeekBar *sbGain;
-    EditLabel *leGain;
     QSpacerItem *panVolumeSpacer;
     LevelMeter *m_levelMeter;
     QHBoxLayout *mainLayout;

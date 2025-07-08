@@ -47,6 +47,7 @@ public:
 
     void handlePanSliderMoved(Track *track, double pan) const;
     void handleGainSliderMoved(Track *track, double gain) const;
+    void handleMasterPanSliderMoved(double pan) const;
     void handleMasterGainSliderMoved(double gain) const;
 
     void handleInferPieceFailed() const;

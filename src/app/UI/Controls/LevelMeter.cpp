@@ -370,16 +370,21 @@ double LevelMeter::getPeakValueForTextDisplaying() const {
 }
 
 QString LevelMeter::gainValueToString(double gain) {
-    if (gain == -70)
-        return "-inf";
-    auto absVal = QString::number(qAbs(gain), 'f', 1);
-    QString sig = "";
-    if (gain > 0) {
-        sig = "+";
-    } else if (gain < 0 && gain <= -0.1) {
-        sig = "-";
-    }
-    return sig + absVal /* + "dB" */;
+    if (gain <= -54.0)
+        return "-∞";
+
+    if (qAbs(gain) < 0.05)
+        return "0.0";
+
+    const QString absVal = QString::number(qAbs(gain), 'f', 1);
+    QString sign;
+
+    if (gain > 0.05)
+        sign = "+";
+    else if (gain < -0.05)
+        sign = "-";
+
+    return sign + absVal;
 }
 
 double LevelMeter::padding() const {
