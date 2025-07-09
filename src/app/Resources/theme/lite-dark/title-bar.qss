@@ -29,12 +29,12 @@ Button#MaximizeButton {
 
 Button#MinimizeButton:hover,
 Button#MaximizeButton:hover {
-    background: #10FFFFFF;
+    background: #0FC7D8FF;
 }
 
 Button#MinimizeButton:pressed,
 Button#MaximizeButton:pressed {
-    background: #05FFFFFF;
+    background: #0FC7D8FF;
 }
 
 /* TitleControlGroup */
@@ -44,7 +44,7 @@ TitleControlGroup>QPushButton {
     height: 28px;
     padding: 0px;
     border: none;
-    background: #10FFFFFF;
+    background: #0FC7D8FF;
     border-radius: 1px;
 }
 
@@ -54,11 +54,11 @@ TitleControlGroup>QPushButton#btnStop {
 }
 
 TitleControlGroup>QPushButton:hover {
-    background: #1AFFFFFF
+    background: #12C7D8FF
 }
 
 TitleControlGroup>QPushButton:pressed {
-    background: #10FFFFFF
+    background: #0CFFFFFF
 }
 
 TitleControlGroup>QPushButton#btnPlay:checked {
@@ -73,9 +73,9 @@ TitleControlGroup>QPushButton#btnPause:checked {
 
 TitleControlGroup>EditLabel {
     height: 28px;
-    padding: 0px 8px;
+    padding: 0px 12px;
     border: none;
-    background: #10FFFFFF;
+    background: #0FC7D8FF;
     border-radius: 1px;
 }
 
@@ -112,11 +112,11 @@ PlaybackView>QLabel {
 }
 
 PlaybackView>QLabel:hover {
-    background: #1AFFFFFF;
+    background: #12C7D8FF;
 }
 
 PlaybackView>QLabel:pressed {
-    background: #10FFFFFF;
+    background: #0FC7D8FF;
 }
 
 PlaybackView>QLineEdit {
@@ -131,11 +131,11 @@ PlaybackView>QComboBox {
 }
 
 PlaybackView>QComboBox:hover {
-    background: #1AFFFFFF;
+    background: #12C7D8FF;
 }
 
 PlaybackView>QComboBox:pressed {
-    background: #10FFFFFF;
+    background: #0FC7D8FF;
 }
 
 
@@ -148,11 +148,11 @@ ActionButtonsView>QPushButton {
 }
 
 ActionButtonsView>QPushButton:hover {
-    background: #1AFFFFFF;
+    background: #12C7D8FF;
 }
 
 ActionButtonsView>QPushButton:pressed {
-    background: #10FFFFFF;
+    background: #0FC7D8FF;
 }
 
 ActionButtonsView>QPushButton:disabled {
