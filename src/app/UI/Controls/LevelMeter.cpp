@@ -295,6 +295,9 @@ void LevelMeter::drawGradientBar(QPainter &painter, const QRectF &rect, const do
 }
 
 void LevelMeter::drawPeakHold(QPainter &painter, const QRectF &rect, double level) {
+    if (level < 0.01)
+        return;
+
     QPen pen;
     pen.setColor(m_colorPeakHold);
     pen.setWidthF(m_peakHoldWidth);
