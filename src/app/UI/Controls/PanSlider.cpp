@@ -218,8 +218,10 @@ void PanSlider::paintEvent(QPaintEvent *event) {
 
 void PanSlider::mouseMoveEvent(QMouseEvent *event) {
     Q_D(PanSlider);
-    if (d->mouseMoveBarrier || !d->canMoveThumb)
+    if (d->mouseMoveBarrier || !d->canMoveThumb) {
+        d->mouseMoveBarrier = false;
         return;
+    }
 
     auto pos = event->pos();
     d->setSliderPosition(d->xToPan(pos.x()));
@@ -243,11 +245,10 @@ void PanSlider::mousePressEvent(QMouseEvent *event) {
     d->mouseDownPos = pos;
 
     // Move cursor to the center of thumb
-    d->mouseMoveBarrier = true;
+    d->mouseMoveBarrier = true; // 防止 QCursor::setPos 导致意外移动
     auto x = d->panToX(d->panValue);
     auto y = rect().height() / 2.0;
     QCursor::setPos(mapToGlobal(QPointF{x, y}).toPoint());
-    d->mouseMoveBarrier = false;
     d->isSliderDown = true;
     d->canMoveThumb = true;
 

@@ -272,8 +272,10 @@ void Fader::resizeEvent(QResizeEvent *event) {
 
 void Fader::mouseMoveEvent(QMouseEvent *event) {
     Q_D(Fader);
-    if (d->mouseMoveBarrier || !d->canMoveThumb)
+    if (d->mouseMoveBarrier || !d->canMoveThumb) {
+        d->mouseMoveBarrier = false;
         return;
+    }
 
     auto pos = event->pos();
     auto posValue =
@@ -304,9 +306,8 @@ void Fader::mousePressEvent(QMouseEvent *event) {
     // Move cursor to the center of thumb
     if (d->mouseOnThumb(pos)) {
         auto thumbRect = QRectF(d->thumbPos, d->thumbSize);
-        d->mouseMoveBarrier = true;
+        d->mouseMoveBarrier = true; // 防止 QCursor::setPos 导致意外移动
         QCursor::setPos(mapToGlobal(thumbRect.center().toPoint()));
-        d->mouseMoveBarrier = false;
         d->isSliderDown = true;
         d->canMoveThumb = true;
 
