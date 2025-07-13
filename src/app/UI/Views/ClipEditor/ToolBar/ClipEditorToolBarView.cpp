@@ -30,8 +30,9 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     setObjectName("ClipEditorToolBarView");
     setFocusPolicy(Qt::ClickFocus);
 
+    // TODO: 换回 EditLabel 以保持一致性
     d->m_leClipName = new LineEdit;
-    d->m_leClipName->setObjectName("ClipNameEditLabel");
+    d->m_leClipName->setObjectName("leClipName");
     d->m_leClipName->installEventFilter(new ToolTipFilter(d->m_leClipName, 500));
     d->m_leClipName->setToolTip(tr("Clip Name"));
     d->m_leClipName->setFixedWidth(128);
@@ -42,6 +43,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             &ClipEditorToolBarViewPrivate::onClipNameEdited);
 
     d->m_cbClipLanguage = new LanguageComboBox("unknown", true);
+    d->m_cbClipLanguage->setObjectName("cbClipLanguage");
     d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 500));
     d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
 
@@ -102,6 +104,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     // auto btnParamView = d->buildToolButton("btnParamView", tr("Toggle param editor"));
     // btnParamView->setChecked(true);
 
+    // TODO: 移动到 TabPanelTitleBar
     auto btnMaximize = d->buildToolButton("btnPanelMaximize", tr("Maximize or restore"));
     connect(btnMaximize, &Button::clicked, this, [=] {
         if (appStatus->trackPanelCollapsed)
@@ -123,12 +126,11 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     // mainLayout->addWidget(leGain);
     // mainLayout->addWidget(new DividerLine(Qt::Vertical));
     mainLayout->addWidget(d->m_cbClipLanguage);
-    mainLayout->addWidget(new DividerLine(Qt::Vertical));
+    mainLayout->addSpacing(16);
     mainLayout->addWidget(d->m_btnArrow);
     mainLayout->addWidget(d->m_btnBeam);
     mainLayout->addWidget(d->m_btnNotePencil);
     mainLayout->addWidget(d->m_btnNoteEraser);
-    mainLayout->addWidget(new DividerLine(Qt::Vertical));
     // mainLayout->addWidget(d->m_btnPitchAnchor);
     mainLayout->addWidget(d->m_btnPitchPencil);
     mainLayout->addWidget(d->m_btnPitchEraser);
@@ -137,12 +139,15 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     // mainLayout->addWidget(btnPhonemeView);
     // mainLayout->addWidget(btnParamView);
     // mainLayout->addWidget(new DividerLine(Qt::Vertical));
-    mainLayout->addWidget(btnMaximize);
-    mainLayout->addWidget(btnHide);
-    mainLayout->setContentsMargins(6, 6, 6, 6);
-    mainLayout->setSpacing(6);
+
+    // TODO: 移动到 TabPanelTitleBar
+    // mainLayout->addWidget(btnMaximize);
+    // mainLayout->addWidget(btnHide);
+
+    mainLayout->setContentsMargins({});
+    mainLayout->setSpacing(1);
     setLayout(mainLayout);
-    setFixedHeight(d->m_contentHeight + 12);
+    setFixedHeight(d->m_contentHeight);
 
     d->moveToNullClipState();
 }

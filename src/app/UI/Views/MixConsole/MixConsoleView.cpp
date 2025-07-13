@@ -16,6 +16,26 @@
 #include <QHBoxLayout>
 #include <QListWidget>
 
+QString MixConsoleView::tabId() const {
+    return "MixConsole";
+}
+
+QString MixConsoleView::tabName() const {
+    return "混音";
+}
+
+AppGlobal::PanelType MixConsoleView::panelType() const {
+    return AppGlobal::Generic;
+}
+
+QWidget *MixConsoleView::toolBar() {
+    return m_placeHolder;
+}
+
+QWidget *MixConsoleView::content() {
+    return this;
+}
+
 MixConsoleView::MixConsoleView(QWidget *parent) : QWidget(parent) {
     m_channelListView = new QListWidget;
     m_channelListView->setObjectName("channelListView");
@@ -28,12 +48,14 @@ MixConsoleView::MixConsoleView(QWidget *parent) : QWidget(parent) {
     m_masterChannel->setName(tr("Master"));
     m_masterChannel->setIsMasterChannel(true);
 
+    m_placeHolder = new QWidget;
+
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_channelListView);
     mainLayout->addWidget(m_masterChannel);
     mainLayout->setContentsMargins({});
     setLayout(mainLayout);
-    setContentsMargins({});
+    setContentsMargins({1, 1, 1, 1});
 
     onModelChanged();
     connect(AudioContext::instance(), &AudioContext::levelMeterUpdated, this,

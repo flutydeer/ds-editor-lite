@@ -19,7 +19,27 @@
 #include <QMouseEvent>
 #include <QVBoxLayout>
 
-ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEditor, parent) {
+QString ClipEditorView::tabId() const {
+    return "ClipEditor";
+}
+
+QString ClipEditorView::tabName() const {
+    return "编辑";
+}
+
+AppGlobal::PanelType ClipEditorView::panelType() const {
+    return AppGlobal::PanelType::ClipEditor;
+}
+
+QWidget *ClipEditorView::toolBar() {
+    return m_toolbarView;
+}
+
+QWidget *ClipEditorView::content() {
+    return this;
+}
+
+ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("ClipEditorView");
 
@@ -29,17 +49,18 @@ ClipEditorView::ClipEditorView(QWidget *parent) : PanelView(AppGlobal::ClipEdito
     m_pianoRollEditorView = new PianoRollEditorView;
 
     auto mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(m_toolbarView);
+    // mainLayout->addWidget(m_toolbarView);
     mainLayout->addWidget(m_pianoRollEditorView);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({1, 1, 1, 1});
     setLayout(mainLayout);
 
     clipController->setView(this);
-    appController->registerPanel(this);
+    // appController->registerPanel(this);
     installEventFilter(this);
 
-    connect(m_toolbarView, &ClipEditorToolBarView::editModeChanged, m_pianoRollEditorView->pianoRollView(),
+    connect(m_toolbarView, &ClipEditorToolBarView::editModeChanged,
+            m_pianoRollEditorView->pianoRollView(),
             &PianoRollView::onEditModeChanged);
 
     connect(appModel, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
@@ -52,7 +73,8 @@ void ClipEditorView::centerAt(double tick, double keyIndex) {
 
 void ClipEditorView::centerAt(double startTick, double length, double keyIndex) {
     auto centerTick = startTick + length / 2;
-    m_pianoRollEditorView->pianoRollView()->graphicsView()->setViewportCenterAt(centerTick, keyIndex);
+    m_pianoRollEditorView->pianoRollView()->graphicsView()->setViewportCenterAt(
+        centerTick, keyIndex);
 }
 
 void ClipEditorView::onModelChanged() {

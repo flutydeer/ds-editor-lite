@@ -7,8 +7,8 @@
 
 #include "PianoRollEditorView.h"
 #include "Interface/IClipEditorView.h"
+#include "UI/Views/Common/ITabPanelPage.h"
 #include "UI/Views/Common/PanelView.h"
-
 
 class QSplitter;
 class ParamEditorView;
@@ -20,9 +20,16 @@ class Clip;
 class SingingClip;
 class AudioClip;
 
-class ClipEditorView final : public PanelView, public IClipEditorView {
+class ClipEditorView final : public QWidget, public ITabPanelPage, public IClipEditorView {
     Q_OBJECT
+
 public:
+    [[nodiscard]] QString tabId() const override;
+    [[nodiscard]] QString tabName() const override;
+    [[nodiscard]] AppGlobal::PanelType panelType() const override;
+    [[nodiscard]] QWidget *toolBar() override;
+    [[nodiscard]] QWidget *content() override;
+
     explicit ClipEditorView(QWidget *parent = nullptr);
 
     void centerAt(double tick, double keyIndex) override;

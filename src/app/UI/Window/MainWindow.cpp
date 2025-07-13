@@ -19,12 +19,12 @@
 #include "UI/Controls/ProgressIndicator.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
+#include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/MainTitleBar/ActionButtonsView.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/MainTitleBar/PlaybackView.h"
-#include "UI/Views/MixConsole/MixConsoleView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "Utils/WindowFrameUtils.h"
 
@@ -100,18 +100,12 @@ MainWindow::MainWindow() {
     connect(m_mainMenu->actionSaveAs(), &QAction::triggered, this, &MainWindow::onSaveAs);
 
     m_trackEditorView = new TrackEditorView;
-    m_clipEditView = new ClipEditorView;
-
-    auto mixConsoleView = new MixConsoleView(this);
-    mixConsoleView->setWindowTitle("Mix Console");
-    mixConsoleView->setWindowFlags(Qt::Window);
-    mixConsoleView->resize(1280, 480);
-    mixConsoleView->show();
+    m_bottomPanelView = new BottomPanelView(this);
 
     m_splitter = new QSplitter;
     m_splitter->setOrientation(Qt::Vertical);
     m_splitter->addWidget(m_trackEditorView);
-    m_splitter->addWidget(m_clipEditView);
+    m_splitter->addWidget(m_bottomPanelView);
     // 让轨道编辑器高度较小，剪辑编辑器高度较大，且在纵向拉伸窗口时优先拉伸钢琴卷帘
     m_splitter->setStretchFactor(0, 0);
     m_splitter->setStretchFactor(1, 100);

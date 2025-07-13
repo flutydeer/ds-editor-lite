@@ -11,6 +11,7 @@
 #include "Interface/IMainWindow.h"
 #include "Modules/Task/TaskManager.h"
 #include "Modules/Task/Task.h"
+#include "UI/Views/BottomPanelView.h"
 
 
 class QSplitter;
@@ -66,7 +67,7 @@ private:
     MainTitleBar *m_titleBar;
     MainMenuView *m_mainMenu = nullptr;
     TrackEditorView *m_trackEditorView;
-    ClipEditorView *m_clipEditView;
+    BottomPanelView *m_bottomPanelView;
     QSplitter *m_splitter;
     QByteArray m_splitterState;
 

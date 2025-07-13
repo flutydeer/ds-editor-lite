@@ -6,6 +6,7 @@
 #define MIXCONSOLEVIEW_H
 
 #include "Model/AppModel/AppModel.h"
+#include "UI/Views/Common/ITabPanelPage.h"
 
 #include <QWidget>
 
@@ -13,10 +14,16 @@ class Track;
 class QListWidget;
 class ChannelView;
 
-class MixConsoleView : public QWidget {
+class MixConsoleView : public QWidget, public ITabPanelPage {
     Q_OBJECT
 
 public:
+    [[nodiscard]] QString tabId() const override;
+    [[nodiscard]] QString tabName() const override;
+    [[nodiscard]] AppGlobal::PanelType panelType() const override;
+    [[nodiscard]] QWidget *toolBar() override;
+    [[nodiscard]] QWidget *content() override;
+
     explicit MixConsoleView(QWidget *parent = nullptr);
 
 public slots:
@@ -35,6 +42,8 @@ private:
     QListWidget *m_channelListView;
 
     ChannelView *m_masterChannel;
+
+    QWidget *m_placeHolder;
 };
 
 
