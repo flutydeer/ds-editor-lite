@@ -52,7 +52,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     // mainLayout->addWidget(m_toolbarView);
     mainLayout->addWidget(m_pianoRollEditorView);
     mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins({1, 1, 1, 1});
+    mainLayout->setContentsMargins({1, 0, 1, 1});
     setLayout(mainLayout);
 
     clipController->setView(this);

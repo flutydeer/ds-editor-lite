@@ -32,10 +32,15 @@ TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent): PanelVie
 }
 
 void TabPanelView::registerPage(ITabPanelPage *page) {
+    QSignalBlocker blocker(m_tabPanelTitleBar->tabBar());
+
     m_pages.append(page);
     m_tabPanelTitleBar->tabBar()->addTab(page->tabName());
     m_tabPanelTitleBar->toolBar()->addWidget(page->toolBar());
     m_pageContent->addWidget(page->content());
+
+    if (m_pages.size() == 1)
+        onSelectionChanged(0);
 }
 
 void TabPanelView::onSelectionChanged(int index) {
