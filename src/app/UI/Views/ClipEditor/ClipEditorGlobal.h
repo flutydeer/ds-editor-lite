@@ -9,7 +9,7 @@ namespace ClipEditorGlobal {
     constexpr int pixelsPerQuarterNote = 96;
     constexpr double noteHeight = 24;
     constexpr int timelineViewHeight = 24;
-    constexpr int pianoKeyboardWidth = 80;
+    constexpr int pianoKeyboardWidth = 64;
 
     enum PianoRollEditMode {
         Select,
