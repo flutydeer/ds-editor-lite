@@ -239,7 +239,9 @@ void ClipController::selectNotes(const QList<int> &notesId, bool unselectOther) 
 void ClipController::unselectNotes(const QList<int> &notesId) {
     auto selectedNotes = appStatus->selectedNotes.get();
     for (const auto id : notesId)
-        selectedNotes.removeIf([=](int note) { return note == id; });
+        selectedNotes.removeIf([=](int note) {
+            return note == id;
+        });
     appStatus->selectedNotes = selectedNotes;
     // qDebug() << "unselect notes:" << notesId;
     emit hasSelectedNotesChanged(hasSelectedNotes());
@@ -355,6 +357,10 @@ void ClipController::onFillLyric(QWidget *parent) {
             skipCount++;
             continue;
         }
+        if (i - skipCount >= noteRes.count()) {
+            // 如果输出的音符数量小于输入的音符数量，则跳过剩余的音符
+            break;
+        }
         arg.lyric = noteRes[i - skipCount].lyric;
         // arg.language = noteRes[i - skipCount].language;
         arg.g2pId = noteRes[i - skipCount].g2pId;
@@ -364,7 +370,8 @@ void ClipController::onFillLyric(QWidget *parent) {
         args.append(arg);
     }
     auto a = new NoteActions;
-    a->editNotesWordProperties(notesToEdit, args, singingClip);
+    a->editNotesWordProperties(
+        {notesToEdit.begin(), notesToEdit.begin() + noteRes.size() + skipCount}, args, singingClip);
     a->execute();
     historyManager->record(a);
 }
