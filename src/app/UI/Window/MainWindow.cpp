@@ -74,8 +74,8 @@ MainWindow::MainWindow() {
 
     QString styleSheet;
     QStringList qssFileList = {
-        ":theme/lite-dark/base.qss",        ":theme/lite-dark/controls.qss",
-        ":theme/lite-dark/title-bar.qss",   ":theme/lite-dark/track-editor.qss",
+        ":theme/lite-dark/base.qss", ":theme/lite-dark/controls.qss",
+        ":theme/lite-dark/title-bar.qss", ":theme/lite-dark/track-editor.qss",
         ":theme/lite-dark/clip-editor.qss",
     };
 
@@ -245,7 +245,9 @@ void MainWindow::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCol
         appStatus->trackPanelCollapsed = false;
         appStatus->clipPanelCollapsed = true;
     } else {
-        m_splitter->restoreState(m_splitterState);
+        // TODO: 恢复到折叠前的大小
+        m_splitter->setSizes({240, 100});  // 临时解决方案
+        // m_splitter->restoreState(m_splitterState);
         appStatus->trackPanelCollapsed = false;
         appStatus->clipPanelCollapsed = false;
     }
@@ -321,6 +323,9 @@ bool MainWindow::onSaveAs() {
 }
 
 void MainWindow::onSplitterMoved(int pos, int index) const {
+    qDebug() << "MainWindow::onSplitterMoved"
+        << "size 0:" << m_splitter->sizes().at(0)
+        << "size 1:" << m_splitter->sizes().at(1);
     if (m_splitter->sizes().at(0) == 0) {
         appStatus->trackPanelCollapsed = true;
         appStatus->clipPanelCollapsed = false;
