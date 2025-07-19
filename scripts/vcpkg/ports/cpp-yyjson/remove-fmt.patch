@@ -1,0 +1,281 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 87d5696..9553cf9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -44,7 +44,7 @@ function(find_and_link package_name qualified_name)
+ endfunction()
+ 
+ find_and_link(yyjson yyjson::yyjson)
+-find_and_link(fmt fmt::fmt-header-only VERSION 10.0.0)
++# find_and_link(fmt fmt::fmt-header-only VERSION 10.0.0)
+ find_and_link(nameof nameof::nameof VERSION 0.10.0)
+ 
+ # install
+diff --git a/cmake/cpp_yyjsonConfig.cmake.in b/cmake/cpp_yyjsonConfig.cmake.in
+index a022abe..2e44cf7 100644
+--- a/cmake/cpp_yyjsonConfig.cmake.in
++++ b/cmake/cpp_yyjsonConfig.cmake.in
+@@ -4,7 +4,7 @@ set(CPPYYJSON_VERSION @PROJECT_VERSION@)
+ 
+ include(CMakeFindDependencyMacro)
+ find_dependency(yyjson CONFIG REQUIRED)
+-find_dependency(fmt 10.0.0 CONFIG REQUIRED)
++# find_dependency(fmt 10.0.0 CONFIG REQUIRED)
+ find_dependency(nameof CONFIG REQUIRED)
+ 
+ include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
+diff --git a/include/cpp_yyjson.hpp b/include/cpp_yyjson.hpp
+index cd3c3eb..92d5e2a 100644
+--- a/include/cpp_yyjson.hpp
++++ b/include/cpp_yyjson.hpp
+@@ -17,7 +17,9 @@
+ #include <variant>
+ #include <vector>
+ 
+-#include <fmt/format.h>
++#include <cstring>
++#include <format>
++
+ #include <yyjson.h>
+ #include "field_reflection.hpp"
+ 
+@@ -1510,7 +1512,7 @@ namespace yyjson
+                     {
+                         return json_string(result, len);
+                     }
+-                    throw write_error(fmt::format("write JSON error: {}", err.msg));
++                    throw write_error(std::format("write JSON error: {}", err.msg));
+                 }
+                 template <yyjson_allocator Alloc>
+                 [[nodiscard]] auto write(Alloc& alc, WriteFlag write_flag = WriteFlag::NoFlag) const
+@@ -1537,7 +1539,7 @@ namespace yyjson
+                             return json_string(result, len, detail::get_allocator_pointer(alc));
+                     }
+ 
+-                    throw write_error(fmt::format("write JSON error: {}", err.msg));
++                    throw write_error(std::format("write JSON error: {}", err.msg));
+                 }
+             };
+ 
+@@ -2572,7 +2574,7 @@ namespace yyjson
+                 {
+                     auto result = yyjson_mut_obj_getn(base::val_, key.data(), key.size());
+                     if (result == nullptr) [[unlikely]]
+-                        throw std::out_of_range(fmt::format("JSON object key not found: {}", key));
++                        throw std::out_of_range(std::format("JSON object key not found: {}", key));
+                     return result;
+                 }
+                 [[nodiscard]] bool object_contains(std::string_view key) const noexcept
+@@ -3076,7 +3078,7 @@ namespace yyjson
+                 {
+                     return json_string(result, len);
+                 }
+-                throw write_error(fmt::format("write JSON error: {}", err.msg));
++                throw write_error(std::format("write JSON error: {}", err.msg));
+             }
+             template <yyjson_allocator Alloc>
+             [[nodiscard]] auto write(Alloc& alc, const WriteFlag write_flag = WriteFlag::NoFlag) const
+@@ -3095,7 +3097,7 @@ namespace yyjson
+                     if (result != nullptr) [[likely]]
+                         return json_string(result, len, detail::get_allocator_pointer(alc));
+                 }
+-                throw write_error(fmt::format("write JSON error: {}", err.msg));
++                throw write_error(std::format("write JSON error: {}", err.msg));
+             }
+         };
+ 
+@@ -3406,7 +3408,7 @@ namespace yyjson
+             {
+                 auto result = yyjson_obj_getn(base::val_, key.data(), key.size());
+                 if (result == nullptr) [[unlikely]]
+-                    throw std::out_of_range(fmt::format("JSON object key not found: {}", key));
++                    throw std::out_of_range(std::format("JSON object key not found: {}", key));
+                 return result;
+             }
+             [[nodiscard]] bool object_contains(std::string_view key) const noexcept
+@@ -3513,7 +3515,7 @@ namespace yyjson
+                 {
+                     return json_string(result, len);
+                 }
+-                throw write_error(fmt::format("write JSON error: {}", err.msg));
++                throw write_error(std::format("write JSON error: {}", err.msg));
+             }
+ 
+             template <yyjson_allocator Alloc>
+@@ -3533,7 +3535,7 @@ namespace yyjson
+                     if (result != nullptr) [[likely]]
+                         return json_string(result, len, detail::get_allocator_pointer(alc));
+                 }
+-                throw write_error(fmt::format("write JSON error: {}", err.msg));
++                throw write_error(std::format("write JSON error: {}", err.msg));
+             }
+ 
+             template <yyjson_allocator Alloc>
+@@ -3629,7 +3631,7 @@ namespace yyjson
+                 if (!alc.check_capacity({str, len}, read_flag))
+                 {
+                     throw std::runtime_error(
+-                        fmt::format("Insufficient capacity in the pool allocator for {}", NAMEOF_TYPE(Alloc)));
++                        std::format("Insufficient capacity in the pool allocator for {}", NAMEOF_TYPE(Alloc)));
+                 }
+             }
+             result = yyjson_read_opts(str, len, to_underlying(read_flag), detail::get_allocator_pointer(alc), &err);
+@@ -3642,7 +3644,7 @@ namespace yyjson
+             {
+                 if (result != nullptr) return value(result);
+             }
+-            throw read_error(fmt::format("read JSON error: {} at position: {}", err.msg, err.pos));
++            throw read_error(std::format("read JSON error: {} at position: {}", err.msg, err.pos));
+         }
+         template <yyjson_allocator Alloc>
+         value read(const char* str, std::size_t len, Alloc& alc, const ReadFlag read_flag = ReadFlag::NoFlag)
+@@ -3720,9 +3722,9 @@ namespace yyjson
+             auto success = yyjson_locate_pos(str, len, err.pos, &line, &col, &chr);
+             if (success)
+                 throw read_error(
+-                    fmt::format("Read JSON error: {} at line {}, row {}, pos {}", err.msg, line, col, err.pos));
++                    std::format("Read JSON error: {} at line {}, row {}, pos {}", err.msg, line, col, err.pos));
+ #endif
+-            throw read_error(fmt::format("Read JSON error: {} at pos {}", err.msg, err.pos));
++            throw read_error(std::format("Read JSON error: {} at pos {}", err.msg, err.pos));
+         }
+         inline value read(const char* str, std::size_t len, const ReadFlag read_flag = ReadFlag::NoFlag)
+         {
+@@ -3907,7 +3909,7 @@ namespace yyjson
+             {
+                 if (arr.size() > std::ranges::size(result))
+                     throw bad_cast(
+-                        fmt::format("the size of JSON array is greater than the size of {}", NAMEOF_TYPE(T)));
++                        std::format("the size of JSON array is greater than the size of {}", NAMEOF_TYPE(T)));
+                 std::ranges::transform(arr, std::ranges::begin(result),
+                                        [](const auto& e) { return cast<std::ranges::range_value_t<T>>(e); });
+             }
+@@ -3935,7 +3937,7 @@ namespace yyjson
+                     return from_json(*obj);
+                 }
+                 else
+-                    throw bad_cast(fmt::format("{} is not constructible from JSON object", NAMEOF_TYPE(T)));
++                    throw bad_cast(std::format("{} is not constructible from JSON object", NAMEOF_TYPE(T)));
+             }
+             else if (const auto arr = json.as_array(); arr.has_value())
+             {
+@@ -3944,7 +3946,7 @@ namespace yyjson
+                     return from_json(*arr);
+                 }
+                 else
+-                    throw bad_cast(fmt::format("{} is not constructible from JSON array", NAMEOF_TYPE(T)));
++                    throw bad_cast(std::format("{} is not constructible from JSON array", NAMEOF_TYPE(T)));
+             }
+             else if (json.is_null())
+             {
+@@ -3957,7 +3959,7 @@ namespace yyjson
+                 else if constexpr (std::constructible_from<T, std::monostate>)
+                     return T(std::monostate());
+                 else
+-                    throw bad_cast(fmt::format("{} is not constructible from JSON null", NAMEOF_TYPE(T)));
++                    throw bad_cast(std::format("{} is not constructible from JSON null", NAMEOF_TYPE(T)));
+             }
+             else if (json.is_bool())
+             {
+@@ -3968,7 +3970,7 @@ namespace yyjson
+ #endif
+                     return T(*json.as_bool());
+                 else
+-                    throw bad_cast(fmt::format("{} is not constructible from JSON bool", NAMEOF_TYPE(T)));
++                    throw bad_cast(std::format("{} is not constructible from JSON bool", NAMEOF_TYPE(T)));
+             }
+             else if (json.is_real())
+             {
+@@ -3981,7 +3983,7 @@ namespace yyjson
+                     return T(*json.as_real());
+                 }
+                 else
+-                    throw bad_cast(fmt::format("{} is not constructible from JSON number", NAMEOF_TYPE(T)));
++                    throw bad_cast(std::format("{} is not constructible from JSON number", NAMEOF_TYPE(T)));
+             }
+             else if (json.is_string())
+             {
+@@ -3992,7 +3994,7 @@ namespace yyjson
+                 else if constexpr (std::constructible_from<T, const char*>)
+                     return T(json.as_string()->data());
+                 else
+-                    throw bad_cast(fmt::format("{} is not constructible from JSON string", NAMEOF_TYPE(T)));
++                    throw bad_cast(std::format("{} is not constructible from JSON string", NAMEOF_TYPE(T)));
+             }
+             else if (const auto vi = json.as_int(); vi.has_value())
+             {
+@@ -4005,9 +4007,9 @@ namespace yyjson
+                     return T(*vi);
+                 }
+                 else
+-                    throw bad_cast(fmt::format("{} is not constructible from JSON integer", NAMEOF_TYPE(T)));
++                    throw bad_cast(std::format("{} is not constructible from JSON integer", NAMEOF_TYPE(T)));
+             }
+-            throw bad_cast(fmt::format("{} is not constructible from raw json", NAMEOF_TYPE(T)));
++            throw bad_cast(std::format("{} is not constructible from raw json", NAMEOF_TYPE(T)));
+         }
+ #if defined(__GNUC__)
+ #pragma GCC diagnostic pop
+@@ -4106,7 +4108,7 @@ namespace yyjson
+             auto result = std::optional<std::variant<Ts...>>();
+             ((result = cast_no_except<Ts>(json)).has_value() || ...);
+             if (result.has_value()) return *result;
+-            throw bad_cast(fmt::format("{} is not constructible from JSON", NAMEOF_TYPE(std::variant<Ts...>)));
++            throw bad_cast(std::format("{} is not constructible from JSON", NAMEOF_TYPE(std::variant<Ts...>)));
+         }
+ #if defined(__GNUC__) or defined(__clang__)
+ #pragma GCC diagnostic pop
+@@ -4182,7 +4184,7 @@ namespace yyjson
+                     auto result = Tuple<Ts...>();
+ 
+                     if (obj->size() > std::tuple_size_v<Tuple<Ts...>>)
+-                        throw bad_cast(fmt::format("the size of JSON object is greater than the size of {}",
++                        throw bad_cast(std::format("the size of JSON object is greater than the size of {}",
+                                                    NAMEOF_TYPE(Tuple<Ts...>)));
+ 
+                     using indices = std::make_index_sequence<std::tuple_size_v<Tuple<Ts...>>>;
+@@ -4205,7 +4207,7 @@ namespace yyjson
+                     auto result = Tuple<Ts...>();
+ 
+                     if (arr->size() > std::tuple_size_v<Tuple<Ts...>>)
+-                        throw bad_cast(fmt::format("the size of JSON array is greater than the size of {}",
++                        throw bad_cast(std::format("the size of JSON array is greater than the size of {}",
+                                                    NAMEOF_TYPE(Tuple<Ts...>)));
+ 
+                     using indices = std::make_index_sequence<std::tuple_size_v<Tuple<Ts...>>>;
+@@ -4218,7 +4220,7 @@ namespace yyjson
+                 }
+             }
+ 
+-            throw bad_cast(fmt::format("{} is not constructible from JSON", NAMEOF_TYPE(Tuple<Ts...>)));
++            throw bad_cast(std::format("{} is not constructible from JSON", NAMEOF_TYPE(Tuple<Ts...>)));
+         }
+ 
+         template <detail::copy_string_args... Args>
+@@ -4292,21 +4294,21 @@ requires requires(const T& t) {
+     {t.write()} -> std::same_as<yyjson::json_string>;
+     // clang-format on
+ }
+-struct fmt::formatter<T>
++struct std::formatter<T>
+ {
+-    constexpr auto parse(fmt::format_parse_context& ctx) -> fmt::format_parse_context::iterator
++    constexpr auto parse(std::format_parse_context& ctx) -> std::format_parse_context::iterator
+     {
+         const auto i = ctx.begin();
+         if (i != ctx.end() && *i != '}')
+         {
+-            throw fmt::format_error("invalid format");
++            throw std::format_error("invalid format");
+         }
+         return i;
+     }
+ 
+-    auto format(const T& t, fmt::format_context& ctx) const -> fmt::format_context::iterator
++    auto format(const T& t, std::format_context& ctx) const -> std::format_context::iterator
+     {
+-        return fmt::format_to(ctx.out(), "{}", t.write());
++        return std::format_to(ctx.out(), "{}", t.write());
+     }
+ };
+ 

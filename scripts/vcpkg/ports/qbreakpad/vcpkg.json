@@ -1,7 +1,7 @@
 {
   "name": "qbreakpad",
   "version": "0.2.1.1",
-  "port-version": 1,
+  "port-version": 2,
   "description": "Cross-platform Qt crash handler, implemented as wrapper around google-breakpad",
   "homepage": "https://github.com/stdware/qBreakpad",
   "license": "LGPL-2.1-or-later",
@@ -15,8 +15,7 @@
       "host": true
     },
     {
-      "name": "breakpad",
-      "host": true
+      "name": "breakpad"
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "name": "extensionsystem",
   "version": "0.0.0.0",
-  "port-version": 1,
+  "port-version": 2,
   "description": "QtCreator plugin framework, port from QtCreator 3.6",
   "homepage": "https://github.com/stdware/ExtensionSystem",
   "license": "LGPL-2.1-or-later",

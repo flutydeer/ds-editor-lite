@@ -1,7 +1,7 @@
 {
   "name": "qmsetup",
   "version": "0.0.2.1",
-  "port-version": 1,
+  "port-version": 4,
   "description": "CMake Modules and Basic Libraries for C/C++ projects.",
   "homepage": "https://github.com/stdware/qmsetup",
   "license": "MIT",
@@ -15,8 +15,7 @@
       "host": true
     },
     {
-      "name": "syscmdline",
-      "host": true
+      "name": "syscmdline"
     }
   ]
 }

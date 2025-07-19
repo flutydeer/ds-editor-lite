@@ -7,7 +7,12 @@
     "qastool",
     "qnrbf",
     "qmsetup",
-    "qwindowkit",
+    {
+      "name": "qwindowkit",
+      "features": [
+        "widgets"
+      ]
+    },
     "rpclib",
     "rtmidi",
     "interval-tree",
