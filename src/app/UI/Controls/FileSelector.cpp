@@ -28,17 +28,16 @@ FileSelector::FileSelector(QWidget *parent)
     setTabOrder(m_lineEdit, m_browseButton);
 }
 
-QString FileSelector::filePath() const {
+QString FileSelector::path() const {
     return m_lineEdit->text();
 }
 
-void FileSelector::setFilePath(const QString &filePath) {
+void FileSelector::setPath(const QString &filePath) {
     m_lineEdit->setText(filePath);
 }
 
-static inline bool getFileNameFromMimeData(const QMimeData *mimeData,
-                                           const QSet<QString> &extensions,
-                                           QString *outFilePath) {
+static bool getPathFromMimeData(const QMimeData *mimeData, const QSet<QString> &extensions,
+                                QString *outPath) {
     if (!mimeData || !mimeData->hasUrls()) {
         return false;
     }
@@ -47,8 +46,8 @@ static inline bool getFileNameFromMimeData(const QMimeData *mimeData,
         return false;
     }
     if (extensions.isEmpty()) {
-        if (outFilePath) {
-            *outFilePath = urls.first().toLocalFile();
+        if (outPath) {
+            *outPath = urls.first().toLocalFile();
         }
         return true;
     }
@@ -59,8 +58,8 @@ static inline bool getFileNameFromMimeData(const QMimeData *mimeData,
               extensions.contains(info.completeSuffix().toLower()))) {
             continue;
         }
-        if (outFilePath) {
-            *outFilePath = std::move(filePath);
+        if (outPath) {
+            *outPath = std::move(filePath);
         }
         return true;
     }
@@ -68,17 +67,17 @@ static inline bool getFileNameFromMimeData(const QMimeData *mimeData,
 }
 
 void FileSelector::dragEnterEvent(QDragEnterEvent *event) {
-    if (getFileNameFromMimeData(event->mimeData(), m_fileDropExtensions, nullptr)) {
+    if (getPathFromMimeData(event->mimeData(), m_fileDropExtensions, nullptr)) {
         event->acceptProposedAction();
     }
 }
 
 void FileSelector::dropEvent(QDropEvent *event) {
     QString filePath;
-    if (getFileNameFromMimeData(event->mimeData(), m_fileDropExtensions, &filePath)) {
+    if (getPathFromMimeData(event->mimeData(), m_fileDropExtensions, &filePath)) {
         event->acceptProposedAction();
         m_lineEdit->setText(filePath);
-        Q_EMIT filePathChanged(filePath);
+        Q_EMIT pathChanged(filePath);
     }
 }
 
@@ -87,10 +86,10 @@ void FileSelector::onBrowseButtonClicked() {
         QFileDialog::getOpenFileName(this, tr("Select a File"), QDir::currentPath(), m_filter);
     if (!selectedFile.isEmpty()) {
         m_lineEdit->setText(selectedFile);
-        Q_EMIT filePathChanged(selectedFile);
+        Q_EMIT pathChanged(selectedFile);
     }
 }
 
 void FileSelector::onTextChanged() {
-    Q_EMIT filePathChanged(m_lineEdit->text());
+    Q_EMIT pathChanged(m_lineEdit->text());
 }

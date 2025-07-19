@@ -63,9 +63,9 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     m_fsDefaultSinger = new FileSelector;
     m_fsDefaultSinger->setFilter(yamlFilesFilter);
     m_fsDefaultSinger->setFileDropExtensions({"yaml"});
-    m_fsDefaultSinger->setFilePath(option->defaultSinger);
+    m_fsDefaultSinger->setPath(option->defaultSinger);
     m_fsDefaultSinger->setMinimumWidth(480);
-    connect(m_fsDefaultSinger, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
+    connect(m_fsDefaultSinger, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
 
     const auto singingCard = new OptionListCard(tr("Singing"));
     singingCard->addItem(tr("Default Singing Language"), m_cbDefaultSingingLanguage);
@@ -78,14 +78,14 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     m_fsSomePath->setMinimumWidth(480);
     m_fsSomePath->setFilter(onnxFilesFilter);
     m_fsSomePath->setFileDropExtensions({"onnx"});
-    m_fsSomePath->setFilePath(option->somePath);
-    connect(m_fsSomePath, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
+    m_fsSomePath->setPath(option->somePath);
+    connect(m_fsSomePath, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
     m_fsRmvpePath = new FileSelector;
     m_fsRmvpePath->setMinimumWidth(480);
     m_fsRmvpePath->setFilter(onnxFilesFilter);
     m_fsRmvpePath->setFileDropExtensions({"onnx"});
-    m_fsRmvpePath->setFilePath(option->rmvpePath);
-    connect(m_fsRmvpePath, &FileSelector::filePathChanged, this, &GeneralPage::modifyOption);
+    m_fsRmvpePath->setPath(option->rmvpePath);
+    connect(m_fsRmvpePath, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
 
     const auto modelCard = new OptionListCard(tr("Model"));
     modelCard->addItem(tr("Some Model Path"), m_fsSomePath);
@@ -105,9 +105,9 @@ void GeneralPage::modifyOption() {
     const auto option = appOptions->general();
     option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentText();
     option->defaultLyric = m_leDefaultLyric->text();
-    option->defaultSinger = m_fsDefaultSinger->filePath();
+    option->defaultSinger = m_fsDefaultSinger->path();
 
-    option->somePath = m_fsSomePath->filePath();
-    option->rmvpePath = m_fsRmvpePath->filePath();
+    option->somePath = m_fsSomePath->path();
+    option->rmvpePath = m_fsRmvpePath->path();
     appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
 }

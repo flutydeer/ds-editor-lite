@@ -12,13 +12,13 @@ class LineEdit;
 
 class FileSelector final : public QWidget {
     Q_OBJECT
-    Q_PROPERTY(QString filePath READ filePath WRITE setFilePath)
+    Q_PROPERTY(QString path READ path WRITE setPath)
     Q_PROPERTY(QString filter READ filter WRITE setFilter)
     Q_PROPERTY(QSet<QString> fileDropExtensions READ fileDropExtensions WRITE setFileDropExtensions)
 public:
     explicit FileSelector(QWidget *parent = nullptr);
-    QString filePath() const;
-    void setFilePath(const QString &filePath);
+    QString path() const;
+    void setPath(const QString &filePath);
     QString filter() const;
     void setFilter(const QString &filter);
     QSet<QString> fileDropExtensions() const;
@@ -29,7 +29,7 @@ protected:
     void dropEvent(QDropEvent *event) override;
 
 Q_SIGNALS:
-    void filePathChanged(const QString &newFilePath);
+    void pathChanged(const QString &newFilePath);
 
 private Q_SLOTS:
     void onBrowseButtonClicked();
