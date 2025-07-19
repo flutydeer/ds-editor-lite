@@ -96,6 +96,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             note->setLocalStart(dspxNote.pos - offset);
             note->setLength(dspxNote.length);
             note->setKeyIndex(dspxNote.keyNum);
+            note->setCentShift(dspxNote.centShift);
             note->setLyric(dspxNote.lyric);
             note->setLanguage(dspxNote.language);
             note->setG2pId(dspxNote.g2pId);
@@ -168,6 +169,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     QDspxModel dspxModel;
     const auto returnCode = dspxModel.load(path);
     if (returnCode.type == QDspx::Result::Success) {
+        // dspxModel.content.global.centShift
+        // TODO: where should I use centShift in the editor?
         const auto timeline = dspxModel.content.timeline;
         model->setTimeSignature(
             TimeSignature(timeline.timeSignatures[0].num, timeline.timeSignatures[0].den));
@@ -260,6 +263,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             note.pos = dsNote->globalStart();
             note.length = dsNote->length();
             note.keyNum = dsNote->keyIndex();
+            note.centShift = dsNote->centShift();
             note.lyric = dsNote->lyric();
             note.language = dsNote->language();
             note.g2pId = dsNote->g2pId();
@@ -323,6 +327,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     };
 
     QDspx::Model dspxModel;
+    dspxModel.content.global.centShift = 0; // TODO: where should I use centShift in the editor?
     auto &timeline = dspxModel.content.timeline;
     timeline.tempos.append(QDspx::Tempo(0, model->tempo()));
     timeline.timeSignatures.append(QDspx::TimeSignature(0, model->timeSignature().numerator,

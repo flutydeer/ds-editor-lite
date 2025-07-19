@@ -72,6 +72,14 @@ void Note::setKeyIndex(int keyIndex) {
     m_keyIndex = keyIndex;
 }
 
+int Note::centShift() const {
+    return m_centShift;
+}
+
+void Note::setCentShift(int centShift) {
+    m_centShift = centShift;
+}
+
 QString Note::lyric() const {
     return m_lyric;
 }

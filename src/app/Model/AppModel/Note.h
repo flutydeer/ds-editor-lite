@@ -34,6 +34,8 @@ public:
     void setLength(int length);
     [[nodiscard]] int keyIndex() const;
     void setKeyIndex(int keyIndex);
+    [[nodiscard]] int centShift() const;
+    void setCentShift(int keyIndex);
     [[nodiscard]] QString lyric() const;
     void setLyric(const QString &lyric);
     [[nodiscard]] Pronunciation pronunciation() const;
@@ -95,6 +97,7 @@ private:
     int m_rStart = 0;
     int m_length = 480;
     int m_keyIndex = 60;
+    int m_centShift = 0;
     QString m_lyric;
     QString m_language = "unknown";
     QString m_g2pId = "unknown";
