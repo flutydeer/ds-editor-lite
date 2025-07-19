@@ -7,7 +7,8 @@
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/OptionListCard.h"
-#include "UI/Controls/SvsExpressiondoublespinbox.h"
+#include "UI/Controls/SeekBarSpinboxGroup.h"
+#include "UI/Controls/DoubleSeekBarSpinboxGroup.h"
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/SwitchButton.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
@@ -177,7 +178,7 @@ void InferencePage::modifyOption() {
         option->selectedGpuId = gpuInfo.deviceId;
     }
     option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
-    option->depth = m_dsDepthSpinBox->value();
+    option->depth = m_dsDepthSlider->spinbox->value();
     option->runVocoderOnCpu = m_swRunVocoderOnCpu->value();
     option->autoStartInfer = m_autoStartInfer->value();
     appOptions->saveAndNotify(AppOptionsGlobal::Inference);

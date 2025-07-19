@@ -3,13 +3,12 @@
 
 #include "IOptionPage.h"
 
-#include "UI/Controls/SeekBarSpinboxGroup.h"
-#include "UI/Controls/DoubleSeekBarSpinboxGroup.h"
-
 
 class LineEdit;
 class ComboBox;
 class SwitchButton;
+class SeekBarSpinboxGroup;
+class DoubleSeekBarSpinboxGroup;
 
 class InferencePage : public IOptionPage {
     Q_OBJECT
@@ -26,7 +25,6 @@ private:
     ComboBox *m_cbDeviceList;
     ComboBox *m_cbSamplingSteps;
     DoubleSeekBarSpinboxGroup *m_dsDepthSlider;
-    SVS::ExpressionDoubleSpinBox *m_dsDepthSpinBox;
     SwitchButton *m_swRunVocoderOnCpu;
     SwitchButton *m_autoStartInfer;
     SeekBarSpinboxGroup *m_smoothSlider;
