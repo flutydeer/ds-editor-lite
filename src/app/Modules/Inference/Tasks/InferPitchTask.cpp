@@ -77,7 +77,6 @@ void InferPitchTask::runTask() {
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
     }
 
-    QString resultJson;
     QString errorMessage;
     if (useCache) {
         qInfo() << "Use cached pitch inference result:" << outputCachePath;
@@ -92,8 +91,14 @@ void InferPitchTask::runTask() {
             abort();
             return;
         }
-        if (inferEngine->inferPitch(input.serializeToJson(), resultJson, errorMessage)) {
-            model.deserializeFromJson(resultJson);
+        if (InferParam resultPitch; inferEngine->inferPitch(input, resultPitch, errorMessage)) {
+            model = input;
+            for (auto &param : model.params) {
+                if (param.tag == "pitch") {
+                    param = std::move(resultPitch);
+                    break;
+                }
+            }
         } else {
             qCritical() << "Task failed:" << errorMessage;
             return;
@@ -163,10 +168,12 @@ GenericInferModel InferPitchTask::buildInputJson() const {
         pitch.values.append(0);
 
     GenericInferModel model;
+    model.singer = appOptions->general()->defaultSingerId;
+    model.speaker = appOptions->general()->defaultSpeakerId;
     model.words = words;
     model.params = {pitch, expr};
     model.configPath = input().configPath;
-    model.steps = inferEngine->m_env.defaultSteps();
+    model.steps = appOptions->inference()->samplingSteps;
     return model;
 }
 

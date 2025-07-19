@@ -27,6 +27,10 @@
     "yaml-cpp",
     "wavpack",
     "tinyexpr",
+    "stduuid",
+    "stdcorelib",
+    "sparsepp",
+    "bit7z",
     {
       "name": "talcs",
       "features": [

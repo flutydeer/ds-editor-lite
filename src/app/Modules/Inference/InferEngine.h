@@ -12,14 +12,14 @@
 #include <QMutex>
 #include <QObject>
 
-#include <dsonnxinfer/Environment.h>
+#include <synthrt/Core/SynthUnit.h>
+#include <synthrt/Core/PackageRef.h>
+#include <synthrt/Core/NamedObject.h>
+#include <synthrt/SVS/Inference.h>
+#include <synthrt/SVS/InferenceContrib.h>
 
-namespace dsonnxinfer {
-    class AcousticInference;
-    class VarianceInference;
-    class PitchInference;
-    class DurationInference;
-}
+class GenericInferModel;
+class InferParam;
 
 class InferEngine final : public QObject, public Singleton<InferEngine> {
     Q_OBJECT
@@ -48,11 +48,13 @@ private:
     friend class InferAcousticTask;
 
     bool initialize(QString &error);
+    bool loadPackage(const std::filesystem::path &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
+    bool loadPackage(const QString &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
     bool runLoadConfig(const QString &path);
-    bool inferDuration(const QString &input, QString &output, QString &error) const;
-    bool inferPitch(const QString &input, QString &output, QString &error) const;
-    bool inferVariance(const QString &input, QString &output, QString &error) const;
-    bool inferAcoustic(const QString &input, const QString &outputPath, QString &error) const;
+    bool inferDuration(const GenericInferModel &model, std::vector<double> &outDuration, QString &error) const;
+    bool inferPitch(const GenericInferModel &model, InferParam &outPitch, QString &error) const;
+    bool inferVariance(const GenericInferModel &model, QList<InferParam> &outParams, QString &error) const;
+    bool inferAcoustic(const GenericInferModel &model, const QString &outputPath, QString &error) const;
     void terminateInferDurationAsync() const;
     void terminateInferPitchAsync() const;
     void terminateInferVarianceAsync() const;
@@ -62,11 +64,16 @@ private:
     QMutex m_mutex;
     bool m_initialized = false;
     bool m_configLoaded = false;
-    dsonnxinfer::Environment m_env;
-    dsonnxinfer::DurationInference *m_durationInfer = nullptr;
-    dsonnxinfer::PitchInference *m_pitchInfer = nullptr;
-    dsonnxinfer::VarianceInference *m_varianceInfer = nullptr;
-    dsonnxinfer::AcousticInference *m_acousticInfer = nullptr;
+
+    srt::SynthUnit m_su;
+    srt::ScopedPackageRef m_pkg;
+
+    struct Inference {
+        srt::NO<srt::InferenceImportOptions> options;
+        srt::InferenceSpec *spec = nullptr;
+        srt::NO<srt::Inference> session;
+    };
+    Inference m_duration, m_pitch, m_variance, m_acoustic, m_vocoder;
 
     QString m_configPath;
 };

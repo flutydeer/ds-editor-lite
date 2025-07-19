@@ -38,6 +38,7 @@ find_package(opendspx CONFIG REQUIRED)
 find_package(lyric-tab CONFIG REQUIRED)
 find_package(talcs REQUIRED)
 find_package(unofficial-tinyexpr CONFIG REQUIRED)
+find_package(dsinfer CONFIG REQUIRED)
 
 if (WIN32)
     find_package(QtWin32DirectManipulateHelper CONFIG REQUIRED)
@@ -60,10 +61,10 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         lyric-tab::lyric-tab
         QWindowKit::Widgets
         qtmediate::Widgets
-        dsonnxinfer
         rmvpe-infer::rmvpe-infer some-infer::some-infer
         curve-util::curve-util
         unofficial::tinyexpr::tinyexpr
+        dsinfer::dsinfer
 )
 
 if (WIN32)
