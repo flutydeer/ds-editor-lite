@@ -12,6 +12,9 @@ class AudioSystem : public QObject {
 public:
     explicit AudioSystem(QObject *parent = nullptr);
     ~AudioSystem() override;
+
+    Q_DISABLE_COPY_MOVE(AudioSystem)
+
     static AudioSystem *instance();
 
     static OutputSystem *outputSystem();

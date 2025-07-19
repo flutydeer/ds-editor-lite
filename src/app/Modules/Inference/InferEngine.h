@@ -27,7 +27,8 @@ class InferEngine final : public QObject, public Singleton<InferEngine> {
 public:
     InferEngine();
     ~InferEngine() override;
-    InferEngine(InferEngine const &) = delete;
+
+    Q_DISABLE_COPY_MOVE(InferEngine)
 
     bool initialized();
     // void loadConfig(const QString &path);

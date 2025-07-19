@@ -30,6 +30,24 @@
 #  include <QWDMHCore/DirectManipulationSystem.h>
 #endif
 
+struct AudioSystemContext {
+    AudioSystemContext() {
+        AudioSystem::outputSystem()->initialize();
+        AudioSystem::midiSystem()->initialize();
+        // Managed by Qt Object System. No need for manual memory management.
+        new DeviceTester(&audioSystem);
+        new AudioContext(&audioSystem);
+    }
+    AudioSystem audioSystem;
+};
+
+struct AppContext {
+#if defined(WITH_DIRECT_MANIPULATION)
+    QWDMH::DirectManipulationSystem directManipSystem;
+#endif
+    AudioSystemContext audio;
+};
+
 int main(int argc, char *argv[]) {
     QElapsedTimer mstimer;
     mstimer.start();
@@ -79,15 +97,8 @@ int main(int argc, char *argv[]) {
     if (translator.load(":translate/translation_zh_CN.qm"))
         QApplication::installTranslator(&translator);
 
-#if defined(WITH_DIRECT_MANIPULATION)
-    QWDMH::DirectManipulationSystem directManipSystem;
-#endif
+    AppContext appContext;
 
-    AudioSystem as;
-    AudioSystem::outputSystem()->initialize();
-    AudioSystem::midiSystem()->initialize();
-    new DeviceTester(&as);
-    new AudioContext(&as);
     AppController::instance();
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象

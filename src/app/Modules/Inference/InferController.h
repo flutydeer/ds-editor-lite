@@ -19,6 +19,8 @@ class InferController final : public QObject, public Singleton<InferController> 
 public:
     explicit InferController();
 
+    Q_DISABLE_COPY_MOVE(InferController)
+
 private:
     Q_DECLARE_PRIVATE(InferController)
     InferControllerPrivate *d_ptr;
