@@ -10,17 +10,19 @@
 
 namespace Some
 {
-    Some::Some(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id) {
-        m_some = std::make_unique<SomeModel>(modelPath, provider, device_id);
-
-        if (!is_open()) {
-            std::cout << "Cannot load SOME Model, there must be files " + modelPath.string() << std::endl;
-        }
+    Some::Some(const srt::SynthUnit *su) :
+        m_some(su) {
     }
 
     Some::~Some() = default;
 
-    bool Some::is_open() const { return m_some && m_some->is_open(); }
+    srt::Expected<void> Some::open(const std::filesystem::path &modelPath) {
+        return m_some.open(modelPath);
+    }
+
+    bool Some::is_open() const {
+        return m_some.is_open();
+    }
 
     std::vector<double> cumulativeSum(const std::vector<float> &durations) {
         std::vector<double> cumsum(durations.size());
@@ -76,8 +78,9 @@ namespace Some
     }
 
     bool Some::get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, const float tempo,
-                        std::string &msg, const std::function<void(int)> &progressChanged) const {
-        if (!m_some) {
+                        std::string &msg, const std::function<void(int)> &progressChanged) {
+        if (!m_some.is_open()) {
+            msg = "SOME inference session is not open";
             return false;
         }
 
@@ -118,11 +121,12 @@ namespace Some
             std::vector<bool> temp_rest;
             std::vector<float> temp_dur;
 
-            const bool success = m_some->forward(tmp, temp_midi, temp_rest, temp_dur, msg);
-            if (!success)
+            if (auto exp = m_some.forward(tmp, temp_midi, temp_rest, temp_dur); !exp) {
+                msg = exp.error().message();
                 return false;
+            };
 
-            const auto start_tick = std::max(static_cast<int>(static_cast<double>(fst) / 44100.0 * tempo * 8),
+            const auto start_tick = (std::max)(static_cast<int>(static_cast<double>(fst) / 44100.0 * tempo * 8),
                                              !midis.empty() ? midis.back().start + midis.back().duration : 0);
 
             std::vector<Midi> temp_midis = build_midi_note(start_tick, temp_midi, temp_dur, temp_rest, tempo);
@@ -141,5 +145,7 @@ namespace Some
         return true;
     }
 
-    void Some::terminate() const { m_some->terminate(); }
+    void Some::terminate() {
+        m_some.terminate();
+    }
 } // namespace Some

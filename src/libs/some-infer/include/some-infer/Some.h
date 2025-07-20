@@ -5,34 +5,37 @@
 #include <functional>
 
 #include <audio-util/SndfileVio.h>
-#include <some-infer/Provider.h>
 #include <some-infer/SomeGlobal.h>
+#include <some-infer/SomeModel.h>
+
+#include <synthrt/Support/Expected.h>
 
 namespace Some
 {
-    class SomeModel;
-
     struct SOME_INFER_EXPORT Midi {
         int note, start, duration;
     };
 
     class SOME_INFER_EXPORT Some {
     public:
-        explicit Some(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id);
+        explicit Some(const srt::SynthUnit *su);
         ~Some();
+
+        srt::Expected<void> open(const std::filesystem::path &modelPath);
+        void close();
 
         bool is_open() const;
 
         bool get_midi(const std::filesystem::path &filepath, std::vector<Midi> &midis, float tempo, std::string &msg,
-                      const std::function<void(int)> &progressChanged) const;
+                      const std::function<void(int)> &progressChanged);
 
-        void terminate() const;
+        void terminate();
 
     private:
-        bool get_midi(AudioUtil::SF_VIO sf_vio, std::vector<Midi> &midis, float tempo, std::string &msg,
-                      const std::function<void(int)> &progressChanged) const;
+        // bool get_midi(AudioUtil::SF_VIO sf_vio, std::vector<Midi> &midis, float tempo, std::string &msg,
+        //               const std::function<void(int)> &progressChanged) const;
 
-        std::unique_ptr<SomeModel> m_some;
+        SomeModel m_some;
     };
 } // namespace Some
 

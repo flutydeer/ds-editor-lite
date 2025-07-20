@@ -697,6 +697,10 @@ void InferEngine::dispose() {
     m_vocoder.session.reset();
 }
 
+srt::SynthUnit *InferEngine::synthUnit() {
+    return &m_su;
+}
+
 QString InferEngine::configPath() {
     QMutexLocker lock(&m_mutex);
     return m_configPath;

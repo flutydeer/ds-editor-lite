@@ -2,25 +2,25 @@
 
 #include <sndfile.hh>
 
-#include <iostream>
-
 #include <audio-util/Slicer.h>
 #include <audio-util/Util.h>
 #include <rmvpe-infer/RmvpeModel.h>
 
 namespace Rmvpe
 {
-    Rmvpe::Rmvpe(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id) {
-        m_rmvpe = std::make_unique<RmvpeModel>(modelPath, provider, device_id);
-
-        if (!is_open()) {
-            std::cout << "Cannot load RMVPE Model, there must be files " + modelPath.string() << std::endl;
-        }
+    Rmvpe::Rmvpe(const srt::SynthUnit *su) :
+        m_rmvpe(su) {
     }
 
     Rmvpe::~Rmvpe() = default;
 
-    bool Rmvpe::is_open() const { return m_rmvpe && m_rmvpe->is_open(); }
+    srt::Expected<void> Rmvpe::open(const std::filesystem::path &modelPath) {
+        return m_rmvpe.open(modelPath);
+    }
+
+    bool Rmvpe::is_open() const {
+        return m_rmvpe.is_open();
+    }
 
     static float calculateSumOfDifferences(const AudioUtil::MarkerList &markers) {
         float sum = 0;
@@ -97,8 +97,9 @@ namespace Rmvpe
     }
 
     bool Rmvpe::get_f0(const std::filesystem::path &filepath, const float threshold, std::vector<RmvpeRes> &res,
-                       std::string &msg, const std::function<void(int)> &progressChanged) const {
-        if (!m_rmvpe) {
+                       std::string &msg, const std::function<void(int)> &progressChanged) {
+        if (!m_rmvpe.is_open()) {
+            msg = "RMVPE inference session is not open";
             return false;
         }
 
@@ -137,9 +138,10 @@ namespace Rmvpe
 
             RmvpeRes tempRes;
             tempRes.offset = static_cast<float>(static_cast<double>(fst) / (16000.0 / 1000));
-            const bool success = m_rmvpe->forward(tmp, threshold, tempRes.f0, tempRes.uv, msg);
-            if (!success)
+            if (auto exp = m_rmvpe.forward(tmp, threshold, tempRes.f0, tempRes.uv); !exp) {
+                msg = exp.error().message();
                 return false;
+            }
             interp_f0(tempRes.f0, tempRes.uv);
             res.push_back(tempRes);
 
@@ -155,6 +157,8 @@ namespace Rmvpe
         return true;
     }
 
-    void Rmvpe::terminate() const { m_rmvpe->terminate(); }
+    void Rmvpe::terminate() {
+        m_rmvpe.terminate();
+    }
 
 } // namespace Rmvpe

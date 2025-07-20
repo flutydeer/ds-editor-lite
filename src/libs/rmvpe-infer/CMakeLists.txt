@@ -58,32 +58,10 @@ endif ()
 target_compile_definitions(${PROJECT_NAME} PRIVATE RMVPE_INFER_LIBRARY)
 
 find_package(SndFile CONFIG REQUIRED)
-
-set(ONNX_RUNTIME_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../dsonnxinfer/libs/flowonnx/libs/onnxruntime)
-
-include_directories(${ONNX_RUNTIME_PATH}/include)
-target_include_directories(${PROJECT_NAME}
-        PRIVATE
-        $<BUILD_INTERFACE:${ONNX_RUNTIME_PATH}/include>
-        $<INSTALL_INTERFACE:include>
-)
-
-target_link_directories(${PROJECT_NAME}
-        PRIVATE
-        $<BUILD_INTERFACE:${ONNX_RUNTIME_PATH}/lib>
-        $<INSTALL_INTERFACE:lib>
-)
-
-if (ONNXRUNTIME_ENABLE_CUDA)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_CUDA)
-endif()
-
-if (ONNXRUNTIME_ENABLE_DML)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_DML)
-endif()
+find_package(dsinfer CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile audio-util)
-target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime)
+target_link_libraries(${PROJECT_NAME} PUBLIC dsinfer::dsinfer)
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})

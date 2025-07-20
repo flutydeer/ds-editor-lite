@@ -46,6 +46,8 @@ private:
     friend class InferPitchTask;
     friend class InferVarianceTask;
     friend class InferAcousticTask;
+    friend class ExtractMidiTask;
+    friend class ExtractPitchTask;
 
     bool initialize(QString &error);
     bool loadPackage(const std::filesystem::path &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
@@ -60,6 +62,7 @@ private:
     void terminateInferVarianceAsync() const;
     void terminateInferAcousticAsync() const;
     void dispose();
+    srt::SynthUnit *synthUnit();
 
     QMutex m_mutex;
     bool m_initialized = false;
