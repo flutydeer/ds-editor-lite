@@ -29,6 +29,7 @@
     "tinyexpr",
     "stduuid",
     "stdcorelib",
+    "blake3",
     "sparsepp",
     "bit7z",
     {
