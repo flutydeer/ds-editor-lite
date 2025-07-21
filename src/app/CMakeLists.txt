@@ -92,8 +92,57 @@ endif()
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
 
-# copy phoneme dict
+# deploy Qt
+if(WIN32)
+    set(_qt_deploy_executable "windeployqt.exe")
+    find_program(WINDEPLOYQT_EXE ${_qt_deploy_executable} HINTS "${Qt6_DIR}/../../../bin")
 
+    if(WINDEPLOYQT_EXE)
+        message("-- Found ${_qt_deploy_executable}: ${WINDEPLOYQT_EXE}")
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND "${WINDEPLOYQT_EXE}"
+                --verbose 0
+                \"$<TARGET_FILE:${PROJECT_NAME}>\"
+                COMMENT "Deploy Qt"
+        )
+    else()
+        message(WARNING "${_qt_deploy_executable} not found, skipping deploying Qt")
+    endif()
+endif()
+
+# copy dsinfer binaries
+if (APPLE)
+    # TODO: macOS
+else ()
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            # copy dsinfer and synthrt libraries
+            COMMAND "${CMAKE_COMMAND}" -E copy
+            "$<TARGET_FILE:dsinfer::dsinfer>"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/"
+
+            COMMAND "${CMAKE_COMMAND}" -E copy
+            "$<TARGET_FILE:synthrt::synthrt>"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/"
+
+            # copy dsinfer plugins
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "${dsinfer_DIR}/../../plugins"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins"
+    )
+
+    install(DIRECTORY
+            "${dsinfer_DIR}/../../plugins"
+            DESTINATION .
+    )
+
+    install(FILES
+            "$<TARGET_FILE:dsinfer::dsinfer>"
+            "$<TARGET_FILE:synthrt::synthrt>"
+            DESTINATION .
+    )
+endif ()
+
+# copy phoneme dict
 if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND

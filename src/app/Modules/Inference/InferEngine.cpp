@@ -74,17 +74,45 @@ static void log_report_callback(int level, const srt::LogContext &ctx, const std
     }
 }
 
+static srt::Expected<void> checkPath(const std::filesystem::path &path) {
+    if (!std::filesystem::exists(path)) {
+        return srt::Error(srt::Error::FileNotFound,
+                          "Path does not exist: " + stdc::path::to_utf8(path));
+    }
+    if (!std::filesystem::is_directory(path)) {
+        return srt::Error(srt::Error::InvalidArgument,
+                          "Path is not a directory: " + stdc::path::to_utf8(path));
+    }
+    return srt::Expected<void>();
+}
+
 static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::ExecutionProvider ep, int deviceIndex) {
     // Get basic directories
     auto appDir = stdc::system::application_directory();
-    auto defaultPluginDir =
-        appDir.parent_path() / _TSTR("lib") / _TSTR("plugins") / _TSTR("dsinfer");
+    auto defaultPluginDir = appDir / _TSTR("plugins") / _TSTR("dsinfer");
 
     // Set default plugin directories
-    su.addPluginPath("org.openvpi.SingerProvider", defaultPluginDir / _TSTR("singerproviders"));
-    su.addPluginPath("org.openvpi.InferenceDriver", defaultPluginDir / _TSTR("inferencedrivers"));
-    su.addPluginPath("org.openvpi.InferenceInterpreter",
-                     defaultPluginDir / _TSTR("inferenceinterpreters"));
+    auto singerProviderDir = defaultPluginDir / _TSTR("singerproviders");
+    auto inferenceDriverDir = defaultPluginDir / _TSTR("inferencedrivers");
+    auto inferenceInterpreterDir = defaultPluginDir / _TSTR("inferenceinterpreters");
+    qDebug().noquote().nospace()
+        << "Singer provider plugin path: " << QDir(singerProviderDir).path();
+    qDebug().noquote().nospace()
+        << "Inference driver plugin path: " << QDir(inferenceDriverDir).path();
+    qDebug().noquote().nospace()
+        << "Inference interpreter plugin path: " << QDir(inferenceInterpreterDir).path();
+    if (auto exp = checkPath(singerProviderDir); !exp) {
+        return exp.takeError();
+    }
+    if (auto exp = checkPath(inferenceDriverDir); !exp) {
+        return exp.takeError();
+    }
+    if (auto exp = checkPath(inferenceInterpreterDir); !exp) {
+        return exp.takeError();
+    }
+    su.addPluginPath("org.openvpi.SingerProvider", singerProviderDir);
+    su.addPluginPath("org.openvpi.InferenceDriver", inferenceDriverDir);
+    su.addPluginPath("org.openvpi.InferenceInterpreter", inferenceInterpreterDir);
 
     // Load driver
     auto plugin = su.plugin<ds::InferenceDriverPlugin>("onnx");
@@ -101,7 +129,7 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::Execu
 
     if (auto exp = onnxDriver->initialize(onnxArgs); !exp) {
         return srt::Error(srt::Error::FileNotOpen,
-            stdc::formatN(R"(failed to initialize onnx driver: %1)", exp.error().message()));
+             "failed to initialize onnx driver: " + exp.error().message());
     }
 
     // Add driver
@@ -207,7 +235,10 @@ bool InferEngine::initialize(QString &error) {
 
 
     // Initialize SynthUnit (must do this before inference)
-    initializeSU(m_su, ep, selectedGpu.index);
+    if (auto exp = initializeSU(m_su, ep, selectedGpu.index); !exp) {
+        error = QString::fromUtf8(exp.error().message());
+        return false;
+    }
 
     qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
                             .arg(selectedGpu.description)

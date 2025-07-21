@@ -21,4 +21,9 @@ void InitInferEngineTask::runTask() {
     qDebug() << "Initialize inference engine...";
     // QThread::sleep(5);
     success = inferEngine->initialize(errorMessage);
+    if (!success) {
+        qCritical().noquote().nospace()
+            << "Failed to initialize inference engine: "
+            << errorMessage;
+    }
 }
