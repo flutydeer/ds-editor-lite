@@ -2,7 +2,6 @@
 #define DS_EDITOR_LITE_MIDICONVERTER_H
 
 #include "IProjectConverter.h"
-
 #include "Model/AppModel/TimeSignature.h"
 
 using ImportMode = IProjectConverter::ImportMode;
@@ -18,7 +17,5 @@ private:
     TimeSignature m_timeSignature;
     double m_tempo;
 };
-
-
 
 #endif // DS_EDITOR_LITE_MIDICONVERTER_H
