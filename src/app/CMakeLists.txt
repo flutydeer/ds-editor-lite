@@ -93,9 +93,22 @@ endif()
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
 
 # deploy Qt
+
+# "QT_QMAKE_EXECUTABLE" is usually defined by QtCreator.
+if(NOT DEFINED QT_QMAKE_EXECUTABLE)
+    get_target_property(QT_QMAKE_EXECUTABLE Qt::qmake IMPORTED_LOCATION)
+endif()
+
+if(NOT EXISTS "${QT_QMAKE_EXECUTABLE}")
+    message(WARNING "deploy_qt_runtime: Can't locate the QMake executable.")
+    return()
+endif()
+
+cmake_path(GET QT_QMAKE_EXECUTABLE PARENT_PATH __qt_bin_dir)
+
 if(WIN32)
     set(_qt_deploy_executable "windeployqt.exe")
-    find_program(WINDEPLOYQT_EXE ${_qt_deploy_executable} HINTS "${Qt6_DIR}/../../../bin")
+    find_program(WINDEPLOYQT_EXE ${_qt_deploy_executable} HINTS "${__qt_bin_dir}")
 
     if(WINDEPLOYQT_EXE)
         message("-- Found ${_qt_deploy_executable}: ${WINDEPLOYQT_EXE}")
