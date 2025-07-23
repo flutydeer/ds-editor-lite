@@ -11,9 +11,6 @@ void FillLyricOption::load(const QJsonObject &object) {
     if (object.contains("skipSlur"))
         skipSlur = object["skipSlur"].toBool();
 
-    if (object.contains("autoWrap"))
-        autoWrap = object["autoWrap"].toBool();
-
     if (object.contains("exportLanguage"))
         exportLanguage = object["exportLanguage"].toBool();
 
@@ -29,8 +26,6 @@ void FillLyricOption::save(QJsonObject &object) {
 
     object["splitMode"] = splitMode;
     object["skipSlur"] = skipSlur;
-
-    object["autoWrap"] = autoWrap;
 
     object["exportLanguage"] = exportLanguage;
 

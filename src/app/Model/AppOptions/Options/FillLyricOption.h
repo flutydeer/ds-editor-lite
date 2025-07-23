@@ -16,8 +16,6 @@ public:
     int splitMode = 0;
     bool skipSlur = false;
 
-    bool autoWrap = false;
-
     bool exportLanguage = false;
 
     double textEditFontSize = 11;

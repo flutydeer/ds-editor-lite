@@ -30,7 +30,7 @@ LyricDialog::LyricDialog(QList<Note *> note, const QStringList &priorityG2pIds, 
         {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
          appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
          appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
-         appOptions->fillLyric()->autoWrap, appOptions->fillLyric()->exportLanguage});
+         appOptions->fillLyric()->exportLanguage});
 
     if (!appOptions->fillLyric()->extVisible) {
         shrinkWindowRight(300);
@@ -149,7 +149,6 @@ void LyricDialog::_on_modifyOption(const FillLyric::LyricTabConfig &config) {
     options->splitMode = config.splitMode;
 
     options->viewFontSize = config.lyricExtFontSize;
-    options->autoWrap = config.autoWrap;
     options->exportLanguage = config.exportLanguage;
     appOptions->saveAndNotify(AppOptionsGlobal::Language);
 }
