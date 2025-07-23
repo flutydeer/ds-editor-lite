@@ -124,7 +124,12 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::Execu
     auto onnxArgs = srt::NO<ds::Api::Onnx::DriverInitArgs>::create();
 
     onnxArgs->ep = ep;
-    onnxArgs->runtimePath = plugin->path().parent_path() / _TSTR("runtimes");
+    auto ortParentPath = plugin->path().parent_path() / _TSTR("runtimes") / _TSTR("onnx");
+    if (ep == ds::Api::Onnx::CUDAExecutionProvider) {
+        onnxArgs->runtimePath = ortParentPath / _TSTR("cuda");
+    } else {
+        onnxArgs->runtimePath = ortParentPath / _TSTR("default");
+    }
     onnxArgs->deviceIndex = deviceIndex;
 
     if (auto exp = onnxDriver->initialize(onnxArgs); !exp) {
