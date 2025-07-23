@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <dsinfer/Api/Inferences/Common/1/CommonApiL1.h>
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -41,11 +43,11 @@ void BasePitchCurve::Convolve(const std::vector<NoteInSeconds> &noteArray) {
     }
 }
 
-BasePitchCurve::BasePitchCurve(const dsonnxinfer::Segment &segment) {
+BasePitchCurve::BasePitchCurve(const std::vector<ds::Api::Common::L1::InputWordInfo> &words) {
     std::vector<NoteInSeconds> noteArray;
     double startTime = 0.0;
 
-    for (const auto &[phones, notes] : segment.words) {
+    for (const auto &[phones, notes] : words) {
         for (const auto &[key, cents, duration, glide, is_rest] : notes) {
             noteArray.push_back({startTime, startTime + duration, key});
             startTime += duration;

@@ -86,7 +86,6 @@ void InferDurationTask::runTask() {
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
     }
 
-    QString resultJson;
     QString errorMessage;
     if (useCache) {
         qInfo() << "Use cached duration inference result:" << outputCachePath;
@@ -101,8 +100,24 @@ void InferDurationTask::runTask() {
             abort();
             return;
         }
-        if (inferEngine->inferDuration(input.serializeToJson(), resultJson, errorMessage)) {
-            model.deserializeFromJson(resultJson);
+        if (std::vector<double> durations; inferEngine->inferDuration(input, durations, errorMessage)) {
+            auto updatePhonemeStarts = [](QList<InferWord> &words, const std::vector<double> &phonemeDurations){
+                size_t i = 0;
+                for (auto &word : words) {
+                    double timeCursor = 0.0;
+                    for (auto &phoneme : word.phones) {
+                        if (i >= phonemeDurations.size()) {
+                            return;
+                        }
+                        phoneme.start = timeCursor;
+                        timeCursor += phonemeDurations[i];
+                        ++i;
+                    }
+                }
+            };
+
+            model = input;
+            updatePhonemeStarts(model.words, durations);
         } else {
             qCritical() << "Task failed:" << errorMessage;
             return;
@@ -146,9 +161,11 @@ void InferDurationTask::buildPreviewText() {
 
 GenericInferModel InferDurationTask::buildInputJson() const {
     GenericInferModel model;
+    model.singer = appOptions->general()->defaultSingerId;
+    model.speaker = appOptions->general()->defaultSpeakerId;
     model.words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo);
     model.configPath = m_input.configPath;
-    model.steps = inferEngine->m_env.defaultSteps();
+    model.steps = appOptions->inference()->samplingSteps;
     return model;
 }
 

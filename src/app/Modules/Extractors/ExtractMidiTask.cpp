@@ -7,7 +7,6 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
-#include "Modules/Inference/Utils/DmlGpuUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
@@ -21,7 +20,7 @@ ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
     status.message = tr("Pending infer: %1").arg(m_input.audioPath);
     setStatus(status);
 
-    if (!inferEngine->initialized()) {
+    if (!inferEngine || !inferEngine->initialized()) {
         m_errorCode = ErrorCode::InferEngineNotLoaded;
         m_errorMessage = tr("Inference engine is not loaded");
         qCritical().noquote() << "Error:" << errorMessage();
@@ -43,30 +42,12 @@ ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
         return;
     }
 
-    const auto getCurrentGpuIndex = []() {
-        auto selectedGpu = DmlGpuUtils::getGpuByPciDeviceVendorIdString(appOptions->inference()->selectedGpuId);
-        if (selectedGpu.index < 0) {
-            selectedGpu = DmlGpuUtils::getRecommendedGpu();
-        }
-        return selectedGpu.index;
-    };
+    m_some = std::make_unique<Some::Some>(inferEngine->synthUnit());
 
-    const int device_id = getCurrentGpuIndex();
-
-    const auto rmProvider = []() {
-        const auto inference = appOptions->inference();
-        if (inference->executionProvider == "DirectML") {
-            return Some::ExecutionProvider::DML;
-        } else if (inference->executionProvider == "CUDA") {
-            return Some::ExecutionProvider::CUDA;
-        }
-        return Some::ExecutionProvider::CPU;
-    }();
-
-    m_some = std::make_unique<Some::Some>(modelPath, rmProvider, device_id);
-    if (!m_some || !m_some->is_open()) {
+    if (auto exp = m_some->open(modelPath); !exp) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("Failed to create SOME session. Make sure onnx model is valid.");
+        const auto reason = QString::fromUtf8(exp.error().message());
+        m_errorMessage = tr("Failed to create SOME session: ") + reason;
         qCritical().noquote() << errorMessage();
         return;
     }

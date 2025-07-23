@@ -38,6 +38,7 @@ find_package(opendspx CONFIG REQUIRED)
 find_package(lyric-tab CONFIG REQUIRED)
 find_package(talcs REQUIRED)
 find_package(unofficial-tinyexpr CONFIG REQUIRED)
+find_package(dsinfer CONFIG REQUIRED)
 
 if (WIN32)
     find_package(QtWin32DirectManipulateHelper CONFIG REQUIRED)
@@ -60,10 +61,10 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         lyric-tab::lyric-tab
         QWindowKit::Widgets
         qtmediate::Widgets
-        dsonnxinfer
         rmvpe-infer::rmvpe-infer some-infer::some-infer
         curve-util::curve-util
         unofficial::tinyexpr::tinyexpr
+        dsinfer::dsinfer
 )
 
 if (WIN32)
@@ -91,8 +92,70 @@ endif()
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
 
-# copy phoneme dict
+# deploy Qt
 
+# "QT_QMAKE_EXECUTABLE" is usually defined by QtCreator.
+if(NOT DEFINED QT_QMAKE_EXECUTABLE)
+    get_target_property(QT_QMAKE_EXECUTABLE Qt::qmake IMPORTED_LOCATION)
+endif()
+
+if(NOT EXISTS "${QT_QMAKE_EXECUTABLE}")
+    message(WARNING "deploy_qt_runtime: Can't locate the QMake executable.")
+    return()
+endif()
+
+cmake_path(GET QT_QMAKE_EXECUTABLE PARENT_PATH __qt_bin_dir)
+
+if(WIN32)
+    set(_qt_deploy_executable "windeployqt.exe")
+    find_program(WINDEPLOYQT_EXE ${_qt_deploy_executable} HINTS "${__qt_bin_dir}")
+
+    if(WINDEPLOYQT_EXE)
+        message("-- Found ${_qt_deploy_executable}: ${WINDEPLOYQT_EXE}")
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND "${WINDEPLOYQT_EXE}"
+                --verbose 0
+                \"$<TARGET_FILE:${PROJECT_NAME}>\"
+                COMMENT "Deploy Qt"
+        )
+    else()
+        message(WARNING "${_qt_deploy_executable} not found, skipping deploying Qt")
+    endif()
+endif()
+
+# copy dsinfer binaries
+if (APPLE)
+    # TODO: macOS
+else ()
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            # copy dsinfer and synthrt libraries
+            COMMAND "${CMAKE_COMMAND}" -E copy
+            "$<TARGET_FILE:dsinfer::dsinfer>"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/"
+
+            COMMAND "${CMAKE_COMMAND}" -E copy
+            "$<TARGET_FILE:synthrt::synthrt>"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/"
+
+            # copy dsinfer plugins
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "${dsinfer_DIR}/../../plugins"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins"
+    )
+
+    install(DIRECTORY
+            "${dsinfer_DIR}/../../plugins"
+            DESTINATION .
+    )
+
+    install(FILES
+            "$<TARGET_FILE:dsinfer::dsinfer>"
+            "$<TARGET_FILE:synthrt::synthrt>"
+            DESTINATION .
+    )
+endif ()
+
+# copy phoneme dict
 if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND

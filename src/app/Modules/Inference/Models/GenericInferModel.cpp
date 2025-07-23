@@ -116,6 +116,9 @@ bool InferParam::deserialize(const QJsonObject &obj) {
 QJsonObject GenericInferModel::serialize() const {
     return QJsonObject{
         {"offset",     offset                 },
+        {"steps",      steps                  },
+        {"depth",      depth                  },
+        {"singer",     singer                 },
         {"words",      serializeJArray(words) },
         {"parameters", serializeJArray(params)}
     };
@@ -123,6 +126,10 @@ QJsonObject GenericInferModel::serialize() const {
 
 bool GenericInferModel::deserialize(const QJsonObject &obj) {
     offset = obj["offset"].toDouble();
+    singer = obj["singer"].toString();
+    steps = obj["steps"].toInt();
+    depth = static_cast<float>(obj["depth"].toDouble());
+
     deserializeJArray(obj["words"].toArray(), words);
     deserializeJArray(obj["parameters"].toArray(), params);
     return true;
@@ -132,7 +139,7 @@ QString GenericInferModel::serializeToJson(bool useMetaData) const {
     QJsonObject object = serialize();
     if (useMetaData){
         object["configPath"] = configPath;
-        object["steps"] = steps;
+        object["speaker"] = speaker;
     }
     return QJsonDocument{object}.toJson();
 }

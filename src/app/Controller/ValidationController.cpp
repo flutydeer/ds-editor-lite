@@ -46,7 +46,7 @@ void ValidationController::onModelChanged() {
                 auto singingClip = reinterpret_cast<SingingClip *>(clip);
                 singingClip->defaultLanguage = track->defaultLanguage();
                 singingClip->defaultG2pId = track->defaultG2pId();
-                singingClip->configPath = appOptions->general()->defaultSinger;
+                singingClip->configPath = appOptions->general()->defaultPackage;
             }
         }
     }

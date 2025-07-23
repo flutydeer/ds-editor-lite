@@ -6,6 +6,7 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/Button.h"
+#include "UI/Controls/DirSelector.h"
 #include "UI/Controls/FileSelector.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/OptionListCard.h"
@@ -58,19 +59,27 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     connect(m_leDefaultLyric, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
     // m_leDefaultLyric->setPlaceholderText(option->defaultLyric);
 
-    const QString yamlFilesFilter = tr("YAML Files (*.yaml);;All Files (*)");
+    m_fsDefaultPackage = new DirSelector;
+    m_fsDefaultPackage->setPath(option->defaultPackage);
+    m_fsDefaultPackage->setMinimumWidth(480);
+    connect(m_fsDefaultPackage, &DirSelector::pathChanged, this, &GeneralPage::modifyOption);
 
-    m_fsDefaultSinger = new FileSelector;
-    m_fsDefaultSinger->setFilter(yamlFilesFilter);
-    m_fsDefaultSinger->setFileDropExtensions({"yaml"});
-    m_fsDefaultSinger->setPath(option->defaultSinger);
-    m_fsDefaultSinger->setMinimumWidth(480);
-    connect(m_fsDefaultSinger, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
+    m_leDefaultSingerId = new LineEdit;
+    m_leDefaultSingerId->setFixedWidth(200);
+    m_leDefaultSingerId->setText(option->defaultSingerId);
+    connect(m_leDefaultSingerId, &LineEdit::textChanged, this, &GeneralPage::modifyOption);
+
+    m_leDefaultSpeakerId = new LineEdit;
+    m_leDefaultSpeakerId->setFixedWidth(200);
+    m_leDefaultSpeakerId->setText(option->defaultSpeakerId);
+    connect(m_leDefaultSpeakerId, &LineEdit::textChanged, this, &GeneralPage::modifyOption);
 
     const auto singingCard = new OptionListCard(tr("Singing"));
     singingCard->addItem(tr("Default Singing Language"), m_cbDefaultSingingLanguage);
     singingCard->addItem(tr("Default Lyric"), m_leDefaultLyric);
-    singingCard->addItem(tr("Default Singer"), m_fsDefaultSinger);
+    singingCard->addItem(tr("Default Package Path"), m_fsDefaultPackage);
+    singingCard->addItem(tr("Default Singer ID"), m_leDefaultSingerId);
+    singingCard->addItem(tr("Default Speaker ID"), m_leDefaultSpeakerId);
 
     const QString onnxFilesFilter = tr("ONNX Files (*.onnx);;All Files (*)");
 
@@ -105,7 +114,9 @@ void GeneralPage::modifyOption() {
     const auto option = appOptions->general();
     option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentText();
     option->defaultLyric = m_leDefaultLyric->text();
-    option->defaultSinger = m_fsDefaultSinger->path();
+    option->defaultPackage = m_fsDefaultPackage->path();
+    option->defaultSingerId = m_leDefaultSingerId->text();
+    option->defaultSpeakerId = m_leDefaultSpeakerId->text();
 
     option->somePath = m_fsSomePath->path();
     option->rmvpePath = m_fsRmvpePath->path();

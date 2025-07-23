@@ -12,6 +12,8 @@
 #include "Utils/JsonUtils.h"
 #include "Utils/MathUtils.h"
 
+#include "InferTaskCommon.h"
+
 #include <QDebug>
 #include <QDir>
 #include <qcryptographichash.h>
@@ -93,7 +95,7 @@ void InferAcousticTask::runTask() {
             abort();
             return;
         }
-        if (inferEngine->inferAcoustic(input.serializeToJson(), outputCachePath, errorMessage)) {
+        if (inferEngine->inferAcoustic(input, outputCachePath, errorMessage)) {
             m_result = outputCachePath;
         } else {
             qCritical() << "Task failed:" << errorMessage;
@@ -184,9 +186,12 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     toneShift.values = MathUtils::resample(m_input.toneShift.values, 5, newInterval);
 
     GenericInferModel model;
+    model.singer = appOptions->general()->defaultSingerId;
+    model.speaker = appOptions->general()->defaultSpeakerId;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening, gender, velocity, toneShift};
     model.configPath = input().configPath;
-    model.steps = inferEngine->m_env.defaultSteps();
+    model.steps = appOptions->inference()->samplingSteps;
+    model.depth = appOptions->inference()->depth;
     return model;
 }

@@ -14,6 +14,7 @@
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Audio/utils/DeviceTester.h"
 #include "Modules/History/HistoryManager.h"
+#include "Modules/Inference/InferEngine.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Window/TaskWindow.h"
 #include "Utils/Log.h"
@@ -100,6 +101,7 @@ int main(int argc, char *argv[]) {
     AppContext appContext;
 
     AppController::instance();
+    InferEngine::instance();
 
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     // auto editor = appModel->workspaceEditor("flutydeer.filllyrics");

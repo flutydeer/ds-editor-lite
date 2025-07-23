@@ -19,7 +19,9 @@ public:
 
     QString defaultSingingLanguage = "cmn";
     QString defaultLyric = "啦";
-    LITE_OPTION_ITEM(QString, defaultSinger, QString())
+    LITE_OPTION_ITEM(QString, defaultPackage, QString())
+    LITE_OPTION_ITEM(QString, defaultSingerId, QString())
+    LITE_OPTION_ITEM(QString, defaultSpeakerId, QString())
     LITE_OPTION_ITEM(QString, somePath, QString())
     LITE_OPTION_ITEM(QString, rmvpePath, QString())
 

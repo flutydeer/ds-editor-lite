@@ -4,11 +4,54 @@
 #include <string>
 #include <vector>
 
+#include <stdcorelib/str.h>
+#include <stdcorelib/system.h>
+#include <synthrt/Core/Contribute.h>
+#include <synthrt/Core/NamedObject.h>
+#include <synthrt/Core/SynthUnit.h>
+#include <dsinfer/Inference/InferenceDriverPlugin.h>
+#include <dsinfer/Api/Drivers/Onnx/OnnxDriverApi.h>
+
 #include <some-infer/Some.h>
 
 #include "wolf-midi/MidiFile.h"
 
+using EP = ds::Api::Onnx::ExecutionProvider;
+
 static void progressChanged(const int progress) { std::cout << "progress: " << progress << "%" << std::endl; }
+
+static srt::Expected<void> initializeSU(srt::SynthUnit &su, EP ep, int deviceIndex) {
+    // Get basic directories
+    auto appDir = stdc::system::application_directory();
+    auto defaultPluginDir =
+        appDir.parent_path() / _TSTR("lib") / _TSTR("plugins") / _TSTR("dsinfer");
+
+    // Set default plugin directories
+    su.addPluginPath("org.openvpi.InferenceDriver", defaultPluginDir / _TSTR("inferencedrivers"));
+
+    // Load driver
+    auto plugin = su.plugin<ds::InferenceDriverPlugin>("onnx");
+    if (!plugin) {
+        return srt::Error(srt::Error::FileNotOpen,"failed to load inference driver");
+    }
+
+    auto onnxDriver = plugin->create();
+    auto onnxArgs = srt::NO<ds::Api::Onnx::DriverInitArgs>::create();
+
+    onnxArgs->ep = ep;
+    onnxArgs->runtimePath = plugin->path().parent_path() / _TSTR("runtimes");
+    onnxArgs->deviceIndex = deviceIndex;
+
+    if (auto exp = onnxDriver->initialize(onnxArgs); !exp) {
+        return srt::Error(srt::Error::FileNotOpen,
+            stdc::formatN(R"(failed to initialize onnx driver: %1)", exp.error().message()));
+    }
+
+    // Add driver
+    auto &ic = *su.category("inference");
+    ic.addObject("dsdriver", onnxDriver);
+    return srt::Expected<void>();
+}
 
 int main(int argc, char *argv[]) {
     if (argc != 7) {
@@ -24,14 +67,35 @@ int main(int argc, char *argv[]) {
     const std::filesystem::path outMidiPath = argv[5];
     const float tempo = std::stof(argv[6]);
 
-    const auto someProvider = provider == "dml" ? Some::ExecutionProvider::DML : Some::ExecutionProvider::CPU;
+    const auto someProvider = [](const std::string &provider_) -> EP {
+        auto provider_lower = stdc::to_lower(provider_);
+        if (provider_lower == "dml" || provider_lower == "directml") {
+            return EP::DMLExecutionProvider;
+        }
+        if (provider_lower == "cuda") {
+            return EP::CUDAExecutionProvider;
+        }
+        if (provider_lower == "coreml") {
+            return EP::CoreMLExecutionProvider;
+        }
+        return EP::CPUExecutionProvider;
+    }(provider);
 
-    const Some::Some some(modelPath, someProvider, device_id);
+    srt::SynthUnit su;
+    if (auto exp = initializeSU(su, someProvider, device_id); !exp) {
+        std::cerr << "failed to initialize SynthUnit: " << exp.error().message() << std::endl;
+        return 1;
+    }
+    Some::Some some(&su);
+    if (auto exp = some.open(modelPath); !exp) {
+        std::cerr << "failed to open SOME model " << modelPath << ": " << exp.error().message() << std::endl;
+        return 1;
+    }
 
     std::vector<Some::Midi> midis;
     std::string msg;
 
-    bool success = some.get_midi(wavPath, midis, tempo, msg, progressChanged);
+    const bool success = some.get_midi(wavPath, midis, tempo, msg, progressChanged);
 
     if (success) {
         Midi::MidiFile midi;
@@ -59,6 +123,7 @@ int main(int argc, char *argv[]) {
         midi.save(outMidiPath);
     } else {
         std::cerr << "Error: " << msg << std::endl;
+        return 1;
     }
 
     return 0;

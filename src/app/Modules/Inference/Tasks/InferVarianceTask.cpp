@@ -78,7 +78,6 @@ void InferVarianceTask::runTask() {
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
     }
 
-    QString resultJson;
     QString errorMessage;
     if (useCache) {
         qInfo() << "Use cached variance inference result:" << outputCachePath;
@@ -93,8 +92,16 @@ void InferVarianceTask::runTask() {
             abort();
             return;
         }
-        if (inferEngine->inferVariance(input.serializeToJson(), resultJson, errorMessage)) {
-            model.deserializeFromJson(resultJson);
+        if (QList<InferParam> outParams; inferEngine->inferVariance(input, outParams, errorMessage)) {
+            model = input;
+            for (auto &param : model.params) {
+                for (auto &outParam : outParams) {
+                    if (param.tag == outParam.tag) {
+                        param = outParam;
+                        break;
+                    }
+                }
+            }
         } else {
             qCritical() << "Task failed:" << errorMessage;
             return;
@@ -177,10 +184,12 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
     }
 
     GenericInferModel model;
+    model.singer = appOptions->general()->defaultSingerId;
+    model.speaker = appOptions->general()->defaultSpeakerId;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening};
     model.configPath = input().configPath;
-    model.steps = inferEngine->m_env.defaultSteps();
+    model.steps = appOptions->inference()->samplingSteps;
     return model;
 }
 

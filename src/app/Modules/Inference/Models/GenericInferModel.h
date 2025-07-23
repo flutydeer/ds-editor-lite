@@ -54,8 +54,8 @@ public:
 class InferRetake final : public ISerializable {
 public:
     // index, [start, end)
-    int start = 0;
-    int end = 0;
+    double start = 0;
+    double end = 0;
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
@@ -81,7 +81,10 @@ public:
 
     // 元数据
     QString configPath;
+    QString singer;
+    QString speaker;
     int steps = -1;
+    float depth = 1.0;
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
