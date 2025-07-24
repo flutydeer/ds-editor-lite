@@ -19,9 +19,6 @@ SeekBarSpinboxGroup::SeekBarSpinboxGroup(const double min, const double max, con
     connect(seekbar, &SVS::SeekBar::sliderReleased, this, [&] {
         Q_EMIT editFinished();
     });
-    connect(seekbar, &SVS::SeekBar::releaseKeyboard, this, [&] {
-        Q_EMIT editFinished();
-    });
 
     connect(spinbox, &SVS::ExpressionSpinBox::valueChanged, this, [&](const double value) {
         seekbar->setValue(value);

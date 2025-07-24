@@ -20,9 +20,6 @@ DoubleSeekBarSpinboxGroup::DoubleSeekBarSpinboxGroup(const double min, const dou
     connect(seekbar, &SVS::SeekBar::sliderReleased, this, [&] {
         Q_EMIT editFinished();
     });
-    connect(seekbar, &SVS::SeekBar::releaseKeyboard, this, [&] {
-        Q_EMIT editFinished();
-    });
 
     connect(spinbox, &SVS::ExpressionDoubleSpinBox::valueChanged, this, [&](const double value) {
         seekbar->setValue(value);
