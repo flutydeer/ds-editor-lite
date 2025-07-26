@@ -21,17 +21,13 @@
     "language-manager",
     "opendspx",
     "lyric-tab",
-    "loadso",
-    "syscmdline",
-    "nlohmann-json",
     "yaml-cpp",
     "wavpack",
     "tinyexpr",
-    "stduuid",
-    "stdcorelib",
-    "blake3",
-    "sparsepp",
-    "bit7z",
+    {
+      "name": "synthrt",
+      "features": []
+    },
     {
       "name": "talcs",
       "features": [
@@ -54,6 +50,32 @@
       "platform": "windows"
     }
   ],
+  "features": {
+    "cuda11": {
+      "description": "Enable synthrt (dsinfer) CUDA 11.x support",
+      "dependencies": [
+        {
+          "name": "synthrt",
+          "features": [
+            "cuda11"
+          ]
+        }
+      ],
+      "supports": "!osx & !arm & !arm64"
+    },
+    "cuda12": {
+      "description": "Enable synthrt (dsinfer) CUDA 12.x support",
+      "dependencies": [
+        {
+          "name": "synthrt",
+          "features": [
+            "cuda12"
+          ]
+        }
+      ],
+      "supports": "!osx & !arm & !arm64"
+    }
+  },
   "vcpkg-configuration": {
     "overlay-ports": [
       "../vcpkg/ports"

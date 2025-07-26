@@ -124,36 +124,21 @@ if(WIN32)
 endif()
 
 # copy dsinfer binaries
-if (APPLE)
+if(APPLE)
     # TODO: macOS
-else ()
+else()
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            # copy dsinfer and synthrt libraries
-            COMMAND "${CMAKE_COMMAND}" -E copy
-            "$<TARGET_FILE:dsinfer::dsinfer>"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/"
-
-            COMMAND "${CMAKE_COMMAND}" -E copy
-            "$<TARGET_FILE:synthrt::synthrt>"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/"
-
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "${dsinfer_DIR}/../../plugins"
+            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins"
     )
 
     install(DIRECTORY
-            "${dsinfer_DIR}/../../plugins"
-            DESTINATION .
+            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            DESTINATION "${CMAKE_INSTALL_PREFIX}"
     )
-
-    install(FILES
-            "$<TARGET_FILE:dsinfer::dsinfer>"
-            "$<TARGET_FILE:synthrt::synthrt>"
-            DESTINATION .
-    )
-endif ()
+endif()
 
 # copy phoneme dict
 if (APPLE)
