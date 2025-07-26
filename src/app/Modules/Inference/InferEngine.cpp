@@ -86,7 +86,7 @@ static srt::Expected<void> checkPath(const std::filesystem::path &path) {
     return srt::Expected<void>();
 }
 
-static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::ExecutionProvider ep, int deviceIndex) {
+static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::ExecutionProvider ep, int deviceIndex, InferEnginePaths &outPaths) {
     // Get basic directories
     auto appDir = stdc::system::application_directory();
     auto defaultPluginDir = appDir / _TSTR("plugins") / _TSTR("dsinfer");
@@ -95,12 +95,16 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::Execu
     auto singerProviderDir = defaultPluginDir / _TSTR("singerproviders");
     auto inferenceDriverDir = defaultPluginDir / _TSTR("inferencedrivers");
     auto inferenceInterpreterDir = defaultPluginDir / _TSTR("inferenceinterpreters");
+
+    auto singerProviderDirString = QDir(singerProviderDir).path();
+    auto inferenceDriverDirString = QDir(inferenceDriverDir).path();
+    auto inferenceInterpreterDirString = QDir(inferenceInterpreterDir).path();
     qDebug().noquote().nospace()
-        << "Singer provider plugin path: " << QDir(singerProviderDir).path();
+        << "Singer provider plugin path: " << singerProviderDirString;
     qDebug().noquote().nospace()
-        << "Inference driver plugin path: " << QDir(inferenceDriverDir).path();
+        << "Inference driver plugin path: " << inferenceDriverDirString;
     qDebug().noquote().nospace()
-        << "Inference interpreter plugin path: " << QDir(inferenceInterpreterDir).path();
+        << "Inference interpreter plugin path: " << inferenceInterpreterDirString;
     if (auto exp = checkPath(singerProviderDir); !exp) {
         return exp.takeError();
     }
@@ -140,6 +144,12 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::Execu
     // Add driver
     auto &ic = *su.category("inference");
     ic.addObject("dsdriver", onnxDriver);
+
+    outPaths.singerProvider = singerProviderDirString;
+    outPaths.inferenceDriver = inferenceDriverDirString;
+    outPaths.inferenceRuntime = QDir(onnxArgs->runtimePath).path();
+    outPaths.inferenceInterpreter = inferenceInterpreterDirString;
+
     return srt::Expected<void>();
 }
 
@@ -178,7 +188,7 @@ bool InferEngine::initialized() {
 //         taskManager->removeTask(task);
 //         if (task->success) {
 //             m_configLoaded = true;
-//             m_configPath = path;
+//             m_paths.config = path;
 //         }
 //         delete task;
 //     });
@@ -240,7 +250,7 @@ bool InferEngine::initialize(QString &error) {
 
 
     // Initialize SynthUnit (must do this before inference)
-    if (auto exp = initializeSU(m_su, ep, selectedGpu.index); !exp) {
+    if (auto exp = initializeSU(m_su, ep, selectedGpu.index, m_paths); !exp) {
         error = QString::fromUtf8(exp.error().message());
         return false;
     }
@@ -301,7 +311,7 @@ bool InferEngine::runLoadConfig(const QString &path) {
         return false;
     }
     QMutexLocker lock(&m_mutex);
-    if (path == m_configPath) {
+    if (path == m_paths.config) {
         qInfo() << "Already loaded config";
         return m_configLoaded;
     }
@@ -465,7 +475,7 @@ bool InferEngine::runLoadConfig(const QString &path) {
         return false;
     }
     m_configLoaded = true;
-    m_configPath = path;
+    m_paths.config = path;
     qInfo() << "runLoadConfig success";
 
     return true;
@@ -739,7 +749,27 @@ srt::SynthUnit *InferEngine::synthUnit() {
 
 QString InferEngine::configPath() {
     QMutexLocker lock(&m_mutex);
-    return m_configPath;
+    return m_paths.config;
+}
+
+QString InferEngine::singerProviderPath() {
+    QMutexLocker lock(&m_mutex);
+    return m_paths.singerProvider;
+}
+
+QString InferEngine::inferenceDriverPath() {
+    QMutexLocker lock(&m_mutex);
+    return m_paths.inferenceDriver;
+}
+
+QString InferEngine::inferenceRuntimePath() {
+    QMutexLocker lock(&m_mutex);
+    return m_paths.inferenceRuntime;
+}
+
+QString InferEngine::inferenceInterpreterPath() {
+    QMutexLocker lock(&m_mutex);
+    return m_paths.inferenceInterpreter;
 }
 
 bool InferEngine::configLoaded() {

@@ -1,6 +1,7 @@
 #include "InferencePage.h"
 
 #include "Model/AppOptions/AppOptions.h"
+#include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Utils/DmlGpuUtils.h"
 #include "Modules/Inference/Utils/CudaGpuUtils.h"
 #include "UI/Controls/CardView.h"
@@ -13,6 +14,7 @@
 #include "UI/Controls/SwitchButton.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
 
+#include <QPlainTextEdit>
 #include <QVBoxLayout>
 
 enum CustomRole {
@@ -152,10 +154,50 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
                         tr("Smooth the pitch curve with a sinusoidal kernel"),
                         {m_smoothSlider->seekbar, m_smoothSlider->spinbox});
 
+    // Debug
+    m_textEdit = new QPlainTextEdit();
+    m_textEdit->setReadOnly(true);
+    m_textEdit->setLineWrapMode(QPlainTextEdit::LineWrapMode::WidgetWidth);
+    if (inferEngine) {
+        auto engineInitialized = inferEngine->initialized();
+        auto driverPath = inferEngine->inferenceDriverPath();
+        if (driverPath.isEmpty()) {
+            driverPath = "<empty>";
+        }
+        auto interpreterPath = inferEngine->inferenceInterpreterPath();
+        if (interpreterPath.isEmpty()) {
+            interpreterPath = "<empty>";
+        }
+        auto singerProviderPath = inferEngine->singerProviderPath();
+        if (singerProviderPath.isEmpty()) {
+            singerProviderPath = "<empty>";
+        }
+        auto runtimePath = inferEngine->inferenceRuntimePath();
+        if (runtimePath.isEmpty()) {
+            runtimePath = "<empty>";
+        }
+        QString text = QString("Engine initialized: ") +
+            (engineInitialized ? "Yes" : "No") + "\n\n"
+            "[Inference driver path]\n" + driverPath + "\n\n" +
+            "[Inference interpreter path]\n" + interpreterPath + "\n\n" +
+            "[Inference runtime path]\n" + runtimePath + "\n\n" +
+            "[Singer provider path]\n" + singerProviderPath;
+        m_textEdit->setPlainText(text);
+    } else {
+        m_textEdit->setPlainText("InferEngine is not created (null pointer)");
+    }
+    const auto debugCard = new OptionsCard();
+    const auto debugLayout = new QHBoxLayout();
+    debugLayout->setContentsMargins(10, 10, 10, 10);
+    debugLayout->addWidget(m_textEdit);
+    debugCard->card()->setLayout(debugLayout);
+    debugCard->setTitle(tr("Debug"));
+
     // Main Layout
     const auto mainLayout = new QVBoxLayout();
     mainLayout->addWidget(deviceCard);
     mainLayout->addWidget(renderCard);
+    mainLayout->addWidget(debugCard);
     mainLayout->addStretch();
     mainLayout->setContentsMargins({});
     setLayout(mainLayout);

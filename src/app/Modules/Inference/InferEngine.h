@@ -21,6 +21,14 @@
 class GenericInferModel;
 class InferParam;
 
+struct InferEnginePaths {
+    QString config;
+    QString singerProvider;
+    QString inferenceDriver;
+    QString inferenceRuntime;
+    QString inferenceInterpreter;
+};
+
 class InferEngine final : public QObject, public Singleton<InferEngine> {
     Q_OBJECT
 
@@ -33,6 +41,10 @@ public:
     bool initialized();
     // void loadConfig(const QString &path);
     QString configPath();
+    QString singerProviderPath();
+    QString inferenceDriverPath();
+    QString inferenceRuntimePath();
+    QString inferenceInterpreterPath();
     bool configLoaded();
 
 Q_SIGNALS:
@@ -78,7 +90,7 @@ private:
     };
     Inference m_duration, m_pitch, m_variance, m_acoustic, m_vocoder;
 
-    QString m_configPath;
+    InferEnginePaths m_paths;
 };
 
 
