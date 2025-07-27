@@ -43,6 +43,9 @@
 
 #include "Tasks/InferTaskCommon.h"
 #include "Utils/CudaGpuUtils.h"
+#if defined(Q_OS_MAC)
+#  include "Utils/MacOSUtils.h"
+#endif
 
 namespace Co = ds::Api::Common::L1;
 namespace Ac = ds::Api::Acoustic::L1;
@@ -88,8 +91,13 @@ static srt::Expected<void> checkPath(const std::filesystem::path &path) {
 
 static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::ExecutionProvider ep, int deviceIndex, InferEnginePaths &outPaths) {
     // Get basic directories
-    auto appDir = stdc::system::application_directory();
-    auto defaultPluginDir = appDir / _TSTR("plugins") / _TSTR("dsinfer");
+    auto pluginRootDir =
+#if defined(Q_OS_MAC)
+        MacOSUtils::getMainBundlePath() / _TSTR("Contents/PlugIns");
+#else
+        stdc::system::application_directory() / _TSTR("plugins");
+#endif
+    auto defaultPluginDir = pluginRootDir / _TSTR("dsinfer");
 
     // Set default plugin directories
     auto singerProviderDir = defaultPluginDir / _TSTR("singerproviders");

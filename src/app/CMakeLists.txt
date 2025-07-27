@@ -69,13 +69,13 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 
 if (WIN32)
     if (QtWin32DirectManipulateHelper_FOUND)
-        message("-- Building with Direct Manipulation support on Windows")
+        message(STATUS "Building with Direct Manipulation support on Windows")
         target_link_libraries(${PROJECT_NAME} PRIVATE
                 QtWin32DirectManipulateHelper::Core
         )
         target_compile_definitions(${PROJECT_NAME} PRIVATE WITH_DIRECT_MANIPULATION)
     else ()
-        message("-- QtWin32DirectManipulateHelper is not found. "
+        message(STATUS "QtWin32DirectManipulateHelper is not found. "
                 "Building without Direct Manipulation support on Windows")
     endif ()
 endif ()
@@ -111,7 +111,7 @@ if(WIN32)
     find_program(WINDEPLOYQT_EXE ${_qt_deploy_executable} HINTS "${__qt_bin_dir}")
 
     if(WINDEPLOYQT_EXE)
-        message("-- Found ${_qt_deploy_executable}: ${WINDEPLOYQT_EXE}")
+        message(STATUS "Found ${_qt_deploy_executable}: ${WINDEPLOYQT_EXE}")
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND "${WINDEPLOYQT_EXE}"
                 --verbose 0
@@ -125,7 +125,17 @@ endif()
 
 # copy dsinfer binaries
 if(APPLE)
-    # TODO: macOS
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            # copy dsinfer plugins
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns"
+    )
+
+    install(DIRECTORY
+            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            DESTINATION "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns"
+    )
 else()
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
@@ -173,7 +183,7 @@ if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
             "${cpp-pinyin_DIR}/dict"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/Resources/dict"
+            "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/Resources/dict"
     )
 
     install(DIRECTORY "${cpp-pinyin_DIR}/dict"
