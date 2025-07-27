@@ -60,6 +60,7 @@ private:
     friend class InferAcousticTask;
     friend class ExtractMidiTask;
     friend class ExtractPitchTask;
+    friend class PackageManager;
 
     bool initialize(QString &error);
     bool loadPackage(const std::filesystem::path &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
