@@ -353,7 +353,7 @@ void InferControllerPrivate::createAndRunGetPronTask(SingingClip &clip) {
         return;
     }
     auto task = new GetPronunciationTask(clip.id(), clip.notes().toList());
-    connect(task, &Task::finished, this, [=] { handleGetPronTaskFinished(*task); });
+    connect(task, &Task::finished, this, [task, this] { handleGetPronTaskFinished(*task); });
     m_getPronTasks.add(task);
     if (!m_getPronTasks.current)
         runNextGetPronTask();
@@ -365,7 +365,7 @@ void InferControllerPrivate::createAndRunGetPhoneTask(SingingClip &clip) {
         inputs.append({note->lyric(), note->language(), note->pronunciation().result()});
     auto task = new GetPhonemeNameTask(clip.id(), inputs);
     task->notesRef = clip.notes().toList();
-    connect(task, &Task::finished, this, [=] { handleGetPhoneTaskFinished(*task); });
+    connect(task, &Task::finished, this, [task, this] { handleGetPhoneTaskFinished(*task); });
     m_getPhoneTasks.add(task);
     if (!m_getPhoneTasks.current)
         runNextGetPhoneTask();
@@ -378,7 +378,7 @@ void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
     // 清空原有的自动参数
     Helper::resetPhoneOffset(piece.notes, piece);
     auto task = new InferDurationTask(input);
-    connect(task, &Task::finished, this, [=] { handleInferDurTaskFinished(*task); });
+    connect(task, &Task::finished, this, [task, this] { handleInferDurTaskFinished(*task); });
     m_inferDurTasks.add(task);
     piece.acousticInferStatus = Running;
     if (!m_inferDurTasks.current)
@@ -389,7 +389,7 @@ void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
     const auto input = Helper::buildInferPitchInput(piece, piece.clip->configPath);
     Helper::resetPitch(piece);
     auto task = new InferPitchTask(input);
-    connect(task, &Task::finished, this, [=] { handleInferPitchTaskFinished(*task); });
+    connect(task, &Task::finished, this, [task, this] { handleInferPitchTaskFinished(*task); });
     m_inferPitchTasks.add(task);
     if (!m_inferPitchTasks.current)
         runNextInferPitchTask();
@@ -399,7 +399,7 @@ void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
     const auto input = Helper::buildInferVarianceInput(piece, piece.clip->configPath);
     Helper::resetVariance(piece);
     auto task = new InferVarianceTask(input);
-    connect(task, &Task::finished, this, [=] { handleInferVarianceTaskFinished(*task); });
+    connect(task, &Task::finished, this, [task, this] { handleInferVarianceTaskFinished(*task); });
     m_inferVarianceTasks.add(task);
     piece.acousticInferStatus = Running;
     if (!m_inferVarianceTasks.current)
@@ -410,7 +410,7 @@ void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
     const auto input = Helper::buildInderAcousticInput(piece, piece.clip->configPath);
     Helper::resetAcoustic(piece);
     auto task = new InferAcousticTask(input);
-    connect(task, &Task::finished, this, [=] { handleInferAcousticTaskFinished(*task); });
+    connect(task, &Task::finished, this, [task, this] { handleInferAcousticTaskFinished(*task); });
     m_inferAcousticTasks.add(task);
     piece.acousticInferStatus = Running;
     runInferAcousticIfNeeded();

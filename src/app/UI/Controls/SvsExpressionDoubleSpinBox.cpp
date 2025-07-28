@@ -1,22 +1,22 @@
-#include "SvsExpressionspinbox.h"
+#include "SvsExpressionDoubleSpinBox.h"
 
 #include <tinyexpr.h>
 
 namespace SVS {
 
-    ExpressionSpinBox::ExpressionSpinBox(QWidget *parent) : QSpinBox(parent) {
+    ExpressionDoubleSpinBox::ExpressionDoubleSpinBox(QWidget *parent) : QDoubleSpinBox(parent) {
     }
 
-    ExpressionSpinBox::~ExpressionSpinBox() = default;
+    ExpressionDoubleSpinBox::~ExpressionDoubleSpinBox() = default;
 
-    QValidator::State ExpressionSpinBox::validate(QString &input, int &pos) const {
+    QValidator::State ExpressionDoubleSpinBox::validate(QString &input, int &pos) const {
         if (textFromValue(valueFromText(input)) == input)
             return QValidator::Acceptable;
         else
             return QValidator::Intermediate;
     }
 
-    void ExpressionSpinBox::fixup(QString &str) const {
+    void ExpressionDoubleSpinBox::fixup(QString &str) const {
         int err;
         auto s = str;
         for (auto &c : s) {
@@ -25,9 +25,10 @@ namespace SVS {
             }
         }
         s.replace(QLocale().decimalPoint(), ".");
-        double ret = te_interp(s.toUtf8(), &err);
+        double ret = te_interp(s.toLatin1(), &err);
         if (err == 0) {
-            str = textFromValue(int(ret));
+            str = textFromValue(ret);
         }
     }
+
 }

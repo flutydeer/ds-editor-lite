@@ -69,7 +69,7 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
 
     m_tasks.append(decodeTask);
     connect(decodeTask, &Task::finished, this,
-            [=] { handleTaskFinished(decodeTask); });
+            [decodeTask, this] { handleTaskFinished(decodeTask); });
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }

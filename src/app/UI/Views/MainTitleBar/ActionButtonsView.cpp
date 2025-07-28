@@ -21,7 +21,7 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     m_btnSave->setIcon(icoSaveWhite);
     m_btnSave->setToolTip(tr("Save Project"));
     m_btnSave->installEventFilter(new ToolTipFilter(m_btnSave));
-    connect(m_btnSave, &QPushButton::clicked, this, [=] { emit saveTriggered(); });
+    connect(m_btnSave, &QPushButton::clicked, this, [this] { emit saveTriggered(); });
 
     m_btnUndo = new QPushButton;
     m_btnUndo->setObjectName("btnUndo");
@@ -31,7 +31,7 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     // m_btnUndo->setShortcut(QKeyCombination(Qt::CTRL, Qt::Key_Z));
     m_btnUndo->setToolTip(tr("Undo"));
     m_btnUndo->installEventFilter(new ToolTipFilter(m_btnUndo));
-    connect(m_btnUndo, &QPushButton::clicked, this, [=] { emit undoTriggered(); });
+    connect(m_btnUndo, &QPushButton::clicked, this, [this] { emit undoTriggered(); });
 
     m_btnRedo = new QPushButton;
     m_btnRedo->setObjectName("btnRedo");
@@ -41,7 +41,7 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     // m_btnRedo->setShortcut(QKeyCombination(Qt::CTRL, Qt::Key_Y));
     m_btnRedo->setToolTip(tr("Redo"));
     m_btnRedo->installEventFilter(new ToolTipFilter(m_btnRedo));
-    connect(m_btnRedo, &QPushButton::clicked, this, [=] { emit redoTriggered(); });
+    connect(m_btnRedo, &QPushButton::clicked, this, [this] { emit redoTriggered(); });
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->setContentsMargins(4, 0, 6, 0);

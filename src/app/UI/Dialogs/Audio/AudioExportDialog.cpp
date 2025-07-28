@@ -28,7 +28,7 @@
 #include <QProgressBar>
 #include <QTimer>
 
-#include "UI/Controls/SvsExpressionspinbox.h"
+#include "UI/Controls/SvsExpressionSpinBox.h"
 
 #include <Modules/Audio/AudioExporter_p.h>
 
@@ -77,23 +77,23 @@ namespace Audio::Internal {
         fileNameTemplateButton->setIcon(style()->standardIcon(QStyle::SP_TitleBarMenuButton));
         fileNameTemplateButton->setToolTip(tr("Template"));
         auto fileNameTemplateMenu = new QMenu(this);
-        fileNameTemplateMenu->addAction(QStringLiteral("${projectName}"), this, [=] {
+        fileNameTemplateMenu->addAction(QStringLiteral("${projectName}"), this, [this] {
             QFileInfo fileInfo(m_fileNameEdit->text());
             m_fileNameEdit->setText(fileInfo.completeBaseName() + QStringLiteral("${projectName}.") + fileInfo.suffix());
         });
-        fileNameTemplateMenu->addAction(QStringLiteral("${sampleRate}"), this, [=] {
+        fileNameTemplateMenu->addAction(QStringLiteral("${sampleRate}"), this, [this] {
             QFileInfo fileInfo(m_fileNameEdit->text());
             m_fileNameEdit->setText(fileInfo.completeBaseName() + QStringLiteral("${sampleRate}.") + fileInfo.suffix());
         });
-        fileNameTemplateMenu->addAction(QStringLiteral("${today}"), this, [=] {
+        fileNameTemplateMenu->addAction(QStringLiteral("${today}"), this, [this] {
             QFileInfo fileInfo(m_fileNameEdit->text());
             m_fileNameEdit->setText(fileInfo.completeBaseName() + QStringLiteral("${today}.") + fileInfo.suffix());
         });
-        auto fileNameTemplateTrackNameAction = fileNameTemplateMenu->addAction(QStringLiteral("${trackName}"), this, [=] {
+        auto fileNameTemplateTrackNameAction = fileNameTemplateMenu->addAction(QStringLiteral("${trackName}"), this, [this] {
             QFileInfo fileInfo(m_fileNameEdit->text());
             m_fileNameEdit->setText(fileInfo.completeBaseName() + QStringLiteral("${trackName}.") + fileInfo.suffix());
         });
-        auto fileNameTemplateTrackIndexAction = fileNameTemplateMenu->addAction(QStringLiteral("${trackIndex}"), this, [=] {
+        auto fileNameTemplateTrackIndexAction = fileNameTemplateMenu->addAction(QStringLiteral("${trackIndex}"), this, [this] {
             QFileInfo fileInfo(m_fileNameEdit->text());
             m_fileNameEdit->setText(fileInfo.completeBaseName() + QStringLiteral("${trackIndex}.") + fileInfo.suffix());
         });
@@ -191,10 +191,10 @@ namespace Audio::Internal {
             item->setCheckState(Qt::Unchecked);
             m_sourceListWidget->addItem(item);
         }
-        connect(m_sourceListWidget, &QListWidget::itemChanged, this, [=](QListWidgetItem *item) {
+        connect(m_sourceListWidget, &QListWidget::itemChanged, this, [](QListWidgetItem *item) {
             item->setSelected(item->checkState() == Qt::Checked);
         });
-        connect(m_sourceListWidget, &QListWidget::itemSelectionChanged, this, [=] {
+        connect(m_sourceListWidget, &QListWidget::itemSelectionChanged, this, [this] {
             for (int i = 0; i < m_sourceListWidget->count(); i++) {
                 auto item = m_sourceListWidget->item(i);
                 item->setCheckState(item->isSelected() ? Qt::Checked : Qt::Unchecked);
@@ -252,7 +252,7 @@ namespace Audio::Internal {
 
         connect(m_fileNameEdit, &QLineEdit::textChanged, this, &AudioExportDialog::updateConfig);
         connect(m_fileDirectoryEdit, &QLineEdit::textChanged, this, &AudioExportDialog::updateConfig);
-        connect(m_fileTypeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
+        connect(m_fileTypeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [vbrSpinBox, this](int index) {
             QFileInfo fileInfo(m_fileNameEdit->text());
             m_fileNameEdit->setText(fileInfo.completeBaseName() + "." + AudioExporterConfig::extensionOfType(static_cast<AudioExporterConfig::FileType>(index)));
             m_formatOptionComboBox->clear();
@@ -278,7 +278,7 @@ namespace Audio::Internal {
         connect(m_formatOptionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &AudioExportDialog::updateConfig);
         connect(m_vbrSlider, &QSlider::valueChanged, this, &AudioExportDialog::updateConfig);
         connect(m_formatSampleRateComboBox, &QComboBox::currentTextChanged, this, &AudioExportDialog::updateConfig);
-        connect(m_sourceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
+        connect(m_sourceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
             if (index == AudioExporterConfig::SO_All) {
                 m_sourceListWidget->setDisabled(false);
                 m_sourceListWidget->selectAll();
@@ -286,8 +286,8 @@ namespace Audio::Internal {
             } else if (index == AudioExporterConfig::SO_Selected) {
                 m_sourceListWidget->setDisabled(false);
                 m_sourceListWidget->clearSelection();
-                for (auto index : m_audioExporter->d_func()->selectedSources()) {
-                    m_sourceListWidget->item(index)->setSelected(true);
+                for (auto i : m_audioExporter->d_func()->selectedSources()) {
+                    m_sourceListWidget->item(i)->setSelected(true);
                 }
                 m_sourceListWidget->setDisabled(true);
             } else {
@@ -296,7 +296,7 @@ namespace Audio::Internal {
             updateConfig();
         });
         connect(m_sourceListWidget, &QListWidget::itemSelectionChanged, this, &AudioExportDialog::updateConfig);
-        connect(m_mixingOptionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
+        connect(m_mixingOptionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
             if (index == AudioExporterConfig::MO_Mixed) {
                 QFileInfo fileInfo(m_fileNameEdit->text());
                 auto basename = fileInfo.completeBaseName();
@@ -329,14 +329,14 @@ namespace Audio::Internal {
         connect(m_warningButton, &QAbstractButton::clicked, this, &AudioExportDialog::showWarnings);
         connect(dryRunButton, &QAbstractButton::clicked, this, &AudioExportDialog::showDryRunResult);
 
-        connect(m_presetComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
+        connect(m_presetComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
             auto data = m_presetComboBox->itemData(index);
             auto config = data.isNull() ? AudioExporter::predefinedPresets().at(index).second : AudioExporter::preset(data.toString());
             m_presetDeleteButton->setDisabled(data.isNull());
             m_audioExporter->setConfig(config);
             updateView();
         });
-        connect(presetSaveAsButton, &QAbstractButton::clicked, this, [=] {
+        connect(presetSaveAsButton, &QAbstractButton::clicked, this, [this] {
             QString result = m_presetComboBox->currentText();
             while (true) {
                 result = QInputDialog::getText(this, {}, tr("Preset name"), {}, result);
@@ -351,7 +351,7 @@ namespace Audio::Internal {
             }
             auto config = m_audioExporter->config();
             AudioExporter::addPreset(result, config);
-            [=] {
+            {
                 for (int i = 0; i < m_presetComboBox->count(); i++) {
                     if (m_presetComboBox->itemData(i).toString() == result) {
                         m_presetComboBox->setCurrentIndex(i);
@@ -361,9 +361,9 @@ namespace Audio::Internal {
                 }
                 m_presetComboBox->addItem(result, result);
                 m_presetComboBox->setCurrentIndex(m_presetComboBox->count() - 1);
-            }();
+            }
         });
-        connect(m_presetDeleteButton, &QAbstractButton::clicked, this, [=] {
+        connect(m_presetDeleteButton, &QAbstractButton::clicked, this, [this] {
             AudioExporter::removePreset(m_presetComboBox->currentData().toString());
             m_presetComboBox->removeItem(m_presetComboBox->currentIndex());
         });
@@ -632,7 +632,7 @@ namespace Audio::Internal {
         warningListDialog.setLayout(warningListDialogLayout);
         warningListDialog.resize(300, 300);
         warningListDialog.setWindowTitle(tr("Warnings"));
-        connect(m_audioExporter, &AudioExporter::clippingDetected, &progressDialog, [=](int sourceIndex) {
+        connect(m_audioExporter, &AudioExporter::clippingDetected, &progressDialog, [=, this](int sourceIndex) {
             auto item = new QListWidgetItem;
             if (sourceIndex == -1) {
                 item->setText(tr("Clipping is detected"));
@@ -645,7 +645,7 @@ namespace Audio::Internal {
             mainPromptWarningButton->setToolTip(tr("%n warning(s)", nullptr, warningList->count()));
             QApplication::beep();
         });
-        connect(m_audioExporter, &AudioExporter::warningAdded, &progressDialog, [=](const QString &message, int sourceIndex) {
+        connect(m_audioExporter, &AudioExporter::warningAdded, &progressDialog, [=, this](const QString &message, int sourceIndex) {
             Q_UNUSED(sourceIndex); // may be used in future
             auto item = new QListWidgetItem;
             item->setText(message);
@@ -661,7 +661,7 @@ namespace Audio::Internal {
         });
 
         bool interruptFlag = true;
-        connect(abortButton, &QAbstractButton::clicked, &progressDialog, [=, &interruptFlag, &progressDialog] {
+        connect(abortButton, &QAbstractButton::clicked, &progressDialog, [=, &interruptFlag, &progressDialog, this] {
             if (interruptFlag) {
                 m_audioExporter->cancel();
             } else {
@@ -684,7 +684,7 @@ namespace Audio::Internal {
                 }
                 return QObject::eventFilter(watched, event);
             }
-        } o(&progressDialog, [=, &interruptFlag] {
+        } o(&progressDialog, [=, &interruptFlag, this] {
             if (interruptFlag) {
                 m_audioExporter->cancel();
                 return false;
@@ -693,7 +693,7 @@ namespace Audio::Internal {
             }
         });
 
-        QTimer::singleShot(0, [=, &interruptFlag, &progressDialog] {
+        QTimer::singleShot(0, [=, &interruptFlag, &progressDialog, this] {
             QCoreApplication::processEvents();
             auto ret = m_audioExporter->exec();
             interruptFlag = false;

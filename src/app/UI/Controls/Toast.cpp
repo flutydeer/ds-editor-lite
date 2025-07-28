@@ -82,7 +82,7 @@ Toast::Toast(QObject *parent) : QObject(parent) {
     connect(&m_keepOnScreenTimer, &QTimer::timeout, this, &Toast::hideToast);
 
     m_destroyWidgetTimer.setSingleShot(true);
-    connect(&m_destroyWidgetTimer, &QTimer::timeout, this, [=] {
+    connect(&m_destroyWidgetTimer, &QTimer::timeout, this, [this] {
         m_toastWidget->hide();
         delete m_toastWidget;
         oneToastShowFinished();

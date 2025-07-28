@@ -13,8 +13,8 @@
 
 #include "Utils/Decibellinearizer.h"
 #include "UI/Controls/SvsSeekbar.h"
-#include "UI/Controls/SvsExpressionspinbox.h"
-#include "UI/Controls/SvsExpressiondoublespinbox.h"
+#include "UI/Controls/SvsExpressionSpinBox.h"
+#include "UI/Controls/SvsExpressionDoubleSpinBox.h"
 
 #include <Modules/Audio/utils/SettingPagesSynthHelper.h>
 #include <Modules/Audio/AudioSettings.h>
@@ -160,7 +160,7 @@ public:
                       attackSpinBox, decaySlider, decaySpinBox, decayRatioSlider,
                       decayRatioSpinBox, releaseSlider, releaseSpinBox, synthesizerTestButton);
 
-        connect(synthesizerTestButton, &QAbstractButton::clicked, this, [=](bool checked) {
+        connect(synthesizerTestButton, &QAbstractButton::clicked, this, [=, this](bool checked) {
             if (checked) {
                 if (!AudioSystem::outputSystem()->isReady()) {
                     synthesizerTestButton->setChecked(false);
@@ -173,7 +173,7 @@ public:
             synthesizerTestButton->setChecked(false);
         }, Qt::QueuedConnection);
 
-        connect(synthesizerSelectComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
+        connect(synthesizerSelectComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=, this](int index) {
             m_cachedSynthConfig[m_oldSynthIndex].generator = d->m_cachedGenerator;
             m_cachedSynthConfig[m_oldSynthIndex].amplitude = d->m_cachedAmplitude;
             m_cachedSynthConfig[m_oldSynthIndex].attackMsec = d->m_cachedAttackMsec;
@@ -196,10 +196,10 @@ public:
         readPitchCheckBox->setChecked(m_cachedReadPitch = AudioSettings::pseudoSingerReadPitch());
         readEnergyCheckBox->setChecked(m_cachedReadEnergy = AudioSettings::pseudoSingerReadEnergy());
 
-        connect(readPitchCheckBox, &QAbstractButton::clicked, this, [=](bool checked) {
+        connect(readPitchCheckBox, &QAbstractButton::clicked, this, [this](bool checked) {
             m_cachedReadPitch = checked;
         });
-        connect(readEnergyCheckBox, &QAbstractButton::clicked, this, [=](bool checked) {
+        connect(readEnergyCheckBox, &QAbstractButton::clicked, this, [this](bool checked) {
             m_cachedReadEnergy = checked;
         });
 

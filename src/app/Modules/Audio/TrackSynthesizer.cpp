@@ -27,7 +27,7 @@
 TrackSynthesizer::TrackSynthesizer(talcs::DspxTrackContext *trackContext, Track *track)
     : DspxPseudoSingerContext(trackContext), m_track(track) {
     setConfig(PseudoSingerConfigNotifier::config(0));
-    connect(PseudoSingerConfigNotifier::instance(), &PseudoSingerConfigNotifier::configChanged, this, [=](int synthIndex, const talcs::NoteSynthesizerConfig &config) {
+    connect(PseudoSingerConfigNotifier::instance(), &PseudoSingerConfigNotifier::configChanged, this, [this](int synthIndex, const talcs::NoteSynthesizerConfig &config) {
         if (synthIndex == 0)
             setConfig(config);
     });
@@ -38,19 +38,19 @@ TrackSynthesizer::TrackSynthesizer(talcs::DspxTrackContext *trackContext, Track 
         handleSingingClipInserted(static_cast<SingingClip *>(clip));
     }
 
-    connect(appModel, &AppModel::tempoChanged, this, [=] {
+    connect(appModel, &AppModel::tempoChanged, this, [this] {
         DEVICE_LOCKER;
         handleTimeChanged();
     });
     connect(AudioSystem::outputSystem()->context(),
-            &talcs::AbstractOutputContext::sampleRateChanged, this, [=] {
+            &talcs::AbstractOutputContext::sampleRateChanged, this, [this] {
                 DEVICE_LOCKER;
                 handleTimeChanged();
             });
 
     connect(static_cast<AudioContext *>(trackContext->projectContext()), &AudioContext::exporterCausedTimeChanged, this, &TrackSynthesizer::handleTimeChanged);
 
-    connect(track, &Track::clipChanged, this, [=](Track::ClipChangeType type, Clip *clip) {
+    connect(track, &Track::clipChanged, this, [this](Track::ClipChangeType type, Clip *clip) {
         if (clip->clipType() != IClip::Singing)
             return;
         DEVICE_LOCKER;
@@ -77,12 +77,12 @@ void TrackSynthesizer::handleSingingClipInserted(SingingClip *clip) {
         handleNoteInserted(clip, note);
     }
 
-    connect(clip, &Clip::propertyChanged, this, [=] {
+    connect(clip, &Clip::propertyChanged, this, [clip, this] {
         DEVICE_LOCKER;
         handleSingingClipPropertyChanged(clip);
     });
     connect(clip, &SingingClip::noteChanged, this,
-            [=](SingingClip::NoteChangeType noteChangeType, const QList<Note *> &notes) {
+            [clip, this](SingingClip::NoteChangeType noteChangeType, const QList<Note *> &notes) {
                 DEVICE_LOCKER;
                 switch (noteChangeType) {
                     case SingingClip::Insert:

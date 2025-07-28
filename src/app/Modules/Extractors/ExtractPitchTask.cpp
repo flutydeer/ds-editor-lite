@@ -74,7 +74,7 @@ void ExtractPitchTask::runTask() {
     const std::filesystem::path wavPath = m_input.audioPath.toStdString();
 #endif
 
-    const bool runSuccess = m_rmvpe->get_f0(wavPath, threshold, rmvpe_res, msg, [=](int progress) {
+    const bool runSuccess = m_rmvpe->get_f0(wavPath, threshold, rmvpe_res, msg, [this](int progress) {
         auto progressStatus = status();
         progressStatus.progress = progress;
         setStatus(progressStatus);

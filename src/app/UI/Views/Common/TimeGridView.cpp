@@ -12,7 +12,7 @@
 
 TimeGridView::TimeGridView(QGraphicsItem *parent) : AbstractGraphicsRectItem(parent) {
 
-    connect(appModel, &AppModel::modelChanged, this, [=] {
+    connect(appModel, &AppModel::modelChanged, this, [this] {
         this->setTimeSignature(appModel->timeSignature().numerator,
                                appModel->timeSignature().denominator);
         this->setQuantize(appStatus->quantize);

@@ -21,8 +21,8 @@
 
 #include "Utils/Decibellinearizer.h"
 #include "UI/Controls/SvsSeekbar.h"
-#include "UI/Controls/SvsExpressionspinbox.h"
-#include "UI/Controls/SvsExpressiondoublespinbox.h"
+#include "UI/Controls/SvsExpressionSpinBox.h"
+#include "UI/Controls/SvsExpressionDoubleSpinBox.h"
 
 #include <Model/AppOptions/AppOptions.h>
 #include <Modules/Audio/AudioSystem.h>
@@ -124,7 +124,7 @@ public:
 
         auto outputSys = AudioSystem::outputSystem();
 
-        connect(testDeviceButton, &QPushButton::clicked, this, [=] {
+        connect(testDeviceButton, &QPushButton::clicked, this, [outputSys, this] {
             if (!outputSys->isReady()) {
                 QMessageBox msgBox(this);
                 msgBox.setIcon(QMessageBox::Critical);
@@ -137,7 +137,7 @@ public:
             }
         });
 
-        connect(deviceControlPanelButton, &QPushButton::clicked, this, [=] {
+        connect(deviceControlPanelButton, &QPushButton::clicked, this, [] {
             if (const auto device = AudioSystem::outputSystem()->outputContext()->device()) {
                 auto driverName = device->driver()->name();
                 if (SystemUtils::isWindows() &&
@@ -157,21 +157,21 @@ public:
         m_deviceGainSlider->setValue(
             gainToSliderValue(outputSys->outputContext()->controlMixer()->gain()));
         connect(m_deviceGainSlider, &SVS::SeekBar::valueChanged, this,
-                [=](double value) { updateGain(sliderValueToGain(value)); });
+                [this](double value) { updateGain(sliderValueToGain(value)); });
         m_deviceGainSpinBox->setValue(
             talcs::Decibels::gainToDecibels(outputSys->outputContext()->controlMixer()->gain()));
         connect(m_deviceGainSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
-                [=](double value) {
+                [this](double value) {
                     updateGain(talcs::Decibels::decibelsToGain(static_cast<float>(value)));
                 });
         m_devicePanSlider->setValue(
             panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
         connect(m_devicePanSlider, &SVS::SeekBar::valueChanged, this,
-                [=](int value) { updatePan(sliderValueToPan(value)); });
+                [this](int value) { updatePan(sliderValueToPan(value)); });
         m_devicePanSpinBox->setValue(
             panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
         connect(m_devicePanSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this,
-                [=](int value) { updatePan(sliderValueToPan(value)); });
+                [this](int value) { updatePan(sliderValueToPan(value)); });
 
         m_playHeadBehaviorComboBox->setCurrentIndex(AudioSettings::playheadBehavior());
 
@@ -233,7 +233,7 @@ void OutputPlaybackPageWidget::updateDriverComboBox() {
 
     if (outputSys->outputContext()->driver()) {
         connect(outputSys->outputContext()->driver(), &talcs::AudioDriver::deviceChanged, this,
-                [=] {
+                [this] {
                     disconnect(m_deviceComboBox, nullptr, this, nullptr);
                     m_deviceComboBox->clear();
                     disconnect(m_bufferSizeComboBox, nullptr, this, nullptr);
@@ -246,7 +246,7 @@ void OutputPlaybackPageWidget::updateDriverComboBox() {
 
     connect(
         m_driverComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-        [=](int index) {
+        [outputSys, this](int index) {
             auto newDrvName = m_driverComboBox->itemData(index).toString();
             if (newDrvName.isEmpty())
                 return;
@@ -312,7 +312,7 @@ void OutputPlaybackPageWidget::updateDeviceComboBox() {
     }
 
     connect(m_deviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [=](int index) {
+            [outputSys, this](int index) {
                 if (m_deviceComboBox->itemData(index).isNull())
                     return;
                 auto newDevName = m_deviceComboBox->itemData(index).toString();
@@ -355,7 +355,7 @@ void OutputPlaybackPageWidget::updateBufferSizeAndSampleRateComboBox() {
             m_bufferSizeComboBox->setCurrentIndex(i);
     }
     connect(m_bufferSizeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [=](int index) {
+            [outputSys, this](int index) {
                 auto newBufferSize = m_bufferSizeComboBox->itemData(index).value<qint64>();
                 outputSys->setAdoptedBufferSize(newBufferSize);
             });
@@ -366,7 +366,7 @@ void OutputPlaybackPageWidget::updateBufferSizeAndSampleRateComboBox() {
             m_sampleRateComboBox->setCurrentIndex(i);
     }
     connect(m_sampleRateComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [=](int index) {
+            [outputSys, this](int index) {
                 auto newSampleRate = m_sampleRateComboBox->itemData(index).value<double>();
                 outputSys->setAdoptedSampleRate(newSampleRate);
             });

@@ -109,7 +109,7 @@ void ValidationController::onNoteChanged(SingingClip::NoteChangeType type,
 
 void ValidationController::handleClipInserted(Clip *clip) {
     m_clips.append(clip);
-    connect(clip, &Clip::propertyChanged, this, [=] { onClipPropertyChanged(clip); });
+    connect(clip, &Clip::propertyChanged, this, [clip, this] { onClipPropertyChanged(clip); });
 
     if (clip->clipType() == Clip::Singing) {
         auto singingClip = reinterpret_cast<SingingClip *>(clip);

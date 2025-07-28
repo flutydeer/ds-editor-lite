@@ -2,7 +2,7 @@
 #define SEEKBARSPINBOXGROUP_H
 
 #include "UI/Controls/SvsSeekbar.h"
-#include "UI/Controls/SvsExpressionspinbox.h"
+#include "UI/Controls/SvsExpressionSpinBox.h"
 
 class SeekBarSpinboxGroup final : public QObject {
     Q_OBJECT

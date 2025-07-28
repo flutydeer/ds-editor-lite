@@ -21,7 +21,7 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     auto option = appOptions->appearance();
 
     m_swUseNativeFrame = new SwitchButton(option->useNativeFrame);
-    connect(m_swUseNativeFrame, &SwitchButton::toggled, this, [=] {
+    connect(m_swUseNativeFrame, &SwitchButton::toggled, this, [this] {
         modifyOption();
         auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");

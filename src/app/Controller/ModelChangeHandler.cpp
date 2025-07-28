@@ -30,7 +30,7 @@ void ModelChangeHandler::handleTrackRemoved(Track *track) {
 void ModelChangeHandler::handleClipInserted(Clip *clip) {
     if (clip->clipType() == IClip::Singing)
         handleSingingClipInserted(reinterpret_cast<SingingClip *>(clip));
-    connect(clip, &Clip::propertyChanged, this, [=] { handleClipPropertyChanged(clip); });
+    connect(clip, &Clip::propertyChanged, this, [clip, this] { handleClipPropertyChanged(clip); });
 }
 
 void ModelChangeHandler::handleClipRemoved(Clip *clip) {
@@ -44,16 +44,16 @@ void ModelChangeHandler::handleClipPropertyChanged(Clip *clip) {
 
 void ModelChangeHandler::handleSingingClipInserted(SingingClip *clip) {
     connect(clip, &SingingClip::noteChanged, this,
-            [=](SingingClip::NoteChangeType type, const QList<Note *> &notes) {
+            [clip, this](SingingClip::NoteChangeType type, const QList<Note *> &notes) {
                 handleNoteChanged(type, notes, clip);
             });
     connect(clip, &SingingClip::piecesChanged, this,
-            [=](const QList<InferPiece *> &pieces, const QList<InferPiece *> &newPieces,
+            [clip, this](const QList<InferPiece *> &pieces, const QList<InferPiece *> &newPieces,
                 const QList<InferPiece *> &discardedPieces) {
                 handlePiecesChanged(newPieces, discardedPieces, clip);
             });
     connect(clip, &SingingClip::paramChanged, this,
-            [=](ParamInfo::Name name, Param::Type type) { handleParamChanged(name, type, clip); });
+            [clip, this](ParamInfo::Name name, Param::Type type) { handleParamChanged(name, type, clip); });
 }
 
 void ModelChangeHandler::handleSingingClipRemoved(SingingClip *clip) {

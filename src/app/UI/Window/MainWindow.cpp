@@ -187,36 +187,36 @@ void MainWindow::updateWindowTitle() {
 }
 
 bool MainWindow::askSaveChanges() {
-    auto handled = new bool;
-    auto dlg = new Dialog;
+    m_isSaveChangesHandled = false;
+    auto dlg = new Dialog(this);
     dlg->setWindowTitle(tr("Warning"));
     dlg->setTitle(tr("Do you want to save changes?"));
     dlg->setModal(true);
 
     auto btnSave = new AccentButton(tr("Save"));
-    connect(btnSave, &AccentButton::clicked, this, [=] {
+    connect(btnSave, &AccentButton::clicked, this, [dlg, this] {
         onSave();
-        *handled = true;
+        m_isSaveChangesHandled = true;
         dlg->accept();
     });
     dlg->setPositiveButton(btnSave);
 
     auto btnDoNotSave = new Button(tr("Don't save"));
-    connect(btnDoNotSave, &Button::clicked, this, [=] {
-        *handled = true;
+    connect(btnDoNotSave, &Button::clicked, this, [dlg, this] {
+        m_isSaveChangesHandled = true;
         dlg->accept();
     });
     dlg->setNegativeButton(btnDoNotSave);
 
     auto btnCancel = new Button(tr("Cancel"));
-    connect(btnCancel, &Button::clicked, this, [=] {
-        *handled = false;
+    connect(btnCancel, &Button::clicked, this, [dlg, this] {
+        m_isSaveChangesHandled = false;
         dlg->accept();
     });
     dlg->setNeutralButton(btnCancel);
 
     dlg->exec();
-    return *handled;
+    return m_isSaveChangesHandled;
 }
 
 void MainWindow::quit() {
@@ -306,7 +306,7 @@ bool MainWindow::onSaveAs() {
     auto lastDir = appController->projectPath().isEmpty()
                        ? appController->lastProjectFolder() + "/" + appController->projectName()
                        : appController->projectPath();
-    auto getFileName = [=] {
+    auto getFileName = [&, this] {
         return QFileDialog::getSaveFileName(this, tr("Save project"), lastDir,
                                             tr("DiffScope Project File (*.dspx)"));
     };
@@ -366,7 +366,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 
         m_waitDoneDialogDelayTimer.setSingleShot(true);
         m_waitDoneDialogDelayTimer.setInterval(500);
-        connect(&m_waitDoneDialogDelayTimer, &QTimer::timeout, this, [=] {
+        connect(&m_waitDoneDialogDelayTimer, &QTimer::timeout, this, [this] {
             if (m_waitDoneDialog)
                 m_waitDoneDialog->show();
         });
@@ -471,7 +471,7 @@ void MainWindow::dropEvent(QDropEvent *event) {
         const QFileInfo fileInfo(url.toLocalFile());
 
         if (fileInfo.suffix().toLower() == "dspx") {
-            auto openProject = [=] {
+            auto openProject = [&] {
                 const auto fileName = fileInfo.absoluteFilePath();
                 if (fileName.isNull())
                     return;

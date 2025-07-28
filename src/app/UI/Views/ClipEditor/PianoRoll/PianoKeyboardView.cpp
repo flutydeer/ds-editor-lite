@@ -80,7 +80,7 @@ void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) {
     auto prevKeyIndex = static_cast<int>(m_top) + 1;
     bool prevIsWhiteKey = false;
 
-    auto keyToY = [=](int key) {
+    auto keyToY = [this](int key) {
         auto ratio = (key - m_top) / (m_bottom - m_top);
         auto y = height() * ratio;
         return y;
@@ -127,7 +127,7 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
     auto prevWhiteKeyIndex =
         PianoPaintUtils::isWhiteKey(prevKeyIndex) ? prevKeyIndex : prevKeyIndex + 1;
 
-    auto blackKeyToY = [=](int key) {
+    auto blackKeyToY = [this](int key) {
         auto ratio = (key - m_top) / (m_bottom - m_top);
         auto y = height() * ratio;
         return y;

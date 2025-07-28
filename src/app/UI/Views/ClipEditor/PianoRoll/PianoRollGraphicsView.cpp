@@ -569,7 +569,7 @@ CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
 
     auto actionProperties = menu->addAction(tr("Properties..."));
     connect(actionProperties, &QAction::triggered, this,
-            [=] { onOpenNotePropertyDialog(noteView->id(), AppGlobal::Lyric); });
+            [noteView, this] { onOpenNotePropertyDialog(noteView->id(), AppGlobal::Lyric); });
     return menu;
 }
 

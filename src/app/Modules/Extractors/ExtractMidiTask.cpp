@@ -72,7 +72,7 @@ void ExtractMidiTask::runTask() {
     const std::filesystem::path wavPath = m_input.audioPath.toStdString();
 #endif
 
-    const bool runSuccess = m_some->get_midi(wavPath, midis, appModel->tempo(), msg, [=](int progress) {
+    const bool runSuccess = m_some->get_midi(wavPath, midis, appModel->tempo(), msg, [this](int progress) {
         auto progressStatus = status();
         progressStatus.progress = progress;
         setStatus(progressStatus);

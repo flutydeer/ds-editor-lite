@@ -297,5 +297,5 @@ void NoteView::adjustPronView() const {
 void NoteView::initUi() {
     // setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
-    fontPixelSize.onChanged([=](int) { update(); });
+    fontPixelSize.onChanged([this](int) { update(); });
 }

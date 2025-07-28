@@ -5,7 +5,7 @@
 #ifndef PROPERTY_H
 #define PROPERTY_H
 
-#define qSignalCallback(SignalName) [=](const auto &value) { emit SignalName(value); }
+#define qSignalCallback(SignalName) [this](const auto &value) { emit SignalName(value); }
 
 #include <functional>
 

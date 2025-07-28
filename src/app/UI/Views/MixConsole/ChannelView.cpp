@@ -147,10 +147,10 @@ void ChannelView::initUi() {
     onPeakChanged(m_levelMeter->peakValue());
     connect(m_levelMeter, &LevelMeter::peakValueChanged, this, &ChannelView::onPeakChanged);
 
-    connect(m_btnMute, &QPushButton::clicked, this, [=] {
+    connect(m_btnMute, &QPushButton::clicked, this, [this] {
         emit controlChanged(control());
     });
-    connect(m_btnSolo, &QPushButton::clicked, this, [=] {
+    connect(m_btnSolo, &QPushButton::clicked, this, [this] {
         emit controlChanged(control());
     });
 }

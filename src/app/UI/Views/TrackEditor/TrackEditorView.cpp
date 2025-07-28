@@ -76,9 +76,9 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     installEventFilter(this);
 
     // connect(m_trackListView, &QListWidget::currentRowChanged, this,
-    //         [=](int trackIndex) { appStatus->selectedTrackIndex = trackIndex; });
+    //         [](int trackIndex) { appStatus->selectedTrackIndex = trackIndex; });
     // connect(m_trackListView, &QListWidget::itemChanged, this,
-    //         [=] { appStatus->selectedTrackIndex = m_trackListView->currentRow(); });
+    //         [this] { appStatus->selectedTrackIndex = m_trackListView->currentRow(); });
     connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
             &TrackEditorView::onViewScaleChanged);
     connect(m_graphicsView, &TracksGraphicsView::sizeChanged, m_tracksScene,
@@ -214,9 +214,9 @@ TrackViewModel *TrackEditorView::ViewModel::findTrack(Track *dsTrack) {
 }
 
 void TrackEditorView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
-    connect(dsTrack, &Track::propertyChanged, this, [=] { onTrackPropertyChanged(); });
+    connect(dsTrack, &Track::propertyChanged, this, [this] { onTrackPropertyChanged(); });
     connect(dsTrack, &Track::clipChanged, this,
-            [=](Track::ClipChangeType type, Clip *clip) { onClipChanged(type, clip, dsTrack); });
+            [dsTrack, this](Track::ClipChangeType type, Clip *clip) { onClipChanged(type, clip, dsTrack); });
 
     auto track = new TrackViewModel(dsTrack);
     for (auto clip : dsTrack->clips()) {
@@ -233,7 +233,7 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
     m_trackListView->setItemWidget(newTrackItem, controlView);
     track->controlView = controlView;
 
-    connect(controlView, &TrackControlView::insertNewTrackTriggered, this, [=] {
+    connect(controlView, &TrackControlView::insertNewTrackTriggered, this, [newTrackItem, this] {
         auto i = m_trackListView->row(newTrackItem);
         trackController->onInsertNewTrack(i + 1); // insert after current track
     });
@@ -262,7 +262,7 @@ void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, int trac
         auto singingClip = reinterpret_cast<SingingClip *>(clip);
         insertSingingClip(singingClip, track, trackIndex);
     }
-    connect(clip, &Clip::propertyChanged, this, [=] { updateClipOnView(clip); });
+    connect(clip, &Clip::propertyChanged, this, [clip, this] { updateClipOnView(clip); });
 }
 
 void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track, int trackIndex) {

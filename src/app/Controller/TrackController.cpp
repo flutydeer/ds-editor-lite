@@ -114,7 +114,7 @@ void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFo
     decodeTask->workspace = workspace;
     auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
     dlg->show();
-    connect(decodeTask, &Task::finished, this, [=] { handleDecodeAudioTaskFinished(decodeTask); });
+    connect(decodeTask, &Task::finished, this, [decodeTask, this] { handleDecodeAudioTaskFinished(decodeTask); });
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }

@@ -17,11 +17,11 @@ EditDialog::EditDialog(const QString &lyric, const QRectF &rect, const QFont &fo
 
     const QFontMetrics fm(lineEdit->font());
     const auto offset = fm.horizontalAdvance(" ") * 2;
-    auto adjust = [=](const QString &text) {
+    auto adjust = [=, this](const QString &text) {
         this->resize(fm.horizontalAdvance(text) + offset * 4, lineEdit->height()); //
     };
     connect(lineEdit, &QLineEdit::textChanged, this, adjust);
-    connect(lineEdit, &QLineEdit::editingFinished, [=] { text = lineEdit->text(); });
+    connect(lineEdit, &QLineEdit::editingFinished, [=, this] { text = lineEdit->text(); });
 
     QDoubleValidator validator(0.0, std::numeric_limits<double>::max(), 3);
     validator.setNotation(QDoubleValidator::StandardNotation);

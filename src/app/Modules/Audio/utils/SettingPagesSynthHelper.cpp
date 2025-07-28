@@ -9,8 +9,8 @@
 
 #include "Utils/Decibellinearizer.h"
 #include "UI/Controls/SvsSeekbar.h"
-#include "UI/Controls/SvsExpressionspinbox.h"
-#include "UI/Controls/SvsExpressiondoublespinbox.h"
+#include "UI/Controls/SvsExpressionSpinBox.h"
+#include "UI/Controls/SvsExpressionDoubleSpinBox.h"
 
 #include <Modules/Audio/utils/AudioHelpers.h>
 #include <Modules/Audio/AudioSystem.h>
@@ -130,48 +130,49 @@ void SettingPageSynthHelper::initialize(
     SVS::ExpressionDoubleSpinBox *decayRatioSpinBox, SVS::SeekBar *releaseSlider,
     SVS::ExpressionSpinBox *releaseSpinBox, QWidget *previewButton) {
 
-    connect(generatorComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
+    connect(generatorComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
         m_cachedGenerator = index;
         m_testSynthesizer.setGenerator(static_cast<talcs::NoteSynthesizer::Generator>(index));
     });
     connect(amplitudeSlider, &SVS::SeekBar::valueChanged, this, [=](double value) {
         amplitudeSpinBox->setValue(DecibelLinearizer::linearValueToDecibel(value));
     });
-    connect(amplitudeSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double decibel) {
+    connect(amplitudeSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [amplitudeSlider, this](double decibel) {
         QSignalBlocker o(amplitudeSlider);
         m_cachedAmplitude = decibel;
         amplitudeSlider->setValue(DecibelLinearizer::decibelToLinearValue(decibel));
         m_testMixer.setGain(talcs::Decibels::decibelsToGain(decibel));
     });
     connect(attackSlider, &SVS::SeekBar::valueChanged, attackSpinBox, &QSpinBox::setValue);
-    connect(attackSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [=](int value) {
+    connect(attackSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [attackSlider, this](int value) {
         QSignalBlocker o(attackSlider);
         m_cachedAttackMsec = value;
         attackSlider->setValue(value);
         m_testSynthesizer.setAttackTime(AudioHelpers::msecToSample(value, m_testSynthesizer.sampleRate()));
     });
     connect(decaySlider, &SVS::SeekBar::valueChanged, decaySpinBox, &QSpinBox::setValue);
-    connect(decaySpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [=](int value) {
+    connect(decaySpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [decaySlider, this](int value) {
         QSignalBlocker o(decaySlider);
         m_cachedDecayMsec = value;
         decaySlider->setValue(value);
         m_testSynthesizer.setDecayTime(AudioHelpers::msecToSample(value, m_testSynthesizer.sampleRate()));
     });
     connect(decayRatioSlider, &SVS::SeekBar::valueChanged, decayRatioSpinBox, &QDoubleSpinBox::setValue);
-    connect(decayRatioSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double value) {
+    connect(decayRatioSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [decayRatioSlider, this](double value) {
         QSignalBlocker o(decayRatioSlider);
         m_cachedDecayRatio = value;
         decayRatioSlider->setValue(value);
         m_testSynthesizer.setDecayRatio(value);
     });
     connect(releaseSlider, &SVS::SeekBar::valueChanged, releaseSpinBox, &QSpinBox::setValue);
-    connect(releaseSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [=](int value) {
+    connect(releaseSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [decayRatioSlider, releaseSlider, this](int value) {
         QSignalBlocker o(decayRatioSlider);
         m_cachedReleaseMsec = value;
         releaseSlider->setValue(value);
         m_testSynthesizer.setReleaseTime(AudioHelpers::msecToSample(value, m_testSynthesizer.sampleRate()));
     });
-    connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::sampleRateChanged, this, [=](double sampleRate) {
+    connect(AudioSystem::outputSystem()->context(), &talcs::AbstractOutputContext::sampleRateChanged,
+            this, [attackSpinBox, releaseSpinBox, this](double sampleRate) {
         m_testSynthesizer.setAttackTime(AudioHelpers::msecToSample(attackSpinBox->value(), sampleRate));
         m_testSynthesizer.setReleaseTime(AudioHelpers::msecToSample(releaseSpinBox->value(), sampleRate));
     });

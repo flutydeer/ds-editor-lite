@@ -118,7 +118,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     m_animation = new QVariantAnimation(this);
     m_animation->setEasingCurve(QEasingCurve::OutCubic);
     connect(m_animation, &QVariantAnimation::valueChanged, this,
-            [=](const QVariant &value) { m_opacityEffect->setOpacity(value.toDouble()); });
+            [this](const QVariant &value) { m_opacityEffect->setOpacity(value.toDouble()); });
 }
 
 MainMenuView *MainTitleBar::menuView() const {

@@ -104,8 +104,8 @@ namespace Rmvpe
     }
 
     template <>
-    static srt::Expected<std::vector<bool>> extractTensor(const std::map<std::string, srt::NO<ds::ITensor>> &outputs,
-                                                          const std::string &name) {
+    srt::Expected<std::vector<bool>> extractTensor(const std::map<std::string, srt::NO<ds::ITensor>> &outputs,
+                                                   const std::string &name) {
 
         const auto it = outputs.find(name);
         if (it == outputs.end()) {

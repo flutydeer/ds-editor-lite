@@ -63,6 +63,7 @@ private:
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
     bool m_isDirectManipulationRegistered = false;
+    bool m_isSaveChangesHandled = false;
 
     MainTitleBar *m_titleBar;
     MainMenuView *m_mainMenu = nullptr;

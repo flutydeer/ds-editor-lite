@@ -390,7 +390,7 @@ DrawCurve *CommonParamEditorView::curveAt(double tick) {
 
 void CommonParamEditorView::drawCurveBorder(QPainter *painter,
                                             const QList<DrawCurve *> &curves) const {
-    auto drawCurve = [=](const DrawCurve &curve) {
+    auto drawCurve = [painter, this](const DrawCurve &curve) {
         auto dpr = painter->device()->devicePixelRatio();
         bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
 
@@ -456,7 +456,7 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
 
 void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
                                              const QList<DrawCurve *> &curves) const {
-    auto drawCurve = [=](const DrawCurve &curve) {
+    auto drawCurve = [painter, this](const DrawCurve &curve) {
         auto dpr = painter->device()->devicePixelRatio();
         bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
 

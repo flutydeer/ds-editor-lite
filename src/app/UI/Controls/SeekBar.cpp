@@ -13,7 +13,7 @@
 SeekBar::SeekBar(QWidget *parent) : QWidget(parent) {
     timer = new QTimer(parent);
     timer->setInterval(400);
-    QObject::connect(timer, &QTimer::timeout, this, [=]() {
+    QObject::connect(timer, &QTimer::timeout, this, [this]() {
         timer->stop();
         doubleClickLocked = false;
     });

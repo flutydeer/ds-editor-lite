@@ -65,16 +65,16 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
 #ifndef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
     m_timer.setInterval(400);
     m_timer.setSingleShot(true);
-    connect(&m_timer, &QTimer::timeout, this, [=]() {
+    connect(&m_timer, &QTimer::timeout, this, [this]() {
         m_touchPadLock = false;
         // qDebug() << "touchpad lock off";
     });
 #endif
 
     connect(this, &TimeGraphicsView::visibleRectChanged,
-            [=](const QRectF &rect) { m_scene->setVisibleRect(rect); });
+            [this](const QRectF &rect) { m_scene->setVisibleRect(rect); });
     connect(this, &TimeGraphicsView::scaleChanged,
-            [=](double sx, double sy) { m_scene->setScaleXY(sx, sy); });
+            [this](double sx, double sy) { m_scene->setScaleXY(sx, sy); });
     connect(m_scene, &TimeGraphicsScene::baseSizeChanged, this,
             &TimeGraphicsView::adjustScaleXToFillView);
 
@@ -100,9 +100,9 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     setEnsureSceneFillViewX(true);
 
     connect(this, &TimeGraphicsView::scaleChanged, this,
-            [=] { emit timeRangeChanged(startTick(), endTick()); });
+            [this] { emit timeRangeChanged(startTick(), endTick()); });
     connect(this, &TimeGraphicsView::visibleRectChanged, this,
-            [=] { emit timeRangeChanged(startTick(), endTick()); });
+            [this] { emit timeRangeChanged(startTick(), endTick()); });
 }
 
 TimeGraphicsScene *TimeGraphicsView::scene() {

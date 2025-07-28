@@ -32,20 +32,20 @@ TrackInferenceHandler::TrackInferenceHandler(talcs::DspxTrackContext *trackConte
         handleSingingClipInserted(static_cast<SingingClip *>(clip));
     }
 
-    connect(appModel, &AppModel::tempoChanged, this, [=] {
+    connect(appModel, &AppModel::tempoChanged, this, [this] {
         DEVICE_LOCKER;
         handleTimeChanged();
     });
 
     connect(AudioSystem::outputSystem()->context(),
-            &talcs::AbstractOutputContext::sampleRateChanged, this, [=] {
+            &talcs::AbstractOutputContext::sampleRateChanged, this, [this] {
                 DEVICE_LOCKER;
                 handleTimeChanged();
             });
 
     connect(static_cast<AudioContext *>(trackContext->projectContext()), &AudioContext::exporterCausedTimeChanged, this, &TrackInferenceHandler::handleTimeChanged);
 
-    connect(track, &Track::clipChanged, this, [=](Track::ClipChangeType type, Clip *clip) {
+    connect(track, &Track::clipChanged, this, [this](Track::ClipChangeType type, Clip *clip) {
         if (clip->clipType() != IClip::Singing)
             return;
         DEVICE_LOCKER;
@@ -71,12 +71,12 @@ void TrackInferenceHandler::handleSingingClipInserted(SingingClip *clip) {
     handleSingingClipPropertyChanged(clip);
     handlePieceChanged(clip, clip->pieces());
 
-    connect(clip, &Clip::propertyChanged, this, [=] {
+    connect(clip, &Clip::propertyChanged, this, [clip, this] {
         DEVICE_LOCKER;
         handleSingingClipPropertyChanged(clip);
     });
 
-    connect(clip, &SingingClip::piecesChanged, this, [=](const auto &pieces) {
+    connect(clip, &SingingClip::piecesChanged, this, [clip, this](const auto &pieces) {
         DEVICE_LOCKER;
         handlePieceChanged(clip, pieces);
     });
@@ -128,7 +128,7 @@ void TrackInferenceHandler::handlePieceInserted(SingingClip *clip, InferPiece *i
     inferencePieceContext->setPos(inferPiece->localStartTick());
     inferencePieceContext->setLength(inferPiece->localEndTick() - inferPiece->localStartTick());
     handleInferPieceStatusChange(inferPiece, inferPiece->acousticInferStatus);
-    connect(inferPiece, &InferPiece::statusChanged, this, [=](auto status) {
+    connect(inferPiece, &InferPiece::statusChanged, this, [inferPiece, this](auto status) {
         DEVICE_LOCKER;
         handleInferPieceStatusChange(inferPiece, status);
     });

@@ -40,7 +40,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnPlay->setCheckable(true);
 
     m_btnPlayPause = new QPushButton(this);
-    connect(m_btnPlayPause, &QPushButton::pressed, this, [=] {
+    connect(m_btnPlayPause, &QPushButton::pressed, this, [this] {
         if (m_status == Paused || m_status == Stopped)
             playTriggered();
         else if (m_status == Playing)
@@ -60,7 +60,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTime->label->setAlignment(Qt::AlignCenter);
     m_elTime->setText(toFormattedTickTime(m_tick));
 
-    connect(m_elTempo, &EditLabel::editCompleted, this, [=](const QString &value) {
+    connect(m_elTempo, &EditLabel::editCompleted, this, [this](const QString &value) {
         auto tempo = value.toDouble();
         if (m_tempo != tempo) {
             m_tempo = tempo;
@@ -68,7 +68,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         }
     });
 
-    connect(m_elTimeSignature, &EditLabel::editCompleted, this, [=](const QString &value) {
+    connect(m_elTimeSignature, &EditLabel::editCompleted, this, [this](const QString &value) {
         if (!value.contains('/'))
             return;
 
@@ -95,7 +95,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
             emit setTimeSignatureTriggered(numerator, denominator);
         }
     });
-    connect(m_elTime, &EditLabel::editCompleted, this, [=](const QString &value) {
+    connect(m_elTime, &EditLabel::editCompleted, this, [this](const QString &value) {
         if (!value.contains(':'))
             return;
 
@@ -109,15 +109,15 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
             emit setPositionTriggered(tick);
         }
     });
-    connect(m_btnPlay, &QPushButton::clicked, this, [=] {
+    connect(m_btnPlay, &QPushButton::clicked, this, [this] {
         emit playTriggered();
         updatePlaybackControlView();
     });
-    connect(m_btnPause, &QPushButton::clicked, this, [=] {
+    connect(m_btnPause, &QPushButton::clicked, this, [this] {
         emit pauseTriggered();
         updatePlaybackControlView();
     });
-    connect(m_btnStop, &QPushButton::clicked, this, [=] {
+    connect(m_btnStop, &QPushButton::clicked, this, [this] {
         emit stopTriggered();
         updatePlaybackControlView();
     });
@@ -126,7 +126,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_cbQuantize->addItems(quantizeStrings);
     m_cbQuantize->setCurrentIndex(3);
 
-    connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [=](int index) {
+    connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [this](int index) {
         auto value = quantizeValues.at(index);
         emit setQuantizeTriggered(value);
     });
@@ -167,7 +167,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     connect(this, &PlaybackView::playTriggered, playbackController, &PlaybackController::play);
     connect(this, &PlaybackView::pauseTriggered, playbackController, &PlaybackController::pause);
     connect(this, &PlaybackView::stopTriggered, playbackController, &PlaybackController::stop);
-    connect(this, &PlaybackView::setPositionTriggered, playbackController, [=](int tick) {
+    connect(this, &PlaybackView::setPositionTriggered, playbackController, [](int tick) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
     });

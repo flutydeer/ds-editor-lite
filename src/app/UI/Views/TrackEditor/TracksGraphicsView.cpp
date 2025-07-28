@@ -49,7 +49,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     m_backgroundMenu->addAction(m_actionNewSingingClip);
     m_backgroundMenu->addAction(m_actionAddAudioClip);
 
-    connect(appStatus, &AppStatus::activeClipIdChanged, this, [=](int clipId) {
+    connect(appStatus, &AppStatus::activeClipIdChanged, this, [this](int clipId) {
         if (clipId == -1) {
             resetActiveClips();
             return;
@@ -298,7 +298,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             if (clip->clipType() == IClip::Audio) {
                 auto actionExtractMidi = new QAction(tr("Extract MIDI Score"));
                 connect(actionExtractMidi, &QAction::triggered, this,
-                        [=] { onExtractMidiTriggered(clip->id()); });
+                        [clip, this] { onExtractMidiTriggered(clip->id()); });
                 menu.addAction(actionExtractMidi);
                 menu.addSeparator();
             }

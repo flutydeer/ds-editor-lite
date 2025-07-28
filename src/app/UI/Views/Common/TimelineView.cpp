@@ -22,7 +22,7 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     });
     connect(playbackController, &PlaybackController::positionChanged, this,
             &TimelineView::setPosition);
-    connect(appModel, &AppModel::modelChanged, this, [=] {
+    connect(appModel, &AppModel::modelChanged, this, [this] {
         setTimeSignature(appModel->timeSignature().numerator,
                          appModel->timeSignature().denominator);
     });
@@ -187,7 +187,7 @@ void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
         disconnect(piece, nullptr, this, nullptr);
     }
     for (const auto piece : pieces) {
-        connect(piece, &InferPiece::statusChanged, this, [=] { update(); });
+        connect(piece, &InferPiece::statusChanged, this, [this] { update(); });
     }
     m_pieces = pieces;
     update();

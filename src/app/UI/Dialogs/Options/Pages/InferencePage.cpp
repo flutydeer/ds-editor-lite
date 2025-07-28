@@ -40,7 +40,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
         m_cbExecutionProvider->setCurrentIndex(epIndexCuda);
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this,
             &InferencePage::modifyOption);
-    connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this, [=] {
+    connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this, [this] {
         // modifyOption();
         const auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");

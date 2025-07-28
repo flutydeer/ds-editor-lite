@@ -115,7 +115,7 @@ void MixConsoleView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs
 }
 
 void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
-    connect(dsTrack, &Track::propertyChanged, this, [=] {
+    connect(dsTrack, &Track::propertyChanged, this, [this] {
         onTrackPropertyChanged();
     });
 

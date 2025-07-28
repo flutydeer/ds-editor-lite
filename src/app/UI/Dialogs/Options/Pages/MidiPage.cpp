@@ -24,8 +24,8 @@
 
 #include "Utils/Decibellinearizer.h"
 #include "UI/Controls/SvsSeekbar.h"
-#include "UI/Controls/SvsExpressionspinbox.h"
-#include "UI/Controls/SvsExpressiondoublespinbox.h"
+#include "UI/Controls/SvsExpressionSpinBox.h"
+#include "UI/Controls/SvsExpressionDoubleSpinBox.h"
 
 #include <Modules/Audio/AudioSystem.h>
 
@@ -159,7 +159,7 @@ public:
             if (ms->device() && i == ms->device()->deviceIndex())
                 deviceComboBox->setCurrentIndex(i);
         }
-        connect(deviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=](int index) {
+        connect(deviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [ms, deviceComboBox, this](int index) {
             auto i = deviceComboBox->itemData(index).toInt();
             if (i == -1)
                 return;
@@ -184,14 +184,14 @@ public:
 
         d->initialize(generatorComboBox, amplitudeSlider, amplitudeSpinBox, attackSlider, attackSpinBox, decaySlider, decaySpinBox, decayRatioSlider, decayRatioSpinBox, releaseSlider, releaseSpinBox, synthesizerTestButton);
 
-        connect(frequencyOfASpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [=](double value) {
+        connect(frequencyOfASpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [adjustByProjectCheckBox, this](double value) {
             d->m_mutex.lock();
             if (!adjustByProjectCheckBox->isChecked())
                 d->m_cachedFrequencyOfA = value;
             d->m_mutex.unlock();
             d->m_testSynthesizer.flush();
         });
-        connect(adjustByProjectCheckBox, &QAbstractButton::clicked, this, [=](bool checked) {
+        connect(adjustByProjectCheckBox, &QAbstractButton::clicked, this, [frequencyOfASpinBox, this](bool checked) {
             d->m_mutex.lock();
             if (checked) {
                 d->m_cachedFrequencyOfA = 0;
@@ -213,7 +213,7 @@ public:
             frequencyOfASpinBox->setValue(d->m_cachedFrequencyOfA);
         }
 
-        connect(synthesizerTestButton, &QAbstractButton::clicked, this, [=](bool checked) {
+        connect(synthesizerTestButton, &QAbstractButton::clicked, this, [synthesizerTestButton, this](bool checked) {
             if (checked) {
                 if (!AudioSystem::outputSystem()->isReady()) {
                     synthesizerTestButton->setChecked(false);
@@ -222,10 +222,10 @@ public:
             }
             d->toggleTestState(checked);
         });
-        connect(d, &SettingPageSynthHelper::testFinished, this, [=] {
+        connect(d, &SettingPageSynthHelper::testFinished, this, [synthesizerTestButton] {
             synthesizerTestButton->setChecked(false);
         }, Qt::QueuedConnection);
-        connect(flushButton, &QAbstractButton::clicked, this, [=] {
+        connect(flushButton, &QAbstractButton::clicked, this, [] {
             AudioSystem::midiSystem()->synthesizer()->noteSynthesizer()->flush();
         });
     }

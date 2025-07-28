@@ -31,7 +31,7 @@ ExtractPitchParamDialog::ExtractPitchParamDialog(const QList<AudioClip *> &clips
     okButton()->setEnabled(false);
 
     connect(okButton(), &Button::clicked, this, &Dialog::accept);
-    connect(cancelButton(), &Button::clicked, this, [=] {
+    connect(cancelButton(), &Button::clicked, this, [this] {
         selectedClipId = -1;
         reject();
     });

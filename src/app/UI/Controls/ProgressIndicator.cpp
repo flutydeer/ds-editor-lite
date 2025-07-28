@@ -19,7 +19,7 @@ ProgressIndicator::ProgressIndicator(IndicatorStyle indicatorStyle, QWidget *par
 
 void ProgressIndicator::initUi() {
     m_timer.setInterval(8);
-    connect(&m_timer, &QTimer::timeout, this, [=]() {
+    connect(&m_timer, &QTimer::timeout, this, [this]() {
         setThumbProgress(m_thumbProgress + 2);
         if (m_thumbProgress == 360)
             m_thumbProgress = 0;
