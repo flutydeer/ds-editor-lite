@@ -6,11 +6,18 @@
 #define PACKAGEMANAGER_H
 
 #include "Model/AppStatus/AppStatus.h"
-#include "Model/Package/Package.h"
 #include "Utils/Expected.h"
 #include "Utils/Singleton.h"
 
 #include <QObject>
+
+namespace srt {
+    class Error;
+}
+
+namespace srt {
+    class ScopedPackageRef;
+}
 
 class PackageManager final : public QObject, public Singleton<PackageManager> {
     Q_OBJECT
@@ -21,17 +28,31 @@ public:
         Unknown
     };
 
-    class GetInstalledPackagesListError {
-    public:
+    struct GetInstalledPackagesError {
         GetInstalledPackagesErrorType type = Unknown;
         QString message;
     };
 
+    struct GetInstalledPackagesResult {
+        struct FailedPackage {
+            QString path;
+            QString reason;
+        };
+
+        QList<srt::ScopedPackageRef> successfulPackages;
+        QList<FailedPackage> failedPackages;
+    };
+
     PackageManager();
-    [[nodiscard]] Expected<QList<Package>, GetInstalledPackagesListError> getInstalledPackages() const;
+
+    [[nodiscard]]
+    static Expected<GetInstalledPackagesResult, GetInstalledPackagesError> getInstalledPackages();
 
 private slots:
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
+
+private:
+    static QString srtErrorToString(const srt::Error &error);
 };
 
 #endif //PACKAGEMANAGER_H
