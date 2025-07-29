@@ -35,6 +35,8 @@ Expected<PackageManager::GetInstalledPackagesResult, PackageManager::GetInstalle
         };
     }
 
+    QElapsedTimer timer;
+    timer.start();
     GetInstalledPackagesResult result;
     auto homeDir = [] -> fs::path {
         return
@@ -81,7 +83,7 @@ Expected<PackageManager::GetInstalledPackagesResult, PackageManager::GetInstalle
         processAllPackages(path);
     }
 
-    // qDebug() << "Time: " << timer.elapsed();
+    qDebug() << "Package scan completed in" << timer.elapsed() << "ms";
     return result;
 }
 
@@ -89,6 +91,8 @@ void PackageManager::onModuleStatusChanged(AppStatus::ModuleType module,
                                            AppStatus::ModuleStatus status) {
     if (module != AppStatus::ModuleType::Inference || status != AppStatus::ModuleStatus::Ready)
         return;
+
+    instance()->getInstalledPackages();
 }
 
 QString PackageManager::srtErrorToString(const srt::Error &error) {

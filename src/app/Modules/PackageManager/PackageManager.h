@@ -12,11 +12,8 @@
 #include <QObject>
 
 namespace srt {
+    class PackageRef;
     class Error;
-}
-
-namespace srt {
-    class ScopedPackageRef;
 }
 
 class PackageManager final : public QObject, public Singleton<PackageManager> {
@@ -39,7 +36,7 @@ public:
             QString reason;
         };
 
-        QList<srt::ScopedPackageRef> successfulPackages;
+        QList<srt::PackageRef> successfulPackages;
         QList<FailedPackage> failedPackages;
     };
 
