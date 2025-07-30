@@ -26,7 +26,7 @@ PackageManager::PackageManager() {
             &PackageManager::onModuleStatusChanged);
 }
 
-Expected<PackageManager::GetInstalledPackagesResult, PackageManager::GetInstalledPackagesError>
+Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     PackageManager::getInstalledPackages() {
     if (!inferEngine->initialized()) {
         return GetInstalledPackagesError{
@@ -50,7 +50,6 @@ Expected<PackageManager::GetInstalledPackagesResult, PackageManager::GetInstalle
 
     const std::filesystem::path paths = {homeDir() / ".diffsinger/packages"};
     const auto su = inferEngine->synthUnit();
-    auto locale = QLocale::system().name().toStdString();
     su->addPackagePath(paths);
 
     auto processPackage = [&](const std::filesystem::path &packagePath) {
@@ -91,8 +90,6 @@ void PackageManager::onModuleStatusChanged(AppStatus::ModuleType module,
                                            AppStatus::ModuleStatus status) {
     if (module != AppStatus::ModuleType::Inference || status != AppStatus::ModuleStatus::Ready)
         return;
-
-    instance()->getInstalledPackages();
 }
 
 QString PackageManager::srtErrorToString(const srt::Error &error) {

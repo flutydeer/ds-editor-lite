@@ -16,6 +16,7 @@
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/PackageManager/PackageManager.h"
+#include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Window/TaskWindow.h"
 #include "Utils/Log.h"
@@ -155,6 +156,9 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+
+    auto packageManagerDialog = new PackageManagerDialog(&w);
+    packageManagerDialog->show();
 
     // trackController->onNewTrack();
     // auto clip = trackController->onNewSingingClip(1, 3840);

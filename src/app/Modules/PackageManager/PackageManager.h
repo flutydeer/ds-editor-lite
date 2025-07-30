@@ -5,6 +5,9 @@
 #ifndef PACKAGEMANAGER_H
 #define PACKAGEMANAGER_H
 
+#define packageManager PackageManager::instance()
+
+#include "Modules/PackageManager/Models/GetInstalledPackagesResult.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Utils/Expected.h"
 #include "Utils/Singleton.h"
@@ -20,26 +23,6 @@ class PackageManager final : public QObject, public Singleton<PackageManager> {
     Q_OBJECT
 
 public:
-    enum GetInstalledPackagesErrorType {
-        InferEngineNotInitialized,
-        Unknown
-    };
-
-    struct GetInstalledPackagesError {
-        GetInstalledPackagesErrorType type = Unknown;
-        QString message;
-    };
-
-    struct GetInstalledPackagesResult {
-        struct FailedPackage {
-            QString path;
-            QString reason;
-        };
-
-        QList<srt::PackageRef> successfulPackages;
-        QList<FailedPackage> failedPackages;
-    };
-
     PackageManager();
 
     [[nodiscard]]
