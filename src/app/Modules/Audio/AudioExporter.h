@@ -137,7 +137,7 @@ namespace Audio {
         QStringList dryRun() const;
 
         enum Result {
-            R_OK,
+            R_Ok,
             R_Fail,
             R_Abort,
         };

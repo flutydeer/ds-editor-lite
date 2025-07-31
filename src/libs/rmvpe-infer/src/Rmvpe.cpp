@@ -1,5 +1,7 @@
 #include <rmvpe-infer/Rmvpe.h>
 
+#include <cmath>
+
 #include <sndfile.hh>
 
 #include <audio-util/Slicer.h>

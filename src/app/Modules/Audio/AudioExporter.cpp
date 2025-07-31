@@ -285,10 +285,12 @@ namespace Audio {
                 }
                 break;
             case AudioExporterConfig::FT_OggVorbis:
-                format |= (talcs::AudioFormatIO::OGG | talcs::AudioFormatIO::VORBIS);
+                format |= static_cast<int>(talcs::AudioFormatIO::OGG) |
+                          static_cast<int>(talcs::AudioFormatIO::VORBIS);
                 return format;
             case AudioExporterConfig::FT_Mp3:
-                format |= (talcs::AudioFormatIO::MPEG | talcs::AudioFormatIO::MPEG_LAYER_III);
+                format |= static_cast<int>(talcs::AudioFormatIO::MPEG) |
+                          static_cast<int>(talcs::AudioFormatIO::MPEG_LAYER_III);
                 return format;
         }
         return 0;
@@ -658,7 +660,7 @@ namespace Audio {
                 return R_Fail;
         }
 
-        return R_OK;
+        return R_Ok;
     }
 
     void AudioExporter::cleanUp() {

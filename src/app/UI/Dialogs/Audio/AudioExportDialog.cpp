@@ -700,7 +700,7 @@ namespace Audio::Internal {
             abortButton->setText(tr("Close"));
             if (warningList->count()) {
                 switch (ret) {
-                    case AudioExporter::R_OK:
+                    case AudioExporter::R_Ok:
                         mainPromptLabel->setText(tr("Export finished with %n warning(s)", nullptr, warningList->count()));
                         QApplication::beep();
                         break;
@@ -718,7 +718,7 @@ namespace Audio::Internal {
                 }
             } else {
                 switch (ret) {
-                    case AudioExporter::R_OK:
+                    case AudioExporter::R_Ok:
                         progressDialog.accept();
                         break;
                     case AudioExporter::R_Abort:

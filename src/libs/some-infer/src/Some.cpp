@@ -1,8 +1,9 @@
 #include <some-infer/Some.h>
 
-#include <sndfile.hh>
-
+#include <cmath>
 #include <iostream>
+
+#include <sndfile.hh>
 
 #include <audio-util/Slicer.h>
 #include <audio-util/Util.h>
