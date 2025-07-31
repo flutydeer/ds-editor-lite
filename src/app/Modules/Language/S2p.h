@@ -13,6 +13,7 @@ public:
     explicit S2p() {
         m_s2ps.insert("cmn", new FillLyric::Syllable2p(getDefaultDictPath("cmn")));
         m_s2ps.insert("jpn", new FillLyric::Syllable2p(getDefaultDictPath("jpn")));
+        m_s2ps.insert("yue", new FillLyric::Syllable2p(getDefaultDictPath("yue")));
     }
 
     QStringList syllableToPhoneme(const QString &syllable, const QString &language) const {
@@ -32,14 +33,19 @@ private:
 
     // TODO: support multi-dict
     static QString getDefaultDictPath(const QString &language) {
+        auto dictPath = QStringLiteral("opencpop-extension.txt");
+        if (language == "jpn") {
+            dictPath = QStringLiteral("japanese_dict_full.txt");
+        } else if (language == "yue") {
+            dictPath = QStringLiteral("jyutping_dict.txt");
+        }
         return QApplication::applicationDirPath() + "/" +
 #ifdef Q_OS_MAC
                QStringLiteral("../Resources/phonemeDict/")
 #else
                QStringLiteral("Resources/phonemeDict/")
 #endif
-               + (language == "cmn" ? QStringLiteral("opencpop-extension.txt")
-                                    : QStringLiteral("japanese_dict_full.txt"));
+               + dictPath;
     }
 };
 
