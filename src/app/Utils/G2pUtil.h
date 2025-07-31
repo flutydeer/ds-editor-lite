@@ -8,7 +8,8 @@
 static QMap<QString, QString> languageTog2pId = {
     {"cmn", "cmn-pinyin"},
     {"jpn", "jpn-romaji"},
-    {"eng", "eng"       }
+    {"eng", "eng"},
+    {"yue", "yue-jyutping"}
 };
 
 inline QString g2pIdFromLanguage(const QString &key) {
@@ -22,7 +23,8 @@ inline QString defaultG2pId() {
 static QMap<QString, QString> languageToDict = {
     {"cmn", "zh"},
     {"jpn", "ja"},
-    {"eng", "en"}
+    {"eng", "en"},
+    {"yue", "yue"}
 };
 
 inline QString languageDefaultDictId(const QString &language) {

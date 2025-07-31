@@ -20,7 +20,7 @@ namespace AppGlobal {
 
     enum ParamType {};
 
-    const QStringList languageNames = {"cmn", "eng", "jpn", "unknown"};
+    const QStringList languageNames = {"cmn", "eng", "jpn", "yue", "unknown"};
 
 }
 
