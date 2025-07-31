@@ -38,7 +38,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     QElapsedTimer timer;
     timer.start();
     GetInstalledPackagesResult result;
-    auto homeDir = [] -> fs::path {
+    auto homeDir = []() -> fs::path {
         return
 #ifdef WIN32
             _wgetenv(L"USERPROFILE")
