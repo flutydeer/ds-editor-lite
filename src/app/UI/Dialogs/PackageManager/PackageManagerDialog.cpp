@@ -10,7 +10,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Dialogs/PackageManager/PackageFilterProxyModel.h"
-#include "UI/Dialogs/PackageManager/PackageListItemWidget.h"
+#include "UI/Dialogs/PackageManager/PackageItemDelegate.h"
 #include "UI/Dialogs/PackageManager/PackageListModel.h"
 
 #include <QHBoxLayout>
@@ -45,20 +45,6 @@ void PackageManagerDialog::updatePackageList(const QList<srt::PackageRef> &packa
     proxyModel->setSourceModel(model);
     m_listView->setModel(proxyModel);
 
-    // 为每个条目设置自定义 Widget
-    for (int i = 0; i < proxyModel->rowCount(); ++i) {
-        const auto index = proxyModel->index(i, 0);
-        const auto package = index.data(Qt::UserRole).value<srt::PackageRef>();
-
-        auto *widget = new PackageListItemWidget;
-        widget->setContent(
-            QString::fromStdString(package.id()),
-            QString::fromStdString(package.vendor().text(locale))
-            );
-        m_listView->setIndexWidget(index, widget);
-    }
-
-    // 连接搜索框信号
     connect(findChild<QLineEdit *>(), &QLineEdit::textChanged,
             proxyModel, &PackageFilterProxyModel::setFilterString);
 }
@@ -119,8 +105,9 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     m_listView = new QListView; // 替换原来的 m_listPackages
     m_listView->setObjectName("PackageManagerDialogPackageListView");
     m_listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    m_listView->setItemDelegate(new PackageItemDelegate);
     m_listView->setStyleSheet(
-        "QListView { background: transparent; } QListView::item {height: 48px;}");
+        "QListView { background: transparent; border: none; } QListView::item {background: #409BBAFF; border-radius: 4px;}");
 
     auto layout = new QVBoxLayout;
     layout->addLayout(actionBar);
