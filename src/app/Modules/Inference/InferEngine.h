@@ -82,16 +82,25 @@ private:
     bool m_configLoaded = false;
 
     srt::SynthUnit m_su;
-    srt::ScopedPackageRef m_pkg;
+
+    InferEnginePaths m_paths;
 
     struct Inference {
         srt::NO<srt::InferenceImportOptions> options;
         srt::InferenceSpec *spec = nullptr;
         srt::NO<srt::Inference> session;
     };
-    Inference m_duration, m_pitch, m_variance, m_acoustic, m_vocoder;
 
-    InferEnginePaths m_paths;
+    struct InferenceSet {
+        Inference duration, pitch, variance, acoustic, vocoder;
+    };
+
+    struct PackageContext {
+        srt::ScopedPackageRef pkg;
+        InferenceSet inference;
+    };
+
+    PackageContext m_pkgCtx;
 };
 
 
