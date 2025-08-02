@@ -28,15 +28,15 @@ public:
     void paint() const;
 
 private:
-    QWidget *device;
-    int blurRadius;
-    QColor tintColor;
-    QColor luminosityColor;
-    double noiseOpacity;
-    QImage noiseImage;
-    QPixmap originalImage;
-    QPixmap image;
-    QPainterPath clipPath;
+    QWidget *m_device;
+    int m_blurRadius;
+    QColor m_tintColor;
+    QColor m_luminosityColor;
+    double m_noiseOpacity;
+    QImage m_noiseImage;
+    QPixmap m_originalImage;
+    QPixmap m_image;
+    QPainterPath m_clipPath;
 };
 
 

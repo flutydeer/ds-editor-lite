@@ -60,11 +60,12 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
     langMgr->correct(langNotes, {singingClip->defaultG2pId});
     langMgr->convert(langNotes);
 
-    QList<QString> result;
+    QList<QString> pronResult;
+    pronResult.reserve(langNotes.size());
     for (const auto pNote : langNotes) {
         Q_ASSERT(!pNote->syllable.isEmpty());
-        result.append(pNote->syllable);
+        pronResult.append(pNote->syllable);
         delete pNote;
     }
-    return result;
+    return pronResult;
 }

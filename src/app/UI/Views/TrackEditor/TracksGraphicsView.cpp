@@ -86,11 +86,11 @@ void TracksGraphicsView::onAddAudioClip() {
                                                          fileName, userData, entryClassName, this,
                                                          tr("Select an Audio File"), ".");
 
-    QByteArray data;
-    QDataStream o(&data, QIODevice::WriteOnly);
+    QByteArray dataBuffer;
+    QDataStream o(&dataBuffer, QIODevice::WriteOnly);
     o << userData;
     QJsonObject workspace{
-        {"userData",       QString::fromLatin1(data.toBase64())},
+        {"userData",       QString::fromLatin1(dataBuffer.toBase64())},
         {"entryClassName", entryClassName                      },
     };
 

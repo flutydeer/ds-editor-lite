@@ -232,24 +232,24 @@ bool InferEngine::initialize(QString &error) {
     const auto selectedGpu = [](EP ep_) -> GpuInfo {
         switch (ep_) {
             case EP::DMLExecutionProvider: {
-                auto selectedGpu = DmlGpuUtils::getGpuByPciDeviceVendorIdString(appOptions->inference()->selectedGpuId);
-                if (selectedGpu.index < 0) {
+                auto selectedGpu_ = DmlGpuUtils::getGpuByPciDeviceVendorIdString(appOptions->inference()->selectedGpuId);
+                if (selectedGpu_.index < 0) {
                     qInfo() << "Auto selecting GPU";
-                    selectedGpu = DmlGpuUtils::getRecommendedGpu();
+                    selectedGpu_ = DmlGpuUtils::getRecommendedGpu();
                 } else {
                     qInfo() << "Selecting GPU";
                 }
-                return selectedGpu;
+                return selectedGpu_;
             }
             case EP::CUDAExecutionProvider: {
-                auto selectedGpu = CudaGpuUtils::getGpuByUuid(appOptions->inference()->selectedGpuId);
-                if (selectedGpu.index < 0) {
+                auto selectedGpu_ = CudaGpuUtils::getGpuByUuid(appOptions->inference()->selectedGpuId);
+                if (selectedGpu_.index < 0) {
                     qInfo() << "Auto selecting GPU";
-                    selectedGpu = CudaGpuUtils::getRecommendedGpu();
+                    selectedGpu_ = CudaGpuUtils::getRecommendedGpu();
                 } else {
                     qInfo() << "Selecting GPU";
                 }
-                return selectedGpu;
+                return selectedGpu_;
             }
             default:
                 return {};

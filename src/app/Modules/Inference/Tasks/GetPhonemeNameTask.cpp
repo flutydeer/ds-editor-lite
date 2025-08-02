@@ -68,7 +68,8 @@ QList<PhonemeNameResult>
         return {};
     }
     const auto syllable2p = S2p::instance();
-    QList<PhonemeNameResult> result;
+    QList<PhonemeNameResult> phonemeNameResult;
+    phonemeNameResult.reserve(input.size());
     for (const auto &[pronunciation, language] : input) {
         // qInfo() << pronunciation;
         PhonemeNameResult note;
@@ -89,9 +90,9 @@ QList<PhonemeNameResult>
                 return {};
             }
         }
-        result.append(note);
+        phonemeNameResult.append(note);
     }
 
     m_success = true;
-    return result;
+    return phonemeNameResult;
 }

@@ -123,9 +123,16 @@ namespace LangSetting {
                     emit langConfigChanged(m_languageConfigState);
                 };
 
-                // Connect stateChanged signals to the updateJson lambda function
-                QObject::connect(enableCheckBox, &QCheckBox::stateChanged, updateJson);
-                QObject::connect(discardCheckBox, &QCheckBox::stateChanged, updateJson);
+                // Connect checkStateChanged (Qt >= 6.7) or stateChanged (Qt < 6.7)
+                // signals to the updateJson lambda function
+                constexpr auto kStateChangedSignal =
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+                    &QCheckBox::checkStateChanged;
+#else
+                    &QCheckBox::stateChanged;
+#endif
+                QObject::connect(enableCheckBox, kStateChangedSignal, updateJson);
+                QObject::connect(discardCheckBox, kStateChangedSignal, updateJson);
             }
         } else {
             qDebug() << "Key 'languageConfig' does not exist.";

@@ -213,14 +213,20 @@ namespace Audio {
     }
     bool AudioExporterPrivate::calculateTemplate(QString &templateString, const QString &trackName,
                                                  int trackIndex) const {
-        static QRegularExpression re(R"re(\$\{(.*?)\})re");
+        static const QRegularExpression re(R"re(\$\{(.*?)\})re");
         bool allTemplatesMatch = true;
-        auto templateStringView = QStringView(templateString);
-        int pos = 0;
+        const QStringView templateStringView(templateString);
+        qsizetype pos = 0;
         QString result;
-        for (auto matchIt = re.globalMatch(templateStringView); matchIt.hasNext(); matchIt.next()) {
-            auto match = matchIt.peekNext();
-            auto templateName = match.captured(1);
+        auto matchIt =
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+            re.globalMatchView(templateStringView);
+#else
+            re.globalMatch(templateStringView);
+#endif
+        for (; matchIt.hasNext(); matchIt.next()) {
+            const auto match = matchIt.peekNext();
+            const auto templateName = match.capturedView(1);
             auto replacedText = match.captured(0);
             if (templateName == "projectName") {
                 replacedText = projectName();
@@ -241,11 +247,11 @@ namespace Audio {
             } else {
                 allTemplatesMatch = false;
             }
-            result += templateStringView.mid(pos, match.capturedStart(0) - pos);
+            result += templateStringView.sliced(pos, match.capturedStart(0) - pos);
             result += replacedText;
             pos = match.capturedEnd(0);
         }
-        result += templateStringView.right(templateStringView.length() - pos);
+        result += templateStringView.last(templateStringView.length() - pos);
         templateString = result;
         return allTemplatesMatch;
     }

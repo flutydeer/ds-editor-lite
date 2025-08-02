@@ -405,9 +405,9 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
         if (startIndex >= curve.values().count())
             return;
 
-        auto x = tickToItemX(start + startIndex * curve.step);
-        auto y = valueToItemY(curve.values().at(startIndex));
-        auto visibleFirstPoint = QPointF(x, y);
+        const auto x = tickToItemX(start + startIndex * curve.step);
+        const auto y = valueToItemY(curve.values().at(startIndex));
+        const QPointF visibleFirstPoint(x, y);
 
         if (m_showDebugInfo) {
             auto firstValue = curve.values().first();
@@ -433,10 +433,10 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
             const auto value = curve.values().at(i);
             if (pos > tempEndTick)
                 breakFlag = true;
-            const double x = startX + (i * interval);
-            if (qAbs(lastLineToX - x) > dpr) {
-                curvePath.lineTo(x, valueToItemY(value));
-                lastLineToX = x;
+            const double currentX = startX + (i * interval);
+            if (qAbs(lastLineToX - currentX) > dpr) {
+                curvePath.lineTo(currentX, valueToItemY(value));
+                lastLineToX = currentX;
             }
             pointCount++;
 

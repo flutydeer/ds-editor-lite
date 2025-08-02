@@ -34,28 +34,28 @@ void ScrollBarView::updateRectAndPos() {
         m_maximum = scene()->sceneRect().width();
         m_value = visibleRect().left();
         m_pageStep = visibleRect().width();
-        setPos(visibleRect().left(), visibleRect().bottom() - width);
-        setRect(QRectF(0, 0, visibleRect().width() - width, width));
+        setPos(visibleRect().left(), visibleRect().bottom() - kWidth);
+        setRect(QRectF(0, 0, visibleRect().width() - kWidth, kWidth));
     } else {
         m_maximum = scene()->sceneRect().height();
         m_value = visibleRect().top();
         m_pageStep = visibleRect().height();
-        setPos(visibleRect().right() - width, visibleRect().top());
-        setRect(QRectF(0, 0, width, visibleRect().height() - width));
+        setPos(visibleRect().right() - kWidth, visibleRect().top());
+        setRect(QRectF(0, 0, kWidth, visibleRect().height() - kWidth));
     }
     update();
 }
 
 void ScrollBarView::moveToNormalState() {
-    performStateChangeAnimation(handleAlphaNormal, handlePaddingNormal, 300);
+    performStateChangeAnimation(kHandleAlphaNormal, kHandlePaddingNormal, 300);
 }
 
 void ScrollBarView::moveToHoverState() {
-    performStateChangeAnimation(handleAlphaHover, handlePaddingHover, 100);
+    performStateChangeAnimation(kHandleAlphaHover, kHandlePaddingHover, 100);
 }
 
 void ScrollBarView::moveToPressedState() {
-    performStateChangeAnimation(handleAlphaPressed, handlePaddingPressed, 100);
+    performStateChangeAnimation(kHandleAlphaPressed, kHandlePaddingPressed, 100);
 }
 
 bool ScrollBarView::mouseOnHandle(const QPointF &scenePos) const {

@@ -43,13 +43,13 @@ private:
     void performStateChangeAnimation(int targetAlpha, double targetPadding, int duration);
 
     Qt::Orientation m_orientation = Qt::Horizontal;
-    const int width = 14;
-    const int handleAlphaHover = 64;
-    const int handleAlphaPressed = 96;
-    const int handleAlphaNormal = 40;
-    const double handlePaddingNormal = 5;
-    const double handlePaddingHover = 2;
-    const double handlePaddingPressed = 3;
+    static constexpr int kWidth = 14;
+    static constexpr int kHandleAlphaHover = 64;
+    static constexpr int kHandleAlphaPressed = 96;
+    static constexpr int kHandleAlphaNormal = 40;
+    static constexpr double kHandlePaddingNormal = 5;
+    static constexpr double kHandlePaddingHover = 2;
+    static constexpr double kHandlePaddingPressed = 3;
     QVariantAnimation m_aniHandleAlpha;
     QVariantAnimation m_aniHandlePadding;
     bool m_mouseHoverOnHandle = false;
@@ -58,8 +58,8 @@ private:
     double m_maximum = 100;
     double m_value = 20;
     double m_pageStep = 20;
-    int m_handleAlpha = handleAlphaNormal;
-    double m_handlePadding = handlePaddingNormal;
+    int m_handleAlpha = kHandleAlphaNormal;
+    double m_handlePadding = kHandlePaddingNormal;
 };
 
 
