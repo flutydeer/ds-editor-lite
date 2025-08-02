@@ -5,17 +5,22 @@
 #ifndef IDGENERATOR_H
 #define IDGENERATOR_H
 
+#include <atomic>
+
 #include "Singleton.h"
 
 class IdGenerator : public Singleton<IdGenerator> {
 public:
-    int next() {
-        m_id++;
-        return m_id;
+    IdGenerator() : Singleton<IdGenerator>(), m_id(0) {
+    }
+    ~IdGenerator() noexcept override = default;
+
+    int next() noexcept {
+        return m_id.fetch_add(1, std::memory_order_relaxed);
     }
 
 private:
-    int m_id = -1;
+    std::atomic<int> m_id;
 };
 
 #endif // IDGENERATOR_H
