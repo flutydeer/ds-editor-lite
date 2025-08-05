@@ -38,19 +38,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     QElapsedTimer timer;
     timer.start();
     GetInstalledPackagesResult result;
-    auto homeDir = []() -> fs::path {
-        return
-#ifdef WIN32
-            _wgetenv(L"USERPROFILE")
-#else
-            getenv("HOME")
-#endif
-            ;
-    };
-
-    const std::filesystem::path paths = {homeDir() / ".diffsinger/packages"};
     const auto su = inferEngine->synthUnit();
-    su->addPackagePath(paths);
 
     auto processPackage = [&](const std::filesystem::path &packagePath) {
         if (auto exp = su->open(packagePath, true); !exp) {

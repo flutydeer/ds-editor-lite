@@ -263,6 +263,20 @@ bool InferEngine::initialize(QString &error) {
         return false;
     }
 
+
+    auto homeDir = []() -> std::filesystem::path {
+        return
+#ifdef WIN32
+            _wgetenv(L"USERPROFILE")
+#else
+            getenv("HOME")
+#endif
+            ;
+    };
+
+    const std::filesystem::path paths = {homeDir() / ".diffsinger/packages"};
+    m_su.setPackagePaths(paths);
+
     qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
                             .arg(selectedGpu.description)
                             .arg(selectedGpu.deviceId)
