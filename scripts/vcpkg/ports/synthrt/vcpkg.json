@@ -1,6 +1,6 @@
 {
   "name": "synthrt",
-  "version": "0.0.2.1",
+  "version": "0.0.2.2",
   "description": "SVS Synthesis Runtime Library",
   "homepage": "https://github.com/diffscope/synthrt",
   "license": "Apache-2.0",
