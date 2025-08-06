@@ -40,6 +40,8 @@
 
 #include <QDebug>
 #include <QDir>
+#include <QStandardPaths>
+#include <QString>
 
 #include "Tasks/InferTaskCommon.h"
 #include "Utils/CudaGpuUtils.h"
@@ -265,11 +267,11 @@ bool InferEngine::initialize(QString &error) {
 
 
     auto homeDir = []() -> std::filesystem::path {
-        return
-#ifdef WIN32
-            _wgetenv(L"USERPROFILE")
+        return QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
+#ifdef _WIN32
+            .toStdWString()
 #else
-            getenv("HOME")
+            .toStdString()
 #endif
             ;
     };
