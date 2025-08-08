@@ -60,7 +60,7 @@ void DecodeAudioTask::runTask() {
     // qDebug() << frames;
 
     std::vector<float> buffer(m_chunkSize * m_channels);
-    auto totalBufferCount = m_frames / m_chunkSize;
+    const auto totalBufferCount = m_frames / m_chunkSize;
     long long buffersRead = 0;
     qint64 samplesRead = 0;
     while (samplesRead < m_frames * m_channels) {
@@ -79,7 +79,7 @@ void DecodeAudioTask::runTask() {
         }
         double sampleMax = 0;
         double sampleMin = 0;
-        qint64 framesRead = samplesRead / m_channels;
+        const qint64 framesRead = samplesRead / m_channels;
         for (qint64 i = 0; i < framesRead; i++) {
             double monoSample = 0.0;
             for (int j = 0; j < m_channels; j++) {
@@ -106,12 +106,12 @@ void DecodeAudioTask::runTask() {
         m_peakCache.append(pair);
         buffersRead++;
 
-        int updateProgressThreshold = 200;
+        constexpr int updateProgressThreshold = 200;
         if (totalBufferCount < updateProgressThreshold) {
             status.progress = 100;
             setStatus(status);
         } else if (buffersRead % (totalBufferCount / 200) == 0) {
-            auto progress = 100 * buffersRead / totalBufferCount;
+            const auto progress = 100 * buffersRead / totalBufferCount;
             // qDebug() << progress;
             status.progress = static_cast<int>(progress);
             setStatus(status);
@@ -140,8 +140,8 @@ void DecodeAudioTask::runTask() {
             hasTail = false;
         } else {
             auto frame = m_peakCache.at(i);
-            auto frameMin = std::get<0>(frame);
-            auto frameMax = std::get<1>(frame);
+            const auto frameMin = std::get<0>(frame);
+            const auto frameMax = std::get<1>(frame);
             if (frameMin < min)
                 min = frameMin;
             if (frameMax > max)

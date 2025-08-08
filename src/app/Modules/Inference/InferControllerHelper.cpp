@@ -37,7 +37,7 @@ namespace InferControllerHelper {
     }
 
     InferVarianceTask::InferVarianceInput buildInferVarianceInput(const InferPiece &piece,
-        const QString &configPath) {
+                                                                  const QString &configPath) {
         const auto notes = buildInferInputNotes(piece.notes);
         InferParamCurve pitch;
         for (const auto &value : piece.inputPitch.values())
@@ -76,26 +76,26 @@ namespace InferControllerHelper {
         for (const auto &value : piece.inputGender.values())
             gender.values.append(value / 1000.0);
 
-        InferParamCurve velocity = {
+        const InferParamCurve velocity = {
             Linq::selectMany(piece.inputVelocity.values(), L_PRED(p, p / 1000.0))};
 
-        InferParamCurve toneShift = {
+        const InferParamCurve toneShift = {
             Linq::selectMany(piece.inputToneShift.values(), L_PRED(p, p * 1.0))};
 
-        return {piece.clipId(), piece.id(), notes, configPath, appModel->tempo(),
-                pitch, breathiness, tension, voicing, energy,
-                mouthOpening, gender, velocity, toneShift};
+        return {piece.clipId(), piece.id(),  notes,    configPath, appModel->tempo(),
+                pitch,          breathiness, tension,  voicing,    energy,
+                mouthOpening,   gender,      velocity, toneShift};
     }
 
-    QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(ParamInfo::Name name, SingingClip &clip) {
+    QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(const ParamInfo::Name name,
+                                                          SingingClip &clip) {
         QList<InferPiece *> result;
         for (auto &piece : clip.pieces()) {
             // 重新合并参数曲线，并与之前的缓存比较
-            auto param = clip.params.getParamByName(name);
+            const auto param = clip.params.getParamByName(name);
             auto editedCurves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
             auto input = *piece->getInputCurve(name);
-            bool mergeNeeded = ParamInfo::hasOriginalParam(name);
-            if (mergeNeeded) {
+            if (bool mergeNeeded = ParamInfo::hasOriginalParam(name)) {
                 auto original = *piece->getOriginalCurve(name);
                 if (auto resultCurve = AppModelUtils::getResultCurve(original, editedCurves);
                     resultCurve != input) {
@@ -103,7 +103,7 @@ namespace InferControllerHelper {
                     result.append(piece);
                 }
             } else {
-                auto baseValue = paramUtils->getPropertiesByName(name)->defaultValue;
+                const auto baseValue = paramUtils->getPropertiesByName(name)->defaultValue;
                 if (auto resultCurve = AppModelUtils::getResultCurve(
                         {piece->localStartTick(), piece->localEndTick()}, baseValue, editedCurves);
                     resultCurve != input) {
@@ -119,7 +119,7 @@ namespace InferControllerHelper {
                              SingingClip &clip) {
         if (notes.count() != args.count()) {
             qFatal() << "updateNotesPronunciation() note count != args count:" << notes.count()
-                << args.count();
+                     << args.count();
             return;
         }
         int i = 0;
@@ -134,7 +134,7 @@ namespace InferControllerHelper {
                          SingingClip &clip) {
         if (notes.count() != args.count()) {
             qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
-                << args.count();
+                     << args.count();
             return;
         }
         int i = 0;
@@ -150,7 +150,7 @@ namespace InferControllerHelper {
                            SingingClip &clip) {
         if (notes.count() != args.count()) {
             qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
-                << args.count();
+                     << args.count();
             return;
         }
         int i = 0;
@@ -170,8 +170,8 @@ namespace InferControllerHelper {
         const auto smooth_kernel_size = appOptions->inference()->pitch_smooth_kernel_size;
         std::vector<double> paramValue;
         if (name == ParamInfo::Pitch && smooth_kernel_size > 0) {
-            const auto smoother = std::make_unique<CurveUtil::SinusoidalSmoothingConv1d>(
-                smooth_kernel_size);
+            const auto smoother =
+                std::make_unique<CurveUtil::SinusoidalSmoothingConv1d>(smooth_kernel_size);
             paramValue = smoother->forward(alignValues);
         } else
             paramValue = alignValues;
@@ -184,7 +184,7 @@ namespace InferControllerHelper {
         // 合并手绘参数
         const auto param = piece.clip->params.getParamByName(name);
         const auto editedCurves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
-        auto mergedCurve = AppModelUtils::getResultCurve(original, editedCurves);
+        const auto mergedCurve = AppModelUtils::getResultCurve(original, editedCurves);
         piece.setInputCurve(name, mergedCurve);
         piece.clip->updateOriginalParam(name);
     }
@@ -216,7 +216,7 @@ namespace InferControllerHelper {
         clip.updateOriginalParam(ParamInfo::MouthOpening);
     }
 
-    void resetPhoneOffset(const QList<Note *> &notes, InferPiece &piece, bool cascadeReset) {
+    void resetPhoneOffset(const QList<Note *> &notes, InferPiece &piece, const bool cascadeReset) {
         if (cascadeReset)
             resetPitch(piece);
         for (const auto note : notes) {
@@ -226,20 +226,20 @@ namespace InferControllerHelper {
         piece.clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
     }
 
-    void resetParam(ParamInfo::Name name, InferPiece &piece) {
-        DrawCurve emptyCurve;
+    void resetParam(const ParamInfo::Name name, InferPiece &piece) {
+        const DrawCurve emptyCurve;
         piece.setOriginalCurve(name, emptyCurve);
         piece.setInputCurve(name, emptyCurve);
         piece.clip->updateOriginalParam(name);
     }
 
-    void resetPitch(InferPiece &piece, bool cascadeReset) {
+    void resetPitch(InferPiece &piece, const bool cascadeReset) {
         if (cascadeReset)
             resetVariance(piece);
         resetParam(ParamInfo::Pitch, piece);
     }
 
-    void resetVariance(InferPiece &piece, bool cascadeReset) {
+    void resetVariance(InferPiece &piece, const bool cascadeReset) {
         if (cascadeReset)
             resetAcoustic(piece);
         resetParam(ParamInfo::Breathiness, piece);

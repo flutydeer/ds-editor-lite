@@ -41,7 +41,7 @@ double AppModel::tempo() const {
     return d->m_tempo;
 }
 
-void AppModel::setTempo(double tempo) {
+void AppModel::setTempo(const double tempo) {
     Q_D(AppModel);
     d->m_tempo = tempo;
     emit tempoChanged(d->m_tempo);
@@ -63,7 +63,7 @@ const QList<Track *> &AppModel::tracks() const {
     return d->m_tracks;
 }
 
-void AppModel::insertTrack(Track *track, qsizetype index) {
+void AppModel::insertTrack(Track *track, const qsizetype index) {
     Q_D(AppModel);
     d->m_tracks.insert(index, track);
     emit trackChanged(Insert, index, track);
@@ -74,16 +74,16 @@ void AppModel::appendTrack(Track *track) {
     insertTrack(track, d->m_tracks.count());
 }
 
-void AppModel::removeTrackAt(qsizetype index) {
+void AppModel::removeTrackAt(const qsizetype index) {
     Q_D(AppModel);
-    auto track = d->m_tracks[index];
+    const auto track = d->m_tracks[index];
     d->m_tracks.removeAt(index);
     emit trackChanged(Remove, index, track);
 }
 
 void AppModel::removeTrack(Track *track) {
     Q_D(AppModel);
-    auto index = d->m_tracks.indexOf(track);
+    const auto index = d->m_tracks.indexOf(track);
     removeTrackAt(index);
 }
 
@@ -115,16 +115,16 @@ void AppModel::newProject() {
     Q_D(AppModel);
     d->reset();
 
-    auto singingClip = new SingingClip;
-    int bars = 4;
-    auto timeSig = appModel->timeSignature();
-    int length = 1920 * timeSig.numerator / timeSig.denominator * bars;
+    const auto singingClip = new SingingClip;
+    constexpr int bars = 4;
+    const auto timeSig = appModel->timeSignature();
+    const int length = 1920 * timeSig.numerator / timeSig.denominator * bars;
     singingClip->setName(tr("New Singing Clip"));
     singingClip->setStart(0);
     singingClip->setClipStart(0);
     singingClip->setLength(length);
     singingClip->setClipLen(length);
-    auto newTrack = new Track;
+    const auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
     newTrack->insertClip(singingClip);
     d->m_tracks.append(newTrack);
@@ -138,7 +138,7 @@ bool AppModel::loadProject(const QString &path, QString &errorMessage) {
     d->reset();
     DspxProjectConverter converter;
     AppModel resultModel;
-    auto ok = converter.load(path, &resultModel, errorMessage, ImportMode::NewProject);
+    const auto ok = converter.load(path, &resultModel, errorMessage, ImportMode::NewProject);
     if (ok)
         loadFromAppModel(resultModel);
     return ok;
@@ -147,7 +147,7 @@ bool AppModel::loadProject(const QString &path, QString &errorMessage) {
 bool AppModel::saveProject(const QString &path, QString &errorMessage) {
     Q_D(AppModel);
     DspxProjectConverter converter;
-    auto ok = converter.save(path, this, errorMessage);
+    const auto ok = converter.save(path, this, errorMessage);
     return ok;
 }
 
@@ -156,7 +156,7 @@ bool AppModel::importAceProject(const QString &filename) {
     AProjectConverter converter;
     QString errMsg;
     AppModel resultModel;
-    auto ok = converter.load(filename, &resultModel, errMsg, ImportMode::NewProject);
+    const auto ok = converter.load(filename, &resultModel, errMsg, ImportMode::NewProject);
     if (ok) {
         for (const auto track : resultModel.tracks()) {
             track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
@@ -164,7 +164,7 @@ bool AppModel::importAceProject(const QString &filename) {
             track->setDefaultG2pId(defaultG2pId());
             for (const auto clip : track->clips()) {
                 if (clip->clipType() == Clip::Singing) {
-                    auto singingClip = reinterpret_cast<SingingClip *>(clip);
+                    const auto singingClip = reinterpret_cast<SingingClip *>(clip);
                     singingClip->defaultLanguage = track->defaultLanguage();
                     singingClip->defaultG2pId = track->defaultG2pId();
                     // NoteWordUtils::fillEditedPhonemeNames(singingClip->notes().toList());
@@ -282,7 +282,7 @@ bool AppModel::exportMidiFile(const QString &filename) {
     return converter.save(filename, this, errMsg);
 }
 
-Clip *AppModel::findClipById(int clipId, Track *&trackRef) const {
+Clip *AppModel::findClipById(const int clipId, Track *&trackRef) const {
     Q_D(const AppModel);
     for (const auto track : d->m_tracks) {
         if (const auto result = track->findClipById(clipId)) {
@@ -294,11 +294,11 @@ Clip *AppModel::findClipById(int clipId, Track *&trackRef) const {
     return nullptr;
 }
 
-Clip *AppModel::findClipById(int clipId, int &trackIndex) {
+Clip *AppModel::findClipById(const int clipId, int &trackIndex) {
     Q_D(const AppModel);
     int i = 0;
     for (const auto track : d->m_tracks) {
-        if (auto result = track->findClipById(clipId)) {
+        if (const auto result = track->findClipById(clipId)) {
             trackIndex = i;
             return result;
         }
@@ -307,7 +307,7 @@ Clip *AppModel::findClipById(int clipId, int &trackIndex) {
     return nullptr;
 }
 
-Clip *AppModel::findClipById(int clipId) {
+Clip *AppModel::findClipById(const int clipId) {
     Q_D(const AppModel);
     if (clipId == -1)
         return nullptr;
@@ -319,10 +319,10 @@ Clip *AppModel::findClipById(int clipId) {
     return nullptr;
 }
 
-Track *AppModel::findTrackById(int id, int &trackIndex) {
+Track *AppModel::findTrackById(const int id, int &trackIndex) {
     Q_D(const AppModel);
     int i = 0;
-    for (auto track : d->m_tracks) {
+    for (const auto track : d->m_tracks) {
         if (track->id() == id) {
             trackIndex = i;
             return track;
@@ -333,28 +333,28 @@ Track *AppModel::findTrackById(int id, int &trackIndex) {
     return nullptr;
 }
 
-Track *AppModel::findTrackById(int id) {
+Track *AppModel::findTrackById(const int id) {
     Q_D(const AppModel);
     return MathUtils::findItemById<Track *>(d->m_tracks, id);
 }
 
-double AppModel::tickToMs(double tick) const {
+double AppModel::tickToMs(const double tick) const {
     Q_D(const AppModel);
     return tick * 60 / d->m_tempo / 480 * 1000;
 }
 
-double AppModel::msToTick(double ms) const {
+double AppModel::msToTick(const double ms) const {
     Q_D(const AppModel);
     return ms * 480 * d->m_tempo / 60000;
 }
 
-QString AppModel::getBarBeatTickTime(int ticks) const {
+QString AppModel::getBarBeatTickTime(const int ticks) const {
     Q_D(const AppModel);
-    int barTicks = 1920 * d->m_timeSignature.numerator / d->m_timeSignature.denominator;
-    int beatTicks = 1920 / d->m_timeSignature.denominator;
-    auto bar = ticks / barTicks + 1;
-    auto beat = ticks % barTicks / beatTicks + 1;
-    auto tick = ticks % barTicks % beatTicks;
+    const int barTicks = 1920 * d->m_timeSignature.numerator / d->m_timeSignature.denominator;
+    const int beatTicks = 1920 / d->m_timeSignature.denominator;
+    const auto bar = ticks / barTicks + 1;
+    const auto beat = ticks % barTicks / beatTicks + 1;
+    const auto tick = ticks % barTicks % beatTicks;
     auto str = QString::asprintf("%03d", bar) + ":" + QString::asprintf("%02d", beat) + ":" +
                QString::asprintf("%03d", tick);
     return str;
@@ -382,7 +382,7 @@ void AppModelPrivate::reset() {
 void AppModelPrivate::dispose() const {
     qDebug() << "dispose";
     for (int i = 0; i < m_previousTracks.count(); i++) {
-        auto track = m_previousTracks.at(i);
+        const auto track = m_previousTracks.at(i);
         delete track;
     }
 }

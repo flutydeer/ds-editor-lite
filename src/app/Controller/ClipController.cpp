@@ -47,8 +47,8 @@ void ClipController::setClip(Clip *clip) {
 void ClipController::copySelectedNotesWithParams() const {
     Q_D(const ClipController);
     qDebug() << "ClipController::copySelectedNotesWithParams";
-    auto info = d->buildNoteParamsInfo();
-    if (info.selectedNotes.count() < 0)
+    const auto [selectedNotes] = d->buildNoteParamsInfo();
+    if (selectedNotes.count() < 0)
         return;
 
     // auto array = NotesParamsInfo::serializeToBinary(info);
@@ -56,7 +56,7 @@ void ClipController::copySelectedNotesWithParams() const {
     // QJsonDocument jDoc;
     // jDoc.setObject(jObj);
     // auto array = jDoc.toJson();
-    auto data = new QMimeData;
+    const auto data = new QMimeData;
     // data->setData(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams), array);
     QGuiApplication::clipboard()->setMimeData(data);
     // qDebug() << QString("Copied %1 notes").arg(info.selectedNotes.count());
@@ -103,7 +103,7 @@ bool ClipController::canSelectAll() const {
         return false;
     if (d->m_clip->clipType() != Clip::Singing)
         return false;
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     if (singingClip->notes().count() == 0)
         return false;
     // TODO: 仅在选择和绘制模式下可全选
@@ -116,14 +116,14 @@ bool ClipController::hasSelectedNotes() const {
         return false;
     if (d->m_clip->clipType() != Clip::Singing)
         return false;
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     if (singingClip->notes().count() == 0)
         return false;
-    auto selectedNotes = appStatus->selectedNotes;
+    const auto selectedNotes = appStatus->selectedNotes;
     return !selectedNotes.get().isEmpty();
 }
 
-void ClipController::centerAt(double tick, double keyIndex) {
+void ClipController::centerAt(const double tick, const double keyIndex) {
     Q_D(ClipController);
     if (d->m_view)
         d->m_view->centerAt(tick, keyIndex);
@@ -140,7 +140,7 @@ void ClipController::onClipPropertyChanged(const Clip::ClipCommonProperties &arg
 
 void ClipController::onRemoveNotes(const QList<int> &notesId) {
     Q_D(ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToDelete;
     for (const auto id : notesId)
         notesToDelete.append(singingClip->findNoteById(id));
@@ -150,8 +150,8 @@ void ClipController::onRemoveNotes(const QList<int> &notesId) {
 
 void ClipController::onInsertNote(Note *note) {
     Q_D(ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
-    auto a = new NoteActions;
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto a = new NoteActions;
     QList<Note *> notes;
     notes.append(note);
     a->insertNotes(notes, singingClip);
@@ -161,52 +161,53 @@ void ClipController::onInsertNote(Note *note) {
     // updateAndNotifyCanSelectAll();
 }
 
-void ClipController::onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey) {
+void ClipController::onMoveNotes(const QList<int> &notesId, const int deltaTick,
+                                 const int deltaKey) {
     Q_D(ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
     for (const auto id : notesId)
         notesToEdit.append(singingClip->findNoteById(id));
 
-    auto a = new NoteActions;
+    const auto a = new NoteActions;
     a->editNotePosition(notesToEdit, deltaTick, deltaKey, singingClip);
     a->execute();
     historyManager->record(a);
 }
 
-void ClipController::onResizeNotesLeft(const QList<int> &notesId, int deltaTick) const {
+void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int deltaTick) const {
     Q_D(const ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
     for (const auto id : notesId)
         notesToEdit.append(singingClip->findNoteById(id));
 
-    auto a = new NoteActions;
+    const auto a = new NoteActions;
     a->editNotesStartAndLength(notesToEdit, deltaTick, singingClip);
     a->execute();
     historyManager->record(a);
 }
 
-void ClipController::onResizeNotesRight(const QList<int> &notesId, int deltaTick) const {
+void ClipController::onResizeNotesRight(const QList<int> &notesId, const int deltaTick) const {
     Q_D(const ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
     for (const auto id : notesId)
         notesToEdit.append(singingClip->findNoteById(id));
 
-    auto a = new NoteActions;
+    const auto a = new NoteActions;
     a->editNotesLength(notesToEdit, deltaTick, singingClip);
     a->execute();
     historyManager->record(a);
 }
 
-void ClipController::onAdjustPhonemeOffset(int noteId, Phonemes::Type type,
+void ClipController::onAdjustPhonemeOffset(const int noteId, const Phonemes::Type type,
                                            const QList<int> &offsets) const {
     Q_D(const ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
-    auto note = singingClip->findNoteById(noteId);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto note = singingClip->findNoteById(noteId);
 
-    auto a = new NoteActions;
+    const auto a = new NoteActions;
     a->editNotePhonemeOffset(note, type, offsets, singingClip);
     a->execute();
     historyManager->record(a);
@@ -224,7 +225,7 @@ void ClipController::onAdjustPhonemeOffset(int noteId, Phonemes::Type type,
 //     historyManager->record(a);
 // }
 
-void ClipController::selectNotes(const QList<int> &notesId, bool unselectOther) {
+void ClipController::selectNotes(const QList<int> &notesId, const bool unselectOther) {
     Q_D(ClipController);
     auto selectedNotes = appStatus->selectedNotes.get();
     if (unselectOther)
@@ -239,18 +240,16 @@ void ClipController::selectNotes(const QList<int> &notesId, bool unselectOther) 
 void ClipController::unselectNotes(const QList<int> &notesId) {
     auto selectedNotes = appStatus->selectedNotes.get();
     for (const auto id : notesId)
-        selectedNotes.removeIf([=](int note) {
-            return note == id;
-        });
+        selectedNotes.removeIf([=](const int note) { return note == id; });
     appStatus->selectedNotes = selectedNotes;
     // qDebug() << "unselect notes:" << notesId;
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
-void ClipController::onParamEdited(ParamInfo::Name name, const QList<Curve *> &curves) const {
+void ClipController::onParamEdited(const ParamInfo::Name name, const QList<Curve *> &curves) const {
     Q_D(const ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
-    auto a = new ParamsActions;
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto a = new ParamsActions;
     a->replaceParam(name, Param::Edited, curves, singingClip);
     a->execute();
     historyManager->record(a);
@@ -287,15 +286,16 @@ void ClipController::onNotePropertiesEdited(int noteId, const NoteDialogResult &
 
 void ClipController::onDeleteSelectedNotes() {
     Q_D(const ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
-    auto notes = ClipControllerPrivate::selectedNotesFromId(appStatus->selectedNotes, singingClip);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto notes =
+        ClipControllerPrivate::selectedNotesFromId(appStatus->selectedNotes, singingClip);
     d->removeNotes(notes);
     emit hasSelectedNotesChanged(false);
 }
 
 void ClipController::onSelectAllNotes() {
     Q_D(const ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     QList<int> notesId;
     for (const auto note : singingClip->notes())
         notesId.append(note->id());
@@ -385,8 +385,8 @@ void ClipController::onSearchLyric(QWidget *parent) {
 }
 
 void ClipControllerPrivate::removeNotes(const QList<Note *> &notes) const {
-    auto singingClip = reinterpret_cast<SingingClip *>(m_clip);
-    auto a = new NoteActions;
+    const auto singingClip = reinterpret_cast<SingingClip *>(m_clip);
+    const auto a = new NoteActions;
     a->removeNotes(notes, singingClip);
     a->execute();
     historyManager->record(a);
@@ -394,7 +394,7 @@ void ClipControllerPrivate::removeNotes(const QList<Note *> &notes) const {
 }
 
 NotesParamsInfo ClipControllerPrivate::buildNoteParamsInfo() const {
-    auto singingClip = reinterpret_cast<SingingClip *>(m_clip);
+    const auto singingClip = reinterpret_cast<SingingClip *>(m_clip);
     auto notes = selectedNotesFromId(appStatus->selectedNotes, singingClip);
     NotesParamsInfo info;
     for (const auto &note : notes)
@@ -403,7 +403,7 @@ NotesParamsInfo ClipControllerPrivate::buildNoteParamsInfo() const {
 }
 
 QList<Note *> ClipControllerPrivate::selectedNotesFromId(const QList<int> &notesId,
-                                                         SingingClip *clip) {
+                                                         const SingingClip *clip) {
     QList<Note *> notes;
     for (const auto &id : notesId)
         notes.append(clip->findNoteById(id));

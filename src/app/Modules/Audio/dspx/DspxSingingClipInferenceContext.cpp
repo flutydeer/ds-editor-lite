@@ -33,7 +33,7 @@ namespace talcs {
         return d->controlMixer.get();
     }
 
-    void DspxSingingClipInferenceContext::setStart(int tick) {
+    void DspxSingingClipInferenceContext::setStart(const int tick) {
         Q_D(DspxSingingClipInferenceContext);
         if (tick != d->startTick) {
             d->startTick = tick;
@@ -46,7 +46,7 @@ namespace talcs {
         return d->startTick;
     }
 
-    void DspxSingingClipInferenceContext::setClipStart(int tick) {
+    void DspxSingingClipInferenceContext::setClipStart(const int tick) {
         Q_D(DspxSingingClipInferenceContext);
         if (tick != d->clipStartTick) {
             d->clipStartTick = tick;
@@ -59,7 +59,7 @@ namespace talcs {
         return d->clipStartTick;
     }
 
-    void DspxSingingClipInferenceContext::setClipLen(int tick) {
+    void DspxSingingClipInferenceContext::setClipLen(const int tick) {
         Q_D(DspxSingingClipInferenceContext);
         if (tick != d->clipLenTick) {
             d->clipLenTick = tick;
@@ -74,13 +74,13 @@ namespace talcs {
 
     void DspxSingingClipInferenceContext::updatePosition() {
         Q_D(DspxSingingClipInferenceContext);
-        auto clipSeries = d->trackInferenceContext->d_func()->clipSeries.get();
-        auto convertTime = AudioContext::instance()->timeConverter(); // TODO
-        auto startSample = convertTime(d->clipStartTick);
+        const auto clipSeries = d->trackInferenceContext->d_func()->clipSeries.get();
+        const auto convertTime = AudioContext::instance()->timeConverter(); // TODO
+        const auto startSample = convertTime(d->clipStartTick);
         clipSeries->setClipStartPos(d->clipView, startSample);
-        auto firstSample = convertTime(d->startTick + d->clipStartTick);
-        auto lastSample = convertTime(d->startTick + d->clipStartTick + d->clipLenTick);
-        clipSeries->setClipRange(d->clipView, firstSample, qMax(qint64(1), lastSample - firstSample));
+        const auto firstSample = convertTime(d->startTick + d->clipStartTick);
+        const auto lastSample = convertTime(d->startTick + d->clipStartTick + d->clipLenTick);
+        clipSeries->setClipRange(d->clipView, firstSample, qMax(static_cast<qint64>(1), lastSample - firstSample));
     }
 
     void DspxSingingClipInferenceContext::setData(const QVariant &data) {
@@ -93,7 +93,7 @@ namespace talcs {
         return d->data;
     }
 
-    DspxInferencePieceContext *DspxSingingClipInferenceContext::addInferencePiece(int id) {
+    DspxInferencePieceContext *DspxSingingClipInferenceContext::addInferencePiece(const int id) {
         Q_D(DspxSingingClipInferenceContext);
         auto piece = new DspxInferencePieceContext(this);
         auto clipView = d->pieceClipSeries->insertClip(piece->d_func()->futureSource.get(), 0, 0, 1);
@@ -102,10 +102,10 @@ namespace talcs {
         return piece;
     }
 
-    void DspxSingingClipInferenceContext::removeInferencePiece(int id) {
+    void DspxSingingClipInferenceContext::removeInferencePiece(const int id) {
         Q_D(DspxSingingClipInferenceContext);
         Q_ASSERT(d->inferencePieceContexts.contains(id));
-        std::unique_ptr<DspxInferencePieceContext> piece(d->inferencePieceContexts.take(id));
+        const std::unique_ptr<DspxInferencePieceContext> piece(d->inferencePieceContexts.take(id));
         d->pieceClipSeries->removeClip(piece->d_func()->clipView);
     }
 

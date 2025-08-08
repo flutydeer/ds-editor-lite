@@ -7,8 +7,6 @@
 #include "Clip.h"
 #include "SingingClip.h"
 
-#include <QJsonArray>
-
 Note::Note(SingingClip *context, QObject *parent) : QObject(parent), m_clip(context) {
 }
 
@@ -29,18 +27,18 @@ int Note::globalStart() const {
         qFatal() << "SingingClip is null";
         return m_rStart;
     }
-    auto offset = m_clip->start();
+    const auto offset = m_clip->start();
     return m_rStart + offset;
 }
 
-void Note::setGlobalStart(int start) {
+void Note::setGlobalStart(const int start) {
     if (!m_clip) {
         qFatal() << "SingingClip is null";
         m_rStart = start;
         return;
     }
-    auto offset = m_clip->start();
-    auto rStart = start - offset;
+    const auto offset = m_clip->start();
+    const auto rStart = start - offset;
     Q_ASSERT(rStart >= 0);
     m_rStart = rStart;
 }
@@ -49,7 +47,7 @@ int Note::localStart() const {
     return m_rStart;
 }
 
-void Note::setLocalStart(int rStart) {
+void Note::setLocalStart(const int rStart) {
     Q_ASSERT(rStart >= 0);
     m_rStart = rStart;
 }
@@ -58,7 +56,7 @@ int Note::length() const {
     return m_length;
 }
 
-void Note::setLength(int length) {
+void Note::setLength(const int length) {
     Q_ASSERT(length >= 0);
     m_length = length;
 }
@@ -67,7 +65,7 @@ int Note::keyIndex() const {
     return m_keyIndex;
 }
 
-void Note::setKeyIndex(int keyIndex) {
+void Note::setKeyIndex(const int keyIndex) {
     Q_ASSERT(keyIndex >= 0 && keyIndex <= 127);
     m_keyIndex = keyIndex;
 }
@@ -76,8 +74,8 @@ int Note::centShift() const {
     return m_centShift;
 }
 
-void Note::setCentShift(int centShift) {
-    m_centShift = centShift;
+void Note::setCentShift(const int keyIndex) {
+    m_centShift = keyIndex;
 }
 
 QString Note::lyric() const {
@@ -96,7 +94,7 @@ void Note::setPronunciation(const Pronunciation &pronunciation) {
     m_pronunciation = pronunciation;
 }
 
-void Note::setPronunciation(WordPropertyType type, const QString &text) {
+void Note::setPronunciation(const WordPropertyType type, const QString &text) {
     if (type == Original)
         m_pronunciation.original = text;
     else if (type == Edited)
@@ -147,7 +145,7 @@ void Note::setPhonemeNameInfo(const PhonemeNameInfo &info) {
     m_phonemeInfo.nameInfo = info;
 }
 
-void Note::setPhonemeNameInfo(Phonemes::Type phType, WordPropertyType wordType,
+void Note::setPhonemeNameInfo(const Phonemes::Type phType, const WordPropertyType wordType,
                               const QList<QString> &nameSeq) {
     if (phType == Phonemes::Ahead) {
         if (wordType == Original)
@@ -170,7 +168,7 @@ void Note::setPhonemeOffsetInfo(const PhonemeOffsetInfo &info) {
     m_phonemeInfo.offsetInfo = info;
 }
 
-void Note::setPhonemeOffsetInfo(Phonemes::Type phType, WordPropertyType wordType,
+void Note::setPhonemeOffsetInfo(const Phonemes::Type phType, const WordPropertyType wordType,
                                 const QList<int> &offsetSeq) {
     if (phType == Phonemes::Ahead) {
         if (wordType == Original)
@@ -226,7 +224,7 @@ void Note::setWorkspace(const QMap<QString, QJsonObject> &workspace) {
     if (workspace.contains("ds-editor-lite")) {
         auto objLite = workspace["ds-editor-lite"];
         if (objLite.contains("phoneme")) {
-            auto objPhoneme = objLite["phoneme"].toObject();
+            const auto objPhoneme = objLite["phoneme"].toObject();
             m_phonemeInfo.deserialize(objPhoneme);
         }
     }

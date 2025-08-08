@@ -48,7 +48,7 @@ bool PhonemeNameSeq::deserialize(const QJsonObject &obj) {
 }
 
 bool PhonemeNameInfo::isEmpty() const {
-    bool result = ahead.result().isEmpty() && normal.result().isEmpty();
+    const bool result = ahead.result().isEmpty() && normal.result().isEmpty();
     if (result) {
         qDebug() << "PhonemeNameInfo::isEmpty()"
                  << "ahead:" << ahead.result() << " normal:" << normal.result();

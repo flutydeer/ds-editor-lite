@@ -34,15 +34,15 @@ private:
     void handleSingingClipInserted(SingingClip *clip);
     void handleSingingClipRemoved(SingingClip *clip);
 
-    void handleSingingClipPropertyChanged(SingingClip *clip);
+    void handleSingingClipPropertyChanged(SingingClip *clip) const;
     void handlePieceChanged(SingingClip *clip, const QList <InferPiece *> &pieces);
 
     void handlePieceInserted(SingingClip *clip, InferPiece *inferPiece);
     void handlePieceRemoved(SingingClip *clip, InferPiece *inferPiece);
 
-    void handleInferPieceStatusChange(InferPiece *piece, InferStatus status);
+    void handleInferPieceStatusChange(InferPiece *piece, InferStatus status) const;
 
-    void handleTimeChanged();
+    void handleTimeChanged() const;
 };
 
 

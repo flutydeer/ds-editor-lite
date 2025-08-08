@@ -10,7 +10,7 @@ namespace talcs {
 
     class DspxTrackInferenceContextAudioSourceClipSeries : public AudioSourceClipSeries {
     public:
-        void setNextReadPosition(qint64 pos) override {
+        void setNextReadPosition(const qint64 pos) override {
             static constexpr qint64 NEVER_POSITION = 1ll << 56;
             for (const auto &clipView : findClip(AudioSourceClipSeries::nextReadPosition())) {
                 clipView.content()->setNextReadPosition(NEVER_POSITION);
@@ -37,28 +37,28 @@ namespace talcs {
         return d->mode;
     }
 
-    void DspxTrackInferenceContext::setMode(Mode mode) {
+    void DspxTrackInferenceContext::setMode(const Mode mode) {
         Q_D(DspxTrackInferenceContext);
         d->mode = mode;
-        FutureAudioSourceClipSeries::ReadMode readMode = d->computeReadMode();
-        for (auto clip : d->clips.values()) {
+        const FutureAudioSourceClipSeries::ReadMode readMode = d->computeReadMode();
+        for (const auto clip : d->clips.values()) {
             clip->d_func()->pieceClipSeries->setReadMode(readMode);
         }
     }
 
-    DspxSingingClipInferenceContext *DspxTrackInferenceContext::addSingingClip(int id) {
+    DspxSingingClipInferenceContext *DspxTrackInferenceContext::addSingingClip(const int id) {
         Q_D(DspxTrackInferenceContext);
-        auto clip = new DspxSingingClipInferenceContext(this);
-        auto clipView = d->clipSeries->insertClip(clip->controlMixer(), 0, 0, 1);
+        const auto clip = new DspxSingingClipInferenceContext(this);
+        const auto clipView = d->clipSeries->insertClip(clip->controlMixer(), 0, 0, 1);
         d->clips.insert(id, clip);
         clip->d_func()->clipView = clipView;
         return clip;
     }
 
-    void DspxTrackInferenceContext::removeSingingClip(int id) {
+    void DspxTrackInferenceContext::removeSingingClip(const int id) {
         Q_D(DspxTrackInferenceContext);
         Q_ASSERT(d->clips.contains(id));
-        std::unique_ptr<DspxSingingClipInferenceContext> clip(d->clips.take(id));
+        const std::unique_ptr<DspxSingingClipInferenceContext> clip(d->clips.take(id));
         d->clipSeries->removeClip(clip->d_func()->clipView);
     }
 

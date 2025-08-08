@@ -4,9 +4,10 @@
 
 #include "EditTimeSignatureAction.h"
 
-EditTimeSignatureAction *EditTimeSignatureAction::build(TimeSignature oldSig, TimeSignature newSig,
+EditTimeSignatureAction *EditTimeSignatureAction::build(const TimeSignature &oldSig,
+                                                        const TimeSignature &newSig,
                                                         AppModel *model) {
-    auto a = new EditTimeSignatureAction;
+    const auto a = new EditTimeSignatureAction;
     a->m_oldSig = oldSig;
     a->m_newSig = newSig;
     a->m_model = model;

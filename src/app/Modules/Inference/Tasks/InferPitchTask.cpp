@@ -77,10 +77,10 @@ void InferPitchTask::runTask() {
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
     }
 
-    QString errorMessage;
     if (useCache) {
         qInfo() << "Use cached pitch inference result:" << outputCachePath;
     } else {
+        QString errorMessage;
         qDebug() << "Pitch inference cache not found. Running inference...";
         if (!inferEngine->runLoadConfig(m_input.configPath)) {
             qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
@@ -145,12 +145,12 @@ GenericInferModel InferPitchTask::buildInputJson() const {
     auto secToTick = [&](const double &sec) { return sec * 480 * m_input.tempo / 60; };
     auto words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo, true);
     double totalLength = 0;
-    auto interval = 0.01;
+    constexpr auto interval = 0.01;
     for (const auto &word : words)
         totalLength += word.length();
 
-    auto newInterval = secToTick(interval);
-    int frames = qRound(totalLength / interval);
+    const auto newInterval = secToTick(interval);
+    const int frames = qRound(totalLength / interval);
     InferRetake retake;
     retake.end = frames;
 
@@ -179,8 +179,8 @@ GenericInferModel InferPitchTask::buildInputJson() const {
 
 bool InferPitchTask::processOutput(const GenericInferModel &model) {
     auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
-    auto oriPitch = Linq::where(model.params, L_PRED(p, p.tag == "pitch")).first();
-    auto newInterval = tickToSec(5);
+    const auto oriPitch = Linq::where(model.params, L_PRED(p, p.tag == "pitch")).first();
+    const auto newInterval = tickToSec(5);
     m_result.values = MathUtils::resample(oriPitch.values, oriPitch.interval, newInterval);
     return true;
 }

@@ -12,18 +12,19 @@ bool ParamProperties::hasUnit() const {
     return !(unit.isNull() || unit.isEmpty());
 }
 
-QString ParamProperties::valueToString(int value, bool withUnit, int precision) const {
+QString ParamProperties::valueToString(const int value, const bool withUnit,
+                                       const int precision) const {
     auto strValue = QString::number(value / 1000.0, 'f', precision);
     if (withUnit)
         return QString("%1 %2").arg(strValue, unit);
     return strValue;
 }
 
-int ParamProperties::valueFromNormalized(double normalized) const {
+int ParamProperties::valueFromNormalized(const double normalized) const {
     return static_cast<int>(normalized * (maximum - minimum)) + minimum;
 }
 
-double ParamProperties::valueToNormalized(int value) const {
+double ParamProperties::valueToNormalized(const int value) const {
     return 1.0 * (value - minimum) / (maximum - minimum);
 }
 
@@ -45,13 +46,13 @@ DecibelParamProperties::DecibelParamProperties() {
     divisionValue = 12'000; // 12 dB
 }
 
-int DecibelParamProperties::valueFromNormalized(double normalized) const {
-    auto value = (MathUtils::inPowerCurveValueAt(normalized, 0.8) - 1) * (maximum - minimum);
+int DecibelParamProperties::valueFromNormalized(const double normalized) const {
+    const auto value = (MathUtils::inPowerCurveValueAt(normalized, 0.8) - 1) * (maximum - minimum);
     return static_cast<int>(value);
 }
 
-double DecibelParamProperties::valueToNormalized(int value) const {
-    auto normalizedValue = 1.0 * (value - minimum) / (maximum - minimum);
+double DecibelParamProperties::valueToNormalized(const int value) const {
+    const auto normalizedValue = 1.0 * (value - minimum) / (maximum - minimum);
     return MathUtils::inPowerCurveXAt(normalizedValue, 0.8);
 }
 
@@ -61,17 +62,17 @@ TensionParamProperties::TensionParamProperties() {
     divisionValue = 2'000;
 }
 
-int TensionParamProperties::valueFromNormalized(double normalized) const {
-    auto base = (normalized - 0.5) * 2;
-    auto input = qAbs(base);
-    auto absValue = MathUtils::inPowerCurveValueAt(input, 0.7) * maximum;
+int TensionParamProperties::valueFromNormalized(const double normalized) const {
+    const auto base = (normalized - 0.5) * 2;
+    const auto input = qAbs(base);
+    const auto absValue = MathUtils::inPowerCurveValueAt(input, 0.7) * maximum;
     return static_cast<int>(base >= 0 ? absValue : -absValue);
 }
 
-double TensionParamProperties::valueToNormalized(int value) const {
-    auto normalized = 1.0 * value / maximum;
-    auto inputValue = qAbs(normalized);
-    auto scaled = MathUtils::inPowerCurveXAt(inputValue, 0.7);
+double TensionParamProperties::valueToNormalized(const int value) const {
+    const auto normalized = 1.0 * value / maximum;
+    const auto inputValue = qAbs(normalized);
+    const auto scaled = MathUtils::inPowerCurveXAt(inputValue, 0.7);
     return scaled / 2 * (normalized > 0 ? 1 : -1) + 0.5;
 }
 
@@ -95,14 +96,14 @@ VelocityParamProperties::VelocityParamProperties() {
     showDefaultValue = true;
 }
 
-int VelocityParamProperties::valueFromNormalized(double normalized) const {
-    auto power = 2 * normalized - 1;
-    auto value = std::pow(2, power) * 1000;
+int VelocityParamProperties::valueFromNormalized(const double normalized) const {
+    const auto power = 2 * normalized - 1;
+    const auto value = std::pow(2, power) * 1000;
     return static_cast<int>(value);
 }
 
-double VelocityParamProperties::valueToNormalized(int value) const {
-    auto num = std::log2(value / 1000.0) + 1;
+double VelocityParamProperties::valueToNormalized(const int value) const {
+    const auto num = std::log2(value / 1000.0) + 1;
     return num / 2;
 }
 
@@ -116,7 +117,8 @@ ToneShiftParamProperties::ToneShiftParamProperties() {
     unit = "cent";
 }
 
-QString ToneShiftParamProperties::valueToString(int value, bool withUnit, int precision) const {
+QString ToneShiftParamProperties::valueToString(const int value, const bool withUnit,
+                                                const int precision) const {
     Q_UNUSED(precision);
     auto strValue = QString::number(value);
     if (withUnit)

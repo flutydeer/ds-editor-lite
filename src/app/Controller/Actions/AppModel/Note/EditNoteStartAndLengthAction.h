@@ -14,7 +14,7 @@ class Note;
 
 class EditNoteStartAndLengthAction final : public IAction {
 public:
-    explicit EditNoteStartAndLengthAction(const QList<Note *> &notes, int deltaTick,
+    explicit EditNoteStartAndLengthAction(const QList<Note *> &notes, const int deltaTick,
                                           SingingClip *clip)
         : m_notes(notes), m_deltaTick(deltaTick), m_clip(clip){};
 

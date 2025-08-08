@@ -7,13 +7,14 @@
 
 #include "ValidationController.h"
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/Toast.h"
 
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {
     Q_D(PlaybackController);
     connect(appModel, &AppModel::tempoChanged, this, &PlaybackController::onTempoChanged);
     connect(ValidationController::instance(), &ValidationController::validationFinished, this,
-            [=](bool passed) { d->onValidationFinished(passed); });
+            [=](const bool passed) { d->onValidationFinished(passed); });
     connect(appModel, &AppModel::modelChanged, this, [=, this] {
         if (d->m_playbackStatus != Stopped) {
             stop();
@@ -72,34 +73,34 @@ void PlaybackController::stop() {
     emit playbackStatusChanged(Stopped);
 }
 
-void PlaybackController::setPosition(double tick) {
+void PlaybackController::setPosition(const double tick) {
     Q_D(PlaybackController);
     d->m_position = tick;
     emit positionChanged(tick);
 }
 
-void PlaybackController::setLastPosition(double tick) {
+void PlaybackController::setLastPosition(const double tick) {
     Q_D(PlaybackController);
     d->m_lastPlayPosition = tick;
     emit lastPositionChanged(tick);
 }
 
-void PlaybackController::sampleRateChanged(double sr) {
+void PlaybackController::sampleRateChanged(const double sr) {
     Q_D(PlaybackController);
     d->m_sampleRate = sr;
 }
 
-void PlaybackController::onTempoChanged(double tempo) {
+void PlaybackController::onTempoChanged(const double tempo) {
     Q_D(PlaybackController);
     d->m_tempo = tempo;
 }
 
 void PlaybackController::onModelChanged() {
-    auto tempo = appModel->tempo();
+    const auto tempo = appModel->tempo();
     onTempoChanged(tempo);
 }
 
-void PlaybackControllerPrivate::onValidationFinished(bool passed) {
+void PlaybackControllerPrivate::onValidationFinished(const bool passed) {
     Q_Q(PlaybackController);
     // qDebug() << "PlaybackController::onValidationFinished"
     //          << "passed" << passed;
@@ -114,13 +115,13 @@ void PlaybackControllerPrivate::onValidationFinished(bool passed) {
     }
 }
 
-double PlaybackControllerPrivate::samplePosToTick(int sample) const {
-    auto secs = sample / m_sampleRate;
-    auto tick = secs * 60 / m_tempo * 480;
+double PlaybackControllerPrivate::samplePosToTick(const int sample) const {
+    const auto secs = sample / m_sampleRate;
+    const auto tick = secs * 60 / m_tempo * 480;
     return tick;
 }
 
-int PlaybackControllerPrivate::tickToSamplePos(double tick) const {
-    auto pos = tick * m_tempo * m_sampleRate / 60 / 480;
+int PlaybackControllerPrivate::tickToSamplePos(const double tick) const {
+    const auto pos = tick * m_tempo * m_sampleRate / 60 / 480;
     return static_cast<int>(pos);
 }

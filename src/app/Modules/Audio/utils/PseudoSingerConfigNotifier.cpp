@@ -6,7 +6,6 @@
 #include <TalcsDevice/AudioDevice.h>
 
 #include <Modules/Audio/AudioSettings.h>
-#include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/utils/AudioHelpers.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/AudioContext.h>
@@ -23,12 +22,12 @@ PseudoSingerConfigNotifier *PseudoSingerConfigNotifier::instance() {
     return m_instance;
 }
 
-static qint64 msecToSample(int msec) {
-    auto sr = AudioContext::instance()->preMixer()->isOpen() ? AudioContext::instance()->preMixer()->sampleRate() : 48000.0;
+static qint64 msecToSample(const int msec) {
+    const auto sr = AudioContext::instance()->preMixer()->isOpen() ? AudioContext::instance()->preMixer()->sampleRate() : 48000.0;
     return AudioHelpers::msecToSample(msec, sr);
 }
 
-talcs::NoteSynthesizerConfig PseudoSingerConfigNotifier::config(int synthIndex) {
+talcs::NoteSynthesizerConfig PseudoSingerConfigNotifier::config(const int synthIndex) {
     talcs::NoteSynthesizerConfig config;
     config.setGenerator(static_cast<talcs::NoteSynthesizer::Generator>(AudioSettings::pseudoSingerSynthGenerator(synthIndex)));
     config.setAmplitude(talcs::Decibels::decibelsToGain(AudioSettings::pseudoSingerSynthAmplitude(synthIndex)));
@@ -39,6 +38,6 @@ talcs::NoteSynthesizerConfig PseudoSingerConfigNotifier::config(int synthIndex) 
     return config;
 }
 
-void PseudoSingerConfigNotifier::notify(int synthIndex) {
+void PseudoSingerConfigNotifier::notify(const int synthIndex) {
     emit m_instance->configChanged(synthIndex, config(synthIndex));
 }

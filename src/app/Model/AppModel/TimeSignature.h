@@ -11,7 +11,7 @@ class TimeSignature : ISerializable {
 public:
     TimeSignature() = default;
 
-    TimeSignature(int num, int deno) : numerator(num), denominator(deno) {
+    TimeSignature(const int num, const int deno) : numerator(num), denominator(deno) {
     }
 
     [[nodiscard]] QJsonObject serialize() const override;

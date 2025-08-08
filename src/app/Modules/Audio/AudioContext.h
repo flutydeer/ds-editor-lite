@@ -7,13 +7,10 @@
 
 #define audioContext AudioContext::instance()
 
-#include <QObject>
-#include <QMap>
 #include <QTimer>
 
 #include <TalcsCore/PositionableMixerAudioSource.h>
 #include <TalcsCore/SmoothedFloat.h>
-#include <TalcsCore/AudioSourceClipSeries.h>
 #include <TalcsDspx/DspxProjectContext.h>
 
 #include "Controller/PlaybackController.h"
@@ -39,8 +36,8 @@ public:
 
     static AudioContext *instance();
 
-    Track *getTrackFromContext(talcs::DspxTrackContext *trackContext) const;
-    AudioClip *getAudioClipFromContext(talcs::DspxAudioClipContext *audioClipContext) const;
+    Track *getTrackFromContext(const talcs::DspxTrackContext *trackContext) const;
+    AudioClip *getAudioClipFromContext(const talcs::DspxAudioClipContext *audioClipContext) const;
 
     talcs::DspxTrackContext *getContextFromTrack(Track *trackModel) const;
     talcs::DspxAudioClipContext *getContextFromAudioClip(AudioClip *audioClipModel) const;
@@ -50,7 +47,7 @@ public:
     void handleMasterPanSliderMoved(double pan) const;
     void handleMasterGainSliderMoved(double gain) const;
 
-    void handleInferPieceFailed() const;
+    static void handleInferPieceFailed();
 
 signals:
     void levelMeterUpdated(const AppModel::LevelMetersUpdatedArgs &args);
@@ -82,25 +79,25 @@ private:
     bool m_transportPositionFlag = true;
 
     void handlePlaybackStatusChanged(PlaybackStatus status);
-    void handlePlaybackPositionChanged(double positionTick);
+    void handlePlaybackPositionChanged(double positionTick) const;
 
     void handleModelChanged();
     void handleTrackInserted(int index, Track *track);
     void handleTrackRemoved(int index, Track *track);
 
-    void handleMasterControlChanged(const TrackControl &control);
-    void handleTrackControlChanged(Track *track);
+    void handleMasterControlChanged(const TrackControl &control) const;
+    void handleTrackControlChanged(Track *track) const;
     void handleClipInserted(Track *track, int id, AudioClip *audioClip);
     void handleClipRemoved(Track *track, int id, AudioClip *audioClip);
 
     void handleClipPropertyChanged(AudioClip *audioClip) const;
 
-    void handleTimeChanged();
+    void handleTimeChanged() const;
 
     bool willStartCallback(AudioExporter *exporter) override;
     void willFinishCallback(AudioExporter *exporter) override;
 
-    void updateTrackLevelMeterValue(Track *track, QList<float> values);
+    void updateTrackLevelMeterValue(const Track *track, QList<float> values);
 };
 
 #endif // AUDIOCONTEXT_H

@@ -7,7 +7,7 @@
 #include "Model/AppModel/Track.h"
 
 InsertClipAction *InsertClipAction::build(Clip *clip, Track *track) {
-    auto a = new InsertClipAction;
+    const auto a = new InsertClipAction;
     a->m_clip = clip;
     a->m_track = track;
     return a;

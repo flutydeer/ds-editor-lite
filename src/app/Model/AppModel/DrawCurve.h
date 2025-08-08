@@ -5,6 +5,8 @@
 #ifndef DRAWCURVE_H
 #define DRAWCURVE_H
 
+#include <QList>
+
 #include "Curve.h"
 
 class DrawCurve final : public Curve {

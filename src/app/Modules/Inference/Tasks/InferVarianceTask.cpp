@@ -78,10 +78,10 @@ void InferVarianceTask::runTask() {
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
     }
 
-    QString errorMessage;
     if (useCache) {
         qInfo() << "Use cached variance inference result:" << outputCachePath;
     } else {
+        QString errorMessage;
         qDebug() << "Variance inference cache not found. Running inference...";
         if (!inferEngine->runLoadConfig(m_input.configPath)) {
             qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
@@ -92,7 +92,8 @@ void InferVarianceTask::runTask() {
             abort();
             return;
         }
-        if (QList<InferParam> outParams; inferEngine->inferVariance(input, outParams, errorMessage)) {
+        if (QList<InferParam> outParams;
+            inferEngine->inferVariance(input, outParams, errorMessage)) {
             model = input;
             for (auto &param : model.params) {
                 for (auto &outParam : outParams) {
@@ -211,6 +212,7 @@ bool InferVarianceTask::processOutput(const GenericInferModel &model) {
     m_result.energy.values = MathUtils::resample(energy.values, energy.interval, newInterval);
 
     auto mouthOpening = Linq::where(model.params, L_PRED(p, p.tag == "mouth_opening")).first();
-    m_result.mouthOpening.values = MathUtils::resample(mouthOpening.values, mouthOpening.interval, newInterval);
+    m_result.mouthOpening.values =
+        MathUtils::resample(mouthOpening.values, mouthOpening.interval, newInterval);
     return true;
 }

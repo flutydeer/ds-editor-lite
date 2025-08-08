@@ -32,13 +32,13 @@ private:
     void handleSingingClipInserted(SingingClip *clip);
     void handleSingingClipRemoved(SingingClip *clip);
 
-    void handleSingingClipPropertyChanged(SingingClip *clip);
+    void handleSingingClipPropertyChanged(SingingClip *clip) const;
     void handleNoteInserted(SingingClip *clip, Note *note);
     void handleNoteRemoved(SingingClip *clip, Note *note);
 
-    void handleNotePropertyChanged(Note *note);
+    void handleNotePropertyChanged(Note *note) const;
 
-    void handleTimeChanged();
+    void handleTimeChanged() const;
 };
 
 #endif // TRACKSYNTHESIZER_H

@@ -44,7 +44,7 @@ public:
     [[nodiscard]] int endTick() const;
 
     int compareTo(const Clip *obj) const;
-    bool isOverlappedWith(Clip *obj) const;
+    bool isOverlappedWith(const Clip *obj) const;
     [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
     class ClipCommonProperties {

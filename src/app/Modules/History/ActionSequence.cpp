@@ -5,7 +5,7 @@
 #include "ActionSequence.h"
 
 ActionSequence::~ActionSequence() {
-    for (auto action : m_actions)
+    for (const auto action : m_actions)
         delete action;
 }
 
@@ -19,7 +19,7 @@ void ActionSequence::undo() {
         m_actions[i]->undo();
 }
 
-qsizetype ActionSequence::count() {
+qsizetype ActionSequence::count() const {
     return m_actions.count();
 }
 

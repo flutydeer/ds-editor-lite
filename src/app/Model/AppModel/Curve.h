@@ -5,8 +5,6 @@
 #ifndef DSCURVE_H
 #define DSCURVE_H
 
-#include <QList>
-
 #include "Utils/Overlappable.h"
 #include "Utils/UniqueObject.h"
 
@@ -20,7 +18,7 @@ public:
     enum CurveType { Generic, Draw, Anchor };
 
     Curve() = default;
-    explicit Curve(int id) : UniqueObject(id){};
+    explicit Curve(const int id) : UniqueObject(id) {};
 
     [[nodiscard]] virtual CurveType type() const {
         return Generic;
@@ -46,7 +44,9 @@ private:
 
 class ProbeLine final : public Curve {
 public:
-    ProbeLine() : Curve(-1){};
+    ProbeLine() : Curve(-1) {
+    }
+
     ProbeLine(int startTick, int endTick);
     [[nodiscard]] int localEndTick() const override;
 

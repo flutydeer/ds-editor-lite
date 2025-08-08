@@ -17,7 +17,7 @@ public:
     ~ActionSequence() override;
     void execute();
     void undo();
-    qsizetype count();
+    qsizetype count() const;
     QString name();
 
 protected:

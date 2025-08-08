@@ -11,7 +11,6 @@ interface IClipEditorView {
     I_DECL(IClipEditorView)
     // View state
 
-
     // View operations
     I_METHOD(void centerAt(double tick, double keyIndex));
     I_METHOD(void centerAt(double startTick, double length, double keyIndex));

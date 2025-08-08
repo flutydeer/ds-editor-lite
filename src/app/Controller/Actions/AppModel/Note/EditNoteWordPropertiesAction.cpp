@@ -22,15 +22,15 @@ EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &
 void EditNoteWordPropertiesAction::execute() {
     qsizetype i = 0;
     for (const auto note : m_notes) {
-        auto arg = m_newArgs.at(i);
-        note->setLyric(arg.lyric);
-        note->setLanguage(arg.language);
-        note->setG2pId(arg.g2pId);
+        auto [lyric, language, g2pId, pronunciation, pronCandidates, phonemes] = m_newArgs.at(i);
+        note->setLyric(lyric);
+        note->setLanguage(language);
+        note->setG2pId(g2pId);
         // note->setPhonemeInfo(Note::Original, arg.phonemes.original);
         // note->setPhonemeInfo(Note::Edited, arg.phonemes.edited);
-        note->setPhonemes(arg.phonemes);
-        note->setPronunciation(Note::Edited, arg.pronunciation.edited);
-        note->setPronCandidates(arg.pronCandidates);
+        note->setPhonemes(phonemes);
+        note->setPronunciation(Note::Edited, pronunciation.edited);
+        note->setPronCandidates(pronCandidates);
         i++;
     }
     m_clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange, m_notes);
@@ -38,15 +38,15 @@ void EditNoteWordPropertiesAction::execute() {
 
 void EditNoteWordPropertiesAction::undo() {
     for (auto i = m_notes.count() - 1; i >= 0; i--) {
-        auto arg = m_oldArgs.at(i);
-        auto note = m_notes.at(i);
-        note->setLyric(arg.lyric);
-        note->setLanguage(arg.language);
-        note->setG2pId(arg.g2pId);
+        auto [lyric, language, g2pId, pronunciation, pronCandidates, phonemes] = m_oldArgs.at(i);
+        const auto note = m_notes.at(i);
+        note->setLyric(lyric);
+        note->setLanguage(language);
+        note->setG2pId(g2pId);
         // note->setPhonemeInfo(Note::Original, arg.phonemes.original);
-        note->setPhonemes(arg.phonemes);
-        note->setPronunciation(Note::Edited, arg.pronunciation.edited);
-        note->setPronCandidates(arg.pronCandidates);
+        note->setPhonemes(phonemes);
+        note->setPronunciation(Note::Edited, pronunciation.edited);
+        note->setPronCandidates(pronCandidates);
     }
     m_clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange, m_notes);
 }

@@ -21,11 +21,11 @@ namespace dsonnxinfer {
 }
 
 bool InferDurationTask::InferDurInput::operator==(const InferDurInput &other) const {
-    bool clipIdEqual = clipId == other.clipId;
-    bool pieceIdEqual = pieceId == other.pieceId;
-    bool notesEqual = notes == other.notes;
-    bool configPathEqual = configPath == other.configPath;
-    bool tempoEqual = tempo == other.tempo;
+    const bool clipIdEqual = clipId == other.clipId;
+    const bool pieceIdEqual = pieceId == other.pieceId;
+    const bool notesEqual = notes == other.notes;
+    const bool configPathEqual = configPath == other.configPath;
+    const bool tempoEqual = tempo == other.tempo;
     return clipIdEqual && pieceIdEqual && notesEqual && configPathEqual && tempoEqual;
 }
 
@@ -86,10 +86,10 @@ void InferDurationTask::runTask() {
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
     }
 
-    QString errorMessage;
     if (useCache) {
         qInfo() << "Use cached duration inference result:" << outputCachePath;
     } else {
+        QString errorMessage;
         qDebug() << "Duration inference cache not found. Running inference...";
         if (!inferEngine->runLoadConfig(m_input.configPath)) {
             qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
@@ -100,8 +100,10 @@ void InferDurationTask::runTask() {
             abort();
             return;
         }
-        if (std::vector<double> durations; inferEngine->inferDuration(input, durations, errorMessage)) {
-            auto updatePhonemeStarts = [](QList<InferWord> &words, const std::vector<double> &phonemeDurations){
+        if (std::vector<double> durations;
+            inferEngine->inferDuration(input, durations, errorMessage)) {
+            auto updatePhonemeStarts = [](QList<InferWord> &words,
+                                          const std::vector<double> &phonemeDurations) {
                 size_t i = 0;
                 for (auto &word : words) {
                     double timeCursor = 0.0;

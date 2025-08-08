@@ -10,16 +10,16 @@
 #include "RemoveTrackAction.h"
 
 void TrackActions::appendTracks(const QList<Track *> &tracks, AppModel *model) {
-    for (auto track : tracks)
+    for (const auto track : tracks)
         addAction(AppendTrackAction::build(track, model));
 }
 
-void TrackActions::insertTrack(Track *track, qsizetype index, AppModel *model) {
+void TrackActions::insertTrack(Track *track, const qsizetype index, AppModel *model) {
     addAction(InsertTrackAction::build(track, index, model));
 }
 
 void TrackActions::removeTracks(const QList<Track *> &tracks, AppModel *model) {
-    for (auto track : tracks)
+    for (const auto track : tracks)
         addAction(RemoveTrackAction::build(track, model));
 }
 

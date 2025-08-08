@@ -35,17 +35,17 @@ InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
             &InferControllerPrivate::onPlaybackStatusChanged);
 }
 
-void InferControllerPrivate::onModuleStatusChanged(AppStatus::ModuleType module,
-                                                   AppStatus::ModuleStatus status) {
+void InferControllerPrivate::onModuleStatusChanged(const AppStatus::ModuleType module,
+                                                   const AppStatus::ModuleStatus status) {
     if (module == AppStatus::ModuleType::Language)
         handleLanguageModuleStatusChanged(status);
 }
 
-void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
+void InferControllerPrivate::onEditingChanged(const AppStatus::EditObjectType type) {
     // TODO：需要处理编辑被取消的情况
     if (type == AppStatus::EditObjectType::Note) {
         qWarning() << "正在编辑工程，取消相关任务";
-        auto clip = appModel->findClipById(appStatus->activeClipId);
+        const auto clip = appModel->findClipById(appStatus->activeClipId);
         if (clip->clipType() == IClip::Singing)
             cancelClipRelatedTasks(reinterpret_cast<SingingClip *>(clip));
     } else if (type == AppStatus::EditObjectType::None) {
@@ -59,15 +59,15 @@ void InferControllerPrivate::onEditingChanged(AppStatus::EditObjectType type) {
     m_lastEditObjectType = type;
 }
 
-void InferControllerPrivate::onInferOptionChanged(AppOptionsGlobal::Option option) {
+void InferControllerPrivate::onInferOptionChanged(const AppOptionsGlobal::Option option) {
     if (option != AppOptionsGlobal::All && option != AppOptionsGlobal::Inference)
         return;
-    
+
     m_autoStartAcousticInfer = appOptions->inference()->autoStartInfer;
     runInferAcousticIfNeeded();
 }
 
-void InferControllerPrivate::onPlaybackStatusChanged(PlaybackGlobal::PlaybackStatus status) {
+void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::PlaybackStatus status) {
     if (status == PlaybackGlobal::Playing) {
         if (!m_inferAcousticTasks.current)
             runNextInferAcousticTask();
@@ -101,7 +101,7 @@ void InferControllerPrivate::handlePiecesChanged(const PieceList &newPieces,
     Helper::updateAllOriginalParam(*clip);
 }
 
-void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
+void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType type,
                                                const QList<Note *> &notes, SingingClip *clip) {
     switch (type) {
         case SingingClip::Insert:
@@ -121,7 +121,7 @@ void InferControllerPrivate::handleNoteChanged(SingingClip::NoteChangeType type,
     } // Ignore original word property change
 }
 
-void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Type type,
+void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, const Param::Type type,
                                                 SingingClip *clip) {
     if (type != Param::Edited)
         return;
@@ -164,7 +164,8 @@ void InferControllerPrivate::handleParamChanged(ParamInfo::Name name, Param::Typ
     }
 }
 
-void InferControllerPrivate::handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status) {
+void InferControllerPrivate::handleLanguageModuleStatusChanged(
+    const AppStatus::ModuleStatus status) {
     if (status == AppStatus::ModuleStatus::Ready) {
         qDebug() << "语言模块就绪，开始运行任务";
         runNextGetPronTask();
@@ -180,13 +181,13 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(AppStatus::Module
 void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &task) {
     m_getPronTasks.onCurrentFinished();
     runNextGetPronTask();
-    auto clip = appModel->findClipById(task.clipId());
+    const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
         delete &task;
         return;
     }
 
-    auto singingClip = dynamic_cast<SingingClip *>(clip);
+    const auto singingClip = dynamic_cast<SingingClip *>(clip);
     Helper::updatePronunciation(task.notesRef, task.result, *singingClip);
     createAndRunGetPhoneTask(*singingClip);
     delete &task;
@@ -195,20 +196,20 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
 void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task) {
     m_getPhoneTasks.onCurrentFinished();
     runNextGetPhoneTask();
-    auto clip = appModel->findClipById(task.clipId());
+    const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
         delete &task;
         return;
     }
 
-    auto singingClip = dynamic_cast<SingingClip *>(clip);
+    const auto singingClip = dynamic_cast<SingingClip *>(clip);
     if (task.success()) {
         Helper::updatePhoneName(task.notesRef, task.result, *singingClip);
         if (ValidationUtils::canInferDuration(*singingClip))
             for (const auto piece : singingClip->pieces()) {
                 if (piece->acousticInferStatus != InferStatus::Success)
                     createAndRunInferDurTask(*piece);
-        }
+            }
         else
             qWarning() << "音素序列有错误，无法创建时长推理任务 clipId:" << clip->id();
     } else
@@ -220,22 +221,22 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
 void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask &task) {
     m_inferDurTasks.onCurrentFinished();
     runNextInferDurTask();
-    auto clip = appModel->findClipById(task.clipId());
+    const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
         delete &task;
         return;
     }
 
-    auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
-    auto piece = singingClip->findPieceById(task.pieceId());
+    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
+    const auto piece = singingClip->findPieceById(task.pieceId());
     if (!piece) {
         delete &task;
         return;
     }
 
     if (task.success()) {
-        auto modelNoteCount = piece->notes.count();
-        auto taskNoteCount = task.result().count();
+        const auto modelNoteCount = piece->notes.count();
+        const auto taskNoteCount = task.result().count();
         if (modelNoteCount != taskNoteCount) {
             piece->acousticInferStatus = Failed;
             qFatal() << "模型音符数不等于任务音符数"
@@ -259,14 +260,14 @@ void InferControllerPrivate::handleInferDurTaskFinished(InferDurationTask &task)
 void InferControllerPrivate::handleInferPitchTaskFinished(InferPitchTask &task) {
     m_inferPitchTasks.onCurrentFinished();
     runNextInferPitchTask();
-    auto clip = appModel->findClipById(task.clipId());
+    const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
         delete &task;
         return;
     }
 
-    auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
-    auto piece = singingClip->findPieceById(task.pieceId());
+    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
+    const auto piece = singingClip->findPieceById(task.pieceId());
     if (!piece) {
         delete &task;
         return;
@@ -282,14 +283,14 @@ void InferControllerPrivate::handleInferPitchTaskFinished(InferPitchTask &task) 
 void InferControllerPrivate::handleInferVarianceTaskFinished(InferVarianceTask &task) {
     m_inferVarianceTasks.onCurrentFinished();
     runNextInferVarianceTask();
-    auto clip = appModel->findClipById(task.clipId());
+    const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
         delete &task;
         return;
     }
 
-    auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
-    auto piece = singingClip->findPieceById(task.pieceId());
+    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
+    const auto piece = singingClip->findPieceById(task.pieceId());
     if (!piece || !task.success()) {
         delete &task;
         return;
@@ -306,14 +307,14 @@ void InferControllerPrivate::handleInferVarianceTaskFinished(InferVarianceTask &
 void InferControllerPrivate::handleInferAcousticTaskFinished(InferAcousticTask &task) {
     m_inferAcousticTasks.onCurrentFinished();
     runNextInferAcousticTask();
-    auto clip = appModel->findClipById(task.clipId());
+    const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
         delete &task;
         return;
     }
 
-    auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
-    auto piece = singingClip->findPieceById(task.pieceId());
+    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
+    const auto piece = singingClip->findPieceById(task.pieceId());
     if (!piece) {
         delete &task;
         return;
@@ -330,7 +331,7 @@ void InferControllerPrivate::recreateAllInferTasks() {
         for (const auto &clip : track->clips()) {
             if (clip->clipType() != IClip::Singing)
                 continue;
-            auto singingClip = reinterpret_cast<SingingClip *>(clip);
+            const auto singingClip = reinterpret_cast<SingingClip *>(clip);
             for (const auto &piece : singingClip->pieces()) {
                 Helper::resetPhoneOffset(piece->notes, *piece);
                 piece->dirty = true;
@@ -346,7 +347,7 @@ void InferControllerPrivate::recreateAllInferTasks() {
         }
 }
 
-void InferControllerPrivate::createAndRunGetPronTask(SingingClip &clip) {
+void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
     if (clip.notes().count() <= 0) {
         qDebug() << "createAndRunGetPhoneTask:"
                  << "Note list is empty";
@@ -359,7 +360,7 @@ void InferControllerPrivate::createAndRunGetPronTask(SingingClip &clip) {
         runNextGetPronTask();
 }
 
-void InferControllerPrivate::createAndRunGetPhoneTask(SingingClip &clip) {
+void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
     QList<PhonemeNameInput> inputs;
     for (const auto note : clip.notes())
         inputs.append({note->lyric(), note->language(), note->pronunciation().result()});
@@ -435,7 +436,7 @@ void InferControllerPrivate::cancelAllInferTasks() {
         }
 }
 
-void InferControllerPrivate::cancelClipRelatedTasks(SingingClip *clip) {
+void InferControllerPrivate::cancelClipRelatedTasks(const SingingClip *clip) {
     qInfo() << "取消歌声剪辑相关任务"
             << "clipId:" << clip->id();
     auto pred = L_PRED(t, t->clipId() == clip->id());

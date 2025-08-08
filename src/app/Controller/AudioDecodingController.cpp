@@ -16,21 +16,22 @@
 void AudioDecodingController::onModelChanged() {
     // qDebug() << "AudioDecodingController::onModelChanged";
     // Terminate all decoding tasks
-    for (auto task : m_tasks) {
+    for (const auto task : m_tasks) {
         taskManager->terminateTask(task);
     }
     // Start new decoding tasks
-    for (auto track : appModel->tracks()) {
+    for (const auto track : appModel->tracks()) {
         connect(track, &Track::clipChanged, this, &AudioDecodingController::onClipChanged);
-        for (auto clip : track->clips()) {
+        for (const auto clip : track->clips()) {
             if (clip->clipType() == Clip::Audio)
                 createAndStartTask(reinterpret_cast<AudioClip *>(clip));
         }
     }
 }
 
-void AudioDecodingController::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
-                                             Track *track) {
+void AudioDecodingController::onTrackChanged(const AppModel::TrackChangeType type, const qsizetype index,
+                                             const Track *track) {
+    Q_UNUSED(index);
     // qDebug() << "AudioDecodingController::onTrackChanged";
     if (type == AppModel::Insert)
         connect(track, &Track::clipChanged, this, &AudioDecodingController::onClipChanged);
@@ -40,11 +41,11 @@ void AudioDecodingController::onTrackChanged(AppModel::TrackChangeType type, qsi
     }
 }
 
-void AudioDecodingController::onClipChanged(Track::ClipChangeType type, Clip *clip) {
+void AudioDecodingController::onClipChanged(const Track::ClipChangeType type, Clip *clip) {
     // qDebug() << "AudioDecodingController::onClipChanged";
     if (type == Track::Inserted) {
         if (clip->clipType() == Clip::Audio) {
-            auto audioClip = reinterpret_cast<AudioClip *>(clip);
+            const auto audioClip = reinterpret_cast<AudioClip *>(clip);
             // TODO: 用其他方式判断是否需要重新解码
             if (audioClip->audioInfo().peakCache.count() <= 0)
                 createAndStartTask(audioClip);
@@ -62,20 +63,24 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
     decodeTask->workspace = clip->workspace().value("diffscope.audio.formatData");
 
     QVariant userData;
-    QDataStream o(QByteArray::fromBase64(decodeTask->workspace.value("userData").toString().toLatin1()));
+    QDataStream o(
+        QByteArray::fromBase64(decodeTask->workspace.value("userData").toString().toLatin1()));
     o >> userData;
-    auto entryClassName = decodeTask->workspace.value("entryClassName").toString();
-    decodeTask->io = AudioContext::instance()->formatManager()->getFormatLoad(decodeTask->path, userData, entryClassName);
+    const auto entryClassName = decodeTask->workspace.value("entryClassName").toString();
+    decodeTask->io = AudioContext::instance()->formatManager()->getFormatLoad(
+        decodeTask->path, userData, entryClassName);
 
     m_tasks.append(decodeTask);
     connect(decodeTask, &Task::finished, this,
-            [decodeTask, this] { handleTaskFinished(decodeTask); });
+            [decodeTask, this] {
+                handleTaskFinished(decodeTask);
+            });
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
 
 void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
-    auto terminate = task->terminated();
+    const auto terminate = task->terminated();
     taskManager->removeTask(task);
     m_tasks.removeOne(task);
 
@@ -84,13 +89,13 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
         return;
     }
     if (!task->success) {
-        auto dlg = new Dialog;
+        const auto dlg = new Dialog;
         dlg->setWindowTitle(tr("Error"));
         dlg->setTitle(tr("Failed to open audio file:"));
         dlg->setMessage(task->path);
         dlg->setModal(true);
 
-        auto btnClose = new AccentButton(tr("Close"));
+        const auto btnClose = new AccentButton(tr("Close"));
         connect(btnClose, &Button::clicked, dlg, &Dialog::accept);
         dlg->setPositiveButton(btnClose);
         dlg->show();
@@ -100,25 +105,25 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
     }
 
     int trackIndex;
-    auto clip = appModel->findClipById(task->clipId, trackIndex);
+    const auto clip = appModel->findClipById(task->clipId, trackIndex);
     if (!clip) {
         delete task;
         return;
     }
 
-    auto audioClip = reinterpret_cast<AudioClip *>(clip);
+    const auto audioClip = reinterpret_cast<AudioClip *>(clip);
     audioClip->setAudioInfo(task->result());
     audioClip->notifyPropertyChanged();
     delete task;
 }
 
-void AudioDecodingController::terminateTaskByClipId(int clipId) {
+void AudioDecodingController::terminateTaskByClipId(const int clipId) {
     for (const auto task : m_tasks)
         if (task->clipId == clipId)
             taskManager->terminateTask(task);
 }
 
-void AudioDecodingController::terminateTasksByTrackId(int trackId) {
+void AudioDecodingController::terminateTasksByTrackId(const int trackId) {
     for (auto task : m_tasks) {
         if (task->trackId == trackId)
             taskManager->terminateTask(task);

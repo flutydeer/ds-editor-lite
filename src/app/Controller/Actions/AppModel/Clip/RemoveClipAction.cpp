@@ -7,7 +7,7 @@
 #include "Model/AppModel/Track.h"
 
 RemoveClipAction *RemoveClipAction::build(Clip *clip, Track *track) {
-    auto a = new RemoveClipAction;
+    const auto a = new RemoveClipAction;
     a->m_clip = clip;
     a->m_track = track;
     return a;

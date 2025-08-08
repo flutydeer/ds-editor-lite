@@ -31,7 +31,7 @@ void TrackController::onNewTrack() {
     onInsertNewTrack(appModel->tracks().count());
 }
 
-void TrackController::onInsertNewTrack(qsizetype index) {
+void TrackController::onInsertNewTrack(const qsizetype index) {
     // bool soloExists = false;
     // auto tracks = appModel->tracks();
     // for (auto dsTrack : tracks) {
@@ -42,7 +42,7 @@ void TrackController::onInsertNewTrack(qsizetype index) {
     //     }
     // }
 
-    auto newTrack = new Track;
+    const auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
     newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
     // TODO: Temp Use
@@ -52,42 +52,42 @@ void TrackController::onInsertNewTrack(qsizetype index) {
     //     control.setMute(true);
     //     newTrack->setControl(control);
     // }
-    auto a = new TrackActions;
+    const auto a = new TrackActions;
     a->insertTrack(newTrack, index, appModel);
     a->execute();
     historyManager->record(a);
 }
 
 void TrackController::onAppendTrack(Track *track) {
-    auto a = new TrackActions;
+    const auto a = new TrackActions;
     a->insertTrack(track, appModel->tracks().count(), appModel);
     a->execute();
     historyManager->record(a);
 }
 
-void TrackController::onRemoveTrack(int id) {
-    auto trackToRemove = appModel->findTrackById(id);
+void TrackController::onRemoveTrack(const int id) {
+    const auto trackToRemove = appModel->findTrackById(id);
     QList<Track *> tracks;
     tracks.append(trackToRemove);
-    auto a = new TrackActions;
+    const auto a = new TrackActions;
     a->removeTracks(tracks, appModel);
     a->execute();
     historyManager->record(a);
 }
 
 void TrackController::addAudioClipToNewTrack(const QString &filePath) {
-    auto audioClip = new AudioClip;
+    const auto audioClip = new AudioClip;
     audioClip->setPath(filePath);
-    auto newTrack = new Track;
+    const auto newTrack = new Track;
     newTrack->insertClip(audioClip);
-    auto a = new TrackActions;
-    auto index = appModel->tracks().size();
+    const auto a = new TrackActions;
+    const auto index = appModel->tracks().size();
     a->insertTrack(newTrack, index, appModel);
     a->execute();
     historyManager->record(a);
 }
 
-void TrackController::setActiveClip(int clipId) {
+void TrackController::setActiveClip(const int clipId) {
     if (clipId != appStatus->activeClipId) {
         appStatus->selectedNotes = QList<int>();
         appStatus->activeClipId = clipId;
@@ -96,8 +96,8 @@ void TrackController::setActiveClip(int clipId) {
 
 void TrackController::changeTrackProperty(const Track::TrackProperties &args) {
     qDebug() << "TrackController::changeTrackProperty" << args.gain << args.pan;
-    auto track = appModel->findTrackById(args.id);
-    auto a = new TrackActions;
+    const auto track = appModel->findTrackById(args.id);
+    const auto a = new TrackActions;
     const Track::TrackProperties oldArgs(*track);
     a->editTrackProperties(oldArgs, args, track);
     a->execute();
@@ -105,16 +105,17 @@ void TrackController::changeTrackProperty(const Track::TrackProperties &args) {
 }
 
 void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io,
-                                     const QJsonObject &workspace, int id, int tick) {
+                                     const QJsonObject &workspace, const int id, const int tick) {
     auto decodeTask = new DecodeAudioTask;
     decodeTask->io = io;
     decodeTask->path = path;
     decodeTask->trackId = id;
     decodeTask->tick = tick;
     decodeTask->workspace = workspace;
-    auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
+    const auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
     dlg->show();
-    connect(decodeTask, &Task::finished, this, [decodeTask, this] { handleDecodeAudioTaskFinished(decodeTask); });
+    connect(decodeTask, &Task::finished, this,
+            [decodeTask, this] { handleDecodeAudioTaskFinished(decodeTask); });
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
@@ -122,13 +123,13 @@ void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFo
 void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
     qDebug() << "TrackController::onClipPropertyChanged";
     int trackIndex = -1;
-    auto clip = appModel->findClipById(args.id, trackIndex);
-    auto track = appModel->tracks().at(trackIndex);
+    const auto clip = appModel->findClipById(args.id, trackIndex);
+    const auto track = appModel->tracks().at(trackIndex);
 
     if (clip->clipType() == Clip::Audio) {
-        auto audioClip = dynamic_cast<AudioClip *>(clip);
+        const auto audioClip = dynamic_cast<AudioClip *>(clip);
 
-        Clip::ClipCommonProperties oldArgs(*audioClip);
+        const Clip::ClipCommonProperties oldArgs(*audioClip);
         QList<Clip::ClipCommonProperties> oldArgsList;
         oldArgsList.append(oldArgs);
         QList<Clip::ClipCommonProperties> newArgsList;
@@ -138,12 +139,12 @@ void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &ar
         QList<Track *> tracks;
         tracks.append(track);
 
-        auto a = new ClipActions;
+        const auto a = new ClipActions;
         a->editAudioClipProperties(oldArgsList, newArgsList, clips, tracks);
         a->execute();
         historyManager->record(a);
     } else if (clip->clipType() == Clip::Singing) {
-        auto singingClip = dynamic_cast<SingingClip *>(clip);
+        const auto singingClip = dynamic_cast<SingingClip *>(clip);
 
         Clip::ClipCommonProperties oldArgs(*singingClip);
         // TODO: update singer info?
@@ -156,7 +157,7 @@ void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &ar
         QList<Track *> tracks;
         tracks.append(track);
 
-        auto a = new ClipActions;
+        const auto a = new ClipActions;
         a->editSingingClipProperties(oldArgsList, newArgsList, clips, tracks);
         a->execute();
         historyManager->record(a);
@@ -167,7 +168,7 @@ void TrackController::onRemoveClips(const QList<int> &clipsId) {
     if (clipsId.empty())
         return;
 
-    auto a = new ClipActions;
+    const auto a = new ClipActions;
     QList<Clip *> clips;
     QList<Track *> tracks;
     for (const auto &id : clipsId) {
@@ -176,7 +177,7 @@ void TrackController::onRemoveClips(const QList<int> &clipsId) {
             setActiveClip(-1);
 
         Track *track;
-        auto clip = appModel->findClipById(id, track);
+        const auto clip = appModel->findClipById(id, track);
         clips.append(clip);
         tracks.append(track);
     }
@@ -185,23 +186,23 @@ void TrackController::onRemoveClips(const QList<int> &clipsId) {
     historyManager->record(a);
 }
 
-SingingClip *TrackController::onNewSingingClip(int trackIndex, int tick) {
-    auto singingClip = new SingingClip;
-    int bars = 4;
-    auto timeSig = appModel->timeSignature();
-    int length = 1920 * timeSig.numerator / timeSig.denominator * bars;
+SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int tick) {
+    const auto singingClip = new SingingClip;
+    constexpr int bars = 4;
+    const auto timeSig = appModel->timeSignature();
+    const int length = 1920 * timeSig.numerator / timeSig.denominator * bars;
     singingClip->setName(tr("New Singing Clip"));
     singingClip->setStart(tick);
     singingClip->setClipStart(0);
     singingClip->setLength(length);
     singingClip->setClipLen(length);
 
-    auto track = appModel->tracks().at(trackIndex);
+    const auto track = appModel->tracks().at(trackIndex);
     singingClip->defaultLanguage = track->defaultLanguage();
     // TODO: Temp Use
     singingClip->defaultG2pId = g2pIdFromLanguage(singingClip->defaultLanguage);
     singingClip->configPath = appOptions->general()->defaultPackage;
-    auto a = new ClipActions;
+    const auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(singingClip);
     a->insertClips(clips, track);
@@ -213,7 +214,7 @@ SingingClip *TrackController::onNewSingingClip(int trackIndex, int tick) {
 }
 
 void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
-    auto terminate = task->terminated();
+    const auto terminate = task->terminated();
     taskManager->removeTask(task);
     if (terminate) {
         delete task;
@@ -223,13 +224,13 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
         // auto clipItem = m_view.findClipItemById(task->id());
         // auto audioClipItem = dynamic_cast<AudioClipGraphicsItem *>(clipItem);
         // audioClipItem->setStatus(AppGlobal::Error);
-        auto dlg = new Dialog(m_parentWidget);
+        const auto dlg = new Dialog(m_parentWidget);
         dlg->setWindowTitle(tr("Error"));
         dlg->setTitle(tr("Failed to open audio file:"));
         dlg->setMessage(task->path);
         dlg->setModal(true);
 
-        auto btnClose = new AccentButton(tr("Close"));
+        const auto btnClose = new AccentButton(tr("Close"));
         connect(btnClose, &Button::clicked, dlg, &Dialog::accept);
         dlg->setPositiveButton(btnClose);
         dlg->show();
@@ -238,17 +239,17 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
         return;
     }
 
-    auto tick = task->tick;
-    auto path = task->path;
-    auto trackId = task->trackId;
-    auto result = task->result();
+    const auto tick = task->tick;
+    const auto path = task->path;
+    const auto trackId = task->trackId;
+    const auto result = task->result();
 
-    auto sampleRate = result.sampleRate;
-    auto tempo = appModel->tempo();
-    auto frames = result.frames;
-    auto length = frames / (sampleRate * 60 / tempo / 480);
+    const auto sampleRate = result.sampleRate;
+    const auto tempo = appModel->tempo();
+    const auto frames = result.frames;
+    const auto length = frames / (sampleRate * 60 / tempo / 480);
 
-    auto audioClip = new AudioClip;
+    const auto audioClip = new AudioClip;
     audioClip->setName(QFileInfo(path).baseName());
     audioClip->setStart(tick);
     audioClip->setClipStart(0);
@@ -257,13 +258,13 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     audioClip->setPath(path);
     audioClip->setAudioInfo(result);
     audioClip->workspace().insert("diffscope.audio.formatData", task->workspace);
-    auto track = appModel->findTrackById(trackId);
+    const auto track = appModel->findTrackById(trackId);
     if (!track) {
         qDebug() << "handleDecodeAudioTaskFinished: track not found";
         delete task;
         return;
     }
-    auto a = new ClipActions;
+    const auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(audioClip);
     a->insertClips(clips, track);

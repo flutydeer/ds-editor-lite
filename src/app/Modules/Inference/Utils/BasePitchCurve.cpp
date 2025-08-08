@@ -6,12 +6,12 @@
 #include <dsinfer/Api/Inferences/Common/1/CommonApiL1.h>
 
 #ifndef M_PI
-#define M_PI 3.14159265358979323846
+#  define M_PI 3.14159265358979323846
 #endif
 
 void BasePitchCurve::Convolve(const std::vector<NoteInSeconds> &noteArray) {
     const int totalPoints = static_cast<int>(std::round(1000 * (noteArray.back().End + 0.12))) + 1;
-    std::vector<double> initValues(totalPoints, 0.0);
+    std::vector initValues(totalPoints, 0.0);
     int noteIndex = 0;
 
     for (int i = 0; i < totalPoints; ++i) {
@@ -43,11 +43,11 @@ void BasePitchCurve::Convolve(const std::vector<NoteInSeconds> &noteArray) {
     }
 }
 
-BasePitchCurve::BasePitchCurve(const std::vector<ds::Api::Common::L1::InputWordInfo> &words) {
+BasePitchCurve::BasePitchCurve(const std::vector<ds::Api::Common::L1::InputWordInfo> &word) {
     std::vector<NoteInSeconds> noteArray;
     double startTime = 0.0;
 
-    for (const auto &[phones, notes] : words) {
+    for (const auto &[phones, notes] : word) {
         for (const auto &[key, cents, duration, glide, is_rest] : notes) {
             noteArray.push_back({startTime, startTime + duration, key});
             startTime += duration;

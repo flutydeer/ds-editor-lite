@@ -19,11 +19,11 @@ public:
         return m_outputContext.get();
     }
 
-    bool setDriver(const QString &driverName);
-    bool setDevice(const QString &deviceName);
-    bool setAdoptedBufferSize(qint64 bufferSize);
-    bool setAdoptedSampleRate(double sampleRate);
-    void setHotPlugNotificationMode(talcs::OutputContext::HotPlugNotificationMode mode);
+    bool setDriver(const QString &driverName) const;
+    bool setDevice(const QString &deviceName) const;
+    bool setAdoptedBufferSize(qint64 bufferSize) const;
+    bool setAdoptedSampleRate(double sampleRate) const;
+    void setHotPlugNotificationMode(talcs::OutputContext::HotPlugNotificationMode mode) const;
 
 private:
     void postSetDevice() const;

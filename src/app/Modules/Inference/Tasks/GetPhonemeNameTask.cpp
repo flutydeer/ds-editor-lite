@@ -12,7 +12,7 @@
 #include <QMutexLocker>
 #include <QThread>
 
-GetPhonemeNameTask::GetPhonemeNameTask(int clipId, const QList<PhonemeNameInput> &inputs)
+GetPhonemeNameTask::GetPhonemeNameTask(const int clipId, const QList<PhonemeNameInput> &inputs)
     : m_clipId(clipId), m_inputs(inputs) {
     for (int i = 0; i < inputs.count(); i++) {
         const auto &note = inputs.at(i);

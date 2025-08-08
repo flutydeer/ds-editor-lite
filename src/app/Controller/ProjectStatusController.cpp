@@ -44,7 +44,7 @@ void ProjectStatusController::handleClipPropertyChanged(Clip *clip) {
 
 void ProjectStatusController::updateProjectEditableLength() {
     int maxEndTick = 1920 * 100;
-    int tailLength = 3840; // 在编辑区域的尾部留下至少 2 小节（4/4）的空白
+    constexpr int tailLength = 3840; // 在编辑区域的尾部留下至少 2 小节（4/4）的空白
     for (const auto track : appModel->tracks()) {
         for (const auto clip : track->clips()) {
             if (clip->endTick() + tailLength > maxEndTick)

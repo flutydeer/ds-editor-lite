@@ -35,12 +35,12 @@ namespace Audio {
         AudioExporterConfig config;
         Core::IProjectWindow *windowHandle;
 
-        QString projectName() const;
-        QString projectDirectory() const;
-        QString trackName(int trackIndex) const;
-        talcs::DspxProjectContext *projectContext() const;
-        QPair<int, int> calculateRange() const;
-        QList<int> selectedSources() const;
+        static QString projectName();
+        static QString projectDirectory();
+        static QString trackName(int trackIndex);
+        static talcs::DspxProjectContext *projectContext();
+        static QPair<int, int> calculateRange();
+        static QList<int> selectedSources();
 
         bool calculateTemplate(QString &templateString) const;
         bool calculateTemplate(QString &templateString, const QString &trackName, int trackIndex) const;

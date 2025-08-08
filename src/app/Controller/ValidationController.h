@@ -10,7 +10,6 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/Track.h"
-#include "Model/AppStatus/AppStatus.h"
 #include "Utils/Singleton.h"
 
 class Note;

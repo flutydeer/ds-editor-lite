@@ -21,7 +21,7 @@ class AudioDecodingController final : public QObject, public Singleton<AudioDeco
 
 public slots:
     void onModelChanged();
-    void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
+    void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, const Track *track);
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
 
 private:

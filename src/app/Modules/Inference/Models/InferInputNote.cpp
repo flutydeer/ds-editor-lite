@@ -22,16 +22,16 @@ InferInputNote::InferInputNote(const Note &note) {
 }
 
 bool operator==(const InferInputNote &lhs, const InferInputNote &rhs) {
-    bool idEqual = lhs.id == rhs.id;
-    bool startEqual = lhs.start == rhs.start;
-    bool lengthEqual = lhs.length == rhs.length;
-    bool keyEqual = lhs.key == rhs.key;
-    bool isRestEqual = lhs.isRest == rhs.isRest;
-    bool isSlurEqual = lhs.isSlur == rhs.isSlur;
-    bool aheadNamesEqual = lhs.aheadNames == rhs.aheadNames;
-    bool normalNamesEqual = lhs.normalNames == rhs.normalNames;
-    bool aheadOffsetsEqual = lhs.aheadOffsets == rhs.aheadOffsets;
-    bool normalOffsetsEqual = lhs.normalOffsets == rhs.normalOffsets;
+    const bool idEqual = lhs.id == rhs.id;
+    const bool startEqual = lhs.start == rhs.start;
+    const bool lengthEqual = lhs.length == rhs.length;
+    const bool keyEqual = lhs.key == rhs.key;
+    const bool isRestEqual = lhs.isRest == rhs.isRest;
+    const bool isSlurEqual = lhs.isSlur == rhs.isSlur;
+    const bool aheadNamesEqual = lhs.aheadNames == rhs.aheadNames;
+    const bool normalNamesEqual = lhs.normalNames == rhs.normalNames;
+    const bool aheadOffsetsEqual = lhs.aheadOffsets == rhs.aheadOffsets;
+    const bool normalOffsetsEqual = lhs.normalOffsets == rhs.normalOffsets;
     return idEqual && startEqual && lengthEqual && keyEqual && isRestEqual && isSlurEqual &&
            aheadNamesEqual && normalNamesEqual && aheadOffsetsEqual && normalOffsetsEqual;
 }

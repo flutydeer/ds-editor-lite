@@ -22,19 +22,19 @@ void NoteActions::removeNotes(const QList<Note *> &notes, SingingClip *clip) {
     addAction(new RemoveNoteAction(notes, clip));
 }
 
-void NoteActions::editNotesStartAndLength(const QList<Note *> &notes, int delta,
+void NoteActions::editNotesStartAndLength(const QList<Note *> &notes, const int delta,
                                           SingingClip *clip) {
     setName(tr("Edit note start and length"));
     addAction(new EditNoteStartAndLengthAction(notes, delta, clip));
 }
 
-void NoteActions::editNotesLength(const QList<Note *> &notes, int delta, SingingClip *clip) {
+void NoteActions::editNotesLength(const QList<Note *> &notes, const int delta, SingingClip *clip) {
     setName(tr("Edit note length"));
     addAction(new EditNotesLengthAction(notes, delta, clip));
 }
 
-void NoteActions::editNotePosition(const QList<Note *> &notes, int deltaTick, int deltaKey,
-                                   SingingClip *clip) {
+void NoteActions::editNotePosition(const QList<Note *> &notes, const int deltaTick,
+                                   const int deltaKey, SingingClip *clip) {
     setName(tr("Edit note position"));
     addAction(new EditNotePositionAction(notes, deltaTick, deltaKey, clip));
 }
@@ -46,7 +46,7 @@ void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
     addAction(new EditNoteWordPropertiesAction(notes, args, clip));
 }
 
-void NoteActions::editNotePhonemeOffset(Note *note, Phonemes::Type type,
+void NoteActions::editNotePhonemeOffset(Note *note, const Phonemes::Type type,
                                         const QList<int> &offsets, SingingClip *clip) {
     setName(tr("Edite phoneme offset"));
     addAction(new EditPhonemeOffsetAction(note, type, offsets, clip));

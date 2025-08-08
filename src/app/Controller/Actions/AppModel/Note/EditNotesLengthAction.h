@@ -14,9 +14,9 @@ class Note;
 
 class EditNotesLengthAction final : public IAction {
 public:
-    explicit EditNotesLengthAction(const QList<Note *> &notes, int deltaTick,
-                                          SingingClip *clip)
-        : m_notes(notes), m_deltaTick(deltaTick), m_clip(clip){};
+    explicit EditNotesLengthAction(const QList<Note *> &notes, const int deltaTick,
+                                   SingingClip *clip)
+        : m_notes(notes), m_deltaTick(deltaTick), m_clip(clip) {};
     void execute() override;
     void undo() override;
 

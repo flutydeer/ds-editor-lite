@@ -15,7 +15,6 @@
 
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsCore/MixerAudioSource.h>
-#include <TalcsCore/PositionableMixerAudioSource.h>
 #include <TalcsFormat/AudioFormatIO.h>
 #include <TalcsDspx/DspxProjectAudioExporter.h>
 #include <TalcsDspx/DspxProjectContext.h>
@@ -28,33 +27,42 @@ namespace Audio {
 
     AudioExporterConfig::AudioExporterConfig() : d(new AudioExporterConfigData) {
     }
+
     AudioExporterConfig::~AudioExporterConfig() = default;
 
     QString AudioExporterConfig::fileName() const {
         return d->fileName;
     }
+
     void AudioExporterConfig::setFileName(const QString &a_) {
         d->fileName = a_;
     }
+
     QString AudioExporterConfig::fileDirectory() const {
         return d->fileDirectory;
     }
+
     void AudioExporterConfig::setFileDirectory(const QString &a_) {
         d->fileDirectory = a_;
     }
+
     AudioExporterConfig::FileType AudioExporterConfig::fileType() const {
         return d->fileType;
     }
-    void AudioExporterConfig::setFileType(AudioExporterConfig::FileType a_) {
+
+    void AudioExporterConfig::setFileType(const AudioExporterConfig::FileType a_) {
         d->fileType = a_;
     }
+
     bool AudioExporterConfig::formatMono() const {
         return d->formatMono;
     }
-    void AudioExporterConfig::setFormatMono(bool a_) {
+
+    void AudioExporterConfig::setFormatMono(const bool a_) {
         d->formatMono = a_;
     }
-    QStringList AudioExporterConfig::formatOptionsOfType(FileType type) {
+
+    QStringList AudioExporterConfig::formatOptionsOfType(const FileType type) {
         switch (type) {
             case FT_Wav:
                 return {
@@ -75,7 +83,7 @@ namespace Audio {
         }
     }
 
-    QString AudioExporterConfig::extensionOfType(FileType type) {
+    QString AudioExporterConfig::extensionOfType(const FileType type) {
         switch (type) {
             case FT_Wav:
                 return QStringLiteral("wav");
@@ -92,68 +100,84 @@ namespace Audio {
     int AudioExporterConfig::formatOption() const {
         return d->formatOption;
     }
-    void AudioExporterConfig::setFormatOption(int a_) {
+
+    void AudioExporterConfig::setFormatOption(const int a_) {
         d->formatOption = a_;
     }
+
     int AudioExporterConfig::formatQuality() const {
         return d->formatQuality;
     }
-    void AudioExporterConfig::setFormatQuality(int a_) {
+
+    void AudioExporterConfig::setFormatQuality(const int a_) {
         d->formatQuality = a_;
     }
+
     double AudioExporterConfig::formatSampleRate() const {
         return d->formatSampleRate;
     }
-    void AudioExporterConfig::setFormatSampleRate(double a_) {
+
+    void AudioExporterConfig::setFormatSampleRate(const double a_) {
         d->formatSampleRate = a_;
     }
+
     AudioExporterConfig::MixingOption AudioExporterConfig::mixingOption() const {
         return d->mixingOption;
     }
-    void AudioExporterConfig::setMixingOption(AudioExporterConfig::MixingOption a_) {
+
+    void AudioExporterConfig::setMixingOption(const AudioExporterConfig::MixingOption a_) {
         d->mixingOption = a_;
     }
+
     bool AudioExporterConfig::isMuteSoloEnabled() const {
         return d->isMuteSoloEnabled;
     }
-    void AudioExporterConfig::setMuteSoloEnabled(bool a_) {
+
+    void AudioExporterConfig::setMuteSoloEnabled(const bool a_) {
         d->isMuteSoloEnabled = a_;
     }
+
     AudioExporterConfig::SourceOption AudioExporterConfig::sourceOption() const {
         return d->sourceOption;
     }
-    void AudioExporterConfig::setSourceOption(AudioExporterConfig::SourceOption a_) {
+
+    void AudioExporterConfig::setSourceOption(const AudioExporterConfig::SourceOption a_) {
         d->sourceOption = a_;
     }
+
     QList<int> AudioExporterConfig::source() const {
         return d->source;
     }
+
     void AudioExporterConfig::setSource(const QList<int> &a_) {
         d->source = a_;
     }
+
     AudioExporterConfig::TimeRange AudioExporterConfig::timeRange() const {
         return d->timeRange;
     }
-    void AudioExporterConfig::setTimeRange(AudioExporterConfig::TimeRange a_) {
+
+    void AudioExporterConfig::setTimeRange(const AudioExporterConfig::TimeRange a_) {
         d->timeRange = a_;
     }
 
     QVariantMap AudioExporterConfig::toVariantMap() const {
         return QVariantMap({
-            {"fileName", d->fileName},
-            {"fileDirectory", d->fileDirectory},
-            {"fileType", d->fileType},
-            {"formatMono", d->formatMono},
-            {"formatOption", d->formatOption},
-            {"formatQuality", d->formatQuality},
-            {"formatSampleRate", d->formatSampleRate},
-            {"mixingOption", d->mixingOption},
-            {"isMuteSoloEnabled", d->isMuteSoloEnabled},
-            {"sourceOption", d->sourceOption},
-            {"source", QVariant::fromValue(d->source)},
-            {"timeRange", d->timeRange},
+            {"fileName",          d->fileName                   },
+            {"fileDirectory",     d->fileDirectory              },
+            {"fileType",          d->fileType                   },
+            {"formatMono",        d->formatMono                 },
+            {"formatOption",      d->formatOption               },
+            {"formatQuality",     d->formatQuality              },
+            {"formatSampleRate",  d->formatSampleRate           },
+            {"mixingOption",      d->mixingOption               },
+            {"isMuteSoloEnabled", d->isMuteSoloEnabled          },
+            {"sourceOption",      d->sourceOption               },
+            {"source",            QVariant::fromValue(d->source)},
+            {"timeRange",         d->timeRange                  },
         });
     }
+
     AudioExporterConfig AudioExporterConfig::fromVariantMap(const QVariantMap &map) {
         AudioExporterConfig config;
         config.d->fileName = map.value("fileName").toString();
@@ -170,49 +194,54 @@ namespace Audio {
         config.d->timeRange = static_cast<TimeRange>(map.value("timeRange").toInt());
         return config;
     }
+
     bool AudioExporterConfig::operator==(const AudioExporterConfig &other) const {
-        return d->fileName == other.d->fileName
-            && d->fileDirectory == other.d->fileDirectory
-            && d->fileType == other.d->fileType
-            && d->formatMono == other.d->formatMono
-            && d->formatOption == other.d->formatOption
-            && d->formatQuality == other.d->formatQuality
-            && d->formatSampleRate == other.d->formatSampleRate
-            && d->mixingOption == other.d->mixingOption
-            && d->isMuteSoloEnabled == other.d->isMuteSoloEnabled
-            && d->sourceOption == other.d->sourceOption
-            && d->timeRange == other.d->timeRange;
+        return d->fileName == other.d->fileName && d->fileDirectory == other.d->fileDirectory &&
+               d->fileType == other.d->fileType && d->formatMono == other.d->formatMono &&
+               d->formatOption == other.d->formatOption &&
+               d->formatQuality == other.d->formatQuality &&
+               d->formatSampleRate == other.d->formatSampleRate &&
+               d->mixingOption == other.d->mixingOption &&
+               d->isMuteSoloEnabled == other.d->isMuteSoloEnabled &&
+               d->sourceOption == other.d->sourceOption && d->timeRange == other.d->timeRange;
     }
 
-    QString AudioExporterPrivate::projectName() const {
+    QString AudioExporterPrivate::projectName() {
         // project file's base name
         auto s = QFileInfo(appController->projectPath()).baseName();
         return s.isEmpty() ? QStringLiteral("Untitled") : s;
     }
-    QString AudioExporterPrivate::projectDirectory() const {
-        if (auto dir = QFileInfo(appController->projectPath()).dir(); dir.isRelative()) {
+
+    auto AudioExporterPrivate::projectDirectory() -> QString {
+        if (const auto dir = QFileInfo(appController->projectPath()).dir(); dir.isRelative()) {
             return QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).first();
         } else {
             return dir.path();
         }
     }
-    QString AudioExporterPrivate::trackName(int trackIndex) const {
+
+    QString AudioExporterPrivate::trackName(const int trackIndex) {
         return appModel->tracks().at(trackIndex)->name();
     }
-    talcs::DspxProjectContext *AudioExporterPrivate::projectContext() const {
+
+    talcs::DspxProjectContext *AudioExporterPrivate::projectContext() {
         return AudioContext::instance();
     }
-    QPair<int, int> AudioExporterPrivate::calculateRange() const {
+
+    QPair<int, int> AudioExporterPrivate::calculateRange() {
         return {0, appModel->projectLengthInTicks()}; // TODO
     }
-    QList<int> AudioExporterPrivate::selectedSources() const {
+
+    QList<int> AudioExporterPrivate::selectedSources() {
         return {}; // TODO
     }
+
     bool AudioExporterPrivate::calculateTemplate(QString &templateString) const {
         return calculateTemplate(templateString, {}, -1);
     }
+
     bool AudioExporterPrivate::calculateTemplate(QString &templateString, const QString &trackName,
-                                                 int trackIndex) const {
+                                                 const int trackIndex) const {
         static const QRegularExpression re(R"re(\$\{(.*?)\})re");
         bool allTemplatesMatch = true;
         const QStringView templateStringView(templateString);
@@ -304,14 +333,17 @@ namespace Audio {
 
     void AudioExporterPrivate::updateFileListAndWarnings() {
         warning = {};
-        if (config.fileType() == AudioExporterConfig::FT_Mp3 || config.fileType() == AudioExporterConfig::FT_OggVorbis)
+        if (config.fileType() == AudioExporterConfig::FT_Mp3 ||
+            config.fileType() == AudioExporterConfig::FT_OggVorbis)
             warning |= AudioExporter::W_LossyFormat;
         fileList.clear();
         if (config.mixingOption() == AudioExporterConfig::MO_Mixed) {
             auto calculatedFileName = config.fileName();
             if (!calculateTemplate(calculatedFileName))
                 warning |= AudioExporter::W_UnrecognizedTemplate;
-            auto fileInfo = QFileInfo(QDir(QDir(projectDirectory()).absoluteFilePath(config.fileDirectory())).absoluteFilePath(calculatedFileName));
+            const auto fileInfo =
+                QFileInfo(QDir(QDir(projectDirectory()).absoluteFilePath(config.fileDirectory()))
+                              .absoluteFilePath(calculatedFileName));
             if (fileInfo.exists())
                 warning |= AudioExporter::W_WillOverwrite;
             fileList.append(fileInfo.absoluteFilePath());
@@ -319,11 +351,13 @@ namespace Audio {
             if (config.source().isEmpty())
                 warning |= AudioExporter::W_NoFile;
             QSet<QString> fileSet;
-            for (auto index : config.source()) {
+            for (const auto index : config.source()) {
                 auto calculatedFileName = config.fileName();
                 if (!calculateTemplate(calculatedFileName, trackName(index), index))
                     warning |= AudioExporter::W_UnrecognizedTemplate;
-                auto fileInfo = QFileInfo(QDir(QDir(projectDirectory()).absoluteFilePath(config.fileDirectory())).absoluteFilePath(calculatedFileName));
+                auto fileInfo = QFileInfo(
+                    QDir(QDir(projectDirectory()).absoluteFilePath(config.fileDirectory()))
+                        .absoluteFilePath(calculatedFileName));
                 if (fileInfo.exists())
                     warning |= AudioExporter::W_WillOverwrite;
                 if (fileSet.contains(fileInfo.absoluteFilePath()))
@@ -334,11 +368,13 @@ namespace Audio {
         }
     }
 
-    AudioExporter::AudioExporter(Core::IProjectWindow *window, QObject *parent) : QObject(parent), d_ptr(new AudioExporterPrivate) {
+    AudioExporter::AudioExporter(Core::IProjectWindow *window, QObject *parent)
+        : QObject(parent), d_ptr(new AudioExporterPrivate) {
         Q_D(AudioExporter);
         d->q_ptr = this;
         d->windowHandle = window;
     }
+
     AudioExporter::~AudioExporter() = default;
 
     Core::IProjectWindow *AudioExporter::windowHandle() const {
@@ -352,101 +388,102 @@ namespace Audio {
 
     QList<QPair<QString, AudioExporterConfig>> AudioExporter::predefinedPresets() {
         static auto wavMix = AudioExporterConfig::fromVariantMap({
-            {"fileName", "${projectName}.wav"},
-            {"fileDirectory", {}},
-            {"fileType", AudioExporterConfig::FT_Wav},
-            {"formatMono", false},
-            {"formatOption", 0},
-            {"formatQuality", 100},
-            {"formatSampleRate", 44100},
-            {"mixingOption", AudioExporterConfig::MO_Mixed},
-            {"isMuteSoloEnabled", true},
-            {"sourceOption", AudioExporterConfig::SO_All},
-            {"source", {}},
-            {"timeRange", AudioExporterConfig::TR_All},
+            {"fileName",          "${projectName}.wav"         },
+            {"fileDirectory",     {}                           },
+            {"fileType",          AudioExporterConfig::FT_Wav  },
+            {"formatMono",        false                        },
+            {"formatOption",      0                            },
+            {"formatQuality",     100                          },
+            {"formatSampleRate",  44100                        },
+            {"mixingOption",      AudioExporterConfig::MO_Mixed},
+            {"isMuteSoloEnabled", true                         },
+            {"sourceOption",      AudioExporterConfig::SO_All  },
+            {"source",            {}                           },
+            {"timeRange",         AudioExporterConfig::TR_All  },
         });
         static auto wavSep = AudioExporterConfig::fromVariantMap({
-            {"fileName", "${projectName}_${trackIndex}_${trackName}.wav"},
-            {"fileDirectory", {}},
-            {"fileType", AudioExporterConfig::FT_Wav},
-            {"formatMono", false},
-            {"formatOption", 0},
-            {"formatQuality", 100},
-            {"formatSampleRate", 44100},
-            {"mixingOption", AudioExporterConfig::MO_SeparatedThruMaster},
-            {"isMuteSoloEnabled", true},
-            {"sourceOption", AudioExporterConfig::SO_All},
-            {"source", {}},
-            {"timeRange", AudioExporterConfig::TR_All},
+            {"fileName",          "${projectName}_${trackIndex}_${trackName}.wav"},
+            {"fileDirectory",     {}                                             },
+            {"fileType",          AudioExporterConfig::FT_Wav                    },
+            {"formatMono",        false                                          },
+            {"formatOption",      0                                              },
+            {"formatQuality",     100                                            },
+            {"formatSampleRate",  44100                                          },
+            {"mixingOption",      AudioExporterConfig::MO_SeparatedThruMaster    },
+            {"isMuteSoloEnabled", true                                           },
+            {"sourceOption",      AudioExporterConfig::SO_All                    },
+            {"source",            {}                                             },
+            {"timeRange",         AudioExporterConfig::TR_All                    },
         });
         static auto flacMix = AudioExporterConfig::fromVariantMap({
-            {"fileName", "${projectName}.flac"},
-            {"fileDirectory", {}},
-            {"fileType", AudioExporterConfig::FT_Flac},
-            {"formatMono", false},
-            {"formatOption", 0},
-            {"formatQuality", 100},
-            {"formatSampleRate", 44100},
-            {"mixingOption", AudioExporterConfig::MO_Mixed},
-            {"isMuteSoloEnabled", true},
-            {"sourceOption", AudioExporterConfig::SO_All},
-            {"source", {}},
-            {"timeRange", AudioExporterConfig::TR_All},
+            {"fileName",          "${projectName}.flac"        },
+            {"fileDirectory",     {}                           },
+            {"fileType",          AudioExporterConfig::FT_Flac },
+            {"formatMono",        false                        },
+            {"formatOption",      0                            },
+            {"formatQuality",     100                          },
+            {"formatSampleRate",  44100                        },
+            {"mixingOption",      AudioExporterConfig::MO_Mixed},
+            {"isMuteSoloEnabled", true                         },
+            {"sourceOption",      AudioExporterConfig::SO_All  },
+            {"source",            {}                           },
+            {"timeRange",         AudioExporterConfig::TR_All  },
         });
         static auto flacSep = AudioExporterConfig::fromVariantMap({
-            {"fileName", "${projectName}_${trackIndex}_${trackName}.flac"},
-            {"fileDirectory", {}},
-            {"fileType", AudioExporterConfig::FT_Flac},
-            {"formatMono", false},
-            {"formatOption", 0},
-            {"formatQuality", 100},
-            {"formatSampleRate", 44100},
-            {"mixingOption", AudioExporterConfig::MO_SeparatedThruMaster},
-            {"isMuteSoloEnabled", true},
-            {"sourceOption", AudioExporterConfig::SO_All},
-            {"source", {}},
-            {"timeRange", AudioExporterConfig::TR_All},
+            {"fileName",          "${projectName}_${trackIndex}_${trackName}.flac"},
+            {"fileDirectory",     {}                                              },
+            {"fileType",          AudioExporterConfig::FT_Flac                    },
+            {"formatMono",        false                                           },
+            {"formatOption",      0                                               },
+            {"formatQuality",     100                                             },
+            {"formatSampleRate",  44100                                           },
+            {"mixingOption",      AudioExporterConfig::MO_SeparatedThruMaster     },
+            {"isMuteSoloEnabled", true                                            },
+            {"sourceOption",      AudioExporterConfig::SO_All                     },
+            {"source",            {}                                              },
+            {"timeRange",         AudioExporterConfig::TR_All                     },
         });
         static auto oggMix = AudioExporterConfig::fromVariantMap({
-            {"fileName", "${projectName}.ogg"},
-            {"fileDirectory", {}},
-            {"fileType", AudioExporterConfig::FT_OggVorbis},
-            {"formatMono", false},
-            {"formatOption", 0},
-            {"formatQuality", 100},
-            {"formatSampleRate", 44100},
-            {"mixingOption", AudioExporterConfig::MO_Mixed},
-            {"isMuteSoloEnabled", true},
-            {"sourceOption", AudioExporterConfig::SO_All},
-            {"source", {}},
-            {"timeRange", AudioExporterConfig::TR_All},
+            {"fileName",          "${projectName}.ogg"             },
+            {"fileDirectory",     {}                               },
+            {"fileType",          AudioExporterConfig::FT_OggVorbis},
+            {"formatMono",        false                            },
+            {"formatOption",      0                                },
+            {"formatQuality",     100                              },
+            {"formatSampleRate",  44100                            },
+            {"mixingOption",      AudioExporterConfig::MO_Mixed    },
+            {"isMuteSoloEnabled", true                             },
+            {"sourceOption",      AudioExporterConfig::SO_All      },
+            {"source",            {}                               },
+            {"timeRange",         AudioExporterConfig::TR_All      },
         });
         static auto oggSep = AudioExporterConfig::fromVariantMap({
-            {"fileName", "${projectName}_${trackIndex}_${trackName}.ogg"},
-            {"fileDirectory", {}},
-            {"fileType", AudioExporterConfig::FT_OggVorbis},
-            {"formatMono", false},
-            {"formatOption", 0},
-            {"formatQuality", 100},
-            {"formatSampleRate", 44100},
-            {"mixingOption", AudioExporterConfig::MO_SeparatedThruMaster},
-            {"isMuteSoloEnabled", true},
-            {"sourceOption", AudioExporterConfig::SO_All},
-            {"source", {}},
-            {"timeRange", AudioExporterConfig::TR_All},
+            {"fileName",          "${projectName}_${trackIndex}_${trackName}.ogg"},
+            {"fileDirectory",     {}                                             },
+            {"fileType",          AudioExporterConfig::FT_OggVorbis              },
+            {"formatMono",        false                                          },
+            {"formatOption",      0                                              },
+            {"formatQuality",     100                                            },
+            {"formatSampleRate",  44100                                          },
+            {"mixingOption",      AudioExporterConfig::MO_SeparatedThruMaster    },
+            {"isMuteSoloEnabled", true                                           },
+            {"sourceOption",      AudioExporterConfig::SO_All                    },
+            {"source",            {}                                             },
+            {"timeRange",         AudioExporterConfig::TR_All                    },
         });
         return {
-            {tr("WAV - Mixed"), wavMix},
-            {tr("WAV - Separated"), wavSep},
-            {tr("FLAC - Mixed"), flacMix},
-            {tr("FLAC - Separated"), flacSep},
-            {tr("Ogg/Vorbis - Mixed"), oggMix},
-            {tr("Ogg/Vorbis - Separated"), oggSep},
+            {tr("WAV - Mixed"),            wavMix },
+            {tr("WAV - Separated"),        wavSep },
+            {tr("FLAC - Mixed"),           flacMix},
+            {tr("FLAC - Separated"),       flacSep},
+            {tr("Ogg/Vorbis - Mixed"),     oggMix },
+            {tr("Ogg/Vorbis - Separated"), oggSep },
         };
     }
 
     AudioExporterConfig AudioExporter::preset(const QString &name) {
-        return AudioExporterConfig::fromVariantMap(AudioSettings::audioExporterPresets()[name].toObject().toVariantMap());
+        return AudioExporterConfig::fromVariantMap(
+            AudioSettings::audioExporterPresets()[name].toObject().toVariantMap());
     }
 
     void AudioExporter::addPreset(const QString &name, const AudioExporterConfig &config) {
@@ -475,6 +512,7 @@ namespace Audio {
         d->config = config;
         d->updateFileListAndWarnings();
     }
+
     AudioExporterConfig AudioExporter::config() const {
         Q_D(const AudioExporter);
         return d->config;
@@ -491,16 +529,20 @@ namespace Audio {
             list.append(tr("No file will be exported. Please check if any source is selected."));
         }
         if (warning & W_DuplicatedFile) {
-            list.append(tr("The files to be exported contain files with duplicate names. Please check if the file name template is unique for each source."));
+            list.append(tr("The files to be exported contain files with duplicate names. Please "
+                           "check if the file name template is unique for each source."));
         }
         if (warning & W_WillOverwrite) {
-            list.append(tr("The files to be exported contain files with the same name as existing files. If continue, the existing files will be overwritten."));
+            list.append(tr("The files to be exported contain files with the same name as existing "
+                           "files. If continue, the existing files will be overwritten."));
         }
         if (warning & W_UnrecognizedTemplate) {
-            list.append(tr("Unrecognized file name template. Please check the syntax of the file name template."));
+            list.append(tr("Unrecognized file name template. Please check the syntax of the file "
+                           "name template."));
         }
         if (warning & W_LossyFormat) {
-            list.append(tr("The currently selected file type is a lossy format. To avoid loss of sound quality, please use WAV or FLAC format."));
+            list.append(tr("The currently selected file type is a lossy format. To avoid loss of "
+                           "sound quality, please use WAV or FLAC format."));
         }
         return list;
     }
@@ -514,7 +556,7 @@ namespace Audio {
         Q_D(AudioExporter);
 
         const auto config = this->config();
-        auto projectContext = d->projectContext();
+        const auto projectContext = d->projectContext();
 
         clearErrorString();
         QHash<QString, QString> temporaryFiles;
@@ -526,9 +568,9 @@ namespace Audio {
             QObject o;
             std::unique_ptr<talcs::AudioFormatIO[]> ioList(
                 new talcs::AudioFormatIO[d->fileList.size()]);
-            auto uuid = QByteArray::fromHex(QUuid::createUuid().toByteArray(QUuid::Id128))
-                            .toBase64(QByteArray::Base64UrlEncoding)
-                            .mid(0, 8);
+            const auto uuid = QByteArray::fromHex(QUuid::createUuid().toByteArray(QUuid::Id128))
+                                  .toBase64(QByteArray::Base64UrlEncoding)
+                                  .mid(0, 8);
             for (int i = 0; i < d->fileList.size(); i++) {
                 QString filename = d->fileList.at(i);
                 if (AudioSettings::audioExporterUseTemporaryFile()) {
@@ -540,7 +582,7 @@ namespace Audio {
                 } else {
                     d->temporaryFileList.append(filename);
                 }
-                auto file = new QFile(filename, &o);
+                const auto file = new QFile(filename, &o);
                 if (!file->open(QIODevice::WriteOnly)) {
                     setErrorString(tr("Cannot open file for writing: %1").arg(filename));
                     return R_Fail;
@@ -567,8 +609,8 @@ namespace Audio {
                                    AudioExporterConfig::MO_SeparatedThruMaster);
             exporter.setClippingCheckEnabled(AudioSettings::audioExporterClippingCheckEnabled());
             exporter.setMuteSoloEnabled(config.isMuteSoloEnabled());
-            auto range = d->calculateRange();
-            exporter.setRange(range.first, range.second);
+            const auto [fst, snd] = d->calculateRange();
+            exporter.setRange(fst, snd);
             QList<talcs::DspxTrackContext *> tracks;
             switch (config.sourceOption()) {
                 case AudioExporterConfig::SO_All:
@@ -576,7 +618,7 @@ namespace Audio {
                     break;
                 case AudioExporterConfig::SO_Selected:
                 case AudioExporterConfig::SO_Custom:
-                    for (auto index : config.source()) {
+                    for (const auto index : config.source()) {
                         tracks.append(projectContext->tracks().at(index));
                     }
                     break;
@@ -596,8 +638,8 @@ namespace Audio {
 
             // deal with audio components
             projectContext->transport()->pause();
-            auto currentBufferSize = projectContext->preMixer()->bufferSize();
-            auto currentSampleRate = projectContext->preMixer()->sampleRate();
+            const auto currentBufferSize = projectContext->preMixer()->bufferSize();
+            const auto currentSampleRate = projectContext->preMixer()->sampleRate();
             auto reopenMixer = [=, this](void *) {
                 if (!projectContext->preMixer()->open(currentBufferSize, currentSampleRate))
                     addWarning(tr("Cannot reopen audio after exported"));
@@ -613,7 +655,7 @@ namespace Audio {
             // call listeners
             QList<AudioExporterListener *> listenerToCallFinishList;
             auto callFinish = [&](void *) {
-                for (auto listener : listenerToCallFinishList) {
+                for (const auto listener : listenerToCallFinishList) {
                     listener->willFinishCallback(this);
                 }
             };
@@ -621,7 +663,7 @@ namespace Audio {
             // Note: order of destruction: call AudioExporterListener::willFinish after mixer
             // reopened
             std::unique_ptr<void, decltype(reopenMixer)> _4 = std::move(_2);
-            for (auto listener : m_listeners) {
+            for (const auto listener : m_listeners) {
                 if (!listener->willStartCallback(this))
                     return R_Fail;
                 listenerToCallFinishList.prepend(listener);
@@ -629,14 +671,14 @@ namespace Audio {
 
             // start exporting
             connect(&exporter, &talcs::DspxProjectAudioExporter::progressChanged, this,
-                    [=, this](double progressRatio, talcs::DspxTrackContext *track) {
+                    [=, this](const double progressRatio, talcs::DspxTrackContext *track) {
                         emit progressChanged(progressRatio, sourceIndexMap.value(track));
                     });
             connect(&exporter, &talcs::DspxProjectAudioExporter::clippingDetected, this,
                     [=, this](talcs::DspxTrackContext *track) {
                         emit clippingDetected(sourceIndexMap.value(track));
                     });
-            auto ret = exporter.exec();
+            const auto ret = exporter.exec();
             if (ret == talcs::DspxProjectAudioExporter::Fail) {
                 if (errorString().isEmpty())
                     setErrorString(tr("Internal Error"));
@@ -676,7 +718,7 @@ namespace Audio {
         }
     }
 
-    void AudioExporter::cancel(bool isFail, const QString &message) {
+    void AudioExporter::cancel(const bool isFail, const QString &message) {
         Q_D(AudioExporter);
         if (!d->currentExporter)
             return;
@@ -685,7 +727,7 @@ namespace Audio {
         d->currentExporter->interrupt(isFail);
     }
 
-    void AudioExporter::addWarning(const QString &message, int sourceIndex) {
+    void AudioExporter::addWarning(const QString &message, const int sourceIndex) {
         emit warningAdded(message, sourceIndex);
     }
 } // Audio

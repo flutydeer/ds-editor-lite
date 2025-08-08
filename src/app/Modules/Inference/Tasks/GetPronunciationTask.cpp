@@ -12,7 +12,7 @@
 #include <QDebug>
 #include <language-manager/ILanguageManager.h>
 
-GetPronunciationTask::GetPronunciationTask(int clipId, const QList<Note *> &notes)
+GetPronunciationTask::GetPronunciationTask(const int clipId, const QList<Note *> &notes)
     : m_clipId(clipId), m_notes(notes) {
     notesRef = notes;
     for (int i = 0; i < notes.count(); i++) {
@@ -42,7 +42,7 @@ void GetPronunciationTask::runTask() {
     qInfo() << "获取发音任务完成 taskId:" << id() << "terminate:" << terminated();
 }
 
-QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &notes) {
+QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &notes) const {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
         qFatal() << "Language module not ready yet";
         return {};

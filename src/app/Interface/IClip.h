@@ -16,7 +16,7 @@ interface IClip : public UniqueObject {
     enum ClipType { Audio, Singing, Generic };
 
     IClip() = default;
-    explicit IClip(int id) : UniqueObject(id){};
+    explicit IClip(const int id) : UniqueObject(id){};
 
     I_NODSCD(ClipType clipType() const);
     I_NODSCD(QString name() const);

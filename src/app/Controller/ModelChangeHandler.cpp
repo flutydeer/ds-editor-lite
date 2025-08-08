@@ -44,16 +44,18 @@ void ModelChangeHandler::handleClipPropertyChanged(Clip *clip) {
 
 void ModelChangeHandler::handleSingingClipInserted(SingingClip *clip) {
     connect(clip, &SingingClip::noteChanged, this,
-            [clip, this](SingingClip::NoteChangeType type, const QList<Note *> &notes) {
+            [clip, this](const SingingClip::NoteChangeType type, const QList<Note *> &notes) {
                 handleNoteChanged(type, notes, clip);
             });
     connect(clip, &SingingClip::piecesChanged, this,
             [clip, this](const QList<InferPiece *> &pieces, const QList<InferPiece *> &newPieces,
-                const QList<InferPiece *> &discardedPieces) {
+                         const QList<InferPiece *> &discardedPieces) {
                 handlePiecesChanged(newPieces, discardedPieces, clip);
             });
     connect(clip, &SingingClip::paramChanged, this,
-            [clip, this](ParamInfo::Name name, Param::Type type) { handleParamChanged(name, type, clip); });
+            [clip, this](const ParamInfo::Name name, const Param::Type type) {
+                handleParamChanged(name, type, clip);
+            });
 }
 
 void ModelChangeHandler::handleSingingClipRemoved(SingingClip *clip) {
@@ -68,7 +70,7 @@ void ModelChangeHandler::handleParamChanged(ParamInfo::Name name, Param::Type ty
                                             SingingClip *clip) {
 }
 
-void ModelChangeHandler::handlePiecesChanged(const QList<InferPiece *> &newPieces,
+void ModelChangeHandler::handlePiecesChanged(const QList<InferPiece *> &pieces,
                                              const QList<InferPiece *> &discardedPieces,
                                              SingingClip *clip) {
 }
@@ -81,11 +83,11 @@ void ModelChangeHandler::onModelChanged() {
         onTrackChanged(AppModel::Insert, -1, track);
 }
 
-void ModelChangeHandler::onTempoChanged(double tempo) {
+void ModelChangeHandler::onTempoChanged(const double tempo) {
     handleTempoChanged(tempo);
 }
 
-void ModelChangeHandler::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
+void ModelChangeHandler::onTrackChanged(const AppModel::TrackChangeType type, qsizetype index,
                                         Track *track) {
     if (type == AppModel::Insert)
         handleTrackInserted(track);
@@ -93,7 +95,7 @@ void ModelChangeHandler::onTrackChanged(AppModel::TrackChangeType type, qsizetyp
         handleTrackRemoved(track);
 }
 
-void ModelChangeHandler::onClipChanged(Track::ClipChangeType type, Clip *clip) {
+void ModelChangeHandler::onClipChanged(const Track::ClipChangeType type, Clip *clip) {
     if (type == Track::Inserted)
         handleClipInserted(clip);
     else if (type == Track::Removed)

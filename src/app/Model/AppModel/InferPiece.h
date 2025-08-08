@@ -58,10 +58,10 @@ public:
     [[nodiscard]] int localEndTick() const;
 
     [[nodiscard]] const DrawCurve *getOriginalCurve(ParamInfo::Name name) const;
-    void setOriginalCurve(ParamInfo::Name name, DrawCurve &curve);
+    void setOriginalCurve(ParamInfo::Name name, const DrawCurve &curve);
 
     [[nodiscard]] const DrawCurve *getInputCurve(ParamInfo::Name name) const;
-    void setInputCurve(ParamInfo::Name name, DrawCurve &curve);
+    void setInputCurve(ParamInfo::Name name, const DrawCurve &curve);
 
 signals:
     void statusChanged(InferStatus status);

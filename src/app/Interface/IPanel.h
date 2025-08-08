@@ -9,7 +9,7 @@
 
 class IPanel {
 public:
-    explicit IPanel(AppGlobal::PanelType type = AppGlobal::Generic) : m_type(type) {
+    explicit IPanel(const AppGlobal::PanelType type = AppGlobal::Generic) : m_type(type) {
     }
 
     virtual ~IPanel() = default;
@@ -22,7 +22,7 @@ public:
         return m_active;
     }
 
-    void setPanelActive(bool b) {
+    void setPanelActive(const bool b) {
         m_active = b;
         afterSetActive();
     }

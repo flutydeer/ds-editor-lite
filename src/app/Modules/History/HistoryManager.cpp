@@ -28,7 +28,7 @@ void HistoryManager::undo() {
     if (d->m_undoStack.isEmpty())
         return;
 
-    auto seq = d->m_undoStack.pop();
+    const auto seq = d->m_undoStack.pop();
     seq->undo();
     d->m_redoStack.push(seq);
 
@@ -44,7 +44,7 @@ void HistoryManager::redo() {
     if (d->m_redoStack.isEmpty())
         return;
 
-    auto seq = d->m_redoStack.pop();
+    const auto seq = d->m_redoStack.pop();
     seq->execute();
     d->m_undoStack.push(seq);
 
@@ -64,9 +64,9 @@ void HistoryManager::record(ActionSequence *actions) {
 void HistoryManager::reset() {
     Q_D(HistoryManager);
     qDebug() << "HistoryManager::reset()";
-    for (auto seq : d->m_undoStack)
+    for (const auto seq : d->m_undoStack)
         delete seq;
-    for (auto seq : d->m_redoStack)
+    for (const auto seq : d->m_redoStack)
         delete seq;
     d->m_undoStack.clear();
     d->m_redoStack.clear();

@@ -22,7 +22,7 @@ public:
 public slots:
     void copy();
     void cut();
-    void paste();
+    static void paste();
 
 private:
     Q_DECLARE_PRIVATE(ClipboardController)

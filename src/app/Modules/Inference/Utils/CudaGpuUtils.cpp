@@ -1,36 +1,37 @@
 #ifdef ONNXRUNTIME_ENABLE_CUDA
-#include "CudaGpuUtils.h"
+#  include "CudaGpuUtils.h"
 
-#include <QDebug>
-#include <QProcess>
+#  include <QDebug>
+#  include <QProcess>
 
-static QString g_nvidiaSmiPath = QStringLiteral("nvidia-smi");
+static auto g_nvidiaSmiPath = QStringLiteral("nvidia-smi");
 
-static inline GpuInfo parseGpuFromLine(const QStringView lineView, QString *outPciDeviceVendorId = nullptr) {
+static GpuInfo parseGpuFromLine(const QStringView lineView,
+                                QString *outPciDeviceVendorId = nullptr) {
     GpuInfo gpuInfo;
     bool insideQuotes = false;
     QString currentField;
     int fieldIndex = 0;
 
-    auto processField = [&](int fieldIndex_, const QStringView field) {
+    auto processField = [&](const int fieldIndex_, const QStringView field) {
         switch (fieldIndex_) {
             case 0:
                 gpuInfo.index = field.toInt();
-            break;
+                break;
             case 1:
                 gpuInfo.description = field.toString();
-            break;
+                break;
             case 2:
                 gpuInfo.memory = field.toULongLong() * 1024 * 1024;
-            break;
+                break;
             case 3:
                 gpuInfo.deviceId = field.toString();
-            break;
+                break;
             case 4:
                 if (outPciDeviceVendorId) {
                     *outPciDeviceVendorId = field.toString();
                 }
-            break;
+                break;
             default:
                 break;
         }
@@ -60,7 +61,7 @@ static inline GpuInfo parseGpuFromLine(const QStringView lineView, QString *outP
     return gpuInfo;
 }
 
-static inline QList<GpuInfo> parseGpuListFromOutput(const QStringView output, int maxCount = 0) {
+static QList<GpuInfo> parseGpuListFromOutput(const QStringView output, int maxCount = 0) {
     QList<GpuInfo> gpuList;
     if (output.isEmpty()) {
         return gpuList;
@@ -69,7 +70,7 @@ static inline QList<GpuInfo> parseGpuListFromOutput(const QStringView output, in
     if (lines.isEmpty()) {
         return gpuList;
     }
-    gpuList.reserve((maxCount > 0) ? qMin(maxCount, lines.size()) : lines.size());
+    gpuList.reserve(maxCount > 0 ? qMin(maxCount, lines.size()) : lines.size());
     for (const auto line : lines) {
         if (line.isEmpty()) {
             continue;
@@ -82,19 +83,20 @@ static inline QList<GpuInfo> parseGpuListFromOutput(const QStringView output, in
     return gpuList;
 }
 
-static inline QString getCommandOutput() {
+static QString getCommandOutput() {
     QProcess process;
     process.start(g_nvidiaSmiPath, {"--query-gpu=index,name,memory.total,uuid,pci.device_id",
                                     "--format=csv,noheader,nounits"});
     if (!process.waitForFinished()) {
-        qWarning() << "Failed to run nvidia-smi! Ensure it is in the PATH or setNvidiaSmiPath() is used.";
+        qWarning()
+            << "Failed to run nvidia-smi! Ensure it is in the PATH or setNvidiaSmiPath() is used.";
         return {};
     }
 
     return process.readAllStandardOutput();
 }
 
-GpuInfo CudaGpuUtils::getGpuByIndex(int index) {
+GpuInfo CudaGpuUtils::getGpuByIndex(const int index) {
     const auto output_ = getCommandOutput();
     const QStringView output(output_);
     if (output.isEmpty()) {
@@ -120,7 +122,9 @@ QList<GpuInfo> CudaGpuUtils::getGpuList() {
     return parseGpuListFromOutput(output_);
 }
 
-GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsigned int pciVendorId, int indexHint) {
+GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorId(const unsigned int pciDeviceId,
+                                                const unsigned int pciVendorId,
+                                                const int indexHint) {
     const auto output_ = getCommandOutput();
     const QStringView output(output_);
     if (output.isEmpty()) {
@@ -153,7 +157,8 @@ GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsign
     return info;
 }
 
-GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorIdString(const QString &idString, int indexHint) {
+GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorIdString(const QString &idString,
+                                                      const int indexHint) {
     unsigned int pciDeviceId = 0;
     unsigned int pciVendorId = 0;
     if (!GpuInfo::parseIdString(idString, pciDeviceId, pciVendorId)) {
@@ -189,7 +194,7 @@ GpuInfo CudaGpuUtils::getRecommendedGpu() {
     if (gpuList.isEmpty()) {
         return {};
     }
-    unsigned long long memory = 0;
+    constexpr unsigned long long memory = 0;
     qsizetype index = 0;
     for (qsizetype i = 0; i < gpuList.size(); ++i) {
         const auto &gpuInfo = std::as_const(gpuList)[i];

@@ -30,7 +30,7 @@ void ClipboardController::cut() {
 
 void ClipboardController::paste() {
     qDebug() << "ClipboardController::paste";
-    auto mimeData = QGuiApplication::clipboard()->mimeData();
+    const auto mimeData = QGuiApplication::clipboard()->mimeData();
     if (mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams))) {
         qDebug() << "Mime data has NoteWithParams";
         auto array =
@@ -43,7 +43,7 @@ void ClipboardController::paste() {
     }
 }
 
-void ClipboardControllerPrivate::copyCutSelectedItems(ControllerGlobal::ElemType type, bool isCut) {
+void ClipboardControllerPrivate::copyCutSelectedItems(const ControllerGlobal::ElemType type, const bool isCut) {
     switch (type) {
         case ControllerGlobal::LoopStart:
             break;
@@ -65,7 +65,7 @@ void ClipboardControllerPrivate::copyCutSelectedItems(ControllerGlobal::ElemType
     }
 }
 
-void ClipboardControllerPrivate::copyCutNoteWithParams(bool isCut) {
+void ClipboardControllerPrivate::copyCutNoteWithParams(const bool isCut) {
     qDebug() << "ClipboardController::copyNoteWithParams isCut:" << isCut;
     if (isCut)
         clipController->cutSelectedNotesWithParams();

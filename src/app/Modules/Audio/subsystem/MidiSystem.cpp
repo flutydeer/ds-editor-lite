@@ -15,8 +15,8 @@
 
 #include <Model/AppOptions/AppOptions.h>
 
-static qint64 msecToSample(int msec, double sampleRate = {}) {
-    auto audioDevice = AudioSystem::outputSystem()->outputContext()->device();
+static qint64 msecToSample(const int msec, double sampleRate = {}) {
+    const auto audioDevice = AudioSystem::outputSystem()->outputContext()->device();
     sampleRate = qFuzzyIsNull(sampleRate)
                      ? audioDevice && audioDevice->isOpen() ? audioDevice->sampleRate() : 48000.0
                      : sampleRate;
@@ -57,9 +57,9 @@ bool MidiSystem::initialize() {
         m_synthesizer->setFrequencyOfA(AudioSettings::midiSynthesizerFrequencyOfA());
     }
 
-    auto savedDeviceIndex = AudioSettings::midiDeviceIndex();
+    const auto savedDeviceIndex = AudioSettings::midiDeviceIndex();
     qDebug() << "Audio::MidiSystem: saved device index" << savedDeviceIndex;
-    auto deviceCount = talcs::MidiInputDevice::devices().size();
+    const auto deviceCount = talcs::MidiInputDevice::devices().size();
     for (int i = -1; i < deviceCount; i++) {
         if (i == savedDeviceIndex)
             continue;
@@ -84,7 +84,7 @@ bool MidiSystem::initialize() {
     return true;
 }
 
-talcs::MidiInputDevice *MidiSystem::device() {
+talcs::MidiInputDevice *MidiSystem::device() const {
     return m_device.get();
 }
 
@@ -100,19 +100,19 @@ bool MidiSystem::setDevice(int deviceIndex) {
     return true;
 }
 
-void MidiSystem::postSetDevice() {
+void MidiSystem::postSetDevice() const {
     m_device->listener()->addFilter(m_integrator.get());
 }
 
-talcs::MidiMessageIntegrator *MidiSystem::integrator() {
+talcs::MidiMessageIntegrator *MidiSystem::integrator() const {
     return m_integrator.get();
 }
 
-talcs::MidiNoteSynthesizer *MidiSystem::synthesizer() {
+talcs::MidiNoteSynthesizer *MidiSystem::synthesizer() const {
     return m_synthesizer;
 }
 
-void MidiSystem::setGenerator(int g) {
+void MidiSystem::setGenerator(int g) const {
     AudioSettings::setMidiSynthesizerGenerator(g);
     m_synthesizer->noteSynthesizer()->setGenerator(
         static_cast<talcs::NoteSynthesizer::Generator>(g));
@@ -123,7 +123,7 @@ int MidiSystem::generator() const {
     return AudioSettings::midiSynthesizerGenerator();
 }
 
-void MidiSystem::setAmplitudeDecibel(double dB) {
+void MidiSystem::setAmplitudeDecibel(const double dB) const {
     AudioSettings::setMidiSynthesizerAmplitude(dB);
     m_synthesizerMixer->setGain(talcs::Decibels::decibelsToGain(static_cast<float>(dB)));
 }
@@ -133,7 +133,7 @@ double MidiSystem::amplitudeDecibel() const {
     return AudioSettings::midiSynthesizerAmplitude();
 }
 
-void MidiSystem::setAttackMsec(int msec) {
+void MidiSystem::setAttackMsec(const int msec) const {
     AudioSettings::setMidiSynthesizerAttackMsec(msec);
     m_synthesizer->noteSynthesizer()->setAttackTime(msecToSample(msec));
 }
@@ -143,7 +143,7 @@ int MidiSystem::attackMsec() const {
     return AudioSettings::midiSynthesizerAttackMsec();
 }
 
-void MidiSystem::setDecayMsec(int msec) {
+void MidiSystem::setDecayMsec(const int msec) const {
     AudioSettings::setMidiSynthesizerDecayMsec(msec);
     m_synthesizer->noteSynthesizer()->setDecayTime(msecToSample(msec));
 }
@@ -153,7 +153,7 @@ int MidiSystem::decayMsec() const {
     return AudioSettings::midiSynthesizerDecayMsec();
 }
 
-void MidiSystem::setDecayRatio(double ratio) {
+void MidiSystem::setDecayRatio(const double ratio) const {
     AudioSettings::setMidiSynthesizerDecayRatio(ratio);
     m_synthesizer->noteSynthesizer()->setDecayRatio(ratio);
 }
@@ -163,7 +163,7 @@ double MidiSystem::decayRatio() const {
     return AudioSettings::midiSynthesizerDecayRatio();
 }
 
-void MidiSystem::setReleaseMsec(int msec) {
+void MidiSystem::setReleaseMsec(const int msec) const {
     AudioSettings::setMidiSynthesizerReleaseMsec(msec);
     m_synthesizer->noteSynthesizer()->setReleaseTime(msecToSample(msec));
 }
@@ -173,7 +173,7 @@ int MidiSystem::releaseMsec() const {
     return AudioSettings::midiSynthesizerReleaseMsec();
 }
 
-void MidiSystem::setFrequencyOfA(double frequency) {
+void MidiSystem::setFrequencyOfA(const double frequency) const {
     AudioSettings::setMidiSynthesizerFrequencyOfA(frequency);
     if (qFuzzyIsNull(frequency)) {
         // TODO adjust by cent shift
@@ -190,7 +190,7 @@ double MidiSystem::frequencyOfA() const {
 void MidiSystem::updateControl() {
 }
 
-void MidiSystem::updateRateOnSampleRateChange(double sampleRate) {
+void MidiSystem::updateRateOnSampleRateChange(const double sampleRate) const {
     m_synthesizer->noteSynthesizer()->setAttackTime(
         msecToSample(AudioSettings::midiSynthesizerAttackMsec(), sampleRate));
     m_synthesizer->noteSynthesizer()->setDecayTime(

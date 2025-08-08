@@ -4,7 +4,7 @@
 namespace Co = ds::Api::Common::L1;
 namespace Ac = ds::Api::Acoustic::L1;
 
-auto createParamInfo(std::string_view tag) -> Co::InputParameterInfo {
+auto createParamInfo(const std::string_view tag) -> Co::InputParameterInfo {
     if (tag == Co::Tags::Pitch.name()) {
         return Co::InputParameterInfo{Co::Tags::Pitch};
     } else if (tag == Co::Tags::Breathiness.name()) {
@@ -31,8 +31,8 @@ auto createParamInfo(std::string_view tag) -> Co::InputParameterInfo {
     return Co::InputParameterInfo{};
 }
 
-auto convertInputWords(
-    const QList<InferWord> &words, std::string speakerName) -> std::vector<Co::InputWordInfo> {
+auto convertInputWords(const QList<InferWord> &words, std::string speakerName)
+    -> std::vector<Co::InputWordInfo> {
 
     std::vector<Co::InputWordInfo> inputWords;
     inputWords.reserve(words.size());
@@ -46,12 +46,9 @@ auto convertInputWords(
                 /* cents */ note.cents,
                 /* duration */ note.duration,
                 /* glide */ note.glide == "up"
-                             ? Co::GlideType::GT_Up
-                             : (note.glide == "down"
-                                    ? Co::GlideType::GT_Down
-                                    : Co::GlideType::GT_None),
-                /* is_rest */ note.is_rest
-            );
+                    ? Co::GlideType::GT_Up
+                    : (note.glide == "down" ? Co::GlideType::GT_Down : Co::GlideType::GT_None),
+                /* is_rest */ note.is_rest);
         }
 
         std::vector<Co::InputPhonemeInfo> inputPhones;
@@ -62,8 +59,10 @@ auto convertInputWords(
                 /* language */ phone.languageDictId.toStdString(),
                 /* tone */ 0,
                 /* start */ phone.start,
-                /* speakers */ std::vector{Co::InputPhonemeInfo::Speaker{std::move(speakerName), 1}}
-            );
+                /* speakers */
+                std::vector{
+                    Co::InputPhonemeInfo::Speaker{std::move(speakerName), 1}
+            });
         }
         inputWords.emplace_back(std::move(inputPhones), std::move(inputNotes));
     }

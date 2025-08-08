@@ -5,6 +5,8 @@
 #ifndef PARAMS_H
 #define PARAMS_H
 
+#include <QList>
+
 #include "Curve.h"
 
 class Param {

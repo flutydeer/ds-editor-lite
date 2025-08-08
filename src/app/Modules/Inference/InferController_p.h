@@ -51,10 +51,10 @@ public:
     void handleInferVarianceTaskFinished(InferVarianceTask &task);
     void handleInferAcousticTaskFinished(InferAcousticTask &task);
 
-    void recreateAllInferTasks();
+    static void recreateAllInferTasks();
 
-    void createAndRunGetPronTask(SingingClip &clip);
-    void createAndRunGetPhoneTask(SingingClip &clip);
+    void createAndRunGetPronTask(const SingingClip &clip);
+    void createAndRunGetPhoneTask(const SingingClip &clip);
 
     void createAndRunInferDurTask(InferPiece &piece);
     void createAndRunInferPitchTask(InferPiece &piece);
@@ -65,7 +65,7 @@ public:
 
     void cancelAllInferTasks();
 
-    void cancelClipRelatedTasks(SingingClip *clip);
+    void cancelClipRelatedTasks(const SingingClip *clip);
     void cancelPieceRelatedTasks(int pieceId);
 
     void runNextGetPronTask();

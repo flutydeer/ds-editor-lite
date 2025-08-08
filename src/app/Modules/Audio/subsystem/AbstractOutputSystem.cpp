@@ -8,7 +8,7 @@ AbstractOutputSystem::AbstractOutputSystem(QObject *parent) : QObject(parent) {
 
 AbstractOutputSystem::~AbstractOutputSystem() = default;
 
-void AbstractOutputSystem::setFileBufferingReadAheadSize(qint64 size) {
+void AbstractOutputSystem::setFileBufferingReadAheadSize(const qint64 size) {
     if (m_fileBufferingReadAheadSize != size) {
         m_fileBufferingReadAheadSize = size;
         emit fileBufferingReadAheadSizeChanged(size);

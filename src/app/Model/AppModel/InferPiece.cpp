@@ -25,22 +25,22 @@ int InferPiece::noteEndTick() const {
 }
 
 int InferPiece::localStartTick() const {
-    auto firstNote = notes.first();
-    auto phoneInfo = firstNote->phonemeOffsetInfo();
-    auto aheadInfo = phoneInfo.ahead.result();
-    auto normalInfo = phoneInfo.normal.result();
+    const auto firstNote = notes.first();
+    const auto phoneInfo = firstNote->phonemeOffsetInfo();
+    const auto aheadInfo = phoneInfo.ahead.result();
+    const auto normalInfo = phoneInfo.normal.result();
     auto phoneOffsets = aheadInfo.isEmpty() ? normalInfo : aheadInfo;
-    auto firstOffset = phoneOffsets.isEmpty() ? 0 : phoneOffsets.first();
-    int paddingTicks = appModel->msToTick(150 + firstOffset); // SP 0.15s
+    const auto firstOffset = phoneOffsets.isEmpty() ? 0 : phoneOffsets.first();
+    const int paddingTicks = appModel->msToTick(150 + firstOffset); // SP 0.15s
     return noteStartTick() - paddingTicks;
 }
 
 int InferPiece::localEndTick() const {
-    int paddingTicks = appModel->msToTick(150); // SP 0.15s
+    const int paddingTicks = appModel->msToTick(150); // SP 0.15s
     return noteEndTick() + paddingTicks;
 }
 
-const DrawCurve *InferPiece::getOriginalCurve(ParamInfo::Name name) const {
+const DrawCurve *InferPiece::getOriginalCurve(const ParamInfo::Name name) const {
     switch (name) {
         case ParamInfo::Pitch:
             return &originalPitch;
@@ -60,7 +60,7 @@ const DrawCurve *InferPiece::getOriginalCurve(ParamInfo::Name name) const {
     }
 }
 
-void InferPiece::setOriginalCurve(ParamInfo::Name name, DrawCurve &curve) {
+void InferPiece::setOriginalCurve(const ParamInfo::Name name, const DrawCurve &curve) {
     switch (name) {
         case ParamInfo::Pitch:
             originalPitch = curve;
@@ -85,7 +85,7 @@ void InferPiece::setOriginalCurve(ParamInfo::Name name, DrawCurve &curve) {
     }
 }
 
-const DrawCurve *InferPiece::getInputCurve(ParamInfo::Name name) const {
+const DrawCurve *InferPiece::getInputCurve(const ParamInfo::Name name) const {
     switch (name) {
         case ParamInfo::Expressiveness:
             return &inputExpressiveness;
@@ -113,7 +113,7 @@ const DrawCurve *InferPiece::getInputCurve(ParamInfo::Name name) const {
     }
 }
 
-void InferPiece::setInputCurve(ParamInfo::Name name, DrawCurve &curve) {
+void InferPiece::setInputCurve(const ParamInfo::Name name, const DrawCurve &curve) {
     switch (name) {
         case ParamInfo::Expressiveness:
             inputExpressiveness = curve;

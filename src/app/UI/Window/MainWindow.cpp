@@ -13,6 +13,7 @@
 #include "Controller/TrackController.h"
 #include "Controller/ValidationController.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/AccentButton.h"

@@ -19,7 +19,7 @@ int Clip::start() const {
     return m_start;
 }
 
-void Clip::setStart(int start) {
+void Clip::setStart(const int start) {
     m_start = start;
     // emit propertyChanged();
 }
@@ -28,7 +28,7 @@ int Clip::length() const {
     return m_length;
 }
 
-void Clip::setLength(int length) {
+void Clip::setLength(const int length) {
     m_length = length;
     // emit propertyChanged();
 }
@@ -37,7 +37,7 @@ int Clip::clipStart() const {
     return m_clipStart;
 }
 
-void Clip::setClipStart(int clipStart) {
+void Clip::setClipStart(const int clipStart) {
     m_clipStart = clipStart;
     // emit propertyChanged();
 }
@@ -46,7 +46,7 @@ int Clip::clipLen() const {
     return m_clipLen;
 }
 
-void Clip::setClipLen(int clipLen) {
+void Clip::setClipLen(const int clipLen) {
     m_clipLen = clipLen;
     // emit propertyChanged();
 }
@@ -55,7 +55,7 @@ double Clip::gain() const {
     return m_gain;
 }
 
-void Clip::setGain(double gain) {
+void Clip::setGain(const double gain) {
     m_gain = gain;
     // emit propertyChanged();
 }
@@ -64,7 +64,7 @@ bool Clip::mute() const {
     return m_mute;
 }
 
-void Clip::setMute(bool mute) {
+void Clip::setMute(const bool mute) {
     m_mute = mute;
     // emit propertyChanged();
 }
@@ -86,9 +86,9 @@ int Clip::endTick() const {
 }
 
 int Clip::compareTo(const Clip *obj) const {
-    auto curVisibleStart = start() + clipStart();
-    auto other = obj;
-    auto otherVisibleStart = other->start() + other->clipStart();
+    const auto curVisibleStart = start() + clipStart();
+    const auto other = obj;
+    const auto otherVisibleStart = other->start() + other->clipStart();
     if (curVisibleStart < otherVisibleStart)
         return -1;
     if (curVisibleStart > otherVisibleStart)
@@ -96,12 +96,12 @@ int Clip::compareTo(const Clip *obj) const {
     return 0;
 }
 
-bool Clip::isOverlappedWith(Clip *obj) const {
-    auto curVisibleStart = start() + clipStart();
-    auto curVisibleEnd = curVisibleStart + clipLen();
-    auto other = obj;
-    auto otherVisibleStart = other->start() + other->clipStart();
-    auto otherVisibleEnd = otherVisibleStart + other->clipLen();
+bool Clip::isOverlappedWith(const Clip *obj) const {
+    const auto curVisibleStart = start() + clipStart();
+    const auto curVisibleEnd = curVisibleStart + clipLen();
+    const auto other = obj;
+    const auto otherVisibleStart = other->start() + other->clipStart();
+    const auto otherVisibleEnd = otherVisibleStart + other->clipLen();
     if (otherVisibleEnd <= curVisibleStart || curVisibleEnd <= otherVisibleStart)
         return false;
     return true;

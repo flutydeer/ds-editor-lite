@@ -7,7 +7,7 @@
 EditTrackPropertiesAction *EditTrackPropertiesAction::build(const Track::TrackProperties &oldArgs,
                                                             const Track::TrackProperties &newArgs,
                                                             Track *track) {
-    auto a = new EditTrackPropertiesAction;
+    const auto a = new EditTrackPropertiesAction;
     a->m_oldArgs = oldArgs;
     a->m_newArgs = newArgs;
     a->m_track = track;

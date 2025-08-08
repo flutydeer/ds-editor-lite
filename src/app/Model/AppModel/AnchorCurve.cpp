@@ -8,7 +8,7 @@ int AnchorNode::pos() const {
     return m_pos;
 }
 
-void AnchorNode::setPos(int pos) {
+void AnchorNode::setPos(const int pos) {
     m_pos = pos;
 }
 
@@ -16,7 +16,7 @@ int AnchorNode::value() const {
     return m_value;
 }
 
-void AnchorNode::setValue(int value) {
+void AnchorNode::setValue(const int value) {
     m_value = value;
 }
 
@@ -24,12 +24,12 @@ AnchorNode::InterpMode AnchorNode::interpMode() const {
     return m_interpMode;
 }
 
-void AnchorNode::setInterpMode(InterpMode mode) {
+void AnchorNode::setInterpMode(const InterpMode mode) {
     m_interpMode = mode;
 }
 
 int AnchorNode::compareTo(const AnchorNode *obj) const {
-    auto otherPos = obj->pos();
+    const auto otherPos = obj->pos();
     if (pos() < otherPos)
         return -1;
     if (pos() > otherPos)

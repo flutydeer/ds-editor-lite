@@ -28,7 +28,7 @@ namespace talcs {
         return d->singingClipInferenceContext;
     }
 
-    void DspxInferencePieceContext::setPos(int tick) {
+    void DspxInferencePieceContext::setPos(const int tick) {
         Q_D(DspxInferencePieceContext);
         if (tick != d->posTick) {
             d->posTick = tick;
@@ -41,7 +41,7 @@ namespace talcs {
         return d->posTick;
     }
 
-    void DspxInferencePieceContext::setLength(int tick) {
+    void DspxInferencePieceContext::setLength(const int tick) {
         Q_D(DspxInferencePieceContext);
         if (tick != d->lengthTick) {
             d->lengthTick = tick;
@@ -56,13 +56,14 @@ namespace talcs {
 
     void DspxInferencePieceContext::updatePosition() {
         Q_D(DspxInferencePieceContext);
-        auto clipSeries = d->singingClipInferenceContext->d_func()->pieceClipSeries.get();
-        auto convertTime = AudioContext::instance()->timeConverter();
+        const auto clipSeries = d->singingClipInferenceContext->d_func()->pieceClipSeries.get();
+        const auto convertTime = AudioContext::instance()->timeConverter();
         clipSeries->setClipStartPos(d->clipView, 0);
-        auto clipPositionSample = convertTime(d->singingClipInferenceContext->start());
-        auto firstSample = convertTime(d->singingClipInferenceContext->start() + d->posTick) - clipPositionSample;
-        auto lastSample = convertTime(d->singingClipInferenceContext->start() + d->posTick + d->lengthTick) - clipPositionSample;
-        clipSeries->setClipRange(d->clipView, firstSample, qMax(qint64(1), lastSample - firstSample));
+        const auto clipPositionSample = convertTime(d->singingClipInferenceContext->start());
+        const auto firstSample =
+            convertTime(d->singingClipInferenceContext->start() + d->posTick) - clipPositionSample;
+        const auto lastSample = convertTime(d->singingClipInferenceContext->start() + d->posTick + d->lengthTick) - clipPositionSample;
+        clipSeries->setClipRange(d->clipView, firstSample, qMax(static_cast<qint64>(1), lastSample - firstSample));
     }
 
     bool DspxInferencePieceContext::determine(const QString &audioFilePath) {
@@ -84,7 +85,7 @@ namespace talcs {
         Q_D(DspxInferencePieceContext);
         QPromise<PositionableAudioSource *> promise;
         promise.start();
-        std::unique_ptr<FutureAudioSource> futureSource = std::make_unique<FutureAudioSource>(promise.future());
+        auto futureSource = std::make_unique<FutureAudioSource>(promise.future());
 
         d->singingClipInferenceContext->d_func()->pieceClipSeries->setClipContent(d->clipView, futureSource.get());
 

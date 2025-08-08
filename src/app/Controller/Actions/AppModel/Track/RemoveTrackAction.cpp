@@ -8,7 +8,7 @@
 #include "Model/AppModel/Track.h"
 
 RemoveTrackAction *RemoveTrackAction::build(Track *track, AppModel *model) {
-    auto a = new RemoveTrackAction;
+    const auto a = new RemoveTrackAction;
     a->m_track = track;
     a->m_model = model;
     a->m_originalTracks = model->tracks();

@@ -21,18 +21,18 @@ int Curve::globalStart() const {
         qFatal() << "SingingClip is null";
         return m_startTick;
     }
-    auto offset = m_clip->start();
+    const auto offset = m_clip->start();
     return m_startTick + offset;
 }
 
-void Curve::setGlobalStart(int start) {
+void Curve::setGlobalStart(const int start) {
     if (!m_clip) {
         qFatal() << "SingingClip is null";
         setLocalStart(start);
         return;
     }
-    auto offset = m_clip->start();
-    auto rStart = start - offset;
+    const auto offset = m_clip->start();
+    const auto rStart = start - offset;
     Q_ASSERT(rStart >= 0);
     setLocalStart(rStart);
 }
@@ -41,7 +41,7 @@ int Curve::localStart() const {
     return m_startTick;
 }
 
-void Curve::setLocalStart(int start) {
+void Curve::setLocalStart(const int start) {
     m_startTick = start;
 }
 
@@ -58,7 +58,7 @@ int Curve::compareTo(const Curve *obj) const {
         qWarning() << "SingingClip is not the same";
         return 0;
     }
-    int otherStart = obj->localStart();
+    const int otherStart = obj->localStart();
     if (localStart() < otherStart)
         return -1;
     if (localStart() > otherStart)
@@ -67,8 +67,8 @@ int Curve::compareTo(const Curve *obj) const {
 }
 
 bool Curve::isOverlappedWith(Curve *obj) const {
-    int otherStart = obj->localStart();
-    auto otherEnd = obj->localEndTick();
+    const int otherStart = obj->localStart();
+    const auto otherEnd = obj->localEndTick();
     if (otherEnd <= localStart() || localEndTick() <= otherStart)
         return false;
     return true;
@@ -78,7 +78,7 @@ std::tuple<qsizetype, qsizetype> Curve::interval() const {
     return std::make_tuple(localStart(), localEndTick());
 }
 
-ProbeLine::ProbeLine(int startTick, int endTick) : Curve(-1), m_endTick(endTick) {
+ProbeLine::ProbeLine(const int startTick, const int endTick) : Curve(-1), m_endTick(endTick) {
     Curve::setLocalStart(startTick);
 }
 

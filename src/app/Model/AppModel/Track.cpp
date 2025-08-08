@@ -17,7 +17,7 @@ Track::Track(const QString &name, const QList<Clip *> &clips) {
 
 Track::~Track() {
     qDebug() << "Track::~Track()";
-    for (auto clip : m_clips)
+    for (const auto clip : m_clips)
         delete clip;
 }
 
@@ -87,11 +87,11 @@ void Track::setDefaultG2pId(const QString &g2pId) {
     m_defaultG2pId = g2pId;
 }
 
-void Track::notifyClipChanged(ClipChangeType type, Clip *clip) {
+void Track::notifyClipChanged(const ClipChangeType type, Clip *clip) {
     emit clipChanged(type, clip);
 }
 
-Clip *Track::findClipById(int id) const {
+Clip *Track::findClipById(const int id) const {
     return MathUtils::findItemById<Clip *>(m_clips, id);
 }
 

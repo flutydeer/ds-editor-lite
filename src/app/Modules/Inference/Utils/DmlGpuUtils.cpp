@@ -1,21 +1,21 @@
 #ifdef _WIN32
 
-#include "DmlGpuUtils.h"
+#  include "DmlGpuUtils.h"
 
-#include <dxgi1_6.h>
-#include <wrl/client.h>
+#  include <dxgi1_6.h>
+#  include <wrl/client.h>
 
 using Microsoft::WRL::ComPtr;
 
 static ComPtr<IDXGIFactory6> g_dxgiFactory;
 
-enum VendorIdList: unsigned int {
+enum VendorIdList : unsigned int {
     VID_AMD = 0x1002,
     VID_NVIDIA = 0x10DE,
     VID_SAPPHIRE = 0x174B,
 };
 
-static GpuInfo createGpuInfoFromDesc(const DXGI_ADAPTER_DESC1 &desc, int index) {
+static GpuInfo createGpuInfoFromDesc(const DXGI_ADAPTER_DESC1 &desc, const int index) {
     GpuInfo info;
     info.index = index;
     info.description = QString::fromWCharArray(desc.Description);
@@ -34,7 +34,7 @@ static bool initDxgi() {
     return true;
 }
 
-GpuInfo DmlGpuUtils::getGpuByIndex(int adapterIndex) {
+GpuInfo DmlGpuUtils::getGpuByIndex(const int index) {
     // Create DXGI factory
     if (!initDxgi()) {
         return {};
@@ -42,7 +42,7 @@ GpuInfo DmlGpuUtils::getGpuByIndex(int adapterIndex) {
 
     // Enumerate adapters
     ComPtr<IDXGIAdapter1> adapter;
-    if (FAILED(g_dxgiFactory->EnumAdapters1(adapterIndex, &adapter))) {
+    if (FAILED(g_dxgiFactory->EnumAdapters1(index, &adapter))) {
         return {};
     }
     DXGI_ADAPTER_DESC1 desc;
@@ -50,7 +50,7 @@ GpuInfo DmlGpuUtils::getGpuByIndex(int adapterIndex) {
         return {};
     }
 
-    return createGpuInfoFromDesc(desc, adapterIndex);
+    return createGpuInfoFromDesc(desc, index);
 }
 
 QList<GpuInfo> DmlGpuUtils::getGpuList() {
@@ -80,13 +80,14 @@ QList<GpuInfo> DmlGpuUtils::getGpuList() {
     }
 
     // Sort gpuList by DedicatedVideoMemory in descending order
-    std::sort(gpuList.begin(), gpuList.end(),
-              [](const GpuInfo &a, const GpuInfo &b) { return a.memory > b.memory; });
+    std::ranges::sort(gpuList,
+                      [](const GpuInfo &a, const GpuInfo &b) { return a.memory > b.memory; });
     return gpuList;
-
 }
 
-GpuInfo DmlGpuUtils::getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsigned int pciVendorId, int indexHint) {
+GpuInfo DmlGpuUtils::getGpuByPciDeviceVendorId(const unsigned int pciDeviceId,
+                                               const unsigned int pciVendorId,
+                                               const int indexHint) {
     if (!initDxgi()) {
         return {};
     }
@@ -113,7 +114,7 @@ GpuInfo DmlGpuUtils::getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsigne
     return info;
 }
 
-GpuInfo DmlGpuUtils::getGpuByPciDeviceVendorIdString(const QString &idString, int indexHint) {
+GpuInfo DmlGpuUtils::getGpuByPciDeviceVendorIdString(const QString &idString, const int indexHint) {
     unsigned int pciDeviceId = 0;
     unsigned int pciVendorId = 0;
     if (!GpuInfo::parseIdString(idString, pciDeviceId, pciVendorId)) {
@@ -147,8 +148,8 @@ GpuInfo DmlGpuUtils::getRecommendedGpu() {
             continue;
         }
 
-        bool flag = desc.VendorId == VID_NVIDIA || desc.VendorId == VID_AMD
-                    || desc.VendorId == VID_SAPPHIRE;
+        bool flag = desc.VendorId == VID_NVIDIA || desc.VendorId == VID_AMD ||
+                    desc.VendorId == VID_SAPPHIRE;
         if (!flag) {
             QString name = QString::fromWCharArray(desc.Description);
             flag = name.compare("NVIDIA", Qt::CaseInsensitive) == 0;

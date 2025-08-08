@@ -10,7 +10,7 @@
 
 class EditTimeSignatureAction : public IAction {
 public:
-    static EditTimeSignatureAction *build(TimeSignature oldSig, TimeSignature newSig,
+    static EditTimeSignatureAction *build(const TimeSignature &oldSig, const TimeSignature &newSig,
                                           AppModel *model);
     void execute() override;
     void undo() override;

@@ -6,8 +6,8 @@
 
 #include "Model/AppModel/AppModel.h"
 
-InsertTrackAction *InsertTrackAction::build(Track *track, qsizetype index, AppModel *model) {
-    auto a = new InsertTrackAction;
+InsertTrackAction *InsertTrackAction::build(Track *track, const qsizetype index, AppModel *model) {
+    const auto a = new InsertTrackAction;
     a->m_track = track;
     a->m_index = index;
     a->m_model = model;

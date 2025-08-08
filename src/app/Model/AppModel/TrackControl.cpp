@@ -8,7 +8,7 @@ double TrackControl::gain() const {
     return m_gain;
 }
 
-void TrackControl::setGain(double gain) {
+void TrackControl::setGain(const double gain) {
     m_gain = gain;
 }
 
@@ -16,7 +16,7 @@ double TrackControl::pan() const {
     return m_pan;
 }
 
-void TrackControl::setPan(double pan) {
+void TrackControl::setPan(const double pan) {
     m_pan = pan;
 }
 
@@ -24,7 +24,7 @@ bool TrackControl::mute() const {
     return m_mute;
 }
 
-void TrackControl::setMute(bool mute) {
+void TrackControl::setMute(const bool mute) {
     m_mute = mute;
 }
 
@@ -32,7 +32,7 @@ bool TrackControl::solo() const {
     return m_solo;
 }
 
-void TrackControl::setSolo(bool solo) {
+void TrackControl::setSolo(const bool solo) {
     m_solo = solo;
 }
 

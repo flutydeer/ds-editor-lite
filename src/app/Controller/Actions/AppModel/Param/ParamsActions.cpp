@@ -6,7 +6,7 @@
 
 #include "ReplaceParamAction.h"
 
-void ParamsActions::replaceParam(ParamInfo::Name paramName, Param::Type paramType,
+void ParamsActions::replaceParam(const ParamInfo::Name paramName, Param::Type paramType,
                                  const QList<Curve *> &curves, SingingClip *clip) {
     addAction(new ReplaceParamAction(paramName, paramType, curves, clip));
 }

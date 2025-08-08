@@ -43,7 +43,7 @@ void ValidationController::onModelChanged() {
             // m_clips.append(clip);
             handleClipInserted(clip);
             if (clip->clipType() == Clip::Singing) {
-                auto singingClip = reinterpret_cast<SingingClip *>(clip);
+                const auto singingClip = reinterpret_cast<SingingClip *>(clip);
                 singingClip->defaultLanguage = track->defaultLanguage();
                 singingClip->defaultG2pId = track->defaultG2pId();
                 singingClip->configPath = appOptions->general()->defaultPackage;
@@ -59,7 +59,7 @@ void ValidationController::onTempoChanged(double tempo) {
     validate();
 }
 
-void ValidationController::onTrackChanged(AppModel::TrackChangeType type, qsizetype index,
+void ValidationController::onTrackChanged(const AppModel::TrackChangeType type, qsizetype index,
                                           Track *track) {
     // qDebug() << "ValidationController::onTrackChanged" << type;
     if (type == AppModel::Insert) {
@@ -74,7 +74,7 @@ void ValidationController::onTrackChanged(AppModel::TrackChangeType type, qsizet
     validate();
 }
 
-void ValidationController::onClipChanged(Track::ClipChangeType type, Clip *clip) {
+void ValidationController::onClipChanged(const Track::ClipChangeType type, Clip *clip) {
     // qDebug() << "ValidationController::onClipChanged" << type;
     if (type == Track::Inserted) {
         handleClipInserted(clip);
@@ -93,7 +93,7 @@ void ValidationController::onClipPropertyChanged(Clip *clip) {
     validate();
 }
 
-void ValidationController::onNoteChanged(SingingClip::NoteChangeType type,
+void ValidationController::onNoteChanged(const SingingClip::NoteChangeType type,
                                          const QList<Note *> &notes) {
     // qDebug() << "onNoteChanged";
     switch (type) {
@@ -112,7 +112,7 @@ void ValidationController::handleClipInserted(Clip *clip) {
     connect(clip, &Clip::propertyChanged, this, [clip, this] { onClipPropertyChanged(clip); });
 
     if (clip->clipType() == Clip::Singing) {
-        auto singingClip = reinterpret_cast<SingingClip *>(clip);
+        const auto singingClip = reinterpret_cast<SingingClip *>(clip);
         connect(singingClip, &SingingClip::noteChanged, this, &ValidationController::onNoteChanged);
     }
     validate();
@@ -129,7 +129,7 @@ void ValidationController::validate() {
 }
 
 bool ValidationController::validateProjectLength() {
-    auto length = appModel->tickToMs(appModel->projectLengthInTicks());
+    const auto length = appModel->tickToMs(appModel->projectLengthInTicks());
     if (length > 30 * 60 * 1000) { // > 30 min
         Toast::show("Project is too long");
         return false;
@@ -139,7 +139,7 @@ bool ValidationController::validateProjectLength() {
 
 bool ValidationController::validateTempo() {
     // 用于测试
-    auto tempo = appModel->tempo();
+    const auto tempo = appModel->tempo();
     if (tempo < 5) {
         Toast::show("Tempo is too slow");
         return false;
@@ -151,7 +151,7 @@ bool ValidationController::validateNoteOverlap() {
     for (const auto track : appModel->tracks()) {
         for (const auto clip : track->clips()) {
             if (clip->clipType() == Clip::Singing) {
-                auto singingClip = reinterpret_cast<SingingClip *>(clip);
+                const auto singingClip = reinterpret_cast<SingingClip *>(clip);
                 if (singingClip->notes().hasOverlappedItem()) {
                     Toast::show("Note overlapped");
                     return false;

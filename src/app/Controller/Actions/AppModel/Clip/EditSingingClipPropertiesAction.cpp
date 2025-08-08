@@ -11,7 +11,7 @@ EditSingingClipPropertiesAction *
     EditSingingClipPropertiesAction::build(const Clip::ClipCommonProperties &oldArgs,
                                            const Clip::ClipCommonProperties &newArgs,
                                            SingingClip *clip, Track *track) {
-    auto a = new EditSingingClipPropertiesAction;
+    const auto a = new EditSingingClipPropertiesAction;
     a->m_oldArgs = oldArgs;
     a->m_newArgs = newArgs;
     a->m_clip = clip;

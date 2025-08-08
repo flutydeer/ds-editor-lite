@@ -38,9 +38,11 @@ AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
     Q_D(AppController);
     AppControllerPrivate::initializeModules();
 
-    auto task = new LaunchLanguageEngineTask;
+    const auto task = new LaunchLanguageEngineTask;
     connect(task, &LaunchLanguageEngineTask::finished, this,
-            [=] { d->onRunLanguageEngineTaskFinished(task); });
+            [=] {
+                d->onRunLanguageEngineTaskFinished(task);
+            });
     taskManager->addAndStartTask(task);
     appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
 }
@@ -102,23 +104,23 @@ void AppController::exportMidiFile(const QString &filePath) {
 //     d->m_lastProjectFolder = QFileInfo(filePath).dir().path();
 // }
 
-void AppController::onSetTempo(double tempo) {
-    auto model = appModel;
-    auto oldTempo = model->tempo();
-    auto newTempo = tempo > 0 ? tempo : model->tempo();
-    auto actions = new TempoActions;
+void AppController::onSetTempo(const double tempo) {
+    const auto model = appModel;
+    const auto oldTempo = model->tempo();
+    const auto newTempo = tempo > 0 ? tempo : model->tempo();
+    const auto actions = new TempoActions;
     actions->editTempo(oldTempo, newTempo, model);
     actions->execute();
     historyManager->record(actions);
 }
 
-void AppController::onSetTimeSignature(int numerator, int denominator) {
+void AppController::onSetTimeSignature(const int numerator, const int denominator) {
     Q_D(AppController);
-    auto model = appModel;
-    auto oldSig = model->timeSignature();
-    auto newSig = TimeSignature(numerator, denominator);
-    auto actions = new TimeSignatureActions;
-    if (d->isPowerOf2(denominator)) {
+    const auto model = appModel;
+    const auto oldSig = model->timeSignature();
+    const auto newSig = TimeSignature(numerator, denominator);
+    const auto actions = new TimeSignatureActions;
+    if (AppControllerPrivate::isPowerOf2(denominator)) {
         actions->editTimeSignature(oldSig, newSig, model);
     } else {
         actions->editTimeSignature(oldSig, oldSig, model);
@@ -127,18 +129,18 @@ void AppController::onSetTimeSignature(int numerator, int denominator) {
     historyManager->record(actions);
 }
 
-void AppController::onSetQuantize(int quantize) {
+void AppController::onSetQuantize(const int quantize) {
     appStatus->quantize = quantize;
 }
 
 void AppController::editMasterControl(const TrackControl &control) {
-    auto actions = new MasterControlActions;
+    const auto actions = new MasterControlActions;
     actions->editMasterControl(control, appModel);
     actions->execute();
     historyManager->record(actions);
 }
 
-void AppController::setActivePanel(AppGlobal::PanelType panelType) {
+void AppController::setActivePanel(const AppGlobal::PanelType panelType) {
     Q_D(AppController);
     for (const auto panel : d->m_panels)
         panel->setPanelActive(panel->panelType() == panelType);
@@ -146,7 +148,8 @@ void AppController::setActivePanel(AppGlobal::PanelType panelType) {
     emit activePanelChanged(panelType);
 }
 
-void AppController::onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
+void AppController::onUndoRedoChanged(const bool canUndo, const QString &undoActionName,
+                                      const bool canRedo,
                                       const QString &redoActionName) {
     Q_D(AppController);
     Q_UNUSED(canUndo);
@@ -199,7 +202,8 @@ void AppController::registerPanel(IPanel *panel) {
     d->m_panels.append(panel);
 }
 
-void AppController::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) {
+void AppController::setTrackAndClipPanelCollapsed(const bool trackCollapsed,
+                                                  const bool clipCollapsed) {
     Q_D(AppController);
     d->m_mainWindow->setTrackAndClipPanelCollapsed(trackCollapsed, clipCollapsed);
 }
@@ -218,13 +222,15 @@ void AppControllerPrivate::initializeModules() {
             &AudioDecodingController::onTrackChanged);
 }
 
-bool AppControllerPrivate::isPowerOf2(int num) {
-    return num > 0 && ((num & (num - 1)) == 0);
+bool AppControllerPrivate::isPowerOf2(const int num) {
+    return num > 0 && (num & num - 1) == 0;
 }
 
 void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
     taskManager->removeTask(task);
-    auto status = task->success ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
+    const auto status = task->success
+                            ? AppStatus::ModuleStatus::Ready
+                            : AppStatus::ModuleStatus::Error;
     appStatus->languageModuleStatus = status;
     delete task;
 }
@@ -232,8 +238,9 @@ void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineT
 void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
     Q_Q(AppController);
     m_projectPath = path;
-    q->setProjectName(m_projectPath.isEmpty() ? tr("New Project")
-                                              : QFileInfo(m_projectPath).fileName());
+    q->setProjectName(m_projectPath.isEmpty()
+                          ? tr("New Project")
+                          : QFileInfo(m_projectPath).fileName());
 }
 
 bool AppControllerPrivate::openDspxFile(const QString &path, QString &errorMessage) {

@@ -8,15 +8,16 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 
-InferPhoneme::InferPhoneme(QString token, const QString &languageDictId, bool is_onset, double start)
+InferPhoneme::InferPhoneme(QString token, const QString &languageDictId, const bool is_onset,
+                           const double start)
     : token(std::move(token)), languageDictId(languageDictId), is_onset(is_onset), start(start) {
 }
 
 QJsonObject InferPhoneme::serialize() const {
     return QJsonObject{
-        {"token",    token   },
+        {"token",    token         },
         {"language", languageDictId},
-        {"start",    start   }
+        {"start",    start         }
     };
 }
 
@@ -27,7 +28,8 @@ bool InferPhoneme::deserialize(const QJsonObject &obj) {
     return true;
 }
 
-InferNote::InferNote(int key, int cents, double duration, bool is_rest, QString glide)
+InferNote::InferNote(const int key, const int cents, const double duration, const bool is_rest,
+                     QString glide)
     : key(key), cents(cents), duration(duration), is_rest(is_rest), glide(std::move(glide)) {
 }
 
@@ -135,9 +137,9 @@ bool GenericInferModel::deserialize(const QJsonObject &obj) {
     return true;
 }
 
-QString GenericInferModel::serializeToJson(bool useMetaData) const {
+QString GenericInferModel::serializeToJson(const bool useMetaData) const {
     QJsonObject object = serialize();
-    if (useMetaData){
+    if (useMetaData) {
         object["configPath"] = configPath;
         object["speaker"] = speaker;
     }

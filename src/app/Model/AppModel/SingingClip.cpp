@@ -51,15 +51,15 @@ void SingingClip::removeNote(Note *note) {
     note->setClip(nullptr);
 }
 
-Note *SingingClip::findNoteById(int id) const {
+Note *SingingClip::findNoteById(const int id) const {
     return MathUtils::findItemById<Note *>(m_notes, id);
 }
 
-void SingingClip::notifyNoteChanged(NoteChangeType type, const QList<Note *> &notes) {
+void SingingClip::notifyNoteChanged(const NoteChangeType type, const QList<Note *> &notes) {
     emit noteChanged(type, notes);
 }
 
-void SingingClip::notifyParamChanged(ParamInfo::Name name, Param::Type type) {
+void SingingClip::notifyParamChanged(const ParamInfo::Name name, const Param::Type type) {
     emit paramChanged(name, type);
 }
 
@@ -73,7 +73,7 @@ void SingingClip::reSegment() {
     for (const auto &segment : newSegments) {
         bool exists = false;
         for (int i = 0; i < m_pieces.count(); i++) {
-            auto piece = m_pieces[i];
+            const auto piece = m_pieces[i];
             // 忽略脏的分段
             if (!piece->dirty && piece->notes == segment) {
                 exists = true;
@@ -83,7 +83,7 @@ void SingingClip::reSegment() {
             }
         }
         if (!exists) {
-            auto newPiece = new InferPiece(this);
+            const auto newPiece = new InferPiece(this);
             newPiece->configPath = configPath;
             newPiece->notes = segment;
             newPieces.append(newPiece);
@@ -98,7 +98,7 @@ void SingingClip::reSegment() {
         delete piece;
 }
 
-void SingingClip::updateOriginalParam(ParamInfo::Name name) {
+void SingingClip::updateOriginalParam(const ParamInfo::Name name) {
     // 重新获取所有分段的所有相应自动参数，更新剪辑上的自动参数信息
     QList<Curve *> curves;
     for (const auto &piece : m_pieces) {
@@ -106,12 +106,12 @@ void SingingClip::updateOriginalParam(ParamInfo::Name name) {
         if (const auto curve = piece->getOriginalCurve(name); !curve->isEmpty())
             curves.append(new DrawCurve(*curve)); // 复制分段上的参数
     }
-    auto param = params.getParamByName(name);
+    const auto param = params.getParamByName(name);
     param->setCurves(Param::Original, curves, this);
     notifyParamChanged(name, Param::Original);
 }
 
-InferPiece *SingingClip::findPieceById(int id) const {
+InferPiece *SingingClip::findPieceById(const int id) const {
     return MathUtils::findItemById<InferPiece *>(m_pieces, id);
 }
 
@@ -119,7 +119,7 @@ PieceList SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
     QSet<InferPiece *> result;
     for (const auto &note : notes) {
         for (const auto &piece : m_pieces) {
-            if (std::find(piece->notes.begin(), piece->notes.end(), note) != piece->notes.end()) {
+            if (std::ranges::find(piece->notes, note) != piece->notes.end()) {
                 result.insert(piece);
                 break;
             }

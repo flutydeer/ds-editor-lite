@@ -20,7 +20,7 @@ Param::~Param() {
     dispose(m_unknown);
 }
 
-const QList<Curve *> &Param::curves(Type type) const {
+const QList<Curve *> &Param::curves(const Type type) const {
     switch (type) {
         case Original:
             return m_original;
@@ -34,7 +34,7 @@ const QList<Curve *> &Param::curves(Type type) const {
     }
 }
 
-void Param::setCurves(Type type, const QList<Curve *> &curves, SingingClip *clip) {
+void Param::setCurves(const Type type, const QList<Curve *> &curves, SingingClip *clip) {
     for (const auto &curve : curves)
         curve->setClip(clip);
     switch (type) {
@@ -56,7 +56,7 @@ ParamInfo::ParamInfo(SingingClip *clip) {
     m_clip = clip;
 }
 
-Param *ParamInfo::getParamByName(Name name) {
+Param *ParamInfo::getParamByName(const Name name) {
     switch (name) {
         case Pitch:
             return &pitch;
@@ -85,7 +85,7 @@ Param *ParamInfo::getParamByName(Name name) {
     return nullptr;
 }
 
-bool ParamInfo::hasOriginalParam(Name name) {
+bool ParamInfo::hasOriginalParam(const Name name) {
     switch (name) {
         case ParamInfo::Pitch:
         case ParamInfo::Breathiness:
