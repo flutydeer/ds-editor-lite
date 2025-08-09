@@ -343,8 +343,6 @@ bool InferEngine::runLoadConfig(const QString &path) {
 
     const auto packagePath = StringUtils::qstr_to_path(path);
 
-    m_su.addPackagePath(packagePath.parent_path());
-
     std::string inputSinger = appOptions->general()->defaultSingerId.toStdString();
 
     // Load package
@@ -711,7 +709,7 @@ bool InferEngine::inferAcoustic(const GenericInferModel &model, const QString &o
         }
         const auto &audioRawData = result->audioData;
 
-        const auto outputPathStr = StringUtils::qstr_to_std(outputPath);
+        const auto outputPathStr = StringUtils::qstr_to_native(outputPath);
 
         SndfileHandle audioFile(outputPathStr.c_str(), SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_FLOAT,
                                 1, 44100);

@@ -16,6 +16,7 @@
 #include "Utils/StringUtils.h"
 
 #include <synthrt/Core/SynthUnit.h>
+#include <synthrt/SVS/SingerContrib.h>
 
 #include <QDir>
 #include <QStandardItemModel>
@@ -177,6 +178,9 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
         const auto &su = inferEngine->constSynthUnit();
         const auto packagePaths = su.packagePaths();
         const auto packages = su.packages();
+        const auto &singerCategory = *su.category("singer")->as<srt::SingerCategory>();
+        const auto &singers = singerCategory.singers();
+
         const auto locale = QLocale::system();
         const auto localeName = locale.name().toStdString();
 
@@ -191,40 +195,44 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
         const QString kStringNo = tr("No");
 
         // Engine root node
-        auto engineRoot = new QStandardItem(tr("Engine"));
+        auto engineRoot = new QStandardItem(tr("engine"));
         rootItem->appendRow(engineRoot);
 
         // Engine initialized
-        auto engineItem = new QStandardItem(tr("Engine initialized"));
+        auto engineItem = new QStandardItem(tr("initialized"));
         auto engineValue = new QStandardItem(engineInitialized ? kStringYes : kStringNo);
         engineRoot->appendRow({engineItem, engineValue});
 
+        auto enginePathRoot = new QStandardItem(tr("plugins"));
+
         // Inference driver path
-        auto driverItem = new QStandardItem("Inference driver path");
+        auto driverItem = new QStandardItem("inference driver");
         auto driverValue = new QStandardItem(driverPath);
-        engineRoot->appendRow({driverItem, driverValue});
+        enginePathRoot->appendRow({driverItem, driverValue});
 
         // Inference interpreter path
-        auto interpreterItem = new QStandardItem("Inference interpreter path");
+        auto interpreterItem = new QStandardItem("inference interpreter");
         auto interpreterValue = new QStandardItem(interpreterPath);
-        engineRoot->appendRow({interpreterItem, interpreterValue});
+        enginePathRoot->appendRow({interpreterItem, interpreterValue});
 
         // Inference runtime path
-        auto runtimeItem = new QStandardItem("Inference runtime path");
+        auto runtimeItem = new QStandardItem("inference runtime");
         auto runtimeValue = new QStandardItem(runtimePath);
-        engineRoot->appendRow({runtimeItem, runtimeValue});
+        enginePathRoot->appendRow({runtimeItem, runtimeValue});
 
         // Singer provider path
-        auto singerItem = new QStandardItem("Singer provider path");
+        auto singerItem = new QStandardItem("singer provider");
         auto singerValue = new QStandardItem(singerProviderPath);
-        engineRoot->appendRow({singerItem, singerValue});
+        enginePathRoot->appendRow({singerItem, singerValue});
+
+        engineRoot->appendRow(enginePathRoot);
 
         // Package root node
-        auto packageRoot = new QStandardItem(tr("Package"));
+        auto packageRoot = new QStandardItem(tr("package"));
         rootItem->appendRow(packageRoot);
 
         // Package path
-        auto packagePathRoot = new QStandardItem(tr("Package search path"));
+        auto packagePathRoot = new QStandardItem(tr("search paths"));
         int packagePathIndex = 0;
         for (const auto &path : std::as_const(packagePaths)) {
             auto itemKey = new QStandardItem('[' + QString::number(packagePathIndex) + ']');
@@ -235,8 +243,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
         packageRoot->appendRow(packagePathRoot);
 
         // Loaded packages
-        auto packageLoadedRoot = new QStandardItem(tr("Loaded packages"));
-        int packageLoadedIndex = 0;
+        auto packageLoadedRoot = new QStandardItem(tr("loaded packages"));
         for (const auto &pkg : std::as_const(packages)) {
             const auto pkgId = QString::fromUtf8(pkg.id());
             const auto pkgVersion = QString::fromUtf8(pkg.version().toString());
@@ -260,15 +267,88 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
                 new QStandardItem(pkgPath)
             });
             packageLoadedRoot->appendRow(currentPackageRoot);
-            ++packageLoadedIndex;
         }
         packageRoot->appendRow(packageLoadedRoot);
+
+        // Loaded singers
+        auto singerLoadedRoot = new QStandardItem(tr("loaded singers"));
+        for (const auto singer : std::as_const(singers)) {
+            if (!singer) {
+                continue;
+            }
+            const auto singerId = QString::fromUtf8(singer->id());
+            const auto singerLevel = QString::number(singer->apiLevel());
+            const auto singerName = QString::fromUtf8(singer->name().text(localeName));
+            const auto singerArch = QString::fromUtf8(singer->arch());
+            const auto singerPath = StringUtils::path_to_qstr(singer->path());
+            const auto singerImports = singer->imports();
+
+            auto currentSingerRoot = new QStandardItem(singerName + " (" + singerId + ')');
+            currentSingerRoot->appendRow({
+                new QStandardItem(tr("id")),
+                new QStandardItem(singerId),
+            });
+            currentSingerRoot->appendRow({
+                new QStandardItem(tr("name")),
+                new QStandardItem(singerName),
+            });
+            currentSingerRoot->appendRow({
+                new QStandardItem(tr("api level")),
+                new QStandardItem(singerLevel),
+            });
+            currentSingerRoot->appendRow({
+                new QStandardItem(tr("architecture")),
+                new QStandardItem(singerArch),
+            });
+            currentSingerRoot->appendRow({
+                new QStandardItem(tr("path")),
+                new QStandardItem(singerPath),
+            });
+            auto inferenceRoot = new QStandardItem(tr("inferences"));
+            for (const auto &singerImport : std::as_const(singerImports)) {
+                const auto inference = singerImport.inference();
+                if (!inference) {
+                    continue;
+                }
+                const auto inferenceName = QString::fromUtf8(inference->name().text(localeName));
+                const auto inferenceClassName = QString::fromUtf8(inference->className());
+                const auto inferenceLevel = QString::number(inference->apiLevel());
+                const auto inferencePath = StringUtils::path_to_qstr(inference->path());
+                const auto inferenceLocator = singerImport.inferenceLocator();
+                const auto inferenceLocatorStr = QString::fromUtf8(inferenceLocator.toString());
+                auto currentInferenceRoot = new QStandardItem(inferenceName);
+                currentInferenceRoot->appendRow({
+                    new QStandardItem(tr("name")),
+                    new QStandardItem(inferenceName),
+                });
+                currentInferenceRoot->appendRow({
+                    new QStandardItem(tr("class name")),
+                    new QStandardItem(inferenceClassName),
+                });
+                currentInferenceRoot->appendRow({
+                    new QStandardItem(tr("api level")),
+                    new QStandardItem(inferenceLevel),
+                });
+                currentInferenceRoot->appendRow({
+                    new QStandardItem(tr("path")),
+                    new QStandardItem(inferencePath),
+                });
+                currentInferenceRoot->appendRow({
+                    new QStandardItem(tr("locator")),
+                    new QStandardItem(inferenceLocatorStr),
+                });
+                inferenceRoot->appendRow(currentInferenceRoot);
+            }
+            currentSingerRoot->appendRow(inferenceRoot);
+            singerLoadedRoot->appendRow(currentSingerRoot);
+        }
+        packageRoot->appendRow(singerLoadedRoot);
     } else {
         // Engine root node
-        auto engineRoot = new QStandardItem(tr("Engine"));
+        auto engineRoot = new QStandardItem(tr("engine"));
         rootItem->appendRow(engineRoot);
         // Engine initialized
-        auto engineItem = new QStandardItem(tr("Engine initialized"));
+        auto engineItem = new QStandardItem(tr("initialized"));
         auto engineValue = new QStandardItem(tr("InferEngine is not created (null pointer)"));
         engineRoot->appendRow({engineItem, engineValue});
     }
@@ -284,7 +364,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     debugCard->card()->setLayout(debugLayout);
     debugCard->setTitle(tr("Debug"));
     debugCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    debugCard->setMinimumHeight(300);
+    debugCard->setMinimumHeight(500);
 
     // Main Layout
     const auto mainLayout = new QVBoxLayout();
