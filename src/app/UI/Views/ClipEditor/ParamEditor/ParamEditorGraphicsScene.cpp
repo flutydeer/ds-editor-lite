@@ -10,14 +10,14 @@ ParamEditorGraphicsScene::ParamEditorGraphicsScene(QObject *parent) : TimeGraphi
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
 }
 
-void ParamEditorGraphicsScene::onViewResized(QSize size) {
+void ParamEditorGraphicsScene::onViewResized(const QSize size) {
     m_viewSize = size;
     updateSceneRect();
 }
 
 void ParamEditorGraphicsScene::updateSceneRect() {
     // 参数编辑器场景填充整个视图
-    auto targetSceneWidth = sceneBaseSize().width() * scaleX();
-    auto targetRect = QRectF(0, 0, targetSceneWidth, m_viewSize.height());
+    const auto targetSceneWidth = sceneBaseSize().width() * scaleX();
+    const auto targetRect = QRectF(0, 0, targetSceneWidth, m_viewSize.height());
     setSceneRect(targetRect);
 }

@@ -76,7 +76,7 @@ public:
     void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);
 
-    void prepareForEditingNotes(QMouseEvent *event, QPointF scenePos, int keyIndex,
+    void prepareForEditingNotes(const QMouseEvent *event, QPointF scenePos, int keyIndex,
                                 NoteView *noteItem);
     void PrepareForDrawingNote(int tick, int keyIndex);
 
@@ -90,8 +90,8 @@ public:
 
     void updateSceneSelectionState();
     void updateOverlappedState();
-    void updateNoteTimeAndKey(Note *note) const;
-    void updateNoteWord(Note *note) const;
+    void updateNoteTimeAndKey(const Note *note) const;
+    void updateNoteWord(const Note *note) const;
     void moveSelectedNotes(int startOffset, int keyOffset) const;
     void resetSelectedNotesOffset() const;
     void updateMoveDeltaKeyRange();
@@ -115,9 +115,9 @@ public:
     void addNoteViewToScene(NoteView *view);
     void removeNoteViewFromScene(NoteView *view);
 
-    void onHoverEnter(QHoverEvent *event);
-    void onHoverLeave(QHoverEvent *event);
-    void onHoverMove(QHoverEvent *event);
+    static void onHoverEnter(QHoverEvent *event);
+    static void onHoverLeave(QHoverEvent *event);
+    void onHoverMove(const QHoverEvent *event);
 
 public slots:
     void onClipPropertyChanged();

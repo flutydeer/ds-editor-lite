@@ -48,7 +48,7 @@ void ParamEditorGraphicsView::setDataContext(SingingClip *clip) {
     clip == nullptr ? moveToNullClipState() : moveToSingingClipState(clip);
 }
 
-void ParamEditorGraphicsView::setForeground(ParamInfo::Name name,
+void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
                                             const ParamProperties &properties) {
     m_foregroundParam = name;
     m_foreground->setParamProperties(properties);
@@ -56,7 +56,7 @@ void ParamEditorGraphicsView::setForeground(ParamInfo::Name name,
     updateForeground(Param::Edited, *m_clip->params.getParamByName(m_foregroundParam));
 }
 
-void ParamEditorGraphicsView::setBackground(ParamInfo::Name name,
+void ParamEditorGraphicsView::setBackground(const ParamInfo::Name name,
                                             const ParamProperties &properties) {
     m_backgroundParam = name;
     m_background->setParamProperties(properties);
@@ -64,7 +64,7 @@ void ParamEditorGraphicsView::setBackground(ParamInfo::Name name,
     updateBackground(Param::Edited, *m_clip->params.getParamByName(m_backgroundParam));
 }
 
-void ParamEditorGraphicsView::updateForeground(Param::Type type, const Param &param) const {
+void ParamEditorGraphicsView::updateForeground(const Param::Type type, const Param &param) const {
     if (type == Param::Original) {
         m_foreground->loadOriginal(
             getDrawCurves(param.curves(m_debugMode ? Param::Edited : Param::Original)));
@@ -75,7 +75,7 @@ void ParamEditorGraphicsView::updateForeground(Param::Type type, const Param &pa
     }
 }
 
-void ParamEditorGraphicsView::updateBackground(Param::Type type, const Param &param) const {
+void ParamEditorGraphicsView::updateBackground(const Param::Type type, const Param &param) const {
     if (type == Param::Original) {
         m_background->loadOriginal(getDrawCurves(param.curves(Param::Original)));
     } else if (type == Param::Edited) {
@@ -90,8 +90,9 @@ void ParamEditorGraphicsView::onClipPropertyChanged() {
     setOffset(m_clip->start());
 }
 
-void ParamEditorGraphicsView::onParamChanged(ParamInfo::Name name, Param::Type type) const {
-    auto param = m_clip->params.getParamByName(name);
+void ParamEditorGraphicsView::onParamChanged(const ParamInfo::Name name,
+                                             const Param::Type type) const {
+    const auto param = m_clip->params.getParamByName(name);
     if (m_foregroundParam == name)
         updateForeground(type, *param);
     if (m_backgroundParam == name)

@@ -29,13 +29,13 @@ class PianoRollGraphicsView final : public TimeGraphicsView, public IAtomicActio
     Q_PROPERTY(QColor octaveDividerColor READ octaveDividerColor WRITE setOctaveDividerColor)
 
 public:
-    explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent = nullptr);
+    explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene, const QWidget *parent = nullptr);
     ~PianoRollGraphicsView() override;
     void setDataContext(SingingClip *clip);
     void setEditMode(PianoRollEditMode mode);
     void reset();
     [[nodiscard]] QList<int> selectedNotesId() const;
-    void clearNoteSelections(NoteView *except = nullptr);
+    void clearNoteSelections(const NoteView *except = nullptr);
 
     void discardAction() override;
     void commitAction() override;

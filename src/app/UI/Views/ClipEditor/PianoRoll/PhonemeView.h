@@ -49,7 +49,7 @@ public slots:
     void setPosition(double tick);
 
 private slots:
-    void onTempoChanged(double tempo);
+    void onTempoChanged();
     void onClipPropertyChanged();
     void onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     // void onNoteSelectionChanged();
@@ -69,8 +69,8 @@ private:
     void updateHoverEffects();
     void updateNoteTime(Note *note);
     void reset();
-    double tickToX(double tick);
-    double xToTick(double x);
+    double tickToX(double tick) const;
+    double xToTick(double x) const;
     [[nodiscard]] double ticksPerPixel() const;
     [[nodiscard]] bool canEdit() const;
     double m_startTick = 0;
@@ -96,8 +96,8 @@ private:
     QList<PhonemeViewModel *> findPhonemesByNoteId(int noteId);
     void buildPhonemeList();
     void resetPhonemeList();
-    void clearHoverEffects(PhonemeViewModel *except = nullptr);
-    void handleAdjustCompleted(PhonemeViewModel *phVm);
+    void clearHoverEffects(const PhonemeViewModel *except = nullptr);
+    void handleAdjustCompleted(const PhonemeViewModel *phVm);
 
     void cacheText(const QString &text, bool edited, const QPainter &painter);
 };

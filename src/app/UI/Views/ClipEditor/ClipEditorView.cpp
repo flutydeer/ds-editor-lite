@@ -48,7 +48,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
 
     m_pianoRollEditorView = new PianoRollEditorView;
 
-    auto mainLayout = new QVBoxLayout;
+    const auto mainLayout = new QVBoxLayout;
     // mainLayout->addWidget(m_toolbarView);
     mainLayout->addWidget(m_pianoRollEditorView);
     mainLayout->setSpacing(0);
@@ -60,30 +60,29 @@ ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
     installEventFilter(this);
 
     connect(m_toolbarView, &ClipEditorToolBarView::editModeChanged,
-            m_pianoRollEditorView->pianoRollView(),
-            &PianoRollView::onEditModeChanged);
+            m_pianoRollEditorView->pianoRollView(), &PianoRollView::onEditModeChanged);
 
     connect(appModel, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &ClipEditorView::onActiveClipChanged);
 }
 
-void ClipEditorView::centerAt(double tick, double keyIndex) {
+void ClipEditorView::centerAt(const double tick, const double keyIndex) {
     m_pianoRollEditorView->pianoRollView()->graphicsView()->setViewportCenterAt(tick, keyIndex);
 }
 
-void ClipEditorView::centerAt(double startTick, double length, double keyIndex) {
-    auto centerTick = startTick + length / 2;
-    m_pianoRollEditorView->pianoRollView()->graphicsView()->setViewportCenterAt(
-        centerTick, keyIndex);
+void ClipEditorView::centerAt(const double startTick, const double length, const double keyIndex) {
+    const auto centerTick = startTick + length / 2;
+    m_pianoRollEditorView->pianoRollView()->graphicsView()->setViewportCenterAt(centerTick,
+                                                                                keyIndex);
 }
 
-void ClipEditorView::onModelChanged() {
+void ClipEditorView::onModelChanged() const {
     m_toolbarView->setDataContext(nullptr);
     reset();
 }
 
-void ClipEditorView::onActiveClipChanged(int clipId) const {
-    auto clip = appModel->findClipById(clipId);
+void ClipEditorView::onActiveClipChanged(const int clipId) const {
+    const auto clip = appModel->findClipById(clipId);
     m_toolbarView->setDataContext(clip);
     clipController->setClip(clip);
 
@@ -108,7 +107,7 @@ void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
     m_pianoRollEditorView->pianoRollView()->onEditModeChanged(m_toolbarView->editMode());
 }
 
-void ClipEditorView::moveToAudioClipState(AudioClip *clip) const {
+void ClipEditorView::moveToAudioClipState(const AudioClip *clip) const {
     Q_UNUSED(clip);
     m_toolbarView->setVisible(true);
     m_pianoRollEditorView->setVisible(false);

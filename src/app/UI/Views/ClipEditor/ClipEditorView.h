@@ -36,13 +36,13 @@ public:
     void centerAt(double startTick, double length, double keyIndex) override;
 
 public slots:
-    void onModelChanged();
+    void onModelChanged() const;
     void onActiveClipChanged(int clipId) const;
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
     void moveToSingingClipState(SingingClip *clip) const;
-    void moveToAudioClipState(AudioClip *clip) const;
+    void moveToAudioClipState(const AudioClip *clip) const;
     void moveToNullClipState() const;
 
     ClipEditorToolBarView *m_toolbarView;

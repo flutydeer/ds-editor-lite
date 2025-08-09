@@ -27,22 +27,24 @@ PianoRollEditorView::PianoRollEditorView(QWidget *parent) : QSplitter(Qt::Vertic
     setStretchFactor(0, 100);
     setStretchFactor(1, 1);
 
-    auto pianoGraphicsView = m_pianoRollView->graphicsView();
-    auto paramGraphicsView = m_paramEditorView->graphicsView();
-    connect(playbackController, &PlaybackController::positionChanged, this, [=](double tick) {
+    const auto pianoGraphicsView = m_pianoRollView->graphicsView();
+    const auto paramGraphicsView = m_paramEditorView->graphicsView();
+    connect(playbackController, &PlaybackController::positionChanged, this, [=](const double tick) {
         pianoGraphicsView->setPlaybackPosition(tick);
         paramGraphicsView->setPlaybackPosition(tick);
     });
-    connect(playbackController, &PlaybackController::lastPositionChanged, this, [=](double tick) {
-        pianoGraphicsView->setLastPlaybackPosition(tick);
-        paramGraphicsView->setLastPlaybackPosition(tick);
-    });
-    connect(pianoGraphicsView, &TimeGraphicsView::scaleChanged, [=](double sx, double sy) {
+    connect(playbackController, &PlaybackController::lastPositionChanged, this,
+            [=](const double tick) {
+                pianoGraphicsView->setLastPlaybackPosition(tick);
+                paramGraphicsView->setLastPlaybackPosition(tick);
+            });
+    connect(pianoGraphicsView, &TimeGraphicsView::scaleChanged, [=](const double sx) {
         paramGraphicsView->setScaleX(sx);
         paramGraphicsView->setHorizontalBarValue(pianoGraphicsView->horizontalBarValue());
     });
-    connect(pianoGraphicsView->horizontalScrollBar(), &QScrollBar::valueChanged, this,
-            [=] { paramGraphicsView->setHorizontalBarValue(pianoGraphicsView->horizontalBarValue()); });
+    connect(pianoGraphicsView->horizontalScrollBar(), &QScrollBar::valueChanged, this, [=] {
+        paramGraphicsView->setHorizontalBarValue(pianoGraphicsView->horizontalBarValue());
+    });
     connect(paramGraphicsView, &ParamEditorGraphicsView::wheelHorScale, pianoGraphicsView,
             &TimeGraphicsView::onWheelHorScale);
     connect(paramGraphicsView, &ParamEditorGraphicsView::wheelHorScroll, pianoGraphicsView,

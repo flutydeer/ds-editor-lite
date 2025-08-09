@@ -7,7 +7,6 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ComboBox.h"
-#include "UI/Controls/DividerLine.h"
 #include "Utils/ParamUtils.h"
 
 #include <QHBoxLayout>
@@ -22,14 +21,14 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     cbForegroundParam->addItems(paramUtils->names());
     cbForegroundParam->removeItem(0); // Remove pitch
 
-    auto btnSwap = new Button(tr("Swap"));
+    const auto btnSwap = new Button(tr("Swap"));
 
     lbBackgroundParam = new QLabel(tr("Background:"));
     cbBackgroundParam = new ComboBox(true);
     cbBackgroundParam->addItems(paramUtils->names());
     cbBackgroundParam->removeItem(0); // Remove pitch
 
-    auto layout = new QHBoxLayout();
+    const auto layout = new QHBoxLayout();
     layout->addWidget(lbForegroundParam);
     layout->addWidget(cbForegroundParam);
     layout->addWidget(btnSwap);
@@ -57,16 +56,16 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     cbBackgroundParam->setCurrentIndex(appOptions->general()->defaultBackgroundParam - 1);
 }
 
-void ParamEditorToolBarView::onForegroundSelectionChanged(int index) {
+void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {
     emit foregroundChanged(static_cast<ParamInfo::Name>(index + 1));
 }
 
-void ParamEditorToolBarView::onBackgroundSelectionChanged(int index) {
+void ParamEditorToolBarView::onBackgroundSelectionChanged(const int index) {
     emit backgroundChanged(static_cast<ParamInfo::Name>(index + 1));
 }
 
 void ParamEditorToolBarView::onSwap() const {
-    int temp = cbForegroundParam->currentIndex();
+    const int temp = cbForegroundParam->currentIndex();
     cbForegroundParam->setCurrentIndex(cbBackgroundParam->currentIndex());
     cbBackgroundParam->setCurrentIndex(temp);
 }

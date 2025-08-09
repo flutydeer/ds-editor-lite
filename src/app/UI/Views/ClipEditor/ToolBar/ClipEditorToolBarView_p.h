@@ -61,7 +61,7 @@ public:
     LanguageComboBox *m_cbClipLanguage = nullptr;
 
 public slots:
-    void onPianoRollToolButtonToggled(QAbstractButton *button, bool checked);
+    void onPianoRollToolButtonToggled(const QAbstractButton *button, bool checked);
     void onClipNameEdited() const;
     void onClipPropertyChanged() const;
     void onClipLanguageChanged(const QString &language) const;

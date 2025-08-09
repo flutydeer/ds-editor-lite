@@ -12,8 +12,6 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/Button.h"
-#include "UI/Controls/DividerLine.h"
-#include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/ToolTipFilter.h"
@@ -50,12 +48,13 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnArrow = d->buildToolButton("btnArrow", tr("Select"), Qt::Key_V);
     d->m_btnArrow->setChecked(true);
     d->m_btnBeam = d->buildToolButton("btnBeam", tr("Interval Select"), Qt::Key_B);
-    auto notePencilDesc = tr("Drag in the blank: Draw a new note\nDrag on a note: Edit the note");
+    const auto notePencilDesc =
+        tr("Drag in the blank: Draw a new note\nDrag on a note: Edit the note");
     d->m_btnNotePencil =
         d->buildToolButton("btnNotePencil", tr("Draw Note"), Qt::Key_N, notePencilDesc);
     d->m_btnNoteEraser = d->buildToolButton("btnNoteEraser", tr("Erase Note"), Qt::Key_M);
     // d->m_btnPitchAnchor = d->buildToolButton("btnPitchAnchor", tr("Pitch Anchor"), Qt::Key_F);
-    auto pitchPencilDesc = tr("Left drag: Draw\nRight drag: Erase");
+    const auto pitchPencilDesc = tr("Left drag: Draw\nRight drag: Erase");
     d->m_btnPitchPencil =
         d->buildToolButton("btnPitchPencil", tr("Draw Pitch"), Qt::Key_G, pitchPencilDesc);
     d->m_btnPitchEraser = d->buildToolButton("btnPitchEraser", tr("Erase Pitch"), Qt::Key_H);
@@ -105,7 +104,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     // btnParamView->setChecked(true);
 
     // TODO: 移动到 TabPanelTitleBar
-    auto btnMaximize = d->buildToolButton("btnPanelMaximize", tr("Maximize or restore"));
+    const auto btnMaximize = d->buildToolButton("btnPanelMaximize", tr("Maximize or restore"));
     connect(btnMaximize, &Button::clicked, this, [=] {
         if (appStatus->trackPanelCollapsed)
             appController->setTrackAndClipPanelCollapsed(false, false);
@@ -115,11 +114,11 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(appStatus, &AppStatus::trackPanelCollapseStateChanged, btnMaximize,
             &Button::setChecked);
 
-    auto btnHide = d->buildCommonButton("btnPanelHide", tr("Hide"));
+    const auto btnHide = d->buildCommonButton("btnPanelHide", tr("Hide"));
     connect(btnHide, &Button::clicked, this,
             [=] { appController->setTrackAndClipPanelCollapsed(false, true); });
 
-    auto mainLayout = new QHBoxLayout;
+    const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(d->m_leClipName);
     // mainLayout->addWidget(btnMute);
     // mainLayout->addWidget(sbGain);
@@ -178,8 +177,8 @@ PianoRollEditMode ClipEditorToolBarView::editMode() const {
     return d->m_editMode;
 }
 
-void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(QAbstractButton *button,
-                                                                bool checked) {
+void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(const QAbstractButton *button,
+                                                                const bool checked) {
     Q_Q(ClipEditorToolBarView);
     if (!checked)
         return;
@@ -286,8 +285,8 @@ Button *ClipEditorToolBarViewPrivate::buildCommonButton(const QString &objName,
     return btn;
 }
 
-void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(bool on) const {
-    for (auto btn : m_toolButtonGroup->buttons()) {
+void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const {
+    for (const auto btn : m_toolButtonGroup->buttons()) {
         btn->setVisible(on);
         btn->setEnabled(on);
     }

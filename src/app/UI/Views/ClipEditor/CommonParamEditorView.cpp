@@ -12,7 +12,6 @@
 #include "Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
 
-#include <QElapsedTimer>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
@@ -52,7 +51,7 @@ void CommonParamEditorView::clearParams() {
     update();
 }
 
-void CommonParamEditorView::setEraseMode(bool on) {
+void CommonParamEditorView::setEraseMode(const bool on) {
     // qDebug() << "setEraseMode:" << on;
     m_eraseMode = on;
     update();
@@ -97,24 +96,24 @@ void CommonParamEditorView::commitAction() {
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
-double CommonParamEditorView::valueToSceneY(double value) const {
-    auto yMin = paddingTopBottom;
-    auto yMax = scene()->height() - paddingTopBottom;
-    auto availableHeight = yMax - yMin;
-    auto normalizedValue = m_properties->valueToNormalized(value);
-    auto y = (1 - normalizedValue) * availableHeight + yMin;
-    auto clippedY = MathUtils::clip(y, yMin, yMax);
+double CommonParamEditorView::valueToSceneY(const double value) const {
+    const auto yMin = paddingTopBottom;
+    const auto yMax = scene()->height() - paddingTopBottom;
+    const auto availableHeight = yMax - yMin;
+    const auto normalizedValue = m_properties->valueToNormalized(value);
+    const auto y = (1 - normalizedValue) * availableHeight + yMin;
+    const auto clippedY = MathUtils::clip(y, yMin, yMax);
     // Logger::d(CLASS_NAME, QString("valueToSceneY value:%1 y:%2").arg(value).arg(clippedY));
     return clippedY;
 }
 
-double CommonParamEditorView::sceneYToValue(double y) const {
-    auto yMin = paddingTopBottom;
-    auto yMax = scene()->height() - paddingTopBottom;
-    auto availableHeight = yMax - yMin;
-    auto value = 1 - (y - yMin) / availableHeight;
-    auto clippedValue = MathUtils::clip(value, 0, 1);
-    auto scaledValue = m_properties->valueFromNormalized(clippedValue);
+double CommonParamEditorView::sceneYToValue(const double y) const {
+    const auto yMin = paddingTopBottom;
+    const auto yMax = scene()->height() - paddingTopBottom;
+    const auto availableHeight = yMax - yMin;
+    const auto value = 1 - (y - yMin) / availableHeight;
+    const auto clippedValue = MathUtils::clip(value, 0, 1);
+    const auto scaledValue = m_properties->valueFromNormalized(clippedValue);
     // qDebug() << "clipped" << clippedValue << "scaled" << scaledValue;
     // Logger::d(CLASS_NAME, QString("sceneYToValue y:%1 value:%2").arg(y).arg(clippedValue));
     return scaledValue;
@@ -122,7 +121,7 @@ double CommonParamEditorView::sceneYToValue(double y) const {
 
 void CommonParamEditorView::drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                           QWidget *widget) {
-    bool isBackground = transparentMouseEvents();
+    const bool isBackground = transparentMouseEvents();
     if (isBackground || !m_properties->showDivision)
         return;
     painter->setRenderHint(QPainter::Antialiasing);
@@ -132,13 +131,13 @@ void CommonParamEditorView::drawGraduates(QPainter *painter, const QStyleOptionG
     pen.setColor(QColor(72, 75, 78));
     // pen.setColor(QColor(57, 59, 61));
     painter->setPen(pen);
-    int lineLength = 4;
     // int lineLength = visibleRect().width();
-    int step = m_properties->divisionValue;
-    auto min = m_properties->minimum;
-    auto max = m_properties->maximum;
+    const int step = m_properties->divisionValue;
+    const auto min = m_properties->minimum;
+    const auto max = m_properties->maximum;
     for (int i = min; i <= max; i += step) {
-        auto y = valueToItemY(i);
+        constexpr int lineLength = 4;
+        const auto y = valueToItemY(i);
         painter->drawLine(0, y, lineLength, y);
     }
 }
@@ -156,8 +155,8 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
     // else
     //     painter->setRenderHint(QPainter::Antialiasing, false);
 
-    bool foreground = !transparentMouseEvents();
-    auto penWidth = 1.5;
+    const bool foreground = !transparentMouseEvents();
+    constexpr auto penWidth = 1.5;
     QPen pen;
     pen.setWidthF(penWidth);
     if (m_properties->displayMode == ParamProperties::DisplayMode::CurveOnly) {
@@ -196,8 +195,8 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         DrawCurveList base;
         DrawCurve *baseCurve = nullptr;
         if (m_properties->valueType == ParamProperties::ValueType::Relative) {
-            int start = MathUtils::roundDown(qRound(startTick()), 5);
-            int end = MathUtils::round(qRound(endTick()), 5) + 5;
+            const int start = MathUtils::roundDown(qRound(startTick()), 5);
+            const int end = MathUtils::round(qRound(endTick()), 5) + 5;
             baseCurve = new DrawCurve(-1);
             baseCurve->setLocalStart(start);
             for (int i = start; i <= end; i += 5)
@@ -205,11 +204,11 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             base = {baseCurve};
         } else
             base = m_drawCurvesOriginal;
-        auto overlay = m_drawCurvesEdited;
+        const auto overlay = m_drawCurvesEdited;
         auto curves = AppModelUtils::mergeCurves(base, overlay);
         if (!curves.isEmpty()) {
             drawCurvePolygon(painter, curves);
-            for (auto curve : curves)
+            for (const auto curve : curves)
                 delete curve;
         }
 
@@ -229,7 +228,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         }
     }
 
-    const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
+    // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
     // Logger::d(className, "Render time: " + QString::number(time));
 }
 
@@ -241,7 +240,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 
     if (m_mouseDown) {
         qWarning() << "Ignored mousePressEvent" << event
-            << "because there is already one mouse button pressed";
+                   << "because there is already one mouse button pressed";
         return;
     }
     m_mouseDown = true;
@@ -249,19 +248,19 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     cancelRequested = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::Param;
     AppModelUtils::copyCurves(m_drawCurvesEdited, m_drawCurvesEditedBak);
-    auto scenePos = event->scenePos().toPoint();
+    const auto scenePos = event->scenePos().toPoint();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     if (tick < 0) {
         tick = 0;
         qDebug() << "mousePressEvent: Negative tick, clipped to 0";
     }
-    auto value = static_cast<int>(sceneYToValue(scenePos.y()));
+    const auto value = static_cast<int>(sceneYToValue(scenePos.y()));
 
     if (event->button() == Qt::LeftButton) {
         if (m_eraseMode) {
             m_editType = Erase;
         } else {
-            if (auto curve = curveAt(tick)) {
+            if (const auto curve = curveAt(tick)) {
                 m_editingCurve = curve;
                 m_editType = DrawOnCurve;
                 qDebug() << "Edit exist curve: #" << curve->id();
@@ -285,17 +284,17 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         return;
 
     m_mouseMoved = true;
-    auto scenePos = event->scenePos();
+    const auto scenePos = event->scenePos();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     if (tick < 0) {
         tick = 0;
         qDebug() << "mouseMoveEvent: Negative tick, clipped to 0";
     }
-    auto value = static_cast<int>(sceneYToValue(scenePos.y()));
-    auto curPos = QPoint(tick, value);
+    const auto value = static_cast<int>(sceneYToValue(scenePos.y()));
+    const auto curPos = QPoint(tick, value);
     qDebug() << "Draw at tick:" << tick << "value:"
-        << m_properties->valueToString(value, m_properties->hasUnit(),
-                                       m_properties->displayPrecision);
+             << m_properties->valueToString(value, m_properties->hasUnit(),
+                                            m_properties->displayPrecision);
 
     int startTick;
     int endTick;
@@ -311,15 +310,13 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     if (m_editType == Erase) {
         if (!overlappedCurves.isEmpty()) {
             for (auto curve : overlappedCurves) {
-                if (curve->localStart() >= startTick &&
-                    curve->localEndTick() <= endTick) {
+                if (curve->localStart() >= startTick && curve->localEndTick() <= endTick) {
                     // 区间覆盖整条曲线，直接移除该曲线
                     m_drawCurvesEdited.removeOne(curve);
                     qDebug() << "Erase: Remove curve #" << curve->id();
-                } else if (curve->localStart() < startTick &&
-                           curve->localEndTick() > endTick) {
+                } else if (curve->localStart() < startTick && curve->localEndTick() > endTick) {
                     // 区间在曲线内，将曲线切成两段
-                    auto newCurve = new DrawCurve;
+                    const auto newCurve = new DrawCurve;
                     newCurve->setLocalStart(endTick);
                     auto rightPoints = curve->mid(endTick);
                     newCurve->setValues(rightPoints); // 将区间右端点之后的点移动到新曲线上
@@ -371,17 +368,17 @@ void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void CommonParamEditorView::updateRectAndPos() {
-    auto pos = visibleRect().topLeft();
+    const auto pos = visibleRect().topLeft();
     setPos(pos);
     setRect(QRectF(0, 0, visibleRect().width(), visibleRect().height()));
     update();
 }
 
-double CommonParamEditorView::valueToItemY(double value) const {
+double CommonParamEditorView::valueToItemY(const double value) const {
     return sceneYToItemY(valueToSceneY(value));
 }
 
-DrawCurve *CommonParamEditorView::curveAt(double tick) {
+DrawCurve *CommonParamEditorView::curveAt(const double tick) {
     for (const auto curve : m_drawCurvesEdited)
         if (curve->localStart() <= tick && curve->localEndTick() > tick)
             return curve;
@@ -391,15 +388,15 @@ DrawCurve *CommonParamEditorView::curveAt(double tick) {
 void CommonParamEditorView::drawCurveBorder(QPainter *painter,
                                             const QList<DrawCurve *> &curves) const {
     auto drawCurve = [painter, this](const DrawCurve &curve) {
-        auto dpr = painter->device()->devicePixelRatio();
-        bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
+        const auto dpr = painter->device()->devicePixelRatio();
+        // bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
 
-        int start = curve.localStart();
-        int startIndex =
+        const int start = curve.localStart();
+        const int startIndex =
             start >= startTick()
                 ? 0
                 : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
-                  curve.step;
+                      curve.step;
 
         // TODO: 重新设计计算方法
         if (startIndex >= curve.values().count())
@@ -410,8 +407,8 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
         const QPointF visibleFirstPoint(x, y);
 
         if (m_showDebugInfo) {
-            auto firstValue = curve.values().first();
-            auto firstPos = QPointF(tickToItemX(start), valueToItemY(firstValue));
+            const auto firstValue = curve.values().first();
+            const auto firstPos = QPointF(tickToItemX(start), valueToItemY(firstValue));
             painter->drawText(firstPos, QString("#%1").arg(curve.id()));
         }
 
@@ -433,7 +430,7 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
             const auto value = curve.values().at(i);
             if (pos > tempEndTick)
                 breakFlag = true;
-            const double currentX = startX + (i * interval);
+            const double currentX = startX + i * interval;
             if (qAbs(lastLineToX - currentX) > dpr) {
                 curvePath.lineTo(currentX, valueToItemY(value));
                 lastLineToX = currentX;
@@ -457,27 +454,27 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
 void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
                                              const QList<DrawCurve *> &curves) const {
     auto drawCurve = [painter, this](const DrawCurve &curve) {
-        auto dpr = painter->device()->devicePixelRatio();
-        bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
+        const auto dpr = painter->device()->devicePixelRatio();
+        // bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
 
-        int start = curve.localStart();
-        int startIndex =
+        const int start = curve.localStart();
+        const int startIndex =
             start >= startTick()
                 ? 0
                 : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
-                  curve.step;
+                      curve.step;
 
         // TODO: 重新设计计算方法
         if (startIndex >= curve.values().count())
             return;
 
-        auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve.step),
-                                         valueToItemY(curve.values().at(startIndex)));
+        const auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve.step),
+                                               valueToItemY(curve.values().at(startIndex)));
 
-        auto fillFromBottom =
+        const auto fillFromBottom =
             m_properties->displayMode == ParamProperties::DisplayMode::FillFromBottom;
-        auto defaultValue = m_properties->defaultValue;
-        auto baseValue = fillFromBottom ? scene()->height() : valueToItemY(defaultValue);
+        const auto defaultValue = m_properties->defaultValue;
+        const auto baseValue = fillFromBottom ? scene()->height() : valueToItemY(defaultValue);
 
         QPainterPath fillPath;
         fillPath.moveTo(visibleFirstPoint.x(), baseValue);
@@ -499,7 +496,7 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
             const auto value = curve.values().at(i);
             if (pos > tempEndTick)
                 breakFlag = true;
-            const double x = startX + (i * interval);
+            const double x = startX + i * interval;
             // 只有在视图上两点距离达到一个像素以上时才绘制
             // TODO: 使用峰值模式来绘制
             if (qAbs(lastLineToX - x) > dpr) {
@@ -538,12 +535,12 @@ void CommonParamEditorView::drawLine(const QPoint &p1, const QPoint &p2, DrawCur
         endPoint = p1;
     }
     auto line = DrawCurve(-1);
-    auto start = startPoint.x();
+    const auto start = startPoint.x();
     line.setLocalStart(start);
-    int linePointCount = (endPoint.x() - startPoint.x()) / curve.step;
+    const int linePointCount = (endPoint.x() - startPoint.x()) / curve.step;
     for (int i = 0; i < linePointCount; i++) {
-        auto tick = start + i * curve.step;
-        auto value = MathUtils::linearValueAt(startPoint, endPoint, tick);
+        const auto tick = start + i * curve.step;
+        const auto value = MathUtils::linearValueAt(startPoint, endPoint, tick);
         line.appendValue(qRound(value));
     }
     curve.mergeWithOtherPriority(line);

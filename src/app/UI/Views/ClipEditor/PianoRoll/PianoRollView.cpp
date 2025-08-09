@@ -45,17 +45,17 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     m_lbTip->setObjectName("lbNullClipTip");
     m_lbTip->setAlignment(Qt::AlignCenter);
 
-    auto topLeftSpacing = new QWidget();
+    const auto topLeftSpacing = new QWidget();
     topLeftSpacing->setObjectName("pianoRollTopLeftSpacing");
     topLeftSpacing->setMinimumWidth(0);
     topLeftSpacing->setFixedHeight(timelineViewHeight);
 
-    auto bottomLeftSpacing = new QWidget();
+    const auto bottomLeftSpacing = new QWidget();
     bottomLeftSpacing->setObjectName("pianoRollBottomLeftSpacing");
     bottomLeftSpacing->setMinimumWidth(0);
     bottomLeftSpacing->setFixedHeight(m_phonemeView->height());
 
-    auto pianoKeyboardLayout = new QVBoxLayout;
+    const auto pianoKeyboardLayout = new QVBoxLayout;
     pianoKeyboardLayout->setContentsMargins(0, 0, 0, 0);
     pianoKeyboardLayout->setSpacing(0);
     // pianoKeyboardLayout->addSpacing(timelineViewHeight);
@@ -64,14 +64,14 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     // pianoKeyboardLayout->addSpacing(m_phonemeView->height());
     pianoKeyboardLayout->addWidget(bottomLeftSpacing);
 
-    auto rightLayout = new QVBoxLayout;
+    const auto rightLayout = new QVBoxLayout;
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(0);
     rightLayout->addWidget(m_timelineView);
     rightLayout->addWidget(m_graphicsView);
     rightLayout->addWidget(m_phonemeView);
 
-    auto layout = new QHBoxLayout;
+    const auto layout = new QHBoxLayout;
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addLayout(pianoKeyboardLayout);
@@ -106,6 +106,6 @@ void PianoRollView::setDataContext(SingingClip *clip) const {
     m_lbTip->setVisible(!notNull);
 }
 
-void PianoRollView::onEditModeChanged(PianoRollEditMode mode) const {
+void PianoRollView::onEditModeChanged(const PianoRollEditMode mode) const {
     m_graphicsView->setEditMode(mode);
 }

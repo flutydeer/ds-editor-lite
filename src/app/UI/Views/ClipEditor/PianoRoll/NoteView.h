@@ -31,7 +31,7 @@ public:
     void setPronunciation(const QString &pronunciation, bool edited);
     [[nodiscard]] bool editingPitch() const;
     void setEditingPitch(bool on);
-    [[nodiscard]] PronunciationView *pronunciationView();
+    [[nodiscard]] PronunciationView *pronunciationView() const;
     void setPronunciationView(PronunciationView *view);
 
     // for handle move and resize

@@ -34,7 +34,7 @@ private:
 
     void paintEvent(QPaintEvent *event) override;
     void wheelEvent(QWheelEvent *e) override;
-    void drawUniformKeyboard(QPainter &painter);
+    void drawUniformKeyboard(QPainter &painter) const;
     void drawClassicKeyboard(QPainter &painter) const;
 
     double m_top = 0;

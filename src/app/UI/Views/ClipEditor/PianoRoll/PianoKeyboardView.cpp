@@ -16,7 +16,7 @@ PianoKeyboardView::PianoKeyboardView(QWidget *parent) : QWidget(parent) {
     setFixedWidth(ClipEditorGlobal::pianoKeyboardWidth);
 }
 
-void PianoKeyboardView::setKeyRange(double top, double bottom) {
+void PianoKeyboardView::setKeyRange(const double top, const double bottom) {
     m_top = top;
     m_bottom = bottom;
     update();
@@ -65,32 +65,33 @@ void PianoKeyboardView::paintEvent(QPaintEvent *event) {
 }
 
 void PianoKeyboardView::wheelEvent(QWheelEvent *e) {
-    auto angleDelta = e->angleDelta().transposed();
-    auto event = new QWheelEvent(e->position(), e->globalPosition(), e->pixelDelta(), angleDelta,
-                                 e->buttons(), e->modifiers(), e->phase(), e->inverted());
+    const auto angleDelta = e->angleDelta().transposed();
+    const auto event =
+        new QWheelEvent(e->position(), e->globalPosition(), e->pixelDelta(), angleDelta,
+                        e->buttons(), e->modifiers(), e->phase(), e->inverted());
     emit wheelScroll(event);
     // QWidget::wheelEvent(event);
 }
 
-void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) {
+void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) const {
     QPen pen;
     pen.setWidthF(penWidth);
 
-    auto pixelsPerKey = height() / (m_top - m_bottom);
-    auto prevKeyIndex = static_cast<int>(m_top) + 1;
+    const auto pixelsPerKey = height() / (m_top - m_bottom);
+    const auto prevKeyIndex = static_cast<int>(m_top) + 1;
     bool prevIsWhiteKey = false;
 
-    auto keyToY = [this](int key) {
-        auto ratio = (key - m_top) / (m_bottom - m_top);
-        auto y = height() * ratio;
+    auto keyToY = [this](const int key) {
+        const auto ratio = (key - m_top) / (m_bottom - m_top);
+        const auto y = height() * ratio;
         return y;
     };
 
     for (int i = prevKeyIndex; i > m_bottom; i--) {
         constexpr auto radius = 4.0;
-        auto y = keyToY(i);
+        const auto y = keyToY(i);
 
-        auto isWhiteKey = PianoPaintUtils::isWhiteKey(i);
+        const auto isWhiteKey = PianoPaintUtils::isWhiteKey(i);
         painter.setBrush(isWhiteKey ? m_whiteKeyColor : m_blackKeyColor);
         auto keyRect = QRectF(-radius, y, width() + radius, pixelsPerKey);
         painter.setPen(Qt::NoPen);
@@ -99,7 +100,7 @@ void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) {
         if (i % 12 == 0) {
             auto textRect = QRectF(6, y, width(), pixelsPerKey);
             auto fontMetrics = painter.fontMetrics();
-            auto textHeight = fontMetrics.height();
+            const auto textHeight = fontMetrics.height();
             if (textRect.height() > textHeight) {
                 pen.setColor(isWhiteKey ? m_blackKeyColor : m_whiteKeyColor);
                 painter.setPen(pen);
@@ -121,27 +122,27 @@ void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) {
 
 void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
     constexpr auto radius = 4.0;
-    auto pixelsPerBlackKey = height() / (m_top - m_bottom);
-    auto pixelsPerWhiteKey = pixelsPerBlackKey * 12 / 7;
-    auto prevKeyIndex = static_cast<int>(m_top) + 1;
-    auto prevWhiteKeyIndex =
+    const auto pixelsPerBlackKey = height() / (m_top - m_bottom);
+    const auto pixelsPerWhiteKey = pixelsPerBlackKey * 12 / 7;
+    const auto prevKeyIndex = static_cast<int>(m_top) + 1;
+    const auto prevWhiteKeyIndex =
         PianoPaintUtils::isWhiteKey(prevKeyIndex) ? prevKeyIndex : prevKeyIndex + 1;
 
-    auto blackKeyToY = [this](int key) {
-        auto ratio = (key - m_top) / (m_bottom - m_top);
-        auto y = height() * ratio;
+    auto blackKeyToY = [this](const int key) {
+        const auto ratio = (key - m_top) / (m_bottom - m_top);
+        const auto y = height() * ratio;
         return y;
     };
 
-    auto closestBKeyY = [=](int key) {
-        int remain = key % 12;
-        int bIndex = key + 12 - remain - 1;
+    auto closestBKeyY = [=](const int key) {
+        const int remain = key % 12;
+        const int bIndex = key + 12 - remain - 1;
         // qDebug() << "bIndex" << bIndex << "Note name: " << PianoPaintUtils::noteName(bIndex);
         return blackKeyToY(bIndex);
     };
 
-    auto whiteKeyToY = [=](int key) {
-        int remain = key % 12;
+    auto whiteKeyToY = [=](const int key) {
+        const int remain = key % 12;
         int index = 0;
         if (remain == 0)
             index = 0;
@@ -158,7 +159,7 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
         else if (remain == 11)
             index = 6;
 
-        auto y = closestBKeyY(key) + (6 - index) * pixelsPerWhiteKey;
+        const auto y = closestBKeyY(key) + (6 - index) * pixelsPerWhiteKey;
         // qDebug() << "closestBKeyY: " << y;
         return y;
     };
@@ -171,7 +172,7 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
             if (!PianoPaintUtils::isWhiteKey(i))
                 continue;
 
-            auto y = whiteKeyToY(i);
+            const auto y = whiteKeyToY(i);
             painter.setBrush(m_whiteKeyColor);
             auto keyRect = QRectF(-radius, y, width() + radius, pixelsPerWhiteKey);
             painter.setPen(Qt::NoPen);
@@ -185,7 +186,7 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
             if (i % 12 == 0) {
                 auto textRect = QRectF(6, y, width() - radius - 6, pixelsPerWhiteKey);
                 auto fontMetrics = painter.fontMetrics();
-                auto textHeight = fontMetrics.height();
+                const auto textHeight = fontMetrics.height();
                 if (textRect.height() > textHeight) {
                     pen.setColor(m_blackKeyColor);
                     painter.setPen(pen);
@@ -201,7 +202,7 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
             if (PianoPaintUtils::isWhiteKey(i))
                 continue;
 
-            auto y = blackKeyToY(i);
+            const auto y = blackKeyToY(i);
             painter.setBrush(m_blackKeyColor);
             auto keyRect = QRectF(-radius, y, width() / 5.0 * 3 + radius, pixelsPerBlackKey);
             painter.setPen(Qt::NoPen);

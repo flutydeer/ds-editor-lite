@@ -7,17 +7,17 @@
 #include <QElapsedTimer>
 #include <QPainter>
 
-PronunciationView::PronunciationView(int noteId, QGraphicsItem *parent)
+PronunciationView::PronunciationView(const int noteId, QGraphicsItem *parent)
     : AbstractGraphicsRectItem(parent), UniqueObject(noteId) {
 }
 
-void PronunciationView::setPronunciation(const QString &pronunciation, bool edited) {
+void PronunciationView::setPronunciation(const QString &pronunciation, const bool edited) {
     m_pronunciation = pronunciation;
     m_pronunciationEdited = edited;
     update();
 }
 
-void PronunciationView::setTextVisible(bool visible) {
+void PronunciationView::setTextVisible(const bool visible) {
     if (m_textVisible != visible) {
         // qDebug() << "setTextVisible:" << visible;
         m_textVisible = visible;
@@ -32,10 +32,10 @@ void PronunciationView::paint(QPainter *painter, const QStyleOptionGraphicsItem 
 
     QElapsedTimer timer;
     timer.start();
-    const auto pronColorOriginal = QColor(200, 200, 200);
-    const auto pronColorEdited = QColor(155, 186, 255);
-    const auto penWidth = 1.5f;
-    const int padding = 2;
+    constexpr auto pronColorOriginal = QColor(200, 200, 200);
+    constexpr auto pronColorEdited = QColor(155, 186, 255);
+    constexpr auto penWidth = 1.5f;
+    constexpr int padding = 2;
 
     auto rect = boundingRect();
     auto left = rect.left() + penWidth;

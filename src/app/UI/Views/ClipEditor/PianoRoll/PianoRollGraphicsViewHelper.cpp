@@ -17,12 +17,12 @@
 #include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
-void PianoRollGraphicsViewHelper::drawNote(int rStart, int length, int keyIndex) {
+void PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, const int keyIndex) {
     qDebug() << QString("Note drawn rStart:%1 len:%2 key:%3")
                     .arg(qStrNum(rStart), qStrNum(length), qStrNum(keyIndex));
-    auto singingClip = dynamic_cast<SingingClip *>(clipController->clip());
+    const auto singingClip = dynamic_cast<SingingClip *>(clipController->clip());
     Q_ASSERT(singingClip);
-    auto note = new Note;
+    const auto note = new Note;
     note->setLocalStart(rStart);
     note->setLength(length);
     note->setKeyIndex(keyIndex);
@@ -36,21 +36,21 @@ void PianoRollGraphicsViewHelper::drawNote(int rStart, int length, int keyIndex)
 
 void PianoRollGraphicsViewHelper::editPitch(const QList<DrawCurve *> &curves) {
     QList<Curve *> list;
-    for (auto curve : curves)
+    for (const auto curve : curves)
         list.append(curve);
     clipController->onParamEdited(ParamInfo::Pitch, list);
 }
 
 NoteView *PianoRollGraphicsViewHelper::buildNoteView(const Note &note) {
-    auto noteView = new NoteView(note.id());
+    const auto noteView = new NoteView(note.id());
     noteView->setPronunciationView(new PronunciationView(note.id()));
     noteView->setRStart(note.localStart());
     noteView->setLength(note.length());
     noteView->setKeyIndex(note.keyIndex());
     noteView->setLyric(note.lyric());
-    auto original = note.pronunciation().original;
-    auto edited = note.pronunciation().edited;
-    auto isEdited = note.pronunciation().isEdited();
+    const auto original = note.pronunciation().original;
+    const auto edited = note.pronunciation().edited;
+    const auto isEdited = note.pronunciation().isEdited();
     noteView->setPronunciation(isEdited ? edited : original, isEdited);
     noteView->setOverlapped(note.overlapped());
     return noteView;
@@ -64,13 +64,13 @@ void PianoRollGraphicsViewHelper::updateNoteTimeAndKey(NoteView &noteView, const
 
 void PianoRollGraphicsViewHelper::updateNoteWord(NoteView &noteView, const Note &note) {
     noteView.setLyric(note.lyric());
-    auto original = note.pronunciation().original;
-    auto edited = note.pronunciation().edited;
-    auto isEdited = note.pronunciation().isEdited();
+    const auto original = note.pronunciation().original;
+    const auto edited = note.pronunciation().edited;
+    const auto isEdited = note.pronunciation().isEdited();
     noteView.setPronunciation(isEdited ? edited : original, isEdited);
 }
 
-void PianoRollGraphicsViewHelper::updatePitch(Param::Type paramType, const Param &param,
+void PianoRollGraphicsViewHelper::updatePitch(const Param::Type paramType, const Param &param,
                                               PitchEditorView &pitchEditor) {
     QList<DrawCurve *> drawCurves;
     if (paramType == Param::Original) {

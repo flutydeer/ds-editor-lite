@@ -43,20 +43,20 @@ void PhonemeView::reset() {
     update();
 }
 
-void PhonemeView::setTimeRange(double startTick, double endTick) {
+void PhonemeView::setTimeRange(const double startTick, const double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
-    auto ticksPerPixel = (m_endTick - m_startTick) / rect().width();
+    const auto ticksPerPixel = (m_endTick - m_startTick) / rect().width();
     m_resizeToleranceInTick = ticksPerPixel * AppGlobal::resizeTolerance;
     update();
 }
 
-void PhonemeView::setPosition(double tick) {
+void PhonemeView::setPosition(const double tick) {
     m_position = tick;
     update();
 }
 
-void PhonemeView::onTempoChanged(double tempo) {
+void PhonemeView::onTempoChanged() {
     if (m_clip) {
         resetPhonemeList();
         buildPhonemeList();
@@ -70,7 +70,8 @@ void PhonemeView::onClipPropertyChanged() {
     update();
 }
 
-void PhonemeView::onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes) {
+void PhonemeView::onNoteChanged(const SingingClip::NoteChangeType type,
+                                const QList<Note *> &notes) {
     switch (type) {
         case SingingClip::Insert:
             for (const auto &note : notes)
@@ -131,29 +132,29 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     // painter.drawRect(rect());
     // painter.setBrush(Qt::NoBrush);
 
-    auto drawSolidRect = [&](double startTick, double endTick, const QColor &color) {
-        auto start = tickToX(startTick);
-        auto length = tickToX(endTick) - start;
-        auto rectF = QRectF(start, 0, length, rect().height());
+    auto drawSolidRect = [&](const double startTick, const double endTick, const QColor &color) {
+        const auto start = tickToX(startTick);
+        const auto length = tickToX(endTick) - start;
+        const auto rectF = QRectF(start, 0, length, rect().height());
         painter.setPen(Qt::NoPen);
         painter.setBrush(color);
         painter.drawRect(rectF);
     };
 
-    auto drawSolidLine = [&](double tick, double penWidth, const QColor &color) {
-        auto x = tickToX(tick);
+    auto drawSolidLine = [&](const double tick, const double penWidth, const QColor &color) {
+        const auto x = tickToX(tick);
         pen.setColor(color);
         pen.setWidthF(penWidth);
         painter.setPen(pen);
         painter.drawLine(QLineF(x, 0, x, rect().height()));
     };
 
-    auto drawPhoneName = [&](PhonemeViewModel *phoneme) {
-        auto start = tickToX(phoneme->start + phoneme->startOffset);
-        auto length = 80;
-        bool edited = phoneme->nameEdited;
-        auto textRect = QRectF(start + 2, 0, length - 4, rect().height());
-        auto penColor = edited ? editedColor : originalColor;
+    auto drawPhoneName = [&](const PhonemeViewModel *phoneme) {
+        const auto start = tickToX(phoneme->start + phoneme->startOffset);
+        constexpr auto length = 80;
+        const bool edited = phoneme->nameEdited;
+        const auto textRect = QRectF(start + 2, 0, length - 4, rect().height());
+        const auto penColor = edited ? editedColor : originalColor;
         painter.setPen(penColor);
         // painter.setPen(originalColor);
         painter.setBrush(fillColor);
@@ -240,8 +241,8 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
     appStatus->currentEditObject = AppStatus::EditObjectType::Phoneme;
     m_mouseMoved = false;
     m_mouseDownX = event->pos().x();
-    auto tick = xToTick(event->pos().x());
-    if (auto phoneme = phonemeAtTick(tick)) {
+    const auto tick = xToTick(event->pos().x());
+    if (const auto phoneme = phonemeAtTick(tick)) {
         m_freezeHoverEffects = true;
         m_curPhoneme = phoneme;
         m_mouseMoveBehavior = Move;
@@ -260,13 +261,13 @@ void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
     m_mouseMoved = true;
     auto deltaTick = qRound(xToTick(event->pos().x()) - xToTick(m_mouseDownX));
     if (m_mouseMoveBehavior == Move) {
-        auto cur = m_curPhoneme;
-        auto prior = cur->prior;
-        auto curTargetStart = cur->start + deltaTick;
+        const auto cur = m_curPhoneme;
+        const auto prior = cur->prior;
+        const auto curTargetStart = cur->start + deltaTick;
         if (curTargetStart <= prior->start)
             deltaTick = prior->start - cur->start;
-        if (auto next = cur->next) {
-            auto nextStart = next->start;
+        if (const auto next = cur->next) {
+            const auto nextStart = next->start;
             if (curTargetStart > nextStart)
                 deltaTick = nextStart - cur->start;
         }
@@ -290,9 +291,9 @@ void PhonemeView::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void PhonemeView::updateHoverEffects() {
-    auto pos = mapFromGlobal(QCursor::pos());
-    auto tick = xToTick(pos.x());
-    if (auto phoneme = phonemeAtTick(tick)) {
+    const auto pos = mapFromGlobal(QCursor::pos());
+    const auto tick = xToTick(pos.x());
+    if (const auto phoneme = phonemeAtTick(tick)) {
         setCursor(Qt::SizeHorCursor);
         phoneme->hoverOnControlBar = true;
         clearHoverEffects(phoneme);
@@ -357,13 +358,13 @@ void PhonemeView::moveToNullClipState() {
     update();
 }
 
-double PhonemeView::tickToX(double tick) {
-    auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
-    auto x = rect().width() * ratio;
+double PhonemeView::tickToX(const double tick) const {
+    const auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
+    const auto x = rect().width() * ratio;
     return x;
 }
 
-double PhonemeView::xToTick(double x) {
+double PhonemeView::xToTick(const double x) const {
     auto tick = 1.0 * x / rect().width() * (m_endTick - m_startTick) + m_startTick;
     if (tick < 0)
         tick = 0;
@@ -378,7 +379,7 @@ bool PhonemeView::canEdit() const {
     return ticksPerPixel() < m_canEditTicksPerPixelThreshold;
 }
 
-PhonemeView::PhonemeViewModel *PhonemeView::phonemeAtTick(double tick) {
+PhonemeView::PhonemeViewModel *PhonemeView::phonemeAtTick(const double tick) {
     for (const auto phoneme : m_phonemes) {
         if (qAbs(tick - phoneme->start) < m_resizeToleranceInTick)
             return phoneme;
@@ -395,7 +396,7 @@ void PhonemeView::buildPhonemeList() {
     if (m_notes.count() == 0)
         return;
 
-    auto head = new PhonemeViewModel;
+    const auto head = new PhonemeViewModel;
     head->noteId = -1;
     head->type = PhonemeViewModel::Sil;
     head->start = -INT_MAX;
@@ -418,7 +419,7 @@ void PhonemeView::buildPhonemeList() {
         if (note->overlapped())
             continue;
 
-        auto noteStartMs = appModel->tickToMs(note->globalStart());
+        const auto noteStartMs = appModel->tickToMs(note->globalStart());
 
         // Ahead
         {
@@ -435,8 +436,8 @@ void PhonemeView::buildPhonemeList() {
                 vm->name = aheadNames.result().at(i);
                 if (!aheadOffsets.result().isEmpty()) {
                     vm->offsetReady = true;
-                    auto phoneStartMs = noteStartMs - aheadOffsets.result().at(i);
-                    auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
+                    const auto phoneStartMs = noteStartMs - aheadOffsets.result().at(i);
+                    const auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
                     vm->start = phoneStartTick;
                 }
                 m_phonemes.append(vm);
@@ -460,10 +461,10 @@ void PhonemeView::buildPhonemeList() {
                 vm->name = normalNames.result().at(i);
                 if (!normalOffsets.result().isEmpty()) {
                     vm->offsetReady = true;
-                    auto phoneStartMs = noteStartMs + normalOffsets.result().at(i);
-                    auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
+                    const auto phoneStartMs = noteStartMs + normalOffsets.result().at(i);
+                    const auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
                     vm->start = phoneStartTick;
-                };
+                }
                 m_phonemes.append(vm);
                 insertNextNode(prior, vm);
                 prior = vm;
@@ -473,40 +474,40 @@ void PhonemeView::buildPhonemeList() {
 }
 
 void PhonemeView::resetPhonemeList() {
-    for (auto phoneme : m_phonemes)
+    for (const auto phoneme : m_phonemes)
         delete phoneme;
     m_phonemes.clear();
 }
 
-void PhonemeView::clearHoverEffects(PhonemeViewModel *except) {
+void PhonemeView::clearHoverEffects(const PhonemeViewModel *except) {
     for (const auto item : m_phonemes) {
         if (item != except && item->hoverOnControlBar)
             item->hoverOnControlBar = false;
     }
 }
 
-void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phVm) {
+void PhonemeView::handleAdjustCompleted(const PhonemeViewModel *phVm) {
     QList<int> offsets;
-    auto phonemes = findPhonemesByNoteId(phVm->noteId);
+    const auto phonemes = findPhonemesByNoteId(phVm->noteId);
     auto relatedPhonemes =
-        Linq::where(phonemes, [&](PhonemeViewModel *p) { return p->type == phVm->type; });
+        Linq::where(phonemes, [&](const PhonemeViewModel *p) { return p->type == phVm->type; });
     if (relatedPhonemes.isEmpty()) {
         qFatal() << "handleAdjustCompleted: related phonemes is empty";
         return;
     }
-    auto note = m_clip->findNoteById(phVm->noteId);
-    auto noteStartInMs = appModel->tickToMs(note->globalStart());
+    const auto note = m_clip->findNoteById(phVm->noteId);
+    const auto noteStartInMs = appModel->tickToMs(note->globalStart());
     Phonemes::Type type;
     if (phVm->type == PhonemeViewModel::Ahead) {
         type = Phonemes::Ahead;
-        for (auto phoneme : relatedPhonemes) {
-            auto phonemeStartInMs = appModel->tickToMs(phoneme->start + phoneme->startOffset);
+        for (const auto phoneme : relatedPhonemes) {
+            const auto phonemeStartInMs = appModel->tickToMs(phoneme->start + phoneme->startOffset);
             offsets.append(qRound(noteStartInMs - phonemeStartInMs));
         }
     } else if (phVm->type == PhonemeViewModel::Normal) {
         type = Phonemes::Normal;
-        for (auto phoneme : relatedPhonemes) {
-            auto phonemeStartInMs = appModel->tickToMs(phoneme->start + phoneme->startOffset);
+        for (const auto phoneme : relatedPhonemes) {
+            const auto phonemeStartInMs = appModel->tickToMs(phoneme->start + phoneme->startOffset);
             offsets.append(qRound(phonemeStartInMs - noteStartInMs));
         }
     } else {
@@ -521,9 +522,9 @@ void PhonemeView::handleAdjustCompleted(PhonemeViewModel *phVm) {
     clipController->onAdjustPhonemeOffset(phVm->noteId, type, offsets);
 }
 
-void PhonemeView::cacheText(const QString &text, bool edited, const QPainter &painter) {
+void PhonemeView::cacheText(const QString &text, const bool edited, const QPainter &painter) {
     // qDebug() << "cacheText:" << text;
-    QSize textSize = painter.fontMetrics().size(Qt::TextSingleLine, text);
+    const QSize textSize = painter.fontMetrics().size(Qt::TextSingleLine, text);
     QPixmap pixmap(textSize * painter.device()->devicePixelRatio());
     pixmap.setDevicePixelRatio(painter.device()->devicePixelRatio());
     pixmap.fill(Qt::transparent);

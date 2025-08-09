@@ -17,7 +17,7 @@ ParamEditorInfoArea::ParamEditorInfoArea(QWidget *parent) : QWidget(parent) {
     m_lbMin = new QLabel;
     m_lbMin->setAlignment(Qt::AlignRight);
 
-    auto mainLayout = new QVBoxLayout();
+    const auto mainLayout = new QVBoxLayout();
     mainLayout->setContentsMargins({4, 0, 4, 0});
     mainLayout->setSpacing(0);
     mainLayout->addWidget(m_lbMax);

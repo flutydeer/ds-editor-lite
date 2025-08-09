@@ -18,7 +18,7 @@
 
 using namespace ClipEditorGlobal;
 
-NoteView::NoteView(int itemId, QGraphicsItem *parent)
+NoteView::NoteView(const int itemId, QGraphicsItem *parent)
     : AbstractGraphicsRectItem(parent), UniqueObject(itemId) {
     initUi();
 }
@@ -31,7 +31,7 @@ int NoteView::rStart() const {
     return m_rStart;
 }
 
-void NoteView::setRStart(int rStart) {
+void NoteView::setRStart(const int rStart) {
     m_rStart = rStart;
     updateRectAndPos();
 }
@@ -40,7 +40,7 @@ int NoteView::length() const {
     return m_length;
 }
 
-void NoteView::setLength(int length) {
+void NoteView::setLength(const int length) {
     m_length = length;
     updateRectAndPos();
 }
@@ -49,7 +49,7 @@ int NoteView::keyIndex() const {
     return m_keyIndex;
 }
 
-void NoteView::setKeyIndex(int keyIndex) {
+void NoteView::setKeyIndex(const int keyIndex) {
     m_keyIndex = keyIndex;
     updateRectAndPos();
 }
@@ -63,7 +63,7 @@ void NoteView::setLyric(const QString &lyric) {
     update();
 }
 
-void NoteView::setPronunciation(const QString &pronunciation, bool edited) {
+void NoteView::setPronunciation(const QString &pronunciation, const bool edited) {
     m_pronunciation = pronunciation;
     m_pronunciationEdited = edited;
     if (m_pronView)
@@ -75,12 +75,12 @@ bool NoteView::editingPitch() const {
     return m_editingPitch;
 }
 
-void NoteView::setEditingPitch(bool on) {
+void NoteView::setEditingPitch(const bool on) {
     m_editingPitch = on;
     update();
 }
 
-PronunciationView *NoteView::pronunciationView() {
+PronunciationView *NoteView::pronunciationView() const {
     return m_pronView;
 }
 
@@ -93,7 +93,7 @@ int NoteView::startOffset() const {
     return m_startOffset;
 }
 
-void NoteView::setStartOffset(int tick) {
+void NoteView::setStartOffset(const int tick) {
     m_startOffset = tick;
     updateRectAndPos();
 }
@@ -102,7 +102,7 @@ int NoteView::lengthOffset() const {
     return m_lengthOffset;
 }
 
-void NoteView::setLengthOffset(int tick) {
+void NoteView::setLengthOffset(const int tick) {
     m_lengthOffset = tick;
     updateRectAndPos();
 }
@@ -111,7 +111,7 @@ int NoteView::keyOffset() const {
     return m_keyOffset;
 }
 
-void NoteView::setKeyOffset(int key) {
+void NoteView::setKeyOffset(const int key) {
     m_keyOffset = key;
     updateRectAndPos();
 }
@@ -127,21 +127,21 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     QElapsedTimer timer;
     timer.start();
 
-    const auto backgroundColorNormal = QColor(155, 186, 255);
-    const auto backgroundColorEditingPitch = QColor(53, 59, 74);
-    const auto backgroundColorOverlapped = QColor(110, 129, 171);
+    constexpr auto backgroundColorNormal = QColor(155, 186, 255);
+    constexpr auto backgroundColorEditingPitch = QColor(53, 59, 74);
+    constexpr auto backgroundColorOverlapped = QColor(110, 129, 171);
 
-    const auto borderColorNormal = QColor(112, 156, 255);
-    const auto borderColorSelected = QColor(255, 255, 255);
-    const auto borderColorOverlapped = QColor(110, 129, 171);
-    const auto borderColorEditingPitch = QColor(126, 149, 199);
+    constexpr auto borderColorNormal = QColor(112, 156, 255);
+    constexpr auto borderColorSelected = QColor(255, 255, 255);
+    constexpr auto borderColorOverlapped = QColor(110, 129, 171);
+    constexpr auto borderColorEditingPitch = QColor(126, 149, 199);
 
-    const auto foregroundColorNormal = QColor(0, 0, 0);
-    const auto foregroundColorEditingPitch = QColor(126, 149, 199);
-    const auto foregroundColorOverlapped = QColor(0, 0, 0, 127);
+    constexpr auto foregroundColorNormal = QColor(0, 0, 0);
+    constexpr auto foregroundColorEditingPitch = QColor(126, 149, 199);
+    constexpr auto foregroundColorOverlapped = QColor(0, 0, 0, 127);
 
-    const auto penWidth = 1.5f;
-    const int padding = 2;
+    constexpr auto penWidth = 1.5f;
+    constexpr int padding = 2;
     // const auto radius = 4.0;
     // const auto radiusAdjustThreshold = 12;
 
