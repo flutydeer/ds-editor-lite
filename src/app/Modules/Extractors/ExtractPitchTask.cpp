@@ -43,7 +43,7 @@ ExtractPitchTask::ExtractPitchTask(Input input) : ExtractTask(std::move(input)) 
     }
 
     // TODO:: forced on cpu
-    m_rmvpe = std::make_unique<Rmvpe::Rmvpe>(inferEngine->synthUnit());
+    m_rmvpe = std::make_unique<Rmvpe::Rmvpe>(&inferEngine->synthUnit());
     if (auto exp = m_rmvpe->open(modelPath); !exp) {
         m_errorCode = ErrorCode::ModelNotLoaded;
         const auto reason = QString::fromUtf8(exp.error().message());

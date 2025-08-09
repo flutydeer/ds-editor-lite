@@ -35,6 +35,7 @@
 #include "Utils/DmlGpuUtils.h"
 #include "Utils/Log.h"
 #include "Utils/Expected.h"
+#include "Utils/StringUtils.h"
 
 #include <QDebug>
 #include <QDir>
@@ -106,9 +107,9 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::Execu
     auto inferenceDriverDir = defaultPluginDir / _TSTR("inferencedrivers");
     auto inferenceInterpreterDir = defaultPluginDir / _TSTR("inferenceinterpreters");
 
-    auto singerProviderDirString = QDir(singerProviderDir).path();
-    auto inferenceDriverDirString = QDir(inferenceDriverDir).path();
-    auto inferenceInterpreterDirString = QDir(inferenceInterpreterDir).path();
+    auto singerProviderDirString = StringUtils::path_to_qstr(singerProviderDir);
+    auto inferenceDriverDirString = StringUtils::path_to_qstr(inferenceDriverDir);
+    auto inferenceInterpreterDirString = StringUtils::path_to_qstr(inferenceInterpreterDir);
     qDebug().noquote().nospace() << "Singer provider plugin path: " << singerProviderDirString;
     qDebug().noquote().nospace() << "Inference driver plugin path: " << inferenceDriverDirString;
     qDebug().noquote().nospace() << "Inference interpreter plugin path: "
@@ -155,7 +156,7 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::Execu
 
     outPaths.singerProvider = singerProviderDirString;
     outPaths.inferenceDriver = inferenceDriverDirString;
-    outPaths.inferenceRuntime = QDir(onnxArgs->runtimePath).path();
+    outPaths.inferenceRuntime = StringUtils::path_to_qstr(onnxArgs->runtimePath);
     outPaths.inferenceInterpreter = inferenceInterpreterDirString;
 
     return srt::Expected<void>();
@@ -205,6 +206,12 @@ bool InferEngine::initialized() {
 // }
 
 bool InferEngine::initialize(QString &error) {
+    QMutexLocker lock(&m_mutex);
+    if (m_initialized) {
+        qDebug() << "InferEngine already initialized";
+        return true;
+    }
+
     using EP = ds::Api::Onnx::ExecutionProvider;
     auto ep = EP::CPUExecutionProvider;
     if (appOptions->inference()->executionProvider == "DirectML") {
@@ -267,17 +274,10 @@ bool InferEngine::initialize(QString &error) {
     }
 
 
-    auto homeDir = []() -> std::filesystem::path {
-        return QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-#ifdef _WIN32
-            .toStdWString()
-#else
-            .toStdString()
-#endif
-            ;
-    };
+    const auto homeDir = StringUtils::qstr_to_path(QDir::toNativeSeparators(
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation)));
 
-    const std::filesystem::path paths = {homeDir() / ".diffsinger/packages"};
+    const std::filesystem::path paths = {homeDir / ".diffsinger/packages"};
     m_su.setPackagePaths(paths);
 
     qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
@@ -291,17 +291,9 @@ bool InferEngine::initialize(QString &error) {
     return true;
 }
 
-static std::filesystem::path to_filesystem_path(const QString &s) {
-#ifdef _WIN32
-    return s.toStdWString();
-#else
-    return s.toStdString();
-#endif
-}
-
 bool InferEngine::loadPackage(const QString &packagePath, const bool metadataOnly,
                               srt::PackageRef &outPackage) {
-    return loadPackage(to_filesystem_path(packagePath), metadataOnly, outPackage);
+    return loadPackage(StringUtils::qstr_to_path(packagePath), metadataOnly, outPackage);
 }
 
 bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bool metadataOnly,
@@ -349,9 +341,7 @@ bool InferEngine::runLoadConfig(const QString &path) {
     // Load models
     m_configLoaded = false;
 
-    std::filesystem::path packagePath = to_filesystem_path(path);
-
-    m_su.addPackagePath(packagePath.parent_path());
+    const auto packagePath = StringUtils::qstr_to_path(path);
 
     std::string inputSinger = appOptions->general()->defaultSingerId.toStdString();
 
@@ -414,9 +404,9 @@ bool InferEngine::runLoadConfig(const QString &path) {
     if (auto exp = m_pkgCtx.inference.duration.spec->createInference(
             m_pkgCtx.inference.duration.options, srt::NO<Dur::DurationRuntimeOptions>::create());
         !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to create duration inference for singer "%1": %2)", inputSinger,
-            exp.error().message());
+            exp.error().message()));
         return false;
     } else {
         m_pkgCtx.inference.duration.session = exp.take();
@@ -424,9 +414,9 @@ bool InferEngine::runLoadConfig(const QString &path) {
     if (auto exp = m_pkgCtx.inference.duration.session->initialize(
             srt::NO<Dur::DurationInitArgs>::create());
         !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to initialize duration inference for singer "%1": %2)", inputSinger,
-            exp.error().message());
+            exp.error().message()));
         return false;
     }
 
@@ -434,9 +424,9 @@ bool InferEngine::runLoadConfig(const QString &path) {
     if (auto exp = m_pkgCtx.inference.pitch.spec->createInference(
             m_pkgCtx.inference.pitch.options, srt::NO<Pit::PitchRuntimeOptions>::create());
         !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to create pitch inference for singer "%1": %2)", inputSinger,
-            exp.error().message());
+            exp.error().message()));
         return false;
     } else {
         m_pkgCtx.inference.pitch.session = exp.take();
@@ -444,9 +434,9 @@ bool InferEngine::runLoadConfig(const QString &path) {
     if (auto exp =
             m_pkgCtx.inference.pitch.session->initialize(srt::NO<Pit::PitchInitArgs>::create());
         !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to initialize pitch inference for singer "%1": %2)", inputSinger,
-            exp.error().message());
+            exp.error().message()));
         return false;
     }
 
@@ -454,9 +444,9 @@ bool InferEngine::runLoadConfig(const QString &path) {
     if (auto exp = m_pkgCtx.inference.variance.spec->createInference(
             m_pkgCtx.inference.variance.options, srt::NO<Var::VarianceRuntimeOptions>::create());
         !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to create variance inference for singer "%1": %2)", inputSinger,
-            exp.error().message());
+            exp.error().message()));
         return false;
     } else {
         m_pkgCtx.inference.variance.session = exp.take();
@@ -464,9 +454,9 @@ bool InferEngine::runLoadConfig(const QString &path) {
     if (auto exp = m_pkgCtx.inference.variance.session->initialize(
             srt::NO<Var::VarianceInitArgs>::create());
         !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to initialize variance inference for singer "%1": %2)", inputSinger,
-            exp.error().message());
+            exp.error().message()));
         return false;
     }
 
@@ -474,9 +464,9 @@ bool InferEngine::runLoadConfig(const QString &path) {
     if (auto exp = m_pkgCtx.inference.acoustic.spec->createInference(
             m_pkgCtx.inference.acoustic.options, srt::NO<Ac::AcousticRuntimeOptions>::create());
         !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to create acoustic inference for singer "%1": %2)", inputSinger,
-            exp.error().message());
+            exp.error().message()));
         return false;
     } else {
         m_pkgCtx.inference.acoustic.session = exp.take();
@@ -484,9 +474,9 @@ bool InferEngine::runLoadConfig(const QString &path) {
     if (auto exp = m_pkgCtx.inference.acoustic.session->initialize(
             srt::NO<Ac::AcousticInitArgs>::create());
         !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to initialize acoustic inference for singer "%1": %2)", inputSinger,
-            exp.error().message());
+            exp.error().message()));
         return false;
     }
 
@@ -494,9 +484,9 @@ bool InferEngine::runLoadConfig(const QString &path) {
     if (auto exp = m_pkgCtx.inference.vocoder.spec->createInference(
             m_pkgCtx.inference.vocoder.options, srt::NO<Vo::VocoderRuntimeOptions>::create());
         !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to create vocoder inference for singer "%1": %2)", inputSinger,
-            exp.error().message());
+            exp.error().message()));
         return false;
     } else {
         m_pkgCtx.inference.vocoder.session = exp.take();
@@ -504,9 +494,9 @@ bool InferEngine::runLoadConfig(const QString &path) {
     if (auto exp =
             m_pkgCtx.inference.vocoder.session->initialize(srt::NO<Vo::VocoderInitArgs>::create());
         !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to initialize vocoder inference for singer "%1": %2)", inputSinger,
-            exp.error().message());
+            exp.error().message()));
         return false;
     }
     m_configLoaded = true;
@@ -536,18 +526,18 @@ bool InferEngine::inferDuration(const GenericInferModel &model, std::vector<doub
     srt::NO<Dur::DurationResult> result;
     // Start inference
     if (auto exp = m_pkgCtx.inference.duration.session->start(input); !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to start duration inference for singer "%1": %2)", singer,
-            exp.error().message());
+            exp.error().message()));
         return false;
     } else {
         result = exp.take().as<Dur::DurationResult>();
     }
 
     if (m_pkgCtx.inference.duration.session->state() == srt::ITask::Failed) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to run duration inference for singer "%1": %2)", singer,
-            result->error.message());
+            result->error.message()));
         return false;
     }
 
@@ -579,18 +569,18 @@ bool InferEngine::inferPitch(const GenericInferModel &model, InferParam &outPitc
     srt::NO<Pit::PitchResult> result;
     // Start inference
     if (auto exp = m_pkgCtx.inference.pitch.session->start(input); !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to start pitch inference for singer "%1": %2)", singer,
-            exp.error().message());
+            exp.error().message()));
         return false;
     } else {
         result = exp.take().as<Pit::PitchResult>();
     }
 
     if (m_pkgCtx.inference.pitch.session->state() == srt::ITask::Failed) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to run pitch inference for singer "%1": %2)", singer,
-            result->error.message());
+            result->error.message()));
         return false;
     }
 
@@ -624,9 +614,9 @@ bool InferEngine::inferVariance(const GenericInferModel &model, QList<InferParam
     srt::NO<Var::VarianceResult> result;
     // Start inference
     if (auto exp = m_pkgCtx.inference.variance.session->start(input); !exp) {
-        qCritical().noquote() << stdc::formatN(
+        qCritical().noquote() << (stdc::formatN(
             R"(failed to start variance inference for singer "%1": %2)", singer,
-            exp.error().message());
+            exp.error().message()));
         return false;
     } else {
         result = exp.take().as<Var::VarianceResult>();
@@ -677,18 +667,18 @@ bool InferEngine::inferAcoustic(const GenericInferModel &model, const QString &o
         srt::NO<Ac::AcousticResult> result;
         // Start inference
         if (auto exp = m_pkgCtx.inference.acoustic.session->start(input); !exp) {
-            qCritical().noquote() << stdc::formatN(
+            qCritical().noquote() << (stdc::formatN(
                 R"(failed to start acoustic inference for singer "%1": %2)", singer,
-                exp.error().message());
+                exp.error().message()));
             return false;
         } else {
             result = exp.take().as<Ac::AcousticResult>();
         }
 
         if (m_pkgCtx.inference.acoustic.session->state() == srt::ITask::Failed) {
-            qCritical().noquote() << stdc::formatN(
+            qCritical().noquote() << (stdc::formatN(
                 R"(failed to run acoustic inference for singer "%1": %2)", singer,
-                result->error.message());
+                result->error.message()));
             return false;
         }
         mel = result->mel;
@@ -703,28 +693,23 @@ bool InferEngine::inferAcoustic(const GenericInferModel &model, const QString &o
         srt::NO<Vo::VocoderResult> result;
         // Start inference
         if (auto exp = m_pkgCtx.inference.vocoder.session->start(vocoderInput); !exp) {
-            qCritical().noquote() << stdc::formatN(
+            qCritical().noquote() << (stdc::formatN(
                 R"(failed to start vocoder inference for singer "%1": %2)", singer,
-                exp.error().message());
+                exp.error().message()));
             return false;
         } else {
             result = exp.take().as<Vo::VocoderResult>();
         }
 
         if (m_pkgCtx.inference.vocoder.session->state() == srt::ITask::Failed) {
-            qCritical().noquote() << stdc::formatN(
+            qCritical().noquote() << (stdc::formatN(
                 R"(failed to run vocoder inference for singer "%1": %2)", singer,
-                result->error.message());
+                result->error.message()));
             return false;
         }
         const auto &audioRawData = result->audioData;
 
-        const auto outputPathStr = outputPath
-#ifdef _WIN32
-                                       .toStdWString();
-#else
-                                       .toStdString();
-#endif
+        const auto outputPathStr = StringUtils::qstr_to_native(outputPath);
 
         SndfileHandle audioFile(outputPathStr.c_str(), SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_FLOAT,
                                 1, 44100);
@@ -774,6 +759,7 @@ void InferEngine::terminateInferAcousticAsync() const {
 }
 
 void InferEngine::dispose() {
+    qDebug() << "dispose InferEngine inference sessions";
     m_pkgCtx.inference.duration.session.reset();
     m_pkgCtx.inference.pitch.session.reset();
     m_pkgCtx.inference.variance.session.reset();
@@ -781,8 +767,12 @@ void InferEngine::dispose() {
     m_pkgCtx.inference.vocoder.session.reset();
 }
 
-srt::SynthUnit *InferEngine::synthUnit() {
-    return &m_su;
+srt::SynthUnit &InferEngine::synthUnit() {
+    return m_su;
+}
+
+const srt::SynthUnit &InferEngine::constSynthUnit() const {
+    return m_su;
 }
 
 QString InferEngine::configPath() {

@@ -42,7 +42,7 @@ ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
         return;
     }
 
-    m_some = std::make_unique<Some::Some>(inferEngine->synthUnit());
+    m_some = std::make_unique<Some::Some>(&inferEngine->synthUnit());
 
     if (auto exp = m_some->open(modelPath); !exp) {
         m_errorCode = ErrorCode::ModelNotLoaded;
