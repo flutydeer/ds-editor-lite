@@ -10,7 +10,7 @@
 
 #include <QWidget>
 
-interface ITabPanelPage {
+LITE_INTERFACE ITabPanelPage {
     I_DECL(ITabPanelPage)
     I_NODSCD(QString tabId() const);
     I_NODSCD(QString tabName() const);

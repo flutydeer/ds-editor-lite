@@ -9,7 +9,7 @@
 
 class PianoRollGraphicsView;
 class QMouseEvent;
-interface IPianoRollEditHandler {
+LITE_INTERFACE IPianoRollEditHandler {
     I_DECL(IPianoRollEditHandler)
     I_METHOD(void onMouseDown(QMouseEvent *event, PianoRollGraphicsView *view));
     I_METHOD(void onMouseMove(QMouseEvent *event, PianoRollGraphicsView *view));

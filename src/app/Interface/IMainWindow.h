@@ -8,7 +8,7 @@
 #include "Utils/Macros.h"
 
 // DECL_INTERFACE(IMainWindow)
-interface IMainWindow {
+LITE_INTERFACE IMainWindow {
     I_DECL(IMainWindow)
     I_METHOD(void updateWindowTitle());
     I_NODSCD(bool askSaveChanges());

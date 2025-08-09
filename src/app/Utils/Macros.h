@@ -18,7 +18,7 @@ private:                                                                        
     ClassName m_##FieldName = InitValue;
 
 // Interface
-#define interface class
+#define LITE_INTERFACE class
 
 #define I_DECL(InterfaceName)                                                                      \
 public:                                                                                            \

@@ -7,7 +7,7 @@
 
 #include "Utils/Macros.h"
 
-interface IAtomicAction {
+LITE_INTERFACE IAtomicAction {
     I_DECL(IAtomicAction)
     I_METHOD(void discardAction()); // Revert to original state
     I_METHOD(void commitAction()); // Commit current action

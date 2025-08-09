@@ -10,7 +10,7 @@
 
 #include <QString>
 
-interface IClip : public UniqueObject {
+LITE_INTERFACE IClip : public UniqueObject {
     I_DECL(IClip)
 
     enum ClipType { Audio, Singing, Generic };

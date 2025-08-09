@@ -12,7 +12,7 @@
 #include <QColor>
 #include <QString>
 
-interface ITrack : public UniqueObject {
+LITE_INTERFACE ITrack : public UniqueObject {
     I_DECL(ITrack)
     ITrack() = default;
     explicit ITrack(const int id) : UniqueObject(id){}

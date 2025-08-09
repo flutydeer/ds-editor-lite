@@ -7,7 +7,7 @@
 
 #include "Utils/Macros.h"
 
-interface IAction {
+LITE_INTERFACE IAction {
     I_DECL(IAction)
     I_METHOD(void execute());
     I_METHOD(void undo());

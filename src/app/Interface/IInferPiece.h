@@ -7,7 +7,7 @@
 
 #include "Utils/Macros.h"
 
-interface IInferPiece : public UniqueObject {
+LITE_INTERFACE IInferPiece : public UniqueObject {
     I_DECL(IInferPiece)
     I_NODSCD(int clipId() const);
     I_NODSCD(int noteStartTick() const);

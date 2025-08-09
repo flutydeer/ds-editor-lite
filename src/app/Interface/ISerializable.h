@@ -10,7 +10,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 
-interface ISerializable {
+LITE_INTERFACE ISerializable {
     I_DECL(ISerializable)
     I_NODSCD(QJsonObject serialize() const);
     I_METHOD(bool deserialize(const QJsonObject &obj));

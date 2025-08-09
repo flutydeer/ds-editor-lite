@@ -7,7 +7,7 @@
 
 #include "Utils/Macros.h"
 
-interface IClipEditorView {
+LITE_INTERFACE IClipEditorView {
     I_DECL(IClipEditorView)
     // View state
 

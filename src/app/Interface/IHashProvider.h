@@ -9,7 +9,7 @@
 
 #include <QString>
 
-interface IHashProvider {
+LITE_INTERFACE IHashProvider {
     I_DECL(IHashProvider)
     I_NODSCD(QString hashData() const);
 };

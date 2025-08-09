@@ -8,7 +8,7 @@
 #include "Modules/Task/Task.h"
 #include "Utils/Macros.h"
 
-interface IInferTask : public Task {
+LITE_INTERFACE IInferTask : public Task {
     I_DECL(IInferTask)
     I_NODSCD(int clipId() const);
     I_NODSCD(int pieceId() const);
