@@ -35,6 +35,7 @@
 #include "Utils/DmlGpuUtils.h"
 #include "Utils/Log.h"
 #include "Utils/Expected.h"
+#include "Utils/StringUtils.h"
 
 #include <QDebug>
 #include <QDir>
@@ -106,9 +107,9 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::Execu
     auto inferenceDriverDir = defaultPluginDir / _TSTR("inferencedrivers");
     auto inferenceInterpreterDir = defaultPluginDir / _TSTR("inferenceinterpreters");
 
-    auto singerProviderDirString = QDir(singerProviderDir).path();
-    auto inferenceDriverDirString = QDir(inferenceDriverDir).path();
-    auto inferenceInterpreterDirString = QDir(inferenceInterpreterDir).path();
+    auto singerProviderDirString = StringUtils::path_to_qstr(singerProviderDir);
+    auto inferenceDriverDirString = StringUtils::path_to_qstr(inferenceDriverDir);
+    auto inferenceInterpreterDirString = StringUtils::path_to_qstr(inferenceInterpreterDir);
     qDebug().noquote().nospace() << "Singer provider plugin path: " << singerProviderDirString;
     qDebug().noquote().nospace() << "Inference driver plugin path: " << inferenceDriverDirString;
     qDebug().noquote().nospace() << "Inference interpreter plugin path: "
@@ -155,7 +156,7 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::Execu
 
     outPaths.singerProvider = singerProviderDirString;
     outPaths.inferenceDriver = inferenceDriverDirString;
-    outPaths.inferenceRuntime = QDir(onnxArgs->runtimePath).path();
+    outPaths.inferenceRuntime = StringUtils::path_to_qstr(onnxArgs->runtimePath);
     outPaths.inferenceInterpreter = inferenceInterpreterDirString;
 
     return srt::Expected<void>();
@@ -205,6 +206,12 @@ bool InferEngine::initialized() {
 // }
 
 bool InferEngine::initialize(QString &error) {
+    QMutexLocker lock(&m_mutex);
+    if (m_initialized) {
+        qDebug() << "InferEngine already initialized";
+        return true;
+    }
+
     using EP = ds::Api::Onnx::ExecutionProvider;
     auto ep = EP::CPUExecutionProvider;
     if (appOptions->inference()->executionProvider == "DirectML") {
@@ -267,17 +274,10 @@ bool InferEngine::initialize(QString &error) {
     }
 
 
-    auto homeDir = []() -> std::filesystem::path {
-        return QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-#ifdef _WIN32
-            .toStdWString()
-#else
-            .toStdString()
-#endif
-            ;
-    };
+    const auto homeDir = StringUtils::qstr_to_path(QDir::toNativeSeparators(
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation)));
 
-    const std::filesystem::path paths = {homeDir() / ".diffsinger/packages"};
+    const std::filesystem::path paths = {homeDir / ".diffsinger/packages"};
     m_su.setPackagePaths(paths);
 
     qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
@@ -291,17 +291,9 @@ bool InferEngine::initialize(QString &error) {
     return true;
 }
 
-static inline std::filesystem::path to_filesystem_path(const QString &s) {
-#ifdef _WIN32
-    return s.toStdWString();
-#else
-    return s.toStdString();
-#endif
-}
-
 bool InferEngine::loadPackage(const QString &packagePath, const bool metadataOnly,
                               srt::PackageRef &outPackage) {
-    return loadPackage(to_filesystem_path(packagePath), metadataOnly, outPackage);
+    return loadPackage(StringUtils::qstr_to_path(packagePath), metadataOnly, outPackage);
 }
 
 bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bool metadataOnly,
@@ -349,7 +341,7 @@ bool InferEngine::runLoadConfig(const QString &path) {
     // Load models
     m_configLoaded = false;
 
-    std::filesystem::path packagePath = to_filesystem_path(path);
+    const auto packagePath = StringUtils::qstr_to_path(path);
 
     m_su.addPackagePath(packagePath.parent_path());
 
@@ -719,12 +711,7 @@ bool InferEngine::inferAcoustic(const GenericInferModel &model, const QString &o
         }
         const auto &audioRawData = result->audioData;
 
-        auto outputPathStr = outputPath
-#ifdef _WIN32
-                                 .toStdWString();
-#else
-                                 .toStdString();
-#endif
+        const auto outputPathStr = StringUtils::qstr_to_std(outputPath);
 
         SndfileHandle audioFile(outputPathStr.c_str(), SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_FLOAT,
                                 1, 44100);
@@ -774,6 +761,7 @@ void InferEngine::terminateInferAcousticAsync() const {
 }
 
 void InferEngine::dispose() {
+    qDebug() << "dispose InferEngine inference sessions";
     m_pkgCtx.inference.duration.session.reset();
     m_pkgCtx.inference.pitch.session.reset();
     m_pkgCtx.inference.variance.session.reset();
@@ -781,8 +769,12 @@ void InferEngine::dispose() {
     m_pkgCtx.inference.vocoder.session.reset();
 }
 
-srt::SynthUnit *InferEngine::synthUnit() {
-    return &m_su;
+srt::SynthUnit &InferEngine::synthUnit() {
+    return m_su;
+}
+
+const srt::SynthUnit &InferEngine::constSynthUnit() const {
+    return m_su;
 }
 
 QString InferEngine::configPath() {

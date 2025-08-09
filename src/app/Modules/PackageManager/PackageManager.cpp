@@ -6,6 +6,7 @@
 
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/InferEngine.h"
+#include "Utils/StringUtils.h"
 #include "stdcorelib/system.h"
 
 #include <synthrt/Core/SynthUnit.h>
@@ -18,8 +19,6 @@
 #include <QLocale>
 
 namespace fs = std::filesystem;
-
-using srt::NO;
 
 PackageManager::PackageManager() {
     connect(appStatus, &AppStatus::moduleStatusChanged, this,
@@ -38,12 +37,12 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     QElapsedTimer timer;
     timer.start();
     GetInstalledPackagesResult result;
-    const auto su = inferEngine->synthUnit();
+    srt::SynthUnit &su = inferEngine->synthUnit();
 
     auto processPackage = [&](const std::filesystem::path &packagePath) {
-        if (auto exp = su->open(packagePath, true); !exp) {
+        if (auto exp = su.open(packagePath, true); !exp) {
             result.failedPackages.append({
-                QString::fromStdString(packagePath.string()),
+                StringUtils::path_to_qstr(packagePath),
                 srtErrorToString(exp.error())
             });
         } else {
@@ -59,10 +58,10 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         }
     };
 
-    for (const auto &path : su->packagePaths()) {
+    for (const auto &path : su.packagePaths()) {
         if (!fs::exists(path) || !fs::is_directory(path)) {
             result.failedPackages.append({
-                QString::fromStdString(path.string()),
+                StringUtils::path_to_qstr(path),
                 tr("Path is not a valid directory")
             });
             continue;

@@ -13,8 +13,13 @@
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/SwitchButton.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
+#include "Utils/StringUtils.h"
 
-#include <QPlainTextEdit>
+#include <synthrt/Core/SynthUnit.h>
+
+#include <QDir>
+#include <QStandardItemModel>
+#include <QTreeView>
 #include <QVBoxLayout>
 
 enum CustomRole {
@@ -155,50 +160,138 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
                         {m_smoothSlider->seekbar, m_smoothSlider->spinbox});
 
     // Debug
-    m_textEdit = new QPlainTextEdit();
-    m_textEdit->setReadOnly(true);
-    m_textEdit->setLineWrapMode(QPlainTextEdit::LineWrapMode::WidgetWidth);
+    m_treeView = new QTreeView();
+    auto debugModel = new QStandardItemModel();
+    debugModel->setHorizontalHeaderLabels({tr("Key"), tr("Value")});
+
+    // Root node
+    auto rootItem = debugModel->invisibleRootItem();
+
     if (inferEngine) {
-        auto engineInitialized = inferEngine->initialized();
-        auto driverPath = inferEngine->inferenceDriverPath();
-        if (driverPath.isEmpty()) {
-            driverPath = "<empty>";
+        const auto fillEmpty = [](QString str_) {
+            if (str_.isEmpty()) {
+                return QString("<empty>");
+            }
+            return str_;
+        };
+        const auto &su = inferEngine->constSynthUnit();
+        const auto packagePaths = su.packagePaths();
+        const auto packages = su.packages();
+        const auto locale = QLocale::system();
+        const auto localeName = locale.name().toStdString();
+
+        const auto engineInitialized = inferEngine->initialized();
+        const auto driverPath = fillEmpty(inferEngine->inferenceDriverPath());
+        const auto interpreterPath = fillEmpty(inferEngine->inferenceInterpreterPath());
+        const auto singerProviderPath = fillEmpty(inferEngine->singerProviderPath());
+        const auto runtimePath = fillEmpty(inferEngine->inferenceRuntimePath());
+        const auto configPath = fillEmpty(inferEngine->configPath());
+
+        const QString kStringYes = tr("Yes");
+        const QString kStringNo = tr("No");
+
+        // Engine root node
+        auto engineRoot = new QStandardItem(tr("Engine"));
+        rootItem->appendRow(engineRoot);
+
+        // Engine initialized
+        auto engineItem = new QStandardItem(tr("Engine initialized"));
+        auto engineValue = new QStandardItem(engineInitialized ? kStringYes : kStringNo);
+        engineRoot->appendRow({engineItem, engineValue});
+
+        // Inference driver path
+        auto driverItem = new QStandardItem("Inference driver path");
+        auto driverValue = new QStandardItem(driverPath);
+        engineRoot->appendRow({driverItem, driverValue});
+
+        // Inference interpreter path
+        auto interpreterItem = new QStandardItem("Inference interpreter path");
+        auto interpreterValue = new QStandardItem(interpreterPath);
+        engineRoot->appendRow({interpreterItem, interpreterValue});
+
+        // Inference runtime path
+        auto runtimeItem = new QStandardItem("Inference runtime path");
+        auto runtimeValue = new QStandardItem(runtimePath);
+        engineRoot->appendRow({runtimeItem, runtimeValue});
+
+        // Singer provider path
+        auto singerItem = new QStandardItem("Singer provider path");
+        auto singerValue = new QStandardItem(singerProviderPath);
+        engineRoot->appendRow({singerItem, singerValue});
+
+        // Package root node
+        auto packageRoot = new QStandardItem(tr("Package"));
+        rootItem->appendRow(packageRoot);
+
+        // Package path
+        auto packagePathRoot = new QStandardItem(tr("Package search path"));
+        int packagePathIndex = 0;
+        for (const auto &path : std::as_const(packagePaths)) {
+            auto itemKey = new QStandardItem('[' + QString::number(packagePathIndex) + ']');
+            auto itemValue = new QStandardItem(StringUtils::path_to_qstr(path));
+            packagePathRoot->appendRow({itemKey, itemValue});
+            ++packagePathIndex;
         }
-        auto interpreterPath = inferEngine->inferenceInterpreterPath();
-        if (interpreterPath.isEmpty()) {
-            interpreterPath = "<empty>";
+        packageRoot->appendRow(packagePathRoot);
+
+        // Loaded packages
+        auto packageLoadedRoot = new QStandardItem(tr("Loaded packages"));
+        int packageLoadedIndex = 0;
+        for (const auto &pkg : std::as_const(packages)) {
+            const auto pkgId = QString::fromUtf8(pkg.id());
+            const auto pkgVersion = QString::fromUtf8(pkg.version().toString());
+            const auto pkgVendor = QString::fromUtf8(pkg.vendor().text(localeName));
+            const auto pkgPath = StringUtils::path_to_qstr(pkg.path());
+            auto currentPackageRoot = new QStandardItem(pkgId + " (" + pkgVersion + ')');
+            currentPackageRoot->appendRow({
+                new QStandardItem(tr("id")),
+                new QStandardItem(pkgId),
+            });
+            currentPackageRoot->appendRow({
+                new QStandardItem(tr("version")),
+                new QStandardItem(pkgVersion),
+            });
+            currentPackageRoot->appendRow({
+                new QStandardItem(tr("vendor")),
+                new QStandardItem(pkgVendor),
+            });
+            currentPackageRoot->appendRow({
+                new QStandardItem(tr("path")),
+                new QStandardItem(pkgPath)
+            });
+            packageLoadedRoot->appendRow(currentPackageRoot);
+            ++packageLoadedIndex;
         }
-        auto singerProviderPath = inferEngine->singerProviderPath();
-        if (singerProviderPath.isEmpty()) {
-            singerProviderPath = "<empty>";
-        }
-        auto runtimePath = inferEngine->inferenceRuntimePath();
-        if (runtimePath.isEmpty()) {
-            runtimePath = "<empty>";
-        }
-        QString text = QString("Engine initialized: ") +
-            (engineInitialized ? "Yes" : "No") + "\n\n"
-            "[Inference driver path]\n" + driverPath + "\n\n" +
-            "[Inference interpreter path]\n" + interpreterPath + "\n\n" +
-            "[Inference runtime path]\n" + runtimePath + "\n\n" +
-            "[Singer provider path]\n" + singerProviderPath;
-        m_textEdit->setPlainText(text);
+        packageRoot->appendRow(packageLoadedRoot);
     } else {
-        m_textEdit->setPlainText("InferEngine is not created (null pointer)");
+        // Engine root node
+        auto engineRoot = new QStandardItem(tr("Engine"));
+        rootItem->appendRow(engineRoot);
+        // Engine initialized
+        auto engineItem = new QStandardItem(tr("Engine initialized"));
+        auto engineValue = new QStandardItem(tr("InferEngine is not created (null pointer)"));
+        engineRoot->appendRow({engineItem, engineValue});
     }
+    m_treeView->setModel(debugModel);
+    m_treeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_treeView->setIndentation(10);
+    m_treeView->expandAll();
+    m_treeView->resizeColumnToContents(0);
     const auto debugCard = new OptionsCard();
     const auto debugLayout = new QHBoxLayout();
     debugLayout->setContentsMargins(10, 10, 10, 10);
-    debugLayout->addWidget(m_textEdit);
+    debugLayout->addWidget(m_treeView, 1);
     debugCard->card()->setLayout(debugLayout);
     debugCard->setTitle(tr("Debug"));
+    debugCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    debugCard->setMinimumHeight(300);
 
     // Main Layout
     const auto mainLayout = new QVBoxLayout();
-    mainLayout->addWidget(deviceCard);
-    mainLayout->addWidget(renderCard);
-    mainLayout->addWidget(debugCard);
-    mainLayout->addStretch();
+    mainLayout->addWidget(deviceCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(renderCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(debugCard, 1, Qt::AlignTop);
+    // mainLayout->addStretch();
     mainLayout->setContentsMargins({});
     setLayout(mainLayout);
 }

@@ -9,7 +9,7 @@ class ComboBox;
 class SwitchButton;
 class SeekBarSpinboxGroup;
 class DoubleSeekBarSpinboxGroup;
-class QPlainTextEdit;
+class QTreeView;
 
 class InferencePage : public IOptionPage {
     Q_OBJECT
@@ -29,7 +29,7 @@ private:
     SwitchButton *m_swRunVocoderOnCpu;
     SwitchButton *m_autoStartInfer;
     SeekBarSpinboxGroup *m_smoothSlider;
-    QPlainTextEdit *m_textEdit;
+    QTreeView *m_treeView;
 };
 
 

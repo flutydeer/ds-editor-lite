@@ -46,6 +46,8 @@ public:
     QString inferenceRuntimePath();
     QString inferenceInterpreterPath();
     bool configLoaded();
+    // Returns a const reference to the SynthUnit. Intended for public, read-only access.
+    const srt::SynthUnit &constSynthUnit() const;
 
 Q_SIGNALS:
     void cancelAllInferTasks();
@@ -75,7 +77,8 @@ private:
     void terminateInferVarianceAsync() const;
     void terminateInferAcousticAsync() const;
     void dispose();
-    srt::SynthUnit *synthUnit();
+    // Provides mutable access to the SynthUnit. Restricted to friends and member functions.
+    srt::SynthUnit &synthUnit();
 
     QMutex m_mutex;
     bool m_initialized = false;
