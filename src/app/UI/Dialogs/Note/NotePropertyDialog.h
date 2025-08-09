@@ -18,7 +18,7 @@ class NotePropertyDialog final : public OKCancelDialog {
     Q_OBJECT
 
 public:
-    explicit NotePropertyDialog(Note *note,
+    explicit NotePropertyDialog(const Note *note,
                                 AppGlobal::NotePropertyType propertyType = AppGlobal::Lyric,
                                 QWidget *parent = nullptr);
     [[nodiscard]] NoteDialogResult result();

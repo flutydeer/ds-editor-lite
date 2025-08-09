@@ -61,11 +61,11 @@ namespace SVS {
         int thumbBorderRatio = 102; // ratio max = 255;
         void setThumbBorderRatio(const QVariant &ratio);
 
-        double boundAndRound(double value) const;
-        void setSliderPosition(double value);
-        void setValue(double value);
+        double boundAndRound(double value_) const;
+        void setSliderPosition(double value_);
+        void setValue(double value_);
 
-        std::function<double(double)> displayValueConverter = [](double v) { return v; };
+        std::function<double(double)> displayValueConverter = [](const double v) { return v; };
     };
 
     void SeekBarPrivate::calculateParams() {
@@ -85,18 +85,21 @@ namespace SVS {
         trackEndPoint.setY(halfHeight);
 
         // Calculate slider track active
-        activeStartPos =
-            int(actualLength * (trackActiveStartValue - minimum) / (maximum - minimum)) + padding;
+        activeStartPos = static_cast<int>(actualLength * (trackActiveStartValue - minimum) /
+                                          (maximum - minimum)) +
+                         padding;
         activeStartPoint.setX(activeStartPos);
         activeStartPoint.setY(halfHeight);
-        valuePos = int(actualLength * (sliderValue - minimum) / (maximum - minimum)) + padding;
+        valuePos = static_cast<int>(actualLength * (sliderValue - minimum) / (maximum - minimum)) +
+                   padding;
         activeEndPoint.setX(valuePos);
         activeEndPoint.setY(halfHeight);
     }
 
     bool SeekBarPrivate::mouseOnHandle(const QPoint &mousePos) const {
-        auto pos = mousePos;
-        auto valuePos_ = actualLength * (sliderValue - minimum) / (maximum - minimum) + padding;
+        const auto pos = mousePos;
+        const auto valuePos_ =
+            actualLength * (sliderValue - minimum) / (maximum - minimum) + padding;
         if (pos.x() >= valuePos_ - halfHeight && pos.x() <= valuePos_ + halfHeight) {
             return true;
         }
@@ -156,7 +159,7 @@ namespace SVS {
         d->q_ptr = this;
         d->timer = new QTimer(this);
         d->timer->setInterval(400);
-        QObject::connect(d->timer, &QTimer::timeout, this, [=]() {
+        QObject::connect(d->timer, &QTimer::timeout, this, [=] {
             d->timer->stop();
             d->doubleClickLocked = false;
         });
@@ -182,7 +185,7 @@ namespace SVS {
         return d->maximum;
     }
 
-    void SeekBar::setMaximum(double maximum) {
+    void SeekBar::setMaximum(const double maximum) {
         Q_D(SeekBar);
         setRange(qMin(d->minimum, maximum), maximum);
     }
@@ -192,12 +195,12 @@ namespace SVS {
         return d->minimum;
     }
 
-    void SeekBar::setMinimum(double minimum) {
+    void SeekBar::setMinimum(const double minimum) {
         Q_D(SeekBar);
         setRange(minimum, qMax(d->maximum, minimum));
     }
 
-    void SeekBar::setRange(double minimum, double maximum) {
+    void SeekBar::setRange(const double minimum, const double maximum) {
         Q_D(SeekBar);
         d->minimum = minimum;
         d->maximum = maximum;
@@ -210,7 +213,7 @@ namespace SVS {
         return d->interval;
     }
 
-    void SeekBar::setInterval(double interval) {
+    void SeekBar::setInterval(const double interval) {
         Q_D(SeekBar);
         d->interval = interval;
         d->setValue(d->value);
@@ -222,7 +225,7 @@ namespace SVS {
         return d->singleStep;
     }
 
-    void SeekBar::setSingleStep(double step) {
+    void SeekBar::setSingleStep(const double step) {
         Q_D(SeekBar);
         d->singleStep = step;
     }
@@ -232,7 +235,7 @@ namespace SVS {
         return d->pageStep;
     }
 
-    void SeekBar::setPageStep(double step) {
+    void SeekBar::setPageStep(const double step) {
         Q_D(SeekBar);
         d->pageStep = step;
     }
@@ -242,7 +245,7 @@ namespace SVS {
         return d->hasTracking;
     }
 
-    void SeekBar::setTracking(bool enable) {
+    void SeekBar::setTracking(const bool enable) {
         Q_D(SeekBar);
         d->hasTracking = enable;
     }
@@ -252,7 +255,7 @@ namespace SVS {
         return d->isSliderDown;
     }
 
-    void SeekBar::setSliderDown(bool down) {
+    void SeekBar::setSliderDown(const bool down) {
         Q_D(SeekBar);
         d->isSliderDown = down;
     }
@@ -281,7 +284,7 @@ namespace SVS {
         return d->trackActiveStartValue;
     }
 
-    void SeekBar::setTrackActiveStartValue(double pos) {
+    void SeekBar::setTrackActiveStartValue(const double pos) {
         Q_D(SeekBar);
         d->trackActiveStartValue = pos;
         update();
@@ -297,13 +300,13 @@ namespace SVS {
         return d->defaultValue;
     }
 
-    void SeekBar::setDefaultValue(double value) {
+    void SeekBar::setDefaultValue(const double value) {
         Q_D(SeekBar);
         d->defaultValue = value;
         update();
     }
 
-    void SeekBar::setValue(double value) {
+    void SeekBar::setValue(const double value) {
         Q_D(SeekBar);
         d->setValue(value);
     }
@@ -344,9 +347,9 @@ namespace SVS {
         painter.setPen(pen);
         painter.drawLine(d->trackStartPoint, d->trackEndPoint);
 
-        d->valuePos =
-            int(d->actualLength * (d->sliderValue - d->minimum) / (d->maximum - d->minimum)) +
-            d->padding;
+        d->valuePos = static_cast<int>(d->actualLength * (d->sliderValue - d->minimum) /
+                                       (d->maximum - d->minimum)) +
+                      d->padding;
         d->activeEndPoint.setX(d->valuePos);
 
         // Draw slider track active
@@ -377,8 +380,8 @@ namespace SVS {
 
     void SeekBar::mouseMoveEvent(QMouseEvent *event) {
         Q_D(SeekBar);
-        auto pos = event->pos();
-        auto posValue =
+        const auto pos = event->pos();
+        const auto posValue =
             (pos.x() - d->padding) * (d->maximum - d->minimum) / d->actualLength + d->minimum;
         d->setSliderPosition(posValue);
         QWidget::mouseMoveEvent(event);
@@ -386,7 +389,7 @@ namespace SVS {
 
     void SeekBar::mouseDoubleClickEvent(QMouseEvent *event) {
         Q_D(SeekBar);
-        auto pos = event->pos();
+        const auto pos = event->pos();
         if (d->resetOnDoubleClick && d->mouseOnHandle(pos))
             resetValue();
         QWidget::mouseDoubleClickEvent(event);
@@ -399,9 +402,9 @@ namespace SVS {
         d->thumbHoverAnimation->setStartValue(d->thumbBorderRatio);
         d->thumbHoverAnimation->setEndValue(114);
         d->thumbHoverAnimation->start();
-        auto pos = event->pos();
+        const auto pos = event->pos();
         if (!d->mouseOnHandle(pos) && !d->doubleClickLocked) {
-            auto posValue =
+            const auto posValue =
                 (pos.x() - d->padding) * (d->maximum - d->minimum) / d->actualLength + d->minimum;
             d->setValue(posValue);
         }
@@ -516,7 +519,7 @@ namespace SVS {
         return d->animationDuration;
     }
 
-    void SeekBar::setAnimationDuration(int dur) {
+    void SeekBar::setAnimationDuration(const int dur) {
         Q_D(SeekBar);
         d->animationDuration = dur;
         d->thumbHoverAnimation->setDuration(d->animationDuration);
@@ -527,7 +530,7 @@ namespace SVS {
         return d->resetOnDoubleClick;
     }
 
-    void SeekBar::setResetOnDoubleClick(bool a) {
+    void SeekBar::setResetOnDoubleClick(const bool a) {
         Q_D(SeekBar);
         d->resetOnDoubleClick = a;
     }

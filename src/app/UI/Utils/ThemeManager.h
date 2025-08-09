@@ -21,7 +21,7 @@ public:
 
 public slots:
     void onAppOptionsChanged(AppOptionsGlobal::Option option);
-    void onSystemThemeColorChanged(ThemeColorType colorType);
+    void onSystemThemeColorChanged();
 
 private:
     static void applyAnimationSettings(IAnimatable *object);

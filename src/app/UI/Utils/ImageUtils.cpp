@@ -9,7 +9,7 @@
 Q_GUI_EXPORT extern void qt_blurImage(QPainter *p, QImage &blurImage, qreal radius, bool quality,
                                       bool alphaOnly, int transposed = 0);
 
-QPixmap ImageUtils::gaussianBlur(const QPixmap &pixmap, int blurRadius, double brightFactor,
+QPixmap ImageUtils::gaussianBlur(const QPixmap &pixmap, const int blurRadius, double brightFactor,
                                  QSize blurPicSize) {
     QImage image = pixmap.toImage();
     QPixmap dst(image.size());

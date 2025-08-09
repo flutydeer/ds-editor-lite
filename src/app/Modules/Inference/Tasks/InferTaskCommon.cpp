@@ -45,9 +45,9 @@ auto convertInputWords(const QList<InferWord> &words, std::string speakerName)
                 /* key */ note.key,
                 /* cents */ note.cents,
                 /* duration */ note.duration,
-                /* glide */ note.glide == "up"
-                    ? Co::GlideType::GT_Up
-                    : (note.glide == "down" ? Co::GlideType::GT_Down : Co::GlideType::GT_None),
+                /* glide */ note.glide == "up" ? Co::GlideType::GT_Up
+                : note.glide == "down"         ? Co::GlideType::GT_Down
+                                               : Co::GlideType::GT_None,
                 /* is_rest */ note.is_rest);
         }
 

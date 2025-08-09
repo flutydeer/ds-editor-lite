@@ -56,15 +56,15 @@ private:
 
     void onHover(QHoverEvent *event);
     void handleHoverOnBar();
-    void handleHoverOnClipIndicator();
+    void handleHoverOnClipIndicator() const;
 
-    void drawSegmentedBar(QPainter &painter, const QRectF &rect, const double &level);
-    void drawGradientBar(QPainter &painter, const QRectF &rect, const double &level);
-    void drawPeakHold(QPainter &painter, const QRectF &rect, double level);
+    void drawSegmentedBar(QPainter &painter, const QRectF &rect, const double &level) const;
+    void drawGradientBar(QPainter &painter, const QRectF &rect, const double &level) const;
+    void drawPeakHold(QPainter &painter, const QRectF &rect, double level) const;
 
-    void startDecayAnimation(ChannelData &channel);
+    static void startDecayAnimation(ChannelData &channel);
     void updatePeakValue(ChannelData &channel, double clippedValue);
-    void cancelDecayAnimation(ChannelData &channel);
+    static void cancelDecayAnimation(ChannelData &channel);
     void handleAnimationUpdate(const QVariant &value, ChannelData &channel);
 
     void notifyDisplayedPeakChange();
@@ -74,11 +74,11 @@ private:
 
     // Properties getters and setters
     double padding() const;
-    void setPadding(double value);
+    void setPadding(double padding);
     double spacing() const;
-    void setSpacing(double value);
+    void setSpacing(double padding);
     double clipIndicatorLength() const;
-    void setClipIndicatorLength(double value);
+    void setClipIndicatorLength(double padding);
     bool showValueWhenHover() const;
     void setShowValueWhenHover(bool on);
     QColor dimmedColor() const;

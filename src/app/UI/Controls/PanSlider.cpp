@@ -45,9 +45,9 @@ public:
     QColor thumbColor = {155, 186, 255};
     int animationDuration = 200;
 
-    double boundAndRound(double value) const;
-    void setSliderPosition(double value);
-    void setPanValue(double value);
+    double boundAndRound(double value_) const;
+    void setSliderPosition(double value_);
+    void setPanValue(double value_);
 
     double panToX(double pan) const;
     double xToPan(double x) const;
@@ -91,15 +91,15 @@ void PanSliderPrivate::setPanValue(double value_) {
     q->update();
 }
 
-double PanSliderPrivate::panToX(double pan) const {
+double PanSliderPrivate::panToX(const double pan) const {
     Q_Q(const PanSlider);
-    auto ratio = (pan - panMinimum) / (panMaximum - panMinimum);
+    const auto ratio = (pan - panMinimum) / (panMaximum - panMinimum);
     return paddingH + ratio * (q->rect().width() - 2 * paddingH);
 }
 
-double PanSliderPrivate::xToPan(double x) const {
+double PanSliderPrivate::xToPan(const double x) const {
     Q_Q(const PanSlider);
-    auto ratio = (x - paddingH) / (q->rect().width() - 2 * paddingH);
+    const auto ratio = (x - paddingH) / (q->rect().width() - 2 * paddingH);
     return panMinimum + ratio * (panMaximum - panMinimum);
 }
 
@@ -108,7 +108,7 @@ PanSlider::PanSlider(QWidget *parent) : PanSlider(parent, *new PanSliderPrivate)
     setAttribute(Qt::WA_StyledBackground);
     d->q_ptr = this;
     d->timer.setInterval(400);
-    QObject::connect(&d->timer, &QTimer::timeout, this, [=]() {
+    QObject::connect(&d->timer, &QTimer::timeout, this, [=] {
         d->timer.stop();
         d->doubleClickWindow = false;
     });
@@ -150,7 +150,7 @@ double PanSlider::value() const {
     return d->panSliderValue;
 }
 
-void PanSlider::setValue(double pan) {
+void PanSlider::setValue(const double pan) {
     Q_D(PanSlider);
     d->setPanValue(pan);
 }
@@ -166,31 +166,31 @@ void PanSlider::paintEvent(QPaintEvent *event) {
     painter.setRenderHint(QPainter::Antialiasing);
     QPen pen;
 
-    auto drawZeroGraduate = [&] {
-        pen.setColor(d->centerGraduateColor);
-        pen.setWidthF(d->trackGraduatePenWidth);
-        painter.setPen(pen);
-
-        auto x = rect().width() / 2.0;
-        auto y1 = rect().top() + d->paddingH;
-        auto y2 = rect().height() - d->paddingH;
-        painter.drawLine(QPointF(x, y1), QPointF(x, y2));
-    };
+    // auto drawZeroGraduate = [&] {
+    //     pen.setColor(d->centerGraduateColor);
+    //     pen.setWidthF(d->trackGraduatePenWidth);
+    //     painter.setPen(pen);
+    //
+    //     auto x = rect().width() / 2.0;
+    //     auto y1 = rect().top() + d->paddingH;
+    //     auto y2 = rect().height() - d->paddingH;
+    //     painter.drawLine(QPointF(x, y1), QPointF(x, y2));
+    // };
 
     auto drawSliderTrackActive = [&] {
         painter.setPen(Qt::NoPen);
         painter.setBrush(d->trackActiveColor);
 
-        auto x1 = d->panToX(d->panSliderValue);
-        auto x2 = d->panToX(d->panDefaultValue);
-        auto y1 = rect().top() + d->paddingV;
-        auto y2 = rect().height() - d->paddingV;
+        const auto x1 = d->panToX(d->panSliderValue);
+        const auto x2 = d->panToX(d->panDefaultValue);
+        const auto y1 = rect().top() + d->paddingV;
+        const auto y2 = rect().height() - d->paddingV;
 
-        auto left = qMin(x1, x2);
-        auto right = qMax(x1, x2);
+        const auto left = qMin(x1, x2);
+        const auto right = qMax(x1, x2);
 
-        auto width = right - left;
-        auto height = y2 - y1;
+        const auto width = right - left;
+        const auto height = y2 - y1;
 
         painter.drawRect(QRectF(left, y1, width, height));
     };
@@ -199,14 +199,14 @@ void PanSlider::paintEvent(QPaintEvent *event) {
         painter.setPen(Qt::NoPen);
         painter.setBrush(d->thumbColor);
 
-        auto x0 = d->panToX(d->panSliderValue);
-        auto x1 = x0 - d->thumbWidth / 2.0;
-        auto x2 = x0 + d->thumbWidth / 2.0;
-        auto y1 = rect().top() + d->paddingV;
-        auto y2 = rect().height() - d->paddingV;
+        const auto x0 = d->panToX(d->panSliderValue);
+        const auto x1 = x0 - d->thumbWidth / 2.0;
+        const auto x2 = x0 + d->thumbWidth / 2.0;
+        const auto y1 = rect().top() + d->paddingV;
+        const auto y2 = rect().height() - d->paddingV;
 
-        auto width = x2 - x1;
-        auto height = y2 - y1;
+        const auto width = x2 - x1;
+        const auto height = y2 - y1;
 
         painter.drawRect(QRectF(x1, y1, width, height));
     };
@@ -223,7 +223,7 @@ void PanSlider::mouseMoveEvent(QMouseEvent *event) {
         return;
     }
 
-    auto pos = event->pos();
+    const auto pos = event->pos();
     d->setSliderPosition(d->xToPan(pos.x()));
     QWidget::mouseMoveEvent(event);
 }
@@ -241,13 +241,13 @@ void PanSlider::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return;
 
-    auto pos = event->pos();
+    const auto pos = event->pos();
     d->mouseDownPos = pos;
 
     // Move cursor to the center of thumb
     d->mouseMoveBarrier = true; // 防止 QCursor::setPos 导致意外移动
-    auto x = d->panToX(d->panValue);
-    auto y = rect().height() / 2.0;
+    const auto x = d->panToX(d->panValue);
+    const auto y = rect().height() / 2.0;
     QCursor::setPos(mapToGlobal(QPointF{x, y}).toPoint());
     d->isSliderDown = true;
     d->canMoveThumb = true;
@@ -268,7 +268,7 @@ void PanSlider::mouseReleaseEvent(QMouseEvent *event) {
         return;
 
     d->canMoveThumb = true;
-    auto currentPos = event->pos();
+    const auto currentPos = event->pos();
     if (currentPos != d->mouseDownPos)
         d->setPanValue(d->panSliderValue);
 
@@ -316,7 +316,7 @@ int PanSlider::animationDuration() const {
     return d->animationDuration;
 }
 
-void PanSlider::setAnimationDuration(int dur) {
+void PanSlider::setAnimationDuration(const int dur) {
     Q_D(PanSlider);
     d->animationDuration = dur;
     // d->thumbHoverAnimation.setDuration(d->animationDuration);

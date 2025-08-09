@@ -134,7 +134,7 @@ void SearchDialog::onSearchTextChanged() {
                     static_cast<QRegularExpression::PatternOption>(!caseSensitivity));
                 match = lyric.contains(regex);
             } else {
-                match = (lyric.compare(searchTerm, caseSensitivity) == 0);
+                match = lyric.compare(searchTerm, caseSensitivity) == 0;
             }
         } else {
             if (useRegex) {
@@ -148,9 +148,8 @@ void SearchDialog::onSearchTextChanged() {
 
 
         if (match) {
-            QString displayText =
-                QString("%1 (%2)")
-                    .arg(note->lyric(), appModel->getBarBeatTickTime(note->globalStart()));
+            QString displayText = QString("%1 (%2)").arg(
+                note->lyric(), appModel->getBarBeatTickTime(note->globalStart()));
             auto *item = new QListWidgetItem(displayText);
             item->setData(Qt::UserRole, note->id());
             resultListWidget->addItem(item);

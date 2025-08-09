@@ -57,17 +57,16 @@ public:
     int animationDuration = 200;
 
     bool mouseOnThumb(const QPoint &mousePos) const;
-    double boundAndRound(double value) const;
-    void setSliderPosition(double value);
-    void setDecibelValue(double value);
+    double boundAndRound(double value_) const;
+    void setSliderPosition(double value_);
+    void setDecibelValue(double value_);
     void calculateParams();
     double gainToSliderValue(double gain) const;
     double gainFromSliderValue(double value) const;
-
 };
 
 bool FaderPrivate::mouseOnThumb(const QPoint &mousePos) const {
-    auto thumbRect = QRectF(thumbPos, thumbSize);
+    const auto thumbRect = QRectF(thumbPos, thumbSize);
     return thumbRect.contains(mousePos);
 }
 
@@ -124,15 +123,15 @@ void FaderPrivate::calculateParams() {
     // Calculate slider track active
     activeStartPoint.setX(centerX);
     activeStartPoint.setY(q->rect().bottom() - paddingVertical);
-    auto linearSliderValue = gainToSliderValue(decibelSliderValue);
-    auto valueLength = (actualLength * (linearSliderValue - linearMinimum) / (
-                            linearMaximum - linearMinimum));
+    const auto linearSliderValue = gainToSliderValue(decibelSliderValue);
+    const auto valueLength =
+        (actualLength * (linearSliderValue - linearMinimum) / (linearMaximum - linearMinimum));
     activeEndPoint.setX(centerX);
     activeEndPoint.setY(q->rect().bottom() - paddingVertical - valueLength);
 
     // Calculate 0 dB graduate
-    auto zeroLength = (actualLength * (gainToSliderValue(0) - linearMinimum) / (
-                           linearMaximum - linearMinimum)); //0dB
+    const auto zeroLength = (actualLength * (gainToSliderValue(0) - linearMinimum) /
+                             (linearMaximum - linearMinimum)); // 0dB
     zeroGraduateY = q->rect().bottom() - paddingVertical - zeroLength;
 
     // Calculate thumb
@@ -187,7 +186,7 @@ double Fader::value() const {
     return d->decibelSliderValue;
 }
 
-void Fader::setValue(double dB) {
+void Fader::setValue(const double dB) {
     Q_D(Fader);
     d->setDecibelValue(dB);
 }
@@ -217,17 +216,17 @@ void Fader::paintEvent(QPaintEvent *event) {
         pen.setWidthF(d->trackGraduatePenWidth);
         painter.setPen(pen);
 
-        auto padding = 2.0;
-        auto x1 = rect().left() + padding;
-        auto x2 = (rect().width() / 2.0) - padding;
-        auto graduateLeftStartPoint = QPointF(x1, d->zeroGraduateY);
-        auto graduateLeftEndPoint = QPointF(x2, d->zeroGraduateY);
+        constexpr auto padding = 2.0;
+        const auto x1 = rect().left() + padding;
+        const auto x2 = rect().width() / 2.0 - padding;
+        const auto graduateLeftStartPoint = QPointF(x1, d->zeroGraduateY);
+        const auto graduateLeftEndPoint = QPointF(x2, d->zeroGraduateY);
         painter.drawLine(graduateLeftStartPoint, graduateLeftEndPoint);
 
-        auto x3 = (rect().width() / 2.0) + padding;
-        auto x4 = rect().right() - padding;
-        auto graduateRightStartPoint = QPointF(x3, d->zeroGraduateY);
-        auto graduateRightEndPoint = QPointF(x4, d->zeroGraduateY);
+        const auto x3 = rect().width() / 2.0 + padding;
+        const auto x4 = rect().right() - padding;
+        const auto graduateRightStartPoint = QPointF(x3, d->zeroGraduateY);
+        const auto graduateRightEndPoint = QPointF(x4, d->zeroGraduateY);
         painter.drawLine(graduateRightStartPoint, graduateRightEndPoint);
     };
 
@@ -248,12 +247,12 @@ void Fader::paintEvent(QPaintEvent *event) {
         pen.setColor(d->trackInactiveColor);
         pen.setWidthF(d->thumbGraduateWidth);
         painter.setPen(pen);
-        auto thumbRect = QRectF(d->thumbPos, d->thumbSize);
-        auto thumbPadding = 2.0;
-        auto thumbGraduateStartPoint = QPointF(thumbRect.left() + thumbPadding,
-                                               d->activeEndPoint.y());
-        auto thumbGraduateEndPoint = QPointF(thumbRect.right() - thumbPadding,
-                                             d->activeEndPoint.y());
+        const auto thumbRect = QRectF(d->thumbPos, d->thumbSize);
+        constexpr auto thumbPadding = 2.0;
+        const auto thumbGraduateStartPoint =
+            QPointF(thumbRect.left() + thumbPadding, d->activeEndPoint.y());
+        const auto thumbGraduateEndPoint =
+            QPointF(thumbRect.right() - thumbPadding, d->activeEndPoint.y());
         painter.drawLine(thumbGraduateStartPoint, thumbGraduateEndPoint);
     };
 
@@ -277,12 +276,10 @@ void Fader::mouseMoveEvent(QMouseEvent *event) {
         return;
     }
 
-    auto pos = event->pos();
-    auto posValue =
-        ((d->actualLength + d->paddingVertical - pos.y()) * (d->linearMaximum - d->linearMinimum) /
-         d->actualLength)
-        + d->
-        linearMinimum;
+    const auto pos = event->pos();
+    const auto posValue = (d->actualLength + d->paddingVertical - pos.y()) *
+                              (d->linearMaximum - d->linearMinimum) / d->actualLength +
+                          d->linearMinimum;
     d->setSliderPosition(d->gainFromSliderValue(posValue));
     QWidget::mouseMoveEvent(event);
 }
@@ -300,12 +297,12 @@ void Fader::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return;
 
-    auto pos = event->pos();
+    const auto pos = event->pos();
     d->mouseDownPos = pos;
 
     // Move cursor to the center of thumb
     if (d->mouseOnThumb(pos)) {
-        auto thumbRect = QRectF(d->thumbPos, d->thumbSize);
+        const auto thumbRect = QRectF(d->thumbPos, d->thumbSize);
         d->mouseMoveBarrier = true; // 防止 QCursor::setPos 导致意外移动
         QCursor::setPos(mapToGlobal(thumbRect.center().toPoint()));
         d->isSliderDown = true;
@@ -325,8 +322,8 @@ void Fader::mousePressEvent(QMouseEvent *event) {
     // Ignore if mouse not on thumb
     // else if (!d->doubleClickLocked) {
     //     auto posValue =
-    //             ((d->actualLength + d->paddingVertical - pos.y()) * (d->maximum - d->minimum) / d->actualLength) + d->
-    //             minimum;
+    //             ((d->actualLength + d->paddingVertical - pos.y()) * (d->maximum - d->minimum) /
+    //             d->actualLength) + d-> minimum;
     //     d->setValue(posValue);
     // }
     // setSliderDown(true);
@@ -339,7 +336,7 @@ void Fader::mouseReleaseEvent(QMouseEvent *event) {
         return;
 
     d->canMoveThumb = true;
-    auto currentPos = event->pos();
+    const auto currentPos = event->pos();
     if (currentPos != d->mouseDownPos)
         d->setDecibelValue(d->decibelSliderValue);
 
@@ -387,16 +384,16 @@ int Fader::animationDuration() const {
     return d->animationDuration;
 }
 
-void Fader::setAnimationDuration(int dur) {
+void Fader::setAnimationDuration(const int dur) {
     Q_D(Fader);
     d->animationDuration = dur;
     // d->thumbHoverAnimation.setDuration(d->animationDuration);
 }
 
-double FaderPrivate::gainToSliderValue(double gain) const {
+double FaderPrivate::gainToSliderValue(const double gain) const {
     return std::pow((gain - decibelMinimum) / (decibelMaximum - decibelMinimum), 1.0 / scalePower);
 }
 
-double FaderPrivate::gainFromSliderValue(double value) const {
+double FaderPrivate::gainFromSliderValue(const double value) const {
     return ((decibelMaximum - decibelMinimum) * std::pow(value, scalePower)) + decibelMinimum;
 }

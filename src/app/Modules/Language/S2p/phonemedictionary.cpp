@@ -14,7 +14,7 @@ namespace dsutils {
         }
 
         file.seekg(0, std::ios::end);
-        std::streamsize file_size = file.tellg();
+        const std::streamsize file_size = file.tellg();
         file.seekg(0, std::ios::beg);
 
         m_filebuf.resize(file_size + 1); // +1 for null terminator
@@ -31,9 +31,9 @@ namespace dsutils {
         const auto buffer_end = buffer_begin + m_filebuf.size();
 
         // Estimate line numbers if the file is too large
-        static constexpr const size_t larget_file_size = 1 * 1024 * 1024;
+        static constexpr size_t larget_file_size = 1 * 1024 * 1024;
         if (file_size > larget_file_size) {
-            size_t line_cnt = std::count(buffer_begin, buffer_end, '\n') + 1;
+            const size_t line_cnt = std::count(buffer_begin, buffer_end, '\n') + 1;
             m_map.reserve(line_cnt);
         }
 
@@ -46,11 +46,11 @@ namespace dsutils {
                     start++;
                 }
 
-                char *value_start = nullptr;
+                const char *value_start = nullptr;
                 int value_cnt = 0;
 
                 // Find next line break
-                                auto p = start + 1;
+                auto p = start + 1;
                 while (p < buffer_end) {
                     switch (*p) {
                         case '\t': {
@@ -87,18 +87,19 @@ namespace dsutils {
                 }
 
                 std::string_view key(start, value_start - 1 - start);
-                m_map[key] = Entry{int(value_start - buffer_begin), value_cnt};
+                m_map[key] = Entry{static_cast<int>(value_start - buffer_begin), value_cnt};
                 start = p + 1;
             }
         }
         return true;
     }
 
-    void PhonemeDictionary::readEntry(Entry entry, std::string_view out[], int cnt) const {
+    void PhonemeDictionary::readEntry(const Entry entry, std::string_view out[],
+                                      const int cnt) const {
         auto p = m_filebuf.data() + entry.offset;
         auto q = p;
         int i = 0;
-        int min = std::min(cnt, entry.count);
+        const int min = std::min(cnt, entry.count);
         while (i < min) {
             if (*q == '\0') {
                 out[i++] = p;

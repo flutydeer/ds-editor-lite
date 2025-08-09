@@ -5,7 +5,6 @@
 #include "SwitchButton.h"
 
 #include <QPainter>
-#include <QDebug>
 #include <QEvent>
 #include <QPropertyAnimation>
 
@@ -13,7 +12,7 @@ SwitchButton::SwitchButton(QWidget *parent) : QAbstractButton(parent) {
     initUi();
 }
 
-SwitchButton::SwitchButton(bool on, QWidget *parent) : QAbstractButton(parent) {
+SwitchButton::SwitchButton(const bool on, QWidget *parent) : QAbstractButton(parent) {
     m_apparentValue = on ? 255 : 0;
     initUi();
     setChecked(on);
@@ -26,7 +25,7 @@ bool SwitchButton::value() const {
     return isChecked();
 }
 
-void SwitchButton::setValue(bool value) {
+void SwitchButton::setValue(const bool value) {
     // m_value = value;
     setChecked(value);
     m_valueAnimation.stop();
@@ -65,15 +64,15 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
     // painter.fillRect(rect(), QColor(255, 0, 0, 30));
 
     // Calculate params
-    auto m_halfRectHeight = rect().height() / 2;
-    auto m_thumbRadius = (m_halfRectHeight - m_vPadding) / 2.0;
+    const auto m_halfRectHeight = rect().height() / 2;
+    const auto m_thumbRadius = (m_halfRectHeight - m_vPadding) / 2.0;
     QPointF m_trackStart;
     QPointF m_trackEnd;
     m_trackStart.setX(rect().left() + m_vPadding + m_thumbRadius + 1); // Avoid clipping
     m_trackStart.setY(m_halfRectHeight);
     m_trackEnd.setX(rect().right() - m_vPadding - m_thumbRadius);
     m_trackEnd.setY(m_halfRectHeight);
-    auto trackLength = m_trackEnd.x() - m_trackStart.x();
+    const auto trackLength = m_trackEnd.x() - m_trackStart.x();
 
     // Draw inactive background
     pen.setWidthF(rect().height() - m_vPadding * 2);
@@ -93,10 +92,10 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
     painter.drawLine(m_trackStart, m_trackEnd);
 
     // Draw thumb
-    auto left = m_apparentValue * trackLength / 255.0 + m_trackStart.x();
+    const auto left = m_apparentValue * trackLength / 255.0 + m_trackStart.x();
     //    qDebug() << m_apparentValue;
-    auto handlePos = QPointF(left, m_halfRectHeight);
-    auto thumbRadius = m_thumbRadius * m_thumbScaleRatio / 100.0;
+    const auto handlePos = QPointF(left, m_halfRectHeight);
+    const auto thumbRadius = m_thumbRadius * m_thumbScaleRatio / 100.0;
 
     painter.setPen(Qt::NoPen);
     auto b = 255 - m_apparentValue;
@@ -112,7 +111,7 @@ int SwitchButton::apparentValue() const {
     return m_apparentValue;
 }
 
-void SwitchButton::setApparentValue(int x) {
+void SwitchButton::setApparentValue(const int x) {
     m_apparentValue = x;
     repaint();
 }
@@ -121,7 +120,7 @@ int SwitchButton::thumbScaleRatio() const {
     return m_thumbScaleRatio;
 }
 
-void SwitchButton::setThumbScaleRatio(int ratio) {
+void SwitchButton::setThumbScaleRatio(const int ratio) {
     m_thumbScaleRatio = ratio;
     repaint();
 }
@@ -144,7 +143,7 @@ void SwitchButton::updateAnimationDuration() {
 }
 
 bool SwitchButton::eventFilter(QObject *object, QEvent *event) {
-    auto type = event->type();
+    const auto type = event->type();
     if (type == QEvent::HoverEnter || type == QEvent::MouseButtonRelease) {
         //        qDebug() << "Hover Enter";
         m_thumbHoverAnimation.stop();

@@ -2,7 +2,6 @@
 #define MESSAGEDIALOG_H
 
 #include <QVBoxLayout>
-#include <QMap>
 #include <QLabel>
 
 #include "Dialog.h"

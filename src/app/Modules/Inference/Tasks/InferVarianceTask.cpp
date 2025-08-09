@@ -196,22 +196,23 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
 
 bool InferVarianceTask::processOutput(const GenericInferModel &model) {
     auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
-    auto newInterval = tickToSec(5);
+    const auto newInterval = tickToSec(5);
 
-    auto breathiness = Linq::where(model.params, L_PRED(p, p.tag == "breathiness")).first();
+    const auto breathiness = Linq::where(model.params, L_PRED(p, p.tag == "breathiness")).first();
     m_result.breathiness.values =
         MathUtils::resample(breathiness.values, breathiness.interval, newInterval);
 
-    auto tension = Linq::where(model.params, L_PRED(p, p.tag == "tension")).first();
+    const auto tension = Linq::where(model.params, L_PRED(p, p.tag == "tension")).first();
     m_result.tension.values = MathUtils::resample(tension.values, tension.interval, newInterval);
 
-    auto voicing = Linq::where(model.params, L_PRED(p, p.tag == "voicing")).first();
+    const auto voicing = Linq::where(model.params, L_PRED(p, p.tag == "voicing")).first();
     m_result.voicing.values = MathUtils::resample(voicing.values, voicing.interval, newInterval);
 
-    auto energy = Linq::where(model.params, L_PRED(p, p.tag == "energy")).first();
+    const auto energy = Linq::where(model.params, L_PRED(p, p.tag == "energy")).first();
     m_result.energy.values = MathUtils::resample(energy.values, energy.interval, newInterval);
 
-    auto mouthOpening = Linq::where(model.params, L_PRED(p, p.tag == "mouth_opening")).first();
+    const auto mouthOpening =
+        Linq::where(model.params, L_PRED(p, p.tag == "mouth_opening")).first();
     m_result.mouthOpening.values =
         MathUtils::resample(mouthOpening.values, mouthOpening.interval, newInterval);
     return true;

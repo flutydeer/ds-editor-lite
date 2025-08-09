@@ -13,7 +13,7 @@
 SeekBar::SeekBar(QWidget *parent) : QWidget(parent) {
     timer = new QTimer(parent);
     timer->setInterval(400);
-    QObject::connect(timer, &QTimer::timeout, this, [this]() {
+    QObject::connect(timer, &QTimer::timeout, this, [this] {
         timer->stop();
         doubleClickLocked = false;
     });
@@ -51,10 +51,11 @@ void SeekBar::calculateParams() {
 
     // Calculate slider track active
     m_activeStartPos =
-        int(m_actualLength * (m_trackActiveStartValue - m_min) / (m_max - m_min)) + m_padding;
+        static_cast<int>(m_actualLength * (m_trackActiveStartValue - m_min) / (m_max - m_min)) +
+        m_padding;
     m_activeStartPoint.setX(m_activeStartPos);
     m_activeStartPoint.setY(m_halfHeight);
-    m_valuePos = int(m_actualLength * (m_value - m_min) / (m_max - m_min)) + m_padding;
+    m_valuePos = static_cast<int>(m_actualLength * (m_value - m_min) / (m_max - m_min)) + m_padding;
     m_activeEndPoint.setX(m_valuePos);
     m_activeEndPoint.setY(m_halfHeight);
 }
@@ -73,7 +74,7 @@ void SeekBar::paintEvent(QPaintEvent *event) {
     painter.setPen(pen);
     painter.drawLine(m_trackStartPoint, m_trackEndPoint);
 
-    m_valuePos = int(m_actualLength * (m_value - m_min) / (m_max - m_min)) + m_padding;
+    m_valuePos = static_cast<int>(m_actualLength * (m_value - m_min) / (m_max - m_min)) + m_padding;
     m_activeEndPoint.setX(m_valuePos);
 
     // Draw slider track active
@@ -97,27 +98,27 @@ void SeekBar::paintEvent(QPaintEvent *event) {
     painter.end();
 }
 
-void SeekBar::setValue(double value) {
+void SeekBar::setValue(const double value) {
     m_value = value;
     repaint();
 }
 
-void SeekBar::setValueAsync(double value) {
+void SeekBar::setValueAsync(const double value) {
     m_cachedValue = value;
     m_hasAsyncSetValueTask = true;
 }
 
-void SeekBar::setDefaultValue(double value) {
+void SeekBar::setDefaultValue(const double value) {
     m_defaultValue = value;
     update();
 }
 
-void SeekBar::setMax(double max) {
+void SeekBar::setMax(const double max) {
     m_max = max;
     update();
 }
 
-void SeekBar::setMin(double min) {
+void SeekBar::setMin(const double min) {
     m_min = min;
     update();
 }
@@ -129,13 +130,13 @@ void SeekBar::reset() {
 }
 
 void SeekBar::mouseMoveEvent(QMouseEvent *event) {
-    auto pos = event->pos();
+    const auto pos = event->pos();
     if (pos.x() < m_actualStart) {
         setValue(m_min);
         emit valueChanged(m_value);
     } else if (pos.x() < m_actualEnd) {
         //        auto valuePos = m_actualLength * (m_value - m_min) / (m_max - m_min) + 16;
-        auto posValue = (pos.x() - m_padding) * (m_max - m_min) / m_actualLength + m_min;
+        const auto posValue = (pos.x() - m_padding) * (m_max - m_min) / m_actualLength + m_min;
         setValue(posValue);
         emit valueChanged(m_value);
     } else {
@@ -147,7 +148,7 @@ void SeekBar::mouseMoveEvent(QMouseEvent *event) {
 
 void SeekBar::mouseDoubleClickEvent(QMouseEvent *event) {
     //    qDebug() << "double click";
-    auto pos = event->pos();
+    const auto pos = event->pos();
     if (mouseOnHandle(pos))
         reset();
     QWidget::mouseDoubleClickEvent(event);
@@ -160,14 +161,14 @@ void SeekBar::mousePressEvent(QMouseEvent *event) {
     m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);
     m_thumbHoverAnimation->setEndValue(114);
     m_thumbHoverAnimation->start();
-    auto pos = event->pos();
+    const auto pos = event->pos();
     if (!mouseOnHandle(pos) && !doubleClickLocked) {
-        auto x = pos.x();
+        const auto x = pos.x();
         if (x < m_actualStart) {
             setValue(m_min);
         } else if (x < m_actualEnd) {
             //        auto valuePos = m_actualLength * (m_value - m_min) / (m_max - m_min) + 16;
-            auto posValue = (pos.x() - m_padding) * (m_max - m_min) / m_actualLength + m_min;
+            const auto posValue = (pos.x() - m_padding) * (m_max - m_min) / m_actualLength + m_min;
             setValue(posValue);
         } else {
             setValue(m_max);
@@ -192,20 +193,20 @@ void SeekBar::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 bool SeekBar::mouseOnHandle(const QPoint &mousePos) const {
-    auto pos = mousePos;
-    auto valuePos = m_actualLength * (m_value - m_min) / (m_max - m_min) + m_padding;
+    const auto pos = mousePos;
+    const auto valuePos = m_actualLength * (m_value - m_min) / (m_max - m_min) + m_padding;
     if (pos.x() >= valuePos - m_halfHeight && pos.x() <= valuePos + m_halfHeight) {
         return true;
     }
     return false;
 }
 
-void SeekBar::setTrackActiveStartValue(double pos) {
+void SeekBar::setTrackActiveStartValue(const double pos) {
     m_trackActiveStartValue = pos;
     update();
 }
 
-void SeekBar::setRange(double min, double max) {
+void SeekBar::setRange(const double min, const double max) {
     setMin(min);
     setMax(max);
 }
@@ -262,7 +263,7 @@ int SeekBar::thumbBorderRatio() const {
     return m_thumbBorderRatio;
 }
 
-void SeekBar::setThumbBorderRatio(int ratio) {
+void SeekBar::setThumbBorderRatio(const int ratio) {
     m_thumbBorderRatio = ratio;
     update();
 }

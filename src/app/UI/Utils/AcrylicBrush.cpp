@@ -10,13 +10,13 @@
 #include <QPainter>
 #include <QScreen>
 
-AcrylicBrush::AcrylicBrush(QWidget *device, int blurRadius, QColor tintColor,
-                           QColor luminosityColor, double noiseOpacity)
+AcrylicBrush::AcrylicBrush(QWidget *device, const int blurRadius, const QColor tintColor,
+                           const QColor luminosityColor, const double noiseOpacity)
     : m_device(device), m_blurRadius(blurRadius), m_tintColor(tintColor),
       m_luminosityColor(luminosityColor), m_noiseOpacity(noiseOpacity) {
 }
 
-void AcrylicBrush::setBlurRadius(int radius) {
+void AcrylicBrush::setBlurRadius(const int radius) {
     if (radius == m_blurRadius)
         return;
     m_blurRadius = radius;
@@ -38,11 +38,11 @@ void AcrylicBrush::grabImage(const QRect &rect) {
     if (!screen)
         return;
 
-    QRect screenRect = screen->geometry();
-    QRect grabRect(rect.x() - screenRect.x(), rect.y() - screenRect.y(), rect.width(),
-                   rect.height());
+    const QRect screenRect = screen->geometry();
+    const QRect grabRect(rect.x() - screenRect.x(), rect.y() - screenRect.y(), rect.width(),
+                         rect.height());
 
-    auto grabbedImage =
+    const auto grabbedImage =
         screen->grabWindow(0, grabRect.x(), grabRect.y(), grabRect.width(), grabRect.height());
     setImage(grabbedImage);
 }
@@ -80,8 +80,8 @@ void AcrylicBrush::paint() const {
         painter.setClipPath(m_clipPath);
     }
 
-    QPixmap scaledImage = m_image.scaled(m_device->size() * 1.25, Qt::KeepAspectRatioByExpanding,
-                                       Qt::SmoothTransformation);
+    const QPixmap scaledImage = m_image.scaled(
+        m_device->size() * 1.25, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
     painter.drawPixmap(0, 0, scaledImage);
     // painter.fillRect(device->rect(), QBrush(textureImage()));
 }

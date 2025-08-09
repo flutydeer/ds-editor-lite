@@ -411,8 +411,7 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
         } else if (msg->message == WM_SETTINGCHANGE) {
             if (lstrcmpW(reinterpret_cast<LPCWSTR>(msg->lParam), L"ImmersiveColorSet") == 0) {
                 qDebug() << "WM_SETTINGCHANGE triggered: ImmersiveColorSet";
-                ThemeManager::instance()->onSystemThemeColorChanged(
-                    ThemeManager::ThemeColorType::Dark);
+                ThemeManager::instance()->onSystemThemeColorChanged();
             }
         }
     }

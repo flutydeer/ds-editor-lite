@@ -95,7 +95,7 @@ namespace InferControllerHelper {
             const auto param = clip.params.getParamByName(name);
             auto editedCurves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
             auto input = *piece->getInputCurve(name);
-            if (bool mergeNeeded = ParamInfo::hasOriginalParam(name)) {
+            if (ParamInfo::hasOriginalParam(name)) {
                 auto original = *piece->getOriginalCurve(name);
                 if (auto resultCurve = AppModelUtils::getResultCurve(original, editedCurves);
                     resultCurve != input) {

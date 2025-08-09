@@ -19,14 +19,14 @@ public:
     explicit TaskView(const TaskStatus &initialStatus, QWidget *parent = nullptr);
 
 public slots:
-    void onTaskStatusChanged(const TaskStatus &status);
+    void onTaskStatusChanged(const TaskStatus &status) const;
 
 private:
     QLabel *m_lbTitle;
     QLabel *m_lbMsg;
     ProgressIndicator *m_progressBar;
 
-    void updateUi(const TaskStatus &status);
+    void updateUi(const TaskStatus &status) const;
 };
 
 

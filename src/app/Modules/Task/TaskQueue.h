@@ -9,12 +9,8 @@
 #include "Utils/Linq.h"
 #include "Utils/Queue.h"
 
-// #include <type_traits>
-
 template <typename T>
 class TaskQueue {
-    // static_assert(std::is_base_of_v<Task, T>, "T must be a derived class of Task");
-
 public:
     Queue<T *> pending;
     T *current = nullptr;

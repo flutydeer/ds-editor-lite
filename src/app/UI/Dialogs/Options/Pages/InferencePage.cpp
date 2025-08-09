@@ -70,8 +70,8 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
         const int currentIndex = m_cbDeviceList->count();
         auto displayText =
             QStringLiteral("%1 (%2 GiB)")
-            .arg(device.description)
-            .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
+                .arg(device.description)
+                .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
         m_cbDeviceList->insertItem(currentIndex, displayText);
         m_cbDeviceList->setItemData(currentIndex, QVariant::fromValue<GpuInfo>(device),
                                     GpuInfoRole);
@@ -109,13 +109,11 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     constexpr double kDsDepthMax = 1.0;
     constexpr double kDsDepthSingleStep = 0.01;
 
-    m_dsDepthSlider = new DoubleSeekBarSpinboxGroup(kDsDepthMin, kDsDepthMax, kDsDepthSingleStep,
-                                                    option->depth);
+    m_dsDepthSlider =
+        new DoubleSeekBarSpinboxGroup(kDsDepthMin, kDsDepthMax, kDsDepthSingleStep, option->depth);
     m_dsDepthSlider->seekbar->setFixedWidth(256);
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::valueChanged, this,
-            [&](const double value) {
-                appOptions->inference()->depth = value;
-            });
+            [&](const double value) { appOptions->inference()->depth = value; });
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::editFinished, this,
             &InferencePage::modifyOption);
 
@@ -138,9 +136,8 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     m_smoothSlider = new SeekBarSpinboxGroup(0, 50, 1, option->pitch_smooth_kernel_size);
     m_smoothSlider->seekbar->setFixedWidth(256);
 
-    connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this, [&](const double value) {
-        appOptions->inference()->pitch_smooth_kernel_size = value;
-    });
+    connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this,
+            [&](const double value) { appOptions->inference()->pitch_smooth_kernel_size = value; });
     connect(m_smoothSlider, &SeekBarSpinboxGroup::editFinished, this, &InferencePage::modifyOption);
 
 
@@ -159,7 +156,7 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     m_textEdit->setReadOnly(true);
     m_textEdit->setLineWrapMode(QPlainTextEdit::LineWrapMode::WidgetWidth);
     if (inferEngine) {
-        auto engineInitialized = inferEngine->initialized();
+        const auto engineInitialized = inferEngine->initialized();
         auto driverPath = inferEngine->inferenceDriverPath();
         if (driverPath.isEmpty()) {
             driverPath = "<empty>";
@@ -176,12 +173,12 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
         if (runtimePath.isEmpty()) {
             runtimePath = "<empty>";
         }
-        QString text = QString("Engine initialized: ") +
-            (engineInitialized ? "Yes" : "No") + "\n\n"
-            "[Inference driver path]\n" + driverPath + "\n\n" +
-            "[Inference interpreter path]\n" + interpreterPath + "\n\n" +
-            "[Inference runtime path]\n" + runtimePath + "\n\n" +
-            "[Singer provider path]\n" + singerProviderPath;
+        const QString text = QString("Engine initialized: ") + (engineInitialized ? "Yes" : "No") +
+                             "\n\n"
+                             "[Inference driver path]\n" +
+                             driverPath + "\n\n" + "[Inference interpreter path]\n" +
+                             interpreterPath + "\n\n" + "[Inference runtime path]\n" + runtimePath +
+                             "\n\n" + "[Singer provider path]\n" + singerProviderPath;
         m_textEdit->setPlainText(text);
     } else {
         m_textEdit->setPlainText("InferEngine is not created (null pointer)");

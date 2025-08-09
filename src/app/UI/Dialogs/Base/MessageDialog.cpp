@@ -3,7 +3,7 @@
 #include <QPushButton>
 
 MessageDialog::MessageDialog(const QString &title, const QString &message, QWidget *parent)
-    : Dialog(parent), clickedButtonId(-1) {
+    : Dialog(parent) {
     setWindowTitle(title);
     setModal(true);
 
@@ -28,7 +28,7 @@ void MessageDialog::addButton(const QString &text, int buttonId) {
     buttons[buttonId] = button;
 
     connect(button, &QPushButton::clicked, this,
-            [this, buttonId]() { handleButtonClicked(buttonId); });
+            [this, buttonId] { handleButtonClicked(buttonId); });
 }
 
 void MessageDialog::addAccentButton(const QString &text, int buttonId) {
@@ -38,10 +38,10 @@ void MessageDialog::addAccentButton(const QString &text, int buttonId) {
     buttons[buttonId] = button;
 
     connect(button, &QPushButton::clicked, this,
-            [this, buttonId]() { handleButtonClicked(buttonId); });
+            [this, buttonId] { handleButtonClicked(buttonId); });
 }
 
-void MessageDialog::handleButtonClicked(int buttonId) {
+void MessageDialog::handleButtonClicked(const int buttonId) {
     clickedButtonId = buttonId;
     accept();
 }

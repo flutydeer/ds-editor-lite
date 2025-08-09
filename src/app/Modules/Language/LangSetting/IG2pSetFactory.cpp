@@ -112,7 +112,7 @@ namespace LangSetting {
                 m_languageConfigState.insert(key, valueObj);
 
                 // Lambda function to update JSON based on checkbox state
-                auto updateJson = [this, enableCheckBox, discardCheckBox, key]() {
+                auto updateJson = [this, enableCheckBox, discardCheckBox, key] {
                     // 更新 languageConfigState 中对应项的状态
                     QJsonObject langConfig;
                     langConfig.insert("discardResult", discardCheckBox->isChecked());

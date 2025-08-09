@@ -93,7 +93,7 @@ namespace LangSetting {
         if (currentRow >= 0) {
             const QListWidgetItem *item = this->item(currentRow);
             const auto number = extractConfig(item->data(Qt::UserRole).toString()).second.toInt();
-            canDelete = (number >= 0) ? true : false;
+            canDelete = number >= 0;
         }
 
         emit deleteButtonStateChanged(canDelete);
@@ -141,7 +141,7 @@ namespace LangSetting {
         // }
     }
 
-    void GListWidget::deleteItem(int row) {
+    void GListWidget::deleteItem(const int row) {
         if (row < 0 || row >= this->count())
             return;
         delete this->takeItem(row);

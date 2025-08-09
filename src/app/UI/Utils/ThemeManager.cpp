@@ -6,7 +6,6 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/IAnimatable.h"
-#include "Utils/SystemUtils.h"
 #include "Utils/WindowFrameUtils.h"
 
 #include <QEvent>
@@ -33,31 +32,31 @@ void ThemeManager::removeWindow(QWidget *window) {
     window->removeEventFilter(this);
 }
 
-void ThemeManager::onAppOptionsChanged(AppOptionsGlobal::Option option) {
+void ThemeManager::onAppOptionsChanged(const AppOptionsGlobal::Option option) {
     // qDebug() << "ThemeManager::onAppOptionsChanged";
     if (option != AppOptionsGlobal::All && option != AppOptionsGlobal::Appearance)
         return;
 
-    for (auto object : m_subscribers)
+    for (const auto object : m_subscribers)
         applyAnimationSettings(object);
 }
 
-void ThemeManager::onSystemThemeColorChanged(ThemeColorType colorType) {
-    for (auto window : m_windows)
+void ThemeManager::onSystemThemeColorChanged() {
+    for (const auto window : m_windows)
         WindowFrameUtils::applyFrameEffects(window);
 }
 
 void ThemeManager::applyAnimationSettings(IAnimatable *object) {
-    auto option = appOptions->appearance();
-    auto level = option->animationLevel;
-    auto scale = option->animationTimeScale;
+    const auto option = appOptions->appearance();
+    const auto level = option->animationLevel;
+    const auto scale = option->animationTimeScale;
     object->setAnimationLevel(level);
     object->setTimeScale(scale);
 }
 
 bool ThemeManager::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QEvent::Show)
-        for (auto window : m_windows)
+        for (const auto window : m_windows)
             if (window == watched) {
                 WindowFrameUtils::applyFrameEffects(window);
                 // if (SystemUtils::isWindows()) {

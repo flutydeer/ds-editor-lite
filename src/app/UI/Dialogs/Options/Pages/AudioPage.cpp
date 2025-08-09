@@ -5,9 +5,7 @@
 #include <QComboBox>
 #include <QPushButton>
 #include <QFormLayout>
-#include <QGroupBox>
 #include <QCheckBox>
-#include <QDoubleSpinBox>
 #include <QMessageBox>
 #include <QLabel>
 #include <QSettings>
@@ -31,26 +29,24 @@
 #include <Modules/Audio/utils/DeviceTester.h>
 #include <Modules/Audio/AudioSettings.h>
 
-#include "UI/Controls/CardView.h"
 #include "UI/Controls/OptionListCard.h"
 #include "Utils/SystemUtils.h"
 
 #include <QDesktopServices>
 
-static inline double sliderValueToGain(double sliderValue) {
-    return talcs::Decibels::decibelsToGain(
-        DecibelLinearizer::linearValueToDecibel(sliderValue));
+static double sliderValueToGain(const double sliderValue) {
+    return talcs::Decibels::decibelsToGain(DecibelLinearizer::linearValueToDecibel(sliderValue));
 }
 
-static inline double gainToSliderValue(float gain) {
+static double gainToSliderValue(const float gain) {
     return DecibelLinearizer::decibelToLinearValue(talcs::Decibels::gainToDecibels(gain));
 }
 
-static inline double sliderValueToPan(int sliderValue) {
+static double sliderValueToPan(const int sliderValue) {
     return sliderValue / 100.0;
 }
 
-static inline int panToSliderValue(double pan) {
+static int panToSliderValue(const double pan) {
     return static_cast<int>(round(pan * 100.0));
 }
 
@@ -58,7 +54,7 @@ class OutputPlaybackPageWidget : public QWidget {
     Q_OBJECT
 public:
     explicit OutputPlaybackPageWidget(QWidget *parent = nullptr) : QWidget(parent) {
-        auto mainLayout = new QVBoxLayout;
+        const auto mainLayout = new QVBoxLayout;
         mainLayout->setContentsMargins({});
 
         m_driverComboBox = new QComboBox;
@@ -77,7 +73,7 @@ public:
         m_deviceGainSlider->setRange(DecibelLinearizer::decibelToLinearValue(-96),
                                      DecibelLinearizer::decibelToLinearValue(6));
         m_deviceGainSlider->setDisplayValueConverter(
-            [](double v) { return DecibelLinearizer::linearValueToDecibel(v); });
+            [](const double v) { return DecibelLinearizer::linearValueToDecibel(v); });
         m_deviceGainSpinBox = new SVS::ExpressionDoubleSpinBox;
         m_deviceGainSpinBox->setDecimals(1);
         m_deviceGainSpinBox->setRange(-96, 6);
@@ -90,7 +86,7 @@ public:
         m_devicePanSpinBox = new SVS::ExpressionSpinBox;
         m_devicePanSpinBox->setRange(-100, 100);
 
-        auto audioOutputCard = new OptionListCard(tr("Audio Driver and Device"));
+        const auto audioOutputCard = new OptionListCard(tr("Audio Driver and Device"));
         audioOutputCard->addItem(tr("Audio d&river"), m_driverComboBox);
         audioOutputCard->addItem(tr("Audio &device"),
                                  {m_deviceComboBox, testDeviceButton, deviceControlPanelButton});
@@ -109,13 +105,13 @@ public:
              tr("Keep at current position after stopped, but play from the start position next "
                 "time")});
 
-        auto playbackCard = new OptionListCard(tr("Playback"));
+        const auto playbackCard = new OptionListCard(tr("Playback"));
         playbackCard->addItem(tr("Playhead behavior"), m_playHeadBehaviorComboBox);
         mainLayout->addWidget(playbackCard);
 
         m_fileBufferingReadAheadSizeSpinBox = new SVS::ExpressionSpinBox;
         m_fileBufferingReadAheadSizeSpinBox->setRange(0, std::numeric_limits<int>::max());
-        auto fileCard = new OptionListCard(tr("File Caching"));
+        const auto fileCard = new OptionListCard(tr("File Caching"));
         fileCard->addItem(tr("&File reading buffer size (samples)"),
                           m_fileBufferingReadAheadSizeSpinBox);
         mainLayout->addWidget(fileCard);
@@ -139,7 +135,7 @@ public:
 
         connect(deviceControlPanelButton, &QPushButton::clicked, this, [] {
             if (const auto device = AudioSystem::outputSystem()->outputContext()->device()) {
-                auto driverName = device->driver()->name();
+                const auto driverName = device->driver()->name();
                 if (SystemUtils::isWindows() &&
                     (driverName == "winmm" || driverName == "directsound" ||
                      driverName == "wasapi")) {
@@ -157,21 +153,21 @@ public:
         m_deviceGainSlider->setValue(
             gainToSliderValue(outputSys->outputContext()->controlMixer()->gain()));
         connect(m_deviceGainSlider, &SVS::SeekBar::valueChanged, this,
-                [this](double value) { updateGain(sliderValueToGain(value)); });
+                [this](const double value) { updateGain(sliderValueToGain(value)); });
         m_deviceGainSpinBox->setValue(
             talcs::Decibels::gainToDecibels(outputSys->outputContext()->controlMixer()->gain()));
         connect(m_deviceGainSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
-                [this](double value) {
+                [this](const double value) {
                     updateGain(talcs::Decibels::decibelsToGain(static_cast<float>(value)));
                 });
         m_devicePanSlider->setValue(
             panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
         connect(m_devicePanSlider, &SVS::SeekBar::valueChanged, this,
-                [this](int value) { updatePan(sliderValueToPan(value)); });
+                [this](const int value) { updatePan(sliderValueToPan(value)); });
         m_devicePanSpinBox->setValue(
             panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
         connect(m_devicePanSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this,
-                [this](int value) { updatePan(sliderValueToPan(value)); });
+                [this](const int value) { updatePan(sliderValueToPan(value)); });
 
         m_playHeadBehaviorComboBox->setCurrentIndex(AudioSettings::playheadBehavior());
 
@@ -209,8 +205,8 @@ public:
     void updateDeviceComboBox();
     void updateBufferSizeAndSampleRateComboBox();
 
-    void updateGain(double gain);
-    void updatePan(double pan);
+    void updateGain(double gain) const;
+    void updatePan(double pan) const;
 };
 
 void OutputPlaybackPageWidget::updateDriverComboBox() {
@@ -246,8 +242,8 @@ void OutputPlaybackPageWidget::updateDriverComboBox() {
 
     connect(
         m_driverComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-        [outputSys, this](int index) {
-            auto newDrvName = m_driverComboBox->itemData(index).toString();
+        [outputSys, this](const int index) {
+            const auto newDrvName = m_driverComboBox->itemData(index).toString();
             if (newDrvName.isEmpty())
                 return;
             disconnect(m_deviceComboBox, nullptr, this, nullptr);
@@ -312,10 +308,10 @@ void OutputPlaybackPageWidget::updateDeviceComboBox() {
     }
 
     connect(m_deviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [outputSys, this](int index) {
+            [outputSys, this](const int index) {
                 if (m_deviceComboBox->itemData(index).isNull())
                     return;
-                auto newDevName = m_deviceComboBox->itemData(index).toString();
+                const auto newDevName = m_deviceComboBox->itemData(index).toString();
                 if (!outputSys->setDevice(newDevName)) {
                     for (int i = 0; i < m_deviceComboBox->count(); i++) {
                         if ((!outputSys->outputContext()->device() &&
@@ -355,8 +351,8 @@ void OutputPlaybackPageWidget::updateBufferSizeAndSampleRateComboBox() {
             m_bufferSizeComboBox->setCurrentIndex(i);
     }
     connect(m_bufferSizeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [outputSys, this](int index) {
-                auto newBufferSize = m_bufferSizeComboBox->itemData(index).value<qint64>();
+            [outputSys, this](const int index) {
+                const auto newBufferSize = m_bufferSizeComboBox->itemData(index).value<qint64>();
                 outputSys->setAdoptedBufferSize(newBufferSize);
             });
     auto sampleRateList = outputSys->outputContext()->device()->availableSampleRates();
@@ -366,13 +362,13 @@ void OutputPlaybackPageWidget::updateBufferSizeAndSampleRateComboBox() {
             m_sampleRateComboBox->setCurrentIndex(i);
     }
     connect(m_sampleRateComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [outputSys, this](int index) {
-                auto newSampleRate = m_sampleRateComboBox->itemData(index).value<double>();
+            [outputSys, this](const int index) {
+                const auto newSampleRate = m_sampleRateComboBox->itemData(index).value<double>();
                 outputSys->setAdoptedSampleRate(newSampleRate);
             });
 }
 
-void OutputPlaybackPageWidget::updateGain(double gain) {
+void OutputPlaybackPageWidget::updateGain(const double gain) const {
     QSignalBlocker sliderBlocker(m_deviceGainSlider);
     QSignalBlocker spinBoxBlocker(m_deviceGainSpinBox);
 
@@ -381,7 +377,7 @@ void OutputPlaybackPageWidget::updateGain(double gain) {
     AudioSystem::outputSystem()->outputContext()->controlMixer()->setGain(static_cast<float>(gain));
 }
 
-void OutputPlaybackPageWidget::updatePan(double pan) {
+void OutputPlaybackPageWidget::updatePan(const double pan) const {
     QSignalBlocker sliderBlocker(m_devicePanSlider);
     QSignalBlocker spinBoxBlocker(m_devicePanSpinBox);
 
@@ -392,7 +388,7 @@ void OutputPlaybackPageWidget::updatePan(double pan) {
 
 AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
 
-    auto mainLayout = new QVBoxLayout;
+    const auto mainLayout = new QVBoxLayout;
 
     m_widget = new OutputPlaybackPageWidget;
     m_widget->setContentsMargins({});

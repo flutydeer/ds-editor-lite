@@ -5,26 +5,6 @@
 #include <language-manager/ILanguageManager.h>
 
 namespace LangSetting {
-    static QPair<QString, QString> extractConfig(const QString &g2pId) {
-        const auto firstColonIndex = g2pId.indexOf(':');
-
-        if (firstColonIndex == -1) {
-            return {g2pId, "0"};
-        }
-
-        QString beforeColon = g2pId.left(firstColonIndex);
-        QString afterColon = g2pId.mid(firstColonIndex + 1);
-
-        bool isNumber;
-        const int value = afterColon.toInt(&isNumber);
-
-        if (!isNumber || value < 0) {
-            return {beforeColon, "0"};
-        }
-
-        return {beforeColon, afterColon};
-    }
-
     G2pInfoWidget::G2pInfoWidget(QWidget *parent) : QWidget(parent) {
         this->setContentsMargins(0, 0, 0, 0);
 

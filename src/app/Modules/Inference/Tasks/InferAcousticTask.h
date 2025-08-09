@@ -47,7 +47,7 @@ private:
     void abort();
     void buildPreviewText();
     GenericInferModel buildInputJson() const;
-    bool processOutput(const GenericInferModel &model);
+    // bool processOutput(const GenericInferModel &model);
 
     QString m_previewText;
     InferAcousticInput m_input;

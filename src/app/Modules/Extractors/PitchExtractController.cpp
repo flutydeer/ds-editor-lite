@@ -34,9 +34,9 @@ void PitchExtractController::onExtractPitchTaskFinished(ExtractPitchTask *task) 
     if (!task->success()) {
         Dialog dialog;
         dialog.setTitle("Task Failed");
-        dialog.setMessage(
-            tr("Failed to extract pitch from audio:\n %1\n\n%2").arg(task->input().audioPath).arg(
-                task->errorMessage()));
+        dialog.setMessage(tr("Failed to extract pitch from audio:\n %1\n\n%2")
+                              .arg(task->input().audioPath)
+                              .arg(task->errorMessage()));
         dialog.setModal(true);
 
         const auto btnClose = new AccentButton(tr("Close"));

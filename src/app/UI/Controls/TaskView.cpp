@@ -15,7 +15,7 @@ TaskView::TaskView(const TaskStatus &initialStatus, QWidget *parent)
     m_lbMsg = new QLabel;
     m_progressBar = new ProgressIndicator;
 
-    auto mainLayout = new QVBoxLayout;
+    const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_lbTitle);
     mainLayout->addWidget(m_progressBar);
     mainLayout->addWidget(m_lbMsg);
@@ -25,11 +25,11 @@ TaskView::TaskView(const TaskStatus &initialStatus, QWidget *parent)
     updateUi(initialStatus);
 }
 
-void TaskView::onTaskStatusChanged(const TaskStatus &status) {
+void TaskView::onTaskStatusChanged(const TaskStatus &status) const {
     updateUi(status);
 }
 
-void TaskView::updateUi(const TaskStatus &status) {
+void TaskView::updateUi(const TaskStatus &status) const {
     m_lbTitle->setText(status.title);
     m_lbMsg->setText(status.message);
     m_progressBar->setMaximum(status.maximum);

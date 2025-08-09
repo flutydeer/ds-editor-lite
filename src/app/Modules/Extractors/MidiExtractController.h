@@ -10,16 +10,14 @@
 #include "Controller/ModelChangeHandler.h"
 #include "Utils/Singleton.h"
 
-#include <QObject>
-
 
 class ExtractMidiTask;
 class SingingClip;
 class AudioClip;
 
-class MidiExtractController final : public ModelChangeHandler, public Singleton<MidiExtractController> {
+class MidiExtractController final : public ModelChangeHandler,
+                                    public Singleton<MidiExtractController> {
     Q_OBJECT
-
 public:
     void runExtractMidi(const AudioClip *audioClip);
 

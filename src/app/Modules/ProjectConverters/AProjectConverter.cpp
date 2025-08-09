@@ -97,7 +97,7 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
                 singingClip->setClipLen(objClip.value("clipDur").toInt());
                 auto arrNotes = objClip.value("notes").toArray();
                 auto notes = decodeNotes(arrNotes);
-                for (auto &note : notes)
+                for (const auto &note : notes)
                     singingClip->insertNote(note);
                 dsTack->insertClip(singingClip);
             } else if (type == "audio") {

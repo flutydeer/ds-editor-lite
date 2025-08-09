@@ -24,94 +24,97 @@
 class PseudoSingerPageWidget : public QWidget {
     Q_OBJECT
 public:
-    explicit PseudoSingerPageWidget(QWidget *parent = nullptr) : QWidget(parent), d(new SettingPageSynthHelper) {
-        auto mainLayout = new QVBoxLayout;
+    explicit PseudoSingerPageWidget(QWidget *parent = nullptr)
+        : QWidget(parent), d(new SettingPageSynthHelper) {
+        const auto mainLayout = new QVBoxLayout;
 
-        auto synthesizerGroupBox = new QGroupBox(tr("Synthesizer"));
-        auto synthesizerMainLayout = new QVBoxLayout;
+        const auto synthesizerGroupBox = new QGroupBox(tr("Synthesizer"));
+        const auto synthesizerMainLayout = new QVBoxLayout;
 
-        auto synthesizerHeaderLayout = new QFormLayout;
-        auto synthesizerSelectLayout = new QHBoxLayout;
-        auto synthesizerSelectComboBox = new QComboBox;
+        const auto synthesizerHeaderLayout = new QFormLayout;
+        const auto synthesizerSelectLayout = new QHBoxLayout;
+        const auto synthesizerSelectComboBox = new QComboBox;
         synthesizerSelectComboBox->addItems({"Synth 1", "Synth 2", "Synth 3", "Synth 4"});
         synthesizerSelectLayout->addWidget(synthesizerSelectComboBox, 1);
-        auto synthesizerTestButton = new QPushButton(tr("&Preview"));
+        const auto synthesizerTestButton = new QPushButton(tr("&Preview"));
         synthesizerTestButton->setCheckable(true);
         synthesizerSelectLayout->addWidget(synthesizerTestButton);
-        auto synthesizerSelectLabel = new QLabel(tr("&Synth No."));
+        const auto synthesizerSelectLabel = new QLabel(tr("&Synth No."));
         synthesizerSelectLabel->setBuddy(synthesizerSelectComboBox);
         synthesizerHeaderLayout->addRow(synthesizerSelectLabel, synthesizerSelectLayout);
         synthesizerMainLayout->addLayout(synthesizerHeaderLayout);
 
-        auto synthesizerBodyLayout = new QHBoxLayout;
+        const auto synthesizerBodyLayout = new QHBoxLayout;
         synthesizerBodyLayout->addSpacing(32);
-        auto synthesizerLayout = new QFormLayout;
-        auto generatorComboBox = new QComboBox;
-        generatorComboBox->addItems({tr("Sine wave"), tr("Square wave"), tr("Triangle Wave"), tr("Sawtooth wave")});
+        const auto synthesizerLayout = new QFormLayout;
+        const auto generatorComboBox = new QComboBox;
+        generatorComboBox->addItems(
+            {tr("Sine wave"), tr("Square wave"), tr("Triangle Wave"), tr("Sawtooth wave")});
         synthesizerLayout->addRow(tr("&Generator"), generatorComboBox);
 
-        auto amplitudeLayout = new QHBoxLayout;
-        auto amplitudeSlider = new SVS::SeekBar;
+        const auto amplitudeLayout = new QHBoxLayout;
+        const auto amplitudeSlider = new SVS::SeekBar;
         amplitudeSlider->setDefaultValue(DecibelLinearizer::decibelToLinearValue(-3));
-        amplitudeSlider->setRange(DecibelLinearizer::decibelToLinearValue(-96), DecibelLinearizer::decibelToLinearValue(0));
+        amplitudeSlider->setRange(DecibelLinearizer::decibelToLinearValue(-96),
+                                  DecibelLinearizer::decibelToLinearValue(0));
         amplitudeLayout->addWidget(amplitudeSlider);
-        auto amplitudeSpinBox = new SVS::ExpressionDoubleSpinBox;
+        const auto amplitudeSpinBox = new SVS::ExpressionDoubleSpinBox;
         amplitudeSpinBox->setDecimals(1);
         amplitudeSpinBox->setRange(-96, 0);
         amplitudeSpinBox->setSpecialValueText("-INF");
         amplitudeLayout->addWidget(amplitudeSpinBox);
-        auto amplitudeLabel = new QLabel(tr("&Amplitude (dB)"));
+        const auto amplitudeLabel = new QLabel(tr("&Amplitude (dB)"));
         amplitudeLabel->setBuddy(amplitudeSpinBox);
         synthesizerLayout->addRow(amplitudeLabel, amplitudeLayout);
 
-        auto attackLayout = new QHBoxLayout;
-        auto attackSlider = new SVS::SeekBar;
+        const auto attackLayout = new QHBoxLayout;
+        const auto attackSlider = new SVS::SeekBar;
         attackSlider->setInterval(1);
         attackSlider->setDefaultValue(50);
         attackSlider->setRange(0, 100);
         attackLayout->addWidget(attackSlider);
-        auto attackSpinBox = new SVS::ExpressionSpinBox;
+        const auto attackSpinBox = new SVS::ExpressionSpinBox;
         attackSpinBox->setRange(0, 100);
         attackLayout->addWidget(attackSpinBox);
-        auto attackLabel = new QLabel(tr("A&ttack (ms)"));
+        const auto attackLabel = new QLabel(tr("A&ttack (ms)"));
         attackLabel->setBuddy(attackSpinBox);
         synthesizerLayout->addRow(attackLabel, attackLayout);
 
-        auto decayLayout = new QHBoxLayout;
-        auto decaySlider = new SVS::SeekBar;
+        const auto decayLayout = new QHBoxLayout;
+        const auto decaySlider = new SVS::SeekBar;
         decaySlider->setInterval(1);
         decaySlider->setDefaultValue(1000);
         decaySlider->setRange(0, 1000);
         decayLayout->addWidget(decaySlider);
-        auto decaySpinBox = new SVS::ExpressionSpinBox;
+        const auto decaySpinBox = new SVS::ExpressionSpinBox;
         decaySpinBox->setRange(0, 1000);
         decayLayout->addWidget(decaySpinBox);
-        auto decayLabel = new QLabel(tr("D&ecay (ms)"));
+        const auto decayLabel = new QLabel(tr("D&ecay (ms)"));
         decayLabel->setBuddy(decaySpinBox);
         synthesizerLayout->addRow(decayLabel, decayLayout);
 
-        auto decayRatioLayout = new QHBoxLayout;
-        auto decayRatioSlider = new SVS::SeekBar;
+        const auto decayRatioLayout = new QHBoxLayout;
+        const auto decayRatioSlider = new SVS::SeekBar;
         decayRatioSlider->setDefaultValue(0.5);
         decayRatioSlider->setRange(0, 1);
         decayRatioLayout->addWidget(decayRatioSlider);
-        auto decayRatioSpinBox = new SVS::ExpressionDoubleSpinBox;
+        const auto decayRatioSpinBox = new SVS::ExpressionDoubleSpinBox;
         decayRatioSpinBox->setRange(0, 1);
         decayRatioLayout->addWidget(decayRatioSpinBox);
-        auto decayRatioLabel = new QLabel(tr("Decay rati&o"));
+        const auto decayRatioLabel = new QLabel(tr("Decay rati&o"));
         decayRatioLabel->setBuddy(decayRatioSpinBox);
         synthesizerLayout->addRow(decayRatioLabel, decayRatioLayout);
 
-        auto releaseLayout = new QHBoxLayout;
-        auto releaseSlider = new SVS::SeekBar;
+        const auto releaseLayout = new QHBoxLayout;
+        const auto releaseSlider = new SVS::SeekBar;
         releaseSlider->setInterval(1);
         releaseSlider->setDefaultValue(50);
         releaseSlider->setRange(0, 100);
         releaseLayout->addWidget(releaseSlider);
-        auto releaseSpinBox = new SVS::ExpressionSpinBox;
+        const auto releaseSpinBox = new SVS::ExpressionSpinBox;
         releaseSpinBox->setRange(0, 100);
         releaseLayout->addWidget(releaseSpinBox);
-        auto releaseLabel = new QLabel(tr("&Release (ms)"));
+        const auto releaseLabel = new QLabel(tr("&Release (ms)"));
         releaseLabel->setBuddy(releaseSpinBox);
         synthesizerLayout->addRow(releaseLabel, releaseLayout);
 
@@ -120,11 +123,11 @@ public:
         synthesizerGroupBox->setLayout(synthesizerMainLayout);
         mainLayout->addWidget(synthesizerGroupBox);
 
-        auto parameterGroupBox = new QGroupBox(tr("Parameter"));
-        auto parameterLayout = new QVBoxLayout;
-        auto readPitchCheckBox = new QCheckBox(tr("Read pitc&h"));
+        const auto parameterGroupBox = new QGroupBox(tr("Parameter"));
+        const auto parameterLayout = new QVBoxLayout;
+        const auto readPitchCheckBox = new QCheckBox(tr("Read pitc&h"));
         parameterLayout->addWidget(readPitchCheckBox);
-        auto readEnergyCheckBox = new QCheckBox(tr("Read energ&y"));
+        const auto readEnergyCheckBox = new QCheckBox(tr("Read energ&y"));
         parameterLayout->addWidget(readEnergyCheckBox);
         parameterGroupBox->setLayout(parameterLayout);
         mainLayout->addWidget(parameterGroupBox);
@@ -149,60 +152,60 @@ public:
         d->m_cachedDecayRatio = m_cachedSynthConfig[0].decayRatio;
         d->m_cachedReleaseMsec = m_cachedSynthConfig[0].releaseMsec;
 
-        static double amplitudeDefaultValue[] = {
-            DecibelLinearizer::decibelToLinearValue(-4.0),
-            DecibelLinearizer::decibelToLinearValue(-7.0),
-            DecibelLinearizer::decibelToLinearValue(-4.0),
-            DecibelLinearizer::decibelToLinearValue(-6.0)};
+        static double amplitudeDefaultValue[] = {DecibelLinearizer::decibelToLinearValue(-4.0),
+                                                 DecibelLinearizer::decibelToLinearValue(-7.0),
+                                                 DecibelLinearizer::decibelToLinearValue(-4.0),
+                                                 DecibelLinearizer::decibelToLinearValue(-6.0)};
         amplitudeSlider->setDefaultValue(amplitudeDefaultValue[d->m_cachedGenerator]);
 
         d->initialize(generatorComboBox, amplitudeSlider, amplitudeSpinBox, attackSlider,
-                      attackSpinBox, decaySlider, decaySpinBox, decayRatioSlider,
-                      decayRatioSpinBox, releaseSlider, releaseSpinBox, synthesizerTestButton);
+                      attackSpinBox, decaySlider, decaySpinBox, decayRatioSlider, decayRatioSpinBox,
+                      releaseSlider, releaseSpinBox, synthesizerTestButton);
 
-        connect(synthesizerTestButton, &QAbstractButton::clicked, this, [=, this](bool checked) {
-            if (checked) {
-                if (!AudioSystem::outputSystem()->isReady()) {
-                    synthesizerTestButton->setChecked(false);
-                    return;
-                }
-            }
-            d->toggleTestState(checked);
-        });
-        connect(d, &SettingPageSynthHelper::testFinished, this, [=] {
-            synthesizerTestButton->setChecked(false);
-        }, Qt::QueuedConnection);
+        connect(synthesizerTestButton, &QAbstractButton::clicked, this,
+                [=, this](const bool checked) {
+                    if (checked) {
+                        if (!AudioSystem::outputSystem()->isReady()) {
+                            synthesizerTestButton->setChecked(false);
+                            return;
+                        }
+                    }
+                    d->toggleTestState(checked);
+                });
+        connect(
+            d, &SettingPageSynthHelper::testFinished, this,
+            [=] { synthesizerTestButton->setChecked(false); }, Qt::QueuedConnection);
 
-        connect(synthesizerSelectComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [=, this](int index) {
-            m_cachedSynthConfig[m_oldSynthIndex].generator = d->m_cachedGenerator;
-            m_cachedSynthConfig[m_oldSynthIndex].amplitude = d->m_cachedAmplitude;
-            m_cachedSynthConfig[m_oldSynthIndex].attackMsec = d->m_cachedAttackMsec;
-            m_cachedSynthConfig[m_oldSynthIndex].decayMsec = d->m_cachedDecayMsec;
-            m_cachedSynthConfig[m_oldSynthIndex].decayRatio = d->m_cachedDecayRatio;
-            m_cachedSynthConfig[m_oldSynthIndex].releaseMsec = d->m_cachedReleaseMsec;
+        connect(synthesizerSelectComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [=, this](const int index) {
+                    m_cachedSynthConfig[m_oldSynthIndex].generator = d->m_cachedGenerator;
+                    m_cachedSynthConfig[m_oldSynthIndex].amplitude = d->m_cachedAmplitude;
+                    m_cachedSynthConfig[m_oldSynthIndex].attackMsec = d->m_cachedAttackMsec;
+                    m_cachedSynthConfig[m_oldSynthIndex].decayMsec = d->m_cachedDecayMsec;
+                    m_cachedSynthConfig[m_oldSynthIndex].decayRatio = d->m_cachedDecayRatio;
+                    m_cachedSynthConfig[m_oldSynthIndex].releaseMsec = d->m_cachedReleaseMsec;
 
-            generatorComboBox->setCurrentIndex(m_cachedSynthConfig[index].generator);
-            amplitudeSpinBox->setValue(m_cachedSynthConfig[index].amplitude);
-            attackSpinBox->setValue(m_cachedSynthConfig[index].attackMsec);
-            decaySpinBox->setValue(m_cachedSynthConfig[index].decayMsec);
-            decayRatioSpinBox->setValue(m_cachedSynthConfig[index].decayRatio);
-            releaseSpinBox->setValue(m_cachedSynthConfig[index].releaseMsec);
+                    generatorComboBox->setCurrentIndex(m_cachedSynthConfig[index].generator);
+                    amplitudeSpinBox->setValue(m_cachedSynthConfig[index].amplitude);
+                    attackSpinBox->setValue(m_cachedSynthConfig[index].attackMsec);
+                    decaySpinBox->setValue(m_cachedSynthConfig[index].decayMsec);
+                    decayRatioSpinBox->setValue(m_cachedSynthConfig[index].decayRatio);
+                    releaseSpinBox->setValue(m_cachedSynthConfig[index].releaseMsec);
 
-            amplitudeSlider->setDefaultValue(amplitudeDefaultValue[m_cachedSynthConfig[index].generator]);
+                    amplitudeSlider->setDefaultValue(
+                        amplitudeDefaultValue[m_cachedSynthConfig[index].generator]);
 
-            m_oldSynthIndex = index;
-        });
+                    m_oldSynthIndex = index;
+                });
 
         readPitchCheckBox->setChecked(m_cachedReadPitch = AudioSettings::pseudoSingerReadPitch());
-        readEnergyCheckBox->setChecked(m_cachedReadEnergy = AudioSettings::pseudoSingerReadEnergy());
+        readEnergyCheckBox->setChecked(m_cachedReadEnergy =
+                                           AudioSettings::pseudoSingerReadEnergy());
 
-        connect(readPitchCheckBox, &QAbstractButton::clicked, this, [this](bool checked) {
-            m_cachedReadPitch = checked;
-        });
-        connect(readEnergyCheckBox, &QAbstractButton::clicked, this, [this](bool checked) {
-            m_cachedReadEnergy = checked;
-        });
-
+        connect(readPitchCheckBox, &QAbstractButton::clicked, this,
+                [this](const bool checked) { m_cachedReadPitch = checked; });
+        connect(readEnergyCheckBox, &QAbstractButton::clicked, this,
+                [this](const bool checked) { m_cachedReadEnergy = checked; });
     }
 
     void accept() {
@@ -243,9 +246,8 @@ public:
     int m_oldSynthIndex = 0;
 };
 
-
 PseudoSingerPage::PseudoSingerPage(QWidget *parent) : IOptionPage(parent) {
-    auto mainLayout = new QVBoxLayout;
+    const auto mainLayout = new QVBoxLayout;
 
     m_widget = new PseudoSingerPageWidget;
 

@@ -17,8 +17,8 @@ public:
     explicit DialogHeader(QWidget *parent = nullptr);
     ~DialogHeader() override;
 
-    void setTitle(const QString &title);
-    void setMessage(const QString &msg);
+    void setTitle(const QString &title) const;
+    void setMessage(const QString &msg) const;
 
 private:
     QLabel *m_lbTitle;
@@ -33,8 +33,8 @@ public:
     explicit DialogButtonBar(QWidget *parent = nullptr);
     ~DialogButtonBar() override;
     // void addButtonToStart(Button *button);
-    void addButton(Button *button);
-    void reset();
+    void addButton(Button *button) const;
+    void reset() const;
 
 private:
     QHBoxLayout *m_mainLayout;
@@ -47,14 +47,14 @@ public:
     explicit Dialog(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
     ~Dialog() override;
 
-    void setTitle(const QString &title);
-    void setMessage(const QString &msg);
+    void setTitle(const QString &title) const;
+    void setMessage(const QString &msg) const;
     void setPositiveButton(Button *button);
     void setNegativeButton(Button *button);
     void setNeutralButton(Button *button);
 
-    QWidget *body();
-    DialogButtonBar *buttonBar();
+    QWidget *body() const;
+    DialogButtonBar *buttonBar() const;
 
     [[nodiscard]] static QWidget *globalParent();
     static void setGlobalContext(QWidget *parent);

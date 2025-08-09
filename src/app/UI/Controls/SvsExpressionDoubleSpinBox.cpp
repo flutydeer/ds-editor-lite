@@ -12,8 +12,7 @@ namespace SVS {
     QValidator::State ExpressionDoubleSpinBox::validate(QString &input, int &pos) const {
         if (textFromValue(valueFromText(input)) == input)
             return QValidator::Acceptable;
-        else
-            return QValidator::Intermediate;
+        return QValidator::Intermediate;
     }
 
     void ExpressionDoubleSpinBox::fixup(QString &str) const {
@@ -25,7 +24,7 @@ namespace SVS {
             }
         }
         s.replace(QLocale().decimalPoint(), ".");
-        double ret = te_interp(s.toLatin1(), &err);
+        const double ret = te_interp(s.toLatin1(), &err);
         if (err == 0) {
             str = textFromValue(ret);
         }

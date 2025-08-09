@@ -14,7 +14,6 @@ class GetPhonemeNameTask final : public Task {
     Q_OBJECT
 public:
     explicit GetPhonemeNameTask(int clipId, const QList<PhonemeNameInput> &inputs);
-    // [[nodiscard]] QList<Note *> &notes();
     int clipId() const;
     bool success() const;
     QList<Note *> notesRef;

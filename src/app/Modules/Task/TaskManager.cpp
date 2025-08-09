@@ -14,7 +14,7 @@ void BackgroundWorker::terminateTask(Task *task) {
 }
 
 void BackgroundWorker::wait() {
-    auto threadPool = QThreadPool::globalInstance();
+    const auto threadPool = QThreadPool::globalInstance();
     threadPool->waitForDone();
     emit waitDone();
 }
@@ -34,7 +34,7 @@ const QList<Task *> &TaskManager::tasks() const {
     return d->m_tasks;
 }
 
-Task *TaskManager::findTaskById(int id) {
+Task *TaskManager::findTaskById(const int id) {
     Q_D(const TaskManager);
     for (const auto task : d->m_tasks)
         if (task->id() == id)
@@ -52,7 +52,7 @@ void TaskManager::wait() {
 void TaskManager::addTask(Task *task) {
     Q_D(TaskManager);
     qDebug() << "addTask:" << task->id() << task->status().title;
-    auto index = d->m_tasks.count();
+    const auto index = d->m_tasks.count();
     d->m_tasks.append(task);
     emit taskChanged(Added, task, index);
 }
@@ -70,7 +70,7 @@ void TaskManager::addAndStartTask(Task *task) {
 
 void TaskManager::removeTask(Task *task) {
     Q_D(TaskManager);
-    auto index = d->m_tasks.indexOf(task);
+    const auto index = d->m_tasks.indexOf(task);
     if (index >= 0) {
         d->m_tasks.removeOne(task);
         emit taskChanged(Removed, task, index);

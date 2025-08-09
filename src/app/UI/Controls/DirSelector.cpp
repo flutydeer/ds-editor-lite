@@ -1,6 +1,5 @@
 #include "DirSelector.h"
 
-#include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -32,7 +31,7 @@ QString DirSelector::path() const {
     return m_lineEdit->text();
 }
 
-void DirSelector::setPath(const QString &path) {
+void DirSelector::setPath(const QString &path) const {
     m_lineEdit->setText(path);
 }
 

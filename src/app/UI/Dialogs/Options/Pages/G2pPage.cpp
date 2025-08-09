@@ -1,7 +1,6 @@
 #include "G2pPage.h"
 
 #include <QApplication>
-#include <QLabel>
 #include <QVBoxLayout>
 
 #include "UI/Controls/ComboBox.h"
@@ -10,7 +9,6 @@
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/OptionsCard.h"
 
-#include <QPushButton>
 #include <language-manager/ILanguageManager.h>
 
 G2pPage::G2pPage(QWidget *parent) : IOptionPage(parent) {

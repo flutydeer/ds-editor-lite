@@ -21,10 +21,10 @@ public:
     // void setChecked(bool checked);
     // void setEnabled(bool enabled);
     // void setCheckBoxEnabled(bool enabled);
-    void setTitle(const QString &title);
-    void setDescription(const QString &desc);
-    void addWidget(QWidget *widget);
-    void removeWidget(QWidget *widget);
+    void setTitle(const QString &title) const;
+    void setDescription(const QString &desc) const;
+    void addWidget(QWidget *widget) const;
+    void removeWidget(QWidget *widget) const;
     // QCheckBox *checkBox();
 
 private:

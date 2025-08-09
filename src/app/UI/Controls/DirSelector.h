@@ -15,7 +15,7 @@ class DirSelector final : public QWidget {
 public:
     explicit DirSelector(QWidget *parent = nullptr);
     QString path() const;
-    void setPath(const QString &path);
+    void setPath(const QString &path) const;
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;

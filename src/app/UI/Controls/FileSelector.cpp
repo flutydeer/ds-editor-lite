@@ -1,6 +1,5 @@
 #include "FileSelector.h"
 
-#include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -32,7 +31,7 @@ QString FileSelector::path() const {
     return m_lineEdit->text();
 }
 
-void FileSelector::setPath(const QString &filePath) {
+void FileSelector::setPath(const QString &filePath) const {
     m_lineEdit->setText(filePath);
 }
 

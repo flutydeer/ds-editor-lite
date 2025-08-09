@@ -11,7 +11,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ProgressIndicator.h"
 
-TaskDialog::TaskDialog(Task *task, bool cancellable, bool canHide, QWidget *parent)
+TaskDialog::TaskDialog(Task *task, const bool cancellable, const bool canHide, QWidget *parent)
     : Dialog(parent), m_task(task), m_canHide(canHide) {
     setModal(true);
     setMinimumWidth(360);
@@ -29,7 +29,7 @@ TaskDialog::TaskDialog(Task *task, bool cancellable, bool canHide, QWidget *pare
     } else {
         setWindowFlags((windowFlags() & ~Qt::WindowCloseButtonHint));
     }
-    auto mainLayout = new QHBoxLayout;
+    const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_progressBar);
     mainLayout->setContentsMargins({});
     body()->setLayout(mainLayout);
@@ -53,12 +53,12 @@ void TaskDialog::closeEvent(QCloseEvent *event) {
         event->ignore();
 }
 
-void TaskDialog::onTerminateButtonClicked() {
+void TaskDialog::onTerminateButtonClicked() const {
     if (m_task)
         taskManager->terminateTask(m_task);
 }
 
-void TaskDialog::onStatusUpdated(const TaskStatus &status) {
+void TaskDialog::onStatusUpdated(const TaskStatus &status) const {
     setTitle(status.title);
     setMessage(status.message);
     m_progressBar->setMinimum(status.minimum);

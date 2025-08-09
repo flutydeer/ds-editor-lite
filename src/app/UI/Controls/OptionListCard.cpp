@@ -28,14 +28,14 @@ void OptionListCard::addItem(OptionsCardItem *item) {
 }
 
 void OptionListCard::addItem(const QString &title, QWidget *control) {
-    auto item = new OptionsCardItem;
+    const auto item = new OptionsCardItem;
     item->setTitle(title);
     item->addWidget(control);
     addItem(item);
 }
 
 void OptionListCard::addItem(const QString &title, const QList<QWidget *> &controls) {
-    auto item = new OptionsCardItem;
+    const auto item = new OptionsCardItem;
     item->setTitle(title);
     for (const auto control : controls)
         item->addWidget(control);
@@ -43,7 +43,7 @@ void OptionListCard::addItem(const QString &title, const QList<QWidget *> &contr
 }
 
 void OptionListCard::addItem(const QString &title, const QString &description, QWidget *control) {
-    auto item = new OptionsCardItem;
+    const auto item = new OptionsCardItem;
     item->setTitle(title);
     item->setDescription(description);
     item->addWidget(control);
@@ -52,7 +52,7 @@ void OptionListCard::addItem(const QString &title, const QString &description, Q
 
 void OptionListCard::addItem(const QString &title, const QString &description,
                              const QList<QWidget *> &controls) {
-    auto item = new OptionsCardItem;
+    const auto item = new OptionsCardItem;
     item->setTitle(title);
     item->setDescription(description);
     for (const auto control : controls)

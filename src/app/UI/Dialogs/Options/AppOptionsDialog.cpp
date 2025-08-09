@@ -12,10 +12,9 @@
 #include "Pages/G2pPage.h"
 #include "Pages/AudioPage.h"
 #include "Pages/MidiPage.h"
-// #include "Pages/PseudoSingerPage.h"
 #include "Pages/InferencePage.h"
 
-AppOptionsDialog::AppOptionsDialog(AppOptionsGlobal::Option option, QWidget *parent)
+AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidget *parent)
     : Dialog(parent) {
     setModal(true);
     setFocusPolicy(Qt::ClickFocus);
@@ -47,7 +46,7 @@ AppOptionsDialog::AppOptionsDialog(AppOptionsGlobal::Option option, QWidget *par
     m_PageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
     m_PageContent->setMinimumWidth(600);
 
-    auto pageScrollArea = new QScrollArea;
+    const auto pageScrollArea = new QScrollArea;
     pageScrollArea->setWidget(m_PageContent);
     pageScrollArea->setWidgetResizable(true);
 
@@ -59,7 +58,7 @@ AppOptionsDialog::AppOptionsDialog(AppOptionsGlobal::Option option, QWidget *par
     m_pages.append(m_g2pPage);
     m_pages.append(m_inferencePage);
 
-    auto mainLayout = new QHBoxLayout;
+    const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_tabList);
     mainLayout->addSpacing(12);
     mainLayout->addWidget(pageScrollArea);
@@ -68,7 +67,7 @@ AppOptionsDialog::AppOptionsDialog(AppOptionsGlobal::Option option, QWidget *par
 
     connect(m_tabList, &QListWidget::currentRowChanged, this,
             &AppOptionsDialog::onSelectionChanged);
-    auto pageIndex = option >= 1 ? option - 1 : 0; // Skip enum "All"
+    const auto pageIndex = option >= 1 ? option - 1 : 0; // Skip enum "All"
     m_tabList->setCurrentRow(pageIndex);
 
     resize(900, 600);
@@ -78,6 +77,6 @@ AppOptionsDialog::~AppOptionsDialog() {
     qDebug() << "dispose";
 }
 
-void AppOptionsDialog::onSelectionChanged(int index) const {
+void AppOptionsDialog::onSelectionChanged(const int index) const {
     m_PageContent->setCurrentWidget(m_pages.at(index));
 }

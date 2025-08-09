@@ -15,11 +15,11 @@ ElasticAnimator::ElasticAnimator(QObject *parent)
     // m_timer->start(8);
 }
 
-void ElasticAnimator::setSmoothness(qreal value) {
+void ElasticAnimator::setSmoothness(const qreal value) {
     m_smoothness = qBound(0.1, value, 0.9);
 }
 
-void ElasticAnimator::setResponsiveness(qreal value) {
+void ElasticAnimator::setResponsiveness(const qreal value) {
     m_responsiveness = qBound(0.01, value, 0.2);
 }
 
@@ -43,8 +43,8 @@ QPointF ElasticAnimator::velocity() const {
 
 void ElasticAnimator::updatePosition() {
     auto distanceBetweenPoints = [](const QPointF &p1, const QPointF &p2) {
-        double dx = p2.x() - p1.x();
-        double dy = p2.y() - p1.y();
+        const double dx = p2.x() - p1.x();
+        const double dy = p2.y() - p1.y();
         return std::sqrt(dx * dx + dy * dy);
     };
     auto velocityNorm = [](const QPointF &v) { return std::sqrt(v.x() * v.x() + v.y() * v.y()); };

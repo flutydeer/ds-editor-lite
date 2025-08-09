@@ -15,20 +15,13 @@
 
 #include <QLabel>
 #include <QVBoxLayout>
-#include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
 #include <QProcess>
 #include <QMCore/qmsystem.h>
 
-// #ifdef Q_OS_WIN
-// #  include <Windows.h>
-// #  include <WinUser.h>
-// #  include <shellapi.h>
-// #endif
-
 GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
-    auto option = appOptions->general();
+    const auto option = appOptions->general();
 
     m_btnOpenConfigFolder = new Button(tr("Open Folder..."), this);
     connect(m_btnOpenConfigFolder, &Button::clicked, this, [=] {

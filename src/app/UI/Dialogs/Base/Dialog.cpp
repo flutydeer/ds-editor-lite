@@ -37,12 +37,12 @@ DialogHeader::~DialogHeader() {
     delete m_lbMessage;
 }
 
-void DialogHeader::setTitle(const QString &title) {
+void DialogHeader::setTitle(const QString &title) const {
     m_lbTitle->setVisible(true);
     m_lbTitle->setText(title);
 }
 
-void DialogHeader::setMessage(const QString &msg) {
+void DialogHeader::setMessage(const QString &msg) const {
     m_lbMessage->setVisible(true);
     m_lbMessage->setText(msg);
 }
@@ -65,17 +65,18 @@ DialogButtonBar::~DialogButtonBar() {
     delete m_mainLayout;
 }
 
-void DialogButtonBar::addButton(Button *button) {
+void DialogButtonBar::addButton(Button *button) const {
     m_mainLayout->addWidget(button);
 }
 
-void DialogButtonBar::reset() {
-    for (auto child : m_mainLayout->children())
-        if (auto button = dynamic_cast<Button *>(child))
+void DialogButtonBar::reset() const {
+    for (const auto child : m_mainLayout->children())
+        if (const auto button = dynamic_cast<Button *>(child))
             m_mainLayout->removeWidget(button);
 }
 
-Dialog::Dialog(QWidget *parent, Qt::WindowFlags f) : QDialog(parent ? parent : m_globalParent, f) {
+Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
+    : QDialog(parent ? parent : m_globalParent, f) {
     m_header = new DialogHeader;
     m_header->setVisible(false);
     // setTitle("要删除此乐器吗？");
@@ -103,12 +104,12 @@ Dialog::~Dialog() {
     delete m_buttonBar;
 }
 
-void Dialog::setTitle(const QString &title) {
+void Dialog::setTitle(const QString &title) const {
     m_header->setVisible(true);
     m_header->setTitle(title);
 }
 
-void Dialog::setMessage(const QString &msg) {
+void Dialog::setMessage(const QString &msg) const {
     m_header->setVisible(true);
     m_header->setMessage(msg);
 }
@@ -128,11 +129,11 @@ void Dialog::setNeutralButton(Button *button) {
     setButton();
 }
 
-QWidget *Dialog::body() {
+QWidget *Dialog::body() const {
     return m_body;
 }
 
-DialogButtonBar *Dialog::buttonBar() {
+DialogButtonBar *Dialog::buttonBar() const {
     return m_buttonBar;
 }
 

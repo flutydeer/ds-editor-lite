@@ -9,6 +9,7 @@
 namespace Audio {
     class AudioExporter;
 }
+
 namespace Core {
     class IProjectWindow;
 }
@@ -29,7 +30,9 @@ namespace Audio::Internal {
     class AudioExportDialog : public QDialog {
         Q_OBJECT
     public:
-        explicit AudioExportDialog(QWidget *parent = nullptr) : AudioExportDialog(nullptr, parent) {}
+        explicit AudioExportDialog(QWidget *parent = nullptr) : AudioExportDialog(nullptr, parent) {
+        }
+
         explicit AudioExportDialog(Core::IProjectWindow *windowHandle, QWidget *parent = nullptr);
         ~AudioExportDialog() override;
 
@@ -58,12 +61,12 @@ namespace Audio::Internal {
 
         AudioExporter *m_audioExporter;
 
-        QStringList projectTrackList() const;
+        static QStringList projectTrackList();
 
         void browseFile();
         void showWarnings();
         void showDryRunResult();
-        void updateConfig();
+        void updateConfig() const;
         void updateView();
 
         bool skipUpdateFlag = false;
@@ -72,9 +75,9 @@ namespace Audio::Internal {
 
         bool askWarningBeforeExport(AudioExporter::Warning warning, bool canIgnored = false);
 
-        void saveTemporaryPreset();
-        void restoreTemporaryPreset();
-        bool hasTemporaryPreset() const;
+        void saveTemporaryPreset() const;
+        void restoreTemporaryPreset() const;
+        static bool hasTemporaryPreset();
     };
 
 }

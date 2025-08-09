@@ -23,7 +23,7 @@ void LineEdit::mousePressEvent(QMouseEvent *event) {
 void LineEdit::contextMenuEvent(QContextMenuEvent *event) {
     // QLineEdit::contextMenuEvent(event);
     if (const auto qMenu = createStandardContextMenu()) {
-        auto menu = new CMenu(this);
+        const auto menu = new CMenu(this);
         for (const auto action : qMenu->actions()) {
             action->setParent(menu);
             menu->addAction(action);

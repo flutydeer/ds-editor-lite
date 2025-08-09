@@ -20,7 +20,7 @@
 
 bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
                                 ImportMode mode) {
-    auto decodeCurves = [&](const QList<QDspx::ParamCurveRef> &dspxCurveRefs, int offset) {
+    auto decodeCurves = [&](const QList<QDspx::ParamCurveRef> &dspxCurveRefs, const int offset) {
         QVector<Curve *> curves;
         for (const QDspx::ParamCurveRef &dspxCurveRef : dspxCurveRefs) {
             if (dspxCurveRef->type == QDspx::ParamCurve::Type::Free) {
@@ -52,7 +52,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         return curves;
     };
 
-    auto decodeSingingParam = [&](const QDspx::ParamInfo &dspxParam, int offset,
+    auto decodeSingingParam = [&](const QDspx::ParamInfo &dspxParam, const int offset,
                                   SingingClip *clip) {
         Param param;
         param.setCurves(Param::Original, decodeCurves(dspxParam.org, offset), clip);
@@ -61,7 +61,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         return param;
     };
 
-    auto decodeSingingParams = [&](const QDspx::SingleParam &dspxParams, int offset,
+    auto decodeSingingParams = [&](const QDspx::SingleParam &dspxParams, const int offset,
                                    SingingClip *clip) {
         ParamInfo params(clip);
         params.pitch = std::move(decodeSingingParam(dspxParams.pitch, offset, clip));
@@ -89,7 +89,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     //     }
     //     return phonemes;
     // };
-    auto decodeNotes = [&](const QList<QDspx::Note> &dspxNotes, int offset) {
+    auto decodeNotes = [&](const QList<QDspx::Note> &dspxNotes, const int offset) {
         QList<Note *> notes;
         for (const QDspx::Note &dspxNote : dspxNotes) {
             const auto note = new Note;
@@ -124,7 +124,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 clip->setGain(castClip->control.gain);
                 clip->setMute(castClip->control.mute);
                 auto notes = decodeNotes(castClip->notes, castClip->time.start);
-                for (auto &note : notes)
+                for (const auto &note : notes)
                     clip->insertNote(note);
                 clip->params =
                     std::move(decodeSingingParams(castClip->params, castClip->time.start, clip));

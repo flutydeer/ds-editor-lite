@@ -93,7 +93,7 @@ public:
             parentItem->removeChild(parentItem->child(0));
         for (int i = 0; i < trackInfoList.size(); i++) {
             const auto &trackInfo = trackInfoList.at(i);
-            auto item = new QTreeWidgetItem;
+            const auto item = new QTreeWidgetItem;
             item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
             item->setCheckState(0, Qt::Unchecked);
             item->setData(0, Qt::UserRole, i);
@@ -106,7 +106,7 @@ public:
 
     void updateText() const {
         for (int i = 0; i < parentItem->childCount(); i++) {
-            auto item = parentItem->child(i);
+            const auto item = parentItem->child(i);
             const auto &trackInfo = trackInfoList.at(i);
             item->setText(0, computeTrackItemText(trackInfo));
         }
@@ -124,26 +124,26 @@ MidiConverterDialog::MidiConverterDialog(
     setWindowTitle(tr("Configure MIDI Import"));
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
 
-    auto layout = new QVBoxLayout;
+    const auto layout = new QVBoxLayout;
 
-    auto formLayout = new QFormLayout;
+    const auto formLayout = new QFormLayout;
     d->codecComboBox = new QComboBox;
     formLayout->addRow("&Encoding", d->codecComboBox);
 
-    auto trackLayout = new QVBoxLayout;
+    const auto trackLayout = new QVBoxLayout;
 
-    auto trackSelectorGroupBox = new QGroupBox(tr("Track Selector"));
-    auto trackSelectorLayout = new QVBoxLayout;
-    auto trackSelector = new QTreeWidget;
+    const auto trackSelectorGroupBox = new QGroupBox(tr("Track Selector"));
+    const auto trackSelectorLayout = new QVBoxLayout;
+    const auto trackSelector = new QTreeWidget;
     trackSelector->setHeaderHidden(true);
     trackSelector->setRootIsDecorated(false);
     trackSelectorLayout->addWidget(trackSelector);
     trackSelectorGroupBox->setLayout(trackSelectorLayout);
     trackLayout->addWidget(trackSelectorGroupBox, 2);
 
-    auto previewGroupBox = new QGroupBox(tr("Lyrics Preview"));
-    auto previewLayout = new QVBoxLayout;
-    auto previewTextEdit = new QPlainTextEdit;
+    const auto previewGroupBox = new QGroupBox(tr("Lyrics Preview"));
+    const auto previewLayout = new QVBoxLayout;
+    const auto previewTextEdit = new QPlainTextEdit;
     previewTextEdit->setReadOnly(true);
     previewLayout->addWidget(previewTextEdit);
     previewGroupBox->setLayout(previewLayout);
@@ -151,28 +151,29 @@ MidiConverterDialog::MidiConverterDialog(
 
     formLayout->addRow(trackLayout);
 
-    auto useMidiTimelineCheckBox = new QCheckBox(tr("&Import tempo and time signature from MIDI"));
+    const auto useMidiTimelineCheckBox =
+        new QCheckBox(tr("&Import tempo and time signature from MIDI"));
     formLayout->addRow(useMidiTimelineCheckBox);
 
     layout->addLayout(formLayout);
 
-    auto buttonLayout = new QHBoxLayout;
+    const auto buttonLayout = new QHBoxLayout;
     buttonLayout->addStretch();
-    auto okButton = new QPushButton(tr("OK"));
+    const auto okButton = new QPushButton(tr("OK"));
     okButton->setDefault(true);
     buttonLayout->addWidget(okButton);
-    auto cancelButton = new QPushButton(tr("Cancel"));
+    const auto cancelButton = new QPushButton(tr("Cancel"));
     buttonLayout->addWidget(cancelButton);
     layout->addLayout(buttonLayout);
 
     setLayout(layout);
 
-    auto localCodecName = QTextCodec::codecForLocale()->name();
+    const auto localCodecName = QTextCodec::codecForLocale()->name();
 
     d->codecComboBox->addItem(QStringLiteral("UTF-8"), "UTF-8");
     d->codecComboBox->addItem(tr("System"), localCodecName);
 
-    for (auto codec : QTextCodec::availableMibs()) {
+    for (const auto codec : QTextCodec::availableMibs()) {
         auto codecName = QTextCodec::codecForMib(codec)->name();
         if (codecName == "UTF-8" || codecName == localCodecName)
             continue;
@@ -208,7 +209,7 @@ MidiConverterDialog::MidiConverterDialog(
     };
 
     connect(d->codecComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [=](int index) {
+            [=](const int index) {
                 d->selectedCodec =
                     QTextCodec::codecForName(d->codecComboBox->itemData(index).toByteArray());
                 d->updateText();
@@ -219,7 +220,7 @@ MidiConverterDialog::MidiConverterDialog(
 
     useMidiTimelineCheckBox->setChecked(true);
     connect(useMidiTimelineCheckBox, &QAbstractButton::clicked, this,
-            [=](bool checked) { d->useMidiTimeline = checked; });
+            [=](const bool checked) { d->useMidiTimeline = checked; });
 
     trackSelector->expandAll();
     trackSelector->setItemsExpandable(false);
@@ -257,7 +258,7 @@ QList<int> MidiConverterDialog::selectedTracks() const {
     Q_D(const MidiConverterDialog);
     QList<int> ret;
     for (int i = 0; i < d->parentItem->childCount(); i++) {
-        auto item = d->parentItem->child(i);
+        const auto item = d->parentItem->child(i);
         if (item->checkState(0) == Qt::Checked) {
             ret.append(i);
         }

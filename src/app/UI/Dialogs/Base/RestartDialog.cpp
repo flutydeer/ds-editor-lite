@@ -10,7 +10,7 @@
 
 #include <QApplication>
 
-RestartDialog::RestartDialog(const QString &message, bool canRestartLater, QWidget *parent)
+RestartDialog::RestartDialog(const QString &message, const bool canRestartLater, QWidget *parent)
     : Dialog(parent), m_canRestartLater(canRestartLater) {
     setModal(true);
     setMinimumWidth(360);

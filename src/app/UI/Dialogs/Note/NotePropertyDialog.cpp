@@ -14,7 +14,8 @@
 
 #include <QFormLayout>
 
-NotePropertyDialog::NotePropertyDialog(Note *note, AppGlobal::NotePropertyType propertyType,
+NotePropertyDialog::NotePropertyDialog(const Note *note,
+                                       const AppGlobal::NotePropertyType propertyType,
                                        QWidget *parent)
     : OKCancelDialog(parent), m_note() {
     setWindowTitle(tr("Note Properties - %1").arg(note->lyric()));
@@ -30,7 +31,7 @@ NotePropertyDialog::NotePropertyDialog(Note *note, AppGlobal::NotePropertyType p
     m_lePron->setPlaceholderText(note->pronunciation().original);
 
     m_result.phonemeNameInfo = note->phonemes().nameInfo;
-    auto nameInfo = m_result.phonemeNameInfo;
+    const auto nameInfo = m_result.phonemeNameInfo;
 
     m_lePhonemeAhead = new QLineEdit(phonemesToString(nameInfo.ahead.edited));
     m_lePhonemeAhead->setPlaceholderText(phonemesToString(nameInfo.ahead.original));
@@ -38,7 +39,7 @@ NotePropertyDialog::NotePropertyDialog(Note *note, AppGlobal::NotePropertyType p
     m_lePhonemeNormal = new QLineEdit(phonemesToString(nameInfo.normal.edited));
     m_lePhonemeNormal->setPlaceholderText(phonemesToString(nameInfo.normal.original));
 
-    auto mainLayout = new QFormLayout;
+    const auto mainLayout = new QFormLayout;
     mainLayout->setLabelAlignment(Qt::AlignmentFlag::AlignRight | Qt::AlignmentFlag::AlignTrailing |
                                   Qt::AlignmentFlag::AlignVCenter);
     // mainLayout->addRow(tr("Start:"), sbStart);
@@ -78,16 +79,16 @@ NoteDialogResult NotePropertyDialog::result() {
     m_result.lyric = m_leLyric->text();
     m_result.pronunciation.edited = m_lePron->text();
 
-    auto aheadText = m_lePhonemeAhead->text();
+    const auto aheadText = m_lePhonemeAhead->text();
     if (!aheadText.isNull() && !aheadText.isEmpty()) {
-        auto aheadList = phonemesFromString(aheadText);
+        const auto aheadList = phonemesFromString(aheadText);
         m_result.phonemeNameInfo.ahead.edited = aheadList;
     } else
         m_result.phonemeNameInfo.ahead.edited = QList<QString>();
 
-    auto normalText = m_lePhonemeNormal->text();
+    const auto normalText = m_lePhonemeNormal->text();
     if (!normalText.isNull() && !normalText.isEmpty()) {
-        auto normalList = phonemesFromString(m_lePhonemeNormal->text());
+        const auto normalList = phonemesFromString(m_lePhonemeNormal->text());
         m_result.phonemeNameInfo.normal.edited = normalList;
     } else
         m_result.phonemeNameInfo.normal.edited = QList<QString>();

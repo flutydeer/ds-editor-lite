@@ -523,7 +523,7 @@ namespace Audio {
         return d->warning;
     }
 
-    QStringList AudioExporter::warningText(AudioExporter::Warning warning) {
+    QStringList AudioExporter::warningText(const AudioExporter::Warning warning) {
         QStringList list;
         if (warning & W_NoFile) {
             list.append(tr("No file will be exported. Please check if any source is selected."));

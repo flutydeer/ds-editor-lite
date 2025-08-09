@@ -19,12 +19,12 @@ ExtractPitchParamDialog::ExtractPitchParamDialog(const QList<AudioClip *> &clips
 
     clipList = new QListWidget;
     clipList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    for (auto clip : clips) {
-        auto item = new QListWidgetItem(QString("%1 (%2)").arg(clip->name(), clip->path()));
+    for (const auto clip : clips) {
+        const auto item = new QListWidgetItem(QString("%1 (%2)").arg(clip->name(), clip->path()));
         item->setData(Qt::UserRole, clip->id());
         clipList->addItem(item);
     }
-    auto layout = new QVBoxLayout;
+    const auto layout = new QVBoxLayout;
     layout->addWidget(clipList);
     layout->setContentsMargins({});
     body()->setLayout(layout);
@@ -39,7 +39,7 @@ ExtractPitchParamDialog::ExtractPitchParamDialog(const QList<AudioClip *> &clips
             &ExtractPitchParamDialog::onSelectionChanged);
 }
 
-void ExtractPitchParamDialog::onSelectionChanged(int row) {
+void ExtractPitchParamDialog::onSelectionChanged(const int row) {
     auto item = clipList->item(row);
     if (!item) {
         selectedClipId = -1;

@@ -5,16 +5,11 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppModel/SingingClip.h"
 
-#include <set>
-
 #include <QMessageBox>
 #include <QFile>
 #include <QBoxLayout>
 #include <QFormLayout>
 #include <QComboBox>
-#include <QDoubleValidator>
-#include <QSpinBox>
-#include <QPushButton>
 
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsCore/PositionableMixerAudioSource.h>
@@ -234,7 +229,7 @@ talcs::DspxAudioClipContext *
 
 void AudioContext::handlePanSliderMoved(Track *track, const double pan) const {
     const auto trackContext = getContextFromTrack(track);
-    trackContext->controlMixer()->setPan(pan);
+    trackContext->controlMixer()->setPan(static_cast<float>(pan));
 }
 
 void AudioContext::handleGainSliderMoved(Track *track, const double gain) const {
@@ -243,7 +238,7 @@ void AudioContext::handleGainSliderMoved(Track *track, const double gain) const 
 }
 
 void AudioContext::handleMasterPanSliderMoved(const double pan) const {
-    masterControlMixer()->setPan(pan);
+    masterControlMixer()->setPan(static_cast<float>(pan));
 }
 
 void AudioContext::handleMasterGainSliderMoved(const double gain) const {
@@ -306,7 +301,7 @@ void AudioContext::handleTrackInserted(const int index, Track *track) {
     for (const auto clip : track->clips()) {
         if (clip->clipType() != Clip::Audio)
             continue;
-        handleClipInserted(track, clip->id(), static_cast<AudioClip *>(clip));
+        handleClipInserted(track, clip->id(), dynamic_cast<AudioClip *>(clip));
     }
 
     connect(track, &Track::propertyChanged, this, [track, this] {
@@ -380,7 +375,7 @@ void AudioContext::handleMasterControlChanged(const TrackControl &control) const
 void AudioContext::handleTrackControlChanged(Track *track) const {
     const auto trackContext = getContextFromTrack(track);
     trackContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(track->control().gain()));
-    trackContext->controlMixer()->setPan(track->control().pan());
+    trackContext->controlMixer()->setPan(static_cast<float>(track->control().pan()));
     trackContext->controlMixer()->setSilentFlags(track->control().mute() ? -1 : 0);
     masterTrackMixer()->setSourceSolo(trackContext->controlMixer(), track->control().solo());
 }

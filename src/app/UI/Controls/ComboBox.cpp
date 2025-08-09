@@ -12,7 +12,7 @@ ComboBox::ComboBox(QWidget *parent) : QComboBox(parent) {
     initUi();
 }
 
-ComboBox::ComboBox(bool scrollWheelChangeSelection, QWidget *parent)
+ComboBox::ComboBox(const bool scrollWheelChangeSelection, QWidget *parent)
     : QComboBox(parent), m_scrollWheelChangeSelection(scrollWheelChangeSelection) {
     initUi();
 }
@@ -25,10 +25,10 @@ void ComboBox::wheelEvent(QWheelEvent *event) {
 }
 
 void ComboBox::initUi() {
-    auto styledItemDelegate = new QStyledItemDelegate();
+    const auto styledItemDelegate = new QStyledItemDelegate();
     setItemDelegate(styledItemDelegate);
 
-    auto container = dynamic_cast<QWidget *>(view()->parent());
+    const auto container = dynamic_cast<QWidget *>(view()->parent());
     container->setWindowFlags(Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
     container->setAttribute(Qt::WA_TranslucentBackground, true);
     container->setAttribute(Qt::WA_WindowPropagation);

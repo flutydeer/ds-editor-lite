@@ -18,7 +18,7 @@ public:
     explicit OptionsCard(QWidget *parent = nullptr);
 
     void setTitle(const QString &title) const;
-    CardView *card();
+    CardView *card() const;
 
 private:
     using QWidget::setLayout;

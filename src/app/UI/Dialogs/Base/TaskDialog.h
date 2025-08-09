@@ -24,8 +24,8 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private slots:
-    void onTerminateButtonClicked();
-    void onStatusUpdated(const TaskStatus &status);
+    void onTerminateButtonClicked() const;
+    void onStatusUpdated(const TaskStatus &status) const;
 
 private:
     Task *m_task;

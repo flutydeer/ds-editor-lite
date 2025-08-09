@@ -20,7 +20,7 @@ OptionsCard::OptionsCard(QWidget *parent) : QWidget(parent) {
 
     m_card = new CardView;
 
-    auto mainLayout = new QVBoxLayout;
+    const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_lbTitle);
     mainLayout->addWidget(m_card);
     mainLayout->setContentsMargins({0, 0, 0, 12});
@@ -33,6 +33,6 @@ void OptionsCard::setTitle(const QString &title) const {
     m_lbTitle->setText(title);
 }
 
-CardView *OptionsCard::card() {
+CardView *OptionsCard::card() const {
     return m_card;
 }

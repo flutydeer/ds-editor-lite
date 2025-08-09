@@ -24,13 +24,13 @@ public:
     [[nodiscard]] bool animation() const;
     void setAnimation(bool on);
     [[nodiscard]] QString title() const;
-    void setTitle(const QString &text);
+    void setTitle(const QString &text) const;
     [[nodiscard]] QString shortcutKey() const;
-    void setShortcutKey(const QString &text);
+    void setShortcutKey(const QString &text) const;
     [[nodiscard]] QList<QString> message() const;
-    void setMessage(const QList<QString> &text);
-    void appendMessage(const QString &text);
-    void clearMessage();
+    void setMessage(const QList<QString> &text) const;
+    void appendMessage(const QString &text) const;
+    void clearMessage() const;
 
 protected:
     QTimer m_timer;
@@ -44,9 +44,9 @@ protected:
     // Animation
     QPropertyAnimation *m_opacityAnimation;
 
-    void adjustToolTipPos();
-    void showToolTip();
-    void hideToolTip();
+    void adjustToolTipPos() const;
+    void showToolTip() const;
+    void hideToolTip() const;
 
     bool eventFilter(QObject *object, QEvent *event) override;
 };

@@ -137,9 +137,9 @@ bool GenericInferModel::deserialize(const QJsonObject &obj) {
     return true;
 }
 
-QString GenericInferModel::serializeToJson(const bool useMetaData) const {
+QString GenericInferModel::serializeToJson(const bool useMetadata) const {
     QJsonObject object = serialize();
-    if (useMetaData) {
+    if (useMetadata) {
         object["configPath"] = configPath;
         object["speaker"] = speaker;
     }

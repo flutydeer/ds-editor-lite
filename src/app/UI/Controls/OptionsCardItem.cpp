@@ -25,7 +25,7 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
     // TODO: word warp
     // m_lbDesc->setWordWrap(true);
 
-    auto titleDescLayout = new QVBoxLayout;
+    const auto titleDescLayout = new QVBoxLayout;
     titleDescLayout->addWidget(m_lbTitle);
     titleDescLayout->addWidget(m_lbDesc);
     titleDescLayout->setSpacing(2);
@@ -49,21 +49,21 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
 // void OptionsCardItem::setChecked(bool checked) {
 //     m_checkBox->setChecked(checked);
 // }
-void OptionsCardItem::setTitle(const QString &title) {
+void OptionsCardItem::setTitle(const QString &title) const {
     m_lbTitle->setText(title);
 }
 
-void OptionsCardItem::setDescription(const QString &desc) {
+void OptionsCardItem::setDescription(const QString &desc) const {
     m_lbDesc->setVisible(true);
     m_lbDesc->setText(desc);
 }
 
-void OptionsCardItem::addWidget(QWidget *widget) {
+void OptionsCardItem::addWidget(QWidget *widget) const {
     m_mainLayout->addWidget(widget);
     m_lbTitle->setBuddy(widget);
 }
 
-void OptionsCardItem::removeWidget(QWidget *widget) {
+void OptionsCardItem::removeWidget(QWidget *widget) const {
     m_mainLayout->removeWidget(widget);
 }
 

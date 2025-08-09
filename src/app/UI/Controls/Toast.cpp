@@ -24,7 +24,7 @@ ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent)
     m_cardLayout->addWidget(m_lbMessage);
     m_cardLayout->setContentsMargins({});
 
-    auto container = new QFrame;
+    const auto container = new QFrame;
     container->setObjectName("container");
     container->setLayout(m_cardLayout);
     container->setContentsMargins(12, 8, 12, 8);
@@ -36,13 +36,13 @@ ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent)
                              "border-radius: 6px; "
                              "font-size: 10pt }");
 
-    auto shadowEffect = new QGraphicsDropShadowEffect(this);
+    const auto shadowEffect = new QGraphicsDropShadowEffect(this);
     shadowEffect->setBlurRadius(36);
     shadowEffect->setColor(QColor(0, 0, 0, 32));
     shadowEffect->setOffset(0, 8);
     container->setGraphicsEffect(shadowEffect);
 
-    auto mainLayout = new QHBoxLayout;
+    const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(container);
     mainLayout->setContentsMargins(16, 16, 16, 16);
     setLayout(mainLayout);
@@ -88,9 +88,9 @@ Toast::Toast(QObject *parent) : QObject(parent) {
         oneToastShowFinished();
     });
 
-    auto duration = animationLevel() == AnimationGlobal::None
-                        ? 0
-                        : getScaledAnimationTime(animationDurationBase);
+    const auto duration = animationLevel() == AnimationGlobal::None
+                              ? 0
+                              : getScaledAnimationTime(animationDurationBase);
 
     m_opacityAnimation.setPropertyName("windowOpacity");
     m_opacityAnimation.setEasingCurve(QEasingCurve::InOutCubic);
@@ -118,12 +118,13 @@ void Toast::showNextToast() {
     m_opacityAnimation.setTargetObject(m_toastWidget);
     m_posAnimation.setTargetObject(m_toastWidget);
 
-    auto toastWidth = m_toastWidget->geometry().width();
+    const auto toastWidth = m_toastWidget->geometry().width();
     // qDebug() << toastWidth;
     if (m_globalContext) {
-        auto targetPos = m_globalContext->geometry().center() -
-                         QPoint(toastWidth / 2, m_globalContext->geometry().height() / 2 - 96);
-        auto startPos = QPoint(targetPos.x(), targetPos.y() - 32);
+        const auto targetPos =
+            m_globalContext->geometry().center() -
+            QPoint(toastWidth / 2, m_globalContext->geometry().height() / 2 - 96);
+        const auto startPos = QPoint(targetPos.x(), targetPos.y() - 32);
         m_posAnimation.setStartValue(startPos);
         m_posAnimation.setEndValue(targetPos);
         m_posAnimation.start();

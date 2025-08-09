@@ -23,10 +23,8 @@
 #include <QTextEdit>
 #include <utility>
 
-
 bool trackSelector(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
-                   const QList<QByteArray> &labelList, QList<int> *selectIDs,
-                   QTextCodec **codec) {
+                   const QList<QByteArray> &labelList, QList<int> *selectIDs, QTextCodec **codec) {
     MidiConverterDialog dlg(trackInfoList, Dialog::globalParent());
     if (dlg.exec()) {
         *selectIDs = dlg.selectedTracks();
@@ -57,26 +55,6 @@ int showImportDialog() {
     return msgBox.exec();
 }
 
-bool showTimeSignatureDialog() {
-    MessageDialog msgBox;
-    msgBox.setWindowTitle("Time Signature Mismatch");
-    msgBox.setMessage("The timeSignature of the MIDI file does not match the "
-        "current project. Do you want to use MIDI's timeSignature?");
-    msgBox.addAccentButton("Yes", 1);
-    msgBox.addButton("No", 0);
-    return msgBox.exec() == 1;
-}
-
-bool showTempoDialog() {
-    MessageDialog msgBox;
-    msgBox.setWindowTitle("Tempo Mismatch");
-    msgBox.setMessage("The tempo of the MIDI file does not match the current "
-        "project. Do you want to use MIDI's tempo?");
-    msgBox.addAccentButton("Yes", 1);
-    msgBox.addButton("No", 0);
-    return msgBox.exec() == 1;
-}
-
 void showErrorDialog(const QString &title, const QString &message) {
     MessageDialog msgBox;
     msgBox.setWindowTitle(title);
@@ -93,9 +71,7 @@ QList<Note *> convertNotes(const QList<QDspx::Note> &arrNotes, const int offset,
         note->setLocalStart(dsNote.pos - offset);
         note->setLength(dsNote.length);
         note->setKeyIndex(dsNote.keyNum);
-        note->setLyric(dsNote.lyric.isEmpty()
-                           ? appOptions->general()->defaultLyric
-                           : dsNote.lyric);
+        note->setLyric(dsNote.lyric.isEmpty() ? appOptions->general()->defaultLyric : dsNote.lyric);
         note->setLanguage(language);
         note->setG2pId(g2pIdFromLanguage(language));
         notes.append(note);
@@ -165,24 +141,15 @@ void encodeClips(const Track *dsTrack, QDspx::Track *track) {
             const auto singingClip = dynamic_cast<SingingClip *>(clip);
             auto singClip = QDspx::SingingClipRef::create();
             singClip->name = clip->name();
-            singClip->time = {
-                clip->start(),
-                clip->length(),
-                clip->clipStart(),
-                clip->clipLen()
-            };
+            singClip->time = {clip->start(), clip->length(), clip->clipStart(), clip->clipLen()};
             singClip->notes = encodeNotes(singingClip->notes());
             track->clips.append(singClip);
         } else if (clip->clipType() == Clip::Audio) {
             const auto audioClip = dynamic_cast<AudioClip *>(clip);
             auto audioClipRef = QDspx::AudioClipRef::create();
             audioClipRef->name = clip->name();
-            audioClipRef->time = {
-                clip->start(),
-                clip->length(),
-                clip->clipStart(),
-                clip->clipLen()
-            };
+            audioClipRef->time = {clip->start(), clip->length(), clip->clipStart(),
+                                  clip->clipLen()};
             audioClipRef->path = audioClip->path();
             track->clips.append(audioClipRef);
         }
@@ -197,7 +164,6 @@ void encodeTracks(const AppModel *model, QDspx::Model &dspx) {
         dspx.content.tracks.append(track);
     }
 }
-
 
 MidiConverter::MidiConverter(TimeSignature timeSignature, const double tempo)
     : m_timeSignature(std::move(timeSignature)), m_tempo(tempo) {
@@ -220,9 +186,10 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg,
 
     const auto result = midi->load(path, dspx.get(), args);
     if (result.type != QDspx::Result::Success) {
-        showErrorDialog("Warning",
-                        QString("Failed to load midi file.\npath: %1\ntype: %2 code: %3")
-                        .arg(path).arg(result.type).arg(result.code));
+        showErrorDialog("Warning", QString("Failed to load midi file.\npath: %1\ntype: %2 code: %3")
+                                       .arg(path)
+                                       .arg(result.type)
+                                       .arg(result.code));
         return false;
     }
 
@@ -237,17 +204,11 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg,
     const auto &ts = timeline.timeSignatures.first();
     const auto &tempoVal = timeline.tempos.first().value;
 
-    if (m_timeSignature.numerator != ts.num || m_timeSignature.denominator != ts.den) {
-        if (showTimeSignatureDialog()) {
-            model->setTimeSignature({ts.num, ts.den});
-        }
-    }
+    if (m_timeSignature.numerator != ts.num || m_timeSignature.denominator != ts.den)
+        model->setTimeSignature({ts.num, ts.den});
 
-    if (qAbs(m_tempo - tempoVal) > 0.001) {
-        if (showTempoDialog()) {
-            model->setTempo(tempoVal);
-        }
-    }
+    if (qAbs(m_tempo - tempoVal) > 0.001)
+        model->setTempo(tempoVal);
 
     if (!dspx->content.tracks.isEmpty()) {
         convertTracks(*dspx, model, language);
@@ -274,7 +235,9 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
     if (result.type != QDspx::Result::Success) {
         showErrorDialog("Warning",
                         QString("Failed to save midi file.\n path: %1\ntype: %2 code: %3")
-                        .arg(path).arg(result.type).arg(result.code));
+                            .arg(path)
+                            .arg(result.type)
+                            .arg(result.code));
         return false;
     }
     return true;

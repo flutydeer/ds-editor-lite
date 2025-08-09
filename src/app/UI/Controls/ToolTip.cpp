@@ -18,7 +18,7 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     m_lbShortcutKey->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     m_lbShortcutKey->setVisible(false);
 
-    auto titleShortcutLayout = new QHBoxLayout;
+    const auto titleShortcutLayout = new QHBoxLayout;
     titleShortcutLayout->addWidget(m_lbTitle);
     titleShortcutLayout->addWidget(m_lbShortcutKey);
     // titleShortcutLayout->addStretch();
@@ -34,7 +34,7 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     //    cardLayout->addWidget(m_teMessage);
     m_cardLayout->setContentsMargins({});
 
-    auto container = new QFrame;
+    const auto container = new QFrame;
     container->setObjectName("container");
     container->setLayout(m_cardLayout);
     container->setContentsMargins(8, 4, 8, 4);
@@ -45,13 +45,13 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
                              "border-radius: 6px; "
                              "font-size: 10pt }");
 
-    auto shadowEffect = new QGraphicsDropShadowEffect(this);
+    const auto shadowEffect = new QGraphicsDropShadowEffect(this);
     shadowEffect->setBlurRadius(24);
     shadowEffect->setColor(QColor(0, 0, 0, 32));
     shadowEffect->setOffset(0, 4);
     container->setGraphicsEffect(shadowEffect);
 
-    auto mainLayout = new QHBoxLayout;
+    const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(container);
     mainLayout->setContentsMargins(16, 16, 16, 16);
     setLayout(mainLayout);
@@ -114,7 +114,7 @@ void ToolTip::updateMessage() {
     }
 
     for (const auto &message : m_message) {
-        auto label = new QLabel;
+        const auto label = new QLabel;
         label->setText(message);
         label->setStyleSheet("color: #808080");
         m_messageLayout->addWidget(label);

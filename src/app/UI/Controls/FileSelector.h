@@ -18,7 +18,7 @@ class FileSelector final : public QWidget {
 public:
     explicit FileSelector(QWidget *parent = nullptr);
     QString path() const;
-    void setPath(const QString &filePath);
+    void setPath(const QString &filePath) const;
     QString filter() const;
     void setFilter(const QString &filter);
     QSet<QString> fileDropExtensions() const;

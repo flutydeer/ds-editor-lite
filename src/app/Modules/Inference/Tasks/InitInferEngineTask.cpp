@@ -7,7 +7,6 @@
 #include "Modules/Inference/InferEngine.h"
 
 #include <QDebug>
-// #include <QThread>
 
 InitInferEngineTask::InitInferEngineTask(QObject *parent) : Task(parent) {
     TaskStatus status;
@@ -19,11 +18,9 @@ InitInferEngineTask::InitInferEngineTask(QObject *parent) : Task(parent) {
 
 void InitInferEngineTask::runTask() {
     qDebug() << "Initialize inference engine...";
-    // QThread::sleep(5);
     success = inferEngine->initialize(errorMessage);
     if (!success) {
         qCritical().noquote().nospace()
-            << "Failed to initialize inference engine: "
-            << errorMessage;
+            << "Failed to initialize inference engine: " << errorMessage;
     }
 }

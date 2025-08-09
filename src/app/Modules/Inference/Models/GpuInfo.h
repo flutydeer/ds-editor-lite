@@ -17,19 +17,19 @@ public:
     unsigned long long memory = 0;
 
     static inline QString getIdString(unsigned int device_id, unsigned int vendor_id);
-    static inline bool parseIdString(QStringView idString, unsigned int &device_id, unsigned int &vendor_id);
-
+    static inline bool parseIdString(QStringView idString, unsigned int &device_id,
+                                     unsigned int &vendor_id);
 };
 
-
-inline QString GpuInfo::getIdString(unsigned int device_id, unsigned int vendor_id) {
+inline QString GpuInfo::getIdString(const unsigned int device_id, const unsigned int vendor_id) {
     constexpr int ID_STR_LEN = 8;
-    char s[ID_STR_LEN + 1] = { '\0' };
+    char s[ID_STR_LEN + 1] = {'\0'};
     snprintf(s, sizeof(s), "%04X%04X", device_id, vendor_id);
     return QString::fromLatin1(s, ID_STR_LEN);
 }
 
-inline bool GpuInfo::parseIdString(QStringView idString, unsigned int &device_id, unsigned int &vendor_id) {
+inline bool GpuInfo::parseIdString(const QStringView idString, unsigned int &device_id,
+                                   unsigned int &vendor_id) {
     // Guaranteed: If the function returns false, both device_id and vendor_id are not modified.
 
     QStringView::size_type pos = 0;
@@ -59,4 +59,4 @@ inline bool GpuInfo::parseIdString(QStringView idString, unsigned int &device_id
 
 Q_DECLARE_METATYPE(GpuInfo)
 
-#endif //GPUINFO_H
+#endif // GPUINFO_H

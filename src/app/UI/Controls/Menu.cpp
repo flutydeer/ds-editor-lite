@@ -42,7 +42,7 @@ QPainterPath Menu::clipPath() const {
 
 void Menu::showEvent(QShowEvent *event) {
     QMenu::showEvent(event);
-    auto size = sizeHint();
-    auto topLeft = mapToGlobal(rect().topLeft());
+    const auto size = sizeHint();
+    const auto topLeft = mapToGlobal(rect().topLeft());
     m_brush.grabImage(QRect(topLeft, size));
 }
