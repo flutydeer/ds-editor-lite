@@ -21,6 +21,10 @@
 class GenericInferModel;
 class InferParam;
 
+namespace srt {
+    class SingerSpec;
+}
+
 struct InferEnginePaths {
     QString config;
     QString singerProvider;
@@ -64,10 +68,20 @@ private:
     friend class ExtractPitchTask;
     friend class PackageManager;
 
+    struct InferenceSet {
+        srt::NO<srt::Inference> duration, pitch, variance, acoustic, vocoder;
+    };
+
+    struct PackageContext {
+        srt::ScopedPackageRef pkg;
+        InferenceSet inference;
+    };
+
     bool initialize(QString &error);
     bool loadPackage(const std::filesystem::path &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
     bool loadPackage(const QString &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
     bool loadInferences(const QString &path);
+    static bool loadInferencesForSinger(const srt::SingerSpec *singerSpec, InferenceSet &outInference);
     bool inferDuration(const GenericInferModel &model, std::vector<double> &outDuration, QString &error) const;
     bool inferPitch(const GenericInferModel &model, InferParam &outPitch, QString &error) const;
     bool inferVariance(const GenericInferModel &model, QList<InferParam> &outParams, QString &error) const;
@@ -87,15 +101,6 @@ private:
     srt::SynthUnit m_su;
 
     InferEnginePaths m_paths;
-
-    struct InferenceSet {
-        srt::NO<srt::Inference> duration, pitch, variance, acoustic, vocoder;
-    };
-
-    struct PackageContext {
-        srt::ScopedPackageRef pkg;
-        InferenceSet inference;
-    };
 
     PackageContext m_pkgCtx;
     std::unordered_map<std::string, std::shared_ptr<PackageContext>> m_pkgCtxs;
