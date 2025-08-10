@@ -1,7 +1,6 @@
 #include "TrackSynthesizer.h"
 
 #include "AudioContext.h"
-#include "../../../libs/talcs/src/dspx/DspxTrackContext.h"
 #include "Model/AppModel/SingingClip.h"
 
 #include <TalcsCore/Decibels.h>
@@ -10,6 +9,7 @@
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsDspx/DspxSingingClipContext.h>
 #include <TalcsDspx/DspxNoteContext.h>
+#include <TalcsDspx/DspxTrackContext.h>
 
 #include <Model/AppModel/AppModel.h>
 #include <Model/AppModel/Track.h>
