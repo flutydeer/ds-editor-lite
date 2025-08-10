@@ -86,7 +86,7 @@ void InferAcousticTask::runTask() {
         m_result = outputCachePath;
     } else {
         qDebug() << "acoustic inference cache not found. Running inference...";
-        if (!inferEngine->runLoadConfig(m_input.configPath)) {
+        if (!inferEngine->loadInferences(m_input.configPath)) {
             qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
                         << "pieceId:" << pieceId() << "taskId:" << id();
             return;

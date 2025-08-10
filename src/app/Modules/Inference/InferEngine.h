@@ -67,7 +67,7 @@ private:
     bool initialize(QString &error);
     bool loadPackage(const std::filesystem::path &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
     bool loadPackage(const QString &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
-    bool runLoadConfig(const QString &path);
+    bool loadInferences(const QString &path);
     bool inferDuration(const GenericInferModel &model, std::vector<double> &outDuration, QString &error) const;
     bool inferPitch(const GenericInferModel &model, InferParam &outPitch, QString &error) const;
     bool inferVariance(const GenericInferModel &model, QList<InferParam> &outParams, QString &error) const;
@@ -88,14 +88,8 @@ private:
 
     InferEnginePaths m_paths;
 
-    struct Inference {
-        srt::NO<srt::InferenceImportOptions> options;
-        srt::InferenceSpec *spec = nullptr;
-        srt::NO<srt::Inference> session;
-    };
-
     struct InferenceSet {
-        Inference duration, pitch, variance, acoustic, vocoder;
+        srt::NO<srt::Inference> duration, pitch, variance, acoustic, vocoder;
     };
 
     struct PackageContext {
@@ -104,6 +98,7 @@ private:
     };
 
     PackageContext m_pkgCtx;
+    std::unordered_map<std::string, std::shared_ptr<PackageContext>> m_pkgCtxs;
 };
 
 

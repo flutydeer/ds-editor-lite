@@ -299,7 +299,7 @@ bool InferEngine::loadPackage(const QString &packagePath, const bool metadataOnl
 bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bool metadataOnly,
                               srt::PackageRef &outPackage) {
     if (!m_initialized) {
-        qCritical() << "runLoadConfig: SynthUnit is not initialized!";
+        qCritical() << "loadPackage: SynthUnit is not initialized!";
         return false;
     }
 
@@ -322,9 +322,9 @@ bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bo
     return true;
 }
 
-bool InferEngine::runLoadConfig(const QString &path) {
+bool InferEngine::loadInferences(const QString &path) {
     if (path.isNull() || path.isEmpty()) {
-        qWarning() << "Config path is null or empty";
+        qWarning() << "Package path is null or empty";
         return false;
     }
     QMutexLocker lock(&m_mutex);
@@ -334,7 +334,7 @@ bool InferEngine::runLoadConfig(const QString &path) {
     }
 
     if (!m_initialized) {
-        qCritical() << "runLoadConfig: SynthUnit is not initialized!";
+        qCritical() << "loadInferences: SynthUnit is not initialized!";
         return false;
     }
 
@@ -352,12 +352,12 @@ bool InferEngine::runLoadConfig(const QString &path) {
     }
 
     // Find singer
-    auto &sc = *m_su.category("singer")->as<srt::SingerCategory>();
-    const auto &singers = sc.singers();
+    const auto singers = m_pkgCtx.pkg.contributes("singer");
     const srt::SingerSpec *singerSpec = nullptr;
-    for (const auto &singer : singers) {
+    for (const auto singer : singers) {
         if (singer->id() == inputSinger) {
-            singerSpec = singer;
+            // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
+            singerSpec = static_cast<const srt::SingerSpec *>(singer);
             break;
         }
     }
@@ -366,52 +366,77 @@ bool InferEngine::runLoadConfig(const QString &path) {
         return false;
     }
 
-    struct ImportEntry {
-        std::string_view className;
-        std::string_view apiName;
-        Inference *data;
-    };
+    srt::NO<srt::InferenceImportOptions> importOptionsDuration;
+    srt::NO<srt::InferenceImportOptions> importOptionsPitch;
+    srt::NO<srt::InferenceImportOptions> importOptionsVariance;
+    srt::NO<srt::InferenceImportOptions> importOptionsAcoustic;
+    srt::NO<srt::InferenceImportOptions> importOptionsVocoder;
+    srt::InferenceSpec *specDuration = nullptr;
+    srt::InferenceSpec *specPitch = nullptr;
+    srt::InferenceSpec *specVariance = nullptr;
+    srt::InferenceSpec *specAcoustic = nullptr;
+    srt::InferenceSpec *specVocoder = nullptr;
 
-    ImportEntry imports[] = {
-        {Dur::API_CLASS, Dur::API_NAME, &m_pkgCtx.inference.duration},
-        {Pit::API_CLASS, Pit::API_NAME, &m_pkgCtx.inference.pitch   },
-        {Var::API_CLASS, Var::API_NAME, &m_pkgCtx.inference.variance},
-        {Ac::API_CLASS,  Ac::API_NAME,  &m_pkgCtx.inference.acoustic},
-        {Vo::API_CLASS,  Vo::API_NAME,  &m_pkgCtx.inference.vocoder },
-    };
-
-    // Assign imports
+    // Assign imports and check for missing inferences
+    std::vector<std::string> missingInferences;
     for (const auto &imp : singerSpec->imports()) {
         const auto &cls = imp.inference()->className();
-        for (auto &entry : imports) {
-            if (cls == entry.className) {
-                *entry.data = {imp.options(), imp.inference()};
-                break;
-            }
+        if (cls == Dur::API_CLASS) {
+            importOptionsDuration = imp.options();
+            specDuration = imp.inference();
+        } else if (cls == Pit::API_CLASS) {
+            importOptionsPitch = imp.options();
+            specPitch = imp.inference();
+        } else if (cls == Var::API_CLASS) {
+            importOptionsVariance = imp.options();
+            specVariance = imp.inference();
+        } else if (cls == Ac::API_CLASS) {
+            importOptionsAcoustic = imp.options();
+            specAcoustic = imp.inference();
+        } else if (cls == Vo::API_CLASS) {
+            importOptionsVocoder = imp.options();
+            specVocoder = imp.inference();
         }
     }
 
-    // Check for missing inferences
-    for (const auto &entry : imports) {
-        if (!entry.data->spec) {
-            qCritical().noquote() << stdc::formatN(R"(%1 inference not found for singer "%2")",
-                                                   entry.apiName, inputSinger);
-            return false;
-        }
+    if (!specDuration) {
+        missingInferences.emplace_back(Dur::API_NAME);
     }
+    if (!specPitch) {
+        missingInferences.emplace_back(Pit::API_NAME);
+    }
+    if (!specVariance) {
+        missingInferences.emplace_back(Var::API_NAME);
+    }
+    if (!specAcoustic) {
+        missingInferences.emplace_back(Ac::API_NAME);
+    }
+    if (!specVocoder) {
+        missingInferences.emplace_back(Vo::API_NAME);
+    }
+
+    if (!missingInferences.empty()) {
+        qCritical().noquote() << stdc::formatN(
+            R"(The following inference(s) not found for singer "%1": %2)",
+            inputSinger, stdc::join(missingInferences, ", "));
+        return false;
+    }
+
+    assert(specDuration && specPitch && specVariance &&
+        specAcoustic && specVocoder && "All specs should be validated");
 
     // Initialize duration inference
-    if (auto exp = m_pkgCtx.inference.duration.spec->createInference(
-            m_pkgCtx.inference.duration.options, srt::NO<Dur::DurationRuntimeOptions>::create());
+    if (auto exp = specDuration->createInference(
+            importOptionsDuration, srt::NO<Dur::DurationRuntimeOptions>::create());
         !exp) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to create duration inference for singer "%1": %2)", inputSinger,
             exp.error().message()));
         return false;
     } else {
-        m_pkgCtx.inference.duration.session = exp.take();
+        m_pkgCtx.inference.duration = exp.take();
     }
-    if (auto exp = m_pkgCtx.inference.duration.session->initialize(
+    if (auto exp = m_pkgCtx.inference.duration->initialize(
             srt::NO<Dur::DurationInitArgs>::create());
         !exp) {
         qCritical().noquote() << (stdc::formatN(
@@ -421,18 +446,18 @@ bool InferEngine::runLoadConfig(const QString &path) {
     }
 
     // Initialize pitch inference
-    if (auto exp = m_pkgCtx.inference.pitch.spec->createInference(
-            m_pkgCtx.inference.pitch.options, srt::NO<Pit::PitchRuntimeOptions>::create());
+    if (auto exp = specPitch->createInference(
+            importOptionsPitch, srt::NO<Pit::PitchRuntimeOptions>::create());
         !exp) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to create pitch inference for singer "%1": %2)", inputSinger,
             exp.error().message()));
         return false;
     } else {
-        m_pkgCtx.inference.pitch.session = exp.take();
+        m_pkgCtx.inference.pitch = exp.take();
     }
     if (auto exp =
-            m_pkgCtx.inference.pitch.session->initialize(srt::NO<Pit::PitchInitArgs>::create());
+            m_pkgCtx.inference.pitch->initialize(srt::NO<Pit::PitchInitArgs>::create());
         !exp) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to initialize pitch inference for singer "%1": %2)", inputSinger,
@@ -441,17 +466,17 @@ bool InferEngine::runLoadConfig(const QString &path) {
     }
 
     // Initialize variance inference
-    if (auto exp = m_pkgCtx.inference.variance.spec->createInference(
-            m_pkgCtx.inference.variance.options, srt::NO<Var::VarianceRuntimeOptions>::create());
+    if (auto exp = specVariance->createInference(
+            importOptionsVariance, srt::NO<Var::VarianceRuntimeOptions>::create());
         !exp) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to create variance inference for singer "%1": %2)", inputSinger,
             exp.error().message()));
         return false;
     } else {
-        m_pkgCtx.inference.variance.session = exp.take();
+        m_pkgCtx.inference.variance = exp.take();
     }
-    if (auto exp = m_pkgCtx.inference.variance.session->initialize(
+    if (auto exp = m_pkgCtx.inference.variance->initialize(
             srt::NO<Var::VarianceInitArgs>::create());
         !exp) {
         qCritical().noquote() << (stdc::formatN(
@@ -461,17 +486,17 @@ bool InferEngine::runLoadConfig(const QString &path) {
     }
 
     // Initialize acoustic inference
-    if (auto exp = m_pkgCtx.inference.acoustic.spec->createInference(
-            m_pkgCtx.inference.acoustic.options, srt::NO<Ac::AcousticRuntimeOptions>::create());
+    if (auto exp = specAcoustic->createInference(
+            importOptionsAcoustic, srt::NO<Ac::AcousticRuntimeOptions>::create());
         !exp) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to create acoustic inference for singer "%1": %2)", inputSinger,
             exp.error().message()));
         return false;
     } else {
-        m_pkgCtx.inference.acoustic.session = exp.take();
+        m_pkgCtx.inference.acoustic = exp.take();
     }
-    if (auto exp = m_pkgCtx.inference.acoustic.session->initialize(
+    if (auto exp = m_pkgCtx.inference.acoustic->initialize(
             srt::NO<Ac::AcousticInitArgs>::create());
         !exp) {
         qCritical().noquote() << (stdc::formatN(
@@ -481,18 +506,18 @@ bool InferEngine::runLoadConfig(const QString &path) {
     }
 
     // Initialize vocoder inference
-    if (auto exp = m_pkgCtx.inference.vocoder.spec->createInference(
-            m_pkgCtx.inference.vocoder.options, srt::NO<Vo::VocoderRuntimeOptions>::create());
+    if (auto exp = specVocoder->createInference(
+            importOptionsVocoder, srt::NO<Vo::VocoderRuntimeOptions>::create());
         !exp) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to create vocoder inference for singer "%1": %2)", inputSinger,
             exp.error().message()));
         return false;
     } else {
-        m_pkgCtx.inference.vocoder.session = exp.take();
+        m_pkgCtx.inference.vocoder = exp.take();
     }
     if (auto exp =
-            m_pkgCtx.inference.vocoder.session->initialize(srt::NO<Vo::VocoderInitArgs>::create());
+            m_pkgCtx.inference.vocoder->initialize(srt::NO<Vo::VocoderInitArgs>::create());
         !exp) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to initialize vocoder inference for singer "%1": %2)", inputSinger,
@@ -501,7 +526,7 @@ bool InferEngine::runLoadConfig(const QString &path) {
     }
     m_configLoaded = true;
     m_paths.config = path;
-    qInfo() << "runLoadConfig success";
+    qInfo() << "loadInferences success";
 
     return true;
 }
@@ -525,7 +550,7 @@ bool InferEngine::inferDuration(const GenericInferModel &model, std::vector<doub
     // Run duration
     srt::NO<Dur::DurationResult> result;
     // Start inference
-    if (auto exp = m_pkgCtx.inference.duration.session->start(input); !exp) {
+    if (auto exp = m_pkgCtx.inference.duration->start(input); !exp) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to start duration inference for singer "%1": %2)", singer,
             exp.error().message()));
@@ -534,7 +559,7 @@ bool InferEngine::inferDuration(const GenericInferModel &model, std::vector<doub
         result = exp.take().as<Dur::DurationResult>();
     }
 
-    if (m_pkgCtx.inference.duration.session->state() == srt::ITask::Failed) {
+    if (m_pkgCtx.inference.duration->state() == srt::ITask::Failed) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to run duration inference for singer "%1": %2)", singer,
             result->error.message()));
@@ -568,7 +593,7 @@ bool InferEngine::inferPitch(const GenericInferModel &model, InferParam &outPitc
     // Run pitch
     srt::NO<Pit::PitchResult> result;
     // Start inference
-    if (auto exp = m_pkgCtx.inference.pitch.session->start(input); !exp) {
+    if (auto exp = m_pkgCtx.inference.pitch->start(input); !exp) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to start pitch inference for singer "%1": %2)", singer,
             exp.error().message()));
@@ -577,7 +602,7 @@ bool InferEngine::inferPitch(const GenericInferModel &model, InferParam &outPitc
         result = exp.take().as<Pit::PitchResult>();
     }
 
-    if (m_pkgCtx.inference.pitch.session->state() == srt::ITask::Failed) {
+    if (m_pkgCtx.inference.pitch->state() == srt::ITask::Failed) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to run pitch inference for singer "%1": %2)", singer,
             result->error.message()));
@@ -613,7 +638,7 @@ bool InferEngine::inferVariance(const GenericInferModel &model, QList<InferParam
     // Run variance
     srt::NO<Var::VarianceResult> result;
     // Start inference
-    if (auto exp = m_pkgCtx.inference.variance.session->start(input); !exp) {
+    if (auto exp = m_pkgCtx.inference.variance->start(input); !exp) {
         qCritical().noquote() << (stdc::formatN(
             R"(failed to start variance inference for singer "%1": %2)", singer,
             exp.error().message()));
@@ -622,7 +647,7 @@ bool InferEngine::inferVariance(const GenericInferModel &model, QList<InferParam
         result = exp.take().as<Var::VarianceResult>();
     }
 
-    if (m_pkgCtx.inference.variance.session->state() == srt::ITask::Failed) {
+    if (m_pkgCtx.inference.variance->state() == srt::ITask::Failed) {
         qCritical().noquote() << stdc::formatN(
             R"(failed to run variance inference for singer "%1": %2)", singer,
             result->error.message());
@@ -666,7 +691,7 @@ bool InferEngine::inferAcoustic(const GenericInferModel &model, const QString &o
     {
         srt::NO<Ac::AcousticResult> result;
         // Start inference
-        if (auto exp = m_pkgCtx.inference.acoustic.session->start(input); !exp) {
+        if (auto exp = m_pkgCtx.inference.acoustic->start(input); !exp) {
             qCritical().noquote() << (stdc::formatN(
                 R"(failed to start acoustic inference for singer "%1": %2)", singer,
                 exp.error().message()));
@@ -675,7 +700,7 @@ bool InferEngine::inferAcoustic(const GenericInferModel &model, const QString &o
             result = exp.take().as<Ac::AcousticResult>();
         }
 
-        if (m_pkgCtx.inference.acoustic.session->state() == srt::ITask::Failed) {
+        if (m_pkgCtx.inference.acoustic->state() == srt::ITask::Failed) {
             qCritical().noquote() << (stdc::formatN(
                 R"(failed to run acoustic inference for singer "%1": %2)", singer,
                 result->error.message()));
@@ -692,7 +717,7 @@ bool InferEngine::inferAcoustic(const GenericInferModel &model, const QString &o
 
         srt::NO<Vo::VocoderResult> result;
         // Start inference
-        if (auto exp = m_pkgCtx.inference.vocoder.session->start(vocoderInput); !exp) {
+        if (auto exp = m_pkgCtx.inference.vocoder->start(vocoderInput); !exp) {
             qCritical().noquote() << (stdc::formatN(
                 R"(failed to start vocoder inference for singer "%1": %2)", singer,
                 exp.error().message()));
@@ -701,7 +726,7 @@ bool InferEngine::inferAcoustic(const GenericInferModel &model, const QString &o
             result = exp.take().as<Vo::VocoderResult>();
         }
 
-        if (m_pkgCtx.inference.vocoder.session->state() == srt::ITask::Failed) {
+        if (m_pkgCtx.inference.vocoder->state() == srt::ITask::Failed) {
             qCritical().noquote() << (stdc::formatN(
                 R"(failed to run vocoder inference for singer "%1": %2)", singer,
                 result->error.message()));
@@ -729,42 +754,42 @@ bool InferEngine::inferAcoustic(const GenericInferModel &model, const QString &o
 
 void InferEngine::terminateInferDurationAsync() const {
     qInfo() << "terminateInferDurationAsync";
-    if (m_pkgCtx.inference.duration.session) {
-        m_pkgCtx.inference.duration.session->stop();
+    if (m_pkgCtx.inference.duration) {
+        m_pkgCtx.inference.duration->stop();
     }
 }
 
 void InferEngine::terminateInferPitchAsync() const {
     qInfo() << "terminateInferPitchAsync";
-    if (m_pkgCtx.inference.pitch.session) {
-        m_pkgCtx.inference.pitch.session->stop();
+    if (m_pkgCtx.inference.pitch) {
+        m_pkgCtx.inference.pitch->stop();
     }
 }
 
 void InferEngine::terminateInferVarianceAsync() const {
     qInfo() << "terminateInferVarianceAsync";
-    if (m_pkgCtx.inference.variance.session) {
-        m_pkgCtx.inference.variance.session->stop();
+    if (m_pkgCtx.inference.variance) {
+        m_pkgCtx.inference.variance->stop();
     }
 }
 
 void InferEngine::terminateInferAcousticAsync() const {
     qInfo() << "terminateInferAcousticAsync";
-    if (m_pkgCtx.inference.acoustic.session) {
-        m_pkgCtx.inference.acoustic.session->stop();
+    if (m_pkgCtx.inference.acoustic) {
+        m_pkgCtx.inference.acoustic->stop();
     }
-    if (m_pkgCtx.inference.vocoder.session) {
-        m_pkgCtx.inference.vocoder.session->stop();
+    if (m_pkgCtx.inference.vocoder) {
+        m_pkgCtx.inference.vocoder->stop();
     }
 }
 
 void InferEngine::dispose() {
     qDebug() << "dispose InferEngine inference sessions";
-    m_pkgCtx.inference.duration.session.reset();
-    m_pkgCtx.inference.pitch.session.reset();
-    m_pkgCtx.inference.variance.session.reset();
-    m_pkgCtx.inference.acoustic.session.reset();
-    m_pkgCtx.inference.vocoder.session.reset();
+    m_pkgCtx.inference.duration.reset();
+    m_pkgCtx.inference.pitch.reset();
+    m_pkgCtx.inference.variance.reset();
+    m_pkgCtx.inference.acoustic.reset();
+    m_pkgCtx.inference.vocoder.reset();
 }
 
 srt::SynthUnit &InferEngine::synthUnit() {
