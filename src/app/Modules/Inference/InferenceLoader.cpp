@@ -4,6 +4,7 @@
 #include <QLocale>
 #include <QString>
 
+#include <stdcorelib/support/versionnumber.h>
 #include <synthrt/SVS/SingerContrib.h>
 #include <dsinfer/Api/Inferences/Acoustic/1/AcousticApiL1.h>
 #include <dsinfer/Api/Inferences/Duration/1/DurationApiL1.h>
@@ -24,6 +25,27 @@ static inline QString getSingerDisplayString(const QString &singerName, const QS
     return singerName + " (" + singerId + ")";
 }
 
+static inline QVersionNumber stdcVersionNumberToQt(const stdc::VersionNumber &version) {
+    QList<int> arr;
+    arr.reserve(4);
+    arr.push_back(version.major());
+    arr.push_back(version.minor());
+    const auto patch = version.patch();
+    const auto tweak = version.tweak();
+    if (patch) {
+        arr.push_back(patch);
+    } else {
+        if (tweak) {
+            arr.push_back(0);
+        }
+    }
+    if (tweak) {
+        arr.push_back(tweak);
+    }
+
+    return QVersionNumber(arr);
+}
+
 InferenceLoader::InferenceLoader() : m_singerSpec(nullptr) {
 }
 
@@ -41,14 +63,14 @@ auto InferenceLoader::loadInferenceSpecs() -> Result<InferenceFlag::Type> {
         return errMsg;
     }
 
-    m_singerId = QString::fromUtf8(m_singerSpec->id());
+    const auto package = m_singerSpec->parent();
+    m_identifier.singerId = QString::fromUtf8(m_singerSpec->id());
+    m_identifier.packageId = QString::fromUtf8(package.id());
+    m_identifier.packageVersion = stdcVersionNumberToQt(package.version());
+
     m_singerName = QString::fromUtf8(m_singerSpec->name().text(s_locale));
 
-    const auto package = m_singerSpec->parent();
-    m_packageId = QString::fromUtf8(package.id());
-    m_packageVersion = package.version();
-
-    const auto singerDisplay = getSingerDisplayString(m_singerName, m_singerId);
+    const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     qDebug().noquote().nospace() << "Loading inference specs for singer " << singerDisplay;
 
@@ -112,7 +134,7 @@ QString InferenceLoader::singerName() const {
 }
 
 QString InferenceLoader::singerId() const {
-    return m_singerId;
+    return m_identifier.singerId;
 }
 
 srt::PackageRef InferenceLoader::package() const {
@@ -123,11 +145,11 @@ srt::PackageRef InferenceLoader::package() const {
 }
 
 QString InferenceLoader::packageId() const {
-    return m_packageId;
+    return m_identifier.packageId;
 }
 
-stdc::VersionNumber InferenceLoader::packageVersion() const {
-    return m_packageVersion;
+QVersionNumber InferenceLoader::packageVersion() const {
+    return m_identifier.packageVersion;
 }
 
 bool InferenceLoader::hasDuration() const noexcept {
@@ -151,7 +173,7 @@ bool InferenceLoader::hasVocoder() const noexcept {
 }
 
 auto InferenceLoader::createDuration() const -> Result<srt::NO<srt::Inference>> {
-    const auto singerDisplay = getSingerDisplayString(m_singerName, m_singerId);
+    const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     srt::NO<srt::Inference> inferenceDuration;
     const auto runtimeOptions = srt::NO<Dur::DurationRuntimeOptions>::create();
@@ -175,7 +197,7 @@ auto InferenceLoader::createDuration() const -> Result<srt::NO<srt::Inference>> 
 }
 
 auto InferenceLoader::createPitch() const -> Result<srt::NO<srt::Inference>> {
-    const auto singerDisplay = getSingerDisplayString(m_singerName, m_singerId);
+    const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     srt::NO<srt::Inference> inferencePitch;
     const auto runtimeOptions = srt::NO<Pit::PitchRuntimeOptions>::create();
@@ -198,7 +220,7 @@ auto InferenceLoader::createPitch() const -> Result<srt::NO<srt::Inference>> {
 }
 
 auto InferenceLoader::createVariance() const -> Result<srt::NO<srt::Inference>> {
-    const auto singerDisplay = getSingerDisplayString(m_singerName, m_singerId);
+    const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     srt::NO<srt::Inference> inferenceVariance;
     const auto runtimeOptions = srt::NO<Var::VarianceRuntimeOptions>::create();
@@ -221,7 +243,7 @@ auto InferenceLoader::createVariance() const -> Result<srt::NO<srt::Inference>> 
 }
 
 auto InferenceLoader::createAcoustic() const -> Result<srt::NO<srt::Inference>> {
-    const auto singerDisplay = getSingerDisplayString(m_singerName, m_singerId);
+    const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     srt::NO<srt::Inference> inferenceAcoustic;
     const auto runtimeOptions = srt::NO<Ac::AcousticRuntimeOptions>::create();
@@ -244,7 +266,7 @@ auto InferenceLoader::createAcoustic() const -> Result<srt::NO<srt::Inference>> 
 }
 
 auto InferenceLoader::createVocoder() const -> Result<srt::NO<srt::Inference>> {
-    const auto singerDisplay = getSingerDisplayString(m_singerName, m_singerId);
+    const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     srt::NO<srt::Inference> inferenceVocoder;
     const auto runtimeOptions = srt::NO<Vo::VocoderRuntimeOptions>::create();

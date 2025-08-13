@@ -2,13 +2,13 @@
 #define INFERENCE_LOADER_H
 
 #include <QString>
-
-#include <stdcorelib/support/versionnumber.h>
+#include <QVersionNumber>
 
 #include <synthrt/Core/PackageRef.h>
 #include <synthrt/SVS/InferenceContrib.h>
 
 #include "Utils/Expected.h"
+#include "Models/SingerIdentifier.h"
 #include "InferenceFlag.h"
 
 namespace srt {
@@ -54,7 +54,7 @@ public:
     QString singerId() const;
     srt::PackageRef package() const;
     QString packageId() const;
-    stdc::VersionNumber packageVersion() const;
+    QVersionNumber packageVersion() const;
 
     bool hasDuration() const noexcept;
     bool hasPitch() const noexcept;
@@ -72,10 +72,8 @@ private:
     const srt::SingerSpec *m_singerSpec = nullptr;
     InferenceSpecSet m_specs;
     InferenceImportOptionsSet m_importOptions;
+    SingerIdentifier m_identifier;
     QString m_singerName;
-    QString m_singerId;
-    QString m_packageId;
-    stdc::VersionNumber m_packageVersion;
 };
 
 
