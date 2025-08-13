@@ -14,13 +14,13 @@ PackageItemDelegate::PackageItemDelegate(QObject *parent) : QStyledItemDelegate(
 
 void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
                                 const QModelIndex &index) const {
-    // QStyledItemDelegate::paint(painter, option, index);
+    QStyledItemDelegate::paint(painter, option, index);
     painter->save();
 
     // Draw background
-    QStyleOptionViewItem opt = option;
-    initStyleOption(&opt, index);
-    opt.widget->style()->drawControl(QStyle::CE_ItemViewItem, &opt, painter);
+    // QStyleOptionViewItem opt = option;
+    // initStyleOption(&opt, index);
+    // opt.widget->style()->drawControl(QStyle::CE_ItemViewItem, &opt, painter);
 
     // Load data
     const auto &package = index.data(Qt::UserRole).value<srt::PackageRef>();

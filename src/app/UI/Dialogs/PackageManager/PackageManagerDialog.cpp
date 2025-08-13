@@ -106,8 +106,12 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     m_listView->setObjectName("PackageManagerDialogPackageListView");
     m_listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_listView->setItemDelegate(new PackageItemDelegate);
+    m_listView->setContentsMargins({});
     m_listView->setStyleSheet(
-        "QListView { background: transparent; border: none; } QListView::item {background: #409BBAFF; border-radius: 4px;}");
+        "QListView { background: transparent; border: none; } "
+        "QListView::item {background: transparent; border-radius: 4px; margin-top: 2px; margin-bottom: 2px } "
+        "QListView::item:hover {background: #1BC7D8FF; }"
+        "QListView::item:selected {background: #409BBAFF; }");
 
     auto layout = new QVBoxLayout;
     layout->addLayout(actionBar);
