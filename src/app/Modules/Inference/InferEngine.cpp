@@ -291,12 +291,12 @@ bool InferEngine::initialize(QString &error) {
     return true;
 }
 
-bool InferEngine::loadPackage(const QString &packagePath, const bool metadataOnly,
+bool InferEngine::loadPackage(const QString &packagePath, const bool noLoad,
                               srt::PackageRef &outPackage) {
-    return loadPackage(StringUtils::qstr_to_path(packagePath), metadataOnly, outPackage);
+    return loadPackage(StringUtils::qstr_to_path(packagePath), noLoad, outPackage);
 }
 
-bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bool metadataOnly,
+bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bool noLoad,
                               srt::PackageRef &outPackage) {
     if (!m_initialized) {
         qCritical() << "loadPackage: SynthUnit is not initialized!";
@@ -305,17 +305,18 @@ bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bo
 
     srt::PackageRef pkg;
 
+    const auto packagePathString = StringUtils::path_to_qstr(packagePath);
     // Load package
-    if (auto exp = m_su.open(packagePath, metadataOnly); !exp) {
-        qCritical().noquote() << stdc::formatN(R"(failed to open package "%1": %2)", packagePath,
-                                               exp.error().message());
+    if (auto exp = m_su.open(packagePath, noLoad); !exp) {
+        qCritical().noquote().nospace() << "loadPackage: failed to open package \""
+                                        << packagePathString << "\": " << exp.error().message();
         return false;
     } else {
         pkg = exp.take();
     }
-    if (!pkg.isLoaded()) {
-        qCritical().noquote() << stdc::formatN(R"(failed to load package "%1": %2)", packagePath,
-                                               pkg.error().message());
+    if (!noLoad && !pkg.isLoaded()) {
+        qCritical().noquote().nospace() << "loadPackage: failed to load package \""
+                                        << packagePathString << "\": " << pkg.error().message();
         return false;
     }
     outPackage = pkg;

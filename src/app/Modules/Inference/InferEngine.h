@@ -80,8 +80,8 @@ private:
     };
 
     bool initialize(QString &error);
-    bool loadPackage(const std::filesystem::path &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
-    bool loadPackage(const QString &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
+    bool loadPackage(const std::filesystem::path &packagePath, bool noLoad, srt::PackageRef &outPackage);
+    bool loadPackage(const QString &packagePath, bool noLoad, srt::PackageRef &outPackage);
     bool loadInferences(const QString &path);
     bool inferDuration(const GenericInferModel &model, std::vector<double> &outDuration, QString &error) const;
     bool inferPitch(const GenericInferModel &model, InferParam &outPitch, QString &error) const;

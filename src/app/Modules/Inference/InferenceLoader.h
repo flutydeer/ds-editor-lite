@@ -3,6 +3,9 @@
 
 #include <QString>
 
+#include <stdcorelib/support/versionnumber.h>
+
+#include <synthrt/Core/PackageRef.h>
 #include <synthrt/SVS/InferenceContrib.h>
 
 #include "Utils/Expected.h"
@@ -49,6 +52,10 @@ public:
     InferenceFlag::Type checkInferenceSpecs() const;
     QString singerName() const;
     QString singerId() const;
+    srt::PackageRef package() const;
+    QString packageId() const;
+    stdc::VersionNumber packageVersion() const;
+
     bool hasDuration() const noexcept;
     bool hasPitch() const noexcept;
     bool hasVariance() const noexcept;
@@ -67,6 +74,8 @@ private:
     InferenceImportOptionsSet m_importOptions;
     QString m_singerName;
     QString m_singerId;
+    QString m_packageId;
+    stdc::VersionNumber m_packageVersion;
 };
 
 

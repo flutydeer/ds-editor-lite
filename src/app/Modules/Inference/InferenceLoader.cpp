@@ -44,6 +44,10 @@ auto InferenceLoader::loadInferenceSpecs() -> Result<InferenceFlag::Type> {
     m_singerId = QString::fromUtf8(m_singerSpec->id());
     m_singerName = QString::fromUtf8(m_singerSpec->name().text(s_locale));
 
+    const auto package = m_singerSpec->parent();
+    m_packageId = QString::fromUtf8(package.id());
+    m_packageVersion = package.version();
+
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_singerId);
 
     qDebug().noquote().nospace() << "Loading inference specs for singer " << singerDisplay;
@@ -103,12 +107,27 @@ auto InferenceLoader::checkInferenceSpecs() const -> InferenceFlag::Type {
     return flags;
 }
 
+QString InferenceLoader::singerName() const {
+    return m_singerName;
+}
+
 QString InferenceLoader::singerId() const {
     return m_singerId;
 }
 
-QString InferenceLoader::singerName() const {
-    return m_singerName;
+srt::PackageRef InferenceLoader::package() const {
+    if (!m_singerSpec) {
+        return {};
+    }
+    return m_singerSpec->parent();
+}
+
+QString InferenceLoader::packageId() const {
+    return m_packageId;
+}
+
+stdc::VersionNumber InferenceLoader::packageVersion() const {
+    return m_packageVersion;
 }
 
 bool InferenceLoader::hasDuration() const noexcept {
