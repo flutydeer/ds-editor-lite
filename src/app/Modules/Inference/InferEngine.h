@@ -8,6 +8,7 @@
 #define inferEngine InferEngine::instance()
 
 #include "Utils/Singleton.h"
+#include "InferenceLoader.h"
 
 #include <QMutex>
 #include <QObject>
@@ -74,6 +75,7 @@ private:
 
     struct PackageContext {
         srt::ScopedPackageRef pkg;
+        InferenceLoader loader;
         InferenceSet inference;
     };
 
@@ -81,7 +83,6 @@ private:
     bool loadPackage(const std::filesystem::path &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
     bool loadPackage(const QString &packagePath, bool metadataOnly, srt::PackageRef &outPackage);
     bool loadInferences(const QString &path);
-    static bool loadInferencesForSinger(const srt::SingerSpec *singerSpec, InferenceSet &outInference);
     bool inferDuration(const GenericInferModel &model, std::vector<double> &outDuration, QString &error) const;
     bool inferPitch(const GenericInferModel &model, InferParam &outPitch, QString &error) const;
     bool inferVariance(const GenericInferModel &model, QList<InferParam> &outParams, QString &error) const;

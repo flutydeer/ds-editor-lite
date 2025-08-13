@@ -322,236 +322,6 @@ bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bo
     return true;
 }
 
-bool InferEngine::loadInferencesForSinger(const srt::SingerSpec *singerSpec, InferenceSet &outInference) {
-    if (!singerSpec) {
-        qCritical() << "SingerSpec is nullptr";
-        return false;
-    }
-    if (const auto category = singerSpec->category(); category != "singer") {
-        qCritical() << "SingerSpec invalid category:" << category;
-        return false;
-    }
-    const auto locale = QLocale::system().name().toStdString();
-    const auto &singerId = singerSpec->id();
-    const auto &singerName = QString::fromUtf8(singerSpec->name().text(locale));
-    const auto singerDisplay = singerName + " (" + QString::fromUtf8(singerId) + ")";
-    qDebug().noquote().nospace() << "Loading inferences for singer " << singerDisplay;
-
-    srt::NO<srt::InferenceImportOptions> importOptionsDuration;
-    srt::NO<srt::InferenceImportOptions> importOptionsPitch;
-    srt::NO<srt::InferenceImportOptions> importOptionsVariance;
-    srt::NO<srt::InferenceImportOptions> importOptionsAcoustic;
-    srt::NO<srt::InferenceImportOptions> importOptionsVocoder;
-    const srt::InferenceSpec *specDuration = nullptr;
-    const srt::InferenceSpec *specPitch = nullptr;
-    const srt::InferenceSpec *specVariance = nullptr;
-    const srt::InferenceSpec *specAcoustic = nullptr;
-    const srt::InferenceSpec *specVocoder = nullptr;
-
-    // Assign imports and check for missing inferences
-    QStringList missingInferences;
-    for (const auto &imp : singerSpec->imports()) {
-        const auto &cls = imp.inference()->className();
-        if (cls == Dur::API_CLASS) {
-            importOptionsDuration = imp.options();
-            specDuration = imp.inference();
-        } else if (cls == Pit::API_CLASS) {
-            importOptionsPitch = imp.options();
-            specPitch = imp.inference();
-        } else if (cls == Var::API_CLASS) {
-            importOptionsVariance = imp.options();
-            specVariance = imp.inference();
-        } else if (cls == Ac::API_CLASS) {
-            importOptionsAcoustic = imp.options();
-            specAcoustic = imp.inference();
-        } else if (cls == Vo::API_CLASS) {
-            importOptionsVocoder = imp.options();
-            specVocoder = imp.inference();
-        }
-    }
-
-    if (!specDuration) {
-        missingInferences.emplace_back(Dur::API_NAME);
-    }
-    if (!specPitch) {
-        missingInferences.emplace_back(Pit::API_NAME);
-    }
-    if (!specVariance) {
-        missingInferences.emplace_back(Var::API_NAME);
-    }
-    if (!specAcoustic) {
-        missingInferences.emplace_back(Ac::API_NAME);
-    }
-    if (!specVocoder) {
-        missingInferences.emplace_back(Vo::API_NAME);
-    }
-
-    if (!missingInferences.empty()) {
-        const auto nInferences = missingInferences.size();
-        const auto inferenceMsg = QString::number(nInferences) + (nInferences == 1
-                                          ? "inference"
-                                          : "inferences");
-        qCritical().noquote().nospace() << "The following " << inferenceMsg <<
-            " not found for singer " << singerDisplay << ": " <<
-            missingInferences.join(QStringLiteral(", "));
-        return false;
-    }
-
-    assert(specDuration && specPitch && specVariance &&
-        specAcoustic && specVocoder && "All specs should be validated");
-
-    srt::NO<srt::Inference> inferenceDuration;
-    srt::NO<srt::Inference> inferencePitch;
-    srt::NO<srt::Inference> inferenceVariance;
-    srt::NO<srt::Inference> inferenceAcoustic;
-    srt::NO<srt::Inference> inferenceVocoder;
-
-    QStringList failedInferences;
-
-    // Initialize duration inference
-    const auto initDuration = [&]() -> bool {
-        if (auto exp = specDuration->createInference(
-                importOptionsDuration, srt::NO<Dur::DurationRuntimeOptions>::create());
-            !exp) {
-            qCritical().noquote().nospace() << "failed to create duration inference for singer " <<
-                singerDisplay << ": " << exp.error().message();
-            return false;
-        } else {
-            inferenceDuration = exp.take();
-        }
-        if (auto exp = inferenceDuration->initialize(
-                srt::NO<Dur::DurationInitArgs>::create());
-            !exp) {
-            qCritical().noquote().nospace() << "failed to initialize duration inference for singer "
-                <<
-                singerDisplay << ": " << exp.error().message();
-            return false;
-        }
-        return true;
-    };
-    if (!initDuration()) {
-        failedInferences.emplace_back(Dur::API_NAME);
-    }
-
-    // Initialize pitch inference
-    const auto initPitch = [&]() -> bool {
-        if (auto exp = specPitch->createInference(
-                importOptionsPitch, srt::NO<Pit::PitchRuntimeOptions>::create());
-            !exp) {
-            qCritical().noquote().nospace() << "failed to create pitch inference for singer " <<
-                singerDisplay << ": " << exp.error().message();
-            return false;
-        } else {
-            inferencePitch = exp.take();
-        }
-        if (auto exp =
-                inferencePitch->initialize(srt::NO<Pit::PitchInitArgs>::create());
-            !exp) {
-            qCritical().noquote().nospace() << "failed to initialize pitch inference for singer " <<
-                singerDisplay << ": " << exp.error().message();
-            return false;
-        }
-        return true;
-    };
-    if (!initPitch()) {
-        failedInferences.emplace_back(Pit::API_NAME);
-    }
-
-    // Initialize variance inference
-    const auto initVariance = [&]() -> bool {
-        if (auto exp = specVariance->createInference(
-                importOptionsVariance, srt::NO<Var::VarianceRuntimeOptions>::create());
-            !exp) {
-            qCritical().noquote().nospace() << "failed to create variance inference for singer " <<
-                singerDisplay << ": " << exp.error().message();
-            return false;
-        } else {
-            inferenceVariance = exp.take();
-        }
-        if (auto exp = inferenceVariance->initialize(
-                srt::NO<Var::VarianceInitArgs>::create());
-            !exp) {
-            qCritical().noquote().nospace() << "failed to initialize variance inference for singer "
-                <<
-                singerDisplay << ": " << exp.error().message();
-            return false;
-        }
-        return true;
-    };
-    if (!initVariance()) {
-        failedInferences.emplace_back(Dur::API_NAME);
-    }
-
-    // Initialize acoustic inference
-    const auto initAcoustic = [&]() -> bool {
-        if (auto exp = specAcoustic->createInference(
-                importOptionsAcoustic, srt::NO<Ac::AcousticRuntimeOptions>::create());
-            !exp) {
-            qCritical().noquote().nospace() << "failed to create acoustic inference for singer " <<
-                singerDisplay << ": " << exp.error().message();
-            return false;
-        } else {
-            inferenceAcoustic = exp.take();
-        }
-        if (auto exp = inferenceAcoustic->initialize(
-                srt::NO<Ac::AcousticInitArgs>::create());
-            !exp) {
-            qCritical().noquote().nospace() << "failed to initialize acoustic inference for singer "
-                <<
-                singerDisplay << ": " << exp.error().message();
-            return false;
-        }
-        return true;
-    };
-    if (!initAcoustic()) {
-        failedInferences.emplace_back(Dur::API_NAME);
-    }
-
-    // Initialize vocoder inference
-    const auto initVocoder = [&]() -> bool {
-        if (auto exp = specVocoder->createInference(
-                importOptionsVocoder, srt::NO<Vo::VocoderRuntimeOptions>::create());
-            !exp) {
-            qCritical().noquote().nospace() << "failed to create vocoder inference for singer " <<
-                singerDisplay << ": " << exp.error().message();
-            return false;
-        } else {
-            inferenceVocoder = exp.take();
-        }
-        if (auto exp =
-                inferenceVocoder->initialize(srt::NO<Vo::VocoderInitArgs>::create());
-            !exp) {
-            qCritical().noquote().nospace() << "failed to initialize vocoder inference for singer "
-                <<
-                singerDisplay << ": " << exp.error().message();
-            return false;
-        }
-        return true;
-    };
-    if (!initVocoder()) {
-        failedInferences.emplace_back(Dur::API_NAME);
-    }
-
-    if (!failedInferences.empty()) {
-        const auto nInferences = failedInferences.size();
-        const auto inferenceMsg = QString::number(nInferences) + (nInferences == 1
-                                      ? "inference"
-                                      : "inferences");
-        qCritical().noquote().nospace() << "The following " << inferenceMsg << " failed for singer "
-            << singerDisplay;
-        return false;
-    }
-    outInference.duration = std::move(inferenceDuration);
-    outInference.pitch = std::move(inferencePitch);
-    outInference.variance = std::move(inferenceVariance);
-    outInference.acoustic = std::move(inferenceAcoustic);
-    outInference.vocoder = std::move(inferenceVocoder);
-    qDebug().noquote().nospace() << "Inferences for singer " << singerDisplay <<
-        " loaded successfully";
-
-    return true;
-}
-
 bool InferEngine::loadInferences(const QString &path) {
     if (path.isNull() || path.isEmpty()) {
         qWarning() << "Package path is null or empty";
@@ -596,10 +366,82 @@ bool InferEngine::loadInferences(const QString &path) {
         return false;
     }
 
-    if (!loadInferencesForSinger(singerSpec, m_pkgCtx.inference)) {
+    auto &loader = m_pkgCtx.loader;
+    auto &inference = m_pkgCtx.inference;
+
+    loader = InferenceLoader(singerSpec);
+
+    bool allLoaded = true;
+    if (auto exp = loader.loadInferenceSpecs(); !exp) {
+        qCritical().noquote().nospace() << "Failed to load inference specs: " << exp.getError();
         return false;
+    } else {
+        auto flags = exp.get();
+        if (flags.has(InferenceFlag::Duration)) {
+            if (auto exp2 = loader.createDuration(); !exp2) {
+                allLoaded = false;
+                qCritical().noquote().nospace()
+                    << "Failed to create duration inference: " << exp2.getError();
+            } else {
+                inference.duration = std::move(exp2.get());
+            }
+        } else {
+            allLoaded = false;
+            qCritical().noquote().nospace() << "Missing duration inference";
+        }
+        if (flags.has(InferenceFlag::Pitch)) {
+            if (auto exp2 = loader.createPitch(); !exp2) {
+                allLoaded = false;
+                qCritical().noquote().nospace()
+                    << "Failed to create pitch inference: " << exp2.getError();
+            } else {
+                inference.pitch = std::move(exp2.get());
+            }
+        } else {
+            allLoaded = false;
+            qCritical().noquote().nospace() << "Missing pitch inference";
+        }
+        if (flags.has(InferenceFlag::Variance)) {
+            if (auto exp2 = loader.createVariance(); !exp2) {
+                allLoaded = false;
+                qCritical().noquote().nospace()
+                    << "Failed to create variance inference: " << exp2.getError();
+            } else {
+                inference.variance = std::move(exp2.get());
+            }
+        } else {
+            allLoaded = false;
+            qCritical().noquote().nospace() << "Missing variance inference";
+        }
+        if (flags.has(InferenceFlag::Acoustic)) {
+            if (auto exp2 = loader.createAcoustic(); !exp2) {
+                allLoaded = false;
+                qCritical().noquote().nospace()
+                    << "Failed to create acoustic inference: " << exp2.getError();
+            } else {
+                inference.acoustic = std::move(exp2.get());
+            }
+        } else {
+            allLoaded = false;
+            qCritical().noquote().nospace() << "Missing acoustic inference";
+        }
+        if (flags.has(InferenceFlag::Vocoder)) {
+            if (auto exp2 = loader.createVocoder(); !exp2) {
+                allLoaded = false;
+                qCritical().noquote().nospace()
+                    << "Failed to create vocoder inference: " << exp2.getError();
+            } else {
+                inference.vocoder = std::move(exp2.get());
+            }
+        } else {
+            allLoaded = false;
+            qCritical().noquote().nospace() << "Missing vocoder inference";
+        }
     }
 
+    if (!allLoaded) {
+        return false;
+    }
     m_configLoaded = true;
     m_paths.config = path;
     qInfo() << "loadInferences success";
