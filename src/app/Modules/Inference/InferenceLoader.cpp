@@ -12,6 +12,8 @@
 #include <dsinfer/Api/Inferences/Variance/1/VarianceApiL1.h>
 #include <dsinfer/Api/Inferences/Vocoder/1/VocoderApiL1.h>
 
+#include "Utils/VersionUtils.h"
+
 namespace Co = ds::Api::Common::L1;
 namespace Ac = ds::Api::Acoustic::L1;
 namespace Dur = ds::Api::Duration::L1;
@@ -23,27 +25,6 @@ static std::string s_locale = QLocale::system().name().toStdString();
 
 static inline QString getSingerDisplayString(const QString &singerName, const QString &singerId) {
     return singerName + " (" + singerId + ")";
-}
-
-static inline QVersionNumber stdcVersionNumberToQt(const stdc::VersionNumber &version) {
-    QList<int> arr;
-    arr.reserve(4);
-    arr.push_back(version.major());
-    arr.push_back(version.minor());
-    const auto patch = version.patch();
-    const auto tweak = version.tweak();
-    if (patch) {
-        arr.push_back(patch);
-    } else {
-        if (tweak) {
-            arr.push_back(0);
-        }
-    }
-    if (tweak) {
-        arr.push_back(tweak);
-    }
-
-    return QVersionNumber(arr);
 }
 
 InferenceLoader::InferenceLoader() : m_singerSpec(nullptr) {
@@ -66,7 +47,7 @@ auto InferenceLoader::loadInferenceSpecs() -> Result<InferenceFlag::Type> {
     const auto package = m_singerSpec->parent();
     m_identifier.singerId = QString::fromUtf8(m_singerSpec->id());
     m_identifier.packageId = QString::fromUtf8(package.id());
-    m_identifier.packageVersion = stdcVersionNumberToQt(package.version());
+    m_identifier.packageVersion = VersionUtils::stdc_to_qt(package.version());
 
     m_singerName = QString::fromUtf8(m_singerSpec->name().text(s_locale));
 
@@ -150,6 +131,10 @@ QString InferenceLoader::packageId() const {
 
 QVersionNumber InferenceLoader::packageVersion() const {
     return m_identifier.packageVersion;
+}
+
+const srt::SingerSpec *InferenceLoader::singerSpec() const {
+    return m_singerSpec;
 }
 
 bool InferenceLoader::hasDuration() const noexcept {

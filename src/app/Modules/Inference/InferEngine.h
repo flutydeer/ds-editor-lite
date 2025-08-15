@@ -8,6 +8,7 @@
 #define inferEngine InferEngine::instance()
 
 #include "Utils/Singleton.h"
+#include "Models/SingerIdentifier.h"
 #include "InferenceLoader.h"
 
 #include <QMutex>
@@ -82,7 +83,12 @@ private:
     bool initialize(QString &error);
     bool loadPackage(const std::filesystem::path &packagePath, bool noLoad, srt::PackageRef &outPackage);
     bool loadPackage(const QString &packagePath, bool noLoad, srt::PackageRef &outPackage);
+    static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package, const QString &singerId);
+    static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package, std::string_view singerId) ;
     bool loadInferences(const QString &path);
+    bool loadInferencesForSinger(const InferenceLoader &loader);
+    bool loadInferencesForSinger(const srt::SingerSpec *singerSpec);
+    bool loadInferencesForSinger(const SingerIdentifier &identifier);
     bool inferDuration(const GenericInferModel &model, std::vector<double> &outDuration, QString &error) const;
     bool inferPitch(const GenericInferModel &model, InferParam &outPitch, QString &error) const;
     bool inferVariance(const GenericInferModel &model, QList<InferParam> &outParams, QString &error) const;

@@ -36,6 +36,7 @@
 #include "Utils/Log.h"
 #include "Utils/Expected.h"
 #include "Utils/StringUtils.h"
+#include "Utils/VersionUtils.h"
 
 #include <QDebug>
 #include <QDir>
@@ -296,6 +297,31 @@ bool InferEngine::loadPackage(const QString &packagePath, const bool noLoad,
     return loadPackage(StringUtils::qstr_to_path(packagePath), noLoad, outPackage);
 }
 
+srt::SingerSpec *InferEngine::findSingerForPackage(const srt::PackageRef &package,
+                                                   const QString &singerId) {
+    const auto singerIdString = singerId.toStdString();
+    return findSingerForPackage(package, singerIdString);
+}
+
+srt::SingerSpec *InferEngine::findSingerForPackage(const srt::PackageRef &package,
+                                                   const std::string_view singerId) {
+    // Find singer
+    const auto singers = package.contributes("singer");
+    srt::SingerSpec *singerSpec = nullptr;
+    for (const auto singer : singers) {
+        if (singer->id() == singerId) {
+            // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
+            singerSpec = static_cast<srt::SingerSpec *>(singer);
+            break;
+        }
+    }
+    if (!singerSpec) {
+        qCritical().noquote().nospace() << "singer \"" << singerId << "\" not found in package";
+        return nullptr;
+    }
+    return singerSpec;
+}
+
 bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bool noLoad,
                               srt::PackageRef &outPackage) {
     if (!m_initialized) {
@@ -340,30 +366,49 @@ bool InferEngine::loadInferences(const QString &path) {
     }
 
     // Load models
-    m_configLoaded = false;
-
     const auto packagePath = StringUtils::qstr_to_path(path);
 
     std::string inputSinger = appOptions->general()->defaultSingerId.toStdString();
 
+    auto &pkg = m_pkgCtx.pkg;
     // Load package
-    if (!loadPackage(packagePath, false, m_pkgCtx.pkg)) {
+    if (!loadPackage(packagePath, false, pkg)) {
         qCritical() << "Failed to load package" << path;
         return false;
     }
 
     // Find singer
-    const auto singers = m_pkgCtx.pkg.contributes("singer");
-    const srt::SingerSpec *singerSpec = nullptr;
-    for (const auto singer : singers) {
-        if (singer->id() == inputSinger) {
-            // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
-            singerSpec = static_cast<const srt::SingerSpec *>(singer);
-            break;
-        }
-    }
+    const auto singers = pkg.contributes("singer");
+    const srt::SingerSpec *singerSpec = findSingerForPackage(pkg, inputSinger);
     if (!singerSpec) {
-        qCritical().noquote() << stdc::formatN(R"(singer "%1" not found in package)", inputSinger);
+        return false;
+    }
+
+    return loadInferencesForSinger(singerSpec);
+}
+
+bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
+    const auto packageId = identifier.packageId.toStdString();
+    const auto packageVersion = VersionUtils::qt_to_stdc(identifier.packageVersion);
+    const auto pkg = m_su.find(packageId, packageVersion);
+    if (!pkg.isValid()) {
+        qCritical() << "loadInferences: Failed to find package" << identifier.packageId
+                    << identifier.packageVersion;
+        return false;
+    }
+    // Find singer
+    const auto singers = pkg.contributes("singer");
+    const srt::SingerSpec *singerSpec = findSingerForPackage(pkg, identifier.singerId);
+    if (!singerSpec) {
+        return false;
+    }
+
+    return loadInferencesForSinger(singerSpec);
+}
+
+bool InferEngine::loadInferencesForSinger(const srt::SingerSpec *singerSpec) {
+    if (!singerSpec) {
+        qCritical() << "loadInferences: singerSpec is nullptr";
         return false;
     }
 
@@ -444,7 +489,7 @@ bool InferEngine::loadInferences(const QString &path) {
         return false;
     }
     m_configLoaded = true;
-    m_paths.config = path;
+    m_paths.config = StringUtils::path_to_qstr(singerSpec->parent().path());
     qInfo() << "loadInferences success";
 
     return true;

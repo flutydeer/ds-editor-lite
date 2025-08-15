@@ -55,6 +55,7 @@ public:
     srt::PackageRef package() const;
     QString packageId() const;
     QVersionNumber packageVersion() const;
+    const srt::SingerSpec *singerSpec() const;
 
     bool hasDuration() const noexcept;
     bool hasPitch() const noexcept;
