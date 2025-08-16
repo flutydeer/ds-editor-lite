@@ -7,6 +7,7 @@
 
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Base/Dialog.h"
+#include "Modules/PackageManager/Models/PackageInfo.h"
 
 class QListView;
 
@@ -24,7 +25,7 @@ public:
 private slots:
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
     void updatePackageCount(int count);
-    void updatePackageList(const QList<srt::PackageRef> &packages);
+    void updatePackageList(QList<PackageInfo> packages);
 
 private:
     enum State {
@@ -40,9 +41,8 @@ private:
     QLabel *m_lbPackageCount;
     QListView *m_listView;
 
-    QList<srt::PackageRef> successfulPackages;
+    QList<PackageInfo> successfulPackages;
 
-    std::string locale;
     State m_state = Loading;
 };
 

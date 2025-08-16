@@ -110,6 +110,10 @@ auto InferenceLoader::checkInferenceSpecs() const -> InferenceFlag::Type {
     return flags;
 }
 
+const SingerIdentifier &InferenceLoader::singerIdentifier() const {
+    return m_identifier;
+}
+
 QString InferenceLoader::singerName() const {
     return m_singerName;
 }

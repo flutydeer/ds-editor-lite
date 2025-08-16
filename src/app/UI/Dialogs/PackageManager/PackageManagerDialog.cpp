@@ -36,10 +36,10 @@ void PackageManagerDialog::updatePackageCount(int count) {
     m_lbPackageCount->setText(tr("Installed (%1)").arg(count));
 }
 
-void PackageManagerDialog::updatePackageList(const QList<srt::PackageRef> &packages) {
+void PackageManagerDialog::updatePackageList(QList<PackageInfo> packages) {
     // 初始化模型和代理
     auto *model = new PackageListModel(this);
-    model->setPackages(packages);
+    model->setPackages(std::move(packages));
 
     auto *proxyModel = new PackageFilterProxyModel(this);
     proxyModel->setSourceModel(model);
@@ -50,7 +50,6 @@ void PackageManagerDialog::updatePackageList(const QList<srt::PackageRef> &packa
 }
 
 void PackageManagerDialog::initUi() {
-    locale = QLocale::system().name().toStdString();
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(buildPackagePanel());
     mainLayout->setContentsMargins({});

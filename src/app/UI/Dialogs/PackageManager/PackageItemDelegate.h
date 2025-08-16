@@ -56,8 +56,6 @@ private:
     double m_paddingTop = 6;
     double m_paddingBottom = 7;
     double m_spacing = 4;
-
-    std::string locale;
 };
 
 

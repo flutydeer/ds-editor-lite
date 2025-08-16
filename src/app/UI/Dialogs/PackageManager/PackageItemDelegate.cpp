@@ -4,12 +4,11 @@
 
 #include "PackageItemDelegate.h"
 
-#include "synthrt/Core/PackageRef.h"
+#include "Modules/PackageManager/Models/PackageInfo.h"
 
 #include <QPainter>
 
 PackageItemDelegate::PackageItemDelegate(QObject *parent) : QStyledItemDelegate(parent) {
-    locale = QLocale::system().name().toStdString();
 }
 
 void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
@@ -23,10 +22,10 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     // opt.widget->style()->drawControl(QStyle::CE_ItemViewItem, &opt, painter);
 
     // Load data
-    const auto &package = index.data(Qt::UserRole).value<srt::PackageRef>();
-    const auto id = QString::fromStdString(package.id());
-    const auto vendor = QString::fromStdString(package.vendor().text(locale));
-    const auto version = "v" + QString::fromStdString(package.version().toString());
+    const auto &package = index.data(Qt::UserRole).value<PackageInfo>();
+    const auto id = package.id;
+    const auto vendor = package.vendor;
+    const auto version = "v" + package.version.toString();
 
     // Calculate layout
     QRectF contentRect = option.rect.adjusted(m_paddingLeft, m_paddingTop, -m_paddingRight,

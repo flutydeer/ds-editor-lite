@@ -42,9 +42,10 @@ namespace std {
     };
 }
 
+Q_DECLARE_METATYPE(SingerIdentifier)
 Q_DECLARE_TYPEINFO(SingerIdentifier, Q_MOVABLE_TYPE);
 
-inline QDebug operator<<(QDebug debug, const SingerIdentifier &info) {
+inline QDebug &operator<<(QDebug &debug, const SingerIdentifier &info) {
     debug.nospace() << "SingerInfo(singerId=" << info.singerId << ", packageId=" << info.packageId
                     << ", packageVersion=" << info.packageVersion << ")";
     return debug;

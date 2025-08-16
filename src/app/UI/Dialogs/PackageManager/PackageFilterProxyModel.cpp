@@ -22,5 +22,5 @@ bool PackageFilterProxyModel::filterAcceptsRow(
 
     const auto *model = static_cast<PackageListModel *>(sourceModel());
     const auto &package = model->getPackage(model->index(sourceRow, 0, sourceParent));
-    return QString::fromStdString(package.id()).contains(m_filterPattern, Qt::CaseInsensitive);
+    return package.id.contains(m_filterPattern, Qt::CaseInsensitive);
 }

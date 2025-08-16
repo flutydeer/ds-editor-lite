@@ -6,9 +6,9 @@
 
 #include "synthrt/Core/PackageRef.h"
 
-void PackageListModel::setPackages(const QList<srt::PackageRef> &packages) {
+void PackageListModel::setPackages(QList<PackageInfo> packages) {
     beginResetModel();
-    m_packages = packages;
+    m_packages = std::move(packages);
     endResetModel();
 }
 
@@ -27,6 +27,6 @@ QVariant PackageListModel::data(const QModelIndex &index, int role) const {
     return QVariant();
 }
 
-const srt::PackageRef & PackageListModel::getPackage(const QModelIndex &index) const {
+const PackageInfo &PackageListModel::getPackage(const QModelIndex &index) const {
     return m_packages.at(index.row());
 }

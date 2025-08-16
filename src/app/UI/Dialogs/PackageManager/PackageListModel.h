@@ -7,23 +7,21 @@
 
 #include <QAbstractListModel>
 
-namespace srt {
-    class PackageRef;
-}
+#include "Modules/PackageManager/Models/PackageInfo.h"
 
 class PackageListModel : public QAbstractListModel {
 public:
     explicit PackageListModel(QObject *parent = nullptr) : QAbstractListModel(parent) {}
 
-    void setPackages(const QList<srt::PackageRef> &packages);
+    void setPackages(QList<PackageInfo> packages);
 
     int rowCount(const QModelIndex &parent) const override;
 
     QVariant data(const QModelIndex &index, int role) const override;
 
-    const srt::PackageRef &getPackage(const QModelIndex &index) const;
+    const PackageInfo &getPackage(const QModelIndex &index) const;
 
 private:
-    QList<srt::PackageRef> m_packages;
+    QList<PackageInfo> m_packages;
 };
 #endif //PACKAGELISTMODEL_H

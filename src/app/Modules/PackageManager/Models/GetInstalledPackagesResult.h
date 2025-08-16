@@ -5,7 +5,7 @@
 #ifndef GETINSTALLEDPACKAGESRESULT_H
 #define GETINSTALLEDPACKAGESRESULT_H
 
-#include "synthrt/Core/PackageRef.h"
+#include "PackageInfo.h"
 
 #include <QList>
 #include <QString>
@@ -26,7 +26,7 @@ struct GetInstalledPackagesResult {
         QString reason;
     };
 
-    QList<srt::PackageRef> successfulPackages;
+    QList<PackageInfo> successfulPackages;
     QList<FailedPackage> failedPackages;
 };
 

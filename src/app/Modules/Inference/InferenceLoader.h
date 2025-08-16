@@ -50,6 +50,7 @@ public:
     explicit InferenceLoader(const srt::SingerSpec *spec);
     Result<InferenceFlag::Type> loadInferenceSpecs();
     InferenceFlag::Type checkInferenceSpecs() const;
+    const SingerIdentifier &singerIdentifier() const;
     QString singerName() const;
     QString singerId() const;
     srt::PackageRef package() const;
