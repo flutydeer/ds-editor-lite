@@ -17,10 +17,14 @@ void PackageFilterProxyModel::setFilterString(const QString &pattern) {
 
 bool PackageFilterProxyModel::filterAcceptsRow(
     int sourceRow, const QModelIndex &sourceParent) const {
-    if (m_filterPattern.isEmpty())
-        return true;
-
-    const auto *model = static_cast<PackageListModel *>(sourceModel());
+    const auto *model = dynamic_cast<PackageListModel *>(sourceModel());
     const auto &package = model->getPackage(model->index(sourceRow, 0, sourceParent));
-    return package.id.contains(m_filterPattern, Qt::CaseInsensitive);
+
+    bool idMatch = m_filterPattern.isEmpty() ||
+                  package.id.contains(m_filterPattern, Qt::CaseInsensitive);
+
+    bool vendorMatch = m_filterPattern.isEmpty() ||
+                      package.vendor.contains(m_filterPattern, Qt::CaseInsensitive);
+
+    return idMatch || vendorMatch;
 }

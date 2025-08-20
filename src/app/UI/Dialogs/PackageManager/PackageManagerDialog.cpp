@@ -18,7 +18,7 @@
 #include <QListView>
 #include <QLocale>
 
-PackageManagerDialog::PackageManagerDialog(QWidget *parent) {
+PackageManagerDialog::PackageManagerDialog(QWidget *parent) : Dialog(parent) {
     initUi();
 }
 
@@ -45,7 +45,7 @@ void PackageManagerDialog::updatePackageList(QList<PackageInfo> packages) {
     proxyModel->setSourceModel(model);
     m_listView->setModel(proxyModel);
 
-    connect(findChild<QLineEdit *>(), &QLineEdit::textChanged,
+    connect(m_leSearch, &QLineEdit::textChanged,
             proxyModel, &PackageFilterProxyModel::setFilterString);
 }
 
@@ -90,9 +90,9 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     m_btnInstall = new Button(tr("&Install..."));
     m_lbPackageCount = new QLabel();
 
-    auto *searchEdit = new LineEdit;
-    searchEdit->setPlaceholderText(tr("Search by ID..."));
-    searchEdit->setClearButtonEnabled(true);
+    m_leSearch = new LineEdit;
+    m_leSearch->setPlaceholderText(tr("Search..."));
+    m_leSearch->setClearButtonEnabled(true);
 
     auto actionBar = new QHBoxLayout;
     actionBar->addWidget(m_btnInstall);
@@ -113,7 +113,7 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
 
     auto layout = new QVBoxLayout;
     layout->addLayout(actionBar);
-    layout->addWidget(searchEdit);
+    layout->addWidget(m_leSearch);
     layout->addWidget(m_listView);
     layout->setContentsMargins({});
 

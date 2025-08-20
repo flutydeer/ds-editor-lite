@@ -9,6 +9,7 @@
 #include "UI/Dialogs/Base/Dialog.h"
 #include "Modules/PackageManager/Models/PackageInfo.h"
 
+class LineEdit;
 class QListView;
 
 namespace srt {
@@ -37,9 +38,10 @@ private:
     void loadPackageList();
     QWidget *buildPackagePanel();
 
-    Button *m_btnInstall;
-    QLabel *m_lbPackageCount;
-    QListView *m_listView;
+    Button *m_btnInstall = nullptr;
+    QLabel *m_lbPackageCount = nullptr;
+    LineEdit *m_leSearch = nullptr;
+    QListView *m_listView = nullptr;;
 
     QList<PackageInfo> successfulPackages;
 
