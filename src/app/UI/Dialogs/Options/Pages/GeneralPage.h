@@ -13,6 +13,7 @@ class LineEdit;
 class LanguageComboBox;
 class DirSelector;
 class FileSelector;
+class PathEditor;
 
 class GeneralPage : public IOptionPage {
     Q_OBJECT
@@ -30,6 +31,8 @@ private:
     DirSelector *m_fsDefaultPackage;
     LineEdit *m_leDefaultSingerId;
     LineEdit *m_leDefaultSpeakerId;
+
+    PathEditor *m_packageSearchPaths;
 
     FileSelector *m_fsSomePath;
     FileSelector *m_fsRmvpePath;

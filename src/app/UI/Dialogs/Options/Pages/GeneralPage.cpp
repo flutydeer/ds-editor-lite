@@ -6,14 +6,17 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/Button.h"
+#include "UI/Controls/CardView.h"
 #include "UI/Controls/DirSelector.h"
 #include "UI/Controls/FileSelector.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/OptionListCard.h"
+#include "UI/Controls/PathEditor.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Global/AppOptionsGlobal.h"
 
 #include <QLabel>
+#include <QListView>
 #include <QVBoxLayout>
 #include <QDir>
 #include <QFileInfo>
@@ -74,6 +77,22 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     singingCard->addItem(tr("Default Singer ID"), m_leDefaultSingerId);
     singingCard->addItem(tr("Default Speaker ID"), m_leDefaultSpeakerId);
 
+    m_packageSearchPaths = new PathEditor;
+    m_packageSearchPaths->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_packageSearchPaths->setPaths(option->packageSearchPaths);
+    connect(m_packageSearchPaths, &PathEditor::pathsChanged, this, [option, this]() {
+        option->setPackageSearchPathsAndNotify(m_packageSearchPaths->paths());
+        appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
+    });
+
+    auto packagePathsCard = new OptionsCard;
+    const auto packagePathsLayout = new QHBoxLayout;
+    packagePathsLayout->setContentsMargins(10, 10, 10, 10);
+    packagePathsLayout->addWidget(m_packageSearchPaths, 0);
+    packagePathsCard->card()->setLayout(packagePathsLayout);
+    packagePathsCard->setTitle(tr("Package Search Paths"));
+    packagePathsCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
     const QString onnxFilesFilter = tr("ONNX Files (*.onnx);;All Files (*)");
 
     m_fsSomePath = new FileSelector;
@@ -96,6 +115,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(configFileCard);
     mainLayout->addWidget(singingCard);
+    mainLayout->addWidget(packagePathsCard);
     mainLayout->addWidget(modelCard);
     mainLayout->addStretch();
     mainLayout->setContentsMargins({});

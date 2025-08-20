@@ -273,6 +273,32 @@ QListWidget::item:selected {
     color: #000;
 }
 
+PathListWidget {
+    background: #10FFFFFF;
+    border-radius: 6px;
+    spacing: 0;
+}
+
+PathListWidget::item {
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin: 1px 0;
+}
+
+PathListWidget QLineEdit {
+    padding: 0 0px;
+    margin: 0;
+    border: none;
+}
+
+PathListWidget QLineEdit:focus {
+    padding: 0 0px;
+    margin: 0;
+    border-left: 1px solid #1A1C22;
+    border-top: 1px solid #1A1C22;
+    border-right: 1px solid #1A1C22;
+    border-bottom: 1px solid #1A1C22;
+}
 
 /* Menu */
 QMenu {

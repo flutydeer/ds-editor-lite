@@ -5,6 +5,8 @@
 #ifndef GENERALOPTION_H
 #define GENERALOPTION_H
 
+#include <QStringList>
+
 #include "Global/AppGlobal.h"
 #include "Model/AppModel/Params.h"
 #include "Model/AppOptions/IOption.h"
@@ -16,9 +18,11 @@ public:
 
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
+    void setPackageSearchPathsAndNotify(QStringList paths);
 
     QString defaultSingingLanguage = "cmn";
     QString defaultLyric = "啦";
+    QStringList packageSearchPaths;
     LITE_OPTION_ITEM(QString, defaultPackage, QString())
     LITE_OPTION_ITEM(QString, defaultSingerId, QString())
     LITE_OPTION_ITEM(QString, defaultSpeakerId, QString())
@@ -33,6 +37,7 @@ public:
 private:
     const QString defaultSingingLanguageKey = "defaultSingLanguage";
     const QString defaultLyricKey = "defaultLyric";
+    const QString packageSearchPathsKey = "packageSearchPaths";
 };
 
 

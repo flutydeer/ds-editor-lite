@@ -275,11 +275,17 @@ bool InferEngine::initialize(QString &error) {
     }
 
 
-    const auto homeDir = StringUtils::qstr_to_path(QDir::toNativeSeparators(
-        QStandardPaths::writableLocation(QStandardPaths::HomeLocation)));
+    //const auto homeDir = StringUtils::qstr_to_path(QDir::toNativeSeparators(
+    //    QStandardPaths::writableLocation(QStandardPaths::HomeLocation)));
 
-    const std::filesystem::path paths = {homeDir / ".diffsinger/packages"};
-    m_su.setPackagePaths(paths);
+    //const std::filesystem::path paths = {homeDir / ".diffsinger/packages"};
+    const auto packagePathsQt = appOptions->general()->packageSearchPaths;
+    std::vector<std::filesystem::path> packagePaths;
+    packagePaths.reserve(packagePathsQt.size());
+    for (const auto &path : std::as_const(packagePathsQt)) {
+        packagePaths.emplace_back(StringUtils::qstr_to_path(path));
+    }
+    m_su.setPackagePaths(packagePaths);
 
     qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
                              .arg(description)
