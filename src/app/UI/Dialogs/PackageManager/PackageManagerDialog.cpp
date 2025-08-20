@@ -90,7 +90,6 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     m_btnInstall = new Button(tr("&Install..."));
     m_lbPackageCount = new QLabel();
 
-    // 新增搜索框
     auto *searchEdit = new LineEdit;
     searchEdit->setPlaceholderText(tr("Search by ID..."));
     searchEdit->setClearButtonEnabled(true);
@@ -100,25 +99,25 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     actionBar->addStretch();
     actionBar->addWidget(m_lbPackageCount);
 
-    // 改用 QListView
-    m_listView = new QListView; // 替换原来的 m_listPackages
+    m_listView = new QListView;
     m_listView->setObjectName("PackageManagerDialogPackageListView");
     m_listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    m_listView->setItemDelegate(new PackageItemDelegate);
+    m_listView->setItemDelegate(new PackageItemDelegate(m_listView));
     m_listView->setContentsMargins({});
     m_listView->setStyleSheet(
         "QListView { background: transparent; border: none; } "
-        "QListView::item {background: transparent; border-radius: 4px; margin-top: 2px; margin-bottom: 2px } "
-        "QListView::item:hover {background: #1BC7D8FF; }"
-        "QListView::item:selected {background: #409BBAFF; }");
+        "QListView::item { background: transparent; border-radius: 4px; margin-top: 2px; margin-bottom: 2px } "
+        "QListView::item:hover { background: #1BC7D8FF; }"
+        "QListView::item:selected { background: #409BBAFF; }"
+        );
 
     auto layout = new QVBoxLayout;
     layout->addLayout(actionBar);
-    layout->addWidget(searchEdit); // 添加搜索框
+    layout->addWidget(searchEdit);
     layout->addWidget(m_listView);
     layout->setContentsMargins({});
 
-    QWidget *panel = new QWidget;
+    auto *panel = new QWidget;
     panel->setLayout(layout);
     panel->setContentsMargins({});
     return panel;

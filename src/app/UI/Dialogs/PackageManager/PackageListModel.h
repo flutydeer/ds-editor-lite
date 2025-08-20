@@ -13,13 +13,11 @@ class PackageListModel : public QAbstractListModel {
 public:
     explicit PackageListModel(QObject *parent = nullptr) : QAbstractListModel(parent) {}
 
+    [[nodiscard]] const PackageInfo &getPackage(const QModelIndex &index) const;
     void setPackages(QList<PackageInfo> packages);
 
-    int rowCount(const QModelIndex &parent) const override;
-
-    QVariant data(const QModelIndex &index, int role) const override;
-
-    const PackageInfo &getPackage(const QModelIndex &index) const;
+    [[nodiscard]] int rowCount(const QModelIndex &parent) const override;
+    [[nodiscard]] QVariant data(const QModelIndex &index, int role) const override;
 
 private:
     QList<PackageInfo> m_packages;

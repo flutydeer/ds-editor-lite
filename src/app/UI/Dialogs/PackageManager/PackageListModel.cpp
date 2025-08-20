@@ -6,6 +6,10 @@
 
 #include "synthrt/Core/PackageRef.h"
 
+const PackageInfo &PackageListModel::getPackage(const QModelIndex &index) const {
+    return m_packages.at(index.row());
+}
+
 void PackageListModel::setPackages(QList<PackageInfo> packages) {
     beginResetModel();
     m_packages = std::move(packages);
@@ -18,15 +22,11 @@ int PackageListModel::rowCount(const QModelIndex &parent) const {
 
 QVariant PackageListModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid() || index.row() >= m_packages.size())
-        return QVariant();
+        return {};
 
     const auto &package = m_packages.at(index.row());
     if (role == Qt::UserRole) {  // 用于过滤的原始数据
         return QVariant::fromValue(package);
     }
-    return QVariant();
-}
-
-const PackageInfo &PackageListModel::getPackage(const QModelIndex &index) const {
-    return m_packages.at(index.row());
+    return {};
 }

@@ -17,9 +17,8 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     painter->save();
 
     // Draw background
-    // QStyleOptionViewItem opt = option;
-    // initStyleOption(&opt, index);
-    // opt.widget->style()->drawControl(QStyle::CE_ItemViewItem, &opt, painter);
+    QStyleOptionViewItem opt = option;
+    initStyleOption(&opt, index);
 
     // Load data
     const auto &package = index.data(Qt::UserRole).value<PackageInfo>();
@@ -57,18 +56,28 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     auto elidedVendorText = vendorMetrics.elidedText(vendor, Qt::ElideRight, vendorTextRectWidth);
     QPointF vendorTextPos = {contentRect.left(), descTextY + vendorMetrics.ascent()};
 
+    QColor colorTitle;
+    QColor colorDesc;
+    if (opt.state & QStyle::State_Selected) {
+        colorTitle = m_selectedPalette.colorTitle;
+        colorDesc = m_selectedPalette.colorDesc;
+    } else {
+        colorTitle = m_normalPalette.colorTitle;
+        colorDesc = m_normalPalette.colorDesc;
+    }
+
     // Draw title text
-    painter->setPen(m_colorTitle);
+    painter->setPen(colorTitle);
     painter->setFont(titleFont);
     painter->drawText(idTextPos, id);
 
     // Draw vendor text
-    painter->setPen(m_colorDesc);
+    painter->setPen(colorDesc);
     painter->setFont(vendorFont);
     painter->drawText(vendorTextPos, elidedVendorText);
 
     // Draw version text
-    painter->setPen(m_colorDesc);
+    painter->setPen(colorDesc);
     painter->setFont(versionFont);
     painter->drawText(versionTextPos, version);
 
@@ -94,76 +103,4 @@ QSize PackageItemDelegate::sizeHint(const QStyleOptionViewItem &option,
     auto height =
         qRound(m_paddingTop + idTextHeight + m_spacing + descTextHeight + m_paddingBottom);
     return {256, height};
-}
-
-QColor PackageItemDelegate::colorTitle() const {
-    return m_colorTitle;
-}
-
-void PackageItemDelegate::setColorTitle(const QColor &color) {
-    m_colorTitle = color;
-}
-
-QColor PackageItemDelegate::colorDesc() const {
-    return m_colorDesc;
-}
-
-void PackageItemDelegate::setColorDesc(const QColor &color) {
-    m_colorDesc = color;
-}
-
-int PackageItemDelegate::titlePixelSize() const {
-    return m_titlePixelSize;
-}
-
-void PackageItemDelegate::setTitlePixelSize(int pixelSize) {
-    m_titlePixelSize = pixelSize;
-}
-
-int PackageItemDelegate::descPixelSize() const {
-    return m_descPixelSize;
-}
-
-void PackageItemDelegate::setDescPixelSize(int pixelSize) {
-    m_descPixelSize = pixelSize;
-}
-
-double PackageItemDelegate::paddingLeft() const {
-    return m_paddingLeft;
-}
-
-void PackageItemDelegate::setPaddingLeft(double padding) {
-    m_paddingLeft = padding;
-}
-
-double PackageItemDelegate::paddingRight() const {
-    return m_paddingRight;
-}
-
-void PackageItemDelegate::setPaddingRight(double padding) {
-    m_paddingRight = padding;
-}
-
-double PackageItemDelegate::paddingTop() const {
-    return m_paddingTop;
-}
-
-void PackageItemDelegate::setPaddingTop(double padding) {
-    m_paddingTop = padding;
-}
-
-double PackageItemDelegate::paddingBottom() const {
-    return m_paddingBottom;
-}
-
-void PackageItemDelegate::setPaddingBottom(double padding) {
-    m_paddingBottom = padding;
-}
-
-double PackageItemDelegate::spacing() const {
-    return m_spacing;
-}
-
-void PackageItemDelegate::setSpacing(double spacing) {
-    m_spacing = spacing;
 }
