@@ -37,6 +37,7 @@ private:
     void initUi();
     void loadPackageList();
     QWidget *buildPackagePanel();
+    QWidget *buildDetailsPanel();
 
     Button *m_btnInstall = nullptr;
     QLabel *m_lbPackageCount = nullptr;

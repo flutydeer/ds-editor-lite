@@ -17,6 +17,7 @@
 #include <QLabel>
 #include <QListView>
 #include <QLocale>
+#include <QSplitter>
 
 PackageManagerDialog::PackageManagerDialog(QWidget *parent) : Dialog(parent) {
     initUi();
@@ -38,10 +39,10 @@ void PackageManagerDialog::updatePackageCount(int count) {
 
 void PackageManagerDialog::updatePackageList(QList<PackageInfo> packages) {
     // 初始化模型和代理
-    auto *model = new PackageListModel(this);
+    auto model = new PackageListModel(this);
     model->setPackages(std::move(packages));
 
-    auto *proxyModel = new PackageFilterProxyModel(this);
+    auto proxyModel = new PackageFilterProxyModel(this);
     proxyModel->setSourceModel(model);
     m_listView->setModel(proxyModel);
 
@@ -52,6 +53,7 @@ void PackageManagerDialog::updatePackageList(QList<PackageInfo> packages) {
 void PackageManagerDialog::initUi() {
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(buildPackagePanel());
+    mainLayout->addWidget(buildDetailsPanel());
     mainLayout->setContentsMargins({});
     mainLayout->setSpacing(0);
     body()->setLayout(mainLayout);
@@ -61,6 +63,8 @@ void PackageManagerDialog::initUi() {
         connect(appStatus, &AppStatus::moduleStatusChanged, this,
                 &PackageManagerDialog::onModuleStatusChanged);
     }
+
+    resize(1280,768);
 }
 
 void PackageManagerDialog::loadPackageList() {
@@ -117,8 +121,17 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     layout->addWidget(m_listView);
     layout->setContentsMargins({});
 
-    auto *panel = new QWidget;
+    auto panel = new QWidget;
+    panel->setObjectName("PackageManagerDialogPackagePanel");
+    panel->setAttribute(Qt::WA_StyledBackground);
+    panel->setStyleSheet("QWidget#PackageManagerDialogPackagePanel { border-right: 1px solid #1D1F26 }");
     panel->setLayout(layout);
-    panel->setContentsMargins({});
+    panel->setContentsMargins({0,0,8,0});
+    panel->setFixedWidth(280);
+    return panel;
+}
+
+QWidget * PackageManagerDialog::buildDetailsPanel() {
+    auto panel = new QWidget;
     return panel;
 }
