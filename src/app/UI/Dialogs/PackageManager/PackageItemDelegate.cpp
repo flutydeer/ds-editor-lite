@@ -29,16 +29,18 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     // Calculate layout
     QRectF contentRect = option.rect.adjusted(m_paddingLeft, m_paddingTop, -m_paddingRight,
                                               -m_paddingBottom);
+    painter->setRenderHint(QPainter::Antialiasing);
+    // painter->setPen(Qt::red);
+    // painter->drawRect(contentRect);
 
     // Calculate title text rect
     auto titleFont = option.font;
     titleFont.setPixelSize(m_titlePixelSize);
     const QFontMetrics idMetrics(titleFont);
     qreal idTextWidth = idMetrics.horizontalAdvance(id);
-    auto idTextAscent = idMetrics.ascent();
     QPointF idTextPos = {contentRect.left(), contentRect.top() + idMetrics.ascent()};
 
-    auto descTextY = contentRect.top() + idMetrics.height() + m_spacing;
+    auto descTextY = contentRect.top() + idMetrics.ascent() + m_spacing;
 
     // Calculate version text rect
     auto versionFont = option.font;

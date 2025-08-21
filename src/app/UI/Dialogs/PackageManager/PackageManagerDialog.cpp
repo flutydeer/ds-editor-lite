@@ -105,7 +105,7 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     m_listView->setItemDelegate(new PackageItemDelegate(m_listView));
     m_listView->setContentsMargins({});
     m_listView->setStyleSheet(
-        "QListView { background: transparent; border: none; } "
+        "QListView { background: transparent; border: none; padding: 0px; } "
         "QListView::item { background: transparent; border-radius: 4px; margin-top: 2px; margin-bottom: 2px } "
         "QListView::item:hover { background: #1BC7D8FF; }"
         "QListView::item:selected { background: #409BBAFF; }"

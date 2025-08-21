@@ -36,7 +36,7 @@ private:
     double m_paddingLeft = 8;
     double m_paddingRight = 8;
     double m_paddingTop = 6;
-    double m_paddingBottom = 7;
+    double m_paddingBottom = 6;
     double m_spacing = 4;
 };
 
