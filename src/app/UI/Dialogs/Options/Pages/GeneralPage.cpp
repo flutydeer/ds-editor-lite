@@ -55,6 +55,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     connect(m_leDefaultLyric, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
     // m_leDefaultLyric->setPlaceholderText(option->defaultLyric);
 
+#if false
     m_fsDefaultPackage = new DirSelector;
     m_fsDefaultPackage->setPath(option->defaultPackage);
     m_fsDefaultPackage->setMinimumWidth(480);
@@ -69,13 +70,16 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     m_leDefaultSpeakerId->setFixedWidth(200);
     m_leDefaultSpeakerId->setText(option->defaultSpeakerId);
     connect(m_leDefaultSpeakerId, &LineEdit::textChanged, this, &GeneralPage::modifyOption);
+#endif
 
     const auto singingCard = new OptionListCard(tr("Singing"));
     singingCard->addItem(tr("Default Singing Language"), m_cbDefaultSingingLanguage);
     singingCard->addItem(tr("Default Lyric"), m_leDefaultLyric);
+#if false
     singingCard->addItem(tr("Default Package Path"), m_fsDefaultPackage);
     singingCard->addItem(tr("Default Singer ID"), m_leDefaultSingerId);
     singingCard->addItem(tr("Default Speaker ID"), m_leDefaultSpeakerId);
+#endif
 
     m_packageSearchPaths = new PathEditor;
     m_packageSearchPaths->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -90,7 +94,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     packagePathsLayout->setContentsMargins(10, 10, 10, 10);
     packagePathsLayout->addWidget(m_packageSearchPaths, 0);
     packagePathsCard->card()->setLayout(packagePathsLayout);
-    packagePathsCard->setTitle(tr("Package Search Paths"));
+    packagePathsCard->setTitle(tr("Package Search Paths (needs restart)"));
     packagePathsCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     const QString onnxFilesFilter = tr("ONNX Files (*.onnx);;All Files (*)");
@@ -127,9 +131,11 @@ void GeneralPage::modifyOption() {
     const auto option = appOptions->general();
     option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentText();
     option->defaultLyric = m_leDefaultLyric->text();
+#if false
     option->defaultPackage = m_fsDefaultPackage->path();
     option->defaultSingerId = m_leDefaultSingerId->text();
     option->defaultSpeakerId = m_leDefaultSpeakerId->text();
+#endif
 
     option->somePath = m_fsSomePath->path();
     option->rmvpePath = m_fsRmvpePath->path();

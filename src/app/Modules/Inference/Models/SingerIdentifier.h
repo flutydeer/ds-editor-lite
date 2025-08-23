@@ -22,6 +22,10 @@ struct SingerIdentifier {
         return std::tie(singerId, packageId, packageVersion) <
                std::tie(other.singerId, other.packageId, other.packageVersion);
     }
+
+    bool isEmpty() const noexcept {
+        return singerId.isEmpty() && packageId.isEmpty() && packageVersion.isNull();
+    }
 };
 
 // qHash for Qt containers
@@ -46,6 +50,7 @@ Q_DECLARE_METATYPE(SingerIdentifier)
 Q_DECLARE_TYPEINFO(SingerIdentifier, Q_MOVABLE_TYPE);
 
 inline QDebug &operator<<(QDebug &debug, const SingerIdentifier &info) {
+    QDebugStateSaver saver(debug);
     debug.nospace() << "SingerInfo(singerId=" << info.singerId << ", packageId=" << info.packageId
                     << ", packageVersion=" << info.packageVersion << ")";
     return debug;

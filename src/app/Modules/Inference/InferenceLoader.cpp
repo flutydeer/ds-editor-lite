@@ -141,6 +141,10 @@ const srt::SingerSpec *InferenceLoader::singerSpec() const {
     return m_singerSpec;
 }
 
+const InferenceImportOptionsSet &InferenceLoader::importOptions() const {
+    return m_importOptions;
+}
+
 bool InferenceLoader::hasDuration() const noexcept {
     return m_specs.duration && m_importOptions.duration;
 }

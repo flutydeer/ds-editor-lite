@@ -6,6 +6,7 @@
 
 #include "Track.h"
 #include "Clip.h"
+#include "SingingClip.h"
 #include "Utils/MathUtils.h"
 
 #include <QJsonArray>
@@ -43,13 +44,44 @@ OverlappableSerialList<Clip> Track::clips() const {
     return m_clips;
 }
 
+static void setTrackSingerIdentifierForClip(Clip *clip, const SingerIdentifier &identifier) {
+    if (!clip) {
+        return;
+    }
+    if (clip->clipType() == IClip::Singing) {
+        // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
+        const auto singingClip = static_cast<SingingClip *>(clip);
+        singingClip->trackSingerIdentifier = identifier;
+    }
+}
+
+static void setTrackSpeakerForClip(Clip *clip, const QString &speaker) {
+    if (!clip) {
+        return;
+    }
+    if (clip->clipType() == IClip::Singing) {
+        // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
+        const auto singingClip = static_cast<SingingClip *>(clip);
+        singingClip->trackSpeaker = speaker;
+    }
+}
+
 void Track::insertClip(Clip *clip) {
+    setTrackSingerIdentifierForClip(clip, m_identifier);
+    setTrackSpeakerForClip(clip, m_speaker);
     m_clips.add(clip);
+    connect(this, &Track::singerIdentifierChanged, clip, [clip, this]() {
+        setTrackSingerIdentifierForClip(clip, m_identifier);
+    });
+    connect(this, &Track::speakerChanged, clip, [clip, this]() {
+        setTrackSpeakerForClip(clip, m_speaker);
+    });
 }
 
 void Track::insertClips(const QList<Clip *> &clips) {
-    for (const auto &clip : clips)
+    for (const auto clip : std::as_const(clips)) {
         m_clips.add(clip);
+    }
 }
 
 void Track::removeClip(Clip *clip) {
@@ -85,6 +117,30 @@ void Track::setDefaultG2pId(const QString &g2pId) {
     // if (!AppGlobal::languageNames.contains(g2pId))
     //     qFatal() << "Track::G2p Name Error";
     m_defaultG2pId = g2pId;
+}
+
+const SingerIdentifier &Track::singerIdentifier() const {
+    return m_identifier;
+}
+
+void Track::setSingerIdentifier(SingerIdentifier identifier) {
+    if (m_identifier == identifier) {
+        return;
+    }
+    m_identifier = std::move(identifier);
+    emit singerIdentifierChanged(m_identifier);
+}
+
+QString Track::speaker() const {
+    return m_speaker;
+}
+
+void Track::setSpeaker(const QString &speaker) {
+    if (m_speaker == speaker) {
+        return;
+    }
+    m_speaker = speaker;
+    emit speakerChanged(m_speaker);
 }
 
 void Track::notifyClipChanged(const ClipChangeType type, Clip *clip) {

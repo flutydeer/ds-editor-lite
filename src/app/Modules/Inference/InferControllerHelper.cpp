@@ -28,24 +28,24 @@ namespace InferControllerHelper {
         return list;
     }
 
-    PitchInput buildInferPitchInput(const InferPiece &piece, const QString &configPath) {
+    PitchInput buildInferPitchInput(const InferPiece &piece, const SingerIdentifier &identifier) {
         InferParamCurve expr;
         for (const auto &value : piece.inputExpressiveness.values())
             expr.values.append(value / 1000.0);
         const auto inputNotes = buildInferInputNotes(piece.notes);
-        return {piece.clipId(), piece.id(), inputNotes, configPath, appModel->tempo(), expr};
+        return {piece.clipId(), piece.id(), inputNotes, identifier, piece.speaker, appModel->tempo(), expr};
     }
 
     InferVarianceTask::InferVarianceInput buildInferVarianceInput(const InferPiece &piece,
-                                                                  const QString &configPath) {
+                                                                  const SingerIdentifier &identifier) {
         const auto notes = buildInferInputNotes(piece.notes);
         InferParamCurve pitch;
         for (const auto &value : piece.inputPitch.values())
             pitch.values.append(value / 100.0);
-        return {piece.clipId(), piece.id(), notes, configPath, appModel->tempo(), pitch};
+        return {piece.clipId(), piece.id(), notes, identifier, piece.speaker, appModel->tempo(), pitch};
     }
 
-    AcousticInput buildInderAcousticInput(const InferPiece &piece, const QString &configPath) {
+    AcousticInput buildInderAcousticInput(const InferPiece &piece, const SingerIdentifier &identifier) {
 
         const auto notes = buildInferInputNotes(piece.notes);
         InferParamCurve pitch;
@@ -82,7 +82,7 @@ namespace InferControllerHelper {
         const InferParamCurve toneShift = {
             Linq::selectMany(piece.inputToneShift.values(), L_PRED(p, p * 1.0))};
 
-        return {piece.clipId(), piece.id(),  notes,    configPath, appModel->tempo(),
+        return {piece.clipId(), piece.id(),  notes,    identifier, piece.speaker, appModel->tempo(),
                 pitch,          breathiness, tension,  voicing,    energy,
                 mouthOpening,   gender,      velocity, toneShift};
     }

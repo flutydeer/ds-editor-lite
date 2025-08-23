@@ -31,7 +31,7 @@ auto createParamInfo(const std::string_view tag) -> Co::InputParameterInfo {
     return Co::InputParameterInfo{};
 }
 
-auto convertInputWords(const QList<InferWord> &words, std::string speakerName)
+auto convertInputWords(const QList<InferWord> &words, const std::string &speakerName, const std::map<std::string, std::string> &speakerMapping)
     -> std::vector<Co::InputWordInfo> {
 
     std::vector<Co::InputWordInfo> inputWords;
@@ -54,6 +54,13 @@ auto convertInputWords(const QList<InferWord> &words, std::string speakerName)
         std::vector<Co::InputPhonemeInfo> inputPhones;
         inputPhones.reserve(word.phones.size());
         for (const auto &phone : std::as_const(word.phones)) {
+            std::string speakerIdForModel;
+            if (const auto it_spk = speakerMapping.find(speakerName); it_spk != speakerMapping.end()) {
+                speakerIdForModel = it_spk->second;
+                qDebug() << "mapped speaker" << speakerName << "to" << speakerIdForModel;
+            } else if (!speakerMapping.empty()) {
+                qCritical() << "could not find speaker mapping for" << speakerName;
+            }
             inputPhones.emplace_back(
                 /* token */ phone.token.toStdString(),
                 /* language */ phone.languageDictId.toStdString(),
@@ -61,7 +68,7 @@ auto convertInputWords(const QList<InferWord> &words, std::string speakerName)
                 /* start */ phone.start,
                 /* speakers */
                 std::vector{
-                    Co::InputPhonemeInfo::Speaker{std::move(speakerName), 1}
+                    Co::InputPhonemeInfo::Speaker{std::move(speakerIdForModel), 1}
             });
         }
         inputWords.emplace_back(std::move(inputPhones), std::move(inputNotes));
@@ -85,7 +92,7 @@ auto convertInputParams(const QList<InferParam> &params) -> std::vector<Co::Inpu
     return inputParams;
 }
 
-auto createStaticSpeaker(std::string speaker) -> Co::InputSpeakerInfo {
+auto createStaticSpeaker(const std::string &speaker) -> Co::InputSpeakerInfo {
     Co::InputSpeakerInfo inputSpeaker;
     inputSpeaker.name = std::move(speaker);
     inputSpeaker.proportions = {1.0};

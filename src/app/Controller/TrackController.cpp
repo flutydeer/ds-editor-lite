@@ -52,6 +52,13 @@ void TrackController::onInsertNewTrack(const qsizetype index) {
     //     control.setMute(true);
     //     newTrack->setControl(control);
     // }
+
+    // TODO: set default singer and speaker here
+    //newTrack->setSingerIdentifier({
+    //    .singerId = appOptions->general()->defaultSingerId,
+    //    .packageId = appOptions->general()->defaultPackageId,
+    //    .packageVersion = appOptions->general()->defaultPackageVersion,
+    //});
     const auto a = new TrackActions;
     a->insertTrack(newTrack, index, appModel);
     a->execute();
@@ -201,7 +208,8 @@ SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int t
     singingClip->defaultLanguage = track->defaultLanguage();
     // TODO: Temp Use
     singingClip->defaultG2pId = g2pIdFromLanguage(singingClip->defaultLanguage);
-    singingClip->configPath = appOptions->general()->defaultPackage;
+    singingClip->singerIdentifier = track->singerIdentifier();
+    singingClip->trackSpeaker = track->speaker();
     const auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(singingClip);

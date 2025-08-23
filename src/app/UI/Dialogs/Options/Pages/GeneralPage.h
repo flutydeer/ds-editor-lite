@@ -28,9 +28,11 @@ private:
     Button *m_btnOpenConfigFolder;
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
+#if false
     DirSelector *m_fsDefaultPackage;
     LineEdit *m_leDefaultSingerId;
     LineEdit *m_leDefaultSpeakerId;
+#endif
 
     PathEditor *m_packageSearchPaths;
 

@@ -4,6 +4,11 @@
 
 #include "InferAcousticTask.h"
 
+#include <sndfile.hh>
+
+#include <dsinfer/Api/Inferences/Acoustic/1/AcousticApiL1.h>
+#include <dsinfer/Api/Inferences/Vocoder/1/VocoderApiL1.h>
+
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/InferEngine.h"
@@ -11,15 +16,20 @@
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
 #include "Utils/MathUtils.h"
+#include "Utils/StringUtils.h"
 
 #include "InferTaskCommon.h"
 
+#include <QCryptographicHash>
 #include <QDebug>
 #include <QDir>
-#include <qcryptographichash.h>
+
+namespace Co = ds::Api::Common::L1;
+namespace Ac = ds::Api::Acoustic::L1;
+namespace Vo = ds::Api::Vocoder::L1;
 
 bool InferAcousticTask::InferAcousticInput::operator==(const InferAcousticInput &other) const {
-    return clipId == other.clipId && notes == other.notes && configPath == other.configPath &&
+    return clipId == other.clipId && notes == other.notes && identifier == other.identifier &&
            qFuzzyCompare(tempo, other.tempo) && pitch == other.pitch &&
            breathiness == other.breathiness && tension == other.tension &&
            voicing == other.voicing && energy == other.energy && mouthOpening == other.mouthOpening &&
@@ -86,8 +96,8 @@ void InferAcousticTask::runTask() {
         m_result = outputCachePath;
     } else {
         qDebug() << "acoustic inference cache not found. Running inference...";
-        if (!inferEngine->loadInferences(m_input.configPath)) {
-            qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
+        if (!inferEngine->loadInferencesForSinger(m_input.identifier)) {
+            qCritical() << "Task failed" << m_input.identifier << "clipId:" << clipId()
                         << "pieceId:" << pieceId() << "taskId:" << id();
             return;
         }
@@ -95,7 +105,7 @@ void InferAcousticTask::runTask() {
             abort();
             return;
         }
-        if (inferEngine->inferAcoustic(input, outputCachePath, errorMessage)) {
+        if (runInference(input, outputCachePath, errorMessage)) {
             m_result = outputCachePath;
         } else {
             qCritical() << "Task failed:" << errorMessage;
@@ -108,9 +118,149 @@ void InferAcousticTask::runTask() {
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
+bool InferAcousticTask::runInference(const GenericInferModel &model, const QString &outputPath,
+                                     QString &error) {
+    if (!inferEngine->initialized()) {
+        qCritical().noquote() << "inferAcoustic: Environment is not initialized";
+        return false;
+    }
+
+    const auto &identifier = model.identifier;
+    std::string speakerName = model.speaker.toStdString();
+    const auto input = srt::NO<Ac::AcousticStartInput>::create();
+    input->parameters = convertInputParams(model.params);
+    input->depth = appOptions->inference()->depth;
+    input->steps = appOptions->inference()->samplingSteps;
+
+    srt::NO<srt::Inference> inferenceAcoustic;
+    srt::NO<srt::Inference> inferenceVocoder;
+    auto loader = inferEngine->findLoaderForSinger(identifier);
+    if (!loader) {
+        qCritical() << "inferAcoustic: Inference loader not found for" << identifier;
+        return false;
+    }
+
+    // Convert singer speaker id to inference speaker id
+    const auto importOptions = loader->importOptions().variance.as<Ac::AcousticImportOptions>();
+    if (!importOptions) {
+        qCritical() << "inferAcoustic: Import options not found";
+    }
+    const auto &speakerMapping = importOptions->speakerMapping;
+    input->words = convertInputWords(model.words, speakerName, speakerMapping);
+    if (const auto it = speakerMapping.find(speakerName); it == speakerMapping.end()) {
+        if (!speakerMapping.empty()) {
+            qCritical() << "inferAcoustic: Speaker mapping not found for speaker" << speakerName;
+            return false;
+        }
+    } else {
+        input->speakers = std::vector{createStaticSpeaker(it->second)};
+        qDebug() << "mapped speaker" << speakerName << "to" << it->second;
+    }
+
+    // Create inference
+    auto expAcoustic = loader->createAcoustic();
+    auto expVocoder = loader->createVocoder();
+    if (!expAcoustic || !expVocoder) {
+        if (!expAcoustic) {
+            qCritical().noquote().nospace() << "inferenceAcoustic: Failed to create acoustic inference for "
+                                << identifier << ": " << expAcoustic.getError();
+        }
+        if (!expVocoder) {
+            qCritical().noquote().nospace() << "inferenceAcoustic: Failed to create vocoder inference for "
+                    << identifier << ": " << expVocoder.getError();
+        }
+        return false;
+    }
+    inferenceAcoustic = expAcoustic.get();
+    inferenceVocoder = expVocoder.get();
+
+    m_inferenceAcoustic = inferenceAcoustic;
+    m_inferenceVocoder = inferenceVocoder;
+
+    // Infer acoustic
+    srt::NO<ds::ITensor> mel;
+    srt::NO<ds::ITensor> f0;
+    {
+        srt::NO<Ac::AcousticResult> result;
+        // Start inference
+        if (isTerminateRequested()) {
+            abort();
+            return false;
+        }
+        if (auto exp = inferenceAcoustic->start(input); !exp) {
+            qCritical().noquote().nospace() << "inferAcoustic: Failed to start acoustic inference for "
+                                            << identifier << ": " << exp.error().message();
+            return false;
+        } else {
+            result = exp.take().as<Ac::AcousticResult>();
+        }
+
+        if (inferenceAcoustic->state() == srt::ITask::Failed) {
+            qCritical().noquote().nospace() << "inferAcoustic: Failed to run acoustic inference for "
+                                            << identifier << ": " << result->error.message();
+            return false;
+        }
+        mel = result->mel;
+        f0 = result->f0;
+    }
+    // Run vocoder
+    {
+        const auto vocoderInput = srt::NO<Vo::VocoderStartInput>::create();
+        vocoderInput->mel = mel;
+        vocoderInput->f0 = f0;
+
+        srt::NO<Vo::VocoderResult> result;
+        // Start inference
+        if (isTerminateRequested()) {
+            abort();
+            return false;
+        }
+        if (auto exp = inferenceVocoder->start(vocoderInput); !exp) {
+            qCritical().noquote().nospace() << "inferAcoustic: Failed to start vocoder inference for "
+                                            << identifier << ": " << exp.error().message();
+            return false;
+        } else {
+            result = exp.take().as<Vo::VocoderResult>();
+        }
+
+        if (inferenceVocoder->state() == srt::ITask::Failed) {
+            qCritical().noquote().nospace() << "inferAcoustic: Failed to run vocoder inference for "
+                                            << identifier << ": " << result->error.message();
+            return false;
+        }
+        const auto &audioRawData = result->audioData;
+
+        const auto outputPathStr = StringUtils::qstr_to_native(outputPath);
+
+        if (isTerminateRequested()) {
+            abort();
+            return false;
+        }
+
+        SndfileHandle audioFile(outputPathStr.c_str(), SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_FLOAT,
+                                1, 44100);
+        if (audioFile.error() != SF_ERR_NO_ERROR) {
+            qDebug() << "Failed to run acoustic inference: " << audioFile.strError() << '\n';
+            return false;
+        }
+        const auto audioData = reinterpret_cast<const float *>(audioRawData.data());
+        const auto audioSize = static_cast<sf_count_t>(audioRawData.size() / sizeof(float));
+        if (audioFile.write(audioData, audioSize) != audioSize) {
+            qDebug() << "Failed to run acoustic inference: " << audioFile.strError() << '\n';
+            return false;
+        }
+    }
+    return true;
+}
+
 void InferAcousticTask::terminate() {
+    if (m_inferenceAcoustic) {
+        m_inferenceAcoustic->stop();
+    }
+    if (m_inferenceVocoder) {
+        m_inferenceVocoder->stop();
+    }
     IInferTask::terminate();
-    inferEngine->terminateInferAcousticAsync();
 }
 
 void InferAcousticTask::abort() {
@@ -186,12 +336,11 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     toneShift.values = MathUtils::resample(m_input.toneShift.values, 5, newInterval);
 
     GenericInferModel model;
-    model.singer = appOptions->general()->defaultSingerId;
-    model.speaker = appOptions->general()->defaultSpeakerId;
+    model.speaker = m_input.speaker;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening, gender, velocity, toneShift};
-    model.configPath = input().configPath;
     model.steps = appOptions->inference()->samplingSteps;
     model.depth = appOptions->inference()->depth;
+    model.identifier = m_input.identifier;
     return model;
 }

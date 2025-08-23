@@ -14,12 +14,13 @@ class InferParam;
 auto createParamInfo(
     std::string_view tag) -> ds::Api::Common::L1::InputParameterInfo;
 
-auto convertInputWords(const QList<InferWord> &words,
-                       std::string speakerName) -> std::vector<ds::Api::Common::L1::InputWordInfo>;
+auto convertInputWords(const QList<InferWord> &words, const std::string &speakerName,
+                       const std::map<std::string, std::string> &speakerMapping)
+    -> std::vector<ds::Api::Common::L1::InputWordInfo>;
 
 auto convertInputParams(
     const QList<InferParam> &params) -> std::vector<ds::Api::Common::L1::InputParameterInfo>;
 
-auto createStaticSpeaker(std::string speaker) -> ds::Api::Common::L1::InputSpeakerInfo;
+auto createStaticSpeaker(const std::string &speaker) -> ds::Api::Common::L1::InputSpeakerInfo;
 
 #endif // INFERTASKCOMMON_H

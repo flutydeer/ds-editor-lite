@@ -9,7 +9,8 @@
     int clipId = -1;                                                                               \
     int pieceId = -1;                                                                              \
     QList<InferInputNote> notes;                                                                   \
-    QString configPath;                                                                            \
+    SingerIdentifier identifier;                                                                   \
+    QString speaker;                                                                               \
     double tempo;
 
 

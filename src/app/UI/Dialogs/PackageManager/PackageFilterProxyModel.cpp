@@ -20,11 +20,14 @@ bool PackageFilterProxyModel::filterAcceptsRow(
     const auto *model = dynamic_cast<PackageListModel *>(sourceModel());
     const auto &package = model->getPackage(model->index(sourceRow, 0, sourceParent));
 
+    const auto packageId = package.id();
+    const auto packageVendor = package.vendor();
+
     bool idMatch = m_filterPattern.isEmpty() ||
-                  package.id.contains(m_filterPattern, Qt::CaseInsensitive);
+                  packageId.contains(m_filterPattern, Qt::CaseInsensitive);
 
     bool vendorMatch = m_filterPattern.isEmpty() ||
-                      package.vendor.contains(m_filterPattern, Qt::CaseInsensitive);
+                      packageVendor.contains(m_filterPattern, Qt::CaseInsensitive);
 
     return idMatch || vendorMatch;
 }

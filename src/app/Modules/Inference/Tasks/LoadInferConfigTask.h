@@ -5,6 +5,7 @@
 #ifndef LOADINFERCONFIGTASK_H
 #define LOADINFERCONFIGTASK_H
 
+#if false
 #include "Modules/Task/Task.h"
 
 class LoadInferConfigTask : public Task {
@@ -18,6 +19,6 @@ private:
     QString m_path;
 };
 
-
+#endif
 
 #endif // LOADINFERCONFIGTASK_H

@@ -5,10 +5,13 @@
 #ifndef INFERVARIANCETASK_H
 #define INFERVARIANCETASK_H
 
+#include <synthrt/SVS/Inference.h>
+
 #include "IInferTask.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferParamCurve.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
 
 class InferInputNote;
 
@@ -43,12 +46,14 @@ public:
 
 private:
     void runTask() override;
+    bool runInference(const GenericInferModel &model, QList<InferParam> &outParams, QString &error);
     void terminate() override;
     void abort();
     void buildPreviewText();
     GenericInferModel buildInputJson() const;
     bool processOutput(const GenericInferModel &model);
 
+    srt::NO<srt::Inference> m_inferenceVariance;
     QString m_previewText;
     InferVarianceInput m_input;
     InferVarianceResult m_result;

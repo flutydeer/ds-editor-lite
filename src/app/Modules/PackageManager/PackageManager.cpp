@@ -11,19 +11,87 @@
 #include "Models/PackageInfo.h"
 #include "Models/SingerInfo.h"
 
-#include <stdcorelib/system.h>
-
 #include <synthrt/Core/SynthUnit.h>
 #include <synthrt/Core/PackageRef.h>
 #include <synthrt/SVS/SingerContrib.h>
-#include <synthrt/Support/Logging.h>
-
-#include <dsinfer/Inference/InferenceDriver.h>
+#include <synthrt/Support/JSON.h>
 
 #include <QDebug>
 #include <QLocale>
+#include <mutex>
 
 namespace fs = std::filesystem;
+
+namespace {
+    QString parseDisplayText(const srt::JsonValue &textValue, const std::string &currentLocale) {
+        if (textValue.isString()) {
+            return QString::fromUtf8(textValue.toString());
+        }
+        if (!textValue.isObject()) {
+            return {};
+        }
+        const auto &textObject = textValue.toObject();
+
+        // First, look for the exact current locale
+        if (const auto it = textObject.find(currentLocale); it != textObject.end()) {
+            return QString::fromUtf8(it->second.toString());
+        }
+
+        // If not found, fall back to the default key "_"
+        if (const auto it = textObject.find("_"); it != textObject.end()) {
+            return QString::fromUtf8(it->second.toString());
+        }
+
+        return {};
+    }
+
+    QList<SpeakerInfo> parseSpeakerInfo(const srt::JsonObject &manifestConfiguration,
+                                        const std::string &currentLocale) {
+        QList<SpeakerInfo> result;
+        const auto it_speakers = manifestConfiguration.find("speakers");
+        if (it_speakers == manifestConfiguration.end()) {
+            return result;
+        }
+        const auto &speakersValue = it_speakers->second;
+        if (!speakersValue.isArray()) {
+            return result;
+        }
+        const auto &speakers = speakersValue.toArray();
+        result.reserve(static_cast<QList<SpeakerInfo>::size_type>(speakers.size()));
+        for (const auto &speakerValue : speakers) {
+            if (!speakerValue.isObject()) {
+                continue;
+            }
+            const auto &speaker = speakerValue.toObject();
+            QString speakerId;
+            if (const auto it = speaker.find("id"); it != speaker.end()) {
+                speakerId.assign(it->second.toString());
+            }
+
+            QString speakerName;
+            if (const auto it = speaker.find("name"); it != speaker.end()) {
+                if (auto val = parseDisplayText(it->second, currentLocale); !val.isEmpty()) {
+                    speakerName = std::move(val);
+                }
+            }
+
+            QString speakerToneMin, speakerToneMax;
+            if (const auto it = speaker.find("toneRanges"); it != speaker.end()) {
+                if (it->second.isObject()) {
+                    const auto &toneRanges = it->second.toObject();
+                    if (const auto it_min = toneRanges.find("min"); it_min != toneRanges.end()) {
+                        speakerToneMin = QString::fromUtf8(it->second.toString());
+                    }
+                    if (const auto it_max = toneRanges.find("max"); it_max != toneRanges.end()) {
+                        speakerToneMax = QString::fromUtf8(it->second.toString());
+                    }
+                }
+            }
+            result.emplace_back(speakerId, speakerName, speakerToneMin, speakerToneMax);
+        }
+        return result;
+    }
+}
 
 PackageManager::PackageManager() {
     connect(appStatus, &AppStatus::moduleStatusChanged, this,
@@ -31,7 +99,8 @@ PackageManager::PackageManager() {
 }
 
 Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
-    PackageManager::getInstalledPackages() {
+    PackageManager::refreshInstalledPackages() {
+
     if (!inferEngine->initialized()) {
         return GetInstalledPackagesError{
             InferEngineNotInitialized,
@@ -47,23 +116,23 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
 
     auto processPackage = [&](const std::filesystem::path &packagePath) {
         if (auto exp = su.open(packagePath, true); !exp) {
-            result.failedPackages.append({
+            result.failedPackages.emplace_back(
                 StringUtils::path_to_qstr(packagePath),
                 srtErrorToString(exp.error())
-            });
+            );
         } else {
-            srt::ScopedPackageRef pkg(exp.take());
+            const srt::ScopedPackageRef pkg(exp.take());
 
             auto packageId = QString::fromUtf8(pkg.id());
             auto packageVersion = VersionUtils::stdc_to_qt(pkg.version());
             auto vendor = QString::fromUtf8(pkg.vendor().text(locale));
             auto description = QString::fromUtf8(pkg.description().text(locale));
             auto copyright = QString::fromUtf8(pkg.copyright().text(locale));
-            auto path = QDir(StringUtils::native_to_qstr(pkg.path()));
+            auto path = StringUtils::native_to_qstr(pkg.path());
 
-            PackageInfo packageInfo{packageId, packageVersion, vendor, description, copyright, path};
             const auto contribSpecs = pkg.contributes("singer");
-            packageInfo.singers.reserve(contribSpecs.size());
+            QList<SingerInfo> singers;
+            singers.reserve(static_cast<QList<SingerInfo>::size_type>(contribSpecs.size()));
 
             for (const auto contribSpec : contribSpecs) {
                 // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
@@ -73,10 +142,14 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 }
                 auto singerId = QString::fromUtf8(singerSpec->id());
                 auto singerName = QString::fromUtf8(singerSpec->name().text(locale));
-                packageInfo.singers.emplace_back(
-                    SingerIdentifier{singerId, packageId, packageVersion}, singerName);
+                const auto &manifestConfiguration = singerSpec->manifestConfiguration();
+                singers.emplace_back(
+                    SingerIdentifier{singerId, packageId, packageVersion},
+                    singerName,
+                    parseSpeakerInfo(manifestConfiguration, locale));
             }
-            result.successfulPackages.emplace_back(std::move(packageInfo));
+            result.successfulPackages.emplace_back(packageId, packageVersion, vendor, description,
+                                                   copyright, path, singers);
         }
     };
 
@@ -100,7 +173,45 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     }
 
     qDebug() << "Package scan completed in" << timer.elapsed() << "ms";
+    {
+        QWriteLocker writeLocker(&m_resultRwLock);
+        m_result = result;
+        m_packageLocator.clear();
+        m_singerLocator.clear();
+        for (const auto &packageInfo : std::as_const(m_result.successfulPackages)) {
+            const auto singers = packageInfo.singers();
+            for (const auto &singerInfo : singers) {
+                const auto identifier = singerInfo.identifier();
+                m_packageLocator[identifier] = packageInfo;
+                m_singerLocator[identifier] = singerInfo;
+            }
+        }
+        Q_EMIT packagesRefreshed(m_result.successfulPackages);
+    }
     return result;
+}
+
+GetInstalledPackagesResult PackageManager::installedPackages() const {
+    QReadLocker readLocker(&m_resultRwLock);
+    return m_result;
+}
+
+PackageInfo PackageManager::findPackageByIdentifier(const SingerIdentifier &identifier) const {
+    QReadLocker readLocker(&m_resultRwLock);
+    const auto it = m_packageLocator.constFind(identifier);
+    if (it == m_packageLocator.constEnd()) {
+        return {};
+    }
+    return it.value();
+}
+
+SingerInfo PackageManager::findSingerByIdentifier(const SingerIdentifier &identifier) const {
+    QReadLocker readLocker(&m_resultRwLock);
+    const auto it = m_singerLocator.constFind(identifier);
+    if (it == m_singerLocator.constEnd()) {
+        return {};
+    }
+    return it.value();
 }
 
 void PackageManager::onModuleStatusChanged(AppStatus::ModuleType module,

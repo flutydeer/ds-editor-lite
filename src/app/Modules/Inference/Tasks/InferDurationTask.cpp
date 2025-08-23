@@ -4,11 +4,14 @@
 
 #include "InferDurationTask.h"
 
+#include <dsinfer/Api/Inferences/Duration/1/DurationApiL1.h>
+
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
+#include "InferTaskCommon.h"
 
 #include <QThread>
 #include <QDebug>
@@ -16,17 +19,16 @@
 #include <QJsonDocument>
 #include <utility>
 
-namespace dsonnxinfer {
-    struct Segment;
-}
+namespace Co = ds::Api::Common::L1;
+namespace Dur = ds::Api::Duration::L1;
 
 bool InferDurationTask::InferDurInput::operator==(const InferDurInput &other) const {
     const bool clipIdEqual = clipId == other.clipId;
     const bool pieceIdEqual = pieceId == other.pieceId;
     const bool notesEqual = notes == other.notes;
-    const bool configPathEqual = configPath == other.configPath;
+    const bool identifierEqual = identifier == other.identifier;
     const bool tempoEqual = tempo == other.tempo;
-    return clipIdEqual && pieceIdEqual && notesEqual && configPathEqual && tempoEqual;
+    return clipIdEqual && pieceIdEqual && notesEqual && identifierEqual && tempoEqual;
 }
 
 int InferDurationTask::clipId() const {
@@ -91,8 +93,8 @@ void InferDurationTask::runTask() {
     } else {
         QString errorMessage;
         qDebug() << "Duration inference cache not found. Running inference...";
-        if (!inferEngine->loadInferences(m_input.configPath)) {
-            qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
+        if (!inferEngine->loadInferencesForSinger(m_input.identifier)) {
+            qCritical() << "Task failed" << m_input.identifier << "clipId:" << clipId()
                         << "pieceId:" << pieceId() << "taskId:" << id();
             return;
         }
@@ -100,8 +102,7 @@ void InferDurationTask::runTask() {
             abort();
             return;
         }
-        if (std::vector<double> durations;
-            inferEngine->inferDuration(input, durations, errorMessage)) {
+        if (std::vector<double> durations; runInference(input, durations, errorMessage)) {
             auto updatePhonemeStarts = [](QList<InferWord> &words,
                                           const std::vector<double> &phonemeDurations) {
                 size_t i = 0;
@@ -138,9 +139,73 @@ void InferDurationTask::runTask() {
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
+bool InferDurationTask::runInference(const GenericInferModel &model, std::vector<double> &outDuration,
+                                     QString &error) {
+    if (!inferEngine->initialized()) {
+        qCritical().noquote() << "inferDuration: Environment is not initialized";
+        return false;
+    }
+
+    const auto &identifier = model.identifier;
+    std::string speakerName = model.speaker.toStdString();
+    const auto input = srt::NO<Dur::DurationStartInput>::create();
+
+    srt::NO<srt::Inference> inferenceDuration;
+    auto loader = inferEngine->findLoaderForSinger(identifier);
+    if (!loader) {
+        qCritical() << "inferAcoustic: Inference loader not found for" << identifier;
+        return false;
+    }
+
+    // Convert singer speaker id to inference speaker id
+    const auto importOptions = loader->importOptions().duration.as<Dur::DurationImportOptions>();
+    if (!importOptions) {
+        qCritical() << "inferDuration: Import options not found";
+    }
+    const auto &speakerMapping = importOptions->speakerMapping;
+    input->words = convertInputWords(model.words, speakerName, speakerMapping);
+
+    // Create inference
+    if (auto exp = loader->createDuration(); !exp) {
+        qCritical().noquote().nospace() << "inferDuration: Failed to create duration inference for "
+                                        << identifier << ": " << exp.getError();
+        return false;
+    } else {
+        inferenceDuration = exp.get();
+    }
+    m_inferenceDuration = inferenceDuration;
+
+    // Run duration
+    srt::NO<Dur::DurationResult> result;
+    // Start inference
+    if (isTerminateRequested()) {
+        abort();
+        return false;
+    }
+    if (auto exp = inferenceDuration->start(input); !exp) {
+        qCritical().noquote().nospace() << "inferDuration: Failed to start duration inference for "
+                                        << identifier << ": " << exp.error().message();
+        return false;
+    } else {
+        result = exp.take().as<Dur::DurationResult>();
+    }
+
+    if (inferenceDuration->state() == srt::ITask::Failed) {
+        qCritical().noquote().nospace() << "inferDuration: Failed to run duration inference for "
+                                        << identifier << ": " << result->error.message();
+        return false;
+    }
+
+    outDuration = std::move(result->durations);
+
+    return true;
+}
+
 void InferDurationTask::terminate() {
+    if (m_inferenceDuration) {
+        m_inferenceDuration->stop();
+    }
     IInferTask::terminate();
-    inferEngine->terminateInferDurationAsync();
 }
 
 void InferDurationTask::abort() {
@@ -163,10 +228,9 @@ void InferDurationTask::buildPreviewText() {
 
 GenericInferModel InferDurationTask::buildInputJson() const {
     GenericInferModel model;
-    model.singer = appOptions->general()->defaultSingerId;
-    model.speaker = appOptions->general()->defaultSpeakerId;
+    model.speaker = m_input.speaker;
     model.words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo);
-    model.configPath = m_input.configPath;
+    model.identifier = m_input.identifier;
     model.steps = appOptions->inference()->samplingSteps;
     return model;
 }

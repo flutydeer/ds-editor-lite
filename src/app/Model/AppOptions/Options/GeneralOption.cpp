@@ -30,13 +30,18 @@ void GeneralOption::load(const QJsonObject &object) {
         packageSearchPaths = {};
     }
 
+#if false
     if (object.contains(defaultPackageKey))
         defaultPackage = object[defaultPackageKey].toString();
+    if (object.contains(defaultPackageIdKey))
+        defaultPackageId = object[defaultPackageIdKey].toString();
+    if (object.contains(defaultPackageVersionKey))
+        defaultPackageVersion = QVersionNumber::fromString(object[defaultPackageVersionKey].toString());
     if (object.contains(defaultSingerIdKey))
         defaultSingerId = object[defaultSingerIdKey].toString();
     if (object.contains(defaultSpeakerIdKey))
         defaultSpeakerId = object[defaultSpeakerIdKey].toString();
-
+#endif
     if (object.contains(somePathKey))
         somePath = object[somePathKey].toString();
     if (object.contains(rmvpePathKey))
@@ -48,9 +53,13 @@ void GeneralOption::save(QJsonObject &object) {
         {defaultSingingLanguageKey, defaultSingingLanguage},
         {defaultLyricKey,           defaultLyric          },
         {packageSearchPathsKey, QJsonArray::fromStringList(packageSearchPaths)},
+#if false
         serialize_defaultPackage(),
+        serialize_defaultPackageId(),
+        {defaultPackageVersionKey, defaultPackageVersion.toString()},
         serialize_defaultSingerId(),
         serialize_defaultSpeakerId(),
+#endif
         serialize_somePath(),
         serialize_rmvpePath()
     };

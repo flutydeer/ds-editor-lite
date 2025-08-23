@@ -120,7 +120,7 @@ QJsonObject GenericInferModel::serialize() const {
         {"offset",     offset                 },
         {"steps",      steps                  },
         {"depth",      depth                  },
-        {"singer",     singer                 },
+        {"singer",     identifier.singerId    },
         {"words",      serializeJArray(words) },
         {"parameters", serializeJArray(params)}
     };
@@ -128,19 +128,23 @@ QJsonObject GenericInferModel::serialize() const {
 
 bool GenericInferModel::deserialize(const QJsonObject &obj) {
     offset = obj["offset"].toDouble();
-    singer = obj["singer"].toString();
     steps = obj["steps"].toInt();
     depth = static_cast<float>(obj["depth"].toDouble());
 
     deserializeJArray(obj["words"].toArray(), words);
     deserializeJArray(obj["parameters"].toArray(), params);
+
+    identifier.packageId = obj["packageId"].toString();
+    identifier.packageVersion = QVersionNumber::fromString(obj["packageVersion"].toString());
+    identifier.singerId = obj["singer"].toString();
     return true;
 }
 
 QString GenericInferModel::serializeToJson(const bool useMetadata) const {
     QJsonObject object = serialize();
     if (useMetadata) {
-        object["configPath"] = configPath;
+        object["packageId"] = identifier.packageId;
+        object["packageVersion"] = identifier.packageVersion.toString();
         object["speaker"] = speaker;
     }
     return QJsonDocument{object}.toJson();

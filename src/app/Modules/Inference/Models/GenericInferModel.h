@@ -7,6 +7,7 @@
 
 #include "Interface/IHashProvider.h"
 #include "Interface/ISerializable.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
 
 class InferPhoneme final : public ISerializable {
 public:
@@ -80,8 +81,7 @@ public:
     QList<InferParam> params;
 
     // 元数据
-    QString configPath;
-    QString singer;
+    SingerIdentifier identifier;
     QString speaker;
     int steps = -1;
     float depth = 1.0;

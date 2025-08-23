@@ -11,6 +11,7 @@
 #include "Tasks/InferAcousticTask.h"
 #include "Tasks/InferPitchTask.h"
 #include "Tasks/InferVarianceTask.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
 
 #include <QList>
 
@@ -26,9 +27,9 @@ using AcousticInput = InferAcousticTask::InferAcousticInput;
 
 namespace InferControllerHelper {
     QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes);
-    PitchInput buildInferPitchInput(const InferPiece &piece, const QString &configPath);
-    VarianceInput buildInferVarianceInput(const InferPiece &piece, const QString &configPath);
-    AcousticInput buildInderAcousticInput(const InferPiece &piece, const QString &configPath);
+    PitchInput buildInferPitchInput(const InferPiece &piece, const SingerIdentifier &identifier);
+    VarianceInput buildInferVarianceInput(const InferPiece &piece, const SingerIdentifier &identifier);
+    AcousticInput buildInderAcousticInput(const InferPiece &piece, const SingerIdentifier &identifier);
 
     // 查找由于编辑某个参数导致需要重新推理依赖参数的分段
     QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(ParamInfo::Name name, SingingClip &clip);

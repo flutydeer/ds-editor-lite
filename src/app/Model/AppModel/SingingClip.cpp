@@ -4,6 +4,7 @@
 
 #include "SingingClip.h"
 
+#include "AppModel.h"
 #include "DrawCurve.h"
 #include "Note.h"
 #include "InferPiece.h"
@@ -84,7 +85,8 @@ void SingingClip::reSegment() {
         }
         if (!exists) {
             const auto newPiece = new InferPiece(this);
-            newPiece->configPath = configPath;
+            newPiece->identifier = singerIdentifier;
+            newPiece->speaker = getSpeaker();
             newPiece->notes = segment;
             newPieces.append(newPiece);
         }
@@ -128,7 +130,79 @@ PieceList SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
     return {result.begin(), result.end()}; // 将 QSet 转换为 QList 返回
 }
 
+const Property<SingerIdentifier> &SingingClip::getSingerIdentifier() const {
+    if (useTrackSingerIdentifier) {
+        return trackSingerIdentifier;
+    }
+    return singerIdentifier;
+}
+
+QString SingingClip::getSpeaker() const {
+    if (useTrackSpeaker) {
+        return trackSpeaker.get();
+    }
+    return speaker.get();
+}
+
 void SingingClip::init() {
     defaultLanguage.onChanged(qSignalCallback(defaultLanguageChanged));
-    configPath.onChanged(qSignalCallback(configPathChanged));
+    singerIdentifier.onChanged([this](const SingerIdentifier &) {
+        if (!useTrackSingerIdentifier) {
+            Q_EMIT identifierChanged(getSingerIdentifier());
+        }
+    });
+    trackSingerIdentifier.onChanged([this](const SingerIdentifier &) {
+        if (useTrackSingerIdentifier) {
+            Q_EMIT identifierChanged(getSingerIdentifier());
+        }
+    });
+    useTrackSingerIdentifier.onChanged([this](bool) {
+        if (singerIdentifier.get() != trackSingerIdentifier.get()) {
+            Q_EMIT identifierChanged(getSingerIdentifier());
+        }
+    });
+    connect(this, &SingingClip::identifierChanged, this,
+            [this](const SingerIdentifier &currentIdentifier) {
+                bool needsResegment = false;
+                for (const auto piece : std::as_const(m_pieces)) {
+                    if (piece->identifier != currentIdentifier) {
+                        piece->identifier = currentIdentifier;
+                        piece->dirty = true;
+                        needsResegment = true;
+                    }
+                }
+                if (needsResegment) {
+                    reSegment();
+                }
+            });
+    speaker.onChanged([this](const QString &) {
+        if (!useTrackSpeaker) {
+            Q_EMIT speakerChanged(getSpeaker());
+        }
+    });
+    trackSpeaker.onChanged([this](const QString &) {
+        if (useTrackSpeaker) {
+            Q_EMIT speakerChanged(getSpeaker());
+        }
+    });
+    useTrackSpeaker.onChanged([this](bool) {
+        if (speaker.get() != trackSpeaker.get()) {
+            Q_EMIT speakerChanged(getSpeaker());
+        }
+    });
+    connect(this, &SingingClip::speakerChanged, this,
+        [this](const QString &currentSpeaker) {
+            bool needsResegment = false;
+            for (const auto piece : std::as_const(m_pieces)) {
+                qDebug() << "changing speaker before" << piece->speaker << "after" << currentSpeaker;
+                if (piece->speaker != currentSpeaker) {
+                    piece->speaker = currentSpeaker;
+                    piece->dirty = true;
+                    needsResegment = true;
+                }
+            }
+            if (needsResegment) {
+                reSegment();
+            }
+        });
 }

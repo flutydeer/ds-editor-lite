@@ -14,11 +14,15 @@
 
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
 #include <QMWidgets/cmenu.h>
 
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Views/Common/LanguageComboBox.h"
+
+#include "Modules/PackageManager/PackageManager.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
 
 using namespace SVS;
 
@@ -60,15 +64,53 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     cbSinger = new ComboBox;
     cbSinger->setObjectName("cbSinger");
-    cbSinger->addItems({"Singer1", "Singer2", "Singer3"});
+    //cbSinger->addItems({"Singer1", "Singer2", "Singer3"});
+    auto setCbSinger = [this](QList<PackageInfo> packages) {
+        cbSinger->clear();
+        cbSinger->addItem("(no singer)");
+        for (const auto &package : std::as_const(packages)) {
+            const auto singers = package.singers();
+            for (const auto &singer : singers) {
+                QString singerText = singer.name();
+                cbSinger->addItem(singerText, QVariant::fromValue(singer.identifier()));
+            }
+        }
+    };
+
+    setCbSinger(packageManager->installedPackages().successfulPackages);
+    connect(packageManager, &PackageManager::packagesRefreshed, cbSinger, setCbSinger);
+
+    connect(cbSinger, &ComboBox::currentIndexChanged, this, [this](int) {
+        auto currentText = cbSinger->currentText();
+        auto singerIdentifier = cbSinger->currentData().value<SingerIdentifier>();
+        qDebug().noquote().nospace() << "Singer clicked: " << currentText;
+        if (!m_track) {
+            return;
+        }
+        m_track->setSingerIdentifier(singerIdentifier);
+        const auto singerInfo = packageManager->findSingerByIdentifier(singerIdentifier);
+        if (!singerInfo.isEmpty()) {
+            const auto speakers = singerInfo.speakers();
+            if (!speakers.isEmpty()) {
+                m_track->setSpeaker(speakers[0].id());
+            } else {
+                m_track->setSpeaker({});
+            }
+        } else {
+            m_track->setSpeaker({});
+        }
+    });
 
     cbLanguage = new LanguageComboBox("unknown");
     cbLanguage->setObjectName("cbLanguage");
 
-    panVolumeLayout = new QHBoxLayout;
+    singerLanguageLayout = new QHBoxLayout;
+    singerLanguageLayout->addWidget(cbSinger);
+    singerLanguageLayout->addWidget(cbLanguage);
 
     controlWidgetLayout = new QVBoxLayout;
     controlWidgetLayout->addLayout(muteSoloTrackNameLayout);
+    controlWidgetLayout->addLayout(singerLanguageLayout);
 
     m_levelMeter = new LevelMeter();
 
@@ -122,18 +164,18 @@ void TrackControlView::setControl(const TrackControl &control) {
 
 void TrackControlView::setNarrowMode(bool on) {
     if (on) {
-        for (int i = 0; i < panVolumeLayout->count(); ++i) {
-            QWidget *w = panVolumeLayout->itemAt(i)->widget();
+        for (int i = 0; i < singerLanguageLayout->count(); ++i) {
+            QWidget *w = singerLanguageLayout->itemAt(i)->widget();
             if (w != nullptr)
                 w->setVisible(false);
-            panVolumeLayout->setContentsMargins(0, 0, 0, 0);
+            singerLanguageLayout->setContentsMargins(0, 0, 0, 0);
         }
     } else {
-        for (int i = 0; i < panVolumeLayout->count(); ++i) {
-            QWidget *w = panVolumeLayout->itemAt(i)->widget();
+        for (int i = 0; i < singerLanguageLayout->count(); ++i) {
+            QWidget *w = singerLanguageLayout->itemAt(i)->widget();
             if (w != nullptr)
                 w->setVisible(true);
-            panVolumeLayout->setContentsMargins(4, 0, 4, 8);
+            singerLanguageLayout->setContentsMargins(4, 0, 4, 8);
         }
     }
 }
@@ -149,13 +191,74 @@ LevelMeter *TrackControlView::levelMeter() const {
 
 void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     auto actionInsert = new QAction("Insert new track", this);
-    connect(actionInsert, &QAction::triggered, this, [&] { emit insertNewTrackTriggered(); });
+    connect(actionInsert, &QAction::triggered, this, [this] { emit insertNewTrackTriggered(); });
     auto actionRemove = new QAction("Delete", this);
-    connect(actionRemove, &QAction::triggered, this, [&] { emit removeTrackTriggered(id()); });
+    connect(actionRemove, &QAction::triggered, this, [this] { emit removeTrackTriggered(id()); });
 
     CMenu menu(this);
     menu.addAction(actionInsert);
     menu.addAction(actionRemove);
+
+    auto singerMenu = menu.addMenu("Select track singer");
+    const auto packages = packageManager->installedPackages().successfulPackages;
+    for (const auto &package : std::as_const(packages)) {
+        const auto singers = package.singers();
+        for (const auto &singer : singers) {
+            QString singerText = singer.name() + " (" + singer.identifier().packageId + " v" +
+                                 singer.identifier().packageVersion.toString() + ')';
+            auto singerAction = singerMenu->addAction(singerText);
+            connect(singerAction, &QAction::triggered, this,
+                    [singerAction, singerIdentifier = singer.identifier(), this] {
+                        qDebug().noquote().nospace() << "Singer clicked: " << singerAction->text();
+                        if (!m_track) {
+                            return;
+                        }
+                        auto comboBoxIndex = cbSinger->findData(QVariant::fromValue(singerIdentifier));
+                        if (comboBoxIndex != -1) {
+                            cbSinger->setCurrentIndex(comboBoxIndex);
+                        }
+                    });
+        }
+    }
+    auto actionSetSpeaker = new QAction("Set speaker", this);
+    connect(actionSetSpeaker, &QAction::triggered, this, [this] {
+        const auto singerInfo = packageManager->findSingerByIdentifier(m_track->singerIdentifier());
+        const auto speakers = singerInfo.speakers();
+        QStringList speakerLabels;
+        QHash<QString, QString> speakerIdMapping;
+        speakerLabels.reserve(speakers.size() + 1);
+        speakerIdMapping.reserve(speakers.size());
+        speakerLabels.emplace_back("(not specified)");
+        int listCurrentIndex = 0; // 0 as not specified
+        int currentIndex = 0;
+        for (const auto &speaker : speakers) {
+            const auto speakerId = speaker.id();
+            const auto speakerName = speaker.name();
+            const auto speakerLabel = speakerName + " (" + speakerId + ")";
+            speakerLabels.emplace_back(speakerLabel);
+            speakerIdMapping[speakerLabel] = speakerId;
+            ++currentIndex;
+            if (m_track->speaker() == speakerId) {
+                listCurrentIndex = currentIndex;
+            }
+        }
+        bool ok = false;
+        auto currentSpeakerLabel = QInputDialog::getItem(
+            this, "Input select", "Please select speaker id for singer " + cbSinger->currentText(),
+            speakerLabels, listCurrentIndex, false, &ok);
+        if (ok) {
+            if (const auto it = speakerIdMapping.find(currentSpeakerLabel);
+                it != speakerIdMapping.end()) {
+                m_track->setSpeaker(it.value());
+                qDebug() << "Speaker for track" << m_track->id() << "set to" << it.value();
+            } else {
+                m_track->setSpeaker({});
+                qDebug() << "Speaker for track" << m_track->id() << "cleared";
+            }
+        }
+    });
+    menu.addAction(actionSetSpeaker);
+
     menu.exec(event->globalPos());
     event->accept();
 }

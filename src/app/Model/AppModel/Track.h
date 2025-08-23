@@ -13,6 +13,7 @@
 #include "Global/AppGlobal.h"
 #include "Interface/ISerializable.h"
 #include "Interface/ITrack.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
 
 class Clip;
 
@@ -40,6 +41,10 @@ public:
     void setDefaultLanguage(const QString &language);
     [[nodiscard]] QString defaultG2pId() const;
     void setDefaultG2pId(const QString &g2pId);
+    [[nodiscard]] const SingerIdentifier &singerIdentifier() const;
+    void setSingerIdentifier(SingerIdentifier identifier);
+    [[nodiscard]] QString speaker() const;
+    void setSpeaker(const QString &speaker);
 
     void notifyClipChanged(ClipChangeType type, Clip *clip);
     [[nodiscard]] Clip *findClipById(int id) const;
@@ -63,6 +68,8 @@ public:
 signals:
     void propertyChanged();
     void clipChanged(Track::ClipChangeType type, Clip *clip);
+    void singerIdentifierChanged(const SingerIdentifier &identifier);
+    void speakerChanged(const QString &speaker);
 
 private:
     QString m_name;
@@ -71,6 +78,8 @@ private:
     QColor m_color;
     QString m_defaultLanguage = "unknown";
     QString m_defaultG2pId = "unknown";
+    SingerIdentifier m_identifier;
+    QString m_speaker;
 };
 
 

@@ -5,10 +5,13 @@
 #ifndef INFERDURATIONTASK_H
 #define INFERDURATIONTASK_H
 
+#include <synthrt/SVS/Inference.h>
+
 #include "IInferTask.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
 #include "Modules/Task/Task.h"
 
 class InferDurationTask final : public IInferTask {
@@ -31,6 +34,8 @@ public:
 
 private:
     void runTask() override;
+    bool runInference(const GenericInferModel &model, std::vector<double> &outDuration,
+                      QString &error);
     void terminate() override;
     void abort();
     void buildPreviewText();
@@ -38,6 +43,7 @@ private:
     bool processOutput(const GenericInferModel &model);
 
     QMutex m_mutex;
+    srt::NO<srt::Inference> m_inferenceDuration;
     QString m_previewText;
     InferDurInput m_input;
     InferDurInput m_result;

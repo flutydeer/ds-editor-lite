@@ -74,7 +74,7 @@ private:
     QHBoxLayout *mainLayout;
     QVBoxLayout *controlWidgetLayout;
     QHBoxLayout *muteSoloTrackNameLayout;
-    QHBoxLayout *panVolumeLayout;
+    QHBoxLayout *singerLanguageLayout;
 
     int m_buttonSize = 24;
 

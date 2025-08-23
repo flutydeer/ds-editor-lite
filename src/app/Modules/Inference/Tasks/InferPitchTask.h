@@ -5,11 +5,14 @@
 #ifndef INFERPITCHTASK_H
 #define INFERPITCHTASK_H
 
+#include <synthrt/SVS/Inference.h>
+
 #include "IInferTask.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/Models/InferParamCurve.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
 
 class InferPitchTask final : public IInferTask {
     Q_OBJECT
@@ -33,12 +36,14 @@ public:
 
 private:
     void runTask() override;
+    bool runInference(const GenericInferModel &model, InferParam &outPitch, QString &error);
     void terminate() override;
     void abort();
     void buildPreviewText();
     GenericInferModel buildInputJson() const;
     bool processOutput(const GenericInferModel &model);
 
+    srt::NO<srt::Inference> m_inferencePitch;
     QString m_previewText;
     InferPitchInput m_input;
     InferParamCurve m_result;

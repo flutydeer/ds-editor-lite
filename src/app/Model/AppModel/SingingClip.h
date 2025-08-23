@@ -9,6 +9,7 @@
 #include "Params.h"
 #include "Global/AppGlobal.h"
 #include "Utils/Property.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
 
 class DrawCurve;
 class InferPiece;
@@ -38,7 +39,12 @@ public:
     Property<QString> defaultLanguage{"unknown"};
     Property<QString> defaultG2pId{"unknown"};
     ParamInfo params;
-    Property<QString> configPath;
+    Property<SingerIdentifier> singerIdentifier;
+    Property<SingerIdentifier> trackSingerIdentifier;
+    Property<bool> useTrackSingerIdentifier{true};
+    Property<QString> speaker;
+    Property<QString> trackSpeaker;
+    Property<bool> useTrackSpeaker{true};
 
     void insertNote(Note *note);
     void insertNotes(const QList<Note *> &notes);
@@ -51,9 +57,12 @@ public:
     void updateOriginalParam(ParamInfo::Name name);
     [[nodiscard]] InferPiece *findPieceById(int id) const;
     [[nodiscard]] PieceList findPiecesByNotes(const QList<Note *> &notes) const;
+    const Property<SingerIdentifier> &getSingerIdentifier() const;
+    QString getSpeaker() const;
 
 signals:
-    void configPathChanged(QString path);
+    void identifierChanged(const SingerIdentifier &identifier);
+    void speakerChanged(const QString &speaker);
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamInfo::Name name, Param::Type type);
     void defaultLanguageChanged(QString language);

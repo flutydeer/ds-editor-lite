@@ -13,6 +13,7 @@
 #include "Utils/Singleton.h"
 
 #include <QObject>
+#include <QReadWriteLock>
 
 namespace srt {
     class PackageRef;
@@ -26,13 +27,25 @@ public:
     PackageManager();
 
     [[nodiscard]]
-    static Expected<GetInstalledPackagesResult, GetInstalledPackagesError> getInstalledPackages();
+    Expected<GetInstalledPackagesResult, GetInstalledPackagesError> refreshInstalledPackages();
 
-private slots:
+    GetInstalledPackagesResult installedPackages() const;
+    PackageInfo findPackageByIdentifier(const SingerIdentifier &identifier) const;
+    SingerInfo findSingerByIdentifier(const SingerIdentifier &identifier) const;
+
+Q_SIGNALS:
+    void packagesRefreshed(QList<PackageInfo> packages);
+
+private Q_SLOTS:
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
 
 private:
     static QString srtErrorToString(const srt::Error &error);
+
+    mutable QReadWriteLock m_resultRwLock;
+    GetInstalledPackagesResult m_result;
+    QHash<SingerIdentifier, PackageInfo> m_packageLocator;
+    QHash<SingerIdentifier, SingerInfo> m_singerLocator;
 };
 
 #endif //PACKAGEMANAGER_H

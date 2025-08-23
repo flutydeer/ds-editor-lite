@@ -22,9 +22,9 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
 
     // Load data
     const auto &package = index.data(Qt::UserRole).value<PackageInfo>();
-    const auto id = package.id;
-    const auto vendor = package.vendor;
-    const auto version = "v" + package.version.toString();
+    const auto id = package.id();
+    const auto vendor = package.vendor();
+    const auto version = "v" + package.version().toString();
 
     // Calculate layout
     QRectF contentRect = option.rect.adjusted(m_paddingLeft, m_paddingTop, -m_paddingRight,

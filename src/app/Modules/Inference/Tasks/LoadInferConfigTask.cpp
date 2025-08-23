@@ -2,6 +2,7 @@
 // Created by fluty on 24-9-25.
 //
 
+#if false
 #include "LoadInferConfigTask.h"
 
 #include "Modules/Inference/InferEngine.h"
@@ -20,3 +21,4 @@ void LoadInferConfigTask::runTask() {
     qDebug() << "Loading inference config...";
     success = inferEngine->loadInferences(m_path);
 }
+#endif

@@ -4,6 +4,8 @@
 
 #include "InferVarianceTask.h"
 
+#include <dsinfer/Api/Inferences/Variance/1/VarianceApiL1.h>
+
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
@@ -12,14 +14,18 @@
 #include "Utils/JsonUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
+#include "InferTaskCommon.h"
 
 #include <QDebug>
 #include <QDir>
 #include <utility>
 
+namespace Co = ds::Api::Common::L1;
+namespace Var = ds::Api::Variance::L1;
+
 bool InferVarianceTask::InferVarianceInput::operator==(const InferVarianceInput &other) const {
     return clipId == other.clipId /*&& pieceId == other.pieceId*/ && notes == other.notes &&
-           configPath == other.configPath && qFuzzyCompare(tempo, other.tempo) &&
+           identifier == other.identifier && qFuzzyCompare(tempo, other.tempo) &&
            pitch == other.pitch;
 }
 
@@ -83,8 +89,8 @@ void InferVarianceTask::runTask() {
     } else {
         QString errorMessage;
         qDebug() << "Variance inference cache not found. Running inference...";
-        if (!inferEngine->loadInferences(m_input.configPath)) {
-            qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
+        if (!inferEngine->loadInferencesForSinger(m_input.identifier)) {
+            qCritical() << "Task failed" << m_input.identifier << "clipId:" << clipId()
                         << "pieceId:" << pieceId() << "taskId:" << id();
             return;
         }
@@ -92,8 +98,7 @@ void InferVarianceTask::runTask() {
             abort();
             return;
         }
-        if (QList<InferParam> outParams;
-            inferEngine->inferVariance(input, outParams, errorMessage)) {
+        if (QList<InferParam> outParams; runInference(input, outParams, errorMessage)) {
             model = input;
             for (auto &param : model.params) {
                 for (auto &outParam : outParams) {
@@ -121,9 +126,90 @@ void InferVarianceTask::runTask() {
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
+bool InferVarianceTask::runInference(const GenericInferModel &model, QList<InferParam> &outParams,
+                                     QString &error) {
+    if (!inferEngine->initialized()) {
+        qCritical().noquote() << "inferVariance: Environment is not initialized";
+        return false;
+    }
+
+    const auto &identifier = model.identifier;
+    std::string speakerName = model.speaker.toStdString();
+    const auto input = srt::NO<Var::VarianceStartInput>::create();
+    input->parameters = convertInputParams(model.params);
+    input->steps = appOptions->inference()->samplingSteps;
+
+    srt::NO<srt::Inference> inferenceVariance;
+    auto loader = inferEngine->findLoaderForSinger(identifier);
+    if (!loader) {
+        qCritical() << "inferVariance: Inference loader not found for" << identifier;
+        return false;
+    }
+
+    // Convert singer speaker id to inference speaker id
+    const auto importOptions = loader->importOptions().variance.as<Var::VarianceImportOptions>();
+    if (!importOptions) {
+        qCritical() << "inferVariance: Import options not found";
+    }
+    const auto &speakerMapping = importOptions->speakerMapping;
+    input->words = convertInputWords(model.words, speakerName, speakerMapping);
+    if (const auto it = speakerMapping.find(speakerName); it == speakerMapping.end()) {
+        if (!speakerMapping.empty()) {
+            qCritical() << "inferVariance: Speaker mapping not found for speaker" << speakerName;
+            return false;
+        }
+    } else {
+        input->speakers = std::vector{createStaticSpeaker(it->second)};
+        qDebug() << "mapped speaker" << speakerName << "to" << it->second;
+    }
+
+    // Create inference
+    if (auto exp = loader->createVariance(); !exp) {
+        qCritical().noquote().nospace() << "inferVariance: Failed to create variance inference for "
+                                        << identifier << ": " << exp.getError();
+        return false;
+    } else {
+        inferenceVariance = exp.get();
+    }
+    m_inferenceVariance = inferenceVariance;
+
+    // Run variance
+    srt::NO<Var::VarianceResult> result;
+    // Start inference
+    if (isTerminateRequested()) {
+        abort();
+        return false;
+    }
+    if (auto exp = inferenceVariance->start(input); !exp) {
+        qCritical().noquote().nospace() << "inferVariance: Failed to start variance inference for "
+                                        << identifier << ": " << exp.error().message();
+        return false;
+    } else {
+        result = exp.take().as<Var::VarianceResult>();
+    }
+
+    if (inferenceVariance->state() == srt::ITask::Failed) {
+        qCritical().noquote().nospace() << "inferVariance: Failed to run variance inference for "
+                                        << identifier << ": " << result->error.message();
+        return false;
+    }
+    outParams.reserve(result->predictions.size());
+    for (const auto &param : result->predictions) {
+        InferParam inferParam;
+        inferParam.tag.assign(param.tag.name());
+        inferParam.interval = param.interval;
+        inferParam.values.assign(param.values.begin(), param.values.end());
+        inferParam.dynamic = true;
+        outParams.emplace_back(std::move(inferParam));
+    }
+    return true;
+}
+
 void InferVarianceTask::terminate() {
+    if (m_inferenceVariance) {
+        m_inferenceVariance->stop();
+    }
     IInferTask::terminate();
-    inferEngine->terminateInferVarianceAsync();
 }
 
 void InferVarianceTask::abort() {
@@ -185,12 +271,11 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
     }
 
     GenericInferModel model;
-    model.singer = appOptions->general()->defaultSingerId;
-    model.speaker = appOptions->general()->defaultSpeakerId;
+    model.speaker = m_input.speaker;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening};
-    model.configPath = input().configPath;
     model.steps = appOptions->inference()->samplingSteps;
+    model.identifier = m_input.identifier;
     return model;
 }
 

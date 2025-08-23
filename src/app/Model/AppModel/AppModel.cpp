@@ -126,6 +126,21 @@ void AppModel::newProject() {
     singingClip->setClipLen(length);
     const auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
+    newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
+    // TODO: Temp Use
+    newTrack->setDefaultG2pId(defaultG2pId());
+    // if (soloExists) {
+    //     auto control = newTrack->control();
+    //     control.setMute(true);
+    //     newTrack->setControl(control);
+    // }
+
+    // TODO: set default singer and speaker here
+    //newTrack->setSingerIdentifier({
+    //    .singerId = "zhibin", //appOptions->general()->defaultSingerId,
+    //    .packageId = "zhibin", //appOptions->general()->defaultPackageId,
+    //    .packageVersion = QVersionNumber(5, 2), //appOptions->general()->defaultPackageVersion,
+    //});
     newTrack->insertClip(singingClip);
     d->m_tracks.append(newTrack);
 

@@ -10,6 +10,7 @@
 #include "Params.h"
 #include "Interface/IInferPiece.h"
 #include "Utils/Property.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
 
 #include <QObject>
 
@@ -23,7 +24,8 @@ public:
     SingingClip *clip;
     bool dirty = false;
 
-    QString configPath;
+    SingerIdentifier identifier;
+    QString speaker; // TODO: use dynamic mix
     QList<Note *> notes;
 
     // Infer result

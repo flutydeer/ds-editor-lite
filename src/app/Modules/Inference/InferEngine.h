@@ -11,7 +11,9 @@
 #include "Models/SingerIdentifier.h"
 #include "InferenceLoader.h"
 
+#include <QHash>
 #include <QMutex>
+#include <QReadWriteLock>
 #include <QObject>
 
 #include <synthrt/Core/SynthUnit.h>
@@ -51,7 +53,6 @@ public:
     QString inferenceDriverPath();
     QString inferenceRuntimePath();
     QString inferenceInterpreterPath();
-    bool configLoaded();
     // Returns a const reference to the SynthUnit. Intended for public, read-only access.
     const srt::SynthUnit &constSynthUnit() const;
 
@@ -74,43 +75,35 @@ private:
         srt::NO<srt::Inference> duration, pitch, variance, acoustic, vocoder;
     };
 
-    struct PackageContext {
-        srt::ScopedPackageRef pkg;
-        InferenceLoader loader;
-        InferenceSet inference;
-    };
-
     bool initialize(QString &error);
     bool loadPackage(const std::filesystem::path &packagePath, bool noLoad, srt::PackageRef &outPackage);
     bool loadPackage(const QString &packagePath, bool noLoad, srt::PackageRef &outPackage);
+    bool loadPackageAndAllSingers(const QString &packagePath, srt::PackageRef &outPackage);
+    void loadAllSingersFromPackage(const srt::PackageRef &package);
     static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package, const QString &singerId);
-    static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package, std::string_view singerId) ;
+    static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package, std::string_view singerId);
+    std::shared_ptr<InferenceLoader> findLoaderForSinger(const SingerIdentifier &identifier) const;
+#if false
     bool loadInferences(const QString &path);
-    bool loadInferencesForSinger(const InferenceLoader &loader);
-    bool loadInferencesForSinger(const srt::SingerSpec *singerSpec);
+#endif
     bool loadInferencesForSinger(const SingerIdentifier &identifier);
-    bool inferDuration(const GenericInferModel &model, std::vector<double> &outDuration, QString &error) const;
-    bool inferPitch(const GenericInferModel &model, InferParam &outPitch, QString &error) const;
-    bool inferVariance(const GenericInferModel &model, QList<InferParam> &outParams, QString &error) const;
-    bool inferAcoustic(const GenericInferModel &model, const QString &outputPath, QString &error) const;
-    void terminateInferDurationAsync() const;
-    void terminateInferPitchAsync() const;
-    void terminateInferVarianceAsync() const;
-    void terminateInferAcousticAsync() const;
+    void terminateInferDurationAll() const;
+    void terminateInferPitchAll() const;
+    void terminateInferVarianceAll() const;
+    void terminateInferAcousticAll() const;
     void dispose();
     // Provides mutable access to the SynthUnit. Restricted to friends and member functions.
     srt::SynthUnit &synthUnit();
 
     QMutex m_mutex;
     bool m_initialized = false;
-    bool m_configLoaded = false;
 
     srt::SynthUnit m_su;
 
+    mutable QReadWriteLock m_loaderRwLock, m_inferenceRwLock;
+    QHash<SingerIdentifier, std::shared_ptr<InferenceLoader>> m_loaders;
+    QHash<SingerIdentifier, InferenceSet> m_inferences;
     InferEnginePaths m_paths;
-
-    PackageContext m_pkgCtx;
-    std::unordered_map<std::string, std::shared_ptr<PackageContext>> m_pkgCtxs;
 };
 
 

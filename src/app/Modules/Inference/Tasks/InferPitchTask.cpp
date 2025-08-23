@@ -4,6 +4,8 @@
 
 #include "InferPitchTask.h"
 
+#include <dsinfer/Api/Inferences/Pitch/1/PitchApiL1.h>
+
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
@@ -11,14 +13,18 @@
 #include "Utils/JsonUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
+#include "InferTaskCommon.h"
 
 #include <QDebug>
 #include <QDir>
 #include <QJsonDocument>
 
+namespace Co = ds::Api::Common::L1;
+namespace Pit = ds::Api::Pitch::L1;
+
 bool InferPitchTask::InferPitchInput::operator==(const InferPitchInput &other) const {
     return clipId == other.clipId /*&& pieceId == other.pieceId*/ && notes == other.notes &&
-           configPath == other.configPath && qFuzzyCompare(tempo, other.tempo) &&
+           identifier == other.identifier && qFuzzyCompare(tempo, other.tempo) &&
            expressiveness == other.expressiveness;
 }
 
@@ -82,8 +88,8 @@ void InferPitchTask::runTask() {
     } else {
         QString errorMessage;
         qDebug() << "Pitch inference cache not found. Running inference...";
-        if (!inferEngine->loadInferences(m_input.configPath)) {
-            qCritical() << "Task failed" << m_input.configPath << "clipId:" << clipId()
+        if (!inferEngine->loadInferencesForSinger(m_input.identifier)) {
+            qCritical() << "Task failed" << m_input.identifier << "clipId:" << clipId()
                         << "pieceId:" << pieceId() << "taskId:" << id();
             return;
         }
@@ -91,7 +97,7 @@ void InferPitchTask::runTask() {
             abort();
             return;
         }
-        if (InferParam resultPitch; inferEngine->inferPitch(input, resultPitch, errorMessage)) {
+        if (InferParam resultPitch; runInference(input, resultPitch, errorMessage)) {
             model = input;
             for (auto &param : model.params) {
                 if (param.tag == "pitch") {
@@ -117,9 +123,86 @@ void InferPitchTask::runTask() {
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
+bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &outPitch,
+                             QString &error) {
+    if (!inferEngine->initialized()) {
+        qCritical().noquote() << "inferPitch: Environment is not initialized";
+        return false;
+    }
+
+    const auto &identifier = model.identifier;
+    std::string speakerName = model.speaker.toStdString();
+    const auto input = srt::NO<Pit::PitchStartInput>::create();
+    input->parameters = convertInputParams(model.params);
+    input->steps = appOptions->inference()->samplingSteps;
+
+    srt::NO<srt::Inference> inferencePitch;
+    auto loader = inferEngine->findLoaderForSinger(identifier);
+    if (!loader) {
+        qCritical() << "inferPitch: Inference loader not found for" << identifier;
+        return false;
+    }
+
+    // Convert singer speaker id to inference speaker id
+    const auto importOptions = loader->importOptions().pitch.as<Pit::PitchImportOptions>();
+    if (!importOptions) {
+        qCritical() << "inferPitch: Import options not found";
+    }
+    const auto &speakerMapping = importOptions->speakerMapping;
+    input->words = convertInputWords(model.words, speakerName, speakerMapping);
+    if (const auto it = speakerMapping.find(speakerName); it == speakerMapping.end()) {
+        if (!speakerMapping.empty()) {
+            qCritical() << "inferPitch: Speaker mapping not found for speaker" << speakerName;
+            return false;
+        }
+    } else {
+        input->speakers = std::vector{createStaticSpeaker(it->second)};
+        qDebug() << "mapped speaker" << speakerName << "to" << it->second;
+    }
+
+    // Create inference
+    if (auto exp = loader->createPitch(); !exp) {
+        qCritical().noquote().nospace() << "inferPitch: Failed to create pitch inference for "
+                                        << identifier << ": " << exp.getError();
+        return false;
+    } else {
+        inferencePitch = exp.get();
+    }
+    m_inferencePitch = inferencePitch;
+
+    // Run pitch
+    srt::NO<Pit::PitchResult> result;
+    // Start inference
+    if (isTerminateRequested()) {
+        abort();
+        return false;
+    }
+    if (auto exp = inferencePitch->start(input); !exp) {
+        qCritical().noquote().nospace() << "inferPitch: Failed to start pitch inference for "
+                                        << identifier << ": " << exp.error().message();
+        return false;
+    } else {
+        result = exp.take().as<Pit::PitchResult>();
+    }
+
+    if (inferencePitch->state() == srt::ITask::Failed) {
+        qCritical().noquote().nospace() << "inferPitch: Failed to run pitch inference for "
+                                        << identifier << ": " << result->error.message();
+        return false;
+    }
+
+    outPitch.tag = "pitch";
+    outPitch.interval = result->interval;
+    outPitch.values.assign(result->pitch.begin(), result->pitch.end());
+
+    return true;
+}
+
 void InferPitchTask::terminate() {
+    if (m_inferencePitch) {
+        m_inferencePitch->stop();
+    }
     IInferTask::terminate();
-    inferEngine->terminateInferPitchAsync();
 }
 
 void InferPitchTask::abort() {
@@ -168,12 +251,11 @@ GenericInferModel InferPitchTask::buildInputJson() const {
         pitch.values.append(0);
 
     GenericInferModel model;
-    model.singer = appOptions->general()->defaultSingerId;
-    model.speaker = appOptions->general()->defaultSpeakerId;
+    model.speaker = m_input.speaker;
     model.words = words;
     model.params = {pitch, expr};
-    model.configPath = input().configPath;
     model.steps = appOptions->inference()->samplingSteps;
+    model.identifier = m_input.identifier;
     return model;
 }
 

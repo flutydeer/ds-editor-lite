@@ -16,5 +16,5 @@ GetInstalledPackagesTask::GetInstalledPackagesTask() {
 
 void GetInstalledPackagesTask::runTask() {
     // TODO 获取进度？
-    result = packageManager->getInstalledPackages();
+    result = packageManager->refreshInstalledPackages();
 }

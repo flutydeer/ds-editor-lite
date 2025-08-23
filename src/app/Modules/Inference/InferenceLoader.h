@@ -57,6 +57,7 @@ public:
     QString packageId() const;
     QVersionNumber packageVersion() const;
     const srt::SingerSpec *singerSpec() const;
+    const InferenceImportOptionsSet &importOptions() const;
 
     bool hasDuration() const noexcept;
     bool hasPitch() const noexcept;
@@ -69,7 +70,6 @@ public:
     Result<srt::NO<srt::Inference>> createVariance() const;
     Result<srt::NO<srt::Inference>> createAcoustic() const;
     Result<srt::NO<srt::Inference>> createVocoder() const;
-
 private:
     const srt::SingerSpec *m_singerSpec = nullptr;
     InferenceSpecSet m_specs;
