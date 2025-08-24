@@ -45,7 +45,7 @@ int InferAcousticTask::pieceId() const {
 }
 
 bool InferAcousticTask::success() const {
-    return m_success;
+    return m_success.load(std::memory_order_acquire);
 }
 
 InferAcousticTask::InferAcousticTask(InferAcousticInput input) : m_input(std::move(input)) {
@@ -113,7 +113,7 @@ void InferAcousticTask::runTask() {
         }
     }
 
-    m_success = true;
+    m_success.store(true, std::memory_order_release);
     qInfo() << "Success:"
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }

@@ -18,9 +18,11 @@ InitInferEngineTask::InitInferEngineTask(QObject *parent) : Task(parent) {
 
 void InitInferEngineTask::runTask() {
     qDebug() << "Initialize inference engine...";
-    success = inferEngine->initialize(errorMessage);
-    if (!success) {
+    if (!inferEngine->initialize(errorMessage)) {
+        success.store(false, std::memory_order_release);
         qCritical().noquote().nospace()
             << "Failed to initialize inference engine: " << errorMessage;
+    } else {
+        success.store(true, std::memory_order_release);
     }
 }

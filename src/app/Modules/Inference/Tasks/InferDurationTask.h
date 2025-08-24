@@ -5,6 +5,10 @@
 #ifndef INFERDURATIONTASK_H
 #define INFERDURATIONTASK_H
 
+#include <atomic>
+
+#include <QReadWriteLock>
+
 #include <synthrt/SVS/Inference.h>
 
 #include "IInferTask.h"
@@ -29,8 +33,8 @@ public:
     [[nodiscard]] bool success() const override;
 
     explicit InferDurationTask(InferDurInput input);
-    InferDurInput input();
-    QList<InferInputNote> result();
+    InferDurInput input() const;
+    QList<InferInputNote> result() const;
 
 private:
     void runTask() override;
@@ -42,13 +46,13 @@ private:
     GenericInferModel buildInputJson() const;
     bool processOutput(const GenericInferModel &model);
 
-    QMutex m_mutex;
+    mutable QReadWriteLock m_rwLock;
     srt::NO<srt::Inference> m_inferenceDuration;
     QString m_previewText;
     InferDurInput m_input;
     InferDurInput m_result;
     QString m_inputHash;
-    bool m_success = false;
+    std::atomic<bool> m_success{false};
 };
 
 

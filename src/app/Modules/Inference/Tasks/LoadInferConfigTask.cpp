@@ -19,6 +19,6 @@ LoadInferConfigTask::LoadInferConfigTask(const QString &path) : m_path(path) {
 
 void LoadInferConfigTask::runTask() {
     qDebug() << "Loading inference config...";
-    success = inferEngine->loadInferences(m_path);
+    success.store(inferEngine->loadInferences(m_path), std::memory_order_release);
 }
 #endif

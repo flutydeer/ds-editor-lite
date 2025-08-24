@@ -5,9 +5,13 @@
 #ifndef TASK_H
 #define TASK_H
 
+#include <atomic>
+#include <cstdint>
+#include <type_traits>
+
 #include <QObject>
 #include <QRunnable>
-#include <QMutex>
+#include <QReadWriteLock>
 
 #include "Global/TaskGlobal.h"
 #include "Utils/UniqueObject.h"
@@ -27,6 +31,13 @@ public:
 class Task : public QObject, public QRunnable, public UniqueObject {
     Q_OBJECT
 public:
+    enum Flags : uint8_t {
+        TaskStarted = 1 << 0,
+        TaskAbortRequested = 1 << 1,
+        TaskStopped = 1 << 2,
+    };
+    using FlagType = std::underlying_type_t<Flags>;
+
     explicit Task(QObject *parent = nullptr) : QObject(parent) {
         setAutoDelete(false);
     }
@@ -39,33 +50,38 @@ public:
     //     terminate();
     // };
 
-    virtual void terminate();
-
-    [[nodiscard]] bool started() {
-        QMutexLocker locker(&m_mutex);
-        return m_started;
+    virtual void terminate() {
+        setFlag(TaskAbortRequested);
     }
 
-    bool stopped() {
-        QMutexLocker locker(&m_mutex);
-        return m_stopped;
+    [[nodiscard]] bool started() const {
+        return checkFlag(TaskStarted);
     }
 
-    bool terminated() {
-        QMutexLocker locker(&m_mutex);
-        return m_abortFlag;
+    bool stopped() const {
+        return checkFlag(TaskStopped);
+    }
+
+    bool terminated() const {
+        return checkFlag(TaskAbortRequested);
     }
 
     int priority() const {
-        return m_priority;
+        return m_priority.load(std::memory_order_acquire);
     }
 
     void setPriority(const int priority) {
-        m_priority = priority;
+        m_priority.store(priority, std::memory_order_release);
     }
 
-    [[nodiscard]] const TaskStatus &status() const;
-    void setStatus(const TaskStatus &status);
+    [[nodiscard]] const TaskStatus &status() const {
+        return m_status;
+    }
+
+    void setStatus(const TaskStatus &status) {
+        m_status = status;
+        emit statusUpdated(status);
+    }
 
 signals:
     void statusUpdated(const TaskStatus &status);
@@ -73,46 +89,50 @@ signals:
 
 protected:
     virtual void runTask() = 0;
-    bool isTerminateRequested();
 
-    int m_priority = 0;
+    bool isTerminateRequested() const {
+        return checkFlag(TaskAbortRequested);
+    }
+
+    std::atomic<int> m_priority{0};
 
 private:
     friend class TaskManager;
 
+    bool checkFlag(const FlagType flag) const {
+        return m_taskFlags.load(std::memory_order_acquire) & flag;
+    }
+
+    void setFlag(const FlagType flag) {
+        m_taskFlags.fetch_or(flag, std::memory_order_release);
+    }
+
+    void unsetFlag(const FlagType flag) {
+        m_taskFlags.fetch_and(~flag, std::memory_order_release);
+    }
+
     void run() override {
-        if (!m_started) {
-            m_started = true;
-            runTask();
-            emit finished();
-            m_stopped = true;
-        }
+        // CAS
+        FlagType expected = m_taskFlags.load(std::memory_order_acquire);
+        FlagType desired;
+
+        do {
+            if (expected & TaskStarted) {
+                return;
+            }
+            desired = expected | TaskStarted;
+        } while (!m_taskFlags.compare_exchange_weak(expected, desired, std::memory_order_acq_rel,
+                                                    std::memory_order_acquire));
+
+        runTask();
+        emit finished();
+
+        setFlag(TaskStopped);
     }
 
     TaskStatus m_status;
-    QMutex m_mutex;
-    bool m_started = false;
-    bool m_abortFlag = false;
-    bool m_stopped = false;
+    mutable QReadWriteLock m_statusLock;
+    std::atomic<FlagType> m_taskFlags{0};
 };
-
-inline const TaskStatus &Task::status() const {
-    return m_status;
-}
-
-inline void Task::setStatus(const TaskStatus &status) {
-    m_status = status;
-    emit statusUpdated(status);
-}
-
-inline void Task::terminate() {
-    QMutexLocker locker(&m_mutex);
-    m_abortFlag = true;
-}
-
-inline bool Task::isTerminateRequested() {
-    QMutexLocker locker(&m_mutex);
-    return m_abortFlag;
-}
 
 #endif // TASK_H

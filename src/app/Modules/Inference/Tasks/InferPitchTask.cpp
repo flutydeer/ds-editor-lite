@@ -37,7 +37,7 @@ int InferPitchTask::pieceId() const {
 }
 
 bool InferPitchTask::success() const {
-    return m_success;
+    return m_success.load(std::memory_order_acquire);
 }
 
 InferPitchTask::InferPitchTask(InferPitchInput input) : m_input(std::move(input)) {
@@ -118,7 +118,7 @@ void InferPitchTask::runTask() {
 
     JsonUtils::save(outputCachePath, model.serialize());
     processOutput(model);
-    m_success = true;
+    m_success.store(true, std::memory_order_release);
     qInfo() << "Success:"
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }

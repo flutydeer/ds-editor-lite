@@ -5,6 +5,8 @@
 #ifndef INFERACOUSTICTASK_H
 #define INFERACOUSTICTASK_H
 
+#include <atomic>
+
 #include <synthrt/SVS/Inference.h>
 
 #include "IInferTask.h"
@@ -58,7 +60,7 @@ private:
     InferAcousticInput m_input;
     QString m_result;
     QString m_inputHash;
-    bool m_success = false;
+    std::atomic<bool> m_success{false};
 };
 
 

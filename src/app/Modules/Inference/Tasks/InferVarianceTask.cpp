@@ -38,7 +38,7 @@ int InferVarianceTask::pieceId() const {
 }
 
 bool InferVarianceTask::success() const {
-    return m_success;
+    return m_success.load(std::memory_order_acquire);
 }
 
 InferVarianceTask::InferVarianceTask(InferVarianceInput input) : m_input(std::move(input)) {
@@ -121,7 +121,7 @@ void InferVarianceTask::runTask() {
 
     JsonUtils::save(outputCachePath, model.serialize());
     processOutput(model);
-    m_success = true;
+    m_success.store(true, std::memory_order_release);
     qInfo() << "Success:"
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }

@@ -5,6 +5,8 @@
 #ifndef INITINFERENGINETASK_H
 #define INITINFERENGINETASK_H
 
+#include <atomic>
+
 #include "Modules/Task/Task.h"
 
 class InitInferEngineTask : public Task {
@@ -12,7 +14,7 @@ class InitInferEngineTask : public Task {
 
 public:
     explicit InitInferEngineTask(QObject *parent = nullptr);
-    bool success = false;
+    std::atomic<bool> success{false};
     QString errorMessage;
 
 private:

@@ -5,6 +5,8 @@
 #ifndef INFERPITCHTASK_H
 #define INFERPITCHTASK_H
 
+#include <atomic>
+
 #include <synthrt/SVS/Inference.h>
 
 #include "IInferTask.h"
@@ -48,7 +50,7 @@ private:
     InferPitchInput m_input;
     InferParamCurve m_result;
     QString m_inputHash;
-    bool m_success = false;
+    std::atomic<bool> m_success{false};
 };
 
 

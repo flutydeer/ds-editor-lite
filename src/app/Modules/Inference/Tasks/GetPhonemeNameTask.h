@@ -25,9 +25,8 @@ private:
     void processNotes();
     QList<PhonemeNameResult> getPhonemeNames(const QList<QPair<QString, QString>> &input);
 
-    QMutex m_mutex;
     int m_clipId = -1;
-    bool m_success = false;
+    std::atomic<bool> m_success{false};
     QList<PhonemeNameInput> m_inputs;
     QString m_previewText;
 };

@@ -6,13 +6,16 @@
 #define LOADINFERCONFIGTASK_H
 
 #if false
+
+#include <atomic>
+
 #include "Modules/Task/Task.h"
 
 class LoadInferConfigTask : public Task {
     Q_OBJECT
 public:
     explicit LoadInferConfigTask(const QString &path);
-    bool success = false;
+    std::atomic<bool> success{false};
 
 private:
     void runTask() override;

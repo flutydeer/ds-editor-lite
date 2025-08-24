@@ -36,7 +36,7 @@ int GetPhonemeNameTask::clipId() const {
 }
 
 bool GetPhonemeNameTask::success() const {
-    return m_success;
+    return m_success.load(std::memory_order_acquire);
 }
 
 void GetPhonemeNameTask::runTask() {
@@ -93,6 +93,6 @@ QList<PhonemeNameResult>
         phonemeNameResult.append(note);
     }
 
-    m_success = true;
+    m_success.store(true, std::memory_order_release);
     return phonemeNameResult;
 }

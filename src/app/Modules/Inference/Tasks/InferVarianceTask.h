@@ -5,6 +5,8 @@
 #ifndef INFERVARIANCETASK_H
 #define INFERVARIANCETASK_H
 
+#include <atomic>
+
 #include <synthrt/SVS/Inference.h>
 
 #include "IInferTask.h"
@@ -58,7 +60,7 @@ private:
     InferVarianceInput m_input;
     InferVarianceResult m_result;
     QString m_inputHash;
-    bool m_success = false;
+    std::atomic<bool> m_success{false};
 };
 
 #endif // INFERVARIANCETASK_H

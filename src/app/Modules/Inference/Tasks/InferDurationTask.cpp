@@ -40,7 +40,7 @@ int InferDurationTask::pieceId() const {
 }
 
 bool InferDurationTask::success() const {
-    return m_success;
+    return m_success.load(std::memory_order_acquire);
 }
 
 InferDurationTask::InferDurationTask(InferDurInput input) : m_input(std::move(input)) {
@@ -54,13 +54,12 @@ InferDurationTask::InferDurationTask(InferDurInput input) : m_input(std::move(in
              << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
-InferDurationTask::InferDurInput InferDurationTask::input() {
-    QMutexLocker locker(&m_mutex);
+InferDurationTask::InferDurInput InferDurationTask::input() const {
     return m_input;
 }
 
-QList<InferInputNote> InferDurationTask::result() {
-    QMutexLocker locker(&m_mutex);
+QList<InferInputNote> InferDurationTask::result() const{
+    QReadLocker readLocker(&m_rwLock);
     return m_result.notes;
 }
 
@@ -134,7 +133,7 @@ void InferDurationTask::runTask() {
 
     JsonUtils::save(outputCachePath, model.serialize());
     processOutput(model);
-    m_success = true;
+    m_success.store(true, std::memory_order_release);
     qInfo() << "Success:"
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
@@ -244,6 +243,7 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
             offsets.append({word.length(), phoneme.start});
         }
     }
+    QWriteLocker writeLocker(&m_rwLock);
     m_result = m_input;
     int phoneIndex = 1;
     int noteIndex = 0;
