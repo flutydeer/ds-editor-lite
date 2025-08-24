@@ -11,10 +11,9 @@ class SpeakerInfoData;
 class SpeakerInfo {
 public:
     SpeakerInfo();
-    explicit SpeakerInfo(const QString &id);
-    SpeakerInfo(const QString &id, const QString &name);
-    SpeakerInfo(const QString &id, const QString &name, const QString &toneMin,
-                const QString &toneMax);
+    explicit SpeakerInfo(QString id);
+    SpeakerInfo(QString id, QString name);
+    SpeakerInfo(QString id, QString name, QString toneMin, QString toneMax);
 
     SpeakerInfo(const SpeakerInfo &other);
     SpeakerInfo(SpeakerInfo &&other) noexcept;

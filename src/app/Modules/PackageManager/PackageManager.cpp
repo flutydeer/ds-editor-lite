@@ -11,6 +11,8 @@
 #include "Models/PackageInfo.h"
 #include "Models/SingerInfo.h"
 
+#include <stdcorelib/path.h>
+
 #include <synthrt/Core/SynthUnit.h>
 #include <synthrt/Core/PackageRef.h>
 #include <synthrt/SVS/SingerContrib.h>
@@ -43,6 +45,17 @@ namespace {
         }
 
         return {};
+    }
+
+    QString joinPath(const std::string &originalPath, const std::filesystem::path &parentPath) {
+        if (originalPath.empty()) {
+            return {};
+        }
+        auto path = stdc::path::from_utf8(originalPath);
+        if (path.is_relative() && !parentPath.empty()) {
+            path = stdc::clean_path(parentPath / path);
+        }
+        return StringUtils::path_to_qstr(path);
     }
 
     QList<SpeakerInfo> parseSpeakerInfo(const srt::JsonObject &manifestConfiguration,
@@ -87,9 +100,70 @@ namespace {
                     }
                 }
             }
-            result.emplace_back(speakerId, speakerName, speakerToneMin, speakerToneMax);
+            result.emplace_back(std::move(speakerId), std::move(speakerName),
+                                std::move(speakerToneMin), std::move(speakerToneMax));
         }
         return result;
+    }
+
+    QList<LanguageInfo> parseLanguageInfo(const srt::JsonObject &manifestConfiguration,
+                                          const std::string &currentLocale,
+                                          const std::filesystem::path &singerPath) {
+        QList<LanguageInfo> result;
+        const auto it_languages = manifestConfiguration.find("languages");
+        if (it_languages == manifestConfiguration.end()) {
+            return result;
+        }
+        const auto &languagesValue = it_languages->second;
+        if (!languagesValue.isArray()) {
+            return result;
+        }
+        const auto &languages = languagesValue.toArray();
+        result.reserve(static_cast<QList<LanguageInfo>::size_type>(languages.size()));
+        for (const auto &languageValue : languages) {
+            if (!languageValue.isObject()) {
+                continue;
+            }
+            const auto &language = languageValue.toObject();
+            QString languageId;
+            if (const auto it = language.find("id"); it != language.end()) {
+                languageId.assign(it->second.toString());
+            }
+            QString languageName;
+            if (const auto it = language.find("name"); it != language.end()) {
+                if (auto val = parseDisplayText(it->second, currentLocale); !val.isEmpty()) {
+                    languageName = std::move(val);
+                }
+            }
+            QString languageG2p;
+            if (const auto it = language.find("g2p"); it != language.end()) {
+                languageG2p.assign(it->second.toString());
+            }
+            QString languageDict;
+            if (const auto it = language.find("dict"); it != language.end()) {
+                languageDict = joinPath(it->second.toString(), singerPath);
+            }
+            result.emplace_back(std::move(languageId), std::move(languageName),
+                                std::move(languageG2p), std::move(languageDict));
+        }
+        return result;
+    }
+
+    QString parseDefaultLanguage(const srt::JsonObject &manifestConfiguration) {
+        const auto it = manifestConfiguration.find("defaultLanguage");
+        if (it == manifestConfiguration.end()) {
+            return {};
+        }
+        return QString::fromUtf8(it->second.toString());
+    }
+
+    QString parseDefaultDict(const srt::JsonObject &manifestConfiguration,
+                             const std::filesystem::path &singerPath) {
+        const auto it = manifestConfiguration.find("defaultDict");
+        if (it == manifestConfiguration.end()) {
+            return {};
+        }
+        return joinPath(it->second.toString(), singerPath);
     }
 }
 
@@ -142,11 +216,29 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 }
                 auto singerId = QString::fromUtf8(singerSpec->id());
                 auto singerName = QString::fromUtf8(singerSpec->name().text(locale));
+                const auto &singerPath = singerSpec->path();
                 const auto &manifestConfiguration = singerSpec->manifestConfiguration();
-                singers.emplace_back(
-                    SingerIdentifier{singerId, packageId, packageVersion},
-                    singerName,
-                    parseSpeakerInfo(manifestConfiguration, locale));
+                auto languageInfos = parseLanguageInfo(manifestConfiguration, locale, singerPath);
+                auto defaultLanguage = parseDefaultLanguage(manifestConfiguration);
+                auto defaultDict = parseDefaultDict(manifestConfiguration, singerPath);
+                // If defaultDict is not specified, use the dict of defaultLanguage
+                if (defaultDict.isEmpty()) {
+                    if (!defaultLanguage.isEmpty()) {
+                        for (const auto &languageInfo : std::as_const(languageInfos)) {
+                            if (languageInfo.id() != defaultLanguage) {
+                                continue;
+                            }
+                            if (const auto &dict = languageInfo.dict(); !dict.isEmpty()) {
+                                defaultDict = dict;
+                            }
+                            break;
+                        }
+                    }
+                }
+                singers.emplace_back(SingerIdentifier{singerId, packageId, packageVersion},
+                                     singerName, parseSpeakerInfo(manifestConfiguration, locale),
+                                     std::move(languageInfos), std::move(defaultLanguage),
+                                     std::move(defaultDict));
             }
             result.successfulPackages.emplace_back(packageId, packageVersion, vendor, description,
                                                    copyright, path, singers);

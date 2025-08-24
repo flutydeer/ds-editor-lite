@@ -39,16 +39,16 @@ bool SpeakerInfoData::isEmpty() const {
 SpeakerInfo::SpeakerInfo() : d(new SpeakerInfoData()) {
 }
 
-SpeakerInfo::SpeakerInfo(const QString &id) : d(new SpeakerInfoData(id)) {
+SpeakerInfo::SpeakerInfo(QString id) : d(new SpeakerInfoData(std::move(id))) {
 }
 
-SpeakerInfo::SpeakerInfo(const QString &id, const QString &name)
-    : d(new SpeakerInfoData(id, name)) {
+SpeakerInfo::SpeakerInfo(QString id, QString name)
+    : d(new SpeakerInfoData(std::move(id), std::move(name))) {
 }
 
-SpeakerInfo::SpeakerInfo(const QString &id, const QString &name, const QString &toneMin,
-                         const QString &toneMax)
-    : d(new SpeakerInfoData(id, name, toneMin, toneMax)) {
+SpeakerInfo::SpeakerInfo(QString id, QString name, QString toneMin, QString toneMax)
+    : d(new SpeakerInfoData(std::move(id), std::move(name), std::move(toneMin),
+                            std::move(toneMax))) {
 }
 
 SpeakerInfo::SpeakerInfo(const SpeakerInfo &other) = default;
