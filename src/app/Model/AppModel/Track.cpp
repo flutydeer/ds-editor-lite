@@ -44,37 +44,37 @@ OverlappableSerialList<Clip> Track::clips() const {
     return m_clips;
 }
 
-static void setTrackSingerIdentifierForClip(Clip *clip, const SingerIdentifier &identifier) {
+static void setTrackSingerForClip(Clip *clip, const SingerInfo &singerInfo) {
     if (!clip) {
         return;
     }
     if (clip->clipType() == IClip::Singing) {
         // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
         const auto singingClip = static_cast<SingingClip *>(clip);
-        singingClip->trackSingerIdentifier = identifier;
+        singingClip->trackSingerInfo = singerInfo;
     }
 }
 
-static void setTrackSpeakerForClip(Clip *clip, const QString &speaker) {
+static void setTrackSpeakerForClip(Clip *clip, const SpeakerInfo &speakerInfo) {
     if (!clip) {
         return;
     }
     if (clip->clipType() == IClip::Singing) {
         // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
         const auto singingClip = static_cast<SingingClip *>(clip);
-        singingClip->trackSpeaker = speaker;
+        singingClip->trackSpeakerInfo = speakerInfo;
     }
 }
 
 void Track::insertClip(Clip *clip) {
-    setTrackSingerIdentifierForClip(clip, m_identifier);
-    setTrackSpeakerForClip(clip, m_speaker);
+    setTrackSingerForClip(clip, m_singerInfo);
+    setTrackSpeakerForClip(clip, m_speakerInfo);
     m_clips.add(clip);
-    connect(this, &Track::singerIdentifierChanged, clip, [clip, this]() {
-        setTrackSingerIdentifierForClip(clip, m_identifier);
+    connect(this, &Track::singerChanged, clip, [clip, this]() {
+        setTrackSingerForClip(clip, m_singerInfo);
     });
     connect(this, &Track::speakerChanged, clip, [clip, this]() {
-        setTrackSpeakerForClip(clip, m_speaker);
+        setTrackSpeakerForClip(clip, m_speakerInfo);
     });
 }
 
@@ -119,28 +119,36 @@ void Track::setDefaultG2pId(const QString &g2pId) {
     m_defaultG2pId = g2pId;
 }
 
-const SingerIdentifier &Track::singerIdentifier() const {
-    return m_identifier;
+SingerIdentifier Track::singerIdentifier() const {
+    return m_singerInfo.identifier();
 }
 
-void Track::setSingerIdentifier(SingerIdentifier identifier) {
-    if (m_identifier == identifier) {
+SingerInfo Track::singerInfo() const {
+    return m_singerInfo;
+}
+
+void Track::setSingerInfo(const SingerInfo &singerInfo) {
+    if (m_singerInfo == singerInfo) {
         return;
     }
-    m_identifier = std::move(identifier);
-    emit singerIdentifierChanged(m_identifier);
+    m_singerInfo = singerInfo;
+    emit singerChanged(m_singerInfo);
 }
 
-QString Track::speaker() const {
-    return m_speaker;
+QString Track::speakerId() const {
+    return speakerInfo().id();
 }
 
-void Track::setSpeaker(const QString &speaker) {
-    if (m_speaker == speaker) {
+SpeakerInfo Track::speakerInfo() const {
+    return m_speakerInfo;
+}
+
+void Track::setSpeakerInfo(const SpeakerInfo &speakerInfo) {
+    if (m_speakerInfo == speakerInfo) {
         return;
     }
-    m_speaker = speaker;
-    emit speakerChanged(m_speaker);
+    m_speakerInfo = speakerInfo;
+    emit speakerChanged(m_speakerInfo);
 }
 
 void Track::notifyClipChanged(const ClipChangeType type, Clip *clip) {

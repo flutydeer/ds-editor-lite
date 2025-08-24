@@ -40,6 +40,8 @@ public:
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void onNotePropertyChanged(Note *note);
+    void setSingerName(const QString &singerName);
+    void setSpeakerName(const QString &speakerName);
     void setDefaultLanguage(const QString &language);
 
 private:
@@ -51,6 +53,8 @@ private:
     [[nodiscard]] QString iconPath() const override;
 
     QList<NoteViewModel *> m_notes;
+    QString m_singerName;
+    QString m_speakerName;
     QString m_language = "unknown";
 
     void addNote(Note *note);

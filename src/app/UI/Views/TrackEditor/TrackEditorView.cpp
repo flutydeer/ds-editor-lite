@@ -271,9 +271,17 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     clipView->setTrackIndex(trackIndex);
     const auto &notesRef = clip->notes();
     clipView->loadNotes(notesRef);
+    clipView->setSingerName(clip->getSingerInfo().name());
+    clipView->setSpeakerName(clip->getSpeakerInfo().name());
     clipView->setDefaultLanguage(clip->defaultLanguage);
     m_tracksScene->addCommonItem(clipView);
     qDebug() << "Singing clip graphics item added to scene" << clipView->id() << clipView->name();
+    connect(clip, &SingingClip::singerChanged, this, [clipView](const SingerInfo &newSingerInfo) {
+        clipView->setSingerName(newSingerInfo.name());
+    });
+    connect(clip, &SingingClip::speakerChanged, this, [clipView](const SpeakerInfo &newSpeakerInfo) {
+        clipView->setSpeakerName(newSpeakerInfo.name());
+    });
     connect(clip, &SingingClip::defaultLanguageChanged, clipView,
             &SingingClipView::setDefaultLanguage);
     connect(clip, &SingingClip::noteChanged, clipView, &SingingClipView::onNoteListChanged);

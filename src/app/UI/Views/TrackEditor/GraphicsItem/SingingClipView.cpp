@@ -86,13 +86,24 @@ void SingingClipView::onNotePropertyChanged(Note *note) {
     addNote(note);
 }
 
+void SingingClipView::setSingerName(const QString &singerName) {
+    m_singerName = singerName;
+    update();
+}
+
+void SingingClipView::setSpeakerName(const QString &speakerName) {
+    m_speakerName = speakerName;
+    update();
+}
+
 void SingingClipView::setDefaultLanguage(const QString &language) {
     m_language = language;
     update();
 }
 
 QString SingingClipView::text() const {
-    return AbstractClipView::text() + m_language + " ";
+    return AbstractClipView::text() + m_singerName +
+           (!m_speakerName.isEmpty() ? (" (" + m_speakerName + ")") : "") + " " + m_language + " ";
 }
 
 void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) {

@@ -208,8 +208,8 @@ SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int t
     singingClip->defaultLanguage = track->defaultLanguage();
     // TODO: Temp Use
     singingClip->defaultG2pId = g2pIdFromLanguage(singingClip->defaultLanguage);
-    singingClip->trackSingerIdentifier = track->singerIdentifier();
-    singingClip->trackSpeaker = track->speaker();
+    singingClip->trackSingerInfo = track->singerInfo();
+    singingClip->trackSpeakerInfo = track->speakerInfo();
     const auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(singingClip);

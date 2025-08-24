@@ -161,8 +161,10 @@ QString SingerInfo::toString() const {
                    "languages=[%4], defaultLanguage=%5, defaultDict=%6)")
         .arg(d->name)
         .arg(d->identifier.singerId)
-        .arg(speakers.join(", ").arg(
-            languages.join(", ").arg(d->defaultLanguage).arg(d->defaultDict)));
+        .arg(speakers.join(", "))
+        .arg(languages.join(", "))
+        .arg(d->defaultLanguage)
+        .arg(d->defaultDict);
 }
 
 void swap(SingerInfo &first, SingerInfo &second) noexcept {

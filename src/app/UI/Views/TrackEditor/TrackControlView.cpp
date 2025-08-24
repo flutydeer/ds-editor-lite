@@ -26,6 +26,11 @@
 
 using namespace SVS;
 
+namespace {
+    constexpr auto SingerInfoRole = Qt::UserRole;
+    constexpr auto SingerIdentifierRole = Qt::UserRole + 1;
+}
+
 TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent)
     : QWidget(parent), ITrack(track->id()), m_track(track) {
     m_item = item;
@@ -72,7 +77,10 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
             const auto singers = package.singers();
             for (const auto &singer : singers) {
                 QString singerText = singer.name();
-                cbSinger->addItem(singerText, QVariant::fromValue(singer.identifier()));
+                const auto index = cbSinger->count();
+                cbSinger->insertItem(index, singerText);
+                cbSinger->setItemData(index, QVariant::fromValue(singer), SingerInfoRole);
+                cbSinger->setItemData(index, QVariant::fromValue(singer.identifier()), SingerIdentifierRole);
             }
         }
     };
@@ -82,22 +90,21 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     connect(cbSinger, &ComboBox::currentIndexChanged, this, [this](int) {
         auto currentText = cbSinger->currentText();
-        auto singerIdentifier = cbSinger->currentData().value<SingerIdentifier>();
+        auto singerInfo = cbSinger->currentData(SingerInfoRole).value<SingerInfo>();
         qDebug().noquote().nospace() << "Singer clicked: " << currentText;
         if (!m_track) {
             return;
         }
-        m_track->setSingerIdentifier(singerIdentifier);
-        const auto singerInfo = packageManager->findSingerByIdentifier(singerIdentifier);
+        m_track->setSingerInfo(singerInfo);
         if (!singerInfo.isEmpty()) {
             const auto speakers = singerInfo.speakers();
             if (!speakers.isEmpty()) {
-                m_track->setSpeaker(speakers[0].id());
+                m_track->setSpeakerInfo(speakers[0]);
             } else {
-                m_track->setSpeaker({});
+                m_track->setSpeakerInfo({});
             }
         } else {
-            m_track->setSpeaker({});
+            m_track->setSpeakerInfo({});
         }
     });
 
@@ -207,27 +214,27 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
             QString singerText = singer.name() + " (" + singer.identifier().packageId + " v" +
                                  singer.identifier().packageVersion.toString() + ')';
             auto singerAction = singerMenu->addAction(singerText);
-            connect(singerAction, &QAction::triggered, this,
-                    [singerAction, singerIdentifier = singer.identifier(), this] {
-                        qDebug().noquote().nospace() << "Singer clicked: " << singerAction->text();
-                        if (!m_track) {
-                            return;
-                        }
-                        auto comboBoxIndex = cbSinger->findData(QVariant::fromValue(singerIdentifier));
-                        if (comboBoxIndex != -1) {
-                            cbSinger->setCurrentIndex(comboBoxIndex);
-                        }
-                    });
+            connect(singerAction, &QAction::triggered, this, [singerAction, singer, this] {
+                qDebug().noquote().nospace() << "Singer clicked: " << singerAction->text();
+                if (!m_track) {
+                    return;
+                }
+                auto comboBoxIndex = cbSinger->findData(QVariant::fromValue(singer.identifier()),
+                                                        SingerIdentifierRole);
+                if (comboBoxIndex != -1) {
+                    cbSinger->setCurrentIndex(comboBoxIndex);
+                }
+            });
         }
     }
     auto actionSetSpeaker = new QAction("Set speaker", this);
     connect(actionSetSpeaker, &QAction::triggered, this, [this] {
-        const auto singerInfo = packageManager->findSingerByIdentifier(m_track->singerIdentifier());
+        const auto singerInfo = m_track->singerInfo();
         const auto speakers = singerInfo.speakers();
         QStringList speakerLabels;
-        QHash<QString, QString> speakerIdMapping;
+        QHash<QString, SpeakerInfo> speakerInfoMapping;
         speakerLabels.reserve(speakers.size() + 1);
-        speakerIdMapping.reserve(speakers.size());
+        speakerInfoMapping.reserve(speakers.size());
         speakerLabels.emplace_back("(not specified)");
         int listCurrentIndex = 0; // 0 as not specified
         int currentIndex = 0;
@@ -236,9 +243,9 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
             const auto speakerName = speaker.name();
             const auto speakerLabel = speakerName + " (" + speakerId + ")";
             speakerLabels.emplace_back(speakerLabel);
-            speakerIdMapping[speakerLabel] = speakerId;
+            speakerInfoMapping[speakerLabel] = speaker;
             ++currentIndex;
-            if (m_track->speaker() == speakerId) {
+            if (m_track->speakerInfo() == speaker) {
                 listCurrentIndex = currentIndex;
             }
         }
@@ -247,12 +254,13 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
             this, "Input select", "Please select speaker id for singer " + cbSinger->currentText(),
             speakerLabels, listCurrentIndex, false, &ok);
         if (ok) {
-            if (const auto it = speakerIdMapping.find(currentSpeakerLabel);
-                it != speakerIdMapping.end()) {
-                m_track->setSpeaker(it.value());
-                qDebug() << "Speaker for track" << m_track->id() << "set to" << it.value();
+            if (const auto it = speakerInfoMapping.find(currentSpeakerLabel);
+                it != speakerInfoMapping.end()) {
+                m_track->setSpeakerInfo(it.value());
+                qDebug() << "Speaker for track" << m_track->id() << "set to" << it.value().name()
+                         << " (" << it.value().id() << ")";
             } else {
-                m_track->setSpeaker({});
+                m_track->setSpeakerInfo({});
                 qDebug() << "Speaker for track" << m_track->id() << "cleared";
             }
         }
