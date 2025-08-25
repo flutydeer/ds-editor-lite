@@ -12,7 +12,6 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
-#include "Modules/Language/S2p.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
 #include "UI/Dialogs/Search/SearchDialog.h"

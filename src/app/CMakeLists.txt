@@ -150,7 +150,6 @@ else()
     )
 endif()
 
-# copy phoneme dict
 if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND

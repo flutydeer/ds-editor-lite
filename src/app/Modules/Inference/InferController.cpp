@@ -364,7 +364,7 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
     QList<PhonemeNameInput> inputs;
     for (const auto note : clip.notes())
         inputs.append({note->lyric(), note->language(), note->pronunciation().result()});
-    auto task = new GetPhonemeNameTask(clip.id(), inputs);
+    auto task = new GetPhonemeNameTask(clip, inputs);
     task->notesRef = clip.notes().toList();
     connect(task, &Task::finished, this, [task, this] { handleGetPhoneTaskFinished(*task); });
     m_getPhoneTasks.add(task);
@@ -374,8 +374,9 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
 
 void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
     const auto inputNotes = Helper::buildInferInputNotes(piece.notes);
-    const InferDurationTask::InferDurInput input = {piece.clip->id(), piece.id(), inputNotes,
-                                                    piece.clip->getSingerIdentifier(), piece.speaker, appModel->tempo()};
+    const InferDurationTask::InferDurInput input = {
+        piece.clip->id(), piece.id(),       inputNotes, piece.clip->getSingerIdentifier(),
+        piece.speaker,    appModel->tempo()};
     // 清空原有的自动参数
     Helper::resetPhoneOffset(piece.notes, piece);
     auto task = new InferDurationTask(input);
