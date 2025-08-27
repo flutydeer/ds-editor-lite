@@ -73,7 +73,6 @@ QList<Note *> convertNotes(const QList<QDspx::Note> &arrNotes, const int offset,
         note->setKeyIndex(dsNote.keyNum);
         note->setLyric(dsNote.lyric.isEmpty() ? appOptions->general()->defaultLyric : dsNote.lyric);
         note->setLanguage(language);
-        note->setG2pId(g2pIdFromLanguage(language));
         notes.append(note);
     }
     return notes;

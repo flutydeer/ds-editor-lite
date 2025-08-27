@@ -71,7 +71,6 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
         note->setKeyIndex(key);
         note->setLyric(defaultLyric);
         note->setLanguage(language);
-        note->setG2pId(g2pId);
         notes.append(note);
     }
 

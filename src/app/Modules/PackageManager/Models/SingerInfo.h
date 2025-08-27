@@ -31,7 +31,9 @@ public:
     QVersionNumber packageVersion() const;
     QList<SpeakerInfo> speakers() const;
     QList<LanguageInfo> languages() const;
+    QString g2pId(const QString &language) const;
     QString defaultLanguage() const;
+    QString defaultG2pId() const;
     QString defaultDict() const;
 
     void setIdentifier(const SingerIdentifier &identifier);

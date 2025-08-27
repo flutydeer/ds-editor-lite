@@ -22,10 +22,9 @@ EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &
 void EditNoteWordPropertiesAction::execute() {
     qsizetype i = 0;
     for (const auto note : m_notes) {
-        auto [lyric, language, g2pId, pronunciation, pronCandidates, phonemes] = m_newArgs.at(i);
+        auto [lyric, language, pronunciation, pronCandidates, phonemes] = m_newArgs.at(i);
         note->setLyric(lyric);
         note->setLanguage(language);
-        note->setG2pId(g2pId);
         // note->setPhonemeInfo(Note::Original, arg.phonemes.original);
         // note->setPhonemeInfo(Note::Edited, arg.phonemes.edited);
         note->setPhonemes(phonemes);
@@ -38,11 +37,10 @@ void EditNoteWordPropertiesAction::execute() {
 
 void EditNoteWordPropertiesAction::undo() {
     for (auto i = m_notes.count() - 1; i >= 0; i--) {
-        auto [lyric, language, g2pId, pronunciation, pronCandidates, phonemes] = m_oldArgs.at(i);
+        auto [lyric, language, pronunciation, pronCandidates, phonemes] = m_oldArgs.at(i);
         const auto note = m_notes.at(i);
         note->setLyric(lyric);
         note->setLanguage(language);
-        note->setG2pId(g2pId);
         // note->setPhonemeInfo(Note::Original, arg.phonemes.original);
         note->setPhonemes(phonemes);
         note->setPronunciation(Note::Edited, pronunciation.edited);
