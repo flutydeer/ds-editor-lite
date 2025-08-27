@@ -11,7 +11,7 @@ namespace LangSetting {
         Q_OBJECT
 
     public:
-        explicit EnglishSet(QObject *parent = nullptr) : IG2pSetFactory("eng", parent) {
+        explicit EnglishSet(QObject *parent = nullptr) : IG2pSetFactory("eng-cmu", parent) {
             d = LangMgr::ILanguageManager::instance()->g2p(id());
         }
 
