@@ -1,8 +1,8 @@
 vcpkg_from_github(
         OUT_SOURCE_PATH SOURCE_PATH
         REPO wolfgitpr/language-manager
-        REF ff9447cf9a761422acc56228a53c5d2d95afa99f
-        SHA512 4893ff192e96e7ae36dfe8fa8dc500e2f875d34a547674246ae3cb3e1c9b6195d29eef78431203409250f0cc6ccd725ae33e5fd09a54eb5fdb4f9e4ed49bf220
+        REF f7d1406695616ed55a3bba791001c522d3a3ff5b
+        SHA512 57e35032a19c86f2cfaa240ffc3c53754cb9ace5c19e6cabaa058e498e241e2e820fa0c1327775323213a449c3f418dc75c98d20af7bb87a5804bef41ab8a7c1
         HEAD_REF main
 )
 
