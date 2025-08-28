@@ -25,10 +25,10 @@ inline bool JsonUtils::load(const QString &filename, QJsonObject &jsonObj) {
             return false;
         }
 
-        auto data = file.readAll();
+        const auto data = file.readAll();
         file.close();
         QJsonParseError err;
-        QJsonDocument json = QJsonDocument::fromJson(data, &err);
+        const QJsonDocument json = QJsonDocument::fromJson(data, &err);
         if (err.error != QJsonParseError::NoError) {
             Log::e("JsonUtils", QString("Failed to parse json file: %1 error: %2")
                                     .arg(filename, err.errorString()));

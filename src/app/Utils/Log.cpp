@@ -20,17 +20,17 @@ QString Log::LogMessage::toConsoleText() const {
     return QString("%1 %2 %3 %4").arg(time, padText(tag, consoleTagWidth), levelStr, textStr);
 }
 
-QString Log::LogMessage::levelText(LogLevel level) {
+QString Log::LogMessage::levelText(const LogLevel level) {
     const QStringList levels{"D", "I", "W", "E", "F"};
     return levels[level];
 }
 
-QString Log::LogMessage::padText(const QString &text, int spaces) {
+QString Log::LogMessage::padText(const QString &text, const int spaces) {
     QString result;
     if (text.length() >= spaces)
         result = text.left(spaces);
     else {
-        auto padding = spaces - text.length();
+        const auto padding = spaces - text.length();
         QString spacingText;
         for (auto i = 0; i < padding; i++)
             spacingText += " ";
@@ -43,7 +43,7 @@ Log::Log() {
     m_logFileName = QDateTime::currentDateTime().toString("yyyy_MM_dd_hh_mm_ss") + ".log";
 }
 
-void Log::handler(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
+void Log::handler(const QtMsgType type, const QMessageLogContext &context, const QString &msg) {
     if (msg.startsWith("QWindowsWindow::setGeometry: Unable to set geometry") ||
         msg.startsWith("skipping QEventPoint(id=1 ts=0 pos=0,0"))
         return;
@@ -94,7 +94,7 @@ void Log::logGpuInfo() {
     qInfo() << "--------- GPU Info End ---------";
 }
 
-void Log::setConsoleLogLevel(LogLevel level) {
+void Log::setConsoleLogLevel(const LogLevel level) {
     instance()->m_consoleLogLevel = level;
 }
 
@@ -103,7 +103,7 @@ void Log::setConsoleTagFilter(const QStringList &tags) {
 }
 
 void Log::setLogDirectory(const QString &directory) {
-    auto dir = QDir(directory);
+    const auto dir = QDir(directory);
     if (!dir.exists()) {
         if (!dir.mkdir(directory))
             qFatal("Unable to create directory %s", directory.toUtf8().data());
@@ -141,7 +141,7 @@ QString Log::timeStr() {
     return QDateTime::currentDateTime().toString("hh:mm:ss");
 }
 
-QString Log::colorizeText(LogLevel level, const QString &text) {
+QString Log::colorizeText(const LogLevel level, const QString &text) {
     if (level == Debug)
         return QString("\033[0m\033[32m%1\033[0m").arg(text);
     if (level == Info)
@@ -151,7 +151,7 @@ QString Log::colorizeText(LogLevel level, const QString &text) {
     return QString("\033[0m\033[31m%1\033[0m").arg(text); // Error or Fatal
 }
 
-QString Log::colorizeHighlightText(LogLevel level, const QString &text) {
+QString Log::colorizeHighlightText(const LogLevel level, const QString &text) {
     if (level == Debug)
         return QString("\033[0m\033[42;30m%1\033[0m").arg(text);
     if (level == Info)
@@ -168,8 +168,7 @@ bool Log::canLogToConsole(const LogMessage &message) {
     if (m_tagFilter.isEmpty())
         return true;
 
-    return std::any_of(m_tagFilter.begin(), m_tagFilter.end(),
-                       [&](const QString &tag) { return tag == message.tag; });
+    return std::ranges::any_of(m_tagFilter, [&](const QString &tag) { return tag == message.tag; });
 }
 
 void Log::log(const LogMessage &message) {
@@ -181,7 +180,7 @@ void Log::log(const LogMessage &message) {
         consoleStream << message.toConsoleText() << Qt::endl;
 
     if (m_logToFile) {
-        QString logFilePath = m_logDirectory + QDir::separator() + m_logFileName;
+        const QString logFilePath = m_logDirectory + QDir::separator() + m_logFileName;
         QFile logFile(logFilePath);
         logFile.open(QIODevice::WriteOnly | QIODevice::Append);
         QTextStream fileStream(&logFile);

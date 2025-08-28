@@ -40,14 +40,14 @@ public:
     bool contains(const T *item);
     [[nodiscard]] bool hasOverlappedItem() const;
     QList<T *> findOverlappedItems(T *obj) const;
-    QList<T *> findOverlappedItems(const std::tuple<qsizetype, qsizetype> &interval) const;
+    QList<T *> findOverlappedItems(const std::tuple<qsizetype, qsizetype> &interval_) const;
     QList<T *> overlappedItems() const;
     QList<T *> toList() const;
 
-    using iterator = typename std::set<T *, ItemCmp>::const_iterator;
-    using const_iterator = typename std::set<T *, ItemCmp>::const_iterator;
-    using reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
-    using const_reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
+    using iterator = std::set<T *, ItemCmp>::const_iterator;
+    using const_iterator = std::set<T *, ItemCmp>::const_iterator;
+    using reverse_iterator = std::set<T *, ItemCmp>::const_reverse_iterator;
+    using const_reverse_iterator = std::set<T *, ItemCmp>::const_reverse_iterator;
 
     iterator begin() {
         return m_items.cbegin();
@@ -193,7 +193,7 @@ QList<T *> OverlappableSerialList<T>::overlappedItems() const {
 
 template <typename T>
 QList<T *> OverlappableSerialList<T>::toList() const {
-    QList<T*> result;
+    QList<T *> result;
     for (const auto &item : m_items)
         result.append(item);
     return result;

@@ -186,7 +186,8 @@ bool LevelMeter::event(QEvent *event) {
     return QWidget::event(event);
 }
 
-void LevelMeter::onHover(QHoverEvent *event) {
+void LevelMeter::onHover(const QHoverEvent *event) {
+    Q_UNUSED(event);
     const auto cursorY = mapFromGlobal(QCursor::pos()).y();
     auto mouseOnBar = [&](const double y) {
         return y >= channelTop && y <= channelTop + channelLength;
@@ -318,7 +319,8 @@ void LevelMeter::startDecayAnimation(ChannelData &channel) {
     channel.decayAnimation->start();
 }
 
-void LevelMeter::updatePeakValue(ChannelData &channel, double clippedValue) {
+void LevelMeter::updatePeakValue(ChannelData &channel, const double clippedValue) {
+    Q_UNUSED(clippedValue);
     // qDebug() << "LevelMeter::updatePeakValue" << channel.displayedPeak << newValue;
     if (channel.currentLevel > channel.displayedPeak) {
         cancelDecayAnimation(channel);

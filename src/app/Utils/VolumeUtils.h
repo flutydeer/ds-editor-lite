@@ -9,13 +9,13 @@
 
 class VolumeUtils {
 public:
-    static double linearTodB(double volume) {
+    static double linearTodB(const double volume) {
         if (volume > 0)
             return qMax(20 * std::log10(volume), -70.0);
         return -70;
     }
 
-    static double dBToLinear(double gain) {
+    static double dBToLinear(const double gain) {
         if (gain <= -70)
             return 0;
         return std::pow(10, gain / 20.0);

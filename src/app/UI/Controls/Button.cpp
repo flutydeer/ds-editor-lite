@@ -6,8 +6,6 @@
 
 #include "Button.h"
 
-#include <QGraphicsDropShadowEffect>
-
 Button::Button(QWidget *parent) : QPushButton(parent) {
     initUi();
 }

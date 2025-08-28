@@ -28,10 +28,14 @@ public:
     class LogMessage {
     public:
         LogMessage() = default;
+
         LogMessage(QString time, QString tag, QString text)
-            : time(std::move(time)), tag(std::move(tag)), text(std::move(text)){};
-        LogMessage(QString time, LogLevel level, QString tag, QString text)
-            : time(std::move(time)), level(level), tag(std::move(tag)), text(std::move(text)){};
+            : time(std::move(time)), tag(std::move(tag)), text(std::move(text)) {
+        }
+
+        LogMessage(QString time, const LogLevel level, QString tag, QString text)
+            : time(std::move(time)), level(level), tag(std::move(tag)), text(std::move(text)) {
+        }
 
         [[nodiscard]] QString toPlainText() const;
         [[nodiscard]] QString toConsoleText() const;

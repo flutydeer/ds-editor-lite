@@ -54,7 +54,7 @@ private:
     [[nodiscard]] bool mouseOnClipIndicator(const QPointF &pos) const;
     bool event(QEvent *event) override;
 
-    void onHover(QHoverEvent *event);
+    void onHover(const QHoverEvent *event);
     void handleHoverOnBar();
     void handleHoverOnClipIndicator() const;
 

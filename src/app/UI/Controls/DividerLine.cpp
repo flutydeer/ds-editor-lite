@@ -8,12 +8,12 @@ DividerLine::DividerLine(QWidget *parent) : QFrame(parent) {
     initUi();
 }
 
-DividerLine::DividerLine(Qt::Orientation orientation, QWidget *parent)
+DividerLine::DividerLine(const Qt::Orientation orientation, QWidget *parent)
     : QFrame(parent), m_orientation(orientation) {
     initUi();
 }
 
-void DividerLine::setOrientation(Qt::Orientation orientation) {
+void DividerLine::setOrientation(const Qt::Orientation orientation) {
     m_orientation = orientation;
     setFrameShape(m_orientation == Qt::Horizontal ? HLine : VLine);
 }

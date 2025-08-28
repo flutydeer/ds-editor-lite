@@ -1,6 +1,5 @@
 #include "PathEditor.h"
 
-#include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFileDialog>
 #include <QPushButton>
@@ -11,12 +10,12 @@
 
 namespace {
     QListWidgetItem *createEditableItem(const QString &text = QString()) {
-        auto item = new QListWidgetItem(text);
+        const auto item = new QListWidgetItem(text);
         item->setFlags(item->flags() | Qt::ItemIsEditable);
         return item;
     }
 
-    bool moveSelectedItems(QListWidget *listWidget, bool up) {
+    bool moveSelectedItems(QListWidget *listWidget, const bool up) {
         Q_ASSERT(listWidget != nullptr);
 
         auto selected = listWidget->selectedItems();
@@ -25,21 +24,21 @@ namespace {
 
         QList<int> rows;
         rows.reserve(selected.size());
-        for (auto item : selected) {
+        for (const auto item : selected) {
             rows.push_back(listWidget->row(item));
         }
 
         if (up) {
-            std::sort(rows.begin(), rows.end());
+            std::ranges::sort(rows);
         } else {
-            std::sort(rows.begin(), rows.end(), std::greater<>());
+            std::ranges::sort(rows, std::greater());
         }
 
-        int step = up ? -1 : 1;
+        const int step = up ? -1 : 1;
         bool moved = false;
 
-        for (int r : rows) {
-            int targetRow = r + step;
+        for (const int r : rows) {
+            const int targetRow = r + step;
 
             if (targetRow < 0 || targetRow >= listWidget->count()) {
                 continue;
@@ -48,7 +47,7 @@ namespace {
             auto targetItem = listWidget->item(targetRow);
 
             if (!selected.contains(targetItem)) {
-                auto item = listWidget->takeItem(r);
+                const auto item = listWidget->takeItem(r);
                 listWidget->insertItem(targetRow, item);
                 listWidget->setCurrentItem(item);
                 moved = true;
@@ -56,7 +55,7 @@ namespace {
         }
 
         if (moved) {
-            for (auto item : selected) {
+            for (const auto item : selected) {
                 item->setSelected(true);
             }
         }
@@ -65,11 +64,11 @@ namespace {
 
     class ScopedUpdatesDisabler {
     public:
-        inline explicit ScopedUpdatesDisabler(QWidget *widget) : m_widget(widget) {
+        explicit ScopedUpdatesDisabler(QWidget *widget) : m_widget(widget) {
             m_widget->setUpdatesEnabled(false);
         }
 
-        inline ~ScopedUpdatesDisabler() {
+        ~ScopedUpdatesDisabler() {
             m_widget->setUpdatesEnabled(true);
         }
 
@@ -81,10 +80,8 @@ namespace {
 // ---------------------- PathEditor ----------------------
 PathEditor::PathEditor(QWidget *parent)
     : QWidget(parent), m_listWidget(new PathListWidget(this)),
-      m_addButton(new QPushButton(tr("&Add"))),
-      m_deleteButton(new QPushButton(tr("&Delete"))),
-      m_upButton(new QPushButton(tr("Move &Up"))),
-      m_downButton(new QPushButton(tr("Move D&own"))) {
+      m_addButton(new QPushButton(tr("&Add"))), m_deleteButton(new QPushButton(tr("&Delete"))),
+      m_upButton(new QPushButton(tr("Move &Up"))), m_downButton(new QPushButton(tr("Move D&own"))) {
 
     setupUI();
     connectSignals();
@@ -92,7 +89,7 @@ PathEditor::PathEditor(QWidget *parent)
 
 QStringList PathEditor::paths() const {
     QStringList result;
-    auto rows = m_listWidget->count();
+    const auto rows = m_listWidget->count();
     result.reserve(rows);
     for (int i = 0; i < rows; i++) {
         result.append(m_listWidget->item(i)->text());
@@ -100,7 +97,7 @@ QStringList PathEditor::paths() const {
     return result;
 }
 
-void PathEditor::setPaths(const QStringList &paths) {
+void PathEditor::setPaths(const QStringList &paths) const {
     QSignalBlocker signalBlocker(m_listWidget);
     ScopedUpdatesDisabler updateGuard(m_listWidget);
     m_listWidget->clear();
@@ -125,20 +122,20 @@ void PathEditor::setupUI() {
     m_listWidget->setDragDropOverwriteMode(false);
     m_listWidget->setDefaultDropAction(Qt::MoveAction);
 
-    int buttonWidth = 100;
-    for (auto btn : {m_addButton, m_deleteButton, m_upButton, m_downButton}) {
+    for (const auto btn : {m_addButton, m_deleteButton, m_upButton, m_downButton}) {
+        constexpr int buttonWidth = 100;
         btn->setFixedWidth(buttonWidth);
         btn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
     }
 
-    auto buttonLayout = new QVBoxLayout;
+    const auto buttonLayout = new QVBoxLayout;
     buttonLayout->addWidget(m_addButton);
     buttonLayout->addWidget(m_deleteButton);
     buttonLayout->addWidget(m_upButton);
     buttonLayout->addWidget(m_downButton);
     buttonLayout->addStretch();
 
-    auto mainLayout = new QHBoxLayout(this);
+    const auto mainLayout = new QHBoxLayout(this);
     mainLayout->addWidget(m_listWidget, 1);
     mainLayout->addLayout(buttonLayout);
     mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -162,7 +159,7 @@ void PathEditor::connectSignals() {
 
 void PathEditor::editRowWithEmptyCheck(int row) {
     auto model = m_listWidget->model();
-    QModelIndex idx = model->index(row, 0);
+    const QModelIndex idx = model->index(row, 0);
     m_listWidget->edit(idx);
 
     if (m_editConnection) {
@@ -183,7 +180,7 @@ void PathEditor::editRowWithEmptyCheck(int row) {
 }
 
 void PathEditor::onAddClicked() {
-    auto dir =
+    const auto dir =
         QDir::toNativeSeparators(QFileDialog::getExistingDirectory(this, tr("Browse directory")));
     if (!dir.isEmpty()) {
         m_listWidget->addItem(createEditableItem(dir));
@@ -197,7 +194,7 @@ void PathEditor::onDeleteClicked() {
         return;
     }
     ScopedUpdatesDisabler updateGuard(m_listWidget);
-    for (auto item : items) {
+    for (const auto item : items) {
         delete m_listWidget->takeItem(m_listWidget->row(item));
     }
     m_listWidget->clearSelection();
@@ -233,8 +230,8 @@ void PathEditor::onListDoubleClicked(const QModelIndex &index) {
 }
 
 void PathEditor::onEmptyDoubleClicked(const QPoint &) {
-    auto row = m_listWidget->count();
-    auto item = createEditableItem();
+    const auto row = m_listWidget->count();
+    const auto item = createEditableItem();
     m_listWidget->insertItem(row, item);
     item->setSelected(true);
     editRowWithEmptyCheck(row);

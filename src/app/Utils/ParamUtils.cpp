@@ -8,11 +8,11 @@ const QStringList &ParamUtils::names() const {
     return m_names;
 }
 
-QString ParamUtils::nameFromType(ParamInfo::Name name) const {
+QString ParamUtils::nameFromType(const ParamInfo::Name name) const {
     return m_names[name];
 }
 
-const ParamProperties *ParamUtils::getPropertiesByName(ParamInfo::Name name) const {
+const ParamProperties *ParamUtils::getPropertiesByName(const ParamInfo::Name name) const {
     switch (name) {
         case ParamInfo::Pitch:
             return &pitchProperties;

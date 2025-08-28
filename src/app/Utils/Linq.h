@@ -58,6 +58,6 @@ namespace Linq {
         return result;
     }
 
-};
+}
 
 #endif // LINQ_H

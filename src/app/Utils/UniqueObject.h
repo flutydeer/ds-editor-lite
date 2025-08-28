@@ -13,7 +13,7 @@ public:
         m_id = IdGenerator::instance()->next();
     }
 
-    explicit UniqueObject(int id) : m_id(id) {
+    explicit UniqueObject(const int id) : m_id(id) {
     }
 
     [[nodiscard]] int id() const {

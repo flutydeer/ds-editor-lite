@@ -4,8 +4,6 @@
 
 #include "Menu.h"
 
-#include <QGraphicsDropShadowEffect>
-#include <QLayout>
 #include <QPainter>
 
 Menu::Menu(QWidget *parent) : QMenu(parent) {

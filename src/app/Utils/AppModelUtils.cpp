@@ -13,7 +13,7 @@
 void AppModelUtils::copyNotes(const QList<Note *> &source, QList<Note *> &target) {
     target.clear();
     for (const auto &note : source) {
-        auto newNote = new Note;
+        const auto newNote = new Note;
         newNote->setClip(note->clip());
         newNote->setLocalStart(note->localStart());
         // newNote->setStart(note->start());
@@ -29,7 +29,8 @@ void AppModelUtils::copyNotes(const QList<Note *> &source, QList<Note *> &target
     }
 }
 
-QList<QList<Note *>> AppModelUtils::simpleSegment(const QList<Note *> &source, double threshold) {
+QList<QList<Note *>> AppModelUtils::simpleSegment(const QList<Note *> &source,
+                                                  const double threshold) {
     QList<QList<Note *>> target;
     if (source.isEmpty()) {
         qWarning() << "simpleSegment: source is empty";
@@ -43,12 +44,12 @@ QList<QList<Note *>> AppModelUtils::simpleSegment(const QList<Note *> &source, d
 
     QList<Note *> buffer;
     for (int i = 0; i < source.count(); i++) {
-        auto note = source.at(i);
+        const auto note = source.at(i);
         buffer.append(note);
         bool commitFlag = false;
         if (i < source.count() - 1) {
-            auto nextStartInMs = appModel->tickToMs(source.at(i + 1)->globalStart());
-            auto curEndInMs = appModel->tickToMs((note->globalStart() + note->length()));
+            const auto nextStartInMs = appModel->tickToMs(source.at(i + 1)->globalStart());
+            const auto curEndInMs = appModel->tickToMs(note->globalStart() + note->length());
             commitFlag = nextStartInMs - curEndInMs > threshold;
         } else if (i == source.count() - 1)
             commitFlag = true;
@@ -77,7 +78,8 @@ void AppModelUtils::copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve
         target.append(new DrawCurve(*curve));
 }
 
-DrawCurveList AppModelUtils::curvesIn(const DrawCurveList &container, int startTick, int endTick) {
+DrawCurveList AppModelUtils::curvesIn(const DrawCurveList &container, const int startTick,
+                                      const int endTick) {
     DrawCurveList result;
     ProbeLine line(startTick, endTick);
     for (const auto &curve : container) {
@@ -94,8 +96,9 @@ DrawCurveList AppModelUtils::mergeCurves(const DrawCurveList &original,
         result.append(new DrawCurve(*curve));
 
     for (const auto &editedCurve : edited) {
-        auto newCurve = new DrawCurve(*editedCurve);
-        auto overlappedOriCurves = curvesIn(result, editedCurve->localStart(), editedCurve->localEndTick());
+        const auto newCurve = new DrawCurve(*editedCurve);
+        auto overlappedOriCurves =
+            curvesIn(result, editedCurve->localStart(), editedCurve->localEndTick());
         if (!overlappedOriCurves.isEmpty()) {
             for (auto oriCurve : overlappedOriCurves) {
                 // 如果 oriCurve 被已编辑曲线完全覆盖，直接移除
@@ -116,9 +119,10 @@ DrawCurve AppModelUtils::getResultCurve(const DrawCurve &original, const DrawCur
     DrawCurveList curvesToMerge;
     for (const auto &curve : edited) {
         if (curve->isOverlappedWith(&result)) {
-            auto newCurve = new DrawCurve(*curve);
+            const auto newCurve = new DrawCurve(*curve);
             // 截断多余的部分
-            if (curve->localStart() >= original.localStart() && curve->localEndTick() <= original.localEndTick()) {
+            if (curve->localStart() >= original.localStart() &&
+                curve->localEndTick() <= original.localEndTick()) {
                 // original 曲线区间覆盖整条手绘曲线，无需截断
             } else
                 newCurve->clip(original.localStart(), original.localEndTick());
@@ -132,10 +136,10 @@ DrawCurve AppModelUtils::getResultCurve(const DrawCurve &original, const DrawCur
     return result;
 }
 
-DrawCurve AppModelUtils::getResultCurve(std::pair<int, int> tickRange, int baseValue,
+DrawCurve AppModelUtils::getResultCurve(const std::pair<int, int> tickRange, const int baseValue,
                                         const DrawCurveList &edited) {
-    auto startTick = MathUtils::round(tickRange.first, 5);
-    auto endTick = MathUtils::round(tickRange.second,5);
+    const auto startTick = MathUtils::round(tickRange.first, 5);
+    const auto endTick = MathUtils::round(tickRange.second, 5);
     DrawCurve baseCurve;
     baseCurve.setLocalStart(startTick);
     for (int i = startTick; i < endTick; i += 5)

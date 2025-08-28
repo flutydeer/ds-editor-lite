@@ -125,17 +125,17 @@ void FaderPrivate::calculateParams() {
     activeStartPoint.setY(q->rect().bottom() - paddingVertical);
     const auto linearSliderValue = gainToSliderValue(decibelSliderValue);
     const auto valueLength =
-        (actualLength * (linearSliderValue - linearMinimum) / (linearMaximum - linearMinimum));
+        actualLength * (linearSliderValue - linearMinimum) / (linearMaximum - linearMinimum);
     activeEndPoint.setX(centerX);
     activeEndPoint.setY(q->rect().bottom() - paddingVertical - valueLength);
 
     // Calculate 0 dB graduate
-    const auto zeroLength = (actualLength * (gainToSliderValue(0) - linearMinimum) /
-                             (linearMaximum - linearMinimum)); // 0dB
+    const auto zeroLength = actualLength * (gainToSliderValue(0) - linearMinimum) /
+                            (linearMaximum - linearMinimum); // 0dB
     zeroGraduateY = q->rect().bottom() - paddingVertical - zeroLength;
 
     // Calculate thumb
-    auto thumbX = centerX - (thumbSize.width() / 2.0);
+    auto thumbX = centerX - thumbSize.width() / 2.0;
     auto thumbY = activeEndPoint.y() - (thumbSize.height() / 2.0);
     thumbPos = {thumbX, thumbY};
 }
@@ -145,7 +145,7 @@ Fader::Fader(QWidget *parent) : Fader(parent, *new FaderPrivate) {
     setAttribute(Qt::WA_StyledBackground);
     d->q_ptr = this;
     d->timer.setInterval(400);
-    QObject::connect(&d->timer, &QTimer::timeout, this, [=]() {
+    QObject::connect(&d->timer, &QTimer::timeout, this, [=] {
         d->timer.stop();
         d->doubleClickWindow = false;
     });
@@ -395,5 +395,5 @@ double FaderPrivate::gainToSliderValue(const double gain) const {
 }
 
 double FaderPrivate::gainFromSliderValue(const double value) const {
-    return ((decibelMaximum - decibelMinimum) * std::pow(value, scalePower)) + decibelMinimum;
+    return (decibelMaximum - decibelMinimum) * std::pow(value, scalePower) + decibelMinimum;
 }

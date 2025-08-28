@@ -4,12 +4,12 @@
 #  include <QWidget>
 #  include <dwmapi.h>
 
-void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
+void WindowFrameUtils::applyFrameEffects(const QWidget *widget) {
 
     // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler
 
     bool micaOn = false;
-    auto version = QSysInfo::productVersion();
+    const auto version = QSysInfo::productVersion();
     if (micaOn && version == "11") {
         // Enable Mica background
         auto backDropType = DWMSBT_MAINWINDOW;
@@ -21,7 +21,7 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
         DwmExtendFrameIntoClientArea(reinterpret_cast<HWND>(widget->winId()), &margins);
     }
     // Dark theme
-    uint dark = 1;
+    constexpr uint dark = 1;
     DwmSetWindowAttribute(reinterpret_cast<HWND>(widget->winId()), DWMWA_USE_IMMERSIVE_DARK_MODE,
                           &dark, sizeof(dark));
 }

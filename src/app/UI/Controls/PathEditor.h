@@ -17,7 +17,7 @@ public:
     ~PathEditor() override = default;
 
     QStringList paths() const;
-    void setPaths(const QStringList &paths);
+    void setPaths(const QStringList &paths) const;
 
     PathListWidget *listWidget() const;
 private:
