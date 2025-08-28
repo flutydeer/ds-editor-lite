@@ -1,4 +1,5 @@
 #include "Syllable2p.h"
+#include "Syllable2p_p.h"
 
 #include <iostream>
 #include <type_traits>
@@ -7,7 +8,7 @@
 #include <QDebug>
 #include <QVarLengthArray>
 
-#include "Syllable2p_p.h"
+
 
 #include <utility>
 
@@ -25,24 +26,25 @@ namespace FillLyric {
                                             toStdString()
 #endif
             ;
-        initialized = fileMap.load(path);
+
+        if (std::error_code ec; !phonemeDict.load(path, &ec)) {
+            qWarning() << "Failed to read dictionary " << path.string() << ":" << ec.value();
+
+            return;
+        }
+        initialized = false;
     }
 
     QStringList Syllable2pPrivate::lookup(const QString &key) const {
         if (const auto it = phonemeMap.find(key); it != phonemeMap.end()) {
             return it->second;
         }
-        auto &map = fileMap.get();
-        if (const auto it = map.find(key.toStdString()); it != map.end()) {
-            const auto &entry = it->second;
-            QVarLengthArray<std::string_view> buf;
-            buf.resize(entry.count);
-            fileMap.readEntry(entry, buf.data(), entry.count);
 
+        if (const auto it = phonemeDict.find(key.toStdString().c_str()); it != phonemeDict.end()) {
+            const auto &phonemes = it->second;
             QStringList tokens;
-            tokens.reserve(entry.count);
-            for (int i = 0; i < entry.count; ++i) {
-                tokens.push_back(QString::fromUtf8(buf[i]));
+            for (const char *buf : phonemes) {
+                tokens.push_back(QString::fromUtf8(buf));
             }
             phonemeMap[key] = tokens;
             return tokens;

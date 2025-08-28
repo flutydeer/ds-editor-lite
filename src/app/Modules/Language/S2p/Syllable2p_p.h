@@ -5,7 +5,7 @@
 
 #include "Syllable2p.h"
 
-#include "phonemedictionary.h"
+#include <dsinfer/Support/PhonemeDict.h>
 
 namespace FillLyric {
     class Syllable2pPrivate final : public QObject {
@@ -23,7 +23,7 @@ namespace FillLyric {
 
         QStringList lookup(const QString &key) const;
 
-        dsutils::PhonemeDictionary fileMap;
+        ds::PhonemeDict phonemeDict;
         mutable std::unordered_map<QString, QStringList> phonemeMap;
 
     private:
