@@ -5,11 +5,7 @@
 #ifndef AUDIOOPTION_H
 #define AUDIOOPTION_H
 
-#include <TalcsDevice/OutputContext.h>
-#include <TalcsCore/NoteSynthesizer.h>
-
 #include "Model/AppOptions/IOption.h"
-#include "Modules/Audio/AudioSystem.h"
 
 class AudioOption : public IOption {
 public:

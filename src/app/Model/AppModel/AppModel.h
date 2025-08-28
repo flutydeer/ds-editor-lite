@@ -25,22 +25,22 @@ public:
 
     explicit AppModel();
     ~AppModel() override;
-    [[nodiscard]] TimeSignature timeSignature() const;
+    TimeSignature timeSignature() const;
     void setTimeSignature(const TimeSignature &signature);
-    [[nodiscard]] double tempo() const;
+    double tempo() const;
     void setTempo(double tempo);
-    [[nodiscard]] TrackControl masterControl() const;
+    TrackControl masterControl() const;
     void setMasterControl(const TrackControl &control);
-    [[nodiscard]] const QList<Track *> &tracks() const;
+    const QList<Track *> &tracks() const;
     void insertTrack(Track *track, qsizetype index);
     void appendTrack(Track *track);
     void removeTrackAt(qsizetype index);
     void removeTrack(Track *track);
     void clearTracks();
 
-    // [[nodiscard]] QJsonObject globalWorkspace() const;
-    // [[nodiscard]] bool isWorkspaceExist(const QString &id) const;
-    // [[nodiscard]] QJsonObject getPrivateWorkspaceById(const QString &id) const;
+    //  QJsonObject globalWorkspace() const;
+    //  bool isWorkspaceExist(const QString &id) const;
+    //  QJsonObject getPrivateWorkspaceById(const QString &id) const;
     // std::unique_ptr<WorkspaceEditor> workspaceEditor(const QString &id);
 
     void newProject();
@@ -51,7 +51,7 @@ public:
     bool importAceProject(const QString &filename);
     void loadFromAppModel(const AppModel &model);
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 
     Clip *findClipById(int clipId, Track *&trackRef) const;
@@ -59,10 +59,10 @@ public:
     Clip *findClipById(int clipId);
     Track *findTrackById(int id, int &trackIndex);
     Track *findTrackById(int id);
-    [[nodiscard]] double tickToMs(double tick) const;
-    [[nodiscard]] double msToTick(double ms) const;
-    [[nodiscard]] QString getBarBeatTickTime(int ticks) const;
-    [[nodiscard]] int projectLengthInTicks() const;
+    double tickToMs(double tick) const;
+    double msToTick(double ms) const;
+    QString getBarBeatTickTime(int ticks) const;
+    int projectLengthInTicks() const;
 
     class LevelMetersUpdatedArgs {
     public:

@@ -13,7 +13,8 @@
 #include <QDir>
 
 AppOptions::AppOptions(QObject *parent) : QObject(parent) {
-    QDir configDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
+    const QDir configDir(
+        QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
     if (!configDir.exists()) {
         if (configDir.mkpath("."))
             Log::d(CLASS_NAME, "Successfully created config directory");
@@ -40,8 +41,8 @@ QString AppOptions::configPath() const {
     return m_configPath;
 }
 
-bool AppOptions::saveAndNotify(AppOptionsGlobal::Option option) {
-    QJsonObject obj{
+bool AppOptions::saveAndNotify(const AppOptionsGlobal::Option option) {
+    const QJsonObject obj{
         {m_generalOption.key(),    m_generalOption.value()   },
         {m_audioOption.key(),      m_audioOption.value()     },
         {m_appearanceOption.key(), m_appearanceOption.value()},
@@ -50,7 +51,7 @@ bool AppOptions::saveAndNotify(AppOptionsGlobal::Option option) {
         {m_inferenceOption.key(),  m_inferenceOption.value() }
     };
 
-    auto success = JsonUtils::save(m_configPath, obj);
+    const auto success = JsonUtils::save(m_configPath, obj);
     notifyOptionsChanged(option);
     return success;
 }
@@ -59,7 +60,7 @@ GeneralOption *AppOptions::general() {
     return &m_generalOption;
 }
 
-void AppOptions::notifyOptionsChanged(AppOptionsGlobal::Option option) {
+void AppOptions::notifyOptionsChanged(const AppOptionsGlobal::Option option) {
     emit optionsChanged(option);
 }
 

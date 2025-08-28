@@ -12,7 +12,7 @@
 class InferenceOption final : public IOption {
 public:
     explicit InferenceOption() : IOption("inference") {
-    };
+    }
 
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
@@ -26,7 +26,7 @@ public:
     LITE_OPTION_ITEM(bool, autoStartInfer, true)
     LITE_OPTION_ITEM(QString, cacheDirectory,
                      QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() +
-                     "/Cache")
+                         "/Cache")
 
     LITE_OPTION_ITEM(int, pitch_smooth_kernel_size, 0)
 };

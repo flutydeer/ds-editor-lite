@@ -11,7 +11,8 @@ class AppModelPrivate {
     Q_DECLARE_PUBLIC(AppModel)
 
 public:
-    explicit AppModelPrivate(AppModel *q) : q_ptr(q){};
+    explicit AppModelPrivate(AppModel *q) : q_ptr(q) {
+    }
 
     void reset();
     void dispose() const;

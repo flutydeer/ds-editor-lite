@@ -20,12 +20,12 @@ public:
         QString path;
     };
 
-    [[nodiscard]] ClipType clipType() const override;
-    [[nodiscard]] QString path() const;
+    ClipType clipType() const override;
+    QString path() const;
     void setPath(const QString &path);
 
     // TODO: 将峰值数据保存到其他地方
-    [[nodiscard]] const AudioInfoModel &audioInfo() const;
+    const AudioInfoModel &audioInfo() const;
     void setAudioInfo(const AudioInfoModel &audioInfo);
 
 private:
@@ -35,4 +35,4 @@ private:
 
 
 
-#endif //AUDIOCLIP_H
+#endif // AUDIOCLIP_H

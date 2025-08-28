@@ -15,8 +15,10 @@ public:
     QString edited;
 
     Pronunciation() = default;
+
     Pronunciation(QString original, QString edited)
-        : original(std::move(original)), edited(std::move(edited)){};
+        : original(std::move(original)), edited(std::move(edited)) {
+    }
 
     [[nodiscard]] bool isEdited() const;
     [[nodiscard]] QString result() const;

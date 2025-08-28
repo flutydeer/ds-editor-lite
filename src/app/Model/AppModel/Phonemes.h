@@ -14,10 +14,10 @@ public:
     QList<QString> original;
     QList<QString> edited;
 
-    [[nodiscard]] bool editedEqualsWith(const PhonemeNameSeq &other) const;
-    [[nodiscard]] bool isEdited() const;
-    [[nodiscard]] const QList<QString> &result() const;
-    [[nodiscard]] QJsonObject serialize() const override;
+    bool editedEqualsWith(const PhonemeNameSeq &other) const;
+    bool isEdited() const;
+    const QList<QString> &result() const;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 };
 
@@ -26,8 +26,8 @@ public:
     PhonemeNameSeq ahead;
     PhonemeNameSeq normal;
 
-    [[nodiscard]] bool isEmpty() const;
-    [[nodiscard]] QJsonObject serialize() const override;
+    bool isEmpty() const;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 };
 
@@ -37,9 +37,9 @@ public:
     QList<int> edited;
 
     void clear();
-    [[nodiscard]] bool isEdited() const;
-    [[nodiscard]] const QList<int> &result() const;
-    [[nodiscard]] QJsonObject serialize() const override;
+    bool isEdited() const;
+    const QList<int> &result() const;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 };
 
@@ -48,8 +48,8 @@ public:
     PhonemeOffsetSeq ahead;
     PhonemeOffsetSeq normal;
 
-    [[nodiscard]] bool isEmpty() const;
-    [[nodiscard]] QJsonObject serialize() const override;
+    bool isEmpty() const;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 };
 
@@ -57,7 +57,7 @@ class Phonemes : public ISerializable {
 public:
     enum Type { Ahead, Normal };
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 
     PhonemeNameInfo nameInfo;

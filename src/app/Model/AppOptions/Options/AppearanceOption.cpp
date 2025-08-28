@@ -34,7 +34,7 @@ AnimationGlobal::AnimationLevels AppearanceOption::animationLevelFromString(cons
     return AnimationGlobal::Full;
 }
 
-QString AppearanceOption::animationLevelToString(AnimationGlobal::AnimationLevels level) {
+QString AppearanceOption::animationLevelToString(const AnimationGlobal::AnimationLevels level) {
     switch (level) {
         case AnimationGlobal::Decreased:
             return "decreased";

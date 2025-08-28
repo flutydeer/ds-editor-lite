@@ -18,34 +18,34 @@ class Clip : public QObject, public IClip, public Overlappable {
 public:
     ~Clip() override = default;
 
-    [[nodiscard]] ClipType clipType() const override {
+    ClipType clipType() const override {
         return Generic;
     }
 
-    [[nodiscard]] QString name() const override;
+    QString name() const override;
     void setName(const QString &text) override;
-    [[nodiscard]] int start() const override;
+    int start() const override;
     void setStart(int start) override;
-    [[nodiscard]] int length() const override;
+    int length() const override;
     void setLength(int length) override;
-    [[nodiscard]] int clipStart() const override;
+    int clipStart() const override;
     void setClipStart(int clipStart) override;
-    [[nodiscard]] int clipLen() const override;
+    int clipLen() const override;
     void setClipLen(int clipLen) override;
-    [[nodiscard]] double gain() const override;
+    double gain() const override;
     void setGain(double gain) override;
-    [[nodiscard]] bool mute() const override;
+    bool mute() const override;
     void setMute(bool mute) override;
     void notifyPropertyChanged();
 
     QMap<QString, QJsonObject> &workspace();
     QMap<QString, QJsonObject> workspace() const;
 
-    [[nodiscard]] int endTick() const;
+    int endTick() const;
 
     int compareTo(const Clip *obj) const;
     bool isOverlappedWith(const Clip *obj) const;
-    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
+    std::tuple<qsizetype, qsizetype> interval() const override;
 
     class ClipCommonProperties {
     public:

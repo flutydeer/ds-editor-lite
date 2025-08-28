@@ -18,23 +18,25 @@ public:
     enum CurveType { Generic, Draw, Anchor };
 
     Curve() = default;
-    explicit Curve(const int id) : UniqueObject(id) {};
 
-    [[nodiscard]] virtual CurveType type() const {
+    explicit Curve(const int id) : UniqueObject(id) {
+    }
+
+    virtual CurveType type() const {
         return Generic;
     }
 
-    [[nodiscard]] SingingClip *clip() const;
+    SingingClip *clip() const;
     void setClip(SingingClip *clip);
-    [[nodiscard]] int globalStart() const;
+    int globalStart() const;
     void setGlobalStart(int start);
-    [[nodiscard]] int localStart() const;
+    int localStart() const;
     virtual void setLocalStart(int start);
-    [[nodiscard]] virtual int localEndTick() const;
+    virtual int localEndTick() const;
 
     int compareTo(const Curve *obj) const;
     virtual bool isOverlappedWith(Curve *obj) const;
-    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
+    std::tuple<qsizetype, qsizetype> interval() const override;
 
 
 private:
@@ -48,7 +50,7 @@ public:
     }
 
     ProbeLine(int startTick, int endTick);
-    [[nodiscard]] int localEndTick() const override;
+    int localEndTick() const override;
 
 private:
     int m_endTick = 0;

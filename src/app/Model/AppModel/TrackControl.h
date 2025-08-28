@@ -9,16 +9,16 @@
 
 class TrackControl : public ISerializable {
 public:
-    [[nodiscard]] double gain() const;
+    double gain() const;
     void setGain(double gain);
-    [[nodiscard]] double pan() const;
+    double pan() const;
     void setPan(double pan);
-    [[nodiscard]] bool mute() const;
+    bool mute() const;
     void setMute(bool mute);
-    [[nodiscard]] bool solo() const;
+    bool solo() const;
     void setSolo(bool solo);
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 
 private:

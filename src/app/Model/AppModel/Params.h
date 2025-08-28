@@ -21,7 +21,7 @@ public:
 
     Param &operator=(const Param &from) = default;
 
-    Param &operator=(Param &&from) {
+    Param &operator=(Param &&from) noexcept {
         m_original = from.m_original;
         m_edited = from.m_edited;
         m_envelope = from.m_envelope;

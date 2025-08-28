@@ -15,16 +15,16 @@ public:
     AnchorNode(const int pos, const int value) : m_pos(pos), m_value(value) {
     }
 
-    [[nodiscard]] int pos() const;
+    int pos() const;
     void setPos(int pos);
-    [[nodiscard]] int value() const;
+    int value() const;
     void setValue(int value);
-    [[nodiscard]] InterpMode interpMode() const;
+    InterpMode interpMode() const;
     void setInterpMode(InterpMode mode);
 
     int compareTo(const AnchorNode *obj) const;
     bool isOverlappedWith(const AnchorNode *obj) const;
-    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
+    std::tuple<qsizetype, qsizetype> interval() const override;
 
 private:
     int m_pos;
@@ -34,14 +34,14 @@ private:
 
 class AnchorCurve final : public Curve {
 public:
-    [[nodiscard]] CurveType type() const override {
+    CurveType type() const override {
         return Anchor;
     }
 
-    [[nodiscard]] const OverlappableSerialList<AnchorNode> &nodes() const;
+    const OverlappableSerialList<AnchorNode> &nodes() const;
     void insertNode(AnchorNode *node);
     void removeNode(AnchorNode *node);
-    [[nodiscard]] int localEndTick() const override;
+    int localEndTick() const override;
 
 private:
     OverlappableSerialList<AnchorNode> m_nodes;

@@ -22,10 +22,10 @@ public:
     bool showDivision = true;
     int divisionValue = 200;
     int displayPrecision = 3;
-    [[nodiscard]] bool hasUnit() const;
-    [[nodiscard]] virtual QString valueToString(int value, bool withUnit, int precision = 3) const;
-    [[nodiscard]] virtual int valueFromNormalized(double normalized) const;
-    [[nodiscard]] virtual double valueToNormalized(int value) const;
+    bool hasUnit() const;
+    virtual QString valueToString(int value, bool withUnit, int precision = 3) const;
+    virtual int valueFromNormalized(double normalized) const;
+    virtual double valueToNormalized(int value) const;
     explicit ParamProperties();
     virtual ~ParamProperties() = default;
 };
@@ -43,15 +43,15 @@ public:
 class DecibelParamProperties final : public ParamProperties {
 public:
     explicit DecibelParamProperties();
-    [[nodiscard]] int valueFromNormalized(double normalized) const override;
-    [[nodiscard]] double valueToNormalized(int value) const override;
+    int valueFromNormalized(double normalized) const override;
+    double valueToNormalized(int value) const override;
 };
 
 class TensionParamProperties final : public ParamProperties {
 public:
     explicit TensionParamProperties();
-    [[nodiscard]] int valueFromNormalized(double normalized) const override;
-    [[nodiscard]] double valueToNormalized(int value) const override;
+    int valueFromNormalized(double normalized) const override;
+    double valueToNormalized(int value) const override;
 };
 
 class MouthOpeningParamProperties final : public ParamProperties {
@@ -67,14 +67,14 @@ public:
 class VelocityParamProperties final : public ParamProperties {
 public:
     explicit VelocityParamProperties();
-    [[nodiscard]] int valueFromNormalized(double normalized) const override;
-    [[nodiscard]] double valueToNormalized(int value) const override;
+    int valueFromNormalized(double normalized) const override;
+    double valueToNormalized(int value) const override;
 };
 
 class ToneShiftParamProperties final : public ParamProperties {
 public:
     explicit ToneShiftParamProperties();
-    [[nodiscard]] QString valueToString(int value, bool withUnit, int precision = 3) const override;
+    QString valueToString(int value, bool withUnit, int precision = 3) const override;
 };
 
 #endif // PARAMPROPERTIES_H
