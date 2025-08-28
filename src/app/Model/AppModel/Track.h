@@ -5,12 +5,10 @@
 #ifndef TRACKSMODEL_H
 #define TRACKSMODEL_H
 
-#include <QObject>
 #include <QString>
 
 #include "Utils/OverlappableSerialList.h"
 #include "TrackControl.h"
-#include "Global/AppGlobal.h"
 #include "Interface/ISerializable.h"
 #include "Interface/ITrack.h"
 #include "Modules/Inference/Models/SingerIdentifier.h"
@@ -20,7 +18,6 @@ class Clip;
 
 class Track final : public QObject, public ITrack, public ISerializable {
     Q_OBJECT
-
 public:
     explicit Track() = default;
     explicit Track(const QString &name, const QList<Clip *> &clips);
@@ -28,29 +25,34 @@ public:
 
     enum ClipChangeType { Inserted, Removed };
 
-    [[nodiscard]] QString name() const override;
+    QString name() const override;
     void setName(const QString &name) override;
-    [[nodiscard]] TrackControl control() const override;
+
+    QColor color() const override;
+    void setColor(const QColor &color) override;
+
+    TrackControl control() const override;
     void setControl(const TrackControl &control) override;
-    [[nodiscard]] OverlappableSerialList<Clip> clips() const;
+
+    OverlappableSerialList<Clip> clips() const;
     void insertClip(Clip *clip);
     void insertClips(const QList<Clip *> &clips);
     void removeClip(Clip *clip);
-    [[nodiscard]] QColor color() const override;
-    void setColor(const QColor &color) override;
-    [[nodiscard]] QString defaultLanguage() const;
+
+    QString defaultLanguage() const;
     void setDefaultLanguage(const QString &language);
-    [[nodiscard]] QString defaultG2pId() const;
-    void setDefaultG2pId(const QString &g2pId);
-    [[nodiscard]] SingerIdentifier singerIdentifier() const;
-    [[nodiscard]] SingerInfo singerInfo() const;
+    QString defaultG2pId() const;
+
+    SingerInfo singerInfo() const;
     void setSingerInfo(const SingerInfo &singerInfo);
-    [[nodiscard]] QString speakerId() const;
-    [[nodiscard]] SpeakerInfo speakerInfo() const;
+    SingerIdentifier singerIdentifier() const;
+
+    QString speakerId() const;
+    SpeakerInfo speakerInfo() const;
     void setSpeakerInfo(const SpeakerInfo &speakerInfo);
 
     void notifyClipChanged(ClipChangeType type, Clip *clip);
-    [[nodiscard]] Clip *findClipById(int id) const;
+    Clip *findClipById(int id) const;
 
     class TrackProperties {
     public:
@@ -65,7 +67,7 @@ public:
         bool solo = false;
     };
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 
 signals:
@@ -75,12 +77,16 @@ signals:
     void speakerChanged(const SpeakerInfo &speaker);
 
 private:
+    void updateDefaultG2pId(const QString &language);
+
     QString m_name;
     TrackControl m_control = TrackControl();
     OverlappableSerialList<Clip> m_clips;
     QColor m_color;
+
     QString m_defaultLanguage = "unknown";
     QString m_defaultG2pId = "unknown";
+
     SingerInfo m_singerInfo;
     SpeakerInfo m_speakerInfo;
 };

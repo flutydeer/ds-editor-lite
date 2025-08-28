@@ -19,7 +19,6 @@
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AudioClipView.h"
-#include "Utils/G2pUtil.h"
 
 #include <QFileInfo>
 
@@ -45,8 +44,6 @@ void TrackController::onInsertNewTrack(const qsizetype index) {
     const auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
     newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
-    // TODO: Temp Use
-    newTrack->setDefaultG2pId(defaultG2pId());
     // if (soloExists) {
     //     auto control = newTrack->control();
     //     control.setMute(true);
@@ -207,7 +204,7 @@ SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int t
     const auto track = appModel->tracks().at(trackIndex);
     singingClip->setDefaultLanguage(track->defaultLanguage());
     singingClip->setTrackSingerInfo(track->singerInfo());
-    singingClip->trackSpeakerInfo = track->speakerInfo();
+    singingClip->setTrackSpeakerInfo(track->speakerInfo());
     const auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(singingClip);

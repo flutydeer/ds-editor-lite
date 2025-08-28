@@ -375,7 +375,7 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
 void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
     const auto inputNotes = Helper::buildInferInputNotes(piece.notes);
     const InferDurationTask::InferDurInput input = {
-        piece.clip->id(), piece.id(),       inputNotes, piece.clip->getSingerIdentifier(),
+        piece.clip->id(), piece.id(),       inputNotes, piece.clip->singerIdentifier(),
         piece.speaker,    appModel->tempo()};
     // 清空原有的自动参数
     Helper::resetPhoneOffset(piece.notes, piece);
@@ -388,7 +388,7 @@ void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
-    const auto input = Helper::buildInferPitchInput(piece, piece.clip->getSingerIdentifier());
+    const auto input = Helper::buildInferPitchInput(piece, piece.clip->singerIdentifier());
     Helper::resetPitch(piece);
     auto task = new InferPitchTask(input);
     connect(task, &Task::finished, this, [task, this] { handleInferPitchTaskFinished(*task); });
@@ -398,7 +398,7 @@ void InferControllerPrivate::createAndRunInferPitchTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
-    const auto input = Helper::buildInferVarianceInput(piece, piece.clip->getSingerIdentifier());
+    const auto input = Helper::buildInferVarianceInput(piece, piece.clip->singerIdentifier());
     Helper::resetVariance(piece);
     auto task = new InferVarianceTask(input);
     connect(task, &Task::finished, this, [task, this] { handleInferVarianceTaskFinished(*task); });
@@ -409,7 +409,7 @@ void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
 }
 
 void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
-    const auto input = Helper::buildInderAcousticInput(piece, piece.clip->getSingerIdentifier());
+    const auto input = Helper::buildInderAcousticInput(piece, piece.clip->singerIdentifier());
     Helper::resetAcoustic(piece);
     auto task = new InferAcousticTask(input);
     connect(task, &Task::finished, this, [task, this] { handleInferAcousticTaskFinished(*task); });

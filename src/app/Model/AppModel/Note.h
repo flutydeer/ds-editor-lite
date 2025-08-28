@@ -18,62 +18,67 @@ class SingingClip;
 
 class Note : public QObject, public Overlappable, public UniqueObject, public ISerializable {
     Q_OBJECT
-
 public:
     enum WordPropertyType { Original, Edited };
 
     explicit Note(SingingClip *context = nullptr, QObject *parent = nullptr);
     ~Note() override;
-    [[nodiscard]] SingingClip *clip() const;
+    SingingClip *clip() const;
     void setClip(SingingClip *clip);
-    [[nodiscard]] int globalStart() const;
+
+    int globalStart() const;
     void setGlobalStart(int start);
-    [[nodiscard]] int localStart() const;
+    int localStart() const;
     void setLocalStart(int rStart);
-    [[nodiscard]] int length() const;
+
+    int length() const;
     void setLength(int length);
-    [[nodiscard]] int keyIndex() const;
+    int keyIndex() const;
     void setKeyIndex(int keyIndex);
-    [[nodiscard]] int centShift() const;
+    int centShift() const;
     void setCentShift(int keyIndex);
-    [[nodiscard]] QString lyric() const;
+
+    QString lyric() const;
     void setLyric(const QString &lyric);
-    [[nodiscard]] Pronunciation pronunciation() const;
+
+    Pronunciation pronunciation() const;
     void setPronunciation(const Pronunciation &pronunciation);
     void setPronunciation(WordPropertyType type, const QString &text);
-    [[nodiscard]] QStringList pronCandidates() const;
+
+    QStringList pronCandidates() const;
     void setPronCandidates(const QStringList &pronCandidates);
 
-    // [[nodiscard]] PhonemeInfo phonemeInfo() const;
+    //  PhonemeInfo phonemeInfo() const;
     // void setPhonemeInfo(WordPropertyType type, const QList<Phoneme> &phonemes);
     // void setPhonemeInfo(const QList<Phoneme> &original, const QList<Phoneme> &edited);
     // void setPhonemeInfo(const PhonemeInfo &info);
-    [[nodiscard]] const Phonemes &phonemes() const;
+
+    const Phonemes &phonemes() const;
     void setPhonemes(const Phonemes &phonemes);
 
-    [[nodiscard]] const PhonemeNameInfo &phonemeNameInfo() const;
+    const PhonemeNameInfo &phonemeNameInfo() const;
     void setPhonemeNameInfo(const PhonemeNameInfo &info);
     void setPhonemeNameInfo(Phonemes::Type phType, WordPropertyType wordType,
                             const QList<QString> &nameSeq);
 
-    [[nodiscard]] const PhonemeOffsetInfo &phonemeOffsetInfo() const;
+    const PhonemeOffsetInfo &phonemeOffsetInfo() const;
     void setPhonemeOffsetInfo(const PhonemeOffsetInfo &info);
     void setPhonemeOffsetInfo(Phonemes::Type phType, WordPropertyType wordType,
                               const QList<int> &offsetSeq);
 
-    [[nodiscard]] QString language() const;
+    QString language() const;
     void setLanguage(const QString &language);
-    [[nodiscard]] bool lineFeed() const;
+    bool lineFeed() const;
     void setLineFeed(const bool &lineFeed);
-    [[nodiscard]] bool isSlur() const;
+    bool isSlur() const;
 
-    [[nodiscard]] QMap<QString, QJsonObject> workspace() const;
+    QMap<QString, QJsonObject> workspace() const;
     void setWorkspace(const QMap<QString, QJsonObject> &workspace);
 
     int compareTo(const Note *obj) const;
-    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
+    std::tuple<qsizetype, qsizetype> interval() const override;
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 
     class WordProperties {

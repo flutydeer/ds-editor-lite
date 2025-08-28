@@ -21,7 +21,6 @@ using PieceList = QList<InferPiece *>;
 
 class SingingClip final : public Clip {
     Q_OBJECT
-
 public:
     enum NoteChangeType {
         Insert,
@@ -36,40 +35,40 @@ public:
     explicit SingingClip(const QList<Note *> &notes);
     ~SingingClip() override;
 
-    [[nodiscard]] ClipType clipType() const override;
-    [[nodiscard]] const OverlappableSerialList<Note> &notes() const;
-
-    ParamInfo params;
-
-    Property<bool> useTrackSingerInfo{true};
-
-    Property<SpeakerInfo> speakerInfo;
-    Property<SpeakerInfo> trackSpeakerInfo;
-    Property<bool> useTrackSpeakerInfo{true};
+    ClipType clipType() const override;
+    const OverlappableSerialList<Note> &notes() const;
 
     void insertNote(Note *note);
     void insertNotes(const QList<Note *> &notes);
     void removeNote(Note *note);
-    [[nodiscard]] Note *findNoteById(int id) const;
+    Note *findNoteById(int id) const;
     void notifyNoteChanged(NoteChangeType type, const QList<Note *> &notes);
     void notifyParamChanged(ParamInfo::Name name, Param::Type type);
-    [[nodiscard]] const PieceList &pieces() const;
+    const PieceList &pieces() const;
     void reSegment();
     void updateOriginalParam(ParamInfo::Name name);
-    [[nodiscard]] InferPiece *findPieceById(int id) const;
-    [[nodiscard]] PieceList findPiecesByNotes(const QList<Note *> &notes) const;
+    InferPiece *findPieceById(int id) const;
+    PieceList findPiecesByNotes(const QList<Note *> &notes) const;
 
     void setDefaultLanguage(const QString &language);
-    [[nodiscard]] QString defaultLanguage() const;
-    QString g2pId() const;
+    QString defaultLanguage() const;
+    QString defaultG2pId() const;
 
+    SingerInfo singerInfo() const;
     void setSingerInfo(const SingerInfo &singerInfo);
-    SingerInfo getSingerInfo() const;
-
     void setTrackSingerInfo(const SingerInfo &singerInfo);
-    SingerIdentifier getSingerIdentifier() const;
-    QString getSpeakerId() const;
-    SpeakerInfo getSpeakerInfo() const;
+
+    SpeakerInfo speakerInfo() const;
+    void setSpeakerInfo(const SpeakerInfo &speakerInfo);
+    void setTrackSpeakerInfo(const SpeakerInfo &speakerInfo);
+
+    QString speakerId() const;
+    SingerIdentifier singerIdentifier() const;
+
+    ParamInfo params;
+
+    Property<bool> useTrackSingerInfo{true};
+    Property<bool> useTrackSpeakerInfo{true};
 
 signals:
     void singerChanged(const SingerInfo &identifier);
@@ -83,6 +82,8 @@ signals:
 
 private:
     void init();
+    void updateDefaultG2pId(const QString &language);
+
     OverlappableSerialList<Note> m_notes;
     PieceList m_pieces;
 
@@ -91,6 +92,9 @@ private:
 
     Property<SingerInfo> m_singerInfo;
     Property<SingerInfo> m_trackSingerInfo;
+
+    Property<SpeakerInfo> m_speakerInfo;
+    Property<SpeakerInfo> m_trackSpeakerInfo;
 };
 
 #endif // SINGINGCLIP_H

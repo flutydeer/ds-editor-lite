@@ -62,7 +62,7 @@ static void setTrackSpeakerForClip(Clip *clip, const SpeakerInfo &speakerInfo) {
     if (clip->clipType() == IClip::Singing) {
         // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
         const auto singingClip = static_cast<SingingClip *>(clip);
-        singingClip->trackSpeakerInfo = speakerInfo;
+        singingClip->setTrackSpeakerInfo(speakerInfo);
     }
 }
 
@@ -71,9 +71,9 @@ void Track::insertClip(Clip *clip) {
     setTrackSpeakerForClip(clip, m_speakerInfo);
     m_clips.add(clip);
     connect(this, &Track::singerChanged, clip,
-            [clip, this]() { setTrackSingerForClip(clip, m_singerInfo); });
+            [clip, this] { setTrackSingerForClip(clip, m_singerInfo); });
     connect(this, &Track::speakerChanged, clip,
-            [clip, this]() { setTrackSpeakerForClip(clip, m_speakerInfo); });
+            [clip, this] { setTrackSpeakerForClip(clip, m_speakerInfo); });
 }
 
 void Track::insertClips(const QList<Clip *> &clips) {
@@ -104,17 +104,11 @@ void Track::setDefaultLanguage(const QString &language) {
     // if (!AppGlobal::languageNames.contains(language))
     //     qFatal() << "Track::Language Name Error";
     m_defaultLanguage = language;
+    this->updateDefaultG2pId(language);
 }
 
 QString Track::defaultG2pId() const {
-    return m_defaultG2pId;
-}
-
-void Track::setDefaultG2pId(const QString &g2pId) {
-    // TODO: validate
-    // if (!AppGlobal::languageNames.contains(g2pId))
-    //     qFatal() << "Track::G2p Name Error";
-    m_defaultG2pId = g2pId;
+    return m_singerInfo.g2pId(m_defaultLanguage);
 }
 
 SingerIdentifier Track::singerIdentifier() const {
@@ -130,6 +124,7 @@ void Track::setSingerInfo(const SingerInfo &singerInfo) {
         return;
     }
     m_singerInfo = singerInfo;
+    this->updateDefaultG2pId(m_defaultLanguage);
     emit singerChanged(m_singerInfo);
 }
 
@@ -180,4 +175,14 @@ QJsonObject Track::serialize() const {
 
 bool Track::deserialize(const QJsonObject &obj) {
     return true;
+}
+
+void Track::updateDefaultG2pId(const QString &language) {
+    const auto languageInfos = this->singerInfo().languages();
+    for (const auto &languageInfo : languageInfos) {
+        if (language == languageInfo.id()) {
+            m_defaultG2pId = languageInfo.g2p();
+            break;
+        }
+    }
 }

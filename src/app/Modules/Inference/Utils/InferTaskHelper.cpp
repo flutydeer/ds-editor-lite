@@ -7,7 +7,17 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 
-#include "Utils/G2pUtil.h"
+// TODO: remove languageDefaultDictId
+static QMap<QString, QString> languageToDict = {
+    {"cmn", "zh" },
+    {"jpn", "ja" },
+    {"eng", "en" },
+    {"yue", "yue"}
+};
+
+static QString languageDefaultDictId(const QString &language) {
+    return languageToDict.contains(language) ? languageToDict.value(language) : "zh";
+}
 
 QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes, double tempo,
                                              bool useOffsetInfo) {
@@ -46,7 +56,8 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
                 start = firstWordLen - firstNote.aheadOffsets.at(i) / 1000.0;
                 i++;
             }
-            phoneBuffer.append({name, languageDefaultDictId(firstNote.languageDictId), false, start});
+            phoneBuffer.append(
+                {name, languageDefaultDictId(firstNote.languageDictId), false, start});
         }
         commit();
     };
@@ -107,7 +118,8 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
                     double start = 0;
                     if (useOffsetInfo)
                         start = wordLen - nextNonSlurNote.aheadOffsets.at(i) / 1000.0;
-                    InferPhoneme phone = {name, languageDefaultDictId(note.languageDictId), false, start};
+                    InferPhoneme phone = {name, languageDefaultDictId(note.languageDictId), false,
+                                          start};
                     if (!hasGap)
                         phoneBuffer.append(phone);
                     else // 如果有间隙则暂存，留给间隙音符

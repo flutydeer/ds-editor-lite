@@ -14,7 +14,6 @@
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
-#include "Utils/G2pUtil.h"
 #include "Utils/Linq.h"
 
 #include <QFileInfo>
@@ -54,7 +53,6 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
     }
 
     const auto language = appOptions->general()->defaultSingingLanguage;
-    const auto g2pId = defaultG2pId();
 
     // TODO: Fix start
     QList<Note *> notes;
@@ -82,7 +80,7 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
     const auto track = new Track(QFileInfo(task->input().audioPath).baseName(), {singingClip});
     singingClip->setTrackSingerInfo(track->singerInfo());
     singingClip->useTrackSingerInfo = true;
-    singingClip->trackSpeakerInfo = track->speakerInfo();
+    singingClip->setTrackSpeakerInfo(track->speakerInfo());
     singingClip->useTrackSpeakerInfo = true;
     track->setDefaultLanguage(language);
     trackController->onAppendTrack(track);

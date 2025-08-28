@@ -156,7 +156,6 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             trackControl.setSolo(dspxTrack.control.solo);
             track->setName(dspxTrack.name);
             track->setDefaultLanguage(dspxTrack.language);
-            track->setDefaultG2pId(dspxTrack.g2pId);
             track->setControl(trackControl);
             decodeClips(dspxTrack.clips, track);
             model->insertTrack(track, i);

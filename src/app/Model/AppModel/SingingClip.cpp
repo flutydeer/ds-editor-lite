@@ -86,8 +86,8 @@ void SingingClip::reSegment() {
         }
         if (!exists) {
             const auto newPiece = new InferPiece(this);
-            newPiece->identifier = getSingerIdentifier();
-            newPiece->speaker = getSpeakerId();
+            newPiece->identifier = singerIdentifier();
+            newPiece->speaker = speakerId();
             newPiece->notes = segment;
             newPieces.append(newPiece);
         }
@@ -133,75 +133,72 @@ PieceList SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
 
 void SingingClip::setDefaultLanguage(const QString &language) {
     m_defaultLanguage = language;
-    const auto languageInfos = this->getSingerInfo().languages();
-    for (const auto &languageInfo : languageInfos) {
-        if (language == languageInfo.id()) {
-            m_defaultG2pId = languageInfo.g2p();
-            break;
-        }
-    }
+    this->updateDefaultG2pId(language);
 }
 
 QString SingingClip::defaultLanguage() const {
     return m_defaultLanguage.get();
 }
 
-QString SingingClip::g2pId() const {
+QString SingingClip::defaultG2pId() const {
     return m_singerInfo.get().g2pId(m_defaultLanguage.get());
 }
 
-void SingingClip::setSingerInfo(const SingerInfo &singerInfo) {
-    m_singerInfo = singerInfo;
-}
-
-SingerInfo SingingClip::getSingerInfo() const {
+SingerInfo SingingClip::singerInfo() const {
     if (useTrackSingerInfo) {
         return m_trackSingerInfo.get();
     }
     return m_singerInfo.get();
 }
 
+void SingingClip::setSingerInfo(const SingerInfo &singerInfo) {
+    m_singerInfo = singerInfo;
+    this->updateDefaultG2pId(m_defaultLanguage);
+}
+
 void SingingClip::setTrackSingerInfo(const SingerInfo &singerInfo) {
     m_trackSingerInfo = singerInfo;
-    const auto languageInfos = this->getSingerInfo().languages();
-    for (const auto &languageInfo : languageInfos) {
-        if (m_defaultLanguage == languageInfo.id()) {
-            m_defaultG2pId = languageInfo.g2p();
-            break;
-        }
-    }
+    this->updateDefaultG2pId(m_defaultLanguage);
 }
 
-SingerIdentifier SingingClip::getSingerIdentifier() const {
-    return getSingerInfo().identifier();
-}
-
-QString SingingClip::getSpeakerId() const {
-    return getSpeakerInfo().id();
-}
-
-SpeakerInfo SingingClip::getSpeakerInfo() const {
+SpeakerInfo SingingClip::speakerInfo() const {
     if (useTrackSpeakerInfo) {
-        return trackSpeakerInfo.get();
+        return m_trackSpeakerInfo.get();
     }
-    return speakerInfo.get();
+    return m_speakerInfo.get();
+}
+
+QString SingingClip::speakerId() const {
+    return speakerInfo().id();
+}
+
+void SingingClip::setSpeakerInfo(const SpeakerInfo &speakerInfo) {
+    m_speakerInfo = speakerInfo;
+}
+
+void SingingClip::setTrackSpeakerInfo(const SpeakerInfo &speakerInfo) {
+    m_trackSpeakerInfo = speakerInfo;
+}
+
+SingerIdentifier SingingClip::singerIdentifier() const {
+    return singerInfo().identifier();
 }
 
 void SingingClip::init() {
     m_defaultLanguage.onChanged(qSignalCallback(defaultLanguageChanged));
     m_singerInfo.onChanged([this](const SingerInfo &) {
         if (!useTrackSingerInfo) {
-            Q_EMIT singerChanged(getSingerInfo());
+            Q_EMIT singerChanged(singerInfo());
         }
     });
     m_trackSingerInfo.onChanged([this](const SingerInfo &) {
         if (useTrackSingerInfo) {
-            Q_EMIT singerChanged(getSingerInfo());
+            Q_EMIT singerChanged(singerInfo());
         }
     });
     useTrackSingerInfo.onChanged([this](bool) {
         if (m_singerInfo.get() != m_trackSingerInfo.get()) {
-            Q_EMIT singerChanged(getSingerInfo());
+            Q_EMIT singerChanged(singerInfo());
         }
     });
     connect(this, &SingingClip::singerChanged, this, [this](const SingerInfo &currentSingerInfo) {
@@ -224,19 +221,19 @@ void SingingClip::init() {
         for (const auto &lang : languages.languages())
             s2pMgr->addS2p(currentSingerInfo.name(), lang.g2p(), lang.dict());
     });
-    speakerInfo.onChanged([this](const SpeakerInfo &) {
+    m_speakerInfo.onChanged([this](const SpeakerInfo &) {
         if (!useTrackSpeakerInfo) {
-            Q_EMIT speakerChanged(getSpeakerInfo());
+            Q_EMIT speakerChanged(speakerInfo());
         }
     });
-    trackSpeakerInfo.onChanged([this](const SpeakerInfo &) {
+    m_trackSpeakerInfo.onChanged([this](const SpeakerInfo &) {
         if (useTrackSpeakerInfo) {
-            Q_EMIT speakerChanged(getSpeakerInfo());
+            Q_EMIT speakerChanged(speakerInfo());
         }
     });
     useTrackSpeakerInfo.onChanged([this](bool) {
-        if (speakerInfo.get() != trackSpeakerInfo.get()) {
-            Q_EMIT speakerChanged(getSpeakerInfo());
+        if (m_speakerInfo.get() != m_trackSpeakerInfo.get()) {
+            Q_EMIT speakerChanged(speakerInfo());
         }
     });
     connect(this, &SingingClip::speakerChanged, this,
@@ -256,4 +253,14 @@ void SingingClip::init() {
                     reSegment();
                 }
             });
+}
+
+void SingingClip::updateDefaultG2pId(const QString &language) {
+    const auto languageInfos = this->singerInfo().languages();
+    for (const auto &languageInfo : languageInfos) {
+        if (language == languageInfo.id()) {
+            m_defaultG2pId = languageInfo.g2p();
+            break;
+        }
+    }
 }

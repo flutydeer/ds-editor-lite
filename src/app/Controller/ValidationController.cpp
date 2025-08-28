@@ -9,7 +9,6 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Toast.h"
-#include "Utils/G2pUtil.h"
 
 // TODO: 调整逻辑避免不必要的 validation
 ValidationController::ValidationController() {
@@ -44,7 +43,7 @@ void ValidationController::onModelChanged() {
                 const auto singingClip = reinterpret_cast<SingingClip *>(clip);
                 singingClip->setDefaultLanguage(track->defaultLanguage());
                 singingClip->setTrackSingerInfo(track->singerInfo());
-                singingClip->trackSpeakerInfo = track->speakerInfo();
+                singingClip->setTrackSpeakerInfo(track->speakerInfo());
             }
         }
     }

@@ -9,7 +9,6 @@
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Views/Common/LanguageComboBox.h"
-#include "Utils/G2pUtil.h"
 #include "Utils/Linq.h"
 
 #include <QFormLayout>
@@ -74,8 +73,6 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
 
 NoteDialogResult NotePropertyDialog::result() {
     m_result.language = m_cbLanguage->currentText();
-    // TODO: Temp Use
-    m_result.g2pId = g2pIdFromLanguage(m_result.language);
     m_result.lyric = m_leLyric->text();
     m_result.pronunciation.edited = m_lePron->text();
 

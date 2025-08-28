@@ -10,8 +10,6 @@
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppOptions/AppOptions.h"
 
-#include "Utils/G2pUtil.h"
-
 #include <opendspx/qdspxtrack.h>
 #include <opendspx/qdspxtimeline.h>
 #include <opendspx/qdspxmodel.h>
@@ -114,7 +112,6 @@ void convertTracks(const QDspx::Model &dspx, AppModel *model, const QString &lan
         const auto dsTrack = new Track;
         dsTrack->setName(track.name);
         dsTrack->setDefaultLanguage(language);
-        dsTrack->setDefaultG2pId(g2pIdFromLanguage(language));
         convertClips(track, dsTrack, language);
         model->insertTrack(dsTrack, i);
     }

@@ -85,7 +85,7 @@ void LyricDialog::accept() {
 }
 
 void LyricDialog::noteToPhonic() {
-    const auto singerInfo = m_clip->getSingerInfo();
+    const auto singerInfo = m_clip->singerInfo();
     for (const auto note : m_notes) {
         auto langNote = LangNote(note->lyric());
         langNote.syllable = note->pronunciation().original;

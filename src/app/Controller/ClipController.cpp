@@ -321,7 +321,7 @@ void ClipController::onFillLyric(QWidget *parent) {
         inputNotes.append(inputNote);
     }
 
-    const auto singerInfo = singingClip->getSingerInfo();
+    const auto singerInfo = singingClip->singerInfo();
     QStringList priorityG2pIds = {};
     if (!singerInfo.isEmpty()) {
         priorityG2pIds.append(singerInfo.defaultG2pId());

@@ -16,7 +16,6 @@
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/ToolTipFilter.h"
 #include "UI/Views/Common/LanguageComboBox.h"
-#include "Utils/G2pUtil.h"
 
 #include <QButtonGroup>
 #include <QHBoxLayout>

@@ -12,7 +12,6 @@
 #include "Modules/ProjectConverters/AProjectConverter.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
-#include "Utils/G2pUtil.h"
 #include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
@@ -127,8 +126,6 @@ void AppModel::newProject() {
     const auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
     newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
-    // TODO: Temp Use
-    newTrack->setDefaultG2pId(defaultG2pId());
     // if (soloExists) {
     //     auto control = newTrack->control();
     //     control.setMute(true);

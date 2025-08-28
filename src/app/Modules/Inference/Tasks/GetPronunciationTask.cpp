@@ -49,7 +49,7 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
     }
 
     const auto singingClip = reinterpret_cast<SingingClip *>(appModel->findClipById(m_clipId));
-    const auto singerInfo = singingClip->getSingerInfo();
+    const auto singerInfo = singingClip->singerInfo();
     const auto langMgr = LangMgr::ILanguageManager::instance();
     QList<LangNote *> langNotes;
     for (const auto note : notes) {
