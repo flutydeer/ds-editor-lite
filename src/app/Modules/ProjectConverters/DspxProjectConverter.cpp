@@ -99,7 +99,6 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             note->setCentShift(dspxNote.centShift);
             note->setLyric(dspxNote.lyric);
             note->setLanguage(dspxNote.language);
-            note->setG2pId(dspxNote.g2pId);
             note->setPronunciation(
                 Pronunciation(dspxNote.pronunciation.org, dspxNote.pronunciation.edited));
             note->setWorkspace(dspxNote.workspace);
@@ -266,7 +265,6 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             note.centShift = dsNote->centShift();
             note.lyric = dsNote->lyric();
             note.language = dsNote->language();
-            note.g2pId = dsNote->g2pId();
             note.pronunciation.org = dsNote->pronunciation().original;
             note.pronunciation.edited = dsNote->pronunciation().edited;
             // encodePhonemes(dsNote->phonemeInfo().original, note.phonemes.org);

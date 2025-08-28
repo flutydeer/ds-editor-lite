@@ -63,8 +63,6 @@ public:
 
     [[nodiscard]] QString language() const;
     void setLanguage(const QString &language);
-    [[nodiscard]] QString g2pId() const;
-    void setG2pId(const QString &g2pId);
     [[nodiscard]] bool lineFeed() const;
     void setLineFeed(const bool &lineFeed);
     [[nodiscard]] bool isSlur() const;
@@ -82,7 +80,6 @@ public:
     public:
         QString lyric;
         QString language;
-        QString g2pId;
         Pronunciation pronunciation;
         QStringList pronCandidates;
         // PhonemeInfo phonemes;

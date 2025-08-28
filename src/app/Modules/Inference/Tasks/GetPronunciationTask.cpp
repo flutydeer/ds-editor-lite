@@ -47,17 +47,25 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
         qFatal() << "Language module not ready yet";
         return {};
     }
+
+    const auto singingClip = reinterpret_cast<SingingClip *>(appModel->findClipById(m_clipId));
+    const auto singerInfo = singingClip->getSingerInfo();
     const auto langMgr = LangMgr::ILanguageManager::instance();
     QList<LangNote *> langNotes;
     for (const auto note : notes) {
         const auto langNote = new LangNote(note->lyric());
-        langNote->g2pId = note->g2pId();
+        langNote->g2pId = singerInfo.g2pId(note->language());
         langNotes.append(langNote);
     }
 
-    const auto singingClip = reinterpret_cast<SingingClip *>(appModel->findClipById(m_clipId));
-    // TODO: add priorityG2pIds, {defaultG2pId, singer support g2pId1, singer support g2pId2 ...}
-    langMgr->correct(langNotes, {singingClip->defaultG2pId});
+    QStringList priorityG2pIds = {};
+    if (!singerInfo.isEmpty()) {
+        priorityG2pIds.append(singerInfo.defaultG2pId());
+        const auto languages = singerInfo.languages();
+        for (const auto &lang : languages)
+            priorityG2pIds.append(lang.g2p());
+    }
+    langMgr->correct(langNotes, priorityG2pIds);
     langMgr->convert(langNotes);
 
     QList<QString> pronResult;

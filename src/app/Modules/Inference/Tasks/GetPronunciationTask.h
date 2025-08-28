@@ -5,6 +5,7 @@
 #ifndef GETPRONUNCIATIONTASK_H
 #define GETPRONUNCIATIONTASK_H
 
+#include "Model/AppModel/SingingClip.h"
 #include "Modules/Task/Task.h"
 
 

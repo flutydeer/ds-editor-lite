@@ -10,8 +10,9 @@
 #include <QKeyEvent>
 #include <QScreen>
 
-LyricDialog::LyricDialog(QList<Note *> note, const QStringList &priorityG2pIds, QWidget *parent)
-    : Dialog(parent), m_notes(std::move(note)) {
+LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringList &priorityG2pIds,
+                         QWidget *parent)
+    : Dialog(parent), m_clip(clip), m_notes(std::move(note)) {
     setModal(true);
     setMinimumSize(720, 450);
     setWindowTitle(tr("Fill Lyric"));
@@ -84,12 +85,13 @@ void LyricDialog::accept() {
 }
 
 void LyricDialog::noteToPhonic() {
+    const auto singerInfo = m_clip->getSingerInfo();
     for (const auto note : m_notes) {
         auto langNote = LangNote(note->lyric());
         langNote.syllable = note->pronunciation().original;
         langNote.syllableRevised = note->pronunciation().edited;
         langNote.candidates = note->pronCandidates();
-        langNote.g2pId = note->g2pId();
+        langNote.g2pId = singerInfo.g2pId(note->language());
 
         if (note->isSlur())
             langNote.g2pId = "slur";

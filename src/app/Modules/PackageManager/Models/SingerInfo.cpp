@@ -85,8 +85,20 @@ QList<LanguageInfo> SingerInfo::languages() const {
     return d->languages;
 }
 
+QString SingerInfo::g2pId(const QString &language) const {
+    for (const auto &lang : d->languages) {
+        if (language == lang.id())
+            return lang.g2p();
+    }
+    return QStringLiteral("unknown");
+}
+
 QString SingerInfo::defaultLanguage() const {
     return d->defaultLanguage;
+}
+
+QString SingerInfo::defaultG2pId() const {
+    return this->g2pId(this->defaultLanguage());
 }
 
 QString SingerInfo::defaultDict() const {

@@ -1,7 +1,9 @@
 #ifndef DS_EDITOR_LITE_LYRICDIALOG_H
 #define DS_EDITOR_LITE_LYRICDIALOG_H
 
-#include <QTabWidget>
+
+#include "Model/AppModel/SingingClip.h"
+
 
 #include <lyric-tab/LyricTab.h>
 #include <language-manager/LangCommon.h>
@@ -23,8 +25,8 @@ class LyricDialog final : public Dialog {
     Q_OBJECT
 
 public:
-    explicit LyricDialog(QList<Note *> note, const QStringList &priorityG2pIds = {},
-                         QWidget *parent = nullptr);
+    explicit LyricDialog(SingingClip *clip, QList<Note *> note,
+                         const QStringList &priorityG2pIds = {}, QWidget *parent = nullptr);
     ~LyricDialog() override;
 
     void setLangNotes() const;
@@ -45,6 +47,8 @@ private:
     void switchTab(const int &index);
 
     static void _on_modifyOption(const FillLyric::LyricTabConfig &config);
+
+    SingingClip *m_clip;
 
     QVBoxLayout *m_mainLayout;
     QTabWidget *m_tabWidget;
