@@ -54,7 +54,7 @@ void TrackController::onInsertNewTrack(const qsizetype index) {
     // }
 
     // TODO: set default singer and speaker here
-    //newTrack->setSingerIdentifier({
+    // newTrack->setSingerIdentifier({
     //    .singerId = appOptions->general()->defaultSingerId,
     //    .packageId = appOptions->general()->defaultPackageId,
     //    .packageVersion = appOptions->general()->defaultPackageVersion,
@@ -205,10 +205,8 @@ SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int t
     singingClip->setClipLen(length);
 
     const auto track = appModel->tracks().at(trackIndex);
-    singingClip->defaultLanguage = track->defaultLanguage();
-    // TODO: Temp Use
-    singingClip->defaultG2pId = g2pIdFromLanguage(singingClip->defaultLanguage);
-    singingClip->trackSingerInfo = track->singerInfo();
+    singingClip->setDefaultLanguage(track->defaultLanguage());
+    singingClip->setTrackSingerInfo(track->singerInfo());
     singingClip->trackSpeakerInfo = track->speakerInfo();
     const auto a = new ClipActions;
     QList<Clip *> clips;

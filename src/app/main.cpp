@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
     //     note->setRStart(i * 240);
     //     note->setLength(240);
     //     note->setLyric("啦");
-    //     note->setLanguage("cmn");
+    //     note->setDefaultLanguage("cmn");
     //     clipController->onInsertNote(note);
     // }
 

@@ -95,9 +95,10 @@ private:
     int m_length = 480;
     int m_keyIndex = 60;
     int m_centShift = 0;
+
     QString m_lyric;
     QString m_language = "unknown";
-    QString m_g2pId = "unknown";
+
     Pronunciation m_pronunciation;
     QStringList m_pronCandidates;
     // PhonemeInfo m_phonemes;

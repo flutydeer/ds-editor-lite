@@ -13,11 +13,11 @@
 
 GetPhonemeNameTask::GetPhonemeNameTask(const SingingClip &clip,
                                        const QList<PhonemeNameInput> &inputs)
-    : m_clipG2pId(clip.defaultG2pId), m_clipId(clip.id()), m_inputs(inputs) {
+    : m_clipG2pId(clip.g2pId()), m_clipId(clip.id()), m_inputs(inputs) {
     // TODO: Use singer's default g2p if note's language g2p is empty
     const auto singerInfo = clip.getSingerInfo();
     m_clipSingerId = singerInfo.name();
-    const auto defaultLang = clip.defaultLanguage;
+    const auto defaultLang = clip.defaultLanguage();
     for (const auto &lang : singerInfo.languages()) {
         if (lang.id() == defaultLang) {
             m_clipG2pId = lang.g2p();

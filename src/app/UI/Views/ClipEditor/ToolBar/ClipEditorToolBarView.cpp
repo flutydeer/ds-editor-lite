@@ -223,9 +223,7 @@ void ClipEditorToolBarViewPrivate::onClipLanguageChanged(const QString &language
 
 void ClipEditorToolBarViewPrivate::onLanguageEdited(const QString &language) const {
     if (m_singingClip) {
-        m_singingClip->defaultLanguage = language;
-        // TODO: Temp Use
-        m_singingClip->defaultG2pId = g2pIdFromLanguage(language);
+        m_singingClip->setDefaultLanguage(language);
     }
 }
 
@@ -295,8 +293,7 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
     m_cbClipLanguage->setEnabled(on);
 
     if (on) {
-        const auto lang = m_singingClip->defaultLanguage;
-        m_cbClipLanguage->setCurrentText(lang);
+        m_cbClipLanguage->setCurrentText(m_singingClip->defaultLanguage());
         connect(m_cbClipLanguage, &ComboBox::currentTextChanged, this,
                 &ClipEditorToolBarViewPrivate::onLanguageEdited);
         connect(m_singingClip, &SingingClip::defaultLanguageChanged, m_cbClipLanguage,

@@ -51,7 +51,7 @@ static void setTrackSingerForClip(Clip *clip, const SingerInfo &singerInfo) {
     if (clip->clipType() == IClip::Singing) {
         // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
         const auto singingClip = static_cast<SingingClip *>(clip);
-        singingClip->trackSingerInfo = singerInfo;
+        singingClip->setTrackSingerInfo(singerInfo);
     }
 }
 
@@ -70,12 +70,10 @@ void Track::insertClip(Clip *clip) {
     setTrackSingerForClip(clip, m_singerInfo);
     setTrackSpeakerForClip(clip, m_speakerInfo);
     m_clips.add(clip);
-    connect(this, &Track::singerChanged, clip, [clip, this]() {
-        setTrackSingerForClip(clip, m_singerInfo);
-    });
-    connect(this, &Track::speakerChanged, clip, [clip, this]() {
-        setTrackSpeakerForClip(clip, m_speakerInfo);
-    });
+    connect(this, &Track::singerChanged, clip,
+            [clip, this]() { setTrackSingerForClip(clip, m_singerInfo); });
+    connect(this, &Track::speakerChanged, clip,
+            [clip, this]() { setTrackSpeakerForClip(clip, m_speakerInfo); });
 }
 
 void Track::insertClips(const QList<Clip *> &clips) {

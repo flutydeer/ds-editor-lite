@@ -136,7 +136,7 @@ void AppModel::newProject() {
     // }
 
     // TODO: set default singer and speaker here
-    //newTrack->setSingerIdentifier({
+    // newTrack->setSingerIdentifier({
     //    .singerId = "zhibin", //appOptions->general()->defaultSingerId,
     //    .packageId = "zhibin", //appOptions->general()->defaultPackageId,
     //    .packageVersion = QVersionNumber(5, 2), //appOptions->general()->defaultPackageVersion,
@@ -175,13 +175,10 @@ bool AppModel::importAceProject(const QString &filename) {
     if (ok) {
         for (const auto track : resultModel.tracks()) {
             track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
-            // TODO: Temp Use
-            track->setDefaultG2pId(defaultG2pId());
             for (const auto clip : track->clips()) {
                 if (clip->clipType() == Clip::Singing) {
                     const auto singingClip = reinterpret_cast<SingingClip *>(clip);
-                    singingClip->defaultLanguage = track->defaultLanguage();
-                    singingClip->defaultG2pId = track->defaultG2pId();
+                    singingClip->setDefaultLanguage(track->defaultLanguage());
                     // NoteWordUtils::fillEditedPhonemeNames(singingClip->notes().toList());
                 }
             }
@@ -205,15 +202,15 @@ void AppModel::loadFromAppModel(const AppModel &model) {
 QJsonObject AppModel::serialize() const {
     Q_D(const AppModel);
     const QJsonObject objGlobal{
-        {"author", QString()},
-        {"centShift", 0},
-        {"name", QString()}
+        {"author",    QString()},
+        {"centShift", 0        },
+        {"name",      QString()}
     };
 
     const QJsonObject objControl{
-        {"gain", 0},
+        {"gain", 0    },
         {"mute", false},
-        {"pan", 0}
+        {"pan",  0    }
     };
 
     QJsonObject objMaster{
@@ -221,7 +218,7 @@ QJsonObject AppModel::serialize() const {
     };
 
     const QJsonObject objTempo{
-        {"pos", 0},
+        {"pos",   0         },
         {"value", d->m_tempo}
     };
 
@@ -231,8 +228,8 @@ QJsonObject AppModel::serialize() const {
     QJsonArray arrTimeSignatures = {objTimeSignature};
 
     QJsonObject objTimeLine{
-        {"labels", QJsonArray()},
-        {"tempos", arrTempos},
+        {"labels",         QJsonArray()     },
+        {"tempos",         arrTempos        },
         {"timeSignatures", arrTimeSignatures}
     };
 
@@ -241,16 +238,16 @@ QJsonObject AppModel::serialize() const {
         arrTracks.append(track->serialize());
 
     QJsonObject objContent{
-        {"global", objGlobal},
-        {"master", objMaster},
-        {"timeline", objTimeLine},
-        {"tracks", arrTracks},
+        {"global",    objGlobal    },
+        {"master",    objMaster    },
+        {"timeline",  objTimeLine  },
+        {"tracks",    arrTracks    },
         {"workspace", QJsonObject()}
     };
 
     return QJsonObject{
         {"content", objContent},
-        {"version", "0.0.1"}
+        {"version", "0.0.1"   }
     };
 }
 

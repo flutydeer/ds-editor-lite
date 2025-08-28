@@ -38,12 +38,11 @@ public:
 
     [[nodiscard]] ClipType clipType() const override;
     [[nodiscard]] const OverlappableSerialList<Note> &notes() const;
-    Property<QString> defaultLanguage{"unknown"};
-    Property<QString> defaultG2pId{"unknown"};
+
     ParamInfo params;
-    Property<SingerInfo> singerInfo;
-    Property<SingerInfo> trackSingerInfo;
+
     Property<bool> useTrackSingerInfo{true};
+
     Property<SpeakerInfo> speakerInfo;
     Property<SpeakerInfo> trackSpeakerInfo;
     Property<bool> useTrackSpeakerInfo{true};
@@ -59,7 +58,15 @@ public:
     void updateOriginalParam(ParamInfo::Name name);
     [[nodiscard]] InferPiece *findPieceById(int id) const;
     [[nodiscard]] PieceList findPiecesByNotes(const QList<Note *> &notes) const;
+
+    void setDefaultLanguage(const QString &language);
+    [[nodiscard]] QString defaultLanguage() const;
+    QString g2pId() const;
+
+    void setSingerInfo(const SingerInfo &singerInfo);
     SingerInfo getSingerInfo() const;
+
+    void setTrackSingerInfo(const SingerInfo &singerInfo);
     SingerIdentifier getSingerIdentifier() const;
     QString getSpeakerId() const;
     SpeakerInfo getSpeakerInfo() const;
@@ -78,6 +85,12 @@ private:
     void init();
     OverlappableSerialList<Note> m_notes;
     PieceList m_pieces;
+
+    Property<QString> m_defaultLanguage{"unknown"};
+    Property<QString> m_defaultG2pId{"unknown"};
+
+    Property<SingerInfo> m_singerInfo;
+    Property<SingerInfo> m_trackSingerInfo;
 };
 
 #endif // SINGINGCLIP_H

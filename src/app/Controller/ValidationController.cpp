@@ -35,8 +35,6 @@ void ValidationController::onModelChanged() {
     for (const auto track : appModel->tracks()) {
         // Set track default language
         track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
-        // TODO: Temp Use
-        track->setDefaultG2pId(defaultG2pId());
         onTrackChanged(AppModel::Insert, -1, track);
         connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
         for (const auto clip : track->clips()) {
@@ -44,9 +42,8 @@ void ValidationController::onModelChanged() {
             handleClipInserted(clip);
             if (clip->clipType() == Clip::Singing) {
                 const auto singingClip = reinterpret_cast<SingingClip *>(clip);
-                singingClip->defaultLanguage = track->defaultLanguage();
-                singingClip->defaultG2pId = track->defaultG2pId();
-                singingClip->trackSingerInfo = track->singerInfo();
+                singingClip->setDefaultLanguage(track->defaultLanguage());
+                singingClip->setTrackSingerInfo(track->singerInfo());
                 singingClip->trackSpeakerInfo = track->speakerInfo();
             }
         }

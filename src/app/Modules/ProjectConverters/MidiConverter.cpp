@@ -88,8 +88,7 @@ void convertClips(const QDspx::Track &track, Track *dsTrack, const QString &lang
             singingClip->setClipStart(clip->time.clipStart);
             singingClip->setLength(clip->time.length);
             singingClip->setClipLen(clip->time.clipLen + 960);
-            singingClip->defaultLanguage = language;
-            singingClip->defaultG2pId = g2pIdFromLanguage(language);
+            singingClip->setDefaultLanguage(language);
 
             auto notes = convertNotes(singClip->notes, singClip->time.start, language);
             for (const auto note : notes) {

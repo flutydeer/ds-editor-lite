@@ -131,11 +131,45 @@ PieceList SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
     return {result.begin(), result.end()}; // 将 QSet 转换为 QList 返回
 }
 
+void SingingClip::setDefaultLanguage(const QString &language) {
+    m_defaultLanguage = language;
+    const auto languageInfos = this->getSingerInfo().languages();
+    for (const auto &languageInfo : languageInfos) {
+        if (language == languageInfo.id()) {
+            m_defaultG2pId = languageInfo.g2p();
+            break;
+        }
+    }
+}
+
+QString SingingClip::defaultLanguage() const {
+    return m_defaultLanguage.get();
+}
+
+QString SingingClip::g2pId() const {
+    return m_singerInfo.get().g2pId(m_defaultLanguage.get());
+}
+
+void SingingClip::setSingerInfo(const SingerInfo &singerInfo) {
+    m_singerInfo = singerInfo;
+}
+
 SingerInfo SingingClip::getSingerInfo() const {
     if (useTrackSingerInfo) {
-        return trackSingerInfo.get();
+        return m_trackSingerInfo.get();
     }
-    return singerInfo.get();
+    return m_singerInfo.get();
+}
+
+void SingingClip::setTrackSingerInfo(const SingerInfo &singerInfo) {
+    m_trackSingerInfo = singerInfo;
+    const auto languageInfos = this->getSingerInfo().languages();
+    for (const auto &languageInfo : languageInfos) {
+        if (m_defaultLanguage == languageInfo.id()) {
+            m_defaultG2pId = languageInfo.g2p();
+            break;
+        }
+    }
 }
 
 SingerIdentifier SingingClip::getSingerIdentifier() const {
@@ -154,19 +188,19 @@ SpeakerInfo SingingClip::getSpeakerInfo() const {
 }
 
 void SingingClip::init() {
-    defaultLanguage.onChanged(qSignalCallback(defaultLanguageChanged));
-    singerInfo.onChanged([this](const SingerInfo &) {
+    m_defaultLanguage.onChanged(qSignalCallback(defaultLanguageChanged));
+    m_singerInfo.onChanged([this](const SingerInfo &) {
         if (!useTrackSingerInfo) {
             Q_EMIT singerChanged(getSingerInfo());
         }
     });
-    trackSingerInfo.onChanged([this](const SingerInfo &) {
+    m_trackSingerInfo.onChanged([this](const SingerInfo &) {
         if (useTrackSingerInfo) {
             Q_EMIT singerChanged(getSingerInfo());
         }
     });
     useTrackSingerInfo.onChanged([this](bool) {
-        if (singerInfo.get() != trackSingerInfo.get()) {
+        if (m_singerInfo.get() != m_trackSingerInfo.get()) {
             Q_EMIT singerChanged(getSingerInfo());
         }
     });

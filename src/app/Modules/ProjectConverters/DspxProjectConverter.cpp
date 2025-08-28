@@ -114,8 +114,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 const auto castClip = dspxClip.dynamicCast<QDspx::SingingClip>();
                 const auto clip = new SingingClip;
                 clip->setName(castClip->name);
-                clip->defaultLanguage = castClip->language;
-                clip->defaultG2pId = castClip->g2pId;
+                clip->setDefaultLanguage(castClip->language);
                 clip->setStart(castClip->time.start);
                 clip->setClipStart(castClip->time.clipStart);
                 clip->setLength(castClip->time.length);
@@ -280,8 +279,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 const auto singingClip = dynamic_cast<SingingClip *>(clip);
                 auto singClip = QDspx::SingingClipRef::create();
                 singClip->name = clip->name();
-                singClip->language = singingClip->defaultLanguage;
-                singClip->g2pId = singingClip->defaultG2pId;
+                singClip->language = singingClip->defaultLanguage();
                 singClip->time.start = clip->start();
                 singClip->time.clipStart = clip->clipStart();
                 singClip->time.length = clip->length();
