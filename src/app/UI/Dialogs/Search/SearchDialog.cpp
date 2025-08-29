@@ -7,16 +7,15 @@
 #include <QApplication>
 #include <QButtonGroup>
 #include <QCloseEvent>
-#include <QVBoxLayout>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QVBoxLayout>
 
 SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     : Dialog(parent), m_clip(singingClip), m_notes(m_clip->notes().toList()) {
     setModal(true);
     setWindowTitle("搜索歌词");
-
     resize(150, 300);
 
     lineEditSearch = new QLineEdit();
@@ -25,7 +24,6 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     resultListWidget->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     labelInfo = new QLabel("找到了 0 个匹配项");
 
-    // 新建单选按钮控件
     startWithRadioButton = new QRadioButton("起始匹配");
     startWithRadioButton->setToolTip("以输入文本起始搜索");
     fullSearchRadioButton = new QRadioButton("完全匹配");
@@ -40,17 +38,18 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     searchModeGroup->addButton(fullSearchRadioButton);
     searchModeGroup->addButton(fuzzySearchRadioButton);
 
-    // 新建复选框控件
-    caseSensitiveCheckBox = new QCheckBox("区分大小写");
-    regexCheckBox = new QCheckBox("正则表达式");
+    caseSensitiveCheckBox = new QCheckBox("Cc");
+    caseSensitiveCheckBox->setToolTip("区分大小写");
+    regexCheckBox = new QCheckBox(".*");
+    regexCheckBox->setToolTip("正则表达式");
 
-    // 布局调整
     auto *searchTypeLayout = new QHBoxLayout();
     searchTypeLayout->addWidget(startWithRadioButton);
     searchTypeLayout->addWidget(fullSearchRadioButton);
     searchTypeLayout->addWidget(fuzzySearchRadioButton);
 
     auto *checkBoxLayout = new QHBoxLayout();
+    checkBoxLayout->addWidget(lineEditSearch);
     checkBoxLayout->addWidget(caseSensitiveCheckBox);
     checkBoxLayout->addWidget(regexCheckBox);
 
@@ -65,7 +64,6 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
 
     // 修改布局，将单选按钮布局和复选框布局添加到主布局中
     auto *layout = new QVBoxLayout();
-    layout->addWidget(lineEditSearch);
     layout->addLayout(checkBoxLayout);
     layout->addLayout(searchTypeLayout);
     layout->addLayout(resultLayout);
@@ -145,7 +143,6 @@ void SearchDialog::onSearchTextChanged() {
                 match = lyric.contains(searchTerm, caseSensitivity);
             }
         }
-
 
         if (match) {
             QString displayText = QString("%1 (%2)").arg(

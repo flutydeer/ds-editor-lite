@@ -25,10 +25,11 @@ public:
 private:
     void runTask() override;
     void processNotes();
-    QList<PhonemeNameResult> getPhonemeNames(const QStringList &input);
+    QList<PhonemeNameResult> getPhonemeNames(const QList<QPair<QString, QString>> &input);
 
     QString m_clipSingerId;
-    QString m_clipG2pId;
+    SingerInfo m_clipSingerInfo;
+
     int m_clipId = -1;
     std::atomic<bool> m_success{false};
     QList<PhonemeNameInput> m_inputs;

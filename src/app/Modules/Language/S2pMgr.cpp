@@ -39,7 +39,10 @@ QStringList S2pMgr::syllableToPhoneme(const QString &singerId, const QString &g2
                                       const QString &syllable) {
     const auto id = singerId + "_" + g2pId;
     if (!m_idToHash.contains(id)) {
-        qWarning() << "No S2p instance found for singerId:" << singerId << "g2pId:" << g2pId;
+        if (singerId == "")
+            qWarning() << "No Singer, S2p can not work.";
+        else
+            qWarning() << "No S2p instance found for singerId:" << singerId << "g2pId:" << g2pId;
         return QStringList();
     }
     const auto s2pInstance = m_hashToS2p[m_idToHash[id]];

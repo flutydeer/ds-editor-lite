@@ -1,18 +1,16 @@
 #ifndef SEARCHDIALOG_H
 #define SEARCHDIALOG_H
 
-#include <QLineEdit>
+#include <QCheckBox>
+#include <QHBoxLayout>
 #include <QLabel>
-#include <QVBoxLayout>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
-#include <QHBoxLayout>
-#include <QRadioButton> // 引入 QRadioButton
+#include <QRadioButton>
 
 #include "UI/Dialogs/Base/Dialog.h"
 #include "Model/AppModel/SingingClip.h"
-
-#include <QCheckBox>
 
 class SearchDialog final : public Dialog {
     Q_OBJECT
@@ -33,9 +31,11 @@ private:
     QList<Note *> m_notes;
     QLineEdit *lineEditSearch;
     QListWidget *resultListWidget;
+
     QLabel *labelInfo;
     QPushButton *btnPrev;
     QPushButton *btnNext;
+
     QRadioButton *startWithRadioButton;
     QRadioButton *fullSearchRadioButton;
     QRadioButton *fuzzySearchRadioButton;
