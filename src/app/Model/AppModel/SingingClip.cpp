@@ -2,6 +2,8 @@
 // Created by fluty on 24-9-18.
 //
 
+// ReSharper disable CppUseRangeAlgorithm
+
 #include "SingingClip.h"
 
 #include "AppModel.h"
@@ -122,7 +124,7 @@ PieceList SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
     QSet<InferPiece *> result;
     for (const auto &note : notes) {
         for (const auto &piece : m_pieces) {
-            if (std::ranges::find(piece->notes, note) != piece->notes.end()) {
+            if (std::find(piece->notes.begin(), piece->notes.end(), note) != piece->notes.end()) {
                 result.insert(piece);
                 break;
             }

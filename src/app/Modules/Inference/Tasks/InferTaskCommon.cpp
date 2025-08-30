@@ -2,7 +2,6 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 
 namespace Co = ds::Api::Common::L1;
-namespace Ac = ds::Api::Acoustic::L1;
 
 auto createParamInfo(const std::string_view tag) -> Co::InputParameterInfo {
     if (tag == Co::Tags::Pitch.name()) {
@@ -41,14 +40,15 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
         std::vector<Co::InputNoteInfo> inputNotes;
         inputNotes.reserve(word.notes.size());
         for (const auto &note : std::as_const(word.notes)) {
-            inputNotes.emplace_back(
+            inputNotes.emplace_back(Co::InputNoteInfo{
                 /* key */ note.key,
                 /* cents */ note.cents,
                 /* duration */ note.duration,
                 /* glide */ note.glide == "up" ? Co::GlideType::GT_Up
                 : note.glide == "down"         ? Co::GlideType::GT_Down
                                                : Co::GlideType::GT_None,
-                /* is_rest */ note.is_rest);
+                /* is_rest */ note.is_rest
+            });
         }
 
         std::vector<Co::InputPhonemeInfo> inputPhones;
@@ -61,7 +61,7 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
             } else if (!speakerMapping.empty()) {
                 qCritical() << "could not find speaker mapping for" << speakerName;
             }
-            inputPhones.emplace_back(
+            inputPhones.emplace_back(Co::InputPhonemeInfo{
                 /* token */ phone.token.toStdString(),
                 /* language */ phone.languageDictId.toStdString(),
                 /* tone */ 0,
@@ -69,9 +69,13 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
                 /* speakers */
                 std::vector{
                     Co::InputPhonemeInfo::Speaker{std::move(speakerIdForModel), 1}
+                }
             });
         }
-        inputWords.emplace_back(std::move(inputPhones), std::move(inputNotes));
+        inputWords.emplace_back(Co::InputWordInfo{
+            std::move(inputPhones),
+            std::move(inputNotes)
+        });
     }
 
     return inputWords;

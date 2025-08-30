@@ -1,4 +1,8 @@
+// ReSharper disable CppUseRangeAlgorithm
+
 #include "PathEditor.h"
+
+#include <algorithm>
 
 #include <QHBoxLayout>
 #include <QFileDialog>
@@ -29,9 +33,9 @@ namespace {
         }
 
         if (up) {
-            std::ranges::sort(rows);
+            std::sort(rows.begin(), rows.end());
         } else {
-            std::ranges::sort(rows, std::greater());
+            std::sort(rows.begin(), rows.end(), std::greater());
         }
 
         const int step = up ? -1 : 1;

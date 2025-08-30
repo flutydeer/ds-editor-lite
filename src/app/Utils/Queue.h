@@ -62,10 +62,10 @@ public:
     }
 
     // Iterators
-    using iterator = QList<T>::const_iterator;
-    using const_iterator = QList<T>::const_iterator;
-    using reverse_iterator = QList<T>::const_reverse_iterator;
-    using const_reverse_iterator = QList<T>::const_reverse_iterator;
+    using iterator = typename QList<T>::const_iterator;
+    using const_iterator = typename QList<T>::const_iterator;
+    using reverse_iterator = typename QList<T>::const_reverse_iterator;
+    using const_reverse_iterator = typename QList<T>::const_reverse_iterator;
 
     iterator begin() {
         return m_list.cbegin();

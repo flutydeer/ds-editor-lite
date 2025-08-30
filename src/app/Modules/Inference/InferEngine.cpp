@@ -607,8 +607,16 @@ void InferEngine::dispose() {
     terminateInferPitchAll();
     terminateInferVarianceAll();
     terminateInferAcousticAll();
-    QWriteLocker wrLock(&m_inferenceRwLock);
-    m_inferences.clear();
+    {
+        QWriteLocker wrLock(&m_inferenceRwLock);
+        m_inferences.clear();
+    }
+    auto packages = m_su.packages();
+    for (auto &package : packages) {
+        while (package.isLoaded()) {
+            package.close();
+        }
+    }
 }
 
 srt::SynthUnit &InferEngine::synthUnit() {

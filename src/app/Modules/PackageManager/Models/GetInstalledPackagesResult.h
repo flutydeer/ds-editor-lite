@@ -22,6 +22,10 @@ struct GetInstalledPackagesError {
 
 struct GetInstalledPackagesResult {
     struct FailedPackage {
+        explicit FailedPackage(QString path = {}, QString reason = {})
+            : path(std::move(path)), reason(std::move(reason)) {
+        }
+
         QString path;
         QString reason;
     };

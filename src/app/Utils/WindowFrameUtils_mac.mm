@@ -7,6 +7,7 @@
 #  include <QWidget>
 #  include <QStyle>
 
+// ReSharper disable once CppParameterMayBeConstPtrOrRef
 void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
     auto frame = NSMakeRect(widget->x(), widget->y(), widget->width(), widget->height());
     auto view = reinterpret_cast<NSView *>(widget->winId());

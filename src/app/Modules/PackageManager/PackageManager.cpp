@@ -255,10 +255,10 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
 
     for (const auto &path : su.packagePaths()) {
         if (!fs::exists(path) || !fs::is_directory(path)) {
-            result.failedPackages.append({
+            result.failedPackages.emplace_back(
                 StringUtils::path_to_qstr(path),
                 tr("Path is not a valid directory")
-            });
+            );
             continue;
         }
         processAllPackages(path);

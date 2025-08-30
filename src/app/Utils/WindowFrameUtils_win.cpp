@@ -4,7 +4,8 @@
 #  include <QWidget>
 #  include <dwmapi.h>
 
-void WindowFrameUtils::applyFrameEffects(const QWidget *widget) {
+// ReSharper disable once CppParameterMayBeConstPtrOrRef
+void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
 
     // Install Windows 11 SDK 22621 if DWMWA_SYSTEMBACKDROP_TYPE is not recognized by the compiler
 

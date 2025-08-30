@@ -44,10 +44,10 @@ public:
     QList<T *> overlappedItems() const;
     QList<T *> toList() const;
 
-    using iterator = std::set<T *, ItemCmp>::const_iterator;
-    using const_iterator = std::set<T *, ItemCmp>::const_iterator;
-    using reverse_iterator = std::set<T *, ItemCmp>::const_reverse_iterator;
-    using const_reverse_iterator = std::set<T *, ItemCmp>::const_reverse_iterator;
+    using iterator = typename std::set<T *, ItemCmp>::const_iterator;
+    using const_iterator = typename std::set<T *, ItemCmp>::const_iterator;
+    using reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
+    using const_reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
 
     iterator begin() {
         return m_items.cbegin();

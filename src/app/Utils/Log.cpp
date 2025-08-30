@@ -2,6 +2,8 @@
 // Created by fluty on 24-8-18.
 //
 
+// ReSharper disable CppUseRangeAlgorithm
+
 #include "Log.h"
 
 #include "Modules/Inference/Utils/DmlGpuUtils.h"
@@ -161,14 +163,15 @@ QString Log::colorizeHighlightText(const LogLevel level, const QString &text) {
     return QString("\033[0m\033[41;30m%1\033[0m").arg(text); // Error or Fatal
 }
 
-bool Log::canLogToConsole(const LogMessage &message) {
+bool Log::canLogToConsole(const LogMessage &message) const {
     if (m_consoleLogLevel > message.level)
         return false;
 
     if (m_tagFilter.isEmpty())
         return true;
 
-    return std::ranges::any_of(m_tagFilter, [&](const QString &tag) { return tag == message.tag; });
+    return std::any_of(m_tagFilter.constBegin(), m_tagFilter.constEnd(),
+                       [&](const QString &tag) { return tag == message.tag; });
 }
 
 void Log::log(const LogMessage &message) {

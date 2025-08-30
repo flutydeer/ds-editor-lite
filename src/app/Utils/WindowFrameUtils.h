@@ -11,7 +11,7 @@ class QWidget;
 
 class WindowFrameUtils {
 public:
-    static void applyFrameEffects(const QWidget *widget);
+    static void applyFrameEffects(QWidget *widget);
 };
 
 #if !defined(Q_OS_WIN) && !defined(Q_OS_MAC)
