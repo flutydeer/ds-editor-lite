@@ -28,12 +28,11 @@ struct SingerIdentifier {
     }
 };
 
+Q_DECLARE_TYPEINFO(SingerIdentifier, Q_RELOCATABLE_TYPE);
+
 // qHash for Qt containers
 inline size_t qHash(const SingerIdentifier &key, size_t seed = 0) noexcept {
-    seed = ::qHash(key.singerId, seed);
-    seed = ::qHash(key.packageId, seed);
-    seed = ::qHash(key.packageVersion, seed);
-    return seed;
+    return ::qHashMulti(seed, key.singerId, key.packageId, key.packageVersion);
 }
 
 // std::hash for STL containers like std::unordered_map, std::unordered_set

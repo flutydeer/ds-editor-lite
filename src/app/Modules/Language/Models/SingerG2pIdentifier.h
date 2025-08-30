@@ -1,9 +1,12 @@
 #ifndef SINGERG2PIDENTIFIER_H
 #define SINGERG2PIDENTIFIER_H
 
+#include <functional>
 #include <tuple>
 
+#include <QDebug>
 #include <QHashFunctions>
+#include <QMetaType>
 #include <QString>
 
 #include "Modules/Inference/Models/SingerIdentifier.h"
@@ -26,11 +29,11 @@ struct SingerG2pIdentifier {
     }
 };
 
+Q_DECLARE_TYPEINFO(SingerG2pIdentifier, Q_RELOCATABLE_TYPE);
+
 // qHash for Qt containers
 inline size_t qHash(const SingerG2pIdentifier &key, size_t seed = 0) noexcept {
-    seed = ::qHash(key.singerIdentifier, seed);
-    seed = ::qHash(key.g2pId, seed);
-    return seed;
+    return ::qHashMulti(seed, key.singerIdentifier, key.g2pId);
 }
 
 // std::hash for STL containers like std::unordered_map, std::unordered_set
