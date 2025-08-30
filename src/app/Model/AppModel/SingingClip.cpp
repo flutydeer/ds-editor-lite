@@ -219,7 +219,7 @@ void SingingClip::init() {
         const auto s2pMgr = S2pMgr::instance();
         const auto languages = currentSingerInfo;
         for (const auto &lang : languages.languages())
-            s2pMgr->addS2p(currentSingerInfo.name(), lang.g2p(), lang.dict());
+            s2pMgr->addS2p(currentSingerInfo.identifier(), lang.g2p(), lang.dict());
     });
     m_speakerInfo.onChanged([this](const SpeakerInfo &) {
         if (!useTrackSpeakerInfo) {

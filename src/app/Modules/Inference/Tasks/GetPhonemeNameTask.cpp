@@ -80,7 +80,7 @@ QList<PhonemeNameResult>
             note.normalNames.append(pronunciation);
         } else {
             if (const auto phonemes = s2pMgr->syllableToPhoneme(
-                    m_clipSingerId, m_clipSingerInfo.g2pId(language), pronunciation);
+                    m_clipSingerInfo.identifier(), m_clipSingerInfo.g2pId(language), pronunciation);
                 !phonemes.empty()) {
                 if (phonemes.size() == 1) {
                     note.normalNames.append(phonemes.at(0));

@@ -3,7 +3,7 @@
 
 #include <QString>
 #include <QVersionNumber>
-#include <QHash>
+#include <QHashFunctions>
 #include <QDebug>
 #include <functional> // std::hash
 #include <tuple>      // std::tie
@@ -47,11 +47,10 @@ namespace std {
 }
 
 Q_DECLARE_METATYPE(SingerIdentifier)
-Q_DECLARE_TYPEINFO(SingerIdentifier, Q_MOVABLE_TYPE);
 
 inline QDebug &operator<<(QDebug &debug, const SingerIdentifier &info) {
     QDebugStateSaver saver(debug);
-    debug.nospace() << "SingerInfo(singerId=" << info.singerId << ", packageId=" << info.packageId
+    debug.nospace() << "SingerIdentifier(singerId=" << info.singerId << ", packageId=" << info.packageId
                     << ", packageVersion=" << info.packageVersion << ")";
     return debug;
 }
