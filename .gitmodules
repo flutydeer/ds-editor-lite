@@ -1,3 +1,7 @@
 [submodule "src/libs/qtmediate"]
 	path = src/libs/qtmediate
 	url = ../../flutydeer/qtmediate
+
+[submodule "scripts/vcpkg"]
+	path = scripts/vcpkg
+	url = ../../stdware/vcpkg-overlay
