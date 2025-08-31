@@ -37,7 +37,7 @@ if(WIN32)
     string(REPLACE "\\" "/" _install_dir ${CMAKE_INSTALL_PREFIX})
 
     install(CODE "
-        file(GLOB _files \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/*.dll\" \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/*.exe\")
+        file(GLOB _files \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/*.dll\" \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/*.exe\" \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/*.pdb\")
         foreach(_file \${_files})
             file(COPY \${_file} DESTINATION \"${_install_dir}\")
         endforeach()

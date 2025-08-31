@@ -24,6 +24,7 @@
     "yaml-cpp",
     "wavpack",
     "tinyexpr",
+    "qbreakpad",
     {
       "name": "synthrt",
       "features": []

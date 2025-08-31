@@ -67,6 +67,12 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         dsinfer::dsinfer
 )
 
+if (APPLICATION_ENABLE_BREAKPAD)
+    find_package(qBreakpad CONFIG REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PRIVATE qBreakpad::qBreakpad)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE APPLICATION_ENABLE_BREAKPAD)
+endif()
+
 if (WIN32)
     if (QtWin32DirectManipulateHelper_FOUND)
         message(STATUS "Building with Direct Manipulation support on Windows")

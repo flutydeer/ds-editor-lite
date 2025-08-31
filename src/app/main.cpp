@@ -29,6 +29,12 @@
 #include <QStyleFactory>
 #include <QTranslator>
 
+#include <QtCore/QProcess>
+
+#ifdef APPLICATION_ENABLE_BREAKPAD
+#  include <QBreakpadHandler.h>
+#endif
+
 #if defined(WITH_DIRECT_MANIPULATION)
 #  include <QWDMHCore/DirectManipulationSystem.h>
 #endif
@@ -41,6 +47,7 @@ struct AudioSystemContext {
         new DeviceTester(&audioSystem);
         new AudioContext(&audioSystem);
     }
+
     AudioSystem audioSystem;
 };
 
@@ -49,6 +56,26 @@ struct AppContext {
     QWDMH::DirectManipulationSystem directManipSystem;
 #endif
     AudioSystemContext audio;
+};
+
+class Restarter {
+public:
+    Restarter(const QString &workingDir) : m_workingDir(workingDir) {
+    }
+
+    int restartOrExit(int exitCode) {
+        return qApp->property("restart").toBool() ? restart(exitCode) : exitCode;
+    }
+
+    int restart(int exitCode) {
+        qDebug() << "Restarting application...";
+        QProcess::startDetached(QApplication::applicationFilePath(), QApplication::arguments(),
+                                m_workingDir);
+        return exitCode;
+    }
+
+private:
+    QString m_workingDir;
 };
 
 int main(int argc, char *argv[]) {
@@ -175,5 +202,14 @@ int main(int argc, char *argv[]) {
     const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
     qInfo() << "App launched in" << time << "ms";
 
-    return QApplication::exec();
+#ifdef APPLICATION_ENABLE_BREAKPAD
+    QBreakpadHandler handler;
+    handler.setDumpPath(a.applicationDirPath() + "/dumps");
+
+    QBreakpadHandler::UniqueExtraHandler = []() {
+        // Do something when crash occurs.
+    };
+#endif
+
+    return Restarter(QDir::currentPath()).restartOrExit(a.exec());
 }

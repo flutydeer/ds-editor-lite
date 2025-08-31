@@ -441,9 +441,10 @@ void MainWindow::emulateLeaveEvent(QWidget *widget) {
 }
 
 void MainWindow::restartApp() {
-    auto program = QCoreApplication::applicationFilePath();
-    qDebug() << "restart" << program;
-    QProcess::startDetached(program);
+    // auto program = QCoreApplication::applicationFilePath();
+    // qDebug() << "Restarting app..." << program;
+    // QProcess::startDetached(program);
+    qApp->setProperty("restart", true);
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
