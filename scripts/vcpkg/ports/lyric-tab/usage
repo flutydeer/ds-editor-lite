@@ -1,4 +1,0 @@
-lyric-tab provides CMake targets:
-
-find_package(lyric-tab CONFIG REQUIRED)
-target_link_libraries(main PRIVATE lyric-tab::lyric-tab)

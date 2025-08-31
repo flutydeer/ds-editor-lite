@@ -1,4 +1,0 @@
-language-manager provides CMake targets:
-
-find_package(language-manager CONFIG REQUIRED)
-target_link_libraries(main PRIVATE language-manager::language-manager)

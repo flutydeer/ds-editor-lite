@@ -1,5 +1,0 @@
-qt-win32-direct-manipulate-helper provides CMake targets:
-
-  # this is heuristically generated, and may not be correct
-  find_package(QtWin32DirectManipulateHelper CONFIG REQUIRED)
-  target_link_libraries(main PRIVATE QtWin32DirectManipulateHelper::Core)
