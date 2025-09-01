@@ -9,6 +9,7 @@
 #include "synthrt/Core/PackageRef.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/LineEdit.h"
+#include "UI/Dialogs/PackageManager/PackageDetailsHeader.h"
 #include "UI/Dialogs/PackageManager/PackageFilterProxyModel.h"
 #include "UI/Dialogs/PackageManager/PackageItemDelegate.h"
 #include "UI/Dialogs/PackageManager/PackageListModel.h"
@@ -28,26 +29,44 @@ void PackageManagerDialog::onModuleStatusChanged(AppStatus::ModuleType module,
     if (module != AppStatus::ModuleType::Inference)
         return;
     if (status == AppStatus::ModuleStatus::Ready) {
-        m_btnInstall->setEnabled(true);
+        btnInstall->setEnabled(true);
         loadPackageList();
     }
 }
 
 void PackageManagerDialog::updatePackageCount(int count) {
-    m_lbPackageCount->setText(tr("Installed (%1)").arg(count));
+    lbPackageCount->setText(tr("Installed (%1)").arg(count));
 }
 
 void PackageManagerDialog::updatePackageList(QList<PackageInfo> packages) {
-    // 初始化模型和代理
-    auto model = new PackageListModel(this);
-    model->setPackages(std::move(packages));
+    listModel->setPackages(std::move(packages));
 
-    auto proxyModel = new PackageFilterProxyModel(this);
-    proxyModel->setSourceModel(model);
-    m_listView->setModel(proxyModel);
+    proxyModel->setSourceModel(listModel);
+    listView->setModel(proxyModel);
+}
 
-    connect(m_leSearch, &QLineEdit::textChanged,
-            proxyModel, &PackageFilterProxyModel::setFilterString);
+void PackageManagerDialog::onSelectionChanged(const QModelIndex &current,
+                                              const QModelIndex &previous) {
+    if (!current.isValid()) {
+        detailsHeader->onPackageChanged(nullptr);
+        return;
+    }
+
+    auto proxyModel = dynamic_cast<PackageFilterProxyModel *>(listView->model());
+    if (!proxyModel) {
+        detailsHeader->onPackageChanged(nullptr);
+        return;
+    }
+
+    QModelIndex sourceIndex = proxyModel->mapToSource(current);
+
+    auto sourceModel = dynamic_cast<PackageListModel *>(proxyModel->sourceModel());
+    if (!sourceModel) {
+        detailsHeader->onPackageChanged(nullptr);
+        return;
+    }
+
+    detailsHeader->onPackageChanged(&sourceModel->getPackage(sourceIndex));
 }
 
 void PackageManagerDialog::initUi() {
@@ -56,15 +75,27 @@ void PackageManagerDialog::initUi() {
     mainLayout->addWidget(buildDetailsPanel());
     mainLayout->setContentsMargins({});
     mainLayout->setSpacing(0);
+    body()->setContentsMargins({});
     body()->setLayout(mainLayout);
 
+    listModel = new PackageListModel(this);
+    proxyModel = new PackageFilterProxyModel(this);
+    proxyModel->setSourceModel(listModel);
+    listView->setModel(proxyModel);
+
+    connect(listView->selectionModel(), &QItemSelectionModel::currentChanged,
+            this, &PackageManagerDialog::onSelectionChanged);
+
+    connect(leSearch, &QLineEdit::textChanged,
+            proxyModel, &PackageFilterProxyModel::setFilterString);
+
     if (appStatus->inferEngineEnvStatus != AppStatus::ModuleStatus::Ready) {
-        m_btnInstall->setEnabled(false);
+        btnInstall->setEnabled(false);
         connect(appStatus, &AppStatus::moduleStatusChanged, this,
                 &PackageManagerDialog::onModuleStatusChanged);
     }
 
-    resize(1280,768);
+    resize(1280, 768);
 }
 
 void PackageManagerDialog::loadPackageList() {
@@ -76,9 +107,8 @@ void PackageManagerDialog::loadPackageList() {
                     qCritical() << "加载错误：" << result.getError().message;
                 else {
                     if (result.get().successfulPackages.empty()) {
-                        m_listView->setModel(nullptr);
-                        m_lbPackageCount->setText(tr("Installed (0)"));
-                        return;
+                        listView->setModel(nullptr);
+                        lbPackageCount->setText(tr("Installed (0)"));
                     }
                     updatePackageCount(result.get().successfulPackages.size());
                     updatePackageList(result.get().successfulPackages);
@@ -91,24 +121,25 @@ void PackageManagerDialog::loadPackageList() {
 }
 
 QWidget *PackageManagerDialog::buildPackagePanel() {
-    m_btnInstall = new Button(tr("&Install..."));
-    m_lbPackageCount = new QLabel();
+    btnInstall = new Button(tr("&Install..."));
+    lbPackageCount = new QLabel();
+    lbPackageCount->setObjectName("lbPackageCount");
 
-    m_leSearch = new LineEdit;
-    m_leSearch->setPlaceholderText(tr("Search..."));
-    m_leSearch->setClearButtonEnabled(true);
+    leSearch = new LineEdit;
+    leSearch->setPlaceholderText(tr("Search..."));
+    leSearch->setClearButtonEnabled(true);
 
     auto actionBar = new QHBoxLayout;
-    actionBar->addWidget(m_btnInstall);
+    actionBar->addWidget(btnInstall);
     actionBar->addStretch();
-    actionBar->addWidget(m_lbPackageCount);
+    actionBar->addWidget(lbPackageCount);
 
-    m_listView = new QListView;
-    m_listView->setObjectName("PackageManagerDialogPackageListView");
-    m_listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    m_listView->setItemDelegate(new PackageItemDelegate(m_listView));
-    m_listView->setContentsMargins({});
-    m_listView->setStyleSheet(
+    listView = new QListView;
+    listView->setObjectName("PackageManagerDialogPackageListView");
+    listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    listView->setItemDelegate(new PackageItemDelegate(listView));
+    listView->setContentsMargins({});
+    listView->setStyleSheet(
         "QListView { background: transparent; border: none; padding: 0px; } "
         "QListView::item { background: transparent; border-radius: 4px; margin-top: 2px; margin-bottom: 2px } "
         "QListView::item:hover { background: #1BC7D8FF; }"
@@ -117,21 +148,37 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
 
     auto layout = new QVBoxLayout;
     layout->addLayout(actionBar);
-    layout->addWidget(m_leSearch);
-    layout->addWidget(m_listView);
+    layout->addWidget(leSearch);
+    layout->addWidget(listView);
     layout->setContentsMargins({});
 
     auto panel = new QWidget;
     panel->setObjectName("PackageManagerDialogPackagePanel");
     panel->setAttribute(Qt::WA_StyledBackground);
-    panel->setStyleSheet("QWidget#PackageManagerDialogPackagePanel { border-right: 1px solid #1D1F26 }");
+    panel->setStyleSheet(
+        "QWidget#PackageManagerDialogPackagePanel { border-right: 1px solid #1D1F26 }"
+        "QLabel#lbPackageCount { color: rgba(182, 183, 186, 140); }");
     panel->setLayout(layout);
-    panel->setContentsMargins({0,0,8,0});
+    panel->setContentsMargins({12, 12, 12, 0});
     panel->setFixedWidth(280);
     return panel;
 }
 
-QWidget * PackageManagerDialog::buildDetailsPanel() {
+QWidget *PackageManagerDialog::buildDetailsPanel() {
+    detailsHeader = new PackageDetailsHeader;
+    auto layout = new QVBoxLayout;
+    layout->addWidget(detailsHeader);
+    layout->addStretch();
+    layout->setContentsMargins({12, 0, 12, 0});
+    layout->setSpacing(12);
+
     auto panel = new QWidget;
+    panel->setLayout(layout);
+    panel->setContentsMargins({});
+    panel->setStyleSheet("PackageDetailsHeader { border-bottom: 1px solid #1D1F26; } "
+        "PackageDetailsHeader>QLabel#lbPackageId { font-size: 24px; color: rgb(182, 183, 186); } "
+        "PackageDetailsHeader>QLabel#lbVendor { font-size: 13px; color: rgba(182, 183, 186, 140); } "
+        "PackageDetailsHeader>QLabel#lbVersion { font-size: 13px; color: rgba(182, 183, 186, 140); } "
+        "PackageDetailsHeader>QLabel#lbCopyright { font-size: 13px; color: rgba(182, 183, 186, 140); } ");
     return panel;
 }

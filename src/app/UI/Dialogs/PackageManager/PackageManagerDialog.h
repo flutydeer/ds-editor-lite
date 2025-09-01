@@ -9,6 +9,9 @@
 #include "UI/Dialogs/Base/Dialog.h"
 #include "Modules/PackageManager/Models/PackageInfo.h"
 
+class PackageFilterProxyModel;
+class PackageListModel;
+class PackageDetailsHeader;
 class LineEdit;
 class QListView;
 
@@ -27,6 +30,7 @@ private slots:
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
     void updatePackageCount(int count);
     void updatePackageList(QList<PackageInfo> packages);
+    void onSelectionChanged(const QModelIndex &current, const QModelIndex &previous);
 
 private:
     enum State {
@@ -39,12 +43,16 @@ private:
     QWidget *buildPackagePanel();
     QWidget *buildDetailsPanel();
 
-    Button *m_btnInstall = nullptr;
-    QLabel *m_lbPackageCount = nullptr;
-    LineEdit *m_leSearch = nullptr;
-    QListView *m_listView = nullptr;;
+    Button *btnInstall = nullptr;
+    QLabel *lbPackageCount = nullptr;
+    LineEdit *leSearch = nullptr;
+    QListView *listView = nullptr;;
+    PackageDetailsHeader *detailsHeader = nullptr;
 
-    QList<PackageInfo> successfulPackages;
+    // QList<PackageInfo> successfulPackages;
+
+    PackageListModel *listModel = nullptr;
+    PackageFilterProxyModel *proxyModel = nullptr;
 
     State m_state = Loading;
 };

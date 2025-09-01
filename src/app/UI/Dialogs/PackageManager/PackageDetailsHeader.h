@@ -1,0 +1,40 @@
+//
+// Created by FlutyDeer on 2025/8/31.
+//
+
+#ifndef DS_EDITOR_LITE_PACKAGEDETAILSHEADER_H
+#define DS_EDITOR_LITE_PACKAGEDETAILSHEADER_H
+
+#include <QWidget>
+
+class PackageInfo;
+class Button;
+class QLabel;
+
+class PackageDetailsHeader : public QWidget {
+    Q_OBJECT
+
+public:
+    explicit PackageDetailsHeader(QWidget *parent = nullptr);
+
+public slots:
+    void onPackageChanged(const PackageInfo *package);
+
+private:
+    void moveToNullPackageState();
+    void moveToPackageState(const PackageInfo &package);
+
+    QLabel *lbPackageId = nullptr;
+    QLabel *lbVendor = nullptr;
+    QLabel *lbVersion = nullptr;
+    QLabel *lbCopyright = nullptr;
+
+    Button *btnOpenWebsite = nullptr;
+    Button *btnVerify = nullptr;
+    Button *btnUninstall = nullptr;
+
+    const PackageInfo *currentPackage = nullptr;
+};
+
+
+#endif //DS_EDITOR_LITE_PACKAGEDETAILSHEADER_H
