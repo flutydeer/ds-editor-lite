@@ -3,10 +3,11 @@
 #include <utility>
 
 PackageInfoData::PackageInfoData(QString id, QVersionNumber version, QString vendor,
-                                 QString description, QString copyright, QString path,
-                                 QList<SingerInfo> singers)
+                                 QString description, QString copyright, QString readme,
+                                 QString url, QString path, QList<SingerInfo> singers)
     : id(std::move(id)), version(std::move(version)), vendor(std::move(vendor)),
-      description(std::move(description)), copyright(std::move(copyright)), path(std::move(path)),
+      description(std::move(description)), copyright(std::move(copyright)),
+      readme(std::move(readme)), url(std::move(url)), path(std::move(path)),
       singers(std::move(singers)) {
 }
 
@@ -20,7 +21,8 @@ PackageInfoData::~PackageInfoData() = default;
 
 bool PackageInfoData::operator==(const PackageInfoData &other) const {
     return id == other.id && version == other.version && vendor == other.vendor &&
-           description == other.description && copyright == other.copyright && path == other.path &&
+           description == other.description && copyright == other.copyright &&
+           readme == other.readme && url == other.url && path == other.path &&
            singers == other.singers;
 }
 
@@ -30,17 +32,19 @@ bool PackageInfoData::operator!=(const PackageInfoData &other) const {
 
 bool PackageInfoData::isEmpty() const {
     return id.isEmpty() && version.isNull() && vendor.isEmpty() && description.isEmpty() &&
-           copyright.isEmpty() && path.isEmpty() && singers.isEmpty();
+           copyright.isEmpty() && readme.isEmpty() && url.isEmpty() && path.isEmpty() &&
+           singers.isEmpty();
 }
 
 PackageInfo::PackageInfo() : d(new PackageInfoData()) {
 }
 
 PackageInfo::PackageInfo(QString id, QVersionNumber version, QString vendor, QString description,
-                         QString copyright, QString path, QList<SingerInfo> singers)
+                         QString copyright, QString readme, QString url, QString path,
+                         QList<SingerInfo> singers)
     : d(new PackageInfoData(std::move(id), std::move(version), std::move(vendor),
-                            std::move(description), std::move(copyright), std::move(path),
-                            std::move(singers))) {
+                            std::move(description), std::move(copyright), std::move(readme),
+                            std::move(url), std::move(path), std::move(singers))) {
 }
 
 PackageInfo::PackageInfo(const PackageInfo &other) = default;

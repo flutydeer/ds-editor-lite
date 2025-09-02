@@ -58,6 +58,17 @@ namespace {
         return StringUtils::path_to_qstr(path);
     }
 
+    QString joinPath(const std::filesystem::path &originalPath,
+                     const std::filesystem::path &parentPath) {
+        if (originalPath.empty()) {
+            return {};
+        }
+        if (originalPath.is_relative() && !parentPath.empty()) {
+            return StringUtils::path_to_qstr(stdc::clean_path(parentPath / originalPath));
+        }
+        return StringUtils::path_to_qstr(originalPath);
+    }
+
     QList<SpeakerInfo> parseSpeakerInfo(const srt::JsonObject &manifestConfiguration,
                                         const std::string &currentLocale) {
         QList<SpeakerInfo> result;
@@ -177,7 +188,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
 
     if (!inferEngine->initialized()) {
         return GetInstalledPackagesError{
-            InferEngineNotInitialized,
+            GetInstalledPackagesErrorType::InferEngineNotInitialized,
             tr("Inference engine is not initialized"),
         };
     }
@@ -202,6 +213,8 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             auto vendor = QString::fromUtf8(pkg.vendor().text(locale));
             auto description = QString::fromUtf8(pkg.description().text(locale));
             auto copyright = QString::fromUtf8(pkg.copyright().text(locale));
+            auto readme = joinPath(pkg.readme(), pkg.path());
+            auto url = QString::fromUtf8(pkg.url());
             auto path = StringUtils::native_to_qstr(pkg.path());
 
             const auto contribSpecs = pkg.contributes("singer");
@@ -241,7 +254,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                                      std::move(defaultDict));
             }
             result.successfulPackages.emplace_back(packageId, packageVersion, vendor, description,
-                                                   copyright, path, singers);
+                                                   copyright, readme, url, path, singers);
         }
     };
 

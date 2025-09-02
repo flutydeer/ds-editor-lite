@@ -10,13 +10,13 @@
 #include <QList>
 #include <QString>
 
-enum GetInstalledPackagesErrorType {
+enum class GetInstalledPackagesErrorType {
     InferEngineNotInitialized,
     Unknown
 };
 
 struct GetInstalledPackagesError {
-    GetInstalledPackagesErrorType type = Unknown;
+    GetInstalledPackagesErrorType type = GetInstalledPackagesErrorType::Unknown;
     QString message;
 };
 
