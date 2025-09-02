@@ -9,6 +9,7 @@
 #include "UI/Dialogs/Base/Dialog.h"
 #include "Modules/PackageManager/Models/PackageInfo.h"
 
+class PackageDetailsContent;
 class PackageFilterProxyModel;
 class PackageListModel;
 class PackageDetailsHeader;
@@ -48,6 +49,7 @@ private:
     LineEdit *leSearch = nullptr;
     QListView *listView = nullptr;;
     PackageDetailsHeader *detailsHeader = nullptr;
+    PackageDetailsContent *detailsContent = nullptr;
 
     // QList<PackageInfo> successfulPackages;
 

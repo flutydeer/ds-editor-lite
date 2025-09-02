@@ -68,6 +68,7 @@ PackageDetailsHeader::PackageDetailsHeader(QWidget *parent) : QWidget(parent) {
 
     setContentsMargins({});
     setLayout(layout);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     moveToNullPackageState();
 

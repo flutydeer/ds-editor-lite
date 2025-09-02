@@ -11,7 +11,7 @@ class PackageInfo;
 class Button;
 class QLabel;
 
-class PackageDetailsHeader : public QWidget {
+class PackageDetailsHeader final : public QWidget {
     Q_OBJECT
 
 public:

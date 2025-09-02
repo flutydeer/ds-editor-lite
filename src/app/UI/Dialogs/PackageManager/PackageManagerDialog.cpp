@@ -9,6 +9,7 @@
 #include "synthrt/Core/PackageRef.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/LineEdit.h"
+#include "UI/Dialogs/PackageManager/PackageDetailsContent.h"
 #include "UI/Dialogs/PackageManager/PackageDetailsHeader.h"
 #include "UI/Dialogs/PackageManager/PackageFilterProxyModel.h"
 #include "UI/Dialogs/PackageManager/PackageItemDelegate.h"
@@ -17,7 +18,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListView>
-#include <QLocale>
+#include <QScrollArea>
 #include <QSplitter>
 
 PackageManagerDialog::PackageManagerDialog(QWidget *parent) : Dialog(parent) {
@@ -49,24 +50,17 @@ void PackageManagerDialog::onSelectionChanged(const QModelIndex &current,
                                               const QModelIndex &previous) {
     if (!current.isValid()) {
         detailsHeader->onPackageChanged(nullptr);
+        detailsContent->onPackageChanged(nullptr);
         return;
     }
 
-    auto proxyModel = dynamic_cast<PackageFilterProxyModel *>(listView->model());
-    if (!proxyModel) {
-        detailsHeader->onPackageChanged(nullptr);
-        return;
-    }
+    detailsHeader->onPackageChanged(nullptr);
+    detailsContent->onPackageChanged(nullptr);
 
     QModelIndex sourceIndex = proxyModel->mapToSource(current);
 
-    auto sourceModel = dynamic_cast<PackageListModel *>(proxyModel->sourceModel());
-    if (!sourceModel) {
-        detailsHeader->onPackageChanged(nullptr);
-        return;
-    }
-
-    detailsHeader->onPackageChanged(&sourceModel->getPackage(sourceIndex));
+    detailsHeader->onPackageChanged(&listModel->getPackage(sourceIndex));
+    detailsContent->onPackageChanged(&listModel->getPackage(sourceIndex));
 }
 
 void PackageManagerDialog::initUi() {
@@ -166,19 +160,37 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
 
 QWidget *PackageManagerDialog::buildDetailsPanel() {
     detailsHeader = new PackageDetailsHeader;
+    detailsContent = new PackageDetailsContent;
+
     auto layout = new QVBoxLayout;
     layout->addWidget(detailsHeader);
-    layout->addStretch();
+    layout->addWidget(detailsContent);
+    layout->addStretch();//TODO: 重构
     layout->setContentsMargins({12, 0, 12, 0});
     layout->setSpacing(12);
 
-    auto panel = new QWidget;
-    panel->setLayout(layout);
-    panel->setContentsMargins({});
-    panel->setStyleSheet("PackageDetailsHeader { border-bottom: 1px solid #1D1F26; } "
+    auto detailsWidget = new QWidget;
+    detailsWidget->setObjectName("PackageManagerDialogDetailsWidget");
+    detailsWidget->setLayout(layout);
+    detailsWidget->setContentsMargins({});
+    detailsWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    detailsWidget->setStyleSheet(
+        "QWidget#PackageManagerDialogDetailsWidget { background: transparent; }"
+        "PackageDetailsHeader { border-bottom: 1px solid #1D1F26; } "
         "PackageDetailsHeader>QLabel#lbPackageId { font-size: 24px; color: rgb(182, 183, 186); } "
         "PackageDetailsHeader>QLabel#lbVendor { font-size: 13px; color: rgba(182, 183, 186, 140); } "
         "PackageDetailsHeader>QLabel#lbVersion { font-size: 13px; color: rgba(182, 183, 186, 140); } "
         "PackageDetailsHeader>QLabel#lbCopyright { font-size: 13px; color: rgba(182, 183, 186, 140); } ");
-    return panel;
+
+    auto scrollArea = new QScrollArea;
+    scrollArea->setObjectName("PackageManagerDialogDetailsScrollArea");
+    scrollArea->setStyleSheet(
+        "QScrollArea#PackageManagerDialogDetailsScrollArea { padding: 0px; border: none }");
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scrollArea->setWidget(detailsWidget);
+    scrollArea->viewport()->setContentsMargins({});
+
+    return scrollArea;
 }

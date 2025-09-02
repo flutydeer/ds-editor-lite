@@ -754,6 +754,9 @@ QScrollArea {
     padding: 6px;
 }
 
+QScrollArea::viewport {
+    background: transparent;
+}
 
 /* StackedWidget */
 QStackedWidget {
