@@ -20,9 +20,12 @@ public:
 public slots:
     void onPackageChanged(const PackageInfo *package);
 
+private slots:
+    void onOpenWebsiteClicked() const;
+
 private:
-    void moveToNullPackageState();
-    void moveToPackageState(const PackageInfo &package);
+    void moveToNullPackageState() const;
+    void moveToPackageState(const PackageInfo &package) const;
 
     QLabel *lbPackageId = nullptr;
     QLabel *lbVendor = nullptr;

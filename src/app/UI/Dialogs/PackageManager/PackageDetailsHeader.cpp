@@ -7,6 +7,7 @@
 #include "Modules/PackageManager/Models/PackageInfo.h"
 #include "UI/Controls/Button.h"
 
+#include <QDesktopServices>
 #include <QHBoxLayout>
 #include <QLabel>
 
@@ -69,6 +70,8 @@ PackageDetailsHeader::PackageDetailsHeader(QWidget *parent) : QWidget(parent) {
     setLayout(layout);
 
     moveToNullPackageState();
+
+    connect(btnOpenWebsite, &Button::clicked, this, &PackageDetailsHeader::onOpenWebsiteClicked);
 }
 
 void PackageDetailsHeader::onPackageChanged(const PackageInfo *package) {
@@ -79,11 +82,16 @@ void PackageDetailsHeader::onPackageChanged(const PackageInfo *package) {
         moveToNullPackageState();
 }
 
-void PackageDetailsHeader::moveToNullPackageState() {
+void PackageDetailsHeader::onOpenWebsiteClicked() const {
+    if (currentPackage && !currentPackage->url().isEmpty())
+        QDesktopServices::openUrl(currentPackage->url());
+}
+
+void PackageDetailsHeader::moveToNullPackageState() const {
     lbPackageId->setText(tr("No Package Selected"));
-    lbVendor->setText("");
-    lbVersion->setText("");
-    lbCopyright->setText("");
+    lbVendor->setText({});
+    lbVersion->setText({});
+    lbCopyright->setText({});
 
     btnOpenWebsite->setEnabled(false);
     btnOpenWebsite->setVisible(false);
@@ -95,16 +103,21 @@ void PackageDetailsHeader::moveToNullPackageState() {
     btnUninstall->setVisible(false);
 }
 
-void PackageDetailsHeader::moveToPackageState(const PackageInfo &package) {
+void PackageDetailsHeader::moveToPackageState(const PackageInfo &package) const {
     lbPackageId->setText(package.id());
     lbVendor->setText(package.vendor());
     lbVersion->setText("v" + package.version().toString());
     lbCopyright->setText(package.copyright());
 
-    // TODO: 实现按钮逻辑
-    btnOpenWebsite->setEnabled(true);
-    btnOpenWebsite->setVisible(true);
+    if (package.url().isEmpty()) {
+        btnOpenWebsite->setEnabled(false);
+        btnOpenWebsite->setVisible(false);
+    } else {
+        btnOpenWebsite->setEnabled(true);
+        btnOpenWebsite->setVisible(true);
+    }
 
+    // TODO: 实现按钮逻辑
     btnVerify->setEnabled(true);
     btnVerify->setVisible(true);
 

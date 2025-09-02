@@ -81,6 +81,14 @@ QString PackageInfo::copyright() const {
     return d->copyright;
 }
 
+QString PackageInfo::readme() const {
+    return d->readme;
+}
+
+QString PackageInfo::url() const {
+    return d->url;
+}
+
 QString PackageInfo::path() const {
     return d->path;
 }
