@@ -78,7 +78,7 @@ void Track::insertClip(Clip *clip) {
 
 void Track::insertClips(const QList<Clip *> &clips) {
     for (const auto clip : std::as_const(clips)) {
-        m_clips.add(clip);
+        insertClip(clip);
     }
 }
 
