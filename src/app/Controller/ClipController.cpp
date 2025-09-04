@@ -373,8 +373,8 @@ void ClipController::onFillLyric(QWidget *parent) {
         args.append(arg);
     }
     auto a = new NoteActions;
-    a->editNotesWordProperties(
-        {notesToEdit.begin(), notesToEdit.begin() + noteRes.size() + skipCount}, args, singingClip);
+    a->editNotesWordProperties({notesToEdit.begin(), notesToEdit.begin() + args.size()}, args,
+                               singingClip);
     a->execute();
     historyManager->record(a);
 }
