@@ -17,12 +17,14 @@
 
 #include <QJsonArray>
 
-AppModel::AppModel() : d_ptr(new AppModelPrivate(this)) {
+AppModel::AppModel(QObject *parent) : QObject(parent), d_ptr(new AppModelPrivate(this)) {
 }
 
 AppModel::~AppModel() {
     delete d_ptr;
 }
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(AppModel)
 
 TimeSignature AppModel::timeSignature() const {
     Q_D(const AppModel);

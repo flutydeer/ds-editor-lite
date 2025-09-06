@@ -14,10 +14,18 @@
 
 class Note;
 
-class ValidationController : public QObject, public Singleton<ValidationController> {
+class ValidationController : public QObject {
     Q_OBJECT
+
+private:
+    explicit ValidationController(QObject *parent = nullptr);
+    ~ValidationController() override;
+
 public:
-    explicit ValidationController();
+    LITE_SINGLETON_DECLARE_INSTANCE(ValidationController)
+    Q_DISABLE_COPY_MOVE(ValidationController)
+
+public:
     void runValidation();
 
 private slots:

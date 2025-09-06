@@ -8,12 +8,16 @@
 #include "ModelChangeHandler.h"
 #include "Utils/Singleton.h"
 
-class ProjectStatusController final : public ModelChangeHandler,
-                                      public Singleton<ProjectStatusController> {
+class ProjectStatusController final : public ModelChangeHandler {
     Q_OBJECT
 
-public:
+private:
     explicit ProjectStatusController() = default;
+    ~ProjectStatusController() override = default;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(ProjectStatusController)
+    Q_DISABLE_COPY_MOVE(ProjectStatusController)
 
 private:
     void handleTrackRemoved(Track *track) override;

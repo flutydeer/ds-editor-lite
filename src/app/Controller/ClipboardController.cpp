@@ -13,8 +13,13 @@
 #include <QJsonDocument>
 #include <QMimeData>
 
-ClipboardController::ClipboardController() : d_ptr(new ClipboardControllerPrivate(this)) {
+ClipboardController::ClipboardController(QObject *parent)
+    : QObject(parent), d_ptr(new ClipboardControllerPrivate(this)) {
 }
+
+ClipboardController::~ClipboardController() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(ClipboardController)
 
 // TODO: 要求传入类型
 void ClipboardController::copy() {

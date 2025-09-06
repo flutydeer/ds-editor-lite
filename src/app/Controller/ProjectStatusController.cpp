@@ -6,6 +6,8 @@
 
 #include "Model/AppStatus/AppStatus.h"
 
+LITE_SINGLETON_IMPLEMENT_INSTANCE(ProjectStatusController)
+
 void ProjectStatusController::handleTrackRemoved(Track *track) {
     ModelChangeHandler::handleTrackRemoved(track);
     bool trackContainsActiveClip = false;

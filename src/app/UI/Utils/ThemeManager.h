@@ -11,9 +11,19 @@
 
 class IAnimatable;
 
-class ThemeManager : public QObject, public Singleton<ThemeManager> {
+class ThemeManager : public QObject {
 public:
     enum class ThemeColorType { Light, Dark, HighContrast };
+
+private:
+    explicit ThemeManager(QObject *parent = nullptr);
+    ~ThemeManager() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(ThemeManager)
+    Q_DISABLE_COPY_MOVE(ThemeManager)
+
+public:
     void addAnimationObserver(IAnimatable *object);
     void removeAnimationObserver(IAnimatable *object);
     void addWindow(QWidget *window);

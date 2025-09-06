@@ -19,12 +19,15 @@
 #include <QClipboard>
 #include <QMimeData>
 
-ClipController::ClipController() : d_ptr(new ClipControllerPrivate(this)) {
+ClipController::ClipController(QObject *parent)
+    : QObject(parent), d_ptr(new ClipControllerPrivate(this)) {
 }
 
 ClipController::~ClipController() {
     delete d_ptr;
 }
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(ClipController)
 
 void ClipController::setView(IClipEditorView *view) {
     Q_D(ClipController);

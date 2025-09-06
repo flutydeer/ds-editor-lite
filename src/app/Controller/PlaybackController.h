@@ -17,11 +17,18 @@ using namespace PlaybackGlobal;
 
 class PlaybackControllerPrivate;
 
-class PlaybackController final : public QObject, public Singleton<PlaybackController> {
+class PlaybackController final : public QObject {
     Q_OBJECT
-public:
+
+private:
     explicit PlaybackController();
     ~PlaybackController() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(PlaybackController)
+    Q_DISABLE_COPY_MOVE(PlaybackController)
+
+public:
     [[nodiscard]] PlaybackStatus playbackStatus() const;
 
     [[nodiscard]] double position() const;

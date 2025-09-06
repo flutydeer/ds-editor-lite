@@ -16,8 +16,16 @@
 class AudioClip;
 class DecodeAudioTask;
 
-class AudioDecodingController final : public QObject, public Singleton<AudioDecodingController> {
+class AudioDecodingController final : public QObject {
     Q_OBJECT
+
+private:
+    explicit AudioDecodingController(QObject *parent = nullptr);
+    ~AudioDecodingController() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(AudioDecodingController)
+    Q_DISABLE_COPY_MOVE(AudioDecodingController)
 
 public slots:
     void onModelChanged();

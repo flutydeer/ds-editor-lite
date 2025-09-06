@@ -34,15 +34,14 @@
 
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
 
-AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
+AppController::AppController(QObject *parent)
+    : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
     Q_D(AppController);
     AppControllerPrivate::initializeModules();
 
     const auto task = new LaunchLanguageEngineTask;
     connect(task, &LaunchLanguageEngineTask::finished, this,
-            [=] {
-                d->onRunLanguageEngineTaskFinished(task);
-            });
+            [=] { d->onRunLanguageEngineTaskFinished(task); });
     taskManager->addAndStartTask(task);
     appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
 }
@@ -50,6 +49,8 @@ AppController::AppController() : d_ptr(new AppControllerPrivate(this)) {
 AppController::~AppController() {
     delete d_ptr;
 }
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(AppController)
 
 void AppController::newProject() {
     Q_D(AppController);

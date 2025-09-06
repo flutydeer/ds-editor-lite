@@ -17,14 +17,20 @@ class Track;
 class WorkspaceEditor;
 class AppModelPrivate;
 
-class AppModel final : public QObject, public Singleton<AppModel>, public ISerializable {
+class AppModel final : public QObject, public ISerializable {
     Q_OBJECT
+
+public: // TODO: make it private
+    explicit AppModel(QObject *parent = nullptr);
+    ~AppModel() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(AppModel)
+    Q_DISABLE_COPY_MOVE(AppModel)
 
 public:
     enum TrackChangeType { Insert, Remove };
 
-    explicit AppModel();
-    ~AppModel() override;
     TimeSignature timeSignature() const;
     void setTimeSignature(const TimeSignature &signature);
     double tempo() const;

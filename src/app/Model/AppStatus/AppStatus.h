@@ -12,15 +12,21 @@
 
 #include <QObject>
 
-class AppStatus : public QObject, public Singleton<AppStatus> {
+class AppStatus : public QObject {
     Q_OBJECT
+
+private:
+    explicit AppStatus(QObject *parent = nullptr);
+    ~AppStatus() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(AppStatus)
+    Q_DISABLE_COPY_MOVE(AppStatus)
 
 public:
     enum class ModuleType { Audio, Language, Inference };
     enum class ModuleStatus { Ready, Loading, Error, Unknown };
     enum class EditObjectType { None, Clip, Note, Phoneme, Param };
-
-    explicit AppStatus();
 
     // Modules
     Property<ModuleStatus> languageModuleStatus = ModuleStatus::Unknown;

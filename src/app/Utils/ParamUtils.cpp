@@ -4,6 +4,13 @@
 
 #include "ParamUtils.h"
 
+ParamUtils::ParamUtils(QObject *parent) : QObject(parent) {
+}
+
+ParamUtils::~ParamUtils() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(ParamUtils)
+
 const QStringList &ParamUtils::names() const {
     return m_names;
 }

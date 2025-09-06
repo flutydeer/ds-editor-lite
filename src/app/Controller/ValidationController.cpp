@@ -11,12 +11,16 @@
 #include "UI/Controls/Toast.h"
 
 // TODO: 调整逻辑避免不必要的 validation
-ValidationController::ValidationController() {
+ValidationController::ValidationController(QObject *parent) : QObject(parent) {
     // qDebug() << "ValidationController::ValidationController";
     connect(appModel, &AppModel::modelChanged, this, &ValidationController::onModelChanged);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             &ValidationController::onUndoRedoChanged);
 }
+
+ValidationController::~ValidationController() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(ValidationController)
 
 void ValidationController::runValidation() {
     validate();

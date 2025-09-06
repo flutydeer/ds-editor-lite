@@ -37,15 +37,18 @@ struct InferEnginePaths {
     QString inferenceInterpreter;
 };
 
-class InferEngine final : public QObject, public Singleton<InferEngine> {
+class InferEngine final : public QObject {
     Q_OBJECT
 
-public:
-    InferEngine();
+private:
+    explicit InferEngine(QObject *parent = nullptr);
     ~InferEngine() override;
 
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(InferEngine)
     Q_DISABLE_COPY_MOVE(InferEngine)
 
+public:
     bool initialized();
     // void loadConfig(const QString &path);
     QString configPath();

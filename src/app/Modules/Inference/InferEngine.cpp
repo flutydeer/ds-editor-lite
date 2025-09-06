@@ -151,7 +151,7 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::Execu
     return srt::Expected<void>();
 }
 
-InferEngine::InferEngine() {
+InferEngine::InferEngine(QObject *parent) : QObject(parent) {
     srt::Logger::setLogCallback(log_report_callback);
 
     const auto initTask = new InitInferEngineTask;
@@ -174,6 +174,8 @@ InferEngine::InferEngine() {
 InferEngine::~InferEngine() {
     dispose();
 }
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(InferEngine)
 
 bool InferEngine::initialized() {
     QMutexLocker lock(&m_mutex);

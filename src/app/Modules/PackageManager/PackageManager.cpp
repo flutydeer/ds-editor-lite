@@ -178,10 +178,14 @@ namespace {
     }
 }
 
-PackageManager::PackageManager() {
+PackageManager::PackageManager(QObject *parent) : QObject(parent) {
     connect(appStatus, &AppStatus::moduleStatusChanged, this,
             &PackageManager::onModuleStatusChanged);
 }
+
+PackageManager::~PackageManager() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(PackageManager)
 
 Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     PackageManager::refreshInstalledPackages() {

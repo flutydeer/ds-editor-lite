@@ -37,6 +37,10 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
     saveAndNotify(AppOptionsGlobal::All);
 }
 
+AppOptions::~AppOptions() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(AppOptions)
+
 QString AppOptions::configPath() const {
     return m_configPath;
 }

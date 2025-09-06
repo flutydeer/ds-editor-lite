@@ -88,4 +88,6 @@ namespace LangSetting {
         addG2pSet(new UnknownG2pSet());
     }
 
+    LITE_SINGLETON_IMPLEMENT_INSTANCE(ILangSetManager)
+
 }

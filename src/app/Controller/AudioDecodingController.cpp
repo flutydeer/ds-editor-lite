@@ -13,6 +13,13 @@
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
 
+AudioDecodingController::AudioDecodingController(QObject *parent) : QObject(parent) {
+}
+
+AudioDecodingController::~AudioDecodingController() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(AudioDecodingController)
+
 void AudioDecodingController::onModelChanged() {
     // qDebug() << "AudioDecodingController::onModelChanged";
     // Terminate all decoding tasks

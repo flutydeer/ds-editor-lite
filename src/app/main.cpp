@@ -60,14 +60,14 @@ struct AppContext {
 
 class Restarter {
 public:
-    Restarter(const QString &workingDir) : m_workingDir(workingDir) {
+    explicit Restarter(const QString &workingDir) : m_workingDir(workingDir) {
     }
 
-    int restartOrExit(int exitCode) {
+    int restartOrExit(int exitCode) const {
         return qApp->property("restart").toBool() ? restart(exitCode) : exitCode;
     }
 
-    int restart(int exitCode) {
+    int restart(int exitCode) const {
         qDebug() << "Restarting application...";
         QProcess::startDetached(QApplication::applicationFilePath(), QApplication::arguments(),
                                 m_workingDir);

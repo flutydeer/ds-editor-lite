@@ -18,6 +18,13 @@
 
 #include <QFileInfo>
 
+MidiExtractController::MidiExtractController(QObject *parent) : ModelChangeHandler(parent) {
+}
+
+MidiExtractController::~MidiExtractController() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(MidiExtractController)
+
 void MidiExtractController::runExtractMidi(const AudioClip *audioClip) {
     const auto path = audioClip->path();
     const auto task = new ExtractMidiTask({-1, audioClip->id(), path, appModel->tempo()});

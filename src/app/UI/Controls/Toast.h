@@ -27,11 +27,18 @@ private:
     QVBoxLayout *m_cardLayout;
 };
 
-class Toast : public QObject, public IAnimatable, public Singleton<Toast> {
+class Toast : public QObject, public IAnimatable {
     Q_OBJECT
 
-public:
+private:
     explicit Toast(QObject *parent = nullptr);
+    ~Toast() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(Toast)
+    Q_DISABLE_COPY_MOVE(Toast)
+
+public:
     static void setGlobalContext(QWidget *context);
     static void show(const QString &message);
 

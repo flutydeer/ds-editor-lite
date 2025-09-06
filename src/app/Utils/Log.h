@@ -21,7 +21,7 @@
 #include <QMutex>
 #include <utility>
 
-class Log : public Singleton<Log> {
+class Log {
 public:
     enum LogLevel { Debug, Info, Warning, Error, Fatal }; // Green, Blue, Yellow, Red
 
@@ -50,7 +50,15 @@ public:
         const int consoleTagWidth = 24;
     };
 
+private:
     Log();
+    ~Log();
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(Log)
+    Q_DISABLE_COPY_MOVE(Log)
+
+public:
     static void handler(QtMsgType type, const QMessageLogContext &context, const QString &msg);
     static void logSystemInfo();
     static void logGpuInfo();

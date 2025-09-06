@@ -11,6 +11,8 @@ S2pMgr::~S2pMgr() {
     m_hashToS2p.clear();
 }
 
+LITE_SINGLETON_IMPLEMENT_INSTANCE(S2pMgr)
+
 QByteArray S2pMgr::calculateFileHash(const QString &filePath) {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {

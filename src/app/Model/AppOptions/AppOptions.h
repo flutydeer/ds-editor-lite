@@ -16,12 +16,18 @@
 #include "Options/InferenceOption.h"
 #include "Global/AppOptionsGlobal.h"
 
-class AppOptions : public QObject, public Singleton<AppOptions> {
+class AppOptions : public QObject {
     Q_OBJECT
 
-public:
+private:
     explicit AppOptions(QObject *parent = nullptr);
+    ~AppOptions();
 
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(AppOptions)
+    Q_DISABLE_COPY_MOVE(AppOptions)
+
+public:
     [[nodiscard]] QString configPath() const;
 
     // void load(const QJsonObject &object);

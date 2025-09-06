@@ -20,12 +20,18 @@ namespace srt {
     class Error;
 }
 
-class PackageManager final : public QObject, public Singleton<PackageManager> {
+class PackageManager final : public QObject {
     Q_OBJECT
 
-public:
-    PackageManager();
+private:
+    explicit PackageManager(QObject *parent = nullptr);
+    ~PackageManager() override;
 
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(PackageManager)
+    Q_DISABLE_COPY_MOVE(PackageManager)
+
+public:
     [[nodiscard]]
     Expected<GetInstalledPackagesResult, GetInstalledPackagesError> refreshInstalledPackages();
 

@@ -22,8 +22,16 @@ namespace talcs {
     class AbstractAudioFormatIO;
 }
 
-class TrackController final : public QObject, public Singleton<TrackController> {
+class TrackController final : public QObject {
     Q_OBJECT
+
+private:
+    explicit TrackController(QObject *parent = nullptr);
+    ~TrackController() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(TrackController)
+    Q_DISABLE_COPY_MOVE(TrackController)
 
 public:
     void setParentWidget(QWidget *view);

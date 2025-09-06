@@ -29,6 +29,8 @@ TaskManager::~TaskManager() {
     terminateAllTasks();
 }
 
+LITE_SINGLETON_IMPLEMENT_INSTANCE(TaskManager)
+
 const QList<Task *> &TaskManager::tasks() const {
     Q_D(const TaskManager);
     return d->m_tasks;

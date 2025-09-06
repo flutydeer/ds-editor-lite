@@ -13,8 +13,17 @@
 
 #include <QObject>
 
-class ParamUtils final : public QObject, public Singleton<ParamUtils> {
+class ParamUtils final : public QObject {
     Q_OBJECT
+
+private:
+    explicit ParamUtils(QObject *parent = nullptr);
+    ~ParamUtils() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(ParamUtils)
+    Q_DISABLE_COPY_MOVE(ParamUtils)
+
 public:
     [[nodiscard]] const QStringList &names() const;
     [[nodiscard]] QString nameFromType(ParamInfo::Name name) const;

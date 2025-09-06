@@ -10,7 +10,7 @@
 
 namespace AppGlobal {
     // Global Constants
-    constexpr int resizeTolerance = 8;
+    inline constexpr int resizeTolerance = 8;
 
     enum AudioLoadStatus { Init, Loading, Loaded, Error };
 
@@ -20,7 +20,7 @@ namespace AppGlobal {
 
     enum ParamType {};
 
-    const QStringList languageNames = {"cmn", "eng", "jpn", "yue", "unknown"};
+    inline const QStringList languageNames = {"cmn", "eng", "jpn", "yue", "unknown"};
 
 }
 

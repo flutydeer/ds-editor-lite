@@ -18,7 +18,8 @@
 
 namespace Helper = InferControllerHelper;
 
-InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
+InferController::InferController(QObject *parent)
+    : QObject(parent), d_ptr(new InferControllerPrivate(this)) {
     Q_D(InferController);
     d->m_autoStartAcousticInfer = appOptions->inference()->autoStartInfer;
 
@@ -34,6 +35,10 @@ InferController::InferController() : d_ptr(new InferControllerPrivate(this)) {
     connect(playbackController, &PlaybackController::playbackStatusChanged, d,
             &InferControllerPrivate::onPlaybackStatusChanged);
 }
+
+InferController::~InferController() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(InferController)
 
 void InferControllerPrivate::onModuleStatusChanged(const AppStatus::ModuleType module,
                                                    const AppStatus::ModuleStatus status) {

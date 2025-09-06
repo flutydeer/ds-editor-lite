@@ -22,6 +22,13 @@
 
 #include <QFileInfo>
 
+TrackController::TrackController(QObject *parent) : QObject(parent) {
+}
+
+TrackController::~TrackController() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(TrackController)
+
 void TrackController::setParentWidget(QWidget *view) {
     m_parentWidget = view;
 }

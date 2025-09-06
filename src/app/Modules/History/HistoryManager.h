@@ -14,12 +14,18 @@
 class HistoryManagerPrivate;
 class ActionSequence;
 
-class HistoryManager final : public QObject, public Singleton<HistoryManager> {
+class HistoryManager final : public QObject {
     Q_OBJECT
 
-public:
-    explicit HistoryManager();
+private:
+    explicit HistoryManager(QObject *parent = nullptr);
     ~HistoryManager() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(HistoryManager)
+    Q_DISABLE_COPY_MOVE(HistoryManager)
+
+public:
     void undo();
     void redo();
     void record(ActionSequence *actions);

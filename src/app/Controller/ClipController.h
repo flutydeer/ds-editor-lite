@@ -21,12 +21,18 @@ class Curve;
 class ClipControllerPrivate;
 class IClipEditorView;
 
-class ClipController final : public QObject, public Singleton<ClipController> {
+class ClipController final : public QObject {
     Q_OBJECT
 
-public:
-    explicit ClipController();
+private:
+    explicit ClipController(QObject *parent = nullptr);
     ~ClipController() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(ClipController)
+    Q_DISABLE_COPY_MOVE(ClipController)
+
+public:
     void setView(IClipEditorView *view);
     [[nodiscard]] Clip *clip();
     void setClip(Clip *clip);

@@ -20,12 +20,18 @@ class DecodeAudioTask;
 class AudioClip;
 class TrackControl;
 
-class AppController final : public QObject, public Singleton<AppController> {
+class AppController final : public QObject {
     Q_OBJECT
 
-public:
-    explicit AppController();
+private:
+    explicit AppController(QObject *parent = nullptr);
     ~AppController() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(AppController)
+    Q_DISABLE_COPY_MOVE(AppController)
+
+public:
     void setMainWindow(IMainWindow *window);
 
     [[nodiscard]] QString lastProjectFolder() const;

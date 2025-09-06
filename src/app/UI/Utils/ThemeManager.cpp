@@ -12,6 +12,13 @@
 #include <QStyle>
 #include <QWidget>
 
+ThemeManager::ThemeManager(QObject *parent) : QObject(parent) {
+}
+
+ThemeManager::~ThemeManager() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(ThemeManager)
+
 void ThemeManager::addAnimationObserver(IAnimatable *object) {
     m_subscribers += object;
     applyAnimationSettings(object);

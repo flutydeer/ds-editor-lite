@@ -18,6 +18,13 @@
 
 #include <curve-util/CurveUtil.h>
 
+PitchExtractController::PitchExtractController(QObject *parent) : ModelChangeHandler(parent) {
+}
+
+PitchExtractController::~PitchExtractController() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(PitchExtractController)
+
 void PitchExtractController::runExtractPitch(const AudioClip *audioClip,
                                              const SingingClip *singingClip) {
     const auto path = audioClip->path();

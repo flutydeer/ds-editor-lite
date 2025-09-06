@@ -11,11 +11,16 @@
 #include "Models/SingerG2pIdentifier.h"
 #include "Modules/Inference/Models/SingerIdentifier.h"
 
-class S2pMgr : public Singleton<S2pMgr> {
-public:
+class S2pMgr {
+private:
     S2pMgr();
-    ~S2pMgr() override;
+    ~S2pMgr();
 
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(S2pMgr)
+    Q_DISABLE_COPY_MOVE(S2pMgr)
+
+public:
     void addS2p(const SingerIdentifier &singerId, const QString &g2pId, const QString &dictPath);
 
     QStringList syllableToPhoneme(const SingerIdentifier &singerIdentifier, const QString &g2pId,

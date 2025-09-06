@@ -14,13 +14,21 @@
 class Task;
 class TaskManagerPrivate;
 
-class TaskManager : public QObject, public Singleton<TaskManager> {
+class TaskManager : public QObject {
     Q_OBJECT
+
 public:
     enum TaskChangeType { Added, Removed };
 
+private:
     explicit TaskManager(QObject *parent = nullptr);
     ~TaskManager() override;
+
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(TaskManager)
+    Q_DISABLE_COPY_MOVE(TaskManager)
+
+public:
     [[nodiscard]] const QList<Task *> &tasks() const;
     Task *findTaskById(int id);
 

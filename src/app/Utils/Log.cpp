@@ -45,6 +45,10 @@ Log::Log() {
     m_logFileName = QDateTime::currentDateTime().toString("yyyy_MM_dd_hh_mm_ss") + ".log";
 }
 
+Log::~Log() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(Log)
+
 void Log::handler(const QtMsgType type, const QMessageLogContext &context, const QString &msg) {
     if (msg.startsWith("QWindowsWindow::setGeometry: Unable to set geometry") ||
         msg.startsWith("skipping QEventPoint(id=1 ts=0 pos=0,0"))

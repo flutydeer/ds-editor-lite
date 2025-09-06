@@ -10,7 +10,8 @@
 #include "ActionSequence.h"
 #include "Model/AppStatus/AppStatus.h"
 
-HistoryManager::HistoryManager() : d_ptr(new HistoryManagerPrivate) {
+HistoryManager::HistoryManager(QObject *parent)
+    : QObject(parent), d_ptr(new HistoryManagerPrivate) {
     Q_D(HistoryManager);
     d->q_ptr = this;
 }
@@ -18,6 +19,8 @@ HistoryManager::HistoryManager() : d_ptr(new HistoryManagerPrivate) {
 HistoryManager::~HistoryManager() {
     delete d_ptr;
 }
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(HistoryManager)
 
 void HistoryManager::undo() {
     Q_D(HistoryManager);

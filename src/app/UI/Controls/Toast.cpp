@@ -103,6 +103,10 @@ Toast::Toast(QObject *parent) : QObject(parent) {
     initializeAnimation();
 }
 
+Toast::~Toast() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(Toast)
+
 void Toast::setGlobalContext(QWidget *context) {
     m_globalContext = context;
 }

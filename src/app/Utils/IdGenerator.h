@@ -9,12 +9,21 @@
 
 #include "Singleton.h"
 
-class IdGenerator : public Singleton<IdGenerator> {
-public:
-    IdGenerator() : Singleton<IdGenerator>(), m_id(0) {
+class IdGenerator {
+private:
+    IdGenerator() : m_id(0) {
     }
-    ~IdGenerator() noexcept override = default;
+    ~IdGenerator() = default;
 
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(IdGenerator)
+
+    IdGenerator(const IdGenerator &) = delete;
+    IdGenerator &operator=(const IdGenerator &) = delete;
+    IdGenerator(IdGenerator &&) = delete;
+    IdGenerator &operator=(IdGenerator &&) = delete;
+
+public:
     int next() noexcept {
         return m_id.fetch_add(1, std::memory_order_relaxed);
     }

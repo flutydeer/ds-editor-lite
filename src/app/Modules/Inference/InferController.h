@@ -13,12 +13,15 @@
 
 class InferControllerPrivate;
 
-class InferController final : public QObject, public Singleton<InferController> {
+class InferController final : public QObject {
     Q_OBJECT
 
-public:
-    explicit InferController();
+private:
+    explicit InferController(QObject *parent = nullptr);
+    ~InferController() override;
 
+public:
+    LITE_SINGLETON_DECLARE_INSTANCE(InferController)
     Q_DISABLE_COPY_MOVE(InferController)
 
 private:

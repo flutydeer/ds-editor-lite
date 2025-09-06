@@ -28,6 +28,8 @@ PlaybackController::~PlaybackController() {
     delete d_ptr;
 }
 
+LITE_SINGLETON_IMPLEMENT_INSTANCE(PlaybackController)
+
 PlaybackStatus PlaybackController::playbackStatus() const {
     Q_D(const PlaybackController);
     return d->m_playbackStatus;

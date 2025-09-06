@@ -13,11 +13,16 @@
 
 class ClipboardControllerPrivate;
 
-class ClipboardController final : public QObject, public Singleton<ClipboardController> {
+class ClipboardController final : public QObject {
     Q_OBJECT
 
+private:
+    explicit ClipboardController(QObject *parent = nullptr);
+    ~ClipboardController() override;
+
 public:
-    ClipboardController();
+    LITE_SINGLETON_DECLARE_INSTANCE(ClipboardController)
+    Q_DISABLE_COPY_MOVE(ClipboardController)
 
 public slots:
     void copy();

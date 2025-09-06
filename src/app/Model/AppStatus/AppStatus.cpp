@@ -4,7 +4,7 @@
 
 #include "AppStatus.h"
 
-AppStatus::AppStatus() {
+AppStatus::AppStatus(QObject *parent) : QObject(parent) {
     // Modules
     languageModuleStatus.onChanged(
         [this](auto value) { emit moduleStatusChanged(ModuleType::Language, value); });
@@ -23,3 +23,7 @@ AppStatus::AppStatus() {
     selectedNotes.onChanged([this](const auto &value) { emit noteSelectionChanged(value); });
     currentEditObject.onChanged([this](auto value) { emit editingChanged(value); });
 }
+
+AppStatus::~AppStatus() = default;
+
+LITE_SINGLETON_IMPLEMENT_INSTANCE(AppStatus)
