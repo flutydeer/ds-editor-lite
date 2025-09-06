@@ -54,6 +54,7 @@ public:
     explicit InferenceLoader(const srt::SingerSpec *spec = nullptr, QObject *parent = nullptr);
 
     bool isAboutToQuit() const noexcept;
+    void setAboutToQuit(bool aboutToQuit) noexcept;
 
     Result<InferenceFlag::Type> loadInferenceSpecs();
     InferenceFlag::Type checkInferenceSpecs() const;

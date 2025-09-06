@@ -7,6 +7,8 @@
 
 #define inferEngine InferEngine::instance()
 
+#include <atomic>
+
 #include "Utils/Singleton.h"
 #include "Models/SingerIdentifier.h"
 #include "InferenceLoader.h"
@@ -50,6 +52,8 @@ public:
 
 public:
     bool initialized();
+    bool isAboutToQuit() const noexcept;
+    void setAboutToQuit(bool aboutToQuit) noexcept;
     // void loadConfig(const QString &path);
     QString configPath();
     QString singerProviderPath();
@@ -100,6 +104,7 @@ private:
 
     QMutex m_mutex;
     bool m_initialized = false;
+    std::atomic<bool> m_aboutToQuit{false};
 
     srt::SynthUnit m_su;
 

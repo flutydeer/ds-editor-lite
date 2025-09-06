@@ -32,12 +32,16 @@ InferenceLoader::InferenceLoader(const srt::SingerSpec *spec, QObject *parent)
 
     connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
         // Cleanup if needed
-        m_aboutToQuit.store(true, std::memory_order_release);
+        setAboutToQuit(true);
     }, Qt::DirectConnection);
 }
 
 bool InferenceLoader::isAboutToQuit() const noexcept {
     return m_aboutToQuit.load(std::memory_order_acquire);
+}
+
+void InferenceLoader::setAboutToQuit(bool aboutToQuit) noexcept {
+    m_aboutToQuit.store(aboutToQuit, std::memory_order_release);
 }
 
 auto InferenceLoader::loadInferenceSpecs() -> Result<InferenceFlag::Type> {

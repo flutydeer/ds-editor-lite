@@ -182,6 +182,14 @@ bool InferEngine::initialized() {
     return m_initialized;
 }
 
+bool InferEngine::isAboutToQuit() const noexcept {
+    return m_aboutToQuit.load(std::memory_order_acquire);
+}
+
+void InferEngine::setAboutToQuit(bool aboutToQuit) noexcept {
+    m_aboutToQuit.store(aboutToQuit, std::memory_order_release);
+}
+
 // void InferenceEngine::loadConfig(const QString &path) {
 //     m_configLoaded = false;
 //     auto task = new LoadInferConfigTask(path);
@@ -257,6 +265,10 @@ bool InferEngine::initialize(QString &error) {
         }
     }(ep);
 
+    if (isAboutToQuit()) {
+        error = "Application is about to quit.";
+        return false;
+    }
 
     // Initialize SynthUnit (must do this before inference)
     if (auto exp = initializeSU(m_su, ep, index, m_paths); !exp) {
@@ -295,6 +307,9 @@ bool InferEngine::loadPackage(const QString &packagePath, const bool noLoad,
 
 bool InferEngine::loadPackageAndAllSingers(const QString &packagePath,
                                            srt::PackageRef &outPackage) {
+    if (isAboutToQuit()) {
+        return false;
+    }
     srt::PackageRef pkg;
     if (!loadPackage(packagePath, false, pkg)) {
         return false;
@@ -317,8 +332,12 @@ void InferEngine::loadAllSingersFromPackage(const srt::PackageRef &package) {
         loaders.push_back(std::move(loader));
     }
 
+    if (isAboutToQuit()) {
+        return;
+    }
+
     {
-        QWriteLocker wrLock(&m_loaderRwLock);  // 这一行进行不下去了
+        QWriteLocker wrLock(&m_loaderRwLock);
         for (auto &loader : loaders) {
             m_loaders[loader->singerIdentifier()] = std::move(loader);
         }
@@ -485,6 +504,9 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
     } else {
         auto flags = exp.get();
         if (flags.has(InferenceFlag::Duration)) {
+            if (isAboutToQuit()) {
+                return false;
+            }
             if (auto exp2 = loader->createDuration(); !exp2) {
                 allLoaded = false;
                 qCritical().noquote().nospace()
@@ -497,6 +519,9 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
             qCritical().noquote().nospace() << "Missing duration inference";
         }
         if (flags.has(InferenceFlag::Pitch)) {
+            if (isAboutToQuit()) {
+                return false;
+            }
             if (auto exp2 = loader->createPitch(); !exp2) {
                 allLoaded = false;
                 qCritical().noquote().nospace()
@@ -509,6 +534,9 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
             qCritical().noquote().nospace() << "Missing pitch inference";
         }
         if (flags.has(InferenceFlag::Variance)) {
+            if (isAboutToQuit()) {
+                return false;
+            }
             if (auto exp2 = loader->createVariance(); !exp2) {
                 allLoaded = false;
                 qCritical().noquote().nospace()
@@ -521,6 +549,9 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
             qCritical().noquote().nospace() << "Missing variance inference";
         }
         if (flags.has(InferenceFlag::Acoustic)) {
+            if (isAboutToQuit()) {
+                return false;
+            }
             if (auto exp2 = loader->createAcoustic(); !exp2) {
                 allLoaded = false;
                 qCritical().noquote().nospace()
@@ -533,6 +564,9 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
             qCritical().noquote().nospace() << "Missing acoustic inference";
         }
         if (flags.has(InferenceFlag::Vocoder)) {
+            if (isAboutToQuit()) {
+                return false;
+            }
             if (auto exp2 = loader->createVocoder(); !exp2) {
                 allLoaded = false;
                 qCritical().noquote().nospace()
@@ -605,6 +639,8 @@ void InferEngine::terminateInferAcousticAll() const {
 
 void InferEngine::dispose() {
     qDebug() << "dispose InferEngine inference sessions";
+    setAboutToQuit(true);
+
     terminateInferDurationAll();
     terminateInferPitchAll();
     terminateInferVarianceAll();

@@ -20,7 +20,6 @@
 #include <QDir>
 #include <utility>
 
-namespace Co = ds::Api::Common::L1;
 namespace Var = ds::Api::Variance::L1;
 
 bool InferVarianceTask::InferVarianceInput::operator==(const InferVarianceInput &other) const {

@@ -19,7 +19,6 @@
 #include <QDir>
 #include <QJsonDocument>
 
-namespace Co = ds::Api::Common::L1;
 namespace Pit = ds::Api::Pitch::L1;
 
 bool InferPitchTask::InferPitchInput::operator==(const InferPitchInput &other) const {

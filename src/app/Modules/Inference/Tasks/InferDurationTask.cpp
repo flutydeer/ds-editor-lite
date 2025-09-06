@@ -19,7 +19,6 @@
 #include <QJsonDocument>
 #include <utility>
 
-namespace Co = ds::Api::Common::L1;
 namespace Dur = ds::Api::Duration::L1;
 
 bool InferDurationTask::InferDurInput::operator==(const InferDurInput &other) const {
