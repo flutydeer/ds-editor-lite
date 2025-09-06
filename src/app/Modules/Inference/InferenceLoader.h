@@ -1,6 +1,9 @@
 #ifndef INFERENCE_LOADER_H
 #define INFERENCE_LOADER_H
 
+#include <atomic>
+
+#include <QObject>
 #include <QString>
 #include <QVersionNumber>
 
@@ -41,13 +44,17 @@ struct InferenceImportOptionsSet {
     srt::NO<srt::InferenceImportOptions> vocoder;
 };
 
-class InferenceLoader {
+class InferenceLoader : public QObject {
+    Q_OBJECT
+
 public:
     template <typename OkType>
     using Result = Expected<OkType, QString>;
 
-    InferenceLoader();
-    explicit InferenceLoader(const srt::SingerSpec *spec);
+    explicit InferenceLoader(const srt::SingerSpec *spec = nullptr, QObject *parent = nullptr);
+
+    bool isAboutToQuit() const noexcept;
+
     Result<InferenceFlag::Type> loadInferenceSpecs();
     InferenceFlag::Type checkInferenceSpecs() const;
     const SingerIdentifier &singerIdentifier() const;
@@ -70,12 +77,14 @@ public:
     Result<srt::NO<srt::Inference>> createVariance() const;
     Result<srt::NO<srt::Inference>> createAcoustic() const;
     Result<srt::NO<srt::Inference>> createVocoder() const;
+
 private:
     const srt::SingerSpec *m_singerSpec = nullptr;
     InferenceSpecSet m_specs;
     InferenceImportOptionsSet m_importOptions;
     SingerIdentifier m_identifier;
     QString m_singerName;
+    std::atomic<bool> m_aboutToQuit{false};
 };
 
 

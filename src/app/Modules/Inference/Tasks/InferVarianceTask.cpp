@@ -89,6 +89,10 @@ void InferVarianceTask::runTask() {
     } else {
         QString errorMessage;
         qDebug() << "Variance inference cache not found. Running inference...";
+        if (isTerminateRequested()) {
+            abort();
+            return;
+        }
         if (!inferEngine->loadInferencesForSinger(m_input.identifier)) {
             qCritical() << "Task failed" << m_input.identifier << "clipId:" << clipId()
                         << "pieceId:" << pieceId() << "taskId:" << id();

@@ -1,5 +1,6 @@
 #include "InferenceLoader.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QLocale>
 #include <QString>
@@ -14,7 +15,6 @@
 
 #include "Utils/VersionUtils.h"
 
-namespace Co = ds::Api::Common::L1;
 namespace Ac = ds::Api::Acoustic::L1;
 namespace Dur = ds::Api::Duration::L1;
 namespace Pit = ds::Api::Pitch::L1;
@@ -27,13 +27,25 @@ static inline QString getSingerDisplayString(const QString &singerName, const QS
     return singerName + " (" + singerId + ")";
 }
 
-InferenceLoader::InferenceLoader() : m_singerSpec(nullptr) {
+InferenceLoader::InferenceLoader(const srt::SingerSpec *spec, QObject *parent)
+    : QObject(parent), m_singerSpec(spec), m_aboutToQuit(false) {
+
+    connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
+        // Cleanup if needed
+        m_aboutToQuit.store(true, std::memory_order_release);
+    }, Qt::DirectConnection);
 }
 
-InferenceLoader::InferenceLoader(const srt::SingerSpec *spec) : m_singerSpec(spec) {
+bool InferenceLoader::isAboutToQuit() const noexcept {
+    return m_aboutToQuit.load(std::memory_order_acquire);
 }
 
 auto InferenceLoader::loadInferenceSpecs() -> Result<InferenceFlag::Type> {
+    if (isAboutToQuit()) {
+        QString errMsg = QStringLiteral("Application is about to quit");
+        qWarning().noquote().nospace() << errMsg;
+        return errMsg;
+    }
     if (!m_singerSpec) {
         QString errMsg = "SingerSpec is nullptr";
         qCritical().noquote().nospace() << errMsg;
@@ -168,6 +180,12 @@ bool InferenceLoader::hasVocoder() const noexcept {
 auto InferenceLoader::createDuration() const -> Result<srt::NO<srt::Inference>> {
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
+    if (isAboutToQuit()) {
+        QString errMsg = QStringLiteral("Application is about to quit");
+        qWarning().noquote().nospace() << errMsg;
+        return errMsg;
+    }
+
     srt::NO<srt::Inference> inferenceDuration;
     const auto runtimeOptions = srt::NO<Dur::DurationRuntimeOptions>::create();
     if (auto exp = m_specs.duration->createInference(m_importOptions.duration, runtimeOptions);
@@ -192,6 +210,12 @@ auto InferenceLoader::createDuration() const -> Result<srt::NO<srt::Inference>> 
 auto InferenceLoader::createPitch() const -> Result<srt::NO<srt::Inference>> {
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
+    if (isAboutToQuit()) {
+        QString errMsg = QStringLiteral("Application is about to quit");
+        qWarning().noquote().nospace() << errMsg;
+        return errMsg;
+    }
+
     srt::NO<srt::Inference> inferencePitch;
     const auto runtimeOptions = srt::NO<Pit::PitchRuntimeOptions>::create();
     if (auto exp = m_specs.pitch->createInference(m_importOptions.pitch, runtimeOptions); !exp) {
@@ -214,6 +238,12 @@ auto InferenceLoader::createPitch() const -> Result<srt::NO<srt::Inference>> {
 
 auto InferenceLoader::createVariance() const -> Result<srt::NO<srt::Inference>> {
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
+
+    if (isAboutToQuit()) {
+        QString errMsg = QStringLiteral("Application is about to quit");
+        qWarning().noquote().nospace() << errMsg;
+        return errMsg;
+    }
 
     srt::NO<srt::Inference> inferenceVariance;
     const auto runtimeOptions = srt::NO<Var::VarianceRuntimeOptions>::create();
@@ -238,6 +268,12 @@ auto InferenceLoader::createVariance() const -> Result<srt::NO<srt::Inference>> 
 auto InferenceLoader::createAcoustic() const -> Result<srt::NO<srt::Inference>> {
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
+    if (isAboutToQuit()) {
+        QString errMsg = QStringLiteral("Application is about to quit");
+        qWarning().noquote().nospace() << errMsg;
+        return errMsg;
+    }
+
     srt::NO<srt::Inference> inferenceAcoustic;
     const auto runtimeOptions = srt::NO<Ac::AcousticRuntimeOptions>::create();
     if (auto exp = m_specs.acoustic->createInference(m_importOptions.acoustic, runtimeOptions); !exp) {
@@ -260,6 +296,12 @@ auto InferenceLoader::createAcoustic() const -> Result<srt::NO<srt::Inference>> 
 
 auto InferenceLoader::createVocoder() const -> Result<srt::NO<srt::Inference>> {
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
+
+    if (isAboutToQuit()) {
+        QString errMsg = QStringLiteral("Application is about to quit");
+        qWarning().noquote().nospace() << errMsg;
+        return errMsg;
+    }
 
     srt::NO<srt::Inference> inferenceVocoder;
     const auto runtimeOptions = srt::NO<Vo::VocoderRuntimeOptions>::create();

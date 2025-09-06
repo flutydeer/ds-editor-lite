@@ -24,7 +24,6 @@
 #include <QDebug>
 #include <QDir>
 
-namespace Co = ds::Api::Common::L1;
 namespace Ac = ds::Api::Acoustic::L1;
 namespace Vo = ds::Api::Vocoder::L1;
 
@@ -96,6 +95,10 @@ void InferAcousticTask::runTask() {
         m_result = outputCachePath;
     } else {
         qDebug() << "acoustic inference cache not found. Running inference...";
+        if (isTerminateRequested()) {
+            abort();
+            return;
+        }
         if (!inferEngine->loadInferencesForSinger(m_input.identifier)) {
             qCritical() << "Task failed" << m_input.identifier << "clipId:" << clipId()
                         << "pieceId:" << pieceId() << "taskId:" << id();
