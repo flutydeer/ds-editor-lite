@@ -33,10 +33,15 @@ ToolTipFilter::ToolTipFilter(QWidget *parent, const int showDelay, const bool fo
 
     m_timer.setInterval(m_showDelay);
     m_timer.setSingleShot(true);
-    QObject::connect(&m_timer, &QTimer::timeout, this, [&] {
+    connect(&m_timer, &QTimer::timeout, this, [&] {
         if (mouseInParent) {
             adjustToolTipPos();
             showToolTip();
+        }
+    });
+    connect(m_opacityAnimation, &QPropertyAnimation::finished, this, [this] {
+        if (m_tooltip && m_tooltip->windowOpacity() == 0) {
+            m_tooltip->hide();
         }
     });
 }
@@ -125,6 +130,7 @@ void ToolTipFilter::hideToolTip() const {
         m_opacityAnimation->start();
     } else {
         m_tooltip->setWindowOpacity(0);
+        m_tooltip->hide();
     }
 }
 
