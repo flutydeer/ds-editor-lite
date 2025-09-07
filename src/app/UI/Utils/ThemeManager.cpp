@@ -9,7 +9,9 @@
 #include "Utils/WindowFrameUtils.h"
 
 #include <QEvent>
+#include <QPointer>
 #include <QStyle>
+#include <QTimer>
 #include <QWidget>
 
 ThemeManager::ThemeManager(QObject *parent) : QObject(parent) {
@@ -62,21 +64,46 @@ void ThemeManager::applyAnimationSettings(IAnimatable *object) {
 }
 
 bool ThemeManager::eventFilter(QObject *watched, QEvent *event) {
-    if (event->type() == QEvent::Show)
-        for (const auto window : m_windows)
+    if (event->type() == QEvent::Show) {
+        // If the shown object is one of our managed windows, defer the polish.
+        for (const auto window : std::as_const(m_windows)) {
             if (window == watched) {
-                WindowFrameUtils::applyFrameEffects(window);
-                // if (SystemUtils::isWindows()) {
-                //     if (QSysInfo::productVersion() == "11")
-                //         window->setProperty("transparentWindow", true);
-                //     else
-                //         window->setProperty("transparentWindow", false);
-                // } else
-                //     window->setProperty("transparentWindow", false);
-                window->setProperty("transparentWindow", false);
-                window->style()->unpolish(window);
-                window->style()->polish(window);
-            }
+                // Use QPointer to avoid operating on a deleted widget if it is destroyed
+                // before the singleShot lambda runs.
+                QPointer<QWidget> wp(window);
 
+                QTimer::singleShot(0, this, [wp]() {
+                    if (!wp) {
+                        // widget was deleted
+                        return;
+                    }
+
+                    WindowFrameUtils::applyFrameEffects(wp);
+                    // if (SystemUtils::isWindows()) {
+                    //     if (QSysInfo::productVersion() == "11")
+                    //         wp->setProperty("transparentWindow", true);
+                    //     else
+                    //         wp->setProperty("transparentWindow", false);
+                    // } else
+                    //     wp->setProperty("transparentWindow", false);
+                    wp->setProperty("transparentWindow", false);
+
+                    // Only re-polish after the current event loop iteration to avoid
+                    // re-entrant style events on styles like Breeze.
+                    if (wp->style()) {
+                        wp->style()->unpolish(wp);
+                        wp->style()->polish(wp);
+                        // Force a polish-driven update
+                        wp->update();
+                    }
+                });
+
+                // No need to continue loop after match
+                break;
+            }
+        }
+    }
+
+    // Let normal processing continue
     return QObject::eventFilter(watched, event);
 }
