@@ -86,8 +86,10 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::Execu
     auto pluginRootDir =
 #if defined(Q_OS_MAC)
         MacOSUtils::getMainBundlePath() / _TSTR("Contents/PlugIns");
-#else
+#elif defined(Q_OS_WIN)
         stdc::system::application_directory() / _TSTR("plugins");
+#else
+        stdc::system::application_directory().parent_path() / _TSTR("lib/plugins");
 #endif
     auto defaultPluginDir = pluginRootDir / _TSTR("dsinfer");
 

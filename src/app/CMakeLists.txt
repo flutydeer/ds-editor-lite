@@ -142,7 +142,7 @@ if(APPLE)
             "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
             DESTINATION "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns"
     )
-else()
+elseif(WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
@@ -153,6 +153,28 @@ else()
     install(DIRECTORY
             "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
             DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    )
+elseif(UNIX AND NOT APPLE)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            # copy dsinfer plugins
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib/plugins"
+
+            # fix RPATH of each plugin .so file
+            # TODO: This is a temporary workaround to let plugins find synthrt and dsinfer (post build),
+            # but we still need to deploy the .so to app lib dir and fix RPATH to make the app self-contained.
+            COMMAND bash "${CMAKE_SOURCE_DIR}/scripts/fix_linux_rpath_recursive.sh"
+            "--normalize"
+            "--pattern=lib*.so"
+            "--except=libonnxruntime*.so"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib/plugins"
+            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib"
+    )
+
+    install(DIRECTORY
+            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
     )
 endif()
 
