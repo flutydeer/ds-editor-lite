@@ -29,10 +29,8 @@ void PackageManagerDialog::onModuleStatusChanged(AppStatus::ModuleType module,
                                                  AppStatus::ModuleStatus status) {
     if (module != AppStatus::ModuleType::Inference)
         return;
-    if (status == AppStatus::ModuleStatus::Ready) {
-        btnInstall->setEnabled(true);
-        loadPackageList();
-    }
+    if (status == AppStatus::ModuleStatus::Ready)
+        onInferenceModuleReady();
 }
 
 void PackageManagerDialog::updatePackageCount(int count) {
@@ -87,9 +85,15 @@ void PackageManagerDialog::initUi() {
         btnInstall->setEnabled(false);
         connect(appStatus, &AppStatus::moduleStatusChanged, this,
                 &PackageManagerDialog::onModuleStatusChanged);
-    }
+    }  else
+        onInferenceModuleReady();
 
     resize(1280, 768);
+}
+
+void PackageManagerDialog::onInferenceModuleReady() {
+    btnInstall->setEnabled(true);
+    loadPackageList();
 }
 
 void PackageManagerDialog::loadPackageList() {

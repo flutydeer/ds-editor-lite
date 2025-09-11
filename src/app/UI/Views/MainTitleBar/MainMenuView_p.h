@@ -28,6 +28,7 @@ public:
     QAction *actionImportMidi = nullptr;
     QAction *actionExportAudio = nullptr;
     QAction *actionExportMidi = nullptr;
+    QAction *actionOpenPackageManager = nullptr;
     QAction *actionExit = nullptr;
 
     QAction *actionUndo = nullptr;

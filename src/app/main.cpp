@@ -184,9 +184,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    auto packageManagerDialog = new PackageManagerDialog(&w);
-    packageManagerDialog->show();
-
     // trackController->onNewTrack();
     // auto clip = trackController->onNewSingingClip(1, 3840);
     // clipController->setClip(clip);

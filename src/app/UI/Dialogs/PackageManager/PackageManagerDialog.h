@@ -40,6 +40,7 @@ private:
         Failed
     };
     void initUi();
+    void onInferenceModuleReady();
     void loadPackageList();
     QWidget *buildPackagePanel();
     QWidget *buildDetailsPanel();

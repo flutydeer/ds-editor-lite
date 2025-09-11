@@ -21,6 +21,7 @@
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Window/MainWindow.h"
 #include "Global/AppOptionsGlobal.h"
+#include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 
 #include <QFileDialog>
 #include <QMWidgets/cmenu.h>
@@ -312,6 +313,12 @@ void MainMenuViewPrivate::initFileActions() {
     actionExportMidi = new QAction(tr("MIDI file..."), this);
     connect(actionExportMidi, &QAction::triggered, this, [this] { onExportMidiFile(); });
 
+    actionOpenPackageManager = new QAction(tr("Open Package Manager..."), this);
+    connect(actionOpenPackageManager, &QAction::triggered, this, [] {
+        PackageManagerDialog dialog;
+        dialog.exec();
+    });
+
     actionExit = new QAction(tr("E&xit"), this);
     connect(actionExit, &QAction::triggered, this, [this] { exitApp(); });
 }
@@ -396,6 +403,9 @@ CMenu *MainMenuViewPrivate::buildFileMenu() {
     menuExport->addAction(actionExportMidi);
     menuFile->addMenu(menuExport);
 
+    menuFile->addSeparator();
+
+    menuFile->addAction(actionOpenPackageManager);
     menuFile->addSeparator();
 
     menuFile->addAction(actionExit);
