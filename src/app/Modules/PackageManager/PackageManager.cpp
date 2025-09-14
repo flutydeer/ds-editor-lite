@@ -10,6 +10,8 @@
 #include "Utils/VersionUtils.h"
 #include "Models/PackageInfo.h"
 #include "Models/SingerInfo.h"
+#include "Modules/Task/TaskManager.h"
+#include "Tasks/GetInstalledPackagesTask.h"
 
 #include <stdcorelib/path.h>
 
@@ -20,7 +22,6 @@
 
 #include <QDebug>
 #include <QLocale>
-#include <mutex>
 
 namespace fs = std::filesystem;
 
@@ -187,6 +188,17 @@ PackageManager::~PackageManager() = default;
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(PackageManager)
 
+void PackageManager::initialize() {
+    std::call_once(m_initialized, [this]() {
+        auto task = new GetInstalledPackagesTask;
+        connect(task, &GetInstalledPackagesTask::finished, this, [task]() {
+            taskManager->removeTask(task);
+            delete task;
+        });
+        taskManager->addAndStartTask(task);
+    });
+}
+
 Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     PackageManager::refreshInstalledPackages() {
 
@@ -197,6 +209,26 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         };
     }
 
+    auto expected = RefreshState::Idle;
+    // Attempt to become the refreshing thread
+    if (!m_refreshState.compare_exchange_strong(
+            expected, RefreshState::Refreshing,
+            std::memory_order_acq_rel, std::memory_order_acquire)) {
+
+        qDebug() << "Already refreshing, wait for another thread to complete";
+        // Already refreshing: spin-wait for completion
+        while (m_refreshState.load(std::memory_order_acquire) == RefreshState::Refreshing) {
+            std::this_thread::yield();
+        }
+
+        // Return result of completed refresh
+        {
+            QReadLocker readLocker(&m_resultRwLock);
+            return m_result;
+        }
+    }
+
+    // We are the thread performing the refresh
     QElapsedTimer timer;
     timer.start();
     GetInstalledPackagesResult result;
@@ -297,6 +329,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         }
         Q_EMIT packagesRefreshed(m_result.successfulPackages);
     }
+    m_refreshState.store(RefreshState::Idle, std::memory_order_release);
     return result;
 }
 

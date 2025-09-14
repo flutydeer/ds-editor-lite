@@ -51,19 +51,20 @@ public:
     Q_DISABLE_COPY_MOVE(InferEngine)
 
 public:
-    bool initialized();
+    bool initialized() const;
     bool isAboutToQuit() const noexcept;
     void setAboutToQuit(bool aboutToQuit) noexcept;
     // void loadConfig(const QString &path);
-    QString configPath();
-    QString singerProviderPath();
-    QString inferenceDriverPath();
-    QString inferenceRuntimePath();
-    QString inferenceInterpreterPath();
+    QString configPath() const;
+    QString singerProviderPath() const;
+    QString inferenceDriverPath() const;
+    QString inferenceRuntimePath() const;
+    QString inferenceInterpreterPath() const;
     // Returns a const reference to the SynthUnit. Intended for public, read-only access.
     const srt::SynthUnit &constSynthUnit() const;
 
 Q_SIGNALS:
+    void engineInitialized();
     void cancelAllInferTasks();
     void recreateAllInferTasks();
 
@@ -102,7 +103,8 @@ private:
     // Provides mutable access to the SynthUnit. Restricted to friends and member functions.
     srt::SynthUnit &synthUnit();
 
-    QMutex m_mutex;
+    mutable QReadWriteLock m_engineRwLock;
+    std::once_flag m_initFlag{};
     bool m_initialized = false;
     std::atomic<bool> m_aboutToQuit{false};
 

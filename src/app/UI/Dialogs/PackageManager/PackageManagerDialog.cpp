@@ -4,6 +4,7 @@
 
 #include "PackageManagerDialog.h"
 
+#include "Modules/PackageManager/PackageManager.h"
 #include "Modules/PackageManager/Tasks/GetInstalledPackagesTask.h"
 #include "Modules/Task/TaskManager.h"
 #include "synthrt/Core/PackageRef.h"
@@ -97,25 +98,13 @@ void PackageManagerDialog::onInferenceModuleReady() {
 }
 
 void PackageManagerDialog::loadPackageList() {
-    auto task = new GetInstalledPackagesTask;
-    connect(task, &GetInstalledPackagesTask::finished, this,
-            [this, task] {
-                auto result = task->result;
-                if (!result)
-                    qCritical() << "加载错误：" << result.getError().message;
-                else {
-                    if (result.get().successfulPackages.empty()) {
-                        listView->setModel(nullptr);
-                        lbPackageCount->setText(tr("Installed (0)"));
-                    }
-                    updatePackageCount(result.get().successfulPackages.size());
-                    updatePackageList(result.get().successfulPackages);
-                }
-
-                taskManager->removeTask(task);
-                delete task;
-            });
-    taskManager->addAndStartTask(task);
+    auto packages = packageManager->installedPackages();
+    if (packages.successfulPackages.empty()) {
+        listView->setModel(nullptr);
+        lbPackageCount->setText(tr("Installed (0)"));
+    }
+    updatePackageCount(packages.successfulPackages.size());
+    updatePackageList(packages.successfulPackages);
 }
 
 QWidget *PackageManagerDialog::buildPackagePanel() {

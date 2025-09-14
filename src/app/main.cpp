@@ -133,6 +133,9 @@ int main(int argc, char *argv[]) {
     InferEngine::instance();
     PackageManager::instance();
 
+    QObject::connect(inferEngine, &InferEngine::engineInitialized, packageManager,
+                     &PackageManager::initialize, Qt::SingleShotConnection);
+
     // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
     // auto editor = appModel->workspaceEditor("flutydeer.filllyrics");
     // auto workspace = editor->privateWorkspace();

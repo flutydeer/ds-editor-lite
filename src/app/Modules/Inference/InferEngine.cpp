@@ -179,8 +179,8 @@ InferEngine::~InferEngine() {
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(InferEngine)
 
-bool InferEngine::initialized() {
-    QMutexLocker lock(&m_mutex);
+bool InferEngine::initialized() const {
+    QReadLocker lock(&m_engineRwLock);
     return m_initialized;
 }
 
@@ -207,7 +207,7 @@ void InferEngine::setAboutToQuit(bool aboutToQuit) noexcept {
 // }
 
 bool InferEngine::initialize(QString &error) {
-    QMutexLocker lock(&m_mutex);
+    QWriteLocker lock(&m_engineRwLock);
     if (m_initialized) {
         qDebug() << "InferEngine already initialized";
         return true;
@@ -291,13 +291,16 @@ bool InferEngine::initialize(QString &error) {
     }
     m_su.setPackagePaths(packagePaths);
 
-    qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
-                             .arg(description)
-                             .arg(deviceId)
-                             .arg(memory);
+    if (ep != EP::CPUExecutionProvider) {
+        qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
+                                 .arg(description)
+                                 .arg(deviceId)
+                                 .arg(memory);
+    }
 
     m_initialized = true;
-    qInfo().noquote() << "Successfully loaded environment. Execution provider:"
+    Q_EMIT engineInitialized();
+    qInfo().noquote() << "Successfully initialized InferEngine. Execution provider:"
                       << appOptions->inference()->executionProvider;
     return true;
 }
@@ -420,7 +423,7 @@ bool InferEngine::loadInferences(const QString &path) {
         qWarning() << "Package path is null or empty";
         return false;
     }
-    QMutexLocker lock(&m_mutex);
+    QWriteLocker lock(&m_engineRwLock);
     if (path == m_paths.config) {
         qInfo() << "Already loaded config";
     }
@@ -667,27 +670,27 @@ const srt::SynthUnit &InferEngine::constSynthUnit() const {
     return m_su;
 }
 
-QString InferEngine::configPath() {
-    QMutexLocker lock(&m_mutex);
+QString InferEngine::configPath() const {
+    QReadLocker lock(&m_engineRwLock);
     return m_paths.config;
 }
 
-QString InferEngine::singerProviderPath() {
-    QMutexLocker lock(&m_mutex);
+QString InferEngine::singerProviderPath() const {
+    QReadLocker lock(&m_engineRwLock);
     return m_paths.singerProvider;
 }
 
-QString InferEngine::inferenceDriverPath() {
-    QMutexLocker lock(&m_mutex);
+QString InferEngine::inferenceDriverPath() const {
+    QReadLocker lock(&m_engineRwLock);
     return m_paths.inferenceDriver;
 }
 
-QString InferEngine::inferenceRuntimePath() {
-    QMutexLocker lock(&m_mutex);
+QString InferEngine::inferenceRuntimePath() const {
+    QReadLocker lock(&m_engineRwLock);
     return m_paths.inferenceRuntime;
 }
 
-QString InferEngine::inferenceInterpreterPath() {
-    QMutexLocker lock(&m_mutex);
+QString InferEngine::inferenceInterpreterPath() const {
+    QReadLocker lock(&m_engineRwLock);
     return m_paths.inferenceInterpreter;
 }

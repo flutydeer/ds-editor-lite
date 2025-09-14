@@ -166,21 +166,16 @@ void PathEditor::editRowWithEmptyCheck(int row) {
     const QModelIndex idx = model->index(row, 0);
     m_listWidget->edit(idx);
 
-    if (m_editConnection) {
-        disconnect(m_editConnection);
-    }
-    m_editConnection =
-        connect(m_listWidget->itemDelegate(), &QItemDelegate::closeEditor, this,
-                [row, model, this](QWidget *editor, QAbstractItemDelegate::EndEditHint) {
-                    const auto lineEdit = qobject_cast<QLineEdit *>(editor);
-                    if (lineEdit && lineEdit->text().isEmpty()) {
-                        if (row >= 0 && row < model->rowCount()) {
-                            model->removeRow(row);
-                        }
+    connect(m_listWidget->itemDelegate(), &QItemDelegate::closeEditor, this,
+            [row, model, this](QWidget *editor, QAbstractItemDelegate::EndEditHint) {
+                const auto lineEdit = qobject_cast<QLineEdit *>(editor);
+                if (lineEdit && lineEdit->text().isEmpty()) {
+                    if (row >= 0 && row < model->rowCount()) {
+                        model->removeRow(row);
                     }
-                    disconnect(m_editConnection);
-                    Q_EMIT pathsChanged();
-                });
+                }
+                Q_EMIT pathsChanged();
+            }, Qt::SingleShotConnection);
 }
 
 void PathEditor::onAddClicked() {

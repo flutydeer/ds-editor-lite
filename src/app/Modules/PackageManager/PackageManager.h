@@ -7,6 +7,9 @@
 
 #define packageManager PackageManager::instance()
 
+#include <cstdint>
+#include <mutex>
+
 #include "Modules/PackageManager/Models/GetInstalledPackagesResult.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Utils/Expected.h"
@@ -32,6 +35,8 @@ public:
     Q_DISABLE_COPY_MOVE(PackageManager)
 
 public:
+    void initialize();
+
     [[nodiscard]]
     Expected<GetInstalledPackagesResult, GetInstalledPackagesError> refreshInstalledPackages();
 
@@ -48,6 +53,12 @@ private Q_SLOTS:
 private:
     static QString srtErrorToString(const srt::Error &error);
 
+    enum class RefreshState: uint8_t {
+        Idle = 0,
+        Refreshing = 1,
+    };
+    std::once_flag m_initialized{};
+    std::atomic<RefreshState> m_refreshState{RefreshState::Idle};
     mutable QReadWriteLock m_resultRwLock;
     GetInstalledPackagesResult m_result;
     QHash<SingerIdentifier, PackageInfo> m_packageLocator;

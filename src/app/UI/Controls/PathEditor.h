@@ -2,7 +2,6 @@
 #define PATHEDITOR_H
 
 #include <QWidget>
-#include <QMetaObject>
 #include <QStringList>
 
 class PathListWidget;
@@ -27,8 +26,6 @@ private:
     QPushButton *m_deleteButton;
     QPushButton *m_upButton;
     QPushButton *m_downButton;
-
-    QMetaObject::Connection m_editConnection;
 
     void setupUI();
     void connectSignals();
