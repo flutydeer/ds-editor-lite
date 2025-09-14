@@ -6,6 +6,8 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Language/LangSetting/ILangSetManager.h"
+#include "Utils/MacOSUtils.h"
+#include "Utils/StringUtils.h"
 
 #include <QApplication>
 #include <QThread>
@@ -27,10 +29,11 @@ void LaunchLanguageEngineTask::runTask() {
 
     QString errorMsg;
 
+    const QString dictPath =
 #ifdef Q_OS_MAC
-    const QString dictPath = qApp->applicationDirPath() + QStringLiteral("/../Resources/dict");
+        StringUtils::path_to_qstr(MacOSUtils::getMainBundlePath() / "Contents/Resources/dict");
 #else
-    const QString dictPath = qApp->applicationDirPath() + QStringLiteral("/dict");
+        qApp->applicationDirPath() + QStringLiteral("/dict");
 #endif
 
     auto args = QJsonObject();

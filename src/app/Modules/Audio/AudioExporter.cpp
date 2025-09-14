@@ -640,7 +640,8 @@ namespace Audio {
             projectContext->transport()->pause();
             const auto currentBufferSize = projectContext->preMixer()->bufferSize();
             const auto currentSampleRate = projectContext->preMixer()->sampleRate();
-            auto reopenMixer = [=, this](void *) {
+            auto reopenMixer = [projectContext, currentBufferSize, currentSampleRate,
+                                this](void *) {
                 if (!projectContext->preMixer()->open(currentBufferSize, currentSampleRate))
                     addWarning(tr("Cannot reopen audio after exported"));
             };
@@ -671,11 +672,11 @@ namespace Audio {
 
             // start exporting
             connect(&exporter, &talcs::DspxProjectAudioExporter::progressChanged, this,
-                    [=, this](const double progressRatio, talcs::DspxTrackContext *track) {
+                    [sourceIndexMap, this](const double progressRatio, talcs::DspxTrackContext *track) {
                         emit progressChanged(progressRatio, sourceIndexMap.value(track));
                     });
             connect(&exporter, &talcs::DspxProjectAudioExporter::clippingDetected, this,
-                    [=, this](talcs::DspxTrackContext *track) {
+                    [sourceIndexMap, this](talcs::DspxTrackContext *track) {
                         emit clippingDetected(sourceIndexMap.value(track));
                     });
             const auto ret = exporter.exec();

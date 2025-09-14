@@ -693,7 +693,7 @@ namespace Audio::Internal {
         warningListDialog.resize(300, 300);
         warningListDialog.setWindowTitle(tr("Warnings"));
         connect(m_audioExporter, &AudioExporter::clippingDetected, &progressDialog,
-                [=, this](const int sourceIndex) {
+                [warningList, mainPromptWarningButton, this](const int sourceIndex) {
                     const auto item = new QListWidgetItem;
                     if (sourceIndex == -1) {
                         item->setText(tr("Clipping is detected"));
@@ -710,7 +710,8 @@ namespace Audio::Internal {
                     QApplication::beep();
                 });
         connect(m_audioExporter, &AudioExporter::warningAdded, &progressDialog,
-                [=, this](const QString &message, const int sourceIndex) {
+                [warningList, mainPromptWarningButton, this](const QString &message,
+                                                             const int sourceIndex) {
                     Q_UNUSED(sourceIndex); // may be used in future
                     const auto item = new QListWidgetItem;
                     item->setText(message);
@@ -723,11 +724,11 @@ namespace Audio::Internal {
                 });
 
         connect(mainPromptWarningButton, &QAbstractButton::clicked, &progressDialog,
-                [=, &warningListDialog] { warningListDialog.exec(); });
+                [&warningListDialog] { warningListDialog.exec(); });
 
         bool interruptFlag = true;
         connect(abortButton, &QAbstractButton::clicked, &progressDialog,
-                [=, &interruptFlag, &progressDialog, this] {
+                [&interruptFlag, &progressDialog, this] {
                     if (interruptFlag) {
                         m_audioExporter->cancel();
                     } else {
@@ -753,7 +754,7 @@ namespace Audio::Internal {
                 }
                 return QObject::eventFilter(watched, event);
             }
-        } o(&progressDialog, [=, &interruptFlag, this] {
+        } o(&progressDialog, [&interruptFlag, this] {
             if (interruptFlag) {
                 m_audioExporter->cancel();
                 return false;
@@ -761,7 +762,8 @@ namespace Audio::Internal {
             return true;
         });
 
-        QTimer::singleShot(0, [=, &interruptFlag, &progressDialog, this] {
+        QTimer::singleShot(0, [abortButton, warningList, mainPromptLabel, iconLabel,
+                               keepPartialFileCheckBox, &interruptFlag, &progressDialog, this] {
             QCoreApplication::processEvents();
             const auto ret = m_audioExporter->exec();
             interruptFlag = false;

@@ -13,17 +13,33 @@ struct SingerIdentifier {
     QString packageId;
     QVersionNumber packageVersion;
 
-    inline bool operator==(const SingerIdentifier &other) const noexcept {
+    inline bool operator==(const SingerIdentifier &other) const {
         return singerId == other.singerId && packageId == other.packageId &&
                packageVersion == other.packageVersion;
     }
 
-    inline bool operator<(const SingerIdentifier &other) const noexcept {
+    inline bool operator!=(const SingerIdentifier &other) const {
+        return !(*this == other);
+    }
+
+    inline bool operator<(const SingerIdentifier &other) const {
         return std::tie(singerId, packageId, packageVersion) <
                std::tie(other.singerId, other.packageId, other.packageVersion);
     }
 
-    bool isEmpty() const noexcept {
+    inline bool operator>(const SingerIdentifier &other) const {
+        return other < *this;
+    }
+
+    inline bool operator<=(const SingerIdentifier &other) const {
+        return !(*this > other);
+    }
+
+    inline bool operator>=(const SingerIdentifier &other) const {
+        return !(*this < other);
+    }
+
+    inline bool isEmpty() const noexcept {
         return singerId.isEmpty() && packageId.isEmpty() && packageVersion.isNull();
     }
 };
