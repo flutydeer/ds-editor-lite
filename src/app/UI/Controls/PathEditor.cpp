@@ -159,6 +159,12 @@ void PathEditor::connectSignals() {
     connect(
         m_listWidget->model(), &QAbstractItemModel::rowsMoved, this,
         [this](const QModelIndex &, int, int, const QModelIndex &, int) { Q_EMIT pathsChanged(); });
+    connect(m_listWidget, &PathListWidget::itemsDropped, this, [this](const QStringList &items) {
+        for (const auto &item : std::as_const(items)) {
+            m_listWidget->addItem(createEditableItem(item));
+        }
+        Q_EMIT pathsChanged();
+    });
 }
 
 void PathEditor::editRowWithEmptyCheck(int row) {
