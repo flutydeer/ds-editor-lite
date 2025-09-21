@@ -15,6 +15,23 @@
 #include "UI/Dialogs/Base/RestartDialog.h"
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
+    initializePage();
+}
+
+void AppearancePage::modifyOption() {
+    const auto option = appOptions->appearance();
+    option->useNativeFrame = m_swUseNativeFrame->value();
+#if defined(WITH_DIRECT_MANIPULATION)
+    option->enableDirectManipulation = m_swEnableDirectManipulation->value();
+#endif
+    option->animationLevel =
+        static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
+    option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();
+    appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
+}
+
+QWidget *AppearancePage::createContentWidget() {
+    const auto widget = new QWidget;
     const auto option = appOptions->appearance();
 
     m_swUseNativeFrame = new SwitchButton(option->useNativeFrame);
@@ -64,18 +81,7 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
 #endif
     mainLayout->addStretch();
     mainLayout->setContentsMargins({});
-
-    setLayout(mainLayout);
-}
-
-void AppearancePage::modifyOption() {
-    const auto option = appOptions->appearance();
-    option->useNativeFrame = m_swUseNativeFrame->value();
-#if defined(WITH_DIRECT_MANIPULATION)
-    option->enableDirectManipulation = m_swEnableDirectManipulation->value();
-#endif
-    option->animationLevel =
-        static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
-    option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();
-    appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
+    widget->setLayout(mainLayout);
+    widget->setContentsMargins({});
+    return widget;
 }

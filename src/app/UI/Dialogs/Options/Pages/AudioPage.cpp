@@ -387,18 +387,7 @@ void OutputPlaybackPageWidget::updatePan(const double pan) const {
 }
 
 AudioPage::AudioPage(QWidget *parent) : IOptionPage(parent) {
-
-    const auto mainLayout = new QVBoxLayout;
-
-    m_widget = new OutputPlaybackPageWidget;
-    m_widget->setContentsMargins({});
-
-    mainLayout->addWidget(m_widget);
-    mainLayout->addStretch();
-    mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins({});
-    setLayout(mainLayout);
-    setContentsMargins({});
+    initializePage();
 }
 
 AudioPage::~AudioPage() {
@@ -407,6 +396,12 @@ AudioPage::~AudioPage() {
 
 void AudioPage::modifyOption() {
     m_widget->accept();
+}
+
+QWidget * AudioPage::createContentWidget() {
+    m_widget = new OutputPlaybackPageWidget;
+    m_widget->setContentsMargins({});
+    return m_widget;
 }
 
 #include "AudioPage.moc"

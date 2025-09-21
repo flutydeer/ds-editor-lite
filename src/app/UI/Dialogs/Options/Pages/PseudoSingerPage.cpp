@@ -247,12 +247,7 @@ public:
 };
 
 PseudoSingerPage::PseudoSingerPage(QWidget *parent) : IOptionPage(parent) {
-    const auto mainLayout = new QVBoxLayout;
-
-    m_widget = new PseudoSingerPageWidget;
-
-    mainLayout->addWidget(m_widget);
-    setLayout(mainLayout);
+    initializePage();
 }
 
 PseudoSingerPage::~PseudoSingerPage() {
@@ -261,6 +256,12 @@ PseudoSingerPage::~PseudoSingerPage() {
 
 void PseudoSingerPage::modifyOption() {
     m_widget->accept();
+}
+
+QWidget * PseudoSingerPage::createContentWidget() {
+    m_widget = new PseudoSingerPageWidget;
+    m_widget->setContentsMargins({});
+    return m_widget;
 }
 
 #include "PseudoSingerPage.moc"

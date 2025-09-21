@@ -17,6 +17,7 @@ public:
 
 protected:
     void modifyOption() override;
+    QWidget *createContentWidget() override;
 
 private:
     LangSetting::G2pListWidget *m_g2pListWidget;

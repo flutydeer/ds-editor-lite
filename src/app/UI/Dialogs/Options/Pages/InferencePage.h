@@ -20,6 +20,7 @@ public:
 
 protected:
     void modifyOption() override;
+    QWidget *createContentWidget() override;
 
 private:
     ComboBox *m_cbExecutionProvider;

@@ -18,6 +18,10 @@ class AppearancePage : public IOptionPage {
 public:
     explicit AppearancePage(QWidget *parent = nullptr);
 
+protected:
+    void modifyOption() override;
+    QWidget *createContentWidget() override;
+
 private:
     SwitchButton *m_swUseNativeFrame;
     ComboBox *m_cbxAnimationLevel;
@@ -27,9 +31,7 @@ private:
 #endif
     const QStringList animationLevelsName = {tr("Full"), tr("Decreased"), tr("None")};
 
-    void modifyOption() override;
 };
-
 
 
 #endif // APPEARANCEPAGE_H

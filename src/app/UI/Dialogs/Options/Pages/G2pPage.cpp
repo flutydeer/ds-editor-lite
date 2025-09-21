@@ -12,6 +12,24 @@
 #include <language-manager/ILanguageManager.h>
 
 G2pPage::G2pPage(QWidget *parent) : IOptionPage(parent) {
+    initializePage();
+}
+
+void G2pPage::update() const {
+    m_g2pInfoWidget->setInfo(m_g2pListWidget->currentG2pId());
+}
+
+void G2pPage::modifyOption() {
+    const auto options = appOptions->language();
+    const auto g2pId = m_g2pListWidget->m_gListWidget->currentItem()->data(Qt::UserRole).toString();
+    const auto g2pConfig = LangMgr::ILanguageManager::instance()->g2p(g2pId)->config();
+    if (!g2pConfig.empty())
+        options->g2pConfigs.insert(g2pId, g2pConfig);
+    appOptions->saveAndNotify(AppOptionsGlobal::Language);
+}
+
+QWidget *G2pPage::createContentWidget() {
+    const auto widget = new QWidget;
     const auto mainLayout = new QVBoxLayout();
 
     const auto langCard = new OptionsCard();
@@ -34,34 +52,29 @@ G2pPage::G2pPage(QWidget *parent) : IOptionPage(parent) {
     mainLayout->setContentsMargins({});
     mainLayout->addStretch();
 
-    setLayout(mainLayout);
+    widget->setLayout(mainLayout);
 
     // 更新删除按钮状态、g2p
     connect(m_g2pListWidget->m_gListWidget, &QListWidget::currentRowChanged, m_g2pListWidget,
-            [this] { m_g2pListWidget->m_gListWidget->updateDeleteButtonState(); });
+            [this] {
+                m_g2pListWidget->m_gListWidget->updateDeleteButtonState();
+            });
     connect(m_g2pListWidget->m_gListWidget, &QListWidget::currentRowChanged, m_g2pInfoWidget,
-            [this] { m_g2pInfoWidget->setInfo(m_g2pListWidget->currentG2pId()); });
+            [this] {
+                m_g2pInfoWidget->setInfo(m_g2pListWidget->currentG2pId());
+            });
 
     connect(m_g2pListWidget->m_gListWidget, &LangSetting::GListWidget::shown,
             m_g2pListWidget->m_gListWidget,
-            [this] { m_g2pInfoWidget->setInfo(m_g2pListWidget->currentG2pId()); });
+            [this] {
+                m_g2pInfoWidget->setInfo(m_g2pListWidget->currentG2pId());
+            });
 
     connect(m_g2pInfoWidget, &LangSetting::G2pInfoWidget::g2pConfigChanged, this,
             &G2pPage::modifyOption);
 
     m_g2pListWidget->m_gListWidget->setCurrentIndex(
         m_g2pListWidget->m_gListWidget->model()->index(0, 0));
-}
 
-void G2pPage::update() const {
-    m_g2pInfoWidget->setInfo(m_g2pListWidget->currentG2pId());
-}
-
-void G2pPage::modifyOption() {
-    const auto options = appOptions->language();
-    const auto g2pId = m_g2pListWidget->m_gListWidget->currentItem()->data(Qt::UserRole).toString();
-    const auto g2pConfig = LangMgr::ILanguageManager::instance()->g2p(g2pId)->config();
-    if (!g2pConfig.empty())
-        options->g2pConfigs.insert(g2pId, g2pConfig);
-    appOptions->saveAndNotify(AppOptionsGlobal::Language);
+    return widget;
 }

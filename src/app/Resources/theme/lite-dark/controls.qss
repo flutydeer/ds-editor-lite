@@ -514,6 +514,18 @@ QListWidget#AppOptionsDialogTabListWidget::item:selected {
     font-weight: bold;
 }
 
+QWidget#IOptionPageWidget {
+    background: transparent;
+}
+
+IOptionPage {
+    background: transparent;
+}
+
+IOptionPage::viewport {
+    background: transparent;
+}
+
 /* CheckBox */
 QCheckBox {
     background: transparent;

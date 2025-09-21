@@ -13,6 +13,7 @@ public:
 
 protected:
     void modifyOption() override;
+    QWidget *createContentWidget() override;
 
 private:
     PseudoSingerPageWidget *m_widget;

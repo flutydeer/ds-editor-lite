@@ -29,6 +29,34 @@ enum CustomRole {
 };
 
 InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
+    initializePage();
+}
+
+// InferencePage::~InferencePage() {
+//     InferencePage::modifyOption();
+// }
+
+void InferencePage::modifyOption() {
+    const auto option = appOptions->inference();
+
+    option->executionProvider = m_cbExecutionProvider->currentText();
+    if (m_cbDeviceList->currentData(IsDefaultGpuRole).toBool() == true) {
+        option->selectedGpuIndex = -1;
+        option->selectedGpuId = {};
+    } else {
+        const GpuInfo &gpuInfo = m_cbDeviceList->currentData(GpuInfoRole).value<GpuInfo>();
+        option->selectedGpuIndex = gpuInfo.index;
+        option->selectedGpuId = gpuInfo.deviceId;
+    }
+    option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
+    option->depth = m_dsDepthSlider->spinbox->value();
+    option->runVocoderOnCpu = m_swRunVocoderOnCpu->value();
+    option->autoStartInfer = m_autoStartInfer->value();
+    appOptions->saveAndNotify(AppOptionsGlobal::Inference);
+}
+
+QWidget *InferencePage::createContentWidget() {
+    const auto widget = new QWidget();
     const auto option = appOptions->inference();
     // Device - Execution Provider
     constexpr int epIndexCpu = 0;
@@ -373,28 +401,8 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     mainLayout->addWidget(debugCard, 1, Qt::AlignTop);
     // mainLayout->addStretch();
     mainLayout->setContentsMargins({});
-    setLayout(mainLayout);
-}
 
-// InferencePage::~InferencePage() {
-//     InferencePage::modifyOption();
-// }
-
-void InferencePage::modifyOption() {
-    const auto option = appOptions->inference();
-
-    option->executionProvider = m_cbExecutionProvider->currentText();
-    if (m_cbDeviceList->currentData(IsDefaultGpuRole).toBool() == true) {
-        option->selectedGpuIndex = -1;
-        option->selectedGpuId = {};
-    } else {
-        const GpuInfo &gpuInfo = m_cbDeviceList->currentData(GpuInfoRole).value<GpuInfo>();
-        option->selectedGpuIndex = gpuInfo.index;
-        option->selectedGpuId = gpuInfo.deviceId;
-    }
-    option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
-    option->depth = m_dsDepthSlider->spinbox->value();
-    option->runVocoderOnCpu = m_swRunVocoderOnCpu->value();
-    option->autoStartInfer = m_autoStartInfer->value();
-    appOptions->saveAndNotify(AppOptionsGlobal::Inference);
+    widget->setLayout(mainLayout);
+    widget->setContentsMargins({});
+    return widget;
 }

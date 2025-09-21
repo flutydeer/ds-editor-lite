@@ -21,54 +21,50 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     // setAttribute(Qt::WA_DeleteOnClose, true);
     setWindowTitle(tr("Options"));
 
-    m_tabList = new QListWidget;
-    m_tabList->setFixedWidth(160);
-    m_tabList->setObjectName("AppOptionsDialogTabListWidget");
-    m_tabList->addItems(m_pageNames);
-    m_tabList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    tabList = new QListWidget;
+    tabList->setFixedWidth(160);
+    tabList->setObjectName("AppOptionsDialogTabListWidget");
+    tabList->addItems(pageNames);
+    tabList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 
-    m_generalPage = new GeneralPage;
-    m_audioPage = new AudioPage;
-    m_midiPage = new MidiPage;
+    generalPage = new GeneralPage;
+    audioPage = new AudioPage;
+    midiPage = new MidiPage;
     // m_pseudoSingerPage = new PseudoSingerPage;
-    m_appearancePage = new AppearancePage;
-    m_g2pPage = new G2pPage;
-    m_inferencePage = new InferencePage;
+    appearancePage = new AppearancePage;
+    g2pPage = new G2pPage;
+    inferencePage = new InferencePage;
 
-    m_PageContent = new QStackedWidget;
-    m_PageContent->addWidget(m_generalPage);
-    m_PageContent->addWidget(m_audioPage);
-    m_PageContent->addWidget(m_midiPage);
+    pageContent = new QStackedWidget;
+    pageContent->addWidget(generalPage);
+    pageContent->addWidget(audioPage);
+    pageContent->addWidget(midiPage);
     // m_PageContent->addWidget(m_pseudoSingerPage);
-    m_PageContent->addWidget(m_appearancePage);
-    m_PageContent->addWidget(m_g2pPage);
-    m_PageContent->addWidget(m_inferencePage);
-    m_PageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
-    m_PageContent->setMinimumWidth(600);
+    pageContent->addWidget(appearancePage);
+    pageContent->addWidget(g2pPage);
+    pageContent->addWidget(inferencePage);
+    pageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
+    pageContent->setMinimumWidth(600);
 
-    const auto pageScrollArea = new QScrollArea;
-    pageScrollArea->setWidget(m_PageContent);
-    pageScrollArea->setWidgetResizable(true);
-
-    m_pages.append(m_generalPage);
-    m_pages.append(m_audioPage);
-    m_pages.append(m_midiPage);
+    pages.append(generalPage);
+    pages.append(audioPage);
+    pages.append(midiPage);
     // m_pages.append(m_pseudoSingerPage);
-    m_pages.append(m_appearancePage);
-    m_pages.append(m_g2pPage);
-    m_pages.append(m_inferencePage);
+    pages.append(appearancePage);
+    pages.append(g2pPage);
+    pages.append(inferencePage);
 
     const auto mainLayout = new QHBoxLayout;
-    mainLayout->addWidget(m_tabList);
+    mainLayout->addWidget(tabList);
     mainLayout->addSpacing(12);
-    mainLayout->addWidget(pageScrollArea);
+    mainLayout->addWidget(pageContent);
     mainLayout->setContentsMargins({});
     body()->setLayout(mainLayout);
 
-    connect(m_tabList, &QListWidget::currentRowChanged, this,
+    connect(tabList, &QListWidget::currentRowChanged, this,
             &AppOptionsDialog::onSelectionChanged);
     const auto pageIndex = option >= 1 ? option - 1 : 0; // Skip enum "All"
-    m_tabList->setCurrentRow(pageIndex);
+    tabList->setCurrentRow(pageIndex);
 
     resize(900, 600);
 }
@@ -78,5 +74,5 @@ AppOptionsDialog::~AppOptionsDialog() {
 }
 
 void AppOptionsDialog::onSelectionChanged(const int index) const {
-    m_PageContent->setCurrentWidget(m_pages.at(index));
+    pageContent->setCurrentWidget(pages.at(index));
 }

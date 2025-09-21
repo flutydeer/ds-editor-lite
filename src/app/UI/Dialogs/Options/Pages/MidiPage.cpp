@@ -257,12 +257,7 @@ public:
 };
 
 MidiPage::MidiPage(QWidget *parent) : IOptionPage(parent) {
-    const auto mainLayout = new QVBoxLayout;
-
-    m_widget = new MIDIPageWidget;
-
-    mainLayout->addWidget(m_widget);
-    setLayout(mainLayout);
+    initializePage();
 }
 
 MidiPage::~MidiPage() {
@@ -271,6 +266,12 @@ MidiPage::~MidiPage() {
 
 void MidiPage::modifyOption() {
     m_widget->accept();
+}
+
+QWidget * MidiPage::createContentWidget() {
+    m_widget = new MIDIPageWidget;
+    m_widget->setContentsMargins({});
+    return m_widget;
 }
 
 #include "MidiPage.moc"

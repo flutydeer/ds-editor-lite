@@ -24,6 +24,26 @@
 #include <QMCore/qmsystem.h>
 
 GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
+    initializePage();
+}
+
+void GeneralPage::modifyOption() {
+    const auto option = appOptions->general();
+    option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentText();
+    option->defaultLyric = m_leDefaultLyric->text();
+#if false
+    option->defaultPackage = m_fsDefaultPackage->path();
+    option->defaultSingerId = m_leDefaultSingerId->text();
+    option->defaultSpeakerId = m_leDefaultSpeakerId->text();
+#endif
+
+    option->somePath = m_fsSomePath->path();
+    option->rmvpePath = m_fsRmvpePath->path();
+    appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
+}
+
+QWidget *GeneralPage::createContentWidget() {
+    const auto widget = new QWidget;
     const auto option = appOptions->general();
 
     m_btnOpenConfigFolder = new Button(tr("Open Folder..."), this);
@@ -124,20 +144,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
     mainLayout->addStretch();
     mainLayout->setContentsMargins({});
 
-    setLayout(mainLayout);
-}
-
-void GeneralPage::modifyOption() {
-    const auto option = appOptions->general();
-    option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentText();
-    option->defaultLyric = m_leDefaultLyric->text();
-#if false
-    option->defaultPackage = m_fsDefaultPackage->path();
-    option->defaultSingerId = m_leDefaultSingerId->text();
-    option->defaultSpeakerId = m_leDefaultSpeakerId->text();
-#endif
-
-    option->somePath = m_fsSomePath->path();
-    option->rmvpePath = m_fsRmvpePath->path();
-    appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
+    widget->setLayout(mainLayout);
+    widget->setContentsMargins({});
+    return widget;
 }

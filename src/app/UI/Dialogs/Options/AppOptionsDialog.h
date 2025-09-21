@@ -32,21 +32,21 @@ private slots:
     void onSelectionChanged(int index) const;
 
 private:
-    QStringList m_pageNames = {tr("General"),    tr("Audio"), tr("MIDI"),
+    QStringList pageNames = {tr("General"),    tr("Audio"), tr("MIDI"),
                                tr("Appearance"), tr("Language"),   tr("Inference"),
                                /* tr("Preview Functions"), tr("Developer Options")*/};
 
-    QListWidget *m_tabList;
-    QStackedWidget *m_PageContent;
+    QListWidget *tabList;
+    QStackedWidget *pageContent;
 
-    GeneralPage *m_generalPage;
-    AudioPage *m_audioPage;
-    MidiPage *m_midiPage;
+    GeneralPage *generalPage;
+    AudioPage *audioPage;
+    MidiPage *midiPage;
     // PseudoSingerPage *m_pseudoSingerPage;
-    AppearancePage *m_appearancePage;
-    G2pPage *m_g2pPage;
-    InferencePage *m_inferencePage;
-    QList<IOptionPage *> m_pages;
+    AppearancePage *appearancePage;
+    G2pPage *g2pPage;
+    InferencePage *inferencePage;
+    QList<IOptionPage *> pages;
 };
 
 

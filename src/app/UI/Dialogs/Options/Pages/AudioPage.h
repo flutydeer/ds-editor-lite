@@ -19,11 +19,11 @@ public:
 
 protected:
     void modifyOption() override;
+    QWidget *createContentWidget() override;
 
 private:
     OutputPlaybackPageWidget *m_widget;
 };
-
 
 
 #endif // AUDIOPAGE_H
