@@ -21,6 +21,7 @@
 #include <QListView>
 #include <QScrollArea>
 #include <QSplitter>
+#include <QStackedWidget>
 
 PackageManagerDialog::PackageManagerDialog(QWidget *parent) : Dialog(parent) {
     initUi();
@@ -46,17 +47,18 @@ void PackageManagerDialog::updatePackageList(QList<PackageInfo> packages) {
 }
 
 void PackageManagerDialog::onSelectionChanged(const QModelIndex &current,
-                                              const QModelIndex &previous) {
+                                              const QModelIndex &previous) const {
     if (!current.isValid()) {
         detailsHeader->onPackageChanged(nullptr);
         detailsContent->onPackageChanged(nullptr);
+        detailsPanel->setCurrentIndex(PackageUnselected);
         return;
     }
-
-    detailsHeader->onPackageChanged(nullptr);
-    detailsContent->onPackageChanged(nullptr);
-
-    QModelIndex sourceIndex = proxyModel->mapToSource(current);
+    const QModelIndex sourceIndex = proxyModel->mapToSource(current);
+    if (auto package = &listModel->getPackage(sourceIndex))
+        detailsPanel->setCurrentIndex(PackageSelected);
+    else
+        detailsPanel->setCurrentIndex(PackageUnselected);
 
     detailsHeader->onPackageChanged(&listModel->getPackage(sourceIndex));
     detailsContent->onPackageChanged(&listModel->getPackage(sourceIndex));
@@ -86,10 +88,11 @@ void PackageManagerDialog::initUi() {
         btnInstall->setEnabled(false);
         connect(appStatus, &AppStatus::moduleStatusChanged, this,
                 &PackageManagerDialog::onModuleStatusChanged);
-    }  else
+    } else
         onInferenceModuleReady();
 
     resize(1280, 768);
+    setWindowTitle(tr("Package Manager"));
 }
 
 void PackageManagerDialog::onInferenceModuleReady() {
@@ -158,7 +161,7 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     auto layout = new QVBoxLayout;
     layout->addWidget(detailsHeader);
     layout->addWidget(detailsContent);
-    layout->addStretch();//TODO: 重构
+    layout->addStretch(); //TODO: 重构
     layout->setContentsMargins({12, 0, 12, 0});
     layout->setSpacing(12);
 
@@ -175,15 +178,38 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
         "PackageDetailsHeader>QLabel#lbVersion { font-size: 13px; color: rgba(182, 183, 186, 140); } "
         "PackageDetailsHeader>QLabel#lbCopyright { font-size: 13px; color: rgba(182, 183, 186, 140); } ");
 
-    auto scrollArea = new QScrollArea;
-    scrollArea->setObjectName("PackageManagerDialogDetailsScrollArea");
-    scrollArea->setStyleSheet(
+    detailsPanelContent = new QScrollArea;
+    detailsPanelContent->setObjectName("PackageManagerDialogDetailsScrollArea");
+    detailsPanelContent->setStyleSheet(
         "QScrollArea#PackageManagerDialogDetailsScrollArea { padding: 0px; border: none }");
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    scrollArea->setWidget(detailsWidget);
-    scrollArea->viewport()->setContentsMargins({});
+    detailsPanelContent->setWidgetResizable(true);
+    detailsPanelContent->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    detailsPanelContent->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    detailsPanelContent->setWidget(detailsWidget);
+    detailsPanelContent->viewport()->setContentsMargins({});
 
-    return scrollArea;
+    detailsPanelPlaceholder = buildDetailsPanelPlaceholder();
+
+    detailsPanel = new QStackedWidget;
+    detailsPanel->addWidget(detailsPanelPlaceholder);
+    detailsPanel->addWidget(detailsPanelContent);
+    detailsPanel->setCurrentWidget(detailsPanelPlaceholder);
+
+    return detailsPanel;
+}
+
+QWidget *PackageManagerDialog::buildDetailsPanelPlaceholder() {
+    auto label = new QLabel(tr("Select a package to view details"));
+    label->setAlignment(Qt::AlignCenter);
+    label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    label->setStyleSheet("QLabel { color: rgba(182, 183, 186, 140); }");
+
+    auto layout = new QVBoxLayout;
+    layout->addWidget(label);
+    layout->setContentsMargins({12, 0, 12, 0});
+
+    detailsPanelPlaceholder = new QWidget;
+    detailsPanelPlaceholder->setLayout(layout);
+    detailsPanelPlaceholder->setContentsMargins({});
+    return detailsPanelPlaceholder;
 }

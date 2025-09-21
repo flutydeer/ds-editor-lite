@@ -313,7 +313,7 @@ void MainMenuViewPrivate::initFileActions() {
     actionExportMidi = new QAction(tr("MIDI file..."), this);
     connect(actionExportMidi, &QAction::triggered, this, [this] { onExportMidiFile(); });
 
-    actionOpenPackageManager = new QAction(tr("Open Package Manager..."), this);
+    actionOpenPackageManager = new QAction(tr("Manage packages..."), this);
     connect(actionOpenPackageManager, &QAction::triggered, this, [] {
         PackageManagerDialog dialog;
         dialog.exec();
