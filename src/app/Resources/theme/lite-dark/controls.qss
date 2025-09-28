@@ -172,6 +172,73 @@ QComboBox:editable:focus {
     border-bottom: 1px solid #9BBAFF;
 }
 
+/* QToolButton */
+QToolButton {
+    background: #10FFFFFF;
+    border: 1px solid #10FFFFFF;
+    border-radius: 4px;
+    color: rgb(242, 242, 242);
+    padding: 0px 8px;
+    height: 26px;
+}
+
+QToolButton:hover {
+    background-color: #1AFFFFFF;
+    border: 1px solid #1AFFFFFF;
+}
+
+QToolButton:pressed {
+    background-color: #2AFFFFFF;
+    border: 1px solid #2AFFFFFF;
+}
+
+QToolButton:disabled {
+    color: rgba(255, 255, 255, 127);
+    background-color: rgba(255, 255, 255, 32);
+    border: 1px solid rgba(255, 255, 255, 32);
+}
+
+QToolButton:checked {
+    background-color: #2AFFFFFF;
+    border: 1px solid #505050;
+}
+
+QToolButton:checked:hover {
+    background-color: #3AFFFFFF;
+}
+
+QToolButton[popupMode="1"] {
+    padding-right: 28px;
+}
+
+QToolButton[popupMode="2"] {
+    padding-right: 28px;
+}
+
+QToolButton::menu-button {
+    width: 28px;
+    border: none;
+    border-left: 1px solid #505050;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+QToolButton::menu-button:hover {
+    background: #1AFFFFFF;
+}
+
+QToolButton::menu-arrow {
+    image: url(:svg/icons/chevron_down_16_filled_white.svg);
+    width: 16px;
+    height: 16px;
+}
+
+QToolButton:focus {
+    background: #1A1C22;
+    border: 1px solid #505050;
+    border-bottom: 1px solid #9BBAFF;
+    outline: none;
+}
 
 /* ScrollBar */
 QScrollBar {

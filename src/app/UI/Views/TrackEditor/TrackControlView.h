@@ -8,6 +8,7 @@
 #include "Global/AppGlobal.h"
 #include "Interface/ITrack.h"
 #include "Model/AppModel/TrackControl.h"
+#include "UI/Controls/TwoLevelComboBox.h"
 
 #include <QWidget>
 
@@ -67,7 +68,7 @@ private:
     Button *btnMute;
     Button *btnSolo;
     EditLabel *leTrackName;
-    ComboBox *cbSinger;
+    TwoLevelComboBox *cbSinger;
     LanguageComboBox *cbLanguage;
     QSpacerItem *panVolumeSpacer;
     LevelMeter *m_levelMeter;

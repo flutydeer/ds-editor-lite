@@ -67,20 +67,19 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     muteSoloTrackNameLayout->setSpacing(4);
     muteSoloTrackNameLayout->setContentsMargins(4, 8, 4, 8);
 
-    cbSinger = new ComboBox;
+    cbSinger = new TwoLevelComboBox;
     cbSinger->setObjectName("cbSinger");
-    //cbSinger->addItems({"Singer1", "Singer2", "Singer3"});
     auto setCbSinger = [this](QList<PackageInfo> packages) {
         cbSinger->clear();
-        cbSinger->addItem("(no singer)");
+        cbSinger->addGroup("(no singer)");
+        cbSinger->addItemToGroup("(no singer)", "(no singer)", {}, {});
         for (const auto &package : std::as_const(packages)) {
             const auto singers = package.singers();
             for (const auto &singer : singers) {
                 QString singerText = singer.name();
-                const auto index = cbSinger->count();
-                cbSinger->insertItem(index, singerText);
-                cbSinger->setItemData(index, QVariant::fromValue(singer), SingerInfoRole);
-                cbSinger->setItemData(index, QVariant::fromValue(singer.identifier()), SingerIdentifierRole);
+                cbSinger->addGroup(singerText);
+                for (const auto &spk : singer.speakers())
+                    cbSinger->addItemToGroup(singerText, spk.id(), singer, spk);
             }
         }
     };
@@ -88,24 +87,16 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     setCbSinger(packageManager->installedPackages().successfulPackages);
     connect(packageManager, &PackageManager::packagesRefreshed, cbSinger, setCbSinger);
 
-    connect(cbSinger, &ComboBox::currentIndexChanged, this, [this](int) {
-        auto currentText = cbSinger->currentText();
-        auto singerInfo = cbSinger->currentData(SingerInfoRole).value<SingerInfo>();
+    connect(cbSinger, &TwoLevelComboBox::currentTextChanged, this, [this] {
+        const auto currentText = cbSinger->currentText();
+        const auto singerInfo = cbSinger->currentSinger();
+        const auto speakerInfo = cbSinger->currentSpeaker();
         qDebug().noquote().nospace() << "Singer clicked: " << currentText;
         if (!m_track) {
             return;
         }
         m_track->setSingerInfo(singerInfo);
-        if (!singerInfo.isEmpty()) {
-            const auto speakers = singerInfo.speakers();
-            if (!speakers.isEmpty()) {
-                m_track->setSpeakerInfo(speakers[0]);
-            } else {
-                m_track->setSpeakerInfo({});
-            }
-        } else {
-            m_track->setSpeakerInfo({});
-        }
+        m_track->setSpeakerInfo(speakerInfo);
     });
 
     cbLanguage = new LanguageComboBox("unknown");
@@ -195,7 +186,6 @@ LevelMeter *TrackControlView::levelMeter() const {
     return m_levelMeter;
 }
 
-
 void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     auto actionInsert = new QAction("Insert new track", this);
     connect(actionInsert, &QAction::triggered, this, [this] { emit insertNewTrackTriggered(); });
@@ -219,11 +209,11 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
                 if (!m_track) {
                     return;
                 }
-                auto comboBoxIndex = cbSinger->findData(QVariant::fromValue(singer.identifier()),
-                                                        SingerIdentifierRole);
-                if (comboBoxIndex != -1) {
-                    cbSinger->setCurrentIndex(comboBoxIndex);
-                }
+                // auto comboBoxIndex = cbSinger->findData(QVariant::fromValue(singer.identifier()),
+                //                                         SingerIdentifierRole);
+                // if (comboBoxIndex != -1) {
+                //     cbSinger->setCurrentIndex(comboBoxIndex);
+                // }
             });
         }
     }
