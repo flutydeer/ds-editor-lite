@@ -36,5 +36,9 @@ DescriptionCard::DescriptionCard(QWidget *parent) : OptionsCard(parent) {
 
 void DescriptionCard::onDataContextChanged(const QString &dataContext) {
     // plainTextEdit->setPlainText(dataContext);
-    lbDescription->setText(dataContext);
+    if (dataContext.isEmpty()) {
+        lbDescription->setText(tr("No description."));
+    } else {
+        lbDescription->setText(dataContext);
+    }
 }

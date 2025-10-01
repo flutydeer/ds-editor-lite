@@ -9,13 +9,15 @@
 
 #include <QVBoxLayout>
 
-PackageDetailsContent::PackageDetailsContent(QWidget *parent)  : QWidget(parent) {
+PackageDetailsContent::PackageDetailsContent(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
 
     descriptionCard = new DescriptionCard;
+    readMeCard = new ReadMeCard;
 
     auto layout = new QVBoxLayout;
     layout->addWidget(descriptionCard);
+    layout->addWidget(readMeCard);
     setLayout(layout);
 }
 
@@ -29,8 +31,16 @@ void PackageDetailsContent::onPackageChanged(const PackageInfo *package) {
 
 void PackageDetailsContent::moveToNullPackageState() const {
     descriptionCard->onDataContextChanged({});
+    readMeCard->onDataContextChanged({});
 }
 
 void PackageDetailsContent::moveToPackageState(const PackageInfo &package) const {
     descriptionCard->onDataContextChanged(package.description());
+    if (package.readme().isEmpty()) {
+        readMeCard->onDataContextChanged({});
+    } else {
+        QFileInfo readmeFileInfo(package.path(), package.readme());
+        auto readmePath = readmeFileInfo.absoluteFilePath();
+        readMeCard->onDataContextChanged(readmePath);
+    }
 }

@@ -5,6 +5,8 @@
 #ifndef DS_EDITOR_LITE_PACKAGEDETAILSCONTENT_H
 #define DS_EDITOR_LITE_PACKAGEDETAILSCONTENT_H
 
+#include "Cards/ReadMeCard.h"
+
 #include <QWidget>
 
 class DescriptionCard;
@@ -24,6 +26,7 @@ private:
     void moveToPackageState(const PackageInfo &package) const;
 
     DescriptionCard *descriptionCard = nullptr;
+    ReadMeCard *readMeCard = nullptr;
 
     const PackageInfo *currentPackage = nullptr;
 };
