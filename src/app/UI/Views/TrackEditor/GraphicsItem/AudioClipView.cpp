@@ -4,12 +4,12 @@
 
 #include "AudioClipView.h"
 
-#include <QDebug>
 #include <QPainter>
 #include <QThread>
 #include <QFileDialog>
 
-AudioClipView::AudioClipView(int itemId, QGraphicsItem *parent) : AbstractClipView(itemId, parent) {
+AudioClipView::AudioClipView(const int itemId, QGraphicsItem *parent)
+    : AbstractClipView(itemId, parent) {
 }
 
 QString AudioClipView::path() const {
@@ -25,7 +25,7 @@ double AudioClipView::tempo() const {
     return m_tempo;
 }
 
-void AudioClipView::setTempo(double tempo) {
+void AudioClipView::setTempo(const double tempo) {
     m_tempo = tempo;
 }
 
@@ -34,7 +34,7 @@ void AudioClipView::setAudioInfo(const AudioInfoModel &info) {
     update();
 }
 
-void AudioClipView::setStatus(AppGlobal::AudioLoadStatus status) {
+void AudioClipView::setStatus(const AppGlobal::AudioLoadStatus status) {
     m_status = status;
     update();
 }
@@ -48,22 +48,23 @@ int AudioClipView::contentLength() const {
     return length();
 }
 
-void AudioClipView::onTempoChange(double tempo) {
+void AudioClipView::onTempoChange(const double tempo) {
     // qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
     m_tempo = tempo;
 }
 
-void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) {
+void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
+                                    const QColor color) {
     QElapsedTimer mstimer;
     mstimer.start();
     painter->setRenderHint(QPainter::Antialiasing, false);
 
-    auto rectLeft = previewRect.left();
+    // auto rectLeft = previewRect.left();
     // qDebug() << rectLeft;
-    auto rectTop = previewRect.top();
-    auto rectWidth = previewRect.width();
-    auto rectHeight = previewRect.height();
-    auto halfRectHeight = rectHeight / 2;
+    const auto rectTop = previewRect.top();
+    const auto rectWidth = previewRect.width();
+    const auto rectHeight = previewRect.height();
+    const auto halfRectHeight = rectHeight / 2;
 
     QPen pen;
 
@@ -81,29 +82,29 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
         return;
 
     m_resolution = scaleX() >= 0.2 ? High : Low;
-    auto chunksPerTickBase =
+    const auto chunksPerTickBase =
         static_cast<double>(m_audioInfo.sampleRate) / m_audioInfo.chunkSize * 60 / m_tempo / 480;
     const auto peakData = m_resolution == Low ? m_audioInfo.peakCacheMipmap : m_audioInfo.peakCache;
     const auto chunksPerTick =
         m_resolution == Low ? chunksPerTickBase / m_audioInfo.mipmapScale : chunksPerTickBase;
 
-    auto rectLeftScene = mapToScene(previewRect.topLeft()).x();
-    auto rectRightScene = mapToScene(previewRect.bottomRight()).x();
-    auto waveRectLeft =
+    const auto rectLeftScene = mapToScene(previewRect.topLeft()).x();
+    const auto rectRightScene = mapToScene(previewRect.bottomRight()).x();
+    const auto waveRectLeft =
         visibleRect().left() < rectLeftScene ? 0 : visibleRect().left() - rectLeftScene;
-    auto waveRectRight = visibleRect().right() < rectRightScene
-                             ? visibleRect().right() - rectLeftScene
-                             : rectRightScene - rectLeftScene;
-    auto waveRectWidth = waveRectRight - waveRectLeft + 1; // 1 px spaceing at right
+    const auto waveRectRight = visibleRect().right() < rectRightScene
+                                   ? visibleRect().right() - rectLeftScene
+                                   : rectRightScene - rectLeftScene;
+    // auto waveRectWidth = waveRectRight - waveRectLeft + 1; // 1 px spaceing at right
 
-    auto start = clipStart() * chunksPerTick;
-    auto end = (clipStart() + clipLen()) * chunksPerTick;
-    auto divideCount = ((end - start) / rectWidth);
+    const auto start = clipStart() * chunksPerTick;
+    const auto end = (clipStart() + clipLen()) * chunksPerTick;
+    const auto divideCount = (end - start) / rectWidth;
     // qDebug() << start << end << rectWidth << (int)divideCount;
 
-    auto drawPeak = [&](int x, short min, short max) {
-        auto yMin = -min * halfRectHeight / 32767 + halfRectHeight + rectTop;
-        auto yMax = -max * halfRectHeight / 32767 + halfRectHeight + rectTop;
+    auto drawPeak = [&](const int x, const short min, const short max) {
+        const auto yMin = -min * halfRectHeight / 32767 + halfRectHeight + rectTop;
+        const auto yMax = -max * halfRectHeight / 32767 + halfRectHeight + rectTop;
         painter->drawLine(x, static_cast<int>(yMin), x, static_cast<int>(yMax));
     };
 
@@ -111,16 +112,16 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     for (int i = static_cast<int>(waveRectLeft); i <= static_cast<int>(waveRectRight); i++) {
         short min = 0;
         short max = 0;
-        auto updateMinMax = [](const std::tuple<short, short> &frame, short &min, short &max) {
-            auto frameMin = std::get<0>(frame);
-            auto frameMax = std::get<1>(frame);
-            if (frameMin < min)
-                min = frameMin;
-            if (frameMax > max)
-                max = frameMax;
+        auto updateMinMax = [](const std::tuple<short, short> &frame, short &min_, short &max_) {
+            const auto frameMin = std::get<0>(frame);
+            const auto frameMax = std::get<1>(frame);
+            if (frameMin < min_)
+                min_ = frameMin;
+            if (frameMax > max_)
+                max_ = frameMax;
         };
 
-        for (int j = start + i * divideCount; j < (start + i * divideCount + divideCount); j++) {
+        for (int j = start + i * divideCount; j < start + i * divideCount + divideCount; j++) {
             if (j >= peakData.count())
                 break;
 

@@ -14,7 +14,7 @@
 using namespace TracksEditorGlobal;
 
 int SingingClipView::NoteViewModel::compareTo(const NoteViewModel *obj) const {
-    auto otherStart = obj->rStart;
+    const auto otherStart = obj->rStart;
     if (rStart < otherStart)
         return -1;
     if (rStart > otherStart)
@@ -30,7 +30,7 @@ std::tuple<qsizetype, qsizetype> SingingClipView::NoteViewModel::interval() cons
     return std::make_tuple(0, 0);
 }
 
-SingingClipView::SingingClipView(int itemId, QGraphicsItem *parent)
+SingingClipView::SingingClipView(const int itemId, QGraphicsItem *parent)
     : AbstractClipView(itemId, parent) {
     setCanResizeLength(true);
     // setName("New Pattern");
@@ -53,11 +53,11 @@ void SingingClipView::loadNotes(const OverlappableSerialList<Note> &notes) {
 int SingingClipView::contentLength() const {
     if (m_notes.isEmpty())
         return 1920;
-    auto lastNote = m_notes.last();
+    const auto lastNote = m_notes.last();
     return lastNote->rStart + lastNote->length;
 }
 
-void SingingClipView::onNoteListChanged(SingingClip::NoteChangeType type,
+void SingingClipView::onNoteListChanged(const SingingClip::NoteChangeType type,
                                         const QList<Note *> &notes) {
     switch (type) {
         case SingingClip::Insert:
@@ -80,7 +80,7 @@ void SingingClipView::onNoteListChanged(SingingClip::NoteChangeType type,
     update();
 }
 
-void SingingClipView::onNotePropertyChanged(Note *note) {
+void SingingClipView::onNotePropertyChanged(const Note *note) {
     removeNote(note->id());
     addNote(note);
 }
@@ -105,15 +105,16 @@ QString SingingClipView::text() const {
            (!m_speakerName.isEmpty() ? (" (" + m_speakerName + ")") : "") + " " + m_language + " ";
 }
 
-void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) {
+void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
+                                      const QColor color) {
     // painter->setPen(Qt::red);
     // painter->drawRect(previewRect);
     // painter->setPen(Qt::NoPen);
     painter->setRenderHint(QPainter::Antialiasing);
 
-    auto rectTop = previewRect.top();
-    auto rectWidth = previewRect.width();
-    auto rectHeight = previewRect.height();
+    const auto rectTop = previewRect.top();
+    const auto rectWidth = previewRect.width();
+    const auto rectHeight = previewRect.height();
 
     if (rectHeight < 32 || rectWidth < 16)
         return;
@@ -125,14 +126,14 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
     int lowestKeyIndex = 127;
     int highestKeyIndex = 0;
     for (const auto note : m_notes) {
-        auto keyIndex = note->keyIndex;
+        const auto keyIndex = note->keyIndex;
         if (keyIndex < lowestKeyIndex)
             lowestKeyIndex = keyIndex;
         if (keyIndex > highestKeyIndex)
             highestKeyIndex = keyIndex;
     }
 
-    int divideCount = highestKeyIndex - lowestKeyIndex + 1;
+    const int divideCount = highestKeyIndex - lowestKeyIndex + 1;
     auto noteHeight = rectHeight / divideCount;
     auto totalHeight = rectHeight;
     if (noteHeight > 16) {
@@ -141,14 +142,14 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
     }
 
     for (const auto &note : m_notes) {
-        auto clipLeft = start() + clipStart();
-        auto clipRight = clipLeft + clipLen();
+        const auto clipLeft = start() + clipStart();
+        const auto clipRight = clipLeft + clipLen();
         if (start() + note->rStart + note->length < clipLeft)
             continue;
         if (start() + note->rStart >= clipRight)
             break;
 
-        auto leftScene = tickToSceneX(start() + note->rStart);
+        const auto leftScene = tickToSceneX(start() + note->rStart);
         auto left = sceneXToItemX(leftScene);
         auto width = tickToSceneX(note->length);
         if (start() + note->rStart < clipLeft) {
@@ -157,7 +158,7 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
             // qDebug() << left << width << note->lyric;
         } else if (start() + note->rStart + note->length >= clipRight)
             width = tickToSceneX(clipRight - start() - note->rStart);
-        auto top = -(note->keyIndex - highestKeyIndex) * noteHeight + rectTop;
+        const auto top = -(note->keyIndex - highestKeyIndex) * noteHeight + rectTop;
         painter->drawRect(QRectF(left, top, width, noteHeight));
     }
 }
@@ -170,8 +171,8 @@ QString SingingClipView::iconPath() const {
     return ":svg/icons/midi_clip_16_filled.svg";
 }
 
-void SingingClipView::addNote(Note *note) {
-    auto vm = new NoteViewModel;
+void SingingClipView::addNote(const Note *note) {
+    const auto vm = new NoteViewModel;
     vm->id = note->id();
     vm->rStart = note->localStart();
     vm->length = note->length();
@@ -179,8 +180,8 @@ void SingingClipView::addNote(Note *note) {
     MathUtils::binaryInsert(m_notes, vm);
 }
 
-void SingingClipView::removeNote(int id) {
-    for (auto note : m_notes) {
+void SingingClipView::removeNote(const int id) {
+    for (const auto note : m_notes) {
         if (note->id == id) {
             m_notes.removeOne(note);
             delete note;

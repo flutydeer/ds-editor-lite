@@ -5,6 +5,7 @@
 #include "ElasticAnimator.h"
 
 #include <QDebug>
+#include <QTimer>
 
 ElasticAnimator::ElasticAnimator(QObject *parent)
     : QObject(parent), m_smoothness(0.9), m_responsiveness(0.08), m_position(0, 0),

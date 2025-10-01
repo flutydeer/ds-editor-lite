@@ -28,8 +28,7 @@ public:
     LITE_SINGLETON_DECLARE_INSTANCE(TaskManager)
     Q_DISABLE_COPY_MOVE(TaskManager)
 
-public:
-    [[nodiscard]] const QList<Task *> &tasks() const;
+    const QList<Task *> &tasks() const;
     Task *findTaskById(int id);
 
 signals:

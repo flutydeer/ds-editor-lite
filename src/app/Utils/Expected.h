@@ -237,4 +237,4 @@ private:
     static constexpr bool is_expected_v<Expected<U, V>> = true;
 };
 
-#endif //EXPECTED_H
+#endif // EXPECTED_H

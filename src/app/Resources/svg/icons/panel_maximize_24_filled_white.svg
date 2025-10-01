@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="_面板最大化" data-name="面板最大化" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-  <defs>
-    <style>
-      .cls-1 {
-        fill: none;
-        stroke: #f0f0f0;
-        stroke-linecap: round;
-        stroke-miterlimit: 10;
-        stroke-width: 1.5px;
-      }
-    </style>
-  </defs>
-  <line class="cls-1" x1="2.79" y1="2.78" x2="21.21" y2="2.78"/>
-  <line class="cls-1" x1="12" y1="22" x2="12" y2="6.54"/>
-  <line class="cls-1" x1="12" y1="6.54" x2="16.37" y2="10.9"/>
-  <line class="cls-1" x1="12" y1="6.54" x2="7.63" y2="10.9"/>
+<svg id="_面板最大化" data-name="面板最大化" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+     viewBox="0 0 24 24">
+    <defs>
+        <style>
+            .cls-1 {
+            fill: none;
+            stroke: #f0f0f0;
+            stroke-linecap: round;
+            stroke-miterlimit: 10;
+            stroke-width: 1.5px;
+            }
+        </style>
+    </defs>
+    <line class="cls-1" x1="2.79" y1="2.78" x2="21.21" y2="2.78"/>
+    <line class="cls-1" x1="12" y1="22" x2="12" y2="6.54"/>
+    <line class="cls-1" x1="12" y1="6.54" x2="16.37" y2="10.9"/>
+    <line class="cls-1" x1="12" y1="6.54" x2="7.63" y2="10.9"/>
 </svg>

@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg id="_音频" data-name="音频" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <defs>
-    <style>
-      .cls-1 {
-        fill: none;
-        stroke: #f0f0f0;
-        stroke-linecap: round;
-        stroke-miterlimit: 10;
-        stroke-width: 1.5px;
-      }
-    </style>
-  </defs>
-  <line class="cls-1" x1="8.01" y1="2.93" x2="8.01" y2="13.09"/>
-  <line class="cls-1" x1="10.54" y1="11.51" x2="10.54" y2="4.51"/>
-  <line class="cls-1" x1="13.07" y1="7.2" x2="13.07" y2="8.81"/>
-  <line class="cls-1" x1="2.94" y1="7.2" x2="2.94" y2="8.81"/>
-  <line class="cls-1" x1="5.47" y1="11.51" x2="5.47" y2="4.51"/>
+    <defs>
+        <style>
+            .cls-1 {
+            fill: none;
+            stroke: #f0f0f0;
+            stroke-linecap: round;
+            stroke-miterlimit: 10;
+            stroke-width: 1.5px;
+            }
+        </style>
+    </defs>
+    <line class="cls-1" x1="8.01" y1="2.93" x2="8.01" y2="13.09"/>
+    <line class="cls-1" x1="10.54" y1="11.51" x2="10.54" y2="4.51"/>
+    <line class="cls-1" x1="13.07" y1="7.2" x2="13.07" y2="8.81"/>
+    <line class="cls-1" x1="2.94" y1="7.2" x2="2.94" y2="8.81"/>
+    <line class="cls-1" x1="5.47" y1="11.51" x2="5.47" y2="4.51"/>
 </svg>

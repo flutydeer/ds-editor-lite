@@ -8,17 +8,17 @@ TimeIndicatorView::TimeIndicatorView(QObject *parent) : QObject(parent) {
     setFixedScaleY(true);
 }
 
-void TimeIndicatorView::setPixelsPerQuarterNote(int px) {
+void TimeIndicatorView::setPixelsPerQuarterNote(const int px) {
     m_pixelsPerQuarterNote = px;
     updateLengthAndPos();
 }
 
-void TimeIndicatorView::setPosition(double tick) {
+void TimeIndicatorView::setPosition(const double tick) {
     m_time = tick;
     updateLengthAndPos();
 }
 
-void TimeIndicatorView::setOffset(int tick) {
+void TimeIndicatorView::setOffset(const int tick) {
     m_offset = tick;
     updateLengthAndPos();
 }
@@ -32,13 +32,13 @@ void TimeIndicatorView::afterSetVisibleRect() {
 }
 
 void TimeIndicatorView::updateLengthAndPos() {
-    auto x = tickToItemX(m_time - m_offset);
+    const auto x = tickToItemX(m_time - m_offset);
     setPos(x, 0);
-    auto line = QLineF(0, visibleRect().top(), 0, visibleRect().bottom());
+    const auto line = QLineF(0, visibleRect().top(), 0, visibleRect().bottom());
     setLine(line);
     update();
 }
 
-double TimeIndicatorView::tickToItemX(double tick) const {
+double TimeIndicatorView::tickToItemX(const double tick) const {
     return tick * scaleX() * m_pixelsPerQuarterNote / 480;
 }

@@ -11,15 +11,16 @@
 
 class PackageListModel : public QAbstractListModel {
 public:
-    explicit PackageListModel(QObject *parent = nullptr) : QAbstractListModel(parent) {}
+    explicit PackageListModel(QObject *parent = nullptr) : QAbstractListModel(parent) {
+    }
 
-    [[nodiscard]] const PackageInfo &getPackage(const QModelIndex &index) const;
+    const PackageInfo &getPackage(const QModelIndex &index) const;
     void setPackages(QList<PackageInfo> packages);
 
-    [[nodiscard]] int rowCount(const QModelIndex &parent) const override;
-    [[nodiscard]] QVariant data(const QModelIndex &index, int role) const override;
+    int rowCount(const QModelIndex &parent) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
 
 private:
     QList<PackageInfo> m_packages;
 };
-#endif //PACKAGELISTMODEL_H
+#endif // PACKAGELISTMODEL_H

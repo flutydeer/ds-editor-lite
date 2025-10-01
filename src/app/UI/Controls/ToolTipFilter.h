@@ -17,17 +17,17 @@ public:
                            bool animation = true);
     ~ToolTipFilter() override;
 
-    [[nodiscard]] int showDelay() const;
+    int showDelay() const;
     void setShowDelay(int delay);
-    [[nodiscard]] bool followCursor() const;
+    bool followCursor() const;
     void setFollowCursor(bool on);
-    [[nodiscard]] bool animation() const;
+    bool animation() const;
     void setAnimation(bool on);
-    [[nodiscard]] QString title() const;
+    QString title() const;
     void setTitle(const QString &text) const;
-    [[nodiscard]] QString shortcutKey() const;
+    QString shortcutKey() const;
     void setShortcutKey(const QString &text) const;
-    [[nodiscard]] QList<QString> message() const;
+    QList<QString> message() const;
     void setMessage(const QList<QString> &text) const;
     void appendMessage(const QString &text) const;
     void clearMessage() const;

@@ -7,7 +7,7 @@
 
 #define PROPERTY(ClassName, FieldName, InitValue)                                                  \
 public:                                                                                            \
-    [[nodiscard]] ClassName FieldName() const {                                                    \
+    ClassName FieldName() const {                                                                  \
         return m_##FieldName;                                                                      \
     }                                                                                              \
     void set_##FieldName(const ClassName &FieldName) {                                             \
@@ -26,7 +26,7 @@ public:                                                                         
 
 #define I_METHOD(Method) virtual Method = 0
 
-#define I_NODSCD(Method) [[nodiscard]] virtual Method = 0
+#define I_NODSCD(Method) virtual Method = 0
 
 #define I_MEMBER(Member)                                                                           \
 protected:                                                                                         \

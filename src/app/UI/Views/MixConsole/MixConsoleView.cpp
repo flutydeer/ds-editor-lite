@@ -50,7 +50,7 @@ MixConsoleView::MixConsoleView(QWidget *parent) : QWidget(parent) {
 
     m_placeHolder = new QWidget;
 
-    auto mainLayout = new QHBoxLayout;
+    const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_channelListView);
     mainLayout->addWidget(m_masterChannel);
     mainLayout->setContentsMargins({});
@@ -65,15 +65,12 @@ MixConsoleView::MixConsoleView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::masterControlChanged, this,
             &MixConsoleView::onMasterControlChanged);
 
-    connect(m_masterChannel->fader(), &Fader::sliderMoved, this, [=](double gain) {
-        audioContext->handleMasterGainSliderMoved(gain);
-    });
-    connect(m_masterChannel->panSlider(), &PanSlider::sliderMoved, this, [=](double pan) {
-        audioContext->handleMasterPanSliderMoved(pan);
-    });
-    connect(m_masterChannel, &ChannelView::controlChanged, this, [&](const TrackControl &control) {
-        appController->editMasterControl(control);
-    });
+    connect(m_masterChannel->fader(), &Fader::sliderMoved, this,
+            [=](const double gain) { audioContext->handleMasterGainSliderMoved(gain); });
+    connect(m_masterChannel->panSlider(), &PanSlider::sliderMoved, this,
+            [=](const double pan) { audioContext->handleMasterPanSliderMoved(pan); });
+    connect(m_masterChannel, &ChannelView::controlChanged, this,
+            [&](const TrackControl &control) { appController->editMasterControl(control); });
 }
 
 void MixConsoleView::onModelChanged() {
@@ -89,47 +86,47 @@ void MixConsoleView::onModelChanged() {
     }
 }
 
-void MixConsoleView::onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track) {
+void MixConsoleView::onTrackChanged(const AppModel::TrackChangeType type, const qsizetype index,
+                                    Track *track) {
     if (type == AppModel::Insert)
         onTrackInserted(track, index);
     else if (type == AppModel::Remove)
         onTrackRemoved(index);
 }
 
-void MixConsoleView::onMasterControlChanged(const TrackControl &control) {
+void MixConsoleView::onMasterControlChanged(const TrackControl &control) const {
     m_masterChannel->setControl(control);
 }
 
 void MixConsoleView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const {
-    auto states = args.trackMeterStates;
+    const auto states = args.trackMeterStates;
     if (states.size() > 1)
         for (int i = 0; i < m_channelListView->count(); i++) {
-            auto state = states.at(i);
-            auto item = m_channelListView->item(i);
-            auto channelView = qobject_cast<ChannelView *>(m_channelListView->itemWidget(item));
-            auto meter = channelView->levelMeter();
-            meter->setValue(state.valueL, state.valueR);
+            const auto [valueL, valueR] = states.at(i);
+            const auto item = m_channelListView->item(i);
+            const auto channelView =
+                qobject_cast<ChannelView *>(m_channelListView->itemWidget(item));
+            const auto meter = channelView->levelMeter();
+            meter->setValue(valueL, valueR);
         }
-    auto state = args.trackMeterStates.last();
-    m_masterChannel->levelMeter()->setValue(state.valueL, state.valueR);
+    const auto [valueL, valueR] = args.trackMeterStates.last();
+    m_masterChannel->levelMeter()->setValue(valueL, valueR);
 }
 
-void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
-    connect(dsTrack, &Track::propertyChanged, this, [this] {
-        onTrackPropertyChanged();
-    });
+void MixConsoleView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex) {
+    connect(dsTrack, &Track::propertyChanged, this, [this] { onTrackPropertyChanged(); });
 
-    auto newTrackItem = new QListWidgetItem;
+    const auto newTrackItem = new QListWidgetItem;
     newTrackItem->setSizeHint({97, 420});
-    auto channelView = new ChannelView(*dsTrack);
+    const auto channelView = new ChannelView(*dsTrack);
     channelView->setChannelIndex(trackIndex + 1);
-    connect(channelView->fader(), &Fader::sliderMoved, this, [=](double gain) {
+    connect(channelView->fader(), &Fader::sliderMoved, this, [=](const double gain) {
         audioContext->handleGainSliderMoved(&channelView->context(), gain);
     });
-    connect(channelView->panSlider(), &PanSlider::sliderMoved, this, [=](double pan) {
+    connect(channelView->panSlider(), &PanSlider::sliderMoved, this, [=](const double pan) {
         audioContext->handlePanSliderMoved(&channelView->context(), pan);
     });
-    connect(channelView, &ChannelView::controlChanged, this, [=](const TrackControl &control) {
+    connect(channelView, &ChannelView::controlChanged, this, [=] {
         const Track::TrackProperties args(*channelView);
         trackController->changeTrackProperty(args);
     });
@@ -139,36 +136,36 @@ void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
     if (trackIndex < m_channelListView->count()) // needs to update existed tracks' index
         for (int i = trackIndex + 1; i < m_channelListView->count(); i++) {
             // Update track list items' index
-            auto item = m_channelListView->item(i);
-            auto widget = m_channelListView->itemWidget(item);
-            auto trackWidget = dynamic_cast<ChannelView *>(widget);
+            const auto item = m_channelListView->item(i);
+            const auto widget = m_channelListView->itemWidget(item);
+            const auto trackWidget = dynamic_cast<ChannelView *>(widget);
             trackWidget->setChannelIndex(i + 1);
         }
 }
 
-void MixConsoleView::onTrackRemoved(qsizetype index) {
+void MixConsoleView::onTrackRemoved(const qsizetype index) const {
     // remove from view
-    auto item = m_channelListView->takeItem(index);
+    const auto item = m_channelListView->takeItem(index);
     m_channelListView->removeItemWidget(item);
     delete item;
     // update index
     if (index < m_channelListView->count()) // needs to update existed tracks' index
         for (int i = index; i < m_channelListView->count(); i++) {
             // Update track list items' index
-            auto widgetItem = m_channelListView->item(i);
-            auto widget = m_channelListView->itemWidget(widgetItem);
-            auto trackWidget = dynamic_cast<ChannelView *>(widget);
+            const auto widgetItem = m_channelListView->item(i);
+            const auto widget = m_channelListView->itemWidget(widgetItem);
+            const auto trackWidget = dynamic_cast<ChannelView *>(widget);
             trackWidget->setChannelIndex(i + 1);
         }
 }
 
 void MixConsoleView::onTrackPropertyChanged() const {
-    auto tracksModel = appModel->tracks();
+    const auto tracksModel = appModel->tracks();
     for (int i = 0; i < m_channelListView->count(); i++) {
-        auto item = m_channelListView->item(i);
-        auto channelView = qobject_cast<ChannelView *>(m_channelListView->itemWidget(item));
+        const auto item = m_channelListView->item(i);
+        const auto channelView = qobject_cast<ChannelView *>(m_channelListView->itemWidget(item));
         const QSignalBlocker blocker(channelView);
-        auto track = tracksModel.at(i);
+        const auto track = tracksModel.at(i);
         channelView->setName(track->name());
         channelView->setControl(track->control());
     }

@@ -15,9 +15,7 @@ namespace CurveUtil
         return step * times;
     }
 
-    double tickToms(const double tick, const double tempo) {
-        return tick * 8 * tempo;
-    }
+    double tickToms(const double tick, const double tempo) { return tick * 8 * tempo; }
 
     double linearInterpolation(const double x1, const double y1, const double x2, const double y2, const double x) {
         return y1 + (x - x1) * (y2 - y1) / (x2 - x1);
@@ -77,10 +75,7 @@ namespace CurveUtil
             // Normalize kernel in a single pass
             const float inv_kernel_sum = 1.0f / kernel_sum;
             std::transform(kernel.begin(), kernel.end(), kernel.begin(),
-                           [inv_kernel_sum](const float val)
-                           {
-                               return val * inv_kernel_sum;
-                           });
+                           [inv_kernel_sum](const float val) { return val * inv_kernel_sum; });
         } else {
             kernel = {1.0f};
         }

@@ -78,11 +78,11 @@ void PackageManagerDialog::initUi() {
     proxyModel->setSourceModel(listModel);
     listView->setModel(proxyModel);
 
-    connect(listView->selectionModel(), &QItemSelectionModel::currentChanged,
-            this, &PackageManagerDialog::onSelectionChanged);
+    connect(listView->selectionModel(), &QItemSelectionModel::currentChanged, this,
+            &PackageManagerDialog::onSelectionChanged);
 
-    connect(leSearch, &QLineEdit::textChanged,
-            proxyModel, &PackageFilterProxyModel::setFilterString);
+    connect(leSearch, &QLineEdit::textChanged, proxyModel,
+            &PackageFilterProxyModel::setFilterString);
 
     if (appStatus->inferEngineEnvStatus != AppStatus::ModuleStatus::Ready) {
         btnInstall->setEnabled(false);
@@ -129,12 +129,11 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     listView->setItemDelegate(new PackageItemDelegate(listView));
     listView->setContentsMargins({});
-    listView->setStyleSheet(
-        "QListView { background: transparent; border: none; padding: 0px; } "
-        "QListView::item { background: transparent; border-radius: 4px; margin-top: 2px; margin-bottom: 2px } "
-        "QListView::item:hover { background: #1BC7D8FF; }"
-        "QListView::item:selected { background: #409BBAFF; }"
-        );
+    listView->setStyleSheet("QListView { background: transparent; border: none; padding: 0px; } "
+                            "QListView::item { background: transparent; border-radius: 4px; "
+                            "margin-top: 2px; margin-bottom: 2px } "
+                            "QListView::item:hover { background: #1BC7D8FF; }"
+                            "QListView::item:selected { background: #409BBAFF; }");
 
     auto layout = new QVBoxLayout;
     layout->addLayout(actionBar);
@@ -161,7 +160,7 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     auto layout = new QVBoxLayout;
     layout->addWidget(detailsHeader);
     layout->addWidget(detailsContent);
-    layout->addStretch(); //TODO: 重构
+    layout->addStretch(); // TODO: 重构
     layout->setContentsMargins({12, 0, 12, 0});
     layout->setSpacing(12);
 
@@ -174,9 +173,12 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
         "QWidget#PackageManagerDialogDetailsWidget { background: transparent; }"
         "PackageDetailsHeader { border-bottom: 1px solid #1D1F26; } "
         "PackageDetailsHeader>QLabel#lbPackageId { font-size: 24px; color: rgb(182, 183, 186); } "
-        "PackageDetailsHeader>QLabel#lbVendor { font-size: 13px; color: rgba(182, 183, 186, 140); } "
-        "PackageDetailsHeader>QLabel#lbVersion { font-size: 13px; color: rgba(182, 183, 186, 140); } "
-        "PackageDetailsHeader>QLabel#lbCopyright { font-size: 13px; color: rgba(182, 183, 186, 140); } ");
+        "PackageDetailsHeader>QLabel#lbVendor { font-size: 13px; color: rgba(182, 183, 186, 140); "
+        "} "
+        "PackageDetailsHeader>QLabel#lbVersion { font-size: 13px; color: rgba(182, 183, 186, 140); "
+        "} "
+        "PackageDetailsHeader>QLabel#lbCopyright { font-size: 13px; color: rgba(182, 183, 186, "
+        "140); } ");
 
     detailsPanelContent = new QScrollArea;
     detailsPanelContent->setObjectName("PackageManagerDialogDetailsScrollArea");

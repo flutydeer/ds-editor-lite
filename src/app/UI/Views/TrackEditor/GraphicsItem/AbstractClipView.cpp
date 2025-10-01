@@ -15,7 +15,7 @@
 
 using namespace TracksEditorGlobal;
 
-AbstractClipView::AbstractClipView(int itemId, QGraphicsItem *parent)
+AbstractClipView::AbstractClipView(const int itemId, QGraphicsItem *parent)
     : AbstractGraphicsRectItem(parent), IClip(itemId), d_ptr(new AbstractClipViewPrivate(this)) {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
@@ -98,7 +98,7 @@ bool AbstractClipView::mute() const {
     return d->m_mute;
 }
 
-void AbstractClipView::setMute(bool mute) {
+void AbstractClipView::setMute(const bool mute) {
     Q_D(AbstractClipView);
     d->m_mute = mute;
     update();
@@ -109,7 +109,7 @@ bool AbstractClipView::activeClip() const {
     return d->m_activeClip;
 }
 
-void AbstractClipView::setActiveClip(bool active) {
+void AbstractClipView::setActiveClip(const bool active) {
     Q_D(AbstractClipView);
     d->m_activeClip = active;
     update();
@@ -147,47 +147,47 @@ void AbstractClipView::loadCommonProperties(const Clip::ClipCommonProperties &ar
     updateRectAndPos();
 }
 
-void AbstractClipView::setQuantize(int quantize) {
+void AbstractClipView::setQuantize(const int quantize) {
     Q_D(AbstractClipView);
     d->m_quantize = quantize;
 }
 
 QRectF AbstractClipViewPrivate::previewRect() const {
     Q_Q(const AbstractClipView);
-    auto penWidth = 1.2f;
-    auto verticalPadding = 1.2f;
-    auto rect = q->rect();
-    auto left = rect.left() + penWidth / 2;
-    auto top = rect.top() + titleHeight + verticalPadding;
-    auto width = rect.width() - penWidth;
-    auto height = rect.height() - titleHeight - verticalPadding * 2;
-    auto paddedRect = QRectF(left, top, width, height);
+    constexpr auto penWidth = 1.2f;
+    constexpr auto verticalPadding = 1.2f;
+    const auto rect = q->rect();
+    const auto left = rect.left() + penWidth / 2;
+    const auto top = rect.top() + titleHeight + verticalPadding;
+    const auto width = rect.width() - penWidth;
+    const auto height = rect.height() - titleHeight - verticalPadding * 2;
+    const auto paddedRect = QRectF(left, top, width, height);
     return paddedRect;
 }
 
 QString AbstractClipView::text() const {
     Q_D(const AbstractClipView);
-    auto controlStr =
+    const auto controlStr =
         (d->m_showDebugInfo ? QString("id: %1 ").arg(id()) : "") +
         QString("%1 %2dB %3 ").arg(name()).arg(QString::number(gain())).arg(mute() ? "M" : "");
-    auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
-                       .arg(start())
-                       .arg(length())
-                       .arg(clipStart())
-                       .arg(clipLen())
-                       .arg(scaleX())
-                       .arg(scaleY());
+    const auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
+                             .arg(start())
+                             .arg(length())
+                             .arg(clipStart())
+                             .arg(clipLen())
+                             .arg(scaleX())
+                             .arg(scaleY());
     return controlStr + (d->m_showDebugInfo ? timeStr : "");
 }
 
 void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
     Q_D(const AbstractClipView);
-    const auto colorPrimary = QColor(155, 186, 255);
-    const auto colorPrimaryTransparent = QColor(155, 186, 255, 64);
-    const auto colorPrimaryDarker = QColor(112, 156, 255);
-    const auto colorPrimaryLighter = QColor(205, 221, 255);
-    const auto colorForeground = QColor(0, 0, 0);
+    constexpr auto colorPrimary = QColor(155, 186, 255);
+    constexpr auto colorPrimaryTransparent = QColor(155, 186, 255, 64);
+    constexpr auto colorPrimaryDarker = QColor(112, 156, 255);
+    constexpr auto colorPrimaryLighter = QColor(205, 221, 255);
+    constexpr auto colorForeground = QColor(0, 0, 0);
     auto penWidth = 1.2f;
     auto verticalPadding = 1.2f;
 
@@ -305,16 +305,16 @@ void AbstractClipView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 
 void AbstractClipView::updateRectAndPos() {
     Q_D(AbstractClipView);
-    auto x = (d->m_start + d->m_clipStart) * scaleX() * pixelsPerQuarterNote / 480;
-    auto y = d->m_trackIndex * trackHeight * scaleY();
-    auto w = d->m_clipLen * scaleX() * pixelsPerQuarterNote / 480;
-    auto h = trackHeight * scaleY();
+    const auto x = (d->m_start + d->m_clipStart) * scaleX() * pixelsPerQuarterNote / 480;
+    const auto y = d->m_trackIndex * trackHeight * scaleY();
+    const auto w = d->m_clipLen * scaleX() * pixelsPerQuarterNote / 480;
+    const auto h = trackHeight * scaleY();
     setPos(x, y);
     setRect(QRectF(0, 0, w, h));
     update();
 }
 
-void AbstractClipView::setCanResizeLength(bool on) {
+void AbstractClipView::setCanResizeLength(const bool on) {
     Q_D(AbstractClipView);
     d->m_canResizeLength = on;
 }

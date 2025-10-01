@@ -127,7 +127,8 @@ void TrackInferenceHandler::handlePieceChanged(SingingClip *clip,
 
 void TrackInferenceHandler::handlePieceInserted(SingingClip *clip, InferPiece *inferPiece) {
     const auto singingClipInferenceContext = m_singingClipModelDict.value(clip);
-    const auto inferencePieceContext = singingClipInferenceContext->addInferencePiece(inferPiece->id());
+    const auto inferencePieceContext =
+        singingClipInferenceContext->addInferencePiece(inferPiece->id());
     m_inferPieceModelDict.insert(inferPiece, inferencePieceContext);
     inferencePieceContext->setPos(inferPiece->localStartTick());
     inferencePieceContext->setLength(inferPiece->localEndTick() - inferPiece->localStartTick());

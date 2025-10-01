@@ -81,7 +81,7 @@ find_package(xsimd CONFIG)
 if (xsimd_FOUND)
     target_link_libraries(${PROJECT_NAME} PRIVATE xsimd)
     target_compile_definitions(${PROJECT_NAME} PRIVATE AUDIOUTIL_ENABLE_XSIMD)
-endif()
+endif ()
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})

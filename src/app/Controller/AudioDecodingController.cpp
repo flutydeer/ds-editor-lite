@@ -36,8 +36,8 @@ void AudioDecodingController::onModelChanged() {
     }
 }
 
-void AudioDecodingController::onTrackChanged(const AppModel::TrackChangeType type, const qsizetype index,
-                                             const Track *track) {
+void AudioDecodingController::onTrackChanged(const AppModel::TrackChangeType type,
+                                             const qsizetype index, const Track *track) {
     Q_UNUSED(index);
     // qDebug() << "AudioDecodingController::onTrackChanged";
     if (type == AppModel::Insert)
@@ -79,9 +79,7 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
 
     m_tasks.append(decodeTask);
     connect(decodeTask, &Task::finished, this,
-            [decodeTask, this] {
-                handleTaskFinished(decodeTask);
-            });
+            [decodeTask, this] { handleTaskFinished(decodeTask); });
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }

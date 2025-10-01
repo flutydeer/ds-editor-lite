@@ -17,14 +17,14 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
     setFixedWidth(TracksEditorGlobal::trackListWidth);
 
-    auto btnNewTrack = new QPushButton;
+    const auto btnNewTrack = new QPushButton;
     btnNewTrack->setObjectName("btnNewTrack");
     btnNewTrack->setFixedSize(24, 24);
     btnNewTrack->setToolTip(tr("New Track"));
     btnNewTrack->installEventFilter(new ToolTipFilter(btnNewTrack));
     // btnNewTrack->setText(tr("New Track"));
     connect(btnNewTrack, &QPushButton::clicked, trackController, &TrackController::onNewTrack);
-    auto mainLayout = new QHBoxLayout;
+    const auto mainLayout = new QHBoxLayout;
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
     mainLayout->addWidget(btnNewTrack);
     mainLayout->setContentsMargins(6, 6, 6, 6);

@@ -20,18 +20,18 @@
 #include <QStyle>
 #include <QVariantAnimation>
 
-#define ChromeMinimize  QStringLiteral(u"\ue921")
-#define ChromeMaximize  QStringLiteral(u"\ue922")
-#define ChromeRestore   QStringLiteral(u"\ue923")
-#define ChromeClose     QStringLiteral(u"\ue8bb")
+#define ChromeMinimize QStringLiteral(u"\ue921")
+#define ChromeMaximize QStringLiteral(u"\ue922")
+#define ChromeRestore  QStringLiteral(u"\ue923")
+#define ChromeClose    QStringLiteral(u"\ue8bb")
 
-MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame)
+MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, const bool useNativeFrame)
     : QWidget(parent), m_window(parent), m_menuView(menuView) {
     setAttribute(Qt::WA_StyledBackground);
 
     m_playbackView = new PlaybackView(this);
 
-    auto menuBarContainer = new QHBoxLayout;
+    const auto menuBarContainer = new QHBoxLayout;
     menuBarContainer->addWidget(menuView);
     menuBarContainer->setContentsMargins({});
 
@@ -46,7 +46,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         m_lbTitle = new QLabel;
         m_lbTitle->setMinimumWidth(8);
 
-        int systemButtonWidth = 48;
+        constexpr int systemButtonWidth = 48;
 
         m_btnMin = new Button;
         m_btnMin->setObjectName("MinimizeButton");
@@ -62,7 +62,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         m_btnClose->setFixedSize(systemButtonWidth, 40);
 
         if (SystemUtils::isWindows()) {
-            auto fontFamily =
+            const auto fontFamily =
                 QSysInfo::productVersion() == "11" ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
             auto font = QFont(fontFamily);
             font.setPointSizeF(7.2);
@@ -89,7 +89,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         connect(m_btnClose, &Button::clicked, this, &MainTitleBar::closeTriggered);
     }
 
-    auto mainLayout = new QHBoxLayout;
+    const auto mainLayout = new QHBoxLayout;
     if (!useNativeFrame) {
         // TODO: app icon
         mainLayout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
@@ -161,7 +161,7 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QEvent::WindowTitleChange) {
         setTitle(m_window->windowTitle());
     } else if (event->type() == QEvent::WindowStateChange) {
-        auto checked = m_window->isMaximized();
+        const auto checked = m_window->isMaximized();
         if (m_btnMax) {
             m_btnMax->setChecked(checked);
             if (SystemUtils::isWindows())
@@ -180,7 +180,7 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
     return QWidget::eventFilter(watched, event);
 }
 
-void MainTitleBar::setActiveStyle(bool active) const {
+void MainTitleBar::setActiveStyle(const bool active) const {
     m_animation->stop();
     m_animation->setStartValue(m_opacityEffect->opacity());
     if (active) {

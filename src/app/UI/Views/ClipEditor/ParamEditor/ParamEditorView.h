@@ -20,7 +20,7 @@ class ParamEditorView final : public QWidget {
 public:
     explicit ParamEditorView(QWidget *parent = nullptr);
     void setDataContext(SingingClip *clip) const;
-    [[nodiscard]] ParamEditorGraphicsView *graphicsView() const;
+    ParamEditorGraphicsView *graphicsView() const;
 
 public slots:
     void onForegroundChanged(ParamInfo::Name name) const;

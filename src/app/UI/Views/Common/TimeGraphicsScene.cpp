@@ -34,7 +34,7 @@ void TimeGraphicsScene::setSceneBaseSize(const QSizeF &size) {
 void TimeGraphicsScene::addCommonItem(IScalableItem *item) {
     item->setScaleXY(scaleX(), scaleY());
     item->setVisibleRect(visibleRect());
-    if (auto graphicsItem = dynamic_cast<QGraphicsItem *>(item)) {
+    if (const auto graphicsItem = dynamic_cast<QGraphicsItem *>(item)) {
         addItem(graphicsItem);
         m_items.append(item);
     } else
@@ -56,24 +56,24 @@ void TimeGraphicsScene::addTimeIndicator(TimeIndicatorView *item) {
     addCommonItem(item);
 }
 
-void TimeGraphicsScene::setPixelsPerQuarterNote(int px) {
+void TimeGraphicsScene::setPixelsPerQuarterNote(const int px) {
     m_pixelsPerQuarterNote = px;
 }
 
 void TimeGraphicsScene::updateSceneRect() {
-    auto scaledWidth = m_sceneSize.width() * scaleX();
-    auto scaledHeight = m_sceneSize.height() * scaleY();
+    const auto scaledWidth = m_sceneSize.width() * scaleX();
+    const auto scaledHeight = m_sceneSize.height() * scaleY();
     setSceneRect(0, 0, scaledWidth, scaledHeight);
 }
 
 void TimeGraphicsScene::afterSetScale() {
     updateSceneRect();
-    for (auto item : m_items)
+    for (const auto item : m_items)
         item->setScaleXY(scaleX(), scaleY());
 }
 
 void TimeGraphicsScene::afterSetVisibleRect() {
-    for (auto item : m_items)
+    for (const auto item : m_items)
         item->setVisibleRect(visibleRect());
 }
 
@@ -85,7 +85,7 @@ ScrollBarView *TimeGraphicsScene::verticalBar() {
     return &m_vBar;
 }
 
-void TimeGraphicsScene::setHorizontalBarVisibility(bool visible) {
+void TimeGraphicsScene::setHorizontalBarVisibility(const bool visible) {
     if (visible) {
         if (!m_hBarAdded) {
             addCommonItem(&m_hBar);
@@ -99,7 +99,7 @@ void TimeGraphicsScene::setHorizontalBarVisibility(bool visible) {
     }
 }
 
-void TimeGraphicsScene::setVerticalBarVisibility(bool visible) {
+void TimeGraphicsScene::setVerticalBarVisibility(const bool visible) {
     if (visible) {
         if (!m_vBarAdded) {
             addCommonItem(&m_vBar);
@@ -113,6 +113,6 @@ void TimeGraphicsScene::setVerticalBarVisibility(bool visible) {
     }
 }
 
-void TimeGraphicsScene::setSceneLength(int tick) {
+void TimeGraphicsScene::setSceneLength(const int tick) {
     setSceneBaseSize(QSizeF(tick * m_pixelsPerQuarterNote / 480.0, sceneBaseSize().height()));
 }

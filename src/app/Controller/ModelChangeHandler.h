@@ -29,7 +29,8 @@ protected:
     virtual void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,
                                    SingingClip *clip);
     virtual void handleParamChanged(ParamInfo::Name name, Param::Type type, SingingClip *clip);
-    virtual void handlePiecesChanged(const PieceList &pieces, const PieceList &discardedPieces, SingingClip *clip);
+    virtual void handlePiecesChanged(const PieceList &pieces, const PieceList &discardedPieces,
+                                     SingingClip *clip);
 
 private slots:
     void onModelChanged();

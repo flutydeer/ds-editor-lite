@@ -12,13 +12,13 @@ class IAnimatable {
 public:
     IAnimatable();
     virtual ~IAnimatable();
-    [[nodiscard]] AnimationGlobal::AnimationLevels animationLevel() const;
+    AnimationGlobal::AnimationLevels animationLevel() const;
     void setAnimationLevel(AnimationGlobal::AnimationLevels level);
-    [[nodiscard]] double animationTimeScale() const;
+    double animationTimeScale() const;
     void setTimeScale(double scale);
 
 protected:
-    [[nodiscard]] int getScaledAnimationTime(int ms) const;
+    int getScaledAnimationTime(int ms) const;
 
     virtual void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) = 0;
     virtual void afterSetTimeScale(double scale) = 0;
@@ -42,7 +42,7 @@ inline AnimationGlobal::AnimationLevels IAnimatable::animationLevel() const {
     return m_level;
 }
 
-inline void IAnimatable::setAnimationLevel(AnimationGlobal::AnimationLevels level) {
+inline void IAnimatable::setAnimationLevel(const AnimationGlobal::AnimationLevels level) {
     m_level = level;
     if (m_initialized)
         afterSetAnimationLevel(level);
@@ -52,13 +52,13 @@ inline double IAnimatable::animationTimeScale() const {
     return m_scale;
 }
 
-inline void IAnimatable::setTimeScale(double scale) {
+inline void IAnimatable::setTimeScale(const double scale) {
     m_scale = scale;
     if (m_initialized)
         afterSetTimeScale(scale);
 }
 
-inline int IAnimatable::getScaledAnimationTime(int ms) const {
+inline int IAnimatable::getScaledAnimationTime(const int ms) const {
     return static_cast<int>(ms * m_scale);
 }
 

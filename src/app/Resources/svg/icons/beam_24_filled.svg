@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="_时间选择光标" data-name="时间选择光标" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-  <defs>
-    <style>
-      .cls-1 {
-        fill: none;
-        stroke: #000;
-        stroke-linecap: round;
-        stroke-miterlimit: 10;
-        stroke-width: 1.5px;
-      }
-    </style>
-  </defs>
-  <path class="cls-1" d="M8.37,22c2.01,0,3.63-1.2,3.63-2.68V4.68c0-1.48-1.63-2.68-3.63-2.68"/>
-  <path class="cls-1" d="M15.63,22c-2.01,0-3.63-1.2-3.63-2.68V4.68c0-1.48,1.63-2.68,3.63-2.68"/>
+<svg id="_时间选择光标" data-name="时间选择光标" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+     viewBox="0 0 24 24">
+    <defs>
+        <style>
+            .cls-1 {
+            fill: none;
+            stroke: #000;
+            stroke-linecap: round;
+            stroke-miterlimit: 10;
+            stroke-width: 1.5px;
+            }
+        </style>
+    </defs>
+    <path class="cls-1" d="M8.37,22c2.01,0,3.63-1.2,3.63-2.68V4.68c0-1.48-1.63-2.68-3.63-2.68"/>
+    <path class="cls-1" d="M15.63,22c-2.01,0-3.63-1.2-3.63-2.68V4.68c0-1.48,1.63-2.68,3.63-2.68"/>
 </svg>

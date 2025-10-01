@@ -64,8 +64,7 @@ class PackageInfoData : public QSharedData {
 public:
     explicit PackageInfoData(QString id = {}, QVersionNumber version = {}, QString vendor = {},
                              QString description = {}, QString copyright = {}, QString readme = {},
-                             QString url = {}, QString path = {},
-                             QList<SingerInfo> singers = {});
+                             QString url = {}, QString path = {}, QList<SingerInfo> singers = {});
     PackageInfoData(const PackageInfoData &other);
     ~PackageInfoData();
 

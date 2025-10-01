@@ -32,9 +32,9 @@ public:
 public slots:
     void onModelChanged();
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
-    void onClipChanged(Track::ClipChangeType type, Clip *clip, Track *dsTrack);
-    void onPositionChanged(double tick);
-    void onLastPositionChanged(double tick);
+    void onClipChanged(Track::ClipChangeType type, Clip *clip, const Track *dsTrack);
+    void onPositionChanged(double tick) const;
+    void onLastPositionChanged(double tick) const;
     void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const;
 
 signals:
@@ -59,7 +59,7 @@ private:
     class ViewModel {
     public:
         QList<TrackViewModel *> tracks;
-        TrackViewModel *findTrack(Track *dsTrack);
+        TrackViewModel *findTrack(const Track *dsTrack);
     };
 
     ViewModel m_viewModel;
@@ -71,7 +71,7 @@ private:
     void onClipRemoved(Clip *clip, TrackViewModel *track);
     void onTrackPropertyChanged() const;
     void updateClipOnView(Clip *clip);
-    void onTrackRemoved(Track *dsTrack, qsizetype index);
+    void onTrackRemoved(const Track *dsTrack, qsizetype index);
 };
 
 

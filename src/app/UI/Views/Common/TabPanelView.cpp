@@ -11,14 +11,14 @@
 #include <QStackedWidget>
 #include <QVBoxLayout>
 
-TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent): PanelView(type, parent) {
+TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent) : PanelView(type, parent) {
     setAttribute(Qt::WA_StyledBackground);
 
     m_tabPanelTitleBar = new TabPanelTitleBar;
 
     m_pageContent = new QStackedWidget;
 
-    auto layout = new QVBoxLayout;
+    const auto layout = new QVBoxLayout;
     layout->addWidget(m_tabPanelTitleBar);
     layout->addWidget(m_pageContent);
     layout->setContentsMargins({});
@@ -43,7 +43,7 @@ void TabPanelView::registerPage(ITabPanelPage *page) {
         onSelectionChanged(0);
 }
 
-void TabPanelView::onSelectionChanged(int index) {
+void TabPanelView::onSelectionChanged(const int index) const {
     m_tabPanelTitleBar->toolBar()->setCurrentWidget(m_pages.at(index)->toolBar());
     m_pageContent->setCurrentIndex(index);
 }

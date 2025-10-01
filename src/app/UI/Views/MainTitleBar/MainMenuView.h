@@ -17,8 +17,8 @@ public:
     explicit MainMenuView(MainWindow *mainWindow);
     ~MainMenuView() override;
 
-    [[nodiscard]] QAction *actionSave();
-    [[nodiscard]] QAction *actionSaveAs();
+    QAction *actionSave();
+    QAction *actionSaveAs();
 
 private:
     Q_DECLARE_PRIVATE(MainMenuView)

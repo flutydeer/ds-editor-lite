@@ -27,7 +27,7 @@
 
 #include <TalcsWidgets/AudioFileDialog.h>
 
-TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent)
+TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget *parent)
     : TimeGraphicsView(scene, parent), m_scene(scene) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TracksGraphicsView");
@@ -49,13 +49,13 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     m_backgroundMenu->addAction(m_actionNewSingingClip);
     m_backgroundMenu->addAction(m_actionAddAudioClip);
 
-    connect(appStatus, &AppStatus::activeClipIdChanged, this, [this](int clipId) {
+    connect(appStatus, &AppStatus::activeClipIdChanged, this, [this](const int clipId) {
         if (clipId == -1) {
             resetActiveClips();
             return;
         }
 
-        if (auto clipItem = findClipById(clipId)) {
+        if (const auto clipItem = findClipById(clipId)) {
             resetActiveClips();
             clipItem->setActiveClip(true);
         } else
@@ -63,7 +63,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     });
 }
 
-void TracksGraphicsView::setQuantize(int quantize) {
+void TracksGraphicsView::setQuantize(const int quantize) {
     m_quantize = quantize;
 }
 
@@ -89,14 +89,14 @@ void TracksGraphicsView::onAddAudioClip() {
     QByteArray dataBuffer;
     QDataStream o(&dataBuffer, QIODevice::WriteOnly);
     o << userData;
-    QJsonObject workspace{
+    const QJsonObject workspace{
         {"userData",       QString::fromLatin1(dataBuffer.toBase64())},
-        {"entryClassName", entryClassName                      },
+        {"entryClassName", entryClassName                            },
     };
 
     if (fileName.isNull())
         return;
-    auto track = appModel->tracks().at(m_trackIndex);
+    const auto track = appModel->tracks().at(m_trackIndex);
     trackController->onAddAudioClip(fileName, io, workspace, track->id(), m_tick);
 }
 
@@ -126,8 +126,8 @@ void TracksGraphicsView::onDeleteTriggered() const {
     // dlg->show();
 }
 
-void TracksGraphicsView::onExtractMidiTriggered(int clipId) {
-    auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(clipId));
+void TracksGraphicsView::onExtractMidiTriggered(const int clipId) {
+    const auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(clipId));
     Q_ASSERT(audioClip);
     midiExtractController->runExtractMidi(audioClip);
 }
@@ -141,8 +141,8 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
     }
 
 
-    if (auto item = itemAt(event->pos())) {
-        if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
+    if (const auto item = itemAt(event->pos())) {
+        if (const auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
             qDebug() << "TracksGraphicsView::mousePressEvent mouse down on clip";
             if (selectedClipItems().count() <= 1 || !selectedClipItems().contains(clipItem))
                 clearSelections();
@@ -169,22 +169,20 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     else
         m_tempQuantizeOff = false;
 
-    auto curPos = mapToScene(event->pos());
+    const auto curPos = mapToScene(event->pos());
     if (event->modifiers() == Qt::AltModifier)
         m_tempQuantizeOff = true;
     else
         m_tempQuantizeOff = false;
 
-    auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() /
-              TracksEditorGlobal::pixelsPerQuarterNote * 480;
+    const auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() /
+                    TracksEditorGlobal::pixelsPerQuarterNote * 480;
 
     int start;
-    int clipStart;
     int left;
     int clipLen;
-    int right;
-    int delta = qRound(dx);
-    int quantize = m_tempQuantizeOff ? 1 : 1920 / m_quantize;
+    const int delta = qRound(dx);
+    const int quantize = m_tempQuantizeOff ? 1 : 1920 / m_quantize;
     if (m_mouseMoveBehavior == Move) {
         m_movedBeforeMouseUp = true;
         left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
@@ -194,7 +192,7 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         m_movedBeforeMouseUp = true;
         left = MathUtils::round(m_mouseDownStart + m_mouseDownClipStart + delta, quantize);
         start = m_mouseDownStart;
-        clipStart = left - start;
+        const int clipStart = left - start;
         clipLen = m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen - left;
         if (clipLen <= 0) {
             TimeGraphicsView::mouseMoveEvent(event);
@@ -213,7 +211,7 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         }
     } else if (m_mouseMoveBehavior == ResizeRight) {
         m_movedBeforeMouseUp = true;
-        right = MathUtils::round(
+        const int right = MathUtils::round(
             m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize);
         clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
         if (clipLen <= 0) {
@@ -221,8 +219,8 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             return;
         }
 
-        auto curClipStart = m_currentEditingClip->clipStart();
-        auto curLength = m_currentEditingClip->length();
+        const auto curClipStart = m_currentEditingClip->clipStart();
+        const auto curLength = m_currentEditingClip->length();
         if (!m_currentEditingClip->canResizeLength()) { // Audio Clip
             if (curClipStart + clipLen >= curLength)
                 m_currentEditingClip->setClipLen(curLength - curClipStart);
@@ -245,7 +243,7 @@ void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     //     m_propertyEdited = false;
     // }
     if (m_mouseMoveBehavior != None && m_movedBeforeMouseUp) {
-        Clip::ClipCommonProperties args(*m_currentEditingClip);
+        const Clip::ClipCommonProperties args(*m_currentEditingClip);
         trackController->onClipPropertyChanged(args);
     }
     m_mouseMoveBehavior = None;
@@ -256,13 +254,13 @@ void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
-    auto scenePos = mapToScene(event->position().toPoint());
+    const auto scenePos = mapToScene(event->position().toPoint());
     m_trackIndex = m_scene->trackIndexAt(scenePos.y());
     if (m_trackIndex == -1)
         return;
 
-    auto tick = m_scene->tickAt(scenePos.x());
-    if (auto item = itemAt(event->pos())) {
+    const auto tick = m_scene->tickAt(scenePos.x());
+    if (const auto item = itemAt(event->pos())) {
         if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
             // appController->setActivePanel(AppGlobal::ClipEditor);
             if (appStatus->clipPanelCollapsed) {
@@ -279,13 +277,13 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
 }
 
 void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
-    auto scenePos = mapToScene(event->pos());
-    auto trackIndex = m_scene->trackIndexAt(scenePos.y());
+    const auto scenePos = mapToScene(event->pos());
+    const auto trackIndex = m_scene->trackIndexAt(scenePos.y());
     if (trackIndex == -1)
         return;
 
-    auto tick = m_scene->tickAt(scenePos.x());
-    if (auto item = itemAt(event->pos())) {
+    const auto tick = m_scene->tickAt(scenePos.x());
+    if (const auto item = itemAt(event->pos())) {
         if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
             m_trackIndex = trackIndex;
             m_tick = tick;
@@ -296,14 +294,14 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             CMenu menu(this);
 
             if (clip->clipType() == IClip::Audio) {
-                auto actionExtractMidi = new QAction(tr("Extract MIDI Score"));
+                const auto actionExtractMidi = new QAction(tr("Extract MIDI Score"));
                 connect(actionExtractMidi, &QAction::triggered, this,
                         [clip, this] { onExtractMidiTriggered(clip->id()); });
                 menu.addAction(actionExtractMidi);
                 menu.addSeparator();
             }
 
-            auto actionDelete = new QAction(tr("&Delete"), this);
+            const auto actionDelete = new QAction(tr("&Delete"), this);
             connect(actionDelete, &QAction::triggered, this,
                     &TracksGraphicsView::onDeleteTriggered);
             menu.addAction(actionDelete);
@@ -315,13 +313,13 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     }
 }
 
-void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
+void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event,
                                                         AbstractClipView *clipItem) {
     appStatus->currentEditObject = AppStatus::EditObjectType::Clip;
-    auto scenePos = mapToScene(event->pos());
+    const auto scenePos = mapToScene(event->pos());
     // qDebug() << "prepareForMovingOrResizingClip";
 
-    bool ctrlDown = event->modifiers() == Qt::ControlModifier;
+    const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
     if (!ctrlDown) {
         if (selectedClipItems().count() <= 1 || !selectedClipItems().contains(clipItem))
             clearSelections();
@@ -329,8 +327,8 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
     } else {
         clipItem->setSelected(!clipItem->isSelected());
     }
-    auto rPos = clipItem->mapFromScene(scenePos);
-    auto rx = rPos.x();
+    const auto rPos = clipItem->mapFromScene(scenePos);
+    const auto rx = rPos.x();
     if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
         // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeLeft;
@@ -359,31 +357,31 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(QMouseEvent *event,
     m_movedBeforeMouseUp = false;
 }
 
-AbstractClipView *TracksGraphicsView::findClipById(int id) {
-    for (auto item : m_scene->items())
-        if (auto clip = dynamic_cast<AbstractClipView *>(item))
+AbstractClipView *TracksGraphicsView::findClipById(const int id) const {
+    for (const auto item : m_scene->items())
+        if (const auto clip = dynamic_cast<AbstractClipView *>(item))
             if (clip->id() == id)
                 return clip;
     return nullptr;
 }
 
 void TracksGraphicsView::clearSelections() const {
-    for (auto item : m_scene->items())
+    for (const auto item : m_scene->items())
         if (item->isSelected())
             item->setSelected(false);
 }
 
 void TracksGraphicsView::resetActiveClips() const {
-    for (auto item : m_scene->items())
-        if (auto clip = dynamic_cast<AbstractClipView *>(item))
+    for (const auto item : m_scene->items())
+        if (const auto clip = dynamic_cast<AbstractClipView *>(item))
             if (clip->activeClip())
                 clip->setActiveClip(false);
 }
 
 QList<AbstractClipView *> TracksGraphicsView::selectedClipItems() const {
     QList<AbstractClipView *> result;
-    for (auto item : m_scene->items())
-        if (auto clip = dynamic_cast<AbstractClipView *>(item))
+    for (const auto item : m_scene->items())
+        if (const auto clip = dynamic_cast<AbstractClipView *>(item))
             if (clip->isSelected())
                 result.append(clip);
     return result;

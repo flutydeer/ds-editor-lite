@@ -14,9 +14,10 @@ public:
     PitchEditorView();
 
 private:
-    void drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
-    [[nodiscard]] double valueToSceneY(double value) const override;
-    [[nodiscard]] double sceneYToValue(double y) const override;
+    void drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                       QWidget *widget) override;
+    double valueToSceneY(double value) const override;
+    double sceneYToValue(double y) const override;
 
     PitchParamProperties m_properties;
 };

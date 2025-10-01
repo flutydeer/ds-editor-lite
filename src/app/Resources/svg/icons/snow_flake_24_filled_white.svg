@@ -1,44 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg id="_雪花" data-name="雪花" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-  <defs>
-    <style>
-      .cls-1 {
-        fill: none;
-        stroke: #000;
-        stroke-linecap: round;
-        stroke-miterlimit: 10;
-        stroke-width: 1.5px;
-      }
-    </style>
-  </defs>
-  <g>
-    <line class="cls-1" x1="12" y1="21.61" x2="12" y2="12.39"/>
-    <line class="cls-1" x1="15.48" y1="20.94" x2="12" y2="17.46"/>
-    <line class="cls-1" x1="8.52" y1="20.94" x2="12" y2="17.46"/>
-  </g>
-  <g>
-    <line class="cls-1" x1="3.68" y1="16.8" x2="11.66" y2="12.19"/>
-    <line class="cls-1" x1="6" y1="19.48" x2="7.27" y2="14.73"/>
-    <line class="cls-1" x1="2.52" y1="13.46" x2="7.27" y2="14.73"/>
-  </g>
-  <g>
-    <line class="cls-1" x1="3.68" y1="7.2" x2="11.66" y2="11.81"/>
-    <line class="cls-1" x1="2.52" y1="10.54" x2="7.27" y2="9.27"/>
-    <line class="cls-1" x1="6" y1="4.52" x2="7.27" y2="9.27"/>
-  </g>
-  <g>
-    <line class="cls-1" x1="12" y1="2.39" x2="12" y2="11.61"/>
-    <line class="cls-1" x1="8.52" y1="3.06" x2="12" y2="6.54"/>
-    <line class="cls-1" x1="15.48" y1="3.06" x2="12" y2="6.54"/>
-  </g>
-  <g>
-    <line class="cls-1" x1="20.32" y1="7.2" x2="12.34" y2="11.8"/>
-    <line class="cls-1" x1="18" y1="4.52" x2="16.73" y2="9.27"/>
-    <line class="cls-1" x1="21.48" y1="10.54" x2="16.73" y2="9.27"/>
-  </g>
-  <g>
-    <line class="cls-1" x1="20.32" y1="16.8" x2="12.34" y2="12.19"/>
-    <line class="cls-1" x1="21.48" y1="13.46" x2="16.73" y2="14.73"/>
-    <line class="cls-1" x1="18" y1="19.48" x2="16.73" y2="14.73"/>
-  </g>
+    <defs>
+        <style>
+            .cls-1 {
+            fill: none;
+            stroke: #000;
+            stroke-linecap: round;
+            stroke-miterlimit: 10;
+            stroke-width: 1.5px;
+            }
+        </style>
+    </defs>
+    <g>
+        <line class="cls-1" x1="12" y1="21.61" x2="12" y2="12.39"/>
+        <line class="cls-1" x1="15.48" y1="20.94" x2="12" y2="17.46"/>
+        <line class="cls-1" x1="8.52" y1="20.94" x2="12" y2="17.46"/>
+    </g>
+    <g>
+        <line class="cls-1" x1="3.68" y1="16.8" x2="11.66" y2="12.19"/>
+        <line class="cls-1" x1="6" y1="19.48" x2="7.27" y2="14.73"/>
+        <line class="cls-1" x1="2.52" y1="13.46" x2="7.27" y2="14.73"/>
+    </g>
+    <g>
+        <line class="cls-1" x1="3.68" y1="7.2" x2="11.66" y2="11.81"/>
+        <line class="cls-1" x1="2.52" y1="10.54" x2="7.27" y2="9.27"/>
+        <line class="cls-1" x1="6" y1="4.52" x2="7.27" y2="9.27"/>
+    </g>
+    <g>
+        <line class="cls-1" x1="12" y1="2.39" x2="12" y2="11.61"/>
+        <line class="cls-1" x1="8.52" y1="3.06" x2="12" y2="6.54"/>
+        <line class="cls-1" x1="15.48" y1="3.06" x2="12" y2="6.54"/>
+    </g>
+    <g>
+        <line class="cls-1" x1="20.32" y1="7.2" x2="12.34" y2="11.8"/>
+        <line class="cls-1" x1="18" y1="4.52" x2="16.73" y2="9.27"/>
+        <line class="cls-1" x1="21.48" y1="10.54" x2="16.73" y2="9.27"/>
+    </g>
+    <g>
+        <line class="cls-1" x1="20.32" y1="16.8" x2="12.34" y2="12.19"/>
+        <line class="cls-1" x1="21.48" y1="13.46" x2="16.73" y2="14.73"/>
+        <line class="cls-1" x1="18" y1="19.48" x2="16.73" y2="14.73"/>
+    </g>
 </svg>

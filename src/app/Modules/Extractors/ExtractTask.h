@@ -23,7 +23,8 @@ public:
         double tempo = 0;
     };
 
-    explicit ExtractTask(Input input) : m_input(std::move(input)) {}
+    explicit ExtractTask(Input input) : m_input(std::move(input)) {
+    }
 
     const Input &input() const {
         return m_input;

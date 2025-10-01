@@ -7,8 +7,6 @@
 
 #include <QObject>
 #include <QPointF>
-#include <QTimer>
-#include <QList>
 
 class ElasticAnimator : public QObject {
     Q_OBJECT
@@ -17,7 +15,7 @@ public:
 
     void setSmoothness(qreal value);
     void setResponsiveness(qreal value);
-    [[nodiscard]] QPointF target() const;
+    QPointF target() const;
     void setTarget(const QPointF &target);
 
     QPointF position() const;

@@ -29,7 +29,7 @@ endif ()
 if (MSVC)
     target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:/INCREMENTAL>)
     target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:/ZI>)
-endif()
+endif ()
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)
@@ -76,7 +76,7 @@ if (APPLICATION_ENABLE_BREAKPAD)
     find_package(qBreakpad CONFIG REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE qBreakpad::qBreakpad)
     target_compile_definitions(${PROJECT_NAME} PRIVATE APPLICATION_ENABLE_BREAKPAD)
-endif()
+endif ()
 
 if (WIN32)
     if (QtWin32DirectManipulateHelper_FOUND)
@@ -94,11 +94,11 @@ endif ()
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
 
 #if (ONNXRUNTIME_ENABLE_CUDA)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_CUDA)
+target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_CUDA)
 #endif()
 
 #if (ONNXRUNTIME_ENABLE_DML)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_DML)
+target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_DML)
 #endif()
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
@@ -106,22 +106,22 @@ set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
 # deploy Qt
 
 # "QT_QMAKE_EXECUTABLE" is usually defined by QtCreator.
-if(NOT DEFINED QT_QMAKE_EXECUTABLE)
+if (NOT DEFINED QT_QMAKE_EXECUTABLE)
     get_target_property(QT_QMAKE_EXECUTABLE Qt::qmake IMPORTED_LOCATION)
-endif()
+endif ()
 
-if(NOT EXISTS "${QT_QMAKE_EXECUTABLE}")
+if (NOT EXISTS "${QT_QMAKE_EXECUTABLE}")
     message(WARNING "deploy_qt_runtime: Can't locate the QMake executable.")
     return()
-endif()
+endif ()
 
 cmake_path(GET QT_QMAKE_EXECUTABLE PARENT_PATH __qt_bin_dir)
 
-if(WIN32)
+if (WIN32)
     set(_qt_deploy_executable "windeployqt.exe")
     find_program(WINDEPLOYQT_EXE ${_qt_deploy_executable} HINTS "${__qt_bin_dir}")
 
-    if(WINDEPLOYQT_EXE)
+    if (WINDEPLOYQT_EXE)
         message(STATUS "Found ${_qt_deploy_executable}: ${WINDEPLOYQT_EXE}")
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND "${WINDEPLOYQT_EXE}"
@@ -129,13 +129,13 @@ if(WIN32)
                 \"$<TARGET_FILE:${PROJECT_NAME}>\"
                 COMMENT "Deploy Qt"
         )
-    else()
+    else ()
         message(WARNING "${_qt_deploy_executable} not found, skipping deploying Qt")
-    endif()
-endif()
+    endif ()
+endif ()
 
 # copy dsinfer binaries
-if(APPLE)
+if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
@@ -147,7 +147,7 @@ if(APPLE)
             "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
             DESTINATION "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns"
     )
-elseif(WIN32)
+elseif (WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
@@ -159,7 +159,7 @@ elseif(WIN32)
             "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
             DESTINATION "${CMAKE_INSTALL_PREFIX}"
     )
-elseif(UNIX AND NOT APPLE)
+elseif (UNIX AND NOT APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
@@ -181,7 +181,7 @@ elseif(UNIX AND NOT APPLE)
             "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
             DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
     )
-endif()
+endif ()
 
 if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

@@ -21,7 +21,7 @@ public:
     explicit NotePropertyDialog(const Note *note,
                                 AppGlobal::NotePropertyType propertyType = AppGlobal::Lyric,
                                 QWidget *parent = nullptr);
-    [[nodiscard]] NoteDialogResult result();
+    NoteDialogResult result();
 
 private:
     NoteDialogResult m_result;

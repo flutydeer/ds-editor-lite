@@ -13,6 +13,7 @@ class IdGenerator {
 private:
     IdGenerator() : m_id(0) {
     }
+
     ~IdGenerator() = default;
 
 public:

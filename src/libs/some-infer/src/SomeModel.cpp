@@ -2,9 +2,9 @@
 
 #include <stdcorelib/str.h>
 
-#include <dsinfer/Inference/InferenceDriver.h>
 #include <dsinfer/Api/Drivers/Onnx/OnnxDriverApi.h>
 #include <dsinfer/Api/Singers/DiffSinger/1/DiffSingerApiL1.h>
+#include <dsinfer/Inference/InferenceDriver.h>
 
 namespace Some
 {
@@ -34,16 +34,14 @@ namespace Some
                 srt::Error::SessionError,
                 stdc::formatN(
                     R"(invalid driver: expected arch "%1", got "%2" (%3); expected backend "%4", got "%5" (%6))",
-                    expectedArch, arch, (isArchMatch ? "match" : "MISMATCH"), expectedBackend,
-                    backend, (isBackendMatch ? "match" : "MISMATCH")));
+                    expectedArch, arch, (isArchMatch ? "match" : "MISMATCH"), expectedBackend, backend,
+                    (isBackendMatch ? "match" : "MISMATCH")));
         }
 
         return onnxDriver;
     }
 
-    SomeModel::SomeModel(const srt::SynthUnit *su) :
-        m_su(su) {
-    }
+    SomeModel::SomeModel(const srt::SynthUnit *su) : m_su(su) {}
 
     SomeModel::~SomeModel() = default;
 
@@ -81,9 +79,7 @@ namespace Some
         }
     }
 
-    bool SomeModel::is_open() const { 
-        return m_session != nullptr;
-    }
+    bool SomeModel::is_open() const { return m_session != nullptr; }
 
     template <typename T>
     static srt::Expected<std::vector<T>> extractTensor(const std::map<std::string, srt::NO<ds::ITensor>> &outputs,
@@ -129,7 +125,7 @@ namespace Some
 
     // Forward pass through the model: takes waveform and threshold as inputs, returns f0 and uv as outputs
     srt::Expected<void> SomeModel::forward(const std::vector<float> &waveform_data, std::vector<float> &note_midi,
-                            std::vector<bool> &note_rest, std::vector<float> &note_dur) {
+                                           std::vector<bool> &note_rest, std::vector<float> &note_dur) {
         if (!m_session) {
             return srt::Error(srt::Error::SessionError, "SOME session is not initialized.");
         }

@@ -65,7 +65,8 @@ Q_DECLARE_METATYPE(SingerIdentifier)
 
 inline QDebug &operator<<(QDebug &debug, const SingerIdentifier &info) {
     QDebugStateSaver saver(debug);
-    debug.nospace() << "SingerIdentifier(singerId=" << info.singerId << ", packageId=" << info.packageId
+    debug.nospace() << "SingerIdentifier(singerId=" << info.singerId
+                    << ", packageId=" << info.packageId
                     << ", packageVersion=" << info.packageVersion << ")";
     return debug;
 }

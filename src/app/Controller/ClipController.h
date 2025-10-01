@@ -24,7 +24,6 @@ class IClipEditorView;
 class ClipController final : public QObject {
     Q_OBJECT
 
-private:
     explicit ClipController(QObject *parent = nullptr);
     ~ClipController() override;
 
@@ -32,16 +31,15 @@ public:
     LITE_SINGLETON_DECLARE_INSTANCE(ClipController)
     Q_DISABLE_COPY_MOVE(ClipController)
 
-public:
     void setView(IClipEditorView *view);
-    [[nodiscard]] Clip *clip();
+    Clip *clip();
     void setClip(Clip *clip);
     void copySelectedNotesWithParams() const;
     void cutSelectedNotesWithParams();
     void pasteNotesWithParams(const NotesParamsInfo &info, int tick);
 
-    [[nodiscard]] bool canSelectAll() const;
-    [[nodiscard]] bool hasSelectedNotes() const;
+    bool canSelectAll() const;
+    bool hasSelectedNotes() const;
 
     // View operations
     void centerAt(double tick, double keyIndex);

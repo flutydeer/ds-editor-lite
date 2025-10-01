@@ -8,7 +8,7 @@
 #define DROP_SHADOW_EFFECT                                                                         \
     Q_PROPERTY(QString dropShadow READ dropShadow WRITE setDropShadow)                             \
 public:                                                                                            \
-    [[nodiscard]] QString dropShadow() const {                                                     \
+    QString dropShadow() const {                                                                   \
         return m_dropShadow;                                                                       \
     }                                                                                              \
                                                                                                    \

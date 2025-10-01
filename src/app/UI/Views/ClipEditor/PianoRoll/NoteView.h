@@ -20,26 +20,26 @@ class NoteView final : public AbstractGraphicsRectItem,
 public:
     explicit NoteView(int itemId, QGraphicsItem *parent = nullptr);
     ~NoteView() override;
-    [[nodiscard]] int rStart() const;
+    int rStart() const;
     void setRStart(int rStart);
-    [[nodiscard]] int length() const;
+    int length() const;
     void setLength(int length);
-    [[nodiscard]] int keyIndex() const;
+    int keyIndex() const;
     void setKeyIndex(int keyIndex);
-    [[nodiscard]] QString lyric() const;
+    QString lyric() const;
     void setLyric(const QString &lyric);
     void setPronunciation(const QString &pronunciation, bool edited);
-    [[nodiscard]] bool editingPitch() const;
+    bool editingPitch() const;
     void setEditingPitch(bool on);
-    [[nodiscard]] PronunciationView *pronunciationView() const;
+    PronunciationView *pronunciationView() const;
     void setPronunciationView(PronunciationView *view);
 
     // for handle move and resize
-    [[nodiscard]] int startOffset() const;
+    int startOffset() const;
     void setStartOffset(int tick);
-    [[nodiscard]] int lengthOffset() const;
+    int lengthOffset() const;
     void setLengthOffset(int tick);
-    [[nodiscard]] int keyOffset() const;
+    int keyOffset() const;
     void setKeyOffset(int key);
     void resetOffset();
 

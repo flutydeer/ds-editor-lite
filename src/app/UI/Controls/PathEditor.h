@@ -19,6 +19,7 @@ public:
     void setPaths(const QStringList &paths) const;
 
     PathListWidget *listWidget() const;
+
 private:
     PathListWidget *m_listWidget;
 

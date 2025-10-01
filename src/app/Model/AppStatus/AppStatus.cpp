@@ -12,12 +12,14 @@ AppStatus::AppStatus(QObject *parent) : QObject(parent) {
         [this](auto value) { emit moduleStatusChanged(ModuleType::Inference, value); });
 
     // Main Window
-    trackPanelCollapsed.onChanged([this](auto value) { emit trackPanelCollapseStateChanged(value); });
+    trackPanelCollapsed.onChanged(
+        [this](auto value) { emit trackPanelCollapseStateChanged(value); });
     clipPanelCollapsed.onChanged([this](auto value) { emit clipPanelCollapseStateChanged(value); });
 
     // Project
     quantize.onChanged([this](auto value) { emit quantizeChanged(value); });
-    projectEditableLength.onChanged([this](auto value) { emit projectEditableLengthChanged(value); });
+    projectEditableLength.onChanged(
+        [this](auto value) { emit projectEditableLengthChanged(value); });
     selectedTrackIndex.onChanged([this](auto value) { emit selectedTrackIndexChanged(value); });
     activeClipId.onChanged([this](auto value) { emit activeClipIdChanged(value); });
     selectedNotes.onChanged([this](const auto &value) { emit noteSelectionChanged(value); });

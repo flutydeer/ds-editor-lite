@@ -16,13 +16,13 @@ class TabPanelTitleBar : public QWidget {
 public:
     explicit TabPanelTitleBar(QWidget *parent = nullptr);
 
-    [[nodiscard]] QTabBar *const &tabBar() const;
+    QTabBar *const &tabBar() const;
 
-    [[nodiscard]] QStackedWidget *const &toolBar() const;
+    QStackedWidget *const &toolBar() const;
 
 private:
     QTabBar *m_tabBar;
     QStackedWidget *m_toolBar;
 };
 
-#endif //TABPANELTITLEBAR_H
+#endif // TABPANELTITLEBAR_H

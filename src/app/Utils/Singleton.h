@@ -8,8 +8,7 @@
 
 
 // Put this in the class definition (.h)
-#define LITE_SINGLETON_DECLARE_INSTANCE(ClassName)                                                 \
-    static ClassName *instance();
+#define LITE_SINGLETON_DECLARE_INSTANCE(ClassName) static ClassName *instance();
 
 // Put this in the source file (.cpp)
 #define LITE_SINGLETON_IMPLEMENT_INSTANCE(ClassName)                                               \

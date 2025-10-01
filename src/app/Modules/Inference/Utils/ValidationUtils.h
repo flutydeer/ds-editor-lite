@@ -13,4 +13,4 @@ public:
     static bool canInferDuration(const SingingClip &clip);
 };
 
-#endif //VALIDATIONUTILS_H
+#endif // VALIDATIONUTILS_H

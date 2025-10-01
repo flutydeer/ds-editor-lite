@@ -61,15 +61,15 @@ public:
     void onActivatedPanelChanged(AppGlobal::PanelType panel);
     void onSelectAll();
     void onDelete();
-    void onCut();
-    void onCopy();
-    void onPaste();
+    static void onCut();
+    static void onCopy();
+    static void onPaste();
     // void onGetMidiFromAudioClip();
-    void onExtractPitchParam();
-    void onOctaveUp();
-    void onOctaveDown();
+    static void onExtractPitchParam();
+    static void onOctaveUp();
+    static void onOctaveDown();
     // void onTranspose();
-    void exitApp();
+    void exitApp() const;
 
     void enterClipEditorState();
     void exitClipEditorState(); // TODO: 需要重构以支持轨道编辑器

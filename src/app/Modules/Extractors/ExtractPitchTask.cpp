@@ -30,9 +30,9 @@ ExtractPitchTask::ExtractPitchTask(Input input) : ExtractTask(std::move(input)) 
     auto rmvpePath = appOptions->general()->rmvpePath;
     const std::filesystem::path modelPath = rmvpePath
 #ifdef _WIN32
-        .toStdWString();
+                                                .toStdWString();
 #else
-        .toStdString();
+                                                .toStdString();
 #endif
 
     if (modelPath.empty() || !exists(modelPath) || is_directory(modelPath)) {
@@ -74,11 +74,12 @@ void ExtractPitchTask::runTask() {
     const std::filesystem::path wavPath = m_input.audioPath.toStdString();
 #endif
 
-    const bool runSuccess = m_rmvpe->get_f0(wavPath, threshold, rmvpe_res, msg, [this](const int progress) {
-        auto progressStatus = status();
-        progressStatus.progress = progress;
-        setStatus(progressStatus);
-    });
+    const bool runSuccess =
+        m_rmvpe->get_f0(wavPath, threshold, rmvpe_res, msg, [this](const int progress) {
+            auto progressStatus = status();
+            progressStatus.progress = progress;
+            setStatus(progressStatus);
+        });
 
     if (runSuccess) {
         m_errorCode = ErrorCode::Success;

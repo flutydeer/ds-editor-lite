@@ -22,7 +22,7 @@ class TimeGraphicsScene : public QGraphicsScene, public IScalableItem {
 public:
     explicit TimeGraphicsScene(QObject *parent = nullptr);
 
-    [[nodiscard]] QSizeF sceneBaseSize() const;
+    QSizeF sceneBaseSize() const;
     void setSceneBaseSize(const QSizeF &size);
     void addCommonItem(IScalableItem *item);
     void removeCommonItem(IScalableItem *item);
@@ -40,8 +40,8 @@ protected:
 
 private:
     friend class TimeGraphicsView;
-    [[nodiscard]] ScrollBarView *horizontalBar();
-    [[nodiscard]] ScrollBarView *verticalBar();
+    ScrollBarView *horizontalBar();
+    ScrollBarView *verticalBar();
     void setHorizontalBarVisibility(bool visible);
     void setVerticalBarVisibility(bool visible);
     void setSceneLength(int tick);

@@ -89,7 +89,6 @@ void ParamEditArea::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
 }
 
-
 bool cmpy(QPoint const &a, QPoint const &b) {
     return a.x() < b.x();
 }
@@ -120,6 +119,7 @@ void ParamEditArea::mouseReleaseEvent(QMouseEvent *event) {
     m_editingCurve->drawEnd();
     QWidget::mouseReleaseEvent(event);
 }
+
 HandDrawCurve *ParamEditArea::findCurveByPos(double tick) {
     for (auto curve : m_curves)
         if (curve->start() <= tick && curve->end() >= tick)
@@ -135,6 +135,7 @@ int HandDrawCurve::start() const {
 QList<int> HandDrawCurve::values() const {
     return m_values;
 }
+
 int HandDrawCurve::end() const {
     return m_start + m_step * m_values.count();
 }
@@ -224,9 +225,11 @@ int HandDrawCurve::valueAt(int tick) {
     int value = m_values.at(index);
     return value;
 }
+
 std::tuple<qsizetype, qsizetype> HandDrawCurve::interval() const {
     return std::make_tuple(0, 0);
 }
+
 int HandDrawCurve::step() const {
     return m_step;
 }

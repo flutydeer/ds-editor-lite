@@ -15,7 +15,7 @@ public:
         m_list.append(item);
     }
 
-    [[nodiscard]] T dequeue() {
+    T dequeue() {
         return m_list.takeFirst();
     }
 
@@ -57,15 +57,15 @@ public:
         return m_list;
     }
 
-    [[nodiscard]] int count() const {
+    int count() const {
         return m_list.count();
     }
 
     // Iterators
-    using iterator = typename QList<T>::const_iterator;
-    using const_iterator = typename QList<T>::const_iterator;
-    using reverse_iterator = typename QList<T>::const_reverse_iterator;
-    using const_reverse_iterator = typename QList<T>::const_reverse_iterator;
+    using iterator = QList<T>::const_iterator;
+    using const_iterator = QList<T>::const_iterator;
+    using reverse_iterator = QList<T>::const_reverse_iterator;
+    using const_reverse_iterator = QList<T>::const_reverse_iterator;
 
     iterator begin() {
         return m_list.cbegin();

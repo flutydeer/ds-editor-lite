@@ -30,7 +30,7 @@ private:
     int m_offset = 0;
 
     void updateLengthAndPos();
-    [[nodiscard]] double tickToItemX(double tick) const;
+    double tickToItemX(double tick) const;
 };
 
 #endif // TIMEINDICATORVIEW_H

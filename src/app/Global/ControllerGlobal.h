@@ -9,6 +9,7 @@
 
 namespace ControllerGlobal {
     enum ElemType { LoopStart, LoopEnd, Tempo, TimeSignature, Track, Clip, NoteWithParams, None };
+
     inline QStringList ElemMimeType{"application/vnd.ds-editor-lite.loopstart",
                                     "application/vnd.ds-editor-lite.loopend",
                                     "application/vnd.ds-editor-lite.tempo",

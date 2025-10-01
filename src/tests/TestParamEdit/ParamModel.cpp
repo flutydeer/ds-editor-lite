@@ -24,7 +24,7 @@ ParamModel ParamModel::load(const QJsonObject &obj, bool *ok) {
     auto params = firstPattern.value("parameters").toObject();
     auto realBreathParams = params.value("realBreathiness").toArray();
     auto realEnergyParams = params.value("realEnergy").toArray();
-//    auto firstRealBreathParam = realBreathParams.first().toObject();
+    //    auto firstRealBreathParam = realBreathParams.first().toObject();
 
     auto decodeNotes = [](const QJsonArray &arrNotes) {
         QList<Note> notes;

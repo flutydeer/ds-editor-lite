@@ -4,7 +4,7 @@
 
 #include "EditMasterControlAction.h"
 
-EditMasterControlAction::EditMasterControlAction(const TrackControl&control, AppModel* model) {
+EditMasterControlAction::EditMasterControlAction(const TrackControl &control, AppModel *model) {
     m_appModel = model;
     m_oldControl = model->masterControl();
     m_newControl = control;

@@ -10,19 +10,13 @@
 
 namespace Rmvpe
 {
-    Rmvpe::Rmvpe(const srt::SynthUnit *su) :
-        m_rmvpe(su) {
-    }
+    Rmvpe::Rmvpe(const srt::SynthUnit *su) : m_rmvpe(su) {}
 
     Rmvpe::~Rmvpe() = default;
 
-    srt::Expected<void> Rmvpe::open(const std::filesystem::path &modelPath) {
-        return m_rmvpe.open(modelPath);
-    }
+    srt::Expected<void> Rmvpe::open(const std::filesystem::path &modelPath) { return m_rmvpe.open(modelPath); }
 
-    bool Rmvpe::is_open() const {
-        return m_rmvpe.is_open();
-    }
+    bool Rmvpe::is_open() const { return m_rmvpe.is_open(); }
 
     static float calculateSumOfDifferences(const AudioUtil::MarkerList &markers) {
         float sum = 0;
@@ -159,8 +153,6 @@ namespace Rmvpe
         return true;
     }
 
-    void Rmvpe::terminate() {
-        m_rmvpe.terminate();
-    }
+    void Rmvpe::terminate() { m_rmvpe.terminate(); }
 
 } // namespace Rmvpe

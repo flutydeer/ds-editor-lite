@@ -14,11 +14,11 @@ public:
 
     virtual ~IPanel() = default;
 
-    [[nodiscard]] AppGlobal::PanelType panelType() const {
+    AppGlobal::PanelType panelType() const {
         return m_type;
     }
 
-    [[nodiscard]] bool panelActive() const {
+    bool panelActive() const {
         return m_active;
     }
 

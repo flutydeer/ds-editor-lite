@@ -11,7 +11,8 @@ class LanguageComboBox : public ComboBox {
     Q_OBJECT
 
 public:
-    explicit LanguageComboBox(const QString &langKey, bool scrollWheelChangeSelection = false, QWidget *parent = nullptr);
+    explicit LanguageComboBox(const QString &langKey, bool scrollWheelChangeSelection = false,
+                              QWidget *parent = nullptr);
 };
 
 #endif // LANGUAGECOMBOBOX_H

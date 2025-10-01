@@ -7,11 +7,11 @@
 
 class OverlappableItem {
 public:
-    [[nodiscard]] bool overlapped() const {
+    bool overlapped() const {
         return m_overlapped;
     }
 
-    void setOverlapped(bool b) {
+    void setOverlapped(const bool b) {
         m_overlapped = b;
     }
 

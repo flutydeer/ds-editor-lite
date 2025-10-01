@@ -57,7 +57,7 @@ InferDurationTask::InferDurInput InferDurationTask::input() const {
     return m_input;
 }
 
-QList<InferInputNote> InferDurationTask::result() const{
+QList<InferInputNote> InferDurationTask::result() const {
     QReadLocker readLocker(&m_rwLock);
     return m_result.notes;
 }
@@ -141,8 +141,8 @@ void InferDurationTask::runTask() {
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
-bool InferDurationTask::runInference(const GenericInferModel &model, std::vector<double> &outDuration,
-                                     QString &error) {
+bool InferDurationTask::runInference(const GenericInferModel &model,
+                                     std::vector<double> &outDuration, QString &error) {
     if (!inferEngine->initialized()) {
         qCritical().noquote() << "inferDuration: Environment is not initialized";
         return false;

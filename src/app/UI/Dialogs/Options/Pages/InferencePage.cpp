@@ -104,8 +104,8 @@ QWidget *InferencePage::createContentWidget() {
         const int currentIndex = m_cbDeviceList->count();
         auto displayText =
             QStringLiteral("%1 (%2 GiB)")
-            .arg(device.description)
-            .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
+                .arg(device.description)
+                .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
         m_cbDeviceList->insertItem(currentIndex, displayText);
         m_cbDeviceList->setItemData(currentIndex, QVariant::fromValue<GpuInfo>(device),
                                     GpuInfoRole);
@@ -143,13 +143,11 @@ QWidget *InferencePage::createContentWidget() {
     constexpr double kDsDepthMax = 1.0;
     constexpr double kDsDepthSingleStep = 0.01;
 
-    m_dsDepthSlider = new DoubleSeekBarSpinboxGroup(kDsDepthMin, kDsDepthMax, kDsDepthSingleStep,
-                                                    option->depth);
+    m_dsDepthSlider =
+        new DoubleSeekBarSpinboxGroup(kDsDepthMin, kDsDepthMax, kDsDepthSingleStep, option->depth);
     m_dsDepthSlider->seekbar->setFixedWidth(256);
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::valueChanged, this,
-            [&](const double value) {
-                appOptions->inference()->depth = value;
-            });
+            [&](const double value) { appOptions->inference()->depth = value; });
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::editFinished, this,
             &InferencePage::modifyOption);
 
@@ -172,9 +170,8 @@ QWidget *InferencePage::createContentWidget() {
     m_smoothSlider = new SeekBarSpinboxGroup(0, 50, 1, option->pitch_smooth_kernel_size);
     m_smoothSlider->seekbar->setFixedWidth(256);
 
-    connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this, [&](const double value) {
-        appOptions->inference()->pitch_smooth_kernel_size = value;
-    });
+    connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this,
+            [&](const double value) { appOptions->inference()->pitch_smooth_kernel_size = value; });
     connect(m_smoothSlider, &SeekBarSpinboxGroup::editFinished, this, &InferencePage::modifyOption);
 
 
@@ -290,10 +287,8 @@ QWidget *InferencePage::createContentWidget() {
                 new QStandardItem(tr("vendor")),
                 new QStandardItem(pkgVendor),
             });
-            currentPackageRoot->appendRow({
-                new QStandardItem(tr("path")),
-                new QStandardItem(pkgPath)
-            });
+            currentPackageRoot->appendRow(
+                {new QStandardItem(tr("path")), new QStandardItem(pkgPath)});
             packageLoadedRoot->appendRow(currentPackageRoot);
         }
         packageRoot->appendRow(packageLoadedRoot);

@@ -22,9 +22,9 @@ private:
     QColor getInterpolatedColor(const QColor &c1, const QColor &c2, double factor);
 
     QPixmap pixmap_;
-    QColor colorStart_ = {205,188,105};
-    QColor colorEnd_ = {152,190,247};
+    QColor colorStart_ = {205, 188, 105};
+    QColor colorEnd_ = {152, 190, 247};
 };
 
 
-#endif //HSLGRADIENTAREA_H
+#endif // HSLGRADIENTAREA_H

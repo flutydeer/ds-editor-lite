@@ -12,15 +12,15 @@
 class GetInstalledPackagesTask final : public Task {
     Q_OBJECT
 
- public:
+public:
     explicit GetInstalledPackagesTask();
 
     Expected<GetInstalledPackagesResult, GetInstalledPackagesError> result;
 
- private:
+private:
     void runTask() override;
 };
 
 
 
-#endif //GETINSTALLEDPACKAGESTASK_H
+#endif // GETINSTALLEDPACKAGESTASK_H

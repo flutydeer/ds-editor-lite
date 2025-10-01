@@ -22,7 +22,7 @@ class PianoRollView final : public QWidget {
 
 public:
     explicit PianoRollView(QWidget *parent = nullptr);
-    [[nodiscard]] PianoRollGraphicsView *graphicsView() const;
+    PianoRollGraphicsView *graphicsView() const;
     void setDataContext(SingingClip *clip) const;
 
 public slots:

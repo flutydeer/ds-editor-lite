@@ -8,6 +8,7 @@
 #include "Global/AppGlobal.h"
 #include "Interface/ITrack.h"
 #include "Model/AppModel/TrackControl.h"
+#include "UI/Controls/TwoLevelComboBox.h"
 
 #include <QWidget>
 
@@ -31,17 +32,17 @@ class TrackControlView final : public QWidget, public ITrack {
 
 public:
     explicit TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent = nullptr);
-    [[nodiscard]] int trackIndex() const;
-    void setTrackIndex(int i);
-    [[nodiscard]] QString name() const override;
+    int trackIndex() const;
+    void setTrackIndex(int i) const;
+    QString name() const override;
     void setName(const QString &name) override;
-    [[nodiscard]] TrackControl control() const override;
+    TrackControl control() const override;
     void setControl(const TrackControl &control) override;
-    void setNarrowMode(bool on);
-    void setLanguage(const QString &language);
-    [[nodiscard]] LevelMeter *levelMeter() const;
+    void setNarrowMode(bool on) const;
+    void setLanguage(const QString &language) const;
+    LevelMeter *levelMeter() const;
 
-    [[nodiscard]] QColor color() const override {
+    QColor color() const override {
         return {};
     }
 
@@ -57,7 +58,7 @@ signals:
 
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;
-    void changeTrackProperty();
+    void changeTrackProperty() const;
     bool m_notifyBarrier = false;
     Track *m_track = nullptr;
     TrackControl m_control;
@@ -67,7 +68,7 @@ private:
     Button *btnMute;
     Button *btnSolo;
     EditLabel *leTrackName;
-    ComboBox *cbSinger;
+    TwoLevelComboBox *cbSinger;
     LanguageComboBox *cbLanguage;
     QSpacerItem *panVolumeSpacer;
     LevelMeter *m_levelMeter;

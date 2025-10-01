@@ -20,4 +20,4 @@ private:
     QString m_filterPattern;
 };
 
-#endif //PACKAGEFILTERPROXYMODEL_H
+#endif // PACKAGEFILTERPROXYMODEL_H

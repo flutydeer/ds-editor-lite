@@ -10,7 +10,6 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LevelMeter.h"
-#include "UI/Controls/LineEdit.h"
 
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
@@ -25,11 +24,6 @@
 #include "Modules/Inference/Models/SingerIdentifier.h"
 
 using namespace SVS;
-
-namespace {
-    constexpr auto SingerInfoRole = Qt::UserRole;
-    constexpr auto SingerIdentifierRole = Qt::UserRole + 1;
-}
 
 TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent)
     : QWidget(parent), ITrack(track->id()), m_track(track) {
@@ -67,20 +61,23 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     muteSoloTrackNameLayout->setSpacing(4);
     muteSoloTrackNameLayout->setContentsMargins(4, 8, 4, 8);
 
-    cbSinger = new ComboBox;
+    cbSinger = new TwoLevelComboBox;
     cbSinger->setObjectName("cbSinger");
-    //cbSinger->addItems({"Singer1", "Singer2", "Singer3"});
     auto setCbSinger = [this](QList<PackageInfo> packages) {
         cbSinger->clear();
-        cbSinger->addItem("(no singer)");
+        cbSinger->addItem("(no singer)", {}, {});
         for (const auto &package : std::as_const(packages)) {
             const auto singers = package.singers();
             for (const auto &singer : singers) {
                 QString singerText = singer.name();
-                const auto index = cbSinger->count();
-                cbSinger->insertItem(index, singerText);
-                cbSinger->setItemData(index, QVariant::fromValue(singer), SingerInfoRole);
-                cbSinger->setItemData(index, QVariant::fromValue(singer.identifier()), SingerIdentifierRole);
+                if (singer.speakers().size() == 1) {
+                    const auto spk = singer.speakers().first();
+                    cbSinger->addItem(spk.id(), singer, spk);
+                    continue;
+                }
+                cbSinger->addGroup(singerText);
+                for (const auto &spk : singer.speakers())
+                    cbSinger->addItemToGroup(singerText, spk.id(), singer, spk);
             }
         }
     };
@@ -88,24 +85,16 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     setCbSinger(packageManager->installedPackages().successfulPackages);
     connect(packageManager, &PackageManager::packagesRefreshed, cbSinger, setCbSinger);
 
-    connect(cbSinger, &ComboBox::currentIndexChanged, this, [this](int) {
-        auto currentText = cbSinger->currentText();
-        auto singerInfo = cbSinger->currentData(SingerInfoRole).value<SingerInfo>();
+    connect(cbSinger, &TwoLevelComboBox::currentTextChanged, this, [this] {
+        const auto currentText = cbSinger->currentText();
+        const auto singerInfo = cbSinger->currentSinger();
+        const auto speakerInfo = cbSinger->currentSpeaker();
         qDebug().noquote().nospace() << "Singer clicked: " << currentText;
         if (!m_track) {
             return;
         }
         m_track->setSingerInfo(singerInfo);
-        if (!singerInfo.isEmpty()) {
-            const auto speakers = singerInfo.speakers();
-            if (!speakers.isEmpty()) {
-                m_track->setSpeakerInfo(speakers[0]);
-            } else {
-                m_track->setSpeakerInfo({});
-            }
-        } else {
-            m_track->setSpeakerInfo({});
-        }
+        m_track->setSpeakerInfo(speakerInfo);
     });
 
     cbLanguage = new LanguageComboBox("unknown");
@@ -141,7 +130,7 @@ int TrackControlView::trackIndex() const {
     return lbTrackIndex->text().toInt();
 }
 
-void TrackControlView::setTrackIndex(int i) {
+void TrackControlView::setTrackIndex(const int i) const {
     lbTrackIndex->setText(QString::number(i));
 }
 
@@ -169,7 +158,7 @@ void TrackControlView::setControl(const TrackControl &control) {
     m_notifyBarrier = false;
 }
 
-void TrackControlView::setNarrowMode(bool on) {
+void TrackControlView::setNarrowMode(const bool on) const {
     if (on) {
         for (int i = 0; i < singerLanguageLayout->count(); ++i) {
             QWidget *w = singerLanguageLayout->itemAt(i)->widget();
@@ -187,7 +176,7 @@ void TrackControlView::setNarrowMode(bool on) {
     }
 }
 
-void TrackControlView::setLanguage(const QString &language) {
+void TrackControlView::setLanguage(const QString &language) const {
     cbLanguage->setCurrentText(language);
 }
 
@@ -195,18 +184,17 @@ LevelMeter *TrackControlView::levelMeter() const {
     return m_levelMeter;
 }
 
-
 void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
-    auto actionInsert = new QAction("Insert new track", this);
+    const auto actionInsert = new QAction("Insert new track", this);
     connect(actionInsert, &QAction::triggered, this, [this] { emit insertNewTrackTriggered(); });
-    auto actionRemove = new QAction("Delete", this);
+    const auto actionRemove = new QAction("Delete", this);
     connect(actionRemove, &QAction::triggered, this, [this] { emit removeTrackTriggered(id()); });
 
     CMenu menu(this);
     menu.addAction(actionInsert);
     menu.addAction(actionRemove);
 
-    auto singerMenu = menu.addMenu("Select track singer");
+    const auto singerMenu = menu.addMenu("Select track singer");
     const auto packages = packageManager->installedPackages().successfulPackages;
     for (const auto &package : std::as_const(packages)) {
         const auto singers = package.singers();
@@ -214,20 +202,21 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
             QString singerText = singer.name() + " (" + singer.identifier().packageId + " v" +
                                  singer.identifier().packageVersion.toString() + ')';
             auto singerAction = singerMenu->addAction(singerText);
-            connect(singerAction, &QAction::triggered, this, [singerAction, singer, this] {
+            connect(singerAction, &QAction::triggered, this, [singerAction, this] {
                 qDebug().noquote().nospace() << "Singer clicked: " << singerAction->text();
+                // TODO: set singer for ComboBox
                 if (!m_track) {
                     return;
                 }
-                auto comboBoxIndex = cbSinger->findData(QVariant::fromValue(singer.identifier()),
-                                                        SingerIdentifierRole);
-                if (comboBoxIndex != -1) {
-                    cbSinger->setCurrentIndex(comboBoxIndex);
-                }
+                // auto comboBoxIndex = cbSinger->findData(QVariant::fromValue(singer.identifier()),
+                //                                         SingerIdentifierRole);
+                // if (comboBoxIndex != -1) {
+                //     cbSinger->setCurrentIndex(comboBoxIndex);
+                // }
             });
         }
     }
-    auto actionSetSpeaker = new QAction("Set speaker", this);
+    const auto actionSetSpeaker = new QAction("Set speaker", this);
     connect(actionSetSpeaker, &QAction::triggered, this, [this] {
         const auto singerInfo = m_track->singerInfo();
         const auto speakers = singerInfo.speakers();
@@ -250,7 +239,7 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
             }
         }
         bool ok = false;
-        auto currentSpeakerLabel = QInputDialog::getItem(
+        const auto currentSpeakerLabel = QInputDialog::getItem(
             this, "Input select", "Please select speaker id for singer " + cbSinger->currentText(),
             speakerLabels, listCurrentIndex, false, &ok);
         if (ok) {
@@ -271,13 +260,13 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     event->accept();
 }
 
-void TrackControlView::changeTrackProperty() {
+void TrackControlView::changeTrackProperty() const {
     // qDebug() << "TrackControlWidget::changeTrackProperty";
-    Track::TrackProperties args(*this);
+    const Track::TrackProperties args(*this);
     trackController->changeTrackProperty(args);
 }
 
-QString TrackControlView::panValueToString(double value) {
+QString TrackControlView::panValueToString(const double value) {
     if (value < 0)
         return "L" + QString::number(-qRound(value));
     if (value == 0)
@@ -285,11 +274,11 @@ QString TrackControlView::panValueToString(double value) {
     return "R" + QString::number(qRound(value));
 }
 
-QString TrackControlView::gainValueToString(double value) {
-    auto gain = 60 * std::log10(1.0 * value) - 114;
+QString TrackControlView::gainValueToString(const double value) {
+    const auto gain = 60 * std::log10(1.0 * value) - 114;
     if (gain == -70)
         return "-inf";
-    auto absVal = QString::number(qAbs(gain), 'f', 1);
+    const auto absVal = QString::number(qAbs(gain), 'f', 1);
     QString sig = "";
     if (gain > 0) {
         sig = "+";
@@ -299,10 +288,10 @@ QString TrackControlView::gainValueToString(double value) {
     return sig + absVal + "dB";
 }
 
-double TrackControlView::gainToSliderValue(double gain) {
-    return std::pow(10, (114 + gain) / 60);
+double TrackControlView::gainFromSliderValue(const double value) {
+    return 60 * std::log10(value) - 114;
 }
 
-double TrackControlView::gainFromSliderValue(double value) {
-    return 60 * std::log10(value) - 114;
+double TrackControlView::gainToSliderValue(const double gain) {
+    return std::pow(10, (114 + gain) / 60);
 }
