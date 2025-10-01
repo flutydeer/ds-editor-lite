@@ -2,9 +2,9 @@
 
 #include <stdcorelib/str.h>
 
+#include <dsinfer/Inference/InferenceDriver.h>
 #include <dsinfer/Api/Drivers/Onnx/OnnxDriverApi.h>
 #include <dsinfer/Api/Singers/DiffSinger/1/DiffSingerApiL1.h>
-#include <dsinfer/Inference/InferenceDriver.h>
 
 namespace Rmvpe
 {
@@ -34,14 +34,16 @@ namespace Rmvpe
                 srt::Error::SessionError,
                 stdc::formatN(
                     R"(invalid driver: expected arch "%1", got "%2" (%3); expected backend "%4", got "%5" (%6))",
-                    expectedArch, arch, (isArchMatch ? "match" : "MISMATCH"), expectedBackend, backend,
-                    (isBackendMatch ? "match" : "MISMATCH")));
+                    expectedArch, arch, (isArchMatch ? "match" : "MISMATCH"), expectedBackend,
+                    backend, (isBackendMatch ? "match" : "MISMATCH")));
         }
 
         return onnxDriver;
     }
 
-    RmvpeModel::RmvpeModel(const srt::SynthUnit *su) : m_su(su) {}
+    RmvpeModel::RmvpeModel(const srt::SynthUnit *su) :
+        m_su(su) {
+    }
 
     RmvpeModel::~RmvpeModel() = default;
 
@@ -78,7 +80,9 @@ namespace Rmvpe
         }
     }
 
-    bool RmvpeModel::is_open() const { return m_session != nullptr; }
+    bool RmvpeModel::is_open() const {
+        return m_session != nullptr;
+    }
 
     template <typename T>
     static srt::Expected<std::vector<T>> extractTensor(const std::map<std::string, srt::NO<ds::ITensor>> &outputs,

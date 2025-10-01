@@ -44,8 +44,7 @@ Expected<TaskResult, ErrorType> testExpected(const QString &path) {
         return ErrorType::InvalidFormat;
     if (path == "valid")
         return TaskResult{
-            3, {0.1, 0.2, 0.3}
-        };
+            3, {0.1, 0.2, 0.3}};
     return ErrorType::FileNotFound;
 }
 
@@ -73,12 +72,11 @@ int main(int argc, char *argv[]) {
     qDebug() << "test2 result" << result3.count;
 
     auto result4 = testExpected("valid")
-                       .onSuccess([&](const TaskResult &result) {
-                           qDebug() << "valid success" << result.count;
-                       })
-                       .onFailure([&](const ErrorType &error) {
-                           qDebug() << "valid failed" << errorTypeToString(error);
-                       });
+        .onSuccess([&](const TaskResult &result) {
+            qDebug() << "valid success" << result.count;
+        }).onFailure([&](const ErrorType &error) {
+            qDebug() << "valid failed" << errorTypeToString(error);
+        });
     try {
         qDebug() << "Try to get valid..." << errorTypeToString(result4.getError());
     } catch (const std::exception &e) {

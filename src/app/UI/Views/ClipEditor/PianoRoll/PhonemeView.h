@@ -71,8 +71,8 @@ private:
     void reset();
     double tickToX(double tick) const;
     double xToTick(double x) const;
-    double ticksPerPixel() const;
-    bool canEdit() const;
+    [[nodiscard]] double ticksPerPixel() const;
+    [[nodiscard]] bool canEdit() const;
     double m_startTick = 0;
     double m_endTick = 0;
     double m_resizeToleranceInTick = 0;

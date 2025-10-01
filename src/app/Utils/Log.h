@@ -37,9 +37,9 @@ public:
             : time(std::move(time)), level(level), tag(std::move(tag)), text(std::move(text)) {
         }
 
-        QString toPlainText() const;
-        QString toConsoleText() const;
-        static QString levelText(LogLevel level);
+        [[nodiscard]] QString toPlainText() const;
+        [[nodiscard]] QString toConsoleText() const;
+        [[nodiscard]] static QString levelText(LogLevel level);
         static QString padText(const QString &text, int spaces);
 
         QString time;
@@ -58,6 +58,7 @@ public:
     LITE_SINGLETON_DECLARE_INSTANCE(Log)
     Q_DISABLE_COPY_MOVE(Log)
 
+public:
     static void handler(QtMsgType type, const QMessageLogContext &context, const QString &msg);
     static void logSystemInfo();
     static void logGpuInfo();

@@ -16,8 +16,7 @@ class AbstractClipView;
 class AbstractClipViewPrivate {
     Q_DECLARE_PUBLIC(AbstractClipView)
 public:
-    explicit AbstractClipViewPrivate(AbstractClipView *q) : q_ptr(q) {
-    }
+    explicit AbstractClipViewPrivate(AbstractClipView *q) : q_ptr(q){};
 
     QString m_name;
     int m_start = 0;
@@ -43,7 +42,7 @@ public:
 
     int titleHeight = 20;
 
-    QRectF previewRect() const;
+    [[nodiscard]] QRectF previewRect() const;
 
 private:
     AbstractClipView *q_ptr;

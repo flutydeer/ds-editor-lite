@@ -18,7 +18,7 @@ TabPanelTitleBar::TabPanelTitleBar(QWidget *parent) : QWidget(parent) {
 
     m_toolBar = new QStackedWidget;
 
-    const auto layout = new QHBoxLayout;
+    auto layout = new QHBoxLayout;
     layout->addWidget(m_tabBar);
     layout->addWidget(m_toolBar);
     // TODO: Add btnMaximize and btnHide

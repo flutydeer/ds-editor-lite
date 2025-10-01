@@ -31,9 +31,8 @@ bool InferAcousticTask::InferAcousticInput::operator==(const InferAcousticInput 
     return clipId == other.clipId && notes == other.notes && identifier == other.identifier &&
            qFuzzyCompare(tempo, other.tempo) && pitch == other.pitch &&
            breathiness == other.breathiness && tension == other.tension &&
-           voicing == other.voicing && energy == other.energy &&
-           mouthOpening == other.mouthOpening && gender == other.gender &&
-           velocity == other.velocity && toneShift == other.toneShift;
+           voicing == other.voicing && energy == other.energy && mouthOpening == other.mouthOpening &&
+           gender == other.gender && velocity == other.velocity && toneShift == other.toneShift;
 }
 
 int InferAcousticTask::clipId() const {
@@ -166,14 +165,12 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     auto expVocoder = loader->createVocoder();
     if (!expAcoustic || !expVocoder) {
         if (!expAcoustic) {
-            qCritical().noquote().nospace()
-                << "inferenceAcoustic: Failed to create acoustic inference for " << identifier
-                << ": " << expAcoustic.getError();
+            qCritical().noquote().nospace() << "inferenceAcoustic: Failed to create acoustic inference for "
+                                << identifier << ": " << expAcoustic.getError();
         }
         if (!expVocoder) {
-            qCritical().noquote().nospace()
-                << "inferenceAcoustic: Failed to create vocoder inference for " << identifier
-                << ": " << expVocoder.getError();
+            qCritical().noquote().nospace() << "inferenceAcoustic: Failed to create vocoder inference for "
+                    << identifier << ": " << expVocoder.getError();
         }
         return false;
     }
@@ -194,18 +191,16 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             return false;
         }
         if (auto exp = inferenceAcoustic->start(input); !exp) {
-            qCritical().noquote().nospace()
-                << "inferAcoustic: Failed to start acoustic inference for " << identifier << ": "
-                << exp.error().message();
+            qCritical().noquote().nospace() << "inferAcoustic: Failed to start acoustic inference for "
+                                            << identifier << ": " << exp.error().message();
             return false;
         } else {
             result = exp.take().as<Ac::AcousticResult>();
         }
 
         if (inferenceAcoustic->state() == srt::ITask::Failed) {
-            qCritical().noquote().nospace()
-                << "inferAcoustic: Failed to run acoustic inference for " << identifier << ": "
-                << result->error.message();
+            qCritical().noquote().nospace() << "inferAcoustic: Failed to run acoustic inference for "
+                                            << identifier << ": " << result->error.message();
             return false;
         }
         mel = result->mel;
@@ -224,9 +219,8 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             return false;
         }
         if (auto exp = inferenceVocoder->start(vocoderInput); !exp) {
-            qCritical().noquote().nospace()
-                << "inferAcoustic: Failed to start vocoder inference for " << identifier << ": "
-                << exp.error().message();
+            qCritical().noquote().nospace() << "inferAcoustic: Failed to start vocoder inference for "
+                                            << identifier << ": " << exp.error().message();
             return false;
         } else {
             result = exp.take().as<Vo::VocoderResult>();
@@ -347,8 +341,7 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     GenericInferModel model;
     model.speaker = m_input.speaker;
     model.words = words;
-    model.params = {pitch,        breathiness, tension,  voicing,  energy,
-                    mouthOpening, gender,      velocity, toneShift};
+    model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening, gender, velocity, toneShift};
     model.steps = appOptions->inference()->samplingSteps;
     model.depth = appOptions->inference()->depth;
     model.identifier = m_input.identifier;

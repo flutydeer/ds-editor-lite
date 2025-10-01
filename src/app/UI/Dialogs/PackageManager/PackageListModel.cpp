@@ -25,7 +25,7 @@ QVariant PackageListModel::data(const QModelIndex &index, int role) const {
         return {};
 
     const auto &package = m_packages.at(index.row());
-    if (role == Qt::UserRole) { // 用于过滤的原始数据
+    if (role == Qt::UserRole) {  // 用于过滤的原始数据
         return QVariant::fromValue(package);
     }
     return {};

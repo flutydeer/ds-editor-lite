@@ -3,11 +3,11 @@
 //
 
 #if false
-#  include "LoadInferConfigTask.h"
+#include "LoadInferConfigTask.h"
 
-#  include "Modules/Inference/InferEngine.h"
+#include "Modules/Inference/InferEngine.h"
 
-#  include <QDebug>
+#include <QDebug>
 
 LoadInferConfigTask::LoadInferConfigTask(const QString &path) : m_path(path) {
     TaskStatus status;

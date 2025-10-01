@@ -17,29 +17,30 @@ void GraphicsLayerManager::addLayer(CommonGraphicsLayer *layer) {
 }
 
 void GraphicsLayerManager::removeLayer(CommonGraphicsLayer *layer) {
-    const auto index = m_layers.indexOf(layer);
+    auto index = m_layers.indexOf(layer);
     m_layers.removeAt(index);
 
     for (auto i = index; i < m_layers.count(); i++) {
-        const auto curLayer = m_layers.at(i);
+        auto curLayer = m_layers.at(i);
         setLayerZValue(i, curLayer);
     }
 }
 
-qsizetype GraphicsLayerManager::layerZValue(const CommonGraphicsLayer *layer) {
+qsizetype GraphicsLayerManager::layerZValue(CommonGraphicsLayer *layer) const {
     return layer->layerZValue;
 }
 
-void GraphicsLayerManager::setLayerZValue(const qsizetype z, CommonGraphicsLayer *layer) {
+void GraphicsLayerManager::setLayerZValue(qsizetype z, CommonGraphicsLayer *layer) {
     layer->layerZValue = z;
     updateItemsZValue(layer);
 }
 
-const QList<AbstractGraphicsRectItem *> &GraphicsLayerManager::items(CommonGraphicsLayer *layer) {
+const QList<AbstractGraphicsRectItem *> &
+    GraphicsLayerManager::items(CommonGraphicsLayer *layer) const {
     return layer->items;
 }
 
-QList<AbstractGraphicsRectItem *> GraphicsLayerManager::allItems(CommonGraphicsLayer *layer) {
+QList<AbstractGraphicsRectItem *> GraphicsLayerManager::allItems(CommonGraphicsLayer *layer) const {
     QList<AbstractGraphicsRectItem *> items;
     for (const auto item : layer->backgroundItems)
         items.append(item);
@@ -49,31 +50,29 @@ QList<AbstractGraphicsRectItem *> GraphicsLayerManager::allItems(CommonGraphicsL
 }
 
 void GraphicsLayerManager::addBackgroundItem(AbstractGraphicsRectItem *item,
-                                             CommonGraphicsLayer *layer) const {
+                                             CommonGraphicsLayer *layer) {
     item->setZValue(layer->layerZValue * 2);
     layer->backgroundItems.append(item);
     m_scene->addCommonItem(item);
 }
 
-void GraphicsLayerManager::addItem(AbstractGraphicsRectItem *item,
-                                   CommonGraphicsLayer *layer) const {
+void GraphicsLayerManager::addItem(AbstractGraphicsRectItem *item, CommonGraphicsLayer *layer) {
     item->setZValue(layer->layerZValue * 2 + 1);
     layer->items.append(item);
     m_scene->addCommonItem(item);
 }
 
-void GraphicsLayerManager::removeItem(AbstractGraphicsRectItem *item,
-                                      CommonGraphicsLayer *layer) const {
+void GraphicsLayerManager::removeItem(AbstractGraphicsRectItem *item, CommonGraphicsLayer *layer) {
     layer->items.removeOne(item);
     m_scene->removeCommonItem(item);
 }
 
-void GraphicsLayerManager::clearItems(CommonGraphicsLayer *layer) const {
+void GraphicsLayerManager::clearItems(CommonGraphicsLayer *layer) {
     for (const auto item : layer->items)
         removeItem(item, layer);
 }
 
-void GraphicsLayerManager::destroyItems(CommonGraphicsLayer *layer) const {
+void GraphicsLayerManager::destroyItems(CommonGraphicsLayer *layer) {
     for (const auto item : layer->items) {
         removeItem(item, layer);
         delete item;
@@ -81,9 +80,9 @@ void GraphicsLayerManager::destroyItems(CommonGraphicsLayer *layer) const {
 }
 
 void GraphicsLayerManager::updateItemsZValue(CommonGraphicsLayer *layer) {
-    for (const auto item : layer->backgroundItems)
+    for (auto item : layer->backgroundItems)
         item->setZValue(layer->layerZValue * 2);
 
-    for (const auto item : layer->items)
+    for (auto item : layer->items)
         item->setZValue(layer->layerZValue * 2 + 1);
 }

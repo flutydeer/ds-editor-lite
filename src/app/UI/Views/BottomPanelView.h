@@ -14,4 +14,4 @@ public:
     explicit BottomPanelView(QWidget *parent = nullptr);
 };
 
-#endif // BOTTOMPANELVIEW_H
+#endif //BOTTOMPANELVIEW_H

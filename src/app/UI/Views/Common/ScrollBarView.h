@@ -18,13 +18,13 @@ class ScrollBarView : public AbstractGraphicsRectItem, public IAnimatable {
 public:
     explicit ScrollBarView();
     explicit ScrollBarView(Qt::Orientation orientation);
-    Qt::Orientation orientation() const;
+    [[nodiscard]] Qt::Orientation orientation() const;
     void setOrientation(Qt::Orientation orientation);
     void updateRectAndPos() override;
     void moveToNormalState();
     void moveToHoverState();
     void moveToPressedState();
-    bool mouseOnHandle(const QPointF &scenePos) const;
+    [[nodiscard]] bool mouseOnHandle(const QPointF &scenePos) const;
 
 protected:
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
@@ -37,9 +37,9 @@ private slots:
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void initUi();
-    double handleStart() const;
-    double handleLength() const;
-    double handleEnd() const;
+    [[nodiscard]] double handleStart() const;
+    [[nodiscard]] double handleLength() const;
+    [[nodiscard]] double handleEnd() const;
     void performStateChangeAnimation(int targetAlpha, double targetPadding, int duration);
 
     Qt::Orientation m_orientation = Qt::Horizontal;

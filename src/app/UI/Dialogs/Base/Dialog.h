@@ -42,7 +42,7 @@ private:
 
 class Dialog : public QDialog {
     Q_OBJECT
-
+    
 public:
     explicit Dialog(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
     ~Dialog() override;
@@ -56,7 +56,7 @@ public:
     QWidget *body() const;
     DialogButtonBar *buttonBar() const;
 
-    static QWidget *globalParent();
+    [[nodiscard]] static QWidget *globalParent();
     static void setGlobalContext(QWidget *parent);
 
 private:

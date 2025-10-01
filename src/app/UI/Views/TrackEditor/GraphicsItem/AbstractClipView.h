@@ -20,35 +20,35 @@ public:
     explicit AbstractClipView(int itemId, QGraphicsItem *parent = nullptr);
     ~AbstractClipView() override;
 
-    QString name() const override;
+    [[nodiscard]] QString name() const override;
     void setName(const QString &text) override;
 
     // QColor color() const;
     // void setColor(const QColor &color);
 
-    int start() const override;
+    [[nodiscard]] int start() const override;
     void setStart(int start) override;
-    int length() const override;
+    [[nodiscard]] int length() const override;
     void setLength(int length) override;
-    int clipStart() const override;
+    [[nodiscard]] int clipStart() const override;
     void setClipStart(int clipStart) override;
-    int clipLen() const override;
+    [[nodiscard]] int clipLen() const override;
     void setClipLen(int clipLen) override;
 
-    double gain() const override;
+    [[nodiscard]] double gain() const override;
     void setGain(double gain) override;
     // double pan() const;
     // void setPan(double gain);
-    bool mute() const override;
+    [[nodiscard]] bool mute() const override;
     void setMute(bool mute) override;
 
-    bool activeClip() const;
+    [[nodiscard]] bool activeClip() const;
     void setActiveClip(bool active);
 
-    int trackIndex() const;
+    [[nodiscard]] int trackIndex() const;
     void setTrackIndex(int index);
-    bool canResizeLength() const;
-    virtual int contentLength() const;
+    [[nodiscard]] bool canResizeLength() const;
+    [[nodiscard]] virtual int contentLength() const;
 
     void loadCommonProperties(const Clip::ClipCommonProperties &args);
 
@@ -59,16 +59,16 @@ signals:
     void removeTriggered(int id);
 
 protected:
-    virtual QString text() const;
+    [[nodiscard]] virtual QString text() const;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     virtual void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) = 0;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
-    virtual QString clipTypeName() const = 0;
-    virtual QString iconPath() const = 0;
+    [[nodiscard]] virtual QString clipTypeName() const = 0;
+    [[nodiscard]] virtual QString iconPath() const = 0;
     void setCanResizeLength(bool on);
-    double tickToSceneX(double tick) const;
-    double sceneXToItemX(double x) const;
+    [[nodiscard]] double tickToSceneX(double tick) const;
+    [[nodiscard]] double sceneXToItemX(double x) const;
 
 private:
     Q_DECLARE_PRIVATE(AbstractClipView)

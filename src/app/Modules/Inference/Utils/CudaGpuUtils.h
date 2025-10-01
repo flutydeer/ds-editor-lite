@@ -9,8 +9,7 @@ class CudaGpuUtils {
 public:
     static GpuInfo getGpuByIndex(int index);
     static QList<GpuInfo> getGpuList();
-    static GpuInfo getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsigned int pciVendorId,
-                                             int indexHint = 0);
+    static GpuInfo getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsigned int pciVendorId, int indexHint = 0);
     static GpuInfo getGpuByPciDeviceVendorIdString(const QString &idString, int indexHint = 0);
     static GpuInfo getGpuByUuid(const QString &uuid);
     static GpuInfo getRecommendedGpu();
@@ -27,16 +26,14 @@ inline QList<GpuInfo> CudaGpuUtils::getGpuList() {
     return {};
 }
 
-inline GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorId(unsigned int pciDeviceId,
-                                                       unsigned int pciVendorId, int indexHint) {
+inline GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorId(unsigned int pciDeviceId, unsigned int pciVendorId, int indexHint) {
     Q_UNUSED(pciDeviceId)
     Q_UNUSED(pciVendorId)
     Q_UNUSED(indexHint)
     return {};
 }
 
-inline GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorIdString(const QString &idString,
-                                                             int indexHint) {
+inline GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorIdString(const QString &idString, int indexHint) {
     Q_UNUSED(idString)
     Q_UNUSED(indexHint)
     return {};
@@ -51,8 +48,7 @@ inline GpuInfo CudaGpuUtils::getRecommendedGpu() {
     return {};
 }
 
-inline void CudaGpuUtils::setNvidiaSmiPath(const QString &path) {
-}
+inline void CudaGpuUtils::setNvidiaSmiPath(const QString &path) {}
 
 #endif
 

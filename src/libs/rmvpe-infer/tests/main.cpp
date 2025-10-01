@@ -5,13 +5,13 @@
 #include <string>
 #include <vector>
 
-#include <dsinfer/Api/Drivers/Onnx/OnnxDriverApi.h>
-#include <dsinfer/Inference/InferenceDriverPlugin.h>
 #include <stdcorelib/str.h>
 #include <stdcorelib/system.h>
 #include <synthrt/Core/Contribute.h>
 #include <synthrt/Core/NamedObject.h>
 #include <synthrt/Core/SynthUnit.h>
+#include <dsinfer/Inference/InferenceDriverPlugin.h>
+#include <dsinfer/Api/Drivers/Onnx/OnnxDriverApi.h>
 
 #include <rmvpe-infer/Rmvpe.h>
 
@@ -22,7 +22,8 @@ static void progressChanged(const int progress) { std::cout << "progress: " << p
 static srt::Expected<void> initializeSU(srt::SynthUnit &su, EP ep, int deviceIndex) {
     // Get basic directories
     auto appDir = stdc::system::application_directory();
-    auto defaultPluginDir = appDir.parent_path() / _TSTR("lib") / _TSTR("plugins") / _TSTR("dsinfer");
+    auto defaultPluginDir =
+        appDir.parent_path() / _TSTR("lib") / _TSTR("plugins") / _TSTR("dsinfer");
 
     // Set default plugin directories
     su.addPluginPath("org.openvpi.InferenceDriver", defaultPluginDir / _TSTR("inferencedrivers"));
@@ -30,7 +31,7 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, EP ep, int deviceInd
     // Load driver
     auto plugin = su.plugin<ds::InferenceDriverPlugin>("onnx");
     if (!plugin) {
-        return srt::Error(srt::Error::FileNotOpen, "failed to load inference driver");
+        return srt::Error(srt::Error::FileNotOpen,"failed to load inference driver");
     }
 
     auto onnxDriver = plugin->create();
@@ -42,7 +43,7 @@ static srt::Expected<void> initializeSU(srt::SynthUnit &su, EP ep, int deviceInd
 
     if (auto exp = onnxDriver->initialize(onnxArgs); !exp) {
         return srt::Error(srt::Error::FileNotOpen,
-                          stdc::formatN(R"(failed to initialize onnx driver: %1)", exp.error().message()));
+            stdc::formatN(R"(failed to initialize onnx driver: %1)", exp.error().message()));
     }
 
     // Add driver
@@ -91,8 +92,7 @@ int main(const int argc, char *argv[]) {
     const int device_id = std::stoi(argv[4]);
     const std::string csvOutput = argc == 6 ? argv[5] : "";
 
-    const auto rmProvider = [](const std::string &provider_) -> EP
-    {
+    const auto rmProvider = [](const std::string &provider_) -> EP {
         auto provider_lower = stdc::to_lower(provider_);
         if (provider_lower == "dml" || provider_lower == "directml") {
             return EP::DMLExecutionProvider;

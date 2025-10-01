@@ -19,7 +19,7 @@ public:
     Track *dsTrack;
     TrackControlView *controlView = nullptr;
     bool isSelected = false;
-    QMap<Clip *, AbstractClipView *> clips = {};
+    QMap<Clip *,AbstractClipView *> clips = {};
 };
 
 

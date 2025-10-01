@@ -24,7 +24,7 @@ public:
     void loadEdited(const QList<DrawCurve *> &curves);
     void clearParams();
     void setEraseMode(bool on);
-    const QList<DrawCurve *> &editedCurves() const;
+    [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
     void discardAction() override;
     void commitAction() override;
 
@@ -32,10 +32,9 @@ signals:
     void editCompleted(const QList<DrawCurve *> &curves);
 
 protected:
-    virtual double valueToSceneY(double value) const;
-    virtual double sceneYToValue(double y) const;
-    virtual void drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                               QWidget *widget);
+    [[nodiscard]] virtual double valueToSceneY(double value) const;
+    [[nodiscard]] virtual double sceneYToValue(double y) const;
+    virtual void drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -64,7 +63,7 @@ private:
     QList<DrawCurve *> m_drawCurvesOriginal;
     QList<DrawCurve *> m_drawCurvesEditedBak;
 
-    double valueToItemY(double value) const;
+    [[nodiscard]] double valueToItemY(double value) const;
     DrawCurve *curveAt(double tick);
 
     const int paddingTopBottom = 2;

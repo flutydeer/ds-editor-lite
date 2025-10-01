@@ -671,11 +671,10 @@ namespace Audio {
             }
 
             // start exporting
-            connect(
-                &exporter, &talcs::DspxProjectAudioExporter::progressChanged, this,
-                [sourceIndexMap, this](const double progressRatio, talcs::DspxTrackContext *track) {
-                    emit progressChanged(progressRatio, sourceIndexMap.value(track));
-                });
+            connect(&exporter, &talcs::DspxProjectAudioExporter::progressChanged, this,
+                    [sourceIndexMap, this](const double progressRatio, talcs::DspxTrackContext *track) {
+                        emit progressChanged(progressRatio, sourceIndexMap.value(track));
+                    });
             connect(&exporter, &talcs::DspxProjectAudioExporter::clippingDetected, this,
                     [sourceIndexMap, this](talcs::DspxTrackContext *track) {
                         emit clippingDetected(sourceIndexMap.value(track));

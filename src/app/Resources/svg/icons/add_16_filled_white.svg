@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg id="_加号" data-name="加号" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-    <defs>
-        <style>
-            .cls-1 {
-            fill: none;
-            stroke: #f0f0f0;
-            stroke-linecap: round;
-            stroke-miterlimit: 10;
-            stroke-width: 1.5px;
-            }
-        </style>
-    </defs>
-    <line class="cls-1" x1="2.92" y1="8.01" x2="13.09" y2="8.01"/>
-    <line class="cls-1" x1="8.01" y1="13.09" x2="8.01" y2="2.92"/>
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #f0f0f0;
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+        stroke-width: 1.5px;
+      }
+    </style>
+  </defs>
+  <line class="cls-1" x1="2.92" y1="8.01" x2="13.09" y2="8.01"/>
+  <line class="cls-1" x1="8.01" y1="13.09" x2="8.01" y2="2.92"/>
 </svg>

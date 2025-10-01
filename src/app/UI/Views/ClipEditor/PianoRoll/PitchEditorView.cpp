@@ -7,7 +7,8 @@
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "Utils/MathUtils.h"
 
-PitchEditorView::PitchEditorView() : CommonParamEditorView(m_properties) {
+PitchEditorView::PitchEditorView()
+    : CommonParamEditorView(m_properties) {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
 }
 

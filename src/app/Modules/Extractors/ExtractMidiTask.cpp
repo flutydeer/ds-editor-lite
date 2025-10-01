@@ -30,9 +30,9 @@ ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
     auto somePath = appOptions->general()->somePath;
     const std::filesystem::path modelPath = somePath
 #ifdef _WIN32
-                                                .toStdWString();
+        .toStdWString();
 #else
-                                                .toStdString();
+        .toStdString();
 #endif
 
     if (modelPath.empty() || !exists(modelPath) || is_directory(modelPath)) {
@@ -72,12 +72,11 @@ void ExtractMidiTask::runTask() {
     const std::filesystem::path wavPath = m_input.audioPath.toStdString();
 #endif
 
-    const bool runSuccess =
-        m_some->get_midi(wavPath, midis, appModel->tempo(), msg, [this](const int progress) {
-            auto progressStatus = status();
-            progressStatus.progress = progress;
-            setStatus(progressStatus);
-        });
+    const bool runSuccess = m_some->get_midi(wavPath, midis, appModel->tempo(), msg, [this](const int progress) {
+        auto progressStatus = status();
+        progressStatus.progress = progress;
+        setStatus(progressStatus);
+    });
 
     if (runSuccess) {
         m_errorCode = ErrorCode::Success;

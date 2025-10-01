@@ -11,21 +11,21 @@
 
 class AudioClipView final : public AbstractClipView {
 public:
-    ClipType clipType() const override {
+    [[nodiscard]] ClipType clipType() const override {
         return Audio;
     }
 
     explicit AudioClipView(int itemId, QGraphicsItem *parent = nullptr);
     ~AudioClipView() override = default;
 
-    QString path() const;
+    [[nodiscard]] QString path() const;
     void setPath(const QString &path);
-    double tempo() const;
+    [[nodiscard]] double tempo() const;
     void setTempo(double tempo);
     void setAudioInfo(const AudioInfoModel &info);
     void setStatus(AppGlobal::AudioLoadStatus status);
     void setErrorMessage(const QString &errorMessage);
-    int contentLength() const override;
+    [[nodiscard]] int contentLength() const override;
 
 public slots:
     void onTempoChange(double tempo);
@@ -34,8 +34,8 @@ private:
     enum RenderResolution { High, Low };
 
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) override;
-    QString clipTypeName() const override;
-    QString iconPath() const override;
+    [[nodiscard]] QString clipTypeName() const override;
+    [[nodiscard]] QString iconPath() const override;
 
     AppGlobal::AudioLoadStatus m_status = AppGlobal::Init;
     AudioInfoModel m_audioInfo;

@@ -30,8 +30,7 @@ auto createParamInfo(const std::string_view tag) -> Co::InputParameterInfo {
     return Co::InputParameterInfo{};
 }
 
-auto convertInputWords(const QList<InferWord> &words, const std::string &speakerName,
-                       const std::map<std::string, std::string> &speakerMapping)
+auto convertInputWords(const QList<InferWord> &words, const std::string &speakerName, const std::map<std::string, std::string> &speakerMapping)
     -> std::vector<Co::InputWordInfo> {
 
     std::vector<Co::InputWordInfo> inputWords;
@@ -41,22 +40,22 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
         std::vector<Co::InputNoteInfo> inputNotes;
         inputNotes.reserve(word.notes.size());
         for (const auto &note : std::as_const(word.notes)) {
-            inputNotes.emplace_back(
-                Co::InputNoteInfo{/* key */ note.key,
-                                  /* cents */ note.cents,
-                                  /* duration */ note.duration,
-                                  /* glide */ note.glide == "up" ? Co::GlideType::GT_Up
-                                  : note.glide == "down"         ? Co::GlideType::GT_Down
-                                                                 : Co::GlideType::GT_None,
-                                  /* is_rest */ note.is_rest});
+            inputNotes.emplace_back(Co::InputNoteInfo{
+                /* key */ note.key,
+                /* cents */ note.cents,
+                /* duration */ note.duration,
+                /* glide */ note.glide == "up" ? Co::GlideType::GT_Up
+                : note.glide == "down"         ? Co::GlideType::GT_Down
+                                               : Co::GlideType::GT_None,
+                /* is_rest */ note.is_rest
+            });
         }
 
         std::vector<Co::InputPhonemeInfo> inputPhones;
         inputPhones.reserve(word.phones.size());
         for (const auto &phone : std::as_const(word.phones)) {
             std::string speakerIdForModel;
-            if (const auto it_spk = speakerMapping.find(speakerName);
-                it_spk != speakerMapping.end()) {
+            if (const auto it_spk = speakerMapping.find(speakerName); it_spk != speakerMapping.end()) {
                 speakerIdForModel = it_spk->second;
                 qDebug() << "mapped speaker" << speakerName << "to" << speakerIdForModel;
             } else if (!speakerMapping.empty()) {
@@ -68,9 +67,15 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
                 /* tone */ 0,
                 /* start */ phone.start,
                 /* speakers */
-                std::vector{Co::InputPhonemeInfo::Speaker{std::move(speakerIdForModel), 1}}});
+                std::vector{
+                    Co::InputPhonemeInfo::Speaker{std::move(speakerIdForModel), 1}
+                }
+            });
         }
-        inputWords.emplace_back(Co::InputWordInfo{std::move(inputPhones), std::move(inputNotes)});
+        inputWords.emplace_back(Co::InputWordInfo{
+            std::move(inputPhones),
+            std::move(inputNotes)
+        });
     }
 
     return inputWords;

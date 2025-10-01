@@ -1,6 +1,8 @@
 #ifndef IG2pSetFactory_H
 #define IG2pSetFactory_H
 
+#include <QObject>
+#include <QWidget>
 #include <QJsonObject>
 
 #include <language-manager/LangCommon.h>
@@ -24,15 +26,15 @@ namespace LangSetting {
         void langConfigChanged(const QJsonObject &json);
 
     public:
-        QString id() const;
+        [[nodiscard]] QString id() const;
 
-        QString displayName() const;
+        [[nodiscard]] QString displayName() const;
         void setDisplayName(const QString &displayName);
 
-        QString author() const;
+        [[nodiscard]] QString author() const;
         void setAuthor(const QString &author);
 
-        QString description() const;
+        [[nodiscard]] QString description() const;
         void setDescription(const QString &description);
 
     Q_SIGNALS:

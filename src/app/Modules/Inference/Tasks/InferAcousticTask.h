@@ -38,9 +38,9 @@ public:
         bool operator==(const InferAcousticInput &other) const;
     };
 
-    int clipId() const override;
-    int pieceId() const override;
-    bool success() const override;
+    [[nodiscard]] int clipId() const override;
+    [[nodiscard]] int pieceId() const override;
+    [[nodiscard]] bool success() const override;
 
     explicit InferAcousticTask(InferAcousticInput input);
     InferAcousticInput input() const;

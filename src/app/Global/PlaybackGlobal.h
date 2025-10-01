@@ -13,4 +13,4 @@ namespace PlaybackGlobal {
     };
 }
 
-#endif // PLAYBACKGLOBAL_H
+#endif //PLAYBACKGLOBAL_H

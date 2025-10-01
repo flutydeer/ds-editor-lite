@@ -7,9 +7,9 @@
 
 #if false
 
-#  include <atomic>
+#include <atomic>
 
-#  include "Modules/Task/Task.h"
+#include "Modules/Task/Task.h"
 
 class LoadInferConfigTask : public Task {
     Q_OBJECT

@@ -69,10 +69,8 @@ int main(int argc, char *argv[]) {
                 "border-radius: 6px; color: #031546; padding: 4px 8px }"
                 "QMenu { padding: 4px; background-color: #F7FAFF; border: 1px solid #20000000; "
                 "border-radius: 6px; color: #031546; }"
-                "QMenu::item { background: transparent; color: #031546; padding: 5px 20px; "
-                "min-width: 96px }"
-                "QMenu::item:selected { background-color: #D5E8FF; border-style: none; "
-                "border-radius: 4px; color: #066FFF}");
+                "QMenu::item { background: transparent; color: #031546; padding: 5px 20px; min-width: 96px }"
+                "QMenu::item:selected { background-color: #D5E8FF; border-style: none; border-radius: 4px; color: #066FFF}");
     QMainWindow w;
     w.setCentralWidget(mainWidget);
     w.setStyleSheet(styleSheet);

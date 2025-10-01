@@ -101,14 +101,14 @@ public:
 
     void updatePitch(Param::Type paramType, const Param &param) const;
 
-    double keyIndexToSceneY(double index) const;
-    double sceneYToKeyIndexDouble(double y) const;
-    int sceneYToKeyIndexInt(double y) const;
-    QList<NoteView *> selectedNoteItems() const;
+    [[nodiscard]] double keyIndexToSceneY(double index) const;
+    [[nodiscard]] double sceneYToKeyIndexDouble(double y) const;
+    [[nodiscard]] int sceneYToKeyIndexInt(double y) const;
+    [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     void setPitchEditMode(bool on, bool isErase);
-    NoteView *noteViewAt(const QPoint &pos);
-    PronunciationView *pronViewAt(const QPoint &pos);
-    NoteView *findNoteViewById(int id) const;
+    [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
+    [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
+    [[nodiscard]] NoteView *findNoteViewById(int id) const;
 
     void handleNoteInserted(Note *note);
     void handleNoteRemoved(Note *note);

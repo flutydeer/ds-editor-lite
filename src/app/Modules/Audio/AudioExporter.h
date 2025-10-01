@@ -39,15 +39,14 @@ namespace Audio {
             FT_OggVorbis,
             FT_Mp3,
         };
-
         FileType fileType() const;
         void setFileType(FileType);
 
         bool formatMono() const;
         void setFormatMono(bool);
 
-        static QStringList formatOptionsOfType(FileType type);
-        static QString extensionOfType(FileType type);
+        [[nodiscard]] static QStringList formatOptionsOfType(FileType type);
+        [[nodiscard]] static QString extensionOfType(FileType type);
 
         int formatOption() const;
         void setFormatOption(int);
@@ -63,7 +62,6 @@ namespace Audio {
             MO_Separated,
             MO_SeparatedThruMaster,
         };
-
         MixingOption mixingOption() const;
         void setMixingOption(MixingOption);
 
@@ -75,7 +73,6 @@ namespace Audio {
             SO_Selected,
             SO_Custom,
         };
-
         SourceOption sourceOption() const;
         void setSourceOption(SourceOption);
 
@@ -86,12 +83,11 @@ namespace Audio {
             TR_All,
             TR_LoopSection,
         };
-
         TimeRange timeRange() const;
         void setTimeRange(TimeRange);
 
         QVariantMap toVariantMap() const;
-        static AudioExporterConfig fromVariantMap(const QVariantMap &map);
+        [[nodiscard]] static AudioExporterConfig fromVariantMap(const QVariantMap &map);
 
         bool operator==(const AudioExporterConfig &other) const;
 
@@ -101,7 +97,6 @@ namespace Audio {
 
     class AudioExporterListener {
     public:
-        virtual ~AudioExporterListener() = default;
         virtual bool willStartCallback(AudioExporter *exporter) = 0;
         virtual void willFinishCallback(AudioExporter *exporter) = 0;
     };
@@ -110,16 +105,16 @@ namespace Audio {
         Q_OBJECT
         Q_DECLARE_PRIVATE(AudioExporter)
         friend class Internal::AudioExportDialog;
-
     public:
+
         explicit AudioExporter(Core::IProjectWindow *window, QObject *parent = nullptr);
         ~AudioExporter() override;
 
         Core::IProjectWindow *windowHandle() const;
 
-        static QStringList presets();
-        static QList<QPair<QString, AudioExporterConfig>> predefinedPresets();
-        static AudioExporterConfig preset(const QString &name);
+        [[nodiscard]] static QStringList presets();
+        [[nodiscard]] static QList<QPair<QString, AudioExporterConfig>> predefinedPresets();
+        [[nodiscard]] static AudioExporterConfig preset(const QString &name);
         static void addPreset(const QString &name, const AudioExporterConfig &config);
         static bool removePreset(const QString &name);
 
@@ -137,7 +132,7 @@ namespace Audio {
         };
         Q_DECLARE_FLAGS(Warning, WarningFlag)
         Warning warning() const;
-        [[nodiscard]] static QStringList warningText(Warning warning);
+        [[nodiscard]]static QStringList warningText(Warning warning);
 
         QStringList dryRun() const;
 
@@ -146,7 +141,6 @@ namespace Audio {
             R_Fail,
             R_Abort,
         };
-
         Result exec();
         void cleanUp();
 

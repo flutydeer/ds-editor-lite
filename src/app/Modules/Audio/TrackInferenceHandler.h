@@ -35,7 +35,7 @@ private:
     void handleSingingClipRemoved(SingingClip *clip);
 
     void handleSingingClipPropertyChanged(SingingClip *clip) const;
-    void handlePieceChanged(SingingClip *clip, const QList<InferPiece *> &pieces);
+    void handlePieceChanged(SingingClip *clip, const QList <InferPiece *> &pieces);
 
     void handlePieceInserted(SingingClip *clip, InferPiece *inferPiece);
     void handlePieceRemoved(SingingClip *clip, InferPiece *inferPiece);
@@ -48,4 +48,4 @@ private:
 
 
 
-#endif // TRACKINFERENCEHANDLER_H
+#endif //TRACKINFERENCEHANDLER_H

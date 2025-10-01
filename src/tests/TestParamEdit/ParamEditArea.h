@@ -26,7 +26,7 @@ public:
     bool remove(int tick);
     bool merge(const HandDrawCurve &curve);
     void clear();
-    std::tuple<qsizetype, qsizetype> interval() const override;
+    [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
 
 protected:
     int m_start = 0;

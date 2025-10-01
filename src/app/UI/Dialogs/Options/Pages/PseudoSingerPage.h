@@ -21,4 +21,4 @@ private:
 
 
 
-#endif // PSEUDOSINGERPAGE_H
+#endif //PSEUDOSINGERPAGE_H

@@ -16,11 +16,10 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TimelineView");
 
-    connect(this, &TimelineView::setLastPositionTriggered, playbackController,
-            [=](const double tick) {
-                playbackController->setLastPosition(tick);
-                playbackController->setPosition(tick);
-            });
+    connect(this, &TimelineView::setLastPositionTriggered, playbackController, [=](double tick) {
+        playbackController->setLastPosition(tick);
+        playbackController->setPosition(tick);
+    });
     connect(playbackController, &PlaybackController::positionChanged, this,
             &TimelineView::setPosition);
     connect(appModel, &AppModel::modelChanged, this, [this] {
@@ -31,23 +30,23 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     connect(appStatus, &AppStatus::quantizeChanged, this, &TimelineView::setQuantize);
 }
 
-void TimelineView::setTimeRange(const double startTick, const double endTick) {
+void TimelineView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
     update();
 }
 
-void TimelineView::setTimeSignature(const int numerator, const int denominator) {
+void TimelineView::setTimeSignature(int numerator, int denominator) {
     ITimelinePainter::setTimeSignature(numerator, denominator);
     update();
 }
 
-void TimelineView::setPosition(const double tick) {
+void TimelineView::setPosition(double tick) {
     m_position = tick;
     update();
 }
 
-void TimelineView::setQuantize(const int quantize) {
+void TimelineView::setQuantize(int quantize) {
     ITimelinePainter::setQuantize(quantize);
     update();
 }
@@ -90,8 +89,8 @@ void TimelineView::paintEvent(QPaintEvent *event) {
         drawPieces(&painter);
 
     // Draw playback indicator
-    constexpr auto penWidth = 2.0;
-    constexpr auto color = QColor(200, 200, 200);
+    auto penWidth = 2.0;
+    auto color = QColor(200, 200, 200);
     QPen pen;
     pen.setWidthF(penWidth);
     pen.setColor(color);
@@ -99,23 +98,23 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     painter.setPen(pen);
     painter.setBrush(color);
 
-    const auto centerX = tickToX(m_position);
-    constexpr double w = 12;
-    constexpr double h = 1.73205 * w / 2;
-    const auto marginTop = rect().height() - h - penWidth;
-    const auto p1 = QPointF(centerX - w / 2, marginTop);
-    const auto p2 = QPointF(centerX + w / 2, marginTop);
-    const auto p3 = QPointF(centerX, marginTop + h);
-    const QPointF points[3]{p1, p2, p3};
+    auto centerX = tickToX(m_position);
+    double w = 12;
+    double h = 1.73205 * w / 2;
+    auto marginTop = rect().height() - h - penWidth;
+    auto p1 = QPointF(centerX - w / 2, marginTop);
+    auto p2 = QPointF(centerX + w / 2, marginTop);
+    auto p3 = QPointF(centerX, marginTop + h);
+    QPointF points[3]{p1, p2, p3};
     painter.drawPolygon(points, 3);
 }
 
-void TimelineView::drawBar(QPainter *painter, const int tick, const int bar) {
+void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
-    const auto x = tickToX(tick); // tick to itemX
+    auto x = tickToX(tick); // tick to itemX
     pen.setColor(QColor(200, 200, 200));
     painter->setPen(pen);
-    const auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
+    auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
 
     if (!m_textCache.contains("Bar") || !m_textCache["Bar"].contains(text) ||
         m_textCache["Bar"][text].isNull())
@@ -126,14 +125,14 @@ void TimelineView::drawBar(QPainter *painter, const int tick, const int bar) {
     // painter->drawText(QPointF(x + m_textPaddingLeft, 10), text);
     pen.setColor(QColor(92, 96, 100));
     painter->setPen(pen);
-    const auto y1 = rect().height() - 24;
-    const auto y2 = rect().height();
+    auto y1 = rect().height() - 24;
+    auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
 
-void TimelineView::drawBeat(QPainter *painter, const int tick, int bar, const int beat) {
+void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
-    const auto x = tickToX(tick);
+    auto x = tickToX(tick);
     pen.setColor(QColor(160, 160, 160));
     painter->setPen(pen);
     // 在负坐标获取的 int bar 错误，暂不绘制文本
@@ -151,18 +150,18 @@ void TimelineView::drawBeat(QPainter *painter, const int tick, int bar, const in
 
     pen.setColor(QColor(72, 75, 78));
     painter->setPen(pen);
-    const auto y1 = rect().height() - 16;
-    const auto y2 = rect().height();
+    auto y1 = rect().height() - 16;
+    auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
 
-void TimelineView::drawEighth(QPainter *painter, const int tick) {
+void TimelineView::drawEighth(QPainter *painter, int tick) {
     QPen pen;
-    const auto x = tickToX(tick);
+    auto x = tickToX(tick);
     pen.setColor(QColor(57, 59, 61));
     painter->setPen(pen);
-    const auto y1 = rect().height() - 8;
-    const auto y2 = rect().height();
+    auto y1 = rect().height() - 8;
+    auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
 }
 
@@ -195,8 +194,8 @@ void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
 }
 
 void TimelineView::drawPieces(QPainter *painter) const {
-    constexpr auto penWidth = 2;
-    const auto y = rect().height() - penWidth / 2;
+    auto penWidth = 2;
+    auto y = rect().height() - penWidth / 2;
     QPen pen;
     pen.setWidthF(penWidth);
     pen.setCapStyle(Qt::RoundCap);
@@ -204,20 +203,20 @@ void TimelineView::drawPieces(QPainter *painter) const {
     for (const auto &piece : m_clip->pieces()) {
         pen.setColor(m_piecesColors[piece->acousticInferStatus]);
         painter->setPen(pen);
-        const auto x1 = tickToX(piece->localStartTick() + m_clip->start());
-        const auto x2 = tickToX(piece->localEndTick() + m_clip->start());
+        auto x1 = tickToX(piece->localStartTick() + m_clip->start());
+        auto x2 = tickToX(piece->localEndTick() + m_clip->start());
         painter->drawLine(x1, y, x2, y);
         // painter->drawText(QPointF(x1, y), "#" + QString::number(piece->id()));
     }
 }
 
-double TimelineView::tickToX(const double tick) const {
-    const auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
-    const auto x = rect().width() * ratio;
+double TimelineView::tickToX(double tick) const {
+    auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
+    auto x = rect().width() * ratio;
     return x;
 }
 
-double TimelineView::xToTick(const double x) const {
+double TimelineView::xToTick(double x) const {
     auto tick = 1.0 * x / rect().width() * (m_endTick - m_startTick) + m_startTick;
     if (tick < 0)
         tick = 0;

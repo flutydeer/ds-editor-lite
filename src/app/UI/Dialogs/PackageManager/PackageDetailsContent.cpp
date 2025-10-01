@@ -9,7 +9,7 @@
 
 #include <QVBoxLayout>
 
-PackageDetailsContent::PackageDetailsContent(QWidget *parent) : QWidget(parent) {
+PackageDetailsContent::PackageDetailsContent(QWidget *parent)  : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
 
     descriptionCard = new DescriptionCard;

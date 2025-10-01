@@ -9,6 +9,7 @@
 #include "Model/AppModel/TrackControl.h"
 #include "Modules/History/IAction.h"
 
+
 class EditMasterControlAction : public IAction {
 public:
     explicit EditMasterControlAction(const TrackControl &control, AppModel *model);
@@ -23,4 +24,4 @@ private:
 
 
 
-#endif // EDITMASTERCONTROLACTION_H
+#endif //EDITMASTERCONTROLACTION_H

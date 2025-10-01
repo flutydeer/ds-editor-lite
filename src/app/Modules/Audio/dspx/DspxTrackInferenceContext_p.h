@@ -30,4 +30,4 @@ namespace talcs {
     };
 }
 
-#endif // TALCS_DSPXTRACKINFERENCECONTEXT_P_H
+#endif //TALCS_DSPXTRACKINFERENCECONTEXT_P_H

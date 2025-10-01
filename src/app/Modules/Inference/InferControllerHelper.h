@@ -28,10 +28,8 @@ using AcousticInput = InferAcousticTask::InferAcousticInput;
 namespace InferControllerHelper {
     QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes);
     PitchInput buildInferPitchInput(const InferPiece &piece, const SingerIdentifier &identifier);
-    VarianceInput buildInferVarianceInput(const InferPiece &piece,
-                                          const SingerIdentifier &identifier);
-    AcousticInput buildInderAcousticInput(const InferPiece &piece,
-                                          const SingerIdentifier &identifier);
+    VarianceInput buildInferVarianceInput(const InferPiece &piece, const SingerIdentifier &identifier);
+    AcousticInput buildInderAcousticInput(const InferPiece &piece, const SingerIdentifier &identifier);
 
     // 查找由于编辑某个参数导致需要重新推理依赖参数的分段
     QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(ParamInfo::Name name, SingingClip &clip);

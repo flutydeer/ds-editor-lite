@@ -17,7 +17,7 @@ class TracksGraphicsView final : public TimeGraphicsView {
 public:
     explicit TracksGraphicsView(TracksGraphicsScene *scene, const QWidget *parent = nullptr);
     void setQuantize(int quantize);
-    QList<int> selectedClipsId() const;
+    [[nodiscard]] QList<int> selectedClipsId() const;
 
 private slots:
     void onNewSingingClip() const;
@@ -37,7 +37,7 @@ private:
     AbstractClipView *findClipById(int id) const;
     void clearSelections() const;
     void resetActiveClips() const;
-    QList<AbstractClipView *> selectedClipItems() const;
+    [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
 
     TracksGraphicsScene *m_scene;
     CMenu *m_backgroundMenu = nullptr;

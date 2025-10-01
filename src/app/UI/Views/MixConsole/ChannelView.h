@@ -35,37 +35,37 @@ public:
 
     Track &context() const;
     void setIsMasterChannel(bool on);
-    TrackControl control() const override;
-    QString name() const override;
-    QColor color() const override;
+    [[nodiscard]] TrackControl control() const override;
+    [[nodiscard]] QString name() const override;
+    [[nodiscard]] QColor color() const override;
     void setColor(const QColor &color) override;
 
-    PanSlider *const &panSlider() const;
-    Fader *const &fader() const;
-    LevelMeter *const &levelMeter() const;
+    [[nodiscard]] PanSlider *const &panSlider() const;
+    [[nodiscard]] Fader *const &fader() const;
+    [[nodiscard]] LevelMeter *const &levelMeter() const;
 
 public slots:
     void setName(const QString &name) override;
-    void setChannelIndex(int index) const;
+    void setChannelIndex(int index);
     void setControl(const TrackControl &control) override;
 
 signals:
     void controlChanged(const TrackControl &control);
 
 private:
-    void onPanMoved(double pan) const;
+    void onPanMoved(double pan);
     void onPanReleased(double pan);
-    void onPanEdited(const QString &text) const;
+    void onPanEdited(const QString &text);
 
-    void onFaderMoved(double gain) const;
+    void onFaderMoved(double gain);
     void onFaderReleased(double gain);
-    void onGainEdited(const QString &text) const;
-    void onPeakChanged(double peak) const;
+    void onGainEdited(const QString &text);
+    void onPeakChanged(double peak);
 
     void initUi();
     static QString gainValueToString(double gain);
     static QString panValueToString(double pan);
-    static double panValueFromString(const QString &panStr);
+    double panValueFromString(const QString &panStr);
     QVBoxLayout *buildPanSliderLayout();
     QHBoxLayout *buildFaderLevelMeterLayout();
     QVBoxLayout *buildChannelContentLayout();

@@ -34,14 +34,14 @@ public:
     void setDataContext(SingingClip *clip);
     void setEditMode(PianoRollEditMode mode);
     void reset();
-    QList<int> selectedNotesId() const;
+    [[nodiscard]] QList<int> selectedNotesId() const;
     void clearNoteSelections(const NoteView *except = nullptr);
 
     void discardAction() override;
     void commitAction() override;
 
-    double topKeyIndex() const;
-    double bottomKeyIndex() const;
+    [[nodiscard]] double topKeyIndex() const;
+    [[nodiscard]] double bottomKeyIndex() const;
     void setViewportCenterAt(double tick, double keyIndex);
     void setViewportCenterAtKeyIndex(double keyIndex);
 
@@ -65,7 +65,7 @@ protected:
 private:
     int m_noteFontPixelSize = 13;
 
-    int noteFontPixelSize() const;
+    [[nodiscard]] int noteFontPixelSize() const;
     void setNoteFontPixelSize(int size);
     QColor whiteKeyColor() const;
     void setWhiteKeyColor(const QColor &color);

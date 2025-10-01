@@ -27,7 +27,7 @@ class TaskManager : public QObject, public Singleton<TaskManager> {
 public:
     explicit TaskManager(QObject *parent = nullptr);
     ~TaskManager() override;
-    const QList<ITask *> &tasks() const;
+    [[nodiscard]] const QList<ITask *> &tasks() const;
 
 signals:
     void allDone();

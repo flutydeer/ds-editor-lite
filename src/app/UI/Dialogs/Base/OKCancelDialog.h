@@ -15,8 +15,8 @@ class OKCancelDialog : public Dialog {
 public:
     explicit OKCancelDialog(QWidget *parent = nullptr);
 
-    AccentButton *okButton() const;
-    Button *cancelButton() const;
+    [[nodiscard]] AccentButton *okButton() const;
+    [[nodiscard]] Button *cancelButton() const;
 
 private:
     AccentButton *m_btnOk;

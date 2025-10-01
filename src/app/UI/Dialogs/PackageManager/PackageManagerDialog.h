@@ -75,4 +75,4 @@ private:
 };
 
 
-#endif // PACKAGEMANAGERDIALOG_H
+#endif //PACKAGEMANAGERDIALOG_H

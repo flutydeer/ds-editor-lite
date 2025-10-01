@@ -15,8 +15,7 @@
 LITE_INTERFACE ITrack : public UniqueObject {
     I_DECL(ITrack)
     ITrack() = default;
-    explicit ITrack(const int id) : UniqueObject(id) {
-    }
+    explicit ITrack(const int id) : UniqueObject(id){}
 
     I_NODSCD(QString name() const);
     I_METHOD(void setName(const QString &name));

@@ -13,7 +13,6 @@ namespace talcs {
         Q_OBJECT
         Q_DECLARE_PRIVATE(DspxInferencePieceContext)
         friend class DspxSingingClipInferenceContext;
-
     public:
         ~DspxInferencePieceContext() override;
 
@@ -33,11 +32,10 @@ namespace talcs {
         bool isDetermined() const;
 
     private:
-        explicit DspxInferencePieceContext(
-            DspxSingingClipInferenceContext *singingClipInferenceContext);
+        explicit DspxInferencePieceContext(DspxSingingClipInferenceContext *singingClipInferenceContext);
         QScopedPointer<DspxInferencePieceContextPrivate> d_ptr;
     };
 
 }
 
-#endif // TALCS_DSPXINFERENCEPIECECONTEXT_H
+#endif //TALCS_DSPXINFERENCEPIECECONTEXT_H

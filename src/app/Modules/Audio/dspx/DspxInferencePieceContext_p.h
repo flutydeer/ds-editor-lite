@@ -40,7 +40,8 @@ namespace talcs {
 
         int posTick = 0;
         int lengthTick = 0;
+
     };
 }
 
-#endif // TALCS_DSPXINFERENCEPIECECONTEXT_P_H
+#endif //TALCS_DSPXINFERENCEPIECECONTEXT_P_H

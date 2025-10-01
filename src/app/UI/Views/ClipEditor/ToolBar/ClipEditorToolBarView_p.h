@@ -5,6 +5,8 @@
 #ifndef CLIPEDITORTOOLBARVIEW_P_H
 #define CLIPEDITORTOOLBARVIEW_P_H
 
+#include "Global/AppGlobal.h"
+
 #include <QButtonGroup>
 #include <QObject>
 
@@ -28,9 +30,9 @@ public:
     void moveToSingingClipState() const;
     void moveToAudioClipState() const;
 
-    Button *buildToolButton(const QString &objName, const QString &tipTitle,
-                            const QKeySequence &shortcut = QKeySequence(),
-                            const QString &tipDesc = QString()) const;
+    [[nodiscard]] Button *buildToolButton(const QString &objName, const QString &tipTitle,
+                                          const QKeySequence &shortcut = QKeySequence(),
+                                          const QString &tipDesc = QString()) const;
     Button *buildCommonButton(const QString &objName, const QString &tipTitle,
                               const QKeySequence &shortcut = QKeySequence(),
                               const QString &tipDesc = QString()) const;

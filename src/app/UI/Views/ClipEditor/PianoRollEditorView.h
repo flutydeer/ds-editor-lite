@@ -16,8 +16,8 @@ class PianoRollEditorView : public QSplitter {
     Q_OBJECT
 public:
     explicit PianoRollEditorView(QWidget *parent = nullptr);
-    PianoRollView *pianoRollView() const;
-    ParamEditorView *paramEditorView() const;
+    [[nodiscard]] PianoRollView *pianoRollView() const;
+    [[nodiscard]] ParamEditorView *paramEditorView() const;
     void setDataContext(SingingClip *clip) const;
 
 private:

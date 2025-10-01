@@ -21,7 +21,7 @@ public:
     void registerPage(ITabPanelPage *page);
 
 private slots:
-    void onSelectionChanged(int index) const;
+    void onSelectionChanged(int index);
 
 private:
     TabPanelTitleBar *m_tabPanelTitleBar;
@@ -31,4 +31,4 @@ private:
 };
 
 
-#endif // TABPANELVIEW_H
+#endif //TABPANELVIEW_H

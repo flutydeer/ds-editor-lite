@@ -16,7 +16,7 @@ public:
     Param() = default;
     Param(const Param &) = default;
     ~Param();
-    const QList<Curve *> &curves(Type type) const;
+    [[nodiscard]] const QList<Curve *> &curves(Type type) const;
     void setCurves(Type type, const QList<Curve *> &curves, SingingClip *clip);
 
     Param &operator=(const Param &from) = default;

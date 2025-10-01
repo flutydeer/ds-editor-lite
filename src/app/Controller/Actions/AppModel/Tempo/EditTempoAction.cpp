@@ -6,8 +6,7 @@
 
 #include "Model/AppModel/AppModel.h"
 
-EditTempoAction *EditTempoAction::build(const double oldTempo, const double newTempo,
-                                        AppModel *model) {
+EditTempoAction *EditTempoAction::build(const double oldTempo, const double newTempo, AppModel *model) {
     const auto a = new EditTempoAction;
     a->m_oldTempo = oldTempo;
     a->m_newTempo = newTempo;

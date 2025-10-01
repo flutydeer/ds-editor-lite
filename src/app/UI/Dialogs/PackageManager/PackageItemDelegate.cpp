@@ -27,8 +27,8 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     const auto version = "v" + package.version().toString();
 
     // Calculate layout
-    QRectF contentRect =
-        option.rect.adjusted(m_paddingLeft, m_paddingTop, -m_paddingRight, -m_paddingBottom);
+    QRectF contentRect = option.rect.adjusted(m_paddingLeft, m_paddingTop, -m_paddingRight,
+                                              -m_paddingBottom);
     painter->setRenderHint(QPainter::Antialiasing);
     // painter->setPen(Qt::red);
     // painter->drawRect(contentRect);

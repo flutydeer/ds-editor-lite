@@ -1,5 +1,4 @@
 #include "UnknownG2pSet.h"
-#include <QWidget>
 
 namespace LangSetting {
     QWidget *UnknownG2pSet::g2pConfigWidget(const QJsonObject &config) {

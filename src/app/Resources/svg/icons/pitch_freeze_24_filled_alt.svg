@@ -1,53 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg id="_冻结音高" data-name="冻结音高" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-    <defs>
-        <style>
-            .cls-1 {
-            stroke-width: 2px;
-            }
+  <defs>
+    <style>
+      .cls-1 {
+        stroke-width: 2px;
+      }
 
-            .cls-1, .cls-2 {
-            fill: none;
-            stroke: #000;
-            stroke-linecap: round;
-            stroke-miterlimit: 10;
-            }
+      .cls-1, .cls-2 {
+        fill: none;
+        stroke: #000;
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+      }
 
-            .cls-2 {
-            stroke-width: .98px;
-            }
-        </style>
-    </defs>
-    <path class="cls-1"
-          d="M3.02,20.98s.31-5.85,2.27-6.1c1.63-.21,2.26,2.19,3.91,2.14s6.85-.11,8.51-.02c1.32,.07,3.2,1.51,3.2,1.51"/>
-    <g>
-        <line class="cls-2" x1="15.63" y1="14.89" x2="15.63" y2="8.9"/>
-        <line class="cls-2" x1="17.89" y1="14.46" x2="15.63" y2="12.19"/>
-        <line class="cls-2" x1="13.37" y1="14.46" x2="15.63" y2="12.19"/>
-    </g>
-    <g>
-        <line class="cls-2" x1="10.22" y1="11.76" x2="15.41" y2="8.77"/>
-        <line class="cls-2" x1="11.73" y1="13.51" x2="12.55" y2="10.42"/>
-        <line class="cls-2" x1="9.46" y1="9.59" x2="12.55" y2="10.42"/>
-    </g>
-    <g>
-        <line class="cls-2" x1="10.22" y1="5.52" x2="15.41" y2="8.52"/>
-        <line class="cls-2" x1="9.46" y1="7.69" x2="12.55" y2="6.87"/>
-        <line class="cls-2" x1="11.73" y1="3.78" x2="12.55" y2="6.87"/>
-    </g>
-    <g>
-        <line class="cls-2" x1="15.63" y1="2.39" x2="15.63" y2="8.39"/>
-        <line class="cls-2" x1="13.37" y1="2.83" x2="15.63" y2="5.09"/>
-        <line class="cls-2" x1="17.89" y1="2.83" x2="15.63" y2="5.09"/>
-    </g>
-    <g>
-        <line class="cls-2" x1="21.04" y1="5.52" x2="15.85" y2="8.51"/>
-        <line class="cls-2" x1="19.53" y1="3.78" x2="18.71" y2="6.87"/>
-        <line class="cls-2" x1="21.79" y1="7.69" x2="18.71" y2="6.87"/>
-    </g>
-    <g>
-        <line class="cls-2" x1="21.04" y1="11.76" x2="15.85" y2="8.77"/>
-        <line class="cls-2" x1="21.79" y1="9.59" x2="18.71" y2="10.42"/>
-        <line class="cls-2" x1="19.53" y1="13.51" x2="18.71" y2="10.42"/>
-    </g>
+      .cls-2 {
+        stroke-width: .98px;
+      }
+    </style>
+  </defs>
+  <path class="cls-1" d="M3.02,20.98s.31-5.85,2.27-6.1c1.63-.21,2.26,2.19,3.91,2.14s6.85-.11,8.51-.02c1.32,.07,3.2,1.51,3.2,1.51"/>
+  <g>
+    <line class="cls-2" x1="15.63" y1="14.89" x2="15.63" y2="8.9"/>
+    <line class="cls-2" x1="17.89" y1="14.46" x2="15.63" y2="12.19"/>
+    <line class="cls-2" x1="13.37" y1="14.46" x2="15.63" y2="12.19"/>
+  </g>
+  <g>
+    <line class="cls-2" x1="10.22" y1="11.76" x2="15.41" y2="8.77"/>
+    <line class="cls-2" x1="11.73" y1="13.51" x2="12.55" y2="10.42"/>
+    <line class="cls-2" x1="9.46" y1="9.59" x2="12.55" y2="10.42"/>
+  </g>
+  <g>
+    <line class="cls-2" x1="10.22" y1="5.52" x2="15.41" y2="8.52"/>
+    <line class="cls-2" x1="9.46" y1="7.69" x2="12.55" y2="6.87"/>
+    <line class="cls-2" x1="11.73" y1="3.78" x2="12.55" y2="6.87"/>
+  </g>
+  <g>
+    <line class="cls-2" x1="15.63" y1="2.39" x2="15.63" y2="8.39"/>
+    <line class="cls-2" x1="13.37" y1="2.83" x2="15.63" y2="5.09"/>
+    <line class="cls-2" x1="17.89" y1="2.83" x2="15.63" y2="5.09"/>
+  </g>
+  <g>
+    <line class="cls-2" x1="21.04" y1="5.52" x2="15.85" y2="8.51"/>
+    <line class="cls-2" x1="19.53" y1="3.78" x2="18.71" y2="6.87"/>
+    <line class="cls-2" x1="21.79" y1="7.69" x2="18.71" y2="6.87"/>
+  </g>
+  <g>
+    <line class="cls-2" x1="21.04" y1="11.76" x2="15.85" y2="8.77"/>
+    <line class="cls-2" x1="21.79" y1="9.59" x2="18.71" y2="10.42"/>
+    <line class="cls-2" x1="19.53" y1="13.51" x2="18.71" y2="10.42"/>
+  </g>
 </svg>

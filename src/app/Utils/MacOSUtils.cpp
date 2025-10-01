@@ -4,12 +4,10 @@
 #  include <CoreFoundation/CoreFoundation.h>
 
 namespace MacOSUtils {
-    template <typename T>
+    template<typename T>
     class UniqueCFRef {
     public:
-        explicit UniqueCFRef(T ref) : ref_(ref) {
-        }
-
+        explicit UniqueCFRef(T ref) : ref_(ref) {}
         ~UniqueCFRef() {
             if (ref_) {
                 CFRelease(ref_);
@@ -30,8 +28,8 @@ namespace MacOSUtils {
             return ref_ != nullptr;
         }
 
-        UniqueCFRef(const UniqueCFRef &) = delete;
-        UniqueCFRef &operator=(const UniqueCFRef &) = delete;
+        UniqueCFRef(const UniqueCFRef&) = delete;
+        UniqueCFRef& operator=(const UniqueCFRef&) = delete;
 
     private:
         T ref_;

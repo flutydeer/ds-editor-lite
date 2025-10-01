@@ -16,6 +16,7 @@
 class ParamUtils final : public QObject {
     Q_OBJECT
 
+private:
     explicit ParamUtils(QObject *parent = nullptr);
     ~ParamUtils() override;
 
@@ -23,17 +24,23 @@ public:
     LITE_SINGLETON_DECLARE_INSTANCE(ParamUtils)
     Q_DISABLE_COPY_MOVE(ParamUtils)
 
-    const QStringList &names() const;
-    QString nameFromType(ParamInfo::Name name) const;
-    const ParamProperties *getPropertiesByName(ParamInfo::Name name) const;
+public:
+    [[nodiscard]] const QStringList &names() const;
+    [[nodiscard]] QString nameFromType(ParamInfo::Name name) const;
+    [[nodiscard]] const ParamProperties *getPropertiesByName(ParamInfo::Name name) const;
 
 private:
     // Names and keys
     const QStringList m_names = {
-        tr("Pitch"),   tr("Expressiveness"), tr("Energy"), tr("Breathiness"), tr("Voicing"),
-        tr("Tension"), tr("Mouth Opening"),  tr("Gender"), tr("Velocity"),    tr("Tone Shift")};
-    const QStringList m_keys = {"pitch",   "expressiveness", "energy", "breathiness", "voicing",
-                                "tension", "mouth_opening",  "gender", "velocity",    "tone_shift"};
+        tr("Pitch"), tr("Expressiveness"), tr("Energy"), tr("Breathiness"),
+        tr("Voicing"), tr("Tension"), tr("Mouth Opening"),
+        tr("Gender"), tr("Velocity"), tr("Tone Shift")
+    };
+    const QStringList m_keys = {
+        "pitch", "expressiveness", "energy", "breathiness",
+        "voicing", "tension", "mouth_opening",
+        "gender", "velocity", "tone_shift"
+    };
 
     // Properties
     const ParamProperties defaultProperties;

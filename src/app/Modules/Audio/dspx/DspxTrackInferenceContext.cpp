@@ -19,8 +19,7 @@ namespace talcs {
         }
     };
 
-    DspxTrackInferenceContext::DspxTrackInferenceContext(QObject *parent)
-        : QObject(parent), d_ptr(new DspxTrackInferenceContextPrivate) {
+    DspxTrackInferenceContext::DspxTrackInferenceContext(QObject *parent) : QObject(parent), d_ptr(new DspxTrackInferenceContextPrivate) {
         Q_D(DspxTrackInferenceContext);
         d->q_ptr = this;
         d->clipSeries = std::make_unique<DspxTrackInferenceContextAudioSourceClipSeries>();

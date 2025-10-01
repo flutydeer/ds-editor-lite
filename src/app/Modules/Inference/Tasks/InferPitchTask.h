@@ -28,9 +28,9 @@ public:
         bool operator==(const InferPitchInput &other) const;
     };
 
-    int clipId() const override;
-    int pieceId() const override;
-    bool success() const override;
+    [[nodiscard]] int clipId() const override;
+    [[nodiscard]] int pieceId() const override;
+    [[nodiscard]] bool success() const override;
 
     explicit InferPitchTask(InferPitchInput input);
     InferPitchInput input() const;
@@ -55,4 +55,4 @@ private:
 
 
 
-#endif // INFERPITCHTASK_H
+#endif //INFERPITCHTASK_H

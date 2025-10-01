@@ -40,7 +40,9 @@ namespace AudioUtil
             const size_t end = (std::min)(samples.size(), i * hop_length - frame_length / 2 + frame_length);
 
             const double sum = std::accumulate(samples.begin() + start, samples.begin() + end, 0.0,
-                                               [](const double acc, const float value) { return acc + value * value; });
+                                               [](const double acc, const float value) {
+                                                   return acc + value * value;
+                                               });
             output.push_back(std::sqrt(sum / frame_length));
         }
 
@@ -89,7 +91,7 @@ namespace AudioUtil
 
             const double sum = simd_sum(samples, start, end);
 
-            output.push_back(std::sqrt(sum / frame_length)); // Calculate RMS for the frame
+            output.push_back(std::sqrt(sum / frame_length));  // Calculate RMS for the frame
         }
 
         return output;
@@ -168,8 +170,7 @@ namespace AudioUtil
         }
 
         if (silence_start >= 0 && rms_list.size() - silence_start >= min_interval) {
-            const int64_t silence_end =
-                (std::min)(static_cast<int64_t>(rms_list.size() - 1), silence_start + max_sil_kept);
+            const int64_t silence_end = (std::min)(static_cast<int64_t>(rms_list.size() - 1), silence_start + max_sil_kept);
             int64_t pos = argmin(rms_list.begin() + silence_start, rms_list.begin() + silence_end + 1);
             pos += silence_start;
             sil_tags.emplace_back(pos, rms_list.size() + 1);

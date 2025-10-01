@@ -14,8 +14,8 @@ public:
     void editTempo(double oldTempo, double newTempo, AppModel *model);
 
 private:
-    static double tickToMs(int tick, double tempo);
-    static int msToTick(double ms, double tempo);
+    [[nodiscard]] static double tickToMs(int tick, double tempo);
+    [[nodiscard]] static int msToTick(double ms, double tempo);
 };
 
 

@@ -11,13 +11,19 @@
 
 namespace Some
 {
-    Some::Some(const srt::SynthUnit *su) : m_some(su) {}
+    Some::Some(const srt::SynthUnit *su) :
+        m_some(su) {
+    }
 
     Some::~Some() = default;
 
-    srt::Expected<void> Some::open(const std::filesystem::path &modelPath) { return m_some.open(modelPath); }
+    srt::Expected<void> Some::open(const std::filesystem::path &modelPath) {
+        return m_some.open(modelPath);
+    }
 
-    bool Some::is_open() const { return m_some.is_open(); }
+    bool Some::is_open() const {
+        return m_some.is_open();
+    }
 
     std::vector<double> cumulativeSum(const std::vector<float> &durations) {
         std::vector<double> cumsum(durations.size());
@@ -122,7 +128,7 @@ namespace Some
             };
 
             const auto start_tick = (std::max)(static_cast<int>(static_cast<double>(fst) / 44100.0 * tempo * 8),
-                                               !midis.empty() ? midis.back().start + midis.back().duration : 0);
+                                             !midis.empty() ? midis.back().start + midis.back().duration : 0);
 
             std::vector<Midi> temp_midis = build_midi_note(start_tick, temp_midi, temp_dur, temp_rest, tempo);
             midis.insert(midis.end(), temp_midis.begin(), temp_midis.end());
@@ -140,5 +146,7 @@ namespace Some
         return true;
     }
 
-    void Some::terminate() { m_some.terminate(); }
+    void Some::terminate() {
+        m_some.terminate();
+    }
 } // namespace Some

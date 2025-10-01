@@ -13,4 +13,4 @@ public:
     QStringList finalNames;
 };
 
-#endif // PHONEMENAMERESULT_H
+#endif //PHONEMENAMERESULT_H

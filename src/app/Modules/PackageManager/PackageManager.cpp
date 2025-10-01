@@ -211,9 +211,9 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
 
     auto expected = RefreshState::Idle;
     // Attempt to become the refreshing thread
-    if (!m_refreshState.compare_exchange_strong(expected, RefreshState::Refreshing,
-                                                std::memory_order_acq_rel,
-                                                std::memory_order_acquire)) {
+    if (!m_refreshState.compare_exchange_strong(
+            expected, RefreshState::Refreshing,
+            std::memory_order_acq_rel, std::memory_order_acquire)) {
 
         qDebug() << "Already refreshing, wait for another thread to complete";
         // Already refreshing: spin-wait for completion
@@ -237,8 +237,10 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
 
     auto processPackage = [&](const std::filesystem::path &packagePath) {
         if (auto exp = su.open(packagePath, true); !exp) {
-            result.failedPackages.emplace_back(StringUtils::path_to_qstr(packagePath),
-                                               srtErrorToString(exp.error()));
+            result.failedPackages.emplace_back(
+                StringUtils::path_to_qstr(packagePath),
+                srtErrorToString(exp.error())
+            );
         } else {
             const srt::ScopedPackageRef pkg(exp.take());
 
@@ -302,8 +304,10 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
 
     for (const auto &path : su.packagePaths()) {
         if (!fs::exists(path) || !fs::is_directory(path)) {
-            result.failedPackages.emplace_back(StringUtils::path_to_qstr(path),
-                                               tr("Path is not a valid directory"));
+            result.failedPackages.emplace_back(
+                StringUtils::path_to_qstr(path),
+                tr("Path is not a valid directory")
+            );
             continue;
         }
         processAllPackages(path);

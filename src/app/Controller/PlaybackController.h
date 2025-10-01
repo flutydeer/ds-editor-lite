@@ -28,12 +28,13 @@ public:
     LITE_SINGLETON_DECLARE_INSTANCE(PlaybackController)
     Q_DISABLE_COPY_MOVE(PlaybackController)
 
-    PlaybackStatus playbackStatus() const;
+public:
+    [[nodiscard]] PlaybackStatus playbackStatus() const;
 
-    double position() const;
-    double lastPosition() const;
+    [[nodiscard]] double position() const;
+    [[nodiscard]] double lastPosition() const;
 
-    double tempo() const;
+    [[nodiscard]] double tempo() const;
 
     // bool isPlaying() const;
     // long position() const;

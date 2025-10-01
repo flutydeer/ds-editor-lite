@@ -6,7 +6,7 @@
 
 #include "Global/AppGlobal.h"
 
-LanguageComboBox::LanguageComboBox(const QString &langKey, const bool scrollWheelChangeSelection,
+LanguageComboBox::LanguageComboBox(const QString &langKey, bool scrollWheelChangeSelection,
                                    QWidget *parent)
     : ComboBox(scrollWheelChangeSelection, parent) {
     addItems(AppGlobal::languageNames);

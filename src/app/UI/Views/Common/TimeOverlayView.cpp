@@ -10,14 +10,14 @@ bool TimeOverlayView::transparentMouseEvents() const {
     return m_transparentMouseEvents;
 }
 
-void TimeOverlayView::setTransparentMouseEvents(const bool on) {
+void TimeOverlayView::setTransparentMouseEvents(bool on) {
     m_transparentMouseEvents = on;
     setAcceptHoverEvents(!m_transparentMouseEvents);
     update();
 }
 
-void TimeOverlayView::setPixelsPerQuarterNote(const int p) {
-    pixelsPerQuarterNote = p;
+void TimeOverlayView::setPixelsPerQuarterNote(int p) {
+    pixelsPerQuarterNote =p;
 }
 
 void TimeOverlayView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
@@ -35,24 +35,24 @@ double TimeOverlayView::endTick() const {
     return sceneXToTick(visibleRect().right());
 }
 
-double TimeOverlayView::sceneXToTick(const double x) const {
-    const auto tick = 480 * x / scaleX() / pixelsPerQuarterNote;
+double TimeOverlayView::sceneXToTick(double x) const {
+    auto tick = 480 * x / scaleX() / pixelsPerQuarterNote;
     return tick;
 }
 
-double TimeOverlayView::tickToSceneX(const double tick) const {
-    const auto x = tick * scaleX() * pixelsPerQuarterNote / 480;
+double TimeOverlayView::tickToSceneX(double tick) const {
+    auto x = tick * scaleX() * pixelsPerQuarterNote / 480;
     return x;
 }
 
-double TimeOverlayView::sceneXToItemX(const double x) const {
+double TimeOverlayView::sceneXToItemX(double x) const {
     return mapFromScene(QPointF(x, 0)).x();
 }
 
-double TimeOverlayView::tickToItemX(const double tick) const {
+double TimeOverlayView::tickToItemX(double tick) const {
     return sceneXToItemX(tickToSceneX(tick));
 }
 
-double TimeOverlayView::sceneYToItemY(const double y) const {
+double TimeOverlayView::sceneYToItemY(double y) const {
     return mapFromScene(QPointF(0, y)).y();
 }

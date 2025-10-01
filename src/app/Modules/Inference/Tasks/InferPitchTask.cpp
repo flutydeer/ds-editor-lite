@@ -127,7 +127,7 @@ void InferPitchTask::runTask() {
 }
 
 bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &outPitch,
-                                  QString &error) {
+                             QString &error) {
     if (!inferEngine->initialized()) {
         qCritical().noquote() << "inferPitch: Environment is not initialized";
         return false;

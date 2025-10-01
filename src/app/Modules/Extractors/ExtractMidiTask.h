@@ -12,6 +12,7 @@ class ExtractMidiTask final : public ExtractTask {
     Q_OBJECT
 
 public:
+
     explicit ExtractMidiTask(Input input);
 
     void terminate() override;

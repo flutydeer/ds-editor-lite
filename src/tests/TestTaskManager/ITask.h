@@ -12,18 +12,14 @@ class ITask : public QObject, public QRunnable {
     Q_OBJECT
 public:
     enum RunningStatus { Normal, Warning, Error };
-
     explicit ITask(QObject *parent = nullptr) : QObject(parent) {
     }
-
     ~ITask() override {
         terminate();
     };
-
     void run() override {
         runTask();
     }
-
     void terminate() {
         m_abortFlag = true;
     }

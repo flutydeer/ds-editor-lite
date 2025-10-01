@@ -61,4 +61,4 @@ private:
     void setThumbFillColor(const QColor &color);
 };
 
-#endif // PANSLIDER_H
+#endif //PANSLIDER_H

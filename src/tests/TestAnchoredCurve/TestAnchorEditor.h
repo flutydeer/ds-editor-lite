@@ -9,6 +9,11 @@
 
 #include <QWidget>
 
+class NodeView {
+    public:
+
+};
+
 class TestAnchorEditor : public QWidget {
     Q_OBJECT
 
@@ -22,7 +27,7 @@ private:
     void mouseReleaseEvent(QMouseEvent *event) override;
     bool event(QEvent *event) override;
     void handleHoverEvent(QHoverEvent *event);
-    AnchorNode *findNode(QPointF position) const;
+    [[nodiscard]] AnchorNode *findNode(QPointF position) const;
 
     AnchorCurve curve;
     AnchorNode *hoveredNode = nullptr;

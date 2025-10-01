@@ -48,8 +48,7 @@ void ClipboardController::paste() {
     }
 }
 
-void ClipboardControllerPrivate::copyCutSelectedItems(const ControllerGlobal::ElemType type,
-                                                      const bool isCut) {
+void ClipboardControllerPrivate::copyCutSelectedItems(const ControllerGlobal::ElemType type, const bool isCut) {
     switch (type) {
         case ControllerGlobal::LoopStart:
             break;

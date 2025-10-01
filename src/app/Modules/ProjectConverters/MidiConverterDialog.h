@@ -13,12 +13,9 @@ class MidiConverterDialog : public QDialog {
     Q_OBJECT
     Q_DECLARE_PRIVATE(MidiConverterDialog)
 public:
-    explicit inline MidiConverterDialog(QWidget *parent = nullptr)
-        : MidiConverterDialog({}, parent) {
+    explicit inline MidiConverterDialog(QWidget *parent = nullptr) : MidiConverterDialog({}, parent) {
     }
-
-    explicit MidiConverterDialog(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList,
-                                 QWidget *parent = nullptr);
+    explicit MidiConverterDialog(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList, QWidget *parent = nullptr);
     ~MidiConverterDialog() override;
 
     void setTrackInfoList(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList);
@@ -34,4 +31,4 @@ private:
 
 
 
-#endif // MIDICONVERTERDIALOG_H
+#endif //MIDICONVERTERDIALOG_H

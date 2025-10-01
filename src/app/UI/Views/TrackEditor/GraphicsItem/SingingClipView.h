@@ -24,10 +24,10 @@ public:
 
         int compareTo(const NoteViewModel *obj) const;
         static bool isOverlappedWith(NoteViewModel *obj);
-        std::tuple<qsizetype, qsizetype> interval() const override;
+        [[nodiscard]] std::tuple<qsizetype, qsizetype> interval() const override;
     };
 
-    ClipType clipType() const override {
+    [[nodiscard]] ClipType clipType() const override {
         return Singing;
     }
 
@@ -35,7 +35,7 @@ public:
     ~SingingClipView() override;
 
     void loadNotes(const OverlappableSerialList<Note> &notes);
-    int contentLength() const override;
+    [[nodiscard]] int contentLength() const override;
 
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
@@ -47,10 +47,10 @@ public slots:
 private:
     // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
     // override;
-    QString text() const override;
+    [[nodiscard]] QString text() const override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) override;
-    QString clipTypeName() const override;
-    QString iconPath() const override;
+    [[nodiscard]] QString clipTypeName() const override;
+    [[nodiscard]] QString iconPath() const override;
 
     QList<NoteViewModel *> m_notes;
     QString m_singerName;

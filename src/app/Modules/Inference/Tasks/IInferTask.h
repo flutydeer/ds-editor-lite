@@ -17,4 +17,4 @@ LITE_INTERFACE IInferTask : public Task {
 
 
 
-#endif // IINFERTASK_H
+#endif //IINFERTASK_H

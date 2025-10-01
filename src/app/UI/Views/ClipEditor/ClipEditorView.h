@@ -24,11 +24,11 @@ class ClipEditorView final : public QWidget, public ITabPanelPage, public IClipE
     Q_OBJECT
 
 public:
-    QString tabId() const override;
-    QString tabName() const override;
-    AppGlobal::PanelType panelType() const override;
-    QWidget *toolBar() override;
-    QWidget *content() override;
+    [[nodiscard]] QString tabId() const override;
+    [[nodiscard]] QString tabName() const override;
+    [[nodiscard]] AppGlobal::PanelType panelType() const override;
+    [[nodiscard]] QWidget *toolBar() override;
+    [[nodiscard]] QWidget *content() override;
 
     explicit ClipEditorView(QWidget *parent = nullptr);
 

@@ -12,7 +12,7 @@ class Overlappable {
 public:
     virtual ~Overlappable() = default;
 
-    bool overlapped() const {
+    [[nodiscard]] bool overlapped() const {
         return m_overlappedCounter;
     }
 
@@ -29,7 +29,7 @@ public:
         m_overlappedCounter = 0;
     }
 
-    virtual std::tuple<qsizetype, qsizetype> interval() const = 0;
+    [[nodiscard]] virtual std::tuple<qsizetype, qsizetype> interval() const = 0;
 
 private:
     int m_overlappedCounter = 0;

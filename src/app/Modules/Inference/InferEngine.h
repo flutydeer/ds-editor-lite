@@ -84,15 +84,12 @@ private:
     };
 
     bool initialize(QString &error);
-    bool loadPackage(const std::filesystem::path &packagePath, bool noLoad,
-                     srt::PackageRef &outPackage);
+    bool loadPackage(const std::filesystem::path &packagePath, bool noLoad, srt::PackageRef &outPackage);
     bool loadPackage(const QString &packagePath, bool noLoad, srt::PackageRef &outPackage);
     bool loadPackageAndAllSingers(const QString &packagePath, srt::PackageRef &outPackage);
     void loadAllSingersFromPackage(const srt::PackageRef &package);
-    static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package,
-                                                 const QString &singerId);
-    static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package,
-                                                 std::string_view singerId);
+    static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package, const QString &singerId);
+    static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package, std::string_view singerId);
     std::shared_ptr<InferenceLoader> findLoaderForSinger(const SingerIdentifier &identifier) const;
 #if false
     bool loadInferences(const QString &path);

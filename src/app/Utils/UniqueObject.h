@@ -16,7 +16,7 @@ public:
     explicit UniqueObject(const int id) : m_id(id) {
     }
 
-    int id() const {
+    [[nodiscard]] int id() const {
         return m_id;
     }
 

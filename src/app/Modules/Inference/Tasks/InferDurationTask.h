@@ -7,6 +7,8 @@
 
 #include <atomic>
 
+#include <QReadWriteLock>
+
 #include <synthrt/SVS/Inference.h>
 
 #include "IInferTask.h"
@@ -28,7 +30,7 @@ public:
 
     int clipId() const override;
     int pieceId() const override;
-    bool success() const override;
+    [[nodiscard]] bool success() const override;
 
     explicit InferDurationTask(InferDurInput input);
     InferDurInput input() const;

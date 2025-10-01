@@ -32,7 +32,7 @@ public:
     void setClipped(bool onL, bool onR);
     void clearClipped();
     void setValue(double valueL, double valueR);
-    double peakValue() const;
+    [[nodiscard]] double peakValue() const;
 
 signals:
     void peakValueChanged(double value);
@@ -51,7 +51,7 @@ private:
     void resizeEvent(QResizeEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
-    bool mouseOnClipIndicator(const QPointF &pos) const;
+    [[nodiscard]] bool mouseOnClipIndicator(const QPointF &pos) const;
     bool event(QEvent *event) override;
 
     void onHover(const QHoverEvent *event);
@@ -126,6 +126,7 @@ private:
     double mouseY = 0;
     bool m_mouseOnBar = false;
     QString m_currentValueText;
+
 };
 
 

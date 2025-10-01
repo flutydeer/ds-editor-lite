@@ -16,7 +16,7 @@ public:
 
 inline TitleControlGroup::TitleControlGroup(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
-    setContentsMargins({0, 0, 0, 0});
+    setContentsMargins({0,0,0,0});
 }
 
 

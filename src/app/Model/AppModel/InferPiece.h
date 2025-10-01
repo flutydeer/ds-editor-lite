@@ -53,16 +53,16 @@ public:
 
     explicit InferPiece(SingingClip *clip);
 
-    int clipId() const override;
-    int noteStartTick() const override;
-    int noteEndTick() const override;
-    int localStartTick() const;
-    int localEndTick() const;
+    [[nodiscard]] int clipId() const override;
+    [[nodiscard]] int noteStartTick() const override;
+    [[nodiscard]] int noteEndTick() const override;
+    [[nodiscard]] int localStartTick() const;
+    [[nodiscard]] int localEndTick() const;
 
-    const DrawCurve *getOriginalCurve(ParamInfo::Name name) const;
+    [[nodiscard]] const DrawCurve *getOriginalCurve(ParamInfo::Name name) const;
     void setOriginalCurve(ParamInfo::Name name, const DrawCurve &curve);
 
-    const DrawCurve *getInputCurve(ParamInfo::Name name) const;
+    [[nodiscard]] const DrawCurve *getInputCurve(ParamInfo::Name name) const;
     void setInputCurve(ParamInfo::Name name, const DrawCurve &curve);
 
 signals:

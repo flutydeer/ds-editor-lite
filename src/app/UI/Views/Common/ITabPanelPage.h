@@ -15,10 +15,10 @@ LITE_INTERFACE ITabPanelPage {
     I_NODSCD(QString tabId() const);
     I_NODSCD(QString tabName() const);
     I_NODSCD(AppGlobal::PanelType panelType() const);
-    I_NODSCD(QWidget * toolBar());
-    I_NODSCD(QWidget * content());
+    I_NODSCD(QWidget *toolBar());
+    I_NODSCD(QWidget *content());
 };
 
 
 
-#endif // ITABPANELPAGE_H
+#endif //ITABPANELPAGE_H

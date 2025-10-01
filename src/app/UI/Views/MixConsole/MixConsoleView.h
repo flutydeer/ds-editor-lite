@@ -18,23 +18,23 @@ class MixConsoleView : public QWidget, public ITabPanelPage {
     Q_OBJECT
 
 public:
-    QString tabId() const override;
-    QString tabName() const override;
-    AppGlobal::PanelType panelType() const override;
-    QWidget *toolBar() override;
-    QWidget *content() override;
+    [[nodiscard]] QString tabId() const override;
+    [[nodiscard]] QString tabName() const override;
+    [[nodiscard]] AppGlobal::PanelType panelType() const override;
+    [[nodiscard]] QWidget *toolBar() override;
+    [[nodiscard]] QWidget *content() override;
 
     explicit MixConsoleView(QWidget *parent = nullptr);
 
 public slots:
     void onModelChanged();
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
-    void onMasterControlChanged(const TrackControl &control) const;
+    void onMasterControlChanged(const TrackControl &control);
     void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const;
 
 private slots:
     void onTrackInserted(Track *dsTrack, qsizetype trackIndex);
-    void onTrackRemoved(qsizetype index) const;
+    void onTrackRemoved(qsizetype index);
 
 private:
     void onTrackPropertyChanged() const;
@@ -47,4 +47,4 @@ private:
 };
 
 
-#endif // MIXCONSOLEVIEW_H
+#endif //MIXCONSOLEVIEW_H

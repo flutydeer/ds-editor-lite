@@ -150,7 +150,8 @@ void AppController::setActivePanel(const AppGlobal::PanelType panelType) {
 }
 
 void AppController::onUndoRedoChanged(const bool canUndo, const QString &undoActionName,
-                                      const bool canRedo, const QString &redoActionName) {
+                                      const bool canRedo,
+                                      const QString &redoActionName) {
     Q_D(AppController);
     Q_UNUSED(canUndo);
     Q_UNUSED(canRedo);
@@ -228,8 +229,9 @@ bool AppControllerPrivate::isPowerOf2(const int num) {
 
 void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
     taskManager->removeTask(task);
-    const auto status =
-        task->success ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
+    const auto status = task->success
+                            ? AppStatus::ModuleStatus::Ready
+                            : AppStatus::ModuleStatus::Error;
     appStatus->languageModuleStatus = status;
     delete task;
 }
@@ -237,8 +239,9 @@ void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineT
 void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
     Q_Q(AppController);
     m_projectPath = path;
-    q->setProjectName(m_projectPath.isEmpty() ? tr("New Project")
-                                              : QFileInfo(m_projectPath).fileName());
+    q->setProjectName(m_projectPath.isEmpty()
+                          ? tr("New Project")
+                          : QFileInfo(m_projectPath).fileName());
 }
 
 bool AppControllerPrivate::openDspxFile(const QString &path, QString &errorMessage) {

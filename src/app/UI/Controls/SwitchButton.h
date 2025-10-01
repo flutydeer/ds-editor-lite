@@ -23,7 +23,7 @@ public:
     explicit SwitchButton(bool on, QWidget *parent = nullptr);
     ~SwitchButton() override;
 
-    bool value() const;
+    [[nodiscard]] bool value() const;
 
 public slots:
     void setValue(bool value);
@@ -49,11 +49,11 @@ private:
 
     // Animation
     int m_apparentValue = 0;
-    int apparentValue() const;
+    [[nodiscard]] int apparentValue() const;
     void setApparentValue(int x);
 
     int m_thumbScaleRatio = 100; // max = 100%
-    int thumbScaleRatio() const;
+    [[nodiscard]] int thumbScaleRatio() const;
     void setThumbScaleRatio(int ratio);
 
     void updateAnimationDuration();

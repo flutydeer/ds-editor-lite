@@ -17,7 +17,7 @@ public:
     explicit OptionsCardItem(QWidget *parent = nullptr);
 
     // void setCheckable(bool checkable);
-    // bool isChecked() const;
+    // [[nodiscard]] bool isChecked() const;
     // void setChecked(bool checked);
     // void setEnabled(bool enabled);
     // void setCheckBoxEnabled(bool enabled);

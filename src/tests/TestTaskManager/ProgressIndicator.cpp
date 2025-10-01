@@ -12,7 +12,8 @@ ProgressIndicator::ProgressIndicator(QWidget *parent) : QWidget(parent) {
     initUi(parent);
 }
 
-ProgressIndicator::ProgressIndicator(IndicatorStyle indicatorStyle, QWidget *parent) {
+ProgressIndicator::ProgressIndicator(IndicatorStyle indicatorStyle,
+                                     QWidget *parent) {
     m_indicatorStyle = indicatorStyle;
     initUi(parent);
 }

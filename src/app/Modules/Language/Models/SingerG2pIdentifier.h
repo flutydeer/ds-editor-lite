@@ -20,7 +20,8 @@ struct SingerG2pIdentifier {
     }
 
     inline bool operator<(const SingerG2pIdentifier &other) const noexcept {
-        return std::tie(singerIdentifier, g2pId) < std::tie(other.singerIdentifier, other.g2pId);
+        return std::tie(singerIdentifier, g2pId) <
+               std::tie(other.singerIdentifier, other.g2pId);
     }
 
     bool isEmpty() const noexcept {

@@ -11,11 +11,11 @@ class PianoRollGraphicsView;
 class QMouseEvent;
 LITE_INTERFACE IPianoRollEditHandler {
     I_DECL(IPianoRollEditHandler)
-    I_METHOD(void onMouseDown(QMouseEvent * event, PianoRollGraphicsView * view));
-    I_METHOD(void onMouseMove(QMouseEvent * event, PianoRollGraphicsView * view));
-    I_METHOD(void onMouseUp(QMouseEvent * event, PianoRollGraphicsView * view));
-    I_METHOD(void onDiscard(PianoRollGraphicsView * view));
-    I_METHOD(void onCommit(PianoRollGraphicsView * view));
+    I_METHOD(void onMouseDown(QMouseEvent *event, PianoRollGraphicsView *view));
+    I_METHOD(void onMouseMove(QMouseEvent *event, PianoRollGraphicsView *view));
+    I_METHOD(void onMouseUp(QMouseEvent *event, PianoRollGraphicsView *view));
+    I_METHOD(void onDiscard(PianoRollGraphicsView *view));
+    I_METHOD(void onCommit(PianoRollGraphicsView *view));
 };
 
 

@@ -13,6 +13,7 @@ namespace LangSetting {
     class ILangSetManager final : public QObject {
         Q_OBJECT
         Q_DECLARE_PRIVATE(ILangSetManager)
+    private:
         explicit ILangSetManager(QObject *parent = nullptr);
         ~ILangSetManager() override;
 
@@ -20,8 +21,9 @@ namespace LangSetting {
         LITE_SINGLETON_DECLARE_INSTANCE(ILangSetManager)
         Q_DISABLE_COPY_MOVE(ILangSetManager)
 
-        IG2pSetFactory *g2pSet(const QString &id) const;
-        QList<IG2pSetFactory *> g2pSets() const;
+    public:
+        [[nodiscard]] IG2pSetFactory *g2pSet(const QString &id) const;
+        [[nodiscard]] QList<IG2pSetFactory *> g2pSets() const;
 
         bool addG2pSet(IG2pSetFactory *factory);
         bool removeG2pSet(const IG2pSetFactory *factory);
