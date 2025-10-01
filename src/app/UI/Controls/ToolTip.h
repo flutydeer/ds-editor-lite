@@ -30,11 +30,11 @@ public:
     explicit ToolTip(const QString &title = "", QWidget *parent = nullptr);
     ~ToolTip() override;
 
-    [[nodiscard]] QString title() const;
+    QString title() const;
     void setTitle(const QString &text);
-    [[nodiscard]] QString shortcutKey() const;
+    QString shortcutKey() const;
     void setShortcutKey(const QString &text);
-    [[nodiscard]] QList<QString> message() const;
+    QList<QString> message() const;
     void setMessage(const QList<QString> &text);
     void appendMessage(const QString &text);
     void clearMessage();

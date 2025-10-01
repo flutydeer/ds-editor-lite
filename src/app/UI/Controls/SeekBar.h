@@ -19,7 +19,7 @@ class SeekBar : public QWidget {
 public:
     explicit SeekBar(QWidget *parent = nullptr);
 
-    [[nodiscard]] double value() const;
+    double value() const;
     void setValue(double value);
     void setValueAsync(double value);
     void setDefaultValue(double value);
@@ -67,25 +67,25 @@ private:
     double m_max = 100;
     double m_min = -100;
     double m_trackActiveStartValue = 0;
-    [[nodiscard]] bool mouseOnHandle(const QPoint &mousePos) const;
+    bool mouseOnHandle(const QPoint &mousePos) const;
     bool handleHover = false;
     bool handlePressed = false;
     QTimer *timer;
     bool doubleClickLocked = false;
     QPropertyAnimation *m_thumbHoverAnimation;
     QColor m_trackInactiveColor = QColor(0, 0, 0, 32);
-    [[nodiscard]] QColor trackInactiveColor() const;
+    QColor trackInactiveColor() const;
     void setTrackInactiveColor(const QColor &color);
     QColor m_trackActiveColor = QColor(112, 156, 255);
-    [[nodiscard]] QColor trackActiveColor() const;
+    QColor trackActiveColor() const;
     void setTrackActiveColor(const QColor &color);
     QColor m_thumbBorderColor = QColor(255, 255, 255);
-    [[nodiscard]] QColor thumbBorderColor() const;
+    QColor thumbBorderColor() const;
     void setThumbBorderColor(const QColor &color);
 
     // Animation
     int m_thumbBorderRatio = 102; // ratio max = 255;
-    [[nodiscard]] int thumbBorderRatio() const;
+    int thumbBorderRatio() const;
     void setThumbBorderRatio(int ratio);
 };
 

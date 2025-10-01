@@ -13,4 +13,4 @@ namespace TracksEditorGlobal {
     constexpr int trackViewHeaderHeight = 36;
 };
 
-#endif //TRACKSEDITORGLOBAL_H
+#endif // TRACKSEDITORGLOBAL_H

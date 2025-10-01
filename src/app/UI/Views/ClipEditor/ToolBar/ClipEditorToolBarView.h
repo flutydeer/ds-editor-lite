@@ -25,7 +25,7 @@ class ClipEditorToolBarView final : public QWidget {
 public:
     explicit ClipEditorToolBarView(QWidget *parent = nullptr);
     void setDataContext(Clip *clip);
-    [[nodiscard]] PianoRollEditMode editMode() const;
+    PianoRollEditMode editMode() const;
 
 signals:
     void editModeChanged(PianoRollEditMode mode);

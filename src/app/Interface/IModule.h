@@ -15,8 +15,8 @@ public:
 
     class Status {
     public:
-        [[nodiscard]] StatusType type() const;
-        [[nodiscard]] QString message() const;
+        StatusType type() const;
+        QString message() const;
 
     private:
         StatusType m_type = Unknown;

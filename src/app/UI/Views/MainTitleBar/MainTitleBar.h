@@ -21,12 +21,12 @@ class MainTitleBar : public QWidget {
 public:
     explicit MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame);
 
-    [[nodiscard]] MainMenuView *menuView() const;
-    [[nodiscard]] ActionButtonsView *actionButtonsView() const;
-    [[nodiscard]] PlaybackView *playbackView() const;
-    [[nodiscard]] Button *minimizeButton() const;
-    [[nodiscard]] Button *maximizeButton() const;
-    [[nodiscard]] Button *closeButton() const;
+    MainMenuView *menuView() const;
+    ActionButtonsView *actionButtonsView() const;
+    PlaybackView *playbackView() const;
+    Button *minimizeButton() const;
+    Button *maximizeButton() const;
+    Button *closeButton() const;
 
     void setTitle(const QString &title) const;
 

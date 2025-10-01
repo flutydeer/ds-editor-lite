@@ -17,6 +17,7 @@ namespace talcs {
         Q_DECLARE_PRIVATE(DspxSingingClipInferenceContext);
         friend class DspxTrackInferenceContext;
         friend class DspxInferencePieceContext;
+
     public:
         ~DspxSingingClipInferenceContext() override;
 
@@ -49,4 +50,4 @@ namespace talcs {
 
 }
 
-#endif //TALCS_DSPXSINGINGCLIPINFERENCECONTEXT_H
+#endif // TALCS_DSPXSINGINGCLIPINFERENCECONTEXT_H

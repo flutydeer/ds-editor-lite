@@ -12,8 +12,6 @@
 #include "TestTask.h"
 #include "ProgressIndicator.h"
 
-
-
 MainWindow::MainWindow() {
     auto progressBar = new ProgressIndicator;
     auto btnTerminate = new QPushButton("Terminate");
@@ -51,13 +49,13 @@ MainWindow::MainWindow() {
     setCentralWidget(mainWidget);
 }
 
-
 void MainWindow::onAllDone() {
     if (m_isCloseRequested) {
         m_isAllDone = true;
         close();
     }
 }
+
 void MainWindow::closeEvent(QCloseEvent *event) {
     if (m_isAllDone) {
         QMainWindow::closeEvent(event);

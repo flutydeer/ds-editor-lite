@@ -27,7 +27,8 @@ QByteArray S2pMgr::calculateFileHash(const QString &filePath) {
     return {};
 }
 
-void S2pMgr::addS2p(const SingerIdentifier &singerId, const QString &g2pId, const QString &dictPath) {
+void S2pMgr::addS2p(const SingerIdentifier &singerId, const QString &g2pId,
+                    const QString &dictPath) {
     const auto dictHash = calculateFileHash(dictPath);
     if (dictHash.isEmpty()) {
         qWarning() << "Failed to calculate hash for file:" << dictPath;
@@ -41,8 +42,8 @@ void S2pMgr::addS2p(const SingerIdentifier &singerId, const QString &g2pId, cons
     }
 }
 
-QStringList S2pMgr::syllableToPhoneme(const SingerIdentifier &singerIdentifier, const QString &g2pId,
-                                      const QString &syllable) {
+QStringList S2pMgr::syllableToPhoneme(const SingerIdentifier &singerIdentifier,
+                                      const QString &g2pId, const QString &syllable) {
     const auto it = m_idToHash.constFind({singerIdentifier, g2pId});
     if (it == m_idToHash.constEnd()) {
         if (singerIdentifier.isEmpty()) {
@@ -57,12 +58,11 @@ QStringList S2pMgr::syllableToPhoneme(const SingerIdentifier &singerIdentifier, 
     return s2pInstance->syllableToPhoneme(syllable);
 }
 
-QList<QStringList> S2pMgr::syllableToPhoneme(const SingerIdentifier &singerIdentifier, const QString &g2pId,
-                                             const QStringList &syllables) {
+QList<QStringList> S2pMgr::syllableToPhoneme(const SingerIdentifier &singerIdentifier,
+                                             const QString &g2pId, const QStringList &syllables) {
     const auto it = m_idToHash.constFind({singerIdentifier, g2pId});
     if (it == m_idToHash.constEnd()) {
-        qWarning() << "No S2p instance found for singer:" << singerIdentifier
-                   << "g2pId:" << g2pId;
+        qWarning() << "No S2p instance found for singer:" << singerIdentifier << "g2pId:" << g2pId;
         return {};
     }
 

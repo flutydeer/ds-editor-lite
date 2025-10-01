@@ -19,8 +19,8 @@ ChannelView::ChannelView(QWidget *parent) : QWidget(parent) {
     initUi();
 }
 
-ChannelView::ChannelView(Track &track, QWidget *parent): QWidget(parent), ITrack(track.id()),
-                                                         m_context(&track) {
+ChannelView::ChannelView(Track &track, QWidget *parent)
+    : QWidget(parent), ITrack(track.id()), m_context(&track) {
     initUi();
     ChannelView::setName(track.name());
     ChannelView::setControl(track.control());
@@ -30,7 +30,7 @@ Track &ChannelView::context() const {
     return *m_context;
 }
 
-void ChannelView::setIsMasterChannel(bool on) {
+void ChannelView::setIsMasterChannel(const bool on) {
     m_isMasterChannel = on;
     if (on) {
         m_indexStack->setCurrentIndex(1); // Place holder
@@ -61,7 +61,7 @@ QColor ChannelView::color() const {
 void ChannelView::setColor(const QColor &color) {
 }
 
-PanSlider * const & ChannelView::panSlider() const {
+PanSlider *const &ChannelView::panSlider() const {
     return m_panSlider;
 }
 
@@ -77,7 +77,7 @@ void ChannelView::setName(const QString &name) {
     m_lbTitle->setText(name);
 }
 
-void ChannelView::setChannelIndex(int index) {
+void ChannelView::setChannelIndex(const int index) const {
     m_lbIndex->setText(QString::number(index));
 }
 
@@ -90,35 +90,35 @@ void ChannelView::setControl(const TrackControl &control) {
     m_notifyBarrier = false;
 }
 
-void ChannelView::onPanMoved(double pan) {
+void ChannelView::onPanMoved(const double pan) const {
     // qDebug() << "ChannelView::onPanMoved" << pan;
     m_elPan->setText(panValueToString(pan));
 }
 
-void ChannelView::onPanReleased(double pan) {
+void ChannelView::onPanReleased(const double pan) {
     m_elPan->setText(panValueToString(pan));
     emit controlChanged(control());
 }
 
-void ChannelView::onPanEdited(const QString &text) {
+void ChannelView::onPanEdited(const QString &text) const {
     m_panSlider->setValue(panValueFromString(text));
     m_elPan->setText(panValueToString(m_panSlider->value()));
 }
 
-void ChannelView::onFaderMoved(double gain) {
+void ChannelView::onFaderMoved(const double gain) const {
     m_elGain->setText(gainValueToString(gain));
 }
 
-void ChannelView::onFaderReleased(double gain) {
+void ChannelView::onFaderReleased(const double gain) {
     m_elGain->setText(gainValueToString(gain));
     emit controlChanged(control());
 }
 
-void ChannelView::onGainEdited(const QString &text) {
+void ChannelView::onGainEdited(const QString &text) const {
     m_fader->setValue(text.toDouble());
 }
 
-void ChannelView::onPeakChanged(double peak) {
+void ChannelView::onPeakChanged(const double peak) const {
     m_lbPeakLevel->setText(gainValueToString(peak));
 }
 
@@ -126,7 +126,7 @@ void ChannelView::initUi() {
     setAttribute(Qt::WA_StyledBackground);
     m_indexStack = buildIndexStack();
 
-    auto mainLayout = new QVBoxLayout;
+    const auto mainLayout = new QVBoxLayout;
     mainLayout->addLayout(buildChannelContentLayout());
     mainLayout->addWidget(m_indexStack);
     mainLayout->setContentsMargins(0, 0, 1, 1);
@@ -147,15 +147,11 @@ void ChannelView::initUi() {
     onPeakChanged(m_levelMeter->peakValue());
     connect(m_levelMeter, &LevelMeter::peakValueChanged, this, &ChannelView::onPeakChanged);
 
-    connect(m_btnMute, &QPushButton::clicked, this, [this] {
-        emit controlChanged(control());
-    });
-    connect(m_btnSolo, &QPushButton::clicked, this, [this] {
-        emit controlChanged(control());
-    });
+    connect(m_btnMute, &QPushButton::clicked, this, [this] { emit controlChanged(control()); });
+    connect(m_btnSolo, &QPushButton::clicked, this, [this] { emit controlChanged(control()); });
 }
 
-QString ChannelView::gainValueToString(double gain) {
+QString ChannelView::gainValueToString(const double gain) {
     if (gain <= -54.0)
         return "-∞";
 
@@ -173,7 +169,7 @@ QString ChannelView::gainValueToString(double gain) {
     return sign + absVal;
 }
 
-QString ChannelView::panValueToString(double pan) {
+QString ChannelView::panValueToString(const double pan) {
     if (pan <= -0.995) {
         return "L100";
     }
@@ -238,7 +234,7 @@ QVBoxLayout *ChannelView::buildPanSliderLayout() {
     m_elPan->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     m_elPan->label->setAlignment(Qt::AlignCenter);
 
-    auto layout = new QVBoxLayout;
+    const auto layout = new QVBoxLayout;
     layout->addWidget(m_panSlider);
     layout->addWidget(m_elPan);
     layout->setContentsMargins({});
@@ -256,13 +252,13 @@ QHBoxLayout *ChannelView::buildFaderLevelMeterLayout() {
     m_elGain->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     m_elGain->label->setAlignment(Qt::AlignCenter);
 
-    auto faderLayout = new QHBoxLayout;
+    const auto faderLayout = new QHBoxLayout;
     faderLayout->addStretch();
     faderLayout->addWidget(m_fader);
     faderLayout->addStretch();
     faderLayout->setContentsMargins({});
 
-    auto faderGainLayout = new QVBoxLayout;
+    const auto faderGainLayout = new QVBoxLayout;
     faderGainLayout->addLayout(faderLayout);
     faderGainLayout->addWidget(m_elGain);
     faderGainLayout->setContentsMargins({});
@@ -277,20 +273,20 @@ QHBoxLayout *ChannelView::buildFaderLevelMeterLayout() {
     m_lbPeakLevel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     m_lbPeakLevel->setAlignment(Qt::AlignCenter);
 
-    auto levelMeterLayout = new QHBoxLayout;
+    const auto levelMeterLayout = new QHBoxLayout;
     levelMeterLayout->addStretch();
     levelMeterLayout->addWidget(m_levelMeter);
     levelMeterLayout->addStretch();
     levelMeterLayout->setContentsMargins({});
 
-    auto meterPeakLayout = new QVBoxLayout;
+    const auto meterPeakLayout = new QVBoxLayout;
     meterPeakLayout->addLayout(levelMeterLayout);
     meterPeakLayout->addWidget(m_lbPeakLevel);
     meterPeakLayout->setSpacing(2);
     meterPeakLayout->setContentsMargins({});
     meterPeakLayout->setAlignment(Qt::AlignCenter);
 
-    auto faderLevelMeterLayout = new QHBoxLayout;
+    const auto faderLevelMeterLayout = new QHBoxLayout;
     faderLevelMeterLayout->addLayout(faderGainLayout);
     faderLevelMeterLayout->addLayout(meterPeakLayout);
     faderLevelMeterLayout->setContentsMargins({});
@@ -305,7 +301,7 @@ QVBoxLayout *ChannelView::buildChannelContentLayout() {
     m_lbTitle->setObjectName("lbTitle");
     m_lbTitle->setAlignment(Qt::AlignCenter);
 
-    auto channelContentLayout = new QVBoxLayout;
+    const auto channelContentLayout = new QVBoxLayout;
     channelContentLayout->addLayout(buildPanSliderLayout());
     channelContentLayout->addLayout(buildFaderLevelMeterLayout());
     channelContentLayout->addWidget(m_muteSoloStack);
@@ -328,7 +324,7 @@ QStackedWidget *ChannelView::buildMuteSoloStack() {
     m_btnSolo->setText("S");
     m_btnSolo->setContentsMargins(0, 0, 0, 0);
 
-    auto muteSoloLayout = new QHBoxLayout;
+    const auto muteSoloLayout = new QHBoxLayout;
     muteSoloLayout->addStretch();
     muteSoloLayout->addWidget(m_btnMute);
     muteSoloLayout->addWidget(m_btnSolo);
@@ -336,15 +332,15 @@ QStackedWidget *ChannelView::buildMuteSoloStack() {
     muteSoloLayout->setSpacing(8);
     muteSoloLayout->setContentsMargins({});
 
-    auto muteSoloWidget = new QWidget;
+    const auto muteSoloWidget = new QWidget;
     muteSoloWidget->setObjectName("muteSoloWidget");
     muteSoloWidget->setLayout(muteSoloLayout);
     muteSoloWidget->setContentsMargins({});
 
-    auto placeHolderWidget = new QWidget;
+    const auto placeHolderWidget = new QWidget;
     placeHolderWidget->setObjectName("muteSoloPlaceHolder");
 
-    auto stack = new QStackedWidget;
+    const auto stack = new QStackedWidget;
     stack->setObjectName("muteSoloStack");
     stack->addWidget(muteSoloWidget);
     stack->addWidget(placeHolderWidget);
@@ -359,10 +355,10 @@ QStackedWidget *ChannelView::buildIndexStack() {
     m_lbIndex->setAlignment(Qt::AlignCenter);
     // m_lbIndex->setText("1");
 
-    auto indexPlaceholder = new QWidget;
+    const auto indexPlaceholder = new QWidget;
     indexPlaceholder->setObjectName("indexPlaceholder");
     indexPlaceholder->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    auto stack = new QStackedWidget;
+    const auto stack = new QStackedWidget;
     stack->setObjectName("indexStack");
     stack->addWidget(m_lbIndex);
     stack->addWidget(indexPlaceholder);

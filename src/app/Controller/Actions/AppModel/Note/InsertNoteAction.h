@@ -15,7 +15,7 @@ class Note;
 class InsertNoteAction final : public IAction {
 public:
     explicit InsertNoteAction(const QList<Note *> &notes, SingingClip *clip)
-        : m_notes(notes), m_clip(clip){};
+        : m_notes(notes), m_clip(clip) {};
     void execute() override;
     void undo() override;
 

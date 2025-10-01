@@ -5,10 +5,10 @@
 #include <string>
 #include <vector>
 
-#include <synthrt/Core/NamedObject.h>
-#include <synthrt/Support/Expected.h>
 #include <dsinfer/Inference/InferenceDriver.h>
 #include <dsinfer/Inference/InferenceSession.h>
+#include <synthrt/Core/NamedObject.h>
+#include <synthrt/Support/Expected.h>
 
 namespace srt
 {

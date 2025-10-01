@@ -23,14 +23,18 @@ PseudoSingerConfigNotifier *PseudoSingerConfigNotifier::instance() {
 }
 
 static qint64 msecToSample(const int msec) {
-    const auto sr = AudioContext::instance()->preMixer()->isOpen() ? AudioContext::instance()->preMixer()->sampleRate() : 48000.0;
+    const auto sr = AudioContext::instance()->preMixer()->isOpen()
+                        ? AudioContext::instance()->preMixer()->sampleRate()
+                        : 48000.0;
     return AudioHelpers::msecToSample(msec, sr);
 }
 
 talcs::NoteSynthesizerConfig PseudoSingerConfigNotifier::config(const int synthIndex) {
     talcs::NoteSynthesizerConfig config;
-    config.setGenerator(static_cast<talcs::NoteSynthesizer::Generator>(AudioSettings::pseudoSingerSynthGenerator(synthIndex)));
-    config.setAmplitude(talcs::Decibels::decibelsToGain(AudioSettings::pseudoSingerSynthAmplitude(synthIndex)));
+    config.setGenerator(static_cast<talcs::NoteSynthesizer::Generator>(
+        AudioSettings::pseudoSingerSynthGenerator(synthIndex)));
+    config.setAmplitude(
+        talcs::Decibels::decibelsToGain(AudioSettings::pseudoSingerSynthAmplitude(synthIndex)));
     config.setAttackTime(msecToSample(AudioSettings::pseudoSingerSynthAttackMsec(synthIndex)));
     config.setDecayTime(msecToSample(AudioSettings::pseudoSingerSynthDecayMsec(synthIndex)));
     config.setDecayRatio(AudioSettings::pseudoSingerSynthDecayRatio(synthIndex));

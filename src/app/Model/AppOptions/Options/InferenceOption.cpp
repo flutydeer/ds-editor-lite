@@ -47,6 +47,5 @@ void InferenceOption::save(QJsonObject &object) {
               serialize_runVocoderOnCpu(),
               serialize_autoStartInfer(),
               serialize_cacheDirectory(),
-              serialize_pitch_smooth_kernel_size()
-    };
+              serialize_pitch_smooth_kernel_size()};
 }

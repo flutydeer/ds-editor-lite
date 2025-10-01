@@ -11,7 +11,7 @@
 
 class IScalableItem : public IScalable {
 public:
-    [[nodiscard]] QRectF visibleRect() const;
+    QRectF visibleRect() const;
     void setVisibleRect(const QRectF &rect);
 
 protected:

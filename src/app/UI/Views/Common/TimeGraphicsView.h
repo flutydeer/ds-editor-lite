@@ -34,28 +34,28 @@ public:
 
     explicit TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition = true,
                               QWidget *parent = nullptr);
-    TimeGraphicsScene *scene();
+    TimeGraphicsScene *scene() const;
     void setGridItem(TimeGridView *item);
     void setSceneVisibility(bool on);
-    [[nodiscard]] double scaleXMax() const;
+    double scaleXMax() const;
     void setScaleXMax(double max);
-    [[nodiscard]] double scaleYMin() const;
+    double scaleYMin() const;
     void setScaleYMin(double min);
-    [[nodiscard]] int horizontalBarValue() const;
-    void setHorizontalBarValue(int value);
-    [[nodiscard]] int verticalBarValue() const;
-    void setVerticalBarValue(int value);
+    int horizontalBarValue() const;
+    void setHorizontalBarValue(int value) const;
+    int verticalBarValue() const;
+    void setVerticalBarValue(int value) const;
     void horizontalBarAnimateTo(int value);
     void verticalBarAnimateTo(int value);
     void horizontalBarVBarAnimateTo(int hValue, int vValue);
-    [[nodiscard]] QRectF visibleRect() const;
+    QRectF visibleRect() const;
     void setEnsureSceneFillViewX(bool on);
     void setEnsureSceneFillViewY(bool on);
-    [[nodiscard]] DragBehavior dragBehavior() const;
+    DragBehavior dragBehavior() const;
     void setDragBehavior(DragBehavior dragBehaviour);
-    void setScrollBarVisibility(Qt::Orientation orientation, bool visibility);
-    [[nodiscard]] double startTick() const;
-    [[nodiscard]] double endTick() const;
+    void setScrollBarVisibility(Qt::Orientation orientation, bool visibility) const;
+    double startTick() const;
+    double endTick() const;
     void setOffset(int tick);
     void setPixelsPerQuarterNote(int px);
     void setAutoTurnPage(bool on);
@@ -70,9 +70,9 @@ signals:
 
 public slots:
     void notifyVisibleRectChanged();
-    void onWheelHorScale(QWheelEvent *event);
-    void onWheelVerScale(QWheelEvent *event);
-    void onWheelHorScroll(QWheelEvent *event);
+    void onWheelHorScale(const QWheelEvent *event);
+    void onWheelVerScale(const QWheelEvent *event);
+    void onWheelHorScroll(const QWheelEvent *event);
     void onWheelVerScroll(QWheelEvent *event);
     void adjustScaleXToFillView();
     void adjustScaleYToFillView();
@@ -96,8 +96,8 @@ protected:
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
     void afterSetTimeScale(double scale) override;
 
-    [[nodiscard]] double sceneXToTick(double pos) const;
-    [[nodiscard]] double tickToSceneX(double tick) const;
+    double sceneXToTick(double pos) const;
+    double tickToSceneX(double tick) const;
 
     QColor barLineColor() const;
     void setBarLineColor(const QColor &color);
@@ -113,13 +113,13 @@ private:
     using QGraphicsView::setHorizontalScrollBarPolicy;
     using QGraphicsView::setVerticalScrollBarPolicy;
 
-    bool isMouseEventFromWheel(QWheelEvent *event);
+    bool isMouseEventFromWheel(const QWheelEvent *event);
     void updateAnimationDuration();
-    void handleHoverEnterEvent(QHoverEvent *event);
-    void handleHoverLeaveEvent(QHoverEvent *event);
-    void handleHoverMoveEvent(QHoverEvent *event);
+    void handleHoverEnterEvent(const QHoverEvent *event);
+    void handleHoverLeaveEvent() const;
+    void handleHoverMoveEvent(const QHoverEvent *event);
 
-    [[nodiscard]] ScrollBarView *scrollBarAt(const QPoint &pos);
+    ScrollBarView *scrollBarAt(const QPoint &pos) const;
 
     double m_hZoomingStep = 0.4;
     double m_vZoomingStep = 0.3;

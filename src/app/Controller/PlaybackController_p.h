@@ -20,8 +20,8 @@ public:
     PlaybackStatus m_playbackStatus = Stopped;
     bool m_playRequested = false;
 
-    [[nodiscard]] double samplePosToTick(int sample) const;
-    [[nodiscard]] int tickToSamplePos(double tick) const;
+    double samplePosToTick(int sample) const;
+    int tickToSamplePos(double tick) const;
     void onValidationFinished(bool passed);
 
 private:

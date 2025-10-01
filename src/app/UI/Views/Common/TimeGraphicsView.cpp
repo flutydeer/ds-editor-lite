@@ -17,7 +17,7 @@
 #  define SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
 #endif
 
-static inline bool isDirectManipulationEnabled() {
+static bool isDirectManipulationEnabled() {
 #if defined(WITH_DIRECT_MANIPULATION)
     return appOptions->appearance()->enableDirectManipulation;
 #else
@@ -25,7 +25,7 @@ static inline bool isDirectManipulationEnabled() {
 #endif
 }
 
-TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition,
+TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, const bool showLastPlaybackPosition,
                                    QWidget *parent)
     : QGraphicsView(parent), m_scene(scene) {
     setRenderHint(QPainter::Antialiasing);
@@ -65,7 +65,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
 #ifndef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
     m_timer.setInterval(400);
     m_timer.setSingleShot(true);
-    connect(&m_timer, &QTimer::timeout, this, [this]() {
+    connect(&m_timer, &QTimer::timeout, this, [this] {
         m_touchPadLock = false;
         // qDebug() << "touchpad lock off";
     });
@@ -74,7 +74,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     connect(this, &TimeGraphicsView::visibleRectChanged,
             [this](const QRectF &rect) { m_scene->setVisibleRect(rect); });
     connect(this, &TimeGraphicsView::scaleChanged,
-            [this](double sx, double sy) { m_scene->setScaleXY(sx, sy); });
+            [this](const double sx, const double sy) { m_scene->setScaleXY(sx, sy); });
     connect(m_scene, &TimeGraphicsScene::baseSizeChanged, this,
             &TimeGraphicsView::adjustScaleXToFillView);
 
@@ -105,7 +105,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
             [this] { emit timeRangeChanged(startTick(), endTick()); });
 }
 
-TimeGraphicsScene *TimeGraphicsView::scene() {
+TimeGraphicsScene *TimeGraphicsView::scene() const {
     return m_scene;
 }
 
@@ -120,7 +120,7 @@ void TimeGraphicsView::setGridItem(TimeGridView *item) {
     setCommonLineColor(commonLineColor());
 }
 
-void TimeGraphicsView::setSceneVisibility(bool on) {
+void TimeGraphicsView::setSceneVisibility(const bool on) {
     setScene(on ? m_scene : nullptr);
 }
 
@@ -128,7 +128,7 @@ qreal TimeGraphicsView::scaleXMax() const {
     return m_scaleXMax;
 }
 
-void TimeGraphicsView::setScaleXMax(qreal max) {
+void TimeGraphicsView::setScaleXMax(const qreal max) {
     m_scaleXMax = max;
 }
 
@@ -136,7 +136,7 @@ double TimeGraphicsView::scaleYMin() const {
     return m_scaleYMin;
 }
 
-void TimeGraphicsView::setScaleYMin(double min) {
+void TimeGraphicsView::setScaleYMin(const double min) {
     m_scaleYMin = min;
 }
 
@@ -144,7 +144,7 @@ int TimeGraphicsView::horizontalBarValue() const {
     return horizontalScrollBar()->value();
 }
 
-void TimeGraphicsView::setHorizontalBarValue(const int value) {
+void TimeGraphicsView::setHorizontalBarValue(const int value) const {
     horizontalScrollBar()->setValue(value);
 }
 
@@ -152,25 +152,25 @@ int TimeGraphicsView::verticalBarValue() const {
     return verticalScrollBar()->value();
 }
 
-void TimeGraphicsView::setVerticalBarValue(const int value) {
+void TimeGraphicsView::setVerticalBarValue(const int value) const {
     verticalScrollBar()->setValue(value);
 }
 
-void TimeGraphicsView::horizontalBarAnimateTo(int value) {
+void TimeGraphicsView::horizontalBarAnimateTo(const int value) {
     m_hBarAnimation.stop();
     m_hBarAnimation.setStartValue(horizontalBarValue());
     m_hBarAnimation.setEndValue(value);
     m_hBarAnimation.start();
 }
 
-void TimeGraphicsView::verticalBarAnimateTo(int value) {
+void TimeGraphicsView::verticalBarAnimateTo(const int value) {
     m_vBarAnimation.stop();
     m_vBarAnimation.setStartValue(verticalBarValue());
     m_vBarAnimation.setEndValue(value);
     m_vBarAnimation.start();
 }
 
-void TimeGraphicsView::horizontalBarVBarAnimateTo(int hValue, int vValue) {
+void TimeGraphicsView::horizontalBarVBarAnimateTo(const int hValue, const int vValue) {
     m_hBarAnimation.stop();
     m_vBarAnimation.stop();
 
@@ -184,18 +184,18 @@ void TimeGraphicsView::horizontalBarVBarAnimateTo(int hValue, int vValue) {
 }
 
 QRectF TimeGraphicsView::visibleRect() const {
-    auto viewportRect = viewport()->rect();
-    auto leftTop = mapToScene(viewportRect.left(), viewportRect.top());
-    auto rightBottom = mapToScene(viewportRect.width(), viewportRect.height());
-    auto rect = QRectF(leftTop, rightBottom);
+    const auto viewportRect = viewport()->rect();
+    const auto leftTop = mapToScene(viewportRect.left(), viewportRect.top());
+    const auto rightBottom = mapToScene(viewportRect.width(), viewportRect.height());
+    const auto rect = QRectF(leftTop, rightBottom);
     return rect;
 }
 
-void TimeGraphicsView::setEnsureSceneFillViewX(bool on) {
+void TimeGraphicsView::setEnsureSceneFillViewX(const bool on) {
     m_ensureSceneFillViewX = on;
 }
 
-void TimeGraphicsView::setEnsureSceneFillViewY(bool on) {
+void TimeGraphicsView::setEnsureSceneFillViewY(const bool on) {
     m_ensureSceneFillViewY = on;
 }
 
@@ -203,13 +203,14 @@ TimeGraphicsView::DragBehavior TimeGraphicsView::dragBehavior() const {
     return m_dragBehavior;
 }
 
-void TimeGraphicsView::setDragBehavior(DragBehavior dragBehaviour) {
+void TimeGraphicsView::setDragBehavior(const DragBehavior dragBehaviour) {
     m_dragBehavior = dragBehaviour;
     // TODO: 实现手型拖动视图
 }
 
-void TimeGraphicsView::setScrollBarVisibility(Qt::Orientation orientation, bool visibility) {
-    if (auto commonScene = scene()) {
+void TimeGraphicsView::setScrollBarVisibility(const Qt::Orientation orientation,
+                                              const bool visibility) const {
+    if (const auto commonScene = scene()) {
         if (orientation == Qt::Horizontal) {
             commonScene->setHorizontalBarVisibility(visibility);
         } else
@@ -218,16 +219,58 @@ void TimeGraphicsView::setScrollBarVisibility(Qt::Orientation orientation, bool 
         qCritical() << "Scene is not TimeGraphicsView";
 }
 
+double TimeGraphicsView::startTick() const {
+    return sceneXToTick(visibleRect().left()) + m_offset;
+}
+
+double TimeGraphicsView::endTick() const {
+    return sceneXToTick(visibleRect().right()) + m_offset;
+}
+
+void TimeGraphicsView::setOffset(const int tick) {
+    m_offset = tick;
+    if (m_gridItem)
+        m_gridItem->setOffset(tick);
+    m_sceneLastPlayPosIndicator->setOffset(tick);
+    m_scenePlayPosIndicator->setOffset(tick);
+    emit timeRangeChanged(startTick(), endTick());
+}
+
+void TimeGraphicsView::setPixelsPerQuarterNote(const int px) {
+    m_pixelsPerQuarterNote = px;
+    m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
+    m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
+}
+
+void TimeGraphicsView::setAutoTurnPage(const bool on) {
+    m_autoTurnPage = on;
+    if (m_playbackPosition > endTick())
+        pageAdd();
+}
+
+void TimeGraphicsView::setViewportStartTick(const double tick) {
+    const auto sceneX = qRound(tickToSceneX(tick - m_offset));
+    // horizontalScrollBar()->setValue(sceneX);
+    horizontalBarAnimateTo(sceneX);
+}
+
+void TimeGraphicsView::setViewportCenterAtTick(const double tick) {
+    const auto tickRange = endTick() - startTick();
+    const auto targetStart = tick - tickRange / 2;
+    // qDebug() << "tickRange" << tickRange << "tick" << tick << "targetStart" << targetStart;
+    setViewportStartTick(targetStart);
+}
+
 void TimeGraphicsView::notifyVisibleRectChanged() {
     emit visibleRectChanged(visibleRect());
 }
 
-void TimeGraphicsView::onWheelHorScale(QWheelEvent *event) {
-    auto cursorPos = event->position().toPoint();
-    auto scenePos = mapToScene(cursorPos);
+void TimeGraphicsView::onWheelHorScale(const QWheelEvent *event) {
+    const auto cursorPos = event->position().toPoint();
+    const auto scenePos = mapToScene(cursorPos);
 
     // auto deltaX = event->angleDelta().x();
-    auto deltaY = event->angleDelta().y();
+    const auto deltaY = event->angleDelta().y();
 
     auto targetScaleX = scaleX();
     if (deltaY > 0)
@@ -238,15 +281,15 @@ void TimeGraphicsView::onWheelHorScale(QWheelEvent *event) {
     if (targetScaleX > m_scaleXMax)
         targetScaleX = m_scaleXMax;
 
-    auto scaledSceneWidth = sceneRect().width() * (targetScaleX / scaleX());
+    const auto scaledSceneWidth = sceneRect().width() * (targetScaleX / scaleX());
     if (scaledSceneWidth < viewport()->width()) {
-        auto targetSceneWidth = viewport()->width();
+        const auto targetSceneWidth = viewport()->width();
         targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
     }
 
-    auto ratio = targetScaleX / scaleX();
-    auto targetSceneX = scenePos.x() * ratio;
-    auto targetValue = qRound(targetSceneX - cursorPos.x());
+    const auto ratio = targetScaleX / scaleX();
+    const auto targetSceneX = scenePos.x() * ratio;
+    const auto targetValue = qRound(targetSceneX - cursorPos.x());
     if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
         setScaleX(targetScaleX);
         setHorizontalBarValue(targetValue);
@@ -260,11 +303,11 @@ void TimeGraphicsView::onWheelHorScale(QWheelEvent *event) {
     }
 }
 
-void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
-    auto cursorPos = event->position().toPoint();
-    auto scenePos = mapToScene(cursorPos);
+void TimeGraphicsView::onWheelVerScale(const QWheelEvent *event) {
+    const auto cursorPos = event->position().toPoint();
+    const auto scenePos = mapToScene(cursorPos);
 
-    auto deltaX = event->angleDelta().x();
+    const auto deltaX = event->angleDelta().x();
     auto targetScaleY = scaleY();
     if (deltaX > 0)
         targetScaleY = scaleY() * (1 + m_vZoomingStep * deltaX / 120);
@@ -276,15 +319,15 @@ void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
     else if (targetScaleY > m_scaleYMax)
         targetScaleY = m_scaleYMax;
 
-    auto scaledSceneHeight = sceneRect().height() * (targetScaleY / scaleY());
+    const auto scaledSceneHeight = sceneRect().height() * (targetScaleY / scaleY());
     if (m_ensureSceneFillViewY && scaledSceneHeight < viewport()->height()) {
-        auto targetSceneHeight = viewport()->height();
+        const auto targetSceneHeight = viewport()->height();
         targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
     }
 
-    auto ratio = targetScaleY / scaleY();
-    auto targetSceneY = scenePos.y() * ratio;
-    auto targetValue = qRound(targetSceneY - cursorPos.y());
+    const auto ratio = targetScaleY / scaleY();
+    const auto targetSceneY = scenePos.y() * ratio;
+    const auto targetValue = qRound(targetSceneY - cursorPos.y());
     if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
         setScaleY(targetScaleY);
         setVerticalBarValue(targetValue);
@@ -298,11 +341,11 @@ void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
     }
 }
 
-void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
-    auto deltaY = event->angleDelta().y();
-    auto scrollLength = -1 * viewport()->width() * 0.2 * deltaY / 120;
-    auto startValue = horizontalBarValue();
-    auto endValue = static_cast<int>(startValue + scrollLength);
+void TimeGraphicsView::onWheelHorScroll(const QWheelEvent *event) {
+    const auto deltaY = event->angleDelta().y();
+    const auto scrollLength = -1 * viewport()->width() * 0.2 * deltaY / 120;
+    const auto startValue = horizontalBarValue();
+    const auto endValue = static_cast<int>(startValue + scrollLength);
     if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event))
         setHorizontalBarValue(endValue);
     else {
@@ -311,21 +354,21 @@ void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
 }
 
 void TimeGraphicsView::onWheelVerScroll(QWheelEvent *event) {
-    auto deltaY = event->angleDelta().y();
+    const auto deltaY = event->angleDelta().y();
     if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
         QGraphicsView::wheelEvent(event);
     } else {
-        auto scrollLength = -1 * viewport()->height() * 0.15 * deltaY / 120;
-        auto startValue = verticalBarValue();
-        auto endValue = static_cast<int>(startValue + scrollLength);
+        const auto scrollLength = -1 * viewport()->height() * 0.15 * deltaY / 120;
+        const auto startValue = verticalBarValue();
+        const auto endValue = static_cast<int>(startValue + scrollLength);
         verticalBarAnimateTo(endValue);
     }
 }
 
 void TimeGraphicsView::adjustScaleXToFillView() {
     if (sceneRect().width() < viewport()->width()) {
-        auto targetSceneWidth = viewport()->width();
-        auto targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
+        const auto targetSceneWidth = viewport()->width();
+        const auto targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
         setScaleX(targetScaleX);
         qDebug() << "Scene width < viewport width, adjust scaleX to" << targetScaleX;
     }
@@ -333,11 +376,42 @@ void TimeGraphicsView::adjustScaleXToFillView() {
 
 void TimeGraphicsView::adjustScaleYToFillView() {
     if (sceneRect().height() < viewport()->height()) {
-        auto targetSceneHeight = viewport()->height();
-        auto targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
+        const auto targetSceneHeight = viewport()->height();
+        const auto targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
         setScaleY(targetScaleY);
         qDebug() << "Scene height < viewport height, adjust scaleY to" << targetScaleY;
     }
+}
+
+void TimeGraphicsView::setSceneLength(const int tick) const {
+    m_scene->setSceneLength(tick);
+}
+
+void TimeGraphicsView::setPlaybackPosition(const double tick) {
+    m_playbackPosition = tick;
+    if (m_scenePlayPosIndicator != nullptr)
+        m_scenePlayPosIndicator->setPosition(tick);
+
+    if (!m_autoTurnPage || appStatus->currentEditObject != AppStatus::EditObjectType::None)
+        return;
+
+    if (m_playbackPosition > endTick()) {
+        pageAdd();
+    } else if (m_playbackPosition < startTick())
+        setViewportStartTick(m_playbackPosition);
+}
+
+void TimeGraphicsView::setLastPlaybackPosition(const double tick) {
+    m_lastPlaybackPosition = tick;
+    if (m_sceneLastPlayPosIndicator != nullptr)
+        m_sceneLastPlayPosIndicator->setPosition(tick);
+}
+
+void TimeGraphicsView::pageAdd() {
+    // horizontalScrollBar()->triggerAction(QAbstractSlider::SliderPageStepAdd);
+    const auto start = horizontalScrollBar()->value();
+    const auto end = start + horizontalScrollBar()->pageStep();
+    horizontalBarAnimateTo(end);
 }
 
 void TimeGraphicsView::dragEnterEvent(QDragEnterEvent *event) {
@@ -358,14 +432,14 @@ void TimeGraphicsView::dragLeaveEvent(QDragLeaveEvent *event) {
 bool TimeGraphicsView::event(QEvent *event) {
     // Touchpad smooth zooming
     if (event->type() == QEvent::NativeGesture) {
-        auto gestureEvent = static_cast<QNativeGestureEvent *>(event);
+        const auto gestureEvent = static_cast<QNativeGestureEvent *>(event);
 
         if (gestureEvent->gestureType() == Qt::ZoomNativeGesture) {
-            auto cursorGlobalPos = gestureEvent->globalPosition().toPoint();
-            auto cursorPos = mapFromGlobal(cursorGlobalPos);
-            auto scenePos = mapToScene(cursorPos);
+            const auto cursorGlobalPos = gestureEvent->globalPosition().toPoint();
+            const auto cursorPos = mapFromGlobal(cursorGlobalPos);
+            const auto scenePos = mapToScene(cursorPos);
 
-            auto multiplier = gestureEvent->value() + 1;
+            const auto multiplier = gestureEvent->value() + 1;
 
             // Prevent negative zoom factors
             if (multiplier <= 0) {
@@ -376,15 +450,15 @@ bool TimeGraphicsView::event(QEvent *event) {
 
             targetScaleX = qMin(targetScaleX, scaleXMax());
 
-            auto scaledSceneWidth = sceneRect().width() * (targetScaleX / scaleX());
+            const auto scaledSceneWidth = sceneRect().width() * (targetScaleX / scaleX());
             if (scaledSceneWidth < viewport()->width()) {
-                auto targetSceneWidth = viewport()->width();
+                const auto targetSceneWidth = viewport()->width();
                 targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
             }
 
-            auto ratio = targetScaleX / scaleX();
-            auto targetSceneX = scenePos.x() * ratio;
-            auto targetValue = qRound(targetSceneX - cursorPos.x());
+            const auto ratio = targetScaleX / scaleX();
+            const auto targetSceneX = scenePos.x() * ratio;
+            const auto targetValue = qRound(targetSceneX - cursorPos.x());
 
             setScaleX(targetScaleX);
             setHorizontalBarValue(targetValue);
@@ -396,7 +470,7 @@ bool TimeGraphicsView::event(QEvent *event) {
     if (event->type() == QEvent::HoverEnter)
         handleHoverEnterEvent(dynamic_cast<QHoverEvent *>(event));
     else if (event->type() == QEvent::HoverLeave)
-        handleHoverLeaveEvent(dynamic_cast<QHoverEvent *>(event));
+        handleHoverLeaveEvent();
     else if (event->type() == QEvent::HoverMove)
         handleHoverMoveEvent(dynamic_cast<QHoverEvent *>(event));
     // else if (event->type() == QEvent::WindowActivate)
@@ -435,14 +509,14 @@ void TimeGraphicsView::resizeEvent(QResizeEvent *event) {
 
 void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (scene()) {
-        if (auto scrollBar = scrollBarAt(event->position().toPoint())) {
+        if (const auto scrollBar = scrollBarAt(event->position().toPoint())) {
             // auto oriStr = scrollBar->orientation() == Qt::Horizontal ? "horizontal" : "vertical";
             // qDebug() << "mouse down on" << oriStr << "scrollbar";
             m_isDraggingScrollBar = true;
             m_draggingScrollbarType = scrollBar->orientation();
             m_mouseDownPos = event->position().toPoint();
-            auto bar = scrollBar->orientation() == Qt::Horizontal ? horizontalScrollBar()
-                                                                  : verticalScrollBar();
+            const auto bar = scrollBar->orientation() == Qt::Horizontal ? horizontalScrollBar()
+                                                                        : verticalScrollBar();
             if (scrollBar->mouseOnHandle(event->pos())) {
                 scrollBar->moveToPressedState();
                 m_mouseOnScrollBarHandle = true;
@@ -476,30 +550,30 @@ void TimeGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     // qDebug() << "m_isDraggingScrollBar" << m_isDraggingScrollBar << "m_mouseOnScrollBarHandle"
     //          << m_mouseOnScrollBarHandle << "m_isDraggingContent" << m_isDraggingContent;
     if (m_isDraggingScrollBar && m_mouseOnScrollBarHandle) {
-        int barWidth = 14;
-        auto value0 = m_mouseDownBarValue;
-        auto max = m_mouseDownBarMax;
-        auto ratio = 1.0 * value0 / max;
+        constexpr int barWidth = 14;
+        const auto value0 = m_mouseDownBarValue;
+        const auto max = m_mouseDownBarMax;
+        const auto ratio = 1.0 * value0 / max;
         if (m_draggingScrollbarType == Qt::Horizontal) {
-            auto step = horizontalScrollBar()->pageStep();
-            auto x = event->position().x();
-            auto x0 = m_mouseDownPos.x();
-            auto dx = x - x0;
-            auto handleStep = 1.0 * step / (max + step) * (rect().width() - barWidth);
-            auto scrollingLength = rect().width() - handleStep - barWidth;
-            auto handleStart = ratio * scrollingLength;
-            auto value = (handleStart + dx) / scrollingLength * max;
+            const auto step = horizontalScrollBar()->pageStep();
+            const auto x = event->position().x();
+            const auto x0 = m_mouseDownPos.x();
+            const auto dx = x - x0;
+            const auto handleStep = 1.0 * step / (max + step) * (rect().width() - barWidth);
+            const auto scrollingLength = rect().width() - handleStep - barWidth;
+            const auto handleStart = ratio * scrollingLength;
+            const auto value = (handleStart + dx) / scrollingLength * max;
             setHorizontalBarValue(qRound(value));
             // qDebug() << "Move horizontal bar: " << horizontalScrollBar()->value();
         } else {
-            auto step = verticalScrollBar()->pageStep();
-            auto y = event->position().y();
-            auto y0 = m_mouseDownPos.y();
-            auto dy = y - y0;
-            auto handleStep = 1.0 * step / (max + step) * (rect().height() - barWidth);
-            auto scrollingLength = rect().height() - handleStep - barWidth;
-            auto handleStart = ratio * scrollingLength;
-            auto value = (handleStart + dy) / scrollingLength * max;
+            const auto step = verticalScrollBar()->pageStep();
+            const auto y = event->position().y();
+            const auto y0 = m_mouseDownPos.y();
+            const auto dy = y - y0;
+            const auto handleStep = 1.0 * step / (max + step) * (rect().height() - barWidth);
+            const auto scrollingLength = rect().height() - handleStep - barWidth;
+            const auto handleStart = ratio * scrollingLength;
+            const auto value = (handleStart + dy) / scrollingLength * max;
             setVerticalBarValue(qRound(value));
         }
         QGraphicsView::mouseMoveEvent(event);
@@ -537,113 +611,6 @@ void TimeGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     QGraphicsView::mouseReleaseEvent(event);
 }
 
-bool TimeGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
-#ifdef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
-    return event->deviceType() == QInputDevice::DeviceType::Mouse;
-#else
-    auto deltaX = event->angleDelta().x();
-    auto deltaY = event->angleDelta().y();
-    auto absDx = qAbs(deltaX);
-    auto absDy = qAbs(deltaY);
-    if (m_touchPadLock) {
-        m_timer.start();
-        return false;
-    }
-
-    // touchpad lock off
-    // event might from wheel
-    if ((absDx == 0 && absDy % 120 == 0) || (absDx % 120 == 0 && absDy == 0))
-        return true;
-
-    // event might from touchpad
-    m_touchPadLock = true;
-    m_timer.start();
-    return false;
-#endif
-}
-
-void TimeGraphicsView::updateAnimationDuration() {
-    const int animationDurationBase = 250;
-    auto duration = animationLevel() == AnimationGlobal::Full
-                        ? getScaledAnimationTime(animationDurationBase)
-                        : 0;
-    m_scaleXAnimation.setDuration(duration);
-    m_scaleYAnimation.setDuration(duration);
-    m_hBarAnimation.setDuration(duration);
-    m_vBarAnimation.setDuration(duration);
-}
-
-void TimeGraphicsView::handleHoverEnterEvent(QHoverEvent *event) {
-    if (!scene() || m_scrollBarPressed)
-        return;
-
-    auto pos = event->position().toPoint();
-    // qDebug() << pos;
-    if (auto scrollBar = scrollBarAt(pos)) {
-        m_prevHoveredItem = scrollBar->orientation() == Qt::Horizontal ? ItemType::HorizontalBar
-                                                                       : ItemType::VerticalBar;
-        if (scrollBar->mouseOnHandle(pos))
-            scrollBar->moveToHoverState();
-        else
-            scrollBar->moveToNormalState();
-    } else {
-        scene()->horizontalBar()->moveToNormalState();
-        scene()->verticalBar()->moveToNormalState();
-        m_prevHoveredItem = ItemType::Content;
-    }
-}
-
-void TimeGraphicsView::handleHoverLeaveEvent(QHoverEvent *event) {
-    if (!scene() || m_scrollBarPressed)
-        return;
-    scene()->horizontalBar()->moveToNormalState();
-    scene()->verticalBar()->moveToNormalState();
-}
-
-void TimeGraphicsView::handleHoverMoveEvent(QHoverEvent *event) {
-    if (!scene() || m_scrollBarPressed)
-        return;
-
-    auto isSameBar = [&](Qt::Orientation orientation) {
-        if (orientation == Qt::Horizontal && m_prevHoveredItem == ItemType::HorizontalBar)
-            return true;
-        if (orientation == Qt::Vertical && m_prevHoveredItem == ItemType::VerticalBar)
-            return true;
-        return false;
-    };
-
-    auto pos = event->position().toPoint();
-    if (auto scrollBar = scrollBarAt(pos)) {
-        // qDebug() << scrollBar->orientation();
-        auto orientation = scrollBar->orientation();
-
-        if (scrollBar->mouseOnHandle(pos)) {
-            // qDebug() << "mouseOnHandle true";
-            scrollBar->moveToHoverState();
-        } else {
-            // qDebug() << "mouseOnHandle false";
-            scene()->horizontalBar()->moveToNormalState();
-            scene()->verticalBar()->moveToNormalState();
-        }
-        m_prevHoveredItem =
-            orientation == Qt::Horizontal ? ItemType::HorizontalBar : ItemType::VerticalBar;
-    } else {
-        scene()->horizontalBar()->moveToNormalState();
-        scene()->verticalBar()->moveToNormalState();
-        m_prevHoveredItem = ItemType::Content;
-    }
-}
-
-ScrollBarView *TimeGraphicsView::scrollBarAt(const QPoint &pos) {
-    if (!scene())
-        return nullptr;
-
-    for (const auto item : items(pos))
-        if (auto bar = dynamic_cast<ScrollBarView *>(item))
-            return bar;
-    return nullptr;
-}
-
 void TimeGraphicsView::afterSetScale() {
     emit scaleChanged(scaleX(), scaleY());
 }
@@ -656,84 +623,11 @@ void TimeGraphicsView::afterSetTimeScale(double scale) {
     updateAnimationDuration();
 }
 
-double TimeGraphicsView::startTick() const {
-    return sceneXToTick(visibleRect().left()) + m_offset;
-}
-
-double TimeGraphicsView::endTick() const {
-    return sceneXToTick(visibleRect().right()) + m_offset;
-}
-
-void TimeGraphicsView::setOffset(int tick) {
-    m_offset = tick;
-    if (m_gridItem)
-        m_gridItem->setOffset(tick);
-    m_sceneLastPlayPosIndicator->setOffset(tick);
-    m_scenePlayPosIndicator->setOffset(tick);
-    emit timeRangeChanged(startTick(), endTick());
-}
-
-void TimeGraphicsView::setPixelsPerQuarterNote(int px) {
-    m_pixelsPerQuarterNote = px;
-    m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
-    m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
-}
-
-void TimeGraphicsView::setAutoTurnPage(bool on) {
-    m_autoTurnPage = on;
-    if (m_playbackPosition > endTick())
-        pageAdd();
-}
-
-void TimeGraphicsView::setSceneLength(int tick) const {
-    m_scene->setSceneLength(tick);
-}
-
-void TimeGraphicsView::setPlaybackPosition(double tick) {
-    m_playbackPosition = tick;
-    if (m_scenePlayPosIndicator != nullptr)
-        m_scenePlayPosIndicator->setPosition(tick);
-
-    if (!m_autoTurnPage || appStatus->currentEditObject != AppStatus::EditObjectType::None)
-        return;
-
-    if (m_playbackPosition > endTick()) {
-        pageAdd();
-    } else if (m_playbackPosition < startTick())
-        setViewportStartTick(m_playbackPosition);
-}
-
-void TimeGraphicsView::setLastPlaybackPosition(double tick) {
-    m_lastPlaybackPosition = tick;
-    if (m_sceneLastPlayPosIndicator != nullptr)
-        m_sceneLastPlayPosIndicator->setPosition(tick);
-}
-
-void TimeGraphicsView::setViewportStartTick(double tick) {
-    auto sceneX = qRound(tickToSceneX(tick - m_offset));
-    // horizontalScrollBar()->setValue(sceneX);
-    horizontalBarAnimateTo(sceneX);
-}
-
-void TimeGraphicsView::setViewportCenterAtTick(double tick) {
-    auto tickRange = endTick() - startTick();
-    auto targetStart = tick - tickRange / 2;
-    // qDebug() << "tickRange" << tickRange << "tick" << tick << "targetStart" << targetStart;
-    setViewportStartTick(targetStart);
-}
-
-void TimeGraphicsView::pageAdd() {
-    // horizontalScrollBar()->triggerAction(QAbstractSlider::SliderPageStepAdd);
-    auto start = horizontalScrollBar()->value();
-    auto end = start + horizontalScrollBar()->pageStep();
-    horizontalBarAnimateTo(end);
-}
-
-double TimeGraphicsView::sceneXToTick(double pos) const {
+double TimeGraphicsView::sceneXToTick(const double pos) const {
     return 480 * pos / scaleX() / m_pixelsPerQuarterNote;
 }
 
-double TimeGraphicsView::tickToSceneX(double tick) const {
+double TimeGraphicsView::tickToSceneX(const double tick) const {
     return tick * scaleX() * m_pixelsPerQuarterNote / 480;
 }
 
@@ -765,4 +659,111 @@ void TimeGraphicsView::setCommonLineColor(const QColor &color) {
     m_commonLineColor = color;
     if (m_gridItem)
         m_gridItem->setCommonLineColor(m_commonLineColor);
+}
+
+bool TimeGraphicsView::isMouseEventFromWheel(const QWheelEvent *event) {
+#ifdef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
+    return event->deviceType() == QInputDevice::DeviceType::Mouse;
+#else
+    const auto deltaX = event->angleDelta().x();
+    const auto deltaY = event->angleDelta().y();
+    const auto absDx = qAbs(deltaX);
+    const auto absDy = qAbs(deltaY);
+    if (m_touchPadLock) {
+        m_timer.start();
+        return false;
+    }
+
+    // touchpad lock off
+    // event might from wheel
+    if ((absDx == 0 && absDy % 120 == 0) || (absDx % 120 == 0 && absDy == 0))
+        return true;
+
+    // event might from touchpad
+    m_touchPadLock = true;
+    m_timer.start();
+    return false;
+#endif
+}
+
+void TimeGraphicsView::updateAnimationDuration() {
+    constexpr int animationDurationBase = 250;
+    const auto duration = animationLevel() == AnimationGlobal::Full
+                              ? getScaledAnimationTime(animationDurationBase)
+                              : 0;
+    m_scaleXAnimation.setDuration(duration);
+    m_scaleYAnimation.setDuration(duration);
+    m_hBarAnimation.setDuration(duration);
+    m_vBarAnimation.setDuration(duration);
+}
+
+void TimeGraphicsView::handleHoverEnterEvent(const QHoverEvent *event) {
+    if (!scene() || m_scrollBarPressed)
+        return;
+
+    const auto pos = event->position().toPoint();
+    // qDebug() << pos;
+    if (const auto scrollBar = scrollBarAt(pos)) {
+        m_prevHoveredItem = scrollBar->orientation() == Qt::Horizontal ? ItemType::HorizontalBar
+                                                                       : ItemType::VerticalBar;
+        if (scrollBar->mouseOnHandle(pos))
+            scrollBar->moveToHoverState();
+        else
+            scrollBar->moveToNormalState();
+    } else {
+        scene()->horizontalBar()->moveToNormalState();
+        scene()->verticalBar()->moveToNormalState();
+        m_prevHoveredItem = ItemType::Content;
+    }
+}
+
+void TimeGraphicsView::handleHoverLeaveEvent() const {
+    if (!scene() || m_scrollBarPressed)
+        return;
+    scene()->horizontalBar()->moveToNormalState();
+    scene()->verticalBar()->moveToNormalState();
+}
+
+void TimeGraphicsView::handleHoverMoveEvent(const QHoverEvent *event) {
+    if (!scene() || m_scrollBarPressed)
+        return;
+
+    // auto isSameBar = [&](const Qt::Orientation orientation) {
+    //     if (orientation == Qt::Horizontal && m_prevHoveredItem == ItemType::HorizontalBar)
+    //         return true;
+    //     if (orientation == Qt::Vertical && m_prevHoveredItem == ItemType::VerticalBar)
+    //         return true;
+    //     return false;
+    // };
+
+    const auto pos = event->position().toPoint();
+    if (const auto scrollBar = scrollBarAt(pos)) {
+        // qDebug() << scrollBar->orientation();
+        const auto orientation = scrollBar->orientation();
+
+        if (scrollBar->mouseOnHandle(pos)) {
+            // qDebug() << "mouseOnHandle true";
+            scrollBar->moveToHoverState();
+        } else {
+            // qDebug() << "mouseOnHandle false";
+            scene()->horizontalBar()->moveToNormalState();
+            scene()->verticalBar()->moveToNormalState();
+        }
+        m_prevHoveredItem =
+            orientation == Qt::Horizontal ? ItemType::HorizontalBar : ItemType::VerticalBar;
+    } else {
+        scene()->horizontalBar()->moveToNormalState();
+        scene()->verticalBar()->moveToNormalState();
+        m_prevHoveredItem = ItemType::Content;
+    }
+}
+
+ScrollBarView *TimeGraphicsView::scrollBarAt(const QPoint &pos) const {
+    if (!scene())
+        return nullptr;
+
+    for (const auto item : items(pos))
+        if (const auto bar = dynamic_cast<ScrollBarView *>(item))
+            return bar;
+    return nullptr;
 }

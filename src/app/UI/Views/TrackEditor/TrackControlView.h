@@ -32,17 +32,17 @@ class TrackControlView final : public QWidget, public ITrack {
 
 public:
     explicit TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent = nullptr);
-    [[nodiscard]] int trackIndex() const;
+    int trackIndex() const;
     void setTrackIndex(int i) const;
-    [[nodiscard]] QString name() const override;
+    QString name() const override;
     void setName(const QString &name) override;
-    [[nodiscard]] TrackControl control() const override;
+    TrackControl control() const override;
     void setControl(const TrackControl &control) override;
     void setNarrowMode(bool on) const;
     void setLanguage(const QString &language) const;
-    [[nodiscard]] LevelMeter *levelMeter() const;
+    LevelMeter *levelMeter() const;
 
-    [[nodiscard]] QColor color() const override {
+    QColor color() const override {
         return {};
     }
 

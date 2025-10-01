@@ -38,9 +38,9 @@ public:
         InferParamCurve mouthOpening;
     };
 
-    [[nodiscard]] int clipId() const override;
-    [[nodiscard]] int pieceId() const override;
-    [[nodiscard]] bool success() const override;
+    int clipId() const override;
+    int pieceId() const override;
+    bool success() const override;
 
     explicit InferVarianceTask(InferVarianceInput input);
     InferVarianceInput input() const;

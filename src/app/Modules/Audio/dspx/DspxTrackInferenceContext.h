@@ -15,6 +15,7 @@ namespace talcs {
         Q_OBJECT
         Q_DECLARE_PRIVATE(DspxTrackInferenceContext)
         friend class DspxSingingClipInferenceContext;
+
     public:
         explicit DspxTrackInferenceContext(QObject *parent = nullptr);
         ~DspxTrackInferenceContext() override;
@@ -26,6 +27,7 @@ namespace talcs {
             Export,
             VST,
         };
+
         Mode mode() const;
         void setMode(Mode mode);
 
@@ -36,9 +38,8 @@ namespace talcs {
 
     private:
         QScopedPointer<DspxTrackInferenceContextPrivate> d_ptr;
-
     };
 
 }
 
-#endif //TALCS_DSPXTRACKINFERENCECONTEXT_H
+#endif // TALCS_DSPXTRACKINFERENCECONTEXT_H

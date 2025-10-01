@@ -12,14 +12,15 @@
 class InferPhoneme final : public ISerializable {
 public:
     InferPhoneme() = default;
-    InferPhoneme(QString token, const QString &languageDictId, bool is_onset = true, double start = 0);
+    InferPhoneme(QString token, const QString &languageDictId, bool is_onset = true,
+                 double start = 0);
 
     QString token;
     QString languageDictId;
     bool is_onset = true;
     double start = 0; // s
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 };
 
@@ -34,7 +35,7 @@ public:
     bool is_rest = false;
     QString glide = "none";
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 };
 
@@ -46,10 +47,10 @@ public:
     QList<InferPhoneme> phones;
     QList<InferNote> notes;
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 
-    [[nodiscard]] double length() const;
+    double length() const;
 };
 
 class InferRetake final : public ISerializable {
@@ -58,7 +59,7 @@ public:
     double start = 0;
     double end = 0;
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 };
 
@@ -70,7 +71,7 @@ public:
     QList<double> values;
     InferRetake retake;
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 };
 
@@ -86,11 +87,11 @@ public:
     int steps = -1;
     float depth = 1.0;
 
-    [[nodiscard]] QJsonObject serialize() const override;
+    QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
-    [[nodiscard]] QString serializeToJson(bool useMetadata = true) const;
+    QString serializeToJson(bool useMetadata = true) const;
     bool deserializeFromJson(const QString &json);
-    [[nodiscard]] QString hashData() const override;
+    QString hashData() const override;
 };
 
 

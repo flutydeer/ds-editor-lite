@@ -40,13 +40,13 @@ public:
     explicit ProgressIndicator(QWidget *parent = nullptr);
     explicit ProgressIndicator(IndicatorStyle indicatorStyle, QWidget *parent = nullptr);
 
-    [[nodiscard]] double minimum() const;
-    [[nodiscard]] double maximum() const;
-    [[nodiscard]] double value() const;
-    [[nodiscard]] double secondaryValue() const;
-    [[nodiscard]] double currentTaskValue() const;
-    [[nodiscard]] bool indeterminate() const;
-    [[nodiscard]] TaskGlobal::Status taskStatus() const;
+    double minimum() const;
+    double maximum() const;
+    double value() const;
+    double secondaryValue() const;
+    double currentTaskValue() const;
+    bool indeterminate() const;
+    TaskGlobal::Status taskStatus() const;
     //
     //    QSize sizeHint() const override;
     //    QSize minimumSizeHint() const override;
@@ -134,13 +134,13 @@ private:
     double m_apparentSecondaryValue = 0;
     double m_apparentCurrentTaskValue = 0;
 
-    [[nodiscard]] int thumbProgress() const;
+    int thumbProgress() const;
     void setThumbProgress(int x);
-    [[nodiscard]] double apparentValue() const;
+    double apparentValue() const;
     void setApparentValue(double x);
-    [[nodiscard]] double apparentSecondaryValue() const;
+    double apparentSecondaryValue() const;
     void setApparentSecondaryValue(double x);
-    [[nodiscard]] double apparentCurrentTaskValue() const;
+    double apparentCurrentTaskValue() const;
     void setApparentCurrentTaskValue(double x);
 };
 

@@ -20,8 +20,8 @@ public:
         : original(std::move(original)), edited(std::move(edited)) {
     }
 
-    [[nodiscard]] bool isEdited() const;
-    [[nodiscard]] QString result() const;
+    bool isEdited() const;
+    QString result() const;
 
     friend QDataStream &operator<<(QDataStream &out, const Pronunciation &pronunciation);
     friend QDataStream &operator>>(QDataStream &in, Pronunciation &pronunciation);

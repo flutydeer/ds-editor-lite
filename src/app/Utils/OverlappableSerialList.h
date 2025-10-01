@@ -33,21 +33,21 @@ class OverlappableSerialList {
     };
 
 public:
-    [[nodiscard]] int count() const;
+    int count() const;
     void add(T *item);
     void remove(T *item);
     void clear();
     bool contains(const T *item);
-    [[nodiscard]] bool hasOverlappedItem() const;
+    bool hasOverlappedItem() const;
     QList<T *> findOverlappedItems(T *obj) const;
     QList<T *> findOverlappedItems(const std::tuple<qsizetype, qsizetype> &interval_) const;
     QList<T *> overlappedItems() const;
     QList<T *> toList() const;
 
-    using iterator = typename std::set<T *, ItemCmp>::const_iterator;
-    using const_iterator = typename std::set<T *, ItemCmp>::const_iterator;
-    using reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
-    using const_reverse_iterator = typename std::set<T *, ItemCmp>::const_reverse_iterator;
+    using iterator = std::set<T *, ItemCmp>::const_iterator;
+    using const_iterator = std::set<T *, ItemCmp>::const_iterator;
+    using reverse_iterator = std::set<T *, ItemCmp>::const_reverse_iterator;
+    using const_reverse_iterator = std::set<T *, ItemCmp>::const_reverse_iterator;
 
     iterator begin() {
         return m_items.cbegin();

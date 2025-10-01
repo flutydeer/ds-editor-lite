@@ -14,7 +14,7 @@ public:
     Knot(TPos position, TValue value) : _position(position), _value(value), _slope(0.0) {
     }
 
-    Knot(TPos position, TValue value, double slope)
+    Knot(TPos position, TValue value, const double slope)
         : _position(position), _value(value), _slope(slope) {
     }
 
@@ -47,11 +47,11 @@ public:
         _value = value;
     }
 
-    [[nodiscard]] double getSlope() const {
+    double getSlope() const {
         return _slope;
     }
 
-    void setSlope(double slope) {
+    void setSlope(const double slope) {
         _slope = slope;
     }
 
@@ -175,7 +175,8 @@ public:
         return _segments[index - 1].getValue(position);
     }
 
-    std::vector<std::pair<TPos, TValue>> getValueLinspace(TPos start, TPos end, int num) const {
+    std::vector<std::pair<TPos, TValue>> getValueLinspace(TPos start, TPos end,
+                                                          const int num) const {
         std::vector<std::pair<TPos, TValue>> res;
         if (num == 0) {
             return res;
@@ -183,9 +184,9 @@ public:
         auto knot_it = std::lower_bound(_knots.begin(), _knots.end(), Knot<TPos, TValue>(start, 0),
                                         knotCmp<TPos, TValue>);
         int curr_segment_index = std::distance(_knots.begin(), knot_it) - 1;
-        double num_d = num;
+        const double num_d = num;
         for (int i = 0; i < num; i++) {
-            double w = (static_cast<double>(i) / num_d);
+            double w = static_cast<double>(i) / num_d;
             TPos position = static_cast<TPos>((1.0 - w) * start + w * end);
 
             if (curr_segment_index < 0) {
@@ -277,7 +278,8 @@ public:
                                    knotCmp<TPos, TValue>);
         if (it == _knots.end()) {
             return;
-        } else if (it->getPosition() == x) {
+        }
+        if (it->getPosition() == x) {
             int index = std::distance(_knots.begin(), it);
             _knots.removeAt(index);
             if (index < _segments.count()) {
@@ -314,17 +316,18 @@ private:
     QList<Knot<TPos, TValue>> _knots;
     QList<Segment<TPos, TValue>> _segments;
 
-    [[nodiscard]] double getInteriorSlope(int index) const {
-        TValue delta_y_l = (_knots[index].getValue() - _knots[index - 1].getValue());
-        TValue delta_y_r = (_knots[index + 1].getValue() - _knots[index].getValue());
-        if ((delta_y_l * delta_y_r) <= 0) {
+    double getInteriorSlope(int index) const {
+        TValue delta_y_l = _knots[index].getValue() - _knots[index - 1].getValue();
+        TValue delta_y_r = _knots[index + 1].getValue() - _knots[index].getValue();
+        if (delta_y_l * delta_y_r <= 0) {
             return 0;
         }
-        TPos delta_x_l = (_knots[index].getPosition() - _knots[index - 1].getPosition());
-        TPos delta_x_r = (_knots[index + 1].getPosition() - _knots[index].getPosition());
-        double slope_l = delta_y_l / delta_x_l;
-        double slope_r = delta_y_r / delta_x_r;
-        double w_l = delta_x_l + 2 * delta_x_r, w_r = 2 * delta_x_l + delta_x_r;
+        TPos delta_x_l = _knots[index].getPosition() - _knots[index - 1].getPosition();
+        TPos delta_x_r = _knots[index + 1].getPosition() - _knots[index].getPosition();
+        const double slope_l = delta_y_l / delta_x_l;
+        const double slope_r = delta_y_r / delta_x_r;
+        const double w_l = delta_x_l + 2 * delta_x_r;
+        const double w_r = 2 * delta_x_l + delta_x_r;
         return (w_l + w_r) / (w_l / slope_l + w_r / slope_r);
     }
 
@@ -337,7 +340,7 @@ private:
     }
 
     void updateAllKnots() {
-        int len = _knots.count();
+        const int len = _knots.count();
 
         std::sort(_knots.begin(), _knots.end(), knotCmp<TPos, TValue>);
         double slope_start = static_cast<double>(_knots[1].getValue() - _knots.front().getValue()) /
@@ -363,7 +366,7 @@ private:
         }
     }
 
-    void update(int start_index, int end_index) { // 更新闭区间[start_index,end_index]
+    void update(const int start_index, const int end_index) { // 更新闭区间[start_index,end_index]
         if (_knots.count() <= 1) {
             return;
         }
@@ -371,8 +374,8 @@ private:
         updateSegments(start_index, end_index);
     }
 
-    void updateKnots(int start_index, int end_index) {
-        int len = _knots.count();
+    void updateKnots(const int start_index, const int end_index) {
+        const int len = _knots.count();
 
         for (int i = start_index; i <= end_index; i++) {
             if (i < 0 || i >= len) {
@@ -390,7 +393,7 @@ private:
         }
     }
 
-    void updateSegments(int start_index, int end_index) {
+    void updateSegments(const int start_index, const int end_index) {
         for (int i = start_index - 1; i < end_index + 1; i++) {
             if (i < 0 || i >= _segments.count()) {
                 continue;

@@ -61,7 +61,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTime->setText(toFormattedTickTime(m_tick));
 
     connect(m_elTempo, &EditLabel::editCompleted, this, [this](const QString &value) {
-        auto tempo = value.toDouble();
+        const auto tempo = value.toDouble();
         if (m_tempo != tempo) {
             m_tempo = tempo;
             emit setTempoTriggered(tempo);
@@ -81,11 +81,11 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         bool isValidNumerator = false;
         bool isValidDenominator = false;
 
-        auto numerator = splitStr.first().toInt(&isValidNumerator);
-        auto denominator = splitStr.last().toInt(&isValidDenominator);
+        const auto numerator = splitStr.first().toInt(&isValidNumerator);
+        const auto denominator = splitStr.last().toInt(&isValidDenominator);
 
         // If the numerator or denominator are not positive integers, ignore the change.
-        if (!(isValidNumerator && isValidDenominator && (numerator > 0) && (denominator > 0))) {
+        if (!(isValidNumerator && isValidDenominator && numerator > 0 && denominator > 0)) {
             return;
         }
 
@@ -99,11 +99,11 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         if (!value.contains(':'))
             return;
 
-        auto splitStr = value.split(':');
+        const auto splitStr = value.split(':');
         if (splitStr.size() != 3)
             return;
 
-        auto tick = fromTickTimeString(splitStr);
+        const auto tick = fromTickTimeString(splitStr);
         if (tick != m_tick) {
             m_tick = tick;
             emit setPositionTriggered(tick);
@@ -126,12 +126,12 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_cbQuantize->addItems(quantizeStrings);
     m_cbQuantize->setCurrentIndex(3);
 
-    connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [this](int index) {
-        auto value = quantizeValues.at(index);
+    connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [this](const int index) {
+        const auto value = quantizeValues.at(index);
         emit setQuantizeTriggered(value);
     });
 
-    auto transportLayout = new QHBoxLayout;
+    const auto transportLayout = new QHBoxLayout;
     transportLayout->addWidget(m_btnStop);
     transportLayout->addWidget(m_btnPlay);
     transportLayout->addWidget(m_btnPause);
@@ -139,19 +139,19 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     transportLayout->setSpacing(1);
     transportLayout->setContentsMargins({});
 
-    auto transportWidget = new TitleControlGroup;
+    const auto transportWidget = new TitleControlGroup;
     transportWidget->setLayout(transportLayout);
 
-    auto scoreGlobalLayout = new QHBoxLayout;
+    const auto scoreGlobalLayout = new QHBoxLayout;
     scoreGlobalLayout->addWidget(m_elTempo);
     scoreGlobalLayout->addWidget(m_elTimeSignature);
     scoreGlobalLayout->setSpacing(1);
     scoreGlobalLayout->setContentsMargins({});
 
-    auto scoreGlobalWidget = new TitleControlGroup;
+    const auto scoreGlobalWidget = new TitleControlGroup;
     scoreGlobalWidget->setLayout(scoreGlobalLayout);
 
-    auto mainLayout = new QHBoxLayout;
+    const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_cbQuantize);
     mainLayout->addWidget(transportWidget);
     mainLayout->addWidget(scoreGlobalWidget);
@@ -167,7 +167,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     connect(this, &PlaybackView::playTriggered, playbackController, &PlaybackController::play);
     connect(this, &PlaybackView::pauseTriggered, playbackController, &PlaybackController::pause);
     connect(this, &PlaybackView::stopTriggered, playbackController, &PlaybackController::stop);
-    connect(this, &PlaybackView::setPositionTriggered, playbackController, [](int tick) {
+    connect(this, &PlaybackView::setPositionTriggered, playbackController, [](const int tick) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
     });
@@ -195,60 +195,60 @@ void PlaybackView::updateView() {
     updatePlaybackControlView();
 }
 
-void PlaybackView::onTempoChanged(double tempo) {
+void PlaybackView::onTempoChanged(const double tempo) {
     m_tempo = tempo;
     updateTempoView();
 }
 
-void PlaybackView::onTimeSignatureChanged(int numerator, int denominator) {
+void PlaybackView::onTimeSignatureChanged(const int numerator, const int denominator) {
     m_numerator = numerator;
     m_denominator = denominator;
     updateTimeSignatureView();
     updateTimeView();
 }
 
-void PlaybackView::onPositionChanged(double tick) {
+void PlaybackView::onPositionChanged(const double tick) {
     m_tick = static_cast<int>(tick);
     updateTimeView();
 }
 
-void PlaybackView::onPlaybackStatusChanged(PlaybackStatus status) {
+void PlaybackView::onPlaybackStatusChanged(const PlaybackStatus status) {
     m_status = status;
     updatePlaybackControlView();
 }
 
-QString PlaybackView::toFormattedTickTime(int ticks) const {
-    int barTicks = 1920 * m_numerator / m_denominator;
-    int beatTicks = 1920 / m_denominator;
-    auto bar = ticks / barTicks + 1;
-    auto beat = ticks % barTicks / beatTicks + 1;
-    auto tick = ticks % barTicks % beatTicks;
+QString PlaybackView::toFormattedTickTime(const int ticks) const {
+    const int barTicks = 1920 * m_numerator / m_denominator;
+    const int beatTicks = 1920 / m_denominator;
+    const auto bar = ticks / barTicks + 1;
+    const auto beat = ticks % barTicks / beatTicks + 1;
+    const auto tick = ticks % barTicks % beatTicks;
     auto str = QString::asprintf("%03d", bar) + ":" + QString::asprintf("%02d", beat) + ":" +
                QString::asprintf("%03d", tick);
     return str;
 }
 
 int PlaybackView::fromTickTimeString(const QStringList &splitStr) const {
-    auto bar = splitStr.at(0).toInt();
-    auto beat = splitStr.at(1).toInt();
-    auto tick = splitStr.at(2).toInt();
+    const auto bar = splitStr.at(0).toInt();
+    const auto beat = splitStr.at(1).toInt();
+    const auto tick = splitStr.at(2).toInt();
     return (bar - 1) * 1920 * m_numerator / m_denominator + (beat - 1) * 1920 / m_denominator +
            tick;
 }
 
-void PlaybackView::updateTempoView() {
+void PlaybackView::updateTempoView() const {
     m_elTempo->setText(QString::number(m_tempo));
 }
 
-void PlaybackView::updateTimeSignatureView() {
+void PlaybackView::updateTimeSignatureView() const {
     m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
 }
 
-void PlaybackView::updateTimeView() {
+void PlaybackView::updateTimeView() const {
     m_elTime->setText(toFormattedTickTime(m_tick));
 }
 
-void PlaybackView::updatePlaybackControlView() {
+void PlaybackView::updatePlaybackControlView() const {
     if (m_status == Playing) {
         m_btnPlay->setChecked(true);
         m_btnPlay->setIcon(icoPlayBlack);

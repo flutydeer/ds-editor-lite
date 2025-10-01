@@ -12,7 +12,7 @@
 #include <QPushButton>
 
 ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
-    auto dividerLine = new DividerLine(Qt::Vertical);
+    const auto dividerLine = new DividerLine(Qt::Vertical);
     dividerLine->setFixedHeight(m_contentHeight - 6);
 
     m_btnSave = new QPushButton;
@@ -43,7 +43,7 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     m_btnRedo->installEventFilter(new ToolTipFilter(m_btnRedo));
     connect(m_btnRedo, &QPushButton::clicked, this, [this] { emit redoTriggered(); });
 
-    auto mainLayout = new QHBoxLayout;
+    const auto mainLayout = new QHBoxLayout;
     mainLayout->setContentsMargins(4, 0, 6, 0);
     mainLayout->setSpacing(4);
     setLayout(mainLayout);
@@ -59,8 +59,8 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
             &ActionButtonsView::onUndoRedoChanged);
 }
 
-void ActionButtonsView::onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
-                                          const QString &redoActionName) {
+void ActionButtonsView::onUndoRedoChanged(const bool canUndo, const QString &undoActionName,
+                                          const bool canRedo, const QString &redoActionName) const {
     m_btnUndo->setEnabled(canUndo);
     m_btnUndo->setToolTip(tr("Undo") + " " + undoActionName);
     m_btnRedo->setEnabled(canRedo);

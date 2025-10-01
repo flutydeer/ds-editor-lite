@@ -43,11 +43,11 @@ protected:
 
 private:
     friend class TimeGraphicsView;
-    [[nodiscard]] double startTick() const;
-    [[nodiscard]] double endTick() const;
-    [[nodiscard]] double sceneXToTick(double pos) const;
-    [[nodiscard]] double tickToSceneX(double tick) const;
-    [[nodiscard]] double sceneXToItemX(double x) const;
+    double startTick() const;
+    double endTick() const;
+    double sceneXToTick(double pos) const;
+    double tickToSceneX(double tick) const;
+    double sceneXToItemX(double x) const;
 
     int m_offset = 0;
     QColor m_barLineColor = {8, 9, 10};

@@ -279,10 +279,10 @@ bool InferEngine::initialize(QString &error) {
     }
 
 
-    //const auto homeDir = StringUtils::qstr_to_path(QDir::toNativeSeparators(
-    //    QStandardPaths::writableLocation(QStandardPaths::HomeLocation)));
+    // const auto homeDir = StringUtils::qstr_to_path(QDir::toNativeSeparators(
+    //     QStandardPaths::writableLocation(QStandardPaths::HomeLocation)));
 
-    //const std::filesystem::path paths = {homeDir / ".diffsinger/packages"};
+    // const std::filesystem::path paths = {homeDir / ".diffsinger/packages"};
     const auto packagePathsQt = appOptions->general()->packageSearchPaths;
     std::vector<std::filesystem::path> packagePaths;
     packagePaths.reserve(packagePathsQt.size());
@@ -462,17 +462,20 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
     // If not found, try loading the package
     if (!loader) {
         qDebug() << "loadInferencesForSinger: "
-                    "singer" << identifier << "not loaded, try loading now";
+                    "singer"
+                 << identifier << "not loaded, try loading now";
         const auto packageInfo = packageManager->findPackageByIdentifier(identifier);
         if (packageInfo.isEmpty()) {
             qCritical() << "loadInferencesForSinger: "
-                           "package for singer" << identifier << "not found";
+                           "package for singer"
+                        << identifier << "not found";
             return false;
         }
         srt::PackageRef pkg;
         if (!loadPackageAndAllSingers(packageInfo.path(), pkg)) {
             qCritical() << "loadInferencesForSinger: "
-                           "failed to load package and singers" << identifier;
+                           "failed to load package and singers"
+                        << identifier;
             return false;
         }
         Q_UNUSED(pkg)
@@ -496,7 +499,8 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
         const auto it = m_inferences.constFind(identifier);
         if (it != m_inferences.constEnd()) {
             qDebug() << "loadInferencesForSinger: "
-                        "inferences already loaded for" << identifier;
+                        "inferences already loaded for"
+                     << identifier;
             return true;
         }
     }
@@ -593,7 +597,7 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
         m_inferences[identifier] = std::move(inference);
     }
 
-    //m_paths.config = StringUtils::path_to_qstr(singerSpec->parent().path());
+    // m_paths.config = StringUtils::path_to_qstr(singerSpec->parent().path());
     qInfo() << "loadInferences success";
 
     return true;

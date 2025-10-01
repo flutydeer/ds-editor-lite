@@ -14,10 +14,10 @@ class Property {
 
 public:
     virtual ~Property() = default;
-    [[nodiscard]] virtual T get() const;
-    [[nodiscard]] operator T() const; // NOLINT(*-explicit-constructor)
+    virtual T get() const;
+    operator T() const; // NOLINT(*-explicit-constructor)
     Property &operator=(const Property &other);
-    Property(const T &value) : value(value){}; // NOLINT(*-explicit-constructor)
+    Property(const T &value) : value(value) {}; // NOLINT(*-explicit-constructor)
 
     Property() {
         value = T();
@@ -43,7 +43,7 @@ T Property<T>::get() const {
 }
 
 template <typename T>
-[[nodiscard]] Property<T>::operator T() const {
+Property<T>::operator T() const {
     return get();
 }
 

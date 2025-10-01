@@ -11,7 +11,7 @@ class TimeOverlayView : public AbstractGraphicsRectItem {
     Q_OBJECT
 
 public:
-    [[nodiscard]] bool transparentMouseEvents() const;
+    bool transparentMouseEvents() const;
     void setTransparentMouseEvents(bool on);
     void setPixelsPerQuarterNote(int p);
 
@@ -19,13 +19,13 @@ protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 
     // Time methods
-    [[nodiscard]] double startTick() const;
-    [[nodiscard]] double endTick() const;
-    [[nodiscard]] double sceneXToTick(double x) const;
-    [[nodiscard]] double tickToSceneX(double tick) const;
-    [[nodiscard]] double sceneXToItemX(double x) const;
-    [[nodiscard]] double tickToItemX(double tick) const;
-    [[nodiscard]] double sceneYToItemY(double y) const;
+    double startTick() const;
+    double endTick() const;
+    double sceneXToTick(double x) const;
+    double tickToSceneX(double tick) const;
+    double sceneXToItemX(double x) const;
+    double tickToItemX(double tick) const;
+    double sceneYToItemY(double y) const;
 
 private:
     bool m_transparentMouseEvents = true;

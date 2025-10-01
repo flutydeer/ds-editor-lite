@@ -33,8 +33,7 @@ struct InferenceSpecSet {
 
 struct InferenceImportOptionsSet {
     inline bool isComplete() const noexcept {
-        return duration && pitch && variance &&
-               acoustic && vocoder;
+        return duration && pitch && variance && acoustic && vocoder;
     }
 
     srt::NO<srt::InferenceImportOptions> duration;

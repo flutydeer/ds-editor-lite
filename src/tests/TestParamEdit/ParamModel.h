@@ -22,7 +22,7 @@ public:
 
     class RealParamCurve {
     public:
-        int offset;// tick
+        int offset; // tick
         QList<float> values;
     };
 

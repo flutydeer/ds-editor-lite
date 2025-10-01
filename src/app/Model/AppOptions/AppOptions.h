@@ -27,8 +27,7 @@ public:
     LITE_SINGLETON_DECLARE_INSTANCE(AppOptions)
     Q_DISABLE_COPY_MOVE(AppOptions)
 
-public:
-    [[nodiscard]] QString configPath() const;
+    QString configPath() const;
 
     // void load(const QJsonObject &object);
     // void save(const QString &path);

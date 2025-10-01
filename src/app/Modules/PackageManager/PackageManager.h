@@ -53,7 +53,7 @@ private Q_SLOTS:
 private:
     static QString srtErrorToString(const srt::Error &error);
 
-    enum class RefreshState: uint8_t {
+    enum class RefreshState : uint8_t {
         Idle = 0,
         Refreshing = 1,
     };
@@ -65,4 +65,4 @@ private:
     QHash<SingerIdentifier, SingerInfo> m_singerLocator;
 };
 
-#endif //PACKAGEMANAGER_H
+#endif // PACKAGEMANAGER_H

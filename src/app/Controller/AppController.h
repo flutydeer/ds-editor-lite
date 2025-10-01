@@ -23,7 +23,6 @@ class TrackControl;
 class AppController final : public QObject {
     Q_OBJECT
 
-private:
     explicit AppController(QObject *parent = nullptr);
     ~AppController() override;
 
@@ -31,12 +30,11 @@ public:
     LITE_SINGLETON_DECLARE_INSTANCE(AppController)
     Q_DISABLE_COPY_MOVE(AppController)
 
-public:
     void setMainWindow(IMainWindow *window);
 
-    [[nodiscard]] QString lastProjectFolder() const;
-    [[nodiscard]] QString projectPath() const;
-    [[nodiscard]] QString projectName() const;
+    QString lastProjectFolder() const;
+    QString projectPath() const;
+    QString projectName() const;
     void setProjectName(const QString &name);
     void registerPanel(IPanel *panel);
 

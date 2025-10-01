@@ -38,7 +38,8 @@ void TempoActions::editTempo(const double oldTempo, const double newTempo, AppMo
                 auto targetClipLen = static_cast<int>(oldClipLenInMs * 480 * newTempo / 60000);
                 newArgs.clipLen = targetClipLen > targetLength ? targetLength : targetClipLen;
 
-                const auto action = EditClipCommonPropertiesAction::build(oldArgs, newArgs, clip, track);
+                const auto action =
+                    EditClipCommonPropertiesAction::build(oldArgs, newArgs, clip, track);
                 addAction(action);
             }
         }

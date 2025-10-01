@@ -15,9 +15,8 @@ class Note;
 class EditNotePositionAction final : public IAction {
 public:
     explicit EditNotePositionAction(const QList<Note *> &notes, const int deltaTick,
-                                    const int deltaKey,
-                                    SingingClip *clip)
-        : m_notes(notes), m_deltaTick(deltaTick), m_deltaKey(deltaKey), m_clip(clip){};
+                                    const int deltaKey, SingingClip *clip)
+        : m_notes(notes), m_deltaTick(deltaTick), m_deltaKey(deltaKey), m_clip(clip) {};
     void execute() override;
     void undo() override;
 

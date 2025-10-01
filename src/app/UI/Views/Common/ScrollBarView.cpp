@@ -12,8 +12,7 @@ ScrollBarView::ScrollBarView() {
     initUi();
 }
 
-ScrollBarView::ScrollBarView(Qt::Orientation orientation)
-    : m_orientation(orientation) {
+ScrollBarView::ScrollBarView(const Qt::Orientation orientation) : m_orientation(orientation) {
     initUi();
 }
 
@@ -21,7 +20,7 @@ Qt::Orientation ScrollBarView::orientation() const {
     return m_orientation;
 }
 
-void ScrollBarView::setOrientation(Qt::Orientation orientation) {
+void ScrollBarView::setOrientation(const Qt::Orientation orientation) {
     m_orientation = orientation;
     updateRectAndPos();
 }
@@ -60,11 +59,11 @@ void ScrollBarView::moveToPressedState() {
 
 bool ScrollBarView::mouseOnHandle(const QPointF &scenePos) const {
     if (m_orientation == Qt::Horizontal) {
-        auto x = scenePos.x();
+        const auto x = scenePos.x();
         if (x > handleStart() && x < handleEnd())
             return true;
     } else {
-        auto y = scenePos.y();
+        const auto y = scenePos.y();
         if (y > handleStart() && y < handleEnd())
             return true;
     }
@@ -88,27 +87,27 @@ void ScrollBarView::setHandlePadding(const QVariant &value) {
 }
 
 void ScrollBarView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                                  QWidget *widget) {
+                          QWidget *widget) {
     // if (m_pageStep >= (m_maximum - m_minimum))
     //     return;
 
     painter->setRenderHint(QPainter::Antialiasing);
     const auto backgroundColor = QColor(255, 255, 255, m_handleAlpha);
-    const auto radiusBase = 2;
-    auto padding = m_handlePadding;
+    constexpr auto radiusBase = 2;
+    const auto padding = m_handlePadding;
 
     QRectF handleRect;
     if (m_orientation == Qt::Horizontal) {
-        auto left = handleStart();
-        auto top = boundingRect().top() + padding;
-        auto width = handleLength();
-        auto height = boundingRect().height() - padding * 2;
+        const auto left = handleStart();
+        const auto top = boundingRect().top() + padding;
+        const auto width = handleLength();
+        const auto height = boundingRect().height() - padding * 2;
         handleRect = QRectF(left, top, width, height);
     } else {
-        auto left = boundingRect().left() + padding;
-        auto top = handleStart();
-        auto width = boundingRect().width() - padding * 2;
-        auto height = handleLength();
+        const auto left = boundingRect().left() + padding;
+        const auto top = handleStart();
+        const auto width = boundingRect().width() - padding * 2;
+        const auto height = handleLength();
         handleRect = QRectF(left, top, width, height);
     }
     const auto radiusX = handleRect.width() / 2 >= radiusBase ? radiusBase : handleRect.width() / 2;
@@ -134,7 +133,7 @@ void ScrollBarView::initUi() {
 }
 
 double ScrollBarView::handleStart() const {
-    auto ratio = (m_value - m_minimum) / (m_maximum - m_minimum);
+    const auto ratio = (m_value - m_minimum) / (m_maximum - m_minimum);
     if (m_orientation == Qt::Horizontal)
         return boundingRect().left() + boundingRect().width() * ratio;
     return boundingRect().top() + boundingRect().height() * ratio; // Vertical
@@ -150,8 +149,8 @@ double ScrollBarView::handleEnd() const {
     return handleStart() + handleLength();
 }
 
-void ScrollBarView::performStateChangeAnimation(int targetAlpha, double targetPadding,
-                                                        int duration) {
+void ScrollBarView::performStateChangeAnimation(const int targetAlpha, const double targetPadding,
+                                                const int duration) {
     m_aniHandleAlpha.stop();
     m_aniHandlePadding.stop();
 

@@ -36,13 +36,14 @@ public:
         TaskAbortRequested = 1 << 1,
         TaskStopped = 1 << 2,
     };
+
     using FlagType = std::underlying_type_t<Flags>;
 
     explicit Task(QObject *parent = nullptr) : QObject(parent) {
         setAutoDelete(false);
     }
 
-    explicit Task(int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
+    explicit Task(const int id, QObject *parent = nullptr) : QObject(parent), UniqueObject(id) {
         setAutoDelete(false);
     }
 
@@ -54,7 +55,7 @@ public:
         setFlag(TaskAbortRequested);
     }
 
-    [[nodiscard]] bool started() const {
+    bool started() const {
         return checkFlag(TaskStarted);
     }
 
@@ -74,7 +75,7 @@ public:
         m_priority.store(priority, std::memory_order_release);
     }
 
-    [[nodiscard]] const TaskStatus &status() const {
+    const TaskStatus &status() const {
         return m_status;
     }
 

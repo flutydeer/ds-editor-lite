@@ -31,17 +31,17 @@ void RubberBandView::mouseMove(const QPointF &pos) {
     updateRectAndPos();
 }
 
-void RubberBandView::setSelectMode(SelectMode mode) {
+void RubberBandView::setSelectMode(const SelectMode mode) {
     m_selectMode = mode;
 }
 
 void RubberBandView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                                   QWidget *widget) {
+                           QWidget *widget) {
     painter->setRenderHint(QPainter::Antialiasing);
-    const auto borderColor = QColor(255, 204, 153);
-    const auto backgroundColor = QColor(255, 204, 153, 64);
-    const auto penWidth = 1.5f;
-    const auto radiusBase = 6;
+    constexpr auto borderColor = QColor(255, 204, 153);
+    constexpr auto backgroundColor = QColor(255, 204, 153, 64);
+    constexpr auto penWidth = 1.5f;
+    constexpr auto radiusBase = 6;
     const auto radiusX =
         boundingRect().width() / 2 >= radiusBase ? radiusBase : boundingRect().width() / 2;
     const auto radiusY =

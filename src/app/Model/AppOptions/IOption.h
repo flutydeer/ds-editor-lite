@@ -11,9 +11,9 @@ public:                                                                         
                                                                                                    \
 private:                                                                                           \
     const QString FieldName##Key = #FieldName;                                                     \
-    [[nodiscard]] std::pair<QString, QJsonValue> serialize_##FieldName() const {                       \
+    std::pair<QString, QJsonValue> serialize_##FieldName() const {                                 \
         return {FieldName##Key, FieldName};                                                        \
-    }\
+    }
 
 #include <QJsonObject>
 #include <utility>
@@ -27,13 +27,13 @@ public:
 
     virtual void load(const QJsonObject &object) = 0;
 
-    [[nodiscard]] QJsonObject value() {
+    QJsonObject value() {
         QJsonObject object;
         save(object);
         return object;
     }
 
-    [[nodiscard]] const QString &key() const {
+    const QString &key() const {
         return m_key;
     }
 

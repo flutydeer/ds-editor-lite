@@ -34,11 +34,8 @@ private slots:
     void onSelectionChanged(const QModelIndex &current, const QModelIndex &previous);
 
 private:
-    enum State {
-        Loading,
-        Success,
-        Failed
-    };
+    enum State { Loading, Success, Failed };
+
     void initUi();
     void onInferenceModuleReady();
     void loadPackageList();
@@ -48,7 +45,8 @@ private:
     Button *btnInstall = nullptr;
     QLabel *lbPackageCount = nullptr;
     LineEdit *leSearch = nullptr;
-    QListView *listView = nullptr;;
+    QListView *listView = nullptr;
+    ;
     PackageDetailsHeader *detailsHeader = nullptr;
     PackageDetailsContent *detailsContent = nullptr;
 
@@ -61,4 +59,4 @@ private:
 };
 
 
-#endif //PACKAGEMANAGERDIALOG_H
+#endif // PACKAGEMANAGERDIALOG_H

@@ -32,8 +32,8 @@ private slots:
     void onSelectionChanged(int index) const;
 
 private:
-    QStringList m_pageNames = {tr("General"),    tr("Audio"), tr("MIDI"),
-                               tr("Appearance"), tr("Language"),   tr("Inference"),
+    QStringList m_pageNames = {tr("General"),    tr("Audio"),    tr("MIDI"),
+                               tr("Appearance"), tr("Language"), tr("Inference"),
                                /* tr("Preview Functions"), tr("Developer Options")*/};
 
     QListWidget *m_tabList;

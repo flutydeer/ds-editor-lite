@@ -5,10 +5,10 @@
 #include <string>
 #include <vector>
 
-#include <synthrt/Core/NamedObject.h>
-#include <synthrt/Support/Expected.h>
 #include <dsinfer/Inference/InferenceDriver.h>
 #include <dsinfer/Inference/InferenceSession.h>
+#include <synthrt/Core/NamedObject.h>
+#include <synthrt/Support/Expected.h>
 
 namespace srt
 {
@@ -28,7 +28,7 @@ namespace Rmvpe
         bool is_open() const;
         // Forward pass through the model
         srt::Expected<void> forward(const std::vector<float> &waveform_data, float threshold, std::vector<float> &f0,
-                     std::vector<bool> &uv);
+                                    std::vector<bool> &uv);
 
         void terminate();
 

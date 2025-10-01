@@ -9,10 +9,12 @@
 TestTask::TestTask(const QString &inputData, QObject *parent) : ITask(parent) {
     m_inputData = inputData;
 }
+
 QString TestTask::resultData() {
     m_resultData = QString("result: ") + m_inputData;
     return m_resultData;
 }
+
 void TestTask::runTask() {
     emit statusUpdated(0, Normal, false);
     for (int i = 1; i <= 20; i++) {
