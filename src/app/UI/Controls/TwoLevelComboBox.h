@@ -7,6 +7,9 @@
 #include <QWidget>
 #include <QHoverEvent>
 
+class QAction;
+class QToolButton;
+
 struct ComboBoxItemData {
     QString text;
     SingerInfo singer;
