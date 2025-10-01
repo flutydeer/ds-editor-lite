@@ -34,7 +34,7 @@ void TrackListView::wheelEvent(QWheelEvent *event) {
     if (!m_view)
         return;
 
-    auto modifiers = event->modifiers();
+    const auto modifiers = event->modifiers();
     if (modifiers == Qt::AltModifier)
         m_view->onWheelVerScale(event);
     else if (modifiers == Qt::NoModifier)

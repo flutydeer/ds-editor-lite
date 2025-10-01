@@ -33,13 +33,13 @@ class TrackControlView final : public QWidget, public ITrack {
 public:
     explicit TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent = nullptr);
     [[nodiscard]] int trackIndex() const;
-    void setTrackIndex(int i);
+    void setTrackIndex(int i) const;
     [[nodiscard]] QString name() const override;
     void setName(const QString &name) override;
     [[nodiscard]] TrackControl control() const override;
     void setControl(const TrackControl &control) override;
-    void setNarrowMode(bool on);
-    void setLanguage(const QString &language);
+    void setNarrowMode(bool on) const;
+    void setLanguage(const QString &language) const;
     [[nodiscard]] LevelMeter *levelMeter() const;
 
     [[nodiscard]] QColor color() const override {
@@ -58,7 +58,7 @@ signals:
 
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;
-    void changeTrackProperty();
+    void changeTrackProperty() const;
     bool m_notifyBarrier = false;
     Track *m_track = nullptr;
     TrackControl m_control;

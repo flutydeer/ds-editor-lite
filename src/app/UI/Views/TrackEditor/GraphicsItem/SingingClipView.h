@@ -39,7 +39,7 @@ public:
 
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
-    void onNotePropertyChanged(Note *note);
+    void onNotePropertyChanged(const Note *note);
     void setSingerName(const QString &singerName);
     void setSpeakerName(const QString &speakerName);
     void setDefaultLanguage(const QString &language);
@@ -57,7 +57,7 @@ private:
     QString m_speakerName;
     QString m_language = "unknown";
 
-    void addNote(Note *note);
+    void addNote(const Note *note);
     void removeNote(int id);
     // void updateNote(Note *note);
     void dispose();

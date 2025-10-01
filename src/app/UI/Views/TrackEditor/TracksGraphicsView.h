@@ -15,7 +15,7 @@ class TracksGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
 
 public:
-    explicit TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent = nullptr);
+    explicit TracksGraphicsView(TracksGraphicsScene *scene, const QWidget *parent = nullptr);
     void setQuantize(int quantize);
     [[nodiscard]] QList<int> selectedClipsId() const;
 
@@ -23,7 +23,7 @@ private slots:
     void onNewSingingClip() const;
     void onAddAudioClip();
     void onDeleteTriggered() const;
-    void onExtractMidiTriggered(int clipId);
+    static void onExtractMidiTriggered(int clipId);
 
 private:
     enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };
@@ -33,8 +33,8 @@ private:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
-    void prepareForMovingOrResizingClip(QMouseEvent *event, AbstractClipView *clipItem);
-    AbstractClipView *findClipById(int id);
+    void prepareForMovingOrResizingClip(const QMouseEvent *event, AbstractClipView *clipItem);
+    AbstractClipView *findClipById(int id) const;
     void clearSelections() const;
     void resetActiveClips() const;
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
