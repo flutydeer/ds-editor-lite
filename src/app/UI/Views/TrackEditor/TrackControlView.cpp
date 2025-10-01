@@ -71,12 +71,16 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     cbSinger->setObjectName("cbSinger");
     auto setCbSinger = [this](QList<PackageInfo> packages) {
         cbSinger->clear();
-        cbSinger->addGroup("(no singer)");
-        cbSinger->addItemToGroup("(no singer)", "(no singer)", {}, {});
+        cbSinger->addItem("(no singer)", {}, {});
         for (const auto &package : std::as_const(packages)) {
             const auto singers = package.singers();
             for (const auto &singer : singers) {
                 QString singerText = singer.name();
+                if (singer.speakers().size() == 1) {
+                    const auto spk = singer.speakers().first();
+                    cbSinger->addItem(spk.id(), singer, spk);
+                    continue;
+                }
                 cbSinger->addGroup(singerText);
                 for (const auto &spk : singer.speakers())
                     cbSinger->addItemToGroup(singerText, spk.id(), singer, spk);
