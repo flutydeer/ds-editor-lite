@@ -36,6 +36,8 @@ void PackageDetailsContent::moveToNullPackageState() const {
 
 void PackageDetailsContent::moveToPackageState(const PackageInfo &package) const {
     descriptionCard->onDataContextChanged(package.description());
+    // readMeCard->onDataContextChanged(
+    //     "F:\\Sound libraries\\DiffSinger\\packages\\zhibin-5.2-dsinfer\\inferences\\vocoder\\NOTICE.zh-CN.txt");
     if (package.readme().isEmpty()) {
         readMeCard->onDataContextChanged({});
     } else {

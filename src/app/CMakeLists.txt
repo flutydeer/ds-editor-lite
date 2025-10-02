@@ -34,7 +34,7 @@ endif()
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Core5Compat)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Core5Compat Concurrent)
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
 find_package(language-manager CONFIG REQUIRED)
@@ -59,6 +59,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         Qt6::Core
         Qt6::Widgets
         Qt6::Core5Compat
+        Qt6::Concurrent
         ${PLATFORM_LIB}
         talcs::Core talcs::Device talcs::Format talcs::Midi talcs::Dspx talcs::Widgets
         opendspx::opendspx

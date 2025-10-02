@@ -92,6 +92,7 @@ void PackageManagerDialog::initUi() {
         onInferenceModuleReady();
 
     resize(1280, 768);
+    setMinimumWidth(960);
     setWindowTitle(tr("Package Manager"));
 }
 
@@ -158,25 +159,18 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     detailsHeader = new PackageDetailsHeader;
     detailsContent = new PackageDetailsContent;
 
-    auto layout = new QVBoxLayout;
-    layout->addWidget(detailsHeader);
-    layout->addWidget(detailsContent);
-    layout->addStretch();//TODO: 重构
-    layout->setContentsMargins({12, 0, 12, 0});
-    layout->setSpacing(12);
+    auto contentLayout = new QVBoxLayout;
+    contentLayout->addWidget(detailsContent);
+    contentLayout->addStretch();
+    contentLayout->setContentsMargins({});
+    contentLayout->setSpacing(0);
 
-    auto detailsWidget = new QWidget;
-    detailsWidget->setObjectName("PackageManagerDialogDetailsWidget");
-    detailsWidget->setLayout(layout);
-    detailsWidget->setContentsMargins({});
-    detailsWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    detailsWidget->setStyleSheet(
-        "QWidget#PackageManagerDialogDetailsWidget { background: transparent; }"
-        "PackageDetailsHeader { border-bottom: 1px solid #1D1F26; } "
-        "PackageDetailsHeader>QLabel#lbPackageId { font-size: 24px; color: rgb(182, 183, 186); } "
-        "PackageDetailsHeader>QLabel#lbVendor { font-size: 13px; color: rgba(182, 183, 186, 140); } "
-        "PackageDetailsHeader>QLabel#lbVersion { font-size: 13px; color: rgba(182, 183, 186, 140); } "
-        "PackageDetailsHeader>QLabel#lbCopyright { font-size: 13px; color: rgba(182, 183, 186, 140); } ");
+    auto contentWidget = new QWidget;
+    contentWidget->setObjectName("PackageManagerDialogDetailsContentWidget");
+    contentWidget->setStyleSheet(
+        "QWidget#PackageManagerDialogDetailsContentWidget { background: transparent; }");
+    contentWidget->setLayout(contentLayout);
+    contentWidget->setContentsMargins({});
 
     detailsPanelContent = new QScrollArea;
     detailsPanelContent->setObjectName("PackageManagerDialogDetailsScrollArea");
@@ -185,14 +179,33 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     detailsPanelContent->setWidgetResizable(true);
     detailsPanelContent->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     detailsPanelContent->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    detailsPanelContent->setWidget(detailsWidget);
+    detailsPanelContent->setWidget(contentWidget);
     detailsPanelContent->viewport()->setContentsMargins({});
+
+    auto mainLayout = new QVBoxLayout;
+    mainLayout->addWidget(detailsHeader);
+    mainLayout->addWidget(detailsPanelContent);
+    mainLayout->setContentsMargins({12, 0, 12, 0});
+    mainLayout->setSpacing(12);
+
+    auto detailsWidget = new QWidget;
+    detailsWidget->setObjectName("PackageManagerDialogDetailsWidget");
+    detailsWidget->setLayout(mainLayout);
+    detailsWidget->setContentsMargins({});
+    detailsWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    detailsWidget->setStyleSheet(
+        "QWidget#PackageManagerDialogDetailsWidget { background: transparent; }"
+        "PackageDetailsHeader { border-bottom: 1px solid #1D1F26; } "
+        "PackageDetailsHeader>QLabel#lbPackageId { font-size: 24px; color: rgb(182, 183, 186); } "
+        "PackageDetailsHeader>QLabel#lbVendor { font-size: 13px; color: rgba(182, 183, 186, 140); } "
+        "PackageDetailsHeader>QLabel#lbVersion { font-size: 13px; color: rgba(182, 183, 186, 140); } "
+        "PackageDetailsHeader>QLabel#lbCopyright { font-size: 13px; color: rgba(182, 183, 186, 140); } ");
 
     detailsPanelPlaceholder = buildDetailsPanelPlaceholder();
 
     detailsPanel = new QStackedWidget;
     detailsPanel->addWidget(detailsPanelPlaceholder);
-    detailsPanel->addWidget(detailsPanelContent);
+    detailsPanel->addWidget(detailsWidget);
     detailsPanel->setCurrentWidget(detailsPanelPlaceholder);
 
     return detailsPanel;
