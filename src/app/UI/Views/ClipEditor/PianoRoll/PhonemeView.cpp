@@ -11,6 +11,7 @@
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
+#include <QElapsedTimer>
 #include <QMouseEvent>
 #include <QPainter>
 

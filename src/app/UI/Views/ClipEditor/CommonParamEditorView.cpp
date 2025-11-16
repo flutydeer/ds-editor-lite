@@ -12,6 +12,7 @@
 #include "Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
 
+#include <QElapsedTimer>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
@@ -201,9 +202,10 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             baseCurve->setLocalStart(start);
             for (int i = start; i <= end; i += 5)
                 baseCurve->appendValue(m_properties->defaultValue);
-            base = {baseCurve};
-        } else
+            base.append(baseCurve);
+        } else {
             base = m_drawCurvesOriginal;
+        }
         const auto overlay = m_drawCurvesEdited;
         auto curves = AppModelUtils::mergeCurves(base, overlay);
         if (!curves.isEmpty()) {

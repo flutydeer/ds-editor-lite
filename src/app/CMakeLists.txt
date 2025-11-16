@@ -46,6 +46,7 @@ find_package(unofficial-tinyexpr CONFIG REQUIRED)
 find_package(dsinfer CONFIG REQUIRED)
 
 if (WIN32)
+    find_package(Qt6 COMPONENTS CorePrivate GuiPrivate)
     find_package(QtWin32DirectManipulateHelper CONFIG REQUIRED)
 endif ()
 

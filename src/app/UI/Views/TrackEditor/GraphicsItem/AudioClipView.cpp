@@ -4,6 +4,7 @@
 
 #include "AudioClipView.h"
 
+#include <QElapsedTimer>
 #include <QPainter>
 #include <QThread>
 #include <QFileDialog>

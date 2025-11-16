@@ -13,7 +13,6 @@
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Audio/utils/DeviceTester.h"
-#include "Modules/History/HistoryManager.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
@@ -24,6 +23,7 @@
 
 #include <QApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QScreen>
 #include <QStyleHints>
 #include <QStyleFactory>

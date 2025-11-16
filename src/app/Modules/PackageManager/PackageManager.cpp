@@ -21,6 +21,7 @@
 #include <synthrt/Support/JSON.h>
 
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QLocale>
 
 namespace fs = std::filesystem;
