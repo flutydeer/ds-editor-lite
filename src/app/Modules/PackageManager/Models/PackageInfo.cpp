@@ -13,7 +13,8 @@ PackageInfoData::PackageInfoData(QString id, QVersionNumber version, QString ven
 
 PackageInfoData::PackageInfoData(const PackageInfoData &other)
     : QSharedData(other), id(other.id), version(other.version), vendor(other.vendor),
-      description(other.description), copyright(other.copyright), path(other.path),
+      description(other.description), copyright(other.copyright),
+      readme(other.readme), url(other.url), path(other.path),
       singers(other.singers) {
 }
 
