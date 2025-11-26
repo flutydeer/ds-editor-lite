@@ -4,9 +4,11 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets)
+
 file(GLOB_RECURSE _src *.h *.cpp)
 
-add_executable(${PROJECT_NAME} ${_src})
+qt_add_executable(${PROJECT_NAME} ${_src})
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 
