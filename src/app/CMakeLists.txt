@@ -18,7 +18,7 @@ if (APPLE)
     set(PLATFORM_PROPERTY MACOSX_BUNDLE)
 endif ()
 
-add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} Resources/lite_res.qrc)
+qt_add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} Resources/lite_res.qrc)
 
 if (WIN32)
     set(RC_APPLICATION_NAME "Lite")
@@ -133,6 +133,29 @@ if(WIN32)
         )
     else()
         message(WARNING "${_qt_deploy_executable} not found, skipping deploying Qt")
+    endif()
+elseif(APPLE)
+    find_program(MACDEPLOYQT_EXE macdeployqt HINTS "${__qt_bin_dir}")
+    
+    if(MACDEPLOYQT_EXE)
+        message(STATUS "Found macdeployqt: ${MACDEPLOYQT_EXE}")
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND "${MACDEPLOYQT_EXE}"
+                \"$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>\"
+                -verbose=0
+                -always-overwrite
+                COMMENT "Deploy Qt"
+        )
+        
+        # Fix dylib paths after macdeployqt
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND bash "${CMAKE_SOURCE_DIR}/scripts/fix_macos_dylib_paths.sh"
+                \"$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>\"
+                "1"
+                COMMENT "Fix dylib paths"
+        )
+    else()
+        message(WARNING "macdeployqt not found, skipping deploying Qt")
     endif()
 endif()
 

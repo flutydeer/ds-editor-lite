@@ -145,11 +145,19 @@ MainWindow::MainWindow() {
     this->setCentralWidget(mainWidget);
 
     auto scr = QApplication::screenAt(QCursor::pos());
-    auto availableRect = scr->availableGeometry();
-    if (availableRect.width() > 1536 && availableRect.height() > 816)
-        resize(1536, 816);
-    else
+    if (!scr) {
+        scr = QApplication::primaryScreen();
+    }
+    if (scr) {
+        auto availableRect = scr->availableGeometry();
+        if (availableRect.width() > 1536 && availableRect.height() > 816)
+            resize(1536, 816);
+        else
+            resize(1366, 768);
+    } else {
+        // Fallback if no screen is available
         resize(1366, 768);
+    }
 
     ThemeManager::instance()->addWindow(this);
 #if defined(WITH_DIRECT_MANIPULATION)

@@ -155,10 +155,15 @@ int main(int argc, char *argv[]) {
     MainWindow w;
     trackController->setParentWidget(&w);
     auto scr = QApplication::screenAt(QCursor::pos());
-    auto availableRect = scr->availableGeometry();
-    auto left = (availableRect.width() - w.width()) / 2;
-    auto top = (availableRect.height() - w.height()) / 2;
-    w.move(left, top);
+    if (!scr) {
+        scr = QApplication::primaryScreen();
+    }
+    if (scr) {
+        auto availableRect = scr->availableGeometry();
+        auto left = (availableRect.width() - w.width()) / 2;
+        auto top = (availableRect.height() - w.height()) / 2;
+        w.move(left, top);
+    }
     w.show();
 #if defined(WITH_DIRECT_MANIPULATION)
     w.registerDirectManipulation();
