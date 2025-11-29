@@ -13,7 +13,6 @@
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"
 
-#include <QFontDatabase>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -60,8 +59,6 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTime->setObjectName("elTime");
     m_elTime->label->setAlignment(Qt::AlignCenter);
 
-    QFont timeFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    m_elTime->label->setFont(timeFont);
     m_elTime->setText(toFormattedTickTime(m_tick));
 
     connect(m_elTempo, &EditLabel::editCompleted, this, [this](const QString &value) {
