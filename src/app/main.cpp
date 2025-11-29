@@ -24,6 +24,8 @@
 #include <QApplication>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QFontDatabase>
+#include <QLocale>
 #include <QScreen>
 #include <QStyleHints>
 #include <QStyleFactory>
@@ -118,10 +120,68 @@ int main(int argc, char *argv[]) {
     Log::logSystemInfo();
     Log::logGpuInfo();
 
-    auto f = SystemUtils::isWindows() ? QFont("Microsoft Yahei UI") : QFont();
-    f.setHintingPreference(QFont::PreferNoHinting);
-    f.setPixelSize(13);
-    QApplication::setFont(f);
+    // Load Sarasa Gothic font
+    QFontDatabase fontDb;
+    const QLocale locale = QLocale::system();
+    const QString localeName = locale.name();
+
+    // Select appropriate font variant based on system language
+    QString regularFontPath;
+    QString boldFontPath;
+    if (localeName.startsWith("zh_CN")) {
+        // Simplified Chinese
+        regularFontPath = ":font/sarasa-ui-sc-regular.ttf";
+        boldFontPath = ":font/sarasa-ui-sc-bold.ttf";
+    } else if (localeName.startsWith("zh_TW") || localeName.startsWith("zh_HK")) {
+        // Traditional Chinese
+        regularFontPath = ":font/sarasa-ui-tc-regular.ttf";
+        boldFontPath = ":font/sarasa-ui-tc-bold.ttf";
+    } else if (localeName.startsWith("ja")) {
+        // Japanese
+        regularFontPath = ":font/sarasa-ui-j-regular.ttf";
+        boldFontPath = ":font/sarasa-ui-j-bold.ttf";
+    } else {
+        // Default to Simplified Chinese version
+        regularFontPath = ":font/sarasa-ui-sc-regular.ttf";
+        boldFontPath = ":font/sarasa-ui-sc-bold.ttf";
+    }
+
+    // Load regular font file
+    int regularFontId = fontDb.addApplicationFont(regularFontPath);
+    // Load bold font file
+    int boldFontId = fontDb.addApplicationFont(boldFontPath);
+
+    if (regularFontId != -1) {
+        QStringList fontFamilies = fontDb.applicationFontFamilies(regularFontId);
+        if (!fontFamilies.isEmpty()) {
+            QString fontFamily = fontFamilies.first();
+            QFont f(fontFamily);
+            f.setHintingPreference(QFont::PreferNoHinting);
+            f.setPixelSize(13);
+            QApplication::setFont(f);
+            if (boldFontId != -1) {
+                qInfo() << "Loaded Sarasa Gothic font (regular and bold):" << fontFamily
+                        << "for locale:" << localeName;
+            } else {
+                qInfo() << "Loaded Sarasa Gothic font (regular only):" << fontFamily
+                        << "for locale:" << localeName;
+            }
+        } else {
+            qWarning() << "Failed to get font family from" << regularFontPath;
+            // Fallback to default font
+            QFont f;
+            f.setHintingPreference(QFont::PreferNoHinting);
+            f.setPixelSize(13);
+            QApplication::setFont(f);
+        }
+    } else {
+        qWarning() << "Failed to load font from" << regularFontPath;
+        // Fallback to default font
+        QFont f;
+        f.setHintingPreference(QFont::PreferNoHinting);
+        f.setPixelSize(13);
+        QApplication::setFont(f);
+    }
 
     QTranslator translator;
     if (translator.load(":translate/translation_zh_CN.qm"))

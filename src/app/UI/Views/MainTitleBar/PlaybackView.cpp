@@ -59,7 +59,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTime = new EditLabel;
     m_elTime->setObjectName("elTime");
     m_elTime->label->setAlignment(Qt::AlignCenter);
-    // 设置等宽字体
+
     QFont timeFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
     m_elTime->label->setFont(timeFont);
     m_elTime->setText(toFormattedTickTime(m_tick));
