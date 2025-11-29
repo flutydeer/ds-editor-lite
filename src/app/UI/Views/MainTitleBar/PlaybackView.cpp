@@ -58,6 +58,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTime = new EditLabel;
     m_elTime->setObjectName("elTime");
     m_elTime->label->setAlignment(Qt::AlignCenter);
+
     m_elTime->setText(toFormattedTickTime(m_tick));
 
     connect(m_elTempo, &EditLabel::editCompleted, this, [this](const QString &value) {

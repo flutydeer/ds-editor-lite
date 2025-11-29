@@ -109,5 +109,18 @@
 
         <file>translate/translation_zh_CN.qm</file>
 
+        <file>font/sarasa-aui-j-bold.ttf</file>
+        <file>font/sarasa-aui-j-regular.ttf</file>
+        <file>font/sarasa-aui-sc-bold.ttf</file>
+        <file>font/sarasa-aui-sc-regular.ttf</file>
+        <file>font/sarasa-aui-tc-bold.ttf</file>
+        <file>font/sarasa-aui-tc-regular.ttf</file>
+        <file>font/sarasa-ui-j-bold.ttf</file>
+        <file>font/sarasa-ui-j-regular.ttf</file>
+        <file>font/sarasa-ui-sc-bold.ttf</file>
+        <file>font/sarasa-ui-sc-regular.ttf</file>
+        <file>font/sarasa-ui-tc-bold.ttf</file>
+        <file>font/sarasa-ui-tc-regular.ttf</file>
+        <file>font/SarasaGothic-LICENSE</file>
     </qresource>
 </RCC>
