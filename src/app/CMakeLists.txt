@@ -16,13 +16,6 @@ endif ()
 
 add_executable(${PROJECT_NAME} ${_src} Resources/lite_res.qrc)
 
-# Enable Qt automation (equivalent to qt_add_executable)
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    AUTOMOC ON
-    AUTORCC ON
-    AUTOUIC ON
-)
-
 # Enable macOS bundle
 if (APPLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES

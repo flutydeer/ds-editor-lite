@@ -8,13 +8,6 @@ file(GLOB_RECURSE _src *.h *.cpp)
 
 add_executable(${PROJECT_NAME} ${_src})
 
-# Enable Qt automation (equivalent to qt_add_executable)
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    AUTOMOC ON
-    AUTORCC ON
-    AUTOUIC ON
-)
-
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 
 find_path(INTERVAL_TREE_INCLUDE_DIRS "interval-tree/interval_tree.hpp" REQUIRED)
