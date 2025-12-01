@@ -8,7 +8,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets)
 
 file(GLOB_RECURSE _src *.h *.cpp)
 
-qt_add_executable(${PROJECT_NAME} ${_src})
+add_executable(${PROJECT_NAME} ${_src})
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 
