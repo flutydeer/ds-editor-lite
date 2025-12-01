@@ -14,11 +14,27 @@ if (WIN32)
     set(PLATFORM_LIB dwmapi.lib)
 endif ()
 
-if (APPLE)
-    set(PLATFORM_PROPERTY MACOSX_BUNDLE)
-endif ()
+add_executable(${PROJECT_NAME} ${_src} Resources/lite_res.qrc)
 
-qt_add_executable(${PROJECT_NAME} ${PLATFORM_PROPERTY} ${_src} Resources/lite_res.qrc)
+# Enable Qt automation (equivalent to qt_add_executable)
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    AUTOMOC ON
+    AUTORCC ON
+    AUTOUIC ON
+)
+
+# Enable macOS bundle
+if (APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        MACOSX_BUNDLE ON
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.dseditor.lite"
+        MACOSX_BUNDLE_BUNDLE_NAME "DsEditorLite"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
+        MACOSX_BUNDLE_INFO_STRING "DS Editor Lite"
+        MACOSX_BUNDLE_COPYRIGHT "Copyright © 2024"
+    )
+endif ()
 
 if (WIN32)
     set(RC_APPLICATION_NAME "Lite")
