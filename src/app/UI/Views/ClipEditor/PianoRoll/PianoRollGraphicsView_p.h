@@ -127,6 +127,10 @@ public slots:
 
     void onDeleteSelectedNotes() const;
     void onOpenNotePropertyDialog(int noteId, AppGlobal::NotePropertyType propertyType);
+    void onStartEditingNoteLyric(NoteView *noteView);
+    void onNoteLyricEditingFinished(NoteView *noteView, const QString &lyric);
+    void onNoteTabKeyPressed(NoteView *noteView);
+    NoteView *findNextNoteView(NoteView *currentNoteView) const;
 
 private:
     PianoRollGraphicsView *q_ptr;

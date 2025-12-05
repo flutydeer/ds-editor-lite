@@ -1,0 +1,8 @@
+[33mcommit 27cd6992175ad24b3c99addfd975f34a857523b1[m
+Author: KRKT <foxiti.a@gmail.com>
+Date:   Fri Nov 28 14:30:23 2025 +0800
+
+    Set the timecode to a monospaced font to prevent the timecode container from jittering in width during playback.
+
+ src/app/UI/Views/MainTitleBar/PlaybackView.cpp | 4 [32m++++[m
+ 1 file changed, 4 insertions(+)

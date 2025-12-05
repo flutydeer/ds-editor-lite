@@ -23,10 +23,12 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
+#include "Model/NoteDialogResult/NoteDialogResult.h"
 #include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/Linq.h"
 #include "Utils/Log.h"
 #include "Utils/MathUtils.h"
+#include <climits>
 
 #include <QApplication>
 #include <QMouseEvent>
@@ -300,7 +302,7 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
 
     for (const auto item : items(event->pos())) {
         if (const auto noteView = dynamic_cast<NoteView *>(item)) {
-            d->onOpenNotePropertyDialog(noteView->id(), AppGlobal::Lyric);
+            d->onStartEditingNoteLyric(noteView);
             break;
         }
         if (const auto pronView = dynamic_cast<PronunciationView *>(item)) {
@@ -548,6 +550,78 @@ void PianoRollGraphicsViewPrivate::onOpenNotePropertyDialog(
     connect(dlg, &NotePropertyDialog::accepted, this,
             [=] { clipController->onNotePropertiesEdited(noteId, dlg->result()); });
     dlg->show();
+}
+
+void PianoRollGraphicsViewPrivate::onStartEditingNoteLyric(NoteView *noteView) {
+    // If another Note is already being edited, finish it first
+    for (const auto view : noteViews) {
+        if (view != noteView && view->isEditingLyric()) {
+            view->finishEditingLyric();
+        }
+    }
+    
+    // Connect signals
+    connect(noteView, &NoteView::lyricEditingFinished, this,
+            [this, noteView](const QString &lyric) { onNoteLyricEditingFinished(noteView, lyric); });
+    connect(noteView, &NoteView::tabKeyPressed, this,
+            [this, noteView] { onNoteTabKeyPressed(noteView); });
+    
+    noteView->startEditingLyric();
+}
+
+void PianoRollGraphicsViewPrivate::onNoteLyricEditingFinished(NoteView *noteView, const QString &lyric) {
+    // Disconnect signals
+    disconnect(noteView, &NoteView::lyricEditingFinished, this, nullptr);
+    disconnect(noteView, &NoteView::tabKeyPressed, this, nullptr);
+    
+    // Save lyric changes
+    const int noteId = noteView->id();
+    const auto note = m_clip->findNoteById(noteId);
+    Q_ASSERT(note);
+    
+    // Create NoteDialogResult
+    NoteDialogResult result;
+    result.lyric = lyric;
+    result.language = note->language();
+    result.pronunciation = note->pronunciation();
+    result.phonemeNameInfo = note->phonemeNameInfo();
+    
+    clipController->onNotePropertiesEdited(noteId, result);
+}
+
+void PianoRollGraphicsViewPrivate::onNoteTabKeyPressed(NoteView *noteView) {
+    // Save current Note's lyric first (finishEditingLyric will emit lyricEditingFinished signal)
+    if (noteView->isEditingLyric()) {
+        noteView->finishEditingLyric();
+    }
+    
+    // Find next Note
+    NoteView *nextNoteView = findNextNoteView(noteView);
+    if (nextNoteView) {
+        onStartEditingNoteLyric(nextNoteView);
+    }
+}
+
+NoteView *PianoRollGraphicsViewPrivate::findNextNoteView(NoteView *currentNoteView) const {
+    if (!m_clip || !currentNoteView)
+        return nullptr;
+    
+    const int currentRStart = currentNoteView->rStart();
+    NoteView *nextNoteView = nullptr;
+    int minRStart = INT_MAX;
+    
+    // Find all Notes after current Note, select the one with smallest rStart
+    for (const auto view : noteViews) {
+        if (view == currentNoteView || view->rStart() <= currentRStart)
+            continue;
+        
+        if (view->rStart() < minRStart) {
+            minRStart = view->rStart();
+            nextNoteView = view;
+        }
+    }
+    
+    return nextNoteView;
 }
 
 CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
