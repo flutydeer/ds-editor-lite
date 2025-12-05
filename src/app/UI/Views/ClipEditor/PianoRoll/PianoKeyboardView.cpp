@@ -11,9 +11,12 @@
 #include <QElapsedTimer>
 #include <QPainter>
 #include <QWheelEvent>
+#include <QEnterEvent>
+#include <QMouseEvent>
 
 PianoKeyboardView::PianoKeyboardView(QWidget *parent) : QWidget(parent) {
     setFixedWidth(ClipEditorGlobal::pianoKeyboardWidth);
+    setMouseTracking(true);
 }
 
 void PianoKeyboardView::setKeyRange(const double top, const double bottom) {
@@ -55,10 +58,17 @@ void PianoKeyboardView::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    if (m_style == Uniform)
+    if (m_style == Uniform) {
         drawUniformKeyboard(painter);
-    else
+        if (m_hoveredKeyIndex >= 0) {
+            drawHoverOverlay(painter);
+        }
+    } else {
         drawClassicKeyboard(painter);
+        if (m_hoveredKeyIndex >= 0 && !PianoPaintUtils::isWhiteKey(m_hoveredKeyIndex)) {
+            drawHoverOverlay(painter);
+        }
+    }
 
     // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
     // Logger::d("PianoKeyboardView", "paint time: " + QString::number(time));
@@ -71,6 +81,104 @@ void PianoKeyboardView::wheelEvent(QWheelEvent *e) {
                         e->buttons(), e->modifiers(), e->phase(), e->inverted());
     emit wheelScroll(event);
     // QWidget::wheelEvent(event);
+}
+
+void PianoKeyboardView::enterEvent(QEnterEvent *event) {
+    QWidget::enterEvent(event);
+}
+
+void PianoKeyboardView::leaveEvent(QEvent *event) {
+    QWidget::leaveEvent(event);
+    if (m_hoveredKeyIndex != -1) {
+        m_hoveredKeyIndex = -1;
+        update();
+    }
+}
+
+void PianoKeyboardView::mouseMoveEvent(QMouseEvent *event) {
+    QWidget::mouseMoveEvent(event);
+    const auto y = event->position().y();
+    const int keyIndex = yToKeyIndex(y);
+    if (keyIndex != m_hoveredKeyIndex) {
+        m_hoveredKeyIndex = keyIndex;
+        update();
+    }
+}
+
+int PianoKeyboardView::yToKeyIndex(double y) const {
+    if (y < 0 || y > height())
+        return -1;
+
+    if (m_style == Uniform) {
+        const auto ratio = y / height();
+        const auto keyIndex = m_top - ratio * (m_top - m_bottom);
+        return static_cast<int>(keyIndex);
+    } else {
+        const auto pixelsPerBlackKey = height() / (m_top - m_bottom);
+        const auto pixelsPerWhiteKey = pixelsPerBlackKey * 12 / 7;
+
+        auto blackKeyToY = [this](const int key) {
+            const auto ratio = (key - m_top) / (m_bottom - m_top);
+            const auto y = height() * ratio;
+            return y;
+        };
+
+        auto closestBKeyY = [=](const int key) {
+            const int remain = key % 12;
+            const int bIndex = key + 12 - remain - 1;
+            return blackKeyToY(bIndex);
+        };
+
+        auto whiteKeyToY = [=](const int key) {
+            const int remain = key % 12;
+            int index = 0;
+            if (remain == 0)
+                index = 0;
+            else if (remain == 2)
+                index = 1;
+            else if (remain == 4)
+                index = 2;
+            else if (remain == 5)
+                index = 3;
+            else if (remain == 7)
+                index = 4;
+            else if (remain == 9)
+                index = 5;
+            else if (remain == 11)
+                index = 6;
+
+            const auto y = closestBKeyY(key) + (6 - index) * pixelsPerWhiteKey;
+            return y;
+        };
+
+        const auto prevKeyIndex = static_cast<int>(m_top) + 1;
+
+        for (int i = prevKeyIndex; i > m_bottom; i--) {
+            if (PianoPaintUtils::isWhiteKey(i))
+                continue;
+
+            const auto keyY = blackKeyToY(i);
+            if (y >= keyY && y < keyY + pixelsPerBlackKey) {
+                return i;
+            }
+        }
+
+        const auto prevWhiteKeyIndex =
+            PianoPaintUtils::isWhiteKey(prevKeyIndex) ? prevKeyIndex : prevKeyIndex + 1;
+        for (int i = prevWhiteKeyIndex; i > m_bottom - 1; i--) {
+            if (!PianoPaintUtils::isWhiteKey(i))
+                continue;
+
+            const auto keyY = whiteKeyToY(i);
+            if (y >= keyY && y < keyY + pixelsPerWhiteKey) {
+                return i;
+            }
+        }
+
+        const auto ratio = y / height();
+        const auto approximateKey = m_top - ratio * (m_top - m_bottom);
+        return static_cast<int>(approximateKey);
+    }
 }
 
 void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) const {
@@ -120,7 +228,7 @@ void PianoKeyboardView::drawUniformKeyboard(QPainter &painter) const {
     }
 }
 
-void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
+void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) {
     constexpr auto radius = 4.0;
     const auto pixelsPerBlackKey = height() / (m_top - m_bottom);
     const auto pixelsPerWhiteKey = pixelsPerBlackKey * 12 / 7;
@@ -221,5 +329,92 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) const {
     };
 
     drawWhiteKeys();
+
+    if (m_hoveredKeyIndex >= 0 && PianoPaintUtils::isWhiteKey(m_hoveredKeyIndex)) {
+        constexpr auto radius = 4.0;
+        constexpr auto overlayAlpha = 128;
+        QColor overlayColor = m_primaryColor;
+        overlayColor.setAlpha(overlayAlpha);
+        painter.setBrush(overlayColor);
+        painter.setPen(Qt::NoPen);
+
+        const auto y = whiteKeyToY(m_hoveredKeyIndex);
+        auto keyRect = QRectF(-radius, y, width() + radius, pixelsPerWhiteKey);
+        painter.drawRoundedRect(keyRect, radius, radius);
+    }
+
     drawBlackKeys();
+}
+
+void PianoKeyboardView::drawHoverOverlay(QPainter &painter) const {
+    if (m_hoveredKeyIndex < 0)
+        return;
+
+    constexpr auto radius = 4.0;
+    constexpr auto overlayAlpha = 128;
+    QColor overlayColor = m_primaryColor;
+    overlayColor.setAlpha(overlayAlpha);
+    painter.setBrush(overlayColor);
+    painter.setPen(Qt::NoPen);
+
+    if (m_style == Uniform) {
+        const auto pixelsPerKey = height() / (m_top - m_bottom);
+        auto keyToY = [this](const int key) {
+            const auto ratio = (key - m_top) / (m_bottom - m_top);
+            const auto y = height() * ratio;
+            return y;
+        };
+
+        const auto y = keyToY(m_hoveredKeyIndex);
+        auto keyRect = QRectF(-radius, y, width() + radius, pixelsPerKey);
+        painter.drawRoundedRect(keyRect, radius, radius);
+    } else {
+        const auto pixelsPerBlackKey = height() / (m_top - m_bottom);
+        const auto pixelsPerWhiteKey = pixelsPerBlackKey * 12 / 7;
+
+        auto blackKeyToY = [this](const int key) {
+            const auto ratio = (key - m_top) / (m_bottom - m_top);
+            const auto y = height() * ratio;
+            return y;
+        };
+
+        auto closestBKeyY = [=](const int key) {
+            const int remain = key % 12;
+            const int bIndex = key + 12 - remain - 1;
+            return blackKeyToY(bIndex);
+        };
+
+        auto whiteKeyToY = [=](const int key) {
+            const int remain = key % 12;
+            int index = 0;
+            if (remain == 0)
+                index = 0;
+            else if (remain == 2)
+                index = 1;
+            else if (remain == 4)
+                index = 2;
+            else if (remain == 5)
+                index = 3;
+            else if (remain == 7)
+                index = 4;
+            else if (remain == 9)
+                index = 5;
+            else if (remain == 11)
+                index = 6;
+
+            const auto y = closestBKeyY(key) + (6 - index) * pixelsPerWhiteKey;
+            return y;
+        };
+
+        const bool isWhiteKey = PianoPaintUtils::isWhiteKey(m_hoveredKeyIndex);
+        if (isWhiteKey) {
+            const auto y = whiteKeyToY(m_hoveredKeyIndex);
+            auto keyRect = QRectF(-radius, y, width() + radius, pixelsPerWhiteKey);
+            painter.drawRoundedRect(keyRect, radius, radius);
+        } else {
+            const auto y = blackKeyToY(m_hoveredKeyIndex);
+            auto keyRect = QRectF(-radius, y, width() / 5.0 * 3 + radius, pixelsPerBlackKey);
+            painter.drawRoundedRect(keyRect, radius, radius);
+        }
+    }
 }
