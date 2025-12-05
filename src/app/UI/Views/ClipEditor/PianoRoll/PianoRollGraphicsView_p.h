@@ -78,7 +78,7 @@ public:
 
     void prepareForEditingNotes(const QMouseEvent *event, QPointF scenePos, int keyIndex,
                                 NoteView *noteItem);
-    void PrepareForDrawingNote(int tick, int keyIndex);
+    void PrepareForDrawingNote(int tick, int keyIndex, int initialLength = -1);
 
     void handleNotesMoved(int deltaTick, int deltaKey) const;
     static void handleNoteLeftResized(int noteId, int deltaTick);

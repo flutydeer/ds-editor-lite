@@ -17,6 +17,7 @@
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
+#include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
@@ -300,14 +301,41 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return;
 
+    // Check if double-clicked on a note or pronunciation view
+    bool handled = false;
     for (const auto item : items(event->pos())) {
         if (const auto noteView = dynamic_cast<NoteView *>(item)) {
             d->onStartEditingNoteLyric(noteView);
+            handled = true;
             break;
         }
         if (const auto pronView = dynamic_cast<PronunciationView *>(item)) {
             d->onOpenNotePropertyDialog(pronView->id(), AppGlobal::Pronunciation);
+            handled = true;
+            break;
         }
+    }
+    
+    // If double-clicked on empty space in Select mode, create a note with half-beat length
+    if (!handled && d->m_editMode == Select) {
+        const auto scenePos = mapToScene(event->position().toPoint());
+        const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
+        const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
+        
+        // Calculate half-beat length based on current time signature
+        // One beat = 1920 / denominator ticks
+        const auto timeSig = appModel->timeSignature();
+        const int beatTicks = 1920 / timeSig.denominator;
+        const int halfBeatLength = beatTicks / 4;
+        
+        // Set up mouse state for drawing
+        d->m_mouseDown = true;
+        d->m_mouseDownButton = Qt::LeftButton;
+        d->m_mouseDownPos = scenePos;
+        d->m_mouseDownKeyIndex = keyIndex;
+        
+        // Create note with half-beat length
+        d->PrepareForDrawingNote(tick, keyIndex, halfBeatLength);
     }
 }
 
@@ -737,7 +765,7 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(const QMouseEvent *eve
     updateMoveDeltaKeyRange();
 }
 
-void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(const int tick, const int keyIndex) {
+void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(const int tick, const int keyIndex, const int initialLength) {
     Q_Q(PianoRollGraphicsView);
     // Finish editing any notes that are currently being edited
     for (const auto view : noteViews) {
@@ -752,7 +780,9 @@ void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(const int tick, const i
     m_currentDrawingNote->fontPixelSize = q->m_noteFontPixelSize;
     m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
     m_currentDrawingNote->setRStart(snappedTick - m_offset);
-    m_currentDrawingNote->setLength(1920 / appStatus->quantize);
+    // If initialLength is specified (>= 0), use it; otherwise use default quantized length
+    const int length = initialLength >= 0 ? initialLength : (1920 / appStatus->quantize);
+    m_currentDrawingNote->setLength(length);
     m_currentDrawingNote->setKeyIndex(keyIndex);
     q->scene()->addCommonItem(m_currentDrawingNote);
     m_mouseMoveBehavior = UpdateDrawingNote;
