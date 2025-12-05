@@ -739,6 +739,13 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(const QMouseEvent *eve
 
 void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(const int tick, const int keyIndex) {
     Q_Q(PianoRollGraphicsView);
+    // Finish editing any notes that are currently being edited
+    for (const auto view : noteViews) {
+        if (view->isEditingLyric()) {
+            view->finishEditingLyric();
+        }
+    }
+    
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     const auto snappedTick = MathUtils::roundDown(tick, 1920 / appStatus->quantize);
     Log::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
