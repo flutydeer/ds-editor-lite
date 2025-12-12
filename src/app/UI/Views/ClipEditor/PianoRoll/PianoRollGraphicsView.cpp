@@ -315,27 +315,25 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
             break;
         }
     }
-    
-    // If double-clicked on empty space in Select mode, create a note with half-beat length
+
+    // If double-clicked on empty space in Select mode, create a note with current quantize length
     if (!handled && d->m_editMode == Select) {
         const auto scenePos = mapToScene(event->position().toPoint());
         const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
         const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
-        
-        // Calculate half-beat length based on current time signature
-        // One beat = 1920 / denominator ticks
-        const auto timeSig = appModel->timeSignature();
-        const int beatTicks = 1920 / timeSig.denominator;
-        const int halfBeatLength = beatTicks / 4;
-        
+
+        // Calculate note length based on current quantize setting
+        // quantize = 16 means 16th note, quantize = 8 means 8th note, etc.
+        const int noteLength = 1920 / appStatus->quantize;
+
         // Set up mouse state for drawing
         d->m_mouseDown = true;
         d->m_mouseDownButton = Qt::LeftButton;
         d->m_mouseDownPos = scenePos;
         d->m_mouseDownKeyIndex = keyIndex;
-        
-        // Create note with half-beat length
-        d->PrepareForDrawingNote(tick, keyIndex, halfBeatLength);
+
+        // Create note with current quantize length
+        d->PrepareForDrawingNote(tick, keyIndex, noteLength);
     }
 }
 
@@ -587,33 +585,35 @@ void PianoRollGraphicsViewPrivate::onStartEditingNoteLyric(NoteView *noteView) {
             view->finishEditingLyric();
         }
     }
-    
+
     // Connect signals
-    connect(noteView, &NoteView::lyricEditingFinished, this,
-            [this, noteView](const QString &lyric) { onNoteLyricEditingFinished(noteView, lyric); });
+    connect(
+        noteView, &NoteView::lyricEditingFinished, this,
+        [this, noteView](const QString &lyric) { onNoteLyricEditingFinished(noteView, lyric); });
     connect(noteView, &NoteView::tabKeyPressed, this,
             [this, noteView] { onNoteTabKeyPressed(noteView); });
-    
+
     noteView->startEditingLyric();
 }
 
-void PianoRollGraphicsViewPrivate::onNoteLyricEditingFinished(NoteView *noteView, const QString &lyric) {
+void PianoRollGraphicsViewPrivate::onNoteLyricEditingFinished(NoteView *noteView,
+                                                              const QString &lyric) {
     // Disconnect signals
     disconnect(noteView, &NoteView::lyricEditingFinished, this, nullptr);
     disconnect(noteView, &NoteView::tabKeyPressed, this, nullptr);
-    
+
     // Save lyric changes
     const int noteId = noteView->id();
     const auto note = m_clip->findNoteById(noteId);
     Q_ASSERT(note);
-    
+
     // Create NoteDialogResult
     NoteDialogResult result;
     result.lyric = lyric;
     result.language = note->language();
     result.pronunciation = note->pronunciation();
     result.phonemeNameInfo = note->phonemeNameInfo();
-    
+
     clipController->onNotePropertiesEdited(noteId, result);
 }
 
@@ -622,7 +622,7 @@ void PianoRollGraphicsViewPrivate::onNoteTabKeyPressed(NoteView *noteView) {
     if (noteView->isEditingLyric()) {
         noteView->finishEditingLyric();
     }
-    
+
     // Find next Note
     NoteView *nextNoteView = findNextNoteView(noteView);
     if (nextNoteView) {
@@ -633,22 +633,22 @@ void PianoRollGraphicsViewPrivate::onNoteTabKeyPressed(NoteView *noteView) {
 NoteView *PianoRollGraphicsViewPrivate::findNextNoteView(NoteView *currentNoteView) const {
     if (!m_clip || !currentNoteView)
         return nullptr;
-    
+
     const int currentRStart = currentNoteView->rStart();
     NoteView *nextNoteView = nullptr;
     int minRStart = INT_MAX;
-    
+
     // Find all Notes after current Note, select the one with smallest rStart
     for (const auto view : noteViews) {
         if (view == currentNoteView || view->rStart() <= currentRStart)
             continue;
-        
+
         if (view->rStart() < minRStart) {
             minRStart = view->rStart();
             nextNoteView = view;
         }
     }
-    
+
     return nextNoteView;
 }
 
@@ -765,7 +765,8 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(const QMouseEvent *eve
     updateMoveDeltaKeyRange();
 }
 
-void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(const int tick, const int keyIndex, const int initialLength) {
+void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(const int tick, const int keyIndex,
+                                                         const int initialLength) {
     Q_Q(PianoRollGraphicsView);
     // Finish editing any notes that are currently being edited
     for (const auto view : noteViews) {
@@ -773,7 +774,7 @@ void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(const int tick, const i
             view->finishEditingLyric();
         }
     }
-    
+
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     const auto snappedTick = MathUtils::roundDown(tick, 1920 / appStatus->quantize);
     Log::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
