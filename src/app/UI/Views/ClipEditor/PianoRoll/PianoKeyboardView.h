@@ -6,6 +6,8 @@
 #define PIANOKEYBOARDVIEW_H
 
 #include <QWidget>
+#include <QEnterEvent>
+#include <QMouseEvent>
 
 class PianoKeyboardView : public QWidget {
     Q_OBJECT
@@ -34,8 +36,13 @@ private:
 
     void paintEvent(QPaintEvent *event) override;
     void wheelEvent(QWheelEvent *e) override;
+    void enterEvent(QEnterEvent *event) override;
+    void leaveEvent(QEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
     void drawUniformKeyboard(QPainter &painter) const;
-    void drawClassicKeyboard(QPainter &painter) const;
+    void drawClassicKeyboard(QPainter &painter);
+    void drawHoverOverlay(QPainter &painter) const;
+    int yToKeyIndex(double y) const;
 
     double m_top = 0;
     double m_bottom = 127;
@@ -45,6 +52,8 @@ private:
     QColor m_whiteKeyColor = {218, 219, 224};
     QColor m_blackKeyColor = {59, 63, 71};
     QColor m_dividerColor = {170, 172, 181};
+    QColor m_primaryColor = {155, 186, 255};
+    int m_hoveredKeyIndex = -1;
 };
 
 
