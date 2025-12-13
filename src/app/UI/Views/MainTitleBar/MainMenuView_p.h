@@ -17,6 +17,7 @@ class MainMenuViewPrivate : QObject {
     Q_OBJECT
 
     Q_DECLARE_PUBLIC(MainMenuView)
+
 public:
     explicit MainMenuViewPrivate(MainWindow *window) : m_mainWindow(window) {
     }
@@ -52,40 +53,62 @@ public:
     AppGlobal::PanelType m_panelType = AppGlobal::Generic;
 
     void onNew() const;
+
     void onOpen();
+
     // void onOpenAProject();
     void onImportMidiFile();
+
     void onExportMidiFile();
+
     void onExportAudioFile();
+
     void onUndoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,
                            const QString &redoName);
 
     void onActivatedPanelChanged(AppGlobal::PanelType panel);
+
     void onSelectAll();
+
     void onDelete();
+
     void onCut();
+
     void onCopy();
+
     void onPaste();
+
     // void onGetMidiFromAudioClip();
     void onExtractPitchParam();
+
     void onOctaveUp();
+
     void onOctaveDown();
+
     // void onTranspose();
     void exitApp();
 
     void enterClipEditorState();
+
     void exitClipEditorState(); // TODO: 需要重构以支持轨道编辑器
 
     void initActions();
+
     void initFileActions();
+
     void initEditActions();
+
     // void initOptionsActions();
     // void initHelpActions();
 
     CMenu *buildFileMenu();
+
     CMenu *buildEditMenu();
+
     CMenu *buildOptionsMenu();
+
     CMenu *buildHelpMenu();
+
     void updateRecentFilesMenu();
 
 private:

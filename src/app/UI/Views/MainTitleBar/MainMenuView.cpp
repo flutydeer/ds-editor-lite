@@ -31,7 +31,7 @@
 MainMenuView::MainMenuView(MainWindow *mainWindow)
     : QMenuBar(mainWindow), d_ptr(new MainMenuViewPrivate(mainWindow)) {
     Q_D(MainMenuView);
-    d->q_ptr = this;
+    d->q_ptr = this;Ò
 
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 

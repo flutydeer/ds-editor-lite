@@ -54,7 +54,7 @@ AppController::~AppController() {
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AppController)
 
 void AppController::newProject() {
-    Q_D(AppController);
+    Q_D(AppController);Ò
     appModel->newProject();
     historyManager->reset();
     d->updateProjectPathAndName("");
