@@ -70,7 +70,7 @@ void RecentFilesManager::load() {
         for (auto item : std::as_const(arr)) {
             if (item.isString()) {
                 const QString filePath = item.toString();
-                // 只保留存在的文件
+                // Keep only existing files
                 if (QFile::exists(filePath)) {
                     files.append(filePath);
                 }

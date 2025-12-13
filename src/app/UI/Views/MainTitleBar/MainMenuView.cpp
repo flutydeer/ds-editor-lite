@@ -533,7 +533,7 @@ void MainMenuViewPrivate::updateRecentFilesMenu() {
     for (const auto &filePath : recentFiles) {
         const QFileInfo fileInfo(filePath);
         if (!fileInfo.exists()) {
-            continue; // 跳过不存在的文件
+            continue; // Skip non-existent files
         }
 
         auto action = new QAction(fileInfo.fileName(), this);
