@@ -36,11 +36,11 @@ RecentFilesManager::~RecentFilesManager() {
 LITE_SINGLETON_IMPLEMENT_INSTANCE(RecentFilesManager)
 
 void RecentFilesManager::addFile(const QString &filePath) {
-    // 移除已存在的相同文件
+    // Remove existing identical files
     m_recentFiles.removeAll(filePath);
-    // 添加到开头
+    // Add to beginning
     m_recentFiles.prepend(filePath);
-    // 限制最大30条
+    // Limit up to 30 items
     if (m_recentFiles.size() > MAX_RECENT_FILES) {
         m_recentFiles = m_recentFiles.mid(0, MAX_RECENT_FILES);
     }
