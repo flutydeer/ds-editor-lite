@@ -16,6 +16,7 @@
 #include "PronunciationView.h"
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
+#include "Controller/Actions/AppModel/Note/NoteActions.h"
 #include "Global/AppGlobal.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/DrawCurve.h"
@@ -30,8 +31,12 @@
 #include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 #include <climits>
+#include <cmath>
 
 #include <QApplication>
+#include <QGraphicsLineItem>
+#include <QGraphicsPathItem>
+#include <QPainterPath>
 #include <QMouseEvent>
 #include <QScrollBar>
 #include <QMWidgets/cmenu.h>
@@ -129,7 +134,7 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     Q_D(PianoRollGraphicsView);
     if (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote) {
         if (const auto noteView = d->noteViewAt(event->pos())) {
-            const auto menu = d->buildNoteContextMenu(noteView);
+            const auto menu = d->buildNoteContextMenu(noteView, event->pos());
             menu->exec(event->globalPos());
         }
     }
@@ -158,7 +163,8 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     d->m_selecting = true;
     d->m_selectionChangeBarrier = true;
     if (event->button() != Qt::LeftButton &&
-        (d->m_editMode == Select || d->m_editMode == DrawNote || d->m_editMode == EraseNote)) {
+        (d->m_editMode == Select || d->m_editMode == DrawNote || d->m_editMode == EraseNote ||
+         d->m_editMode == SplitNote)) {
         d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
         if (const auto noteView = d->noteViewAt(event->pos())) {
             if (d->selectedNoteItems().count() <= 1 || !d->selectedNoteItems().contains(noteView))
@@ -200,6 +206,11 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
             d->eraseNoteFromView(noteView);
         } else
             TimeGraphicsView::mousePressEvent(event);
+    } else if (d->m_editMode == SplitNote) {
+        if (noteView && event->button() == Qt::LeftButton) {
+            d->splitNoteAtPosition(noteView, tick);
+        } else
+            TimeGraphicsView::mousePressEvent(event);
     } else
         TimeGraphicsView::mousePressEvent(event);
     event->ignore();
@@ -207,6 +218,13 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
 
 void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
+    // Update split line indicator in SplitNote mode even when not dragging
+    if (d->m_editMode == SplitNote && !d->m_mouseDown) {
+        const auto scenePos = mapToScene(event->position().toPoint());
+        const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
+        const auto noteView = d->noteViewAt(event->pos());
+        d->updateSplitLineIndicator(noteView, tick);
+    }
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::None) {
         TimeGraphicsView::mouseMoveEvent(event);
         return;
@@ -503,13 +521,19 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     if (d->m_editMode != mode)
         commitAction();
     d->m_editMode = mode;
+    // Hide split line indicator when switching modes
+    if (d->m_splitLineIndicator) {
+        static_cast<QGraphicsScene *>(scene())->removeItem(d->m_splitLineIndicator);
+        delete d->m_splitLineIndicator;
+        d->m_splitLineIndicator = nullptr;
+    }
     if (mode == Select) {
         setDragBehavior(DragBehavior::RectSelect);
         d->setPitchEditMode(false, false);
     } else if (mode == IntervalSelect) {
         setDragBehavior(DragBehavior::IntervalSelect);
         d->setPitchEditMode(false, false);
-    } else if (mode == DrawNote || mode == EraseNote) {
+    } else if (mode == DrawNote || mode == EraseNote || mode == SplitNote) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(false, false);
     } else if (mode == DrawPitch || mode == EditPitchAnchor) {
@@ -652,7 +676,7 @@ NoteView *PianoRollGraphicsViewPrivate::findNextNoteView(NoteView *currentNoteVi
     return nextNoteView;
 }
 
-CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
+CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos) {
     Q_Q(PianoRollGraphicsView);
     const auto menu = new CMenu(q);
 
@@ -663,6 +687,12 @@ CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView) {
     const auto actionSearchLyric = menu->addAction(tr("Search lyrics..."));
     connect(actionSearchLyric, &QAction::triggered, clipController,
             [=] { clipController->onSearchLyric(q); });
+
+    menu->addSeparator();
+
+    const auto actionSplit = menu->addAction(tr("Split Note"));
+    connect(actionSplit, &QAction::triggered, this,
+            [noteView, mousePos, this] { splitNoteAtMousePosition(noteView, mousePos); });
 
     menu->addSeparator();
 
@@ -1013,12 +1043,30 @@ void PianoRollGraphicsViewPrivate::onHoverEnter(QHoverEvent *event) {
 }
 
 void PianoRollGraphicsViewPrivate::onHoverLeave(QHoverEvent *event) {
+    Q_Q(PianoRollGraphicsView);
+    // Hide split line indicator when mouse leaves
+    if (m_splitLineIndicator) {
+        static_cast<QGraphicsScene *>(q->scene())->removeItem(m_splitLineIndicator);
+        delete m_splitLineIndicator;
+        m_splitLineIndicator = nullptr;
+    }
 }
 
 void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     Q_Q(PianoRollGraphicsView);
     if (m_isEditPitchMode || m_mouseDown)
         return;
+    
+    // Update split line indicator in SplitNote mode
+    if (m_editMode == SplitNote) {
+        const auto scenePos = q->mapToScene(event->position().toPoint());
+        const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + m_offset);
+        const auto noteView = noteViewAt(event->position().toPoint());
+        updateSplitLineIndicator(noteView, tick);
+        q->setCursor(Qt::ArrowCursor);
+        return;
+    }
+    
     const auto noteView = noteViewAt(event->position().toPoint());
     if (!noteView) {
         q->setCursor(Qt::ArrowCursor);
@@ -1053,4 +1101,156 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
 void PianoRollGraphicsViewPrivate::updatePitch(const Param::Type paramType,
                                                const Param &param) const {
     Helper::updatePitch(paramType, param, *m_pitchEditor);
+}
+
+void PianoRollGraphicsViewPrivate::splitNoteAtPosition(NoteView *noteView, int tick) {
+    Q_Q(PianoRollGraphicsView);
+    if (!noteView || !m_clip)
+        return;
+
+    const auto note = m_clip->findNoteById(noteView->id());
+    if (!note)
+        return;
+
+    const auto quantizedTickLength = 1920 / appStatus->quantize;
+    const auto snappedTick = MathUtils::roundDown(tick, quantizedTickLength);
+    const auto splitPos = snappedTick - m_offset;
+    const auto noteLocalStart = note->localStart();
+    const auto noteLocalEnd = noteLocalStart + note->length();
+
+    // Check if split position is valid (within note bounds and not at edges)
+    if (splitPos <= noteLocalStart || splitPos >= noteLocalEnd)
+        return;
+
+    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
+
+    // Calculate lengths
+    const auto firstPartLength = splitPos - noteLocalStart;
+    const auto secondPartLength = noteLocalEnd - splitPos;
+
+    // Create new note (the second part) - this will be a slur note
+    const auto newNote = new Note(m_clip);
+    newNote->setLocalStart(splitPos);
+    newNote->setLength(secondPartLength);
+    newNote->setKeyIndex(note->keyIndex());
+    newNote->setCentShift(note->centShift());
+    newNote->setLanguage(note->language());
+    newNote->setLyric("-"); // Set lyric to "-" for slur
+    newNote->setPronunciation(note->pronunciation());
+
+    // Use unified split action
+    clipController->onSplitNote(note->id(), newNote, firstPartLength);
+    clipController->selectNotes(QList({newNote->id()}), true);
+
+    // Reset edit object state to allow undo/redo
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
+
+    // Hide split line indicator after splitting
+    if (m_splitLineIndicator) {
+        static_cast<QGraphicsScene *>(q->scene())->removeItem(m_splitLineIndicator);
+        delete m_splitLineIndicator;
+        m_splitLineIndicator = nullptr;
+    }
+}
+
+void PianoRollGraphicsViewPrivate::updateSplitLineIndicator(NoteView *noteView, int tick) {
+    Q_Q(PianoRollGraphicsView);
+    if (!noteView) {
+        // Hide indicator if not over a note
+        if (m_splitLineIndicator) {
+            static_cast<QGraphicsScene *>(q->scene())->removeItem(m_splitLineIndicator);
+            delete m_splitLineIndicator;
+            m_splitLineIndicator = nullptr;
+        }
+        return;
+    }
+
+    const auto quantizedTickLength = 1920 / appStatus->quantize;
+    const auto snappedTick = MathUtils::roundDown(tick, quantizedTickLength);
+    const auto splitPos = snappedTick - m_offset;
+    const auto noteLocalStart = noteView->rStart();
+    const auto noteLocalEnd = noteLocalStart + noteView->length();
+
+    // Check if split position is valid (within note bounds)
+    if (splitPos <= noteLocalStart || splitPos >= noteLocalEnd) {
+        if (m_splitLineIndicator) {
+            static_cast<QGraphicsScene *>(q->scene())->removeItem(m_splitLineIndicator);
+            delete m_splitLineIndicator;
+            m_splitLineIndicator = nullptr;
+        }
+        return;
+    }
+
+    // Calculate line position
+    const auto x = q->tickToSceneX(splitPos);
+    const auto noteRect = noteView->rect();
+    const auto noteScenePos = noteView->scenePos();
+    constexpr double extensionLength = 8.0; // Extension length above and below note
+    constexpr double forkLength = 6.0;       // Length of fork lines
+    constexpr double forkAngle = 45.0;      // Angle of fork lines in degrees
+    
+    const auto lineTop = noteScenePos.y() - extensionLength;
+    const auto lineBottom = noteScenePos.y() + noteRect.height() + extensionLength;
+    const auto forkAngleRad = forkAngle * M_PI / 180.0;
+    const auto forkOffsetX = forkLength * std::sin(forkAngleRad);
+    const auto forkOffsetY = forkLength * std::cos(forkAngleRad);
+
+    // Create or update split line indicator
+    if (!m_splitLineIndicator) {
+        m_splitLineIndicator = new QGraphicsPathItem;
+        m_splitLineIndicator->setPen(QPen(QColor(255, 100, 100), 2));
+        m_splitLineIndicator->setZValue(10);
+        static_cast<QGraphicsScene *>(q->scene())->addItem(m_splitLineIndicator);
+    }
+
+    // Build path with main line and forks
+    QPainterPath path;
+    
+    // Main vertical line
+    path.moveTo(x, lineTop);
+    path.lineTo(x, lineBottom);
+    
+    // Top fork (pointing upward, away from note)
+    path.moveTo(x, lineTop);
+    path.lineTo(x - forkOffsetX, lineTop - forkOffsetY);
+    path.moveTo(x, lineTop);
+    path.lineTo(x + forkOffsetX, lineTop - forkOffsetY);
+    
+    // Bottom fork (pointing downward, away from note)
+    path.moveTo(x, lineBottom);
+    path.lineTo(x - forkOffsetX, lineBottom + forkOffsetY);
+    path.moveTo(x, lineBottom);
+    path.lineTo(x + forkOffsetX, lineBottom + forkOffsetY);
+    
+    m_splitLineIndicator->setPath(path);
+}
+
+void PianoRollGraphicsViewPrivate::splitNoteAtMousePosition(NoteView *noteView, const QPoint &mousePos) {
+    Q_Q(PianoRollGraphicsView);
+    if (!noteView || !m_clip)
+        return;
+
+    const auto note = m_clip->findNoteById(noteView->id());
+    if (!note)
+        return;
+
+    // Convert mouse position to tick
+    const auto scenePos = q->mapToScene(mousePos);
+    const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + m_offset);
+    
+    const auto quantizedTickLength = 1920 / appStatus->quantize;
+    
+    // Find the quantize points before and after the mouse position
+    const auto prevQuantizeTick = MathUtils::roundDown(tick, quantizedTickLength);
+    const auto nextQuantizeTick = prevQuantizeTick + quantizedTickLength;
+    
+    // Determine which quantize point is closer to the mouse position
+    const auto distToPrev = qAbs(tick - prevQuantizeTick);
+    const auto distToNext = qAbs(tick - nextQuantizeTick);
+    
+    // Use the closer quantize point, or the next one if equidistant
+    const auto splitTick = (distToPrev <= distToNext) ? prevQuantizeTick : nextQuantizeTick;
+    
+    // Call the split function with the determined tick
+    splitNoteAtPosition(noteView, splitTick);
 }

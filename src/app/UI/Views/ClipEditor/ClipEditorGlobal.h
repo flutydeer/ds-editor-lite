@@ -16,6 +16,7 @@ namespace ClipEditorGlobal {
         IntervalSelect,
         DrawNote,
         EraseNote,
+        SplitNote,
         DrawPitch,
         EditPitchAnchor,
         ErasePitch,

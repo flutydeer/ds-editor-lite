@@ -32,6 +32,9 @@ public:
                                  const QList<Note::WordProperties> &args, SingingClip *clip);
     void editNotePhonemeOffset(Note *note, Phonemes::Type type,
                                      const QList<int> &offsets, SingingClip *clip);
+
+    // Split note
+    void splitNote(Note *originalNote, Note *newNote, int newLength, SingingClip *clip);
 };
 
 

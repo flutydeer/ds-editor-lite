@@ -52,6 +52,8 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnNotePencil =
         d->buildToolButton("btnNotePencil", tr("Draw Note"), Qt::Key_N, notePencilDesc);
     d->m_btnNoteEraser = d->buildToolButton("btnNoteEraser", tr("Erase Note"), Qt::Key_M);
+    d->m_btnNoteSplit = d->buildToolButton("btnNoteSplit", tr("Split Note"), QKeySequence(), tr("Split note at quantize line"));
+    d->m_btnNoteSplit->setText("✂");
     // d->m_btnPitchAnchor = d->buildToolButton("btnPitchAnchor", tr("Pitch Anchor"), Qt::Key_F);
     const auto pitchPencilDesc = tr("Left drag: Draw\nRight drag: Erase");
     d->m_btnPitchPencil =
@@ -67,6 +69,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_toolButtonGroup->addButton(d->m_btnBeam);
     d->m_toolButtonGroup->addButton(d->m_btnNotePencil);
     d->m_toolButtonGroup->addButton(d->m_btnNoteEraser);
+    d->m_toolButtonGroup->addButton(d->m_btnNoteSplit);
     // d->m_toolButtonGroup->addButton(d->m_btnPitchAnchor);
     d->m_toolButtonGroup->addButton(d->m_btnPitchPencil);
     d->m_toolButtonGroup->addButton(d->m_btnPitchEraser);
@@ -129,6 +132,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     mainLayout->addWidget(d->m_btnBeam);
     mainLayout->addWidget(d->m_btnNotePencil);
     mainLayout->addWidget(d->m_btnNoteEraser);
+    mainLayout->addWidget(d->m_btnNoteSplit);
     // mainLayout->addWidget(d->m_btnPitchAnchor);
     mainLayout->addWidget(d->m_btnPitchPencil);
     mainLayout->addWidget(d->m_btnPitchEraser);
@@ -190,6 +194,8 @@ void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(const QAbstractB
         m_editMode = DrawNote;
     } else if (button == m_btnNoteEraser) {
         m_editMode = EraseNote;
+    } else if (button == m_btnNoteSplit) {
+        m_editMode = SplitNote;
     } else if (button == m_btnPitchPencil) {
         m_editMode = DrawPitch;
     } /*else if (button == m_btnPitchAnchor) {

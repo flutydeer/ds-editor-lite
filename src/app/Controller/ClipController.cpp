@@ -163,6 +163,19 @@ void ClipController::onInsertNote(Note *note) {
     // updateAndNotifyCanSelectAll();
 }
 
+void ClipController::onSplitNote(const int noteId, Note *newNote, const int newLength) const {
+    Q_D(const ClipController);
+    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto originalNote = singingClip->findNoteById(noteId);
+    if (!originalNote)
+        return;
+
+    const auto a = new NoteActions;
+    a->splitNote(originalNote, newNote, newLength, singingClip);
+    a->execute();
+    historyManager->record(a);
+}
+
 void ClipController::onMoveNotes(const QList<int> &notesId, const int deltaTick,
                                  const int deltaKey) {
     Q_D(ClipController);

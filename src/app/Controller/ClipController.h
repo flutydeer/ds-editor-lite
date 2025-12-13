@@ -57,6 +57,7 @@ public slots:
     void onRemoveNotes(const QList<int> &notesId);
     void onInsertNote(Note *note);
     void onMoveNotes(const QList<int> &notesId, int deltaTick, int deltaKey);
+    void onSplitNote(int noteId, Note *newNote, int newLength) const;
     void onResizeNotesLeft(const QList<int> &notesId, int deltaTick) const;
     void onResizeNotesRight(const QList<int> &notesId, int deltaTick) const;
     void onAdjustPhonemeOffset(int noteId, Phonemes::Type type, const QList<int> &offsets) const;

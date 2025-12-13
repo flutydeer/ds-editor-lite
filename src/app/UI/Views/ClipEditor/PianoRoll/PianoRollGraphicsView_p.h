@@ -45,6 +45,7 @@ public:
 
     PitchEditorView *m_pitchEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
+    QGraphicsPathItem *m_splitLineIndicator = nullptr;
 
     bool m_mouseDown = false;
     Qt::MouseButton m_mouseDownButton = Qt::NoButton;
@@ -71,7 +72,8 @@ public:
     MouseMoveBehavior m_mouseMoveBehavior = None;
     NoteView *m_currentDrawingNote = nullptr; // a fake note for drawing
 
-    CMenu *buildNoteContextMenu(NoteView *noteView);
+    CMenu *buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos);
+    void splitNoteAtMousePosition(NoteView *noteView, const QPoint &mousePos);
 
     void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);
@@ -87,6 +89,8 @@ public:
     void handleNotesErased();
     void eraseNoteFromView(NoteView *noteView);
     void cancelEraseNote();
+    void splitNoteAtPosition(NoteView *noteView, int tick);
+    void updateSplitLineIndicator(NoteView *noteView, int tick);
 
     void updateSceneSelectionState();
     void updateOverlappedState();
@@ -115,8 +119,8 @@ public:
     void addNoteViewToScene(NoteView *view);
     void removeNoteViewFromScene(NoteView *view);
 
-    static void onHoverEnter(QHoverEvent *event);
-    static void onHoverLeave(QHoverEvent *event);
+    void onHoverEnter(QHoverEvent *event);
+    void onHoverLeave(QHoverEvent *event);
     void onHoverMove(const QHoverEvent *event);
 
 public slots:
