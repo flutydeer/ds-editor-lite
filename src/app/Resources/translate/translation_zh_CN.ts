@@ -1379,7 +1379,7 @@ Right drag: Erase</source>
     <name>MainMenuView</name>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="71"/>
-        <source>All Supported Files (*.dspx *.mid);;DiffScope Project File (*.dspx);;MIDI File (*.mid)</source>
+        <source>All Supported Files (*.dspx *.mid *.midi);;DiffScope Project File (*.dspx);;MIDI File (*.mid *.midi)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1398,8 +1398,8 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="108"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="118"/>
-        <source>MIDI File (*.mid)</source>
-        <translation>MIDI 文件 (*.mid)</translation>
+        <source>MIDI File (*.mid *.midi)</source>
+        <translation>MIDI 文件 (*.mid *.midi)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="118"/>

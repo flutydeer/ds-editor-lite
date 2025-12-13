@@ -70,7 +70,7 @@ bool AppController::openFile(const QString &filePath, QString &errorMessage) {
         bool success = false;
         if (suffix == "dspx")
             success = d->openDspxFile(filePath, errorMessage);
-        else if (suffix == "mid")
+        else if (suffix == "mid" || suffix == "midi")
             success = d->openMidiFile(filePath, errorMessage);
         else {
             Toast::show(tr("Unrecognized file format: %1").arg(suffix));

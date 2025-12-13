@@ -71,8 +71,8 @@ void MainMenuViewPrivate::onOpen() {
         const auto lastDir = appController->lastProjectFolder();
         const auto fileName = QFileDialog::getOpenFileName(
             q, tr("Open"), lastDir,
-            MainMenuView::tr("All Supported Files (*.dspx *.mid);;DiffScope Project File "
-                             "(*.dspx);;MIDI File (*.mid)"));
+            MainMenuView::tr("All Supported Files (*.dspx *.mid *.midi);;DiffScope Project File "
+                             "(*.dspx);;MIDI File (*.mid *.midi)"));
         if (fileName.isNull()) {
             qDebug() << "User cancelled open";
             return;
@@ -107,8 +107,8 @@ void MainMenuViewPrivate::onOpen() {
 void MainMenuViewPrivate::onImportMidiFile() {
     Q_Q(MainMenuView);
     const auto lastDir = appController->lastProjectFolder();
-    auto fileName =
-        QFileDialog::getOpenFileName(q, tr("Select a MIDI File"), lastDir, tr("MIDI File (*.mid)"));
+    auto fileName = QFileDialog::getOpenFileName(q, tr("Select a MIDI File"), lastDir,
+                                                 tr("MIDI File (*.mid *.midi)"));
     if (fileName.isNull())
         return;
     appController->importMidiFile(fileName);
@@ -117,8 +117,8 @@ void MainMenuViewPrivate::onImportMidiFile() {
 void MainMenuViewPrivate::onExportMidiFile() {
     Q_Q(MainMenuView);
     const auto lastDir = appController->lastProjectFolder();
-    auto fileName =
-        QFileDialog::getSaveFileName(q, tr("Save as MIDI File"), lastDir, tr("MIDI File (*.mid)"));
+    auto fileName = QFileDialog::getSaveFileName(q, tr("Save as MIDI File"), lastDir,
+                                                 tr("MIDI File (*.mid *.midi)"));
     if (fileName.isNull())
         return;
     appController->exportMidiFile(fileName);
