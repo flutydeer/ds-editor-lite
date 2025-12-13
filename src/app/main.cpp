@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
     // auto taskWindow = new TaskWindow(&w);
     // taskWindow->move(availableRect.width() - taskWindow->width() - 8,
     //                  availableRect.height() - taskWindow->height() - 8);
-    // taskWindow->show();Ò
+    // taskWindow->show();
 
     auto args = QApplication::arguments();
     if (args.count() == 2) {
@@ -180,7 +180,6 @@ int main(int argc, char *argv[]) {
         if (!filePath.isEmpty()) {
             QString errorMsg;
             if (appController->openFile(filePath, errorMsg)) {
-                // openFile 内部已经会调用 addRecentFile，所以这里不需要再次调用
                 auto tracks = appModel->tracks();
                 if (!tracks.isEmpty()) {
                     auto clips = tracks.first()->clips();
