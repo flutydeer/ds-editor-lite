@@ -23,6 +23,7 @@
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
+#include "Modules/RecentFiles/RecentFilesManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
@@ -53,7 +54,7 @@ AppController::~AppController() {
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AppController)
 
 void AppController::newProject() {
-    Q_D(AppController);
+    Q_D(AppController);Ò
     appModel->newProject();
     historyManager->reset();
     d->updateProjectPathAndName("");
@@ -66,12 +67,19 @@ bool AppController::openFile(const QString &filePath, QString &errorMessage) {
     if (QFile(filePath).exists()) {
         const QFileInfo info(filePath);
         const auto suffix = info.suffix().toLower();
+        bool success = false;
         if (suffix == "dspx")
-            return d->openDspxFile(filePath, errorMessage);
-        if (suffix == "mid" || suffix == "midi")
-            return d->openMidiFile(filePath, errorMessage);
-        Toast::show(tr("Unrecognized file format: %1").arg(suffix));
-        return false;
+            success = d->openDspxFile(filePath, errorMessage);
+        else if (suffix == "mid" || suffix == "midi")
+            success = d->openMidiFile(filePath, errorMessage);
+        else {
+            Toast::show(tr("Unrecognized file format: %1").arg(suffix));
+            return false;
+        }
+        if (success) {
+            recentFilesManager->addFile(filePath);
+        }
+        return success;
     }
     Toast::show(tr("File does not exist: %1").arg(filePath));
     return false;

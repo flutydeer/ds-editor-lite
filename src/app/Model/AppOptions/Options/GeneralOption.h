@@ -14,8 +14,8 @@
 
 class GeneralOption final : public IOption {
 public:
-    explicit GeneralOption() : IOption("general"){};
-
+    explicit GeneralOption() : IOption("general") {};
+Ò
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
     void setPackageSearchPathsAndNotify(QStringList paths);
