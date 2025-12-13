@@ -22,8 +22,10 @@
 #include "UI/Window/MainWindow.h"
 #include "Global/AppOptionsGlobal.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
+#include "Modules/RecentFiles/RecentFilesManager.h"
 
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QMWidgets/cmenu.h>
 
 MainMenuView::MainMenuView(MainWindow *mainWindow)
@@ -389,6 +391,11 @@ CMenu *MainMenuViewPrivate::buildFileMenu() {
     auto menuFile = new CMenu(tr("&File"), q);
     menuFile->addAction(actionNew);
     menuFile->addAction(actionOpen);
+
+    menuRecentFiles = new CMenu(tr("Recent Files"), q);
+    menuFile->addMenu(menuRecentFiles);
+    connect(menuRecentFiles, &CMenu::aboutToShow, this, [this] { updateRecentFilesMenu(); });
+
     menuFile->addAction(actionSave);
     menuFile->addAction(actionSaveAs);
 
@@ -507,3 +514,48 @@ CMenu *MainMenuViewPrivate::buildHelpMenu() {
 
 // void MainMenuViewPrivate::initHelpActions() {
 // }
+
+void MainMenuViewPrivate::updateRecentFilesMenu() {
+    Q_Q(MainMenuView);
+    if (!menuRecentFiles)
+        return;
+
+    menuRecentFiles->clear();
+
+    const auto recentFiles = recentFilesManager->files();
+    if (recentFiles.isEmpty()) {
+        auto action = new QAction(tr("(Empty)"), this);
+        action->setEnabled(false);
+        menuRecentFiles->addAction(action);
+        return;
+    }
+
+    for (const auto &filePath : recentFiles) {
+        const QFileInfo fileInfo(filePath);
+        if (!fileInfo.exists()) {
+            continue; // 跳过不存在的文件
+        }
+
+        auto action = new QAction(fileInfo.fileName(), this);
+        action->setToolTip(filePath);
+        action->setData(filePath);
+        connect(action, &QAction::triggered, this, [this, filePath] {
+            if (!historyManager->isOnSavePoint()) {
+                if (m_mainWindow->askSaveChanges()) {
+                    QString errorMessage;
+                    appController->openFile(filePath, errorMessage);
+                }
+            } else {
+                QString errorMessage;
+                appController->openFile(filePath, errorMessage);
+            }
+        });
+        menuRecentFiles->addAction(action);
+    }
+
+    if (menuRecentFiles->actions().isEmpty()) {
+        auto action = new QAction(tr("(Empty)"), this);
+        action->setEnabled(false);
+        menuRecentFiles->addAction(action);
+    }
+}

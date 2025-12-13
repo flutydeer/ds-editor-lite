@@ -31,6 +31,8 @@ public:
     QAction *actionOpenPackageManager = nullptr;
     QAction *actionExit = nullptr;
 
+    CMenu *menuRecentFiles = nullptr;
+
     QAction *actionUndo = nullptr;
     QAction *actionRedo = nullptr;
     QAction *actionSave = nullptr;
@@ -84,6 +86,7 @@ public:
     CMenu *buildEditMenu();
     CMenu *buildOptionsMenu();
     CMenu *buildHelpMenu();
+    void updateRecentFilesMenu();
 
 private:
     MainMenuView *q_ptr = nullptr;

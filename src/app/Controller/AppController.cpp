@@ -23,6 +23,7 @@
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
+#include "Modules/RecentFiles/RecentFilesManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
@@ -66,12 +67,19 @@ bool AppController::openFile(const QString &filePath, QString &errorMessage) {
     if (QFile(filePath).exists()) {
         const QFileInfo info(filePath);
         const auto suffix = info.suffix().toLower();
+        bool success = false;
         if (suffix == "dspx")
-            return d->openDspxFile(filePath, errorMessage);
-        if (suffix == "mid")
-            return d->openMidiFile(filePath, errorMessage);
-        Toast::show(tr("Unrecognized file format: %1").arg(suffix));
-        return false;
+            success = d->openDspxFile(filePath, errorMessage);
+        else if (suffix == "mid")
+            success = d->openMidiFile(filePath, errorMessage);
+        else {
+            Toast::show(tr("Unrecognized file format: %1").arg(suffix));
+            return false;
+        }
+        if (success) {
+            recentFilesManager->addFile(filePath);
+        }
+        return success;
     }
     Toast::show(tr("File does not exist: %1").arg(filePath));
     return false;
@@ -150,8 +158,7 @@ void AppController::setActivePanel(const AppGlobal::PanelType panelType) {
 }
 
 void AppController::onUndoRedoChanged(const bool canUndo, const QString &undoActionName,
-                                      const bool canRedo,
-                                      const QString &redoActionName) {
+                                      const bool canRedo, const QString &redoActionName) {
     Q_D(AppController);
     Q_UNUSED(canUndo);
     Q_UNUSED(canRedo);
@@ -229,9 +236,8 @@ bool AppControllerPrivate::isPowerOf2(const int num) {
 
 void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
     taskManager->removeTask(task);
-    const auto status = task->success
-                            ? AppStatus::ModuleStatus::Ready
-                            : AppStatus::ModuleStatus::Error;
+    const auto status =
+        task->success ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
     appStatus->languageModuleStatus = status;
     delete task;
 }
@@ -239,9 +245,8 @@ void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineT
 void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
     Q_Q(AppController);
     m_projectPath = path;
-    q->setProjectName(m_projectPath.isEmpty()
-                          ? tr("New Project")
-                          : QFileInfo(m_projectPath).fileName());
+    q->setProjectName(m_projectPath.isEmpty() ? tr("New Project")
+                                              : QFileInfo(m_projectPath).fileName());
 }
 
 bool AppControllerPrivate::openDspxFile(const QString &path, QString &errorMessage) {

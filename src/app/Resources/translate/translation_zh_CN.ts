@@ -1429,6 +1429,16 @@ Right drag: Erase</source>
         <translation>打开(&amp;O)...</translation>
     </message>
     <message>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="395"/>
+        <source>Recent Files</source>
+        <translation>最近打开的文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="510"/>
+        <source>(Empty)</source>
+        <translation>(空)</translation>
+    </message>
+    <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="300"/>
         <source>&amp;Save</source>
         <translation>保存(&amp;S)</translation>
