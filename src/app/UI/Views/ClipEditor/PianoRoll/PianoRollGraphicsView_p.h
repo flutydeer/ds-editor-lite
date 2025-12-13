@@ -78,7 +78,7 @@ public:
 
     void prepareForEditingNotes(const QMouseEvent *event, QPointF scenePos, int keyIndex,
                                 NoteView *noteItem);
-    void PrepareForDrawingNote(int tick, int keyIndex);
+    void PrepareForDrawingNote(int tick, int keyIndex, int initialLength = -1);
 
     void handleNotesMoved(int deltaTick, int deltaKey) const;
     static void handleNoteLeftResized(int noteId, int deltaTick);
@@ -127,6 +127,10 @@ public slots:
 
     void onDeleteSelectedNotes() const;
     void onOpenNotePropertyDialog(int noteId, AppGlobal::NotePropertyType propertyType);
+    void onStartEditingNoteLyric(NoteView *noteView);
+    void onNoteLyricEditingFinished(NoteView *noteView, const QString &lyric);
+    void onNoteTabKeyPressed(NoteView *noteView);
+    NoteView *findNextNoteView(NoteView *currentNoteView) const;
 
 private:
     PianoRollGraphicsView *q_ptr;
