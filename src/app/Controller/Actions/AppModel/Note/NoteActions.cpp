@@ -11,6 +11,7 @@
 #include "EditPhonemeOffsetAction.h"
 #include "InsertNoteAction.h"
 #include "RemoveNoteAction.h"
+#include "SplitNoteAction.h"
 
 void NoteActions::insertNotes(const QList<Note *> &notes, SingingClip *clip) {
     setName(tr("Insert note(s)"));
@@ -50,4 +51,9 @@ void NoteActions::editNotePhonemeOffset(Note *note, const Phonemes::Type type,
                                         const QList<int> &offsets, SingingClip *clip) {
     setName(tr("Edite phoneme offset"));
     addAction(new EditPhonemeOffsetAction(note, type, offsets, clip));
+}
+
+void NoteActions::splitNote(Note *originalNote, Note *newNote, int newLength, SingingClip *clip) {
+    setName(tr("Split note"));
+    addAction(new SplitNoteAction(originalNote, newNote, newLength, clip));
 }
