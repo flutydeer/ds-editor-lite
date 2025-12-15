@@ -94,6 +94,7 @@ bool AppController::saveProject(const QString &filePath, QString &errorMessage) 
 
     historyManager->setSavePoint();
     d->updateProjectPathAndName(filePath);
+    recentFilesManager->addFile(filePath);
     return true;
 }
 

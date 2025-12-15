@@ -41,6 +41,11 @@
 #  include <QWDMHCore/DirectManipulationSystem.h>
 #endif
 
+#if defined(Q_OS_WIN)
+#  include <windows.h>
+#  include <shlobj.h>
+#endif
+
 struct AudioSystemContext {
     AudioSystemContext() {
         AudioSystem::outputSystem()->initialize();
@@ -92,6 +97,11 @@ int main(int argc, char *argv[]) {
     if (QSysInfo::productType() == "windows")
         QGuiApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
     QApplication a(argc, argv);
+
+#if defined(Q_OS_WIN)
+    // Set AppUserModelID for Windows taskbar and jump list integration
+    SetCurrentProcessExplicitAppUserModelID(L"com.openvpi.ds-editor-lite");
+#endif
 
     // Handle macOS Dock "open recent" (and other OS file-open events)
     class FileOpenFilter final : public QObject {
@@ -160,7 +170,8 @@ int main(int argc, char *argv[]) {
     //     QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() + "/Logs");
     Log::setConsoleLogLevel(Log::Debug);
     Log::setConsoleTagFilter(
-        {/*"InferDurationTask", "InferPitchTask", "InferVarianceTask", "InferAcousticTask"*/});
+    {
+        /*"InferDurationTask", "InferPitchTask", "InferVarianceTask", "InferAcousticTask"*/});
     Log::logSystemInfo();
     Log::logGpuInfo();
 
