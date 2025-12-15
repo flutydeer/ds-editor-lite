@@ -152,7 +152,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     d->m_mouseDown = true;
     d->m_mouseDownButton = event->button();
 
-    // 在滚动条上按下时，交还给基类处理
+    // When pressing on scrollbar, delegate to base class
     if (dynamic_cast<ScrollBarView *>(itemAt(event->pos()))) {
         TimeGraphicsView::mousePressEvent(event);
         event->ignore();
@@ -189,8 +189,15 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (d->m_editMode == Select) {
         if (noteView) {
             d->prepareForEditingNotes(event, scenePos, keyIndex, noteView);
-        } else
+        } else {
+            // When clicking on empty space, finish editing if any note is being edited
+            for (const auto view : d->noteViews) {
+                if (view->isEditingLyric()) {
+                    view->finishEditingLyric();
+                }
+            }
             TimeGraphicsView::mousePressEvent(event);
+        }
     } else if (d->m_editMode == DrawNote) {
         clearNoteSelections();
         if (noteView) {
@@ -198,8 +205,15 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         } else if (pronView) {
             const auto currentNoteView = d->findNoteViewById(pronView->id());
             currentNoteView->setSelected(true);
-        } else
+        } else {
+            // When clicking on empty space, finish editing if any note is being edited
+            for (const auto view : d->noteViews) {
+                if (view->isEditingLyric()) {
+                    view->finishEditingLyric();
+                }
+            }
             d->PrepareForDrawingNote(tick, keyIndex);
+        }
     } else if (d->m_editMode == EraseNote) {
         d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::EraseNotes;
         if (noteView) {
@@ -218,6 +232,22 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
 
 void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
+
+    // Check if any note is being edited, if so, don't handle mouse move events to avoid affecting
+    // focus
+    bool hasEditingNote = false;
+    for (const auto view : d->noteViews) {
+        if (view->isEditingLyric()) {
+            hasEditingNote = true;
+            break;
+        }
+    }
+    if (hasEditingNote && !d->m_mouseDown) {
+        // If a note is being edited and mouse is not down, return directly without handling mouse
+        // move events
+        return;
+    }
+
     // Update split line indicator in SplitNote mode even when not dragging
     if (d->m_editMode == SplitNote && !d->m_mouseDown) {
         const auto scenePos = mapToScene(event->position().toPoint());
@@ -246,7 +276,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 
     const auto noteView = d->noteViewAt(event->pos());
 
-    // TODO: 优化移动和调整音符
+    // TODO: Optimize note moving and resizing
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
         const auto startOffset = MathUtils::round(deltaX, quantizedTickLength);
         auto keyOffset = keyIndex - d->m_mouseDownKeyIndex;
@@ -311,7 +341,7 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
-    // 禁用双击事件，防止在滚动条上双击时触发取消选中音符
+    // Disable double-click event to prevent deselecting notes when double-clicking on scrollbar
     // TimeGraphicsView::mouseDoubleClickEvent(event);
     Q_D(PianoRollGraphicsView);
     if (!(d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote))
@@ -539,7 +569,7 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     } else if (mode == DrawPitch || mode == EditPitchAnchor) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, false);
-    } else if (mode == ErasePitch || mode == FreezePitch) { // TODO: 实现冻结自动音高
+    } else if (mode == ErasePitch || mode == FreezePitch) { // TODO: Implement freeze auto pitch
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, true);
     }
@@ -642,6 +672,7 @@ void PianoRollGraphicsViewPrivate::onNoteLyricEditingFinished(NoteView *noteView
 }
 
 void PianoRollGraphicsViewPrivate::onNoteTabKeyPressed(NoteView *noteView) {
+    Q_Q(PianoRollGraphicsView);
     // Save current Note's lyric first (finishEditingLyric will emit lyricEditingFinished signal)
     if (noteView->isEditingLyric()) {
         noteView->finishEditingLyric();
@@ -650,6 +681,13 @@ void PianoRollGraphicsViewPrivate::onNoteTabKeyPressed(NoteView *noteView) {
     // Find next Note
     NoteView *nextNoteView = findNextNoteView(noteView);
     if (nextNoteView) {
+        // Clear other selections and select the new note
+        q->clearNoteSelections();
+        nextNoteView->setSelected(true);
+        // Update selection state to controller
+        const auto notes = q->selectedNotesId();
+        clipController->selectNotes(notes, true);
+        // Start editing the new note
         onStartEditingNoteLyric(nextNoteView);
     }
 }
@@ -676,7 +714,8 @@ NoteView *PianoRollGraphicsViewPrivate::findNextNoteView(NoteView *currentNoteVi
     return nextNoteView;
 }
 
-CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos) {
+CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView,
+                                                          const QPoint &mousePos) {
     Q_Q(PianoRollGraphicsView);
     const auto menu = new CMenu(q);
 
@@ -760,6 +799,13 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(const QMouseEvent *eve
                                                           const QPointF scenePos,
                                                           const int keyIndex, NoteView *noteItem) {
     Q_Q(PianoRollGraphicsView);
+
+    // If note is editing lyric, don't allow moving or resizing
+    if (noteItem->isEditingLyric()) {
+        m_mouseMoveBehavior = None;
+        return;
+    }
+
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
     if (!ctrlDown) {
@@ -994,8 +1040,8 @@ PronunciationView *PianoRollGraphicsViewPrivate::pronViewAt(const QPoint &pos) {
     return nullptr;
 }
 
-// 正在擦除音符时，有可能会取消操作（如按下ESC），
-// 某些情况下（如发音更新）仍需要找到并修改它们的属性
+// When erasing notes, the operation might be cancelled (e.g., pressing ESC),
+// but in some cases (e.g., pronunciation updates) we still need to find and modify their properties
 NoteView *PianoRollGraphicsViewPrivate::findNoteViewById(const int id) const {
     return MathUtils::findItemById<NoteView *>(noteViews + noteViewsToErase, id);
 }
@@ -1056,7 +1102,7 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     Q_Q(PianoRollGraphicsView);
     if (m_isEditPitchMode || m_mouseDown)
         return;
-    
+
     // Update split line indicator in SplitNote mode
     if (m_editMode == SplitNote) {
         const auto scenePos = q->mapToScene(event->position().toPoint());
@@ -1066,7 +1112,7 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
         q->setCursor(Qt::ArrowCursor);
         return;
     }
-    
+
     const auto noteView = noteViewAt(event->position().toPoint());
     if (!noteView) {
         q->setCursor(Qt::ArrowCursor);
@@ -1186,9 +1232,9 @@ void PianoRollGraphicsViewPrivate::updateSplitLineIndicator(NoteView *noteView, 
     const auto noteRect = noteView->rect();
     const auto noteScenePos = noteView->scenePos();
     constexpr double extensionLength = 8.0; // Extension length above and below note
-    constexpr double forkLength = 6.0;       // Length of fork lines
+    constexpr double forkLength = 6.0;      // Length of fork lines
     constexpr double forkAngle = 45.0;      // Angle of fork lines in degrees
-    
+
     const auto lineTop = noteScenePos.y() - extensionLength;
     const auto lineBottom = noteScenePos.y() + noteRect.height() + extensionLength;
     const auto forkAngleRad = forkAngle * M_PI / 180.0;
@@ -1205,27 +1251,28 @@ void PianoRollGraphicsViewPrivate::updateSplitLineIndicator(NoteView *noteView, 
 
     // Build path with main line and forks
     QPainterPath path;
-    
+
     // Main vertical line
     path.moveTo(x, lineTop);
     path.lineTo(x, lineBottom);
-    
+
     // Top fork (pointing upward, away from note)
     path.moveTo(x, lineTop);
     path.lineTo(x - forkOffsetX, lineTop - forkOffsetY);
     path.moveTo(x, lineTop);
     path.lineTo(x + forkOffsetX, lineTop - forkOffsetY);
-    
+
     // Bottom fork (pointing downward, away from note)
     path.moveTo(x, lineBottom);
     path.lineTo(x - forkOffsetX, lineBottom + forkOffsetY);
     path.moveTo(x, lineBottom);
     path.lineTo(x + forkOffsetX, lineBottom + forkOffsetY);
-    
+
     m_splitLineIndicator->setPath(path);
 }
 
-void PianoRollGraphicsViewPrivate::splitNoteAtMousePosition(NoteView *noteView, const QPoint &mousePos) {
+void PianoRollGraphicsViewPrivate::splitNoteAtMousePosition(NoteView *noteView,
+                                                            const QPoint &mousePos) {
     Q_Q(PianoRollGraphicsView);
     if (!noteView || !m_clip)
         return;
@@ -1237,20 +1284,20 @@ void PianoRollGraphicsViewPrivate::splitNoteAtMousePosition(NoteView *noteView, 
     // Convert mouse position to tick
     const auto scenePos = q->mapToScene(mousePos);
     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + m_offset);
-    
+
     const auto quantizedTickLength = 1920 / appStatus->quantize;
-    
+
     // Find the quantize points before and after the mouse position
     const auto prevQuantizeTick = MathUtils::roundDown(tick, quantizedTickLength);
     const auto nextQuantizeTick = prevQuantizeTick + quantizedTickLength;
-    
+
     // Determine which quantize point is closer to the mouse position
     const auto distToPrev = qAbs(tick - prevQuantizeTick);
     const auto distToNext = qAbs(tick - nextQuantizeTick);
-    
+
     // Use the closer quantize point, or the next one if equidistant
     const auto splitTick = (distToPrev <= distToNext) ? prevQuantizeTick : nextQuantizeTick;
-    
+
     // Call the split function with the determined tick
     splitNoteAtPosition(noteView, splitTick);
 }
