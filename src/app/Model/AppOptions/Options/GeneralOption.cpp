@@ -15,7 +15,7 @@ void GeneralOption::load(const QJsonObject &object) {
 
     if (const auto it = object.constFind(packageSearchPathsKey); it != object.constEnd()) {
         QStringList paths;
-        if (it->isArray()) {Ò
+        if (it->isArray()) {
             const auto arr = it->toArray();
             for (auto item : std::as_const(arr)) {
                 if (item.isString()) {

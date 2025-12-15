@@ -42,7 +42,9 @@ AppController::AppController(QObject *parent)
 
     const auto task = new LaunchLanguageEngineTask;
     connect(task, &LaunchLanguageEngineTask::finished, this,
-            [=] { d->onRunLanguageEngineTaskFinished(task); });
+            [=] {
+                d->onRunLanguageEngineTaskFinished(task);
+            });
     taskManager->addAndStartTask(task);
     appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
 }
@@ -54,7 +56,7 @@ AppController::~AppController() {
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AppController)
 
 void AppController::newProject() {
-    Q_D(AppController);Ò
+    Q_D(AppController);
     appModel->newProject();
     historyManager->reset();
     d->updateProjectPathAndName("");
@@ -245,8 +247,9 @@ void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineT
 void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
     Q_Q(AppController);
     m_projectPath = path;
-    q->setProjectName(m_projectPath.isEmpty() ? tr("New Project")
-                                              : QFileInfo(m_projectPath).fileName());
+    q->setProjectName(m_projectPath.isEmpty()
+                          ? tr("New Project")
+                          : QFileInfo(m_projectPath).fileName());
 }
 
 bool AppControllerPrivate::openDspxFile(const QString &path, QString &errorMessage) {

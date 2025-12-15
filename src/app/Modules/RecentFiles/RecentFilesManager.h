@@ -10,6 +10,7 @@
 #include "Utils/Singleton.h"
 
 #include <QStringList>
+#include <QUrl>
 
 class RecentFilesManager final {
 private:
@@ -25,6 +26,10 @@ public:
     [[nodiscard]] QStringList files() const;
     void load();
     void save();
+    void syncToSystemRecentDocuments();
+
+private:
+    static void addToSystemRecent(const QString &filePath);
 
 private:
     QStringList m_recentFiles;
