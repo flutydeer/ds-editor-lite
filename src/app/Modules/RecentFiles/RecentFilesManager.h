@@ -1,5 +1,5 @@
 //
-// Created by fluty on 2024/12/XX.
+// Created by KCKT0112 on 2025/12/13.
 //
 
 #ifndef RECENTFILESMANAGER_H
