@@ -17,7 +17,6 @@ using DrawCurveList = QList<DrawCurve *>;
 
 namespace AppModelUtils {
     void copyNotes(const NoteList &source, NoteList &target);
-    QList<QList<Note *>> simpleSegment(const NoteList &source, double threshold = 200);
 
     void copyCurves(const QList<Curve *> &source, QList<Curve *> &target);
     void copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target);

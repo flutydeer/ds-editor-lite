@@ -21,9 +21,8 @@ class InferVarianceTask final : public IInferTask {
     Q_OBJECT
 
 public:
-    class InferVarianceInput {
+    class InferVarianceInput : public InferInputBase {
     public:
-        INFER_INPUT_COMMON_MEMBERS
         InferParamCurve pitch;
 
         bool operator==(const InferVarianceInput &other) const;

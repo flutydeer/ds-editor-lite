@@ -4,17 +4,15 @@
 
 #ifndef INFERTASKHELPER_H
 #define INFERTASKHELPER_H
+
 #include <QList>
 
-class InferInputNote;
+class InferInputBase;
 class InferWord;
 
 class InferTaskHelper {
 public:
-    static QList<InferWord> buildWords(const QList<InferInputNote> &notes, double tempo,
-                                       bool useOffsetInfo = false);
+    static QList<InferWord> buildWords(const InferInputBase &input, bool useOffsetInfo = false);
 };
-
-
 
 #endif // INFERTASKHELPER_H

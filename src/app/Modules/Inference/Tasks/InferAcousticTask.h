@@ -21,9 +21,8 @@ class InferAcousticTask final : public IInferTask {
     Q_OBJECT
 
 public:
-    class InferAcousticInput {
+    class InferAcousticInput : public InferInputBase {
     public:
-        INFER_INPUT_COMMON_MEMBERS
         InferParamCurve pitch;
         InferParamCurve breathiness;
         InferParamCurve tension;

@@ -5,12 +5,13 @@
 #include "AppModelUtils.h"
 
 #include "MathUtils.h"
+#include "Global/SingingClipSlicerGlobal.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Curve.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"
 
-void AppModelUtils::copyNotes(const QList<Note *> &source, QList<Note *> &target) {
+void AppModelUtils::copyNotes(const NoteList &source, NoteList &target) {
     target.clear();
     for (const auto &note : source) {
         const auto newNote = new Note;
@@ -27,38 +28,6 @@ void AppModelUtils::copyNotes(const QList<Note *> &source, QList<Note *> &target
         newNote->setLineFeed(note->lineFeed());
         target.append(newNote);
     }
-}
-
-QList<QList<Note *>> AppModelUtils::simpleSegment(const QList<Note *> &source,
-                                                  const double threshold) {
-    QList<QList<Note *>> target;
-    if (source.isEmpty()) {
-        qWarning() << "simpleSegment: source is empty";
-        return {};
-    }
-
-    if (!target.isEmpty()) {
-        target.clear();
-        qWarning() << "simpleSegment: target is not empty, cleared";
-    }
-
-    QList<Note *> buffer;
-    for (int i = 0; i < source.count(); i++) {
-        const auto note = source.at(i);
-        buffer.append(note);
-        bool commitFlag = false;
-        if (i < source.count() - 1) {
-            const auto nextStartInMs = appModel->tickToMs(source.at(i + 1)->globalStart());
-            const auto curEndInMs = appModel->tickToMs(note->globalStart() + note->length());
-            commitFlag = nextStartInMs - curEndInMs > threshold;
-        } else if (i == source.count() - 1)
-            commitFlag = true;
-        if (commitFlag) {
-            target.append(buffer);
-            buffer.clear();
-        }
-    }
-    return target;
 }
 
 void AppModelUtils::copyCurves(const QList<Curve *> &source, QList<Curve *> &target) {

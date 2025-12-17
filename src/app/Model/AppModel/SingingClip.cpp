@@ -10,7 +10,9 @@
 #include "DrawCurve.h"
 #include "Note.h"
 #include "InferPiece.h"
+#include "Timeline.h"
 #include "Modules/Language/S2pMgr.h"
+#include "Modules/SingingClipSlicer/SingingClipSlicer.h"
 #include "Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
 
@@ -72,14 +74,40 @@ const PieceList &SingingClip::pieces() const {
 }
 
 void SingingClip::reSegment() {
-    auto newSegments = AppModelUtils::simpleSegment(m_notes.toList());
+    // TODO 重构 AppModel 支持多曲速
+    Timeline timeline;
+    timeline.tempos = {{0, appModel->tempo()}};
+
+    auto [segments] = SingingClipSlicer::slice(timeline, m_notes.toList());
+
+    // 判断已有 piece 和 segment 是否相同
+    // 1. 头部填充长度相同
+    // 2. 音符序列相同
+    // 3. 尾部填充长度相同
+    auto isSamePiece = [](const InferPiece &left, const Segment &right) {
+        if (left.notes.count() != right.notes.count())
+            return false;
+
+        if (qFuzzyCompare(left.paddingStartMs, right.paddingStartMs))
+            return false;
+
+        if (qFuzzyCompare(left.paddingEndMs, right.paddingEndMs))
+            return false;
+
+        for (int i = 0; i < left.notes.count(); i++) {
+            if (left.notes[i] != right.notes[i])
+                return false;
+        }
+        return true;
+    };
+
     PieceList newPieces;
-    for (const auto &segment : newSegments) {
+    for (const auto &segment : segments) {
         bool exists = false;
         for (int i = 0; i < m_pieces.count(); i++) {
             const auto piece = m_pieces[i];
-            // 忽略脏的分段
-            if (!piece->dirty && piece->notes == segment) {
+            // 忽略脏的分段，保留未被标脏且与原来相同的片段
+            if (!piece->dirty && isSamePiece(*piece, segment)) {
                 exists = true;
                 newPieces.append(piece);
                 m_pieces.removeAt(i);
@@ -90,7 +118,10 @@ void SingingClip::reSegment() {
             const auto newPiece = new InferPiece(this);
             newPiece->identifier = singerIdentifier();
             newPiece->speaker = speakerId();
-            newPiece->notes = segment;
+            newPiece->notes = segment.notes;
+            newPiece->headAvailableLengthMs = segment.headAvailableLengthMs;
+            newPiece->paddingStartMs = segment.paddingStartMs;
+            newPiece->paddingEndMs = segment.paddingEndMs;
             newPieces.append(newPiece);
         }
     }
@@ -244,7 +275,7 @@ void SingingClip::init() {
                 const auto currentSpeaker = currentSpeakerInfo.id();
                 for (const auto piece : std::as_const(m_pieces)) {
                     qDebug() << "changing speaker before" << piece->speaker << "after"
-                             << currentSpeaker;
+                        << currentSpeaker;
                     if (piece->speaker != currentSpeaker) {
                         piece->speaker = currentSpeaker;
                         piece->dirty = true;

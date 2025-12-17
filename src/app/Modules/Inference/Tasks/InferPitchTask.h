@@ -20,9 +20,8 @@ class InferPitchTask final : public IInferTask {
     Q_OBJECT
 
 public:
-    class InferPitchInput {
+    class InferPitchInput : public InferInputBase {
     public:
-        INFER_INPUT_COMMON_MEMBERS
         InferParamCurve expressiveness;
 
         bool operator==(const InferPitchInput &other) const;

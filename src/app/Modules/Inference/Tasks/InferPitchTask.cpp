@@ -23,7 +23,7 @@ namespace Pit = ds::Api::Pitch::L1;
 
 bool InferPitchTask::InferPitchInput::operator==(const InferPitchInput &other) const {
     return clipId == other.clipId /*&& pieceId == other.pieceId*/ && notes == other.notes &&
-           identifier == other.identifier && qFuzzyCompare(tempo, other.tempo) &&
+           identifier == other.identifier && timeline == other.timeline &&
            expressiveness == other.expressiveness;
 }
 
@@ -228,14 +228,13 @@ void InferPitchTask::buildPreviewText() {
 }
 
 GenericInferModel InferPitchTask::buildInputJson() const {
-    auto secToTick = [&](const double &sec) { return sec * 480 * m_input.tempo / 60; };
-    auto words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo, true);
+    auto words = InferTaskHelper::buildWords(m_input, true);
     double totalLength = 0;
     constexpr auto interval = 0.01;
     for (const auto &word : words)
         totalLength += word.length();
 
-    const auto newInterval = secToTick(interval);
+    const auto newInterval = m_input.timeline.secToTick(interval);
     const int frames = qRound(totalLength / interval);
     InferRetake retake;
     retake.end = frames;
@@ -263,9 +262,8 @@ GenericInferModel InferPitchTask::buildInputJson() const {
 }
 
 bool InferPitchTask::processOutput(const GenericInferModel &model) {
-    auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
     const auto oriPitch = Linq::where(model.params, L_PRED(p, p.tag == "pitch")).first();
-    const auto newInterval = tickToSec(5);
+    const auto newInterval = m_input.timeline.tickToSec(5);
     m_result.values = MathUtils::resample(oriPitch.values, oriPitch.interval, newInterval);
     return true;
 }

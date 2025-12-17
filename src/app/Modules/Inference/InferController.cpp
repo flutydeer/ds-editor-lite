@@ -48,6 +48,11 @@ void InferControllerPrivate::onModuleStatusChanged(const AppStatus::ModuleType m
 
 void InferControllerPrivate::onEditingChanged(const AppStatus::EditObjectType type) {
     // TODO：需要处理编辑被取消的情况
+    // 方案：为文档模型相关对象增加版本号。即使用户正在编辑，也不取消相关任务。
+    // 任务在执行完成后，如果相关对象（如音符）仍未完成编辑，则进入挂起状态，不直接更新相关对象，等待用户完成操作。
+    // 当用户完成编辑，则从挂起状态恢复，分情况处理：
+    // 1. 用户提交更改：版本号更新，推理任务的版本号与当前版本号不一致，丢弃任务结果。此时，文档模型的更改会触发重新推理。
+    // 2. 用户丢弃更改：版本号不变，应用推理结果
     if (type == AppStatus::EditObjectType::Note) {
         qWarning() << "正在编辑工程，取消相关任务";
         const auto clip = appModel->findClipById(appStatus->activeClipId);
@@ -378,11 +383,7 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
 }
 
 void InferControllerPrivate::createAndRunInferDurTask(InferPiece &piece) {
-    const auto inputNotes = Helper::buildInferInputNotes(piece.notes);
-    const InferDurationTask::InferDurInput input = {
-        piece.clip->id(), piece.id(),       inputNotes, piece.clip->singerIdentifier(),
-        piece.speaker,    appModel->tempo()};
-    // 清空原有的自动参数
+    const auto input = Helper::buildInferDurInput(piece, piece.clip->singerIdentifier());
     Helper::resetPhoneOffset(piece.notes, piece);
     auto task = new InferDurationTask(input);
     connect(task, &Task::finished, this, [task, this] { handleInferDurTaskFinished(*task); });

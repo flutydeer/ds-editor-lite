@@ -29,7 +29,7 @@ namespace Vo = ds::Api::Vocoder::L1;
 
 bool InferAcousticTask::InferAcousticInput::operator==(const InferAcousticInput &other) const {
     return clipId == other.clipId && notes == other.notes && identifier == other.identifier &&
-           qFuzzyCompare(tempo, other.tempo) && pitch == other.pitch &&
+           timeline == other.timeline && pitch == other.pitch &&
            breathiness == other.breathiness && tension == other.tension &&
            voicing == other.voicing && energy == other.energy && mouthOpening == other.mouthOpening &&
            gender == other.gender && velocity == other.velocity && toneShift == other.toneShift;
@@ -285,16 +285,14 @@ void InferAcousticTask::buildPreviewText() {
 }
 
 GenericInferModel InferAcousticTask::buildInputJson() const {
-    auto secToTick = [&](const double &sec) { return sec * 480 * m_input.tempo / 60; };
-
-    auto words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo, true);
+    auto words = InferTaskHelper::buildWords(m_input, true);
     double totalLength = 0;
     auto interval = 0.01;
     for (const auto &word : words)
         totalLength += word.length();
 
     int frames = qRound(totalLength / interval);
-    auto newInterval = secToTick(interval);
+    auto newInterval = m_input.timeline.secToTick(interval);
     InferRetake retake;
     retake.end = frames;
 
@@ -342,7 +340,7 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     model.speaker = m_input.speaker;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening, gender, velocity, toneShift};
-    model.steps = appOptions->inference()->samplingSteps;
+    model.steps = 20;
     model.depth = appOptions->inference()->depth;
     model.identifier = m_input.identifier;
     return model;

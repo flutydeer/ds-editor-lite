@@ -6,12 +6,11 @@
 #define IINFERPIECE_H
 
 #include "Utils/Macros.h"
+#include "Utils/UniqueObject.h"
 
 LITE_INTERFACE IInferPiece : public UniqueObject {
     I_DECL(IInferPiece)
     I_NODSCD(int clipId() const);
-    I_NODSCD(int noteStartTick() const);
-    I_NODSCD(int noteEndTick() const);
 };
 
 #endif // IINFERPIECE_H

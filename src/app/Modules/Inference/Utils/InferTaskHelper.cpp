@@ -5,13 +5,12 @@
 #include "InferTaskHelper.h"
 
 #include "Modules/Inference/Models/GenericInferModel.h"
+#include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 
-QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes, double tempo,
-                                             bool useOffsetInfo) {
-    auto tickToSec = [&](const double &tick) { return tick * 60 / tempo / 480; };
-    constexpr double paddingSpLen = 0.15; // s
-
+QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool useOffsetInfo) {
+    const auto &notes = input.notes;
+    const auto &timeline = input.timeline;
     QList<InferWord> result;
     QList<InferNote> noteBuffer;
     QList<InferPhoneme> phoneBuffer;
@@ -26,14 +25,9 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
     if (firstNote.isSlur)
         qFatal() << "分段第一个音符不能为转音";
 
-    // 在头部填充一个 SP 音符。计算出第一个 word 的长度
-    auto processFirstNote = [&] {
-        double firstPhoneLen = 0;
-        if (useOffsetInfo) {
-            if (!firstNote.aheadOffsets.isEmpty())
-                firstPhoneLen = firstNote.aheadOffsets.first() / 1000.0;
-        }
-        auto firstWordLen = paddingSpLen + firstPhoneLen;
+    // 如果第一个音符不是休止符，则填充 SP 音符，长度为 paddingStartMs
+    if (!firstNote.isRest) {
+        auto firstWordLen = input.paddingStartMs / 1000.0;
         noteBuffer.append({0, 0, firstWordLen, true});
         phoneBuffer.append({"SP", firstNote.languageDictId, true, 0});
 
@@ -47,8 +41,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
             phoneBuffer.append({name, firstNote.languageDictId, false, start});
         }
         commit();
-    };
-    processFirstNote();
+    }
 
     int noteIndex = 0;
     int lastKey = 0;
@@ -57,9 +50,9 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
     while (noteIndex < notes.count()) {
         const auto &note = notes.at(noteIndex);
         lastKey = note.key;
-        wordStart = tickToSec(note.start);
-        wordLen = tickToSec(note.start + note.length) - wordStart;
-        noteBuffer.append({note.key, 0, tickToSec(note.length), note.isRest});
+        wordStart = timeline.tickToSec(note.start);
+        wordLen = timeline.tickToSec(note.start + note.length) - wordStart;
+        noteBuffer.append({note.key, 0, timeline.tickToSec(note.length), note.isRest});
 
         for (int i = 0; i < note.normalNames.count(); i++) {
             auto name = note.normalNames.at(i);
@@ -82,8 +75,10 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
             bool reachLast = false;
             while (notes.at(noteIndex + 1).isSlur) {
                 const auto &nextNote = notes.at(noteIndex + 1);
-                noteBuffer.append({nextNote.key, 0, tickToSec(nextNote.length), nextNote.isRest});
-                wordLen += tickToSec(nextNote.start + nextNote.length) - tickToSec(nextNote.start);
+                noteBuffer.append(
+                    {nextNote.key, 0, timeline.tickToSec(nextNote.length), nextNote.isRest});
+                wordLen += timeline.tickToSec(nextNote.start + nextNote.length) -
+                           timeline.tickToSec(nextNote.start);
                 noteIndex++;
                 if (noteIndex == notes.size() - 1) { // 查找找到了最后一个音符
                     reachLast = true;
@@ -93,7 +88,7 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
             if (!reachLast) {
                 // 找到下一个非转音音符
                 const auto &nextNonSlurNote = notes.at(noteIndex + 1);
-                auto nextNoteStartMs = tickToSec(nextNonSlurNote.start);
+                auto nextNoteStartMs = timeline.tickToSec(nextNonSlurNote.start);
                 gapLen = nextNoteStartMs - (wordStart + wordLen);
                 hasGap = !qFuzzyCompare(gapLen, 0);
 
@@ -125,10 +120,13 @@ QList<InferWord> InferTaskHelper::buildWords(const QList<InferInputNote> &notes,
         noteIndex++;
     }
 
-    // Add tail SP
-    noteBuffer.append({lastKey, 0, paddingSpLen, true});
-    phoneBuffer.append({"SP", firstNote.languageDictId, true, 0});
-    commit();
+    // 如果最后一个音符不为休止符，则填充一个尾部 SP 音符，长度为 paddingEndMs
+    auto lastNote = notes.last();
+    if (!lastNote.isRest) {
+        noteBuffer.append({lastKey, 0, input.paddingEndMs / 1000.0, true});
+        phoneBuffer.append({"SP", firstNote.languageDictId, true, 0});
+        commit();
+    }
 
     return result;
 }

@@ -28,26 +28,73 @@ namespace InferControllerHelper {
         return list;
     }
 
+    DurInput buildInferDurInput(const InferPiece &piece, const SingerIdentifier &identifier) {
+        DurInput input;
+        input.clipId = piece.clip->id();
+        input.pieceId = piece.id();
+
+        input.headAvailableLengthMs = piece.headAvailableLengthMs;
+        input.paddingStartMs = piece.paddingStartMs;
+        input.paddingEndMs = piece.paddingEndMs;
+
+        input.timeline = {{{0, appModel->tempo()}}};
+        input.notes = buildInferInputNotes(piece.notes);
+
+        input.speaker = piece.speaker;
+        input.identifier = identifier;
+        input.steps = appOptions->inference()->samplingSteps;
+        return input;
+    }
+
     PitchInput buildInferPitchInput(const InferPiece &piece, const SingerIdentifier &identifier) {
         InferParamCurve expr;
         for (const auto &value : piece.inputExpressiveness.values())
             expr.values.append(value / 1000.0);
-        const auto inputNotes = buildInferInputNotes(piece.notes);
-        return {piece.clipId(), piece.id(), inputNotes, identifier, piece.speaker, appModel->tempo(), expr};
+
+        PitchInput input;
+        input.clipId = piece.clipId();
+        input.pieceId = piece.id();
+
+        input.headAvailableLengthMs = piece.headAvailableLengthMs;
+        input.paddingStartMs = piece.paddingStartMs;
+        input.paddingEndMs = piece.paddingEndMs;
+
+        input.timeline = {{{0, appModel->tempo()}}};
+        input.notes = buildInferInputNotes(piece.notes);
+        input.expressiveness = expr;
+
+        input.speaker = piece.speaker;
+        input.identifier = identifier;
+        input.steps = appOptions->inference()->samplingSteps;
+        return input;
     }
 
-    InferVarianceTask::InferVarianceInput buildInferVarianceInput(const InferPiece &piece,
-                                                                  const SingerIdentifier &identifier) {
-        const auto notes = buildInferInputNotes(piece.notes);
+    VarianceInput buildInferVarianceInput(const InferPiece &piece,
+                                          const SingerIdentifier &identifier) {
         InferParamCurve pitch;
         for (const auto &value : piece.inputPitch.values())
             pitch.values.append(value / 100.0);
-        return {piece.clipId(), piece.id(), notes, identifier, piece.speaker, appModel->tempo(), pitch};
+
+        VarianceInput input;
+        input.clipId = piece.clipId();
+        input.pieceId = piece.id();
+
+        input.headAvailableLengthMs = piece.headAvailableLengthMs;
+        input.paddingStartMs = piece.paddingStartMs;
+        input.paddingEndMs = piece.paddingEndMs;
+
+        input.timeline = {{{0, appModel->tempo()}}};
+        input.notes = buildInferInputNotes(piece.notes);
+        input.pitch = pitch;
+
+        input.speaker = piece.speaker;
+        input.identifier = identifier;
+        input.steps = appOptions->inference()->samplingSteps;
+        return input;
     }
 
-    AcousticInput buildInderAcousticInput(const InferPiece &piece, const SingerIdentifier &identifier) {
-
-        const auto notes = buildInferInputNotes(piece.notes);
+    AcousticInput buildInderAcousticInput(const InferPiece &piece,
+                                          const SingerIdentifier &identifier) {
         InferParamCurve pitch;
         for (const auto &value : piece.inputPitch.values())
             pitch.values.append(value / 100.0);
@@ -82,9 +129,30 @@ namespace InferControllerHelper {
         const InferParamCurve toneShift = {
             Linq::selectMany(piece.inputToneShift.values(), L_PRED(p, p * 1.0))};
 
-        return {piece.clipId(), piece.id(),  notes,    identifier, piece.speaker, appModel->tempo(),
-                pitch,          breathiness, tension,  voicing,    energy,
-                mouthOpening,   gender,      velocity, toneShift};
+        AcousticInput input;
+        input.clipId = piece.clipId();
+        input.pieceId = piece.id();
+
+        input.headAvailableLengthMs = piece.headAvailableLengthMs;
+        input.paddingStartMs = piece.paddingStartMs;
+        input.paddingEndMs = piece.paddingEndMs;
+
+        input.timeline = {{{0, appModel->tempo()}}};
+        input.notes = buildInferInputNotes(piece.notes);
+        input.pitch = pitch;
+        input.breathiness = breathiness;
+        input.tension = tension;
+        input.voicing = voicing;
+        input.energy = energy;
+        input.mouthOpening = mouthOpening;
+        input.gender = gender;
+        input.velocity = velocity;
+        input.toneShift = toneShift;
+
+        input.speaker = piece.speaker;
+        input.identifier = identifier;
+        input.steps = appOptions->inference()->samplingSteps;
+        return input;
     }
 
     QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(const ParamInfo::Name name,

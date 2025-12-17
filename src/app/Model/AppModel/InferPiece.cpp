@@ -16,28 +16,16 @@ int InferPiece::clipId() const {
     return clip->id();
 }
 
-int InferPiece::noteStartTick() const {
-    return notes.first()->localStart();
-}
-
-int InferPiece::noteEndTick() const {
-    return notes.last()->localStart() + notes.last()->length();
-}
-
 int InferPiece::localStartTick() const {
-    const auto firstNote = notes.first();
-    const auto phoneInfo = firstNote->phonemeOffsetInfo();
-    const auto aheadInfo = phoneInfo.ahead.result();
-    const auto normalInfo = phoneInfo.normal.result();
-    auto phoneOffsets = aheadInfo.isEmpty() ? normalInfo : aheadInfo;
-    const auto firstOffset = phoneOffsets.isEmpty() ? 0 : phoneOffsets.first();
-    const int paddingTicks = appModel->msToTick(150 + firstOffset); // SP 0.15s
-    return noteStartTick() - paddingTicks;
+    // TODO: 传入时间轴
+    const int paddingTicks = qRound(appModel->msToTick(paddingStartMs));
+    return notes.first()->localStart() - paddingTicks;
 }
 
 int InferPiece::localEndTick() const {
-    const int paddingTicks = appModel->msToTick(150); // SP 0.15s
-    return noteEndTick() + paddingTicks;
+    // TODO: 传入时间轴
+    const int paddingTicks = qRound(appModel->msToTick(paddingEndMs));
+    return notes.last()->localStart() + notes.last()->length() + paddingTicks;
 }
 
 const DrawCurve *InferPiece::getOriginalCurve(const ParamInfo::Name name) const {

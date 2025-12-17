@@ -22,9 +22,8 @@ class InferDurationTask final : public IInferTask {
     Q_OBJECT
 
 public:
-    class InferDurInput {
+    class InferDurInput : public InferInputBase {
     public:
-        INFER_INPUT_COMMON_MEMBERS
         bool operator==(const InferDurInput &other) const;
     };
 

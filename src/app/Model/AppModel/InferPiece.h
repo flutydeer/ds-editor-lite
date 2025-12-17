@@ -23,6 +23,9 @@ public:
     Property<InferStatus> acousticInferStatus = Pending;
     SingingClip *clip;
     bool dirty = false;
+    double headAvailableLengthMs = 0;
+    double paddingStartMs = 0;
+    double paddingEndMs = 0;
 
     SingerIdentifier identifier;
     QString speaker; // TODO: use dynamic mix
@@ -54,8 +57,6 @@ public:
     explicit InferPiece(SingingClip *clip);
 
     [[nodiscard]] int clipId() const override;
-    [[nodiscard]] int noteStartTick() const override;
-    [[nodiscard]] int noteEndTick() const override;
     [[nodiscard]] int localStartTick() const;
     [[nodiscard]] int localEndTick() const;
 

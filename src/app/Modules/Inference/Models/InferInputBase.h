@@ -5,13 +5,26 @@
 #ifndef INFERINPUTBASE_H
 #define INFERINPUTBASE_H
 
-#define INFER_INPUT_COMMON_MEMBERS                                                                 \
-    int clipId = -1;                                                                               \
-    int pieceId = -1;                                                                              \
-    QList<InferInputNote> notes;                                                                   \
-    SingerIdentifier identifier;                                                                   \
-    QString speaker;                                                                               \
-    double tempo;
+#include "Model/AppModel/Timeline.h"
+#include "SingerIdentifier.h"
 
+class InferInputNote;
+
+class InferInputBase {
+public:
+    int clipId = -1;
+    int pieceId = -1;
+
+    double headAvailableLengthMs = 0;
+    double paddingStartMs = 0;
+    double paddingEndMs = 0;
+
+    Timeline timeline;
+    QList<InferInputNote> notes;
+
+    QString speaker;
+    SingerIdentifier identifier;
+    int steps = -1;
+};
 
 #endif // INFERINPUTBASE_H

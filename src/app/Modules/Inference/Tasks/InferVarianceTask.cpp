@@ -24,8 +24,7 @@ namespace Var = ds::Api::Variance::L1;
 
 bool InferVarianceTask::InferVarianceInput::operator==(const InferVarianceInput &other) const {
     return clipId == other.clipId /*&& pieceId == other.pieceId*/ && notes == other.notes &&
-           identifier == other.identifier && qFuzzyCompare(tempo, other.tempo) &&
-           pitch == other.pitch;
+           identifier == other.identifier && timeline == other.timeline && pitch == other.pitch;
 }
 
 int InferVarianceTask::clipId() const {
@@ -234,9 +233,7 @@ void InferVarianceTask::buildPreviewText() {
 }
 
 GenericInferModel InferVarianceTask::buildInputJson() const {
-    auto secToTick = [&](const double &sec) { return sec * 480 * m_input.tempo / 60; };
-
-    auto words = InferTaskHelper::buildWords(m_input.notes, m_input.tempo, true);
+    auto words = InferTaskHelper::buildWords(m_input, true);
     double totalLength = 0;
     auto interval = 0.01;
     for (const auto &word : words)
@@ -253,7 +250,7 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
     InferParam pitch = param;
     pitch.tag = "pitch";
     pitch.values =
-        MathUtils::resample(m_input.pitch.values, 5 /*tick*/, secToTick(interval)); // 重采样
+        MathUtils::resample(m_input.pitch.values, 5 /*tick*/, m_input.timeline.secToTick(interval));
 
     InferParam breathiness = param;
     breathiness.tag = "breathiness";
@@ -283,8 +280,7 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
 }
 
 bool InferVarianceTask::processOutput(const GenericInferModel &model) {
-    auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
-    const auto newInterval = tickToSec(5);
+    const auto newInterval = m_input.timeline.tickToSec(5);
 
     const auto breathiness = Linq::where(model.params, L_PRED(p, p.tag == "breathiness")).first();
     m_result.breathiness.values =
