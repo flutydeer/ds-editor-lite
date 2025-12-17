@@ -209,7 +209,7 @@ void TimelineView::drawPieces(QPainter *painter) const {
         auto x1 = tickToX(piece->localStartTick() + m_clip->start());
         auto x2 = tickToX(piece->localEndTick() + m_clip->start());
         painter->drawLine(x1, y, x2, y);
-        // painter->drawText(QPointF(x1, y), "#" + QString::number(piece->id()));
+        painter->drawText(QPointF(x1, y), "#" + QString::number(piece->id()));
 
         // For debugging
         auto firstNoteStartTick = piece->notes.first()->localStart() + m_clip->start();

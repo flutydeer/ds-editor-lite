@@ -88,10 +88,10 @@ void SingingClip::reSegment() {
         if (left.notes.count() != right.notes.count())
             return false;
 
-        if (qFuzzyCompare(left.paddingStartMs, right.paddingStartMs))
+        if (!qFuzzyCompare(left.paddingStartMs, right.paddingStartMs))
             return false;
 
-        if (qFuzzyCompare(left.paddingEndMs, right.paddingEndMs))
+        if (!qFuzzyCompare(left.paddingEndMs, right.paddingEndMs))
             return false;
 
         for (int i = 0; i < left.notes.count(); i++) {
