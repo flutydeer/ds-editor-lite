@@ -87,6 +87,10 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
             &TimelineView::setTimeRange);
     connect(m_graphicsView, &PianoRollGraphicsView::keyRangeChanged, m_keyboardView,
             &PianoKeyboardView::setKeyRange);
+    connect(m_graphicsView, &PianoRollGraphicsView::keyHovered, m_keyboardView,
+            &PianoKeyboardView::setHoveredKeyIndex);
+    connect(m_graphicsView, &PianoRollGraphicsView::keyHoverCleared, m_keyboardView,
+            [this]() { m_keyboardView->setHoveredKeyIndex(-1); });
 }
 
 PianoRollGraphicsView *PianoRollView::graphicsView() const {

@@ -87,6 +87,13 @@ void PianoKeyboardView::enterEvent(QEnterEvent *event) {
     QWidget::enterEvent(event);
 }
 
+void PianoKeyboardView::setHoveredKeyIndex(int keyIndex) {
+    if (keyIndex != m_hoveredKeyIndex) {
+        m_hoveredKeyIndex = keyIndex;
+        update();
+    }
+}
+
 void PianoKeyboardView::leaveEvent(QEvent *event) {
     QWidget::leaveEvent(event);
     if (m_hoveredKeyIndex != -1) {
@@ -97,8 +104,9 @@ void PianoKeyboardView::leaveEvent(QEvent *event) {
 
 void PianoKeyboardView::mouseMoveEvent(QMouseEvent *event) {
     QWidget::mouseMoveEvent(event);
+    const auto x = event->position().x();
     const auto y = event->position().y();
-    const int keyIndex = yToKeyIndex(y);
+    const int keyIndex = xyToKeyIndex(x, y);
     if (keyIndex != m_hoveredKeyIndex) {
         m_hoveredKeyIndex = keyIndex;
         update();
@@ -175,6 +183,90 @@ int PianoKeyboardView::yToKeyIndex(double y) const {
             }
         }
 
+        const auto ratio = y / height();
+        const auto approximateKey = m_top - ratio * (m_top - m_bottom);
+        return static_cast<int>(approximateKey);
+    }
+}
+
+int PianoKeyboardView::xyToKeyIndex(double x, double y) const {
+    if (y < 0 || y > height())
+        return -1;
+
+    if (m_style == Uniform) {
+        // Uniform style doesn't need x coordinate
+        return yToKeyIndex(y);
+    } else {
+        // Classic style: first check x coordinate, then y coordinate
+        const auto blackKeyWidth = width() / 5.0 * 3;
+        const auto pixelsPerBlackKey = height() / (m_top - m_bottom);
+        const auto pixelsPerWhiteKey = pixelsPerBlackKey * 12 / 7;
+
+        auto blackKeyToY = [this](const int key) {
+            const auto ratio = (key - m_top) / (m_bottom - m_top);
+            const auto y = height() * ratio;
+            return y;
+        };
+
+        auto closestBKeyY = [=](const int key) {
+            const int remain = key % 12;
+            const int bIndex = key + 12 - remain - 1;
+            return blackKeyToY(bIndex);
+        };
+
+        auto whiteKeyToY = [=](const int key) {
+            const int remain = key % 12;
+            int index = 0;
+            if (remain == 0)
+                index = 0;
+            else if (remain == 2)
+                index = 1;
+            else if (remain == 4)
+                index = 2;
+            else if (remain == 5)
+                index = 3;
+            else if (remain == 7)
+                index = 4;
+            else if (remain == 9)
+                index = 5;
+            else if (remain == 11)
+                index = 6;
+
+            const auto y = closestBKeyY(key) + (6 - index) * pixelsPerWhiteKey;
+            return y;
+        };
+
+        const auto prevKeyIndex = static_cast<int>(m_top) + 1;
+
+        // First check if x is within black key width range
+        // If yes, check if y falls on a black key
+        if (x >= 0 && x < blackKeyWidth) {
+            for (int i = prevKeyIndex; i > m_bottom; i--) {
+                if (PianoPaintUtils::isWhiteKey(i))
+                    continue;
+
+                const auto keyY = blackKeyToY(i);
+                if (y >= keyY && y < keyY + pixelsPerBlackKey) {
+                    return i;
+                }
+            }
+        }
+
+        // If x is outside black key width, or y doesn't fall on any black key,
+        // check white keys
+        const auto prevWhiteKeyIndex =
+            PianoPaintUtils::isWhiteKey(prevKeyIndex) ? prevKeyIndex : prevKeyIndex + 1;
+        for (int i = prevWhiteKeyIndex; i > m_bottom - 1; i--) {
+            if (!PianoPaintUtils::isWhiteKey(i))
+                continue;
+
+            const auto keyY = whiteKeyToY(i);
+            if (y >= keyY && y < keyY + pixelsPerWhiteKey) {
+                return i;
+            }
+        }
+
+        // Fallback: approximate based on y coordinate
         const auto ratio = y / height();
         const auto approximateKey = m_top - ratio * (m_top - m_bottom);
         return static_cast<int>(approximateKey);

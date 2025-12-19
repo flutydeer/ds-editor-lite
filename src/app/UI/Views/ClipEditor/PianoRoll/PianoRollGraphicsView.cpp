@@ -248,6 +248,17 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         return;
     }
 
+    // Update hover key index for piano keyboard when mouse is over the grid
+    if (!d->m_mouseDown) {
+        const auto scenePos = mapToScene(event->position().toPoint());
+        const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
+        // Check if mouse is within the view bounds
+        const auto viewRect = rect();
+        if (viewRect.contains(event->pos())) {
+            emit keyHovered(keyIndex);
+        }
+    }
+
     // Update split line indicator in SplitNote mode even when not dragging
     if (d->m_editMode == SplitNote && !d->m_mouseDown) {
         const auto scenePos = mapToScene(event->position().toPoint());
@@ -1096,6 +1107,8 @@ void PianoRollGraphicsViewPrivate::onHoverLeave(QHoverEvent *event) {
         delete m_splitLineIndicator;
         m_splitLineIndicator = nullptr;
     }
+    // Clear keyboard hover when mouse leaves
+    emit q->keyHoverCleared();
 }
 
 void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
@@ -1103,9 +1116,13 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     if (m_isEditPitchMode || m_mouseDown)
         return;
 
+    // Update keyboard hover based on mouse position
+    const auto scenePos = q->mapToScene(event->position().toPoint());
+    const auto keyIndex = sceneYToKeyIndexInt(scenePos.y());
+    emit q->keyHovered(keyIndex);
+
     // Update split line indicator in SplitNote mode
     if (m_editMode == SplitNote) {
-        const auto scenePos = q->mapToScene(event->position().toPoint());
         const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + m_offset);
         const auto noteView = noteViewAt(event->position().toPoint());
         updateSplitLineIndicator(noteView, tick);
@@ -1119,7 +1136,6 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
         return;
     }
 
-    const auto scenePos = q->mapToScene(event->position().toPoint());
     const auto rPos = noteView->mapFromScene(scenePos);
     const auto rx = rPos.x();
     if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
