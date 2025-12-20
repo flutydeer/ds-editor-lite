@@ -340,7 +340,7 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     model.speaker = m_input.speaker;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening, gender, velocity, toneShift};
-    model.steps = 20;
+    model.steps = appOptions->inference()->samplingSteps;
     model.depth = appOptions->inference()->depth;
     model.identifier = m_input.identifier;
     return model;
