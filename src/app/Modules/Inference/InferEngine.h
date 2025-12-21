@@ -8,6 +8,7 @@
 #define inferEngine InferEngine::instance()
 
 #include <atomic>
+#include <mutex>
 
 #include "Utils/Singleton.h"
 #include "Models/SingerIdentifier.h"
