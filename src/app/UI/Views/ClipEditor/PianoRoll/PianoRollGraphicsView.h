@@ -47,6 +47,8 @@ public:
 
 signals:
     void keyRangeChanged(double start, double end);
+    void keyHovered(int keyIndex);
+    void keyHoverCleared();
 
 public slots:
     void onSceneSelectionChanged() const;
