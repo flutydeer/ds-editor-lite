@@ -43,8 +43,8 @@ private:
     void drawUniformKeyboard(QPainter &painter) const;
     void drawClassicKeyboard(QPainter &painter);
     void drawHoverOverlay(QPainter &painter) const;
-    int yToKeyIndex(double y) const;
-    int xyToKeyIndex(double x, double y) const;
+    int sceneYToKeyIndex(double y) const;
+    int posToKeyIndex(double x, double y) const;
 
     double m_top = 0;
     double m_bottom = 127;

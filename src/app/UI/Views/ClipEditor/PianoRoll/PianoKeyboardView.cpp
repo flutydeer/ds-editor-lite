@@ -106,14 +106,14 @@ void PianoKeyboardView::mouseMoveEvent(QMouseEvent *event) {
     QWidget::mouseMoveEvent(event);
     const auto x = event->position().x();
     const auto y = event->position().y();
-    const int keyIndex = xyToKeyIndex(x, y);
+    const int keyIndex = posToKeyIndex(x, y);
     if (keyIndex != m_hoveredKeyIndex) {
         m_hoveredKeyIndex = keyIndex;
         update();
     }
 }
 
-int PianoKeyboardView::yToKeyIndex(double y) const {
+int PianoKeyboardView::sceneYToKeyIndex(double y) const {
     if (y < 0 || y > height())
         return -1;
 
@@ -189,13 +189,13 @@ int PianoKeyboardView::yToKeyIndex(double y) const {
     }
 }
 
-int PianoKeyboardView::xyToKeyIndex(double x, double y) const {
+int PianoKeyboardView::posToKeyIndex(double x, double y) const {
     if (y < 0 || y > height())
         return -1;
 
     if (m_style == Uniform) {
         // Uniform style doesn't need x coordinate
-        return yToKeyIndex(y);
+        return sceneYToKeyIndex(y);
     } else {
         // Classic style: first check x coordinate, then y coordinate
         const auto blackKeyWidth = width() / 5.0 * 3;
