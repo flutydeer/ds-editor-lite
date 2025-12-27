@@ -98,6 +98,8 @@ int main(int argc, char *argv[]) {
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
     if (QSysInfo::productType() != "windows")
         QApplication::setStyle(QStyleFactory::create("windows"));
+    else
+        QApplication::setStyle(QStyleFactory::create("windowsvista"));
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     QApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
 #else
