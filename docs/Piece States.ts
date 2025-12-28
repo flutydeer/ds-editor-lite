@@ -6,7 +6,7 @@ interface Context {
 }
 
 const pieceMachine = createMachine<Context>({
-    /** @xstate-layout N4IgpgJg5mDOIC5SHEnQrdaDanQgAYDpAVxoMBdA300H9UwNjTUBiNQaojBvz0BM0gbQAYBdRUABwHtYBLAC59uAOw4gAHogCsAFmbYAzNIBMADmYrpANm3SAnKoA0IAJ6IAtAHZZ2NdLX7FARjUbmL-SoC+3k2iw8IjJKQGf0wAJfQFgVQAfPQBezQE5TFnYkEB5+IVFxKQQLaUV9bCtmKw1nZl0NK2kTcxzFNWw87WZZexVtdv0rHz8QAJwCEnJsQAB9QGnNQeIKQG+5QEKlQHoVQAqlJPE0wWExFOyLRW1FbBUtNStFZn19N201GsQvRulpDz19PUOXX38MAeDhwGNrQAp1AgzWaABCNAPlKKxSawym1A23a+1kihKNlkzgMaJuCBc2EM6PyzSsXW0VQ+fS+QSGqGwAKBc3BjGcyS4vHWmS2li02kKLm0aLU8j5sh0WJ2DSaLTaHW0XWcZP6lJCNMB+GBgEZNQCksZCWekNllObYhS0HrJ5MV9Josc50biHswDOdZCpnF41PKKZNhoABi0Ap+aAcNNAMYWgEIrQDR6hRADHaIO1qVZMP1CGtCj5TjO2mcRNUaax6m5wpNTkMzqsVndgU91N9gdDEajTNWsb1HITh1xKiRDxOBnTZyximR2GcKguROaal2+lL3yp2EAkt6AUP1AFOJgD5TCiAA2VABSugGPIphseu69lwmQqOwqPvSbrMF3OWQk0X1Rq7e2aNwldSySeK4axQANpiQa9HoUbQ8EFUfZnnNVQzmka9e2cW10VkJxFEQlQrFcD9y2wH8-0jRlmRjfdYUkRBWgKBx8lOdEPFaG8sXObA+VfNsnRaZxFB6T4yx+alsKmXCVHwwCD2IkDikaAV7ReM4VDOa4zEQZxdAOa88ntNxymYcoMPwUJAA2s8gqFQOgd0EhthOyOQFGUdRNB0Z5jHkhA01sC00Q6c99FkbpFG0vSDIiGIEgAsyiO2PICiKEpL3KK5im0LFhX2LpihsTy9hsdFfP0yhAAsIwAG50AbKVACHlQAHUyC3coRC+MxX2QcDD7E4NBlPQsSuY83EHdsbxOYssv88ISHK0zCOq8LCmKNRUMOZpDn0VrJrsNROuUbrkW0PrqXGSZgSWYKRqbHZoMaC4ulONsBWlLFJqsQoludDRmLRDblTpUEIQqnU2VCg04KWqDTxYi05scqoboca0kQtVxujdXoFQIPzqVpVV6QhOtKv24CLFPaQBxaElmEm8oLgc2o2sWwd0RkqpjhLOGPR07KXpR2ZNT2r7qrbBjTSecp0ycXRFCu1QDiON89gknz6a4xHsErYMw1wj6CI5ptByTRDlBffRBxfK1jWwNEiR1vYLilzjvll+Xq1w9HPrjNX2NbJ0TfkTX4scspPIOQlPM0doqnN8kZaZ+dlzXLcTL3VXgJFya+xvKnHCReb2rutjTUeGx1uly2mZ-PT-2VoTvpA08GIMCCZLxWQsVB8TrV16y+TlXOgllgvdP-O2VYd4DSPEt3TWdPk1A92oJOwcoHBkyzzzcZ7O--ATo77kSs-E-JEuRIHizolskVPU6PBTd824IQBGVUAVZt+sGxJi6qg6xsi67ps0IXPZkho0vRHXTh6s+FsgjXwMjQBg7M14WXkEoVQD07IGFJgpXYcEZQ8yLF7Qm2kQFhCiHEe+w0Y4iQsMlRol52JqXOO0Wunsbz7HPFUF4lCZJeSwTfXKhVSpDVXkBIhxxcbWiJPaRSqgiRWCtASRozwSREiNp5Vh-ldKcPwdw8ylhn4TTbCfTRKgrRyAaMUQmJJWjXhaPIzaEx8DXx2ssB+mMiHjinpKdiyEtDIWobURSl5GjXj2IY5Emkc5AMvmw5m6otS2MIfCG6N5waDj2M0RCbErQdAUNeKoo8rxoWkGY0JqMIE8PhKhAcxYprNEkqhdxClNZ2HOB0c4DgdatyCZYkJyNgQMh7iXTm15cT+0Dp5boBhx5VPLgKJ0RRKIlECcHb42DZyLhXBubc+TVEIEQvBYsyEdZjhksMhMTp9gyLRI8PYrh6g5OtorKMETIFIOPMmXYS0xwuCdJUhMxYbp6BMZs9SegLn+gVt3AhtyExOy8EiEkLwdCdWqJ7Mc3IDEWmUC8boTSZnAJCT+KxStgUFKPGBBpCS3DIW6LozQNSXjCkJlrJwOSsVXyBSo0uA9yKGHji6XYDxdHdCUE460zppJ0u-NiqMK8MaRJInyBiqFShOC0CIvZwiCheE8XwgUbYg7wxaV+YVDLcKKFxas4UDQOhWDagYY47FnDZlPIiQ4choJDjKGPbSgAHjUAGbaoCjLgJuXikC0DrI2Bii8XY2Y0THmRGUHeSJFLCjdZ6nBd8Vml2sBoW6wpTwuign2bMyJjyJ3Yhal0Qp439UCso8VILiFFFIWxWejgvB8mzKpBimhmhQqcEiUt7DiplQrfbP1Fg+EDn5kI14RI5K1GYqk40hYnlmths0j1CilHJtGsoA45pkJlBvJpa1jl7W40RTYSoY40VauXZQa+q7fWrNyBu6mKYdYlHTB-KdLaZppg0vUB4mqGaXtGBYj11i10HS2Y4xCbQ3y0QPR0Y8hZfEdCNhxdFBAANtLybelNhx7mbLNscQmjxJ2IFcUmNt15Opj3Pf+hNuS3p4SZd0hQ8hNECjcNXc8Ya0K8q0GbF4VxpkXtoxh1m4TDXYasuBR488KjAynXsWwVQETSLHI8P9XEAOXKLuJ+MaSBwoWUOiKZhjsxjmY5mTSaFNI627XLAFNtaw6bVl5Q2bZ5WB0HKI7MFp+EKuguOaC2Tz74AA2HRZkdQOx32PYRSjgxmxsMFxuCZ0LUEgE7Zn8wGcWMabKBCujgiVji8vu99pxW0IkOPIdihwMvfiy45nL-dHCbxTFRZCF1m0XEkZ5Z1jwLRaWCwBzL7rl5OdjmJVl29BHnGzAJn2TgJlpheChhU85AB7aiucYG3ItEPUA0F05FoLlGNYpG1Dwp5FC8B4M4MS6ZAPWyuPSN6xv2I8AOQwL6hz1GRdmTQBR5VlABmertbcHsUHyr2rhlbB3DoEccHzXlhy-fPAcB4ZQOXOpWxSMHEQk1YeqlFdNfXlBtR1tma0+x5XWbkPUZ5H4ce4KhwOu9JDHhsXYjrNnNgrTnBuloRJsoXj2A-BtwAjDqACu-CguPiBM97oOwnJQM2eGzW+xALzcywMHJQv7QWgFi8l09vtO3tjNSnlcf+Zr+YvF7ITfNIiCuoWsyLpcEvDLGWNzIG8dgHCaE0h4IoMHajq8NprocV2hy6-RfrqXjP+1y5ZzWtn5CGmNreexZr0E0rClNPIO7UeXeS4h89xrvCqgjsEdBcdFxexvFummPQY9G0nGd6769Rv8dPwfVutE+M9026KW0M1bYOgcrPr0EQ3AIBwHEP0Ev2x0fijIRzqi6Y3nYxOAOFxzodBTRp9pKkc+1H0WaloGS6Zmi6FFK4XGRXDgtCqycCcwXpxbWCIfnIaOGLLcgufmKySCiWaN56B9hNSR5arTjIzv7YzqDjS6DpjHDqwhr7wDh2jCj8ouKaD75KiXLv75CuYJynhU5XCeSwT3AIQ3h7DIiTTUZcTTgkCACYqYAPfRUBWg3Mue5CZmjwbYNqEaoMyCLw6Ixwi6qG3E8yy47+R08cha5wS0XQzoooXWeQTorgs0W+WBOqJA7+TqFcH2Eyikpwqu2IcEaOcgfIewTqYBFIgA0F6ADxeoAED6gAHHrv5BoHCGA6DHDKGvJX4izyDXj1BnDSRXAfiAAAqYAIPW7+PmPI3QQMZs9QYijkFgVMhsl4SIGgQM7QwhWqiMUBDouIVu9qFwTosKtQIim6-IRwSIhGz0r+mh0Od6n+z6TCFqRR+8N0xQR8+Q54Lopoz0kBdREmbRI4jgnilWOijkk0DQRRZqDwqExsWOIc3o9mIYuBBQByhmlQqKp2IMKOrgFOLoRQp4fywWssYWEhv0tqdkhBnUeyzkpC-IiOShmBxxTMekTBLBuMRoQ+0i8qiCCAJCuwsm5QL4cazxOqekWhFouIfsQaxonixRiA9cuxZQ0ocqDwZiOR9EjRXgvG6q8JzYG+joxiMoOGT+zScyr+18ORR0WJBRuJySewBwwxBxbEMh8xsyrSKoLBYklEqRbg3UqRuiLwSgXkeQnQF4k0OS18bx-RnMN+DeZ0p4xQ5+VoEy3iZwNgjuVQaJwWcypxMpTYrQMC8BIxcgKcnsyCrhw8qRMoDggmDMcyOB+pwEG6eIxYaIZQRQI+Vo1SiEIaVw149qdpXEcy9KEJCgjoWuASCW3pTghstSjyAZXI3aGJuM-IZwxaMoAiuargBwaEiUMmlhGmtGr+HqORLmaZOs-GjS8RU6aE3IjuZsQohw14tmfRzOEm7Ul44U4KAChh7QZQtoRwBguyC8g2tGjp7Z8Y0CaBug3UX68gcmJGLaMkRwAyRW9otmepk5uW7UlecGtkFOYxU68guMXR6IyJI+hZ3wAGHq0p25WMQ4vSyEBIQ4iSVw2Yj+DEVmskv6ewV5QQQ2dW7qEJqZBYXyXknQeJpGm6q5Xk65-5D2LBzWB2fJN4Dae8B6uxrapEakCINgLe4uORzom6RI14pojgSpNuC09oqEqCu6MUvgvgQAA */
+    /** @xstate-layout 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-6IB-god2CLnjIq1W6qaAigVCOdAofe8gBRuC-MRXZY5Ml6W0i8K4KjRr4BdWQi6WoJUGtwaki0jxpYVCCqSvYtgqgIjnnTDwWqtFA10aWx2eQ7A9iuBcU0JzDDpqatlAZBJc15N1a4z1wLPGoJ8W4YcY4lUhvheeI8HhvVTrmTjGNOLgWJOzRuR4w5cowouDPQSZR7AdVApEis06Fazu7arbNPFNZnFrbUdogsDgcMUXhF4jqFS+kAHtqQZxgQf1XGtwS1DB024cKCyFqPqLRPl4DwZwszETAuBoMkFxUvtSqcHShgSiTPqMob9QbNAFGqWUNq2lMwoqdfhigXciOCNSvi4exxK0HguJPH99pCoMfTE4G9IGKTsaclc7F+NVnWA0A8x4TgdA+SISM60+xqkgUMEiJdrHQM+gg45KIAKYOpVBRXc8RCwU2CtOcMTg4XRjhePYMCEHACMOoAK79zO2yszde5JRHmeBefDYWLgsz6ypYFTDgVRJXx8-5wjPcgtPgsEZMWVxThNyeuwvsq0Pk1McB0IoZwvMBj8zBOCGWPExfsBhECHgig7ii-XWL6hJkJcMFVmr1FLNdus0Ucu4Kq5QsDdiWGQCfbCjKsUfr-nOPpeGzdXjhK+01JJbUDd+xlFjwcDKdoJwluiotlx2NqU8iLRlU4NELQOXDKi5oQqbQopHg6C6YcWr5mAExUwA99EUEALOJgBV6Pq9sMeDQUwWizKEjqrgRniJ5cte7pxiiliFffaBltAcg-B2tzL6IGivFVfIIkbgfJWj8mLU0ygZTN1UEl1FJ1hiQTx2DiHlgHXtmIYYexxEjK7lG1FGtdmkStKx1SbAJAOcE+IzdF0tgyUwwMAZLoXKzJN2IrsYUJJXCtF8L0EQ3AIBwHEP0bjiv0zils4FTcGcpu3ROEtb+qqOjMek2on4qAreZYdO2YDXYM7NF0KKVwi0-Hep+afU7UulTxWCH7kuDwU5B5PCH9iP537eSMhrQyzOnWeldSqZP1CGhFF0PKscX5XrCzuOiR4EzdLf00GJaXsuAdl85ItI0JwvanFYVN71ShurJxeMTko7elRaO7wmJqkMvnnAsl0Z0opL15CdK4Q493DhgUANBegB4vUAED6gAOPTn5sg4hgNM2GdC08PiZ5AsY0FrX9YFAAAqYAQes5+Vp5N0LWFwKYxwD+Hy6YhmHUUKji+aEkc+uQe4RCRIXgWaTo1QwsNSLK-Iuw-+RYf02qkwsBqeuIC8SBAyKBushUxQhsnC7mpouBZ0sBMqPKHmRC7sR4B8tQPkDQKBUUDwvkiBXu3wEkmi-oAYc+6Ui+8cyYzon2Jk+ETeBupMw4beWOQh7OXeV2N0NCfe0oTc1Sm0two2L0-a5QRYpyWON8BB8BxBH0A6WgnsLujosiNchIjMLOGiielsBB6UCBrcpBdhdcugumTCRQzo+QFwAhUClUBADBL4G4hmbgEUhmLCLwSg+C54DOXsER6iOOFsgODBveacH2c81Swo1Ozo909OY4TER4pCs+GhXM0OPYFG7scgSISceEV+x4hmMoR2tKlhi0-IcqOaRCGcbyrgBwY4mYjo9Qewxmx0haie8yBBB4+srgQxugIxwmQaY43IvkZw2kQohwmYkape9RSCgSpQTEe8kUbRdaZQtoRwBg5iMsWOhadRB63aiMfaHQJ4WgOm7BQaUsjc1oPY7Eu0v2cyeRZx8Io6zwyYFkr2ygxQSOiY+uJqxWpoh0kC+GDBjg8GDg5qjg2s2mFkcKK4gECINgS2BB5Rd2mYpojgxQz2u2xWYsNSqccO7EeSJAc+gUCgjoFcoiXYU2OIqecgR8E+S6eSkEvJFouIgk6qY4gs3YU23US0aC8cegVQmqD6nh0JQacpAp9QSpYaASHywSrQyYdGWJTqlYSx+plqhpCpxprgpppKsKvxOg9oVqugRu3gQAA */
     id: "片段状态",
     states: {
         "推理时长阶段": {
@@ -22,7 +22,7 @@ const pieceMachine = createMachine<Context>({
                 "正在推理": {
                     on: {
                         "任务成功": [{
-                            target: "检查文档模型",
+                            target: "#片段状态.更新时长",
                             cond: "文档模型未占用"
                         }, "等待释放"],
 
@@ -32,35 +32,15 @@ const pieceMachine = createMachine<Context>({
                     exit: "销毁任务实例"
                 },
 
-                "检查文档模型": {
+                "时长错误": {
                     on: {
-                        "完成": [{
-                            target: "开始推理时长",
-                            cond: "音素名称已更改"
-                        }, "更新时长"]
+                        "重试": "开始推理时长"
                     }
                 },
-
-                "时长错误": {},
 
                 "等待释放": {
                     on: {
-                        "占用解除": "检查文档模型"
-                    }
-                },
-
-                "更新时长": {
-                    on: {
-                        "完成": [{
-                            target: "#片段状态.程序异常",
-                            cond: "失败"
-                        }, {
-                            target: "#片段状态.销毁",
-                            cond: "未找到片段"
-                        }, {
-                            target: "#片段状态.推理音高阶段",
-                            cond: "成功"
-                        }]
+                        "占用解除": "#片段状态.更新时长"
                     }
                 }
             },
@@ -95,7 +75,7 @@ const pieceMachine = createMachine<Context>({
                 "正在推理": {
                     on: {
                         "任务成功": [{
-                            target: "检查文档模型",
+                            target: "#片段状态.更新音高",
                             cond: "文档模型未占用"
                         }, "等待释放"],
 
@@ -105,35 +85,15 @@ const pieceMachine = createMachine<Context>({
                     exit: "销毁任务实例"
                 },
 
-                "检查文档模型": {
-                    on: {
-                        "完成": [{
-                            target: "开始推理时长",
-                            cond: "音素时长已更改"
-                        }, "更新音高"]
-                    }
-                },
-
                 "等待释放": {
                     on: {
-                        "占用解除": "检查文档模型"
+                        "占用解除": "#片段状态.更新音高"
                     }
                 },
 
-                "音高错误": {},
-
-                "更新音高": {
+                "音高错误": {
                     on: {
-                        "完成": [{
-                            target: "#片段状态.程序异常",
-                            cond: "失败"
-                        }, {
-                            target: "#片段状态.销毁",
-                            cond: "未找到片段"
-                        }, {
-                            target: "#片段状态.推理唱法阶段",
-                            cond: "成功"
-                        }]
+                        "重试": "开始推理时长"
                     }
                 }
             },
@@ -166,44 +126,21 @@ const pieceMachine = createMachine<Context>({
                     on: {
                         "任务失败": "唱法错误",
                         "任务成功": [{
-                            target: "检查文档模型",
+                            target: "#片段状态.更新唱法",
                             cond: "文档模型未占用"
                         }, "等待释放"]
                     }
                 },
 
-                "唱法错误": {},
+                "唱法错误": {
+                    on: {
+                        "重试": "开始推理唱法"
+                    }
+                },
 
                 "等待释放": {
                     on: {
-                        "占用解除": "检查文档模型"
-                    }
-                },
-
-                "检查文档模型": {
-                    on: {
-                        "完成": [{
-                            target: "开始推理唱法",
-                            cond: "音高已更改"
-                        }, "更新唱法"]
-                    }
-                },
-
-                "更新唱法": {
-                    on: {
-                        "完成": [{
-                            target: "#片段状态.程序异常",
-                            cond: "失败"
-                        }, {
-                            target: "#片段状态.销毁",
-                            cond: "未找到片段"
-                        }, {
-                            target: "#片段状态.等待回放",
-                            cond: "成功 & 延迟推理声学"
-                        }, {
-                            target: "#片段状态.推理声学阶段",
-                            cond: "成功 & 不延迟推理声学"
-                        }]
+                        "占用解除": "#片段状态.更新唱法"
                     }
                 }
             },
@@ -235,7 +172,7 @@ const pieceMachine = createMachine<Context>({
 
                     on: {
                         "任务成功": [{
-                            target: "检查文档模型",
+                            target: "#片段状态.更新声学",
                             cond: "文档模型未占用"
                         }, "等待释放"],
 
@@ -243,35 +180,15 @@ const pieceMachine = createMachine<Context>({
                     }
                 },
 
-                "检查文档模型": {
-                    on: {
-                        "完成": [{
-                            target: "开始推理声学",
-                            cond: "唱法已更改"
-                        }, "更新声学"]
-                    }
-                },
-
                 "等待释放": {
                     on: {
-                        "占用解除": "检查文档模型"
+                        "占用解除": "#片段状态.更新声学"
                     }
                 },
 
-                "声学错误": {},
-
-                "更新声学": {
+                "声学错误": {
                     on: {
-                        "完成": [{
-                            target: "#片段状态.程序异常",
-                            cond: "失败"
-                        }, {
-                            target: "#片段状态.销毁",
-                            cond: "未找到片段"
-                        }, {
-                            target: "#片段状态.回放就绪",
-                            cond: "成功"
-                        }]
+                        "重试": "开始推理声学"
                     }
                 }
             },
@@ -307,6 +224,67 @@ const pieceMachine = createMachine<Context>({
                 "音素名称更改": "推理时长阶段",
                 "表现力参数更改": "推理音高阶段",
                 "唱法参数更改": "推理声学阶段"
+            }
+        },
+
+        "更新时长": {
+            on: {
+                "完成": [{
+                    target: "推理音高阶段",
+                    cond: "成功"
+                }, {
+                    target: "销毁",
+                    cond: "未找到片段"
+                }, {
+                    target: "程序异常",
+                    cond: "失败"
+                }]
+            }
+        },
+
+        "更新音高": {
+            on: {
+                "完成": [{
+                    target: "推理唱法阶段",
+                    cond: "成功"
+                }, {
+                    target: "销毁",
+                    cond: "未找到片段"
+                }, {
+                    target: "程序异常",
+                    cond: "失败"
+                }]
+            }
+        },
+        "更新唱法": {
+            on: {
+                "完成": [{
+                    target: "推理声学阶段",
+                    cond: "成功 & 不延迟推理声学"
+                }, {
+                    target: "等待回放",
+                    cond: "成功 & 延迟推理声学"
+                }, {
+                    target: "销毁",
+                    cond: "未找到片段"
+                }, {
+                    target: "程序异常",
+                    cond: "失败"
+                }]
+            }
+        },
+        "更新声学": {
+            on: {
+                "完成": [{
+                    target: "回放就绪",
+                    cond: "成功"
+                }, {
+                    target: "销毁",
+                    cond: "未找到片段"
+                }, {
+                    target: "程序异常",
+                    cond: "失败"
+                }]
             }
         }
     },
