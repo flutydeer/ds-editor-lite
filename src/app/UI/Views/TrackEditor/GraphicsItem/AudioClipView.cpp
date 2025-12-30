@@ -58,11 +58,24 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
                                     const QColor color) {
     QElapsedTimer mstimer;
     mstimer.start();
-    painter->setRenderHint(QPainter::Antialiasing, false);
-
+    
+    // Get device pixel ratio for high DPI support
+    const qreal devicePixelRatio = painter->device()->devicePixelRatio();
+    
+    // Create off-screen pixmap with correct device pixel ratio
+    const int pixmapWidth = static_cast<int>(previewRect.width() * devicePixelRatio);
+    const int pixmapHeight = static_cast<int>(previewRect.height() * devicePixelRatio);
+    
+    QPixmap pixmap(pixmapWidth, pixmapHeight);
+    pixmap.setDevicePixelRatio(devicePixelRatio);
+    pixmap.fill(Qt::transparent);
+    
+    QPainter pixmapPainter(&pixmap);
+    pixmapPainter.setRenderHint(QPainter::Antialiasing, false);
+    
     // auto rectLeft = previewRect.left();
     // qDebug() << rectLeft;
-    const auto rectTop = previewRect.top();
+    const auto rectTop = 0; // Use 0 for pixmap coordinate system
     const auto rectWidth = previewRect.width();
     const auto rectHeight = previewRect.height();
     const auto halfRectHeight = rectHeight / 2;
@@ -71,16 +84,19 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
 
     if (m_status == AppGlobal::Loading) {
         pen.setColor(color);
-        painter->setPen(pen);
-        painter->drawText(previewRect, "Loading...", QTextOption(Qt::AlignCenter));
+        pixmapPainter.setPen(pen);
+        pixmapPainter.drawText(QRectF(0, 0, rectWidth, rectHeight), "Loading...", QTextOption(Qt::AlignCenter));
     }
 
     pen.setColor(color);
     pen.setWidth(1);
-    painter->setPen(pen);
+    pixmapPainter.setPen(pen);
 
-    if (m_audioInfo.peakCache.count() == 0 || m_audioInfo.peakCacheMipmap.count() == 0)
+    if (m_audioInfo.peakCache.count() == 0 || m_audioInfo.peakCacheMipmap.count() == 0) {
+        // Draw the pixmap to the main painter
+        painter->drawPixmap(previewRect.topLeft(), pixmap);
         return;
+    }
 
     m_resolution = scaleX() >= 0.2 ? High : Low;
     const auto chunksPerTickBase =
@@ -106,7 +122,7 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     auto drawPeak = [&](const int x, const short min, const short max) {
         const auto yMin = -min * halfRectHeight / 32767 + halfRectHeight + rectTop;
         const auto yMax = -max * halfRectHeight / 32767 + halfRectHeight + rectTop;
-        painter->drawLine(x, static_cast<int>(yMin), x, static_cast<int>(yMax));
+        pixmapPainter.drawLine(x, static_cast<int>(yMin), x, static_cast<int>(yMax));
     };
 
     // qDebug() << m_peakCacheThumbnail.count() << divideCount;
@@ -139,6 +155,9 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
         // }
         drawPeak(i, min, max);
     }
+
+    // Draw the pixmap to the main painter
+    painter->drawPixmap(previewRect.topLeft(), pixmap);
 
     // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
     // qDebug() << time;

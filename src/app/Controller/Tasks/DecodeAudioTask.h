@@ -35,7 +35,7 @@ private:
     int m_sampleRate = 0;
     int m_channels = 0;
     long long m_frames = 0;
-    int m_chunkSize = 512;
+    int m_chunkSize = 128;
     int m_mipmapScale = 10;
     QVector<std::tuple<short, short>> m_peakCache;
     QVector<std::tuple<short, short>> m_peakCacheMipmap;

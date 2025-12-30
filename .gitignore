@@ -51,6 +51,7 @@ CMakeSettings.json
 /vcpkg
 /data
 /*.natvis
+.trae
 
 *.sublime-*
 setup-vcpkg.json
