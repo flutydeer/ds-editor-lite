@@ -338,15 +338,24 @@ void NoteView::startEditingLyric() {
 void NoteView::finishEditingLyric() {
     if (!m_editingLyric)
         return;
-    
+
     m_editingLyric = false;
-    
+
     if (m_lineEditProxy) {
         const QString newLyric = m_lineEdit->text();
         m_lineEditProxy->hide();
-        emit lyricEditingFinished(newLyric);
+
+        // Clear focus to allow keyboard shortcuts to work again
+        if (m_lineEdit) {
+            m_lineEdit->clearFocus();
+        }
+
+        // Only emit signal if lyric actually changed
+        if (newLyric != m_lyric) {
+            emit lyricEditingFinished(newLyric);
+        }
     }
-    
+
     update();
 }
 
