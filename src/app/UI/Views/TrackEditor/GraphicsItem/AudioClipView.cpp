@@ -67,17 +67,15 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     const int pixmapHeight = static_cast<int>(previewRect.height() * devicePixelRatio);
     
     QPixmap pixmap(pixmapWidth, pixmapHeight);
-    pixmap.setDevicePixelRatio(devicePixelRatio);
+    pixmap.setDevicePixelRatio(1);
     pixmap.fill(Qt::transparent);
-    
+
     QPainter pixmapPainter(&pixmap);
     pixmapPainter.setRenderHint(QPainter::Antialiasing, false);
-    
-    // auto rectLeft = previewRect.left();
-    // qDebug() << rectLeft;
-    const auto rectTop = 0; // Use 0 for pixmap coordinate system
-    const auto rectWidth = previewRect.width();
-    const auto rectHeight = previewRect.height();
+
+    const auto rectTop = 0;
+    const auto rectWidth = previewRect.width() * devicePixelRatio;
+    const auto rectHeight = previewRect.height() * devicePixelRatio;
     const auto halfRectHeight = rectHeight / 2;
 
     QPen pen;
@@ -108,16 +106,15 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     const auto rectLeftScene = mapToScene(previewRect.topLeft()).x();
     const auto rectRightScene = mapToScene(previewRect.bottomRight()).x();
     const auto waveRectLeft =
-        visibleRect().left() < rectLeftScene ? 0 : visibleRect().left() - rectLeftScene;
+        visibleRect().left() < rectLeftScene ? 0 : (visibleRect().left() - rectLeftScene) * devicePixelRatio;
     const auto waveRectRight = visibleRect().right() < rectRightScene
-                                   ? visibleRect().right() - rectLeftScene
-                                   : rectRightScene - rectLeftScene;
+                                   ? (visibleRect().right() - rectLeftScene) * devicePixelRatio
+                                   : (rectRightScene - rectLeftScene) * devicePixelRatio;
     // auto waveRectWidth = waveRectRight - waveRectLeft + 1; // 1 px spaceing at right
 
     const auto start = clipStart() * chunksPerTick;
     const auto end = (clipStart() + clipLen()) * chunksPerTick;
     const auto divideCount = (end - start) / rectWidth;
-    // qDebug() << start << end << rectWidth << (int)divideCount;
 
     auto drawPeak = [&](const int x, const short min, const short max) {
         const auto yMin = -min * halfRectHeight / 32767 + halfRectHeight + rectTop;
@@ -156,7 +153,8 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
         drawPeak(i, min, max);
     }
 
-    // Draw the pixmap to the main painter
+    pixmap.setDevicePixelRatio(devicePixelRatio);
+
     painter->drawPixmap(previewRect.topLeft(), pixmap);
 
     // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
