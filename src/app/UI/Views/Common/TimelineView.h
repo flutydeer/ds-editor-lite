@@ -51,6 +51,8 @@ private slots:
 private:
     void drawPieces(QPainter *painter) const;
     void drawLoopRegion(QPainter *painter) const;
+    void drawLoopBackground(QPainter *painter) const;
+    void drawLoopMarkers(QPainter *painter) const;
     double tickToX(double tick) const;
     double xToTick(double x) const;
     void cacheText(const QString &type, const QString &text, const QPainter &painter);

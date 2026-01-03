@@ -90,6 +90,9 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     // painter.drawRect(rect());
     // painter.setBrush(Qt::NoBrush);
 
+    // Draw loop background first (under everything)
+    drawLoopBackground(&painter);
+
     // Draw graduates
     drawTimeline(&painter, m_startTick, m_endTick, rect().width());
 
@@ -97,8 +100,8 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     if (m_clip)
         drawPieces(&painter);
 
-    // Draw loop region
-    drawLoopRegion(&painter);
+    // Draw loop markers (on top)
+    drawLoopMarkers(&painter);
 
     // Draw playback indicator
     auto penWidth = 2.0;
@@ -215,7 +218,10 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
                 loopSettings.length = newLength;
             }
         } else if (m_loopDragMode == DragEnd) {
-            int newLength = qMax(quantizeInterval, loopSettings.length + deltaTick);
+            // Calculate desired end position and snap it to grid
+            int desiredEnd = loopSettings.start + loopSettings.length + deltaTick;
+            int snappedEnd = MathUtils::round(desiredEnd, quantizeInterval);
+            int newLength = qMax(quantizeInterval, snappedEnd - loopSettings.start);
             loopSettings.length = newLength;
             m_loopDragStartPos = currentTick;
         } else if (m_loopDragMode == DragBody) {
@@ -356,47 +362,66 @@ void TimelineView::cacheText(const QString &type, const QString &text, const QPa
 }
 
 void TimelineView::drawLoopRegion(QPainter *painter) const {
+    drawLoopBackground(painter);
+    drawLoopMarkers(painter);
+}
+
+void TimelineView::drawLoopBackground(QPainter *painter) const {
     const auto loopSettings = appStatus->loopSettings.get();
-    // Show loop region if there's data, even when disabled
+    // Only draw background when enabled
+    if (!loopSettings.enabled || loopSettings.length <= 0)
+        return;
+
+    const double startX = tickToX(loopSettings.start);
+    const double endX = tickToX(loopSettings.end());
+
+    // Draw semi-transparent background for the entire loop region
+    QColor bgColor(155, 186, 255);
+    bgColor.setAlpha(32);  // Semi-transparent
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(bgColor);
+    painter->drawRect(QRectF(startX, 0, endX - startX, rect().height()));
+}
+
+void TimelineView::drawLoopMarkers(QPainter *painter) const {
+    const auto loopSettings = appStatus->loopSettings.get();
+    // Show loop markers if there's data, even when disabled
     if (loopSettings.length <= 0)
         return;
 
     const double startX = tickToX(loopSettings.start);
     const double endX = tickToX(loopSettings.end());
-    const int triangleSize = m_loopRegionHeight;
+    const double triangleSize = m_loopRegionHeight;
+    const double lineHeight = 4;
 
     // Loop region color - gray when disabled, blue when enabled
     const QColor loopColor = loopSettings.enabled ? QColor(155, 186, 255) : QColor(57, 59, 61);
 
     painter->setPen(Qt::NoPen);
-
-    // Draw semi-transparent background for the entire loop region when enabled
-    if (loopSettings.enabled) {
-        QColor bgColor = loopColor;
-        bgColor.setAlpha(32);  // Semi-transparent
-        painter->setBrush(bgColor);
-        painter->drawRect(QRectF(startX, 0, endX - startX, rect().height()));
-    }
-
     painter->setBrush(loopColor);
 
-    // Draw connecting line at top (y=0), overlapping with triangles
-    const double lineHeight = 4;
-    painter->drawRect(QRectF(startX, 0, endX - startX, lineHeight));
+    // Draw as a single polygon to avoid seams
+    // The shape consists of left triangle + top line + right triangle
+    // Calculate intersection points where triangle slopes meet the line height
 
-    // Draw left triangle (right-angle triangle pointing right)
-    QPolygonF leftTriangle;
-    leftTriangle << QPointF(startX, 0)
-                 << QPointF(startX + triangleSize, 0)
-                 << QPointF(startX, triangleSize);
-    painter->drawPolygon(leftTriangle);
+    // For left triangle slope: from (startX + triangleSize, 0) to (startX, triangleSize)
+    // At y = lineHeight, x = startX + triangleSize - lineHeight
+    double leftIntersectX = startX + triangleSize - lineHeight;
 
-    // Draw right triangle (right-angle triangle pointing left)
-    QPolygonF rightTriangle;
-    rightTriangle << QPointF(endX - triangleSize, 0)
-                  << QPointF(endX, 0)
-                  << QPointF(endX, triangleSize);
-    painter->drawPolygon(rightTriangle);
+    // For right triangle slope: from (endX, triangleSize) to (endX - triangleSize, 0)
+    // At y = lineHeight, x = endX - triangleSize + lineHeight
+    double rightIntersectX = endX - triangleSize + lineHeight;
+
+    QPolygonF loopPolygon;
+    // Draw clockwise from top-left
+    loopPolygon << QPointF(startX, 0)                      // Top left corner
+                << QPointF(endX, 0)                        // Top right corner
+                << QPointF(endX, triangleSize)             // Right triangle bottom tip
+                << QPointF(rightIntersectX, lineHeight)    // Right slope meets line
+                << QPointF(leftIntersectX, lineHeight)     // Left slope meets line
+                << QPointF(startX, triangleSize);          // Left triangle bottom tip
+
+    painter->drawPolygon(loopPolygon);
 }
 
 TimelineView::LoopDragMode TimelineView::hitTestLoop(const QPoint &pos) const {

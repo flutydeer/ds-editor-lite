@@ -55,6 +55,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnLoop->setIcon(icoLoopWhite);
     m_btnLoop->setCheckable(true);
     m_btnLoop->setToolTip(tr("Loop"));
+    m_btnLoop->setShortcut(QKeySequence(Qt::ALT | Qt::Key_L));
     connect(m_btnLoop, &QPushButton::clicked, this, [this](bool checked) {
         auto settings = appStatus->loopSettings.get();
         settings.enabled = checked;
