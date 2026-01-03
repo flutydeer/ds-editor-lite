@@ -10,7 +10,7 @@
 
 class SingingClip;
 class InferPiece;
-struct LoopSettings;
+class LoopSettings;
 
 class TimelineView : public QWidget, public ITimelinePainter {
     Q_OBJECT
