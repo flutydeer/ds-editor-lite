@@ -59,6 +59,8 @@ void AppController::newProject() {
     d->updateProjectPathAndName("");
     trackController->setActiveClip(appModel->tracks().first()->clips().toList().first()->id());
     appController->setActivePanel(AppGlobal::ClipEditor);
+    // Reset loop settings for new project
+    appStatus->loopSettings.set(LoopSettings());
 }
 
 bool AppController::openFile(const QString &filePath, QString &errorMessage) {

@@ -7,6 +7,7 @@
 
 #define appStatus AppStatus::instance()
 
+#include "Model/AppModel/LoopSettings.h"
 #include "Utils/Property.h"
 #include "Utils/Singleton.h"
 
@@ -44,6 +45,9 @@ public:
     Property<QList<int>> selectedNotes;
     Property<EditObjectType> currentEditObject = EditObjectType::None;
 
+    // Loop
+    Property<LoopSettings> loopSettings;
+
 signals:
     // Modules
     void moduleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
@@ -59,6 +63,9 @@ signals:
     void activeClipIdChanged(int newId);
     void noteSelectionChanged(const QList<int> &selectedNotes);
     void editingChanged(AppStatus::EditObjectType type);
+
+    // Loop
+    void loopSettingsChanged(const LoopSettings &settings);
 };
 
 #endif // APPSTATUS_H

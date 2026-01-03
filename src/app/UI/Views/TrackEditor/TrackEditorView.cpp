@@ -50,6 +50,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     m_timeline->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
     m_timeline->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     m_timeline->setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
+    m_timeline->setCanEditLoop(true);  // Enable loop editing in track editor
 
     const auto gBar = m_graphicsView->verticalScrollBar();
     const auto lBar = m_trackListView->verticalScrollBar();
