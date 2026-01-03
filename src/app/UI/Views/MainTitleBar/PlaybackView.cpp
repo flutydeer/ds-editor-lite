@@ -9,6 +9,7 @@
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"
@@ -48,6 +49,18 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     });
     m_btnPlayPause->setShortcut(Qt::Key_Space);
     m_btnPlayPause->setFixedSize(0, 0);
+
+    m_btnLoop = new QPushButton;
+    m_btnLoop->setObjectName("btnLoop");
+    m_btnLoop->setIcon(icoLoopWhite);
+    m_btnLoop->setCheckable(true);
+    m_btnLoop->setToolTip(tr("Loop"));
+    connect(m_btnLoop, &QPushButton::clicked, this, [this](bool checked) {
+        auto settings = appStatus->loopSettings.get();
+        settings.enabled = checked;
+        appStatus->loopSettings.set(settings);
+        updateLoopButtonView();
+    });
 
     m_btnPause = new QPushButton;
     m_btnPause->setObjectName("btnPause");
@@ -135,6 +148,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     transportLayout->addWidget(m_btnStop);
     transportLayout->addWidget(m_btnPlay);
     transportLayout->addWidget(m_btnPause);
+    transportLayout->addWidget(m_btnLoop);
     transportLayout->addWidget(m_elTime);
     transportLayout->setSpacing(1);
     transportLayout->setContentsMargins({});
@@ -180,6 +194,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::modelChanged, this, &PlaybackView::updateView);
     connect(appModel, &AppModel::tempoChanged, this, &PlaybackView::onTempoChanged);
     connect(appModel, &AppModel::timeSignatureChanged, this, &PlaybackView::onTimeSignatureChanged);
+    connect(appStatus, &AppStatus::loopSettingsChanged, this, [this] { updateLoopButtonView(); });
 }
 
 void PlaybackView::updateView() {
@@ -193,6 +208,7 @@ void PlaybackView::updateView() {
     updateTimeSignatureView();
     updateTimeView();
     updatePlaybackControlView();
+    updateLoopButtonView();
 }
 
 void PlaybackView::onTempoChanged(double tempo) {
@@ -268,4 +284,10 @@ void PlaybackView::updatePlaybackControlView() {
         m_btnPause->setChecked(false);
         m_btnPause->setIcon(icoPauseWhite);
     }
+}
+
+void PlaybackView::updateLoopButtonView() {
+    const bool enabled = appStatus->loopSettings.get().enabled;
+    m_btnLoop->setChecked(enabled);
+    m_btnLoop->setIcon(enabled ? icoLoopBlack : icoLoopWhite);
 }

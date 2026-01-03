@@ -10,7 +10,8 @@ namespace TracksEditorGlobal {
     constexpr double trackHeight = 72;
     constexpr int trackListWidth = 320;
     constexpr double narrowModeScaleY = 1;
-    constexpr int trackViewHeaderHeight = 36;
+    constexpr int trackViewHeaderHeight = 44;  // Increased for loop region
+    constexpr int loopRegionHeight = 8;        // Height of loop region area
 };
 
 #endif //TRACKSEDITORGLOBAL_H

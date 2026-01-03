@@ -22,6 +22,9 @@ AppStatus::AppStatus(QObject *parent) : QObject(parent) {
     activeClipId.onChanged([this](auto value) { emit activeClipIdChanged(value); });
     selectedNotes.onChanged([this](const auto &value) { emit noteSelectionChanged(value); });
     currentEditObject.onChanged([this](auto value) { emit editingChanged(value); });
+
+    // Loop
+    loopSettings.onChanged([this](const auto &value) { emit loopSettingsChanged(value); });
 }
 
 AppStatus::~AppStatus() = default;

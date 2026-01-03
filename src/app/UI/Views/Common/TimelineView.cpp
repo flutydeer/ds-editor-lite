@@ -7,15 +7,19 @@
 #include <QPainter>
 #include <QWheelEvent>
 
+#include "Controller/Actions/AppStatus/LoopSettings/LoopSettingsActions.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppModel/Note.h"
+#include "Modules/History/HistoryManager.h"
+#include "Utils/MathUtils.h"
 
 TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TimelineView");
+    setMouseTracking(true);
 
     connect(this, &TimelineView::setLastPositionTriggered, playbackController, [=](double tick) {
         playbackController->setLastPosition(tick);
@@ -29,6 +33,11 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     });
     connect(appModel, &AppModel::timeSignatureChanged, this, &TimelineView::setTimeSignature);
     connect(appStatus, &AppStatus::quantizeChanged, this, &TimelineView::setQuantize);
+    connect(appStatus, &AppStatus::loopSettingsChanged, this, &TimelineView::onLoopSettingsChanged);
+}
+
+void TimelineView::setCanEditLoop(bool canEdit) {
+    m_canEditLoop = canEdit;
 }
 
 void TimelineView::setTimeRange(double startTick, double endTick) {
@@ -89,6 +98,9 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     if (m_clip)
         drawPieces(&painter);
 
+    // Draw loop region
+    drawLoopRegion(&painter);
+
     // Draw playback indicator
     auto penWidth = 2.0;
     auto color = QColor(200, 200, 200);
@@ -121,7 +133,7 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
         m_textCache["Bar"][text].isNull())
         cacheText("Bar", text, *painter);
     const auto &pixmap = m_textCache["Bar"][text];
-    const QRectF textRect(x + m_textPaddingLeft, 0, pixmap.width(), pixmap.height());
+    const QRectF textRect(x + m_textPaddingLeft, m_loopRegionHeight, pixmap.width(), pixmap.height());
     painter->drawPixmap(textRect.topLeft(), pixmap);
     // painter->drawText(QPointF(x + m_textPaddingLeft, 10), text);
     pen.setColor(QColor(92, 96, 100));
@@ -143,7 +155,7 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
             m_textCache["Beat"][text].isNull())
             cacheText("Beat", text, *painter);
         const auto &pixmap = m_textCache["Beat"][text];
-        const QRectF textRect(x + m_textPaddingLeft, 0, pixmap.width(), pixmap.height());
+        const QRectF textRect(x + m_textPaddingLeft, m_loopRegionHeight, pixmap.width(), pixmap.height());
         painter->drawPixmap(textRect.topLeft(), pixmap);
         // painter->drawText(QPointF(x + m_textPaddingLeft, 10),
         //           /*QString::number(bar) + "." +*/ QString::number(beat));
@@ -172,15 +184,79 @@ void TimelineView::wheelEvent(QWheelEvent *event) {
 }
 
 void TimelineView::mousePressEvent(QMouseEvent *event) {
-    emit setLastPositionTriggered(xToTick(event->position().x()));
-    // setPosition(xToTick(event->position().x()));
+    if (event->button() == Qt::LeftButton) {
+        const auto loopSettings = appStatus->loopSettings.get();
+        if (loopSettings.enabled && m_canEditLoop) {
+            m_loopDragMode = hitTestLoop(event->pos());
+            if (m_loopDragMode != None) {
+                m_loopDragStartSettings = loopSettings;
+                m_loopDragStartTick = loopSettings.start;
+                m_loopDragStartPos = static_cast<int>(xToTick(event->pos().x()));
+                event->accept();
+                return;
+            }
+        }
+        emit setLastPositionTriggered(xToTick(event->position().x()));
+    }
     event->ignore();
 }
 
 void TimelineView::mouseMoveEvent(QMouseEvent *event) {
-    emit setLastPositionTriggered(xToTick(event->position().x()));
-    // setPosition(xToTick(event->position().x()));
+    if (m_loopDragMode != None && m_canEditLoop) {
+        auto loopSettings = appStatus->loopSettings.get();
+        const bool noSnap = event->modifiers() & Qt::AltModifier;
+        const int quantizeInterval = noSnap ? 1 : 1920 / appStatus->quantize;
+        const int currentTick = MathUtils::round(static_cast<int>(xToTick(event->pos().x())), quantizeInterval);
+        const int deltaTick = currentTick - m_loopDragStartPos;
+
+        if (m_loopDragMode == DragStart) {
+            int newStart = qMax(0, MathUtils::round(m_loopDragStartTick + deltaTick, quantizeInterval));
+            int newLength = loopSettings.length - (newStart - loopSettings.start);
+            if (newLength >= quantizeInterval) {
+                loopSettings.start = newStart;
+                loopSettings.length = newLength;
+            }
+        } else if (m_loopDragMode == DragEnd) {
+            int newLength = qMax(quantizeInterval, loopSettings.length + deltaTick);
+            loopSettings.length = newLength;
+            m_loopDragStartPos = currentTick;
+        } else if (m_loopDragMode == DragBody) {
+            int newStart = qMax(0, MathUtils::round(m_loopDragStartTick + deltaTick, quantizeInterval));
+            loopSettings.start = newStart;
+        }
+        appStatus->loopSettings.set(loopSettings);
+        event->accept();
+        return;
+    }
+
+    updateCursor(event->pos());
+
+    if (event->buttons() & Qt::LeftButton) {
+        emit setLastPositionTriggered(xToTick(event->position().x()));
+    }
     QWidget::mouseMoveEvent(event);
+}
+
+void TimelineView::mouseReleaseEvent(QMouseEvent *event) {
+    if (m_loopDragMode != None) {
+        const auto newSettings = appStatus->loopSettings.get();
+        if (m_loopDragStartSettings.start != newSettings.start ||
+            m_loopDragStartSettings.length != newSettings.length) {
+            const auto actions = new LoopSettingsActions;
+            actions->editLoopSettings(m_loopDragStartSettings, newSettings);
+            historyManager->record(actions);
+        }
+        m_loopDragMode = None;
+        updateCursor(event->pos());
+        event->accept();
+        return;
+    }
+    QWidget::mouseReleaseEvent(event);
+}
+
+void TimelineView::leaveEvent(QEvent *event) {
+    setCursor(Qt::ArrowCursor);
+    QWidget::leaveEvent(event);
 }
 
 void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
@@ -193,6 +269,11 @@ void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
         });
     }
     m_pieces = pieces;
+    update();
+}
+
+void TimelineView::onLoopSettingsChanged(const LoopSettings &settings) {
+    Q_UNUSED(settings)
     update();
 }
 
@@ -283,4 +364,89 @@ void TimelineView::cacheText(const QString &type, const QString &text, const QPa
     cachePainter.drawText(pixmap.rect(), text);
 
     m_textCache[type].insert(text, pixmap);
+}
+
+void TimelineView::drawLoopRegion(QPainter *painter) const {
+    const auto loopSettings = appStatus->loopSettings.get();
+    if (!loopSettings.enabled)
+        return;
+
+    const double startX = tickToX(loopSettings.start);
+    const double endX = tickToX(loopSettings.end());
+    const int triangleSize = m_loopRegionHeight;
+
+    // Loop region color
+    const QColor loopColor(155, 186, 255);
+
+    painter->setRenderHint(QPainter::Antialiasing, true);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(loopColor);
+
+    // Draw connecting line at top (y=0), overlapping with triangles
+    const double lineHeight = 4;
+    painter->drawRect(QRectF(startX, 0, endX - startX, lineHeight));
+
+    // Draw left triangle (right-angle triangle pointing right)
+    QPolygonF leftTriangle;
+    leftTriangle << QPointF(startX, 0)
+                 << QPointF(startX + triangleSize, 0)
+                 << QPointF(startX, triangleSize);
+    painter->drawPolygon(leftTriangle);
+
+    // Draw right triangle (right-angle triangle pointing left)
+    QPolygonF rightTriangle;
+    rightTriangle << QPointF(endX - triangleSize, 0)
+                  << QPointF(endX, 0)
+                  << QPointF(endX, triangleSize);
+    painter->drawPolygon(rightTriangle);
+
+    painter->setRenderHint(QPainter::Antialiasing, false);
+}
+
+TimelineView::LoopDragMode TimelineView::hitTestLoop(const QPoint &pos) const {
+    const auto loopSettings = appStatus->loopSettings.get();
+    if (!loopSettings.enabled)
+        return None;
+
+    const double startX = tickToX(loopSettings.start);
+    const double endX = tickToX(loopSettings.end());
+
+    // Check if in loop region vertical area
+    if (pos.y() > m_loopRegionHeight + 4)
+        return None;
+
+    // Check start handle
+    if (pos.x() >= startX - 2 && pos.x() <= startX + m_loopHandleWidth + 2)
+        return DragStart;
+
+    // Check end handle
+    if (pos.x() >= endX - m_loopHandleWidth - 2 && pos.x() <= endX + 2)
+        return DragEnd;
+
+    // Check body
+    if (pos.x() > startX + m_loopHandleWidth && pos.x() < endX - m_loopHandleWidth)
+        return DragBody;
+
+    return None;
+}
+
+void TimelineView::updateCursor(const QPoint &pos) {
+    if (!m_canEditLoop) {
+        setCursor(Qt::ArrowCursor);
+        return;
+    }
+
+    const auto mode = hitTestLoop(pos);
+    switch (mode) {
+        case DragStart:
+        case DragEnd:
+            setCursor(Qt::SizeHorCursor);
+            break;
+        case DragBody:
+            setCursor(Qt::OpenHandCursor);
+            break;
+        default:
+            setCursor(Qt::ArrowCursor);
+            break;
+    }
 }

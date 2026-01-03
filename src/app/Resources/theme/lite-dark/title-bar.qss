@@ -71,6 +71,10 @@ TitleControlGroup>QPushButton#btnPause:checked {
     background-color: #40FFCD9B;
 }
 
+TitleControlGroup>QPushButton#btnLoop:checked {
+    background-color: #409BBAFF;
+}
+
 TitleControlGroup>EditLabel {
     height: 28px;
     padding: 0px 12px;
