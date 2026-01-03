@@ -17,7 +17,7 @@ public:
 
     bool enabled = false;
     int start = 0;      // Start position in ticks
-    int length = 1920;  // Length in ticks (default: 1 bar in 4/4)
+    int length = 0;     // Length in ticks (0 = uninitialized)
 
     [[nodiscard]] int end() const { return start + length; }
 

@@ -357,17 +357,17 @@ void TimelineView::cacheText(const QString &type, const QString &text, const QPa
 
 void TimelineView::drawLoopRegion(QPainter *painter) const {
     const auto loopSettings = appStatus->loopSettings.get();
-    if (!loopSettings.enabled)
+    // Show loop region if there's data, even when disabled
+    if (loopSettings.length <= 0)
         return;
 
     const double startX = tickToX(loopSettings.start);
     const double endX = tickToX(loopSettings.end());
     const int triangleSize = m_loopRegionHeight;
 
-    // Loop region color
-    const QColor loopColor(155, 186, 255);
+    // Loop region color - gray when disabled, blue when enabled
+    const QColor loopColor = loopSettings.enabled ? QColor(155, 186, 255) : QColor(57, 59, 61);
 
-    painter->setRenderHint(QPainter::Antialiasing, true);
     painter->setPen(Qt::NoPen);
     painter->setBrush(loopColor);
 
@@ -388,8 +388,6 @@ void TimelineView::drawLoopRegion(QPainter *painter) const {
                   << QPointF(endX, 0)
                   << QPointF(endX, triangleSize);
     painter->drawPolygon(rightTriangle);
-
-    painter->setRenderHint(QPainter::Antialiasing, false);
 }
 
 TimelineView::LoopDragMode TimelineView::hitTestLoop(const QPoint &pos) const {

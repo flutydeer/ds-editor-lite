@@ -58,6 +58,18 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     connect(m_btnLoop, &QPushButton::clicked, this, [this](bool checked) {
         auto settings = appStatus->loopSettings.get();
         settings.enabled = checked;
+
+        // Initialize loop region based on current position when enabling
+        if (checked && settings.length == 0) {
+            int currentTick = static_cast<int>(playbackController->position());
+            int barTicks = 1920 * m_numerator / m_denominator;
+
+            // Snap to bar line
+            int startBar = currentTick / barTicks;
+            settings.start = startBar * barTicks;
+            settings.length = barTicks;  // One bar length
+        }
+
         appStatus->loopSettings.set(settings);
         updateLoopButtonView();
     });
