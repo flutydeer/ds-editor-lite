@@ -7,13 +7,12 @@
 #include <QPainter>
 #include <QWheelEvent>
 
-#include "Controller/Actions/AppStatus/LoopSettings/LoopSettingsActions.h"
 #include "Controller/PlaybackController.h"
+#include "Model/AppModel/LoopSettings.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppModel/Note.h"
-#include "Modules/History/HistoryManager.h"
 #include "Utils/MathUtils.h"
 
 TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
@@ -189,7 +188,6 @@ void TimelineView::mousePressEvent(QMouseEvent *event) {
         if (loopSettings.enabled && m_canEditLoop) {
             m_loopDragMode = hitTestLoop(event->pos());
             if (m_loopDragMode != None) {
-                m_loopDragStartSettings = loopSettings;
                 m_loopDragStartTick = loopSettings.start;
                 m_loopDragStartPos = static_cast<int>(xToTick(event->pos().x()));
                 event->accept();
@@ -239,13 +237,6 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
 
 void TimelineView::mouseReleaseEvent(QMouseEvent *event) {
     if (m_loopDragMode != None) {
-        const auto newSettings = appStatus->loopSettings.get();
-        if (m_loopDragStartSettings.start != newSettings.start ||
-            m_loopDragStartSettings.length != newSettings.length) {
-            const auto actions = new LoopSettingsActions;
-            actions->editLoopSettings(m_loopDragStartSettings, newSettings);
-            historyManager->record(actions);
-        }
         m_loopDragMode = None;
         updateCursor(event->pos());
         event->accept();

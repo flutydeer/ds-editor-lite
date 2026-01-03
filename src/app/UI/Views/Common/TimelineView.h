@@ -6,11 +6,11 @@
 #define TIMELINEVIEW_H
 
 #include <QWidget>
-#include "Model/AppModel/LoopSettings.h"
 #include "UI/Utils/ITimelinePainter.h"
 
 class SingingClip;
 class InferPiece;
+struct LoopSettings;
 
 class TimelineView : public QWidget, public ITimelinePainter {
     Q_OBJECT
@@ -75,7 +75,6 @@ private:
     LoopDragMode m_loopDragMode = None;
     int m_loopDragStartTick = 0;
     int m_loopDragStartPos = 0;
-    LoopSettings m_loopDragStartSettings;
     int m_loopRegionHeight = 10;
     int m_loopHandleWidth = 8;
 };
