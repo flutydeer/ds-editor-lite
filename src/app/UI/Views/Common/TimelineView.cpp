@@ -369,6 +369,15 @@ void TimelineView::drawLoopRegion(QPainter *painter) const {
     const QColor loopColor = loopSettings.enabled ? QColor(155, 186, 255) : QColor(57, 59, 61);
 
     painter->setPen(Qt::NoPen);
+
+    // Draw semi-transparent background for the entire loop region when enabled
+    if (loopSettings.enabled) {
+        QColor bgColor = loopColor;
+        bgColor.setAlpha(32);  // Semi-transparent
+        painter->setBrush(bgColor);
+        painter->drawRect(QRectF(startX, 0, endX - startX, rect().height()));
+    }
+
     painter->setBrush(loopColor);
 
     // Draw connecting line at top (y=0), overlapping with triangles
