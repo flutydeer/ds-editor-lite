@@ -264,9 +264,7 @@ void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
         disconnect(piece, nullptr, this, nullptr);
     }
     for (const auto piece : pieces) {
-        connect(piece, &InferPiece::statusChanged, this, [this] {
-            update();
-        });
+        connect(piece, &InferPiece::statusChanged, this, [this] { update(); });
     }
     m_pieces = pieces;
     update();
@@ -287,55 +285,55 @@ void TimelineView::drawPieces(QPainter *painter) const {
     for (const auto &piece : m_clip->pieces()) {
         pen.setColor(m_piecesColors[piece->acousticInferStatus]);
         painter->setPen(pen);
-        auto x1 = tickToX(piece->localStartTick() + m_clip->start());
-        auto x2 = tickToX(piece->localEndTick() + m_clip->start());
-        painter->drawLine(x1, y, x2, y);
-        painter->drawText(QPointF(x1, y), "#" + QString::number(piece->id()));
+        auto pieceStartX = tickToX(piece->localStartTick() + m_clip->start());
+        auto pieceEndX = tickToX(piece->localEndTick() + m_clip->start());
+        painter->drawLine(pieceStartX, y, pieceEndX, y);
+        painter->drawText(QPointF(pieceStartX, y), "#" + QString::number(piece->id()));
 
         // For debugging
         auto firstNoteStartTick = piece->notes.first()->localStart() + m_clip->start();
         auto firstNoteStartX = tickToX(firstNoteStartTick);
-        auto xHead = tickToX(firstNoteStartTick + m_clip->start() -
-                             appModel->msToTick(piece->headAvailableLengthMs));
 
-        auto lastNoteEndTick = piece->notes.last()->localStart() + piece->notes.last()->length() +
-                               m_clip->start();
+        // TODO: handle multiple tempo changes
+        auto headX = tickToX(firstNoteStartTick - appModel->msToTick(piece->headAvailableLengthMs));
+
+        auto lastNoteEndTick =
+            piece->notes.last()->localStart() + piece->notes.last()->length() + m_clip->start();
         auto lastNoteEndX = tickToX(lastNoteEndTick);
 
         // Draw head available range
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(92, 206, 219, 64));
-        painter->drawRect(QRectF(xHead, 0, x1 - xHead, rect().height()));
+        painter->drawRect(QRectF(headX, 0, pieceStartX - headX, rect().height()));
 
         painter->setPen(QColor(92, 206, 219));
-        painter->drawLine(xHead, 0, xHead, rect().height());
+        painter->drawLine(headX, 0, headX, rect().height());
 
         // Draw padding start range
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(222, 164, 224, 64));
-        painter->drawRect(QRectF(x1, 0, firstNoteStartX - x1, rect().height()));
+        painter->drawRect(QRectF(pieceStartX, 0, firstNoteStartX - pieceStartX, rect().height()));
 
         painter->setPen(QColor(222, 164, 224));
-        painter->drawLine(x1, 0, x1, rect().height());
+        painter->drawLine(pieceStartX, 0, pieceStartX, rect().height());
 
         // Draw notes range
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(155, 186, 255, 64));
-        painter->drawRect(QRectF(firstNoteStartX, 0, lastNoteEndX - firstNoteStartX,
-                                 rect().height()));
+        painter->drawRect(
+            QRectF(firstNoteStartX, 0, lastNoteEndX - firstNoteStartX, rect().height()));
 
         painter->setPen(QColor(155, 186, 255));
         painter->drawLine(firstNoteStartX, 0, firstNoteStartX, rect().height());
         painter->drawLine(lastNoteEndX, 0, lastNoteEndX, rect().height());
 
-
         // Draw padding end range
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(184, 196, 116, 64));
-        painter->drawRect(QRectF(lastNoteEndX, 0, x2 - lastNoteEndX, rect().height()));
+        painter->drawRect(QRectF(lastNoteEndX, 0, pieceEndX - lastNoteEndX, rect().height()));
 
         painter->setPen(QColor(184, 196, 116));
-        painter->drawLine(x2, 0, x2, rect().height());
+        painter->drawLine(pieceEndX, 0, pieceEndX, rect().height());
     }
 }
 
