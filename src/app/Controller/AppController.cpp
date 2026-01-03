@@ -23,6 +23,7 @@
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
+#include "Modules/RecentFiles/RecentFilesManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
@@ -41,7 +42,9 @@ AppController::AppController(QObject *parent)
 
     const auto task = new LaunchLanguageEngineTask;
     connect(task, &LaunchLanguageEngineTask::finished, this,
-            [=] { d->onRunLanguageEngineTaskFinished(task); });
+            [=] {
+                d->onRunLanguageEngineTaskFinished(task);
+            });
     taskManager->addAndStartTask(task);
     appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
 }
@@ -66,12 +69,19 @@ bool AppController::openFile(const QString &filePath, QString &errorMessage) {
     if (QFile(filePath).exists()) {
         const QFileInfo info(filePath);
         const auto suffix = info.suffix().toLower();
+        bool success = false;
         if (suffix == "dspx")
-            return d->openDspxFile(filePath, errorMessage);
-        if (suffix == "mid" || suffix == "midi")
-            return d->openMidiFile(filePath, errorMessage);
-        Toast::show(tr("Unrecognized file format: %1").arg(suffix));
-        return false;
+            success = d->openDspxFile(filePath, errorMessage);
+        else if (suffix == "mid" || suffix == "midi")
+            success = d->openMidiFile(filePath, errorMessage);
+        else {
+            Toast::show(tr("Unrecognized file format: %1").arg(suffix));
+            return false;
+        }
+        if (success) {
+            recentFilesManager->addFile(filePath);
+        }
+        return success;
     }
     Toast::show(tr("File does not exist: %1").arg(filePath));
     return false;
@@ -84,6 +94,7 @@ bool AppController::saveProject(const QString &filePath, QString &errorMessage) 
 
     historyManager->setSavePoint();
     d->updateProjectPathAndName(filePath);
+    recentFilesManager->addFile(filePath);
     return true;
 }
 
@@ -237,8 +248,9 @@ void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineT
 void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
     Q_Q(AppController);
     m_projectPath = path;
-    q->setProjectName(m_projectPath.isEmpty() ? tr("New Project")
-                                              : QFileInfo(m_projectPath).fileName());
+    q->setProjectName(m_projectPath.isEmpty()
+                          ? tr("New Project")
+                          : QFileInfo(m_projectPath).fileName());
 }
 
 bool AppControllerPrivate::openDspxFile(const QString &path, QString &errorMessage) {

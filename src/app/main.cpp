@@ -18,12 +18,14 @@
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Window/TaskWindow.h"
+#include "Modules/History/HistoryManager.h"
 #include "Utils/Log.h"
 #include "Utils/SystemUtils.h"
 
 #include <QApplication>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QFileOpenEvent>
 #include <QScreen>
 #include <QStyleHints>
 #include <QStyleFactory>
@@ -37,6 +39,11 @@
 
 #if defined(WITH_DIRECT_MANIPULATION)
 #  include <QWDMHCore/DirectManipulationSystem.h>
+#endif
+
+#if defined(Q_OS_WIN)
+#  include <windows.h>
+#  include <shlobj.h>
 #endif
 
 struct AudioSystemContext {
@@ -90,6 +97,55 @@ int main(int argc, char *argv[]) {
     if (QSysInfo::productType() == "windows")
         QGuiApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
     QApplication a(argc, argv);
+
+#if defined(Q_OS_WIN)
+    // Set AppUserModelID for Windows taskbar and jump list integration
+    SetCurrentProcessExplicitAppUserModelID(L"com.openvpi.ds-editor-lite");
+#endif
+
+    // Handle macOS Dock "open recent" (and other OS file-open events)
+    class FileOpenFilter final : public QObject {
+    public:
+        FileOpenFilter() = default;
+
+        void setMainWindow(MainWindow *window) {
+            m_mainWindow = window;
+        }
+
+        bool eventFilter(QObject *obj, QEvent *event) override {
+            if (event->type() == QEvent::FileOpen) {
+                const auto *fileEvent = static_cast<QFileOpenEvent *>(event);
+                const auto filePath = fileEvent->file();
+                if (!filePath.isEmpty()) {
+                    // Use the same logic as MainMenuView::onOpen() to check for unsaved changes
+                    auto openFile = [filePath] {
+                        QString errorMessage;
+                        appController->openFile(filePath, errorMessage);
+                    };
+                    if (m_mainWindow) {
+                        if (!historyManager->isOnSavePoint()) {
+                            if (m_mainWindow->askSaveChanges())
+                                openFile();
+                        } else {
+                            openFile();
+                        }
+                    } else {
+                        // MainWindow not created yet, open directly (shouldn't happen in normal
+                        // flow)
+                        openFile();
+                    }
+                }
+                return true; // consume
+            }
+            return QObject::eventFilter(obj, event);
+        }
+
+    private:
+        MainWindow *m_mainWindow = nullptr;
+    };
+
+    static FileOpenFilter fileOpenFilter;
+    a.installEventFilter(&fileOpenFilter);
     // QApplication::setAttribute(Qt::AA_SynthesizeTouchForUnhandledMouseEvents);
     QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
     QApplication::setOrganizationName("OpenVPI");
@@ -116,7 +172,8 @@ int main(int argc, char *argv[]) {
     //     QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() + "/Logs");
     Log::setConsoleLogLevel(Log::Debug);
     Log::setConsoleTagFilter(
-        {/*"InferDurationTask", "InferPitchTask", "InferVarianceTask", "InferAcousticTask"*/});
+    {
+        /*"InferDurationTask", "InferPitchTask", "InferVarianceTask", "InferAcousticTask"*/});
     Log::logSystemInfo();
     Log::logGpuInfo();
 
@@ -155,6 +212,7 @@ int main(int argc, char *argv[]) {
     // qDebug() << privateWorkspace.value("recent_model_path").toString();
 
     MainWindow w;
+    fileOpenFilter.setMainWindow(&w);
     trackController->setParentWidget(&w);
     auto scr = QApplication::screenAt(QCursor::pos());
     if (!scr) {
@@ -180,16 +238,25 @@ int main(int argc, char *argv[]) {
     if (args.count() == 2) {
         auto filePath = QApplication::arguments().at(1);
         if (!filePath.isEmpty()) {
-            QString errorMsg;
-            if (appController->openFile(filePath, errorMsg)) {
-                auto tracks = appModel->tracks();
-                if (!tracks.isEmpty()) {
-                    auto clips = tracks.first()->clips();
-                    if (clips.count() > 0) {
-                        trackController->setActiveClip(clips.toList().first()->id());
-                        appController->setActivePanel(AppGlobal::ClipEditor);
+            // Use the same logic as MainMenuView::onOpen() to check for unsaved changes
+            auto openFile = [&] {
+                QString errorMsg;
+                if (appController->openFile(filePath, errorMsg)) {
+                    auto tracks = appModel->tracks();
+                    if (!tracks.isEmpty()) {
+                        auto clips = tracks.first()->clips();
+                        if (clips.count() > 0) {
+                            trackController->setActiveClip(clips.toList().first()->id());
+                            appController->setActivePanel(AppGlobal::ClipEditor);
+                        }
                     }
                 }
+            };
+            if (!historyManager->isOnSavePoint()) {
+                if (w.askSaveChanges())
+                    openFile();
+            } else {
+                openFile();
             }
         }
     }

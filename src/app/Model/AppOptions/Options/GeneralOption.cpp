@@ -50,9 +50,9 @@ void GeneralOption::load(const QJsonObject &object) {
 
 void GeneralOption::save(QJsonObject &object) {
     object = {
-        {defaultSingingLanguageKey, defaultSingingLanguage},
-        {defaultLyricKey,           defaultLyric          },
-        {packageSearchPathsKey, QJsonArray::fromStringList(packageSearchPaths)},
+        {defaultSingingLanguageKey, defaultSingingLanguage                        },
+        {defaultLyricKey,           defaultLyric                                  },
+        {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths)},
 #if false
         serialize_defaultPackage(),
         serialize_defaultPackageId(),
@@ -67,5 +67,5 @@ void GeneralOption::save(QJsonObject &object) {
 
 void GeneralOption::setPackageSearchPathsAndNotify(QStringList paths) {
     packageSearchPaths = std::move(paths);
-    //Q_EMIT packageSearchPathsChanged();
+    // Q_EMIT packageSearchPathsChanged();
 }
