@@ -181,6 +181,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             LoopSettings loopSettings;
             loopSettings.deserialize(workspace["loop"]);
             appStatus->loopSettings.set(loopSettings);
+        } else {
+            appStatus->loopSettings.set(LoopSettings());
         }
 
         return true;

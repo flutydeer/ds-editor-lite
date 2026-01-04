@@ -271,5 +271,6 @@ bool AppControllerPrivate::openMidiFile(const QString &path, QString &errorMessa
     updateProjectPathAndName("");
     q->setProjectName(QFileInfo(path).baseName());
     m_lastProjectFolder = QFileInfo(path).dir().path();
+    appStatus->loopSettings.set(LoopSettings());
     return true;
 }
