@@ -1,5 +1,6 @@
 #include "AudioContext.h"
 
+#include "Metronome.h"
 #include "TrackInferenceHandler.h"
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/InferPiece.h"
@@ -187,11 +188,47 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         }
         // Add master level
         addChannelLevel(masterChannel);
+        // Add metronome level
+        if (playbackController->playbackStatus() != Playing &&
+            m_metronomeLevelMeterValue->targetValue() > -96) {
+            m_metronomeLevelMeterValue->setTargetValue(-96);
+        }
+        const auto metroLevel = m_metronomeLevelMeterValue->nextValue();
+        args.metronomeMeterState = {metroLevel, metroLevel};
         emit levelMeterUpdated(args);
     });
     m_levelMeterTimer->start();
 
     new PseudoSingerConfigNotifier(this);
+
+    // Initialize metronome
+    m_metronome = new Metronome(this);
+    preMixer()->addSource(m_metronome);
+    m_metronomeLevelMeterValue = std::make_shared<talcs::SmoothedFloat>(-96);
+    m_metronomeLevelMeterValue->setRampLength(m_levelMeterRampLength);
+    connect(m_metronome, &Metronome::levelMetered, this, [this](float level) {
+        const auto dB = static_cast<float>(talcs::Decibels::gainToDecibels(level));
+        if (dB < m_metronomeLevelMeterValue->currentValue())
+            m_metronomeLevelMeterValue->setTargetValue(dB);
+        else
+            m_metronomeLevelMeterValue->setCurrentAndTargetValue(dB);
+    });
+
+    connect(appModel, &AppModel::timeSignatureChanged, this, [this](int numerator, int denominator) {
+        m_metronome->setTimeSignature(numerator, denominator);
+    });
+    connect(appModel, &AppModel::tempoChanged, this, [this](double tempo) {
+        m_metronome->setTempo(tempo);
+    });
+    connect(playbackController, &PlaybackController::playbackStatusChanged, this, [this](PlaybackStatus status) {
+        if (status == Playing) {
+            // Sync position before starting playback
+            const auto sr = preMixer()->isOpen() ? preMixer()->sampleRate() : 48000.0;
+            const auto sample = static_cast<qint64>(playbackController->position() * 60.0 * sr / appModel->tempo() / 480.0);
+            m_metronome->setPosition(sample);
+        }
+        m_metronome->setPlaying(status == Playing);
+    });
 
     AudioExporter::registerListener(this);
 }
@@ -245,6 +282,26 @@ void AudioContext::handleMasterGainSliderMoved(const double gain) const {
     masterControlMixer()->setGain(talcs::Decibels::decibelsToGain(gain));
 }
 
+void AudioContext::setMetronomeEnabled(bool enabled) {
+    m_metronome->setEnabled(enabled);
+}
+
+bool AudioContext::isMetronomeEnabled() const {
+    return m_metronome->isEnabled();
+}
+
+void AudioContext::setMetronomeGain(double gain) {
+    m_metronome->setGain(talcs::Decibels::decibelsToGain(gain));
+}
+
+double AudioContext::metronomeGain() const {
+    return talcs::Decibels::gainToDecibels(m_metronome->gain());
+}
+
+Metronome *AudioContext::metronome() const {
+    return m_metronome;
+}
+
 void AudioContext::handleInferPieceFailed() {
     if (m_exporter)
         m_exporter->cancel(true, tr("Inference failed"));
@@ -277,8 +334,11 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
 }
 
 void AudioContext::handlePlaybackPositionChanged(const double positionTick) const {
-    if (m_transportPositionFlag)
-        transport()->setPosition(tickToSample(positionTick));
+    if (m_transportPositionFlag) {
+        const auto sample = tickToSample(positionTick);
+        transport()->setPosition(sample);
+        m_metronome->setPosition(sample);
+    }
 }
 
 void AudioContext::handleModelChanged() {

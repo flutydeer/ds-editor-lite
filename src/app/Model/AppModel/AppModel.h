@@ -79,6 +79,7 @@ public:
         };
 
         QList<State> trackMeterStates;
+        State metronomeMeterState;
     };
 
 signals:

@@ -41,6 +41,7 @@ private:
 
     QListWidget *m_channelListView;
 
+    ChannelView *m_metronomeChannel;
     ChannelView *m_masterChannel;
 
     QWidget *m_placeHolder;

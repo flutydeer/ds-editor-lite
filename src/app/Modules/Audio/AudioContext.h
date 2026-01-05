@@ -20,6 +20,7 @@
 
 
 class TrackInferenceHandler;
+class Metronome;
 
 namespace talcs {
     class DspxAudioClipContext;
@@ -47,6 +48,12 @@ public:
     void handleMasterPanSliderMoved(double pan) const;
     void handleMasterGainSliderMoved(double gain) const;
 
+    void setMetronomeEnabled(bool enabled);
+    [[nodiscard]] bool isMetronomeEnabled() const;
+    void setMetronomeGain(double gain);
+    [[nodiscard]] double metronomeGain() const;
+    [[nodiscard]] Metronome *metronome() const;
+
     static void handleInferPieceFailed();
 
 signals:
@@ -67,6 +74,9 @@ private:
 
     QHash<Track *, TrackSynthesizer *> m_trackSynthDict;
     QHash<Track *, TrackInferenceHandler *> m_trackInferDict;
+
+    Metronome *m_metronome = nullptr;
+    std::shared_ptr<talcs::SmoothedFloat> m_metronomeLevelMeterValue;
 
     QTimer *m_levelMeterTimer;
     QHash<const Track *,

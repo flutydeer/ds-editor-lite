@@ -54,11 +54,11 @@ TitleControlGroup>QPushButton#btnStop {
 }
 
 TitleControlGroup>QPushButton:hover {
-    background: #12C7D8FF
+    background: #12C7D8FF;
 }
 
 TitleControlGroup>QPushButton:pressed {
-    background: #0CFFFFFF
+    background: #0CFFFFFF;
 }
 
 TitleControlGroup>QPushButton#btnPlay:checked {
@@ -69,6 +69,10 @@ TitleControlGroup>QPushButton#btnPlay:checked {
 TitleControlGroup>QPushButton#btnPause:checked {
     /* background-color: #FFCD9B; */
     background-color: #40FFCD9B;
+}
+
+TitleControlGroup>QPushButton#btnMetronome:checked {
+    background-color: #409BBAFF;
 }
 
 TitleControlGroup>EditLabel {

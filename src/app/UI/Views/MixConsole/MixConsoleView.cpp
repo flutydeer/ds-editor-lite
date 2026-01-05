@@ -44,6 +44,13 @@ MixConsoleView::MixConsoleView(QWidget *parent) : QWidget(parent) {
     m_channelListView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_channelListView->setFlow(QListView::LeftToRight);
 
+    m_metronomeChannel = new ChannelView;
+    m_metronomeChannel->setName(tr("Metronome"));
+    m_metronomeChannel->setIsMasterChannel(true);
+    connect(m_metronomeChannel->fader(), &Fader::sliderMoved, this, [](double gain) {
+        audioContext->setMetronomeGain(gain);
+    });
+
     m_masterChannel = new ChannelView;
     m_masterChannel->setName(tr("Master"));
     m_masterChannel->setIsMasterChannel(true);
@@ -52,6 +59,7 @@ MixConsoleView::MixConsoleView(QWidget *parent) : QWidget(parent) {
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(m_channelListView);
+    mainLayout->addWidget(m_metronomeChannel);
     mainLayout->addWidget(m_masterChannel);
     mainLayout->setContentsMargins({});
     setLayout(mainLayout);
@@ -112,6 +120,8 @@ void MixConsoleView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs
         }
     auto state = args.trackMeterStates.last();
     m_masterChannel->levelMeter()->setValue(state.valueL, state.valueR);
+    m_metronomeChannel->levelMeter()->setValue(args.metronomeMeterState.valueL,
+                                               args.metronomeMeterState.valueR);
 }
 
 void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {

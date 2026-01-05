@@ -9,6 +9,7 @@
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
+#include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"
@@ -54,6 +55,15 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnPause->setIcon(icoPauseWhite);
     // m_btnPause->setText("Pause");
     m_btnPause->setCheckable(true);
+
+    m_btnMetronome = new QPushButton;
+    m_btnMetronome->setObjectName("btnMetronome");
+    m_btnMetronome->setIcon(icoMetronomeWhite);
+    m_btnMetronome->setCheckable(true);
+    connect(m_btnMetronome, &QPushButton::toggled, this, [this](bool checked) {
+        m_btnMetronome->setIcon(checked ? icoMetronomeBlack : icoMetronomeWhite);
+        emit metronomeToggled(checked);
+    });
 
     m_elTime = new EditLabel;
     m_elTime->setObjectName("elTime");
@@ -135,6 +145,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     transportLayout->addWidget(m_btnStop);
     transportLayout->addWidget(m_btnPlay);
     transportLayout->addWidget(m_btnPause);
+    transportLayout->addWidget(m_btnMetronome);
     transportLayout->addWidget(m_elTime);
     transportLayout->setSpacing(1);
     transportLayout->setContentsMargins({});
@@ -180,6 +191,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::modelChanged, this, &PlaybackView::updateView);
     connect(appModel, &AppModel::tempoChanged, this, &PlaybackView::onTempoChanged);
     connect(appModel, &AppModel::timeSignatureChanged, this, &PlaybackView::onTimeSignatureChanged);
+    connect(this, &PlaybackView::metronomeToggled, audioContext, &AudioContext::setMetronomeEnabled);
 }
 
 void PlaybackView::updateView() {

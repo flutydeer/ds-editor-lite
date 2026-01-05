@@ -28,6 +28,7 @@ signals:
     void stopTriggered();
     void setPositionTriggered(double tick);
     void setQuantizeTriggered(int value);
+    void metronomeToggled(bool enabled);
 
 public slots:
     void updateView();
@@ -42,6 +43,7 @@ private:
     QPushButton *m_btnStop;
     QPushButton *m_btnPlay;
     QPushButton *m_btnPause;
+    QPushButton *m_btnMetronome;
     QPushButton *m_btnPlayPause;
     // QPushButton *m_btnLoop;
     EditLabel *m_elTime;
@@ -64,6 +66,8 @@ private:
     const QIcon icoPauseBlack = QIcon(":svg/icons/pause_16_filled.svg");
     const QIcon icoStopWhite = QIcon(":svg/icons/stop_16_filled_white.svg");
     const QIcon icoStopBlack = QIcon(":svg/icons/stop_16_filled.svg");
+    const QIcon icoMetronomeWhite = QIcon(":svg/icons/metronome-line-white.svg");
+    const QIcon icoMetronomeBlack = QIcon(":svg/icons/metronome-line.svg");
 
     const QStringList quantizeStrings = {"1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"};
     const QList<int> quantizeValues = {2, 4, 8, 16, 32, 64, 128};
