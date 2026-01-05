@@ -656,6 +656,7 @@ namespace Audio::Internal {
         progressDialog.resize(400, progressDialog.height());
 
         bool isProgressing = false;
+        QHash<int, double> progressRatioHash;
         if (m_audioExporter->config().mixingOption() == AudioExporterConfig::MO_Mixed) {
             connect(m_audioExporter, &AudioExporter::progressChanged, &progressDialog,
                     [=, &isProgressing](const double ratio) {
@@ -666,7 +667,6 @@ namespace Audio::Internal {
                         mainProgressBar->setValue(static_cast<int>(ratio * 100.0));
                     });
         } else {
-            QHash<int, double> progressRatioHash;
             const int sourceCount = m_audioExporter->config().source().size();
             connect(
                 m_audioExporter, &AudioExporter::progressChanged, &progressDialog,
