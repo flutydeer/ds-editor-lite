@@ -32,6 +32,8 @@
 #include <Modules/Audio/TrackSynthesizer.h>
 
 #include "Model/AppModel/Track.h"
+#include "Model/AppModel/LoopSettings.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "utils/PseudoSingerConfigNotifier.h"
 
 #include <Model/AppOptions/AppOptions.h>
@@ -104,6 +106,12 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         DEVICE_LOCKER;
         handleModelChanged();
         handleMasterControlChanged(appModel->masterControl());
+        // Reapply loop settings after model change
+        const auto &settings = appStatus->loopSettings.get();
+        if (settings.enabled)
+            transport()->setLoopingRange(tickToSample(settings.start), tickToSample(settings.end()));
+        else
+            transport()->setLoopingRange(-1, -1);
     });
     connect(appModel, &AppModel::trackChanged, this,
             [this](const AppModel::TrackChangeType type, const int index, Track *track) {
@@ -122,6 +130,11 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         DEVICE_LOCKER;
         handleTimeChanged();
         handlePlaybackPositionChanged(playbackController->position());
+        // Update loop range when tempo changes
+        const auto &settings = appStatus->loopSettings.get();
+        if (settings.enabled) {
+            transport()->setLoopingRange(tickToSample(settings.start), tickToSample(settings.end()));
+        }
     });
 
     connect(appModel, &AppModel::masterControlChanged, this, [this](const TrackControl &control) {
@@ -147,6 +160,15 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
             this, &AudioContext::setBufferingReadAheadSize);
 
     connect(this, &AudioContext::exporterCausedTimeChanged, this, &AudioContext::handleTimeChanged);
+
+    // Connect loop settings changes to transport
+    connect(appStatus, &AppStatus::loopSettingsChanged, this, [this](const LoopSettings &settings) {
+        if (settings.enabled) {
+            transport()->setLoopingRange(tickToSample(settings.start), tickToSample(settings.end()));
+        } else {
+            transport()->setLoopingRange(-1, -1);
+        }
+    });
 
     masterChannel = new Track;
     m_trackLevelMeterValue[masterChannel] = {std::make_shared<talcs::SmoothedFloat>(-96),

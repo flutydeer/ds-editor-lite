@@ -6,6 +6,7 @@
 
 #include "Model/AppModel/AnchorCurve.h"
 #include "Model/AppModel/AudioClip.h"
+#include "Model/AppStatus/AppStatus.h"
 
 #include <QMessageBox>
 
@@ -173,6 +174,17 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             TimeSignature(timeline.timeSignatures[0].num, timeline.timeSignatures[0].den));
         model->setTempo(timeline.tempos[0].value);
         decodeTracks(dspxModel.content.tracks, model);
+
+        // Load loop settings from workspace
+        const auto &workspace = dspxModel.content.workspace;
+        if (workspace.contains("loop")) {
+            LoopSettings loopSettings;
+            loopSettings.deserialize(workspace["loop"]);
+            appStatus->loopSettings.set(loopSettings);
+        } else {
+            appStatus->loopSettings.set(LoopSettings());
+        }
+
         return true;
     } else {
         errMsg = QString("Failed to load project file.\r\npath: %1\r\ntype: %2 code: %3")
@@ -329,6 +341,11 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                                                         model->timeSignature().denominator));
 
     encodeTracks(model, dspxModel);
+
+    // Save loop settings to workspace
+    const auto loopSettings = appStatus->loopSettings.get();
+    dspxModel.content.workspace["loop"] = loopSettings.serialize();
+
     const auto returnCode = dspxModel.save(path);
 
     if (returnCode.type != QDspx::Result::Success) {

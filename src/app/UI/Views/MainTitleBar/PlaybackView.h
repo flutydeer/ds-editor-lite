@@ -43,7 +43,7 @@ private:
     QPushButton *m_btnPlay;
     QPushButton *m_btnPause;
     QPushButton *m_btnPlayPause;
-    // QPushButton *m_btnLoop;
+    QPushButton *m_btnLoop;
     EditLabel *m_elTime;
     ComboBox *m_cbQuantize;
 
@@ -64,6 +64,8 @@ private:
     const QIcon icoPauseBlack = QIcon(":svg/icons/pause_16_filled.svg");
     const QIcon icoStopWhite = QIcon(":svg/icons/stop_16_filled_white.svg");
     const QIcon icoStopBlack = QIcon(":svg/icons/stop_16_filled.svg");
+    const QIcon icoLoopWhite = QIcon(":svg/icons/arrow_repeat_all_16_filled_white.svg");
+    const QIcon icoLoopBlack = QIcon(":svg/icons/arrow_repeat_all_16_filled.svg");
 
     const QStringList quantizeStrings = {"1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"};
     const QList<int> quantizeValues = {2, 4, 8, 16, 32, 64, 128};
@@ -72,6 +74,7 @@ private:
     void updateTimeSignatureView();
     void updateTimeView();
     void updatePlaybackControlView();
+    void updateLoopButtonView();
 };
 
 
