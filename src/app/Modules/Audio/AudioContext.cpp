@@ -106,6 +106,12 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         DEVICE_LOCKER;
         handleModelChanged();
         handleMasterControlChanged(appModel->masterControl());
+        // Reapply loop settings after model change
+        const auto &settings = appStatus->loopSettings.get();
+        if (settings.enabled)
+            transport()->setLoopingRange(tickToSample(settings.start), tickToSample(settings.end()));
+        else
+            transport()->setLoopingRange(-1, -1);
     });
     connect(appModel, &AppModel::trackChanged, this,
             [this](const AppModel::TrackChangeType type, const int index, Track *track) {
