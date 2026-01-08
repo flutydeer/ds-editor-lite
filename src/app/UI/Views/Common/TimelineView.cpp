@@ -193,6 +193,10 @@ void TimelineView::mousePressEvent(QMouseEvent *event) {
             if (m_loopDragMode != None) {
                 m_loopDragStartTick = loopSettings.start;
                 m_loopDragStartPos = static_cast<int>(xToTick(event->pos().x()));
+                // Change cursor to closed hand when dragging
+                if (m_loopDragMode == DragBody) {
+                    setCursor(Qt::ClosedHandCursor);
+                }
                 event->accept();
                 return;
             }
