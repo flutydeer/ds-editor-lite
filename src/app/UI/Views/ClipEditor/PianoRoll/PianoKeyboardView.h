@@ -8,6 +8,14 @@
 #include <QWidget>
 #include <QEnterEvent>
 #include <QMouseEvent>
+#include <memory>
+
+namespace talcs {
+    class NoteSynthesizer;
+    class MixerAudioSource;
+}
+
+class PianoKeyPreviewHelper;
 
 class PianoKeyboardView : public QWidget {
     Q_OBJECT
@@ -19,6 +27,7 @@ public:
     enum KeyboardStyle { Uniform, Classic };
 
     explicit PianoKeyboardView(QWidget *parent = nullptr);
+    ~PianoKeyboardView();
     void setHoveredKeyIndex(int keyIndex);
 
 public slots:
@@ -40,11 +49,14 @@ private:
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void drawUniformKeyboard(QPainter &painter) const;
     void drawClassicKeyboard(QPainter &painter);
     void drawHoverOverlay(QPainter &painter) const;
     int sceneYToKeyIndex(double y) const;
     int posToKeyIndex(double x, double y) const;
+    int calculateVelocity(double x, double y, int keyIndex) const;
 
     double m_top = 0;
     double m_bottom = 127;
@@ -56,6 +68,17 @@ private:
     QColor m_dividerColor = {170, 172, 181};
     QColor m_primaryColor = {155, 186, 255};
     int m_hoveredKeyIndex = -1;
+    int m_pressedKeyIndex = -1;
+    QPointF m_pressPosition;
+    qint64 m_pressTime = 0;
+
+    std::unique_ptr<PianoKeyPreviewHelper> m_previewHelper;
+    std::unique_ptr<talcs::NoteSynthesizer> m_previewSynthesizer;
+    std::unique_ptr<talcs::MixerAudioSource> m_previewMixer;
+    bool m_previewInitialized = false;
+
+    void initializePreview();
+    void cleanupPreview();
 };
 
 
