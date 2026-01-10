@@ -74,16 +74,16 @@ const PieceList &SingingClip::pieces() const {
 }
 
 void SingingClip::reSegment() {
-    // TODO 重构 AppModel 支持多曲速
+    // TODO: Refactor AppModel to support multiple tempos
     Timeline timeline;
     timeline.tempos = {{0, appModel->tempo()}};
 
     auto [segments] = SingingClipSlicer::slice(timeline, m_notes.toList());
 
-    // 判断已有 piece 和 segment 是否相同
-    // 1. 头部填充长度相同
-    // 2. 音符序列相同
-    // 3. 尾部填充长度相同
+    // Check if existing piece and segment are the same
+    // 1. Head padding length is the same
+    // 2. Note sequence is the same
+    // 3. Tail padding length is the same
     auto isSamePiece = [](const InferPiece &left, const Segment &right) {
         if (left.notes.count() != right.notes.count())
             return false;
@@ -106,9 +106,11 @@ void SingingClip::reSegment() {
         bool exists = false;
         for (int i = 0; i < m_pieces.count(); i++) {
             const auto piece = m_pieces[i];
-            // 忽略脏的分段，保留未被标脏且与原来相同的片段
+            // Ignore dirty segments, keep segments that are not marked as dirty and are the same as before
             if (!piece->dirty && isSamePiece(*piece, segment)) {
                 exists = true;
+                // Although it's still the same segment, the head available space may have changed and needs to be updated
+                piece->headAvailableLengthMs = segment.headAvailableLengthMs;
                 newPieces.append(piece);
                 m_pieces.removeAt(i);
                 break;
