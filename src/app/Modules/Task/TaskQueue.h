@@ -9,6 +9,8 @@
 #include "Utils/Linq.h"
 #include "Utils/Queue.h"
 
+#include <QDebug>
+
 template <typename T>
 class TaskQueue {
 public:
@@ -16,13 +18,13 @@ public:
     T *current = nullptr;
 
     void add(T *task);
-    void runNext();
     void cancelAll();
     void cancelIf(std::function<bool(T *task)> pred);
     void disposePendingTasks();
     void onCurrentFinished();
 
 private:
+    void runNext();
     void disposePendingTask(T *task);
 };
 
@@ -30,6 +32,8 @@ template <typename T>
 void TaskQueue<T>::add(T *task) {
     taskManager->addTask(task);
     pending.enqueue(task);
+    if (!current)
+        runNext();
 }
 
 template <typename T>

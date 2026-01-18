@@ -266,6 +266,7 @@ void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
     }
     for (const auto piece : pieces) {
         connect(piece, &InferPiece::statusChanged, this, [this] { update(); });
+        connect(piece, &InferPiece::stateChanged, this, [this] { update(); });
     }
     m_pieces = pieces;
     update();
@@ -284,12 +285,14 @@ void TimelineView::drawPieces(QPainter *painter) const {
     pen.setCapStyle(Qt::RoundCap);
     painter->setBrush(Qt::NoBrush);
     for (const auto &piece : m_clip->pieces()) {
+        // Draw piece range with status
         pen.setColor(m_piecesColors[piece->acousticInferStatus]);
         painter->setPen(pen);
         auto pieceStartX = tickToX(piece->localStartTick() + m_clip->start());
         auto pieceEndX = tickToX(piece->localEndTick() + m_clip->start());
         painter->drawLine(pieceStartX, y, pieceEndX, y);
-        painter->drawText(QPointF(pieceStartX, y), "#" + QString::number(piece->id()));
+        auto stateText = "#" + QString::number(piece->id()) + " " + piece->state.get();
+        painter->drawText(QPointF(pieceStartX, y), stateText);
 
         // For debugging
         auto firstNoteStartTick = piece->notes.first()->localStart() + m_clip->start();

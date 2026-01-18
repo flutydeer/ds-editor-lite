@@ -21,6 +21,7 @@ class InferPiece final : public QObject, public IInferPiece {
     Q_OBJECT
 public:
     Property<InferStatus> acousticInferStatus = Pending;
+    Property<QString> state = QString("Unknown");
     SingingClip *clip;
     bool dirty = false;
     double headAvailableLengthMs = 0;
@@ -68,6 +69,7 @@ public:
 
 signals:
     void statusChanged(InferStatus status);
+    void stateChanged(const QString &state);
 };
 
 #endif // INFERPIECE_H

@@ -66,8 +66,6 @@ public:
 
 Q_SIGNALS:
     void engineInitialized();
-    void cancelAllInferTasks();
-    void recreateAllInferTasks();
 
 private:
     friend class InitInferEngineTask;

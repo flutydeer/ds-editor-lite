@@ -213,7 +213,7 @@ void InferPitchTask::abort() {
     newStatus.message = tr("Terminating: %1").arg(m_previewText);
     newStatus.isIndetermine = true;
     setStatus(newStatus);
-    qInfo() << "音高参数推理任务被终止 clipId:" << clipId() << "pieceId:" << pieceId()
+    qInfo() << "Pitch inference task terminated. clipId:" << clipId() << "pieceId:" << pieceId()
             << "taskId:" << id();
 }
 

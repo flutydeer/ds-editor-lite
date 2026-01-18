@@ -271,7 +271,7 @@ void InferAcousticTask::abort() {
     newStatus.message = tr("Terminating: %1").arg(m_previewText);
     newStatus.isIndetermine = true;
     setStatus(newStatus);
-    qInfo() << "声学模型推理任务被终止 clipId:" << clipId() << "pieceId:" << pieceId()
+    qInfo() << "Acoustic model inference task has been terminated. clipId:" << clipId() << "pieceId:" << pieceId()
             << "taskId:" << id();
 }
 

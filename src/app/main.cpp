@@ -115,8 +115,7 @@ int main(int argc, char *argv[]) {
     // Log::setLogDirectory(
     //     QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() + "/Logs");
     Log::setConsoleLogLevel(Log::Debug);
-    Log::setConsoleTagFilter(
-        {/*"InferDurationTask", "InferPitchTask", "InferVarianceTask", "InferAcousticTask"*/});
+    // Log::setConsoleTagFilter({"InferPipeline"});
     Log::logSystemInfo();
     Log::logGpuInfo();
 
