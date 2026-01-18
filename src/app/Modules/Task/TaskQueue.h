@@ -83,6 +83,9 @@ void TaskQueue<T>::onCurrentFinished() {
     current->disconnect();
     taskManager->removeTask(current);
     current = nullptr;
+    
+    // Automatically run the next task in the queue
+    runNext();
 }
 
 template <typename T>
