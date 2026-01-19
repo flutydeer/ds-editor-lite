@@ -8,6 +8,7 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Models/InferInputNote.h"
 #include "Models/InferParamCurve.h"
+#include "Tasks/InferVarianceTask.h"
 
 #include <QObject>
 #include <QStateMachine>
@@ -35,11 +36,18 @@ public:
 
     [[nodiscard]] const QList<InferInputNote> &durationResult() const;
     void setDurationResult(const QList<InferInputNote> &result);
+
     [[nodiscard]] const InferParamCurve &pitchResult() const;
     void setPitchResult(const InferParamCurve &result);
 
+    [[nodiscard]] const InferVarianceTask::InferVarianceResult &varianceResult() const;
+    void setVarianceResult(const InferVarianceTask::InferVarianceResult &result);
+
 public slots:
+    // App model change signals
     void onExpressivenessChanged();
+    void onPitchChanged();
+    void onVarianceChanged();
 
 private:
     // Params
@@ -80,6 +88,7 @@ private:
 
     QList<InferInputNote> m_durationResult;
     InferParamCurve m_pitchResult;
+    InferVarianceTask::InferVarianceResult m_varianceResult;
 };
 
 #endif // DS_EDITOR_LITE_INFERPIPELINE_H

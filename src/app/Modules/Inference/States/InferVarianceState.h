@@ -9,6 +9,7 @@
 
 class InferPipeline;
 class QFinalState;
+class InferVarianceTask;
 
 class InferVarianceState : public QState {
     Q_OBJECT
@@ -22,16 +23,16 @@ private:
     void onExit(QEvent *event) override;
 
     Q_SIGNAL void taskSuccessWithModelLocked();
-    Q_SIGNAL void taskFailed();
-    Q_SIGNAL void moveToReadyState();
+    Q_SIGNAL void failed();
+    Q_SIGNAL void ready();
 
     void onRunningInferenceStateEntered();
-
     void onAwaitingModelReleaseStateEntered();
-
     void onErrorStateEntered();
+    void handleTaskFinished(InferVarianceTask &task);
 
     InferPipeline &m_pipeline;
+    int taskId = -1;
 
     // Child states
     QState *m_runningInferenceState;

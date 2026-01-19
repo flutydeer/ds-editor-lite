@@ -14,6 +14,8 @@
 class InferControllerPrivate;
 class InferDurationTask;
 class InferPitchTask;
+class InferVarianceTask;
+class InferAcousticTask;
 class Task;
 
 class InferController final : public QObject {
@@ -28,6 +30,12 @@ public:
 
     void addInferPitchTask(InferPitchTask& task);
     void cancelInferPitchTask(int taskId);
+
+    void addInferVarianceTask(InferVarianceTask& task);
+    void cancelInferVarianceTask(int taskId);
+
+    void addInferAcousticTask(InferAcousticTask& task);
+    void cancelInferAcousticTask(int taskId);
 
 private:
     explicit InferController(QObject *parent = nullptr);

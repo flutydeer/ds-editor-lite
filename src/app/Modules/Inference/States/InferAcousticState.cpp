@@ -4,6 +4,9 @@
 
 #include "InferAcousticState.h"
 
+#include "Modules/Inference/InferPipeline.h"
+#include "Modules/Inference/InferControllerHelper.h"
+
 #include <QTimer>
 #include <QDebug>
 #include <QFinalState>
@@ -47,6 +50,10 @@ void InferAcousticState::onExit(QEvent *event) {
 
 void InferAcousticState::onRunningInferenceStateEntered() {
     qDebug() << "InferAcousticState::onRunningInferenceStateEntered";
+
+    auto &piece = m_pipeline.piece();
+    piece.acousticInferStatus = Running;
+    piece.state = QString("Acoustic.Running");
     QTimer::singleShot(1000, this, &InferAcousticState::taskFailed);
 }
 
@@ -57,4 +64,8 @@ void InferAcousticState::onAwaitingModelReleaseStateEntered() {
 
 void InferAcousticState::onErrorStateEntered() {
     qDebug() << "InferAcousticState::onErrorStateEntered";
+    
+    auto &piece = m_pipeline.piece();
+    piece.acousticInferStatus = Failed;
+    piece.state = QString("Acoustic.Error");
 }

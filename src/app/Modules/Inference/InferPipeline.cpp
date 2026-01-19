@@ -53,8 +53,24 @@ void InferPipeline::setPitchResult(const InferParamCurve &result) {
     m_pitchResult = result;
 }
 
+const InferVarianceTask::InferVarianceResult &InferPipeline::varianceResult() const {
+    return m_varianceResult;
+}
+
+void InferPipeline::setVarianceResult(const InferVarianceTask::InferVarianceResult &result) {
+    m_varianceResult = result;
+}
+
 void InferPipeline::onExpressivenessChanged() {
     emit expressivenessChanged();
+}
+
+void InferPipeline::onPitchChanged() {
+    emit pitchChanged();
+}
+
+void InferPipeline::onVarianceChanged() {
+    emit varianceChanged();
 }
 
 void InferPipeline::initStates() {
@@ -100,11 +116,13 @@ void InferPipeline::initTransitions() {
     updatePitchState->addTransition(updatePitchState, &UpdatePitchState::updateSuccess,
                                     inferVarianceState);
     updatePitchState->addTransition(updatePitchState, &UpdatePitchState::pieceNotFound, finalState);
+    // TODO 音高步数更改
 
     inferVarianceState->addTransition(inferVarianceState, &InferVarianceState::finished,
                                       updateVarianceState);
     inferVarianceState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
     inferVarianceState->addTransition(this, &InferPipeline::expressivenessChanged, inferPitchState);
+    inferVarianceState->addTransition(this, &InferPipeline::pitchChanged, inferVarianceState);
 
     updateVarianceState->addTransition(updateVarianceState, &UpdateVarianceState::updateSuccess,
                                        inferAcousticState);
@@ -114,6 +132,9 @@ void InferPipeline::initTransitions() {
     inferAcousticState->addTransition(inferAcousticState, &InferAcousticState::finished,
                                       updateAcousticState);
     inferAcousticState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
+    inferAcousticState->addTransition(this, &InferPipeline::expressivenessChanged, inferPitchState);
+    inferAcousticState->addTransition(this, &InferPipeline::pitchChanged, inferVarianceState);
+    inferAcousticState->addTransition(this, &InferPipeline::varianceChanged, inferAcousticState);
 
     updateAcousticState->addTransition(updateAcousticState, &UpdateAcousticState::updateSuccess,
                                        awaitingPlaybackState);

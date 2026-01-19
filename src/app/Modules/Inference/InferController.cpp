@@ -60,6 +60,30 @@ void InferController::cancelInferPitchTask(int taskId) {
     d->m_inferPitchTasks.cancelIf(L_PRED(t, t->id() == taskId));
 }
 
+void InferController::addInferVarianceTask(InferVarianceTask &task) {
+    Q_D(InferController);
+    d->m_inferVarianceTasks.add(&task);
+    connect(&task, &InferVarianceTask::finished, this,
+            [d] { d->m_inferVarianceTasks.onCurrentFinished(); });
+}
+
+void InferController::cancelInferVarianceTask(int taskId) {
+    Q_D(InferController);
+    d->m_inferVarianceTasks.cancelIf(L_PRED(t, t->id() == taskId));
+}
+
+void InferController::addInferAcousticTask(InferAcousticTask &task) {
+    Q_D(InferController);
+    d->m_inferAcousticTasks.add(&task);
+    connect(&task, &InferAcousticTask::finished, this,
+            [d] { d->m_inferAcousticTasks.onCurrentFinished(); });
+}
+
+void InferController::cancelInferAcousticTask(int taskId) {
+    Q_D(InferController);
+    d->m_inferAcousticTasks.cancelIf(L_PRED(t, t->id() == taskId));
+}
+
 void InferControllerPrivate::onModuleStatusChanged(const AppStatus::ModuleType module,
                                                    const AppStatus::ModuleStatus status) {
     if (module == AppStatus::ModuleType::Language)
@@ -165,6 +189,7 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferPitchTasks.cancelIf(pred);
                 m_inferVarianceTasks.cancelIf(pred);
                 m_inferAcousticTasks.cancelIf(pred);
+
                 auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
                     return p->pieceId() == piece->id();
                 });
@@ -177,7 +202,12 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 auto pred = L_PRED(t, t->pieceId() == piece->id());
                 m_inferVarianceTasks.cancelIf(pred);
                 m_inferAcousticTasks.cancelIf(pred);
-                createAndRunInferVarianceTask(*piece);
+
+                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
+                    return p->pieceId() == piece->id();
+                });
+                Q_ASSERT(pipelines.size() == 1);
+                pipelines.first()->onPitchChanged();
             }
             break;
         case ParamInfo::Energy:
@@ -191,7 +221,12 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
             for (const auto &piece : dirtyPieces) {
                 auto pred = L_PRED(t, t->pieceId() == piece->id());
                 m_inferAcousticTasks.cancelIf(pred);
-                createAndRunInferAcousticTask(*piece);
+
+                auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
+                    return p->pieceId() == piece->id();
+                });
+                Q_ASSERT(pipelines.size() == 1);
+                pipelines.first()->onVarianceChanged();
             }
             break;
         case ParamInfo::Unknown:
@@ -270,29 +305,6 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
     delete &task;
 }
 
-void InferControllerPrivate::handleInferVarianceTaskFinished(InferVarianceTask &task) {
-    // runNextInferVarianceTask();
-    const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
-        delete &task;
-        return;
-    }
-
-    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
-    const auto piece = singingClip->findPieceById(task.pieceId());
-    if (!piece || !task.success()) {
-        delete &task;
-        return;
-    }
-    if (task.success()) {
-        Helper::updateVariance(task.result(), *piece);
-        createAndRunInferAcousticTask(*piece);
-    } else {
-        piece->acousticInferStatus = Failed;
-    }
-    delete &task;
-}
-
 void InferControllerPrivate::handleInferAcousticTaskFinished(InferAcousticTask &task) {
     // runNextInferAcousticTask();
     const auto clip = appModel->findClipById(task.clipId());
@@ -352,15 +364,6 @@ void InferControllerPrivate::createPipeline(InferPiece &piece) {
     auto pipeline = new InferPipeline(piece);
     m_inferPipelines.append(pipeline);
     pipeline->run();
-}
-
-void InferControllerPrivate::createAndRunInferVarianceTask(InferPiece &piece) {
-    const auto input = Helper::buildInferVarianceInput(piece, piece.clip->singerIdentifier());
-    Helper::resetVariance(piece);
-    auto task = new InferVarianceTask(input);
-    connect(task, &Task::finished, this, [task, this] { handleInferVarianceTaskFinished(*task); });
-    m_inferVarianceTasks.add(task);
-    piece.acousticInferStatus = Running;
 }
 
 void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
