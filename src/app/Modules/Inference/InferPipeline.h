@@ -10,6 +10,9 @@
 #include "Models/InferParamCurve.h"
 #include "Tasks/InferVarianceTask.h"
 
+#include "Global/PlaybackGlobal.h"
+#include "Global/AppOptionsGlobal.h"
+
 #include <QObject>
 #include <QStateMachine>
 
@@ -20,6 +23,7 @@ class InferPitchState;
 class UpdatePitchState;
 class InferVarianceState;
 class UpdateVarianceState;
+class AwaitingInferAcousticState;
 class InferAcousticState;
 class UpdateAcousticState;
 class QFinalState;
@@ -44,10 +48,17 @@ public:
     void setVarianceResult(const InferVarianceTask::InferVarianceResult &result);
 
 public slots:
-    // App model change signals
+    // User edited
     void onExpressivenessChanged();
     void onPitchChanged();
     void onVarianceChanged();
+
+private slots:
+    // Inference options changed
+    void onAppOptionsChanged(const AppOptionsGlobal::Option option);
+
+    // Playback state changed
+    void onPlaybackStatusChanged(const PlaybackGlobal::PlaybackStatus status);
 
 private:
     // Params
@@ -62,7 +73,7 @@ private:
     Q_SIGNAL void varianceStepsChanged();
     Q_SIGNAL void acousticStepsChanged();
     Q_SIGNAL void acousticDepthChanged();
-    Q_SIGNAL void lazyInferAcousticOn();
+    Q_SIGNAL void lazyInferAcousticTurnedOff();
 
     // Events
     Q_SIGNAL void pieceRemoved();
@@ -71,6 +82,10 @@ private:
 
     void initStates();
     void initTransitions();
+    void initDurationTransitions();
+    void initPitchTransitions();
+    void initVarianceTransitions();
+    void initAcousticTransitions();
 
     InferPiece &m_piece;
 
@@ -82,9 +97,10 @@ private:
     UpdatePitchState *updatePitchState{};
     InferVarianceState *inferVarianceState{};
     UpdateVarianceState *updateVarianceState{};
-    QState *awaitingPlaybackState{};
+    AwaitingInferAcousticState *awaitingInferAcousticState{};
     InferAcousticState *inferAcousticState{};
     UpdateAcousticState *updateAcousticState{};
+    QState *playbackReadyState{};
 
     QList<InferInputNote> m_durationResult;
     InferParamCurve m_pitchResult;

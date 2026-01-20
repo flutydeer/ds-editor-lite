@@ -16,7 +16,8 @@ public:
     explicit UpdateVarianceState(InferPipeline &pipeline, QState *parent = nullptr);
 
 signals:
-    void updateSuccess();
+    void updateSuccessWithLazyInference();
+    void updateSuccessWithImmediateInference();
     void pieceNotFound();
 
 private:

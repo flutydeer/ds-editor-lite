@@ -4,6 +4,7 @@
 
 #include "UpdateVarianceState.h"
 
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/InferPipeline.h"
 
@@ -20,7 +21,12 @@ void UpdateVarianceState::onEntry(QEvent *event) {
     auto &piece = m_pipeline.piece();
     piece.state = QString("Variance.Update");
     Helper::updateVariance(m_pipeline.varianceResult(), piece);
-    emit updateSuccess();
+
+    auto isLazy = !appOptions->inference()->autoStartInfer;
+    if (isLazy)
+        emit updateSuccessWithLazyInference();
+    else
+        emit updateSuccessWithImmediateInference();
 }
 
 void UpdateVarianceState::onExit(QEvent *event) {
