@@ -6,10 +6,14 @@
 
 #include "Modules/Inference/InferPipeline.h"
 #include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferController.h"
+#include "Model/AppModel/AppModel.h"
 
 #include <QTimer>
 #include <QDebug>
 #include <QFinalState>
+
+namespace Helper = InferControllerHelper;
 
 InferAcousticState::InferAcousticState(InferPipeline &pipeline, QState *parent)
     : QState(parent), m_pipeline(pipeline) {
@@ -30,12 +34,10 @@ InferAcousticState::InferAcousticState(InferPipeline &pipeline, QState *parent)
 
     m_runningInferenceState->addTransition(this, &InferAcousticState::taskSuccessWithModelLocked,
                                            m_awaitingModelReleaseState);
-    m_runningInferenceState->addTransition(this, &InferAcousticState::taskFailed, m_errorState);
-    m_runningInferenceState->addTransition(this, &InferAcousticState::moveToReadyState,
-                                           m_finalState);
+    m_runningInferenceState->addTransition(this, &InferAcousticState::failed, m_errorState);
+    m_runningInferenceState->addTransition(this, &InferAcousticState::ready, m_finalState);
 
-    m_awaitingModelReleaseState->addTransition(this, &InferAcousticState::moveToReadyState,
-                                               m_finalState);
+    m_awaitingModelReleaseState->addTransition(this, &InferAcousticState::ready, m_finalState);
 }
 
 void InferAcousticState::onEntry(QEvent *event) {
@@ -51,21 +53,52 @@ void InferAcousticState::onExit(QEvent *event) {
 void InferAcousticState::onRunningInferenceStateEntered() {
     qDebug() << "InferAcousticState::onRunningInferenceStateEntered";
 
+    if (taskId != -1) {
+        inferController->cancelInferAcousticTask(taskId);
+    }
+
     auto &piece = m_pipeline.piece();
     piece.acousticInferStatus = Running;
     piece.state = QString("Acoustic.Running");
-    QTimer::singleShot(1000, this, &InferAcousticState::taskFailed);
+    const auto input = Helper::buildInferAcousticInput(piece, piece.clip->singerIdentifier());
+    Helper::resetAcoustic(piece);
+    auto task = new InferAcousticTask(input);
+    connect(task, &Task::finished, this, [task, this] { handleTaskFinished(*task); });
+    inferController->addInferAcousticTask(*task);
+    taskId = task->id();
 }
 
 void InferAcousticState::onAwaitingModelReleaseStateEntered() {
     qDebug() << "InferAcousticState::onAwaitingModelReleaseStateEntered";
-    QTimer::singleShot(1000, this, &InferAcousticState::moveToReadyState);
 }
 
 void InferAcousticState::onErrorStateEntered() {
     qDebug() << "InferAcousticState::onErrorStateEntered";
-    
+
     auto &piece = m_pipeline.piece();
     piece.acousticInferStatus = Failed;
     piece.state = QString("Acoustic.Error");
+}
+
+void InferAcousticState::handleTaskFinished(InferAcousticTask &task) {
+    qDebug() << "InferAcousticState::handleTaskFinished";
+
+    const auto clip = appModel->findClipById(task.clipId());
+    if (task.terminated() || !clip) {
+        return;
+    }
+
+    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
+    const auto piece = singingClip->findPieceById(task.pieceId());
+    if (!piece) {
+        return;
+    }
+
+    if (task.success()) {
+        // TODO: 等待 AppModel 释放
+        m_pipeline.setAcousticResult(task.result());
+        emit ready();
+    } else {
+        emit failed();
+    }
 }

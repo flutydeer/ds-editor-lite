@@ -305,27 +305,6 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
     delete &task;
 }
 
-void InferControllerPrivate::handleInferAcousticTaskFinished(InferAcousticTask &task) {
-    // runNextInferAcousticTask();
-    const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
-        delete &task;
-        return;
-    }
-
-    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
-    const auto piece = singingClip->findPieceById(task.pieceId());
-    if (!piece) {
-        delete &task;
-        return;
-    }
-    if (task.success()) {
-        Helper::updateAcoustic(task.result(), *piece);
-    } else
-        piece->acousticInferStatus = Failed;
-    delete &task;
-}
-
 void InferControllerPrivate::recreateAllInferTasks() {
     for (const auto &track : appModel->tracks())
         for (const auto &clip : track->clips()) {
@@ -364,15 +343,6 @@ void InferControllerPrivate::createPipeline(InferPiece &piece) {
     auto pipeline = new InferPipeline(piece);
     m_inferPipelines.append(pipeline);
     pipeline->run();
-}
-
-void InferControllerPrivate::createAndRunInferAcousticTask(InferPiece &piece) {
-    const auto input = Helper::buildInderAcousticInput(piece, piece.clip->singerIdentifier());
-    Helper::resetAcoustic(piece);
-    auto task = new InferAcousticTask(input);
-    connect(task, &Task::finished, this, [task, this] { handleInferAcousticTaskFinished(*task); });
-    m_inferAcousticTasks.add(task);
-    piece.acousticInferStatus = Running;
 }
 
 void InferControllerPrivate::reset() {

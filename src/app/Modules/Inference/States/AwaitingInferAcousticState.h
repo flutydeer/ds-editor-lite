@@ -13,7 +13,8 @@ class AwaitingInferAcousticState : public QState {
     Q_OBJECT
 
 public:
-    AwaitingInferAcousticState(InferPipeline &pipeline, QState *parent = nullptr);
+    explicit AwaitingInferAcousticState(InferPipeline &pipeline, QState *parent = nullptr);
+    ~AwaitingInferAcousticState() override = default;
 
 private:
     void onEntry(QEvent *event) override;

@@ -13,6 +13,7 @@
 #include "States/AwaitingInferAcousticState.h"
 #include "States/InferAcousticState.h"
 #include "States/UpdateAcousticState.h"
+#include "States/PlaybackReadyState.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Controller/PlaybackController.h"
 
@@ -68,6 +69,14 @@ void InferPipeline::setVarianceResult(const InferVarianceTask::InferVarianceResu
     m_varianceResult = result;
 }
 
+[[nodiscard]] const QString &InferPipeline::acousticResult() const {
+    return m_acousticResult;
+}
+
+void InferPipeline::setAcousticResult(const QString &result) {
+    m_acousticResult = result;
+}
+
 void InferPipeline::onExpressivenessChanged() {
     emit expressivenessChanged();
 }
@@ -104,6 +113,7 @@ void InferPipeline::initStates() {
     awaitingInferAcousticState = new AwaitingInferAcousticState(*this);
     inferAcousticState = new InferAcousticState(*this);
     updateAcousticState = new UpdateAcousticState(*this);
+    playbackReadyState = new PlaybackReadyState(*this);
 
     stateMachine.addState(finalState);
     stateMachine.addState(inferDurationState);
@@ -115,6 +125,7 @@ void InferPipeline::initStates() {
     stateMachine.addState(awaitingInferAcousticState);
     stateMachine.addState(inferAcousticState);
     stateMachine.addState(updateAcousticState);
+    stateMachine.addState(playbackReadyState);
 
     stateMachine.setInitialState(inferDurationState);
 }
@@ -123,7 +134,9 @@ void InferPipeline::initTransitions() {
     initDurationTransitions();
     initPitchTransitions();
     initVarianceTransitions();
+    initAwaitingInferAcousticTransitions();
     initAcousticTransitions();
+    initPlaybackReadyTransitions();
 }
 
 void InferPipeline::initDurationTransitions() {
@@ -165,7 +178,7 @@ void InferPipeline::initVarianceTransitions() {
                                        finalState);
 }
 
-void InferPipeline::initAcousticTransitions() {
+void InferPipeline::initAwaitingInferAcousticTransitions() {
     awaitingInferAcousticState->addTransition(this, &InferPipeline::playbackStarted,
                                               inferAcousticState);
     awaitingInferAcousticState->addTransition(this, &InferPipeline::lazyInferAcousticTurnedOff,
@@ -177,7 +190,9 @@ void InferPipeline::initAcousticTransitions() {
                                               inferVarianceState);
     awaitingInferAcousticState->addTransition(this, &InferPipeline::varianceChanged,
                                               inferAcousticState);
+}
 
+void InferPipeline::initAcousticTransitions() {
     inferAcousticState->addTransition(inferAcousticState, &InferAcousticState::finished,
                                       updateAcousticState);
     inferAcousticState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
@@ -189,4 +204,13 @@ void InferPipeline::initAcousticTransitions() {
                                        playbackReadyState);
     updateAcousticState->addTransition(updateAcousticState, &UpdateAcousticState::pieceNotFound,
                                        finalState);
+}
+
+void InferPipeline::initPlaybackReadyTransitions() {
+    playbackReadyState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
+    playbackReadyState->addTransition(this, &InferPipeline::expressivenessChanged, inferPitchState);
+    playbackReadyState->addTransition(this, &InferPipeline::pitchChanged, inferVarianceState);
+
+    // TODO 重新设计状态，唱法更改应判断是转移到 InferAcousticState 还是 AwaitingInferAcousticState
+    playbackReadyState->addTransition(this, &InferPipeline::varianceChanged, inferAcousticState);
 }

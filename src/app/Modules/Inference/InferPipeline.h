@@ -26,6 +26,7 @@ class UpdateVarianceState;
 class AwaitingInferAcousticState;
 class InferAcousticState;
 class UpdateAcousticState;
+class PlaybackReadyState;
 class QFinalState;
 
 class InferPipeline : public QObject {
@@ -46,6 +47,9 @@ public:
 
     [[nodiscard]] const InferVarianceTask::InferVarianceResult &varianceResult() const;
     void setVarianceResult(const InferVarianceTask::InferVarianceResult &result);
+
+    [[nodiscard]] const QString &acousticResult() const;
+    void setAcousticResult(const QString &result);
 
 public slots:
     // User edited
@@ -85,7 +89,9 @@ private:
     void initDurationTransitions();
     void initPitchTransitions();
     void initVarianceTransitions();
+    void initAwaitingInferAcousticTransitions();
     void initAcousticTransitions();
+    void initPlaybackReadyTransitions();
 
     InferPiece &m_piece;
 
@@ -100,11 +106,12 @@ private:
     AwaitingInferAcousticState *awaitingInferAcousticState{};
     InferAcousticState *inferAcousticState{};
     UpdateAcousticState *updateAcousticState{};
-    QState *playbackReadyState{};
+    PlaybackReadyState *playbackReadyState{};
 
     QList<InferInputNote> m_durationResult;
     InferParamCurve m_pitchResult;
     InferVarianceTask::InferVarianceResult m_varianceResult;
+    QString m_acousticResult;
 };
 
 #endif // DS_EDITOR_LITE_INFERPIPELINE_H

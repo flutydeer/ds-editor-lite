@@ -49,7 +49,6 @@ public:
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
     void handleGetPronTaskFinished(GetPronunciationTask &task);
     void handleGetPhoneTaskFinished(GetPhonemeNameTask &task);
-    void handleInferAcousticTaskFinished(InferAcousticTask &task);
 
     static void recreateAllInferTasks();
 
@@ -57,7 +56,6 @@ public:
     void createAndRunGetPhoneTask(const SingingClip &clip);
 
     void createPipeline(InferPiece &piece);
-    void createAndRunInferAcousticTask(InferPiece &piece);
 
     void reset();
 

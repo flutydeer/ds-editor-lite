@@ -93,7 +93,7 @@ namespace InferControllerHelper {
         return input;
     }
 
-    AcousticInput buildInderAcousticInput(const InferPiece &piece,
+    AcousticInput buildInferAcousticInput(const InferPiece &piece,
                                           const SingerIdentifier &identifier) {
         InferParamCurve pitch;
         for (const auto &value : piece.inputPitch.values())

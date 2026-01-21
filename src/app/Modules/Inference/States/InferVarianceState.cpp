@@ -14,7 +14,7 @@
 #include <QDebug>
 #include <QFinalState>
 
-    namespace Helper = InferControllerHelper;
+namespace Helper = InferControllerHelper;
 
 InferVarianceState::InferVarianceState(InferPipeline &pipeline, QState *parent)
     : QState(parent), m_pipeline(pipeline) {
