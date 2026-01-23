@@ -16,6 +16,7 @@
 #include "States/PlaybackReadyState.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Controller/PlaybackController.h"
+#include "Utils/ConditionalTransition.h"
 
 #include <QFinalState>
 
@@ -188,8 +189,11 @@ void InferPipeline::initAwaitingInferAcousticTransitions() {
                                               inferPitchState);
     awaitingInferAcousticState->addTransition(this, &InferPipeline::pitchChanged,
                                               inferVarianceState);
-    awaitingInferAcousticState->addTransition(this, &InferPipeline::varianceChanged,
-                                              inferAcousticState);
+
+    // auto transition = new ConditionalTransition(this, SIGNAL(varianceChanged()));
+    // transition->setGuardCondition([]() { return appOptions->inference()->autoStartInfer; });
+    // transition->setTargetState(inferAcousticState);
+    // awaitingInferAcousticState->addTransition(transition);
 }
 
 void InferPipeline::initAcousticTransitions() {
@@ -211,6 +215,14 @@ void InferPipeline::initPlaybackReadyTransitions() {
     playbackReadyState->addTransition(this, &InferPipeline::expressivenessChanged, inferPitchState);
     playbackReadyState->addTransition(this, &InferPipeline::pitchChanged, inferVarianceState);
 
-    // TODO 重新设计状态，唱法更改应判断是转移到 InferAcousticState 还是 AwaitingInferAcousticState
-    playbackReadyState->addTransition(this, &InferPipeline::varianceChanged, inferAcousticState);
+    auto immediateTransition = new ConditionalTransition(this, SIGNAL(varianceChanged()));
+    immediateTransition->setTargetState(inferAcousticState);
+    immediateTransition->setGuardCondition(
+        []() { return appOptions->inference()->autoStartInfer; });
+    playbackReadyState->addTransition(immediateTransition);
+
+    auto lazyTransition = new ConditionalTransition(this, SIGNAL(varianceChanged()));
+    lazyTransition->setTargetState(awaitingInferAcousticState);
+    lazyTransition->setGuardCondition([]() { return !appOptions->inference()->autoStartInfer; });
+    playbackReadyState->addTransition(lazyTransition);
 }
