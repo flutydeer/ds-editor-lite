@@ -136,6 +136,14 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipRemoved(clip);
     cancelClipRelatedTasks(clip);
+    // Remove related pipelines
+    auto pipelines = Linq::where(m_inferPipelines, [clip](const InferPipeline *p) {
+        return p->piece().clipId() == clip->id();
+    });
+    for (const auto &pipeline : pipelines) {
+        m_inferPipelines.removeOne(pipeline);
+        delete pipeline;
+    }
 }
 
 void InferControllerPrivate::handlePiecesChanged(const PieceList &newPieces,
