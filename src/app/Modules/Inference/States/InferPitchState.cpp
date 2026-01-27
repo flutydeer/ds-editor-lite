@@ -26,6 +26,8 @@ InferPitchState::InferPitchState(InferPipeline &pipeline, QState *parent)
 
     connect(m_runningInferenceState, &QState::entered, this,
             &InferPitchState::onRunningInferenceStateEntered);
+    connect(m_runningInferenceState, &QState::exited, this,
+            &InferPitchState::onRunningInferenceStateExited);
 
     connect(m_awaitingModelReleaseState, &QState::entered, this,
             &InferPitchState::onAwaitingModelReleaseStateEntered);
@@ -49,11 +51,26 @@ void InferPitchState::onExit(QEvent *event) {
     QState::onExit(event);
 }
 
+void InferPitchState::onRunningInferenceStateExited() {
+    qDebug() << "InferPitchState::onRunningInferenceStateExited";
+    if (!currentTask)
+        return;
+
+    inferController->cancelInferPitchTask(currentTask->id());
+    // TODO: BUG 任务未完成时直接删除会引起崩溃
+    // delete currentTask;
+    currentTask = nullptr;
+}
+
 void InferPitchState::onRunningInferenceStateEntered() {
     qDebug() << "InferPitchState::onRunningInferenceStateEntered";
-
-    if (taskId != -1)
-        inferController->cancelInferPitchTask(taskId);
+    // Reset task
+    if (currentTask) {
+        inferController->cancelInferPitchTask(currentTask->id());
+        // TODO: BUG 任务未完成时直接删除会引起崩溃
+        // delete currentTask;
+        currentTask = nullptr;
+    }
 
     auto &piece = m_pipeline.piece();
     piece.acousticInferStatus = Running;
@@ -61,9 +78,9 @@ void InferPitchState::onRunningInferenceStateEntered() {
     const auto input = Helper::buildInferPitchInput(piece, piece.clip->singerIdentifier());
     Helper::resetPitch(piece);
     auto task = new InferPitchTask(input);
-    connect(task, &Task::finished, this, [task, this] { handleTaskFinished(*task); });
+    connect(task, &Task::finished, this, [this, task] { handleTaskFinished(*task); });
     inferController->addInferPitchTask(*task);
-    taskId = task->id();
+    currentTask = task;
 }
 
 void InferPitchState::onAwaitingModelReleaseStateEntered() {
@@ -78,6 +95,8 @@ void InferPitchState::onErrorStateEntered() {
 }
 
 void InferPitchState::handleTaskFinished(InferPitchTask &task) {
+    inferController->finishCurrentInferPitchTask();
+
     const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
         return;

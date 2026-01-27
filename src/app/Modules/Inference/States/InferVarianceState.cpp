@@ -27,6 +27,8 @@ InferVarianceState::InferVarianceState(InferPipeline &pipeline, QState *parent)
 
     connect(m_runningInferenceState, &QState::entered, this,
             &InferVarianceState::onRunningInferenceStateEntered);
+    connect(m_runningInferenceState, &QState::exited, this,
+            &InferVarianceState::onRunningInferenceStateExited);
 
     connect(m_awaitingModelReleaseState, &QState::entered, this,
             &InferVarianceState::onAwaitingModelReleaseStateEntered);
@@ -48,15 +50,28 @@ void InferVarianceState::onEntry(QEvent *event) {
 
 void InferVarianceState::onExit(QEvent *event) {
     qDebug() << "InferVarianceState::onExit";
-    // TODO: clean current task
     QState::onExit(event);
+}
+
+void InferVarianceState::onRunningInferenceStateExited() {
+    qDebug() << "InferVarianceState::onRunningInferenceStateExited";
+    if (!currentTask)
+        return;
+
+    inferController->cancelInferVarianceTask(currentTask->id());
+    // TODO: BUG 任务未完成时直接删除会引起崩溃
+    // delete currentTask;
+    currentTask = nullptr;
 }
 
 void InferVarianceState::onRunningInferenceStateEntered() {
     qDebug() << "InferVarianceState::onRunningInferenceStateEntered";
-
-    if (taskId != -1) {
-        inferController->cancelInferVarianceTask(taskId);
+    // Reset task
+    if (currentTask) {
+        inferController->cancelInferVarianceTask(currentTask->id());
+        // TODO: BUG 任务未完成时直接删除会引起崩溃
+        // delete currentTask;
+        currentTask = nullptr;
     }
 
     auto &piece = m_pipeline.piece();
@@ -65,9 +80,9 @@ void InferVarianceState::onRunningInferenceStateEntered() {
     const auto input = Helper::buildInferVarianceInput(piece, piece.clip->singerIdentifier());
     Helper::resetVariance(piece);
     auto task = new InferVarianceTask(input);
-    connect(task, &Task::finished, this, [task, this] { handleTaskFinished(*task); });
+    connect(task, &Task::finished, this, [this, task] { handleTaskFinished(*task); });
     inferController->addInferVarianceTask(*task);
-    taskId = task->id();
+    currentTask = task;
 }
 
 void InferVarianceState::onAwaitingModelReleaseStateEntered() {
@@ -83,7 +98,7 @@ void InferVarianceState::onErrorStateEntered() {
 }
 
 void InferVarianceState::handleTaskFinished(InferVarianceTask &task) {
-    qDebug() << "InferVarianceState::handleTaskFinished";
+    inferController->finishCurrentInferVarianceTask();
 
     const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {

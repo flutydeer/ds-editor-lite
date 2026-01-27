@@ -69,6 +69,9 @@ void TaskQueue<T>::cancelIf(std::function<bool(T *task)> pred) {
         taskManager->terminateTask(current);
         qDebug() << "Terminate current task: "
                  << "taskId:" << current->id();
+
+        current = nullptr;
+        runNext();
     }
 }
 
@@ -83,7 +86,7 @@ void TaskQueue<T>::onCurrentFinished() {
     current->disconnect();
     taskManager->removeTask(current);
     current = nullptr;
-    
+
     // Automatically run the next task in the queue
     runNext();
 }
@@ -95,7 +98,6 @@ void TaskQueue<T>::disposePendingTask(T *task) {
     taskManager->removeTask(task);
     task->disconnect();
     pending.remove(task);
-    delete task;
 }
 
 #endif // TASKQUEUE_H

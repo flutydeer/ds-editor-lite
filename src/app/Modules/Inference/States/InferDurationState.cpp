@@ -28,6 +28,8 @@ InferDurationState::InferDurationState(InferPipeline &pipeline, QState *parent)
 
     connect(m_runningInferenceState, &QState::entered, this,
             &InferDurationState::onRunningInferenceStateEntered);
+    connect(m_runningInferenceState, &QState::exited, this,
+            &InferDurationState::onRunningInferenceStateExited);
 
     connect(m_awaitingModelReleaseState, &QState::entered, this,
             &InferDurationState::onAwaitingModelReleaseStateEntered);
@@ -55,8 +57,12 @@ void InferDurationState::onExit(QEvent *event) {
 void InferDurationState::onRunningInferenceStateEntered() {
     qDebug() << "InferDurationState::onRunningInferenceStateEntered";
     // Reset task
-    if (taskId != -1)
-        inferController->cancelInferDurationTask(taskId);
+    if (currentTask) {
+        inferController->cancelInferDurationTask(currentTask->id());
+        // TODO: BUG 任务未完成时直接删除会引起崩溃
+        // delete currentTask;
+        currentTask = nullptr;
+    }
 
     auto &piece = m_pipeline.piece();
     piece.acousticInferStatus = Running;
@@ -66,7 +72,18 @@ void InferDurationState::onRunningInferenceStateEntered() {
     auto task = new InferDurationTask(input);
     connect(task, &Task::finished, this, [this, task] { handleTaskFinished(*task); });
     inferController->addInferDurationTask(*task);
-    taskId = task->id();
+    currentTask = task;
+}
+
+void InferDurationState::onRunningInferenceStateExited() {
+    qDebug() << "InferDurationState::onRunningInferenceStateExited";
+    if (!currentTask)
+        return;
+
+    inferController->cancelInferDurationTask(currentTask->id());
+    // TODO: BUG 任务未完成时直接删除会引起崩溃
+    // delete currentTask;
+    currentTask = nullptr;
 }
 
 void InferDurationState::onAwaitingModelReleaseStateEntered() {
@@ -81,6 +98,8 @@ void InferDurationState::onErrorStateEntered() {
 }
 
 void InferDurationState::handleTaskFinished(InferDurationTask &task) {
+    inferController->finishCurrentInferDurationTask();
+
     const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
         return;

@@ -26,6 +26,8 @@ InferAcousticState::InferAcousticState(InferPipeline &pipeline, QState *parent)
 
     connect(m_runningInferenceState, &QState::entered, this,
             &InferAcousticState::onRunningInferenceStateEntered);
+    connect(m_runningInferenceState, &QState::exited, this,
+            &InferAcousticState::onRunningInferenceStateExited);
 
     connect(m_awaitingModelReleaseState, &QState::entered, this,
             &InferAcousticState::onAwaitingModelReleaseStateEntered);
@@ -50,11 +52,25 @@ void InferAcousticState::onExit(QEvent *event) {
     QState::onExit(event);
 }
 
+void InferAcousticState::onRunningInferenceStateExited() {
+    qDebug() << "InferAcousticState::onRunningInferenceStateExited";
+    if (!currentTask)
+        return;
+
+    inferController->cancelInferAcousticTask(currentTask->id());
+    // TODO: BUG 任务未完成时直接删除会引起崩溃
+    // delete currentTask;
+    currentTask = nullptr;
+}
+
 void InferAcousticState::onRunningInferenceStateEntered() {
     qDebug() << "InferAcousticState::onRunningInferenceStateEntered";
-
-    if (taskId != -1) {
-        inferController->cancelInferAcousticTask(taskId);
+    // Reset task
+    if (currentTask) {
+        inferController->cancelInferAcousticTask(currentTask->id());
+        // TODO: BUG 任务未完成时直接删除会引起崩溃
+        // delete currentTask;
+        currentTask = nullptr;
     }
 
     auto &piece = m_pipeline.piece();
@@ -63,9 +79,9 @@ void InferAcousticState::onRunningInferenceStateEntered() {
     const auto input = Helper::buildInferAcousticInput(piece, piece.clip->singerIdentifier());
     Helper::resetAcoustic(piece);
     auto task = new InferAcousticTask(input);
-    connect(task, &Task::finished, this, [task, this] { handleTaskFinished(*task); });
+    connect(task, &Task::finished, this, [this, task] { handleTaskFinished(*task); });
     inferController->addInferAcousticTask(*task);
-    taskId = task->id();
+    currentTask = task;
 }
 
 void InferAcousticState::onAwaitingModelReleaseStateEntered() {
@@ -81,7 +97,7 @@ void InferAcousticState::onErrorStateEntered() {
 }
 
 void InferAcousticState::handleTaskFinished(InferAcousticTask &task) {
-    qDebug() << "InferAcousticState::handleTaskFinished";
+    inferController->finishCurrentInferAcousticTask();
 
     const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {

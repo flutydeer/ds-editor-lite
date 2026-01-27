@@ -25,17 +25,21 @@ public:
     LITE_SINGLETON_DECLARE_INSTANCE(InferController)
     Q_DISABLE_COPY_MOVE(InferController)
 
-    void addInferDurationTask(InferDurationTask& task);
+    void addInferDurationTask(InferDurationTask &task);
     void cancelInferDurationTask(int taskId);
+    void finishCurrentInferDurationTask();
 
-    void addInferPitchTask(InferPitchTask& task);
+    void addInferPitchTask(InferPitchTask &task);
     void cancelInferPitchTask(int taskId);
+    void finishCurrentInferPitchTask();
 
-    void addInferVarianceTask(InferVarianceTask& task);
+    void addInferVarianceTask(InferVarianceTask &task);
     void cancelInferVarianceTask(int taskId);
+    void finishCurrentInferVarianceTask();
 
-    void addInferAcousticTask(InferAcousticTask& task);
+    void addInferAcousticTask(InferAcousticTask &task);
     void cancelInferAcousticTask(int taskId);
+    void finishCurrentInferAcousticTask();
 
 private:
     explicit InferController(QObject *parent = nullptr);

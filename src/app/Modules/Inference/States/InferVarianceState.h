@@ -27,12 +27,13 @@ private:
     Q_SIGNAL void ready();
 
     void onRunningInferenceStateEntered();
+    void onRunningInferenceStateExited();
     void onAwaitingModelReleaseStateEntered();
     void onErrorStateEntered();
     void handleTaskFinished(InferVarianceTask &task);
 
     InferPipeline &m_pipeline;
-    int taskId = -1;
+    InferVarianceTask *currentTask = nullptr;
 
     // Child states
     QState *m_runningInferenceState;
