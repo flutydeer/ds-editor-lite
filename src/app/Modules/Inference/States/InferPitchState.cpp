@@ -56,9 +56,8 @@ void InferPitchState::onRunningInferenceStateExited() {
     if (!currentTask)
         return;
 
+    currentTask->disconnect(this);  // Disconnect from state machine
     inferController->cancelInferPitchTask(currentTask->id());
-    // TODO: BUG 任务未完成时直接删除会引起崩溃
-    // delete currentTask;
     currentTask = nullptr;
 }
 
@@ -66,9 +65,8 @@ void InferPitchState::onRunningInferenceStateEntered() {
     qDebug() << "InferPitchState::onRunningInferenceStateEntered";
     // Reset task
     if (currentTask) {
+        currentTask->disconnect(this);  // Disconnect from state machine
         inferController->cancelInferPitchTask(currentTask->id());
-        // TODO: BUG 任务未完成时直接删除会引起崩溃
-        // delete currentTask;
         currentTask = nullptr;
     }
 
@@ -95,18 +93,31 @@ void InferPitchState::onErrorStateEntered() {
 }
 
 void InferPitchState::handleTaskFinished(InferPitchTask &task) {
+    // Only handle tasks that are still connected to this state machine
+    if (!currentTask || currentTask != &task) {
+        qDebug() << "Ignoring finished task that is no longer current";
+        return;
+    }
+
     inferController->finishCurrentInferPitchTask();
 
     const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
+        qDebug() << "Task terminated or clip not found, cleaning up";
+        delete currentTask;
+        currentTask = nullptr;
         return;
     }
 
     const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
     const auto piece = singingClip->findPieceById(task.pieceId());
     if (!piece) {
+        qDebug() << "Piece not found, cleaning up";
+        delete currentTask;
+        currentTask = nullptr;
         return;
     }
+
     if (task.success()) {
         // TODO: 等待 AppModel 释放
         m_pipeline.setPitchResult(task.result());
@@ -114,4 +125,8 @@ void InferPitchState::handleTaskFinished(InferPitchTask &task) {
     } else {
         emit failed();
     }
+
+    // Clean up the task after handling
+    delete currentTask;
+    currentTask = nullptr;
 }

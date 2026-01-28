@@ -6,6 +6,7 @@
 #define TASKQUEUE_H
 
 #include "TaskManager.h"
+#include "Task.h"
 #include "Utils/Linq.h"
 #include "Utils/Queue.h"
 
@@ -66,9 +67,18 @@ void TaskQueue<T>::cancelIf(std::function<bool(T *task)> pred) {
         disposePendingTask(task);
     }
     if (current && pred(current)) {
-        taskManager->terminateTask(current);
-        qDebug() << "Terminate current task: "
-                 << "taskId:" << current->id();
+        // Save current task to local variable for lambda capture
+        T *taskToCancel = current;
+        
+        // Connect task finished signal for safe cleanup
+        QObject::connect(taskToCancel, &Task::finished, taskToCancel, [taskToCancel]() {
+            qDebug() << "Cancelled task finished, safe cleanup: taskId:" << taskToCancel->id();
+            taskManager->removeTask(taskToCancel);
+            taskToCancel->deleteLater();
+        }, Qt::QueuedConnection);
+        
+        taskManager->terminateTask(taskToCancel);
+        qDebug() << "Terminate current task and wait for cleanup: taskId:" << taskToCancel->id();
 
         current = nullptr;
         runNext();

@@ -58,9 +58,8 @@ void InferDurationState::onRunningInferenceStateEntered() {
     qDebug() << "InferDurationState::onRunningInferenceStateEntered";
     // Reset task
     if (currentTask) {
+        currentTask->disconnect(this);  // Disconnect from state machine
         inferController->cancelInferDurationTask(currentTask->id());
-        // TODO: BUG 任务未完成时直接删除会引起崩溃
-        // delete currentTask;
         currentTask = nullptr;
     }
 
@@ -80,9 +79,8 @@ void InferDurationState::onRunningInferenceStateExited() {
     if (!currentTask)
         return;
 
+    currentTask->disconnect(this);  // Disconnect from state machine
     inferController->cancelInferDurationTask(currentTask->id());
-    // TODO: BUG 任务未完成时直接删除会引起崩溃
-    // delete currentTask;
     currentTask = nullptr;
 }
 
@@ -98,16 +96,28 @@ void InferDurationState::onErrorStateEntered() {
 }
 
 void InferDurationState::handleTaskFinished(InferDurationTask &task) {
+    // Only handle tasks that are still connected to this state machine
+    if (!currentTask || currentTask != &task) {
+        qDebug() << "Ignoring finished task that is no longer current";
+        return;
+    }
+
     inferController->finishCurrentInferDurationTask();
 
     const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
+        qDebug() << "Task terminated or clip not found, cleaning up";
+        delete currentTask;
+        currentTask = nullptr;
         return;
     }
 
     const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
     const auto piece = singingClip->findPieceById(task.pieceId());
     if (!piece) {
+        qDebug() << "Piece not found, cleaning up";
+        delete currentTask;
+        currentTask = nullptr;
         return;
     }
 
@@ -119,11 +129,16 @@ void InferDurationState::handleTaskFinished(InferDurationTask &task) {
                      << "Model note count:" << modelNoteCount
                      << "Task note count:" << taskNoteCount;
             emit failed();
-            return;
+        } else {
+            // TODO: 等待 AppModel 释放
+            m_pipeline.setDurationResult(task.result());
+            emit ready();
         }
-        // TODO: 等待 AppModel 释放
-        m_pipeline.setDurationResult(task.result());
-        emit ready();
-    } else
+    } else {
         emit failed();
+    }
+
+    // Clean up the task after handling
+    delete currentTask;
+    currentTask = nullptr;
 }
