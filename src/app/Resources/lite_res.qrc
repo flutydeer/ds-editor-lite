@@ -110,5 +110,7 @@
 
         <file>translate/translation_zh_CN.qm</file>
 
+        <file>fonts/Sarasa-UI-Music-Regular.ttf</file>
+
     </qresource>
 </RCC>

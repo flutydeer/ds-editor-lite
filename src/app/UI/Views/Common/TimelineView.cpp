@@ -8,6 +8,7 @@
 #include <QWheelEvent>
 
 #include "Controller/PlaybackController.h"
+#include "Utils/FontManager.h"
 #include "Model/AppModel/LoopSettings.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -353,12 +354,23 @@ double TimelineView::xToTick(double x) const {
 
 void TimelineView::cacheText(const QString &type, const QString &text, const QPainter &painter) {
     // qDebug() << "cacheText:" << text;
-    const QSize textSize = painter.fontMetrics().size(Qt::TextSingleLine, text);
+
+    // Use music font for bar and beat numbers
+    QFont font;
+    if (type == "Bar" || type == "Beat") {
+        font = FontManager::instance().musicUIFont(13);
+    } else {
+        font = painter.font();
+    }
+
+    const QFontMetrics fontMetrics(font);
+    const QSize textSize = fontMetrics.size(Qt::TextSingleLine, text);
     QPixmap pixmap(textSize * painter.device()->devicePixelRatio());
     pixmap.setDevicePixelRatio(painter.device()->devicePixelRatio());
     pixmap.fill(Qt::transparent);
 
     QPainter cachePainter(&pixmap);
+    cachePainter.setFont(font);
     cachePainter.setPen(painter.pen());
     cachePainter.drawText(pixmap.rect(), text);
 
