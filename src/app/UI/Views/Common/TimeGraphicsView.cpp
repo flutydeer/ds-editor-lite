@@ -479,6 +479,10 @@ void TimeGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         int barWidth = 14;
         auto value0 = m_mouseDownBarValue;
         auto max = m_mouseDownBarMax;
+        if (max <= 0) {
+            QGraphicsView::mouseMoveEvent(event);
+            return;
+        }
         auto ratio = 1.0 * value0 / max;
         if (m_draggingScrollbarType == Qt::Horizontal) {
             auto step = horizontalScrollBar()->pageStep();
