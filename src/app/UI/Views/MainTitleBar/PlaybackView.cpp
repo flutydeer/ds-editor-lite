@@ -13,6 +13,7 @@
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"
+#include "Utils/FontManager.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -20,15 +21,21 @@
 
 PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
+
+    // Apply music font to time-related UI elements
+    const QFont musicFont = FontManager::instance().musicUIFont(13);
+
     m_elTempo = new EditLabel;
     m_elTempo->setObjectName("elTempo");
     m_elTempo->setText(QString::number(m_tempo));
     m_elTempo->label->setAlignment(Qt::AlignCenter);
+    m_elTempo->label->setFont(musicFont);
 
     m_elTimeSignature = new EditLabel;
     m_elTimeSignature->setObjectName("elTimeSignature");
     m_elTimeSignature->label->setAlignment(Qt::AlignCenter);
     m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
+    m_elTimeSignature->label->setFont(musicFont);
 
     m_btnStop = new QPushButton;
     m_btnStop->setObjectName("btnStop");
@@ -85,6 +92,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTime->setObjectName("elTime");
     m_elTime->label->setAlignment(Qt::AlignCenter);
     m_elTime->setText(toFormattedTickTime(m_tick));
+    m_elTime->label->setFont(musicFont);
 
     connect(m_elTempo, &EditLabel::editCompleted, this, [this](const QString &value) {
         auto tempo = value.toDouble();
@@ -151,6 +159,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_cbQuantize = new ComboBox(true);
     m_cbQuantize->addItems(quantizeStrings);
     m_cbQuantize->setCurrentIndex(3);
+    m_cbQuantize->setFont(musicFont);
 
     connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [this](int index) {
         auto value = quantizeValues.at(index);
