@@ -18,6 +18,7 @@
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Window/TaskWindow.h"
+#include "Utils/FontManager.h"
 #include "Utils/Log.h"
 #include "Utils/SystemUtils.h"
 
@@ -124,6 +125,9 @@ int main(int argc, char *argv[]) {
     f.setHintingPreference(QFont::PreferNoHinting);
     f.setPixelSize(13);
     QApplication::setFont(f);
+
+    // Initialize FontManager to load custom fonts early
+    FontManager::instance();
 
     QTranslator translator;
     if (translator.load(":translate/translation_zh_CN.qm"))
