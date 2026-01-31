@@ -17,6 +17,7 @@ public:
     void removeTracks(const QList<Track *> &tracks, AppModel *model);
     void editTrackProperties(const Track::TrackProperties &oldArgs,
                              const Track::TrackProperties &newArgs, Track *track);
+    void moveTrack(qsizetype fromIndex, qsizetype toIndex, AppModel *model);
 };
 
 

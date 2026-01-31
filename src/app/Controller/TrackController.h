@@ -41,6 +41,7 @@ public slots:
     static void onInsertNewTrack(qsizetype index);
     static void onAppendTrack(Track *track);
     static void onRemoveTrack(int id);
+    static void onMoveTrack(qsizetype fromIndex, qsizetype toIndex);
     static void addAudioClipToNewTrack(const QString &filePath);
     static void setActiveClip(int clipId);
     static void changeTrackProperty(const Track::TrackProperties &args);

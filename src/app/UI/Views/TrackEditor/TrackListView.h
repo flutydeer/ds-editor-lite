@@ -15,12 +15,20 @@ public:
     explicit TrackListView(QWidget *parent = nullptr);
     void setGraphicsView(TracksGraphicsView *view);
 
-private:
+protected:
     void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
+    void startDrag(Qt::DropActions supportedActions) override;
+
+private:
+    bool isInDragArea(const QPoint &pos) const;
+
     TracksGraphicsView *m_view = nullptr;
+    int m_scrollPosBeforeDrag = 0;
+    bool m_canStartDrag = false;
 };
-
-
 
 #endif // TRACKLISTWIDGET_H

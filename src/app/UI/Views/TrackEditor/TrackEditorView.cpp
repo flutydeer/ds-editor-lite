@@ -93,7 +93,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeline,
             &TimelineView::setTimeRange);
     connect(gBar, &QScrollBar::valueChanged, lBar, &QScrollBar::setValue);
-    // connect(lBar, &QScrollBar::valueChanged, gBar, &QScrollBar::setValue);
+    connect(lBar, &QScrollBar::valueChanged, gBar, &QScrollBar::setValue);
 
     connect(playbackController, &PlaybackController::positionChanged, this,
             &TrackEditorView::onPositionChanged);
