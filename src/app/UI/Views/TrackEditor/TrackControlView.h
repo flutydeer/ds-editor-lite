@@ -41,6 +41,7 @@ public:
     void setNarrowMode(bool on) const;
     void setLanguage(const QString &language) const;
     [[nodiscard]] LevelMeter *levelMeter() const;
+    [[nodiscard]] bool isInDragArea(const QPoint &pos) const;
 
     [[nodiscard]] QColor color() const override {
         return {};

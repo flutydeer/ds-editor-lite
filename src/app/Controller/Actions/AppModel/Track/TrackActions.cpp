@@ -7,6 +7,7 @@
 #include "AppendTrackAction.h"
 #include "EditTrackPropertiesAction.h"
 #include "InsertTrackAction.h"
+#include "MoveTrackAction.h"
 #include "RemoveTrackAction.h"
 
 void TrackActions::appendTracks(const QList<Track *> &tracks, AppModel *model) {
@@ -26,4 +27,8 @@ void TrackActions::removeTracks(const QList<Track *> &tracks, AppModel *model) {
 void TrackActions::editTrackProperties(const Track::TrackProperties &oldArgs,
                                        const Track::TrackProperties &newArgs, Track *track) {
     addAction(EditTrackPropertiesAction::build(oldArgs, newArgs, track));
+}
+
+void TrackActions::moveTrack(const qsizetype fromIndex, const qsizetype toIndex, AppModel *model) {
+    addAction(MoveTrackAction::build(fromIndex, toIndex, model));
 }

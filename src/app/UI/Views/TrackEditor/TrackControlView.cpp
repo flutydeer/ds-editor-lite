@@ -33,6 +33,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     lbTrackIndex = new QLabel("1");
     lbTrackIndex->setObjectName("lbTrackIndex");
     lbTrackIndex->setAlignment(Qt::AlignCenter);
+    lbTrackIndex->setCursor(Qt::OpenHandCursor);
 
     btnMute = new Button("M");
     btnMute->setObjectName("btnMute");
@@ -186,6 +187,12 @@ void TrackControlView::setLanguage(const QString &language) const {
 
 LevelMeter *TrackControlView::levelMeter() const {
     return m_levelMeter;
+}
+
+bool TrackControlView::isInDragArea(const QPoint &pos) const {
+    // Check if the position is within the track index label area
+    const QRect indexRect = lbTrackIndex->geometry();
+    return indexRect.contains(pos);
 }
 
 void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {

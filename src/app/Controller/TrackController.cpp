@@ -86,6 +86,16 @@ void TrackController::onRemoveTrack(const int id) {
     historyManager->record(a);
 }
 
+void TrackController::onMoveTrack(const qsizetype fromIndex, const qsizetype toIndex) {
+    if (fromIndex == toIndex)
+        return;
+
+    const auto a = new TrackActions;
+    a->moveTrack(fromIndex, toIndex, appModel);
+    a->execute();
+    historyManager->record(a);
+}
+
 void TrackController::addAudioClipToNewTrack(const QString &filePath) {
     const auto audioClip = new AudioClip;
     audioClip->setPath(filePath);
