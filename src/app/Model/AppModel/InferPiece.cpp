@@ -10,6 +10,7 @@
 
 InferPiece::InferPiece(SingingClip *clip) : QObject(clip), clip(clip) {
     acousticInferStatus.onChanged(qSignalCallback(statusChanged));
+    state.onChanged(qSignalCallback(stateChanged));
 }
 
 int InferPiece::clipId() const {

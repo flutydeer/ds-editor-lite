@@ -23,7 +23,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
 
     auto firstNote = notes.first();
     if (firstNote.isSlur)
-        qFatal() << "分段第一个音符不能为转音";
+        qFatal() << "First note of a segment cannot be a slur.";
 
     // 如果第一个音符不是休止符，则填充 SP 音符，长度为 paddingStartMs
     if (!firstNote.isRest) {

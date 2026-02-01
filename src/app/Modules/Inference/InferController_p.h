@@ -16,9 +16,12 @@
 #include "Global/PlaybackGlobal.h"
 #include "Global/AppOptionsGlobal.h"
 
+#include <QList>
+
 class GetPronunciationTask;
 class GetPhonemeNameTask;
 class InferController;
+class InferPipeline;
 
 class InferControllerPrivate final : public ModelChangeHandler {
     Q_OBJECT
@@ -46,20 +49,13 @@ public:
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
     void handleGetPronTaskFinished(GetPronunciationTask &task);
     void handleGetPhoneTaskFinished(GetPhonemeNameTask &task);
-    void handleInferDurTaskFinished(InferDurationTask &task);
-    void handleInferPitchTaskFinished(InferPitchTask &task);
-    void handleInferVarianceTaskFinished(InferVarianceTask &task);
-    void handleInferAcousticTaskFinished(InferAcousticTask &task);
 
     static void recreateAllInferTasks();
 
     void createAndRunGetPronTask(const SingingClip &clip);
     void createAndRunGetPhoneTask(const SingingClip &clip);
 
-    void createAndRunInferDurTask(InferPiece &piece);
-    void createAndRunInferPitchTask(InferPiece &piece);
-    void createAndRunInferVarianceTask(InferPiece &piece);
-    void createAndRunInferAcousticTask(InferPiece &piece);
+    void createPipeline(InferPiece &piece);
 
     void reset();
 
@@ -67,15 +63,6 @@ public:
 
     void cancelClipRelatedTasks(const SingingClip *clip);
     void cancelPieceRelatedTasks(int pieceId);
-
-    void runNextGetPronTask();
-    void runNextGetPhoneTask();
-    void runNextInferDurTask();
-    void runNextInferPitchTask();
-    void runNextInferVarianceTask();
-    void runNextInferAcousticTask();
-
-    void runInferAcousticIfNeeded();
 
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
@@ -85,6 +72,8 @@ public:
     TaskQueue<InferPitchTask> m_inferPitchTasks;
     TaskQueue<InferVarianceTask> m_inferVarianceTasks;
     TaskQueue<InferAcousticTask> m_inferAcousticTasks;
+
+    QList<InferPipeline *> m_inferPipelines;
 
     bool m_autoStartAcousticInfer = true;
 

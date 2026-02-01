@@ -6,8 +6,11 @@
 #define TASKQUEUE_H
 
 #include "TaskManager.h"
+#include "Task.h"
 #include "Utils/Linq.h"
 #include "Utils/Queue.h"
+
+#include <QDebug>
 
 template <typename T>
 class TaskQueue {
@@ -16,13 +19,13 @@ public:
     T *current = nullptr;
 
     void add(T *task);
-    void runNext();
     void cancelAll();
     void cancelIf(std::function<bool(T *task)> pred);
     void disposePendingTasks();
     void onCurrentFinished();
 
 private:
+    void runNext();
     void disposePendingTask(T *task);
 };
 
@@ -30,6 +33,8 @@ template <typename T>
 void TaskQueue<T>::add(T *task) {
     taskManager->addTask(task);
     pending.enqueue(task);
+    if (!current)
+        runNext();
 }
 
 template <typename T>
@@ -62,9 +67,21 @@ void TaskQueue<T>::cancelIf(std::function<bool(T *task)> pred) {
         disposePendingTask(task);
     }
     if (current && pred(current)) {
-        taskManager->terminateTask(current);
-        qDebug() << "Terminate current task: "
-                 << "taskId:" << current->id();
+        // Save current task to local variable for lambda capture
+        T *taskToCancel = current;
+        
+        // Connect task finished signal for safe cleanup
+        QObject::connect(taskToCancel, &Task::finished, taskToCancel, [taskToCancel]() {
+            qDebug() << "Cancelled task finished, safe cleanup: taskId:" << taskToCancel->id();
+            taskManager->removeTask(taskToCancel);
+            taskToCancel->deleteLater();
+        }, Qt::QueuedConnection);
+        
+        taskManager->terminateTask(taskToCancel);
+        qDebug() << "Terminate current task and wait for cleanup: taskId:" << taskToCancel->id();
+
+        current = nullptr;
+        runNext();
     }
 }
 
@@ -79,6 +96,9 @@ void TaskQueue<T>::onCurrentFinished() {
     current->disconnect();
     taskManager->removeTask(current);
     current = nullptr;
+
+    // Automatically run the next task in the queue
+    runNext();
 }
 
 template <typename T>
@@ -88,7 +108,6 @@ void TaskQueue<T>::disposePendingTask(T *task) {
     taskManager->removeTask(task);
     task->disconnect();
     pending.remove(task);
-    delete task;
 }
 
 #endif // TASKQUEUE_H
