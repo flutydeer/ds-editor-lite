@@ -58,7 +58,7 @@ void InferDurationState::onRunningInferenceStateEntered() {
     qDebug() << "InferDurationState::onRunningInferenceStateEntered";
     // Reset task
     if (currentTask) {
-        currentTask->disconnect(this);  // Disconnect from state machine
+        currentTask->disconnect(this); // Disconnect from state machine
         inferController->cancelInferDurationTask(currentTask->id());
         currentTask = nullptr;
     }
@@ -79,7 +79,7 @@ void InferDurationState::onRunningInferenceStateExited() {
     if (!currentTask)
         return;
 
-    currentTask->disconnect(this);  // Disconnect from state machine
+    currentTask->disconnect(this); // Disconnect from state machine
     inferController->cancelInferDurationTask(currentTask->id());
     currentTask = nullptr;
 }
@@ -102,11 +102,21 @@ void InferDurationState::handleTaskFinished(InferDurationTask &task) {
         return;
     }
 
+    // If the task was externally cancelled (e.g., by TaskQueue::cancelIf),
+    // the canceller's lambda handles TaskManager removal and deletion.
+    // Don't call finishCurrent or delete the task here to avoid
+    // null-deref on TaskQueue::current and double-free.
+    if (task.terminated()) {
+        qDebug() << "Task was externally terminated, skipping handler";
+        currentTask = nullptr;
+        return;
+    }
+
     inferController->finishCurrentInferDurationTask();
 
     const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
-        qDebug() << "Task terminated or clip not found, cleaning up";
+    if (!clip) {
+        qDebug() << "Clip not found, cleaning up";
         delete currentTask;
         currentTask = nullptr;
         return;

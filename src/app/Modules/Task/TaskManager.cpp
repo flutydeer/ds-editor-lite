@@ -72,6 +72,10 @@ void TaskManager::addAndStartTask(Task *task) {
 
 void TaskManager::removeTask(Task *task) {
     Q_D(TaskManager);
+    if (!task) {
+        qWarning() << "TaskManager::removeTask called with null task";
+        return;
+    }
     const auto index = d->m_tasks.indexOf(task);
     if (index >= 0) {
         d->m_tasks.removeOne(task);

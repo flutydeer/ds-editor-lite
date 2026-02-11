@@ -142,7 +142,21 @@ void InferControllerPrivate::handleTempoChanged(double tempo) {
 
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
-    connect(clip, &SingingClip::singerChanged, this, [=] { clip->reSegment(); });
+    connect(clip, &SingingClip::singerChanged, this, [=](const SingerInfo &newSingerInfo) {
+        if (newSingerInfo.isEmpty()) {
+            cancelClipRelatedTasks(clip);
+            // Remove related pipelines
+            auto pipelines = Linq::where(m_inferPipelines, [clip](const InferPipeline *p) {
+                return p->piece().clipId() == clip->id();
+            });
+            for (const auto &pipeline : pipelines) {
+                m_inferPipelines.removeOne(pipeline);
+                delete pipeline;
+            }
+            return;
+        }
+        clip->reSegment();
+    });
 }
 
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
@@ -174,7 +188,8 @@ void InferControllerPrivate::handlePiecesChanged(const PieceList &newPieces,
         }
     }
     Helper::updateAllOriginalParam(*clip);
-    if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+    if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready &&
+        !clip->singerInfo().isEmpty())
         createAndRunGetPronTask(*clip);
 }
 
@@ -262,8 +277,11 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(
 
         for (const auto track : appModel->tracks()) {
             for (const auto clip : track->clips()) {
-                if (clip->clipType() == IClip::Singing)
-                    createAndRunGetPronTask(*dynamic_cast<SingingClip *>(clip));
+                if (clip->clipType() == IClip::Singing) {
+                    const auto singingClip = dynamic_cast<SingingClip *>(clip);
+                    if (!singingClip->singerInfo().isEmpty())
+                        createAndRunGetPronTask(*singingClip);
+                }
             }
         }
     } else if (status == AppStatus::ModuleStatus::Error) {
@@ -277,9 +295,13 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(
 }
 
 void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &task) {
+    if (task.terminated()) {
+        // Externally cancelled by cancelIf/cancelAll; cleanup lambda handles deletion.
+        return;
+    }
     m_getPronTasks.onCurrentFinished();
     const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
+    if (!clip) {
         delete &task;
         return;
     }
@@ -292,9 +314,13 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
 }
 
 void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task) {
+    if (task.terminated()) {
+        // Externally cancelled by cancelIf/cancelAll; cleanup lambda handles deletion.
+        return;
+    }
     m_getPhoneTasks.onCurrentFinished();
     const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
+    if (!clip) {
         delete &task;
         return;
     }
@@ -339,6 +365,10 @@ void InferControllerPrivate::recreateAllInferTasks() {
 }
 
 void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
+    if (clip.singerInfo().isEmpty()) {
+        qDebug() << "createAndRunGetPronTask: No singer, skip";
+        return;
+    }
     if (clip.notes().count() <= 0) {
         qDebug() << "createAndRunGetPhoneTask:"
                  << "Note list is empty";
@@ -350,6 +380,10 @@ void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
 }
 
 void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
+    if (clip.singerInfo().isEmpty()) {
+        qDebug() << "createAndRunGetPhoneTask: No singer, skip";
+        return;
+    }
     QList<PhonemeNameInput> inputs;
     for (const auto note : clip.notes())
         inputs.append({note->lyric(), note->language(), note->pronunciation().result()});

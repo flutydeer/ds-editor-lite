@@ -56,7 +56,7 @@ void InferPitchState::onRunningInferenceStateExited() {
     if (!currentTask)
         return;
 
-    currentTask->disconnect(this);  // Disconnect from state machine
+    currentTask->disconnect(this); // Disconnect from state machine
     inferController->cancelInferPitchTask(currentTask->id());
     currentTask = nullptr;
 }
@@ -65,7 +65,7 @@ void InferPitchState::onRunningInferenceStateEntered() {
     qDebug() << "InferPitchState::onRunningInferenceStateEntered";
     // Reset task
     if (currentTask) {
-        currentTask->disconnect(this);  // Disconnect from state machine
+        currentTask->disconnect(this); // Disconnect from state machine
         inferController->cancelInferPitchTask(currentTask->id());
         currentTask = nullptr;
     }
@@ -99,11 +99,17 @@ void InferPitchState::handleTaskFinished(InferPitchTask &task) {
         return;
     }
 
+    if (task.terminated()) {
+        qDebug() << "Task was externally terminated, skipping handler";
+        currentTask = nullptr;
+        return;
+    }
+
     inferController->finishCurrentInferPitchTask();
 
     const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
-        qDebug() << "Task terminated or clip not found, cleaning up";
+    if (!clip) {
+        qDebug() << "Clip not found, cleaning up";
         delete currentTask;
         currentTask = nullptr;
         return;

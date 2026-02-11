@@ -55,9 +55,24 @@ void TaskQueue<T>::cancelAll() {
         disposePendingTask(task);
     }
     if (current) {
-        taskManager->terminateTask(current);
+        T *taskToCancel = current;
+
+        // Disconnect all existing finished handlers to prevent them from firing
+        QObject::disconnect(taskToCancel, &Task::finished, nullptr, nullptr);
+
+        // Connect cleanup lambda
+        QObject::connect(
+            taskToCancel, &Task::finished, taskToCancel,
+            [taskToCancel]() {
+                taskManager->removeTask(taskToCancel);
+                taskToCancel->deleteLater();
+            },
+            Qt::QueuedConnection);
+
+        taskManager->terminateTask(taskToCancel);
         qDebug() << "Terminate current task: "
-                 << "taskId:" << current->id();
+                 << "taskId:" << taskToCancel->id();
+        current = nullptr;
     }
 }
 
@@ -69,14 +84,21 @@ void TaskQueue<T>::cancelIf(std::function<bool(T *task)> pred) {
     if (current && pred(current)) {
         // Save current task to local variable for lambda capture
         T *taskToCancel = current;
-        
+
+        // Disconnect all existing finished handlers to prevent them from firing
+        // after the task is externally cancelled
+        QObject::disconnect(taskToCancel, &Task::finished, nullptr, nullptr);
+
         // Connect task finished signal for safe cleanup
-        QObject::connect(taskToCancel, &Task::finished, taskToCancel, [taskToCancel]() {
-            qDebug() << "Cancelled task finished, safe cleanup: taskId:" << taskToCancel->id();
-            taskManager->removeTask(taskToCancel);
-            taskToCancel->deleteLater();
-        }, Qt::QueuedConnection);
-        
+        QObject::connect(
+            taskToCancel, &Task::finished, taskToCancel,
+            [taskToCancel]() {
+                qDebug() << "Cancelled task finished, safe cleanup: taskId:" << taskToCancel->id();
+                taskManager->removeTask(taskToCancel);
+                taskToCancel->deleteLater();
+            },
+            Qt::QueuedConnection);
+
         taskManager->terminateTask(taskToCancel);
         qDebug() << "Terminate current task and wait for cleanup: taskId:" << taskToCancel->id();
 
@@ -93,6 +115,10 @@ void TaskQueue<T>::disposePendingTasks() {
 
 template <typename T>
 void TaskQueue<T>::onCurrentFinished() {
+    if (!current) {
+        qWarning() << "TaskQueue::onCurrentFinished called with null current";
+        return;
+    }
     current->disconnect();
     taskManager->removeTask(current);
     current = nullptr;
