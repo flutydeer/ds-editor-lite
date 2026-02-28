@@ -4,11 +4,6 @@
 #include <QDebug>
 #include <qcoreapplication.h>
 
-#include "G2pSet/MandarinSet.h"
-#include "G2pSet/CantoneseSet.h"
-#include "G2pSet/EnglishSet.h"
-#include "G2pSet/UnknownG2pSet.h"
-
 namespace LangSetting {
 
     ILangSetManagerPrivate::ILangSetManagerPrivate() {
@@ -81,11 +76,6 @@ namespace LangSetting {
     ILangSetManager::ILangSetManager(ILangSetManagerPrivate &d, QObject *parent)
         : QObject(parent), d_ptr(&d) {
         d.q_ptr = this;
-
-        addG2pSet(new MandarinSet());
-        addG2pSet(new CantoneseSet());
-        addG2pSet(new EnglishSet());
-        addG2pSet(new UnknownG2pSet());
     }
 
     LITE_SINGLETON_IMPLEMENT_INSTANCE(ILangSetManager)

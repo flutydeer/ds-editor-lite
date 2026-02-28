@@ -14,7 +14,7 @@ public:
     explicit LaunchLanguageEngineTask(QObject *parent = nullptr);
 
     bool success = false;
-    QString errorMessage;
+    std::string errorMessage;
 
 protected:
     void runTask() override;

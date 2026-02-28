@@ -1,11 +1,10 @@
 #ifndef IG2pSetFactory_H
 #define IG2pSetFactory_H
 
-#include <QObject>
 #include <QWidget>
 #include <QJsonObject>
 
-#include <language-manager/LangCommon.h>
+#include <lyric-tab/LangCommon.h>
 
 namespace LangSetting {
 

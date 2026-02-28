@@ -9,7 +9,7 @@
 #include "UI/Controls/DividerLine.h"
 #include "UI/Controls/OptionsCard.h"
 
-#include <language-manager/ILanguageManager.h>
+#include <LangCore/Core/Manager.h>
 
 G2pPage::G2pPage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
@@ -22,9 +22,9 @@ void G2pPage::update() const {
 void G2pPage::modifyOption() {
     const auto options = appOptions->language();
     const auto g2pId = m_g2pListWidget->m_gListWidget->currentItem()->data(Qt::UserRole).toString();
-    const auto g2pConfig = LangMgr::ILanguageManager::instance()->g2p(g2pId)->config();
-    if (!g2pConfig.empty())
-        options->g2pConfigs.insert(g2pId, g2pConfig);
+    // const auto g2pConfig = LangMgr::ILanguageManager::instance()->g2p(g2pId)->config();
+    // if (!g2pConfig.empty())
+    //     options->g2pConfigs.insert(g2pId, g2pConfig);
     appOptions->saveAndNotify(AppOptionsGlobal::Language);
 }
 

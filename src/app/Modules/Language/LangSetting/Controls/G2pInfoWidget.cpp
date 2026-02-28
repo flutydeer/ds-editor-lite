@@ -2,7 +2,7 @@
 
 #include "Modules/Language/LangSetting/ILangSetManager.h"
 
-#include <language-manager/ILanguageManager.h>
+#include <LangCore/Core/Manager.h>
 
 namespace LangSetting {
     G2pInfoWidget::G2pInfoWidget(QWidget *parent) : QWidget(parent) {
@@ -52,26 +52,26 @@ namespace LangSetting {
 
     void G2pInfoWidget::setInfo(const QString &g2pId) const {
         const auto g2pSetFactory = LangSetting::ILangSetManager::instance()->g2pSet(g2pId);
-        const auto g2pFactory = LangMgr::ILanguageManager::instance()->g2p(g2pId);
+        const auto g2pFactory = LangCore::Manager::instance()->task("g2p", g2pId.toStdString());
 
-        m_languageLabel->setText(tr("Language: ") + g2pFactory->displayName());
-        m_authorLabel->setText(tr("Author: ") + g2pFactory->author());
-        m_descriptionLabel->setText(g2pFactory->description());
-        removeWidget();
-
-        const auto langConfigWidget = g2pSetFactory->langConfigWidget(g2pFactory->config());
-        const auto g2pConfigWidget = g2pSetFactory->g2pConfigWidget(g2pFactory->config());
-        this->m_mainLayout->addWidget(langConfigWidget);
-        this->m_mainLayout->addStretch();
-        this->m_mainLayout->addWidget(g2pConfigWidget);
-        this->m_mainLayout->addStretch();
-
-        connect(g2pSetFactory, &LangSetting::IG2pSetFactory::langConfigChanged, this,
-                [this, g2pFactory](const QJsonObject &json) {
-                    g2pFactory->loadLanguageConfig(json);
-                    Q_EMIT g2pConfigChanged();
-                });
-        connect(g2pSetFactory, &LangSetting::IG2pSetFactory::g2pConfigChanged, this,
-                &G2pInfoWidget::g2pConfigChanged);
+        // m_languageLabel->setText(tr("Language: ") + g2pFactory->displayName());
+        // m_authorLabel->setText(tr("Author: ") + g2pFactory->author());
+        // m_descriptionLabel->setText(g2pFactory->description());
+        // removeWidget();
+        //
+        // const auto langConfigWidget = g2pSetFactory->langConfigWidget(g2pFactory->config());
+        // const auto g2pConfigWidget = g2pSetFactory->g2pConfigWidget(g2pFactory->config());
+        // this->m_mainLayout->addWidget(langConfigWidget);
+        // this->m_mainLayout->addStretch();
+        // this->m_mainLayout->addWidget(g2pConfigWidget);
+        // this->m_mainLayout->addStretch();
+        //
+        // connect(g2pSetFactory, &LangSetting::IG2pSetFactory::langConfigChanged, this,
+        //         [this, g2pFactory](const QJsonObject &json) {
+        //             g2pFactory->loadLanguageConfig(json);
+        //             Q_EMIT g2pConfigChanged();
+        //         });
+        // connect(g2pSetFactory, &LangSetting::IG2pSetFactory::g2pConfigChanged, this,
+        //         &G2pInfoWidget::g2pConfigChanged);
     }
 } // LangMgr

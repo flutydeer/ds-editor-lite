@@ -19,13 +19,13 @@ add_executable(${PROJECT_NAME} ${_src} Resources/lite_res.qrc)
 # Enable macOS bundle
 if (APPLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        MACOSX_BUNDLE ON
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.dseditor.lite"
-        MACOSX_BUNDLE_BUNDLE_NAME "DsEditorLite"
-        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
-        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
-        MACOSX_BUNDLE_INFO_STRING "DS Editor Lite"
-        MACOSX_BUNDLE_COPYRIGHT "Copyright © 2024"
+            MACOSX_BUNDLE ON
+            MACOSX_BUNDLE_GUI_IDENTIFIER "com.dseditor.lite"
+            MACOSX_BUNDLE_BUNDLE_NAME "DsEditorLite"
+            MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
+            MACOSX_BUNDLE_INFO_STRING "DS Editor Lite"
+            MACOSX_BUNDLE_COPYRIGHT "Copyright © 2024"
     )
 endif ()
 
@@ -38,7 +38,7 @@ endif ()
 if (MSVC)
     target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:/INCREMENTAL>)
     target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:/ZI>)
-endif()
+endif ()
 
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)
@@ -46,7 +46,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Core5Compat Concurrent StateMachine)
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
-find_package(language-manager CONFIG REQUIRED)
+find_package(LangCore CONFIG REQUIRED)
 find_package(QasTool CONFIG REQUIRED)
 find_package(opendspx CONFIG REQUIRED)
 find_package(lyric-tab CONFIG REQUIRED)
@@ -74,7 +74,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         ${PLATFORM_LIB}
         talcs::Core talcs::Device talcs::Format talcs::Midi talcs::Dspx talcs::Widgets
         opendspx::opendspx
-        language-manager::language-manager
+        LangCore::LangCore
         lyric-tab::lyric-tab
         QWindowKit::Widgets
         qtmediate::Widgets
@@ -88,7 +88,7 @@ if (APPLICATION_ENABLE_BREAKPAD)
     find_package(qBreakpad CONFIG REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE qBreakpad::qBreakpad)
     target_compile_definitions(${PROJECT_NAME} PRIVATE APPLICATION_ENABLE_BREAKPAD)
-endif()
+endif ()
 
 if (WIN32)
     if (QtWin32DirectManipulateHelper_FOUND)
@@ -106,11 +106,11 @@ endif ()
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
 
 #if (ONNXRUNTIME_ENABLE_CUDA)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_CUDA)
+target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_CUDA)
 #endif()
 
 #if (ONNXRUNTIME_ENABLE_DML)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_DML)
+target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_DML)
 #endif()
 
 set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
@@ -118,22 +118,22 @@ set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
 # deploy Qt
 
 # "QT_QMAKE_EXECUTABLE" is usually defined by QtCreator.
-if(NOT DEFINED QT_QMAKE_EXECUTABLE)
+if (NOT DEFINED QT_QMAKE_EXECUTABLE)
     get_target_property(QT_QMAKE_EXECUTABLE Qt::qmake IMPORTED_LOCATION)
-endif()
+endif ()
 
-if(NOT EXISTS "${QT_QMAKE_EXECUTABLE}")
+if (NOT EXISTS "${QT_QMAKE_EXECUTABLE}")
     message(WARNING "deploy_qt_runtime: Can't locate the QMake executable.")
     return()
-endif()
+endif ()
 
 cmake_path(GET QT_QMAKE_EXECUTABLE PARENT_PATH __qt_bin_dir)
 
-if(WIN32)
+if (WIN32)
     set(_qt_deploy_executable "windeployqt.exe")
     find_program(WINDEPLOYQT_EXE ${_qt_deploy_executable} HINTS "${__qt_bin_dir}")
 
-    if(WINDEPLOYQT_EXE)
+    if (WINDEPLOYQT_EXE)
         message(STATUS "Found ${_qt_deploy_executable}: ${WINDEPLOYQT_EXE}")
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND "${WINDEPLOYQT_EXE}"
@@ -141,13 +141,13 @@ if(WIN32)
                 \"$<TARGET_FILE:${PROJECT_NAME}>\"
                 COMMENT "Deploy Qt"
         )
-    else()
+    else ()
         message(WARNING "${_qt_deploy_executable} not found, skipping deploying Qt")
-    endif()
-elseif(APPLE)
+    endif ()
+elseif (APPLE)
     find_program(MACDEPLOYQT_EXE macdeployqt HINTS "${__qt_bin_dir}")
-    
-    if(MACDEPLOYQT_EXE)
+
+    if (MACDEPLOYQT_EXE)
         message(STATUS "Found macdeployqt: ${MACDEPLOYQT_EXE}")
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND "${MACDEPLOYQT_EXE}"
@@ -156,7 +156,7 @@ elseif(APPLE)
                 -always-overwrite
                 COMMENT "Deploy Qt"
         )
-        
+
         # Fix dylib paths after macdeployqt
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND bash "${CMAKE_SOURCE_DIR}/scripts/fix_macos_dylib_paths.sh"
@@ -164,13 +164,13 @@ elseif(APPLE)
                 "1"
                 COMMENT "Fix dylib paths"
         )
-    else()
+    else ()
         message(WARNING "macdeployqt not found, skipping deploying Qt")
-    endif()
-endif()
+    endif ()
+endif ()
 
 # copy dsinfer binaries
-if(APPLE)
+if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
@@ -182,7 +182,7 @@ if(APPLE)
             "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
             DESTINATION "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns"
     )
-elseif(WIN32)
+elseif (WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
@@ -194,7 +194,7 @@ elseif(WIN32)
             "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
             DESTINATION "${CMAKE_INSTALL_PREFIX}"
     )
-elseif(UNIX AND NOT APPLE)
+elseif (UNIX AND NOT APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
@@ -216,7 +216,7 @@ elseif(UNIX AND NOT APPLE)
             "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
             DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
     )
-endif()
+endif ()
 
 if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -244,26 +244,12 @@ else ()
     )
 endif ()
 
-find_package(cpp-pinyin)
-# copy cpp-pinyin dict
+# copy g2p packages
 if (APPLE)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "${cpp-pinyin_DIR}/dict"
-            "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/Resources/dict"
-    )
-
-    install(DIRECTORY "${cpp-pinyin_DIR}/dict"
-            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/Resources
-    )
 else ()
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "${cpp-pinyin_DIR}/dict"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/dict"
-    )
-
-    install(DIRECTORY "${cpp-pinyin_DIR}/dict"
-            DESTINATION .
+            "${LangCore_DIR}/G2pPackages"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/G2pPackages"
     )
 endif ()

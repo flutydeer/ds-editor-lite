@@ -1,12 +1,10 @@
 #ifndef DS_EDITOR_LITE_LYRICDIALOG_H
 #define DS_EDITOR_LITE_LYRICDIALOG_H
 
-
 #include "Model/AppModel/SingingClip.h"
 
-
 #include <lyric-tab/LyricTab.h>
-#include <language-manager/LangCommon.h>
+#include <lyric-tab/LangCommon.h>
 
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/Options/Pages/G2pPage.h"

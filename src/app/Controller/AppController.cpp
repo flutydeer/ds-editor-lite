@@ -38,12 +38,6 @@ AppController::AppController(QObject *parent)
     : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
     Q_D(AppController);
     AppControllerPrivate::initializeModules();
-
-    const auto task = new LaunchLanguageEngineTask;
-    connect(task, &LaunchLanguageEngineTask::finished, this,
-            [=] { d->onRunLanguageEngineTaskFinished(task); });
-    taskManager->addAndStartTask(task);
-    appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
 }
 
 AppController::~AppController() {
@@ -164,6 +158,17 @@ void AppController::onUndoRedoChanged(const bool canUndo, const QString &undoAct
 void AppController::setMainWindow(IMainWindow *window) {
     Q_D(AppController);
     d->m_mainWindow = window;
+}
+
+void AppController::initializeLanguageEngine() {
+    Q_D(AppController);
+    std::call_once(m_languageEngineInitialized, [this, d]() {
+        const auto task = new LaunchLanguageEngineTask;
+        connect(task, &LaunchLanguageEngineTask::finished, this,
+                [=] { d->onRunLanguageEngineTaskFinished(task); });
+        taskManager->addAndStartTask(task);
+        appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
+    });
 }
 
 void AppController::quit() {

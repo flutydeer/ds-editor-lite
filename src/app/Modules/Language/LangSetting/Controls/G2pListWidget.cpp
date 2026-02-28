@@ -9,7 +9,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-#include <language-manager/ILanguageManager.h>
+#include <LangCore/Core/Manager.h>
 
 namespace LangSetting {
     static QPair<QString, QString> extractConfig(const QString &g2pId) {
@@ -33,7 +33,7 @@ namespace LangSetting {
     }
 
     GListWidget::GListWidget(QWidget *parent) : QListWidget(parent) {
-        const auto g2pMgr = LangMgr::ILanguageManager::instance();
+        const auto g2pMgr = LangCore::Manager::instance();
 
         this->setDragDropMode(InternalMove);
         this->setDropIndicatorShown(true);
@@ -46,11 +46,11 @@ namespace LangSetting {
 
         // TODO g2pMgr->g2ps() bug
         const auto langOrder = appOptions->language()->langOrder;
-        for (const auto &g2pId : langOrder) {
-            const auto &g2p = g2pMgr->g2p(g2pId);
-            this->addItem(g2p->displayName());
-            this->item(this->count() - 1)->setData(Qt::UserRole, g2p->id());
-        }
+        // for (const auto &g2pId : langOrder) {
+        //     const auto &g2p = g2pMgr->g2p(g2pId);
+        //     this->addItem(g2p->displayName());
+        //     this->item(this->count() - 1)->setData(Qt::UserRole, g2p->id());
+        // }
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     }
 

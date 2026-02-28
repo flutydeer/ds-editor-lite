@@ -10,7 +10,9 @@
 #include "Model/AppStatus/AppStatus.h"
 
 #include <QDebug>
-#include <language-manager/ILanguageManager.h>
+
+#include <LangCore/Base/LangCommon.h>
+#include <LangCore/Core/Manager.h>
 
 GetPronunciationTask::GetPronunciationTask(const int clipId, const QList<Note *> &notes)
     : m_clipId(clipId), m_notes(notes) {
@@ -50,30 +52,29 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
 
     const auto singingClip = reinterpret_cast<SingingClip *>(appModel->findClipById(m_clipId));
     const auto singerInfo = singingClip->singerInfo();
-    const auto langMgr = LangMgr::ILanguageManager::instance();
-    QList<LangNote *> langNotes;
-    for (const auto note : notes) {
-        const auto langNote = new LangNote(note->lyric());
-        langNote->g2pId = singerInfo.g2pId(note->language());
-        langNotes.append(langNote);
+    const auto langMgr = LangCore::Manager::instance();
+
+    std::vector<LangCore::G2pInput *> g2pInput;
+    for (const auto &note : notes) {
+        g2pInput.push_back(
+            new LangCore::G2pInput(note->lyric().toStdString(), note->language().toStdString()));
     }
 
-    QStringList priorityG2pIds = {};
+    std::vector<std::string> priorityG2pIds = {};
     if (!singerInfo.isEmpty()) {
-        priorityG2pIds.append(singerInfo.defaultG2pId());
+        priorityG2pIds.push_back(singerInfo.defaultG2pId().toStdString());
         const auto languages = singerInfo.languages();
         for (const auto &lang : languages)
-            priorityG2pIds.append(lang.g2p());
+            priorityG2pIds.push_back(lang.g2p().toStdString());
     }
-    langMgr->correct(langNotes, priorityG2pIds);
-    langMgr->convert(langNotes);
+
+    const auto g2pResult = langMgr->convert(g2pInput);
 
     QList<QString> pronResult;
-    pronResult.reserve(langNotes.size());
-    for (const auto pNote : langNotes) {
-        Q_ASSERT(!pNote->syllable.isEmpty());
-        pronResult.append(pNote->syllable);
-        delete pNote;
+    pronResult.reserve(g2pResult.size());
+    for (const auto pNote : g2pResult) {
+        Q_ASSERT(!pNote.pronunciation.empty());
+        pronResult.append(QString::fromStdString(pNote.pronunciation));
     }
     return pronResult;
 }

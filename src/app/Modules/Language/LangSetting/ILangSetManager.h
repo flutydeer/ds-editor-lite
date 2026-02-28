@@ -3,7 +3,7 @@
 
 #include "IG2pSetFactory.h"
 
-#include <language-manager/LangCommon.h>
+#include <lyric-tab/LangCommon.h>
 #include <Utils/Singleton.h>
 
 namespace LangSetting {
