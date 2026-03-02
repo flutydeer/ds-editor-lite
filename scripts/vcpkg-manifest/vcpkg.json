@@ -45,7 +45,6 @@
     },
     "soxr",
     "wolf-midi",
-    "re2",
     "language-manager",
     {
       "name": "qt-win32-direct-manipulate-helper",
