@@ -109,14 +109,14 @@ void LaunchLanguageEngineTask::runTask() {
         !onnxDriverInitialized)
         std::cerr << "Failed to initializeOnnxDriver" << std::endl;
 
-    langMgr->initialize(errorMessage);
+    std::string msg;
+    langMgr->initialize(msg);
 
     if (langMgr->initialized()) {
         qInfo() << "Successfully launched language module";
     } else {
         success = false;
-        qCritical() << "LangMgr: errorMsg" << errorMessage
-                    << "initialized:" << langMgr->initialized();
+        errorMessage = msg;
     }
     success = true;
 }

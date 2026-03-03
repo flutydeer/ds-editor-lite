@@ -10,6 +10,9 @@
 #include <utility>
 #include <type_traits>
 
+template <typename U>
+static constexpr bool is_expected_v = false;
+
 template <typename T, typename E>
 class Expected {
     static_assert(!std::is_same_v<T, E>, "T and E must be different types");
@@ -228,13 +231,8 @@ public:
         }
         return std::move(*this);
     }
-
-private:
-    template <typename U>
-    static constexpr bool is_expected_v = false;
-
-    template <typename U, typename V>
-    static constexpr bool is_expected_v<Expected<U, V>> = true;
 };
 
-#endif //EXPECTED_H
+template <typename U, typename V>
+static constexpr bool is_expected_v<Expected<U, V>> = true;
+#endif // EXPECTED_H

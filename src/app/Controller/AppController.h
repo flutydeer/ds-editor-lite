@@ -11,6 +11,7 @@
 #include "Utils/Singleton.h"
 
 #include <QObject>
+#include <mutex>
 
 class AppControllerPrivate;
 class IMainWindow;
