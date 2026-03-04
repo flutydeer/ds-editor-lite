@@ -4,12 +4,6 @@
 
 #include "LaunchLanguageEngineTask.h"
 
-#include "Model/AppOptions/AppOptions.h"
-#include "Modules/Language/LangSetting/ILangSetManager.h"
-
-#include "Utils/StringUtils.h"
-
-#include <QApplication>
 #include <QThread>
 
 #include <filesystem>
@@ -19,18 +13,40 @@
 #include <stdcorelib/str.h>
 #include <stdcorelib/system.h>
 
+#include <LangCore/Support/Logging.h>
 #include <LangCore/Core/Manager.h>
 #include <LangCore/Module/Module.h>
 #include <LangCore/Task/TaskFactoryPlugin.h>
 
 #include <LangPlugins/Api/Drivers/Onnx/1/OnnxDriverApiL1.h>
 
-LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : Task(parent) {
-    TaskStatus status;
-    status.title = tr("Launching language module...");
-    status.message = "";
-    status.isIndetermine = true;
-    setStatus(status);
+#include "Model/AppOptions/AppOptions.h"
+#include "Modules/Language/LangSetting/ILangSetManager.h"
+#include "Utils/Log.h"
+#include "Utils/StringUtils.h"
+
+static void log_report_callback(const int level, const LangCore::LogContext &ctx,
+                                const std::string_view &msg) {
+    const QString message_qstr = QString::fromUtf8(msg.data(), msg.size());
+    switch (level) {
+        case LangCore::Logger::Fatal:
+            Log::f(ctx.category, message_qstr);
+            break;
+        case LangCore::Logger::Critical:
+            Log::e(ctx.category, message_qstr);
+            break;
+        case LangCore::Logger::Warning:
+            Log::w(ctx.category, message_qstr);
+            break;
+        case LangCore::Logger::Information:
+        case LangCore::Logger::Success:
+            Log::i(ctx.category, message_qstr);
+            break;
+        case LangCore::Logger::Debug:
+        default:
+            Log::d(ctx.category, message_qstr);
+            break;
+    }
 }
 
 using EP = LangPlugins::Api::Onnx::L1::ExecutionProvider;
@@ -91,15 +107,24 @@ bool initializeOnnxDriver(const LangCore::Manager *mgr, const std::string &ep,
     return true;
 }
 
+LaunchLanguageEngineTask::LaunchLanguageEngineTask(QObject *parent) : Task(parent) {
+    TaskStatus status;
+    status.title = tr("Launching language module...");
+    status.message = "";
+    status.isIndetermine = true;
+    setStatus(status);
+}
+
 void LaunchLanguageEngineTask::runTask() {
     qDebug() << "Launching language module...";
-    // QThread::sleep(1);
+    LangCore::Logger::setLogCallback(log_report_callback);
     const auto langMgr = LangCore::Manager::instance();
 
     const auto defaultPluginDir = getPluginRootDirectory() / _TSTR("LangPlugins");
     langMgr->addPluginPath("org.openvpi.DriverFactory", defaultPluginDir / _TSTR("Drivers"));
     langMgr->addPluginPath("org.openvpi.TaskFactory", defaultPluginDir / _TSTR("G2ps"));
     langMgr->addPluginPath("org.openvpi.TaskFactory", defaultPluginDir / _TSTR("Taggers"));
+    langMgr->addPluginPath("org.openvpi.TaskFactory", defaultPluginDir / _TSTR("Splitters"));
 
     const std::filesystem::path packagesRootDir =
         stdc::system::application_directory() / _TSTR("G2pPackages");

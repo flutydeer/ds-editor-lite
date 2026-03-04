@@ -339,13 +339,16 @@ void ClipController::onFillLyric(QWidget *parent) {
 
     const auto singerInfo = singingClip->singerInfo();
     QStringList priorityLanguage = {singingClip->defaultLanguage()};
+    QMap<QString, QString> langToG2pId;
     if (!singerInfo.isEmpty()) {
         priorityLanguage.append(singerInfo.defaultLanguage());
-        for (const auto &lang : singerInfo.languages())
+        for (const auto &lang : singerInfo.languages()) {
             priorityLanguage.append(lang.name());
+            langToG2pId.insert(lang.name(), lang.g2p());
+        }
     }
 
-    LyricDialog lyricDialog(singingClip, inputNotes, priorityLanguage, parent);
+    LyricDialog lyricDialog(singingClip, inputNotes, priorityLanguage, langToG2pId, parent);
     lyricDialog.show();
     lyricDialog.setLangNotes();
     lyricDialog.exec();

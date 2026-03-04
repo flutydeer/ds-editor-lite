@@ -11,7 +11,7 @@
 #include <QScreen>
 
 LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringList &priorityG2pIds,
-                         QWidget *parent)
+                         const QMap<QString, QString> &langToG2pId, QWidget *parent)
     : Dialog(parent), m_clip(clip), m_notes(std::move(note)) {
     setModal(true);
     setMinimumSize(720, 450);
@@ -27,7 +27,7 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringLis
     m_tabWidget = new QTabWidget();
 
     m_lyricWidget = new FillLyric::LyricTab(
-        m_langNotes, priorityG2pIds,
+        m_langNotes, priorityG2pIds, langToG2pId,
         {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
          appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
          appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,

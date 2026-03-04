@@ -24,7 +24,8 @@ class LyricDialog final : public Dialog {
 
 public:
     explicit LyricDialog(SingingClip *clip, QList<Note *> note,
-                         const QStringList &priorityG2pIds = {}, QWidget *parent = nullptr);
+                         const QStringList &priorityG2pIds = {},
+                         const QMap<QString, QString> &langToG2pId = {}, QWidget *parent = nullptr);
     ~LyricDialog() override;
 
     void setLangNotes() const;
