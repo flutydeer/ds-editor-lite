@@ -1,13 +1,20 @@
 #pragma once
 
 #include <filesystem>
-#include <memory>
 #include <string>
 #include <vector>
 
-#include <onnxruntime_cxx_api.h>
+#include <dsinfer/Inference/InferenceDriver.h>
+#include <dsinfer/Inference/InferenceSession.h>
+#include <synthrt/Core/NamedObject.h>
+#include <synthrt/Support/Expected.h>
 
-#include "Game.h"
+#include "dsinfer/Core/Tensor.h"
+
+namespace srt
+{
+    class SynthUnit;
+}
 
 namespace Game
 {
@@ -31,12 +38,13 @@ namespace Game
 
     class GameModel {
     public:
-        GameModel(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id);
+        explicit GameModel(const srt::SynthUnit *su);
         ~GameModel();
         int get_target_sample_rate() const;
 
-        static bool is_open();
-        static void terminate();
+        srt::Expected<void> open(const std::filesystem::path &modelPath);
+        bool is_open() const;
+        void terminate() const;
 
         bool forward(const std::vector<float> &waveform_data, std::vector<bool> &boundaries,
                      std::vector<float> &durations, std::vector<float> &presence, std::vector<float> &scores,
@@ -53,14 +61,13 @@ namespace Game
         void set_language(int language);
 
     private:
-        // ONNX sessions
-        std::unique_ptr<Ort::Session> sessEncoder;
-        std::unique_ptr<Ort::Session> sessSegmenter;
-        std::unique_ptr<Ort::Session> sessEstimator;
-        std::unique_ptr<Ort::Session> sessDur2bd;
-
-        Ort::Env env;
-        Ort::SessionOptions sessionOptions;
+        // SynthRT sessions
+        const srt::SynthUnit *const m_su = nullptr;
+        srt::NO<ds::InferenceDriver> m_driver;
+        srt::NO<ds::InferenceSession> m_encoderSession;
+        srt::NO<ds::InferenceSession> m_segmenterSession;
+        srt::NO<ds::InferenceSession> m_estimatorSession;
+        srt::NO<ds::InferenceSession> m_dur2bdSession;
 
         std::filesystem::path modelDir;
         float timestep;
@@ -74,30 +81,31 @@ namespace Game
 
         float m_timestep = 0.01f;
         int m_language = 0;
-        int m_target_sample_rate;
+        int m_target_sample_rate = 44100;
 
-        std::tuple<Ort::Value, Ort::Value, Ort::Value> runEncoder(const std::vector<float> &waveform, float duration,
-                                                                  int language) const;
+        std::tuple<srt::NO<ds::ITensor>, srt::NO<ds::ITensor>, srt::NO<ds::ITensor>>
+        runEncoder(const std::vector<float> &waveform, float duration) const;
 
         std::vector<uint8_t> runDur2bd(const std::vector<float> &knownDurations,
                                        const std::vector<uint8_t> &maskT) const;
 
-        std::vector<uint8_t> runSegmenter(const Ort::Value &xSeg, const std::vector<uint8_t> &knownBoundaries,
+        std::vector<uint8_t> runSegmenter(const srt::NO<ds::ITensor> &xSeg, const std::vector<uint8_t> &knownBoundaries,
                                           const std::vector<uint8_t> &prevBoundaries, int language,
-                                          const Ort::Value &maskT, float threshold, int radius,
+                                          const srt::NO<ds::ITensor> &maskT, float threshold, int radius,
                                           const std::vector<float> &d3pmTs) const;
 
-        std::vector<uint8_t> runSegmenterWithConfig(const Ort::Value &xSeg, const std::vector<uint8_t> &knownBoundaries,
+        std::vector<uint8_t> runSegmenterWithConfig(const srt::NO<ds::ITensor> &xSeg,
+                                                    const std::vector<uint8_t> &knownBoundaries,
                                                     const std::vector<uint8_t> &prevBoundaries, int language,
-                                                    const Ort::Value &maskT, float threshold, int radius,
+                                                    const srt::NO<ds::ITensor> &maskT, float threshold, int radius,
                                                     const std::vector<float> &d3pmTs) const;
 
         std::tuple<std::vector<float>, std::vector<uint8_t>> runBd2dur(const std::vector<uint8_t> &boundaries,
                                                                        const std::vector<uint8_t> &maskT) const;
 
         std::tuple<std::vector<float>, std::vector<float>>
-        runEstimator(const Ort::Value &xEst, const std::vector<uint8_t> &boundaries, const Ort::Value &maskT,
-                     const std::vector<uint8_t> &maskN, float threshold) const;
+        runEstimator(const srt::NO<ds::ITensor> &xEst, const std::vector<uint8_t> &boundaries,
+                     const srt::NO<ds::ITensor> &maskT, const std::vector<uint8_t> &maskN, float threshold) const;
 
         InferenceOutput inferSlice(const InferenceInput &input, float segThreshold,
                                    int segRadius, // 帧单位

@@ -14,7 +14,7 @@
 
 class GeneralOption final : public IOption {
 public:
-    explicit GeneralOption() : IOption("general"){};
+    explicit GeneralOption() : IOption("general") {};
 
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
@@ -30,7 +30,7 @@ public:
     LITE_OPTION_ITEM(QString, defaultSingerId, QString())
     LITE_OPTION_ITEM(QString, defaultSpeakerId, QString())
 #endif
-    LITE_OPTION_ITEM(QString, somePath, QString())
+    LITE_OPTION_ITEM(QString, gamePath, QString())
     LITE_OPTION_ITEM(QString, rmvpePath, QString())
 
 

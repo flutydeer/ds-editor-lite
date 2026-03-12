@@ -6,133 +6,143 @@
 
 #include <nlohmann/json.hpp>
 
-#ifdef ONNXRUNTIME_ENABLE_DML
-#include <dml_provider_factory.h>
-#endif
+#include <dsinfer/Api/Drivers/Onnx/OnnxDriverApi.h>
+#include <dsinfer/Api/Singers/DiffSinger/1/DiffSingerApiL1.h>
+#include <dsinfer/Inference/InferenceDriver.h>
+#include <dsinfer/Inference/InferenceSession.h>
+#include <stdcorelib/str.h>
+#include <synthrt/Core/NamedObject.h>
+#include <synthrt/Support/Expected.h>
 
 namespace Game
 {
-    // 初始化DirectML执行提供者
-    static inline bool initDirectML(Ort::SessionOptions &options, const int deviceIndex,
-                                    std::string *errorMessage = nullptr) {
-#ifdef ONNXRUNTIME_ENABLE_DML
-        if (!options) {
-            if (errorMessage) {
-                *errorMessage = "SessionOptions must not be nullptr!";
-            }
-            return false;
+    static srt::Expected<srt::NO<ds::Tensor>> createFromBoolVector(const std::vector<int64_t> &shape,
+                                                                   const std::vector<bool> &boolVec) {
+        // 验证形状是否与数据大小匹配
+        size_t totalElements = 1;
+        for (const int64_t dim : shape) {
+            totalElements *= dim;
         }
 
-        if (deviceIndex < 0) {
-            if (errorMessage) {
-                *errorMessage = "GPU device index must be a non-negative integer!";
-            }
-            return false;
+        if (totalElements != boolVec.size()) {
+            std::cerr << "Error: Shape doesn't match data size!" << std::endl;
+            return nullptr;
         }
 
-        const OrtApi &ortApi = Ort::GetApi();
-        const OrtDmlApi *ortDmlApi;
-        const Ort::Status getApiStatus(
-            (ortApi.GetExecutionProviderApi("DML", ORT_API_VERSION, reinterpret_cast<const void **>(&ortDmlApi))));
-        if (!getApiStatus.IsOK()) {
-            // Failed to get DirectML API.
-            if (errorMessage) {
-                *errorMessage = getApiStatus.GetErrorMessage();
-            }
-            return false;
+        // 将std::vector<bool>转换为字节容器
+        ds::Tensor::Container dataContainer;
+        dataContainer.reserve(boolVec.size());
+        for (const bool b : boolVec) {
+            dataContainer.push_back(static_cast<std::byte>(b ? 1 : 0));
         }
 
-        // Successfully get DirectML API
-        options.DisableMemPattern();
-        options.SetExecutionMode(ORT_SEQUENTIAL);
-
-        const Ort::Status appendStatus(ortDmlApi->SessionOptionsAppendExecutionProvider_DML(options, deviceIndex));
-        if (!appendStatus.IsOK()) {
-            if (errorMessage) {
-                *errorMessage = appendStatus.GetErrorMessage();
-            }
-            return false;
-        }
-        return true;
-#else
-        if (errorMessage) {
-            *errorMessage = "The library is not built with DirectML support.";
-        }
-        return false;
-#endif
+        auto exp = ds::Tensor::createFromRawData(ds::ITensor::Bool, {1, static_cast<long long>(dataContainer.size())},
+                                                 std::move(dataContainer));
+        return exp;
     }
 
-    // 初始化CUDA执行提供者
-    static inline bool initCUDA(Ort::SessionOptions &options, int deviceIndex, std::string *errorMessage = nullptr) {
-#ifdef ONNXRUNTIME_ENABLE_CUDA
-        if (!options) {
-            if (errorMessage) {
-                *errorMessage = "SessionOptions must not be nullptr!";
-            }
-            return false;
+    static srt::Expected<srt::NO<ds::InferenceDriver>> getInferenceDriver(const srt::SynthUnit *su) {
+        if (!su) {
+            return srt::Error(srt::Error::SessionError, "SynthUnit is nullptr");
+        }
+        const auto inferenceCate = su->category("inference");
+        const auto dsdriverObject = inferenceCate->getFirstObject("dsdriver");
+
+        if (!dsdriverObject) {
+            return srt::Error(srt::Error::SessionError, "could not find dsdriver");
         }
 
-        if (deviceIndex < 0) {
-            if (errorMessage) {
-                *errorMessage = "GPU device index must be a non-negative integer!";
-            }
-            return false;
+        auto onnxDriver = dsdriverObject.as<ds::InferenceDriver>();
+
+        const auto arch = onnxDriver->arch();
+        constexpr auto expectedArch = ds::Api::DiffSinger::L1::API_NAME;
+        const bool isArchMatch = arch == expectedArch;
+
+        const auto backend = onnxDriver->backend();
+        constexpr auto expectedBackend = ds::Api::Onnx::API_NAME;
+        const bool isBackendMatch = backend == expectedBackend;
+
+        if (!isArchMatch || !isBackendMatch) {
+            return srt::Error(
+                srt::Error::SessionError,
+                stdc::formatN(
+                    R"(invalid driver: expected arch "%1", got "%2" (%3); expected backend "%4", got "%5" (%6))",
+                    expectedArch, arch, isArchMatch ? "match" : "MISMATCH", expectedBackend, backend,
+                    isBackendMatch ? "match" : "MISMATCH"));
         }
 
-        const OrtApi &ortApi = Ort::GetApi();
-
-        OrtCUDAProviderOptionsV2 *cudaOptionsPtr = nullptr;
-        Ort::Status createStatus(ortApi.CreateCUDAProviderOptions(&cudaOptionsPtr));
-
-        // Currently, ORT C++ API does not have a wrapper for CUDAProviderOptionsV2.
-        // Let the smart pointer take ownership of cudaOptionsPtr so it will be released when it
-        // goes out of scope.
-        std::unique_ptr<OrtCUDAProviderOptionsV2, decltype(ortApi.ReleaseCUDAProviderOptions)> cudaOptions(
-            cudaOptionsPtr, ortApi.ReleaseCUDAProviderOptions);
-
-        if (!createStatus.IsOK()) {
-            if (errorMessage) {
-                *errorMessage = createStatus.GetErrorMessage();
-            }
-            return false;
-        }
-
-        // The following block of code sets device_id
-        {
-            // Device ID from int to string
-            auto cudaDeviceIdStr = std::to_string(deviceIndex);
-            auto cudaDeviceIdCStr = cudaDeviceIdStr.c_str();
-
-            constexpr int CUDA_OPTIONS_SIZE = 2;
-            const char *cudaOptionsKeys[CUDA_OPTIONS_SIZE] = {"device_id", "cudnn_conv_algo_search"};
-            const char *cudaOptionsValues[CUDA_OPTIONS_SIZE] = {cudaDeviceIdCStr, "DEFAULT"};
-            Ort::Status updateStatus(ortApi.UpdateCUDAProviderOptions(cudaOptions.get(), cudaOptionsKeys,
-                                                                      cudaOptionsValues, CUDA_OPTIONS_SIZE));
-            if (!updateStatus.IsOK()) {
-                if (errorMessage) {
-                    *errorMessage = updateStatus.GetErrorMessage();
-                }
-                return false;
-            }
-        }
-        Ort::Status appendStatus(ortApi.SessionOptionsAppendExecutionProvider_CUDA_V2(options, cudaOptions.get()));
-        if (!appendStatus.IsOK()) {
-            if (errorMessage) {
-                *errorMessage = appendStatus.GetErrorMessage();
-            }
-            return false;
-        }
-        return true;
-#else
-        if (errorMessage) {
-            *errorMessage = "The library is not built with CUDA support.";
-        }
-        return false;
-#endif
+        return onnxDriver;
     }
 
-    GameModel::GameModel(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id) :
-        env(Ort::Env(ORT_LOGGING_LEVEL_WARNING, "GameModel")), sessionOptions(Ort::SessionOptions()) {
+    // Template function to extract tensor data
+    template <typename T>
+    static srt::Expected<std::vector<T>> extractTensor(const std::map<std::string, srt::NO<ds::ITensor>> &outputs,
+                                                       const std::string &name) {
+
+        const auto it = outputs.find(name);
+        if (it == outputs.end()) {
+            return srt::Error(srt::Error::SessionError, "missing output: " + name);
+        }
+        const auto &tensor = it->second;
+        if (tensor->dataType() != ds::tensor_traits<T>::data_type) {
+            return srt::Error(srt::Error::SessionError, "data type mismatch: " + name);
+        }
+        const auto data = tensor->view<T>();
+        if (data.empty()) {
+            return srt::Error(srt::Error::SessionError, "could not get output data: " + name);
+        }
+        return data.vec();
+    }
+
+    template <>
+    srt::Expected<std::vector<bool>> extractTensor(const std::map<std::string, srt::NO<ds::ITensor>> &outputs,
+                                                   const std::string &name) {
+
+        const auto it = outputs.find(name);
+        if (it == outputs.end()) {
+            return srt::Error(srt::Error::SessionError, "missing output: " + name);
+        }
+        const auto &tensor = it->second;
+        if (tensor->dataType() != ds::tensor_traits<bool>::data_type) {
+            return srt::Error(srt::Error::SessionError, "data type mismatch: " + name);
+        }
+        const auto data = tensor->rawView();
+        if (data.empty()) {
+            return srt::Error(srt::Error::SessionError, "could not get output data: " + name);
+        }
+        std::vector output(data.size(), false);
+        for (size_t i = 0; i < data.size(); ++i) {
+            output[i] = data[i] != std::byte{0};
+        }
+        return output;
+    }
+
+    GameModel::GameModel(const srt::SynthUnit *su) :
+        m_su(su), m_driver(nullptr), m_encoderSession(nullptr), m_segmenterSession(nullptr),
+        m_estimatorSession(nullptr), m_dur2bdSession(nullptr) {}
+
+    GameModel::~GameModel() {
+        if (m_encoderSession) {
+            m_encoderSession->stop();
+            m_encoderSession->close();
+        }
+        if (m_segmenterSession) {
+            m_segmenterSession->stop();
+            m_segmenterSession->close();
+        }
+        if (m_estimatorSession) {
+            m_estimatorSession->stop();
+            m_estimatorSession->close();
+        }
+        if (m_dur2bdSession) {
+            m_dur2bdSession->stop();
+            m_dur2bdSession->close();
+        }
+    }
+
+    int GameModel::get_target_sample_rate() const { return m_target_sample_rate; }
+
+    srt::Expected<void> GameModel::open(const std::filesystem::path &modelPath) {
         modelDir = modelPath;
 
         std::ifstream configFile(modelDir / "config.json");
@@ -159,68 +169,73 @@ namespace Game
             m_language = 0;
         }
 
-        sessionOptions.SetInterOpNumThreads(4);
-        sessionOptions.SetGraphOptimizationLevel(ORT_ENABLE_EXTENDED);
-
-        // Choose execution provider based on the provided option
-        switch (provider) {
-#ifdef ONNXRUNTIME_ENABLE_DML
-        case ExecutionProvider::DML:
-            {
-                std::string errorMessage;
-                if (!initDirectML(sessionOptions, device_id, &errorMessage)) {
-                    std::cout << "Failed to enable Dml: " << errorMessage << ". Falling back to CPU." << std::endl;
-                } else {
-                    std::cout << "Use Dml execution provider" << std::endl;
-                }
-                break;
-            }
-#endif
-
-#ifdef ONNXRUNTIME_ENABLE_CUDA
-        case ExecutionProvider::CUDA:
-            {
-                std::string errorMessage;
-                if (!initCUDA(sessionOptions, device_id, &errorMessage)) {
-                    std::cout << "Failed to enable CUDA: " << errorMessage << std::endl;
-                } else {
-                    std::cout << "Using CUDA execution provider" << std::endl;
-                }
-                break;
-            }
-#endif
-
-        default:
-            break;
+        // Initialize the inference driver
+        if (auto exp = getInferenceDriver(m_su); !exp) {
+            throw std::runtime_error("Failed to get inference driver: " + exp.error().message());
+        } else {
+            m_driver = exp.take();
         }
 
-        auto loadSession = [&](const std::string &name)
+        // Load all model sessions
+        auto loadSession = [&](const std::string &name) -> srt::Expected<srt::NO<ds::InferenceSession>>
         {
             const std::filesystem::path model_path = modelDir / name;
-#ifdef _WIN32
-            return std::make_unique<Ort::Session>(env, model_path.wstring().c_str(), sessionOptions);
-#else
-            return std::make_unique<Ort::Session>(env, model_path.c_str(), sessionOptions);
-#endif
+            auto session = m_driver->createSession();
+            if (!session) {
+                return srt::Error(srt::Error::SessionError, "could not create session for " + name);
+            }
+            if (auto exp = session->open(model_path, srt::NO<ds::Api::Onnx::SessionOpenArgs>::create()); !exp) {
+                return exp.takeError();
+            }
+            return session;
         };
-        sessEncoder = loadSession("encoder.onnx");
-        sessSegmenter = loadSession("segmenter.onnx");
-        sessEstimator = loadSession("estimator.onnx");
-        sessDur2bd = loadSession("bd2dur.onnx");
+
+        if (auto exp = loadSession("encoder.onnx"); exp) {
+            m_encoderSession = exp.take();
+        } else {
+            throw std::runtime_error("Failed to load encoder: " + exp.error().message());
+        }
+
+        if (auto exp = loadSession("segmenter.onnx"); exp) {
+            m_segmenterSession = exp.take();
+        } else {
+            throw std::runtime_error("Failed to load segmenter: " + exp.error().message());
+        }
+
+        if (auto exp = loadSession("estimator.onnx"); exp) {
+            m_estimatorSession = exp.take();
+        } else {
+            throw std::runtime_error("Failed to load estimator: " + exp.error().message());
+        }
+
+        if (auto exp = loadSession("bd2dur.onnx"); exp) {
+            m_dur2bdSession = exp.take();
+        } else {
+            throw std::runtime_error("Failed to load bd2dur: " + exp.error().message());
+        }
 
         // Set default values from config or keep defaults
         m_seg_threshold = config.value("seg_threshold", 0.2f);
         m_seg_radius_seconds = config.value("seg_radius_seconds", 0.02f);
         m_est_threshold = config.value("est_threshold", 0.2f);
+        return srt::Expected<void>();
     }
 
-    GameModel::~GameModel() = default;
+    bool GameModel::is_open() const {
+        return m_encoderSession != nullptr && m_segmenterSession != nullptr && m_estimatorSession != nullptr &&
+            m_dur2bdSession != nullptr;
+    }
 
-    int GameModel::get_target_sample_rate() const { return m_target_sample_rate; }
-
-    bool GameModel::is_open() { return true; }
-
-    void GameModel::terminate() {}
+    void GameModel::terminate() const {
+        if (m_encoderSession)
+            m_encoderSession->stop();
+        if (m_segmenterSession)
+            m_segmenterSession->stop();
+        if (m_estimatorSession)
+            m_estimatorSession->stop();
+        if (m_dur2bdSession)
+            m_dur2bdSession->stop();
+    }
 
     bool GameModel::forward(const std::vector<float> &waveform_data, std::vector<bool> &boundaries,
                             std::vector<float> &durations, std::vector<float> &presence, std::vector<float> &scores,
@@ -235,7 +250,7 @@ namespace Game
             int T = static_cast<int>(std::ceil(input.duration / m_timestep));
             if (T <= 0)
                 T = 1;
-            input.maskT = std::vector<bool>(T, true);
+            input.maskT = std::vector(T, true);
             input.timestep = m_timestep;
 
             int seg_radius_frames = static_cast<int>(std::round(m_seg_radius_seconds / m_timestep));
@@ -286,130 +301,146 @@ namespace Game
 
     void GameModel::set_language(const int language) { m_language = language; }
 
-    std::tuple<Ort::Value, Ort::Value, Ort::Value>
-    GameModel::runEncoder(const std::vector<float> &waveform, const float duration, const int language) const {
-        if (waveform.empty()) {
-            return std::make_tuple(Ort::Value{nullptr}, Ort::Value{nullptr}, Ort::Value{nullptr});
+    std::tuple<srt::NO<ds::ITensor>, srt::NO<ds::ITensor>, srt::NO<ds::ITensor>>
+    GameModel::runEncoder(const std::vector<float> &waveform, const float duration) const {
+        if (waveform.empty() || !m_encoderSession) {
+            return std::make_tuple(srt::NO<ds::ITensor>(nullptr), srt::NO<ds::ITensor>(nullptr),
+                                   srt::NO<ds::ITensor>(nullptr));
         }
 
-        const std::vector<int64_t> waveformShape = {1, static_cast<int64_t>(waveform.size())};
+        const std::vector waveformShape = {1, static_cast<int64_t>(waveform.size())};
         const std::vector<int64_t> durationShape = {1};
         const std::vector<int64_t> languageShape = {1};
 
-        const Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+        const auto sessionInput = srt::NO<ds::Api::Onnx::SessionStartInput>::create();
 
-        Ort::Value waveformTensor =
-            Ort::Value::CreateTensor<float>(memoryInfo, const_cast<float *>(waveform.data()), waveform.size(),
-                                            waveformShape.data(), waveformShape.size());
-
-        std::vector<float> durationVec = {duration};
-        Ort::Value durationTensor = Ort::Value::CreateTensor<float>(memoryInfo, durationVec.data(), 1,
-                                                                    durationShape.data(), durationShape.size());
-
-        std::vector<int64_t> languageVec = {static_cast<int64_t>(language)};
-        Ort::Value languageTensor = Ort::Value::CreateTensor<int64_t>(memoryInfo, languageVec.data(), 1,
-                                                                      languageShape.data(), languageShape.size());
-
-        std::vector<const char *> inputNames;
-        std::vector<Ort::Value> inputTensors;
-
-        inputNames.push_back("waveform");
-        inputTensors.push_back(std::move(waveformTensor));
-
-        inputNames.push_back("duration");
-        inputTensors.push_back(std::move(durationTensor));
-
-        bool hasLanguage = false;
-        const size_t numInputs = sessEncoder->GetInputCount();
-        for (size_t i = 0; i < numInputs; ++i) {
-            Ort::AllocatorWithDefaultOptions alloc;
-            auto name = sessEncoder->GetInputNameAllocated(i, alloc);
-            if (name && std::strcmp(name.get(), "language") == 0) {
-                hasLanguage = true;
-                break;
-            }
-        }
-        if (hasLanguage) {
-            inputNames.push_back("language");
-            inputTensors.push_back(std::move(languageTensor));
+        if (auto exp = ds::Tensor::createFromView<float>(waveformShape, waveform); !exp) {
+            throw std::runtime_error("Failed to create waveform tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["waveform"] = exp.take();
         }
 
-        const char *outputNames[] = {"x_seg", "x_est", "maskT"};
+        const std::vector durationVec = {duration};
+        if (auto exp = ds::Tensor::createFromView<float>(durationShape, durationVec); !exp) {
+            throw std::runtime_error("Failed to create duration tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["duration"] = exp.take();
+        }
 
-        auto outputTensors = sessEncoder->Run(Ort::RunOptions{nullptr}, inputNames.data(), inputTensors.data(),
-                                              inputTensors.size(), outputNames, 3);
+        sessionInput->outputs = {"x_seg", "x_est", "maskT"};
 
-        return std::make_tuple(std::move(outputTensors[0]), std::move(outputTensors[1]), std::move(outputTensors[2]));
+        if (auto exp = m_encoderSession->start(sessionInput); !exp) {
+            throw std::runtime_error("Failed to run encoder: " + exp.error().message());
+        }
+        const auto result = m_encoderSession->result().as<ds::Api::Onnx::SessionResult>();
+        if (!result) {
+            throw std::runtime_error("Could not get encoder session result");
+        }
+
+        const auto xSegIt = result->outputs.find("x_seg");
+        const auto xEstIt = result->outputs.find("x_est");
+        const auto maskTIt = result->outputs.find("maskT");
+
+        srt::NO<ds::ITensor> xSeg = xSegIt != result->outputs.end() ? xSegIt->second : nullptr;
+        srt::NO<ds::ITensor> xEst = xEstIt != result->outputs.end() ? xEstIt->second : nullptr;
+        srt::NO<ds::ITensor> maskT = maskTIt != result->outputs.end() ? maskTIt->second : nullptr;
+
+        return std::make_tuple(xSeg, xEst, maskT);
     }
 
     std::vector<uint8_t> GameModel::runDur2bd(const std::vector<float> &knownDurations,
                                               const std::vector<uint8_t> &maskT) const {
-        if (knownDurations.empty() || maskT.empty()) {
+        if (knownDurations.empty() || maskT.empty() || !m_dur2bdSession) {
             return {};
         }
 
-        const std::array<int64_t, 2> knownDurationsShape = {1, static_cast<int64_t>(knownDurations.size())};
-        const std::array<int64_t, 2> maskTShape = {1, static_cast<int64_t>(maskT.size())};
+        const std::vector knownDurationsShape = {1, static_cast<int64_t>(knownDurations.size())};
+        const std::vector maskTShape = {1, static_cast<int64_t>(maskT.size())};
 
-        const Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+        const auto sessionInput = srt::NO<ds::Api::Onnx::SessionStartInput>::create();
 
-        std::vector<float> tempKnownDurations(knownDurations.begin(), knownDurations.end());
-        Ort::Value knownDurationsTensor =
-            Ort::Value::CreateTensor<float>(memoryInfo, tempKnownDurations.data(), knownDurations.size(),
-                                            knownDurationsShape.data(), knownDurationsShape.size());
+        if (auto exp = ds::Tensor::createFromView<float>(knownDurationsShape, knownDurations); !exp) {
+            throw std::runtime_error("Failed to create known_durations tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["known_durations"] = exp.take();
+        }
 
-        std::vector<uint8_t> tempMaskT(maskT.begin(), maskT.end());
-        Ort::Value maskTTensor = Ort::Value::CreateTensor<bool>(memoryInfo, reinterpret_cast<bool *>(tempMaskT.data()),
-                                                                tempMaskT.size(), maskTShape.data(), maskTShape.size());
+        const std::vector<bool> maskTBool(maskT.begin(), maskT.end());
+        if (auto exp = createFromBoolVector(maskTShape, maskTBool); !exp) {
+            throw std::runtime_error("Failed to create maskT tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["maskT"] = exp.take();
+        }
 
-        const char *inputNames[] = {"known_durations", "maskT"};
-        std::vector<Ort::Value> inputTensors;
-        inputTensors.push_back(std::move(knownDurationsTensor));
-        inputTensors.push_back(std::move(maskTTensor));
+        sessionInput->outputs = {"boundaries"};
 
-        const char *outputNames[] = {"boundaries"};
+        if (auto exp = m_dur2bdSession->start(sessionInput); !exp) {
+            throw std::runtime_error("Failed to run dur2bd: " + exp.error().message());
+        }
+        const auto result = m_dur2bdSession->result().as<ds::Api::Onnx::SessionResult>();
+        if (!result) {
+            throw std::runtime_error("Could not get dur2bd session result");
+        }
 
-        const auto outputTensors = sessDur2bd->Run(Ort::RunOptions{nullptr}, inputNames, inputTensors.data(),
-                                                   inputTensors.size(), outputNames, 1);
+        const auto boundaryIt = result->outputs.find("boundaries");
+        if (boundaryIt == result->outputs.end()) {
+            throw std::runtime_error("Missing boundaries output from dur2bd");
+        }
 
-        const bool *boundaryData = outputTensors[0].GetTensorData<bool>();
-        const size_t boundaryCount = outputTensors[0].GetTensorTypeAndShapeInfo().GetElementCount();
-        std::vector<uint8_t> boundaries(boundaryCount);
-        for (size_t i = 0; i < boundaryCount; ++i)
-            boundaries[i] = boundaryData[i] ? 1 : 0;
+        const auto &boundaryTensor = boundaryIt->second;
+        if (boundaryTensor->dataType() != ds::tensor_traits<bool>::data_type) {
+            throw std::runtime_error("boundaries output has wrong data type");
+        }
+        const auto boundaryData = boundaryTensor->rawView();
+        if (boundaryData.empty()) {
+            throw std::runtime_error("Could not get boundaries data");
+        }
+
+        std::vector<uint8_t> boundaries;
+        boundaries.reserve(boundaryData.size());
+        for (size_t i = 0; i < boundaryData.size(); ++i) {
+            boundaries.push_back(boundaryData[i] != std::byte{0} ? 1 : 0);
+        }
 
         return boundaries;
     }
 
-    std::vector<uint8_t> GameModel::runSegmenter(const Ort::Value &xSeg, const std::vector<uint8_t> &knownBoundaries,
+    std::vector<uint8_t> GameModel::runSegmenter(const srt::NO<ds::ITensor> &xSeg,
+                                                 const std::vector<uint8_t> &knownBoundaries,
                                                  const std::vector<uint8_t> &prevBoundaries, int language,
-                                                 const Ort::Value &maskT, float threshold, int radius,
+                                                 const srt::NO<ds::ITensor> &maskT, float threshold, int radius,
                                                  const std::vector<float> &d3pmTs) const {
-        if (d3pmTs.empty())
+        if (d3pmTs.empty() || !m_segmenterSession)
             return prevBoundaries;
 
-        auto maskTInfo = maskT.GetTensorTypeAndShapeInfo();
-        auto maskTShape = maskTInfo.GetShape();
-        if (maskTShape.size() != 2 || maskTShape[0] != 1)
+        // Get shape information from tensors
+        if (!maskT) {
+            throw std::runtime_error("maskT tensor is null");
+        }
+        auto maskTShape = maskT->shape();
+        if (maskTShape.size() != 2 || maskTShape[0] != 1) {
             throw std::runtime_error("maskT shape unexpected");
+        }
         int64_t T = maskTShape[1];
         if (T <= 0)
             return {};
 
-        const bool *maskTData = maskT.GetTensorData<bool>();
-        std::vector<uint8_t> maskTBool(T);
-        for (int64_t i = 0; i < T; ++i)
-            maskTBool[i] = maskTData[i] ? 1 : 0;
+        auto maskTData = maskT->rawView();
+        std::vector<bool> maskTBool(T);
+        for (int64_t i = 0; i < T; ++i) {
+            maskTBool[i] = maskTData[i] != std::byte{0} ? 1 : 0;
+        }
 
-        auto xSegInfo = xSeg.GetTensorTypeAndShapeInfo();
-        auto xSegShape = xSegInfo.GetShape();
-        std::vector<float> xSegData(xSegInfo.GetElementCount());
-        std::memcpy(xSegData.data(), xSeg.GetTensorData<float>(), xSegData.size() * sizeof(float));
+        auto xSegShape = xSeg->shape();
+        std::vector<float> xSegData;
+        if (auto exp = extractTensor<float>({{"x_seg", xSeg}}, "x_seg"); exp) {
+            xSegData = exp.take();
+        } else {
+            throw std::runtime_error("Failed to extract xSeg tensor data: " + exp.error().message());
+        }
 
-        Ort::MemoryInfo memInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-
-        std::array<int64_t, 2> boundariesShape = {1, T};
-        std::array<int64_t, 3> xSegShapeArr = {xSegShape[0], xSegShape[1], xSegShape[2]};
+        std::vector boundariesShape = {1, T};
+        std::vector xSegShapeArr = {xSegShape[0], xSegShape[1], xSegShape[2]};
 
         std::vector<uint8_t> currentBoundaries = prevBoundaries;
         if (currentBoundaries.size() != static_cast<size_t>(T))
@@ -420,83 +451,90 @@ namespace Game
             knownBd.resize(T, 0);
 
         for (float t : d3pmTs) {
-            Ort::Value xSegTensor = Ort::Value::CreateTensor<float>(memInfo, xSegData.data(), xSegData.size(),
-                                                                    xSegShapeArr.data(), xSegShapeArr.size());
+            auto sessionInput = srt::NO<ds::Api::Onnx::SessionStartInput>::create();
 
-            std::vector<uint8_t> maskTBoolVec(maskTBool.begin(), maskTBool.end());
-            Ort::Value maskTTensor =
-                Ort::Value::CreateTensor<bool>(memInfo, reinterpret_cast<bool *>(maskTBoolVec.data()),
-                                               maskTBoolVec.size(), boundariesShape.data(), boundariesShape.size());
-
-            std::vector<uint8_t> knownBdVec(knownBd.begin(), knownBd.end());
-            Ort::Value knownBdTensor =
-                Ort::Value::CreateTensor<bool>(memInfo, reinterpret_cast<bool *>(knownBdVec.data()), knownBdVec.size(),
-                                               boundariesShape.data(), boundariesShape.size());
-
-            std::vector<uint8_t> currentBdVec(currentBoundaries.begin(), currentBoundaries.end());
-            Ort::Value prevBdTensor =
-                Ort::Value::CreateTensor<bool>(memInfo, reinterpret_cast<bool *>(currentBdVec.data()),
-                                               currentBdVec.size(), boundariesShape.data(), boundariesShape.size());
-
-            std::array<int64_t, 1> langShape = {1};
-            int64_t langVal = language;
-            Ort::Value langTensor =
-                Ort::Value::CreateTensor<int64_t>(memInfo, &langVal, 1, langShape.data(), langShape.size());
-
-            Ort::Value threshTensor = Ort::Value::CreateTensor<float>(memInfo, &threshold, 1, nullptr, 0);
-
-            int64_t radius_64 = radius;
-            Ort::Value radiusTensor = Ort::Value::CreateTensor<int64_t>(memInfo, &radius_64, 1, nullptr, 0);
-
-            std::array<int64_t, 1> tShape = {1};
-            float tVal = t;
-            Ort::Value tTensor = Ort::Value::CreateTensor<float>(memInfo, &tVal, 1, tShape.data(), tShape.size());
-
-            std::vector<const char *> inputNames;
-            std::vector<Ort::Value> inputTensors;
-
-            static std::vector<std::string> segInputNames;
-            if (segInputNames.empty()) {
-                size_t numInputs = sessSegmenter->GetInputCount();
-                for (size_t i = 0; i < numInputs; ++i) {
-                    Ort::AllocatorWithDefaultOptions alloc;
-                    auto namePtr = sessSegmenter->GetInputNameAllocated(i, alloc);
-                    segInputNames.emplace_back(namePtr.get());
-                }
+            if (auto exp = ds::Tensor::createFromView<float>(xSegShapeArr, xSegData); !exp) {
+                throw std::runtime_error("Failed to create xSeg tensor: " + exp.error().message());
+            } else {
+                sessionInput->inputs["x_seg"] = exp.take();
             }
 
-            for (const auto &name : segInputNames) {
-                if (name == "x_seg")
-                    inputTensors.push_back(std::move(xSegTensor));
-                else if (name == "known_boundaries")
-                    inputTensors.push_back(std::move(knownBdTensor));
-                else if (name == "prev_boundaries")
-                    inputTensors.push_back(std::move(prevBdTensor));
-                else if (name == "language")
-                    inputTensors.push_back(std::move(langTensor));
-                else if (name == "maskT")
-                    inputTensors.push_back(std::move(maskTTensor));
-                else if (name == "threshold")
-                    inputTensors.push_back(std::move(threshTensor));
-                else if (name == "radius")
-                    inputTensors.push_back(std::move(radiusTensor));
-                else if (name == "t")
-                    inputTensors.push_back(std::move(tTensor));
-                else
-                    throw std::runtime_error("Unknown segmenter input: " + name);
-                inputNames.push_back(name.c_str());
+            if (auto exp = createFromBoolVector({1, static_cast<long long>(maskTBool.size())}, maskTBool); !exp) {
+                throw std::runtime_error("Failed to create maskT tensor: " + exp.error().message());
+            } else {
+                sessionInput->inputs["maskT"] = exp.take();
             }
 
-            const char *outputNames[] = {"boundaries"};
-            auto outputs = sessSegmenter->Run(Ort::RunOptions{nullptr}, inputNames.data(), inputTensors.data(),
-                                              inputTensors.size(), outputNames, 1);
+            std::vector<bool> knownBdVec(knownBd.begin(), knownBd.end());
+            if (auto exp = createFromBoolVector({1, static_cast<long long>(knownBdVec.size())}, knownBdVec); !exp) {
+                throw std::runtime_error("Failed to create known_boundaries tensor: " + exp.error().message());
+            } else {
+                sessionInput->inputs["known_boundaries"] = exp.take();
+            }
 
-            const bool *outData = outputs[0].GetTensorData<bool>();
-            size_t outCount = outputs[0].GetTensorTypeAndShapeInfo().GetElementCount();
+            std::vector<bool> currentBdVec(currentBoundaries.begin(), currentBoundaries.end());
+            if (auto exp = createFromBoolVector({1, static_cast<long long>(currentBdVec.size())}, currentBdVec); !exp) {
+                throw std::runtime_error("Failed to create prev_boundaries tensor: " + exp.error().message());
+            } else {
+                sessionInput->inputs["prev_boundaries"] = exp.take();
+            }
+
+            std::vector langVec = {static_cast<int64_t>(language)};
+            if (auto exp = ds::Tensor::createFromView<int64_t>({1}, langVec); !exp) {
+                throw std::runtime_error("Failed to create language tensor: " + exp.error().message());
+            } else {
+                sessionInput->inputs["language"] = exp.take();
+            }
+
+            std::vector threshVec = {threshold};
+            if (auto exp = ds::Tensor::createFromView<float>({1}, threshVec); !exp) {
+                throw std::runtime_error("Failed to create threshold tensor: " + exp.error().message());
+            } else {
+                sessionInput->inputs["threshold"] = exp.take();
+            }
+
+            std::vector radiusVec = {static_cast<int64_t>(radius)};
+            if (auto exp = ds::Tensor::createFromView<int64_t>({1}, radiusVec); !exp) {
+                throw std::runtime_error("Failed to create radius tensor: " + exp.error().message());
+            } else {
+                sessionInput->inputs["radius"] = exp.take();
+            }
+
+            std::vector tVec = {t};
+            if (auto exp = ds::Tensor::createFromView<float>({1}, tVec); !exp) {
+                throw std::runtime_error("Failed to create t tensor: " + exp.error().message());
+            } else {
+                sessionInput->inputs["t"] = exp.take();
+            }
+
+            sessionInput->outputs = {"boundaries"};
+
+            if (auto exp = m_segmenterSession->start(sessionInput); !exp) {
+                throw std::runtime_error("Failed to run segmenter: " + exp.error().message());
+            }
+            const auto result = m_segmenterSession->result().as<ds::Api::Onnx::SessionResult>();
+            if (!result) {
+                throw std::runtime_error("Could not get segmenter session result");
+            }
+
+            auto boundaryIt = result->outputs.find("boundaries");
+            if (boundaryIt == result->outputs.end()) {
+                throw std::runtime_error("Missing boundaries output from segmenter");
+            }
+
+            const auto &boundaryTensor = boundaryIt->second;
+            if (boundaryTensor->dataType() != ds::tensor_traits<bool>::data_type) {
+                throw std::runtime_error("boundaries output has wrong data type");
+            }
+            const auto boundaryData = boundaryTensor->rawView();
+            if (boundaryData.empty()) {
+                throw std::runtime_error("Could not get boundaries data");
+            }
+
             currentBoundaries.clear();
-            currentBoundaries.reserve(outCount);
-            for (size_t i = 0; i < outCount; ++i) {
-                currentBoundaries.push_back(outData[i] ? 1 : 0);
+            currentBoundaries.reserve(boundaryData.size());
+            for (size_t i = 0; i < boundaryData.size(); ++i) {
+                currentBoundaries.push_back(boundaryData[i] != std::byte{0} ? 1 : 0);
             }
             if (currentBoundaries.size() != static_cast<size_t>(T))
                 currentBoundaries.resize(T, 0);
@@ -504,10 +542,10 @@ namespace Game
         return currentBoundaries;
     }
 
-    std::vector<uint8_t> GameModel::runSegmenterWithConfig(const Ort::Value &xSeg,
+    std::vector<uint8_t> GameModel::runSegmenterWithConfig(const srt::NO<ds::ITensor> &xSeg,
                                                            const std::vector<uint8_t> &knownBoundaries,
                                                            const std::vector<uint8_t> &prevBoundaries,
-                                                           const int language, const Ort::Value &maskT,
+                                                           const int language, const srt::NO<ds::ITensor> &maskT,
                                                            const float threshold, const int radius,
                                                            const std::vector<float> &d3pmTs) const {
         return runSegmenter(xSeg, knownBoundaries, prevBoundaries, language, maskT, threshold, radius, d3pmTs);
@@ -515,59 +553,89 @@ namespace Game
 
     std::tuple<std::vector<float>, std::vector<uint8_t>> GameModel::runBd2dur(const std::vector<uint8_t> &boundaries,
                                                                               const std::vector<uint8_t> &maskT) const {
-        if (boundaries.empty() || maskT.empty()) {
+        if (boundaries.empty() || maskT.empty() || !m_dur2bdSession) {
             return {{}, {}};
         }
 
-        const std::array<int64_t, 2> boundariesShape = {1, static_cast<int64_t>(boundaries.size())};
-        const std::array<int64_t, 2> maskTShape = {1, static_cast<int64_t>(maskT.size())};
+        const std::vector boundariesShape = {1, static_cast<int64_t>(boundaries.size())};
+        const std::vector maskTShape = {1, static_cast<int64_t>(maskT.size())};
 
-        const Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+        const auto sessionInput = srt::NO<ds::Api::Onnx::SessionStartInput>::create();
 
-        std::vector<uint8_t> tempBoundaries(boundaries.begin(), boundaries.end());
-        Ort::Value boundariesTensor =
-            Ort::Value::CreateTensor<bool>(memoryInfo, reinterpret_cast<bool *>(tempBoundaries.data()),
-                                           boundaries.size(), boundariesShape.data(), boundariesShape.size());
+        const std::vector<bool> boundariesVec(boundaries.begin(), boundaries.end());
+        if (auto exp = createFromBoolVector(boundariesShape, boundariesVec); !exp) {
+            throw std::runtime_error("Failed to create boundaries tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["boundaries"] = exp.take();
+        }
 
-        std::vector<uint8_t> tempMaskT(maskT.begin(), maskT.end());
-        Ort::Value maskTTensor = Ort::Value::CreateTensor<bool>(memoryInfo, reinterpret_cast<bool *>(tempMaskT.data()),
-                                                                tempMaskT.size(), maskTShape.data(), maskTShape.size());
+        const std::vector<bool> maskTVec(maskT.begin(), maskT.end());
+        if (auto exp = createFromBoolVector(maskTShape, maskTVec); !exp) {
+            throw std::runtime_error("Failed to create maskT tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["maskT"] = exp.take();
+        }
 
-        const char *inputNames[] = {"boundaries", "maskT"};
-        std::vector<Ort::Value> inputTensors;
-        inputTensors.push_back(std::move(boundariesTensor));
-        inputTensors.push_back(std::move(maskTTensor));
+        sessionInput->outputs = {"durations", "maskN"};
 
-        const char *outputNames[] = {"durations", "maskN"};
+        if (auto exp = m_dur2bdSession->start(sessionInput); !exp) {
+            throw std::runtime_error("Failed to run bd2dur: " + exp.error().message());
+        }
+        const auto result = m_dur2bdSession->result().as<ds::Api::Onnx::SessionResult>();
+        if (!result) {
+            throw std::runtime_error("Could not get bd2dur session result");
+        }
 
-        const auto outputTensors = sessDur2bd->Run(Ort::RunOptions{nullptr}, inputNames, inputTensors.data(),
-                                                   inputTensors.size(), outputNames, 2);
+        // Extract durations
+        auto durIt = result->outputs.find("durations");
+        if (durIt == result->outputs.end()) {
+            throw std::runtime_error("Missing durations output from bd2dur");
+        }
+        const auto &durTensor = durIt->second;
+        if (durTensor->dataType() != ds::tensor_traits<float>::data_type) {
+            throw std::runtime_error("durations output has wrong data type");
+        }
+        const auto durData = durTensor->view<float>();
+        if (durData.empty()) {
+            throw std::runtime_error("Could not get durations data");
+        }
+        std::vector<float> durations = durData.vec();
 
-        const float *durData = outputTensors[0].GetTensorData<float>();
-        const size_t durCount = outputTensors[0].GetTensorTypeAndShapeInfo().GetElementCount();
-        std::vector<float> durations(durData, durData + durCount);
-
-        const bool *maskNData = outputTensors[1].GetTensorData<bool>();
-        const size_t maskNCount = outputTensors[1].GetTensorTypeAndShapeInfo().GetElementCount();
-        std::vector<uint8_t> maskN(maskNCount);
-        for (size_t i = 0; i < maskNCount; ++i)
-            maskN[i] = maskNData[i] ? 1 : 0;
+        // Extract maskN
+        auto maskNIt = result->outputs.find("maskN");
+        if (maskNIt == result->outputs.end()) {
+            throw std::runtime_error("Missing maskN output from bd2dur");
+        }
+        const auto &maskNTensor = maskNIt->second;
+        if (maskNTensor->dataType() != ds::tensor_traits<bool>::data_type) {
+            throw std::runtime_error("maskN output has wrong data type");
+        }
+        const auto maskNData = maskNTensor->rawView();
+        if (maskNData.empty()) {
+            throw std::runtime_error("Could not get maskN data");
+        }
+        std::vector<uint8_t> maskN;
+        maskN.reserve(maskNData.size());
+        for (size_t i = 0; i < maskNData.size(); ++i) {
+            maskN.push_back(maskNData[i] != std::byte{0} ? 1 : 0);
+        }
 
         return std::make_tuple(durations, maskN);
     }
 
-    std::tuple<std::vector<float>, std::vector<float>>
-    GameModel::runEstimator(const Ort::Value &xEst, const std::vector<uint8_t> &boundaries, const Ort::Value &maskT,
-                            const std::vector<uint8_t> &maskN, float threshold) const {
-        if (boundaries.empty() || maskN.empty()) {
+    std::tuple<std::vector<float>, std::vector<float>> GameModel::runEstimator(const srt::NO<ds::ITensor> &xEst,
+                                                                               const std::vector<uint8_t> &boundaries,
+                                                                               const srt::NO<ds::ITensor> &maskT,
+                                                                               const std::vector<uint8_t> &maskN,
+                                                                               float threshold) const {
+        if (boundaries.empty() || maskN.empty() || !m_estimatorSession) {
             return {{}, {}};
         }
 
         if (!maskT) {
             throw std::runtime_error("runEstimator: maskT is null");
         }
-        auto maskTTypeInfo = maskT.GetTensorTypeAndShapeInfo();
-        auto maskTShape = maskTTypeInfo.GetShape();
+        auto maskTShape = maskT->shape();
         if (maskTShape.size() != 2 || maskTShape[0] != 1) {
             throw std::runtime_error("runEstimator: maskT shape unexpected");
         }
@@ -576,12 +644,11 @@ namespace Game
             return {{}, {}};
         }
 
-        const bool *originalMaskTData = nullptr;
-        try {
-            originalMaskTData = maskT.GetTensorData<bool>();
-        }
-        catch (const Ort::Exception &e) {
-            throw std::runtime_error("Failed to get tensor data from maskT in estimator: " + std::string(e.what()));
+        auto maskTData = maskT->rawView();
+        std::vector<uint8_t> maskTVec;
+        maskTVec.reserve(T);
+        for (int64_t i = 0; i < T; ++i) {
+            maskTVec.push_back(maskTData[i] != std::byte{0});
         }
 
         std::vector<uint8_t> boundariesAdjusted = boundaries;
@@ -592,79 +659,98 @@ namespace Game
         if (!xEst) {
             throw std::runtime_error("runEstimator: xEst is null");
         }
-        auto xEstTypeInfo = xEst.GetTensorTypeAndShapeInfo();
-        auto xEstShape = xEstTypeInfo.GetShape();
+        auto xEstShape = xEst->shape();
         if (xEstShape.size() < 2 || xEstShape[1] != T) {
             throw std::runtime_error("runEstimator: xEst shape mismatch with T");
         }
-        auto xEstData = xEst.GetTensorData<float>();
-        std::vector<float> xEstCopy(xEstData, xEstData + xEstTypeInfo.GetElementCount());
-
-        Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-
-        Ort::Value xEstTensor = Ort::Value::CreateTensor<float>(memoryInfo, xEstCopy.data(), xEstCopy.size(),
-                                                                xEstShape.data(), xEstShape.size());
-
-        std::vector<uint8_t> maskTVec;
-        maskTVec.reserve(T);
-        for (int64_t i = 0; i < T; ++i) {
-            maskTVec.push_back(originalMaskTData[i]);
+        std::vector<float> xEstData;
+        if (auto exp = extractTensor<float>({{"x_est", xEst}}, "x_est"); exp) {
+            xEstData = exp.take();
+        } else {
+            throw std::runtime_error("Failed to extract xEst tensor data: " + exp.error().message());
         }
 
-        std::array<int64_t, 2> maskTShapeForTensor = {1, T};
-        Ort::Value maskTTensor =
-            Ort::Value::CreateTensor<bool>(memoryInfo, reinterpret_cast<bool *>(maskTVec.data()), maskTVec.size(),
-                                           maskTShapeForTensor.data(), maskTShapeForTensor.size());
+        auto sessionInput = srt::NO<ds::Api::Onnx::SessionStartInput>::create();
 
-        std::vector<uint8_t> boundariesVec;
-        boundariesVec.reserve(boundariesAdjusted.size());
-        for (uint8_t val : boundariesAdjusted) {
-            boundariesVec.push_back(val != 0);
-        }
-        std::array<int64_t, 2> bdShape = {1, static_cast<int64_t>(boundariesAdjusted.size())};
-        Ort::Value boundariesTensor =
-            Ort::Value::CreateTensor<bool>(memoryInfo, reinterpret_cast<bool *>(boundariesVec.data()),
-                                           boundariesVec.size(), bdShape.data(), bdShape.size());
-
-        std::vector<uint8_t> tempMaskN;
-        tempMaskN.reserve(maskN.size());
-        for (uint8_t val : maskN) {
-            tempMaskN.push_back(val != 0);
+        if (auto exp = ds::Tensor::createFromView<float>(xEstShape, xEstData); !exp) {
+            throw std::runtime_error("Failed to create xEst tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["x_est"] = exp.take();
         }
 
-        std::array<int64_t, 2> maskNShape = {1, static_cast<int64_t>(tempMaskN.size())};
-        Ort::Value maskNTensor = Ort::Value::CreateTensor<bool>(memoryInfo, reinterpret_cast<bool *>(tempMaskN.data()),
-                                                                tempMaskN.size(), maskNShape.data(), maskNShape.size());
+        std::vector<bool> uint8_boundariesAdjusted(boundariesAdjusted.begin(), boundariesAdjusted.end());
+        if (auto exp =
+                createFromBoolVector({1, static_cast<int64_t>(boundariesAdjusted.size())}, uint8_boundariesAdjusted);
+            !exp) {
+            throw std::runtime_error("Failed to create boundaries tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["boundaries"] = exp.take();
+        }
 
-        std::vector<float> threshVec = {threshold};
-        std::array<int64_t, 1> scalarShape = {1};
-        Ort::Value thresholdTensor =
-            Ort::Value::CreateTensor<float>(memoryInfo, threshVec.data(), 1, scalarShape.data(), scalarShape.size());
+        std::vector<bool> uint8_maskTVec(maskTVec.begin(), maskTVec.end());
+        if (auto exp = createFromBoolVector({1, static_cast<int64_t>(maskTVec.size())}, uint8_maskTVec); !exp) {
+            throw std::runtime_error("Failed to create maskT tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["maskT"] = exp.take();
+        }
 
-        const char *inputNames[] = {"x_est", "boundaries", "maskT", "maskN", "threshold"};
-        std::vector<Ort::Value> inputTensors;
-        inputTensors.push_back(std::move(xEstTensor));
-        inputTensors.push_back(std::move(boundariesTensor));
-        inputTensors.push_back(std::move(maskTTensor));
-        inputTensors.push_back(std::move(maskNTensor));
-        inputTensors.push_back(std::move(thresholdTensor));
+        std::vector<bool> tempMaskN(maskN.begin(), maskN.end());
+        if (auto exp = createFromBoolVector({1, static_cast<int64_t>(tempMaskN.size())}, tempMaskN); !exp) {
+            throw std::runtime_error("Failed to create maskN tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["maskN"] = exp.take();
+        }
 
-        const char *outputNames[] = {"presence", "scores"};
+        std::vector threshVec = {threshold};
+        if (auto exp = ds::Tensor::createFromView<float>({1}, threshVec); !exp) {
+            throw std::runtime_error("Failed to create threshold tensor: " + exp.error().message());
+        } else {
+            sessionInput->inputs["threshold"] = exp.take();
+        }
 
-        auto outputTensors = sessEstimator->Run(Ort::RunOptions{nullptr}, inputNames, inputTensors.data(),
-                                                inputTensors.size(), outputNames, 2);
+        sessionInput->outputs = {"presence", "scores"};
 
-        const bool *presenceDataBool = outputTensors[0].GetTensorData<bool>();
-        size_t presenceCount = outputTensors[0].GetTensorTypeAndShapeInfo().GetElementCount();
+        if (auto exp = m_estimatorSession->start(sessionInput); !exp) {
+            throw std::runtime_error("Failed to run estimator: " + exp.error().message());
+        }
+        const auto result = m_estimatorSession->result().as<ds::Api::Onnx::SessionResult>();
+        if (!result) {
+            throw std::runtime_error("Could not get estimator session result");
+        }
+
+        // Extract presence
+        auto presIt = result->outputs.find("presence");
+        if (presIt == result->outputs.end()) {
+            throw std::runtime_error("Missing presence output from estimator");
+        }
+        const auto &presTensor = presIt->second;
+        if (presTensor->dataType() != ds::tensor_traits<bool>::data_type) {
+            throw std::runtime_error("presence output has wrong data type");
+        }
+        const auto presData = presTensor->rawView();
+        if (presData.empty()) {
+            throw std::runtime_error("Could not get presence data");
+        }
         std::vector<float> presence;
-        presence.reserve(presenceCount);
-        for (size_t i = 0; i < presenceCount; ++i) {
-            presence.push_back(presenceDataBool[i] ? 1.0f : 0.0f);
+        presence.reserve(presData.size());
+        for (size_t i = 0; i < presData.size(); ++i) {
+            presence.push_back(presData[i] != std::byte{0} ? 1.0f : 0.0f);
         }
 
-        const float *scoresData = outputTensors[1].GetTensorData<float>();
-        size_t scoresCount = outputTensors[1].GetTensorTypeAndShapeInfo().GetElementCount();
-        std::vector<float> scores(scoresData, scoresData + scoresCount);
+        // Extract scores
+        auto scoresIt = result->outputs.find("scores");
+        if (scoresIt == result->outputs.end()) {
+            throw std::runtime_error("Missing scores output from estimator");
+        }
+        const auto &scoresTensor = scoresIt->second;
+        if (scoresTensor->dataType() != ds::tensor_traits<float>::data_type) {
+            throw std::runtime_error("scores output has wrong data type");
+        }
+        const auto scoresData = scoresTensor->view<float>();
+        if (scoresData.empty()) {
+            throw std::runtime_error("Could not get scores data");
+        }
+        std::vector<float> scores = scoresData.vec();
 
         return std::make_tuple(presence, scores);
     }
@@ -673,46 +759,26 @@ namespace Game
                                           float estThreshold, const std::vector<float> &d3pmTs) const {
         InferenceOutput output;
 
-        auto [xSegVal, xEstVal, maskTVal] = runEncoder(input.waveform, input.duration, input.language);
+        auto [xSegVal, xEstVal, maskTVal] = runEncoder(input.waveform, input.duration);
 
         if (!xSegVal || !xEstVal || !maskTVal) {
             return output;
         }
 
-        auto xSegShape = xSegVal.GetTensorTypeAndShapeInfo().GetShape();
-        auto xEstShape = xEstVal.GetTensorTypeAndShapeInfo().GetShape();
-        auto maskTShape = maskTVal.GetTensorTypeAndShapeInfo().GetShape();
-
-        auto xSegData = xSegVal.GetTensorData<float>();
-        size_t xSegCount = xSegVal.GetTensorTypeAndShapeInfo().GetElementCount();
-        std::vector<float> xSegClean(xSegData, xSegData + xSegCount);
-        Ort::MemoryInfo memInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-        Ort::Value xSegCleanVal = Ort::Value::CreateTensor<float>(memInfo, xSegClean.data(), xSegClean.size(),
-                                                                  xSegShape.data(), xSegShape.size());
-
-        auto xEstData = xEstVal.GetTensorData<float>();
-        size_t xEstCount = xEstVal.GetTensorTypeAndShapeInfo().GetElementCount();
-        std::vector<float> xEstClean(xEstData, xEstData + xEstCount);
-        Ort::Value xEstCleanVal = Ort::Value::CreateTensor<float>(memInfo, xEstClean.data(), xEstClean.size(),
-                                                                  xEstShape.data(), xEstShape.size());
+        auto xSegShape = xSegVal->shape();
+        auto xEstShape = xEstVal->shape();
+        auto maskTShape = maskTVal->shape();
 
         int64_t T = maskTShape[1];
         if (T <= 0) {
             return output;
         }
 
-        const bool *maskTData = nullptr;
-        try {
-            maskTData = maskTVal.GetTensorData<bool>();
-        }
-        catch (const Ort::Exception &e) {
-            throw std::runtime_error("Failed to get tensor data from maskT in inferSlice: " + std::string(e.what()));
-        }
-
+        auto maskTData = maskTVal->rawView();
         std::vector<uint8_t> maskTBool(T);
         for (int64_t i = 0; i < T; ++i) {
-            if (maskTData) {
-                maskTBool[i] = maskTData[i] ? 1 : 0;
+            if (maskTData.size() > i) {
+                maskTBool[i] = maskTData[i] != std::byte{0} ? 1 : 0;
             } else {
                 maskTBool[i] = false;
             }
@@ -726,7 +792,7 @@ namespace Game
         knownBoundaries.resize(T, 0);
 
         std::vector<uint8_t> boundaries = runSegmenterWithConfig(
-            xSegCleanVal, knownBoundaries, knownBoundaries, input.language, maskTVal, segThreshold, segRadius, d3pmTs);
+            xSegVal, knownBoundaries, knownBoundaries, input.language, maskTVal, segThreshold, segRadius, d3pmTs);
         if (boundaries.empty()) {
             boundaries.resize(T, 0);
         }
@@ -740,7 +806,7 @@ namespace Game
         }
 
         std::vector<float> presence, scores;
-        std::tie(presence, scores) = runEstimator(xEstCleanVal, boundaries, maskTVal, maskN, estThreshold);
+        std::tie(presence, scores) = runEstimator(xEstVal, boundaries, maskTVal, maskN, estThreshold);
 
         output.boundaries = boundaries;
         output.durations = durations;

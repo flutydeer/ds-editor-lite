@@ -7,10 +7,9 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
-#include "Utils/Linq.h"
-#include "Utils/MathUtils.h"
 
 #include <QDebug>
+#include <QDir>
 #include <QThread>
 #include <utility>
 
@@ -27,27 +26,30 @@ ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
         return;
     }
 
-    auto somePath = appOptions->general()->somePath;
-    const std::filesystem::path modelPath = somePath
+    auto gamePath =
+        QString::fromStdString(std::filesystem::path(appOptions->general()->gamePath.toStdString())
+                                   .parent_path()
+                                   .string());
+    const std::filesystem::path modelPath = gamePath
 #ifdef _WIN32
-        .toStdWString();
+                                                .toStdWString();
 #else
-        .toStdString();
+                                                .toStdString();
 #endif
 
-    if (modelPath.empty() || !exists(modelPath) || is_directory(modelPath)) {
+    if (modelPath.empty() || !exists(modelPath)) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("Invalid SOME model path: ") + somePath;
+        m_errorMessage = tr("Invalid game model path: ") + gamePath;
         qCritical().noquote() << "Error:" << errorMessage();
         return;
     }
 
-    m_some = std::make_unique<Some::Some>(&inferEngine->synthUnit());
+    m_game = std::make_unique<Game::Game>(&inferEngine->synthUnit());
 
-    if (auto exp = m_some->open(modelPath); !exp) {
+    if (auto exp = m_game->open(modelPath); !exp) {
         m_errorCode = ErrorCode::ModelNotLoaded;
         const auto reason = QString::fromUtf8(exp.error().message());
-        m_errorMessage = tr("Failed to create SOME session: ") + reason;
+        m_errorMessage = tr("Failed to create game session: ") + reason;
         qCritical().noquote() << errorMessage();
         return;
     }
@@ -58,12 +60,12 @@ void ExtractMidiTask::runTask() {
     newStatus.message = tr("Running inference: %1").arg(m_input.audioPath);
     setStatus(newStatus);
 
-    if (!m_some || !m_some->is_open()) {
+    if (!m_game || !m_game->is_open()) {
         qCritical().noquote() << errorMessage();
         return;
     }
 
-    std::vector<Some::Midi> midis;
+    std::vector<Game::GameMidi> midis;
     std::string msg;
 
 #ifdef Q_OS_WIN
@@ -72,11 +74,12 @@ void ExtractMidiTask::runTask() {
     const std::filesystem::path wavPath = m_input.audioPath.toStdString();
 #endif
 
-    const bool runSuccess = m_some->get_midi(wavPath, midis, appModel->tempo(), msg, [this](const int progress) {
-        auto progressStatus = status();
-        progressStatus.progress = progress;
-        setStatus(progressStatus);
-    });
+    const bool runSuccess =
+        m_game->get_midi(wavPath, midis, appModel->tempo(), msg, [this](const int progress) {
+            auto progressStatus = status();
+            progressStatus.progress = progress;
+            setStatus(progressStatus);
+        });
 
     if (runSuccess) {
         m_errorCode = ErrorCode::Success;
@@ -85,16 +88,16 @@ void ExtractMidiTask::runTask() {
         result = midis;
     } else {
         m_errorCode = ErrorCode::ModelRunFailed;
-        m_errorMessage = tr("SOME model run failed. Reason: ") + QString::fromStdString(msg);
+        m_errorMessage = tr("game model run failed. Reason: ") + QString::fromStdString(msg);
         qCritical().noquote() << "Error:" << errorMessage();
     }
 }
 
 void ExtractMidiTask::terminate() {
-    if (!m_some) {
+    if (!m_game) {
         return;
     }
-    m_some->terminate();
+    m_game->terminate();
     m_errorCode = ErrorCode::Terminated;
     m_errorMessage = tr("Task terminated.");
 }

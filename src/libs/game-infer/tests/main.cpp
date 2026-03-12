@@ -8,7 +8,49 @@
 
 #include "wolf-midi/MidiFile.h"
 
+#include <dsinfer/Api/Drivers/Onnx/OnnxDriverApi.h>
+#include <dsinfer/Inference/InferenceDriverPlugin.h>
+#include <stdcorelib/str.h>
+#include <stdcorelib/system.h>
+#include <synthrt/Core/Contribute.h>
+#include <synthrt/Core/NamedObject.h>
+#include <synthrt/Core/SynthUnit.h>
+
+using EP = ds::Api::Onnx::ExecutionProvider;
+
 static void progressChanged(const int progress) { std::cout << "progress: " << progress << "%" << std::endl; }
+
+static srt::Expected<void> initializeSU(srt::SynthUnit &su, EP ep, int deviceIndex) {
+    // Get basic directories
+    auto appDir = stdc::system::application_directory();
+    auto defaultPluginDir = appDir.parent_path() / _TSTR("lib") / _TSTR("plugins") / _TSTR("dsinfer");
+
+    // Set default plugin directories
+    su.addPluginPath("org.openvpi.InferenceDriver", defaultPluginDir / _TSTR("inferencedrivers"));
+
+    // Load driver
+    auto plugin = su.plugin<ds::InferenceDriverPlugin>("onnx");
+    if (!plugin) {
+        return srt::Error(srt::Error::FileNotOpen, "failed to load inference driver");
+    }
+
+    auto onnxDriver = plugin->create();
+    auto onnxArgs = srt::NO<ds::Api::Onnx::DriverInitArgs>::create();
+
+    onnxArgs->ep = ep;
+    onnxArgs->runtimePath = plugin->path().parent_path() / _TSTR("runtimes");
+    onnxArgs->deviceIndex = deviceIndex;
+
+    if (auto exp = onnxDriver->initialize(onnxArgs); !exp) {
+        return srt::Error(srt::Error::FileNotOpen,
+                          stdc::formatN(R"(failed to initialize onnx driver: %1)", exp.error().message()));
+    }
+
+    // Add driver
+    auto &ic = *su.category("inference");
+    ic.addObject("dsdriver", onnxDriver);
+    return srt::Expected<void>();
+}
 
 // Helper function to parse comma-separated values
 std::vector<std::string> parseCommaSeparated(const std::string &val) {
@@ -145,24 +187,30 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Initialize execution provider
-    Game::ExecutionProvider gameProvider;
-    if (provider == "dml") {
-        gameProvider = Game::ExecutionProvider::DML;
-    } else if (provider == "cuda") {
-        gameProvider = Game::ExecutionProvider::CUDA;
-    } else {
-        gameProvider = Game::ExecutionProvider::CPU;
+    const auto rmProvider = [](const std::string &provider_) -> EP
+    {
+        auto provider_lower = stdc::to_lower(provider_);
+        if (provider_lower == "dml" || provider_lower == "directml") {
+            return EP::DMLExecutionProvider;
+        }
+        if (provider_lower == "cuda") {
+            return EP::CUDAExecutionProvider;
+        }
+        if (provider_lower == "coreml") {
+            return EP::CoreMLExecutionProvider;
+        }
+        return EP::CPUExecutionProvider;
+    }(provider);
+
+    srt::SynthUnit su;
+    if (auto exp = initializeSU(su, rmProvider, 0); !exp) {
+        std::cerr << "failed to initialize SynthUnit: " << exp.error().message() << std::endl;
+        return 1;
     }
 
-    std::cout << "Loading GAME model from: " << modelDir << std::endl;
-    std::cout << "Using provider: " << provider << ", device ID: " << deviceId << std::endl;
-
-    // Create the GAME instance
-    Game::Game game(modelDir, gameProvider, deviceId);
-
-    if (!game.is_open()) {
-        std::cerr << "Cannot load GAME Model from " << modelDir << std::endl;
+    Game::Game game(&su);
+    if (auto exp = game.open(modelDir); !exp) {
+        std::cerr << "failed to open RMVPE model " << modelDir << ": " << exp.error().message() << std::endl;
         return 1;
     }
 

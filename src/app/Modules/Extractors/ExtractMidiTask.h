@@ -6,22 +6,21 @@
 #define EXTRACTMIDITASK_H
 
 #include "ExtractTask.h"
-#include <some-infer/Some.h>
+#include <game-infer/Game.h>
 
 class ExtractMidiTask final : public ExtractTask {
     Q_OBJECT
 
 public:
-
     explicit ExtractMidiTask(Input input);
 
     void terminate() override;
 
-    std::vector<Some::Midi> result;
+    std::vector<Game::GameMidi> result;
 
 private:
     void runTask() override;
 
-    std::unique_ptr<Some::Some> m_some;
+    std::unique_ptr<Game::Game> m_game;
 };
 #endif // EXTRACTMIDITASK_H

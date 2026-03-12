@@ -11,16 +11,13 @@
 
 namespace Game
 {
-    Game::Game(const std::filesystem::path &modelPath, ExecutionProvider provider, int device_id) {
-        m_gameModel = std::make_unique<GameModel>(modelPath, provider, device_id);
-
-        if (!is_open()) {
-        }
-    }
+    Game::Game(const srt::SynthUnit *su) : su(su) {}
 
     Game::~Game() = default;
 
-    bool Game::is_open() const { return m_gameModel && m_gameModel->is_open(); }
+    srt::Expected<void> Game::open(const std::filesystem::path &modelPath) { return su.open(modelPath); }
+
+    bool Game::is_open() const { return su.is_open(); }
 
     std::vector<double> cumulativeSum(const std::vector<float> &durations) {
         std::vector<double> cumsum(durations.size());
@@ -92,11 +89,11 @@ namespace Game
 
     bool Game::get_midi(const std::filesystem::path &filepath, std::vector<GameMidi> &midis, const float tempo,
                         std::string &msg, const std::function<void(int)> &progressChanged) const {
-        if (!m_gameModel) {
+        if (!su.is_open()) {
             return false;
         }
 
-        const auto tar_sr = m_gameModel->get_target_sample_rate();
+        const auto tar_sr = su.get_target_sample_rate();
         auto sf_vio = AudioUtil::resample_to_vio(filepath, msg, 1, tar_sr);
 
         SndfileHandle sf(sf_vio.vio, &sf_vio.data, SFM_READ, SF_FORMAT_WAV | SF_FORMAT_PCM_16, sf_vio.info.channels,
@@ -144,7 +141,7 @@ namespace Game
             std::vector<float> presence;
             std::vector<float> scores;
 
-            const bool success = m_gameModel->forward(tmp, boundaries, durations, presence, scores, msg);
+            const bool success = su.forward(tmp, boundaries, durations, presence, scores, msg);
             if (!success)
                 return false;
 
@@ -168,41 +165,41 @@ namespace Game
         return true;
     }
 
-    void Game::terminate() const { m_gameModel->terminate(); }
+    void Game::terminate() const { su.terminate(); }
 
     // Implementation of parameter setting methods
-    void Game::set_seg_threshold(const float threshold) const {
-        if (m_gameModel) {
-            m_gameModel->set_seg_threshold(threshold);
+    void Game::set_seg_threshold(const float threshold) {
+        if (su.is_open()) {
+            su.set_seg_threshold(threshold);
         }
     }
 
-    void Game::set_seg_radius_seconds(const float radius) const {
-        if (m_gameModel) {
-            m_gameModel->set_seg_radius_seconds(radius);
+    void Game::set_seg_radius_seconds(const float radius) {
+        if (su.is_open()) {
+            su.set_seg_radius_seconds(radius);
         }
     }
-    void Game::set_seg_radius_frames(const float radiusFrames) const {
-        if (m_gameModel) {
-            m_gameModel->set_seg_radius_frames(radiusFrames);
-        }
-    }
-
-    void Game::set_est_threshold(const float threshold) const {
-        if (m_gameModel) {
-            m_gameModel->set_est_threshold(threshold);
+    void Game::set_seg_radius_frames(const float radiusFrames) {
+        if (su.is_open()) {
+            su.set_seg_radius_frames(radiusFrames);
         }
     }
 
-    void Game::set_d3pm_ts(const std::vector<float> &ts) const {
-        if (m_gameModel) {
-            m_gameModel->set_d3pm_ts(ts);
+    void Game::set_est_threshold(const float threshold) {
+        if (su.is_open()) {
+            su.set_est_threshold(threshold);
         }
     }
 
-    void Game::set_language(const int language) const {
-        if (m_gameModel) {
-            m_gameModel->set_language(language);
+    void Game::set_d3pm_ts(const std::vector<float> &ts) {
+        if (su.is_open()) {
+            su.set_d3pm_ts(ts);
+        }
+    }
+
+    void Game::set_language(const int language) {
+        if (su.is_open()) {
+            su.set_language(language);
         }
     }
 } // namespace Game

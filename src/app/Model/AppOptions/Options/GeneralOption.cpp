@@ -42,17 +42,17 @@ void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(defaultSpeakerIdKey))
         defaultSpeakerId = object[defaultSpeakerIdKey].toString();
 #endif
-    if (object.contains(somePathKey))
-        somePath = object[somePathKey].toString();
+    if (object.contains(gamePathKey))
+        gamePath = object[gamePathKey].toString();
     if (object.contains(rmvpePathKey))
         rmvpePath = object[rmvpePathKey].toString();
 }
 
 void GeneralOption::save(QJsonObject &object) {
     object = {
-        {defaultSingingLanguageKey, defaultSingingLanguage},
-        {defaultLyricKey,           defaultLyric          },
-        {packageSearchPathsKey, QJsonArray::fromStringList(packageSearchPaths)},
+        {defaultSingingLanguageKey, defaultSingingLanguage                        },
+        {defaultLyricKey,           defaultLyric                                  },
+        {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths)},
 #if false
         serialize_defaultPackage(),
         serialize_defaultPackageId(),
@@ -60,12 +60,12 @@ void GeneralOption::save(QJsonObject &object) {
         serialize_defaultSingerId(),
         serialize_defaultSpeakerId(),
 #endif
-        serialize_somePath(),
+        serialize_gamePath(),
         serialize_rmvpePath()
     };
 }
 
 void GeneralOption::setPackageSearchPathsAndNotify(QStringList paths) {
     packageSearchPaths = std::move(paths);
-    //Q_EMIT packageSearchPathsChanged();
+    // Q_EMIT packageSearchPathsChanged();
 }

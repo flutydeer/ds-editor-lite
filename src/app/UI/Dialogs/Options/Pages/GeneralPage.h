@@ -37,7 +37,7 @@ private:
 
     PathEditor *m_packageSearchPaths;
 
-    FileSelector *m_fsSomePath;
+    FileSelector *m_fsGamePath;
     FileSelector *m_fsRmvpePath;
 };
 
