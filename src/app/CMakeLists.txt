@@ -78,7 +78,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         lyric-tab::lyric-tab
         QWindowKit::Widgets
         qtmediate::Widgets
-        rmvpe-infer::rmvpe-infer some-infer::some-infer
+        rmvpe-infer::rmvpe-infer game-infer::game-infer
         curve-util::curve-util
         unofficial::tinyexpr::tinyexpr
         dsinfer::dsinfer

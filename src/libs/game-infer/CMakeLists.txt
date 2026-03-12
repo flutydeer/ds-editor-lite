@@ -2,16 +2,16 @@
 # Project
 # ----------------------------------
 cmake_minimum_required(VERSION 3.17)
-project(some-infer VERSION 1.0.0.0 LANGUAGES CXX)
+project(game-infer VERSION 1.0.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
 # ----------------------------------
 # Build Options
 # ----------------------------------
-option(SOME_INFER_BUILD_STATIC "Build static library" OFF)
-option(SOME_INFER_BUILD_TESTS "Build test cases" ON)
-option(SOME_INFER_INSTALL "Install library" ON)
+option(GAME_INFER_BUILD_STATIC "Build static library" OFF)
+option(GAME_INFER_BUILD_TESTS "Build test cases" ON)
+option(GAME_INFER_INSTALL "Install library" ON)
 
 # ----------------------------------
 # CMake Settings
@@ -39,7 +39,7 @@ if (MSVC)
     endif ()
 endif ()
 
-if (SOME_INFER_INSTALL)
+if (GAME_INFER_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 endif ()
@@ -49,25 +49,48 @@ endif ()
 include_directories(include)
 file(GLOB_RECURSE _src include/*.h src/*.h src/*.cpp src/*/*.h src/*/*.cpp)
 
-if (SOME_INFER_BUILD_STATIC)
+if (GAME_INFER_BUILD_STATIC)
     add_library(${PROJECT_NAME} STATIC)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC SOME_INFER_STATIC)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC GAME_INFER_STATIC)
 else ()
     add_library(${PROJECT_NAME} SHARED)
 endif ()
-target_compile_definitions(${PROJECT_NAME} PRIVATE SOME_INFER_LIBRARY)
+target_compile_definitions(${PROJECT_NAME} PRIVATE GAME_INFER_LIBRARY)
 
 find_package(SndFile CONFIG REQUIRED)
-find_package(dsinfer CONFIG REQUIRED)
+find_package(nlohmann_json REQUIRED)
+
+set(ONNX_RUNTIME_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../onnxruntime)
+
+include_directories(${ONNX_RUNTIME_PATH}/include)
+target_include_directories(${PROJECT_NAME}
+        PUBLIC
+        $<BUILD_INTERFACE:${ONNX_RUNTIME_PATH}/include>
+        $<INSTALL_INTERFACE:include>
+)
+
+target_link_directories(${PROJECT_NAME}
+        PUBLIC
+        $<BUILD_INTERFACE:${ONNX_RUNTIME_PATH}/lib>
+        $<INSTALL_INTERFACE:lib>
+)
+
+if (ONNXRUNTIME_ENABLE_CUDA)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC ONNXRUNTIME_ENABLE_CUDA)
+endif ()
+
+if (ONNXRUNTIME_ENABLE_DML)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC ONNXRUNTIME_ENABLE_DML)
+endif ()
 
 find_package(wolf-midi CONFIG REQUIRED)
-target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile audio-util wolf-midi::wolf-midi)
-target_link_libraries(${PROJECT_NAME} PUBLIC dsinfer::dsinfer)
+target_link_libraries(${PROJECT_NAME} PUBLIC SndFile::sndfile nlohmann_json::nlohmann_json audio-util wolf-midi::wolf-midi)
+target_link_libraries(${PROJECT_NAME} PUBLIC onnxruntime)
 
 target_sources(${PROJECT_NAME} PRIVATE ${_src})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-if (SOME_INFER_BUILD_TESTS)
+if (GAME_INFER_BUILD_TESTS)
     add_subdirectory(tests)
 endif ()
 
@@ -75,8 +98,8 @@ endif ()
 # Add platform specific
 # ----------------------------------
 if (WIN32)
-    set(RC_DESCRIPTION "Some model infer.")
-    set(RC_COPYRIGHT "Copyright (C) 2023-2024 wolfgitpr")
+    set(RC_DESCRIPTION "Game model infer.")
+    set(RC_COPYRIGHT "Copyright (C) 2026-2026 wolfgitpr")
     include("cmake/winrc.cmake")
 endif ()
 
@@ -91,7 +114,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # ----------------------------------
 # install
 # ----------------------------------
-if (SOME_INFER_INSTALL)
+if (GAME_INFER_INSTALL)
     target_include_directories(${PROJECT_NAME} PUBLIC
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )

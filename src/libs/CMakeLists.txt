@@ -1,7 +1,5 @@
 add_subdirectory(qtmediate)
-#add_subdirectory(talcs)
-#add_subdirectory(svscraft)
 add_subdirectory(rmvpe-infer)
 add_subdirectory(audio-util)
-add_subdirectory(some-infer)
+add_subdirectory(game-infer)
 add_subdirectory(curve-util)
