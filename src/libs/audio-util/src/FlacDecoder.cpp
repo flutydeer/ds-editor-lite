@@ -58,8 +58,6 @@ namespace AudioUtil
                 return;
             }
         }
-
-        std::cout << "Successfully wrote FLAC data to VIO." << std::endl;
     }
 
 } // namespace AudioUtil

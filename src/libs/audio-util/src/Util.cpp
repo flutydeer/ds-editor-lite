@@ -1,6 +1,7 @@
 #include <audio-util/Util.h>
 
 #include <iostream>
+#include <memory>
 #include <soxr.h>
 #include "FlacDecoder.h"
 #include "Mp3Decoder.h"
@@ -46,6 +47,14 @@ namespace AudioUtil
             }
         }
 
+        // 保存原始通道数和采样率，避免后续访问无效的srcHandle
+        const int original_src_channels = srcHandle.channels();
+        const int original_src_samplerate = srcHandle.samplerate();
+
+        // 确定输入数据类型
+        int input_format = sf_vio_in.info.format & SF_FORMAT_SUBMASK;
+        bool is_float_input = input_format == SF_FORMAT_FLOAT || input_format == SF_FORMAT_DOUBLE;
+
         SF_VIO sf_vio_out;
         sf_vio_out.info = sf_vio_in.info;
         sf_vio_out.info.channels = tar_channel;
@@ -53,59 +62,113 @@ namespace AudioUtil
         sf_vio_out.info.frames = 0; // 重置帧数，重新计算
 
         // 计算估计的输出帧数
-        const double ratio = static_cast<double>(tar_samplerate) / srcHandle.samplerate();
+        const double ratio = static_cast<double>(tar_samplerate) / original_src_samplerate;
         const sf_count_t estimated_frames = static_cast<sf_count_t>(srcHandle.frames() * ratio + 0.5);
         const size_t estimated_size = estimated_frames * tar_channel * sizeof(float);
 
         sf_vio_out.data.byteArray.reserve(estimated_size);
 
         // 创建输出VIO的SndfileHandle
-        auto dstHandle = SndfileHandle(sf_vio_out.vio, &sf_vio_out.data, SFM_WRITE, sf_vio_in.info.format, tar_channel,
-                                       tar_samplerate);
+        auto dstHandle = SndfileHandle(sf_vio_out.vio, &sf_vio_out.data, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_FLOAT,
+                                       tar_channel, tar_samplerate);
         if (!dstHandle) {
             msg = "Failed to open output VIO: " + std::string(sf_strerror(nullptr));
             return {};
         }
 
-        std::cout << "Start resample from " << srcHandle.samplerate() << "Hz to " << tar_samplerate << "Hz"
-                  << std::endl;
-        std::cout << "Channels: " << srcHandle.channels() << " -> " << tar_channel << std::endl;
+        // 创建 SoX 重采样器 - 使用正确的I/O规格
+        soxr_error_t error = nullptr;
+        soxr_io_spec_t io_spec;
 
-        // 创建 SoX 重采样器
-        soxr_error_t error;
-        const auto io_spec = soxr_io_spec(SOXR_FLOAT32_I, SOXR_FLOAT32_I);
+        // 根据输入数据类型设置正确的I/O规格
+        if (is_float_input) {
+            io_spec = soxr_io_spec(SOXR_FLOAT32_I, SOXR_FLOAT32_I);
+        } else {
+            // 对于整数格式，使用正确的位深度
+            int input_bits = 0;
+            if (input_format == SF_FORMAT_PCM_16)
+                input_bits = 16;
+            else if (input_format == SF_FORMAT_PCM_24)
+                input_bits = 24;
+            else if (input_format == SF_FORMAT_PCM_32)
+                input_bits = 32;
+
+            if (input_bits == 16) {
+                io_spec = soxr_io_spec(SOXR_INT16_I, SOXR_FLOAT32_I);
+            } else {
+                // 24位和32位数据都使用INT32处理
+                io_spec = soxr_io_spec(SOXR_INT32_I, SOXR_FLOAT32_I);
+            }
+        }
+
         const auto quality_spec = soxr_quality_spec(SOXR_HQ, 0);
         const auto runtime_spec = soxr_runtime_spec(1); // 单线程
 
-        const auto resampler = soxr_create(static_cast<double>(srcHandle.samplerate()), // 输入采样率
-                                           static_cast<double>(tar_samplerate), // 输出采样率
-                                           srcHandle.channels(), // 通道数
-                                           &error, // 错误信息
-                                           &io_spec, // I/O 规格
-                                           &quality_spec, // 质量规格
-                                           &runtime_spec // 运行时规格
+        soxr_t resampler = soxr_create(original_src_samplerate, // 输入采样率
+                                       tar_samplerate, // 输出采样率
+                                       original_src_channels, // 通道数
+                                       &error, // 错误信息
+                                       &io_spec, // I/O 规格
+                                       &quality_spec, // 质量规格
+                                       &runtime_spec // 运行时规格
         );
 
-        if (!resampler) {
-            msg = "Failed to create SoX resampler: " + std::string(soxr_strerror(error));
+        if (!resampler || error) {
+            msg = "Failed to create SoX resampler: " + std::string(soxr_strerror(error ? error : soxr_error(0)));
             std::cout << msg << std::endl;
             return {};
         }
 
-        // 使用适当的缓冲区大小
-        constexpr size_t BUFFER_FRAMES = 4096;
-        const size_t input_buffer_size = BUFFER_FRAMES * srcHandle.channels();
-        const size_t output_buffer_size = static_cast<size_t>(BUFFER_FRAMES * ratio * srcHandle.channels()) + 1024;
+        // 使用较小的缓冲区以避免内存问题
+        constexpr size_t BUFFER_FRAMES = 2048; // 缓冲区帧数（每声道）
+        const size_t input_buffer_size = BUFFER_FRAMES * original_src_channels; // 总样本数
+        const size_t output_buffer_frames = static_cast<size_t>(BUFFER_FRAMES * ratio) + 1024; // 输出帧数（每声道）
+        const size_t output_buffer_size = output_buffer_frames * original_src_channels; // 总样本数
 
-        std::vector<float> input_buffer(input_buffer_size);
-        std::vector<float> output_buffer(output_buffer_size);
+        // 根据输入格式分配正确的输入缓冲区
+        std::unique_ptr<float[]> float_input_buffer;
+        std::unique_ptr<short[]> short_input_buffer;
+        std::unique_ptr<int[]> int_input_buffer;
+        std::vector<float> output_buffer(output_buffer_size); // 用于存放重采样后的浮点数据（interleaved）
 
-        sf_count_t total_input_frames = 0;
-        sf_count_t total_output_frames = 0;
+        void *input_buffer_ptr = nullptr;
 
-        while (true) {
+        if (is_float_input) {
+            float_input_buffer = std::make_unique<float[]>(input_buffer_size);
+            input_buffer_ptr = float_input_buffer.get();
+        } else {
+            // 检查位深度以决定输入缓冲区类型
+            if (input_format == SF_FORMAT_PCM_16) {
+                short_input_buffer = std::make_unique<short[]>(input_buffer_size);
+                input_buffer_ptr = short_input_buffer.get();
+            } else {
+                // 对于24位和32位数据，都使用int缓冲区
+                int_input_buffer = std::make_unique<int[]>(input_buffer_size);
+                input_buffer_ptr = int_input_buffer.get();
+            }
+        }
+
+        sf_count_t total_input_frames = 0; // 已读取的输入帧数
+        sf_count_t total_output_frames = 0; // 已写入的输出帧数
+        bool processing_error = false;
+
+        // 重采样主循环
+        while (!processing_error) {
             // 从源文件读取数据
-            const sf_count_t frames_read = srcHandle.readf(input_buffer.data(), BUFFER_FRAMES);
+            sf_count_t frames_read = 0;
+            if (is_float_input) {
+                frames_read = srcHandle.readf(static_cast<float *>(input_buffer_ptr), BUFFER_FRAMES);
+            } else {
+                if (input_format == SF_FORMAT_PCM_16) {
+                    frames_read = srcHandle.readf(static_cast<short *>(input_buffer_ptr), BUFFER_FRAMES);
+                } else {
+                    // 对于24位和32位数据，使用read函数读取总样本数
+                    sf_count_t items_read =
+                        srcHandle.read(static_cast<int *>(input_buffer_ptr),
+                                       static_cast<sf_count_t>(BUFFER_FRAMES * original_src_channels));
+                    frames_read = items_read / original_src_channels;
+                }
+            }
 
             if (frames_read <= 0) {
                 break;
@@ -113,66 +176,92 @@ namespace AudioUtil
 
             total_input_frames += frames_read;
 
-            // 计算这次读取的实际输入样本数（样本数 = 帧数 × 通道数）
-            const size_t input_samples = frames_read * srcHandle.channels();
+            // 本次读取的总样本数
+            const size_t input_total_samples = static_cast<size_t>(frames_read) * original_src_channels;
+            size_t input_samples_processed = 0; // 已处理的总样本数
 
-            // 处理重采样
-            size_t input_done = 0;
+            // 分批处理，避免输出缓冲区溢出
+            while (input_samples_processed < input_total_samples && !processing_error) {
+                // 剩余输入样本数
+                size_t input_samples_remaining = input_total_samples - input_samples_processed;
+                // 本次可处理的输入帧数（不能超过输出缓冲区容量）
+                size_t max_input_frames_this_call = output_buffer_frames; // 保证输出缓冲区能容纳
+                size_t input_frames_this_call =
+                    std::min(input_samples_remaining / original_src_channels, max_input_frames_this_call);
 
-            while (input_done < input_samples) {
-                size_t output_done = 0;
-                const size_t remaining_input = input_samples - input_done;
-                const size_t max_output_samples = output_buffer.size();
+                // 计算当前输入缓冲区的起始位置
+                void *current_input_ptr = static_cast<char *>(input_buffer_ptr) +
+                    input_samples_processed *
+                        (is_float_input                         ? sizeof(float)
+                             : input_format == SF_FORMAT_PCM_16 ? sizeof(short)
+                                                                : sizeof(int));
 
-                error = soxr_process(resampler,
-                                     input_buffer.data() + input_done, // 输入指针
-                                     remaining_input, // 输入样本数
-                                     &input_done, // 实际处理的输入样本数
-                                     output_buffer.data(), // 输出缓冲区
-                                     max_output_samples, // 输出缓冲区容量
-                                     &output_done // 实际输出的样本数
-                );
+                size_t input_frames_done = 0; // 实际处理的输入帧数
+                size_t output_frames_done = 0; // 实际输出的输出帧数
+
+                error = soxr_process(resampler, current_input_ptr,
+                                     input_frames_this_call, // 输入帧数（每声道）
+                                     &input_frames_done, output_buffer.data(),
+                                     output_buffer_frames, // 输出缓冲区容量（帧数）
+                                     &output_frames_done);
 
                 if (error) {
                     std::cout << "Error during resampling: " << soxr_strerror(error) << std::endl;
+                    processing_error = true;
                     break;
                 }
 
+                // 更新已处理的总样本数
+                input_samples_processed += input_frames_done * original_src_channels;
+
                 // 处理输出数据
-                if (output_done > 0) {
-                    const size_t output_frames = output_done / srcHandle.channels();
+                if (output_frames_done > 0) {
+                    // 输出数据是 interleaved 的，总样本数为 output_frames_done * original_src_channels
+                    const size_t output_frames = output_frames_done; // 帧数
 
                     // 通道转换
                     std::vector<float> processed_buffer(output_frames * tar_channel);
 
-                    const auto src_channels = srcHandle.channels();
-
-                    if (tar_channel == 1 && src_channels > 1) {
+                    if (tar_channel == 1 && original_src_channels > 1) {
                         // 混音到单声道
                         for (size_t i = 0; i < output_frames; ++i) {
                             float mix = 0.0f;
-                            for (size_t ch = 0; ch < src_channels; ++ch) {
-                                mix += output_buffer[i * src_channels + ch];
+                            for (size_t ch = 0; ch < original_src_channels; ++ch) {
+                                size_t input_idx = i * original_src_channels + ch;
+                                if (input_idx < output_buffer.size()) {
+                                    mix += output_buffer[input_idx];
+                                }
                             }
-                            processed_buffer[i] = mix / static_cast<float>(src_channels);
+                            processed_buffer[i] = mix / static_cast<float>(original_src_channels);
                         }
-                    } else if (src_channels == 1 && tar_channel > 1) {
+                    } else if (original_src_channels == 1 && tar_channel > 1) {
                         // 单声道复制到多声道
                         for (size_t i = 0; i < output_frames; ++i) {
-                            const float sample = output_buffer[i];
+                            float sample = 0.0f;
+                            size_t input_idx = i;
+                            if (input_idx < output_buffer.size()) {
+                                sample = output_buffer[input_idx];
+                            }
                             for (size_t ch = 0; ch < tar_channel; ++ch) {
                                 processed_buffer[i * tar_channel + ch] = sample;
                             }
                         }
                     } else {
                         // 通道数相同或不同时的处理
-                        const size_t min_channels = std::min<size_t>(src_channels, tar_channel);
+                        const size_t min_channels = std::min<size_t>(original_src_channels, tar_channel);
                         for (size_t i = 0; i < output_frames; ++i) {
                             for (size_t ch = 0; ch < min_channels; ++ch) {
-                                processed_buffer[i * tar_channel + ch] = output_buffer[i * src_channels + ch];
+                                size_t input_idx = i * original_src_channels + ch;
+                                size_t output_idx = i * tar_channel + ch;
+                                if (input_idx < output_buffer.size() && output_idx < processed_buffer.size()) {
+                                    processed_buffer[output_idx] = output_buffer[input_idx];
+                                }
                             }
                             for (size_t ch = min_channels; ch < tar_channel; ++ch) {
-                                processed_buffer[i * tar_channel + ch] = 0.0f;
+                                size_t output_idx = i * tar_channel + ch;
+                                if (output_idx < processed_buffer.size()) {
+                                    processed_buffer[output_idx] = 0.0f;
+                                }
                             }
                         }
                     }
@@ -180,97 +269,118 @@ namespace AudioUtil
                     // 写入目标VIO
                     const sf_count_t written = dstHandle.writef(processed_buffer.data(), output_frames);
 
-                    if (written != output_frames) {
+                    if (written != static_cast<sf_count_t>(output_frames)) {
                         std::cout << "Error writing to output VIO" << std::endl;
+                        processing_error = true;
                         break;
                     }
 
                     total_output_frames += written;
                 }
             }
-
-            if (error) {
-                break;
-            }
         }
 
         // 刷新重采样器以获取剩余数据
-        if (!error) {
-            size_t output_done = 0;
+        if (!processing_error) {
+            size_t output_frames_done = 0;
             do {
-                const size_t max_output_samples = output_buffer.size();
-
                 error = soxr_process(resampler,
                                      nullptr, // 输入结束
-                                     0, // 没有更多输入
-                                     nullptr,
-                                     output_buffer.data(), // 输出缓冲区
-                                     max_output_samples, // 输出缓冲区容量
-                                     &output_done // 实际输出的样本数
-                );
+                                     0, // 无更多输入帧
+                                     nullptr, output_buffer.data(),
+                                     output_buffer_frames, // 输出缓冲区容量（帧数）
+                                     &output_frames_done);
 
-                if (output_done > 0) {
-                    const size_t output_frames = output_done / srcHandle.channels();
+                if (error) {
+                    std::cout << "Error during resampling flush: " << soxr_strerror(error) << std::endl;
+                    processing_error = true;
+                    break;
+                }
 
-                    // 通道转换
+                if (output_frames_done > 0) {
+                    const size_t output_frames = output_frames_done;
+
+                    // 通道转换（同主循环）
                     std::vector<float> processed_buffer(output_frames * tar_channel);
 
-                    const auto src_channels = srcHandle.channels();
-
-                    if (tar_channel == 1 && src_channels > 1) {
+                    if (tar_channel == 1 && original_src_channels > 1) {
                         for (size_t i = 0; i < output_frames; ++i) {
                             float mix = 0.0f;
-                            for (size_t ch = 0; ch < src_channels; ++ch) {
-                                mix += output_buffer[i * src_channels + ch];
+                            for (size_t ch = 0; ch < original_src_channels; ++ch) {
+                                size_t input_idx = i * original_src_channels + ch;
+                                if (input_idx < output_buffer.size()) {
+                                    mix += output_buffer[input_idx];
+                                }
                             }
-                            processed_buffer[i] = mix / static_cast<float>(src_channels);
+                            processed_buffer[i] = mix / static_cast<float>(original_src_channels);
                         }
-                    } else if (src_channels == 1 && tar_channel > 1) {
+                    } else if (original_src_channels == 1 && tar_channel > 1) {
                         for (size_t i = 0; i < output_frames; ++i) {
-                            const float sample = output_buffer[i];
+                            float sample = 0.0f;
+                            size_t input_idx = i;
+                            if (input_idx < output_buffer.size()) {
+                                sample = output_buffer[input_idx];
+                            }
                             for (size_t ch = 0; ch < tar_channel; ++ch) {
                                 processed_buffer[i * tar_channel + ch] = sample;
                             }
                         }
                     } else {
-                        const size_t min_channels = std::min<size_t>(src_channels, tar_channel);
+                        const size_t min_channels = std::min<size_t>(original_src_channels, tar_channel);
                         for (size_t i = 0; i < output_frames; ++i) {
                             for (size_t ch = 0; ch < min_channels; ++ch) {
-                                processed_buffer[i * tar_channel + ch] = output_buffer[i * src_channels + ch];
+                                size_t input_idx = i * original_src_channels + ch;
+                                size_t output_idx = i * tar_channel + ch;
+                                if (input_idx < output_buffer.size() && output_idx < processed_buffer.size()) {
+                                    processed_buffer[output_idx] = output_buffer[input_idx];
+                                }
                             }
                             for (size_t ch = min_channels; ch < tar_channel; ++ch) {
-                                processed_buffer[i * tar_channel + ch] = 0.0f;
+                                size_t output_idx = i * tar_channel + ch;
+                                if (output_idx < processed_buffer.size()) {
+                                    processed_buffer[output_idx] = 0.0f;
+                                }
                             }
                         }
                     }
 
                     const sf_count_t written = dstHandle.writef(processed_buffer.data(), output_frames);
 
-                    if (written != output_frames) {
-                        std::cout << "Error writing to output VIO" << std::endl;
+                    if (written != static_cast<sf_count_t>(output_frames)) {
+                        std::cout << "Error writing to output VIO during flush" << std::endl;
+                        processing_error = true;
                         break;
                     }
 
                     total_output_frames += written;
                 }
             }
-            while (output_done > 0 && !error);
+            while (output_frames_done > 0 && !processing_error);
         }
 
-        // 清理重采样器
-        soxr_delete(resampler);
+        // 安全删除重采样器
+        if (resampler) {
+            soxr_delete(resampler);
+            resampler = nullptr;
+        }
 
-        // 更新输出VIO的帧数信息
+        if (processing_error) {
+            msg = "Processing error occurred during resampling";
+            return {};
+        }
+
         sf_vio_out.info.frames = total_output_frames;
 
-        // 计算并显示时长信息
-        const double input_duration = static_cast<double>(total_input_frames) / srcHandle.samplerate();
+        const double input_duration = static_cast<double>(total_input_frames) / original_src_samplerate;
         const double output_duration = static_cast<double>(total_output_frames) / tar_samplerate;
 
-        std::cout << "Resample success." << std::endl;
-        std::cout << "Input duration: " << input_duration << "s (" << total_input_frames << " frames)" << std::endl;
-        std::cout << "Output duration: " << output_duration << "s (" << total_output_frames << " frames)" << std::endl;
-        std::cout << "Duration difference: " << (output_duration - input_duration) << "s" << std::endl;
+        if (std::abs(input_duration - output_duration) > 0.01) {
+            std::cout << "Resample Warning." << std::endl;
+            std::cout << "Input duration: " << input_duration << "s (" << total_input_frames << " frames)" << std::endl;
+            std::cout << "Output duration: " << output_duration << "s (" << total_output_frames << " frames)"
+                      << std::endl;
+            std::cout << "Duration difference: " << (output_duration - input_duration) << "s" << std::endl;
+        }
 
         return sf_vio_out;
     }
@@ -282,6 +392,7 @@ namespace AudioUtil
             tar_channel = channels;
 
         // 从VIO读取
+        sf_vio_in.data.seek = 0;
         SndfileHandle readBuf(sf_vio_in.vio, &sf_vio_in.data, SFM_READ, format, channels, samplerate);
         if (!readBuf) {
             std::cerr << "Failed to open input VIO for reading: " << sf_strerror(nullptr) << std::endl;
@@ -289,13 +400,13 @@ namespace AudioUtil
         }
 
         // 创建输出WAV文件
-        SndfileHandle outBuf(filepath.string(), SFM_WRITE, format, tar_channel, samplerate);
+        SndfileHandle outBuf(filepath.string(), SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_FLOAT, tar_channel, samplerate);
         if (!outBuf) {
             std::cerr << "Failed to open output WAV file: " << sf_strerror(nullptr) << std::endl;
             return false;
         }
 
-        constexpr size_t BUFFER_FRAMES = 4096;
+        constexpr size_t BUFFER_FRAMES = 2048; // 减小缓冲区大小
         std::vector<float> buffer(BUFFER_FRAMES * channels);
         sf_count_t readFrames;
 
@@ -334,8 +445,6 @@ namespace AudioUtil
                 outBuf.writef(buffer.data(), readFrames);
             }
         }
-
-        std::cout << "Successfully wrote VIO to WAV file: " << filepath << std::endl;
         return true;
     }
 } // namespace AudioUtil
