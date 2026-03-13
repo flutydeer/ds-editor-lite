@@ -26,20 +26,18 @@ ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
         return;
     }
 
-    auto gamePath =
-        QString::fromStdString(std::filesystem::path(appOptions->general()->gamePath.toStdString())
-                                   .parent_path()
-                                   .string());
-    const std::filesystem::path modelPath = gamePath
+    auto gameDir = appOptions->general()->gameDir;
+    const std::filesystem::path modelPath = gameDir
 #ifdef _WIN32
                                                 .toStdWString();
 #else
                                                 .toStdString();
 #endif
 
-    if (modelPath.empty() || !exists(modelPath)) {
+    if (modelPath.empty() || !exists(modelPath) || !is_directory(modelPath)) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("Invalid game model path: ") + gamePath;
+        m_errorMessage = tr("Invalid game model dir: ") +
+                         (gameDir.isEmpty() ? QString("Dir is Empty.") : gameDir);
         qCritical().noquote() << "Error:" << errorMessage();
         return;
     }

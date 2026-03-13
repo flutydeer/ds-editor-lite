@@ -42,8 +42,8 @@ void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(defaultSpeakerIdKey))
         defaultSpeakerId = object[defaultSpeakerIdKey].toString();
 #endif
-    if (object.contains(gamePathKey))
-        gamePath = object[gamePathKey].toString();
+    if (object.contains(gameDirKey))
+        gameDir = object[gameDirKey].toString();
     if (object.contains(rmvpePathKey))
         rmvpePath = object[rmvpePathKey].toString();
 }
@@ -60,7 +60,7 @@ void GeneralOption::save(QJsonObject &object) {
         serialize_defaultSingerId(),
         serialize_defaultSpeakerId(),
 #endif
-        serialize_gamePath(),
+        serialize_gameDir(),
         serialize_rmvpePath()
     };
 }

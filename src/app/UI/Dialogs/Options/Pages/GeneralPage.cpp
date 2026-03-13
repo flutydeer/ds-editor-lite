@@ -37,7 +37,7 @@ void GeneralPage::modifyOption() {
     option->defaultSpeakerId = m_leDefaultSpeakerId->text();
 #endif
 
-    option->gamePath = m_fsGamePath->path();
+    option->gameDir = m_fsGameDir->path();
     option->rmvpePath = m_fsRmvpePath->path();
     appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
 }
@@ -119,12 +119,12 @@ QWidget *GeneralPage::createContentWidget() {
 
     const QString onnxFilesFilter = tr("ONNX Files (*.onnx);;All Files (*)");
 
-    m_fsGamePath = new FileSelector;
-    m_fsGamePath->setMinimumWidth(480);
-    m_fsGamePath->setFilter(onnxFilesFilter);
-    m_fsGamePath->setFileDropExtensions({"onnx"});
-    m_fsGamePath->setPath(option->gamePath);
-    connect(m_fsGamePath, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
+    m_fsGameDir = new FileSelector;
+    m_fsGameDir->setMinimumWidth(480);
+    m_fsGameDir->setFilter(tr("Directories"));
+    m_fsGameDir->setDirMode(true);
+    m_fsGameDir->setPath(option->gameDir);
+    connect(m_fsGameDir, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
     m_fsRmvpePath = new FileSelector;
     m_fsRmvpePath->setMinimumWidth(480);
     m_fsRmvpePath->setFilter(onnxFilesFilter);
@@ -133,7 +133,7 @@ QWidget *GeneralPage::createContentWidget() {
     connect(m_fsRmvpePath, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
 
     const auto modelCard = new OptionListCard(tr("Model"));
-    modelCard->addItem(tr("Game Model Path"), m_fsGamePath);
+    modelCard->addItem(tr("Game Model Dir"), m_fsGameDir);
     modelCard->addItem(tr("Rmvpe Model Path"), m_fsRmvpePath);
 
     const auto mainLayout = new QVBoxLayout;

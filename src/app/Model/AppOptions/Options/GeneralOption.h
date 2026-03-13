@@ -30,7 +30,7 @@ public:
     LITE_OPTION_ITEM(QString, defaultSingerId, QString())
     LITE_OPTION_ITEM(QString, defaultSpeakerId, QString())
 #endif
-    LITE_OPTION_ITEM(QString, gamePath, QString())
+    LITE_OPTION_ITEM(QString, gameDir, QString())
     LITE_OPTION_ITEM(QString, rmvpePath, QString())
 
 

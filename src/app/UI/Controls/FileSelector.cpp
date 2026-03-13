@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QDir>
 
 #include "LineEdit.h"
 
@@ -36,7 +37,7 @@ void FileSelector::setPath(const QString &filePath) const {
 }
 
 static bool getPathFromMimeData(const QMimeData *mimeData, const QSet<QString> &extensions,
-                                QString *outPath) {
+                                QString *outPath, bool folderMode = false) {
     if (!mimeData || !mimeData->hasUrls()) {
         return false;
     }
@@ -44,36 +45,50 @@ static bool getPathFromMimeData(const QMimeData *mimeData, const QSet<QString> &
     if (urls.isEmpty()) {
         return false;
     }
-    if (extensions.isEmpty()) {
-        if (outPath) {
-            *outPath = urls.first().toLocalFile();
-        }
-        return true;
-    }
+
     for (const auto &url : std::as_const(urls)) {
-        QString filePath = url.toLocalFile();
-        if (const QFileInfo info(filePath);
-            !(extensions.contains(info.suffix().toLower()) ||
-              extensions.contains(info.completeSuffix().toLower()))) {
-            continue;
+        QString path = url.toLocalFile();
+
+        if (folderMode) {
+            // 检查路径是否为目录
+            QFileInfo info(path);
+            if (info.isDir()) {
+                if (outPath) {
+                    *outPath = path;
+                }
+                return true;
+            }
+        } else {
+            // 原来的文件处理逻辑
+            if (extensions.isEmpty()) {
+                if (outPath) {
+                    *outPath = path;
+                }
+                return true;
+            }
+
+            QFileInfo info(path);
+            if (info.isFile() && (extensions.contains(info.suffix().toLower()) ||
+                                  extensions.contains(info.completeSuffix().toLower()))) {
+                if (outPath) {
+                    *outPath = std::move(path);
+                }
+                return true;
+            }
         }
-        if (outPath) {
-            *outPath = std::move(filePath);
-        }
-        return true;
     }
     return false;
 }
 
 void FileSelector::dragEnterEvent(QDragEnterEvent *event) {
-    if (getPathFromMimeData(event->mimeData(), m_fileDropExtensions, nullptr)) {
+    if (getPathFromMimeData(event->mimeData(), m_fileDropExtensions, nullptr, m_dirMode)) {
         event->acceptProposedAction();
     }
 }
 
 void FileSelector::dropEvent(QDropEvent *event) {
     QString filePath;
-    if (getPathFromMimeData(event->mimeData(), m_fileDropExtensions, &filePath)) {
+    if (getPathFromMimeData(event->mimeData(), m_fileDropExtensions, &filePath, m_dirMode)) {
         event->acceptProposedAction();
         m_lineEdit->setText(filePath);
         Q_EMIT pathChanged(filePath);
@@ -81,11 +96,18 @@ void FileSelector::dropEvent(QDropEvent *event) {
 }
 
 void FileSelector::onBrowseButtonClicked() {
-    const QString selectedFile =
-        QFileDialog::getOpenFileName(this, tr("Select a File"), QDir::currentPath(), m_filter);
-    if (!selectedFile.isEmpty()) {
-        m_lineEdit->setText(selectedFile);
-        Q_EMIT pathChanged(selectedFile);
+    QString selectedPath;
+    if (m_dirMode) {
+        selectedPath =
+            QFileDialog::getExistingDirectory(this, tr("Select a Folder"), QDir::currentPath());
+    } else {
+        selectedPath =
+            QFileDialog::getOpenFileName(this, tr("Select a File"), QDir::currentPath(), m_filter);
+    }
+
+    if (!selectedPath.isEmpty()) {
+        m_lineEdit->setText(selectedPath);
+        Q_EMIT pathChanged(selectedPath);
     }
 }
 
