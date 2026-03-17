@@ -237,18 +237,19 @@ void SingingClip::init() {
         }
     });
     connect(this, &SingingClip::singerChanged, this, [this](const SingerInfo &currentSingerInfo) {
-        bool needsResegment = false;
-        for (const auto piece : std::as_const(m_pieces)) {
-            auto currentIdentifier = currentSingerInfo.identifier();
-            if (piece->identifier != currentIdentifier) {
-                piece->identifier = std::move(currentIdentifier);
-                piece->dirty = true;
-                needsResegment = true;
-            }
-        }
-        if (needsResegment) {
-            reSegment();
-        }
+        // bool needsResegment = false;
+        // for (const auto piece : std::as_const(m_pieces)) {
+        //     auto currentIdentifier = currentSingerInfo.identifier();
+        //     if (piece->identifier != currentIdentifier) {
+        //         piece->identifier = std::move(currentIdentifier);
+        //         piece->dirty = true;
+        //         needsResegment = true;
+        //     }
+        // }
+        // TODO 现在是在音素信息未获取时分段，会导致segment.paddingStartMs计算错误，应该等待音素信息获取完成后再分段
+        // if (needsResegment) {
+        //     reSegment();
+        // }
 
         // TODO: use dspkg dict
         const auto s2pMgr = S2pMgr::instance();
@@ -271,23 +272,23 @@ void SingingClip::init() {
             Q_EMIT speakerChanged(speakerInfo());
         }
     });
-    connect(this, &SingingClip::speakerChanged, this,
-            [this](const SpeakerInfo &currentSpeakerInfo) {
-                bool needsResegment = false;
-                const auto currentSpeaker = currentSpeakerInfo.id();
-                for (const auto piece : std::as_const(m_pieces)) {
-                    qDebug() << "changing speaker before" << piece->speaker << "after"
-                        << currentSpeaker;
-                    if (piece->speaker != currentSpeaker) {
-                        piece->speaker = currentSpeaker;
-                        piece->dirty = true;
-                        needsResegment = true;
-                    }
-                }
-                if (needsResegment) {
-                    reSegment();
-                }
-            });
+    // connect(this, &SingingClip::speakerChanged, this,
+    //         [this](const SpeakerInfo &currentSpeakerInfo) {
+    //             bool needsResegment = false;
+    //             const auto currentSpeaker = currentSpeakerInfo.id();
+    //             for (const auto piece : std::as_const(m_pieces)) {
+    //                 qDebug() << "changing speaker before" << piece->speaker << "after"
+    //                     << currentSpeaker;
+    //                 if (piece->speaker != currentSpeaker) {
+    //                     piece->speaker = currentSpeaker;
+    //                     piece->dirty = true;
+    //                     needsResegment = true;
+    //                 }
+    //             }
+    //             if (needsResegment) {
+    //                 reSegment();
+    //             }
+    //         });
 }
 
 void SingingClip::updateDefaultG2pId(const QString &language) {

@@ -68,6 +68,12 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
     NoteList buffer;
     for (int i = 0; i < source.count(); i++) {
         const auto curNote = source.at(i);
+        
+        // Skip overlapped notes before processing
+        if (curNote->overlapped()) {
+            continue;
+        }
+        
         buffer.append(curNote);
         bool commitFlag = false;
         if (i < source.count() - 1) {
@@ -105,6 +111,34 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
             lastTailEndInMs = tailEndInMs;
             if (tailLength > 0)
                 segment.paddingEndMs = tailEndInMs - lastEndInMs;
+
+            // Check if the complete phrase (buffer) has any note missing phoneme name info
+            // or if the first note of the phrase is a slur
+            bool hasMissingPhonemeInfo = false;
+            bool firstNoteIsSlur = false;
+            
+            // Check if first note is slur
+            if (!buffer.isEmpty()) {
+                const auto firstNote = buffer.first();
+                firstNoteIsSlur = firstNote->isSlur();
+            }
+            
+            // Check for missing phoneme info
+            for (const auto &note : buffer) {
+                auto isCommonNote = !isRestNote(*note) && !note->isSlur();
+                if (isCommonNote && note->phonemes().nameInfo.isEmpty()) {
+                    hasMissingPhonemeInfo = true;
+                    break;
+                }
+            }
+            
+            // Skip the segment if the complete phrase has missing phoneme info
+            // or if the first note is a slur
+            // TODO: Mark as error segment?
+            if (hasMissingPhonemeInfo || firstNoteIsSlur) {
+                buffer.clear();
+                continue;
+            }
 
             segment.notes = buffer;
 

@@ -6,7 +6,6 @@
 #include "InferController_p.h"
 
 #include "InferControllerHelper.h"
-#include "InferEngine.h"
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Models/PhonemeNameInput.h"
@@ -142,7 +141,10 @@ void InferControllerPrivate::handleTempoChanged(double tempo) {
 
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
-    connect(clip, &SingingClip::singerChanged, this, [=] { clip->reSegment(); });
+    connect(clip, &SingingClip::singerChanged, this, [=, this] {
+        if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+            createAndRunGetPronTask(*clip);
+    });
 }
 
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
@@ -174,8 +176,8 @@ void InferControllerPrivate::handlePiecesChanged(const PieceList &newPieces,
         }
     }
     Helper::updateAllOriginalParam(*clip);
-    if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
-        createAndRunGetPronTask(*clip);
+    // if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+    //     createAndRunGetPronTask(*clip);
 }
 
 void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType type,
@@ -189,8 +191,11 @@ void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType
             for (const auto &piece : clip->findPiecesByNotes(notes)) {
                 piece->dirty = true;
             }
-            if (!clip->singerInfo().isEmpty())
-                clip->reSegment();
+            // TODO 重跑获取发音->音素，跑之前先判断发音序列？
+            if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+                createAndRunGetPronTask(*clip);
+            // if (!clip->singerInfo().isEmpty())
+            //     clip->reSegment();
             break;
         default:
             break;
@@ -285,12 +290,16 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
     }
 
     const auto singingClip = dynamic_cast<SingingClip *>(clip);
-    // TODO 应该分析出哪些片段受影响，再创建推理管线
     Helper::updatePronunciation(task.notesRef, task.result, *singingClip);
     createAndRunGetPhoneTask(*singingClip);
     delete &task;
 }
 
+
+// TODO 任何音符改动，都会触发获取剪辑所有音符发音->获取剪辑所有音符音素名称
+// TODO 对于连续的多个音符，如果其中有音符缺少音素名称信息（发音有误等原因导致），则整句将在划分时被标为错误
+// TODO 对于以-开头的连续多个音符，同样被标为错误
+// TODO 分段结果为多个有效片段
 void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task) {
     m_getPhoneTasks.onCurrentFinished();
     const auto clip = appModel->findClipById(task.clipId());
@@ -302,23 +311,22 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
     const auto singingClip = dynamic_cast<SingingClip *>(clip);
     if (task.success()) {
         Helper::updatePhoneName(task.notesRef, task.result, *singingClip);
-        if (ValidationUtils::canInferDuration(*singingClip)) {
-            for (const auto piece : singingClip->pieces()) {
-                // 只对新的片段创建推理管线
-                auto findPipelineById = [](const QList<InferPipeline *> &container,
-                                           int id) -> InferPipeline * {
-                    for (const auto pipeline : container)
-                        if (pipeline->pieceId() == id)
-                            return pipeline;
-                    return nullptr;
-                };
-                if (!findPipelineById(m_inferPipelines, piece->id()))
-                    createPipeline(*piece);
-            }
-        } else
-            qWarning()
-                << "Phoneme sequence has errors, unable to create duration inference task. clipId:"
-                << clip->id();
+
+        if (!singingClip->singerInfo().isEmpty())
+            singingClip->reSegment();
+
+        for (const auto piece : singingClip->pieces()) {
+            // 只对新的片段创建推理管线
+            auto findPipelineById = [](const QList<InferPipeline *> &container,
+                                       int id) -> InferPipeline * {
+                for (const auto pipeline : container)
+                    if (pipeline->pieceId() == id)
+                        return pipeline;
+                return nullptr;
+            };
+            if (!findPipelineById(m_inferPipelines, piece->id()))
+                createPipeline(*piece);
+        }
     } else
         for (const auto piece : singingClip->pieces())
             piece->acousticInferStatus = Failed;
