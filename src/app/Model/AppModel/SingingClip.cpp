@@ -73,6 +73,14 @@ const PieceList &SingingClip::pieces() const {
     return m_pieces;
 }
 
+void SingingClip::removeAllPieces() {
+    PieceList temp = m_pieces;
+    m_pieces.clear();
+    emit piecesChanged(m_pieces, {}, temp);
+    for (const auto piece : temp)
+        delete piece;
+}
+
 void SingingClip::reSegment() {
     // TODO: Refactor AppModel to support multiple tempos
     Timeline timeline;

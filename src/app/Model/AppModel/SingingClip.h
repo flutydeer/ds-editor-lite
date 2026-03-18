@@ -45,6 +45,7 @@ public:
     void notifyNoteChanged(NoteChangeType type, const QList<Note *> &notes);
     void notifyParamChanged(ParamInfo::Name name, Param::Type type);
     const PieceList &pieces() const;
+    void removeAllPieces();
     void reSegment();
     void updateOriginalParam(ParamInfo::Name name);
     InferPiece *findPieceById(int id) const;
