@@ -141,7 +141,7 @@ void InferControllerPrivate::handleTempoChanged(double tempo) {
 
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
-    connect(clip, &SingingClip::singerChanged, this, [=, this] {
+    connect(clip, &SingingClip::singerOrSpeakerChanged, this, [clip, this]{
         clip->removeAllPieces();
         if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
             createAndRunGetPronTask(*clip);

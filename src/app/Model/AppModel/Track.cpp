@@ -66,14 +66,23 @@ static void setTrackSpeakerForClip(Clip *clip, const SpeakerInfo &speakerInfo) {
     }
 }
 
+static void setTrackSingerAndSpeakerForClip(Clip *clip, const SingerInfo &singerInfo,
+                                             const SpeakerInfo &speakerInfo) {
+    if (!clip) {
+        return;
+    }
+    if (clip->clipType() == IClip::Singing) {
+        // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
+        const auto singingClip = static_cast<SingingClip *>(clip);
+        singingClip->setTrackSingerAndSpeakerInfo(singerInfo, speakerInfo);
+    }
+}
+
 void Track::insertClip(Clip *clip) {
-    setTrackSingerForClip(clip, m_singerInfo);
-    setTrackSpeakerForClip(clip, m_speakerInfo);
+    setTrackSingerAndSpeakerForClip(clip, m_singerInfo, m_speakerInfo);
     m_clips.add(clip);
-    connect(this, &Track::singerChanged, clip,
-            [clip, this] { setTrackSingerForClip(clip, m_singerInfo); });
-    connect(this, &Track::speakerChanged, clip,
-            [clip, this] { setTrackSpeakerForClip(clip, m_speakerInfo); });
+    connect(this, &Track::singerOrSpeakerChanged, clip,
+            [clip, this] { setTrackSingerAndSpeakerForClip(clip, m_singerInfo, m_speakerInfo); });
 }
 
 void Track::insertClips(const QList<Clip *> &clips) {
@@ -142,6 +151,27 @@ void Track::setSpeakerInfo(const SpeakerInfo &speakerInfo) {
     }
     m_speakerInfo = speakerInfo;
     emit speakerChanged(m_speakerInfo);
+}
+
+void Track::setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo) {
+    bool singerInfoChanged = (m_singerInfo != singerInfo);
+    bool speakerInfoChanged = (m_speakerInfo != speakerInfo);
+
+    if (!singerInfoChanged && !speakerInfoChanged) {
+        return;
+    }
+
+    m_singerInfo = singerInfo;
+    m_speakerInfo = speakerInfo;
+    this->updateDefaultG2pId(m_defaultLanguage);
+
+    if (singerInfoChanged) {
+        emit singerChanged(m_singerInfo);
+    }
+    if (speakerInfoChanged) {
+        emit speakerChanged(m_speakerInfo);
+    }
+    emit singerOrSpeakerChanged();
 }
 
 void Track::notifyClipChanged(const ClipChangeType type, Clip *clip) {

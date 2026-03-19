@@ -98,8 +98,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
         if (!m_track) {
             return;
         }
-        m_track->setSingerInfo(singerInfo);
-        m_track->setSpeakerInfo(speakerInfo);
+        m_track->setSingerAndSpeakerInfo(singerInfo, speakerInfo);
     });
 
     cbLanguage = new LanguageComboBox("unknown");

@@ -51,6 +51,8 @@ public:
     SpeakerInfo speakerInfo() const;
     void setSpeakerInfo(const SpeakerInfo &speakerInfo);
 
+    void setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
+
     void notifyClipChanged(ClipChangeType type, Clip *clip);
     Clip *findClipById(int id) const;
 
@@ -75,6 +77,7 @@ signals:
     void clipChanged(Track::ClipChangeType type, Clip *clip);
     void singerChanged(const SingerInfo &singerInfo);
     void speakerChanged(const SpeakerInfo &speaker);
+    void singerOrSpeakerChanged();
 
 private:
     void updateDefaultG2pId(const QString &language);

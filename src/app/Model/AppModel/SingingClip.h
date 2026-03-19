@@ -63,6 +63,8 @@ public:
     void setSpeakerInfo(const SpeakerInfo &speakerInfo);
     void setTrackSpeakerInfo(const SpeakerInfo &speakerInfo);
 
+    void setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
+
     QString speakerId() const;
     SingerIdentifier singerIdentifier() const;
 
@@ -74,6 +76,7 @@ public:
 signals:
     void singerChanged(const SingerInfo &identifier);
     void speakerChanged(const SpeakerInfo &speaker);
+    void singerOrSpeakerChanged();
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamInfo::Name name, Param::Type type);
     void defaultLanguageChanged(QString language);

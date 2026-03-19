@@ -223,6 +223,14 @@ void SingingClip::setTrackSpeakerInfo(const SpeakerInfo &speakerInfo) {
     m_trackSpeakerInfo = speakerInfo;
 }
 
+void SingingClip::setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo,
+                                                const SpeakerInfo &speakerInfo) {
+    m_trackSingerInfo = singerInfo;
+    m_trackSpeakerInfo = speakerInfo;
+    this->updateDefaultG2pId(m_defaultLanguage);
+    Q_EMIT singerOrSpeakerChanged();
+}
+
 SingerIdentifier SingingClip::singerIdentifier() const {
     return singerInfo().identifier();
 }
