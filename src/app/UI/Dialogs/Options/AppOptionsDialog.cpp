@@ -6,10 +6,12 @@
 
 #include <QStackedWidget>
 #include <QScrollArea>
+#include <QListWidget>
+#include <QHBoxLayout>
 
 #include "Pages/AppearancePage.h"
 #include "Pages/GeneralPage.h"
-#include "Pages/G2pPage.h"
+// #include "Pages/G2pPage.h"
 #include "Pages/AudioPage.h"
 #include "Pages/MidiPage.h"
 #include "Pages/InferencePage.h"
@@ -32,7 +34,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     midiPage = new MidiPage;
     // m_pseudoSingerPage = new PseudoSingerPage;
     appearancePage = new AppearancePage;
-    g2pPage = new G2pPage;
+    // g2pPage = new G2pPage;
     inferencePage = new InferencePage;
 
     pageContent = new QStackedWidget;
@@ -41,7 +43,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     pageContent->addWidget(midiPage);
     // m_PageContent->addWidget(m_pseudoSingerPage);
     pageContent->addWidget(appearancePage);
-    pageContent->addWidget(g2pPage);
+    // pageContent->addWidget(g2pPage);
     pageContent->addWidget(inferencePage);
     pageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
     pageContent->setMinimumWidth(600);
@@ -51,7 +53,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     pages.append(midiPage);
     // m_pages.append(m_pseudoSingerPage);
     pages.append(appearancePage);
-    pages.append(g2pPage);
+    // pages.append(g2pPage);
     pages.append(inferencePage);
 
     const auto mainLayout = new QHBoxLayout;

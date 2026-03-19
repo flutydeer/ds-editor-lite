@@ -5,7 +5,7 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/AccentButton.h"
-#include "UI/Dialogs/Options/Pages/G2pPage.h"
+// #include "UI/Dialogs/Options/Pages/G2pPage.h"
 
 #include <QKeyEvent>
 #include <QScreen>
@@ -37,7 +37,7 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringLis
         shrinkWindowRight(300);
     }
 
-    m_g2pPage = new G2pPage(this);
+    // m_g2pPage = new G2pPage(this);
 
     m_btnOk = new AccentButton(tr("&Import"), this);
     // m_btnOk->setPrimary(true);
@@ -46,7 +46,7 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringLis
     setNegativeButton(m_btnCancel);
 
     m_tabWidget->addTab(m_lyricWidget, tr("Lyric"));
-    m_tabWidget->addTab(m_g2pPage, tr("G2p"));
+    // m_tabWidget->addTab(m_g2pPage, tr("G2p"));
     m_tabWidget->addTab(new QWidget, tr("Help"));
 
     m_mainLayout->addWidget(m_tabWidget);

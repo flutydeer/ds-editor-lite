@@ -467,11 +467,11 @@ CMenu *MainMenuViewPrivate::buildOptionsMenu() {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::Appearance);
         dialog.exec();
     });
-    const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
-    connect(actionLanguageOptions, &QAction::triggered, this, [] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::Language);
-        dialog.exec();
-    });
+    // const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
+    // connect(actionLanguageOptions, &QAction::triggered, this, [] {
+    //     AppOptionsDialog dialog(AppOptionsGlobal::Option::Language);
+    //     dialog.exec();
+    // });
     const auto actionInferenceOptions = new QAction(tr("&Inference..."), this);
     connect(actionInferenceOptions, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::Inference);
@@ -483,7 +483,7 @@ CMenu *MainMenuViewPrivate::buildOptionsMenu() {
     menuOptions->addAction(actionAudioSettings);
     menuOptions->addAction(actionMidiSettings);
     menuOptions->addAction(actionAppearanceOptions);
-    menuOptions->addAction(actionLanguageOptions);
+    // menuOptions->addAction(actionLanguageOptions);
     menuOptions->addAction(actionInferenceOptions);
     return menuOptions;
 }

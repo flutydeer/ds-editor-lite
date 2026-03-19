@@ -12,8 +12,8 @@ class AudioPage;
 class MidiPage;
 class PseudoSingerPage;
 class AppearancePage;
-class LanguagePage;
-class G2pPage;
+// class LanguagePage;
+// class G2pPage;
 class GeneralPage;
 class InferencePage;
 class IOptionPage;
@@ -33,7 +33,7 @@ private slots:
 
 private:
     QStringList pageNames = {tr("General"),    tr("Audio"), tr("MIDI"),
-                               tr("Appearance"), tr("Language"),   tr("Inference"),
+                               tr("Appearance"), /* tr("Language"), */  tr("Inference"),
                                /* tr("Preview Functions"), tr("Developer Options")*/};
 
     QListWidget *tabList;
@@ -44,7 +44,7 @@ private:
     MidiPage *midiPage;
     // PseudoSingerPage *m_pseudoSingerPage;
     AppearancePage *appearancePage;
-    G2pPage *g2pPage;
+    // G2pPage *g2pPage;
     InferencePage *inferencePage;
     QList<IOptionPage *> pages;
 };

@@ -7,7 +7,7 @@
 #include <lyric-tab/LangCommon.h>
 
 #include "UI/Dialogs/Base/Dialog.h"
-#include "UI/Dialogs/Options/Pages/G2pPage.h"
+// #include "UI/Dialogs/Options/Pages/G2pPage.h"
 
 class LanguagePage;
 class Note;
@@ -53,7 +53,7 @@ private:
     QTabWidget *m_tabWidget;
 
     FillLyric::LyricTab *m_lyricWidget;
-    G2pPage *m_g2pPage;
+    // G2pPage *m_g2pPage;
 
     AccentButton *m_btnOk;
     Button *m_btnCancel;
