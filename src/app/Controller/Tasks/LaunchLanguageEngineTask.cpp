@@ -76,7 +76,7 @@ EP parseExecutionProvider(const std::string &provider) {
 }
 
 bool initializeOnnxDriver(const LangCore::Manager *mgr, const std::string &ep,
-                          const int deviceIndex, const bool loadFromProgress) {
+                          const int deviceIndex, const bool loadFromProcess) {
     const auto onnxDriverPlugin = mgr->plugin<LangCore::DriverFactoryPlugin>("onnx");
     if (!onnxDriverPlugin) {
         std::cerr << "Failed to load ONNX inference driver" << std::endl;
@@ -94,7 +94,7 @@ bool initializeOnnxDriver(const LangCore::Manager *mgr, const std::string &ep,
                                 ? ortParentPath / _TSTR("cuda")
                                 : ortParentPath / _TSTR("default");
 
-    onnxArgs->loadFromProgress = loadFromProgress;
+    onnxArgs->loadFromProcess = loadFromProcess;
     onnxArgs->deviceIndex = deviceIndex;
 
     if (const auto exp = onnxDriver->initialize(onnxArgs); !exp) {
