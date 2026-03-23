@@ -3,7 +3,7 @@
 
 #include <QDialog>
 
-#include <opendspx/converters/midi.h>
+#include <opendspxconverter/midi/midiintermediatedata.h>
 
 class QTextCodec;
 
@@ -13,13 +13,15 @@ class MidiConverterDialog : public QDialog {
     Q_OBJECT
     Q_DECLARE_PRIVATE(MidiConverterDialog)
 public:
-    explicit inline MidiConverterDialog(QWidget *parent = nullptr) : MidiConverterDialog({}, parent) {
+    explicit MidiConverterDialog(QWidget *parent = nullptr) : MidiConverterDialog({}, parent) {
     }
-    explicit MidiConverterDialog(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList, QWidget *parent = nullptr);
+
+    explicit MidiConverterDialog(const QList<QDspx::MidiIntermediateData::Track> &trackInfoList,
+                                 QWidget *parent = nullptr);
     ~MidiConverterDialog() override;
 
-    void setTrackInfoList(const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList);
-    QList<QDspx::MidiConverter::TrackInfo> trackInfoList() const;
+    void setTrackInfoList(const QList<QDspx::MidiIntermediateData::Track> &trackInfoList);
+    QList<QDspx::MidiIntermediateData::Track> trackInfoList() const;
 
     QList<int> selectedTracks() const;
     QTextCodec *selectedCodec() const;
@@ -31,4 +33,4 @@ private:
 
 
 
-#endif //MIDICONVERTERDIALOG_H
+#endif // MIDICONVERTERDIALOG_H

@@ -265,8 +265,7 @@ bool AppControllerPrivate::openMidiFile(const QString &path, QString &errorMessa
     Q_Q(AppController);
     AppModel resultModel;
     constexpr auto midiImport = ImportMode::NewProject;
-    if (MidiConverter converter(appModel->timeSignature(), appModel->tempo());
-        !converter.load(path, &resultModel, errorMessage, midiImport)) {
+    if (MidiConverter converter; !converter.load(path, &resultModel, errorMessage, midiImport)) {
         qCritical() << errorMessage;
         return false;
     }

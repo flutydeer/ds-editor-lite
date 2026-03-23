@@ -12,19 +12,43 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 
+// Convert note number to note name.
+static QString ToneNumToToneName(const int num) {
+    static const QString tones[] = {
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+    };
+
+    int step = num % 12;
+    int octave = num / 12 - 1;
+
+    if (num < 0) {
+        octave -= 1;
+        step = (step + 12) % 12;
+    }
+
+    // Verify the tone and octave
+    if (octave < -1 || step < 0 || step >= 12) {
+        return "Invalid tone or octave";
+    }
+
+    return tones[step] + QString::number(octave);
+}
+
 class MidiConverterDialogPrivate {
     Q_DECLARE_PUBLIC(MidiConverterDialog)
 public:
     MidiConverterDialog *q_ptr{};
 
-    QList<QDspx::MidiConverter::TrackInfo> trackInfoList;
+    QList<QDspx::MidiIntermediateData::Track> trackInfoList;
 
     QTextCodec *selectedCodec{};
 
     bool detectIsUtf8() const {
         QByteArray data;
         for (const auto &trackInfo : trackInfoList) {
-            data = trackInfo.lyrics.join("");
+            const auto notes = trackInfo.notes;
+            for (const auto &note : notes)
+                data += note.lyric + "";
             if (data.isEmpty())
                 continue;
             QTextCodec::ConverterState state;
@@ -45,7 +69,9 @@ public:
     bool detectIsSystemEncoding() const {
         QByteArray data;
         for (const auto &trackInfo : trackInfoList) {
-            data = trackInfo.lyrics.join("");
+            const auto notes = trackInfo.notes;
+            for (const auto &note : notes)
+                data += note.lyric + "";
             if (data.isEmpty())
                 continue;
             QTextCodec::ConverterState state;
@@ -61,9 +87,16 @@ public:
         return false;
     }
 
-    QString computeTrackItemText(const QDspx::MidiConverter::TrackInfo &trackInfo) const {
-        return MidiConverterDialog::tr("Track %1: %n note(s) (%2)", "", trackInfo.noteCount)
-            .arg(selectedCodec->toUnicode(trackInfo.title), trackInfo.keyRange);
+    QString computeTrackItemText(const QDspx::MidiIntermediateData::Track &trackInfo) const {
+        std::set<qint32> staticKeyNum;
+        for (const auto &note : trackInfo.notes)
+            staticKeyNum.insert(note.key);
+        const auto keyRange = staticKeyNum.empty()
+                                  ? "-"
+                                  : ToneNumToToneName(*staticKeyNum.begin()) + "-" +
+                                        ToneNumToToneName(*staticKeyNum.rbegin());
+        return MidiConverterDialog::tr("Track %1: %n note(s) (%2)", "", trackInfo.notes.count())
+            .arg(selectedCodec->toUnicode(trackInfo.title), keyRange);
     }
 
     QComboBox *codecComboBox{};
@@ -99,7 +132,7 @@ public:
             item->setData(0, Qt::UserRole, i);
             item->setText(0, computeTrackItemText(trackInfo));
             parentItem->addChild(item);
-            if (trackInfo.noteCount)
+            if (trackInfo.notes.count())
                 item->setCheckState(0, Qt::Checked);
         }
     }
@@ -116,7 +149,7 @@ public:
 };
 
 MidiConverterDialog::MidiConverterDialog(
-    const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList, QWidget *parent)
+    const QList<QDspx::MidiIntermediateData::Track> &trackInfoList, QWidget *parent)
     : QDialog(parent), d_ptr(new MidiConverterDialogPrivate) {
     Q_D(MidiConverterDialog);
     d->q_ptr = this;
@@ -194,9 +227,9 @@ MidiConverterDialog::MidiConverterDialog(
             previewTextEdit->setAccessibleDescription(tr("Select a track to preview its lyrics"));
         } else {
             QStringList lyrics;
-            for (const auto &lyric :
-                 d->trackInfoList.at(selection[0]->data(0, Qt::UserRole).toInt()).lyrics) {
-                lyrics.append(d->selectedCodec->toUnicode(lyric));
+            for (const auto &note :
+                 d->trackInfoList.at(selection[0]->data(0, Qt::UserRole).toInt()).notes) {
+                lyrics.append(d->selectedCodec->toUnicode(note.lyric));
             }
             if (lyrics.isEmpty()) {
                 previewTextEdit->setPlaceholderText(tr("No lyrics in current track"));
@@ -242,14 +275,14 @@ MidiConverterDialog::MidiConverterDialog(
 MidiConverterDialog::~MidiConverterDialog() = default;
 
 void MidiConverterDialog::setTrackInfoList(
-    const QList<QDspx::MidiConverter::TrackInfo> &trackInfoList) {
+    const QList<QDspx::MidiIntermediateData::Track> &trackInfoList) {
     Q_D(MidiConverterDialog);
     d->trackInfoList = trackInfoList;
     d->detectCodec();
     d->updateTrackSelector();
 }
 
-QList<QDspx::MidiConverter::TrackInfo> MidiConverterDialog::trackInfoList() const {
+QList<QDspx::MidiIntermediateData::Track> MidiConverterDialog::trackInfoList() const {
     Q_D(const MidiConverterDialog);
     return d->trackInfoList;
 }

@@ -73,7 +73,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         Qt6::StateMachine
         ${PLATFORM_LIB}
         talcs::Core talcs::Device talcs::Format talcs::Midi talcs::Dspx talcs::Widgets
-        opendspx::opendspx
+        opendspx::opendspxconverter opendspx::opendspxserializer
         LangCore::LangCore
         lyric-tab::lyric-tab
         QWindowKit::Widgets

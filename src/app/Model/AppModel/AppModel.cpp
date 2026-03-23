@@ -265,7 +265,7 @@ bool AppModel::importMidiFile(const QString &filename) {
     }
 
     AppModel resultModel;
-    MidiConverter converter(appModel->timeSignature(), appModel->tempo());
+    MidiConverter converter;
     const auto ok = converter.load(filename, &resultModel, errMsg,
                                    static_cast<IProjectConverter::ImportMode>(midiImport));
     Log::i("Midi importer", errMsg);
@@ -287,7 +287,7 @@ bool AppModel::importMidiFile(const QString &filename) {
 }
 
 bool AppModel::exportMidiFile(const QString &filename) {
-    MidiConverter converter(appModel->timeSignature(), appModel->tempo());
+    MidiConverter converter;
     QString errMsg;
     Log::i("Midi exporter", errMsg);
     return converter.save(filename, this, errMsg);
