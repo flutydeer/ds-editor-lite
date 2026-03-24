@@ -201,11 +201,12 @@ namespace InferControllerHelper {
     void updatePhoneName(const QList<Note *> &notes, const QList<PhonemeNameResult> &args,
                          SingingClip &clip) {
         if (notes.count() != args.count()) {
-            qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
+            qFatal() << "updatePhoneName() note count != args count:" << notes.count()
                      << args.count();
             return;
         }
         int i = 0;
+        // Update regardless of whether phoneme names are successfully retrieved
         for (const auto note : notes) {
             note->setPhonemeNameInfo(Phonemes::Ahead, Note::Original, args[i].aheadNames);
             note->setPhonemeNameInfo(Phonemes::Normal, Note::Original, args[i].normalNames);

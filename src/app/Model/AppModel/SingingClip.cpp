@@ -81,7 +81,8 @@ void SingingClip::removeAllPieces() {
         delete piece;
 }
 
-void SingingClip::reSegment() {
+ReSegmentResult SingingClip::reSegment() {
+    ReSegmentResult result;
     // TODO: Refactor AppModel to support multiple tempos
     Timeline timeline;
     timeline.tempos = {{0, appModel->tempo()}};
@@ -133,15 +134,19 @@ void SingingClip::reSegment() {
             newPiece->paddingStartMs = segment.paddingStartMs;
             newPiece->paddingEndMs = segment.paddingEndMs;
             newPieces.append(newPiece);
+            result.addedPieces.append(newPiece);
         }
     }
     PieceList temp = m_pieces;
     m_pieces.clear();
     m_pieces = newPieces;
+    for (const auto piece : temp)
+        result.removedPieceIds.append(piece->id());
     emit piecesChanged(m_pieces, newPieces, temp);
     qInfo() << "piecesChanged";
     for (const auto piece : temp)
         delete piece;
+    return result;
 }
 
 void SingingClip::updateOriginalParam(const ParamInfo::Name name) {

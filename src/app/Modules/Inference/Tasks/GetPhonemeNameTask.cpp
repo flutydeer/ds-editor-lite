@@ -73,32 +73,39 @@ QList<PhonemeNameResult>
     const auto s2pMgr = S2pMgr::instance();
     QList<PhonemeNameResult> phonemeNameResult;
     phonemeNameResult.reserve(input.size());
-    for (const auto [language, pronunciation] : input) {
-        // qInfo() << pronunciation;
+    bool allSuccess = true;
+
+    for (const auto &[language, pronunciation] : input) {
         PhonemeNameResult note;
         if (pronunciation == "SP" || pronunciation == "AP") {
             note.normalNames.append(pronunciation);
+            note.success = true;
         } else {
             if (const auto phonemes = s2pMgr->syllableToPhoneme(
                     m_clipSingerInfo.identifier(), m_clipSingerInfo.g2pId(language), pronunciation);
                 !phonemes.empty()) {
                 if (phonemes.size() == 1) {
                     note.normalNames.append(phonemes.at(0));
+                    note.success = true;
                 } else if (phonemes.size() == 2) {
                     note.aheadNames.append(phonemes.at(0));
                     note.normalNames.append(phonemes.at(1));
-                } else
+                    note.success = true;
+                } else {
                     qCritical() << "Cannot handle more than 2 phonemes" << phonemes;
-            } else if (pronunciation != "-") {
+                }
+            } else if (pronunciation == "-") {
+                note.success = true;
+            } else {
                 qCritical() << "Failed to get phoneme names of pronunciation: " << "language:"
                             << language << "g2pId:" << m_clipSingerInfo.g2pId(language)
                             << "pronunciation:" << pronunciation;
-                return {};
+                allSuccess = false;
             }
         }
         phonemeNameResult.append(note);
     }
 
-    m_success.store(true, std::memory_order_release);
+    m_success.store(allSuccess, std::memory_order_release);
     return phonemeNameResult;
 }

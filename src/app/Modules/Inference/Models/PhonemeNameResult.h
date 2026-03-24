@@ -8,6 +8,7 @@
 
 class PhonemeNameResult {
 public:
+    bool success = false;
     QStringList aheadNames;
     QStringList normalNames;
     QStringList finalNames;

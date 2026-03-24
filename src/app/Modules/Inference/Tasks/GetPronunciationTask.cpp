@@ -51,6 +51,7 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
     }
 
     const auto singingClip = reinterpret_cast<SingingClip *>(appModel->findClipById(m_clipId));
+    Q_ASSERT(singingClip);
     const auto singerInfo = singingClip->singerInfo();
     const auto langMgr = LangCore::Manager::instance();
 

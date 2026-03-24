@@ -141,7 +141,7 @@ void InferControllerPrivate::handleTempoChanged(double tempo) {
 
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
-    connect(clip, &SingingClip::singerOrSpeakerChanged, this, [clip, this]{
+    connect(clip, &SingingClip::singerOrSpeakerChanged, this, [clip, this] {
         clip->removeAllPieces();
         if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
             createAndRunGetPronTask(*clip);
@@ -292,15 +292,16 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
 
     const auto singingClip = dynamic_cast<SingingClip *>(clip);
     Helper::updatePronunciation(task.notesRef, task.result, *singingClip);
-    createAndRunGetPhoneTask(*singingClip);
+
+    if (!singingClip->singerInfo().isEmpty())
+        createAndRunGetPhoneTask(*singingClip);
     delete &task;
 }
 
-
 // TODO 任何音符改动，都会触发获取剪辑所有音符发音->获取剪辑所有音符音素名称
-// TODO 对于连续的多个音符，如果其中有音符缺少音素名称信息（发音有误等原因导致），则整句将在划分时被标为错误
-// TODO 对于以-开头的连续多个音符，同样被标为错误
-// TODO 分段结果为多个有效片段
+// TODO 对于连续的多个音符，如果其中有音符缺少音素名称信息（发音有误等原因导致），则整句将在划分时忽略
+// TODO 对于以-开头的连续多个音符，同样被忽略
+// TODO 分段结果确保为多个有效片段
 void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task) {
     m_getPhoneTasks.onCurrentFinished();
     const auto clip = appModel->findClipById(task.clipId());
@@ -310,27 +311,13 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
     }
 
     const auto singingClip = dynamic_cast<SingingClip *>(clip);
-    if (task.success()) {
-        Helper::updatePhoneName(task.notesRef, task.result, *singingClip);
+    Helper::updatePhoneName(task.notesRef, task.result, *singingClip);
 
-        if (!singingClip->singerInfo().isEmpty())
-            singingClip->reSegment();
-
-        for (const auto piece : singingClip->pieces()) {
-            // 只对新的片段创建推理管线
-            auto findPipelineById = [](const QList<InferPipeline *> &container,
-                                       int id) -> InferPipeline * {
-                for (const auto pipeline : container)
-                    if (pipeline->pieceId() == id)
-                        return pipeline;
-                return nullptr;
-            };
-            if (!findPipelineById(m_inferPipelines, piece->id()))
-                createPipeline(*piece);
-        }
-    } else
-        for (const auto piece : singingClip->pieces())
-            piece->acousticInferStatus = Failed;
+    if (!singingClip->singerInfo().isEmpty()) {
+        auto result = singingClip->reSegment();
+        for (const auto piece : result.addedPieces)
+            createPipeline(*piece);
+    }
     delete &task;
 }
 
