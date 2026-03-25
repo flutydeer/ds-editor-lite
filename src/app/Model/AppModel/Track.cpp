@@ -79,7 +79,6 @@ static void setTrackSingerAndSpeakerForClip(Clip *clip, const SingerInfo &singer
 }
 
 void Track::insertClip(Clip *clip) {
-    setTrackSingerAndSpeakerForClip(clip, m_singerInfo, m_speakerInfo);
     m_clips.add(clip);
     connect(this, &Track::singerOrSpeakerChanged, clip,
             [clip, this] { setTrackSingerAndSpeakerForClip(clip, m_singerInfo, m_speakerInfo); });
