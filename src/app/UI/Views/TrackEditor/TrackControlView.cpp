@@ -82,7 +82,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
                 }
                 cbSinger->addGroup(singerText);
                 for (const auto &spk : singer.speakers())
-                    cbSinger->addItemToGroup(singerText, spk.id(), singer, spk);
+                    cbSinger->addItemToGroup(singerText, spk.name(), singer, spk);
             }
         }
     };
