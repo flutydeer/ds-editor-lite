@@ -4,11 +4,9 @@
 #include "Modules/PackageManager/Models/SingerInfo.h"
 
 #include <QMWidgets/cmenu.h>
-#include <QWidget>
-#include <QHoverEvent>
+#include <QComboBox>
 
 class QAction;
-class QToolButton;
 
 struct ComboBoxItemData {
     QString text;
@@ -18,7 +16,7 @@ struct ComboBoxItemData {
 };
 Q_DECLARE_METATYPE(ComboBoxItemData)
 
-class TwoLevelComboBox : public QWidget {
+class TwoLevelComboBox : public QComboBox {
     Q_OBJECT
 
 public:
@@ -39,20 +37,21 @@ public:
 
 signals:
     void currentDataChanged();
-    void currentTextChanged();
+
+protected:
+    void showPopup() override;
+    void paintEvent(QPaintEvent *event) override;
 
 private slots:
     void onActionTriggered(const QAction *action);
 
 private:
-    void setupUi();
-    void updateButtonText() const;
+    void updateDisplayText();
     CMenu *createGroupMenu(const QString &groupName) const;
     void addItemInternal(const QString &itemText, const SingerInfo &singer, const SpeakerInfo &spk,
                          QMenu *parentMenu);
 
-    QToolButton *m_toolButton;
-    CMenu *m_mainMenu;
+    CMenu *m_mainMenu = nullptr;
     QList<ComboBoxItemData> m_itemDataList;
     ComboBoxItemData m_currentItem;
     QString m_propertyName = "itemData";

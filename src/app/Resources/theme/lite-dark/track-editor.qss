@@ -72,10 +72,12 @@ TrackControlView>QPushButton#btnSolo:checked {
     background-color: #40FFCD9B;
 }
 
-TrackControlView>ComboBox {
+TrackControlView>ComboBox,
+TrackControlView>TwoLevelComboBox
+ {
     height: 24;
     border: none;
-    padding-left: 4px;
+    padding-left: 8px;
     background: transparent;
 }
 

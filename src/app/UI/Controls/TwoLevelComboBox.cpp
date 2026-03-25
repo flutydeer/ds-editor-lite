@@ -1,26 +1,32 @@
 #include "TwoLevelComboBox.h"
-#include <QVBoxLayout>
 #include <QDebug>
-#include <QToolButton>
+#include <QPainter>
+#include <QStyleOptionComboBox>
 
-TwoLevelComboBox::TwoLevelComboBox(QWidget *parent) : QWidget(parent) {
-    setupUi();
+TwoLevelComboBox::TwoLevelComboBox(QWidget *parent) : QComboBox(parent) {
+    m_mainMenu = new CMenu(this);
 }
 
 TwoLevelComboBox::~TwoLevelComboBox() {
 }
 
-void TwoLevelComboBox::setupUi() {
-    const auto layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
+void TwoLevelComboBox::showPopup() {
+    QComboBox::hidePopup();
+    if (m_mainMenu && !m_mainMenu->isEmpty()) {
+        QPoint pos = mapToGlobal(QPoint(0, height()));
+        m_mainMenu->popup(pos);
+    }
+}
 
-    m_toolButton = new QToolButton(this);
-    m_mainMenu = new CMenu(this);
-
-    m_toolButton->setPopupMode(QToolButton::MenuButtonPopup);
-    m_toolButton->setMenu(m_mainMenu);
-    m_toolButton->setText(tr("请选择"));
-    layout->addWidget(m_toolButton);
+void TwoLevelComboBox::paintEvent(QPaintEvent *event) {
+    Q_UNUSED(event)
+    QPainter painter(this);
+    QStyleOptionComboBox opt;
+    opt.initFrom(this);
+    opt.currentText = m_currentItem.text.isEmpty() ? tr("Please select") : m_currentItem.text;
+    opt.editable = false;
+    style()->drawComplexControl(QStyle::CC_ComboBox, &opt, &painter, this);
+    style()->drawControl(QStyle::CE_ComboBoxLabel, &opt, &painter, this);
 }
 
 void TwoLevelComboBox::addGroup(const QString &groupName) const {
@@ -63,7 +69,7 @@ void TwoLevelComboBox::addItemInternal(const QString &itemText, const SingerInfo
 
     if (m_itemDataList.size() == 1) {
         m_currentItem = itemData;
-        updateButtonText();
+        updateDisplayText();
     }
 }
 
@@ -71,7 +77,7 @@ void TwoLevelComboBox::clear() {
     m_mainMenu->clear();
     m_itemDataList.clear();
     m_currentItem = ComboBoxItemData();
-    m_toolButton->setText(tr("请选择"));
+    update();
 }
 
 QString TwoLevelComboBox::currentText() const {
@@ -92,17 +98,15 @@ void TwoLevelComboBox::onActionTriggered(const QAction *action) {
         const auto itemData = variant.value<ComboBoxItemData>();
 
         m_currentItem = itemData;
-        updateButtonText();
+        updateDisplayText();
 
         emit currentDataChanged();
-        emit currentTextChanged();
+        emit currentTextChanged(m_currentItem.text);
     }
 }
 
-void TwoLevelComboBox::updateButtonText() const {
-    if (!m_currentItem.text.isEmpty()) {
-        m_toolButton->setText(m_currentItem.text);
-    }
+void TwoLevelComboBox::updateDisplayText() {
+    update();
 }
 
 CMenu *TwoLevelComboBox::createGroupMenu(const QString &groupName) const {

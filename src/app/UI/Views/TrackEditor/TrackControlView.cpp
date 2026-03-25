@@ -60,7 +60,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     muteSoloTrackNameLayout->addWidget(btnSolo);
     // m_muteSoloTrackNameLayout->addWidget(m_cbLanguage);
     muteSoloTrackNameLayout->setSpacing(4);
-    muteSoloTrackNameLayout->setContentsMargins(4, 8, 4, 8);
+    muteSoloTrackNameLayout->setContentsMargins(12, 8, 8, 4);
 
     cbSinger = new TwoLevelComboBox;
     cbSinger->setObjectName("cbSinger");
@@ -107,10 +107,14 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     singerLanguageLayout = new QHBoxLayout;
     singerLanguageLayout->addWidget(cbSinger);
     singerLanguageLayout->addWidget(cbLanguage);
+    singerLanguageLayout->setSpacing(4);
+    singerLanguageLayout->setContentsMargins(4, 0, 4, 0);
 
     controlWidgetLayout = new QVBoxLayout;
     controlWidgetLayout->addLayout(muteSoloTrackNameLayout);
     controlWidgetLayout->addLayout(singerLanguageLayout);
+    controlWidgetLayout->addStretch();
+    controlWidgetLayout->setSpacing(0);
 
     m_levelMeter = new LevelMeter();
 
