@@ -11,7 +11,7 @@
 #include <QDebug>
 
 SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &source) {
-    // 切分选项
+    // Slice options
     auto headerLengthMax = SingingClipSlicerGlobal::headerAvailableLengthMax;
     auto padBaseLength = SingingClipSlicerGlobal::padBaseLength;
     auto padUnitAdditionalLength = SingingClipSlicerGlobal::padUnitAdditionalLength;
@@ -26,23 +26,23 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
         return lyric == "AP" || lyric == "SP";
     };
 
-    // 根据音符计算头部最小可用长度，分两种情况：
+    // Calculate minimum available header length based on note, two cases:
     //
-    // 1. 非休止符（AP/SP），需补充 SP 音符
+    // 1. Non-rest note (AP/SP), needs SP note padding
     // Note:  |          SP          |        Lyric           |
     // Phone: | SP | ph1 | ... | phn | (onset ph) |    ...    |
-    // 最小值 = 基础量 + 头部音素数量（卡拍点前的所有音素数量） * 附加量基数
+    // Minimum = base amount + header phoneme count (all phonemes before the beat point) * additional base
     //
-    // 如果音符没有头部音素，则最小值退化为基础量
+    // If the note has no header phonemes, the minimum degrades to base amount
     // Note:  | SP |        Lyric           |
     // Phone: | SP | (onset ph) |    ...    |
     //
-    // 2. 休止符（AP/SP），无需补充 SP
+    // 2. Rest note (AP/SP), no SP padding needed
     // Note:  |      AP      |        Lyric           |
     // Phone: |      AP      | (onset ph) |    ...    |
-    // 最小值 = 0
+    // Minimum = 0
     //
-    // TODO 重构音素时需要同步修改获取头部音素数量的方式
+    // TODO: Update the method to get header phoneme count when refactoring phonemes
     auto getHeaderMinLength = [=](const Note &note) -> double {
         if (isRestNote(note))
             return 0.0;
@@ -51,11 +51,11 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
         return padBaseLength + static_cast<double>(headerPhonemeCount) * padUnitAdditionalLength;
     };
 
-    // 根据音符计算尾部填充长度，分两种情况：
-    // 1. 非休止符（AP/SP），需补充 SP 音符
-    // 填充长度 = 基础量
-    // 2. 休止符（AP/SP），无需补充 SP
-    // 尾部音素序列为空，填充长度为 0
+    // Calculate tail padding length based on note, two cases:
+    // 1. Non-rest note (AP/SP), needs SP note padding
+    // Padding length = base amount
+    // 2. Rest note (AP/SP), no SP padding needed
+    // Tail phoneme sequence is empty, padding length is 0
     auto getTailLength = [=](const Note &note) -> double {
         if (isRestNote(note))
             return 0.0;
@@ -84,12 +84,12 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
         buffer.append(curNote);
         bool commitFlag = false;
         if (i < notes.count() - 1) {
-            // 下一个音符的头部起始时间 = 音符起始时间 - 音符头部最小可用长度
+            // Next note's header start time = note start time - note header minimum available length
             const auto nextNote = notes.at(i + 1);
             const auto nextStartInMs = timeline.tickToMs(nextNote->globalStart());
             const auto nextHeaderStartInMs = nextStartInMs - getHeaderMinLength(*nextNote);
 
-            // 当前音符尾部的结束时间
+            // Current note's tail end time
             const auto curEndInMs = timeline.tickToMs(curNote->globalStart() + curNote->length());
             const auto curTailEndInMs = curEndInMs + getTailLength(*curNote);
             commitFlag = nextHeaderStartInMs > curTailEndInMs;
@@ -100,12 +100,12 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
             const auto firstNote = buffer.first();
             const auto firstStartInMs = timeline.tickToMs(firstNote->globalStart());
 
-            // 计算头部可用长度
-            // 如果当前片段和上一片段间距足够长，则长度取最大值，否则取实际可用长度
+            // Calculate header available length
+            // If the gap between current segment and previous segment is long enough, use max value; otherwise use actual available length
             const auto gap = firstStartInMs - lastTailEndInMs;
             segment.headAvailableLengthMs = gap > headerLengthMax ? headerLengthMax : gap;
 
-            // 计算头部和尾部填充长度
+            // Calculate header and tail padding length
             if (const auto headerMinLength = getHeaderMinLength(*firstNote); headerMinLength > 0) {
                 const auto headStartInMs = firstStartInMs - headerMinLength;
                 segment.paddingStartMs = firstStartInMs - headStartInMs;
