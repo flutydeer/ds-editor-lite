@@ -196,6 +196,9 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
                 if (view->isEditingLyric()) {
                     view->finishEditingLyric();
                 }
+                if (view->pronunciationView() && view->pronunciationView()->isEditingPronunciation()) {
+                    view->pronunciationView()->finishEditingPronunciation();
+                }
             }
             TimeGraphicsView::mousePressEvent(event);
         }
@@ -211,6 +214,9 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
             for (const auto view : d->noteViews) {
                 if (view->isEditingLyric()) {
                     view->finishEditingLyric();
+                }
+                if (view->pronunciationView() && view->pronunciationView()->isEditingPronunciation()) {
+                    view->pronunciationView()->finishEditingPronunciation();
                 }
             }
             d->PrepareForDrawingNote(tick, keyIndex);
@@ -239,6 +245,10 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     bool hasEditingNote = false;
     for (const auto view : d->noteViews) {
         if (view->isEditingLyric()) {
+            hasEditingNote = true;
+            break;
+        }
+        if (view->pronunciationView() && view->pronunciationView()->isEditingPronunciation()) {
             hasEditingNote = true;
             break;
         }
@@ -371,7 +381,7 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
             break;
         }
         if (const auto pronView = dynamic_cast<PronunciationView *>(item)) {
-            d->onOpenNotePropertyDialog(pronView->id(), AppGlobal::Pronunciation);
+            d->onStartEditingPronunciation(pronView);
             handled = true;
             break;
         }
@@ -725,6 +735,41 @@ NoteView *PianoRollGraphicsViewPrivate::findNextNoteView(NoteView *currentNoteVi
     }
 
     return nextNoteView;
+}
+
+void PianoRollGraphicsViewPrivate::onStartEditingPronunciation(PronunciationView *pronView) {
+    for (const auto view : noteViews) {
+        if (view->isEditingLyric()) {
+            view->finishEditingLyric();
+        }
+        if (view->pronunciationView() && view->pronunciationView()->isEditingPronunciation()) {
+            view->pronunciationView()->finishEditingPronunciation();
+        }
+    }
+
+    connect(
+        pronView, &PronunciationView::pronunciationEditingFinished, this,
+        [this, pronView](const QString &pronunciation) { onPronunciationEditingFinished(pronView, pronunciation); });
+
+    pronView->startEditingPronunciation();
+}
+
+void PianoRollGraphicsViewPrivate::onPronunciationEditingFinished(PronunciationView *pronView,
+                                                                   const QString &pronunciation) {
+    disconnect(pronView, &PronunciationView::pronunciationEditingFinished, this, nullptr);
+
+    const int noteId = pronView->id();
+    const auto note = m_clip->findNoteById(noteId);
+    Q_ASSERT(note);
+
+    NoteDialogResult result;
+    result.lyric = note->lyric();
+    result.language = note->language();
+    result.pronunciation = note->pronunciation();
+    result.pronunciation.edited = pronunciation;
+    result.phonemeNameInfo = note->phonemeNameInfo();
+
+    clipController->onNotePropertiesEdited(noteId, result);
 }
 
 CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView,

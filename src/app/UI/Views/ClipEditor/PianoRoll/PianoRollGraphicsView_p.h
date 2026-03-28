@@ -136,6 +136,9 @@ public slots:
     void onNoteTabKeyPressed(NoteView *noteView);
     NoteView *findNextNoteView(NoteView *currentNoteView) const;
 
+    void onStartEditingPronunciation(PronunciationView *pronView);
+    void onPronunciationEditingFinished(PronunciationView *pronView, const QString &pronunciation);
+
 private:
     PianoRollGraphicsView *q_ptr;
 };

@@ -6,9 +6,18 @@
 
 #include <QElapsedTimer>
 #include <QPainter>
+#include <QGraphicsProxyWidget>
+#include <QKeyEvent>
+#include <QLineEdit>
 
 PronunciationView::PronunciationView(const int noteId, QGraphicsItem *parent)
     : AbstractGraphicsRectItem(parent), UniqueObject(noteId) {
+}
+
+PronunciationView::~PronunciationView() {
+    if (m_lineEditProxy) {
+        delete m_lineEditProxy;
+    }
 }
 
 void PronunciationView::setPronunciation(const QString &pronunciation, const bool edited) {
@@ -59,4 +68,92 @@ void PronunciationView::paint(QPainter *painter, const QStyleOptionGraphicsItem 
 
 void PronunciationView::updateRectAndPos() {
     // update();
+}
+
+void PronunciationView::startEditingPronunciation() {
+    if (m_editingPronunciation)
+        return;
+
+    m_editingPronunciation = true;
+
+    if (!m_lineEditProxy) {
+        m_lineEdit = new QLineEdit();
+        m_lineEdit->setFrame(false);
+        m_lineEdit->installEventFilter(this);
+        m_lineEditProxy = new QGraphicsProxyWidget(this);
+        m_lineEditProxy->setWidget(m_lineEdit);
+
+        connect(m_lineEdit, &QLineEdit::editingFinished, this, &PronunciationView::finishEditingPronunciation);
+    }
+
+    m_lineEdit->setText(m_pronunciation);
+    updateLineEditGeometry();
+    m_lineEditProxy->show();
+    m_lineEdit->setFocus();
+    m_lineEdit->selectAll();
+    update();
+}
+
+void PronunciationView::finishEditingPronunciation() {
+    if (!m_editingPronunciation)
+        return;
+
+    m_editingPronunciation = false;
+
+    if (m_lineEditProxy) {
+        const QString newPronunciation = m_lineEdit->text();
+        m_lineEditProxy->hide();
+
+        if (m_lineEdit) {
+            m_lineEdit->clearFocus();
+        }
+
+        if (newPronunciation != m_pronunciation) {
+            emit pronunciationEditingFinished(newPronunciation);
+        }
+    }
+
+    update();
+}
+
+bool PronunciationView::isEditingPronunciation() const {
+    return m_editingPronunciation;
+}
+
+void PronunciationView::updateLineEditGeometry() {
+    if (!m_lineEditProxy || !m_lineEdit)
+        return;
+
+    auto rect = boundingRect();
+    constexpr auto penWidth = 1.5;
+    constexpr int padding = 2;
+
+    auto left = rect.left() + penWidth + padding;
+    auto top = rect.top();
+    auto width = rect.width() - penWidth * 2 - padding * 2;
+    auto height = rect.height();
+
+    if (width < 10)
+        width = 10;
+
+    m_lineEditProxy->setPos(left, top);
+    m_lineEdit->setFixedSize(static_cast<int>(width), static_cast<int>(height));
+}
+
+bool PronunciationView::eventFilter(QObject *obj, QEvent *event) {
+    if (obj == m_lineEdit && event->type() == QEvent::KeyPress) {
+        auto keyEvent = static_cast<QKeyEvent *>(event);
+        if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
+            finishEditingPronunciation();
+            return true;
+        }
+        if (keyEvent->key() == Qt::Key_Escape) {
+            if (m_lineEdit) {
+                m_lineEdit->setText(m_pronunciation);
+            }
+            finishEditingPronunciation();
+            return true;
+        }
+    }
+    return QObject::eventFilter(obj, event);
 }
