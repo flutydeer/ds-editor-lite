@@ -62,23 +62,30 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
         return padBaseLength;
     };
 
+    // Filter out overlapped notes before processing
+    NoteList notes;
+    for (const auto &note : source) {
+        if (!note->overlapped()) {
+            notes.append(note);
+        }
+    }
+
+    if (notes.isEmpty()) {
+        qWarning() << "advancedSlice: no valid notes after filtering overlapped notes";
+        return {};
+    }
+
     QList<Segment> segments;
     double lastTailEndInMs = 0;
 
     NoteList buffer;
-    for (int i = 0; i < source.count(); i++) {
-        const auto curNote = source.at(i);
-        
-        // Skip overlapped notes before processing
-        if (curNote->overlapped()) {
-            continue;
-        }
-        
+    for (int i = 0; i < notes.count(); i++) {
+        const auto curNote = notes.at(i);
         buffer.append(curNote);
         bool commitFlag = false;
-        if (i < source.count() - 1) {
+        if (i < notes.count() - 1) {
             // 下一个音符的头部起始时间 = 音符起始时间 - 音符头部最小可用长度
-            const auto nextNote = source.at(i + 1);
+            const auto nextNote = notes.at(i + 1);
             const auto nextStartInMs = timeline.tickToMs(nextNote->globalStart());
             const auto nextHeaderStartInMs = nextStartInMs - getHeaderMinLength(*nextNote);
 
@@ -86,7 +93,7 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
             const auto curEndInMs = timeline.tickToMs(curNote->globalStart() + curNote->length());
             const auto curTailEndInMs = curEndInMs + getTailLength(*curNote);
             commitFlag = nextHeaderStartInMs > curTailEndInMs;
-        } else if (i == source.count() - 1)
+        } else if (i == notes.count() - 1)
             commitFlag = true;
         if (commitFlag) {
             Segment segment;
