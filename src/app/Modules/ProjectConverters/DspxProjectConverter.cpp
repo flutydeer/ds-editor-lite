@@ -8,8 +8,6 @@
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppStatus/AppStatus.h"
 
-#include <QMessageBox>
-
 #include <opendspx/model.h>
 #include <opendspxserializer/serializer.h>
 
@@ -414,10 +412,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     const auto returnCode = saveModelToFile(dspxModel, path, errorMsg);
 
     if (!returnCode) {
-        QMessageBox::warning(nullptr, "Warning",
-                             QString("Failed to save project file.\r\npath: %1\r\nError: %2")
-                                 .arg(path)
-                                 .arg(errorMsg));
+        errMsg = errorMsg;
         return false;
     }
     return true;

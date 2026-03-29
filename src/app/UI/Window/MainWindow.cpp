@@ -19,6 +19,7 @@
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ProgressIndicator.h"
 #include "UI/Controls/Toast.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
@@ -75,8 +76,8 @@ MainWindow::MainWindow() {
 
     QString styleSheet;
     QStringList qssFileList = {
-        ":theme/lite-dark/base.qss", ":theme/lite-dark/controls.qss",
-        ":theme/lite-dark/title-bar.qss", ":theme/lite-dark/track-editor.qss",
+        ":theme/lite-dark/base.qss",        ":theme/lite-dark/controls.qss",
+        ":theme/lite-dark/title-bar.qss",   ":theme/lite-dark/track-editor.qss",
         ":theme/lite-dark/clip-editor.qss",
     };
 
@@ -255,7 +256,7 @@ void MainWindow::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCol
         appStatus->clipPanelCollapsed = true;
     } else {
         // TODO: 恢复到折叠前的大小
-        m_splitter->setSizes({240, 100});  // 临时解决方案
+        m_splitter->setSizes({240, 100}); // 临时解决方案
         // m_splitter->restoreState(m_splitterState);
         appStatus->trackPanelCollapsed = false;
         appStatus->clipPanelCollapsed = false;
@@ -305,8 +306,14 @@ bool MainWindow::onSave() {
         if (QString errorMessage;
             appController->saveProject(appController->projectPath(), errorMessage))
             Toast::show(tr("Saved"));
-        else
-            Toast::show(tr("Failed to save project: %1").arg(errorMessage)); // TODO: Use dialog
+        else {
+            MessageDialog messageDialog;
+            messageDialog.setWindowTitle(tr("Error"));
+            messageDialog.setTitle(tr("Failed to save project"));
+            messageDialog.setMessage(errorMessage);
+            messageDialog.addAccentButton(tr("OK"), 1);
+            messageDialog.exec();
+        }
     }
     return true;
 }
@@ -325,16 +332,25 @@ bool MainWindow::onSaveAs() {
 
     QString errorMessage;
     bool saved = appController->saveProject(fileName, errorMessage);
-    while (!saved) {
-        saved = appController->saveProject(getFileName(), errorMessage);
+    if (saved)
+        Toast::show(tr("Saved"));
+    else {
+        MessageDialog messageDialog;
+        messageDialog.setWindowTitle(tr("Error"));
+        messageDialog.setTitle(tr("Failed to save project"));
+        messageDialog.setMessage(errorMessage);
+        messageDialog.addAccentButton(tr("OK"), 1);
+        messageDialog.exec();
     }
-    return true;
+    // while (!saved) {
+    //     saved = appController->saveProject(getFileName(), errorMessage);
+    // }
+    return saved;
 }
 
 void MainWindow::onSplitterMoved(int pos, int index) const {
     qDebug() << "MainWindow::onSplitterMoved"
-        << "size 0:" << m_splitter->sizes().at(0)
-        << "size 1:" << m_splitter->sizes().at(1);
+             << "size 0:" << m_splitter->sizes().at(0) << "size 1:" << m_splitter->sizes().at(1);
     if (m_splitter->sizes().at(0) == 0) {
         appStatus->trackPanelCollapsed = true;
         appStatus->clipPanelCollapsed = false;
