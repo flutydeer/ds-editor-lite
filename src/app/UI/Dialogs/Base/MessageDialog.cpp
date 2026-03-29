@@ -6,24 +6,23 @@ MessageDialog::MessageDialog(const QString &title, const QString &message, QWidg
     : Dialog(parent) {
     setWindowTitle(title);
     setModal(true);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    mainlayout = new QVBoxLayout();
-    m_buttonlayout = new QHBoxLayout();
-    m_buttonlayout->addStretch();
+    // mainlayout = new QVBoxLayout();
 
-    messageLabel = new QLabel(message, this);
-    mainlayout->addWidget(messageLabel);
-    mainlayout->addLayout(m_buttonlayout);
-    this->body()->setLayout(mainlayout);
+    setMessage(message);
+    // messageLabel = new QLabel(message, this);
+    // mainlayout->addWidget(messageLabel);
+    // this->body()->setLayout(mainlayout);
 }
 
-QVBoxLayout *MessageDialog::mainLayout() const {
-    return mainlayout;
-}
+// QVBoxLayout *MessageDialog::mainLayout() const {
+//     return mainlayout;
+// }
 
 void MessageDialog::addButton(const QString &text, int buttonId) {
     auto *button = new Button(text, this);
-    m_buttonlayout->addWidget(button);
+    buttonBar()->addButton(button);
 
     buttons[buttonId] = button;
 
@@ -33,7 +32,7 @@ void MessageDialog::addButton(const QString &text, int buttonId) {
 
 void MessageDialog::addAccentButton(const QString &text, int buttonId) {
     auto *button = new AccentButton(text, this);
-    m_buttonlayout->addWidget(button);
+    buttonBar()->addButton(button);
 
     buttons[buttonId] = button;
 

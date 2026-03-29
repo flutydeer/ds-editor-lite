@@ -14,7 +14,7 @@ public:
     explicit MessageDialog(const QString &title = "", const QString &message = "",
                            QWidget *parent = nullptr);
 
-    QVBoxLayout *mainLayout() const;
+    // QVBoxLayout *mainLayout() const;
 
     void addButton(const QString &text, int buttonId);
     void addAccentButton(const QString &text, int buttonId);
@@ -25,9 +25,8 @@ private slots:
     void handleButtonClicked(int buttonId);
 
 private:
-    QVBoxLayout *mainlayout;
-    QHBoxLayout *m_buttonlayout;
-    QLabel *messageLabel;
+    // QVBoxLayout *mainlayout{};
+    // QLabel *messageLabel;
     int clickedButtonId = -1;
     QMap<int, Button *> buttons;
 };

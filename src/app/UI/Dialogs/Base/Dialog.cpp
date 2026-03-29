@@ -134,6 +134,8 @@ QWidget *Dialog::body() const {
 }
 
 DialogButtonBar *Dialog::buttonBar() const {
+    if (!m_buttonBar)
+        const_cast<Dialog *>(this)->createButtonBar();
     return m_buttonBar;
 }
 
