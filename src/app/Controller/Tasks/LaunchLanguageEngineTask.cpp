@@ -16,9 +16,8 @@
 #include <LangCore/Support/Logging.h>
 #include <LangCore/Core/Manager.h>
 #include <LangCore/Module/Module.h>
-#include <LangCore/Task/TaskFactoryPlugin.h>
-
-#include <LangPlugins/Api/Drivers/Onnx/1/OnnxDriverApiL1.h>
+#include <LangCore/Task/TaskPlugin.h>
+#include <LangCore/Task/SessionTask.h>
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Language/LangSetting/ILangSetManager.h"
@@ -49,7 +48,7 @@ static void log_report_callback(const int level, const LangCore::LogContext &ctx
     }
 }
 
-using EP = LangPlugins::Api::Onnx::L1::ExecutionProvider;
+using EP = LangCore::ExecutionProvider;
 
 std::filesystem::path getPluginRootDirectory() {
 #if defined(Q_OS_MAC)
@@ -77,25 +76,30 @@ EP parseExecutionProvider(const std::string &provider) {
 
 bool initializeOnnxDriver(const LangCore::Manager *mgr, const std::string &ep,
                           const int deviceIndex, const bool loadFromProcess) {
-    const auto onnxDriverPlugin = mgr->plugin<LangCore::DriverFactoryPlugin>("onnx");
+    const auto onnxDriverPlugin = mgr->plugin<LangCore::DriverPlugin>("onnx");
     if (!onnxDriverPlugin) {
         std::cerr << "Failed to load ONNX inference driver" << std::endl;
         return false;
     }
 
-    const auto onnxDriver = onnxDriverPlugin->create();
-    const auto onnxArgs = LangCore::NO<LangPlugins::Api::Onnx::L1::DriverInitArgs>::create();
+    auto expOnnxDriver = onnxDriverPlugin->create();
+    if (!expOnnxDriver) {
+        std::cerr << "Failed to load ONNX inference driver" << std::endl;
+        return false;
+    }
+    const auto onnxArgs = LangCore::NO<LangCore::DriverInitArgs>::create();
 
     const auto ep_ = parseExecutionProvider(ep);
     onnxArgs->ep = ep_;
     const auto ortParentPath =
         onnxDriverPlugin->path().parent_path() / _TSTR("runtimes") / _TSTR("onnx");
-    onnxArgs->runtimePath = ep_ == LangPlugins::Api::Onnx::L1::CUDAExecutionProvider
-                                ? ortParentPath / _TSTR("cuda")
-                                : ortParentPath / _TSTR("default");
+    onnxArgs->runtimePath = ep_ == EP::CUDAExecutionProvider ? ortParentPath / _TSTR("cuda")
+                                                             : ortParentPath / _TSTR("default");
 
     onnxArgs->loadFromProcess = loadFromProcess;
     onnxArgs->deviceIndex = deviceIndex;
+
+    const auto onnxDriver = expOnnxDriver.take();
 
     if (const auto exp = onnxDriver->initialize(onnxArgs); !exp) {
         std::cerr << "Failed to initialize ONNX driver: " << exp.error().message() << std::endl;
