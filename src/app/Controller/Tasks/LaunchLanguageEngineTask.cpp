@@ -125,10 +125,10 @@ void LaunchLanguageEngineTask::runTask() {
     const auto langMgr = LangCore::Manager::instance();
 
     const auto defaultPluginDir = getPluginRootDirectory() / _TSTR("LangPlugins");
-    langMgr->addPluginPath("org.openvpi.DriverFactory", defaultPluginDir / _TSTR("Drivers"));
-    langMgr->addPluginPath("org.openvpi.TaskFactory", defaultPluginDir / _TSTR("G2ps"));
-    langMgr->addPluginPath("org.openvpi.TaskFactory", defaultPluginDir / _TSTR("Taggers"));
-    langMgr->addPluginPath("org.openvpi.TaskFactory", defaultPluginDir / _TSTR("Splitters"));
+    langMgr->addPluginPath("org.openvpi.Driver", defaultPluginDir / _TSTR("Drivers"));
+    langMgr->addPluginPath("org.openvpi.Task", defaultPluginDir / _TSTR("G2ps"));
+    langMgr->addPluginPath("org.openvpi.Task", defaultPluginDir / _TSTR("Taggers"));
+    langMgr->addPluginPath("org.openvpi.Task", defaultPluginDir / _TSTR("Splitters"));
 
     const std::filesystem::path packagesRootDir =
         stdc::system::application_directory() / _TSTR("G2pPackages");
