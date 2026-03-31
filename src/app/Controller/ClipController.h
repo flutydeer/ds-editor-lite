@@ -11,7 +11,7 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/Params.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
-#include "Model/NoteDialogResult/NoteDialogResult.h"
+#include "Model/NoteDialog/NoteDialogResult.h"
 #include "Utils/Singleton.h"
 
 #include <QObject>

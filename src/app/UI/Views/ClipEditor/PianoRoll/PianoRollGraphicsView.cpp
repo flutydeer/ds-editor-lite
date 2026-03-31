@@ -25,7 +25,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
-#include "Model/NoteDialogResult/NoteDialogResult.h"
+#include "Model/NoteDialog/NoteDialogResult.h"
 #include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/Linq.h"
 #include "Utils/Log.h"

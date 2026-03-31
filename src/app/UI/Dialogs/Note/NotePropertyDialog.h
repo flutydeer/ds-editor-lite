@@ -6,11 +6,13 @@
 #define NOTEPROPERTYEDITDIALOG_H
 
 #include "Model/AppModel/Note.h"
-#include "Model/NoteDialogResult/NoteDialogResult.h"
+#include "Model/NoteDialog/NoteDialogResult.h"
 #include "UI/Dialogs/Base/OKCancelDialog.h"
 #include "Global/AppGlobal.h"
 
 class QLineEdit;
+class PhonemeNameListModel;
+class PhonemeNameListWidget;
 class LanguageComboBox;
 class Note;
 
@@ -30,6 +32,8 @@ private:
     QLineEdit *m_lePron;
     QLineEdit *m_lePhonemeAhead;
     QLineEdit *m_lePhonemeNormal;
+    PhonemeNameListWidget *m_listPhonemeNames;
+    PhonemeNameListModel *m_phonemeNameModel;
     Note *m_note;
 
     static QString phonemesToString(const QList<QString> &phonemes);

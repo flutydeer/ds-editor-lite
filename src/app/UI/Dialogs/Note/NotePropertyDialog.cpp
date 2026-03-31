@@ -5,6 +5,8 @@
 #include "NotePropertyDialog.h"
 
 #include "Model/AppModel/Note.h"
+#include "PhonemeNameListWidget.h"
+#include "Model/NoteDialog/PhonemeNameListModel.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
@@ -38,6 +40,16 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
     m_lePhonemeNormal = new QLineEdit(phonemesToString(nameInfo.normal.edited));
     m_lePhonemeNormal->setPlaceholderText(phonemesToString(nameInfo.normal.original));
 
+    m_phonemeNameModel = new PhonemeNameListModel(this);
+    QList<PhonemeNameItemModel> items;
+    items.append(PhonemeNameItemModel("cmn", "ph_1", true));
+    items.append(PhonemeNameItemModel("yue", "ph_2", false));
+    items.append(PhonemeNameItemModel("eng", "ph_3", true));
+    m_phonemeNameModel->setItems(items);
+
+    m_listPhonemeNames = new PhonemeNameListWidget;
+    m_listPhonemeNames->setModel(m_phonemeNameModel);
+
     const auto mainLayout = new QFormLayout;
     mainLayout->setLabelAlignment(Qt::AlignmentFlag::AlignRight | Qt::AlignmentFlag::AlignTrailing |
                                   Qt::AlignmentFlag::AlignVCenter);
@@ -48,6 +60,7 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
     mainLayout->addRow(tr("Pronunciation:"), m_lePron);
     mainLayout->addRow(tr("Ahead Phonemes:"), m_lePhonemeAhead);
     mainLayout->addRow(tr("Normal Phonemes:"), m_lePhonemeNormal);
+    mainLayout->addRow(tr("Phoneme Names:"), m_listPhonemeNames);
     mainLayout->setContentsMargins({});
 
     body()->setLayout(mainLayout);
@@ -89,6 +102,8 @@ NoteDialogResult NotePropertyDialog::result() {
         m_result.phonemeNameInfo.normal.edited = normalList;
     } else
         m_result.phonemeNameInfo.normal.edited = QList<QString>();
+
+    m_result.phonemeNames = m_phonemeNameModel->items();
 
     return m_result;
 }
