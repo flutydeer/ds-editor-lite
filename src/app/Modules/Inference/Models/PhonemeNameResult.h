@@ -4,14 +4,14 @@
 
 #ifndef PHONEMENAMERESULT_H
 #define PHONEMENAMERESULT_H
+
+#include "Model/AppModel/Phonemes.h"
 #include <QStringList>
 
 class PhonemeNameResult {
 public:
     bool success = false;
-    QStringList aheadNames;
-    QStringList normalNames;
-    QStringList finalNames;
+    QList<PhonemeName> phonemeNames;
 };
 
 #endif //PHONEMENAMERESULT_H

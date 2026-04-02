@@ -137,50 +137,34 @@ void Note::setPhonemes(const Phonemes &phonemes) {
     m_phonemeInfo = phonemes;
 }
 
-const PhonemeNameInfo &Note::phonemeNameInfo() const {
-    return m_phonemeInfo.nameInfo;
+const PhonemeNameSeq &Note::phonemeNameSeq() const {
+    return m_phonemeInfo.nameSeq;
 }
 
-void Note::setPhonemeNameInfo(const PhonemeNameInfo &info) {
-    m_phonemeInfo.nameInfo = info;
+void Note::setPhonemeNameSeq(const PhonemeNameSeq &info) {
+    m_phonemeInfo.nameSeq = info;
 }
 
-void Note::setPhonemeNameInfo(const Phonemes::Type phType, const WordPropertyType wordType,
-                              const QList<QString> &nameSeq) {
-    if (phType == Phonemes::Ahead) {
-        if (wordType == Original)
-            m_phonemeInfo.nameInfo.ahead.original = nameSeq;
-        else if (wordType == Edited)
-            m_phonemeInfo.nameInfo.ahead.edited = nameSeq;
-    } else if (phType == Phonemes::Normal) {
-        if (wordType == Original)
-            m_phonemeInfo.nameInfo.normal.original = nameSeq;
-        else if (wordType == Edited)
-            m_phonemeInfo.nameInfo.normal.edited = nameSeq;
-    }
+void Note::setPhonemeNameSeq(WordPropertyType wordType, const QList<PhonemeName> &nameSeq) {
+    if (wordType == Original)
+        m_phonemeInfo.nameSeq.original = nameSeq;
+    else if (wordType == Edited)
+        m_phonemeInfo.nameSeq.edited = nameSeq;
 }
 
-const PhonemeOffsetInfo &Note::phonemeOffsetInfo() const {
-    return m_phonemeInfo.offsetInfo;
+const PhonemeOffsetSeq &Note::phonemeOffsetSeq() const {
+    return m_phonemeInfo.offsetSeq;
 }
 
-void Note::setPhonemeOffsetInfo(const PhonemeOffsetInfo &info) {
-    m_phonemeInfo.offsetInfo = info;
+void Note::setPhonemeOffsetSeq(const PhonemeOffsetSeq &info) {
+    m_phonemeInfo.offsetSeq = info;
 }
 
-void Note::setPhonemeOffsetInfo(const Phonemes::Type phType, const WordPropertyType wordType,
-                                const QList<int> &offsetSeq) {
-    if (phType == Phonemes::Ahead) {
-        if (wordType == Original)
-            m_phonemeInfo.offsetInfo.ahead.original = offsetSeq;
-        else if (wordType == Edited)
-            m_phonemeInfo.offsetInfo.ahead.edited = offsetSeq;
-    } else if (phType == Phonemes::Normal) {
-        if (wordType == Original)
-            m_phonemeInfo.offsetInfo.normal.original = offsetSeq;
-        else if (wordType == Edited)
-            m_phonemeInfo.offsetInfo.normal.edited = offsetSeq;
-    }
+void Note::setPhonemeOffsetSeq(WordPropertyType wordType, const QList<int> &offsetSeq) {
+    if (wordType == Original)
+        m_phonemeInfo.offsetSeq.original = offsetSeq;
+    else if (wordType == Edited)
+        m_phonemeInfo.offsetSeq.edited = offsetSeq;
 }
 
 QString Note::language() const {

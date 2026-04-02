@@ -9,24 +9,25 @@
 
 #include <QList>
 
-class PhonemeNameSeq : public ISerializable {
+class PhonemeName : public ISerializable {
 public:
-    QList<QString> original;
-    QList<QString> edited;
+    QString language;
+    QString name;
+    bool isOnset;
 
-    bool editedEqualsWith(const PhonemeNameSeq &other) const;
-    bool isEdited() const;
-    const QList<QString> &result() const;
     QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
+    bool operator==(const PhonemeName &other) const;
 };
 
-class PhonemeNameInfo : public ISerializable {
+class PhonemeNameSeq : public ISerializable {
 public:
-    PhonemeNameSeq ahead;
-    PhonemeNameSeq normal;
+    QList<PhonemeName> original;
+    QList<PhonemeName> edited;
 
-    bool isEmpty() const;
+    bool editedEqualsWith(const QList<PhonemeName> &other) const;
+    bool isEdited() const;
+    const QList<PhonemeName> &result() const;
     QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 };
@@ -43,25 +44,13 @@ public:
     bool deserialize(const QJsonObject &obj) override;
 };
 
-class PhonemeOffsetInfo : public ISerializable {
-public:
-    PhonemeOffsetSeq ahead;
-    PhonemeOffsetSeq normal;
-
-    bool isEmpty() const;
-    QJsonObject serialize() const override;
-    bool deserialize(const QJsonObject &obj) override;
-};
-
 class Phonemes : public ISerializable {
 public:
-    enum Type { Ahead, Normal };
-
     QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 
-    PhonemeNameInfo nameInfo;
-    PhonemeOffsetInfo offsetInfo;
+    PhonemeNameSeq nameSeq;
+    PhonemeOffsetSeq offsetSeq;
 };
 
 

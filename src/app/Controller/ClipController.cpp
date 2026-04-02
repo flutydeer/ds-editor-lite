@@ -216,14 +216,13 @@ void ClipController::onResizeNotesRight(const QList<int> &notesId, const int del
     historyManager->record(a);
 }
 
-void ClipController::onAdjustPhonemeOffset(const int noteId, const Phonemes::Type type,
-                                           const QList<int> &offsets) const {
+void ClipController::onAdjustPhonemeOffset(const int noteId, const QList<int> &offsets) const {
     Q_D(const ClipController);
     const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
     const auto note = singingClip->findNoteById(noteId);
 
     const auto a = new NoteActions;
-    a->editNotePhonemeOffset(note, type, offsets, singingClip);
+    a->editNotePhonemeOffset(note, offsets, singingClip);
     a->execute();
     historyManager->record(a);
 }
@@ -280,14 +279,11 @@ void ClipController::onNotePropertiesEdited(int noteId, const NoteDialogResult &
     arg.pronunciation = result.pronunciation;
 
     // 检查音素名称是否经过编辑，如果已编辑，则需重置相应的音素时长
-    auto curNameInfo = arg.phonemes.nameInfo;
-    auto resultNameInfo = result.phonemeNameInfo;
-    if (!curNameInfo.ahead.editedEqualsWith(resultNameInfo.ahead))
-        arg.phonemes.offsetInfo.ahead.clear();
-    if (!curNameInfo.normal.editedEqualsWith(resultNameInfo.normal))
-        arg.phonemes.offsetInfo.normal.clear();
+    auto resultNameSeq = result.phonemeNameSeq;
+    if (!result.isPhonemeNameEdited)
+        arg.phonemes.offsetSeq.clear();
 
-    arg.phonemes.nameInfo = resultNameInfo;
+    arg.phonemes.nameSeq.edited = resultNameSeq.edited;
 
     QList list = {note};
     QList args = {arg};

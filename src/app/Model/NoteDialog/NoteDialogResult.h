@@ -5,7 +5,8 @@
 #ifndef NOTEDIALOGRESULT_H
 #define NOTEDIALOGRESULT_H
 
-#include "PhonemeNameItemModel.h"
+#include "Model/AppModel/Phonemes.h"
+#include "Model/AppModel/Pronunciation.h"
 
 #include <QString>
 
@@ -14,8 +15,8 @@ public:
     QString language;
     QString lyric;
     Pronunciation pronunciation;
-    PhonemeNameInfo phonemeNameInfo;
-    QList<PhonemeNameItemModel> phonemeNames;
+    PhonemeNameSeq phonemeNameSeq;
+    bool isPhonemeNameEdited = false;
 };
 
 

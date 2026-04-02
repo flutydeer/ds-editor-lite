@@ -15,10 +15,8 @@ InferInputNote::InferInputNote(const Note &note) {
     isSlur = note.isSlur();
     // TODO: language dict id form singer info
     languageDictId = note.language();
-    aheadNames = note.phonemeNameInfo().ahead.result();
-    normalNames = note.phonemeNameInfo().normal.result();
-    aheadOffsets = note.phonemeOffsetInfo().ahead.result();
-    normalOffsets = note.phonemeOffsetInfo().normal.result();
+    phonemeNames = note.phonemeNameSeq().result();
+    phonemeOffsets = note.phonemeOffsetSeq().result();
 }
 
 bool operator==(const InferInputNote &lhs, const InferInputNote &rhs) {
@@ -28,12 +26,10 @@ bool operator==(const InferInputNote &lhs, const InferInputNote &rhs) {
     const bool keyEqual = lhs.key == rhs.key;
     const bool isRestEqual = lhs.isRest == rhs.isRest;
     const bool isSlurEqual = lhs.isSlur == rhs.isSlur;
-    const bool aheadNamesEqual = lhs.aheadNames == rhs.aheadNames;
-    const bool normalNamesEqual = lhs.normalNames == rhs.normalNames;
-    const bool aheadOffsetsEqual = lhs.aheadOffsets == rhs.aheadOffsets;
-    const bool normalOffsetsEqual = lhs.normalOffsets == rhs.normalOffsets;
+    const bool phonemeNamesEqual = lhs.phonemeNames == rhs.phonemeNames;
+    const bool phonemeOffsetsEqual = lhs.phonemeOffsets == rhs.phonemeOffsets;
     return idEqual && startEqual && lengthEqual && keyEqual && isRestEqual && isSlurEqual &&
-           aheadNamesEqual && normalNamesEqual && aheadOffsetsEqual && normalOffsetsEqual;
+           phonemeNamesEqual && phonemeOffsetsEqual;
 }
 
 bool operator!=(const InferInputNote &lhs, const InferInputNote &rhs) {

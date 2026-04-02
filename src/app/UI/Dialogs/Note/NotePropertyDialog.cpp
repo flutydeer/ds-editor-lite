@@ -8,13 +8,16 @@
 #include "PhonemeNameListWidget.h"
 #include "Model/NoteDialog/PhonemeNameListModel.h"
 #include "UI/Controls/AccentButton.h"
+#include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Utils/Linq.h"
 
 #include <QFormLayout>
+#include <QVBoxLayout>
 
+// TODO 支持还原音素等，拆分音素编辑
 NotePropertyDialog::NotePropertyDialog(const Note *note,
                                        const AppGlobal::NotePropertyType propertyType,
                                        QWidget *parent)
@@ -31,24 +34,38 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
     m_lePron = new QLineEdit(note->pronunciation().edited);
     m_lePron->setPlaceholderText(note->pronunciation().original);
 
-    m_result.phonemeNameInfo = note->phonemes().nameInfo;
-    const auto nameInfo = m_result.phonemeNameInfo;
+    m_isPhonemeNameEdited = note->phonemes().nameSeq.isEdited();
 
-    m_lePhonemeAhead = new QLineEdit(phonemesToString(nameInfo.ahead.edited));
-    m_lePhonemeAhead->setPlaceholderText(phonemesToString(nameInfo.ahead.original));
+    m_phonemeNameModelOriginal = new PhonemeNameListModel(this);
+    m_phonemeNameModelEdited = new PhonemeNameListModel(this);
 
-    m_lePhonemeNormal = new QLineEdit(phonemesToString(nameInfo.normal.edited));
-    m_lePhonemeNormal->setPlaceholderText(phonemesToString(nameInfo.normal.original));
+    for (const auto originalNames = note->phonemes().nameSeq.original;
+         const auto &phoneme : originalNames) {
+        m_phonemeNameModelOriginal->addItem(
+            PhonemeNameItemModel(phoneme.language, phoneme.name, phoneme.isOnset));
 
-    m_phonemeNameModel = new PhonemeNameListModel(this);
-    QList<PhonemeNameItemModel> items;
-    items.append(PhonemeNameItemModel("cmn", "ph_1", true));
-    items.append(PhonemeNameItemModel("yue", "ph_2", false));
-    items.append(PhonemeNameItemModel("eng", "ph_3", true));
-    m_phonemeNameModel->setItems(items);
+        if (!m_isPhonemeNameEdited) {
+            m_phonemeNameModelEdited->addItem(
+                PhonemeNameItemModel(phoneme.language, phoneme.name, phoneme.isOnset));
+        }
+    }
 
-    m_listPhonemeNames = new PhonemeNameListWidget;
-    m_listPhonemeNames->setModel(m_phonemeNameModel);
+    if (m_isPhonemeNameEdited) {
+        for (const auto editedNames = note->phonemes().nameSeq.edited;
+             const auto &phoneme : editedNames) {
+            m_phonemeNameModelEdited->addItem(
+                PhonemeNameItemModel(phoneme.language, phoneme.name, phoneme.isOnset));
+        }
+    }
+
+    m_listPhonemeNamesEdited = new PhonemeNameListWidget;
+    m_listPhonemeNamesEdited->setModel(m_phonemeNameModelEdited);
+
+    m_btnResetPhonemeNames = new Button(tr("Reset Phoneme Names"));
+    m_btnResetPhonemeNames->setEnabled(m_isPhonemeNameEdited);
+    const auto phonemeNamesLayout = new QVBoxLayout;
+    phonemeNamesLayout->addWidget(m_listPhonemeNamesEdited);
+    phonemeNamesLayout->addWidget(m_btnResetPhonemeNames);
 
     const auto mainLayout = new QFormLayout;
     mainLayout->setLabelAlignment(Qt::AlignmentFlag::AlignRight | Qt::AlignmentFlag::AlignTrailing |
@@ -58,9 +75,7 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
     mainLayout->addRow(tr("Language:"), m_cbLanguage);
     mainLayout->addRow(tr("Lyric:"), m_leLyric);
     mainLayout->addRow(tr("Pronunciation:"), m_lePron);
-    mainLayout->addRow(tr("Ahead Phonemes:"), m_lePhonemeAhead);
-    mainLayout->addRow(tr("Normal Phonemes:"), m_lePhonemeNormal);
-    mainLayout->addRow(tr("Phoneme Names:"), m_listPhonemeNames);
+    mainLayout->addRow(tr("Phoneme Names:"), phonemeNamesLayout);
     mainLayout->setContentsMargins({});
 
     body()->setLayout(mainLayout);
@@ -77,11 +92,44 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
             m_lePron->setFocus(Qt::TabFocusReason);
             break;
         case AppGlobal::Phonemes:
-            m_lePhonemeAhead->setFocus(Qt::TabFocusReason);
+            // m_lePhonemeAhead->setFocus(Qt::TabFocusReason);
             break;
     }
     connect(okButton(), &AccentButton::clicked, this, &Dialog::accept);
     connect(cancelButton(), &AccentButton::clicked, this, &Dialog::reject);
+
+    connect(m_phonemeNameModelEdited, &QAbstractItemModel::dataChanged, this, [this] {
+        if (m_isResetting)
+            return;
+        m_isPhonemeNameEdited = true;
+        m_btnResetPhonemeNames->setEnabled(true);
+    });
+    connect(m_phonemeNameModelEdited, &QAbstractItemModel::rowsInserted, this, [this] {
+        if (m_isResetting)
+            return;
+        m_isPhonemeNameEdited = true;
+        m_btnResetPhonemeNames->setEnabled(true);
+    });
+    connect(m_phonemeNameModelEdited, &QAbstractItemModel::rowsRemoved, this, [this] {
+        if (m_isResetting)
+            return;
+        m_isPhonemeNameEdited = true;
+        m_btnResetPhonemeNames->setEnabled(true);
+    });
+    connect(m_phonemeNameModelEdited, &QAbstractItemModel::modelReset, this, [this] {
+        if (m_isResetting)
+            return;
+        m_isPhonemeNameEdited = true;
+        m_btnResetPhonemeNames->setEnabled(true);
+    });
+
+    connect(m_btnResetPhonemeNames, &Button::clicked, this, [this] {
+        m_isResetting = true;
+        m_phonemeNameModelEdited->setItems(m_phonemeNameModelOriginal->items());
+        m_isResetting = false;
+        m_isPhonemeNameEdited = false;
+        m_btnResetPhonemeNames->setEnabled(false);
+    });
 }
 
 NoteDialogResult NotePropertyDialog::result() {
@@ -89,37 +137,18 @@ NoteDialogResult NotePropertyDialog::result() {
     m_result.lyric = m_leLyric->text();
     m_result.pronunciation.edited = m_lePron->text();
 
-    const auto aheadText = m_lePhonemeAhead->text();
-    if (!aheadText.isNull() && !aheadText.isEmpty()) {
-        const auto aheadList = phonemesFromString(aheadText);
-        m_result.phonemeNameInfo.ahead.edited = aheadList;
-    } else
-        m_result.phonemeNameInfo.ahead.edited = QList<QString>();
-
-    const auto normalText = m_lePhonemeNormal->text();
-    if (!normalText.isNull() && !normalText.isEmpty()) {
-        const auto normalList = phonemesFromString(m_lePhonemeNormal->text());
-        m_result.phonemeNameInfo.normal.edited = normalList;
-    } else
-        m_result.phonemeNameInfo.normal.edited = QList<QString>();
-
-    m_result.phonemeNames = m_phonemeNameModel->items();
-
-    return m_result;
-}
-
-QString NotePropertyDialog::phonemesToString(const QList<QString> &phonemes) {
-    QString result;
-    int i = 0;
-    for (const auto &phoneme : phonemes) {
-        result.append(phoneme);
-        if (i < phonemes.count() - 1)
-            result.append(" ");
-        i++;
+    if (m_isPhonemeNameEdited) {
+        m_result.phonemeNameSeq.edited = Linq::selectMany(m_phonemeNameModelEdited->items(),
+                                                          [](const PhonemeNameItemModel &item) {
+                                                              PhonemeName name;
+                                                              name.language = item.language();
+                                                              name.name = item.name();
+                                                              name.isOnset = item.isOnset();
+                                                              return name;
+                                                          });
+    } else {
+        m_result.phonemeNameSeq.edited = {};
     }
-    return result;
-}
-
-QStringList NotePropertyDialog::phonemesFromString(const QString &names) {
-    return names.split(" ");
+    m_result.isPhonemeNameEdited = m_isPhonemeNameEdited;
+    return m_result;
 }

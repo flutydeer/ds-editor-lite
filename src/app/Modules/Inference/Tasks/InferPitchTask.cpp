@@ -220,10 +220,8 @@ void InferPitchTask::abort() {
 void InferPitchTask::buildPreviewText() {
     // 可能用歌词会比较好？
     for (const auto &note : m_input.notes) {
-        for (const auto &phoneme : note.aheadNames)
-            m_previewText.append(phoneme + " ");
-        for (const auto &phoneme : note.normalNames)
-            m_previewText.append(phoneme + " ");
+        for (const auto &phoneme : note.phonemeNames)
+            m_previewText.append(phoneme.name + " ");
     }
 }
 

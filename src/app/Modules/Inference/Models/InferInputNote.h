@@ -5,6 +5,7 @@
 #ifndef INFERINPUTNOTE_H
 #define INFERINPUTNOTE_H
 
+#include "Model/AppModel/Phonemes.h"
 #include <QList>
 
 class Note;
@@ -20,11 +21,8 @@ public:
     bool isRest = false;
     bool isSlur = false;
     QString languageDictId;
-    QStringList aheadNames;
-    QStringList normalNames;
-
-    QList<int> aheadOffsets;
-    QList<int> normalOffsets;
+    QList<PhonemeName> phonemeNames;
+    QList<int> phonemeOffsets;
 
     friend bool operator==(const InferInputNote &lhs, const InferInputNote &rhs);
     friend bool operator!=(const InferInputNote &lhs, const InferInputNote &rhs);

@@ -12,14 +12,12 @@ class SingingClip;
 
 class EditPhonemeOffsetAction final : public IAction {
 public:
-    explicit EditPhonemeOffsetAction(Note *note, Phonemes::Type type,
-                                     const QList<int> &offsets, SingingClip *clip);
+    explicit EditPhonemeOffsetAction(Note *note, const QList<int> &offsets, SingingClip *clip);
     void execute() override;
     void undo() override;
 
 private:
     Note *m_note;
-    Phonemes::Type m_type;
     QList<int> m_oldOffsets;
     QList<int> m_newOffsets;
     SingingClip *m_clip;

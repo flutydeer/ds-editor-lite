@@ -277,10 +277,8 @@ void InferAcousticTask::abort() {
 
 void InferAcousticTask::buildPreviewText() {
     for (const auto &note : m_input.notes) {
-        for (const auto &phoneme : note.aheadNames)
-            m_previewText.append(phoneme + " ");
-        for (const auto &phoneme : note.normalNames)
-            m_previewText.append(phoneme + " ");
+        for (const auto &phoneme : note.phonemeNames)
+            m_previewText.append(phoneme.name + " ");
     }
 }
 

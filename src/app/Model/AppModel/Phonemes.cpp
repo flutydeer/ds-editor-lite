@@ -6,11 +6,30 @@
 
 #include <QJsonArray>
 
-bool PhonemeNameSeq::editedEqualsWith(const PhonemeNameSeq &other) const {
-    if (edited.count() != other.edited.count())
+QJsonObject PhonemeName::serialize() const {
+    return {
+        {"language", language},
+        {"name",     name    },
+        {"isOnset",  isOnset }
+    };
+}
+
+bool PhonemeName::deserialize(const QJsonObject &obj) {
+    language = obj.value("language").toString();
+    name = obj.value("name").toString();
+    isOnset = obj.value("isOnset").toBool();
+    return true;
+}
+
+bool PhonemeName::operator==(const PhonemeName &other) const {
+    return language == other.language && name == other.name && isOnset == other.isOnset;
+}
+
+bool PhonemeNameSeq::editedEqualsWith(const QList<PhonemeName> &other) const {
+    if (edited.count() != other.count())
         return false;
     for (int i = 0; i < edited.count(); i++) {
-        if (edited[i] != other.edited[i])
+        if (edited[i] != other[i])
             return false;
     }
     return true;
@@ -20,17 +39,17 @@ bool PhonemeNameSeq::isEdited() const {
     return !edited.isEmpty();
 }
 
-const QList<QString> &PhonemeNameSeq::result() const {
+const QList<PhonemeName> &PhonemeNameSeq::result() const {
     return edited.isEmpty() ? original : edited;
 }
 
 QJsonObject PhonemeNameSeq::serialize() const {
     QJsonArray arrOriginal;
     for (const auto &str : original)
-        arrOriginal.append(str);
+        arrOriginal.append(str.serialize());
     QJsonArray arrEdited;
     for (const auto &str : edited)
-        arrEdited.append(str);
+        arrEdited.append(str.serialize());
     return QJsonObject{
         {"original", arrOriginal},
         {"edited",   arrEdited  }
@@ -39,33 +58,9 @@ QJsonObject PhonemeNameSeq::serialize() const {
 
 bool PhonemeNameSeq::deserialize(const QJsonObject &obj) {
     original.clear();
-    for (const auto &value : obj.value("original").toArray())
-        original.append(value.toString());
     edited.clear();
-    for (const auto &value : obj.value("edited").toArray())
-        edited.append(value.toString());
-    return true;
-}
-
-bool PhonemeNameInfo::isEmpty() const {
-    const bool result = ahead.result().isEmpty() && normal.result().isEmpty();
-    if (result) {
-        qDebug() << "PhonemeNameInfo::isEmpty()"
-                 << "ahead:" << ahead.result() << " normal:" << normal.result();
-    }
-    return result;
-}
-
-QJsonObject PhonemeNameInfo::serialize() const {
-    return QJsonObject{
-        {"ahead",  ahead.serialize() },
-        {"normal", normal.serialize()}
-    };
-}
-
-bool PhonemeNameInfo::deserialize(const QJsonObject &obj) {
-    ahead.deserialize(obj.value("ahead").toObject());
-    normal.deserialize(obj.value("normal").toObject());
+    deserializeJArray(obj.value("original").toArray(), original);
+    deserializeJArray(obj.value("edited").toArray(), edited);
     return true;
 }
 
@@ -105,32 +100,15 @@ bool PhonemeOffsetSeq::deserialize(const QJsonObject &obj) {
     return true;
 }
 
-bool PhonemeOffsetInfo::isEmpty() const {
-    return ahead.result().isEmpty() && normal.result().isEmpty();
-}
-
-QJsonObject PhonemeOffsetInfo::serialize() const {
-    return QJsonObject{
-        {"ahead",  ahead.serialize() },
-        {"normal", normal.serialize()}
-    };
-}
-
-bool PhonemeOffsetInfo::deserialize(const QJsonObject &obj) {
-    ahead.deserialize(obj.value("ahead").toObject());
-    normal.deserialize(obj.value("normal").toObject());
-    return true;
-}
-
 QJsonObject Phonemes::serialize() const {
     return QJsonObject{
-        {"name",   nameInfo.serialize()  },
-        {"offset", offsetInfo.serialize()},
+        {"name",   nameSeq.serialize()  },
+        {"offset", offsetSeq.serialize()},
     };
 }
 
 bool Phonemes::deserialize(const QJsonObject &obj) {
-    nameInfo.deserialize(obj.value("name").toObject());
-    offsetInfo.deserialize(obj.value("offset").toObject());
+    nameSeq.deserialize(obj.value("name").toObject());
+    offsetSeq.deserialize(obj.value("offset").toObject());
     return true;
 }

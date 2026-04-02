@@ -78,18 +78,34 @@ QList<PhonemeNameResult>
     for (const auto &[language, pronunciation] : input) {
         PhonemeNameResult note;
         if (pronunciation == "SP" || pronunciation == "AP") {
-            note.normalNames.append(pronunciation);
+            PhonemeName restPhoneme;
+            restPhoneme.name = pronunciation;
+            note.phonemeNames.append(restPhoneme);
             note.success = true;
         } else {
             if (const auto phonemes = s2pMgr->syllableToPhoneme(
                     m_clipSingerInfo.identifier(), m_clipSingerInfo.g2pId(language), pronunciation);
                 !phonemes.empty()) {
                 if (phonemes.size() == 1) {
-                    note.normalNames.append(phonemes.at(0));
+                    PhonemeName phoneme;
+                    phoneme.name = phonemes.at(0);
+                    phoneme.language = language;
+                    phoneme.isOnset = true;
+                    note.phonemeNames.append(phoneme);
                     note.success = true;
                 } else if (phonemes.size() == 2) {
-                    note.aheadNames.append(phonemes.at(0));
-                    note.normalNames.append(phonemes.at(1));
+                    // TODO 为英语优化，g2p输出带有卡拍信息的音素
+                    PhonemeName firstPhoneme;
+                    firstPhoneme.name = phonemes.at(0);
+                    firstPhoneme.language = language;
+                    firstPhoneme.isOnset = false;
+                    note.phonemeNames.append(firstPhoneme);
+
+                    PhonemeName secondPhoneme;
+                    secondPhoneme.name = phonemes.at(1);
+                    secondPhoneme.language = language;
+                    secondPhoneme.isOnset = true;
+                    note.phonemeNames.append(secondPhoneme);
                     note.success = true;
                 } else {
                     qCritical() << "Cannot handle more than 2 phonemes" << phonemes;

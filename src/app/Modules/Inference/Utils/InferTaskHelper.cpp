@@ -31,14 +31,17 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
         noteBuffer.append({0, 0, firstWordLen, true});
         phoneBuffer.append({"SP", firstNote.languageDictId, true, 0});
 
-        for (int i = 0; i < firstNote.aheadNames.count(); i++) {
-            auto name = firstNote.aheadNames.at(i);
+        for (int i = 0; i < firstNote.phonemeNames.count(); i++) {
+            auto phonemeName = firstNote.phonemeNames.at(i);
+            if (phonemeName.isOnset)
+                break;
+
             double start = 0;
             if (useOffsetInfo) {
-                start = firstWordLen - firstNote.aheadOffsets.at(i) / 1000.0;
+                start = firstWordLen - firstNote.phonemeOffsets.at(i) / 1000.0;
                 i++;
             }
-            phoneBuffer.append({name, firstNote.languageDictId, false, start});
+            phoneBuffer.append({phonemeName.name, phonemeName.language, false, start});
         }
         commit();
     }
@@ -54,16 +57,21 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
         wordLen = timeline.tickToSec(note.start + note.length) - wordStart;
         noteBuffer.append({note.key, 0, timeline.tickToSec(note.length), note.isRest});
 
-        for (int i = 0; i < note.normalNames.count(); i++) {
-            auto name = note.normalNames.at(i);
+        bool foundOnset = false;
+        for (int i = 0; i < note.phonemeNames.count(); i++) {
+            auto phonemeName = note.phonemeNames.at(i);
+            if (!phonemeName.isOnset && !foundOnset)
+                continue;
+
+            foundOnset = true;
             double start = 0;
             if (useOffsetInfo) {
-                if (name == "SP" || name == "AP")
+                if (phonemeName.name == "SP" || phonemeName.name == "AP")
                     start = 0;
                 else
-                    start = note.normalOffsets.at(i) / 1000.0;
+                    start = note.phonemeOffsets.at(i) / 1000.0;
             }
-            phoneBuffer.append({name, note.languageDictId, false, start});
+            phoneBuffer.append({phonemeName.name, phonemeName.language, false, start});
         }
 
         // 处理当前音符之后还有音符的情况
@@ -95,12 +103,15 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
                 // 如果没有间隙，则根据当前 word 的长度来计算偏移量
                 if (hasGap) // 如果有间隙，则根据间隙长度计算偏移量
                     wordLen = gapLen;
-                for (int i = 0; i < nextNonSlurNote.aheadNames.count(); i++) {
-                    auto name = nextNonSlurNote.aheadNames.at(i);
+                for (int i = 0; i < nextNonSlurNote.phonemeNames.count(); i++) {
+                    auto phonemeName = nextNonSlurNote.phonemeNames.at(i);
+                    if (phonemeName.isOnset)
+                        break;
+
                     double start = 0;
                     if (useOffsetInfo)
-                        start = wordLen - nextNonSlurNote.aheadOffsets.at(i) / 1000.0;
-                    InferPhoneme phone = {name, note.languageDictId, false, start};
+                        start = wordLen - nextNonSlurNote.phonemeOffsets.at(i) / 1000.0;
+                    InferPhoneme phone = {phonemeName.name, phonemeName.language, false, start};
                     if (!hasGap)
                         phoneBuffer.append(phone);
                     else // 如果有间隙则暂存，留给间隙音符

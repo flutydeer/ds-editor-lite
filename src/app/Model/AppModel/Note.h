@@ -56,15 +56,13 @@ public:
     const Phonemes &phonemes() const;
     void setPhonemes(const Phonemes &phonemes);
 
-    const PhonemeNameInfo &phonemeNameInfo() const;
-    void setPhonemeNameInfo(const PhonemeNameInfo &info);
-    void setPhonemeNameInfo(Phonemes::Type phType, WordPropertyType wordType,
-                            const QList<QString> &nameSeq);
+    const PhonemeNameSeq &phonemeNameSeq() const;
+    void setPhonemeNameSeq(const PhonemeNameSeq &info);
+    void setPhonemeNameSeq(WordPropertyType wordType, const QList<PhonemeName> &nameSeq);
 
-    const PhonemeOffsetInfo &phonemeOffsetInfo() const;
-    void setPhonemeOffsetInfo(const PhonemeOffsetInfo &info);
-    void setPhonemeOffsetInfo(Phonemes::Type phType, WordPropertyType wordType,
-                              const QList<int> &offsetSeq);
+    const PhonemeOffsetSeq &phonemeOffsetSeq() const;
+    void setPhonemeOffsetSeq(const PhonemeOffsetSeq &info);
+    void setPhonemeOffsetSeq(WordPropertyType wordType, const QList<int> &offsetSeq);
 
     QString language() const;
     void setLanguage(const QString &language);

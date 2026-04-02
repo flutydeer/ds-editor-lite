@@ -208,8 +208,7 @@ namespace InferControllerHelper {
         int i = 0;
         // Update regardless of whether phoneme names are successfully retrieved
         for (const auto note : notes) {
-            note->setPhonemeNameInfo(Phonemes::Ahead, Note::Original, args[i].aheadNames);
-            note->setPhonemeNameInfo(Phonemes::Normal, Note::Original, args[i].normalNames);
+            note->setPhonemeNameSeq(Note::Original, args[i].phonemeNames);
             i++;
         }
         clip.notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
@@ -224,8 +223,7 @@ namespace InferControllerHelper {
         }
         int i = 0;
         for (const auto note : notes) {
-            note->setPhonemeOffsetInfo(Phonemes::Ahead, Note::Original, args[i].aheadOffsets);
-            note->setPhonemeOffsetInfo(Phonemes::Normal, Note::Original, args[i].normalOffsets);
+            note->setPhonemeOffsetSeq(Note::Original, args[i].phonemeOffsets);
             i++;
         }
         clip.notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
@@ -289,8 +287,7 @@ namespace InferControllerHelper {
         if (cascadeReset)
             resetPitch(piece);
         for (const auto note : notes) {
-            note->setPhonemeOffsetInfo(Phonemes::Ahead, Note::Original, {});
-            note->setPhonemeOffsetInfo(Phonemes::Normal, Note::Original, {});
+            note->setPhonemeOffsetSeq(Note::Original, {});
         }
         piece.clip->notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
     }

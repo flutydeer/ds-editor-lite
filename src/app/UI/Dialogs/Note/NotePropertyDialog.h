@@ -15,6 +15,7 @@ class PhonemeNameListModel;
 class PhonemeNameListWidget;
 class LanguageComboBox;
 class Note;
+class Button;
 
 class NotePropertyDialog final : public OKCancelDialog {
     Q_OBJECT
@@ -30,14 +31,15 @@ private:
     LanguageComboBox *m_cbLanguage;
     QLineEdit *m_leLyric;
     QLineEdit *m_lePron;
-    QLineEdit *m_lePhonemeAhead;
-    QLineEdit *m_lePhonemeNormal;
-    PhonemeNameListWidget *m_listPhonemeNames;
-    PhonemeNameListModel *m_phonemeNameModel;
-    Note *m_note;
 
-    static QString phonemesToString(const QList<QString> &phonemes);
-    static QStringList phonemesFromString(const QString &names);
+    PhonemeNameListModel *m_phonemeNameModelOriginal;
+    PhonemeNameListWidget *m_listPhonemeNamesEdited;
+    PhonemeNameListModel *m_phonemeNameModelEdited;
+    bool m_isPhonemeNameEdited = false;
+    bool m_isResetting = false;
+    Button *m_btnResetPhonemeNames;
+    
+    Note *m_note;
 };
 
 

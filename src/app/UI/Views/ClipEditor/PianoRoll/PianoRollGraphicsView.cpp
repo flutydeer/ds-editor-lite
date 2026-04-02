@@ -689,7 +689,7 @@ void PianoRollGraphicsViewPrivate::onNoteLyricEditingFinished(NoteView *noteView
     result.lyric = lyric;
     result.language = note->language();
     result.pronunciation = note->pronunciation();
-    result.phonemeNameInfo = note->phonemeNameInfo();
+    result.phonemeNameSeq = note->phonemeNameSeq();
 
     clipController->onNotePropertiesEdited(noteId, result);
 }
@@ -767,7 +767,7 @@ void PianoRollGraphicsViewPrivate::onPronunciationEditingFinished(PronunciationV
     result.language = note->language();
     result.pronunciation = note->pronunciation();
     result.pronunciation.edited = pronunciation;
-    result.phonemeNameInfo = note->phonemeNameInfo();
+    result.phonemeNameSeq = note->phonemeNameSeq();
 
     clipController->onNotePropertiesEdited(noteId, result);
 }

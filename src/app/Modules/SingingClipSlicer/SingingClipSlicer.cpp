@@ -31,7 +31,8 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
     // 1. Non-rest note (AP/SP), needs SP note padding
     // Note:  |          SP          |        Lyric           |
     // Phone: | SP | ph1 | ... | phn | (onset ph) |    ...    |
-    // Minimum = base amount + header phoneme count (all phonemes before the beat point) * additional base
+    // Minimum = base amount + header phoneme count (all phonemes before the beat point) *
+    // additional base
     //
     // If the note has no header phonemes, the minimum degrades to base amount
     // Note:  | SP |        Lyric           |
@@ -47,7 +48,13 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
         if (isRestNote(note))
             return 0.0;
 
-        const auto headerPhonemeCount = note.phonemes().nameInfo.ahead.result().count();
+        qsizetype headerPhonemeCount = 0;
+        for (int i = 0; i < note.phonemes().nameSeq.result().count(); i++) {
+            auto phonemeName = note.phonemes().nameSeq.result().at(i);
+            if (phonemeName.isOnset)
+                break;
+            headerPhonemeCount++;
+        }
         return padBaseLength + static_cast<double>(headerPhonemeCount) * padUnitAdditionalLength;
     };
 
@@ -84,7 +91,8 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
         buffer.append(curNote);
         bool commitFlag = false;
         if (i < notes.count() - 1) {
-            // Next note's header start time = note start time - note header minimum available length
+            // Next note's header start time = note start time - note header minimum available
+            // length
             const auto nextNote = notes.at(i + 1);
             const auto nextStartInMs = timeline.tickToMs(nextNote->globalStart());
             const auto nextHeaderStartInMs = nextStartInMs - getHeaderMinLength(*nextNote);
@@ -101,7 +109,8 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
             const auto firstStartInMs = timeline.tickToMs(firstNote->globalStart());
 
             // Calculate header available length
-            // If the gap between current segment and previous segment is long enough, use max value; otherwise use actual available length
+            // If the gap between current segment and previous segment is long enough, use max
+            // value; otherwise use actual available length
             const auto gap = firstStartInMs - lastTailEndInMs;
             segment.headAvailableLengthMs = gap > headerLengthMax ? headerLengthMax : gap;
 
@@ -123,22 +132,22 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
             // or if the first note of the phrase is a slur
             bool hasMissingPhonemeInfo = false;
             bool firstNoteIsSlur = false;
-            
+
             // Check if first note is slur
             if (!buffer.isEmpty()) {
                 const auto firstNote = buffer.first();
                 firstNoteIsSlur = firstNote->isSlur();
             }
-            
+
             // Check for missing phoneme info
             for (const auto &note : buffer) {
                 auto isCommonNote = !isRestNote(*note) && !note->isSlur();
-                if (isCommonNote && note->phonemes().nameInfo.isEmpty()) {
+                if (isCommonNote && note->phonemes().nameSeq.result().isEmpty()) {
                     hasMissingPhonemeInfo = true;
                     break;
                 }
             }
-            
+
             // Skip the segment if the complete phrase has missing phoneme info
             // or if the first note is a slur
             // TODO: Mark as error segment?

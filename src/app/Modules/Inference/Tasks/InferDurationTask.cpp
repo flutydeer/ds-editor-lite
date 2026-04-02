@@ -57,7 +57,7 @@ InferDurationTask::InferDurInput InferDurationTask::input() const {
     return m_input;
 }
 
-QList<InferInputNote> InferDurationTask::result() const{
+QList<InferInputNote> InferDurationTask::result() const {
     QReadLocker readLocker(&m_rwLock);
     return m_result.notes;
 }
@@ -141,8 +141,8 @@ void InferDurationTask::runTask() {
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
-bool InferDurationTask::runInference(const GenericInferModel &model, std::vector<double> &outDuration,
-                                     QString &error) {
+bool InferDurationTask::runInference(const GenericInferModel &model,
+                                     std::vector<double> &outDuration, QString &error) {
     if (!inferEngine->initialized()) {
         qCritical().noquote() << "inferDuration: Environment is not initialized";
         return false;
@@ -221,10 +221,8 @@ void InferDurationTask::abort() {
 
 void InferDurationTask::buildPreviewText() {
     for (const auto &note : m_input.notes) {
-        for (const auto &phoneme : note.aheadNames)
-            m_previewText.append(phoneme + " ");
-        for (const auto &phoneme : note.normalNames)
-            m_previewText.append(phoneme + " ");
+        for (const auto &phoneme : note.phonemeNames)
+            m_previewText.append(phoneme.name + " ");
     }
 }
 
@@ -260,18 +258,36 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
             phoneIndex++;
         }
 
-        note.aheadOffsets.clear();
-        for (int aheadIndex = 0; aheadIndex < note.aheadNames.count(); aheadIndex++) {
-            note.aheadOffsets.append(
-                qRound((offsets[phoneIndex].first - offsets[phoneIndex].second) * 1000));
+        qsizetype headerPhonemeCount = 0;
+        qsizetype normalPhonemeCount = 0;
+        bool foundOnset = false;
+        for (int i = 0; i < note.phonemeNames.count(); i++) {
+            auto phonemeName = note.phonemeNames.at(i);
+            if (phonemeName.isOnset) {
+                foundOnset = true;
+            }
+            if (foundOnset) {
+                normalPhonemeCount++;
+            } else {
+                headerPhonemeCount++;
+            }
+        }
+
+        QList<int> aheadOffsets;
+        for (int aheadIndex = 0; aheadIndex < headerPhonemeCount; aheadIndex++) {
+            aheadOffsets.append(
+                qRound((offsets[phoneIndex].second - offsets[phoneIndex].first) * 1000));
             phoneIndex++;
         }
-        note.normalOffsets.clear();
-        for (int normalIndex = 0; normalIndex < note.normalNames.count(); normalIndex++) {
-            note.normalOffsets.append(qRound(offsets[phoneIndex].second * 1000));
-            note.normalOffsets.append(0);
+
+        QList<int> normalOffsets;
+        for (int normalIndex = 0; normalIndex < normalPhonemeCount; normalIndex++) {
+            normalOffsets.append(qRound(offsets[phoneIndex].second * 1000));
+            normalOffsets.append(0);
             phoneIndex++;
         }
+
+        note.phonemeOffsets = aheadOffsets + normalOffsets;
         noteIndex++;
     }
     return true;
