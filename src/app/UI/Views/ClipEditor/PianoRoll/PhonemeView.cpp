@@ -160,7 +160,12 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         // painter.setPen(originalColor);
         painter.setBrush(fillColor);
 
-        auto text = QString("%1/%2").arg(phoneme->language).arg(phoneme->name);
+        QString text;
+        // Hide language if it is the same as note language
+        if (phoneme->language == phoneme->noteLanguage)
+            text = phoneme->name;
+        else
+            text = QString("%1/%2").arg(phoneme->language).arg(phoneme->name);
 
         const auto &cache = edited ? m_editedTextCache : m_originalTextCache;
         if (!cache.contains(text) || cache[text].isNull())
@@ -421,25 +426,26 @@ void PhonemeView::buildPhonemeList() {
             auto names = note->phonemeNameSeq();
             auto offsets = note->phonemeOffsetSeq();
             for (int i = 0; i < names.result().count(); i++) {
-                const auto vm = new PhonemeViewModel;
-                vm->type = PhonemeViewModel::Normal;
-                vm->noteId = note->id();
-                vm->noteStart = note->globalStart();
-                vm->noteLength = note->length();
-                vm->nameEdited = names.isEdited();
-                vm->offsetEdited = offsets.isEdited();
-                vm->language = names.result().at(i).language;
-                vm->name = names.result().at(i).name;
-                vm->isOnset = names.result().at(i).isOnset;
+                const auto model = new PhonemeViewModel;
+                model->type = PhonemeViewModel::Normal;
+                model->noteId = note->id();
+                model->noteStart = note->globalStart();
+                model->noteLength = note->length();
+                model->noteLanguage = note->language();
+                model->nameEdited = names.isEdited();
+                model->offsetEdited = offsets.isEdited();
+                model->language = names.result().at(i).language;
+                model->name = names.result().at(i).name;
+                model->isOnset = names.result().at(i).isOnset;
                 if (!offsets.result().isEmpty()) {
-                    vm->offsetReady = true;
+                    model->offsetReady = true;
                     const auto phoneStartMs = noteStartMs + offsets.result().at(i);
                     const auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
-                    vm->start = phoneStartTick;
+                    model->start = phoneStartTick;
                 }
-                m_phonemes.append(vm);
-                insertNextNode(prior, vm);
-                prior = vm;
+                m_phonemes.append(model);
+                insertNextNode(prior, model);
+                prior = model;
             }
         }
     }

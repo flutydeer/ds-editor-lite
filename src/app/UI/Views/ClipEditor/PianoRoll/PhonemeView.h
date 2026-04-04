@@ -25,11 +25,15 @@ public:
         enum PhonemeType { Normal, Sil };
 
         PhonemeType type;
+
+        // Note properties
         int noteId = -1;
         int noteStart = 0;
         int noteLength = 0;
-        int start = 0;
+        QString noteLanguage;
 
+        // Phoneme properties
+        int start = 0;
         QString language;
         QString name;
         bool isOnset = false;
