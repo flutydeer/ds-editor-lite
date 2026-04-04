@@ -173,13 +173,13 @@ NoteDialogResult NotePropertyDialog::result() {
 bool NotePropertyDialog::validatePhonemes() const {
     if (m_isPhoneEdited) {
         if (m_phoneModelEdited->items().isEmpty()) {
-            Toast::show(tr("Please add phonemes."));
+            Toast::show(tr("Please add phonemes"));
             return false;
         }
 
         for (const auto &item : m_phoneModelEdited->items()) {
             if (item.language().isEmpty() || item.name().isEmpty()) {
-                Toast::show(tr("Please fill in name for all phonemes."));
+                Toast::show(tr("Please fill in name for all phonemes"));
                 return false;
             }
         }
@@ -192,7 +192,7 @@ bool NotePropertyDialog::validatePhonemes() const {
             }
         }
         if (!hasOnset) {
-            Toast::show(tr("At least one phoneme must be set as onset."));
+            Toast::show(tr("At least one phoneme must be set as onset"));
             return false;
         }
     }

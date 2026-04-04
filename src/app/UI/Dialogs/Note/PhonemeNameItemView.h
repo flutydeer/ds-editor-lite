@@ -6,6 +6,7 @@
 #define DS_EDITOR_LITE_PHONEMENAMEITEMVIEW_H
 
 #include <QCheckBox>
+#include <QPushButton>
 #include <QWidget>
 
 class LanguageComboBox;
@@ -21,10 +22,16 @@ public:
     LineEdit *leName() const;
     QCheckBox *cbIsOnset() const;
 
+signals:
+    void insertAboveClicked();
+    void deleteClicked();
+
 private:
     LanguageComboBox *m_cbLanguage = nullptr;
     LineEdit *m_leName = nullptr;
     QCheckBox *m_cbIsOnset = nullptr;
+    QPushButton *m_btnInsertAbove = nullptr;
+    QPushButton *m_btnDelete = nullptr;
 };
 
 

@@ -8,6 +8,7 @@
 #include <QListWidget>
 
 class CMenu;
+class PhonemeNameItemModel;
 class PhonemeNameListModel;
 
 class PhonemeNameListWidget : public QListWidget {
@@ -28,6 +29,8 @@ private slots:
 private:
     void refreshItems();
     void updateItemWidget(int row);
+    [[nodiscard]] PhonemeNameItemModel createNewItem(int sourceRow) const;
+    void insertItemAt(int targetRow, int sourceRow);
     PhonemeNameListModel *m_model = nullptr;
     CMenu *m_contextMenu = nullptr;
     int m_contextMenuRow = -1;
