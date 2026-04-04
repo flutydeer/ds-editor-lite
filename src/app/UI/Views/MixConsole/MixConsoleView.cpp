@@ -36,7 +36,11 @@ QWidget *MixConsoleView::content() {
     return this;
 }
 
-MixConsoleView::MixConsoleView(QWidget *parent) : QWidget(parent) {
+bool MixConsoleView::isToolBarVisible() const {
+    return true;
+}
+
+MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
     m_channelListView = new QListWidget;
     m_channelListView->setObjectName("channelListView");
     m_channelListView->setViewMode(QListView::ListMode);

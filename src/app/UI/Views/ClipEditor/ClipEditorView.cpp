@@ -39,7 +39,11 @@ QWidget *ClipEditorView::content() {
     return this;
 }
 
-ClipEditorView::ClipEditorView(QWidget *parent) : QWidget(parent) {
+bool ClipEditorView::isToolBarVisible() const {
+    return m_hasActiveClip;
+}
+
+ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("ClipEditorView");
 
@@ -76,22 +80,28 @@ void ClipEditorView::centerAt(const double startTick, const double length, const
                                                                                 keyIndex);
 }
 
-void ClipEditorView::onModelChanged() const {
+void ClipEditorView::onModelChanged() {
     m_toolbarView->setDataContext(nullptr);
     reset();
 }
 
-void ClipEditorView::onActiveClipChanged(const int clipId) const {
+void ClipEditorView::onActiveClipChanged(const int clipId) {
     const auto clip = appModel->findClipById(clipId);
     m_toolbarView->setDataContext(clip);
     clipController->setClip(clip);
 
-    if (clip == nullptr)
+    bool hadActiveClip = m_hasActiveClip;
+    if (clip == nullptr) {
         moveToNullClipState();
-    else if (clip->clipType() == Clip::Singing)
+    } else if (clip->clipType() == Clip::Singing) {
         moveToSingingClipState(dynamic_cast<SingingClip *>(clip));
-    else if (clip->clipType() == Clip::Audio)
+    } else if (clip->clipType() == Clip::Audio) {
         moveToAudioClipState(nullptr);
+    }
+
+    if (hadActiveClip != m_hasActiveClip) {
+        emit toolBarVisibilityChanged();
+    }
 }
 
 bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
@@ -101,7 +111,7 @@ bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
 }
 
 void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
-    m_toolbarView->setVisible(true);
+    m_hasActiveClip = true;
     m_pianoRollEditorView->setVisible(true);
     m_pianoRollEditorView->setDataContext(clip);
     m_pianoRollEditorView->pianoRollView()->onEditModeChanged(m_toolbarView->editMode());
@@ -109,17 +119,17 @@ void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
 
 void ClipEditorView::moveToAudioClipState(const AudioClip *clip) const {
     Q_UNUSED(clip);
-    m_toolbarView->setVisible(true);
+    m_hasActiveClip = true;
     m_pianoRollEditorView->setVisible(false);
     m_pianoRollEditorView->setDataContext(nullptr);
 }
 
 void ClipEditorView::moveToNullClipState() const {
-    m_toolbarView->setVisible(false);
+    m_hasActiveClip = false;
     m_pianoRollEditorView->setVisible(false);
     m_pianoRollEditorView->setDataContext(nullptr);
 }
 
-void ClipEditorView::reset() const {
+void ClipEditorView::reset() {
     onActiveClipChanged(-1);
 }

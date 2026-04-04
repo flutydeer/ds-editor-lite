@@ -6,7 +6,7 @@
 #define MIXCONSOLEVIEW_H
 
 #include "Model/AppModel/AppModel.h"
-#include "UI/Views/Common/ITabPanelPage.h"
+#include "UI/Views/Common/TabPanelPage.h"
 
 #include <QWidget>
 
@@ -14,7 +14,7 @@ class Track;
 class QListWidget;
 class ChannelView;
 
-class MixConsoleView : public QWidget, public ITabPanelPage {
+class MixConsoleView : public TabPanelPage {
     Q_OBJECT
 
 public:
@@ -23,6 +23,7 @@ public:
     [[nodiscard]] AppGlobal::PanelType panelType() const override;
     [[nodiscard]] QWidget *toolBar() override;
     [[nodiscard]] QWidget *content() override;
+    [[nodiscard]] bool isToolBarVisible() const override;
 
     explicit MixConsoleView(QWidget *parent = nullptr);
 
@@ -40,9 +41,7 @@ private:
     void onTrackPropertyChanged() const;
 
     QListWidget *m_channelListView;
-
     ChannelView *m_masterChannel;
-
     QWidget *m_placeHolder;
 };
 

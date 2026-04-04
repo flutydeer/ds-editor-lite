@@ -4,7 +4,7 @@
 
 #include "TabPanelView.h"
 
-#include "UI/Views/Common/ITabPanelPage.h"
+#include "UI/Views/Common/TabPanelPage.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 
 #include <QTabBar>
@@ -31,7 +31,7 @@ TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent): PanelVie
             &TabPanelView::onSelectionChanged);
 }
 
-void TabPanelView::registerPage(ITabPanelPage *page) {
+void TabPanelView::registerPage(TabPanelPage *page) {
     QSignalBlocker blocker(m_tabPanelTitleBar->tabBar());
 
     m_pages.append(page);
@@ -39,11 +39,32 @@ void TabPanelView::registerPage(ITabPanelPage *page) {
     m_tabPanelTitleBar->toolBar()->addWidget(page->toolBar());
     m_pageContent->addWidget(page->content());
 
+    connect(page, &TabPanelPage::toolBarVisibilityChanged,
+            this, &TabPanelView::onToolBarVisibilityChanged);
+
     if (m_pages.size() == 1)
         onSelectionChanged(0);
 }
 
 void TabPanelView::onSelectionChanged(int index) {
-    m_tabPanelTitleBar->toolBar()->setCurrentWidget(m_pages.at(index)->toolBar());
+    m_currentIndex = index;
+    auto *page = m_pages.at(index);
+    m_tabPanelTitleBar->toolBar()->setCurrentWidget(page->toolBar());
+    updateToolBarVisibility(page);
     m_pageContent->setCurrentIndex(index);
+}
+
+void TabPanelView::onToolBarVisibilityChanged() {
+    if (m_currentIndex < 0 || m_currentIndex >= m_pages.size())
+        return;
+
+    auto senderPage = qobject_cast<TabPanelPage *>(sender());
+    auto currentPage = m_pages.at(m_currentIndex);
+    if (senderPage == currentPage) {
+        updateToolBarVisibility(currentPage);
+    }
+}
+
+void TabPanelView::updateToolBarVisibility(TabPanelPage *page) {
+    page->toolBar()->setVisible(page->isToolBarVisible());
 }

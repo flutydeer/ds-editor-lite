@@ -8,7 +8,7 @@
 #include "UI/Views/Common/PanelView.h"
 
 class QStackedWidget;
-class ITabPanelPage;
+class TabPanelPage;
 class TabPanelTitleBar;
 
 class TabPanelView : public PanelView {
@@ -18,16 +18,20 @@ public:
     explicit TabPanelView(AppGlobal::PanelType type = AppGlobal::Generic,
                           QWidget *parent = nullptr);
 
-    void registerPage(ITabPanelPage *page);
+    void registerPage(TabPanelPage *page);
 
 private slots:
     void onSelectionChanged(int index);
+    void onToolBarVisibilityChanged();
 
 private:
+    void updateToolBarVisibility(TabPanelPage *page);
+
     TabPanelTitleBar *m_tabPanelTitleBar;
     QStackedWidget *m_pageContent;
 
-    QList<ITabPanelPage *> m_pages;
+    QList<TabPanelPage *> m_pages;
+    int m_currentIndex = -1;
 };
 
 

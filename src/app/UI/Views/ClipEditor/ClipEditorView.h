@@ -7,7 +7,7 @@
 
 #include "PianoRollEditorView.h"
 #include "Interface/IClipEditorView.h"
-#include "UI/Views/Common/ITabPanelPage.h"
+#include "UI/Views/Common/TabPanelPage.h"
 #include "UI/Views/Common/PanelView.h"
 
 class QSplitter;
@@ -20,7 +20,7 @@ class Clip;
 class SingingClip;
 class AudioClip;
 
-class ClipEditorView final : public QWidget, public ITabPanelPage, public IClipEditorView {
+class ClipEditorView final : public TabPanelPage, public IClipEditorView {
     Q_OBJECT
 
 public:
@@ -29,6 +29,7 @@ public:
     [[nodiscard]] AppGlobal::PanelType panelType() const override;
     [[nodiscard]] QWidget *toolBar() override;
     [[nodiscard]] QWidget *content() override;
+    [[nodiscard]] bool isToolBarVisible() const override;
 
     explicit ClipEditorView(QWidget *parent = nullptr);
 
@@ -36,8 +37,8 @@ public:
     void centerAt(double startTick, double length, double keyIndex) override;
 
 public slots:
-    void onModelChanged() const;
-    void onActiveClipChanged(int clipId) const;
+    void onModelChanged();
+    void onActiveClipChanged(int clipId);
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -47,8 +48,9 @@ private:
 
     ClipEditorToolBarView *m_toolbarView;
     PianoRollEditorView *m_pianoRollEditorView;
+    mutable bool m_hasActiveClip = false;
 
-    void reset() const;
+    void reset();
     // void printParts();
 };
 
