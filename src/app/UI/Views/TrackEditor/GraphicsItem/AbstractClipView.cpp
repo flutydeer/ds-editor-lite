@@ -186,7 +186,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     constexpr auto colorPrimary = QColor(155, 186, 255);
     constexpr auto colorPrimaryTransparent = QColor(155, 186, 255, 64);
     constexpr auto colorPrimaryDarker = QColor(112, 156, 255);
-    constexpr auto colorPrimaryLighter = QColor(205, 221, 255);
+    constexpr auto colorPrimaryLighter = QColor(215, 228, 254);
     constexpr auto colorForeground = QColor(0, 0, 0);
     auto penWidth = 1.2f;
     auto verticalPadding = 1.2f;

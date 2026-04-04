@@ -135,6 +135,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     timer.start();
 
     constexpr auto backgroundColorNormal = QColor(155, 186, 255);
+    constexpr auto backgroundColorSelected = QColor(215, 228, 254);
     constexpr auto backgroundColorEditingPitch = QColor(53, 59, 74);
     constexpr auto backgroundColorOverlapped = QColor(110, 129, 171);
 
@@ -144,6 +145,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     constexpr auto borderColorEditingPitch = QColor(126, 149, 199);
 
     constexpr auto foregroundColorNormal = QColor(0, 0, 0);
+    constexpr auto foregroundColorSelected = QColor(0, 0, 0);
     constexpr auto foregroundColorEditingPitch = QColor(126, 149, 199);
     constexpr auto foregroundColorOverlapped = QColor(0, 0, 0, 127);
 
@@ -169,7 +171,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         painter->setPen(Qt::NoPen);
         QColor brushColor;
         if (isSelected())
-            brushColor = borderColorSelected;
+            brushColor = backgroundColorSelected;
         else if (overlapped())
             brushColor = borderColorOverlapped;
         else if (m_editingPitch)
@@ -190,7 +192,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         QColor foregroundColor;
         if (isSelected()) {
             borderColor = borderColorSelected;
-            backgroundColor = backgroundColorNormal;
+            backgroundColor = backgroundColorSelected;
             foregroundColor = foregroundColorNormal;
         } else if (overlapped()) {
             borderColor = borderColorOverlapped;
