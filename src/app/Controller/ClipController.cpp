@@ -280,7 +280,7 @@ void ClipController::onNotePropertiesEdited(int noteId, const NoteDialogResult &
 
     // 检查音素名称是否经过编辑，如果已编辑，则需重置相应的音素时长
     auto resultNameSeq = result.phonemeNameSeq;
-    if (!result.isPhonemeNameEdited)
+    if (result.isPhonemeNameEdited)
         arg.phonemes.offsetSeq.clear();
 
     arg.phonemes.nameSeq.edited = resultNameSeq.edited;

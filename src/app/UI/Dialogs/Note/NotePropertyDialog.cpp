@@ -17,7 +17,6 @@
 #include <QFormLayout>
 #include <QVBoxLayout>
 
-// TODO 支持还原音素等，拆分音素编辑
 NotePropertyDialog::NotePropertyDialog(const Note *note,
                                        const AppGlobal::NotePropertyType propertyType,
                                        QWidget *parent)
@@ -60,12 +59,26 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
 
     m_listPhonemeNamesEdited = new PhonemeNameListWidget;
     m_listPhonemeNamesEdited->setModel(m_phonemeNameModelEdited);
-
-    m_btnResetPhonemeNames = new Button(tr("Reset Phoneme Names"));
+    
+    m_btnAddPhoneme = new Button(tr("Add Phoneme"));
+    connect(m_btnAddPhoneme, &Button::clicked, this, [this] {
+        PhonemeNameItemModel newItem;
+        newItem.setLanguage(m_cbLanguage->currentText());
+        newItem.setName("");
+        newItem.setIsOnset(false);
+        m_phonemeNameModelEdited->addItem(newItem);
+        m_listPhonemeNamesEdited->scrollToBottom();
+    });
+    
+    m_btnResetPhonemeNames = new Button(tr("Reset Phonemes"));
     m_btnResetPhonemeNames->setEnabled(m_isPhonemeNameEdited);
     const auto phonemeNamesLayout = new QVBoxLayout;
     phonemeNamesLayout->addWidget(m_listPhonemeNamesEdited);
-    phonemeNamesLayout->addWidget(m_btnResetPhonemeNames);
+    const auto buttonsLayout = new QHBoxLayout;
+    buttonsLayout->addWidget(m_btnAddPhoneme);
+    buttonsLayout->addWidget(m_btnResetPhonemeNames);
+    buttonsLayout->setContentsMargins({});
+    phonemeNamesLayout->addLayout(buttonsLayout);
 
     const auto mainLayout = new QFormLayout;
     mainLayout->setLabelAlignment(Qt::AlignmentFlag::AlignRight | Qt::AlignmentFlag::AlignTrailing |
@@ -75,7 +88,7 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
     mainLayout->addRow(tr("Language:"), m_cbLanguage);
     mainLayout->addRow(tr("Lyric:"), m_leLyric);
     mainLayout->addRow(tr("Pronunciation:"), m_lePron);
-    mainLayout->addRow(tr("Phoneme Names:"), phonemeNamesLayout);
+    mainLayout->addRow(tr("Phonemes:"), phonemeNamesLayout);
     mainLayout->setContentsMargins({});
 
     body()->setLayout(mainLayout);

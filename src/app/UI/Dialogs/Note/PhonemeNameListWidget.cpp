@@ -6,11 +6,25 @@
 
 #include "PhonemeNameItemView.h"
 #include "Model/NoteDialog/PhonemeNameListModel.h"
+#include "Model/NoteDialog/PhonemeNameItemModel.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 
 PhonemeNameListWidget::PhonemeNameListWidget(QWidget *parent) : QListWidget(parent) {
     setSelectionMode(QAbstractItemView::NoSelection);
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    setMinimumWidth(400);
+    connect(this, &QListWidget::customContextMenuRequested, this, &PhonemeNameListWidget::onCustomContextMenuRequested);
+    
+    m_contextMenu = new QMenu(this);
+    
+    auto insertAboveAction = m_contextMenu->addAction("Insert Above");
+    auto insertBelowAction = m_contextMenu->addAction("Insert Below");
+    auto deleteAction = m_contextMenu->addAction("Delete");
+    
+    connect(insertAboveAction, &QAction::triggered, this, &PhonemeNameListWidget::insertAbove);
+    connect(insertBelowAction, &QAction::triggered, this, &PhonemeNameListWidget::insertBelow);
+    connect(deleteAction, &QAction::triggered, this, &PhonemeNameListWidget::deleteItem);
 }
 
 void PhonemeNameListWidget::setModel(PhonemeNameListModel *model) {
@@ -22,7 +36,7 @@ void PhonemeNameListWidget::setModel(PhonemeNameListModel *model) {
         connect(m_model, &QAbstractListModel::modelReset, this, &PhonemeNameListWidget::refreshItems);
         connect(m_model, &QAbstractListModel::rowsInserted, this, [this](const QModelIndex &, int first, int last) {
             for (int i = first; i <= last; i++) {
-                auto item = new QListWidgetItem(this);
+                auto item = new QListWidgetItem();
                 item->setSizeHint(QSize(0, 32));
                 insertItem(i, item);
                 updateItemWidget(i);
@@ -67,19 +81,26 @@ void PhonemeNameListWidget::updateItemWidget(int row) {
         widget = new PhonemeNameItemView;
         setItemWidget(item(row), widget);
 
-        connect(widget->cbLanguage(), &QComboBox::currentTextChanged, this, [this, row](const QString &text) {
+        auto listItem = item(row);
+        connect(widget->cbLanguage(), &QComboBox::currentTextChanged, this, [this, listItem](const QString &text) {
             if (m_model) {
-                m_model->setData(m_model->index(row), text, PhonemeNameListModel::LanguageRole);
+                int currentRow = this->row(listItem);
+                if (currentRow >= 0)
+                    m_model->setData(m_model->index(currentRow), text, PhonemeNameListModel::LanguageRole);
             }
         });
-        connect(widget->leName(), &QLineEdit::textChanged, this, [this, row](const QString &text) {
+        connect(widget->leName(), &QLineEdit::textChanged, this, [this, listItem](const QString &text) {
             if (m_model) {
-                m_model->setData(m_model->index(row), text, PhonemeNameListModel::NameRole);
+                int currentRow = this->row(listItem);
+                if (currentRow >= 0)
+                    m_model->setData(m_model->index(currentRow), text, PhonemeNameListModel::NameRole);
             }
         });
-        connect(widget->cbIsOnset(), &QCheckBox::toggled, this, [this, row](bool checked) {
+        connect(widget->cbIsOnset(), &QCheckBox::toggled, this, [this, listItem](bool checked) {
             if (m_model) {
-                m_model->setData(m_model->index(row), checked, PhonemeNameListModel::IsOnsetRole);
+                int currentRow = this->row(listItem);
+                if (currentRow >= 0)
+                    m_model->setData(m_model->index(currentRow), checked, PhonemeNameListModel::IsOnsetRole);
             }
         });
     }
@@ -90,4 +111,56 @@ void PhonemeNameListWidget::updateItemWidget(int row) {
     widget->leName()->setText(m_model->data(index, PhonemeNameListModel::NameRole).toString());
     widget->cbIsOnset()->setChecked(m_model->data(index, PhonemeNameListModel::IsOnsetRole).toBool());
     widget->blockSignals(false);
+}
+
+void PhonemeNameListWidget::onCustomContextMenuRequested(const QPoint &pos) {
+    if (!m_model) {
+        return;
+    }
+    
+    QListWidgetItem *item = itemAt(pos);
+    if (item) {
+        m_contextMenuRow = row(item);
+        m_contextMenu->exec(mapToGlobal(pos));
+    }
+}
+
+void PhonemeNameListWidget::insertAbove() {
+    if (m_contextMenuRow < 0 || !m_model) {
+        return;
+    }
+    
+    QModelIndex index = m_model->index(m_contextMenuRow);
+    QString language = m_model->data(index, PhonemeNameListModel::LanguageRole).toString();
+    
+    PhonemeNameItemModel newItem;
+    newItem.setLanguage(language);
+    newItem.setName("");
+    newItem.setIsOnset(false);
+    
+    m_model->insertItem(m_contextMenuRow, newItem);
+}
+
+void PhonemeNameListWidget::insertBelow() {
+    if (m_contextMenuRow < 0 || !m_model) {
+        return;
+    }
+    
+    QModelIndex index = m_model->index(m_contextMenuRow);
+    QString language = m_model->data(index, PhonemeNameListModel::LanguageRole).toString();
+    
+    PhonemeNameItemModel newItem;
+    newItem.setLanguage(language);
+    newItem.setName("");
+    newItem.setIsOnset(false);
+    
+    m_model->insertItem(m_contextMenuRow + 1, newItem);
+}
+
+void PhonemeNameListWidget::deleteItem() {
+    if (m_contextMenuRow < 0 || !m_model) {
+        return;
+    }
+    
+    m_model->removeItem(m_contextMenuRow);
 }

@@ -28,6 +28,14 @@ void PhonemeNameListModel::addItem(const PhonemeNameItemModel &item) {
     endInsertRows();
 }
 
+void PhonemeNameListModel::insertItem(int row, const PhonemeNameItemModel &item) {
+    if (row < 0 || row > m_items.size())
+        return;
+    beginInsertRows({}, row, row);
+    m_items.insert(row, item);
+    endInsertRows();
+}
+
 void PhonemeNameListModel::removeItem(int row) {
     if (row < 0 || row >= m_items.size())
         return;

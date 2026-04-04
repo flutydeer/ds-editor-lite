@@ -25,6 +25,7 @@ public:
     [[nodiscard]] QList<PhonemeNameItemModel> items() const;
     void setItems(const QList<PhonemeNameItemModel> &items);
     void addItem(const PhonemeNameItemModel &item);
+    void insertItem(int row, const PhonemeNameItemModel &item);
     void removeItem(int row);
     void updateItem(int row, const PhonemeNameItemModel &item);
 

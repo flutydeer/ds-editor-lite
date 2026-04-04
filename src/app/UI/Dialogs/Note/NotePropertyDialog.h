@@ -37,6 +37,7 @@ private:
     PhonemeNameListModel *m_phonemeNameModelEdited;
     bool m_isPhonemeNameEdited = false;
     bool m_isResetting = false;
+    Button *m_btnAddPhoneme;
     Button *m_btnResetPhonemeNames;
     
     Note *m_note;

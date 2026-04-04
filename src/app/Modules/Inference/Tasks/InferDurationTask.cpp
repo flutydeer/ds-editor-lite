@@ -283,7 +283,6 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
         QList<int> normalOffsets;
         for (int normalIndex = 0; normalIndex < normalPhonemeCount; normalIndex++) {
             normalOffsets.append(qRound(offsets[phoneIndex].second * 1000));
-            normalOffsets.append(0);
             phoneIndex++;
         }
 
