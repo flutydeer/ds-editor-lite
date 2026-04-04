@@ -27,19 +27,19 @@ public:
     [[nodiscard]] NoteDialogResult result();
 
 private:
-    bool validatePhonemes() const;
+    [[nodiscard]] bool validatePhonemes() const;
     NoteDialogResult m_result;
     LanguageComboBox *m_cbLanguage;
     QLineEdit *m_leLyric;
     QLineEdit *m_lePron;
 
-    PhonemeNameListModel *m_phonemeNameModelOriginal;
-    PhonemeNameListWidget *m_listPhonemeNamesEdited;
-    PhonemeNameListModel *m_phonemeNameModelEdited;
-    bool m_isPhonemeNameEdited = false;
+    PhonemeNameListModel *m_phoneModelOriginal;
+    PhonemeNameListWidget *m_listPhonesEdited;
+    PhonemeNameListModel *m_phoneModelEdited;
+    bool m_isPhoneEdited = false;
     bool m_isResetting = false;
-    Button *m_btnAddPhoneme;
-    Button *m_btnResetPhonemeNames;
+    Button *m_btnAddPhone;
+    Button *m_btnResetPhones;
     
     Note *m_note;
 };

@@ -34,52 +34,52 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
     m_lePron = new QLineEdit(note->pronunciation().edited);
     m_lePron->setPlaceholderText(note->pronunciation().original);
 
-    m_isPhonemeNameEdited = note->phonemes().nameSeq.isEdited();
+    m_isPhoneEdited = note->phonemes().nameSeq.isEdited();
 
-    m_phonemeNameModelOriginal = new PhonemeNameListModel(this);
-    m_phonemeNameModelEdited = new PhonemeNameListModel(this);
+    m_phoneModelOriginal = new PhonemeNameListModel(this);
+    m_phoneModelEdited = new PhonemeNameListModel(this);
 
     for (const auto originalNames = note->phonemes().nameSeq.original;
          const auto &phoneme : originalNames) {
-        m_phonemeNameModelOriginal->addItem(
+        m_phoneModelOriginal->addItem(
             PhonemeNameItemModel(phoneme.language, phoneme.name, phoneme.isOnset));
 
-        if (!m_isPhonemeNameEdited) {
-            m_phonemeNameModelEdited->addItem(
+        if (!m_isPhoneEdited) {
+            m_phoneModelEdited->addItem(
                 PhonemeNameItemModel(phoneme.language, phoneme.name, phoneme.isOnset));
         }
     }
 
-    if (m_isPhonemeNameEdited) {
+    if (m_isPhoneEdited) {
         for (const auto editedNames = note->phonemes().nameSeq.edited;
              const auto &phoneme : editedNames) {
-            m_phonemeNameModelEdited->addItem(
+            m_phoneModelEdited->addItem(
                 PhonemeNameItemModel(phoneme.language, phoneme.name, phoneme.isOnset));
         }
     }
 
-    m_listPhonemeNamesEdited = new PhonemeNameListWidget;
-    m_listPhonemeNamesEdited->setModel(m_phonemeNameModelEdited);
+    m_listPhonesEdited = new PhonemeNameListWidget;
+    m_listPhonesEdited->setModel(m_phoneModelEdited);
 
-    m_btnAddPhoneme = new Button(tr("Add Phoneme"));
-    connect(m_btnAddPhoneme, &Button::clicked, this, [this] {
+    m_btnAddPhone = new Button(tr("Add Phone"));
+    connect(m_btnAddPhone, &Button::clicked, this, [this] {
         PhonemeNameItemModel newItem;
         newItem.setLanguage(m_cbLanguage->currentText());
         newItem.setName("");
         newItem.setIsOnset(false);
-        m_phonemeNameModelEdited->addItem(newItem);
-        m_listPhonemeNamesEdited->scrollToBottom();
+        m_phoneModelEdited->addItem(newItem);
+        m_listPhonesEdited->scrollToBottom();
     });
 
-    m_btnResetPhonemeNames = new Button(tr("Reset Phonemes"));
-    m_btnResetPhonemeNames->setEnabled(m_isPhonemeNameEdited);
-    const auto phonemeNamesLayout = new QVBoxLayout;
-    phonemeNamesLayout->addWidget(m_listPhonemeNamesEdited);
+    m_btnResetPhones = new Button(tr("Reset Phones"));
+    m_btnResetPhones->setEnabled(m_isPhoneEdited);
+    const auto phonesLayout = new QVBoxLayout;
+    phonesLayout->addWidget(m_listPhonesEdited);
     const auto buttonsLayout = new QHBoxLayout;
-    buttonsLayout->addWidget(m_btnAddPhoneme);
-    buttonsLayout->addWidget(m_btnResetPhonemeNames);
+    buttonsLayout->addWidget(m_btnAddPhone);
+    buttonsLayout->addWidget(m_btnResetPhones);
     buttonsLayout->setContentsMargins({});
-    phonemeNamesLayout->addLayout(buttonsLayout);
+    phonesLayout->addLayout(buttonsLayout);
 
     const auto mainLayout = new QFormLayout;
     mainLayout->setLabelAlignment(Qt::AlignmentFlag::AlignRight | Qt::AlignmentFlag::AlignTrailing |
@@ -89,7 +89,7 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
     mainLayout->addRow(tr("Language:"), m_cbLanguage);
     mainLayout->addRow(tr("Lyric:"), m_leLyric);
     mainLayout->addRow(tr("Pronunciation:"), m_lePron);
-    mainLayout->addRow(tr("Phonemes:"), phonemeNamesLayout);
+    mainLayout->addRow(tr("Phones:"), phonesLayout);
     mainLayout->setContentsMargins({});
 
     body()->setLayout(mainLayout);
@@ -115,37 +115,37 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
     });
     connect(cancelButton(), &AccentButton::clicked, this, &Dialog::reject);
 
-    connect(m_phonemeNameModelEdited, &QAbstractItemModel::dataChanged, this, [this] {
+    connect(m_phoneModelEdited, &QAbstractItemModel::dataChanged, this, [this] {
         if (m_isResetting)
             return;
-        m_isPhonemeNameEdited = true;
-        m_btnResetPhonemeNames->setEnabled(true);
+        m_isPhoneEdited = true;
+        m_btnResetPhones->setEnabled(true);
     });
-    connect(m_phonemeNameModelEdited, &QAbstractItemModel::rowsInserted, this, [this] {
+    connect(m_phoneModelEdited, &QAbstractItemModel::rowsInserted, this, [this] {
         if (m_isResetting)
             return;
-        m_isPhonemeNameEdited = true;
-        m_btnResetPhonemeNames->setEnabled(true);
+        m_isPhoneEdited = true;
+        m_btnResetPhones->setEnabled(true);
     });
-    connect(m_phonemeNameModelEdited, &QAbstractItemModel::rowsRemoved, this, [this] {
+    connect(m_phoneModelEdited, &QAbstractItemModel::rowsRemoved, this, [this] {
         if (m_isResetting)
             return;
-        m_isPhonemeNameEdited = true;
-        m_btnResetPhonemeNames->setEnabled(true);
+        m_isPhoneEdited = true;
+        m_btnResetPhones->setEnabled(true);
     });
-    connect(m_phonemeNameModelEdited, &QAbstractItemModel::modelReset, this, [this] {
+    connect(m_phoneModelEdited, &QAbstractItemModel::modelReset, this, [this] {
         if (m_isResetting)
             return;
-        m_isPhonemeNameEdited = true;
-        m_btnResetPhonemeNames->setEnabled(true);
+        m_isPhoneEdited = true;
+        m_btnResetPhones->setEnabled(true);
     });
 
-    connect(m_btnResetPhonemeNames, &Button::clicked, this, [this] {
+    connect(m_btnResetPhones, &Button::clicked, this, [this] {
         m_isResetting = true;
-        m_phonemeNameModelEdited->setItems(m_phonemeNameModelOriginal->items());
+        m_phoneModelEdited->setItems(m_phoneModelOriginal->items());
         m_isResetting = false;
-        m_isPhonemeNameEdited = false;
-        m_btnResetPhonemeNames->setEnabled(false);
+        m_isPhoneEdited = false;
+        m_btnResetPhones->setEnabled(false);
     });
 }
 
@@ -154,8 +154,8 @@ NoteDialogResult NotePropertyDialog::result() {
     m_result.lyric = m_leLyric->text();
     m_result.pronunciation.edited = m_lePron->text();
 
-    if (m_isPhonemeNameEdited) {
-        m_result.phonemeNameSeq.edited = Linq::selectMany(m_phonemeNameModelEdited->items(),
+    if (m_isPhoneEdited) {
+        m_result.phonemeNameSeq.edited = Linq::selectMany(m_phoneModelEdited->items(),
                                                           [](const PhonemeNameItemModel &item) {
                                                               PhonemeName name;
                                                               name.language = item.language();
@@ -166,18 +166,18 @@ NoteDialogResult NotePropertyDialog::result() {
     } else {
         m_result.phonemeNameSeq.edited = {};
     }
-    m_result.isPhonemeNameEdited = m_isPhonemeNameEdited;
+    m_result.isPhonemeNameEdited = m_isPhoneEdited;
     return m_result;
 }
 
 bool NotePropertyDialog::validatePhonemes() const {
-    if (m_isPhonemeNameEdited) {
-        if (m_phonemeNameModelEdited->items().isEmpty()) {
+    if (m_isPhoneEdited) {
+        if (m_phoneModelEdited->items().isEmpty()) {
             Toast::show(tr("Please add phonemes."));
             return false;
         }
 
-        for (const auto &item : m_phonemeNameModelEdited->items()) {
+        for (const auto &item : m_phoneModelEdited->items()) {
             if (item.language().isEmpty() || item.name().isEmpty()) {
                 Toast::show(tr("Please fill in name for all phonemes."));
                 return false;
@@ -185,7 +185,7 @@ bool NotePropertyDialog::validatePhonemes() const {
         }
 
         bool hasOnset = false;
-        for (const auto &item : m_phonemeNameModelEdited->items()) {
+        for (const auto &item : m_phoneModelEdited->items()) {
             if (item.isOnset()) {
                 hasOnset = true;
                 break;
