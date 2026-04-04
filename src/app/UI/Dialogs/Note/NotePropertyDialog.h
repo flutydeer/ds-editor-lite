@@ -27,6 +27,7 @@ public:
     [[nodiscard]] NoteDialogResult result();
 
 private:
+    bool validatePhonemes() const;
     NoteDialogResult m_result;
     LanguageComboBox *m_cbLanguage;
     QLineEdit *m_leLyric;

@@ -10,13 +10,15 @@
 #include "UI/Controls/LineEdit.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 
+#include <QMWidgets/cmenu.h>
+
 PhonemeNameListWidget::PhonemeNameListWidget(QWidget *parent) : QListWidget(parent) {
     setSelectionMode(QAbstractItemView::NoSelection);
     setContextMenuPolicy(Qt::CustomContextMenu);
     setMinimumWidth(400);
     connect(this, &QListWidget::customContextMenuRequested, this, &PhonemeNameListWidget::onCustomContextMenuRequested);
     
-    m_contextMenu = new QMenu(this);
+    m_contextMenu = new CMenu(this);
     
     auto insertAboveAction = m_contextMenu->addAction("Insert Above");
     auto insertBelowAction = m_contextMenu->addAction("Insert Below");

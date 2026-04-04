@@ -13,6 +13,7 @@
 #include "UI/Controls/LineEdit.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Utils/Linq.h"
+#include "UI/Controls/Toast.h"
 
 #include <QFormLayout>
 #include <QVBoxLayout>
@@ -59,7 +60,7 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
 
     m_listPhonemeNamesEdited = new PhonemeNameListWidget;
     m_listPhonemeNamesEdited->setModel(m_phonemeNameModelEdited);
-    
+
     m_btnAddPhoneme = new Button(tr("Add Phoneme"));
     connect(m_btnAddPhoneme, &Button::clicked, this, [this] {
         PhonemeNameItemModel newItem;
@@ -69,7 +70,7 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
         m_phonemeNameModelEdited->addItem(newItem);
         m_listPhonemeNamesEdited->scrollToBottom();
     });
-    
+
     m_btnResetPhonemeNames = new Button(tr("Reset Phonemes"));
     m_btnResetPhonemeNames->setEnabled(m_isPhonemeNameEdited);
     const auto phonemeNamesLayout = new QVBoxLayout;
@@ -108,7 +109,10 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
             // m_lePhonemeAhead->setFocus(Qt::TabFocusReason);
             break;
     }
-    connect(okButton(), &AccentButton::clicked, this, &Dialog::accept);
+    connect(okButton(), &AccentButton::clicked, this, [this] {
+        if (validatePhonemes())
+            accept();
+    });
     connect(cancelButton(), &AccentButton::clicked, this, &Dialog::reject);
 
     connect(m_phonemeNameModelEdited, &QAbstractItemModel::dataChanged, this, [this] {
@@ -155,7 +159,7 @@ NoteDialogResult NotePropertyDialog::result() {
                                                           [](const PhonemeNameItemModel &item) {
                                                               PhonemeName name;
                                                               name.language = item.language();
-                                                              name.name = item.name();
+                                                              name.name = item.name().trimmed();
                                                               name.isOnset = item.isOnset();
                                                               return name;
                                                           });
@@ -164,4 +168,33 @@ NoteDialogResult NotePropertyDialog::result() {
     }
     m_result.isPhonemeNameEdited = m_isPhonemeNameEdited;
     return m_result;
+}
+
+bool NotePropertyDialog::validatePhonemes() const {
+    if (m_isPhonemeNameEdited) {
+        if (m_phonemeNameModelEdited->items().isEmpty()) {
+            Toast::show(tr("Please add phonemes."));
+            return false;
+        }
+
+        for (const auto &item : m_phonemeNameModelEdited->items()) {
+            if (item.language().isEmpty() || item.name().isEmpty()) {
+                Toast::show(tr("Please fill in name for all phonemes."));
+                return false;
+            }
+        }
+
+        bool hasOnset = false;
+        for (const auto &item : m_phonemeNameModelEdited->items()) {
+            if (item.isOnset()) {
+                hasOnset = true;
+                break;
+            }
+        }
+        if (!hasOnset) {
+            Toast::show(tr("At least one phoneme must be set as onset."));
+            return false;
+        }
+    }
+    return true;
 }

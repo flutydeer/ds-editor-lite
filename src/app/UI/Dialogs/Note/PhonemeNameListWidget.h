@@ -6,8 +6,8 @@
 #define DS_EDITOR_LITE_PHONEMENAMELISTWIDGET_H
 
 #include <QListWidget>
-#include <QMenu>
 
+class CMenu;
 class PhonemeNameListModel;
 
 class PhonemeNameListWidget : public QListWidget {
@@ -29,7 +29,7 @@ private:
     void refreshItems();
     void updateItemWidget(int row);
     PhonemeNameListModel *m_model = nullptr;
-    QMenu *m_contextMenu = nullptr;
+    CMenu *m_contextMenu = nullptr;
     int m_contextMenuRow = -1;
 };
 
