@@ -38,8 +38,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
 
             double start = 0;
             if (useOffsetInfo) {
-                start = firstWordLen - firstNote.phonemeOffsets.at(i) / 1000.0;
-                i++;
+                start = firstWordLen + firstNote.phonemeOffsets.at(i) / 1000.0;
             }
             phoneBuffer.append({phonemeName.name, phonemeName.language, false, start});
         }
@@ -110,7 +109,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
 
                     double start = 0;
                     if (useOffsetInfo)
-                        start = wordLen - nextNonSlurNote.phonemeOffsets.at(i) / 1000.0;
+                        start = wordLen + nextNonSlurNote.phonemeOffsets.at(i) / 1000.0;
                     InferPhoneme phone = {phonemeName.name, phonemeName.language, false, start};
                     if (!hasGap)
                         phoneBuffer.append(phone);
