@@ -184,8 +184,19 @@ void InferControllerPrivate::handlePiecesChanged(const PieceList &newPieces,
 void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType type,
                                                const QList<Note *> &notes, SingingClip *clip) {
     switch (type) {
-        case SingingClip::Insert:
         case SingingClip::Remove:
+            for (const auto &piece : clip->findPiecesByNotes(notes))
+                piece->dirty = true;
+
+            // If all notes are removed, clear all pieces directly
+            if (clip->notes().count() <= 0) {
+                clip->removeAllPieces();
+                return;
+            }
+            if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+                createAndRunGetPronTask(*clip);
+            break;
+        case SingingClip::Insert:
         case SingingClip::EditedWordPropertyChange:
         case SingingClip::EditedPhonemeOffsetChange:
         case SingingClip::TimeKeyPropertyChange:
@@ -195,8 +206,6 @@ void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType
             // TODO 重跑获取发音->音素，跑之前先判断发音序列？
             if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
                 createAndRunGetPronTask(*clip);
-            // if (!clip->singerInfo().isEmpty())
-            //     clip->reSegment();
             break;
         default:
             break;
