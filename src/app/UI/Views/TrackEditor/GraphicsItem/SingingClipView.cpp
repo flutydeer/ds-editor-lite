@@ -101,8 +101,8 @@ void SingingClipView::setDefaultLanguage(const QString &language) {
 }
 
 QString SingingClipView::text() const {
-    return AbstractClipView::text() + m_singerName +
-           (!m_speakerName.isEmpty() ? (" (" + m_speakerName + ")") : "") + " " + m_language + " ";
+    return AbstractClipView::text() + (!m_singerName.isEmpty() ? m_singerName : tr("(No singer)")) +
+           (!m_speakerName.isEmpty() ? (" / " + m_speakerName) : "") + " " + m_language + " ";
 }
 
 void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,

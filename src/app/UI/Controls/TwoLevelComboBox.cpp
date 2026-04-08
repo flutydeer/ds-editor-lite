@@ -23,7 +23,7 @@ void TwoLevelComboBox::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     QStyleOptionComboBox opt;
     opt.initFrom(this);
-    opt.currentText = m_currentItem.text.isEmpty() ? tr("Please select") : m_currentItem.text;
+    opt.currentText = currentText().isEmpty() ? tr("Please select") : currentText();
     opt.editable = false;
     style()->drawComplexControl(QStyle::CC_ComboBox, &opt, &painter, this);
     style()->drawControl(QStyle::CE_ComboBoxLabel, &opt, &painter, this);
@@ -81,7 +81,12 @@ void TwoLevelComboBox::clear() {
 }
 
 QString TwoLevelComboBox::currentText() const {
-    return m_currentItem.text;
+    const QString singerName = m_currentItem.singer.name();
+    const QString speakerName = m_currentItem.speaker.name();
+    if (singerName.isEmpty() || speakerName.isEmpty()) {
+        return m_currentItem.text;
+    }
+    return singerName + " / " + speakerName;
 }
 
 SingerInfo TwoLevelComboBox::currentSinger() const {

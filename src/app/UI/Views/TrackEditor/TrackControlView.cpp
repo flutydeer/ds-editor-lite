@@ -66,7 +66,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     cbSinger->setObjectName("cbSinger");
     auto setCbSinger = [this](QList<PackageInfo> packages) {
         cbSinger->clear();
-        cbSinger->addItem("(no singer)", {}, {});
+        cbSinger->addItem(tr("(No singer)"), {}, {});
         for (const auto &package : std::as_const(packages)) {
             const auto singers = package.singers();
             for (const auto &singer : singers) {
