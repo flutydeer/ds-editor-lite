@@ -55,73 +55,105 @@ void GetPhonemeNameTask::processNotes() {
     auto newStatus = status();
     newStatus.message = "正在处理: " + m_previewText;
     setStatus(newStatus);
-
-    QList<QPair<QString, QString>> inputs;
-    for (const auto &note : m_inputs) {
-        // 如果发音已编辑，则使用已编辑的发音作为获取音素名称的输入
-        inputs.append({note.language, note.pronunciation});
-    }
-    result = getPhonemeNames(inputs);
+    result = getPhonemeNames();
 }
 
-QList<PhonemeNameResult>
-    GetPhonemeNameTask::getPhonemeNames(const QList<QPair<QString, QString>> &input) {
+QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
         qFatal() << "Language module not ready yet";
         return {};
     }
     const auto s2pMgr = S2pMgr::instance();
-    QList<PhonemeNameResult> phonemeNameResult;
-    phonemeNameResult.reserve(input.size());
+    QList<PhonemeNameResult> results;
+    results.reserve(m_inputs.size());
     bool allSuccess = true;
 
-    for (const auto &[language, pronunciation] : input) {
-        PhonemeNameResult note;
-        if (pronunciation == "SP" || pronunciation == "AP") {
+    for (const auto &input : m_inputs) {
+        PhonemeNameResult result;
+        if (input.pronunciation == "SP" || input.pronunciation == "AP") {
             PhonemeName restPhoneme;
-            restPhoneme.name = pronunciation;
-            note.phonemeNames.append(restPhoneme);
-            note.success = true;
+            restPhoneme.name = input.pronunciation;
+            result.phonemeNames.append(restPhoneme);
+            result.success = true;
         } else {
             if (const auto phonemes = s2pMgr->syllableToPhoneme(
-                    m_clipSingerInfo.identifier(), m_clipSingerInfo.g2pId(language), pronunciation);
+                    m_clipSingerInfo.identifier(), m_clipSingerInfo.g2pId(input.language),
+                    input.pronunciation);
                 !phonemes.empty()) {
                 if (phonemes.size() == 1) {
                     PhonemeName phoneme;
                     phoneme.name = phonemes.at(0);
-                    phoneme.language = language;
+                    phoneme.language = input.language;
                     phoneme.isOnset = true;
-                    note.phonemeNames.append(phoneme);
-                    note.success = true;
+                    result.phonemeNames.append(phoneme);
+                    result.success = true;
                 } else if (phonemes.size() == 2) {
                     // TODO 为英语优化，g2p输出带有卡拍信息的音素
                     PhonemeName firstPhoneme;
                     firstPhoneme.name = phonemes.at(0);
-                    firstPhoneme.language = language;
+                    firstPhoneme.language = input.language;
                     firstPhoneme.isOnset = false;
-                    note.phonemeNames.append(firstPhoneme);
+                    result.phonemeNames.append(firstPhoneme);
 
                     PhonemeName secondPhoneme;
                     secondPhoneme.name = phonemes.at(1);
-                    secondPhoneme.language = language;
+                    secondPhoneme.language = input.language;
                     secondPhoneme.isOnset = true;
-                    note.phonemeNames.append(secondPhoneme);
-                    note.success = true;
+                    result.phonemeNames.append(secondPhoneme);
+                    result.success = true;
                 } else {
                     qCritical() << "Cannot handle more than 2 phonemes" << phonemes;
                 }
-            } else if (pronunciation == "-") {
-                note.success = true;
+            } else if (input.pronunciation == "-") {
+                result.success = true;
             } else {
                 qCritical() << "Failed to get phoneme names of pronunciation: " << "language:"
-                            << language << "g2pId:" << m_clipSingerInfo.g2pId(language)
-                            << "pronunciation:" << pronunciation;
+                            << input.language << "g2pId:" << m_clipSingerInfo.g2pId(input.language)
+                            << "pronunciation:" << input.pronunciation;
                 allSuccess = false;
             }
         }
-        phonemeNameResult.append(note);
+        results.append(result);
     }
 
     m_success.store(allSuccess, std::memory_order_release);
-    return phonemeNameResult;
+    return results;
+}
+
+// Syllabification
+std::pair<bool, int> GetPhonemeNameTask::checkTrailingPlus(const QString &lyric) {
+    if (!lyric.endsWith('+')) {
+        return {false, 0};
+    }
+    int count = 0;
+    for (int i = lyric.length() - 1; i >= 0 && lyric[i] == '+'; --i) {
+        ++count;
+    }
+    return {true, count};
+}
+
+// TODO: 应该移动到公共方法？
+const QList<GetPhonemeNameTask::Syllable>
+    GetPhonemeNameTask::splitSyllables(const QList<PhonemeName> &phonemes) {
+    QList<Syllable> syllables;
+    Syllable currentSyllable;
+    bool hasOnset = false;
+
+    for (const auto &phoneme : phonemes) {
+        if (phoneme.isOnset && hasOnset) {
+            syllables.append(currentSyllable);
+            currentSyllable = Syllable();
+            hasOnset = false;
+        }
+        if (phoneme.isOnset) {
+            hasOnset = true;
+        }
+        currentSyllable.phonemes.append(phoneme);
+    }
+
+    if (!currentSyllable.phonemes.isEmpty()) {
+        syllables.append(currentSyllable);
+    }
+
+    return syllables;
 }

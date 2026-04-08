@@ -12,6 +12,8 @@
 #include "Modules/Inference/Models/PhonemeNameResult.h"
 #include "Modules/Task/Task.h"
 
+#include <utility>
+
 class GetPhonemeNameTask final : public Task {
     Q_OBJECT
 public:
@@ -23,9 +25,16 @@ public:
     QList<PhonemeNameResult> result;
 
 private:
+    class Syllable {
+    public:
+        QList<PhonemeName> phonemes;
+    };
+
     void runTask() override;
     void processNotes();
-    QList<PhonemeNameResult> getPhonemeNames(const QList<QPair<QString, QString>> &input);
+    QList<PhonemeNameResult> getPhonemeNames();
+    std::pair<bool, int> checkTrailingPlus(const QString &lyric);
+    const QList<Syllable> splitSyllables(const QList<PhonemeName> &phonemes);
 
     QString m_clipSingerId;
     SingerInfo m_clipSingerInfo;
