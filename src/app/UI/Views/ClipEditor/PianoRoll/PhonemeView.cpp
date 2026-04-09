@@ -8,6 +8,7 @@
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "UI/Controls/ToolTip.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
@@ -261,6 +262,17 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
         m_freezeHoverEffects = true;
         m_curPhoneme = phoneme;
         m_mouseMoveBehavior = Move;
+        
+        m_currentLengthInMs = calculatePhonemeLengthInMs(*phoneme);
+        
+        if (!m_tooltip) {
+            m_tooltip = new ToolTip(QString("%1 ms").arg(m_currentLengthInMs), this);
+        }
+        
+        m_tooltip->setWindowOpacity(1);
+        const auto cursorPos = QCursor::pos();
+        m_tooltip->move(cursorPos.x(), cursorPos.y());
+        m_tooltip->show();
     } else {
         QWidget::mousePressEvent(event);
         event->ignore();
@@ -288,6 +300,14 @@ void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
         }
 
         cur->startOffset = deltaTick;
+        
+        m_currentLengthInMs = calculatePhonemeLengthInMs(*cur);
+        
+        if (m_tooltip) {
+            m_tooltip->setTitle(QString("%1 ms").arg(m_currentLengthInMs));
+            const auto cursorPos = QCursor::pos();
+            m_tooltip->move(cursorPos.x(), cursorPos.y());
+        }
     }
 
     update();
@@ -297,6 +317,12 @@ void PhonemeView::mouseReleaseEvent(QMouseEvent *event) {
     if (m_mouseMoveBehavior == Move && m_mouseMoved)
         handleAdjustCompleted(m_curPhoneme);
 
+    if (m_tooltip) {
+        m_tooltip->setWindowOpacity(0);
+        m_tooltip->hide();
+        m_tooltip->deleteLater();
+        m_tooltip = nullptr;
+    }
     m_mouseMoved = false;
     m_mouseMoveBehavior = None;
     m_freezeHoverEffects = false;
@@ -545,6 +571,19 @@ void PhonemeView::handleAdjustCompleted(const PhonemeViewModel *phVm) {
         m_curPhoneme = nullptr;
     }
     clipController->onAdjustPhonemeOffset(phVm->noteId, offsets);
+}
+
+int PhonemeView::calculatePhonemeLengthInMs(const PhonemeViewModel &phoneme) const {
+    const auto phonemeStartTick = phoneme.start + phoneme.startOffset;
+    double phonemeEndTick;
+    if (phoneme.next) {
+        phonemeEndTick = phoneme.next->start + phoneme.next->startOffset;
+    } else {
+        phonemeEndTick = phoneme.noteStart + phoneme.noteLength;
+    }
+    const auto phonemeStartMs = appModel->tickToMs(phonemeStartTick);
+    const auto phonemeEndMs = appModel->tickToMs(phonemeEndTick);
+    return qRound(phonemeEndMs - phonemeStartMs);
 }
 
 void PhonemeView::drawTextWithCache(const QString &text, const bool edited,

@@ -12,6 +12,7 @@
 
 class Note;
 class Phoneme;
+class ToolTip;
 
 class PhonemeView final : public QWidget {
     Q_OBJECT
@@ -98,6 +99,7 @@ private:
     QMap<QString, QPixmap> m_editedTextCache;
 
     SingingClip *m_clip = nullptr;
+    ToolTip *m_tooltip = nullptr;
 
     PhonemeViewModel *phonemeAtTick(double tick);
     QList<PhonemeViewModel *> findPhonemesByNoteId(int noteId);
@@ -105,6 +107,7 @@ private:
     void resetPhonemeList();
     void clearHoverEffects(const PhonemeViewModel *except = nullptr);
     void handleAdjustCompleted(const PhonemeViewModel *phVm);
+    int calculatePhonemeLengthInMs(const PhonemeViewModel &phoneme) const;
 
     void drawTextWithCache(const QString &text, bool edited, const QPainter &painter);
 };
