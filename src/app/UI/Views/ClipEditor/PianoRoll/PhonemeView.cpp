@@ -126,7 +126,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     auto editedColor = QColor(155, 186, 255);
     auto fillColor = QColor(155, 186, 255, 50);
     auto positionLineColor = QColor(200, 200, 200);
-    // auto noteBoundaryColor = QColor(100, 100, 100);
+    auto noteBoundaryColor = QColor(49, 53, 63);
     // Draw background
     // painter.setPen(Qt::NoPen);
     // painter.setBrush(QColor(28, 29, 30));
@@ -152,16 +152,21 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
 
     auto drawPhoneName = [&](const PhonemeViewModel *phoneme) {
         const auto start = tickToX(phoneme->start + phoneme->startOffset);
-        constexpr auto length = 80;
+        double endTick;
+        if (phoneme->next) {
+            endTick = phoneme->next->start + phoneme->next->startOffset;
+        } else {
+            endTick = phoneme->noteStart + phoneme->noteLength;
+        }
+        const auto end = tickToX(endTick);
+        const auto length = end - start;
         const bool edited = phoneme->nameEdited;
         const auto textRect = QRectF(start + 2, 0, length - 4, rect().height());
         const auto penColor = edited ? editedColor : originalColor;
         painter.setPen(penColor);
-        // painter.setPen(originalColor);
         painter.setBrush(fillColor);
 
         QString text;
-        // Hide language if it is the same as note language
         if (phoneme->language == phoneme->noteLanguage)
             text = phoneme->name;
         else
@@ -170,40 +175,49 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         const auto &cache = edited ? m_editedTextCache : m_originalTextCache;
         if (!cache.contains(text) || cache[text].isNull())
             drawTextWithCache(text, edited, painter);
-        painter.drawPixmap(textRect.topLeft(), cache[text]);
+
+        const auto pixmapWidth = cache[text].width() / painter.device()->devicePixelRatio();
+        const auto pixmapHeight = cache[text].height() / painter.device()->devicePixelRatio();
+        const auto availableWidth = length - 4;
+        const auto availableHeight = rect().height();
+        double pixmapX;
+        if (pixmapWidth <= availableWidth) {
+            pixmapX = start + 2 + (availableWidth - pixmapWidth) / 2.0;
+        } else {
+            pixmapX = start + 2;
+        }
+        const auto pixmapY = (availableHeight - pixmapHeight) / 2.0;
+        painter.drawPixmap(QPointF(pixmapX, pixmapY), cache[text]);
     };
 
-    // Draw notes' word boundary
-    // for (auto curNote : m_notes) {
-    //     if (curNote->start() < m_startTick)
-    //         continue;
-    //     if (curNote->start() > m_endTick)
-    //         break;
-    //
-    //     // if (!curNote->isSlur)
-    //     //     drawSolidLine(curNote->start, 1, noteBoundaryColor);
-    //     //
-    //     // if (i < m_notes.count() - 1) {
-    //     //     auto nextNote = m_notes.at(i + 1);
-    //     //     if (!nextNote->isSlur)
-    //     //         drawSolidLine(curNote->end(), 1, noteBoundaryColor);
-    //     // } else
-    //     //     drawSolidLine(curNote->end(), 1, noteBoundaryColor);
-    //
-    //     if (canEdit())
-    //         painter.setRenderHint(QPainter::Antialiasing, false);
-    //     drawSolidRect(curNote->start, curNote->end(), fillColor);
-    // }
-
     if (canEdit()) {
+        // Draw notes' word boundary
+        for (int i = 0; i < m_notes.count(); ++i) {
+            auto curNote = m_notes.at(i);
+            if (curNote->globalStart() < m_startTick)
+                continue;
+            if (curNote->globalStart() > m_endTick)
+                break;
+
+            if (!curNote->isSlur())
+                drawSolidLine(curNote->globalStart(), 1, noteBoundaryColor);
+
+            if (i < m_notes.count() - 1) {
+                auto nextNote = m_notes.at(i + 1);
+                if (!nextNote->isSlur())
+                    drawSolidLine(curNote->globalStart() + curNote->length(), 1, noteBoundaryColor);
+            } else
+                drawSolidLine(curNote->globalStart() + curNote->length(), 1, noteBoundaryColor);
+        }
+
         // TODO： use binary find
         for (const auto phoneme : m_phonemes) {
             if (phoneme->start < m_startTick)
                 continue;
             if (phoneme->start > m_endTick)
                 break;
-            // if (phoneme->type == PhonemeViewModel::Sil)
-            //     continue;
+            if (phoneme->type == PhonemeViewModel::Sil)
+                continue;
 
             auto start = phoneme->start + phoneme->startOffset;
             auto phonemePenWidth = phoneme->hoverOnControlBar ? 2.5 : 1.5;
@@ -382,6 +396,8 @@ bool PhonemeView::canEdit() const {
 
 PhonemeView::PhonemeViewModel *PhonemeView::phonemeAtTick(const double tick) {
     for (const auto phoneme : m_phonemes) {
+        if (phoneme->type == PhonemeViewModel::Sil)
+            continue;
         if (qAbs(tick - phoneme->start) < m_resizeToleranceInTick)
             return phoneme;
     }
@@ -407,6 +423,8 @@ void PhonemeView::buildPhonemeList() {
     PhonemeViewModel *prior = head;
     m_phonemes.append(head);
 
+    double lastNoteEndTick = -INT_MAX;
+
     auto insertNextNode = [](PhonemeViewModel *p1, PhonemeViewModel *p2) {
         p2->next = p1->next;
         if (p1->next != nullptr)
@@ -415,17 +433,51 @@ void PhonemeView::buildPhonemeList() {
         p1->next = p2;
     };
 
-    for (const auto note : m_notes) {
+    auto insertSilPhoneme = [&](double silStart) {
+        const auto sil = new PhonemeViewModel;
+        sil->type = PhonemeViewModel::Sil;
+        sil->noteId = -1;
+        sil->start = silStart;
+        sil->offsetReady = true;
+        m_phonemes.append(sil);
+        insertNextNode(prior, sil);
+        prior = sil;
+    };
+
+    for (int i = 0; i < m_notes.count(); ++i) {
+        const auto note = m_notes.at(i);
         if (note->isSlur())
             continue;
         if (note->overlapped())
             continue;
 
-        const auto noteStartMs = appModel->tickToMs(note->globalStart());
+        const auto noteStartTick = note->globalStart();
+        auto noteEndTick = noteStartTick + note->length();
+
+        // Find consecutive slur notes and extend the end tick
+        for (int j = i + 1; j < m_notes.count(); ++j) {
+            const auto nextNote = m_notes.at(j);
+            if (!nextNote->isSlur())
+                break;
+            if (nextNote->overlapped())
+                break;
+            // Check if the slur note is continuous (no gap)
+            const auto nextStart = nextNote->globalStart();
+            if (nextStart > noteEndTick)
+                break;
+            noteEndTick = nextStart + nextNote->length();
+        }
+
+        // Insert Sil phoneme if there is a gap between notes
+        if (noteStartTick > lastNoteEndTick && lastNoteEndTick > -INT_MAX) {
+            insertSilPhoneme(lastNoteEndTick);
+        }
+
+        const auto noteStartMs = appModel->tickToMs(noteStartTick);
         {
             auto names = note->phonemeNameSeq();
             auto offsets = note->phonemeOffsetSeq();
-            for (int i = 0; i < names.result().count(); i++) {
+            for (int k = 0; k < names.result().count(); k++) {
                 const auto model = new PhonemeViewModel;
                 model->type = PhonemeViewModel::Normal;
                 model->noteId = note->id();
@@ -434,12 +486,12 @@ void PhonemeView::buildPhonemeList() {
                 model->noteLanguage = note->language();
                 model->nameEdited = names.isEdited();
                 model->offsetEdited = offsets.isEdited();
-                model->language = names.result().at(i).language;
-                model->name = names.result().at(i).name;
-                model->isOnset = names.result().at(i).isOnset;
+                model->language = names.result().at(k).language;
+                model->name = names.result().at(k).name;
+                model->isOnset = names.result().at(k).isOnset;
                 if (!offsets.result().isEmpty()) {
                     model->offsetReady = true;
-                    const auto phoneStartMs = noteStartMs + offsets.result().at(i);
+                    const auto phoneStartMs = noteStartMs + offsets.result().at(k);
                     const auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));
                     model->start = phoneStartTick;
                 }
@@ -448,6 +500,8 @@ void PhonemeView::buildPhonemeList() {
                 prior = model;
             }
         }
+
+        lastNoteEndTick = noteEndTick;
     }
 }
 
@@ -474,6 +528,7 @@ void PhonemeView::handleAdjustCompleted(const PhonemeViewModel *phVm) {
         return;
     }
     const auto note = m_clip->findNoteById(phVm->noteId);
+    Q_ASSERT(note);
     const auto noteStartInMs = appModel->tickToMs(note->globalStart());
     if (phVm->type == PhonemeViewModel::Normal) {
         for (const auto phoneme : relatedPhonemes) {
