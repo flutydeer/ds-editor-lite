@@ -70,7 +70,7 @@ private:
     const QList<QColor> m_piecesColors = {
         QColor(100, 100, 100), QColor(255, 204, 153), QColor(155, 255, 162),
         QColor(255, 155, 157)}; // Pending, Running, Success, Failed
-    QMap<QString, QMap<QString, QPixmap>> m_textCache;
+    QMap<QString, QPixmap> m_textCache;
 
     // Loop region
     bool m_canEditLoop = false;

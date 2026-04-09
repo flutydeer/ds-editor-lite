@@ -4,6 +4,7 @@
 
 #include "TimelineView.h"
 
+#include <QJsonDocument>
 #include <QPainter>
 #include <QWheelEvent>
 
@@ -148,10 +149,16 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     painter->setPen(pen);
     auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
 
-    if (!m_textCache.contains("Bar") || !m_textCache["Bar"].contains(text) ||
-        m_textCache["Bar"][text].isNull())
+    auto devicePixelRatio = painter->device()->devicePixelRatio();
+    auto keyObj = QJsonObject{
+        {"type",             "Bar"               },
+        {"text",             text                },
+        {"devicePixelRatio", devicePixelRatio    }
+    };
+    auto key = QJsonDocument(keyObj).toJson(QJsonDocument::Compact);
+    if (!m_textCache.contains(key) || m_textCache[key].isNull())
         cacheText("Bar", text, *painter);
-    const auto &pixmap = m_textCache["Bar"][text];
+    const auto &pixmap = m_textCache[key];
     const QRectF textRect(x + m_textPaddingLeft, m_loopRegionHeight, pixmap.width(), pixmap.height());
     painter->drawPixmap(textRect.topLeft(), pixmap);
     // painter->drawText(QPointF(x + m_textPaddingLeft, 10), text);
@@ -170,10 +177,16 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     // 在负坐标获取的 int bar 错误，暂不绘制文本
     if (beat > 0) {
         const auto text = QString::number(beat);
-        if (!m_textCache.contains("Beat") || !m_textCache["Beat"].contains(text) ||
-            m_textCache["Beat"][text].isNull())
+        auto devicePixelRatio = painter->device()->devicePixelRatio();
+        auto keyObj = QJsonObject{
+            {"type",             "Beat"              },
+            {"text",             text                },
+            {"devicePixelRatio", devicePixelRatio    }
+        };
+        auto key = QJsonDocument(keyObj).toJson(QJsonDocument::Compact);
+        if (!m_textCache.contains(key) || m_textCache[key].isNull())
             cacheText("Beat", text, *painter);
-        const auto &pixmap = m_textCache["Beat"][text];
+        const auto &pixmap = m_textCache[key];
         const QRectF textRect(x + m_textPaddingLeft, m_loopRegionHeight, pixmap.width(), pixmap.height());
         painter->drawPixmap(textRect.topLeft(), pixmap);
         // painter->drawText(QPointF(x + m_textPaddingLeft, 10),
@@ -392,8 +405,9 @@ void TimelineView::cacheText(const QString &type, const QString &text, const QPa
 
     const QFontMetrics fontMetrics(font);
     const QSize textSize = fontMetrics.size(Qt::TextSingleLine, text);
-    QPixmap pixmap(textSize * painter.device()->devicePixelRatio());
-    pixmap.setDevicePixelRatio(painter.device()->devicePixelRatio());
+    auto devicePixelRatio = painter.device()->devicePixelRatio();
+    QPixmap pixmap(textSize * devicePixelRatio);
+    pixmap.setDevicePixelRatio(devicePixelRatio);
     pixmap.fill(Qt::transparent);
 
     QPainter cachePainter(&pixmap);
@@ -401,7 +415,14 @@ void TimelineView::cacheText(const QString &type, const QString &text, const QPa
     cachePainter.setPen(painter.pen());
     cachePainter.drawText(pixmap.rect(), text);
 
-    m_textCache[type].insert(text, pixmap);
+    auto keyObj = QJsonObject{
+        {"type",             type            },
+        {"text",             text            },
+        {"devicePixelRatio", devicePixelRatio}
+    };
+    auto key = QJsonDocument(keyObj).toJson(QJsonDocument::Compact);
+
+    m_textCache.insert(key, pixmap);
 }
 
 void TimelineView::drawLoopRegion(QPainter *painter) const {

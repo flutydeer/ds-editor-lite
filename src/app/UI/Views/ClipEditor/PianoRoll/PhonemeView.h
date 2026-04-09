@@ -95,8 +95,7 @@ private:
     bool m_freezeHoverEffects = false;
     int m_canEditTicksPerPixelThreshold = 6;
     bool m_mouseMoved = false;
-    QMap<QString, QPixmap> m_originalTextCache;
-    QMap<QString, QPixmap> m_editedTextCache;
+    QMap<QString, QPixmap> m_TextCache;
 
     SingingClip *m_clip = nullptr;
     ToolTip *m_tooltip = nullptr;
