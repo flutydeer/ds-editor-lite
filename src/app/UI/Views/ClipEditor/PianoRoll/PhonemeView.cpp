@@ -13,7 +13,6 @@
 #include "Utils/MathUtils.h"
 
 #include <QElapsedTimer>
-#include <QJsonDocument>
 #include <QMouseEvent>
 #include <QPainter>
 
@@ -174,19 +173,25 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         else
             text = QString("%1/%2").arg(phoneme->language).arg(phoneme->name);
 
+        auto font = painter.font();
+        auto color = penColor;
         auto devicePixelRatio = painter.device()->devicePixelRatio();
-        auto keyObj = QJsonObject{
-            {"text",             text            },
-            {"edited",           edited          },
-            {"devicePixelRatio", devicePixelRatio}
-        };
-        auto key = QJsonDocument(keyObj).toJson(QJsonDocument::Compact);
+        auto key = TextPixmapCache::Key{
+            .text = text, .font = font, .color = color, .devicePixelRatio = devicePixelRatio};
+        auto cache = TextPixmapCache::instance();
+        if (!cache->contains(key)) {
+            const QSize textSize = painter.fontMetrics().size(Qt::TextSingleLine, text);
+            QPixmap pixmap(textSize * devicePixelRatio);
+            pixmap.setDevicePixelRatio(devicePixelRatio);
+            pixmap.fill(Qt::transparent);
+            QPainter cachePainter(&pixmap);
+            cachePainter.setPen(color);
+            cachePainter.drawText(pixmap.rect(), text);
+            cache->insert(key, pixmap);
+        }
 
-        if (!m_TextCache.contains(key) || m_TextCache[key].isNull())
-            drawTextWithCache(text, edited, painter);
-
-        const auto pixmapWidth = m_TextCache[key].width() / devicePixelRatio;
-        const auto pixmapHeight = m_TextCache[key].height() / devicePixelRatio;
+        const auto pixmapWidth = cache->get(key).width() / devicePixelRatio;
+        const auto pixmapHeight = cache->get(key).height() / devicePixelRatio;
         const auto availableWidth = length - 4;
         const auto availableHeight = rect().height();
         double pixmapX;
@@ -196,7 +201,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
             pixmapX = start + 2;
         }
         const auto pixmapY = (availableHeight - pixmapHeight) / 2.0;
-        painter.drawPixmap(QPointF(pixmapX, pixmapY), m_TextCache[key]);
+        painter.drawPixmap(QPointF(pixmapX, pixmapY), cache->get(key));
     };
 
     if (canEdit()) {
@@ -592,27 +597,4 @@ int PhonemeView::calculatePhonemeLengthInMs(const PhonemeViewModel &phoneme) con
     const auto phonemeStartMs = appModel->tickToMs(phonemeStartTick);
     const auto phonemeEndMs = appModel->tickToMs(phonemeEndTick);
     return qRound(phonemeEndMs - phonemeStartMs);
-}
-
-void PhonemeView::drawTextWithCache(const QString &text, const bool edited,
-                                    const QPainter &painter) {
-    // qDebug() << "cacheText:" << text;
-    const QSize textSize = painter.fontMetrics().size(Qt::TextSingleLine, text);
-    auto devicePixelRatio = painter.device()->devicePixelRatio();
-    QPixmap pixmap(textSize * devicePixelRatio);
-    pixmap.setDevicePixelRatio(devicePixelRatio);
-    pixmap.fill(Qt::transparent);
-
-    QPainter cachePainter(&pixmap);
-    cachePainter.setPen(painter.pen());
-    cachePainter.drawText(pixmap.rect(), text);
-
-    auto keyObj = QJsonObject{
-        {"text",             text            },
-        {"edited",           edited          },
-        {"devicePixelRatio", devicePixelRatio}
-    };
-    auto key = QJsonDocument(keyObj).toJson(QJsonDocument::Compact);
-
-    m_TextCache.insert(key, pixmap);
 }

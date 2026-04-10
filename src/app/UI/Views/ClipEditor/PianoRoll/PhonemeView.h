@@ -7,6 +7,7 @@
 
 
 #include "Model/AppModel/SingingClip.h"
+#include "UI/Utils/TextPixmapCache.h"
 
 #include <QWidget>
 
@@ -95,7 +96,6 @@ private:
     bool m_freezeHoverEffects = false;
     int m_canEditTicksPerPixelThreshold = 6;
     bool m_mouseMoved = false;
-    QMap<QString, QPixmap> m_TextCache;
 
     SingingClip *m_clip = nullptr;
     ToolTip *m_tooltip = nullptr;
@@ -107,8 +107,6 @@ private:
     void clearHoverEffects(const PhonemeViewModel *except = nullptr);
     void handleAdjustCompleted(const PhonemeViewModel *phVm);
     int calculatePhonemeLengthInMs(const PhonemeViewModel &phoneme) const;
-
-    void drawTextWithCache(const QString &text, bool edited, const QPainter &painter);
 };
 
 

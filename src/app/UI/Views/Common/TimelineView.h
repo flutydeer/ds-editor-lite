@@ -55,10 +55,10 @@ private:
     void drawLoopMarkers(QPainter *painter) const;
     double tickToX(double tick) const;
     double xToTick(double x) const;
-    void cacheText(const QString &type, const QString &text, const QPainter &painter);
     void updateCursor(const QPoint &pos);
 
     enum LoopDragMode { None, DragStart, DragEnd, DragBody };
+
     LoopDragMode hitTestLoop(const QPoint &pos) const;
 
     double m_startTick = 0;
@@ -70,7 +70,6 @@ private:
     const QList<QColor> m_piecesColors = {
         QColor(100, 100, 100), QColor(255, 204, 153), QColor(155, 255, 162),
         QColor(255, 155, 157)}; // Pending, Running, Success, Failed
-    QMap<QString, QPixmap> m_textCache;
 
     // Loop region
     bool m_canEditLoop = false;

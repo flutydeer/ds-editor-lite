@@ -4,7 +4,6 @@
 
 #include "TimelineView.h"
 
-#include <QJsonDocument>
 #include <QPainter>
 #include <QWheelEvent>
 
@@ -15,19 +14,20 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppModel/Note.h"
+#include "UI/Utils/TextPixmapCache.h"
 #include "Utils/TimelineSnapUtils.h"
 
 namespace {
 
-QColor blendColor(const QColor &from, const QColor &to, double ratio) {
-    if (ratio < 0)
-        ratio = 0;
-    else if (ratio > 1)
-        ratio = 1;
-    return QColor(static_cast<int>(from.red() + (to.red() - from.red()) * ratio),
-                  static_cast<int>(from.green() + (to.green() - from.green()) * ratio),
-                  static_cast<int>(from.blue() + (to.blue() - from.blue()) * ratio));
-}
+    QColor blendColor(const QColor &from, const QColor &to, double ratio) {
+        if (ratio < 0)
+            ratio = 0;
+        else if (ratio > 1)
+            ratio = 1;
+        return {static_cast<int>(from.red() + (to.red() - from.red()) * ratio),
+                static_cast<int>(from.green() + (to.green() - from.green()) * ratio),
+                static_cast<int>(from.blue() + (to.blue() - from.blue()) * ratio)};
+    }
 
 } // namespace
 
@@ -144,24 +144,33 @@ void TimelineView::paintEvent(QPaintEvent *event) {
 
 void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
-    auto x = tickToX(tick); // tick to itemX
+    auto x = tickToX(tick);
     pen.setColor(QColor(200, 200, 200));
     painter->setPen(pen);
     auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
 
+    auto font = FontManager::instance().musicUIFont(13);
+    auto color = QColor(200, 200, 200);
     auto devicePixelRatio = painter->device()->devicePixelRatio();
-    auto keyObj = QJsonObject{
-        {"type",             "Bar"               },
-        {"text",             text                },
-        {"devicePixelRatio", devicePixelRatio    }
-    };
-    auto key = QJsonDocument(keyObj).toJson(QJsonDocument::Compact);
-    if (!m_textCache.contains(key) || m_textCache[key].isNull())
-        cacheText("Bar", text, *painter);
-    const auto &pixmap = m_textCache[key];
-    const QRectF textRect(x + m_textPaddingLeft, m_loopRegionHeight, pixmap.width(), pixmap.height());
+    auto key = TextPixmapCache::Key{
+        .text = text, .font = font, .color = color, .devicePixelRatio = devicePixelRatio};
+    auto cache = TextPixmapCache::instance();
+    if (!cache->contains(key)) {
+        const QFontMetrics fontMetrics(font);
+        const QSize textSize = fontMetrics.size(Qt::TextSingleLine, text);
+        QPixmap pixmap(textSize * devicePixelRatio);
+        pixmap.setDevicePixelRatio(devicePixelRatio);
+        pixmap.fill(Qt::transparent);
+        QPainter cachePainter(&pixmap);
+        cachePainter.setFont(font);
+        cachePainter.setPen(color);
+        cachePainter.drawText(pixmap.rect(), text);
+        cache->insert(key, pixmap);
+    }
+    const auto &pixmap = cache->get(key);
+    const QRectF textRect(x + m_textPaddingLeft, m_loopRegionHeight, pixmap.width(),
+                          pixmap.height());
     painter->drawPixmap(textRect.topLeft(), pixmap);
-    // painter->drawText(QPointF(x + m_textPaddingLeft, 10), text);
     pen.setColor(QColor(92, 96, 100));
     painter->setPen(pen);
     auto y1 = rect().height() - 24;
@@ -174,23 +183,30 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     auto x = tickToX(tick);
     pen.setColor(QColor(160, 160, 160));
     painter->setPen(pen);
-    // 在负坐标获取的 int bar 错误，暂不绘制文本
     if (beat > 0) {
         const auto text = QString::number(beat);
+        auto font = FontManager::instance().musicUIFont(13);
+        auto color = QColor(160, 160, 160);
         auto devicePixelRatio = painter->device()->devicePixelRatio();
-        auto keyObj = QJsonObject{
-            {"type",             "Beat"              },
-            {"text",             text                },
-            {"devicePixelRatio", devicePixelRatio    }
-        };
-        auto key = QJsonDocument(keyObj).toJson(QJsonDocument::Compact);
-        if (!m_textCache.contains(key) || m_textCache[key].isNull())
-            cacheText("Beat", text, *painter);
-        const auto &pixmap = m_textCache[key];
-        const QRectF textRect(x + m_textPaddingLeft, m_loopRegionHeight, pixmap.width(), pixmap.height());
+        auto key = TextPixmapCache::Key{
+            .text = text, .font = font, .color = color, .devicePixelRatio = devicePixelRatio};
+        auto cache = TextPixmapCache::instance();
+        if (!cache->contains(key)) {
+            const QFontMetrics fontMetrics(font);
+            const QSize textSize = fontMetrics.size(Qt::TextSingleLine, text);
+            QPixmap pixmap(textSize * devicePixelRatio);
+            pixmap.setDevicePixelRatio(devicePixelRatio);
+            pixmap.fill(Qt::transparent);
+            QPainter cachePainter(&pixmap);
+            cachePainter.setFont(font);
+            cachePainter.setPen(color);
+            cachePainter.drawText(pixmap.rect(), text);
+            cache->insert(key, pixmap);
+        }
+        const auto &pixmap = cache->get(key);
+        const QRectF textRect(x + m_textPaddingLeft, m_loopRegionHeight, pixmap.width(),
+                              pixmap.height());
         painter->drawPixmap(textRect.topLeft(), pixmap);
-        // painter->drawText(QPointF(x + m_textPaddingLeft, 10),
-        //           /*QString::number(bar) + "." +*/ QString::number(beat));
     }
 
     pen.setColor(QColor(72, 75, 78));
@@ -208,8 +224,8 @@ void TimelineView::drawSubdivision(QPainter *painter, int tick, int level, int l
     painter->setPen(pen);
     constexpr int strongestLineHeight = 12;
     constexpr int weakestLineHeight = 6;
-    const int lineHeight = strongestLineHeight -
-                           qRound((strongestLineHeight - weakestLineHeight) * ratio);
+    const int lineHeight =
+        strongestLineHeight - qRound((strongestLineHeight - weakestLineHeight) * ratio);
     auto y1 = rect().height() - lineHeight;
     auto y2 = rect().height();
     painter->drawLine(QLineF(x, y1, x, y2));
@@ -392,39 +408,6 @@ double TimelineView::xToTick(double x) const {
     return tick;
 }
 
-void TimelineView::cacheText(const QString &type, const QString &text, const QPainter &painter) {
-    // qDebug() << "cacheText:" << text;
-
-    // Use music font for bar and beat numbers
-    QFont font;
-    if (type == "Bar" || type == "Beat") {
-        font = FontManager::instance().musicUIFont(13);
-    } else {
-        font = painter.font();
-    }
-
-    const QFontMetrics fontMetrics(font);
-    const QSize textSize = fontMetrics.size(Qt::TextSingleLine, text);
-    auto devicePixelRatio = painter.device()->devicePixelRatio();
-    QPixmap pixmap(textSize * devicePixelRatio);
-    pixmap.setDevicePixelRatio(devicePixelRatio);
-    pixmap.fill(Qt::transparent);
-
-    QPainter cachePainter(&pixmap);
-    cachePainter.setFont(font);
-    cachePainter.setPen(painter.pen());
-    cachePainter.drawText(pixmap.rect(), text);
-
-    auto keyObj = QJsonObject{
-        {"type",             type            },
-        {"text",             text            },
-        {"devicePixelRatio", devicePixelRatio}
-    };
-    auto key = QJsonDocument(keyObj).toJson(QJsonDocument::Compact);
-
-    m_textCache.insert(key, pixmap);
-}
-
 void TimelineView::drawLoopRegion(QPainter *painter) const {
     drawLoopBackground(painter);
     drawLoopMarkers(painter);
@@ -441,7 +424,7 @@ void TimelineView::drawLoopBackground(QPainter *painter) const {
 
     // Draw semi-transparent background for the entire loop region
     QColor bgColor(155, 186, 255);
-    bgColor.setAlpha(32);  // Semi-transparent
+    bgColor.setAlpha(32); // Semi-transparent
     painter->setPen(Qt::NoPen);
     painter->setBrush(bgColor);
     painter->drawRect(QRectF(startX, 0, endX - startX, rect().height()));
@@ -478,12 +461,12 @@ void TimelineView::drawLoopMarkers(QPainter *painter) const {
 
     QPolygonF loopPolygon;
     // Draw clockwise from top-left
-    loopPolygon << QPointF(startX, 0)                      // Top left corner
-                << QPointF(endX, 0)                        // Top right corner
-                << QPointF(endX, triangleSize)             // Right triangle bottom tip
-                << QPointF(rightIntersectX, lineHeight)    // Right slope meets line
-                << QPointF(leftIntersectX, lineHeight)     // Left slope meets line
-                << QPointF(startX, triangleSize);          // Left triangle bottom tip
+    loopPolygon << QPointF(startX, 0)                   // Top left corner
+                << QPointF(endX, 0)                     // Top right corner
+                << QPointF(endX, triangleSize)          // Right triangle bottom tip
+                << QPointF(rightIntersectX, lineHeight) // Right slope meets line
+                << QPointF(leftIntersectX, lineHeight)  // Left slope meets line
+                << QPointF(startX, triangleSize);       // Left triangle bottom tip
 
     painter->drawPolygon(loopPolygon);
 }
