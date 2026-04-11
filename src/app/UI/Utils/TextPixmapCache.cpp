@@ -4,36 +4,25 @@
 
 #include "TextPixmapCache.h"
 
-#include <QCryptographicHash>
-#include <QJsonDocument>
-#include <QJsonObject>
+#include <QtGlobal>
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(TextPixmapCache)
 
-QString TextPixmapCache::Key::toKeyString() const {
-    auto obj = QJsonObject{
-        {"text",             text                           },
-        {"fontFamily",       font.family()                  },
-        {"fontSize",         font.pointSize()               },
-        {"fontWeight",       static_cast<int>(font.weight())},
-        {"color",            color.name(QColor::HexArgb)    },
-        {"devicePixelRatio", devicePixelRatio               }
-    };
-    const QByteArray jsonData = QJsonDocument(obj).toJson(QJsonDocument::Compact);
-    const QByteArray hashData = QCryptographicHash::hash(jsonData, QCryptographicHash::Sha1);
-    return hashData.toHex();
+bool TextPixmapCache::Key::operator==(const Key &other) const {
+    return text == other.text && font == other.font && 
+           color == other.color && qFuzzyCompare(devicePixelRatio, other.devicePixelRatio);
 }
 
-QPixmap TextPixmapCache::get(const Key &key) {
-    return m_cache.value(key.toKeyString());
+QPixmap TextPixmapCache::get(const Key &key) const {
+    return m_cache.value(key);
 }
 
 void TextPixmapCache::insert(const Key &key, const QPixmap &pixmap) {
-    m_cache.insert(key.toKeyString(), pixmap);
+    m_cache.insert(key, pixmap);
 }
 
 bool TextPixmapCache::contains(const Key &key) const {
-    return m_cache.contains(key.toKeyString());
+    return m_cache.contains(key);
 }
 
 void TextPixmapCache::clear() {

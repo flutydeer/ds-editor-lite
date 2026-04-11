@@ -9,7 +9,7 @@
 
 #include <QColor>
 #include <QFont>
-#include <QMap>
+#include <QHash>
 #include <QPixmap>
 #include <QString>
 
@@ -19,15 +19,15 @@ public:
         QString text;
         QFont font;
         QColor color;
-        double devicePixelRatio;
+        double devicePixelRatio = 1.0;
 
-        QString toKeyString() const;
+        bool operator==(const Key &other) const;
     };
 
     LITE_SINGLETON_DECLARE_INSTANCE(TextPixmapCache)
     Q_DISABLE_COPY_MOVE(TextPixmapCache)
 
-    QPixmap get(const Key &key);
+    QPixmap get(const Key &key) const;
     void insert(const Key &key, const QPixmap &pixmap);
     bool contains(const Key &key) const;
     void clear();
@@ -36,7 +36,16 @@ private:
     TextPixmapCache() = default;
     ~TextPixmapCache() = default;
 
-    QMap<QString, QPixmap> m_cache;
+    QHash<Key, QPixmap> m_cache;
 };
+
+inline size_t qHash(const TextPixmapCache::Key &key, size_t seed = 0) {
+    return qHash(key.text, seed) ^ 
+           qHash(key.font.family(), seed) ^ 
+           qHash(key.font.pointSize(), seed) ^ 
+           qHash(static_cast<int>(key.font.weight()), seed) ^ 
+           qHash(key.color.rgba(), seed) ^ 
+           qHash(static_cast<int>(key.devicePixelRatio * 1000), seed);
+}
 
 #endif // TEXTPIXMAPCACHE_H
