@@ -4,6 +4,8 @@
 
 #include "UpdateDurationState.h"
 
+#include <QTimer>
+
 #include "Model/AppModel/AppModel.h"
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/InferPipeline.h"
@@ -27,7 +29,7 @@ void UpdateDurationState::onEntry(QEvent *event) {
     Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Gender, *singingClip);
     Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Velocity, *singingClip);
     QState::onEntry(event);
-    emit updateSuccess();
+    QTimer::singleShot(0, this, [this] { emit updateSuccess(); });
 }
 
 void UpdateDurationState::onExit(QEvent *event) {

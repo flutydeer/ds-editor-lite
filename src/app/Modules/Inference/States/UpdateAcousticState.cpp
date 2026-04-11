@@ -4,6 +4,8 @@
 
 #include "UpdateAcousticState.h"
 
+#include <QTimer>
+
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/InferPipeline.h"
 
@@ -21,7 +23,7 @@ void UpdateAcousticState::onEntry(QEvent *event) {
     piece.state = QString("Acoustic.Update");
     Helper::updateAcoustic(m_pipeline.acousticResult(), piece);
     
-    emit updateSuccess();
+    QTimer::singleShot(0, this, [this] { emit updateSuccess(); });
 }
 
 void UpdateAcousticState::onExit(QEvent *event) {

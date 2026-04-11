@@ -119,14 +119,13 @@ void InferPitchState::handleTaskFinished(InferPitchTask &task) {
     }
 
     if (task.success()) {
-        // TODO: 等待 AppModel 释放
         m_pipeline.setPitchResult(task.result());
-        emit ready();
+        delete currentTask;
+        currentTask = nullptr;
+        QTimer::singleShot(0, this, [this] { emit ready(); });
     } else {
-        emit failed();
+        delete currentTask;
+        currentTask = nullptr;
+        QTimer::singleShot(0, this, [this] { emit failed(); });
     }
-
-    // Clean up the task after handling
-    delete currentTask;
-    currentTask = nullptr;
 }

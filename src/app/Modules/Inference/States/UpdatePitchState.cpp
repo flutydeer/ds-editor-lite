@@ -4,6 +4,8 @@
 
 #include "UpdatePitchState.h"
 
+#include <QTimer>
+
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/InferPipeline.h"
 
@@ -20,7 +22,7 @@ void UpdatePitchState::onEntry(QEvent *event) {
     auto &piece = m_pipeline.piece();
     piece.state = QString("Pitch.Update");
     Helper::updatePitch(m_pipeline.pitchResult(), piece);
-    emit updateSuccess();
+    QTimer::singleShot(0, this, [this] { emit updateSuccess(); });
 }
 
 void UpdatePitchState::onExit(QEvent *event) {
