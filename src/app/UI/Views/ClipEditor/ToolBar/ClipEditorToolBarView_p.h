@@ -11,6 +11,7 @@
 #include <QObject>
 
 class SingingClip;
+class TwoLevelComboBox;
 class LanguageComboBox;
 class Clip;
 class QAbstractButton;
@@ -59,6 +60,7 @@ public:
     Button *m_btnPitchEraser = nullptr;
     // Button *m_btnFreezePitch = nullptr;
 
+    TwoLevelComboBox *m_cbSinger = nullptr;
     LanguageComboBox *m_cbClipLanguage = nullptr;
 
 public slots:
@@ -67,6 +69,8 @@ public slots:
     void onClipPropertyChanged() const;
     void onClipLanguageChanged(const QString &language) const;
     void onLanguageEdited(const QString &language) const;
+    void onClipSingerChanged() const;
+    void onSingerEdited() const;
 
 private:
     ClipEditorToolBarView *q_ptr;

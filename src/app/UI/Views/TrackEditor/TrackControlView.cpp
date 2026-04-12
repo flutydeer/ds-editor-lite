@@ -64,31 +64,9 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     cbSinger = new TwoLevelComboBox;
     cbSinger->setObjectName("cbSinger");
-    auto setCbSinger = [this](QList<PackageInfo> packages) {
-        cbSinger->clear();
-        cbSinger->addItem(tr("(No singer)"), {}, {});
-        for (const auto &package : std::as_const(packages)) {
-            const auto singers = package.singers();
-            for (const auto &singer : singers) {
-                QString singerText = singer.name();
-                if (singer.speakers().size() == 1) {
-                    const auto spk = singer.speakers().first();
-                    cbSinger->addItem(spk.id(), singer, spk);
-                    continue;
-                }
-                if (singer.speakers().isEmpty()) {
-                    cbSinger->addItem(singerText, singer, {});
-                    continue;
-                }
-                cbSinger->addGroup(singerText);
-                for (const auto &spk : singer.speakers())
-                    cbSinger->addItemToGroup(singerText, spk.name(), singer, spk);
-            }
-        }
-    };
-
-    setCbSinger(packageManager->installedPackages().successfulPackages);
-    connect(packageManager, &PackageManager::packagesRefreshed, cbSinger, setCbSinger);
+    cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+    connect(packageManager, &PackageManager::packagesRefreshed, cbSinger,
+            &TwoLevelComboBox::setItems);
 
     connect(cbSinger, &TwoLevelComboBox::currentTextChanged, this, [this] {
         const auto currentText = cbSinger->currentText();

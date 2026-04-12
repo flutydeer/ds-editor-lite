@@ -1,6 +1,7 @@
 #ifndef TWOLEVELCOMBOBOX_H
 #define TWOLEVELCOMBOBOX_H
 
+#include "Modules/PackageManager/Models/PackageInfo.h"
 #include "Modules/PackageManager/Models/SingerInfo.h"
 
 #include <QMWidgets/cmenu.h>
@@ -27,6 +28,8 @@ public:
     SingerInfo currentSinger() const;
     SpeakerInfo currentSpeaker() const;
 
+    void setCurrentData(const SingerInfo &singer, const SpeakerInfo &speaker);
+
     void addItem(const QString &itemText, const SingerInfo &singer, const SpeakerInfo &spk);
 
     void addGroup(const QString &groupName) const;
@@ -34,6 +37,9 @@ public:
                         const SpeakerInfo &spk);
 
     void clear();
+
+public slots:
+    void setItems(const QList<PackageInfo> &packages);
 
 signals:
     void currentDataChanged();

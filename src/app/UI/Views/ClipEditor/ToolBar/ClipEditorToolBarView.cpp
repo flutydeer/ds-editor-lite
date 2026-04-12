@@ -11,10 +11,13 @@
 
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Modules/PackageManager/PackageManager.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/ToolTipFilter.h"
+#include "UI/Controls/TwoLevelComboBox.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include <QButtonGroup>
@@ -39,6 +42,18 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     connect(d->m_leClipName, &QLineEdit::editingFinished, d,
             &ClipEditorToolBarViewPrivate::onClipNameEdited);
 
+    d->m_cbSinger = new TwoLevelComboBox;
+    d->m_cbSinger->setObjectName("cbClipSinger");
+    d->m_cbSinger->setFixedWidth(128);
+    d->m_cbSinger->installEventFilter(new ToolTipFilter(d->m_cbSinger, 500));
+    d->m_cbSinger->setToolTip(tr("Clip Singer"));
+
+    d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+    connect(packageManager, &PackageManager::packagesRefreshed, d->m_cbSinger,
+            &TwoLevelComboBox::setItems);
+    connect(d->m_cbSinger, &TwoLevelComboBox::currentDataChanged, d,
+            &ClipEditorToolBarViewPrivate::onSingerEdited);
+
     d->m_cbClipLanguage = new LanguageComboBox("unknown", true);
     d->m_cbClipLanguage->setObjectName("cbClipLanguage");
     d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 500));
@@ -52,7 +67,8 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnNotePencil =
         d->buildToolButton("btnNotePencil", tr("Draw Note"), Qt::Key_N, notePencilDesc);
     d->m_btnNoteEraser = d->buildToolButton("btnNoteEraser", tr("Erase Note"), Qt::Key_M);
-    d->m_btnNoteSplit = d->buildToolButton("btnNoteSplit", tr("Split Note"), QKeySequence(), tr("Split note at quantize line"));
+    d->m_btnNoteSplit = d->buildToolButton("btnNoteSplit", tr("Split Note"), QKeySequence(),
+                                           tr("Split note at quantize line"));
     d->m_btnNoteSplit->setText("✂");
     // d->m_btnPitchAnchor = d->buildToolButton("btnPitchAnchor", tr("Pitch Anchor"), Qt::Key_F);
     const auto pitchPencilDesc = tr("Left drag: Draw\nRight drag: Erase");
@@ -126,6 +142,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     // mainLayout->addWidget(sbGain);
     // mainLayout->addWidget(leGain);
     // mainLayout->addWidget(new DividerLine(Qt::Vertical));
+    mainLayout->addWidget(d->m_cbSinger);
     mainLayout->addWidget(d->m_cbClipLanguage);
     mainLayout->addSpacing(16);
     mainLayout->addWidget(d->m_btnArrow);
@@ -294,18 +311,43 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
         btn->setEnabled(on);
     }
 
+    m_cbSinger->setVisible(on);
+    m_cbSinger->setEnabled(on);
     m_cbClipLanguage->setVisible(on);
     m_cbClipLanguage->setEnabled(on);
 
     if (on) {
+        m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo());
+        connect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
+                &ClipEditorToolBarViewPrivate::onSingerEdited);
+        connect(m_singingClip, &SingingClip::singerOrSpeakerChanged, this,
+                &ClipEditorToolBarViewPrivate::onClipSingerChanged);
+
         m_cbClipLanguage->setCurrentText(m_singingClip->defaultLanguage());
         connect(m_cbClipLanguage, &ComboBox::currentTextChanged, this,
                 &ClipEditorToolBarViewPrivate::onLanguageEdited);
         connect(m_singingClip, &SingingClip::defaultLanguageChanged, m_cbClipLanguage,
                 &ComboBox::setCurrentText);
     } else {
+        disconnect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
+                   &ClipEditorToolBarViewPrivate::onSingerEdited);
+        disconnect(m_singingClip, &SingingClip::singerOrSpeakerChanged, this,
+                   &ClipEditorToolBarViewPrivate::onClipSingerChanged);
+
         disconnect(m_cbClipLanguage, &ComboBox::currentTextChanged, this,
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);
         m_cbClipLanguage->setCurrentText("unknown");
+    }
+}
+
+void ClipEditorToolBarViewPrivate::onClipSingerChanged() const {
+    m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo());
+}
+
+void ClipEditorToolBarViewPrivate::onSingerEdited() const {
+    if (m_singingClip) {
+        const auto singerInfo = m_cbSinger->currentSinger();
+        const auto speakerInfo = m_cbSinger->currentSpeaker();
+        m_singingClip->setTrackSingerAndSpeakerInfo(singerInfo, speakerInfo);
     }
 }

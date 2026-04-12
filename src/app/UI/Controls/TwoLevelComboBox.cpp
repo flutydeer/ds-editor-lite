@@ -80,6 +80,29 @@ void TwoLevelComboBox::clear() {
     update();
 }
 
+void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
+    clear();
+    addItem(tr("(No singer)"), {}, {});
+    for (const auto &package : std::as_const(packages)) {
+        const auto singers = package.singers();
+        for (const auto &singer : singers) {
+            QString singerText = singer.name();
+            if (singer.speakers().size() == 1) {
+                const auto spk = singer.speakers().first();
+                addItem(spk.id(), singer, spk);
+                continue;
+            }
+            if (singer.speakers().isEmpty()) {
+                addItem(singerText, singer, {});
+                continue;
+            }
+            addGroup(singerText);
+            for (const auto &spk : singer.speakers())
+                addItemToGroup(singerText, spk.name(), singer, spk);
+        }
+    }
+}
+
 QString TwoLevelComboBox::currentText() const {
     const QString singerName = m_currentItem.singer.name();
     const QString speakerName = m_currentItem.speaker.name();
@@ -95,6 +118,16 @@ SingerInfo TwoLevelComboBox::currentSinger() const {
 
 SpeakerInfo TwoLevelComboBox::currentSpeaker() const {
     return m_currentItem.speaker;
+}
+
+void TwoLevelComboBox::setCurrentData(const SingerInfo &singer, const SpeakerInfo &speaker) {
+    for (const auto &itemData : m_itemDataList) {
+        if (itemData.singer == singer && itemData.speaker == speaker) {
+            m_currentItem = itemData;
+            updateDisplayText();
+            return;
+        }
+    }
 }
 
 void TwoLevelComboBox::onActionTriggered(const QAction *action) {
