@@ -101,14 +101,14 @@ void PronunciationView::finishEditingPronunciation() {
     m_editingPronunciation = false;
 
     if (m_lineEditProxy) {
-        const QString newPronunciation = m_lineEdit->text();
+        const QString newPronunciation = m_lineEdit->text().trimmed();
         m_lineEditProxy->hide();
 
         if (m_lineEdit) {
             m_lineEdit->clearFocus();
         }
 
-        if (newPronunciation != m_pronunciation) {
+        if (newPronunciation != m_pronunciation && !newPronunciation.isEmpty()) {
             emit pronunciationEditingFinished(newPronunciation);
         }
     }
