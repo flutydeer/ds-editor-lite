@@ -2,31 +2,50 @@
 #include <QDebug>
 #include <QPainter>
 #include <QStyleOptionComboBox>
+#include <QStyleOptionToolButton>
 
-TwoLevelComboBox::TwoLevelComboBox(QWidget *parent) : QComboBox(parent) {
+TwoLevelComboBox::TwoLevelComboBox(QWidget *parent) : QToolButton(parent) {
     m_mainMenu = new CMenu(this);
+    setMenu(m_mainMenu);
+    setPopupMode(InstantPopup);
+    setMinimumHeight(24);
 }
 
 TwoLevelComboBox::~TwoLevelComboBox() {
 }
 
-void TwoLevelComboBox::showPopup() {
-    QComboBox::hidePopup();
-    if (m_mainMenu && !m_mainMenu->isEmpty()) {
-        QPoint pos = mapToGlobal(QPoint(0, height()));
-        m_mainMenu->popup(pos);
-    }
-}
-
 void TwoLevelComboBox::paintEvent(QPaintEvent *event) {
     Q_UNUSED(event)
     QPainter painter(this);
-    QStyleOptionComboBox opt;
+    QStyleOptionToolButton opt;
     opt.initFrom(this);
-    opt.currentText = currentText().isEmpty() ? tr("Please select") : currentText();
-    opt.editable = false;
-    style()->drawComplexControl(QStyle::CC_ComboBox, &opt, &painter, this);
-    style()->drawControl(QStyle::CE_ComboBoxLabel, &opt, &painter, this);
+    opt.features = QStyleOptionToolButton::MenuButtonPopup;
+    opt.toolButtonStyle = Qt::ToolButtonTextOnly;
+    style()->drawComplexControl(QStyle::CC_ToolButton, &opt, &painter, this);
+    
+    QRect textRect = opt.rect;
+    textRect.adjust(8, 0, -28, 0);
+    painter.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, currentText().isEmpty() ? tr("Please select") : currentText());
+}
+
+QSize TwoLevelComboBox::sizeHint() const {
+    QStyleOptionToolButton opt;
+    opt.initFrom(this);
+    opt.features = QStyleOptionToolButton::MenuButtonPopup;
+    opt.toolButtonStyle = Qt::ToolButtonTextOnly;
+    const QFontMetrics fm = fontMetrics();
+    QString text = currentText().isEmpty() ? tr("Please select") : currentText();
+    QSize textSize = fm.size(Qt::TextSingleLine, text);
+    textSize.setWidth(textSize.width() + 36);
+    
+    // Use default height, will be overridden by stylesheet or explicit size setting
+    textSize.setHeight(QToolButton::sizeHint().height());
+    
+    return style()->sizeFromContents(QStyle::CT_ToolButton, &opt, textSize, this);
+}
+
+QSize TwoLevelComboBox::minimumSizeHint() const {
+    return sizeHint();
 }
 
 void TwoLevelComboBox::addGroup(const QString &groupName) const {

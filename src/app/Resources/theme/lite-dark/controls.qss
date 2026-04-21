@@ -216,6 +216,7 @@ QToolButton[popupMode="2"] {
 }
 
 QToolButton::menu-button {
+    background: transparent;
     width: 28px;
     border: none;
     border-left: 1px solid #505050;
@@ -224,7 +225,7 @@ QToolButton::menu-button {
 }
 
 QToolButton::menu-button:hover {
-    background: #1AFFFFFF;
+    background: transparent;
 }
 
 QToolButton::menu-arrow {

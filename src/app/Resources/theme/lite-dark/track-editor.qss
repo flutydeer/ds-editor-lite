@@ -81,6 +81,15 @@ TrackControlView>TwoLevelComboBox
     background: transparent;
 }
 
+TrackControlView>TwoLevelComboBox:hover {
+    background-color: #1AFFFFFF;
+    border: none;
+}
+
+TrackControlView>TwoLevelComboBox::menu-button {
+    border: none;
+}
+
 TrackControlView>LevelMeter {
     background: #1F2229;
     min-width: 12;

@@ -5,7 +5,7 @@
 #include "Modules/PackageManager/Models/SingerInfo.h"
 
 #include <QMWidgets/cmenu.h>
-#include <QComboBox>
+#include <QToolButton>
 
 class QAction;
 
@@ -17,7 +17,7 @@ struct ComboBoxItemData {
 };
 Q_DECLARE_METATYPE(ComboBoxItemData)
 
-class TwoLevelComboBox : public QComboBox {
+class TwoLevelComboBox : public QToolButton {
     Q_OBJECT
 
 public:
@@ -38,14 +38,17 @@ public:
 
     void clear();
 
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
+
 public slots:
     void setItems(const QList<PackageInfo> &packages);
 
 signals:
     void currentDataChanged();
+    void currentTextChanged(const QString &text);
 
 protected:
-    void showPopup() override;
     void paintEvent(QPaintEvent *event) override;
 
 private slots:
