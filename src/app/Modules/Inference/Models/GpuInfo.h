@@ -57,6 +57,8 @@ inline bool GpuInfo::parseIdString(const QStringView idString, unsigned int &dev
     return true;
 }
 
+constexpr unsigned long long kMinGpuVramBytes = 1ULL * 1024 * 1024 * 1024;
+
 Q_DECLARE_METATYPE(GpuInfo)
 
 #endif // GPUINFO_H

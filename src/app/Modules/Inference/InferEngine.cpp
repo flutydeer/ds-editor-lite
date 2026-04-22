@@ -236,6 +236,8 @@ bool InferEngine::initialize(QString &error) {
 
     if (ep != EP::CPUExecutionProvider && gpuDeviceList.empty()) {
         qCritical() << "InferEngine: Unable to find GPU device.";
+        error = "No available GPU device found.";
+        return false;
     }
 
     const auto [index, description, deviceId, memory] = [](const EP ep_) -> GpuInfo {

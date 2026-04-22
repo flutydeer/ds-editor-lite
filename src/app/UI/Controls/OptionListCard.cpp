@@ -34,6 +34,13 @@ void OptionListCard::addItem(const QString &title, QWidget *control) {
     addItem(item);
 }
 
+void OptionListCard::addItem(const QString &title, const QString &description) {
+    const auto item = new OptionsCardItem;
+    item->setTitle(title);
+    item->setDescription(description);
+    addItem(item);
+}
+
 void OptionListCard::addItem(const QString &title, const QList<QWidget *> &controls) {
     const auto item = new OptionsCardItem;
     item->setTitle(title);

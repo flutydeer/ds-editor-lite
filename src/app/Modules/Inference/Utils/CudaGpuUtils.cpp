@@ -119,7 +119,9 @@ GpuInfo CudaGpuUtils::getGpuByIndex(const int index) {
 
 QList<GpuInfo> CudaGpuUtils::getGpuList() {
     const auto output_ = getCommandOutput();
-    return parseGpuListFromOutput(output_);
+    auto list = parseGpuListFromOutput(output_);
+    list.removeIf([](const GpuInfo &g) { return g.memory < kMinGpuVramBytes; });
+    return list;
 }
 
 GpuInfo CudaGpuUtils::getGpuByPciDeviceVendorId(const unsigned int pciDeviceId,

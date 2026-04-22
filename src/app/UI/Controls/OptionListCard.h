@@ -19,6 +19,7 @@ public:
 
     void addItem(OptionsCardItem *item);
     void addItem(const QString &title, QWidget *control);
+    void addItem(const QString &title, const QString &description);
     void addItem(const QString &title, const QList<QWidget *> &controls);
     void addItem(const QString &title, const QString &description, QWidget *control);
     void addItem(const QString &title, const QString &description,

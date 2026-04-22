@@ -101,6 +101,8 @@ QWidget *InferencePage::createContentWidget() {
     bool hasChosenDevice = false;
 
     for (const auto &device : std::as_const(deviceList)) {
+        if (device.memory < kMinGpuVramBytes)
+            continue;
         const int currentIndex = m_cbDeviceList->count();
         auto displayText =
             QStringLiteral("%1 (%2 GiB)")
@@ -122,11 +124,22 @@ QWidget *InferencePage::createContentWidget() {
     }
     connect(m_cbDeviceList, &ComboBox::currentIndexChanged, this, &InferencePage::modifyOption);
 
+    const bool hasAvailableGpu = m_cbDeviceList->count() > 1;
+
     // Device
     const auto deviceCard = new OptionListCard(tr("Device"));
     deviceCard->addItem(tr("Execution Provider"), tr("App needs a restart to take effect"),
                         m_cbExecutionProvider);
-    deviceCard->addItem(tr("GPU"), m_cbDeviceList);
+    if (hasAvailableGpu) {
+        deviceCard->addItem(tr("GPU"),
+                            tr("GPUs with less than %1 GiB VRAM are hidden")
+                                .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0),
+                            m_cbDeviceList);
+    } else {
+        deviceCard->addItem(
+            tr("GPU"),
+            tr("No available GPU found. Please switch the Execution Provider above to CPU."));
+    }
 
     // Render - Sampling Steps
     m_cbSamplingSteps = new ComboBox();

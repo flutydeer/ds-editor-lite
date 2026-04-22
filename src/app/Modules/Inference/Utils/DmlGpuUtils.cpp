@@ -76,6 +76,10 @@ QList<GpuInfo> DmlGpuUtils::getGpuList() {
             continue;
         }
 
+        if (desc.DedicatedVideoMemory < kMinGpuVramBytes) {
+            continue;
+        }
+
         gpuList.push_back(createGpuInfoFromDesc(desc, adapterIndex));
     }
 
@@ -145,6 +149,10 @@ GpuInfo DmlGpuUtils::getRecommendedGpu() {
 
         if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
             // Skip software adapters
+            continue;
+        }
+
+        if (desc.DedicatedVideoMemory < kMinGpuVramBytes) {
             continue;
         }
 
