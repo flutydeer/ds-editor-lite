@@ -131,9 +131,14 @@ QComboBox QAbstractItemView::item:checked {
     color: rgb(155, 186, 255);
 }
 
-QComboBox QAbstractItemView::item:selected {
+QComboBox QAbstractItemView:item:hover {
     color: #e0e0e0;
     background-color: #1AFFFFFF;
+}
+
+QComboBox QAbstractItemView::item:selected {
+    background-color: #409BBAFF;
+    color: #9BBAFF;
 }
 
 QComboBox:editable:hover {
