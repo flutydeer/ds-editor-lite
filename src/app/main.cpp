@@ -2,6 +2,7 @@
 // Created by fluty on 2023/8/27.
 //
 
+#include "../libs/qtmediate/src/widgets/widgets/cmenu.h"
 #include "Controller/AppController.h"
 #include "Controller/ClipController.h"
 #include "Controller/ProjectStatusController.h"
@@ -106,6 +107,8 @@ int main(int argc, char *argv[]) {
 #else
     qWarning("setColorScheme is not available in this version of Qt.");
 #endif
+
+    CMenu::setDefaultCornerPreference(CMenu::Round);
 
     // 设置日志等级和过滤器
     QDir appDataDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
