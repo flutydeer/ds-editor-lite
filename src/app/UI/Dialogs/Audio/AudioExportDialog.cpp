@@ -35,10 +35,10 @@ namespace Audio::Internal {
     static bool m_hasTemporaryPreset = false;
 
     AudioExportDialog::AudioExportDialog(Core::IProjectWindow *windowHandle, QWidget *parent)
-        : QDialog(parent), m_audioExporter(new AudioExporter(windowHandle, this)) {
+        : Dialog(parent), m_audioExporter(new AudioExporter(windowHandle, this)) {
         setWindowTitle(tr("Export Audio"));
-        setWindowFlag(Qt::WindowContextHelpButtonHint, false);
-        auto mainLayout = new QVBoxLayout;
+        // setTitle(tr("Export Audio"));
+        auto mainLayout = new QVBoxLayout(body());
 
         auto presetLayout = new QFormLayout;
         auto presetOptionLayout = new QHBoxLayout;
@@ -267,8 +267,6 @@ namespace Audio::Internal {
         buttonLayout->addWidget(cancelButton);
         mainLayout->addLayout(buttonLayout);
 
-        setLayout(mainLayout);
-
         resize(600, 800);
 
         connect(m_fileNameEdit, &QLineEdit::textChanged, this, &AudioExportDialog::updateConfig);
@@ -434,7 +432,7 @@ namespace Audio::Internal {
         }
 
         connect(exportButton, &QAbstractButton::clicked, this, &AudioExportDialog::runExport);
-        connect(cancelButton, &QAbstractButton::clicked, this, &QDialog::reject);
+        connect(cancelButton, &QAbstractButton::clicked, this, &Dialog::reject);
     }
 
     AudioExportDialog::~AudioExportDialog() {

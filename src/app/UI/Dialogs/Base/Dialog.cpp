@@ -7,7 +7,10 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPainter>
+#include <QWKWidgets/widgetwindowagent.h>
 
+#include "DialogTitleBar.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/Button.h"
 #include "UI/Utils/ThemeManager.h"
 #include "Utils/WindowFrameUtils.h"
@@ -96,6 +99,18 @@ Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
     setMinimumWidth(320);
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 
+    auto useNativeFrame = appOptions->appearance()->useNativeFrame;
+    if (!useNativeFrame) {
+        m_dialogTitleBar = new DialogTitleBar(this);
+        m_mainLayout->insertWidget(0, m_dialogTitleBar);
+
+        m_agent = new QWK::WidgetWindowAgent(this);
+        m_agent->setup(this);
+        m_agent->setTitleBar(m_dialogTitleBar);
+        m_agent->setSystemButton(QWK::WindowAgentBase::Close, m_dialogTitleBar->closeButton());
+        connect(m_dialogTitleBar, &DialogTitleBar::closeTriggered, this, &QDialog::reject);
+    }
+
     ThemeManager::instance()->addWindow(this);
 }
 
@@ -141,6 +156,10 @@ DialogButtonBar *Dialog::buttonBar() const {
 
 QWidget *Dialog::globalParent() {
     return m_globalParent;
+}
+
+QWK::WidgetWindowAgent *Dialog::windowAgent() const {
+    return m_agent;
 }
 
 void Dialog::setGlobalContext(QWidget *parent) {

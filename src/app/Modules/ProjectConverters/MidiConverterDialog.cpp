@@ -10,7 +10,9 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QPlainTextEdit>
-#include <QPushButton>
+
+#include "UI/Controls/AccentButton.h"
+#include "UI/Controls/Button.h"
 
 // Convert note number to note name.
 static QString ToneNumToToneName(const int num) {
@@ -150,14 +152,14 @@ public:
 
 MidiConverterDialog::MidiConverterDialog(
     const QList<QDspx::MidiIntermediateData::Track> &trackInfoList, QWidget *parent)
-    : QDialog(parent), d_ptr(new MidiConverterDialogPrivate) {
+    : Dialog(parent), d_ptr(new MidiConverterDialogPrivate) {
     Q_D(MidiConverterDialog);
     d->q_ptr = this;
 
     setWindowTitle(tr("Configure MIDI Import"));
-    setWindowFlag(Qt::WindowContextHelpButtonHint, false);
+    // setTitle(tr("Configure MIDI Import"));
 
-    const auto layout = new QVBoxLayout;
+    auto contentLayout = new QVBoxLayout(body());
 
     const auto formLayout = new QFormLayout;
     d->codecComboBox = new QComboBox;
@@ -188,18 +190,12 @@ MidiConverterDialog::MidiConverterDialog(
         new QCheckBox(tr("&Import tempo and time signature from MIDI"));
     formLayout->addRow(useMidiTimelineCheckBox);
 
-    layout->addLayout(formLayout);
+    contentLayout->addLayout(formLayout);
 
-    const auto buttonLayout = new QHBoxLayout;
-    buttonLayout->addStretch();
-    const auto okButton = new QPushButton(tr("OK"));
-    okButton->setDefault(true);
-    buttonLayout->addWidget(okButton);
-    const auto cancelButton = new QPushButton(tr("Cancel"));
-    buttonLayout->addWidget(cancelButton);
-    layout->addLayout(buttonLayout);
-
-    setLayout(layout);
+    auto okButton = new AccentButton(tr("OK"));
+    setPositiveButton(okButton);
+    auto cancelButton = new Button(tr("Cancel"));
+    setNegativeButton(cancelButton);
 
     const auto localCodecName = QTextCodec::codecForLocale()->name();
 
@@ -258,8 +254,8 @@ MidiConverterDialog::MidiConverterDialog(
     trackSelector->expandAll();
     trackSelector->setItemsExpandable(false);
 
-    connect(okButton, &QAbstractButton::clicked, this, &QDialog::accept);
-    connect(cancelButton, &QAbstractButton::clicked, this, &QDialog::reject);
+    connect(okButton, &QAbstractButton::clicked, this, &Dialog::accept);
+    connect(cancelButton, &QAbstractButton::clicked, this, &Dialog::reject);
 
     resize(800, 400);
 

@@ -1,7 +1,7 @@
 #ifndef MIDICONVERTERDIALOG_H
 #define MIDICONVERTERDIALOG_H
 
-#include <QDialog>
+#include "UI/Dialogs/Base/Dialog.h"
 
 #include <opendspxconverter/midi/midiintermediatedata.h>
 
@@ -9,7 +9,7 @@ class QTextCodec;
 
 class MidiConverterDialogPrivate;
 
-class MidiConverterDialog : public QDialog {
+class MidiConverterDialog : public Dialog {
     Q_OBJECT
     Q_DECLARE_PRIVATE(MidiConverterDialog)
 public:

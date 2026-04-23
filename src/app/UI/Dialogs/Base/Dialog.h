@@ -7,10 +7,15 @@
 
 #include <QDialog>
 
+namespace QWK {
+    class WidgetWindowAgent;
+}
+
 class QLabel;
 class QVBoxLayout;
 class QHBoxLayout;
 class Button;
+class DialogTitleBar;
 
 class DialogHeader : public QWidget {
 public:
@@ -56,6 +61,8 @@ public:
     QWidget *body() const;
     DialogButtonBar *buttonBar() const;
 
+    [[nodiscard]] QWK::WidgetWindowAgent *windowAgent() const;
+
     [[nodiscard]] static QWidget *globalParent();
     static void setGlobalContext(QWidget *parent);
 
@@ -63,6 +70,8 @@ private:
     using QDialog::setLayout;
 
     static QWidget *m_globalParent;
+    QWK::WidgetWindowAgent *m_agent = nullptr;
+    DialogTitleBar *m_dialogTitleBar = nullptr;
     QVBoxLayout *m_mainLayout;
     DialogHeader *m_header;
     QWidget *m_body = nullptr;

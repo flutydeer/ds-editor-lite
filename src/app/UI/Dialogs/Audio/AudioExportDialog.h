@@ -3,8 +3,7 @@
 
 #include "Modules/Audio/AudioExporter.h"
 
-
-#include <QDialog>
+#include "UI/Dialogs/Base/Dialog.h"
 
 namespace Audio {
     class AudioExporter;
@@ -27,7 +26,7 @@ class QRadioButton;
 
 namespace Audio::Internal {
 
-    class AudioExportDialog : public QDialog {
+    class AudioExportDialog : public Dialog {
         Q_OBJECT
     public:
         explicit AudioExportDialog(QWidget *parent = nullptr) : AudioExportDialog(nullptr, parent) {

@@ -562,6 +562,15 @@ DialogButtonBar {
     /*border-top: 1px solid #1AFFFFFF;*/
 }
 
+DialogTitleBar {
+    background: transparent;
+    border-bottom: 1px solid #1D1F26;
+}
+
+DialogTitleBar QLabel {
+    color: #F0F0F0;
+}
+
 QListWidget#AppOptionsDialogTabListWidget {
     outline: 0px;
     background: transparent;
