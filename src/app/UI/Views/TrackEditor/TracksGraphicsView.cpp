@@ -23,7 +23,7 @@
 
 #include <QFileDialog>
 #include <QMouseEvent>
-#include <QMWidgets/cmenu.h>
+#include "UI/Controls/Menu.h"
 
 #include <TalcsWidgets/AudioFileDialog.h>
 
@@ -46,7 +46,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget
     m_actionAddAudioClip = new QAction(tr("Insert audio clip..."), this);
     connect(m_actionAddAudioClip, &QAction::triggered, this, &TracksGraphicsView::onAddAudioClip);
 
-    m_backgroundMenu = new CMenu(this);
+    m_backgroundMenu = new Menu(this);
     m_backgroundMenu->addAction(m_actionNewSingingClip);
     m_backgroundMenu->addAction(m_actionAddAudioClip);
 

@@ -7,6 +7,7 @@
 #include <QAbstractItemView>
 
 #include "ComboBox.h"
+#include "Utils/SystemUtils.h"
 
 ComboBox::ComboBox(QWidget *parent) : CComboBox(parent) {
     initUi();
@@ -33,4 +34,10 @@ void ComboBox::initUi() {
     container->setAttribute(Qt::WA_TranslucentBackground, true);
     container->setAttribute(Qt::WA_WindowPropagation);
     container->setAttribute(Qt::WA_X11NetWmWindowTypeCombo);
+
+#ifdef Q_OS_WIN
+    if (SystemUtils::isWindows11()) {
+        setProperty("dwmBorder", true);
+    }
+#endif
 }

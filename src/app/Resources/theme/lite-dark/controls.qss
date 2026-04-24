@@ -120,6 +120,12 @@ QComboBox QAbstractItemView {
     padding: 4px 0px 4px 4px;
 }
 
+/* Windows 11 DWM native border mode (no custom border needed) */
+QComboBox[dwmBorder="true"] QAbstractItemView {
+    border: none;
+    padding: 4px 0px 4px 4px;
+}
+
 QComboBox QAbstractItemView:item {
     padding: 4px;
     margin-right: 4px;
@@ -378,8 +384,12 @@ QMenu {
     padding: 4px;
     background-color: #191C21;
     border: 1px solid #505050;
-    /* border-radius: 6px; */
     color: #e0e0e0;
+}
+
+/* Windows 11 DWM native border mode (no custom border needed) */
+QMenu[dwmBorder="true"] {
+    border: none;
 }
 
 QMenu::indicator {

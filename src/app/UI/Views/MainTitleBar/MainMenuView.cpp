@@ -24,7 +24,7 @@
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 
 #include <QFileDialog>
-#include <QMWidgets/cmenu.h>
+#include "UI/Controls/Menu.h"
 
 MainMenuView::MainMenuView(MainWindow *mainWindow)
     : QMenuBar(mainWindow), d_ptr(new MainMenuViewPrivate(mainWindow)) {
@@ -384,9 +384,9 @@ void MainMenuViewPrivate::initEditActions() {
     connect(actionExtractPitchParam, &QAction::triggered, this, [this] { onExtractPitchParam(); });
 }
 
-CMenu *MainMenuViewPrivate::buildFileMenu() {
+Menu *MainMenuViewPrivate::buildFileMenu() {
     Q_Q(MainMenuView);
-    auto menuFile = new CMenu(tr("&File"), q);
+    auto menuFile = new Menu(tr("&File"), q);
     menuFile->addAction(actionNew);
     menuFile->addAction(actionOpen);
     menuFile->addAction(actionSave);
@@ -394,11 +394,11 @@ CMenu *MainMenuViewPrivate::buildFileMenu() {
 
     menuFile->addSeparator();
 
-    auto menuImport = new CMenu(tr("Import"), q);
+    auto menuImport = new Menu(tr("Import"), q);
     menuImport->addAction(actionImportMidi);
     menuFile->addMenu(menuImport);
 
-    auto menuExport = new CMenu(tr("Export"), q);
+    auto menuExport = new Menu(tr("Export"), q);
     menuExport->addAction(actionExportAudio);
     menuExport->addAction(actionExportMidi);
     menuFile->addMenu(menuExport);
@@ -412,9 +412,9 @@ CMenu *MainMenuViewPrivate::buildFileMenu() {
     return menuFile;
 }
 
-CMenu *MainMenuViewPrivate::buildEditMenu() {
+Menu *MainMenuViewPrivate::buildEditMenu() {
     Q_Q(MainMenuView);
-    auto menuEdit = new CMenu(tr("&Edit"), q);
+    auto menuEdit = new Menu(tr("&Edit"), q);
     menuEdit->addAction(actionUndo);
     menuEdit->addAction(actionRedo);
 
@@ -445,7 +445,7 @@ CMenu *MainMenuViewPrivate::buildEditMenu() {
     return menuEdit;
 }
 
-CMenu *MainMenuViewPrivate::buildOptionsMenu() {
+Menu *MainMenuViewPrivate::buildOptionsMenu() {
     Q_Q(MainMenuView);
     auto actionGeneralOptions = new QAction(tr("&General..."), this);
     connect(actionGeneralOptions, &QAction::triggered, this, [] {
@@ -478,7 +478,7 @@ CMenu *MainMenuViewPrivate::buildOptionsMenu() {
         dialog.exec();
     });
 
-    auto menuOptions = new CMenu(tr("&Options"), q);
+    auto menuOptions = new Menu(tr("&Options"), q);
     menuOptions->addAction(actionGeneralOptions);
     menuOptions->addAction(actionAudioSettings);
     menuOptions->addAction(actionMidiSettings);
@@ -488,7 +488,7 @@ CMenu *MainMenuViewPrivate::buildOptionsMenu() {
     return menuOptions;
 }
 
-CMenu *MainMenuViewPrivate::buildHelpMenu() {
+Menu *MainMenuViewPrivate::buildHelpMenu() {
     Q_Q(MainMenuView);
     auto actionCheckForUpdates = new QAction(tr("Check for updates"), this);
     connect(actionCheckForUpdates, &QAction::triggered, this,
@@ -496,7 +496,7 @@ CMenu *MainMenuViewPrivate::buildHelpMenu() {
     auto actionAbout = new QAction(tr("About..."), this);
     connect(actionAbout, &QAction::triggered, this, [] { Toast::show(tr("About")); });
 
-    auto menuHelp = new CMenu(tr("&Help"), q);
+    auto menuHelp = new Menu(tr("&Help"), q);
     menuHelp->addAction(actionCheckForUpdates);
     menuHelp->addAction(actionAbout);
     return menuHelp;

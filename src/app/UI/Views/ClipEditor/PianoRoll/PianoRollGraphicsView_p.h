@@ -17,7 +17,7 @@ class PitchEditorView;
 class QMouseEvent;
 class QHoverEvent;
 class QPaintEvent;
-class CMenu;
+class Menu;
 class NoteView;
 class Note;
 class PianoRollGraphicsView;
@@ -72,7 +72,7 @@ public:
     MouseMoveBehavior m_mouseMoveBehavior = None;
     NoteView *m_currentDrawingNote = nullptr; // a fake note for drawing
 
-    CMenu *buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos);
+    Menu *buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos);
     void splitNoteAtMousePosition(NoteView *noteView, const QPoint &mousePos);
 
     void moveToNullClipState();

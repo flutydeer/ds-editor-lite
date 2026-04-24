@@ -10,7 +10,7 @@
 #include "UI/Controls/LineEdit.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 
-#include <QMWidgets/cmenu.h>
+#include "UI/Controls/Menu.h"
 
 PhonemeNameListWidget::PhonemeNameListWidget(QWidget *parent) : QListWidget(parent) {
     setSelectionMode(QAbstractItemView::NoSelection);
@@ -20,7 +20,7 @@ PhonemeNameListWidget::PhonemeNameListWidget(QWidget *parent) : QListWidget(pare
     connect(this, &QListWidget::customContextMenuRequested, this,
             &PhonemeNameListWidget::onCustomContextMenuRequested);
 
-    m_contextMenu = new CMenu(this);
+    m_contextMenu = new Menu(this);
 
     auto insertAboveAction = m_contextMenu->addAction("Insert Above");
     auto insertBelowAction = m_contextMenu->addAction("Insert Below");

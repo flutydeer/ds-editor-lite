@@ -7,12 +7,14 @@
 
 #include <QString>
 #include <QSysInfo>
+#include <QVersionNumber>
 
 class SystemUtils {
 public:
     enum class SystemProductType { Windows, MacOS, Linux };
     static SystemProductType productType();
     static bool isWindows();
+    static bool isWindows11();
 };
 
 inline SystemUtils::SystemProductType SystemUtils::productType() {
@@ -25,6 +27,15 @@ inline SystemUtils::SystemProductType SystemUtils::productType() {
 
 inline bool SystemUtils::isWindows() {
     return productType() == SystemProductType::Windows;
+}
+
+inline bool SystemUtils::isWindows11() {
+#ifdef Q_OS_WIN
+    auto version = QVersionNumber::fromString(QSysInfo::productVersion());
+    return version >= QVersionNumber(11);
+#else
+    return false;
+#endif
 }
 
 #endif // SYSTEMUTILS_H

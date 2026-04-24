@@ -5,7 +5,7 @@
 #include <QStyleOptionToolButton>
 
 TwoLevelComboBox::TwoLevelComboBox(QWidget *parent) : QToolButton(parent) {
-    m_mainMenu = new CMenu(this);
+    m_mainMenu = new Menu(this);
     setMenu(m_mainMenu);
     setPopupMode(InstantPopup);
     setMinimumHeight(24);
@@ -49,7 +49,7 @@ QSize TwoLevelComboBox::minimumSizeHint() const {
 }
 
 void TwoLevelComboBox::addGroup(const QString &groupName) const {
-    const auto groupMenu = new CMenu(groupName, m_mainMenu);
+    const auto groupMenu = new Menu(groupName, m_mainMenu);
     m_mainMenu->addMenu(groupMenu);
 }
 
@@ -60,7 +60,7 @@ void TwoLevelComboBox::addItem(const QString &itemText, const SingerInfo &singer
 
 void TwoLevelComboBox::addItemToGroup(const QString &groupName, const QString &itemText,
                                       const SingerInfo &singer, const SpeakerInfo &spk) {
-    CMenu *targetMenu = createGroupMenu(groupName);
+    Menu *targetMenu = createGroupMenu(groupName);
     if (!targetMenu)
         return;
 
@@ -166,14 +166,14 @@ void TwoLevelComboBox::updateDisplayText() {
     update();
 }
 
-CMenu *TwoLevelComboBox::createGroupMenu(const QString &groupName) const {
+Menu *TwoLevelComboBox::createGroupMenu(const QString &groupName) const {
     QList<QAction *> actions = m_mainMenu->actions();
     for (const QAction *action : actions) {
         if (action->menu() && action->text() == groupName) {
-            return reinterpret_cast<CMenu *>(action->menu());
+            return reinterpret_cast<Menu *>(action->menu());
         }
     }
-    const auto groupMenu = new CMenu(groupName, m_mainMenu);
+    const auto groupMenu = new Menu(groupName, m_mainMenu);
     m_mainMenu->addMenu(groupMenu);
     return groupMenu;
 }

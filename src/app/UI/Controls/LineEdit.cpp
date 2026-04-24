@@ -5,7 +5,7 @@
 #include "LineEdit.h"
 
 #include <QContextMenuEvent>
-#include <QMWidgets/cmenu.h>
+#include "UI/Controls/Menu.h"
 
 LineEdit::LineEdit(QWidget *parent) : QLineEdit(parent) {
     // installEventFilter(new ToolTipFilter(this));
@@ -23,7 +23,7 @@ void LineEdit::mousePressEvent(QMouseEvent *event) {
 void LineEdit::contextMenuEvent(QContextMenuEvent *event) {
     // QLineEdit::contextMenuEvent(event);
     if (const auto qMenu = createStandardContextMenu()) {
-        const auto menu = new CMenu(this);
+        const auto menu = new Menu(this);
         for (const auto action : qMenu->actions()) {
             action->setParent(menu);
             menu->addAction(action);

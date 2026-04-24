@@ -10,7 +10,7 @@
 #include <QObject>
 
 class QAction;
-class CMenu;
+class Menu;
 class MainWindow;
 
 class MainMenuViewPrivate : QObject {
@@ -80,10 +80,10 @@ public:
     // void initOptionsActions();
     // void initHelpActions();
 
-    CMenu *buildFileMenu();
-    CMenu *buildEditMenu();
-    CMenu *buildOptionsMenu();
-    CMenu *buildHelpMenu();
+    Menu *buildFileMenu();
+    Menu *buildEditMenu();
+    Menu *buildOptionsMenu();
+    Menu *buildHelpMenu();
 
 private:
     MainMenuView *q_ptr = nullptr;

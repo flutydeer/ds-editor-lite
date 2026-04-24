@@ -40,7 +40,7 @@
 #include <QPainterPath>
 #include <QMouseEvent>
 #include <QScrollBar>
-#include <QMWidgets/cmenu.h>
+#include "UI/Controls/Menu.h"
 
 namespace Helper = PianoRollGraphicsViewHelper;
 
@@ -772,10 +772,10 @@ void PianoRollGraphicsViewPrivate::onPronunciationEditingFinished(PronunciationV
     clipController->onNotePropertiesEdited(noteId, result);
 }
 
-CMenu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView,
+Menu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView,
                                                           const QPoint &mousePos) {
     Q_Q(PianoRollGraphicsView);
-    const auto menu = new CMenu(q);
+    const auto menu = new Menu(q);
 
     const auto actionEditLyric = menu->addAction(tr("Fill lyrics..."));
     connect(actionEditLyric, &QAction::triggered, clipController,

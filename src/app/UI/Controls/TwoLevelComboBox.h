@@ -4,7 +4,7 @@
 #include "Modules/PackageManager/Models/PackageInfo.h"
 #include "Modules/PackageManager/Models/SingerInfo.h"
 
-#include <QMWidgets/cmenu.h>
+#include "UI/Controls/Menu.h"
 #include <QToolButton>
 
 class QAction;
@@ -56,11 +56,11 @@ private slots:
 
 private:
     void updateDisplayText();
-    CMenu *createGroupMenu(const QString &groupName) const;
+    Menu *createGroupMenu(const QString &groupName) const;
     void addItemInternal(const QString &itemText, const SingerInfo &singer, const SpeakerInfo &spk,
                          QMenu *parentMenu);
 
-    CMenu *m_mainMenu = nullptr;
+    Menu *m_mainMenu = nullptr;
     QList<ComboBoxItemData> m_itemDataList;
     ComboBoxItemData m_currentItem;
     QString m_propertyName = "itemData";

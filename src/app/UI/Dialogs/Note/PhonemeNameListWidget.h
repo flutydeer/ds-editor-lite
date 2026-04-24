@@ -7,7 +7,7 @@
 
 #include <QListWidget>
 
-class CMenu;
+class Menu;
 class PhonemeNameItemModel;
 class PhonemeNameListModel;
 
@@ -32,7 +32,7 @@ private:
     [[nodiscard]] PhonemeNameItemModel createNewItem(int sourceRow) const;
     void insertItemAt(int targetRow, int sourceRow);
     PhonemeNameListModel *m_model = nullptr;
-    CMenu *m_contextMenu = nullptr;
+    Menu *m_contextMenu = nullptr;
     int m_contextMenuRow = -1;
 };
 
