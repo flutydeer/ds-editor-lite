@@ -3,7 +3,7 @@
 #include <tuple>
 
 #include <QCheckBox>
-#include <QComboBox>
+
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QTextCodec>
@@ -13,6 +13,7 @@
 
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/Button.h"
+#include "UI/Controls/ComboBox.h"
 
 // Convert note number to note name.
 static QString ToneNumToToneName(const int num) {
@@ -101,7 +102,7 @@ public:
             .arg(selectedCodec->toUnicode(trackInfo.title), keyRange);
     }
 
-    QComboBox *codecComboBox{};
+    ComboBox *codecComboBox{};
     QTreeWidgetItem *parentItem{};
 
     void detectCodec() {
@@ -162,7 +163,7 @@ MidiConverterDialog::MidiConverterDialog(
     auto contentLayout = new QVBoxLayout(body());
 
     const auto formLayout = new QFormLayout;
-    d->codecComboBox = new QComboBox;
+    d->codecComboBox = new ComboBox;
     formLayout->addRow("&Encoding", d->codecComboBox);
 
     const auto trackLayout = new QVBoxLayout;

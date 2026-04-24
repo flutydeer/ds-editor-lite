@@ -8,7 +8,6 @@
 
 #include <QBoxLayout>
 #include <QFormLayout>
-#include <QComboBox>
 #include <QGroupBox>
 #include <QMenu>
 #include <QTextEdit>
@@ -26,6 +25,7 @@
 #include <QTimer>
 
 #include "UI/Controls/SvsExpressionSpinBox.h"
+#include "UI/Controls/ComboBox.h"
 
 #include <Modules/Audio/AudioExporter_p.h>
 
@@ -42,7 +42,7 @@ namespace Audio::Internal {
 
         auto presetLayout = new QFormLayout;
         auto presetOptionLayout = new QHBoxLayout;
-        m_presetComboBox = new QComboBox;
+        m_presetComboBox = new ComboBox;
         for (const auto &[presetName, presetConfig] : AudioExporter::predefinedPresets()) {
             m_presetComboBox->addItem(presetName);
         }
@@ -136,7 +136,7 @@ namespace Audio::Internal {
         m_fileDirectoryEdit = new QLineEdit;
         m_fileDirectoryEdit->setPlaceholderText(tr("(Project directory)"));
         pathLayout->addRow(tr("Dire&ctory"), m_fileDirectoryEdit);
-        m_fileTypeComboBox = new QComboBox;
+        m_fileTypeComboBox = new ComboBox;
         m_fileTypeComboBox->addItems({tr("WAV"), tr("FLAC"), tr("Ogg Vorbis"), tr("MP3")});
         pathLayout->addRow(tr("&Type"), m_fileTypeComboBox);
         pathGroupBox->setLayout(pathLayout);
@@ -145,10 +145,10 @@ namespace Audio::Internal {
         auto formatGroupBox = new QGroupBox(tr("Format"));
         auto formatLayout = new QFormLayout;
 
-        m_formatMonoComboBox = new QComboBox;
+        m_formatMonoComboBox = new ComboBox;
         m_formatMonoComboBox->addItems({tr("Mono"), tr("Stereo")});
         formatLayout->addRow(tr("C&hannel"), m_formatMonoComboBox);
-        m_formatOptionComboBox = new QComboBox;
+        m_formatOptionComboBox = new ComboBox;
         formatLayout->addRow(tr("&Option"), m_formatOptionComboBox);
         auto vbrLayout = new QHBoxLayout;
         m_vbrSlider = new QSlider(Qt::Horizontal);
@@ -163,7 +163,7 @@ namespace Audio::Internal {
         auto vbrLabel = new QLabel(tr("&Quality"));
         vbrLabel->setBuddy(vbrSpinBox);
         formatLayout->addRow(vbrLabel, vbrLayout);
-        m_formatSampleRateComboBox = new QComboBox;
+        m_formatSampleRateComboBox = new ComboBox;
         m_formatSampleRateComboBox->setEditable(true);
         m_formatSampleRateComboBox->setValidator(
             new QDoubleValidator(0.01, std::numeric_limits<double>::max(), 2));
@@ -182,21 +182,21 @@ namespace Audio::Internal {
 
         auto mixingGroupBox = new QGroupBox(tr("Mixer"));
         auto mixingLayout = new QFormLayout;
-        m_mixingOptionComboBox = new QComboBox;
+        m_mixingOptionComboBox = new ComboBox;
         m_mixingOptionComboBox->addItems({
             tr("Mixed"),
             tr("Separated"),
             tr("Separated (through master track)"),
         });
-        connect(m_mixingOptionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+        connect(m_mixingOptionComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged),
                 fileNameTemplateTrackNameAction, &QAction::setEnabled);
-        connect(m_mixingOptionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+        connect(m_mixingOptionComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged),
                 fileNameTemplateTrackIndexAction, &QAction::setEnabled);
         mixingLayout->addRow(tr("&Mixing option"), m_mixingOptionComboBox);
         m_enableMuteSoloCheckBox = new QCheckBox(tr("Enable m&ute/solo"));
         m_enableMuteSoloCheckBox->setChecked(true);
         mixingLayout->addRow(m_enableMuteSoloCheckBox);
-        m_sourceComboBox = new QComboBox;
+        m_sourceComboBox = new ComboBox;
         m_sourceComboBox->addItems({
             tr("All tracks"),
             tr("Selected tracks"),
@@ -272,7 +272,7 @@ namespace Audio::Internal {
         connect(m_fileNameEdit, &QLineEdit::textChanged, this, &AudioExportDialog::updateConfig);
         connect(m_fileDirectoryEdit, &QLineEdit::textChanged, this,
                 &AudioExportDialog::updateConfig);
-        connect(m_fileTypeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        connect(m_fileTypeComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
                 [vbrSpinBox, this](int index) {
                     const QFileInfo fileInfo(m_fileNameEdit->text());
                     m_fileNameEdit->setText(fileInfo.completeBaseName() + "." +
@@ -298,14 +298,14 @@ namespace Audio::Internal {
                     }
                     updateConfig();
                 });
-        connect(m_formatMonoComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        connect(m_formatMonoComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
                 &AudioExportDialog::updateConfig);
-        connect(m_formatOptionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        connect(m_formatOptionComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
                 &AudioExportDialog::updateConfig);
         connect(m_vbrSlider, &QSlider::valueChanged, this, &AudioExportDialog::updateConfig);
-        connect(m_formatSampleRateComboBox, &QComboBox::currentTextChanged, this,
+        connect(m_formatSampleRateComboBox, &ComboBox::currentTextChanged, this,
                 &AudioExportDialog::updateConfig);
-        connect(m_sourceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        connect(m_sourceComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
                 [this](const int index) {
                     if (index == AudioExporterConfig::SO_All) {
                         m_sourceListWidget->setDisabled(false);
@@ -325,7 +325,7 @@ namespace Audio::Internal {
                 });
         connect(m_sourceListWidget, &QListWidget::itemSelectionChanged, this,
                 &AudioExportDialog::updateConfig);
-        connect(m_mixingOptionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        connect(m_mixingOptionComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
                 [this](const int index) {
                     if (index == AudioExporterConfig::MO_Mixed) {
                         const QFileInfo fileInfo(m_fileNameEdit->text());
@@ -366,7 +366,7 @@ namespace Audio::Internal {
         connect(dryRunButton, &QAbstractButton::clicked, this,
                 &AudioExportDialog::showDryRunResult);
 
-        connect(m_presetComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        connect(m_presetComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
                 [this](const int index) {
                     const auto data = m_presetComboBox->itemData(index);
                     const auto config = data.isNull()

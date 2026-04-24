@@ -8,18 +8,18 @@
 
 #include "ComboBox.h"
 
-ComboBox::ComboBox(QWidget *parent) : QComboBox(parent) {
+ComboBox::ComboBox(QWidget *parent) : CComboBox(parent) {
     initUi();
 }
 
 ComboBox::ComboBox(const bool scrollWheelChangeSelection, QWidget *parent)
-    : QComboBox(parent), m_scrollWheelChangeSelection(scrollWheelChangeSelection) {
+    : CComboBox(parent), m_scrollWheelChangeSelection(scrollWheelChangeSelection) {
     initUi();
 }
 
 void ComboBox::wheelEvent(QWheelEvent *event) {
     if (m_scrollWheelChangeSelection)
-        QComboBox::wheelEvent(event);
+        CComboBox::wheelEvent(event);
     else
         event->ignore();
 }

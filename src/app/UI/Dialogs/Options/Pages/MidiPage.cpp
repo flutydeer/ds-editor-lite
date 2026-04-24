@@ -4,7 +4,6 @@
 
 #include <QDebug>
 #include <QBoxLayout>
-#include <QComboBox>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
@@ -21,6 +20,7 @@
 #include "UI/Controls/SvsExpressionDoubleSpinBox.h"
 #include "UI/Controls/OptionListCard.h"
 #include "UI/Controls/SwitchButton.h"
+#include "UI/Controls/ComboBox.h"
 
 #include <Modules/Audio/AudioSystem.h>
 
@@ -37,12 +37,12 @@ public:
         const auto mainLayout = new QVBoxLayout;
         mainLayout->setContentsMargins({});
 
-        const auto deviceComboBox = new QComboBox;
+        const auto deviceComboBox = new ComboBox;
         const auto inputCard = new OptionListCard(tr("MIDI Input"));
         inputCard->addItem(tr("&Device"), deviceComboBox);
         mainLayout->addWidget(inputCard);
 
-        const auto generatorComboBox = new QComboBox;
+        const auto generatorComboBox = new ComboBox;
         generatorComboBox->addItems(
             {tr("Sine wave"), tr("Square wave"), tr("Triangle Wave"), tr("Sawtooth wave")});
 
@@ -125,7 +125,7 @@ public:
             if (ms->device() && i == ms->device()->deviceIndex())
                 deviceComboBox->setCurrentIndex(i);
         }
-        connect(deviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        connect(deviceComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
                 [ms, deviceComboBox, this](const int index) {
                     const auto i = deviceComboBox->itemData(index).toInt();
                     if (i == -1)

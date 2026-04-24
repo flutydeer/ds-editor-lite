@@ -2,7 +2,6 @@
 
 #include <QApplication>
 #include <QBoxLayout>
-#include <QComboBox>
 #include <QPushButton>
 #include <QFormLayout>
 #include <QCheckBox>
@@ -21,6 +20,7 @@
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/SvsExpressionSpinBox.h"
 #include "UI/Controls/SvsExpressionDoubleSpinBox.h"
+#include "UI/Controls/ComboBox.h"
 
 #include <Model/AppOptions/AppOptions.h>
 #include <Modules/Audio/AudioSystem.h>
@@ -57,13 +57,13 @@ public:
         const auto mainLayout = new QVBoxLayout;
         mainLayout->setContentsMargins({});
 
-        m_driverComboBox = new QComboBox;
-        m_deviceComboBox = new QComboBox;
+        m_driverComboBox = new ComboBox;
+        m_deviceComboBox = new ComboBox;
         auto testDeviceButton = new QPushButton(tr("&Test"));
         auto deviceControlPanelButton = new QPushButton(tr("Control &Panel"));
-        m_bufferSizeComboBox = new QComboBox;
-        m_sampleRateComboBox = new QComboBox;
-        m_hotPlugModeComboBox = new QComboBox;
+        m_bufferSizeComboBox = new ComboBox;
+        m_sampleRateComboBox = new ComboBox;
+        m_hotPlugModeComboBox = new ComboBox;
         m_hotPlugModeComboBox->addItems({tr("Notify when any device added or removed"),
                                          tr("Notify when current device removed"),
                                          tr("Do not notify")});
@@ -98,7 +98,7 @@ public:
         audioOutputCard->addItem(tr("Device &Pan"), {m_devicePanSlider, m_devicePanSpinBox});
         mainLayout->addWidget(audioOutputCard);
 
-        m_playHeadBehaviorComboBox = new QComboBox;
+        m_playHeadBehaviorComboBox = new ComboBox;
         m_playHeadBehaviorComboBox->addItems(
             {tr("Return to the start position after stopped"),
              tr("Keep at current position after stopped, and play from current position next time"),
@@ -189,16 +189,16 @@ public:
         appOptions->saveAndNotify(AppOptionsGlobal::Audio);
     }
 
-    QComboBox *m_driverComboBox = nullptr;
-    QComboBox *m_deviceComboBox = nullptr;
-    QComboBox *m_bufferSizeComboBox = nullptr;
-    QComboBox *m_sampleRateComboBox = nullptr;
-    QComboBox *m_hotPlugModeComboBox = nullptr;
+    ComboBox *m_driverComboBox = nullptr;
+    ComboBox *m_deviceComboBox = nullptr;
+    ComboBox *m_bufferSizeComboBox = nullptr;
+    ComboBox *m_sampleRateComboBox = nullptr;
+    ComboBox *m_hotPlugModeComboBox = nullptr;
     SVS::SeekBar *m_deviceGainSlider = nullptr;
     SVS::ExpressionDoubleSpinBox *m_deviceGainSpinBox = nullptr;
     SVS::SeekBar *m_devicePanSlider = nullptr;
     SVS::ExpressionSpinBox *m_devicePanSpinBox = nullptr;
-    QComboBox *m_playHeadBehaviorComboBox = nullptr;
+    ComboBox *m_playHeadBehaviorComboBox = nullptr;
     SVS::ExpressionSpinBox *m_fileBufferingReadAheadSizeSpinBox = nullptr;
 
     void updateDriverComboBox();
@@ -241,7 +241,7 @@ void OutputPlaybackPageWidget::updateDriverComboBox() {
     }
 
     connect(
-        m_driverComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        m_driverComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
         [outputSys, this](const int index) {
             const auto newDrvName = m_driverComboBox->itemData(index).toString();
             if (newDrvName.isEmpty())
@@ -307,7 +307,7 @@ void OutputPlaybackPageWidget::updateDeviceComboBox() {
         updateBufferSizeAndSampleRateComboBox();
     }
 
-    connect(m_deviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+    connect(m_deviceComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
             [outputSys, this](const int index) {
                 if (m_deviceComboBox->itemData(index).isNull())
                     return;
@@ -350,7 +350,7 @@ void OutputPlaybackPageWidget::updateBufferSizeAndSampleRateComboBox() {
         if (bufferSizeList[i] == outputSys->outputContext()->adoptedBufferSize())
             m_bufferSizeComboBox->setCurrentIndex(i);
     }
-    connect(m_bufferSizeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+    connect(m_bufferSizeComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
             [outputSys, this](const int index) {
                 const auto newBufferSize = m_bufferSizeComboBox->itemData(index).value<qint64>();
                 outputSys->setAdoptedBufferSize(newBufferSize);
@@ -361,7 +361,7 @@ void OutputPlaybackPageWidget::updateBufferSizeAndSampleRateComboBox() {
         if (sampleRateList[i] == outputSys->outputContext()->adoptedSampleRate())
             m_sampleRateComboBox->setCurrentIndex(i);
     }
-    connect(m_sampleRateComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+    connect(m_sampleRateComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
             [outputSys, this](const int index) {
                 const auto newSampleRate = m_sampleRateComboBox->itemData(index).value<double>();
                 outputSys->setAdoptedSampleRate(newSampleRate);

@@ -2,7 +2,6 @@
 // Created by fluty on 2023/8/27.
 //
 
-#include "../libs/qtmediate/src/widgets/widgets/cmenu.h"
 #include "Controller/AppController.h"
 #include "Controller/ClipController.h"
 #include "Controller/ProjectStatusController.h"
@@ -22,6 +21,9 @@
 #include "Utils/FontManager.h"
 #include "Utils/Log.h"
 #include "Utils/SystemUtils.h"
+
+#include <QMWidgets/ccombobox.h>
+#include <QMWidgets/cmenu.h>
 
 #include <QApplication>
 #include <QDir>
@@ -98,6 +100,7 @@ int main(int argc, char *argv[]) {
     QApplication::setApplicationName("DS Editor Lite");
     QApplication::setApplicationDisplayName("Lite");
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
+    // QApplication::setEffectEnabled(Qt::UI_AnimateMenu, false);
     if (QSysInfo::productType() != "windows")
         QApplication::setStyle(QStyleFactory::create("windows"));
     else
@@ -109,6 +112,7 @@ int main(int argc, char *argv[]) {
 #endif
 
     CMenu::setDefaultCornerPreference(CMenu::Round);
+    CComboBox::setDefaultCornerPreference(CComboBox::Round);
 
     // 设置日志等级和过滤器
     QDir appDataDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());

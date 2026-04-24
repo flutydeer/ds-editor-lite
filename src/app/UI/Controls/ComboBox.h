@@ -5,9 +5,9 @@
 #ifndef COMBOBOX_H
 #define COMBOBOX_H
 
-#include <QComboBox>
+#include <QMWidgets/ccombobox.h>
 
-class ComboBox : public QComboBox {
+class ComboBox : public CComboBox {
     Q_OBJECT
 public:
     explicit ComboBox(QWidget *parent = nullptr);
