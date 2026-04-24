@@ -238,7 +238,7 @@ MidiConverterDialog::MidiConverterDialog(
         }
     };
 
-    connect(d->codecComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+    connect(d->codecComboBox, QOverload<int>::of(&ComboBox::currentIndexChanged), this,
             [=](const int index) {
                 d->selectedCodec =
                     QTextCodec::codecForName(d->codecComboBox->itemData(index).toByteArray());
