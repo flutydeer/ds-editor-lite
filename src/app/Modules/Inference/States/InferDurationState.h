@@ -5,13 +5,10 @@
 #ifndef DS_EDITOR_LITE_INFERDURATIONSTATE_H
 #define DS_EDITOR_LITE_INFERDURATIONSTATE_H
 
-#include <QState>
+#include "BaseInferState.h"
+#include "Modules/Inference/Tasks/InferDurationTask.h"
 
-class InferPipeline;
-class QFinalState;
-class InferDurationTask;
-
-class InferDurationState : public QState {
+class InferDurationState : public BaseInferState {
     Q_OBJECT
 
 public:
@@ -19,27 +16,16 @@ public:
     ~InferDurationState() override = default;
 
 private:
-    void onEntry(QEvent *event) override;
-    void onExit(QEvent *event) override;
+    void prepareTaskInput() override;
+    IInferTask *createTask() override;
+    void addTaskToController(IInferTask *task) override;
+    void cancelTaskInController(int taskId) override;
+    void finishTaskInController() override;
+    void setTaskResultToPipeline(IInferTask *task) override;
+    QString getStateNamePrefix() const override;
+    bool validateTaskResult(IInferTask *task, SingingClip *clip) override;
 
-    Q_SIGNAL void successWithModelLocked();
-    Q_SIGNAL void failed();
-    Q_SIGNAL void ready();
-
-    void onRunningInferenceStateEntered();
-    void onRunningInferenceStateExited();
-    void onAwaitingModelReleaseStateEntered();
-    void onErrorStateEntered();
-    void handleTaskFinished(InferDurationTask &task);
-
-    InferPipeline &m_pipeline;
-    InferDurationTask *currentTask = nullptr;
-
-    // Child states
-    QState *m_runningInferenceState;
-    QState *m_awaitingModelReleaseState;
-    QState *m_errorState;
-    QFinalState *m_finalState;
+    InferDurationTask::InferDurInput m_taskInput;
 };
 
 #endif // DS_EDITOR_LITE_INFERDURATIONSTATE_H

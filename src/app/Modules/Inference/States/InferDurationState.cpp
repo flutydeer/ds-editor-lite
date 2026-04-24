@@ -4,142 +4,64 @@
 
 #include "InferDurationState.h"
 
-#include "Modules/Inference/Tasks/InferDurationTask.h"
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/InferPipeline.h"
-#include "Model/AppModel/AppModel.h"
 #include "Modules/Inference/InferController.h"
+#include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/SingingClip.h"
 
-#include <QTimer>
 #include <QDebug>
-#include <QFinalState>
-#include <memory>
 
 namespace Helper = InferControllerHelper;
 
 InferDurationState::InferDurationState(InferPipeline &pipeline, QState *parent)
-    : QState(parent), m_pipeline(pipeline) {
-    m_runningInferenceState = new QState(this);
-    m_awaitingModelReleaseState = new QState(this);
-    m_errorState = new QState(this);
-    m_finalState = new QFinalState(this);
-
-    setInitialState(m_runningInferenceState);
-
-    connect(m_runningInferenceState, &QState::entered, this,
-            &InferDurationState::onRunningInferenceStateEntered);
-    connect(m_runningInferenceState, &QState::exited, this,
-            &InferDurationState::onRunningInferenceStateExited);
-
-    connect(m_awaitingModelReleaseState, &QState::entered, this,
-            &InferDurationState::onAwaitingModelReleaseStateEntered);
-
-    connect(m_errorState, &QState::entered, this, &InferDurationState::onErrorStateEntered);
-
-    m_runningInferenceState->addTransition(this, &InferDurationState::successWithModelLocked,
-                                           m_awaitingModelReleaseState);
-    m_runningInferenceState->addTransition(this, &InferDurationState::failed, m_errorState);
-    m_runningInferenceState->addTransition(this, &InferDurationState::ready, m_finalState);
-
-    m_awaitingModelReleaseState->addTransition(this, &InferDurationState::ready, m_finalState);
+    : BaseInferState(pipeline, parent) {
 }
 
-void InferDurationState::onEntry(QEvent *event) {
-    qDebug() << "InferDurationState::onEntry";
-    QState::onEntry(event);
-}
-
-void InferDurationState::onExit(QEvent *event) {
-    qDebug() << "InferDurationState::onExit";
-    QState::onExit(event);
-}
-
-void InferDurationState::onRunningInferenceStateEntered() {
-    qDebug() << "InferDurationState::onRunningInferenceStateEntered";
-    // Reset task
-    if (currentTask) {
-        currentTask->disconnect(this);  // Disconnect from state machine
-        inferController->cancelInferDurationTask(currentTask->id());
-        currentTask = nullptr;
-    }
-
+void InferDurationState::prepareTaskInput() {
     auto &piece = m_pipeline.piece();
-    piece.acousticInferStatus = Running;
-    piece.state = QString("Duration.Running");
-    const auto input = Helper::buildInferDurInput(piece, piece.clip->singerIdentifier());
+    m_taskInput = Helper::buildInferDurInput(piece, piece.clip->singerIdentifier());
     Helper::resetPhoneOffset(piece.notes, piece);
-    auto task = new InferDurationTask(input);
-    connect(task, &Task::finished, this, [this, task] { handleTaskFinished(*task); });
-    inferController->addInferDurationTask(*task);
-    currentTask = task;
 }
 
-void InferDurationState::onRunningInferenceStateExited() {
-    qDebug() << "InferDurationState::onRunningInferenceStateExited";
-    if (!currentTask)
-        return;
-
-    currentTask->disconnect(this);  // Disconnect from state machine
-    inferController->cancelInferDurationTask(currentTask->id());
-    currentTask = nullptr;
+IInferTask *InferDurationState::createTask() {
+    return new InferDurationTask(m_taskInput);
 }
 
-void InferDurationState::onAwaitingModelReleaseStateEntered() {
-    qDebug() << "InferDurationState::onAwaitingModelReleaseStateEntered";
-    // QTimer::singleShot(1000, this, &InferDurationState::ready);
+void InferDurationState::addTaskToController(IInferTask *task) {
+    inferController->addInferDurationTask(*static_cast<InferDurationTask *>(task));
 }
 
-void InferDurationState::onErrorStateEntered() {
-    qDebug() << "InferDurationState::onErrorStateEntered";
-    m_pipeline.piece().acousticInferStatus = Failed;
-    m_pipeline.piece().state = QString("Duration.Error");
+void InferDurationState::cancelTaskInController(int taskId) {
+    inferController->cancelInferDurationTask(taskId);
 }
 
-void InferDurationState::handleTaskFinished(InferDurationTask &task) {
-    // Only handle tasks that are still connected to this state machine
-    if (!currentTask || currentTask != &task) {
-        qDebug() << "Ignoring finished task that is no longer current";
-        return;
-    }
-
+void InferDurationState::finishTaskInController() {
     inferController->finishCurrentInferDurationTask();
+}
 
-    const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
-        qDebug() << "Task terminated or clip not found, cleaning up";
-        delete currentTask;
-        currentTask = nullptr;
-        return;
-    }
+void InferDurationState::setTaskResultToPipeline(IInferTask *task) {
+    auto durationTask = static_cast<InferDurationTask *>(task);
+    m_pipeline.setDurationResult(durationTask->result());
+}
 
-    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
-    const auto piece = singingClip->findPieceById(task.pieceId());
-    if (!piece) {
-        qDebug() << "Piece not found, cleaning up";
-        delete currentTask;
-        currentTask = nullptr;
-        return;
-    }
+QString InferDurationState::getStateNamePrefix() const {
+    return "Duration";
+}
 
-    if (task.success()) {
-        const auto modelNoteCount = piece->notes.count();
-        const auto taskNoteCount = task.result().count();
-        if (modelNoteCount != taskNoteCount) {
-            qFatal() << "Model note count does not equal task note count"
-                     << "Model note count:" << modelNoteCount
-                     << "Task note count:" << taskNoteCount;
-            delete currentTask;
-            currentTask = nullptr;
-            QTimer::singleShot(0, this, [this] { emit failed(); });
-        } else {
-            m_pipeline.setDurationResult(task.result());
-            delete currentTask;
-            currentTask = nullptr;
-            QTimer::singleShot(0, this, [this] { emit ready(); });
-        }
-    } else {
-        delete currentTask;
-        currentTask = nullptr;
-        QTimer::singleShot(0, this, [this] { emit failed(); });
+bool InferDurationState::validateTaskResult(IInferTask *task, SingingClip *clip) {
+    auto durationTask = static_cast<InferDurationTask *>(task);
+    const auto piece = clip->findPieceById(durationTask->pieceId());
+    if (!piece)
+        return false;
+
+    const auto modelNoteCount = piece->notes.count();
+    const auto taskNoteCount = durationTask->result().count();
+    if (modelNoteCount != taskNoteCount) {
+        qFatal() << "Model note count does not equal task note count"
+                 << "Model note count:" << modelNoteCount
+                 << "Task note count:" << taskNoteCount;
+        return false;
     }
+    return true;
 }

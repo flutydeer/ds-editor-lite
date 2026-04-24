@@ -9,125 +9,45 @@
 #include "Modules/Inference/InferController.h"
 #include "Model/AppModel/AppModel.h"
 
-#include <QTimer>
 #include <QDebug>
-#include <QFinalState>
 
 namespace Helper = InferControllerHelper;
 
 InferAcousticState::InferAcousticState(InferPipeline &pipeline, QState *parent)
-    : QState(parent), m_pipeline(pipeline) {
-    m_runningInferenceState = new QState(this);
-    m_awaitingModelReleaseState = new QState(this);
-    m_errorState = new QState(this);
-    m_finalState = new QFinalState(this);
-
-    setInitialState(m_runningInferenceState);
-
-    connect(m_runningInferenceState, &QState::entered, this,
-            &InferAcousticState::onRunningInferenceStateEntered);
-    connect(m_runningInferenceState, &QState::exited, this,
-            &InferAcousticState::onRunningInferenceStateExited);
-
-    connect(m_awaitingModelReleaseState, &QState::entered, this,
-            &InferAcousticState::onAwaitingModelReleaseStateEntered);
-
-    connect(m_errorState, &QState::entered, this, &InferAcousticState::onErrorStateEntered);
-
-    m_runningInferenceState->addTransition(this, &InferAcousticState::taskSuccessWithModelLocked,
-                                           m_awaitingModelReleaseState);
-    m_runningInferenceState->addTransition(this, &InferAcousticState::failed, m_errorState);
-    m_runningInferenceState->addTransition(this, &InferAcousticState::ready, m_finalState);
-
-    m_awaitingModelReleaseState->addTransition(this, &InferAcousticState::ready, m_finalState);
+    : BaseInferState(pipeline, parent) {
 }
 
-void InferAcousticState::onEntry(QEvent *event) {
-    qDebug() << "InferAcousticState::onEntry";
-    QState::onEntry(event);
-}
-
-void InferAcousticState::onExit(QEvent *event) {
-    qDebug() << "InferAcousticState::onExit";
-    QState::onExit(event);
-}
-
-void InferAcousticState::onRunningInferenceStateExited() {
-    qDebug() << "InferAcousticState::onRunningInferenceStateExited";
-    if (!currentTask)
-        return;
-
-    currentTask->disconnect(this);  // Disconnect from state machine
-    inferController->cancelInferAcousticTask(currentTask->id());
-    currentTask = nullptr;
-}
-
-void InferAcousticState::onRunningInferenceStateEntered() {
-    qDebug() << "InferAcousticState::onRunningInferenceStateEntered";
-    // Reset task
-    if (currentTask) {
-        currentTask->disconnect(this);  // Disconnect from state machine
-        inferController->cancelInferAcousticTask(currentTask->id());
-        currentTask = nullptr;
-    }
-
+void InferAcousticState::prepareTaskInput() {
     auto &piece = m_pipeline.piece();
-    piece.acousticInferStatus = Running;
-    piece.state = QString("Acoustic.Running");
-    const auto input = Helper::buildInferAcousticInput(piece, piece.clip->singerIdentifier());
+    m_taskInput = Helper::buildInferAcousticInput(piece, piece.clip->singerIdentifier());
     Helper::resetAcoustic(piece);
-    auto task = new InferAcousticTask(input);
-    connect(task, &Task::finished, this, [this, task] { handleTaskFinished(*task); });
-    inferController->addInferAcousticTask(*task);
-    currentTask = task;
 }
 
-void InferAcousticState::onAwaitingModelReleaseStateEntered() {
-    qDebug() << "InferAcousticState::onAwaitingModelReleaseStateEntered";
+IInferTask *InferAcousticState::createTask() {
+    return new InferAcousticTask(m_taskInput);
 }
 
-void InferAcousticState::onErrorStateEntered() {
-    qDebug() << "InferAcousticState::onErrorStateEntered";
-
-    auto &piece = m_pipeline.piece();
-    piece.acousticInferStatus = Failed;
-    piece.state = QString("Acoustic.Error");
+void InferAcousticState::addTaskToController(IInferTask *task) {
+    inferController->addInferAcousticTask(*static_cast<InferAcousticTask *>(task));
 }
 
-void InferAcousticState::handleTaskFinished(InferAcousticTask &task) {
-    // Only handle tasks that are still connected to this state machine
-    if (!currentTask || currentTask != &task) {
-        qDebug() << "Ignoring finished task that is no longer current";
-        return;
-    }
+void InferAcousticState::cancelTaskInController(int taskId) {
+    inferController->cancelInferAcousticTask(taskId);
+}
 
+void InferAcousticState::finishTaskInController() {
     inferController->finishCurrentInferAcousticTask();
+}
 
-    const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
-        qDebug() << "Task terminated or clip not found, cleaning up";
-        delete currentTask;
-        currentTask = nullptr;
-        return;
-    }
+void InferAcousticState::setTaskResultToPipeline(IInferTask *task) {
+    auto acousticTask = static_cast<InferAcousticTask *>(task);
+    m_pipeline.setAcousticResult(acousticTask->result());
+}
 
-    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
-    const auto piece = singingClip->findPieceById(task.pieceId());
-    if (!piece) {
-        qDebug() << "Piece not found, cleaning up";
-        delete currentTask;
-        currentTask = nullptr;
-        return;
-    }
+QString InferAcousticState::getStateNamePrefix() const {
+    return "Acoustic";
+}
 
-    if (task.success()) {
-        m_pipeline.setAcousticResult(task.result());
-        delete currentTask;
-        currentTask = nullptr;
-        QTimer::singleShot(0, this, [this] { emit ready(); });
-    } else {
-        delete currentTask;
-        currentTask = nullptr;
-        QTimer::singleShot(0, this, [this] { emit failed(); });
-    }
+bool InferAcousticState::validateTaskResult(IInferTask *task, SingingClip *clip) {
+    return true;
 }

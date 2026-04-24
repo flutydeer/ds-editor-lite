@@ -9,123 +9,45 @@
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Model/AppModel/AppModel.h"
 
-#include <QTimer>
 #include <QDebug>
-#include <QFinalState>
 
 namespace Helper = InferControllerHelper;
 
 InferPitchState::InferPitchState(InferPipeline &pipeline, QState *parent)
-    : QState(parent), m_pipeline(pipeline) {
-    m_runningInferenceState = new QState(this);
-    m_awaitingModelReleaseState = new QState(this);
-    m_errorState = new QState(this);
-    m_finalState = new QFinalState(this);
-
-    setInitialState(m_runningInferenceState);
-
-    connect(m_runningInferenceState, &QState::entered, this,
-            &InferPitchState::onRunningInferenceStateEntered);
-    connect(m_runningInferenceState, &QState::exited, this,
-            &InferPitchState::onRunningInferenceStateExited);
-
-    connect(m_awaitingModelReleaseState, &QState::entered, this,
-            &InferPitchState::onAwaitingModelReleaseStateEntered);
-
-    connect(m_errorState, &QState::entered, this, &InferPitchState::onErrorStateEntered);
-
-    m_runningInferenceState->addTransition(this, &InferPitchState::taskSuccessWithModelLocked,
-                                           m_awaitingModelReleaseState);
-    m_runningInferenceState->addTransition(this, &InferPitchState::failed, m_errorState);
-    m_runningInferenceState->addTransition(this, &InferPitchState::ready, m_finalState);
-    m_awaitingModelReleaseState->addTransition(this, &InferPitchState::ready, m_finalState);
+    : BaseInferState(pipeline, parent) {
 }
 
-void InferPitchState::onEntry(QEvent *event) {
-    qDebug() << "InferPitchState::onEntry";
-    QState::onEntry(event);
-}
-
-void InferPitchState::onExit(QEvent *event) {
-    qDebug() << "InferPitchState::onExit";
-    QState::onExit(event);
-}
-
-void InferPitchState::onRunningInferenceStateExited() {
-    qDebug() << "InferPitchState::onRunningInferenceStateExited";
-    if (!currentTask)
-        return;
-
-    currentTask->disconnect(this);  // Disconnect from state machine
-    inferController->cancelInferPitchTask(currentTask->id());
-    currentTask = nullptr;
-}
-
-void InferPitchState::onRunningInferenceStateEntered() {
-    qDebug() << "InferPitchState::onRunningInferenceStateEntered";
-    // Reset task
-    if (currentTask) {
-        currentTask->disconnect(this);  // Disconnect from state machine
-        inferController->cancelInferPitchTask(currentTask->id());
-        currentTask = nullptr;
-    }
-
+void InferPitchState::prepareTaskInput() {
     auto &piece = m_pipeline.piece();
-    piece.acousticInferStatus = Running;
-    piece.state = QString("Pitch.Running");
-    const auto input = Helper::buildInferPitchInput(piece, piece.clip->singerIdentifier());
+    m_taskInput = Helper::buildInferPitchInput(piece, piece.clip->singerIdentifier());
     Helper::resetPitch(piece);
-    auto task = new InferPitchTask(input);
-    connect(task, &Task::finished, this, [this, task] { handleTaskFinished(*task); });
-    inferController->addInferPitchTask(*task);
-    currentTask = task;
 }
 
-void InferPitchState::onAwaitingModelReleaseStateEntered() {
-    qDebug() << "InferPitchState::onAwaitingModelReleaseStateEntered";
+IInferTask *InferPitchState::createTask() {
+    return new InferPitchTask(m_taskInput);
 }
 
-void InferPitchState::onErrorStateEntered() {
-    qDebug() << "InferPitchState::onErrorStateEntered";
-
-    m_pipeline.piece().acousticInferStatus = Failed;
-    m_pipeline.piece().state = QString("Pitch.Error");
+void InferPitchState::addTaskToController(IInferTask *task) {
+    inferController->addInferPitchTask(*static_cast<InferPitchTask *>(task));
 }
 
-void InferPitchState::handleTaskFinished(InferPitchTask &task) {
-    // Only handle tasks that are still connected to this state machine
-    if (!currentTask || currentTask != &task) {
-        qDebug() << "Ignoring finished task that is no longer current";
-        return;
-    }
+void InferPitchState::cancelTaskInController(int taskId) {
+    inferController->cancelInferPitchTask(taskId);
+}
 
+void InferPitchState::finishTaskInController() {
     inferController->finishCurrentInferPitchTask();
+}
 
-    const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
-        qDebug() << "Task terminated or clip not found, cleaning up";
-        delete currentTask;
-        currentTask = nullptr;
-        return;
-    }
+void InferPitchState::setTaskResultToPipeline(IInferTask *task) {
+    auto pitchTask = static_cast<InferPitchTask *>(task);
+    m_pipeline.setPitchResult(pitchTask->result());
+}
 
-    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
-    const auto piece = singingClip->findPieceById(task.pieceId());
-    if (!piece) {
-        qDebug() << "Piece not found, cleaning up";
-        delete currentTask;
-        currentTask = nullptr;
-        return;
-    }
+QString InferPitchState::getStateNamePrefix() const {
+    return "Pitch";
+}
 
-    if (task.success()) {
-        m_pipeline.setPitchResult(task.result());
-        delete currentTask;
-        currentTask = nullptr;
-        QTimer::singleShot(0, this, [this] { emit ready(); });
-    } else {
-        delete currentTask;
-        currentTask = nullptr;
-        QTimer::singleShot(0, this, [this] { emit failed(); });
-    }
+bool InferPitchState::validateTaskResult(IInferTask *task, SingingClip *clip) {
+    return true;
 }
