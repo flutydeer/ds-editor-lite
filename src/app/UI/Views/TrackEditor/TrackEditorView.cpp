@@ -85,6 +85,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
     m_splitter = new OverlaySplitter(Qt::Horizontal);
     m_splitter->setObjectName("trackSplitter");
+    m_splitter->setChildrenCollapsible(false);
     m_splitter->addWidget(trackListPanel);
     m_splitter->addWidget(trackTimelineAndView);
     m_splitter->setStretchFactor(0, 0);

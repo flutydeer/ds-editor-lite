@@ -62,6 +62,9 @@ private:
     bool m_dragging = false;
     QPoint m_dragStartPos;
     QList<int> m_dragStartSizes;
+    // Hysteresis state for collapse/expand to prevent jitter near the threshold.
+    bool m_collapsed0 = false;
+    bool m_collapsed1 = false;
 };
 
 #endif // OVERLAYSPLITTER_H

@@ -6,17 +6,19 @@
 
 // Half-width of the overlay grip's hit area (total width = kGripHalfWidth * 2).
 static constexpr int kGripHalfWidth = 4;
+// Hysteresis margin (in pixels) to prevent jitter when collapsing/expanding.
+// Once collapsed, the widget must be dragged back beyond (minSize/2 + kHysteresis)
+// before it expands again.
+static constexpr int kCollapseHysteresis = 20;
 
 OverlaySplitter::OverlaySplitter(Qt::Orientation orientation, QWidget *parent)
     : QSplitter(orientation, parent) {
     setAttribute(Qt::WA_StyledBackground, true);
     setHandleWidth(0);
-    setChildrenCollapsible(false);
 }
 
 OverlaySplitter::OverlaySplitter(QWidget *parent) : QSplitter(parent) {
     setHandleWidth(0);
-    setChildrenCollapsible(false);
 }
 
 void OverlaySplitter::ensureGrip() {
@@ -123,6 +125,9 @@ void SplitterOverlayGrip::mousePressEvent(QMouseEvent *event) {
         m_dragging = true;
         m_dragStartPos = event->globalPosition().toPoint();
         m_dragStartSizes = m_splitter->sizes();
+        // Initialize hysteresis state from current sizes.
+        m_collapsed0 = m_dragStartSizes[0] == 0;
+        m_collapsed1 = m_dragStartSizes[1] == 0;
         setHighlightVisible(true);
     }
 }
@@ -141,14 +146,38 @@ void SplitterOverlayGrip::mouseMoveEvent(QMouseEvent *event) {
     int newSecond = sizes[1] - d;
 
     // Clamp to child widget min/max size constraints.
+    // Collapse with hysteresis: once collapsed, require dragging past an extra
+    // margin before expanding again, to prevent jitter near the threshold.
     auto *w0 = m_splitter->widget(0);
     auto *w1 = m_splitter->widget(1);
-    if (m_splitter->orientation() == Qt::Horizontal) {
-        newFirst = qBound(w0->minimumWidth(), newFirst, w0->maximumWidth());
-        newSecond = qBound(w1->minimumWidth(), newSecond, w1->maximumWidth());
+    bool horizontal = m_splitter->orientation() == Qt::Horizontal;
+    int minSize0 = horizontal ? w0->minimumWidth() : w0->minimumHeight();
+    int minSize1 = horizontal ? w1->minimumWidth() : w1->minimumHeight();
+    int maxSize0 = horizontal ? w0->maximumWidth() : w0->maximumHeight();
+    int maxSize1 = horizontal ? w1->maximumWidth() : w1->maximumHeight();
+
+    if (m_splitter->isCollapsible(0)) {
+        int collapseAt = minSize0 / 2;
+        int expandAt = collapseAt + kCollapseHysteresis;
+        if (m_collapsed0)
+            m_collapsed0 = newFirst < expandAt;
+        else
+            m_collapsed0 = newFirst < collapseAt;
+        newFirst = m_collapsed0 ? 0 : qBound(minSize0, newFirst, maxSize0);
     } else {
-        newFirst = qBound(w0->minimumHeight(), newFirst, w0->maximumHeight());
-        newSecond = qBound(w1->minimumHeight(), newSecond, w1->maximumHeight());
+        newFirst = qBound(minSize0, newFirst, maxSize0);
+    }
+
+    if (m_splitter->isCollapsible(1)) {
+        int collapseAt = minSize1 / 2;
+        int expandAt = collapseAt + kCollapseHysteresis;
+        if (m_collapsed1)
+            m_collapsed1 = newSecond < expandAt;
+        else
+            m_collapsed1 = newSecond < collapseAt;
+        newSecond = m_collapsed1 ? 0 : qBound(minSize1, newSecond, maxSize1);
+    } else {
+        newSecond = qBound(minSize1, newSecond, maxSize1);
     }
 
     m_splitter->setSizes({newFirst, newSecond});
