@@ -5,14 +5,14 @@
 #ifndef PIANOROLLEDITORVIEW_H
 #define PIANOROLLEDITORVIEW_H
 
-#include <QSplitter>
+#include "UI/Controls/OverlaySplitter.h"
 
 
 class SingingClip;
 class ParamEditorView;
 class PianoRollView;
 
-class PianoRollEditorView : public QSplitter {
+class PianoRollEditorView : public OverlaySplitter {
     Q_OBJECT
 public:
     explicit PianoRollEditorView(QWidget *parent = nullptr);

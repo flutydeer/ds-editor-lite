@@ -128,15 +128,14 @@ TrackListView::item:selected {
 }
 
 /* TrackSplitter */
-TrackEditorView>QSplitter#trackSplitter {
+TrackEditorView>OverlaySplitter#trackSplitter {
     border-radius: 6px;
     background-color: #272A33;
 }
 
-TrackEditorView>QSplitter#trackSplitter::handle:horizontal {
-    width: 6px;
-    background-color: #272A33;
-    border-right: 1px solid #20000000;
+TrackEditorView>OverlaySplitter#trackSplitter::handle:horizontal {
+    width: 0px;
+    background-color: transparent;
 }
 
 /* TracksGraphicsView */

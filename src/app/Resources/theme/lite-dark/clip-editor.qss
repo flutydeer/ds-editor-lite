@@ -224,17 +224,16 @@ QWidget#pianoRollBottomLeftSpacing {
     border-bottom-left-radius: 6px;
 } */
 
-QSplitter#ClipEditorSplitter {
-    /* background-color: #2A2B2C; */
+PianoRollEditorView {
     background: #2F323B;
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px
 }
 
-/* QSplitter#ClipEditorSplitter::handle {
-    background-color: #2A2B2C;
-    border-bottom-right-radius: 6px;
-} */
+PianoRollEditorView::handle:vertical {
+    height: 12px;
+    background-color: green;
+}
 
 ParamEditorToolBarView {
     /* background: #232425; */

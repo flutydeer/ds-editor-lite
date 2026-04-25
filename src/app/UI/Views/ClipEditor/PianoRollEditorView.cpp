@@ -12,8 +12,8 @@
 
 #include <QScrollBar>
 
-PianoRollEditorView::PianoRollEditorView(QWidget *parent) : QSplitter(Qt::Vertical, parent) {
-    setObjectName("ClipEditorSplitter");
+PianoRollEditorView::PianoRollEditorView(QWidget *parent) : OverlaySplitter(Qt::Vertical, parent) {
+    // setObjectName("ClipEditorSplitter");
     setContentsMargins(0, 0, 0, 0);
     // m_splitter->setContentsMargins(6, 0, 6, 0);
 

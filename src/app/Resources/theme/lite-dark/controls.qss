@@ -316,7 +316,6 @@ QScrollBar::handle::horizontal:pressed {
 QSplitter {
     background-color: transparent;
     border: none;
-    height: 6px
 }
 
 QSplitter::handle:vertical {
@@ -327,6 +326,15 @@ QSplitter::handle:vertical {
 QSplitter::handle:horizontal {
     width: 6px;
     background-color: transparent;
+}
+
+/* OverlaySplitter and subclasses: zero-width invisible handle */
+OverlaySplitter::handle:vertical {
+    height: 0px;
+}
+
+OverlaySplitter::handle:horizontal{
+    width: 0px;
 }
 
 
