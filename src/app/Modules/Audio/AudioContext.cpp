@@ -165,6 +165,10 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(appStatus, &AppStatus::loopSettingsChanged, this, [this](const LoopSettings &settings) {
         if (settings.enabled) {
             transport()->setLoopingRange(tickToSample(settings.start), tickToSample(settings.end()));
+            auto currentPos = playbackController->position();
+            if (currentPos < settings.start || currentPos >= settings.end()) {
+                playbackController->setPosition(settings.start);
+            }
         } else {
             transport()->setLoopingRange(-1, -1);
         }
@@ -288,6 +292,14 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
                     playbackController->setPosition(playbackController->lastPosition());
                 else
                     playbackController->setLastPosition(playbackController->position());
+            }
+            {
+                auto loopSettings = appStatus->loopSettings.get();
+                if (loopSettings.enabled) {
+                    auto pos = playbackController->position();
+                    if (pos < loopSettings.start || pos >= loopSettings.end())
+                        playbackController->setPosition(loopSettings.start);
+                }
             }
             transport()->play();
             break;
