@@ -7,6 +7,7 @@
 #include <QTimer>
 
 #include "Model/AppOptions/AppOptions.h"
+#include "Controller/PlaybackController.h"
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/InferPipeline.h"
 
@@ -24,7 +25,8 @@ void UpdateVarianceState::onEntry(QEvent *event) {
     piece.state = QString("Variance.Update");
     Helper::updateVariance(m_pipeline.varianceResult(), piece);
 
-    auto isLazy = !appOptions->inference()->autoStartInfer;
+    auto isLazy = !appOptions->inference()->autoStartInfer &&
+                   playbackController->playbackStatus() != PlaybackStatus::Playing;
     if (isLazy)
         QTimer::singleShot(0, this, [this] { emit updateSuccessWithLazyInference(); });
     else
