@@ -109,7 +109,7 @@ TrackControlView>LevelMeter {
 TrackListView {
     background: transparent;
     border: none;
-    border-right: 1px solid #20000000;
+    /* border-right: 1px solid #20000000; */
     outline: 0px;
     border-top: 1px solid #20000000;
 }
@@ -127,7 +127,19 @@ TrackListView::item:selected {
     background: #10FFFFFF
 }
 
+/* TrackSplitter */
+TrackEditorView>QSplitter#trackSplitter {
+    border-radius: 6px;
+    background-color: #272A33;
+}
 
+TrackEditorView>QSplitter#trackSplitter::handle:horizontal {
+    width: 6px;
+    background-color: #272A33;
+    border-right: 1px solid #20000000;
+}
+
+/* TracksGraphicsView */
 TracksGraphicsView {
     /* background: #2A2B2C */
     background: #292C36

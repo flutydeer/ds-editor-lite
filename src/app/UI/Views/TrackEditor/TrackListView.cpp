@@ -18,7 +18,6 @@
 
 TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
     setObjectName("TrackListWidget");
-    setFixedWidth(TracksEditorGlobal::trackListWidth);
     setViewMode(ListMode);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

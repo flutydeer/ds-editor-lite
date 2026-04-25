@@ -19,6 +19,7 @@ class TimelineView;
 class TrackEditorBackgroundView;
 class TrackViewModel;
 class AbstractClipView;
+class QSplitter;
 class ChannelView;
 
 class TrackEditorView final : public PanelView {
@@ -55,6 +56,7 @@ private:
     TracksGraphicsScene *m_tracksScene;
     TimelineView *m_timeline;
     TrackEditorBackgroundView *m_gridItem;
+    QSplitter *m_splitter;
 
     class ViewModel {
     public:

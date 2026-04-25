@@ -324,6 +324,11 @@ QSplitter::handle:vertical {
     background-color: transparent;
 }
 
+QSplitter::handle:horizontal {
+    width: 6px;
+    background-color: transparent;
+}
+
 
 /* ListWidget */
 QListWidget {

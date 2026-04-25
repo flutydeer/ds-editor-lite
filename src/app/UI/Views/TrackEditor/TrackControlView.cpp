@@ -64,6 +64,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     cbSinger = new TwoLevelComboBox;
     cbSinger->setObjectName("cbSinger");
+    cbSinger->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     cbSinger->setItems(packageManager->installedPackages().successfulPackages);
     connect(packageManager, &PackageManager::packagesRefreshed, cbSinger,
             &TwoLevelComboBox::setItems);
@@ -81,6 +82,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     cbLanguage = new LanguageComboBox("unknown");
     cbLanguage->setObjectName("cbLanguage");
+    cbLanguage->setMaximumWidth(144);
 
     singerLanguageLayout = new QHBoxLayout;
     singerLanguageLayout->addWidget(cbSinger);

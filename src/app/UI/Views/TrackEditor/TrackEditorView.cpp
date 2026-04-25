@@ -27,6 +27,7 @@
 #include <QFileDialog>
 #include <QMouseEvent>
 #include <QScrollBar>
+#include <QSplitter>
 #include <QVBoxLayout>
 
 TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, parent) {
@@ -60,17 +61,39 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     const auto lBar = m_trackListView->verticalScrollBar();
 
     const auto trackListPanelLayout = new QVBoxLayout;
+    trackListPanelLayout->setContentsMargins({});
+    trackListPanelLayout->setSpacing(0);
     trackListPanelLayout->addWidget(new TrackListHeaderView);
     trackListPanelLayout->addWidget(m_trackListView);
 
     const auto trackTimelineAndViewLayout = new QVBoxLayout;
+    trackTimelineAndViewLayout->setContentsMargins({});
+    trackTimelineAndViewLayout->setSpacing(0);
     trackTimelineAndViewLayout->addWidget(m_timeline);
     trackTimelineAndViewLayout->addWidget(m_graphicsView);
 
+    auto *trackListPanel = new QWidget;
+    trackListPanel->setObjectName("trackListPanel");
+    trackListPanel->setLayout(trackListPanelLayout);
+    trackListPanel->setMinimumWidth(200);
+    trackListPanel->setMaximumWidth(600);
+
+    auto *trackTimelineAndView = new QWidget;
+    trackTimelineAndView->setLayout(trackTimelineAndViewLayout);
+
+    m_splitter = new QSplitter(Qt::Horizontal);
+    m_splitter->setObjectName("trackSplitter");
+    m_splitter->setHandleWidth(4);
+    m_splitter->setChildrenCollapsible(false);
+    m_splitter->addWidget(trackListPanel);
+    m_splitter->addWidget(trackTimelineAndView);
+    m_splitter->setStretchFactor(0, 0);
+    m_splitter->setStretchFactor(1, 1);
+    m_splitter->setSizes({TracksEditorGlobal::trackListWidth, 1});
+
     const auto mainLayout = new QHBoxLayout;
     mainLayout->setSpacing(0);
-    mainLayout->addLayout(trackListPanelLayout);
-    mainLayout->addLayout(trackTimelineAndViewLayout);
+    mainLayout->addWidget(m_splitter);
     mainLayout->setContentsMargins({1, 1, 1, 1});
 
     setLayout(mainLayout);
@@ -174,7 +197,7 @@ void TrackEditorView::onViewScaleChanged(const qreal sx, const qreal sy) const {
         const auto item = m_trackListView->item(i);
         const int height =
             qRound((i + 1) * TracksEditorGlobal::trackHeight * sy - previousHeightSum);
-        item->setSizeHint(QSize(TracksEditorGlobal::trackListWidth, height));
+        item->setSizeHint(QSize(0, height));
 
         // hide pan and gain slider when sy is too small
         const auto widget = m_viewModel.tracks.at(i)->controlView;
@@ -235,7 +258,7 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
     auto newTrackItem = new QListWidgetItem;
     const auto controlView = new TrackControlView(newTrackItem, dsTrack);
     newTrackItem->setSizeHint(
-        QSize(TracksEditorGlobal::trackListWidth,
+        QSize(0,
               static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
     controlView->setTrackIndex(trackIndex + 1);
     controlView->setNarrowMode(m_graphicsView->scaleY() < TracksEditorGlobal::narrowModeScaleY);
