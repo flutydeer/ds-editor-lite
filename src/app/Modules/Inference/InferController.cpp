@@ -15,13 +15,51 @@
 #include "Utils/ValidationUtils.h"
 #include "Controller/PlaybackController.h"
 #include "InferPipeline.h"
+#include "Model/AppModel/AppModel.h"
 
 namespace Helper = InferControllerHelper;
+
+namespace {
+int pieceGlobalStartTick(int clipId, int pieceId) {
+    const auto clip = dynamic_cast<SingingClip *>(appModel->findClipById(clipId));
+    if (!clip)
+        return INT_MAX;
+    const auto piece = clip->findPieceById(pieceId);
+    if (!piece)
+        return INT_MAX;
+    return piece->localStartTick() + clip->start();
+}
+
+template <typename T>
+std::function<bool(T *, T *)> makePlaybackPriorityComparator() {
+    return [](T *a, T *b) {
+        const auto pos = static_cast<int>(playbackController->position());
+        const auto startA = pieceGlobalStartTick(a->clipId(), a->pieceId());
+        const auto startB = pieceGlobalStartTick(b->clipId(), b->pieceId());
+        const auto diffA = startA - pos;
+        const auto diffB = startB - pos;
+        const bool aAhead = diffA >= 0;
+        const bool bAhead = diffB >= 0;
+        if (aAhead != bAhead)
+            return aAhead;
+        if (aAhead)
+            return diffA < diffB;
+        return diffA > diffB;
+    };
+}
+} // namespace
 
 InferController::InferController(QObject *parent)
     : QObject(parent), d_ptr(new InferControllerPrivate(this)) {
     Q_D(InferController);
     d->m_autoStartAcousticInfer = appOptions->inference()->autoStartInfer;
+
+    d->m_inferDurTasks.setPriorityComparator(makePlaybackPriorityComparator<InferDurationTask>());
+    d->m_inferPitchTasks.setPriorityComparator(makePlaybackPriorityComparator<InferPitchTask>());
+    d->m_inferVarianceTasks.setPriorityComparator(
+        makePlaybackPriorityComparator<InferVarianceTask>());
+    d->m_inferAcousticTasks.setPriorityComparator(
+        makePlaybackPriorityComparator<InferAcousticTask>());
 
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
             &InferControllerPrivate::onModuleStatusChanged);

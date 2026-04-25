@@ -57,6 +57,11 @@ public:
         return m_list;
     }
 
+    template <typename TComparator>
+    void sort(const TComparator &comparator) {
+        std::sort(m_list.begin(), m_list.end(), comparator);
+    }
+
     [[nodiscard]] int count() const {
         return m_list.count();
     }

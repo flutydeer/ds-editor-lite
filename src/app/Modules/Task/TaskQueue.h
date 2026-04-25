@@ -18,6 +18,7 @@ public:
     Queue<T *> pending;
     T *current = nullptr;
 
+    void setPriorityComparator(std::function<bool(T *, T *)> comparator);
     void add(T *task);
     void cancelAll();
     void cancelIf(std::function<bool(T *task)> pred);
@@ -27,7 +28,13 @@ public:
 private:
     void runNext();
     void disposePendingTask(T *task);
+    std::function<bool(T *, T *)> m_comparator;
 };
+
+template <typename T>
+void TaskQueue<T>::setPriorityComparator(std::function<bool(T *, T *)> comparator) {
+    m_comparator = std::move(comparator);
+}
 
 template <typename T>
 void TaskQueue<T>::add(T *task) {
@@ -41,9 +48,10 @@ template <typename T>
 void TaskQueue<T>::runNext() {
     current = nullptr;
     if (pending.count() <= 0) {
-        // qWarning() << "Task queue is empty";
         return;
     }
+    if (m_comparator)
+        pending.sort(m_comparator);
     const auto task = pending.dequeue();
     taskManager->startTask(task);
     current = task;
