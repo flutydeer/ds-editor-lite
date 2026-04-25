@@ -111,7 +111,7 @@ TrackListView {
     border: none;
     /* border-right: 1px solid #20000000; */
     outline: 0px;
-    border-top: 1px solid #20000000;
+    border-top: 1px solid #1C1D1E;
 }
 
 TrackListView::item {
@@ -136,6 +136,7 @@ TrackEditorView>OverlaySplitter#trackSplitter {
 TrackEditorView>OverlaySplitter#trackSplitter::handle:horizontal {
     width: 0px;
     background-color: transparent;
+    border-right: 1px solid #1C1D1E;
 }
 
 /* TracksGraphicsView */
