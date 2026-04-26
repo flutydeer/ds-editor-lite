@@ -7,6 +7,7 @@
 #include <QPainter>
 #include <QPropertyAnimation>
 #include <QTimer>
+#include <QtMath>
 
 ProgressIndicator::ProgressIndicator(QWidget *parent) : QWidget(parent) {
     initUi();
@@ -20,9 +21,7 @@ ProgressIndicator::ProgressIndicator(const IndicatorStyle indicatorStyle, QWidge
 void ProgressIndicator::initUi() {
     m_timer.setInterval(8);
     connect(&m_timer, &QTimer::timeout, this, [this] {
-        setThumbProgress(m_thumbProgress + 2);
-        if (m_thumbProgress == 360)
-            m_thumbProgress = 0;
+        update();
     });
     m_colorPalette = colorPaletteNormal;
 
@@ -117,37 +116,33 @@ void ProgressIndicator::paintEvent(QPaintEvent *event) {
     };
 
     auto drawBarIndeterminateProgress = [&] {
-        return;
+        const double time = m_elapsedTimer.elapsed() / 1000.0;
+        const double totalLength = m_actualLength;
+        const double headPos =
+            std::fmod(time * m_indeterminateSpeed * totalLength / 360.0, totalLength);
+        const double barLength =
+            m_indeterminateMinLength / 360.0 * totalLength +
+            (m_indeterminateMaxLength - m_indeterminateMinLength) / 360.0 * totalLength *
+                (0.5 + 0.5 * std::sin(time * m_indeterminateFrequency * 2.0 * M_PI));
+        double tailPos = headPos - barLength;
 
-        // Calculate progress value
-        auto thumbLength = rect().width() / 3;
-        auto thumbActualRight =
-            qRound(m_thumbProgress * (m_actualLength + thumbLength) / 360.0) + m_padding;
-        auto thumbActualLeft = thumbActualRight - thumbLength;
-        QPoint point1;
-        if (thumbActualLeft < m_padding)
-            point1 = QPoint(m_padding, m_halfRectHeight);
-        else
-            point1 = QPoint(thumbActualLeft, m_halfRectHeight);
+        const auto headX = static_cast<int>(headPos) + m_padding;
+        auto tailX = static_cast<int>(tailPos) + m_padding;
 
-        QPoint point2;
-        auto trackActualRight = m_trackEnd.x();
-        if (thumbActualRight < m_padding)
-            point2 = QPoint(m_padding, m_halfRectHeight);
-        else if (thumbActualRight < trackActualRight)
-            point2 = QPoint(thumbActualRight, m_halfRectHeight);
-        else
-            point2 = QPoint(trackActualRight, m_halfRectHeight);
-
-        // Draw progress value
         pen.setColor(m_colorPalette.total);
         pen.setWidth(m_penWidth);
+        pen.setCapStyle(Qt::RoundCap);
         painter.setPen(pen);
-        //        qDebug() << point1 << point2;
-        painter.drawLine(point1, point2);
 
-        //        if (m_indeterminateThumbX - thumbLength > trackActualRight)
-        //            m_indeterminateThumbX = 0; // reset thumb pos
+        if (tailPos >= 0) {
+            painter.drawLine(QPoint(tailX, m_halfRectHeight), QPoint(headX, m_halfRectHeight));
+        } else {
+            const auto wrapTailX = static_cast<int>(totalLength + tailPos) + m_padding;
+            painter.drawLine(QPoint(m_trackStart.x(), m_halfRectHeight),
+                             QPoint(headX, m_halfRectHeight));
+            painter.drawLine(QPoint(wrapTailX, m_halfRectHeight),
+                             QPoint(m_trackEnd.x(), m_halfRectHeight));
+        }
     };
 
     auto drawRingBackground = [&] {
@@ -193,9 +188,20 @@ void ProgressIndicator::paintEvent(QPaintEvent *event) {
     };
 
     auto drawRingIndeterminateProgress = [&] {
-        const int startAngle = -m_thumbProgress * 16;
-        constexpr int spanAngle = 120 * 16;
+        const double time = m_elapsedTimer.elapsed() / 1000.0;
+        const double headAngle = std::fmod(time * m_indeterminateSpeed, 360.0);
+        const double arcLength =
+            m_indeterminateMinLength +
+            (m_indeterminateMaxLength - m_indeterminateMinLength) *
+                (0.5 + 0.5 * std::sin(time * m_indeterminateFrequency * 2.0 * M_PI));
+        const double tailAngle = headAngle - arcLength;
+
+        const int startAngle = static_cast<int>((90.0 - headAngle) * 16);
+        const int spanAngle = static_cast<int>(arcLength * 16);
+
         pen.setColor(m_colorPalette.total);
+        pen.setWidth(m_penWidth);
+        pen.setCapStyle(Qt::RoundCap);
         painter.setPen(pen);
         painter.drawArc(m_ringRect, startAngle, spanAngle);
     };
@@ -291,12 +297,12 @@ bool ProgressIndicator::indeterminate() const {
 
 void ProgressIndicator::setIndeterminate(const bool on) {
     m_indeterminate = on;
-    if (m_indeterminate)
-        //        m_valueAnimation->start();
+    if (m_indeterminate) {
+        m_elapsedTimer.start();
         m_timer.start();
-    else
-        //        m_valueAnimation->stop();
+    } else {
         m_timer.stop();
+    }
     update();
 }
 
