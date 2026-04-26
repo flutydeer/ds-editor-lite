@@ -1,0 +1,6 @@
+{
+  "language": "num",
+  "tagger": [
+    { "type": "regex", "value": ["([\\p{N}]+)"], "tag": "num", "discard": true }
+  ]
+}

@@ -4,7 +4,7 @@
 #include <QWidget>
 #include <QJsonObject>
 
-#include <lyric-tab/LangCommon.h>
+#include "Modules/FillLyric/LangCommon.h"
 
 namespace LangSetting {
 

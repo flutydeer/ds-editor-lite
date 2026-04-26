@@ -1,0 +1,7 @@
+{
+  "language": "yue",
+  "tagger": [
+    { "type": "dict", "value": ["jyutping_dict.txt"], "tag": "pinyin" },
+    { "type": "regex", "value": ["([\\p{Han}])"], "tag": "hanzi" }
+  ]
+}

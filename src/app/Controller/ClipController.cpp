@@ -339,8 +339,8 @@ void ClipController::onFillLyric(QWidget *parent) {
     if (!singerInfo.isEmpty()) {
         priorityLanguage.append(singerInfo.defaultLanguage());
         for (const auto &lang : singerInfo.languages()) {
-            priorityLanguage.append(lang.name());
-            langToG2pId.insert(lang.name(), lang.g2p());
+            priorityLanguage.append(lang.id());
+            langToG2pId.insert(lang.id(), lang.g2p());
         }
     }
 

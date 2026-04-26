@@ -1,0 +1,6 @@
+{
+  "language": "eng",
+  "tagger": [
+    { "type": "regex", "value": ["([A-Za-z']+)"], "tag": "latin" }
+  ]
+}

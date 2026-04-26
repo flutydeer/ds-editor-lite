@@ -33,6 +33,7 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringLis
          appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
          appOptions->fillLyric()->exportLanguage});
 
+
     if (!appOptions->fillLyric()->extVisible) {
         shrinkWindowRight(300);
     }
@@ -91,6 +92,7 @@ void LyricDialog::noteToPhonic() {
         langNote.syllable = note->pronunciation().original;
         langNote.syllableRevised = note->pronunciation().edited;
         langNote.candidates = note->pronCandidates();
+        langNote.language = note->language();
         langNote.g2pId = singerInfo.g2pId(note->language());
 
         if (note->isSlur())
@@ -130,15 +132,15 @@ LyricResult LyricDialog::exportLangNotes() const {
 }
 
 void LyricDialog::switchTab(const int &index) {
-    if (index == 0) {
-        if (!m_lyricWidget->m_lyricExtWidget->isVisible()) {
-            this->shrinkWindowRight(300);
-        }
-    } else {
-        if (!m_lyricWidget->m_lyricExtWidget->isVisible()) {
-            this->expandWindowRight();
-        }
-    }
+    // if (index == 0) {
+    //     if (!m_lyricWidget->m_lyricExtWidget->isVisible()) {
+    //         this->shrinkWindowRight(300);
+    //     }
+    // } else {
+    //     if (!m_lyricWidget->m_lyricExtWidget->isVisible()) {
+    //         this->expandWindowRight();
+    //     }
+    // }
 }
 
 void LyricDialog::_on_modifyOption(const FillLyric::LyricTabConfig &config) {

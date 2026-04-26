@@ -1,0 +1,6 @@
+{
+  "language": "jpn",
+  "tagger": [
+    { "type": "regex", "value": ["([\\x{3040}-\\x{309F}\\x{30A0}-\\x{30FF}][ゃゅょぁぃぅぇぉャュョァィゥェォ]?)"], "tag": "kana" }
+  ]
+}

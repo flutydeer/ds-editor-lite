@@ -1,0 +1,9 @@
+{
+  "language": "punc",
+  "tagger": [
+    { "type": "regex", "value": ["(\r\n|\n)"], "tag": "linebreak" },
+    { "type": "regex", "value": ["([^\\S\\r\\n]+)"], "tag": "space", "discard": true },
+    { "type": "regex", "value": ["(-)"], "tag": "slur" },
+    { "type": "regex", "value": ["([\\p{P}])"], "tag": "punc", "discard": true }
+  ]
+}

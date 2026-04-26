@@ -307,8 +307,12 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
     } else {
         disconnect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
                    &ClipEditorToolBarViewPrivate::onSingerEdited);
-        disconnect(m_singingClip, &SingingClip::singerOrSpeakerChanged, this,
-                   &ClipEditorToolBarViewPrivate::onClipSingerChanged);
+        if (m_singingClip) {
+            disconnect(m_singingClip, &SingingClip::singerOrSpeakerChanged, this,
+                       &ClipEditorToolBarViewPrivate::onClipSingerChanged);
+            disconnect(m_singingClip, &SingingClip::defaultLanguageChanged, m_cbClipLanguage,
+                       &ComboBox::setCurrentText);
+        }
 
         disconnect(m_cbClipLanguage, &ComboBox::currentTextChanged, this,
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);

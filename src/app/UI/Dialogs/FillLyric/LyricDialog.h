@@ -3,8 +3,8 @@
 
 #include "Model/AppModel/SingingClip.h"
 
-#include <lyric-tab/LyricTab.h>
-#include <lyric-tab/LangCommon.h>
+#include "Modules/FillLyric/LyricTab.h"
+#include "Modules/FillLyric/LangCommon.h"
 
 #include "UI/Dialogs/Base/Dialog.h"
 // #include "UI/Dialogs/Options/Pages/G2pPage.h"

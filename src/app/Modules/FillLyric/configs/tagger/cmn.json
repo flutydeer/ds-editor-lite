@@ -1,0 +1,7 @@
+{
+  "language": "cmn",
+  "tagger": [
+    { "type": "dict", "value": ["ds-zh-pinyin-lite.txt"], "tag": "pinyin" },
+    { "type": "regex", "value": ["([\\p{Han}])"], "tag": "hanzi" }
+  ]
+}

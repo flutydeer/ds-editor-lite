@@ -49,7 +49,7 @@ find_package(QWindowKit CONFIG REQUIRED)
 find_package(LangCore CONFIG REQUIRED)
 find_package(QasTool CONFIG REQUIRED)
 find_package(opendspx CONFIG REQUIRED)
-find_package(lyric-tab CONFIG REQUIRED)
+find_package(re2 CONFIG REQUIRED)
 find_package(talcs REQUIRED)
 find_package(unofficial-tinyexpr CONFIG REQUIRED)
 find_package(dsinfer CONFIG REQUIRED)
@@ -75,13 +75,13 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         talcs::Core talcs::Device talcs::Format talcs::Midi talcs::Dspx talcs::Widgets
         opendspx::opendspxconverter opendspx::opendspxserializer
         LangCore::LangCore
-        lyric-tab::lyric-tab
         QWindowKit::Widgets
         qtmediate::Widgets
         rmvpe-infer::rmvpe-infer game-infer::game-infer
         curve-util::curve-util
         unofficial::tinyexpr::tinyexpr
         dsinfer::dsinfer
+        re2::re2
 )
 
 if (APPLICATION_ENABLE_BREAKPAD)
@@ -245,6 +245,21 @@ else ()
 endif ()
 
 # copy g2p packages
+# copy FillLyric configs
+if (APPLE)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/Modules/FillLyric/configs"
+            "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/MacOS/configs"
+    )
+else ()
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/Modules/FillLyric/configs"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/configs"
+    )
+endif ()
+
 if (APPLE)
 else ()
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
