@@ -137,7 +137,7 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
     std::string speakerName = model.speaker.toStdString();
     const auto input = srt::NO<Pit::PitchStartInput>::create();
     input->parameters = convertInputParams(model.params);
-    input->steps = appOptions->inference()->samplingSteps;
+    input->steps = model.steps;
 
     srt::NO<srt::Inference> inferencePitch;
     auto loader = inferEngine->findLoaderForSinger(identifier);

@@ -139,7 +139,7 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
     std::string speakerName = model.speaker.toStdString();
     const auto input = srt::NO<Var::VarianceStartInput>::create();
     input->parameters = convertInputParams(model.params);
-    input->steps = appOptions->inference()->samplingSteps;
+    input->steps = model.steps;
 
     srt::NO<srt::Inference> inferenceVariance;
     auto loader = inferEngine->findLoaderForSinger(identifier);

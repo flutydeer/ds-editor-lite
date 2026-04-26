@@ -132,8 +132,8 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     std::string speakerName = model.speaker.toStdString();
     const auto input = srt::NO<Ac::AcousticStartInput>::create();
     input->parameters = convertInputParams(model.params);
-    input->depth = appOptions->inference()->depth;
-    input->steps = appOptions->inference()->samplingSteps;
+    input->depth = model.depth;
+    input->steps = model.steps;
 
     srt::NO<srt::Inference> inferenceAcoustic;
     srt::NO<srt::Inference> inferenceVocoder;
@@ -144,7 +144,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     }
 
     // Convert singer speaker id to inference speaker id
-    const auto importOptions = loader->importOptions().variance.as<Ac::AcousticImportOptions>();
+    const auto importOptions = loader->importOptions().acoustic.as<Ac::AcousticImportOptions>();
     if (!importOptions) {
         qCritical() << "inferAcoustic: Import options not found";
     }
