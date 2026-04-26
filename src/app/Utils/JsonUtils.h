@@ -36,6 +36,10 @@ inline bool JsonUtils::load(const QString &filename, QJsonObject &jsonObj) {
         }
         if (json.isObject())
             jsonObj = json.object();
+        else {
+            Log::e("JsonUtils", "JSON is not an object: " + filename);
+            return false;
+        }
         return true;
     }
 }

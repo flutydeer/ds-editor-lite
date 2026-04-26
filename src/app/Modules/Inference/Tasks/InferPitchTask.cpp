@@ -112,6 +112,7 @@ void InferPitchTask::runTask() {
             qCritical() << "Task failed:" << errorMessage;
             return;
         }
+        JsonUtils::save(outputCachePath, model.serialize());
     }
 
     if (isTerminateRequested()) {
@@ -119,7 +120,6 @@ void InferPitchTask::runTask() {
         return;
     }
 
-    JsonUtils::save(outputCachePath, model.serialize());
     processOutput(model);
     m_success.store(true, std::memory_order_release);
     qInfo() << "Success:"
