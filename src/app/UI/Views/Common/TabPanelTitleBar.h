@@ -7,6 +7,7 @@
 
 #include <QWidget>
 
+class Button;
 class QTabBar;
 class QStackedWidget;
 
@@ -23,6 +24,8 @@ public:
 private:
     QTabBar *m_tabBar;
     QStackedWidget *m_toolBar;
+    Button *m_btnMaximize;
+    Button *m_btnHide;
 };
 
 #endif //TABPANELTITLEBAR_H

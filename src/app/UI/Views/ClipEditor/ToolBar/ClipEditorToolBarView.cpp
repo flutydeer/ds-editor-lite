@@ -4,13 +4,11 @@
 
 #include "ClipEditorToolBarView.h"
 #include "ClipEditorToolBarView_p.h"
-#include "Controller/AppController.h"
 
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 
 #include "Model/AppModel/SingingClip.h"
-#include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/Models/SingerIdentifier.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Controls/Button.h"
@@ -121,21 +119,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     // auto btnParamView = d->buildToolButton("btnParamView", tr("Toggle param editor"));
     // btnParamView->setChecked(true);
 
-    // TODO: 移动到 TabPanelTitleBar
-    const auto btnMaximize = d->buildToolButton("btnPanelMaximize", tr("Maximize or restore"));
-    connect(btnMaximize, &Button::clicked, this, [=] {
-        if (appStatus->trackPanelCollapsed)
-            appController->setTrackAndClipPanelCollapsed(false, false);
-        else
-            appController->setTrackAndClipPanelCollapsed(true, false);
-    });
-    connect(appStatus, &AppStatus::trackPanelCollapseStateChanged, btnMaximize,
-            &Button::setChecked);
-
-    const auto btnHide = d->buildCommonButton("btnPanelHide", tr("Hide"));
-    connect(btnHide, &Button::clicked, this,
-            [=] { appController->setTrackAndClipPanelCollapsed(false, true); });
-
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(d->m_leClipName);
     // mainLayout->addWidget(btnMute);
@@ -155,13 +138,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     mainLayout->addWidget(d->m_btnPitchEraser);
     // mainLayout->addWidget(d->m_btnFreezePitch);
     mainLayout->addStretch();
-    // mainLayout->addWidget(btnPhonemeView);
-    // mainLayout->addWidget(btnParamView);
-    // mainLayout->addWidget(new DividerLine(Qt::Vertical));
-
-    // TODO: 移动到 TabPanelTitleBar
-    // mainLayout->addWidget(btnMaximize);
-    // mainLayout->addWidget(btnHide);
 
     mainLayout->setContentsMargins({});
     mainLayout->setSpacing(1);

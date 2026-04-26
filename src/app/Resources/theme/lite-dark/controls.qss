@@ -1041,3 +1041,41 @@ TabPanelTitleBar {
     min-width: 12px;
     max-height: 40px;
 }
+
+TabPanelTitleBar>QPushButton#btnPanelMaximize,
+TabPanelTitleBar>QPushButton#btnPanelHide {
+    padding: 0px;
+    border: none;
+    background: none;
+    border-radius: 6px;
+}
+
+TabPanelTitleBar>QPushButton#btnPanelMaximize:checked {
+    background-color: #9BBAFF;
+}
+
+TabPanelTitleBar>QPushButton#btnPanelMaximize:checked:hover {
+    background-color: rgb(169, 196, 255);
+}
+
+TabPanelTitleBar>QPushButton#btnPanelMaximize:hover,
+TabPanelTitleBar>QPushButton#btnPanelHide:hover {
+    background: #1AFFFFFF;
+}
+
+TabPanelTitleBar>QPushButton#btnPanelMaximize:pressed,
+TabPanelTitleBar>QPushButton#btnPanelHide:pressed {
+    background: #10FFFFFF;
+}
+
+TabPanelTitleBar>QPushButton#btnPanelMaximize {
+    icon: url(:svg/icons/panel_maximize_24_filled_white.svg)
+}
+
+TabPanelTitleBar>QPushButton#btnPanelMaximize:checked {
+    icon: url(:svg/icons/panel_maximize_24_filled.svg)
+}
+
+TabPanelTitleBar>QPushButton#btnPanelHide {
+    icon: url(:svg/icons/panel_hide_24_filled_white.svg)
+}
