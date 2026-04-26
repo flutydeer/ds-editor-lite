@@ -22,6 +22,9 @@ class NoteView final : public AbstractGraphicsRectItem,
 public:
     explicit NoteView(int itemId, QGraphicsItem *parent = nullptr);
     ~NoteView() override;
+
+    static int trackColorIndex();
+    static void setTrackColorIndex(int index);
     [[nodiscard]] int rStart() const;
     void setRStart(int rStart);
     [[nodiscard]] int length() const;
@@ -82,6 +85,8 @@ private:
     int m_startOffset = 0;
     int m_lengthOffset = 0;
     int m_keyOffset = 0;
+
+    static int s_trackColorIndex;
 };
 
 #endif // NOTEGRAPHICSITEM_H

@@ -8,6 +8,7 @@
 #include "Clip.h"
 #include "SingingClip.h"
 #include "Utils/MathUtils.h"
+#include "UI/Utils/TrackColorPalette.h"
 
 #include <QJsonArray>
 
@@ -100,6 +101,16 @@ QColor Track::color() const {
 
 void Track::setColor(const QColor &color) {
     m_color = color;
+    emit propertyChanged();
+}
+
+int Track::colorIndex() const {
+    return m_colorIndex;
+}
+
+void Track::setColorIndex(int colorIndex) {
+    m_colorIndex = colorIndex;
+    m_color = TrackColorPalette::instance()->baseColor(colorIndex);
     emit propertyChanged();
 }
 

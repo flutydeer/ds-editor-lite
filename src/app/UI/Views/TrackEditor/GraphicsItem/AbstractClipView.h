@@ -23,8 +23,8 @@ public:
     [[nodiscard]] QString name() const override;
     void setName(const QString &text) override;
 
-    // QColor color() const;
-    // void setColor(const QColor &color);
+    [[nodiscard]] int colorIndex() const;
+    void setColorIndex(int index);
 
     [[nodiscard]] int start() const override;
     void setStart(int start) override;

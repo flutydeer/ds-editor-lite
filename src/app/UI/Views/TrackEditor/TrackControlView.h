@@ -50,6 +50,9 @@ public:
     void setColor(const QColor &color) override {
     }
 
+    [[nodiscard]] int colorIndex() const override;
+    void setColorIndex(int colorIndex) override;
+
 signals:
     void insertNewTrackTriggered();
     void removeTrackTriggered(int id);
@@ -60,6 +63,7 @@ signals:
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void changeTrackProperty() const;
+    void updateTrackColor();
     bool m_notifyBarrier = false;
     Track *m_track = nullptr;
     TrackControl m_control;

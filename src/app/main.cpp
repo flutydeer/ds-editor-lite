@@ -21,6 +21,7 @@
 #include "Utils/FontManager.h"
 #include "Utils/Log.h"
 #include "Utils/SystemUtils.h"
+#include "UI/Utils/TrackColorPalette.h"
 
 #include <QMWidgets/ccombobox.h>
 #include <QMWidgets/cmenu.h>
@@ -144,6 +145,7 @@ int main(int argc, char *argv[]) {
     AppController::instance();
     InferEngine::instance();
     PackageManager::instance();
+    TrackColorPalette::instance()->load(":/theme/lite-dark/track-color-palette.json");
 
     QObject::connect(inferEngine, &InferEngine::engineInitialized, packageManager,
                      &PackageManager::initialize, Qt::SingleShotConnection);

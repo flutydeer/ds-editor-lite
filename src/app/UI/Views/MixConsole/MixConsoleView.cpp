@@ -175,5 +175,6 @@ void MixConsoleView::onTrackPropertyChanged() const {
         auto track = tracksModel.at(i);
         channelView->setName(track->name());
         channelView->setControl(track->control());
+        channelView->updateChannelColor();
     }
 }

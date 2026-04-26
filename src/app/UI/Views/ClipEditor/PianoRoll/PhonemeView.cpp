@@ -4,10 +4,12 @@
 
 #include "PhonemeView.h"
 
+#include "NoteView.h"
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "UI/Utils/TrackColorPalette.h"
 #include "UI/Controls/ToolTip.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
@@ -124,8 +126,8 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     }
 
     auto originalColor = QColor(180, 180, 180);
-    auto editedColor = QColor(155, 186, 255);
-    auto fillColor = QColor(155, 186, 255, 50);
+    auto editedColor = TrackColorPalette::instance()->phonemeEdited(NoteView::trackColorIndex());
+    auto fillColor = TrackColorPalette::instance()->phonemeFill(NoteView::trackColorIndex());
     auto positionLineColor = QColor(200, 200, 200);
     auto noteBoundaryColor = QColor(49, 53, 63);
     // Draw background

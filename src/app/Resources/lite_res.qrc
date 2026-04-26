@@ -93,6 +93,7 @@
         <file>svg/icons/panel_hide_24_filled.svg</file>
 
         <file>theme/lite-dark/manifest.json</file>
+        <file>theme/lite-dark/track-color-palette.json</file>
         <file>theme/lite-dark/base.qss</file>
         <file>theme/lite-dark/controls.qss</file>
         <file>theme/lite-dark/title-bar.qss</file>

@@ -7,6 +7,7 @@
 #include "Global/AppGlobal.h"
 #include "Global/TracksEditorGlobal.h"
 #include "UI/Controls/Menu.h"
+#include "UI/Utils/TrackColorPalette.h"
 
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
@@ -35,6 +36,17 @@ QString AbstractClipView::name() const {
 void AbstractClipView::setName(const QString &text) {
     Q_D(AbstractClipView);
     d->m_name = text;
+    update();
+}
+
+int AbstractClipView::colorIndex() const {
+    Q_D(const AbstractClipView);
+    return d->m_colorIndex;
+}
+
+void AbstractClipView::setColorIndex(int index) {
+    Q_D(AbstractClipView);
+    d->m_colorIndex = index;
     update();
 }
 
@@ -183,11 +195,13 @@ QString AbstractClipView::text() const {
 void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
     Q_D(const AbstractClipView);
-    constexpr auto colorPrimary = QColor(155, 186, 255);
-    constexpr auto colorPrimaryTransparent = QColor(155, 186, 255, 64);
-    constexpr auto colorPrimaryDarker = QColor(112, 156, 255);
-    constexpr auto colorPrimaryLighter = QColor(215, 228, 254);
-    constexpr auto colorForeground = QColor(0, 0, 0);
+    const auto &palette = *TrackColorPalette::instance();
+    const auto ci = d->m_colorIndex;
+    const auto colorPrimary = palette.clipBackground(ci);
+    const auto colorPrimaryTransparent = palette.clipBackgroundTransparent(ci);
+    const auto colorPrimaryDarker = palette.clipBorder(ci);
+    const auto colorPrimaryLighter = palette.clipBackgroundSelected(ci);
+    const auto colorForeground = palette.clipForeground(ci);
     auto penWidth = 1.2f;
     auto verticalPadding = 1.2f;
 

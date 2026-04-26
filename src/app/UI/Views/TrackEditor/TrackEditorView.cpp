@@ -304,6 +304,7 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     auto clipView = new SingingClipView(clip->id());
     clipView->loadCommonProperties(Clip::ClipCommonProperties(*clip));
     clipView->setTrackIndex(trackIndex);
+    clipView->setColorIndex(track->dsTrack->colorIndex());
     const auto &notesRef = clip->notes();
     clipView->loadNotes(notesRef);
     clipView->setSingerName(clip->singerInfo().name());
@@ -331,6 +332,7 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
     const auto clipView = new AudioClipView(clip->id());
     clipView->loadCommonProperties(Clip::ClipCommonProperties(*clip));
     clipView->setTrackIndex(trackIndex);
+    clipView->setColorIndex(track->dsTrack->colorIndex());
     clipView->setPath(clip->path());
     clipView->setTempo(appModel->tempo());
     clipView->setAudioInfo(clip->audioInfo());

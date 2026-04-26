@@ -24,6 +24,7 @@ public:
     explicit PianoRollView(QWidget *parent = nullptr);
     [[nodiscard]] PianoRollGraphicsView *graphicsView() const;
     void setDataContext(SingingClip *clip) const;
+    void setTrackColorIndex(int index) const;
 
 public slots:
     void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode) const;

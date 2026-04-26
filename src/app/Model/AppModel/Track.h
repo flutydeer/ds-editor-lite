@@ -31,6 +31,9 @@ public:
     QColor color() const override;
     void setColor(const QColor &color) override;
 
+    int colorIndex() const override;
+    void setColorIndex(int colorIndex) override;
+
     TrackControl control() const override;
     void setControl(const TrackControl &control) override;
 
@@ -86,6 +89,7 @@ private:
     TrackControl m_control = TrackControl();
     OverlappableSerialList<Clip> m_clips;
     QColor m_color;
+    int m_colorIndex = 0;
 
     QString m_defaultLanguage = "unknown";
     QString m_defaultG2pId = "unknown";

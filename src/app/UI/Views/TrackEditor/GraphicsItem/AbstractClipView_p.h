@@ -37,6 +37,7 @@ public:
     bool m_tempQuantizeOff = false;
 
     int m_trackIndex = 0;
+    int m_colorIndex = 0;
     int m_quantize = 16;
     bool m_showDebugInfo = false;
 

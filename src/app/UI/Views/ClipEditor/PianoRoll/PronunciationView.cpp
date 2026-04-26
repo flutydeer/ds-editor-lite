@@ -3,6 +3,8 @@
 //
 
 #include "PronunciationView.h"
+#include "NoteView.h"
+#include "UI/Utils/TrackColorPalette.h"
 
 #include <QElapsedTimer>
 #include <QPainter>
@@ -42,7 +44,8 @@ void PronunciationView::paint(QPainter *painter, const QStyleOptionGraphicsItem 
     QElapsedTimer timer;
     timer.start();
     constexpr auto pronColorOriginal = QColor(200, 200, 200);
-    constexpr auto pronColorEdited = QColor(155, 186, 255);
+    const auto pronColorEdited =
+        TrackColorPalette::instance()->phonemeEdited(NoteView::trackColorIndex());
     constexpr auto penWidth = 1.5f;
     constexpr int padding = 2;
 
