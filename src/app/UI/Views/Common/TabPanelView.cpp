@@ -29,6 +29,12 @@ TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent): PanelVie
 
     connect(m_tabPanelTitleBar->tabBar(), &QTabBar::currentChanged, this,
             &TabPanelView::onSelectionChanged);
+    connect(m_tabPanelTitleBar, &TabPanelTitleBar::detachRequested, this,
+            &TabPanelView::detachRequested);
+}
+
+TabPanelTitleBar *TabPanelView::titleBar() const {
+    return m_tabPanelTitleBar;
 }
 
 void TabPanelView::registerPage(TabPanelPage *page) {

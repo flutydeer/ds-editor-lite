@@ -17,12 +17,17 @@
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/AccentButton.h"
+#include "UI/Controls/Button.h"
 #include "UI/Controls/ProgressIndicator.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/Common/TabPanelTitleBar.h"
+
+#include <QStackedWidget>
+#include <QTabBar>
 #include "UI/Views/MainTitleBar/ActionButtonsView.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
@@ -47,7 +52,8 @@
 MainWindow::MainWindow() {
     setAcceptDrops(true);
 
-    auto useNativeFrame = appOptions->appearance()->useNativeFrame;
+    m_useNativeFrame = appOptions->appearance()->useNativeFrame;
+    auto useNativeFrame = m_useNativeFrame;
     m_mainMenu = new MainMenuView(this);
     m_titleBar = new MainTitleBar(m_mainMenu, this, useNativeFrame);
 
@@ -103,6 +109,8 @@ MainWindow::MainWindow() {
 
     m_trackEditorView = new TrackEditorView;
     m_bottomPanelView = new BottomPanelView(this);
+    connect(m_bottomPanelView, &BottomPanelView::detachRequested, this,
+            &MainWindow::detachBottomPanel);
 
     m_splitter = new QSplitter;
     m_splitter->setOrientation(Qt::Vertical);
@@ -365,7 +373,117 @@ void MainWindow::onSplitterMoved(int pos, int index) const {
     }
 }
 
+void MainWindow::detachBottomPanel() {
+    if (m_bottomPanelDetached)
+        return;
+
+    m_bottomPanelDetached = true;
+    m_detachSplitterState = m_splitter->saveState();
+
+    m_splitter->widget(1)->setParent(nullptr);
+
+    m_bottomPanelView->setWindowFlags(Qt::Window);
+    m_bottomPanelView->titleBar()->setDetached(true, m_useNativeFrame);
+
+    if (!m_useNativeFrame) {
+        m_detachedAgent = new QWK::WidgetWindowAgent(m_bottomPanelView);
+        m_detachedAgent->setup(m_bottomPanelView);
+        m_detachedAgent->setTitleBar(m_bottomPanelView->titleBar());
+        auto *titleBar = m_bottomPanelView->titleBar();
+        m_detachedAgent->setSystemButton(QWK::WindowAgentBase::Minimize,
+                                         titleBar->minimizeButton());
+        m_detachedAgent->setSystemButton(QWK::WindowAgentBase::Maximize,
+                                         titleBar->maximizeButton());
+        m_detachedAgent->setSystemButton(QWK::WindowAgentBase::Close, titleBar->closeButton());
+        m_detachedAgent->setHitTestVisible(static_cast<QWidget *>(titleBar->tabBar()));
+        m_detachedAgent->setHitTestVisible(static_cast<QWidget *>(titleBar->toolBar()));
+
+        connect(titleBar->minimizeButton(), &Button::clicked, m_bottomPanelView,
+                &QWidget::showMinimized);
+        connect(titleBar->maximizeButton(), &Button::clicked, m_bottomPanelView, [this] {
+            if (m_bottomPanelView->isMaximized())
+                m_bottomPanelView->showNormal();
+            else
+                m_bottomPanelView->showMaximized();
+        });
+        connect(titleBar->closeButton(), &Button::clicked, this, &MainWindow::attachBottomPanel);
+    }
+
+    m_bottomPanelView->setStyleSheet(styleSheet());
+
+    m_bottomPanelView->setMinimumWidth(960);
+
+    if (m_detachedWindowGeometry.isValid()) {
+        m_bottomPanelView->setGeometry(m_detachedWindowGeometry);
+    } else {
+        int panelHeight = m_bottomPanelView->height();
+        int panelWidth = 960;
+        m_bottomPanelView->resize(panelWidth, panelHeight);
+
+        auto scr = QApplication::screenAt(QCursor::pos());
+        if (!scr)
+            scr = QApplication::primaryScreen();
+        if (scr) {
+            auto availableRect = scr->availableGeometry();
+            int x = availableRect.x() + (availableRect.width() - panelWidth) / 2;
+            int y = availableRect.y() + (availableRect.height() - panelHeight) / 2;
+            m_bottomPanelView->move(x, y);
+        }
+    }
+    m_bottomPanelView->show();
+
+    m_bottomPanelView->installEventFilter(this);
+
+#if defined(WITH_DIRECT_MANIPULATION)
+    if (appOptions->appearance()->enableDirectManipulation) {
+        QWDMH::DirectManipulationSystem::registerWindow(m_bottomPanelView->windowHandle());
+    }
+#endif
+}
+
+void MainWindow::attachBottomPanel() {
+    if (!m_bottomPanelDetached)
+        return;
+
+    m_bottomPanelDetached = false;
+    m_detachedWindowGeometry = m_bottomPanelView->geometry();
+
+    m_bottomPanelView->removeEventFilter(this);
+
+#if defined(WITH_DIRECT_MANIPULATION)
+    if (appOptions->appearance()->enableDirectManipulation) {
+        QWDMH::DirectManipulationSystem::unregisterWindow(m_bottomPanelView->windowHandle());
+    }
+#endif
+
+    if (m_detachedAgent) {
+        delete m_detachedAgent;
+        m_detachedAgent = nullptr;
+    }
+
+    m_bottomPanelView->hide();
+    m_bottomPanelView->titleBar()->setDetached(false, m_useNativeFrame);
+    m_bottomPanelView->setWindowFlags({});
+    m_bottomPanelView->setMinimumWidth(0);
+
+    m_splitter->addWidget(m_bottomPanelView);
+    m_splitter->restoreState(m_detachSplitterState);
+    m_bottomPanelView->show();
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == m_bottomPanelView && event->type() == QEvent::Close) {
+        event->ignore();
+        attachBottomPanel();
+        return true;
+    }
+    return QMainWindow::eventFilter(watched, event);
+}
+
 void MainWindow::closeEvent(QCloseEvent *event) {
+    if (m_bottomPanelDetached)
+        attachBottomPanel();
+
     auto saved = historyManager->isOnSavePoint();
     if (!saved) {
         if (!askSaveChanges()) {

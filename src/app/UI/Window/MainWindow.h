@@ -23,6 +23,10 @@ class QLabel;
 class TrackEditorView;
 class ClipEditorView;
 
+namespace QWK {
+class WidgetWindowAgent;
+}
+
 class MainWindow final : public QMainWindow, public IMainWindow {
     Q_OBJECT
 
@@ -52,9 +56,12 @@ private slots:
     bool onSave();
     bool onSaveAs();
     void onSplitterMoved(int pos, int index) const;
+    void detachBottomPanel();
+    void attachBottomPanel();
 
 private:
     void closeEvent(QCloseEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
     static void emulateLeaveEvent(QWidget *widget);
     static void restartApp();
@@ -77,6 +84,12 @@ private:
 
     QTimer m_waitDoneDialogDelayTimer;
     TaskDialog *m_waitDoneDialog = nullptr;
+
+    bool m_bottomPanelDetached = false;
+    bool m_useNativeFrame = false;
+    QByteArray m_detachSplitterState;
+    QRect m_detachedWindowGeometry;
+    QWK::WidgetWindowAgent *m_detachedAgent = nullptr;
 
     // int m_noteIndex = 0;
 };

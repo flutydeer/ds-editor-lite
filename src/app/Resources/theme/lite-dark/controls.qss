@@ -1042,6 +1042,7 @@ TabPanelTitleBar {
     max-height: 40px;
 }
 
+TabPanelTitleBar>QPushButton#btnPanelDetach,
 TabPanelTitleBar>QPushButton#btnPanelMaximize,
 TabPanelTitleBar>QPushButton#btnPanelHide {
     padding: 0px;
@@ -1058,14 +1059,20 @@ TabPanelTitleBar>QPushButton#btnPanelMaximize:checked:hover {
     background-color: rgb(169, 196, 255);
 }
 
+TabPanelTitleBar>QPushButton#btnPanelDetach:hover,
 TabPanelTitleBar>QPushButton#btnPanelMaximize:hover,
 TabPanelTitleBar>QPushButton#btnPanelHide:hover {
     background: #1AFFFFFF;
 }
 
+TabPanelTitleBar>QPushButton#btnPanelDetach:pressed,
 TabPanelTitleBar>QPushButton#btnPanelMaximize:pressed,
 TabPanelTitleBar>QPushButton#btnPanelHide:pressed {
     background: #10FFFFFF;
+}
+
+TabPanelTitleBar>QPushButton#btnPanelDetach {
+    icon: url(:svg/icons/panel_separate_window_20_filled.svg)
 }
 
 TabPanelTitleBar>QPushButton#btnPanelMaximize {
