@@ -43,6 +43,10 @@ void ChannelView::setIsMasterChannel(bool on) {
     }
 }
 
+bool ChannelView::isMasterChannel() const {
+    return m_isMasterChannel;
+}
+
 TrackControl ChannelView::control() const {
     TrackControl control;
     control.setGain(m_fader->value());

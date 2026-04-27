@@ -23,6 +23,7 @@ class LevelMeter;
 
 class ChannelView : public QWidget, public ITrack {
     Q_OBJECT
+    Q_PROPERTY(bool isMasterChannel READ isMasterChannel)
 
 public:
     // enum ChannelType {
@@ -35,6 +36,7 @@ public:
 
     Track &context() const;
     void setIsMasterChannel(bool on);
+    [[nodiscard]] bool isMasterChannel() const;
     [[nodiscard]] TrackControl control() const override;
     [[nodiscard]] QString name() const override;
     [[nodiscard]] QColor color() const override;

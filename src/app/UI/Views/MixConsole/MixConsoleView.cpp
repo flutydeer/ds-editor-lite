@@ -16,6 +16,8 @@
 #include <QHBoxLayout>
 #include <QListWidget>
 #include <QResizeEvent>
+#include <QScrollBar>
+#include <QVBoxLayout>
 
 QString MixConsoleView::tabId() const {
     return "MixConsole";
@@ -49,6 +51,21 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
     m_channelListView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_channelListView->setFlow(QListView::LeftToRight);
     m_channelListView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_channelListView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    m_hScrollBar = new QScrollBar(Qt::Horizontal);
+    auto *sourceBar = m_channelListView->horizontalScrollBar();
+    connect(sourceBar, &QScrollBar::rangeChanged, m_hScrollBar, [this](int min, int max) {
+        m_hScrollBar->setRange(min, max);
+        m_hScrollBar->setEnabled(max > 0);
+    });
+    connect(sourceBar, &QScrollBar::valueChanged, m_hScrollBar, &QScrollBar::setValue);
+    connect(m_hScrollBar, &QScrollBar::valueChanged, sourceBar, &QScrollBar::setValue);
+    connect(sourceBar, &QScrollBar::rangeChanged, this, [this, sourceBar] {
+        m_hScrollBar->setPageStep(sourceBar->pageStep());
+        m_hScrollBar->setSingleStep(sourceBar->singleStep());
+    });
+    m_hScrollBar->setEnabled(sourceBar->maximum() > 0);
 
     m_masterChannel = new ChannelView;
     m_masterChannel->setName(tr("Master"));
@@ -56,10 +73,27 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
 
     m_placeHolder = new QWidget;
 
+    auto leftLayout = new QVBoxLayout;
+    leftLayout->addWidget(m_channelListView);
+    leftLayout->addWidget(m_hScrollBar);
+    leftLayout->setContentsMargins({});
+    leftLayout->setSpacing(0);
+
+    auto scrollBarHeight = m_hScrollBar->sizeHint().height();
+    auto masterSpacer = new QWidget;
+    masterSpacer->setFixedHeight(scrollBarHeight);
+
+    auto rightLayout = new QVBoxLayout;
+    rightLayout->addWidget(m_masterChannel);
+    rightLayout->addWidget(masterSpacer);
+    rightLayout->setContentsMargins({});
+    rightLayout->setSpacing(0);
+
     auto mainLayout = new QHBoxLayout;
-    mainLayout->addWidget(m_channelListView);
-    mainLayout->addWidget(m_masterChannel);
+    mainLayout->addLayout(leftLayout);
+    mainLayout->addLayout(rightLayout);
     mainLayout->setContentsMargins({});
+    mainLayout->setSpacing(0);
     setLayout(mainLayout);
     setContentsMargins({1, 1, 1, 1});
     setMinimumHeight(320);

@@ -12,6 +12,7 @@
 
 class Track;
 class QListWidget;
+class QScrollBar;
 class ChannelView;
 class QResizeEvent;
 
@@ -46,6 +47,7 @@ private:
     void onTrackPropertyChanged() const;
 
     QListWidget *m_channelListView;
+    QScrollBar *m_hScrollBar;
     ChannelView *m_masterChannel;
     QWidget *m_placeHolder;
 };

@@ -311,6 +311,18 @@ QScrollBar::handle::horizontal:pressed {
     background: rgba(255, 255, 255, 0.15);
 }
 
+QScrollBar::handle:disabled {
+    background: transparent;
+}
+
+QScrollBar::handle::vertical:disabled {
+    background: transparent;
+}
+
+QScrollBar::handle::horizontal:disabled {
+    background: transparent;
+}
+
 
 /* Splitter */
 QSplitter {
@@ -1016,6 +1028,11 @@ ChannelView {
     background: #272A33;
     border-right: 1px solid #1D1F26;
     min-width: 96px;
+}
+
+ChannelView[isMasterChannel="true"] {
+    border-right: none;
+    border-left: 1px solid #1D1F26;
 }
 
 ChannelView>Fader {
