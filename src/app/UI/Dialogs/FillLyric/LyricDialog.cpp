@@ -4,6 +4,11 @@
 
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Modules/FillLyric/Widgets/SplitterConfigTab.h"
+#include "Modules/FillLyric/Widgets/TaggerConfigTab.h"
+#include "Modules/FillLyric/Widgets/RuleTestTab.h"
+#include "Modules/FillLyric/Utils/TextSplitter.h"
+#include "Modules/FillLyric/Utils/TextTagger.h"
 #include "UI/Controls/AccentButton.h"
 // #include "UI/Dialogs/Options/Pages/G2pPage.h"
 
@@ -38,6 +43,25 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringLis
         shrinkWindowRight(300);
     }
 
+    // Apply saved Split/Tag config to engines
+    FillLyric::TextSplitter::setBuiltinEnabled(appOptions->fillLyric()->builtinSplitterEnabled);
+    FillLyric::TextSplitter::setCustomRules(appOptions->fillLyric()->customSplitterRules);
+    FillLyric::TextSplitter::setRuleOrder(appOptions->fillLyric()->splitterOrder);
+    FillLyric::TextTagger::setBuiltinEnabled(appOptions->fillLyric()->builtinTaggerEnabled);
+    FillLyric::TextTagger::setCustomRules(appOptions->fillLyric()->customTaggerRules);
+    FillLyric::TextTagger::setRuleOrder(appOptions->fillLyric()->taggerOrder);
+
+    // Splitter config tab
+    m_splitterConfigTab = new FillLyric::SplitterConfigTab(this);
+    m_splitterConfigTab->loadFromOption(appOptions->fillLyric());
+
+    // Tagger config tab
+    m_taggerConfigTab = new FillLyric::TaggerConfigTab(this);
+    m_taggerConfigTab->loadFromOption(appOptions->fillLyric());
+
+    // Rule test tab
+    m_ruleTestTab = new FillLyric::RuleTestTab(this);
+
     // m_g2pPage = new G2pPage(this);
 
     m_btnOk = new AccentButton(tr("&Import"), this);
@@ -47,6 +71,9 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringLis
     setNegativeButton(m_btnCancel);
 
     m_tabWidget->addTab(m_lyricWidget, tr("Lyric"));
+    m_tabWidget->addTab(m_splitterConfigTab, tr("Splitter"));
+    m_tabWidget->addTab(m_taggerConfigTab, tr("Tagger"));
+    m_tabWidget->addTab(m_ruleTestTab, tr("Test"));
     // m_tabWidget->addTab(m_g2pPage, tr("G2p"));
     m_tabWidget->addTab(new QWidget, tr("Help"));
 
@@ -66,6 +93,28 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringLis
             &LyricDialog::_on_modifyOption);
 
     connect(m_tabWidget, &QTabWidget::currentChanged, this, &LyricDialog::switchTab);
+
+    connect(m_splitterConfigTab, &FillLyric::SplitterConfigTab::configChanged,
+            m_lyricWidget, [this]() {
+                // Re-split when splitter config changes
+                m_lyricWidget->setLangNotes(false);
+            });
+
+    connect(m_taggerConfigTab, &FillLyric::TaggerConfigTab::configChanged,
+            m_lyricWidget, [this]() {
+                // Re-split when tagger config changes
+                m_lyricWidget->setLangNotes(false);
+            });
+
+    // Jump between config tabs and test tab
+    connect(m_splitterConfigTab, &FillLyric::SplitterConfigTab::jumpToTestRequested,
+            this, [this]() { m_tabWidget->setCurrentWidget(m_ruleTestTab); });
+    connect(m_taggerConfigTab, &FillLyric::TaggerConfigTab::jumpToTestRequested,
+            this, [this]() { m_tabWidget->setCurrentWidget(m_ruleTestTab); });
+    connect(m_ruleTestTab, &FillLyric::RuleTestTab::jumpToSplitterRequested,
+            this, [this]() { m_tabWidget->setCurrentWidget(m_splitterConfigTab); });
+    connect(m_ruleTestTab, &FillLyric::RuleTestTab::jumpToTaggerRequested,
+            this, [this]() { m_tabWidget->setCurrentWidget(m_taggerConfigTab); });
 }
 
 LyricDialog::~LyricDialog() = default;
@@ -154,5 +203,5 @@ void LyricDialog::_on_modifyOption(const FillLyric::LyricTabConfig &config) {
 
     options->viewFontSize = config.lyricExtFontSize;
     options->exportLanguage = config.exportLanguage;
-    appOptions->saveAndNotify(AppOptionsGlobal::Language);
+    appOptions->saveAndNotify(AppOptionsGlobal::FillLyric);
 }

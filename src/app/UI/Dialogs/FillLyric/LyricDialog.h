@@ -9,6 +9,12 @@
 #include "UI/Dialogs/Base/Dialog.h"
 // #include "UI/Dialogs/Options/Pages/G2pPage.h"
 
+namespace FillLyric {
+    class SplitterConfigTab;
+    class TaggerConfigTab;
+    class RuleTestTab;
+}
+
 class LanguagePage;
 class Note;
 class AccentButton;
@@ -53,6 +59,9 @@ private:
     QTabWidget *m_tabWidget;
 
     FillLyric::LyricTab *m_lyricWidget;
+    FillLyric::SplitterConfigTab *m_splitterConfigTab;
+    FillLyric::TaggerConfigTab *m_taggerConfigTab;
+    FillLyric::RuleTestTab *m_ruleTestTab;
     // G2pPage *m_g2pPage;
 
     AccentButton *m_btnOk;

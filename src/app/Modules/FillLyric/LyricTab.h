@@ -46,6 +46,7 @@ namespace FillLyric
         LyricExtWidget *m_lyricExtWidget;
 
         int m_notesCount = 0;
+        bool m_exportLanguage = false;
 
         QVBoxLayout *m_mainLayout;
         QHBoxLayout *m_lyricLayout;

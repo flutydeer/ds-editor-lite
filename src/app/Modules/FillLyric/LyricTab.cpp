@@ -97,6 +97,7 @@ namespace FillLyric
         }
 
         m_lyricBaseWidget->setSkipSlur(config.baseSkipSlur);
+        m_exportLanguage = config.exportLanguage;
         connect(m_lyricBaseWidget, &LyricBaseWidget::splitOptionChanged, this, [this] { setLangNotes(false); });
     }
 
@@ -197,6 +198,7 @@ namespace FillLyric
         Q_EMIT this->modifyOptionSignal(
             {m_lyricBaseWidget->isVisible(), m_lyricExtWidget->isVisible(),
              m_lyricBaseWidget->fontSize(), m_lyricBaseWidget->skipSlur(),
-             m_lyricBaseWidget->splitMode(), m_lyricExtWidget->fontSize()});
+             m_lyricBaseWidget->splitMode(), m_lyricExtWidget->fontSize(),
+             m_exportLanguage});
     }
 } // namespace FillLyric

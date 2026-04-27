@@ -631,6 +631,74 @@ IOptionPage::viewport {
     background: transparent;
 }
 
+/* Split/Tag Config Tabs */
+FillLyric--SplitterConfigTab,
+FillLyric--TaggerConfigTab,
+FillLyric--RuleTestTab {
+    background: transparent;
+}
+
+/* Rule List */
+FillLyric--RuleListWidget {
+    background: #1E1F22;
+    border: 1px solid #3C3F41;
+    border-radius: 4px;
+}
+
+FillLyric--RuleListWidget::item {
+    padding: 4px 2px;
+    border-bottom: 1px solid #2B2D30;
+}
+
+FillLyric--RuleListWidget::item:selected {
+    background: #2E436E;
+}
+
+FillLyric--RuleListWidget::item:hover {
+    background: #2B2D30;
+}
+
+/* Detail Panel */
+FillLyric--SplitterDetailPanel,
+FillLyric--TaggerDetailPanel {
+    background: transparent;
+}
+
+/* Drag Handle */
+QLabel#dragHandle {
+    color: #606366;
+    font-size: 14px;
+    padding: 0 4px;
+}
+
+/* Rule Info Label */
+QLabel#ruleInfoLabel {
+    color: rgba(160, 255, 255, 255);
+    font-size: 9pt;
+}
+
+/* Rule toolbar +/- buttons */
+QPushButton#ruleToolBtn {
+    padding: 0px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* Test/Preview area */
+QPlainTextEdit#testInputEdit,
+QPlainTextEdit#testOutputEdit {
+    background: #1E1F22;
+    border: 1px solid #3C3F41;
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 9pt;
+}
+
+QLabel#testErrorLabel {
+    color: #FF6B6B;
+    font-size: 9pt;
+}
+
 /* CheckBox */
 QCheckBox {
     background: transparent;
