@@ -5,6 +5,7 @@
 #include "TimeOverlayView.h"
 
 #include <QGraphicsSceneMouseEvent>
+#include "Global/AppGlobal.h"
 
 bool TimeOverlayView::transparentMouseEvents() const {
     return m_transparentMouseEvents;
@@ -36,12 +37,12 @@ double TimeOverlayView::endTick() const {
 }
 
 double TimeOverlayView::sceneXToTick(double x) const {
-    auto tick = 480 * x / scaleX() / pixelsPerQuarterNote;
+    auto tick = AppGlobal::ticksPerQuarterNote * x / scaleX() / pixelsPerQuarterNote;
     return tick;
 }
 
 double TimeOverlayView::tickToSceneX(double tick) const {
-    auto x = tick * scaleX() * pixelsPerQuarterNote / 480;
+    auto x = tick * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
     return x;
 }
 

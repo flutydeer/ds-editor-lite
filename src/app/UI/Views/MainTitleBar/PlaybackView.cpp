@@ -15,6 +15,7 @@
 #include "UI/Controls/LineEdit.h"
 #include "UI/Utils/IconUtils.h"
 #include "Utils/FontManager.h"
+#include "Global/AppGlobal.h"
 
 #include <QColor>
 #include <QHBoxLayout>
@@ -108,7 +109,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         // Initialize loop region based on current position when enabling
         if (checked && settings.length == 0) {
             int currentTick = static_cast<int>(playbackController->position());
-            int barTicks = 1920 * m_numerator / m_denominator;
+            int barTicks = AppGlobal::ticksPerWholeNote * m_numerator / m_denominator;
 
             // Snap to bar line
             int startBar = currentTick / barTicks;
@@ -296,8 +297,8 @@ void PlaybackView::onPlaybackStatusChanged(PlaybackStatus status) {
 }
 
 QString PlaybackView::toFormattedTickTime(int ticks) const {
-    int barTicks = 1920 * m_numerator / m_denominator;
-    int beatTicks = 1920 / m_denominator;
+    int barTicks = AppGlobal::ticksPerWholeNote * m_numerator / m_denominator;
+    int beatTicks = AppGlobal::ticksPerWholeNote / m_denominator;
     auto bar = ticks / barTicks + 1;
     auto beat = ticks % barTicks / beatTicks + 1;
     auto tick = ticks % barTicks % beatTicks;
@@ -310,7 +311,7 @@ int PlaybackView::fromTickTimeString(const QStringList &splitStr) const {
     auto bar = splitStr.at(0).toInt();
     auto beat = splitStr.at(1).toInt();
     auto tick = splitStr.at(2).toInt();
-    return (bar - 1) * 1920 * m_numerator / m_denominator + (beat - 1) * 1920 / m_denominator +
+    return (bar - 1) * AppGlobal::ticksPerWholeNote * m_numerator / m_denominator + (beat - 1) * AppGlobal::ticksPerWholeNote / m_denominator +
            tick;
 }
 

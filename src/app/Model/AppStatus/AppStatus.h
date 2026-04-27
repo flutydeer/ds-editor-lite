@@ -12,6 +12,7 @@
 #include "Utils/Singleton.h"
 
 #include <QObject>
+#include "Global/AppGlobal.h"
 
 class AppStatus : public QObject {
     Q_OBJECT
@@ -39,7 +40,7 @@ public:
 
     // Project
     Property<int> quantize = 16;
-    Property<int> projectEditableLength = 1920 * 100;
+    Property<int> projectEditableLength = AppGlobal::ticksPerWholeNote * 100;
     Property<int> selectedTrackIndex = -1;
     Property<int> activeClipId = -1;
     Property<QList<int>> selectedNotes;

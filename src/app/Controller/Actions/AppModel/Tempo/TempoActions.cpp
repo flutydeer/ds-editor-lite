@@ -9,6 +9,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/Track.h"
+#include "Global/AppGlobal.h"
 
 void TempoActions::editTempo(const double oldTempo, const double newTempo, AppModel *model) {
     addAction(EditTempoAction::build(oldTempo, newTempo, model));
@@ -22,7 +23,7 @@ void TempoActions::editTempo(const double oldTempo, const double newTempo, AppMo
                 Clip::ClipCommonProperties oldArgs(*clip);
                 auto newArgs = oldArgs;
                 auto chunksPerTick = static_cast<double>(audioInfo.sampleRate) /
-                                     audioInfo.chunkSize * 60 / newTempo / 480;
+                                     audioInfo.chunkSize * 60 / newTempo / AppGlobal::ticksPerQuarterNote;
 
                 const auto oldStartInMs = tickToMs(oldArgs.start, oldTempo);
                 newArgs.start = msToTick(oldStartInMs, newTempo);
@@ -31,11 +32,11 @@ void TempoActions::editTempo(const double oldTempo, const double newTempo, AppMo
                 newArgs.clipStart = msToTick(oldClipStartInMs, newTempo);
 
                 auto targetLength = static_cast<int>(audioInfo.frames /
-                                                     (audioInfo.sampleRate * 60 / newTempo / 480));
+                                                     (audioInfo.sampleRate * 60 / newTempo / AppGlobal::ticksPerQuarterNote));
                 newArgs.length = targetLength;
 
-                const auto oldClipLenInMs = oldArgs.clipLen * 60 / oldTempo / 480 * 1000;
-                auto targetClipLen = static_cast<int>(oldClipLenInMs * 480 * newTempo / 60000);
+                const auto oldClipLenInMs = oldArgs.clipLen * 60 / oldTempo / AppGlobal::ticksPerQuarterNote * 1000;
+                auto targetClipLen = static_cast<int>(oldClipLenInMs * AppGlobal::ticksPerQuarterNote * newTempo / 60000);
                 newArgs.clipLen = targetClipLen > targetLength ? targetLength : targetClipLen;
 
                 const auto action = EditClipCommonPropertiesAction::build(oldArgs, newArgs, clip, track);
@@ -46,9 +47,9 @@ void TempoActions::editTempo(const double oldTempo, const double newTempo, AppMo
 }
 
 double TempoActions::tickToMs(const int tick, const double tempo) {
-    return tick * 60 / tempo / 480 * 1000;
+    return tick * 60 / tempo / AppGlobal::ticksPerQuarterNote * 1000;
 }
 
 int TempoActions::msToTick(const double ms, const double tempo) {
-    return static_cast<int>(ms * 480 * tempo / 60000);
+    return static_cast<int>(ms * AppGlobal::ticksPerQuarterNote * tempo / 60000);
 }

@@ -13,6 +13,7 @@
 #include <QDebug>
 #include <QThread>
 #include <utility>
+#include "Global/AppGlobal.h"
 
 ExtractPitchTask::ExtractPitchTask(Input input) : ExtractTask(std::move(input)) {
     TaskStatus status;
@@ -123,7 +124,7 @@ std::vector<float> ExtractPitchTask::freqToMidi(const std::vector<float> &freque
 }
 
 QList<double> ExtractPitchTask::processOutput(const QList<double> &values) const {
-    auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / 480; };
+    auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / AppGlobal::ticksPerQuarterNote; };
     constexpr auto interval = 0.01;
     const auto newInterval = tickToSec(5);
     return MathUtils::resample(values, interval, newInterval);

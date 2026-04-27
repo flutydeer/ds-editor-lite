@@ -319,9 +319,9 @@ void AbstractClipView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 
 void AbstractClipView::updateRectAndPos() {
     Q_D(AbstractClipView);
-    const auto x = (d->m_start + d->m_clipStart) * scaleX() * pixelsPerQuarterNote / 480;
+    const auto x = (d->m_start + d->m_clipStart) * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
     const auto y = d->m_trackIndex * trackHeight * scaleY();
-    const auto w = d->m_clipLen * scaleX() * pixelsPerQuarterNote / 480;
+    const auto w = d->m_clipLen * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
     const auto h = trackHeight * scaleY();
     setPos(x, y);
     setRect(QRectF(0, 0, w, h));
@@ -334,7 +334,7 @@ void AbstractClipView::setCanResizeLength(const bool on) {
 }
 
 double AbstractClipView::tickToSceneX(const double tick) const {
-    return tick * scaleX() * pixelsPerQuarterNote / 480;
+    return tick * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
 }
 
 double AbstractClipView::sceneXToItemX(const double x) const {

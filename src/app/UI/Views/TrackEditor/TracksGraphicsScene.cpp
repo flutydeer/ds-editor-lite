@@ -5,6 +5,7 @@
 #include "TracksGraphicsScene.h"
 
 #include "Global/TracksEditorGlobal.h"
+#include "Global/AppGlobal.h"
 
 TracksGraphicsScene::TracksGraphicsScene() {
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
@@ -21,7 +22,7 @@ int TracksGraphicsScene::trackIndexAt(const double sceneY) const {
 }
 
 int TracksGraphicsScene::tickAt(const double sceneX) const {
-    return static_cast<int>(480 * sceneX / scaleX() / TracksEditorGlobal::pixelsPerQuarterNote);
+    return static_cast<int>(AppGlobal::ticksPerQuarterNote * sceneX / scaleX() / TracksEditorGlobal::pixelsPerQuarterNote);
 }
 
 void TracksGraphicsScene::onViewResized(const QSize size) {

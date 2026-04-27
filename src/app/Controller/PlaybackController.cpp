@@ -9,6 +9,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/Toast.h"
+#include "Global/AppGlobal.h"
 
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {
     Q_D(PlaybackController);
@@ -119,11 +120,11 @@ void PlaybackControllerPrivate::onValidationFinished(const bool passed) {
 
 double PlaybackControllerPrivate::samplePosToTick(const int sample) const {
     const auto secs = sample / m_sampleRate;
-    const auto tick = secs * 60 / m_tempo * 480;
+    const auto tick = secs * 60 / m_tempo * AppGlobal::ticksPerQuarterNote;
     return tick;
 }
 
 int PlaybackControllerPrivate::tickToSamplePos(const double tick) const {
-    const auto pos = tick * m_tempo * m_sampleRate / 60 / 480;
+    const auto pos = tick * m_tempo * m_sampleRate / 60 / AppGlobal::ticksPerQuarterNote;
     return static_cast<int>(pos);
 }

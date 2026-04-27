@@ -298,9 +298,9 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
 
 void NoteView::updateRectAndPos() {
     // qDebug() << "updateRectAndPos";
-    const auto x = (m_rStart + m_startOffset) * scaleX() * pixelsPerQuarterNote / 480;
+    const auto x = (m_rStart + m_startOffset) * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
     const auto y = -(m_keyIndex + m_keyOffset - 127) * noteHeight * scaleY();
-    const auto w = (m_length + m_lengthOffset) * scaleX() * pixelsPerQuarterNote / 480;
+    const auto w = (m_length + m_lengthOffset) * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
     const auto h = noteHeight * scaleY();
     setPos(x, y);
     setRect(QRectF(0, 0, w, h));

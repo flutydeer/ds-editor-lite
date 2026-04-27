@@ -13,6 +13,7 @@
 #include "Controller/PlaybackController.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Global/AppGlobal.h"
 
 #if defined(Q_OS_MAC) && QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #  define SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
@@ -745,11 +746,11 @@ void TimeGraphicsView::pageAdd() {
 }
 
 double TimeGraphicsView::sceneXToTick(double pos) const {
-    return 480 * pos / scaleX() / m_pixelsPerQuarterNote;
+    return AppGlobal::ticksPerQuarterNote * pos / scaleX() / m_pixelsPerQuarterNote;
 }
 
 double TimeGraphicsView::tickToSceneX(double tick) const {
-    return tick * scaleX() * m_pixelsPerQuarterNote / 480;
+    return tick * scaleX() * m_pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
 }
 
 QColor TimeGraphicsView::barLineColor() const {

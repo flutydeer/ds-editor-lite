@@ -3,14 +3,15 @@
 //
 
 #include "Timeline.h"
+#include "Global/AppGlobal.h"
 
 // TODO 支持多曲速
 double Timeline::tickToMs(const double tick) const {
-    return tick * 60 / tempos.first().value / 480 * 1000;
+    return tick * 60 / tempos.first().value / AppGlobal::ticksPerQuarterNote * 1000;
 }
 
 double Timeline::msToTick(const double ms) const {
-    return ms * 480 * tempos.first().value / 60000;
+    return ms * AppGlobal::ticksPerQuarterNote * tempos.first().value / 60000;
 }
 
 double Timeline::tickToSec(double tick) const {
@@ -23,8 +24,8 @@ double Timeline::secToTick(double ms) const {
 
 QString Timeline::getBarBeatTickTime(const int ticks) const {
     const auto timeSignature = timeSignatures.first();
-    const int barTicks = 1920 * timeSignature.numerator / timeSignature.denominator;
-    const int beatTicks = 1920 / timeSignature.denominator;
+    const int barTicks = AppGlobal::ticksPerWholeNote * timeSignature.numerator / timeSignature.denominator;
+    const int beatTicks = AppGlobal::ticksPerWholeNote / timeSignature.denominator;
     const auto bar = ticks / barTicks + 1;
     const auto beat = ticks % barTicks / beatTicks + 1;
     const auto tick = ticks % barTicks % beatTicks;

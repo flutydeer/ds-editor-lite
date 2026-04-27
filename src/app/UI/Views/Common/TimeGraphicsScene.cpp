@@ -5,6 +5,7 @@
 #include "TimeGraphicsScene.h"
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
+#include "Global/AppGlobal.h"
 
 TimeGraphicsScene::TimeGraphicsScene(QObject *parent) : QGraphicsScene(parent) {
     setSceneRect(0, 0, m_sceneSize.width(), m_sceneSize.height());
@@ -114,5 +115,5 @@ void TimeGraphicsScene::setVerticalBarVisibility(bool visible) {
 }
 
 void TimeGraphicsScene::setSceneLength(int tick) {
-    setSceneBaseSize(QSizeF(tick * m_pixelsPerQuarterNote / 480.0, sceneBaseSize().height()));
+    setSceneBaseSize(QSizeF(tick * m_pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote, sceneBaseSize().height()));
 }

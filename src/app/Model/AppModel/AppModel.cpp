@@ -15,6 +15,7 @@
 #include "Modules/ProjectConverters/MidiConverter.h"
 #include "Utils/Log.h"
 #include "Utils/MathUtils.h"
+#include "Global/AppGlobal.h"
 
 #include <QJsonArray>
 
@@ -122,7 +123,7 @@ void AppModel::newProject() {
     const auto singingClip = new SingingClip;
     constexpr int bars = 4;
     const auto timeSig = appModel->timeSignature();
-    const int length = 1920 * timeSig.numerator / timeSig.denominator * bars;
+    const int length = AppGlobal::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
     singingClip->setName(tr("New Singing Clip"));
     singingClip->setStart(0);
     singingClip->setClipStart(0);
@@ -354,18 +355,18 @@ Track *AppModel::findTrackById(const int id) {
 
 double AppModel::tickToMs(const double tick) const {
     Q_D(const AppModel);
-    return tick * 60 / d->m_tempo / 480 * 1000;
+    return tick * 60 / d->m_tempo / AppGlobal::ticksPerQuarterNote * 1000;
 }
 
 double AppModel::msToTick(const double ms) const {
     Q_D(const AppModel);
-    return ms * 480 * d->m_tempo / 60000;
+    return ms * AppGlobal::ticksPerQuarterNote * d->m_tempo / 60000;
 }
 
 QString AppModel::getBarBeatTickTime(const int ticks) const {
     Q_D(const AppModel);
-    const int barTicks = 1920 * d->m_timeSignature.numerator / d->m_timeSignature.denominator;
-    const int beatTicks = 1920 / d->m_timeSignature.denominator;
+    const int barTicks = AppGlobal::ticksPerWholeNote * d->m_timeSignature.numerator / d->m_timeSignature.denominator;
+    const int beatTicks = AppGlobal::ticksPerWholeNote / d->m_timeSignature.denominator;
     const auto bar = ticks / barTicks + 1;
     const auto beat = ticks % barTicks / beatTicks + 1;
     const auto tick = ticks % barTicks % beatTicks;

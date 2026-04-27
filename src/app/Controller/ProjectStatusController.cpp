@@ -5,6 +5,7 @@
 #include "ProjectStatusController.h"
 
 #include "Model/AppStatus/AppStatus.h"
+#include "Global/AppGlobal.h"
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(ProjectStatusController)
 
@@ -45,7 +46,7 @@ void ProjectStatusController::handleClipPropertyChanged(Clip *clip) {
 }
 
 void ProjectStatusController::updateProjectEditableLength() {
-    int maxEndTick = 1920 * 100;
+    int maxEndTick = AppGlobal::ticksPerWholeNote * 100;
     constexpr int tailLength = 3840; // 在编辑区域的尾部留下至少 2 小节（4/4）的空白
     for (const auto track : appModel->tracks()) {
         for (const auto clip : track->clips()) {

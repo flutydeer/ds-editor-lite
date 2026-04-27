@@ -1,10 +1,12 @@
 #ifndef TIMELINESNAPUTILS_H
 #define TIMELINESNAPUTILS_H
 
+#include "Global/AppGlobal.h"
+
 class TimelineSnapUtils {
 public:
     static constexpr int ticksPerWholeNote() {
-        return 1920;
+        return AppGlobal::ticksPerWholeNote;
     }
 
     static int ticksPerBeat(int denominator) {

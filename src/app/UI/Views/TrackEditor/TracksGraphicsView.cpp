@@ -172,7 +172,7 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 
     const auto curPos = mapToScene(event->pos());
     const auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() /
-                    TracksEditorGlobal::pixelsPerQuarterNote * 480;
+                    TracksEditorGlobal::pixelsPerQuarterNote * AppGlobal::ticksPerQuarterNote;
 
     int start;
     int left;

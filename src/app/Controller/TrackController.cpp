@@ -19,6 +19,7 @@
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AudioClipView.h"
+#include "Global/AppGlobal.h"
 
 #include <QFileInfo>
 
@@ -211,7 +212,7 @@ SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int t
     const auto singingClip = new SingingClip;
     constexpr int bars = 4;
     const auto timeSig = appModel->timeSignature();
-    const int length = 1920 * timeSig.numerator / timeSig.denominator * bars;
+    const int length = AppGlobal::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
     singingClip->setName(tr("New Singing Clip"));
     singingClip->setStart(tick);
     singingClip->setClipStart(0);
@@ -267,7 +268,7 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     const auto sampleRate = result.sampleRate;
     const auto tempo = appModel->tempo();
     const auto frames = result.frames;
-    const auto length = frames / (sampleRate * 60 / tempo / 480);
+    const auto length = frames / (sampleRate * 60 / tempo / AppGlobal::ticksPerQuarterNote);
 
     const auto audioClip = new AudioClip;
     audioClip->setName(QFileInfo(path).baseName());

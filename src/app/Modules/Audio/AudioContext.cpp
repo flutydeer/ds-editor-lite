@@ -37,6 +37,7 @@
 #include "utils/PseudoSingerConfigNotifier.h"
 
 #include <Model/AppOptions/AppOptions.h>
+#include "Global/AppGlobal.h"
 
 #define DEVICE_LOCKER                                                                              \
     talcs::AudioDeviceLocker locker(AudioSystem::outputSystem()->context()->device())
@@ -57,13 +58,13 @@ static AudioExporter *m_exporter = nullptr;
 static qint64 tickToSample(const double tick) {
     const auto sr =
         m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
-    return static_cast<qint64>(tick * 60.0 * sr / appModel->tempo() / 480.0);
+    return static_cast<qint64>(tick * 60.0 * sr / appModel->tempo() / AppGlobal::ticksPerQuarterNote);
 }
 
 static double sampleToTick(const qint64 sample) {
     const auto sr =
         m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
-    return static_cast<double>(sample) / sr * appModel->tempo() / 60.0 * 480.0;
+    return static_cast<double>(sample) / sr * appModel->tempo() / 60.0 * AppGlobal::ticksPerQuarterNote;
 }
 
 AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {

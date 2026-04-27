@@ -6,6 +6,7 @@
 
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Global/AppGlobal.h"
 
 #include <QPainter>
 #include <QPen>
@@ -139,11 +140,11 @@ void TimeGridView::setCommonLineColor(const QColor &color) {
 }
 
 double TimeGridView::sceneXToTick(double pos) const {
-    return 480 * pos / scaleX() / pixelsPerQuarterNote();
+    return AppGlobal::ticksPerQuarterNote * pos / scaleX() / pixelsPerQuarterNote();
 }
 
 double TimeGridView::tickToSceneX(double tick) const {
-    return tick * scaleX() * pixelsPerQuarterNote() / 480;
+    return tick * scaleX() * pixelsPerQuarterNote() / AppGlobal::ticksPerQuarterNote;
 }
 
 double TimeGridView::sceneXToItemX(double x) const {

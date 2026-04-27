@@ -3,6 +3,7 @@
 //
 
 #include "TimeIndicatorView.h"
+#include "Global/AppGlobal.h"
 
 TimeIndicatorView::TimeIndicatorView(QObject *parent) : QObject(parent) {
     setFixedScaleY(true);
@@ -40,5 +41,5 @@ void TimeIndicatorView::updateLengthAndPos() {
 }
 
 double TimeIndicatorView::tickToItemX(double tick) const {
-    return tick * scaleX() * m_pixelsPerQuarterNote / 480;
+    return tick * scaleX() * m_pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
 }

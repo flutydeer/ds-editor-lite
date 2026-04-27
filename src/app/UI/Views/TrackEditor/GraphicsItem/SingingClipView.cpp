@@ -10,6 +10,7 @@
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppModel/Note.h"
 #include "Utils/MathUtils.h"
+#include "Global/AppGlobal.h"
 
 using namespace TracksEditorGlobal;
 
@@ -52,7 +53,7 @@ void SingingClipView::loadNotes(const OverlappableSerialList<Note> &notes) {
 
 int SingingClipView::contentLength() const {
     if (m_notes.isEmpty())
-        return 1920;
+        return AppGlobal::ticksPerWholeNote;
     const auto lastNote = m_notes.last();
     return lastNote->rStart + lastNote->length;
 }
