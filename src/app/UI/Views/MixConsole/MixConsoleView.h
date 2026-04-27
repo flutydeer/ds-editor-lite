@@ -13,6 +13,7 @@
 class Track;
 class QListWidget;
 class ChannelView;
+class QResizeEvent;
 
 class MixConsoleView : public TabPanelPage {
     Q_OBJECT
@@ -37,7 +38,11 @@ private slots:
     void onTrackInserted(Track *dsTrack, qsizetype trackIndex);
     void onTrackRemoved(qsizetype index);
 
+protected:
+    void resizeEvent(QResizeEvent *event) override;
+
 private:
+    void updateItemSizeHints() const;
     void onTrackPropertyChanged() const;
 
     QListWidget *m_channelListView;

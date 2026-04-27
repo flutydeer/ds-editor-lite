@@ -15,6 +15,7 @@
 
 #include <QHBoxLayout>
 #include <QListWidget>
+#include <QResizeEvent>
 
 QString MixConsoleView::tabId() const {
     return "MixConsole";
@@ -47,6 +48,7 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
     m_channelListView->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_channelListView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_channelListView->setFlow(QListView::LeftToRight);
+    m_channelListView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     m_masterChannel = new ChannelView;
     m_masterChannel->setName(tr("Master"));
@@ -60,6 +62,7 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
     mainLayout->setContentsMargins({});
     setLayout(mainLayout);
     setContentsMargins({1, 1, 1, 1});
+    setMinimumHeight(320);
 
     onModelChanged();
     connect(AudioContext::instance(), &AudioContext::levelMeterUpdated, this,
@@ -124,7 +127,7 @@ void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
     });
 
     auto newTrackItem = new QListWidgetItem;
-    newTrackItem->setSizeHint({97, 420});
+    newTrackItem->setSizeHint({97, m_channelListView->viewport()->height()});
     auto channelView = new ChannelView(*dsTrack);
     channelView->setChannelIndex(trackIndex + 1);
     connect(channelView->fader(), &Fader::sliderMoved, this, [=](double gain) {
@@ -176,5 +179,18 @@ void MixConsoleView::onTrackPropertyChanged() const {
         channelView->setName(track->name());
         channelView->setControl(track->control());
         channelView->updateChannelColor();
+    }
+}
+
+void MixConsoleView::resizeEvent(QResizeEvent *event) {
+    TabPanelPage::resizeEvent(event);
+    updateItemSizeHints();
+}
+
+void MixConsoleView::updateItemSizeHints() const {
+    const int viewportHeight = m_channelListView->viewport()->height();
+    for (int i = 0; i < m_channelListView->count(); i++) {
+        auto item = m_channelListView->item(i);
+        item->setSizeHint({97, viewportHeight});
     }
 }
