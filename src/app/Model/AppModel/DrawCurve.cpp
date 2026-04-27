@@ -152,7 +152,7 @@ void DrawCurve::erase(const int otherStart, const int otherEnd) {
     const auto curEnd = localEndTick();
 
     if (otherStart <= curStart && otherEnd >= curEnd)
-        qFatal("DrawCurve::eraseWith: other curve fully covered current curve");
+        qCritical("DrawCurve::eraseWith: other curve fully covered current curve");
 
     if (otherStart > curStart) {
         const auto eraseLength = curEnd - otherStart;

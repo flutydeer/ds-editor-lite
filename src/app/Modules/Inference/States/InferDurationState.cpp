@@ -58,7 +58,7 @@ bool InferDurationState::validateTaskResult(IInferTask *task, SingingClip *clip)
     const auto modelNoteCount = piece->notes.count();
     const auto taskNoteCount = durationTask->result().count();
     if (modelNoteCount != taskNoteCount) {
-        qFatal() << "Model note count does not equal task note count"
+        qCritical() << "Model note count does not equal task note count"
                  << "Model note count:" << modelNoteCount
                  << "Task note count:" << taskNoteCount;
         return false;

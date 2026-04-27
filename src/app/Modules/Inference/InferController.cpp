@@ -303,7 +303,7 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
             }
             break;
         case ParamInfo::Unknown:
-            qFatal() << "Unknown param";
+            qCritical() << "Unknown param";
             break;
     }
 }

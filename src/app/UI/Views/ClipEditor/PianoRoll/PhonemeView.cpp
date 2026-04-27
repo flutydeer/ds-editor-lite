@@ -565,7 +565,7 @@ void PhonemeView::handleAdjustCompleted(const PhonemeViewModel *phVm) {
     auto relatedPhonemes =
         Linq::where(phonemes, [&](const PhonemeViewModel *p) { return p->type == phVm->type; });
     if (relatedPhonemes.isEmpty()) {
-        qFatal() << "handleAdjustCompleted: related phonemes is empty";
+        qCritical() << "handleAdjustCompleted: related phonemes is empty";
         return;
     }
     const auto note = m_clip->findNoteById(phVm->noteId);
@@ -577,7 +577,7 @@ void PhonemeView::handleAdjustCompleted(const PhonemeViewModel *phVm) {
             offsets.append(qRound(phonemeStartInMs - noteStartInMs));
         }
     } else {
-        qFatal() << "handleAdjustCompleted: adjusted Sil phoneme";
+        qCritical() << "handleAdjustCompleted: adjusted Sil phoneme";
         return;
     }
 

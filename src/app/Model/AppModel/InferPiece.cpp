@@ -44,7 +44,7 @@ const DrawCurve *InferPiece::getOriginalCurve(const ParamInfo::Name name) const 
         case ParamInfo::MouthOpening:
             return &originalMouthOpening;
         default:
-            qFatal() << "Param type out of range" << name;
+            qCritical() << "Param type out of range" << name;
             return nullptr;
     }
 }
@@ -70,7 +70,7 @@ void InferPiece::setOriginalCurve(const ParamInfo::Name name, const DrawCurve &c
             originalMouthOpening = curve;
             break;
         default:
-            qFatal() << "Param type out of range" << name;
+            qCritical() << "Param type out of range" << name;
     }
 }
 
@@ -97,7 +97,7 @@ const DrawCurve *InferPiece::getInputCurve(const ParamInfo::Name name) const {
         case ParamInfo::ToneShift:
             return &inputToneShift;
         default:
-            qFatal() << "Param type out of range" << name;
+            qCritical() << "Param type out of range" << name;
             return nullptr;
     }
 }
@@ -135,6 +135,6 @@ void InferPiece::setInputCurve(const ParamInfo::Name name, const DrawCurve &curv
             inputToneShift = curve;
             break;
         default:
-            qFatal() << "Param type out of range" << name;
+            qCritical() << "Param type out of range" << name;
     }
 }

@@ -81,7 +81,7 @@ Param *ParamInfo::getParamByName(const Name name) {
         default:
             break;
     }
-    qFatal() << "Param type out of range" << name;
+    qCritical() << "Param type out of range" << name;
     return nullptr;
 }
 

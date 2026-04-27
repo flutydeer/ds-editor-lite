@@ -24,7 +24,7 @@ void Note::setClip(SingingClip *clip) {
 
 int Note::globalStart() const {
     if (!m_clip) {
-        qFatal() << "SingingClip is null";
+        qCritical() << "SingingClip is null";
         return m_rStart;
     }
     const auto offset = m_clip->start();
@@ -33,7 +33,7 @@ int Note::globalStart() const {
 
 void Note::setGlobalStart(const int start) {
     if (!m_clip) {
-        qFatal() << "SingingClip is null";
+        qCritical() << "SingingClip is null";
         m_rStart = start;
         return;
     }
@@ -208,11 +208,11 @@ void Note::setWorkspace(const QMap<QString, QJsonObject> &workspace) {
 
 int Note::compareTo(const Note *obj) const {
     if (!m_clip) {
-        qFatal() << "SingingClip is null";
+        qCritical() << "SingingClip is null";
         return 0;
     }
     if (m_clip != obj->m_clip) {
-        qFatal() << "SingingClip is not the same";
+        qCritical() << "SingingClip is not the same";
         return 0;
     }
     const auto otherStart = obj->localStart();

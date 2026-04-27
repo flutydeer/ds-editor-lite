@@ -46,7 +46,7 @@ void GetPronunciationTask::runTask() {
 
 QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &notes) const {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
-        qFatal() << "Language module not ready yet";
+        qCritical() << "Language module not ready yet";
         return {};
     }
 
