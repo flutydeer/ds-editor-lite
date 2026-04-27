@@ -1,5 +1,7 @@
 #include "Modules/FillLyric/Utils/TextTagger.h"
 
+#include "Model/AppOptions/Options/FillLyricOption.h"
+
 #include <algorithm>
 #include <fstream>
 #include <memory>
@@ -113,6 +115,9 @@ namespace FillLyric
     struct TaggerConfig {
         std::string language;
         std::vector<std::unique_ptr<ITaggerRule>> rules;
+        QList<TaggerEntryInfo> entryInfos; // keep original info for ruleInfoList()
+        bool builtin = true;
+        bool enabled = true;
     };
 
     static std::vector<TaggerConfig> g_taggers;
@@ -160,6 +165,8 @@ namespace FillLyric
 
             const QJsonObject obj = doc.object();
             TaggerConfig cfg;
+            cfg.builtin = true;
+            cfg.enabled = true;
 
             auto langIt = obj.constFind("language");
             if (langIt == obj.constEnd() || !langIt->isString())
@@ -204,15 +211,16 @@ namespace FillLyric
                     cfg.rules.push_back(std::make_unique<RegexTaggerRule>(cfg.language, te));
                 } else if (te.type == "array") {
                     cfg.rules.push_back(std::make_unique<ArrayTaggerRule>(cfg.language, te));
-                } else if (te.type == "dict") {
-                    std::vector<std::string> resolvedPaths;
-                    for (const auto &dictFile : te.value) {
-                        auto resolved = findDictFile(dictRootDir, dictFile);
-                        if (!resolved.empty())
-                            resolvedPaths.push_back(resolved);
-                    }
-                    cfg.rules.push_back(std::make_unique<DictTaggerRule>(cfg.language, te, resolvedPaths));
                 }
+
+                // Store entry info for ruleInfoList()
+                TaggerEntryInfo ei;
+                ei.type = QString::fromStdString(te.type);
+                ei.tag = QString::fromStdString(te.tag);
+                ei.discard = te.discard;
+                for (const auto &v : te.value)
+                    ei.values.append(QString::fromStdString(v));
+                cfg.entryInfos.append(ei);
             }
 
             g_taggers.push_back(std::move(cfg));
@@ -251,6 +259,8 @@ namespace FillLyric
         }
 
         for (const auto idx : order) {
+            if (!g_taggers[idx].enabled)
+                continue;
             for (const auto &rule : g_taggers[idx].rules) {
                 rule->apply(result);
             }
@@ -263,5 +273,101 @@ namespace FillLyric
         }
 
         return result;
+    }
+
+    void TextTagger::setBuiltinEnabled(const QMap<QString, bool> &enabledMap) {
+        ensureTaggerInitialized();
+        for (auto &cfg : g_taggers) {
+            if (!cfg.builtin)
+                continue;
+            const auto key = QString::fromStdString(cfg.language);
+            cfg.enabled = enabledMap.value(key, true);
+        }
+    }
+
+    void TextTagger::setCustomRules(const QList<CustomTaggerRule> &rules) {
+        ensureTaggerInitialized();
+
+        // Remove existing custom tagger configs
+        g_taggers.erase(
+            std::remove_if(g_taggers.begin(), g_taggers.end(),
+                           [](const TaggerConfig &c) { return !c.builtin; }),
+            g_taggers.end());
+
+        for (const auto &rule : rules) {
+            TaggerConfig cfg;
+            cfg.language = rule.language.toStdString();
+            cfg.builtin = false;
+            cfg.enabled = rule.enabled;
+
+            for (const auto &entry : rule.entries) {
+                TaggerEntry te;
+                te.type = entry.type.toStdString();
+                te.tag = entry.tag.toStdString();
+                te.discard = entry.discard;
+                for (const auto &v : entry.value)
+                    te.value.push_back(v.toStdString());
+
+                if (te.type == "regex") {
+                    cfg.rules.push_back(std::make_unique<RegexTaggerRule>(cfg.language, te));
+                } else if (te.type == "array") {
+                    cfg.rules.push_back(std::make_unique<ArrayTaggerRule>(cfg.language, te));
+                }
+            }
+
+            if (!cfg.rules.empty())
+                g_taggers.push_back(std::move(cfg));
+        }
+    }
+
+    QStringList TextTagger::builtinLanguages() {
+        ensureTaggerInitialized();
+        QStringList languages;
+        for (const auto &cfg : g_taggers) {
+            if (cfg.builtin)
+                languages.append(QString::fromStdString(cfg.language));
+        }
+        return languages;
+    }
+
+    void TextTagger::setRuleOrder(const QStringList &order) {
+        ensureTaggerInitialized();
+        if (order.isEmpty())
+            return;
+
+        std::vector<TaggerConfig> reordered;
+        reordered.reserve(g_taggers.size());
+
+        for (const auto &name : order) {
+            const auto nameStd = name.toStdString();
+            for (auto &cfg : g_taggers) {
+                if (cfg.language == nameStd && !cfg.rules.empty()) {
+                    reordered.push_back(std::move(cfg));
+                    break;
+                }
+            }
+        }
+
+        // Append any rules not in the order list
+        for (auto &cfg : g_taggers) {
+            if (!cfg.rules.empty())
+                reordered.push_back(std::move(cfg));
+        }
+
+        g_taggers = std::move(reordered);
+    }
+
+    QList<TaggerRuleInfo> TextTagger::ruleInfoList() {
+        ensureTaggerInitialized();
+        QList<TaggerRuleInfo> list;
+        for (const auto &cfg : g_taggers) {
+            TaggerRuleInfo info;
+            info.language = QString::fromStdString(cfg.language);
+            info.builtin = cfg.builtin;
+            info.enabled = cfg.enabled;
+            info.entries = cfg.entryInfos;
+            list.append(info);
+        }
+        return list;
     }
 }
