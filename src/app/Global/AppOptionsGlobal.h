@@ -16,6 +16,7 @@ namespace AppOptionsGlobal {
 
         // Hidden options
         Language,
+        FillLyric,
         // PreviewFunctions,
         // DeveloperOptions
     };
