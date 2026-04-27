@@ -42,7 +42,7 @@ class MidiConverterDialogPrivate {
 public:
     MidiConverterDialog *q_ptr{};
 
-    QList<QDspx::MidiIntermediateData::Track> trackInfoList;
+    QList<opendspx::MidiIntermediateData::Track> trackInfoList;
 
     QTextCodec *selectedCodec{};
 
@@ -59,7 +59,7 @@ public:
                 QTextCodec::codecForName("UTF-8")->toUnicode(data.data(), data.size(), &state);
             if (state.invalidChars)
                 return false;
-            data = trackInfo.title;
+            data = QByteArray::fromStdString(trackInfo.title);
             std::ignore =
                 QTextCodec::codecForName("UTF-8")->toUnicode(data.data(), data.size(), &state);
             if (state.invalidChars)
@@ -81,7 +81,7 @@ public:
             std::ignore = QTextCodec::codecForLocale()->toUnicode(data.data(), data.size(), &state);
             if (state.invalidChars)
                 return false;
-            data = trackInfo.title;
+            data = QByteArray::fromStdString(trackInfo.title);
             std::ignore = QTextCodec::codecForLocale()->toUnicode(data.data(), data.size(), &state);
             if (state.invalidChars)
                 return false;
@@ -90,7 +90,7 @@ public:
         return false;
     }
 
-    QString computeTrackItemText(const QDspx::MidiIntermediateData::Track &trackInfo) const {
+    QString computeTrackItemText(const opendspx::MidiIntermediateData::Track &trackInfo) const {
         std::set<qint32> staticKeyNum;
         for (const auto &note : trackInfo.notes)
             staticKeyNum.insert(note.key);
@@ -98,8 +98,8 @@ public:
                                   ? "-"
                                   : ToneNumToToneName(*staticKeyNum.begin()) + "-" +
                                         ToneNumToToneName(*staticKeyNum.rbegin());
-        return MidiConverterDialog::tr("Track %1: %n note(s) (%2)", "", trackInfo.notes.count())
-            .arg(selectedCodec->toUnicode(trackInfo.title), keyRange);
+        return MidiConverterDialog::tr("Track %1: %n note(s) (%2)", "", trackInfo.notes.size())
+            .arg(selectedCodec->toUnicode(QByteArray::fromStdString(trackInfo.title)), keyRange);
     }
 
     ComboBox *codecComboBox{};
@@ -135,7 +135,7 @@ public:
             item->setData(0, Qt::UserRole, i);
             item->setText(0, computeTrackItemText(trackInfo));
             parentItem->addChild(item);
-            if (trackInfo.notes.count())
+            if (trackInfo.notes.size())
                 item->setCheckState(0, Qt::Checked);
         }
     }
@@ -152,7 +152,7 @@ public:
 };
 
 MidiConverterDialog::MidiConverterDialog(
-    const QList<QDspx::MidiIntermediateData::Track> &trackInfoList, QWidget *parent)
+    const QList<opendspx::MidiIntermediateData::Track> &trackInfoList, QWidget *parent)
     : Dialog(parent), d_ptr(new MidiConverterDialogPrivate) {
     Q_D(MidiConverterDialog);
     d->q_ptr = this;
@@ -226,7 +226,7 @@ MidiConverterDialog::MidiConverterDialog(
             QStringList lyrics;
             for (const auto &note :
                  d->trackInfoList.at(selection[0]->data(0, Qt::UserRole).toInt()).notes) {
-                lyrics.append(d->selectedCodec->toUnicode(note.lyric));
+                lyrics.append(d->selectedCodec->toUnicode(QByteArray::fromStdString(note.lyric)));
             }
             if (lyrics.isEmpty()) {
                 previewTextEdit->setPlaceholderText(tr("No lyrics in current track"));
@@ -272,14 +272,14 @@ MidiConverterDialog::MidiConverterDialog(
 MidiConverterDialog::~MidiConverterDialog() = default;
 
 void MidiConverterDialog::setTrackInfoList(
-    const QList<QDspx::MidiIntermediateData::Track> &trackInfoList) {
+    const QList<opendspx::MidiIntermediateData::Track> &trackInfoList) {
     Q_D(MidiConverterDialog);
     d->trackInfoList = trackInfoList;
     d->detectCodec();
     d->updateTrackSelector();
 }
 
-QList<QDspx::MidiIntermediateData::Track> MidiConverterDialog::trackInfoList() const {
+QList<opendspx::MidiIntermediateData::Track> MidiConverterDialog::trackInfoList() const {
     Q_D(const MidiConverterDialog);
     return d->trackInfoList;
 }

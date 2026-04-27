@@ -16,12 +16,12 @@ public:
     explicit MidiConverterDialog(QWidget *parent = nullptr) : MidiConverterDialog({}, parent) {
     }
 
-    explicit MidiConverterDialog(const QList<QDspx::MidiIntermediateData::Track> &trackInfoList,
+    explicit MidiConverterDialog(const QList<opendspx::MidiIntermediateData::Track> &trackInfoList,
                                  QWidget *parent = nullptr);
     ~MidiConverterDialog() override;
 
-    void setTrackInfoList(const QList<QDspx::MidiIntermediateData::Track> &trackInfoList);
-    QList<QDspx::MidiIntermediateData::Track> trackInfoList() const;
+    void setTrackInfoList(const QList<opendspx::MidiIntermediateData::Track> &trackInfoList);
+    QList<opendspx::MidiIntermediateData::Track> trackInfoList() const;
 
     QList<int> selectedTracks() const;
     QTextCodec *selectedCodec() const;

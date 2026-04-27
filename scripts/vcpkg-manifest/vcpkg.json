@@ -3,9 +3,6 @@
   "dependencies": [
     "sdl2",
     "libsndfile",
-    "stdutau",
-    "qastool",
-    "qnrbf",
     "qmsetup",
     {
       "name": "qwindowkit",
