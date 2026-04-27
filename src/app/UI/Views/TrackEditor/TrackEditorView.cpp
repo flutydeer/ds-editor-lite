@@ -368,6 +368,10 @@ void TrackEditorView::onTrackPropertyChanged() const {
         const auto track = tracksModel.at(i);
         widget->setName(track->name());
         widget->setControl(track->control());
+        widget->updateTrackColor();
+
+        for (auto clipView : m_viewModel.tracks.at(i)->clips.values())
+            clipView->setColorIndex(track->colorIndex());
     }
 }
 

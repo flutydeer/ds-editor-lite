@@ -63,7 +63,11 @@ signals:
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void changeTrackProperty() const;
+
+public:
     void updateTrackColor();
+
+private:
     bool m_notifyBarrier = false;
     Track *m_track = nullptr;
     TrackControl m_control;

@@ -93,9 +93,17 @@ void ClipEditorView::onActiveClipChanged(const int clipId) {
     m_toolbarView->setDataContext(clip);
     clipController->setClip(clip);
 
+    disconnect(m_trackColorConnection);
+
     if (trackRef) {
         NoteView::setTrackColorIndex(trackRef->colorIndex());
         m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
+        m_trackColorConnection =
+            connect(trackRef, &Track::propertyChanged, this, [this, trackRef] {
+                NoteView::setTrackColorIndex(trackRef->colorIndex());
+                m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
+                m_pianoRollEditorView->pianoRollView()->update();
+            });
     }
 
     bool hadActiveClip = m_hasActiveClip;

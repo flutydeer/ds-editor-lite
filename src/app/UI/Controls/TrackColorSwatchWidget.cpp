@@ -27,7 +27,11 @@ QRect TrackColorSwatchWidget::swatchRect(int index) const {
 
 int TrackColorSwatchWidget::indexAt(const QPoint &pos) const {
     for (int i = 0; i < rows * columns; i++) {
-        if (swatchRect(i).contains(pos))
+        auto rect = swatchRect(i);
+        int half = spacing / 2;
+        auto hitArea = rect.adjusted(-half, -half, half, half)
+                           .intersected(QRect(0, 0, width(), height()));
+        if (hitArea.contains(pos))
             return i;
     }
     return -1;
@@ -75,6 +79,10 @@ void TrackColorSwatchWidget::mouseMoveEvent(QMouseEvent *event) {
     if (idx != m_hoveredIndex) {
         m_hoveredIndex = idx;
         update();
+        if (idx >= 0)
+            emit colorIndexHovered(idx);
+        else
+            emit previewCancelled();
     }
 }
 
@@ -82,4 +90,5 @@ void TrackColorSwatchWidget::leaveEvent(QEvent *event) {
     Q_UNUSED(event)
     m_hoveredIndex = -1;
     update();
+    emit previewCancelled();
 }

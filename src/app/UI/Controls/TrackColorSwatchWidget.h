@@ -15,6 +15,8 @@ public:
 
 signals:
     void colorIndexSelected(int index);
+    void colorIndexHovered(int index);
+    void previewCancelled();
 
 protected:
     void paintEvent(QPaintEvent *event) override;

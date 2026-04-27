@@ -49,6 +49,7 @@ private:
     ClipEditorToolBarView *m_toolbarView;
     PianoRollEditorView *m_pianoRollEditorView;
     mutable bool m_hasActiveClip = false;
+    QMetaObject::Connection m_trackColorConnection;
 
     void reset();
     // void printParts();

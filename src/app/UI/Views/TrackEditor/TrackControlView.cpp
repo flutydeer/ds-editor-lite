@@ -10,6 +10,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LevelMeter.h"
+#include "UI/Controls/Menu.h"
 #include "UI/Controls/TrackColorSwatchWidget.h"
 #include "UI/Utils/TrackColorPalette.h"
 
@@ -192,21 +193,39 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     menu.addAction(actionInsert);
     menu.addAction(actionRemove);
 
-    auto colorMenu = menu.addMenu("Track color");
-    auto colorSwatch = new TrackColorSwatchWidget(m_track ? m_track->colorIndex() : 0);
+    auto colorMenu = new Menu("Track color", &menu);
+    menu.addMenu(colorMenu);
+    int originalColorIndex = m_track ? m_track->colorIndex() : 0;
+    auto colorSwatch = new TrackColorSwatchWidget(originalColorIndex);
     auto colorAction = new QWidgetAction(colorMenu);
     colorAction->setDefaultWidget(colorSwatch);
     colorMenu->addAction(colorAction);
-    connect(colorSwatch, &TrackColorSwatchWidget::colorIndexSelected, this, [this, &menu](int idx) {
+    bool colorConfirmed = false;
+    connect(colorSwatch, &TrackColorSwatchWidget::colorIndexHovered, this, [this](int idx) {
         if (m_track) {
             m_track->setColorIndex(idx);
-            updateTrackColor();
             emit m_track->propertyChanged();
         }
-        menu.close();
     });
+    connect(colorSwatch, &TrackColorSwatchWidget::previewCancelled, this,
+            [this, originalColorIndex] {
+                if (m_track) {
+                    m_track->setColorIndex(originalColorIndex);
+                    emit m_track->propertyChanged();
+                }
+            });
+    connect(colorSwatch, &TrackColorSwatchWidget::colorIndexSelected, this,
+            [this, &menu, &colorConfirmed](int idx) {
+                if (m_track) {
+                    m_track->setColorIndex(idx);
+                    emit m_track->propertyChanged();
+                }
+                colorConfirmed = true;
+                menu.close();
+            });
 
-    const auto singerMenu = menu.addMenu("Select track singer");
+    auto singerMenu = new Menu("Select track singer", &menu);
+    menu.addMenu(singerMenu);
     const auto packages = packageManager->installedPackages().successfulPackages;
     for (const auto &package : std::as_const(packages)) {
         const auto singers = package.singers();
@@ -269,6 +288,11 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     menu.addAction(actionSetSpeaker);
 
     menu.exec(event->globalPos());
+
+    if (!colorConfirmed && m_track && m_track->colorIndex() != originalColorIndex) {
+        m_track->setColorIndex(originalColorIndex);
+        emit m_track->propertyChanged();
+    }
     event->accept();
 }
 
