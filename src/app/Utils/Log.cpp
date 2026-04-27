@@ -112,7 +112,7 @@ void Log::setLogDirectory(const QString &directory) {
     const auto dir = QDir(directory);
     if (!dir.exists()) {
         if (!dir.mkdir(directory))
-            qCritical("Unable to create directory %s", directory.toUtf8().data());
+            qFatal("Unable to create directory %s", directory.toUtf8().data());
     }
     instance()->m_logDirectory = directory;
     instance()->m_logToFile = true;

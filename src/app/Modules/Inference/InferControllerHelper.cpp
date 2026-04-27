@@ -186,7 +186,7 @@ namespace InferControllerHelper {
     void updatePronunciation(const QList<Note *> &notes, const QList<QString> &args,
                              SingingClip &clip) {
         if (notes.count() != args.count()) {
-            qCritical() << "updateNotesPronunciation() note count != args count:" << notes.count()
+            qFatal() << "updateNotesPronunciation() note count != args count:" << notes.count()
                      << args.count();
             return;
         }
@@ -201,7 +201,7 @@ namespace InferControllerHelper {
     void updatePhoneName(const QList<Note *> &notes, const QList<PhonemeNameResult> &args,
                          SingingClip &clip) {
         if (notes.count() != args.count()) {
-            qCritical() << "updatePhoneName() note count != args count:" << notes.count()
+            qFatal() << "updatePhoneName() note count != args count:" << notes.count()
                      << args.count();
             return;
         }
@@ -217,7 +217,7 @@ namespace InferControllerHelper {
     void updatePhoneOffset(const QList<Note *> &notes, const QList<InferInputNote> &args,
                            SingingClip &clip) {
         if (notes.count() != args.count()) {
-            qCritical() << "updateNotesPhonemeName() note count != args count:" << notes.count()
+            qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
                      << args.count();
             return;
         }

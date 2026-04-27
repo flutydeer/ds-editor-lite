@@ -60,7 +60,7 @@ void GetPhonemeNameTask::processNotes() {
 
 QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
-        qCritical() << "Language module not ready yet";
+        qFatal() << "Language module not ready yet";
         return {};
     }
     const auto s2pMgr = S2pMgr::instance();

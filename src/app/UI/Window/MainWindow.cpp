@@ -248,7 +248,7 @@ void MainWindow::restart() {
 
 void MainWindow::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) {
     if (trackCollapsed && clipCollapsed) {
-        qCritical() << "Cannot set track and clip panel collapsed";
+        qFatal() << "Cannot set track and clip panel collapsed";
         return;
     }
 

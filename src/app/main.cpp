@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
     QDir appDataDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
     if (!appDataDir.exists()) {
         if (!appDataDir.mkpath("."))
-            qCritical() << "Failed to create app data directory";
+            qFatal() << "Failed to create app data directory";
     }
     // Log::setLogDirectory(
     //     QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() + "/Logs");

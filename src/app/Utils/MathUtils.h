@@ -44,7 +44,7 @@ public:
 
     static double inPowerCurveValueAt(const double x, const double power) {
         if (x < 0.0 || x > 1.0) {
-            qCritical() << "x is not normalized";
+            qFatal() << "x is not normalized";
             return 0.0;
         }
         return 1 - std::pow(1 - x, power);
@@ -52,7 +52,7 @@ public:
 
     static double inPowerCurveXAt(const double y, const double power) {
         if (y < 0.0 || y > 1.0) {
-            qCritical() << "y is not normalized";
+            qFatal() << "y is not normalized";
             return 0.0;
         }
         return 1 - std::pow(1 - y, 1 / power);

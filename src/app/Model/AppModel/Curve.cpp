@@ -18,7 +18,7 @@ void Curve::setClip(SingingClip *clip) {
 
 int Curve::globalStart() const {
     if (!m_clip) {
-        qCritical() << "SingingClip is null";
+        qFatal() << "SingingClip is null";
         return m_startTick;
     }
     const auto offset = m_clip->start();
@@ -27,7 +27,7 @@ int Curve::globalStart() const {
 
 void Curve::setGlobalStart(const int start) {
     if (!m_clip) {
-        qCritical() << "SingingClip is null";
+        qFatal() << "SingingClip is null";
         setLocalStart(start);
         return;
     }

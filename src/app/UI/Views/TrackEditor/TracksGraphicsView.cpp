@@ -60,7 +60,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget
             resetActiveClips();
             clipItem->setActiveClip(true);
         } else
-            qCritical() << "Clip not found: " << clipId;
+            qFatal() << "Clip not found: " << clipId;
     });
 }
 
