@@ -68,11 +68,8 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
             continue;
         }
         nonRestIndices.append(i);
-        const auto g2pId = singerInfo.isEmpty()
-                               ? ("g2p-" + note->language() + "-official").toStdString()
-                               : singerInfo.g2pId(note->language()).toStdString();
-        g2pInput.push_back(
-            new LangCore::G2pInput(note->lyric().toStdString(), g2pId));
+        const auto g2pId = ("g2p-" + note->language() + "-official").toStdString();
+        g2pInput.push_back(new LangCore::G2pInput(note->lyric().toStdString(), g2pId));
     }
 
     std::vector<std::string> priorityG2pIds = {};
