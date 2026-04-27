@@ -185,6 +185,13 @@ void SingingClip::setDefaultLanguage(const QString &language) {
 }
 
 QString SingingClip::defaultLanguage() const {
+    // 空值表示跟随父级
+    if (m_defaultLanguage->isEmpty()) {
+        if (const auto track = qobject_cast<const Track *>(parent())) {
+            return track->defaultLanguage();
+        }
+        return "unknown";
+    }
     return m_defaultLanguage.get();
 }
 
@@ -210,7 +217,8 @@ void SingingClip::setTrackSingerInfo(const SingerInfo &singerInfo) {
 }
 
 SpeakerInfo SingingClip::speakerInfo() const {
-    if (useTrackSpeakerInfo) {
+    // 空值表示跟随父级
+    if (m_speakerInfo->isEmpty()) {
         return m_trackSpeakerInfo.get();
     }
     return m_speakerInfo.get();
