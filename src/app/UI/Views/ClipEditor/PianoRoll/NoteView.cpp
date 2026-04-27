@@ -149,17 +149,17 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     const int ci = s_trackColorIndex;
     const auto backgroundColorNormal = p.noteBackground(ci);
     const auto backgroundColorSelected = p.noteBackgroundSelected(ci);
-    constexpr auto backgroundColorEditingPitch = QColor(53, 59, 74);
+    const auto backgroundColorEditingPitch = p.noteBackgroundEditingPitch(ci);
     const auto backgroundColorOverlapped = p.noteBackgroundOverlapped(ci);
 
     const auto borderColorNormal = p.noteBorder(ci);
     constexpr auto borderColorSelected = QColor(255, 255, 255);
     const auto borderColorOverlapped = p.noteBorderOverlapped(ci);
-    constexpr auto borderColorEditingPitch = QColor(126, 149, 199);
+    const auto borderColorEditingPitch = p.noteBorderEditingPitch(ci);
 
     const auto foregroundColorNormal = p.noteForeground(ci);
     const auto foregroundColorSelected = p.noteForeground(ci);
-    constexpr auto foregroundColorEditingPitch = QColor(126, 149, 199);
+    const auto foregroundColorEditingPitch = p.noteForegroundEditingPitch(ci);
     const auto foregroundColorOverlapped = p.noteForegroundOverlapped(ci);
 
     constexpr auto penWidth = 1.5f;

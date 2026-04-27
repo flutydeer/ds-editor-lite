@@ -96,6 +96,24 @@ QColor TrackColorPalette::noteForegroundOverlapped(int index) const {
     return fg;
 }
 
+QColor TrackColorPalette::noteBackgroundEditingPitch(int index) const {
+    auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
+    lch.L = 0.32;
+    lch.C *= 0.25;
+    return ColorUtils::oklchToSRGB(lch);
+}
+
+QColor TrackColorPalette::noteBorderEditingPitch(int index) const {
+    auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
+    lch.L = 0.55;
+    lch.C *= 0.5;
+    return ColorUtils::oklchToSRGB(lch);
+}
+
+QColor TrackColorPalette::noteForegroundEditingPitch(int index) const {
+    return noteBorderEditingPitch(index);
+}
+
 QColor TrackColorPalette::phonemeEdited(int index) const {
     return baseColor(index);
 }

@@ -30,6 +30,10 @@ public:
     QColor noteForeground(int index) const;
     QColor noteForegroundOverlapped(int index) const;
 
+    QColor noteBackgroundEditingPitch(int index) const;
+    QColor noteBorderEditingPitch(int index) const;
+    QColor noteForegroundEditingPitch(int index) const;
+
     QColor phonemeEdited(int index) const;
     QColor phonemeFill(int index) const;
 
