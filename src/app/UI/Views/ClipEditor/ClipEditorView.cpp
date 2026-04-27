@@ -11,6 +11,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/Track.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "ParamEditor/ParamEditorView.h"
 #include "PianoRoll/NoteView.h"
 #include "PianoRoll/PhonemeView.h"
 #include "PianoRoll/PianoRollGraphicsView.h"
@@ -103,6 +104,7 @@ void ClipEditorView::onActiveClipChanged(const int clipId) {
                 NoteView::setTrackColorIndex(trackRef->colorIndex());
                 m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
                 m_pianoRollEditorView->pianoRollView()->update();
+                m_pianoRollEditorView->paramEditorView()->update();
             });
     }
 
