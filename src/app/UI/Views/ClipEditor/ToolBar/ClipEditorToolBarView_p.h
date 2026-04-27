@@ -31,10 +31,12 @@ public:
     void moveToSingingClipState() const;
     void moveToAudioClipState() const;
 
-    [[nodiscard]] Button *buildToolButton(const QString &objName, const QString &tipTitle,
+    [[nodiscard]] Button *buildToolButton(const QString &objName, const QString &svgPath,
+                                          const QString &tipTitle,
                                           const QKeySequence &shortcut = QKeySequence(),
                                           const QString &tipDesc = QString()) const;
-    Button *buildCommonButton(const QString &objName, const QString &tipTitle,
+    Button *buildCommonButton(const QString &objName, const QString &svgPath,
+                              const QString &tipTitle,
                               const QKeySequence &shortcut = QKeySequence(),
                               const QString &tipDesc = QString()) const;
 

@@ -8,6 +8,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ToolTipFilter.h"
+#include "UI/Utils/IconUtils.h"
 #include "Utils/SystemUtils.h"
 
 #include <QEvent>
@@ -121,10 +122,24 @@ void TabPanelTitleBar::setDetached(bool detached, bool useNativeFrame) {
 
 void TabPanelTitleBar::buildDockedButtons() {
     const int btnSize = 28;
+    const QSize iconSize(16, 16);
+
+    IconUtils::SvgIconColorPalette actionPalette;
+    actionPalette.normal = QColor(240, 240, 240);
+    actionPalette.disabled = QColor(240, 240, 240, 102);
+
+    IconUtils::SvgIconToggleColorPalette togglePalette;
+    togglePalette.off = actionPalette;
+    togglePalette.on.normal = QColor(155, 186, 255);
+    togglePalette.on.disabled = QColor(155, 186, 255, 102);
 
     m_btnDetach = new Button;
     m_btnDetach->setObjectName("btnPanelDetach");
     m_btnDetach->setFixedSize(btnSize, btnSize);
+    m_btnDetach->setIconSize(iconSize);
+    m_btnDetach->setIcon(
+        IconUtils::createTintedSvgIcon(":svg/icons/panel_separate_window_20_filled.svg", iconSize,
+                                       actionPalette));
     m_btnDetach->setToolTip(tr("Detach to window"));
     m_btnDetach->installEventFilter(new ToolTipFilter(m_btnDetach, 500, false, true));
     connect(m_btnDetach, &Button::clicked, this, &TabPanelTitleBar::detachRequested);
@@ -133,6 +148,10 @@ void TabPanelTitleBar::buildDockedButtons() {
     m_btnMaximize->setObjectName("btnPanelMaximize");
     m_btnMaximize->setFixedSize(btnSize, btnSize);
     m_btnMaximize->setCheckable(true);
+    m_btnMaximize->setIconSize(iconSize);
+    m_btnMaximize->setIcon(
+        IconUtils::createTintedSvgIcon(":svg/icons/panel_maximize_24_filled.svg", iconSize,
+                                       togglePalette));
     m_btnMaximize->setToolTip(tr("Maximize or restore"));
     m_btnMaximize->installEventFilter(new ToolTipFilter(m_btnMaximize, 500, false, true));
     connect(m_btnMaximize, &Button::clicked, this, [=] {
@@ -147,6 +166,10 @@ void TabPanelTitleBar::buildDockedButtons() {
     m_btnHide = new Button;
     m_btnHide->setObjectName("btnPanelHide");
     m_btnHide->setFixedSize(btnSize, btnSize);
+    m_btnHide->setIconSize(iconSize);
+    m_btnHide->setIcon(
+        IconUtils::createTintedSvgIcon(":svg/icons/panel_hide_24_filled.svg", iconSize,
+                                       actionPalette));
     m_btnHide->setToolTip(tr("Hide"));
     m_btnHide->installEventFilter(new ToolTipFilter(m_btnHide, 500, false, true));
     connect(m_btnHide, &Button::clicked, this,
