@@ -122,6 +122,6 @@ DrawCurveList AppModelUtils::getDrawCurves(const QList<Curve *> &curves) {
     DrawCurveList result;
     for (const auto curve : curves)
         if (curve->type() == Curve::Draw)
-            result.append(reinterpret_cast<DrawCurve *>(curve));
+            result.append(static_cast<DrawCurve *>(curve));
     return result;
 }

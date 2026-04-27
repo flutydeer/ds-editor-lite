@@ -160,7 +160,7 @@ void ClipEditorToolBarView::setDataContext(Clip *clip) {
     connect(d->m_clip, &Clip::propertyChanged, d,
             &ClipEditorToolBarViewPrivate::onClipPropertyChanged);
     if (clip->clipType() == Clip::Singing) {
-        d->m_singingClip = reinterpret_cast<SingingClip *>(clip);
+        d->m_singingClip = static_cast<SingingClip *>(clip);
         d->moveToSingingClipState();
     } else if (clip->clipType() == Clip::Audio) {
         d->m_singingClip = nullptr;

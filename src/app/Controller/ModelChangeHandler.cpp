@@ -29,13 +29,13 @@ void ModelChangeHandler::handleTrackRemoved(Track *track) {
 
 void ModelChangeHandler::handleClipInserted(Clip *clip) {
     if (clip->clipType() == IClip::Singing)
-        handleSingingClipInserted(reinterpret_cast<SingingClip *>(clip));
+        handleSingingClipInserted(static_cast<SingingClip *>(clip));
     connect(clip, &Clip::propertyChanged, this, [clip, this] { handleClipPropertyChanged(clip); });
 }
 
 void ModelChangeHandler::handleClipRemoved(Clip *clip) {
     if (clip->clipType() == IClip::Singing)
-        handleSingingClipRemoved(reinterpret_cast<SingingClip *>(clip));
+        handleSingingClipRemoved(static_cast<SingingClip *>(clip));
     disconnect(clip, nullptr, this, nullptr);
 }
 

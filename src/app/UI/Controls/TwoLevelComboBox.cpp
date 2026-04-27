@@ -170,7 +170,7 @@ Menu *TwoLevelComboBox::createGroupMenu(const QString &groupName) const {
     QList<QAction *> actions = m_mainMenu->actions();
     for (const QAction *action : actions) {
         if (action->menu() && action->text() == groupName) {
-            return reinterpret_cast<Menu *>(action->menu());
+            return qobject_cast<Menu *>(action->menu());
         }
     }
     const auto groupMenu = new Menu(groupName, m_mainMenu);

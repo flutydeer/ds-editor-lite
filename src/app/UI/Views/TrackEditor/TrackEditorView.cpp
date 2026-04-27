@@ -290,10 +290,10 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
 
 void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const int trackIndex) {
     if (clip->clipType() == Clip::Audio) {
-        const auto audioClip = reinterpret_cast<AudioClip *>(clip);
+        const auto audioClip = static_cast<AudioClip *>(clip);
         insertAudioClip(audioClip, track, trackIndex);
     } else if (clip->clipType() == Clip::Singing) {
-        const auto singingClip = reinterpret_cast<SingingClip *>(clip);
+        const auto singingClip = static_cast<SingingClip *>(clip);
         insertSingingClip(singingClip, track, trackIndex);
     }
     connect(clip, &Clip::propertyChanged, this, [clip, this] { updateClipOnView(clip); });

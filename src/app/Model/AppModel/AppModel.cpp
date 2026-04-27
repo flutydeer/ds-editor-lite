@@ -179,7 +179,7 @@ bool AppModel::importAceProject(const QString &filename) {
             track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
             for (const auto clip : track->clips()) {
                 if (clip->clipType() == Clip::Singing) {
-                    const auto singingClip = reinterpret_cast<SingingClip *>(clip);
+                    const auto singingClip = static_cast<SingingClip *>(clip);
                     singingClip->setDefaultLanguage(track->defaultLanguage());
                     // NoteWordUtils::fillEditedPhonemeNames(singingClip->notes().toList());
                 }

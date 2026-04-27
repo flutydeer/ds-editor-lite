@@ -105,7 +105,7 @@ bool ClipController::canSelectAll() const {
         return false;
     if (d->m_clip->clipType() != Clip::Singing)
         return false;
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     if (singingClip->notes().count() == 0)
         return false;
     // TODO: 仅在选择和绘制模式下可全选
@@ -118,7 +118,7 @@ bool ClipController::hasSelectedNotes() const {
         return false;
     if (d->m_clip->clipType() != Clip::Singing)
         return false;
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     if (singingClip->notes().count() == 0)
         return false;
     const auto selectedNotes = appStatus->selectedNotes;
@@ -142,7 +142,7 @@ void ClipController::onClipPropertyChanged(const Clip::ClipCommonProperties &arg
 
 void ClipController::onRemoveNotes(const QList<int> &notesId) {
     Q_D(ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToDelete;
     for (const auto id : notesId)
         notesToDelete.append(singingClip->findNoteById(id));
@@ -152,7 +152,7 @@ void ClipController::onRemoveNotes(const QList<int> &notesId) {
 
 void ClipController::onInsertNote(Note *note) {
     Q_D(ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     const auto a = new NoteActions;
     QList<Note *> notes;
     notes.append(note);
@@ -165,7 +165,7 @@ void ClipController::onInsertNote(Note *note) {
 
 void ClipController::onSplitNote(const int noteId, Note *newNote, const int newLength) const {
     Q_D(const ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     const auto originalNote = singingClip->findNoteById(noteId);
     if (!originalNote)
         return;
@@ -179,7 +179,7 @@ void ClipController::onSplitNote(const int noteId, Note *newNote, const int newL
 void ClipController::onMoveNotes(const QList<int> &notesId, const int deltaTick,
                                  const int deltaKey) {
     Q_D(ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
     for (const auto id : notesId)
         notesToEdit.append(singingClip->findNoteById(id));
@@ -192,7 +192,7 @@ void ClipController::onMoveNotes(const QList<int> &notesId, const int deltaTick,
 
 void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int deltaTick) const {
     Q_D(const ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
     for (const auto id : notesId)
         notesToEdit.append(singingClip->findNoteById(id));
@@ -205,7 +205,7 @@ void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int delt
 
 void ClipController::onResizeNotesRight(const QList<int> &notesId, const int deltaTick) const {
     Q_D(const ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
     for (const auto id : notesId)
         notesToEdit.append(singingClip->findNoteById(id));
@@ -218,7 +218,7 @@ void ClipController::onResizeNotesRight(const QList<int> &notesId, const int del
 
 void ClipController::onAdjustPhonemeOffset(const int noteId, const QList<int> &offsets) const {
     Q_D(const ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     const auto note = singingClip->findNoteById(noteId);
 
     const auto a = new NoteActions;
@@ -230,7 +230,7 @@ void ClipController::onAdjustPhonemeOffset(const int noteId, const QList<int> &o
 // void ClipController::onAdjustPhoneme(int noteId, const QList<Phoneme> &phonemes) const
 // {
 //     Q_D(const ClipController);
-//     auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+//     auto singingClip = static_cast<SingingClip *>(d->m_clip);
 //     auto note = singingClip->findNoteById(noteId);
 //
 //     auto a = new NoteActions;
@@ -262,7 +262,7 @@ void ClipController::unselectNotes(const QList<int> &notesId) {
 
 void ClipController::onParamEdited(const ParamInfo::Name name, const QList<Curve *> &curves) const {
     Q_D(const ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     const auto a = new ParamsActions;
     a->replaceParam(name, Param::Edited, curves, singingClip);
     a->execute();
@@ -271,7 +271,7 @@ void ClipController::onParamEdited(const ParamInfo::Name name, const QList<Curve
 
 void ClipController::onNotePropertiesEdited(int noteId, const NoteDialogResult &result) {
     Q_D(ClipController);
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    auto singingClip = static_cast<SingingClip *>(d->m_clip);
     auto note = singingClip->findNoteById(noteId);
     auto arg = Note::WordProperties::fromNote(*note);
     arg.language = result.language;
@@ -296,7 +296,7 @@ void ClipController::onNotePropertiesEdited(int noteId, const NoteDialogResult &
 
 void ClipController::onDeleteSelectedNotes() {
     Q_D(const ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     const auto notes =
         ClipControllerPrivate::selectedNotesFromId(appStatus->selectedNotes, singingClip);
     d->removeNotes(notes);
@@ -305,7 +305,7 @@ void ClipController::onDeleteSelectedNotes() {
 
 void ClipController::onSelectAllNotes() {
     Q_D(const ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<int> notesId;
     for (const auto note : singingClip->notes())
         notesId.append(note->id());
@@ -316,7 +316,7 @@ void ClipController::onSelectAllNotes() {
 void ClipController::onFillLyric(QWidget *parent) {
     Q_D(const ClipController);
 
-    auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    auto singingClip = static_cast<SingingClip *>(d->m_clip);
     auto selectedNotes =
         ClipControllerPrivate::selectedNotesFromId(appStatus->selectedNotes, singingClip);
 
@@ -395,14 +395,14 @@ void ClipController::onFillLyric(QWidget *parent) {
 
 void ClipController::onSearchLyric(QWidget *parent) {
     Q_D(const ClipController);
-    const auto singingClip = reinterpret_cast<SingingClip *>(d->m_clip);
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     SearchDialog searchDialog(singingClip, parent);
     searchDialog.show();
     searchDialog.exec();
 }
 
 void ClipControllerPrivate::removeNotes(const QList<Note *> &notes) const {
-    const auto singingClip = reinterpret_cast<SingingClip *>(m_clip);
+    const auto singingClip = static_cast<SingingClip *>(m_clip);
     const auto a = new NoteActions;
     a->removeNotes(notes, singingClip);
     a->execute();
@@ -411,7 +411,7 @@ void ClipControllerPrivate::removeNotes(const QList<Note *> &notes) const {
 }
 
 NotesParamsInfo ClipControllerPrivate::buildNoteParamsInfo() const {
-    const auto singingClip = reinterpret_cast<SingingClip *>(m_clip);
+    const auto singingClip = static_cast<SingingClip *>(m_clip);
     auto notes = selectedNotesFromId(appStatus->selectedNotes, singingClip);
     NotesParamsInfo info;
     for (const auto &note : notes)

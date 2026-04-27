@@ -76,14 +76,14 @@ void PianoRollGraphicsViewHelper::updatePitch(const Param::Type paramType, const
         // Log::d(CLASS_NAME, "Update original pitch ");
         for (const auto curve : param.curves(Param::Original))
             if (curve->type() == Curve::Draw) {
-                MathUtils::binaryInsert(drawCurves, reinterpret_cast<DrawCurve *>(curve));
+                MathUtils::binaryInsert(drawCurves, static_cast<DrawCurve *>(curve));
             }
         pitchEditor.loadOriginal(drawCurves);
     } else {
         // Log::d(CLASS_NAME, "Update edited pitch ");
         for (const auto curve : param.curves(Param::Edited))
             if (curve->type() == Curve::Draw)
-                MathUtils::binaryInsert(drawCurves, reinterpret_cast<DrawCurve *>(curve));
+                MathUtils::binaryInsert(drawCurves, static_cast<DrawCurve *>(curve));
         pitchEditor.loadEdited(drawCurves);
     }
 }

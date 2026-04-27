@@ -162,6 +162,6 @@ QList<DrawCurve *> ParamEditorGraphicsView::getDrawCurves(const QList<Curve *> &
     QList<DrawCurve *> result;
     for (const auto curve : curves)
         if (curve->type() == Curve::Draw)
-            MathUtils::binaryInsert(result, reinterpret_cast<DrawCurve *>(curve));
+            MathUtils::binaryInsert(result, static_cast<DrawCurve *>(curve));
     return result;
 }

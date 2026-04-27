@@ -44,7 +44,7 @@ void ValidationController::onModelChanged() {
             // m_clips.append(clip);
             handleClipInserted(clip);
             if (clip->clipType() == Clip::Singing) {
-                const auto singingClip = reinterpret_cast<SingingClip *>(clip);
+                const auto singingClip = static_cast<SingingClip *>(clip);
                 singingClip->setDefaultLanguage(track->defaultLanguage());
                 singingClip->setTrackSingerInfo(track->singerInfo());
                 singingClip->setTrackSpeakerInfo(track->speakerInfo());
@@ -113,7 +113,7 @@ void ValidationController::handleClipInserted(Clip *clip) {
     connect(clip, &Clip::propertyChanged, this, [clip, this] { onClipPropertyChanged(clip); });
 
     if (clip->clipType() == Clip::Singing) {
-        const auto singingClip = reinterpret_cast<SingingClip *>(clip);
+        const auto singingClip = static_cast<SingingClip *>(clip);
         connect(singingClip, &SingingClip::noteChanged, this, &ValidationController::onNoteChanged);
     }
     validate();
@@ -152,7 +152,7 @@ bool ValidationController::validateNoteOverlap() {
     for (const auto track : appModel->tracks()) {
         for (const auto clip : track->clips()) {
             if (clip->clipType() == Clip::Singing) {
-                const auto singingClip = reinterpret_cast<SingingClip *>(clip);
+                const auto singingClip = static_cast<SingingClip *>(clip);
                 if (singingClip->notes().hasOverlappedItem()) {
                     Toast::show("Note overlapped");
                     return false;

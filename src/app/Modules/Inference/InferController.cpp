@@ -151,7 +151,7 @@ void InferControllerPrivate::onEditingChanged(const AppStatus::EditObjectType ty
         qWarning() << "Editing project. Cancelling related tasks.";
         const auto clip = appModel->findClipById(appStatus->activeClipId);
         if (clip->clipType() == IClip::Singing)
-            cancelClipRelatedTasks(reinterpret_cast<SingingClip *>(clip));
+            cancelClipRelatedTasks(static_cast<SingingClip *>(clip));
     } else if (type == AppStatus::EditObjectType::None) {
     }
     m_lastEditObjectType = type;
@@ -373,7 +373,7 @@ void InferControllerPrivate::recreateAllInferTasks() {
         for (const auto &clip : track->clips()) {
             if (clip->clipType() != IClip::Singing)
                 continue;
-            const auto singingClip = reinterpret_cast<SingingClip *>(clip);
+            const auto singingClip = static_cast<SingingClip *>(clip);
             for (const auto &piece : singingClip->pieces()) {
                 Helper::resetPhoneOffset(piece->notes, *piece);
                 piece->dirty = true;
@@ -422,7 +422,7 @@ void InferControllerPrivate::cancelAllInferTasks() {
         for (const auto &clip : track->clips()) {
             if (clip->clipType() != IClip::Singing)
                 continue;
-            const auto singingClip = reinterpret_cast<SingingClip *>(clip);
+            const auto singingClip = static_cast<SingingClip *>(clip);
             this->cancelClipRelatedTasks(singingClip);
         }
 }

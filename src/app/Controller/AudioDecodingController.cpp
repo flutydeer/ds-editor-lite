@@ -31,7 +31,7 @@ void AudioDecodingController::onModelChanged() {
         connect(track, &Track::clipChanged, this, &AudioDecodingController::onClipChanged);
         for (const auto clip : track->clips()) {
             if (clip->clipType() == Clip::Audio)
-                createAndStartTask(reinterpret_cast<AudioClip *>(clip));
+                createAndStartTask(static_cast<AudioClip *>(clip));
         }
     }
 }
@@ -52,7 +52,7 @@ void AudioDecodingController::onClipChanged(const Track::ClipChangeType type, Cl
     // qDebug() << "AudioDecodingController::onClipChanged";
     if (type == Track::Inserted) {
         if (clip->clipType() == Clip::Audio) {
-            const auto audioClip = reinterpret_cast<AudioClip *>(clip);
+            const auto audioClip = static_cast<AudioClip *>(clip);
             // TODO: 用其他方式判断是否需要重新解码
             if (audioClip->audioInfo().peakCache.count() <= 0)
                 createAndStartTask(audioClip);
@@ -118,7 +118,7 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
         return;
     }
 
-    const auto audioClip = reinterpret_cast<AudioClip *>(clip);
+    const auto audioClip = static_cast<AudioClip *>(clip);
     audioClip->setAudioInfo(task->result());
     audioClip->notifyPropertyChanged();
     delete task;
