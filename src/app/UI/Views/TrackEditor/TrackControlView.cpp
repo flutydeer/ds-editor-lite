@@ -10,6 +10,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LevelMeter.h"
+#include "UI/Utils/TrackColorPalette.h"
 
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
@@ -112,6 +113,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     setName(track->name());
     setControl(track->control());
     setLanguage(track->defaultLanguage());
+    updateTrackColor();
 }
 
 int TrackControlView::trackIndex() const {
@@ -288,4 +290,25 @@ double TrackControlView::gainFromSliderValue(const double value) {
 
 double TrackControlView::gainToSliderValue(const double gain) {
     return std::pow(10, (114 + gain) / 60);
+}
+
+int TrackControlView::colorIndex() const {
+    if (m_track)
+        return m_track->colorIndex();
+    return 0;
+}
+
+void TrackControlView::setColorIndex(int colorIndex) {
+    if (m_track)
+        m_track->setColorIndex(colorIndex);
+    updateTrackColor();
+}
+
+void TrackControlView::updateTrackColor() {
+    int ci = m_track ? m_track->colorIndex() : 0;
+    auto &palette = *TrackColorPalette::instance();
+    auto bg = palette.trackHeaderColor(ci);
+    auto fg = palette.clipForeground(ci);
+    auto css = QStringLiteral("background-color: %1; color: %2;").arg(bg.name(), fg.name());
+    lbTrackIndex->setStyleSheet(css);
 }

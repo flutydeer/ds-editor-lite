@@ -20,6 +20,7 @@ public:
 
     explicit PianoKeyboardView(QWidget *parent = nullptr);
     void setHoveredKeyIndex(int keyIndex);
+    void setTrackColorIndex(int index);
 
 public slots:
     void setKeyRange(double top, double bottom);
@@ -55,6 +56,7 @@ private:
     QColor m_blackKeyColor = {59, 63, 71};
     QColor m_dividerColor = {170, 172, 181};
     QColor m_primaryColor = {155, 186, 255};
+    int m_trackColorIndex = 0;
     int m_hoveredKeyIndex = -1;
 };
 

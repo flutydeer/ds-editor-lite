@@ -39,10 +39,13 @@ public:
     [[nodiscard]] QString name() const override;
     [[nodiscard]] QColor color() const override;
     void setColor(const QColor &color) override;
+    [[nodiscard]] int colorIndex() const override;
+    void setColorIndex(int colorIndex) override;
 
     [[nodiscard]] PanSlider *const &panSlider() const;
     [[nodiscard]] Fader *const &fader() const;
     [[nodiscard]] LevelMeter *const &levelMeter() const;
+    void updateChannelColor();
 
 public slots:
     void setName(const QString &name) override;

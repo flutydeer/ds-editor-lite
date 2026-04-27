@@ -5,6 +5,7 @@
 #ifndef DATASET_TOOLS_PROGRESSINDICATOR_H
 #define DATASET_TOOLS_PROGRESSINDICATOR_H
 
+#include <QElapsedTimer>
 #include <QPropertyAnimation>
 #include <QWidget>
 #include <QTimer>
@@ -104,6 +105,11 @@ protected:
     double m_currentTaskValue = 0;
     bool m_indeterminate = false;
     int m_thumbProgress = 0;
+    QElapsedTimer m_elapsedTimer;
+    double m_indeterminateSpeed = 270.0;
+    double m_indeterminateMinLength = 30.0;
+    double m_indeterminateMaxLength = 90.0;
+    double m_indeterminateFrequency = 0.2;
     int m_penWidth = 0;
     int m_padding = 0;
     int m_halfRectHeight = 0;

@@ -8,6 +8,7 @@
 #include "SingingClip.h"
 #include "Track.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "UI/Utils/TrackColorPalette.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/AProjectConverter.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
@@ -66,6 +67,8 @@ const QList<Track *> &AppModel::tracks() const {
 
 void AppModel::insertTrack(Track *track, const qsizetype index) {
     Q_D(AppModel);
+    if (track->colorIndex() == 0 && !track->color().isValid())
+        track->setColorIndex(TrackColorPalette::instance()->nextColorIndex());
     d->m_tracks.insert(index, track);
     emit trackChanged(Insert, index, track);
 }

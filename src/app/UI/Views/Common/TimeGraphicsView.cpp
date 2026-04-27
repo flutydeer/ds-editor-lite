@@ -10,6 +10,7 @@
 #include "TimeGraphicsScene.h"
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
+#include "Controller/PlaybackController.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/AppOptions/AppOptions.h"
 
@@ -701,8 +702,18 @@ void TimeGraphicsView::setPlaybackPosition(double tick) {
     if (!m_autoTurnPage || appStatus->currentEditObject != AppStatus::EditObjectType::None)
         return;
 
-    if (m_playbackPosition > endTick()) {
-        pageAdd();
+    auto targetHBarValue = m_hBarAnimation.state() == QAbstractAnimation::Running
+                               ? m_hBarAnimation.endValue().toInt()
+                               : horizontalBarValue();
+    auto viewWidth = viewport()->width();
+    auto targetEndTick = sceneXToTick(targetHBarValue + viewWidth) + m_offset;
+    auto tickRange = targetEndTick - sceneXToTick(targetHBarValue) - m_offset;
+
+    if (m_playbackPosition > targetEndTick) {
+        if (m_playbackPosition > targetEndTick + tickRange)
+            setViewportStartTick(m_playbackPosition);
+        else
+            pageAdd();
     } else if (m_playbackPosition < startTick())
         setViewportStartTick(m_playbackPosition);
 }

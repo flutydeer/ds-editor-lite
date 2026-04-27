@@ -11,6 +11,7 @@
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/PanSlider.h"
+#include "UI/Utils/TrackColorPalette.h"
 
 #include <QVBoxLayout>
 #include <QLabel>
@@ -24,6 +25,7 @@ ChannelView::ChannelView(Track &track, QWidget *parent): QWidget(parent), ITrack
     initUi();
     ChannelView::setName(track.name());
     ChannelView::setControl(track.control());
+    updateChannelColor();
 }
 
 Track &ChannelView::context() const {
@@ -61,6 +63,17 @@ QColor ChannelView::color() const {
 void ChannelView::setColor(const QColor &color) {
 }
 
+int ChannelView::colorIndex() const {
+    if (m_context)
+        return m_context->colorIndex();
+    return 0;
+}
+
+void ChannelView::setColorIndex(int colorIndex) {
+    if (m_context)
+        m_context->setColorIndex(colorIndex);
+}
+
 PanSlider * const & ChannelView::panSlider() const {
     return m_panSlider;
 }
@@ -79,6 +92,23 @@ void ChannelView::setName(const QString &name) {
 
 void ChannelView::setChannelIndex(int index) {
     m_lbIndex->setText(QString::number(index));
+}
+
+void ChannelView::updateChannelColor() {
+    int ci = m_context ? m_context->colorIndex() : 0;
+    auto &palette = *TrackColorPalette::instance();
+    auto bg = palette.trackHeaderColor(ci);
+    auto fg = palette.clipForeground(ci);
+    m_lbIndex->setStyleSheet(
+        QStringLiteral("background-color: %1; color: %2;").arg(bg.name(), fg.name()));
+    auto activeColor = palette.baseColor(ci);
+    auto activeWithAlpha =
+        QStringLiteral("rgba(%1,%2,%3,64)").arg(activeColor.red()).arg(activeColor.green()).arg(activeColor.blue());
+    m_fader->setStyleSheet(
+        QStringLiteral("Fader { qproperty-trackActiveColor: %1; }").arg(activeColor.name()));
+    m_panSlider->setStyleSheet(
+        QStringLiteral("PanSlider { qproperty-trackActiveColor: %1; qproperty-thumbFillColor: %2; }")
+            .arg(activeWithAlpha, activeColor.name()));
 }
 
 void ChannelView::setControl(const TrackControl &control) {

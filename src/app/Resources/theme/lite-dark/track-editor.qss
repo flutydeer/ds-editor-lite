@@ -31,7 +31,6 @@ TrackControlView>QPushButton {
 }
 
 TrackControlView>QPushButton#btnColor {
-    background-color: #9BBAFF;
     border-style: none;
     border-radius: 0px;
     width: 10px;
@@ -40,7 +39,6 @@ TrackControlView>QPushButton#btnColor {
 
 TrackControlView>QLabel#lbTrackIndex {
     min-width: 24;
-    background-color: #9BBAFF;
     color: #000;
     margin-left: 1px;
     margin-bottom: 1px;

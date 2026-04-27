@@ -13,7 +13,6 @@
         "widgets"
       ]
     },
-    "rpclib",
     "rtmidi",
     "interval-tree",
     "cpp-pinyin",
@@ -22,7 +21,6 @@
     "yaml-cpp",
     "wavpack",
     "tinyexpr",
-    "qbreakpad",
     {
       "name": "synthrt",
       "features": []

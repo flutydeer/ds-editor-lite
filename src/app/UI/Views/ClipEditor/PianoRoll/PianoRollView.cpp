@@ -113,3 +113,7 @@ void PianoRollView::setDataContext(SingingClip *clip) const {
 void PianoRollView::onEditModeChanged(const PianoRollEditMode mode) const {
     m_graphicsView->setEditMode(mode);
 }
+
+void PianoRollView::setTrackColorIndex(int index) const {
+    m_keyboardView->setTrackColorIndex(index);
+}

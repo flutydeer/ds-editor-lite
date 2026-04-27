@@ -9,6 +9,8 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/TimeGraphicsScene.h"
+#include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
+#include "UI/Utils/TrackColorPalette.h"
 #include "Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
 
@@ -177,17 +179,13 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         painter->setPen(Qt::NoPen);
         if (foreground) {
             if (m_properties->displayMode == ParamProperties::DisplayMode::FillFromBottom) {
+                const auto ci = NoteView::trackColorIndex();
                 QLinearGradient gradient(0, 0, 0, visibleRect().height());
-                gradient.setColorAt(0, QColor(155, 186, 255, 200));
-                gradient.setColorAt(1, QColor(155, 186, 255, 10));
+                gradient.setColorAt(0, TrackColorPalette::instance()->paramFillTop(ci));
+                gradient.setColorAt(1, TrackColorPalette::instance()->paramFillBottom(ci));
                 painter->setBrush(gradient);
             } else if (m_properties->displayMode == ParamProperties::DisplayMode::FillFromDefault) {
-                // gradient.setColorAt(0, QColor(155, 186, 255, 200));
-                // auto defaultValue =
-                // m_properties->valueToNormalized(m_properties->defaultValue);
-                // gradient.setColorAt(defaultValue, QColor(155, 186, 255, 80));
-                // gradient.setColorAt(1, QColor(155, 186, 255, 200));
-                painter->setBrush(QColor(155, 186, 255, 120));
+                painter->setBrush(TrackColorPalette::instance()->paramFillFlat(NoteView::trackColorIndex()));
             }
         } else {
             painter->setBrush(QColor(41, 44, 54));
@@ -216,7 +214,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 
         if (baseCurve && m_properties->showDefaultValue) {
             painter->setBrush(Qt::NoBrush);
-            pen.setColor(foreground ? QColor(155, 186, 255) : QColor(41, 44, 54));
+            pen.setColor(foreground ? TrackColorPalette::instance()->paramLine(NoteView::trackColorIndex()) : QColor(41, 44, 54));
             painter->setPen(pen);
             drawCurveBorder(painter, base);
         }

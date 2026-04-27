@@ -292,17 +292,21 @@ void MainMenuViewPrivate::initActions() {
 void MainMenuViewPrivate::initFileActions() {
     actionNew = new QAction(tr("&New"), this);
     actionNew->setShortcut(QKeySequence("Ctrl+N"));
+    actionNew->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionNew, &QAction::triggered, this, [this] { onNew(); });
 
     actionOpen = new QAction(tr("&Open..."));
     actionOpen->setShortcut(QKeySequence("Ctrl+O"));
+    actionOpen->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionOpen, &QAction::triggered, this, [this] { onOpen(); });
 
     actionSave = new QAction(tr("&Save"), this);
     actionSave->setShortcut(QKeySequence("Ctrl+S"));
+    actionSave->setShortcutContext(Qt::ApplicationShortcut);
 
     actionSaveAs = new QAction(tr("Save &as..."), this);
     actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
+    actionSaveAs->setShortcutContext(Qt::ApplicationShortcut);
 
     actionImportMidi = new QAction(tr("MIDI file..."), this);
     connect(actionImportMidi, &QAction::triggered, this, [this] { onImportMidiFile(); });
@@ -328,11 +332,13 @@ void MainMenuViewPrivate::initEditActions() {
     actionUndo = new QAction(tr("&Undo"), this);
     actionUndo->setEnabled(false);
     actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
+    actionUndo->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
 
     actionRedo = new QAction(tr("&Redo"), this);
     actionRedo->setEnabled(false);
     actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
+    actionRedo->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             [this](bool canUndo, const QString &undoName, bool canRedo, const QString &redoName) {
@@ -341,42 +347,51 @@ void MainMenuViewPrivate::initEditActions() {
 
     actionSelectAll = new QAction(tr("Select &all"), this);
     actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
+    actionSelectAll->setShortcutContext(Qt::ApplicationShortcut);
     actionSelectAll->setEnabled(false);
     connect(actionSelectAll, &QAction::triggered, this, [this] { onSelectAll(); });
 
     actionDelete = new QAction(tr("&Delete"), this);
     actionDelete->setShortcut(Qt::Key_Delete);
+    actionDelete->setShortcutContext(Qt::ApplicationShortcut);
     actionDelete->setEnabled(false);
     connect(actionDelete, &QAction::triggered, this, [this] { onDelete(); });
 
     actionCut = new QAction(tr("Cu&t"), this);
     actionCut->setShortcut(QKeySequence("Ctrl+X"));
+    actionCut->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionCut, &QAction::triggered, this, [this] { onCut(); });
 
     actionCopy = new QAction(tr("&Copy"), this);
     actionCopy->setShortcut(QKeySequence("Ctrl+C"));
+    actionCopy->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionCopy, &QAction::triggered, this, [this] { onCopy(); });
 
     actionPaste = new QAction(tr("&Paste"), this);
     actionPaste->setShortcut(QKeySequence("Ctrl+V"));
+    actionPaste->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionPaste, &QAction::triggered, this, [this] { onPaste(); });
 
     actionOctaveUp = new QAction(tr("Move an octave up"), this);
     actionOctaveUp->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Up));
+    actionOctaveUp->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionOctaveUp, &QAction::triggered, this, [this] { onOctaveUp(); });
 
     actionOctaveDown = new QAction(tr("Move an octave down"), this);
     actionOctaveDown->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Down));
+    actionOctaveDown->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionOctaveDown, &QAction::triggered, this, [this] { onOctaveDown(); });
 
     actionFillLyrics = new QAction(tr("Fill lyrics..."), this);
     actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
+    actionFillLyrics->setShortcutContext(Qt::ApplicationShortcut);
     actionFillLyrics->setEnabled(false);
     connect(actionFillLyrics, &QAction::triggered, clipController,
             [this, q] { clipController->onFillLyric(q); });
 
     actionSearchLyrics = new QAction(tr("Search lyrics..."), this);
     actionSearchLyrics->setShortcut(QKeySequence("Ctrl+F"));
+    actionSearchLyrics->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionSearchLyrics, &QAction::triggered, clipController,
             [this, q] { clipController->onSearchLyric(q); });
 

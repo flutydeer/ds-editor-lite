@@ -21,6 +21,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QPushButton>
+#include <QShortcut>
 
 namespace {
     QColor playAccentColor() {
@@ -79,8 +80,16 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         else if (m_status == Playing)
             pauseTriggered();
     });
-    m_btnPlayPause->setShortcut(Qt::Key_Space);
     m_btnPlayPause->setFixedSize(0, 0);
+
+    auto playPauseShortcut = new QShortcut(Qt::Key_Space, this);
+    playPauseShortcut->setContext(Qt::ApplicationShortcut);
+    connect(playPauseShortcut, &QShortcut::activated, this, [this] {
+        if (m_status == Paused || m_status == Stopped)
+            playTriggered();
+        else if (m_status == Playing)
+            pauseTriggered();
+    });
 
     m_btnLoop = new QPushButton;
     m_btnLoop->setObjectName("btnLoop");
@@ -89,7 +98,9 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
                                        playAccentColor()));
     m_btnLoop->setCheckable(true);
     m_btnLoop->setToolTip(tr("Loop"));
-    m_btnLoop->setShortcut(QKeySequence(Qt::ALT | Qt::Key_L));
+    auto loopShortcut = new QShortcut(QKeySequence(Qt::ALT | Qt::Key_L), this);
+    loopShortcut->setContext(Qt::ApplicationShortcut);
+    connect(loopShortcut, &QShortcut::activated, m_btnLoop, &QPushButton::toggle);
     connect(m_btnLoop, &QPushButton::clicked, this, [this](bool checked) {
         auto settings = appStatus->loopSettings.get();
         settings.enabled = checked;

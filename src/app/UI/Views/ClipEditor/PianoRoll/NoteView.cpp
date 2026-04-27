@@ -8,6 +8,7 @@
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
+#include "UI/Utils/TrackColorPalette.h"
 
 #include <QGraphicsSceneContextMenuEvent>
 #include <QPainter>
@@ -21,6 +22,16 @@
 #include <QFocusEvent>
 
 using namespace ClipEditorGlobal;
+
+int NoteView::s_trackColorIndex = 0;
+
+int NoteView::trackColorIndex() {
+    return s_trackColorIndex;
+}
+
+void NoteView::setTrackColorIndex(int index) {
+    s_trackColorIndex = index;
+}
 
 NoteView::NoteView(const int itemId, QGraphicsItem *parent)
     : AbstractGraphicsRectItem(parent), UniqueObject(itemId) {
@@ -134,20 +145,22 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     QElapsedTimer timer;
     timer.start();
 
-    constexpr auto backgroundColorNormal = QColor(155, 186, 255);
-    constexpr auto backgroundColorSelected = QColor(215, 228, 254);
+    const auto &p = *TrackColorPalette::instance();
+    const int ci = s_trackColorIndex;
+    const auto backgroundColorNormal = p.noteBackground(ci);
+    const auto backgroundColorSelected = p.noteBackgroundSelected(ci);
     constexpr auto backgroundColorEditingPitch = QColor(53, 59, 74);
-    constexpr auto backgroundColorOverlapped = QColor(110, 129, 171);
+    const auto backgroundColorOverlapped = p.noteBackgroundOverlapped(ci);
 
-    constexpr auto borderColorNormal = QColor(112, 156, 255);
+    const auto borderColorNormal = p.noteBorder(ci);
     constexpr auto borderColorSelected = QColor(255, 255, 255);
-    constexpr auto borderColorOverlapped = QColor(110, 129, 171);
+    const auto borderColorOverlapped = p.noteBorderOverlapped(ci);
     constexpr auto borderColorEditingPitch = QColor(126, 149, 199);
 
-    constexpr auto foregroundColorNormal = QColor(0, 0, 0);
-    constexpr auto foregroundColorSelected = QColor(0, 0, 0);
+    const auto foregroundColorNormal = p.noteForeground(ci);
+    const auto foregroundColorSelected = p.noteForeground(ci);
     constexpr auto foregroundColorEditingPitch = QColor(126, 149, 199);
-    constexpr auto foregroundColorOverlapped = QColor(0, 0, 0, 127);
+    const auto foregroundColorOverlapped = p.noteForegroundOverlapped(ci);
 
     constexpr auto penWidth = 1.5f;
     constexpr int padding = 2;

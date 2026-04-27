@@ -20,6 +20,11 @@ public:
 
     void registerPage(TabPanelPage *page);
 
+    [[nodiscard]] TabPanelTitleBar *titleBar() const;
+
+signals:
+    void detachRequested();
+
 private slots:
     void onSelectionChanged(int index);
     void onToolBarVisibilityChanged();

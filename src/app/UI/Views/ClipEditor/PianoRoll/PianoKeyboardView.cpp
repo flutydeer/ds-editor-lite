@@ -6,6 +6,7 @@
 
 #include "PianoPaintUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Utils/TrackColorPalette.h"
 #include "Utils/Log.h"
 
 #include <QElapsedTimer>
@@ -17,6 +18,12 @@
 PianoKeyboardView::PianoKeyboardView(QWidget *parent) : QWidget(parent) {
     setFixedWidth(ClipEditorGlobal::pianoKeyboardWidth);
     setMouseTracking(true);
+}
+
+void PianoKeyboardView::setTrackColorIndex(int index) {
+    m_trackColorIndex = index;
+    m_primaryColor = TrackColorPalette::instance()->keyHighlight(index);
+    update();
 }
 
 void PianoKeyboardView::setKeyRange(const double top, const double bottom) {

@@ -9,7 +9,9 @@
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Model/AppModel/Track.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "PianoRoll/NoteView.h"
 #include "PianoRoll/PhonemeView.h"
 #include "PianoRoll/PianoRollGraphicsView.h"
 #include "PianoRoll/PianoRollView.h"
@@ -86,9 +88,15 @@ void ClipEditorView::onModelChanged() {
 }
 
 void ClipEditorView::onActiveClipChanged(const int clipId) {
-    const auto clip = appModel->findClipById(clipId);
+    Track *trackRef = nullptr;
+    const auto clip = appModel->findClipById(clipId, trackRef);
     m_toolbarView->setDataContext(clip);
     clipController->setClip(clip);
+
+    if (trackRef) {
+        NoteView::setTrackColorIndex(trackRef->colorIndex());
+        m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
+    }
 
     bool hadActiveClip = m_hasActiveClip;
     if (clip == nullptr) {
