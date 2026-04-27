@@ -106,6 +106,7 @@ void InferPiece::setInputCurve(const ParamInfo::Name name, const DrawCurve &curv
     switch (name) {
         case ParamInfo::Expressiveness:
             inputExpressiveness = curve;
+            break;
         case ParamInfo::Pitch:
             inputPitch = curve;
             break;
