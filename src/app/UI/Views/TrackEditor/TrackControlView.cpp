@@ -10,6 +10,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LevelMeter.h"
+#include "UI/Controls/TrackColorSwatchWidget.h"
 #include "UI/Utils/TrackColorPalette.h"
 
 #include <QContextMenuEvent>
@@ -17,6 +18,7 @@
 #include <QInputDialog>
 #include <QLabel>
 #include <QMWidgets/cmenu.h>
+#include <QWidgetAction>
 
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Views/Common/LanguageComboBox.h"
@@ -189,6 +191,20 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     CMenu menu(this);
     menu.addAction(actionInsert);
     menu.addAction(actionRemove);
+
+    auto colorMenu = menu.addMenu("Track color");
+    auto colorSwatch = new TrackColorSwatchWidget(m_track ? m_track->colorIndex() : 0);
+    auto colorAction = new QWidgetAction(colorMenu);
+    colorAction->setDefaultWidget(colorSwatch);
+    colorMenu->addAction(colorAction);
+    connect(colorSwatch, &TrackColorSwatchWidget::colorIndexSelected, this, [this, &menu](int idx) {
+        if (m_track) {
+            m_track->setColorIndex(idx);
+            updateTrackColor();
+            emit m_track->propertyChanged();
+        }
+        menu.close();
+    });
 
     const auto singerMenu = menu.addMenu("Select track singer");
     const auto packages = packageManager->installedPackages().successfulPackages;
