@@ -21,10 +21,4 @@
 #endif
 #endif
 
-namespace Game {
-    // MIDI tick resolution constants
-    inline constexpr int ticksPerQuarterNote = 480;
-    inline constexpr int ticksPerWholeNote = ticksPerQuarterNote * 4; // 1920
-} // namespace Game
-
 #endif // GAMEGLOBAL_H

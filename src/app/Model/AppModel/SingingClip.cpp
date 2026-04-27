@@ -12,6 +12,7 @@
 #include "Note.h"
 #include "InferPiece.h"
 #include "Timeline.h"
+#include "Track.h"
 #include "Modules/Language/S2pMgr.h"
 #include "Modules/SingingClipSlicer/SingingClipSlicer.h"
 #include "Utils/AppModelUtils.h"

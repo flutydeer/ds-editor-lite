@@ -262,7 +262,7 @@ int main(int argc, char *argv[]) {
         Midi::MidiFile midi;
         midi.setFileFormat(1);
         midi.setDivisionType(Midi::MidiFile::DivisionType::PPQ);
-        midi.setResolution(Game::ticksPerQuarterNote);
+        midi.setResolution(480);
 
         midi.createTrack();
 
