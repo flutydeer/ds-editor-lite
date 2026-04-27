@@ -35,7 +35,7 @@ namespace Game
         std::vector<double> scaled_ticks_double(cumsum.size());
         for (size_t i = 0; i < cumsum.size(); ++i) {
             // 使用double类型保持精度
-            scaled_ticks_double[i] = cumsum[i] * tempo * 480.0 / 60.0;
+            scaled_ticks_double[i] = cumsum[i] * tempo * Game::ticksPerQuarterNote / 60.0;
         }
 
         // 将差值转换为ticks，避免累积误差
@@ -148,7 +148,7 @@ namespace Game
             // 改进开始tick的计算，使用更高精度
             int previous_end_tick = !midis.empty() ? midis.back().start + midis.back().duration : 0;
             int chunk_start_time_ticks =
-                static_cast<int>(std::round(static_cast<double>(fst) / tar_sr * tempo * 480.0 / 60.0));
+                static_cast<int>(std::round(static_cast<double>(fst) / tar_sr * tempo * Game::ticksPerQuarterNote / 60.0));
             const auto start_tick = std::max(chunk_start_time_ticks, previous_end_tick);
 
             std::vector<GameMidi> temp_midis = build_midi_note(start_tick, durations, presence, scores, tempo);

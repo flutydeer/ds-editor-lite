@@ -7,6 +7,7 @@
 #include "SingingClip.h"
 
 #include "AppModel.h"
+#include "Clip.h"
 #include "DrawCurve.h"
 #include "Note.h"
 #include "InferPiece.h"
@@ -186,7 +187,7 @@ void SingingClip::setDefaultLanguage(const QString &language) {
 
 QString SingingClip::defaultLanguage() const {
     // 空值表示跟随父级
-    if (m_defaultLanguage->isEmpty()) {
+    if (m_defaultLanguage.get().isEmpty()) {
         if (const auto track = qobject_cast<const Track *>(parent())) {
             return track->defaultLanguage();
         }
@@ -218,7 +219,7 @@ void SingingClip::setTrackSingerInfo(const SingerInfo &singerInfo) {
 
 SpeakerInfo SingingClip::speakerInfo() const {
     // 空值表示跟随父级
-    if (m_speakerInfo->isEmpty()) {
+    if (m_speakerInfo.get().isEmpty()) {
         return m_trackSpeakerInfo.get();
     }
     return m_speakerInfo.get();

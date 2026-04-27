@@ -5,6 +5,7 @@
 #ifndef NOTEGRAPHICSITEM_H
 #define NOTEGRAPHICSITEM_H
 
+#include "Global/AppGlobal.h"
 #include "UI/Utils/OverlappableItem.h"
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 #include "Utils/Property.h"
@@ -75,7 +76,7 @@ private:
     bool m_editingLyric = false;
     // int m_start = 0;
     int m_rStart = 0;
-    int m_length = 480;
+    int m_length = AppGlobal::ticksPerQuarterNote;
     int m_keyIndex = 60;
     QString m_lyric;
     QString m_pronunciation;

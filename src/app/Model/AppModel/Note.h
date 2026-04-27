@@ -5,6 +5,7 @@
 #ifndef DSNOTE_H
 #define DSNOTE_H
 
+#include "Global/AppGlobal.h"
 #include "Utils/Overlappable.h"
 #include "Utils/UniqueObject.h"
 // #include "PhonemeInfo.h"
@@ -95,7 +96,7 @@ private:
     QPointer<SingingClip> m_clip;
     // int m_start = 0;
     int m_rStart = 0;
-    int m_length = 480;
+    int m_length = AppGlobal::ticksPerQuarterNote;
     int m_keyIndex = 60;
     int m_centShift = 0;
 

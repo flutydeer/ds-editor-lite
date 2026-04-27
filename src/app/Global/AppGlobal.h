@@ -11,7 +11,7 @@
 namespace AppGlobal {
     // Global Constants
     inline constexpr int ticksPerQuarterNote = 480;
-    inline constexpr int ticksPerWholeNote = ticksPerQuarterNote * 4; // 1920
+    inline constexpr int ticksPerWholeNote = ticksPerQuarterNote * 4;
     inline constexpr int resizeTolerance = 8;
 
     enum AudioLoadStatus { Init, Loading, Loaded, Error };
