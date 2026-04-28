@@ -15,10 +15,14 @@ public:
     void attachTo(QAbstractScrollArea *scrollArea);
     void updatePosition();
 
+    static OverlayScrollBar *install(QAbstractScrollArea *scrollArea,
+                                     Qt::Orientation orientation = Qt::Horizontal);
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void setHighlightVisible(bool visible);

@@ -6,13 +6,17 @@
 
 #include <QScrollArea>
 
+// #include "UI/Controls/OverlayScrollBar.h"
+
 IOptionPage::IOptionPage(QWidget *parent) : QScrollArea(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setWidgetResizable(true);
+    // setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 }
 
 void IOptionPage::initializePage() {
     const auto widget = createContentWidget();
     widget->setObjectName("IOptionPageWidget");
     setWidget(widget);
+    // OverlayScrollBar::install(this, Qt::Vertical);
 }

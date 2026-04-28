@@ -1,11 +1,12 @@
 #include "OverlayScrollBar.h"
 
 #include <QAbstractScrollArea>
+#include <QEvent>
 #include <QPainter>
 #include <QScrollBar>
 #include <QVariantAnimation>
 
-static constexpr int kBarHeight = 14;
+static constexpr int kBarThickness = 14;
 static constexpr int kHandleMargin = 4;
 static constexpr int kHandleMinLength = 20;
 
@@ -13,7 +14,10 @@ OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
     : QScrollBar(orientation, parent) {
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_Hover);
-    setFixedHeight(kBarHeight);
+    if (orientation == Qt::Horizontal)
+        setFixedHeight(kBarThickness);
+    else
+        setFixedWidth(kBarThickness);
 
     m_animation = new QVariantAnimation(this);
     m_animation->setEasingCurve(QEasingCurve::OutCubic);
@@ -25,9 +29,16 @@ OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
 
 void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
     m_scrollArea = scrollArea;
-    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    auto *source = scrollArea->horizontalScrollBar();
+    const bool horizontal = orientation() == Qt::Horizontal;
+    if (horizontal)
+        scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    else
+        scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    auto *source =
+        horizontal ? scrollArea->horizontalScrollBar() : scrollArea->verticalScrollBar();
+
     connect(source, &QScrollBar::rangeChanged, this, [this](int min, int max) {
         setRange(min, max);
         setVisible(max > 0);
@@ -45,6 +56,8 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
         setPageStep(source->pageStep());
         setSingleStep(source->singleStep());
     });
+
+    scrollArea->viewport()->installEventFilter(this);
 }
 
 void OverlayScrollBar::paintEvent(QPaintEvent *event) {
@@ -60,11 +73,13 @@ void OverlayScrollBar::paintEvent(QPaintEvent *event) {
     if (totalRange <= 0)
         return;
 
-    int availableWidth = width() - 2 * kHandleMargin;
-    int handleLength = qMax(kHandleMinLength, availableWidth * pageStep() / totalRange);
-    int handleX = kHandleMargin;
+    const bool horizontal = orientation() == Qt::Horizontal;
+    int availableLength = (horizontal ? width() : height()) - 2 * kHandleMargin;
+    int handleLength = qMax(kHandleMinLength, availableLength * pageStep() / totalRange);
+    int handlePos = kHandleMargin;
     if (maximum() > minimum())
-        handleX += (availableWidth - handleLength) * (value() - minimum()) / (maximum() - minimum());
+        handlePos +=
+            (availableLength - handleLength) * (value() - minimum()) / (maximum() - minimum());
 
     qreal baseOpacity = 0.25 + 0.10 * m_opacity;
     auto color = QColor(255, 255, 255, qRound(255 * baseOpacity));
@@ -72,7 +87,13 @@ void OverlayScrollBar::paintEvent(QPaintEvent *event) {
     p.setPen(Qt::NoPen);
     qreal radius = m_hovered ? 3.0 : 2.0;
     qreal margin = m_hovered ? 3.0 : 4.0;
-    p.drawRoundedRect(QRectF(handleX, margin, handleLength, height() - 2 * margin), radius, radius);
+
+    if (horizontal)
+        p.drawRoundedRect(QRectF(handlePos, margin, handleLength, height() - 2 * margin), radius,
+                          radius);
+    else
+        p.drawRoundedRect(QRectF(margin, handlePos, width() - 2 * margin, handleLength), radius,
+                          radius);
 }
 
 void OverlayScrollBar::enterEvent(QEnterEvent *event) {
@@ -85,6 +106,12 @@ void OverlayScrollBar::leaveEvent(QEvent *event) {
     Q_UNUSED(event)
     m_hovered = false;
     setHighlightVisible(false);
+}
+
+bool OverlayScrollBar::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == m_scrollArea->viewport() && event->type() == QEvent::Resize)
+        updatePosition();
+    return QScrollBar::eventFilter(watched, event);
 }
 
 void OverlayScrollBar::setHighlightVisible(bool visible) {
@@ -105,7 +132,21 @@ void OverlayScrollBar::updatePosition() {
         return;
 
     auto viewport = m_scrollArea->viewport();
-    auto topLeft = viewport->mapTo(parentWidget(), QPoint(0, viewport->height() - kBarHeight));
-    setGeometry(topLeft.x(), topLeft.y(), viewport->width(), kBarHeight);
+    auto mapped = viewport->mapTo(parentWidget(), QPoint(0, 0));
+    if (orientation() == Qt::Horizontal) {
+        setGeometry(mapped.x(), mapped.y() + viewport->height() - kBarThickness, viewport->width(),
+                    kBarThickness);
+    } else {
+        setGeometry(mapped.x() + viewport->width() - kBarThickness, mapped.y(), kBarThickness,
+                    viewport->height());
+    }
     raise();
+}
+
+OverlayScrollBar *OverlayScrollBar::install(QAbstractScrollArea *scrollArea,
+                                             Qt::Orientation orientation) {
+    auto *bar = new OverlayScrollBar(orientation, scrollArea);
+    bar->attachTo(scrollArea);
+    bar->updatePosition();
+    return bar;
 }
