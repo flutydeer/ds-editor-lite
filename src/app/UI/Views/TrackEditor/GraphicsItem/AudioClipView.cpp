@@ -195,8 +195,8 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
     // Batch draw all waveform lines in one call for optimal performance
     painter->drawLines(lines);
 
-    const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
-    qDebug() << "AudioClipView waveform render:" << time << "ms";
+    // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
+    // qDebug() << "AudioClipView waveform render:" << time << "ms";
 }
 
 QString AudioClipView::clipTypeName() const {
