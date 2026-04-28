@@ -106,5 +106,7 @@
 
         <file>fonts/Sarasa-UI-Music-Regular.ttf</file>
 
+        <file>qml/PackageManagerDetailsPanel.qml</file>
+
     </qresource>
 </RCC>

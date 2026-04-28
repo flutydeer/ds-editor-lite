@@ -9,12 +9,9 @@
 #include "UI/Dialogs/Base/Dialog.h"
 #include "Modules/PackageManager/Models/PackageInfo.h"
 
-class QScrollArea;
-class QStackedWidget;
-class PackageDetailsContent;
+class PackageManagerViewModel;
 class PackageFilterProxyModel;
 class PackageListModel;
-class PackageDetailsHeader;
 class LineEdit;
 class QListView;
 
@@ -36,42 +33,21 @@ private slots:
     void onSelectionChanged(const QModelIndex &current, const QModelIndex &previous) const;
 
 private:
-    // enum State {
-    //     Loading,
-    //     Success,
-    //     Failed
-    // };
-
-    enum DetailsPanelState {
-        PackageUnselected,
-        PackageSelected
-    };
-
     void initUi();
     void onInferenceModuleReady();
     void loadPackageList();
     QWidget *buildPackagePanel();
     QWidget *buildDetailsPanel();
-    QWidget *buildDetailsPanelPlaceholder();
 
     Button *btnInstall = nullptr;
     QLabel *lbPackageCount = nullptr;
     LineEdit *leSearch = nullptr;
     QListView *listView = nullptr;
 
-    QStackedWidget *detailsPanel = nullptr;
-    QWidget *detailsPanelPlaceholder = nullptr;
-    QScrollArea *detailsPanelContent = nullptr;
-
-    PackageDetailsHeader *detailsHeader = nullptr;
-    PackageDetailsContent *detailsContent = nullptr;
-
-    // QList<PackageInfo> successfulPackages;
+    PackageManagerViewModel *viewModel = nullptr;
 
     PackageListModel *listModel = nullptr;
     PackageFilterProxyModel *proxyModel = nullptr;
-
-    // State m_state = Loading;
 };
 
 
