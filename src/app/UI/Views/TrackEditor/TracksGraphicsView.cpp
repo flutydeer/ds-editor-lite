@@ -34,6 +34,7 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget
     setScaleYMin(0.575);
     // QScroller::grabGesture(m_graphicsView, QScroller::TouchGesture);
     setEnsureSceneFillViewY(false);
+    setScaleXMax(10000);
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     setDragBehavior(DragBehavior::RectSelect);
     setMinimumHeight(0);
