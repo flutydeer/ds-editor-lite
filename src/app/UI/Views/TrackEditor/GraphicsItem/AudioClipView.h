@@ -9,6 +9,13 @@
 #include "Model/AppModel/AudioInfoModel.h"
 #include "Global/AppGlobal.h"
 
+// Graphics item that displays an audio clip's waveform in the track editor.
+//
+// The waveform is rendered directly on the QPainter (no off-screen pixmap) for
+// performance. Peak data is pre-computed at two mipmap levels (High / Low) and
+// stored in AudioInfoModel. The drawing uses physical-pixel stepping and a
+// scene-aligned sampling grid to ensure correct HiDPI rendering and jitter-free
+// waveform display during clip trimming. See drawPreviewArea() for details.
 class AudioClipView final : public AbstractClipView {
 public:
     [[nodiscard]] ClipType clipType() const override {
@@ -31,6 +38,7 @@ public slots:
     void onTempoChange(double tempo);
 
 private:
+    // Peak data resolution: High uses peakCache, Low uses peakCacheMipmap
     enum RenderResolution { High, Low };
 
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) override;
@@ -40,10 +48,6 @@ private:
     AppGlobal::AudioLoadStatus m_status = AppGlobal::Init;
     AudioInfoModel m_audioInfo;
     QString m_errorMessage;
-    double m_renderStart = 0;
-    double m_renderEnd = 0;
-    QPoint m_mouseLastPos;
-    int m_rectLastWidth = -1;
     double m_tempo = 60;
     RenderResolution m_resolution = High;
     QString m_path;

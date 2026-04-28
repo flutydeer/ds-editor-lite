@@ -9,6 +9,10 @@
 #include <QThread>
 #include <QFileDialog>
 
+#include "Global/TracksEditorGlobal.h"
+
+using namespace TracksEditorGlobal;
+
 AudioClipView::AudioClipView(const int itemId, QGraphicsItem *parent)
     : AbstractClipView(itemId, parent) {
 }
@@ -50,127 +54,149 @@ int AudioClipView::contentLength() const {
 }
 
 void AudioClipView::onTempoChange(const double tempo) {
-    // qDebug() << "AudioClipGraphicsItem::onTempoChange" << tempo;
     m_tempo = tempo;
 }
 
+// Draws the audio waveform directly on the painter (no off-screen pixmap).
+//
+// Key design decisions:
+//   1. Direct rendering — avoids QPixmap allocation, fill, and blit overhead that
+//      scales with clip area (especially costly at high DPI).
+//   2. Physical-pixel stepping — iterates at 1/dpr logical-pixel intervals so that
+//      every physical pixel column gets a waveform line, eliminating gaps on HiDPI.
+//   3. Scene-aligned grid — the pixel step grid is anchored to scene coordinate 0
+//      (via floor/ceil alignment) rather than to the clip's left edge. This ensures
+//      that trimming (changing clipStart/clipLen) does not shift the sampling grid,
+//      which would cause visible waveform jitter.
+//   4. Absolute coordinate mapping — each pixel column's chunk range is computed from
+//      its absolute scene X position (sceneX -> tick -> chunkIndex), so the mapping
+//      is independent of previewRect width. This prevents jitter when the clip is
+//      resized by trimming.
+//   5. Batch drawLines — all vertical lines are collected into a QVector<QLineF> and
+//      drawn in a single QPainter::drawLines() call to minimize state-switch overhead.
+//   6. Cosmetic pen (width 0) — always renders as exactly 1 physical pixel regardless
+//      of transform, which is the fastest line drawing mode in Qt.
 void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                     const QColor color) {
     QElapsedTimer mstimer;
     mstimer.start();
-    
-    // Get device pixel ratio for high DPI support
-    const qreal devicePixelRatio = painter->device()->devicePixelRatio();
-    
-    // Create off-screen pixmap with correct device pixel ratio
-    const int pixmapWidth = static_cast<int>(previewRect.width() * devicePixelRatio);
-    const int pixmapHeight = static_cast<int>(previewRect.height() * devicePixelRatio);
-    
-    QPixmap pixmap(pixmapWidth, pixmapHeight);
-    pixmap.setDevicePixelRatio(1);
-    pixmap.fill(Qt::transparent);
 
-    QPainter pixmapPainter(&pixmap);
-    pixmapPainter.setRenderHint(QPainter::Antialiasing, false);
-
-    const auto rectTop = 0;
-    const auto rectWidth = previewRect.width() * devicePixelRatio;
-    const auto rectHeight = previewRect.height() * devicePixelRatio;
+    const auto rectLeft = previewRect.left();
+    const auto rectTop = previewRect.top();
+    const auto rectWidth = previewRect.width();
+    const auto rectHeight = previewRect.height();
     const auto halfRectHeight = rectHeight / 2;
+
+    painter->setRenderHint(QPainter::Antialiasing, false);
 
     QPen pen;
 
     if (m_status == AppGlobal::Loading) {
         pen.setColor(color);
-        pixmapPainter.setPen(pen);
-        pixmapPainter.drawText(QRectF(0, 0, rectWidth, rectHeight), "Loading...", QTextOption(Qt::AlignCenter));
+        painter->setPen(pen);
+        painter->drawText(previewRect, "Loading...", QTextOption(Qt::AlignCenter));
     }
 
-    pen.setColor(color);
-    pen.setWidth(1);
-    pixmapPainter.setPen(pen);
-
-    if (m_audioInfo.peakCache.count() == 0 || m_audioInfo.peakCacheMipmap.count() == 0) {
-        // Draw the pixmap to the main painter
-        painter->drawPixmap(previewRect.topLeft(), pixmap);
+    if (m_audioInfo.peakCache.count() == 0 || m_audioInfo.peakCacheMipmap.count() == 0)
         return;
-    }
 
+    // Cosmetic pen: width 0 means always 1 physical pixel, fastest drawing mode
+    pen.setColor(color);
+    pen.setWidthF(0);
+    painter->setPen(pen);
+
+    // Select resolution level: use full-resolution peak data when zoomed in,
+    // downsampled mipmap when zoomed out
     m_resolution = scaleX() >= 0.2 ? High : Low;
-    const auto chunksPerTickBase =
-        static_cast<double>(m_audioInfo.sampleRate) / m_audioInfo.chunkSize * 60 / m_tempo / AppGlobal::ticksPerQuarterNote;
-    const auto peakData = m_resolution == Low ? m_audioInfo.peakCacheMipmap : m_audioInfo.peakCache;
+    const auto chunksPerTickBase = static_cast<double>(m_audioInfo.sampleRate) /
+                                   m_audioInfo.chunkSize * 60 / m_tempo /
+                                   AppGlobal::ticksPerQuarterNote;
+    const auto &peakData =
+        m_resolution == Low ? m_audioInfo.peakCacheMipmap : m_audioInfo.peakCache;
     const auto chunksPerTick =
         m_resolution == Low ? chunksPerTickBase / m_audioInfo.mipmapScale : chunksPerTickBase;
 
+    // Determine the visible drawing range in scene coordinates
     const auto rectLeftScene = mapToScene(previewRect.topLeft()).x();
     const auto rectRightScene = mapToScene(previewRect.bottomRight()).x();
-    const auto waveRectLeft =
-        visibleRect().left() < rectLeftScene ? 0 : (visibleRect().left() - rectLeftScene) * devicePixelRatio;
-    const auto waveRectRight = visibleRect().right() < rectRightScene
-                                   ? (visibleRect().right() - rectLeftScene) * devicePixelRatio
-                                   : (rectRightScene - rectLeftScene) * devicePixelRatio;
-    // auto waveRectWidth = waveRectRight - waveRectLeft + 1; // 1 px spaceing at right
+    const qreal dpr = painter->device()->devicePixelRatio();
+    const auto visLeft = visibleRect().left();
+    const auto visRight = visibleRect().right();
+    const auto drawLeftScene = std::max(visLeft, rectLeftScene);
+    const auto drawRightScene = std::min(visRight, rectRightScene);
 
-    const auto start = clipStart() * chunksPerTick;
-    const auto end = (clipStart() + clipLen()) * chunksPerTick;
-    const auto divideCount = (end - start) / rectWidth;
+    if (drawLeftScene >= drawRightScene)
+        return;
 
-    auto drawPeak = [&](const int x, const short min, const short max) {
-        const auto yMin = -min * halfRectHeight / 32767 + halfRectHeight + rectTop;
-        const auto yMax = -max * halfRectHeight / 32767 + halfRectHeight + rectTop;
-        pixmapPainter.drawLine(x, static_cast<int>(yMin), x, static_cast<int>(yMax));
-    };
+    // Conversion factor: how many ticks correspond to one scene pixel
+    const double ticksPerScenePixel =
+        AppGlobal::ticksPerQuarterNote / (scaleX() * pixelsPerQuarterNote);
+    // Step size in logical pixels: 1/dpr so we iterate per physical pixel
+    const double pixelStep = 1.0 / dpr;
+    // How many peak chunks each physical pixel step covers
+    const double chunksPerStep = ticksPerScenePixel * pixelStep * chunksPerTick;
+    const int peakCount = peakData.count();
 
-    // qDebug() << m_peakCacheThumbnail.count() << divideCount;
-    for (int i = static_cast<int>(waveRectLeft); i <= static_cast<int>(waveRectRight); i++) {
+    // Align the drawing range to the global pixel grid (anchored at scene X = 0).
+    // This prevents waveform jitter when trimming clip edges, because the sampling
+    // grid positions remain stable regardless of where drawLeftScene falls.
+    const double alignedDrawLeftScene =
+        std::floor(drawLeftScene / pixelStep) * pixelStep;
+    const double alignedDrawRightScene =
+        std::ceil(drawRightScene / pixelStep) * pixelStep;
+    const int stepCount =
+        static_cast<int>((alignedDrawRightScene - alignedDrawLeftScene) / pixelStep) + 1;
+
+    QVector<QLineF> lines;
+    lines.reserve(stepCount);
+
+    for (int i = 0; i < stepCount; i++) {
+        // Compute absolute scene X for this physical pixel column
+        const double sceneX = alignedDrawLeftScene + i * pixelStep;
+        const double logicalX = sceneX - rectLeftScene;
+        // Skip columns outside the clip's previewRect bounds
+        if (logicalX < 0 || logicalX > rectWidth)
+            continue;
+
+        // Map scene position to peak data index via absolute coordinates:
+        // sceneX -> tick -> chunk index
+        // This is independent of rectWidth, so trimming doesn't affect the mapping.
+        const double tick = sceneX * ticksPerScenePixel;
+        const double chunkPos = tick * chunksPerTick;
+        const double chunkEnd = chunkPos + chunksPerStep;
+
+        // Find min/max peak values within this pixel's chunk range
         short min = 0;
         short max = 0;
-        auto updateMinMax = [](const std::tuple<short, short> &frame, short &min_, short &max_) {
+
+        const int jStart = static_cast<int>(chunkPos);
+        const int jEnd = static_cast<int>(chunkEnd);
+        for (int j = jStart; j < jEnd; j++) {
+            if (j < 0)
+                continue;
+            if (j >= peakCount)
+                break;
+            const auto &frame = peakData.at(j);
             const auto frameMin = std::get<0>(frame);
             const auto frameMax = std::get<1>(frame);
-            if (frameMin < min_)
-                min_ = frameMin;
-            if (frameMax > max_)
-                max_ = frameMax;
-        };
-
-        for (int j = start + i * divideCount; j < start + i * divideCount + divideCount; j++) {
-            if (j >= peakData.count())
-                break;
-
-            const auto &frame = peakData.at(j);
-            updateMinMax(frame, min, max);
+            if (frameMin < min)
+                min = frameMin;
+            if (frameMax > max)
+                max = frameMax;
         }
-        // if (i == rectWidth - 1) {
-        //     // for (int j = start + i * (divideCount + 1); j < m_peakCache.count(); j++) {
-        //     for (int j = start + i * (divideCount + 1); j < peakData.count(); j++) {
-        //         // auto frame = m_peakCache.at(j);
-        //         auto frame = peakData.at(j);
-        //         updateMinMax(frame, min, max);
-        //     }
-        // }
-        drawPeak(i, min, max);
+
+        // Convert peak values to Y coordinates and add vertical line
+        const double x = rectLeft + logicalX;
+        const double yMin = -min * halfRectHeight / 32767.0 + halfRectHeight + rectTop;
+        const double yMax = -max * halfRectHeight / 32767.0 + halfRectHeight + rectTop;
+        lines.append(QLineF(x, yMin, x, yMax));
     }
 
-    pixmap.setDevicePixelRatio(devicePixelRatio);
+    // Batch draw all waveform lines in one call for optimal performance
+    painter->drawLines(lines);
 
-    painter->drawPixmap(previewRect.topLeft(), pixmap);
-
-    // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
-    // qDebug() << time;
-
-    // Draw visible area
-    // auto waveRectTop = previewRect.top();
-    // auto waveRectHeight = previewRect.height();
-    // auto waveRect = QRectF(waveRectLeft, waveRectTop, waveRectWidth, waveRectHeight);
-    //
-    // pen.setColor(QColor(255, 0, 0));
-    // pen.setWidth(1);
-    // painter->setPen(pen);
-    // painter->drawRect(waveRect);
-    // painter->drawLine(waveRect.topLeft(), waveRect.bottomRight());
-    // painter->drawLine(waveRect.topRight(), waveRect.bottomLeft());
+    const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
+    qDebug() << "AudioClipView waveform render:" << time << "ms";
 }
 
 QString AudioClipView::clipTypeName() const {
