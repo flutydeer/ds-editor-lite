@@ -9,6 +9,10 @@
 #include <QEnterEvent>
 #include <QMouseEvent>
 
+namespace talcs {
+    class MidiMessageIntegrator;
+}
+
 class PianoKeyboardView : public QWidget {
     Q_OBJECT
     Q_PROPERTY(QColor whiteKeyColor READ whiteKeyColor WRITE setWhiteKeyColor)
@@ -40,12 +44,19 @@ private:
     void wheelEvent(QWheelEvent *e) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
     void drawUniformKeyboard(QPainter &painter) const;
     void drawClassicKeyboard(QPainter &painter);
     void drawHoverOverlay(QPainter &painter) const;
+    void drawKeyOverlay(QPainter &painter, int keyIndex, int alpha) const;
     int sceneYToKeyIndex(double y) const;
     int posToKeyIndex(double x, double y) const;
+    void sendNoteOn(int keyIndex);
+    void sendNoteOff(int keyIndex);
+    void releaseCurrentNote();
 
     double m_top = 0;
     double m_bottom = 127;
@@ -58,6 +69,7 @@ private:
     QColor m_primaryColor = {155, 186, 255};
     int m_trackColorIndex = 0;
     int m_hoveredKeyIndex = -1;
+    int m_pressedKeyIndex = -1;
 };
 
 
