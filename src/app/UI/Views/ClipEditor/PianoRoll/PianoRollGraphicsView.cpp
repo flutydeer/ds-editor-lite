@@ -14,6 +14,7 @@
 #include "PianoRollGraphicsView_p.h"
 #include "PitchEditorView.h"
 #include "PronunciationView.h"
+#include "SplitLineIndicator.h"
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/Actions/AppModel/Note/NoteActions.h"
@@ -88,9 +89,15 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     connect(this, &TimeGraphicsView::scaleChanged, this, [this] {
         Q_D(PianoRollGraphicsView);
         if (d->m_editMode == SplitNote && d->m_splitLineIndicator &&
-            d->m_splitLineLastNoteView) {
-            d->updateSplitLineIndicator(d->m_splitLineLastNoteView,
-                                        d->m_splitLineLastTick);
+            d->m_splitLineIndicator->lastNoteView()) {
+            const auto quantizedTickLength =
+                TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
+            const auto snappedTick =
+                TimelineSnapUtils::snapNearest(d->m_splitLineLastTick, quantizedTickLength);
+            const auto splitPos = snappedTick - d->m_offset;
+            const auto sceneX = tickToSceneX(splitPos);
+            d->m_splitLineIndicator->updateIndicator(d->m_splitLineIndicator->lastNoteView(),
+                                                     splitPos, sceneX);
         }
     });
 
@@ -286,7 +293,16 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         const auto scenePos = mapToScene(event->position().toPoint());
         const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
         const auto noteView = d->noteViewAt(event->pos());
-        d->updateSplitLineIndicator(noteView, tick);
+        const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
+        const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
+        const auto splitPos = snappedTick - d->m_offset;
+        const auto sceneX = tickToSceneX(splitPos);
+        if (!d->m_splitLineIndicator) {
+            d->m_splitLineIndicator = new SplitLineIndicator;
+            static_cast<QGraphicsScene *>(scene())->addItem(d->m_splitLineIndicator);
+        }
+        d->m_splitLineIndicator->updateIndicator(noteView, splitPos, sceneX);
+        d->m_splitLineLastTick = tick;
     }
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::None) {
         TimeGraphicsView::mouseMoveEvent(event);
@@ -587,9 +603,7 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     d->m_editMode = mode;
     // Hide split line indicator when switching modes
     if (d->m_splitLineIndicator) {
-        static_cast<QGraphicsScene *>(scene())->removeItem(d->m_splitLineIndicator);
-        delete d->m_splitLineIndicator;
-        d->m_splitLineIndicator = nullptr;
+        d->m_splitLineIndicator->clearState();
     }
     if (mode == Select) {
         setDragBehavior(DragBehavior::RectSelect);
@@ -1161,13 +1175,9 @@ void PianoRollGraphicsViewPrivate::onHoverEnter(QHoverEvent *event) {
 
 void PianoRollGraphicsViewPrivate::onHoverLeave(QHoverEvent *event) {
     Q_Q(PianoRollGraphicsView);
-    // Hide split line indicator when mouse leaves
     if (m_splitLineIndicator) {
-        static_cast<QGraphicsScene *>(q->scene())->removeItem(m_splitLineIndicator);
-        delete m_splitLineIndicator;
-        m_splitLineIndicator = nullptr;
+        m_splitLineIndicator->clearState();
     }
-    // Clear keyboard hover when mouse leaves
     emit q->keyHoverCleared();
 }
 
@@ -1185,7 +1195,16 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     if (m_editMode == SplitNote) {
         const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + m_offset);
         const auto noteView = noteViewAt(event->position().toPoint());
-        updateSplitLineIndicator(noteView, tick);
+        const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
+        const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
+        const auto splitPos = snappedTick - m_offset;
+        const auto sceneX = q->tickToSceneX(splitPos);
+        if (!m_splitLineIndicator) {
+            m_splitLineIndicator = new SplitLineIndicator;
+            static_cast<QGraphicsScene *>(q->scene())->addItem(m_splitLineIndicator);
+        }
+        m_splitLineIndicator->updateIndicator(noteView, splitPos, sceneX);
+        m_splitLineLastTick = tick;
         q->setCursor(Qt::ArrowCursor);
         return;
     }
@@ -1269,87 +1288,8 @@ void PianoRollGraphicsViewPrivate::splitNoteAtPosition(NoteView *noteView, int t
 
     // Hide split line indicator after splitting
     if (m_splitLineIndicator) {
-        static_cast<QGraphicsScene *>(q->scene())->removeItem(m_splitLineIndicator);
-        delete m_splitLineIndicator;
-        m_splitLineIndicator = nullptr;
+        m_splitLineIndicator->clearState();
     }
-}
-
-void PianoRollGraphicsViewPrivate::updateSplitLineIndicator(NoteView *noteView, int tick) {
-    Q_Q(PianoRollGraphicsView);
-    if (!noteView) {
-        // Hide indicator if not over a note
-        if (m_splitLineIndicator) {
-            static_cast<QGraphicsScene *>(q->scene())->removeItem(m_splitLineIndicator);
-            delete m_splitLineIndicator;
-            m_splitLineIndicator = nullptr;
-        }
-        m_splitLineLastNoteView.clear();
-        return;
-    }
-
-    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
-    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
-    const auto splitPos = snappedTick - m_offset;
-    const auto noteLocalStart = noteView->rStart();
-    const auto noteLocalEnd = noteLocalStart + noteView->length();
-
-    // Check if split position is valid (within note bounds)
-    if (splitPos <= noteLocalStart || splitPos >= noteLocalEnd) {
-        if (m_splitLineIndicator) {
-            static_cast<QGraphicsScene *>(q->scene())->removeItem(m_splitLineIndicator);
-            delete m_splitLineIndicator;
-            m_splitLineIndicator = nullptr;
-        }
-        m_splitLineLastNoteView.clear();
-        return;
-    }
-
-    m_splitLineLastNoteView = noteView;
-    m_splitLineLastTick = tick;
-
-    // Calculate line position
-    const auto x = q->tickToSceneX(splitPos);
-    const auto noteRect = noteView->rect();
-    const auto noteScenePos = noteView->scenePos();
-    constexpr double extensionLength = 8.0; // Extension length above and below note
-    constexpr double forkLength = 6.0;      // Length of fork lines
-    constexpr double forkAngle = 45.0;      // Angle of fork lines in degrees
-
-    const auto lineTop = noteScenePos.y() - extensionLength;
-    const auto lineBottom = noteScenePos.y() + noteRect.height() + extensionLength;
-    const auto forkAngleRad = forkAngle * M_PI / 180.0;
-    const auto forkOffsetX = forkLength * std::sin(forkAngleRad);
-    const auto forkOffsetY = forkLength * std::cos(forkAngleRad);
-
-    // Create or update split line indicator
-    if (!m_splitLineIndicator) {
-        m_splitLineIndicator = new QGraphicsPathItem;
-        m_splitLineIndicator->setPen(QPen(QColor(255, 100, 100), 2));
-        m_splitLineIndicator->setZValue(10);
-        static_cast<QGraphicsScene *>(q->scene())->addItem(m_splitLineIndicator);
-    }
-
-    // Build path with main line and forks
-    QPainterPath path;
-
-    // Main vertical line
-    path.moveTo(x, lineTop);
-    path.lineTo(x, lineBottom);
-
-    // Top fork (pointing upward, away from note)
-    path.moveTo(x, lineTop);
-    path.lineTo(x - forkOffsetX, lineTop - forkOffsetY);
-    path.moveTo(x, lineTop);
-    path.lineTo(x + forkOffsetX, lineTop - forkOffsetY);
-
-    // Bottom fork (pointing downward, away from note)
-    path.moveTo(x, lineBottom);
-    path.lineTo(x - forkOffsetX, lineBottom + forkOffsetY);
-    path.moveTo(x, lineBottom);
-    path.lineTo(x + forkOffsetX, lineBottom + forkOffsetY);
-
-    m_splitLineIndicator->setPath(path);
 }
 
 void PianoRollGraphicsViewPrivate::splitNoteAtMousePosition(NoteView *noteView,

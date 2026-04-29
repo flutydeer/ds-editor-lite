@@ -24,6 +24,7 @@ class Note;
 class PianoRollGraphicsView;
 class PronunciationView;
 class PianoRollBackground;
+class SplitLineIndicator;
 
 using namespace ClipEditorGlobal;
 
@@ -46,8 +47,7 @@ public:
 
     PitchEditorView *m_pitchEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
-    QGraphicsPathItem *m_splitLineIndicator = nullptr;
-    QPointer<NoteView> m_splitLineLastNoteView;
+    SplitLineIndicator *m_splitLineIndicator = nullptr;
     int m_splitLineLastTick = 0;
 
     bool m_mouseDown = false;
@@ -93,7 +93,6 @@ public:
     void eraseNoteFromView(NoteView *noteView);
     void cancelEraseNote();
     void splitNoteAtPosition(NoteView *noteView, int tick);
-    void updateSplitLineIndicator(NoteView *noteView, int tick);
 
     void updateSceneSelectionState();
     void updateOverlappedState();
