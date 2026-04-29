@@ -83,6 +83,17 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     connect(this, &TimeGraphicsView::visibleRectChanged, this,
             &PianoRollGraphicsView::notifyKeyRangeChanged);
 
+    // Recompute split-line indicator position when zoom changes so it stays
+    // anchored to the same tick under the cursor.
+    connect(this, &TimeGraphicsView::scaleChanged, this, [this] {
+        Q_D(PianoRollGraphicsView);
+        if (d->m_editMode == SplitNote && d->m_splitLineIndicator &&
+            d->m_splitLineLastNoteView) {
+            d->updateSplitLineIndicator(d->m_splitLineLastNoteView,
+                                        d->m_splitLineLastTick);
+        }
+    });
+
     connect(appStatus, &AppStatus::noteSelectionChanged, d,
             &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
 }
@@ -1273,6 +1284,7 @@ void PianoRollGraphicsViewPrivate::updateSplitLineIndicator(NoteView *noteView, 
             delete m_splitLineIndicator;
             m_splitLineIndicator = nullptr;
         }
+        m_splitLineLastNoteView.clear();
         return;
     }
 
@@ -1289,8 +1301,12 @@ void PianoRollGraphicsViewPrivate::updateSplitLineIndicator(NoteView *noteView, 
             delete m_splitLineIndicator;
             m_splitLineIndicator = nullptr;
         }
+        m_splitLineLastNoteView.clear();
         return;
     }
+
+    m_splitLineLastNoteView = noteView;
+    m_splitLineLastTick = tick;
 
     // Calculate line position
     const auto x = q->tickToSceneX(splitPos);

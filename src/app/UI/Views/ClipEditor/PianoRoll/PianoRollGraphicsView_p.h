@@ -10,6 +10,7 @@
 
 #include <QObject>
 #include <QPointF>
+#include <QPointer>
 #include <QColor>
 
 class ClipRangeOverlay;
@@ -46,6 +47,8 @@ public:
     PitchEditorView *m_pitchEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
     QGraphicsPathItem *m_splitLineIndicator = nullptr;
+    QPointer<NoteView> m_splitLineLastNoteView;
+    int m_splitLineLastTick = 0;
 
     bool m_mouseDown = false;
     Qt::MouseButton m_mouseDownButton = Qt::NoButton;
