@@ -1,5 +1,6 @@
 #include "MidiConverter.h"
 #include "MidiConverterDialog.h"
+#include "MidiTextCodecConverter.h"
 
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
@@ -17,22 +18,13 @@
 #include <opendspxconverter/midi/midiconverter.h>
 #include <opendspxconverter/midi/midiintermediatedata.h>
 
-#include <QTextCodec>
-#include <QDialogButtonBox>
+#include <QDialog>
 #include <QFile>
-#include <QListWidget>
-#include <QTextEdit>
 
-bool showOverlapDialog() {
-    MessageDialog msgBox;
-    msgBox.setTitle("MIDI Overlap");
-    msgBox.setMessage("The MIDI file contains overlapping notes. Do you want to continue?");
-    msgBox.addAccentButton("Yes", 1);
-    msgBox.addButton("No", 0);
-    return msgBox.exec() == 1;
-}
+#include <algorithm>
+#include <sstream>
 
-int showImportDialog() {
+static int showImportDialog() {
     MessageDialog msgBox;
     msgBox.setWindowTitle("MIDI Import");
     msgBox.setMessage("Do you want to create a new track or use a new project?");
@@ -42,7 +34,7 @@ int showImportDialog() {
     return msgBox.exec();
 }
 
-void showErrorDialog(const QString &title, const QString &message) {
+static void showErrorDialog(const QString &title, const QString &message) {
     MessageDialog msgBox;
     msgBox.setWindowTitle(title);
     msgBox.setMessage(message);
@@ -50,8 +42,8 @@ void showErrorDialog(const QString &title, const QString &message) {
     msgBox.exec();
 }
 
-QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, const int offset,
-                           const QString &language) {
+static QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, const int offset,
+                                  const QString &language) {
     QList<Note *> notes;
     for (const opendspx::Note &dsNote : arrNotes) {
         const auto note = new Note;
@@ -65,7 +57,7 @@ QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, const in
     return notes;
 }
 
-void convertClips(const opendspx::Track &track, Track *dsTrack, const QString &language) {
+static void convertClips(const opendspx::Track &track, Track *dsTrack, const QString &language) {
     for (auto &clip : track.clips) {
         if (clip->type == opendspx::Clip::Type::Singing) {
             const auto singClip = std::static_pointer_cast<opendspx::SingingClip>(clip);
@@ -97,8 +89,8 @@ void convertClips(const opendspx::Track &track, Track *dsTrack, const QString &l
     }
 }
 
-void convertTracks(const opendspx::Model &dspx, QList<int> selectTrackIds, AppModel *model,
-                   const QString &language) {
+static void convertTracks(const opendspx::Model &dspx, QList<int> selectTrackIds, AppModel *model,
+                          const QString &language) {
     int count = 0;
     for (const auto &i : selectTrackIds) {
         const auto &track = dspx.content.tracks[i];
@@ -111,7 +103,7 @@ void convertTracks(const opendspx::Model &dspx, QList<int> selectTrackIds, AppMo
     }
 }
 
-std::vector<opendspx::Note> encodeNotes(const OverlappableSerialList<Note> &notes) {
+static std::vector<opendspx::Note> encodeNotes(const OverlappableSerialList<Note> &notes) {
     std::vector<opendspx::Note> arrNotes;
     for (const auto &note : notes) {
         opendspx::Note dsNote;
@@ -124,7 +116,7 @@ std::vector<opendspx::Note> encodeNotes(const OverlappableSerialList<Note> &note
     return arrNotes;
 }
 
-void encodeClips(const Track *dsTrack, opendspx::Track *track) {
+static void encodeClips(const Track *dsTrack, opendspx::Track *track) {
     for (const auto &clip : dsTrack->clips()) {
         if (clip->clipType() == Clip::Singing) {
             const auto singingClip = dynamic_cast<SingingClip *>(clip);
@@ -145,7 +137,7 @@ void encodeClips(const Track *dsTrack, opendspx::Track *track) {
     }
 }
 
-void encodeTracks(const AppModel *model, opendspx::Model &dspx) {
+static void encodeTracks(const AppModel *model, opendspx::Model &dspx) {
     for (const auto &dsTrack : model->tracks()) {
         opendspx::Track track;
         track.name = dsTrack->name().toStdString();
@@ -155,6 +147,50 @@ void encodeTracks(const AppModel *model, opendspx::Model &dspx) {
 }
 
 MidiConverter::MidiConverter() {
+}
+
+static QString toneNumToToneName(const int num) {
+    static const QString tones[] = {"C",  "C#", "D",  "D#", "E",  "F",
+                                    "F#", "G",  "G#", "A",  "A#", "B"};
+
+    int step = num % 12;
+    int octave = num / 12 - 1;
+
+    if (num < 0) {
+        octave -= 1;
+        step = (step + 12) % 12;
+    }
+
+    if (octave < -1 || step < 0 || step >= 12)
+        return QStringLiteral("Invalid tone or octave");
+
+    return tones[step] + QString::number(octave);
+}
+
+static QList<MidiConverterDialog::TrackInfo> buildTrackInfoList(
+    const std::vector<opendspx::MidiIntermediateData::Track> &tracks) {
+    QList<MidiConverterDialog::TrackInfo> result;
+    result.reserve(static_cast<int>(tracks.size()));
+
+    for (const auto &track : tracks) {
+        MidiConverterDialog::TrackInfo info;
+        info.name = QByteArray::fromStdString(track.title);
+        if (!track.notes.empty()) {
+            const auto minMaxNotes = std::minmax_element(
+                track.notes.begin(), track.notes.end(),
+                [](const auto &a, const auto &b) { return a.key < b.key; });
+            info.rangeText = QStringLiteral("%1 - %2")
+                                 .arg(toneNumToToneName(minMaxNotes.first->key),
+                                      toneNumToToneName(minMaxNotes.second->key));
+        }
+        info.noteCount = static_cast<int>(track.notes.size());
+        info.selectedByDefault = !track.notes.empty();
+        for (const auto &note : track.notes) {
+            info.lyrics.append(QByteArray::fromStdString(note.lyric));
+        }
+        result.append(info);
+    }
+    return result;
 }
 
 int MidiConverter::midiImportHandler() {
@@ -173,9 +209,10 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg,
         return false;
     }
 
+    const QByteArray midiData = midiFile.readAll();
     opendspx::MidiConverter::Error midiError;
-    std::stringstream ss(midiFile.readAll().toStdString(), std::ios::in);
-    auto midiMediate = midiConverter->convertMidiToIntermediate(ss, midiError);
+    std::stringstream ss(midiData.toStdString(), std::ios::in);
+    auto midiMediate = midiConverter->convertMidiToIntermediate(ss, midiError, {true});
     if (midiError != opendspx::MidiConverter::Error::NoError) {
         showErrorDialog("Error", QString("Failed to load midi file.\npath: %1\ntype: %2")
                                      .arg(path)
@@ -183,28 +220,78 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg,
         return false;
     }
 
-    QTextCodec *codec = QTextCodec::codecForName("UTF-8");
-    const auto trackInfoList = midiMediate.tracks();
-    MidiConverterDialog dlg(QList(trackInfoList.begin(), trackInfoList.end()), Dialog::globalParent());
-    QList<int> selectTrackIds;
-    if (dlg.exec()) {
-        selectTrackIds = dlg.selectedTracks();
-        if (dlg.selectedCodec()) {
-            codec = dlg.selectedCodec();
+    MidiConverterDialog dlg(buildTrackInfoList(midiMediate.tracks()), Dialog::globalParent());
+    dlg.detectCodec();
+
+    QObject::connect(&dlg, &MidiConverterDialog::separateMidiChannelsChanged, &dlg,
+                     [&](bool enabled) {
+                         std::stringstream ssUpdate(midiData.toStdString(), std::ios::in);
+                         auto updated =
+                             midiConverter->convertMidiToIntermediate(ssUpdate, midiError,
+                                                                      {enabled});
+                         if (midiError != opendspx::MidiConverter::Error::NoError)
+                             return;
+                         midiMediate = std::move(updated);
+                         dlg.setTrackInfoList(buildTrackInfoList(midiMediate.tracks()));
+                         dlg.detectCodec();
+                     });
+
+    if (dlg.exec() != QDialog::Accepted) {
+        return false;
+    }
+
+    const auto codec = dlg.selectedCodec();
+    const auto selectTrackIds = dlg.selectedTracks();
+
+    std::vector<opendspx::MidiIntermediateData::Track> selectedTracks;
+    selectedTracks.reserve(selectTrackIds.size());
+    for (const auto index : selectTrackIds) {
+        selectedTracks.push_back(midiMediate.tracks().at(index));
+    }
+
+    auto decodeText = [&](const std::string &value) -> std::string {
+        if (value.empty())
+            return {};
+        const auto decoded = MidiTextCodecConverter::decode(QByteArray::fromStdString(value),
+                                                            codec);
+        if (decoded.isEmpty())
+            return value;
+        return decoded.toStdString();
+    };
+
+    for (auto &track : selectedTracks) {
+        track.title = decodeText(track.title);
+        for (auto &note : track.notes) {
+            note.lyric = decodeText(note.lyric);
         }
     }
+
+    midiMediate = {
+        midiMediate.resolution(),
+        dlg.importTempo() ? midiMediate.tempos()
+                          : std::vector<opendspx::MidiIntermediateData::Tempo>{},
+        dlg.importTimeSignature() ? midiMediate.timeSignatures()
+                                  : std::vector<opendspx::MidiIntermediateData::TimeSignature>{},
+        midiMediate.markers(),
+        selectedTracks,
+    };
 
     const auto midiDspx = midiConverter->convertIntermediateToDspx(midiMediate);
 
     const auto &timeline = midiDspx.content.timeline;
-    const auto &ts = timeline.timeSignatures.front();
-    const auto &tempoVal = timeline.tempos.front().value;
+    const auto hasTimeSignature = !timeline.timeSignatures.empty();
+    const auto hasTempo = !timeline.tempos.empty();
 
-    if (ts.denominator != 2 && ts.denominator != 4 && ts.denominator != 8 && ts.denominator != 16) {
-        showErrorDialog("Warning", QString("Failed to load midi file.\ntimeSignatures denominator "
-                                           "must be: 2, 4, 8, 16\ncurrent denominator: %1")
-                                       .arg(ts.denominator));
-        return false;
+    if (hasTimeSignature) {
+        const auto &ts = timeline.timeSignatures.front();
+        if (ts.denominator != 2 && ts.denominator != 4 && ts.denominator != 8 &&
+            ts.denominator != 16) {
+            showErrorDialog("Warning",
+                            QString("Failed to load midi file.\ntimeSignatures denominator "
+                                    "must be: 2, 4, 8, 16\ncurrent denominator: %1")
+                                .arg(ts.denominator));
+            return false;
+        }
     }
 
     if (mode == NewProject) {
@@ -214,12 +301,19 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg,
         return false;
     }
 
-    if (model->timeSignature().numerator != ts.numerator ||
-        model->timeSignature().denominator != ts.denominator)
-        model->setTimeSignature({ts.numerator, ts.denominator});
+    if (hasTimeSignature) {
+        const auto &ts = timeline.timeSignatures.front();
+        if (model->timeSignature().numerator != ts.numerator ||
+            model->timeSignature().denominator != ts.denominator) {
+            model->setTimeSignature({ts.numerator, ts.denominator});
+        }
+    }
 
-    if (qAbs(model->tempo() - tempoVal) > 0.001)
-        model->setTempo(tempoVal);
+    if (hasTempo) {
+        const auto &tempoVal = timeline.tempos.front().value;
+        if (qAbs(model->tempo() - tempoVal) > 0.001)
+            model->setTempo(tempoVal);
+    }
 
     if (!midiDspx.content.tracks.empty()) {
         convertTracks(midiDspx, selectTrackIds, model, language);
@@ -231,10 +325,6 @@ bool MidiConverter::load(const QString &path, AppModel *model, QString &errMsg,
 bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) {
     opendspx::Model dspx;
     opendspx::MidiConverter midiConverter;
-
-    QVariantMap args;
-    std::function overlapHandler = showOverlapDialog;
-    args.insert("overlapHandler", QVariant::fromValue(reinterpret_cast<quintptr>(&overlapHandler)));
 
     dspx.content.timeline.tempos.push_back({0, model->tempo()});
     const auto &ts = model->timeSignature();

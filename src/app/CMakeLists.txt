@@ -62,6 +62,14 @@ endif ()
 
 set(USE_LITE_CONTROLS OFF)
 
+set(_links_icu)
+if(WIN32)
+    list(APPEND _links_icu icu)
+elseif(NOT APPLE)
+    find_package(ICU COMPONENTS uc REQUIRED)
+    list(APPEND _links_icu ICU::uc)
+endif()
+
 find_path(INTERVAL_TREE_INCLUDE_DIRS "interval-tree/interval_tree.hpp" REQUIRED)
 target_include_directories(${PROJECT_NAME} PUBLIC
         "$<BUILD_INTERFACE:${INTERVAL_TREE_INCLUDE_DIRS}>"
@@ -83,6 +91,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         unofficial::tinyexpr::tinyexpr
         dsinfer::dsinfer
         re2::re2
+        ${_links_icu}
 )
 
 if (APPLICATION_ENABLE_BREAKPAD)
