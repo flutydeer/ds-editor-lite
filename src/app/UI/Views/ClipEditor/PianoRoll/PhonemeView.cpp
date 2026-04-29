@@ -8,8 +8,11 @@
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/InferPiece.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Audio/AudioContext.h"
 #include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/WaveformPainter.h"
 #include "UI/Controls/ToolTip.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
@@ -17,6 +20,9 @@
 #include <QElapsedTimer>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QThreadPool>
+#include <TalcsFormat/FormatManager.h>
+#include <TalcsFormat/AbstractAudioFormatIO.h>
 
 PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_Hover, true);
@@ -130,7 +136,8 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     auto fillColor = TrackColorPalette::instance()->phonemeFill(NoteView::trackColorIndex());
     auto positionLineColor = QColor(200, 200, 200);
     auto noteBoundaryColor = QColor(49, 53, 63);
-    // Draw background
+
+    drawWaveforms(&painter);
     // painter.setPen(Qt::NoPen);
     // painter.setBrush(QColor(28, 29, 30));
     // painter.drawRect(rect());
@@ -380,12 +387,12 @@ bool PhonemeView::eventFilter(QObject *object, QEvent *event) {
 }
 
 void PhonemeView::moveToSingingClipState(SingingClip *clip) {
-    // qDebug() << "PhonemeView::moveToSingingClipState";
     m_notes.clear();
     resetPhonemeList();
     if (m_clip) {
         disconnect(m_clip, nullptr, this, nullptr);
     }
+    clearPieceWaveforms();
 
     m_clip = clip;
     setEnabled(true);
@@ -396,8 +403,15 @@ void PhonemeView::moveToSingingClipState(SingingClip *clip) {
 
     connect(clip, &SingingClip::propertyChanged, this, &PhonemeView::onClipPropertyChanged);
     connect(clip, &SingingClip::noteChanged, this, &PhonemeView::onNoteChanged);
-    // connect(clip, &SingingClip::noteSelectionChanged, this,
-    //         &PhonemeView::onNoteSelectionChanged);
+    connect(clip, &SingingClip::piecesChanged, this, &PhonemeView::onPiecesChanged);
+
+    for (const auto piece : clip->pieces()) {
+        connect(piece, &InferPiece::statusChanged, this,
+                [this, piece](InferStatus s) { onPieceStatusChanged(piece, s); });
+        if (piece->acousticInferStatus == Success)
+            loadWaveformAsync(piece);
+    }
+
     resetPhonemeList();
     buildPhonemeList();
     update();
@@ -410,6 +424,7 @@ void PhonemeView::moveToNullClipState() {
         disconnect(m_clip, nullptr, this, nullptr);
     m_clip = nullptr;
 
+    clearPieceWaveforms();
     resetPhonemeList();
     update();
 }
@@ -599,4 +614,166 @@ int PhonemeView::calculatePhonemeLengthInMs(const PhonemeViewModel &phoneme) con
     const auto phonemeStartMs = appModel->tickToMs(phonemeStartTick);
     const auto phonemeEndMs = appModel->tickToMs(phonemeEndTick);
     return qRound(phonemeEndMs - phonemeStartMs);
+}
+
+void PhonemeView::onPiecesChanged(const PieceList &pieces, const PieceList &newPieces,
+                                  const PieceList &discardedPieces) {
+    for (const auto piece : discardedPieces) {
+        disconnect(piece, nullptr, this, nullptr);
+        if (m_pieceWaveforms.contains(piece)) {
+            delete m_pieceWaveforms[piece].painter;
+            m_pieceWaveforms.remove(piece);
+        }
+    }
+    for (const auto piece : newPieces) {
+        connect(piece, &InferPiece::statusChanged, this,
+                [this, piece](InferStatus s) { onPieceStatusChanged(piece, s); });
+        if (piece->acousticInferStatus == Success)
+            loadWaveformAsync(piece);
+    }
+    update();
+}
+
+void PhonemeView::onPieceStatusChanged(InferPiece *piece, InferStatus status) {
+    if (status == Success) {
+        loadWaveformAsync(piece);
+    } else {
+        if (m_pieceWaveforms.contains(piece)) {
+            delete m_pieceWaveforms[piece].painter;
+            m_pieceWaveforms.remove(piece);
+            update();
+        }
+    }
+}
+
+void PhonemeView::onWaveformReady(InferPiece *piece, const AudioInfoModel &info) {
+    if (!m_clip)
+        return;
+    if (!m_clip->pieces().contains(piece))
+        return;
+
+    const int clipOffset = m_clip->start();
+    auto *painter = new WaveformPainter;
+    painter->setAudioPath(piece->audioPath);
+    painter->setAudioInfo(info);
+    painter->setTempo(appModel->tempo());
+
+    PieceWaveform wf;
+    wf.painter = painter;
+    wf.globalStartTick = piece->localStartTick() + clipOffset;
+    wf.globalEndTick = piece->localEndTick() + clipOffset;
+
+    if (m_pieceWaveforms.contains(piece))
+        delete m_pieceWaveforms[piece].painter;
+    m_pieceWaveforms[piece] = wf;
+    update();
+}
+
+void PhonemeView::loadWaveformAsync(InferPiece *piece) {
+    const QString audioPath = piece->audioPath;
+    if (audioPath.isEmpty())
+        return;
+
+    QThreadPool::globalInstance()->start([this, piece, audioPath]() {
+        auto *fm = AudioContext::instance()->formatManager();
+        if (!fm)
+            return;
+        auto *io = fm->getFormatLoad(audioPath);
+        if (!io)
+            return;
+        if (!io->open(talcs::AbstractAudioFormatIO::Read)) {
+            delete io;
+            return;
+        }
+
+        AudioInfoModel info;
+        info.sampleRate = io->sampleRate();
+        info.channels = io->channelCount();
+        info.frames = io->length();
+        info.chunkSize = 128;
+        info.mipmapScale = 10;
+
+        std::vector<float> buffer(info.chunkSize * info.channels);
+        long long samplesRead = 0;
+        short min = 0, max = 0;
+        int chunkIndex = 0;
+        bool hasTail = false;
+
+        while (samplesRead < info.frames) {
+            const qint64 read = io->read(buffer.data(), info.chunkSize);
+            if (read <= 0)
+                break;
+            samplesRead += read;
+
+            double sampleMax = 0, sampleMin = 0;
+            for (qint64 i = 0; i < read; i++) {
+                double mono = 0.0;
+                for (int ch = 0; ch < info.channels; ch++)
+                    mono += buffer[i * info.channels + ch] / static_cast<double>(info.channels);
+                if (mono > sampleMax)
+                    sampleMax = mono;
+                if (mono < sampleMin)
+                    sampleMin = mono;
+            }
+
+            auto toShort = [](double d) -> short {
+                if (d < -1) d = -1;
+                else if (d > 1) d = 1;
+                return static_cast<short>(d * 32767);
+            };
+
+            info.peakCache.append(std::make_tuple(toShort(sampleMin), toShort(sampleMax)));
+
+            if ((chunkIndex + 1) % info.mipmapScale == 0) {
+                info.peakCacheMipmap.append(std::make_tuple(min, max));
+                min = 0;
+                max = 0;
+                hasTail = false;
+            } else {
+                if (toShort(sampleMin) < min) min = toShort(sampleMin);
+                if (toShort(sampleMax) > max) max = toShort(sampleMax);
+                hasTail = true;
+            }
+            chunkIndex++;
+        }
+        if (hasTail)
+            info.peakCacheMipmap.append(std::make_tuple(min, max));
+
+        io->close();
+        delete io;
+
+        QMetaObject::invokeMethod(this, [this, piece, info]() {
+            onWaveformReady(piece, info);
+        });
+    });
+}
+
+void PhonemeView::drawWaveforms(QPainter *painter) {
+    if (m_pieceWaveforms.isEmpty())
+        return;
+
+    const auto waveformColor = QColor(49, 53, 63);
+
+    for (auto it = m_pieceWaveforms.constBegin(); it != m_pieceWaveforms.constEnd(); ++it) {
+        const auto &wf = it.value();
+        if (!wf.painter)
+            continue;
+
+        if (wf.globalEndTick <= m_startTick || wf.globalStartTick >= m_endTick)
+            continue;
+
+        const double x1 = tickToX(wf.globalStartTick);
+        const double x2 = tickToX(wf.globalEndTick);
+        const QRectF wfRect(x1, 0, x2 - x1, rect().height());
+
+        wf.painter->paint(painter, wfRect, waveformColor,
+                          static_cast<double>(wf.globalStartTick),
+                          static_cast<double>(wf.globalEndTick));
+    }
+}
+
+void PhonemeView::clearPieceWaveforms() {
+    for (auto it = m_pieceWaveforms.begin(); it != m_pieceWaveforms.end(); ++it)
+        delete it.value().painter;
+    m_pieceWaveforms.clear();
 }

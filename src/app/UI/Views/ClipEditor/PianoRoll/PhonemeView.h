@@ -7,13 +7,18 @@
 
 
 #include "Model/AppModel/SingingClip.h"
+#include "Model/AppModel/AudioInfoModel.h"
+#include "Model/AppModel/InferStatus.h"
 #include "UI/Utils/TextPixmapCache.h"
 
 #include <QWidget>
+#include <QMap>
 
 class Note;
 class Phoneme;
 class ToolTip;
+class InferPiece;
+class WaveformPainter;
 
 class PhonemeView final : public QWidget {
     Q_OBJECT
@@ -62,7 +67,10 @@ private slots:
     void onTempoChanged();
     void onClipPropertyChanged();
     void onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
-    // void onNoteSelectionChanged();
+    void onPiecesChanged(const PieceList &pieces, const PieceList &newPieces,
+                         const PieceList &discardedPieces);
+    void onPieceStatusChanged(InferPiece *piece, InferStatus status);
+    void onWaveformReady(InferPiece *piece, const AudioInfoModel &info);
 
 private:
     enum MouseMoveBehavior { Move, None };
@@ -107,6 +115,16 @@ private:
     void clearHoverEffects(const PhonemeViewModel *except = nullptr);
     void handleAdjustCompleted(const PhonemeViewModel *phVm);
     int calculatePhonemeLengthInMs(const PhonemeViewModel &phoneme) const;
+
+    struct PieceWaveform {
+        WaveformPainter *painter = nullptr;
+        int globalStartTick = 0;
+        int globalEndTick = 0;
+    };
+    QMap<InferPiece *, PieceWaveform> m_pieceWaveforms;
+    void clearPieceWaveforms();
+    void drawWaveforms(QPainter *painter);
+    void loadWaveformAsync(InferPiece *piece);
 };
 
 
