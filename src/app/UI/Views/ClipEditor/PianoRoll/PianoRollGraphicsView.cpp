@@ -15,7 +15,6 @@
 #include "PitchEditorView.h"
 #include "PronunciationView.h"
 #include "PianoRollEditHandler.h"
-#include "SplitLineIndicator.h"
 #include "SplitNoteHandler.h"
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
@@ -89,25 +88,6 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
             &PianoRollGraphicsView::notifyKeyRangeChanged);
     connect(this, &TimeGraphicsView::visibleRectChanged, this,
             &PianoRollGraphicsView::notifyKeyRangeChanged);
-
-    // Recompute split-line indicator position when zoom changes so it stays
-    // anchored to the same tick under the cursor.
-    connect(this, &TimeGraphicsView::scaleChanged, this, [this] {
-        Q_D(PianoRollGraphicsView);
-        if (d->m_currentHandler && d->m_editMode == SplitNote) {
-            return;
-        }
-        if (d->m_editMode == SplitNote && d->m_splitLineIndicator &&
-            d->m_splitLineIndicator->lastNoteView()) {
-            const auto quantizedTickLength =
-                TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
-            const auto snappedTick =
-                TimelineSnapUtils::snapNearest(d->m_splitLineLastTick, quantizedTickLength);
-            const auto splitPos = snappedTick - d->m_offset;
-            d->m_splitLineIndicator->updateIndicator(d->m_splitLineIndicator->lastNoteView(),
-                                                     splitPos);
-        }
-    });
 
     connect(appStatus, &AppStatus::noteSelectionChanged, d,
             &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
@@ -255,11 +235,9 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         } else
             TimeGraphicsView::mousePressEvent(event);
     } else if (d->m_editMode == SplitNote) {
-        if (d->m_currentHandler) {
+        if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
-        } else if (noteView && event->button() == Qt::LeftButton) {
-            d->splitNoteAtPosition(noteView, tick);
-        } else
+        else
             TimeGraphicsView::mousePressEvent(event);
     } else
         TimeGraphicsView::mousePressEvent(event);
@@ -305,19 +283,6 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             d->m_currentHandler->mouseMoveEvent(event);
             return;
         }
-        const auto scenePos = mapToScene(event->position().toPoint());
-        const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
-        const auto noteView = d->noteViewAt(event->pos());
-        const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
-        const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
-        const auto splitPos = snappedTick - d->m_offset;
-        if (!d->m_splitLineIndicator) {
-            d->m_splitLineIndicator = new SplitLineIndicator;
-            d->m_splitLineIndicator->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-            dynamic_cast<TimeGraphicsScene *>(scene())->addCommonItem(d->m_splitLineIndicator);
-        }
-        d->m_splitLineIndicator->updateIndicator(noteView, splitPos);
-        d->m_splitLineLastTick = tick;
     }
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::None) {
         TimeGraphicsView::mouseMoveEvent(event);
@@ -626,10 +591,6 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
         d->m_currentHandler->activate();
     }
 
-    // Hide split line indicator when switching modes
-    if (d->m_splitLineIndicator) {
-        d->m_splitLineIndicator->clearState();
-    }
     if (mode == Select) {
         setDragBehavior(DragBehavior::RectSelect);
         d->setPitchEditMode(false, false);
@@ -1200,9 +1161,8 @@ void PianoRollGraphicsViewPrivate::onHoverEnter(QHoverEvent *event) {
 
 void PianoRollGraphicsViewPrivate::onHoverLeave(QHoverEvent *event) {
     Q_Q(PianoRollGraphicsView);
-    if (m_splitLineIndicator) {
-        m_splitLineIndicator->clearState();
-    }
+    if (m_currentHandler)
+        m_currentHandler->deactivate();
     emit q->keyHoverCleared();
 }
 
@@ -1216,26 +1176,11 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     const auto keyIndex = sceneYToKeyIndexInt(scenePos.y());
     emit q->keyHovered(keyIndex);
 
-    // Update split line indicator in SplitNote mode
     if (m_editMode == SplitNote) {
         if (m_currentHandler) {
             m_currentHandler->hoverMoveEvent(const_cast<QHoverEvent *>(event));
             return;
         }
-        const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + m_offset);
-        const auto noteView = noteViewAt(event->position().toPoint());
-        const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
-        const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
-        const auto splitPos = snappedTick - m_offset;
-        if (!m_splitLineIndicator) {
-            m_splitLineIndicator = new SplitLineIndicator;
-            m_splitLineIndicator->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-            dynamic_cast<TimeGraphicsScene *>(q->scene())->addCommonItem(m_splitLineIndicator);
-        }
-        m_splitLineIndicator->updateIndicator(noteView, splitPos);
-        m_splitLineLastTick = tick;
-        q->setCursor(Qt::ArrowCursor);
-        return;
     }
 
     const auto noteView = noteViewAt(event->position().toPoint());
@@ -1314,11 +1259,6 @@ void PianoRollGraphicsViewPrivate::splitNoteAtPosition(NoteView *noteView, int t
 
     // Reset edit object state to allow undo/redo
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
-
-    // Hide split line indicator after splitting
-    if (m_splitLineIndicator) {
-        m_splitLineIndicator->clearState();
-    }
 }
 
 void PianoRollGraphicsViewPrivate::splitNoteAtMousePosition(NoteView *noteView,

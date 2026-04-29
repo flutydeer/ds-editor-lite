@@ -25,7 +25,6 @@ class Note;
 class PianoRollGraphicsView;
 class PronunciationView;
 class PianoRollBackground;
-class SplitLineIndicator;
 class PianoRollEditHandler;
 
 using namespace ClipEditorGlobal;
@@ -49,8 +48,6 @@ public:
 
     PitchEditorView *m_pitchEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
-    SplitLineIndicator *m_splitLineIndicator = nullptr;
-    int m_splitLineLastTick = 0;
 
     PianoRollEditHandler *m_currentHandler = nullptr;
     QHash<PianoRollEditMode, PianoRollEditHandler *> m_handlers;
