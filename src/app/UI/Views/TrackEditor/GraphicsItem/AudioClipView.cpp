@@ -239,11 +239,9 @@ void AudioClipView::drawPeakMode(QPainter *painter, const QRectF &previewRect,
         if (logicalX < 0 || logicalX > rectWidth)
             continue;
 
-        // Map scene position to peak data index via absolute coordinates:
-        // sceneX -> tick -> chunk index
-        // This is independent of rectWidth, so trimming doesn't affect the mapping.
         const double tick = sceneX * ticksPerScenePixel;
-        const double chunkPos = tick * chunksPerTick;
+        const double audioTick = tick - start();
+        const double chunkPos = audioTick * chunksPerTick;
         const double chunkEnd = chunkPos + chunksPerStep;
 
         // Find min/max peak values within this pixel's chunk range
@@ -324,8 +322,10 @@ void AudioClipView::drawSubChunkPeakMode(QPainter *painter, const QRectF &previe
     const int stepCount =
         static_cast<int>((alignedDrawRightScene - alignedDrawLeftScene) / pixelStep) + 1;
 
-    const double firstTick = alignedDrawLeftScene * ticksPerScenePixel;
-    const double lastTick = alignedDrawRightScene * ticksPerScenePixel;
+    const double startTick = static_cast<double>(start());
+
+    const double firstTick = alignedDrawLeftScene * ticksPerScenePixel - startTick;
+    const double lastTick = alignedDrawRightScene * ticksPerScenePixel - startTick;
     qint64 sampleStart = static_cast<qint64>(std::floor(firstTick * samplesPerTick));
     qint64 sampleEnd = static_cast<qint64>(std::ceil(lastTick * samplesPerTick + samplesPerStep));
     sampleStart = std::max(sampleStart, qint64(0));
@@ -352,7 +352,8 @@ void AudioClipView::drawSubChunkPeakMode(QPainter *painter, const QRectF &previe
             continue;
 
         const double tick = sceneX * ticksPerScenePixel;
-        const double samplePos = tick * samplesPerTick;
+        const double audioTick = tick - startTick;
+        const double samplePos = audioTick * samplesPerTick;
         const double samplePosEnd = samplePos + samplesPerStep;
 
         qint64 jStart = static_cast<qint64>(std::floor(samplePos));
@@ -428,8 +429,10 @@ void AudioClipView::drawWaveformCurve(QPainter *painter, const QRectF &previewRe
     const double alignedDrawRightScene =
         std::ceil(drawRightScene / pixelStep) * pixelStep;
 
-    const double firstTick = alignedDrawLeftScene * ticksPerScenePixel;
-    const double lastTick = alignedDrawRightScene * ticksPerScenePixel;
+    const double startTick = static_cast<double>(start());
+
+    const double firstTick = alignedDrawLeftScene * ticksPerScenePixel - startTick;
+    const double lastTick = alignedDrawRightScene * ticksPerScenePixel - startTick;
     qint64 sampleStart = static_cast<qint64>(std::floor(firstTick * samplesPerTick)) - kSincHalfKernel;
     qint64 sampleEnd = static_cast<qint64>(std::ceil(lastTick * samplesPerTick)) + kSincHalfKernel;
     sampleStart = std::max(sampleStart, qint64(0));
@@ -470,7 +473,8 @@ void AudioClipView::drawWaveformCurve(QPainter *painter, const QRectF &previewRe
             continue;
 
         const double tick = sceneX * ticksPerScenePixel;
-        const double samplePos = tick * samplesPerTick;
+        const double audioTick = tick - startTick;
+        const double samplePos = audioTick * samplesPerTick;
 
         const double value = sincInterpolate(monoSamples, sampleStart, totalFrames,
                                              samplePos, kSincHalfKernel);
@@ -502,8 +506,8 @@ void AudioClipView::drawWaveformCurve(QPainter *painter, const QRectF &previewRe
             if (bufIdx < 0 || bufIdx >= monoSamples.size())
                 continue;
 
-            const double tick = static_cast<double>(s) / samplesPerTick;
-            const double sceneX = tick / ticksPerScenePixel;
+            const double audioTick = static_cast<double>(s) / samplesPerTick;
+            const double sceneX = (audioTick + startTick) / ticksPerScenePixel;
             const double logicalX = sceneX - rectLeftScene;
             if (logicalX < 0 || logicalX > rectWidth)
                 continue;
