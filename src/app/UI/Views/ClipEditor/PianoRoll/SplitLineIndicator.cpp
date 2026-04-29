@@ -1,6 +1,7 @@
 #include "SplitLineIndicator.h"
 
 #include "NoteView.h"
+#include "Global/AppGlobal.h"
 
 #include <QPen>
 #include <cmath>
@@ -15,9 +16,12 @@ SplitLineIndicator::SplitLineIndicator(QGraphicsItem *parent) : QGraphicsPathIte
     hide();
 }
 
+void SplitLineIndicator::setPixelsPerQuarterNote(int px) {
+    m_pixelsPerQuarterNote = px;
+}
+
 SplitLineIndicator::UpdateResult SplitLineIndicator::updateIndicator(NoteView *noteView,
-                                                                      int splitPos,
-                                                                      double sceneX) {
+                                                                      int splitPos) {
     if (!noteView) {
         hide();
         m_lastNoteView.clear();
@@ -34,7 +38,8 @@ SplitLineIndicator::UpdateResult SplitLineIndicator::updateIndicator(NoteView *n
     }
 
     m_lastNoteView = noteView;
-    buildPath(sceneX, noteView);
+    m_splitPos = splitPos;
+    rebuildPath();
     show();
     return Shown;
 }
@@ -54,16 +59,30 @@ void SplitLineIndicator::setLastTick(int tick) {
 void SplitLineIndicator::clearState() {
     hide();
     m_lastNoteView.clear();
+    m_splitPos = 0;
     m_lastTick = 0;
 }
 
-void SplitLineIndicator::buildPath(double x, NoteView *noteView) {
+void SplitLineIndicator::afterSetScale() {
+    if (isVisible() && m_lastNoteView)
+        rebuildPath();
+}
+
+void SplitLineIndicator::afterSetVisibleRect() {
+}
+
+void SplitLineIndicator::rebuildPath() {
+    if (!m_lastNoteView)
+        return;
+
     constexpr double extensionLength = 8.0;
     constexpr double forkLength = 6.0;
     constexpr double forkAngle = 45.0;
 
-    const auto noteRect = noteView->rect();
-    const auto noteScenePos = noteView->scenePos();
+    const auto x = tickToSceneX(m_splitPos);
+
+    const auto noteRect = m_lastNoteView->rect();
+    const auto noteScenePos = m_lastNoteView->scenePos();
 
     const auto lineTop = noteScenePos.y() - extensionLength;
     const auto lineBottom = noteScenePos.y() + noteRect.height() + extensionLength;
@@ -86,4 +105,8 @@ void SplitLineIndicator::buildPath(double x, NoteView *noteView) {
     path.lineTo(x + forkOffsetX, lineBottom + forkOffsetY);
 
     setPath(path);
+}
+
+double SplitLineIndicator::tickToSceneX(double tick) const {
+    return tick * scaleX() * m_pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
 }

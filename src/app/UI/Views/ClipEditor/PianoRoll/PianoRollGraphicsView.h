@@ -45,6 +45,9 @@ public:
     void setViewportCenterAt(double tick, double keyIndex);
     void setViewportCenterAtKeyIndex(double keyIndex);
 
+    [[nodiscard]] double sceneXToTick(double pos) const { return TimeGraphicsView::sceneXToTick(pos); }
+    [[nodiscard]] double tickToSceneX(double tick) const { return TimeGraphicsView::tickToSceneX(tick); }
+
 signals:
     void keyRangeChanged(double start, double end);
     void keyHovered(int keyIndex);

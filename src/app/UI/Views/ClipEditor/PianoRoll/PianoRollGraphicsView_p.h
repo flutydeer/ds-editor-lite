@@ -8,6 +8,7 @@
 #include "Model/AppModel/Params.h"
 #include "Model/AppModel/SingingClip.h"
 
+#include <QHash>
 #include <QObject>
 #include <QPointF>
 #include <QPointer>
@@ -25,6 +26,7 @@ class PianoRollGraphicsView;
 class PronunciationView;
 class PianoRollBackground;
 class SplitLineIndicator;
+class PianoRollEditHandler;
 
 using namespace ClipEditorGlobal;
 
@@ -49,6 +51,9 @@ public:
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
     SplitLineIndicator *m_splitLineIndicator = nullptr;
     int m_splitLineLastTick = 0;
+
+    PianoRollEditHandler *m_currentHandler = nullptr;
+    QHash<PianoRollEditMode, PianoRollEditHandler *> m_handlers;
 
     bool m_mouseDown = false;
     Qt::MouseButton m_mouseDownButton = Qt::NoButton;
