@@ -23,6 +23,9 @@
 #include "Modules/Language/LangSetting/ILangSetManager.h"
 #include "Utils/Log.h"
 #include "Utils/StringUtils.h"
+#ifdef Q_OS_MAC
+#  include "Utils/MacOSUtils.h"
+#endif
 
 static void log_report_callback(const int level, const LangCore::LogContext &ctx,
                                 const std::string_view &msg) {
