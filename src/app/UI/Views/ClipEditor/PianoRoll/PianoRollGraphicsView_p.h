@@ -40,7 +40,7 @@ public:
     int m_offset = 0; // Clip 's "start" property
     QList<Note *> m_notes;
 
-    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, EraseNotes, None };
+    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
 
     NoteView *m_currentEditingNote = nullptr;
     PianoRollBackground *m_gridItem = nullptr;
@@ -70,7 +70,6 @@ public:
     int m_moveMaxDeltaKey = 127;
     int m_moveMinDeltaKey = 0;
 
-    QList<int> m_notesToErase;
     QList<NoteView *> noteViewsToErase;
 
     PianoRollEditMode m_editMode = Select;
@@ -91,9 +90,6 @@ public:
     static void handleNoteLeftResized(int noteId, int deltaTick);
     static void handleNoteRightResized(int noteId, int deltaTick);
 
-    void handleNotesErased();
-    void eraseNoteFromView(NoteView *noteView);
-    void cancelEraseNote();
     void splitNoteAtPosition(NoteView *noteView, int tick);
 
     void updateSceneSelectionState();

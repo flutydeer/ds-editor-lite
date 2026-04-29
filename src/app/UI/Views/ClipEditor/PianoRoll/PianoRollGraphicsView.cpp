@@ -15,6 +15,7 @@
 #include "PitchEditorView.h"
 #include "PronunciationView.h"
 #include "PianoRollEditHandler.h"
+#include "EraseNoteHandler.h"
 #include "SplitNoteHandler.h"
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
@@ -80,6 +81,10 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     auto *splitHandler = new SplitNoteHandler;
     splitHandler->setContext(this, d);
     d->m_handlers.insert(SplitNote, splitHandler);
+
+    auto *eraseHandler = new EraseNoteHandler;
+    eraseHandler->setContext(this, d);
+    d->m_handlers.insert(EraseNote, eraseHandler);
 
     connect(scene, &QGraphicsScene::selectionChanged, this,
             &PianoRollGraphicsView::onSceneSelectionChanged);
@@ -229,10 +234,9 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
             d->PrepareForDrawingNote(tick, keyIndex);
         }
     } else if (d->m_editMode == EraseNote) {
-        d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::EraseNotes;
-        if (noteView) {
-            d->eraseNoteFromView(noteView);
-        } else
+        if (d->m_currentHandler)
+            d->m_currentHandler->mousePressEvent(event);
+        else
             TimeGraphicsView::mousePressEvent(event);
     } else if (d->m_editMode == SplitNote) {
         if (d->m_currentHandler)
@@ -277,12 +281,10 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         }
     }
 
-    // Update split line indicator in SplitNote mode even when not dragging
-    if (d->m_editMode == SplitNote && !d->m_mouseDown) {
-        if (d->m_currentHandler) {
-            d->m_currentHandler->mouseMoveEvent(event);
-            return;
-        }
+    // Delegate to active handler if present
+    if (d->m_currentHandler) {
+        d->m_currentHandler->mouseMoveEvent(event);
+        return;
     }
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::None) {
         TimeGraphicsView::mouseMoveEvent(event);
@@ -341,11 +343,6 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         const auto targetLength = snappedTick - d->m_offset - d->m_currentDrawingNote->rStart();
         if (targetLength >= quantizedTickLength)
             d->m_currentDrawingNote->setLength(targetLength);
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::EraseNotes) {
-        if (noteView)
-            d->eraseNoteFromView(noteView);
-        else
-            TimeGraphicsView::mouseMoveEvent(event);
     } else
         TimeGraphicsView::mouseMoveEvent(event);
 }
@@ -358,6 +355,13 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     }
     d->m_mouseDown = false;
     d->m_mouseDownButton = Qt::NoButton;
+    if (d->m_currentHandler) {
+        if (!cancelRequested)
+            d->m_currentHandler->mouseReleaseEvent(event);
+        cancelRequested = false;
+        TimeGraphicsView::mouseReleaseEvent(event);
+        return;
+    }
     if (!cancelRequested)
         commitAction();
     const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
@@ -486,6 +490,10 @@ void PianoRollGraphicsView::discardAction() {
     Q_D(PianoRollGraphicsView);
     d->m_pitchEditor->discardAction();
     cancelRequested = true;
+    if (d->m_currentHandler) {
+        d->m_currentHandler->discard();
+        return;
+    }
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
         if (d->m_movedBeforeMouseUp) {
             d->resetSelectedNotesOffset();
@@ -496,8 +504,6 @@ void PianoRollGraphicsView::discardAction() {
         d->resetSelectedNotesOffset();
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
         scene()->removeCommonItem(d->m_currentDrawingNote);
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::EraseNotes) {
-        d->cancelEraseNote();
     }
     d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
     d->m_deltaTick = 0;
@@ -536,8 +542,6 @@ void PianoRollGraphicsView::commitAction() {
         d->removeNoteViewFromScene(d->m_currentDrawingNote);
         Helper::drawNote(d->m_currentDrawingNote->rStart(), d->m_currentDrawingNote->length(),
                          d->m_currentDrawingNote->keyIndex());
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::EraseNotes) {
-        d->handleNotesErased();
     }
     d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
     d->m_deltaTick = 0;
@@ -956,29 +960,6 @@ void PianoRollGraphicsViewPrivate::handleNoteRightResized(const int noteId, cons
     QList<int> notes;
     notes.append(noteId);
     clipController->onResizeNotesRight(notes, deltaTick);
-}
-
-void PianoRollGraphicsViewPrivate::handleNotesErased() {
-    qDebug() << "Note erased count:" << m_notesToErase.count();
-    clipController->onRemoveNotes(m_notesToErase);
-    m_notesToErase.clear();
-    noteViewsToErase.clear();
-}
-
-void PianoRollGraphicsViewPrivate::eraseNoteFromView(NoteView *noteView) {
-    Q_Q(PianoRollGraphicsView);
-    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
-    m_notesToErase.append(noteView->id());
-    noteViewsToErase.append(noteView);
-    removeNoteViewFromScene(noteView);
-}
-
-void PianoRollGraphicsViewPrivate::cancelEraseNote() {
-    Q_Q(PianoRollGraphicsView);
-    m_notesToErase.clear();
-    for (const auto noteView : noteViewsToErase)
-        addNoteViewToScene(noteView);
-    noteViewsToErase.clear();
 }
 
 void PianoRollGraphicsViewPrivate::updateSceneSelectionState() {
