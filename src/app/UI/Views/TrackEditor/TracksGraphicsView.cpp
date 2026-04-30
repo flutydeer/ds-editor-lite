@@ -22,6 +22,7 @@
 #include "Utils/TimelineSnapUtils.h"
 
 #include <QFileDialog>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include "UI/Controls/Menu.h"
 
@@ -132,6 +133,18 @@ void TracksGraphicsView::onExtractMidiTriggered(const int clipId) {
     const auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(clipId));
     Q_ASSERT(audioClip);
     midiExtractController->runExtractMidi(audioClip);
+}
+
+bool TracksGraphicsView::event(QEvent *event) {
+    if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
+        const auto key = dynamic_cast<QKeyEvent *>(event)->key();
+        if (key == Qt::Key_Escape) {
+            discardAction();
+        }
+    } else if (event->type() == QEvent::WindowDeactivate) {
+        discardAction();
+    }
+    return TimeGraphicsView::event(event);
 }
 
 void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
