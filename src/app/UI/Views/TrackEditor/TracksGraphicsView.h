@@ -5,23 +5,19 @@
 #ifndef DATASET_TOOLS_TRACKSGRAPHICSVIEW_H
 #define DATASET_TOOLS_TRACKSGRAPHICSVIEW_H
 
-#include "Interface/IAtomicAction.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
 class Menu;
 class AbstractClipView;
 class TracksGraphicsScene;
 
-class TracksGraphicsView final : public TimeGraphicsView, public IAtomicAction {
+class TracksGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
 
 public:
     explicit TracksGraphicsView(TracksGraphicsScene *scene, const QWidget *parent = nullptr);
     void setQuantize(int quantize);
     [[nodiscard]] QList<int> selectedClipsId() const;
-
-    void discardAction() override;
-    void commitAction() override;
 
 private slots:
     void onNewSingingClip() const;

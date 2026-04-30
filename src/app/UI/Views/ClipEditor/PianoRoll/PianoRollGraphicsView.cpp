@@ -217,16 +217,14 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
         else
-            TimeGraphics
-        View::mousePressEvent(event);
+            TimeGraphicsView::mousePressEvent(event);
     } else if (d->m_editMode == EraseNote) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
         else
             TimeGraphicsView::mousePressEvent(event);
     } else if (d->m_editMode == SplitNote) {
-        if (d->m_curre
-            ntHandler)
+        if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
         else
             TimeGraphicsView::mousePressEvent(event);
