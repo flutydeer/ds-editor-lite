@@ -170,8 +170,9 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
     if (nodes.isEmpty())
         return;
 
-    const double previewTick = sceneXToTick(m_state->previewPos.x());
-    const double previewValue = sceneYToValue(m_state->previewPos.y());
+    const QPointF scenePreviewPos = m_state->previewPos + visibleRect().topLeft();
+    const double previewTick = sceneXToTick(scenePreviewPos.x());
+    const double previewValue = sceneYToValue(scenePreviewPos.y());
 
     AnchorNode virtualNode(static_cast<int>(previewTick), static_cast<int>(previewValue));
 

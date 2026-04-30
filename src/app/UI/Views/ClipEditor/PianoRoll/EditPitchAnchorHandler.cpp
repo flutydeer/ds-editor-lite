@@ -296,7 +296,7 @@ void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
 }
 
 void EditPitchAnchorHandler::updatePreview(const QPointF &scenePos) {
-    m_state.previewPos = scenePos;
+    m_state.previewPos = q->mapFromScene(scenePos.toPoint());
     m_state.showPreview =
         m_state.editing && m_state.currentCurve != nullptr && m_state.hoveredNode == nullptr;
 }
