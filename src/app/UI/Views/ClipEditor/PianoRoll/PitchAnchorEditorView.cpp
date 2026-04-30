@@ -238,6 +238,12 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
         auto *ref2 = (i + 2 < allNodes.size()) ? allNodes[i + 2] : nullptr;
         interpolateSegment(n1, n2, ref1, ref2);
     }
+
+    const double cx = tickToItemX(virtualNode.pos());
+    const double cy = sceneYToItemY(valueToSceneY(virtualNode.value()));
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(220, 220, 220, 128));
+    painter->drawEllipse(QPointF(cx, cy), 4.0, 4.0);
 }
 
 void PitchAnchorEditorView::drawSelectionRect(QPainter *painter) const {
