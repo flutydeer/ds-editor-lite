@@ -13,9 +13,9 @@ public:
     EraseNoteHandler();
     ~EraseNoteHandler() override;
 
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
+    bool mousePressEvent(QMouseEvent *event) override;
+    bool mouseMoveEvent(QMouseEvent *event) override;
+    bool mouseReleaseEvent(QMouseEvent *event) override;
 
     void commit() override;
     void discard() override;

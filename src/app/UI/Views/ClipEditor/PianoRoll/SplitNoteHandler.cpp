@@ -32,9 +32,9 @@ void SplitNoteHandler::deactivate() {
         m_indicator->clearState();
 }
 
-void SplitNoteHandler::mousePressEvent(QMouseEvent *event) {
+bool SplitNoteHandler::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
-        return;
+        return true;
 
     const auto scenePos = q->mapToScene(event->position().toPoint());
     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + d->m_offset);
@@ -42,13 +42,15 @@ void SplitNoteHandler::mousePressEvent(QMouseEvent *event) {
 
     if (noteView)
         splitNoteAtPosition(noteView, tick);
+    return true;
 }
 
-void SplitNoteHandler::mouseMoveEvent(QMouseEvent *event) {
+bool SplitNoteHandler::mouseMoveEvent(QMouseEvent *event) {
     const auto scenePos = q->mapToScene(event->position().toPoint());
     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + d->m_offset);
     const auto noteView = d->noteViewAt(event->position().toPoint());
     updateIndicator(noteView, tick);
+    return true;
 }
 
 void SplitNoteHandler::hoverMoveEvent(QHoverEvent *event) {

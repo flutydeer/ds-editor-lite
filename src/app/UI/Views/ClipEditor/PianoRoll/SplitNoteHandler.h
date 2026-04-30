@@ -13,8 +13,8 @@ public:
 
     void activate() override;
     void deactivate() override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
+    bool mousePressEvent(QMouseEvent *event) override;
+    bool mouseMoveEvent(QMouseEvent *event) override;
     void hoverMoveEvent(QHoverEvent *event) override;
 
 private:

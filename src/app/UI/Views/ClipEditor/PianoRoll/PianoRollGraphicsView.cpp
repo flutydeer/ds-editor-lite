@@ -15,7 +15,10 @@
 #include "PitchEditorView.h"
 #include "PronunciationView.h"
 #include "PianoRollEditHandler.h"
+
+#include "DrawNoteHandler.h"
 #include "EraseNoteHandler.h"
+#include "SelectNoteHandler.h"
 #include "SplitNoteHandler.h"
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
@@ -57,11 +60,6 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     setSceneVisibility(false);
     setDragBehavior(DragBehavior::RectSelect);
     setMinimumHeight(0);
-    // QScroller::grabGesture(this, QScroller::TouchGesture);
-
-    d->m_currentDrawingNote = new NoteView(-1);
-    // d->m_currentDrawingNote->setPronunciation("", false);
-    d->m_currentDrawingNote->setSelected(true);
 
     d->m_gridItem = new PianoRollBackground;
     d->m_gridItem->setPixelsPerQuarterNote(pixelsPerQuarterNote);
@@ -85,6 +83,14 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     auto *eraseHandler = new EraseNoteHandler;
     eraseHandler->setContext(this, d);
     d->m_handlers.insert(EraseNote, eraseHandler);
+
+    auto *drawHandler = new DrawNoteHandler;
+    drawHandler->setContext(this, d);
+    d->m_handlers.insert(DrawNote, drawHandler);
+
+    auto *selectHandler = new SelectNoteHandler;
+    selectHandler->setContext(this, d);
+    d->m_handlers.insert(Select, selectHandler);
 
     connect(scene, &QGraphicsScene::selectionChanged, this,
             &PianoRollGraphicsView::onSceneSelectionChanged);
@@ -200,39 +206,15 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     const auto pronView = d->pronViewAt(event->pos());
 
     if (d->m_editMode == Select) {
-        if (noteView) {
-            d->prepareForEditingNotes(event, scenePos, keyIndex, noteView);
-        } else {
-            // When clicking on empty space, finish editing if any note is being edited
-            for (const auto view : d->noteViews) {
-                if (view->isEditingLyric()) {
-                    view->finishEditingLyric();
-                }
-                if (view->pronunciationView() && view->pronunciationView()->isEditingPronunciation()) {
-                    view->pronunciationView()->finishEditingPronunciation();
-                }
-            }
+        if (d->m_currentHandler)
+            d->m_currentHandler->mousePressEvent(event);
+        if (!noteView)
             TimeGraphicsView::mousePressEvent(event);
-        }
     } else if (d->m_editMode == DrawNote) {
-        clearNoteSelections();
-        if (noteView) {
-            d->prepareForEditingNotes(event, scenePos, keyIndex, noteView);
-        } else if (pronView) {
-            const auto currentNoteView = d->findNoteViewById(pronView->id());
-            currentNoteView->setSelected(true);
-        } else {
-            // When clicking on empty space, finish editing if any note is being edited
-            for (const auto view : d->noteViews) {
-                if (view->isEditingLyric()) {
-                    view->finishEditingLyric();
-                }
-                if (view->pronunciationView() && view->pronunciationView()->isEditingPronunciation()) {
-                    view->pronunciationView()->finishEditingPronunciation();
-                }
-            }
-            d->PrepareForDrawingNote(tick, keyIndex);
-        }
+        if (d->m_currentHandler)
+            d->m_currentHandler->mousePressEvent(event);
+        else
+            TimeGraphicsView::mousePressEvent(event);
     } else if (d->m_editMode == EraseNote) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
@@ -281,10 +263,9 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         }
     }
 
-    // Delegate to active handler if present
     if (d->m_currentHandler) {
-        d->m_currentHandler->mouseMoveEvent(event);
-        return;
+        if (d->m_currentHandler->mouseMoveEvent(event))
+            return;
     }
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::None) {
         TimeGraphicsView::mouseMoveEvent(event);
@@ -339,10 +320,6 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         d->m_deltaTick = deltaLength;
         d->resizeRightSelectedNote(d->m_deltaTick);
         d->m_movedBeforeMouseUp = true;
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
-        const auto targetLength = snappedTick - d->m_offset - d->m_currentDrawingNote->rStart();
-        if (targetLength >= quantizedTickLength)
-            d->m_currentDrawingNote->setLength(targetLength);
     } else
         TimeGraphicsView::mouseMoveEvent(event);
 }
@@ -356,11 +333,14 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     d->m_mouseDown = false;
     d->m_mouseDownButton = Qt::NoButton;
     if (d->m_currentHandler) {
-        if (!cancelRequested)
-            d->m_currentHandler->mouseReleaseEvent(event);
+        if (!cancelRequested) {
+            if (d->m_currentHandler->mouseReleaseEvent(event)) {
+                cancelRequested = false;
+                TimeGraphicsView::mouseReleaseEvent(event);
+                return;
+            }
+        }
         cancelRequested = false;
-        TimeGraphicsView::mouseReleaseEvent(event);
-        return;
     }
     if (!cancelRequested)
         commitAction();
@@ -404,18 +384,18 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
         const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
         const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
 
-        // Calculate note length based on current quantize setting
-        // quantize = 16 means 16th note, quantize = 8 means 8th note, etc.
         const int noteLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
 
-        // Set up mouse state for drawing
         d->m_mouseDown = true;
         d->m_mouseDownButton = Qt::LeftButton;
         d->m_mouseDownPos = scenePos;
         d->m_mouseDownKeyIndex = keyIndex;
 
-        // Create note with current quantize length
-        d->PrepareForDrawingNote(tick, keyIndex, noteLength);
+        if (auto *drawHandler =
+                dynamic_cast<DrawNoteHandler *>(d->m_handlers.value(DrawNote, nullptr))) {
+            drawHandler->prepareForDrawingNote(tick, keyIndex, noteLength);
+            d->m_currentHandler = drawHandler;
+        }
     }
 }
 
@@ -492,7 +472,6 @@ void PianoRollGraphicsView::discardAction() {
     cancelRequested = true;
     if (d->m_currentHandler) {
         d->m_currentHandler->discard();
-        return;
     }
     if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
         if (d->m_movedBeforeMouseUp) {
@@ -502,8 +481,6 @@ void PianoRollGraphicsView::discardAction() {
         d->resetSelectedNotesOffset();
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeRight) {
         d->resetSelectedNotesOffset();
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
-        scene()->removeCommonItem(d->m_currentDrawingNote);
     }
     d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
     d->m_deltaTick = 0;
@@ -538,10 +515,6 @@ void PianoRollGraphicsView::commitAction() {
             PianoRollGraphicsViewPrivate::handleNoteRightResized(d->m_currentEditingNote->id(),
                                                                  d->m_deltaTick);
         }
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::UpdateDrawingNote) {
-        d->removeNoteViewFromScene(d->m_currentDrawingNote);
-        Helper::drawNote(d->m_currentDrawingNote->rStart(), d->m_currentDrawingNote->length(),
-                         d->m_currentDrawingNote->keyIndex());
     }
     d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
     d->m_deltaTick = 0;
@@ -912,32 +885,6 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(const QMouseEvent *eve
     m_mouseDownLength = m_currentEditingNote->length();
     m_mouseDownKeyIndex = keyIndex;
     updateMoveDeltaKeyRange();
-}
-
-void PianoRollGraphicsViewPrivate::PrepareForDrawingNote(const int tick, const int keyIndex,
-                                                         const int initialLength) {
-    Q_Q(PianoRollGraphicsView);
-    // Finish editing any notes that are currently being edited
-    for (const auto view : noteViews) {
-        if (view->isEditingLyric()) {
-            view->finishEditingLyric();
-        }
-    }
-
-    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
-    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
-    const auto snappedTick = TimelineSnapUtils::snapDown(tick, quantizedTickLength);
-    Log::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
-    m_currentDrawingNote->fontPixelSize = q->m_noteFontPixelSize;
-    m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
-    m_currentDrawingNote->setRStart(snappedTick - m_offset);
-    // If initialLength is specified (>= 0), use it; otherwise use default quantized length
-    const int length =
-        initialLength >= 0 ? initialLength : TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
-    m_currentDrawingNote->setLength(length);
-    m_currentDrawingNote->setKeyIndex(keyIndex);
-    q->scene()->addCommonItem(m_currentDrawingNote);
-    m_mouseMoveBehavior = UpdateDrawingNote;
 }
 
 void PianoRollGraphicsViewPrivate::handleNotesMoved(const int deltaTick, const int deltaKey) const {

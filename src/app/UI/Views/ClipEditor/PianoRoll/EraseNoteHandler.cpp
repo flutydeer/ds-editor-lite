@@ -12,26 +12,29 @@ EraseNoteHandler::EraseNoteHandler() = default;
 
 EraseNoteHandler::~EraseNoteHandler() = default;
 
-void EraseNoteHandler::mousePressEvent(QMouseEvent *event) {
+bool EraseNoteHandler::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
-        return;
+        return true;
 
     m_erasing = true;
     eraseNoteUnderPos(event->position().toPoint());
+    return true;
 }
 
-void EraseNoteHandler::mouseMoveEvent(QMouseEvent *event) {
+bool EraseNoteHandler::mouseMoveEvent(QMouseEvent *event) {
     if (!m_erasing)
-        return;
+        return true;
     eraseNoteUnderPos(event->position().toPoint());
+    return true;
 }
 
-void EraseNoteHandler::mouseReleaseEvent(QMouseEvent *event) {
+bool EraseNoteHandler::mouseReleaseEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
-        return;
+        return true;
     if (!m_erasing)
-        return;
+        return true;
     commit();
+    return true;
 }
 
 void EraseNoteHandler::commit() {

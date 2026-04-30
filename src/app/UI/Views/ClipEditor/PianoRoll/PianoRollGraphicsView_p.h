@@ -40,7 +40,7 @@ public:
     int m_offset = 0; // Clip 's "start" property
     QList<Note *> m_notes;
 
-    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, UpdateDrawingNote, None };
+    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, None };
 
     NoteView *m_currentEditingNote = nullptr;
     PianoRollBackground *m_gridItem = nullptr;
@@ -74,7 +74,6 @@ public:
 
     PianoRollEditMode m_editMode = Select;
     MouseMoveBehavior m_mouseMoveBehavior = None;
-    NoteView *m_currentDrawingNote = nullptr; // a fake note for drawing
 
     Menu *buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos);
     void splitNoteAtMousePosition(NoteView *noteView, const QPoint &mousePos);
@@ -84,7 +83,6 @@ public:
 
     void prepareForEditingNotes(const QMouseEvent *event, QPointF scenePos, int keyIndex,
                                 NoteView *noteItem);
-    void PrepareForDrawingNote(int tick, int keyIndex, int initialLength = -1);
 
     void handleNotesMoved(int deltaTick, int deltaKey) const;
     static void handleNoteLeftResized(int noteId, int deltaTick);
