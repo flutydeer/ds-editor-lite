@@ -8,12 +8,10 @@
 #include "PronunciationView.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Utils/Log.h"
 #include "Utils/TimelineSnapUtils.h"
 
+#include <QDebug>
 #include <QMouseEvent>
-
-static const char *CLASS_NAME = "DrawNoteHandler";
 
 DrawNoteHandler::DrawNoteHandler() = default;
 
@@ -108,7 +106,7 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
     const auto snappedTick = TimelineSnapUtils::snapDown(tick, quantizedTickLength);
-    Log::d(CLASS_NAME, "Draw note at: " + qStrNum(snappedTick));
+    qDebug() << "Draw note at:" << snappedTick;
 
     if (!m_currentDrawingNote) {
         m_currentDrawingNote = new NoteView(-1);

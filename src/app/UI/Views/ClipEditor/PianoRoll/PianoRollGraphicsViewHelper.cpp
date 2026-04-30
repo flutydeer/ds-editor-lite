@@ -14,12 +14,10 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Utils/Linq.h"
-#include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 
 void PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, const int keyIndex) {
-    qDebug() << QString("Note drawn rStart:%1 len:%2 key:%3")
-                    .arg(qStrNum(rStart), qStrNum(length), qStrNum(keyIndex));
+    qDebug() << "Note drawn rStart:" << rStart << "len:" << length << "key:" << keyIndex;
     const auto singingClip = dynamic_cast<SingingClip *>(clipController->clip());
     Q_ASSERT(singingClip);
     const auto note = new Note;
@@ -73,14 +71,12 @@ void PianoRollGraphicsViewHelper::updatePitch(const Param::Type paramType, const
                                               PitchEditorView &pitchEditor) {
     QList<DrawCurve *> drawCurves;
     if (paramType == Param::Original) {
-        // Log::d(CLASS_NAME, "Update original pitch ");
         for (const auto curve : param.curves(Param::Original))
             if (curve->type() == Curve::Draw) {
                 MathUtils::binaryInsert(drawCurves, static_cast<DrawCurve *>(curve));
             }
         pitchEditor.loadOriginal(drawCurves);
     } else {
-        // Log::d(CLASS_NAME, "Update edited pitch ");
         for (const auto curve : param.curves(Param::Edited))
             if (curve->type() == Curve::Draw)
                 MathUtils::binaryInsert(drawCurves, static_cast<DrawCurve *>(curve));

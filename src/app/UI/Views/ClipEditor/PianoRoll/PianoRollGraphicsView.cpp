@@ -2,8 +2,6 @@
 // Created by fluty on 2024/1/23.
 //
 
-#define CLASS_NAME "PianoRollGraphicsView"
-
 #include "PianoRollGraphicsView.h"
 
 #include "ClipRangeOverlay.h"
@@ -34,7 +32,6 @@
 #include "Model/NoteDialog/NoteDialogResult.h"
 #include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/Linq.h"
-#include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 #include "Utils/TimelineSnapUtils.h"
 #include <climits>
@@ -889,21 +886,19 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(const QMouseEvent *eve
 
 void PianoRollGraphicsViewPrivate::handleNotesMoved(const int deltaTick, const int deltaKey) const {
     Q_Q(const PianoRollGraphicsView);
-    Log::d(CLASS_NAME, QString("Notes moved dt:%1 dk:%2 ").arg(deltaTick).arg(deltaKey));
+    qDebug() << "Notes moved dt:" << deltaTick << "dk:" << deltaKey;
     clipController->onMoveNotes(q->selectedNotesId(), deltaTick, deltaKey);
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteLeftResized(const int noteId, const int deltaTick) {
-    Log::d(CLASS_NAME,
-           QString("Note left resized id:%1 dt:%2").arg(qStrNum(noteId), qStrNum(deltaTick)));
+    qDebug() << "Note left resized id:" << noteId << "dt:" << deltaTick;
     QList<int> notes;
     notes.append(noteId);
     clipController->onResizeNotesLeft(notes, deltaTick);
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteRightResized(const int noteId, const int deltaTick) {
-    Log::d(CLASS_NAME,
-           QString("Note right resized id:%1 dt:%2").arg(qStrNum(noteId), qStrNum(deltaTick)));
+    qDebug() << "Note right resized id:" << noteId << "dt:" << deltaTick;
     QList<int> notes;
     notes.append(noteId);
     clipController->onResizeNotesRight(notes, deltaTick);

@@ -7,7 +7,6 @@
 #include "PianoPaintUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Utils/TrackColorPalette.h"
-#include "Utils/Log.h"
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 
