@@ -71,7 +71,8 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnNoteSplit = d->buildToolButton("btnNoteSplit", ":svg/icons/cut_20_filled.svg",
                                             tr("Split Note"), QKeySequence(),
                                             tr("Split note at quantize line"));
-    // d->m_btnPitchAnchor = d->buildToolButton("btnPitchAnchor", ..., tr("Pitch Anchor"), Qt::Key_F);
+    d->m_btnPitchAnchor = d->buildToolButton(
+        "btnPitchAnchor", ":svg/icons/pitch_anchor_24_filled.svg", tr("Pitch Anchor"), Qt::Key_F);
     const auto pitchPencilDesc = tr("Left drag: Draw\nRight drag: Erase");
     d->m_btnPitchPencil = d->buildToolButton("btnPitchPencil", ":svg/icons/pitch_edit_24_filled.svg",
                                               tr("Draw Pitch"), Qt::Key_G, pitchPencilDesc);
@@ -88,7 +89,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_toolButtonGroup->addButton(d->m_btnNotePencil);
     d->m_toolButtonGroup->addButton(d->m_btnNoteEraser);
     d->m_toolButtonGroup->addButton(d->m_btnNoteSplit);
-    // d->m_toolButtonGroup->addButton(d->m_btnPitchAnchor);
+    d->m_toolButtonGroup->addButton(d->m_btnPitchAnchor);
     d->m_toolButtonGroup->addButton(d->m_btnPitchPencil);
     d->m_toolButtonGroup->addButton(d->m_btnPitchEraser);
     // d->m_toolButtonGroup->addButton(d->m_btnFreezePitch);
@@ -137,7 +138,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     mainLayout->addWidget(d->m_btnNotePencil);
     mainLayout->addWidget(d->m_btnNoteEraser);
     mainLayout->addWidget(d->m_btnNoteSplit);
-    // mainLayout->addWidget(d->m_btnPitchAnchor);
+    mainLayout->addWidget(d->m_btnPitchAnchor);
     mainLayout->addWidget(d->m_btnPitchPencil);
     mainLayout->addWidget(d->m_btnPitchEraser);
     // mainLayout->addWidget(d->m_btnFreezePitch);
@@ -195,10 +196,9 @@ void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(const QAbstractB
         m_editMode = SplitNote;
     } else if (button == m_btnPitchPencil) {
         m_editMode = DrawPitch;
-    } /*else if (button == m_btnPitchAnchor) {
+    } else if (button == m_btnPitchAnchor) {
         m_editMode = EditPitchAnchor;
-    }*/
-    else if (button == m_btnPitchEraser) {
+    } else if (button == m_btnPitchEraser) {
         m_editMode = ErasePitch;
     } else {
         m_editMode = FreezePitch;

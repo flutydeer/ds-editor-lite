@@ -15,6 +15,7 @@
 #include "PianoRollEditHandler.h"
 
 #include "DrawNoteHandler.h"
+#include "EditPitchAnchorHandler.h"
 #include "EraseNoteHandler.h"
 #include "IntervalSelectHandler.h"
 #include "SelectNoteHandler.h"
@@ -43,6 +44,7 @@
 #include <QGraphicsPathItem>
 #include <QPainterPath>
 #include <QMouseEvent>
+#include <QKeyEvent>
 #include <QScrollBar>
 #include "UI/Controls/Menu.h"
 
@@ -93,6 +95,10 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     auto *intervalSelectHandler = new IntervalSelectHandler;
     intervalSelectHandler->setContext(this, d);
     d->m_handlers.insert(IntervalSelect, intervalSelectHandler);
+
+    auto *editPitchAnchorHandler = new EditPitchAnchorHandler;
+    editPitchAnchorHandler->setContext(this, d);
+    d->m_handlers.insert(EditPitchAnchor, editPitchAnchorHandler);
 
     connect(scene, &QGraphicsScene::selectionChanged, this,
             &PianoRollGraphicsView::onSceneSelectionChanged);
@@ -158,6 +164,10 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             const auto menu = d->buildNoteContextMenu(noteView, event->pos());
             menu->exec(event->globalPos());
         }
+    } else if (d->m_editMode == EditPitchAnchor) {
+        if (d->m_currentHandler)
+            d->m_currentHandler->contextMenuEvent(event);
+        return;
     }
 
     TimeGraphicsView::contextMenuEvent(event);
@@ -233,6 +243,9 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
             d->m_currentHandler->mousePressEvent(event);
         if (!noteView)
             TimeGraphicsView::mousePressEvent(event);
+    } else if (d->m_editMode == EditPitchAnchor) {
+        if (d->m_currentHandler)
+            d->m_currentHandler->mousePressEvent(event);
     } else
         TimeGraphicsView::mousePressEvent(event);
     event->ignore();
@@ -366,7 +379,8 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     // Disable double-click event to prevent deselecting notes when double-clicking on scrollbar
     // TimeGraphicsView::mouseDoubleClickEvent(event);
     Q_D(PianoRollGraphicsView);
-    if (!(d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote))
+    if (!(d->m_editMode == Select || d->m_editMode == IntervalSelect ||
+          d->m_editMode == DrawNote || d->m_editMode == EditPitchAnchor))
         return;
     if (event->button() != Qt::LeftButton)
         return;
@@ -405,6 +419,19 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
             d->m_currentHandler = drawHandler;
         }
     }
+
+    if (!handled && d->m_editMode == EditPitchAnchor) {
+        if (d->m_currentHandler)
+            d->m_currentHandler->mouseDoubleClickEvent(event);
+        return;
+    }
+}
+
+void PianoRollGraphicsView::keyPressEvent(QKeyEvent *event) {
+    Q_D(PianoRollGraphicsView);
+    if (d->m_currentHandler && d->m_currentHandler->keyPressEvent(event))
+        return;
+    TimeGraphicsView::keyPressEvent(event);
 }
 
 int PianoRollGraphicsView::noteFontPixelSize() const {
@@ -585,9 +612,13 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     } else if (mode == DrawNote || mode == EraseNote || mode == SplitNote) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(false, false);
-    } else if (mode == DrawPitch || mode == EditPitchAnchor) {
+    } else if (mode == DrawPitch) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, false);
+    } else if (mode == EditPitchAnchor) {
+        setDragBehavior(DragBehavior::None);
+        d->setPitchEditMode(true, false);
+        d->m_pitchEditor->setTransparentMouseEvents(true);
     } else if (mode == ErasePitch || mode == FreezePitch) { // TODO: Implement freeze auto pitch
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, true);

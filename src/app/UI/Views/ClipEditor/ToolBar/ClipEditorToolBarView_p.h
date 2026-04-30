@@ -58,7 +58,7 @@ public:
     Button *m_btnNoteEraser = nullptr;
     Button *m_btnNoteSplit = nullptr;
     Button *m_btnPitchPencil = nullptr;
-    // Button *m_btnPitchAnchor = nullptr;
+    Button *m_btnPitchAnchor = nullptr;
     Button *m_btnPitchEraser = nullptr;
     // Button *m_btnFreezePitch = nullptr;
 

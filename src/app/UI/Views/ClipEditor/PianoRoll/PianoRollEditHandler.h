@@ -3,6 +3,7 @@
 
 #include <QtGlobal>
 
+class QKeyEvent;
 class QMouseEvent;
 class QHoverEvent;
 class QContextMenuEvent;
@@ -24,6 +25,7 @@ public:
     virtual void mouseDoubleClickEvent(QMouseEvent *event) { Q_UNUSED(event); }
     virtual void hoverMoveEvent(QHoverEvent *event) { Q_UNUSED(event); }
     virtual void contextMenuEvent(QContextMenuEvent *event) { Q_UNUSED(event); }
+    virtual bool keyPressEvent(QKeyEvent *event) { Q_UNUSED(event); return false; }
 
     virtual void commit() {}
     virtual void discard() {}
