@@ -59,7 +59,7 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
     if (!m_state)
         return;
 
-    constexpr double anchorRadius = 4.0;
+    constexpr double anchorRadius = 2.0;
     constexpr double hoverRadius = 6.0;
     const QColor normalColor(220, 220, 220);
     const QColor selectedColor(155, 186, 255);
@@ -243,7 +243,7 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
     const double cy = sceneYToItemY(valueToSceneY(virtualNode.value()));
     painter->setPen(Qt::NoPen);
     painter->setBrush(QColor(220, 220, 220, 128));
-    painter->drawEllipse(QPointF(cx, cy), 4.0, 4.0);
+    painter->drawEllipse(QPointF(cx, cy), 2.0, 2.0);
 }
 
 void PitchAnchorEditorView::drawSelectionRect(QPainter *painter) const {
