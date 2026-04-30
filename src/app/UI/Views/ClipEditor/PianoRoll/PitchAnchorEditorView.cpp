@@ -1,0 +1,200 @@
+//
+// Created by fluty on 26-4-30.
+//
+
+#include "PitchAnchorEditorView.h"
+
+#include "EditPitchAnchorHandler.h"
+#include "Model/AppModel/AnchorCurve.h"
+#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "Utils/MathUtils.h"
+
+#include <QPainter>
+#include <opendspxinterpolator/interpolator.h>
+
+PitchAnchorEditorView::PitchAnchorEditorView() {
+    setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
+    setTransparentMouseEvents(true);
+}
+
+void PitchAnchorEditorView::setOverlayState(const AnchorOverlayState *state) {
+    m_state = state;
+}
+
+double PitchAnchorEditorView::valueToSceneY(const double value) const {
+    constexpr int min = 0;
+    constexpr int max = 12700;
+    return (12700 - MathUtils::clip(value, min, max) + 50) * scaleY() *
+           ClipEditorGlobal::noteHeight / 100;
+}
+
+double PitchAnchorEditorView::sceneYToValue(const double y) const {
+    constexpr int min = 0;
+    constexpr int max = 12700;
+    const auto value = -(y * 100 / ClipEditorGlobal::noteHeight / scaleY() - 12700 - 50);
+    return MathUtils::clip(value, min, max);
+}
+
+void PitchAnchorEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                                  QWidget *widget) {
+    Q_UNUSED(option)
+    Q_UNUSED(widget)
+    if (!m_state || !m_state->anchorEditMode)
+        return;
+
+    painter->setRenderHint(QPainter::Antialiasing, true);
+    drawAnchorCurves(painter);
+    drawPreviewCurve(painter);
+    drawSelectionRect(painter);
+}
+
+void PitchAnchorEditorView::updateRectAndPos() {
+    const auto pos = visibleRect().topLeft();
+    setPos(pos);
+    setRect(QRectF(0, 0, visibleRect().width(), visibleRect().height()));
+    update();
+}
+
+void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
+    if (!m_state)
+        return;
+
+    constexpr double anchorRadius = 4.0;
+    constexpr double hoverRadius = 6.0;
+    const QColor normalColor(220, 220, 220);
+    const QColor selectedColor(155, 186, 255);
+    const QColor curveColor(220, 220, 220, 200);
+
+    auto drawNodeAt = [&](double x, double y, AnchorNode *node) {
+        const bool isSelected = m_state->selectedNodes.contains(node);
+        const bool isHovered = (node == m_state->hoveredNode);
+
+        QColor color = isSelected ? selectedColor : normalColor;
+        double radius = anchorRadius;
+
+        painter->setBrush(color);
+        painter->setPen(Qt::NoPen);
+        painter->drawEllipse(QPointF(x, y), radius, radius);
+
+        if (isHovered || isSelected) {
+            QPen pen(color, 1.5);
+            painter->setPen(pen);
+            painter->setBrush(Qt::NoBrush);
+            painter->drawEllipse(QPointF(x, y), hoverRadius, hoverRadius);
+        }
+    };
+
+    auto tickToLocalX = [this](int tick) {
+        return tickToItemX(tick);
+    };
+
+    auto valueToLocalY = [this](int value) {
+        return sceneYToItemY(valueToSceneY(value));
+    };
+
+    auto interpolateSegment = [&](AnchorNode *n1, AnchorNode *n2, AnchorNode *ref1,
+                                  AnchorNode *ref2) {
+        const double x1 = n1->pos();
+        const double y1 = n1->value();
+        const double x2 = n2->pos();
+        const double y2 = n2->value();
+
+        auto interp = opendspx::Interpolator<double>::createLinear(x1, y1, x2, y2);
+        if (n1->interpMode() == AnchorNode::Linear) {
+        } else {
+            if (ref1 && ref2) {
+                interp = opendspx::Interpolator<double>::create(
+                    x1, y1, x2, y2, ref1->pos(), ref1->value(), ref2->pos(), ref2->value());
+            } else if (ref1) {
+                interp = opendspx::Interpolator<double>::createWithRef1Only(
+                    x1, y1, x2, y2, ref1->pos(), ref1->value());
+            } else if (ref2) {
+                interp = opendspx::Interpolator<double>::createWithRef2Only(
+                    x1, y1, x2, y2, ref2->pos(), ref2->value());
+            } else {
+                interp = opendspx::Interpolator<double>::createLinear(x1, y1, x2, y2);
+            }
+        }
+
+        QPainterPath path;
+        const double startX = tickToLocalX(n1->pos());
+        const double endX = tickToLocalX(n2->pos());
+        const double step = 2.0;
+        bool first = true;
+        for (double px = startX; px <= endX; px += step) {
+            const double tick = sceneXToTick(px + pos().x());
+            const double val = interp.evaluate(tick);
+            const double ly = valueToLocalY(static_cast<int>(val));
+            if (first) {
+                path.moveTo(px, ly);
+                first = false;
+            } else {
+                path.lineTo(px, ly);
+            }
+        }
+        QPen pen(curveColor, 1.5);
+        painter->setPen(pen);
+        painter->setBrush(Qt::NoBrush);
+        painter->drawPath(path);
+    };
+
+    auto drawCurve = [&](AnchorCurve *curve) {
+        const auto &nodes = curve->nodes().toList();
+        if (nodes.isEmpty())
+            return;
+
+        for (int i = 0; i < nodes.size() - 1; i++) {
+            auto *n1 = nodes[i];
+            auto *n2 = nodes[i + 1];
+            auto *ref1 = (i > 0) ? nodes[i - 1] : nullptr;
+            auto *ref2 = (i + 2 < nodes.size()) ? nodes[i + 2] : nullptr;
+            interpolateSegment(n1, n2, ref1, ref2);
+        }
+
+        for (auto *node : nodes) {
+            const double x = tickToLocalX(node->pos());
+            const double y = valueToLocalY(node->value());
+            drawNodeAt(x, y, node);
+        }
+    };
+
+    for (auto *curve : m_state->visibleCurves)
+        drawCurve(curve);
+}
+
+void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
+    if (!m_state || !m_state->showPreview || !m_state->currentCurve)
+        return;
+
+    const auto &nodes = m_state->currentCurve->nodes().toList();
+    if (nodes.isEmpty())
+        return;
+
+    const double previewX = sceneXToItemX(m_state->previewPos.x());
+    const double previewY = sceneYToItemY(m_state->previewPos.y());
+
+    auto *lastNode = nodes.last();
+    const double lastX = tickToItemX(lastNode->pos());
+    const double lastY = sceneYToItemY(valueToSceneY(lastNode->value()));
+
+    QPen pen(QColor(200, 200, 200, 128), 1.5, Qt::DashLine);
+    painter->setPen(pen);
+    painter->setBrush(Qt::NoBrush);
+    painter->drawLine(QPointF(lastX, lastY), QPointF(previewX, previewY));
+}
+
+void PitchAnchorEditorView::drawSelectionRect(QPainter *painter) const {
+    if (!m_state || !m_state->selecting)
+        return;
+
+    const auto rect = m_state->selectionRect.normalized();
+    const double x1 = sceneXToItemX(rect.left());
+    const double y1 = sceneYToItemY(rect.top());
+    const double x2 = sceneXToItemX(rect.right());
+    const double y2 = sceneYToItemY(rect.bottom());
+    QRectF localRect(QPointF(x1, y1), QPointF(x2, y2));
+
+    painter->setPen(QPen(QColor(155, 186, 255, 200), 1));
+    painter->setBrush(QColor(155, 186, 255, 40));
+    painter->drawRect(localRect);
+}

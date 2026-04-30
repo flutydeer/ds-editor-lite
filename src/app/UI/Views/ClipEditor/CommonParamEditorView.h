@@ -35,7 +35,6 @@ protected:
     [[nodiscard]] virtual double valueToSceneY(double value) const;
     [[nodiscard]] virtual double sceneYToValue(double y) const;
     virtual void drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);
-    virtual void drawOverlay(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;

@@ -15,6 +15,7 @@
 #include <QColor>
 
 class ClipRangeOverlay;
+class PitchAnchorEditorView;
 class PitchEditorView;
 class QMouseEvent;
 class QHoverEvent;
@@ -47,6 +48,7 @@ public:
     QList<NoteView *> noteViews;
 
     PitchEditorView *m_pitchEditor = nullptr;
+    PitchAnchorEditorView *m_anchorEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
 
     PianoRollEditHandler *m_currentHandler = nullptr;

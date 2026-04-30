@@ -145,10 +145,6 @@ void CommonParamEditorView::drawGraduates(QPainter *painter, const QStyleOptionG
     }
 }
 
-void CommonParamEditorView::drawOverlay(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                                        QWidget *widget) {
-}
-
 void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                   QWidget *widget) {
     QElapsedTimer mstimer;
@@ -231,8 +227,6 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             drawCurveBorder(painter, m_drawCurvesEdited);
         }
     }
-
-    drawOverlay(painter, option, widget);
 
     // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
     // Logger::d(className, "Render time: " + QString::number(time));

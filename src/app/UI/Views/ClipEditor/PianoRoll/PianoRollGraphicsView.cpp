@@ -10,6 +10,7 @@
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsViewHelper.h"
 #include "PianoRollGraphicsView_p.h"
+#include "PitchAnchorEditorView.h"
 #include "PitchEditorView.h"
 #include "PronunciationView.h"
 #include "PianoRollEditHandler.h"
@@ -71,6 +72,11 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
             [](const QList<DrawCurve *> &curves) { Helper::editPitch(curves); });
     scene->addCommonItem(d->m_pitchEditor);
     d->m_pitchEditor->setTransparentMouseEvents(true);
+
+    d->m_anchorEditor = new PitchAnchorEditorView;
+    d->m_anchorEditor->setZValue(2.5);
+    scene->addCommonItem(d->m_anchorEditor);
+    d->m_anchorEditor->setTransparentMouseEvents(true);
 
     d->m_clipRangeOverlay = new ClipRangeOverlay;
     d->m_clipRangeOverlay->setZValue(3);
@@ -1126,7 +1132,7 @@ void PianoRollGraphicsViewPrivate::onHoverEnter(QHoverEvent *event) {
 
 void PianoRollGraphicsViewPrivate::onHoverLeave(QHoverEvent *event) {
     Q_Q(PianoRollGraphicsView);
-    if (m_currentHandler)
+    if (m_currentHandler && m_editMode != EditPitchAnchor)
         m_currentHandler->deactivate();
     emit q->keyHoverCleared();
 }

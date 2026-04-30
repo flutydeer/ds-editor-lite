@@ -6,11 +6,9 @@
 
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
-#include "PitchEditorView.h"
+#include "PitchAnchorEditorView.h"
 
-#include "Controller/ClipController.h"
 #include "Model/AppModel/AnchorCurve.h"
-#include "Model/AppModel/SingingClip.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
@@ -19,19 +17,19 @@
 #include <QMouseEvent>
 
 void EditPitchAnchorHandler::activate() {
-    m_state = AnchorOverlayState{};
     m_state.anchorEditMode = true;
-    d->m_pitchEditor->setAnchorOverlayState(&m_state);
+    d->m_anchorEditor->setOverlayState(&m_state);
     q->setMouseTracking(true);
     triggerRepaint();
 }
 
 void EditPitchAnchorHandler::deactivate() {
     q->setMouseTracking(false);
-    m_state = AnchorOverlayState{};
-    d->m_pitchEditor->setAnchorOverlayState(nullptr);
-    qDeleteAll(m_localCurves);
-    m_localCurves.clear();
+    m_state.anchorEditMode = false;
+    m_state.showPreview = false;
+    m_state.hoveredNode = nullptr;
+    m_state.selecting = false;
+    m_state.dragging = false;
     triggerRepaint();
 }
 
@@ -87,7 +85,7 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
                 for (auto *node : m_state.selectedNodes) {
                     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
                     const auto value = static_cast<int>(
-                        d->m_pitchEditor->sceneYToValue(scenePos.y()));
+                        d->m_anchorEditor->sceneYToValue(scenePos.y()));
                     node->setPos(tick);
                     node->setValue(value);
                 }
@@ -131,7 +129,7 @@ bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {
             for (auto *curve : anchorCurves()) {
                 for (auto *node : curve->nodes().toList()) {
                     const auto x = q->tickToSceneX(node->pos());
-                    const auto y = d->m_pitchEditor->valueToSceneY(node->value());
+                    const auto y = d->m_anchorEditor->valueToSceneY(node->value());
                     if (rect.contains(x, y))
                         m_state.selectedNodes.append(node);
                 }
@@ -205,7 +203,7 @@ AnchorNode *EditPitchAnchorHandler::anchorNodeAt(const QPointF &scenePos) const 
     for (auto *curve : anchorCurves()) {
         for (auto *node : curve->nodes().toList()) {
             const auto x = q->tickToSceneX(node->pos());
-            const auto y = d->m_pitchEditor->valueToSceneY(node->value());
+            const auto y = d->m_anchorEditor->valueToSceneY(node->value());
             const auto dx = scenePos.x() - x;
             const auto dy = scenePos.y() - y;
             if (dx * dx + dy * dy <= kAnchorHitRadius * kAnchorHitRadius)
@@ -275,7 +273,7 @@ void EditPitchAnchorHandler::deleteSelectedNodes() {
 
 void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
-    const auto value = static_cast<int>(d->m_pitchEditor->sceneYToValue(scenePos.y()));
+    const auto value = static_cast<int>(d->m_anchorEditor->sceneYToValue(scenePos.y()));
 
     auto *curve = m_state.currentCurve;
     if (!curve) {
@@ -300,6 +298,6 @@ void EditPitchAnchorHandler::updatePreview(const QPointF &scenePos) {
 
 void EditPitchAnchorHandler::triggerRepaint() {
     m_state.visibleCurves = anchorCurves();
-    if (d->m_pitchEditor)
-        d->m_pitchEditor->update();
+    if (d->m_anchorEditor)
+        d->m_anchorEditor->update();
 }
