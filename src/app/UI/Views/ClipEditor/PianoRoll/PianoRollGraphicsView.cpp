@@ -18,7 +18,7 @@
 #include "DrawNoteHandler.h"
 #include "EditPitchAnchorHandler.h"
 #include "EraseNoteHandler.h"
-#include "IntervalSelectHandler.h"
+
 #include "SelectNoteHandler.h"
 #include "SplitNoteHandler.h"
 #include "Controller/ClipController.h"
@@ -98,7 +98,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     selectHandler->setContext(this, d);
     d->m_handlers.insert(Select, selectHandler);
 
-    auto *intervalSelectHandler = new IntervalSelectHandler;
+    auto *intervalSelectHandler = new SelectNoteHandler;
     intervalSelectHandler->setContext(this, d);
     d->m_handlers.insert(IntervalSelect, intervalSelectHandler);
 
