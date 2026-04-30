@@ -1128,12 +1128,22 @@ void PianoRollGraphicsViewPrivate::removeNoteViewFromScene(NoteView *view) {
 }
 
 void PianoRollGraphicsViewPrivate::onHoverEnter(QHoverEvent *event) {
+    if (m_editMode == EditPitchAnchor) {
+        auto *handler = dynamic_cast<EditPitchAnchorHandler *>(m_handlers.value(EditPitchAnchor));
+        if (handler)
+            handler->setCursorInView(true);
+    }
 }
 
 void PianoRollGraphicsViewPrivate::onHoverLeave(QHoverEvent *event) {
     Q_Q(PianoRollGraphicsView);
-    if (m_currentHandler && m_editMode != EditPitchAnchor)
+    if (m_editMode == EditPitchAnchor) {
+        auto *handler = dynamic_cast<EditPitchAnchorHandler *>(m_handlers.value(EditPitchAnchor));
+        if (handler)
+            handler->setCursorInView(false);
+    } else if (m_currentHandler) {
         m_currentHandler->deactivate();
+    }
     emit q->keyHoverCleared();
 }
 

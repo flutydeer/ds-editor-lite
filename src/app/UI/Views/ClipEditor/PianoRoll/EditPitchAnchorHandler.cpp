@@ -203,6 +203,11 @@ const AnchorOverlayState &EditPitchAnchorHandler::overlayState() const {
     return m_state;
 }
 
+void EditPitchAnchorHandler::setCursorInView(bool inView) {
+    m_state.cursorInView = inView;
+    triggerRepaint();
+}
+
 AnchorNode *EditPitchAnchorHandler::anchorNodeAt(const QPointF &scenePos) const {
     for (auto *curve : anchorCurves()) {
         for (auto *node : curve->nodes().toList()) {

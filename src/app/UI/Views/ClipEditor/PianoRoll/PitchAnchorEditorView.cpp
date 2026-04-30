@@ -163,7 +163,8 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
 }
 
 void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
-    if (!m_state || !m_state->showPreview || !m_state->currentCurve || m_state->dragging)
+    if (!m_state || !m_state->showPreview || !m_state->currentCurve || m_state->dragging ||
+        !m_state->cursorInView)
         return;
 
     const auto &nodes = m_state->currentCurve->nodes().toList();

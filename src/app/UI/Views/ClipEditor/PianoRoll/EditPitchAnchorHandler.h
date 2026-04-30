@@ -31,6 +31,7 @@ struct AnchorOverlayState {
     bool selecting = false;
 
     QList<AnchorCurve *> visibleCurves;
+    bool cursorInView = true;
 };
 
 class EditPitchAnchorHandler final : public PianoRollEditHandler {
@@ -47,6 +48,8 @@ public:
 
     void commit() override;
     void discard() override;
+
+    void setCursorInView(bool inView);
 
     [[nodiscard]] const AnchorOverlayState &overlayState() const;
 
