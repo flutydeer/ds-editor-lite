@@ -83,11 +83,13 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
 
             if (m_state.dragging) {
                 for (auto *node : m_state.selectedNodes) {
+                    m_state.currentCurve->removeNode(node);
                     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
                     const auto value = static_cast<int>(
                         d->m_anchorEditor->sceneYToValue(scenePos.y()));
                     node->setPos(tick);
                     node->setValue(value);
+                    m_state.currentCurve->insertNode(node);
                 }
                 triggerRepaint();
             }
