@@ -166,6 +166,11 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
 }
 
 void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
+    if (cancelRequested) {
+        TimeGraphicsView::mouseMoveEvent(event);
+        return;
+    }
+
     if (event->modifiers() == Qt::AltModifier)
         m_tempQuantizeOff = true;
     else
@@ -237,18 +242,11 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
-    // auto scenePos = mapToScene(event->pos());
-    // if (m_mouseDownPos == scenePos) {
-    //     m_propertyEdited = false;
-    // }
-    if (m_mouseMoveBehavior != None && m_movedBeforeMouseUp) {
-        const Clip::ClipCommonProperties args(*m_currentEditingClip);
-        trackController->onClipPropertyChanged(args);
-    }
-    m_mouseMoveBehavior = None;
-    m_movedBeforeMouseUp = false;
-    m_currentEditingClip = nullptr;
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    if (m_mouseMoveBehavior != None && m_movedBeforeMouseUp && !cancelRequested)
+        commitAction();
+    else
+        resetEditState();
+    cancelRequested = false;
     TimeGraphicsView::mouseReleaseEvent(event);
 }
 
@@ -311,6 +309,32 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             TimeGraphicsView::contextMenuEvent(event);
         }
     }
+}
+
+void TracksGraphicsView::discardAction() {
+    cancelRequested = true;
+    if (m_currentEditingClip && m_movedBeforeMouseUp) {
+        m_currentEditingClip->setStart(m_mouseDownStart);
+        m_currentEditingClip->setClipStart(m_mouseDownClipStart);
+        m_currentEditingClip->setLength(m_mouseDownLength);
+        m_currentEditingClip->setClipLen(m_mouseDownClipLen);
+    }
+    resetEditState();
+}
+
+void TracksGraphicsView::commitAction() {
+    if (m_currentEditingClip && m_movedBeforeMouseUp) {
+        const Clip::ClipCommonProperties args(*m_currentEditingClip);
+        trackController->onClipPropertyChanged(args);
+    }
+    resetEditState();
+}
+
+void TracksGraphicsView::resetEditState() {
+    m_mouseMoveBehavior = None;
+    m_movedBeforeMouseUp = false;
+    m_currentEditingClip = nullptr;
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
 void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event,
