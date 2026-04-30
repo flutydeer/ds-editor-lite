@@ -118,6 +118,8 @@ bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         if (m_state.dragging) {
             m_state.dragging = false;
+            const auto scenePos = q->mapToScene(event->pos());
+            updatePreview(scenePos);
             triggerRepaint();
             return true;
         }
@@ -293,7 +295,8 @@ void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
 
 void EditPitchAnchorHandler::updatePreview(const QPointF &scenePos) {
     m_state.previewPos = scenePos;
-    m_state.showPreview = m_state.editing && m_state.currentCurve != nullptr;
+    m_state.showPreview =
+        m_state.editing && m_state.currentCurve != nullptr && m_state.hoveredNode == nullptr;
 }
 
 void EditPitchAnchorHandler::triggerRepaint() {
