@@ -16,6 +16,7 @@
 
 #include "DrawNoteHandler.h"
 #include "EraseNoteHandler.h"
+#include "IntervalSelectHandler.h"
 #include "SelectNoteHandler.h"
 #include "SplitNoteHandler.h"
 #include "Controller/ClipController.h"
@@ -88,6 +89,10 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     auto *selectHandler = new SelectNoteHandler;
     selectHandler->setContext(this, d);
     d->m_handlers.insert(Select, selectHandler);
+
+    auto *intervalSelectHandler = new IntervalSelectHandler;
+    intervalSelectHandler->setContext(this, d);
+    d->m_handlers.insert(IntervalSelect, intervalSelectHandler);
 
     connect(scene, &QGraphicsScene::selectionChanged, this,
             &PianoRollGraphicsView::onSceneSelectionChanged);
@@ -179,7 +184,8 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     d->m_selecting = true;
     d->m_selectionChangeBarrier = true;
     if (event->button() != Qt::LeftButton &&
-        (d->m_editMode == Select || d->m_editMode == DrawNote || d->m_editMode == EraseNote ||
+        (d->m_editMode == Select || d->m_editMode == IntervalSelect ||
+         d->m_editMode == DrawNote || d->m_editMode == EraseNote ||
          d->m_editMode == SplitNote)) {
         d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
         if (const auto noteView = d->noteViewAt(event->pos())) {
@@ -221,6 +227,11 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
         else
+            TimeGraphicsView::mousePressEvent(event);
+    } else if (d->m_editMode == IntervalSelect) {
+        if (d->m_currentHandler)
+            d->m_currentHandler->mousePressEvent(event);
+        if (!noteView)
             TimeGraphicsView::mousePressEvent(event);
     } else
         TimeGraphicsView::mousePressEvent(event);
