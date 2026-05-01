@@ -78,14 +78,32 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
                 m_state.dragging = true;
 
             if (m_state.dragging) {
+                const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
+                const auto value = static_cast<int>(
+                    d->m_anchorEditor->sceneYToValue(scenePos.y()));
                 for (auto *node : m_state.selectedNodes) {
-                    m_state.currentCurve->removeNode(node);
-                    const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
-                    const auto value = static_cast<int>(
-                        d->m_anchorEditor->sceneYToValue(scenePos.y()));
+                    auto *originCurve = m_state.currentCurve;
+                    originCurve->removeNode(node);
                     node->setPos(tick);
                     node->setValue(value);
-                    m_state.currentCurve->insertNode(node);
+
+                    auto *otherCurve = anchorCurveAt(tick, originCurve);
+                    if (otherCurve) {
+                        otherCurve->insertNode(node);
+                        cleanupEmptyCurve(originCurve);
+                        m_state.currentCurve = otherCurve;
+                    } else {
+                        auto [minBound, maxBound] = getReachableBounds(originCurve);
+                        if (tick >= minBound && tick <= maxBound) {
+                            originCurve->insertNode(node);
+                        } else {
+                            auto *newCurve = new AnchorCurve;
+                            newCurve->insertNode(node);
+                            m_localCurves.append(newCurve);
+                            cleanupEmptyCurve(originCurve);
+                            m_state.currentCurve = newCurve;
+                        }
+                    }
                 }
                 triggerRepaint();
             }
@@ -229,8 +247,10 @@ AnchorNode *EditPitchAnchorHandler::anchorNodeAt(const QPointF &scenePos) const 
     return nullptr;
 }
 
-AnchorCurve *EditPitchAnchorHandler::anchorCurveAt(int tick) const {
+AnchorCurve *EditPitchAnchorHandler::anchorCurveAt(int tick, AnchorCurve *exclude) const {
     for (auto *curve : anchorCurves()) {
+        if (curve == exclude)
+            continue;
         const auto &nodes = curve->nodes().toList();
         if (nodes.isEmpty())
             continue;
@@ -242,6 +262,74 @@ AnchorCurve *EditPitchAnchorHandler::anchorCurveAt(int tick) const {
 
 QList<AnchorCurve *> EditPitchAnchorHandler::anchorCurves() const {
     return m_localCurves;
+}
+
+std::pair<int, int> EditPitchAnchorHandler::getReachableBounds(AnchorCurve *curve) const {
+    if (!curve)
+        return {INT_MIN, INT_MAX};
+
+    const auto &curveNodes = curve->nodes().toList();
+    if (curveNodes.isEmpty())
+        return {INT_MIN, INT_MAX};
+
+    int curveFirst = curveNodes.first()->pos();
+    int curveLast = curveNodes.last()->pos();
+
+    int minBound = INT_MIN;
+    int maxBound = INT_MAX;
+
+    for (auto *other : m_localCurves) {
+        if (other == curve)
+            continue;
+        const auto &otherNodes = other->nodes().toList();
+        if (otherNodes.isEmpty())
+            continue;
+        int otherLast = otherNodes.last()->pos();
+        int otherFirst = otherNodes.first()->pos();
+        if (otherLast < curveFirst)
+            minBound = qMax(minBound, otherLast + 1);
+        if (otherFirst > curveLast)
+            maxBound = qMin(maxBound, otherFirst - 1);
+    }
+
+    return {minBound, maxBound};
+}
+
+AnchorCurve *EditPitchAnchorHandler::findOwnerCurve(AnchorNode *node) const {
+    for (auto *curve : m_localCurves) {
+        if (curve->nodes().toList().contains(node))
+            return curve;
+    }
+    return nullptr;
+}
+
+void EditPitchAnchorHandler::transferNodeToCurve(AnchorNode *node, AnchorCurve *from,
+                                                  AnchorCurve *to) {
+    from->removeNode(node);
+    to->insertNode(node);
+    cleanupEmptyCurve(from);
+    m_state.currentCurve = to;
+}
+
+void EditPitchAnchorHandler::detachNodeToNewCurve(AnchorNode *node, AnchorCurve *from) {
+    from->removeNode(node);
+    cleanupEmptyCurve(from);
+
+    auto *newCurve = new AnchorCurve;
+    newCurve->insertNode(node);
+    m_localCurves.append(newCurve);
+    m_state.currentCurve = newCurve;
+}
+
+void EditPitchAnchorHandler::cleanupEmptyCurve(AnchorCurve *curve) {
+    if (!curve || !curve->nodes().toList().isEmpty())
+        return;
+    m_localCurves.removeOne(curve);
+    if (m_state.currentCurve == curve) {
+        m_state.currentCurve = nullptr;
+        exitEditingState();
+    }
+    delete curve;
 }
 
 void EditPitchAnchorHandler::enterEditingState(AnchorCurve *curve, AnchorNode *node) {
@@ -291,13 +379,27 @@ void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
     const auto value = static_cast<int>(d->m_anchorEditor->sceneYToValue(scenePos.y()));
 
-    auto *curve = m_state.currentCurve;
-    if (!curve) {
+    AnchorCurve *curve = nullptr;
+
+    if (m_state.editing && m_state.currentCurve) {
+        auto *otherCurve = anchorCurveAt(tick, m_state.currentCurve);
+        if (otherCurve) {
+            curve = otherCurve;
+        } else {
+            auto [minBound, maxBound] = getReachableBounds(m_state.currentCurve);
+            if (tick >= minBound && tick <= maxBound) {
+                curve = m_state.currentCurve;
+            } else {
+                curve = new AnchorCurve;
+                m_localCurves.append(curve);
+            }
+        }
+    } else {
         curve = anchorCurveAt(tick);
-    }
-    if (!curve) {
-        curve = new AnchorCurve;
-        m_localCurves.append(curve);
+        if (!curve) {
+            curve = new AnchorCurve;
+            m_localCurves.append(curve);
+        }
     }
 
     auto *node = new AnchorNode(tick, value);

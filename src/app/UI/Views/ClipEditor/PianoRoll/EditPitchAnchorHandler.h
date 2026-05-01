@@ -11,6 +11,9 @@
 #include <QPointF>
 #include <QRectF>
 
+#include <climits>
+#include <utility>
+
 class AnchorNode;
 class AnchorCurve;
 class QMenu;
@@ -61,8 +64,13 @@ private:
     AnchorOverlayState m_state;
 
     [[nodiscard]] AnchorNode *anchorNodeAt(const QPointF &scenePos) const;
-    [[nodiscard]] AnchorCurve *anchorCurveAt(int tick) const;
+    [[nodiscard]] AnchorCurve *anchorCurveAt(int tick, AnchorCurve *exclude = nullptr) const;
     [[nodiscard]] QList<AnchorCurve *> anchorCurves() const;
+    [[nodiscard]] std::pair<int, int> getReachableBounds(AnchorCurve *curve) const;
+    [[nodiscard]] AnchorCurve *findOwnerCurve(AnchorNode *node) const;
+    void transferNodeToCurve(AnchorNode *node, AnchorCurve *from, AnchorCurve *to);
+    void detachNodeToNewCurve(AnchorNode *node, AnchorCurve *from);
+    void cleanupEmptyCurve(AnchorCurve *curve);
 
     QList<AnchorCurve *> m_localCurves;
 
