@@ -10,6 +10,7 @@
 #include "Utils/MathUtils.h"
 
 #include <QPainter>
+#include <QSet>
 #include <cmath>
 #include <opendspxinterpolator/interpolator.h>
 
@@ -156,12 +157,18 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
         if (allNodes.isEmpty())
             return;
 
-        bool skipDraggedNodes = m_state->dragging && m_state->dragTargetCurve &&
-                                curve == m_state->dragSourceCurve;
         QList<AnchorNode *> nodes;
-        if (skipDraggedNodes) {
+        if (m_state->dragging && !m_state->dragNodeInfos.isEmpty()) {
             for (auto *node : allNodes) {
-                if (!m_state->selectedNodes.contains(node))
+                bool skip = false;
+                for (const auto &info : m_state->dragNodeInfos) {
+                    if (info.node == node && info.targetCurve &&
+                        info.sourceCurve == curve) {
+                        skip = true;
+                        break;
+                    }
+                }
+                if (!skip)
                     nodes.append(node);
             }
         } else {
@@ -401,17 +408,16 @@ void PitchAnchorEditorView::drawMergePreviewCurve(QPainter *painter) const {
 }
 
 void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
-    if (!m_state || !m_state->dragging || !m_state->dragTargetCurve)
+    if (!m_state || !m_state->dragging || m_state->dragNodeInfos.isEmpty())
         return;
 
-    QList<AnchorNode *> allNodes = m_state->dragTargetCurve->nodes().toList();
-    for (auto *node : m_state->selectedNodes) {
-        auto it = std::lower_bound(allNodes.begin(), allNodes.end(), node,
-                                   [](AnchorNode *a, AnchorNode *b) { return a->pos() < b->pos(); });
-        allNodes.insert(it, node);
+    QSet<AnchorCurve *> targetCurves;
+    for (const auto &info : m_state->dragNodeInfos) {
+        if (info.targetCurve)
+            targetCurves.insert(info.targetCurve);
     }
 
-    if (allNodes.size() < 2)
+    if (targetCurves.isEmpty())
         return;
 
     auto tickToLocalX = [this](int tick) { return tickToItemX(tick); };
@@ -473,12 +479,39 @@ void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
 
-    for (int i = 0; i < allNodes.size() - 1; i++) {
-        auto *n1 = allNodes[i];
-        auto *n2 = allNodes[i + 1];
-        auto *ref1 = (i > 0) ? allNodes[i - 1] : nullptr;
-        auto *ref2 = (i + 2 < allNodes.size()) ? allNodes[i + 2] : nullptr;
-        interpolateSegment(n1, n2, ref1, ref2);
+    for (auto *target : targetCurves) {
+        QList<AnchorNode *> allNodes = target->nodes().toList();
+        QList<AnchorNode *> draggedNodes;
+        for (const auto &info : m_state->dragNodeInfos) {
+            if (info.targetCurve == target) {
+                auto it = std::lower_bound(
+                    allNodes.begin(), allNodes.end(), info.node,
+                    [](AnchorNode *a, AnchorNode *b) { return a->pos() < b->pos(); });
+                allNodes.insert(it, info.node);
+                draggedNodes.append(info.node);
+            }
+        }
+
+        if (allNodes.size() < 2)
+            continue;
+
+        for (int i = 0; i < allNodes.size() - 1; i++) {
+            auto *n1 = allNodes[i];
+            auto *n2 = allNodes[i + 1];
+            auto *ref1 = (i > 0) ? allNodes[i - 1] : nullptr;
+            auto *ref2 = (i + 2 < allNodes.size()) ? allNodes[i + 2] : nullptr;
+            interpolateSegment(n1, n2, ref1, ref2);
+        }
+
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(155, 186, 255, 160));
+        for (auto *node : draggedNodes) {
+            const double x = tickToLocalX(node->pos());
+            const double y = valueToLocalY(node->value());
+            painter->drawEllipse(QPointF(x, y), 2.0, 2.0);
+        }
+        painter->setPen(pen);
+        painter->setBrush(Qt::NoBrush);
     }
 }
 

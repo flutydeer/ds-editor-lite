@@ -16,6 +16,7 @@
 #include <QContextMenuEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QSet>
 
 void EditPitchAnchorHandler::activate() {
     m_state.anchorEditMode = true;
@@ -44,12 +45,15 @@ bool EditPitchAnchorHandler::mousePressEvent(QMouseEvent *event) {
                 if (m_state.showMergePreview && node == m_state.mergeEndpointNode) {
                     mergeCurves(m_state.mergeCandidateCurve);
                 } else {
-                    selectNode(node);
+                    if (!m_state.selectedNodes.contains(node))
+                        selectNode(node);
                     m_state.dragStartPos = scenePos;
                     m_state.dragging = false;
                 }
             } else {
                 createAnchorAt(scenePos);
+                m_state.dragStartPos = scenePos;
+                m_state.dragging = false;
             }
         } else {
             if (node) {
@@ -79,20 +83,31 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
                 m_state.dragging = true;
 
             if (m_state.dragging) {
-                if (!m_state.dragSourceCurve)
-                    m_state.dragSourceCurve = m_state.currentCurve;
-
-                const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
-                const auto value = static_cast<int>(
-                    d->m_anchorEditor->sceneYToValue(scenePos.y()));
-                for (auto *node : m_state.selectedNodes) {
-                    m_state.dragSourceCurve->removeNode(node);
-                    node->setPos(tick);
-                    node->setValue(value);
-                    m_state.dragSourceCurve->insertNode(node);
+                if (m_state.dragNodeInfos.isEmpty()) {
+                    for (auto *node : m_state.selectedNodes) {
+                        DragNodeInfo info;
+                        info.node = node;
+                        info.sourceCurve = findOwnerCurve(node);
+                        info.startTick = node->pos();
+                        info.startValue = node->value();
+                        m_state.dragNodeInfos.append(info);
+                    }
                 }
 
-                m_state.dragTargetCurve = anchorCurveAt(tick, m_state.dragSourceCurve);
+                const auto deltaTick = static_cast<int>(
+                    q->sceneXToTick(scenePos.x()) - q->sceneXToTick(m_state.dragStartPos.x()));
+                const auto deltaValue = static_cast<int>(
+                    d->m_anchorEditor->sceneYToValue(scenePos.y()) -
+                    d->m_anchorEditor->sceneYToValue(m_state.dragStartPos.y()));
+
+                for (auto &info : m_state.dragNodeInfos) {
+                    info.sourceCurve->removeNode(info.node);
+                    info.node->setPos(info.startTick + deltaTick);
+                    info.node->setValue(info.startValue + deltaValue);
+                    info.sourceCurve->insertNode(info.node);
+                    info.targetCurve = anchorCurveAt(info.node->pos(), info.sourceCurve);
+                }
+
                 triggerRepaint();
             }
             return true;
@@ -134,20 +149,28 @@ bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {
         if (m_state.dragging) {
             m_state.dragging = false;
 
-            if (m_state.dragTargetCurve) {
-                for (auto *node : m_state.selectedNodes) {
-                    m_state.dragSourceCurve->removeNode(node);
-                    m_state.dragTargetCurve->insertNode(node);
+            QSet<AnchorCurve *> sourcesToCleanup;
+            for (auto &info : m_state.dragNodeInfos) {
+                if (info.targetCurve && info.targetCurve != info.sourceCurve) {
+                    info.sourceCurve->removeNode(info.node);
+                    info.targetCurve->insertNode(info.node);
+                    sourcesToCleanup.insert(info.sourceCurve);
                 }
-                m_state.currentCurve = m_state.dragTargetCurve;
-                cleanupEmptyCurve(m_state.dragSourceCurve);
             }
 
-            m_state.dragSourceCurve = nullptr;
-            m_state.dragTargetCurve = nullptr;
+            for (auto &info : m_state.dragNodeInfos) {
+                auto *finalCurve = info.targetCurve ? info.targetCurve : info.sourceCurve;
+                removeOverlappingNodes(finalCurve, info.node);
+            }
 
-            for (auto *node : m_state.selectedNodes)
-                removeOverlappingNodes(m_state.currentCurve, node);
+            for (auto *curve : sourcesToCleanup)
+                cleanupEmptyCurve(curve);
+
+            if (!m_state.selectedNodes.isEmpty())
+                m_state.currentCurve = findOwnerCurve(m_state.selectedNodes.first());
+
+            m_state.dragNodeInfos.clear();
+
             const auto scenePos = q->mapToScene(event->pos());
             updatePreview(scenePos);
             triggerRepaint();
@@ -173,6 +196,8 @@ void EditPitchAnchorHandler::mouseDoubleClickEvent(QMouseEvent *event) {
         return;
     const auto scenePos = q->mapToScene(event->position().toPoint());
     createAnchorAt(scenePos);
+    m_state.dragStartPos = scenePos;
+    m_state.dragging = false;
     triggerRepaint();
 }
 

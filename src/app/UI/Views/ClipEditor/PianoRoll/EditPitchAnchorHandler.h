@@ -18,6 +18,14 @@ class AnchorNode;
 class AnchorCurve;
 class QMenu;
 
+struct DragNodeInfo {
+    AnchorNode *node = nullptr;
+    AnchorCurve *sourceCurve = nullptr;
+    AnchorCurve *targetCurve = nullptr;
+    int startTick = 0;
+    int startValue = 0;
+};
+
 struct AnchorOverlayState {
     bool anchorEditMode = false;
     bool editing = false;
@@ -30,8 +38,7 @@ struct AnchorOverlayState {
 
     QPointF dragStartPos;
     bool dragging = false;
-    AnchorCurve *dragSourceCurve = nullptr;
-    AnchorCurve *dragTargetCurve = nullptr;
+    QList<DragNodeInfo> dragNodeInfos;
 
     QRectF selectionRect;
     bool selecting = false;
