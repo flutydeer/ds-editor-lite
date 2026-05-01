@@ -91,8 +91,8 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
                     auto *otherCurve = anchorCurveAt(tick, originCurve);
                     if (otherCurve) {
                         otherCurve->insertNode(node);
-                        cleanupEmptyCurve(originCurve);
                         m_state.currentCurve = otherCurve;
+                        cleanupEmptyCurve(originCurve);
                     } else {
                         auto [minBound, maxBound] = getReachableBounds(originCurve);
                         if (tick >= minBound && tick <= maxBound) {
@@ -101,8 +101,8 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
                             auto *newCurve = new AnchorCurve;
                             newCurve->insertNode(node);
                             m_localCurves.append(newCurve);
-                            cleanupEmptyCurve(originCurve);
                             m_state.currentCurve = newCurve;
+                            cleanupEmptyCurve(originCurve);
                         }
                     }
                 }
@@ -388,18 +388,18 @@ void EditPitchAnchorHandler::transferNodeToCurve(AnchorNode *node, AnchorCurve *
                                                   AnchorCurve *to) {
     from->removeNode(node);
     to->insertNode(node);
-    cleanupEmptyCurve(from);
     m_state.currentCurve = to;
+    cleanupEmptyCurve(from);
 }
 
 void EditPitchAnchorHandler::detachNodeToNewCurve(AnchorNode *node, AnchorCurve *from) {
     from->removeNode(node);
-    cleanupEmptyCurve(from);
 
     auto *newCurve = new AnchorCurve;
     newCurve->insertNode(node);
     m_localCurves.append(newCurve);
     m_state.currentCurve = newCurve;
+    cleanupEmptyCurve(from);
 }
 
 void EditPitchAnchorHandler::cleanupEmptyCurve(AnchorCurve *curve) {
