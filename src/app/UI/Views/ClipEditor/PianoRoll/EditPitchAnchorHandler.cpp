@@ -79,33 +79,20 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
                 m_state.dragging = true;
 
             if (m_state.dragging) {
+                if (!m_state.dragSourceCurve)
+                    m_state.dragSourceCurve = m_state.currentCurve;
+
                 const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
                 const auto value = static_cast<int>(
                     d->m_anchorEditor->sceneYToValue(scenePos.y()));
                 for (auto *node : m_state.selectedNodes) {
-                    auto *originCurve = m_state.currentCurve;
-                    originCurve->removeNode(node);
+                    m_state.dragSourceCurve->removeNode(node);
                     node->setPos(tick);
                     node->setValue(value);
-
-                    auto *otherCurve = anchorCurveAt(tick, originCurve);
-                    if (otherCurve) {
-                        otherCurve->insertNode(node);
-                        m_state.currentCurve = otherCurve;
-                        cleanupEmptyCurve(originCurve);
-                    } else {
-                        auto [minBound, maxBound] = getReachableBounds(originCurve);
-                        if (tick >= minBound && tick <= maxBound) {
-                            originCurve->insertNode(node);
-                        } else {
-                            auto *newCurve = new AnchorCurve;
-                            newCurve->insertNode(node);
-                            m_localCurves.append(newCurve);
-                            m_state.currentCurve = newCurve;
-                            cleanupEmptyCurve(originCurve);
-                        }
-                    }
+                    m_state.dragSourceCurve->insertNode(node);
                 }
+
+                m_state.dragTargetCurve = anchorCurveAt(tick, m_state.dragSourceCurve);
                 triggerRepaint();
             }
             return true;
@@ -146,6 +133,19 @@ bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         if (m_state.dragging) {
             m_state.dragging = false;
+
+            if (m_state.dragTargetCurve) {
+                for (auto *node : m_state.selectedNodes) {
+                    m_state.dragSourceCurve->removeNode(node);
+                    m_state.dragTargetCurve->insertNode(node);
+                }
+                m_state.currentCurve = m_state.dragTargetCurve;
+                cleanupEmptyCurve(m_state.dragSourceCurve);
+            }
+
+            m_state.dragSourceCurve = nullptr;
+            m_state.dragTargetCurve = nullptr;
+
             for (auto *node : m_state.selectedNodes)
                 removeOverlappingNodes(m_state.currentCurve, node);
             const auto scenePos = q->mapToScene(event->pos());

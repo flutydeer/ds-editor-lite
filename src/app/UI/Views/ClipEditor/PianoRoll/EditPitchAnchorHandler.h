@@ -30,6 +30,8 @@ struct AnchorOverlayState {
 
     QPointF dragStartPos;
     bool dragging = false;
+    AnchorCurve *dragSourceCurve = nullptr;
+    AnchorCurve *dragTargetCurve = nullptr;
 
     QRectF selectionRect;
     bool selecting = false;
