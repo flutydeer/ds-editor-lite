@@ -244,6 +244,7 @@ void EditPitchAnchorHandler::contextMenuEvent(QContextMenuEvent *event) {
             n->setInterpMode(AnchorNode::Linear);
         }
         triggerRepaint();
+        commit();
     });
 
     auto *hermiteAction = menu->addAction(QObject::tr("Hermite"));
@@ -256,6 +257,7 @@ void EditPitchAnchorHandler::contextMenuEvent(QContextMenuEvent *event) {
             n->setInterpMode(AnchorNode::Hermite);
         }
         triggerRepaint();
+        commit();
     });
 
     auto *interpGroup = new QActionGroup(menu);
