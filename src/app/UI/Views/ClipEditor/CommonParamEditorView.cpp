@@ -170,7 +170,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             drawCurveBorder(painter, m_drawCurvesOriginal);
         }
         if (!m_drawCurvesEdited.isEmpty()) {
-            pen.setColor(QColor(255, 255, 255, 230));
+            pen.setColor(QColor(255, 255, 255, foreground ? 230 : 60));
             painter->setPen(pen);
             drawCurveBorder(painter, m_drawCurvesEdited);
         }
