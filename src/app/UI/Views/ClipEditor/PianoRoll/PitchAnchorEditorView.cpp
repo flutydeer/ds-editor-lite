@@ -43,8 +43,8 @@ void PitchAnchorEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         return;
 
     painter->setRenderHint(QPainter::Antialiasing, true);
-    drawAnchorCurves(painter);
     drawPreviewCurve(painter);
+    drawAnchorCurves(painter);
     drawSelectionRect(painter);
 }
 
@@ -163,8 +163,15 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
 }
 
 void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
-    if (!m_state || !m_state->showPreview || !m_state->currentCurve || m_state->dragging ||
-        !m_state->cursorInView)
+    if (!m_state || !m_state->currentCurve || m_state->dragging || !m_state->cursorInView)
+        return;
+
+    if (m_state->showMergePreview && m_state->mergeCandidateCurve) {
+        drawMergePreviewCurve(painter);
+        return;
+    }
+
+    if (!m_state->showPreview)
         return;
 
     const auto &nodes = m_state->currentCurve->nodes().toList();
@@ -227,7 +234,7 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
         painter->drawPath(path);
     };
 
-    QPen pen(QColor(200, 200, 200, 128), 1.5, Qt::DashLine);
+    QPen pen(QColor(155, 186, 255, 128), 1.5, Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
 
@@ -242,8 +249,78 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
     const double cx = tickToItemX(virtualNode.pos());
     const double cy = sceneYToItemY(valueToSceneY(virtualNode.value()));
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(220, 220, 220, 128));
+    painter->setBrush(QColor(155, 186, 255, 128));
     painter->drawEllipse(QPointF(cx, cy), 2.0, 2.0);
+}
+
+void PitchAnchorEditorView::drawMergePreviewCurve(QPainter *painter) const {
+    QList<AnchorNode *> allNodes;
+    for (auto *node : m_state->currentCurve->nodes().toList())
+        allNodes.append(node);
+    for (auto *node : m_state->mergeCandidateCurve->nodes().toList())
+        allNodes.append(node);
+
+    std::sort(allNodes.begin(), allNodes.end(),
+              [](AnchorNode *a, AnchorNode *b) { return a->pos() < b->pos(); });
+
+    if (allNodes.size() < 2)
+        return;
+
+    auto tickToLocalX = [this](int tick) { return tickToItemX(tick); };
+    auto valueToLocalY = [this](int value) { return sceneYToItemY(valueToSceneY(value)); };
+
+    auto interpolateSegment = [&](AnchorNode *n1, AnchorNode *n2, AnchorNode *ref1,
+                                  AnchorNode *ref2) {
+        const double x1 = n1->pos();
+        const double y1 = n1->value();
+        const double x2 = n2->pos();
+        const double y2 = n2->value();
+
+        auto interp = opendspx::Interpolator<double>::createLinear(x1, y1, x2, y2);
+        if (n1->interpMode() != AnchorNode::Linear) {
+            if (ref1 && ref2) {
+                interp = opendspx::Interpolator<double>::create(
+                    x1, y1, x2, y2, ref1->pos(), ref1->value(), ref2->pos(), ref2->value());
+            } else if (ref1) {
+                interp = opendspx::Interpolator<double>::createWithRef1Only(
+                    x1, y1, x2, y2, ref1->pos(), ref1->value());
+            } else if (ref2) {
+                interp = opendspx::Interpolator<double>::createWithRef2Only(
+                    x1, y1, x2, y2, ref2->pos(), ref2->value());
+            }
+        }
+
+        const double startX = tickToLocalX(n1->pos());
+        const double endX = tickToLocalX(n2->pos());
+        const double step = 2.0;
+
+        QPainterPath path;
+        bool first = true;
+        for (double px = startX; px <= endX; px += step) {
+            const double tick = sceneXToTick(px + pos().x());
+            const double val = interp.evaluate(tick);
+            const double ly = valueToLocalY(static_cast<int>(val));
+            if (first) {
+                path.moveTo(px, ly);
+                first = false;
+            } else {
+                path.lineTo(px, ly);
+            }
+        }
+        painter->drawPath(path);
+    };
+
+    QPen pen(QColor(155, 186, 255, 160), 1.5, Qt::DashLine);
+    painter->setPen(pen);
+    painter->setBrush(Qt::NoBrush);
+
+    for (int i = 0; i < allNodes.size() - 1; i++) {
+        auto *n1 = allNodes[i];
+        auto *n2 = allNodes[i + 1];
+        auto *ref1 = (i > 0) ? allNodes[i - 1] : nullptr;
+        auto *ref2 = (i + 2 < allNodes.size()) ? allNodes[i + 2] : nullptr;
+        interpolateSegment(n1, n2, ref1, ref2);
+    }
 }
 
 void PitchAnchorEditorView::drawSelectionRect(QPainter *painter) const {

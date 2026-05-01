@@ -40,9 +40,13 @@ bool EditPitchAnchorHandler::mousePressEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         if (m_state.editing) {
             if (node) {
-                selectNode(node);
-                m_state.dragStartPos = scenePos;
-                m_state.dragging = false;
+                if (m_state.showMergePreview && node == m_state.mergeEndpointNode) {
+                    mergeCurves(m_state.mergeCandidateCurve);
+                } else {
+                    selectNode(node);
+                    m_state.dragStartPos = scenePos;
+                    m_state.dragging = false;
+                }
             } else {
                 createAnchorAt(scenePos);
             }
@@ -109,6 +113,7 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
         }
 
         if (m_state.editing) {
+            updateMergeCandidate(scenePos);
             updatePreview(scenePos);
             triggerRepaint();
         }
@@ -302,8 +307,75 @@ void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
 
 void EditPitchAnchorHandler::updatePreview(const QPointF &scenePos) {
     m_state.previewPos = q->mapFromScene(scenePos.toPoint());
-    m_state.showPreview =
-        m_state.editing && m_state.currentCurve != nullptr && m_state.hoveredNode == nullptr;
+    m_state.showPreview = m_state.editing && m_state.currentCurve != nullptr &&
+                          m_state.hoveredNode == nullptr && !m_state.showMergePreview;
+}
+
+void EditPitchAnchorHandler::updateMergeCandidate(const QPointF &scenePos) {
+    m_state.mergeCandidateCurve = nullptr;
+    m_state.mergeEndpointNode = nullptr;
+    m_state.showMergePreview = false;
+
+    if (!m_state.editing || !m_state.currentCurve)
+        return;
+
+    const auto &currentNodes = m_state.currentCurve->nodes().toList();
+    if (currentNodes.isEmpty())
+        return;
+
+    auto *currentFirst = currentNodes.first();
+    auto *currentLast = currentNodes.last();
+
+    for (auto *curve : m_localCurves) {
+        if (curve == m_state.currentCurve)
+            continue;
+        const auto &nodes = curve->nodes().toList();
+        if (nodes.isEmpty())
+            continue;
+
+        auto *otherFirst = nodes.first();
+        auto *otherLast = nodes.last();
+
+        AnchorNode *candidateNode = nullptr;
+        if (otherLast->pos() < currentFirst->pos())
+            candidateNode = otherLast;
+        else if (otherFirst->pos() > currentLast->pos())
+            candidateNode = otherFirst;
+        else
+            continue;
+
+        const auto x = q->tickToSceneX(candidateNode->pos());
+        const auto y = d->m_anchorEditor->valueToSceneY(candidateNode->value());
+        const auto dx = scenePos.x() - x;
+        const auto dy = scenePos.y() - y;
+        if (dx * dx + dy * dy <= kAnchorHitRadius * kAnchorHitRadius) {
+            m_state.mergeCandidateCurve = curve;
+            m_state.mergeEndpointNode = candidateNode;
+            m_state.showMergePreview = true;
+            return;
+        }
+    }
+}
+
+void EditPitchAnchorHandler::mergeCurves(AnchorCurve *target) {
+    if (!m_state.currentCurve || !target || target == m_state.currentCurve)
+        return;
+
+    QList<AnchorNode *> nodesToMove;
+    for (auto *node : target->nodes().toList())
+        nodesToMove.append(node);
+
+    for (auto *node : nodesToMove) {
+        target->removeNode(node);
+        m_state.currentCurve->insertNode(node);
+    }
+
+    m_localCurves.removeOne(target);
+    delete target;
+
+    m_state.mergeCandidateCurve = nullptr;
+    m_state.mergeEndpointNode = nullptr;
+    m_state.showMergePreview = false;
 }
 
 void EditPitchAnchorHandler::triggerRepaint() {

@@ -32,6 +32,10 @@ struct AnchorOverlayState {
 
     QList<AnchorCurve *> visibleCurves;
     bool cursorInView = true;
+
+    AnchorCurve *mergeCandidateCurve = nullptr;
+    AnchorNode *mergeEndpointNode = nullptr;
+    bool showMergePreview = false;
 };
 
 class EditPitchAnchorHandler final : public PianoRollEditHandler {
@@ -69,6 +73,8 @@ private:
     void deleteSelectedNodes();
     void createAnchorAt(const QPointF &scenePos);
     void updatePreview(const QPointF &scenePos);
+    void updateMergeCandidate(const QPointF &scenePos);
+    void mergeCurves(AnchorCurve *target);
     void triggerRepaint();
 
     static constexpr double kAnchorHitRadius = 6.0;

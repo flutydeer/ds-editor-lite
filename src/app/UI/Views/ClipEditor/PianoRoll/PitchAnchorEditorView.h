@@ -25,6 +25,7 @@ private:
 
     void drawAnchorCurves(QPainter *painter) const;
     void drawPreviewCurve(QPainter *painter) const;
+    void drawMergePreviewCurve(QPainter *painter) const;
     void drawSelectionRect(QPainter *painter) const;
 
     const AnchorOverlayState *m_state = nullptr;
