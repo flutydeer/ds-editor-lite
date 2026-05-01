@@ -105,6 +105,8 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     auto *editPitchAnchorHandler = new EditPitchAnchorHandler;
     editPitchAnchorHandler->setContext(this, d);
     d->m_handlers.insert(EditPitchAnchor, editPitchAnchorHandler);
+    d->m_anchorEditor->setOverlayState(&editPitchAnchorHandler->overlayState());
+    editPitchAnchorHandler->setAlwaysVisible(true);
 
     connect(scene, &QGraphicsScene::selectionChanged, this,
             &PianoRollGraphicsView::onSceneSelectionChanged);

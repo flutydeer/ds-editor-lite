@@ -28,6 +28,7 @@ struct DragNodeInfo {
 
 struct AnchorOverlayState {
     bool anchorEditMode = false;
+    bool anchorEditActive = false;
     bool editing = false;
     AnchorCurve *currentCurve = nullptr;
     QList<AnchorNode *> selectedNodes;
@@ -67,6 +68,7 @@ public:
     void discard() override;
 
     void setCursorInView(bool inView);
+    void setAlwaysVisible(bool visible);
 
     [[nodiscard]] const AnchorOverlayState &overlayState() const;
 

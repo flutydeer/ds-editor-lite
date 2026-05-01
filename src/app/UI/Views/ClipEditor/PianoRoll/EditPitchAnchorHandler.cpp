@@ -20,6 +20,7 @@
 
 void EditPitchAnchorHandler::activate() {
     m_state.anchorEditMode = true;
+    m_state.anchorEditActive = true;
     d->m_anchorEditor->setOverlayState(&m_state);
     q->setMouseTracking(true);
     triggerRepaint();
@@ -27,7 +28,7 @@ void EditPitchAnchorHandler::activate() {
 
 void EditPitchAnchorHandler::deactivate() {
     q->setMouseTracking(false);
-    m_state.anchorEditMode = false;
+    m_state.anchorEditActive = false;
     m_state.showPreview = false;
     m_state.hoveredNode = nullptr;
     m_state.selecting = false;
@@ -308,6 +309,11 @@ const AnchorOverlayState &EditPitchAnchorHandler::overlayState() const {
 
 void EditPitchAnchorHandler::setCursorInView(bool inView) {
     m_state.cursorInView = inView;
+    triggerRepaint();
+}
+
+void EditPitchAnchorHandler::setAlwaysVisible(bool visible) {
+    m_state.anchorEditMode = visible;
     triggerRepaint();
 }
 

@@ -45,10 +45,13 @@ void PitchAnchorEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         return;
 
     painter->setRenderHint(QPainter::Antialiasing, true);
-    drawPreviewCurve(painter);
-    drawDragPreviewCurve(painter);
+    if (m_state->anchorEditActive) {
+        drawPreviewCurve(painter);
+        drawDragPreviewCurve(painter);
+    }
     drawAnchorCurves(painter);
-    drawSelectionRect(painter);
+    if (m_state->anchorEditActive)
+        drawSelectionRect(painter);
 }
 
 void PitchAnchorEditorView::updateRectAndPos() {
@@ -62,15 +65,16 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
     if (!m_state)
         return;
 
+    const bool active = m_state->anchorEditActive;
     constexpr double anchorRadius = 2.0;
     constexpr double hoverRadius = 6.0;
-    const QColor normalColor(220, 220, 220);
+    const QColor normalColor(220, 220, 220, active ? 255 : 80);
     const QColor selectedColor(155, 186, 255);
-    const QColor curveColor(220, 220, 220, 200);
+    const QColor curveColor(220, 220, 220, active ? 200 : 60);
 
     auto drawNodeAt = [&](double x, double y, AnchorNode *node) {
-        const bool isSelected = m_state->selectedNodes.contains(node);
-        const bool isHovered = (node == m_state->hoveredNode);
+        const bool isSelected = active && m_state->selectedNodes.contains(node);
+        const bool isHovered = active && (node == m_state->hoveredNode);
 
         QColor color = isSelected ? selectedColor : normalColor;
         double radius = anchorRadius;
