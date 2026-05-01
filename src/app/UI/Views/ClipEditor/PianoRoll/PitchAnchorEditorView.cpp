@@ -334,7 +334,8 @@ void PitchAnchorEditorView::drawSelectionRect(QPainter *painter) const {
     const double y2 = sceneYToItemY(rect.bottom());
     QRectF localRect(QPointF(x1, y1), QPointF(x2, y2));
 
-    painter->setPen(QPen(QColor(155, 186, 255, 200), 1));
-    painter->setBrush(QColor(155, 186, 255, 40));
-    painter->drawRect(localRect);
+    const auto radius = std::min({6.0, localRect.width() / 2, localRect.height() / 2});
+    painter->setPen(QPen(QColor(155, 186, 255, 200), 1.5));
+    painter->setBrush(QColor(155, 186, 255, 64));
+    painter->drawRoundedRect(localRect, radius, radius);
 }

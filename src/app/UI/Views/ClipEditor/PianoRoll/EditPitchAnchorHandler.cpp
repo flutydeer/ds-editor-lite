@@ -65,14 +65,6 @@ bool EditPitchAnchorHandler::mousePressEvent(QMouseEvent *event) {
         return true;
     }
 
-    if (event->button() == Qt::RightButton) {
-        if (m_state.editing && !node) {
-            exitEditingState();
-            triggerRepaint();
-            return true;
-        }
-    }
-
     return true;
 }
 
@@ -102,6 +94,16 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
 
         if (m_state.selecting) {
             m_state.selectionRect.setBottomRight(scenePos);
+            const auto rect = m_state.selectionRect.normalized();
+            clearSelection();
+            for (auto *curve : anchorCurves()) {
+                for (auto *node : curve->nodes().toList()) {
+                    const auto x = q->tickToSceneX(node->pos());
+                    const auto y = d->m_anchorEditor->valueToSceneY(node->value());
+                    if (rect.contains(x, y))
+                        m_state.selectedNodes.append(node);
+                }
+            }
             triggerRepaint();
             return true;
         }
@@ -133,16 +135,6 @@ bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {
 
         if (m_state.selecting) {
             m_state.selecting = false;
-            const auto rect = m_state.selectionRect.normalized();
-            clearSelection();
-            for (auto *curve : anchorCurves()) {
-                for (auto *node : curve->nodes().toList()) {
-                    const auto x = q->tickToSceneX(node->pos());
-                    const auto y = d->m_anchorEditor->valueToSceneY(node->value());
-                    if (rect.contains(x, y))
-                        m_state.selectedNodes.append(node);
-                }
-            }
             if (!m_state.selectedNodes.isEmpty()) {
                 auto *curve = anchorCurveAt(m_state.selectedNodes.first()->pos());
                 enterEditingState(curve);
@@ -166,10 +158,20 @@ void EditPitchAnchorHandler::mouseDoubleClickEvent(QMouseEvent *event) {
 void EditPitchAnchorHandler::contextMenuEvent(QContextMenuEvent *event) {
     const auto scenePos = q->mapToScene(event->pos());
     auto *node = anchorNodeAt(scenePos);
-    if (!node)
-        return;
 
-    selectNode(node);
+    if (!node) {
+        if (m_state.editing) {
+            exitEditingState();
+            triggerRepaint();
+        }
+        return;
+    }
+
+    if (m_state.selectedNodes.size() <= 1 || !m_state.selectedNodes.contains(node)) {
+        clearSelection();
+        selectNode(node);
+        enterEditingState(m_state.currentCurve, node);
+    }
     triggerRepaint();
 
     auto *menu = new Menu(q);

@@ -38,8 +38,8 @@ void RubberBandView::setSelectMode(SelectMode mode) {
 void RubberBandView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                    QWidget *widget) {
     painter->setRenderHint(QPainter::Antialiasing);
-    const auto borderColor = QColor(255, 204, 153);
-    const auto backgroundColor = QColor(255, 204, 153, 64);
+    const auto borderColor = QColor(155, 186, 255, 200);
+    const auto backgroundColor = QColor(155, 186, 255, 64);
     const auto penWidth = 1.5f;
     const auto radiusBase = 6;
     const auto radiusX =
