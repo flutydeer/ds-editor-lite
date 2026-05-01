@@ -12,6 +12,7 @@
 #include "UI/Controls/Menu.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
+#include <QActionGroup>
 #include <QContextMenuEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -195,6 +196,56 @@ void EditPitchAnchorHandler::contextMenuEvent(QContextMenuEvent *event) {
     triggerRepaint();
 
     auto *menu = new Menu(q);
+
+    const auto &curveNodes = m_state.currentCurve->nodes().toList();
+    auto *lastCurveNode = curveNodes.isEmpty() ? nullptr : curveNodes.last();
+
+    auto currentMode = m_state.selectedNodes.first()->interpMode();
+    bool allSame = std::all_of(m_state.selectedNodes.begin(), m_state.selectedNodes.end(),
+                               [currentMode](AnchorNode *n) { return n->interpMode() == currentMode; });
+
+    auto *linearAction = menu->addAction(QObject::tr("Linear"));
+    linearAction->setCheckable(true);
+    linearAction->setChecked(allSame && currentMode == AnchorNode::Linear);
+    QObject::connect(linearAction, &QAction::triggered, q, [this, lastCurveNode] {
+        for (auto *n : m_state.selectedNodes) {
+            if (n == lastCurveNode)
+                continue;
+            n->setInterpMode(AnchorNode::Linear);
+        }
+        triggerRepaint();
+    });
+
+    auto *hermiteAction = menu->addAction(QObject::tr("Hermite"));
+    hermiteAction->setCheckable(true);
+    hermiteAction->setChecked(allSame && currentMode == AnchorNode::Hermite);
+    QObject::connect(hermiteAction, &QAction::triggered, q, [this, lastCurveNode] {
+        for (auto *n : m_state.selectedNodes) {
+            if (n == lastCurveNode)
+                continue;
+            n->setInterpMode(AnchorNode::Hermite);
+        }
+        triggerRepaint();
+    });
+
+    auto *interpGroup = new QActionGroup(menu);
+    interpGroup->setExclusive(true);
+    interpGroup->addAction(linearAction);
+    interpGroup->addAction(hermiteAction);
+    if (!allSame) {
+        linearAction->setChecked(false);
+        hermiteAction->setChecked(false);
+    }
+
+    bool allAreLast = std::all_of(m_state.selectedNodes.begin(), m_state.selectedNodes.end(),
+                                  [lastCurveNode](AnchorNode *n) { return n == lastCurveNode; });
+    if (allAreLast) {
+        linearAction->setEnabled(false);
+        hermiteAction->setEnabled(false);
+    }
+
+    menu->addSeparator();
+
     auto *deleteAction = menu->addAction(QObject::tr("Delete"));
     QObject::connect(deleteAction, &QAction::triggered, q, [this] {
         deleteSelectedNodes();
@@ -397,10 +448,13 @@ void EditPitchAnchorHandler::deleteSelectedNodes() {
     for (auto *node : m_state.selectedNodes)
         m_state.currentCurve->removeNode(node);
     clearSelection();
-    if (m_state.currentCurve->nodes().toList().isEmpty()) {
+    const auto &remaining = m_state.currentCurve->nodes().toList();
+    if (remaining.isEmpty()) {
         m_localCurves.removeOne(m_state.currentCurve);
         delete m_state.currentCurve;
         exitEditingState();
+    } else {
+        remaining.last()->setInterpMode(AnchorNode::None);
     }
     triggerRepaint();
 }
@@ -438,8 +492,35 @@ void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
         return;
     }
 
+    const auto &existingNodes = curve->nodes().toList();
+    auto *oldLast = existingNodes.isEmpty() ? nullptr : existingNodes.last();
+
     auto *node = new AnchorNode(tick, value);
-    node->setInterpMode(AnchorNode::Hermite);
+
+    if (!oldLast || tick > oldLast->pos()) {
+        node->setInterpMode(AnchorNode::None);
+        if (oldLast) {
+            auto predecessorMode = oldLast->interpMode();
+            if (predecessorMode == AnchorNode::None) {
+                auto idx = existingNodes.indexOf(oldLast);
+                if (idx > 0)
+                    predecessorMode = existingNodes[idx - 1]->interpMode();
+                else
+                    predecessorMode = AnchorNode::Hermite;
+            }
+            oldLast->setInterpMode(predecessorMode);
+        }
+    } else {
+        auto mode = AnchorNode::Hermite;
+        for (int i = existingNodes.size() - 1; i >= 0; i--) {
+            if (existingNodes[i]->pos() < tick) {
+                mode = existingNodes[i]->interpMode();
+                break;
+            }
+        }
+        node->setInterpMode(mode);
+    }
+
     curve->insertNode(node);
 
     enterEditingState(curve, node);

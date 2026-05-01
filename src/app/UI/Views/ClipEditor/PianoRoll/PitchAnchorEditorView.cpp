@@ -199,7 +199,32 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
     QList<AnchorNode *> allNodes = nodes;
     auto it = std::lower_bound(allNodes.begin(), allNodes.end(), &virtualNode,
                                [](AnchorNode *a, AnchorNode *b) { return a->pos() < b->pos(); });
+    int insertIdx = static_cast<int>(it - allNodes.begin());
     allNodes.insert(it, &virtualNode);
+
+    AnchorNode::InterpMode savedLastMode = AnchorNode::Hermite;
+    AnchorNode *oldLastNode = nullptr;
+    bool isAppend = (insertIdx == allNodes.size() - 1);
+    if (isAppend) {
+        virtualNode.setInterpMode(AnchorNode::None);
+        oldLastNode = nodes.last();
+        savedLastMode = oldLastNode->interpMode();
+        if (savedLastMode == AnchorNode::None) {
+            auto idx = nodes.indexOf(oldLastNode);
+            auto predecessorMode =
+                (idx > 0) ? nodes[idx - 1]->interpMode() : AnchorNode::Hermite;
+            oldLastNode->setInterpMode(predecessorMode);
+        }
+    } else {
+        auto mode = AnchorNode::Hermite;
+        for (int i = insertIdx - 1; i >= 0; i--) {
+            if (allNodes[i]->pos() < virtualNode.pos()) {
+                mode = allNodes[i]->interpMode();
+                break;
+            }
+        }
+        virtualNode.setInterpMode(mode);
+    }
 
     auto tickToLocalX = [this](int tick) { return tickToItemX(tick); };
     auto valueToLocalY = [this](int value) { return sceneYToItemY(valueToSceneY(value)); };
@@ -274,6 +299,9 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
     painter->setPen(Qt::NoPen);
     painter->setBrush(QColor(155, 186, 255, 128));
     painter->drawEllipse(QPointF(cx, cy), 2.0, 2.0);
+
+    if (isAppend && oldLastNode)
+        oldLastNode->setInterpMode(savedLastMode);
 }
 
 void PitchAnchorEditorView::drawMergePreviewCurve(QPainter *painter) const {
