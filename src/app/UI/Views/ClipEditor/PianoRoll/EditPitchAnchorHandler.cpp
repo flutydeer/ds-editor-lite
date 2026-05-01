@@ -145,6 +145,8 @@ bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         if (m_state.dragging) {
             m_state.dragging = false;
+            for (auto *node : m_state.selectedNodes)
+                removeOverlappingNodes(m_state.currentCurve, node);
             const auto scenePos = q->mapToScene(event->pos());
             updatePreview(scenePos);
             triggerRepaint();
@@ -303,6 +305,34 @@ AnchorCurve *EditPitchAnchorHandler::findOwnerCurve(AnchorNode *node) const {
     return nullptr;
 }
 
+AnchorNode *EditPitchAnchorHandler::findNodeAtTick(AnchorCurve *curve, int tick,
+                                                    AnchorNode *exclude) {
+    if (!curve)
+        return nullptr;
+    for (auto *node : curve->nodes().toList()) {
+        if (node != exclude && node->pos() == tick)
+            return node;
+    }
+    return nullptr;
+}
+
+void EditPitchAnchorHandler::removeOverlappingNodes(AnchorCurve *curve, AnchorNode *keep) {
+    if (!curve || !keep)
+        return;
+    QList<AnchorNode *> toRemove;
+    for (auto *node : curve->nodes().toList()) {
+        if (node != keep && node->pos() == keep->pos())
+            toRemove.append(node);
+    }
+    for (auto *node : toRemove) {
+        curve->removeNode(node);
+        m_state.selectedNodes.removeOne(node);
+        if (m_state.hoveredNode == node)
+            m_state.hoveredNode = nullptr;
+        delete node;
+    }
+}
+
 void EditPitchAnchorHandler::transferNodeToCurve(AnchorNode *node, AnchorCurve *from,
                                                   AnchorCurve *to) {
     from->removeNode(node);
@@ -402,6 +432,12 @@ void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
         }
     }
 
+    auto *existing = findNodeAtTick(curve, tick);
+    if (existing) {
+        enterEditingState(curve, existing);
+        return;
+    }
+
     auto *node = new AnchorNode(tick, value);
     node->setInterpMode(AnchorNode::Hermite);
     curve->insertNode(node);
@@ -471,7 +507,11 @@ void EditPitchAnchorHandler::mergeCurves(AnchorCurve *target) {
 
     for (auto *node : nodesToMove) {
         target->removeNode(node);
-        m_state.currentCurve->insertNode(node);
+        if (findNodeAtTick(m_state.currentCurve, node->pos())) {
+            delete node;
+        } else {
+            m_state.currentCurve->insertNode(node);
+        }
     }
 
     m_localCurves.removeOne(target);

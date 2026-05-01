@@ -68,6 +68,9 @@ private:
     [[nodiscard]] QList<AnchorCurve *> anchorCurves() const;
     [[nodiscard]] std::pair<int, int> getReachableBounds(AnchorCurve *curve) const;
     [[nodiscard]] AnchorCurve *findOwnerCurve(AnchorNode *node) const;
+    [[nodiscard]] static AnchorNode *findNodeAtTick(AnchorCurve *curve, int tick,
+                                                    AnchorNode *exclude = nullptr);
+    void removeOverlappingNodes(AnchorCurve *curve, AnchorNode *keep);
     void transferNodeToCurve(AnchorNode *node, AnchorCurve *from, AnchorCurve *to);
     void detachNodeToNewCurve(AnchorNode *node, AnchorCurve *from);
     void cleanupEmptyCurve(AnchorCurve *curve);
