@@ -183,10 +183,10 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
         return;
     }
 
-    if (!m_state->showPreview)
+    if (!m_state->showPreview || !m_state->previewCurve)
         return;
 
-    const auto &nodes = m_state->currentCurve->nodes().toList();
+    const auto &nodes = m_state->previewCurve->nodes().toList();
     if (nodes.isEmpty())
         return;
 

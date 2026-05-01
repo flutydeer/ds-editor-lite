@@ -26,6 +26,7 @@ struct AnchorOverlayState {
     AnchorNode *hoveredNode = nullptr;
     QPointF previewPos;
     bool showPreview = false;
+    AnchorCurve *previewCurve = nullptr;
 
     QPointF dragStartPos;
     bool dragging = false;

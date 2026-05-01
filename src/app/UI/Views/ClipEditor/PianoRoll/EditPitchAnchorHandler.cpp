@@ -530,6 +530,19 @@ void EditPitchAnchorHandler::updatePreview(const QPointF &scenePos) {
     m_state.previewPos = q->mapFromScene(scenePos.toPoint());
     m_state.showPreview = m_state.editing && m_state.currentCurve != nullptr &&
                           m_state.hoveredNode == nullptr && !m_state.showMergePreview;
+
+    m_state.previewCurve = nullptr;
+    if (m_state.showPreview) {
+        const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
+        auto *otherCurve = anchorCurveAt(tick, m_state.currentCurve);
+        if (otherCurve) {
+            m_state.previewCurve = otherCurve;
+        } else {
+            auto [minBound, maxBound] = getReachableBounds(m_state.currentCurve);
+            if (tick >= minBound && tick <= maxBound)
+                m_state.previewCurve = m_state.currentCurve;
+        }
+    }
 }
 
 void EditPitchAnchorHandler::updateMergeCandidate(const QPointF &scenePos) {
