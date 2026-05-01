@@ -29,7 +29,7 @@ public:
 private:
     int m_pos;
     int m_value;
-    InterpMode m_interpMode = Cubic;
+    InterpMode m_interpMode = Hermite;
 };
 
 class AnchorCurve final : public Curve {
