@@ -34,6 +34,9 @@ private:
 
 class AnchorCurve final : public Curve {
 public:
+    AnchorCurve() = default;
+    AnchorCurve(const AnchorCurve &other);
+
     CurveType type() const override {
         return Anchor;
     }

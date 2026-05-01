@@ -1199,6 +1199,12 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
 void PianoRollGraphicsViewPrivate::updatePitch(const Param::Type paramType,
                                                const Param &param) const {
     Helper::updatePitch(paramType, param, *m_pitchEditor);
+    if (paramType == Param::Edited) {
+        auto *handler =
+            dynamic_cast<EditPitchAnchorHandler *>(m_handlers.value(EditPitchAnchor));
+        if (handler)
+            Helper::updateAnchorPitch(param, *handler);
+    }
 }
 
 void PianoRollGraphicsViewPrivate::splitNoteAtPosition(NoteView *noteView, int tick) {

@@ -10,7 +10,9 @@
 #include <QList>
 
 class PitchEditorView;
+class EditPitchAnchorHandler;
 class DrawCurve;
+class AnchorCurve;
 class QWidget;
 class CMenu;
 class Note;
@@ -24,6 +26,7 @@ namespace PianoRollGraphicsViewHelper {
     void updateNoteTimeAndKey(NoteView &noteView, const Note &note);
     void updateNoteWord(NoteView &noteView, const Note &note);
     void updatePitch(Param::Type paramType, const Param &param, PitchEditorView &pitchEditor);
+    void updateAnchorPitch(const Param &param, EditPitchAnchorHandler &handler);
 }
 
 #endif // PIANOROLLGRAPHICSVIEWHELPER_H

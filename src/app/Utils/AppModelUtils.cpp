@@ -9,6 +9,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Curve.h"
 #include "Model/AppModel/DrawCurve.h"
+#include "Model/AppModel/AnchorCurve.h"
 #include "Model/AppModel/Note.h"
 
 void AppModelUtils::copyNotes(const NoteList &source, NoteList &target) {
@@ -35,9 +36,8 @@ void AppModelUtils::copyCurves(const QList<Curve *> &source, QList<Curve *> &tar
     for (const auto curve : source) {
         if (curve->type() == Curve::Draw)
             target.append(new DrawCurve(*dynamic_cast<DrawCurve *>(curve)));
-        // TODO: copy anchor curve
-        // else if (curve->type() == Curve::Anchor)
-        //     target.append(new AnchorCurve)
+        else if (curve->type() == Curve::Anchor)
+            target.append(new AnchorCurve(*dynamic_cast<AnchorCurve *>(curve)));
     }
 }
 

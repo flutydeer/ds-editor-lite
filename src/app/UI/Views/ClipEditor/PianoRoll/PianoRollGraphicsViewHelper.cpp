@@ -6,10 +6,12 @@
 
 #include "NoteView.h"
 #include "PitchEditorView.h"
+#include "EditPitchAnchorHandler.h"
 #include "PronunciationView.h"
 #include "Controller/ClipController.h"
 #include "Global/AppGlobal.h"
 #include "Model/AppModel/DrawCurve.h"
+#include "Model/AppModel/AnchorCurve.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
@@ -82,4 +84,14 @@ void PianoRollGraphicsViewHelper::updatePitch(const Param::Type paramType, const
                 MathUtils::binaryInsert(drawCurves, static_cast<DrawCurve *>(curve));
         pitchEditor.loadEdited(drawCurves);
     }
+}
+
+void PianoRollGraphicsViewHelper::updateAnchorPitch(const Param &param,
+                                                     EditPitchAnchorHandler &handler) {
+    QList<AnchorCurve *> anchorCurves;
+    for (const auto curve : param.curves(Param::Edited)) {
+        if (curve->type() == Curve::Anchor)
+            anchorCurves.append(new AnchorCurve(*dynamic_cast<AnchorCurve *>(curve)));
+    }
+    handler.loadFromModel(anchorCurves);
 }

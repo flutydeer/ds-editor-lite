@@ -9,6 +9,9 @@
 #include "PitchAnchorEditorView.h"
 
 #include "Model/AppModel/AnchorCurve.h"
+#include "Model/AppModel/DrawCurve.h"
+#include "Model/AppModel/SingingClip.h"
+#include "Controller/ClipController.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
@@ -175,6 +178,7 @@ bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {
             const auto scenePos = q->mapToScene(event->pos());
             updatePreview(scenePos);
             triggerRepaint();
+            commit();
             return true;
         }
 
@@ -294,7 +298,22 @@ bool EditPitchAnchorHandler::keyPressEvent(QKeyEvent *event) {
 }
 
 void EditPitchAnchorHandler::commit() {
-    // TODO: persist to model
+    auto *clip = dynamic_cast<SingingClip *>(clipController->clip());
+    if (!clip)
+        return;
+
+    QList<Curve *> combined;
+    const auto &existing = clip->params.getParamByName(ParamInfo::Pitch)->curves(Param::Edited);
+    for (auto *curve : existing) {
+        if (curve->type() == Curve::Draw)
+            combined.append(new DrawCurve(*dynamic_cast<DrawCurve *>(curve)));
+    }
+    for (auto *curve : m_localCurves)
+        combined.append(new AnchorCurve(*curve));
+
+    m_committing = true;
+    clipController->onParamEdited(ParamInfo::Pitch, combined);
+    m_committing = false;
 }
 
 void EditPitchAnchorHandler::discard() {
@@ -314,6 +333,19 @@ void EditPitchAnchorHandler::setCursorInView(bool inView) {
 
 void EditPitchAnchorHandler::setAlwaysVisible(bool visible) {
     m_state.anchorEditMode = visible;
+    triggerRepaint();
+}
+
+void EditPitchAnchorHandler::loadFromModel(const QList<AnchorCurve *> &curves) {
+    if (m_committing) {
+        qDeleteAll(curves);
+        return;
+    }
+    exitEditingState();
+    qDeleteAll(m_localCurves);
+    m_localCurves.clear();
+    for (auto *curve : curves)
+        m_localCurves.append(curve);
     triggerRepaint();
 }
 
@@ -488,6 +520,7 @@ void EditPitchAnchorHandler::deleteSelectedNodes() {
         remaining.last()->setInterpMode(AnchorNode::None);
     }
     triggerRepaint();
+    commit();
 }
 
 void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
@@ -555,6 +588,7 @@ void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
     curve->insertNode(node);
 
     enterEditingState(curve, node);
+    commit();
 }
 
 void EditPitchAnchorHandler::updatePreview(const QPointF &scenePos) {
@@ -645,6 +679,7 @@ void EditPitchAnchorHandler::mergeCurves(AnchorCurve *target) {
     m_state.mergeCandidateCurve = nullptr;
     m_state.mergeEndpointNode = nullptr;
     m_state.showMergePreview = false;
+    commit();
 }
 
 void EditPitchAnchorHandler::triggerRepaint() {

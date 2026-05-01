@@ -69,6 +69,7 @@ public:
 
     void setCursorInView(bool inView);
     void setAlwaysVisible(bool visible);
+    void loadFromModel(const QList<AnchorCurve *> &curves);
 
     [[nodiscard]] const AnchorOverlayState &overlayState() const;
 
@@ -88,6 +89,7 @@ private:
     void cleanupEmptyCurve(AnchorCurve *curve);
 
     QList<AnchorCurve *> m_localCurves;
+    bool m_committing = false;
 
     void enterEditingState(AnchorCurve *curve, AnchorNode *node = nullptr);
     void exitEditingState();

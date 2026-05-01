@@ -4,6 +4,15 @@
 
 #include "AnchorCurve.h"
 
+AnchorCurve::AnchorCurve(const AnchorCurve &other) : Curve() {
+    setLocalStart(other.localStart());
+    for (const auto *node : other.nodes().toList()) {
+        auto *copy = new AnchorNode(node->pos(), node->value());
+        copy->setInterpMode(node->interpMode());
+        insertNode(copy);
+    }
+}
+
 int AnchorNode::pos() const {
     return m_pos;
 }
