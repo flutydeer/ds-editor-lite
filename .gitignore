@@ -52,6 +52,7 @@ CMakeSettings.json
 /data
 /*.natvis
 .trae
+.claude
 
 *.sublime-*
 setup-vcpkg.json
