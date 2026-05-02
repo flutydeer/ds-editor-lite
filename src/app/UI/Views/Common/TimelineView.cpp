@@ -38,6 +38,10 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator);
     setQuantize(appStatus->quantize);
 
+    m_pieceUpdateThrottle.setSingleShot(true);
+    m_pieceUpdateThrottle.setInterval(16);
+    connect(&m_pieceUpdateThrottle, &QTimer::timeout, this, qOverload<>(&QWidget::update));
+
     connect(this, &TimelineView::setLastPositionTriggered, playbackController, [=](double tick) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
@@ -319,8 +323,14 @@ void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
         disconnect(piece, nullptr, this, nullptr);
     }
     for (const auto piece : pieces) {
-        connect(piece, &InferPiece::statusChanged, this, [this] { update(); });
-        connect(piece, &InferPiece::stateChanged, this, [this] { update(); });
+        connect(piece, &InferPiece::statusChanged, this, [this] {
+            if (!m_pieceUpdateThrottle.isActive())
+                m_pieceUpdateThrottle.start();
+        });
+        connect(piece, &InferPiece::stateChanged, this, [this] {
+            if (!m_pieceUpdateThrottle.isActive())
+                m_pieceUpdateThrottle.start();
+        });
     }
     m_pieces = pieces;
     update();

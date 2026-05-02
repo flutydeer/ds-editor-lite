@@ -6,6 +6,7 @@
 #define TIMELINEVIEW_H
 
 #include <QWidget>
+#include <QTimer>
 #include "UI/Utils/ITimelinePainter.h"
 
 class SingingClip;
@@ -78,6 +79,7 @@ private:
     int m_loopDragStartPos = 0;
     int m_loopRegionHeight = 10;
     int m_loopHandleWidth = 8;
+    QTimer m_pieceUpdateThrottle;
 };
 
 
