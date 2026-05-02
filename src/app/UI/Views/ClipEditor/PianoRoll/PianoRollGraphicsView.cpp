@@ -393,6 +393,12 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return;
 
+    if (d->m_editMode == EditPitchAnchor) {
+        if (d->m_currentHandler)
+            d->m_currentHandler->mouseDoubleClickEvent(event);
+        return;
+    }
+
     // Check if double-clicked on a note or pronunciation view
     bool handled = false;
     for (const auto item : items(event->pos())) {
@@ -426,12 +432,6 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
             drawHandler->prepareForDrawingNote(tick, keyIndex, noteLength);
             d->m_currentHandler = drawHandler;
         }
-    }
-
-    if (!handled && d->m_editMode == EditPitchAnchor) {
-        if (d->m_currentHandler)
-            d->m_currentHandler->mouseDoubleClickEvent(event);
-        return;
     }
 }
 
