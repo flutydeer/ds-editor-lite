@@ -185,8 +185,13 @@ bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {
         if (m_state.selecting) {
             m_state.selecting = false;
             if (!m_state.selectedNodes.isEmpty()) {
-                auto *curve = anchorCurveAt(m_state.selectedNodes.first()->pos());
-                enterEditingState(curve);
+                QSet<AnchorCurve *> involvedCurves;
+                for (auto *node : m_state.selectedNodes)
+                    involvedCurves.insert(findOwnerCurve(node));
+                if (involvedCurves.size() == 1)
+                    enterEditingState(*involvedCurves.begin());
+                else
+                    m_state.editing = true;
             }
             m_state.selectionRect = QRectF();
             triggerRepaint();
@@ -515,19 +520,34 @@ void EditPitchAnchorHandler::clearSelection() {
 }
 
 void EditPitchAnchorHandler::deleteSelectedNodes() {
-    if (!m_state.currentCurve || m_state.selectedNodes.isEmpty())
+    if (m_state.selectedNodes.isEmpty())
         return;
-    for (auto *node : m_state.selectedNodes)
-        m_state.currentCurve->removeNode(node);
-    clearSelection();
-    const auto &remaining = m_state.currentCurve->nodes().toList();
-    if (remaining.isEmpty()) {
-        m_localCurves.removeOne(m_state.currentCurve);
-        delete m_state.currentCurve;
-        exitEditingState();
-    } else {
-        remaining.last()->setInterpMode(AnchorNode::None);
+
+    QHash<AnchorCurve *, QList<AnchorNode *>> nodesByCurve;
+    for (auto *node : m_state.selectedNodes) {
+        auto *curve = findOwnerCurve(node);
+        if (curve)
+            nodesByCurve[curve].append(node);
     }
+    clearSelection();
+
+    for (auto it = nodesByCurve.begin(); it != nodesByCurve.end(); ++it) {
+        auto *curve = it.key();
+        for (auto *node : it.value())
+            curve->removeNode(node);
+        const auto &remaining = curve->nodes().toList();
+        if (remaining.isEmpty()) {
+            m_localCurves.removeOne(curve);
+            if (m_state.currentCurve == curve)
+                m_state.currentCurve = nullptr;
+            delete curve;
+        } else {
+            remaining.last()->setInterpMode(AnchorNode::None);
+        }
+    }
+
+    if (!m_state.currentCurve)
+        exitEditingState();
     triggerRepaint();
     commit();
 }
