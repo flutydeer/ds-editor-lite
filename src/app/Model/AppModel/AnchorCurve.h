@@ -8,6 +8,8 @@
 #include "Curve.h"
 #include "Utils/OverlappableSerialList.h"
 
+#include <opendspxinterpolator/interpolator.h>
+
 class AnchorNode : public Overlappable, public UniqueObject {
 public:
     enum InterpMode { Linear, Hermite, Cubic, None };
@@ -32,6 +34,8 @@ private:
     InterpMode m_interpMode = Hermite;
 };
 
+class DrawCurve;
+
 class AnchorCurve final : public Curve {
 public:
     AnchorCurve() = default;
@@ -40,6 +44,12 @@ public:
     CurveType type() const override {
         return Anchor;
     }
+
+    static opendspx::Interpolator<double> createInterpolator(
+        const AnchorNode *n1, const AnchorNode *n2,
+        const AnchorNode *ref1, const AnchorNode *ref2);
+
+    DrawCurve *toDrawCurve() const;
 
     const OverlappableSerialList<AnchorNode> &nodes() const;
     void insertNode(AnchorNode *node);

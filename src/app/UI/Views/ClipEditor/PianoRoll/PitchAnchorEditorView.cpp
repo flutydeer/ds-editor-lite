@@ -12,7 +12,6 @@
 #include <QPainter>
 #include <QSet>
 #include <cmath>
-#include <opendspxinterpolator/interpolator.h>
 
 PitchAnchorEditorView::PitchAnchorEditorView() {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
@@ -101,27 +100,7 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
 
     auto interpolateSegment = [&](AnchorNode *n1, AnchorNode *n2, AnchorNode *ref1,
                                   AnchorNode *ref2) {
-        const double x1 = n1->pos();
-        const double y1 = n1->value();
-        const double x2 = n2->pos();
-        const double y2 = n2->value();
-
-        auto interp = opendspx::Interpolator<double>::createLinear(x1, y1, x2, y2);
-        if (n1->interpMode() == AnchorNode::Linear) {
-        } else {
-            if (ref1 && ref2) {
-                interp = opendspx::Interpolator<double>::create(
-                    x1, y1, x2, y2, ref1->pos(), ref1->value(), ref2->pos(), ref2->value());
-            } else if (ref1) {
-                interp = opendspx::Interpolator<double>::createWithRef1Only(
-                    x1, y1, x2, y2, ref1->pos(), ref1->value());
-            } else if (ref2) {
-                interp = opendspx::Interpolator<double>::createWithRef2Only(
-                    x1, y1, x2, y2, ref2->pos(), ref2->value());
-            } else {
-                interp = opendspx::Interpolator<double>::createLinear(x1, y1, x2, y2);
-            }
-        }
+        auto interp = AnchorCurve::createInterpolator(n1, n2, ref1, ref2);
 
         QPainterPath path;
         const double startX = tickToLocalX(n1->pos());
@@ -257,24 +236,7 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
 
     auto interpolateSegment = [&](AnchorNode *n1, AnchorNode *n2, AnchorNode *ref1,
                                   AnchorNode *ref2) {
-        const double x1 = n1->pos();
-        const double y1 = n1->value();
-        const double x2 = n2->pos();
-        const double y2 = n2->value();
-
-        auto interp = opendspx::Interpolator<double>::createLinear(x1, y1, x2, y2);
-        if (n1->interpMode() != AnchorNode::Linear) {
-            if (ref1 && ref2) {
-                interp = opendspx::Interpolator<double>::create(
-                    x1, y1, x2, y2, ref1->pos(), ref1->value(), ref2->pos(), ref2->value());
-            } else if (ref1) {
-                interp = opendspx::Interpolator<double>::createWithRef1Only(
-                    x1, y1, x2, y2, ref1->pos(), ref1->value());
-            } else if (ref2) {
-                interp = opendspx::Interpolator<double>::createWithRef2Only(
-                    x1, y1, x2, y2, ref2->pos(), ref2->value());
-            }
-        }
+        auto interp = AnchorCurve::createInterpolator(n1, n2, ref1, ref2);
 
         const double startX = tickToLocalX(n1->pos());
         const double endX = tickToLocalX(n2->pos());
@@ -348,24 +310,7 @@ void PitchAnchorEditorView::drawMergePreviewCurve(QPainter *painter) const {
 
     auto interpolateSegment = [&](AnchorNode *n1, AnchorNode *n2, AnchorNode *ref1,
                                   AnchorNode *ref2) {
-        const double x1 = n1->pos();
-        const double y1 = n1->value();
-        const double x2 = n2->pos();
-        const double y2 = n2->value();
-
-        auto interp = opendspx::Interpolator<double>::createLinear(x1, y1, x2, y2);
-        if (n1->interpMode() != AnchorNode::Linear) {
-            if (ref1 && ref2) {
-                interp = opendspx::Interpolator<double>::create(
-                    x1, y1, x2, y2, ref1->pos(), ref1->value(), ref2->pos(), ref2->value());
-            } else if (ref1) {
-                interp = opendspx::Interpolator<double>::createWithRef1Only(
-                    x1, y1, x2, y2, ref1->pos(), ref1->value());
-            } else if (ref2) {
-                interp = opendspx::Interpolator<double>::createWithRef2Only(
-                    x1, y1, x2, y2, ref2->pos(), ref2->value());
-            }
-        }
+        auto interp = AnchorCurve::createInterpolator(n1, n2, ref1, ref2);
 
         const double startX = tickToLocalX(n1->pos());
         const double endX = tickToLocalX(n2->pos());
@@ -429,24 +374,7 @@ void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
 
     auto interpolateSegment = [&](AnchorNode *n1, AnchorNode *n2, AnchorNode *ref1,
                                   AnchorNode *ref2) {
-        const double x1 = n1->pos();
-        const double y1 = n1->value();
-        const double x2 = n2->pos();
-        const double y2 = n2->value();
-
-        auto interp = opendspx::Interpolator<double>::createLinear(x1, y1, x2, y2);
-        if (n1->interpMode() != AnchorNode::Linear) {
-            if (ref1 && ref2) {
-                interp = opendspx::Interpolator<double>::create(
-                    x1, y1, x2, y2, ref1->pos(), ref1->value(), ref2->pos(), ref2->value());
-            } else if (ref1) {
-                interp = opendspx::Interpolator<double>::createWithRef1Only(
-                    x1, y1, x2, y2, ref1->pos(), ref1->value());
-            } else if (ref2) {
-                interp = opendspx::Interpolator<double>::createWithRef2Only(
-                    x1, y1, x2, y2, ref2->pos(), ref2->value());
-            }
-        }
+        auto interp = AnchorCurve::createInterpolator(n1, n2, ref1, ref2);
 
         const double startX = tickToLocalX(n1->pos());
         const double endX = tickToLocalX(n2->pos());

@@ -5,6 +5,7 @@
 #include "InferControllerHelper.h"
 
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/AnchorCurve.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
@@ -21,6 +22,21 @@
 #include "Model/AppOptions/AppOptions.h"
 
 namespace InferControllerHelper {
+
+    DrawCurveList getEditedCurvesIncludingAnchor(const Param *param,
+                                                  QList<DrawCurve *> &ownedCurves) {
+        auto curves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
+        for (auto *curve : param->curves(Param::Edited)) {
+            if (curve->type() == Curve::Anchor) {
+                auto *dc = dynamic_cast<AnchorCurve *>(curve)->toDrawCurve();
+                if (dc) {
+                    curves.append(dc);
+                    ownedCurves.append(dc);
+                }
+            }
+        }
+        return curves;
+    }
     QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes) {
         QList<InferInputNote> list;
         for (const auto note : notes)
@@ -161,7 +177,8 @@ namespace InferControllerHelper {
         for (auto &piece : clip.pieces()) {
             // 重新合并参数曲线，并与之前的缓存比较
             const auto param = clip.params.getParamByName(name);
-            auto editedCurves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
+            QList<DrawCurve *> ownedCurves;
+            auto editedCurves = getEditedCurvesIncludingAnchor(param, ownedCurves);
             auto input = *piece->getInputCurve(name);
             if (ParamInfo::hasOriginalParam(name)) {
                 auto original = *piece->getOriginalCurve(name);
@@ -179,6 +196,7 @@ namespace InferControllerHelper {
                     result.append(piece);
                 }
             }
+            qDeleteAll(ownedCurves);
         }
         return result;
     }
@@ -248,11 +266,12 @@ namespace InferControllerHelper {
         original.setLocalStart(alignTick);
         original.setValues(Linq::selectMany(paramValue, L_PRED(v, static_cast<int>(v * scale))));
         piece.setOriginalCurve(name, original);
-        // 合并手绘参数
         const auto param = piece.clip->params.getParamByName(name);
-        const auto editedCurves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
+        QList<DrawCurve *> ownedCurves;
+        const auto editedCurves = getEditedCurvesIncludingAnchor(param, ownedCurves);
         const auto mergedCurve = AppModelUtils::getResultCurve(original, editedCurves);
         piece.setInputCurve(name, mergedCurve);
+        qDeleteAll(ownedCurves);
         piece.clip->updateOriginalParam(name);
     }
 
