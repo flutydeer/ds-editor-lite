@@ -9,9 +9,11 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Modules/Inference/Tasks/IInferTask.h"
 
+#include <QCoreApplication>
 #include <QTimer>
 #include <QDebug>
 #include <QFinalState>
+#include <QtConcurrent/QtConcurrent>
 
 BaseInferState::BaseInferState(InferPipeline &pipeline, QState *parent)
     : QState(parent), m_pipeline(pipeline) {
@@ -62,15 +64,27 @@ void BaseInferState::onRunningInferenceStateEntered() {
     piece.acousticInferStatus = Running;
     piece.state = QString("%1.Running").arg(getStateNamePrefix());
 
-    prepareTaskInput();
-    auto task = createTask();
-    connect(task, &IInferTask::finished, this, [this, task] { handleTaskFinished(*task); });
-    addTaskToController(task);
-    currentTask = task;
+    int epoch = ++m_preparationEpoch;
+    auto future = QtConcurrent::run([this, epoch] {
+        prepareTaskInput();
+        auto *task = createTask();
+        task->moveToThread(QCoreApplication::instance()->thread());
+        QMetaObject::invokeMethod(this, [this, task, epoch] {
+            if (m_preparationEpoch != epoch) {
+                delete task;
+                return;
+            }
+            connect(task, &IInferTask::finished, this,
+                    [this, task] { handleTaskFinished(*task); });
+            addTaskToController(task);
+            currentTask = task;
+        }, Qt::QueuedConnection);
+    });
 }
 
 void BaseInferState::onRunningInferenceStateExited() {
     qDebug() << "BaseInferState::onRunningInferenceStateExited";
+    m_preparationEpoch++;
     if (!currentTask)
         return;
 

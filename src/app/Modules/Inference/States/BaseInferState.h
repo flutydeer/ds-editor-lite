@@ -44,6 +44,7 @@ protected:
 
     InferPipeline &m_pipeline;
     IInferTask *currentTask = nullptr;
+    int m_preparationEpoch = 0;
 
     QState *m_runningInferenceState;
     QState *m_awaitingModelReleaseState;

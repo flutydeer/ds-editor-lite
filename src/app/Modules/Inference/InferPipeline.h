@@ -10,7 +10,6 @@
 #include "Models/InferParamCurve.h"
 #include "Tasks/InferVarianceTask.h"
 
-#include "Global/PlaybackGlobal.h"
 #include "Global/AppOptionsGlobal.h"
 
 #include <QObject>
@@ -57,12 +56,11 @@ public slots:
     void onPitchChanged();
     void onVarianceChanged();
 
+    void notifyPlaybackStarted();
+
 private slots:
     // Inference options changed
     void onAppOptionsChanged(const AppOptionsGlobal::Option option);
-
-    // Playback state changed
-    void onPlaybackStatusChanged(const PlaybackGlobal::PlaybackStatus status);
 
 private:
     // Params

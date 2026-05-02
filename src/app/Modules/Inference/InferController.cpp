@@ -17,6 +17,8 @@
 #include "InferPipeline.h"
 #include "Model/AppModel/AppModel.h"
 
+#include <QTimer>
+
 namespace Helper = InferControllerHelper;
 
 namespace {
@@ -167,8 +169,29 @@ void InferControllerPrivate::onInferOptionChanged(const AppOptionsGlobal::Option
 
 void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::PlaybackStatus status) {
     if (status == PlaybackGlobal::Playing) {
-        // if (!m_inferAcousticTasks.current)
-        // runNextInferAcousticTask();
+        auto awaitingPipelines = Linq::where(m_inferPipelines, [](const InferPipeline *p) {
+            return p->piece().acousticInferStatus == Pending;
+        });
+
+        std::sort(awaitingPipelines.begin(), awaitingPipelines.end(),
+                  [](const InferPipeline *a, const InferPipeline *b) {
+                      const auto pos = static_cast<int>(playbackController->position());
+                      const auto startA =
+                          pieceGlobalStartTick(a->piece().clipId(), a->piece().id());
+                      const auto startB =
+                          pieceGlobalStartTick(b->piece().clipId(), b->piece().id());
+                      const auto diffA = startA - pos;
+                      const auto diffB = startB - pos;
+                      const bool aAhead = diffA >= 0;
+                      const bool bAhead = diffB >= 0;
+                      if (aAhead != bAhead)
+                          return aAhead;
+                      if (aAhead)
+                          return diffA < diffB;
+                      return diffA > diffB;
+                  });
+
+        notifyNextPipeline(awaitingPipelines, 0);
     }
 }
 
@@ -443,4 +466,18 @@ void InferControllerPrivate::cancelPieceRelatedTasks(int pieceId) {
     m_inferPitchTasks.cancelIf(pred);
     m_inferVarianceTasks.cancelIf(pred);
     m_inferAcousticTasks.cancelIf(pred);
+}
+
+void InferControllerPrivate::notifyNextPipeline(const QList<InferPipeline *> &pipelines,
+                                                 int index) {
+    if (index >= pipelines.size())
+        return;
+
+    auto pipeline = pipelines[index];
+    if (m_inferPipelines.contains(pipeline) && pipeline->piece().acousticInferStatus == Pending)
+        pipeline->notifyPlaybackStarted();
+
+    QTimer::singleShot(0, this, [this, pipelines, index] {
+        notifyNextPipeline(pipelines, index + 1);
+    });
 }

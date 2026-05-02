@@ -64,6 +64,8 @@ public:
     void cancelClipRelatedTasks(const SingingClip *clip);
     void cancelPieceRelatedTasks(int pieceId);
 
+    void notifyNextPipeline(const QList<InferPipeline *> &pipelines, int index);
+
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 
     TaskQueue<GetPronunciationTask> m_getPronTasks;

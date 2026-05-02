@@ -15,7 +15,6 @@
 #include "States/UpdateAcousticState.h"
 #include "States/PlaybackReadyState.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "Controller/PlaybackController.h"
 #include "Utils/ConditionalTransition.h"
 
 #include <QFinalState>
@@ -26,8 +25,6 @@ InferPipeline::InferPipeline(InferPiece &piece) : QObject(&piece), m_piece(piece
     initTransitions();
 
     connect(appOptions, &AppOptions::optionsChanged, this, &InferPipeline::onAppOptionsChanged);
-    connect(playbackController, &PlaybackController::playbackStatusChanged, this,
-            &InferPipeline::onPlaybackStatusChanged);
 }
 
 InferPipeline::~InferPipeline() {
@@ -98,9 +95,8 @@ void InferPipeline::onAppOptionsChanged(const AppOptionsGlobal::Option option) {
         emit lazyInferAcousticTurnedOff();
 }
 
-void InferPipeline::onPlaybackStatusChanged(PlaybackStatus status) {
-    if (status == PlaybackStatus::Playing)
-        emit playbackStarted();
+void InferPipeline::notifyPlaybackStarted() {
+    emit playbackStarted();
 }
 
 void InferPipeline::initStates() {
