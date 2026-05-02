@@ -77,6 +77,17 @@ void PianoRollGraphicsViewHelper::editPitch(const QList<DrawCurve *> &curves) {
     QList<Curve *> list;
     for (const auto curve : curves)
         list.append(curve);
+
+    auto *clip = dynamic_cast<SingingClip *>(clipController->clip());
+    if (clip) {
+        const auto &existing =
+            clip->params.getParamByName(ParamInfo::Pitch)->curves(Param::Edited);
+        for (auto *curve : existing) {
+            if (curve->type() == Curve::Anchor)
+                list.append(new AnchorCurve(*dynamic_cast<AnchorCurve *>(curve)));
+        }
+    }
+
     clipController->onParamEdited(ParamInfo::Pitch, list);
 }
 
