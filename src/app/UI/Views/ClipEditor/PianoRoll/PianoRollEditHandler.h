@@ -23,6 +23,8 @@ public:
     virtual bool mouseMoveEvent(QMouseEvent *event) { Q_UNUSED(event); return true; }
     virtual bool mouseReleaseEvent(QMouseEvent *event) { Q_UNUSED(event); return true; }
     virtual void mouseDoubleClickEvent(QMouseEvent *event) { Q_UNUSED(event); }
+    virtual void hoverEnterEvent(QHoverEvent *event) { Q_UNUSED(event); }
+    virtual void hoverLeaveEvent(QHoverEvent *event) { Q_UNUSED(event); }
     virtual void hoverMoveEvent(QHoverEvent *event) { Q_UNUSED(event); }
     virtual void contextMenuEvent(QContextMenuEvent *event) { Q_UNUSED(event); }
     virtual bool keyPressEvent(QKeyEvent *event) { Q_UNUSED(event); return false; }

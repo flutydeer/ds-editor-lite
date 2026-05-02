@@ -53,6 +53,12 @@ bool SplitNoteHandler::mouseMoveEvent(QMouseEvent *event) {
     return true;
 }
 
+void SplitNoteHandler::hoverLeaveEvent(QHoverEvent *event) {
+    Q_UNUSED(event);
+    if (m_indicator)
+        m_indicator->clearState();
+}
+
 void SplitNoteHandler::hoverMoveEvent(QHoverEvent *event) {
     const auto scenePos = q->mapToScene(event->position().toPoint());
     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + d->m_offset);

@@ -61,13 +61,14 @@ public:
     bool mouseMoveEvent(QMouseEvent *event) override;
     bool mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
+    void hoverEnterEvent(QHoverEvent *event) override;
+    void hoverLeaveEvent(QHoverEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
     bool keyPressEvent(QKeyEvent *event) override;
 
     void commit() override;
     void discard() override;
 
-    void setCursorInView(bool inView);
     void setAlwaysVisible(bool visible);
     void loadFromModel(const QList<AnchorCurve *> &curves);
 

@@ -328,8 +328,15 @@ const AnchorOverlayState &EditPitchAnchorHandler::overlayState() const {
     return m_state;
 }
 
-void EditPitchAnchorHandler::setCursorInView(bool inView) {
-    m_state.cursorInView = inView;
+void EditPitchAnchorHandler::hoverEnterEvent(QHoverEvent *event) {
+    Q_UNUSED(event);
+    m_state.cursorInView = true;
+    triggerRepaint();
+}
+
+void EditPitchAnchorHandler::hoverLeaveEvent(QHoverEvent *event) {
+    Q_UNUSED(event);
+    m_state.cursorInView = false;
     triggerRepaint();
 }
 

@@ -15,6 +15,7 @@ public:
     void deactivate() override;
     bool mousePressEvent(QMouseEvent *event) override;
     bool mouseMoveEvent(QMouseEvent *event) override;
+    void hoverLeaveEvent(QHoverEvent *event) override;
     void hoverMoveEvent(QHoverEvent *event) override;
 
 private:
