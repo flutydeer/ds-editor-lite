@@ -50,15 +50,57 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 
 ## 待实现
 
-### 阶段 2：英语 pronunciation 解析
+### 阶段 2：基于规则 DSL 的通用 Onset Marker
+
+参考 `MakeDiffSinger/variance-temp-solution/add_ph_num_advanced.py` 中的设计，实现通用的基于规则的卡拍标记引擎。
+
+#### 核心概念
+
+**音素类型分类**：每个音素归入一种类型：
+- `vowel` — 元音
+- `consonant` — 辅音
+- `liquid` — 介音（如 r, l, w, y）
+
+分类表以外部数据加载（每种语言一份），格式为音素名→类型的映射。
+
+**卡拍规则 DSL**：规则由"模式 → 卡拍位置"组成。模式是音素类型序列，卡拍位置指出模式中第几个音素卡拍。
+
+示例规则（对应 Python 版本）：
+
+| 模式 | 卡拍位置 | 含义 |
+|------|----------|------|
+| `vowel` | `[0]` | 单元音：自己卡拍 |
+| `consonant, liquid, vowel` | `[1]` | 辅+介+元：介音卡拍 |
+| `liquid, liquid, vowel` | `[1]` | 介+介+元：第2个介音卡拍 |
+
+#### 匹配机制
+
+- **Trie 树**存储规则，支持两种匹配：精确匹配（按音素名）和通配符匹配（按音素类型）
+- 对每个单词的音素序列，从左到右**贪心最长匹配**
+- 优先级：最长匹配 > 精确匹配数量多 > 精确匹配位置靠前
+- 未匹配的音素标为非卡拍，跳过1个继续
+
+#### 实现方案
+
+新建 `Modules/Language/OnsetMarker/RuleBasedOnsetMarker`：
+
+- `PhonemeTypeMap` — 音素名→类型映射表，可从外部文件加载
+- `OnsetRuleTrie` — Trie 树，存储模式→卡拍位置规则，支持通配符
+- `RuleBasedOnsetMarker : IOnsetMarker` — 持有 TypeMap + RuleTrie，实现 `mark()` 方法
+
+`OnsetMarkerMgr` 注册时为英语提供 `RuleBasedOnsetMarker` 实例（加载英语音素分类表 + 默认规则集）。
+
+#### 可扩展性
+
+- 规则和分类表均为数据，不硬编码，将来可支持自定义卡拍规则
+- 精确匹配 + 通配符共存，允许对特定音素添加特例
+- 其他语言（日语、粤语等）可复用同一套引擎，只需提供各自的分类表和规则
+
+### 阶段 3：英语 pronunciation 解析
 
 英语 G2P 返回空格分隔的音素名字符串（不经过 S2P 字典查找）。需要在 `GetPhonemeNameTask` 中按语言决定是否走 S2P：
 - 中文：pronunciation → S2P 查字典 → 音素名列表
 - 英语：pronunciation → 按空格拆分 → 音素名列表
-
-### 阶段 3：英语 onset 规则
-
-当前英语使用 `DefaultOnsetMarker`（全部标卡拍），需要提供完整的英语 onset 规则后替换为专用的 `EnglishOnsetMarker`。
 
 ### 阶段 4："+" 分配逻辑
 
@@ -67,5 +109,6 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 ## 设计原则
 
 - onset 标记规则按语言注册，通过 `OnsetMarkerMgr` 查找
-- 新增语言只需实现 `IOnsetMarker` 并注册即可
+- 新增语言只需提供音素分类表和卡拍规则即可
+- 规则引擎通用化，支持 Trie + 通配符 + 贪心匹配，将来可自定义
 - "+" 分配逻辑是语言无关的，在 onset 标记之后统一处理
