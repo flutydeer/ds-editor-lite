@@ -40,7 +40,7 @@ void PitchAnchorEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
                                   QWidget *widget) {
     Q_UNUSED(option)
     Q_UNUSED(widget)
-    if (!m_state || !m_state->anchorEditMode)
+    if (!m_state || (!m_state->anchorVisible && !m_state->anchorEditActive))
         return;
 
     painter->setRenderHint(QPainter::Antialiasing, true);

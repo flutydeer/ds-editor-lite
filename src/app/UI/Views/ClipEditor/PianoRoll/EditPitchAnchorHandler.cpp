@@ -22,7 +22,6 @@
 #include <QSet>
 
 void EditPitchAnchorHandler::activate() {
-    m_state.anchorEditMode = true;
     m_state.anchorEditActive = true;
     d->m_anchorEditor->setOverlayState(&m_state);
     q->setMouseTracking(true);
@@ -346,7 +345,7 @@ void EditPitchAnchorHandler::hoverLeaveEvent(QHoverEvent *event) {
 }
 
 void EditPitchAnchorHandler::setAlwaysVisible(bool visible) {
-    m_state.anchorEditMode = visible;
+    m_state.anchorVisible = visible;
     triggerRepaint();
 }
 

@@ -27,7 +27,7 @@ struct DragNodeInfo {
 };
 
 struct AnchorOverlayState {
-    bool anchorEditMode = false;
+    bool anchorVisible = false;
     bool anchorEditActive = false;
     bool editing = false;
     AnchorCurve *currentCurve = nullptr;
