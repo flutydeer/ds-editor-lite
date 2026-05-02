@@ -54,6 +54,7 @@ public:
 
     PianoRollEditHandler *m_currentHandler = nullptr;
     QHash<PianoRollEditMode, PianoRollEditHandler *> m_handlers;
+    void restoreHandler();
 
     bool m_mouseDown = false;
     Qt::MouseButton m_mouseDownButton = Qt::NoButton;

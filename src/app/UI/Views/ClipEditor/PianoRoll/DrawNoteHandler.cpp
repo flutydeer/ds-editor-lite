@@ -83,7 +83,7 @@ void DrawNoteHandler::commit() {
                      m_currentDrawingNote->keyIndex());
     m_drawing = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
-    d->m_currentHandler = d->m_handlers.value(d->m_editMode, nullptr);
+    d->restoreHandler();
 }
 
 void DrawNoteHandler::discard() {
@@ -92,7 +92,7 @@ void DrawNoteHandler::discard() {
     q->scene()->removeCommonItem(m_currentDrawingNote);
     m_drawing = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
-    d->m_currentHandler = d->m_handlers.value(d->m_editMode, nullptr);
+    d->restoreHandler();
 }
 
 void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,

@@ -633,6 +633,10 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     }
 }
 
+void PianoRollGraphicsViewPrivate::restoreHandler() {
+    m_currentHandler = m_handlers.value(m_editMode, nullptr);
+}
+
 void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeType type,
                                                  const QList<Note *> &notes) {
     if (type == SingingClip::Insert)
