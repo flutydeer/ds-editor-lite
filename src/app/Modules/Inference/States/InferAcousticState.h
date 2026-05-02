@@ -16,7 +16,8 @@ public:
     ~InferAcousticState() override = default;
 
 private:
-    void prepareTaskInput() override;
+    void resetState() override;
+    void buildTaskInput() override;
     IInferTask *createTask() override;
     void addTaskToController(IInferTask *task) override;
     void cancelTaskInController(int taskId) override;

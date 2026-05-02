@@ -64,9 +64,11 @@ void BaseInferState::onRunningInferenceStateEntered() {
     piece.acousticInferStatus = Running;
     piece.state = QString("%1.Running").arg(getStateNamePrefix());
 
+    resetState();
+
     int epoch = ++m_preparationEpoch;
     auto future = QtConcurrent::run([this, epoch] {
-        prepareTaskInput();
+        buildTaskInput();
         auto *task = createTask();
         task->moveToThread(QCoreApplication::instance()->thread());
         QMetaObject::invokeMethod(this, [this, task, epoch] {

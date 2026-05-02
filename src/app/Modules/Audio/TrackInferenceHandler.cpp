@@ -11,6 +11,8 @@
 #include <TalcsDspx/DspxTrackContext.h>
 #include <TalcsCore/Decibels.h>
 #include <TalcsCore/AudioSourceClipSeries.h>
+#include <TalcsFormat/FormatManager.h>
+#include <TalcsFormat/AudioFormatInputSource.h>
 
 #include <Model/AppModel/AppModel.h>
 #include <Model/AppModel/Track.h>
@@ -133,7 +135,6 @@ void TrackInferenceHandler::handlePieceInserted(SingingClip *clip, InferPiece *i
     inferencePieceContext->setLength(inferPiece->localEndTick() - inferPiece->localStartTick());
     handleInferPieceStatusChange(inferPiece, inferPiece->acousticInferStatus);
     connect(inferPiece, &InferPiece::statusChanged, this, [inferPiece, this](auto status) {
-        DEVICE_LOCKER;
         handleInferPieceStatusChange(inferPiece, status);
     });
 }
@@ -149,19 +150,36 @@ void TrackInferenceHandler::handleInferPieceStatusChange(InferPiece *piece,
                                                          const InferStatus status) const {
     const auto inferencePieceContext = m_inferPieceModelDict.value(piece);
     switch (status) {
-        case Success:
-            inferencePieceContext->determine(piece->audioPath);
+        case Success: {
+            auto *io =
+                AudioContext::instance()->formatManager()->getFormatLoad(piece->audioPath, {});
+            std::unique_ptr<talcs::PositionableAudioSource> contentSrc;
+            if (io)
+                contentSrc = std::make_unique<talcs::AudioFormatInputSource>(io, true);
+            else
+                contentSrc = std::make_unique<talcs::AudioSourceClipSeries>();
+            auto *bufSrc =
+                AudioContext::instance()->makeBufferable(contentSrc.get(), 2);
+            {
+                DEVICE_LOCKER;
+                inferencePieceContext->determineWithSources(std::move(contentSrc), bufSrc);
+            }
             break;
-        case Failed:
+        }
+        case Failed: {
+            DEVICE_LOCKER;
             if (inferencePieceContext->isDetermined())
                 inferencePieceContext->reset();
             inferencePieceContext->determine();
             AudioContext::instance()->handleInferPieceFailed();
             break;
+        }
         case Pending:
         case Running:
-            if (inferencePieceContext->isDetermined())
+            if (inferencePieceContext->isDetermined()) {
+                DEVICE_LOCKER;
                 inferencePieceContext->reset();
+            }
     }
 }
 

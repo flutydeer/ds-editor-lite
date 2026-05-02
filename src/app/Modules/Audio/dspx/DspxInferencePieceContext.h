@@ -2,12 +2,14 @@
 #define TALCS_DSPXINFERENCEPIECECONTEXT_H
 
 #include <QObject>
+#include <memory>
 
 namespace talcs {
 
     class DspxSingingClipInferenceContext;
-
     class DspxInferencePieceContextPrivate;
+    class PositionableAudioSource;
+    class BufferingAudioSource;
 
     class DspxInferencePieceContext : public QObject {
         Q_OBJECT
@@ -27,6 +29,8 @@ namespace talcs {
         void updatePosition();
 
         bool determine(const QString &audioFilePath = {});
+        void determineWithSources(std::unique_ptr<PositionableAudioSource> contentSrc,
+                                  BufferingAudioSource *bufSrc);
         void reset();
 
         bool isDetermined() const;

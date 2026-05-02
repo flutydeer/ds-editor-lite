@@ -17,10 +17,14 @@ InferAcousticState::InferAcousticState(InferPipeline &pipeline, QState *parent)
     : BaseInferState(pipeline, parent) {
 }
 
-void InferAcousticState::prepareTaskInput() {
+void InferAcousticState::resetState() {
+    auto &piece = m_pipeline.piece();
+    Helper::resetAcoustic(piece);
+}
+
+void InferAcousticState::buildTaskInput() {
     auto &piece = m_pipeline.piece();
     m_taskInput = Helper::buildInferAcousticInput(piece, piece.clip->singerIdentifier());
-    Helper::resetAcoustic(piece);
 }
 
 IInferTask *InferAcousticState::createTask() {

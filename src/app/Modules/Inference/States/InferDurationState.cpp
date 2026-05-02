@@ -18,10 +18,14 @@ InferDurationState::InferDurationState(InferPipeline &pipeline, QState *parent)
     : BaseInferState(pipeline, parent) {
 }
 
-void InferDurationState::prepareTaskInput() {
+void InferDurationState::resetState() {
+    auto &piece = m_pipeline.piece();
+    Helper::resetPhoneOffset(piece.notes, piece);
+}
+
+void InferDurationState::buildTaskInput() {
     auto &piece = m_pipeline.piece();
     m_taskInput = Helper::buildInferDurInput(piece, piece.clip->singerIdentifier());
-    Helper::resetPhoneOffset(piece.notes, piece);
 }
 
 IInferTask *InferDurationState::createTask() {

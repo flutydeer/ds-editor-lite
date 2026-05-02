@@ -17,10 +17,14 @@ InferVarianceState::InferVarianceState(InferPipeline &pipeline, QState *parent)
     : BaseInferState(pipeline, parent) {
 }
 
-void InferVarianceState::prepareTaskInput() {
+void InferVarianceState::resetState() {
+    auto &piece = m_pipeline.piece();
+    Helper::resetVariance(piece);
+}
+
+void InferVarianceState::buildTaskInput() {
     auto &piece = m_pipeline.piece();
     m_taskInput = Helper::buildInferVarianceInput(piece, piece.clip->singerIdentifier());
-    Helper::resetVariance(piece);
 }
 
 IInferTask *InferVarianceState::createTask() {

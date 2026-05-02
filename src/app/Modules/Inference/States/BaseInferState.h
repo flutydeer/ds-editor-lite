@@ -33,7 +33,8 @@ protected:
     void onErrorStateEntered();
     void handleTaskFinished(IInferTask &task);
 
-    virtual void prepareTaskInput() = 0;
+    virtual void resetState() = 0;
+    virtual void buildTaskInput() = 0;
     virtual IInferTask *createTask() = 0;
     virtual void addTaskToController(IInferTask *task) = 0;
     virtual void cancelTaskInController(int taskId) = 0;

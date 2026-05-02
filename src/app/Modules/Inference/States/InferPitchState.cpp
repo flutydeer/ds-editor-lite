@@ -17,10 +17,14 @@ InferPitchState::InferPitchState(InferPipeline &pipeline, QState *parent)
     : BaseInferState(pipeline, parent) {
 }
 
-void InferPitchState::prepareTaskInput() {
+void InferPitchState::resetState() {
+    auto &piece = m_pipeline.piece();
+    Helper::resetPitch(piece);
+}
+
+void InferPitchState::buildTaskInput() {
     auto &piece = m_pipeline.piece();
     m_taskInput = Helper::buildInferPitchInput(piece, piece.clip->singerIdentifier());
-    Helper::resetPitch(piece);
 }
 
 IInferTask *InferPitchState::createTask() {

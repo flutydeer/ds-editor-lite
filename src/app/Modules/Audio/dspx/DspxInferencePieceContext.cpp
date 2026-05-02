@@ -81,6 +81,16 @@ namespace talcs {
         return static_cast<bool>(io);
     }
 
+    void DspxInferencePieceContext::determineWithSources(
+        std::unique_ptr<PositionableAudioSource> contentSrc, BufferingAudioSource *bufSrc) {
+        Q_D(DspxInferencePieceContext);
+        d->bufSrc.reset();
+        d->contentSrc = std::move(contentSrc);
+        d->bufSrc.reset(bufSrc);
+        d->promise.addResult(d->bufSrc.get());
+        d->promise.finish();
+    }
+
     void DspxInferencePieceContext::reset() {
         Q_D(DspxInferencePieceContext);
         QPromise<PositionableAudioSource *> promise;
