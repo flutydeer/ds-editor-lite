@@ -46,6 +46,7 @@ public:
     NoteView *m_currentEditingNote = nullptr;
     PianoRollBackground *m_gridItem = nullptr;
     QList<NoteView *> noteViews;
+    QHash<int, NoteView *> noteViewIndex;
 
     PitchEditorView *m_pitchEditor = nullptr;
     PitchAnchorEditorView *m_anchorEditor = nullptr;

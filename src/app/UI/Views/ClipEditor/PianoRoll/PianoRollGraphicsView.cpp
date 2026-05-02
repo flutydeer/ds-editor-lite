@@ -1087,7 +1087,9 @@ PronunciationView *PianoRollGraphicsViewPrivate::pronViewAt(const QPoint &pos) {
 // When erasing notes, the operation might be cancelled (e.g., pressing ESC),
 // but in some cases (e.g., pronunciation updates) we still need to find and modify their properties
 NoteView *PianoRollGraphicsViewPrivate::findNoteViewById(const int id) const {
-    return MathUtils::findItemById<NoteView *>(noteViews + noteViewsToErase, id);
+    if (auto *view = noteViewIndex.value(id, nullptr))
+        return view;
+    return MathUtils::findItemById<NoteView *>(noteViewsToErase, id);
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
@@ -1118,6 +1120,7 @@ void PianoRollGraphicsViewPrivate::addNoteViewToScene(NoteView *view) {
     q->scene()->addCommonItem(view);
     q->scene()->addCommonItem(view->pronunciationView());
     noteViews.append(view);
+    noteViewIndex.insert(view->id(), view);
 }
 
 void PianoRollGraphicsViewPrivate::removeNoteViewFromScene(NoteView *view) {
@@ -1127,6 +1130,7 @@ void PianoRollGraphicsViewPrivate::removeNoteViewFromScene(NoteView *view) {
         q->scene()->removeCommonItem(view->pronunciationView());
     }
     noteViews.removeOne(view);
+    noteViewIndex.remove(view->id());
 }
 
 void PianoRollGraphicsViewPrivate::onHoverEnter(QHoverEvent *event) {
