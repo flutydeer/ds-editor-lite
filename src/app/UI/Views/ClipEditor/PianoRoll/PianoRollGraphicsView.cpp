@@ -547,13 +547,13 @@ void PianoRollGraphicsView::commitAction() {
             d->handleNotesMoved(d->m_deltaTick, d->m_deltaKey);
         }
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeLeft) {
-        if (d->m_movedBeforeMouseUp) {
+        if (d->m_movedBeforeMouseUp && d->m_currentEditingNote) {
             d->resetSelectedNotesOffset();
             PianoRollGraphicsViewPrivate::handleNoteLeftResized(d->m_currentEditingNote->id(),
                                                                 d->m_deltaTick);
         }
     } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeRight) {
-        if (d->m_movedBeforeMouseUp) {
+        if (d->m_movedBeforeMouseUp && d->m_currentEditingNote) {
             d->resetSelectedNotesOffset();
             PianoRollGraphicsViewPrivate::handleNoteRightResized(d->m_currentEditingNote->id(),
                                                                  d->m_deltaTick);
