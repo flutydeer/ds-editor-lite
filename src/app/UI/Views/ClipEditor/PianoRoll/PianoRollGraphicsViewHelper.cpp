@@ -15,8 +15,10 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
+#include "Utils/TimelineSnapUtils.h"
 
 void PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, const int keyIndex) {
     qDebug() << "Note drawn rStart:" << rStart << "len:" << length << "key:" << keyIndex;
@@ -31,6 +33,44 @@ void PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, c
     note->setPronunciation(Pronunciation("", ""));
     clipController->onInsertNote(note);
     clipController->selectNotes(QList({note->id()}), true);
+}
+
+void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
+    const auto singingClip = dynamic_cast<SingingClip *>(clipController->clip());
+    if (!singingClip)
+        return;
+
+    const auto note = singingClip->findNoteById(noteId);
+    if (!note)
+        return;
+
+    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
+    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
+    const auto splitPos = snappedTick - singingClip->start();
+    const auto noteLocalStart = note->localStart();
+    const auto noteLocalEnd = noteLocalStart + note->length();
+
+    if (splitPos <= noteLocalStart || splitPos >= noteLocalEnd)
+        return;
+
+    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
+
+    const auto firstPartLength = splitPos - noteLocalStart;
+    const auto secondPartLength = noteLocalEnd - splitPos;
+
+    const auto newNote = new Note(singingClip);
+    newNote->setLocalStart(splitPos);
+    newNote->setLength(secondPartLength);
+    newNote->setKeyIndex(note->keyIndex());
+    newNote->setCentShift(note->centShift());
+    newNote->setLanguage(note->language());
+    newNote->setLyric("-");
+    newNote->setPronunciation(note->pronunciation());
+
+    clipController->onSplitNote(note->id(), newNote, firstPartLength);
+    clipController->selectNotes(QList({newNote->id()}), true);
+
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
 void PianoRollGraphicsViewHelper::editPitch(const QList<DrawCurve *> &curves) {

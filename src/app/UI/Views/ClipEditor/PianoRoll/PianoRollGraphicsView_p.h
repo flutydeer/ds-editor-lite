@@ -90,8 +90,6 @@ public:
     static void handleNoteLeftResized(int noteId, int deltaTick);
     static void handleNoteRightResized(int noteId, int deltaTick);
 
-    void splitNoteAtPosition(NoteView *noteView, int tick);
-
     void updateSceneSelectionState();
     void updateOverlappedState();
     void updateNoteTimeAndKey(const Note *note) const;

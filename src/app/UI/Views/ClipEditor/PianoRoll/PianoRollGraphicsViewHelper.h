@@ -21,6 +21,7 @@ class SingingClip;
 
 namespace PianoRollGraphicsViewHelper {
     void drawNote(int rStart, int length, int keyIndex);
+    void splitNote(int noteId, int tick);
     void editPitch(const QList<DrawCurve *> &curves);
     NoteView *buildNoteView(const Note &note);
     void updateNoteTimeAndKey(NoteView &noteView, const Note &note);

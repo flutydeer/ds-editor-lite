@@ -19,7 +19,6 @@ public:
     void hoverMoveEvent(QHoverEvent *event) override;
 
 private:
-    void splitNoteAtPosition(NoteView *noteView, int tick);
     void updateIndicator(NoteView *noteView, int tick);
 
     SplitLineIndicator *m_indicator = nullptr;

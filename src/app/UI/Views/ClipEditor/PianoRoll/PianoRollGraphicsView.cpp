@@ -1199,62 +1199,14 @@ void PianoRollGraphicsViewPrivate::updatePitch(const Param::Type paramType,
     }
 }
 
-void PianoRollGraphicsViewPrivate::splitNoteAtPosition(NoteView *noteView, int tick) {
-    Q_Q(PianoRollGraphicsView);
-    if (!noteView || !m_clip)
-        return;
-
-    const auto note = m_clip->findNoteById(noteView->id());
-    if (!note)
-        return;
-
-    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
-    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
-    const auto splitPos = snappedTick - m_offset;
-    const auto noteLocalStart = note->localStart();
-    const auto noteLocalEnd = noteLocalStart + note->length();
-
-    // Check if split position is valid (within note bounds and not at edges)
-    if (splitPos <= noteLocalStart || splitPos >= noteLocalEnd)
-        return;
-
-    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
-
-    // Calculate lengths
-    const auto firstPartLength = splitPos - noteLocalStart;
-    const auto secondPartLength = noteLocalEnd - splitPos;
-
-    // Create new note (the second part) - this will be a slur note
-    const auto newNote = new Note(m_clip);
-    newNote->setLocalStart(splitPos);
-    newNote->setLength(secondPartLength);
-    newNote->setKeyIndex(note->keyIndex());
-    newNote->setCentShift(note->centShift());
-    newNote->setLanguage(note->language());
-    newNote->setLyric("-"); // Set lyric to "-" for slur
-    newNote->setPronunciation(note->pronunciation());
-
-    // Use unified split action
-    clipController->onSplitNote(note->id(), newNote, firstPartLength);
-    clipController->selectNotes(QList({newNote->id()}), true);
-
-    // Reset edit object state to allow undo/redo
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
-}
-
 void PianoRollGraphicsViewPrivate::splitNoteAtMousePosition(NoteView *noteView,
                                                             const QPoint &mousePos) {
     Q_Q(PianoRollGraphicsView);
-    if (!noteView || !m_clip)
+    if (!noteView)
         return;
 
-    const auto note = m_clip->findNoteById(noteView->id());
-    if (!note)
-        return;
-
-    // Convert mouse position to tick
     const auto scenePos = q->mapToScene(mousePos);
     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + m_offset);
 
-    splitNoteAtPosition(noteView, tick);
+    Helper::splitNote(noteView->id(), tick);
 }

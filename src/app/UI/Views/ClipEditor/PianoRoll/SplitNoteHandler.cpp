@@ -3,16 +3,16 @@
 #include "NoteView.h"
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
+#include "PianoRollGraphicsViewHelper.h"
 #include "SplitLineIndicator.h"
-#include "Controller/ClipController.h"
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/TimeGraphicsScene.h"
 #include "Utils/TimelineSnapUtils.h"
 
 #include <QMouseEvent>
+
+namespace Helper = PianoRollGraphicsViewHelper;
 
 SplitNoteHandler::SplitNoteHandler() = default;
 
@@ -40,8 +40,11 @@ bool SplitNoteHandler::mousePressEvent(QMouseEvent *event) {
     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + d->m_offset);
     const auto noteView = d->noteViewAt(event->position().toPoint());
 
-    if (noteView)
-        splitNoteAtPosition(noteView, tick);
+    if (noteView) {
+        Helper::splitNote(noteView->id(), tick);
+        if (m_indicator)
+            m_indicator->clearState();
+    }
     return true;
 }
 
@@ -73,44 +76,4 @@ void SplitNoteHandler::updateIndicator(NoteView *noteView, int tick) {
     const auto splitPos = snappedTick - d->m_offset;
     m_indicator->updateIndicator(noteView, splitPos);
     m_indicator->setLastTick(tick);
-}
-
-void SplitNoteHandler::splitNoteAtPosition(NoteView *noteView, int tick) {
-    if (!noteView || !d->m_clip)
-        return;
-
-    const auto note = d->m_clip->findNoteById(noteView->id());
-    if (!note)
-        return;
-
-    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
-    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
-    const auto splitPos = snappedTick - d->m_offset;
-    const auto noteLocalStart = note->localStart();
-    const auto noteLocalEnd = noteLocalStart + note->length();
-
-    if (splitPos <= noteLocalStart || splitPos >= noteLocalEnd)
-        return;
-
-    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
-
-    const auto firstPartLength = splitPos - noteLocalStart;
-    const auto secondPartLength = noteLocalEnd - splitPos;
-
-    const auto newNote = new Note(d->m_clip);
-    newNote->setLocalStart(splitPos);
-    newNote->setLength(secondPartLength);
-    newNote->setKeyIndex(note->keyIndex());
-    newNote->setCentShift(note->centShift());
-    newNote->setLanguage(note->language());
-    newNote->setLyric("-");
-    newNote->setPronunciation(note->pronunciation());
-
-    clipController->onSplitNote(note->id(), newNote, firstPartLength);
-    clipController->selectNotes(QList({newNote->id()}), true);
-
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
-
-    if (m_indicator)
-        m_indicator->clearState();
 }
