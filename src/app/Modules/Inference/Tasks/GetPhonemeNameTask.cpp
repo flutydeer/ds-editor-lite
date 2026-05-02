@@ -5,6 +5,7 @@
 #include "GetPhonemeNameTask.h"
 
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Language/OnsetMarker/OnsetMarkerMgr.h"
 #include "Modules/Language/S2pMgr.h"
 
 #include <QDebug>
@@ -80,30 +81,9 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
                     m_clipSingerInfo.identifier(), m_clipSingerInfo.g2pId(input.language),
                     input.pronunciation);
                 !phonemes.empty()) {
-                if (phonemes.size() == 1) {
-                    PhonemeName phoneme;
-                    phoneme.name = phonemes.at(0);
-                    phoneme.language = input.language;
-                    phoneme.isOnset = true;
-                    result.phonemeNames.append(phoneme);
-                    result.success = true;
-                } else if (phonemes.size() == 2) {
-                    // TODO 为英语优化，g2p输出带有卡拍信息的音素
-                    PhonemeName firstPhoneme;
-                    firstPhoneme.name = phonemes.at(0);
-                    firstPhoneme.language = input.language;
-                    firstPhoneme.isOnset = false;
-                    result.phonemeNames.append(firstPhoneme);
-
-                    PhonemeName secondPhoneme;
-                    secondPhoneme.name = phonemes.at(1);
-                    secondPhoneme.language = input.language;
-                    secondPhoneme.isOnset = true;
-                    result.phonemeNames.append(secondPhoneme);
-                    result.success = true;
-                } else {
-                    qCritical() << "Cannot handle more than 2 phonemes" << phonemes;
-                }
+                const auto onsetMarker = OnsetMarkerMgr::instance()->marker(input.language);
+                result.phonemeNames = onsetMarker->mark(phonemes, input.language);
+                result.success = true;
             } else if (input.pronunciation == "-") {
                 result.success = true;
             } else {
