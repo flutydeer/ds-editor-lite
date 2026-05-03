@@ -15,6 +15,8 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
     QList<InferNote> noteBuffer;
     QList<InferPhoneme> phoneBuffer;
     auto commit = [&] {
+        if (phoneBuffer.isEmpty())
+            return;
         phoneBuffer[0].is_onset = true;
         result.append({phoneBuffer, noteBuffer});
         noteBuffer.clear();
