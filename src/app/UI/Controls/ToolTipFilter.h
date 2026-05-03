@@ -8,7 +8,6 @@
 #include <QTimer>
 
 class ToolTip;
-class QPropertyAnimation;
 
 class ToolTipFilter : public QObject {
 
@@ -38,13 +37,8 @@ protected:
     QWidget *m_parent;
     int m_showDelay;
     bool m_followCursor;
-    bool m_animation;
     bool mouseInParent = false;
 
-    // Animation
-    QPropertyAnimation *m_opacityAnimation;
-
-    void adjustToolTipPos() const;
     void showToolTip() const;
     void hideToolTip() const;
 

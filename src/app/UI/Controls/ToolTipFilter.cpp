@@ -3,14 +3,11 @@
 //
 
 #include <QApplication>
-#include <QPropertyAnimation>
+#include <QAbstractButton>
 #include <QEvent>
-#include <QScreen>
 
 #include "ToolTip.h"
 #include "ToolTipFilter.h"
-
-#include <QPushButton>
 
 ToolTipFilter::ToolTipFilter(QWidget *parent, const int showDelay, const bool followCursor,
                              const bool animation)
@@ -19,29 +16,20 @@ ToolTipFilter::ToolTipFilter(QWidget *parent, const int showDelay, const bool fo
     parent->setAttribute(Qt::WA_Hover, true);
     m_showDelay = showDelay;
     m_followCursor = followCursor;
-    m_animation = animation;
 
     m_tooltip = new ToolTip(m_parent->toolTip(), parent);
+    m_tooltip->setAnimationEnabled(animation);
     if (const auto button = dynamic_cast<QAbstractButton *>(parent)) {
         const auto shortcut = button->shortcut();
         if (!shortcut.isEmpty())
             m_tooltip->setShortcutKey(shortcut.toString());
     }
 
-    m_opacityAnimation = new QPropertyAnimation(m_tooltip, "windowOpacity");
-    m_opacityAnimation->setDuration(150);
-
     m_timer.setInterval(m_showDelay);
     m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, [&] {
         if (mouseInParent) {
-            adjustToolTipPos();
             showToolTip();
-        }
-    });
-    connect(m_opacityAnimation, &QPropertyAnimation::finished, this, [this] {
-        if (m_tooltip && m_tooltip->windowOpacity() == 0) {
-            m_tooltip->hide();
         }
     });
 }
@@ -49,7 +37,7 @@ ToolTipFilter::ToolTipFilter(QWidget *parent, const int showDelay, const bool fo
 bool ToolTipFilter::eventFilter(QObject *object, QEvent *event) {
     const auto type = event->type();
     if (type == QEvent::ToolTip)
-        return true; // discard the original QToolTip event
+        return true;
     if (type == QEvent::Hide || type == QEvent::Leave) {
         hideToolTip();
         mouseInParent = false;
@@ -60,7 +48,7 @@ bool ToolTipFilter::eventFilter(QObject *object, QEvent *event) {
         hideToolTip();
     } else if (type == QEvent::HoverMove) {
         if (m_followCursor)
-            adjustToolTipPos();
+            m_tooltip->moveTo(QCursor::pos());
     }
 
     return QObject::eventFilter(object, event);
@@ -68,70 +56,15 @@ bool ToolTipFilter::eventFilter(QObject *object, QEvent *event) {
 
 ToolTipFilter::~ToolTipFilter() {
     delete m_tooltip;
-    delete m_opacityAnimation;
-}
-
-void ToolTipFilter::adjustToolTipPos() const {
-    if (m_tooltip == nullptr)
-        return;
-
-    auto getPos = [&] {
-        const auto cursorPos = QCursor::pos();
-        const auto screen = QApplication::screenAt(cursorPos);
-        const auto screenRect = screen->availableGeometry();
-        const auto toolTipRect = m_tooltip->rect();
-        const auto left = screenRect.left();
-        const auto top = screenRect.top();
-        const auto width = screenRect.width() - toolTipRect.width();
-        const auto height = screenRect.height() - toolTipRect.height();
-        const auto availableRect = QRect(left, top, width, height);
-
-        auto x = cursorPos.x();
-        auto y = cursorPos.y();
-        //        if (!availableRect.contains(cursorPos)) {
-        //            qDebug() << "Out of available area";
-        //        }
-
-        if (x < availableRect.left())
-            x = availableRect.left();
-        else if (x > availableRect.right())
-            x = availableRect.right();
-
-        if (y < availableRect.top())
-            y = availableRect.top();
-        else if (y > availableRect.bottom())
-            y = availableRect.bottom();
-
-        return QPoint(x, y);
-    };
-
-    m_tooltip->move(getPos());
 }
 
 void ToolTipFilter::showToolTip() const {
-    if (m_animation) {
-        m_opacityAnimation->stop();
-        m_opacityAnimation->setStartValue(m_tooltip->windowOpacity());
-        m_opacityAnimation->setEndValue(1);
-        m_opacityAnimation->start();
-    } else {
-        m_tooltip->setWindowOpacity(1);
-    }
-
     m_tooltip->setTitle(m_parent->toolTip());
-    m_tooltip->show();
+    m_tooltip->showAt(QCursor::pos());
 }
 
 void ToolTipFilter::hideToolTip() const {
-    if (m_animation) {
-        m_opacityAnimation->stop();
-        m_opacityAnimation->setStartValue(m_tooltip->windowOpacity());
-        m_opacityAnimation->setEndValue(0);
-        m_opacityAnimation->start();
-    } else {
-        m_tooltip->setWindowOpacity(0);
-        m_tooltip->hide();
-    }
+    m_tooltip->hideWithAnimation();
 }
 
 int ToolTipFilter::showDelay() const {
@@ -152,11 +85,11 @@ void ToolTipFilter::setFollowCursor(const bool on) {
 }
 
 bool ToolTipFilter::animation() const {
-    return m_animation;
+    return m_tooltip->animationEnabled();
 }
 
 void ToolTipFilter::setAnimation(const bool on) {
-    m_animation = on;
+    m_tooltip->setAnimationEnabled(on);
 }
 
 QString ToolTipFilter::title() const {

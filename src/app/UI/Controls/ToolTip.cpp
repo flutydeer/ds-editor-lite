@@ -2,7 +2,10 @@
 // Created by fluty on 2023/8/30.
 //
 
+#include <QApplication>
 #include <QGraphicsDropShadowEffect>
+#include <QPropertyAnimation>
+#include <QScreen>
 #include <QVBoxLayout>
 #include <QLabel>
 
@@ -21,7 +24,6 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     const auto titleShortcutLayout = new QHBoxLayout;
     titleShortcutLayout->addWidget(m_lbTitle);
     titleShortcutLayout->addWidget(m_lbShortcutKey);
-    // titleShortcutLayout->addStretch();
     titleShortcutLayout->setContentsMargins({});
 
     m_messageLayout = new QVBoxLayout;
@@ -31,7 +33,6 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     m_cardLayout = new QVBoxLayout;
     m_cardLayout->addLayout(titleShortcutLayout);
     m_cardLayout->addLayout(m_messageLayout);
-    //    cardLayout->addWidget(m_teMessage);
     m_cardLayout->setContentsMargins({});
 
     const auto container = new QFrame;
@@ -61,10 +62,17 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     setWindowOpacity(0);
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
+
+    m_opacityAnimation = new QPropertyAnimation(this, "windowOpacity");
+    m_opacityAnimation->setDuration(150);
+    connect(m_opacityAnimation, &QPropertyAnimation::finished, this, [this] {
+        if (windowOpacity() == 0)
+            hide();
+    });
 }
 
 ToolTip::~ToolTip() {
-    delete m_lbTitle;
+    delete m_opacityAnimation;
 }
 
 QString ToolTip::title() const {
@@ -104,6 +112,74 @@ void ToolTip::appendMessage(const QString &text) {
 void ToolTip::clearMessage() {
     m_message.clear();
     updateMessage();
+}
+
+void ToolTip::setAnimationEnabled(bool on) {
+    m_animationEnabled = on;
+}
+
+bool ToolTip::animationEnabled() const {
+    return m_animationEnabled;
+}
+
+QPoint ToolTip::clampToScreen(const QPoint &screenPos) const {
+    const auto screen = QApplication::screenAt(screenPos);
+    if (!screen)
+        return screenPos;
+
+    const auto screenRect = screen->availableGeometry();
+    const auto toolTipRect = rect();
+    const auto left = screenRect.left();
+    const auto top = screenRect.top();
+    const auto width = screenRect.width() - toolTipRect.width();
+    const auto height = screenRect.height() - toolTipRect.height();
+    const auto availableRect = QRect(left, top, width, height);
+
+    auto x = screenPos.x();
+    auto y = screenPos.y();
+
+    if (x < availableRect.left())
+        x = availableRect.left();
+    else if (x > availableRect.right())
+        x = availableRect.right();
+
+    if (y < availableRect.top())
+        y = availableRect.top();
+    else if (y > availableRect.bottom())
+        y = availableRect.bottom();
+
+    return QPoint(x, y);
+}
+
+void ToolTip::showAt(const QPoint &screenPos) {
+    move(clampToScreen(screenPos));
+
+    if (m_animationEnabled) {
+        m_opacityAnimation->stop();
+        m_opacityAnimation->setStartValue(windowOpacity());
+        m_opacityAnimation->setEndValue(1);
+        m_opacityAnimation->start();
+    } else {
+        setWindowOpacity(1);
+    }
+
+    show();
+}
+
+void ToolTip::moveTo(const QPoint &screenPos) {
+    move(clampToScreen(screenPos));
+}
+
+void ToolTip::hideWithAnimation() {
+    if (m_animationEnabled) {
+        m_opacityAnimation->stop();
+        m_opacityAnimation->setStartValue(windowOpacity());
+        m_opacityAnimation->setEndValue(0);
+        m_opacityAnimation->start();
+    } else {
+        setWindowOpacity(0);
+        hide();
+    }
 }
 
 void ToolTip::updateMessage() {
