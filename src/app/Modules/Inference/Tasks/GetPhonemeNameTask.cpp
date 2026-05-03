@@ -161,15 +161,26 @@ void GetPhonemeNameTask::distributePhonemes() {
         const auto &lyric = m_inputs[i].lyric;
         const auto &pron = m_inputs[i].pronunciation;
 
-        if (lyric == "SP" || lyric == "AP" || pron == "-" || isPlusNote(lyric)) {
+        if (lyric == "SP" || lyric == "AP" || pron == "-") {
             i++;
             continue;
         }
 
-        // Find trailing "+" and "-" notes
+        // Orphan "+" note: clear any residual phonemes
+        if (isPlusNote(lyric)) {
+            result[i].phonemeNames.clear();
+            i++;
+            continue;
+        }
+
+        // Find trailing "+" and "-" notes (must be contiguous in time)
         QList<int> plusIndices;
         int j = i + 1;
         while (j < count) {
+            const auto prevEnd =
+                notesRef[j - 1]->globalStart() + notesRef[j - 1]->length();
+            if (notesRef[j]->globalStart() != prevEnd)
+                break;
             const auto &nextLyric = m_inputs[j].lyric;
             const auto &nextPron = m_inputs[j].pronunciation;
             if (isPlusNote(nextLyric)) {

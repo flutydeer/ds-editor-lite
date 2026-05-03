@@ -26,6 +26,11 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
         return lyric == "AP" || lyric == "SP";
     };
 
+    auto isPlusNote = [](const Note &note) {
+        const auto &lyric = note.lyric();
+        return !lyric.isEmpty() && lyric.count('+') == lyric.length();
+    };
+
     // Calculate minimum available header length based on note, two cases:
     //
     // 1. Non-rest note (AP/SP), needs SP note padding
@@ -131,17 +136,16 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
             // Check if the complete phrase (buffer) has any note missing phoneme name info
             // or if the first note of the phrase is a slur
             bool hasMissingPhonemeInfo = false;
-            bool firstNoteIsSlur = false;
+            bool firstNoteIsInvalid = false;
 
-            // Check if first note is slur
             if (!buffer.isEmpty()) {
                 const auto firstNote = buffer.first();
-                firstNoteIsSlur = firstNote->isSlur();
+                firstNoteIsInvalid = firstNote->isSlur() || isPlusNote(*firstNote);
             }
 
             // Check for missing phoneme info
             for (const auto &note : buffer) {
-                auto isCommonNote = !isRestNote(*note) && !note->isSlur();
+                auto isCommonNote = !isRestNote(*note) && !note->isSlur() && !isPlusNote(*note);
                 if (isCommonNote && note->phonemes().nameSeq.result().isEmpty()) {
                     hasMissingPhonemeInfo = true;
                     break;
@@ -149,9 +153,8 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
             }
 
             // Skip the segment if the complete phrase has missing phoneme info
-            // or if the first note is a slur
-            // TODO: Mark as error segment?
-            if (hasMissingPhonemeInfo || firstNoteIsSlur) {
+            // or if the first note is a slur or orphan +
+            if (hasMissingPhonemeInfo || firstNoteIsInvalid) {
                 buffer.clear();
                 continue;
             }
