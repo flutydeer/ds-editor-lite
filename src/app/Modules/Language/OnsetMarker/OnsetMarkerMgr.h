@@ -21,6 +21,8 @@ public:
     const IOnsetMarker *marker(const QString &language) const;
 
 private:
+    void loadPhonemeConfigs();
+
     QHash<QString, IOnsetMarker *> m_markers;
     DefaultOnsetMarker m_default;
 };

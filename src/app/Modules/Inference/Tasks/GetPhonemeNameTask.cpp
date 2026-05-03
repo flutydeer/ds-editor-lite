@@ -77,10 +77,16 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
             result.phonemeNames.append(restPhoneme);
             result.success = true;
         } else {
-            if (const auto phonemes = s2pMgr->syllableToPhoneme(
+            QStringList phonemes;
+            if (input.language == "eng") {
+                phonemes = input.pronunciation.split(' ', Qt::SkipEmptyParts);
+            } else {
+                phonemes = s2pMgr->syllableToPhoneme(
                     m_clipSingerInfo.identifier(), m_clipSingerInfo.g2pId(input.language),
                     input.pronunciation);
-                !phonemes.empty()) {
+            }
+
+            if (!phonemes.empty()) {
                 const auto onsetMarker = OnsetMarkerMgr::instance()->marker(input.language);
                 result.phonemeNames = onsetMarker->mark(phonemes, input.language);
                 result.success = true;
