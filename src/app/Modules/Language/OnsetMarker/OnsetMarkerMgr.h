@@ -17,6 +17,7 @@ public:
     Q_DISABLE_COPY_MOVE(OnsetMarkerMgr)
 
     void registerMarker(const QString &language, IOnsetMarker *marker);
+    bool loadRuleBasedMarker(const QString &language, const QString &configPath);
     const IOnsetMarker *marker(const QString &language) const;
 
 private:
