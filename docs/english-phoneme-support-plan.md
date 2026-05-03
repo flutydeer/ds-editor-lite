@@ -67,13 +67,17 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 **改动**：
 - `OnsetMarkerMgr.h/.cpp` — 新增 `loadRuleBasedMarker(language, configPath)`
 
+### 阶段 3：英语 pronunciation 解析（6eb53e11）
+
+英语 G2P 返回空格分隔的音素名字符串，跳过 S2P 字典查找。
+
+**改动**：
+- `GetPhonemeNameTask.cpp` — 英语（`"eng"`）按空格 split 获取音素列表，其他语言仍走 S2P
+- `OnsetMarkerMgr.h/.cpp` — 构造时自动扫描 `Resources/phoneme/` 目录加载配置
+
+**已知问题**：英文歌词后追加音符时崩溃，待排查。
+
 ## 待实现
-
-### 阶段 3：英语 pronunciation 解析
-
-英语 G2P 返回空格分隔的音素名字符串（不经过 S2P 字典查找）。需要在 `GetPhonemeNameTask` 中按语言决定是否走 S2P：
-- 中文：pronunciation → S2P 查字典 → 音素名列表
-- 英语：pronunciation → 按空格拆分 → 音素名列表
 
 ### 阶段 4："+" 分配逻辑
 
@@ -85,3 +89,9 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 - 新增语言只需提供音素分类表和卡拍规则即可
 - 规则引擎通用化，支持 Trie + 通配符 + 贪心匹配，将来可自定义
 - "+" 分配逻辑是语言无关的，在 onset 标记之后统一处理
+
+## 临时方案（待将来改进）
+
+- 语言分支目前硬编码 `"eng"` 特判跳过 S2P，将来需要通用机制（如检查 S2P 字典是否存在，或在语言配置中标记）
+- phoneme 配置目前在 `OnsetMarkerMgr` 构造时同步加载，将来需改为异步以缩短应用启动时间
+- 英语音符的 pronunciation view 显示的是音素序列，对用户无参考价值，将来应在 UI 层隐藏
