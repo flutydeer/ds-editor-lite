@@ -93,15 +93,22 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 - `InferControllerHelper.cpp` — `updatePhoneName` 中 names 数量变化时清空 offsets
 - `PhonemeView.cpp` — 防御性边界检查：offsets 索引不超过 offsets 长度
 
-## 待改进
+## 设计原则
 
 - onset 标记规则按语言注册，通过 `OnsetMarkerMgr` 查找
 - 新增语言只需提供音素分类表和卡拍规则即可
 - 规则引擎通用化，支持 Trie + 通配符 + 贪心匹配，将来可自定义
 - "+" 分配逻辑是语言无关的，在 onset 标记之后统一处理
 
-## 临时方案（待将来改进）
+## 待做
+
+### 编辑器英语适配
+
+- 按语言提供默认歌词和默认发音（如有），新建音符时使用对应语言的默认值
+- 英语音符的 pronunciation view 隐藏（音素序列对用户无参考价值，已在音符下方 phoneme view 展示）
+- `+` 音素组溢出时，UI 上应有可视化的错误提示
+
+### 架构改进
 
 - 语言分支目前硬编码 `"eng"` 特判跳过 S2P，将来需要通用机制（如检查 S2P 字典是否存在，或在语言配置中标记）
 - phoneme 配置目前在 `OnsetMarkerMgr` 构造时同步加载，将来需改为异步以缩短应用启动时间
-- 英语音符的 pronunciation view 显示的是音素序列，对用户无参考价值，将来应在 UI 层隐藏
