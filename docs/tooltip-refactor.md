@@ -136,34 +136,19 @@ void ToolTipFilter::hideToolTip() const {
 
 原因：`ToolTip` 是顶层窗口（`Qt::ToolTip` flag），QLabel 文本变化后 layout 会重新计算 sizeHint，但顶层窗口不会自动 resize 到新的 sizeHint。
 
-### 修复方案
+### 已尝试的方案
 
-在 `ToolTip` 内容变更后调用 `adjustSize()` 强制窗口尺寸跟随 layout 的 sizeHint 更新。
+1. **`adjustSize()`**：只能放大不能缩小，顶层窗口的最小尺寸约束阻止了缩小。
+2. **`setMinimumSize(QSize()) + layout invalidate/activate + resize(sizeHint())`**：`QSize()` 产生 (-1,-1) 导致 `QWidget::setMinimumSize: Negative sizes` 警告，且仍不能可靠缩小。
 
-需要在以下方法末尾添加 `adjustSize()` 调用：
-- `setTitle()` —— title 文本变长/变短时
-- `setShortcutKey()` —— 快捷键文本变化时
-- `updateMessage()` —— message 列表增减时（`setMessage`、`appendMessage`、`clearMessage` 最终都走这里）
+### 下一步方案：隐藏后销毁，显示前重建
 
-```cpp
-void ToolTip::setTitle(const QString &text) {
-    m_title = text;
-    m_lbTitle->setText(m_title);
-    adjustSize();  // 新增
-}
+修改 `ToolTipFilter`，在 `hideToolTip` 动画结束后销毁 `ToolTip` 实例，在 `showToolTip` 时重新创建。这样每次显示的 ToolTip 都是全新实例，不存在尺寸残留问题。
 
-void ToolTip::setShortcutKey(const QString &text) {
-    m_lbShortcutKey->setVisible(true);
-    m_shortcutKey = text;
-    m_lbShortcutKey->setText(m_shortcutKey);
-    adjustSize();  // 新增
-}
-
-void ToolTip::updateMessage() {
-    // ... 现有的清理+创建 QLabel 逻辑 ...
-    adjustSize();  // 新增，放在方法末尾
-}
-```
+**实现思路：**
+- `ToolTipFilter` 不再持有 `m_tooltip` 成员，改为在 `showToolTip` 中临时创建
+- `hideWithAnimation` 的 `finished` 信号中 deleteLater 销毁自身
+- 或者 `m_tooltip` 仍保留，但 `hideToolTip` 完成后 delete + 置 nullptr，`showToolTip` 时检查是否为 nullptr 再创建
 
 ### 验证
 
