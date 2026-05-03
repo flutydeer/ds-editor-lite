@@ -213,6 +213,10 @@ struct SpeakerMixKeyframe {
 - [x] 确定拖拽策略：分割点直接拖 / Alt 等比拖
 - [x] 确定数据来源：第一阶段硬编码 3 条 speaker，颜色从 TrackColorPalette 取
 - [x] 确定详细操作逻辑（添加/删除/选中/拖拽/插值/边界/导航）
-- [ ] 实现 `SpeakerMixEditorView`
-- [ ] 修改 `ParamEditorGraphicsView` 集成 speaker mix
-- [ ] 修改工具栏支持 speaker mix 选项
+- [x] 实现 `SpeakerMixEditorView`（数据模型 + 堆叠面积图渲染 + 关键帧竖线/圆点）
+- [x] 修改 `ParamEditorGraphicsView` 集成 speaker mix（m_speakerMixView，前景切换）
+- [x] 修改 `ParamEditorToolBarView` 添加 Speaker Mix 选项
+- [x] 修改 `ParamEditorInfoArea` 添加 clearParamProperties()
+- [x] 修改 `ParamEditorView` 处理 speaker mix 模式下的 info area
+- [ ] 实现交互逻辑（添加/删除/选中/拖拽关键帧）
+- [ ] 实现 `SpeakerMixToolBarView`（关键帧导航 + speaker 列表）
