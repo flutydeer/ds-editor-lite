@@ -57,6 +57,7 @@ void GetPhonemeNameTask::processNotes() {
     newStatus.message = "正在处理: " + m_previewText;
     setStatus(newStatus);
     result = getPhonemeNames();
+    distributePhonemes();
 }
 
 QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
@@ -107,6 +108,15 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
 }
 
 // Syllabification
+bool GetPhonemeNameTask::isPlusNote(const QString &lyric) {
+    if (lyric.isEmpty())
+        return false;
+    for (const auto &ch : lyric) {
+        if (ch != '+')
+            return false;
+    }
+    return true;
+}
 std::pair<bool, int> GetPhonemeNameTask::checkTrailingPlus(const QString &lyric) {
     if (!lyric.endsWith('+')) {
         return {false, 0};
@@ -142,4 +152,83 @@ const QList<GetPhonemeNameTask::Syllable>
     }
 
     return syllables;
+}
+
+void GetPhonemeNameTask::distributePhonemes() {
+    const int count = m_inputs.size();
+    int i = 0;
+    while (i < count) {
+        const auto &lyric = m_inputs[i].lyric;
+        const auto &pron = m_inputs[i].pronunciation;
+
+        if (lyric == "SP" || lyric == "AP" || pron == "-" || isPlusNote(lyric)) {
+            i++;
+            continue;
+        }
+
+        // Find trailing "+" and "-" notes
+        QList<int> plusIndices;
+        int j = i + 1;
+        while (j < count) {
+            const auto &nextLyric = m_inputs[j].lyric;
+            const auto &nextPron = m_inputs[j].pronunciation;
+            if (isPlusNote(nextLyric)) {
+                plusIndices.append(j);
+                j++;
+            } else if (nextPron == "-") {
+                j++;
+            } else {
+                break;
+            }
+        }
+
+        auto [hasWordPlus, wordExtraCount] = checkTrailingPlus(lyric);
+        if (plusIndices.isEmpty() && !hasWordPlus) {
+            i = j;
+            continue;
+        }
+
+        auto syllables = splitSyllables(result[i].phonemeNames);
+        if (syllables.isEmpty()) {
+            i = j;
+            continue;
+        }
+
+        int groupIdx = 0;
+
+        // Word note: default 1 group, trailing '+' adds more
+        int wordGroupCount = 1 + (hasWordPlus ? wordExtraCount : 0);
+        {
+            QList<PhonemeName> merged;
+            for (int c = 0; c < wordGroupCount && groupIdx < syllables.size(); c++, groupIdx++)
+                merged.append(syllables[groupIdx].phonemes);
+            result[i].phonemeNames = merged;
+        }
+
+        // Distribute to "+" notes
+        for (int pi = 0; pi < plusIndices.size(); pi++) {
+            int idx = plusIndices[pi];
+            int plusCount = m_inputs[idx].lyric.length();
+            bool isLast = (pi == plusIndices.size() - 1);
+
+            if (isLast) {
+                // Last "+" greedily takes all remaining groups
+                QList<PhonemeName> merged;
+                for (int g = groupIdx; g < syllables.size(); g++)
+                    merged.append(syllables[g].phonemes);
+                result[idx].phonemeNames = merged;
+                result[idx].success = !merged.isEmpty();
+                groupIdx = syllables.size();
+            } else {
+                // Non-last "+" takes `plusCount` groups
+                QList<PhonemeName> merged;
+                for (int c = 0; c < plusCount && groupIdx < syllables.size(); c++, groupIdx++)
+                    merged.append(syllables[groupIdx].phonemes);
+                result[idx].phonemeNames = merged;
+                result[idx].success = !merged.isEmpty();
+            }
+        }
+
+        i = j;
+    }
 }

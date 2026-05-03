@@ -226,6 +226,8 @@ namespace InferControllerHelper {
         int i = 0;
         // Update regardless of whether phoneme names are successfully retrieved
         for (const auto note : notes) {
+            if (note->phonemeNameSeq().result().count() != args[i].phonemeNames.count())
+                note->setPhonemeOffsetSeq(Note::Original, {});
             note->setPhonemeNameSeq(Note::Original, args[i].phonemeNames);
             i++;
         }

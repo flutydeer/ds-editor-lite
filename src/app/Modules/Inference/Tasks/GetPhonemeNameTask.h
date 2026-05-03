@@ -33,6 +33,8 @@ private:
     void runTask() override;
     void processNotes();
     QList<PhonemeNameResult> getPhonemeNames();
+    void distributePhonemes();
+    static bool isPlusNote(const QString &lyric);
     std::pair<bool, int> checkTrailingPlus(const QString &lyric);
     const QList<Syllable> splitSyllables(const QList<PhonemeName> &phonemes);
 

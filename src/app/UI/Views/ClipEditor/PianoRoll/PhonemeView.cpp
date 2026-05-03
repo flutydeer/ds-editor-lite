@@ -545,7 +545,7 @@ void PhonemeView::buildPhonemeList() {
                 model->language = names.result().at(k).language;
                 model->name = names.result().at(k).name;
                 model->isOnset = names.result().at(k).isOnset;
-                if (!offsets.result().isEmpty()) {
+                if (!offsets.result().isEmpty() && k < offsets.result().count()) {
                     model->offsetReady = true;
                     const auto phoneStartMs = noteStartMs + offsets.result().at(k);
                     const auto phoneStartTick = qRound(appModel->msToTick(phoneStartMs));

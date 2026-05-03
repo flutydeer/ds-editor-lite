@@ -55,21 +55,26 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
     const auto singerInfo = singingClip->singerInfo();
     const auto langMgr = LangCore::Manager::instance();
 
-    auto isRestNote = [](const Note *note) {
+    auto isSkippedNote = [](const Note *note) {
         const auto lyric = note->lyric().trimmed();
-        return lyric == "SP" || lyric == "AP";
+        if (lyric == "SP" || lyric == "AP" || lyric == "-")
+            return true;
+        return lyric.count('+') == lyric.length();
     };
 
     std::vector<LangCore::G2pInput *> g2pInput;
     QList<int> nonRestIndices;
     for (int i = 0; i < notes.count(); i++) {
         const auto &note = notes.at(i);
-        if (isRestNote(note)) {
+        if (isSkippedNote(note)) {
             continue;
         }
         nonRestIndices.append(i);
+        auto lyric = note->lyric();
+        while (lyric.endsWith('+'))
+            lyric.chop(1);
         const auto g2pId = ("g2p-" + note->language() + "-official").toStdString();
-        g2pInput.push_back(new LangCore::G2pInput(note->lyric().toStdString(), g2pId));
+        g2pInput.push_back(new LangCore::G2pInput(lyric.toStdString(), g2pId));
     }
 
     std::vector<std::string> priorityG2pIds = {};
@@ -86,7 +91,7 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
     pronResult.resize(notes.count());
 
     for (int i = 0; i < notes.count(); i++) {
-        if (isRestNote(notes.at(i))) {
+        if (isSkippedNote(notes.at(i))) {
             pronResult[i] = notes.at(i)->lyric().trimmed();
         }
     }
