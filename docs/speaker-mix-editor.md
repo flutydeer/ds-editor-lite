@@ -219,7 +219,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 | `mouseDoubleClickEvent` | 任意位置 | 在该 tick 插入新关键帧，权重取插值值 |
 | `hoverMoveEvent` | — | 更新 hoveredKeyframe / hoveredSplitIndex，触发 update() |
 | `keyPressEvent` Delete | 有选中 | 删除选中的关键帧（初始帧除外） |
-| `contextMenuEvent` | 命中分割点 | 弹出菜单：Linear / Hermite 切换 + 删除 |
+| `contextMenuEvent` | 命中分割点 | 弹出菜单：Linear / Hermite 切换 + 属性 + 删除 |
 
 ##### 拖拽权重计算
 
@@ -237,9 +237,13 @@ HitResult hitTest(const QPointF &itemPos) const;
 ##### 右键菜单
 
 参考 `EditPitchAnchorHandler::contextMenuEvent` 实现：
-- 创建 `Menu`（CMenu 子类），添加 Linear / Hermite 勾选项（QActionGroup 互斥） + 删除项
+- 创建 `Menu`（CMenu 子类），添加 Linear / Hermite 勾选项（QActionGroup 互斥） + 属性 + 删除
 - `menu->exec(event->globalPos())` 同步显示
 - `menu->deleteLater()` 清理
+
+##### 属性对话框
+
+右键菜单中的"属性"选项打开关键帧属性对话框，可在对话框中精确编辑各 speaker 的比例。对话框内使用专用控件，类似音素编辑器的机制：通过拖动分割线或手动输入比例来调整权重。（第一阶段可先用简单输入框实现，专用控件后续迭代）
 
 ##### 参考的交互模式
 
