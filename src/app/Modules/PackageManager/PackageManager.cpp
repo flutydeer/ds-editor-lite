@@ -249,8 +249,8 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             auto packageVersion = VersionUtils::stdc_to_qt(pkg.version());
             auto vendor = QString::fromUtf8(pkg.vendor().text(locale));
             auto description = QString::fromUtf8(pkg.description().text(locale));
-            auto copyright = QString::fromUtf8(pkg.copyright().text(locale));
-            auto readme = joinPath(pkg.readme(), pkg.path());
+            auto copyright = QString::fromUtf8(pkg.license().path(locale).u8string().c_str());
+            auto readme = joinPath(pkg.readme().path(locale), pkg.path());
             auto url = QString::fromUtf8(pkg.url());
             auto path = StringUtils::native_to_qstr(pkg.path());
 

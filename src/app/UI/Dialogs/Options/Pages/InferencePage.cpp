@@ -320,7 +320,7 @@ QWidget *InferencePage::createContentWidget() {
             const auto singerId = QString::fromUtf8(singer->id());
             const auto singerLevel = QString::number(singer->apiLevel());
             const auto singerName = QString::fromUtf8(singer->name().text(localeName));
-            const auto singerArch = QString::fromUtf8(singer->arch());
+            const auto singerArch = QString::fromUtf8(singer->className());
             const auto singerPath = StringUtils::path_to_qstr(singer->path());
             const auto singerImports = singer->imports();
 
