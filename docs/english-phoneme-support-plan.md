@@ -48,53 +48,26 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 **改动**：
 - `GetPhonemeNameTask.cpp` — 用 `OnsetMarkerMgr::instance()->marker(language)->mark(...)` 替换硬编码逻辑，移除 2 音素硬限制和 TODO 注释
 
-## 待实现
-
-### 阶段 2：基于规则 DSL 的通用 Onset Marker
+### 阶段 2：基于规则 DSL 的通用 Onset Marker（177c4af6）
 
 参考 `MakeDiffSinger/variance-temp-solution/add_ph_num_advanced.py` 中的设计，实现通用的基于规则的卡拍标记引擎。
 
-#### 核心概念
+**核心设计**：
+- 音素类型分类（vowel/consonant/liquid）+ Trie 树规则匹配引擎
+- 从左到右贪心最长匹配，优先级：最长 > 精确匹配多 > 精确匹配靠前
+- 规则和分类表均为外部 JSON 数据，不硬编码
 
-**音素类型分类**：每个音素归入一种类型：
-- `vowel` — 元音
-- `consonant` — 辅音
-- `liquid` — 介音（如 r, l, w, y）
+**新增文件**：
+- `OnsetRuleTrie.h/.cpp` — Trie 树规则引擎（通配符+精确匹配）
+- `PhonemeTypeMap.h/.cpp` — 音素名→类型映射
+- `RuleBasedOnsetMarker.h/.cpp` — 从 JSON 加载配置，实现 `IOnsetMarker::mark()`
+- `Resources/phoneme/eng.json` — 英语音素分类表（44个音素）+ 3条卡拍规则
+- `scripts/convert_phoneme_symbols.py` — YAML→JSON 转换工具
 
-分类表以外部数据加载（每种语言一份），格式为音素名→类型的映射。
+**改动**：
+- `OnsetMarkerMgr.h/.cpp` — 新增 `loadRuleBasedMarker(language, configPath)`
 
-**卡拍规则 DSL**：规则由"模式 → 卡拍位置"组成。模式是音素类型序列，卡拍位置指出模式中第几个音素卡拍。
-
-示例规则（对应 Python 版本）：
-
-| 模式 | 卡拍位置 | 含义 |
-|------|----------|------|
-| `vowel` | `[0]` | 单元音：自己卡拍 |
-| `consonant, liquid, vowel` | `[1]` | 辅+介+元：介音卡拍 |
-| `liquid, liquid, vowel` | `[1]` | 介+介+元：第2个介音卡拍 |
-
-#### 匹配机制
-
-- **Trie 树**存储规则，支持两种匹配：精确匹配（按音素名）和通配符匹配（按音素类型）
-- 对每个单词的音素序列，从左到右**贪心最长匹配**
-- 优先级：最长匹配 > 精确匹配数量多 > 精确匹配位置靠前
-- 未匹配的音素标为非卡拍，跳过1个继续
-
-#### 实现方案
-
-新建 `Modules/Language/OnsetMarker/RuleBasedOnsetMarker`：
-
-- `PhonemeTypeMap` — 音素名→类型映射表，可从外部文件加载
-- `OnsetRuleTrie` — Trie 树，存储模式→卡拍位置规则，支持通配符
-- `RuleBasedOnsetMarker : IOnsetMarker` — 持有 TypeMap + RuleTrie，实现 `mark()` 方法
-
-`OnsetMarkerMgr` 注册时为英语提供 `RuleBasedOnsetMarker` 实例（加载英语音素分类表 + 默认规则集）。
-
-#### 可扩展性
-
-- 规则和分类表均为数据，不硬编码，将来可支持自定义卡拍规则
-- 精确匹配 + 通配符共存，允许对特定音素添加特例
-- 其他语言（日语、粤语等）可复用同一套引擎，只需提供各自的分类表和规则
+## 待实现
 
 ### 阶段 3：英语 pronunciation 解析
 
