@@ -112,3 +112,11 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 
 - 语言分支目前硬编码 `"eng"` 特判跳过 S2P，将来需要通用机制（如检查 S2P 字典是否存在，或在语言配置中标记）
 - phoneme 配置目前在 `OnsetMarkerMgr` 构造时同步加载，将来需改为异步以缩短应用启动时间
+
+### `+` 音符连续性判断优化
+
+当前简化实现：`distributePhonemes` 只看 `m_inputs` 列表顺序来配对 word 和 `+` 音符，不检查时间间隙。孤立 `+`（segment 开头）由 slicer 丢弃整个 segment。
+
+**问题**：如果 `+` 音符被移远（但中间没有其他音符），列表中它仍然紧跟在 word 后面，会被配对分走音素。只有间隙大到 slicer 分成不同 segment 时，`+` 才会变成 segment 开头被丢弃。
+
+**完整方案**：`distributePhonemes` 应检查 word 和 `+` 之间的时间间隙，与 slicer 的分片阈值对齐。具体来说，slicer 将两个音符放在同一 segment 的条件是 `nextHeaderStartInMs <= curTailEndInMs`（取决于 `padBaseLength`、`headerPhonemeCount`、`padUnitAdditionalLength`）。`distributePhonemes` 应使用相同的阈值：间隙小于阈值时允许配对，大于阈值时断开。这需要在 `distributePhonemes` 中获取 Timeline 来做 tick→ms 转换。

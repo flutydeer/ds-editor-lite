@@ -173,14 +173,10 @@ void GetPhonemeNameTask::distributePhonemes() {
             continue;
         }
 
-        // Find trailing "+" and "-" notes (must be contiguous in time)
+        // Find trailing "+" and "-" notes
         QList<int> plusIndices;
         int j = i + 1;
         while (j < count) {
-            const auto prevEnd =
-                notesRef[j - 1]->globalStart() + notesRef[j - 1]->length();
-            if (notesRef[j]->globalStart() != prevEnd)
-                break;
             const auto &nextLyric = m_inputs[j].lyric;
             const auto &nextPron = m_inputs[j].pronunciation;
             if (isPlusNote(nextLyric)) {
