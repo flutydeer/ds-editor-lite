@@ -17,6 +17,7 @@ class ParamEditorInfoArea final : public QWidget {
 public:
     explicit ParamEditorInfoArea(QWidget *parent = nullptr);
     void setParamProperties(const ParamProperties &properties);
+    void clearParamProperties();
 
 private:
     const ParamProperties *m_paramProperties = nullptr;

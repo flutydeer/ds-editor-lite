@@ -5,6 +5,7 @@
 #include "ParamEditorGraphicsView.h"
 
 #include "ParamEditorGraphicsScene.h"
+#include "SpeakerMixEditorView.h"
 #include "Controller/ClipController.h"
 
 #include "Model/AppModel/SingingClip.h"
@@ -40,6 +41,11 @@ ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene
     m_foreground->setTransparentMouseEvents(false);
     scene->addCommonItem(m_foreground);
 
+    m_speakerMixView = new SpeakerMixEditorView;
+    m_speakerMixView->setZValue(3);
+    m_speakerMixView->setVisible(false);
+    scene->addCommonItem(m_speakerMixView);
+
     connect(m_foreground, &CommonParamEditorView::editCompleted, this,
             &ParamEditorGraphicsView::onEditCompleted);
 }
@@ -50,6 +56,19 @@ void ParamEditorGraphicsView::setDataContext(SingingClip *clip) {
 
 void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
                                             const ParamProperties &properties) {
+    if (name == ParamInfo::Unknown) {
+        m_speakerMixMode = true;
+        m_foreground->setVisible(false);
+        m_speakerMixView->setVisible(true);
+        return;
+    }
+
+    if (m_speakerMixMode) {
+        m_speakerMixMode = false;
+        m_speakerMixView->setVisible(false);
+        m_foreground->setVisible(true);
+    }
+
     m_foregroundParam = name;
     m_foreground->setParamProperties(properties);
     updateForeground(Param::Original, *m_clip->params.getParamByName(m_foregroundParam));

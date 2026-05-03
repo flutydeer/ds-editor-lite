@@ -64,6 +64,12 @@ ParamEditorGraphicsView *ParamEditorView::graphicsView() const {
 }
 
 void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) const {
+    if (name == ParamInfo::Unknown) {
+        qDebug() << "foreground changed to Speaker Mix";
+        m_infoArea->clearParamProperties();
+        m_graphicsView->setForeground(name, *paramUtils->getPropertiesByName(name));
+        return;
+    }
     qDebug() << "foreground changed" << paramUtils->nameFromType(name);
     m_infoArea->setParamProperties(*paramUtils->getPropertiesByName(name));
     m_graphicsView->setForeground(name, *paramUtils->getPropertiesByName(name));

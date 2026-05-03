@@ -31,3 +31,9 @@ void ParamEditorInfoArea::setParamProperties(const ParamProperties &properties) 
     m_lbMax->setText(m_paramProperties->valueToString(m_paramProperties->maximum, true, 1));
     m_lbMin->setText(m_paramProperties->valueToString(m_paramProperties->minimum, true, 1));
 }
+
+void ParamEditorInfoArea::clearParamProperties() {
+    m_paramProperties = nullptr;
+    m_lbMax->clear();
+    m_lbMin->clear();
+}

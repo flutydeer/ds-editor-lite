@@ -13,6 +13,7 @@ class SingingClip;
 class DrawCurve;
 class CommonParamEditorView;
 class ParamEditorGraphicsScene;
+class SpeakerMixEditorView;
 
 class ParamEditorGraphicsView final : public TimeGraphicsView {
     Q_OBJECT
@@ -47,9 +48,11 @@ private:
     static QList<DrawCurve *> getDrawCurves(const QList<Curve *> &curves);
 
     bool m_debugMode = false;
+    bool m_speakerMixMode = false;
     SingingClip *m_clip = nullptr;
     CommonParamEditorView *m_foreground = nullptr;
     CommonParamEditorView *m_background = nullptr;
+    SpeakerMixEditorView *m_speakerMixView = nullptr;
 
     ParamInfo::Name m_foregroundParam = ParamInfo::Breathiness;
     ParamInfo::Name m_backgroundParam = ParamInfo::Tension;
