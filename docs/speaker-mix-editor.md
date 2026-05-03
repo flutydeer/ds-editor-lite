@@ -29,6 +29,7 @@
 
 | 文件 | 说明 |
 |------|------|
+| `UI/Views/ClipEditor/ParamEditor/SpeakerMixEditorView.h/.cpp` | Speaker mix 编辑视图（堆叠面积图渲染 + 关键帧 + 交互） |
 | `UI/Views/ClipEditor/ParamEditor/ParamEditorView.h/.cpp` | 顶层参数编辑器，组合工具栏+信息区+图形视图 |
 | `UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.h/.cpp` | 参数选择工具栏（前景/背景 ComboBox + 交换按钮） |
 | `UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h/.cpp` | 图形视图，持有前景/背景两个 CommonParamEditorView 实例 |
@@ -112,7 +113,7 @@ struct SpeakerMixKeyframe {
 
 #### 初始关键帧
 
-歌声剪辑（SingingClip）的时间轴开头自动放置一个**不可移动、不可删除**的关键帧，作为初始锚点。其权重为默认比例（第一阶段硬编码均分：33% / 33% / 34%）。
+歌声剪辑（SingingClip）的时间轴开头自动放置一个**不可移动、不可删除**的关键帧，作为初始锚点。其权重为默认比例（第一阶段硬编码均分：33% / 33% / 34%）。第一阶段通过判断 `kf.tick == 0` 识别初始关键帧。
 
 #### 添加关键帧
 
@@ -158,6 +159,98 @@ struct SpeakerMixKeyframe {
 工具栏的"上一个/下一个关键帧"按钮：
 - 滚动视口，通过 `TimeGraphicsView::centerAt(tick)` 将目标关键帧居中
 - 同时移动播放头到目标关键帧位置
+
+#### 交互实现方案（待实现）
+
+##### 状态模型
+
+在 `SpeakerMixEditorView` 中添加交互状态：
+
+```cpp
+struct {
+    SpeakerMixKeyframe *hoveredKeyframe = nullptr;
+    int hoveredSplitIndex = -1;           // 哪个分割点被 hover（0 ~ n-2）
+    SpeakerMixKeyframe *selectedKeyframe = nullptr;
+    int selectedSplitIndex = -1;
+
+    bool dragging = false;
+    QPointF dragStartPos;
+    double dragStartWeight = 0;           // 拖拽开始时该分割点的累积权重
+    bool altDrag = false;
+
+    bool selecting = false;
+    QRectF selectionRect;
+    QList<SpeakerMixKeyframe *> selectedKeyframes;  // 区间选择的结果
+} m_state;
+```
+
+##### 需要 override 的方法
+
+- `mousePressEvent` — 单击选中 / 开始区间选择
+- `mouseMoveEvent` — 拖拽分割点 / 更新区间选择框
+- `mouseReleaseEvent` — 结束拖拽 / 结束区间选择
+- `mouseDoubleClickEvent` — 双击添加关键帧
+- `hoverMoveEvent` — 更新 hover 状态（需要 `setAcceptHoverEvents(true)`，已由 `setTransparentMouseEvents(false)` 启用）
+- `keyPressEvent` — Delete 删除选中关键帧
+- `contextMenuEvent` — 右键菜单（删除 / 切换插值模式）
+
+##### 命中检测
+
+参考 `EditPitchAnchorHandler::anchorNodeAt()` 的模式：遍历所有关键帧，将每个分割点的 (tick, 累积权重) 转为 item 坐标，计算与鼠标位置的欧氏距离，半径 6px 内视为命中。返回命中的 keyframe 指针 + split index。
+
+```cpp
+struct HitResult {
+    SpeakerMixKeyframe *keyframe = nullptr;
+    int splitIndex = -1;  // 命中的分割点序号，-1 表示未命中
+};
+HitResult hitTest(const QPointF &itemPos) const;
+```
+
+##### 事件流
+
+| 事件 | 条件 | 行为 |
+|------|------|------|
+| `mousePressEvent` 左键 | 命中分割点 | 选中该分割点，记录 dragStartPos |
+| `mousePressEvent` 左键 | 未命中 | 开始区间选择，设 selecting=true |
+| `mouseMoveEvent` | dragging | 移动距离 > 3px 后进入拖拽；检测 Alt 键；计算新权重并更新关键帧 |
+| `mouseMoveEvent` | selecting | 更新 selectionRect，找出范围内的关键帧 |
+| `mouseReleaseEvent` | dragging | 结束拖拽，确认权重 |
+| `mouseReleaseEvent` | selecting | 结束区间选择，记录 selectedKeyframes |
+| `mouseDoubleClickEvent` | 任意位置 | 在该 tick 插入新关键帧，权重取插值值 |
+| `hoverMoveEvent` | — | 更新 hoveredKeyframe / hoveredSplitIndex，触发 update() |
+| `keyPressEvent` Delete | 有选中 | 删除选中的关键帧（初始帧除外） |
+| `contextMenuEvent` | 命中分割点 | 弹出菜单：Linear / Hermite 切换 + 删除 |
+
+##### 拖拽权重计算
+
+**直接拖（无 Alt）：** 拖动分割点 i，只改变 speaker[i] 和 speaker[i+1] 的权重。将鼠标 y 转为新的累积权重值，clamp 到上下相邻分割点范围内，差值分配给 weights[i]，反向差值分配给下一个 speaker。
+
+**Alt 拖：** 等比例压缩/拉伸分割点两侧。计算拖拽产生的累积权重偏移 delta，上方所有权重等比缩放，下方所有权重等比缩放，保持总和=100%。
+
+##### 渲染增强
+
+在 `paint()` 中根据状态额外绘制：
+- hover 分割点：放大圆点 + 外圈（参考 `PitchAnchorEditorView` 的 hover ring，半径 6px）
+- 选中分割点：高亮色 `(155, 186, 255)`
+- 区间选择框：蓝色半透明圆角矩形 `(155, 186, 255, 64)` 填充 + `(155, 186, 255, 200)` 描边，同锚点编辑器样式
+
+##### 右键菜单
+
+参考 `EditPitchAnchorHandler::contextMenuEvent` 实现：
+- 创建 `Menu`（CMenu 子类），添加 Linear / Hermite 勾选项（QActionGroup 互斥） + 删除项
+- `menu->exec(event->globalPos())` 同步显示
+- `menu->deleteLater()` 清理
+
+##### 参考的交互模式
+
+| 关注点 | 参考来源 | 文件 |
+|--------|---------|------|
+| 命中检测 | `EditPitchAnchorHandler::anchorNodeAt()` | `PianoRoll/EditPitchAnchorHandler.cpp` |
+| 鼠标状态机 | `EditPitchAnchorHandler` 的 press/move/release | 同上 |
+| 区间选择框渲染 | `PitchAnchorEditorView::drawSelectionRect()` | `PianoRoll/PitchAnchorEditorView.cpp` |
+| Hover 圆点样式 | `PitchAnchorEditorView::drawAnchorCurves()` | 同上 |
+| 右键菜单 | `EditPitchAnchorHandler::contextMenuEvent()` | `PianoRoll/EditPitchAnchorHandler.cpp` |
+| 拖拽阈值 | Manhattan distance > 3px | 同上 |
 
 ### 工具栏
 
@@ -215,8 +308,17 @@ struct SpeakerMixKeyframe {
 - [x] 确定详细操作逻辑（添加/删除/选中/拖拽/插值/边界/导航）
 - [x] 实现 `SpeakerMixEditorView`（数据模型 + 堆叠面积图渲染 + 关键帧竖线/圆点）
 - [x] 修改 `ParamEditorGraphicsView` 集成 speaker mix（m_speakerMixView，前景切换）
-- [x] 修改 `ParamEditorToolBarView` 添加 Speaker Mix 选项
+- [x] 修改 `ParamEditorToolBarView` 添加 Speaker Mix 选项（index 映射到 ParamInfo::Unknown）
 - [x] 修改 `ParamEditorInfoArea` 添加 clearParamProperties()
 - [x] 修改 `ParamEditorView` 处理 speaker mix 模式下的 info area
-- [ ] 实现交互逻辑（添加/删除/选中/拖拽关键帧）
+- [ ] 实现交互逻辑（命中检测 + 选中 + 拖拽 + 双击添加 + 删除 + 右键菜单 + 区间选择 + hover）
 - [ ] 实现 `SpeakerMixToolBarView`（关键帧导航 + speaker 列表）
+
+### 当前实现细节备忘
+
+- `SpeakerMixEditorView` 继承 `TimeOverlayView`，不使用 `Q_OBJECT`（基类已有）
+- 填充色使用 `TrackColorPalette::clipBackgroundTransparent(index)`
+- 分割线白色 `(220, 220, 220, 200)`，关键帧竖线 `(220, 220, 220, 160)`
+- Speaker mix 在前景 ComboBox 中使用 `ParamInfo::Unknown` 作为标识值（index + 1 自然映射到 Unknown=10）
+- Swap 按钮在 speaker mix 模式下禁用（不允许交换到背景）
+- 数据结构：`SpeakerMixSpeaker`（避免与 `PackageManager/Models/SpeakerInfo` 同名冲突）
