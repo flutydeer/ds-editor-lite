@@ -75,15 +75,25 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 - `GetPhonemeNameTask.cpp` — 英语（`"eng"`）按空格 split 获取音素列表，其他语言仍走 S2P
 - `OnsetMarkerMgr.h/.cpp` — 构造时自动扫描 `Resources/phoneme/` 目录加载配置
 
-**已知问题**：英文歌词后追加音符时崩溃，待排查。
+**已知问题**：~~英文歌词后追加音符时崩溃~~（已在阶段4中修复）。
 
-## 待实现
+### 阶段 4："+" 音素分配逻辑（29b5f939）
 
-### 阶段 4："+" 分配逻辑
+在 `getPhonemeNames()` 之后插入后处理步骤 `distributePhonemes()`，识别 word+`+` 序列，按卡拍组拆分并分配音素。
 
-在 onset 标记之后，按 `isOnset=true` 的位置切成音素组，再根据 "+" 规则分配到各音符。这部分逻辑是语言无关的。`GetPhonemeNameTask` 已有 `splitSyllables` 和 `checkTrailingPlus` 方法，需要在此基础上完善多音符分配。
+**分配规则**：
+- 单词音符默认取第1组；末尾 `+` 可增加（如 `word+` 取前2组）
+- 纯 `+` 音符按 `+` 数量消耗对应组数，最后一个 `+` 贪婪取剩余全部
+- `-` 延音符不消耗配额，跳过
+- 溢出时标空
 
-## 设计原则
+**改动**：
+- `GetPhonemeNameTask.h/.cpp` — 新增 `distributePhonemes()`、`isPlusNote()`；在 `processNotes()` 末尾调用
+- `GetPronunciationTask.cpp` — G2P 输入剥掉歌词尾部 `+`；纯 `+` 和 `-` 音符跳过不送入 G2P
+- `InferControllerHelper.cpp` — `updatePhoneName` 中 names 数量变化时清空 offsets
+- `PhonemeView.cpp` — 防御性边界检查：offsets 索引不超过 offsets 长度
+
+## 待改进
 
 - onset 标记规则按语言注册，通过 `OnsetMarkerMgr` 查找
 - 新增语言只需提供音素分类表和卡拍规则即可
