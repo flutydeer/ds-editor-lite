@@ -28,7 +28,7 @@ struct SpeakerMixKeyframe {
 };
 
 struct SpeakerMixHitResult {
-    SpeakerMixKeyframe *keyframe = nullptr;
+    int keyframeIndex = -1;
     int splitIndex = -1;
 };
 
@@ -85,9 +85,9 @@ private:
     QList<SpeakerMixKeyframe> m_keyframes;
 
     struct InteractionState {
-        SpeakerMixKeyframe *hoveredKeyframe = nullptr;
+        int hoveredKeyframeIndex = -1;
         int hoveredSplitIndex = -1;
-        SpeakerMixKeyframe *selectedKeyframe = nullptr;
+        int selectedKeyframeIndex = -1;
         int selectedSplitIndex = -1;
 
         bool dragging = false;
@@ -99,7 +99,7 @@ private:
         bool selecting = false;
         QPointF selectionStartPos;
         QRectF selectionRect;
-        QList<SpeakerMixKeyframe *> selectedKeyframes;
+        QList<int> selectedKeyframeIndices;
     } m_state;
 
     static constexpr double kDotRadius = 4.0;

@@ -52,13 +52,7 @@ int SpeakerMixEditorView::keyframeCount() const {
 }
 
 int SpeakerMixEditorView::selectedKeyframeIndex() const {
-    if (!m_state.selectedKeyframe)
-        return -1;
-    for (int i = 0; i < m_keyframes.size(); i++) {
-        if (&m_keyframes[i] == m_state.selectedKeyframe)
-            return i;
-    }
-    return -1;
+    return m_state.selectedKeyframeIndex;
 }
 
 double SpeakerMixEditorView::previousKeyframeTick(double currentTick) const {
@@ -110,15 +104,15 @@ void SpeakerMixEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     const auto itemPos = event->pos();
     const auto hit = hitTest(itemPos);
 
-    if (hit.keyframe) {
-        m_state.selectedKeyframe = hit.keyframe;
+    if (hit.keyframeIndex >= 0) {
+        m_state.selectedKeyframeIndex = hit.keyframeIndex;
         m_state.selectedSplitIndex = hit.splitIndex;
-        m_state.selectedKeyframes.clear();
+        m_state.selectedKeyframeIndices.clear();
         startDrag(event->scenePos());
     } else {
-        m_state.selectedKeyframe = nullptr;
+        m_state.selectedKeyframeIndex = -1;
         m_state.selectedSplitIndex = -1;
-        m_state.selectedKeyframes.clear();
+        m_state.selectedKeyframeIndices.clear();
         startIntervalSelection(itemPos);
     }
 
@@ -128,7 +122,7 @@ void SpeakerMixEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 
 void SpeakerMixEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     if (event->buttons() & Qt::LeftButton) {
-        if (m_state.dragging) {
+        if (m_state.dragging || m_state.selectedKeyframeIndex >= 0) {
             updateDrag(event->scenePos());
         } else if (m_state.selecting) {
             updateIntervalSelection(event->pos());
@@ -158,7 +152,7 @@ void SpeakerMixEditorView::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event
 
     const auto itemPos = event->pos();
     const auto hit = hitTest(itemPos);
-    if (!hit.keyframe) {
+    if (hit.keyframeIndex < 0) {
         const double sceneX = itemPos.x() + pos().x();
         const int tick = static_cast<int>(sceneXToTick(sceneX));
         addKeyframeAt(tick);
@@ -187,24 +181,23 @@ void SpeakerMixEditorView::contextMenuEvent(QGraphicsSceneContextMenuEvent *even
     const auto itemPos = event->pos();
     const auto hit = hitTest(itemPos);
 
-    if (!hit.keyframe)
+    if (hit.keyframeIndex < 0)
         return;
 
-    if (hit.keyframe != m_state.selectedKeyframe) {
-        m_state.selectedKeyframe = hit.keyframe;
+    if (hit.keyframeIndex != m_state.selectedKeyframeIndex) {
+        m_state.selectedKeyframeIndex = hit.keyframeIndex;
         m_state.selectedSplitIndex = hit.splitIndex;
-        m_state.selectedKeyframes.clear();
+        m_state.selectedKeyframeIndices.clear();
         update();
     }
 
-    if (m_state.selectedKeyframe->tick == 0) {
-        return;
-    }
+    auto &kf = m_keyframes[hit.keyframeIndex];
+    const bool isInitial = (kf.tick == 0);
 
     auto *menu = new QMenu();
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
-    auto currentMode = m_state.selectedKeyframe->interpMode;
+    auto currentMode = kf.interpMode;
 
     auto *linearAction = menu->addAction(tr("Linear"));
     linearAction->setCheckable(true);
@@ -225,13 +218,15 @@ void SpeakerMixEditorView::contextMenuEvent(QGraphicsSceneContextMenuEvent *even
     interpGroup->addAction(linearAction);
     interpGroup->addAction(hermiteAction);
 
-    menu->addSeparator();
+    if (!isInitial) {
+        menu->addSeparator();
 
-    auto *deleteAction = menu->addAction(tr("Delete"));
-    connect(deleteAction, &QAction::triggered, this, [this] {
-        deleteSelectedKeyframe();
-        update();
-    });
+        auto *deleteAction = menu->addAction(tr("Delete"));
+        connect(deleteAction, &QAction::triggered, this, [this] {
+            deleteSelectedKeyframe();
+            update();
+        });
+    }
 
     menu->popup(event->screenPos());
 }
@@ -399,6 +394,7 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
             painter->drawLine(QPointF(localX, areaTop), QPointF(localX, areaTop + areaHeight));
         }
 
+        const int kfIndex = &kf - &m_keyframes.first();
         const auto weights = interpolateWeights(kf.tick);
 
         double cumulative = 0;
@@ -406,8 +402,8 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
             cumulative += weights[i];
             const double y = areaTop + areaHeight * (1.0 - cumulative);
 
-            bool isHovered = (&kf == m_state.hoveredKeyframe && i == m_state.hoveredSplitIndex);
-            bool isSelected = (&kf == m_state.selectedKeyframe && i == m_state.selectedSplitIndex);
+            bool isHovered = (kfIndex == m_state.hoveredKeyframeIndex && i == m_state.hoveredSplitIndex);
+            bool isSelected = (kfIndex == m_state.selectedKeyframeIndex && i == m_state.selectedSplitIndex);
 
             QColor dotColor = QColor(255, 255, 255);
 
@@ -450,7 +446,8 @@ SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const 
     const double areaTop = kPadding;
     const double areaHeight = viewHeight - 2 * kPadding;
 
-    for (auto &kf : m_keyframes) {
+    for (int ki = 0; ki < m_keyframes.size(); ki++) {
+        const auto &kf = m_keyframes[ki];
         const double localX = tickToItemX(kf.tick);
         const double dx = itemPos.x() - localX;
 
@@ -461,7 +458,7 @@ SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const 
             const double y = areaTop + areaHeight * (1.0 - cumulative);
             const double dy = itemPos.y() - y;
             if (dx * dx + dy * dy <= kHitRadius * kHitRadius) {
-                return {const_cast<SpeakerMixKeyframe *>(&kf), i};
+                return {ki, i};
             }
         }
     }
@@ -490,12 +487,12 @@ double SpeakerMixEditorView::cumWeightToItemY(double cumWeight) const {
 
 void SpeakerMixEditorView::updateHover(const QPointF &itemPos) {
     const auto hit = hitTest(itemPos);
-    if (hit.keyframe != m_state.hoveredKeyframe || hit.splitIndex != m_state.hoveredSplitIndex) {
-        m_state.hoveredKeyframe = hit.keyframe;
+    if (hit.keyframeIndex != m_state.hoveredKeyframeIndex || hit.splitIndex != m_state.hoveredSplitIndex) {
+        m_state.hoveredKeyframeIndex = hit.keyframeIndex;
         m_state.hoveredSplitIndex = hit.splitIndex;
 
-        if (hit.keyframe) {
-            const auto weights = interpolateWeights(hit.keyframe->tick);
+        if (hit.keyframeIndex >= 0) {
+            const auto weights = interpolateWeights(m_keyframes[hit.keyframeIndex].tick);
             QStringList parts;
             for (int i = 0; i < m_speakers.size(); i++)
                 parts.append(QString("%1: %2%")
@@ -518,12 +515,13 @@ void SpeakerMixEditorView::updateIntervalSelection(const QPointF &itemPos) {
     m_state.selectionRect = QRectF(m_state.selectionStartPos, itemPos).normalized();
 
     const auto rect = m_state.selectionRect;
-    m_state.selectedKeyframes.clear();
+    m_state.selectedKeyframeIndices.clear();
 
     const double viewHeight = visibleRect().height();
     const double areaHeight = viewHeight - 2 * kPadding;
 
-    for (auto &kf : m_keyframes) {
+    for (int ki = 0; ki < m_keyframes.size(); ki++) {
+        const auto &kf = m_keyframes[ki];
         const double localX = tickToItemX(kf.tick);
         if (localX >= rect.left() && localX <= rect.right()) {
             bool inVerticalRange = false;
@@ -538,7 +536,7 @@ void SpeakerMixEditorView::updateIntervalSelection(const QPointF &itemPos) {
                 }
             }
             if (inVerticalRange)
-                m_state.selectedKeyframes.append(&kf);
+                m_state.selectedKeyframeIndices.append(ki);
         }
     }
 }
@@ -547,8 +545,8 @@ void SpeakerMixEditorView::endIntervalSelection() {
     m_state.selecting = false;
     m_state.selectionRect = QRectF();
 
-    if (!m_state.selectedKeyframes.isEmpty()) {
-        m_state.selectedKeyframe = m_state.selectedKeyframes.first();
+    if (!m_state.selectedKeyframeIndices.isEmpty()) {
+        m_state.selectedKeyframeIndex = m_state.selectedKeyframeIndices.first();
         m_state.selectedSplitIndex = 0;
     }
 }
@@ -558,14 +556,14 @@ void SpeakerMixEditorView::startDrag(const QPointF &scenePos) {
     m_state.dragStartScenePos = scenePos;
     m_state.altDrag = false;
 
-    if (m_state.selectedKeyframe) {
-        m_state.dragStartWeights = *m_state.selectedKeyframe;
+    if (m_state.selectedKeyframeIndex >= 0) {
+        m_state.dragStartWeights = m_keyframes[m_state.selectedKeyframeIndex];
         m_state.dragSplitIndex = m_state.selectedSplitIndex;
     }
 }
 
 void SpeakerMixEditorView::updateDrag(const QPointF &scenePos) {
-    if (!m_state.selectedKeyframe)
+    if (m_state.selectedKeyframeIndex < 0)
         return;
 
     const auto delta = scenePos - m_state.dragStartScenePos;
@@ -581,7 +579,7 @@ void SpeakerMixEditorView::updateDrag(const QPointF &scenePos) {
     m_state.altDrag = altHeld;
 
     const int n = m_speakers.size();
-    auto &kf = *m_state.selectedKeyframe;
+    auto &kf = m_keyframes[m_state.selectedKeyframeIndex];
     const int si = m_state.dragSplitIndex;
 
     const double deltaItemY = delta.y();
@@ -636,39 +634,32 @@ void SpeakerMixEditorView::addKeyframeAt(int tick) {
 
     auto it = std::lower_bound(m_keyframes.begin(), m_keyframes.end(), tick,
                                [](const SpeakerMixKeyframe &kf, int t) { return kf.tick < t; });
-    it = m_keyframes.insert(it, kf);
+    int insertIndex = static_cast<int>(it - m_keyframes.begin());
+    m_keyframes.insert(it, kf);
 
-    m_state.selectedKeyframe = &(*it);
+    m_state.selectedKeyframeIndex = insertIndex;
     m_state.selectedSplitIndex = 0;
-    m_state.selectedKeyframes.clear();
+    m_state.selectedKeyframeIndices.clear();
 }
 
 void SpeakerMixEditorView::deleteSelectedKeyframe() {
-    if (!m_state.selectedKeyframe)
+    if (m_state.selectedKeyframeIndex < 0)
         return;
 
-    if (m_state.selectedKeyframe->tick == 0)
+    if (m_keyframes[m_state.selectedKeyframeIndex].tick == 0)
         return;
 
-    for (int i = 0; i < m_keyframes.size(); i++) {
-        if (&m_keyframes[i] == m_state.selectedKeyframe) {
-            m_keyframes.removeAt(i);
-            break;
-        }
-    }
+    m_keyframes.removeAt(m_state.selectedKeyframeIndex);
 
-    m_state.selectedKeyframe = nullptr;
+    m_state.selectedKeyframeIndex = -1;
     m_state.selectedSplitIndex = -1;
-    m_state.selectedKeyframes.clear();
+    m_state.selectedKeyframeIndices.clear();
 }
 
 void SpeakerMixEditorView::switchInterpMode(SpeakerMixKeyframe::InterpMode mode) {
-    if (!m_state.selectedKeyframe)
+    if (m_state.selectedKeyframeIndex < 0)
         return;
 
-    if (m_state.selectedKeyframe->tick == 0)
-        return;
-
-    m_state.selectedKeyframe->interpMode = mode;
+    m_keyframes[m_state.selectedKeyframeIndex].interpMode = mode;
     update();
 }

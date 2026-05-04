@@ -14,7 +14,6 @@ class ParamEditorInfoArea;
 class SingingClip;
 class ParamEditorGraphicsView;
 class ParamEditorToolBarView;
-class SpeakerMixToolBarView;
 
 class ParamEditorView final : public QWidget {
     Q_OBJECT
@@ -37,7 +36,6 @@ private:
     ParamEditorGraphicsView *m_graphicsView;
     ParamEditorInfoArea *m_infoArea;
     ParamEditorToolBarView *m_toolBar;
-    SpeakerMixToolBarView *m_speakerMixToolBar;
 };
 
 #endif // PARAMEDITORVIEW_H
