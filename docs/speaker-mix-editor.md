@@ -320,6 +320,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 区间选中实时更新：拖拽过程中实时更新 selectedKeyframeIndices，不等松手
 - [x] 批量删除：Delete 键可删除区间选中的所有关键帧（跳过初始帧）
 - [x] 圆点半径调整：kDotRadius 从 4px 改为 2px
+- [x] 右键菜单：`QMenu` 改为项目 `Menu` 类，`popup()` 改为 `exec()` + `deleteLater()`，初始关键帧显示菜单但禁用删除
 
 ## 待修复问题
 
@@ -353,6 +354,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 修复 Delete 键无响应（ItemIsFocusable）
 - [x] 区间选中样式 + 实时更新 + 批量删除
 - [x] 圆点半径调整（4px → 2px）
+- [x] 右键菜单改用项目 Menu 类（exec + deleteLater，初始帧禁用删除而非不显示菜单）
 - [ ] 进一步优化编辑体验
 
 ### 当前实现细节备忘
