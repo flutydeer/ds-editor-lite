@@ -50,11 +50,7 @@ int Curve::localEndTick() const {
 }
 
 int Curve::compareTo(const Curve *obj) const {
-    if (!m_clip) {
-        qWarning() << "SingingClip is null";
-        return 0;
-    }
-    if (m_clip != obj->m_clip) {
+    if (m_clip && obj->m_clip && m_clip != obj->m_clip) {
         qWarning() << "SingingClip is not the same";
         return 0;
     }
