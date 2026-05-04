@@ -5,6 +5,7 @@
 #include "SpeakerMixEditorView.h"
 
 #include "UI/Utils/TrackColorPalette.h"
+#include "UI/Controls/Menu.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include <QApplication>
@@ -12,8 +13,8 @@
 #include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsSceneHoverEvent>
 #include <QGraphicsSceneMouseEvent>
+#include <QGraphicsView>
 #include <QKeyEvent>
-#include <QMenu>
 #include <QPainter>
 
 #include <algorithm>
@@ -196,19 +197,18 @@ void SpeakerMixEditorView::contextMenuEvent(QGraphicsSceneContextMenuEvent *even
     auto &kf = m_keyframes[hit.keyframeIndex];
     const bool isInitial = (kf.tick == 0);
 
-    if (isInitial)
-        return;
-
-    auto *menu = new QMenu();
-    menu->setAttribute(Qt::WA_DeleteOnClose);
+    auto views = scene()->views();
+    auto *menu = new Menu(views.isEmpty() ? nullptr : views.first());
 
     auto *deleteAction = menu->addAction(tr("Delete"));
+    deleteAction->setEnabled(!isInitial);
     connect(deleteAction, &QAction::triggered, this, [this] {
         deleteSelectedKeyframe();
         update();
     });
 
-    menu->popup(event->screenPos());
+    menu->exec(event->screenPos());
+    menu->deleteLater();
 }
 
 QList<double> SpeakerMixEditorView::interpolateWeights(const double tick) const {
