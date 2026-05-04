@@ -296,7 +296,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 
 ## 待讨论事项
 
-（暂无）
+- [ ] 分割点拖动无响应：按住分割点上下拖动时，分割点位置不变化，拖拽未生效（待排查 QGraphicsItem 事件流 / 场景坐标转换问题）
 
 ---
 
@@ -315,8 +315,8 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 修改 `ParamEditorToolBarView` 添加 Speaker Mix 选项（index 映射到 ParamInfo::Unknown）
 - [x] 修改 `ParamEditorInfoArea` 添加 clearParamProperties()
 - [x] 修改 `ParamEditorView` 处理 speaker mix 模式下的 info area
-- [ ] 实现交互逻辑（命中检测 + 选中 + 拖拽 + 双击添加 + 删除 + 右键菜单 + 区间选择 + hover）
-- [ ] 实现 `SpeakerMixToolBarView`（关键帧导航 + speaker 列表）
+- [x] 实现交互逻辑（命中检测 + 选中 + 拖拽 + 双击添加 + 删除 + 右键菜单 + 区间选择 + hover）
+- [x] 实现 `SpeakerMixToolBarView`（关键帧导航 + speaker 列表）
 
 ### 当前实现细节备忘
 

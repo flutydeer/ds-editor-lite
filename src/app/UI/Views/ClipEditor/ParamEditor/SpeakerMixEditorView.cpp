@@ -7,7 +7,18 @@
 #include "UI/Utils/TrackColorPalette.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
+#include <QActionGroup>
+#include <QApplication>
+#include <QGraphicsScene>
+#include <QGraphicsSceneContextMenuEvent>
+#include <QGraphicsSceneHoverEvent>
+#include <QGraphicsSceneMouseEvent>
+#include <QKeyEvent>
+#include <QMenu>
 #include <QPainter>
+
+#include <algorithm>
+#include <cmath>
 
 SpeakerMixEditorView::SpeakerMixEditorView() {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
@@ -28,6 +39,47 @@ SpeakerMixEditorView::SpeakerMixEditorView() {
     };
 }
 
+const QList<SpeakerMixSpeaker> &SpeakerMixEditorView::speakers() const {
+    return m_speakers;
+}
+
+const QList<SpeakerMixKeyframe> &SpeakerMixEditorView::keyframes() const {
+    return m_keyframes;
+}
+
+int SpeakerMixEditorView::keyframeCount() const {
+    return m_keyframes.size();
+}
+
+int SpeakerMixEditorView::selectedKeyframeIndex() const {
+    if (!m_state.selectedKeyframe)
+        return -1;
+    for (int i = 0; i < m_keyframes.size(); i++) {
+        if (&m_keyframes[i] == m_state.selectedKeyframe)
+            return i;
+    }
+    return -1;
+}
+
+double SpeakerMixEditorView::previousKeyframeTick(double currentTick) const {
+    double prevTick = -1;
+    for (const auto &kf : m_keyframes) {
+        if (kf.tick < currentTick)
+            prevTick = kf.tick;
+        else
+            break;
+    }
+    return prevTick;
+}
+
+double SpeakerMixEditorView::nextKeyframeTick(double currentTick) const {
+    for (const auto &kf : m_keyframes) {
+        if (kf.tick > currentTick)
+            return kf.tick;
+    }
+    return -1;
+}
+
 void SpeakerMixEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                  QWidget *widget) {
     Q_UNUSED(option)
@@ -39,6 +91,7 @@ void SpeakerMixEditorView::paint(QPainter *painter, const QStyleOptionGraphicsIt
     painter->setRenderHint(QPainter::Antialiasing, true);
     drawStackedArea(painter);
     drawKeyframeDots(painter);
+    drawSelectionRect(painter);
 }
 
 void SpeakerMixEditorView::updateRectAndPos() {
@@ -46,6 +99,141 @@ void SpeakerMixEditorView::updateRectAndPos() {
     setPos(pos);
     setRect(QRectF(0, 0, visibleRect().width(), visibleRect().height()));
     update();
+}
+
+void SpeakerMixEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    if (event->button() != Qt::LeftButton) {
+        event->ignore();
+        return;
+    }
+
+    const auto itemPos = event->pos();
+    const auto hit = hitTest(itemPos);
+
+    if (hit.keyframe) {
+        m_state.selectedKeyframe = hit.keyframe;
+        m_state.selectedSplitIndex = hit.splitIndex;
+        m_state.selectedKeyframes.clear();
+        startDrag(event->scenePos());
+    } else {
+        m_state.selectedKeyframe = nullptr;
+        m_state.selectedSplitIndex = -1;
+        m_state.selectedKeyframes.clear();
+        startIntervalSelection(itemPos);
+    }
+
+    update();
+    event->accept();
+}
+
+void SpeakerMixEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+    if (event->buttons() & Qt::LeftButton) {
+        if (m_state.dragging) {
+            updateDrag(event->scenePos());
+        } else if (m_state.selecting) {
+            updateIntervalSelection(event->pos());
+        }
+    } else {
+        updateHover(event->pos());
+    }
+    update();
+    event->accept();
+}
+
+void SpeakerMixEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+    if (event->button() == Qt::LeftButton) {
+        if (m_state.dragging) {
+            endDrag();
+        } else if (m_state.selecting) {
+            endIntervalSelection();
+        }
+    }
+    update();
+    event->accept();
+}
+
+void SpeakerMixEditorView::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
+    if (event->button() != Qt::LeftButton)
+        return;
+
+    const auto itemPos = event->pos();
+    const auto hit = hitTest(itemPos);
+    if (!hit.keyframe) {
+        const double sceneX = itemPos.x() + pos().x();
+        const int tick = static_cast<int>(sceneXToTick(sceneX));
+        addKeyframeAt(tick);
+    }
+    update();
+    event->accept();
+}
+
+void SpeakerMixEditorView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
+    updateHover(event->pos());
+    update();
+    event->accept();
+}
+
+void SpeakerMixEditorView::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_Delete) {
+        deleteSelectedKeyframe();
+        update();
+        event->accept();
+        return;
+    }
+    event->ignore();
+}
+
+void SpeakerMixEditorView::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
+    const auto itemPos = event->pos();
+    const auto hit = hitTest(itemPos);
+
+    if (!hit.keyframe)
+        return;
+
+    if (hit.keyframe != m_state.selectedKeyframe) {
+        m_state.selectedKeyframe = hit.keyframe;
+        m_state.selectedSplitIndex = hit.splitIndex;
+        m_state.selectedKeyframes.clear();
+        update();
+    }
+
+    if (m_state.selectedKeyframe->tick == 0) {
+        return;
+    }
+
+    auto *menu = new QMenu();
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+
+    auto currentMode = m_state.selectedKeyframe->interpMode;
+
+    auto *linearAction = menu->addAction(tr("Linear"));
+    linearAction->setCheckable(true);
+    linearAction->setChecked(currentMode == SpeakerMixKeyframe::Linear);
+    connect(linearAction, &QAction::triggered, this, [this] {
+        switchInterpMode(SpeakerMixKeyframe::Linear);
+    });
+
+    auto *hermiteAction = menu->addAction(tr("Hermite"));
+    hermiteAction->setCheckable(true);
+    hermiteAction->setChecked(currentMode == SpeakerMixKeyframe::Hermite);
+    connect(hermiteAction, &QAction::triggered, this, [this] {
+        switchInterpMode(SpeakerMixKeyframe::Hermite);
+    });
+
+    auto *interpGroup = new QActionGroup(menu);
+    interpGroup->setExclusive(true);
+    interpGroup->addAction(linearAction);
+    interpGroup->addAction(hermiteAction);
+
+    menu->addSeparator();
+
+    auto *deleteAction = menu->addAction(tr("Delete"));
+    connect(deleteAction, &QAction::triggered, this, [this] {
+        deleteSelectedKeyframe();
+        update();
+    });
+
+    menu->popup(event->screenPos());
 }
 
 QList<double> SpeakerMixEditorView::interpolateWeights(const double tick) const {
@@ -89,7 +277,19 @@ QList<double> SpeakerMixEditorView::interpolateWeights(const double tick) const 
     result.reserve(n);
     double sum = 0;
     for (int i = 0; i < n - 1; i++) {
-        const double w = kf0.weights[i] + t * (kf1.weights[i] - kf0.weights[i]);
+        double w;
+        if (kf0.interpMode == SpeakerMixKeyframe::Hermite) {
+            const double m0 = (i > 0) ? (kf1.weights[i - 1] - kf0.weights[i - 1]) : 0;
+            const double m1 = (i < n - 2) ? (kf1.weights[i + 1] - kf0.weights[i + 1]) : 0;
+            const double t2 = t * t;
+            const double t3 = t2 * t;
+            w = kf0.weights[i] * (2 * t3 - 3 * t2 + 1) +
+                m0 * (t3 - 2 * t2 + t) +
+                kf1.weights[i] * (-2 * t3 + 3 * t2) +
+                m1 * (t3 - t2);
+        } else {
+            w = kf0.weights[i] + t * (kf1.weights[i] - kf0.weights[i]);
+        }
         result.append(w);
         sum += w;
     }
@@ -101,13 +301,12 @@ void SpeakerMixEditorView::drawStackedArea(QPainter *painter) const {
     const double viewWidth = visibleRect().width();
     const double viewHeight = visibleRect().height();
     const int n = m_speakers.size();
-    const double padding = 2.0;
 
     if (viewWidth <= 0 || viewHeight <= 0)
         return;
 
-    const double areaTop = padding;
-    const double areaHeight = viewHeight - 2 * padding;
+    const double areaTop = kPadding;
+    const double areaHeight = viewHeight - 2 * kPadding;
 
     QList<QPainterPath> fillPaths;
     QList<QPainterPath> borderPaths;
@@ -186,19 +385,19 @@ void SpeakerMixEditorView::drawStackedArea(QPainter *painter) const {
 void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
     const double viewHeight = visibleRect().height();
     const int n = m_speakers.size();
-    const double padding = 2.0;
-    const double areaTop = padding;
-    const double areaHeight = viewHeight - 2 * padding;
-    constexpr double dotRadius = 4.0;
+    const double areaTop = kPadding;
+    const double areaHeight = viewHeight - 2 * kPadding;
 
-    for (const auto &kf : m_keyframes) {
+    for (auto &kf : m_keyframes) {
         const double localX = tickToItemX(kf.tick);
 
-        if (localX < -dotRadius || localX > visibleRect().width() + dotRadius)
+        if (localX < -kDotRadius || localX > visibleRect().width() + kDotRadius)
             continue;
 
-        painter->setPen(QPen(QColor(220, 220, 220, 160), 1.0));
-        painter->drawLine(QPointF(localX, areaTop), QPointF(localX, areaTop + areaHeight));
+        if (kf.tick != 0) {
+            painter->setPen(QPen(QColor(220, 220, 220, 160), 1.0));
+            painter->drawLine(QPointF(localX, areaTop), QPointF(localX, areaTop + areaHeight));
+        }
 
         const auto weights = interpolateWeights(kf.tick);
 
@@ -207,9 +406,269 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
             cumulative += weights[i];
             const double y = areaTop + areaHeight * (1.0 - cumulative);
 
+            bool isHovered = (&kf == m_state.hoveredKeyframe && i == m_state.hoveredSplitIndex);
+            bool isSelected = (&kf == m_state.selectedKeyframe && i == m_state.selectedSplitIndex);
+
+            QColor dotColor = QColor(255, 255, 255);
+
+            if (isSelected)
+                dotColor = QColor(155, 186, 255);
+            else if (isHovered)
+                dotColor = QColor(200, 200, 255);
+
             painter->setPen(Qt::NoPen);
-            painter->setBrush(QColor(255, 255, 255));
-            painter->drawEllipse(QPointF(localX, y), dotRadius, dotRadius);
+            painter->setBrush(dotColor);
+            painter->drawEllipse(QPointF(localX, y), kDotRadius, kDotRadius);
+
+            if (isHovered || isSelected) {
+                QPen ringPen(dotColor, 1.5);
+                painter->setPen(ringPen);
+                painter->setBrush(Qt::NoBrush);
+                painter->drawEllipse(QPointF(localX, y), kHoverRadius, kHoverRadius);
+            }
         }
     }
+}
+
+void SpeakerMixEditorView::drawSelectionRect(QPainter *painter) const {
+    if (!m_state.selecting)
+        return;
+
+    const auto rect = m_state.selectionRect.normalized();
+    const double radius = std::min({6.0, rect.width() / 2, rect.height() / 2});
+    painter->setPen(QPen(QColor(155, 186, 255, 200), 1.5));
+    painter->setBrush(QColor(155, 186, 255, 64));
+    if (radius > 0)
+        painter->drawRoundedRect(rect, radius, radius);
+    else
+        painter->drawRect(rect);
+}
+
+SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const {
+    const double viewHeight = visibleRect().height();
+    const int n = m_speakers.size();
+    const double areaTop = kPadding;
+    const double areaHeight = viewHeight - 2 * kPadding;
+
+    for (auto &kf : m_keyframes) {
+        const double localX = tickToItemX(kf.tick);
+        const double dx = itemPos.x() - localX;
+
+        const auto weights = interpolateWeights(kf.tick);
+        double cumulative = 0;
+        for (int i = 0; i < n - 1; i++) {
+            cumulative += weights[i];
+            const double y = areaTop + areaHeight * (1.0 - cumulative);
+            const double dy = itemPos.y() - y;
+            if (dx * dx + dy * dy <= kHitRadius * kHitRadius) {
+                return {const_cast<SpeakerMixKeyframe *>(&kf), i};
+            }
+        }
+    }
+
+    return {};
+}
+
+double SpeakerMixEditorView::cumWeightAtSplit(const SpeakerMixKeyframe &kf, int splitIndex) const {
+    double cum = 0;
+    for (int i = 0; i <= splitIndex; i++)
+        cum += kf.weights[i];
+    return cum;
+}
+
+double SpeakerMixEditorView::cumWeightFromItemY(double itemY) const {
+    const double viewHeight = visibleRect().height();
+    const double areaHeight = viewHeight - 2 * kPadding;
+    return 1.0 - (itemY - kPadding) / areaHeight;
+}
+
+double SpeakerMixEditorView::cumWeightToItemY(double cumWeight) const {
+    const double viewHeight = visibleRect().height();
+    const double areaHeight = viewHeight - 2 * kPadding;
+    return kPadding + areaHeight * (1.0 - cumWeight);
+}
+
+void SpeakerMixEditorView::updateHover(const QPointF &itemPos) {
+    const auto hit = hitTest(itemPos);
+    if (hit.keyframe != m_state.hoveredKeyframe || hit.splitIndex != m_state.hoveredSplitIndex) {
+        m_state.hoveredKeyframe = hit.keyframe;
+        m_state.hoveredSplitIndex = hit.splitIndex;
+
+        if (hit.keyframe) {
+            const auto weights = interpolateWeights(hit.keyframe->tick);
+            QStringList parts;
+            for (int i = 0; i < m_speakers.size(); i++)
+                parts.append(QString("%1: %2%")
+                                 .arg(m_speakers[i].name)
+                                 .arg(weights[i] * 100, 0, 'f', 1));
+            setToolTip(parts.join("\n"));
+        } else {
+            setToolTip(QString());
+        }
+    }
+}
+
+void SpeakerMixEditorView::startIntervalSelection(const QPointF &itemPos) {
+    m_state.selecting = true;
+    m_state.selectionStartPos = itemPos;
+    m_state.selectionRect = QRectF(itemPos, QSizeF(0, 0));
+}
+
+void SpeakerMixEditorView::updateIntervalSelection(const QPointF &itemPos) {
+    m_state.selectionRect = QRectF(m_state.selectionStartPos, itemPos).normalized();
+
+    const auto rect = m_state.selectionRect;
+    m_state.selectedKeyframes.clear();
+
+    const double viewHeight = visibleRect().height();
+    const double areaHeight = viewHeight - 2 * kPadding;
+
+    for (auto &kf : m_keyframes) {
+        const double localX = tickToItemX(kf.tick);
+        if (localX >= rect.left() && localX <= rect.right()) {
+            bool inVerticalRange = false;
+            const auto weights = interpolateWeights(kf.tick);
+            double cumulative = 0;
+            for (int i = 0; i < m_speakers.size() - 1; i++) {
+                cumulative += weights[i];
+                const double y = kPadding + areaHeight * (1.0 - cumulative);
+                if (y >= rect.top() && y <= rect.bottom()) {
+                    inVerticalRange = true;
+                    break;
+                }
+            }
+            if (inVerticalRange)
+                m_state.selectedKeyframes.append(&kf);
+        }
+    }
+}
+
+void SpeakerMixEditorView::endIntervalSelection() {
+    m_state.selecting = false;
+    m_state.selectionRect = QRectF();
+
+    if (!m_state.selectedKeyframes.isEmpty()) {
+        m_state.selectedKeyframe = m_state.selectedKeyframes.first();
+        m_state.selectedSplitIndex = 0;
+    }
+}
+
+void SpeakerMixEditorView::startDrag(const QPointF &scenePos) {
+    m_state.dragging = false;
+    m_state.dragStartScenePos = scenePos;
+    m_state.altDrag = false;
+
+    if (m_state.selectedKeyframe) {
+        m_state.dragStartWeights = *m_state.selectedKeyframe;
+        m_state.dragSplitIndex = m_state.selectedSplitIndex;
+    }
+}
+
+void SpeakerMixEditorView::updateDrag(const QPointF &scenePos) {
+    if (!m_state.selectedKeyframe)
+        return;
+
+    const auto delta = scenePos - m_state.dragStartScenePos;
+    if (!m_state.dragging) {
+        if (std::abs(delta.x()) > kDragThreshold || std::abs(delta.y()) > kDragThreshold)
+            m_state.dragging = true;
+        else
+            return;
+    }
+
+    const auto *view = scene()->views().isEmpty() ? nullptr : scene()->views().first();
+    const bool altHeld = view ? (QApplication::keyboardModifiers() & Qt::AltModifier) : false;
+    m_state.altDrag = altHeld;
+
+    const int n = m_speakers.size();
+    auto &kf = *m_state.selectedKeyframe;
+    const int si = m_state.dragSplitIndex;
+
+    const double deltaItemY = delta.y();
+
+    if (altHeld) {
+        const double oldCum = cumWeightAtSplit(m_state.dragStartWeights, si);
+        const double newCum = cumWeightFromItemY(cumWeightToItemY(oldCum) + deltaItemY);
+        const double clampedCum = std::clamp(newCum, 0.0, 1.0);
+
+        if (oldCum > 0 && oldCum < 1.0) {
+            const double scaleLeft = (oldCum > 0) ? clampedCum / oldCum : 1.0;
+            const double scaleRight =
+                (1.0 - oldCum > 0) ? (1.0 - clampedCum) / (1.0 - oldCum) : 1.0;
+
+            for (int i = 0; i <= si; i++)
+                kf.weights[i] = m_state.dragStartWeights.weights[i] * scaleLeft;
+            for (int i = si + 1; i < n - 1; i++)
+                kf.weights[i] = m_state.dragStartWeights.weights[i] * scaleRight;
+        }
+    } else {
+        const double oldCum = cumWeightAtSplit(m_state.dragStartWeights, si);
+        const double newCum = cumWeightFromItemY(cumWeightToItemY(oldCum) + deltaItemY);
+
+        double prevCumBound = (si > 0) ? cumWeightAtSplit(m_state.dragStartWeights, si - 1) : 0.0;
+        double nextCumBound = (si < n - 2) ? cumWeightAtSplit(m_state.dragStartWeights, si + 1)
+                                           : 1.0;
+
+        double clampedCum = std::clamp(newCum, prevCumBound + 0.01, nextCumBound - 0.01);
+
+        double deltaCum = clampedCum - oldCum;
+        kf.weights[si] = m_state.dragStartWeights.weights[si] + deltaCum;
+        if (si + 1 < n - 1)
+            kf.weights[si + 1] = m_state.dragStartWeights.weights[si + 1] - deltaCum;
+    }
+}
+
+void SpeakerMixEditorView::endDrag() {
+    m_state.dragging = false;
+    m_state.dragSplitIndex = -1;
+}
+
+void SpeakerMixEditorView::addKeyframeAt(int tick) {
+    if (tick == 0)
+        return;
+
+    const auto weights = interpolateWeights(tick);
+    SpeakerMixKeyframe kf;
+    kf.tick = tick;
+    for (int i = 0; i < m_speakers.size() - 1; i++)
+        kf.weights.append(weights[i]);
+    kf.interpMode = SpeakerMixKeyframe::Hermite;
+
+    auto it = std::lower_bound(m_keyframes.begin(), m_keyframes.end(), tick,
+                               [](const SpeakerMixKeyframe &kf, int t) { return kf.tick < t; });
+    it = m_keyframes.insert(it, kf);
+
+    m_state.selectedKeyframe = &(*it);
+    m_state.selectedSplitIndex = 0;
+    m_state.selectedKeyframes.clear();
+}
+
+void SpeakerMixEditorView::deleteSelectedKeyframe() {
+    if (!m_state.selectedKeyframe)
+        return;
+
+    if (m_state.selectedKeyframe->tick == 0)
+        return;
+
+    for (int i = 0; i < m_keyframes.size(); i++) {
+        if (&m_keyframes[i] == m_state.selectedKeyframe) {
+            m_keyframes.removeAt(i);
+            break;
+        }
+    }
+
+    m_state.selectedKeyframe = nullptr;
+    m_state.selectedSplitIndex = -1;
+    m_state.selectedKeyframes.clear();
+}
+
+void SpeakerMixEditorView::switchInterpMode(SpeakerMixKeyframe::InterpMode mode) {
+    if (!m_state.selectedKeyframe)
+        return;
+
+    if (m_state.selectedKeyframe->tick == 0)
+        return;
+
+    m_state.selectedKeyframe->interpMode = mode;
+    update();
 }
