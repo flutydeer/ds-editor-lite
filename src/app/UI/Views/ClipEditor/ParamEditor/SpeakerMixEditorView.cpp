@@ -7,7 +7,6 @@
 #include "UI/Utils/TrackColorPalette.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
-#include <QActionGroup>
 #include <QApplication>
 #include <QGraphicsScene>
 #include <QGraphicsSceneContextMenuEvent>
@@ -32,10 +31,10 @@ SpeakerMixEditorView::SpeakerMixEditorView() {
     };
 
     m_keyframes = {
-        {0,    {0.33, 0.33}, SpeakerMixKeyframe::Hermite},
-        {480,  {0.60, 0.20}, SpeakerMixKeyframe::Hermite},
-        {960,  {0.10, 0.40}, SpeakerMixKeyframe::Linear },
-        {1440, {0.33, 0.33}, SpeakerMixKeyframe::Hermite},
+        {0,    {0.33, 0.33}},
+        {480,  {0.60, 0.20}},
+        {960,  {0.10, 0.40}},
+        {1440, {0.33, 0.33}},
     };
 }
 
@@ -194,39 +193,17 @@ void SpeakerMixEditorView::contextMenuEvent(QGraphicsSceneContextMenuEvent *even
     auto &kf = m_keyframes[hit.keyframeIndex];
     const bool isInitial = (kf.tick == 0);
 
+    if (isInitial)
+        return;
+
     auto *menu = new QMenu();
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
-    auto currentMode = kf.interpMode;
-
-    auto *linearAction = menu->addAction(tr("Linear"));
-    linearAction->setCheckable(true);
-    linearAction->setChecked(currentMode == SpeakerMixKeyframe::Linear);
-    connect(linearAction, &QAction::triggered, this, [this] {
-        switchInterpMode(SpeakerMixKeyframe::Linear);
+    auto *deleteAction = menu->addAction(tr("Delete"));
+    connect(deleteAction, &QAction::triggered, this, [this] {
+        deleteSelectedKeyframe();
+        update();
     });
-
-    auto *hermiteAction = menu->addAction(tr("Hermite"));
-    hermiteAction->setCheckable(true);
-    hermiteAction->setChecked(currentMode == SpeakerMixKeyframe::Hermite);
-    connect(hermiteAction, &QAction::triggered, this, [this] {
-        switchInterpMode(SpeakerMixKeyframe::Hermite);
-    });
-
-    auto *interpGroup = new QActionGroup(menu);
-    interpGroup->setExclusive(true);
-    interpGroup->addAction(linearAction);
-    interpGroup->addAction(hermiteAction);
-
-    if (!isInitial) {
-        menu->addSeparator();
-
-        auto *deleteAction = menu->addAction(tr("Delete"));
-        connect(deleteAction, &QAction::triggered, this, [this] {
-            deleteSelectedKeyframe();
-            update();
-        });
-    }
 
     menu->popup(event->screenPos());
 }
@@ -237,23 +214,20 @@ QList<double> SpeakerMixEditorView::interpolateWeights(const double tick) const 
 
     const int n = m_speakers.size();
 
-    if (tick <= m_keyframes.first().tick) {
-        QList<double> result = m_keyframes.first().weights;
+    auto expandWeights = [&](const SpeakerMixKeyframe &kf) {
+        QList<double> result = kf.weights;
         double sum = 0;
         for (auto w : result)
             sum += w;
         result.append(1.0 - sum);
         return result;
-    }
+    };
 
-    if (tick >= m_keyframes.last().tick) {
-        QList<double> result = m_keyframes.last().weights;
-        double sum = 0;
-        for (auto w : result)
-            sum += w;
-        result.append(1.0 - sum);
-        return result;
-    }
+    if (tick <= m_keyframes.first().tick)
+        return expandWeights(m_keyframes.first());
+
+    if (tick >= m_keyframes.last().tick)
+        return expandWeights(m_keyframes.last());
 
     int idx = 0;
     for (int i = 0; i < m_keyframes.size() - 1; i++) {
@@ -272,19 +246,7 @@ QList<double> SpeakerMixEditorView::interpolateWeights(const double tick) const 
     result.reserve(n);
     double sum = 0;
     for (int i = 0; i < n - 1; i++) {
-        double w;
-        if (kf0.interpMode == SpeakerMixKeyframe::Hermite) {
-            const double m0 = (i > 0) ? (kf1.weights[i - 1] - kf0.weights[i - 1]) : 0;
-            const double m1 = (i < n - 2) ? (kf1.weights[i + 1] - kf0.weights[i + 1]) : 0;
-            const double t2 = t * t;
-            const double t3 = t2 * t;
-            w = kf0.weights[i] * (2 * t3 - 3 * t2 + 1) +
-                m0 * (t3 - 2 * t2 + t) +
-                kf1.weights[i] * (-2 * t3 + 3 * t2) +
-                m1 * (t3 - t2);
-        } else {
-            w = kf0.weights[i] + t * (kf1.weights[i] - kf0.weights[i]);
-        }
+        const double w = kf0.weights[i] + t * (kf1.weights[i] - kf0.weights[i]);
         result.append(w);
         sum += w;
     }
@@ -630,7 +592,6 @@ void SpeakerMixEditorView::addKeyframeAt(int tick) {
     kf.tick = tick;
     for (int i = 0; i < m_speakers.size() - 1; i++)
         kf.weights.append(weights[i]);
-    kf.interpMode = SpeakerMixKeyframe::Hermite;
 
     auto it = std::lower_bound(m_keyframes.begin(), m_keyframes.end(), tick,
                                [](const SpeakerMixKeyframe &kf, int t) { return kf.tick < t; });
@@ -654,12 +615,4 @@ void SpeakerMixEditorView::deleteSelectedKeyframe() {
     m_state.selectedKeyframeIndex = -1;
     m_state.selectedSplitIndex = -1;
     m_state.selectedKeyframeIndices.clear();
-}
-
-void SpeakerMixEditorView::switchInterpMode(SpeakerMixKeyframe::InterpMode mode) {
-    if (m_state.selectedKeyframeIndex < 0)
-        return;
-
-    m_keyframes[m_state.selectedKeyframeIndex].interpMode = mode;
-    update();
 }

@@ -20,11 +20,8 @@ struct SpeakerMixSpeaker {
 };
 
 struct SpeakerMixKeyframe {
-    enum InterpMode { Linear, Hermite };
-
     int tick = 0;
     QList<double> weights;
-    InterpMode interpMode = Hermite;
 };
 
 struct SpeakerMixHitResult {
@@ -79,7 +76,6 @@ private:
 
     void addKeyframeAt(int tick);
     void deleteSelectedKeyframe();
-    void switchInterpMode(SpeakerMixKeyframe::InterpMode mode);
 
     QList<SpeakerMixSpeaker> m_speakers;
     QList<SpeakerMixKeyframe> m_keyframes;
