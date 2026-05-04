@@ -31,15 +31,11 @@ void CommonParamEditorView::setParamProperties(const ParamProperties &properties
 }
 
 void CommonParamEditorView::loadOriginal(const QList<DrawCurve *> &curves) {
-    for (const auto curve : m_drawCurvesOriginal)
-        delete curve;
     AppModelUtils::copyCurves(curves, m_drawCurvesOriginal);
     update();
 }
 
 void CommonParamEditorView::loadEdited(const QList<DrawCurve *> &curves) {
-    for (const auto curve : m_drawCurvesEdited)
-        delete curve;
     AppModelUtils::copyCurves(curves, m_drawCurvesEdited);
     update();
 }
@@ -70,7 +66,10 @@ void CommonParamEditorView::discardAction() {
         // qWarning() << "Discard action called, but current edit type is None";
         return;
     }
+    for (const auto curve : m_drawCurvesEdited)
+        delete curve;
     m_drawCurvesEdited = m_drawCurvesEditedBak;
+    m_drawCurvesEditedBak.clear();
     m_mouseMoved = false;
     m_newCurveCreated = false;
     cancelRequested = true;
@@ -92,6 +91,8 @@ void CommonParamEditorView::commitAction() {
     m_mouseMoved = false;
     m_newCurveCreated = false;
     cancelRequested = false;
+    for (const auto curve : m_drawCurvesEditedBak)
+        delete curve;
     m_drawCurvesEditedBak.clear();
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
@@ -226,6 +227,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             painter->setPen(pen);
             drawCurveBorder(painter, m_drawCurvesEdited);
         }
+        delete baseCurve;
     }
 
     // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
