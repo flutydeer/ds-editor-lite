@@ -143,7 +143,14 @@ struct SpeakerMixKeyframe {
 
 #### 插值模式
 
-支持 **Linear**（线性）和 **Hermite**（平滑）两种插值模式，挂在关键帧上，表示从该帧到下一帧的插值方式。通过**右键菜单**切换，参考 `AnchorNode` 的设计。
+当前仅支持 **线性插值**。
+
+Speaker mix 的权重满足 w_i >= 0 且 Σw_i = 1，构成 N 维概率单纯形（probability simplex）约束。Hermite / Catmull-Rom 等曲线插值在此约束下会因 overshoot 破坏约束（权重变负或总和不等于 1），且独立权重插值与累积值插值均存在交叉影响问题。
+
+**未来平滑插值方案**（待后续实现）：
+- **Softmax 插值**：在无约束空间（logit 空间）做 Hermite 插值，再 softmax 映射回概率空间
+- **Log-ratio 插值**：对权重做对数比变换，在变换空间中平滑插值
+- **Stick-breaking 插值**：将权重分解为条件概率序列，逐维独立插值
 
 #### 边界行为
 
@@ -290,7 +297,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 删除关键帧：Delete 键 + 右键菜单两种方式
 - [x] 选中机制：单击选中分割点（关键帧视为已选中）；区间框选多个关键帧（y 值忽略）
 - [x] 初始关键帧：clip 开头放置不可移动/删除的关键帧，值为默认比例（均分）
-- [x] 插值模式：支持 Linear / Hermite，挂在关键帧上，右键切换
+- [x] 插值模式：当前仅线性插值（Hermite 在概率单纯形约束下不可行，未来考虑 Softmax/Log-ratio/Stick-breaking）
 - [x] 边界行为：初始关键帧覆盖前方；最后关键帧之后保持不变，填充到视口右边缘
 - [x] 关键帧导航：滚动视口 centerAt(tick) + 移动播放头
 
@@ -306,10 +313,10 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 拖拽无响应：`startDrag` 设 `dragging=false` 但 `mouseMoveEvent` 只在 `dragging==true` 时调用 `updateDrag`，形成死锁。修复：条件改为 `dragging || selectedKeyframeIndex >= 0`
 - [x] 工具栏覆盖：独立的 `SpeakerMixToolBarView` 替换了参数选择工具栏，导致无法切回其他参数。修复：将 speaker mix 控件（导航+speaker列表）嵌入 `ParamEditorToolBarView` 内部作为可显隐区段，不再使用独立的 `SpeakerMixToolBarView`
 - [x] 初始关键帧右键菜单：之前对 tick==0 直接 return 不显示菜单。修复：显示插值模式切换，仅隐藏删除选项
+- [x] Hermite 插值交叉影响：独立权重和累积值两种 Hermite 插值均因概率单纯形约束导致交叉影响。决定：移除 Hermite，当前只支持线性插值
 
 ## 待修复问题
 
-- [ ] Hermite 插值实现有误：当前用相邻 weight 分量差值作为切线，应改为 Catmull-Rom（同一分量前后帧差值）
 - [ ] drawStackedArea 每像素调用 interpolateWeights 做线性扫描，应维护区间指针优化
 - [ ] 区间选择检查了 y 范围，设计要求忽略 y（只按 x 范围选）
 
@@ -351,3 +358,4 @@ HitResult hitTest(const QPointF &itemPos) const;
 - 交互状态全部使用 int index 引用关键帧，不使用指针（避免 QList 操作后失效）
 - Speaker mix 工具栏控件嵌入 `ParamEditorToolBarView`，通过 `setSpeakerMixMode(bool)` 控制显隐
 - 拖拽状态机：`startDrag` 设 `dragging=false`（待定），`mouseMoveEvent` 中 `selectedKeyframeIndex >= 0` 时也调用 `updateDrag`，超过阈值后 `dragging=true`
+- 插值：仅线性插值，`SpeakerMixKeyframe` 不含 interpMode 字段，右键菜单只有删除
