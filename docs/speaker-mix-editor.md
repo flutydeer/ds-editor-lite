@@ -314,11 +314,16 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 工具栏覆盖：独立的 `SpeakerMixToolBarView` 替换了参数选择工具栏，导致无法切回其他参数。修复：将 speaker mix 控件（导航+speaker列表）嵌入 `ParamEditorToolBarView` 内部作为可显隐区段，不再使用独立的 `SpeakerMixToolBarView`
 - [x] 初始关键帧右键菜单：之前对 tick==0 直接 return 不显示菜单。修复：显示插值模式切换，仅隐藏删除选项
 - [x] Hermite 插值交叉影响：独立权重和累积值两种 Hermite 插值均因概率单纯形约束导致交叉影响。决定：移除 Hermite，当前只支持线性插值
+- [x] 区间选择检查了 y 范围：改为只按 x 范围选，选择框高度 = 视口高度（beam 模式）
+- [x] Delete 键无响应：QGraphicsItem 未设 `ItemIsFocusable`，添加后在 mousePressEvent 中 setFocus
+- [x] 区间选中样式：选中的关键帧竖线变蓝，圆点变蓝；选择框为 beam 模式（只有左右边线）
+- [x] 区间选中实时更新：拖拽过程中实时更新 selectedKeyframeIndices，不等松手
+- [x] 批量删除：Delete 键可删除区间选中的所有关键帧（跳过初始帧）
+- [x] 圆点半径调整：kDotRadius 从 4px 改为 2px
 
 ## 待修复问题
 
-- [ ] drawStackedArea 每像素调用 interpolateWeights 做线性扫描，应维护区间指针优化
-- [ ] 区间选择检查了 y 范围，设计要求忽略 y（只按 x 范围选）
+（暂无）
 
 ---
 
@@ -343,9 +348,12 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 修复拖拽状态机死锁
 - [x] 修复工具栏覆盖：嵌入式集成
 - [x] 修复初始关键帧右键菜单
-- [ ] 修复 Hermite 插值（Catmull-Rom 切线）
-- [ ] 优化 interpolateWeights 扫描性能
-- [ ] 修复区间选择忽略 y 范围
+- [x] 简化为线性插值（移除 Hermite）
+- [x] 修复区间选择忽略 y 范围 + beam 模式选择框
+- [x] 修复 Delete 键无响应（ItemIsFocusable）
+- [x] 区间选中样式 + 实时更新 + 批量删除
+- [x] 圆点半径调整（4px → 2px）
+- [ ] 进一步优化编辑体验
 
 ### 当前实现细节备忘
 
@@ -359,3 +367,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 - Speaker mix 工具栏控件嵌入 `ParamEditorToolBarView`，通过 `setSpeakerMixMode(bool)` 控制显隐
 - 拖拽状态机：`startDrag` 设 `dragging=false`（待定），`mouseMoveEvent` 中 `selectedKeyframeIndex >= 0` 时也调用 `updateDrag`，超过阈值后 `dragging=true`
 - 插值：仅线性插值，`SpeakerMixKeyframe` 不含 interpMode 字段，右键菜单只有删除
+- 键盘事件：构造函数设 `ItemIsFocusable`，mousePressEvent 中 `setFocus()`
+- 圆点：kDotRadius=2px, kHoverRadius=6px, kHitRadius=6px
+- 选择框：beam 模式（全高，只有左右边线），实时更新选中状态
+- 选中样式：区间选中的关键帧竖线和圆点都变蓝 `(155, 186, 255)`
