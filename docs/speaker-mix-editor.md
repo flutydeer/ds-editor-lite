@@ -355,6 +355,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 区间选中样式 + 实时更新 + 批量删除
 - [x] 圆点半径调整（4px → 2px）
 - [x] 右键菜单改用项目 Menu 类（exec + deleteLater，初始帧禁用删除而非不显示菜单）
+- [x] 关键帧水平移动：点击竖线（非分割点）可左右拖拽移动关键帧位置，初始帧不可移动，不可越过相邻帧
 - [ ] 进一步优化编辑体验
 
 ### 当前实现细节备忘
@@ -370,6 +371,8 @@ HitResult hitTest(const QPointF &itemPos) const;
 - 拖拽状态机：`startDrag` 设 `dragging=false`（待定），`mouseMoveEvent` 中 `selectedKeyframeIndex >= 0` 时也调用 `updateDrag`，超过阈值后 `dragging=true`
 - 插值：仅线性插值，`SpeakerMixKeyframe` 不含 interpMode 字段，右键菜单只有删除
 - 键盘事件：构造函数设 `ItemIsFocusable`，mousePressEvent 中 `setFocus()`
-- 圆点：kDotRadius=2px, kHoverRadius=6px, kHitRadius=6px
+- 命中检测：统一矩形判断（|dx| ≤ r 且 |dy| ≤ r），分割点优先；竖线命中排除分割点附近 y 区域
+- 拖拽模式：dragSplitIndex >= 0 时上下拖改权重，dragSplitIndex == -1 时左右拖移动关键帧
+- 光标：分割点 SizeVerCursor，竖线 SizeHorCursor，无命中 ArrowCursor
 - 选择框：beam 模式（全高，只有左右边线），实时更新选中状态
 - 选中样式：区间选中的关键帧竖线和圆点都变蓝 `(155, 186, 255)`
