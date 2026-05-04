@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 SpeakerMixEditorView::SpeakerMixEditorView() {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
@@ -424,16 +425,24 @@ SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const 
         const double localX = tickToItemX(kf.tick);
         const double dx = itemPos.x() - localX;
 
+        if (std::abs(dx) > kHitRadius)
+            continue;
+
         const auto weights = interpolateWeights(kf.tick);
         double cumulative = 0;
+        bool nearSplitPoint = false;
         for (int i = 0; i < n - 1; i++) {
             cumulative += weights[i];
             const double y = areaTop + areaHeight * (1.0 - cumulative);
             const double dy = itemPos.y() - y;
-            if (dx * dx + dy * dy <= kHitRadius * kHitRadius) {
+            if (std::abs(dy) <= kHitRadius) {
+                nearSplitPoint = true;
                 return {ki, i};
             }
         }
+
+        if (!nearSplitPoint)
+            return {ki, -1};
     }
 
     return {};
@@ -465,6 +474,11 @@ void SpeakerMixEditorView::updateHover(const QPointF &itemPos) {
         m_state.hoveredSplitIndex = hit.splitIndex;
 
         if (hit.keyframeIndex >= 0) {
+            if (hit.splitIndex >= 0)
+                setCursor(Qt::SizeVerCursor);
+            else
+                setCursor(Qt::SizeHorCursor);
+
             const auto weights = interpolateWeights(m_keyframes[hit.keyframeIndex].tick);
             QStringList parts;
             for (int i = 0; i < m_speakers.size(); i++)
@@ -473,6 +487,7 @@ void SpeakerMixEditorView::updateHover(const QPointF &itemPos) {
                                  .arg(weights[i] * 100, 0, 'f', 1));
             setToolTip(parts.join("\n"));
         } else {
+            setCursor(Qt::ArrowCursor);
             setToolTip(QString());
         }
     }
@@ -511,6 +526,7 @@ void SpeakerMixEditorView::startDrag(const QPointF &scenePos) {
 
     if (m_state.selectedKeyframeIndex >= 0) {
         m_state.dragStartWeights = m_keyframes[m_state.selectedKeyframeIndex];
+        m_state.dragStartTick = m_keyframes[m_state.selectedKeyframeIndex].tick;
         m_state.dragSplitIndex = m_state.selectedSplitIndex;
     }
 }
@@ -527,14 +543,30 @@ void SpeakerMixEditorView::updateDrag(const QPointF &scenePos) {
             return;
     }
 
+    const int ki = m_state.selectedKeyframeIndex;
+    auto &kf = m_keyframes[ki];
+    const int si = m_state.dragSplitIndex;
+
+    if (si < 0) {
+        if (m_state.dragStartTick == 0)
+            return;
+
+        const double newSceneX = m_state.dragStartScenePos.x() + delta.x();
+        int newTick = static_cast<int>(sceneXToTick(newSceneX));
+
+        const int prevTick = (ki > 0) ? m_keyframes[ki - 1].tick + 1 : 1;
+        const int nextTick = (ki < m_keyframes.size() - 1) ? m_keyframes[ki + 1].tick - 1
+                                                           : std::numeric_limits<int>::max();
+        newTick = std::clamp(newTick, prevTick, nextTick);
+        kf.tick = newTick;
+        return;
+    }
+
     const auto *view = scene()->views().isEmpty() ? nullptr : scene()->views().first();
     const bool altHeld = view ? (QApplication::keyboardModifiers() & Qt::AltModifier) : false;
     m_state.altDrag = altHeld;
 
     const int n = m_speakers.size();
-    auto &kf = m_keyframes[m_state.selectedKeyframeIndex];
-    const int si = m_state.dragSplitIndex;
-
     const double deltaItemY = delta.y();
 
     if (altHeld) {

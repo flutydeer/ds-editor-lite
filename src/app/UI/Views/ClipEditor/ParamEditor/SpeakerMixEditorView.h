@@ -89,6 +89,7 @@ private:
         bool dragging = false;
         QPointF dragStartScenePos;
         SpeakerMixKeyframe dragStartWeights;
+        int dragStartTick = 0;
         int dragSplitIndex = -1;
         bool altDrag = false;
 
