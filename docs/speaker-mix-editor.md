@@ -296,7 +296,22 @@ HitResult hitTest(const QPointF &itemPos) const;
 
 ## 待讨论事项
 
-- [ ] 分割点拖动无响应：按住分割点上下拖动时，分割点位置不变化，拖拽未生效（待排查 QGraphicsItem 事件流 / 场景坐标转换问题）
+（暂无）
+
+---
+
+## 已修复问题
+
+- [x] 指针失效：交互状态中的 `SpeakerMixKeyframe*` 改为 int index，避免 QList 插入/删除后悬空指针
+- [x] 拖拽无响应：`startDrag` 设 `dragging=false` 但 `mouseMoveEvent` 只在 `dragging==true` 时调用 `updateDrag`，形成死锁。修复：条件改为 `dragging || selectedKeyframeIndex >= 0`
+- [x] 工具栏覆盖：独立的 `SpeakerMixToolBarView` 替换了参数选择工具栏，导致无法切回其他参数。修复：将 speaker mix 控件（导航+speaker列表）嵌入 `ParamEditorToolBarView` 内部作为可显隐区段，不再使用独立的 `SpeakerMixToolBarView`
+- [x] 初始关键帧右键菜单：之前对 tick==0 直接 return 不显示菜单。修复：显示插值模式切换，仅隐藏删除选项
+
+## 待修复问题
+
+- [ ] Hermite 插值实现有误：当前用相邻 weight 分量差值作为切线，应改为 Catmull-Rom（同一分量前后帧差值）
+- [ ] drawStackedArea 每像素调用 interpolateWeights 做线性扫描，应维护区间指针优化
+- [ ] 区间选择检查了 y 范围，设计要求忽略 y（只按 x 范围选）
 
 ---
 
@@ -306,7 +321,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 确定 speaker mix 与现有参数的差异
 - [x] 确定集成方式：共存叠加（非互斥切换）
 - [x] 确定 `SpeakerMixEditorView` 独立于 `CommonParamEditorView`
-- [x] 确定工具栏方案：独立 `SpeakerMixToolBarView`
+- [x] 确定工具栏方案：speaker mix 控件嵌入 `ParamEditorToolBarView` 内部（不再使用独立 `SpeakerMixToolBarView`）
 - [x] 确定拖拽策略：分割点直接拖 / Alt 等比拖
 - [x] 确定数据来源：第一阶段硬编码 3 条 speaker，颜色从 TrackColorPalette 取
 - [x] 确定详细操作逻辑（添加/删除/选中/拖拽/插值/边界/导航）
@@ -316,7 +331,14 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 修改 `ParamEditorInfoArea` 添加 clearParamProperties()
 - [x] 修改 `ParamEditorView` 处理 speaker mix 模式下的 info area
 - [x] 实现交互逻辑（命中检测 + 选中 + 拖拽 + 双击添加 + 删除 + 右键菜单 + 区间选择 + hover）
-- [x] 实现 `SpeakerMixToolBarView`（关键帧导航 + speaker 列表）
+- [x] 实现 speaker mix 工具栏控件（关键帧导航 + speaker 列表，嵌入 ParamEditorToolBarView）
+- [x] 修复指针失效：交互状态改用 index
+- [x] 修复拖拽状态机死锁
+- [x] 修复工具栏覆盖：嵌入式集成
+- [x] 修复初始关键帧右键菜单
+- [ ] 修复 Hermite 插值（Catmull-Rom 切线）
+- [ ] 优化 interpolateWeights 扫描性能
+- [ ] 修复区间选择忽略 y 范围
 
 ### 当前实现细节备忘
 
@@ -326,3 +348,6 @@ HitResult hitTest(const QPointF &itemPos) const;
 - Speaker mix 在前景 ComboBox 中使用 `ParamInfo::Unknown` 作为标识值（index + 1 自然映射到 Unknown=10）
 - Swap 按钮在 speaker mix 模式下禁用（不允许交换到背景）
 - 数据结构：`SpeakerMixSpeaker`（避免与 `PackageManager/Models/SpeakerInfo` 同名冲突）
+- 交互状态全部使用 int index 引用关键帧，不使用指针（避免 QList 操作后失效）
+- Speaker mix 工具栏控件嵌入 `ParamEditorToolBarView`，通过 `setSpeakerMixMode(bool)` 控制显隐
+- 拖拽状态机：`startDrag` 设 `dragging=false`（待定），`mouseMoveEvent` 中 `selectedKeyframeIndex >= 0` 时也调用 `updateDrag`，超过阈值后 `dragging=true`
