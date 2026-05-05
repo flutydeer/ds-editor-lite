@@ -5,6 +5,7 @@
 #ifndef CHORUSKIT_LEVELMETER_H
 #define CHORUSKIT_LEVELMETER_H
 
+#include <QPointer>
 #include <QWidget>
 
 class LevelMeterViewModel;
@@ -91,7 +92,7 @@ private:
     const double m_warnThreshold = 0.891251;
     const double m_safeThresholdAlt = 0.501187;
 
-    LevelMeterViewModel *m_viewModel = nullptr;
+    QPointer<LevelMeterViewModel> m_viewModel;
 
     QRectF paddedRect;
     double channelWidth = 0;
