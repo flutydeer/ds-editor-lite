@@ -19,6 +19,7 @@
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ProgressIndicator.h"
+#include "UI/Controls/SilentSplitter.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
@@ -297,7 +298,7 @@ MainWindow::MainWindow() {
     connect(m_bottomPanelView, &BottomPanelView::detachRequested, this,
             &MainWindow::detachBottomPanel);
 
-    m_splitter = new QSplitter;
+    m_splitter = new SilentSplitter;
     m_splitter->setOrientation(Qt::Vertical);
     m_splitter->addWidget(m_trackEditorView);
     m_splitter->addWidget(m_bottomPanelView);
