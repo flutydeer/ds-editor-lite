@@ -34,6 +34,7 @@
 #include "Model/AppModel/Track.h"
 #include "Model/AppModel/LoopSettings.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "UI/Controls/LevelMeterViewModel.h"
 #include "utils/PseudoSingerConfigNotifier.h"
 
 #include <Model/AppOptions/AppOptions.h>
@@ -175,21 +176,20 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         }
     });
 
-    masterChannel = new Track;
-    m_trackLevelMeterValue[masterChannel] = {std::make_shared<talcs::SmoothedFloat>(-96),
-                                             std::make_shared<talcs::SmoothedFloat>(-96)};
-    m_trackLevelMeterValue[masterChannel].first->setRampLength(
-        m_levelMeterRampLength); // TODO make it configurable
-    m_trackLevelMeterValue[masterChannel].second->setRampLength(m_levelMeterRampLength);
+    m_masterLevelMeterValueL = std::make_shared<talcs::SmoothedFloat>(-96);
+    m_masterLevelMeterValueR = std::make_shared<talcs::SmoothedFloat>(-96);
+    m_masterLevelMeterValueL->setRampLength(m_levelMeterRampLength);
+    m_masterLevelMeterValueR->setRampLength(m_levelMeterRampLength);
     auto trackControlMixer = masterControlMixer();
     trackControlMixer->setLevelMeterChannelCount(2);
     connect(trackControlMixer, &talcs::PositionableMixerAudioSource::levelMetered, this,
             [trackControlMixer, this](QVector<float> values) {
-                // if (!m_trackLevelMeterValue.contains(masterChannel))
-                //     return;
                 if (masterTrackMixer()->isMutedBySoloSetting(trackControlMixer))
                     values = {0, 0};
-                updateTrackLevelMeterValue(masterChannel, values);
+                auto dBL = static_cast<float>(talcs::Decibels::gainToDecibels(values[0]));
+                auto dBR = static_cast<float>(talcs::Decibels::gainToDecibels(values[1]));
+                updateSmoothedValue(m_masterLevelMeterValueL, dBL);
+                updateSmoothedValue(m_masterLevelMeterValueR, dBR);
             });
 
     m_levelMeterTimer = new QTimer(this);
@@ -303,9 +303,7 @@ void AudioContext::tickLevelMeters() {
     const auto status = playbackController->playbackStatus();
     const bool notPlaying = status != Playing;
 
-    AppModel::LevelMetersUpdatedArgs args;
-
-    auto addChannelLevel = [&](const Track *track) {
+    auto addTrackLevels = [&](const Track *track) {
         if (!m_trackLevelMeterValue.contains(track))
             return;
         auto &pair = m_trackLevelMeterValue[track];
@@ -314,14 +312,25 @@ void AudioContext::tickLevelMeters() {
             pair.first->setTargetValue(-96);
             pair.second->setTargetValue(-96);
         }
-        args.trackMeterStates.append({pair.first->nextValue(), pair.second->nextValue()});
+        auto dBL = static_cast<double>(pair.first->nextValue());
+        auto dBR = static_cast<double>(pair.second->nextValue());
+        if (auto vm = appModel->levelMeterViewModelForTrack(track))
+            vm->setLevels(dBL, dBR);
     };
 
     for (const auto track : appModel->tracks())
-        addChannelLevel(track);
-    addChannelLevel(masterChannel);
+        addTrackLevels(track);
 
-    emit levelMeterUpdated(args);
+    if (notPlaying && m_masterLevelMeterValueL) {
+        if (m_masterLevelMeterValueL->targetValue() > -96) {
+            m_masterLevelMeterValueL->setTargetValue(-96);
+            m_masterLevelMeterValueR->setTargetValue(-96);
+        }
+    }
+    auto masterDBL = static_cast<double>(m_masterLevelMeterValueL->nextValue());
+    auto masterDBR = static_cast<double>(m_masterLevelMeterValueR->nextValue());
+    if (auto vm = appModel->masterLevelMeterViewModel())
+        vm->setLevels(masterDBL, masterDBR);
 
     if (notPlaying) {
         bool allAtFloor = true;
@@ -332,7 +341,8 @@ void AudioContext::tickLevelMeters() {
                 break;
             }
         }
-        if (allAtFloor) {
+        if (allAtFloor &&
+            m_masterLevelMeterValueL && m_masterLevelMeterValueL->currentValue() <= -96) {
             m_levelMeterActive = false;
             return;
         }
@@ -389,8 +399,7 @@ void AudioContext::handleTrackInserted(const int index, Track *track) {
 
     m_trackLevelMeterValue[track] = {std::make_shared<talcs::SmoothedFloat>(-96),
                                      std::make_shared<talcs::SmoothedFloat>(-96)};
-    m_trackLevelMeterValue[track].first->setRampLength(
-        m_levelMeterRampLength); // TODO make it configurable
+    m_trackLevelMeterValue[track].first->setRampLength(m_levelMeterRampLength);
     m_trackLevelMeterValue[track].second->setRampLength(m_levelMeterRampLength);
     auto trackControlMixer = trackContext->controlMixer();
     trackControlMixer->setLevelMeterChannelCount(2);
@@ -402,15 +411,8 @@ void AudioContext::handleTrackInserted(const int index, Track *track) {
                     values = {0, 0};
                 const auto dBL = static_cast<float>(talcs::Decibels::gainToDecibels(values[0]));
                 const auto dBR = static_cast<float>(talcs::Decibels::gainToDecibels(values[1]));
-                if (dBL < m_trackLevelMeterValue[track].first->currentValue())
-                    m_trackLevelMeterValue[track].first->setTargetValue(dBL);
-                else
-                    m_trackLevelMeterValue[track].first->setCurrentAndTargetValue(dBL);
-
-                if (dBR < m_trackLevelMeterValue[track].second->currentValue())
-                    m_trackLevelMeterValue[track].second->setTargetValue(dBR);
-                else
-                    m_trackLevelMeterValue[track].second->setCurrentAndTargetValue(dBR);
+                updateSmoothedValue(m_trackLevelMeterValue[track].first, dBL);
+                updateSmoothedValue(m_trackLevelMeterValue[track].second, dBR);
             });
 
     // m_trackSynthDict.insert(track, new TrackSynthesizer(trackContext, track));
@@ -494,6 +496,13 @@ void AudioContext::handleTimeChanged() const {
     }
 }
 
+void AudioContext::updateSmoothedValue(std::shared_ptr<talcs::SmoothedFloat> &sm, float dBL) {
+    if (dBL < sm->currentValue())
+        sm->setTargetValue(dBL);
+    else
+        sm->setCurrentAndTargetValue(dBL);
+}
+
 bool AudioContext::willStartCallback(AudioExporter *exporter) {
     m_exporter = exporter;
     playbackController->stop();
@@ -527,18 +536,4 @@ void AudioContext::willFinishCallback(AudioExporter *exporter) {
         trackInferenceHandler->setMode(talcs::DspxTrackInferenceContext::Default);
     }
     m_exporter = nullptr;
-}
-
-void AudioContext::updateTrackLevelMeterValue(const Track *track, QList<float> values) {
-    const auto dBL = static_cast<float>(talcs::Decibels::gainToDecibels(values[0]));
-    const auto dBR = static_cast<float>(talcs::Decibels::gainToDecibels(values[1]));
-    if (dBL < m_trackLevelMeterValue[track].first->currentValue())
-        m_trackLevelMeterValue[track].first->setTargetValue(dBL);
-    else
-        m_trackLevelMeterValue[track].first->setCurrentAndTargetValue(dBL);
-
-    if (dBR < m_trackLevelMeterValue[track].second->currentValue())
-        m_trackLevelMeterValue[track].second->setTargetValue(dBR);
-    else
-        m_trackLevelMeterValue[track].second->setCurrentAndTargetValue(dBR);
 }

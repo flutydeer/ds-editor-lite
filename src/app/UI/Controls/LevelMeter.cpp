@@ -3,62 +3,49 @@
 //
 
 #include "LevelMeter.h"
+#include "LevelMeterViewModel.h"
 
-#include <QDebug>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QTimer>
-#include <QVariantAnimation>
 
 #include "Utils/VolumeUtils.h"
 
 LevelMeter::LevelMeter(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setAttribute(Qt::WA_Hover);
+}
 
-    m_leftChannel.peakHoldTimer = new QTimer(this);
-    m_rightChannel.peakHoldTimer = new QTimer(this);
-    m_leftChannel.peakHoldTimer->setSingleShot(true);
-    m_rightChannel.peakHoldTimer->setSingleShot(true);
+void LevelMeter::bindTo(LevelMeterViewModel *viewModel) {
+    if (m_viewModel == viewModel)
+        return;
 
-    m_leftChannel.decayAnimation = new QVariantAnimation(this);
-    m_rightChannel.decayAnimation = new QVariantAnimation(this);
+    if (m_viewModel)
+        disconnect(m_viewModel, nullptr, this, nullptr);
 
-    connect(m_leftChannel.peakHoldTimer, &QTimer::timeout,
-            [this] { startDecayAnimation(m_leftChannel); });
+    m_viewModel = viewModel;
 
-    connect(m_rightChannel.peakHoldTimer, &QTimer::timeout,
-            [this] { startDecayAnimation(m_rightChannel); });
+    if (m_viewModel) {
+        connect(m_viewModel, &LevelMeterViewModel::levelChanged, this,
+                QOverload<>::of(&LevelMeter::update));
+        connect(m_viewModel, &LevelMeterViewModel::peakChanged, this,
+                QOverload<>::of(&LevelMeter::update));
+        connect(m_viewModel, &LevelMeterViewModel::clipStateChanged, this,
+                QOverload<>::of(&LevelMeter::update));
+        connect(m_viewModel, &LevelMeterViewModel::peakValueChanged, this,
+                &LevelMeter::peakValueChanged);
+    }
 
-    auto setupAnimation = [&](QVariantAnimation *anim) {
-        anim->setDuration(m_decayTime);
-        anim->setEasingCurve(QEasingCurve::InOutCubic);
-    };
+    update();
+}
 
-    setupAnimation(m_leftChannel.decayAnimation);
-    setupAnimation(m_rightChannel.decayAnimation);
+LevelMeterViewModel *LevelMeter::viewModel() const {
+    return m_viewModel;
+}
 
-    connect(m_leftChannel.decayAnimation, &QVariantAnimation::valueChanged,
-            [this](const QVariant &value) { handleAnimationUpdate(value, m_leftChannel); });
-
-    connect(m_rightChannel.decayAnimation, &QVariantAnimation::valueChanged,
-            [this](const QVariant &value) { handleAnimationUpdate(value, m_rightChannel); });
-
-    connect(m_leftChannel.decayAnimation, &QVariantAnimation::finished, [this] {
-        if (m_leftChannel.isDecaying && !m_leftChannel.peakHoldTimer->isActive()) {
-            m_leftChannel.displayedPeak = 0.0;
-            m_leftChannel.isDecaying = false;
-            update();
-        }
-    });
-
-    connect(m_rightChannel.decayAnimation, &QVariantAnimation::finished, [this] {
-        if (m_rightChannel.isDecaying && !m_rightChannel.peakHoldTimer->isActive()) {
-            m_rightChannel.displayedPeak = 0.0;
-            m_rightChannel.isDecaying = false;
-            update();
-        }
-    });
+double LevelMeter::peakValue() const {
+    if (m_viewModel)
+        return m_viewModel->peakValue();
+    return -70.0;
 }
 
 void LevelMeter::resizeEvent(QResizeEvent *event) {
@@ -76,36 +63,47 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
     const auto leftChannelLeft = paddedRect.left();
     const auto rightChannelLeft = leftChannelLeft + channelWidth + m_spacing;
 
-    // Draw clip indicator
     const auto leftIndicatorRect =
         QRectF(leftChannelLeft, paddedRect.top(), channelWidth, m_clipIndicatorLength);
     const auto rightIndicatorRect =
         QRectF(rightChannelLeft, paddedRect.top(), channelWidth, m_clipIndicatorLength);
 
-    painter.fillRect(leftIndicatorRect, m_leftChannel.clipped ? m_colorClipped : m_colorDimmed);
-    painter.fillRect(rightIndicatorRect, m_leftChannel.clipped ? m_colorClipped : m_colorDimmed);
+    bool clippedL = false;
+    bool clippedR = false;
+    double levelL = 0.0;
+    double levelR = 0.0;
+    double peakL = 0.0;
+    double peakR = 0.0;
 
-    // Draw levels
+    if (m_viewModel) {
+        clippedL = m_viewModel->clippedL();
+        clippedR = m_viewModel->clippedR();
+        levelL = m_viewModel->levelL();
+        levelR = m_viewModel->levelR();
+        peakL = m_viewModel->displayedPeakL();
+        peakR = m_viewModel->displayedPeakR();
+    }
+
+    painter.fillRect(leftIndicatorRect, clippedL ? m_colorClipped : m_colorDimmed);
+    painter.fillRect(rightIndicatorRect, clippedR ? m_colorClipped : m_colorDimmed);
+
     const auto leftLevelBar = QRectF(leftChannelLeft, channelTop, channelWidth, channelLength);
     const auto rightLevelBar = QRectF(rightChannelLeft, channelTop, channelWidth, channelLength);
     if (m_style == MeterStyle::Segmented) {
-        drawSegmentedBar(painter, leftLevelBar, m_leftChannel.currentLevel);
-        drawSegmentedBar(painter, rightLevelBar, m_rightChannel.currentLevel);
+        drawSegmentedBar(painter, leftLevelBar, levelL);
+        drawSegmentedBar(painter, rightLevelBar, levelR);
     } else if (m_style == MeterStyle::Gradient) {
-        drawGradientBar(painter, leftLevelBar, m_leftChannel.currentLevel);
-        drawGradientBar(painter, rightLevelBar, m_rightChannel.currentLevel);
+        drawGradientBar(painter, leftLevelBar, levelL);
+        drawGradientBar(painter, rightLevelBar, levelR);
     }
     painter.setClipRect(rect());
 
-    // Draw peak hold value
-    drawPeakHold(painter, leftLevelBar, m_leftChannel.displayedPeak);
-    drawPeakHold(painter, rightLevelBar, m_rightChannel.displayedPeak);
+    drawPeakHold(painter, leftLevelBar, peakL);
+    drawPeakHold(painter, rightLevelBar, peakR);
 
-    // Draw cursor value
     if (m_showValueWhenHover && m_mouseOnBar) {
         painter.setClipRect(rect());
 
-        // Draw value background
         const auto textHeight = painter.fontMetrics().height();
         const auto textRect =
             QRectF(rect().left(), mouseY - textHeight, rect().width(), textHeight);
@@ -113,7 +111,6 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
         painter.setPen(Qt::NoPen);
         painter.drawRect(textRect);
 
-        // Draw value text
         QPen currentValuePen;
         currentValuePen.setColor(m_colorCurrentValue);
         currentValuePen.setWidthF(1.2);
@@ -122,7 +119,6 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
         const QTextOption textOption(Qt::AlignCenter);
         painter.drawText(textRect, m_currentValueText, textOption);
 
-        // Draw line
         const auto line = QLineF(rect().left(), mouseY, rect().right(), mouseY);
         painter.drawLine(line);
     }
@@ -131,48 +127,13 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
 void LevelMeter::mousePressEvent(QMouseEvent *event) {
     const auto cursorPos = event->position();
     if (event->button() == Qt::LeftButton && mouseOnClipIndicator(cursorPos))
-        setClipped(false, false);
+        emit clipResetRequested();
 
     QWidget::mousePressEvent(event);
     event->ignore();
 }
 
-void LevelMeter::setValue(const double valueL, const double valueR) {
-    m_leftChannel.currentLevel = VolumeUtils::dBToLinear(valueL);
-    m_rightChannel.currentLevel = VolumeUtils::dBToLinear(valueR);
-    auto clippedValueL = m_leftChannel.currentLevel;
-    auto clippedValueR = m_rightChannel.currentLevel;
-
-    if (m_leftChannel.currentLevel > 1) {
-        m_leftChannel.clipped = true;
-        clippedValueL = 1;
-    }
-    if (m_rightChannel.currentLevel > 1) {
-        m_rightChannel.clipped = true;
-        clippedValueR = 1;
-    }
-
-    updatePeakValue(m_leftChannel, clippedValueL);
-    updatePeakValue(m_rightChannel, clippedValueR);
-
-    update();
-}
-
-double LevelMeter::peakValue() const {
-    return VolumeUtils::linearTodB(getPeakValueForTextDisplaying());
-}
-
-void LevelMeter::setClipped(const bool onL, const bool onR) {
-    m_leftChannel.clipped = onL;
-    m_rightChannel.clipped = onR;
-}
-
-void LevelMeter::clearClipped() {
-    setClipped(false, false);
-}
-
 bool LevelMeter::mouseOnClipIndicator(const QPointF &pos) const {
-    // return pos.y() <= m_spacing + m_clipIndicatorLength + m_spacing;
     return pos.y() <= m_clipIndicatorLength + 8;
 }
 
@@ -205,7 +166,6 @@ void LevelMeter::onHover(const QHoverEvent *event) {
         handleHoverOnClipIndicator();
     } else {
         m_mouseOnBar = false;
-        // setToolTip({});
     }
     update();
 }
@@ -215,23 +175,14 @@ void LevelMeter::handleHoverOnBar() {
 
     const auto cursorY = mapFromGlobal(QCursor::pos()).y();
     const auto db = VolumeUtils::linearTodB(yToLinear(cursorY));
-    auto toolTip = gainValueToString(db);
     m_currentValueText = gainValueToString(db);
-
-    // setToolTip(toolTip);
-    // toolTipFilter->setTitle(toolTip);
 }
 
 void LevelMeter::handleHoverOnClipIndicator() const {
-    if (m_leftChannel.clipped || m_rightChannel.clipped) {
-        auto toolTip = tr("Clipped");
-        // setToolTip(toolTip);
-        // toolTipFilter->setTitle(toolTip);
-    }
 }
 
 void LevelMeter::drawSegmentedBar(QPainter &painter, const QRectF &rect,
-                                  const double &level) const {
+                                  double level) const {
     const auto rectLeft = rect.left();
     const auto rectTop = rect.top();
     const auto rectWidth = rect.width();
@@ -243,7 +194,6 @@ void LevelMeter::drawSegmentedBar(QPainter &painter, const QRectF &rect,
     const auto safeStart = rectTop + rectHeight - safeLength;
     const auto warnStart = rectTop + rectHeight - safeLength - warnLength;
     const auto criticalStart = rectTop;
-    // auto levelLength = rectHeight * level;
     const auto criticalLength = rectHeight - safeLength - warnLength;
 
     const auto fullSafeChunk = QRectF(rectLeft, safeStart, rectWidth, safeLength);
@@ -251,7 +201,6 @@ void LevelMeter::drawSegmentedBar(QPainter &painter, const QRectF &rect,
     const auto fullCriticalChunk = QRectF(rectLeft, criticalStart, rectWidth, criticalLength);
 
     if (level <= 1) {
-        // Draw background
         painter.setClipRect(rect);
         painter.fillRect(rect, m_colorDimmed);
 
@@ -267,8 +216,7 @@ void LevelMeter::drawSegmentedBar(QPainter &painter, const QRectF &rect,
     }
 }
 
-void LevelMeter::drawGradientBar(QPainter &painter, const QRectF &rect, const double &level) const {
-    // Draw background
+void LevelMeter::drawGradientBar(QPainter &painter, const QRectF &rect, double level) const {
     painter.setClipRect(rect);
     painter.fillRect(rect, m_colorDimmed);
 
@@ -305,66 +253,6 @@ void LevelMeter::drawPeakHold(QPainter &painter, const QRectF &rect, double leve
     auto p1 = QPointF(rect.left(), top);
     auto p2 = QPointF(rect.right(), top);
     painter.drawLine({p1, p2});
-}
-
-void LevelMeter::startDecayAnimation(ChannelData &channel) {
-    // qInfo() << "LevelMeter::startDecayAnimation";
-    if (channel.displayedPeak <= 0.0)
-        return;
-
-    channel.isDecaying = true;
-    channel.decayAnimation->stop();
-    channel.decayAnimation->setStartValue(channel.displayedPeak);
-    channel.decayAnimation->setEndValue(0.0);
-    channel.decayAnimation->start();
-}
-
-void LevelMeter::updatePeakValue(ChannelData &channel, const double clippedValue) {
-    Q_UNUSED(clippedValue);
-    // qDebug() << "LevelMeter::updatePeakValue" << channel.displayedPeak << newValue;
-    if (channel.currentLevel > channel.displayedPeak) {
-        cancelDecayAnimation(channel);
-
-        channel.peak = channel.currentLevel;
-        channel.displayedPeak = channel.peak;
-        channel.peakHoldTimer->stop();
-        channel.peakHoldTimer->start(m_peakHoldTime);
-
-        notifyDisplayedPeakChange();
-    }
-}
-
-void LevelMeter::cancelDecayAnimation(ChannelData &channel) {
-    if (channel.isDecaying) {
-        channel.decayAnimation->stop();
-        channel.isDecaying = false;
-    }
-}
-
-void LevelMeter::handleAnimationUpdate(const QVariant &value, ChannelData &channel) {
-    channel.displayedPeak = value.toDouble();
-    notifyDisplayedPeakChange();
-    update();
-}
-
-void LevelMeter::notifyDisplayedPeakChange() {
-    const auto peakValue = getPeakValueForTextDisplaying();
-    if (!qFuzzyCompare(m_lastPeakValue, peakValue)) {
-        emit peakValueChanged(VolumeUtils::linearTodB(peakValue));
-        m_lastPeakValue = peakValue;
-    }
-}
-
-double LevelMeter::getPeakValueForTextDisplaying() const {
-    const auto peakL = qFuzzyCompare(m_leftChannel.displayedPeak, 1.0) &&
-                               m_leftChannel.peak > m_leftChannel.displayedPeak
-                           ? m_leftChannel.peak
-                           : m_leftChannel.displayedPeak;
-    const auto peakR = qFuzzyCompare(m_rightChannel.displayedPeak, 1.0) &&
-                               m_rightChannel.peak > m_rightChannel.displayedPeak
-                           ? m_rightChannel.peak
-                           : m_rightChannel.displayedPeak;
-    return std::max(peakL, peakR);
 }
 
 QString LevelMeter::gainValueToString(const double gain) {

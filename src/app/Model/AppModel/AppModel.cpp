@@ -8,6 +8,7 @@
 #include "SingingClip.h"
 #include "Track.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "UI/Controls/LevelMeterViewModel.h"
 #include "UI/Utils/TrackColorPalette.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/AProjectConverter.h"
@@ -71,6 +72,10 @@ void AppModel::insertTrack(Track *track, const qsizetype index) {
     if (track->colorIndex() == 0 && !track->color().isValid())
         track->setColorIndex(TrackColorPalette::instance()->nextColorIndex());
     d->m_tracks.insert(index, track);
+
+    auto vm = new LevelMeterViewModel(this);
+    d->m_levelMeterViewModels.insert(index, vm);
+
     emit trackChanged(Insert, index, track);
 }
 
@@ -83,6 +88,12 @@ void AppModel::removeTrackAt(const qsizetype index) {
     Q_D(AppModel);
     const auto track = d->m_tracks[index];
     d->m_tracks.removeAt(index);
+
+    if (index < d->m_levelMeterViewModels.size()) {
+        auto vm = d->m_levelMeterViewModels.takeAt(index);
+        delete vm;
+    }
+
     emit trackChanged(Remove, index, track);
 }
 
@@ -98,23 +109,33 @@ void AppModel::clearTracks() {
         removeTrackAt(0);
 }
 
-// QJsonObject AppModel::globalWorkspace() const {
-//     Q_D(const AppModel);
-//     return d->m_workspace;
-// }
-// bool AppModel::isWorkspaceExist(const QString &id) const {
-//     Q_D(const AppModel);
-//     return d->m_workspace.contains(id);
-// }
-// QJsonObject AppModel::getPrivateWorkspaceById(const QString &id) const {
-//     Q_D(const AppModel);
-//     auto obj = d->m_workspace.value(id).toObject();
-//     return obj;
-// }
-// std::unique_ptr<WorkspaceEditor> AppModel::workspaceEditor(const QString &id) {
-//     Q_D(const AppModel);
-//     return std::make_unique<WorkspaceEditor>(d->m_workspace, id);
-// }
+LevelMeterViewModel *AppModel::levelMeterViewModelForTrack(const Track *track) const {
+    Q_D(const AppModel);
+    const auto index = d->m_tracks.indexOf(const_cast<Track *>(track));
+    if (index < 0 || index >= d->m_levelMeterViewModels.size())
+        return nullptr;
+    return d->m_levelMeterViewModels.at(index);
+}
+
+LevelMeterViewModel *AppModel::levelMeterViewModelAt(qsizetype index) const {
+    Q_D(const AppModel);
+    if (index < 0 || index >= d->m_levelMeterViewModels.size())
+        return nullptr;
+    return d->m_levelMeterViewModels.at(index);
+}
+
+LevelMeterViewModel *AppModel::masterLevelMeterViewModel() const {
+    Q_D(const AppModel);
+    return d->m_masterLevelMeterViewModel;
+}
+
+void AppModel::clearAllClipStates() {
+    Q_D(AppModel);
+    for (auto vm : d->m_levelMeterViewModels)
+        vm->resetClip();
+    if (d->m_masterLevelMeterViewModel)
+        d->m_masterLevelMeterViewModel->resetClip();
+}
 
 void AppModel::newProject() {
     Q_D(AppModel);
@@ -132,20 +153,14 @@ void AppModel::newProject() {
     const auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
     newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
-    // if (soloExists) {
-    //     auto control = newTrack->control();
-    //     control.setMute(true);
-    //     newTrack->setControl(control);
-    // }
 
-    // TODO: set default singer and speaker here
-    // newTrack->setSingerIdentifier({
-    //    .singerId = "zhibin", //appOptions->general()->defaultSingerId,
-    //    .packageId = "zhibin", //appOptions->general()->defaultPackageId,
-    //    .packageVersion = QVersionNumber(5, 2), //appOptions->general()->defaultPackageVersion,
-    //});
     newTrack->insertClip(singingClip);
     d->m_tracks.append(newTrack);
+
+    auto vm = new LevelMeterViewModel(this);
+    d->m_levelMeterViewModels.append(vm);
+
+    d->m_masterLevelMeterViewModel = new LevelMeterViewModel(this);
 
     emit modelChanged();
     d->dispose();
@@ -182,7 +197,6 @@ bool AppModel::importAceProject(const QString &filename) {
                 if (clip->clipType() == Clip::Singing) {
                     const auto singingClip = static_cast<SingingClip *>(clip);
                     singingClip->setDefaultLanguage(track->defaultLanguage());
-                    // NoteWordUtils::fillEditedPhonemeNames(singingClip->notes().toList());
                 }
             }
         }
@@ -197,9 +211,16 @@ void AppModel::loadFromAppModel(const AppModel &model) {
     d->m_tempo = model.tempo();
     d->m_timeSignature = model.timeSignature();
     d->m_tracks = model.tracks();
+
+    for (int i = 0; i < d->m_tracks.size(); i++) {
+        auto vm = new LevelMeterViewModel(this);
+        d->m_levelMeterViewModels.append(vm);
+    }
+
+    d->m_masterLevelMeterViewModel = new LevelMeterViewModel(this);
+
     emit modelChanged();
     d->dispose();
-    // emit tempoChanged(d->m_tempo);
 }
 
 QJsonObject AppModel::serialize() const {
@@ -392,6 +413,13 @@ void AppModelPrivate::reset() {
     m_masterControl = TrackControl();
     m_previousTracks = m_tracks;
     m_tracks.clear();
+
+    for (auto vm : m_levelMeterViewModels)
+        delete vm;
+    m_levelMeterViewModels.clear();
+
+    delete m_masterLevelMeterViewModel;
+    m_masterLevelMeterViewModel = nullptr;
 }
 
 void AppModelPrivate::dispose() const {

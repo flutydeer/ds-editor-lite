@@ -44,7 +44,6 @@ signals:
     void positionChanged(double tick);
     void lastPositionChanged(double tick);
     void playbackStatusChanged(PlaybackStatus status);
-    void levelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args);
 
 public slots:
     void play();

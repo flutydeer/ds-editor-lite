@@ -6,6 +6,7 @@
 #define APPMODEL_P_H
 
 class AppModel;
+class LevelMeterViewModel;
 
 class AppModelPrivate {
     Q_DECLARE_PUBLIC(AppModel)
@@ -23,6 +24,9 @@ public:
     QList<Track *> m_tracks;
     QList<Track *> m_previousTracks;
     QJsonObject m_workspace;
+
+    QList<LevelMeterViewModel *> m_levelMeterViewModels;
+    LevelMeterViewModel *m_masterLevelMeterViewModel = nullptr;
 
     int m_selectedTrackIndex = -1;
     int m_activeClipId = -1;

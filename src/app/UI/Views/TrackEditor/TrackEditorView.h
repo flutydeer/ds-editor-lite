@@ -36,7 +36,6 @@ public slots:
     void onClipChanged(Track::ClipChangeType type, Clip *clip, const Track *dsTrack);
     void onPositionChanged(double tick) const;
     void onLastPositionChanged(double tick) const;
-    void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const;
 
 signals:
     void tempoChanged(double tempo);

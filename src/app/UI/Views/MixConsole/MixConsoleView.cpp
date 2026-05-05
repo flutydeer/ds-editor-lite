@@ -10,6 +10,7 @@
 #include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/Fader.h"
 #include "UI/Controls/LevelMeter.h"
+#include "UI/Controls/LevelMeterViewModel.h"
 #include "UI/Controls/PanSlider.h"
 #include "UI/Views/MixConsole/ChannelView.h"
 
@@ -71,6 +72,13 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
     m_masterChannel->setName(tr("Master"));
     m_masterChannel->setIsMasterChannel(true);
 
+    if (auto masterVm = appModel->masterLevelMeterViewModel()) {
+        auto masterMeter = m_masterChannel->levelMeter();
+        masterMeter->bindTo(masterVm);
+        connect(masterMeter, &LevelMeter::clipResetRequested, masterVm,
+                &LevelMeterViewModel::resetClip);
+    }
+
     m_placeHolder = new QWidget;
 
     auto leftLayout = new QVBoxLayout;
@@ -99,8 +107,6 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
     setMinimumHeight(320);
 
     onModelChanged();
-    connect(AudioContext::instance(), &AudioContext::levelMeterUpdated, this,
-            &MixConsoleView::onLevelMetersUpdated);
     connect(appModel, &AppModel::modelChanged, this, &MixConsoleView::onModelChanged);
     connect(appModel, &AppModel::trackChanged, this, &MixConsoleView::onTrackChanged);
     connect(appModel, &AppModel::masterControlChanged, this,
@@ -119,6 +125,14 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
 
 void MixConsoleView::onModelChanged() {
     onMasterControlChanged(appModel->masterControl());
+
+    if (auto masterVm = appModel->masterLevelMeterViewModel()) {
+        auto masterMeter = m_masterChannel->levelMeter();
+        masterMeter->bindTo(masterVm);
+        disconnect(masterMeter, &LevelMeter::clipResetRequested, nullptr, nullptr);
+        connect(masterMeter, &LevelMeter::clipResetRequested, masterVm,
+                &LevelMeterViewModel::resetClip, Qt::UniqueConnection);
+    }
 
     for (auto i = m_channelListView->count() - 1; i >= 0; i--) {
         onTrackRemoved(i);
@@ -141,20 +155,6 @@ void MixConsoleView::onMasterControlChanged(const TrackControl &control) {
     m_masterChannel->setControl(control);
 }
 
-void MixConsoleView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const {
-    auto states = args.trackMeterStates;
-    if (states.size() > 1)
-        for (int i = 0; i < m_channelListView->count(); i++) {
-            auto state = states.at(i);
-            auto item = m_channelListView->item(i);
-            auto channelView = qobject_cast<ChannelView *>(m_channelListView->itemWidget(item));
-            auto meter = channelView->levelMeter();
-            meter->setValue(state.valueL, state.valueR);
-        }
-    auto state = args.trackMeterStates.last();
-    m_masterChannel->levelMeter()->setValue(state.valueL, state.valueR);
-}
-
 void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
     connect(dsTrack, &Track::propertyChanged, this, [this] {
         onTrackPropertyChanged();
@@ -164,6 +164,12 @@ void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
     newTrackItem->setSizeHint({97, m_channelListView->viewport()->height()});
     auto channelView = new ChannelView(*dsTrack);
     channelView->setChannelIndex(trackIndex + 1);
+
+    auto meter = channelView->levelMeter();
+    auto vm = appModel->levelMeterViewModelAt(trackIndex);
+    meter->bindTo(vm);
+    connect(meter, &LevelMeter::clipResetRequested, vm, &LevelMeterViewModel::resetClip);
+
     connect(channelView->fader(), &Fader::sliderMoved, this, [=](double gain) {
         audioContext->handleGainSliderMoved(&channelView->context(), gain);
     });
