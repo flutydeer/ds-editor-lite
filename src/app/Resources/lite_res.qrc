@@ -106,5 +106,7 @@
 
         <file>fonts/Sarasa-UI-Music-Regular.ttf</file>
 
+        <file>images/diffscope_banner.png</file>
+
     </qresource>
 </RCC>

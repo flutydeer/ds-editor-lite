@@ -22,6 +22,7 @@
 #include "UI/Window/MainWindow.h"
 #include "Global/AppOptionsGlobal.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
+#include "UI/Dialogs/Help/DiscoverDiffScopeDialog.h"
 
 #include <QFileDialog>
 #include "UI/Controls/Menu.h"
@@ -511,9 +512,16 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
     auto actionAbout = new QAction(tr("About..."), this);
     connect(actionAbout, &QAction::triggered, this, [] { Toast::show(tr("About")); });
 
+    auto actionDiscoverDiffScope = new QAction(tr("Discover DiffScope"), this);
+    connect(actionDiscoverDiffScope, &QAction::triggered, this, [] {
+        DiscoverDiffScopeDialog dlg;
+        dlg.exec();
+    });
+
     auto menuHelp = new Menu(tr("&Help"), q);
     menuHelp->addAction(actionCheckForUpdates);
     menuHelp->addAction(actionAbout);
+    menuHelp->addAction(actionDiscoverDiffScope);
     return menuHelp;
 }
 
