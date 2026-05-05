@@ -89,6 +89,12 @@ SplitterOverlayGrip::SplitterOverlayGrip(OverlaySplitter *splitter, QWidget *par
         m_highlightOpacity = value.toDouble();
         update();
     });
+    connect(m_animation, &QVariantAnimation::finished, this, [this] {
+        if (m_highlightOpacity <= 0.0 && !m_hovered && !m_dragging)
+            setUpdatesEnabled(false);
+    });
+
+    setUpdatesEnabled(false);
 }
 
 void SplitterOverlayGrip::paintEvent(QPaintEvent *event) {
@@ -110,6 +116,7 @@ void SplitterOverlayGrip::paintEvent(QPaintEvent *event) {
 void SplitterOverlayGrip::enterEvent(QEnterEvent *event) {
     Q_UNUSED(event)
     m_hovered = true;
+    setUpdatesEnabled(true);
     setHighlightVisible(true);
 }
 
@@ -123,6 +130,7 @@ void SplitterOverlayGrip::leaveEvent(QEvent *event) {
 void SplitterOverlayGrip::mousePressEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         m_dragging = true;
+        setUpdatesEnabled(true);
         m_dragStartPos = event->globalPosition().toPoint();
         m_dragStartSizes = m_splitter->sizes();
         // Initialize hysteresis state from current sizes.
