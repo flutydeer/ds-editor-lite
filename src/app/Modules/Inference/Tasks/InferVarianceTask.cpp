@@ -141,6 +141,11 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
     input->parameters = convertInputParams(model.params);
     input->steps = model.steps;
 
+    if (isTerminateRequested()) {
+        abort();
+        return false;
+    }
+
     srt::NO<srt::Inference> inferenceVariance;
     auto loader = inferEngine->findLoaderForSinger(identifier);
     if (!loader) {
@@ -152,6 +157,7 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
     const auto importOptions = loader->importOptions().variance.as<Var::VarianceImportOptions>();
     if (!importOptions) {
         qCritical() << "inferVariance: Import options not found";
+        return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
     input->words = convertInputWords(model.words, speakerName, speakerMapping);

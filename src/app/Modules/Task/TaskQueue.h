@@ -77,19 +77,20 @@ void TaskQueue<T>::cancelIf(std::function<bool(T *task)> pred) {
     if (current && pred(current)) {
         // Save current task to local variable for lambda capture
         T *taskToCancel = current;
-        
-        // Connect task finished signal for safe cleanup
-        QObject::connect(taskToCancel, &Task::finished, taskToCancel, [taskToCancel]() {
+        current = nullptr;
+
+        // Wait for the task to actually finish before running the next one,
+        // to avoid concurrent access to shared inference resources.
+        QObject::connect(taskToCancel, &Task::finished, taskToCancel, [this, taskToCancel]() {
             qDebug() << "Cancelled task finished, safe cleanup: taskId:" << taskToCancel->id();
             taskManager->removeTask(taskToCancel);
             taskToCancel->deleteLater();
+            if (!current)
+                runNext();
         }, Qt::QueuedConnection);
-        
+
         taskManager->terminateTask(taskToCancel);
         qDebug() << "Terminate current task and wait for cleanup: taskId:" << taskToCancel->id();
-
-        current = nullptr;
-        runNext();
     }
 }
 
